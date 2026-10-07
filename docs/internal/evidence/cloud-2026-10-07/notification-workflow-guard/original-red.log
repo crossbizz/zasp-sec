@@ -1,0 +1,631 @@
+
+ RUN  v4.1.11 /tmp/zasp-workflow-notification-guard-fix
+
+ ❯ app/quality/runnable-ui-workflow.test.ts (319 tests | 214 failed) 51352ms
+     × requires bounded platform full-MVS metadata priming in the actual workflow 12ms
+     × rejects compliance step Verify current runtime profile inner diagnostic tests with omitted 8ms
+     × rejects compliance step Verify current runtime profile inner diagnostic tests with skipped 4ms
+     × rejects compliance step Verify current runtime profile inner diagnostic tests with allowed failure 5ms
+     × rejects compliance step Verify current runtime profile inner diagnostic tests with timeout 2ms
+     × rejects compliance step Verify current runtime profile inner diagnostic tests with command 2ms
+     × rejects compliance step Verify current runtime profile inner diagnostic tests with environment 2ms
+     × rejects compliance step Verify current runtime profile inner diagnostic tests with order 2ms
+     × rejects compliance step Provision isolated compliance browser prerequisites with omitted 2ms
+     × rejects compliance step Provision isolated compliance browser prerequisites with skipped 4ms
+     × rejects compliance step Provision isolated compliance browser prerequisites with allowed failure 1ms
+     × rejects compliance step Provision isolated compliance browser prerequisites with timeout 2ms
+     × rejects compliance step Provision isolated compliance browser prerequisites with command 2ms
+     × rejects compliance step Provision isolated compliance browser prerequisites with environment 3ms
+     × rejects compliance step Provision isolated compliance browser prerequisites with order 1ms
+     × rejects compliance step Provision pinned owned authorization runtime tools with omitted 1ms
+     × rejects compliance step Provision pinned owned authorization runtime tools with skipped 1ms
+     × rejects compliance step Provision pinned owned authorization runtime tools with allowed failure 2ms
+     × rejects compliance step Provision pinned owned authorization runtime tools with timeout 1ms
+     × rejects compliance step Provision pinned owned authorization runtime tools with command 1ms
+     × rejects compliance step Provision pinned owned authorization runtime tools with environment 1ms
+     × rejects compliance step Provision pinned owned authorization runtime tools with order 1ms
+     × rejects compliance step Verify current compliance browser acceptance with omitted 2ms
+     × rejects compliance step Verify current compliance browser acceptance with skipped 7ms
+     × rejects compliance step Verify current compliance browser acceptance with allowed failure 1ms
+     × rejects compliance step Verify current compliance browser acceptance with timeout 1ms
+     × rejects compliance step Verify current compliance browser acceptance with command 1ms
+     × rejects compliance step Verify current compliance browser acceptance with environment 1ms
+     × rejects compliance step Verify current compliance browser acceptance with order 1ms
+     × rejects omitted audit export acceptance in the actual parsed workflow 2ms
+     × rejects skipped audit export acceptance in the actual parsed workflow 2ms
+     × rejects allowed-failure audit export acceptance in the actual parsed workflow 2ms
+     × rejects unbounded step audit export acceptance in the actual parsed workflow 1ms
+     × rejects changed step timeout audit export acceptance in the actual parsed workflow 4ms
+     × rejects unbounded test audit export acceptance in the actual parsed workflow 3ms
+     × rejects changed test timeout audit export acceptance in the actual parsed workflow 2ms
+     × rejects missing audit codec audit export acceptance in the actual parsed workflow 1ms
+     × rejects missing policy parser audit export acceptance in the actual parsed workflow 1ms
+     × rejects missing artifact store audit export acceptance in the actual parsed workflow 2ms
+     × rejects audit_prerequisites lane with omitted 9ms
+     × rejects audit_prerequisites lane with skipped 1ms
+     × rejects audit_prerequisites lane with allowed failure 1ms
+     × rejects audit_prerequisites lane with unbounded 1ms
+     × rejects audit_prerequisites lane with changed cap 1ms
+     × rejects audit_prerequisites lane with ignored error 2ms
+     × rejects audit_prerequisites lane with short 1ms
+     × rejects audit_prerequisites lane with skip 1ms
+     × rejects audit_prerequisites lane with missing race 1ms
+     × rejects audit_prerequisites lane with cached 1ms
+     × rejects audit_prerequisites lane with subcase filter 1ms
+     × rejects audit_packages lane with omitted 1ms
+     × rejects audit_packages lane with skipped 1ms
+     × rejects audit_packages lane with allowed failure 2ms
+     × rejects audit_packages lane with unbounded 1ms
+     × rejects audit_packages lane with changed cap 1ms
+     × rejects audit_packages lane with ignored error 1ms
+     × rejects audit_packages lane with short 1ms
+     × rejects audit_packages lane with skip 1ms
+     × rejects audit_packages lane with missing race 1ms
+     × rejects audit_packages lane with cached 1ms
+     × rejects audit_packages lane with subcase filter 1ms
+     × rejects audit_a1 lane with omitted 1ms
+     × rejects audit_a1 lane with skipped 1ms
+     × rejects audit_a1 lane with allowed failure 1ms
+     × rejects audit_a1 lane with unbounded 2ms
+     × rejects audit_a1 lane with changed cap 1ms
+     × rejects audit_a1 lane with ignored error 1ms
+     × rejects audit_a1 lane with short 1ms
+     × rejects audit_a1 lane with skip 1ms
+     × rejects audit_a1 lane with missing race 1ms
+     × rejects audit_a1 lane with cached 1ms
+     × rejects audit_a1 lane with subcase filter 1ms
+     × rejects audit_a2 lane with omitted 1ms
+     × rejects audit_a2 lane with skipped 1ms
+     × rejects audit_a2 lane with allowed failure 1ms
+     × rejects audit_a2 lane with unbounded 1ms
+     × rejects audit_a2 lane with changed cap 4ms
+     × rejects audit_a2 lane with ignored error 1ms
+     × rejects audit_a2 lane with short 2ms
+     × rejects audit_a2 lane with skip 1ms
+     × rejects audit_a2 lane with missing race 1ms
+     × rejects audit_a2 lane with cached 1ms
+     × rejects audit_a2 lane with subcase filter 1ms
+     × rejects audit_a3 lane with omitted 1ms
+     × rejects audit_a3 lane with skipped 1ms
+     × rejects audit_a3 lane with allowed failure 1ms
+     × rejects audit_a3 lane with unbounded 1ms
+     × rejects audit_a3 lane with changed cap 1ms
+     × rejects audit_a3 lane with ignored error 1ms
+     × rejects audit_a3 lane with short 1ms
+     × rejects audit_a3 lane with skip 1ms
+     × rejects audit_a3 lane with missing race 1ms
+     × rejects audit_a3 lane with cached 1ms
+     × rejects audit_a3 lane with subcase filter 1ms
+     × rejects audit_a4 lane with omitted 1ms
+     × rejects audit_a4 lane with skipped 1ms
+     × rejects audit_a4 lane with allowed failure 1ms
+     × rejects audit_a4 lane with unbounded 1ms
+     × rejects audit_a4 lane with changed cap 1ms
+     × rejects audit_a4 lane with ignored error 1ms
+     × rejects audit_a4 lane with short 1ms
+     × rejects audit_a4 lane with skip 2ms
+     × rejects audit_a4 lane with missing race 1ms
+     × rejects audit_a4 lane with cached 1ms
+     × rejects audit_a4 lane with subcase filter 1ms
+     × rejects audit_helpers lane with omitted 4ms
+     × rejects audit_helpers lane with skipped 1ms
+     × rejects audit_helpers lane with allowed failure 1ms
+     × rejects audit_helpers lane with unbounded 1ms
+     × rejects audit_helpers lane with changed cap 1ms
+     × rejects audit_helpers lane with ignored error 2ms
+     × rejects audit_helpers lane with short 4ms
+     × rejects audit_helpers lane with skip 1ms
+     × rejects audit_helpers lane with missing race 1ms
+     × rejects audit_helpers lane with cached 1ms
+     × rejects audit_helpers lane with subcase filter 1ms
+     × rejects audit_composition lane with omitted 1ms
+     × rejects audit_composition lane with skipped 1ms
+     × rejects audit_composition lane with allowed failure 2ms
+     × rejects audit_composition lane with unbounded 1ms
+     × rejects audit_composition lane with changed cap 1ms
+     × rejects audit_composition lane with ignored error 1ms
+     × rejects audit_composition lane with short 2ms
+     × rejects audit_composition lane with skip 1ms
+     × rejects audit_composition lane with missing race 2ms
+     × rejects audit_composition lane with cached 1ms
+     × rejects audit_composition lane with subcase filter 1ms
+     × rejects audit_race lane with omitted 1ms
+     × rejects audit_race lane with skipped 1ms
+     × rejects audit_race lane with allowed failure 2ms
+     × rejects audit_race lane with unbounded 1ms
+     × rejects audit_race lane with changed cap 1ms
+     × rejects audit_race lane with ignored error 1ms
+     × rejects audit_race lane with short 1ms
+     × rejects audit_race lane with skip 1ms
+     × rejects audit_race lane with missing race 4ms
+     × rejects audit_race lane with cached 1ms
+     × rejects audit_race lane with subcase filter 1ms
+     × rejects audit_controls lane with omitted 1ms
+     × rejects audit_controls lane with skipped 1ms
+     × rejects audit_controls lane with allowed failure 1ms
+     × rejects audit_controls lane with unbounded 1ms
+     × rejects audit_controls lane with changed cap 1ms
+     × rejects audit_controls lane with ignored error 1ms
+     × rejects audit_controls lane with short 1ms
+     × rejects audit_controls lane with skip 1ms
+     × rejects audit_controls lane with missing race 1ms
+     × rejects audit_controls lane with cached 1ms
+     × rejects audit_controls lane with subcase filter 1ms
+     × rejects audit_normal lane with omitted 1ms
+     × rejects audit_normal lane with skipped 1ms
+     × rejects audit_normal lane with allowed failure 1ms
+     × rejects audit_normal lane with unbounded 1ms
+     × rejects audit_normal lane with changed cap 1ms
+     × rejects audit_normal lane with ignored error 1ms
+     × rejects audit_normal lane with short 1ms
+     × rejects audit_normal lane with skip 1ms
+     × rejects audit_normal lane with missing race 1ms
+     × rejects audit_normal lane with cached 1ms
+     × rejects audit_normal lane with subcase filter 1ms
+     × rejects audit_orderly lane with omitted 1ms
+     × rejects audit_orderly lane with skipped 1ms
+     × rejects audit_orderly lane with allowed failure 1ms
+     × rejects audit_orderly lane with unbounded 1ms
+     × rejects audit_orderly lane with changed cap 1ms
+     × rejects audit_orderly lane with ignored error 1ms
+     × rejects audit_orderly lane with short 6ms
+     × rejects audit_orderly lane with skip 2ms
+     × rejects audit_orderly lane with missing race 1ms
+     × rejects audit_orderly lane with cached 1ms
+     × rejects audit_orderly lane with subcase filter 1ms
+     × rejects audit_orderly_race lane with omitted 1ms
+     × rejects audit_orderly_race lane with skipped 1ms
+     × rejects audit_orderly_race lane with allowed failure 1ms
+     × rejects audit_orderly_race lane with unbounded 1ms
+     × rejects audit_orderly_race lane with changed cap 1ms
+     × rejects audit_orderly_race lane with ignored error 1ms
+     × rejects audit_orderly_race lane with short 1ms
+     × rejects audit_orderly_race lane with skip 1ms
+     × rejects audit_orderly_race lane with missing race 1ms
+     × rejects audit_orderly_race lane with cached 1ms
+     × rejects audit_orderly_race lane with subcase filter 1ms
+     × rejects missing provider flag on parsed workflow 14ms
+     × rejects wrong provider flag on parsed workflow 3ms
+     × rejects missing race env on parsed workflow 8ms
+     × rejects raced controls on parsed workflow 1ms
+     × rejects raced normals on parsed workflow 1ms
+     × rejects lost orderly mode on parsed workflow 1ms
+     × rejects lost orderly race on parsed workflow 2ms
+     × rejects disabled node prerequisite 1ms
+     × rejects disabled go prerequisite 1ms
+     × rejects disabled pg_config prerequisite 1ms
+     × rejects disabled cc prerequisite 3ms
+     × rejects disabled docker info prerequisite 1ms
+     × rejects disabled docker pull prerequisite 2ms
+     × rejects disabled 4.7.0@sha256: prerequisite 1ms
+     × rejects lost Node setup 2ms
+     × rejects lost Go setup 2ms
+     × rejects lost PG setup 1ms
+     × rejects lost checkout pin 1ms
+     × rejects lost Node pin 1ms
+     × rejects lost Go pin 1ms
+     × rejects lost npm pin 2ms
+     × rejects lost lock install 1ms
+     × rejects lost worker package 1ms
+     × rejects lost migration package 1ms
+     × rejects lost testprocess package 3ms
+     × rejects lost lane before setup 1ms
+     × refuses missing or altered local-toolchain job authority undefined 1ms
+     × refuses missing or altered local-toolchain job authority {"GOTOOLCHAIN":"auto"} 1ms
+     × refuses missing or altered local-toolchain job authority {"GOTOOLCHAIN":"go1.26.8"} 1ms
+     × refuses missing or altered local-toolchain job authority {"GOTOOLCHAIN":"local","NODE_OPTIONS":"--require unapproved"} 1ms
+     × runs the locked runnable-UI verification on every push and pull request 1ms
+     × requires exact bounded preparation before unchanged compliance acceptance 2ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 214 ⎯⎯⎯⎯⎯⎯
+
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > requires bounded platform full-MVS metadata priming in the actual workflow
+AssertionError: expected [ { …(3) }, …(36) ] to have a length of 36 but got 37
+
+- Expected
++ Received
+
+- 36
++ 37
+
+ ❯ assertRunnableUiWorkflow app/quality/runnable-ui-workflow.test.ts:232:29
+    230|   expect(verificationJob["runs-on"]).toBe("ubuntu-24.04");
+    231|   expect(verificationJob["continue-on-error"]).toBeUndefined();
+    232|   expect(verificationJob.env).toEqual({ GOTOOLCHAIN: "local" });
+       |                             ^
+    233|   expect(verificationJob.defaults).toBeUndefined();
+    234|   expect(verificationJob["timeout-minutes"]).toBeUndefined();
+ ❯ app/quality/runnable-ui-workflow.test.ts:352:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/214]⎯
+
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects compliance step Verify current runtime profile inner diagnostic tests with omitted
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects compliance step Verify current runtime profile inner diagnostic tests with skipped
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects compliance step Verify current runtime profile inner diagnostic tests with allowed failure
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects compliance step Verify current runtime profile inner diagnostic tests with timeout
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects compliance step Verify current runtime profile inner diagnostic tests with command
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects compliance step Verify current runtime profile inner diagnostic tests with environment
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects compliance step Verify current runtime profile inner diagnostic tests with order
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects compliance step Provision isolated compliance browser prerequisites with omitted
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects compliance step Provision isolated compliance browser prerequisites with skipped
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects compliance step Provision isolated compliance browser prerequisites with allowed failure
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects compliance step Provision isolated compliance browser prerequisites with timeout
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects compliance step Provision isolated compliance browser prerequisites with command
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects compliance step Provision isolated compliance browser prerequisites with environment
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects compliance step Provision isolated compliance browser prerequisites with order
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects compliance step Provision pinned owned authorization runtime tools with omitted
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects compliance step Provision pinned owned authorization runtime tools with skipped
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects compliance step Provision pinned owned authorization runtime tools with allowed failure
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects compliance step Provision pinned owned authorization runtime tools with timeout
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects compliance step Provision pinned owned authorization runtime tools with command
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects compliance step Provision pinned owned authorization runtime tools with environment
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects compliance step Provision pinned owned authorization runtime tools with order
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects compliance step Verify current compliance browser acceptance with omitted
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects compliance step Verify current compliance browser acceptance with skipped
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects compliance step Verify current compliance browser acceptance with allowed failure
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects compliance step Verify current compliance browser acceptance with timeout
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects compliance step Verify current compliance browser acceptance with command
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects compliance step Verify current compliance browser acceptance with environment
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects compliance step Verify current compliance browser acceptance with order
+AssertionError: expected [ { …(3) }, …(36) ] to have a length of 36 but got 37
+
+- Expected
++ Received
+
+- 36
++ 37
+
+ ❯ assertRunnableUiWorkflow app/quality/runnable-ui-workflow.test.ts:232:29
+    230|   expect(verificationJob["runs-on"]).toBe("ubuntu-24.04");
+    231|   expect(verificationJob["continue-on-error"]).toBeUndefined();
+    232|   expect(verificationJob.env).toEqual({ GOTOOLCHAIN: "local" });
+       |                             ^
+    233|   expect(verificationJob.defaults).toBeUndefined();
+    234|   expect(verificationJob["timeout-minutes"]).toBeUndefined();
+ ❯ app/quality/runnable-ui-workflow.test.ts:375:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/214]⎯
+
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects omitted audit export acceptance in the actual parsed workflow
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects skipped audit export acceptance in the actual parsed workflow
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects allowed-failure audit export acceptance in the actual parsed workflow
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects unbounded step audit export acceptance in the actual parsed workflow
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects changed step timeout audit export acceptance in the actual parsed workflow
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects unbounded test audit export acceptance in the actual parsed workflow
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects changed test timeout audit export acceptance in the actual parsed workflow
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects missing audit codec audit export acceptance in the actual parsed workflow
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects missing policy parser audit export acceptance in the actual parsed workflow
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects missing artifact store audit export acceptance in the actual parsed workflow
+AssertionError: expected [ { …(3) }, …(36) ] to have a length of 36 but got 37
+
+- Expected
++ Received
+
+- 36
++ 37
+
+ ❯ assertRunnableUiWorkflow app/quality/runnable-ui-workflow.test.ts:232:29
+    230|   expect(verificationJob["runs-on"]).toBe("ubuntu-24.04");
+    231|   expect(verificationJob["continue-on-error"]).toBeUndefined();
+    232|   expect(verificationJob.env).toEqual({ GOTOOLCHAIN: "local" });
+       |                             ^
+    233|   expect(verificationJob.defaults).toBeUndefined();
+    234|   expect(verificationJob["timeout-minutes"]).toBeUndefined();
+ ❯ app/quality/runnable-ui-workflow.test.ts:397:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/214]⎯
+
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_prerequisites lane with omitted
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_prerequisites lane with skipped
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_prerequisites lane with allowed failure
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_prerequisites lane with unbounded
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_prerequisites lane with changed cap
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_prerequisites lane with ignored error
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_prerequisites lane with short
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_prerequisites lane with skip
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_prerequisites lane with missing race
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_prerequisites lane with cached
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_prerequisites lane with subcase filter
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_packages lane with omitted
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_packages lane with skipped
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_packages lane with allowed failure
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_packages lane with unbounded
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_packages lane with changed cap
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_packages lane with ignored error
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_packages lane with short
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_packages lane with skip
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_packages lane with missing race
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_packages lane with cached
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_packages lane with subcase filter
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_a1 lane with omitted
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_a1 lane with skipped
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_a1 lane with allowed failure
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_a1 lane with unbounded
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_a1 lane with changed cap
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_a1 lane with ignored error
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_a1 lane with short
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_a1 lane with skip
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_a1 lane with missing race
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_a1 lane with cached
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_a1 lane with subcase filter
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_a2 lane with omitted
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_a2 lane with skipped
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_a2 lane with allowed failure
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_a2 lane with unbounded
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_a2 lane with changed cap
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_a2 lane with ignored error
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_a2 lane with short
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_a2 lane with skip
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_a2 lane with missing race
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_a2 lane with cached
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_a2 lane with subcase filter
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_a3 lane with omitted
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_a3 lane with skipped
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_a3 lane with allowed failure
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_a3 lane with unbounded
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_a3 lane with changed cap
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_a3 lane with ignored error
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_a3 lane with short
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_a3 lane with skip
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_a3 lane with missing race
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_a3 lane with cached
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_a3 lane with subcase filter
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_a4 lane with omitted
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_a4 lane with skipped
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_a4 lane with allowed failure
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_a4 lane with unbounded
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_a4 lane with changed cap
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_a4 lane with ignored error
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_a4 lane with short
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_a4 lane with skip
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_a4 lane with missing race
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_a4 lane with cached
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_a4 lane with subcase filter
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_helpers lane with omitted
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_helpers lane with skipped
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_helpers lane with allowed failure
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_helpers lane with unbounded
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_helpers lane with changed cap
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_helpers lane with ignored error
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_helpers lane with short
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_helpers lane with skip
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_helpers lane with missing race
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_helpers lane with cached
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_helpers lane with subcase filter
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_composition lane with omitted
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_composition lane with skipped
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_composition lane with allowed failure
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_composition lane with unbounded
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_composition lane with changed cap
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_composition lane with ignored error
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_composition lane with short
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_composition lane with skip
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_composition lane with missing race
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_composition lane with cached
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_composition lane with subcase filter
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_race lane with omitted
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_race lane with skipped
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_race lane with allowed failure
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_race lane with unbounded
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_race lane with changed cap
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_race lane with ignored error
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_race lane with short
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_race lane with skip
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_race lane with missing race
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_race lane with cached
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_race lane with subcase filter
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_controls lane with omitted
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_controls lane with skipped
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_controls lane with allowed failure
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_controls lane with unbounded
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_controls lane with changed cap
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_controls lane with ignored error
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_controls lane with short
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_controls lane with skip
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_controls lane with missing race
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_controls lane with cached
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_controls lane with subcase filter
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_normal lane with omitted
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_normal lane with skipped
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_normal lane with allowed failure
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_normal lane with unbounded
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_normal lane with changed cap
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_normal lane with ignored error
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_normal lane with short
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_normal lane with skip
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_normal lane with missing race
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_normal lane with cached
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_normal lane with subcase filter
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_orderly lane with omitted
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_orderly lane with skipped
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_orderly lane with allowed failure
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_orderly lane with unbounded
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_orderly lane with changed cap
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_orderly lane with ignored error
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_orderly lane with short
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_orderly lane with skip
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_orderly lane with missing race
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_orderly lane with cached
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_orderly lane with subcase filter
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_orderly_race lane with omitted
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_orderly_race lane with skipped
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_orderly_race lane with allowed failure
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_orderly_race lane with unbounded
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_orderly_race lane with changed cap
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_orderly_race lane with ignored error
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_orderly_race lane with short
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_orderly_race lane with skip
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_orderly_race lane with missing race
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_orderly_race lane with cached
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects audit_orderly_race lane with subcase filter
+AssertionError: expected [ { …(3) }, …(36) ] to have a length of 36 but got 37
+
+- Expected
++ Received
+
+- 36
++ 37
+
+ ❯ assertRunnableUiWorkflow app/quality/runnable-ui-workflow.test.ts:232:29
+    230|   expect(verificationJob["runs-on"]).toBe("ubuntu-24.04");
+    231|   expect(verificationJob["continue-on-error"]).toBeUndefined();
+    232|   expect(verificationJob.env).toEqual({ GOTOOLCHAIN: "local" });
+       |                             ^
+    233|   expect(verificationJob.defaults).toBeUndefined();
+    234|   expect(verificationJob["timeout-minutes"]).toBeUndefined();
+ ❯ app/quality/runnable-ui-workflow.test.ts:436:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/214]⎯
+
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects missing provider flag on parsed workflow
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects wrong provider flag on parsed workflow
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects missing race env on parsed workflow
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects raced controls on parsed workflow
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects raced normals on parsed workflow
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects lost orderly mode on parsed workflow
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects lost orderly race on parsed workflow
+AssertionError: expected [ { …(3) }, …(36) ] to have a length of 36 but got 37
+
+- Expected
++ Received
+
+- 36
++ 37
+
+ ❯ assertRunnableUiWorkflow app/quality/runnable-ui-workflow.test.ts:232:29
+    230|   expect(verificationJob["runs-on"]).toBe("ubuntu-24.04");
+    231|   expect(verificationJob["continue-on-error"]).toBeUndefined();
+    232|   expect(verificationJob.env).toEqual({ GOTOOLCHAIN: "local" });
+       |                             ^
+    233|   expect(verificationJob.defaults).toBeUndefined();
+    234|   expect(verificationJob["timeout-minutes"]).toBeUndefined();
+ ❯ app/quality/runnable-ui-workflow.test.ts:536:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/214]⎯
+
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects disabled node prerequisite
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects disabled go prerequisite
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects disabled pg_config prerequisite
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects disabled cc prerequisite
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects disabled docker info prerequisite
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects disabled docker pull prerequisite
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects disabled 4.7.0@sha256: prerequisite
+AssertionError: expected [ { …(3) }, …(36) ] to have a length of 36 but got 37
+
+- Expected
++ Received
+
+- 36
++ 37
+
+ ❯ assertRunnableUiWorkflow app/quality/runnable-ui-workflow.test.ts:232:29
+    230|   expect(verificationJob["runs-on"]).toBe("ubuntu-24.04");
+    231|   expect(verificationJob["continue-on-error"]).toBeUndefined();
+    232|   expect(verificationJob.env).toEqual({ GOTOOLCHAIN: "local" });
+       |                             ^
+    233|   expect(verificationJob.defaults).toBeUndefined();
+    234|   expect(verificationJob["timeout-minutes"]).toBeUndefined();
+ ❯ app/quality/runnable-ui-workflow.test.ts:545:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/214]⎯
+
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects lost Node setup
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects lost Go setup
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects lost PG setup
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects lost checkout pin
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects lost Node pin
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects lost Go pin
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects lost npm pin
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects lost lock install
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects lost worker package
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects lost migration package
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects lost testprocess package
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > rejects lost lane before setup
+AssertionError: expected [ { …(3) }, …(36) ] to have a length of 36 but got 37
+
+- Expected
++ Received
+
+- 36
++ 37
+
+ ❯ assertRunnableUiWorkflow app/quality/runnable-ui-workflow.test.ts:232:29
+    230|   expect(verificationJob["runs-on"]).toBe("ubuntu-24.04");
+    231|   expect(verificationJob["continue-on-error"]).toBeUndefined();
+    232|   expect(verificationJob.env).toEqual({ GOTOOLCHAIN: "local" });
+       |                             ^
+    233|   expect(verificationJob.defaults).toBeUndefined();
+    234|   expect(verificationJob["timeout-minutes"]).toBeUndefined();
+ ❯ app/quality/runnable-ui-workflow.test.ts:554:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/214]⎯
+
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > refuses missing or altered local-toolchain job authority undefined
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > refuses missing or altered local-toolchain job authority {"GOTOOLCHAIN":"auto"}
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > refuses missing or altered local-toolchain job authority {"GOTOOLCHAIN":"go1.26.8"}
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > refuses missing or altered local-toolchain job authority {"GOTOOLCHAIN":"local","NODE_OPTIONS":"--require unapproved"}
+AssertionError: expected [ { …(3) }, …(36) ] to have a length of 36 but got 37
+
+- Expected
++ Received
+
+- 36
++ 37
+
+ ❯ assertRunnableUiWorkflow app/quality/runnable-ui-workflow.test.ts:232:29
+    230|   expect(verificationJob["runs-on"]).toBe("ubuntu-24.04");
+    231|   expect(verificationJob["continue-on-error"]).toBeUndefined();
+    232|   expect(verificationJob.env).toEqual({ GOTOOLCHAIN: "local" });
+       |                             ^
+    233|   expect(verificationJob.defaults).toBeUndefined();
+    234|   expect(verificationJob["timeout-minutes"]).toBeUndefined();
+ ❯ app/quality/runnable-ui-workflow.test.ts:594:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/214]⎯
+
+ FAIL  app/quality/runnable-ui-workflow.test.ts > runnable UI GitHub Actions gate > runs the locked runnable-UI verification on every push and pull request
+AssertionError: expected [ { …(3) }, …(36) ] to have a length of 36 but got 37
+
+- Expected
++ Received
+
+- 36
++ 37
+
+ ❯ assertRunnableUiWorkflow app/quality/runnable-ui-workflow.test.ts:232:29
+    230|   expect(verificationJob["runs-on"]).toBe("ubuntu-24.04");
+    231|   expect(verificationJob["continue-on-error"]).toBeUndefined();
+    232|   expect(verificationJob.env).toEqual({ GOTOOLCHAIN: "local" });
+       |                             ^
+    233|   expect(verificationJob.defaults).toBeUndefined();
+    234|   expect(verificationJob["timeout-minutes"]).toBeUndefined();
+ ❯ app/quality/runnable-ui-workflow.test.ts:724:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/214]⎯
+
+ FAIL  app/quality/runnable-ui-workflow.test.ts > native migration cache preparation > requires exact bounded preparation before unchanged compliance acceptance
+AssertionError: expected [ { …(3) }, …(36) ] to have a length of 36 but got 37
+
+- Expected
++ Received
+
+- 36
++ 37
+
+ ❯ assertRunnableUiWorkflow app/quality/runnable-ui-workflow.test.ts:232:29
+    230|   expect(verificationJob["runs-on"]).toBe("ubuntu-24.04");
+    231|   expect(verificationJob["continue-on-error"]).toBeUndefined();
+    232|   expect(verificationJob.env).toEqual({ GOTOOLCHAIN: "local" });
+       |                             ^
+    233|   expect(verificationJob.defaults).toBeUndefined();
+    234|   expect(verificationJob["timeout-minutes"]).toBeUndefined();
+ ❯ app/quality/runnable-ui-workflow.test.ts:808:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/214]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  214 failed | 105 passed (319)
+   Start at  16:35:29
+   Duration  52.53s (transform 85ms, setup 200ms, import 83ms, tests 51.35s, environment 779ms)
+

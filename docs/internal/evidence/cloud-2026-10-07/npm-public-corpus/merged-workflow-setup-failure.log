@@ -1,0 +1,31 @@
+
+ RUN  v4.1.11 /tmp/zasp-startup-diagnostic-checkout
+
+ ❯ app/quality/runnable-ui-workflow.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  app/quality/runnable-ui-workflow.test.ts [ app/quality/runnable-ui-workflow.test.ts ]
+Error: Failed to resolve import "@testing-library/jest-dom/vitest" from "vitest.setup.ts". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /tmp/zasp-startup-diagnostic-checkout/vitest.setup.ts:1:7
+  1  |  import "@testing-library/jest-dom/vitest";
+     |          ^
+  2  |  import { cleanup } from "@testing-library/react";
+  3  |  import { afterEach, vi } from "vitest";
+ ❯ TransformPluginContext._formatLog ../../workspace/zasp-sec/node_modules/vite/dist/node/chunks/node.js:30602:39
+ ❯ TransformPluginContext.error ../../workspace/zasp-sec/node_modules/vite/dist/node/chunks/node.js:30599:14
+ ❯ normalizeUrl ../../workspace/zasp-sec/node_modules/vite/dist/node/chunks/node.js:27842:18
+ ❯ ../../workspace/zasp-sec/node_modules/vite/dist/node/chunks/node.js:27905:30
+ ❯ TransformPluginContext.transform ../../workspace/zasp-sec/node_modules/vite/dist/node/chunks/node.js:27873:4
+ ❯ EnvironmentPluginContainer.transform ../../workspace/zasp-sec/node_modules/vite/dist/node/chunks/node.js:30387:14
+ ❯ loadAndTransform ../../workspace/zasp-sec/node_modules/vite/dist/node/chunks/node.js:24646:26
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  16:44:39
+   Duration  787ms (transform 0ms, setup 0ms, import 0ms, tests 0ms, environment 612ms)
+
