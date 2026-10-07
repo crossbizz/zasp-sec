@@ -1,0 +1,84 @@
+{
+  "format": "maintenance-webhook-order-root-component-recipe-v1",
+  "cwd": "/tmp/approval-webhook-order-production-projection-b0jb6fud/platform",
+  "stages": [
+    {
+      "name": "current-production-order-RED",
+      "argv": [
+        "/workspace/.zasp-cloud-owned/spec44-runtime-tools/go/bin/go",
+        "test",
+        "-race",
+        "-p",
+        "1",
+        "-count=1",
+        "-timeout=5m",
+        "-json",
+        "-overlay",
+        "/tmp/approval-maintenance-webhook-order-source-v1/red-overlay.json",
+        "-run",
+        "^TestMaintenanceBoundaryDeliversOriginalSignedPayloadOverTLS$",
+        "./apiserver"
+      ],
+      "expectedExit": 1,
+      "expectedPassTops": 0,
+      "expectedFailTops": 1,
+      "expectedSubcases": 0,
+      "expectedSkip": 0,
+      "causalFailure": "authorized boundary refused actual original signed HTTPS delivery repository operation refused, not compilation/setup refusal",
+      "outerSeconds": 350
+    },
+    {
+      "name": "correct-order-GREEN",
+      "argv": [
+        "/workspace/.zasp-cloud-owned/spec44-runtime-tools/go/bin/go",
+        "test",
+        "-race",
+        "-p",
+        "1",
+        "-count=1",
+        "-timeout=5m",
+        "-json",
+        "-overlay",
+        "/tmp/approval-maintenance-webhook-order-source-v1/green-overlay.json",
+        "-run",
+        "^TestMaintenanceBoundary(DeliversOriginalSignedPayloadOverTLS|UnsafeDeliveryDoesNotReachHTTP|RetainsActualProviderFailure)$",
+        "./apiserver"
+      ],
+      "expectedExit": 0,
+      "expectedPassTops": 3,
+      "expectedFailTops": 0,
+      "expectedSubcases": 8,
+      "expectedSkip": 0,
+      "outerSeconds": 350
+    }
+  ],
+  "bounds": {
+    "perStageSeconds": 350,
+    "aggregateSeconds": 900,
+    "cleanupReserveSeconds": 30,
+    "workspaceFloorBytes": 1500000000,
+    "tmpFloorBytes": 100000000,
+    "memoryFloorBytes": 268435456
+  },
+  "env": {
+    "GOROOT": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/go",
+    "GOCACHE": "/tmp/zasp-approval-warm-cache-g6c7y9wk/go-cache",
+    "GOMODCACHE": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/module-cache",
+    "GOPATH": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/go-path",
+    "TMPDIR": "/tmp/approval-webhook-order-production-projection-b0jb6fud/go-tmp",
+    "GOTMPDIR": "/tmp/approval-webhook-order-production-projection-b0jb6fud/go-tmp",
+    "GOENV": "off",
+    "GOWORK": "off",
+    "GOTOOLCHAIN": "local",
+    "GOPROXY": "off",
+    "GOSUMDB": "off",
+    "GOFLAGS": "-mod=readonly",
+    "GOMEMLIMIT": "512MiB",
+    "GOGC": "50",
+    "GOMAXPROCS": "2",
+    "CGO_ENABLED": "1",
+    "CC": "/usr/bin/cc",
+    "PATH": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/go/bin:/usr/bin:/bin"
+  },
+  "requires": "Concrete ROOT source/Go-list/tool/cache/floor normal-owner review before execution; all outputsTMP only. Go-list must enumerate EXACT same RED/GREEN overlays and physical virtual test inputs."
+}

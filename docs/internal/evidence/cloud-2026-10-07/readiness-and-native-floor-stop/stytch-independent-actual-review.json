@@ -1,0 +1,22 @@
+{
+  "actual": {
+    "path": "/tmp/stytch-revision64-readonly-actual-okuvjite/result.json",
+    "sha256": "15d05bd5730b7f7ba2bf40f8641a41c3c1ee83f079d449c0a3ba4b1ea897573d"
+  },
+  "boundedOrganizationCount": 0,
+  "credentialsPublished": false,
+  "httpStatus": 200,
+  "limitations": "One bounded TEST read-only organization search authenticates these credentials. No tenant/session/product flow, production authentication, deployment or native authorization acceptance. No request rerun or raw body/credentials read by reviewer.",
+  "outer": {
+    "elapsedSeconds": 0.39317403599852696,
+    "normalExit": 0,
+    "path": "/tmp/Stytch-test-readonly-root-outer-yk7v57ev/normal-outer-results.json",
+    "sha256": "89c21281accf8a3783442fe04af354909a1dba7b1c0e5d5bb9dedcf31301aaf2"
+  },
+  "pinsFreshlyRehashed": true,
+  "rawBodyRetained": false,
+  "session": "UNBOUND",
+  "sourceToolPins": 5,
+  "targetOrganization": "UNBOUND",
+  "verdict": "PASS-scoped-TEST-authentication-only"
+}

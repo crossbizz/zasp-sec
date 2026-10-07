@@ -1,0 +1,525 @@
+{
+  "scope": "Exact19 current-run-owned derived cache body custody only; no source-path mutation yet, all old cache/evidence retained",
+  "plan": "/tmp/native379-new-cache-readonly-audit-xj8f93xt/isolation-proposal.json",
+  "planSHA256": "c53430eaa9b97b5329ad5d187d398b7c8850e276c55566e31126f6c69ad3939c",
+  "completeCacheBaseline": "/tmp/native379-new-cache-root-custody-wjf9jh62/current-cache-baseline.json",
+  "completeCacheBaselineSHA256": "052d9c5fb84543671e8c1dd3e045f8f7e0b66a01f21d0e3d1534d2f1ce88abb8",
+  "beforeAfterMetadataEqual": true,
+  "copied": [
+    {
+      "source": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/go-cache/0b/0bc8d64880419be5a49858ca5249058c2df2e5e03936d14969e75b2c7fa49c0e-a",
+      "destination": "/tmp/native379-new-cache-root-custody-wjf9jh62/cache-bodies/0b/0bc8d64880419be5a49858ca5249058c2df2e5e03936d14969e75b2c7fa49c0e-a",
+      "sha256": "24c1b7c796823119141929a94a20a234d0189686662e9f54f35e6e8d869b4665",
+      "sourceIdentity": {
+        "st_ctime_ns": 1791387783529318017,
+        "st_dev": 27,
+        "st_gid": 1000,
+        "st_ino": 1136985,
+        "st_mode": 33152,
+        "st_mtime_ns": 1791387783530507650,
+        "st_nlink": 1,
+        "st_size": 175,
+        "st_uid": 1000
+      },
+      "destinationIdentity": {
+        "st_ctime_ns": 1791388275178581147,
+        "st_dev": 34,
+        "st_gid": 1000,
+        "st_ino": 118629,
+        "st_mode": 33152,
+        "st_mtime_ns": 1791387783530507650,
+        "st_nlink": 1,
+        "st_size": 175,
+        "st_uid": 1000
+      }
+    },
+    {
+      "source": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/go-cache/16/16e83c506c5def77f3316f9013e4724837206b358233015abd5a24cca17aa65b-a",
+      "destination": "/tmp/native379-new-cache-root-custody-wjf9jh62/cache-bodies/16/16e83c506c5def77f3316f9013e4724837206b358233015abd5a24cca17aa65b-a",
+      "sha256": "c2ba9b57d388592f5fd90442854a1fb862177c4760cb56819966e7af43c43d55",
+      "sourceIdentity": {
+        "st_ctime_ns": 1791387783501317283,
+        "st_dev": 27,
+        "st_gid": 1000,
+        "st_ino": 1136982,
+        "st_mode": 33152,
+        "st_mtime_ns": 1791387783506153915,
+        "st_nlink": 1,
+        "st_size": 175,
+        "st_uid": 1000
+      },
+      "destinationIdentity": {
+        "st_ctime_ns": 1791388275178581147,
+        "st_dev": 34,
+        "st_gid": 1000,
+        "st_ino": 118631,
+        "st_mode": 33152,
+        "st_mtime_ns": 1791387783506153915,
+        "st_nlink": 1,
+        "st_size": 175,
+        "st_uid": 1000
+      }
+    },
+    {
+      "source": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/go-cache/19/19281414a3296a47a2f0cfae20c538422fd95e7e7d2e0338b803578660a6b9ed-a",
+      "destination": "/tmp/native379-new-cache-root-custody-wjf9jh62/cache-bodies/19/19281414a3296a47a2f0cfae20c538422fd95e7e7d2e0338b803578660a6b9ed-a",
+      "sha256": "5365441e5df91344c6ee744b109c1b4465c9802db6cca8b8e705a8a4611c6f17",
+      "sourceIdentity": {
+        "st_ctime_ns": 1791387782922099784,
+        "st_dev": 27,
+        "st_gid": 1000,
+        "st_ino": 1136967,
+        "st_mode": 33152,
+        "st_mtime_ns": 1791387782922206214,
+        "st_nlink": 1,
+        "st_size": 175,
+        "st_uid": 1000
+      },
+      "destinationIdentity": {
+        "st_ctime_ns": 1791388275178581147,
+        "st_dev": 34,
+        "st_gid": 1000,
+        "st_ino": 118633,
+        "st_mode": 33152,
+        "st_mtime_ns": 1791387782922206214,
+        "st_nlink": 1,
+        "st_size": 175,
+        "st_uid": 1000
+      }
+    },
+    {
+      "source": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/go-cache/20/203285b6f0a3f98166329548c4eeadc6d7476dc2831131ceb34caade63715cf3-a",
+      "destination": "/tmp/native379-new-cache-root-custody-wjf9jh62/cache-bodies/20/203285b6f0a3f98166329548c4eeadc6d7476dc2831131ceb34caade63715cf3-a",
+      "sha256": "5bafa802f8da62dd1cd22a41b8e16a73360bdc28033b866c4b4929ee7eb0f6f9",
+      "sourceIdentity": {
+        "st_ctime_ns": 1791387783501317283,
+        "st_dev": 27,
+        "st_gid": 1000,
+        "st_ino": 1136979,
+        "st_mode": 33152,
+        "st_mtime_ns": 1791387783505425094,
+        "st_nlink": 1,
+        "st_size": 175,
+        "st_uid": 1000
+      },
+      "destinationIdentity": {
+        "st_ctime_ns": 1791388275178581147,
+        "st_dev": 34,
+        "st_gid": 1000,
+        "st_ino": 118635,
+        "st_mode": 33152,
+        "st_mtime_ns": 1791387783505425094,
+        "st_nlink": 1,
+        "st_size": 175,
+        "st_uid": 1000
+      }
+    },
+    {
+      "source": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/go-cache/2d/2da414ada088b3d55d16b0df0f81ae0543c5d330042495a8d665cb4f523cfd38-a",
+      "destination": "/tmp/native379-new-cache-root-custody-wjf9jh62/cache-bodies/2d/2da414ada088b3d55d16b0df0f81ae0543c5d330042495a8d665cb4f523cfd38-a",
+      "sha256": "699889cf89e4e8667558ea99a775d9ea08f7715f2a486c1c9f86f615520bf324",
+      "sourceIdentity": {
+        "st_ctime_ns": 1791387783429861534,
+        "st_dev": 27,
+        "st_gid": 1000,
+        "st_ino": 1136978,
+        "st_mode": 33152,
+        "st_mtime_ns": 1791387783429976878,
+        "st_nlink": 1,
+        "st_size": 175,
+        "st_uid": 1000
+      },
+      "destinationIdentity": {
+        "st_ctime_ns": 1791388275178581147,
+        "st_dev": 34,
+        "st_gid": 1000,
+        "st_ino": 118637,
+        "st_mode": 33152,
+        "st_mtime_ns": 1791387783429976878,
+        "st_nlink": 1,
+        "st_size": 175,
+        "st_uid": 1000
+      }
+    },
+    {
+      "source": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/go-cache/34/34ddc6a65a0b30a78012ec98b9b026430ad63d33907a9258f0c1020ee263c89f-d",
+      "destination": "/tmp/native379-new-cache-root-custody-wjf9jh62/cache-bodies/34/34ddc6a65a0b30a78012ec98b9b026430ad63d33907a9258f0c1020ee263c89f-d",
+      "sha256": "34ddc6a65a0b30a78012ec98b9b026430ad63d33907a9258f0c1020ee263c89f",
+      "sourceIdentity": {
+        "st_ctime_ns": 1791387783009304390,
+        "st_dev": 27,
+        "st_gid": 1000,
+        "st_ino": 1136973,
+        "st_mode": 33152,
+        "st_mtime_ns": 1791387783012027936,
+        "st_nlink": 1,
+        "st_size": 123154,
+        "st_uid": 1000
+      },
+      "destinationIdentity": {
+        "st_ctime_ns": 1791388275178581147,
+        "st_dev": 34,
+        "st_gid": 1000,
+        "st_ino": 118639,
+        "st_mode": 33152,
+        "st_mtime_ns": 1791387783012027936,
+        "st_nlink": 1,
+        "st_size": 123154,
+        "st_uid": 1000
+      }
+    },
+    {
+      "source": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/go-cache/44/441bbcd6ad50b95ab0e0db6392c2673d4f9c197df575fe4d7e8f3e475d206aec-d",
+      "destination": "/tmp/native379-new-cache-root-custody-wjf9jh62/cache-bodies/44/441bbcd6ad50b95ab0e0db6392c2673d4f9c197df575fe4d7e8f3e475d206aec-d",
+      "sha256": "441bbcd6ad50b95ab0e0db6392c2673d4f9c197df575fe4d7e8f3e475d206aec",
+      "sourceIdentity": {
+        "st_ctime_ns": 1791387783529318017,
+        "st_dev": 27,
+        "st_gid": 1000,
+        "st_ino": 1136984,
+        "st_mode": 33152,
+        "st_mtime_ns": 1791387783530462622,
+        "st_nlink": 1,
+        "st_size": 123154,
+        "st_uid": 1000
+      },
+      "destinationIdentity": {
+        "st_ctime_ns": 1791388275178581147,
+        "st_dev": 34,
+        "st_gid": 1000,
+        "st_ino": 118641,
+        "st_mode": 33152,
+        "st_mtime_ns": 1791387783530462622,
+        "st_nlink": 1,
+        "st_size": 123154,
+        "st_uid": 1000
+      }
+    },
+    {
+      "source": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/go-cache/48/48d4ed5aeb44c70cdbfd204cc910ac70baa4ade3944fbbd7c16e13c781e021ca-a",
+      "destination": "/tmp/native379-new-cache-root-custody-wjf9jh62/cache-bodies/48/48d4ed5aeb44c70cdbfd204cc910ac70baa4ade3944fbbd7c16e13c781e021ca-a",
+      "sha256": "5b12ebeba666deab87102581e04eeb01aedec088d83fc5d2a4cf9c55a59c05b4",
+      "sourceIdentity": {
+        "st_ctime_ns": 1791387783225310051,
+        "st_dev": 27,
+        "st_gid": 1000,
+        "st_ino": 1136977,
+        "st_mode": 33152,
+        "st_mtime_ns": 1791387783227708818,
+        "st_nlink": 1,
+        "st_size": 175,
+        "st_uid": 1000
+      },
+      "destinationIdentity": {
+        "st_ctime_ns": 1791388275178581147,
+        "st_dev": 34,
+        "st_gid": 1000,
+        "st_ino": 118643,
+        "st_mode": 33152,
+        "st_mtime_ns": 1791387783227708818,
+        "st_nlink": 1,
+        "st_size": 175,
+        "st_uid": 1000
+      }
+    },
+    {
+      "source": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/go-cache/4b/4b9655afd3309f192cf02291a666175add640675b3f6f8f67d9fd7caddb89b7e-a",
+      "destination": "/tmp/native379-new-cache-root-custody-wjf9jh62/cache-bodies/4b/4b9655afd3309f192cf02291a666175add640675b3f6f8f67d9fd7caddb89b7e-a",
+      "sha256": "fe48001ea44adc64f865e9c15c3a7a080ebaa873314607fca396cf5e4ee4147e",
+      "sourceIdentity": {
+        "st_ctime_ns": 1791387783009304390,
+        "st_dev": 27,
+        "st_gid": 1000,
+        "st_ino": 1136972,
+        "st_mode": 33152,
+        "st_mtime_ns": 1791387783011377037,
+        "st_nlink": 1,
+        "st_size": 175,
+        "st_uid": 1000
+      },
+      "destinationIdentity": {
+        "st_ctime_ns": 1791388275178581147,
+        "st_dev": 34,
+        "st_gid": 1000,
+        "st_ino": 118645,
+        "st_mode": 33152,
+        "st_mtime_ns": 1791387783011377037,
+        "st_nlink": 1,
+        "st_size": 175,
+        "st_uid": 1000
+      }
+    },
+    {
+      "source": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/go-cache/51/51e7ad2d3a9cd9c7cb7e44ecab16c5774a8d638ff77a9a5deddea0a083dd313d-a",
+      "destination": "/tmp/native379-new-cache-root-custody-wjf9jh62/cache-bodies/51/51e7ad2d3a9cd9c7cb7e44ecab16c5774a8d638ff77a9a5deddea0a083dd313d-a",
+      "sha256": "3f33919988edd92941216f37580ab47d940d0de039783330f0984c6f63b86cf0",
+      "sourceIdentity": {
+        "st_ctime_ns": 1791387782981303656,
+        "st_dev": 27,
+        "st_gid": 1000,
+        "st_ino": 1136970,
+        "st_mode": 33152,
+        "st_mtime_ns": 1791387782983388489,
+        "st_nlink": 1,
+        "st_size": 175,
+        "st_uid": 1000
+      },
+      "destinationIdentity": {
+        "st_ctime_ns": 1791388275178581147,
+        "st_dev": 34,
+        "st_gid": 1000,
+        "st_ino": 118647,
+        "st_mode": 33152,
+        "st_mtime_ns": 1791387782983388489,
+        "st_nlink": 1,
+        "st_size": 175,
+        "st_uid": 1000
+      }
+    },
+    {
+      "source": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/go-cache/a0/a0cf1d53588287c1080bf93a83402cad89a3994587d0c4cdc47e2efdc837dc42-a",
+      "destination": "/tmp/native379-new-cache-root-custody-wjf9jh62/cache-bodies/a0/a0cf1d53588287c1080bf93a83402cad89a3994587d0c4cdc47e2efdc837dc42-a",
+      "sha256": "ce5131159538447c03a3252b02094686cae3abe5a7f0d6b8b7fb1546dc89f9c4",
+      "sourceIdentity": {
+        "st_ctime_ns": 1791387783197309317,
+        "st_dev": 27,
+        "st_gid": 1000,
+        "st_ino": 1136975,
+        "st_mode": 33152,
+        "st_mtime_ns": 1791387783200892656,
+        "st_nlink": 1,
+        "st_size": 175,
+        "st_uid": 1000
+      },
+      "destinationIdentity": {
+        "st_ctime_ns": 1791388275178581147,
+        "st_dev": 34,
+        "st_gid": 1000,
+        "st_ino": 118649,
+        "st_mode": 33152,
+        "st_mtime_ns": 1791387783200892656,
+        "st_nlink": 1,
+        "st_size": 175,
+        "st_uid": 1000
+      }
+    },
+    {
+      "source": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/go-cache/a2/a2b4a5a4fc75e1cc5a11086e15c24d85a2f84c2ed0811b24ba50ea35a98551fd-a",
+      "destination": "/tmp/native379-new-cache-root-custody-wjf9jh62/cache-bodies/a2/a2b4a5a4fc75e1cc5a11086e15c24d85a2f84c2ed0811b24ba50ea35a98551fd-a",
+      "sha256": "2a1532ce55a929dffd5f445bba999a3a0128c81c4e786aff6d6b0a569ee214b8",
+      "sourceIdentity": {
+        "st_ctime_ns": 1791387783525317912,
+        "st_dev": 27,
+        "st_gid": 1000,
+        "st_ino": 1136983,
+        "st_mode": 33152,
+        "st_mtime_ns": 1791387783530027945,
+        "st_nlink": 1,
+        "st_size": 175,
+        "st_uid": 1000
+      },
+      "destinationIdentity": {
+        "st_ctime_ns": 1791388275178581147,
+        "st_dev": 34,
+        "st_gid": 1000,
+        "st_ino": 118651,
+        "st_mode": 33152,
+        "st_mtime_ns": 1791387783530027945,
+        "st_nlink": 1,
+        "st_size": 175,
+        "st_uid": 1000
+      }
+    },
+    {
+      "source": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/go-cache/aa/aa2df09b8758facb32c3efa03637347bd5b7788643229225dfe1c829b9464071-a",
+      "destination": "/tmp/native379-new-cache-root-custody-wjf9jh62/cache-bodies/aa/aa2df09b8758facb32c3efa03637347bd5b7788643229225dfe1c829b9464071-a",
+      "sha256": "c863cb92d0954402e48080286b96e7227231ef75bd2055efce24f39ee08e4a36",
+      "sourceIdentity": {
+        "st_ctime_ns": 1791387783009304390,
+        "st_dev": 27,
+        "st_gid": 1000,
+        "st_ino": 1136974,
+        "st_mode": 33152,
+        "st_mtime_ns": 1791387783012124162,
+        "st_nlink": 1,
+        "st_size": 175,
+        "st_uid": 1000
+      },
+      "destinationIdentity": {
+        "st_ctime_ns": 1791388275178581147,
+        "st_dev": 34,
+        "st_gid": 1000,
+        "st_ino": 118653,
+        "st_mode": 33152,
+        "st_mtime_ns": 1791387783012124162,
+        "st_nlink": 1,
+        "st_size": 175,
+        "st_uid": 1000
+      }
+    },
+    {
+      "source": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/go-cache/b2/b253cdd97db607ad8888e9eef84f1d86aab968f024f4992bd1490072df06c1a1-a",
+      "destination": "/tmp/native379-new-cache-root-custody-wjf9jh62/cache-bodies/b2/b253cdd97db607ad8888e9eef84f1d86aab968f024f4992bd1490072df06c1a1-a",
+      "sha256": "adadca01d83ef37c951d821df7ecab47d8ed0785d0cf6778d3477bd97db0c100",
+      "sourceIdentity": {
+        "st_ctime_ns": 1791387783225310051,
+        "st_dev": 27,
+        "st_gid": 1000,
+        "st_ino": 1136976,
+        "st_mode": 33152,
+        "st_mtime_ns": 1791387783227528586,
+        "st_nlink": 1,
+        "st_size": 175,
+        "st_uid": 1000
+      },
+      "destinationIdentity": {
+        "st_ctime_ns": 1791388275178581147,
+        "st_dev": 34,
+        "st_gid": 1000,
+        "st_ino": 118655,
+        "st_mode": 33152,
+        "st_mtime_ns": 1791387783227528586,
+        "st_nlink": 1,
+        "st_size": 175,
+        "st_uid": 1000
+      }
+    },
+    {
+      "source": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/go-cache/cb/cbc2002c3d4474c68852ae8f1176fc5cb3c2b5ecb486d90a013f1a7c7ad180a2-a",
+      "destination": "/tmp/native379-new-cache-root-custody-wjf9jh62/cache-bodies/cb/cbc2002c3d4474c68852ae8f1176fc5cb3c2b5ecb486d90a013f1a7c7ad180a2-a",
+      "sha256": "0c369a9bff1aa7f602bdc10943ce6fead96f5240e48068598b16400e136a5d36",
+      "sourceIdentity": {
+        "st_ctime_ns": 1791387783501317283,
+        "st_dev": 27,
+        "st_gid": 1000,
+        "st_ino": 1136981,
+        "st_mode": 33152,
+        "st_mtime_ns": 1791387783506031670,
+        "st_nlink": 1,
+        "st_size": 175,
+        "st_uid": 1000
+      },
+      "destinationIdentity": {
+        "st_ctime_ns": 1791388275178581147,
+        "st_dev": 34,
+        "st_gid": 1000,
+        "st_ino": 118657,
+        "st_mode": 33152,
+        "st_mtime_ns": 1791387783506031670,
+        "st_nlink": 1,
+        "st_size": 175,
+        "st_uid": 1000
+      }
+    },
+    {
+      "source": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/go-cache/d9/d96ca3b44d8d9efca5df08b391cddbca02d3302bc721198779caa00868789d53-a",
+      "destination": "/tmp/native379-new-cache-root-custody-wjf9jh62/cache-bodies/d9/d96ca3b44d8d9efca5df08b391cddbca02d3302bc721198779caa00868789d53-a",
+      "sha256": "6881b145dfb2cd54a52a349a631df17b20e092d55499d30dd6566dbad89835b9",
+      "sourceIdentity": {
+        "st_ctime_ns": 1791387782981303656,
+        "st_dev": 27,
+        "st_gid": 1000,
+        "st_ino": 1136971,
+        "st_mode": 33152,
+        "st_mtime_ns": 1791387782983539498,
+        "st_nlink": 1,
+        "st_size": 175,
+        "st_uid": 1000
+      },
+      "destinationIdentity": {
+        "st_ctime_ns": 1791388275178581147,
+        "st_dev": 34,
+        "st_gid": 1000,
+        "st_ino": 118659,
+        "st_mode": 33152,
+        "st_mtime_ns": 1791387782983539498,
+        "st_nlink": 1,
+        "st_size": 175,
+        "st_uid": 1000
+      }
+    },
+    {
+      "source": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/go-cache/dc/dcfacf924b389b3c4965756920ba64828858a2962932e0a2169f7ccdf5064e71-d",
+      "destination": "/tmp/native379-new-cache-root-custody-wjf9jh62/cache-bodies/dc/dcfacf924b389b3c4965756920ba64828858a2962932e0a2169f7ccdf5064e71-d",
+      "sha256": "dcfacf924b389b3c4965756920ba64828858a2962932e0a2169f7ccdf5064e71",
+      "sourceIdentity": {
+        "st_ctime_ns": 1791387783501317283,
+        "st_dev": 27,
+        "st_gid": 1000,
+        "st_ino": 1136980,
+        "st_mode": 33152,
+        "st_mtime_ns": 1791387783505998430,
+        "st_nlink": 1,
+        "st_size": 186858,
+        "st_uid": 1000
+      },
+      "destinationIdentity": {
+        "st_ctime_ns": 1791388275178581147,
+        "st_dev": 34,
+        "st_gid": 1000,
+        "st_ino": 118661,
+        "st_mode": 33152,
+        "st_mtime_ns": 1791387783505998430,
+        "st_nlink": 1,
+        "st_size": 186858,
+        "st_uid": 1000
+      }
+    },
+    {
+      "source": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/go-cache/de/deda211ab7e745e2a01de39a1d24d5f015e91fac89294cad1d18634027229a63-d",
+      "destination": "/tmp/native379-new-cache-root-custody-wjf9jh62/cache-bodies/de/deda211ab7e745e2a01de39a1d24d5f015e91fac89294cad1d18634027229a63-d",
+      "sha256": "deda211ab7e745e2a01de39a1d24d5f015e91fac89294cad1d18634027229a63",
+      "sourceIdentity": {
+        "st_ctime_ns": 1791387782981303656,
+        "st_dev": 27,
+        "st_gid": 1000,
+        "st_ino": 1136969,
+        "st_mode": 33152,
+        "st_mtime_ns": 1791387782983345705,
+        "st_nlink": 1,
+        "st_size": 186856,
+        "st_uid": 1000
+      },
+      "destinationIdentity": {
+        "st_ctime_ns": 1791388275178581147,
+        "st_dev": 34,
+        "st_gid": 1000,
+        "st_ino": 118663,
+        "st_mode": 33152,
+        "st_mtime_ns": 1791387782983345705,
+        "st_nlink": 1,
+        "st_size": 186856,
+        "st_uid": 1000
+      }
+    },
+    {
+      "source": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/go-cache/f2/f206c348216537a34e47f26fd255458906d0318ad96a34eea0bcbc96edd82777-a",
+      "destination": "/tmp/native379-new-cache-root-custody-wjf9jh62/cache-bodies/f2/f206c348216537a34e47f26fd255458906d0318ad96a34eea0bcbc96edd82777-a",
+      "sha256": "16a49e1bed9fcc4456af344547ac924457d2350df66c761b523123aac72e1a81",
+      "sourceIdentity": {
+        "st_ctime_ns": 1791387782981303656,
+        "st_dev": 27,
+        "st_gid": 1000,
+        "st_ino": 1136968,
+        "st_mode": 33152,
+        "st_mtime_ns": 1791387782982718847,
+        "st_nlink": 1,
+        "st_size": 175,
+        "st_uid": 1000
+      },
+      "destinationIdentity": {
+        "st_ctime_ns": 1791388275178581147,
+        "st_dev": 34,
+        "st_gid": 1000,
+        "st_ino": 118665,
+        "st_mode": 33152,
+        "st_mtime_ns": 1791387782982718847,
+        "st_nlink": 1,
+        "st_size": 175,
+        "st_uid": 1000
+      }
+    }
+  ],
+  "logicalBytes": 622647,
+  "sourceIdentityLimit": "TMP copies preserve full bytes/mode/mtime/uid/gid, not original dev/inode/ctime; original files remain untouched at copy stage"
+}

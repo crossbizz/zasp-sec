@@ -119,7 +119,7 @@ func (b *authorizedApprovalBoundary) Deliver(ctx context.Context, r approvalmain
 	if ctx == nil || ctx.Err() != nil || b.reference != r.Reference || !validMaintenanceDeliveryPayload(b.payload) {
 		return approvalmaintenance.ErrUnavailable
 	}
-	return b.webhook.DeliverApprovalNotification(ctx, b.payload.DestinationURL, b.payload.DeliveryID, b.payload.PayloadDigest, b.payload.Payload, secret)
+	return b.webhook.DeliverApprovalNotification(ctx, b.payload.DestinationURL, b.payload.Payload, b.payload.PayloadDigest, b.payload.DeliveryID, secret)
 }
 func validMaintenanceDeliveryPayload(p approvalmaintenance.DeliveryPayload) bool {
 	// Lease-only reservation has not consumed attempt1. All original payload,

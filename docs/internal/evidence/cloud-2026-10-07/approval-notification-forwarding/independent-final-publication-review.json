@@ -1,0 +1,934 @@
+{
+  "verdict": "PASS_FINAL_WORKTREE_CONTENT_PENDING_ROOT_FINAL_STAGING_SCAN",
+  "source": [
+    {
+      "path": "/tmp/zasp-startup-diagnostic-checkout/services/platform/apiserver/approval_notification_maintenance_repository.go",
+      "sha256": "96c93aa5eb9324045c58c4f2e9388c123bfa4a20051761673bb00ffdc5371037",
+      "bytes": 6032,
+      "metadata": {
+        "dev": 34,
+        "ino": 106256,
+        "mode": 33152,
+        "uid": 1000,
+        "gid": 1000,
+        "nlink": 1,
+        "size": 6032,
+        "mtime_ns": 1791388928139906703,
+        "ctime_ns": 1791388928139906703
+      }
+    },
+    {
+      "path": "/tmp/zasp-startup-diagnostic-checkout/services/platform/apiserver/approval_notification_maintenance_webhook_order_test.go",
+      "sha256": "b55463e56b91b12574afe01b094e47e6d37c941c3426a674cf7db15a9b554b46",
+      "bytes": 8990,
+      "metadata": {
+        "dev": 34,
+        "ino": 122093,
+        "mode": 33152,
+        "uid": 1000,
+        "gid": 1000,
+        "nlink": 1,
+        "size": 8990,
+        "mtime_ns": 1791388928140141188,
+        "ctime_ns": 1791388928140141188
+      }
+    }
+  ],
+  "workflow": {
+    "path": "/tmp/zasp-startup-diagnostic-checkout/.github/workflows/runnable-ui.yml",
+    "sha256": "fd98a81d520fbd8b80fb6d404b7a8a0d0e154268f0e3adb5073a47ee4c7d4d98",
+    "bytes": 17837,
+    "metadata": {
+      "dev": 34,
+      "ino": 99846,
+      "mode": 33152,
+      "uid": 1000,
+      "gid": 1000,
+      "nlink": 1,
+      "size": 17837,
+      "mtime_ns": 1791389582388210354,
+      "ctime_ns": 1791389582388210354
+    }
+  },
+  "inverseRemovalOriginalSHA256": "bfdd49ff507bdfa9e2abe1ae7c6c66bce7cffdbc518baed4835ba877f6808cf8",
+  "exactFourLineAdditionOnly": true,
+  "placement": "After full-MVS prime, before Verify runnable UI step",
+  "sameThreeParentSelector": true,
+  "oldGuardsByteExact": true,
+  "packets": [
+    {
+      "name": "approval-notification-forwarding",
+      "selection": {
+        "path": "/tmp/zasp-startup-diagnostic-checkout/docs/internal/evidence/cloud-2026-10-07/approval-notification-forwarding/selection.json",
+        "sha256": "69f3f870200896d3ac0979dcd892aa320bc9242d812dc354ed17b8ce767ae4e1",
+        "bytes": 2726,
+        "metadata": {
+          "dev": 34,
+          "ino": 122103,
+          "mode": 33152,
+          "uid": 1000,
+          "gid": 1000,
+          "nlink": 1,
+          "size": 2726,
+          "mtime_ns": 1791389309412305369,
+          "ctime_ns": 1791389309412305369
+        }
+      },
+      "originalCopyPairs": [
+        {
+          "original": {
+            "path": "/tmp/actual-webhook-order-d3vk_m2g/result.json",
+            "sha256": "6b80f0e3e829a23e358cc0ccbf8f6f596b5c57e0650dba7c5cf19530a783e978",
+            "bytes": 94605,
+            "metadata": {
+              "dev": 34,
+              "ino": 120731,
+              "mode": 33024,
+              "uid": 1000,
+              "gid": 1000,
+              "nlink": 1,
+              "size": 94605,
+              "mtime_ns": 1791388616570840837,
+              "ctime_ns": 1791388616570840837
+            }
+          },
+          "copy": {
+            "path": "/tmp/zasp-startup-diagnostic-checkout/docs/internal/evidence/cloud-2026-10-07/approval-notification-forwarding/actual-result.json",
+            "sha256": "6b80f0e3e829a23e358cc0ccbf8f6f596b5c57e0650dba7c5cf19530a783e978",
+            "bytes": 94605,
+            "metadata": {
+              "dev": 34,
+              "ino": 122095,
+              "mode": 33152,
+              "uid": 1000,
+              "gid": 1000,
+              "nlink": 1,
+              "size": 94605,
+              "mtime_ns": 1791389072261936269,
+              "ctime_ns": 1791389072261936269
+            }
+          }
+        },
+        {
+          "original": {
+            "path": "/tmp/actual-webhook-order-d3vk_m2g/current-production-order-RED.jsonl",
+            "sha256": "0b3f4894ab202991fe48df62ea7ac2b8baa3b7210d5aca3dddd39023937e51e4",
+            "bytes": 1962,
+            "metadata": {
+              "dev": 34,
+              "ino": 118807,
+              "mode": 33152,
+              "uid": 1000,
+              "gid": 1000,
+              "nlink": 1,
+              "size": 1962,
+              "mtime_ns": 1791388602323417139,
+              "ctime_ns": 1791388602323417139
+            }
+          },
+          "copy": {
+            "path": "/tmp/zasp-startup-diagnostic-checkout/docs/internal/evidence/cloud-2026-10-07/approval-notification-forwarding/original-order-red.jsonl",
+            "sha256": "0b3f4894ab202991fe48df62ea7ac2b8baa3b7210d5aca3dddd39023937e51e4",
+            "bytes": 1962,
+            "metadata": {
+              "dev": 34,
+              "ino": 122096,
+              "mode": 33152,
+              "uid": 1000,
+              "gid": 1000,
+              "nlink": 1,
+              "size": 1962,
+              "mtime_ns": 1791389072262187479,
+              "ctime_ns": 1791389072262187479
+            }
+          }
+        },
+        {
+          "original": {
+            "path": "/tmp/actual-webhook-order-d3vk_m2g/correct-order-GREEN.jsonl",
+            "sha256": "5ce3e601e8c91281c92e228803048cb0b2276a42e358a89be1e297feeed89596",
+            "bytes": 11719,
+            "metadata": {
+              "dev": 34,
+              "ino": 119952,
+              "mode": 33152,
+              "uid": 1000,
+              "gid": 1000,
+              "nlink": 1,
+              "size": 11719,
+              "mtime_ns": 1791388615083761656,
+              "ctime_ns": 1791388615083761656
+            }
+          },
+          "copy": {
+            "path": "/tmp/zasp-startup-diagnostic-checkout/docs/internal/evidence/cloud-2026-10-07/approval-notification-forwarding/correct-order-green.jsonl",
+            "sha256": "5ce3e601e8c91281c92e228803048cb0b2276a42e358a89be1e297feeed89596",
+            "bytes": 11719,
+            "metadata": {
+              "dev": 34,
+              "ino": 122097,
+              "mode": 33152,
+              "uid": 1000,
+              "gid": 1000,
+              "nlink": 1,
+              "size": 11719,
+              "mtime_ns": 1791389072262353941,
+              "ctime_ns": 1791389072262353941
+            }
+          }
+        },
+        {
+          "original": {
+            "path": "/tmp/approval-webhook-order-root-outer-ju7s8s7k/normal-outer-results.json",
+            "sha256": "b79829deaae905994633d72eaf19ea969602485326dc364608e3169c8b28b2e5",
+            "bytes": 2060,
+            "metadata": {
+              "dev": 34,
+              "ino": 120732,
+              "mode": 33152,
+              "uid": 1000,
+              "gid": 1000,
+              "nlink": 1,
+              "size": 2060,
+              "mtime_ns": 1791388616601005303,
+              "ctime_ns": 1791388616601005303
+            }
+          },
+          "copy": {
+            "path": "/tmp/zasp-startup-diagnostic-checkout/docs/internal/evidence/cloud-2026-10-07/approval-notification-forwarding/root-normal-wait.json",
+            "sha256": "b79829deaae905994633d72eaf19ea969602485326dc364608e3169c8b28b2e5",
+            "bytes": 2060,
+            "metadata": {
+              "dev": 34,
+              "ino": 122098,
+              "mode": 33152,
+              "uid": 1000,
+              "gid": 1000,
+              "nlink": 1,
+              "size": 2060,
+              "mtime_ns": 1791389072262478479,
+              "ctime_ns": 1791389072262478479
+            }
+          }
+        },
+        {
+          "original": {
+            "path": "/tmp/independent-webhook-order-actual-causal-TLS-component-review.json",
+            "sha256": "d562b0b2575a5f844cf6442d3cad36f333a03d40a1e1bc8a7811d55084bbb023",
+            "bytes": 2207,
+            "metadata": {
+              "dev": 34,
+              "ino": 120733,
+              "mode": 33024,
+              "uid": 1000,
+              "gid": 1000,
+              "nlink": 1,
+              "size": 2207,
+              "mtime_ns": 1791388790400493551,
+              "ctime_ns": 1791388790400493551
+            }
+          },
+          "copy": {
+            "path": "/tmp/zasp-startup-diagnostic-checkout/docs/internal/evidence/cloud-2026-10-07/approval-notification-forwarding/independent-actual-review.json",
+            "sha256": "d562b0b2575a5f844cf6442d3cad36f333a03d40a1e1bc8a7811d55084bbb023",
+            "bytes": 2207,
+            "metadata": {
+              "dev": 34,
+              "ino": 122099,
+              "mode": 33152,
+              "uid": 1000,
+              "gid": 1000,
+              "nlink": 1,
+              "size": 2207,
+              "mtime_ns": 1791389072262506652,
+              "ctime_ns": 1791389072262506652
+            }
+          }
+        },
+        {
+          "original": {
+            "path": "/tmp/independent-webhook-order-product-concrete-owner-source-review.json",
+            "sha256": "725a51d70184e20070eef962f565904ca01fe25ed67ae59128b37d8a4006e3bc",
+            "bytes": 2713,
+            "metadata": {
+              "dev": 34,
+              "ino": 118530,
+              "mode": 33024,
+              "uid": 1000,
+              "gid": 1000,
+              "nlink": 1,
+              "size": 2713,
+              "mtime_ns": 1791387979206599586,
+              "ctime_ns": 1791387979206599586
+            }
+          },
+          "copy": {
+            "path": "/tmp/zasp-startup-diagnostic-checkout/docs/internal/evidence/cloud-2026-10-07/approval-notification-forwarding/independent-source-owner-review.json",
+            "sha256": "725a51d70184e20070eef962f565904ca01fe25ed67ae59128b37d8a4006e3bc",
+            "bytes": 2713,
+            "metadata": {
+              "dev": 34,
+              "ino": 122100,
+              "mode": 33152,
+              "uid": 1000,
+              "gid": 1000,
+              "nlink": 1,
+              "size": 2713,
+              "mtime_ns": 1791389072262531570,
+              "ctime_ns": 1791389072262531570
+            }
+          }
+        },
+        {
+          "original": {
+            "path": "/tmp/approval-webhook-order-root-owner-v2-0m7w0whv/stage-recipe.json",
+            "sha256": "4aa17936aad416e2781c6c52958be078b7bec8523a6b95606763fdcb273a5b0b",
+            "bytes": 2918,
+            "metadata": {
+              "dev": 34,
+              "ino": 118347,
+              "mode": 33024,
+              "uid": 1000,
+              "gid": 1000,
+              "nlink": 1,
+              "size": 2918,
+              "mtime_ns": 1791387787027004465,
+              "ctime_ns": 1791387787027290487
+            }
+          },
+          "copy": {
+            "path": "/tmp/zasp-startup-diagnostic-checkout/docs/internal/evidence/cloud-2026-10-07/approval-notification-forwarding/owned-stage-recipe.json",
+            "sha256": "4aa17936aad416e2781c6c52958be078b7bec8523a6b95606763fdcb273a5b0b",
+            "bytes": 2918,
+            "metadata": {
+              "dev": 34,
+              "ino": 122101,
+              "mode": 33152,
+              "uid": 1000,
+              "gid": 1000,
+              "nlink": 1,
+              "size": 2918,
+              "mtime_ns": 1791389072262558921,
+              "ctime_ns": 1791389072262558921
+            }
+          }
+        },
+        {
+          "original": {
+            "path": "/tmp/approval-maintenance-webhook-order-source-v1/manifest.json",
+            "sha256": "d9bca0b0116e4030ffd0d1dd692c3bc562e6e426150970f20199c8e24a7319df",
+            "bytes": 1300,
+            "metadata": {
+              "dev": 34,
+              "ino": 117923,
+              "mode": 33024,
+              "uid": 1000,
+              "gid": 1000,
+              "nlink": 1,
+              "size": 1300,
+              "mtime_ns": 1791387582273243229,
+              "ctime_ns": 1791387582273269950
+            }
+          },
+          "copy": {
+            "path": "/tmp/zasp-startup-diagnostic-checkout/docs/internal/evidence/cloud-2026-10-07/approval-notification-forwarding/original-source-selection.json",
+            "sha256": "d9bca0b0116e4030ffd0d1dd692c3bc562e6e426150970f20199c8e24a7319df",
+            "bytes": 1300,
+            "metadata": {
+              "dev": 34,
+              "ino": 122102,
+              "mode": 33152,
+              "uid": 1000,
+              "gid": 1000,
+              "nlink": 1,
+              "size": 1300,
+              "mtime_ns": 1791389072262585531,
+              "ctime_ns": 1791389072262585531
+            }
+          }
+        },
+        {
+          "original": {
+            "path": "/tmp/independent-webhook-two-source-adoption-CI-association-review.json",
+            "sha256": "0ae4d378d0497fe2d840b4a093af618a05a14ff38ca47ae266ba2c99701ba895",
+            "bytes": 1117,
+            "metadata": {
+              "dev": 34,
+              "ino": 122106,
+              "mode": 33024,
+              "uid": 1000,
+              "gid": 1000,
+              "nlink": 1,
+              "size": 1117,
+              "mtime_ns": 1791389098068795625,
+              "ctime_ns": 1791389098068795625
+            }
+          },
+          "copy": {
+            "path": "/tmp/zasp-startup-diagnostic-checkout/docs/internal/evidence/cloud-2026-10-07/approval-notification-forwarding/independent-adoption-ci-review.json",
+            "sha256": "0ae4d378d0497fe2d840b4a093af618a05a14ff38ca47ae266ba2c99701ba895",
+            "bytes": 1117,
+            "metadata": {
+              "dev": 34,
+              "ino": 122107,
+              "mode": 33152,
+              "uid": 1000,
+              "gid": 1000,
+              "nlink": 1,
+              "size": 1117,
+              "mtime_ns": 1791389208724672389,
+              "ctime_ns": 1791389208724672389
+            }
+          }
+        }
+      ],
+      "readme": {
+        "path": "/tmp/zasp-startup-diagnostic-checkout/docs/internal/evidence/cloud-2026-10-07/approval-notification-forwarding/README.md",
+        "sha256": "85778043a701b43c103b5a2b3fc8fba39dcde9e538d2e6b0eb33e92a65c90a01",
+        "bytes": 1401,
+        "metadata": {
+          "dev": 34,
+          "ino": 122104,
+          "mode": 33152,
+          "uid": 1000,
+          "gid": 1000,
+          "nlink": 1,
+          "size": 1401,
+          "mtime_ns": 1791389208724604687,
+          "ctime_ns": 1791389208724604687
+        }
+      }
+    },
+    {
+      "name": "readiness-and-native-floor-stop",
+      "selection": {
+        "path": "/tmp/zasp-startup-diagnostic-checkout/docs/internal/evidence/cloud-2026-10-07/readiness-and-native-floor-stop/selection.json",
+        "sha256": "06f8982f4447456be5111b3a11a942189392bbc3ee46c7fc6f2e41531f1a6b4b",
+        "bytes": 4055,
+        "metadata": {
+          "dev": 34,
+          "ino": 122121,
+          "mode": 33152,
+          "uid": 1000,
+          "gid": 1000,
+          "nlink": 1,
+          "size": 4055,
+          "mtime_ns": 1791389582388513142,
+          "ctime_ns": 1791389582388513142
+        }
+      },
+      "originalCopyPairs": [
+        {
+          "original": {
+            "path": "/tmp/stytch-revision64-readonly-actual-okuvjite/result.json",
+            "sha256": "15d05bd5730b7f7ba2bf40f8641a41c3c1ee83f079d449c0a3ba4b1ea897573d",
+            "bytes": 505,
+            "metadata": {
+              "dev": 34,
+              "ino": 118356,
+              "mode": 33152,
+              "uid": 1000,
+              "gid": 1000,
+              "nlink": 1,
+              "size": 505,
+              "mtime_ns": 1791387837430737293,
+              "ctime_ns": 1791387837430737293
+            }
+          },
+          "copy": {
+            "path": "/tmp/zasp-startup-diagnostic-checkout/docs/internal/evidence/cloud-2026-10-07/readiness-and-native-floor-stop/stytch-test-readonly-actual.json",
+            "sha256": "15d05bd5730b7f7ba2bf40f8641a41c3c1ee83f079d449c0a3ba4b1ea897573d",
+            "bytes": 505,
+            "metadata": {
+              "dev": 34,
+              "ino": 122109,
+              "mode": 33152,
+              "uid": 1000,
+              "gid": 1000,
+              "nlink": 1,
+              "size": 505,
+              "mtime_ns": 1791389208724752210,
+              "ctime_ns": 1791389208724752210
+            }
+          }
+        },
+        {
+          "original": {
+            "path": "/tmp/Stytch-test-readonly-root-outer-yk7v57ev/normal-outer-results.json",
+            "sha256": "89c21281accf8a3783442fe04af354909a1dba7b1c0e5d5bb9dedcf31301aaf2",
+            "bytes": 1693,
+            "metadata": {
+              "dev": 34,
+              "ino": 118357,
+              "mode": 33152,
+              "uid": 1000,
+              "gid": 1000,
+              "nlink": 1,
+              "size": 1693,
+              "mtime_ns": 1791387837447422884,
+              "ctime_ns": 1791387837447422884
+            }
+          },
+          "copy": {
+            "path": "/tmp/zasp-startup-diagnostic-checkout/docs/internal/evidence/cloud-2026-10-07/readiness-and-native-floor-stop/stytch-root-normal-wait.json",
+            "sha256": "89c21281accf8a3783442fe04af354909a1dba7b1c0e5d5bb9dedcf31301aaf2",
+            "bytes": 1693,
+            "metadata": {
+              "dev": 34,
+              "ino": 122110,
+              "mode": 33152,
+              "uid": 1000,
+              "gid": 1000,
+              "nlink": 1,
+              "size": 1693,
+              "mtime_ns": 1791389208724907985,
+              "ctime_ns": 1791389208724907985
+            }
+          }
+        },
+        {
+          "original": {
+            "path": "/tmp/independent-Stytch-TEST-readonly-actual-review.json",
+            "sha256": "4c8311c95b45a8e846f8e50fc64f2ec67c4bf90f805c37524f59cb70c2ec65dc",
+            "bytes": 974,
+            "metadata": {
+              "dev": 34,
+              "ino": 118624,
+              "mode": 33024,
+              "uid": 1000,
+              "gid": 1000,
+              "nlink": 1,
+              "size": 974,
+              "mtime_ns": 1791388254342018771,
+              "ctime_ns": 1791388254342018771
+            }
+          },
+          "copy": {
+            "path": "/tmp/zasp-startup-diagnostic-checkout/docs/internal/evidence/cloud-2026-10-07/readiness-and-native-floor-stop/stytch-independent-actual-review.json",
+            "sha256": "4c8311c95b45a8e846f8e50fc64f2ec67c4bf90f805c37524f59cb70c2ec65dc",
+            "bytes": 974,
+            "metadata": {
+              "dev": 34,
+              "ino": 122111,
+              "mode": 33152,
+              "uid": 1000,
+              "gid": 1000,
+              "nlink": 1,
+              "size": 974,
+              "mtime_ns": 1791389208724989959,
+              "ctime_ns": 1791389208724989959
+            }
+          }
+        },
+        {
+          "original": {
+            "path": "/tmp/actual-exact-path-TDD-ffwfpgfp/result.json",
+            "sha256": "216b70a68f7849b3fa35d974c6235ac6ca65e0fc0a4f1cde182c424bbcbb445f",
+            "bytes": 6102,
+            "metadata": {
+              "dev": 34,
+              "ino": 118341,
+              "mode": 33024,
+              "uid": 1000,
+              "gid": 1000,
+              "nlink": 1,
+              "size": 6102,
+              "mtime_ns": 1791387783941329097,
+              "ctime_ns": 1791387783941329097
+            }
+          },
+          "copy": {
+            "path": "/tmp/zasp-startup-diagnostic-checkout/docs/internal/evidence/cloud-2026-10-07/readiness-and-native-floor-stop/native-bound-loop-original-failure.json",
+            "sha256": "216b70a68f7849b3fa35d974c6235ac6ca65e0fc0a4f1cde182c424bbcbb445f",
+            "bytes": 6102,
+            "metadata": {
+              "dev": 34,
+              "ino": 122112,
+              "mode": 33152,
+              "uid": 1000,
+              "gid": 1000,
+              "nlink": 1,
+              "size": 6102,
+              "mtime_ns": 1791389208725176672,
+              "ctime_ns": 1791389208725176672
+            }
+          }
+        },
+        {
+          "original": {
+            "path": "/tmp/actual-exact-path-TDD-ffwfpgfp/RED.jsonl",
+            "sha256": "a11f84f0a03dfb3923c5547478f478b65bbde4f01ba136f8cdc1296ab53d30af",
+            "bytes": 9537,
+            "metadata": {
+              "dev": 34,
+              "ino": 118036,
+              "mode": 33152,
+              "uid": 1000,
+              "gid": 1000,
+              "nlink": 1,
+              "size": 9537,
+              "mtime_ns": 1791387783239592500,
+              "ctime_ns": 1791387783239592500
+            }
+          },
+          "copy": {
+            "path": "/tmp/zasp-startup-diagnostic-checkout/docs/internal/evidence/cloud-2026-10-07/readiness-and-native-floor-stop/native-bound-loop-original-red.jsonl",
+            "sha256": "a11f84f0a03dfb3923c5547478f478b65bbde4f01ba136f8cdc1296ab53d30af",
+            "bytes": 9537,
+            "metadata": {
+              "dev": 34,
+              "ino": 122113,
+              "mode": 33152,
+              "uid": 1000,
+              "gid": 1000,
+              "nlink": 1,
+              "size": 9537,
+              "mtime_ns": 1791389208725328992,
+              "ctime_ns": 1791389208725328992
+            }
+          }
+        },
+        {
+          "original": {
+            "path": "/tmp/actual-exact-path-TDD-ffwfpgfp/GREEN.jsonl",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "bytes": 0,
+            "metadata": {
+              "dev": 34,
+              "ino": 118254,
+              "mode": 33152,
+              "uid": 1000,
+              "gid": 1000,
+              "nlink": 1,
+              "size": 0,
+              "mtime_ns": 1791387783341313094,
+              "ctime_ns": 1791387783341313094
+            }
+          },
+          "copy": {
+            "path": "/tmp/zasp-startup-diagnostic-checkout/docs/internal/evidence/cloud-2026-10-07/readiness-and-native-floor-stop/native-bound-loop-stopped-green.jsonl",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "bytes": 0,
+            "metadata": {
+              "dev": 34,
+              "ino": 122114,
+              "mode": 33152,
+              "uid": 1000,
+              "gid": 1000,
+              "nlink": 1,
+              "size": 0,
+              "mtime_ns": 1791389208725328992,
+              "ctime_ns": 1791389208725328992
+            }
+          }
+        },
+        {
+          "original": {
+            "path": "/tmp/actual-exact-path-TDD-ffwfpgfp/late-refusal.json",
+            "sha256": "9bc6898b0a1d96758358cf2b3c170eff16fd1fd47469bee5886c8325ef88a405",
+            "bytes": 359,
+            "metadata": {
+              "dev": 34,
+              "ino": 118342,
+              "mode": 33024,
+              "uid": 1000,
+              "gid": 1000,
+              "nlink": 1,
+              "size": 359,
+              "mtime_ns": 1791387783941329097,
+              "ctime_ns": 1791387783941329097
+            }
+          },
+          "copy": {
+            "path": "/tmp/zasp-startup-diagnostic-checkout/docs/internal/evidence/cloud-2026-10-07/readiness-and-native-floor-stop/native-bound-loop-late-refusal.json",
+            "sha256": "9bc6898b0a1d96758358cf2b3c170eff16fd1fd47469bee5886c8325ef88a405",
+            "bytes": 359,
+            "metadata": {
+              "dev": 34,
+              "ino": 122115,
+              "mode": 33152,
+              "uid": 1000,
+              "gid": 1000,
+              "nlink": 1,
+              "size": 359,
+              "mtime_ns": 1791389208725456284,
+              "ctime_ns": 1791389208725456284
+            }
+          }
+        },
+        {
+          "original": {
+            "path": "/tmp/native379-fullV3-bound-loop-root-outer-oi69a_ui/normal-outer-results.json",
+            "sha256": "51a7508dcb296e2d8da6cf65d9bd815905a94597825441b3bcfb92995e4349e2",
+            "bytes": 3918,
+            "metadata": {
+              "dev": 34,
+              "ino": 118343,
+              "mode": 33152,
+              "uid": 1000,
+              "gid": 1000,
+              "nlink": 1,
+              "size": 3918,
+              "mtime_ns": 1791387783959277719,
+              "ctime_ns": 1791387783959277719
+            }
+          },
+          "copy": {
+            "path": "/tmp/zasp-startup-diagnostic-checkout/docs/internal/evidence/cloud-2026-10-07/readiness-and-native-floor-stop/native-bound-loop-root-normal-wait.json",
+            "sha256": "51a7508dcb296e2d8da6cf65d9bd815905a94597825441b3bcfb92995e4349e2",
+            "bytes": 3918,
+            "metadata": {
+              "dev": 34,
+              "ino": 122116,
+              "mode": 33152,
+              "uid": 1000,
+              "gid": 1000,
+              "nlink": 1,
+              "size": 3918,
+              "mtime_ns": 1791389208725484197,
+              "ctime_ns": 1791389208725484197
+            }
+          }
+        },
+        {
+          "original": {
+            "path": "/tmp/independent-native379-fullV3-bound-loop-resource-failure-actual-review.json",
+            "sha256": "f21ddc5f13b8a85124db1b78c6144da235c6c3b6a455aaf04d0892645d364756",
+            "bytes": 1650,
+            "metadata": {
+              "dev": 34,
+              "ino": 118668,
+              "mode": 33024,
+              "uid": 1000,
+              "gid": 1000,
+              "nlink": 1,
+              "size": 1650,
+              "mtime_ns": 1791388313207607319,
+              "ctime_ns": 1791388313207607319
+            }
+          },
+          "copy": {
+            "path": "/tmp/zasp-startup-diagnostic-checkout/docs/internal/evidence/cloud-2026-10-07/readiness-and-native-floor-stop/native-bound-loop-independent-failure-review.json",
+            "sha256": "f21ddc5f13b8a85124db1b78c6144da235c6c3b6a455aaf04d0892645d364756",
+            "bytes": 1650,
+            "metadata": {
+              "dev": 34,
+              "ino": 122117,
+              "mode": 33152,
+              "uid": 1000,
+              "gid": 1000,
+              "nlink": 1,
+              "size": 1650,
+              "mtime_ns": 1791389208725582355,
+              "ctime_ns": 1791389208725582355
+            }
+          }
+        },
+        {
+          "original": {
+            "path": "/tmp/native379-new-cache-root-custody-wjf9jh62/copy-receipt.json",
+            "sha256": "d08a54c185d800869cf84384629432d4d4b4aec2cd789ca39a6c12c43dd6e82e",
+            "bytes": 19506,
+            "metadata": {
+              "dev": 34,
+              "ino": 118667,
+              "mode": 33152,
+              "uid": 1000,
+              "gid": 1000,
+              "nlink": 1,
+              "size": 19506,
+              "mtime_ns": 1791388275354728682,
+              "ctime_ns": 1791388275354728682
+            }
+          },
+          "copy": {
+            "path": "/tmp/zasp-startup-diagnostic-checkout/docs/internal/evidence/cloud-2026-10-07/readiness-and-native-floor-stop/exact19-cache-copy-receipt.json",
+            "sha256": "d08a54c185d800869cf84384629432d4d4b4aec2cd789ca39a6c12c43dd6e82e",
+            "bytes": 19506,
+            "metadata": {
+              "dev": 34,
+              "ino": 122118,
+              "mode": 33152,
+              "uid": 1000,
+              "gid": 1000,
+              "nlink": 1,
+              "size": 19506,
+              "mtime_ns": 1791389208725624509,
+              "ctime_ns": 1791389208725624509
+            }
+          }
+        },
+        {
+          "original": {
+            "path": "/tmp/native379-exact19-cache-isolation-actual-cix96b16/result.json",
+            "sha256": "beeb4b9b4106d63028be143cb055c44707acb623ce4bc08a70866b84214150b2",
+            "bytes": 758,
+            "metadata": {
+              "dev": 34,
+              "ino": 118717,
+              "mode": 33152,
+              "uid": 1000,
+              "gid": 1000,
+              "nlink": 1,
+              "size": 758,
+              "mtime_ns": 1791388478900084545,
+              "ctime_ns": 1791388478900084545
+            }
+          },
+          "copy": {
+            "path": "/tmp/zasp-startup-diagnostic-checkout/docs/internal/evidence/cloud-2026-10-07/readiness-and-native-floor-stop/exact19-cache-isolation-actual.json",
+            "sha256": "beeb4b9b4106d63028be143cb055c44707acb623ce4bc08a70866b84214150b2",
+            "bytes": 758,
+            "metadata": {
+              "dev": 34,
+              "ino": 122119,
+              "mode": 33152,
+              "uid": 1000,
+              "gid": 1000,
+              "nlink": 1,
+              "size": 758,
+              "mtime_ns": 1791389208725670959,
+              "ctime_ns": 1791389208725670959
+            }
+          }
+        },
+        {
+          "original": {
+            "path": "/tmp/independent-native379-exact19-cache-isolation-actual-review.json",
+            "sha256": "7c5f504a58df988335db7bd359d3ee31dd593fdf11f45185ac9a85709b00cfea",
+            "bytes": 1437,
+            "metadata": {
+              "dev": 34,
+              "ino": 119951,
+              "mode": 33024,
+              "uid": 1000,
+              "gid": 1000,
+              "nlink": 1,
+              "size": 1437,
+              "mtime_ns": 1791388603535449865,
+              "ctime_ns": 1791388603535449865
+            }
+          },
+          "copy": {
+            "path": "/tmp/zasp-startup-diagnostic-checkout/docs/internal/evidence/cloud-2026-10-07/readiness-and-native-floor-stop/exact19-cache-independent-actual-review.json",
+            "sha256": "7c5f504a58df988335db7bd359d3ee31dd593fdf11f45185ac9a85709b00cfea",
+            "bytes": 1437,
+            "metadata": {
+              "dev": 34,
+              "ino": 122120,
+              "mode": 33152,
+              "uid": 1000,
+              "gid": 1000,
+              "nlink": 1,
+              "size": 1437,
+              "mtime_ns": 1791389208725791702,
+              "ctime_ns": 1791389208725791702
+            }
+          }
+        },
+        {
+          "original": {
+            "path": "/tmp/pr54-first-check-annotations.json",
+            "sha256": "4c74d75649c0b82c84564022d4e80291fb9b6b041e21ec42aadbda18be1194c4",
+            "bytes": 2307,
+            "metadata": {
+              "dev": 34,
+              "ino": 122179,
+              "mode": 33152,
+              "uid": 1000,
+              "gid": 1000,
+              "nlink": 1,
+              "size": 2307,
+              "mtime_ns": 1791389542876795038,
+              "ctime_ns": 1791389542876795038
+            }
+          },
+          "copy": {
+            "path": "/tmp/zasp-startup-diagnostic-checkout/docs/internal/evidence/cloud-2026-10-07/readiness-and-native-floor-stop/pr54-first-check-failure-annotations.json",
+            "sha256": "4c74d75649c0b82c84564022d4e80291fb9b6b041e21ec42aadbda18be1194c4",
+            "bytes": 2307,
+            "metadata": {
+              "dev": 34,
+              "ino": 122181,
+              "mode": 33152,
+              "uid": 1000,
+              "gid": 1000,
+              "nlink": 1,
+              "size": 2307,
+              "mtime_ns": 1791389582388422545,
+              "ctime_ns": 1791389582388422545
+            }
+          }
+        },
+        {
+          "original": {
+            "path": "/tmp/pr54-second-check-annotations.json",
+            "sha256": "0aeb8534493161aa5ce5b4564e97b0e37b422d1e5ec235549c7e5558aae1796b",
+            "bytes": 2307,
+            "metadata": {
+              "dev": 34,
+              "ino": 122180,
+              "mode": 33152,
+              "uid": 1000,
+              "gid": 1000,
+              "nlink": 1,
+              "size": 2307,
+              "mtime_ns": 1791389543540812959,
+              "ctime_ns": 1791389543540812959
+            }
+          },
+          "copy": {
+            "path": "/tmp/zasp-startup-diagnostic-checkout/docs/internal/evidence/cloud-2026-10-07/readiness-and-native-floor-stop/pr54-second-check-failure-annotations.json",
+            "sha256": "0aeb8534493161aa5ce5b4564e97b0e37b422d1e5ec235549c7e5558aae1796b",
+            "bytes": 2307,
+            "metadata": {
+              "dev": 34,
+              "ino": 122182,
+              "mode": 33152,
+              "uid": 1000,
+              "gid": 1000,
+              "nlink": 1,
+              "size": 2307,
+              "mtime_ns": 1791389582388457117,
+              "ctime_ns": 1791389582388457117
+            }
+          }
+        }
+      ],
+      "readme": {
+        "path": "/tmp/zasp-startup-diagnostic-checkout/docs/internal/evidence/cloud-2026-10-07/readiness-and-native-floor-stop/README.md",
+        "sha256": "a9e93460012a1afa12a86e7d891ffb209cd0a1655bd8ea589d3cdf20431278bb",
+        "bytes": 1878,
+        "metadata": {
+          "dev": 34,
+          "ino": 122122,
+          "mode": 33152,
+          "uid": 1000,
+          "gid": 1000,
+          "nlink": 1,
+          "size": 1878,
+          "mtime_ns": 1791389582388545832,
+          "ctime_ns": 1791389582388545832
+        }
+      }
+    }
+  ],
+  "copyPairs": 23,
+  "scopes": [
+    "Notification actualcausal d562 RED1/GREEN3tops8subs, genuine TLS verification and originalHMAC/idempotency; selected localcomponent excludes808originaltests disclosed, no nativeexecutor/PG/deployed/DNS-CIDR acceptance.",
+    "StytchHTTP200 TESTorgsearch0org; target/sessionUNBOUND; no rawbody/credential values retained.",
+    "Native379 stoppedGREEN-15 at workspace1,499,869,184 unchangedfloor; originalfailure, emptyGREENstream, late refusal preserved; no GREEN/native/FIT claim.",
+    "Exact19 fullcache622647bytes retainedTMP before guardedaliases;7596nonselectedmetadata preserved, sourceinodes historical,614400recovery measured no futureFIT.",
+    "PR54 actualtwofailed annotations included; UI/diagnosticPASS distinct from compliance runtimefailure, no solecause inferred."
+  ],
+  "historicalPlacementReview": "Public0ae predecessor retainedunchanged; this report binds currentfd98 earlyplacement, doesnotrewrite oldreview",
+  "stagedWorkflowMatchesFinal": false,
+  "rootFinalRequirements": [
+    "Stage exact finalworktree workflow/readiness README+selection/status +bothPR54annotations and additive reviewreceipt.",
+    "Run freshdefault stagedGitleaks/diffcheck beforecommit; prior206KBscan notfinalacceptance."
+  ],
+  "sourceReviewOnly": true,
+  "noRerunNoRepoMutation": true,
+  "noMaterialContentBlocker": true,
+  "preparationCorrection": "Reviewerfirst localplacement assertion matched workflow displayname earlier than actualstep; corrected to exact YAML step line; no source/evidence changes or runtime."
+}

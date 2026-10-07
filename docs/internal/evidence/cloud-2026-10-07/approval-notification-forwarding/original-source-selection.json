@@ -1,0 +1,44 @@
+{
+  "members": [
+    {
+      "path": "README.md",
+      "sha256": "a3c707cb6077a8b74df176039f89142df3a064cb1c4b864c11ae743ddd7ef19c",
+      "bytes": 643
+    },
+    {
+      "path": "ROOT-RECIPE.json",
+      "sha256": "935ce9a9422a2be061a1ba6caa0fb75469df565809ae2e34a9e2fba7bac807ab",
+      "bytes": 2864
+    },
+    {
+      "path": "approval_notification_maintenance_repository.go",
+      "sha256": "96c93aa5eb9324045c58c4f2e9388c123bfa4a20051761673bb00ffdc5371037",
+      "bytes": 6032
+    },
+    {
+      "path": "approval_notification_maintenance_webhook_order_test.go",
+      "sha256": "b55463e56b91b12574afe01b094e47e6d37c941c3426a674cf7db15a9b554b46",
+      "bytes": 8990
+    },
+    {
+      "path": "baseline.go",
+      "sha256": "61d57334ecb9f00486ad2f0a50915c5cc759848610ff0bb053a4e2c89f30bda8",
+      "bytes": 6032
+    },
+    {
+      "path": "green-overlay.json",
+      "sha256": "b89f14042c8c41a7eed359665f29492290964393c3cbedbea7bd84f2476cfcb7",
+      "bytes": 490
+    },
+    {
+      "path": "physical-source-record.json",
+      "sha256": "71a93a5da2473bd75532de068181c51f2df4f3b480f0beecb04c4c4a2dc71d8d",
+      "bytes": 876431
+    },
+    {
+      "path": "red-overlay.json",
+      "sha256": "a26a7d5e0e2b91950d38eb68437a19843866b157dffd0813751809dd279742b0",
+      "bytes": 260
+    }
+  ]
+}
