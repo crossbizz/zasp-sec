@@ -15858,3 +15858,27 @@ controlled fixtures, without real Stytch/provider or deployed proof. All 728
 rows and classifications remain unchanged: 523 historical production-available,
 144 component-only, 61 externally blocked. Fifty product configuration names
 remain unbound; generic cloud credentials do not establish those bindings.
+
+
+2026-10-07 lifecycle fixture follow-up: main's hosted rerun and both PR53
+checks failed again in health:contract:test; their detailed cause remains
+unobserved. Local committed b6c0 health stage0 passed. Stage1 finished normally
+with source maps unchanged and failed two separate scopes: ten API read/decision
+subcases (plus their parent) used stale unwrapped SQL matches; worker artifact
+checks failed because the isolated runner omitted the pinned Node PATH.
+The latter is a local prerequisite error, not a worker implementation defect.
+All raw failures remain preserved in lifecycle-sql-fixtures.
+
+Two exact fixture SQL matches now recognize the existing COALESCE transport;
+the consumed-query probe uses those exact statements. Production behavior and
+all original forwarding, context, argument, error and fallback assertions remain
+unchanged. The first selected runner refused its incomplete 22-case roster;
+its failure is retained. The corrected roster includes all five existing
+forwarding safety cases: original16PASS/11FAIL, candidate27PASS/0FAIL/SKIP.
+Both owners joined normally with unchanged input maps; independent actual
+review0617f56ae90b990d85e3b8afc18ad76e74e83d4704c1b85e18b5bf1a9080618a.
+The adopted current API package passed its complete race command separately.
+The whole three-package health command still requires a rerun with pinned Node,
+followed by the remaining event-ingest and runtime-gateway stages. No hosted,
+release, active cutover, Stytch/provider, deployment or ledger promotion follows
+from these component checks; all 728 original requirements remain unchanged.

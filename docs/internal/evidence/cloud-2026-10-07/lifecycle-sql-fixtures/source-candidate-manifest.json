@@ -1,0 +1,900 @@
+{
+  "format": "closed-lifecycle-fixture-publication-candidate-v1",
+  "omittedOriginalResultReferences": [
+    {
+      "bytes": 12636,
+      "identity": {
+        "ctime_ns": 1791380405118236733,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 76295,
+        "mode": "0o400",
+        "mtime_ns": 1791380405118207869,
+        "nlink": 1,
+        "size": 12636,
+        "uid": 1000
+      },
+      "path": "/tmp/health-lifecycle-tdd-owner-xuwz562a/actual-lifecycle-stage0-0jmnhs6m/result.json",
+      "sha256": "0b98985d7df46743e49f1333bd2d4b324589419d7eb5c245247a6a99702b9ab5"
+    },
+    {
+      "bytes": 14987,
+      "identity": {
+        "ctime_ns": 1791380725081875756,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 77115,
+        "mode": "0o400",
+        "mtime_ns": 1791380725081875756,
+        "nlink": 1,
+        "size": 14987,
+        "uid": 1000
+      },
+      "path": "/tmp/health-lifecycle-tdd-census27-6o0c2f2p/actual-lifecycle-stage0-12r6zsmi/result.json",
+      "sha256": "bd18e1e525b22e5a6001adbdf139525e8270dea2662becf70dc0d05e0ab5ade2"
+    },
+    {
+      "bytes": 24949,
+      "identity": {
+        "ctime_ns": 1791380733787875753,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 77946,
+        "mode": "0o400",
+        "mtime_ns": 1791380733787875753,
+        "nlink": 1,
+        "size": 24949,
+        "uid": 1000
+      },
+      "path": "/tmp/health-lifecycle-tdd-census27-6o0c2f2p/actual-lifecycle-stage1-wau509hx/result.json",
+      "sha256": "7b9e3c4cbc76db583441c28966683776cded3b4a279ce982f75c922fb2d8351d"
+    },
+    {
+      "bytes": 1064626,
+      "identity": {
+        "ctime_ns": 1791380092993473872,
+        "dev": 27,
+        "gid": 1000,
+        "ino": 998702,
+        "mode": "0o400",
+        "mtime_ns": 1791380092993473872,
+        "nlink": 1,
+        "size": 1064626,
+        "uid": 1000
+      },
+      "path": "/workspace/.zasp-cloud-owned/health-contract-currentb6c0-serial-owner-7lqkymff/actual-stage1-y1rvyunw/result.json",
+      "sha256": "9d18862e84cafe73ea2b3227d087e09fe8cccb078be76dbdbb2cd6e418d22b6d"
+    }
+  ],
+  "payloadMembers": [
+    {
+      "bytes": 2255,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 79030,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "original-census-refusal-result-selected.json",
+      "selection": "derived-explicit-field-selection",
+      "sha256": "371e589b32bec6e7b0bb8a6833abb1b420277e76596b27abf2db6d120e6f4380",
+      "sourceIdentity": {
+        "ctime_ns": 1791380405118236733,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 76295,
+        "mode": "0o400",
+        "mtime_ns": 1791380405118207869,
+        "nlink": 1,
+        "size": 12636,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/health-lifecycle-tdd-owner-xuwz562a/actual-lifecycle-stage0-0jmnhs6m/result.json",
+      "sourceSHA256": null
+    },
+    {
+      "bytes": 30309,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 79031,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "original-census-refusal.jsonl",
+      "selection": "byte-exact-original",
+      "sha256": "0db4a848057aa65755f84cae6f3c4bdbe94f4acdac2279795e94babd884cdce5",
+      "sourceIdentity": {
+        "ctime_ns": 1791380404666224509,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 75496,
+        "mode": "0o600",
+        "mtime_ns": 1791380404666224509,
+        "nlink": 1,
+        "size": 30309,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/health-lifecycle-tdd-owner-xuwz562a/actual-lifecycle-stage0-0jmnhs6m/baseline-red.jsonl",
+      "sourceSHA256": "0db4a848057aa65755f84cae6f3c4bdbe94f4acdac2279795e94babd884cdce5"
+    },
+    {
+      "bytes": 0,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 79032,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "original-census-refusal.stderr",
+      "selection": "byte-exact-original",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sourceIdentity": {
+        "ctime_ns": 1791380401826147703,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 75497,
+        "mode": "0o600",
+        "mtime_ns": 1791380401826147703,
+        "nlink": 1,
+        "size": 0,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/health-lifecycle-tdd-owner-xuwz562a/actual-lifecycle-stage0-0jmnhs6m/baseline-red.stderr",
+      "sourceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 5215,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 79033,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "corrected-census-red-result-selected.json",
+      "selection": "derived-explicit-field-selection",
+      "sha256": "62a62e54e9b5ff405a149e50f076a9555e32fd02caf6b552c10d4c192f4f1630",
+      "sourceIdentity": {
+        "ctime_ns": 1791380725081875756,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 77115,
+        "mode": "0o400",
+        "mtime_ns": 1791380725081875756,
+        "nlink": 1,
+        "size": 14987,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/health-lifecycle-tdd-census27-6o0c2f2p/actual-lifecycle-stage0-12r6zsmi/result.json",
+      "sourceSHA256": null
+    },
+    {
+      "bytes": 30311,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 79034,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "corrected-census-red.jsonl",
+      "selection": "byte-exact-original",
+      "sha256": "81b3273d67930833aa7236e6fe7915ff0b51e553f37dcc5b516c7f51ad21cfe3",
+      "sourceIdentity": {
+        "ctime_ns": 1791380724334832755,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 76316,
+        "mode": "0o600",
+        "mtime_ns": 1791380724334832755,
+        "nlink": 1,
+        "size": 30311,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/health-lifecycle-tdd-census27-6o0c2f2p/actual-lifecycle-stage0-12r6zsmi/baseline-red.jsonl",
+      "sourceSHA256": "81b3273d67930833aa7236e6fe7915ff0b51e553f37dcc5b516c7f51ad21cfe3"
+    },
+    {
+      "bytes": 0,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 79035,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "corrected-census-red.stderr",
+      "selection": "byte-exact-original",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sourceIdentity": {
+        "ctime_ns": 1791380721698765794,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 76317,
+        "mode": "0o600",
+        "mtime_ns": 1791380721698765794,
+        "nlink": 1,
+        "size": 0,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/health-lifecycle-tdd-census27-6o0c2f2p/actual-lifecycle-stage0-12r6zsmi/baseline-red.stderr",
+      "sourceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 5338,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 79036,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "corrected-census-green-result-selected.json",
+      "selection": "derived-explicit-field-selection",
+      "sha256": "b79781024a1cebdf3dc8ac27171188ddef102061e291a81238e7c1b05e799202",
+      "sourceIdentity": {
+        "ctime_ns": 1791380733787875753,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 77946,
+        "mode": "0o400",
+        "mtime_ns": 1791380733787875753,
+        "nlink": 1,
+        "size": 24949,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/health-lifecycle-tdd-census27-6o0c2f2p/actual-lifecycle-stage1-wau509hx/result.json",
+      "sourceSHA256": null
+    },
+    {
+      "bytes": 27271,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 79037,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "corrected-census-green.jsonl",
+      "selection": "byte-exact-original",
+      "sha256": "4a205de69470ce91110abfa651aa6b6b9d5d175eb3957d0ea0acabf152e1d4de",
+      "sourceIdentity": {
+        "ctime_ns": 1791380733051051205,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 77129,
+        "mode": "0o600",
+        "mtime_ns": 1791380733051051205,
+        "nlink": 1,
+        "size": 27271,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/health-lifecycle-tdd-census27-6o0c2f2p/actual-lifecycle-stage1-wau509hx/candidate-green.jsonl",
+      "sourceSHA256": "4a205de69470ce91110abfa651aa6b6b9d5d175eb3957d0ea0acabf152e1d4de"
+    },
+    {
+      "bytes": 0,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 79038,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "corrected-census-green.stderr",
+      "selection": "byte-exact-original",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sourceIdentity": {
+        "ctime_ns": 1791380726478887219,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 77130,
+        "mode": "0o600",
+        "mtime_ns": 1791380726478887219,
+        "nlink": 1,
+        "size": 0,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/health-lifecycle-tdd-census27-6o0c2f2p/actual-lifecycle-stage1-wau509hx/candidate-green.stderr",
+      "sourceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 2335,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 79039,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "original-fullhealth-mixed-failure-result-selected.json",
+      "selection": "derived-explicit-field-selection",
+      "sha256": "7f97933539e3f395fb090a93c2554751b7f52df51d975a25a1b5559a287b21cf",
+      "sourceIdentity": {
+        "ctime_ns": 1791380092993473872,
+        "dev": 27,
+        "gid": 1000,
+        "ino": 998702,
+        "mode": "0o400",
+        "mtime_ns": 1791380092993473872,
+        "nlink": 1,
+        "size": 1064626,
+        "uid": 1000
+      },
+      "sourcePath": "/workspace/.zasp-cloud-owned/health-contract-currentb6c0-serial-owner-7lqkymff/actual-stage1-y1rvyunw/result.json",
+      "sourceSHA256": null
+    },
+    {
+      "bytes": 257836,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 79040,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "original-fullhealth-mixed-failure.jsonl",
+      "selection": "byte-exact-original",
+      "sha256": "57b547e88da5b43510a4098af4a756c2f92a99f026f0717e3b0fccd1a38b26b5",
+      "sourceIdentity": {
+        "ctime_ns": 1791380092313783590,
+        "dev": 27,
+        "gid": 1000,
+        "ino": 998668,
+        "mode": "0o600",
+        "mtime_ns": 1791380092313783590,
+        "nlink": 1,
+        "size": 257836,
+        "uid": 1000
+      },
+      "sourcePath": "/workspace/.zasp-cloud-owned/health-contract-currentb6c0-serial-owner-7lqkymff/actual-stage1-y1rvyunw/platform-health-api-worker.jsonl",
+      "sourceSHA256": "57b547e88da5b43510a4098af4a756c2f92a99f026f0717e3b0fccd1a38b26b5"
+    },
+    {
+      "bytes": 0,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 79041,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "original-fullhealth-mixed-failure.stderr",
+      "selection": "byte-exact-original",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sourceIdentity": {
+        "ctime_ns": 1791379685346876785,
+        "dev": 27,
+        "gid": 1000,
+        "ino": 998669,
+        "mode": "0o600",
+        "mtime_ns": 1791379685346876785,
+        "nlink": 1,
+        "size": 0,
+        "uid": 1000
+      },
+      "sourcePath": "/workspace/.zasp-cloud-owned/health-contract-currentb6c0-serial-owner-7lqkymff/actual-stage1-y1rvyunw/platform-health-api-worker.stderr",
+      "sourceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 79042,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "corrected-census-outer-1.stderr",
+      "selection": "byte-exact-original",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sourceIdentity": {
+        "ctime_ns": 1791380725099436990,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 77118,
+        "mode": "0o600",
+        "mtime_ns": 1791380725099436990,
+        "nlink": 1,
+        "size": 0,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/lifecycle-census27-root-outer-mdqb8jgk/1.stderr",
+      "sourceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 217,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 79043,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "corrected-census-outer-1.stdout",
+      "selection": "byte-exact-original",
+      "sha256": "98147d22e33b76c8893d2c2f4d3c6fd700c7f472efa1e977ce79153bb9982bb0",
+      "sourceIdentity": {
+        "ctime_ns": 1791380733787875753,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 77117,
+        "mode": "0o600",
+        "mtime_ns": 1791380733787875753,
+        "nlink": 1,
+        "size": 217,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/lifecycle-census27-root-outer-mdqb8jgk/1.stdout",
+      "sourceSHA256": "98147d22e33b76c8893d2c2f4d3c6fd700c7f472efa1e977ce79153bb9982bb0"
+    },
+    {
+      "bytes": 3070,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 79044,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "corrected-census-outer-normal-outer-results.json",
+      "selection": "byte-exact-original",
+      "sha256": "0f7c7c0c202ffc9e64e53f18ed502929f4f1948be77299b9e2c6d3a5f62a7ba3",
+      "sourceIdentity": {
+        "ctime_ns": 1791380733804016682,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 77116,
+        "mode": "0o600",
+        "mtime_ns": 1791380733804016682,
+        "nlink": 1,
+        "size": 3070,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/lifecycle-census27-root-outer-mdqb8jgk/normal-outer-results.json",
+      "sourceSHA256": "0f7c7c0c202ffc9e64e53f18ed502929f4f1948be77299b9e2c6d3a5f62a7ba3"
+    },
+    {
+      "bytes": 0,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 79045,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "corrected-census-outer-0.stderr",
+      "selection": "byte-exact-original",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sourceIdentity": {
+        "ctime_ns": 1791380720282728977,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 76306,
+        "mode": "0o600",
+        "mtime_ns": 1791380720282728977,
+        "nlink": 1,
+        "size": 0,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/lifecycle-census27-root-outer-mdqb8jgk/0.stderr",
+      "sourceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 217,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 79046,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "corrected-census-outer-0.stdout",
+      "selection": "byte-exact-original",
+      "sha256": "a7dec1ef733bf6c5dfd24e99deabd17f58af09ed6f2d8d7bcebe7aabe1ed299f",
+      "sourceIdentity": {
+        "ctime_ns": 1791380725081875756,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 76305,
+        "mode": "0o600",
+        "mtime_ns": 1791380725081875756,
+        "nlink": 1,
+        "size": 217,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/lifecycle-census27-root-outer-mdqb8jgk/0.stdout",
+      "sourceSHA256": "a7dec1ef733bf6c5dfd24e99deabd17f58af09ed6f2d8d7bcebe7aabe1ed299f"
+    },
+    {
+      "bytes": 1588,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 79047,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "original-census-outer-normal-outer-results.json",
+      "selection": "byte-exact-original",
+      "sha256": "420faa0256b4f287e39335f96b98318cd86ab2f6264f5a5b8bd454ab629567d2",
+      "sourceIdentity": {
+        "ctime_ns": 1791380405136943723,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 76296,
+        "mode": "0o600",
+        "mtime_ns": 1791380405136943723,
+        "nlink": 1,
+        "size": 1588,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/lifecycle-tdd-b6c0-root-outer-vzyagnic/normal-outer-results.json",
+      "sourceSHA256": "420faa0256b4f287e39335f96b98318cd86ab2f6264f5a5b8bd454ab629567d2"
+    },
+    {
+      "bytes": 0,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 79048,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "original-census-outer-0.stderr",
+      "selection": "byte-exact-original",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sourceIdentity": {
+        "ctime_ns": 1791380400434110057,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 75486,
+        "mode": "0o600",
+        "mtime_ns": 1791380400434110057,
+        "nlink": 1,
+        "size": 0,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/lifecycle-tdd-b6c0-root-outer-vzyagnic/0.stderr",
+      "sourceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 260,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 79049,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "original-census-outer-0.stdout",
+      "selection": "byte-exact-original",
+      "sha256": "b1025e6e1f151840da24badefd1b55425d430c2d317b966dffe8dd1f95c1f6b0",
+      "sourceIdentity": {
+        "ctime_ns": 1791380405118236733,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 75485,
+        "mode": "0o600",
+        "mtime_ns": 1791380405118236733,
+        "nlink": 1,
+        "size": 260,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/lifecycle-tdd-b6c0-root-outer-vzyagnic/0.stdout",
+      "sourceSHA256": "b1025e6e1f151840da24badefd1b55425d430c2d317b966dffe8dd1f95c1f6b0"
+    },
+    {
+      "bytes": 3931,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 79050,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "health-lifecycle-census27-actual-TDD-review.json",
+      "selection": "byte-exact-original",
+      "sha256": "0617f56ae90b990d85e3b8afc18ad76e74e83d4704c1b85e18b5bf1a9080618a",
+      "sourceIdentity": {
+        "ctime_ns": 1791380823086805006,
+        "dev": 27,
+        "gid": 1000,
+        "ino": 1260010,
+        "mode": "0o400",
+        "mtime_ns": 1791380823086805006,
+        "nlink": 1,
+        "size": 3931,
+        "uid": 1000
+      },
+      "sourcePath": "/workspace/.zasp-cloud-owned/spec29-independent-proof/health-lifecycle-census27-actual-TDD-review.json",
+      "sourceSHA256": "0617f56ae90b990d85e3b8afc18ad76e74e83d4704c1b85e18b5bf1a9080618a"
+    },
+    {
+      "bytes": 1868,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 79051,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "health-lifecycle-census27-owner-source-review.json",
+      "selection": "byte-exact-original",
+      "sha256": "bd2376922cfa43d965767df115f23c784c9d9337a4ceba2616172835e1eeac6a",
+      "sourceIdentity": {
+        "ctime_ns": 1791380677858382859,
+        "dev": 27,
+        "gid": 1000,
+        "ino": 1260008,
+        "mode": "0o400",
+        "mtime_ns": 1791380677858382859,
+        "nlink": 1,
+        "size": 1868,
+        "uid": 1000
+      },
+      "sourcePath": "/workspace/.zasp-cloud-owned/spec29-independent-proof/health-lifecycle-census27-owner-source-review.json",
+      "sourceSHA256": "bd2376922cfa43d965767df115f23c784c9d9337a4ceba2616172835e1eeac6a"
+    },
+    {
+      "bytes": 1904,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 79052,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "health-lifecycle-fixture-SQL-source-review.json",
+      "selection": "byte-exact-original",
+      "sha256": "7b6b7c61523f67d079da1ce99376cf5da95390e872a6d4d3a6aa81e3a6f0a5bd",
+      "sourceIdentity": {
+        "ctime_ns": 1791380024532708991,
+        "dev": 27,
+        "gid": 1000,
+        "ino": 1260003,
+        "mode": "0o400",
+        "mtime_ns": 1791380024532708991,
+        "nlink": 1,
+        "size": 1904,
+        "uid": 1000
+      },
+      "sourcePath": "/workspace/.zasp-cloud-owned/spec29-independent-proof/health-lifecycle-fixture-SQL-source-review.json",
+      "sourceSHA256": "7b6b7c61523f67d079da1ce99376cf5da95390e872a6d4d3a6aa81e3a6f0a5bd"
+    },
+    {
+      "bytes": 4081,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 79053,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "health-b6c-original-baseline-actual-review.json",
+      "selection": "byte-exact-original",
+      "sha256": "3ec59ea6d47373a0301de95717f39ac975ccb5fadebec8ec2a1cb0a57ffa62f3",
+      "sourceIdentity": {
+        "ctime_ns": 1791380394654864375,
+        "dev": 27,
+        "gid": 1000,
+        "ino": 1260006,
+        "mode": "0o400",
+        "mtime_ns": 1791380394654864375,
+        "nlink": 1,
+        "size": 4081,
+        "uid": 1000
+      },
+      "sourcePath": "/workspace/.zasp-cloud-owned/spec29-independent-proof/health-b6c-original-baseline-actual-review.json",
+      "sourceSHA256": "3ec59ea6d47373a0301de95717f39ac975ccb5fadebec8ec2a1cb0a57ffa62f3"
+    },
+    {
+      "bytes": 940,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 79054,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "fixture-manifest.json",
+      "selection": "byte-exact-original",
+      "sha256": "de47680abac102655cd747564e37bd9929ceb985867e730ee12ed27b6ce3f5ed",
+      "sourceIdentity": {
+        "ctime_ns": 1791379910241386104,
+        "dev": 27,
+        "gid": 1000,
+        "ino": 998678,
+        "mode": "0o400",
+        "mtime_ns": 1791379910241386104,
+        "nlink": 1,
+        "size": 940,
+        "uid": 1000
+      },
+      "sourcePath": "/workspace/.zasp-cloud-owned/health-lifecycle-sql-fixture-source-ainjcb5u/manifest.json",
+      "sourceSHA256": "de47680abac102655cd747564e37bd9929ceb985867e730ee12ed27b6ce3f5ed"
+    },
+    {
+      "bytes": 538,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 79055,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "fixture-CENSUS-CLARIFICATION.json",
+      "selection": "byte-exact-original",
+      "sha256": "cdb9e11dff601d9fd5aaed667db6968b43235a5eda2dac7beedce5c64fe8a099",
+      "sourceIdentity": {
+        "ctime_ns": 1791379932135284112,
+        "dev": 27,
+        "gid": 1000,
+        "ino": 998679,
+        "mode": "0o400",
+        "mtime_ns": 1791379932135284112,
+        "nlink": 1,
+        "size": 538,
+        "uid": 1000
+      },
+      "sourcePath": "/workspace/.zasp-cloud-owned/health-lifecycle-sql-fixture-source-ainjcb5u/CENSUS-CLARIFICATION.json",
+      "sourceSHA256": "cdb9e11dff601d9fd5aaed667db6968b43235a5eda2dac7beedce5c64fe8a099"
+    },
+    {
+      "bytes": 1204,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 79056,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "fixture-candidate.diff",
+      "selection": "byte-exact-original",
+      "sha256": "eb8230d4983caff8bca1858a7e18a156810c029ae55aabdefe43ab1fa688e1b1",
+      "sourceIdentity": {
+        "ctime_ns": 1791379910241124448,
+        "dev": 27,
+        "gid": 1000,
+        "ino": 998675,
+        "mode": "0o400",
+        "mtime_ns": 1791379910240761539,
+        "nlink": 1,
+        "size": 1204,
+        "uid": 1000
+      },
+      "sourcePath": "/workspace/.zasp-cloud-owned/health-lifecycle-sql-fixture-source-ainjcb5u/candidate.diff",
+      "sourceSHA256": "eb8230d4983caff8bca1858a7e18a156810c029ae55aabdefe43ab1fa688e1b1"
+    },
+    {
+      "bytes": 1327,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 79057,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "README.md",
+      "selection": "new-scope-document",
+      "sha256": "411a385accf1ff10cf1a2f0181a54db66a5dbf8dc8d95ac883e534b813d00dbd",
+      "sourceIdentity": null,
+      "sourcePath": null,
+      "sourceSHA256": null
+    },
+    {
+      "bytes": 71,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 79058,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "full-api-race-api.stdout",
+      "selection": "byte-exact-original",
+      "sha256": "dccac7130fc379060754151d68a2725355f87021aa1cc1a25ea610a80baf2b30",
+      "sourceIdentity": {
+        "ctime_ns": 1791380870422739522,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 77948,
+        "mode": "0o600",
+        "mtime_ns": 1791380870422739522,
+        "nlink": 1,
+        "size": 71,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/zasp-lifecycle-api-race-KTMRUZ/api.stdout",
+      "sourceSHA256": "dccac7130fc379060754151d68a2725355f87021aa1cc1a25ea610a80baf2b30"
+    },
+    {
+      "bytes": 0,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 79059,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "full-api-race-api.stderr",
+      "selection": "byte-exact-original",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sourceIdentity": {
+        "ctime_ns": 1791380859568128765,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 77949,
+        "mode": "0o600",
+        "mtime_ns": 1791380859568128765,
+        "nlink": 1,
+        "size": 0,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/zasp-lifecycle-api-race-KTMRUZ/api.stderr",
+      "sourceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 694,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 79060,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "full-api-race-ROOT-observation.json",
+      "selection": "derived-labelled-ROOT-message-transcription",
+      "sha256": "4a7e1022bab89c6d4f97cf4b75d1b51be49c236ab93b490581a37213036e7fc0",
+      "sourceIdentity": null,
+      "sourcePath": null,
+      "sourceSHA256": null
+    }
+  ],
+  "predecessorCandidate": {
+    "path": "/tmp/lifecycle-correction-publication-rpavbd5m/manifest.json",
+    "sha256": "c61d291297c6ade2daed67d019d3ac51bfd9a6e1e2df7de27278f37dda32d385",
+    "status": "Preserved before API race completion"
+  },
+  "publicationSafety": {
+    "encodedPayloadSelection": "none",
+    "scanner": "NOT_RUN",
+    "sharedWrites": false
+  },
+  "root": "/tmp/lifecycle-correction-publication-final-ok_unk9o",
+  "scope": "Selected causal lifecycle correction plus separately ROOT-observed fullAPI command0; no full three-package health claim."
+}

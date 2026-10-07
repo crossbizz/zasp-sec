@@ -1,0 +1,37 @@
+{
+  "checks": {
+    "20Pins7ToolsSameFDHashMetadataExact": true,
+    "26OriginalLifecycleFunctionsUnchanged": true,
+    "GREEN": "27RUN2top25subPASS0FAIL0SKIP",
+    "RED": "27RUN1top15subPASS1top10subFAIL0SKIP",
+    "candidateFixtureBodyUnchanged": true,
+    "onlyFunctionDelta": "lifecycle_census adds five existing forwarding safety names and22to27",
+    "originalAssertionsAndPackageFinalRequired": true,
+    "originalFiveForwardingCasesIncluded": [
+      "nil_wrapper",
+      "nil_next",
+      "typed_nil",
+      "nil_context",
+      "cancelled"
+    ],
+    "originalOwnerCensusRefusalPreserved": true,
+    "rawOldActual27RUN16PASS11FAILNoSKIP": true
+  },
+  "conditions": [
+    "ROOT fresh source/tool/HEAD/floors and selecteddependency admission before each bounded serial stage.",
+    "Actual RED/GREEN original assertions and normaljoin/source conservation need separate review.",
+    "Whole three-packagehealth guard remainsrequired after adoption; selected27PASS cannot clear missingNode worker failure."
+  ],
+  "correction": [
+    "Earlier independent22-event static census projection missed five existing forwarding t.Run cases. It is superseded by this27-case review; no original source or actual failure rewritten.",
+    "Authentic earlier RED27events passed application assertions as expected but owner refused wrong22roster; not an application regression."
+  ],
+  "format": "independent-health-lifecycle-census27-owner-source-review-v1",
+  "ownerSHA256": "77926d066dcd11bd0ff1fbbd329aafbecc4478e41ed67873b8fd8191d4d1c9f7",
+  "recipeSHA256": "25c6b382b35304d0513098a2227682f31f9b081df21e16165018a6f5b67d176b",
+  "scope": [
+    "Source-only/no tests/compiler/services executed by reviewer.",
+    "No skipped or hidden safety cases; all five current original forwarding protections retained."
+  ],
+  "status": "PASS_STATIC_CORRECTED_FULL_SELECTED_ROSTER"
+}

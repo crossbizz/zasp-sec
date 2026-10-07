@@ -1,0 +1,84 @@
+{
+  "format": "selected-public-safe-owner-result-v1",
+  "omittedFields": [
+    "activeOverlay",
+    "adoptedChildren",
+    "aliasTargets",
+    "ownedReaps",
+    "ownedSessions",
+    "projectionRoot",
+    "resourceHistory"
+  ],
+  "original": {
+    "bytes": 12636,
+    "identity": {
+      "ctime_ns": 1791380405118236733,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 76295,
+      "mode": "0o400",
+      "mtime_ns": 1791380405118207869,
+      "nlink": 1,
+      "size": 12636,
+      "uid": 1000
+    },
+    "path": "/tmp/health-lifecycle-tdd-owner-xuwz562a/actual-lifecycle-stage0-0jmnhs6m/result.json",
+    "sha256": "0b98985d7df46743e49f1333bd2d4b324589419d7eb5c245247a6a99702b9ab5"
+  },
+  "scope": "Derived scalar selection; test fixture scope only, not whole health acceptance.",
+  "selected": {
+    "completed": false,
+    "elapsedSeconds": 4.628690020999784,
+    "failure": "RuntimeError:exact lifecycle run roster refused",
+    "firstRefusal": {
+      "elapsedSeconds": 4.260652429999027,
+      "phase": "baseline-red",
+      "reason": "RuntimeError:exact lifecycle run roster refused",
+      "resources": null,
+      "signals": []
+    },
+    "forced": false,
+    "format": "health-lifecycle-fixture-two-stage-tdd-actual-v1",
+    "inputs": 9785,
+    "lifecycleTDDStage": 0,
+    "ownedSessionSurvivors": [],
+    "processCensusUnknown": [],
+    "productionActivated": false,
+    "resourcesAfter": {
+      "/dev/shm": 9441349632,
+      "/tmp": 4087918592,
+      "/workspace": 1557676032,
+      "memoryHeadroom": 3799240704
+    },
+    "results": [],
+    "signals": [],
+    "sourceAfterSHA256": "5a1b289752c20009141eb77d018d685f02a417d4c8f9a25f1cfa06e62d55d34a",
+    "sourceBeforeSHA256": "5a1b289752c20009141eb77d018d685f02a417d4c8f9a25f1cfa06e62d55d34a",
+    "waits": [
+      {
+        "joined": true,
+        "pid": 32330,
+        "returnCode": 0,
+        "tag": "head"
+      },
+      {
+        "joined": true,
+        "pid": 32332,
+        "returnCode": 0,
+        "tag": "selected-inputs"
+      },
+      {
+        "joined": true,
+        "pid": 32357,
+        "returnCode": 0,
+        "tag": "selected-modules"
+      },
+      {
+        "joined": true,
+        "pid": 32362,
+        "returnCode": 1,
+        "tag": "baseline-red"
+      }
+    ]
+  }
+}

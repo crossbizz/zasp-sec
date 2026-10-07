@@ -1,0 +1,19 @@
+{
+  "format": "source-census-clarification-v1",
+  "planSHA256": "9d650644778e7f85ddb00138e193b2a7680243a37d5233170ab572b67cda2ff3",
+  "correction": "Original plan grouping note is withdrawn: t.Run(op+\"/\"+mode) is one actual call, not nested t.Run. Exact2tops+20subcases (no separate op-group events).",
+  "RED": {
+    "passTop": 1,
+    "passSub": 10,
+    "failTop": 1,
+    "failSub": 10,
+    "skip": 0
+  },
+  "GREEN": {
+    "passTop": 2,
+    "passSub": 20,
+    "fail": 0,
+    "skip": 0
+  },
+  "sourceRuntime": "PREPARED_ONLY_NOT_RUN"
+}

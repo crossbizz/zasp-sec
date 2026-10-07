@@ -1,0 +1,12 @@
+{
+  "scope": "Lossless whole original unified diff, encoded to retain context indentation without a Git whitespace error. No test results or diff bytes omitted. Original private source remains unchanged.",
+  "originalSource": "/tmp/lifecycle-correction-publication-final-ok_unk9o/fixture-candidate.diff",
+  "originalSHA256": "eb8230d4983caff8bca1858a7e18a156810c029ae55aabdefe43ab1fa688e1b1",
+  "encodedFile": "fixture-candidate.diff.jsonl",
+  "encodedSHA256": "c428ca9f4fa72d5a242fffda3ff679c9562993360ec6a48b34e5b6295d82bbf2",
+  "reconstruction": "Concatenate original_diff_line values in order and UTF-8 encode; each value retains its original line ending.",
+  "reconstructedBytes": 1204,
+  "reconstructedSHA256": "eb8230d4983caff8bca1858a7e18a156810c029ae55aabdefe43ab1fa688e1b1",
+  "originalCandidateManifest": "source-candidate-manifest.json",
+  "originalCandidateManifestScope": "Unchanged source packet manifest refers to the preserved raw diff at its original /tmp location; this publication substitutes only the disclosed lossless encoding."
+}
