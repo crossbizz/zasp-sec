@@ -1,0 +1,51 @@
+{
+  "scope": "Additional product boundary requirement from independent review. Historical raw and prior summaries preserved.",
+  "sources": {
+    "services/platform/orchestration/security_agent_workflow.go": "82fafcf5577a096474d9a3c63d696ed1ea0e939741a1e6a750edaffe623a3165",
+    "services/platform/orchestration/security_agent_workflow_test.go": "67aadea112ceb4408b25483e36d9324f029d161b9747ec60cebbce2641b21edf"
+  },
+  "runs": {
+    "budget-boundary-red": {
+      "exit": 1,
+      "log_sha256": "5b3c65bf269c2f69708983ef388a1e5f5dbb9b670760333d3c565b1831f8892a",
+      "started": "2026-10-07T00:03:40.203167469Z",
+      "ended": "2026-10-07T00:03:41.745724351Z",
+      "counts": {
+        "pass": 0,
+        "fail": 1,
+        "skip": 0
+      },
+      "skips": [],
+      "package_terminal": [
+        {
+          "Action": "fail",
+          "Elapsed": 1.5430000000000001
+        }
+      ]
+    },
+    "package-green-v2": {
+      "exit": 0,
+      "log_sha256": "ecf4e3410c1373f44fb27594a5346aadf8b5f64ad3c42fe179f6435a1d52ed6b",
+      "started": "2026-10-07T00:03:20.378516932Z",
+      "ended": "2026-10-07T00:03:30.100491763Z",
+      "counts": {
+        "pass": 62,
+        "fail": 0,
+        "skip": 2
+      },
+      "skips": [
+        "TestAutomaticSourceRetainedHistoryDiagnostic",
+        "TestSingleTestLiveCleanupContinuation"
+      ],
+      "package_terminal": [
+        {
+          "Action": "pass",
+          "Elapsed": 9.722
+        }
+      ]
+    }
+  },
+  "baseline_overlay": "Committed production HEAD bytes; identical final test body. Only production source selection changes through explicit Go overlay; shared production remains candidate.",
+  "baseline-overlay.json_sha256": "6c39aab3a84c3bc913a37534fa708a4e0ac7b757aa9bd94ca19b9695deed932b",
+  "baseline-workflow.go_sha256": "6da42a7bdd940c947e356f3c278c1b66d5f941edf193888da6de4f5d479a5148"
+}
