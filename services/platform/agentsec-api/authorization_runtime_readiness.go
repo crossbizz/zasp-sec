@@ -46,6 +46,16 @@ func authorizationRuntimeReadiness(servicesReady, previous func(context.Context)
 		if err := servicesReady(ctx); err != nil {
 			return err
 		}
+		if database.CurrentAuthorizationRequired() && securityAgentDatabase.CurrentAuthorizationRequired() {
+			bounded, cancel := context.WithTimeout(ctx, timeout)
+			defer cancel()
+			return boundedParallelReadiness(bounded,
+				func(probe context.Context) error {
+					return checkAuthorizationRuntimeReady(probe, database, securityAgentDatabase, keyVersion)
+				},
+				previous,
+			)
+		}
 		if err := checkAuthorizationRuntimeReadyWithinTimeout(ctx, database, securityAgentDatabase, keyVersion, timeout); err != nil {
 			return err
 		}

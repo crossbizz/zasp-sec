@@ -115,19 +115,22 @@ func TestP7GuardedRuntimeReadinessCallback(t *testing.T) {
 				t.Errorf("callback error=%v", err)
 			}
 			wantCore, wantAgent, wantPrevious := 1, 1, 1
-			minCore, minAgent := 1, 1
+			minCore, minAgent, minPrevious := 1, 1, 1
 			if name == "services refused" {
 				wantCore, wantAgent, wantPrevious = 0, 0, 0
-				minCore, minAgent = 0, 0
+				minCore, minAgent, minPrevious = 0, 0, 0
 			}
 			if name == "discovery refused" {
-				minAgent, wantPrevious = 0, 0
+				minAgent, minPrevious = 0, 0
 			}
 			if name == "agent refused" {
 				minCore = 0
-				wantPrevious = 0
+				minPrevious = 0
 			}
-			if serviceCalls != 1 || coreDriver.calls < minCore || coreDriver.calls > wantCore || agentDriver.calls < minAgent || agentDriver.calls > wantAgent || previousCalls != wantPrevious {
+			if name == "previous refused" {
+				minCore, minAgent = 0, 0
+			}
+			if serviceCalls != 1 || coreDriver.calls < minCore || coreDriver.calls > wantCore || agentDriver.calls < minAgent || agentDriver.calls > wantAgent || previousCalls < minPrevious || previousCalls > wantPrevious {
 				t.Errorf("calls services=%d core=%d agent=%d previous=%d", serviceCalls, coreDriver.calls, agentDriver.calls, previousCalls)
 			}
 		})

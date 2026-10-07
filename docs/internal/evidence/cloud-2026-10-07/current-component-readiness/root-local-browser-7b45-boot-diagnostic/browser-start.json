@@ -1,0 +1,15 @@
+{
+  "head": "7b45b0a88afe1a8c738bcba978c44935b72cdf53",
+  "command": [
+    "/tmp/zasp-cloud-tools/bin/tini",
+    "-s",
+    "--",
+    "/tmp/zasp-cloud-tools/node-v22.23.1-linux-x64/bin/node",
+    "/workspace/.zasp-cloud-owned/root-local-browser-7b45-boot-diagnostic/browser-diagnostic.mjs"
+  ],
+  "pid": 59844,
+  "procStat": "59844 (tini) R 59839 59844 59844 0 -1 4194560 14 0 0 0 0 0 0 0 20 0 1 0 846540 425984 0 18446744073709551615 4194304 4210500 140722841635600 0 0 0 0 0 0 0 0 0 17 3 0 0 0 0 0 6311440 6313355 1076465664 140722841638832 140722841639016 140722841639016 140722841645017 0\n",
+  "outerSeconds": 900,
+  "cleanupSeconds": 30,
+  "scope": "exact workflow compliance browser acceptance; controlled identity/object fixtures, no deployed provider proof"
+}

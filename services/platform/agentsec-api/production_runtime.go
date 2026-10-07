@@ -560,6 +560,31 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 	}
 	keepConnectorResources = true
 	return RuntimeDependencies{ProductHandler: edge, Metrics: metrics, LifecycleWorker: func(ctx context.Context) error { return runLifecycleWorkers(ctx, lifecycleWorkers...) }, ReadinessCheck: func(ctx context.Context) error {
+		if currentRequired(database) && currentRequired(securityAgentDatabase) {
+			checks := []func(context.Context) error{repository.Ready, connectorRepository.Ready, referenceRepository.Ready, policyHandler.Ready, tracedProvider.Ready}
+			if agentExports != nil {
+				checks = append(checks, agentExports.Ready)
+			}
+			if compliance != nil {
+				checks = append(checks, compliance.Ready)
+			}
+			if auditExports != nil {
+				checks = append(checks, auditExports.Ready)
+			}
+			if securityAgentRepository != nil {
+				checks = append(checks, securityAgentRepository.Ready)
+			}
+			if approvalNotificationRepository != nil {
+				checks = append(checks, func(probe context.Context) error {
+					if err := approvalNotificationRepository.ReadyApprovalNotifications(probe); err != nil || approvalNotificationReconciler == nil || !approvalNotificationReconciler.Ready() {
+						return errRuntimeUnavailable
+					}
+					return nil
+				})
+			}
+			return currentComponentReadiness(ctx, connectorReconciler.Ready, checks...)
+		}
+
 		if agentExports != nil {
 			if err := agentExports.Ready(ctx); err != nil {
 				return errRuntimeUnavailable

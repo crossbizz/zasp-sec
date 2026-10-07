@@ -1,0 +1,90 @@
+{
+  "head": "7b45b0a88afe1a8c738bcba978c44935b72cdf53",
+  "exit": 1,
+  "seconds": 158.45967497400125,
+  "refusal": null,
+  "trackedBodiesUnchanged": true,
+  "resourceSamples": [
+    {
+      "monotonic": 8700.067747998,
+      "workspaceFree": 7345233920,
+      "tmpFree": 4018003968
+    },
+    {
+      "monotonic": 8710.072756392,
+      "workspaceFree": 6428028928,
+      "tmpFree": 3875057664
+    },
+    {
+      "monotonic": 8720.074499665,
+      "workspaceFree": 6428028928,
+      "tmpFree": 3725590528
+    },
+    {
+      "monotonic": 8730.076306278,
+      "workspaceFree": 5510811648,
+      "tmpFree": 3724918784
+    },
+    {
+      "monotonic": 8740.078180567,
+      "workspaceFree": 5510811648,
+      "tmpFree": 3671142400
+    },
+    {
+      "monotonic": 8750.080764216,
+      "workspaceFree": 5510799360,
+      "tmpFree": 3671142400
+    },
+    {
+      "monotonic": 8760.082599483,
+      "workspaceFree": 5510795264,
+      "tmpFree": 3671142400
+    },
+    {
+      "monotonic": 8770.085945733,
+      "workspaceFree": 5510795264,
+      "tmpFree": 3671142400
+    },
+    {
+      "monotonic": 8780.08782557,
+      "workspaceFree": 5510778880,
+      "tmpFree": 3671142400
+    },
+    {
+      "monotonic": 8790.092175481,
+      "workspaceFree": 5510778880,
+      "tmpFree": 3671142400
+    },
+    {
+      "monotonic": 8800.093819818,
+      "workspaceFree": 5510778880,
+      "tmpFree": 3671142400
+    },
+    {
+      "monotonic": 8810.095744376,
+      "workspaceFree": 5510778880,
+      "tmpFree": 3671142400
+    },
+    {
+      "monotonic": 8820.097371813,
+      "workspaceFree": 5510017024,
+      "tmpFree": 3671142400
+    },
+    {
+      "monotonic": 8830.10451639,
+      "workspaceFree": 5509894144,
+      "tmpFree": 3671142400
+    },
+    {
+      "monotonic": 8840.1062718,
+      "workspaceFree": 5509775360,
+      "tmpFree": 3671142400
+    },
+    {
+      "monotonic": 8850.10897464,
+      "workspaceFree": 5509713920,
+      "tmpFree": 3671142400
+    }
+  ],
+  "scope": "actual local compliance browser only; controlled identity/provider fixtures; not deployed Stytch/provider acceptance"
+}
