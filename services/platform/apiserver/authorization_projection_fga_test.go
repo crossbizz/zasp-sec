@@ -16,6 +16,9 @@ import (
 
 func newAuthorizationProjectionFGA(t *testing.T, wrappers ...func(http.RoundTripper) http.RoundTripper) (*fga.OpenFgaClient, runtimeservices.Config) {
 	t.Helper()
+	if os.Getenv("ZASP_P6_NATIVE_OPENFGA_URL") != "" || os.Getenv("ZASP_P6_NATIVE_OPENFGA_TOKEN_FILE") != "" {
+		return newApprovalMaintenanceOwnedFGA(t, wrappers...)
+	}
 	data, err := exec.Command("docker", "inspect", "zasp-runtime-services-openfga-1").Output()
 	if err != nil {
 		t.Fatal("retained local service unavailable")

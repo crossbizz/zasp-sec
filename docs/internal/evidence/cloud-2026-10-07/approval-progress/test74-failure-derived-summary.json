@@ -1,0 +1,20 @@
+{
+  "completed": false,
+  "failure": "RuntimeError:child stage refused:genuine-single-test-inactive-capture",
+  "elapsedSeconds": 250.40399943500051,
+  "inputs": 13987,
+  "forced": false,
+  "signals": [],
+  "fgaNormalStop": {
+    "exit": 0,
+    "forcedCleanup": false,
+    "listenersAbsent": true,
+    "normalWait": true,
+    "routineGracefulSIGTERM": true,
+    "sessionAbsent": true
+  },
+  "ownedSessionSurvivors": [],
+  "processCensusUnknown": [],
+  "originalResultSHA256": "ad93ae558f4850eb1fd08903344352cc0b9570a7ad27fd413a94fc09a989fffc",
+  "derivedSummaryOnly": true
+}

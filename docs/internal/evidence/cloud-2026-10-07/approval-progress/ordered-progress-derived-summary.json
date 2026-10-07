@@ -1,0 +1,20 @@
+{
+  "completed": true,
+  "failure": null,
+  "elapsedSeconds": 240.82998349100035,
+  "inputs": 13987,
+  "forced": false,
+  "signals": [],
+  "fgaNormalStop": {
+    "exit": 0,
+    "forcedCleanup": false,
+    "listenersAbsent": true,
+    "normalWait": true,
+    "routineGracefulSIGTERM": true,
+    "sessionAbsent": true
+  },
+  "ownedSessionSurvivors": [],
+  "processCensusUnknown": [],
+  "originalResultSHA256": "38ea758f754866d566aa5cc8d7d2a55afbd156489ef9f1c2461e77acb710c4c3",
+  "derivedSummaryOnly": true
+}
