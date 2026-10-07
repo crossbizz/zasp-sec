@@ -42,7 +42,7 @@ export async function runReadOnlySynthetic({ origin, token, allowHTTPLoopback = 
   const apiMilliseconds = Math.ceil(performance.now() - apiStarted);
   const correlationID = api.headers.get("x-correlation-id") ?? "";
   const trace = traceparent.exec(api.headers.get("traceparent") ?? "");
-  if (api.status !== 200 || !productID.test(correlationID) || !trace || /^0+$/.test(trace[1]) || apiMilliseconds > 500) throw new Error("synthetic rejected");
+  if (api.status !== 200 || !productID.test(correlationID) || !trace || /^0+$/.test(trace[1]) || /^0+$/.test(trace[2]) || apiMilliseconds > 500) throw new Error("synthetic rejected");
   return deepFreeze({ apiMilliseconds, correlationID, traceID: trace[1], webMilliseconds });
 }
 

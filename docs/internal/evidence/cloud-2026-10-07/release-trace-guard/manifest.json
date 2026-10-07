@@ -1,0 +1,50 @@
+{
+  "startingHead": "f1c10c5a9f2f95be04c8bbd02a5482cf2add09cd",
+  "scope": "Release probe application contract using an owned local HTTP server; no deployed authentication/provider evidence.",
+  "red": {
+    "exit": 1,
+    "pass": 5,
+    "fail": 2,
+    "reason": "all-zero span unexpectedly accepted; parent also fails"
+  },
+  "green": {
+    "exit": 0,
+    "pass": 8,
+    "fail": 0,
+    "skip": 0
+  },
+  "excluded": "Expensive release sources/SBOM integration test intentionally filtered, not passed by this run.",
+  "lint": "Scoped ESLint and git diff --check passed.",
+  "ledger": {
+    "total": 728,
+    "recordedProductionAvailable": 523,
+    "componentOnly": 144,
+    "externallyBlocked": 61,
+    "missing": 0,
+    "promotions": 0
+  },
+  "files": {
+    "red.tap": {
+      "sha256": "cb25c236cf282a5345de04c74370be5b13673a55754f5d947745b9c747d3de8b",
+      "bytes": 2165
+    },
+    "green.tap": {
+      "sha256": "8fd885b27744b4afaa3adf775f7c80acbcad3cda8f31faf2185c5a652e8f8409",
+      "bytes": 1385
+    }
+  },
+  "commands": {
+    "red": [
+      "node",
+      "--test",
+      "--test-name-pattern=read-only synthetic",
+      "deploy/production/release-gates.test.mjs"
+    ],
+    "green": [
+      "node",
+      "--test",
+      "--test-name-pattern=read-only synthetic|release policy",
+      "deploy/production/release-gates.test.mjs"
+    ]
+  }
+}

@@ -43,6 +43,46 @@ test("read-only synthetic proves web and authenticated API correlation without l
   }
 });
 
+test("read-only synthetic refuses invalid trace and span identifiers", async (t) => {
+  let header;
+  const server = createServer((request, response) => {
+    const headers = securityHeaders({ "content-type": "application/json" });
+    if (request.url === "/api/v1/home/summary") {
+      headers["x-correlation-id"] = "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+      headers.traceparent = header;
+    }
+    response.writeHead(200, headers);
+    response.end("{}");
+  });
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  try {
+    const origin = `http://127.0.0.1:${server.address().port}`;
+    for (const [name, value, accepted] of [
+      ["valid sampled", "00-11111111111111111111111111111111-2222222222222222-01", true],
+      ["valid unsampled", "00-11111111111111111111111111111111-2222222222222222-00", true],
+      ["zero span", "00-11111111111111111111111111111111-0000000000000000-01", false],
+      ["zero trace", "00-00000000000000000000000000000000-2222222222222222-01", false],
+      ["malformed", "00-11111111111111111111111111111111-222222222222222-01", false],
+    ]) {
+      await t.test(name, async () => {
+        header = value;
+        const probe = runReadOnlySynthetic({ origin, token: "synthetic-secret-token-with-32-bytes", allowHTTPLoopback: true });
+        if (accepted) {
+          const evidence = await probe;
+          assert.equal(evidence.traceID, "11111111111111111111111111111111");
+          assert.doesNotMatch(JSON.stringify(evidence), /synthetic-secret/);
+        } else {
+          await assert.rejects(probe, { message: "synthetic rejected" });
+        }
+      });
+    }
+  } finally {
+    server.close();
+    await once(server, "close");
+  }
+});
+
 test("release sources contain truthful runbooks, canary, SBOM/license/image/secret gates", async () => {
   const result = await verifyReleaseSources();
   assert.deepEqual(result.renderedRollouts, [

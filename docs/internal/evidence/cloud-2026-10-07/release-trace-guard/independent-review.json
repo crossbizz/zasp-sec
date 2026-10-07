@@ -1,0 +1,35 @@
+{
+  "format": "independent-release-synthetic-span-guard-source-evidence-review-v1",
+  "timestampUTC": "2026-10-07T07:04:32.369716+00:00",
+  "verdict": "PASS_SCOPED_SOURCE_AND_RETAINED_TAP",
+  "files": {
+    "/workspace/zasp-sec/deploy/production/release-gates.mjs": {
+      "bytes": 24942,
+      "sha256": "ed6ad198da62f463524cc374c0ff6f00774f7b4538dec2987ae2de6a29898b58"
+    },
+    "/workspace/zasp-sec/deploy/production/release-gates.test.mjs": {
+      "bytes": 8389,
+      "sha256": "79721180fd8286eb845026113bda0e455b086e8e376f2d4df74e15fe24585db0"
+    },
+    "/workspace/.zasp-cloud-owned/root-release-trace-guard/red.tap": {
+      "bytes": 2165,
+      "sha256": "cb25c236cf282a5345de04c74370be5b13673a55754f5d947745b9c747d3de8b"
+    },
+    "/workspace/.zasp-cloud-owned/root-release-trace-guard/green.tap": {
+      "bytes": 1385,
+      "sha256": "8fd885b27744b4afaa3adf775f7c80acbcad3cda8f31faf2185c5a652e8f8409"
+    }
+  },
+  "checks": [
+    "Production source exact inverse of only one added all-zero span predicate equals HEAD original bytes. Every prior protocol/origin/token/redirect/time/status/header/correlation/trace guard and returned evidence shape retained.",
+    "Trace regex capture2 is exactly16lowercase hexadecimal spanID, and new all-zero refusal complements existing nonzero32hex traceID requirement. Sampled01 and unsampled00 remain supported.",
+    "Five actual loopback HTTP fixture cases exercise both valid flags, zero span, zero trace and malformed length. Existing authenticated-token transmission and no-token-return assertions unchanged.",
+    "RED retained TAP reports5PASS2FAIL: zero-span Missing expected rejection plus aggregate parent failure. No setup failure or skip.",
+    "GREEN retained TAP reports8PASS0FAIL0SKIP: policy plus existing synthetic plus five cases and parent. Expensive release-source suite filtered, not evidence of complete suite PASS."
+  ],
+  "limitations": [
+    "Reviewer ran no tests, services or source mutations.",
+    "Only retained TAP bodies are reviewed; no invented process join/PID trace.",
+    "Loopback fixture results do not prove deployed endpoint availability, permissions, production readiness or ledger promotion."
+  ]
+}
