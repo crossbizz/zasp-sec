@@ -1,0 +1,37 @@
+{
+  "status": "CONDITIONAL_CURRENT77D90_SOURCE_ASSOCIATION_PASS_ROOT_SERIAL_GO_ONLY",
+  "ownerSHA256": "b2a3289a5336c7336c89fe89294e14b8185f15f7c8a13e17a0677a019a05b373",
+  "recipeSHA256": "df29e6695e6a2a98bc82c3e80a85565661f3dd411ab4b18f0ef8d04142aee850",
+  "head": "77d90c642828cccb2dad2f8b132f283bd4a0f566",
+  "all17DescriptorFullSameFDVerified": true,
+  "pins": 8,
+  "tools": 9,
+  "all26DonorFunctionASTExact": true,
+  "sourceMap": {
+    "members": 3208,
+    "soleChangedDigest": "services/platform/agentsec-api/temporal_test_lifecycle_runtime_test.go",
+    "candidateSHA256": "db1dbe8c7af164440d959684692a0232796cb462d074352b365b97f49cf0b20f",
+    "allOther3207DigestsUnchanged": true,
+    "all3208PayloadsRereadByReviewer": false
+  },
+  "nodeBinding": {
+    "map1965FilesAndAliasesExactReviewedDraft": true,
+    "onlyProvenanceReceiptFieldRebound": true,
+    "nodeAndNpmDescriptorsRehashed": true,
+    "all1965PayloadsRereadByReviewer": false,
+    "actualFullMapByteRecheckRequired": true
+  },
+  "assessment": [
+    "Owner only stageRecipeSHA global rebinding and exclusiveTMP RUN output namespace; all26functionASTs exact",
+    "Stageenv/race/count/testargv/default10m/metadatafields4MiB/660+30/floors unchanged",
+    "ROOT only1\u21922\u21923 serialstopfirstnonzero; unchangedstage0 earlierPASS separatelyreported, not newepochfullchainPASS",
+    "Current77d90 matchesgitHEAD; actualdynamicGo-list/source/alias/Node/npm prepost mandatory",
+    "No donorFGAstart call or activation/native379/hostedcause acceptance"
+  ],
+  "executionConditions": [
+    "ROOT freshresource/pin/currentHEADsource readmission and Go/cachewriter release",
+    "Externalnormal0/completed/no forced/signal/unknown/residual/late-refusal eachstage",
+    "Preserve setup/cap/prerequisite/productfailure distinctly"
+  ],
+  "reviewerExecution": "No Go/test/services/network/cache/source mutations"
+}

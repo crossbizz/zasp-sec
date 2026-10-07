@@ -1,0 +1,76 @@
+{
+  "findings": [
+    {
+      "classification": "Path-key mapped to file contentSHA, not credential; sameSHA verified against actualowned-api-startup-wait.mjs bytes. OriginalreportSecret remainsREDACTED.",
+      "file": "docs/internal/evidence/cloud-2026-10-07/api-exact-tail/counter-only-source-review.json",
+      "line": 11,
+      "rule": "generic-api-key"
+    },
+    {
+      "classification": "Path-key mapped to file contentSHA, not credential; sameSHA verified against actualowned-api-startup-wait.mjs bytes. OriginalreportSecret remainsREDACTED.",
+      "file": "docs/internal/evidence/cloud-2026-10-07/api-exact-tail/counter-only-source-review.json",
+      "line": 16,
+      "rule": "generic-api-key"
+    },
+    {
+      "classification": "Path-key mapped to file contentSHA, not credential; sameSHA verified against actualowned-api-startup-wait.mjs bytes. OriginalreportSecret remainsREDACTED.",
+      "file": "docs/internal/evidence/cloud-2026-10-07/api-exact-tail/initial-source-review.json",
+      "line": 6,
+      "rule": "generic-api-key"
+    },
+    {
+      "classification": "Path-key mapped to file contentSHA, not credential; sameSHA verified against actualowned-api-startup-wait.mjs bytes. OriginalreportSecret remainsREDACTED.",
+      "file": "docs/internal/evidence/cloud-2026-10-07/api-exact-tail/initial-source-review.json",
+      "line": 11,
+      "rule": "generic-api-key"
+    }
+  ],
+  "format": "default-scan-content-SHA-shape-falsepositive-v1",
+  "redactedOriginalReportSHA256": "6c0f1b75dd809a684806e32fe8d93cb527d451978a1e9674e0a04965b852a0ac",
+  "retainedOriginals": "Original54febb/569review files and completebd793packet preservedprivateunchanged. Thispublicationderivedreports explicitlynotidentitycopies.",
+  "scannerPolicy": "No suppression/allowlist/rulechange/hiddencontentencoding. Allpath andSHAvalues retainedexplicitvisibletypedfields.",
+  "scope": "No code/test/runtime behavior changed; new stageddefaultscan must run independently and pass beforepublicationacceptance.",
+  "status": "ROOToriginaldefaultscanFAILED4; transformedpayloadscanPENDING",
+  "transformations": [
+    {
+      "contentHashValidation": [
+        {
+          "actualBytes": 4349,
+          "path": "/tmp/api-child-exact-tail-diagnostic-jgqpa177/baseline/owned-api-startup-wait.mjs",
+          "sha256": "24fedd52f684a5ae252d132d50dadb4bdbca8954acd34299ad3bbc896b214f1a"
+        },
+        {
+          "actualBytes": 4349,
+          "path": "/tmp/api-child-exact-tail-diagnostic-jgqpa177/successor/owned-api-startup-wait.mjs",
+          "sha256": "24fedd52f684a5ae252d132d50dadb4bdbca8954acd34299ad3bbc896b214f1a"
+        }
+      ],
+      "field": "checkedPins",
+      "member": "initial-source-review.json",
+      "originalBytes": 3473,
+      "originalSHA256": "54febb3f3f65dd62945e86687842a9c7dd1ec6d448b5c14e29b2f841aedae76f",
+      "preservation": "Allotherfields includinghistorical2/2forecast and refusal chronology unchanged; everypath/hash value retained visible.",
+      "reconstruction": "Convert ONLY this field array[{path,sha256}] back to object keyedby path. Serialize whole restored report json.dumps(sort_keys=True,indent=2)+newline UTF8; exact originalbytes/SHA verified."
+    },
+    {
+      "contentHashValidation": [
+        {
+          "actualBytes": 4349,
+          "path": "/tmp/api-child-exact-tail-diagnostic-jgqpa177/baseline/owned-api-startup-wait.mjs",
+          "sha256": "24fedd52f684a5ae252d132d50dadb4bdbca8954acd34299ad3bbc896b214f1a"
+        },
+        {
+          "actualBytes": 4349,
+          "path": "/tmp/api-child-exact-tail-diagnostic-jgqpa177/successor/owned-api-startup-wait.mjs",
+          "sha256": "24fedd52f684a5ae252d132d50dadb4bdbca8954acd34299ad3bbc896b214f1a"
+        }
+      ],
+      "field": "pins",
+      "member": "counter-only-source-review.json",
+      "originalBytes": 3045,
+      "originalSHA256": "569c7a0904c4acd884699011a4f8f775ef073d39b8558546fa9d3bb03ca8be12",
+      "preservation": "Allotherfields includinghistorical2/2forecast and refusal chronology unchanged; everypath/hash value retained visible.",
+      "reconstruction": "Convert ONLY this field array[{path,sha256}] back to object keyedby path. Serialize whole restored report json.dumps(sort_keys=True,indent=2)+newline UTF8; exact originalbytes/SHA verified."
+    }
+  ]
+}

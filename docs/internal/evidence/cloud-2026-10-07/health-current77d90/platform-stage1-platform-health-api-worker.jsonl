@@ -1,0 +1,3 @@
+ok  	github.com/zasp-ai/zasp-sec/services/platform/healthserver	6.040s
+ok  	github.com/zasp-ai/zasp-sec/services/platform/agentsec-api	7.414s
+ok  	github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker	196.097s

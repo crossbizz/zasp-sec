@@ -1,3 +1,5 @@
+import './compliance-api-child-stage.test.mjs';
+import './compliance-api-exact-tail.test.mjs';
 import './compliance-runtime-prerequisites.test.mjs';
 import './owned-runtime-startup-diagnostics.test.mjs';
 import './retained-allocation-diagnostics.test.mjs';

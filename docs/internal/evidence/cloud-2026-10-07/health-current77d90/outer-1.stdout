@@ -1,0 +1,1 @@
+{"result": "/tmp/health-contract-current77d90-stage2-vjt__b_m/result.json", "sha256": "ad2ba2e60331aad11145ee44f82fe9278dfcf4244c358f201429fddec00cc596", "completed": false, "failure": "RuntimeError:child stage refused:selected-modules"}

@@ -1,0 +1,182 @@
+{
+  "GOPROXY": "https://proxy.golang.org",
+  "GOSUMDB": "sum.golang.org",
+  "argv": [
+    "/workspace/.zasp-cloud-owned/spec44-runtime-tools/go/bin/go",
+    "mod",
+    "download",
+    "-json",
+    "github.com/kr/pretty@v0.3.0",
+    "github.com/dgryski/go-farm@v0.0.0-20240924180020-3414d57e47da",
+    "github.com/golang/protobuf@v1.5.0",
+    "go.opentelemetry.io/contrib/zpages@v0.62.0",
+    "go.opentelemetry.io/otel/sdk@v1.43.0",
+    "go.opentelemetry.io/otel/sdk/metric@v1.43.0"
+  ],
+  "cwd": "/tmp/health-six-locked-module-restore-8zvkb09s",
+  "elapsedSeconds": 2.1390687660023104,
+  "exit": 0,
+  "format": "six-official-locked-module-intake-v1",
+  "modules": [
+    {
+      "GoModSum": "h1:640gp4NfQd8pI5XOwp5fnNeVWj67G7CFk/SaSQn7NBk=",
+      "Path": "github.com/kr/pretty",
+      "Sum": "h1:WgNl7dwNpEZ6jJ9k1snq4pZsg7DOEN8hP9Xw0Tsjwk0=",
+      "Version": "v0.3.0",
+      "errorPresent": false,
+      "files": {
+        "GoMod": {
+          "bytes": 117,
+          "path": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/module-cache/cache/download/github.com/kr/pretty/@v/v0.3.0.mod",
+          "sha256": "42e7784e04b9652586b5f9dedff6f9518376b745761a9fd1a0c2178eb86dc97a"
+        },
+        "Info": {
+          "bytes": 50,
+          "path": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/module-cache/cache/download/github.com/kr/pretty/@v/v0.3.0.info",
+          "sha256": "3bf6a1fe078e86e6c7790d958479da05f9f573581064dfc222f9d6512ff5272c"
+        },
+        "Zip": {
+          "bytes": 13000,
+          "path": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/module-cache/cache/download/github.com/kr/pretty/@v/v0.3.0.zip",
+          "sha256": "3ac65e185f956d889d77485173fadcc30e959b6bcfdaa8acafaec5f4dac5cd48"
+        }
+      }
+    },
+    {
+      "GoModSum": "h1:SqUrOPUnsFjfmXRMNPybcSiG0BgUW2AuFH8PAnS2iTw=",
+      "Path": "github.com/dgryski/go-farm",
+      "Sum": "h1:aIftn67I1fkbMa512G+w+Pxci9hJPB8oMnkcP3iZF38=",
+      "Version": "v0.0.0-20240924180020-3414d57e47da",
+      "errorPresent": false,
+      "files": {
+        "GoMod": {
+          "bytes": 34,
+          "path": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/module-cache/cache/download/github.com/dgryski/go-farm/@v/v0.0.0-20240924180020-3414d57e47da.mod",
+          "sha256": "4d1cce88c7c7ee061c9f13e4acaa521f725087a74c77429f1105b40844d9cedb"
+        },
+        "Info": {
+          "bytes": 194,
+          "path": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/module-cache/cache/download/github.com/dgryski/go-farm/@v/v0.0.0-20240924180020-3414d57e47da.info",
+          "sha256": "4d4d1f563bbd5fd859a5efa8e4c91fff092df45f9c9117ed02f0cc1311ce512a"
+        },
+        "Zip": {
+          "bytes": 32465,
+          "path": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/module-cache/cache/download/github.com/dgryski/go-farm/@v/v0.0.0-20240924180020-3414d57e47da.zip",
+          "sha256": "e933606e2e726e6f07db98d1ce0ce38b3af3bdbb85c384f4f7eb3607cf00525f"
+        }
+      }
+    },
+    {
+      "GoModSum": "h1:FsONVRAS9T7sI+LIUmWTfcYkHO4aIWwzhcaSAoJOfIk=",
+      "Path": "github.com/golang/protobuf",
+      "Sum": "h1:LUVKkCeviFUMKqHa4tXIIij/lbhnMbP7Fn5wKdKkRh4=",
+      "Version": "v1.5.0",
+      "errorPresent": false,
+      "files": {
+        "GoMod": {
+          "bytes": 129,
+          "path": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/module-cache/cache/download/github.com/golang/protobuf/@v/v1.5.0.mod",
+          "sha256": "738cbb1de96b67a6238ac3b8081cd8b1bfb0daebcf6c9bbe8cbdb6d73baecd19"
+        },
+        "Info": {
+          "bytes": 50,
+          "path": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/module-cache/cache/download/github.com/golang/protobuf/@v/v1.5.0.info",
+          "sha256": "15205f6d0caee9fe1b002ca1438678752a0b42c8c8bdba5d2993d0532a8d3e1a"
+        },
+        "Zip": {
+          "bytes": 206670,
+          "path": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/module-cache/cache/download/github.com/golang/protobuf/@v/v1.5.0.zip",
+          "sha256": "deb3b2ac476a7f74685091fa60c59d50110c7e1d333ea78281422d8441f2411d"
+        }
+      }
+    },
+    {
+      "GoModSum": "h1:C8kXoiC1Ytvereztus2R+kqdSa6W/MZ8FfS8Zwj+LiM=",
+      "Path": "go.opentelemetry.io/contrib/zpages",
+      "Sum": "h1:9fUYTLmrK0x/lweM2uM+BOx069jLx8PxVqWhegGJ9Bo=",
+      "Version": "v0.62.0",
+      "errorPresent": false,
+      "files": {
+        "GoMod": {
+          "bytes": 633,
+          "path": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/module-cache/cache/download/go.opentelemetry.io/contrib/zpages/@v/v0.62.0.mod",
+          "sha256": "854e0e6a502d122d413e1154e52fa0ae697ec5df670bd899b706887d030b17ff"
+        },
+        "Info": {
+          "bytes": 242,
+          "path": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/module-cache/cache/download/go.opentelemetry.io/contrib/zpages/@v/v0.62.0.info",
+          "sha256": "15314fb53fa5360b02936b7bdbc6b1503153a05b277fb7c5d60350b1067624f2"
+        },
+        "Zip": {
+          "bytes": 23070,
+          "path": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/module-cache/cache/download/go.opentelemetry.io/contrib/zpages/@v/v0.62.0.zip",
+          "sha256": "68b0d0b457997dd1f549ba8d6d267e00847a5b4c49ae0f44772d5907ce43b2de"
+        }
+      }
+    },
+    {
+      "GoModSum": "h1:P+IkVU3iWukmiit/Yf9AWvpyRDlUeBaRg6Y+C58QHzg=",
+      "Path": "go.opentelemetry.io/otel/sdk",
+      "Sum": "h1:pi5mE86i5rTeLXqoF/hhiBtUNcrAGHLKQdhg4h4V9Dg=",
+      "Version": "v1.43.0",
+      "errorPresent": false,
+      "files": {
+        "GoMod": {
+          "bytes": 899,
+          "path": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/module-cache/cache/download/go.opentelemetry.io/otel/sdk/@v/v1.43.0.mod",
+          "sha256": "ed94ca8f657473e2ad1307f9dbcae460eb00032b9ac11e44b1b5507d789f3c90"
+        },
+        "Info": {
+          "bytes": 228,
+          "path": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/module-cache/cache/download/go.opentelemetry.io/otel/sdk/@v/v1.43.0.info",
+          "sha256": "9d19f35dd57ad2ab30434f3295a5ed07ea56d1ed93901a521007226c9e7ae1b2"
+        },
+        "Zip": {
+          "bytes": 161329,
+          "path": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/module-cache/cache/download/go.opentelemetry.io/otel/sdk/@v/v1.43.0.zip",
+          "sha256": "cf46abeb516a88a0eb33117103e39fb3161f0db91cd487a84748aae16938e8f2"
+        }
+      }
+    },
+    {
+      "GoModSum": "h1:C/RJtwSEJ5hzTiUz5pXF1kILHStzb9zFlIEe85bhj6A=",
+      "Path": "go.opentelemetry.io/otel/sdk/metric",
+      "Sum": "h1:S88dyqXjJkuBNLeMcVPRFXpRw2fuwdvfCGLEo89fDkw=",
+      "Version": "v1.43.0",
+      "errorPresent": false,
+      "files": {
+        "GoMod": {
+          "bytes": 880,
+          "path": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/module-cache/cache/download/go.opentelemetry.io/otel/sdk/metric/@v/v1.43.0.mod",
+          "sha256": "709c3201c2cd39688c2df95f640812e9ccbf3ef58be8c199fe9b45a3b2791322"
+        },
+        "Info": {
+          "bytes": 242,
+          "path": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/module-cache/cache/download/go.opentelemetry.io/otel/sdk/metric/@v/v1.43.0.info",
+          "sha256": "33ae7bd35e2e78dee717523420721bdbff69061a7c306beaa0a82efd575a1f67"
+        },
+        "Zip": {
+          "bytes": 186718,
+          "path": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/module-cache/cache/download/go.opentelemetry.io/otel/sdk/metric/@v/v1.43.0.zip",
+          "sha256": "b02c5dded25925d2becf8ea69d446f2eb786a576ab4a7dd8014f3afbd861fc49"
+        }
+      }
+    }
+  ],
+  "rawStderrPrivate": "/tmp/health-six-locked-module-restore-8zvkb09s/download.stderr",
+  "sharedSourceUnchanged": true,
+  "sourceAfter": {
+    "/workspace/zasp-sec/services/event-ingest/go.mod": "f275f4a8cd64cf2e6cb20f591db8096e0316cb4218ac8aadd378305ecdfb28a1",
+    "/workspace/zasp-sec/services/event-ingest/go.sum": "e7a85381cac36364c7c9a75e3b50926ece9fa405e84e5626ff70cc1769f7b529",
+    "/workspace/zasp-sec/services/runtime-gateway/go.mod": "70ef3f810cded6244a50b32c8cf40b6cdbb2e5732960b558e35dcd8284e9a5f5",
+    "/workspace/zasp-sec/services/runtime-gateway/go.sum": "72cfcd6ee70d31a21d1175f585c3db32aa9e7b258c181774cbeb897a9bc284c5"
+  },
+  "sourceBefore": {
+    "/workspace/zasp-sec/services/event-ingest/go.mod": "f275f4a8cd64cf2e6cb20f591db8096e0316cb4218ac8aadd378305ecdfb28a1",
+    "/workspace/zasp-sec/services/event-ingest/go.sum": "e7a85381cac36364c7c9a75e3b50926ece9fa405e84e5626ff70cc1769f7b529",
+    "/workspace/zasp-sec/services/runtime-gateway/go.mod": "70ef3f810cded6244a50b32c8cf40b6cdbb2e5732960b558e35dcd8284e9a5f5",
+    "/workspace/zasp-sec/services/runtime-gateway/go.sum": "72cfcd6ee70d31a21d1175f585c3db32aa9e7b258c181774cbeb897a9bc284c5"
+  },
+  "stderrBytes": 96,
+  "verification": "Go module download checksum verification; sums scoped to physical private sandbox"
+}

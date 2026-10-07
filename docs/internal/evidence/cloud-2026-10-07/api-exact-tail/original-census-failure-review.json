@@ -1,0 +1,49 @@
+{
+  "firstRefusal": {
+    "elapsed": 0.4307635910008685,
+    "phase": "RED",
+    "reason": "RuntimeError:exact causal roster refused",
+    "resources": null,
+    "signals": []
+  },
+  "inputMapsEqual": true,
+  "originals": [
+    {
+      "bytes": 2337,
+      "path": "/tmp/actual-API-tail-TDD-pv9xlaew/result.json",
+      "sha256": "66ddd6804797a3e154166535be6eafc367306866750cbd2c5014bcd0f624f604"
+    },
+    {
+      "bytes": 1642,
+      "path": "/tmp/actual-API-tail-TDD-pv9xlaew/inputs-after.json",
+      "sha256": "814fa5b93e6453c705cca0a6b5e61fa77b102136fc6853872d19a5905f3de0a8"
+    },
+    {
+      "bytes": 0,
+      "path": "/tmp/actual-API-tail-TDD-pv9xlaew/RED.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 4834,
+      "path": "/tmp/actual-API-tail-TDD-pv9xlaew/RED.jsonl",
+      "sha256": "c1606e95a249534bb8a99d18815529804c75bf4139878dedf888d7d7729e23a9"
+    },
+    {
+      "bytes": 1642,
+      "path": "/tmp/actual-API-tail-TDD-pv9xlaew/inputs-before.json",
+      "sha256": "814fa5b93e6453c705cca0a6b5e61fa77b102136fc6853872d19a5905f3de0a8"
+    }
+  ],
+  "runtimeCause": "Unknown; no API readiness/deadline resolution claim",
+  "scope": "Groups1,2,4 fail genuine deepStrictEqual assertions on unavailable versus required complete internal stage/dependency witnesses; group3 refusal guard passes. Four total0SKIP. Owner had incorrectly forecast2FAIL2PASS, so completedfalse and GREEN unrun. Source helper not disproven. Original static54febb forecast2/2 is superseded by actual3/1; no tests/assertions/source parser changed in proposed counter correction.",
+  "unknown": [],
+  "verdict": "CLOSED authentic baseline3FAIL1PASS; owner census refusal before GREEN",
+  "waits": [
+    {
+      "joined": true,
+      "phase": "RED",
+      "pid": 39022,
+      "returnCode": 1
+    }
+  ]
+}
