@@ -1,0 +1,31 @@
+{
+  "status": "PASS_SCOPED_UNCHANGED_NATIVE80_ACTUAL",
+  "actualResultSHA256": "ba54e45e6eebf794fd348603c7d715845eb7ca33a458f7583acb24b7bc41fda7",
+  "outerSHA256": "80423614bc4175b5eb9f69719beb9917b2feb2ded8466bdc295eded85fb64dc6",
+  "binarySHA256": "c6db5ab6acd7b00698f2e83ea486c223c25827abc9bcc5f61d40885f32a7117b",
+  "compile3158PrePostEqualRuntime3159AddsOnlyArtifact": true,
+  "all3159CurrentFullHashesVerified": true,
+  "testRUN": 31,
+  "testPASS": 31,
+  "topTests": 1,
+  "subtests": 30,
+  "testFAIL": 0,
+  "testSKIP": 0,
+  "durableCopies": [
+    "native80-outer-join.json",
+    "native80-run-compile.py",
+    "native80-compile-result.json",
+    "native80-native80.stdout",
+    "native80-run-native80-v2.py",
+    "native80-native80.stderr",
+    "native80-native80-result.json",
+    "native80-run-native80.py"
+  ],
+  "limits": [
+    "ExactoriginalTestP7CurrentRuntimeModuleFences/body5min/default10m/controller650 preserved; PGOPTIONSjitoff equivalence only.",
+    "FixtureloggedPG33463 normaljoin andPIDabsence producerobserved; listenerextinction enforcedunchangedfixture, no independentportmap/globalPID/kerneltrace invented.",
+    "Toolobserved normalPythonouter0/Tinitest0, no force.",
+    "Freshcurrentcomponent; no wholeAPI/provider/native379 activation or milestones promoted.",
+    "No service/test/compiler rerun byreviewer; prior lost oldraw evidence not recreated."
+  ]
+}

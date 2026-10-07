@@ -1,0 +1,75 @@
+{
+  "status": "PASS_COMPONENT_EVENT_RECONCILIATION_AGGREGATE_FAIL_RETAINED",
+  "originalResultSHA256": "d95f3e30aff7d7671bc677648fe6ca393a03fac686fcf9eafd8395c1f4cb419e",
+  "observationSHA256": "29c469a2aa2473a71aa629bdb9ad3a64c30c9818ec629eee48a8bd25d6cd7eb5",
+  "source83PrePostEqualAndCurrentHashesVerified": true,
+  "events": [
+    {
+      "stage": "diagnostic-three",
+      "normalExit": 0,
+      "topPass": [
+        "TestRuntimeDependencyDiagnosticPreservesCause",
+        "TestRuntimeDependencyDiagnosticFiniteProjection",
+        "TestRuntimeDependencyDiagnosticPublicBoundaryIdentity"
+      ],
+      "testFail": [],
+      "testSkip": [],
+      "packageSkip": []
+    },
+    {
+      "stage": "sentinel-four",
+      "normalExit": 0,
+      "topPass": [
+        "TestAuditExportFactoryBuildRejectsAuthorityBeforeDatabaseDial",
+        "TestAuditExportRuntimeCompositionLateCancellation",
+        "TestAuditPublicPageCompositionSelectedAndLegacy",
+        "TestAuditPublicPageCompositionSelectedStartupRefusal"
+      ],
+      "testFail": [],
+      "testSkip": [],
+      "packageSkip": []
+    },
+    {
+      "stage": "helper-original-parser-red",
+      "normalExit": 1,
+      "topPass": [
+        "TestPoolTuningPreservesConnectionAuthority",
+        "TestPoolTuningPreservesMalformedDSNRefusal"
+      ],
+      "testFail": [
+        "TestOwnedPoolAvoidsReadinessJIT"
+      ],
+      "testSkip": [],
+      "packageSkip": []
+    },
+    {
+      "stage": "helper-current-green",
+      "normalExit": 0,
+      "topPass": [
+        "TestOwnedPoolAvoidsReadinessJIT",
+        "TestPoolTuningPreservesConnectionAuthority",
+        "TestPoolTuningPreservesMalformedDSNRefusal"
+      ],
+      "testFail": [],
+      "testSkip": [],
+      "packageSkip": []
+    },
+    {
+      "stage": "six-production-compile",
+      "normalExit": 0,
+      "topPass": [],
+      "testFail": [],
+      "testSkip": [],
+      "packageSkip": [
+        "github.com/zasp-ai/zasp-sec/services/platform/cmd/zasp-authorization-reconcile"
+      ]
+    }
+  ],
+  "sixPackagesCompileExit0": true,
+  "limits": [
+    "Original overall owner statusFAIL/AssertionError/normal1 preserved; package-level CLI skip(noTestfield/no testfiles) is no skipped selected test.",
+    "3diagnostic+4unchangedsentinelsPASS; source-expression baseline1JITassertionFAIL2PASS then helper3PASS; no source-expression historicalreceipt recreation.",
+    "Sixpackage -run^$ compilation/race/vetnormal0; no selected business tests executed by thatstage.",
+    "No independent kernel trace/global survivor census/provider/service/hostedCIcause proof. No rerun byreviewer."
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "scope": "Separate release continuation after locked dependency restore; no fullnpmverifyPASS inference, priorfailedattempts preserved",
+  "originalFailure": "/tmp/spec29-verify-continuation-54w728ft",
+  "sourceMembers": 8148,
+  "command": "node --test --test-name-pattern='^(API build dependency stage resolves its copied local health module|release sources contain truthful runbooks, canary, SBOM/license/image/secret gates)$' deploy/production/release-contract.test.mjs deploy/production/release-gates.test.mjs && npm run production:release:test && npm run build && npm run production:imports:compiled && npm run implementation:status:check",
+  "ownerSHA256": "54fcb85060e7673a24772f425bccb06735332ef43e052891538714b37470791f"
+}

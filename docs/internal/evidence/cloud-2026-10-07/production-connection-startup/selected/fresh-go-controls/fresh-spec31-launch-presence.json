@@ -1,0 +1,500 @@
+{
+  "scope": "Fresh current exec-process presence/placeholder/scheme observation only; no secret values, credential hashes, hostnames, identities or provider calls. Generic presence is not a documented API config mapping.",
+  "requiredCount": 53,
+  "presentDirectCount": 0,
+  "supportedAliasCoveredCount": 3,
+  "missingRequiredNames": [
+    "ZASP_AWS_CUSTOMER_ROLE_ARNS",
+    "ZASP_AWS_CUSTOMER_ROLE_PREFIXES",
+    "ZASP_CONNECTOR_AWS_REGION",
+    "ZASP_CONNECTOR_KMS_KEY_ARN",
+    "ZASP_CONNECTOR_ROLE_ARN",
+    "ZASP_CONNECTOR_SECRET_PREFIX",
+    "ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE",
+    "ZASP_COOKIE_SECURE",
+    "ZASP_DEPLOYMENT_MODE",
+    "ZASP_DISCOVERY_PARSER_VERSION",
+    "ZASP_DISCOVERY_TOOL_VERSION",
+    "ZASP_ENVIRONMENT",
+    "ZASP_FINDING_TICKET_EGRESS_CIDRS",
+    "ZASP_GITHUB_APP_ID",
+    "ZASP_GITHUB_CLIENT_ID",
+    "ZASP_GITHUB_CLIENT_SECRET_REFERENCE",
+    "ZASP_GITHUB_PRIVATE_KEY_REFERENCE",
+    "ZASP_INTERNAL_LISTEN_ADDRESS",
+    "ZASP_OKTA_CLIENT_ID",
+    "ZASP_OKTA_CLIENT_SECRET_REFERENCE",
+    "ZASP_OPENFGA_MODEL_ID",
+    "ZASP_OPENFGA_STORE_ID",
+    "ZASP_OPENFGA_TOKEN_FILE",
+    "ZASP_OPENFGA_URL",
+    "ZASP_POLICY_HISTORY_ENDPOINT",
+    "ZASP_POLICY_HISTORY_INDEX",
+    "ZASP_POSTGRES_DSN",
+    "ZASP_PRODUCT_LISTEN_ADDRESS",
+    "ZASP_PROVIDER_TIMEOUT",
+    "ZASP_PUBLIC_ORIGIN",
+    "ZASP_READINESS_INTERVAL",
+    "ZASP_READINESS_MAX_INTERVAL",
+    "ZASP_REQUEST_BURST",
+    "ZASP_REQUEST_RATE_PER_SECOND",
+    "ZASP_REQUEST_TIMEOUT",
+    "ZASP_RUNTIME_SERVICES_ENABLED",
+    "ZASP_RUNTIME_SERVICES_TIMEOUT",
+    "ZASP_SECURITY_AGENT_POSTGRES_DSN",
+    "ZASP_SHUTDOWN_TIMEOUT",
+    "ZASP_STYTCH_AUTHORIZE_URL",
+    "ZASP_STYTCH_BASE_URL",
+    "ZASP_STYTCH_ORGANIZATION_ID",
+    "ZASP_STYTCH_WEBHOOK_SECRET",
+    "ZASP_TEMPORAL_ADDRESS",
+    "ZASP_TEMPORAL_DISCOVERY_TASK_QUEUE",
+    "ZASP_TEMPORAL_NAMESPACE",
+    "ZASP_TEMPORAL_TASK_QUEUE",
+    "ZASP_TOKEN_REVEAL_KEY",
+    "ZASP_TRUSTED_PROXY_CIDRS",
+    "ZASP_WORKFLOW_SIGNING_KEY"
+  ],
+  "required": [
+    {
+      "name": "ZASP_AWS_CUSTOMER_ROLE_ARNS",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_AWS_CUSTOMER_ROLE_PREFIXES",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_CONNECTOR_AWS_REGION",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_CONNECTOR_KMS_KEY_ARN",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_CONNECTOR_ROLE_ARN",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_CONNECTOR_SECRET_PREFIX",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_COOKIE_SECURE",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_DEPLOYMENT_MODE",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_DISCOVERY_PARSER_VERSION",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_DISCOVERY_TOOL_VERSION",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_ENVIRONMENT",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_FINDING_TICKET_EGRESS_CIDRS",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_GITHUB_APP_ID",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_GITHUB_CLIENT_ID",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_GITHUB_CLIENT_SECRET_REFERENCE",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_GITHUB_PRIVATE_KEY_REFERENCE",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_INTERNAL_LISTEN_ADDRESS",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_OKTA_CLIENT_ID",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_OKTA_CLIENT_SECRET_REFERENCE",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_OPENFGA_MODEL_ID",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_OPENFGA_STORE_ID",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_OPENFGA_TOKEN_FILE",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_OPENFGA_URL",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_POLICY_HISTORY_ENDPOINT",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_POLICY_HISTORY_INDEX",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_POSTGRES_DSN",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_PRODUCT_LISTEN_ADDRESS",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_PROVIDER_TIMEOUT",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_PUBLIC_ORIGIN",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_READINESS_INTERVAL",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_READINESS_MAX_INTERVAL",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_REQUEST_BURST",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_REQUEST_RATE_PER_SECOND",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_REQUEST_TIMEOUT",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_RUNTIME_SERVICES_ENABLED",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_RUNTIME_SERVICES_TIMEOUT",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_SECURITY_AGENT_POSTGRES_DSN",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_SHUTDOWN_TIMEOUT",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_STYTCH_AUTHORIZE_URL",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_STYTCH_BASE_URL",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_STYTCH_ORGANIZATION_ID",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_STYTCH_PROJECT_ID",
+      "presentNonempty": false,
+      "supportedAliasName": "STYTCH_PROJECT_ID",
+      "supportedAliasPresentNonempty": true,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_STYTCH_PUBLIC_TOKEN",
+      "presentNonempty": false,
+      "supportedAliasName": "STYTCH_PUBLIC_TOKEN",
+      "supportedAliasPresentNonempty": true,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_STYTCH_SECRET",
+      "presentNonempty": false,
+      "supportedAliasName": "STYTCH_SECRET",
+      "supportedAliasPresentNonempty": true,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_STYTCH_WEBHOOK_SECRET",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_TEMPORAL_ADDRESS",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_TEMPORAL_DISCOVERY_TASK_QUEUE",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_TEMPORAL_NAMESPACE",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_TEMPORAL_TASK_QUEUE",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_TOKEN_REVEAL_KEY",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_TRUSTED_PROXY_CIDRS",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    },
+    {
+      "name": "ZASP_WORKFLOW_SIGNING_KEY",
+      "presentNonempty": false,
+      "supportedAliasName": null,
+      "supportedAliasPresentNonempty": false,
+      "placeholderHeuristic": false
+    }
+  ],
+  "genericNames": [
+    {
+      "name": "DATABASE_URL",
+      "presentNonempty": true,
+      "placeholderHeuristic": false,
+      "documentedAPIMapper": false
+    },
+    {
+      "name": "AWS_ACCESS_KEY_ID",
+      "presentNonempty": true,
+      "placeholderHeuristic": false,
+      "documentedAPIMapper": false
+    },
+    {
+      "name": "AWS_SECRET_ACCESS_KEY",
+      "presentNonempty": true,
+      "placeholderHeuristic": false,
+      "documentedAPIMapper": false
+    },
+    {
+      "name": "AWS_SESSION_TOKEN",
+      "presentNonempty": false,
+      "placeholderHeuristic": false,
+      "documentedAPIMapper": false
+    },
+    {
+      "name": "AWS_REGION",
+      "presentNonempty": true,
+      "placeholderHeuristic": false,
+      "documentedAPIMapper": false
+    },
+    {
+      "name": "STYTCH_PROJECT_ID",
+      "presentNonempty": true,
+      "placeholderHeuristic": false,
+      "documentedAPIMapper": true
+    },
+    {
+      "name": "STYTCH_SECRET",
+      "presentNonempty": true,
+      "placeholderHeuristic": false,
+      "documentedAPIMapper": true
+    },
+    {
+      "name": "STYTCH_PUBLIC_TOKEN",
+      "presentNonempty": true,
+      "placeholderHeuristic": false,
+      "documentedAPIMapper": true
+    },
+    {
+      "name": "STYTCH_ORGANIZATION_ID",
+      "presentNonempty": false,
+      "placeholderHeuristic": false,
+      "documentedAPIMapper": false
+    },
+    {
+      "name": "OPENFGA_URL",
+      "presentNonempty": false,
+      "placeholderHeuristic": false,
+      "documentedAPIMapper": false
+    },
+    {
+      "name": "TEMPORAL_ADDRESS",
+      "presentNonempty": true,
+      "placeholderHeuristic": false,
+      "documentedAPIMapper": false
+    }
+  ],
+  "guard": "AWS access keys cannot furnish IRSA role/token-file/KMS/customer authority or provider secret references. Only the three documented Stytch aliases are mapped. Retained org and service/product/session authority remain external gates."
+}

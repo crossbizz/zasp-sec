@@ -1,0 +1,236 @@
+{
+  "status": "FAIL",
+  "scope": "Fresh actual adopted diagnostic Node boundary only; baseline is diagnostic-scope transition, not observed hosted CI cause; no provider/service operations",
+  "stages": [
+    {
+      "stage": "baseline",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "normalWait": true,
+      "seconds": 0.11577034000015374
+    },
+    {
+      "stage": "candidate-causal",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "normalWait": true,
+      "seconds": 0.11418744000002334
+    },
+    {
+      "stage": "candidate-five",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "normalWait": true,
+      "seconds": 0.11507818400014003
+    },
+    {
+      "stage": "existing-twenty-two",
+      "exitCode": 1,
+      "expectedExitCode": 0,
+      "normalWait": true,
+      "seconds": 0.11976753599992662
+    }
+  ],
+  "sourceBefore": {
+    "/workspace/zasp-sec/scripts/browser-command-failure.mjs": {
+      "sha256": "cabd07fd7dd8f2a6d1cdf3a8164a6eafe442555da66cf275b7d7d0f59939d05e",
+      "security": {
+        "st_dev": 27,
+        "st_ino": 995688,
+        "st_mode": 33152,
+        "st_uid": 1000,
+        "st_gid": 1000,
+        "st_nlink": 1,
+        "st_size": 6940,
+        "st_mtime_ns": 1791340733655967806,
+        "st_ctime_ns": 1791340733655967806
+      }
+    },
+    "/workspace/zasp-sec/scripts/runtime-dependency-marker.test.mjs": {
+      "sha256": "cdd8696299e81336432421c49d2e2e7d3e6dda04f93833c259686ef1040495ed",
+      "security": {
+        "st_dev": 27,
+        "st_ino": 995319,
+        "st_mode": 33152,
+        "st_uid": 1000,
+        "st_gid": 1000,
+        "st_nlink": 1,
+        "st_size": 2341,
+        "st_mtime_ns": 1791340733657193580,
+        "st_ctime_ns": 1791340733657193580
+      }
+    },
+    "/workspace/zasp-sec/scripts/compliance-api-child-stage.test.mjs": {
+      "sha256": "d863bd4ed525b1b7a7ad0b578cba2ad7dbdec144a00c84937549a4a45ed93e11",
+      "security": {
+        "st_dev": 27,
+        "st_ino": 995330,
+        "st_mode": 33152,
+        "st_uid": 1000,
+        "st_gid": 1000,
+        "st_nlink": 1,
+        "st_size": 5655,
+        "st_mtime_ns": 1791330042484112893,
+        "st_ctime_ns": 1791330042484112893
+      }
+    },
+    "/workspace/zasp-sec/scripts/browser-startup-phase.test.mjs": {
+      "sha256": "e7e2bf19071578299e5f5fcf6a68e4dcfb4cd9afcff559fa4b1a64d5b2e1d215",
+      "security": {
+        "st_dev": 27,
+        "st_ino": 995325,
+        "st_mode": 33152,
+        "st_uid": 1000,
+        "st_gid": 1000,
+        "st_nlink": 1,
+        "st_size": 10402,
+        "st_mtime_ns": 1791330042484112893,
+        "st_ctime_ns": 1791330042484112893
+      }
+    },
+    "/workspace/zasp-sec/scripts/browser-command-failure.test.mjs": {
+      "sha256": "335bf1380f140e48a3067d6f969a5cb2a4d6134dec7aab246f3216ee38746eac",
+      "security": {
+        "st_dev": 27,
+        "st_ino": 995320,
+        "st_mode": 33152,
+        "st_uid": 1000,
+        "st_gid": 1000,
+        "st_nlink": 1,
+        "st_size": 9420,
+        "st_mtime_ns": 1791330042484112893,
+        "st_ctime_ns": 1791330042484112893
+      }
+    },
+    "/workspace/zasp-sec/scripts/production-combined-e2e.mjs": {
+      "sha256": "1953c34a5d14bc3200800e14e255570bb032b9bb3f20327a698009589177b27b",
+      "security": {
+        "st_dev": 27,
+        "st_ino": 1248101,
+        "st_mode": 33152,
+        "st_uid": 1000,
+        "st_gid": 1000,
+        "st_nlink": 1,
+        "st_size": 674623,
+        "st_mtime_ns": 1791330042492113095,
+        "st_ctime_ns": 1791330042492113095
+      }
+    },
+    "/tmp/zasp-cloud-tools/node-v22.23.1-linux-x64/bin/node": {
+      "sha256": "93956de2e59480474a7b46571da1651180b1a050cdf32641ebec4ce6e478e068",
+      "security": {
+        "st_dev": 34,
+        "st_ino": 93,
+        "st_mode": 33261,
+        "st_uid": 1000,
+        "st_gid": 1000,
+        "st_nlink": 1,
+        "st_size": 124835376,
+        "st_mtime_ns": 1782231443000000000,
+        "st_ctime_ns": 1791341771390854623
+      }
+    }
+  },
+  "sourceAfter": {
+    "/workspace/zasp-sec/scripts/browser-command-failure.mjs": {
+      "sha256": "cabd07fd7dd8f2a6d1cdf3a8164a6eafe442555da66cf275b7d7d0f59939d05e",
+      "security": {
+        "st_dev": 27,
+        "st_ino": 995688,
+        "st_mode": 33152,
+        "st_uid": 1000,
+        "st_gid": 1000,
+        "st_nlink": 1,
+        "st_size": 6940,
+        "st_mtime_ns": 1791340733655967806,
+        "st_ctime_ns": 1791340733655967806
+      }
+    },
+    "/workspace/zasp-sec/scripts/runtime-dependency-marker.test.mjs": {
+      "sha256": "cdd8696299e81336432421c49d2e2e7d3e6dda04f93833c259686ef1040495ed",
+      "security": {
+        "st_dev": 27,
+        "st_ino": 995319,
+        "st_mode": 33152,
+        "st_uid": 1000,
+        "st_gid": 1000,
+        "st_nlink": 1,
+        "st_size": 2341,
+        "st_mtime_ns": 1791340733657193580,
+        "st_ctime_ns": 1791340733657193580
+      }
+    },
+    "/workspace/zasp-sec/scripts/compliance-api-child-stage.test.mjs": {
+      "sha256": "d863bd4ed525b1b7a7ad0b578cba2ad7dbdec144a00c84937549a4a45ed93e11",
+      "security": {
+        "st_dev": 27,
+        "st_ino": 995330,
+        "st_mode": 33152,
+        "st_uid": 1000,
+        "st_gid": 1000,
+        "st_nlink": 1,
+        "st_size": 5655,
+        "st_mtime_ns": 1791330042484112893,
+        "st_ctime_ns": 1791330042484112893
+      }
+    },
+    "/workspace/zasp-sec/scripts/browser-startup-phase.test.mjs": {
+      "sha256": "e7e2bf19071578299e5f5fcf6a68e4dcfb4cd9afcff559fa4b1a64d5b2e1d215",
+      "security": {
+        "st_dev": 27,
+        "st_ino": 995325,
+        "st_mode": 33152,
+        "st_uid": 1000,
+        "st_gid": 1000,
+        "st_nlink": 1,
+        "st_size": 10402,
+        "st_mtime_ns": 1791330042484112893,
+        "st_ctime_ns": 1791330042484112893
+      }
+    },
+    "/workspace/zasp-sec/scripts/browser-command-failure.test.mjs": {
+      "sha256": "335bf1380f140e48a3067d6f969a5cb2a4d6134dec7aab246f3216ee38746eac",
+      "security": {
+        "st_dev": 27,
+        "st_ino": 995320,
+        "st_mode": 33152,
+        "st_uid": 1000,
+        "st_gid": 1000,
+        "st_nlink": 1,
+        "st_size": 9420,
+        "st_mtime_ns": 1791330042484112893,
+        "st_ctime_ns": 1791330042484112893
+      }
+    },
+    "/workspace/zasp-sec/scripts/production-combined-e2e.mjs": {
+      "sha256": "1953c34a5d14bc3200800e14e255570bb032b9bb3f20327a698009589177b27b",
+      "security": {
+        "st_dev": 27,
+        "st_ino": 1248101,
+        "st_mode": 33152,
+        "st_uid": 1000,
+        "st_gid": 1000,
+        "st_nlink": 1,
+        "st_size": 674623,
+        "st_mtime_ns": 1791330042492113095,
+        "st_ctime_ns": 1791330042492113095
+      }
+    },
+    "/tmp/zasp-cloud-tools/node-v22.23.1-linux-x64/bin/node": {
+      "sha256": "93956de2e59480474a7b46571da1651180b1a050cdf32641ebec4ce6e478e068",
+      "security": {
+        "st_dev": 34,
+        "st_ino": 93,
+        "st_mode": 33261,
+        "st_uid": 1000,
+        "st_gid": 1000,
+        "st_nlink": 1,
+        "st_size": 124835376,
+        "st_mtime_ns": 1782231443000000000,
+        "st_ctime_ns": 1791341771390854623
+      }
+    }
+  },
+  "head": "ac0ac96dfeb6beba7b46827578c806a0528871cf",
+  "output": "/workspace/.zasp-diagnostic-refresh-3e0kpex7"
+}

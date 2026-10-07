@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/zasp-ai/zasp-sec/services/platform/authorization"
 	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimepostgres"
 )
 
 // Keep installed partial profiles out of every actual runtime, including
@@ -61,7 +62,7 @@ func workerLegacyProductionProfileReady(ctx context.Context, pool workerProfileQ
 func temporalWorkerProductionProfileReady(ctx context.Context, dsn string) error {
 	bounded, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	cfg, err := pgxpool.ParseConfig(dsn)
+	cfg, err := runtimepostgres.ParsePoolConfig(dsn)
 	if err != nil {
 		return errRuntimeUnavailable
 	}

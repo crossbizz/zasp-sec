@@ -1,0 +1,125 @@
+{
+  "files": [
+    {
+      "path": "fresh-pg-startup-and-native80/PG183-v2-Tini-outer-join.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-tool-proof/PG183-v2-Tini-outer-join.json",
+      "bytes": 1068,
+      "sha256": "ff95f4e15df66c4aa5b16b82e8d2a42ed18e45ca9aeb15305c5c3db4faa8a376"
+    },
+    {
+      "path": "fresh-pg-startup-and-native80/PG183-v2-Tini-pg183-v2-tini-smoke.py",
+      "source": "/workspace/.zasp-cloud-owned/spec29-tool-proof/PG183-v2-Tini-pg183-v2-tini-smoke.py",
+      "bytes": 3001,
+      "sha256": "52df14f419540f6a3f3c2f86ec63163cf24a2f12f85b6b5e62d42ae1aedce038"
+    },
+    {
+      "path": "fresh-pg-startup-and-native80/PG183-v2-Tini-result.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-tool-proof/PG183-v2-Tini-result.json",
+      "bytes": 2455,
+      "sha256": "0a93452803798846bc984a3806a15e2a2550f9d54ac8d8f25803767cdb33f98e"
+    },
+    {
+      "path": "fresh-pg-startup-and-native80/PG183-v2-pg183-v2-smoke.py",
+      "source": "/workspace/.zasp-cloud-owned/spec29-tool-proof/PG183-v2-pg183-v2-smoke.py",
+      "bytes": 3607,
+      "sha256": "aac3d37ffe8d91f8b249beb4c19f47b5c87f9631abaed0df5f76f6b0e2402cb2"
+    },
+    {
+      "path": "fresh-pg-startup-and-native80/PG183-v2-post-stop-process-observation.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-tool-proof/PG183-v2-post-stop-process-observation.json",
+      "bytes": 175,
+      "sha256": "15d053e7e4335bd57c1a6bc9659408ca7b4f9292f4a8e872943411d59efc6184"
+    },
+    {
+      "path": "fresh-pg-startup-and-native80/PG183-v2-result.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-tool-proof/PG183-v2-result.json",
+      "bytes": 2420,
+      "sha256": "f6ffc7636b6f7ad6ff6796f15bd20b24d02c29309f8b93b73a56a08e7f689564"
+    },
+    {
+      "path": "fresh-pg-startup-and-native80/native80-compile-result.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-tool-proof/native80-compile-result.json",
+      "bytes": 658,
+      "sha256": "414267f2f3f746e71f710333e6991373e0ae77704d35349fda2a122c91a9bc5e"
+    },
+    {
+      "path": "fresh-pg-startup-and-native80/native80-native80-result.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-tool-proof/native80-native80-result.json",
+      "bytes": 1079,
+      "sha256": "ba54e45e6eebf794fd348603c7d715845eb7ca33a458f7583acb24b7bc41fda7"
+    },
+    {
+      "path": "fresh-pg-startup-and-native80/native80-native80.stderr",
+      "source": "/workspace/.zasp-cloud-owned/spec29-tool-proof/native80-native80.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "fresh-pg-startup-and-native80/native80-native80.stdout",
+      "source": "/workspace/.zasp-cloud-owned/spec29-tool-proof/native80-native80.stdout",
+      "bytes": 35860,
+      "sha256": "dfb597579320fac7fbc5d1bbf5c0a15468086eb65bff3e47205fdd611748b60c"
+    },
+    {
+      "path": "fresh-pg-startup-and-native80/native80-outer-join.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-tool-proof/native80-outer-join.json",
+      "bytes": 958,
+      "sha256": "80423614bc4175b5eb9f69719beb9917b2feb2ded8466bdc295eded85fb64dc6"
+    },
+    {
+      "path": "fresh-pg-startup-and-native80/native80-run-compile.py",
+      "source": "/workspace/.zasp-cloud-owned/spec29-tool-proof/native80-run-compile.py",
+      "bytes": 3171,
+      "sha256": "0b489b5e92c4a90ed39a49fca4212db865943af4492418ece126e66c8304059d"
+    },
+    {
+      "path": "fresh-pg-startup-and-native80/native80-run-native80-v2.py",
+      "source": "/workspace/.zasp-cloud-owned/spec29-tool-proof/native80-run-native80-v2.py",
+      "bytes": 5310,
+      "sha256": "4ccbdf380bb5d501d71c2de4897e2191714adf4c986b0134553056f68b91a885"
+    },
+    {
+      "path": "fresh-pg-startup-and-native80/native80-run-native80.py",
+      "source": "/workspace/.zasp-cloud-owned/spec29-tool-proof/native80-run-native80.py",
+      "bytes": 4583,
+      "sha256": "20217447d4ed50b2527b774555ed0c7d9698a86551ad2b7b7517143f78f4f88b"
+    },
+    {
+      "path": "fresh-pg-startup-and-native80/startup3-actual-result.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-tool-proof/startup3-actual-result.json",
+      "bytes": 2796,
+      "sha256": "5dbd73915858ed27e219d760f8b77bedca8c417fb57b90ccf05dfc92599053da"
+    },
+    {
+      "path": "fresh-pg-startup-and-native80/startup3-actual-stderr.log",
+      "source": "/workspace/.zasp-cloud-owned/spec29-tool-proof/startup3-actual-stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "fresh-pg-startup-and-native80/startup3-actual-stdout.log",
+      "source": "/workspace/.zasp-cloud-owned/spec29-tool-proof/startup3-actual-stdout.log",
+      "bytes": 459,
+      "sha256": "1e485e01b93e6cc06ce15e681f02cddeef82ecd628858d93d98f6df6da967ac2"
+    },
+    {
+      "path": "fresh-pg-startup-and-native80/startup3-compile-result.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-tool-proof/startup3-compile-result.json",
+      "bytes": 751,
+      "sha256": "d1dfe1be23a883904e92b53e27bb4e5ccfa9fa938fdb97c4bf06b82edc6d3552"
+    },
+    {
+      "path": "fresh-pg-startup-and-native80/startup3-outer-join.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-tool-proof/startup3-outer-join.json",
+      "bytes": 989,
+      "sha256": "be87a2ca92dc93555513157dd6ce2e5d1e1261e9a4a2ee9402f4e0369b9cd203"
+    },
+    {
+      "path": "fresh-pg-startup-and-native80/startup3-source-plan.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-tool-proof/startup3-source-plan.json",
+      "bytes": 2054,
+      "sha256": "bfdaca8c2ba33ea67aa9a10aecb80e015458d90abe7e7bd1fbf50642735e9610"
+    }
+  ],
+  "scope": "Fresh PostgreSQL tool startup and application helper/current80 component evidence; original PG cleanup failure remains distinct. Not deployed/API/provider/native379 acceptance."
+}

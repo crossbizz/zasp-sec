@@ -6,6 +6,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/zasp-ai/zasp-sec/services/platform/authorization"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimepostgres"
 )
 
 func bindDiscoveryWorkerAuthorization(ctx context.Context, cfg workerRuntimeConfig, checker authorization.Checker, p *temporalDiscoveryProduct) (func(), error) {
@@ -13,7 +14,11 @@ func bindDiscoveryWorkerAuthorization(ctx context.Context, cfg workerRuntimeConf
 	if ctx == nil || p == nil {
 		return closeNothing, errRuntimeUnavailable
 	}
-	forward, err := pgxpool.New(ctx, cfg.PostgresDSN)
+	forwardConfig, err := runtimepostgres.ParsePoolConfig(cfg.PostgresDSN)
+	if err != nil {
+		return closeNothing, errRuntimeUnavailable
+	}
+	forward, err := pgxpool.NewWithConfig(ctx, forwardConfig)
 	if err != nil {
 		return closeNothing, errRuntimeUnavailable
 	}
@@ -49,7 +54,12 @@ func bindDiscoveryWorkerAuthorization(ctx context.Context, cfg workerRuntimeConf
 		forward.Close()
 		return closeNothing, errRuntimeUnavailable
 	}
-	compensation, err := pgxpool.New(ctx, cfg.TemporalCompensationDSN)
+	compensationConfig, err := runtimepostgres.ParsePoolConfig(cfg.TemporalCompensationDSN)
+	if err != nil {
+		forward.Close()
+		return closeNothing, errRuntimeUnavailable
+	}
+	compensation, err := pgxpool.NewWithConfig(ctx, compensationConfig)
 	if err != nil {
 		forward.Close()
 		return closeNothing, errRuntimeUnavailable

@@ -1,0 +1,53 @@
+{
+  "format": "fresh-current-runtimepostgres-actual-startup3-source-v1",
+  "scope": "Private test overlay preserves original tests and calls exact current ParsePoolConfig with three owned realPG startup inputs; no tracked writes or service execution yet.",
+  "originalTestSHA256": "11189493313147452bc1495d8654b3b4ed762188f2b046f3bc508140a71b9060",
+  "helperSHA256": "846368d7910d6aade67c9a952ce70da2e0aaa5c302f72b189acf36e48e14bc8c",
+  "overlaySourceSHA256": "39bba267854e3093444ac9d8b9b647b7652baf00a49923ecf5464a6a108002b9",
+  "overlaySHA256": "dd73ebcc40af0c13e84cbe69cc7849098d596ac1a985b53655827c9672833e54",
+  "compile": [
+    "/tmp/zasp-cloud-tools/go/bin/go",
+    "test",
+    "-mod=readonly",
+    "-overlay",
+    "/tmp/runtimepostgres-startup3-owner-v3-3cbdxyhi/overlay.json",
+    "-c",
+    "-o",
+    "/tmp/runtimepostgres-startup3-owner-v3-3cbdxyhi/startup3.test",
+    "./runtimepostgres"
+  ],
+  "run": [
+    "startup3.test",
+    "-test.run",
+    "^TestActualOwnedPoolStartupJIT$",
+    "-test.v",
+    "-test.timeout=60s"
+  ],
+  "expected": "1 top PASS +3 named subtest PASS /0FAIL/0SKIP",
+  "environment": "ExplicitGo26 GOROOT/SHM GOCACHE/TMPmodulecache; controlled owned loopback DSN supplied privately, Tini -s foreground owner; compile slot and root finite owner review required.",
+  "ownerSourceSHA256": "e4b49e5ebf826757aff6dcb57661e035a21fd68fbe75a4abc9786560fa79a792",
+  "outer": [
+    "/usr/bin/timeout",
+    "--signal=TERM",
+    "--kill-after=10s",
+    "125s",
+    "/tmp/zasp-cloud-tools/bin/tini",
+    "-s",
+    "--",
+    "/usr/bin/python3",
+    "/tmp/runtimepostgres-startup3-owner-v3-3cbdxyhi/owner.py"
+  ],
+  "ownerLimits": {
+    "workSeconds": 90,
+    "normalStopSeconds": 20,
+    "reapObservationSeconds": 2,
+    "captureBytesPerChild": 65536
+  },
+  "additionalRootPrePostBindings": [
+    "owner.py",
+    "current pinnedGo26/Python/Tini/timeout",
+    "PG18.3 admission underlying6 binaries/loader/179 library resolvedSHA/topology",
+    "runtimepostgres source/helper andgo.mod/go.sum",
+    "actualcompiled startup3 binary"
+  ]
+}

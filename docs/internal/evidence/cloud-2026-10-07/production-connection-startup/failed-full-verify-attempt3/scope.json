@@ -1,0 +1,27 @@
+{
+  "scope": "Fresh actual full npm verify terminal FAIL; no production/native acceptance. Original full dictionaries remain ephemeral, only selected log/result copies durable. Physicaldependency cache changes observed, not assumed immutable. No prior lost records reconstructed.",
+  "outerSession": 40919,
+  "observedOuterExitCode": 1,
+  "largeOriginals": [
+    {
+      "path": "/tmp/full-verify-spec29-final-3tx4rm_i/source-before.json",
+      "bytes": 1703241,
+      "sha256": "c270baa0b0014682cdb1f33dab18db1233ef679c011965c051c8c0ff326ca231"
+    },
+    {
+      "path": "/tmp/full-verify-spec29-final-3tx4rm_i/deps-before.jsonl.gz",
+      "bytes": 6069973,
+      "sha256": "7ed9eaf58ed28c632eaaa46cda3c7932763e418f3ec2954729dcca84739431cb"
+    },
+    {
+      "path": "/tmp/full-verify-spec29-final-3tx4rm_i/deps-after.jsonl.gz",
+      "bytes": 6069973,
+      "sha256": "b7c00b271d41c1cb68ec2992fba1c9fcf538a4fc035da1ab8dbb1646f80b3a07"
+    },
+    {
+      "path": "/tmp/full-verify-spec29-final-3tx4rm_i/run-verify.py",
+      "bytes": 9039,
+      "sha256": "4c5d3be480bd396c00a601ca62001ecdd889a6c7b953bdbc9e3d9bc817c152e2"
+    }
+  ]
+}

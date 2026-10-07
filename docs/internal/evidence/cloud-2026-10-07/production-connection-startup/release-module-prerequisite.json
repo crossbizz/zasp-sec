@@ -1,0 +1,101 @@
+{
+  "format": "spec29-release-fullMVS-SPDX-prerequisite-v1",
+  "scope": "Exact locked modules with GoGOSUMDB validation/actual committed module-root go.sum body agreement (x/term belongs sensor-agent; x/mod/tools platform); seven offline metadata stages only, no compilation/tests/release acceptance.",
+  "lockedModules": [
+    {
+      "path": "golang.org/x/mod",
+      "version": "v0.38.0",
+      "sum": "h1:MECBjubtXD7yj4HrhIUcywNaGeNVUdfVnxmPajOk4yk=",
+      "goModSum": "h1:V6Xz0pq8TQ3dGqVQ1FVHuelZpAL0uNhSkk9ogYP3c40=",
+      "zipSHA256": "b19d1a19527f75bf148198b44be37784f7d7d22597b46e260bf22d1b320fe12c"
+    },
+    {
+      "path": "golang.org/x/term",
+      "version": "v0.45.0",
+      "sum": "h1:NwWyBmoJCbfTHpxrWoZ9C6/VxOf7ic219I8xZZFdrf0=",
+      "goModSum": "h1:9aqxs0blBcrm/n0L9QW0aRVD+ktan8ssZromtqJC43w=",
+      "zipSHA256": "b3a3af689728b43012ae1b21482571a35c033c545e98e021606bd4fcf1f79108"
+    },
+    {
+      "path": "golang.org/x/tools",
+      "version": "v0.48.0",
+      "sum": "h1:3+hClM1aLL5mjMKm5ovokw9epgRXPuu2tILgismM6RE=",
+      "goModSum": "h1:08xX0orndb/F7jJxGDicx061tyd5pcMto75YMAXr6lk=",
+      "zipSHA256": "8529e7bd696890fd79d3e1c37c7d1a3e2e26fb4b392b5beebfa7134ad2f65755"
+    }
+  ],
+  "checks": [
+    {
+      "stage": "platform-full-MVS",
+      "exit": 0,
+      "elapsed": 0.013419376000001648,
+      "lines": 195,
+      "stdoutSHA256": "05ea6a1e4e42475fe07031c41d6163bde03f65ecf4a20850a71f1f7af0bd351e",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "stage": "copied-api-health-MVS",
+      "exit": 0,
+      "elapsed": 0.01125251199982813,
+      "lines": 195,
+      "stdoutSHA256": "ee766158648b31160ff98a7a1e10310c8615f44cabdda676c67ad4fe12e2f648",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "stage": "SPDX-platform",
+      "exit": 0,
+      "elapsed": 0.18615099900034693,
+      "lines": 588,
+      "stdoutSHA256": "5f847fbd98c0ef2b38e6570d3148d25fe4e99033e12602be16bdb9c3f0cc5a71",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "stage": "SPDX-event-ingest",
+      "exit": 0,
+      "elapsed": 0.07255807999990793,
+      "lines": 118,
+      "stdoutSHA256": "beb13905f7ff3d244a91ed50ef722e06491cf51ce53366790895fe1f51eb5df0",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "stage": "SPDX-gateway-control",
+      "exit": 0,
+      "elapsed": 0.07803104999993593,
+      "lines": 178,
+      "stdoutSHA256": "47e9e994f70eada29e390b1ad52f5083d06c930de1ab7d83bb29b5585749893f",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "stage": "SPDX-runtime-gateway",
+      "exit": 0,
+      "elapsed": 0.10178788200028066,
+      "lines": 250,
+      "stdoutSHA256": "940d4333dcd087df517c8a8a7786500374f37c19d8e7b21a2b3a0d1fac174afc",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "stage": "SPDX-sensor-agent",
+      "exit": 0,
+      "elapsed": 0.12595850300021993,
+      "lines": 428,
+      "stdoutSHA256": "66bfb68449b5c59b55961f80b4f7e3c4befed3564ac033b7bdbbbab4ff03e8cb",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "sourceModSumEqualGitIndex": {
+    "platform/go.mod": "6124e67918a745352fefa19df1c2ebf40bff877abcff57f731219125a16016b5",
+    "platform/go.sum": "649357372614cdb1202e67ee55e0ffcfc71907ba5be317f3eeedfcdf356a79fe",
+    "health/go.mod": "800feb2d307b99dc161ce73170609d4cbe535f840aedf013c7c8392977ba9737",
+    "event-ingest/go.mod": "f275f4a8cd64cf2e6cb20f591db8096e0316cb4218ac8aadd378305ecdfb28a1",
+    "event-ingest/go.sum": "e7a85381cac36364c7c9a75e3b50926ece9fa405e84e5626ff70cc1769f7b529",
+    "gateway-control/go.mod": "77d4922e3192e996ca9a0975b0bcd2d4711b18844e62f7ae82923cfb60df6995",
+    "gateway-control/go.sum": "bce72555fda342c22e5e57fdaa3c33a93b2b128b6dc904605b7a198e1067ae24",
+    "runtime-gateway/go.mod": "70ef3f810cded6244a50b32c8cf40b6cdbb2e5732960b558e35dcd8284e9a5f5",
+    "runtime-gateway/go.sum": "72cfcd6ee70d31a21d1175f585c3db32aa9e7b258c181774cbeb897a9bc284c5",
+    "sensor-agent/go.mod": "f1bbe57d774296b048148c1e16f75197760544ff0caa40d2405d0d08dcb2ac9a",
+    "sensor-agent/go.sum": "1343f1d907678f4c9acedf607587181945312b2c927ad7c301ff4e247deb40a3"
+  },
+  "actualReleaseGatesSourceSHA256": "6f542afecf287f90b2693b4e67bcf0d39d0c7d2824d9372f0df9b0d9626a5fa1",
+  "actualCopiedLayoutContractSHA256": "ce279a535c80c2cbb6d50aed45f900796c9e67d6eb7bccd73c1283785498aa2b",
+  "completed": true
+}

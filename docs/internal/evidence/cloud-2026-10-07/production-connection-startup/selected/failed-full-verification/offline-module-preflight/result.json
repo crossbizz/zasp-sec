@@ -1,0 +1,67 @@
+{
+  "scope": "Offline metadata preflight only; no Go tests/compilation or full source closure assertion",
+  "results": [
+    {
+      "module": "health",
+      "argv": [
+        "/tmp/zasp-cloud-tools/go/bin/go",
+        "list",
+        "-deps",
+        "-test",
+        "./..."
+      ],
+      "exit": 0,
+      "elapsed": 0.9161937459999763,
+      "stdoutSHA256": "552124512e90d73f38bc10bf49af704af41358370e5171cb863b2174cfd78516",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "packageLines": 211
+    },
+    {
+      "module": "platform",
+      "argv": [
+        "/tmp/zasp-cloud-tools/go/bin/go",
+        "list",
+        "-deps",
+        "-test",
+        "./healthserver",
+        "./agentsec-api",
+        "./agentsec-worker"
+      ],
+      "exit": 0,
+      "elapsed": 0.2683182090000855,
+      "stdoutSHA256": "dd0ba998e2d06036b2a5f64ef8c3291ab276eb115a233333c79328df797e2980",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "packageLines": 836
+    },
+    {
+      "module": "event-ingest",
+      "argv": [
+        "/tmp/zasp-cloud-tools/go/bin/go",
+        "list",
+        "-deps",
+        "-test",
+        "./..."
+      ],
+      "exit": 0,
+      "elapsed": 0.11413781999999628,
+      "stdoutSHA256": "5a18448b93ca0f63250eee6b0cf447c2d0aceecb6de5f1169869042375ef017e",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "packageLines": 337
+    },
+    {
+      "module": "runtime-gateway",
+      "argv": [
+        "/tmp/zasp-cloud-tools/go/bin/go",
+        "list",
+        "-deps",
+        "-test",
+        "./..."
+      ],
+      "exit": 1,
+      "elapsed": 0.21489656099993226,
+      "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSHA256": "30ac66cbd51d85fbebb9ecdb834e013b499ba2fcc649f3c8026a5579b8aea8dc",
+      "packageLines": 0
+    }
+  ]
+}

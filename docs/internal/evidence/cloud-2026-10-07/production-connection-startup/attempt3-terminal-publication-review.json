@@ -1,0 +1,129 @@
+{
+  "actualOutcome": {
+    "completed": false,
+    "elapsed": 630.5066053630001,
+    "exit": 1,
+    "failure": "npm_verify_exit",
+    "source_unchanged": true,
+    "survivors": [],
+    "tools_unchanged": true,
+    "wait_joined": true
+  },
+  "copies": [
+    {
+      "bytes": 197601,
+      "originalMatched": true,
+      "path": "result.json",
+      "sha256": "72919a7e816fbb0ec0afcb6240de9b51dd04436c333916dc6e4fe3354dc0c597"
+    },
+    {
+      "bytes": 1811,
+      "originalMatched": true,
+      "path": "process-binding.json",
+      "sha256": "e389238b6f3a3cd5f80948f8d01f39fa056277f8d66332114f9faee08f4a7acb"
+    },
+    {
+      "bytes": 483,
+      "originalMatched": true,
+      "path": "preparation.json",
+      "sha256": "4b37c20005d1dd20e81ed44e66cc78791e4c0f32d709d3197c9abd7b8f123b8e"
+    },
+    {
+      "bytes": 71613,
+      "originalMatched": true,
+      "path": "verify.stdout",
+      "sha256": "fdf32e07146e009a0e363913b0c9f4e6737b394ed2c9a9c3f6990604421b8c2f"
+    },
+    {
+      "bytes": 507,
+      "originalMatched": true,
+      "path": "verify.stderr",
+      "sha256": "737ad8d484698de2a070eee175bcf21ea525574e42acc11811029fd7baae5166"
+    },
+    {
+      "bytes": 2788,
+      "originalMatched": true,
+      "path": "tool-before.json",
+      "sha256": "c70e6e3086ca9c9e3f28b18e0a422ea76d712dcaad241b1dc0d0a21d8ed916f7"
+    },
+    {
+      "bytes": 2788,
+      "originalMatched": true,
+      "path": "tool-after.json",
+      "sha256": "c70e6e3086ca9c9e3f28b18e0a422ea76d712dcaad241b1dc0d0a21d8ed916f7"
+    },
+    {
+      "bytes": 325,
+      "originalMatched": true,
+      "path": "deps-before-summary.json",
+      "sha256": "debee7110497cbba202dc1008bf85bfb26a23c0e4cdb841a0eb44b1d003f23e8"
+    },
+    {
+      "bytes": 325,
+      "originalMatched": true,
+      "path": "deps-after-summary.json",
+      "sha256": "540cf21867597447d6315c910033905944a3dfd100b92f2e9a3e6ab77e945584"
+    },
+    {
+      "bytes": 1139,
+      "originalMatched": false,
+      "path": "scope.json",
+      "sha256": "ed9157902e2bc80c264fa492b10432f2f6f9bd2c19f6f345049cc614661a87a8"
+    }
+  ],
+  "defaultScan": {
+    "argv": [
+      "/tmp/zasp-cloud-tools/bin/gitleaks",
+      "dir",
+      "/workspace/.zasp-cloud-owned/spec29-verify-proof/attempt3-full-command",
+      "--redact",
+      "--no-banner",
+      "--report-format",
+      "json",
+      "--report-path",
+      "/workspace/.zasp-cloud-owned/spec29-independent-proof/attempt3-default-report.json"
+    ],
+    "exit": 0,
+    "findings": 0,
+    "seconds": 0.41541300699987005
+  },
+  "dependencyObservation": {
+    "addedRemoved": 0,
+    "changed": [
+      {
+        "after": {
+          "bytes": 24958,
+          "ctime_ns": 1791343462235531776,
+          "mode": 33152,
+          "mtime_ns": 1791343462235531776,
+          "path": ".vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/results.json",
+          "sha256": "eef606009cf98737066295f023fae5aa6d097803e549d9dc1d28bfef256f92e9"
+        },
+        "before": {
+          "bytes": 24813,
+          "ctime_ns": 1791341834296112168,
+          "mode": 33152,
+          "mtime_ns": 1791289779440787689,
+          "path": ".vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/results.json",
+          "sha256": "51693725fea14ff96c362074ddb9a62eef7cacb9286c9aba0540611fc727ecc7"
+        },
+        "path": ".vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/results.json"
+      }
+    ],
+    "fullGzipCRCAndEOF": true,
+    "members": 102248,
+    "recordStreamHashesMatched": true,
+    "scope": "Retained before/after inventory streams independently compared; actual dependency member bodies not reread or immutable lifetime proved."
+  },
+  "failureEvidence": "Full npm command stopped at lint: exact frozen Stytch source/run.mjs3 no-unsafe-finally errors107/113/117. UI2620tests/247files andtypecheckpassed; release/build downstream unreached.",
+  "historicalLoss": "Earlier lost JIT35/diagnostic29/59originals/45f83 not recreated. Fresh prior48s andstorage141s failures remain separate retained packets.",
+  "limits": [
+    "No fullverificationPASS/ledger/native/CIcause/provider/deployment acceptance.",
+    "Lint errors do not authorize rewriting immutable archived source; fix must use bounded lint scope while retaining controls.",
+    "No runtime tests, compilation, source/index edits by reviewer."
+  ],
+  "manifestSHA256": "46fe8893c5b91be2edfe402a78064e1cd570b82341d1fa762b2da0b831518b4f",
+  "outerToolJoin": "Scope transcribes session40919 observedexit1, not independent kernelPID wait receipt.",
+  "payloadBytes": 279380,
+  "status": "PASS_SELECTED_TERMINAL_FAIL_PUBLICATION_CLOSURE"
+}

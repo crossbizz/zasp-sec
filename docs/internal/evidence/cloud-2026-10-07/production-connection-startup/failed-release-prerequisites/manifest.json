@@ -1,0 +1,71 @@
+{
+  "format": "spec29-selected-terminal-proof-v1",
+  "members": [
+    {
+      "path": "result.json",
+      "originalPath": "/tmp/spec29-verify-continuation-54w728ft/result.json",
+      "bytes": 46715,
+      "sha256": "05943d5b5833e26f3eb913b2cefc10a885c5152e0047060d51596df8dd610240"
+    },
+    {
+      "path": "process-binding.json",
+      "originalPath": "/tmp/spec29-verify-continuation-54w728ft/process-binding.json",
+      "bytes": 1939,
+      "sha256": "bf40a93858cf655552c32a5df1e870c2abcabe958a6aafad110871951a8a5e55"
+    },
+    {
+      "path": "preparation.json",
+      "originalPath": "/tmp/spec29-verify-continuation-54w728ft/preparation.json",
+      "bytes": 615,
+      "sha256": "6565ee118b338e4d7ad0c8d9c22645d697c91be483552b3252332f51affcf2ac"
+    },
+    {
+      "path": "source-refresh.json",
+      "originalPath": "/tmp/spec29-verify-continuation-54w728ft/source-refresh.json",
+      "bytes": 22328,
+      "sha256": "451b820b492db3814bbb6bdfddc2dab2fa9a115e3d97d62ace487349941ce928"
+    },
+    {
+      "path": "verify.stdout",
+      "originalPath": "/tmp/spec29-verify-continuation-54w728ft/verify.stdout",
+      "bytes": 67087,
+      "sha256": "81f91d263643f619f5c7bb9b82b7f03190106cceab61deb98f2d64c4353c93dc"
+    },
+    {
+      "path": "verify.stderr",
+      "originalPath": "/tmp/spec29-verify-continuation-54w728ft/verify.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "tool-before.json",
+      "originalPath": "/tmp/spec29-verify-continuation-54w728ft/tool-before.json",
+      "bytes": 2788,
+      "sha256": "c70e6e3086ca9c9e3f28b18e0a422ea76d712dcaad241b1dc0d0a21d8ed916f7"
+    },
+    {
+      "path": "tool-after.json",
+      "originalPath": "/tmp/spec29-verify-continuation-54w728ft/tool-after.json",
+      "bytes": 2788,
+      "sha256": "c70e6e3086ca9c9e3f28b18e0a422ea76d712dcaad241b1dc0d0a21d8ed916f7"
+    },
+    {
+      "path": "deps-before-summary.json",
+      "originalPath": "/tmp/spec29-verify-continuation-54w728ft/deps-before-summary.json",
+      "bytes": 325,
+      "sha256": "15b377a81a9a83b069c04df8a873b10e82f0eab8d159fb525d301ddfdc1d66ec"
+    },
+    {
+      "path": "deps-after-summary.json",
+      "originalPath": "/tmp/spec29-verify-continuation-54w728ft/deps-after-summary.json",
+      "bytes": 325,
+      "sha256": "bc5c625adb5182ad3c3408ded12e38b97c805ae576c9f37aa700c17fb9b63fca"
+    },
+    {
+      "path": "scope.json",
+      "bytes": 1080,
+      "sha256": "e60a727cccd60bf554d9d8059b4d1a6ba7de855d4d10d00706b60f45956d232d"
+    }
+  ],
+  "payloadBytes": 145990
+}

@@ -1,0 +1,11 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {emitComplianceAPIDependencyFailure as emit} from './browser-command-failure.mjs';
+const prefix='ZASP_COMPLIANCE_API_FAILED_STAGE=runtime-build\n';
+const marker=p=>'ZASP_COMPLIANCE_API_FAILED_DEPENDENCY='+p+'\n';
+const result=s=>{const out=[];emit(s,x=>out.push(x));assert.equal(out.length,1);return out[0];};
+test('finite dependency markers project every source-defined phase',()=>{for(const phase of ["audit-export", "authorization-components", "authorization-readiness", "compliance-export", "composition", "composition-authorization", "composition-inputs", "connector-lifecycle", "connector-oauth", "connector-providers", "connector-secrets", "construction-context", "core-postgres", "core-repositories", "current-authorization", "edge-middleware", "handler-composition", "identity-authenticator", "identity-repository", "identity-webhook", "native-identity-provider", "native-services", "operational-middleware", "policy-history", "policy-surface", "product-middleware", "production-handlers", "public-surface", "reference-providers", "runtime-inputs", "security-agent-postgres", "security-agent-repositories", "temporal-observer", "ticket-services"])assert.ok(result(prefix+marker(phase)).endsWith('phase: '+phase+'.'));});
+test('missing unknown duplicate prefixed and partial markers refuse to unavailable',()=>{for(const s of [prefix,prefix+marker('CANARY_SECRET'),prefix+marker('core-postgres')+marker('core-postgres'),prefix+'prefix '+marker('core-postgres'),prefix+marker('core-postgres').trimEnd(),prefix+marker('core-postgres')+prefix])assert.ok(result(s).endsWith('phase: unavailable.'));});
+test('wrong child stage and oversized or nonstring output retain unavailable',()=>{for(const s of [null,{},'X'.repeat(16384),'ZASP_COMPLIANCE_API_FAILED_STAGE=serve\n'+marker('core-postgres')])assert.ok(result(s).endsWith('phase: unavailable.'));});
+test('raw SDK config and token strings never appear in annotations',()=>{const s=prefix+marker('core-postgres')+'CANARY_SECRET token=canary URL=https://private.invalid\n';assert.doesNotMatch(result(s),/CANARY|token|https|private/);});
+test('annotation emitter error cannot replace original readiness error',()=>{assert.doesNotThrow(()=>emit(prefix+marker('core-postgres'),()=>{throw Error('CANARY');}));});

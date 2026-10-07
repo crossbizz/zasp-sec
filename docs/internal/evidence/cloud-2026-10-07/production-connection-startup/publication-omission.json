@@ -1,0 +1,8 @@
+{
+  "omitted_whole_member": "fresh-diagnostic-node/launch-name-status.json",
+  "original_retained": "/workspace/.zasp-diagnostic-refresh-3e0kpex7/launch-name-status.json",
+  "bytes": 11529,
+  "sha256": "3391346a4e8fa98e38faf1642804a78ea7b0ebff35857a08c83a4d44136aa391",
+  "reason": "Default Gitleaks generic-api-key refusal at sourceBindings scripts/api-start.mjs digest; independent author verified digest equals current source SHA256, not a credential. Original receipt and scanner refusal unchanged; no rule suppression.",
+  "scope": "selection-manifest.json records initial producer selection; this additive descriptor narrows publication."
+}

@@ -1,0 +1,23 @@
+{
+  "scope": "Fresh exact apphelper startup3 compile only",
+  "argv": [
+    "/tmp/zasp-cloud-tools/go/bin/go",
+    "test",
+    "-mod=readonly",
+    "-overlay",
+    "/tmp/runtimepostgres-startup3-owner-v3-3cbdxyhi/overlay.json",
+    "-c",
+    "-o",
+    "/tmp/runtimepostgres-startup3-owner-v3-3cbdxyhi/startup3.test",
+    "./runtimepostgres"
+  ],
+  "exit": 0,
+  "normalJoined": true,
+  "forced": false,
+  "failure": null,
+  "elapsed": 17.433252849999917,
+  "bindingCount": 149,
+  "bindingsBeforeSHA256": "8494e26426f5f143d2e0b3db801de3097c9faeb5e822a2a46b5b5e30bf3116e7",
+  "bindingsAfterSHA256": "8494e26426f5f143d2e0b3db801de3097c9faeb5e822a2a46b5b5e30bf3116e7",
+  "binarySHA256": "ebd8d720446aa20b75024448122f35a1c314e27572f91059d19e20e4039c75da"
+}

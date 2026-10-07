@@ -1,0 +1,37 @@
+{
+  "scope": "Complete additional logs; original failures and interrupted-owner scope unchanged. Original producer manifests describe raw bodies; this map declares lossless published gzip representations.",
+  "files": [
+    {
+      "original_path": "failed-release-prerequisites/verify.stderr",
+      "published_path": "failed-release-prerequisites/verify.stderr.gz",
+      "original_bytes": 0,
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "gzip_bytes": 20,
+      "gzip_sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec"
+    },
+    {
+      "original_path": "failed-release-prerequisites/verify.stdout",
+      "published_path": "failed-release-prerequisites/verify.stdout.gz",
+      "original_bytes": 67087,
+      "original_sha256": "81f91d263643f619f5c7bb9b82b7f03190106cceab61deb98f2d64c4353c93dc",
+      "gzip_bytes": 12548,
+      "gzip_sha256": "e43ef025951de52c34f54f6548b3d31d1ac7b5bdb9f42085185a8d9f3f520b6d"
+    },
+    {
+      "original_path": "independent-interrupted-owner-recovery/verify.stderr",
+      "published_path": "independent-interrupted-owner-recovery/verify.stderr.gz",
+      "original_bytes": 681,
+      "original_sha256": "ffffccf258213f2ea8035ce243cb1fae57e16be7b8ad340a1719f65fcaef8283",
+      "gzip_bytes": 303,
+      "gzip_sha256": "6e25547c1be2cf8ea39765c8cf1cdc071b9528b9e00632408a3adfd48168decd"
+    },
+    {
+      "original_path": "independent-interrupted-owner-recovery/verify.stdout",
+      "published_path": "independent-interrupted-owner-recovery/verify.stdout.gz",
+      "original_bytes": 56174,
+      "original_sha256": "e4ad71490d8f6ecf8cc889f87b8426e9d1570b5d9bf9169d039cd0451698e1e2",
+      "gzip_bytes": 10628,
+      "gzip_sha256": "740a4082c3d7884962ab89a765fa2b2404a7b79c2718e052fd3117bbc3fcdb50"
+    }
+  ]
+}

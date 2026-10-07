@@ -1,0 +1,22 @@
+[
+ {
+  "RuleID": "generic-api-key",
+  "Description": "Detected a Generic API Key, potentially exposing access to various services and sensitive operations.",
+  "StartLine": 380,
+  "EndLine": 380,
+  "StartColumn": 15,
+  "EndColumn": 96,
+  "Match": "api-start.mjs\": \"REDACTED\"",
+  "Secret": "REDACTED",
+  "File": "/workspace/.zasp-cloud-owned/root-current-batch/selected/fresh-diagnostic-node/launch-name-status.json",
+  "SymlinkFile": "",
+  "Commit": "",
+  "Entropy": 3.7781746,
+  "Author": "",
+  "Email": "",
+  "Date": "",
+  "Message": "",
+  "Tags": [],
+  "Fingerprint": "/workspace/.zasp-cloud-owned/root-current-batch/selected/fresh-diagnostic-node/launch-name-status.json:generic-api-key:380"
+ }
+]

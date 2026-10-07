@@ -1,0 +1,106 @@
+{
+  "scope": "Fresh unchanged22 Node extraction tests. Prior flat projection failed TypeScript package setup before tests; preserved separately. Real source-relative package resolver used without tracked writes.",
+  "exitCode": 0,
+  "normalWait": true,
+  "seconds": 0.8280253419998189,
+  "before": {
+    "/workspace/zasp-sec/scripts/browser-command-failure.mjs": {
+      "sha256": "cabd07fd7dd8f2a6d1cdf3a8164a6eafe442555da66cf275b7d7d0f59939d05e",
+      "dev": 27,
+      "ino": 995688,
+      "size": 6940,
+      "mtime_ns": 1791340733655967806,
+      "ctime_ns": 1791340733655967806
+    },
+    "/workspace/zasp-sec/scripts/production-combined-e2e.mjs": {
+      "sha256": "1953c34a5d14bc3200800e14e255570bb032b9bb3f20327a698009589177b27b",
+      "dev": 27,
+      "ino": 1248101,
+      "size": 674623,
+      "mtime_ns": 1791330042492113095,
+      "ctime_ns": 1791330042492113095
+    },
+    "/workspace/zasp-sec/scripts/compliance-api-child-stage.test.mjs": {
+      "sha256": "d863bd4ed525b1b7a7ad0b578cba2ad7dbdec144a00c84937549a4a45ed93e11",
+      "dev": 27,
+      "ino": 995330,
+      "size": 5655,
+      "mtime_ns": 1791330042484112893,
+      "ctime_ns": 1791330042484112893
+    },
+    "/workspace/zasp-sec/scripts/browser-startup-phase.test.mjs": {
+      "sha256": "e7e2bf19071578299e5f5fcf6a68e4dcfb4cd9afcff559fa4b1a64d5b2e1d215",
+      "dev": 27,
+      "ino": 995325,
+      "size": 10402,
+      "mtime_ns": 1791330042484112893,
+      "ctime_ns": 1791330042484112893
+    },
+    "/workspace/zasp-sec/scripts/browser-command-failure.test.mjs": {
+      "sha256": "335bf1380f140e48a3067d6f969a5cb2a4d6134dec7aab246f3216ee38746eac",
+      "dev": 27,
+      "ino": 995320,
+      "size": 9420,
+      "mtime_ns": 1791330042484112893,
+      "ctime_ns": 1791330042484112893
+    },
+    "/workspace/zasp-sec/services/platform/agentsec-api/compliance_browser_process_test.go": {
+      "sha256": "2cb2ad01b1254a9f7c853e64567d65527e7c7d538f2c28f75b60ba5fa2452068",
+      "dev": 27,
+      "ino": 1072958,
+      "size": 5899,
+      "mtime_ns": 1791340733654847511,
+      "ctime_ns": 1791340733654847511
+    }
+  },
+  "after": {
+    "/workspace/zasp-sec/scripts/browser-command-failure.mjs": {
+      "sha256": "cabd07fd7dd8f2a6d1cdf3a8164a6eafe442555da66cf275b7d7d0f59939d05e",
+      "dev": 27,
+      "ino": 995688,
+      "size": 6940,
+      "mtime_ns": 1791340733655967806,
+      "ctime_ns": 1791340733655967806
+    },
+    "/workspace/zasp-sec/scripts/production-combined-e2e.mjs": {
+      "sha256": "1953c34a5d14bc3200800e14e255570bb032b9bb3f20327a698009589177b27b",
+      "dev": 27,
+      "ino": 1248101,
+      "size": 674623,
+      "mtime_ns": 1791330042492113095,
+      "ctime_ns": 1791330042492113095
+    },
+    "/workspace/zasp-sec/scripts/compliance-api-child-stage.test.mjs": {
+      "sha256": "d863bd4ed525b1b7a7ad0b578cba2ad7dbdec144a00c84937549a4a45ed93e11",
+      "dev": 27,
+      "ino": 995330,
+      "size": 5655,
+      "mtime_ns": 1791330042484112893,
+      "ctime_ns": 1791330042484112893
+    },
+    "/workspace/zasp-sec/scripts/browser-startup-phase.test.mjs": {
+      "sha256": "e7e2bf19071578299e5f5fcf6a68e4dcfb4cd9afcff559fa4b1a64d5b2e1d215",
+      "dev": 27,
+      "ino": 995325,
+      "size": 10402,
+      "mtime_ns": 1791330042484112893,
+      "ctime_ns": 1791330042484112893
+    },
+    "/workspace/zasp-sec/scripts/browser-command-failure.test.mjs": {
+      "sha256": "335bf1380f140e48a3067d6f969a5cb2a4d6134dec7aab246f3216ee38746eac",
+      "dev": 27,
+      "ino": 995320,
+      "size": 9420,
+      "mtime_ns": 1791330042484112893,
+      "ctime_ns": 1791330042484112893
+    },
+    "/workspace/zasp-sec/services/platform/agentsec-api/compliance_browser_process_test.go": {
+      "sha256": "2cb2ad01b1254a9f7c853e64567d65527e7c7d538f2c28f75b60ba5fa2452068",
+      "dev": 27,
+      "ino": 1072958,
+      "size": 5899,
+      "mtime_ns": 1791340733654847511,
+      "ctime_ns": 1791340733654847511
+    }
+  }
+}

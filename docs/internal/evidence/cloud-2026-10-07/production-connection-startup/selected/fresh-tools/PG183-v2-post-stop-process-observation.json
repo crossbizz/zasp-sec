@@ -1,0 +1,8 @@
+{
+  "scope": "Additive read-only after normal stop; no signals or absence inference",
+  "pid": 17195,
+  "present": true,
+  "state": "Z",
+  "ppid": 1,
+  "startTicks": 137467
+}

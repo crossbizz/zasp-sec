@@ -1,0 +1,27 @@
+{
+  "scope": "Only remaining original verify command continuation, NOT fullnpmverify PASS. Earlier full attempt3 failedlint immutable; newly frozen18+publishedproofs8148 source. No lost old records reconstructed.",
+  "outerSession": 72282,
+  "observedOuterExitCode": 1,
+  "largeOriginals": [
+    {
+      "path": "/tmp/spec29-verify-continuation-54w728ft/source-before.json",
+      "bytes": 1760805,
+      "sha256": "1767871e98cdf74b5b8a74fa47ab2cb0cd4aa9601145d8bc41111028810ca90b"
+    },
+    {
+      "path": "/tmp/spec29-verify-continuation-54w728ft/deps-before.jsonl.gz",
+      "bytes": 6069974,
+      "sha256": "f3fee5a3128eaacd6103c768b5b2a01a2db926596c30c8ec29154e00c791c3c1"
+    },
+    {
+      "path": "/tmp/spec29-verify-continuation-54w728ft/deps-after.jsonl.gz",
+      "bytes": 6069973,
+      "sha256": "3dc035e09d1f0b5c96acc2017cee1745353f0ce384a9f37285563d2307bb093b"
+    },
+    {
+      "path": "/tmp/spec29-verify-continuation-54w728ft/run-verify.py",
+      "bytes": 9272,
+      "sha256": "b358cbf3dc0803d0b2ba1bfd471b9d03c387043e8081d462db4cd163e25ea4f4"
+    }
+  ]
+}

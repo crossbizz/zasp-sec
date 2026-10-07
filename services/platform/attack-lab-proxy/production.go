@@ -15,6 +15,7 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/attacklabproxy"
 	"github.com/zasp-ai/zasp-sec/services/platform/healthserver"
 	"github.com/zasp-ai/zasp-sec/services/platform/redteamadapter"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimepostgres"
 )
 
 const (
@@ -29,7 +30,7 @@ type proxyPostgresDatabase struct {
 }
 
 func connectProxyDatabase(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
-	config, err := pgxpool.ParseConfig(dsn)
+	config, err := runtimepostgres.ParsePoolConfig(dsn)
 	if err != nil {
 		return nil, errRuntimeUnavailable
 	}

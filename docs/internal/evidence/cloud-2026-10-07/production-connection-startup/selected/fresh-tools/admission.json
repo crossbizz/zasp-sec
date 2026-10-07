@@ -1,0 +1,119 @@
+{
+  "format": "fresh-spec29-official-PG183-native-tool-admission-v1",
+  "imageID": "sha256:3c67953c3a90a3a846b72e6cd2cfa418b0487e06156ed470dbbeaeb4cac09178",
+  "repoDigest": "postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba",
+  "layers": [
+    {
+      "sha256": "5d0ffcca6050b9c12db964453426d0c2bf06c4a53fb7754feeda08f53a3cf424",
+      "bytes": 77895680
+    },
+    {
+      "sha256": "a8ccbbfe85a6d294e9dd9f3fbcad291a5f120829934a554b87abae38d3a45b1e",
+      "bytes": 12288
+    },
+    {
+      "sha256": "f01ff1bd8f34dbf0d0c29e2bfb3a7f544b94536fe166c50a2167548df97b5c2e",
+      "bytes": 10150400
+    },
+    {
+      "sha256": "4c5724a740ecfd1afd0bb8c042ad767abeee22b6ee87f73f3c2fbac399039924",
+      "bytes": 3596800
+    },
+    {
+      "sha256": "5346ca69d9ad080d06c84977e8ec9c3ae8f063a2ed86a8c839ea953b12d9e3d1",
+      "bytes": 25775616
+    },
+    {
+      "sha256": "27c6ddab34cbbdb2168167ce8f3698b90514388905e1bb704a411467cb5738a4",
+      "bytes": 3286016
+    },
+    {
+      "sha256": "a29a590c371a2a9f0ae2c83fbd388bf5e092efc6c5fc080903b4db66542a15b4",
+      "bytes": 1536
+    },
+    {
+      "sha256": "f7501e978666c42d8eb21f4b70b78060b623228feb9f2b69b7a7c7d280b9d9c0",
+      "bytes": 7680
+    },
+    {
+      "sha256": "0a57f9e502bfd4b01792e2fe60eabe0100e8dc16aace8d0bfcfaaddf278d10cf",
+      "bytes": 326932480
+    },
+    {
+      "sha256": "841bafcd09ed02d724817de0582b3c71548770d927ecbae9064a5c29d62e0da0",
+      "bytes": 73728
+    },
+    {
+      "sha256": "20be7cabd0e6fe39cb4ccf2d7b4c78502e95d4922c93f300951e9540af8ab664",
+      "bytes": 2048
+    },
+    {
+      "sha256": "75df44bb756c0fa474ac9a71744d3518c85072d917341b2c144af90600b795ba",
+      "bytes": 20992
+    },
+    {
+      "sha256": "2be97488ad89dafc9b060186357911c1ae2533a4ed34bd5a0d6c9db82e51e2af",
+      "bytes": 3072
+    }
+  ],
+  "tools": [
+    {
+      "name": "initdb",
+      "path": "/tmp/zasp-pg183-current/pg-bin/initdb",
+      "wrapperSHA256": "25b69120893c5aab95c139413275de84c16cd801005f27d42adeebef74db4313",
+      "binarySHA256": "1e91d292fc9af5c4491193e4de72e5afea2c294feea26166a442eec9830869d7",
+      "exit": 0,
+      "version": "initdb (PostgreSQL) 18.3 (Debian 18.3-1.pgdg12+1)",
+      "stderrBytes": 0
+    },
+    {
+      "name": "pg_ctl",
+      "path": "/tmp/zasp-pg183-current/pg-bin/pg_ctl",
+      "wrapperSHA256": "02f7ef406e836da9787bb6b67a9285ef0b90cfe867ca8c1962c3772533e962ae",
+      "binarySHA256": "87c630d71627b975655d550aafac312909afce28ac0331fcc1409bd463d9fb3d",
+      "exit": 0,
+      "version": "pg_ctl (PostgreSQL) 18.3 (Debian 18.3-1.pgdg12+1)",
+      "stderrBytes": 0
+    },
+    {
+      "name": "pg_isready",
+      "path": "/tmp/zasp-pg183-current/pg-bin/pg_isready",
+      "wrapperSHA256": "e298f7151cc378af5f692741b997b0b035da3cbde3b4a8f9dc34f6aaf233527a",
+      "binarySHA256": "c12a9e768c17edeaf36a9c4bdb738255d0de47b56950a1af88c205e1bb9d141e",
+      "exit": 0,
+      "version": "pg_isready (PostgreSQL) 18.3 (Debian 18.3-1.pgdg12+1)",
+      "stderrBytes": 0
+    },
+    {
+      "name": "postgres",
+      "path": "/tmp/zasp-pg183-current/pg-bin/postgres",
+      "wrapperSHA256": "606f97b8e3a42a7d6b36b82733a74e9cf851be00c7dbb0909cc8424eca75b76e",
+      "binarySHA256": "4cc2a6c517a0ecb52ac1269108c0a4a70e8fb53cf32c249fad89970bf9acc8df",
+      "exit": 0,
+      "version": "postgres (PostgreSQL) 18.3 (Debian 18.3-1.pgdg12+1)",
+      "stderrBytes": 0
+    },
+    {
+      "name": "psql",
+      "path": "/tmp/zasp-pg183-current/pg-bin/psql",
+      "wrapperSHA256": "45cec96b274193ba456d50e9325fc3745cf16f461704ad9b606792523d49a389",
+      "binarySHA256": "9b19f53d3de23ea9d7d909e551e0bbb803d796db54fc7b906c5027805c9bf1f5",
+      "exit": 0,
+      "version": "psql (PostgreSQL) 18.3 (Debian 18.3-1.pgdg12+1)",
+      "stderrBytes": 0
+    },
+    {
+      "name": "pg_config",
+      "path": "/tmp/zasp-pg183-current/pg-bin/pg_config",
+      "wrapperSHA256": "683d9ef6f84f2e0727a315c6b5a443f848e54f54e0ad11b114796385d4323672",
+      "binarySHA256": "e13365f22f16da8d41c7b211417f33cc8faa7eb1281606d988b2a6a9f7692cac",
+      "exit": 0,
+      "version": "PostgreSQL 18.3 (Debian 18.3-1.pgdg12+1)",
+      "stderrBytes": 0
+    }
+  ],
+  "loader": "/tmp/zasp-pg183-current/root/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2",
+  "loaderSHA256": "593bb1d5355658e645f36e6b1f49832691b24e177209765914e4cce51499dbb4",
+  "libraryBindings": 179,
+  "scope": "Cached official image saved read-only without container create/start; selected filesystem rederived and fresh native version checks only. No PG service/schema/test readiness."
+}

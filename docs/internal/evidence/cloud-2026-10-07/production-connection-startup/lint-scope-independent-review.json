@@ -1,0 +1,62 @@
+{
+  "status": "PASS_EXACT_IMMUTABLE_SNAPSHOT_LINT_EXCEPTION_SCOPE",
+  "sourceHashes": [
+    {
+      "path": "/workspace/zasp-sec/eslint.config.mjs",
+      "sha256": "f77c71bc6cd3552fcb6ff61fc04e9e74fd2665bec65cf87df957c7119c0000a6"
+    },
+    {
+      "path": "/workspace/zasp-sec/scripts/eslint-scope.test.mjs",
+      "sha256": "3b73476fc10a5e5bf70904bf4cc71ddcb165e49121d0a64463244be3ef086b40"
+    },
+    {
+      "path": "/workspace/zasp-sec/docs/internal/evidence/cloud-2026-10-07/stytch-owned-test-session/source/run.mjs",
+      "sha256": "6558e13100d68e3c565cacc8885a8e7088e5070847175c44784a0dc07ac40e21"
+    }
+  ],
+  "counts": {
+    "red": {
+      "tests": 11,
+      "pass": 10,
+      "fail": 1,
+      "skipped": 0,
+      "cancelled": 0
+    },
+    "green": {
+      "tests": 11,
+      "pass": 11,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0
+    }
+  },
+  "logs": [
+    {
+      "path": "/workspace/.zasp-cloud-owned/root-current-batch/lint-scope-green.stdout",
+      "sha256": "a814997a7ba666fd12148acf49a9c2f6f754b8bb28a6bbc1b3a5dad50a25dcb3"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/root-current-batch/lint-scope-red.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/root-current-batch/lint-scope-red.stdout",
+      "sha256": "a41fb32ba61934841800c9b4e40e9e8e772d71201a063785f84915840a2ec8a0"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/root-current-batch/lint-scope-green.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "snapshotEntireBytesEqualHEAD": true,
+  "findings": [
+    "Only no-unsafe-finally disabled for one exactdatedStytch immutableproofpath.",
+    "Snapshotcleanupthrows107/113/117 all inside samefinally localtrycatch97\u2013121, caught into failureflag ratherthanoverridingprioruncaughterror.",
+    "Neighbor/laterdate/ordinaryscript unsafefinally rejects; targetotherunused/controlregexrules remain active and existing9scope tests preserved."
+  ],
+  "limits": [
+    "Source and existingactualTAP reviewed; no ESLint/Node rerun.",
+    "No security/releaseguards/ignoredpaths widened.",
+    "Exception is path-scoped; immutable sourcebytes verified HEAD, futurechanges tosamepath need independentreview."
+  ]
+}

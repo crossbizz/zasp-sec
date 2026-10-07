@@ -1,0 +1,37 @@
+{
+  "format": "fresh-interrupted-release-owner-recovery-v1",
+  "observedUTC": "2026-10-07T03:59:13Z",
+  "observationElapsed": 11.46987788100023,
+  "originalOwnerResultPresent": false,
+  "originalOwnerPID38252Present": false,
+  "kernelLeader": {
+    "pid": 38432,
+    "state": "Z",
+    "ppid": 1,
+    "pgid": 38432,
+    "startTicks": "277146",
+    "boundTicksMatch": true,
+    "kernelExitStatus": 0,
+    "scope": "Fresh kernel observation, not original wait/join or full supervisor acceptance"
+  },
+  "originalJoinReceipt": "ABSENT",
+  "overallControlledOutcome": "UNVERIFIED-owner-final-receipt-absent",
+  "sourceMembers": 8148,
+  "physicalSourceMismatches": [],
+  "currentRootSourceMismatches": [],
+  "toolPinsUnchanged": true,
+  "dependencyMembersBefore": 102248,
+  "dependencyMembersFreshAfter": 102248,
+  "dependencyAdded": [],
+  "dependencyRemoved": [],
+  "dependencyChanged": [],
+  "dependencyStreamSHA256": "f3b8312ea8db99ba043e62fa0c2a4419b66dc7eddf540534ec02db45375e2e61",
+  "originalResultOrAfterTimestampReconstructed": false,
+  "allOwnedSurvivorClosure": "UNVERIFIED-original-registry-not-persisted",
+  "scope": "Read-only fresh post-observation; retained component logs may show passes, but original owner final guard/join unavailable. No singlefullnpmverify or native/provider clearance.",
+  "free": {
+    "/workspace": 7957741568,
+    "/tmp": 4629848064,
+    "/dev/shm": 6804439040
+  }
+}

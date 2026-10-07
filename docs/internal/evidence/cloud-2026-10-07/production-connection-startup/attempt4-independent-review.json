@@ -1,0 +1,116 @@
+{
+  "defaultScan": {
+    "argv": [
+      "/tmp/zasp-cloud-tools/bin/gitleaks",
+      "dir",
+      "/workspace/.zasp-cloud-owned/spec29-verify-proof/attempt4-lint-onward-continuation",
+      "--redact",
+      "--no-banner",
+      "--report-format",
+      "json",
+      "--report-path",
+      "/workspace/.zasp-cloud-owned/spec29-independent-proof/attempt4-default-report.json"
+    ],
+    "exit": 0,
+    "findings": 0,
+    "noOverrides": true,
+    "seconds": 0.46613997100030247,
+    "unchangedIgnoreSHA256": "a25727ea01ae025b0fede1cd2a61396caa72a687632bc628f53135b123cca6aa"
+  },
+  "dependencyStreamReview": {
+    "addedRemovedChanged": 0,
+    "fullGzipCRCAndEOF": true,
+    "memberBodiesNotReinventoried": true,
+    "members": 102248,
+    "recordStreamHashesVerified": true
+  },
+  "files": 12,
+  "limits": [
+    "Generic graph errors do not themselves identify all3 modules; separate readonly module diagnostics/restoration require their own proof.",
+    "No production/native/CIcause/provider/ledger acceptance.",
+    "No source/index edits or runtime tests byreviewer."
+  ],
+  "manifestSHA256": "71b453e8d470e7f8182774313e7c58ccbd6fac3d28eb42c40ea24a2572b07614",
+  "members": [
+    {
+      "bytes": 46715,
+      "originalMatched": true,
+      "path": "result.json",
+      "sha256": "05943d5b5833e26f3eb913b2cefc10a885c5152e0047060d51596df8dd610240"
+    },
+    {
+      "bytes": 1939,
+      "originalMatched": true,
+      "path": "process-binding.json",
+      "sha256": "bf40a93858cf655552c32a5df1e870c2abcabe958a6aafad110871951a8a5e55"
+    },
+    {
+      "bytes": 615,
+      "originalMatched": true,
+      "path": "preparation.json",
+      "sha256": "6565ee118b338e4d7ad0c8d9c22645d697c91be483552b3252332f51affcf2ac"
+    },
+    {
+      "bytes": 22328,
+      "originalMatched": true,
+      "path": "source-refresh.json",
+      "sha256": "451b820b492db3814bbb6bdfddc2dab2fa9a115e3d97d62ace487349941ce928"
+    },
+    {
+      "bytes": 67087,
+      "originalMatched": true,
+      "path": "verify.stdout",
+      "sha256": "81f91d263643f619f5c7bb9b82b7f03190106cceab61deb98f2d64c4353c93dc"
+    },
+    {
+      "bytes": 0,
+      "originalMatched": true,
+      "path": "verify.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 2788,
+      "originalMatched": true,
+      "path": "tool-before.json",
+      "sha256": "c70e6e3086ca9c9e3f28b18e0a422ea76d712dcaad241b1dc0d0a21d8ed916f7"
+    },
+    {
+      "bytes": 2788,
+      "originalMatched": true,
+      "path": "tool-after.json",
+      "sha256": "c70e6e3086ca9c9e3f28b18e0a422ea76d712dcaad241b1dc0d0a21d8ed916f7"
+    },
+    {
+      "bytes": 325,
+      "originalMatched": true,
+      "path": "deps-before-summary.json",
+      "sha256": "15b377a81a9a83b069c04df8a873b10e82f0eab8d159fb525d301ddfdc1d66ec"
+    },
+    {
+      "bytes": 325,
+      "originalMatched": true,
+      "path": "deps-after-summary.json",
+      "sha256": "bc5c625adb5182ad3c3408ded12e38b97c805ae576c9f37aa700c17fb9b63fca"
+    },
+    {
+      "bytes": 1080,
+      "originalMatched": false,
+      "path": "scope.json",
+      "sha256": "e60a727cccd60bf554d9d8059b4d1a6ba7de855d4d10d00706b60f45956d232d"
+    }
+  ],
+  "outcome": {
+    "completed": false,
+    "elapsed": 123.32370341100022,
+    "exit": 1,
+    "failure": "npm_verify_exit",
+    "source_unchanged": true,
+    "survivors": [],
+    "tools_unchanged": true,
+    "wait_joined": true
+  },
+  "payloadBytes": 145990,
+  "scope": "Separate continuation only, not single fullnpmPASS. Priorfull630lintFAIL andlostoldproofs retained honestly. Outer72282exit1 observationaltranscript in scope; no inventedkernelwait.",
+  "stageEvidence": "Lint/imports/staging pass; release284PASS2FAIL0SKIP. Copied APIhealth module graph reports3generic GOPROXYoff errors; SPDX Go dependency reports x/term0.45.0 offline lookup. Build/ledger downstream unreached.",
+  "status": "PASS_SELECTED_CONTINUATION_FAILURE_CLOSURE"
+}

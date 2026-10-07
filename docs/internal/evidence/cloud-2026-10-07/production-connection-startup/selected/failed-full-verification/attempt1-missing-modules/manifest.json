@@ -1,0 +1,64 @@
+{
+  "format": "spec29-fresh-terminal-selected-proof-v1",
+  "members": [
+    {
+      "path": "result.json",
+      "original_path": "/tmp/full-verify-epoch29-0z96r_91/result.json",
+      "sha256": "874397e2d1ae9611246675a08a628db8010d483aa828064428c432d0ba11d395",
+      "bytes": 15023
+    },
+    {
+      "path": "process-binding.json",
+      "original_path": "/tmp/full-verify-epoch29-0z96r_91/process-binding.json",
+      "sha256": "9386eb3d9dbaa0482147c51155cf1f9a3cd0bc645cf9e1487b08d3780ddffecc",
+      "bytes": 1716
+    },
+    {
+      "path": "preparation.json",
+      "original_path": "/tmp/full-verify-epoch29-0z96r_91/preparation.json",
+      "sha256": "6aa4babf8dc417be3ab68f6784ef2c53904a7e4583fa7bdddfa79d770358c270",
+      "bytes": 516
+    },
+    {
+      "path": "verify.stdout",
+      "original_path": "/tmp/full-verify-epoch29-0z96r_91/verify.stdout",
+      "sha256": "59ad92721d5d4de65072eeaa9bac77c4d0df9dbf121d01273beeff467e1b22e9",
+      "bytes": 5143
+    },
+    {
+      "path": "verify.stderr",
+      "original_path": "/tmp/full-verify-epoch29-0z96r_91/verify.stderr",
+      "sha256": "5d3f19003da803d038c220965baaff029980af33e09fec2225bad91f973485fa",
+      "bytes": 7064
+    },
+    {
+      "path": "tool-before.json",
+      "original_path": "/tmp/full-verify-epoch29-0z96r_91/tool-before.json",
+      "sha256": "ddfb7c8fce7e56b17aa5d880ab5443db68aa10f15bb859fd95385a5c9d95a711",
+      "bytes": 2012
+    },
+    {
+      "path": "tool-after.json",
+      "original_path": "/tmp/full-verify-epoch29-0z96r_91/tool-after.json",
+      "sha256": "ddfb7c8fce7e56b17aa5d880ab5443db68aa10f15bb859fd95385a5c9d95a711",
+      "bytes": 2012
+    },
+    {
+      "path": "deps-before-summary.json",
+      "original_path": "/tmp/full-verify-epoch29-0z96r_91/deps-before-summary.json",
+      "sha256": "93f584db982477b201cd404af71980c2588cea06301cd527040df3cf2c0a6a7a",
+      "bytes": 325
+    },
+    {
+      "path": "deps-after-summary.json",
+      "original_path": "/tmp/full-verify-epoch29-0z96r_91/deps-after-summary.json",
+      "sha256": "14d6dfe9d3361aa02f804a557bfcc91c4e82c7aa831ca2cb61136d3878862daf",
+      "bytes": 325
+    },
+    {
+      "path": "scope.json",
+      "sha256": "3553414d74443c8ec48e259c97621c4042c76567cd9d0eb669e415a02229745c",
+      "bytes": 1624
+    }
+  ]
+}

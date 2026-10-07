@@ -1,0 +1,8 @@
+{
+  "omitted_whole_member": "root-current-publication-subset-review.json",
+  "original_retained": "/workspace/.zasp-cloud-owned/spec29-independent-proof/root-current-publication-subset-review.json",
+  "bytes": 19323,
+  "sha256": "d204baca82bd5cb92dc716041832f012e830b5c93bab3bb3518fc2e8d2391460",
+  "reason": "Default staged scanner refused a source-binding digest reproduced in the original review. Whole copied review omitted; original remains unchanged; no scanner suppression. A fresh final scoped publication review is required.",
+  "original_refusal_report": "/workspace/.zasp-cloud-owned/root-current-batch/staged-default-report.json"
+}

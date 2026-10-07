@@ -21,6 +21,7 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 	"github.com/zasp-ai/zasp-sec/services/platform/orchestration"
 	"github.com/zasp-ai/zasp-sec/services/platform/policy"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimepostgres"
 	"go.temporal.io/sdk/activity"
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/worker"
@@ -244,7 +245,7 @@ func buildTemporalSecurityAgentRuntimeWithIO(ctx context.Context, cfg workerRunt
 		return fail()
 	}
 	for _, dsn := range []string{cfg.TemporalExecutorDSN, cfg.TemporalCompensationDSN} {
-		pc, err := pgxpool.ParseConfig(dsn)
+		pc, err := runtimepostgres.ParsePoolConfig(dsn)
 		if err != nil {
 			return fail()
 		}

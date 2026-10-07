@@ -1,0 +1,41 @@
+{
+  "scope": "Fresh spec29 actualterminalfullnpmverify only; previousepoch interruptedrun andlostprivateproofs not reconstructed. Originalcaps/commands retained, no production/native379/browserreadiness.",
+  "actual_outcome": {
+    "completed": false,
+    "failure": "npm_verify_exit",
+    "exit": 1,
+    "wait_joined": true,
+    "elapsed": 48.786903645999985,
+    "source_unchanged": true,
+    "tools_unchanged": true,
+    "survivors": [],
+    "dependency_roster_identical": true
+  },
+  "source_tool_large_original_hashrefs": [
+    {
+      "path": "/tmp/full-verify-epoch29-0z96r_91/source-before.json",
+      "sha256": "c270baa0b0014682cdb1f33dab18db1233ef679c011965c051c8c0ff326ca231",
+      "bytes": 1703241,
+      "scope": "Ephemeraloriginalreference only, not copiedfullinventory"
+    },
+    {
+      "path": "/tmp/full-verify-epoch29-0z96r_91/run-verify.py",
+      "sha256": "c51adf568ae883da6fe06a2f7e610a39662a77c58ae324a497922b767e0f0ca1",
+      "bytes": 8807,
+      "scope": "Ephemeraloriginalreference only, not copiedfullinventory"
+    },
+    {
+      "path": "/tmp/full-verify-epoch29-0z96r_91/deps-before.jsonl.gz",
+      "sha256": "e5c23d1baf0e0e4f72e6871824857912d893a788af6e75515ca7c6911ea08d90",
+      "bytes": 6069973,
+      "scope": "Ephemeraloriginalreference only, not copiedfullinventory"
+    },
+    {
+      "path": "/tmp/full-verify-epoch29-0z96r_91/deps-after.jsonl.gz",
+      "sha256": "d1dd4b4f447f77ebbacca028c90b952a0e4ad9f0346bb83c12706a2cb3d795d1",
+      "bytes": 6069972,
+      "scope": "Ephemeraloriginalreference only, not copiedfullinventory"
+    }
+  ],
+  "selected_payload_bytes": 34136
+}

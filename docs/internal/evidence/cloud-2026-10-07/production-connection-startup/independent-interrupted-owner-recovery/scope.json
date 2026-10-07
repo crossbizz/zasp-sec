@@ -1,0 +1,59 @@
+{
+  "format": "interrupted-release-selected-scope-v1",
+  "overallOutcome": "UNVERIFIED-original-owner-result-and-join-absent",
+  "originalOwnerJoinOrSurvivorsClaim": false,
+  "componentTAPSummaries": [
+    {
+      "tests": "2",
+      "suites": "0",
+      "pass": "2",
+      "fail": "0",
+      "cancelled": "0",
+      "skipped": "0",
+      "todo": "0",
+      "duration_ms": "259358.656447"
+    },
+    {
+      "tests": "286",
+      "suites": "0",
+      "pass": "286",
+      "fail": "0",
+      "cancelled": "0",
+      "skipped": "0",
+      "todo": "0",
+      "duration_ms": "271075.932902"
+    }
+  ],
+  "buildObserved": true,
+  "compiledGraphObserved": true,
+  "ledgerObserved": true,
+  "freshPostObservationIsNotOriginalAfterReceipt": true,
+  "largeOriginals": [
+    {
+      "path": "/tmp/spec29-release-retry-pjxx8p8a/source-before.json",
+      "bytes": 1760805,
+      "sha256": "1767871e98cdf74b5b8a74fa47ab2cb0cd4aa9601145d8bc41111028810ca90b"
+    },
+    {
+      "path": "/tmp/spec29-release-retry-pjxx8p8a/deps-before.jsonl.gz",
+      "bytes": 6069974,
+      "sha256": "dbe7b0da8c603df0bfee3b6079e33dbf5a444151f12eb5a60250d987aefbf4ea"
+    },
+    {
+      "path": "/tmp/spec29-release-retry-pjxx8p8a/run-verify.py",
+      "bytes": 9518,
+      "sha256": "54fcb85060e7673a24772f425bccb06735332ef43e052891538714b37470791f"
+    },
+    {
+      "path": "/tmp/spec33-release-recovery-7hes6fyp/fresh-source-after.json",
+      "bytes": 1760805,
+      "sha256": "1767871e98cdf74b5b8a74fa47ab2cb0cd4aa9601145d8bc41111028810ca90b"
+    },
+    {
+      "path": "/tmp/spec33-release-recovery-7hes6fyp/fresh-deps-after.jsonl.gz",
+      "bytes": 6069979,
+      "sha256": "b4db2f788209d33b5fa973951982badaea3bb6beedf7c2aea68110647688486b"
+    }
+  ],
+  "scope": "Fresh post-source/tool/dependency comparison with retained original commands/logs and bound kernelzero zombie evidence only; original active-owner final guard/wait/allowned registry missing. No fullnpmverifyPASS or native/provider clearance."
+}

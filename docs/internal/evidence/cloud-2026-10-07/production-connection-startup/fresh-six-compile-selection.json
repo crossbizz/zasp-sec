@@ -1,0 +1,17 @@
+{
+  "files": [
+    {
+      "path": "fresh-go-controls/six-production-compile.stdout.log",
+      "source": "/workspace/.zasp-diagnostic-refresh-3e0kpex7/six-production-compile.stdout.log",
+      "bytes": 4842,
+      "sha256": "aaf3b545eea7bae315765c3c2d3fdbec3646adcfc16a1565193757d17ad97cfb"
+    },
+    {
+      "path": "fresh-go-controls/six-production-compile.stderr.log",
+      "source": "/workspace/.zasp-diagnostic-refresh-3e0kpex7/six-production-compile.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "scope": "Original compile-only logs; package-level CLI no-test-files skip retained."
+}

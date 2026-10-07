@@ -1,0 +1,265 @@
+{
+  "format": "spec29-small-durable-tool-proof-v1",
+  "members": [
+    {
+      "bytes": 1885,
+      "copyIdentity": {
+        "dev": 27,
+        "ino": 1249078,
+        "mode": 33024
+      },
+      "file": "fresh-intake-results.json",
+      "original": "/tmp/zasp-cloud-tools/fresh-intake-results.json",
+      "originalIdentity": {
+        "ctime_ns": 1791341737815706628,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 88,
+        "mode": 33152,
+        "mtime_ns": 1791341737815706628,
+        "nlink": 1,
+        "uid": 1000
+      },
+      "sha256": "7d9b5dcd02ad72298a518b47c530aeec0437d1bd7467a5890bfab0c390e5f57d"
+    },
+    {
+      "bytes": 1809,
+      "copyIdentity": {
+        "dev": 27,
+        "ino": 1249079,
+        "mode": 33024
+      },
+      "file": "fresh-tools-admission.json",
+      "original": "/tmp/zasp-cloud-tools/fresh-tools-admission.json",
+      "originalIdentity": {
+        "ctime_ns": 1791341774684156077,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 23039,
+        "mode": 33152,
+        "mtime_ns": 1791341774684156077,
+        "nlink": 1,
+        "uid": 1000
+      },
+      "sha256": "1a3c55abf0abdee8bceba31f290dc85af84f4ff6620a045390e24bc7a52dd33e"
+    },
+    {
+      "bytes": 274,
+      "copyIdentity": {
+        "dev": 27,
+        "ino": 1249080,
+        "mode": 33024
+      },
+      "file": "helm-fresh-source-h1.json",
+      "original": "/tmp/zasp-cloud-tools/helm-fresh-source-h1.json",
+      "originalIdentity": {
+        "ctime_ns": 1791341858727037250,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 151852,
+        "mode": 33152,
+        "mtime_ns": 1791341858727037250,
+        "nlink": 1,
+        "uid": 1000
+      },
+      "sha256": "eb540f5ce720ff61893c81688ed2492033b03194068d6ff2cdd101dcda7785a5"
+    },
+    {
+      "bytes": 1008,
+      "copyIdentity": {
+        "dev": 27,
+        "ino": 1249081,
+        "mode": 33024
+      },
+      "file": "helm-fresh-build-first-failure.json",
+      "original": "/tmp/zasp-cloud-tools/helm-fresh-build-first-failure.json",
+      "originalIdentity": {
+        "ctime_ns": 1791341846341490741,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 151305,
+        "mode": 33152,
+        "mtime_ns": 1791341846341490741,
+        "nlink": 1,
+        "uid": 1000
+      },
+      "sha256": "3251c89aa82a1859335b8e473bd8e067cb6488cf71bee58bf7a7ce2d2ee96fc6"
+    },
+    {
+      "bytes": 208,
+      "copyIdentity": {
+        "dev": 27,
+        "ino": 1249082,
+        "mode": 33024
+      },
+      "file": "helm-fresh-first-failure.stderr",
+      "original": "/tmp/zasp-cloud-tools/helm-fresh-first-failure.stderr",
+      "originalIdentity": {
+        "ctime_ns": 1791341846343122890,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 151306,
+        "mode": 33152,
+        "mtime_ns": 1791341846343122890,
+        "nlink": 1,
+        "uid": 1000
+      },
+      "sha256": "343ff3fe47de0695734d7cad0886cff2a2bf912a2610d2f70148312d24c77987"
+    },
+    {
+      "bytes": 759,
+      "copyIdentity": {
+        "dev": 27,
+        "ino": 1249083,
+        "mode": 33024
+      },
+      "file": "helm-fresh-direct-dependency.json",
+      "original": "/tmp/zasp-cloud-tools/helm-fresh-direct-dependency.json",
+      "originalIdentity": {
+        "ctime_ns": 1791341858527898870,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 151307,
+        "mode": 33152,
+        "mtime_ns": 1791341858527898870,
+        "nlink": 1,
+        "uid": 1000
+      },
+      "sha256": "ca55dcf6deb30bb79fdd277444ed56cb1bb34d31da29970e5dfb4e7afa26239d"
+    },
+    {
+      "bytes": 1189,
+      "copyIdentity": {
+        "dev": 27,
+        "ino": 1249084,
+        "mode": 33024
+      },
+      "file": "helm-fresh-build-result.json",
+      "original": "/tmp/zasp-cloud-tools/helm-fresh-build-result.json",
+      "originalIdentity": {
+        "ctime_ns": 1791341908005402966,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 106279,
+        "mode": 33152,
+        "mtime_ns": 1791341908005402966,
+        "nlink": 1,
+        "uid": 1000
+      },
+      "sha256": "e0a02d733db6816fd25100bbc9c8ef3ad0dd7cd8f431d14fd6466095bb3b4091"
+    },
+    {
+      "bytes": 2229,
+      "copyIdentity": {
+        "dev": 27,
+        "ino": 1249085,
+        "mode": 33024
+      },
+      "file": "spec29-required-five-module-admission.json",
+      "original": "/tmp/zasp-cloud-tools/spec29-required-five-module-admission.json",
+      "originalIdentity": {
+        "ctime_ns": 1791342133124586125,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 160668,
+        "mode": 33152,
+        "mtime_ns": 1791342133124586125,
+        "nlink": 1,
+        "uid": 1000
+      },
+      "sha256": "87cee2c28ac89352a10e0274d4c9d179c62f00a4d32219f663f28992b9dc9e74"
+    },
+    {
+      "bytes": 3494,
+      "copyIdentity": {
+        "dev": 27,
+        "ino": 1249086,
+        "mode": 33024
+      },
+      "file": "spec29-required-five-module-download.jsonl",
+      "original": "/tmp/zasp-cloud-tools/spec29-required-five-module-download.jsonl",
+      "originalIdentity": {
+        "ctime_ns": 1791342115632716284,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 157336,
+        "mode": 33152,
+        "mtime_ns": 1791342115632716284,
+        "nlink": 1,
+        "uid": 1000
+      },
+      "sha256": "a6f10152bbfb2b2aaee4b2ec6065af131e6dfee4c6235d190bf92a8de401f815"
+    },
+    {
+      "bytes": 4539,
+      "copyIdentity": {
+        "dev": 27,
+        "ino": 1249087,
+        "mode": 33024
+      },
+      "file": "admission.json",
+      "original": "/tmp/zasp-pg183-current/admission.json",
+      "originalIdentity": {
+        "ctime_ns": 1791342368024828055,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 167477,
+        "mode": 33152,
+        "mtime_ns": 1791342368024828055,
+        "nlink": 1,
+        "uid": 1000
+      },
+      "sha256": "130efa94bd5f2942ba19fdd550cd2775bf766b6ea4da2a1ac616719766d1a0f6"
+    },
+    {
+      "bytes": 5257,
+      "copyIdentity": {
+        "dev": 27,
+        "ino": 1249088,
+        "mode": 33024
+      },
+      "file": "independent-spec29-fresh-tool-byte-review.json",
+      "original": "/tmp/zasp-cloud-evidence/independent-spec29-fresh-tool-byte-review.json",
+      "originalIdentity": {
+        "ctime_ns": 1791342108807858791,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 157335,
+        "mode": 33152,
+        "mtime_ns": 1791342108807858791,
+        "nlink": 1,
+        "uid": 1000
+      },
+      "sha256": "ab07bebf0aed223b89c81ae6da0fab6daff307af51b48da5b89c571e6f357f24"
+    },
+    {
+      "bytes": 3468,
+      "copyIdentity": {
+        "dev": 27,
+        "ino": 1249089,
+        "mode": 33024
+      },
+      "file": "restore-pg183.py",
+      "original": "/tmp/restore-pg183.py",
+      "originalIdentity": {
+        "ctime_ns": 1791342366937490608,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 163040,
+        "mode": 33152,
+        "mtime_ns": 1791342366937490608,
+        "nlink": 1,
+        "uid": 1000
+      },
+      "sha256": "f8be2cc439e6aee4bafa0d897646c2786ec39cd43284ca247d50e4c00cedca8a"
+    }
+  ],
+  "omissions": [
+    "All tool binaries",
+    "All image/export layers and archives",
+    "All Go module/source maps and caches",
+    "Private environment values"
+  ],
+  "scanner": "NOT_RUN",
+  "scope": "Exact new receipt byte copies; old TMP/SHM proof/tool originals lost, no recreation. OfficialcachedPGimage selection and freshlayers recorded; no service tests. Prior globalcachebucket3a SHMtarget loss acknowledged; defaultcache must not be used."
+}

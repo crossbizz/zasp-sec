@@ -1,0 +1,24 @@
+{
+  "noRuntimeTestsOrGitWrites": true,
+  "outerJoinOriginal": "/workspace/.zasp-cloud-owned/spec29-verify-proof/outer-tool-join-observation.json",
+  "priorReviewSHA256": "45456073d366db9d0131199c6d4f7c72f005f5e1f375294bd12ac45faca7dd58",
+  "scan": {
+    "argv": [
+      "/tmp/zasp-cloud-tools/bin/gitleaks",
+      "dir",
+      "/workspace/.zasp-cloud-owned/spec29-verify-proof",
+      "--redact",
+      "--no-banner",
+      "--report-format",
+      "json",
+      "--report-path",
+      "/workspace/.zasp-cloud-owned/spec29-independent-proof/complete-fresh-proof-default-report.json"
+    ],
+    "exit": 0,
+    "findings": 0,
+    "seconds": 0.364746523000008
+  },
+  "semantics": "Producer transcription of actual tool session terminal exit1; no reconstructed parentPID/kerneljoin receipt. Both fresh attempts remain FAIL.",
+  "sha256": "b3bdacd5e2c0c40953920b74728a8fad6c8408cedd31724e6795b661c82abaf4",
+  "status": "PASS_ADDITIVE_OBSERVATIONAL_OUTER_JOIN_AND_SELECTED_SCAN"
+}

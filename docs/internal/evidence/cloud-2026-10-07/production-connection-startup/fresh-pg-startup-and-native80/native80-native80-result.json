@@ -1,0 +1,35 @@
+{
+  "scope": "Fresh unchanged native80 apiserver unchanged original test run only",
+  "argv": [
+    "/tmp/zasp-cloud-tools/bin/tini",
+    "-s",
+    "--",
+    "/tmp/unchanged-native80-spec29-ingpnppe/native80.test",
+    "-test.run",
+    "^TestP7CurrentRuntimeModuleFences$",
+    "-test.v",
+    "-test.timeout=10m"
+  ],
+  "exit": 0,
+  "roster": {
+    "topPASS": true,
+    "anyFAIL": false,
+    "anySKIP": false
+  },
+  "cleanup": {
+    "joinedOwnedPIDs": [
+      33463
+    ],
+    "allLoggedOwnedPIDsAbsent": true,
+    "listenerExtinction": "Enforced by unchanged startDisposablePostgresAs/stopDisposablePostgresObserved fixture; no independent port list invented."
+  },
+  "completed": true,
+  "normalJoined": true,
+  "forced": false,
+  "failure": null,
+  "elapsed": 69.1952058109996,
+  "bindingCount": 3159,
+  "bindingsBeforeSHA256": "5aca6de8e52237a0ef2a9b7559af5884df63b6f5dc00d103b44d9f7ba5820036",
+  "bindingsAfterSHA256": "5aca6de8e52237a0ef2a9b7559af5884df63b6f5dc00d103b44d9f7ba5820036",
+  "binarySHA256": "c6db5ab6acd7b00698f2e83ea486c223c25827abc9bcc5f61d40885f32a7117b"
+}

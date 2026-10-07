@@ -104,9 +104,10 @@ func TestComplianceBrowserAPIProcess(t *testing.T) {
 		p := c.ComplianceExports
 		return complianceStorageResources{config: apiserver.ComplianceHandlerConfiguration{Bucket: p.Bucket, ExpectedBucketOwner: p.Owner, KMSKeyARN: p.KMSKey, Client: provider, ProviderTimeout: c.ProviderTimeout}, transport: &http.Transport{}}, nil
 	}
-	deps, err := buildRuntimeDependenciesWithStorage(ctx, config, newAuditExportStorageClients, factory)
+	deps, err := buildRuntimeDependenciesWithReadinessTransportDiagnostic(ctx, config, newAuditExportStorageClients, factory, nil)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, complianceBrowserFailureMarker(complianceBrowserRuntimeBuild))
+		fmt.Fprintln(os.Stderr, complianceBrowserDependencyFailureMarker(err))
 		t.Fatal("compliance browser runtime refused", err)
 	}
 	if err := serveRuntime(ctx, io.Discard, "compliance-browser", config, deps, net.Listen); err != nil {

@@ -1,0 +1,8 @@
+{
+  "source_original_sha256": "3391346a4e8fa98e38faf1642804a78ea7b0ebff35857a08c83a4d44136aa391",
+  "required_names": 53,
+  "missing_names": 50,
+  "supported_stytch_aliases_present": 3,
+  "claim": "Presence only; not provider readiness or deployment acceptance.",
+  "independent_observation": "Author reconciled source binding as digest of exact local source; whole receipt omitted from publication after scanner refusal."
+}

@@ -1,0 +1,66 @@
+{
+  "format": "fresh-PG183-v2-Tini-owned-tool-smoke-v1",
+  "scope": "Fresh Tini foreground subreaper owned initdb/start/readiness/SELECT1/normalstop only; no application/native80/PG internals acceptance.",
+  "failure": null,
+  "records": [
+    {
+      "stage": "initdb",
+      "exit": 0,
+      "stdoutBytes": 968,
+      "stderrBytes": 0,
+      "stdoutSHA256": "2dbbf3324f713208055f4b0a3085bf121aad70d5ec83cb3de7bd4c85ce349d6f",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "stage": "start",
+      "exit": 0,
+      "stdoutBytes": 52,
+      "stderrBytes": 0,
+      "stdoutSHA256": "66afd0411ccc09366e99fdd99b85f21899c8d2d064f5835126859618802153ad",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "stage": "ready",
+      "exit": 0,
+      "stdoutBytes": 40,
+      "stderrBytes": 0,
+      "stdoutSHA256": "40ee227c77b8e5d24075a46bdc8b8d4fc120322c4ac089cff5bbf5c833dc3a02",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "stage": "select",
+      "exit": 0,
+      "stdoutBytes": 2,
+      "stderrBytes": 0,
+      "stdoutSHA256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "stage": "normal-stop",
+      "exit": 0,
+      "stdoutBytes": 56,
+      "stderrBytes": 0,
+      "stdoutSHA256": "ca19178a35ab4153b75b494963b66ce8243e1b94c173107c87b44d09db23652d",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "directServerPID": 17435,
+  "directServerAbsent": true,
+  "portBindable": true,
+  "port": 54397,
+  "postmasterPIDFileAbsent": true,
+  "minimumFreeBytes": {
+    "/workspace": 7961292800,
+    "/tmp": 4831821824
+  },
+  "elapsed": 0.5937549190000482,
+  "wrapperPins": {
+    "pg_config": "cc428ea0d67ca1c04c24480ee8b3c629498f123a03aff426c07e4a1883d76785",
+    "psql": "45cec96b274193ba456d50e9325fc3745cf16f461704ad9b606792523d49a389",
+    "postgres": "606f97b8e3a42a7d6b36b82733a74e9cf851be00c7dbb0909cc8424eca75b76e",
+    "pg_isready": "e298f7151cc378af5f692741b997b0b035da3cbde3b4a8f9dc34f6aaf233527a",
+    "pg_ctl": "7f408b7b01e14b4137ebe77df990eaa45ee8e1a6230c7394b4bbee45ad574d3a",
+    "initdb": "7fbd40eeb98690dd5f4e03db3e089dec7320b7699357b0197835b91d54c70ae1"
+  },
+  "completed": true
+}

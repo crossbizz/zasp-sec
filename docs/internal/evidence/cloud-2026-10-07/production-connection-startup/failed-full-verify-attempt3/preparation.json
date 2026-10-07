@@ -1,0 +1,6 @@
+{
+  "scope": "Fresh same-source full verification after default compiler cache cleanup. Prior outcomes immutable; unchanged floors/caps/command. Adds exact compress admission and fresh available PG tool wrappers PATH; no native opt-in flags.",
+  "priorAttempt": "/tmp/full-verify-epoch29-retry-0jqd1mhz",
+  "ownerSHA256": "4c5d3be480bd396c00a601ca62001ecdd889a6c7b953bdbc9e3d9bc817c152e2",
+  "sourceBeforeSHA256": "c270baa0b0014682cdb1f33dab18db1233ef679c011965c051c8c0ff326ca231"
+}

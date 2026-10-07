@@ -1,0 +1,55 @@
+{
+  "noGitOrSourceEdits": true,
+  "noRuntime": true,
+  "pending": [
+    "Producer safe selected packet and outer join transcription",
+    "Original/copy identity and default selected scanner gate"
+  ],
+  "records": [
+    {
+      "bytes": 15023,
+      "name": "initial-attempt",
+      "observedScalarFields": {
+        "completed": false,
+        "dependency_roster_identical": true,
+        "elapsed": 48.786903645999985,
+        "exit": 1,
+        "failure": "npm_verify_exit",
+        "source_unchanged": true,
+        "survivors": [],
+        "tools_unchanged": true,
+        "wait_joined": true
+      },
+      "path": "/tmp/full-verify-epoch29-0z96r_91/result.json",
+      "sha256": "874397e2d1ae9611246675a08a628db8010d483aa828064428c432d0ba11d395"
+    },
+    {
+      "bytes": 44796,
+      "name": "retry-attempt",
+      "observedScalarFields": {
+        "completed": false,
+        "dependency_roster_identical": true,
+        "elapsed": 141.65284652000003,
+        "exit": 143,
+        "failure": "RuntimeError:storage_floor",
+        "source_unchanged": true,
+        "survivors": [],
+        "tools_unchanged": true,
+        "wait_joined": true
+      },
+      "path": "/tmp/full-verify-epoch29-retry-0jqd1mhz/result.json",
+      "sha256": "a5d4ad85742cf56c36fec0b33e6506888d94797713f2dd424bc99e2a9d4d7216"
+    },
+    {
+      "bytes": 5257,
+      "name": "fresh-tool-byte-review",
+      "observedScalarFields": {
+        "status": "PASS_TOOL_BYTE_AND_RECEIPT_SCOPE"
+      },
+      "path": "/tmp/zasp-cloud-evidence/independent-spec29-fresh-tool-byte-review.json",
+      "sha256": "ab07bebf0aed223b89c81ae6da0fab6daff307af51b48da5b89c571e6f357f24"
+    }
+  ],
+  "scope": "Fresh epoch29 small retained records read only. Prior lost packets,59raw originals and45f83review cannot be reproduced or considered retained byte-copy proof. Historical messages describe earlier observations only.",
+  "status": "OBSERVATIONAL_CHECKPOINT_PUBLICATION_PENDING"
+}

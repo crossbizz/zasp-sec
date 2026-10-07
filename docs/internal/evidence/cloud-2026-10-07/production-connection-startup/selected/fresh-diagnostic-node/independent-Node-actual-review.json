@@ -1,0 +1,74 @@
+{
+  "status": "PASS_COMPONENT_RECONCILIATION_WITH_ORIGINAL_AGGREGATE_FAIL_RETAINED",
+  "records": [
+    {
+      "path": "/workspace/.zasp-diagnostic-refresh-3e0kpex7/node-result.json",
+      "sha256": "d5c0d379a1bf3ab4d932b9b2dd1fa7f82b68ba96b0b48336f2cd920936968b92"
+    },
+    {
+      "path": "/workspace/.zasp-diagnostic-refresh-3e0kpex7/existing22-corrected-result.json",
+      "sha256": "3538f6d638f8a014ec44f163e4f480362b098d3a3fecb9f0bd1c17c391fc4ae8"
+    },
+    {
+      "path": "/workspace/.zasp-diagnostic-refresh-3e0kpex7/baseline.stdout.log",
+      "sha256": "6994c6a2889929886be21bdcf1fb29460cc464d0c95b14a8c7bae32a4b576979"
+    },
+    {
+      "path": "/workspace/.zasp-diagnostic-refresh-3e0kpex7/candidate-causal.stdout.log",
+      "sha256": "b2cc492025c533e7a5a52c82d6beb9d8b1b706108a984b978db9862b715a1ca9"
+    },
+    {
+      "path": "/workspace/.zasp-diagnostic-refresh-3e0kpex7/candidate-five.stdout.log",
+      "sha256": "07c4775a5dae99b2cb1e2d6741ec7fee964598def4a053cfc59c9cf665de2d31"
+    },
+    {
+      "path": "/workspace/.zasp-diagnostic-refresh-3e0kpex7/existing-twenty-two.stdout.log",
+      "sha256": "26093acee9d706e4393cfb2d354fae88363851d7377ee71445d3d0349d902814"
+    },
+    {
+      "path": "/workspace/.zasp-diagnostic-refresh-3e0kpex7/existing22-corrected.stdout.log",
+      "sha256": "aabae87dda97599798b25272acff8bda91c472f4ba7efc876ca29479f957426b"
+    }
+  ],
+  "counts": {
+    "baseline": {
+      "tests": 1,
+      "pass": 0,
+      "fail": 1,
+      "skipped": 0
+    },
+    "candidate-causal": {
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "skipped": 0
+    },
+    "candidate-five": {
+      "tests": 5,
+      "pass": 5,
+      "fail": 0,
+      "skipped": 0
+    },
+    "existing-twenty-two": {
+      "tests": 3,
+      "pass": 0,
+      "fail": 3,
+      "skipped": 0
+    },
+    "existing22-corrected": {
+      "tests": 22,
+      "pass": 22,
+      "fail": 0,
+      "skipped": 0
+    }
+  },
+  "sourcePreAfterEqual": true,
+  "currentSourceHashesVerified": true,
+  "sameCaseBodyExceptLiteralImport": true,
+  "limits": [
+    "Original node-result status FAIL retained due flat existing22 projection TypeScript setup,3 failed file-load envelopes and0 actual assertions; not behavioral product failures.",
+    "Baseline1 actual assertion failure and adopted candidate1+5 PASS; corrected existing22 PASS separately.",
+    "No Go7/hosted CI cause/services/provider/release acceptance.",
+    "Producer normal waits verified; no independent kernel descendant proof invented. No tests rerun."
+  ]
+}

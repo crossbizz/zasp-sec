@@ -1,0 +1,18 @@
+{
+  "format": "selected-offline-metadata-preflight-v1",
+  "members": [
+    {
+      "path": "result.json",
+      "originalPath": "/tmp/spec29-offline-module-preflight/result.json",
+      "bytes": 1939,
+      "sha256": "bb584be804dbda64259e22a2ca502ca9f78b924fcee8cb0c9c2e0b1e050f948d"
+    },
+    {
+      "path": "runtime-gateway.stderr",
+      "originalPath": "/tmp/spec29-offline-module-preflight/runtime-gateway.stderr",
+      "bytes": 209,
+      "sha256": "30ac66cbd51d85fbebb9ecdb834e013b499ba2fcc649f3c8026a5579b8aea8dc"
+    }
+  ],
+  "scope": "go list metadata only; package-name stdout inventories retained ephemeral and hash-bound in result, no tests or compiler proof"
+}

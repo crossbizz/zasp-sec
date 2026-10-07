@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/zasp-ai/zasp-sec/services/platform/authorization"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimepostgres"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeservices"
 	"os"
 	"os/signal"
@@ -54,7 +55,7 @@ func run() error {
 	if dsn == "" {
 		return authorization.ErrInvalid
 	}
-	poolConfig, err := pgxpool.ParseConfig(dsn)
+	poolConfig, err := runtimepostgres.ParsePoolConfig(dsn)
 	if err != nil {
 		return authorization.ErrInvalid
 	}

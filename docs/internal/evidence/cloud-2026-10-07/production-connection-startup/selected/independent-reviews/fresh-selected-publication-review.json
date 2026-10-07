@@ -1,0 +1,385 @@
+{
+  "current16StagePostimages": [
+    {
+      "bytes": 6940,
+      "path": "scripts/browser-command-failure.mjs",
+      "sha256": "cabd07fd7dd8f2a6d1cdf3a8164a6eafe442555da66cf275b7d7d0f59939d05e",
+      "workingEqualIndex": true
+    },
+    {
+      "bytes": 2341,
+      "path": "scripts/runtime-dependency-marker.test.mjs",
+      "sha256": "cdd8696299e81336432421c49d2e2e7d3e6dda04f93833c259686ef1040495ed",
+      "workingEqualIndex": true
+    },
+    {
+      "bytes": 5899,
+      "path": "services/platform/agentsec-api/compliance_browser_process_test.go",
+      "sha256": "2cb2ad01b1254a9f7c853e64567d65527e7c7d538f2c28f75b60ba5fa2452068",
+      "workingEqualIndex": true
+    },
+    {
+      "bytes": 50317,
+      "path": "services/platform/agentsec-api/production_runtime.go",
+      "sha256": "7f71dcba243b538a0d6cdd6625fa41f284598b18a731daf87a9175ed8d68af7f",
+      "workingEqualIndex": true
+    },
+    {
+      "bytes": 1990,
+      "path": "services/platform/agentsec-api/runtime_dependency_diagnostic.go",
+      "sha256": "963eb2a1b047a5a50a7f9344dd16477f048ae481a07c02c1a68c44be060d7215",
+      "workingEqualIndex": true
+    },
+    {
+      "bytes": 2903,
+      "path": "services/platform/agentsec-api/runtime_dependency_diagnostic_test.go",
+      "sha256": "02cde62c1c085ea3bca73880f71febcfa0eeffbc63e38ae75f8ff0f44af2772f",
+      "workingEqualIndex": true
+    },
+    {
+      "bytes": 3123,
+      "path": "services/platform/agentsec-worker/authorization_worker_discovery_runtime.go",
+      "sha256": "f5440f9139950f17a5a72ed87e5ae3f80987c1d9316cb5558d9ab6e2dde052c8",
+      "workingEqualIndex": true
+    },
+    {
+      "bytes": 4942,
+      "path": "services/platform/agentsec-worker/authorization_worker_runtime.go",
+      "sha256": "b245023aa4dcc3431f30156b795a840b161cbfc1964d40e088499e2dda2ec803",
+      "workingEqualIndex": true
+    },
+    {
+      "bytes": 48278,
+      "path": "services/platform/agentsec-worker/production_runtime.go",
+      "sha256": "60f45695f22887e886f219cd289ec03928b3e92727a3fa9d1bf40be6b23997d6",
+      "workingEqualIndex": true
+    },
+    {
+      "bytes": 8718,
+      "path": "services/platform/agentsec-worker/recovery_job.go",
+      "sha256": "3fd9c61e3adba2d59bb89da4c4cd69f98f47acc49983fe980f4fd8de6413b713",
+      "workingEqualIndex": true
+    },
+    {
+      "bytes": 20595,
+      "path": "services/platform/agentsec-worker/security_agent_temporal_runtime.go",
+      "sha256": "dbe2a5f7554a1d09b2a0e072b330bf0ec89457f0792d2a034f2ecbc0705445ca",
+      "workingEqualIndex": true
+    },
+    {
+      "bytes": 8416,
+      "path": "services/platform/attack-lab-proxy/production.go",
+      "sha256": "b06236753cb6519cd7de59e6c32609fa12cf480dea5d27a2388e701bcfc39fb8",
+      "workingEqualIndex": true
+    },
+    {
+      "bytes": 4671,
+      "path": "services/platform/cmd/zasp-authorization-reconcile/main.go",
+      "sha256": "2c37036e51a98fb5a96c3b42387c834157b06b3b75bc0db470c3657faccaa8ce",
+      "workingEqualIndex": true
+    },
+    {
+      "bytes": 8634,
+      "path": "services/platform/red-team-adapter/production.go",
+      "sha256": "441b0c0673cd55deedb3a87108d9b8553cb11ff247636661587a0f6dfbbddff1",
+      "workingEqualIndex": true
+    },
+    {
+      "bytes": 609,
+      "path": "services/platform/runtimepostgres/config.go",
+      "sha256": "846368d7910d6aade67c9a952ce70da2e0aaa5c302f72b189acf36e48e14bc8c",
+      "workingEqualIndex": true
+    },
+    {
+      "bytes": 2439,
+      "path": "services/platform/runtimepostgres/config_test.go",
+      "sha256": "11189493313147452bc1495d8654b3b4ed762188f2b046f3bc508140a71b9060",
+      "workingEqualIndex": true
+    }
+  ],
+  "currentHEAD": "ac0ac96dfeb6beba7b46827578c806a0528871cf",
+  "defaultScans": [
+    {
+      "argv": [
+        "/tmp/zasp-cloud-tools/bin/gitleaks",
+        "dir",
+        "/workspace/.zasp-cloud-owned/spec29-verify-proof/attempt1-missing-modules",
+        "--redact",
+        "--no-banner",
+        "--report-format",
+        "json",
+        "--report-path",
+        "/workspace/.zasp-cloud-owned/spec29-independent-proof/attempt1-missing-modules-default-report.json"
+      ],
+      "cwd": "/workspace/zasp-sec",
+      "exit": 0,
+      "findings": 0,
+      "reportSHA256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "seconds": 0.4174760119999519
+    },
+    {
+      "argv": [
+        "/tmp/zasp-cloud-tools/bin/gitleaks",
+        "dir",
+        "/workspace/.zasp-cloud-owned/spec29-verify-proof/attempt2-storage-floor",
+        "--redact",
+        "--no-banner",
+        "--report-format",
+        "json",
+        "--report-path",
+        "/workspace/.zasp-cloud-owned/spec29-independent-proof/attempt2-storage-floor-default-report.json"
+      ],
+      "cwd": "/workspace/zasp-sec",
+      "exit": 0,
+      "findings": 0,
+      "reportSHA256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "seconds": 0.415419930999974
+    }
+  ],
+  "historicalLoss": "Old JIT35/diagnostic29 packets,59originals and45f83review were lost in epoch29 restart. Their prior message observations remain historical only; this report does not re-create copies, repeat old tests or assert unavailable byte fidelity.",
+  "limits": [
+    "Both fresh full npm attempts failed; retry was terminated by storage floor, not a full verification PASS.",
+    "Normal inner joins/survivors are producer records, not independently replayed kernel traces. Outer tool observations require separate transcript.",
+    "Large source/dependency archives and binaries are omission references; not rehashed or decoded by this small proof review.",
+    "No ledger728, hosted CI cause, native, browser, deployment or provider acceptance.",
+    "Current16 working/index byte equality is observed now; no old lost producer postimage report rebuilt from messages."
+  ],
+  "members": [
+    {
+      "attempt": "attempt1-missing-modules",
+      "bytes": 15023,
+      "file": "result.json",
+      "originalCopy": true,
+      "sha256": "874397e2d1ae9611246675a08a628db8010d483aa828064428c432d0ba11d395"
+    },
+    {
+      "attempt": "attempt1-missing-modules",
+      "bytes": 1716,
+      "file": "process-binding.json",
+      "originalCopy": true,
+      "sha256": "9386eb3d9dbaa0482147c51155cf1f9a3cd0bc645cf9e1487b08d3780ddffecc"
+    },
+    {
+      "attempt": "attempt1-missing-modules",
+      "bytes": 516,
+      "file": "preparation.json",
+      "originalCopy": true,
+      "sha256": "6aa4babf8dc417be3ab68f6784ef2c53904a7e4583fa7bdddfa79d770358c270"
+    },
+    {
+      "attempt": "attempt1-missing-modules",
+      "bytes": 5143,
+      "file": "verify.stdout",
+      "originalCopy": true,
+      "sha256": "59ad92721d5d4de65072eeaa9bac77c4d0df9dbf121d01273beeff467e1b22e9"
+    },
+    {
+      "attempt": "attempt1-missing-modules",
+      "bytes": 7064,
+      "file": "verify.stderr",
+      "originalCopy": true,
+      "sha256": "5d3f19003da803d038c220965baaff029980af33e09fec2225bad91f973485fa"
+    },
+    {
+      "attempt": "attempt1-missing-modules",
+      "bytes": 2012,
+      "file": "tool-before.json",
+      "originalCopy": true,
+      "sha256": "ddfb7c8fce7e56b17aa5d880ab5443db68aa10f15bb859fd95385a5c9d95a711"
+    },
+    {
+      "attempt": "attempt1-missing-modules",
+      "bytes": 2012,
+      "file": "tool-after.json",
+      "originalCopy": true,
+      "sha256": "ddfb7c8fce7e56b17aa5d880ab5443db68aa10f15bb859fd95385a5c9d95a711"
+    },
+    {
+      "attempt": "attempt1-missing-modules",
+      "bytes": 325,
+      "file": "deps-before-summary.json",
+      "originalCopy": true,
+      "sha256": "93f584db982477b201cd404af71980c2588cea06301cd527040df3cf2c0a6a7a"
+    },
+    {
+      "attempt": "attempt1-missing-modules",
+      "bytes": 325,
+      "file": "deps-after-summary.json",
+      "originalCopy": true,
+      "sha256": "14d6dfe9d3361aa02f804a557bfcc91c4e82c7aa831ca2cb61136d3878862daf"
+    },
+    {
+      "attempt": "attempt1-missing-modules",
+      "bytes": 1624,
+      "file": "scope.json",
+      "originalCopy": false,
+      "sha256": "3553414d74443c8ec48e259c97621c4042c76567cd9d0eb669e415a02229745c"
+    },
+    {
+      "attempt": "attempt2-storage-floor",
+      "bytes": 44796,
+      "file": "result.json",
+      "originalCopy": true,
+      "sha256": "a5d4ad85742cf56c36fec0b33e6506888d94797713f2dd424bc99e2a9d4d7216"
+    },
+    {
+      "attempt": "attempt2-storage-floor",
+      "bytes": 1790,
+      "file": "process-binding.json",
+      "originalCopy": true,
+      "sha256": "9884d549e504306471fbae60eb0a6be1ea4c7c8d54f9df5520664259a0cb0a37"
+    },
+    {
+      "attempt": "attempt2-storage-floor",
+      "bytes": 617,
+      "file": "preparation.json",
+      "originalCopy": true,
+      "sha256": "393b8bd0c509152adf1d24dfbff20dfaed767b5ffcc3d334b8b3af84f50a2c20"
+    },
+    {
+      "attempt": "attempt2-storage-floor",
+      "bytes": 4978,
+      "file": "verify.stdout",
+      "originalCopy": true,
+      "sha256": "47e8667d22b50ba3de4246322fd1063818688700dba193821744d9182e3523aa"
+    },
+    {
+      "attempt": "attempt2-storage-floor",
+      "bytes": 0,
+      "file": "verify.stderr",
+      "originalCopy": true,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "attempt": "attempt2-storage-floor",
+      "bytes": 2282,
+      "file": "tool-before.json",
+      "originalCopy": true,
+      "sha256": "59263d4d9dd2dda7bf612d57669ce5f88ab72839e7891ecefc300482cd3c9b1a"
+    },
+    {
+      "attempt": "attempt2-storage-floor",
+      "bytes": 2282,
+      "file": "tool-after.json",
+      "originalCopy": true,
+      "sha256": "59263d4d9dd2dda7bf612d57669ce5f88ab72839e7891ecefc300482cd3c9b1a"
+    },
+    {
+      "attempt": "attempt2-storage-floor",
+      "bytes": 325,
+      "file": "deps-before-summary.json",
+      "originalCopy": true,
+      "sha256": "ae732593f4b7c720fa094e501adbad49afe13b6c6910fff9ee7fa81d1ea09afa"
+    },
+    {
+      "attempt": "attempt2-storage-floor",
+      "bytes": 325,
+      "file": "deps-after-summary.json",
+      "originalCopy": true,
+      "sha256": "ac0599054e85dddb8a74a70650e8e77f5545b2a379302ab6e64c088365bec70a"
+    },
+    {
+      "attempt": "attempt2-storage-floor",
+      "bytes": 1661,
+      "file": "scope.json",
+      "originalCopy": false,
+      "sha256": "d53154015e3f67263a3eaa8aaa18b7982eec94fb9c2ee61f0e79fd97c36f74c6"
+    }
+  ],
+  "noExceptions": true,
+  "noRuntimeTests": true,
+  "noSourceOrIndexEdits": true,
+  "packets": [
+    {
+      "actual": {
+        "completed": false,
+        "dependency_roster_identical": true,
+        "elapsed": 48.786903645999985,
+        "exit": 1,
+        "failure": "npm_verify_exit",
+        "source_unchanged": true,
+        "survivors": [],
+        "tools_unchanged": true,
+        "wait_joined": true
+      },
+      "excludedLargeOriginalsReferencesOnly": [
+        {
+          "bytes": 1703241,
+          "path": "/tmp/full-verify-epoch29-0z96r_91/source-before.json",
+          "scope": "Ephemeraloriginalreference only, not copiedfullinventory",
+          "sha256": "c270baa0b0014682cdb1f33dab18db1233ef679c011965c051c8c0ff326ca231"
+        },
+        {
+          "bytes": 8807,
+          "path": "/tmp/full-verify-epoch29-0z96r_91/run-verify.py",
+          "scope": "Ephemeraloriginalreference only, not copiedfullinventory",
+          "sha256": "c51adf568ae883da6fe06a2f7e610a39662a77c58ae324a497922b767e0f0ca1"
+        },
+        {
+          "bytes": 6069973,
+          "path": "/tmp/full-verify-epoch29-0z96r_91/deps-before.jsonl.gz",
+          "scope": "Ephemeraloriginalreference only, not copiedfullinventory",
+          "sha256": "e5c23d1baf0e0e4f72e6871824857912d893a788af6e75515ca7c6911ea08d90"
+        },
+        {
+          "bytes": 6069972,
+          "path": "/tmp/full-verify-epoch29-0z96r_91/deps-after.jsonl.gz",
+          "scope": "Ephemeraloriginalreference only, not copiedfullinventory",
+          "sha256": "d1dd4b4f447f77ebbacca028c90b952a0e4ad9f0346bb83c12706a2cb3d795d1"
+        }
+      ],
+      "files": 11,
+      "manifestSHA256": "34545d4826e63019eb771fc82b3c65de75aa03039e9fdb964bffd861ffd04241",
+      "path": "/workspace/.zasp-cloud-owned/spec29-verify-proof/attempt1-missing-modules"
+    },
+    {
+      "actual": {
+        "completed": false,
+        "dependency_roster_identical": true,
+        "elapsed": 141.65284652000003,
+        "exit": 143,
+        "failure": "RuntimeError:storage_floor",
+        "source_unchanged": true,
+        "survivors": [],
+        "tools_unchanged": true,
+        "wait_joined": true
+      },
+      "excludedLargeOriginalsReferencesOnly": [
+        {
+          "bytes": 1703241,
+          "path": "/tmp/full-verify-epoch29-retry-0jqd1mhz/source-before.json",
+          "scope": "Ephemeraloriginalreference only, not copiedfullinventory",
+          "sha256": "c270baa0b0014682cdb1f33dab18db1233ef679c011965c051c8c0ff326ca231"
+        },
+        {
+          "bytes": 8909,
+          "path": "/tmp/full-verify-epoch29-retry-0jqd1mhz/run-verify.py",
+          "scope": "Ephemeraloriginalreference only, not copiedfullinventory",
+          "sha256": "b28f36412772bb970e0806de4aa9842a4fa1da0f47985f72c272608755e56a24"
+        },
+        {
+          "bytes": 6069973,
+          "path": "/tmp/full-verify-epoch29-retry-0jqd1mhz/deps-before.jsonl.gz",
+          "scope": "Ephemeraloriginalreference only, not copiedfullinventory",
+          "sha256": "c0f4a338f32a0c60377d575d5f316f7c8291b916f0f44aba53d8a4eb209e3b49"
+        },
+        {
+          "bytes": 6069972,
+          "path": "/tmp/full-verify-epoch29-retry-0jqd1mhz/deps-after.jsonl.gz",
+          "scope": "Ephemeraloriginalreference only, not copiedfullinventory",
+          "sha256": "1d24ff05f856991365760a922b05788cf9462edd4f87863392be9abbaec2fae1"
+        }
+      ],
+      "files": 11,
+      "manifestSHA256": "1c8aed3df67ed18792add6417af7e5c4adf6e964fd10dba9c8b734516b3a5f6a",
+      "path": "/workspace/.zasp-cloud-owned/spec29-verify-proof/attempt2-storage-floor"
+    }
+  ],
+  "status": "PASS_FRESH_SELECTED_FAILURE_PUBLICATION_CLOSURE",
+  "toolByteReview": {
+    "path": "/tmp/zasp-cloud-evidence/independent-spec29-fresh-tool-byte-review.json",
+    "scope": "Existing independent actualbyte review, no version/network/build rerun by this verifier.",
+    "sha256": "ab07bebf0aed223b89c81ae6da0fab6daff307af51b48da5b89c571e6f357f24"
+  },
+  "unchangedIgnoreSHA256": "a25727ea01ae025b0fede1cd2a61396caa72a687632bc628f53135b123cca6aa"
+}

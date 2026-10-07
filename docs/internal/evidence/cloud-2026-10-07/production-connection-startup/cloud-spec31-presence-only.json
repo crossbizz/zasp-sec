@@ -1,0 +1,19 @@
+{
+  "observed_phase": "running",
+  "connectivity": "connected",
+  "spec_revision": "31",
+  "observations_current": true,
+  "network_mode": "restricted",
+  "network_state": "enforced",
+  "custom_allowed_hosts": [
+    "api.github.com",
+    "api.stytch.com",
+    "test.stytch.com"
+  ],
+  "runtime_variable_count": 51,
+  "ready_runtime_variable_count": 51,
+  "capabilities_count": 0,
+  "secrets_bindings_count": 0,
+  "outbound_identity_count": 0,
+  "claim": "Configured generic variables marked ready by cloud metadata do not establish application-specific authority or endpoint acceptance."
+}
