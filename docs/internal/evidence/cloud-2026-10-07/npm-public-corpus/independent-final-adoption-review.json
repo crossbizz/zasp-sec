@@ -1,0 +1,80 @@
+{
+  "format": "independent-portable-npm-adoption-local-config-review-v1",
+  "verdict": "SOURCE_AND_RECORDED_TAP_PASS",
+  "sourceRoot": "/tmp/zasp-startup-diagnostic-checkout",
+  "HEAD": "258769d5667b012d4ad484af41532f4b85947056",
+  "paths": [
+    {
+      "path": "package.json",
+      "sha256": "a7d4f3ec6b222bd3cc63b057c9e51452382a526ae282d1b5f485b6480755e7c5",
+      "bytes": 17350
+    },
+    {
+      "path": "scripts/npm-public-corpus.mjs",
+      "sha256": "f1d32cdf7027d0daffa944814736d6380456efc5897d679419d119a1ff7cddf2",
+      "bytes": 12370
+    },
+    {
+      "path": "scripts/npm-public-corpus.test.mjs",
+      "sha256": "81ec863d1d1945770c615500f0dd1ec2188948e8bbfe25cbe6ffeba7baa16beb",
+      "bytes": 7913
+    },
+    {
+      "path": "scripts/npm-public-corpus-semver.mjs",
+      "sha256": "eacb9394fce409e629ff63c051aac88d55a749930ea957c014b6cf4c40f7a0d9",
+      "bytes": 3263
+    },
+    {
+      "path": "scripts/npm-public-corpus-semver-pins.json",
+      "sha256": "99546fe328b8d8e4ecfe58bca93bffe9934c6528888537c6e6c4d03bfbd8f4a6",
+      "bytes": 8594
+    },
+    {
+      "path": "scripts/npm-public-corpus-cli.test.mjs",
+      "sha256": "5a8aa24d6dc3db90f6bd517b203227d19bc3b41768483b246f4a75e15ba6050d",
+      "bytes": 8738
+    },
+    {
+      "path": "scripts/produce-public-npm-advisory-component.mjs",
+      "sha256": "d1765cce984c39776a930d0d4dfc172f5293e458fa01cf76ec30076a1d850d50",
+      "bytes": 3891
+    }
+  ],
+  "checks": {
+    "packageInverseExactHEAD": true,
+    "installedSemver53FullHashesExact": true,
+    "producerInverseRemovingOnlyLocalPreflightExactV8": true,
+    "preflightBeforeEachLsTree": true,
+    "capturedGitStdio": true,
+    "configNoIncludesLocalNameOnly": true,
+    "UTF8ValidatedBeforeParse": true,
+    "configKeysRefusePartialClonePromisorIncludeIncludeIfWorktree": true,
+    "boundedGitCaptureBytes": 33554432,
+    "validatedConfigBytes": 1048576,
+    "maxConfigKeys": 10000
+  },
+  "recordedTAP": {
+    "baseline": {
+      "path": "/tmp/npm-portable-local-policy-red.log",
+      "sha256": "2f6849fd874fe5070389a3cfea786d08d7179001256ed74d38283c0069f4b76d",
+      "tests": 58,
+      "pass": 53,
+      "fail": 5,
+      "skip": 0
+    },
+    "candidate": {
+      "path": "/tmp/npm-portable-local-policy-green.log",
+      "sha256": "32d7c8aa419867f059e831626feefe5048a0a5baacbdd8271aec843c16e79c8d",
+      "tests": 58,
+      "tops": 9,
+      "subs": 49,
+      "pass": 58,
+      "fail": 0,
+      "skip": 0
+    }
+  },
+  "history": "Original53 and V6 failed stderr privacy run retained. V6 helper absence passed. Four new complete-corpus config refusals fail against V8 and pass candidate; no original assertion removed.",
+  "scope": "Source and recorded full TAP only; ROOT normal outer joins/scanner remain publication gates. Caller receipt/local Git cannot authenticate upstream; no actual intake/advisory clearance/private graph disclosure or release acceptance. Immutable release guard and lock unchanged. Concurrent hostile config mutation is outside controlled snapshot/writer-hold scope.",
+  "releaseGuardSHA256": "5c36995b49dcb4461983ea6622d75d271c55bfea680c4cd9cfaaadce052836ba",
+  "lockSHA256": "d34f213a3222a5fd3cecea449bb4242ebe725bdb8a3c73a08d2eb3a66d687b01"
+}

@@ -1,0 +1,44 @@
+[
+  {
+    "path": "package.json",
+    "before": "59fc5eb87eda14bd65d5ab8211a76fc71b05ce02db3e5e982001a51906ddb7b0",
+    "after": "a7d4f3ec6b222bd3cc63b057c9e51452382a526ae282d1b5f485b6480755e7c5",
+    "source": "a7d4f3ec6b222bd3cc63b057c9e51452382a526ae282d1b5f485b6480755e7c5"
+  },
+  {
+    "path": "scripts/npm-public-corpus.mjs",
+    "before": null,
+    "after": "4fe08908c0dda4c86b38a99580b59b92d2d2552b32de17f1b6987f7cd63896f4",
+    "source": "4fe08908c0dda4c86b38a99580b59b92d2d2552b32de17f1b6987f7cd63896f4"
+  },
+  {
+    "path": "scripts/npm-public-corpus.test.mjs",
+    "before": null,
+    "after": "81ec863d1d1945770c615500f0dd1ec2188948e8bbfe25cbe6ffeba7baa16beb",
+    "source": "81ec863d1d1945770c615500f0dd1ec2188948e8bbfe25cbe6ffeba7baa16beb"
+  },
+  {
+    "path": "scripts/npm-public-corpus-semver.mjs",
+    "before": null,
+    "after": "95d6a29f7883e5faf2ecb98786ec13a00b06d81990db771abcbbb17054b733c2",
+    "source": "95d6a29f7883e5faf2ecb98786ec13a00b06d81990db771abcbbb17054b733c2"
+  },
+  {
+    "path": "scripts/npm-public-corpus-semver-pins.json",
+    "before": null,
+    "after": "99546fe328b8d8e4ecfe58bca93bffe9934c6528888537c6e6c4d03bfbd8f4a6",
+    "source": "99546fe328b8d8e4ecfe58bca93bffe9934c6528888537c6e6c4d03bfbd8f4a6"
+  },
+  {
+    "path": "scripts/npm-public-corpus-cli.test.mjs",
+    "before": null,
+    "after": "372bbac8375efb146da12d7c8c459ec44742c7d1a0178a43b41de825d21486c6",
+    "source": "372bbac8375efb146da12d7c8c459ec44742c7d1a0178a43b41de825d21486c6"
+  },
+  {
+    "path": "scripts/produce-public-npm-advisory-component.mjs",
+    "before": null,
+    "after": "d1765cce984c39776a930d0d4dfc172f5293e458fa01cf76ec30076a1d850d50",
+    "source": "d1765cce984c39776a930d0d4dfc172f5293e458fa01cf76ec30076a1d850d50"
+  }
+]

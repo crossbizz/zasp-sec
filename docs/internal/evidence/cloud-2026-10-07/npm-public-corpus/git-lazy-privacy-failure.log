@@ -1,0 +1,372 @@
+TAP version 13
+# Subtest: portable locked semver source refuses drift
+    # Subtest: valid
+    ok 1 - valid
+      ---
+      duration_ms: 27.408474
+      type: 'test'
+      ...
+    # Subtest: version
+    ok 2 - version
+      ---
+      duration_ms: 1.886453
+      type: 'test'
+      ...
+    # Subtest: integrity
+    ok 3 - integrity
+      ---
+      duration_ms: 2.373279
+      type: 'test'
+      ...
+    # Subtest: file-hash
+    ok 4 - file-hash
+      ---
+      duration_ms: 6.00325
+      type: 'test'
+      ...
+    # Subtest: membership
+    ok 5 - membership
+      ---
+      duration_ms: 4.11927
+      type: 'test'
+      ...
+    # Subtest: symlink
+    ok 6 - symlink
+      ---
+      duration_ms: 6.389493
+      type: 'test'
+      ...
+    1..6
+ok 1 - portable locked semver source refuses drift
+  ---
+  duration_ms: 49.977898
+  type: 'test'
+  ...
+# Subtest: callable public npm producer boundaries stay closed
+    # Subtest: valid-deterministic
+    ok 1 - valid-deterministic
+      ---
+      duration_ms: 186.003578
+      type: 'test'
+      ...
+    # Subtest: unknown-arg
+    ok 2 - unknown-arg
+      ---
+      duration_ms: 88.394341
+      type: 'test'
+      ...
+    # Subtest: duplicate-arg
+    ok 3 - duplicate-arg
+      ---
+      duration_ms: 87.576042
+      type: 'test'
+      ...
+    # Subtest: relative-arg
+    ok 4 - relative-arg
+      ---
+      duration_ms: 122.538653
+      type: 'test'
+      ...
+    # Subtest: missing-receipt
+    ok 5 - missing-receipt
+      ---
+      duration_ms: 86.339303
+      type: 'test'
+      ...
+    # Subtest: unknown-receipt
+    ok 6 - unknown-receipt
+      ---
+      duration_ms: 87.979714
+      type: 'test'
+      ...
+    # Subtest: duplicate-receipt
+    ok 7 - duplicate-receipt
+      ---
+      duration_ms: 104.773243
+      type: 'test'
+      ...
+    # Subtest: wrong-repository
+    ok 8 - wrong-repository
+      ---
+      duration_ms: 91.388199
+      type: 'test'
+      ...
+    # Subtest: wrong-full-roster
+    ok 9 - wrong-full-roster
+      ---
+      duration_ms: 87.369481
+      type: 'test'
+      ...
+    # Subtest: wrong-lock
+    ok 10 - wrong-lock
+      ---
+      duration_ms: 86.23138
+      type: 'test'
+      ...
+    # Subtest: existing-output
+    ok 11 - existing-output
+      ---
+      duration_ms: 87.995587
+      type: 'test'
+      ...
+    # Subtest: mixed-corpus-record
+    ok 12 - mixed-corpus-record
+      ---
+      duration_ms: 88.30154
+      type: 'test'
+      ...
+    # Subtest: local-promisor-missing-object
+    not ok 13 - local-promisor-missing-object
+      ---
+      duration_ms: 97.86525
+      type: 'test'
+      location: '/tmp/zasp-startup-diagnostic-checkout/scripts/npm-public-corpus-cli.test.mjs:33:277'
+      failureType: 'testCodeFailure'
+      error: |-
+        Expected values to be strictly equal:
+        + actual - expected
+        
+        + 'fatal: not a tree object\npublic npm producer refused\n'
+        - 'public npm producer refused\n'
+        
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: |-
+        public npm producer refused
+        
+      actual: |-
+        fatal: not a tree object
+        public npm producer refused
+        
+      operator: 'strictEqual'
+      stack: |-
+        TestContext.<anonymous> (file:///tmp/zasp-startup-diagnostic-checkout/scripts/npm-public-corpus-cli.test.mjs:78:47)
+        Test.runInAsyncScope (node:async_hooks:214:14)
+        Test.run (node:internal/test_runner/test:1047:25)
+        Test.start (node:internal/test_runner/test:944:17)
+        TestContext.test (node:internal/test_runner/test:373:20)
+        TestContext.<anonymous> (file:///tmp/zasp-startup-diagnostic-checkout/scripts/npm-public-corpus-cli.test.mjs:33:277)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+    1..13
+not ok 2 - callable public npm producer boundaries stay closed
+  ---
+  duration_ms: 1305.292648
+  type: 'test'
+  location: '/tmp/zasp-startup-diagnostic-checkout/scripts/npm-public-corpus-cli.test.mjs:32:1'
+  failureType: 'subtestsFailed'
+  error: '1 subtest failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# Subtest: materializes exact-lock npm findings from full pinned record bytes
+ok 3 - materializes exact-lock npm findings from full pinned record bytes
+  ---
+  duration_ms: 2.718151
+  type: 'test'
+  ...
+# Subtest: real npm semver boundaries remain sensitive
+    # Subtest: introduced inclusive
+    ok 1 - introduced inclusive
+      ---
+      duration_ms: 0.754852
+      type: 'test'
+      ...
+    # Subtest: fixed exclusive
+    ok 2 - fixed exclusive
+      ---
+      duration_ms: 0.365823
+      type: 'test'
+      ...
+    # Subtest: below introduced
+    ok 3 - below introduced
+      ---
+      duration_ms: 0.352653
+      type: 'test'
+      ...
+    # Subtest: build metadata preserved
+    ok 4 - build metadata preserved
+      ---
+      duration_ms: 0.441398
+      type: 'test'
+      ...
+    # Subtest: last affected inclusive
+    ok 5 - last affected inclusive
+      ---
+      duration_ms: 0.40981
+      type: 'test'
+      ...
+    # Subtest: limit exclusive
+    ok 6 - limit exclusive
+      ---
+      duration_ms: 0.261635
+      type: 'test'
+      ...
+    # Subtest: reopened interval
+    ok 7 - reopened interval
+      ---
+      duration_ms: 0.374286
+      type: 'test'
+      ...
+    # Subtest: prerelease ordered
+    ok 8 - prerelease ordered
+      ---
+      duration_ms: 0.538154
+      type: 'test'
+      ...
+    # Subtest: explicit versions
+    ok 9 - explicit versions
+      ---
+      duration_ms: 0.328627
+      type: 'test'
+      ...
+    1..9
+ok 4 - real npm semver boundaries remain sensitive
+  ---
+  duration_ms: 5.255208
+  type: 'test'
+  ...
+# Subtest: missing stale corrupt unsupported or ambiguous inputs refuse instead of zero clearance
+    # Subtest: missing corpus
+    ok 1 - missing corpus
+      ---
+      duration_ms: 0.577223
+      type: 'test'
+      ...
+    # Subtest: stale corpus
+    ok 2 - stale corpus
+      ---
+      duration_ms: 0.123677
+      type: 'test'
+      ...
+    # Subtest: future corpus
+    ok 3 - future corpus
+      ---
+      duration_ms: 0.105319
+      type: 'test'
+      ...
+    # Subtest: wrong corpus digest
+    ok 4 - wrong corpus digest
+      ---
+      duration_ms: 0.252062
+      type: 'test'
+      ...
+    # Subtest: duplicate advisory
+    ok 5 - duplicate advisory
+      ---
+      duration_ms: 0.204379
+      type: 'test'
+      ...
+    # Subtest: wrong repository
+    ok 6 - wrong repository
+      ---
+      duration_ms: 0.104398
+      type: 'test'
+      ...
+    # Subtest: unsupported ecosystem
+    ok 7 - unsupported ecosystem
+      ---
+      duration_ms: 0.192561
+      type: 'test'
+      ...
+    # Subtest: unsupported range
+    ok 8 - unsupported range
+      ---
+      duration_ms: 0.200032
+      type: 'test'
+      ...
+    # Subtest: invalid version
+    ok 9 - invalid version
+      ---
+      duration_ms: 0.195666
+      type: 'test'
+      ...
+    # Subtest: linked production alias cannot omit dev target
+    ok 10 - linked production alias cannot omit dev target
+      ---
+      duration_ms: 0.227424
+      type: 'test'
+      ...
+    # Subtest: overlapping events
+    ok 11 - overlapping events
+      ---
+      duration_ms: 0.193373
+      type: 'test'
+      ...
+    # Subtest: unknown range event
+    ok 12 - unknown range event
+      ---
+      duration_ms: 0.185841
+      type: 'test'
+      ...
+    # Subtest: duplicate raw JSON key
+    ok 13 - duplicate raw JSON key
+      ---
+      duration_ms: 0.208475
+      type: 'test'
+      ...
+    1..13
+ok 5 - missing stale corrupt unsupported or ambiguous inputs refuse instead of zero clearance
+  ---
+  duration_ms: 3.798826
+  type: 'test'
+  ...
+# Subtest: actual read-only producer binds complete local Git corpus without network
+ok 6 - actual read-only producer binds complete local Git corpus without network
+  ---
+  duration_ms: 21.245753
+  type: 'test'
+  ...
+# Subtest: current product lock inventory is consumed without disclosure
+ok 7 - current product lock inventory is consumed without disclosure
+  ---
+  duration_ms: 73.762621
+  type: 'test'
+  ...
+# Subtest: actual producer reservation helper refuses before raw retention
+    # Subtest: complete corpus row bound
+    ok 1 - complete corpus row bound
+      ---
+      duration_ms: 2.114898
+      type: 'test'
+      ...
+    # Subtest: selected npm byte bound
+    ok 2 - selected npm byte bound
+      ---
+      duration_ms: 0.282817
+      type: 'test'
+      ...
+    1..2
+ok 8 - actual producer reservation helper refuses before raw retention
+  ---
+  duration_ms: 2.668305
+  type: 'test'
+  ...
+# Subtest: evidence byte reservations refuse before row or match retention
+    # Subtest: rows
+    ok 1 - rows
+      ---
+      duration_ms: 0.147954
+      type: 'test'
+      ...
+    # Subtest: matches
+    ok 2 - matches
+      ---
+      duration_ms: 0.063105
+      type: 'test'
+      ...
+    1..2
+ok 9 - evidence byte reservations refuse before row or match retention
+  ---
+  duration_ms: 0.536191
+  type: 'test'
+  ...
+1..9
+# tests 54
+# suites 0
+# pass 52
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1424.469224
