@@ -1,0 +1,106 @@
+TAP version 13
+# Subtest: supported alias names cover exactly three of the existing53 prerequisites
+ok 1 - supported alias names cover exactly three of the existing53 prerequisites
+  ---
+  duration_ms: 0.957026
+  type: 'test'
+  ...
+# Subtest: generic bindings never infer product roles or authority
+ok 2 - generic bindings never infer product roles or authority
+  ---
+  duration_ms: 0.541398
+  type: 'test'
+  ...
+# Subtest: environment values and getters are never read, direct names take precedence
+ok 3 - environment values and getters are never read, direct names take precedence
+  ---
+  duration_ms: 0.492814
+  type: 'test'
+  ...
+# Subtest: complete names are still explicitly not syntax or readiness clearance
+ok 4 - complete names are still explicitly not syntax or readiness clearance
+  ---
+  duration_ms: 0.254755
+  type: 'test'
+  ...
+# Subtest: document contract drift or unconsumed names refuse instead of invented defaults
+ok 5 - document contract drift or unconsumed names refuse instead of invented defaults
+  ---
+  duration_ms: 0.563732
+  type: 'test'
+  ...
+# Subtest: standard credentials reach exactly three consumed aliases without mutating parent
+ok 6 - standard credentials reach exactly three consumed aliases without mutating parent
+  ---
+  duration_ms: 1.477833
+  type: 'test'
+  ...
+# Subtest: prefixed and identical paired values preserve exact bytes; missing pairs stay missing
+ok 7 - prefixed and identical paired values preserve exact bytes; missing pairs stay missing
+  ---
+  duration_ms: 0.25816
+  type: 'test'
+  ...
+# Subtest: conflicts and invalid provided values refuse before launch without disclosing values
+ok 8 - conflicts and invalid provided values refuse before launch without disclosing values
+  ---
+  duration_ms: 0.605615
+  type: 'test'
+  ...
+# Subtest: actual launcher consumes mapped environment with fixed command and forced local toolchain
+ok 9 - actual launcher consumes mapped environment with fixed command and forced local toolchain
+  ---
+  duration_ms: 13.887325
+  type: 'test'
+  ...
+# Subtest: owned signal stops and joins the command, removes handlers, and preserves signal
+ok 10 - owned signal stops and joins the command, removes handlers, and preserves signal
+  ---
+  duration_ms: 2.577255
+  type: 'test'
+  ...
+# Subtest: actual entrypoint refuses caller arguments before spawn and propagates nonzero status
+ok 11 - actual entrypoint refuses caller arguments before spawn and propagates nonzero status
+  ---
+  duration_ms: 59.425867
+  type: 'test'
+  ...
+# Subtest: actual entrypoint preserves child signal and sanitizes spawn errors
+ok 12 - actual entrypoint preserves child signal and sanitizes spawn errors
+  ---
+  duration_ms: 56.080912
+  type: 'test'
+  ...
+# Subtest: conflicting credentials never spawn; absent unrelated configuration stays absent at launch
+ok 13 - conflicting credentials never spawn; absent unrelated configuration stays absent at launch
+  ---
+  duration_ms: 3.074596
+  type: 'test'
+  ...
+# Subtest: published npm command connects to this launcher without changing web start
+ok 14 - published npm command connects to this launcher without changing web start
+  ---
+  duration_ms: 1.233614
+  type: 'test'
+  ...
+# Subtest: configuration check uses fixed Go flag and the same credential and ownership boundary
+ok 15 - configuration check uses fixed Go flag and the same credential and ownership boundary
+  ---
+  duration_ms: 2.883537
+  type: 'test'
+  ...
+# Subtest: configuration entrypoint refuses arguments and never echoes captured child output
+ok 16 - configuration entrypoint refuses arguments and never echoes captured child output
+  ---
+  duration_ms: 60.085844
+  type: 'test'
+  ...
+1..16
+# tests 16
+# suites 0
+# pass 16
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 271.302541

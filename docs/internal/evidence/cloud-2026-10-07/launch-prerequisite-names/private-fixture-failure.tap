@@ -1,0 +1,117 @@
+TAP version 13
+# Subtest: supported alias names cover exactly three of the existing53 prerequisites
+ok 1 - supported alias names cover exactly three of the existing53 prerequisites
+  ---
+  duration_ms: 0.949694
+  type: 'test'
+  ...
+# Subtest: generic bindings never infer product roles or authority
+ok 2 - generic bindings never infer product roles or authority
+  ---
+  duration_ms: 0.742291
+  type: 'test'
+  ...
+# Subtest: environment values and getters are never read, direct names take precedence
+ok 3 - environment values and getters are never read, direct names take precedence
+  ---
+  duration_ms: 0.28496
+  type: 'test'
+  ...
+# Subtest: complete names are still explicitly not syntax or readiness clearance
+ok 4 - complete names are still explicitly not syntax or readiness clearance
+  ---
+  duration_ms: 0.249137
+  type: 'test'
+  ...
+# Subtest: document contract drift or unconsumed names refuse instead of invented defaults
+ok 5 - document contract drift or unconsumed names refuse instead of invented defaults
+  ---
+  duration_ms: 0.532825
+  type: 'test'
+  ...
+# Subtest: standard credentials reach exactly three consumed aliases without mutating parent
+ok 6 - standard credentials reach exactly three consumed aliases without mutating parent
+  ---
+  duration_ms: 2.057437
+  type: 'test'
+  ...
+# Subtest: prefixed and identical paired values preserve exact bytes; missing pairs stay missing
+ok 7 - prefixed and identical paired values preserve exact bytes; missing pairs stay missing
+  ---
+  duration_ms: 0.359543
+  type: 'test'
+  ...
+# Subtest: conflicts and invalid provided values refuse before launch without disclosing values
+ok 8 - conflicts and invalid provided values refuse before launch without disclosing values
+  ---
+  duration_ms: 0.876834
+  type: 'test'
+  ...
+# Subtest: actual launcher consumes mapped environment with fixed command and forced local toolchain
+ok 9 - actual launcher consumes mapped environment with fixed command and forced local toolchain
+  ---
+  duration_ms: 11.466166
+  type: 'test'
+  ...
+# Subtest: owned signal stops and joins the command, removes handlers, and preserves signal
+ok 10 - owned signal stops and joins the command, removes handlers, and preserves signal
+  ---
+  duration_ms: 4.652376
+  type: 'test'
+  ...
+# Subtest: actual entrypoint refuses caller arguments before spawn and propagates nonzero status
+ok 11 - actual entrypoint refuses caller arguments before spawn and propagates nonzero status
+  ---
+  duration_ms: 57.370098
+  type: 'test'
+  ...
+# Subtest: actual entrypoint preserves child signal and sanitizes spawn errors
+ok 12 - actual entrypoint preserves child signal and sanitizes spawn errors
+  ---
+  duration_ms: 56.815501
+  type: 'test'
+  ...
+# Subtest: conflicting credentials never spawn; absent unrelated configuration stays absent at launch
+ok 13 - conflicting credentials never spawn; absent unrelated configuration stays absent at launch
+  ---
+  duration_ms: 8.041794
+  type: 'test'
+  ...
+# Subtest: published npm command connects to this launcher without changing web start
+ok 14 - published npm command connects to this launcher without changing web start
+  ---
+  duration_ms: 1.841821
+  type: 'test'
+  ...
+# Subtest: configuration check uses fixed Go flag and the same credential and ownership boundary
+ok 15 - configuration check uses fixed Go flag and the same credential and ownership boundary
+  ---
+  duration_ms: 3.477101
+  type: 'test'
+  ...
+# Subtest: configuration entrypoint refuses arguments and never echoes captured child output
+not ok 16 - configuration entrypoint refuses arguments and never echoes captured child output
+  ---
+  duration_ms: 2.686758
+  type: 'test'
+  location: '/tmp/launch-prerequisites-tracked-final-7rzi29zm/scripts/api-start.test.mjs:113:1'
+  failureType: 'testCodeFailure'
+  error: "ENOENT: no such file or directory, open '/tmp/launch-prerequisites-tracked-final-7rzi29zm/scripts/api-check-config.mjs'"
+  code: 'ENOENT'
+  stack: |-
+    async open (node:internal/fs/promises:639:25)
+    async readFile (node:internal/fs/promises:1252:14)
+    async file:///tmp/launch-prerequisites-tracked-final-7rzi29zm/scripts/api-start.test.mjs:114:18
+    async instrument (file:///tmp/launch-prerequisites-tracked-final-7rzi29zm/scripts/api-start.test.mjs:39:16)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..16
+# tests 16
+# suites 0
+# pass 15
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 216.839697

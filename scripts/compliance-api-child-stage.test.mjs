@@ -21,12 +21,12 @@ test('missing malformed duplicate ambiguous and oversized evidence refuses witho
 });
 function parsedCatch({stage='runtime-build',mode=true,emitterFails=false}){
  const calls=[],emitted=[],owned=Error('CANARY_WAIT_SECRET'),wrappers=[];
- const execute=new Function('startChild','waitForHTTP','apiEnvironment','apiBinary','healthPort','complianceBrowserMode','emitComplianceAPIChildFailure','console','Error',`return(async()=>{let api;let compliancePhase='browser-assertions';${startAPI}try{await startAPI(false);}catch(error){return {error,phase:compliancePhase};}})();`);
+ const execute=new Function('startChild','waitForOwnedAPIStartup','apiEnvironment','apiBinary','healthPort','complianceBrowserMode','emitComplianceAPIChildFailure','console','Error',`return(async()=>{let api;let compliancePhase='browser-assertions';${startAPI}try{await startAPI(false);}catch(error){return {error,phase:compliancePhase};}})();`);
  const result=execute(()=>{calls.push('spawn');return {output:()=>{calls.push('output');return 'CANARY_SECRET\n'+(stage?marker(stage)+'\n':'unknown');}};},async()=>{calls.push('ready');throw owned;},{},'/owned/api',13,mode,helper.emitComplianceAPIChildFailure,{error:x=>{if(emitterFails)throw Error('CANARY_EMITTER');emitted.push(x);}},function(message){const error=Error(message);wrappers.push(error);return error;});
  return {result,calls,emitted,wrappers};
 }
 test('actual readiness catch emits fixed child stage preserving original wrapper and prior order',async()=>{
- for(const stage of [...stages,null]){const h=parsedCatch({stage});const result=await h.result;assert.equal(result.error,h.wrappers[0]);assert.equal(result.phase,'api-ready');assert.deepEqual(h.calls,['spawn','ready','output','output']);assert.deepEqual(h.emitted,[expected(stage??'unavailable')]);assert.doesNotMatch(h.emitted.join(''),/CANARY|SECRET|URL/);}
+ for(const stage of [...stages,null]){const h=parsedCatch({stage});const result=await h.result;assert.equal(result.error,h.wrappers[0]);assert.equal(result.phase,'api-ready');assert.deepEqual(h.calls,['spawn','ready','output','output']);assert.deepEqual(h.emitted,[expected(stage??'unavailable'),'::error title=Compliance API readiness failed::Observed readiness reason: unavailable.']);assert.doesNotMatch(h.emitted.join(''),/CANARY|SECRET|URL/);}
 });
 test('other modes and emitter faults cannot replace the original readiness wrapper',async()=>{
  for(const options of [{mode:false},{emitterFails:true}]){const h=parsedCatch(options);const result=await h.result;assert.equal(result.error,h.wrappers[0]);assert.deepEqual(h.emitted,[]);assert.deepEqual(h.calls,options.mode===false?['spawn','ready','output']:['spawn','ready','output','output']);}

@@ -1,0 +1,6 @@
+{
+  "completed": false,
+  "failure": "RuntimeError:exact stage result refused baseline-red",
+  "stages": [],
+  "cancelSignals": []
+}

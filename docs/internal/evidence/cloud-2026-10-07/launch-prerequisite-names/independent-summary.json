@@ -1,0 +1,16 @@
+{
+  "format": "derived-public-verification-summary-v1",
+  "scope": "Names-only helper and unchanged launcher component checks; no runtime or production clearance",
+  "tests": 16,
+  "pass": 16,
+  "fail": 0,
+  "skip": 0,
+  "exit": 0,
+  "normalJoin": true,
+  "forced": false,
+  "elapsedSeconds": 0.3150312280013168,
+  "sourceInputCount": 10,
+  "inputsUnchanged": true,
+  "originalReceiptDigest": "f6f172075a047e43970c8861241d1da4135c3c5662682e82a6fc7550de95bba9",
+  "receiptPublication": "Full private receipt is unchanged. Six source-file digest matches blocked its unpublished public copy; this separate scalar summary omits the hash maps. Scanner rules and exclusions are unchanged."
+}

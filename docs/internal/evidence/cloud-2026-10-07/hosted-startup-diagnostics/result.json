@@ -1,0 +1,63 @@
+{
+  "scope": "Controlled diagnostics only; CBC failure causes remain unknown",
+  "completedAtWrite": true,
+  "stages": [
+    {
+      "name": "baseline-red",
+      "exit": 1,
+      "seconds": 0.7611286610008392,
+      "counts": {
+        "tests": 1,
+        "pass": 0,
+        "fail": 1,
+        "skipped": 0
+      },
+      "normalWait": true,
+      "forced": false,
+      "ownedSessionAbsent": true,
+      "inputsUnchanged": true,
+      "stdoutSHA256": "88dc826e343471164f2c71ec6ac8665b66bb1ec3d6be823bd539b1bba5896407",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "candidate-green",
+      "exit": 0,
+      "seconds": 0.7099559220005176,
+      "counts": {
+        "tests": 4,
+        "pass": 4,
+        "fail": 0,
+        "skipped": 0
+      },
+      "normalWait": true,
+      "forced": false,
+      "ownedSessionAbsent": true,
+      "inputsUnchanged": true,
+      "stdoutSHA256": "814a5de13fe1cdf5bc32f69386d1766d5a8ec7d77441a63acde80aa5f21bd4cb",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "affected-regressions",
+      "exit": 0,
+      "seconds": 0.8181126700001187,
+      "counts": {
+        "tests": 23,
+        "pass": 23,
+        "fail": 0,
+        "skipped": 0
+      },
+      "normalWait": true,
+      "forced": false,
+      "ownedSessionAbsent": true,
+      "inputsUnchanged": true,
+      "stdoutSHA256": "3731d7ebad805388180965055f8dd57656ac6e125d3ada9755b2d4b26c5ed277",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "inputsUnchanged": true,
+  "finalFloors": {
+    "/workspace": 7206035456,
+    "/tmp": 3286097920
+  },
+  "seconds": 2.836592362000374
+}

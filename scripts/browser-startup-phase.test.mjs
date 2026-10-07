@@ -46,7 +46,7 @@ test('parsed initial PG startup branches retain Error identity, call prefix and 
 });
 test('parsed mounted startup failures distinguish each owned operation without changing wrapper or cleanup',async()=>{
  for(const fail of mountedOrder){
-  const h=harness({fail});await assert.rejects(h.run(),e=>e===(fail==='api-ready'?h.wrappers[0]:h.owned));assert.deepEqual(h.calls.map(x=>x.name),[...mountedOrder.slice(0,mountedOrder.indexOf(fail)+1),'cleanup','dispose']);assert.equal(h.wrappers.length,fail==='api-ready'?1:0);assert.deepEqual(h.annotations,[...(fail==='api-ready'?['::error title=Compliance API startup failed::Observed child stage: unavailable.']:[]),`::error title=Compliance browser phase failed::Observed phase: ${labels[fail]}.`]);assert.doesNotMatch(h.annotations.join(''),/CANARY|SECRET|URL|TENANT|owned/);
+  const h=harness({fail});await assert.rejects(h.run(),e=>e===(fail==='api-ready'?h.wrappers[0]:h.owned));assert.deepEqual(h.calls.map(x=>x.name),[...mountedOrder.slice(0,mountedOrder.indexOf(fail)+1),'cleanup','dispose']);assert.equal(h.wrappers.length,fail==='api-ready'?1:0);assert.deepEqual(h.annotations,[...(fail==='api-ready'?['::error title=Compliance API startup failed::Observed child stage: unavailable.', '::error title=Compliance API readiness failed::Observed readiness reason: unavailable.']:[]),`::error title=Compliance browser phase failed::Observed phase: ${labels[fail]}.`]);assert.doesNotMatch(h.annotations.join(''),/CANARY|SECRET|URL|TENANT|owned/);
  }
 });
 test('parsed success keeps original startup arguments, API deadlines, legacy environment and assertion phase',async()=>{

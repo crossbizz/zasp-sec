@@ -1,0 +1,162 @@
+{
+  "status": "OBSERVED_TWO_DIFFERENT_FAILURE_PHASES_ROOT_CAUSES_UNKNOWN",
+  "runs": [
+    {
+      "run": 37585168510,
+      "job": 112673525886,
+      "head": "cbcfc6ab32d242547badef99464b69ccf6037323",
+      "conclusion": "failure",
+      "selectedSteps": [
+        {
+          "number": 11,
+          "name": "Verify runnable UI",
+          "conclusion": "success",
+          "started_at": "2026-10-07T07:06:46Z",
+          "completed_at": "2026-10-07T07:38:54Z"
+        },
+        {
+          "number": 12,
+          "name": "Prime native migration compilation cache for compliance browser",
+          "conclusion": "success",
+          "started_at": "2026-10-07T07:38:54Z",
+          "completed_at": "2026-10-07T07:39:27Z"
+        },
+        {
+          "number": 13,
+          "name": "Verify current runtime profile inner diagnostic tests",
+          "conclusion": "success",
+          "started_at": "2026-10-07T07:39:27Z",
+          "completed_at": "2026-10-07T07:40:27Z"
+        },
+        {
+          "number": 14,
+          "name": "Provision isolated compliance browser prerequisites",
+          "conclusion": "success",
+          "started_at": "2026-10-07T07:40:27Z",
+          "completed_at": "2026-10-07T07:40:36Z"
+        },
+        {
+          "number": 15,
+          "name": "Provision pinned owned authorization runtime tools",
+          "conclusion": "success",
+          "started_at": "2026-10-07T07:40:36Z",
+          "completed_at": "2026-10-07T07:40:39Z"
+        },
+        {
+          "number": 16,
+          "name": "Verify current compliance browser acceptance",
+          "conclusion": "failure",
+          "started_at": "2026-10-07T07:40:39Z",
+          "completed_at": "2026-10-07T07:44:21Z"
+        }
+      ],
+      "annotations": [
+        {
+          "title": "",
+          "message": "Process completed with exit code 1."
+        },
+        {
+          "title": "",
+          "message": "Compliance browser runtime acceptance failed (exit 1)"
+        },
+        {
+          "title": "Compliance browser command failed",
+          "message": "Observed command class: other-command; failure: nonzero-exit."
+        },
+        {
+          "title": "Compliance browser phase failed",
+          "message": "Observed phase: api-ready."
+        },
+        {
+          "title": "Compliance API startup failed",
+          "message": "Observed child stage: unavailable."
+        },
+        {
+          "title": "",
+          "message": "Current profile inner diagnostics: all-tests-pass; tops=2; subtests=28."
+        }
+      ],
+      "artifacts": 0,
+      "logRetrieval": "Forbidden; private signed receiver URL excluded",
+      "privateFetchErrorSHA256": "5d845240c208fefc1d7fb25307a5f1e192d68a34bf5987020db2f5c2050a28aa"
+    },
+    {
+      "run": 37585174368,
+      "job": 112673542598,
+      "head": "cbcfc6ab32d242547badef99464b69ccf6037323",
+      "conclusion": "failure",
+      "selectedSteps": [
+        {
+          "number": 11,
+          "name": "Verify runnable UI",
+          "conclusion": "success",
+          "started_at": "2026-10-07T07:06:38Z",
+          "completed_at": "2026-10-07T07:38:55Z"
+        },
+        {
+          "number": 12,
+          "name": "Prime native migration compilation cache for compliance browser",
+          "conclusion": "success",
+          "started_at": "2026-10-07T07:38:55Z",
+          "completed_at": "2026-10-07T07:39:29Z"
+        },
+        {
+          "number": 13,
+          "name": "Verify current runtime profile inner diagnostic tests",
+          "conclusion": "success",
+          "started_at": "2026-10-07T07:39:29Z",
+          "completed_at": "2026-10-07T07:40:30Z"
+        },
+        {
+          "number": 14,
+          "name": "Provision isolated compliance browser prerequisites",
+          "conclusion": "success",
+          "started_at": "2026-10-07T07:40:30Z",
+          "completed_at": "2026-10-07T07:40:39Z"
+        },
+        {
+          "number": 15,
+          "name": "Provision pinned owned authorization runtime tools",
+          "conclusion": "success",
+          "started_at": "2026-10-07T07:40:39Z",
+          "completed_at": "2026-10-07T07:40:42Z"
+        },
+        {
+          "number": 16,
+          "name": "Verify current compliance browser acceptance",
+          "conclusion": "failure",
+          "started_at": "2026-10-07T07:40:42Z",
+          "completed_at": "2026-10-07T07:42:23Z"
+        }
+      ],
+      "annotations": [
+        {
+          "title": "",
+          "message": "Process completed with exit code 1."
+        },
+        {
+          "title": "",
+          "message": "Compliance browser runtime acceptance failed (exit 1)"
+        },
+        {
+          "title": "Compliance browser phase failed",
+          "message": "Observed phase: compliance-current-fixture."
+        },
+        {
+          "title": "",
+          "message": "Current profile inner diagnostics: all-tests-pass; tops=2; subtests=28."
+        }
+      ],
+      "artifacts": 0,
+      "logRetrieval": "Forbidden; private signed receiver URL excluded",
+      "privateFetchErrorSHA256": "13d2f096052e233f2087588ceb469f433e0be03c1d56c3271dc103d16a548c2c"
+    }
+  ],
+  "findings": [
+    "Both exactCBC runs fullnpmVerify succeeded; profileinner2tops28subs and prerequisite steps succeeded",
+    "Run1 failed api-ready with child stage unavailable, other-command nonzero exit; no typed waiter reason recorded",
+    "Run2 failed compliance-current-fixture before keys/current profile install; existing label covers seedPostgres,fixture psql and configuration creation",
+    "No log bytes retrieved and no uploaded artifacts; same prior f1c approval-readiness cause NOT established"
+  ],
+  "proposedRemedy": "Diagnostic-only fixed typed readiness reason + split seed/fixtureSQL phase, no timers/caps/SQL/authority/order/cleanup/guards changes. This improves next observed failure classification, not a production runtime remedy."
+}

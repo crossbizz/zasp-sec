@@ -2238,9 +2238,11 @@ async function prepareOwnedCurrentComplianceRuntime(configuration,complianceFixt
   const migration={...closedOwnedAmbientEnvironment(migrationEnvironment),...Object.fromEntries(Object.entries(migrationEnvironment).filter(([key])=>key.endsWith('_DB_PRINCIPAL'))),ZASP_POSTGRES_DSN:dsn,ZASP_MIGRATION_TIMEOUT:'5m'};
   if (complianceBrowserMode) compliancePhase = 'compliance-current-schema';
   await command(migrate,['up-to-56'],{env:migration,timeout:300000});
-  if (complianceBrowserMode) compliancePhase = 'compliance-current-fixture';
+  if (complianceBrowserMode) compliancePhase = 'compliance-current-seed';
   await seedPostgres(dsn);
+  if (complianceBrowserMode) compliancePhase = 'compliance-current-fixture-sql';
   await command(path.join(postgresBin,'psql'),[dsn,'-X','-v','ON_ERROR_STOP=1','-c',complianceFixtureSQL]);
+  if (complianceBrowserMode) compliancePhase = 'compliance-current-fixture';
   const publicOrigin=`https://${productHostname}:${proxyPort}`,apiDSN=`postgres://zasp_e2e_api@127.0.0.1:${port}/postgres?sslmode=disable`;
   const currentConfiguration={...configuration,dsn,apiDSN,postgresPort:port};
   const identityEnvironment=combinedAPIEnvironment({...currentConfiguration,publicOrigin,ownedAmbient:closedOwnedAmbientEnvironment(process.env)});
@@ -2291,7 +2293,7 @@ INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,ki
   if (complianceBrowserMode) compliancePhase = "api-startup";
   const apiEnvironment={...combinedAPIEnvironment({...configuration,publicOrigin,ownedAmbient:closedOwnedAmbientEnvironment(process.env)}), ...configuration.currentRuntimeEnvironment, ZASP_COMPLIANCE_BROWSER_API:"true", ZASP_COMPLIANCE_BROWSER_PG_PORT:String(postgresPort), ZASP_COMPLIANCE_BROWSER_OBJECT:object,ZASP_COMPLIANCE_BROWSER_DEADLINE:new Date(Date.now()+20*60_000).toISOString(),
     ZASP_COMPLIANCE_EXPORT_BUCKET:"zasp-compliance-exports", ZASP_COMPLIANCE_EXPORT_BUCKET_OWNER:"123456789012",ZASP_COMPLIANCE_EXPORT_KMS_KEY_ARN:"arn:aws:kms:us-east-1:123456789012:key/11111111-1111-4111-8111-111111111111",ZASP_COMPLIANCE_EXPORT_READER_ROLE_ARN:"arn:aws:iam::123456789012:role/compliance-api-reader",ZASP_COMPLIANCE_EXPORT_WEB_IDENTITY_TOKEN_FILE:"/var/run/secrets/eks.amazonaws.com/serviceaccount/token"};
-  const startAPI=async(enabled=true)=>{const previousCompliancePhase=compliancePhase;const environment={...apiEnvironment};if(!enabled){for(const key of Object.keys(environment))if(key.startsWith("ZASP_COMPLIANCE_EXPORT_"))delete environment[key];environment.ZASP_COMPLIANCE_BROWSER_LEGACY="true";}if(complianceBrowserMode)compliancePhase="api-startup";api=startChild(apiBinary,["-test.run=^TestComplianceBrowserAPIProcess$","-test.v","-test.timeout=21m"],{env:environment});if(complianceBrowserMode)compliancePhase="api-ready";try{await waitForOwnedAPIStartup({target:`http://127.0.0.1:${healthPort}/readyz`,child:api});}catch(e){if(complianceBrowserMode)emitComplianceAPIChildFailure(api.output(),message=>console.error(message));throw new Error(`${e.message}; ${api.output()}`);}if(complianceBrowserMode)compliancePhase=previousCompliancePhase;};
+  const startAPI=async(enabled=true)=>{const previousCompliancePhase=compliancePhase;const environment={...apiEnvironment};if(!enabled){for(const key of Object.keys(environment))if(key.startsWith("ZASP_COMPLIANCE_EXPORT_"))delete environment[key];environment.ZASP_COMPLIANCE_BROWSER_LEGACY="true";}if(complianceBrowserMode)compliancePhase="api-startup";api=startChild(apiBinary,["-test.run=^TestComplianceBrowserAPIProcess$","-test.v","-test.timeout=21m"],{env:environment});if(complianceBrowserMode)compliancePhase="api-ready";try{await waitForOwnedAPIStartup({target:`http://127.0.0.1:${healthPort}/readyz`,child:api});}catch(e){if(complianceBrowserMode)emitComplianceAPIChildFailure(api.output(),message=>console.error(message),e);throw new Error(`${e.message}; ${api.output()}`);}if(complianceBrowserMode)compliancePhase=previousCompliancePhase;};
   await startAPI(false);
   if (complianceBrowserMode) compliancePhase = "web-startup";
   web=startChild(path.join(root,"node_modules/.bin/vinext"),["start","--port",String(webPort),"--hostname","127.0.0.1"],{cwd:root});
