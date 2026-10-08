@@ -55,6 +55,13 @@ if paths:
             if not isinstance(rows, list) or len(rows) > 100000:
                 raise ValueError("component bound")
             summary[key + "Count"] = len(rows)
+        observations = component["upstreamMatchedObservations"]
+        summary["upstreamMatchedAdvisories"] = []
+        summary["advisoryListTruncated"] = len(observations) > 64
+        for row in observations[:64]:
+            if not isinstance(row, dict) or not isinstance(row.get("id"), str) or not re.fullmatch(r"GHSA-[23456789cfghjmpqrvwx]{4}-[23456789cfghjmpqrvwx]{4}-[23456789cfghjmpqrvwx]{4}", row["id"]) or row.get("type") not in ("reviewed", "unreviewed", "malware"):
+                raise ValueError("public advisory identity grammar")
+            summary["upstreamMatchedAdvisories"].append(dict(id=row["id"], type=row["type"]))
         for key in ("requests", "wireBytes"):
             count = component.get(key)
             if type(count) is not int or not 0 <= count <= 134217728:

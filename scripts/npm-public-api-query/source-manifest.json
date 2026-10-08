@@ -46,7 +46,7 @@
     },
     {
       "path": "scripts/npm-public-api-query/safe-summary.py",
-      "sha256": "1c873b2f59df6d60ff4f205a9163aa54322295364ec979073d9b758616737165"
+      "sha256": "818caaf1a3b7e31e4fb898e1a9ff3b9495efef53b4851dd2a6a02d7e71079bbf"
     }
   ],
   "format": "hosted-public-npm-query-source-v1"
