@@ -1,8 +1,15 @@
 {
   "status": "INACTIVE COMPILE-ONLY CANDIDATE; NO TEST EXECUTION OR ACTIVATION",
   "base": "76ba3b53c1d4d892539da16a08db71172a49b5d2",
-  "checkpointSHA256": "d49e946942ae4cc9050828d0172cad388cd89a6994915a02723d0ad4fb9a0225",
+  "checkpointSHA256": "ff1a3f2ad9c65ce8b9df9e387bdbd49ccc5cafa7be3647ac7aa3203215f99e90",
   "sources": [
+    {
+      "path": "services/platform/agentsec-api/connector_callback_runtime.go",
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null,
+      "sha256": "3ccd362a22ef406753915e3e100b360f4281ba95785b798881a1eba8d15e7b80",
+      "bytes": 1248
+    },
     {
       "path": "services/platform/agentsec-api/connector_maintenance_runtime.go",
       "sha256": "ac74dd00dc05e34e72a06962ad8d7a8f13d18bf64c0fe6e46fdbd520f4b09bab",
@@ -12,8 +19,8 @@
     },
     {
       "path": "services/platform/agentsec-api/production_runtime.go",
-      "sha256": "bfa7a723346491ac39cb786a00512ca3306129209a6c5b257691fe3737718e6e",
-      "bytes": 54071,
+      "sha256": "4a5e18ecfa79e445ac0a6c1241b471762b449288cff29858f6553a599c1bee94",
+      "bytes": 54329,
       "currentBasePreimageSHA256": "10f33b11d8e05b35b4814a1a3e58889c5a4d592dce82e1010fd92874c22ac7fa",
       "historicalPreimageSHA256": "10f33b11d8e05b35b4814a1a3e58889c5a4d592dce82e1010fd92874c22ac7fa"
     },
@@ -47,8 +54,8 @@
     },
     {
       "path": "services/platform/apiserver/connector_maintenance_callback_database.go",
-      "sha256": "503e526e92f9776f367acdae15cce142a9ac3eae65d8ef342ba1a9ee7339fa88",
-      "bytes": 7375,
+      "sha256": "bf9b56569921688a612b99d498448b2add21985eecb94281810abcd0e871ad01",
+      "bytes": 8062,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -157,5 +164,6 @@
       "currentBasePreimageSHA256": "c9183f4e37bfa4b15a53a9aa1062af1bd2076dfa3794a8df1fdc1af863bcb93c",
       "historicalPreimageSHA256": "c9183f4e37bfa4b15a53a9aa1062af1bd2076dfa3794a8df1fdc1af863bcb93c"
     }
-  ]
+  ],
+  "predecessorCheckpointSHA256": "d49e946942ae4cc9050828d0172cad388cd89a6994915a02723d0ad4fb9a0225"
 }

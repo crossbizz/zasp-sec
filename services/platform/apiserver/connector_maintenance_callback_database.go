@@ -146,6 +146,9 @@ func (r *ConnectorRepository) PrepareConnectorOAuthCallback(ctx context.Context,
 	}); ok {
 		return native.PrepareConnectorOAuthCallback(ctx, phase, consumed)
 	}
+	if required, ok := r.database.(interface{ ConnectorOAuthCallbackAuthorityRequired() bool }); ok && required.ConnectorOAuthCallbackAuthorityRequired() {
+		return ErrRepositoryUnavailable
+	}
 	return nil // Original legacy database path retains its original behavior.
 }
 func (d *ConnectorMaintenanceEnqueueDatabase) connectorCallbackTransaction(ctx context.Context, query string, args ...any) (json.RawMessage, error) {
@@ -184,4 +187,16 @@ func (d *ConnectorMaintenanceEnqueueDatabase) connectorCallbackTransaction(ctx c
 		return nil, ErrRepositoryUnavailable
 	}
 	return append(json.RawMessage(nil), raw...), nil
+}
+
+// This capability marker is derived from the constructed native adapter, never
+// from a caller Boolean or environment flag. Known wrappers forward it.
+func (d *ConnectorMaintenanceEnqueueDatabase) ConnectorOAuthCallbackAuthorityRequired() bool {
+	return d != nil
+}
+func (d *ConnectorMaintenanceEnqueueDatabase) NativeIdentityDatabase() *PostgresJSONDatabase {
+	if d == nil || d.PostgresJSONDatabase == nil || !d.CurrentAuthorizationRequired() {
+		return nil
+	}
+	return d.PostgresJSONDatabase
 }

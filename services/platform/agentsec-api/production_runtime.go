@@ -723,6 +723,15 @@ func (database *tracedJSONDatabase) NativeIdentityDatabase() *apiserver.Postgres
 	if database == nil {
 		return nil
 	}
+	if bridge, ok := database.next.(interface {
+		NativeIdentityDatabase() *apiserver.PostgresJSONDatabase
+	}); ok {
+		native := bridge.NativeIdentityDatabase()
+		if native == nil || !native.CurrentAuthorizationRequired() {
+			return nil
+		}
+		return native
+	}
 	native, ok := database.next.(*apiserver.PostgresJSONDatabase)
 	if !ok || !native.CurrentAuthorizationRequired() {
 		return nil

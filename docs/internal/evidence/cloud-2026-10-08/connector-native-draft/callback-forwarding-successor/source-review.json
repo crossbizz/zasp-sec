@@ -1,0 +1,23 @@
+{
+  "scope": "Read-only narrow callback capability/identity bridge repair; no compile/tests/services/runtime or activation",
+  "status": "P1_REPAIR_SOURCE_PASS_FULL_BEHAVIOR_HELD",
+  "manifestSHA256": "ff1a3f2ad9c65ce8b9df9e387bdbd49ccc5cafa7be3647ac7aa3203215f99e90",
+  "all23HashesExact": true,
+  "changes": [
+    "services/platform/agentsec-api/connector_callback_runtime.go",
+    "services/platform/agentsec-api/production_runtime.go",
+    "services/platform/apiserver/connector_maintenance_callback_database.go"
+  ],
+  "unchangedOriginalMembers": 20,
+  "observations": [
+    "tracedJSONDatabase now exposes and forwards exact secret/provider/cleanup preparation capability to selected adapter",
+    "Required marker derives from constructed adapter and known tracing wrapper; missing selected capability refuses rather than legacy success",
+    "ConnectorRepository also refuses missing capability when selected marker true",
+    "NativeIdentityDatabase exposes exact original base only while currentAuthorization required; tracing NativeIdentityDatabase unwraps bridge and rechecks it",
+    "Original legacy absent-capability behavior remains; no phase/SQL/handler/authority bytes changed"
+  ],
+  "limits": [
+    "Source repair closes identified production tracing P1; no actual runtime gate inferred",
+    "Full callback integration/typecheck/provider omission/revocation/recovery evidence and measured activation still needed"
+  ]
+}
