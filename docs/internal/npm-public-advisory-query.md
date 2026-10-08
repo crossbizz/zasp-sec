@@ -1,0 +1,7 @@
+# Public npm advisory query component
+
+The pull-request or manually dispatched `Public npm advisory query evidence` workflow runs a meaningful omitted-malware baseline and sixteen grouped offline controls, then queries the official GitHub global advisory endpoint for every unique production name/version pair in the already-public, exact pinned package lock. It uses 57 initial query groups across reviewed, unreviewed and malware types and follows bounded cursors. Withdrawn results are retained.
+
+The collector retains original HTTP output, normal wait observations and source/tool byte and security metadata before and after acquisition. Limits remain 256 requests, 20 MiB per response, 128 MiB total wire data, 600 seconds of owner work, and the original filesystem and memory refusal floors. The hosted memory observer measures visible finite ancestors and host availability; it does not assert visibility into hidden namespaces.
+
+The workflow is an executable evidence producer, not release clearance. A completed run establishes traversal of the issued public lock queries using upstream `affects` semantics. It does not establish an immutable snapshot, local OSV range matching, coverage of unrelated malware, Go or image advisories, an SBOM, or release acceptance. Mutable pagination consistency and full release obligations remain open. The production release guard is unchanged. Failed runs and raw originals remain reviewable artifacts; no ledger state changes occur.

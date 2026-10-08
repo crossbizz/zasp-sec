@@ -1,0 +1,51 @@
+name: Approval run navigation component
+"on":
+  pull_request:
+    paths:
+      - 'app/**'
+      - 'apps/web/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig.json'
+      - 'vitest.config.*'
+      - 'vitest.setup.ts'
+      - '.github/workflows/approval-run-navigation.yml'
+  push:
+    paths:
+      - 'app/**'
+      - 'apps/web/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig.json'
+      - 'vitest.config.*'
+      - 'vitest.setup.ts'
+      - '.github/workflows/approval-run-navigation.yml'
+permissions:
+  contents: read
+jobs:
+  verify-component:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22.23.1
+      - name: Pin npm
+        run: npm install --global npm@10.9.8
+      - name: Install locked dependencies
+        timeout-minutes: 5
+        run: SHARP_IGNORE_GLOBAL_LIBVIPS=1 npm ci
+      - name: Type check
+        timeout-minutes: 3
+        run: npm run typecheck -- --incremental false
+      - name: Existing approval and ordered UI groups
+        timeout-minutes: 3
+        run: npm test -- app/features/securityagents/SecurityAgentsView.test.tsx app/features/securityagents/ordered-ui.test.tsx --maxWorkers=1
+      - name: Scoped lint
+        run: npx --no-install eslint app/components/ZaspProductionApp.tsx app/features/securityagents/SecurityAgentsView.tsx
+      - name: Build runnable UI
+        timeout-minutes: 5
+        run: npm run build

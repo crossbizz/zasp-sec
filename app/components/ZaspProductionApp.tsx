@@ -83,7 +83,7 @@ function ProductionRouteSurface({ path, location, navigate }: { path: string; lo
   if (path === "/connectors") return <ProductionIntegrationsView canWrite={session.hasCapability("integrations.write")} navigate={navigate} />;
   if (path === "/integrations/sensors") return <ProductionSensorSurface canWrite={session.hasCapability("sensors.write")} fresh={session.isFreshAuthenticated} onReauthenticate={session.reauthenticate} />;
   if (path === "/protect/security-agents") return <ProductionSecurityAgentsView environmentID={session.environmentID} selectedID={selected?.id} onNavigate={navigate} />;
-  if (path === "/protect/approvals") return <ProductionSecurityAgentsView environmentID={session.environmentID} surface="approvals" />;
+  if (path === "/protect/approvals") return <ProductionSecurityAgentsView environmentID={session.environmentID} surface="approvals" onNavigate={navigate} />;
   if (path === "/administration/identity-access") return <IdentityAPIProvider client={client}>{(session.hasCapability("identity.manage") || session.hasCapability("identity.groups.manage")) && <IdentityAccessView />}{session.hasCapability("identity.scopes.manage") && <ScopeOnboardingView client={client} />}</IdentityAPIProvider>;
   if (path === "/administration/api-access") return <APIAccessView client={client} />;
   if (path === "/investigate/sessions") return <ProductionSessionsView key={`${session.principal.id}/${session.organizationID}/${session.workspaceID}/${session.environmentID}/${queryGeneration}`} client={client} canRevokeConsole={session.hasCapability("sessions.revoke")} selectedID={selected?.id} onNavigate={navigate} activityScope={session} canReadRuns={session.hasCapability("security-agents.read")} />;

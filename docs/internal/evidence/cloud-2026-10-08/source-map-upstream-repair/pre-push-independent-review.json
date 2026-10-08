@@ -1,0 +1,41 @@
+{
+  "dependencyRepair": {
+    "lockSHA256": "0e8b7fa1332878386816dd73ba0118fb8dfc8a414b7912f90e95f2dda8bae51c",
+    "modifiedSlots": [
+      "node_modules/@tailwindcss/postcss/node_modules/@tailwindcss/node/node_modules/source-map-js",
+      "node_modules/@tailwindcss/postcss/node_modules/postcss/node_modules/source-map-js",
+      "node_modules/jsdom/node_modules/css-tree/node_modules/source-map-js",
+      "node_modules/vite/node_modules/postcss/node_modules/source-map-js"
+    ],
+    "override": "source-map-js:1.2.2",
+    "packageSHA256": "89e0ff575ae0de4feed4b329b79094518a457647fa7e6c94d8b2b904cdbf7eff",
+    "registry": "Fresh official registry GET 1.2.2 matches exact integrity/tarball, BSD-3-Clause, node>=0.10.0 and no dependencies.",
+    "remainingBlocker": "Unpatched braces3.0.3 advisory remains release blocker; no release clearance.",
+    "verdict": "Conditionally ready to commit/push exact package diff, pending existing hosted137/typecheck/npm ci/build and normal merge policy."
+  },
+  "findings": [
+    {
+      "file": "services/platform/apiserver/authorization_integration_mutations_postgres_test.go",
+      "issue": "Composed fixture selects TemporalAudit profile without identity mode, but current authorization bearer authentication requires native identity profile and both registered purpose verifiers.",
+      "line": 385,
+      "severity": "P1"
+    },
+    {
+      "file": "services/platform/apiserver/authorization_integration_mutations_postgres_test.go",
+      "issue": "12-character client80-pat fails native SQL raw credential length32..512 independently of profile admission.",
+      "line": 100,
+      "severity": "P1"
+    }
+  ],
+  "fixtureRepair": [
+    "Select UpProductionAuthorizationTemporalIdentityProfile for initial composed installation and exact replay; do not append identity installer after existing TemporalAudit mode.",
+    "For noncomposed shared fixture select identity+audit installer at initial migrateP7Authorization formation, retaining actual predecessor checks. Existing helper supports ZASP_P7_AUDIT_TEST=1 plus ZASP_P7_IDENTITY_TEST=1; explicit scoped installer selection avoids ambient environment dependence.",
+    "Register session and webhook identity purpose keys with operator owner, 32-byte purpose-specific verifier, SHA256 version, canonical 64hex audience, valid project ID, auth80_api principal and valid organization pin or empty pin. Assert epoch and api_ready using actual API principal before PAT authentication. Keep existing authorization80 verifier registration.",
+    "Use one >=32 <=512 character test PAT constant in insertion digest parameter, Authenticate and HTTP Authorization header; retain original manage_workflows/view ceiling, expiry, active membership and effective scope checks."
+  ],
+  "limitations": [
+    "Source-only fixture diagnosis; actual repaired native nine acceptance requires hosted execution.",
+    "No new tests, application runtime, source/Git edits or agents.",
+    "Public collector rebind must follow public package commit publication, in a separate bound-source commit."
+  ]
+}

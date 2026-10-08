@@ -1,0 +1,5 @@
+# First actual hosted public query result
+
+Run 37726287625 on 4d973cf1ed8ba5d2e5f5c20b2dd49cfa963f894a completed normally with all controls, source binding, acquisition, outcome and artifact steps successful. Independent fresh GitHub metadata and the finite outcome annotation report 57 requests, 19 coverage groups, 82,015 wire bytes, two upstream matches and releaseAccepted=false. The result digest and artifact ID/digest are retained in the review.
+
+Standard artifact download was refused by storage policy with HTTP 403. Original HTTP records, control streams and source/tool maps could not be inspected locally, and the two advisory identities were not yet visible. No signed URLs, tokens, bypass or raw-inspection claim are recorded. This successor adds only a bounded list of up to 64 canonical public advisory identifiers/types to the summary so the two matches can be inspected. Existing source/tool/cursor/custody limits and late-refusal checks remain unchanged; its actual run is pending. Component producer evidence does not clear the release or promote ledger rows.
