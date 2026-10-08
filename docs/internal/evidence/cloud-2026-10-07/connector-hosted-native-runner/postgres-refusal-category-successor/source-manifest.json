@@ -1,0 +1,29 @@
+{
+  "scope": "Fixed known PostgreSQL failure substring categories only; diagnostic observations, not solecause/authority",
+  "proposedPaths": [
+    "scripts/hosted-connector-nine.mjs"
+  ],
+  "predecessorSHA256": "67e9f34a043a780d80d68a9b5c620b92502f65edbaa59031ba6cd7df3effeb40",
+  "failure": {
+    "run": 37724786477,
+    "job": 113140368006,
+    "fixtureStages": [
+      "postgres-start"
+    ],
+    "goStatus": 1,
+    "topRun": 1,
+    "topFail": 1,
+    "subcasesRun": 0
+  },
+  "guardConservation": "No fixture/source/intake/test/lifecycle/caps/floors/permission changes. No new pereditcases or runtime by author. No rawoutput/filenames/parameters/credentials exposed.",
+  "members": {
+    "prior-runner.mjs": {
+      "sha256": "67e9f34a043a780d80d68a9b5c620b92502f65edbaa59031ba6cd7df3effeb40",
+      "bytes": 23540
+    },
+    "scripts/hosted-connector-nine.mjs": {
+      "sha256": "ea7743662c5cc5d84b678578a4df6e72dfcf42a564a9f8547532ef7db15f243e",
+      "bytes": 24656
+    }
+  }
+}
