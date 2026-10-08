@@ -384,8 +384,19 @@ func (handler *connectorHTTPHandler) callback(writer http.ResponseWriter, reques
 		writeProductionError(writer, request, ErrRepositoryConflict)
 		return
 	}
+	prepare := func(phase string) error {
+		if native, ok := handler.repository.(interface {
+			PrepareConnectorOAuthCallback(context.Context, string, OAuthConsumption) error
+		}); ok {
+			return native.PrepareConnectorOAuthCallback(request.Context(), phase, consumption)
+		}
+		return nil
+	}
 	rejectConsumed := func(reason string) error {
 		_, activateErr := handler.repository.ActivatePKCECleanup(request.Context(), identity.Scope, pkceCleanupID)
+		if err := prepare("secret"); err != nil {
+			return err
+		}
 		verifier, consumeErr := handler.secrets.Consume(request.Context(), consumption.PKCEVerifierReference)
 		clear(verifier)
 		_, cleanupErr := handler.repository.CompletePKCECleanup(request.Context(), identity.Scope, pkceCleanupID)
@@ -436,6 +447,10 @@ func (handler *connectorHTTPHandler) callback(writer http.ResponseWriter, reques
 		writeProductionError(writer, request, err)
 		return
 	}
+	if err := prepare("secret"); err != nil {
+		writeProductionError(writer, request, err)
+		return
+	}
 	verifier, err := handler.secrets.Consume(request.Context(), consumption.PKCEVerifierReference)
 	if err != nil || !connectorPKCEVerifier(verifier) {
 		_, _ = handler.repository.ResolveConnectorEffect(request.Context(), identity.Scope, ConnectorEffectResolution{ID: effectID, Status: "failed", ErrorCode: "verifier_unavailable", Metadata: json.RawMessage(`{}`)})
@@ -443,6 +458,11 @@ func (handler *connectorHTTPHandler) callback(writer http.ResponseWriter, reques
 		return
 	}
 	if _, err := handler.repository.CompletePKCECleanup(request.Context(), identity.Scope, pkceCleanupID); err != nil {
+		clear(verifier)
+		writeProductionError(writer, request, err)
+		return
+	}
+	if err := prepare("provider"); err != nil {
 		clear(verifier)
 		writeProductionError(writer, request, err)
 		return
@@ -469,6 +489,10 @@ func (handler *connectorHTTPHandler) callback(writer http.ResponseWriter, reques
 		CredentialID: credentialID, CredentialClass: grant.CredentialClass, Metadata: grant.Metadata,
 	})
 	if err != nil {
+		writeProductionError(writer, request, err)
+		return
+	}
+	if err := prepare("cleanup"); err != nil {
 		writeProductionError(writer, request, err)
 		return
 	}

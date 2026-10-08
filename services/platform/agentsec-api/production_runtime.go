@@ -80,7 +80,7 @@ func buildRuntimeDependenciesWithReadinessTransportDiagnostic(ctx context.Contex
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("current-authorization", errRuntimeUnavailable)
 	}
 	checker, checkerErr := authorization.NewOpenFGA(services.FGA, config.RuntimeServices)
-	revisions, revisionErr := authorization.NewCurrentProjectionRepository(ctx, pool, config.RuntimeServices.ApprovalMaintenanceProfileChecksum)
+	revisions, revisionErr := authorization.NewCurrentMaintenanceProjectionRepository(ctx, pool, config.RuntimeServices.ApprovalMaintenanceProfileChecksum, config.RuntimeServices.ConnectorMaintenanceProfileChecksum)
 	resolver, resolverErr := apiserver.NewPostgresAuthorizationResolverWithSecurityAgent(database, securityAgentDatabase)
 	attestationKey, attestationErr := authorization.NewAttestationKey([]byte(config.WorkflowSigningKey))
 	if checkerErr != nil || revisionErr != nil || resolverErr != nil || attestationErr != nil {
@@ -93,7 +93,17 @@ func buildRuntimeDependenciesWithReadinessTransportDiagnostic(ctx context.Contex
 		_ = database.Close()
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("authorization-readiness", errRuntimeUnavailable)
 	}
-	authorizer := &apiserver.OpenFGAAuthorizer{Reader: revisions, Checker: checker, Resolver: resolver, StoreID: config.RuntimeServices.StoreID, ModelID: config.RuntimeServices.ModelID, AttestationKey: attestationKey}
+	var selectedResolver apiserver.AuthorizationTargetResolver = resolver
+	if config.RuntimeServices.ConnectorMaintenanceProfileChecksum != "" {
+		callbackResolver, callbackErr := apiserver.NewConnectorMaintenanceCallbackResolver(resolver, database, config.RuntimeServices.ConnectorMaintenanceProfileChecksum)
+		if callbackErr != nil || callbackResolver == nil || ctx.Err() != nil {
+			_ = securityAgentDatabase.Close()
+			_ = database.Close()
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("authorization-components", errRuntimeUnavailable)
+		}
+		selectedResolver = callbackResolver
+	}
+	authorizer := &apiserver.OpenFGAAuthorizer{Reader: revisions, Checker: checker, Resolver: selectedResolver, StoreID: config.RuntimeServices.StoreID, ModelID: config.RuntimeServices.ModelID, AttestationKey: attestationKey}
 	authenticator, err := apiserver.NewStytchOAuthAuthenticator(config.StytchBaseURL, config.StytchProjectID, config.StytchSecret, config.ProviderTimeout, func() time.Time { return time.Now().UTC().Truncate(time.Millisecond) })
 	if err != nil {
 		_ = securityAgentDatabase.Close()
@@ -221,6 +231,23 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 	}
 	if config.EvidenceExportWorkflow == "enabled" && (config.ComplianceExports == nil || invalidRuntimeValue(securityAgentDatabase)) {
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("composition-authorization", errRuntimeUnavailable)
+	}
+	// Selection follows the original current-authorization admission. The
+	// adapter preserves all other database capabilities and grants no purpose
+	// to a bare runtime context. Selected native capture never falls back.
+	if config.RuntimeServices.ConnectorMaintenanceProfileChecksum != "" {
+		base, ok := database.(*apiserver.PostgresJSONDatabase)
+		if !ok || base == nil {
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("composition-authorization", errRuntimeUnavailable)
+		}
+		probe, cancel := context.WithTimeout(ctx, config.ProviderTimeout)
+		selected, selectionErr := apiserver.NewConnectorMaintenanceEnqueueDatabase(probe, base, config.RuntimeServices.ConnectorMaintenanceProfileChecksum)
+		live := probe.Err() == nil && ctx.Err() == nil
+		cancel()
+		if selectionErr != nil || selected == nil || !live {
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("composition-authorization", errRuntimeUnavailable)
+		}
+		database = selected
 	}
 	metrics := newOperationalMetrics()
 	exporter := newStructuredSpanExporter(output)
@@ -452,7 +479,18 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 	if err != nil {
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("connector-lifecycle", errRuntimeUnavailable)
 	}
-	connectorReconciler, err := apiserver.NewConnectorReconciler(apiserver.ConnectorReconcilerConfig{Repository: connectorRepository, Workflows: repository, Registry: connectorRegistry, Secrets: secretStore, Owner: workerOwner, LeaseSeconds: 30, Limit: 25, Interval: time.Second})
+	connectorConfig := apiserver.ConnectorReconcilerConfig{Repository: connectorRepository, Workflows: repository, Registry: connectorRegistry, Secrets: secretStore, Owner: workerOwner, LeaseSeconds: 30, Limit: 25, Interval: time.Second}
+	connectorReconciler, connectorNativeReady, connectorCloser, err := selectConnectorLifecycle(config,
+		func() (*apiserver.ConnectorReconciler, func(context.Context) error, io.Closer, error) {
+			return newRuntimeConnectorMaintenance(ctx, config, authorizer, connectorConfig)
+		},
+		func() (*apiserver.ConnectorReconciler, func(context.Context) error, io.Closer, error) {
+			r, e := apiserver.NewConnectorReconciler(connectorConfig)
+			return r, func(context.Context) error { return nil }, nil, e
+		})
+	if connectorCloser != nil {
+		connectorResources = append(connectorResources, connectorCloser)
+	}
 	if err != nil {
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("connector-lifecycle", errRuntimeUnavailable)
 	}
@@ -569,7 +607,7 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 	keepConnectorResources = true
 	return RuntimeDependencies{ProductHandler: edge, Metrics: metrics, LifecycleWorker: func(ctx context.Context) error { return runLifecycleWorkers(ctx, lifecycleWorkers...) }, ReadinessCheck: func(ctx context.Context) error {
 		if currentRequired(database) && currentRequired(securityAgentDatabase) {
-			checks := []func(context.Context) error{repository.Ready, connectorRepository.Ready, referenceRepository.Ready, policyHandler.Ready, tracedProvider.Ready}
+			checks := []func(context.Context) error{connectorNativeReady, repository.Ready, connectorRepository.Ready, referenceRepository.Ready, policyHandler.Ready, tracedProvider.Ready}
 			if agentExports != nil {
 				checks = append(checks, agentExports.Ready)
 			}
@@ -633,7 +671,7 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 		if err := tracedProvider.Ready(ctx); err != nil {
 			return errRuntimeUnavailable
 		}
-		if !connectorReconciler.Ready() {
+		if connectorNativeReady(ctx) != nil || !connectorReconciler.Ready() {
 			return errRuntimeUnavailable
 		}
 		return nil

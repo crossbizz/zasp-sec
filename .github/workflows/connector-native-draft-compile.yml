@@ -1,0 +1,58 @@
+name: Connector native draft compilation
+
+on:
+  pull_request:
+    paths:
+      - 'services/platform/**'
+      - 'services/health/**'
+      - '.github/workflows/connector-native-draft-compile.yml'
+      - '.github/connector-native-compile-source-pins.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compile:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      GOTOOLCHAIN: local
+      GOWORK: 'off'
+      GOFLAGS: '-mod=readonly'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: 1.26.8
+          cache: false
+      - name: Check frozen source association and absence of activation configuration
+        run: |
+          test "$(go version)" = 'go version go1.26.8 linux/amd64'
+          test -z "${ZASP_CONNECTOR_MAINTENANCE_PROFILE_CHECKSUM:-}"
+          test -z "${ZASP_CONNECTOR_MAINTENANCE_POSTGRES_DSN:-}"
+          test -z "${ZASP_CONNECTOR_MAINTENANCE_KEY_FILE:-}"
+          python3 - <<'PYVERIFY'
+          import hashlib, json
+          from pathlib import Path
+          source = json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())
+          assert len(source['sources']) == 22
+          for item in source['sources']:
+              raw = Path(item['path']).read_bytes()
+              assert len(raw) == item['bytes']
+              assert hashlib.sha256(raw).hexdigest() == item['sha256'], item['path']
+          PYVERIFY
+      - name: Compile eight affected packages without executing test binaries
+        run: |
+          output=$(mktemp -d "${RUNNER_TEMP}/connector-native-compile.XXXXXX")
+          for package in connectormaintenance authorization apiserver agentsec-api agentsec-worker runtimeservices migrations cmd/zasp-authorization-reconcile; do
+            echo "::group::Compile $package"
+            name=${package//\//-}
+            go test -C services/platform -race -p 1 -c -o "$output/$name.test" "./$package"
+            echo '::endgroup::'
+          done
+          git diff --exit-code -- services/platform services/health
+      # No production configuration, database start, test execution, activation,
+      # credential issuance or native admission is performed by this workflow.

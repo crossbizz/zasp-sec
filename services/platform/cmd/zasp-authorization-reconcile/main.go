@@ -77,7 +77,7 @@ func run() error {
 		return err
 	}
 	defer clients.Close()
-	repository, err := authorization.NewCurrentProjectionRepository(ctx, pool, config.ApprovalMaintenanceProfileChecksum)
+	repository, err := authorization.NewCurrentMaintenanceProjectionRepository(ctx, pool, config.ApprovalMaintenanceProfileChecksum, config.ConnectorMaintenanceProfileChecksum)
 	if err != nil {
 		return err
 	}
