@@ -365,6 +365,28 @@ func (repository *NativeConnectorRepository) CompleteConnectorRevocation(ctx con
 	return result, nil
 }
 
+// prepareCompensation admits cleanup for a genuine unattempted authorization
+// origin using current grantor and task/service authority. Existing attempted
+// work retains captured-only compensation, including after permission changes.
+func (r *NativeConnectorRepository) prepareCompensation(ctx context.Context, lease *ConnectorEffectLease) error {
+	if !validNativeConnectorRepository(r, ctx) || lease == nil {
+		return ErrRepositoryUnavailable
+	}
+	state, ok := r.reservation(nativeConnectorKey(*lease))
+	if !ok || !connectorNativeLeaseEqual(*lease, state.lease) {
+		return ErrRepositoryUnavailable
+	}
+	if len(state.captured) == 0 {
+		if lease.Operation != "authorize" {
+			return ErrRepositoryUnavailable
+		}
+		if err := r.prepare(ctx, lease, false); err != nil {
+			return err
+		}
+	}
+	return r.compensation(ctx, *lease)
+}
+
 // Captured compensation cannot authorize another recovery/revocation attempt.
 // The native call rechecks the exact attempted lease before touching a provider.
 func (r *NativeConnectorRepository) compensation(ctx context.Context, lease ConnectorEffectLease) error {

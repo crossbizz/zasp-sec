@@ -54,5 +54,34 @@ jobs:
             echo '::endgroup::'
           done
           git diff --exit-code -- services/platform services/health
-      # No production configuration, database start, test execution, activation,
-      # credential issuance or native admission is performed by this workflow.
+      - name: Existing connector handler and reconciler application regressions
+        timeout-minutes: 5
+        run: |
+          python3 - <<'PYAPPLICATION'
+          import hashlib, json, subprocess, tempfile
+          from pathlib import Path
+          pins = {'services/platform/apiserver/connector_handler_test.go': 'e62ba6a2e46a3c3b3b60a662d24b92f0ba4a1b409d3ed0c4f5d1d4ff0f23d80f', 'services/platform/apiserver/connector_reconciler_test.go': 'e8bcdefa818f3467c58f51a79085e48a3b2b2c89db40ce8a8fb6c2c0f3862309'}
+          names = ['TestConnectorAuthorizeActivatesDurablePKCECleanupAfterRejectedStart', 'TestConnectorAuthorizeDurablyStagesCleanupBeforeCreatingPKCE', 'TestConnectorAuthorizeActivatesAtomicPKCECleanupWhenProviderURLFails', 'TestConnectorAuthorizeBindsPublicLongTailKeyToPrivateProviderAuthority', 'TestConnectorCallbackCompletesLongTailAgainstPrivateAuthority', 'TestConnectorCallbackMarksEffectUnknownBeforeProviderAndRetainsRecoveryAfterPersistenceFailure', 'TestConnectorAuthorizeCreatesStateBoundPKCEAttemptWithoutSecretResponse', 'TestConnectorOAuthCallbackConsumesStateBeforeProviderAndRedirectsSafely', 'TestConnectorCallbackRejectsChangedIntentAfterConsumingStateAndDestroysVerifier', 'TestConnectorCallbackDoesNotReportIntentConflictUntilConsumedAttemptCleanupIsDurable', 'TestConnectorCallbackLeavesDurableCleanupPendingWhenDiscardFails', 'TestConnectorQuarantineRemediationRequiresFreshExactIntentAndReturnsDurableReceipt', 'TestConnectorQuarantineRemediationLostResponseReplaysBeforeHistoricalLookup', 'TestConnectorOktaRevocationRemediationDoesNotRequireOAuthEffectManifest', 'TestConnectorCallbackReplayNeverCallsProvider', 'TestConnectorCallbackConsumesFixedProviderDenialWithoutExchange', 'TestConnectorReconcilerDispatchesNextHealthyLaneWithoutWaitingForSlowSibling', 'TestConnectorReconcilerShutdownDoesNotWaitIndefinitelyForHostileProvider', 'TestConnectorReconcilerProviderFailuresDoNotBackOffGlobalClaims', 'TestConnectorReconcilerRecoversDurableOutcomeWithoutRepeatingProviderEffect', 'TestConnectorReconcilerRecoversLongTailOutcomeFromTenantBoundAuthority', 'TestConnectorReconcilerNeverRejectsUnknownOutcomeOnTransientWorkflowFailure', 'TestConnectorReconcilerNeverRejectsUnknownOutcomeOnProviderReadinessFailure', 'TestConnectorReconcilerRetriesPostCompletionCleanupWithoutRecoveringOrExchanging', 'TestConnectorReconcilerQuarantinesFinalAttemptCleanupAndRevocationFailures', 'TestConnectorReconcilerDefersAmbiguousCompletionAndQuarantinesOtherFinalAttemptFailures', 'TestConnectorReconcilerDeletesExpiredPKCEUnderLiveLease', 'TestConnectorReconcilerDrainsClaimAfterOneProviderFailure', 'TestConnectorReconcilerProcessesSlowProvidersWithoutStarvingOtherLeases', 'TestConnectorReconciliationBatchDoesNotCollapseDistinctNangoProviders', 'TestConnectorReconcilerReservesLiveLeaseTimeForFinalAttemptQuarantine', 'TestConnectorReconcilerQuarantinesExpiredFinalAttemptBeforeProviderWork', 'TestConnectorReconcilerConfirmsProviderRevocationBeforeLocalTerminalState', 'TestConnectorReconcilerRevokesLongTailConnectionWithTenantBinding', 'TestConnectorReconcilerRejectsChangedAuthorizationIntentAndRunCancels', 'TestConnectorReconcilerNeverFailsUnknownEffectWithoutPositiveProviderCleanup']
+          for file, pin in pins.items():
+              assert hashlib.sha256(Path(file).read_bytes()).hexdigest() == pin, file
+          with tempfile.TemporaryFile() as output, tempfile.TemporaryFile() as errors:
+              result = subprocess.run(['go', 'test', '-C', 'services/platform', '-race', '-p=1', '-count=1', '-timeout=2m', '-json', '-run', '^('+'|'.join(names)+')$', './apiserver'], stdout=output, stderr=errors, timeout=180)
+              assert output.tell() <= 8*1024*1024 and errors.tell() <= 1024*1024, 'output bounds exceeded'
+              output.seek(0)
+              counts = {name: {'run': 0, 'pass': 0, 'fail': 0, 'skip': 0} for name in names}
+              package_pass = 0
+              for line in output:
+                  event = json.loads(line)
+                  name, action = event.get('Test'), event.get('Action')
+                  if name in counts and action in counts[name]:
+                      counts[name][action] += 1
+                  if name is None and action == 'pass':
+                      package_pass += 1
+              failed = [name for name, value in counts.items() if value != {'run': 1, 'pass': 1, 'fail': 0, 'skip': 0}]
+              print('::notice title=Existing connector application regressions::tops='+str(len(names))+'; failedOrUnobserved='+','.join(failed)+'; exit='+str(result.returncode)+'. Component application checks only; no native lifecycle or deployment acceptance.')
+              assert result.returncode == 0 and package_pass == 1 and not failed, 'existing application group refused'
+          for file, pin in pins.items():
+              assert hashlib.sha256(Path(file).read_bytes()).hexdigest() == pin, file
+          PYAPPLICATION
+      # No production configuration, database start, activation, credential
+      # issuance or native lifecycle admission is performed by this workflow.

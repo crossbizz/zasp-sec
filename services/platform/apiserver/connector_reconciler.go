@@ -414,7 +414,7 @@ func (reconciler *ConnectorReconciler) failAfterCleanup(providerContext, finaliz
 		providerKey = reconciler.registry.authorityToKey[lease.Provider]
 	}
 	if reconciler.native != nil {
-		if err := reconciler.native.compensation(providerContext, lease); err != nil {
+		if err := reconciler.native.prepareCompensation(providerContext, &lease); err != nil {
 			return err
 		}
 	}
