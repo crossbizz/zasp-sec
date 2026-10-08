@@ -1,0 +1,7 @@
+# Pinned PostgreSQL image topology successor
+
+Run 37720976596 on 86b1f54977fa282819217796d731c13d0211ebab passed parser controls and Docker prerequisite setup, then failed during pinned-postgres-intake. Available annotations are preserved; no native application cases passed. The phase-wide refusal does not identify a sole failing statement.
+
+The prior source expected /usr/local product/share paths. Metadata retained from the exact same PostgreSQL image shows Debian /usr/lib/postgresql/18 and /usr/share/postgresql/18 paths, and exact version output `postgres (PostgreSQL) 18.3 (Debian 18.3-1.pgdg12+1)`. Those original path/version assertions cannot admit the held image. A first source-only correction still omitted the Debian version suffix; its independent blocker report is retained. Neither rejected source candidate was published as a successful runtime.
+
+The shipping successor preserves the compiled /usr directory topology, including product bin/lib, share files, and the loader in copied x86 libraries. initdb uses the owned relocated share directory, pg_ctl selects the owned postgres wrapper, and pg_config returns the owned bindir. The exact image digest, full version equality, original nine cases, auth checks, resource floors and normal cleanup requirements remain. Independent source review passes; hosted runtime relocation, native tests and cleanup remain pending. No activation, production acceptance or ledger promotion is claimed.

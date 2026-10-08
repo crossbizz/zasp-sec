@@ -1,0 +1,74 @@
+{
+  "files": {
+    "manifest.json": {
+      "bytes": 1557,
+      "metadata": [
+        34,
+        165915,
+        33152,
+        1000,
+        1000,
+        1,
+        1557,
+        1791431410738031213,
+        1791431410738031213
+      ],
+      "sha256": "bc8548f42d1fa90ecf8c62fe1ba1264b35d9f8576780e07dca68a93152e0a852"
+    },
+    "prior-runner.mjs": {
+      "bytes": 22284,
+      "metadata": [
+        34,
+        165911,
+        33152,
+        1000,
+        1000,
+        1,
+        22284,
+        1791431410737440720,
+        1791431410737440720
+      ],
+      "sha256": "688e5f3581289afba0823e13c405fb50a1e66f66994a0e0f7ecc22453964a0de"
+    },
+    "scripts/hosted-connector-nine.mjs": {
+      "bytes": 23540,
+      "metadata": [
+        34,
+        165913,
+        33152,
+        1000,
+        1000,
+        1,
+        23540,
+        1791431410737655805,
+        1791431410737655805
+      ],
+      "sha256": "67e9f34a043a780d80d68a9b5c620b92502f65edbaa59031ba6cd7df3effeb40"
+    },
+    "selected-library-manifest.json": {
+      "bytes": 50102,
+      "metadata": [
+        34,
+        165914,
+        33152,
+        1000,
+        1000,
+        1,
+        50102,
+        1791431410737677348,
+        1791431410737677348
+      ],
+      "sha256": "96642e82997ffd2caf2893a5ecc0116ad2aef6e982df2d929f3efda4e04f3474"
+    }
+  },
+  "findings": [],
+  "scope": "Known-working prerequisite parity, not proof of sole initdb-versus-readiness cause or native acceptance. No runtime/services/tests/network by reviewer. Hosted original nine no-skip PASS and normal custody still required.",
+  "source": "/tmp/hosted-connector-pg-child-libraries-np84co4d",
+  "verdict": "PASS_SOURCE_ONLY_CONDITIONAL_HOSTED_EXECUTION",
+  "verified": [
+    "179 unique safe names from exact pinned96642 public manifest; historical target/resolved paths ignored.",
+    "Current owned image member realpath containment and regularity verified before alias; glibc/loader families excluded.",
+    "Six wrappers export alias LD_LIBRARY_PATH for nested sibling children while direct explicit full-image loader/library paths and exact version remain unchanged.",
+    "Original top plus9 subcases, SQL/helper pins, lifecycle, time/output/resource guards unchanged."
+  ]
+}

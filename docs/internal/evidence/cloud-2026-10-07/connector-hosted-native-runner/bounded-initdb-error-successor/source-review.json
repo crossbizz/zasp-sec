@@ -1,0 +1,110 @@
+{
+  "A": {
+    "acceptance": "Reported prior hosted run SUCCESS with 57 requests/19 groups/2 matches does not establish release acceptance; releaseAccepted remains false.",
+    "base": "4d973cf1ed8ba5d2e5f5c20b2dd49cfa963f894a",
+    "declinedToJudge": [
+      "Actual advisory IDs from hosted run 37726287625: raw artifact unavailable (403 reported by parent).",
+      "Authenticity/current truth or complete ecosystem coverage of public upstream advisories.",
+      "New hosted execution success or release acceptance."
+    ],
+    "evidence": [
+      "safe-summary.py:58-64 publishes only up to 64 canonical GHSA identifiers and reviewed/unreviewed/malware enum values; truncated list explicitly indicated.",
+      "safe-summary.py:5-24 retains bounded regular no-follow evidence read and stable inode/metadata checks.",
+      "safe-summary.py:27,41,51 preserves releaseAccepted=false, normal outer wait, full traversal and absent late-refusal using lexists.",
+      "Manifest contains 12 unchanged source paths; all 12 current SHA256 bindings match, including the successor summary.",
+      "public_lock_adapter.py:132 producer sorts deduplicated canonical observations by ID; cursor_component.py validates GHSA grammar and stream type upstream."
+    ],
+    "files": {
+      "scripts/npm-public-api-query/safe-summary.py": "818caaf1a3b7e31e4fb898e1a9ff3b9495efef53b4851dd2a6a02d7e71079bbf",
+      "scripts/npm-public-api-query/source-manifest.json": "fa34e2fbba6c1ccd8f39ac99ff6aad39a563475531a15b15574aa7e903d6a073"
+    },
+    "root": "/tmp/npm-public-query-hosted-branch",
+    "sourceBindings": [
+      {
+        "actual": "70c2ae837d040be4756842e4016acbc4eebd6bae3d8c992aba2a80e2a097ba75",
+        "expected": "70c2ae837d040be4756842e4016acbc4eebd6bae3d8c992aba2a80e2a097ba75",
+        "path": "scripts/hosted-memory-observation.mjs"
+      },
+      {
+        "actual": "75f7365042bb76f683e427862a52e9fcfd08530174c0f5fd47b0412f526d360d",
+        "expected": "75f7365042bb76f683e427862a52e9fcfd08530174c0f5fd47b0412f526d360d",
+        "path": "scripts/hosted-memory-observation.test.mjs"
+      },
+      {
+        "actual": "e08cdf6e88affe549fe7ed602bad51d6296cfa1e990b645d4ef42a3cfeb68c38",
+        "expected": "e08cdf6e88affe549fe7ed602bad51d6296cfa1e990b645d4ef42a3cfeb68c38",
+        "path": "scripts/npm-public-api-query/cursor_component.py"
+      },
+      {
+        "actual": "89c39e2c27c4d51545b62fc26d55e8ad06fbe12707588a86c68d9322e789b2fd",
+        "expected": "89c39e2c27c4d51545b62fc26d55e8ad06fbe12707588a86c68d9322e789b2fd",
+        "path": "scripts/npm-public-api-query/cursor_controls.py"
+      },
+      {
+        "actual": "9395ca59d598460aee4007d183f86e74c9e5d296da279db8a776298f1f64ebf9",
+        "expected": "9395ca59d598460aee4007d183f86e74c9e5d296da279db8a776298f1f64ebf9",
+        "path": "scripts/npm-public-api-query/hosted-controls.py"
+      },
+      {
+        "actual": "fe3eab2c4f6afb0bb9368a679c70b49d1c65b1384093a508042d090e022afd1a",
+        "expected": "fe3eab2c4f6afb0bb9368a679c70b49d1c65b1384093a508042d090e022afd1a",
+        "path": "scripts/npm-public-api-query/memory-cli.mjs"
+      },
+      {
+        "actual": "b091aec0f44629cc442a46ca0705229ee06e9e60afad0594b5d484cd92a6fbab",
+        "expected": "b091aec0f44629cc442a46ca0705229ee06e9e60afad0594b5d484cd92a6fbab",
+        "path": "scripts/npm-public-api-query/prepare-hosted.py"
+      },
+      {
+        "actual": "d1de39b00bd9edc154853bd0634209db1fcd629a7def30d1929674239b9519cc",
+        "expected": "d1de39b00bd9edc154853bd0634209db1fcd629a7def30d1929674239b9519cc",
+        "path": "scripts/npm-public-api-query/public_lock_adapter.py"
+      },
+      {
+        "actual": "e3de00dc987f677bcee8794765880d7050ac9b3a103f7960dbea371440304497",
+        "expected": "e3de00dc987f677bcee8794765880d7050ac9b3a103f7960dbea371440304497",
+        "path": "scripts/npm-public-api-query/public_lock_controls.py"
+      },
+      {
+        "actual": "b7d52602e87faab69f84a26f9f32ca8e9457c5d84f0569b101f18d09748b5d43",
+        "expected": "b7d52602e87faab69f84a26f9f32ca8e9457c5d84f0569b101f18d09748b5d43",
+        "path": "scripts/npm-public-api-query/run-hosted.py"
+      },
+      {
+        "actual": "5e2f9448a5d08b9f994f54ffec28759785c479b88c2f9a7a4f844fb12a3037b9",
+        "expected": "5e2f9448a5d08b9f994f54ffec28759785c479b88c2f9a7a4f844fb12a3037b9",
+        "path": "scripts/npm-public-api-query/verify-plan.py"
+      },
+      {
+        "actual": "818caaf1a3b7e31e4fb898e1a9ff3b9495efef53b4851dd2a6a02d7e71079bbf",
+        "expected": "818caaf1a3b7e31e4fb898e1a9ff3b9495efef53b4851dd2a6a02d7e71079bbf",
+        "path": "scripts/npm-public-api-query/safe-summary.py"
+      }
+    ],
+    "verdict": "Conditionally ready to push the exact reviewed bytes, with normal repository checks and workflow binding preserved."
+  },
+  "B": {
+    "acceptance": "Raw original PostgreSQL --version exact 18.3/status0 does not establish initdb compatibility or native/production acceptance; predecessor initdb status1 and zero original cases remain unaccepted.",
+    "base": "e551d56dad6c9ce00b991079f846e0bbed59ea29",
+    "declinedToJudge": [
+      "Actual initdb failure cause: requires the next hosted diagnostic output.",
+      "Original nine-case native integration acceptance: reported predecessor executed zero cases.",
+      "Production/deployment acceptance or runtime activation."
+    ],
+    "evidence": [
+      "hosted-connector-nine.mjs:58-63 selects first four initdb: stderr lines, asserts no FGA token, masks owned runtime and explicit proxy environment values before 512-character truncation, and escapes GitHub percent/CR/LF controls.",
+      "hosted-connector-nine.mjs:80 invokes diagnostic only in owned-initdb-tool-smoke on nonzero exit, while preserving normal-exit, signal, timeout, output-cap and cleanup refusals.",
+      "hosted-connector-nine.mjs:113-120 places fixed initdb invocation and closed test environment before OpenFGA download and credential generation.",
+      "Existing immutable PostgreSQL image, source pins, owned command 8MiB capture/joins, resource floors, exact original nine-case invocation, postconditions and inactive/no-production receipts remain unchanged."
+    ],
+    "files": {
+      "scripts/hosted-connector-nine.mjs": "75f195bc7a3032b6cf4706116a0edc4dd3e654a54911313803a00dae7a63e70e"
+    },
+    "root": "/tmp/connector-enqueue-provenance-f84-i8zlb4ou/repo",
+    "verdict": "Conditionally ready to push the exact reviewed bytes, with normal repository checks and workflow binding preserved."
+  },
+  "findings": [],
+  "format": "independent-observability-successor-review-v1",
+  "method": "Read-only diff and surrounding source review; metadata hashing only. No tests, application runtime, network calls, Git/index/tree/branch mutations or further agents.",
+  "reviewer": "review_observability_successors"
+}

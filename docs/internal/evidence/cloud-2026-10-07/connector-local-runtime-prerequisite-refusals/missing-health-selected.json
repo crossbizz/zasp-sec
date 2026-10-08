@@ -1,0 +1,42 @@
+{
+  "format": "connector-native-original-captured-INACTIVE-root-actual-v1",
+  "completed": false,
+  "failure": "RuntimeError:child stage refused:offline-modules",
+  "firstRefusal": {
+    "elapsedSeconds": 2.9756030830030795,
+    "phase": "offline-modules",
+    "reason": "RuntimeError:child stage refused:offline-modules",
+    "resources": null,
+    "signals": []
+  },
+  "elapsedSeconds": 4.282408805003797,
+  "results": [],
+  "waits": [
+    {
+      "joined": true,
+      "pid": 60804,
+      "returnCode": 0,
+      "tag": "base-head"
+    },
+    {
+      "joined": true,
+      "pid": 60806,
+      "returnCode": 1,
+      "tag": "offline-modules"
+    }
+  ],
+  "forced": false,
+  "signals": [],
+  "ownedReaps": [],
+  "ownedSessionSurvivors": [],
+  "processCensusUnknown": [],
+  "fgaLiveBinding": null,
+  "fgaNormalStop": null,
+  "productionActivated": false,
+  "sourceBeforeSHA256": null,
+  "sourceAfterSHA256": "7fca35a3ff73059fdd6e068d107f3067445e69747c9b25b012f71b76da4b2035",
+  "selection": {
+    "rawSHA256": "3d4ec018fc9d2ae084f65579bea8dca6cc6983cf62e465d3b880088c3520e436",
+    "omittedFields": "Tool alias targets and other preparation-only metadata; original private result is unchanged."
+  }
+}

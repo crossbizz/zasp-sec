@@ -1,0 +1,7 @@
+# Local original connector runtime prerequisite refusals
+
+Native tests executed: zero. The first owner joined normally with exit 1 after 4.380 seconds. Offline module preparation refused because the sparse checkout omitted the local `services/health/go.mod` replacement. Five exact tracked health files were then restored without modifying any source body. No FGA or native test stage started, and no forced cleanup, residual owned session or unknown process remained.
+
+The corrected owner refused before launching any runtime: workspace free space was 1,461,178,368 bytes, below the unchanged 1,500,000,000-byte floor. Temporary storage and memory floors passed. Disk growth was not attributed to an actor; Git objects and evidence remain intact. Neither failure is a causal application RED or native acceptance. The 728-row ledger is unchanged.
+
+The original raw-result publication scan found a generic-api-key match in a PostgreSQL `libgssapi_krb5` library symlink name, before any FGA token or service existed. That unsuccessful publication is preserved privately in commit de48b675 and its redacted scan is retained here. No ignore rule or scanner configuration changed. This public selection preserves every listed outcome, resource refusal and cleanup field exactly, references the unchanged original raw SHA256, and omits preparation-only alias metadata. The original private result remains unchanged.

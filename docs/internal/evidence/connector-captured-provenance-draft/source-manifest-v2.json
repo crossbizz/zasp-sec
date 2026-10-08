@@ -1,0 +1,39 @@
+{
+  "format": "connector-captured-inactive-v2-source-only",
+  "historicalCommit": "e1a7626d562a73419d040dcf4ebdb55edb46c86c",
+  "actualTestsExecuted": 0,
+  "newNativeGroups": 1,
+  "totalPreparedSubcases": 9,
+  "members": [
+    {
+      "path": "/tmp/connector-enqueue-provenance-f84-i8zlb4ou/repo/services/platform/migrations/sql/connector_enqueue_provenance.sql",
+      "sha256": "32b3f8cbe175b5256ff4542cdff044d6d060e0240d24632bf3d057f3553a5c13",
+      "bytes": 12222
+    },
+    {
+      "path": "/tmp/connector-enqueue-provenance-f84-i8zlb4ou/repo/services/platform/migrations/production_connector_enqueue_provenance.go",
+      "sha256": "809041eced547701b1e3ac3c1f68ac45d7b403336f5de6df4dda13b10db83267",
+      "bytes": 3818
+    },
+    {
+      "path": "/tmp/connector-enqueue-provenance-f84-i8zlb4ou/repo/services/platform/apiserver/connector_enqueue_provenance_postgres_test.go",
+      "sha256": "d6039cfa0d1673a5cf29e68e209b73c2cb6aeefd715e4d7805d3690b8ab0afde",
+      "bytes": 17593
+    },
+    {
+      "path": "/tmp/connector-enqueue-provenance-f84-i8zlb4ou/control-v2/top-xid-savepoint-omission-red.sql",
+      "sha256": "0d474adc791535689e2e611372400ff3ea049d6cd02bd2f4c5922e013cb43340",
+      "bytes": 12251
+    },
+    {
+      "path": "/tmp/connector-enqueue-provenance-f84-i8zlb4ou/control-v2/red-overlay.json",
+      "sha256": "8c03cb96d7b9bd9ec263aa5141c49c787ef47b5404e3e1342c01777a1ba6b8c0",
+      "bytes": 243
+    },
+    {
+      "path": "/tmp/connector-enqueue-provenance-f84-i8zlb4ou/control-v2/ROOT-RECIPE.json",
+      "sha256": "199d964b970aed3f807a36a9328a721a7ca76a7ea937893fc38dc40e7e023ef8",
+      "bytes": 2353
+    }
+  ]
+}

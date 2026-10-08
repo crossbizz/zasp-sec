@@ -1,0 +1,53 @@
+{
+  "files": {
+    "manifest.json": {
+      "bytes": 1262,
+      "metadata": [
+        34,
+        169908,
+        33152,
+        1000,
+        1000,
+        1,
+        1262,
+        1791432431275055072,
+        1791432431275055072
+      ],
+      "sha256": "9de9b81ed2c6bd2c1d050a9a77d169bbe78f5de7169d1d7bcc3904acffb298fa"
+    },
+    "prior-runner.mjs": {
+      "bytes": 24656,
+      "metadata": [
+        34,
+        169905,
+        33152,
+        1000,
+        1000,
+        1,
+        24656,
+        1791432431274513564,
+        1791432431274513564
+      ],
+      "sha256": "ea7743662c5cc5d84b678578a4df6e72dfcf42a564a9f8547532ef7db15f243e"
+    },
+    "scripts/hosted-connector-nine.mjs": {
+      "bytes": 25850,
+      "metadata": [
+        34,
+        169907,
+        33152,
+        1000,
+        1000,
+        1,
+        25850,
+        1791432431274696680,
+        1791432431274696680
+      ],
+      "sha256": "bb2d74a925437619d1abea37f8ac8575d86f80ccb4060ac26eebfe87ea73bc82"
+    }
+  },
+  "findings": [],
+  "scope": "One30s existing owned run of owned initdb wrapper into new empty disposable output directory after exact postgres version before FGA/Go. Same no-locale/UTF8/localtrust/hosttrust/username zasp_e2e flags as original disposable fixture; never starts server or adds native cases. Existing command cleanup/floor sampler/8MiB cap/assertion refusal preserved. Diagnostics factor original category map plus three fixed patterns; emits finite labels and command metadata, no raw stderr/paths/credentials. Original9 test/SQL/helper/source pins and all protections unchanged. Compatibility prerequisite observation only; precise hosted refusal cause and native acceptance unproven. No runtime/tests/services/network by reviewer; ROOT final scans and actual hosted normal custody still required.",
+  "source": "/tmp/hosted-connector-initdb-smoke-4bfx900z",
+  "verdict": "PASS_BOUNDED_INITDB_PREREQUISITE_SOURCE_ONLY"
+}

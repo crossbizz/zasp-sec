@@ -1,0 +1,59 @@
+{
+  "cause": "OfflineGo module enumeration refuses trackedlocal replace ../health because sparsephysicalcheckout lacks services/health/go.mod. Source closure/setupfailure, not nativeSQL/FGA/product assertion.",
+  "cleanup": {
+    "adoptedChildren": [],
+    "forced": false,
+    "lateRefusalAbsent": true,
+    "ownedReaps": [],
+    "ownedSessionSurvivors": [],
+    "processCensusUNKNOWN": [],
+    "signals": []
+  },
+  "finalResources": {
+    "/dev/shm": 9441349632,
+    "/tmp": 1439838208,
+    "/workspace": 1500475392,
+    "memoryHeadroom": 785604608
+  },
+  "inner": {
+    "path": "/tmp/actual-connector-native-reviewed-s49h3aaf/result.json",
+    "sha256": "3d4ec018fc9d2ae084f65579bea8dca6cc6983cf62e465d3b880088c3520e436"
+  },
+  "inputAfter": {
+    "beforeNotReached": true,
+    "canonicalDigestMatchesResult": true,
+    "count": 18453,
+    "path": "/tmp/actual-connector-native-reviewed-s49h3aaf/inputs-after.json",
+    "sha256": "88749e80435e2d3ac645252cf30118eea851b1c8433f82f4656dd0ea9fe88c19"
+  },
+  "noNativeStagesOrFGAStarted": true,
+  "outer": {
+    "elapsedSeconds": 4.3799060079982155,
+    "normalJoin": true,
+    "path": "/tmp/connector-native-donor-root-outer-hsi71abh/result.json",
+    "returnCode": 1,
+    "sha256": "6a2b92d308de5be038d50ace7ebccd834b0107fb85e9019e723ccd629d9c2383"
+  },
+  "outerToolMapsExactEqual": true,
+  "qualifications": [
+    "Fullinputbefore was not reached due offline-modules failure; no whole pre/post source-conservation claim is made.",
+    "No native test events, authentication/readiness/component assertions or provider/deployment acceptance observed.",
+    "Original failure maps/logs/receipts remain unchanged; successor adds only exactmissingtrackedhealth bodies and system-tool pins."
+  ],
+  "reviewerRuntimeOrSourceMutation": false,
+  "stageWaits": [
+    {
+      "joined": true,
+      "pid": 60804,
+      "returnCode": 0,
+      "tag": "base-head"
+    },
+    {
+      "joined": true,
+      "pid": 60806,
+      "returnCode": 1,
+      "tag": "offline-modules"
+    }
+  ],
+  "status": "VERIFIED_PRE_NATIVE_SOURCE_CLOSURE_FAILURE_NO_NATIVE_TEST_ACCEPTANCE"
+}

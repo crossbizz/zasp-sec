@@ -1,0 +1,4 @@
+{
+  "scripts/hosted-connector-nine.mjs": "48ca3d2e0af3db93e8d1fb30a482edcdce6026da55ccc1f1837530a718b83fad",
+  ".github/workflows/connector-capture-native.yml": "bc396accab0677997044aabf2711227dcd59e61c0ac5972c3dba1af07a8bb147"
+}

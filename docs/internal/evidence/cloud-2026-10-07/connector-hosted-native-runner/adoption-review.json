@@ -1,0 +1,10 @@
+{
+  "exactInverse": "Removing exactly three identical explanatory block comments reproduces all original reviewed bytes.",
+  "other12ManifestMembers": "Adopted bytes match all reviewed hashes and sizes, including unchanged workflow and original capture sources/helpers.",
+  "priorReviewPath": "/tmp/independent-hosted-connector-nine-V3-source-review.json",
+  "priorReviewSHA256": "80bdaf110df28c34f358252bc02a00e2537acbfd726809a19a8e21bbfa811e30",
+  "reviewedRunnerSHA256": "c048fbc357deda168a8d833a24681f6381fe4e6ed82a4093774fe1c3084b5227",
+  "runnerSHA256": "48ca3d2e0af3db93e8d1fb30a482edcdce6026da55ccc1f1837530a718b83fad",
+  "scope": "Source adoption only; no runtime/tests/scanners executed by reviewer; prior conditional hosted-execution scope retained. ROOT reported syntax/ESLint PASS; staged default scanner/commit controls remain ROOT prerequisites.",
+  "verdict": "PASS_COMMENT_ONLY_ADOPTION"
+}
