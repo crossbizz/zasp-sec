@@ -1,0 +1,17 @@
+{
+  "admissionSHA256": "51c0335768b965688f8b14075a1e7720bb5cf3207e60ba7ce0ff0e77908602ab",
+  "blocker": {
+    "actualRetainedAdmissionOutput": "postgres (PostgreSQL) 18.3 (Debian 18.3-1.pgdg12+1)",
+    "reason": "Existing regex requires newline immediately after 18.3 and rejects the recorded same-image Debian suffix.",
+    "requestedRepair": "New immutable successor binds exact retained full version output; preserve current candidate.",
+    "source": "assert.match postgres --version /PostgreSQL\\) 18\\.3\\n$/"
+  },
+  "checks": [
+    "Corrected Debian product/share/loader paths correspond to retained admitted image digest; all six product binaries and share/loader metadata observed regular in admitted root.",
+    "Diff limited to intake/product/share/library paths; original digest/test/source/caps/cleanup unchanged."
+  ],
+  "manifestSHA256": "4b1075381a34d5959fe10ee9fd91adcfd5b4730111d4bab15eefa1dfb6d11435",
+  "runnerSHA256": "5adc1f43bcb54a5887cf8918307c672a7cc0f4401f149d1459562ba6e10fbcb3",
+  "runtimeExecutedByReviewer": false,
+  "verdict": "BLOCKED_NARROW_VERSION_OUTPUT_MISMATCH"
+}

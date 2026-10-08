@@ -71,18 +71,18 @@ try{
  phase='pinned-postgres-intake';await run('docker',['--host=unix:///var/run/docker.sock','pull',image],180);
  const inspected=JSON.parse((await run('docker',['--host=unix:///var/run/docker.sock','image','inspect',image])).stdout);assert.ok(inspected.length===1&&inspected[0].RepoDigests.includes(image));
  container=(await run('docker',['--host=unix:///var/run/docker.sock','create','--name','zasp-connector-pg-extract-'+randomBytes(8).toString('hex'),'--network=none','--read-only','--entrypoint=/bin/true',image])).stdout.trim();assert.match(container,/^[a-f0-9]{64}$/);
- const pg=path.join(out,'pg');await mkdir(pg,{mode:0o700});
- for(const [source,destination]of [['/usr/local',path.join(pg,'local')],['/usr/lib/x86_64-linux-gnu',path.join(pg,'lib')],['/lib64/ld-linux-x86-64.so.2',path.join(pg,'loader')]])await run('docker',['--host=unix:///var/run/docker.sock','cp','-L',container+':'+source,destination]);
+ const pg=path.join(out,'pg');await mkdir(pg,{mode:0o700});await mkdir(path.join(pg,'root/usr/lib/postgresql'),{mode:0o700,recursive:true});await mkdir(path.join(pg,'root/usr/share/postgresql'),{mode:0o700,recursive:true});
+ for(const [source,destination]of [['/usr/lib/postgresql/18',path.join(pg,'root/usr/lib/postgresql/18')],['/usr/share/postgresql/18',path.join(pg,'root/usr/share/postgresql/18')],['/usr/lib/x86_64-linux-gnu',path.join(pg,'root/usr/lib/x86_64-linux-gnu')]])await run('docker',['--host=unix:///var/run/docker.sock','cp','-L',container+':'+source,destination]);
  await run('docker',['--host=unix:///var/run/docker.sock','rm',container]);container=undefined;
  const bin=path.join(pg,'bin');await mkdir(bin,{mode:0o700});
- assert.ok((await lstat(path.join(pg,'local/share/postgresql/postgres.bki'))).isFile());
+ assert.ok((await lstat(path.join(pg,'root/usr/share/postgresql/18/postgres.bki'))).isFile());
  for(const name of ['postgres','initdb','pg_ctl','pg_isready','psql','pg_config']){
-  const binary=path.join(pg,'local/bin',name);assert.ok((await lstat(binary)).isFile());
-  const prefix=name==='initdb'?`set -- -L '${pg}/local/share/postgresql' "$@"\n`:name==='pg_ctl'?`set -- -p '${bin}/postgres' "$@"\n`:name==='pg_config'?`if [ "$#" -eq 1 ] && [ "$1" = --bindir ]; then printf '%s\\n' '${bin}'; exit 0; fi\n`:'';
-  await writeFile(path.join(bin,name),`#!/bin/sh\nset -eu\n${prefix}exec '${pg}/loader' --library-path '${pg}/lib:${pg}/local/lib' '${binary}' "$@"\n`,{mode:0o500,flag:'wx'});
+  const binary=path.join(pg,'root/usr/lib/postgresql/18/bin',name);assert.ok((await lstat(binary)).isFile());
+  const prefix=name==='initdb'?`set -- -L '${pg}/root/usr/share/postgresql/18' "$@"\n`:name==='pg_ctl'?`set -- -p '${bin}/postgres' "$@"\n`:name==='pg_config'?`if [ "$#" -eq 1 ] && [ "$1" = --bindir ]; then printf '%s\\n' '${bin}'; exit 0; fi\n`:'';
+  await writeFile(path.join(bin,name),`#!/bin/sh\nset -eu\n${prefix}exec '${pg}/root/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2' --library-path '${pg}/root/usr/lib/x86_64-linux-gnu:${pg}/root/usr/lib/postgresql/18/lib' '${binary}' "$@"\n`,{mode:0o500,flag:'wx'});
  }
  const testEnv={...closed,GOPROXY:'off',PATH:bin+':'+closed.PATH,ZASP_P7_MODEL_TEST:'1'};
- assert.match((await run(path.join(bin,'postgres'),['--version'],5,testEnv)).stdout,/PostgreSQL\) 18\.3\n$/);
+ assert.equal((await run(path.join(bin,'postgres'),['--version'],5,testEnv)).stdout,"postgres (PostgreSQL) 18.3 (Debian 18.3-1.pgdg12+1)\n");
  phase='pinned-openfga-intake';const archive=path.join(out,'openfga.tar.gz');
  await run('/usr/bin/curl',['--disable','--fail','--silent','--show-error','--location','--proto','=https','--proto-redir','=https','--max-time','90','--max-filesize','21232870','--output',archive,'https://github.com/openfga/openfga/releases/download/v1.21.0/openfga_1.21.0_linux_amd64.tar.gz'],95);await chmod(archive,0o400);
  tool=await loadOfficialHeldTool('openfga',archive,path.join(out,'openfga-held'));receipt.fgaTool=await verifyHeldTool(tool);

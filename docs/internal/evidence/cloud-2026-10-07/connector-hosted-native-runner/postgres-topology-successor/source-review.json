@@ -1,0 +1,13 @@
+{
+  "admissionSHA256": "51c0335768b965688f8b14075a1e7720bb5cf3207e60ba7ce0ff0e77908602ab",
+  "checks": [
+    "Diff only explicit parent directory materialization, three same-image cp source/destination paths and corresponding share/binary/loader/library wrapper references.",
+    "Preserves usr/lib/postgresql/18/bin and usr/share/postgresql/18 relation; complete x86_64-linux-gnu directory supplies loader without duplicate overwrite.",
+    "Exact prior full Debian18.3 version equality, image digest, original singleton9, pg_ctl explicit owned postgres wrapper and pg_config wrapper bindir remain unchanged.",
+    "All source/auth/cleanup/floor/deadline/output guards and tested memory helper unchanged; V2 prior bytes retained."
+  ],
+  "manifestSHA256": "fa282aab4b95e257420ab57dfd073c7bb6d002bbf9cbff54317066e8ef51c733",
+  "qualification": "Source approval conditional on actual hosted extraction/wrapper/version/authentication/nine-case normal PG+FGA acceptance. No services, tests, image requests or binary execution by reviewer. Filesystem suffix conservation is a source property, not an observed successful relocation/runtime.",
+  "runnerSHA256": "7f32b013c28428d8da4c9dca1a4202b8986bea4cfb8439cc7ce55498134fa317",
+  "verdict": "PASS_PG_USR_TOPOLOGY_V3_SOURCE"
+}
