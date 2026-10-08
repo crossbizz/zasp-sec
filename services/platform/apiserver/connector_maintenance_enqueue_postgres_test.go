@@ -121,8 +121,15 @@ func TestConnectorMaintenanceAuthenticatedOAuthEnqueuePostgres(t *testing.T) {
 		next[17] = connectorDeterministicID(f.browser.Scope, next[4].(string), "oauth-effect")
 		var result []byte
 		var native *pgconn.PgError
-		if err := tx.QueryRow(f.ctx, query, next...).Scan(&result); !errors.As(err, &native) || native.Code != "23505" {
-			t.Fatal("original competing pending attempt unexpectedly admitted")
+		attemptErr := tx.QueryRow(f.ctx, query, next...).Scan(&result)
+		connectorApplicationMigrationFailure(t, "oauth-competing-attempt", query, attemptErr)
+		if attemptErr == nil {
+			t.Log("connector rollback result=admitted")
+		} else if !errors.As(attemptErr, &native) {
+			t.Log("connector rollback result=non-postgres-error")
+		}
+		if !errors.As(attemptErr, &native) || native.Code != "23505" {
+			t.Fatal("original competing pending attempt did not produce expected native refusal")
 		}
 		connectorProvenanceRollback(tx)
 		var untouched bool
@@ -190,7 +197,7 @@ func connectorApplicationMigrationFailure(t *testing.T, phase, statement string,
 			return
 		}
 	}
-	if phase != "worker-profile" && phase != "approval-profile" && phase != "connector-profile" {
+	if phase != "worker-profile" && phase != "approval-profile" && phase != "connector-profile" && phase != "oauth-competing-attempt" {
 		return
 	}
 	target := "unknown"
@@ -201,7 +208,9 @@ func connectorApplicationMigrationFailure(t *testing.T, phase, statement string,
 		}
 	}
 	kind := "private-query"
-	if strings.Contains(statement, "CREATE TABLE zasp_approval_maintenance.") {
+	if strings.HasPrefix(statement, "SELECT zasp_connector_maintenance.start_oauth(") {
+		kind = "oauth-admission"
+	} else if strings.Contains(statement, "CREATE TABLE zasp_approval_maintenance.") {
 		kind = "approval-definitions"
 	} else if strings.Contains(statement, "CREATE TABLE zasp_connector_maintenance.") {
 		kind = "connector-definitions"

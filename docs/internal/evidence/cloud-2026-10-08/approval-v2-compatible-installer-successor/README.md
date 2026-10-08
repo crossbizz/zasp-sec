@@ -1,0 +1,7 @@
+# Original v2 identity with repaired installer privileges
+
+The original approval SQL body and its v2 profile name/checksum are unchanged from main. The strict verified source returns the original bytes (SHA256 `e894ab1c8045a23e4055ced58a89af8a795b26ebf8f4518c83caa89de53a269b`), with no prefix or newline substitution. The existing whole-source test is restored byte-for-byte from main.
+
+The earlier v3 association was unnecessary after the erroneous newline diagnosis was withdrawn: the role/bootstrap/organization-column REFERENCES repair changes installer behavior without changing installed module definitions. Retaining v2 avoids needlessly rejecting a valid existing v2 catalog. The original SQL checksum, exact catalog/fingerprint and Worker/Temporal/current80 readiness gates continue to govern it; no registration or fingerprint is rewritten. Historical v3 proposals and outcomes are preserved and do not establish a migration or retirement claim.
+
+The reviewed exact REFERENCES(id) prerequisite, registered operator bootstrap, authority-owned definitions, atomic rollback, diagnostic safety and all runtime bounds remain intact. Installer and helper source changes are bound by the 32-member checkpoint `bb3fed30094170f8073b56d62c21298277685bbe3b3dce45200f47a1364b939e`, following `fb98bb34d5d22954a1430414c097e1ea02d266687a4ca56b895f326853c99a5c`. Actual current successor outcomes remain pending, with no production or active lifecycle acceptance inferred.

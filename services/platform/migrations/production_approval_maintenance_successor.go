@@ -7,15 +7,15 @@ import (
 	"strings"
 )
 
-// Preserve the v2 SQL bytes as historical input. The v3 compiled successor
-// binds the corrected installer association to a new whole-source pin.
-func approvalMaintenanceSQLSuccessor() string {
+// Installer repairs preserve the original v2 SQL identity and stored catalogs.
+// Source pins track installer changes; no module source or checksum is rewritten.
+func approvalMaintenanceVerifiedSQL() string {
 	const legacySHA256 = "e894ab1c8045a23e4055ced58a89af8a795b26ebf8f4518c83caa89de53a269b"
 	h := sha256.Sum256([]byte(approvalMaintenanceSQL))
 	if hex.EncodeToString(h[:]) != legacySHA256 {
 		panic("approval maintenance predecessor changed")
 	}
-	return "-- " + ApprovalMaintenanceProfileName + "\n" + approvalMaintenanceSQL
+	return approvalMaintenanceSQL
 }
 
 func approvalMaintenanceDefinitions(source string) (string, error) {
