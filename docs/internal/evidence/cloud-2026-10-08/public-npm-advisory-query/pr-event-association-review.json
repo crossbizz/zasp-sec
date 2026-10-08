@@ -1,0 +1,8 @@
+{
+  "docSHA256": "95e8c27a944175903bb19793bae6b43353c1e2b695f2ae9b4c532cb95df4028b",
+  "priorWorkflowSHA256": "97dab3a3bad73f84098667fda1920be436ecaf1a7c5879df4494a9f172a7e278",
+  "scope": "Sole workflow delta adds scoped pull_request paths for workflow/component/memoryhelper/lock; manual trigger retained. Exact inverse recovers original97dab bytes. All eleven source descriptors still match; source algorithms/limits/pins/token scope/contents-read/persistfalse/actions and artifact behavior unchanged. Exact public lock hash refuses changed private/arbitrary graphs before querying. Standard pull_request event uses no pull_request_target or repository secrets; read-only github.token only query step. Doc updates trigger wording and keeps release/snapshot/consistency limitations. No tests/runtime/network executed. ROOT final staged scans and actual hosted controls/acquisition results required.",
+  "sourceManifestSHA256": "6bb7af84833144f1accada81d3d7945f79072cfea5aaf6de2923538183e01328",
+  "verdict": "PASS_SCOPED_PULL_REQUEST_EVENT_ASSOCIATION_SOURCE",
+  "workflowSHA256": "29e381c372532f76c42c24230767d00f4c18fe6be30a80e22dde0da34d43056a"
+}

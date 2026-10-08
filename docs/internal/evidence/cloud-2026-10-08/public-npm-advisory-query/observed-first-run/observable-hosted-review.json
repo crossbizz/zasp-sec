@@ -1,0 +1,108 @@
+{
+  "artifactDownload": {
+    "method": "standard gh run download",
+    "outcome": "HTTP403 storage policy refusal",
+    "rawInspected": false,
+    "signedURLsRetained": false
+  },
+  "artifacts": [
+    {
+      "digest": "sha256:6e29c20f1a59c93381ad826ab401c3b1ae449152beb38d3f430a02701c908a35",
+      "expired": false,
+      "id": 11527333818,
+      "name": "public-npm-advisory-query-evidence",
+      "size_in_bytes": 345227
+    }
+  ],
+  "assessment": "Hosted normal successful controls/query/outcome/artifact steps and fixed scalar outcome independently observed. Raw control/event streams, originalHTTP, source/tool prepost maps and two advisory identities could not be independently inspected because artifact access refused. Annotation reports complete57requests19coveragegroups82015wirebytes and2matches; no authenticated snapshot/localOSV/Go/images/SBOM/release acceptance inferred.",
+  "completedAt": "2026-10-08T04:12:41Z",
+  "format": "independent-public-npm-hosted-observable-review-v1",
+  "headSHA": "4d973cf1ed8ba5d2e5f5c20b2dd49cfa963f894a",
+  "jobConclusion": "success",
+  "jobId": 113145095081,
+  "outcomeAnnotation": {
+    "complete": true,
+    "coverageCount": 19,
+    "failureClass": null,
+    "outerExit": 0,
+    "recordedRequests": 57,
+    "releaseAccepted": false,
+    "requests": 57,
+    "resultSHA256": "f0f338bb042943e56fa10edc1abb869e63e5a5da4dd9e4ee2fcaea947fc12218",
+    "upstreamMatchedObservationsCount": 2,
+    "wireBytes": 82015
+  },
+  "releaseAccepted": false,
+  "runConclusion": "success",
+  "runId": 37726287625,
+  "runStatus": "completed",
+  "startedAt": "2026-10-08T04:11:32Z",
+  "steps": [
+    {
+      "conclusion": "success",
+      "name": "Set up job",
+      "number": 1,
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "number": 2,
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "name": "Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+      "number": 3,
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "name": "Bind source and actual hosted tools",
+      "number": 4,
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "name": "Causal omission and grouped offline controls",
+      "number": 5,
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "name": "Collect bounded official public-lock queries",
+      "number": 6,
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "name": "Publish bounded public-query outcome",
+      "number": 7,
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "name": "Retain original public responses and failure evidence",
+      "number": 8,
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "name": "Post Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+      "number": 15,
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "number": 16,
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "name": "Complete job",
+      "number": 17,
+      "status": "completed"
+    }
+  ]
+}

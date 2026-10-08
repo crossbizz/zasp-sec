@@ -1,0 +1,5 @@
+# Preserve the failed public query rerun
+
+Run 37728031229 on 0fab4fb495b19a78ac2d61c391f3833a37b55964 failed with 37 recorded responses, RuntimeError, complete=false and no outer exit receipt. The actual owner refusal is not identified by that generic class. GitHub's injected bash errexit also caused the wrapper to exit before saving its command status. The successful earlier run remains a separate observation; neither is rewritten.
+
+The successor disables errexit only around the bounded owner command, captures its real status, restores errexit, saves the outer receipt and exits with that same status. It adds only the last attempt index and numeric HTTP status to the finite summary, reading the first 64 KiB from a bounded regular no-follow original file with stable metadata. No raw body, headers or credential is exposed. All original acquisition limits, source bindings, normal-join and late-refusal acceptance remain mandatory. Independent source review passes; actual successor run is pending and releaseAccepted remains false.
