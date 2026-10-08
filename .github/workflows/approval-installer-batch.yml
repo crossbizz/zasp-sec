@@ -1,0 +1,71 @@
+name: Approval installer compatibility batch
+on:
+  pull_request:
+    paths:
+      - 'services/platform/migrations/production_approval_maintenance_profile.go'
+      - 'services/platform/migrations/production_approval_maintenance_successor.go'
+      - '.github/workflows/approval-installer-batch.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  installer-components:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      GOTOOLCHAIN: local
+      GOFLAGS: '-mod=readonly'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: 1.26.8
+          cache: false
+      - name: Compile affected consumers and existing test binaries
+        run: |
+          test "$(go version)" = 'go version go1.26.8 linux/amd64'
+          output=$(mktemp -d "${RUNNER_TEMP}/approval-installer-compile.XXXXXX")
+          for package in migrations apiserver agentsec-api agentsec-worker; do
+            go test -C services/platform -race -p 1 -c -o "$output/$package.test" "./$package"
+          done
+          git diff --exit-code -- services/platform services/health
+      - name: Existing grouped migration regressions and immutable SQL source checks
+        timeout-minutes: 15
+        run: |
+          receipt=$(mktemp "${RUNNER_TEMP}/approval-migration-results.XXXXXX")
+          set +e
+          # Keep the repository db:schema:test default ten-minute Go deadline.
+          go test -C services/platform -race -p 1 -count=1 -json ./migrations > "$receipt" 2>&1
+          group_status=$?
+          set -e
+          python3 - "$receipt" "$group_status" <<'PYRESULT'
+          import json, re, sys
+          counts = {action: 0 for action in ('run', 'pass', 'fail', 'skip')}
+          failed, active = set(), set()
+          timed = False
+          with open(sys.argv[1]) as receipt:
+              for line in receipt:
+                  try:
+                      row = json.loads(line)
+                  except json.JSONDecodeError:
+                      continue
+                  output = row.get('Output', '')
+                  if isinstance(output, str) and re.match(r'^panic: test timed out after [0-9]+m[0-9]+s\n', output):
+                      timed = True
+                  name, action = row.get('Test', ''), row.get('Action', '')
+                  if not isinstance(name, str) or not re.fullmatch(r'Test[A-Za-z0-9_]{1,160}', name):
+                      continue
+                  if action in counts:
+                      counts[action] += 1
+                  if action == 'run':
+                      active.add(name)
+                  elif action in ('pass', 'fail', 'skip'):
+                      active.discard(name)
+                  if action == 'fail':
+                      failed.add(name)
+          print('::notice title=Existing approval migration group::' + json.dumps({'exit': int(sys.argv[2]), 'timedOut': timed, 'tops': counts, 'failed': sorted(failed)[:16], 'activeAtExit': sorted(active)[:16]}))
+          PYRESULT
+          test "$group_status" -eq 0
+          git diff --exit-code -- services/platform services/health

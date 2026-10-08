@@ -1,0 +1,16 @@
+{
+  "base": "32ea911cca555447c56f269a28bc496b8e770e95",
+  "nativeComposedVerificationCommit": "a600ef62e4ad96f18648ad5ee8fcf1ed3b177a00",
+  "sources": [
+    {
+      "path": "services/platform/migrations/production_approval_maintenance_profile.go",
+      "sha256": "2e98fa960c2e7b42b2a6a343b4ff47059c0d23fac83dbed887d2868f1b9c99f3",
+      "bytes": 55474
+    },
+    {
+      "path": "services/platform/migrations/production_approval_maintenance_successor.go",
+      "sha256": "6817964c5c0dfcabe7ea9f65caf5b7840f6d9e4d29a1ec39b00e1b03b0fa6eca",
+      "bytes": 3122
+    }
+  ]
+}
