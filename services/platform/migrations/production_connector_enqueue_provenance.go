@@ -64,15 +64,32 @@ func (r *Runner) UpProductionConnectorEnqueueProvenance(ctx context.Context) err
 		if err := check(`SELECT EXISTS(SELECT 1 FROM public.zasp_discovery_principal_bindings WHERE principal_name=session_user AND authority_role='zasp_discovery_authority') AND pg_has_role(session_user,'zasp_discovery_authority','MEMBER') AND(SELECT count(*)=61 FROM public.zasp_schema_versions) AND EXISTS(SELECT 1 FROM public.zasp_schema_versions WHERE version=61 AND checksum=$1) AND zasp_authorization80.ready($2)`, ProductionSecurityAgentMultistep().Checksum(), ProductionAuthorizationEnforcement().Checksum()); err != nil {
 			return err
 		}
-		if err := tx.Exec(ctx, `SET LOCAL ROLE zasp_discovery_authority`); err != nil {
-			return fixedDatabaseError(ctx, err)
-		}
 		var present bool
 		if err := scanRow(ctx, tx, `SELECT to_regnamespace('zasp_connector_provenance') IS NOT NULL`, nil, &present); err != nil {
 			return fixedDatabaseError(ctx, err)
 		}
+		const schemaDDL = `CREATE SCHEMA zasp_connector_provenance AUTHORIZATION zasp_discovery_authority;`
+		before, definitions, found := strings.Cut(source, schemaDDL)
+		if !found || strings.Count(source, schemaDDL) != 1 {
+			return ErrInvalidState
+		}
+		for _, line := range strings.Split(before, "\n") {
+			if trimmed := strings.TrimSpace(line); trimmed != "" && !strings.HasPrefix(trimmed, "--") {
+				return ErrInvalidState
+			}
+		}
 		if !present {
-			if err := tx.Exec(ctx, source); err != nil {
+			// The registered migration operator creates the fixed namespace. The
+			// runtime authority role has no database-wide CREATE privilege.
+			if err := tx.Exec(ctx, before+schemaDDL); err != nil {
+				return fixedDatabaseError(ctx, err)
+			}
+		}
+		if err := tx.Exec(ctx, `SET LOCAL ROLE zasp_discovery_authority`); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if !present {
+			if err := tx.Exec(ctx, definitions); err != nil {
 				return fixedDatabaseError(ctx, err)
 			}
 			if err := tx.Exec(ctx, `INSERT INTO zasp_connector_provenance.registration VALUES(true,$1,zasp_connector_provenance.fingerprint())`, pin); err != nil {

@@ -1,0 +1,26 @@
+{
+  "checkpointSHA256": "53deec8807ed58e9a0e39517e32a669c8e240730610c5cbcd616c5bfec200b25",
+  "declinedToJudge": [
+    "Compilation of current successor, native SQL/OAuth/cutover behavior and production deployment/full728 acceptance.",
+    "Prior root reported failure exact cause remains inferred without raw PostgreSQL error."
+  ],
+  "evidence": [
+    "Copied provenance bootstrap exactly matches previously approved793b installer bytes; raw provenanceSQL/original-nine case sources unchanged.",
+    "Maintenance helper whitelists only two compiled namespaces; exact schema statement occurs once, prefix restricted to blank/comments. Only namespace create executes under validated registered operator. All capture/main definitions/registration/catalog and mandatory approval checks run under authority in original one transaction.",
+    "Present namespaces skipDDL and require exact current catalog; wrong schemas or missing approval roll back any earlier bootstrap. No broad CREATE grants, raw ACL relaxation, activation or canonical-source edits.",
+    "All29branch members/pin lengths/hashes exactly match frozen53de checkpoint; only corresponding two installer descriptors change. Hosted compile workflow and ninepackage list unchanged.",
+    "Fresh metadata confirms preceding nine-package compile run37731031886/job113159945170 SUCCESS; this does not validate current new installer runtime."
+  ],
+  "findings": [],
+  "format": "independent-pr60-dual-namespace-bootstrap-source-review-v1",
+  "membersVerified": 29,
+  "method": "Read-only exactdiff/source/custody/hash and fresh priorcompile metadata; no compiler/tests/runtime/source/Git writes.",
+  "priorCompileHead": "c995f46aa95ecc4f158efd440d88d9f65cc7a402",
+  "requiredLaterNative": [
+    "Original nine provenance group on latest installer with actual real PG/FGA fixture, no skips, exact sourcepin and cleanup.",
+    "Genuine composed OAuth enqueue/captured origin/callback group includes install/replay/wrong-owner or namespace/catalog/missingapproval/rollback denials, task/user realFGA Checks and all lifecycle revisions.",
+    "Controlled cutover authentic pending original Reconcile/readback/Ack, old writer observed normal retirement/key withdrawal, opaque one-use permit including copied permit refusal, true operator activation followed by composed Reconcile/readback and all3consumer noninterference."
+  ],
+  "root": "/tmp/connector-native-hosted-compile-draft",
+  "verdict": "Ready to commit/push exact reviewed two-installer/sourcepin successor for hosted nine-package compilation. Genuine native OAuth/cutover acceptance remains unperformed; PR60 stays draft."
+}

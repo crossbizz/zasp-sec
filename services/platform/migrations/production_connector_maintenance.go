@@ -63,15 +63,39 @@ func (r *Runner) UpProductionConnectorMaintenance(ctx context.Context) error {
 		if err := check(`SELECT EXISTS(SELECT 1 FROM public.zasp_discovery_principal_bindings WHERE principal_name=session_user AND authority_role='zasp_discovery_authority') AND pg_has_role(session_user,'zasp_discovery_authority','MEMBER') AND(SELECT count(*)=61 FROM public.zasp_schema_versions) AND EXISTS(SELECT 1 FROM public.zasp_schema_versions WHERE version=61 AND checksum=$1) AND zasp_authorization80.ready($2)`, ProductionSecurityAgentMultistep().Checksum(), ProductionAuthorizationEnforcement().Checksum()); err != nil {
 			return err
 		}
-		if err := tx.Exec(ctx, `SET LOCAL ROLE zasp_discovery_authority`); err != nil {
-			return fixedDatabaseError(ctx, err)
-		}
 		var capturePresent bool
 		if err := scanRow(ctx, tx, `SELECT to_regnamespace('zasp_connector_provenance') IS NOT NULL`, nil, &capturePresent); err != nil {
 			return fixedDatabaseError(ctx, err)
 		}
+		var present bool
+		if err := scanRow(ctx, tx, `SELECT to_regnamespace('zasp_connector_maintenance') IS NOT NULL`, nil, &present); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		captureBootstrap, captureDefinitions, err := connectorNamespaceDefinitions(captureSource, "zasp_connector_provenance")
+		if err != nil {
+			return err
+		}
+		bootstrap, definitions, err := connectorNamespaceDefinitions(source, "zasp_connector_maintenance")
+		if err != nil {
+			return err
+		}
+		// Only the registered migration operator creates these exact namespaces.
+		// Runtime authority receives no database-wide CREATE privilege.
 		if !capturePresent {
-			if err := tx.Exec(ctx, captureSource); err != nil {
+			if err := tx.Exec(ctx, captureBootstrap); err != nil {
+				return fixedDatabaseError(ctx, err)
+			}
+		}
+		if !present {
+			if err := tx.Exec(ctx, bootstrap); err != nil {
+				return fixedDatabaseError(ctx, err)
+			}
+		}
+		if err := tx.Exec(ctx, `SET LOCAL ROLE zasp_discovery_authority`); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if !capturePresent {
+			if err := tx.Exec(ctx, captureDefinitions); err != nil {
 				return fixedDatabaseError(ctx, err)
 			}
 			if err := tx.Exec(ctx, `INSERT INTO zasp_connector_provenance.registration VALUES(true,$1,zasp_connector_provenance.fingerprint())`, capturePin); err != nil {
@@ -90,12 +114,8 @@ func (r *Runner) UpProductionConnectorMaintenance(ctx context.Context) error {
 		if err := check(`SELECT zasp_approval_maintenance.catalog_ready()`); err != nil {
 			return err
 		}
-		var present bool
-		if err := scanRow(ctx, tx, `SELECT to_regnamespace('zasp_connector_maintenance') IS NOT NULL`, nil, &present); err != nil {
-			return fixedDatabaseError(ctx, err)
-		}
 		if !present {
-			if err := tx.Exec(ctx, source); err != nil {
+			if err := tx.Exec(ctx, definitions); err != nil {
 				return fixedDatabaseError(ctx, err)
 			}
 			if err := tx.Exec(ctx, `INSERT INTO zasp_connector_maintenance.registration VALUES(true,$1,zasp_connector_maintenance.fingerprint(),false)`, pin); err != nil {
@@ -104,4 +124,23 @@ func (r *Runner) UpProductionConnectorMaintenance(ctx context.Context) error {
 		}
 		return check(`SELECT zasp_connector_maintenance.catalog_ready($1)`, pin)
 	})
+}
+
+// This private source split admits only the two compiled connector namespaces.
+// Every non-comment statement remains under runtime authority.
+func connectorNamespaceDefinitions(source, namespace string) (string, string, error) {
+	if namespace != "zasp_connector_provenance" && namespace != "zasp_connector_maintenance" {
+		return "", "", ErrInvalidState
+	}
+	ddl := "CREATE SCHEMA " + namespace + " AUTHORIZATION zasp_discovery_authority;"
+	before, definitions, found := strings.Cut(source, ddl)
+	if !found || strings.Count(source, ddl) != 1 {
+		return "", "", ErrInvalidState
+	}
+	for _, line := range strings.Split(before, "\n") {
+		if trimmed := strings.TrimSpace(line); trimmed != "" && !strings.HasPrefix(trimmed, "--") {
+			return "", "", ErrInvalidState
+		}
+	}
+	return before + ddl, definitions, nil
 }

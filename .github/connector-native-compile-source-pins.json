@@ -1,7 +1,7 @@
 {
   "status": "INACTIVE COMPILE-ONLY CONTROLLED CUTOVER CANDIDATE; NO NATIVE EXECUTION OR DEPLOYMENT ADMISSION",
   "base": "76ba3b53c1d4d892539da16a08db71172a49b5d2",
-  "checkpointSHA256": "09da4db7494262a96c5cbf8596a6433f3b6a7b8cb31fb6b3d6027cffe0bf8eba",
+  "checkpointSHA256": "53deec8807ed58e9a0e39517e32a669c8e240730610c5cbcd616c5bfec200b25",
   "sources": [
     {
       "path": "services/platform/agentsec-api/connector_callback_runtime.go",
@@ -173,15 +173,15 @@
     },
     {
       "path": "services/platform/migrations/production_connector_enqueue_provenance.go",
-      "sha256": "809041eced547701b1e3ac3c1f68ac45d7b403336f5de6df4dda13b10db83267",
-      "bytes": 3818,
+      "sha256": "793b230a8572fbfbed2a4702e1513bfa90afac596a8d0707ae047bbdf8bacc36",
+      "bytes": 4521,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": "809041eced547701b1e3ac3c1f68ac45d7b403336f5de6df4dda13b10db83267"
     },
     {
       "path": "services/platform/migrations/production_connector_maintenance.go",
-      "sha256": "03510257999d7bfb58852f1b27aabb9b207010912e7ae47a1d76858c7dc88e67",
-      "bytes": 4590,
+      "sha256": "34c99aec57ae60cd9ec0350f24e5d18bd853d97c95181e010afed233644681d8",
+      "bytes": 6093,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
