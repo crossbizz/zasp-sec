@@ -1,0 +1,53 @@
+{
+  "files": {
+    "manifest.json": {
+      "bytes": 1190,
+      "metadata": [
+        34,
+        170060,
+        33152,
+        1000,
+        1000,
+        1,
+        1190,
+        1791432768378045412,
+        1791432768378045412
+      ],
+      "sha256": "e6f763b516ae23c69bba4c51c268839c82d3e57b6d89e98410d8ed67fc899542"
+    },
+    "prior-runner.mjs": {
+      "bytes": 25850,
+      "metadata": [
+        34,
+        170057,
+        33152,
+        1000,
+        1000,
+        1,
+        25850,
+        1791432768377548280,
+        1791432768377548280
+      ],
+      "sha256": "bb2d74a925437619d1abea37f8ac8575d86f80ccb4060ac26eebfe87ea73bc82"
+    },
+    "scripts/hosted-connector-nine.mjs": {
+      "bytes": 26361,
+      "metadata": [
+        34,
+        170059,
+        33152,
+        1000,
+        1000,
+        1,
+        26361,
+        1791432768377698217,
+        1791432768377698217
+      ],
+      "sha256": "8d41e716378e75909b18b2d305abaee4e68df21afe6ba2eff370ab9f555ea0f4"
+    }
+  },
+  "findings": [],
+  "scope": "One5second existing-owned run of actual copied image postgres ELF --version under same179 alias-only LD_LIBRARY_PATH, exact admitted complete18.3 version equality; original explicit-image-loader version remains separate. New phase routes fixed scalar command metadata/category labels, one additional fixed sibling category; no raw error/paths/values. Original initdb30s, top9/nativefixture, source/image/tool pins, floor sampler/caps/cleanup/refusal unchanged. Probe observes host-interpreter compatibility only, not product/native acceptance or sole initdbcause. No runtime/services/tests/network by reviewer. ROOT finalscans and hosted actual normal closure remain required.",
+  "source": "/tmp/hosted-connector-raw-postgres-probe-xxa3bu_i",
+  "verdict": "PASS_BOUNDED_RAW_POSTGRES_VERSION_PROBE_SOURCE_ONLY"
+}

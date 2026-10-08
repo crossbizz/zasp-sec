@@ -1,0 +1,22 @@
+{
+  "scope": "ROOTauthorized5s versiononly raw sibling ELF probe with sameowned179childlibraryenvironment; no service/binary rewrite/build/tests",
+  "proposedPaths": [
+    "scripts/hosted-connector-nine.mjs"
+  ],
+  "predecessorSHA256": "bb2d74a925437619d1abea37f8ac8575d86f80ccb4060ac26eebfe87ea73bc82",
+  "sourceBaseCommit": "4a64b2d1dfe736042b1bdc820478cba27e2a107b",
+  "command": "ownedImage/root/usr/lib/postgresql/18/bin/postgres --version",
+  "environmentDelta": "OnlyLD_LIBRARY_PATH=owned179libraryaliases for this5s child; existingclosedenv unchanged",
+  "bounds": "5s existingowner run, 8MiBcap, floor/terminal/sourceguards conserved; initdb30s remains unchanged",
+  "diagnostics": "Fixedphase/status/timed/signal/cap/enumcategories only; one addedfixedsame-directory marker. No rawerrors/paths/values. Image-loader version and rawhost-interpreter version distinct.",
+  "members": {
+    "prior-runner.mjs": {
+      "sha256": "bb2d74a925437619d1abea37f8ac8575d86f80ccb4060ac26eebfe87ea73bc82",
+      "bytes": 25850
+    },
+    "scripts/hosted-connector-nine.mjs": {
+      "sha256": "8d41e716378e75909b18b2d305abaee4e68df21afe6ba2eff370ab9f555ea0f4",
+      "bytes": 26361
+    }
+  }
+}
