@@ -1,6 +1,7 @@
 package apiserver
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -9,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 )
@@ -30,6 +32,7 @@ func TestConnectorCapturedEnqueueOriginalAuthorizationPostgres(t *testing.T) {
 	if err := runner.UpProductionConnectorEnqueueProvenance(f.ctx); err != nil {
 		t.Fatal("capture profile installation refused")
 	}
+
 	if connectorProvenanceNativeState(t, f) != beforeNative {
 		t.Fatal("capture installation changed predecessor state")
 	}
@@ -65,7 +68,7 @@ func TestConnectorCapturedEnqueueOriginalAuthorizationPostgres(t *testing.T) {
 		if err != nil {
 			t.Fatal("registered API transaction unavailable")
 		}
-		defer tx.Rollback(f.ctx)
+		defer connectorProvenanceRollback(tx)
 		var raw []byte
 		err = tx.QueryRow(f.ctx, connectorCapturedEnqueueSQL, append([]any{p}, a...)...).Scan(&raw)
 		if err != nil {
@@ -108,7 +111,7 @@ func TestConnectorCapturedEnqueueOriginalAuthorizationPostgres(t *testing.T) {
 		}
 		source := sha256.Sum256([]byte(p))
 		var exact bool
-		if err := f.owner.QueryRow(f.ctx, `SELECT x.status='captured_inactive' AND x.operation_id='authorizeIntegration' AND x.principal_id=$2 AND x.source_proof_digest=$3 AND x.committed_request_digest=n.request_digest AND octet_length(x.committed_effect_digest)=32 AND x.committed_effect_digest<>x.source_proof_digest AND x.source_proof_digest<>x.committed_request_digest AND n.attempt=0 AND n.lease_owner IS NULL FROM zasp_connector_provenance.origins x JOIN public.zasp_connector_effects n ON(x.organization_id,x.workspace_id,x.environment_id,x.effect_id)=(n.organization_id,n.workspace_id,n.environment_id,n.id) WHERE x.effect_id=$1`, a[3], f.browser.PrincipalID.String(), source[:]).Scan(&exact); err != nil || !exact {
+		if err := f.owner.QueryRow(f.ctx, `SELECT x.status='captured_inactive' AND x.operation_id='authorizeIntegration' AND x.principal_id=$2 AND x.source_proof_digest=$3 AND x.committed_request_digest=n.request_digest AND octet_length(x.committed_effect_digest)=32 AND x.committed_effect_digest<>x.source_proof_digest AND x.source_proof_digest<>x.committed_request_digest AND n.attempt=0 AND n.lease_owner IS NULL AND NOT EXISTS(SELECT 1 FROM zasp_connector_provenance.creation_witness) FROM zasp_connector_provenance.origins x JOIN public.zasp_connector_effects n ON(x.organization_id,x.workspace_id,x.environment_id,x.effect_id)=(n.organization_id,n.workspace_id,n.environment_id,n.id) WHERE x.effect_id=$1`, a[3], f.browser.PrincipalID.String(), source[:]).Scan(&exact); err != nil || !exact {
 			t.Fatal("committed source and effect provenance missing or conflated")
 		}
 		before := connectorProvenanceBusinessState(t, f)
@@ -200,6 +203,158 @@ func TestConnectorCapturedEnqueueOriginalAuthorizationPostgres(t *testing.T) {
 			t.Fatal("denied outbox capture mutated state")
 		}
 	})
+
+	t.Run("required inputs concurrent replay and savepoint ownership", func(t *testing.T) {
+		nullReason := args(9)
+		nullReason[10] = nil
+		reject(t, proof(t, "authorizeIntegration"), nullReason, "22023")
+
+		// The protected witness and effect must share the *subtransaction* xmin.
+		// Both positive RELEASE and rollback are tested on real original admission.
+		savepoint := func(n int, rollback bool) {
+			t.Helper()
+			before := connectorProvenanceBusinessState(t, f)
+			p := proof(t, "authorizeIntegration")
+			a := args(n)
+			tx, err := f.api.Begin(f.ctx)
+			if err != nil {
+				t.Fatal("savepoint transaction unavailable")
+			}
+			defer connectorProvenanceRollback(tx)
+			var top string
+			if err = tx.QueryRow(f.ctx, `SELECT pg_current_xact_id()::text`).Scan(&top); err != nil {
+				t.Fatal("top transaction identity unavailable")
+			}
+			if _, err = tx.Exec(f.ctx, `SAVEPOINT connector_capture`); err != nil {
+				t.Fatal("savepoint unavailable")
+			}
+			var raw []byte
+			if err = tx.QueryRow(f.ctx, connectorCapturedEnqueueSQL, append([]any{p}, a...)...).Scan(&raw); err != nil {
+				t.Fatal("genuine savepoint capture refused")
+			}
+			command := `RELEASE SAVEPOINT connector_capture`
+			if rollback {
+				command = `ROLLBACK TO SAVEPOINT connector_capture`
+			}
+			if _, err = tx.Exec(f.ctx, command); err != nil {
+				t.Fatal("savepoint disposition refused")
+			}
+			if err = tx.Commit(f.ctx); err != nil {
+				t.Fatal("savepoint transaction commit refused")
+			}
+			if rollback {
+				if connectorProvenanceBusinessState(t, f) != before {
+					t.Fatal("savepoint rollback retained effect origin witness or audit")
+				}
+				return
+			}
+			var exact bool
+			if err = f.owner.QueryRow(f.ctx, `SELECT n.xmin::text::numeric<>($2::numeric%4294967296) AND x.status='captured_inactive' AND NOT EXISTS(SELECT 1 FROM zasp_connector_provenance.creation_witness) FROM zasp_connector_provenance.origins x JOIN public.zasp_connector_effects n ON(x.organization_id,x.workspace_id,x.environment_id,x.effect_id)=(n.organization_id,n.workspace_id,n.environment_id,n.id) WHERE x.effect_id=$1`, a[3], top).Scan(&exact); err != nil || !exact {
+				t.Fatal("subtransaction creation proof or witness cleanup missing")
+			}
+		}
+		savepoint(10, true)
+		savepoint(11, false)
+
+		// Original native79 organization-row locking must serialize two genuine
+		// admissions. Observe the second backend's real lock wait, then release the
+		// first transaction; both must return the same original result and one origin.
+		a := args(12)
+		p1 := proof(t, "authorizeIntegration")
+		p2 := proof(t, "authorizeIntegration")
+		concurrentCtx, cancel := context.WithTimeout(f.ctx, 15*time.Second)
+		defer cancel()
+		first := connectRuntimeDataPlanePrincipal(t, concurrentCtx, f.dsn, "auth80_api")
+		second := connectRuntimeDataPlanePrincipal(t, concurrentCtx, f.dsn, "auth80_api")
+		defer first.Close(f.ctx)
+		defer second.Close(f.ctx)
+		tx, err := first.Begin(concurrentCtx)
+		if err != nil {
+			t.Fatal("first admission transaction unavailable")
+		}
+		defer connectorProvenanceRollback(tx)
+		if _, err = tx.Exec(concurrentCtx, `SELECT zasp_authorization80.fence($1)`, p1); err != nil {
+			t.Fatal("original organization fence refused")
+		}
+		type outcome struct {
+			raw []byte
+			err error
+		}
+		done := make(chan outcome, 1)
+		go func() {
+			var completed outcome
+			defer func() { done <- completed }()
+			b, err := second.Begin(concurrentCtx)
+			if err != nil {
+				completed.err = err
+				return
+			}
+			defer connectorProvenanceRollback(b)
+			var raw []byte
+			err = b.QueryRow(concurrentCtx, connectorCapturedEnqueueSQL, append([]any{p2}, a...)...).Scan(&raw)
+			if err == nil {
+				err = b.Commit(concurrentCtx)
+			}
+			completed = outcome{raw: raw, err: err}
+		}()
+		joined := false
+		defer func() {
+			if joined {
+				return
+			}
+			cancel()
+			connectorProvenanceRollback(tx)
+			timer := time.NewTimer(4 * time.Second)
+			defer timer.Stop()
+			select {
+			case <-done:
+			case <-timer.C:
+				t.Error("concurrent admission did not join after cancellation")
+			}
+		}()
+		tick := time.NewTicker(10 * time.Millisecond)
+		defer tick.Stop()
+		for {
+			var waiting bool
+			err = f.owner.QueryRow(concurrentCtx, `SELECT EXISTS(SELECT 1 FROM pg_locks WHERE pid=$1 AND locktype='transactionid' AND NOT granted)`, int64(second.PgConn().PID())).Scan(&waiting)
+			if err != nil {
+				t.Fatal("native lock observation unavailable")
+			}
+			if waiting {
+				break
+			}
+			select {
+			case result := <-done:
+				joined = true
+				_ = result
+				t.Fatal("second admission escaped original organization lock")
+			case <-concurrentCtx.Done():
+				t.Fatal("original organization lock wait not observed")
+			case <-tick.C:
+			}
+		}
+		var raw []byte
+		if err = tx.QueryRow(concurrentCtx, connectorCapturedEnqueueSQL, append([]any{p1}, a...)...).Scan(&raw); err != nil {
+			t.Fatal("first genuine capture refused")
+		}
+		if err = tx.Commit(concurrentCtx); err != nil {
+			t.Fatal("first genuine capture commit refused")
+		}
+		var result outcome
+		select {
+		case result = <-done:
+			joined = true
+		case <-concurrentCtx.Done():
+			t.Fatal("concurrent original replay did not join")
+		}
+		if result.err != nil || string(result.raw) != string(raw) {
+			t.Fatal("concurrent genuine replay changed original result")
+		}
+		var exact bool
+		if err = f.owner.QueryRow(f.ctx, `SELECT (SELECT count(*)=1 FROM zasp_connector_provenance.origins WHERE effect_id=$1) AND (SELECT count(*)=1 AND bool_and(attempt=0) FROM public.zasp_connector_effects WHERE id=$1) AND NOT EXISTS(SELECT 1 FROM zasp_connector_provenance.creation_witness)`, a[3]).Scan(&exact); err != nil || !exact {
+			t.Fatal("concurrent capture did not retain one inactive origin and unchanged attempt")
+		}
+	})
 	if connectorProvenanceNativeState(t, f) != beforeNative {
 		t.Fatal("capture controls changed original native catalogs or principals")
 	}
@@ -213,6 +368,7 @@ func connectorProvenanceBusinessState(t *testing.T, f *integrationClientFixture)
 	if err := f.owner.QueryRow(f.ctx, `SELECT jsonb_build_array(
  (SELECT COALESCE(jsonb_agg(to_jsonb(x) ORDER BY organization_id,workspace_id,environment_id,id),'[]') FROM public.zasp_connector_effects x),
  (SELECT COALESCE(jsonb_agg(to_jsonb(x) ORDER BY organization_id,workspace_id,environment_id,effect_id),'[]') FROM zasp_connector_provenance.origins x),
+ (SELECT COALESCE(jsonb_agg(to_jsonb(x) ORDER BY organization_id,workspace_id,environment_id,effect_id),'[]') FROM zasp_connector_provenance.creation_witness x),
  (SELECT COALESCE(jsonb_agg(to_jsonb(x) ORDER BY organization_id,workspace_id,environment_id,id),'[]') FROM public.zasp_connector_audit x),
  (SELECT COALESCE(jsonb_agg(to_jsonb(x) ORDER BY provider,operation,organization_id,workspace_id,environment_id),'[]') FROM public.zasp_connector_effect_lane_scopes x))::text`).Scan(&raw); err != nil {
 		t.Fatal("complete connector state unavailable")
@@ -238,4 +394,11 @@ func connectorProvenanceNativeState(t *testing.T, f *integrationClientFixture) s
 	}
 	h := sha256.Sum256([]byte(raw))
 	return hex.EncodeToString(h[:])
+}
+
+// A failed or canceled probe must not leave an open API transaction behind.
+func connectorProvenanceRollback(tx pgx.Tx) {
+	cleanup, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	_ = tx.Rollback(cleanup)
 }

@@ -19,6 +19,13 @@ CREATE TABLE zasp_connector_provenance.origins (
   AND public.zasp_valid_product_id(environment_id) AND public.zasp_valid_product_id(effect_id)
   AND public.zasp_valid_product_id(integration_id) AND public.zasp_valid_product_id(principal_id))
 );
+-- Protected transient creation witness. Its xmin follows the actual current
+-- subtransaction, unlike top-level txid_current(). It grants no authority and
+-- is removed before a successful return; rollback removes all three writes.
+CREATE TABLE zasp_connector_provenance.creation_witness (
+ organization_id text NOT NULL, workspace_id text NOT NULL, environment_id text NOT NULL, effect_id text NOT NULL,
+ PRIMARY KEY(organization_id,workspace_id,environment_id,effect_id)
+);
 -- No FK/trigger is installed on the immutable predecessor tables. Their
 -- original catalog remains intact; the writer below checks the actual row.
 CREATE FUNCTION zasp_connector_provenance.fingerprint() RETURNS text LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $fp$
@@ -42,11 +49,15 @@ CREATE FUNCTION zasp_connector_provenance.catalog_matches(pin text) RETURNS bool
   AND p.proowner='zasp_discovery_authority'::regrole),false)
  $catalog$;
 CREATE FUNCTION zasp_connector_provenance.capture_pkce_cleanup(envelope text,o text,w text,e text,id_value text,integration_value text,attempt_value text,provider_value text,reference_value text,request_value bytea,available_value timestamptz,reason_value text) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $capture$
-DECLARE p jsonb;result_value jsonb;n public.zasp_connector_effects;origin zasp_connector_provenance.origins;existed boolean;effect_digest bytea;row_xid bigint;
+DECLARE p jsonb;result_value jsonb;n public.zasp_connector_effects;origin zasp_connector_provenance.origins;existed boolean;effect_digest bytea;witness_xid xid;row_xid xid;
 BEGIN
  IF zasp_connector_provenance.catalog_matches('-- connector provenance checksum') IS NOT TRUE
  OR public.zasp_discovery_principal_ready('zasp_discovery_api') IS NOT TRUE
  OR envelope IS NULL OR octet_length(envelope)>65536 THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='connector provenance unavailable';END IF;
+ IF o IS NULL OR w IS NULL OR e IS NULL OR id_value IS NULL OR integration_value IS NULL
+ OR attempt_value IS NULL OR provider_value IS NULL OR reference_value IS NULL OR request_value IS NULL
+ OR available_value IS NULL OR reason_value IS NULL
+ THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='connector enqueue input missing';END IF;
  -- The ORIGINAL signed request/credential/revision/target fence is mandatory.
  PERFORM zasp_authorization80.fence(envelope);
  p:=zasp_authorization80.context();
@@ -62,6 +73,8 @@ BEGIN
   SELECT x.* INTO origin FROM zasp_connector_provenance.origins x WHERE(x.organization_id,x.workspace_id,x.environment_id,x.effect_id)=(o,w,e,id_value) FOR UPDATE;
   IF NOT FOUND OR origin.principal_id IS DISTINCT FROM p->>'principal_id' OR origin.integration_id IS DISTINCT FROM integration_value
   THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='existing connector source unavailable';END IF;
+ ELSE
+  INSERT INTO zasp_connector_provenance.creation_witness VALUES(o,w,e,id_value) RETURNING xmin INTO witness_xid;
  END IF;
  -- All original input validation, effect identity, conflict, audit and output
  -- semantics remain in the unchanged original application function.
@@ -69,10 +82,11 @@ BEGIN
  SELECT x.* INTO n FROM public.zasp_connector_effects x WHERE(x.organization_id,x.workspace_id,x.environment_id,x.id)=(o,w,e,id_value) FOR UPDATE;
  IF NOT FOUND OR n.oauth_attempt_id IS DISTINCT FROM NULLIF(attempt_value,'') OR n.operation IS DISTINCT FROM 'pkce_cleanup'
  THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='connector enqueue source changed';END IF;
- -- A concurrent legacy writer cannot be retroactively adopted: DO NOTHING
- -- may have returned its row. Only a new row written in this TX is capturable.
- SELECT x.xmin::text::bigint INTO row_xid FROM public.zasp_connector_effects x WHERE(x.organization_id,x.workspace_id,x.environment_id,x.id)=(o,w,e,id_value);
- IF NOT existed AND row_xid IS DISTINCT FROM(txid_current()%4294967296) THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='connector enqueue creation unavailable';END IF;
+ -- Original native79 revision-row locking serializes genuine same-org
+ -- captures. A legacy insertion not holding that lock still cannot be adopted.
+ -- Both protected witness and effect must be created in this subtransaction.
+ SELECT x.xmin INTO row_xid FROM public.zasp_connector_effects x WHERE(x.organization_id,x.workspace_id,x.environment_id,x.id)=(o,w,e,id_value);
+ IF NOT existed AND row_xid IS DISTINCT FROM witness_xid THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='connector enqueue creation unavailable';END IF;
  effect_digest:=public.digest(convert_to(jsonb_build_object('organization_id',n.organization_id,'workspace_id',n.workspace_id,'environment_id',n.environment_id,'effect_id',n.id,'integration_id',n.integration_id,'oauth_attempt_id',n.oauth_attempt_id,'provider',n.provider,'operation',n.operation,'idempotency_key',n.idempotency_key,'request_digest',encode(n.request_digest,'hex'),'reference',n.connection_reference,'available_at',n.available_at,'reason',n.last_error_code)::text,'UTF8'),'sha256');
  IF existed THEN
   IF origin.committed_request_digest IS DISTINCT FROM n.request_digest OR origin.committed_effect_digest IS DISTINCT FROM effect_digest
@@ -80,6 +94,8 @@ BEGIN
  ELSE
   INSERT INTO zasp_connector_provenance.origins(organization_id,workspace_id,environment_id,effect_id,integration_id,principal_id,operation_id,source_profile,source_proof_digest,committed_request_digest,committed_effect_digest)
   VALUES(o,w,e,id_value,integration_value,p->>'principal_id','authorizeIntegration','-- authorization80 checksum',public.digest(convert_to(envelope,'UTF8'),'sha256'),n.request_digest,effect_digest);
+  DELETE FROM zasp_connector_provenance.creation_witness WHERE(organization_id,workspace_id,environment_id,effect_id)=(o,w,e,id_value) AND xmin=witness_xid;
+  IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='connector enqueue witness unavailable';END IF;
  END IF;
  IF zasp_authorization80.context() IS NULL THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='connector enqueue proof expired';END IF;
  RETURN result_value;

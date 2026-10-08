@@ -14,3 +14,5 @@ Important open limits:
 - No legacy originless work receives new authority. No ledger availability, deployment, external-writer withdrawal or launch claim is made.
 
 `source-review.json` is the byte-exact independent source receipt, SHA256 a25adbaa41ccaf6875a5deab7f07c0b3b447c55fee9fb3c61073d303af99b898. `source-manifest.json` is the byte-exact reviewed private source/control manifest, SHA256 705bf3d597fdb0356a0fb15077e271056287110280ef8339a305ffafec6df0c5. Its three repository-file hashes bind this draft; private control paths describe prepared, unexecuted artifacts rather than a portable admitted runner.
+
+The latest source successor and the correction to the historical concurrency speculation are recorded in [README-v2.md](README-v2.md). V1 raw review and manifest remain unchanged.
