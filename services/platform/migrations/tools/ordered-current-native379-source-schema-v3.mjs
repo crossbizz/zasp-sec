@@ -14,10 +14,39 @@ const pins=Object.freeze({
  'ordered-current-linux-provenance-v1.json':'68425b6efc85e163c5028dadb4b8ff3ec219dfb5d7a8a2772c73a58a45dddfb5'});
 const sha=raw=>crypto.createHash('sha256').update(raw).digest('hex');
 const fail=message=>{throw Error('ordered-current native379 v3 source '+message);};
+// Builtins-only executable bootstrap. Hash the same opened file in bounded chunks.
+function native379V3ApprovedExecutable(executable, expectedSHA256) {
+ const fields = ['dev','ino','mode','uid','gid','nlink','size','mtimeNs','ctimeNs'];
+ const same = (left,right) => fields.every(field => left[field] === right[field]);
+ const before = fs.lstatSync(executable,{bigint:true});
+ if (!before.isFile() || before.size <= 0n || before.size > 268435456n) fail('Node executable file boundary');
+ let fd;
+ try {
+  fd = fs.openSync(executable,fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
+  if (!same(before,fs.fstatSync(fd,{bigint:true}))) fail('Node executable acquisition changed');
+  const buffer = Buffer.allocUnsafe(65536);
+  const hash = crypto.createHash('sha256');
+  let count = 0;
+  const size = Number(before.size);
+  while (count < size) {
+   const requested = Math.min(buffer.length,size-count);
+   const bytes = fs.readSync(fd,buffer,0,requested,null);
+   if (!Number.isInteger(bytes) || bytes <= 0 || bytes > requested) fail('Node executable short read');
+   hash.update(buffer.subarray(0,bytes));
+   count += bytes;
+  }
+  if (fs.readSync(fd,buffer,0,1,null) !== 0) fail('Node executable grew');
+  if (!same(before,fs.fstatSync(fd,{bigint:true})) || !same(before,fs.lstatSync(executable,{bigint:true}))) fail('Node executable changed');
+  if (hash.digest('hex') !== expectedSHA256) fail('Node runtime requires approved executable SHA256');
+ } finally {
+  if (fd !== undefined) fs.closeSync(fd);
+ }
+}
+
 // Wrong runtime must fail before evaluating the source generator's eager inputs.
 if(process.version!=='v22.23.1'||process.platform!=='linux'||process.arch!=='x64')fail('Node runtime requires v22.23.1 linux x64 and approved executable SHA256');
 const executable=fs.realpathSync(process.execPath);
-if(!fs.lstatSync(executable).isFile()||sha(fs.readFileSync(executable))!=='93956de2e59480474a7b46571da1651180b1a050cdf32641ebec4ce6e478e068')fail('Node runtime requires approved executable SHA256');
+native379V3ApprovedExecutable(executable,'93956de2e59480474a7b46571da1651180b1a050cdf32641ebec4ce6e478e068');
 
 // Builtins-only bootstrap: even a fixed import can execute modified source.
 // Validate the complete reviewed execution/fixed-read closure before ANY local import.

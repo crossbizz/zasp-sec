@@ -1,0 +1,55 @@
+{
+  "GREEN": {
+    "cancelled": 0,
+    "fail": 0,
+    "pass": 1,
+    "sameBodyCoverage": "Actual approved Node exactSHA/max65536read plus wrongSHA/shortread/replacedpath controls and shortread FD close equality.",
+    "skipped": 0,
+    "stdoutSHA256": "b09bd17d67e177dfe2e01ddd09953fdb876f3ad5ccdc29c9ad5256b658cd3553",
+    "tests": 1,
+    "todo": 0
+  },
+  "actualReceipt": {
+    "path": "/tmp/native379-bounded-hash-actual-ffdosesx/result.json",
+    "sha256": "efa8ce8dbac94fb73a93c9c9594f8740726f0c3e4e9f90d2eb0800d30382d2c5",
+    "stages": [
+      {
+        "elapsedSeconds": 0.08512511099979747,
+        "name": "RED",
+        "normalJoin": true,
+        "returnCode": 1
+      },
+      {
+        "elapsedSeconds": 0.18400796499918215,
+        "name": "GREEN",
+        "normalJoin": true,
+        "returnCode": 0
+      }
+    ]
+  },
+  "baselineCurrentSHA256": "62e3d8e415d4aa05d9472fb5cf9fa4c5a680f6e199e171a2ac42ef3fb51fa9e5",
+  "causalRED": {
+    "cause": "Authentic predecessor eager read hits same allocation refusal oracle; ERR_TEST_FAILURE, not import/setup failure.",
+    "fail": 1,
+    "pass": 0,
+    "stdoutSHA256": "44735abf0b4d16d36f3a400d30ad062691ad97594c32a446f1a2fdfa2eea9103",
+    "tests": 1
+  },
+  "inputMaps": {
+    "afterSHA256": "4eeb21b52199e62d25b3dda38c3a2a565a01ccc4c91e908640a230887dbd42f0",
+    "beforeSHA256": "4eeb21b52199e62d25b3dda38c3a2a565a01ccc4c91e908640a230887dbd42f0",
+    "currentSourceToolsAndRecordedMetadataVerified": true,
+    "exactAllFieldsEqual": true,
+    "records": 5
+  },
+  "qualifications": [
+    "Actual map includes candidate2files and3tools. Baseline schema source is not included in recordedbefore/aftermap; reviewer verifies its current exact recorded predecessor hash, without inventing earlier metadata capture.",
+    "Normal stage exit1/0 transcriptions retained; no fabricated process ownership/PID/resource samples/whole native assembly receipt.",
+    "Grouped source-extracted guard acceptance is not full generator/full24/native/runtime/deployed acceptance or measured capacity benefit."
+  ],
+  "reviewerReranTestsOrNativeAssembly": false,
+  "schemaSHA256": "ecd6b3568cbf754867fcd6255d89afe4a8c1e07adf4e032dfbde9e58e5653e49",
+  "sourceReviewSHA256": "4948f9afe4c127a3037174f18e94228cac16e3e57e200f2ccf13d98b9011f718",
+  "status": "PASS_ACTUAL_GROUPED_EXECUTABLE_HASH_COMPONENT_ONLY",
+  "stderrBothEmpty": true
+}

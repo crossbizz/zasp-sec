@@ -1,0 +1,27 @@
+{
+  "conditionalROOTControlExecution": {
+    "GREEN": "Same single groupedcontrol expected1PASS with genuineboundedNodehash and tinynegativecases",
+    "RED": "Exact authentic old guard expected1 groupedFAIL due eager read allocation oracle",
+    "requirements": "ROOT bounded exclusive tests after actual currentTMP100M/WS1.5G/directmemory256MiB preflight, normal join/capture2MiB/sourceprepost; groupedtests do not permit native/full derivation retry."
+  },
+  "groupedControlSHA256": "3cb274aaccd8e69b11f26cb5010bf0fd7a1fa862a837b6200c4ef080551b1c4f",
+  "preimageSHA256": "62e3d8e415d4aa05d9472fb5cf9fa4c5a680f6e199e171a2ac42ef3fb51fa9e5",
+  "qualifications": [
+    "Grouped source-extracted controls are not full generator/schema execution or measured overall memory recovery.",
+    "No full derivation/native/full24 retry acceptance or capacity FIT inferred.",
+    "Currentf84 descriptor source schema association still needs explicit new-body rebind for subsequent derivation; no old immutable Atlas rewrite."
+  ],
+  "reviewerRanControlsOrModifiedSources": false,
+  "schemaSHA256": "ecd6b3568cbf754867fcd6255d89afe4a8c1e07adf4e032dfbde9e58e5653e49",
+  "sourcePlanSHA256": "590c3e3f2976af4933816fb3db0a00aa170c6b85472b67a908c71db5a02e652a",
+  "status": "PASS_WIRED_INLINE_SCHEMA_BOUNDED_EXECUTABLE_HASH_SOURCE_CONDITIONAL_ROOT_GROUPED_CONTROL",
+  "verified": [
+    "Exact inverse yields entire tracked predecessor schema unchanged except added internal bounded hashing function and sole actual executable guard call",
+    "Original Node version/platform/arch and fixed approved124835376B executable SHA guard remain before eager generator/local imports",
+    "One65536B buffer; reads exactly pre-size then1byte EOF; sameFD/path ninefield metadata acquisition andpre/post; finallyclose; O_RDONLY|O_NOFOLLOW; positive regular max256MiB file",
+    "No new local imports/export/caller authority; internal function wired to same approved SHA literal",
+    "One grouped control extracts authentic predecessor guard with only test expectedSHA parameterization; actual approved Node exercised with eager-read refusal oracle and maxread<=64KiB",
+    "Same grouped control checks wrongSHA/shortread/changedinode-path refusals and closecount for shortread ownedfixtures",
+    "Source-plan tools/source pins exact; all native/compiler/SQL/reference bodies/caps/gates otherwise preserved"
+  ]
+}
