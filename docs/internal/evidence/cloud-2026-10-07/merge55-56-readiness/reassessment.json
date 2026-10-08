@@ -1,0 +1,127 @@
+{
+  "schemaVersion": 1,
+  "scope": "reviewed PR55/56 batches; production acceptance remains open",
+  "pr55Head": "1af849ea49b6b30445fab21db0d212d5fa941c41",
+  "pr56OriginalHead": "f84adb35230dfe359efeda58da232d2c69ba29b5",
+  "integratedHeadBeforePublication": "6338edc8198c052dce0bce40215e6e9474390494",
+  "passing": {
+    "uiBuild": true,
+    "focusedNodeChecks": 326,
+    "nodeFailures": 0,
+    "nodeSkips": 0,
+    "metadataBootstrapSeconds": 0.313,
+    "metadataBootstrapPassed": true,
+    "integrationSecretFindings": 0,
+    "ledgerRows": 728,
+    "ledgerPromotions": 0,
+    "backgroundAuthorizationBoundaryRaceCheck": true,
+    "guardedRuntimeReadinessAdapterRaceCheck": true
+  },
+  "failedBrowserRuns": [
+    {
+      "result": {
+        "exit": 1,
+        "elapsedSeconds": 234.335
+      },
+      "phase": "api-ready",
+      "readinessReason": "deadline",
+      "ownedManualHTTPProbeStatus": 503,
+      "failedReadinessDurationsMS": [
+        4443,
+        3661,
+        3996,
+        5000,
+        3054,
+        5027,
+        4004
+      ],
+      "diagnosticScope": "test-only fixed result labels; serving runtime guard failed; unchanged budgets"
+    },
+    {
+      "result": {
+        "exit": 1,
+        "elapsedSeconds": 121.906
+      },
+      "phase": "api-ready",
+      "childStage": "runtime-build",
+      "dependency": "authorization-readiness",
+      "readinessReason": "child-exited",
+      "componentResults": 0,
+      "diagnosticScope": "fixed component labels; startup refused before component probing; unchanged budgets"
+    }
+  ],
+  "privateReceiptRoot": "/workspace/scratch/pr55-pr56-readiness-20261008",
+  "privateReceipts": {
+    "compliance-diagnostic.private.log": {
+      "sha256": "5749510abc1bebaa77abee87f845801058f8e324b83ba47e432b927d79631941",
+      "bytes": 20988
+    },
+    "compliance-components-diagnostic.private.log": {
+      "sha256": "725ba79a7b88d8e42448f09c35f9e4c59334b6334ffc766b72d15a46d2b9fc5f",
+      "bytes": 5102
+    },
+    "compliance-diagnostic-result.json": {
+      "sha256": "bc5a8a221e88947395b8c8ab3c1af194c1d107e6bbb5f4b82ed209996830db66",
+      "bytes": 45
+    },
+    "compliance-components-diagnostic-result.json": {
+      "sha256": "767597b15d3335455403451ec98832a78fe134b788f5c71e04f6ecb0adfdc725",
+      "bytes": 45
+    },
+    "compliance_browser_process_test.before.go.txt": {
+      "sha256": "2cb2ad01b1254a9f7c853e64567d65527e7c7d538f2c28f75b60ba5fa2452068",
+      "bytes": 5899
+    },
+    "compliance_browser_process_test.diagnostic.go.txt": {
+      "sha256": "2d4853c078a781c9ffce6901e51a8ca15cd18d72e98065127c26178b1b0c3cb0",
+      "bytes": 6376
+    },
+    "bounded_parallel_readiness.before.go.txt": {
+      "sha256": "7d2eaff411966bacfb416b2ab37ad3bb83992744e9fdd6f6a10def264867fc6e",
+      "bytes": 1182
+    },
+    "bounded_parallel_readiness.diagnostic.go.txt": {
+      "sha256": "f774a09382da485c09ebb440e50c2ad2ce30d1ca8805df4054e2fe554ccedb37",
+      "bytes": 1606
+    },
+    "production_runtime.before.go.txt": {
+      "sha256": "10f33b11d8e05b35b4814a1a3e58889c5a4d592dce82e1010fd92874c22ac7fa",
+      "bytes": 51809
+    },
+    "production_runtime.diagnostic.go.txt": {
+      "sha256": "41a995e295c6fd6042e6e6d15289c76032d456eedf0429e62e8a99707485066b",
+      "bytes": 51926
+    },
+    "components-and-browser-prerequisites.tap": {
+      "sha256": "d579b0619ec6a5f8cb1cdaf4cb4268626ea1fb153dedac95895a373317822840",
+      "bytes": 64462
+    },
+    "ui-build.log": {
+      "sha256": "a4037fe010a83c7ac2caf54138675231c03d9a8a2cc90a140dc15f681291f9bf",
+      "bytes": 1370
+    },
+    "readiness-bootstrap.log": {
+      "sha256": "b91c4e5eeb058d853f64968ec865add26fd453853496a3e5b7d40e9b12a03b91",
+      "bytes": 68
+    },
+    "integration-secret-scan.log": {
+      "sha256": "e47eae1519aaf913336b0c421037cc8ce360a50dc69553c70039ee8978e21163",
+      "bytes": 110
+    },
+    "ledger-check.log": {
+      "sha256": "d3b4a09f1320384f46537574c5ed07e08faf03eea4f7ddd0c420e0089122e8c1",
+      "bytes": 124
+    },
+    "background-boundary.log": {
+      "bytes": 68,
+      "sha256": "175329ffe5fa8c8b36b8fefdce1cb42ff901b9243b77df4127f98de5f78aecc6"
+    }
+  },
+  "temporaryDiagnosticSourceRestored": true,
+  "releaseAccepted": false,
+  "runtimeAccepted": false,
+  "nativeAccepted": false,
+  "deployedAccepted": false,
+  "all728Accepted": false,
+  "backgroundBoundaryTestSourceSHA256": "3847f4c0cd30ea79adce5b27d7c4e3ee9c5c3e619bfeb19f4824462b11b1f40f"
+}
