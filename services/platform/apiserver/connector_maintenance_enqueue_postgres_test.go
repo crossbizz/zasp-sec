@@ -69,6 +69,7 @@ func TestConnectorMaintenanceAuthenticatedOAuthEnqueuePostgres(t *testing.T) {
 		defer connectorProvenanceRollback(tx)
 		var result []byte
 		if err := tx.QueryRow(f.ctx, query, args...).Scan(&result); err != nil {
+			connectorApplicationMigrationFailure(t, "oauth-first-attempt", query, err)
 			t.Fatal("genuine authenticated OAuth enqueue refused")
 		}
 		if !json.Valid(result) {
@@ -197,7 +198,7 @@ func connectorApplicationMigrationFailure(t *testing.T, phase, statement string,
 			return
 		}
 	}
-	if phase != "worker-profile" && phase != "approval-profile" && phase != "connector-profile" && phase != "oauth-competing-attempt" {
+	if phase != "worker-profile" && phase != "approval-profile" && phase != "connector-profile" && phase != "oauth-competing-attempt" && phase != "oauth-first-attempt" {
 		return
 	}
 	target := "unknown"
@@ -225,9 +226,32 @@ func connectorApplicationMigrationFailure(t *testing.T, phase, statement string,
 	} else if statement == "SET LOCAL ROLE zasp_discovery_authority" {
 		kind = "authority-selection"
 	}
+	reason := "unknown"
+	switch native.Message {
+	case "authorization attestation rejected":
+		reason = "attestation"
+	case "authorization fence rejected":
+		reason = "fence"
+	case "authorization scope rejected", "authorization target scope rejected":
+		reason = "scope"
+	case "connector OAuth capture unavailable":
+		reason = "oauth-catalog"
+	case "connector OAuth source rejected":
+		reason = "oauth-source"
+	case "connector OAuth cleanup source changed":
+		reason = "cleanup-source"
+	case "connector OAuth capture expired":
+		reason = "oauth-expired"
+	case "connector task purpose rejected":
+		reason = "task-purpose"
+	case "connector task source unavailable", "connector task enqueue changed":
+		reason = "task-source"
+	case "connector task creation unavailable", "connector task witness changed":
+		reason = "task-witness"
+	}
 	position := native.Position
 	if position < 0 || position > 2000000 {
 		position = 0
 	}
-	t.Logf("connector migration phase=%s statement=%s SQLSTATE=%s target=%s position=%d", phase, kind, state, target, position)
+	t.Logf("connector migration phase=%s statement=%s SQLSTATE=%s target=%s position=%d reason=%s", phase, kind, state, target, position, reason)
 }
