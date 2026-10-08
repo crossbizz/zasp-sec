@@ -1,0 +1,5 @@
+# Actual native command failure
+
+Runs 37721506424 and 37721509813 on fdd23a0ccaee9c2668ea6189ef16bf90d22ff172 passed resource/source/Go dependency intake, exact pinned PostgreSQL layout/version and owned official FGA readiness/authentication gates. Both then refused inside the original-singleton-nine command. Available first-run annotations are preserved. They do not distinguish nonzero exit, timeout, signal, output cap or a product assertion. Native cases passed and cleanup accepted: unknown, not claimed.
+
+The output-only successor exposes the actual command status/timed/signal/cap fields and only known selected case counts/names and fixed source basenames with decimal locations. It reads the existing bounded capture and does not emit raw messages, API bodies, token values or arbitrary test names. Existing command refusal, case roster, auth, source and cleanup checks are unchanged. Source review passes; actual original integration still must pass before this draft is a verified native batch. No production activation or ledger promotion is made.

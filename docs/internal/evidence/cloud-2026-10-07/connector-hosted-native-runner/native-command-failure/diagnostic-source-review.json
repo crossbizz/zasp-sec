@@ -1,0 +1,25 @@
+{
+  "checks": [
+    "Exact prior7f32 source preserved; only new bounded-output parser and invocation before unchanged command-refusal assertion.",
+    "Reads already capped8MiB captured Go test stdout; exact known top/nine names only, signal enum, integer status, count scalars, <=10 failure names and <=16 fixed five-file basename/decimal-line locations emitted.",
+    "No raw stdout/stderr/error/args/provider body/token/header fields emitted. Malformed JSON marked; no invalid-output success substituted.",
+    "Original command status/signal/timeout/output-cap assertion and original exact roster/no skips/auth/PG+FGA normal cleanup acceptance remain untouched."
+  ],
+  "manifestSHA256": "56992257ae1ee998403bc8daaa2a72d5ba24f536679ccc6ba5bbace17563e46f",
+  "members": {
+    "prior-runner.mjs": {
+      "bytes": 18548,
+      "sha256": "7f32b013c28428d8da4c9dca1a4202b8986bea4cfb8439cc7ce55498134fa317"
+    },
+    "scripts/hosted-connector-nine.mjs": {
+      "bytes": 20451,
+      "sha256": "336e41875279a805fe4cf9ac256c2c1ebe0bd99e6d3b20c3729fa7f144618610"
+    }
+  },
+  "qualifications": [
+    "Diagnostic names/locations are output observations only; text can mention a fixed source location without identifying sole cause. Counts do not prove acceptance or current authority.",
+    "Reported native command failure remains failure; no integration PASS inferred.",
+    "No tests/services/runtime by reviewer. ROOT usual syntax/lint/scanner and hosted actual command acceptance remain required."
+  ],
+  "verdict": "PASS_NATIVE_OUTCOME_DIAGNOSTIC_ONLY_SOURCE"
+}
