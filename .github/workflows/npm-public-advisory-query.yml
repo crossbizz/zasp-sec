@@ -1,0 +1,70 @@
+name: Public npm advisory query evidence
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/npm-public-advisory-query.yml'
+      - 'scripts/npm-public-api-query/**'
+      - 'scripts/hosted-memory-observation*'
+      - 'package-lock.json'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  public-query:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22.23.1
+      - name: Bind source and actual hosted tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir "$RUNNER_TEMP/public-npm-query-proof"
+          python3 -B scripts/npm-public-api-query/prepare-hosted.py "$RUNNER_TEMP/public-npm-query-proof/plan.json" > "$RUNNER_TEMP/public-npm-query-proof/plan.sha256"
+      - name: Causal omission and grouped offline controls
+        shell: bash
+        env:
+          PUBLIC_NPM_LOCK_FOR_CONTROLS: ${{ github.workspace }}/package-lock.json
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          set -euo pipefail
+          proof="$RUNNER_TEMP/public-npm-query-proof"
+          pin="$(cat "$proof/plan.sha256")"
+          python3 -B scripts/npm-public-api-query/verify-plan.py "$proof/plan.json" "$pin" > "$proof/pre-controls.txt"
+          timeout --signal=TERM --kill-after=10s 90s python3 -B scripts/npm-public-api-query/hosted-controls.py "$proof/controls"
+          timeout --signal=TERM --kill-after=10s 30s node --test scripts/hosted-memory-observation.test.mjs > "$proof/memory-controls.stdout" 2> "$proof/memory-controls.stderr"
+          python3 -B scripts/npm-public-api-query/verify-plan.py "$proof/plan.json" "$pin" > "$proof/post-controls.txt"
+      - name: Collect bounded official public-lock queries
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          set -uo pipefail
+          proof="$RUNNER_TEMP/public-npm-query-proof"
+          pin="$(cat "$proof/plan.sha256")"
+          start="$(date +%s)"
+          timeout --signal=TERM --kill-after=10s 620s python3 -B scripts/npm-public-api-query/run-hosted.py "$proof/plan.json" "$pin" > "$proof/acquisition.stdout" 2> "$proof/acquisition.stderr"
+          status=$?
+          printf '{"normalShellWaitExit":%s,"startedEpoch":%s,"finishedEpoch":%s,"scope":"Exit zero and no late refusal required; public lock queries only, releaseAccepted false"}\n' "$status" "$start" "$(date +%s)" > "$proof/outer-join.json"
+          exit "$status"
+      - name: Publish bounded public-query outcome
+        if: always()
+        run: python3 -B scripts/npm-public-api-query/safe-summary.py "$RUNNER_TEMP/public-npm-query-proof"
+      - name: Retain original public responses and failure evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: public-npm-advisory-query-evidence
+          retention-days: 3
+          compression-level: 0
+          if-no-files-found: error
+          path: |
+            ${{ runner.temp }}/public-npm-query-proof/
+            /tmp/official-public-lock-advisory-query-actual-*/

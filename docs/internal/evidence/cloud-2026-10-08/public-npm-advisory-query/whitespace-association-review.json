@@ -1,0 +1,7 @@
+{
+  "delta": "Sole owner delta removes whitespace from blank line197; all eleven manifest files match descriptors. Existing source conditional findings closed, algorithm/authority/caps unchanged. No tests/network/execution. ROOT final scans and actual hosted closure separate.",
+  "originalSourceReviewSHA256": "8ca64f22afd7a064b9b3a288cf224eb7a9baf26bccfb67669210e7a4b79b2679",
+  "ownerSHA256": "b7d52602e87faab69f84a26f9f32ca8e9457c5d84f0569b101f18d09748b5d43",
+  "sourceManifestSHA256": "6bb7af84833144f1accada81d3d7945f79072cfea5aaf6de2923538183e01328",
+  "verdict": "PASS_WHITESPACE_ONLY_ASSOCIATION"
+}
