@@ -1,0 +1,42 @@
+{
+  "base": "258769d5667b012d4ad484af41532f4b85947056",
+  "paths": [
+    {
+      "path": "package.json",
+      "sha256": "a7d4f3ec6b222bd3cc63b057c9e51452382a526ae282d1b5f485b6480755e7c5"
+    },
+    {
+      "path": "scripts/npm-public-corpus.mjs",
+      "sha256": "f1d32cdf7027d0daffa944814736d6380456efc5897d679419d119a1ff7cddf2"
+    },
+    {
+      "path": "scripts/npm-public-corpus.test.mjs",
+      "sha256": "81ec863d1d1945770c615500f0dd1ec2188948e8bbfe25cbe6ffeba7baa16beb"
+    },
+    {
+      "path": "scripts/npm-public-corpus-semver.mjs",
+      "sha256": "eacb9394fce409e629ff63c051aac88d55a749930ea957c014b6cf4c40f7a0d9"
+    },
+    {
+      "path": "scripts/npm-public-corpus-semver-pins.json",
+      "sha256": "99546fe328b8d8e4ecfe58bca93bffe9934c6528888537c6e6c4d03bfbd8f4a6"
+    },
+    {
+      "path": "scripts/npm-public-corpus-cli.test.mjs",
+      "sha256": "5a8aa24d6dc3db90f6bd517b203227d19bc3b41768483b246f4a75e15ba6050d"
+    },
+    {
+      "path": "scripts/produce-public-npm-advisory-component.mjs",
+      "sha256": "d1765cce984c39776a930d0d4dfc172f5293e458fa01cf76ec30076a1d850d50"
+    }
+  ],
+  "controls": {
+    "pass": 58,
+    "fail": 0,
+    "skip": 0,
+    "top": 9,
+    "sub": 49
+  },
+  "originalScope": "Initial53 controls and original source-adapted RED/private owner maps remain unchanged. Final selected local controls provide no full immutable input map or deployed evidence.",
+  "additionalChanges": "Unused binding cleanup, explicit captured Git stdio, no lazy fetch/protocol allowance, local-only config preflight before both object rosters, five Git controls."
+}

@@ -1,0 +1,15 @@
+{
+  "ROOTConditions": "Fresh immutable source/tool/plan prepost and live floors; exact fixed recipe; actual normal outer0, completeAdvisoryTree true, no forced/unknown/residual/intervention/late refusal before accepting metadata counts. Preserve originalheld6bd/V2340def.",
+  "ROOTRecipePath": "/tmp/official-advisory-complete-tree-owner-v3-lu0xg9es/ROOT-RECIPE.json",
+  "ROOTRecipeSHA256": "c69a829a98bb9fc85afc65e162ac5523a19ecad048d3fe62c8bbc75d64b69315",
+  "allOtherV2FunctionASTsExact": true,
+  "limitations": "Source-only; no request/blob/clone/corpus intake or vulnerability scan, private graph, row promotions, release/native/FIT acceptance. Git tree OIDs authenticate topology/mode/name/bodyOIDs; blob sizes are API declared metadata, not independently replayed blob body lengths. Auth/env values never inspected or printed.",
+  "limits": "600s work; ROOT610TERM+10KILL;256requests/30s each/20MiBresponse/128MiB aggregate/300kcountedmembers; WS1.5GB/TMP1GB/directmemory100MB unchanged. Each cleanup8s bounded, forced/intervened/unknown refuses.",
+  "planBytesExactV2": true,
+  "resolved": "Owned SID/UID/starttick/pidfd/subreaper+normaladoptedclosure; complete/truncated SHA1 subtree verification and counters; explicit GitHub host/admitted env; remaining aggregate128MiB enforced before retention.",
+  "soleFunctionDelta": "stop terminal writer <=1024B, O_EXCL/O_NOFOLLOW0600, full positive write loop, file+directoryfsync, best-effort failure always exits1, no sealed result rewrite.",
+  "sourcePath": "/tmp/official-advisory-complete-tree-owner-v3-lu0xg9es/run.py",
+  "sourceSHA256": "0e39e6356d6fadb61cf74e49b946672eb29a61bc66ddd6d9eea4ec0d2e131a7b",
+  "sourceToolPinsFreshlyChecked": true,
+  "verdict": "PASS-conditional-ROOT-public-metadata-complete-tree-owner"
+}

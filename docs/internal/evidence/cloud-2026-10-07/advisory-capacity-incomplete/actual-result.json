@@ -1,0 +1,523 @@
+{
+  "aggregateResponseBytes": 64863846,
+  "commit": "963f4b691a2736e0bb288f5f855915bf7ffd3c3e",
+  "completeAdvisoryTree": false,
+  "counts": {
+    "github-reviewed": {
+      "advisoryJSONBlobs": 36428,
+      "advisoryJSONDeclaredBytes": 125094179,
+      "allBlobs": 36428,
+      "declaredBytes": 125094179,
+      "modes": {
+        "100644": 36428
+      }
+    },
+    "unreviewed": {
+      "advisoryJSONBlobs": 19565,
+      "advisoryJSONDeclaredBytes": 22605733,
+      "allBlobs": 19565,
+      "declaredBytes": 22605733,
+      "modes": {
+        "100644": 19565
+      }
+    }
+  },
+  "elapsedSeconds": 27.404911688001448,
+  "failureClass": "RuntimeError",
+  "forced": false,
+  "format": "canonical-public-advisory-complete-tree-capacity-v1",
+  "ownedSessionCleanup": [
+    {
+      "completed": true,
+      "intervened": false,
+      "membersAfter": [],
+      "membersBefore": [],
+      "scope": "exact original owned SID only; no escaped-session/global/fleet claim",
+      "sid": 49125,
+      "signals": [],
+      "unknown": false
+    },
+    {
+      "completed": true,
+      "intervened": false,
+      "membersAfter": [],
+      "membersBefore": [],
+      "scope": "exact original owned SID only; no escaped-session/global/fleet claim",
+      "sid": 49135,
+      "signals": [],
+      "unknown": false
+    },
+    {
+      "completed": true,
+      "intervened": false,
+      "membersAfter": [],
+      "membersBefore": [],
+      "scope": "exact original owned SID only; no escaped-session/global/fleet claim",
+      "sid": 49145,
+      "signals": [],
+      "unknown": false
+    },
+    {
+      "completed": true,
+      "intervened": false,
+      "membersAfter": [],
+      "membersBefore": [],
+      "scope": "exact original owned SID only; no escaped-session/global/fleet claim",
+      "sid": 49155,
+      "signals": [],
+      "unknown": false
+    },
+    {
+      "completed": true,
+      "intervened": false,
+      "membersAfter": [],
+      "membersBefore": [],
+      "scope": "exact original owned SID only; no escaped-session/global/fleet claim",
+      "sid": 49165,
+      "signals": [],
+      "unknown": false
+    },
+    {
+      "completed": true,
+      "intervened": false,
+      "membersAfter": [],
+      "membersBefore": [],
+      "scope": "exact original owned SID only; no escaped-session/global/fleet claim",
+      "sid": 49175,
+      "signals": [],
+      "unknown": false
+    },
+    {
+      "completed": true,
+      "intervened": false,
+      "membersAfter": [],
+      "membersBefore": [],
+      "scope": "exact original owned SID only; no escaped-session/global/fleet claim",
+      "sid": 49185,
+      "signals": [],
+      "unknown": false
+    },
+    {
+      "completed": true,
+      "intervened": false,
+      "membersAfter": [],
+      "membersBefore": [],
+      "scope": "exact original owned SID only; no escaped-session/global/fleet claim",
+      "sid": 49196,
+      "signals": [],
+      "unknown": false
+    },
+    {
+      "completed": true,
+      "intervened": false,
+      "membersAfter": [],
+      "membersBefore": [],
+      "scope": "exact original owned SID only; no escaped-session/global/fleet claim",
+      "sid": 49206,
+      "signals": [],
+      "unknown": false
+    },
+    {
+      "completed": true,
+      "intervened": false,
+      "membersAfter": [],
+      "membersBefore": [],
+      "scope": "exact original owned SID only; no escaped-session/global/fleet claim",
+      "sid": 49216,
+      "signals": [],
+      "unknown": false
+    },
+    {
+      "completed": true,
+      "intervened": false,
+      "membersAfter": [],
+      "membersBefore": [],
+      "scope": "exact original owned SID only; no escaped-session/global/fleet claim",
+      "sid": 49226,
+      "signals": [],
+      "unknown": false
+    },
+    {
+      "completed": true,
+      "intervened": false,
+      "membersAfter": [],
+      "membersBefore": [],
+      "scope": "exact original owned SID only; no escaped-session/global/fleet claim",
+      "sid": 49236,
+      "signals": [],
+      "unknown": false
+    },
+    {
+      "completed": true,
+      "intervened": false,
+      "membersAfter": [],
+      "membersBefore": [],
+      "scope": "exact original owned SID only; no escaped-session/global/fleet claim",
+      "sid": 49246,
+      "signals": [],
+      "unknown": false
+    },
+    {
+      "completed": true,
+      "intervened": false,
+      "membersAfter": [],
+      "membersBefore": [],
+      "scope": "exact original owned SID only; no escaped-session/global/fleet claim",
+      "sid": 49256,
+      "signals": [],
+      "unknown": false
+    },
+    {
+      "completed": true,
+      "intervened": false,
+      "membersAfter": [],
+      "membersBefore": [],
+      "scope": "exact original owned SID only; no escaped-session/global/fleet claim",
+      "sid": 49266,
+      "signals": [],
+      "unknown": false
+    },
+    {
+      "completed": true,
+      "intervened": false,
+      "membersAfter": [],
+      "membersBefore": [],
+      "scope": "exact original owned SID only; no escaped-session/global/fleet claim",
+      "sid": 49276,
+      "signals": [],
+      "unknown": false
+    },
+    {
+      "completed": true,
+      "intervened": false,
+      "membersAfter": [],
+      "membersBefore": [],
+      "scope": "exact original owned SID only; no escaped-session/global/fleet claim",
+      "sid": 49289,
+      "signals": [],
+      "unknown": false
+    },
+    {
+      "completed": true,
+      "intervened": false,
+      "membersAfter": [],
+      "membersBefore": [],
+      "scope": "exact original owned SID only; no escaped-session/global/fleet claim",
+      "sid": 49299,
+      "signals": [],
+      "unknown": false
+    },
+    {
+      "completed": true,
+      "intervened": false,
+      "membersAfter": [],
+      "membersBefore": [],
+      "scope": "exact original owned SID only; no escaped-session/global/fleet claim",
+      "sid": 49309,
+      "signals": [],
+      "unknown": false
+    },
+    {
+      "completed": true,
+      "intervened": false,
+      "membersAfter": [],
+      "membersBefore": [],
+      "scope": "exact original owned SID only; no escaped-session/global/fleet claim",
+      "sid": 49319,
+      "signals": [],
+      "unknown": false
+    },
+    {
+      "completed": true,
+      "intervened": false,
+      "membersAfter": [],
+      "membersBefore": [],
+      "scope": "exact original owned SID only; no escaped-session/global/fleet claim",
+      "sid": 49329,
+      "signals": [],
+      "unknown": false
+    },
+    {
+      "completed": true,
+      "intervened": false,
+      "membersAfter": [],
+      "membersBefore": [],
+      "scope": "exact original owned SID only; no escaped-session/global/fleet claim",
+      "sid": 49340,
+      "signals": [],
+      "unknown": false
+    },
+    {
+      "completed": true,
+      "intervened": true,
+      "membersAfter": [],
+      "membersBefore": [
+        {
+          "pgid": 49350,
+          "pid": 49350,
+          "ppid": 49124,
+          "sid": 49350,
+          "startTicks": "2760067",
+          "state": "Z",
+          "uids": [
+            1000,
+            1000,
+            1000,
+            1000
+          ]
+        }
+      ],
+      "scope": "exact original owned SID only; no escaped-session/global/fleet claim",
+      "sid": 49350,
+      "signals": [],
+      "unknown": false
+    }
+  ],
+  "requests": [
+    {
+      "endpoint": "repos/github/advisory-database/git/trees/cf1bc509e4632a6ade7cb7be969814e4a9a44f39",
+      "exit": 0,
+      "normalJoined": true,
+      "recursive": false,
+      "request": 1,
+      "responseBytes": 1759,
+      "seconds": 0.6051236329985841,
+      "sha256": "345ef9f2c58b1415eb4cc6b65094e3ab11646676fc01dd8edadfc6d78f8ff91a",
+      "truncated": false
+    },
+    {
+      "endpoint": "repos/github/advisory-database/git/trees/44f2558da4ae05a86b879d918b0334fdb33b470b",
+      "exit": 0,
+      "normalJoined": true,
+      "recursive": false,
+      "request": 2,
+      "responseBytes": 623,
+      "seconds": 0.6004758169983688,
+      "sha256": "ee097e659cfe06b229cb688cd978a563cde38f7583a49aef09c689071dd6d90c",
+      "truncated": false
+    },
+    {
+      "endpoint": "repos/github/advisory-database/git/trees/40350afa13edc5b2aebe77f7c3c7397237f8cb35",
+      "exit": 0,
+      "normalJoined": true,
+      "recursive": false,
+      "request": 3,
+      "responseBytes": 2270,
+      "seconds": 0.6446142409986351,
+      "sha256": "e9eba28c9f3b3c87f648d99d28dcf2f2a0e2fd424335cc776d045a4a721b23e4",
+      "truncated": false
+    },
+    {
+      "endpoint": "repos/github/advisory-database/git/trees/2287b04f1863f6ae748f2dcaf94b2fef17f7e529?recursive=1",
+      "exit": 0,
+      "normalJoined": true,
+      "recursive": true,
+      "request": 4,
+      "responseBytes": 108877,
+      "seconds": 0.6724058069994499,
+      "sha256": "481b6ba7626e65e7ff37df1f043cab6ef53b25046a800eb0be9f521dce9bd05c",
+      "truncated": false
+    },
+    {
+      "endpoint": "repos/github/advisory-database/git/trees/9db4d12f9a9b0f5880452f70a00e26fdb5d5743a?recursive=1",
+      "exit": 0,
+      "normalJoined": true,
+      "recursive": true,
+      "request": 5,
+      "responseBytes": 386540,
+      "seconds": 0.7779044829985651,
+      "sha256": "118edb1a85069edb7f322bf0b28ac299929b2f333307f2f262c47d0282922812",
+      "truncated": false
+    },
+    {
+      "endpoint": "repos/github/advisory-database/git/trees/46fcb9d4627e5e57fd750eed1d2a6a12a6d2026f?recursive=1",
+      "exit": 0,
+      "normalJoined": true,
+      "recursive": true,
+      "request": 6,
+      "responseBytes": 366974,
+      "seconds": 0.7695605340013572,
+      "sha256": "006ab765a8475a848edf06917cabc25c4a2bfbd728590d3cc98244d3bee87997",
+      "truncated": false
+    },
+    {
+      "endpoint": "repos/github/advisory-database/git/trees/b103a943b915121fd084b0e7883181199b8a022d?recursive=1",
+      "exit": 0,
+      "normalJoined": true,
+      "recursive": true,
+      "request": 7,
+      "responseBytes": 686307,
+      "seconds": 0.879394871997647,
+      "sha256": "0d69b51146003f901554d67ebcc04a1f9eb7900f9d5030e7269bcf1a56673660",
+      "truncated": false
+    },
+    {
+      "endpoint": "repos/github/advisory-database/git/trees/08cb16f1cb89ac1586d856d92249b37233e16ffa?recursive=1",
+      "exit": 0,
+      "normalJoined": true,
+      "recursive": true,
+      "request": 8,
+      "responseBytes": 1278971,
+      "seconds": 0.9288247949989454,
+      "sha256": "7e0dea2896bbbff235fdb05a2e60533ad8aa417b370c19482c0b8ecea5625e6b",
+      "truncated": false
+    },
+    {
+      "endpoint": "repos/github/advisory-database/git/trees/f2297f59f45f0ea80dfdda54c3084eaddd1e71fc?recursive=1",
+      "exit": 0,
+      "normalJoined": true,
+      "recursive": true,
+      "request": 9,
+      "responseBytes": 4284388,
+      "seconds": 1.1941363960031595,
+      "sha256": "d2d40d0e3b02628643a9bfb4aac1ffc8d503e49e50a3d2f4b48bdef88b470b85",
+      "truncated": false
+    },
+    {
+      "endpoint": "repos/github/advisory-database/git/trees/29c5a45e0197cb05a52ba8b1d77d8e380293c766?recursive=1",
+      "exit": 0,
+      "normalJoined": true,
+      "recursive": true,
+      "request": 10,
+      "responseBytes": 1653562,
+      "seconds": 0.9949936279990652,
+      "sha256": "250a3e106932e4f97eb15a47e48adbd09003a27af343cc021fa5144430bef6c0",
+      "truncated": false
+    },
+    {
+      "endpoint": "repos/github/advisory-database/git/trees/f26e65c56ddeab9351f6b15ef30f1968d423ad76?recursive=1",
+      "exit": 0,
+      "normalJoined": true,
+      "recursive": true,
+      "request": 11,
+      "responseBytes": 1803201,
+      "seconds": 0.9782919270001003,
+      "sha256": "bd890696808ebd2e53616bc81f5e41c0fdb48b0fadb8cbbe8e6025a185535d2f",
+      "truncated": false
+    },
+    {
+      "endpoint": "repos/github/advisory-database/git/trees/9fe60f8e16770af57e20309e0e96031de0584ea6?recursive=1",
+      "exit": 0,
+      "normalJoined": true,
+      "recursive": true,
+      "request": 12,
+      "responseBytes": 1807645,
+      "seconds": 1.0270345059980173,
+      "sha256": "69884d9f5c03b9a3088785a8fc4c97f2718b6e6bb4026ed5f38edad2911ed6e3",
+      "truncated": false
+    },
+    {
+      "endpoint": "repos/github/advisory-database/git/trees/8c99d9dbbe11b4729ceb6bd01dadea19eebf918c?recursive=1",
+      "exit": 0,
+      "normalJoined": true,
+      "recursive": true,
+      "request": 13,
+      "responseBytes": 5462329,
+      "seconds": 1.3312396430010267,
+      "sha256": "5e7f4822bfd74ab73aefd87a3463fd773646b42fafb90508ee5a3ebbede4eb1a",
+      "truncated": false
+    },
+    {
+      "endpoint": "repos/github/advisory-database/git/trees/98fd5c3a4f10f214327c436bdde697141580ca79",
+      "exit": 0,
+      "normalJoined": true,
+      "recursive": false,
+      "request": 14,
+      "responseBytes": 1438,
+      "seconds": 0.6532727820012951,
+      "sha256": "f434c83cbf74a0de6a6ea774930b84c5c4e5d473812cfa87d33eb8e7e8273393",
+      "truncated": false
+    },
+    {
+      "endpoint": "repos/github/advisory-database/git/trees/ff99e82e58f736221838f5bab2444cf28de8be64?recursive=1",
+      "exit": 0,
+      "normalJoined": true,
+      "recursive": true,
+      "request": 15,
+      "responseBytes": 967060,
+      "seconds": 0.8712238700027228,
+      "sha256": "1a6f2354ae0345e6398af3d267f3ad1a07c72fcce8662dead2bd735a0626fd46",
+      "truncated": false
+    },
+    {
+      "endpoint": "repos/github/advisory-database/git/trees/f1701dd1ebbe22a096e3e8245b03d96109157495?recursive=1",
+      "exit": 0,
+      "normalJoined": true,
+      "recursive": true,
+      "request": 16,
+      "responseBytes": 18597857,
+      "seconds": 2.063762123001652,
+      "sha256": "3f68c23107f723ef8e5726f86dc49671fd5a0837107b4b9739a5a1c183947931",
+      "truncated": true
+    },
+    {
+      "endpoint": "repos/github/advisory-database/git/trees/f1701dd1ebbe22a096e3e8245b03d96109157495",
+      "exit": 0,
+      "normalJoined": true,
+      "recursive": false,
+      "request": 17,
+      "responseBytes": 2662,
+      "seconds": 0.5713467460009269,
+      "sha256": "e499f27294f57acc17dbdb62d8698e6c93ce0b78dc5eaef51a5bb1be35791c5a",
+      "truncated": false
+    },
+    {
+      "endpoint": "repos/github/advisory-database/git/trees/94f1002543e4899cc43cc0b2a3b0737e8e3727f2?recursive=1",
+      "exit": 0,
+      "normalJoined": true,
+      "recursive": true,
+      "request": 18,
+      "responseBytes": 798428,
+      "seconds": 0.9049089119980636,
+      "sha256": "244d9e6f72ff4defe2fa46c869c969d670ec2d3b60c110ae442d0af04d41ca9e",
+      "truncated": false
+    },
+    {
+      "endpoint": "repos/github/advisory-database/git/trees/08fc363d6ca9ffecec821d649bc874ef4ae10370?recursive=1",
+      "exit": 0,
+      "normalJoined": true,
+      "recursive": true,
+      "request": 19,
+      "responseBytes": 792218,
+      "seconds": 0.8474890650031739,
+      "sha256": "357fe2c8de3578c0019f2a75a730041223a6dee9bff2c55a96d723d136b01b66",
+      "truncated": false
+    },
+    {
+      "endpoint": "repos/github/advisory-database/git/trees/d85225ce13f7133daf2f56ed57474768133316a9?recursive=1",
+      "exit": 0,
+      "normalJoined": true,
+      "recursive": true,
+      "request": 20,
+      "responseBytes": 833321,
+      "seconds": 0.859567324998352,
+      "sha256": "326495fd229ca3e6ffa3f845332ef53d54a71b375aecd3c3f960310b4ee02529",
+      "truncated": false
+    },
+    {
+      "endpoint": "repos/github/advisory-database/git/trees/229c4d69d69852de7c4b4403708874aa72075e74?recursive=1",
+      "exit": 0,
+      "normalJoined": true,
+      "recursive": true,
+      "request": 21,
+      "responseBytes": 6066505,
+      "seconds": 1.3464981260003697,
+      "sha256": "39ab9096c4ccc5bcf6f92e0c9dd6931227cac53d64e5a0ec6303021a6c137907",
+      "truncated": false
+    },
+    {
+      "endpoint": "repos/github/advisory-database/git/trees/b53660dcdaae3c5dbd7b1d570bdca28b5c8a3e0f?recursive=1",
+      "exit": 0,
+      "normalJoined": true,
+      "recursive": true,
+      "request": 22,
+      "responseBytes": 18960911,
+      "seconds": 2.019786558001215,
+      "sha256": "c3c25af24cf6bf33a0d5dc7205049b6823687ee5b042e1b1e327cac0daa71db3",
+      "truncated": true
+    }
+  ],
+  "rootTree": "cf1bc509e4632a6ade7cb7be969814e4a9a44f39",
+  "scope": "Public Git tree metadata only; incomplete counts not coverage; declared blob bytes not installation peak/corpus intake/scan or private graph; no row promotions.",
+  "verifiedMemberRows": 112102
+}

@@ -1,0 +1,51 @@
+{
+  "ROOTCommand": [
+    "/usr/bin/timeout",
+    "--signal=TERM",
+    "--kill-after=10s",
+    "610s",
+    "/usr/bin/python3",
+    "-I",
+    "-B",
+    "/tmp/official-advisory-complete-tree-owner-v3-lu0xg9es/run.py"
+  ],
+  "environment": "Only gh api --hostname github.com fixed public repository tree routes using verified child OIDs; admitted auth/proxy/CA env names, GH_HOST/GH_DEBUG excluded. Initial hostname fixed; no unsupported no-redirect guarantee. Managed proxy and TLS trust unchanged.",
+  "files": {
+    "plan.json": {
+      "bytes": 1982,
+      "sha256": "e3356f93f65a286a3d6d617e05f57330b462984e3faabae1aaf6bd9427b268bd"
+    },
+    "run.py": {
+      "bytes": 13826,
+      "sha256": "0e39e6356d6fadb61cf74e49b946672eb29a61bc66ddd6d9eea4ec0d2e131a7b"
+    }
+  },
+  "format": "public-advisory-complete-capacity-root-recipe-v3",
+  "immediatePredecessor": {
+    "delta": "Only terminal late-refusal writer: <=1024B O_EXCL/O_NOFOLLOW0600 positive-progress write loop+file/directory fsync, best-effort failure still exits1, no result rewrite.",
+    "path": "/tmp/official-advisory-complete-tree-owner-v2-fk06214k",
+    "recipeSHA256": "78c19a1294457505ae2e05053c481cb6e60c73b38429ae2c3ce1edc62af49174",
+    "sourceSHA256": "340def013c0965b6ca369593a8f3d29d7555a7a8c4b49e2b75866d3f8e6516ab",
+    "status": "UNRUN_HELD_SOLE_LATE_REFUSAL_DURABILITY_GAP"
+  },
+  "launchGate": "Independent source review; currentresource floors and source/toolprepost, normalouter0+completeAdvisoryTretrue actual required. Unknown/errors/limits explicitly incomplete.",
+  "limitations": [
+    "Requests may rate-limit; no retry or identity bypass.",
+    "Exact original request SID scope only; no escaped-session/global absence claim. Any owned session intervention/UNKNOWN/refusal means incomplete.",
+    "Global exact path roster is not emitted; complete cryptographically checked traversal counters only."
+  ],
+  "preservedPredecessor": {
+    "helperFunctionsAST": "proc_row/stable/credential_row/owned_signal/owned_session/end_child copied exactly from independently reviewed4762 owner",
+    "helperSource": "/tmp/operator-v4-three-stage-owner-v3-thkyrzh4/run.py",
+    "helperSourceSHA256": "fddff2fb3663d50faf01afd40b3f4f20c9f25baf872bfda147ca9cb7ad33c1f9",
+    "path": "/tmp/official-advisory-complete-tree-source-cmvth3vm",
+    "sourceSHA256": "6bd4e16fc75d5b912e3fb9efe0685374509e992a8ec6ac93fe05b0c16912f604",
+    "status": "HELD_UNRUN_SOURCE_BLOCKERS"
+  },
+  "scope": "ROOT bounded public metadata capacity only; source-only proposal. Direct category/year levels avoids known oversized recursive corpus. Complete recursive descendants verified actual Git tree SHA1 from mode/name/OID bytes. No blobs/corpus/clone/checkout/privategraph.",
+  "toolBindings": {
+    "/usr/bin/gh": "ad48084500298bdf0458c16b14253ab8d74cd163d07e360a53d86a93bfd7b49c",
+    "/usr/bin/python3": "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1",
+    "/usr/bin/timeout": "6ca1891dfc0b05d7680770c2884c0391b92467c7bb6500a5c84677e6481739f1"
+  }
+}

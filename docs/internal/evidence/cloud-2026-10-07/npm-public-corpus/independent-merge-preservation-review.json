@@ -1,0 +1,35 @@
+{
+  "exactSevenNonStatusBlobsEqualGuardParent": true,
+  "failedRepeat": {
+    "path": "/tmp/npm-producer-merged-workflow-controls.log",
+    "scope": "Missing jest-dom import fixture setup, not product/test assertion failure. Preserved. No tests PASS inferred.",
+    "sha256": "42b182c890111908cd8e970e8eedfd423edb28a896229fec1e7b446b7539f1b4"
+  },
+  "limitations": "No runtime/Go/cache manipulation by reviewer, no full npm verification/hosted/deployed/native release claim. Exact merge commit after terminal checks/scans remains ROOT.",
+  "mergeBase": "258769d5667b012d4ad484af41532f4b85947056",
+  "parents": [
+    "4353dc469f3693020a056b70010cbb039c73ce1f",
+    "ec840b3ba00f34c6b52780cc8c654f5a0e8885ce"
+  ],
+  "producerSourcePackageLockReleaseWorkflowPinsUnchanged": {
+    ".github/workflows/runnable-ui.yml": "fd98a81d520fbd8b80fb6d404b7a8a0d0e154268f0e3adb5073a47ee4c7d4d98",
+    "package-lock.json": "d34f213a3222a5fd3cecea449bb4242ebe725bdb8a3c73a08d2eb3a66d687b01",
+    "package.json": "a7d4f3ec6b222bd3cc63b057c9e51452382a526ae282d1b5f485b6480755e7c5",
+    "scripts/npm-public-corpus-cli.test.mjs": "5a8aa24d6dc3db90f6bd517b203227d19bc3b41768483b246f4a75e15ba6050d",
+    "scripts/npm-public-corpus.mjs": "f1d32cdf7027d0daffa944814736d6380456efc5897d679419d119a1ff7cddf2",
+    "scripts/production-release-gate.mjs": "5c36995b49dcb4461983ea6622d75d271c55bfea680c4cd9cfaaadce052836ba"
+  },
+  "runtime": "Recovered workflow326 repeat still running at source review; independent actual remains separate. TMP dependency links repaired by ROOT; no immutable source-map receipt inferred.",
+  "stagedChangedPaths": {
+    "app/quality/runnable-ui-workflow.test.ts": "c2856778276768ddae4f430ab4222d65109f0560dc141f277fdc1dbfc96520fe",
+    "docs/internal/evidence/cloud-2026-10-07/notification-workflow-guard/README.md": "10eeac10b6073e04bc930dda128ad18091bd302f63b12a3c06c2d7b4c17ca7aa",
+    "docs/internal/evidence/cloud-2026-10-07/notification-workflow-guard/corrected-green.log": "5787984b78d55996353978f8e748baff75c05b0f6210dee64ce9a062fc7567ba",
+    "docs/internal/evidence/cloud-2026-10-07/notification-workflow-guard/hosted-annotations.json": "3f8aeddabff99d20c82b3bd079da471f8bc9d36c41e914b3ac391c990a55630b",
+    "docs/internal/evidence/cloud-2026-10-07/notification-workflow-guard/independent-review.json": "902e2eb6435cfcb52b0c35bb3f471d9fd0229396173c0e92914ecec5a0676ec5",
+    "docs/internal/evidence/cloud-2026-10-07/notification-workflow-guard/original-red.log": "65d09e44a5950fd97329e8cad6752dc9bbbb0931c673afb47582bd73f13f157d",
+    "docs/internal/evidence/cloud-2026-10-07/notification-workflow-guard/scoped-eslint.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/internal/implementation_status_v1.5.md": "cb9338a61e375e2164f1fee9f641a63b2c98817a8f0e72664c3605503c4204ef"
+  },
+  "statusResolution": "Entire producer HEAD status bytes preserved as prefix, entire guard-parent appended paragraph retained; only additive both blocks/no ledger promotion.",
+  "verdict": "PASS-pending-merge-source-conservation"
+}

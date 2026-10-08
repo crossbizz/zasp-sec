@@ -1,0 +1,10 @@
+Warning: React version was set to "detect" in eslint-plugin-react settings, but the "react" package is not installed. Assuming latest React version for linting.
+
+/tmp/zasp-startup-diagnostic-checkout/scripts/npm-public-corpus-semver.mjs
+  2:10  error  'readFileSync' is defined but never used  @typescript-eslint/no-unused-vars
+
+/tmp/zasp-startup-diagnostic-checkout/scripts/npm-public-corpus.mjs
+  117:158  error  '_' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+✖ 2 problems (2 errors, 0 warnings)
+

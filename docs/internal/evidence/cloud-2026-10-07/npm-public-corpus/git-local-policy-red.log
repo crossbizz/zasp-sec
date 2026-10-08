@@ -1,0 +1,452 @@
+TAP version 13
+# Subtest: portable locked semver source refuses drift
+    # Subtest: valid
+    ok 1 - valid
+      ---
+      duration_ms: 22.882894
+      type: 'test'
+      ...
+    # Subtest: version
+    ok 2 - version
+      ---
+      duration_ms: 2.503015
+      type: 'test'
+      ...
+    # Subtest: integrity
+    ok 3 - integrity
+      ---
+      duration_ms: 2.469664
+      type: 'test'
+      ...
+    # Subtest: file-hash
+    ok 4 - file-hash
+      ---
+      duration_ms: 3.441805
+      type: 'test'
+      ...
+    # Subtest: membership
+    ok 5 - membership
+      ---
+      duration_ms: 2.756128
+      type: 'test'
+      ...
+    # Subtest: symlink
+    ok 6 - symlink
+      ---
+      duration_ms: 3.039977
+      type: 'test'
+      ...
+    1..6
+ok 1 - portable locked semver source refuses drift
+  ---
+  duration_ms: 38.508302
+  type: 'test'
+  ...
+# Subtest: callable public npm producer boundaries stay closed
+    # Subtest: valid-deterministic
+    ok 1 - valid-deterministic
+      ---
+      duration_ms: 164.318791
+      type: 'test'
+      ...
+    # Subtest: unknown-arg
+    ok 2 - unknown-arg
+      ---
+      duration_ms: 76.984646
+      type: 'test'
+      ...
+    # Subtest: duplicate-arg
+    ok 3 - duplicate-arg
+      ---
+      duration_ms: 78.242883
+      type: 'test'
+      ...
+    # Subtest: relative-arg
+    ok 4 - relative-arg
+      ---
+      duration_ms: 69.742545
+      type: 'test'
+      ...
+    # Subtest: missing-receipt
+    ok 5 - missing-receipt
+      ---
+      duration_ms: 70.999636
+      type: 'test'
+      ...
+    # Subtest: unknown-receipt
+    ok 6 - unknown-receipt
+      ---
+      duration_ms: 73.024973
+      type: 'test'
+      ...
+    # Subtest: duplicate-receipt
+    ok 7 - duplicate-receipt
+      ---
+      duration_ms: 81.371004
+      type: 'test'
+      ...
+    # Subtest: wrong-repository
+    ok 8 - wrong-repository
+      ---
+      duration_ms: 81.837394
+      type: 'test'
+      ...
+    # Subtest: wrong-full-roster
+    ok 9 - wrong-full-roster
+      ---
+      duration_ms: 86.095588
+      type: 'test'
+      ...
+    # Subtest: wrong-lock
+    ok 10 - wrong-lock
+      ---
+      duration_ms: 71.051979
+      type: 'test'
+      ...
+    # Subtest: existing-output
+    ok 11 - existing-output
+      ---
+      duration_ms: 80.409414
+      type: 'test'
+      ...
+    # Subtest: mixed-corpus-record
+    ok 12 - mixed-corpus-record
+      ---
+      duration_ms: 84.15625
+      type: 'test'
+      ...
+    # Subtest: local-promisor-missing-object
+    ok 13 - local-promisor-missing-object
+      ---
+      duration_ms: 97.508242
+      type: 'test'
+      ...
+    # Subtest: local-promisor-config
+    not ok 14 - local-promisor-config
+      ---
+      duration_ms: 92.843197
+      type: 'test'
+      location: '/tmp/zasp-startup-diagnostic-checkout/scripts/npm-public-corpus-cli.test.mjs:33:371'
+      failureType: 'testCodeFailure'
+      error: |-
+        Expected values to be strictly equal:
+        
+        0 !== 1
+        
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: 1
+      actual: 0
+      operator: 'strictEqual'
+      stack: |-
+        TestContext.<anonymous> (file:///tmp/zasp-startup-diagnostic-checkout/scripts/npm-public-corpus-cli.test.mjs:85:17)
+        Test.runInAsyncScope (node:async_hooks:214:14)
+        Test.run (node:internal/test_runner/test:1047:25)
+        Test.start (node:internal/test_runner/test:944:17)
+        TestContext.test (node:internal/test_runner/test:373:20)
+        TestContext.<anonymous> (file:///tmp/zasp-startup-diagnostic-checkout/scripts/npm-public-corpus-cli.test.mjs:33:371)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+    # Subtest: local-partial-config
+    not ok 15 - local-partial-config
+      ---
+      duration_ms: 84.264054
+      type: 'test'
+      location: '/tmp/zasp-startup-diagnostic-checkout/scripts/npm-public-corpus-cli.test.mjs:33:371'
+      failureType: 'testCodeFailure'
+      error: |-
+        Expected values to be strictly equal:
+        
+        0 !== 1
+        
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: 1
+      actual: 0
+      operator: 'strictEqual'
+      stack: |-
+        TestContext.<anonymous> (file:///tmp/zasp-startup-diagnostic-checkout/scripts/npm-public-corpus-cli.test.mjs:85:17)
+        Test.runInAsyncScope (node:async_hooks:214:14)
+        Test.run (node:internal/test_runner/test:1047:25)
+        Test.start (node:internal/test_runner/test:944:17)
+        TestContext.test (node:internal/test_runner/test:373:20)
+        TestContext.<anonymous> (file:///tmp/zasp-startup-diagnostic-checkout/scripts/npm-public-corpus-cli.test.mjs:33:371)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+    # Subtest: local-include-config
+    not ok 16 - local-include-config
+      ---
+      duration_ms: 80.754596
+      type: 'test'
+      location: '/tmp/zasp-startup-diagnostic-checkout/scripts/npm-public-corpus-cli.test.mjs:33:371'
+      failureType: 'testCodeFailure'
+      error: |-
+        Expected values to be strictly equal:
+        
+        0 !== 1
+        
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: 1
+      actual: 0
+      operator: 'strictEqual'
+      stack: |-
+        TestContext.<anonymous> (file:///tmp/zasp-startup-diagnostic-checkout/scripts/npm-public-corpus-cli.test.mjs:85:17)
+        Test.runInAsyncScope (node:async_hooks:214:14)
+        Test.run (node:internal/test_runner/test:1047:25)
+        Test.start (node:internal/test_runner/test:944:17)
+        TestContext.test (node:internal/test_runner/test:373:20)
+        TestContext.<anonymous> (file:///tmp/zasp-startup-diagnostic-checkout/scripts/npm-public-corpus-cli.test.mjs:33:371)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+    # Subtest: local-worktree-config
+    not ok 17 - local-worktree-config
+      ---
+      duration_ms: 82.009876
+      type: 'test'
+      location: '/tmp/zasp-startup-diagnostic-checkout/scripts/npm-public-corpus-cli.test.mjs:33:371'
+      failureType: 'testCodeFailure'
+      error: |-
+        Expected values to be strictly equal:
+        
+        0 !== 1
+        
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: 1
+      actual: 0
+      operator: 'strictEqual'
+      stack: |-
+        TestContext.<anonymous> (file:///tmp/zasp-startup-diagnostic-checkout/scripts/npm-public-corpus-cli.test.mjs:85:17)
+        Test.runInAsyncScope (node:async_hooks:214:14)
+        Test.run (node:internal/test_runner/test:1047:25)
+        Test.start (node:internal/test_runner/test:944:17)
+        TestContext.test (node:internal/test_runner/test:373:20)
+        TestContext.<anonymous> (file:///tmp/zasp-startup-diagnostic-checkout/scripts/npm-public-corpus-cli.test.mjs:33:371)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+    1..17
+not ok 2 - callable public npm producer boundaries stay closed
+  ---
+  duration_ms: 1458.775164
+  type: 'test'
+  location: '/tmp/zasp-startup-diagnostic-checkout/scripts/npm-public-corpus-cli.test.mjs:32:1'
+  failureType: 'subtestsFailed'
+  error: '4 subtests failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# Subtest: materializes exact-lock npm findings from full pinned record bytes
+ok 3 - materializes exact-lock npm findings from full pinned record bytes
+  ---
+  duration_ms: 2.133376
+  type: 'test'
+  ...
+# Subtest: real npm semver boundaries remain sensitive
+    # Subtest: introduced inclusive
+    ok 1 - introduced inclusive
+      ---
+      duration_ms: 0.557614
+      type: 'test'
+      ...
+    # Subtest: fixed exclusive
+    ok 2 - fixed exclusive
+      ---
+      duration_ms: 0.351171
+      type: 'test'
+      ...
+    # Subtest: below introduced
+    ok 3 - below introduced
+      ---
+      duration_ms: 0.335678
+      type: 'test'
+      ...
+    # Subtest: build metadata preserved
+    ok 4 - build metadata preserved
+      ---
+      duration_ms: 0.362979
+      type: 'test'
+      ...
+    # Subtest: last affected inclusive
+    ok 5 - last affected inclusive
+      ---
+      duration_ms: 0.372563
+      type: 'test'
+      ...
+    # Subtest: limit exclusive
+    ok 6 - limit exclusive
+      ---
+      duration_ms: 0.228175
+      type: 'test'
+      ...
+    # Subtest: reopened interval
+    ok 7 - reopened interval
+      ---
+      duration_ms: 0.339744
+      type: 'test'
+      ...
+    # Subtest: prerelease ordered
+    ok 8 - prerelease ordered
+      ---
+      duration_ms: 0.594849
+      type: 'test'
+      ...
+    # Subtest: explicit versions
+    ok 9 - explicit versions
+      ---
+      duration_ms: 0.323379
+      type: 'test'
+      ...
+    1..9
+ok 4 - real npm semver boundaries remain sensitive
+  ---
+  duration_ms: 4.815832
+  type: 'test'
+  ...
+# Subtest: missing stale corrupt unsupported or ambiguous inputs refuse instead of zero clearance
+    # Subtest: missing corpus
+    ok 1 - missing corpus
+      ---
+      duration_ms: 0.440977
+      type: 'test'
+      ...
+    # Subtest: stale corpus
+    ok 2 - stale corpus
+      ---
+      duration_ms: 0.122715
+      type: 'test'
+      ...
+    # Subtest: future corpus
+    ok 3 - future corpus
+      ---
+      duration_ms: 0.102525
+      type: 'test'
+      ...
+    # Subtest: wrong corpus digest
+    ok 4 - wrong corpus digest
+      ---
+      duration_ms: 0.226553
+      type: 'test'
+      ...
+    # Subtest: duplicate advisory
+    ok 5 - duplicate advisory
+      ---
+      duration_ms: 0.202256
+      type: 'test'
+      ...
+    # Subtest: wrong repository
+    ok 6 - wrong repository
+      ---
+      duration_ms: 0.130397
+      type: 'test'
+      ...
+    # Subtest: unsupported ecosystem
+    ok 7 - unsupported ecosystem
+      ---
+      duration_ms: 0.183157
+      type: 'test'
+      ...
+    # Subtest: unsupported range
+    ok 8 - unsupported range
+      ---
+      duration_ms: 0.181094
+      type: 'test'
+      ...
+    # Subtest: invalid version
+    ok 9 - invalid version
+      ---
+      duration_ms: 0.154053
+      type: 'test'
+      ...
+    # Subtest: linked production alias cannot omit dev target
+    ok 10 - linked production alias cannot omit dev target
+      ---
+      duration_ms: 0.243047
+      type: 'test'
+      ...
+    # Subtest: overlapping events
+    ok 11 - overlapping events
+      ---
+      duration_ms: 0.193502
+      type: 'test'
+      ...
+    # Subtest: unknown range event
+    ok 12 - unknown range event
+      ---
+      duration_ms: 0.222396
+      type: 'test'
+      ...
+    # Subtest: duplicate raw JSON key
+    ok 13 - duplicate raw JSON key
+      ---
+      duration_ms: 0.164799
+      type: 'test'
+      ...
+    1..13
+ok 5 - missing stale corrupt unsupported or ambiguous inputs refuse instead of zero clearance
+  ---
+  duration_ms: 3.409916
+  type: 'test'
+  ...
+# Subtest: actual read-only producer binds complete local Git corpus without network
+ok 6 - actual read-only producer binds complete local Git corpus without network
+  ---
+  duration_ms: 18.656973
+  type: 'test'
+  ...
+# Subtest: current product lock inventory is consumed without disclosure
+ok 7 - current product lock inventory is consumed without disclosure
+  ---
+  duration_ms: 67.13434
+  type: 'test'
+  ...
+# Subtest: actual producer reservation helper refuses before raw retention
+    # Subtest: complete corpus row bound
+    ok 1 - complete corpus row bound
+      ---
+      duration_ms: 2.153026
+      type: 'test'
+      ...
+    # Subtest: selected npm byte bound
+    ok 2 - selected npm byte bound
+      ---
+      duration_ms: 0.269668
+      type: 'test'
+      ...
+    1..2
+ok 8 - actual producer reservation helper refuses before raw retention
+  ---
+  duration_ms: 2.677358
+  type: 'test'
+  ...
+# Subtest: evidence byte reservations refuse before row or match retention
+    # Subtest: rows
+    ok 1 - rows
+      ---
+      duration_ms: 0.122045
+      type: 'test'
+      ...
+    # Subtest: matches
+    ok 2 - matches
+      ---
+      duration_ms: 0.056225
+      type: 'test'
+      ...
+    1..2
+ok 9 - evidence byte reservations refuse before row or match retention
+  ---
+  duration_ms: 0.476661
+  type: 'test'
+  ...
+1..9
+# tests 58
+# suites 0
+# pass 53
+# fail 5
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1568.456394

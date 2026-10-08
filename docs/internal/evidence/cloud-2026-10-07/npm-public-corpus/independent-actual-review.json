@@ -1,0 +1,35 @@
+{
+  "GREEN": {
+    "cancelled": 0,
+    "fail": 0,
+    "pass": 53,
+    "skip": 0,
+    "sub": 44,
+    "todo": 0,
+    "top": 9
+  },
+  "RED": "1 intended source-adapted unconditional release-refusal failure, no skips",
+  "actualPath": "/tmp/npm-portable-cli-component-actual-cai3bypv/result.json",
+  "actualSHA256": "41a6f005d11bc7ff402c2ade22467787c53b7d049253d46bc858d3c77b349279",
+  "forced": false,
+  "inputMaps": {
+    "composition": "134 reviewed descriptors plus3 owner namespace files",
+    "count": 137,
+    "digest": "301758f4c58a6ffbeb25da3143163e50ce671220edb4c2a75f3fe3e7ecbb015d",
+    "hashAndSecurityMapsEqual": true
+  },
+  "joins": [
+    1,
+    0
+  ],
+  "lateRefusalAbsent": true,
+  "limitations": "No official corpus intake/network/fullrelease execution or vulnerability clearance. Local Git fixtures/caller receipts establish byte closure only; releaseAccepted false. No rerun.",
+  "normalOuterExit": 0,
+  "outerSHA256": "05f26b4a1e1f34c680dc1c5aaaecf5e588e0b906c5f005ea1eaf7f3b5424171b",
+  "productionReleaseGuardSHA256": "5c36995b49dcb4461983ea6622d75d271c55bfea680c4cd9cfaaadce052836ba",
+  "residuals": [],
+  "scopeNote": "ROOT outer scope string retains earlier50 shorthand; exact sealed stage recipe/results/rawTAP establish53. Original outer unchanged.",
+  "signals": [],
+  "unknown": [],
+  "verdict": "PASS-portable-npm-component-only"
+}
