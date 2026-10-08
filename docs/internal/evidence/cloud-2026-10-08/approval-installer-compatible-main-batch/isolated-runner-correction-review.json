@@ -1,0 +1,32 @@
+{
+  "base": "d7cb0180c0a6fc6553f2d4a48b5cb72798fb372c",
+  "declined_to_judge": [
+    "Exact prior failurecause and raw full receipt/logs blocked403.",
+    "Successor runtime/test outcome pending; no local tests or runtime run.",
+    "Native/deployed/activation/release/launch/full728 acceptance."
+  ],
+  "evidence_assessment": "Correction document preserves original failed run/commit and says active test/exactfailure uninspected, does not claim native rootcause or current success. Established standarddeadline replacement is not original native bound relaxation.",
+  "execution": "Read-only source/metadata review; no Git/source mutations.",
+  "findings": [],
+  "fresh_prior_metadata": {
+    "conclusion": "failure",
+    "head": "d7cb0180c0a6fc6553f2d4a48b5cb72798fb372c",
+    "run": 37742080196,
+    "status": "completed"
+  },
+  "merge_verdict": "Pending exact-successor isolated full workflow PASS; prior failed suite not accepted.",
+  "push_verdict": "SAFE_TO_PUSH_FOR_ISOLATED_EXISTING_SUITE_VERIFICATION",
+  "reviewed_sha256": {
+    ".github/workflows/approval-installer-batch.yml": "9661ebd3cbf8b32e4a445d776935dd1fba0456f50136dda69aac90e6d87a26d0",
+    "docs/internal/evidence/cloud-2026-10-08/approval-installer-compatible-main-batch/isolated-runner-limit-correction.md": "3fba14b61a3888e07198242e7292619cf820e2c164d0ad038a88e07a7237cacc"
+  },
+  "schema": "finite-independent-code-review-v1",
+  "verified": [
+    "Only tracked workflow changed; installer/application/test bytes unchanged.",
+    "Same entire existing migration suite, race/p1/count1; Go default10m matches established db:schema:test and RunnableUI migration command. Outer isolatedjob25m and suite step15m cover compile plus standard suite; no frozen native/security/runtime/TTL bounds changed.",
+    "set+e catches command exit, restored-e then test group_status0 enforces failure; diagnostic success cannot turn failing suite green.",
+    "Closed safe annotation: exit numeric, timeout boolean, numeric top-level run/pass/fail/skip counts; failed/active names regex Test[A-Za-z0-9_]{1,160}, lists maximum16; no raw receipt output or SQL/errors/args.",
+    "Local receipt path mktemp owned RUNNER_TEMP; printed annotation JSON is control-safe through closed names/constants.",
+    "Pinned actions/readonly contents token/unpersistedcredentials/exacttoolchain/modreadonly/source diff guards retained."
+  ]
+}

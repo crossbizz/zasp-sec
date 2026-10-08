@@ -1,0 +1,44 @@
+{
+  "base": "32ea911cca555447c56f269a28bc496b8e770e95",
+  "conditional_merge_verdict": "Eligible for normal component merge after exact-head isolated four-consumer compile and all existing migration group PASS; current isolated results pending. No wider PR60 deployment admission.",
+  "declined_to_judge": [
+    "Pending isolated batch CI outcomes.",
+    "Actual SQL cause of separate later connector-catalog refusal; not an approval installer failure inferred here.",
+    "Raw native receipts/logs or deployment/activation/retirement/completefleet/restart/nativecallback/cleanup/Reconcile/Stage/Ack/launch/release/full728 acceptance."
+  ],
+  "execution": "No tests/compiler/runtime or source/Git mutations.",
+  "findings": [],
+  "fresh_metadata": {
+    "conclusion": "success",
+    "head": "a600ef62e4ad96f18648ad5ee8fcf1ed3b177a00",
+    "inspection": "Fresh GitHub run metadata only. Individual named-case safe annotations reported by root; raw logs/artifacts403 not inspected.",
+    "run": 37740499412,
+    "status": "completed",
+    "url": "https://github.com/crossbizz/zasp-sec/actions/runs/37740499412"
+  },
+  "push_verdict": "SAFE_TO_PUSH_FOR_ISOLATED_EXISTING_CHECKS",
+  "schema": "finite-independent-code-review-v1",
+  "scope": "Extracted compatible approval installer implementation on main, source-only plus fresh read-only composed run metadata",
+  "source_sha256": {
+    ".github/workflows/approval-installer-batch.yml": "2684a5639bbbaa263b18f8c53590f0feaa926a21dec5285233ac78f931ba4fc5",
+    "docs/internal/evidence/cloud-2026-10-08/approval-installer-compatible-main-batch/README.md": "aef8a9f34e8d9ead87aa1f5dfac647212f8a9ca60fc60e6a91cd4c7db7d58c63",
+    "docs/internal/evidence/cloud-2026-10-08/approval-installer-compatible-main-batch/source-association.json": "804ebe2c7ea9973036eb5252b06fa29cd8e9cc2158e5771fe252d7b3db35871e",
+    "services/platform/migrations/production_approval_maintenance_profile.go": "2e98fa960c2e7b42b2a6a343b4ff47059c0d23fac83dbed887d2868f1b9c99f3",
+    "services/platform/migrations/production_approval_maintenance_successor.go": "6817964c5c0dfcabe7ea9f65caf5b7840f6d9e4d29a1ec39b00e1b03b0fa6eca"
+  },
+  "verified": {
+    "atomicity": "Original withTransaction retains migration lock. Registered operator validates/provisions restricted role, only fixed missing schema and exact organization.id REFERENCES privilege. Original80 readiness pre/post and original shape/principal/member guards retain. SET LOCAL ROLE authority precedes unchanged private worker prerequisites, owned definitions, registration and final exact catalog checks. Any failure rolls back all transaction operations.",
+    "compatibility": "Original v2 SQL/checksum and catalog fingerprint definitions unchanged. Exact valid existing v2 admission remains, mismatched catalog refuses. No stored fingerprints rewritten.",
+    "computed_module_checksum_preserved": true,
+    "embedded_sql_sha256": "e894ab1c8045a23e4055ced58a89af8a795b26ebf8f4518c83caa89de53a269b",
+    "existing_whole_source_test_byte_unchanged": true,
+    "implementation_files": 2,
+    "main_dependency_closure": "All existing helper types/functions and authorization/worker/temporal prerequisite sources present on main; no new connector implementation imported. Actual compile remains isolated CI obligation.",
+    "matches_composed_reviewed_bytes": true,
+    "original_embedded_v2_sql_byte_preserved": true,
+    "original_profile_name_preserved": true,
+    "scope_limits": "No activation, new test cases, canonical numbered SQL changes or ledger promotion.",
+    "source_association_hashes_and_lengths_match": true,
+    "workflow": "Pinned checkout/setup-go, read-only contents token, credentials unpersisted, Go1.26.8 exact, modreadonly, four existing consumer binaries compiled with race/p1, all existing migration tests race/count1/2m, finite15m job and5m test step, postcommand tracked source unchanged check."
+  }
+}
