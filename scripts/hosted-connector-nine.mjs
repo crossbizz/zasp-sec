@@ -14,7 +14,7 @@ const image = 'postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82
 const pins = {
  'services/platform/apiserver/connector_enqueue_provenance_postgres_test.go':'d6039cfa0d1673a5cf29e68e209b73c2cb6aeefd715e4d7805d3690b8ab0afde',
  'services/platform/migrations/sql/connector_enqueue_provenance.sql':'32b3f8cbe175b5256ff4542cdff044d6d060e0240d24632bf3d057f3553a5c13',
- 'services/platform/migrations/production_connector_enqueue_provenance.go':'809041eced547701b1e3ac3c1f68ac45d7b403336f5de6df4dda13b10db83267',
+ 'services/platform/migrations/production_connector_enqueue_provenance.go':'793b230a8572fbfbed2a4702e1513bfa90afac596a8d0707ae047bbdf8bacc36',
 };
 const top='TestConnectorCapturedEnqueueOriginalAuthorizationPostgres';
 const cases=['authentic_capture_and_exact_replay','wrong_signed_purpose','wrong_selected_scope','modified_signed_envelope','existing_originless_effect_refused','later_transaction_failure_rolls_back_enqueue_and_origin','own_catalog_drift_refused','outbox_consumer_cannot_capture','required_inputs_concurrent_replay_and_savepoint_ownership'];
