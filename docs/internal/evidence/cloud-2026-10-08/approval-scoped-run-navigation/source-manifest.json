@@ -1,0 +1,33 @@
+{
+  "baseCommit": "2a38baf83b3eed44c341e6f250edeaa885549455",
+  "changes": "Only approval run-navigation capability/scope/handler wiring and Open run button; existing APIs, decision/auth/version/idempotency logic untouched.",
+  "format": "private-scoped-approval-run-navigation-source",
+  "gates": "Default canReadRuns false; production sets it only for current nonnull queryScopeKey and server-derived security-agents.read. Button requires scope/navigation, busy/unresolved/context-read navigation disabled. activityLink preserves actual run ID and org/workspace/environment; server GET retains authorization.",
+  "launchTasks": [
+    "M7A-88",
+    "M7A-89",
+    "M7A-90"
+  ],
+  "members": [
+    {
+      "afterBytes": 18412,
+      "afterSHA256": "6638abb24525a8918eec85eeede944b637d8c19758e2b33d37641edfa51f8193",
+      "beforeBytes": 18390,
+      "beforePath": "/tmp/approval-scoped-run-link-source-ihz7iyee/before/app/components/ZaspProductionApp.tsx",
+      "beforeSHA256": "f19cbbac9c1a86236c0675c57a26df32c1039738e65b99c23f068b9892681860",
+      "candidatePath": "/tmp/approval-scoped-run-link-source-ihz7iyee/candidate/app/components/ZaspProductionApp.tsx",
+      "path": "app/components/ZaspProductionApp.tsx"
+    },
+    {
+      "afterBytes": 88493,
+      "afterSHA256": "8bf620769e3ce021e1fb76f12e6b02449cf8865b983f0e71d7e4b46c9c769b25",
+      "beforeBytes": 87819,
+      "beforePath": "/tmp/approval-scoped-run-link-source-ihz7iyee/before/app/features/securityagents/SecurityAgentsView.tsx",
+      "beforeSHA256": "3357f5bba420893ac870806fd3b74d7f454d49f7a6ae1cd774774b7610663640",
+      "candidatePath": "/tmp/approval-scoped-run-link-source-ihz7iyee/candidate/app/features/securityagents/SecurityAgentsView.tsx",
+      "path": "app/features/securityagents/SecurityAgentsView.tsx"
+    }
+  ],
+  "status": "Prepared source only; no task promotion or deployed acceptance.",
+  "verificationPlan": "ROOT may adopt after exact preimage check and independent source review; existing SecurityAgentsView/ordered-ui/component activity groups plus typecheck/scoped lint. No new per-edit test suite, no runtime executed by author."
+}

@@ -1,0 +1,35 @@
+{
+  "reviewer": "root independent of source author",
+  "baseCommit": "2a38baf83b3eed44c341e6f250edeaa885549455",
+  "scope": "two-file approval run navigation component",
+  "sourceChecks": [
+    "exact two preimages and candidate hashes match author manifest",
+    "existing activityLink preserves organization/workspace/environment and actual run ID",
+    "default run-read flag false; production current scope and server-derived read capability required",
+    "navigation disabled during pending decision or context refresh",
+    "approval version/fresh-auth/decision/idempotency and backend authority unchanged"
+  ],
+  "observedVerification": {
+    "existingTestFiles": 2,
+    "existingChecksPassed": 137,
+    "failed": 0,
+    "durationSeconds": 12.01,
+    "scopedLintExit": 0,
+    "diffCheckExit": 0
+  },
+  "preservedRefusals": [
+    {
+      "operation": "full TypeScript checker with --max-old-space-size=256 --noEmit --incremental false",
+      "exit": 134,
+      "reason": "V8 heap exhausted; no completed typecheck or source-error conclusion"
+    },
+    {
+      "operation": "initial grouped Vitest invocation",
+      "exit": 1,
+      "reason": "unsupported --minWorkers option; no tests executed; corrected invocation uses --maxWorkers=1"
+    }
+  ],
+  "hostedTypecheckBuild": "pending",
+  "productionAvailable": false,
+  "ledgerPromotions": 0
+}

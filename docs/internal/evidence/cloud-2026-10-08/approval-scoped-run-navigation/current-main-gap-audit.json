@@ -1,0 +1,213 @@
+{
+  "conclusions": [
+    "Production entrypoint reexports ZaspProductionApp, not ZaspDemoApp. Demo seed/static overview and AgentSecurityView are separate demo surfaces; do not infer production static behavior from their source presence.",
+    "Security Agents production wrapper uses session client, scope epochs, live list/detail and generated versioned endpoints. No production fixture/timer-simulated response replacement identified in these seven source surfaces.",
+    "Seven component-only statuses do not prove seven unimplemented screens. Reuse existing code; remaining original prerequisites and genuine browser/API evidence must be reviewed independently."
+  ],
+  "format": "independent-current-main-product-ui-seven-source-gap-audit",
+  "notRecommended": [
+    "Replacing API-backed production screens with demos or duplicating generated APIs.",
+    "Changing default canWrite/fresh or supplying fabricated evidence/run/approval authority to make preview succeed.",
+    "Promoting original seven tasks or all728 from static source review."
+  ],
+  "revision": "2a38baf83b3eed44c341e6f250edeaa885549455",
+  "runtimeExecutedByReviewer": false,
+  "smallestIndependentImplementationCandidate": {
+    "files": [
+      "app/components/ZaspProductionApp.tsx",
+      "app/features/securityagents/SecurityAgentsView.tsx"
+    ],
+    "implementation": "Pass existing navigate into approvals production wrapper; pass authenticated ActivityScope and navigation through ApprovalDetail; add Open run using existing activityLink({kind:run,id:value.run_id},scope), only current authorized scope/capability and unlocked mutation. Target existing GET /api/v1/security-agent-runs/{id}; no new endpoint or approval authority.",
+    "name": "Approval-to-existing-run scoped navigation",
+    "observed": "ZaspProductionApp approvals route omits onNavigate. ApprovalDetail shows run ID as text and receives neither activityScope nor navigation; no direct Open run action.",
+    "priority": "Small concrete UX gap; optional completion improvement, not proof all seven tasks require new source.",
+    "verification": "One coherent existing UI feature batch covering scoped navigation, denied/stale scope and retained pending mutation; no per-edit test suite. Preserve current approval decision/auth/idempotency logic."
+  },
+  "sourceBindings": [
+    {
+      "bytes": 87,
+      "path": "app/components/ZaspApp.tsx",
+      "sha256": "2e67754de1fd1f04aba543cbdd665d97a660f704dbafa007039ad5dbafe6ee66"
+    },
+    {
+      "bytes": 18390,
+      "path": "app/components/ZaspProductionApp.tsx",
+      "sha256": "f19cbbac9c1a86236c0675c57a26df32c1039738e65b99c23f068b9892681860"
+    },
+    {
+      "bytes": 5940,
+      "path": "app/components/ZaspDemoApp.tsx",
+      "sha256": "c681e6e5a56d2fa48df901d335766517d3a9cd52edd1d4396bcba8979ca7bc97"
+    },
+    {
+      "bytes": 87819,
+      "path": "app/features/securityagents/SecurityAgentsView.tsx",
+      "sha256": "3357f5bba420893ac870806fd3b74d7f454d49f7a6ae1cd774774b7610663640"
+    },
+    {
+      "bytes": 4201,
+      "path": "app/features/securityagents/ApprovalContext.tsx",
+      "sha256": "c1baeb52fef0c0acf9fd896f5f97400c1106c2890a4cd65cebb835ef97f55004"
+    },
+    {
+      "bytes": 3290,
+      "path": "app/features/securityagents/ActionDetails.tsx",
+      "sha256": "f56bed9cc745ec44a439751f217a9553eb1ab0c98d0e870d77d76e2162d49ed5"
+    },
+    {
+      "bytes": 2122,
+      "path": "app/features/securityagents/OrderedExecution.tsx",
+      "sha256": "b2a825a9758bdb6aa9dcaac12230f2b772ce6f2f932015f4d54cc709840a8e10"
+    },
+    {
+      "bytes": 5029,
+      "path": "app/features/securityagents/SecurityAgentActivityPanel.tsx",
+      "sha256": "2e442ae01c6fbf408ef9f340bfcdfd7d60df52c6356c7c22c28a8d62351b6ae8"
+    },
+    {
+      "bytes": 5663,
+      "path": "apps/web/api/security-agent-activity.ts",
+      "sha256": "adab7c029043c4a9834ca50bf455fc77d27f4ee61af3d5b23526077ac46e1f4e"
+    },
+    {
+      "bytes": 3476,
+      "path": "app/domain/activity-links.ts",
+      "sha256": "977f344becefcb52134fc5561b8ced052f36df686d790ade343535cd83ae51e6"
+    },
+    {
+      "bytes": 1654,
+      "path": "cmd/agentsecctl/main.go",
+      "sha256": "78e83d4b204997a3eacfadb6d7d4998db5b87d45be1b25eb482e48adb9d563ad"
+    }
+  ],
+  "sourceReadMethod": "Git show immutable current-main objects in PR57 clone; no UI source edits or runtime. Original workspace UI preview not treated as current-main acceptance.",
+  "taskAssessment": [
+    {
+      "existing": "Web shell and CLI version dispatcher present; source-only audit cannot certify build/version artifact.",
+      "id": "M1-01c"
+    },
+    {
+      "existing": "POST /api/v1/security-agents/{id}/simulate, workflow version/idempotency receipt decoder; matched evidence, plan expiry, ordered proposed steps/authorization and zero-effect labels rendered.",
+      "gap": "No actual current-candidate browser\u2192API zero-effect evidence reviewed; no source stub identified.",
+      "id": "M7A-84"
+    },
+    {
+      "existing": "GET /api/v1/security-agent-runs/{id}; persisted trigger/evidence/plan plus separate AI rationale section explicitly not authorization; ordered execution report.",
+      "gap": "Real API/authorized browser run-detail acceptance pending in this audit.",
+      "id": "M7A-86"
+    },
+    {
+      "existing": "ActionDetails typed decoded argument allowlist, result/TTL/rollback/verification; missing data explicitly unavailable.",
+      "gap": "Genuine protected-argument browser absence needs existing integrated evidence, not invented fake redaction.",
+      "id": "M7A-87"
+    },
+    {
+      "existing": "GET /api/v1/security-agent-approvals + context header/no-store, server-filtered page; pending/history rows display action/agent/target/requester/run/expiry.",
+      "gap": "Unauthorized-list absence requires actual server authorization evidence; frontend does not replace server filtering.",
+      "id": "M7A-88"
+    },
+    {
+      "existing": "Detail GET and versioned/idempotent decision POST, fresh-session reauthentication before UI decision controls, irreversible capability restriction, expected effect/risk/TTL/context rendered.",
+      "gap": "Actual Stytch fresh-auth and distinct-user decision acceptance not inferred from component tests.",
+      "id": "M7A-89"
+    },
+    {
+      "existing": "Scoped activityLink and parseActivityLink include entity/org/workspace/environment; bidirectional activity APIs, failclosed unauthorized/unavailable/partial records; production finding/path/session/audit consumers pass scope/navigation.",
+      "gap": "Actual scoped E2E/current relation-load prerequisites remain; do not replace with static links or serial fixture claims.",
+      "id": "M7A-90"
+    }
+  ],
+  "taskInventory": {
+    "path": "/workspace/zasp-sec/docs/internal/launch-execution-20260919/tasks.json",
+    "qualification": "Original local launch ledger requirements; this tasks.json path is not tracked in inspected main tree. No task classifications/status promotions performed.",
+    "sha256": "c67fd32781c6c38ea4eda57197cf3a1d109abddec4596a52e5551a3296ad6991",
+    "tasks": [
+      {
+        "id": "M1-01c",
+        "nearest_pending_prerequisites": [
+          "M1-01b"
+        ],
+        "original_deliverable": "Create Next.js web shell and agentsecctl command skeleton.",
+        "original_dependencies": [
+          "M1-01b"
+        ],
+        "original_verification": "Web build and agentsecctl version command succeed.",
+        "title": "web and CLI directories"
+      },
+      {
+        "id": "M7A-84",
+        "nearest_pending_prerequisites": [
+          "M7A-49",
+          "M2-47"
+        ],
+        "original_deliverable": "Show matched evidence, proposed plan and approval points without side effects.",
+        "original_dependencies": [
+          "M7A-83",
+          "M7A-69"
+        ],
+        "original_verification": "E2E simulator shows authorization result per proposed step.",
+        "title": "Security Agent builder Simulate UI"
+      },
+      {
+        "id": "M7A-86",
+        "nearest_pending_prerequisites": [
+          "M7A-84"
+        ],
+        "original_deliverable": "Show trigger/evidence, AI rationale summary and ordered plan with deterministic authorization labels.",
+        "original_dependencies": [
+          "M7A-85"
+        ],
+        "original_verification": "Rationale is visually distinct from authorization/evidence.",
+        "title": "Security Agent run plan UI"
+      },
+      {
+        "id": "M7A-87",
+        "nearest_pending_prerequisites": [
+          "M7A-86"
+        ],
+        "original_deliverable": "Show each step state, redacted arguments, result, TTL/rollback and verification.",
+        "original_dependencies": [
+          "M7A-86"
+        ],
+        "original_verification": "Protected arguments never render.",
+        "title": "Security Agent run action UI"
+      },
+      {
+        "id": "M7A-88",
+        "nearest_pending_prerequisites": [
+          "M7A-87"
+        ],
+        "original_deliverable": "Add Protect -> Approvals list with action, agent, target, expiry and requester/run context.",
+        "original_dependencies": [
+          "M7A-87"
+        ],
+        "original_verification": "Unauthorized approvals are absent.",
+        "title": "Security Agent Approvals list UI"
+      },
+      {
+        "id": "M7A-89",
+        "nearest_pending_prerequisites": [
+          "M7A-88"
+        ],
+        "original_deliverable": "Show reason, evidence, expected side effect, risk, reversibility/TTL and Approve/Deny/Cancel.",
+        "original_dependencies": [
+          "M7A-88"
+        ],
+        "original_verification": "Sensitive approval invokes fresh-auth flow before decision.",
+        "title": "Security Agent Approval detail UI"
+      },
+      {
+        "id": "M7A-90",
+        "nearest_pending_prerequisites": [
+          "M7A-89"
+        ],
+        "original_deliverable": "Link finding/path/session/audit records to Security Agent run and back.",
+        "original_dependencies": [
+          "M7A-89"
+        ],
+        "original_verification": "E2E navigation preserves scoped entity IDs.",
+        "title": "Security Agent activity links"
+      }
+    ]
+  }
+}
