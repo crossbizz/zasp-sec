@@ -1,0 +1,37 @@
+{
+  "scope": "Exact same PGimage/binaries/topology; restore retained working non-glibc childlibrary environment for initdb spawning siblingpostgres",
+  "proposedPaths": [
+    "scripts/hosted-connector-nine.mjs"
+  ],
+  "predecessorSHA256": "688e5f3581289afba0823e13c405fb50a1e66f66994a0e0f7ecc22453964a0de",
+  "image": "postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba",
+  "failure": {
+    "run": 37723753346,
+    "job": 113137099739,
+    "fixtureStages": [
+      "postgres-start"
+    ],
+    "topRun": 1,
+    "topFail": 1,
+    "subcaseRun": 0
+  },
+  "qualifications": [
+    "Actual failure is inside PGstarter, not yet exact initdb vs readiness cause. This restores knownworkingwrapper child-env parity, not solecausal claim.",
+    "Only names from exactpublic179manifest consumed; historical target/resolved paths ignored; actual currentownedimage files checked containment.",
+    "Imagefull-librarypath remains for directlywrapped tools; nested exec uses selectednon-glibc dependencyenv with hosted compatibleglibc. No socketperm/prodguard/test change."
+  ],
+  "members": {
+    "prior-runner.mjs": {
+      "sha256": "688e5f3581289afba0823e13c405fb50a1e66f66994a0e0f7ecc22453964a0de",
+      "bytes": 22284
+    },
+    "scripts/hosted-connector-nine.mjs": {
+      "sha256": "67e9f34a043a780d80d68a9b5c620b92502f65edbaa59031ba6cd7df3effeb40",
+      "bytes": 23540
+    },
+    "selected-library-manifest.json": {
+      "sha256": "96642e82997ffd2caf2893a5ecc0116ad2aef6e982df2d929f3efda4e04f3474",
+      "bytes": 50102
+    }
+  }
+}
