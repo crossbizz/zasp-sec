@@ -1,0 +1,89 @@
+{
+  "actions": "No rerun/newowner/floorchange/cacheaction/sourceedit/runtime by reviewer.",
+  "additionalCapacity": {
+    "observedShortfallBytes": 42565632,
+    "observedShortfallMiB": 40.59375,
+    "sufficiency": "Only minimum deficit at the measured failed instant. Interrupted assembly/export laterpeak is unknown; this amount alone does not admit completion or another retry. Genuine additional sustainablymeasured headroom and independent admission are required."
+  },
+  "conservation": {
+    "all2865OldAtlasRecordsPreserved": true,
+    "currentOriginalMetadataChanges": [],
+    "currentSmallOriginalBodiesRehashed": 16,
+    "executedInputs": 2868,
+    "executedMapEqual": true,
+    "originalInputs": 17,
+    "originalMapEqual": true,
+    "qualification": "Owner records same-FD full hashes/metadata; reviewer independently compares wholemaps/current executed metadata and smalloriginal hashes. Does not fabricate independent largebody replay.",
+    "reviewerLargeAtlasOrNodeBodyReplay": false
+  },
+  "held": [
+    "All eight sourceoutputs unissued",
+    "No wholecurrent54/fullGo24/native589/7anchors/deployment acceptance"
+  ],
+  "outputs": {
+    "count": 0,
+    "stderrBytes": 0,
+    "stdoutBytes": 0
+  },
+  "producer": {
+    "child": {
+      "finalJoined": true,
+      "finalReturnCode": -15,
+      "normalStageJoined": false,
+      "pid": 60583,
+      "spawnElapsedSeconds": 1.0301004940047278,
+      "stageJoinElapsedSeconds": null
+    },
+    "completed": false,
+    "firstFailedResource": {
+      "elapsedSeconds": 14.598039084004995,
+      "memoryHeadroom": 225869824,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    "firstRefusal": "live resource floor refusal",
+    "path": "/tmp/native379-shipping54-atlas-reuse-ai5xi0j8/result.json",
+    "requestedSignals": [
+      {
+        "elapsedSeconds": 14.608074710005894,
+        "members": [
+          {
+            "group": 60583,
+            "pid": 60583,
+            "ppid": 60582,
+            "session": 60583,
+            "startTicks": 6059689,
+            "state": "R",
+            "uids": [
+              1000,
+              1000,
+              1000,
+              1000
+            ]
+          }
+        ],
+        "session": 60583,
+        "signal": 15
+      }
+    ],
+    "sha256": "c0e39ee4738b28652d67e8acb45ccad04352fcb96001a2771ecb3e884e08d380",
+    "subreaper": {
+      "acquired": 1,
+      "before": 0,
+      "restored": 0
+    },
+    "unknown": []
+  },
+  "rootOuter": {
+    "path": "/tmp/sealed-atlas-reuse-root-outer-qv207zrj/result.json",
+    "record": {
+      "elapsedSeconds": 15.04410768100206,
+      "normalJoin": true,
+      "recipeSHA256": "ab6cb7964f437abc32ad22cf4017042f37940961e441d3e039cfae65f966fd31",
+      "returnCode": 1
+    },
+    "sha256": "d997dd69d8fd70a8cf8b3e97867a420cee69ffe309c912d007599847f46010dc"
+  },
+  "status": "ACTUAL_RAM_FLOOR_REFUSAL_CONFIRMED_NOT_ACCEPTED"
+}
