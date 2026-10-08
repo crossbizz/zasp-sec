@@ -1,0 +1,31 @@
+{
+  "scope": "Read-only UI/source/workflow review; no tests, builds, repo edits, merge or launch claims",
+  "sourceChecks": [
+    {
+      "path": "app/components/ZaspProductionApp.tsx",
+      "candidateExact": true,
+      "baseExact": true
+    },
+    {
+      "path": "app/features/securityagents/SecurityAgentsView.tsx",
+      "candidateExact": true,
+      "baseExact": true
+    }
+  ],
+  "workflowSHA256": "68fb197927690f7a84e3aac5311801cbd63f969074f304893c3837358cce7001",
+  "status": "SOURCE_PASS_HOSTED_CHECKS_PENDING",
+  "findings": [],
+  "observations": [
+    "Default run-reading capability false; production derives current scope plus server security-agents.read capability",
+    "Open run link preserves actual run ID and org/workspace/environment through existing activityLink; no API/decision/auth/version/idempotency modification",
+    "Button disabled for busy/unresolved/context-read; approvals production route supplies existing navigation handler",
+    "CI permissions contents read only, checkout credentials disabled, checkout/setup-node pinned full commit IDs; no deploy/release/secret-binding steps",
+    "Node22.23.1/npm10.9.8 match repository declared engines; cold npm ci followed by typecheck/two existing groups/scoped lint/build",
+    "Existing original RunnableUI and release workflows unchanged; added component workflow does not replace them"
+  ],
+  "validationLimits": [
+    "ROOT-reported137 tests and scoped lint are not independently rerun in this source-only review",
+    "Local typecheck heapOOM134 is preserved prerequisite/capacity failure, not a successful typecheck or code diagnosis",
+    "Hosted typecheck/build/component outcomes still required before requested merge; no deployment/task promotion"
+  ]
+}
