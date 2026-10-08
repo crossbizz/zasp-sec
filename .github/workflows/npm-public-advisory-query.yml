@@ -50,8 +50,10 @@ jobs:
           proof="$RUNNER_TEMP/public-npm-query-proof"
           pin="$(cat "$proof/plan.sha256")"
           start="$(date +%s)"
+          set +e
           timeout --signal=TERM --kill-after=10s 620s python3 -B scripts/npm-public-api-query/run-hosted.py "$proof/plan.json" "$pin" > "$proof/acquisition.stdout" 2> "$proof/acquisition.stderr"
           status=$?
+          set -e
           printf '{"normalShellWaitExit":%s,"startedEpoch":%s,"finishedEpoch":%s,"scope":"Exit zero and no late refusal required; public lock queries only, releaseAccepted false"}\n' "$status" "$start" "$(date +%s)" > "$proof/outer-join.json"
           exit "$status"
       - name: Publish bounded public-query outcome

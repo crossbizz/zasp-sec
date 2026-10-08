@@ -47,6 +47,28 @@ if paths:
     if not isinstance(records, list) or len(records) > 256:
         raise ValueError("request bound")
     summary["recordedRequests"] = len(records)
+    attempts = sorted(paths[0].parent.glob("[0-9][0-9][0-9].http"))
+    if len(attempts) > 256:
+        raise ValueError("attempt bound")
+    if attempts:
+        last = attempts[-1]
+        index = int(last.stem)
+        if not 1 <= index <= 256:
+            raise ValueError("attempt grammar")
+        fd = os.open(last, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        try:
+            before = os.fstat(fd)
+            if not stat.S_ISREG(before.st_mode) or before.st_size > 20971520:
+                raise ValueError("HTTP evidence bound")
+            first = os.read(fd, 65536).split(b"\n", 1)[0].rstrip(b"\r")
+            fields = lambda v: (v.st_dev, v.st_ino, v.st_mode, v.st_uid, v.st_gid, v.st_nlink, v.st_size, v.st_mtime_ns, v.st_ctime_ns)
+            if fields(before) != fields(os.fstat(fd)) or fields(before) != fields(os.lstat(last)):
+                raise ValueError("HTTP evidence changed")
+            match = re.fullmatch(rb"HTTP/(?:1\.[01]|2(?:\.0)?) ([0-9]{3})(?: .*)?", first)
+            summary["lastAttempt"] = index
+            summary["lastHTTPStatus"] = int(match[1]) if match else None
+        finally:
+            os.close(fd)
     component = value.get("component")
     summary["complete"] = summary["outerExit"] == 0 and not os.path.lexists(paths[0].parent / "late-refusal.json") and value.get("completeIssuedQueries") is True and value.get("forced") is False and value.get("cancelled") is False and isinstance(component, dict) and component.get("allIssuedPublicLockQueriesTraversed") is True
     if isinstance(component, dict):
