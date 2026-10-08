@@ -38,7 +38,7 @@ jobs:
           import hashlib, json
           from pathlib import Path
           source = json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())
-          assert len(source['sources']) == 29
+          assert len(source['sources']) == 32
           for item in source['sources']:
               raw = Path(item['path']).read_bytes()
               assert len(raw) == item['bytes']
@@ -83,5 +83,8 @@ jobs:
           for file, pin in pins.items():
               assert hashlib.sha256(Path(file).read_bytes()).hexdigest() == pin, file
           PYAPPLICATION
+      - name: Existing whole approval source pin verification
+        timeout-minutes: 5
+        run: go test -C services/platform -race -p=1 -count=1 -timeout=2m -run '^TestApprovalMaintenanceSourcePinBindsWholeSupplementaryBody$' ./migrations
       # No production configuration, database start, activation, credential
       # issuance or native lifecycle admission is performed by this workflow.

@@ -1,0 +1,37 @@
+package migrations
+
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"strings"
+)
+
+// Preserve the v2 SQL bytes as historical input. The v3 compiled successor
+// binds the corrected installer association to a new whole-source pin.
+func approvalMaintenanceSQLSuccessor() string {
+	const legacySHA256 = "e894ab1c8045a23e4055ced58a89af8a795b26ebf8f4518c83caa89de53a269b"
+	h := sha256.Sum256([]byte(approvalMaintenanceSQL))
+	if hex.EncodeToString(h[:]) != legacySHA256 {
+		panic("approval maintenance predecessor changed")
+	}
+	return "-- " + ApprovalMaintenanceProfileName + "\n" + approvalMaintenanceSQL
+}
+
+func approvalMaintenanceDefinitions(source string) (string, error) {
+	const ddl = "CREATE SCHEMA zasp_approval_maintenance AUTHORIZATION zasp_discovery_authority;"
+	if strings.Count(source, ddl) != 1 {
+		return "", ErrInvalidState
+	}
+	index := strings.Index(source, ddl)
+	for _, line := range strings.Split(source[:index], "\n") {
+		line = strings.TrimSpace(line)
+		if line != "" && !strings.HasPrefix(line, "--") {
+			return "", ErrInvalidState
+		}
+	}
+	definitions := strings.TrimSpace(source[index+len(ddl):])
+	if definitions == "" {
+		return "", ErrInvalidState
+	}
+	return definitions, nil
+}

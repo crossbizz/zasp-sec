@@ -40,7 +40,10 @@ const pins = {
   "services/platform/migrations/production_connector_maintenance.go": "34c99aec57ae60cd9ec0350f24e5d18bd853d97c95181e010afed233644681d8",
   "services/platform/migrations/sql/connector_enqueue_provenance.sql": "32b3f8cbe175b5256ff4542cdff044d6d060e0240d24632bf3d057f3553a5c13",
   "services/platform/migrations/sql/connector_maintenance_profile.sql": "1ee0fcca602f658fadee4727ed69787891be928aca2fe9e0f5a8ce141799bf3d",
-  "services/platform/runtimeservices/config.go": "3eff9566c27b6e7c5179a8968aacf0f05b0810baf1d69abac43cb19e21dc0f77"
+  "services/platform/runtimeservices/config.go": "3eff9566c27b6e7c5179a8968aacf0f05b0810baf1d69abac43cb19e21dc0f77",
+  "services/platform/migrations/production_approval_maintenance_profile.go": "f6097821097d7580440eb2fb1b503a084aa4b10d788c29930cfdb9b96e543e0e",
+  "services/platform/migrations/production_approval_maintenance_successor.go": "6b2e2e05bf79750c88236cb116d4c9363797a774f4cb836505aed6cac3d33df3",
+  "services/platform/migrations/production_approval_maintenance_profile_test.go": "f5c3f5ea7482f45167a6bb825c6b459c7b12dfb09eefeaa4af60606d7b5afcff"
 };
 const top='TestConnectorMaintenanceAuthenticatedOAuthEnqueuePostgres';
 const cases=['genuine_same_transaction_origin_and_immutable_enrichment','rollback_removes_every_enqueue_and_provenance_write'];
