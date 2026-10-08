@@ -1,0 +1,42 @@
+{
+  "format": "connector-captured-inactive-source-v1",
+  "baseHEAD": "f84adb35230dfe359efeda58da232d2c69ba29b5",
+  "status": "source-only-uncompiled-unrun",
+  "newRepositoryFiles": [
+    "services/platform/migrations/sql/connector_enqueue_provenance.sql",
+    "services/platform/migrations/production_connector_enqueue_provenance.go",
+    "services/platform/apiserver/connector_enqueue_provenance_postgres_test.go"
+  ],
+  "members": [
+    {
+      "path": "/tmp/connector-enqueue-provenance-f84-i8zlb4ou/repo/services/platform/migrations/sql/connector_enqueue_provenance.sql",
+      "sha256": "276a41ead1dfe581cdad1212266754fe860f1956ffe0023ea39b26263a6072c1",
+      "bytes": 10958
+    },
+    {
+      "path": "/tmp/connector-enqueue-provenance-f84-i8zlb4ou/repo/services/platform/migrations/production_connector_enqueue_provenance.go",
+      "sha256": "809041eced547701b1e3ac3c1f68ac45d7b403336f5de6df4dda13b10db83267",
+      "bytes": 3818
+    },
+    {
+      "path": "/tmp/connector-enqueue-provenance-f84-i8zlb4ou/repo/services/platform/apiserver/connector_enqueue_provenance_postgres_test.go",
+      "sha256": "8b79cae94489f790074ff5c9820d3b58884c2e51d8e95e6d33aa7704b92f28ba",
+      "bytes": 11336
+    },
+    {
+      "path": "/tmp/connector-enqueue-provenance-f84-i8zlb4ou/control/origin-insert-omission-red.sql",
+      "sha256": "a5ad84fe4c865483a06da32a5bc75257331a220333395172e5314f99035219cd",
+      "bytes": 10597
+    },
+    {
+      "path": "/tmp/connector-enqueue-provenance-f84-i8zlb4ou/control/red-overlay.json",
+      "sha256": "0493105395ac8726f77e32e673719c90de3e570038f5dc58eacd6452dbdd5382",
+      "bytes": 236
+    },
+    {
+      "path": "/tmp/connector-enqueue-provenance-f84-i8zlb4ou/control/ROOT-RECIPE.json",
+      "sha256": "a873b6ec9a03a078c0b379f7432a04b9a7d6e38d06d8d4bd9296598620d1642a",
+      "bytes": 2285
+    }
+  ]
+}
