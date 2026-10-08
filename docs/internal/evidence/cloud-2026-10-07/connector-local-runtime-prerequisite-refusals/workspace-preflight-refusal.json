@@ -1,0 +1,18 @@
+{
+  "timeUTC": "2026-10-08T02:13:11.369243+00:00",
+  "runtimeLaunched": false,
+  "nativeTestsExecuted": 0,
+  "scope": "Original connector component follow-up",
+  "resourceFloors": {
+    "/workspace": 1500000000,
+    "/tmp": 100000000,
+    "memoryHeadroom": 268435456
+  },
+  "observed": {
+    "/workspace": 1461178368,
+    "/tmp": 1437663232,
+    "memoryHeadroom": 768221184
+  },
+  "reason": "Workspace floor refusal; source of disk growth not attributed; preserve existing Git objects and evidence.",
+  "recipeSHA256": "a35f8f6b20086f9560839d445666422296f8157cc6df183b212198ee7667f1c5"
+}

@@ -1,0 +1,174 @@
+{
+  "status": "PUBLICATION SELECTION/SOURCE ANCESTRY PASS; ROOT final staged scan+diff/normalpush remain required",
+  "files": [
+    {
+      "path": "/tmp/connector-enqueue-provenance-f84-i8zlb4ou/repo/docs/internal/evidence/cloud-2026-10-07/connector-local-runtime-prerequisite-refusals/README.md",
+      "sha256": "cac637341f04d62ee5502f259ec69489558682ed3bbdf039776d209b5412904e",
+      "bytes": 1410
+    },
+    {
+      "path": "/tmp/connector-enqueue-provenance-f84-i8zlb4ou/repo/docs/internal/evidence/cloud-2026-10-07/connector-local-runtime-prerequisite-refusals/missing-health-independent-review.json",
+      "sha256": "cbf6310d0f4b6f62ba859c95c736837e92afe8b28f9c8e0649e0e8a571e12bd8",
+      "bytes": 2105
+    },
+    {
+      "path": "/tmp/connector-enqueue-provenance-f84-i8zlb4ou/repo/docs/internal/evidence/cloud-2026-10-07/connector-local-runtime-prerequisite-refusals/missing-health-outer.json",
+      "sha256": "6a2b92d308de5be038d50ace7ebccd834b0107fb85e9019e723ccd629d9c2383",
+      "bytes": 201
+    },
+    {
+      "path": "/tmp/connector-enqueue-provenance-f84-i8zlb4ou/repo/docs/internal/evidence/cloud-2026-10-07/connector-local-runtime-prerequisite-refusals/missing-health-selected.json",
+      "sha256": "abe5ad2c1556f680eb57d56767136e7b41be88bf845224b7480578ffcfad9f8d",
+      "bytes": 1200
+    },
+    {
+      "path": "/tmp/connector-enqueue-provenance-f84-i8zlb4ou/repo/docs/internal/evidence/cloud-2026-10-07/connector-local-runtime-prerequisite-refusals/missing-health.stderr",
+      "sha256": "303ac649a06adcda066e889f7109de3f51398d3ce9a61255e4b955f9d5f1421c",
+      "bytes": 213
+    },
+    {
+      "path": "/tmp/connector-enqueue-provenance-f84-i8zlb4ou/repo/docs/internal/evidence/cloud-2026-10-07/connector-local-runtime-prerequisite-refusals/original-publication-scan-redacted.json",
+      "sha256": "19abfd67f089eee749995140551ee2485aaecd0a572a8a539a5a42589630d7f1",
+      "bytes": 751
+    },
+    {
+      "path": "/tmp/connector-enqueue-provenance-f84-i8zlb4ou/repo/docs/internal/evidence/cloud-2026-10-07/connector-local-runtime-prerequisite-refusals/workspace-preflight-refusal.json",
+      "sha256": "c17d9f32f57a55d4f14a65ff316048f9a425d2c0b8623ae5a1432499a6700f03",
+      "bytes": 588
+    }
+  ],
+  "exactRawCopies": [
+    {
+      "copy": {
+        "path": "/tmp/connector-enqueue-provenance-f84-i8zlb4ou/repo/docs/internal/evidence/cloud-2026-10-07/connector-local-runtime-prerequisite-refusals/missing-health-outer.json",
+        "sha256": "6a2b92d308de5be038d50ace7ebccd834b0107fb85e9019e723ccd629d9c2383",
+        "bytes": 201
+      },
+      "original": {
+        "path": "/tmp/connector-native-donor-root-outer-hsi71abh/result.json",
+        "sha256": "6a2b92d308de5be038d50ace7ebccd834b0107fb85e9019e723ccd629d9c2383",
+        "bytes": 201
+      },
+      "exact": true
+    },
+    {
+      "copy": {
+        "path": "/tmp/connector-enqueue-provenance-f84-i8zlb4ou/repo/docs/internal/evidence/cloud-2026-10-07/connector-local-runtime-prerequisite-refusals/missing-health-independent-review.json",
+        "sha256": "cbf6310d0f4b6f62ba859c95c736837e92afe8b28f9c8e0649e0e8a571e12bd8",
+        "bytes": 2105
+      },
+      "original": {
+        "path": "/tmp/independent-connector-native-offline-health-closure-failure-review.json",
+        "sha256": "cbf6310d0f4b6f62ba859c95c736837e92afe8b28f9c8e0649e0e8a571e12bd8",
+        "bytes": 2105
+      },
+      "exact": true
+    },
+    {
+      "copy": {
+        "path": "/tmp/connector-enqueue-provenance-f84-i8zlb4ou/repo/docs/internal/evidence/cloud-2026-10-07/connector-local-runtime-prerequisite-refusals/missing-health.stderr",
+        "sha256": "303ac649a06adcda066e889f7109de3f51398d3ce9a61255e4b955f9d5f1421c",
+        "bytes": 213
+      },
+      "original": {
+        "path": "/tmp/actual-connector-native-reviewed-s49h3aaf/offline-modules.stderr",
+        "sha256": "303ac649a06adcda066e889f7109de3f51398d3ce9a61255e4b955f9d5f1421c",
+        "bytes": 213
+      },
+      "exact": true
+    },
+    {
+      "copy": {
+        "path": "/tmp/connector-enqueue-provenance-f84-i8zlb4ou/repo/docs/internal/evidence/cloud-2026-10-07/connector-local-runtime-prerequisite-refusals/workspace-preflight-refusal.json",
+        "sha256": "c17d9f32f57a55d4f14a65ff316048f9a425d2c0b8623ae5a1432499a6700f03",
+        "bytes": 588
+      },
+      "original": {
+        "path": "/tmp/connector-native-health-closure-root-preflight-refusal.json",
+        "sha256": "c17d9f32f57a55d4f14a65ff316048f9a425d2c0b8623ae5a1432499a6700f03",
+        "bytes": 588
+      },
+      "exact": true
+    },
+    {
+      "copy": {
+        "path": "/tmp/connector-enqueue-provenance-f84-i8zlb4ou/repo/docs/internal/evidence/cloud-2026-10-07/connector-local-runtime-prerequisite-refusals/original-publication-scan-redacted.json",
+        "sha256": "19abfd67f089eee749995140551ee2485aaecd0a572a8a539a5a42589630d7f1",
+        "bytes": 751
+      },
+      "original": {
+        "path": "/tmp/connector-local-prereq-failures-staged-gitleaks.json",
+        "sha256": "19abfd67f089eee749995140551ee2485aaecd0a572a8a539a5a42589630d7f1",
+        "bytes": 751
+      },
+      "exact": true
+    }
+  ],
+  "selectedOriginal": {
+    "path": "/tmp/actual-connector-native-reviewed-s49h3aaf/result.json",
+    "sha256": "3d4ec018fc9d2ae084f65579bea8dca6cc6983cf62e465d3b880088c3520e436",
+    "bytes": 53308
+  },
+  "selectedWhitelist": [
+    "format",
+    "completed",
+    "failure",
+    "firstRefusal",
+    "elapsedSeconds",
+    "results",
+    "waits",
+    "forced",
+    "signals",
+    "ownedReaps",
+    "ownedSessionSurvivors",
+    "processCensusUnknown",
+    "fgaLiveBinding",
+    "fgaNormalStop",
+    "productionActivated",
+    "sourceBeforeSHA256",
+    "sourceAfterSHA256"
+  ],
+  "omittedOriginalKeys": [
+    "activeOverlay",
+    "adoptedChildren",
+    "aliasTargets",
+    "greenOverlay",
+    "inputs",
+    "ownedSessions",
+    "projectionRoot",
+    "redOverlay",
+    "resourceHistory",
+    "resourcesAfter",
+    "selectedOriginalConnectorComponentOnly",
+    "sourceMode",
+    "tokenMetadata",
+    "tokenValuesPublished"
+  ],
+  "privacyAssessment": {
+    "findingClass": "generic-api-key",
+    "line": 228,
+    "matchedValueVerifiedLibrarySymlinkFilename": true,
+    "rawValuePrinted": false,
+    "tokenNeverCreated": true,
+    "originalRedactedFindingPreserved": true,
+    "currentStagedScanArrayEmpty": true
+  },
+  "lineage": {
+    "currentBase": "f0a823cff658c3d2497561f782b197b16ea1d8f0",
+    "e861Ancestor": true,
+    "failedPrivatePublicationCommit": "de48b675e95dc03ec0ca0967da2bd4e9be13ac00",
+    "failedCommitNotCurrentAncestor": true,
+    "privateFailedRawExactOriginal": true
+  },
+  "claims": [
+    "Actualnormalouter1/4.3799s missinglocalhealth replacement setup refusal; zero native/FGA tests, no causal product RED. SourceBeforeSHA null is preserved; no whole pre/post conservation claim.",
+    "Later explicit workspace1461178368<1500000000 preflight refusal; runtimeLaunchedfalse and0native tests. Diskgrowth actor unknown, no cache/Git/evidence pruning.",
+    "Selection preserves exact17 outcome/refusal/cleanup fields+original rawSHA; other keys including aliases/resourceHistory/resourcesAfter/process/source preparation are omitted explicitly in this report. Full original remains unchanged/private. Public review retains final resources.",
+    "README honestly records both failures/no acceptance/ledger unchanged and redacted original publication scan; no scanner ignore/config alteration in this staged sevenfile batch.",
+    "Future newcommit over f0a823 retains e861 asancestor and excludes de48 failedprivate publication; permissible normalfastforward existingPR57 lineage, not historyrewrite. ROOT final index freeze/defaultscanner/diff/commit/push are separate."
+  ],
+  "limits": [
+    "No runtime/scanner rerun/repository mutation by reviewer. Existing scanner empty result independently read, not a new whole current-index scan claim.",
+    "No connector/native/productionactivation/launch/deployed acceptance or ledger promotion."
+  ]
+}

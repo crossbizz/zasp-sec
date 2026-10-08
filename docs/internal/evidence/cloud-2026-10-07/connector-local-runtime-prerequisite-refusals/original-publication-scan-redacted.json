@@ -1,0 +1,22 @@
+[
+ {
+  "RuleID": "generic-api-key",
+  "Description": "Detected a Generic API Key, potentially exposing access to various services and sensitive operations.",
+  "StartLine": 228,
+  "EndLine": 228,
+  "StartColumn": 93,
+  "EndColumn": 137,
+  "Match": "libgssapi_krb5.so.2\": \"REDACTED\"",
+  "Secret": "REDACTED",
+  "File": "docs/internal/evidence/cloud-2026-10-07/connector-local-runtime-prerequisite-refusals/missing-health-actual.json",
+  "SymlinkFile": "",
+  "Commit": "",
+  "Entropy": 3.6537566,
+  "Author": "",
+  "Email": "",
+  "Date": "0001-01-01T00:00:00Z",
+  "Message": "",
+  "Tags": [],
+  "Fingerprint": "docs/internal/evidence/cloud-2026-10-07/connector-local-runtime-prerequisite-refusals/missing-health-actual.json:generic-api-key:228"
+ }
+]
