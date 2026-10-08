@@ -1,0 +1,11 @@
+# Authenticated OAuth enqueue application admission
+
+This successor integrates main `32ea911cca555447c56f269a28bc496b8e770e95` into the inactive API/worker draft. The new 29-member checkpoint is `380f26d8bc6fc136af456695ebf5da4a6fb3cc023f6af2d019588b329b25368e`, following namespace checkpoint `53deec8807ed58e9a0e39517e32a669c8e240730610c5cbcd616c5bfec200b25`. Only the existing OAuth group changes to compose the original audit/identity worker profile before snapshot and approval installation; native installer guards stay intact. The initial independent review identified this missing prerequisite before execution. The public source association records exact current-main preimages separately from historical preimages.
+
+The preceding draft head `8e58d33a72501c80cbcaef3da98f53e5bd6d7267` compiled all nine affected packages in run `37732273963`, job `113163864831`. Compilation does not establish application behavior.
+
+The new hosted runner selects the existing `TestConnectorMaintenanceAuthenticatedOAuthEnqueuePostgres` application group: authentic same-transaction origin with immutable OAuth enrichment, and rollback on a competing pending attempt. It preserves the original held PostgreSQL image, official OpenFGA tool, helper pins, source rechecks, resource floors, deadlines and owned service cleanup. It pins all 29 candidate sources. No new application test cases, activation flags or deployment credentials are added. Actual hosted execution is pending at this commit.
+
+The original captured-inactive nine-case application group passed on the independently reviewed PR 57 source now merged into main. This new two-case group does not establish callback completion, worker lifecycle, whole-fleet writer retirement, deployed acceptance or real provider success. No ledger rows are promoted.
+
+The broader dependency batch run `37730265673` passed its `Verify runnable UI` step (`npm verify`) and its two-top/28-subtest current-profile inner diagnostics. The workflow failed compliance browser acceptance at API readiness: deadline, child stage unavailable. Later steps were skipped. Official job metadata and finite annotations are retained here; raw artifacts remain inaccessible under the network policy. Do not infer a raw startup cause or a complete workflow pass.

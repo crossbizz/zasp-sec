@@ -1,0 +1,67 @@
+{
+  "actionable_findings": [],
+  "confirmed_observations": [
+    {
+      "file": "services/platform/migrations/sql/connector_maintenance_profile.sql",
+      "line": 99,
+      "observation": "Maintenance catalog_ready checks provenance catalog_matches and separately the identical authorization80.ready. Provenance catalog_matches itself checks that readiness. This repeated conjunct is logically redundant for the pinned current source."
+    },
+    {
+      "file": "services/platform/migrations/sql/connector_maintenance_profile.sql",
+      "line": 200,
+      "observation": "Successful fresh cleanup start_oauth traverses maintenance readiness at start, capture, enrichment, origin; provenance readiness additionally at protected capture; fences at start, outer capture, original provenance capture, enrichment. Thus the textual chain contains up to 13 authorization80.ready evaluations: 4*2+1+4. This is a call-graph count, not an execution profile or guaranteed physical scan count."
+    },
+    {
+      "file": "services/platform/migrations/sql/0080_production_authorization_enforcement.up.sql",
+      "line": 95,
+      "observation": "ready combines authorization80 fingerprint with temporal/audit/identity composed readiness, authorization79 readiness and original canonical multistep readiness. Those catalog comparisons can be expensive; no measured elapsed cost is available."
+    },
+    {
+      "file": "services/platform/migrations/sql/0080_authorization_attestation.sql",
+      "line": 64,
+      "observation": "Original verify_attestation checks actual wall-clock expiry and lifetime<=60000ms; context also checks live wall-clock expiry at line81. Repeated readiness before verify can consume this budget."
+    }
+  ],
+  "declined_to_judge": [
+    "Actual raw SQL error/log/receipt: artifact access403, not inspected.",
+    "Physical query plan, timing, resource use and whether PostgreSQL reuses STABLE expressions: no runtime executed.",
+    "Actual native cause of predecessor42501; current closed-reason hosted run was pending when review was requested.",
+    "Active callback/cleanup/provider/fleet/restart, Reconcile/Stage/Ack, production launch, release and full728 acceptance."
+  ],
+  "deterministic_defect_assessment": "No new deterministic scope/context/witness defect demonstrated by this review. Existing fresh browser proof, exact tenant/path/credential binding, row-lock-serialized capture and purpose checks remain. Source presence of expensive repetition does not identify which42501 was observed.",
+  "head": "a600ef62e4ad96f18648ad5ee8fcf1ed3b177a00",
+  "hypotheses": [
+    "The full composed readiness tree could exhaust60s before a later fence or context check. Confirmation requires actual closed diagnostic reason and bounded wall-clock timing; attestation reason alone also covers invalid signature/shape/key, so is not uniquely expiry.",
+    "Repeated canonical readiness may be a latency contributor even if refusal has a distinct deterministic cause."
+  ],
+  "safe_optimization_candidate": {
+    "change": "Remove only the direct authorization80.ready conjunct from supplementary maintenance catalog_ready, retaining the exact pinned provenance.catalog_matches conjunct which invokes the same checksum-bound readiness.",
+    "expected_reduction": "Four redundant top-level original80 readiness calls on successful fresh cleanup path, two before original conflicting-attempt23505 path; deeper call count and actual speedup unmeasured.",
+    "file": "services/platform/migrations/sql/connector_maintenance_profile.sql",
+    "line": 103,
+    "proof": "For pinned STABLE catalog predicates the current gate is M AND (P AND A AND predecessor) AND A; proposed gate is M AND (P AND A AND predecessor). All original original80/provenance code and exact checksum arguments remain unchanged. Do not cache a caller boolean or weaken entrypoint checks.",
+    "required_successor_work": "Truthfully update maintenance source checksum, catalog fingerprint and complete source/runner checkpoint bindings; preserve original canonical/provenance SQL, all scopes/context/identity/witness rules, runtime budgets and immutable60s TTL. Existing hosted native original cases remain mandatory.",
+    "status": "Source-equivalent narrow candidate only; no implementation or hosted acceptance reviewed"
+  },
+  "schema": "finite-independent-source-review-v1",
+  "scope": "Source-only native OAuth readiness/fence repetition and original 60-second proof lifetime. No source or Git mutations, no runtime/tests.",
+  "source_sha256": {
+    "services/platform/apiserver/authorization_attestation.go": "d9109a1b777d0a0431b8e5a857a6d392386a71e0c22da0a00ec2fbb28c1a641b",
+    "services/platform/apiserver/connector_maintenance_enqueue_database.go": "81bebc71801cd1b6c2530241cfb8c26f402faa76baaf68383ef572f63d549b51",
+    "services/platform/apiserver/connector_maintenance_enqueue_postgres_test.go": "b45386a9d6c6390b8e30b7a071801ecf8cd2a9bc5adb0398ca8ac9e9864e8b82",
+    "services/platform/migrations/sql/0011_connector_authorization.up.sql": "533376136f6d155b5f7a940759806808c6fabeb511c1da111256bd96dec24dc1",
+    "services/platform/migrations/sql/0080_authorization_attestation.sql": "dc7ec2da824200c0a6e5ca08783630dee151ce13692f121747fe6c758e015e0a",
+    "services/platform/migrations/sql/0080_production_authorization_enforcement.up.sql": "552b75399fed93e44a8c42f4c32e4658fb8d0aab9fdff8a043d5d8b187b0cd7b",
+    "services/platform/migrations/sql/connector_enqueue_provenance.sql": "32b3f8cbe175b5256ff4542cdff044d6d060e0240d24632bf3d057f3553a5c13",
+    "services/platform/migrations/sql/connector_maintenance_profile.sql": "1ee0fcca602f658fadee4727ed69787891be928aca2fe9e0f5a8ce141799bf3d"
+  },
+  "unsafe_shortcuts_declined": [
+    {
+      "file": "services/platform/migrations/sql/0080_production_authorization_enforcement.up.sql",
+      "line": 217,
+      "reason": "Replacing nested fences by context alone is not established equivalent. Fence revalidates live browser/PAT identity, current projection revision and locked target versions; context validates HMAC seal and live expiry, not all those current facts."
+    },
+    "No proof lifetime increase, transaction-time replacement for wall clock, original SQL rewrite, fingerprint suppression, expected23505 relaxation, bypass, wider privilege or caller supplied source proof."
+  ],
+  "verdict": "No source-reviewed root-cause repair ready for acceptance. The exact duplicate-conjunct optimization is safe to implement as an honest supplementary source successor and independently review before hosted execution; no implementation reviewed here."
+}

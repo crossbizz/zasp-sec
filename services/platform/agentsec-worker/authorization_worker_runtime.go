@@ -92,7 +92,7 @@ func bindTemporalWorkerAuthorization(ctx context.Context, cfg workerRuntimeConfi
 		return errRuntimeUnavailable
 	}
 	if !installed[0] {
-		if cfg.WorkerAuthorizationKeyFile != "" || cfg.CompensationAuthorizationKeyFile != "" {
+		if cfg.WorkerAuthorizationKeyFile != "" || cfg.CompensationAuthorizationKeyFile != "" || cfg.RuntimeServices.ApprovalMaintenanceProfileChecksum != "" || cfg.RuntimeServices.ConnectorMaintenanceProfileChecksum != "" {
 			return errRuntimeUnavailable
 		}
 		return nil
@@ -120,11 +120,7 @@ func bindTemporalWorkerAuthorization(ctx context.Context, cfg workerRuntimeConfi
 		keys[i] = key
 	}
 	var forward *authorization.WorkerExecutor
-	if cfg.RuntimeServices.ApprovalMaintenanceProfileChecksum != "" {
-		forward, err = authorization.NewApprovalOriginWorkerExecutor(ctx, pools[0], checker, cfg.RuntimeServices.StoreID, cfg.RuntimeServices.ModelID, keys[0], cfg.RuntimeServices.ApprovalMaintenanceProfileChecksum)
-	} else {
-		forward, err = authorization.NewWorkerExecutor(pools[0], checker, cfg.RuntimeServices.StoreID, cfg.RuntimeServices.ModelID, keys[0])
-	}
+	forward, err = authorization.NewCurrentMaintenanceWorkerExecutor(ctx, pools[0], checker, cfg.RuntimeServices.StoreID, cfg.RuntimeServices.ModelID, keys[0], cfg.RuntimeServices.ApprovalMaintenanceProfileChecksum, cfg.RuntimeServices.ConnectorMaintenanceProfileChecksum)
 	if err != nil {
 		return errRuntimeUnavailable
 	}

@@ -1,0 +1,14 @@
+[
+  {
+    "path": ".github",
+    "blob_href": "https://github.com/crossbizz/zasp-sec/blob/4a61fa4f69d4814094eee494bc012421ba111927/.github",
+    "start_line": 34,
+    "start_column": null,
+    "end_line": 34,
+    "end_column": null,
+    "annotation_level": "notice",
+    "title": "Existing connector application regressions",
+    "message": "tops=36; failedOrUnobserved=; exit=0. Component application checks only; no native lifecycle or deployment acceptance.",
+    "raw_details": ""
+  }
+]
