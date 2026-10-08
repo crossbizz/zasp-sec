@@ -40,6 +40,23 @@ jobs:
       - name: Portable memory metadata parser controls
         timeout-minutes: 1
         run: node --test scripts/hosted-memory-observation.test.mjs
+      # Tool prerequisite only. The native test still uses the exact held PG image.
+      - name: Official Ubuntu Docker prerequisite
+        timeout-minutes: 6
+        run: |
+          set -eu
+          if ! command -v docker >/dev/null 2>&1; then
+            timeout --signal=TERM --kill-after=10s 120s sudo env -i PATH=/usr/sbin:/usr/bin:/sbin:/bin apt-get update -qq
+            timeout --signal=TERM --kill-after=10s 180s sudo env -i PATH=/usr/sbin:/usr/bin:/sbin:/bin DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends docker.io
+          fi
+          command -v docker
+          timeout --signal=TERM --kill-after=10s 10s docker --version
+          if ! timeout --signal=TERM --kill-after=10s 10s docker --host=unix:///var/run/docker.sock info --format '{{.ServerVersion}}'; then
+            timeout --signal=TERM --kill-after=10s 20s sudo systemctl start docker
+          fi
+          timeout --signal=TERM --kill-after=10s 10s docker --host=unix:///var/run/docker.sock version --format 'client={{.Client.Version}} server={{.Server.Version}}'
+          timeout --signal=TERM --kill-after=10s 10s docker --host=unix:///var/run/docker.sock info --format 'server={{.ServerVersion}} driver={{.Driver}}'
+          stat --format='socket mode=%a uid=%u gid=%g' /var/run/docker.sock
       - name: Original captured-inactive application integration
         timeout-minutes: 27
         run: node scripts/hosted-connector-nine.mjs

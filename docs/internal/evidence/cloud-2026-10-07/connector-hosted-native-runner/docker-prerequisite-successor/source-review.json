@@ -1,0 +1,28 @@
+{
+  "checks": [
+    "Removing the one comment+Docker prerequisite step exactly reproduces prior reviewed workflow bytes.",
+    "Fixed docker.io only installed if CLI absent; original Ubuntu apt signature defaults retained, no alternate repository/unauthenticated package flags. Actual client/server versions reported, no Docker binary/version pin invented.",
+    "Explicit local unix socket targeted for daemon checks; conditional systemctl start only; no socket chmod/group changes or Docker endpoint override.",
+    "Each potentially long package/service/client/server command bounded TERM+10s kill-after; outer step6min/job30min retained.",
+    "Original parser step, held exactPGimage runtime, test/source/permissions/tool/action pins and original integration step unchanged."
+  ],
+  "manifestSHA256": "784cb2bdd0f8897a3a283b564c95fe2dd240ddbd00d5fff956d054c6e0bc0f5a",
+  "members": {
+    ".github/workflows/connector-capture-native.yml": {
+      "bytes": 2906,
+      "sha256": "fc63c5523557a95a4e2b986fd54f42e670d61c6440f3e5159eb341b65860612b"
+    },
+    "prior-workflow.yml": {
+      "bytes": 1597,
+      "sha256": "0fe5395ee74b53e0230166a5656b9a5e00143244748efe2134f07e13f1e18ad7"
+    }
+  },
+  "qualifications": [
+    "Source review only; no package install, Docker request, tests or runtime by reviewer.",
+    "Existing runner apt source trust and installed Docker are platform prerequisites, not independently hashed vendor-binary admissions.",
+    "Six-minute step and thirty-minute job are absolute ceilings; worst-case serialized command ceilings may exceed them and therefore refuse rather than grant extra runtime.",
+    "This does not solve missing socket access; no permission expansion is introduced. Actual Docker version/info and original singleton nine-case acceptance remain required.",
+    "Prior ENOENT establishes failed intake phase only; no integration/deployment success or sole-cause inference from this candidate."
+  ],
+  "verdict": "PASS_HOSTED_DOCKER_PREREQUISITE_SOURCE"
+}
