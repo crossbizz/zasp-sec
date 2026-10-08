@@ -1,0 +1,586 @@
+{
+  "child": {
+    "finalJoined": true,
+    "finalReturnCode": -15,
+    "normalStageJoined": false,
+    "pid": 60583,
+    "spawnElapsedSeconds": 1.0301004940047278,
+    "stageJoinElapsedSeconds": null
+  },
+  "completed": false,
+  "elapsedSeconds": 15.001684055001533,
+  "firstFailedResource": {
+    "elapsedSeconds": 14.598039084004995,
+    "memoryHeadroom": 225869824,
+    "phase": "derive",
+    "tmpFree": 1444044800,
+    "workspaceFree": 1500475392
+  },
+  "firstRefusal": "live resource floor refusal",
+  "nativeVerified": false,
+  "out": "/tmp/native379-shipping54-atlas-reuse-ai5xi0j8",
+  "reaps": [],
+  "requestedSignals": [
+    {
+      "elapsedSeconds": 14.608074710005894,
+      "members": [
+        {
+          "group": 60583,
+          "pid": 60583,
+          "ppid": 60582,
+          "session": 60583,
+          "startTicks": 6059689,
+          "state": "R",
+          "uids": [
+            1000,
+            1000,
+            1000,
+            1000
+          ]
+        }
+      ],
+      "session": 60583,
+      "signal": 15
+    }
+  ],
+  "resourceHistory": [
+    {
+      "elapsedSeconds": 0.00016923600196605548,
+      "memoryHeadroom": 811945984,
+      "phase": "preflight",
+      "tmpFree": 1445191680,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 0.009731796999403741,
+      "memoryHeadroom": 807821312,
+      "phase": "atlas-custody",
+      "tmpFree": 1445191680,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 0.20973936199879972,
+      "memoryHeadroom": 807256064,
+      "phase": "atlas-custody",
+      "tmpFree": 1445191680,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 0.4098798679988249,
+      "memoryHeadroom": 806473728,
+      "phase": "atlas-custody",
+      "tmpFree": 1445191680,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 0.6099909890035633,
+      "memoryHeadroom": 806215680,
+      "phase": "atlas-custody",
+      "tmpFree": 1445191680,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 0.8101033810016816,
+      "memoryHeadroom": 805957632,
+      "phase": "atlas-custody",
+      "tmpFree": 1445191680,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 1.0101617610052926,
+      "memoryHeadroom": 805695488,
+      "phase": "atlas-custody",
+      "tmpFree": 1445191680,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 1.030073824003921,
+      "memoryHeadroom": 804253696,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 1.2326920960040297,
+      "memoryHeadroom": 764489728,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 1.4342705349990865,
+      "memoryHeadroom": 720379904,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 1.6357465690016397,
+      "memoryHeadroom": 680472576,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 1.8374019250040874,
+      "memoryHeadroom": 646356992,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 2.038859672000399,
+      "memoryHeadroom": 626823168,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 2.243531685002381,
+      "memoryHeadroom": 620777472,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 2.4450340590046835,
+      "memoryHeadroom": 617111552,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 2.646571251003479,
+      "memoryHeadroom": 614170624,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 2.8480111400058377,
+      "memoryHeadroom": 568107008,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 3.0497007180019864,
+      "memoryHeadroom": 606175232,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 3.2513846770016244,
+      "memoryHeadroom": 596062208,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 3.4528208609990543,
+      "memoryHeadroom": 577900544,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 3.654263490003359,
+      "memoryHeadroom": 573779968,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 3.8557818830013275,
+      "memoryHeadroom": 568086528,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 4.057253211001807,
+      "memoryHeadroom": 557162496,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 4.258825251003145,
+      "memoryHeadroom": 557162496,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 4.460316478005552,
+      "memoryHeadroom": 556617728,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 4.662012715001765,
+      "memoryHeadroom": 568233984,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 4.863490723000723,
+      "memoryHeadroom": 566890496,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 5.06757487100549,
+      "memoryHeadroom": 566890496,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 5.269262787005573,
+      "memoryHeadroom": 566890496,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 5.47090916900197,
+      "memoryHeadroom": 566890496,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 5.673143871004868,
+      "memoryHeadroom": 566890496,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 5.875016866004444,
+      "memoryHeadroom": 566890496,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 6.07676224700117,
+      "memoryHeadroom": 566890496,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 6.27839326600224,
+      "memoryHeadroom": 533381120,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 6.480079357999784,
+      "memoryHeadroom": 533118976,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 6.681711748999078,
+      "memoryHeadroom": 556191744,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 6.883366604000912,
+      "memoryHeadroom": 527233024,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 7.084814546004054,
+      "memoryHeadroom": 575422464,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 7.286346904998936,
+      "memoryHeadroom": 552480768,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 7.488584376005747,
+      "memoryHeadroom": 534351872,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 7.690206717001274,
+      "memoryHeadroom": 518557696,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 7.893756247001875,
+      "memoryHeadroom": 513978368,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 8.095411923000938,
+      "memoryHeadroom": 495878144,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 8.296971774005215,
+      "memoryHeadroom": 541278208,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 8.498561988999427,
+      "memoryHeadroom": 530042880,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 8.70000225500553,
+      "memoryHeadroom": 529518592,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 8.90170689200022,
+      "memoryHeadroom": 528207872,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 9.10316061800404,
+      "memoryHeadroom": 528207872,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 9.304546352002944,
+      "memoryHeadroom": 527683584,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 9.50598703900323,
+      "memoryHeadroom": 526897152,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 9.707418397003494,
+      "memoryHeadroom": 517746688,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 9.908886776000145,
+      "memoryHeadroom": 532172800,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 10.110251158002939,
+      "memoryHeadroom": 529481728,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 10.311621143002412,
+      "memoryHeadroom": 514240512,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 10.513045085004705,
+      "memoryHeadroom": 514240512,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 10.714448049999191,
+      "memoryHeadroom": 514240512,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 10.91617881500133,
+      "memoryHeadroom": 528769024,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 11.11763962799887,
+      "memoryHeadroom": 529924096,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 11.3221104270051,
+      "memoryHeadroom": 538603520,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 11.523533687999588,
+      "memoryHeadroom": 538210304,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 11.725028567001573,
+      "memoryHeadroom": 538439680,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 11.92677714900492,
+      "memoryHeadroom": 538439680,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 12.128369916004885,
+      "memoryHeadroom": 480436224,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 12.330295577005018,
+      "memoryHeadroom": 418148352,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 12.531723860003694,
+      "memoryHeadroom": 477577216,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 12.733379588004027,
+      "memoryHeadroom": 445689856,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 12.934888738003792,
+      "memoryHeadroom": 478887936,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 13.136306230000628,
+      "memoryHeadroom": 477282304,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 13.337672323999868,
+      "memoryHeadroom": 458506240,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 13.539594349000254,
+      "memoryHeadroom": 418394112,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 13.741456923999067,
+      "memoryHeadroom": 439021568,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 13.942945904003864,
+      "memoryHeadroom": 437178368,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 14.144515876003425,
+      "memoryHeadroom": 375480320,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 14.346141834001173,
+      "memoryHeadroom": 367861760,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    },
+    {
+      "elapsedSeconds": 14.54761103400233,
+      "memoryHeadroom": 302678016,
+      "phase": "derive",
+      "tmpFree": 1444044800,
+      "workspaceFree": 1500475392
+    }
+  ],
+  "scope": "shipping54 bounded bootstrap with verified f84 source Atlas reuse; offline source component only",
+  "scratchCreated": true,
+  "sessions": [
+    60583
+  ],
+  "sevenAnchorsIssued": false,
+  "signals": [],
+  "subreaper": {
+    "acquired": 1,
+    "before": 0,
+    "restored": 0
+  },
+  "unknown": []
+}
