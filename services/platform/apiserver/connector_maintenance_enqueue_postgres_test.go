@@ -20,6 +20,11 @@ func TestConnectorMaintenanceAuthenticatedOAuthEnqueuePostgres(t *testing.T) {
 	if err != nil {
 		t.Fatal("original native runner unavailable")
 	}
+	// Compose the original audit/identity worker prerequisite before capturing
+	// the native state that supplementary approval/connector installs preserve.
+	if err := runner.UpProductionAuthorizationWorkerAuditProfile(f.ctx); err != nil {
+		t.Fatal("original composed worker profile unavailable")
+	}
 	before := connectorProvenanceNativeState(t, f)
 	if err := runner.UpProductionApprovalMaintenanceProfile(f.ctx); err != nil {
 		t.Fatal("original approval profile unavailable")

@@ -1,7 +1,7 @@
 {
-  "status": "INACTIVE COMPILE-ONLY CONTROLLED CUTOVER CANDIDATE; NO NATIVE EXECUTION OR DEPLOYMENT ADMISSION",
-  "base": "76ba3b53c1d4d892539da16a08db71172a49b5d2",
-  "checkpointSHA256": "53deec8807ed58e9a0e39517e32a669c8e240730610c5cbcd616c5bfec200b25",
+  "status": "INACTIVE API/WORKER CONTROLLED CUTOVER CANDIDATE; AUTHENTICATED APPLICATION VERIFICATION PENDING; NO DEPLOYMENT ADMISSION",
+  "base": "32ea911cca555447c56f269a28bc496b8e770e95",
+  "checkpointSHA256": "380f26d8bc6fc136af456695ebf5da4a6fb3cc023f6af2d019588b329b25368e",
   "sources": [
     {
       "path": "services/platform/agentsec-api/connector_callback_runtime.go",
@@ -42,7 +42,7 @@
       "path": "services/platform/apiserver/connector_enqueue_provenance_postgres_test.go",
       "sha256": "d6039cfa0d1673a5cf29e68e209b73c2cb6aeefd715e4d7805d3690b8ab0afde",
       "bytes": 17593,
-      "currentBasePreimageSHA256": null,
+      "currentBasePreimageSHA256": "d6039cfa0d1673a5cf29e68e209b73c2cb6aeefd715e4d7805d3690b8ab0afde",
       "historicalPreimageSHA256": "d6039cfa0d1673a5cf29e68e209b73c2cb6aeefd715e4d7805d3690b8ab0afde"
     },
     {
@@ -75,8 +75,8 @@
     },
     {
       "path": "services/platform/apiserver/connector_maintenance_enqueue_postgres_test.go",
-      "sha256": "565ae565e80a15e0834ff17696cc9313e55609932f16fbb46a7bb237b9149c14",
-      "bytes": 7678,
+      "sha256": "f5a1050afe876eca336321cd2d71ef62e2a37c8940c3c71755fc76b9441f8fd7",
+      "bytes": 7977,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -175,7 +175,7 @@
       "path": "services/platform/migrations/production_connector_enqueue_provenance.go",
       "sha256": "793b230a8572fbfbed2a4702e1513bfa90afac596a8d0707ae047bbdf8bacc36",
       "bytes": 4521,
-      "currentBasePreimageSHA256": null,
+      "currentBasePreimageSHA256": "793b230a8572fbfbed2a4702e1513bfa90afac596a8d0707ae047bbdf8bacc36",
       "historicalPreimageSHA256": "809041eced547701b1e3ac3c1f68ac45d7b403336f5de6df4dda13b10db83267"
     },
     {
@@ -189,7 +189,7 @@
       "path": "services/platform/migrations/sql/connector_enqueue_provenance.sql",
       "sha256": "32b3f8cbe175b5256ff4542cdff044d6d060e0240d24632bf3d057f3553a5c13",
       "bytes": 12222,
-      "currentBasePreimageSHA256": null,
+      "currentBasePreimageSHA256": "32b3f8cbe175b5256ff4542cdff044d6d060e0240d24632bf3d057f3553a5c13",
       "historicalPreimageSHA256": "32b3f8cbe175b5256ff4542cdff044d6d060e0240d24632bf3d057f3553a5c13"
     },
     {
