@@ -45,6 +45,26 @@ type integrationClientFixture struct {
 const integrationClientExisting = "pid_78200001-0000-4000-8000-000000000001"
 const integrationClientBody = `{"name":"Client GitHub","connector_key":"github","configuration":{"authorization_mode":"github_app"}}`
 
+// Diagnostics expose only fixed categories and a validated PostgreSQL SQLSTATE.
+// Original fixture errors and admission/cleanup remain unchanged.
+func connectorFixtureErrorDiagnostic(t *testing.T, err error) {
+	t.Helper()
+	var native *pgconn.PgError
+	if errors.As(err, &native) && native != nil && len(native.Code) == 5 {
+		valid := true
+		for _, value := range native.Code {
+			if (value < '0' || value > '9') && (value < 'A' || value > 'Z') {
+				valid = false
+			}
+		}
+		if valid {
+			t.Logf("connector fixture SQLSTATE=%s", native.Code)
+			return
+		}
+	}
+	t.Log("connector fixture errorCategory=non-postgres-or-unclassified")
+}
+
 func newIntegrationClientFixture(t *testing.T, composed ...bool) *integrationClientFixture {
 	t.Helper()
 	if os.Getenv("ZASP_P7_MODEL_TEST") != "1" {
@@ -52,17 +72,22 @@ func newIntegrationClientFixture(t *testing.T, composed ...bool) *integrationCli
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	t.Cleanup(cancel)
+	t.Log("connector fixture stage=postgres-start")
 	dsn := startDisposablePostgresAs(t, "zasp_e2e")
+	t.Log("connector fixture stage=postgres-connect")
 	owner, err := pgx.Connect(ctx, dsn)
 	if err != nil {
+		connectorFixtureErrorDiagnostic(t, err)
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = owner.Close(context.Background()) })
+	t.Log("connector fixture stage=canonical-install")
 	if len(composed) > 0 && composed[0] {
 		migrateIntegrationClientComposed(t, ctx, owner)
 	} else {
 		migrateP7Authorization(t, ctx, owner)
 	}
+	t.Log("connector fixture stage=fixture-data")
 	f := &integrationClientFixture{t: t, ctx: ctx, owner: owner, dsn: dsn}
 	i := fixtureRequestIdentity(t)
 	o, w, e, p := i.Scope.OrganizationID().String(), i.Scope.WorkspaceID().String(), i.Scope.EnvironmentID().String(), i.PrincipalID.String()
@@ -75,54 +100,74 @@ func newIntegrationClientFixture(t *testing.T, composed ...bool) *integrationCli
 	f.exec(`INSERT INTO zasp_product_api_tokens(token_digest,id,name,principal_id,organization_id,workspace_id,environment_id,permissions,expires_at) VALUES(digest('client80-pat','sha256'),'pid_78200004-0000-4000-8000-000000000004','Client PAT',$1,$2,$3,$4,'["manage_workflows","view"]',clock_timestamp()+interval '1 hour')`, p, o, w, e)
 	f.exec(`INSERT INTO zasp_integrations(organization_id,workspace_id,environment_id,id,kind,connector_version,display_name,configuration) VALUES($1,$2,$3,$4,'github','1.0.0','Existing','{"authorization_mode":"github_app"}')`, o, w, e, integrationClientExisting)
 	f.exec(`INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,kind,id,body) VALUES($1,$2,$3,'integration',$4,jsonb_build_object('id',$4::text,'name','Existing','connector_key','github','configuration','{"authorization_mode":"github_app"}'::jsonb,'status','pending_authorization','created_at','2026-01-01T00:00:00Z','updated_at','2026-01-01T00:00:00Z'))`, o, w, e, integrationClientExisting)
+	t.Log("connector fixture stage=projection-pool")
 	cfg, _ := pgxpool.ParseConfig(dsn)
 	cfg.ConnConfig.User = "auth80_outbox"
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
+		connectorFixtureErrorDiagnostic(t, err)
 		t.Fatal(err)
 	}
 	t.Cleanup(pool.Close)
 	projection, _ := authorization.NewPostgresProjectionRepository(pool)
+	t.Log("connector fixture stage=owned-fga-model")
 	client, pins := newAuthorizationProjectionFGA(t)
+	t.Log("connector fixture stage=tuple-writer")
 	writer, err := authorization.NewOpenFGATupleWriter(client, pins)
 	if err != nil {
+		connectorFixtureErrorDiagnostic(t, err)
 		t.Fatal(err)
 	}
+	t.Log("connector fixture stage=fga-checker")
 	checker, err := authorization.NewOpenFGA(client, pins)
 	if err != nil {
+		connectorFixtureErrorDiagnostic(t, err)
 		t.Fatal(err)
 	}
+	t.Log("connector fixture stage=projection-configure")
 	f.exec(`SELECT zasp_authorization79.configure($1,$2,$3)`, o, pins.StoreID, pins.ModelID)
 	f.reconcile = func() {
 		t.Helper()
 		if result, err := authorization.Reconcile(ctx, projection, writer, o, pins.StoreID, pins.ModelID); err != nil || !result.Applied {
+			connectorFixtureErrorDiagnostic(t, err)
 			t.Fatalf("projection=%+v %v", result, err)
 		}
 	}
+	t.Log("connector fixture stage=projection-reconcile")
 	f.reconcile()
+	t.Log("connector fixture stage=registered-api-connect")
 	f.api = connectRuntimeDataPlanePrincipal(t, ctx, dsn, "auth80_api")
 	t.Cleanup(func() { _ = f.api.Close(context.Background()) })
+	t.Log("connector fixture stage=registered-api-role")
 	var exact bool
 	if err := f.api.QueryRow(ctx, `SELECT session_user='auth80_api' AND current_user=session_user AND NOT rolsuper AND NOT rolbypassrls FROM pg_roles WHERE rolname=session_user`).Scan(&exact); err != nil || !exact {
+		connectorFixtureErrorDiagnostic(t, err)
 		t.Fatalf("registered API=%t %v", exact, err)
 	}
+	t.Log("connector fixture stage=database-current-authority")
 	f.driver = &integrationClientDriver{rejectionAuthorizationDriver: rejectionAuthorizationDriver{authorizationConnectionDriver: authorizationConnectionDriver{conn: f.api}}, t: t}
 	db, _ := NewPostgresJSONDatabase(f.driver)
 	if err := db.RequireCurrentAuthorization(); err != nil {
+		connectorFixtureErrorDiagnostic(t, err)
 		t.Fatal(err)
 	}
 	f.repo, _ = NewPostgresRepository(db)
+	t.Log("connector fixture stage=browser-authentication")
 	f.browser, err = f.repo.Authenticate(ctx, Credential{Kind: CredentialBrowserSession, Value: "client80-session"})
 	if err != nil {
+		connectorFixtureErrorDiagnostic(t, err)
 		t.Fatal(err)
 	}
+	t.Log("connector fixture stage=token-authentication")
 	f.pat, err = f.repo.Authenticate(ctx, Credential{Kind: CredentialBearerToken, Value: "client80-pat"})
 	if err != nil {
+		connectorFixtureErrorDiagnostic(t, err)
 		t.Fatal(err)
 	}
 	if len(f.browser.Permissions) != 0 || len(f.pat.Permissions) != 0 {
 		t.Fatal("legacy allow permissions exposed")
 	}
+	t.Log("connector fixture stage=authorization-resolver")
 	resolver, _ := NewPostgresAuthorizationResolver(db)
 	f.authorizer = &OpenFGAAuthorizer{Reader: projection, Checker: checker, Resolver: resolver, StoreID: pins.StoreID, ModelID: pins.ModelID, AttestationKey: authorizationFixtureAttestor(t)}
 	f.capabilityAvailable = true
@@ -142,17 +187,23 @@ func newIntegrationClientFixture(t *testing.T, composed ...bool) *integrationCli
 		}
 		return nil
 	}
+	t.Log("connector fixture stage=connector-registry")
 	oauth, err := NewConnectorProviderRegistry(map[string]ConnectorOAuthProviderDefinition{"github": {Provider: f.provider, RequestedScopes: []string{"read:org", "repo"}, CredentialClass: "github_installation_reference"}, "okta": {Provider: f.provider, RequestedScopes: []string{"okta.users.read"}, CredentialClass: "okta_refresh_reference"}, "slack": {Provider: f.provider, RequestedScopes: []string{"nango:auth"}, CredentialClass: "nango_connection_reference", AuthorityProvider: "nango:slack"}}, map[string]ConnectorCapabilityCheck{"github": check, "okta": check, "slack": check})
 	if err != nil {
+		connectorFixtureErrorDiagnostic(t, err)
 		t.Fatal(err)
 	}
 	probe := &integrationClientReferenceProbe{url: endpoint.URL}
+	t.Log("connector fixture stage=reference-registry")
 	f.references, err = NewReferenceConnectorRegistry(map[string]ReferenceAuthorizationProbe{"aws": probe, "kubernetes": probe}, map[string]ConnectorCapabilityCheck{"aws": check, "kubernetes": check})
 	if err != nil {
+		connectorFixtureErrorDiagnostic(t, err)
 		t.Fatal(err)
 	}
+	t.Log("connector fixture stage=workflow-handler")
 	handler, err := newWorkflowHTTPHandler(f.repo, []byte(strings.Repeat("k", 32)), time.Now, CombinedConnectorCapabilities{OAuth: oauth, Reference: f.references})
 	if err != nil {
+		connectorFixtureErrorDiagnostic(t, err)
 		t.Fatal(err)
 	}
 	var ops []Operation
@@ -160,8 +211,10 @@ func newIntegrationClientFixture(t *testing.T, composed ...bool) *integrationCli
 		policy, _ := authorization.LookupOperation(id)
 		ops = append(ops, Operation{Method: policy.Method, Pattern: policy.Path, OperationID: id, Permission: policy.Permission, Security: []CredentialKind{CredentialBrowserSession, CredentialBearerToken}, RequireCSRF: id != "getIntegration", Handler: handler})
 	}
+	t.Log("connector fixture stage=router")
 	f.router, err = NewRouter(ops)
 	if err != nil {
+		connectorFixtureErrorDiagnostic(t, err)
 		t.Fatal(err)
 	}
 	f.router.(*operationRouter).authorizer = f.authorizer
@@ -251,6 +304,7 @@ func (r integrationClientRow) Scan(out ...any) error {
 func (f *integrationClientFixture) exec(q string, args ...any) {
 	f.t.Helper()
 	if _, err := f.owner.Exec(f.ctx, q, args...); err != nil {
+		connectorFixtureErrorDiagnostic(f.t, err)
 		f.t.Fatal(err)
 	}
 }
@@ -287,18 +341,23 @@ func (f *integrationClientFixture) invokeContext(call context.Context, identity 
 
 func migrateIntegrationClientComposed(t *testing.T, ctx context.Context, conn *pgx.Conn) *migrations.Runner {
 	t.Helper()
+	t.Log("connector fixture stage=canonical-cutover")
 	runner := migrateToTypedInventoryCutover(t, ctx, conn)
 	runner, _ = migrations.NewRunner(&orderedAdmissionMigrationDatabase{connection: conn, t: t})
 	exec := func(q string, args ...any) {
 		t.Helper()
 		if _, err := conn.Exec(ctx, q, args...); err != nil {
+			connectorFixtureErrorDiagnostic(t, err)
 			t.Fatal(err)
 		}
 	}
+	t.Log("connector fixture stage=data-plane-roles")
 	for _, name := range []string{"auth80_api", "auth80_discovery", "auth80_ingest", "auth80_runtime", "auth80_outbox", "auth80_gateway"} {
 		exec(fmt.Sprintf(`CREATE ROLE %s LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`, name))
 	}
+	t.Log("connector fixture stage=data-plane-principals")
 	exec(`SELECT zasp_discovery_register_principals(session_user,'auth80_api','auth80_discovery','auth80_ingest','auth80_runtime','auth80_outbox','auth80_gateway')`)
+	t.Log("connector fixture stage=current-authorization-modules")
 	for _, up := range []func(context.Context) error{runner.UpProductionRuntimeDataPlane, runner.UpProductionRuntimeGatewayReconciliation, runner.UpProductionRuntimeIngestReconciliation, runner.UpProductionSecurityAgentExecution, runner.UpProductionIdentityAdministration, runner.UpProductionSecurityAgentControls, runner.UpProductionSecurityAgentAutonomousResponse, runner.UpProductionSecurityAgentTemporaryPolicy, runner.UpProductionSecurityAgentConnectorRevocation, runner.UpProductionSecurityAgentSessionIsolation, runner.UpProductionRedTeamExecution,
 		runner.UpProductionAttackLabExecution, runner.UpProductionRecovery, runner.UpProductionPolicyDeployment, runner.UpProductionHomeAttention, runner.UpProductionApprovalNotification, runner.UpProductionWorkflowCompatibility, runner.UpProductionSecurityAgentPlanner, runner.UpProductionSecurityAgentAttackPath, runner.UpProductionIntegrationSetup, runner.UpProductionIntegrationWebhook, runner.UpProductionRuntimeQueueReplay, runner.UpProductionRedTeamSafety, runner.UpProductionRedTeamInvocation, runner.UpProductionRedTeamArtifacts, runner.UpProductionRuntimeSessions, runner.UpProductionRuntimeSessionReads, runner.UpProductionRuntimeSessionSearch, runner.UpProductionRuntimeSessionQuery, runner.UpProductionRuntimeSessionEvidence, runner.UpProductionRuntimeEnrollmentPairing, runner.UpProductionReconciliationLanePlan, runner.UpProductionRuntimeCandidateAuthority, runner.UpProductionRuntimeAcceptance, runner.UpProductionRuntimeCorrelationRouting, runner.UpProductionRuntimeSandboxBinding, runner.UpProductionRuntimePrecision, runner.UpProductionAuditExports, runner.UpProductionSecurityAgentBudgets, runner.UpProductionSecurityAgentRunContext, runner.UpProductionSecurityAgentExistingTests, runner.UpProductionCompliance, runner.UpProductionSecurityAgentAttackLab, runner.UpProductionSecurityAgentExports, runner.UpProductionSecurityAgentWebhooks, runner.UpProductionDiscoveryScheduleReplay, runner.UpProductionSecurityAgentMultistep} {
 		if err := up(ctx); err != nil {
@@ -312,21 +371,29 @@ func migrateIntegrationClientComposed(t *testing.T, ctx context.Context, conn *p
 			if errors.As(detail, &pgerr) {
 				t.Logf("SQL position=%d internal=%d query=%s context=%s", pgerr.Position, pgerr.InternalPosition, pgerr.InternalQuery, pgerr.Where)
 			}
+			connectorFixtureErrorDiagnostic(t, err)
 			t.Fatalf("authorization install: %v", err)
 		}
 	}
+	t.Log("connector fixture stage=execution-roles")
 	for _, name := range []string{"client_scheduler", "client_risk", "client_graph", "client_search"} {
 		exec(fmt.Sprintf("CREATE ROLE %s LOGIN INHERIT NOSUPERUSER NOBYPASSRLS", name))
 	}
+	t.Log("connector fixture stage=execution-principals")
 	exec("SELECT zasp_execution_register_principals(session_user,'client_scheduler','auth80_discovery','client_risk','client_graph','client_search')")
+	t.Log("connector fixture stage=temporal-authorization-modules")
 	for _, up := range []func(context.Context) error{runner.UpProductionTemporalDomain, runner.UpProductionTemporalExecutor, runner.UpProductionTemporalWorkflow, runner.UpProductionTemporalCompatibility, runner.UpProductionTemporalLegacyTests, runner.UpProductionTemporalDiscovery, runner.UpProductionTemporalAdmission, runner.UpProductionTemporalTestExecutor, runner.UpProductionTemporalTestSelector, runner.UpProductionTemporalHumanAdmission, runner.UpProductionTemporalAutomaticSources, runner.UpProductionTemporalFindingResponse, runner.UpProductionAuthorizationTemporalAuditProfile} {
 		if err := up(ctx); err != nil {
+			connectorFixtureErrorDiagnostic(t, err)
 			t.Fatal("composed client installation", err)
 		}
 	}
+	t.Log("connector fixture stage=current-authorization-replay")
 	if err := runner.UpProductionAuthorizationTemporalAuditProfile(ctx); err != nil {
+		connectorFixtureErrorDiagnostic(t, err)
 		t.Fatal("composed current replay", err)
 	}
+	t.Log("connector fixture stage=verifier-registration")
 	key := authorizationFixtureAttestor(t)
 	exec("SELECT zasp_authorization80.register_verifier($1,$2)", key.Version(), key.Verifier())
 	return runner

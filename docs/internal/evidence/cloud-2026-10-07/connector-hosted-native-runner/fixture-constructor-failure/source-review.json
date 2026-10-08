@@ -1,0 +1,34 @@
+{
+  "checks": [
+    "Remove added diagnostic helper, its error-only calls and exactly29 fixed stage logs: all original Go lexical tokens including strings/comments equal prior7dcf; only gofmt whitespace differences remain.",
+    "V1-to-V2 sole nil-pointer guard plus exact matching runner helperSHA; source acquisition sameFD/security/size/mtime/ctime stable.",
+    "Diagnostic nil/non-PG errors expose one fixed category; PG SQLSTATE length5/all ASCIIuppercase-or-digit validated; original Fatal/Fatalf/calls/SQL/security/permissions/cases/cleanup unchanged.",
+    "Runner only pins changed diagnostic helper and extracts fixed29 labels<=32, fiveASCII SQLSTATE<=16 and original canonical decimalversion1-4digits<=16; no raw error/SQL/proof/body/token printed by additions.",
+    "Original command failure/roster/auth/intake/floors/cleanup/deadlines unchanged; original singleton d603 remains requirement, no acceptance from marker counts."
+  ],
+  "manifestSHA256": "377819217c69315090163a88be770b3286747cf71e5b7eec88b2c07d0f74f219",
+  "members": {
+    "prior/scripts/hosted-connector-nine.mjs": {
+      "bytes": 20451,
+      "sha256": "336e41875279a805fe4cf9ac256c2c1ebe0bd99e6d3b20c3729fa7f144618610"
+    },
+    "prior/services/platform/apiserver/authorization_integration_mutations_postgres_test.go": {
+      "bytes": 63617,
+      "sha256": "7dcf60d46753947e2519031e1247d681d1a2a64dfd4df5a7cd079b80c9b4a4c7"
+    },
+    "scripts/hosted-connector-nine.mjs": {
+      "bytes": 22284,
+      "sha256": "688e5f3581289afba0823e13c405fb50a1e66f66994a0e0f7ecc22453964a0de"
+    },
+    "services/platform/apiserver/authorization_integration_mutations_postgres_test.go": {
+      "bytes": 66566,
+      "sha256": "694ee1dea5e3265d9b5bb5241db2435b03c44c9490e0ca4ee33ca4dad1661c74"
+    }
+  },
+  "qualifications": [
+    "No Go/Node/tests/services/runtime by reviewer. Source approval only, actual hosted failure remains top1FAIL/zero subcases.",
+    "Original fixture raw Fatal/log behavior remains untouched; new public notice allowlists diagnostics, does not certify all historical raw logs secret-free.",
+    "Stage markers indicate reached code before a call, not call completion or sole causal proof. No native/deployed acceptance."
+  ],
+  "verdict": "PASS_FIXTURE_STAGE_DIAGNOSTIC_V2_SOURCE"
+}
