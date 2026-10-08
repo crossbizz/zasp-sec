@@ -26,11 +26,11 @@
     },
     {
       "path": "scripts/npm-public-api-query/prepare-hosted.py",
-      "sha256": "b091aec0f44629cc442a46ca0705229ee06e9e60afad0594b5d484cd92a6fbab"
+      "sha256": "dbb94b34206c601119c4f44a44a92fe708a7f8af51e3fb77fb5a03ec465125af"
     },
     {
       "path": "scripts/npm-public-api-query/public_lock_adapter.py",
-      "sha256": "d1de39b00bd9edc154853bd0634209db1fcd629a7def30d1929674239b9519cc"
+      "sha256": "288db96225c8f492ddd213d0645801dfefe57925935b2ed60692c49741ca3f0e"
     },
     {
       "path": "scripts/npm-public-api-query/public_lock_controls.py",
