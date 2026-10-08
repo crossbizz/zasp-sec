@@ -1,0 +1,151 @@
+{
+  "format": "production-diagnostic-selected-final-lossless-publication-v2",
+  "originalsPreserved": true,
+  "payloads": [
+    {
+      "bytes": 2337,
+      "encoding": "identity",
+      "name": "original-census-failure-result.json",
+      "origin": "/tmp/actual-API-tail-TDD-pv9xlaew/result.json",
+      "sha256": "66ddd6804797a3e154166535be6eafc367306866750cbd2c5014bcd0f624f604"
+    },
+    {
+      "bytes": 5113,
+      "encoding": "JSONtext-to-UTF8",
+      "name": "original-census-failure-RED.tap.jsonl",
+      "origin": "/tmp/actual-API-tail-TDD-pv9xlaew/RED.jsonl",
+      "reconstructedBytes": 4834,
+      "reconstructedSHA256": "c1606e95a249534bb8a99d18815529804c75bf4139878dedf888d7d7729e23a9",
+      "sha256": "548a86635e2d0d39ab171f794c66422791e5dbebe3ea6ed3470c5fe29d9c4c49"
+    },
+    {
+      "bytes": 1539,
+      "encoding": "identity",
+      "name": "original-census-failure-root.json",
+      "origin": "/tmp/api-child-exact-tail-root-outer-ygb_cxhu/normal-outer-result.json",
+      "sha256": "ac99f2d0e50597a3facdfd2fe1685ae6ff49577f08a2079debca81cfe2c16ddd"
+    },
+    {
+      "bytes": 1860,
+      "encoding": "identity",
+      "name": "original-census-failure-review.json",
+      "origin": "/tmp/independent-API-exact-tail-baseline-census-refusal-review.json",
+      "sha256": "8be535c83498764df26e0f8937595d6b9d13d331cc6294902653a5f097197391"
+    },
+    {
+      "bytes": 4069,
+      "encoding": "identity",
+      "name": "successful-result.json",
+      "origin": "/tmp/actual-API-tail-TDD-zs9j5zwg/result.json",
+      "sha256": "4a2a02079f586cbee9bce3556b78e641508efec60aed8cdbc5ef553f9dab6068"
+    },
+    {
+      "bytes": 5114,
+      "encoding": "JSONtext-to-UTF8",
+      "name": "successful-RED.tap.jsonl",
+      "origin": "/tmp/actual-API-tail-TDD-zs9j5zwg/RED.jsonl",
+      "reconstructedBytes": 4835,
+      "reconstructedSHA256": "c313bc7d918d4b364bd0237ae05485e919d1cb7cdf705373a3a2e5d782201b1a",
+      "sha256": "4d095b892fb29d34f65ca808067c612cb31a6484e7a178f81648e40cb6ef5dc1"
+    },
+    {
+      "bytes": 1168,
+      "encoding": "JSONtext-to-UTF8",
+      "name": "successful-GREEN.tap.jsonl",
+      "origin": "/tmp/actual-API-tail-TDD-zs9j5zwg/GREEN.jsonl",
+      "reconstructedBytes": 970,
+      "reconstructedSHA256": "0028585c6d1fc0d2b1ebdd8d7bf6c3c0f42f2877854c5ada1810c5a0970d4154",
+      "sha256": "310cd4ea947d13e1c79127f51b0e3bcf99235a7fbb8a39d0ec657d58f27ebd97"
+    },
+    {
+      "bytes": 1575,
+      "encoding": "identity",
+      "name": "successful-root.json",
+      "origin": "/tmp/api-child-exact-tail-census3-root-outer-6xcnjwff/normal-outer-result.json",
+      "sha256": "f761c6960f7360774cf02d68ecc499d172bc050e0c3db2e648c7cb2be5463b60"
+    },
+    {
+      "bytes": 3662,
+      "encoding": "identity",
+      "name": "successful-independent-review.json",
+      "origin": "/tmp/independent-API-exact-tail-corrected-four-controls-actual-review.json",
+      "sha256": "3fd611b75d6d9de797bce6280740d91f34f491ce8de44d6b4b8d5739aaaddf52"
+    },
+    {
+      "bytes": 3473,
+      "encoding": "identity",
+      "name": "initial-source-review.json",
+      "origin": "/tmp/independent-API-exact-tail-source-review.json",
+      "sha256": "54febb3f3f65dd62945e86687842a9c7dd1ec6d448b5c14e29b2f841aedae76f"
+    },
+    {
+      "bytes": 3045,
+      "encoding": "identity",
+      "name": "counter-only-source-review.json",
+      "origin": "/tmp/independent-API-exact-tail-counter-successor-source-review.json",
+      "sha256": "569c7a0904c4acd884699011a4f8f775ef073d39b8558546fa9d3bb03ca8be12"
+    },
+    {
+      "bytes": 1959,
+      "encoding": "identity",
+      "name": "outcome.json",
+      "origin": "derived boundedsummary; originals referenced",
+      "sha256": "ab0d57b088d98c9ac77a9988fae74375582140aaebff67f386d6b1f7825a8997"
+    },
+    {
+      "bytes": 46640,
+      "encoding": "JSONtext-to-UTF8",
+      "name": "postadoption-regressions.tap.jsonl",
+      "origin": "/tmp/api-tail-postadoption-regressions.tap",
+      "reconstructedBytes": 45204,
+      "reconstructedSHA256": "2520b87472ef23945aa045ca30b686c7d7c50f45b1762cf5fa7643f9205dc0df",
+      "sha256": "f5d1354a1096dcb31ef218f437d8a2cccacc684fd00ca334024ad93e6dce8110"
+    },
+    {
+      "bytes": 88,
+      "encoding": "derived-empty-stderr-descriptor",
+      "name": "postadoption-stderr.json",
+      "origin": "/tmp/api-tail-postadoption-regressions.stderr",
+      "originalBytes": 0,
+      "originalSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sha256": "cb97c75c1f37a00035defb8771b553335a3085f2e63404ff3bdd52304ca2f98d"
+    },
+    {
+      "bytes": 2484,
+      "encoding": "identity",
+      "name": "postadoption-source-association.json",
+      "origin": "freshderived association of actualTMPclone",
+      "sha256": "8dc2e26812676e060d615284e506e49f55f45c7482241bcd9380f599cdd27885"
+    },
+    {
+      "bytes": 940,
+      "encoding": "identity",
+      "name": "four-source-CI-review.json",
+      "origin": "/tmp/independent-API-tail-four-source-CI-association-review.json",
+      "sha256": "4c0ce3a067ffd2dea46052cc2f3f4e58e47a2223ded393a9e46cbf2c2ab1ecc2"
+    },
+    {
+      "bytes": 2392,
+      "encoding": "identity",
+      "name": "ROOT-postadoption-observations.json",
+      "origin": "ExactliteralROOTmessageCLItranscription; toolSession observed, notownedreceipt",
+      "sha256": "b1cb368fbee30112c0cfd8b302dc8d2d6de79742153df48f46373b04827d7aad"
+    },
+    {
+      "bytes": 1407,
+      "encoding": "identity",
+      "name": "task-crosswalk.json",
+      "origin": "boundedderived crosswalk",
+      "sha256": "683ff28e52baa273e5eef39906aba02ad81f8194458fa3ae6a711f8c060e8e61"
+    }
+  ],
+  "reconstruction": "For JSONtext-to-UTF8 members: decode soleJSONobject text string toUTF8; require exact recordedbytes/SHA. No trimming of originalwhitespace.",
+  "scope": "softwarediagnosticcontrols/regressions only; no hostedcause/nativeauthority",
+  "status": "CANDIDATE_PENDING_INDEPENDENT_REVIEW_DEFAULTSCAN_ROOTCOPY",
+  "supersedes": {
+    "path": "/tmp/API-tail-final-CLI-bound-publication-_3oib_or/manifest.json",
+    "reason": "Manifest-only correction: emptystderr payload is a deriveddescriptor, not an identitycopy; all18payloads unchanged.",
+    "sha256": "51ec864ccf2cce0918347515700025aa473e63e24fc0bc5acb8f1f56d68ab36c"
+  },
+  "totalPayloadBytes": 88865
+}

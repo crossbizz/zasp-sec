@@ -1,0 +1,9 @@
+{"Time":"2026-10-07T15:56:42.26203999Z","Action":"start","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver"}
+{"Time":"2026-10-07T15:56:42.320584273Z","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestMaintenanceBoundaryDeliversOriginalSignedPayloadOverTLS"}
+{"Time":"2026-10-07T15:56:42.3206153Z","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestMaintenanceBoundaryDeliversOriginalSignedPayloadOverTLS","Output":"=== RUN   TestMaintenanceBoundaryDeliversOriginalSignedPayloadOverTLS\n"}
+{"Time":"2026-10-07T15:56:42.325305854Z","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestMaintenanceBoundaryDeliversOriginalSignedPayloadOverTLS","Output":"    approval_notification_maintenance_webhook_order_test.go:99: authorized boundary refused actual original signed HTTPS delivery repository operation rejected\n"}
+{"Time":"2026-10-07T15:56:42.325332644Z","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestMaintenanceBoundaryDeliversOriginalSignedPayloadOverTLS","Output":"--- FAIL: TestMaintenanceBoundaryDeliversOriginalSignedPayloadOverTLS (0.00s)\n"}
+{"Time":"2026-10-07T15:56:42.325335729Z","Action":"fail","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestMaintenanceBoundaryDeliversOriginalSignedPayloadOverTLS","Elapsed":0}
+{"Time":"2026-10-07T15:56:42.325340056Z","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Output":"FAIL\n"}
+{"Time":"2026-10-07T15:56:42.328922443Z","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Output":"FAIL\tgithub.com/zasp-ai/zasp-sec/services/platform/apiserver\t0.067s\n"}
+{"Time":"2026-10-07T15:56:42.328940971Z","Action":"fail","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Elapsed":0.067}

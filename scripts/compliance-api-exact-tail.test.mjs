@@ -1,0 +1,13 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {emitComplianceAPIChildFailure} from './browser-command-failure.mjs';
+const stage=s=>'ZASP_COMPLIANCE_API_FAILED_STAGE='+s;
+const dependency=s=>'ZASP_COMPLIANCE_API_FAILED_DEPENDENCY='+s;
+const child=s=>'::error title=Compliance API startup failed::Observed child stage: '+s+'.';
+const dep=s=>'::error title=Compliance API dependency failed::Observed dependency phase: '+s+'.';
+const capture=s=>'x'.repeat(16384-s.length-1)+'\n'+s;
+const emit=raw=>{const out=[];emitComplianceAPIChildFailure(raw,x=>out.push(x));assert.doesNotMatch(out.join(''),/CANARY_SECRET|CANARY_DSN/);return out;};
+test('exact retained tail preserves six complete internal stage witnesses',()=>{for(const s of ['config-load','owned-inputs','storage-path','bounded-deadline','runtime-build','serve']){const raw=capture(stage(s)+'\n');assert.equal(raw.length,16384);assert.deepEqual(emit(raw),[child(s)]);}});
+test('exact retained tail preserves closed dependency alongside runtime stage',()=>{const raw=capture(stage('runtime-build')+'\n'+dependency('native-services')+'\n');assert.equal(raw.length,16384);assert.deepEqual(emit(raw),[child('runtime-build'),dep('native-services')]);});
+test('oversized partial duplicate unknown and leading poisoned tails refuse',()=>{for(const raw of [capture(stage('serve')+'\n')+'x',capture(stage('serve')),capture(stage('serve')+'\n'+stage('serve')+'\n'),capture(stage('UNKNOWN')+'\n'),stage('serve')+'\n'+'x'.repeat(16384-stage('serve').length-1),capture('prefix '+stage('serve')+'\n'),capture(stage('serve')+' CANARY_SECRET\n')])assert.deepEqual(emit(raw),[child('unavailable')]);});
+test('dependency ambiguity and potential truncated leading dependency remain closed',()=>{for(const suffix of [stage('runtime-build')+'\n'+dependency('UNKNOWN')+'\n',stage('runtime-build')+'\n'+dependency('native-services')+'\n'+dependency('native-services')+'\n',stage('runtime-build')+'\n'+dependency('native-services')])assert.deepEqual(emit(capture(suffix)),[child('runtime-build'),dep('unavailable')]);const prefix=dependency('native-services');const tail='\n'+stage('runtime-build')+'\n';const raw=prefix+'x'.repeat(16384-prefix.length-tail.length)+tail;assert.deepEqual(emit(raw),[child('runtime-build'),dep('unavailable')]);});

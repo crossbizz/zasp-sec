@@ -1,0 +1,3634 @@
+{
+  "activeOverlay": null,
+  "adoptedChildren": [],
+  "aliasTargets": {},
+  "completed": true,
+  "elapsedSeconds": 39.57501596400107,
+  "failure": null,
+  "fgaLiveBinding": null,
+  "fgaNormalStop": null,
+  "firstRefusal": null,
+  "forced": false,
+  "format": "maintenance-webhook-order-selected-component-root-actual-v1",
+  "greenOverlay": "/tmp/approval-maintenance-webhook-order-source-v1/green-overlay.json",
+  "inputs": 20813,
+  "ownedReaps": [],
+  "ownedSessionSurvivors": [],
+  "ownedSessions": [
+    {
+      "pid": 43222,
+      "session": 43222,
+      "startTicks": 2431360,
+      "tag": "base-head"
+    },
+    {
+      "pid": 43224,
+      "session": 43224,
+      "startTicks": 2431371,
+      "tag": "offline-modules"
+    },
+    {
+      "pid": 43229,
+      "session": 43229,
+      "startTicks": 2431381,
+      "tag": "selected-inputs-red"
+    },
+    {
+      "pid": 43253,
+      "session": 43253,
+      "startTicks": 2431465,
+      "tag": "selected-inputs-green"
+    },
+    {
+      "pid": 43278,
+      "session": 43278,
+      "startTicks": 2431681,
+      "tag": "current-production-order-RED"
+    },
+    {
+      "pid": 43602,
+      "session": 43602,
+      "startTicks": 2433921,
+      "tag": "correct-order-GREEN"
+    }
+  ],
+  "processCensusUnknown": [],
+  "productionActivated": false,
+  "projectionRoot": "/tmp/approval-webhook-order-production-projection-b0jb6fud/platform",
+  "redOverlay": "/tmp/approval-maintenance-webhook-order-source-v1/red-overlay.json",
+  "resourceHistory": [
+    {
+      "elapsedSeconds": 0.007489145998988533,
+      "phase": "setup",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2420695040,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1120280576
+      }
+    },
+    {
+      "elapsedSeconds": 1.0937789929994324,
+      "phase": "base-head",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2420695040,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1112055808
+      }
+    },
+    {
+      "elapsedSeconds": 1.0938944279987481,
+      "phase": "base-head",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2420695040,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1112055808
+      }
+    },
+    {
+      "elapsedSeconds": 1.0944821070006583,
+      "phase": "base-head",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2420695040,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1112055808
+      }
+    },
+    {
+      "elapsedSeconds": 1.1974652280005103,
+      "phase": "offline-modules",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2420690944,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1111830528
+      }
+    },
+    {
+      "elapsedSeconds": 1.1976286649987742,
+      "phase": "offline-modules",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2420690944,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1111830528
+      }
+    },
+    {
+      "elapsedSeconds": 1.1980876089983212,
+      "phase": "offline-modules",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2420690944,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1111830528
+      }
+    },
+    {
+      "elapsedSeconds": 1.3040886749986385,
+      "phase": "selected-inputs-red",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2420617216,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1111662592
+      }
+    },
+    {
+      "elapsedSeconds": 1.3041608040002757,
+      "phase": "selected-inputs-red",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2420617216,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1111662592
+      }
+    },
+    {
+      "elapsedSeconds": 1.3046070790005615,
+      "phase": "selected-inputs-red",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2420617216,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1111400448
+      }
+    },
+    {
+      "elapsedSeconds": 1.4049676499998895,
+      "phase": "selected-inputs-red",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2420146176,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1096843264
+      }
+    },
+    {
+      "elapsedSeconds": 1.5054308159997163,
+      "phase": "selected-inputs-red",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2420137984,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1081528320
+      }
+    },
+    {
+      "elapsedSeconds": 1.6058852540008957,
+      "phase": "selected-inputs-red",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2420137984,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1081266176
+      }
+    },
+    {
+      "elapsedSeconds": 1.7064302990002034,
+      "phase": "selected-inputs-red",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2418192384,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1078865920
+      }
+    },
+    {
+      "elapsedSeconds": 2.1420411479994073,
+      "phase": "selected-inputs-green",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2416918528,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1101672448
+      }
+    },
+    {
+      "elapsedSeconds": 2.1421180739998817,
+      "phase": "selected-inputs-green",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2416918528,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1101672448
+      }
+    },
+    {
+      "elapsedSeconds": 2.1428165809993516,
+      "phase": "selected-inputs-green",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2416918528,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1101713408
+      }
+    },
+    {
+      "elapsedSeconds": 2.2431565699989733,
+      "phase": "selected-inputs-green",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2416914432,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1084669952
+      }
+    },
+    {
+      "elapsedSeconds": 2.343507565998152,
+      "phase": "selected-inputs-green",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2416914432,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1072320512
+      }
+    },
+    {
+      "elapsedSeconds": 2.4438843919997453,
+      "phase": "selected-inputs-green",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2416914432,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1073328128
+      }
+    },
+    {
+      "elapsedSeconds": 4.301557884999056,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2410078208,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1085767680
+      }
+    },
+    {
+      "elapsedSeconds": 4.301799089000269,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2410078208,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1085767680
+      }
+    },
+    {
+      "elapsedSeconds": 4.302353929000674,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2410078208,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1085505536
+      }
+    },
+    {
+      "elapsedSeconds": 4.402712486000382,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2410078208,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1067229184
+      }
+    },
+    {
+      "elapsedSeconds": 4.503107839998847,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2410000384,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1055621120
+      }
+    },
+    {
+      "elapsedSeconds": 4.60347351299788,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2409992192,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1041797120
+      }
+    },
+    {
+      "elapsedSeconds": 4.703919587998826,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2409172992,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1039167488
+      }
+    },
+    {
+      "elapsedSeconds": 4.804335837998224,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2407829504,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1043484672
+      }
+    },
+    {
+      "elapsedSeconds": 4.904690560000745,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2407067648,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1035190272
+      }
+    },
+    {
+      "elapsedSeconds": 5.005070128998341,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2407067648,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1024266240
+      }
+    },
+    {
+      "elapsedSeconds": 5.105444420998538,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2407067648,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1011421184
+      }
+    },
+    {
+      "elapsedSeconds": 5.205868537999777,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2407067648,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1008275456
+      }
+    },
+    {
+      "elapsedSeconds": 5.306238393000967,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2407067648,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1002508288
+      }
+    },
+    {
+      "elapsedSeconds": 5.40667572899838,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2407067648,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 999362560
+      }
+    },
+    {
+      "elapsedSeconds": 5.507192327000666,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2407067648,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 996216832
+      }
+    },
+    {
+      "elapsedSeconds": 5.6075554710005235,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2407063552,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 993857536
+      }
+    },
+    {
+      "elapsedSeconds": 5.707940979998966,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2401701888,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1037778944
+      }
+    },
+    {
+      "elapsedSeconds": 5.808299903001171,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2401406976,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1032318976
+      }
+    },
+    {
+      "elapsedSeconds": 5.91154679399915,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2400350208,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1023098880
+      }
+    },
+    {
+      "elapsedSeconds": 6.011903439000889,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2400350208,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1012613120
+      }
+    },
+    {
+      "elapsedSeconds": 6.115535467000882,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2400350208,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1010253824
+      }
+    },
+    {
+      "elapsedSeconds": 6.215967215001001,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2400350208,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1007632384
+      }
+    },
+    {
+      "elapsedSeconds": 6.3163760239986,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2395828224,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1038585856
+      }
+    },
+    {
+      "elapsedSeconds": 6.416857832999085,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2395820032,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1017352192
+      }
+    },
+    {
+      "elapsedSeconds": 6.517212113998539,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2395820032,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 994807808
+      }
+    },
+    {
+      "elapsedSeconds": 6.617542158997821,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2391470080,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1025400832
+      }
+    },
+    {
+      "elapsedSeconds": 6.719546951000666,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2391470080,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1007362048
+      }
+    },
+    {
+      "elapsedSeconds": 6.81993705199784,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2391470080,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 991895552
+      }
+    },
+    {
+      "elapsedSeconds": 6.9226041459987755,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2391470080,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 983506944
+      }
+    },
+    {
+      "elapsedSeconds": 7.022987119999016,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2391470080,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 982458368
+      }
+    },
+    {
+      "elapsedSeconds": 7.123366199000884,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2391470080,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 980361216
+      }
+    },
+    {
+      "elapsedSeconds": 7.223784137000621,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2391470080,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 976691200
+      }
+    },
+    {
+      "elapsedSeconds": 7.327454026999476,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2385580032,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1020837888
+      }
+    },
+    {
+      "elapsedSeconds": 7.427921042999515,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2385580032,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1004847104
+      }
+    },
+    {
+      "elapsedSeconds": 7.528270070997678,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2385580032,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1001177088
+      }
+    },
+    {
+      "elapsedSeconds": 7.628619474999141,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2382868480,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1011888128
+      }
+    },
+    {
+      "elapsedSeconds": 7.728987480997603,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2382868480,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1004580864
+      }
+    },
+    {
+      "elapsedSeconds": 7.831549695998547,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2381508608,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1004584960
+      }
+    },
+    {
+      "elapsedSeconds": 7.931922140000097,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2381508608,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 999079936
+      }
+    },
+    {
+      "elapsedSeconds": 8.03225747200122,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2379165696,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1013190656
+      }
+    },
+    {
+      "elapsedSeconds": 8.132655708999664,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2378829824,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1003327488
+      }
+    },
+    {
+      "elapsedSeconds": 8.233040194998466,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2378829824,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 999657472
+      }
+    },
+    {
+      "elapsedSeconds": 8.333391030999337,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2376871936,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 1000902656
+      }
+    },
+    {
+      "elapsedSeconds": 8.43397340699812,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2376871936,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 997183488
+      }
+    },
+    {
+      "elapsedSeconds": 8.534360146997642,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2376871936,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 986456064
+      }
+    },
+    {
+      "elapsedSeconds": 8.634729520999826,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2376871936,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 971776000
+      }
+    },
+    {
+      "elapsedSeconds": 8.735362382998574,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2376871936,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 966533120
+      }
+    },
+    {
+      "elapsedSeconds": 8.83573138599968,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2376871936,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 963649536
+      }
+    },
+    {
+      "elapsedSeconds": 8.936120238999138,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2376871936,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 962600960
+      }
+    },
+    {
+      "elapsedSeconds": 9.036559358999511,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2376871936,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 961552384
+      }
+    },
+    {
+      "elapsedSeconds": 9.136963064000156,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2376871936,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 953163776
+      }
+    },
+    {
+      "elapsedSeconds": 9.237328682000225,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2376871936,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 935870464
+      }
+    },
+    {
+      "elapsedSeconds": 9.337686758997734,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2376871936,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 929849344
+      }
+    },
+    {
+      "elapsedSeconds": 9.438045476999832,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2376871936,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 928800768
+      }
+    },
+    {
+      "elapsedSeconds": 9.538473748998513,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2376871936,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 928538624
+      }
+    },
+    {
+      "elapsedSeconds": 9.638854364999133,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2376871936,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 925917184
+      }
+    },
+    {
+      "elapsedSeconds": 9.739337220999005,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2376871936,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 924672000
+      }
+    },
+    {
+      "elapsedSeconds": 9.84354654100025,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2376871936,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 923099136
+      }
+    },
+    {
+      "elapsedSeconds": 9.943909705998522,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2376871936,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 915234816
+      }
+    },
+    {
+      "elapsedSeconds": 10.044285780000791,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2376871936,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 912613376
+      }
+    },
+    {
+      "elapsedSeconds": 10.144708603998879,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2347458560,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 874340352
+      }
+    },
+    {
+      "elapsedSeconds": 10.24511037100092,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2316054528,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 957894656
+      }
+    },
+    {
+      "elapsedSeconds": 10.347611268000037,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2289774592,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 915169280
+      }
+    },
+    {
+      "elapsedSeconds": 10.447982924997632,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2289774592,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 901537792
+      }
+    },
+    {
+      "elapsedSeconds": 10.548324397001124,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2289774592,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 893673472
+      }
+    },
+    {
+      "elapsedSeconds": 10.648779731000104,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2289774592,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 890527744
+      }
+    },
+    {
+      "elapsedSeconds": 10.749201182999968,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2289774592,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 888430592
+      }
+    },
+    {
+      "elapsedSeconds": 10.849623596997844,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2285273088,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 917475328
+      }
+    },
+    {
+      "elapsedSeconds": 10.95003283099868,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2285273088,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 902123520
+      }
+    },
+    {
+      "elapsedSeconds": 11.050381873999868,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2285273088,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 892162048
+      }
+    },
+    {
+      "elapsedSeconds": 11.150735068000358,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2285273088,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 889802752
+      }
+    },
+    {
+      "elapsedSeconds": 11.251138532999903,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2285273088,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 885870592
+      }
+    },
+    {
+      "elapsedSeconds": 11.35153144799915,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2280718336,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 912195584
+      }
+    },
+    {
+      "elapsedSeconds": 11.453386744000454,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2279899136,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 912941056
+      }
+    },
+    {
+      "elapsedSeconds": 11.55377001799934,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2279022592,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 910880768
+      }
+    },
+    {
+      "elapsedSeconds": 11.654116231999069,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2279022592,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 904327168
+      }
+    },
+    {
+      "elapsedSeconds": 11.754469100000279,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2277519360,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 905793536
+      }
+    },
+    {
+      "elapsedSeconds": 11.854820296997786,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2277519360,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 890589184
+      }
+    },
+    {
+      "elapsedSeconds": 11.955290462999983,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2277519360,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 881414144
+      }
+    },
+    {
+      "elapsedSeconds": 12.055668310000328,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2277519360,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 878530560
+      }
+    },
+    {
+      "elapsedSeconds": 12.156046686999616,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2277519360,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 877744128
+      }
+    },
+    {
+      "elapsedSeconds": 12.256406526001228,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2277519360,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 875646976
+      }
+    },
+    {
+      "elapsedSeconds": 12.356765513999562,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2277519360,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 872501248
+      }
+    },
+    {
+      "elapsedSeconds": 12.457133865998912,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2272497664,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 905379840
+      }
+    },
+    {
+      "elapsedSeconds": 12.55748784699972,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2271850496,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 900403200
+      }
+    },
+    {
+      "elapsedSeconds": 12.6578825889992,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2270793728,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 903598080
+      }
+    },
+    {
+      "elapsedSeconds": 12.758252263000031,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2270793728,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 896258048
+      }
+    },
+    {
+      "elapsedSeconds": 12.858585572001175,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2269310976,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 903929856
+      }
+    },
+    {
+      "elapsedSeconds": 12.958988526999747,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2269310976,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 890560512
+      }
+    },
+    {
+      "elapsedSeconds": 13.059366794001107,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2269016064,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 885624832
+      }
+    },
+    {
+      "elapsedSeconds": 13.159710798998276,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2267312128,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 893648896
+      }
+    },
+    {
+      "elapsedSeconds": 13.260076516999106,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2267312128,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 881860608
+      }
+    },
+    {
+      "elapsedSeconds": 13.360418788997777,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2267312128,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 877666304
+      }
+    },
+    {
+      "elapsedSeconds": 13.46079531400028,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2267312128,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 874782720
+      }
+    },
+    {
+      "elapsedSeconds": 13.561154441998951,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2267312128,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 873472000
+      }
+    },
+    {
+      "elapsedSeconds": 13.661484085998381,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2263654400,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 907440128
+      }
+    },
+    {
+      "elapsedSeconds": 13.763129815997672,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2262888448,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 886624256
+      }
+    },
+    {
+      "elapsedSeconds": 13.863549524998234,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261377024,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 905146368
+      }
+    },
+    {
+      "elapsedSeconds": 13.963954622999154,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 853020672
+      }
+    },
+    {
+      "elapsedSeconds": 14.064368202998594,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 836513792
+      }
+    },
+    {
+      "elapsedSeconds": 14.164763435997884,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 831557632
+      }
+    },
+    {
+      "elapsedSeconds": 14.26511237899831,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 817205248
+      }
+    },
+    {
+      "elapsedSeconds": 14.365496444999735,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 805670912
+      }
+    },
+    {
+      "elapsedSeconds": 14.465921093000361,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 798285824
+      }
+    },
+    {
+      "elapsedSeconds": 14.56632913499925,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 804634624
+      }
+    },
+    {
+      "elapsedSeconds": 14.666726580999239,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 807624704
+      }
+    },
+    {
+      "elapsedSeconds": 14.767103776001022,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 807624704
+      }
+    },
+    {
+      "elapsedSeconds": 14.867474341997877,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 806051840
+      }
+    },
+    {
+      "elapsedSeconds": 14.971606821000023,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 801333248
+      }
+    },
+    {
+      "elapsedSeconds": 15.072046320998197,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 791896064
+      }
+    },
+    {
+      "elapsedSeconds": 15.17238377600006,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 780722176
+      }
+    },
+    {
+      "elapsedSeconds": 15.272807045999798,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 780197888
+      }
+    },
+    {
+      "elapsedSeconds": 15.373153594999167,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 772595712
+      }
+    },
+    {
+      "elapsedSeconds": 15.473492912999063,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 748740608
+      }
+    },
+    {
+      "elapsedSeconds": 15.573942137998529,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 736944128
+      }
+    },
+    {
+      "elapsedSeconds": 15.674336273998051,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 714547200
+      }
+    },
+    {
+      "elapsedSeconds": 15.774759913998423,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 700915712
+      }
+    },
+    {
+      "elapsedSeconds": 15.875180654998985,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 692002816
+      }
+    },
+    {
+      "elapsedSeconds": 15.975601526999526,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 673914880
+      }
+    },
+    {
+      "elapsedSeconds": 16.079587398999138,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 661856256
+      }
+    },
+    {
+      "elapsedSeconds": 16.17994529099815,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 657137664
+      }
+    },
+    {
+      "elapsedSeconds": 16.28044826599944,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 654778368
+      }
+    },
+    {
+      "elapsedSeconds": 16.38359739400039,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 654516224
+      }
+    },
+    {
+      "elapsedSeconds": 16.483992056000716,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 653729792
+      }
+    },
+    {
+      "elapsedSeconds": 16.584358954998606,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 644292608
+      }
+    },
+    {
+      "elapsedSeconds": 16.684708708999096,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 639049728
+      }
+    },
+    {
+      "elapsedSeconds": 16.785084963998088,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 638263296
+      }
+    },
+    {
+      "elapsedSeconds": 16.885434576997795,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 638001152
+      }
+    },
+    {
+      "elapsedSeconds": 16.985788657999365,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 637214720
+      }
+    },
+    {
+      "elapsedSeconds": 17.086165722997976,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 634331136
+      }
+    },
+    {
+      "elapsedSeconds": 17.186533293999673,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 629309440
+      }
+    },
+    {
+      "elapsedSeconds": 17.28691840099782,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 626425856
+      }
+    },
+    {
+      "elapsedSeconds": 17.387319732999458,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 626425856
+      }
+    },
+    {
+      "elapsedSeconds": 17.487702105998324,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 626425856
+      }
+    },
+    {
+      "elapsedSeconds": 17.5881161469988,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 625377280
+      }
+    },
+    {
+      "elapsedSeconds": 17.68848002300001,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 618823680
+      }
+    },
+    {
+      "elapsedSeconds": 17.78886090299784,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 613613568
+      }
+    },
+    {
+      "elapsedSeconds": 17.889224669001123,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 613613568
+      }
+    },
+    {
+      "elapsedSeconds": 17.98958990599931,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 613613568
+      }
+    },
+    {
+      "elapsedSeconds": 18.09001241000078,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 613351424
+      }
+    },
+    {
+      "elapsedSeconds": 18.19037952999861,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 612827136
+      }
+    },
+    {
+      "elapsedSeconds": 18.29074639999817,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 607059968
+      }
+    },
+    {
+      "elapsedSeconds": 18.391286251000565,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 602341376
+      }
+    },
+    {
+      "elapsedSeconds": 18.49164961600036,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 601817088
+      }
+    },
+    {
+      "elapsedSeconds": 18.592045269000664,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 601554944
+      }
+    },
+    {
+      "elapsedSeconds": 18.69242368599953,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 601554944
+      }
+    },
+    {
+      "elapsedSeconds": 18.792779600000358,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 601292800
+      }
+    },
+    {
+      "elapsedSeconds": 18.893147360999137,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 598409216
+      }
+    },
+    {
+      "elapsedSeconds": 18.993508761999692,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 591855616
+      }
+    },
+    {
+      "elapsedSeconds": 19.09393686399926,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 590577664
+      }
+    },
+    {
+      "elapsedSeconds": 19.19430895199912,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 590315520
+      }
+    },
+    {
+      "elapsedSeconds": 19.2946999779997,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 590315520
+      }
+    },
+    {
+      "elapsedSeconds": 19.395098575998418,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 590053376
+      }
+    },
+    {
+      "elapsedSeconds": 19.49549650300105,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 590053376
+      }
+    },
+    {
+      "elapsedSeconds": 19.59588587699909,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 581926912
+      }
+    },
+    {
+      "elapsedSeconds": 19.69631758399919,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 577470464
+      }
+    },
+    {
+      "elapsedSeconds": 19.79668348300038,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 572489728
+      }
+    },
+    {
+      "elapsedSeconds": 19.897082089999458,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 572489728
+      }
+    },
+    {
+      "elapsedSeconds": 19.99761777599997,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 572489728
+      }
+    },
+    {
+      "elapsedSeconds": 20.09801753499778,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 572489728
+      }
+    },
+    {
+      "elapsedSeconds": 20.19839231700098,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 572489728
+      }
+    },
+    {
+      "elapsedSeconds": 20.298746086999017,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 568295424
+      }
+    },
+    {
+      "elapsedSeconds": 20.399216623998655,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 561741824
+      }
+    },
+    {
+      "elapsedSeconds": 20.49960115000067,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 556761088
+      }
+    },
+    {
+      "elapsedSeconds": 20.600138967998646,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 553877504
+      }
+    },
+    {
+      "elapsedSeconds": 20.70049803599977,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 553615360
+      }
+    },
+    {
+      "elapsedSeconds": 20.800873509000667,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 553615360
+      }
+    },
+    {
+      "elapsedSeconds": 20.901223282999126,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 553353216
+      }
+    },
+    {
+      "elapsedSeconds": 21.001606887999515,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 553353216
+      }
+    },
+    {
+      "elapsedSeconds": 21.102008650999778,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 548896768
+      }
+    },
+    {
+      "elapsedSeconds": 21.202359786999295,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 542343168
+      }
+    },
+    {
+      "elapsedSeconds": 21.302740127001016,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 534216704
+      }
+    },
+    {
+      "elapsedSeconds": 21.403115729997808,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 528711680
+      }
+    },
+    {
+      "elapsedSeconds": 21.50349192399881,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2261364736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 528449536
+      }
+    },
+    {
+      "elapsedSeconds": 21.603888980000193,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2260013056,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 519274496
+      }
+    },
+    {
+      "elapsedSeconds": 21.704300846999104,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2238922752,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 645009408
+      }
+    },
+    {
+      "elapsedSeconds": 21.805188744998304,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2216087552,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 859226112
+      }
+    },
+    {
+      "elapsedSeconds": 21.90563637699961,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2215960576,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 798154752
+      }
+    },
+    {
+      "elapsedSeconds": 22.006013652000547,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2215960576,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 786358272
+      }
+    },
+    {
+      "elapsedSeconds": 22.106386475999898,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2215960576,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 779018240
+      }
+    },
+    {
+      "elapsedSeconds": 22.206729294997785,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2215960576,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 761516032
+      }
+    },
+    {
+      "elapsedSeconds": 22.30752843799928,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2215960576,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 739758080
+      }
+    },
+    {
+      "elapsedSeconds": 22.40791757199986,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2215960576,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 739487744
+      }
+    },
+    {
+      "elapsedSeconds": 22.508380336999835,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2215960576,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 739487744
+      }
+    },
+    {
+      "elapsedSeconds": 22.60879580999972,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2215960576,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 739487744
+      }
+    },
+    {
+      "elapsedSeconds": 22.709182700000383,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2215960576,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 739487744
+      }
+    },
+    {
+      "elapsedSeconds": 22.809539754998696,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2215960576,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 739487744
+      }
+    },
+    {
+      "elapsedSeconds": 22.909975408998434,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2215960576,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 737390592
+      }
+    },
+    {
+      "elapsedSeconds": 23.010525410998525,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2215960576,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 737128448
+      }
+    },
+    {
+      "elapsedSeconds": 23.111591213000793,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2215960576,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 742240256
+      }
+    },
+    {
+      "elapsedSeconds": 23.21198891200038,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2215960576,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 742014976
+      }
+    },
+    {
+      "elapsedSeconds": 23.312352302000363,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2215960576,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 741752832
+      }
+    },
+    {
+      "elapsedSeconds": 23.412717274000897,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2164862976,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 690372608
+      }
+    },
+    {
+      "elapsedSeconds": 23.513276620000397,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2164854784,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 807890944
+      }
+    },
+    {
+      "elapsedSeconds": 23.613633941000444,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2164801536,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 793747456
+      }
+    },
+    {
+      "elapsedSeconds": 23.71458465899923,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2164731904,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 800157696
+      }
+    },
+    {
+      "elapsedSeconds": 23.814933236997604,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2164703232,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 791920640
+      }
+    },
+    {
+      "elapsedSeconds": 23.915293021000252,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2164682752,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 792805376
+      }
+    },
+    {
+      "elapsedSeconds": 24.015713402000983,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2164600832,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 797188096
+      }
+    },
+    {
+      "elapsedSeconds": 24.11616818100083,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2164572160,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 776400896
+      }
+    },
+    {
+      "elapsedSeconds": 24.21651464200113,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2164539392,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 775659520
+      }
+    },
+    {
+      "elapsedSeconds": 24.317008854999585,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2164465664,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 804466688
+      }
+    },
+    {
+      "elapsedSeconds": 24.41733894400022,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2164396032,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 793624576
+      }
+    },
+    {
+      "elapsedSeconds": 24.517671892997896,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2164326400,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 800854016
+      }
+    },
+    {
+      "elapsedSeconds": 24.618082387998584,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2164264960,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 805142528
+      }
+    },
+    {
+      "elapsedSeconds": 24.718457139999373,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2164203520,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 785342464
+      }
+    },
+    {
+      "elapsedSeconds": 24.818854855999234,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2164203520,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 757030912
+      }
+    },
+    {
+      "elapsedSeconds": 24.919234184999368,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2164203520,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 737378304
+      }
+    },
+    {
+      "elapsedSeconds": 25.01961250200111,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2164203520,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 721125376
+      }
+    },
+    {
+      "elapsedSeconds": 25.120010057999025,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2164203520,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 713273344
+      }
+    },
+    {
+      "elapsedSeconds": 25.220388795998588,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2164203520,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 695988224
+      }
+    },
+    {
+      "elapsedSeconds": 25.320806111998536,
+      "phase": "current-production-order-RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2164187136,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 768741376
+      }
+    },
+    {
+      "elapsedSeconds": 26.7026019670011,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312744960,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 987422720
+      }
+    },
+    {
+      "elapsedSeconds": 26.70269402700069,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312744960,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 987422720
+      }
+    },
+    {
+      "elapsedSeconds": 26.70321583599798,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312744960,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 987422720
+      }
+    },
+    {
+      "elapsedSeconds": 26.80359995699837,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312744960,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 971173888
+      }
+    },
+    {
+      "elapsedSeconds": 26.904148450998036,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312691712,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 958144512
+      }
+    },
+    {
+      "elapsedSeconds": 27.00449301700064,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312667136,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 956321792
+      }
+    },
+    {
+      "elapsedSeconds": 27.104867809001007,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 946987008
+      }
+    },
+    {
+      "elapsedSeconds": 27.20522959599839,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 906362880
+      }
+    },
+    {
+      "elapsedSeconds": 27.30562290599846,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 886702080
+      }
+    },
+    {
+      "elapsedSeconds": 27.406017076998978,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 880697344
+      }
+    },
+    {
+      "elapsedSeconds": 27.506429856999603,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 863461376
+      }
+    },
+    {
+      "elapsedSeconds": 27.60679493399948,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 851664896
+      }
+    },
+    {
+      "elapsedSeconds": 27.70719008100059,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 832544768
+      }
+    },
+    {
+      "elapsedSeconds": 27.811599923999893,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 846077952
+      }
+    },
+    {
+      "elapsedSeconds": 27.912025462999736,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 847261696
+      }
+    },
+    {
+      "elapsedSeconds": 28.012448638000933,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 847261696
+      }
+    },
+    {
+      "elapsedSeconds": 28.112809948997892,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 847261696
+      }
+    },
+    {
+      "elapsedSeconds": 28.21325304399943,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 847261696
+      }
+    },
+    {
+      "elapsedSeconds": 28.31359650900049,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 836775936
+      }
+    },
+    {
+      "elapsedSeconds": 28.413977348998742,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 827961344
+      }
+    },
+    {
+      "elapsedSeconds": 28.51443934299823,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 824815616
+      }
+    },
+    {
+      "elapsedSeconds": 28.614786212998297,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 814067712
+      }
+    },
+    {
+      "elapsedSeconds": 28.715177449001203,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 794406912
+      }
+    },
+    {
+      "elapsedSeconds": 28.81553641699793,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 780136448
+      }
+    },
+    {
+      "elapsedSeconds": 28.919544512998982,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 757329920
+      }
+    },
+    {
+      "elapsedSeconds": 29.019906366000214,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 747630592
+      }
+    },
+    {
+      "elapsedSeconds": 29.120244090998312,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 731115520
+      }
+    },
+    {
+      "elapsedSeconds": 29.220591662000515,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 714862592
+      }
+    },
+    {
+      "elapsedSeconds": 29.32094260699887,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 707522560
+      }
+    },
+    {
+      "elapsedSeconds": 29.42128697299995,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 705163264
+      }
+    },
+    {
+      "elapsedSeconds": 29.521823409999342,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 704638976
+      }
+    },
+    {
+      "elapsedSeconds": 29.62230252899826,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 703328256
+      }
+    },
+    {
+      "elapsedSeconds": 29.722653605000232,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 693104640
+      }
+    },
+    {
+      "elapsedSeconds": 29.823025653000514,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 686551040
+      }
+    },
+    {
+      "elapsedSeconds": 29.923409388000437,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 685502464
+      }
+    },
+    {
+      "elapsedSeconds": 30.023894447000202,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 685240320
+      }
+    },
+    {
+      "elapsedSeconds": 30.12425783100116,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 684716032
+      }
+    },
+    {
+      "elapsedSeconds": 30.22461931200087,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 683405312
+      }
+    },
+    {
+      "elapsedSeconds": 30.32753342399883,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 677597184
+      }
+    },
+    {
+      "elapsedSeconds": 30.427892322000844,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 675008512
+      }
+    },
+    {
+      "elapsedSeconds": 30.528246952999325,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 674746368
+      }
+    },
+    {
+      "elapsedSeconds": 30.62874618299975,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 674746368
+      }
+    },
+    {
+      "elapsedSeconds": 30.729170018999866,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 673697792
+      }
+    },
+    {
+      "elapsedSeconds": 30.829501855998387,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 668192768
+      }
+    },
+    {
+      "elapsedSeconds": 30.929859772000782,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 662425600
+      }
+    },
+    {
+      "elapsedSeconds": 31.030200061999494,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 662163456
+      }
+    },
+    {
+      "elapsedSeconds": 31.130532870000025,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 662163456
+      }
+    },
+    {
+      "elapsedSeconds": 31.230906269000116,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 661901312
+      }
+    },
+    {
+      "elapsedSeconds": 31.331285406999086,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 661114880
+      }
+    },
+    {
+      "elapsedSeconds": 31.43553421699835,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 655085568
+      }
+    },
+    {
+      "elapsedSeconds": 31.535899924998375,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 651677696
+      }
+    },
+    {
+      "elapsedSeconds": 31.636244118999457,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 651415552
+      }
+    },
+    {
+      "elapsedSeconds": 31.73659823900016,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 651153408
+      }
+    },
+    {
+      "elapsedSeconds": 31.836956716000714,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 651153408
+      }
+    },
+    {
+      "elapsedSeconds": 31.937298446999193,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 650104832
+      }
+    },
+    {
+      "elapsedSeconds": 32.03762731899769,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 644861952
+      }
+    },
+    {
+      "elapsedSeconds": 32.137987186997634,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 641224704
+      }
+    },
+    {
+      "elapsedSeconds": 32.238380667000456,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 640962560
+      }
+    },
+    {
+      "elapsedSeconds": 32.338722347998555,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 640700416
+      }
+    },
+    {
+      "elapsedSeconds": 32.43908607299818,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 640438272
+      }
+    },
+    {
+      "elapsedSeconds": 32.53946071300015,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 638341120
+      }
+    },
+    {
+      "elapsedSeconds": 32.6398006620002,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 631263232
+      }
+    },
+    {
+      "elapsedSeconds": 32.74019230900012,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 625233920
+      }
+    },
+    {
+      "elapsedSeconds": 32.84053882800072,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 624709632
+      }
+    },
+    {
+      "elapsedSeconds": 32.9409388469976,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 624709632
+      }
+    },
+    {
+      "elapsedSeconds": 33.04133815000023,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 624447488
+      }
+    },
+    {
+      "elapsedSeconds": 33.14171276599882,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 624447488
+      }
+    },
+    {
+      "elapsedSeconds": 33.24211955099963,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 623136768
+      }
+    },
+    {
+      "elapsedSeconds": 33.34245379999993,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 615534592
+      }
+    },
+    {
+      "elapsedSeconds": 33.443403951998334,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 610029568
+      }
+    },
+    {
+      "elapsedSeconds": 33.54753961999813,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 608980992
+      }
+    },
+    {
+      "elapsedSeconds": 33.64790857800108,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 608980992
+      }
+    },
+    {
+      "elapsedSeconds": 33.7482419759981,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 608980992
+      }
+    },
+    {
+      "elapsedSeconds": 33.848611288998654,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 608980992
+      }
+    },
+    {
+      "elapsedSeconds": 33.94898524900054,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 608718848
+      }
+    },
+    {
+      "elapsedSeconds": 34.05157741400035,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 600854528
+      }
+    },
+    {
+      "elapsedSeconds": 34.151926795999316,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 595873792
+      }
+    },
+    {
+      "elapsedSeconds": 34.25225597899771,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 590630912
+      }
+    },
+    {
+      "elapsedSeconds": 34.35259639799915,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 590368768
+      }
+    },
+    {
+      "elapsedSeconds": 34.45296769400011,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 589582336
+      }
+    },
+    {
+      "elapsedSeconds": 34.55330378600047,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2312646656,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 586698752
+      }
+    },
+    {
+      "elapsedSeconds": 34.6536324080007,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2307092480,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 565465088
+      }
+    },
+    {
+      "elapsedSeconds": 34.75398113000119,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2279157760,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 923361280
+      }
+    },
+    {
+      "elapsedSeconds": 34.8543145529984,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2267242496,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 861810688
+      }
+    },
+    {
+      "elapsedSeconds": 34.95466776199828,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2267242496,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 845033472
+      }
+    },
+    {
+      "elapsedSeconds": 35.05505064599856,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2267242496,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 833761280
+      }
+    },
+    {
+      "elapsedSeconds": 35.15541316799863,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2267242496,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 808591360
+      }
+    },
+    {
+      "elapsedSeconds": 35.25575609099906,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2267242496,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 787357696
+      }
+    },
+    {
+      "elapsedSeconds": 35.356101838999166,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2267242496,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 787095552
+      }
+    },
+    {
+      "elapsedSeconds": 35.4595832979976,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2267242496,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 787492864
+      }
+    },
+    {
+      "elapsedSeconds": 35.559940142000414,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2267242496,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 787492864
+      }
+    },
+    {
+      "elapsedSeconds": 35.660332839997864,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2267242496,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 787492864
+      }
+    },
+    {
+      "elapsedSeconds": 35.760666448997654,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2267242496,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 787492864
+      }
+    },
+    {
+      "elapsedSeconds": 35.8610605190006,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2267242496,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 783560704
+      }
+    },
+    {
+      "elapsedSeconds": 35.96156263800003,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2267242496,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 790392832
+      }
+    },
+    {
+      "elapsedSeconds": 36.06193985799837,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2267242496,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 790130688
+      }
+    },
+    {
+      "elapsedSeconds": 36.16228257599869,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2267242496,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 785412096
+      }
+    },
+    {
+      "elapsedSeconds": 36.26262884500102,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2216144896,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 734031872
+      }
+    },
+    {
+      "elapsedSeconds": 36.362989394998294,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2216136704,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 860594176
+      }
+    },
+    {
+      "elapsedSeconds": 36.46357924100084,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2216087552,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 841506816
+      }
+    },
+    {
+      "elapsedSeconds": 36.563953852997656,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2216087552,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 811622400
+      }
+    },
+    {
+      "elapsedSeconds": 36.66431789899798,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2216087552,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 788815872
+      }
+    },
+    {
+      "elapsedSeconds": 36.76471022699843,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2216087552,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 772308992
+      }
+    },
+    {
+      "elapsedSeconds": 36.86507368099774,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2216087552,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 761307136
+      }
+    },
+    {
+      "elapsedSeconds": 36.96546825199766,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2216087552,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 741908480
+      }
+    },
+    {
+      "elapsedSeconds": 37.06582125099885,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2216071168,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 819986432
+      }
+    },
+    {
+      "elapsedSeconds": 37.166279905999545,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2216062976,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 814747648
+      }
+    },
+    {
+      "elapsedSeconds": 37.266665003000526,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2216062976,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 814747648
+      }
+    },
+    {
+      "elapsedSeconds": 37.36705024600087,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2216062976,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 814747648
+      }
+    },
+    {
+      "elapsedSeconds": 37.467473772998346,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2216062976,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 814747648
+      }
+    },
+    {
+      "elapsedSeconds": 37.56790828099838,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2216062976,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 814747648
+      }
+    },
+    {
+      "elapsedSeconds": 37.66848009499881,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2216062976,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 814747648
+      }
+    },
+    {
+      "elapsedSeconds": 37.76888125899859,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2216062976,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 814747648
+      }
+    },
+    {
+      "elapsedSeconds": 37.869275459001074,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2216062976,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 814747648
+      }
+    },
+    {
+      "elapsedSeconds": 37.96966393299954,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2216062976,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 814747648
+      }
+    },
+    {
+      "elapsedSeconds": 38.070080510999105,
+      "phase": "correct-order-GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2216062976,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 814747648
+      }
+    },
+    {
+      "elapsedSeconds": 39.57499321999785,
+      "phase": "finalization",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2286452736,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 960299008
+      }
+    }
+  ],
+  "resourcesAfter": {
+    "/dev/shm": 9441349632,
+    "/tmp": 2286452736,
+    "/workspace": 1500483584,
+    "memoryHeadroom": 960299008
+  },
+  "results": [
+    {
+      "fails": [
+        "TestMaintenanceBoundaryDeliversOriginalSignedPayloadOverTLS"
+      ],
+      "output": "/tmp/actual-webhook-order-d3vk_m2g/current-production-order-RED.jsonl",
+      "passes": [],
+      "sha256": "0b3f4894ab202991fe48df62ea7ac2b8baa3b7210d5aca3dddd39023937e51e4",
+      "skips": [],
+      "stage": "current-production-order-RED"
+    },
+    {
+      "fails": [],
+      "output": "/tmp/actual-webhook-order-d3vk_m2g/correct-order-GREEN.jsonl",
+      "passes": [
+        "TestMaintenanceBoundaryDeliversOriginalSignedPayloadOverTLS",
+        "TestMaintenanceBoundaryUnsafeDeliveryDoesNotReachHTTP/foreign_reference",
+        "TestMaintenanceBoundaryUnsafeDeliveryDoesNotReachHTTP/changed_tenant",
+        "TestMaintenanceBoundaryUnsafeDeliveryDoesNotReachHTTP/changed_delivery_id",
+        "TestMaintenanceBoundaryUnsafeDeliveryDoesNotReachHTTP/changed_payload",
+        "TestMaintenanceBoundaryUnsafeDeliveryDoesNotReachHTTP/expired_lease",
+        "TestMaintenanceBoundaryUnsafeDeliveryDoesNotReachHTTP/insecure_destination",
+        "TestMaintenanceBoundaryUnsafeDeliveryDoesNotReachHTTP/canceled_context",
+        "TestMaintenanceBoundaryUnsafeDeliveryDoesNotReachHTTP/short_secret",
+        "TestMaintenanceBoundaryUnsafeDeliveryDoesNotReachHTTP",
+        "TestMaintenanceBoundaryRetainsActualProviderFailure"
+      ],
+      "sha256": "5ce3e601e8c91281c92e228803048cb0b2276a42e358a89be1e297feeed89596",
+      "skips": [],
+      "stage": "correct-order-GREEN"
+    }
+  ],
+  "selectedWebhookBoundaryComponentOnly": true,
+  "signals": [],
+  "sourceAfterSHA256": "a778c6d0732ff1cf9ed05bae42d68ec072309c19faf54b5335543197906eb6b7",
+  "sourceBeforeSHA256": "a778c6d0732ff1cf9ed05bae42d68ec072309c19faf54b5335543197906eb6b7",
+  "sourceMode": "all actual production source; selected own TLS component tests only",
+  "tokenMetadata": null,
+  "tokenValuesPublished": false,
+  "waits": [
+    {
+      "joined": true,
+      "pid": 43222,
+      "returnCode": 0,
+      "tag": "base-head"
+    },
+    {
+      "joined": true,
+      "pid": 43224,
+      "returnCode": 0,
+      "tag": "offline-modules"
+    },
+    {
+      "joined": true,
+      "pid": 43229,
+      "returnCode": 0,
+      "tag": "selected-inputs-red"
+    },
+    {
+      "joined": true,
+      "pid": 43253,
+      "returnCode": 0,
+      "tag": "selected-inputs-green"
+    },
+    {
+      "joined": true,
+      "pid": 43278,
+      "returnCode": 1,
+      "tag": "current-production-order-RED"
+    },
+    {
+      "joined": true,
+      "pid": 43602,
+      "returnCode": 0,
+      "tag": "correct-order-GREEN"
+    }
+  ]
+}

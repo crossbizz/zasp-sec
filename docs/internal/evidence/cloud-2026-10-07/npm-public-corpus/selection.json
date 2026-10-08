@@ -1,0 +1,108 @@
+{
+  "copies": [
+    {
+      "path": "actual-result.json",
+      "bytes": 9841,
+      "sha256": "41a6f005d11bc7ff402c2ade22467787c53b7d049253d46bc858d3c77b349279"
+    },
+    {
+      "path": "source-adapted-red.jsonl",
+      "bytes": 1295,
+      "sha256": "e7868dc2bc23a26a1e9c64b7f1262815775690d1fe6ac24337e384938a521a34"
+    },
+    {
+      "path": "green.jsonl",
+      "bytes": 7520,
+      "sha256": "93b8d5aa10e4871675ac23b6e421f7e84605d5c591b9953bc225a9bfb62aa509"
+    },
+    {
+      "path": "normal-outer-results.json",
+      "bytes": 1760,
+      "sha256": "05f26b4a1e1f34c680dc1c5aaaecf5e588e0b906c5f005ea1eaf7f3b5424171b"
+    },
+    {
+      "path": "independent-actual-review.json",
+      "bytes": 1359,
+      "sha256": "e8aabd6ffd9c812634e8d50a766542b4c8a75929db9148b929aa3e51da5c125a"
+    },
+    {
+      "path": "independent-source-review.json",
+      "bytes": 2294,
+      "sha256": "a414c44bd7e31da54756763a955700eb320551d4788e0796c0a2c5717b3c9b4d"
+    },
+    {
+      "path": "original-adoption-map.json",
+      "bytes": 1754,
+      "sha256": "d6cffe9ec50d7feb1cfee96f13c7b7251737e7363bc93bb2794bf028488e293f"
+    },
+    {
+      "path": "adopted-controls.log",
+      "bytes": 7526,
+      "sha256": "032f5704aae9a36c61c600f8839588c1784eda5ce98c3a856b92c4234ac011f4"
+    },
+    {
+      "path": "initial-eslint.log",
+      "bytes": 529,
+      "sha256": "08a6de281ad27a15a5b467ec41b4cc9cafba4cfc56dccd2e38c49018b07e78f0"
+    },
+    {
+      "path": "final-controls.log",
+      "bytes": 7517,
+      "sha256": "131367708fdb24f05e49461eb81351c7eb5dfd832ea2dd6f2a481be78269bcc0"
+    },
+    {
+      "path": "final-eslint.log",
+      "bytes": 161,
+      "sha256": "272e4c2b0e16e307699713ad6b529510bfa6a765ef48eba689f6f501a403e27f"
+    },
+    {
+      "path": "ledger-check.log",
+      "bytes": 124,
+      "sha256": "d3b4a09f1320384f46537574c5ed07e08faf03eea4f7ddd0c420e0089122e8c1"
+    }
+  ],
+  "omitted": "Full private input maps, source tree, owner and older unrun preparation remain private; no complete public archive claimed. Original outer scope label50 is stale; actual stage census53 and independent review govern.",
+  "adoptionDelta": "Two unused bindings removed after initial lint failure: semver readFileSync import; destructuring first slot made empty. Initial source and lint result retained.",
+  "additionalCopies": [
+    {
+      "path": "git-lazy-original-red.log",
+      "sha256": "f605a377f50458cdf9f465b772bcd54c54e8e1a1d10e70189485596523518422",
+      "bytes": 8867
+    },
+    {
+      "path": "git-lazy-privacy-failure.log",
+      "sha256": "d51835e0547e74be7c14753c183043ac665d8197b5073add17fbd5d0a4e802d8",
+      "bytes": 9113
+    },
+    {
+      "path": "git-local-policy-red.log",
+      "sha256": "2f6849fd874fe5070389a3cfea786d08d7179001256ed74d38283c0069f4b76d",
+      "bytes": 12439
+    },
+    {
+      "path": "git-local-policy-green.log",
+      "sha256": "32d7c8aa419867f059e831626feefe5048a0a5baacbdd8271aec843c16e79c8d",
+      "bytes": 8224
+    },
+    {
+      "path": "git-local-policy-eslint.log",
+      "sha256": "272e4c2b0e16e307699713ad6b529510bfa6a765ef48eba689f6f501a403e27f",
+      "bytes": 161
+    },
+    {
+      "path": "current-lock-inventory.log",
+      "sha256": "cd049cd5f10ab56d5a4265c1c69d45b706e71b08a2fa0e74b7194b73bd31c64c",
+      "bytes": 115
+    },
+    {
+      "path": "git-privacy-independent-review.json",
+      "sha256": "e6b7562c4f3507072e46b4f73c2da9ed67659e1aec7c7887caac7d8619b708b8",
+      "bytes": 1276
+    },
+    {
+      "path": "git-stderr-source-review.json",
+      "sha256": "5b666db1210c080fc1fc6f07e002c95685f5780810de400f866b91ba56910f97",
+      "bytes": 1054
+    }
+  ]
+}

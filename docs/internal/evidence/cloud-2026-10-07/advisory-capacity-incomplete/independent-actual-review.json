@@ -1,0 +1,548 @@
+{
+  "verdict": "ACTUAL_INCOMPLETE_FAILURE_PRESERVED_NO_CAPACITY_ACCEPTANCE",
+  "actual": {
+    "path": "/tmp/official-advisory-complete-capacity-actual-xtfmm2zs/result.json",
+    "sha256": "aed5b1968f732b8ab9ec57e68682e2636b69db7f001983cf696a3262a979370c",
+    "bytes": 16172,
+    "metadata": {
+      "dev": 34,
+      "ino": 141069,
+      "mode": 33152,
+      "uid": 1000,
+      "gid": 1000,
+      "nlink": 1,
+      "size": 16172,
+      "mtime_ns": 1791391869960763428,
+      "ctime_ns": 1791391869960763428
+    }
+  },
+  "rootOuter": {
+    "path": "/tmp/advisory-capacity-root-outer-lulnzzfg/normal-outer-result.json",
+    "sha256": "ea6f23f88ee0501dc10b50c1fd36b9764083aa038ca8ec7b47dea5b8f37b1f77",
+    "bytes": 1863,
+    "metadata": {
+      "dev": 34,
+      "ino": 141070,
+      "mode": 33152,
+      "uid": 1000,
+      "gid": 1000,
+      "nlink": 1,
+      "size": 1863,
+      "mtime_ns": 1791391870042446331,
+      "ctime_ns": 1791391870042446331
+    }
+  },
+  "outerExit": 1,
+  "outerSeconds": 27.51858729000014,
+  "reportedSourceToolPinsEqual": true,
+  "completeAdvisoryTree": false,
+  "failureClass": "RuntimeError",
+  "verifiedCompleteRequests": [
+    {
+      "request": 1,
+      "treesVerified": 1,
+      "receipt": {
+        "path": "/tmp/official-advisory-complete-capacity-actual-xtfmm2zs/001.json",
+        "sha256": "345ef9f2c58b1415eb4cc6b65094e3ab11646676fc01dd8edadfc6d78f8ff91a",
+        "bytes": 1759,
+        "metadata": {
+          "dev": 34,
+          "ino": 141023,
+          "mode": 33152,
+          "uid": 1000,
+          "gid": 1000,
+          "nlink": 1,
+          "size": 1759,
+          "mtime_ns": 1791391843155018452,
+          "ctime_ns": 1791391843155018452
+        }
+      }
+    },
+    {
+      "request": 2,
+      "treesVerified": 1,
+      "receipt": {
+        "path": "/tmp/official-advisory-complete-capacity-actual-xtfmm2zs/002.json",
+        "sha256": "ee097e659cfe06b229cb688cd978a563cde38f7583a49aef09c689071dd6d90c",
+        "bytes": 623,
+        "metadata": {
+          "dev": 34,
+          "ino": 141025,
+          "mode": 33152,
+          "uid": 1000,
+          "gid": 1000,
+          "nlink": 1,
+          "size": 623,
+          "mtime_ns": 1791391843755034610,
+          "ctime_ns": 1791391843755034610
+        }
+      }
+    },
+    {
+      "request": 3,
+      "treesVerified": 1,
+      "receipt": {
+        "path": "/tmp/official-advisory-complete-capacity-actual-xtfmm2zs/003.json",
+        "sha256": "e9eba28c9f3b3c87f648d99d28dcf2f2a0e2fd424335cc776d045a4a721b23e4",
+        "bytes": 2270,
+        "metadata": {
+          "dev": 34,
+          "ino": 141027,
+          "mode": 33152,
+          "uid": 1000,
+          "gid": 1000,
+          "nlink": 1,
+          "size": 2270,
+          "mtime_ns": 1791391844403052060,
+          "ctime_ns": 1791391844403052060
+        }
+      }
+    },
+    {
+      "request": 4,
+      "treesVerified": 225,
+      "receipt": {
+        "path": "/tmp/official-advisory-complete-capacity-actual-xtfmm2zs/004.json",
+        "sha256": "481b6ba7626e65e7ff37df1f043cab6ef53b25046a800eb0be9f521dce9bd05c",
+        "bytes": 108877,
+        "metadata": {
+          "dev": 34,
+          "ino": 141029,
+          "mode": 33152,
+          "uid": 1000,
+          "gid": 1000,
+          "nlink": 1,
+          "size": 108877,
+          "mtime_ns": 1791391845075070157,
+          "ctime_ns": 1791391845075070157
+        }
+      }
+    },
+    {
+      "request": 5,
+      "treesVerified": 798,
+      "receipt": {
+        "path": "/tmp/official-advisory-complete-capacity-actual-xtfmm2zs/005.json",
+        "sha256": "118edb1a85069edb7f322bf0b28ac299929b2f333307f2f262c47d0282922812",
+        "bytes": 386540,
+        "metadata": {
+          "dev": 34,
+          "ino": 141031,
+          "mode": 33152,
+          "uid": 1000,
+          "gid": 1000,
+          "nlink": 1,
+          "size": 386540,
+          "mtime_ns": 1791391845855091160,
+          "ctime_ns": 1791391845855091160
+        }
+      }
+    },
+    {
+      "request": 6,
+      "treesVerified": 758,
+      "receipt": {
+        "path": "/tmp/official-advisory-complete-capacity-actual-xtfmm2zs/006.json",
+        "sha256": "006ab765a8475a848edf06917cabc25c4a2bfbd728590d3cc98244d3bee87997",
+        "bytes": 366974,
+        "metadata": {
+          "dev": 34,
+          "ino": 141033,
+          "mode": 33152,
+          "uid": 1000,
+          "gid": 1000,
+          "nlink": 1,
+          "size": 366974,
+          "mtime_ns": 1791391846615111633,
+          "ctime_ns": 1791391846615111633
+        }
+      }
+    },
+    {
+      "request": 7,
+      "treesVerified": 1411,
+      "receipt": {
+        "path": "/tmp/official-advisory-complete-capacity-actual-xtfmm2zs/007.json",
+        "sha256": "0d69b51146003f901554d67ebcc04a1f9eb7900f9d5030e7269bcf1a56673660",
+        "bytes": 686307,
+        "metadata": {
+          "dev": 34,
+          "ino": 141035,
+          "mode": 33152,
+          "uid": 1000,
+          "gid": 1000,
+          "nlink": 1,
+          "size": 686307,
+          "mtime_ns": 1791391847523136101,
+          "ctime_ns": 1791391847523136101
+        }
+      }
+    },
+    {
+      "request": 8,
+      "treesVerified": 2623,
+      "receipt": {
+        "path": "/tmp/official-advisory-complete-capacity-actual-xtfmm2zs/008.json",
+        "sha256": "7e0dea2896bbbff235fdb05a2e60533ad8aa417b370c19482c0b8ecea5625e6b",
+        "bytes": 1278971,
+        "metadata": {
+          "dev": 34,
+          "ino": 141037,
+          "mode": 33152,
+          "uid": 1000,
+          "gid": 1000,
+          "nlink": 1,
+          "size": 1278971,
+          "mtime_ns": 1791391848475161755,
+          "ctime_ns": 1791391848475161755
+        }
+      }
+    },
+    {
+      "request": 9,
+      "treesVerified": 8769,
+      "receipt": {
+        "path": "/tmp/official-advisory-complete-capacity-actual-xtfmm2zs/009.json",
+        "sha256": "d2d40d0e3b02628643a9bfb4aac1ffc8d503e49e50a3d2f4b48bdef88b470b85",
+        "bytes": 4284388,
+        "metadata": {
+          "dev": 34,
+          "ino": 141039,
+          "mode": 33152,
+          "uid": 1000,
+          "gid": 1000,
+          "nlink": 1,
+          "size": 4284388,
+          "mtime_ns": 1791391849683194306,
+          "ctime_ns": 1791391849683194306
+        }
+      }
+    },
+    {
+      "request": 10,
+      "treesVerified": 3389,
+      "receipt": {
+        "path": "/tmp/official-advisory-complete-capacity-actual-xtfmm2zs/010.json",
+        "sha256": "250a3e106932e4f97eb15a47e48adbd09003a27af343cc021fa5144430bef6c0",
+        "bytes": 1653562,
+        "metadata": {
+          "dev": 34,
+          "ino": 141041,
+          "mode": 33152,
+          "uid": 1000,
+          "gid": 1000,
+          "nlink": 1,
+          "size": 1653562,
+          "mtime_ns": 1791391850831225240,
+          "ctime_ns": 1791391850831225240
+        }
+      }
+    },
+    {
+      "request": 11,
+      "treesVerified": 3695,
+      "receipt": {
+        "path": "/tmp/official-advisory-complete-capacity-actual-xtfmm2zs/011.json",
+        "sha256": "bd890696808ebd2e53616bc81f5e41c0fdb48b0fadb8cbbe8e6025a185535d2f",
+        "bytes": 1803201,
+        "metadata": {
+          "dev": 34,
+          "ino": 141043,
+          "mode": 33152,
+          "uid": 1000,
+          "gid": 1000,
+          "nlink": 1,
+          "size": 1803201,
+          "mtime_ns": 1791391851835252294,
+          "ctime_ns": 1791391851835252294
+        }
+      }
+    },
+    {
+      "request": 12,
+      "treesVerified": 3704,
+      "receipt": {
+        "path": "/tmp/official-advisory-complete-capacity-actual-xtfmm2zs/012.json",
+        "sha256": "69884d9f5c03b9a3088785a8fc4c97f2718b6e6bb4026ed5f38edad2911ed6e3",
+        "bytes": 1807645,
+        "metadata": {
+          "dev": 34,
+          "ino": 141045,
+          "mode": 33152,
+          "uid": 1000,
+          "gid": 1000,
+          "nlink": 1,
+          "size": 1807645,
+          "mtime_ns": 1791391852923281612,
+          "ctime_ns": 1791391852923281612
+        }
+      }
+    },
+    {
+      "request": 13,
+      "treesVerified": 11175,
+      "receipt": {
+        "path": "/tmp/official-advisory-complete-capacity-actual-xtfmm2zs/013.json",
+        "sha256": "5e7f4822bfd74ab73aefd87a3463fd773646b42fafb90508ee5a3ebbede4eb1a",
+        "bytes": 5462329,
+        "metadata": {
+          "dev": 34,
+          "ino": 141047,
+          "mode": 33152,
+          "uid": 1000,
+          "gid": 1000,
+          "nlink": 1,
+          "size": 5462329,
+          "mtime_ns": 1791391854291318476,
+          "ctime_ns": 1791391854291318476
+        }
+      }
+    },
+    {
+      "request": 14,
+      "treesVerified": 1,
+      "receipt": {
+        "path": "/tmp/official-advisory-complete-capacity-actual-xtfmm2zs/014.json",
+        "sha256": "f434c83cbf74a0de6a6ea774930b84c5c4e5d473812cfa87d33eb8e7e8273393",
+        "bytes": 1438,
+        "metadata": {
+          "dev": 34,
+          "ino": 141049,
+          "mode": 33152,
+          "uid": 1000,
+          "gid": 1000,
+          "nlink": 1,
+          "size": 1438,
+          "mtime_ns": 1791391855119340783,
+          "ctime_ns": 1791391855119340783
+        }
+      }
+    },
+    {
+      "request": 15,
+      "treesVerified": 1984,
+      "receipt": {
+        "path": "/tmp/official-advisory-complete-capacity-actual-xtfmm2zs/015.json",
+        "sha256": "1a6f2354ae0345e6398af3d267f3ad1a07c72fcce8662dead2bd735a0626fd46",
+        "bytes": 967060,
+        "metadata": {
+          "dev": 34,
+          "ino": 141051,
+          "mode": 33152,
+          "uid": 1000,
+          "gid": 1000,
+          "nlink": 1,
+          "size": 967060,
+          "mtime_ns": 1791391855971363738,
+          "ctime_ns": 1791391855971363738
+        }
+      }
+    },
+    {
+      "request": 17,
+      "treesVerified": 1,
+      "receipt": {
+        "path": "/tmp/official-advisory-complete-capacity-actual-xtfmm2zs/017.json",
+        "sha256": "e499f27294f57acc17dbdb62d8698e6c93ce0b78dc5eaef51a5bb1be35791c5a",
+        "bytes": 2662,
+        "metadata": {
+          "dev": 34,
+          "ino": 141055,
+          "mode": 33152,
+          "uid": 1000,
+          "gid": 1000,
+          "nlink": 1,
+          "size": 2662,
+          "mtime_ns": 1791391858747438528,
+          "ctime_ns": 1791391858747438528
+        }
+      }
+    },
+    {
+      "request": 18,
+      "treesVerified": 1655,
+      "receipt": {
+        "path": "/tmp/official-advisory-complete-capacity-actual-xtfmm2zs/018.json",
+        "sha256": "244d9e6f72ff4defe2fa46c869c969d670ec2d3b60c110ae442d0af04d41ca9e",
+        "bytes": 798428,
+        "metadata": {
+          "dev": 34,
+          "ino": 141057,
+          "mode": 33152,
+          "uid": 1000,
+          "gid": 1000,
+          "nlink": 1,
+          "size": 798428,
+          "mtime_ns": 1791391859651462881,
+          "ctime_ns": 1791391859651462881
+        }
+      }
+    },
+    {
+      "request": 19,
+      "treesVerified": 1642,
+      "receipt": {
+        "path": "/tmp/official-advisory-complete-capacity-actual-xtfmm2zs/019.json",
+        "sha256": "357fe2c8de3578c0019f2a75a730041223a6dee9bff2c55a96d723d136b01b66",
+        "bytes": 792218,
+        "metadata": {
+          "dev": 34,
+          "ino": 141059,
+          "mode": 33152,
+          "uid": 1000,
+          "gid": 1000,
+          "nlink": 1,
+          "size": 792218,
+          "mtime_ns": 1791391860523486375,
+          "ctime_ns": 1791391860523486375
+        }
+      }
+    },
+    {
+      "request": 20,
+      "treesVerified": 1727,
+      "receipt": {
+        "path": "/tmp/official-advisory-complete-capacity-actual-xtfmm2zs/020.json",
+        "sha256": "326495fd229ca3e6ffa3f845332ef53d54a71b375aecd3c3f960310b4ee02529",
+        "bytes": 833321,
+        "metadata": {
+          "dev": 34,
+          "ino": 141061,
+          "mode": 33152,
+          "uid": 1000,
+          "gid": 1000,
+          "nlink": 1,
+          "size": 833321,
+          "mtime_ns": 1791391861407510189,
+          "ctime_ns": 1791391861407510189
+        }
+      }
+    },
+    {
+      "request": 21,
+      "treesVerified": 12569,
+      "receipt": {
+        "path": "/tmp/official-advisory-complete-capacity-actual-xtfmm2zs/021.json",
+        "sha256": "39ab9096c4ccc5bcf6f92e0c9dd6931227cac53d64e5a0ec6303021a6c137907",
+        "bytes": 6066505,
+        "metadata": {
+          "dev": 34,
+          "ino": 141063,
+          "mode": 33152,
+          "uid": 1000,
+          "gid": 1000,
+          "nlink": 1,
+          "size": 6066505,
+          "mtime_ns": 1791391862767546827,
+          "ctime_ns": 1791391862767546827
+        }
+      }
+    }
+  ],
+  "truncatedResponsesExcluded": [
+    {
+      "request": 16,
+      "sha256": "3f68c23107f723ef8e5726f86dc49671fd5a0837107b4b9739a5a1c183947931",
+      "bytes": 18597857,
+      "notCoverage": true
+    },
+    {
+      "request": 22,
+      "sha256": "c3c25af24cf6bf33a0d5dc7205049b6823687ee5b042e1b1e327cac0daa71db3",
+      "bytes": 18960911,
+      "notCoverage": true
+    }
+  ],
+  "lastUnrecordedRequestPrefix": {
+    "path": "/tmp/official-advisory-complete-capacity-actual-xtfmm2zs/023.json",
+    "sha256": "db904e492899644f88fe68d80b501477b23daf6d65a01b9cabc6b9307149dc8d",
+    "bytes": 20971515,
+    "metadata": {
+      "dev": 34,
+      "ino": 141067,
+      "mode": 33152,
+      "uid": 1000,
+      "gid": 1000,
+      "nlink": 1,
+      "size": 20971515,
+      "mtime_ns": 1791391869955740302,
+      "ctime_ns": 1791391869955740302
+    }
+  },
+  "lastStderr": {
+    "path": "/tmp/official-advisory-complete-capacity-actual-xtfmm2zs/023.stderr",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0,
+    "metadata": {
+      "dev": 34,
+      "ino": 141068,
+      "mode": 33152,
+      "uid": 1000,
+      "gid": 1000,
+      "nlink": 1,
+      "size": 0,
+      "mtime_ns": 1791391865151610995,
+      "ctime_ns": 1791391865151610995
+    }
+  },
+  "missingRequestRecord23": "Record created only after whole bounded get/cleanup succeeds; request23 rawprefix retained but not treeverified/accounted. No fabricatedsuccessrecord.",
+  "cleanup": {
+    "recordedSessions": 23,
+    "unknown": 0,
+    "forced": false,
+    "interventions": [
+      {
+        "completed": true,
+        "intervened": true,
+        "membersAfter": [],
+        "membersBefore": [
+          {
+            "pgid": 49350,
+            "pid": 49350,
+            "ppid": 49124,
+            "sid": 49350,
+            "startTicks": "2760067",
+            "state": "Z",
+            "uids": [
+              1000,
+              1000,
+              1000,
+              1000
+            ]
+          }
+        ],
+        "scope": "exact original owned SID only; no escaped-session/global/fleet claim",
+        "sid": 49350,
+        "signals": [],
+        "unknown": false
+      }
+    ],
+    "noSignalsRecorded": true,
+    "scope": "Recorded exactSID outcomes only, no global/escaped/fleet/livecensus replay."
+  },
+  "partialCounts": {
+    "github-reviewed": {
+      "advisoryJSONBlobs": 36428,
+      "advisoryJSONDeclaredBytes": 125094179,
+      "allBlobs": 36428,
+      "declaredBytes": 125094179,
+      "modes": {
+        "100644": 36428
+      }
+    },
+    "unreviewed": {
+      "advisoryJSONBlobs": 19565,
+      "advisoryJSONDeclaredBytes": 22605733,
+      "allBlobs": 19565,
+      "declaredBytes": 22605733,
+      "modes": {
+        "100644": 19565
+      }
+    }
+  },
+  "aggregateCompletedResponseBytes": 64863846,
+  "retainedIncompletePrefixAdditionalBytes": 20971515,
+  "preciseFailureLimits": "Near20MiB prefix +sourceprewrite guard supports retained-byte refusal before accounting. GenericRuntimeError andcleanupfinally do not preserve exact originatingmessage; lastcleanup marksintervenedtrue withzombieonly/no signal. Do not falselyclaim allnonintervened or independentlycertainexactfirstexception.",
+  "noIntakeScanFitClearanceNativeAcceptance": true,
+  "reviewWork": "Read-only sameFD hash/metadata all22response receipts+23prefix; independently reconstructedcompleteGit tree hashes; truncatedrows notcapacitycoverage; no network/rerun."
+}

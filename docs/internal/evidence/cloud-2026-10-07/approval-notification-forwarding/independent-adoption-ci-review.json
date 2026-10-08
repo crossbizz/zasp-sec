@@ -1,0 +1,14 @@
+{
+  "checkout": "/tmp/zasp-startup-diagnostic-checkout",
+  "exactFourLineAdditionOnly": true,
+  "guards": "Every existing workflow byte and guard order preserved. Full current module compile includes original808 apiserver tests, unlike private selected projection.",
+  "limitations": "No future hosted CI result inferred. No compiler/runtime by reviewer; nativeSQL/deployed/provider/release scope held.",
+  "postimageHashes": {
+    ".github/workflows/runnable-ui.yml": "e7aa685c58e6d9e3600bd6f938faa53e96a4e445c68f68d22e7e05f0c6662751",
+    "services/platform/apiserver/approval_notification_maintenance_repository.go": "96c93aa5eb9324045c58c4f2e9388c123bfa4a20051761673bb00ffdc5371037",
+    "services/platform/apiserver/approval_notification_maintenance_webhook_order_test.go": "b55463e56b91b12574afe01b094e47e6d37c941c3426a674cf7db15a9b554b46"
+  },
+  "selection": "Same3 tested parents select3tops8subs11events; race/p1/count1/5mGo,10mstep",
+  "verdict": "PASS-exact-two-source-adoption-and-four-line-CI-association",
+  "workflowPreimageSHA256": "bfdd49ff507bdfa9e2abe1ae7c6c66bce7cffdbc518baed4835ba877f6808cf8"
+}

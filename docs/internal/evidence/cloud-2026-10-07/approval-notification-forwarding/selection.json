@@ -1,0 +1,66 @@
+{
+  "scope": "Selected actual production forwarding component only; raw files copied byte-for-byte",
+  "members": [
+    {
+      "path": "actual-result.json",
+      "originalPath": "/tmp/actual-webhook-order-d3vk_m2g/result.json",
+      "sha256": "6b80f0e3e829a23e358cc0ccbf8f6f596b5c57e0650dba7c5cf19530a783e978",
+      "bytes": 94605
+    },
+    {
+      "path": "original-order-red.jsonl",
+      "originalPath": "/tmp/actual-webhook-order-d3vk_m2g/current-production-order-RED.jsonl",
+      "sha256": "0b3f4894ab202991fe48df62ea7ac2b8baa3b7210d5aca3dddd39023937e51e4",
+      "bytes": 1962
+    },
+    {
+      "path": "correct-order-green.jsonl",
+      "originalPath": "/tmp/actual-webhook-order-d3vk_m2g/correct-order-GREEN.jsonl",
+      "sha256": "5ce3e601e8c91281c92e228803048cb0b2276a42e358a89be1e297feeed89596",
+      "bytes": 11719
+    },
+    {
+      "path": "root-normal-wait.json",
+      "originalPath": "/tmp/approval-webhook-order-root-outer-ju7s8s7k/normal-outer-results.json",
+      "sha256": "b79829deaae905994633d72eaf19ea969602485326dc364608e3169c8b28b2e5",
+      "bytes": 2060
+    },
+    {
+      "path": "independent-actual-review.json",
+      "originalPath": "/tmp/independent-webhook-order-actual-causal-TLS-component-review.json",
+      "sha256": "d562b0b2575a5f844cf6442d3cad36f333a03d40a1e1bc8a7811d55084bbb023",
+      "bytes": 2207
+    },
+    {
+      "path": "independent-source-owner-review.json",
+      "originalPath": "/tmp/independent-webhook-order-product-concrete-owner-source-review.json",
+      "sha256": "725a51d70184e20070eef962f565904ca01fe25ed67ae59128b37d8a4006e3bc",
+      "bytes": 2713
+    },
+    {
+      "path": "owned-stage-recipe.json",
+      "originalPath": "/tmp/approval-webhook-order-root-owner-v2-0m7w0whv/stage-recipe.json",
+      "sha256": "4aa17936aad416e2781c6c52958be078b7bec8523a6b95606763fdcb273a5b0b",
+      "bytes": 2918
+    },
+    {
+      "path": "original-source-selection.json",
+      "originalPath": "/tmp/approval-maintenance-webhook-order-source-v1/manifest.json",
+      "sha256": "d9bca0b0116e4030ffd0d1dd692c3bc562e6e426150970f20199c8e24a7319df",
+      "bytes": 1300
+    },
+    {
+      "path": "independent-adoption-ci-review.json",
+      "originalPath": "/tmp/independent-webhook-two-source-adoption-CI-association-review.json",
+      "sha256": "0ae4d378d0497fe2d840b4a093af618a05a14ff38ca47ae266ba2c99701ba895",
+      "bytes": 1117
+    },
+    {
+      "path": "independent-final-publication-review.json",
+      "originalPath": "/tmp/notification-final-publication-review-24p71ema/review.json",
+      "sha256": "864c4c13f8d5a734c36d972a017604820ff952cad662020655668851bba398c7",
+      "bytes": 34008
+    }
+  ],
+  "omitted": "Full20813 before/after maps, physical2242 origin roster, Go-list outputs, executable controller and unselected808 test source roster remain in original private receipts and are bound by original SHA256 plus independent actual/source reports; not represented as public whole-package or native acceptance."
+}

@@ -1,0 +1,20 @@
+{"original_diff_line": "--- /workspace/zasp-sec/services/platform/agentsec-api/temporal_test_lifecycle_runtime_test.go\n"}
+{"original_diff_line": "+++ private candidate\n"}
+{"original_diff_line": "@@ -43,7 +43,7 @@\n"}
+{"original_diff_line": " \t\treturn json.RawMessage(fmt.Sprint(d.present78)), nil\n"}
+{"original_diff_line": " \tcase \"SELECT to_jsonb(zasp_temporal78.api_ready($1,$2))\":\n"}
+{"original_diff_line": " \t\treturn json.RawMessage(`true`), nil\n"}
+{"original_diff_line": "-\tcase \"SELECT zasp_temporal78.approval($1,$2,$3,$4,$5)\", \"SELECT zasp_temporal78.decide_approval($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)\":\n"}
+{"original_diff_line": "+\tcase \"SELECT COALESCE((SELECT zasp_temporal78.approval($1,$2,$3,$4,$5)),'null'::jsonb)\", \"SELECT COALESCE((SELECT zasp_temporal78.decide_approval($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)),'null'::jsonb)\":\n"}
+{"original_diff_line": " \t\treturn json.RawMessage(`null`), nil // actual nonowner contract\n"}
+{"original_diff_line": " \t}\n"}
+{"original_diff_line": " \tif strings.Contains(q, \"cancel\") || strings.Contains(q, \"approval\") {\n"}
+{"original_diff_line": "@@ -212,7 +212,7 @@\n"}
+{"original_diff_line": " \t\t\t\tif base.present78 {\n"}
+{"original_diff_line": " \t\t\t\t\tfound := false\n"}
+{"original_diff_line": " \t\t\t\t\tfor _, q := range base.queries {\n"}
+{"original_diff_line": "-\t\t\t\t\t\tif strings.HasPrefix(q, \"SELECT zasp_temporal78.\") {\n"}
+{"original_diff_line": "+\t\t\t\t\t\tif q == \"SELECT COALESCE((SELECT zasp_temporal78.approval($1,$2,$3,$4,$5)),'null'::jsonb)\" || q == \"SELECT COALESCE((SELECT zasp_temporal78.decide_approval($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)),'null'::jsonb)\" {\n"}
+{"original_diff_line": " \t\t\t\t\t\t\tfound = true\n"}
+{"original_diff_line": " \t\t\t\t\t\t}\n"}
+{"original_diff_line": " \t\t\t\t\t}\n"}

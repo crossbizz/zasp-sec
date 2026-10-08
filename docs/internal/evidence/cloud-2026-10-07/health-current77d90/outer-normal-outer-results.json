@@ -1,0 +1,71 @@
+{
+  "scope": "Actual ROOT serial current health waits with pinned Node PATH; earlier failure remains preserved. Prior unaffected stage0 is separate evidence. No hosted/deployed acceptance inferred.",
+  "stages": [
+    {
+      "argv": [
+        "/usr/bin/env",
+        "-i",
+        "PATH=/usr/bin:/bin",
+        "/usr/bin/timeout",
+        "--signal=TERM",
+        "--kill-after=10s",
+        "690s",
+        "/usr/bin/python3",
+        "-I",
+        "-B",
+        "/workspace/.zasp-cloud-owned/health-contract-current77d90-node22-owner-5fvs_93s/run.py",
+        "--stage",
+        "1"
+      ],
+      "normalOuterWaitObserved": true,
+      "exitCode": 0,
+      "elapsedSeconds": 218.78650054199898,
+      "sameInputs": true,
+      "before": {
+        "/workspace/.zasp-cloud-owned/health-contract-current77d90-node22-owner-5fvs_93s/run.py": "b2a3289a5336c7336c89fe89294e14b8185f15f7c8a13e17a0677a019a05b373",
+        "/workspace/.zasp-cloud-owned/health-contract-current77d90-node22-owner-5fvs_93s/ROOT-RECIPE.json": "df29e6695e6a2a98bc82c3e80a85565661f3dd411ab4b18f0ef8d04142aee850",
+        "/usr/bin/python3": "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1",
+        "/usr/bin/timeout": "6ca1891dfc0b05d7680770c2884c0391b92467c7bb6500a5c84677e6481739f1"
+      },
+      "after": {
+        "/workspace/.zasp-cloud-owned/health-contract-current77d90-node22-owner-5fvs_93s/run.py": "b2a3289a5336c7336c89fe89294e14b8185f15f7c8a13e17a0677a019a05b373",
+        "/workspace/.zasp-cloud-owned/health-contract-current77d90-node22-owner-5fvs_93s/ROOT-RECIPE.json": "df29e6695e6a2a98bc82c3e80a85565661f3dd411ab4b18f0ef8d04142aee850",
+        "/usr/bin/python3": "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1",
+        "/usr/bin/timeout": "6ca1891dfc0b05d7680770c2884c0391b92467c7bb6500a5c84677e6481739f1"
+      }
+    },
+    {
+      "argv": [
+        "/usr/bin/env",
+        "-i",
+        "PATH=/usr/bin:/bin",
+        "/usr/bin/timeout",
+        "--signal=TERM",
+        "--kill-after=10s",
+        "690s",
+        "/usr/bin/python3",
+        "-I",
+        "-B",
+        "/workspace/.zasp-cloud-owned/health-contract-current77d90-node22-owner-5fvs_93s/run.py",
+        "--stage",
+        "2"
+      ],
+      "normalOuterWaitObserved": true,
+      "exitCode": 1,
+      "elapsedSeconds": 1.4730804419996275,
+      "sameInputs": true,
+      "before": {
+        "/workspace/.zasp-cloud-owned/health-contract-current77d90-node22-owner-5fvs_93s/run.py": "b2a3289a5336c7336c89fe89294e14b8185f15f7c8a13e17a0677a019a05b373",
+        "/workspace/.zasp-cloud-owned/health-contract-current77d90-node22-owner-5fvs_93s/ROOT-RECIPE.json": "df29e6695e6a2a98bc82c3e80a85565661f3dd411ab4b18f0ef8d04142aee850",
+        "/usr/bin/python3": "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1",
+        "/usr/bin/timeout": "6ca1891dfc0b05d7680770c2884c0391b92467c7bb6500a5c84677e6481739f1"
+      },
+      "after": {
+        "/workspace/.zasp-cloud-owned/health-contract-current77d90-node22-owner-5fvs_93s/run.py": "b2a3289a5336c7336c89fe89294e14b8185f15f7c8a13e17a0677a019a05b373",
+        "/workspace/.zasp-cloud-owned/health-contract-current77d90-node22-owner-5fvs_93s/ROOT-RECIPE.json": "df29e6695e6a2a98bc82c3e80a85565661f3dd411ab4b18f0ef8d04142aee850",
+        "/usr/bin/python3": "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1",
+        "/usr/bin/timeout": "6ca1891dfc0b05d7680770c2884c0391b92467c7bb6500a5c84677e6481739f1"
+      }
+    }
+  ]
+}

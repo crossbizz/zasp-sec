@@ -1,0 +1,38 @@
+{
+  "conditions": "ROOT fresh resource/source/tool guards, closed recipe, normal wait, all53 exact no-skip census and normal owned/adopted session closure required before actual component acceptance. Previous portableV2/V3/V4 and stale50 owners remain UNRUN.",
+  "controls": {
+    "GREEN": 53,
+    "RED": 1,
+    "executedByReviewer": false,
+    "expectedGreenSub": 44,
+    "expectedGreenTop": 9
+  },
+  "limitations": "No actual controls executed, official public corpus intake, vulnerability clearance, installed physical SBOM, Go/image coverage, release or deployment acceptance. releaseAccepted remains false.",
+  "limits": {
+    "cleanupReserveSeconds": 10,
+    "directMemoryFloor": 268435456,
+    "logsCombinedPerStage": 1048576,
+    "ownerSeconds": 80,
+    "stageSeconds": 30,
+    "tmpFloor": 1000000000,
+    "workspaceFloor": 1500000000
+  },
+  "owner": {
+    "freshSameFDHashSecurityAliasChecks": true,
+    "functionASTsEqualApprovedV5Owner": true,
+    "inputDescriptors": 134,
+    "path": "/tmp/npm-portable-v5-root-owner-gzhbn8rq/run.py",
+    "recipeSHA256": "83ad1061e0a8ca01a32004ee095c55ce4aa6ea22384147f0059379d6ac854cf4",
+    "sha256": "e1b2765e67c2e0fea80b88dcac85947c2198615c2cc6e8372763e4209c6fa49f"
+  },
+  "reviewedSource": [
+    "Exact locked semver7.8.5 physical53-file fingerprint and lock-version/SRI binding; no independent upstream archive verification invented.",
+    "Pre-push full-corpus/npm count+raw byte reservations; rows and matches each32MiB reservation, npm name214/path4096 and match100k hardcaps.",
+    "Explicit parentheses repair MiB comparison precedence. Unsupported installed links and mixed affected ecosystems refuse whole input.",
+    "Closed four-argument create-only CLI binds caller typed intake receipt, complete local Git blob closure, lock/full roster; upstream authority remains unproved by caller receipt.",
+    "Original matcher range/refusal behavior, all existing package script arguments/order and release refusal preserved; only two explicit npm commands and two appended test files."
+  ],
+  "sourceManifestSHA256": "2e972a806dd9ef1b7e130c7992b5ef970ae5a3188df50b193e3d33f7c1b3eb1e",
+  "stageRecipeSHA256": "4dbc96c6aa75cefe24a5158aa866d6aee64824bbfe7d0bc26f41eb697c712bd9",
+  "verdict": "PASS-conditional-ROOT-component-controls-only"
+}

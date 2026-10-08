@@ -15828,3 +15828,95 @@ compliancebrowserFAIL, advisoryrelease or real deployedStytch/provider acceptanc
 
 
 2026-10-07 cloud continuation: fetched origin/main34a3f07dbe8ab6056ce243755596314be6091c40, confirmed required e13ccb95451b03107681ccb59b3fc6fe175a228f ancestry. Verified batches ea0897f3 (conditional guarded approval capture wiring), 1b7d6d83 (ordered progress61 local native PASS), and15ce9267 (release readiness source-contract repair) are pushed to PR52. Latest dispatch repair preserves SQL nonownership as JSON null across ten fixed finding-response API call sites; genuine installed78 previously prevented typed74 definition creation. Causal original11FAIL/candidate32PASS and post-adoption current-repository32PASS are independently separated from genuine supervised approval FAIL. The latter progressed beyond creation/supervised activation/planning/inactive origin capture and failed distinct-approver decision; no full approval/effect PASS is claimed. See docs/internal/evidence/cloud-2026-10-07/native78-nonownership, approval-test74-followups, approval-readiness-contract, and approval-operator-components. Operator coordination/raw-input20GREEN events and causal2FAIL are component-only; real SDK/proc/SQL/cutover/fleet acceptance remains held. The shared database error and permission guards are unchanged; failed native source is unadopted. M7A-10/14/48/49 remain subject to complete original/deployed requirements; no task/class/count promotion. All728 rows remain523historical production-available/144component-only/61externally blocked. Runtime54 is current/running/connected; missing product configuration/deployment authority, hosted guard success, live Stytch/provider flows, and legacy retirement remain launch gates. Helm official binary restoration is blocked by enforced host policy; full local release verification failed on missing Helm and wrong ambient Go, not accepted. No release/security guard was bypassed.
+
+
+2026-10-07 follow-up from main c1c45b24c5e0eec76b49e80c9f2f632087a6b33f:
+PR52 merged through ordinary repository permissions while CI was running;
+main CI run37621231493 subsequently failed at health:contract:test. Detailed
+log retrieval was policy-blocked; the exact cause remains unknown. A rerun
+is pending, and no release or deployed acceptance is inferred from the merge.
+Future merges require an observed passing check set before submission.
+
+The first approval diagnostic refused its unchanged memory reserve before
+any tests and required forced cleanup. Reviewed readonly file-cache advice
+completed without changing payloads. A separate diagnostic completed normally
+and preserved the original supervised approval failure: four prerequisite
+observations were true, but no approval committed and the result was unavailable.
+The appended fixture selected the discovery login instead of the existing,
+separately registered security-agent API login. Correcting that single literal
+preserved every production guard and original assertion. The genuine V11
+singleton passed with nine credential-control PASS events, zero FAIL/SKIP,
+equal 14,004-input maps and normal owned PostgreSQL/OpenFGA cleanup. ROOT's
+outer wait completed normally in 372.271411376 seconds. Independent actual
+review: 9edb39eb0c02f07cb43ba1cd73993c7e2099ce22974fac42dbc2f96d87a7de68.
+Only the new test74 source was adopted; current-repository API compilation
+passed separately with no tests selected. Complete selected captures, explicitly
+derived results and original task links are under approval-diagnostic-continuation
+and supervised-test74-positive in docs/internal/evidence/cloud-2026-10-07.
+The native approval profile remains inactive. Identity/provider inputs are
+controlled fixtures, without real Stytch/provider or deployed proof. All 728
+rows and classifications remain unchanged: 523 historical production-available,
+144 component-only, 61 externally blocked. Fifty product configuration names
+remain unbound; generic cloud credentials do not establish those bindings.
+
+
+2026-10-07 lifecycle fixture follow-up: main's hosted rerun and both PR53
+checks failed again in health:contract:test; their detailed cause remains
+unobserved. Local committed b6c0 health stage0 passed. Stage1 finished normally
+with source maps unchanged and failed two separate scopes: ten API read/decision
+subcases (plus their parent) used stale unwrapped SQL matches; worker artifact
+checks failed because the isolated runner omitted the pinned Node PATH.
+The latter is a local prerequisite error, not a worker implementation defect.
+All raw failures remain preserved in lifecycle-sql-fixtures.
+
+Two exact fixture SQL matches now recognize the existing COALESCE transport;
+the consumed-query probe uses those exact statements. Production behavior and
+all original forwarding, context, argument, error and fallback assertions remain
+unchanged. The first selected runner refused its incomplete 22-case roster;
+its failure is retained. The corrected roster includes all five existing
+forwarding safety cases: original16PASS/11FAIL, candidate27PASS/0FAIL/SKIP.
+Both owners joined normally with unchanged input maps; independent actual
+review0617f56ae90b990d85e3b8afc18ad76e74e83d4704c1b85e18b5bf1a9080618a.
+The adopted current API package passed its complete race command separately.
+The whole three-package health command still requires a rerun with pinned Node,
+followed by the remaining event-ingest and runtime-gateway stages. No hosted,
+release, active cutover, Stytch/provider, deployment or ledger promotion follows
+from these component checks; all 728 original requirements remain unchanged.
+
+
+### 2026-10-07 cloud continuation: fresh health checks and startup diagnostics
+
+Latest observed main is `c1c45b24c5e0eec76b49e80c9f2f632087a6b33f`; the required `e13ccb95451b03107681ccb59b3fc6fe175a228f` is its ancestor. This diagnostic batch starts from the verified, unmerged PR #53 branch at `77d90c642828cccb2dad2f8b132f283bd4a0f566`. The handoff and original 728-task scope remain authoritative. Fresh validation retains 728 rows: 523 historical production-available classifications, 144 component-only, 61 blocked/external, zero missing. No rows are promoted.
+
+Fresh local whole-command race checks pass for platform healthserver/API/worker, event ingestion and runtime gateway. The earlier platform failure and event metadata refusal remain preserved; six selected graph versions were restored using the official Go proxy and checksum database without changing tracked module files. Quiet Go output does not establish individual skip counts. See `evidence/cloud-2026-10-07/health-current77d90/README.md` for exact scopes and original references.
+
+Both hosted checks for PR #53 pass npm verification and the current profile inner diagnostics, then fail compliance API readiness at the original deadline. Their annotations report an unavailable child stage; permitted log access has not established the cause. The diagnostic parser incorrectly rejected every exactly 16,384-character retained tail. The reviewed repair admits complete internal closed markers at that boundary, continues refusing partial/leading/duplicate/unknown markers, and keeps the capture cap, readiness deadline and release guards. The same four causal groups produce RED 3 FAIL/1 PASS, then GREEN 4 PASS. After exact adoption, the CI-selected diagnostic suites and affected helpers produce 210 PASS, zero FAIL/SKIP; scoped lint and ledger validation pass. These are diagnostic regression checks, not deployed acceptance.
+
+The inactive approval upgrade remains unadopted. Its original compile mismatch and two subsequent pretest memory-floor refusals are retained; no named upgrade test or genuine flow passed in those attempts. The memory floor was not reduced. Read-only page advice preserved cache/evidence bytes and measured a modest change, without a future capacity guarantee. The finite compiler-source controls pass privately, but the full current Linux derivation and seven native anchors remain held; no standalone unused helper was added to claim integration.
+
+Fresh read-only checks establish Docker 28.4.0 and the exact pinned PostgreSQL 18.3 image. Docker storage shares the workspace filesystem, with roughly 0.6 MB above its unchanged 1.5 GB free-space floor at observation. The cloud is connected; its observed revision 61 has no configured secrets or outbound identities. Mandatory product bindings, real Stytch/provider and deployed end-to-end evidence, persistent FGA cutover, native upgrade acceptance and complete approved dependency/image clearance remain open. Original consumers are retained. Superpowers was unavailable; grouped causal TDD and independent review followed its upstream workflow. This is development progress, not launch or original-goal completion.
+
+
+Continuation batch: approval maintenance notification forwarding (2026-10-07).
+
+The application batch starts at `65d85202c03d7320d373a99027786a2412222b20`. Freshly fetched main is `c1c45b24c5e0eec76b49e80c9f2f632087a6b33f` and contains required commit `e13ccb95451b03107681ccb59b3fc6fe175a228f`. The maintenance delivery path swapped payload and delivery ID at the real webhook boundary. One call correction preserves original tenant, lease, digest, secret, signature and idempotency validation. A hostname-verified owned TLS receiver reproduced the original refusal, then passed three parent groups and eight refusal subcases (11 events, no skips). Source maps and six normal stage joins were independently reviewed. Local compilation retained all production source but excluded 808 original test files. This is selected component evidence for the M7A-90c notification requirement; full native and deployed approval remain open. The same three groups are added to hosted verification without altering existing guards. Evidence: `evidence/cloud-2026-10-07/approval-notification-forwarding`.
+
+A real Stytch TEST read-only request now confirms scoped authentication (HTTP 200, zero organizations), while target organization/session remain unbound. Native379 GREEN stopped on the workspace floor. Its original failure and reviewed custody recovery for exactly 19 new cache files are retained under `evidence/cloud-2026-10-07/readiness-and-native-floor-stop`; no GREEN/native acceptance or future fit is claimed. All 728 ledger rows remain: 523 historical production-available categories, 144 component-only, 61 blocked/external, zero missing, with no promotions. Real production identity/provider flows, permission cutover, complete advisory/image release evidence and deployed end-to-end acceptance remain open.
+
+Fresh PR54 hosted runs 37642709266 and 37642979560 passed UI verification and current profile diagnostics, then failed compliance runtime acceptance with API-ready deadline and child stage unavailable. The annotations are preserved in the readiness packet. Neither the tail diagnostic correction nor these component batches establishes deployed readiness; merge/release guards remain held.
+
+
+Continuation batch: callable public npm advisory producer (2026-10-07).
+
+The exact-lock, pinned-semver producer and its two test files are wired into npm and existing release tests without modifying the lock or production release guard. Source-adapted causal RED then 53 component PASS, exact adoption 53 PASS, and final scoped lint and 728-row ledger checks pass. The initial two-unused-binding lint failure and original receipts are retained. Official canonical intake, all Go/image/SBOM coverage, release clearance and deployed acceptance remain open; output releaseAccepted is false. No ledger promotions. See [component report](2026-10-07-npm-public-corpus-component.md).
+
+Additional npm producer boundary review: original missing-object lookup triggered an owned helper; fetch-disabled successor kept that helper unused but failed finite stderr privacy. Both54-event failures are retained. Final captured-stderr and local partial/promisor/include/worktree refusal boundaries pass58 component controls, zero skips; current real lock inventory resolves209 entries. Official intake and complete release/deployed gates remain open. Prior53 evidence unchanged.
+
+
+PR55 hosted notification regression passed, but UI verification failed at the workflow contract expecting36steps after the new mandatory notification step was added. The exact roster and fixture now require37steps in the actual existing order, with seven added omission/bypass/timeout/command/environment/order refusals. Original319 cases plus seven regressions pass326; scoped lint passes. Original hosted annotations and214FAIL/105PASS local predecessor remain under `evidence/cloud-2026-10-07/notification-workflow-guard`. No release/hosted/deployed acceptance claim or ledger promotion.
+
+
+Fresh official advisory capacity attempt is incomplete (27.519seconds, normal exit1).20 complete Git tree responses were independently reconstructed; two truncated responses and an oversized direct May2022 monthly-tree prefix cannot establish complete corpus capacity or intake. Original failure and normal outer/source associations are retained under `evidence/cloud-2026-10-07/advisory-capacity-incomplete`. Direct-year traversal alone remains held because the monthly response still exceeds the unchanged cap. Release clearance remains blocked. Fresh managed cloud revision67 is current/connected/running with enforced restricted networking,51 generic runtime variables ready and no configured secret/outbound-identity bindings; generic variables alone do not establish scoped product/provider readiness. UI sign-in returnsHTTP200. No ledger promotion.
+
+
+Launch prerequisite correction and full remaining-task snapshot: two hosted prerequisite tests retained the old 36-step roster after mandatory signed notification verification was added. The original command reproduces 235 PASS / 2 FAIL; the exact-step correction and nine new refusal cases pass 246 with zero skips. Original 34-step fingerprint and all runtime/permission/release guards remain unchanged. The [launch report](launch-readiness-2026-10-07.md) and [205-row remaining list](launch-remaining-tasks-2026-10-07.tsv) distinguish recorded component/external work from required fresh deployed acceptance of all 728 requirements. Original failure and source associations are retained under `evidence/cloud-2026-10-07/launch-prerequisite-contract`. No ledger promotion or launch acceptance.

@@ -1,0 +1,122 @@
+{
+  "checks": {
+    "allRecordedWaitsJoinedNoForcedSignalsResidualUnknownOrLateRefusal": true,
+    "baselineOriginalChildExit1AndCandidateExit0": true,
+    "both9785InputMapsAndAggregateStable": true,
+    "candidateFixtureOnlyTwoSQLCaseStringsAndExactProbeChanges": true,
+    "everyTenOriginalFailedSubcaseKnownCausalAssertion": true,
+    "exact27NamesBothStagesIncludingFiveForwardingSafetyCases": true,
+    "oldWrong22CensusFailurePreserved": true
+  },
+  "format": "independent-health-lifecycle-census27-actual-TDD-review-v1",
+  "normalOuterExits": [
+    0,
+    0
+  ],
+  "oldCensusFailureSHA256": "0b98985d7df46743e49f1333bd2d4b324589419d7eb5c245247a6a99702b9ab5",
+  "outerSHA256": "0f7c7c0c202ffc9e64e53f18ed502929f4f1948be77299b9e2c6d3a5f62a7ba3",
+  "outerSeconds": [
+    4.809639662998961,
+    8.70431453099809
+  ],
+  "records": [
+    {
+      "SKIP": 0,
+      "aggregateSHA256": "5a417e80621e0763f5cec8c07d687f18c2dd7ffa150a1fe53e5757326e44fb72",
+      "failSub": 10,
+      "failTop": 1,
+      "forced": false,
+      "inputMapsEqual": true,
+      "inputs": 9785,
+      "lateRefusal": false,
+      "passSub": 15,
+      "passTop": 1,
+      "resultPath": "/tmp/health-lifecycle-tdd-census27-6o0c2f2p/actual-lifecycle-stage0-12r6zsmi/result.json",
+      "resultSHA256": "bd18e1e525b22e5a6001adbdf139525e8270dea2662becf70dc0d05e0ab5ade2",
+      "run": 27,
+      "signals": [],
+      "stdoutSHA256": "81b3273d67930833aa7236e6fe7915ff0b51e553f37dcc5b516c7f51ad21cfe3",
+      "survivors": [],
+      "unknown": [],
+      "waits": [
+        {
+          "joined": true,
+          "pid": 32683,
+          "returnCode": 0,
+          "tag": "head"
+        },
+        {
+          "joined": true,
+          "pid": 32685,
+          "returnCode": 0,
+          "tag": "selected-inputs"
+        },
+        {
+          "joined": true,
+          "pid": 32710,
+          "returnCode": 0,
+          "tag": "selected-modules"
+        },
+        {
+          "joined": true,
+          "pid": 32715,
+          "returnCode": 1,
+          "tag": "baseline-red"
+        }
+      ]
+    },
+    {
+      "SKIP": 0,
+      "aggregateSHA256": "5a417e80621e0763f5cec8c07d687f18c2dd7ffa150a1fe53e5757326e44fb72",
+      "failSub": 0,
+      "failTop": 0,
+      "forced": false,
+      "inputMapsEqual": true,
+      "inputs": 9785,
+      "lateRefusal": false,
+      "passSub": 25,
+      "passTop": 2,
+      "resultPath": "/tmp/health-lifecycle-tdd-census27-6o0c2f2p/actual-lifecycle-stage1-wau509hx/result.json",
+      "resultSHA256": "7b9e3c4cbc76db583441c28966683776cded3b4a279ce982f75c922fb2d8351d",
+      "run": 27,
+      "signals": [],
+      "stdoutSHA256": "4a205de69470ce91110abfa651aa6b6b9d5d175eb3957d0ea0acabf152e1d4de",
+      "survivors": [],
+      "unknown": [],
+      "waits": [
+        {
+          "joined": true,
+          "pid": 32760,
+          "returnCode": 0,
+          "tag": "head"
+        },
+        {
+          "joined": true,
+          "pid": 32762,
+          "returnCode": 0,
+          "tag": "selected-inputs"
+        },
+        {
+          "joined": true,
+          "pid": 32786,
+          "returnCode": 0,
+          "tag": "selected-modules"
+        },
+        {
+          "joined": true,
+          "pid": 32792,
+          "returnCode": 0,
+          "tag": "candidate-green"
+        }
+      ]
+    }
+  ],
+  "scope": [
+    "Only selectedAPI fixture correction is verified; ROOT may adopt exactdb1dbe candidate after currentoriginalpreimagecheck.",
+    "Original wholehealth baseline API11FAIL and worker missingNode failures remain; full three-package health and hosted checks still required.",
+    "No hidden skips or droppedforwarding cases; candidate2tops25subsPASS are27eventcounts.",
+    "No production guard, roles, runtime service or nativeapproval/sourceanchor changes.",
+    "Reviewer read receipts/logs/sourceassociation and maps; no Go/tests/runtime rerun or allpayloadposthash."
+  ],
+  "status": "PASS_CAUSAL_SELECTED_FIXTURE_TDD"
+}

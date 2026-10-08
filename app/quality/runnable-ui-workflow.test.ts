@@ -68,6 +68,11 @@ appendFileSync(process.env.GITHUB_ENV, \`ZASP_COMBINED_E2E_CHROME=\${chrome}\\n\
 NODE
 `;
 const complianceAcceptanceCommand = "node --test scripts/browser-prerequisites.test.mjs scripts/browser-e2e-helpers.test.mjs scripts/owned-browser-postgres.test.mjs scripts/compliance-browser-bytes.test.mjs || { status=$?; printf '::error::Compliance browser unit prerequisites failed (exit %s)\\n' \"$status\"; exit \"$status\"; }\nnode scripts/production-combined-e2e.mjs || { status=$?; printf '::error::Compliance browser runtime acceptance failed (exit %s)\\n' \"$status\"; exit \"$status\"; }\n";
+const notificationStep: WorkflowStep = {
+  name: "Verify approval maintenance signed notification delivery",
+  "timeout-minutes": 10,
+  run: "go test -C services/platform -race -p 1 -count=1 -timeout=5m -json -run '^TestMaintenanceBoundary(DeliversOriginalSignedPayloadOverTLS|UnsafeDeliveryDoesNotReachHTTP|RetainsActualProviderFailure)$' ./apiserver\n",
+};
 const complianceSteps: WorkflowStep[] = [
   { name: "Verify current runtime profile inner diagnostic tests", "timeout-minutes": 5, run: "node --test scripts/observe-current-profile-inner-diagnostics.test.mjs\nnode scripts/observe-current-profile-inner-diagnostics.mjs\n" },
   { name: "Provision isolated compliance browser prerequisites", "timeout-minutes": 10, run: compliancePrerequisitesCommand },
@@ -229,7 +234,7 @@ function assertRunnableUiWorkflow(
   expect(verificationJob["timeout-minutes"]).toBeUndefined();
 
   const verificationSteps = verificationJob.steps ?? [];
-  expect(verificationSteps).toHaveLength(36);
+  expect(verificationSteps).toHaveLength(37);
   expect(verificationSteps.map((step) => step.uses ?? step.run)).toEqual([
     checkoutAction,
     setupNodeAction,
@@ -240,6 +245,7 @@ function assertRunnableUiWorkflow(
     "go install github.com/zricethezav/gitleaks/v8@v8.30.1",
     "npm run implementation:status:check",
     platformMetadataCommand,
+    notificationStep.run,
     verifyDiagnosticRun,
     migrationCacheCommand,
     ...complianceSteps.map(step => step.run),
@@ -254,6 +260,7 @@ function assertRunnableUiWorkflow(
     "go test -C proofs/attack-lab-egress -race -count=1 ./...\ngo test -C services/platform -race -count=1 ./attack-lab-runner ./attacklabrunner ./attack-lab-proxy ./attacklabproxy ./attacklab\nnode --test proofs/attack-lab-egress/run.test.mjs\nnode proofs/attack-lab-egress/run.mjs\nZASP_ATTACK_LAB_EGRESS_DOCKER=true node --test proofs/attack-lab-egress/interruption.test.mjs\n",
   ]);
   expect(verificationSteps.find(step => step.name === platformMetadataName)).toEqual({ name: platformMetadataName, run: platformMetadataCommand, "timeout-minutes": 5 });
+  expect(verificationSteps.find(step => step.name === notificationStep.name)).toEqual(notificationStep);
   expect(verificationSteps.find(step => step.name === migrationCacheName)).toEqual({ name: migrationCacheName, run: migrationCacheCommand, "timeout-minutes": 5 });
   expect(verificationSteps[0]?.with).toEqual({ "fetch-depth": 0 });
   expect(verificationSteps[1]?.with).toMatchObject({
@@ -305,6 +312,7 @@ function validWorkflow(): Workflow {
           { run: "go install github.com/zricethezav/gitleaks/v8@v8.30.1" },
           { run: "npm run implementation:status:check" },
           { name: platformMetadataName, run: platformMetadataCommand, "timeout-minutes": 5 },
+          structuredClone(notificationStep),
           { run: verifyDiagnosticRun },
           { name: migrationCacheName, run: migrationCacheCommand, "timeout-minutes": 5 },
           ...structuredClone(complianceSteps),
@@ -346,6 +354,21 @@ describe("runnable UI GitHub Actions gate", () => {
       step.run = step.run!.replace(line, "").replace(`${neighbor}\n`, index === 0 ? `${neighbor}\n${line}` : `${line}${neighbor}\n`);
     }
     expect(step.run).not.toBe(sessionIAMCommand);
+    expect(() => assertRunnableUiWorkflow(workflow, manifest)).toThrow();
+  });
+  it.each(["omitted", "skipped", "allowed failure", "timeout", "command", "environment", "order"])("rejects %s signed notification delivery verification", async condition => {
+    const workflow = await readWorkflow();
+    const manifest = await readPackageManifest();
+    assertRunnableUiWorkflow(workflow, manifest);
+    const steps = workflow.jobs!.verify.steps!;
+    const step = steps.find(value => value.name === notificationStep.name)!;
+    if (condition === "omitted") steps.splice(steps.indexOf(step), 1);
+    if (condition === "skipped") step.if = false;
+    if (condition === "allowed failure") step["continue-on-error"] = true;
+    if (condition === "timeout") step["timeout-minutes"] = 11;
+    if (condition === "command") step.run = step.run!.replace("-race ", "");
+    if (condition === "environment") step.env = { GOFLAGS: "-short" };
+    if (condition === "order") steps.push(steps.splice(steps.indexOf(step), 1)[0]);
     expect(() => assertRunnableUiWorkflow(workflow, manifest)).toThrow();
   });
   it("requires bounded platform full-MVS metadata priming in the actual workflow", async () => {

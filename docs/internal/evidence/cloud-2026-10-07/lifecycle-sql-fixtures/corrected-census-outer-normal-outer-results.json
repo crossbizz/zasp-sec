@@ -1,0 +1,71 @@
+{
+  "scope": "Actual ROOT causal 27-case lifecycle waits; expected RED insideowner, earlier census failure preserved; not wholehealth proof",
+  "stages": [
+    {
+      "argv": [
+        "/usr/bin/env",
+        "-i",
+        "PATH=/usr/bin:/bin",
+        "/usr/bin/timeout",
+        "--signal=TERM",
+        "--kill-after=10s",
+        "690s",
+        "/usr/bin/python3",
+        "-I",
+        "-B",
+        "/tmp/health-lifecycle-tdd-census27-6o0c2f2p/run.py",
+        "--stage",
+        "0"
+      ],
+      "normalOuterWaitObserved": true,
+      "exitCode": 0,
+      "elapsedSeconds": 4.809639662998961,
+      "sameInputs": true,
+      "before": {
+        "/tmp/health-lifecycle-tdd-census27-6o0c2f2p/run.py": "77926d066dcd11bd0ff1fbbd329aafbecc4478e41ed67873b8fd8191d4d1c9f7",
+        "/tmp/health-lifecycle-tdd-census27-6o0c2f2p/ROOT-RECIPE.json": "25c6b382b35304d0513098a2227682f31f9b081df21e16165018a6f5b67d176b",
+        "/usr/bin/python3": "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1",
+        "/usr/bin/timeout": "6ca1891dfc0b05d7680770c2884c0391b92467c7bb6500a5c84677e6481739f1"
+      },
+      "after": {
+        "/tmp/health-lifecycle-tdd-census27-6o0c2f2p/run.py": "77926d066dcd11bd0ff1fbbd329aafbecc4478e41ed67873b8fd8191d4d1c9f7",
+        "/tmp/health-lifecycle-tdd-census27-6o0c2f2p/ROOT-RECIPE.json": "25c6b382b35304d0513098a2227682f31f9b081df21e16165018a6f5b67d176b",
+        "/usr/bin/python3": "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1",
+        "/usr/bin/timeout": "6ca1891dfc0b05d7680770c2884c0391b92467c7bb6500a5c84677e6481739f1"
+      }
+    },
+    {
+      "argv": [
+        "/usr/bin/env",
+        "-i",
+        "PATH=/usr/bin:/bin",
+        "/usr/bin/timeout",
+        "--signal=TERM",
+        "--kill-after=10s",
+        "690s",
+        "/usr/bin/python3",
+        "-I",
+        "-B",
+        "/tmp/health-lifecycle-tdd-census27-6o0c2f2p/run.py",
+        "--stage",
+        "1"
+      ],
+      "normalOuterWaitObserved": true,
+      "exitCode": 0,
+      "elapsedSeconds": 8.70431453099809,
+      "sameInputs": true,
+      "before": {
+        "/tmp/health-lifecycle-tdd-census27-6o0c2f2p/run.py": "77926d066dcd11bd0ff1fbbd329aafbecc4478e41ed67873b8fd8191d4d1c9f7",
+        "/tmp/health-lifecycle-tdd-census27-6o0c2f2p/ROOT-RECIPE.json": "25c6b382b35304d0513098a2227682f31f9b081df21e16165018a6f5b67d176b",
+        "/usr/bin/python3": "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1",
+        "/usr/bin/timeout": "6ca1891dfc0b05d7680770c2884c0391b92467c7bb6500a5c84677e6481739f1"
+      },
+      "after": {
+        "/tmp/health-lifecycle-tdd-census27-6o0c2f2p/run.py": "77926d066dcd11bd0ff1fbbd329aafbecc4478e41ed67873b8fd8191d4d1c9f7",
+        "/tmp/health-lifecycle-tdd-census27-6o0c2f2p/ROOT-RECIPE.json": "25c6b382b35304d0513098a2227682f31f9b081df21e16165018a6f5b67d176b",
+        "/usr/bin/python3": "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1",
+        "/usr/bin/timeout": "6ca1891dfc0b05d7680770c2884c0391b92467c7bb6500a5c84677e6481739f1"
+      }
+    }
+  ]
+}

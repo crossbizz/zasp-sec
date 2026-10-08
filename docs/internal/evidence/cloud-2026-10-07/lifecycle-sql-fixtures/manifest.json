@@ -1,0 +1,173 @@
+{
+  "format": "lifecycle-fixture-publication-with-lossless-diff-v1",
+  "scope": "Complete original test captures and original candidate manifest remain unchanged. Only the unified diff is published as disclosed lossless JSONL to preserve context whitespace. No acceptance claims are changed.",
+  "sourceCandidateManifest": "source-candidate-manifest.json",
+  "sourceCandidateManifestSHA256": "6b290d07e337486dd70b9fec9c71711dc5527d949bc3ba23322e43b12ce3ee91",
+  "members": [
+    {
+      "path": "README.md",
+      "bytes": 1327,
+      "sha256": "411a385accf1ff10cf1a2f0181a54db66a5dbf8dc8d95ac883e534b813d00dbd"
+    },
+    {
+      "path": "corrected-census-green-result-selected.json",
+      "bytes": 5338,
+      "sha256": "b79781024a1cebdf3dc8ac27171188ddef102061e291a81238e7c1b05e799202"
+    },
+    {
+      "path": "corrected-census-green.jsonl",
+      "bytes": 27271,
+      "sha256": "4a205de69470ce91110abfa651aa6b6b9d5d175eb3957d0ea0acabf152e1d4de"
+    },
+    {
+      "path": "corrected-census-green.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "corrected-census-outer-0.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "corrected-census-outer-0.stdout",
+      "bytes": 217,
+      "sha256": "a7dec1ef733bf6c5dfd24e99deabd17f58af09ed6f2d8d7bcebe7aabe1ed299f"
+    },
+    {
+      "path": "corrected-census-outer-1.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "corrected-census-outer-1.stdout",
+      "bytes": 217,
+      "sha256": "98147d22e33b76c8893d2c2f4d3c6fd700c7f472efa1e977ce79153bb9982bb0"
+    },
+    {
+      "path": "corrected-census-outer-normal-outer-results.json",
+      "bytes": 3070,
+      "sha256": "0f7c7c0c202ffc9e64e53f18ed502929f4f1948be77299b9e2c6d3a5f62a7ba3"
+    },
+    {
+      "path": "corrected-census-red-result-selected.json",
+      "bytes": 5215,
+      "sha256": "62a62e54e9b5ff405a149e50f076a9555e32fd02caf6b552c10d4c192f4f1630"
+    },
+    {
+      "path": "corrected-census-red.jsonl",
+      "bytes": 30311,
+      "sha256": "81b3273d67930833aa7236e6fe7915ff0b51e553f37dcc5b516c7f51ad21cfe3"
+    },
+    {
+      "path": "corrected-census-red.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "diff-encoding.json",
+      "bytes": 1054,
+      "sha256": "8c1ed3d0651a7aaa396b1a3f95d6d5d4753e3816b771ab5312e7c13b5600c7ea"
+    },
+    {
+      "path": "fixture-CENSUS-CLARIFICATION.json",
+      "bytes": 538,
+      "sha256": "cdb9e11dff601d9fd5aaed667db6968b43235a5eda2dac7beedce5c64fe8a099"
+    },
+    {
+      "path": "fixture-candidate.diff.jsonl",
+      "bytes": 1839,
+      "sha256": "c428ca9f4fa72d5a242fffda3ff679c9562993360ec6a48b34e5b6295d82bbf2"
+    },
+    {
+      "path": "fixture-manifest.json",
+      "bytes": 940,
+      "sha256": "de47680abac102655cd747564e37bd9929ceb985867e730ee12ed27b6ce3f5ed"
+    },
+    {
+      "path": "full-api-race-ROOT-observation.json",
+      "bytes": 694,
+      "sha256": "4a7e1022bab89c6d4f97cf4b75d1b51be49c236ab93b490581a37213036e7fc0"
+    },
+    {
+      "path": "full-api-race-api.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "full-api-race-api.stdout",
+      "bytes": 71,
+      "sha256": "dccac7130fc379060754151d68a2725355f87021aa1cc1a25ea610a80baf2b30"
+    },
+    {
+      "path": "health-b6c-original-baseline-actual-review.json",
+      "bytes": 4081,
+      "sha256": "3ec59ea6d47373a0301de95717f39ac975ccb5fadebec8ec2a1cb0a57ffa62f3"
+    },
+    {
+      "path": "health-lifecycle-census27-actual-TDD-review.json",
+      "bytes": 3931,
+      "sha256": "0617f56ae90b990d85e3b8afc18ad76e74e83d4704c1b85e18b5bf1a9080618a"
+    },
+    {
+      "path": "health-lifecycle-census27-owner-source-review.json",
+      "bytes": 1868,
+      "sha256": "bd2376922cfa43d965767df115f23c784c9d9337a4ceba2616172835e1eeac6a"
+    },
+    {
+      "path": "health-lifecycle-fixture-SQL-source-review.json",
+      "bytes": 1904,
+      "sha256": "7b6b7c61523f67d079da1ce99376cf5da95390e872a6d4d3a6aa81e3a6f0a5bd"
+    },
+    {
+      "path": "original-census-outer-0.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "original-census-outer-0.stdout",
+      "bytes": 260,
+      "sha256": "b1025e6e1f151840da24badefd1b55425d430c2d317b966dffe8dd1f95c1f6b0"
+    },
+    {
+      "path": "original-census-outer-normal-outer-results.json",
+      "bytes": 1588,
+      "sha256": "420faa0256b4f287e39335f96b98318cd86ab2f6264f5a5b8bd454ab629567d2"
+    },
+    {
+      "path": "original-census-refusal-result-selected.json",
+      "bytes": 2255,
+      "sha256": "371e589b32bec6e7b0bb8a6833abb1b420277e76596b27abf2db6d120e6f4380"
+    },
+    {
+      "path": "original-census-refusal.jsonl",
+      "bytes": 30309,
+      "sha256": "0db4a848057aa65755f84cae6f3c4bdbe94f4acdac2279795e94babd884cdce5"
+    },
+    {
+      "path": "original-census-refusal.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "original-fullhealth-mixed-failure-result-selected.json",
+      "bytes": 2335,
+      "sha256": "7f97933539e3f395fb090a93c2554751b7f52df51d975a25a1b5559a287b21cf"
+    },
+    {
+      "path": "original-fullhealth-mixed-failure.jsonl",
+      "bytes": 257836,
+      "sha256": "57b547e88da5b43510a4098af4a756c2f92a99f026f0717e3b0fccd1a38b26b5"
+    },
+    {
+      "path": "original-fullhealth-mixed-failure.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "source-candidate-manifest.json",
+      "bytes": 27608,
+      "sha256": "6b290d07e337486dd70b9fec9c71711dc5527d949bc3ba23322e43b12ce3ee91"
+    }
+  ]
+}

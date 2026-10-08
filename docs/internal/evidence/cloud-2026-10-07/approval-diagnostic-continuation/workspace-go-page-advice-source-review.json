@@ -1,0 +1,19 @@
+{
+  "conditions": [
+    "ROOT bind actual Python/timeout/source/plan beforeafter and enforce cache/toolwritershold until finalnormaljoin",
+    "Actualnormalouter0 plus completedtrue required; partialfailure ledger notcompleteadmission",
+    "Advisory contract only, not independent payloadbytecopy proof or activation/approval acceptance"
+  ],
+  "manifestSHA256": "1dd800dda57ea3264ac2cbf59df0528a388c8c874344b63b3f331e7dacadc0f0",
+  "ownerSHA256": "04d53dd60ace0f42f1518bfe0c26d7cf186d0ad1233b544279519aa227212261",
+  "planSHA256": "220401f8ba19d1c4bc15cb20a72fc984e6c5f61079d495bd3dee7e79545c613b",
+  "smallScopeNote": "Ledger checks size before each record and may exceed128MiB by one bounded metadata record. Do not claim a strict128MiB wholeledger cap without postwrite or precomputed-record-size check; this does not alter readonly advice/file safety.",
+  "status": "SOURCE_STATIC_CONDITIONAL_PASS_READONLY_ADVICE_ONLY",
+  "verification": [
+    "Only three fixed workspace persistentGo/cache/module roots selected by dev/inode/UID/GID/fullmode; aliases skipped, no TMP/tmpfs/globaldropcache action",
+    "RegularsameUID/samedev files openedreadonly NOFOLLOW NONBLOCK; no payload read/write/delete/truncate/mmap and no signals",
+    "PerfilefullFD+path pre/postsecuritymetadata bound around POSIX_FADV_DONTNEED advice; no bytehash warming",
+    "Original60work/ROOT70+10,100MB memory/WS1.5GB/TMP1GB floors/cancellation and lateexit checks retained",
+    "Before/after scalarcgroup values explicitly observational; no guaranteedreclaim or attribution claim"
+  ]
+}

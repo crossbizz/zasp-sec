@@ -1,0 +1,1 @@
+{"result": "/tmp/health-lifecycle-tdd-owner-xuwz562a/actual-lifecycle-stage0-0jmnhs6m/result.json", "sha256": "0b98985d7df46743e49f1333bd2d4b324589419d7eb5c245247a6a99702b9ab5", "completed": false, "failure": "RuntimeError:exact lifecycle run roster refused"}

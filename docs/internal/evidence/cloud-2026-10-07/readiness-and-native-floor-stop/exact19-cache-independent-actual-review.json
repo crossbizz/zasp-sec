@@ -1,0 +1,30 @@
+{
+  "actualPath": "/tmp/native379-exact19-cache-isolation-actual-cix96b16/result.json",
+  "actualSHA256": "beeb4b9b4106d63028be143cb055c44707acb623ce4bc08a70866b84214150b2",
+  "all38IntentReturnedRecordsBound": true,
+  "complete7615LeafTopologyPreserved": true,
+  "exact19AliasesAndSameFDWholeBodiesVerified": true,
+  "nonselectedMetadataCount": 7596,
+  "resources": {
+    "after": {
+      "memoryHeadroom": 1123614720,
+      "tmp": 2420707328,
+      "workspace": 1500483584
+    },
+    "before": {
+      "memoryHeadroom": 1125715968,
+      "tmp": 2420867072,
+      "workspace": 1499869184
+    },
+    "workspaceRecoveryBytes": 614400
+  },
+  "scope": "No pruning. Whole19 bodies retained at exact admitted TMP custody paths; 7549 old+47 other-new files and root README/trim metadata/path retained. Prior old full body integrity not newly proven. Failed native/result/late refusal remain; no tests/native/runtime/FIT or publication acceptance.",
+  "sourceIdentity": "Original regular-file identity historical; present aliases are symlinks, even if numeric inode is reused. No unchanged dev/inode/ctime/body identity claim for original source leaves.",
+  "verdict": "PASS-exact19-lossless-cache-isolation-only",
+  "wholeDestinationBytes": 622647,
+  "writerSnapshot": {
+    "ownUIDGo": [],
+    "qualification": "Bound ROOT pre-mutation observation/hold; no reviewer live process replay or syscall-fsync attestation.",
+    "unknown": []
+  }
+}

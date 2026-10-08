@@ -1,0 +1,50 @@
+{
+  "scope": "Actual fullV3binder loop-source projection: SAME6tops baseline1requiredFAIL5PASS\u2192GREEN6PASS plus SAME6strictnegative subcases PASSboth; original24fullV3bodies unchanged; no native/frozenbuild/anchors",
+  "argv": [
+    "/usr/bin/env",
+    "-i",
+    "PATH=/usr/bin:/bin",
+    "/usr/bin/timeout",
+    "--signal=TERM",
+    "--kill-after=25s",
+    "225s",
+    "/workspace/.zasp-cloud-owned/spec44-runtime-tools/bin/tini",
+    "-s",
+    "--",
+    "/usr/bin/python3",
+    "-B",
+    "/tmp/native379-fullV3-bound-loop-ROOT-owner-u7vo_4m7/run-controls.py"
+  ],
+  "normalOuterWaitObserved": true,
+  "exitCode": 1,
+  "elapsedSeconds": 1.5979503080016002,
+  "before": {
+    "/tmp/native379-fullV3-bound-loop-ROOT-owner-u7vo_4m7/ROOT-RECIPE.json": "812fd64eff4d98e6a1b0aea021c2934154189637a8066f5883ceb21de7f79d9c",
+    "/tmp/independent-native379-fullV3-bound-loop-source-owner-review.json": "5d0cf0e0d9dfe447ef171ccc13a41c8e6a06dc9c8a11c44f410c928d20a2c16c",
+    "/tmp/native379-fullV3-bound-loop-ROOT-owner-u7vo_4m7/run-controls.py": "e2d64c9bb64916a0e7442c3fe80e7e43a28fea55c50dc7a902a496860f54eda8",
+    "/tmp/native379-fullV3-bound-loop-successor-dfzgx2h4/PREPARATION.json": "ca38d4fe72fde5ceb4c518c2516792951708cbf262baa9631fd8254408e2e3db",
+    "/tmp/native379-fullV3-bound-loop-successor-dfzgx2h4/authorization_worker_ordered_current_native379_v3_test.go": "87fd194fea59be5664c2d440b3975bab557f8947b6766b747e0e728be70a7493",
+    "/tmp/native379-fullV3-bound-loop-successor-dfzgx2h4/baseline_test.go": "1801c1732cd8f6322397e19c735ebb82c61bf61a6ba7a72a6e27d35d1b5dea7f",
+    "/tmp/native379-fullV3-bound-loop-successor-dfzgx2h4/cases_test.go": "550e7a1c7ce1224bbe74fc4e25e9fbb659c5c3de4b9fbe11472c6faaf6ad950a",
+    "/tmp/native379-fullV3-bound-loop-successor-dfzgx2h4/successor_test.go": "91182a1063de804e2b78a414879191dc469e4558306e323b9744f5c8b4b73e05",
+    "/usr/bin/env": "eb1c64bbc9908afcdf8cb48524f17112d8dd76a249f80dee2f01da14747b3b6e",
+    "/usr/bin/python3": "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1",
+    "/usr/bin/timeout": "6ca1891dfc0b05d7680770c2884c0391b92467c7bb6500a5c84677e6481739f1",
+    "/workspace/.zasp-cloud-owned/spec44-runtime-tools/bin/tini": "93dcc18adc78c65a028a84799ecf8ad40c936fdfc5f2a57b1acda5a8117fa82c"
+  },
+  "after": {
+    "/tmp/native379-fullV3-bound-loop-ROOT-owner-u7vo_4m7/ROOT-RECIPE.json": "812fd64eff4d98e6a1b0aea021c2934154189637a8066f5883ceb21de7f79d9c",
+    "/tmp/independent-native379-fullV3-bound-loop-source-owner-review.json": "5d0cf0e0d9dfe447ef171ccc13a41c8e6a06dc9c8a11c44f410c928d20a2c16c",
+    "/tmp/native379-fullV3-bound-loop-ROOT-owner-u7vo_4m7/run-controls.py": "e2d64c9bb64916a0e7442c3fe80e7e43a28fea55c50dc7a902a496860f54eda8",
+    "/tmp/native379-fullV3-bound-loop-successor-dfzgx2h4/PREPARATION.json": "ca38d4fe72fde5ceb4c518c2516792951708cbf262baa9631fd8254408e2e3db",
+    "/tmp/native379-fullV3-bound-loop-successor-dfzgx2h4/authorization_worker_ordered_current_native379_v3_test.go": "87fd194fea59be5664c2d440b3975bab557f8947b6766b747e0e728be70a7493",
+    "/tmp/native379-fullV3-bound-loop-successor-dfzgx2h4/baseline_test.go": "1801c1732cd8f6322397e19c735ebb82c61bf61a6ba7a72a6e27d35d1b5dea7f",
+    "/tmp/native379-fullV3-bound-loop-successor-dfzgx2h4/cases_test.go": "550e7a1c7ce1224bbe74fc4e25e9fbb659c5c3de4b9fbe11472c6faaf6ad950a",
+    "/tmp/native379-fullV3-bound-loop-successor-dfzgx2h4/successor_test.go": "91182a1063de804e2b78a414879191dc469e4558306e323b9744f5c8b4b73e05",
+    "/usr/bin/env": "eb1c64bbc9908afcdf8cb48524f17112d8dd76a249f80dee2f01da14747b3b6e",
+    "/usr/bin/python3": "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1",
+    "/usr/bin/timeout": "6ca1891dfc0b05d7680770c2884c0391b92467c7bb6500a5c84677e6481739f1",
+    "/workspace/.zasp-cloud-owned/spec44-runtime-tools/bin/tini": "93dcc18adc78c65a028a84799ecf8ad40c936fdfc5f2a57b1acda5a8117fa82c"
+  },
+  "sameInputs": true
+}

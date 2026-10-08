@@ -1,0 +1,53 @@
+{"Time":"2026-10-07T15:43:03.227727897Z","Action":"start","Package":"command-line-arguments"}
+{"Time":"2026-10-07T15:43:03.234772494Z","Action":"run","Package":"command-line-arguments","Test":"TestNative379ExactRelativeMembers"}
+{"Time":"2026-10-07T15:43:03.234790862Z","Action":"output","Package":"command-line-arguments","Test":"TestNative379ExactRelativeMembers","Output":"=== RUN   TestNative379ExactRelativeMembers\n"}
+{"Time":"2026-10-07T15:43:03.234886186Z","Action":"output","Package":"command-line-arguments","Test":"TestNative379ExactRelativeMembers","Output":"--- PASS: TestNative379ExactRelativeMembers (0.00s)\n"}
+{"Time":"2026-10-07T15:43:03.2349019Z","Action":"pass","Package":"command-line-arguments","Test":"TestNative379ExactRelativeMembers","Elapsed":0}
+{"Time":"2026-10-07T15:43:03.234909351Z","Action":"run","Package":"command-line-arguments","Test":"TestNative379RelativeRefusals"}
+{"Time":"2026-10-07T15:43:03.234911314Z","Action":"output","Package":"command-line-arguments","Test":"TestNative379RelativeRefusals","Output":"=== RUN   TestNative379RelativeRefusals\n"}
+{"Time":"2026-10-07T15:43:03.234980699Z","Action":"output","Package":"command-line-arguments","Test":"TestNative379RelativeRefusals","Output":"--- PASS: TestNative379RelativeRefusals (0.00s)\n"}
+{"Time":"2026-10-07T15:43:03.23500089Z","Action":"pass","Package":"command-line-arguments","Test":"TestNative379RelativeRefusals","Elapsed":0}
+{"Time":"2026-10-07T15:43:03.235016573Z","Action":"run","Package":"command-line-arguments","Test":"TestNative379ImmutableExactMembers"}
+{"Time":"2026-10-07T15:43:03.235018396Z","Action":"output","Package":"command-line-arguments","Test":"TestNative379ImmutableExactMembers","Output":"=== RUN   TestNative379ImmutableExactMembers\n"}
+{"Time":"2026-10-07T15:43:03.235777073Z","Action":"output","Package":"command-line-arguments","Test":"TestNative379ImmutableExactMembers","Output":"--- PASS: TestNative379ImmutableExactMembers (0.00s)\n"}
+{"Time":"2026-10-07T15:43:03.235803072Z","Action":"pass","Package":"command-line-arguments","Test":"TestNative379ImmutableExactMembers","Elapsed":0}
+{"Time":"2026-10-07T15:43:03.235855511Z","Action":"run","Package":"command-line-arguments","Test":"TestNative379ImmutableRefusals"}
+{"Time":"2026-10-07T15:43:03.235857494Z","Action":"output","Package":"command-line-arguments","Test":"TestNative379ImmutableRefusals","Output":"=== RUN   TestNative379ImmutableRefusals\n"}
+{"Time":"2026-10-07T15:43:03.236400415Z","Action":"output","Package":"command-line-arguments","Test":"TestNative379ImmutableRefusals","Output":"--- PASS: TestNative379ImmutableRefusals (0.00s)\n"}
+{"Time":"2026-10-07T15:43:03.23644989Z","Action":"pass","Package":"command-line-arguments","Test":"TestNative379ImmutableRefusals","Elapsed":0}
+{"Time":"2026-10-07T15:43:03.236451963Z","Action":"run","Package":"command-line-arguments","Test":"TestNative379FrozenBoundLoopExactInputs"}
+{"Time":"2026-10-07T15:43:03.236453685Z","Action":"output","Package":"command-line-arguments","Test":"TestNative379FrozenBoundLoopExactInputs","Output":"=== RUN   TestNative379FrozenBoundLoopExactInputs\n"}
+{"Time":"2026-10-07T15:43:03.236731696Z","Action":"output","Package":"command-line-arguments","Test":"TestNative379FrozenBoundLoopExactInputs","Output":"    cases_test.go:13: actual bound input loop refused required immutable members\n"}
+{"Time":"2026-10-07T15:43:03.236929835Z","Action":"output","Package":"command-line-arguments","Test":"TestNative379FrozenBoundLoopExactInputs","Output":"--- FAIL: TestNative379FrozenBoundLoopExactInputs (0.00s)\n"}
+{"Time":"2026-10-07T15:43:03.236964057Z","Action":"fail","Package":"command-line-arguments","Test":"TestNative379FrozenBoundLoopExactInputs","Elapsed":0}
+{"Time":"2026-10-07T15:43:03.23696619Z","Action":"run","Package":"command-line-arguments","Test":"TestNative379FrozenBoundLoopRefusals"}
+{"Time":"2026-10-07T15:43:03.236967612Z","Action":"output","Package":"command-line-arguments","Test":"TestNative379FrozenBoundLoopRefusals","Output":"=== RUN   TestNative379FrozenBoundLoopRefusals\n"}
+{"Time":"2026-10-07T15:43:03.237003997Z","Action":"run","Package":"command-line-arguments","Test":"TestNative379FrozenBoundLoopRefusals/unlisted-script"}
+{"Time":"2026-10-07T15:43:03.237009315Z","Action":"output","Package":"command-line-arguments","Test":"TestNative379FrozenBoundLoopRefusals/unlisted-script","Output":"=== RUN   TestNative379FrozenBoundLoopRefusals/unlisted-script\n"}
+{"Time":"2026-10-07T15:43:03.237418614Z","Action":"output","Package":"command-line-arguments","Test":"TestNative379FrozenBoundLoopRefusals/unlisted-script","Output":"--- PASS: TestNative379FrozenBoundLoopRefusals/unlisted-script (0.00s)\n"}
+{"Time":"2026-10-07T15:43:03.237456291Z","Action":"pass","Package":"command-line-arguments","Test":"TestNative379FrozenBoundLoopRefusals/unlisted-script","Elapsed":0}
+{"Time":"2026-10-07T15:43:03.237458764Z","Action":"run","Package":"command-line-arguments","Test":"TestNative379FrozenBoundLoopRefusals/unlisted-health"}
+{"Time":"2026-10-07T15:43:03.237460277Z","Action":"output","Package":"command-line-arguments","Test":"TestNative379FrozenBoundLoopRefusals/unlisted-health","Output":"=== RUN   TestNative379FrozenBoundLoopRefusals/unlisted-health\n"}
+{"Time":"2026-10-07T15:43:03.2378794Z","Action":"output","Package":"command-line-arguments","Test":"TestNative379FrozenBoundLoopRefusals/unlisted-health","Output":"--- PASS: TestNative379FrozenBoundLoopRefusals/unlisted-health (0.00s)\n"}
+{"Time":"2026-10-07T15:43:03.23790594Z","Action":"pass","Package":"command-line-arguments","Test":"TestNative379FrozenBoundLoopRefusals/unlisted-health","Elapsed":0}
+{"Time":"2026-10-07T15:43:03.237928074Z","Action":"run","Package":"command-line-arguments","Test":"TestNative379FrozenBoundLoopRefusals/writable-input"}
+{"Time":"2026-10-07T15:43:03.237943417Z","Action":"output","Package":"command-line-arguments","Test":"TestNative379FrozenBoundLoopRefusals/writable-input","Output":"=== RUN   TestNative379FrozenBoundLoopRefusals/writable-input\n"}
+{"Time":"2026-10-07T15:43:03.238339826Z","Action":"output","Package":"command-line-arguments","Test":"TestNative379FrozenBoundLoopRefusals/writable-input","Output":"--- PASS: TestNative379FrozenBoundLoopRefusals/writable-input (0.00s)\n"}
+{"Time":"2026-10-07T15:43:03.23836234Z","Action":"pass","Package":"command-line-arguments","Test":"TestNative379FrozenBoundLoopRefusals/writable-input","Elapsed":0}
+{"Time":"2026-10-07T15:43:03.238379126Z","Action":"run","Package":"command-line-arguments","Test":"TestNative379FrozenBoundLoopRefusals/writable-ancestor"}
+{"Time":"2026-10-07T15:43:03.238380508Z","Action":"output","Package":"command-line-arguments","Test":"TestNative379FrozenBoundLoopRefusals/writable-ancestor","Output":"=== RUN   TestNative379FrozenBoundLoopRefusals/writable-ancestor\n"}
+{"Time":"2026-10-07T15:43:03.238760762Z","Action":"output","Package":"command-line-arguments","Test":"TestNative379FrozenBoundLoopRefusals/writable-ancestor","Output":"--- PASS: TestNative379FrozenBoundLoopRefusals/writable-ancestor (0.00s)\n"}
+{"Time":"2026-10-07T15:43:03.238778359Z","Action":"pass","Package":"command-line-arguments","Test":"TestNative379FrozenBoundLoopRefusals/writable-ancestor","Elapsed":0}
+{"Time":"2026-10-07T15:43:03.238793542Z","Action":"run","Package":"command-line-arguments","Test":"TestNative379FrozenBoundLoopRefusals/symlink-input"}
+{"Time":"2026-10-07T15:43:03.238794924Z","Action":"output","Package":"command-line-arguments","Test":"TestNative379FrozenBoundLoopRefusals/symlink-input","Output":"=== RUN   TestNative379FrozenBoundLoopRefusals/symlink-input\n"}
+{"Time":"2026-10-07T15:43:03.23922895Z","Action":"output","Package":"command-line-arguments","Test":"TestNative379FrozenBoundLoopRefusals/symlink-input","Output":"--- PASS: TestNative379FrozenBoundLoopRefusals/symlink-input (0.00s)\n"}
+{"Time":"2026-10-07T15:43:03.239235921Z","Action":"pass","Package":"command-line-arguments","Test":"TestNative379FrozenBoundLoopRefusals/symlink-input","Elapsed":0}
+{"Time":"2026-10-07T15:43:03.239240828Z","Action":"run","Package":"command-line-arguments","Test":"TestNative379FrozenBoundLoopRefusals/foreign-root"}
+{"Time":"2026-10-07T15:43:03.23924236Z","Action":"output","Package":"command-line-arguments","Test":"TestNative379FrozenBoundLoopRefusals/foreign-root","Output":"=== RUN   TestNative379FrozenBoundLoopRefusals/foreign-root\n"}
+{"Time":"2026-10-07T15:43:03.239648014Z","Action":"output","Package":"command-line-arguments","Test":"TestNative379FrozenBoundLoopRefusals/foreign-root","Output":"--- PASS: TestNative379FrozenBoundLoopRefusals/foreign-root (0.00s)\n"}
+{"Time":"2026-10-07T15:43:03.239666211Z","Action":"pass","Package":"command-line-arguments","Test":"TestNative379FrozenBoundLoopRefusals/foreign-root","Elapsed":0}
+{"Time":"2026-10-07T15:43:03.239691399Z","Action":"output","Package":"command-line-arguments","Test":"TestNative379FrozenBoundLoopRefusals","Output":"--- PASS: TestNative379FrozenBoundLoopRefusals (0.00s)\n"}
+{"Time":"2026-10-07T15:43:03.239709366Z","Action":"pass","Package":"command-line-arguments","Test":"TestNative379FrozenBoundLoopRefusals","Elapsed":0}
+{"Time":"2026-10-07T15:43:03.239726072Z","Action":"output","Package":"command-line-arguments","Output":"FAIL\n"}
+{"Time":"2026-10-07T15:43:03.24049597Z","Action":"output","Package":"command-line-arguments","Output":"FAIL\tcommand-line-arguments\t0.013s\n"}
+{"Time":"2026-10-07T15:43:03.240511504Z","Action":"fail","Package":"command-line-arguments","Elapsed":0.013}

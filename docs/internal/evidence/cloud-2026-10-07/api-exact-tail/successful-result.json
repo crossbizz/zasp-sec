@@ -1,0 +1,158 @@
+{
+  "afterMapSHA256": "f18f9de06ca0bd4b917bbb2fdd6db6c12aedcc373e8648aa72bbd5a29b3f89c4",
+  "beforeMapSHA256": "f18f9de06ca0bd4b917bbb2fdd6db6c12aedcc373e8648aa72bbd5a29b3f89c4",
+  "completed": true,
+  "elapsed": 0.6945050050017016,
+  "environment": {
+    "LC_ALL": "C",
+    "PATH": "/usr/bin:/bin",
+    "TMPDIR": "/tmp/API-tail-scratch-jpdu51ib"
+  },
+  "failure": null,
+  "firstRefusal": null,
+  "format": "production-API-exact-tail-causal-component-v1",
+  "nativeVerified": false,
+  "reaps": [],
+  "resourceHistory": [
+    {
+      "elapsed": 0.0001932420018420089,
+      "phase": "preflight",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2653519872,
+        "/workspace": 1500561408,
+        "memoryHeadroom": 1425256448
+      }
+    },
+    {
+      "elapsed": 0.19392660500307102,
+      "phase": "RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2653515776,
+        "/workspace": 1500561408,
+        "memoryHeadroom": 1425256448
+      }
+    },
+    {
+      "elapsed": 0.19400612500248826,
+      "phase": "RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2653515776,
+        "/workspace": 1500561408,
+        "memoryHeadroom": 1425256448
+      }
+    },
+    {
+      "elapsed": 0.19444284600103856,
+      "phase": "RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2653515776,
+        "/workspace": 1500561408,
+        "memoryHeadroom": 1424994304
+      }
+    },
+    {
+      "elapsed": 0.29481638400102383,
+      "phase": "RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2653507584,
+        "/workspace": 1500561408,
+        "memoryHeadroom": 1413201920
+      }
+    },
+    {
+      "elapsed": 0.39785430100164376,
+      "phase": "GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2653507584,
+        "/workspace": 1500561408,
+        "memoryHeadroom": 1424654336
+      }
+    },
+    {
+      "elapsed": 0.39792548800323857,
+      "phase": "GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2653507584,
+        "/workspace": 1500561408,
+        "memoryHeadroom": 1424654336
+      }
+    },
+    {
+      "elapsed": 0.3982779610014404,
+      "phase": "GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2653507584,
+        "/workspace": 1500561408,
+        "memoryHeadroom": 1424654336
+      }
+    },
+    {
+      "elapsed": 0.49862781400224776,
+      "phase": "GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2653503488,
+        "/workspace": 1500561408,
+        "memoryHeadroom": 1413365760
+      }
+    },
+    {
+      "elapsed": 0.6944980440021027,
+      "phase": "final",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2653499392,
+        "/workspace": 1500561408,
+        "memoryHeadroom": 1424990208
+      }
+    }
+  ],
+  "sessions": [
+    39314,
+    39328
+  ],
+  "sevenAnchorsIssued": false,
+  "statuses": {
+    "GREEN": {
+      "observed": {
+        "dependency ambiguity and potential truncated leading dependency remain closed": "pass",
+        "exact retained tail preserves closed dependency alongside runtime stage": "pass",
+        "exact retained tail preserves six complete internal stage witnesses": "pass",
+        "oversized partial duplicate unknown and leading poisoned tails refuse": "pass"
+      },
+      "returnCode": 0
+    },
+    "RED": {
+      "observed": {
+        "dependency ambiguity and potential truncated leading dependency remain closed": "fail",
+        "exact retained tail preserves closed dependency alongside runtime stage": "fail",
+        "exact retained tail preserves six complete internal stage witnesses": "fail",
+        "oversized partial duplicate unknown and leading poisoned tails refuse": "pass"
+      },
+      "returnCode": 1
+    }
+  },
+  "unknown": [],
+  "waits": [
+    {
+      "joined": true,
+      "phase": "RED",
+      "pid": 39314,
+      "returnCode": 1
+    },
+    {
+      "joined": true,
+      "phase": "GREEN",
+      "pid": 39328,
+      "returnCode": 0
+    }
+  ]
+}

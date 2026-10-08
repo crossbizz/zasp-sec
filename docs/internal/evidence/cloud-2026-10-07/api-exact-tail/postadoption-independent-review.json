@@ -1,0 +1,36 @@
+{
+  "actualTAP": {
+    "bytes": 45204,
+    "cancelled": 0,
+    "fail": 0,
+    "pass": 210,
+    "path": "/tmp/api-tail-postadoption-regressions.tap",
+    "sha256": "2520b87472ef23945aa045ca30b686c7d7c50f45b1762cf5fa7643f9205dc0df",
+    "skip": 0,
+    "tests": 210
+  },
+  "adoptedSources": [
+    {
+      "sha256": "aadeca4a07046d3bdb336aa8f036140e18cfb3fa5f84faf2dfaf20f359eba233",
+      "target": "scripts/browser-command-failure.mjs"
+    },
+    {
+      "sha256": "cd2483114d8c03a12b2d6ccdd874948246e1cdf3dbe74b076dd373d5271ce111",
+      "target": "scripts/compliance-api-child-stage.test.mjs"
+    },
+    {
+      "sha256": "95706ba5299d0d3b1d70e50524372a646f661a1cd5d44e9f1faed6a2cc1b63e9",
+      "target": "scripts/compliance-api-exact-tail.test.mjs"
+    },
+    {
+      "sha256": "26934703c31507e9a675a3f9aec6868e633b91850a4e05f7ef70c1d43d07190c",
+      "target": "scripts/compliance-browser-bytes.test.mjs"
+    }
+  ],
+  "claims": "Diagnosticboundary software only; hosted readiness cause/60s deadline resolution unproven; no native379/anchors/deployedauthority. Original 66ddd counter refusal and corrected causal4a2a remain conserved.",
+  "publicationPending": "Frozen exact final payloadmanifest/lineencoded originalTAP reconstruction/scopeddefaultGitleaks and final selected whitespace checks beforecommit.",
+  "sourceCheck": "Allfour physicalTMPcheckout postimages exact reviewed candidate and hashes; allnewfour diagnostic cases and existingboundary case present in TAP, no not-ok. No independent test rerun.",
+  "sourcePlanSHA256": "5a08fe46c956e103afd3270d57d9b1deb8ee15735ab1970ec101a5bdb8efab02",
+  "toolScope": "ROOT observed Node normalexit0 and stderr0; scopedESLint0/diffcheck0/ledger72852314461missing0 reported by ROOT but no original tool receipts provided yet; do not infer owned service custody/source-prepostmap from TAP alone.",
+  "verdict": "PASS scoped adopted-source and actual TAP review, final publication/scans pending"
+}

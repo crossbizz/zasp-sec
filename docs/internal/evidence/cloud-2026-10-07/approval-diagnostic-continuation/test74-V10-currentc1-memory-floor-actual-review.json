@@ -1,0 +1,73 @@
+{
+  "FGAStarted": false,
+  "acceptedStages": 0,
+  "actualHeadroomBytes": 99373056,
+  "allRecordedJoins": true,
+  "approvalMarker": false,
+  "censusUnknown": [],
+  "completed": false,
+  "credentialEvents": 0,
+  "firstRefusal": {
+    "elapsedSeconds": 112.81224366199967,
+    "phase": "owned-credential-admission",
+    "reason": "direct memory floor",
+    "resources": {
+      "/dev/shm": 9441349632,
+      "/tmp": 4967944192,
+      "/workspace": 1628643328,
+      "memoryHeadroom": 99373056
+    },
+    "signals": []
+  },
+  "forcedCleanup": true,
+  "format": "independent-test74-V10-currentc1-memory-floor-actual-refusal-review-v1",
+  "innerSeconds": 113.51610778000031,
+  "memoryFloorBytes": 100000000,
+  "outerNormalExit": 1,
+  "outerSHA256": "55f94135bd00603910664a5ef93ae6f7133959d5b3f2b4cdefc613fca9cbbc8c",
+  "outerSeconds": 113.58971072699933,
+  "phase": "owned-credential-admission",
+  "receivedSignals": [],
+  "recordedWaits": [
+    {
+      "joined": true,
+      "pid": 27191,
+      "returnCode": 0,
+      "tag": "base-head"
+    },
+    {
+      "joined": true,
+      "pid": 27193,
+      "returnCode": 0,
+      "tag": "offline-modules"
+    },
+    {
+      "joined": true,
+      "pid": 27198,
+      "returnCode": 0,
+      "tag": "selected-inputs"
+    },
+    {
+      "joined": true,
+      "pid": 27222,
+      "returnCode": 143,
+      "tag": "owned-credential-admission"
+    }
+  ],
+  "resultPath": "/workspace/.zasp-cloud-owned/native-test74-approvaldiag-currentc1c45-b2h9s2m7/actual-m9ln9b3r/result.json",
+  "resultSHA256": "0d931420001a94bd567fcf63d22e7eacd320df56064d7307b5cdbafd773c8ae4",
+  "scope": [
+    "The credential child was stopped with recorded return143 after live direct-memory reserve refusal; normal outer exit1 is a failure, not unforced test execution.",
+    "No credential case or genuine approval diagnostic ran; no TEST74 marker, approval cause, positive acceptance or native readiness can be inferred.",
+    "All earlier failed approval fixtures/results remain unchanged. Future retry requires independently reviewed fresh resource restoration/admission and new actual run.",
+    "Read-only actual log/map/receipt review only; no cache advice, process census, test, Go or service runtime by reviewer."
+  ],
+  "sourceMaps": {
+    "aggregateSHA256": "94c8ab21057c56e0f1263c15e12607fa937c57dab250d8e943b34ddd9deafdf6",
+    "allCurrentBodiesNotRereadByReviewer": true,
+    "beforeAfterEqual": true,
+    "members": 14004
+  },
+  "status": "VERIFIED_MEMORY_FLOOR_REFUSAL_NO_DIAGNOSTIC_ACCEPTANCE",
+  "survivors": []
+}

@@ -1,0 +1,45 @@
+{
+  "GREEN": {
+    "accepted": false,
+    "joined": true,
+    "returnCode": -15
+  },
+  "RED": {
+    "causalFailure": "actual bound input loop refused required immutable members",
+    "negativeSubcasePass": 6,
+    "topFail": 1,
+    "topPass": 5
+  },
+  "actual": {
+    "path": "/tmp/actual-exact-path-TDD-ffwfpgfp/result.json",
+    "sha256": "216b70a68f7849b3fa35d974c6235ac6ca65e0fc0a4f1cde182c424bbcbb445f"
+  },
+  "firstRefusal": {
+    "elapsed": 1.132004909999523,
+    "phase": "GREEN",
+    "reason": "live floor/signal/deadline",
+    "resources": {
+      "/dev/shm": 9441349632,
+      "/tmp": 2439483392,
+      "/workspace": 1499869184,
+      "memoryHeadroom": 1112510464
+    },
+    "signals": []
+  },
+  "inputMaps": {
+    "canonicalReceiptDigest": "f1ee8ba94b869e54e0481fd453bc36fef19058cbddede5418671f776a076dfa4",
+    "count": 11501,
+    "exactBeforeAfterEqual": true,
+    "fileSHA256": "0dc7298a31ee5416f2e37180fb6870912c80e26e520ea7a04f0ecf6e58616c2c",
+    "qualification": "Receipt-map equality; no large Go/cache payload rehash."
+  },
+  "lateRefusalSHA256": "9bc6898b0a1d96758358cf2b3c170eff16fd1fd47469bee5886c8325ef88a405",
+  "limitations": "No native/frozen-build/seven-anchor or full component PASS. GREEN termination follows unchanged workspace floor, not a demonstrated source/test defect. Both recorded direct joins and ROOT normal outer exit 1 bound; no independent live census replay.",
+  "outer": {
+    "exitCode": 1,
+    "normalWaitObserved": true,
+    "path": "/tmp/native379-fullV3-bound-loop-root-outer-oi69a_ui/normal-outer-results.json"
+  },
+  "unknown": [],
+  "verdict": "FAIL-resource-gate-preserved-no-GREEN-acceptance"
+}

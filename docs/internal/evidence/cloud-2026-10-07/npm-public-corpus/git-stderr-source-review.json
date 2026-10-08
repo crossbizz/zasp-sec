@@ -1,0 +1,9 @@
+{
+  "manifestSHA256": "62211853f3acba69bd3f2dc1ac9657765f65c8db1b74b7c7cfa50dabff9de97f",
+  "priorFailure": "Parent reports V6 own-helper absence assertion passed, but CLI fixed-stderr assertion failed due Git fatal output. Old logs remain; no previous54PASS claimed by reviewer.",
+  "productSHA256": "88d3b0756c62f66eca823f79275d3b208668069b9584d1c3e52a2b432c7529e0",
+  "qualification": "Exact current Git/config local-only regression; per-protocol config override sensitivity not established, no arbitrary repository policy claim. No official intake/release clearance. No execution by reviewer.",
+  "soleDelta": "Explicit ignore stdin/capture stdout+stderr in existing bounded execFileSync. Child Git stderr retained privately in thrown error rather than inherited output; outer callable CLI emits only fixed refusal. Matcher/authority/caps/protocol/no-lazy-fetch flags unchanged.",
+  "tests": "Same full54 control bodies unchanged; ROOT must rerun and confirm54PASS and exact fixed CLI stderr.",
+  "verdict": "PASS-narrow-Git-stderr-capture-source"
+}

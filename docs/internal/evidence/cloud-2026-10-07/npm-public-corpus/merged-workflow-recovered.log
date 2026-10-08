@@ -1,0 +1,9 @@
+
+ RUN  v4.1.11 /tmp/zasp-startup-diagnostic-checkout
+
+
+ Test Files  1 passed (1)
+      Tests  326 passed (326)
+   Start at  16:45:10
+   Duration  50.22s (transform 94ms, setup 132ms, import 96ms, tests 49.33s, environment 535ms)
+

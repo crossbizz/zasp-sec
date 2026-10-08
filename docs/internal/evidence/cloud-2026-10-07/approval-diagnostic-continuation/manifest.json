@@ -1,0 +1,648 @@
+{
+  "format": "closed-c1-continuation-publication-candidate-v1",
+  "omittedOriginalResultReferences": [
+    {
+      "bytes": 301330,
+      "identity": {
+        "ctime_ns": 1791376513093284658,
+        "dev": 27,
+        "gid": 1000,
+        "ino": 998498,
+        "mode": "0o400",
+        "mtime_ns": 1791376513093284658,
+        "nlink": 1,
+        "size": 301330,
+        "uid": 1000
+      },
+      "path": "/workspace/.zasp-cloud-owned/native-test74-approvaldiag-currentc1c45-b2h9s2m7/actual-m9ln9b3r/result.json",
+      "sha256": "0d931420001a94bd567fcf63d22e7eacd320df56064d7307b5cdbafd773c8ae4"
+    },
+    {
+      "bytes": 1015813,
+      "identity": {
+        "ctime_ns": 1791378116073375416,
+        "dev": 27,
+        "gid": 1000,
+        "ino": 998519,
+        "mode": "0o400",
+        "mtime_ns": 1791378116073375416,
+        "nlink": 1,
+        "size": 1015813,
+        "uid": 1000
+      },
+      "path": "/workspace/.zasp-cloud-owned/native-test74-approvaldiag-currentc1c45-b2h9s2m7/actual-tvucw0d0/result.json",
+      "sha256": "aa94ee07a34a640c65f1dcd2159745efc2d7c047c8c031ca533b0a6aa075084d"
+    }
+  ],
+  "payloadMembers": [
+    {
+      "bytes": 2594,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 66738,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "first-owner-result-selected.json",
+      "selection": "derived-explicit-field-selection",
+      "sha256": "7ee60cf506ac7d6e41a573d26dad1279effd2986ce2fa11c6cbee0e0c27c63ab",
+      "sourceIdentity": {
+        "ctime_ns": 1791376513093284658,
+        "dev": 27,
+        "gid": 1000,
+        "ino": 998498,
+        "mode": "0o400",
+        "mtime_ns": 1791376513093284658,
+        "nlink": 1,
+        "size": 301330,
+        "uid": 1000
+      },
+      "sourcePath": "/workspace/.zasp-cloud-owned/native-test74-approvaldiag-currentc1c45-b2h9s2m7/actual-m9ln9b3r/result.json",
+      "sourceSHA256": null
+    },
+    {
+      "bytes": 1603,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 66739,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "first-outer-normal-outer-result.json",
+      "selection": "byte-exact-original",
+      "sha256": "55f94135bd00603910664a5ef93ae6f7133959d5b3f2b4cdefc613fca9cbbc8c",
+      "sourceIdentity": {
+        "ctime_ns": 1791376513115385040,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 62434,
+        "mode": "0o600",
+        "mtime_ns": 1791376513115385040,
+        "nlink": 1,
+        "size": 1603,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/test74-approvaldiag-root-outer-ln7q6zjq/normal-outer-result.json",
+      "sourceSHA256": "55f94135bd00603910664a5ef93ae6f7133959d5b3f2b4cdefc613fca9cbbc8c"
+    },
+    {
+      "bytes": 278,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 66740,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "first-outer-stdout.log",
+      "selection": "byte-exact-original",
+      "sha256": "7f01720e4b66f6b11abd6b233d2a577132042a4fed58dac3b35c5133c11a865d",
+      "sourceIdentity": {
+        "ctime_ns": 1791376513093284658,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 61645,
+        "mode": "0o600",
+        "mtime_ns": 1791376513093284658,
+        "nlink": 1,
+        "size": 278,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/test74-approvaldiag-root-outer-ln7q6zjq/stdout.log",
+      "sourceSHA256": "7f01720e4b66f6b11abd6b233d2a577132042a4fed58dac3b35c5133c11a865d"
+    },
+    {
+      "bytes": 0,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 66741,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "first-outer-stderr.log",
+      "selection": "byte-exact-original",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sourceIdentity": {
+        "ctime_ns": 1791376399518396789,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 61646,
+        "mode": "0o600",
+        "mtime_ns": 1791376399518396789,
+        "nlink": 1,
+        "size": 0,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/test74-approvaldiag-root-outer-ln7q6zjq/stderr.log",
+      "sourceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 66742,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "first-owned-credential-admission.jsonl",
+      "selection": "byte-exact-original",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sourceIdentity": {
+        "ctime_ns": 1791376403658508629,
+        "dev": 27,
+        "gid": 1000,
+        "ino": 998495,
+        "mode": "0o600",
+        "mtime_ns": 1791376403658508629,
+        "nlink": 1,
+        "size": 0,
+        "uid": 1000
+      },
+      "sourcePath": "/workspace/.zasp-cloud-owned/native-test74-approvaldiag-currentc1c45-b2h9s2m7/actual-m9ln9b3r/owned-credential-admission.jsonl",
+      "sourceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 66743,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "first-owned-credential-admission.stderr",
+      "selection": "byte-exact-original",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sourceIdentity": {
+        "ctime_ns": 1791376403658508629,
+        "dev": 27,
+        "gid": 1000,
+        "ino": 998496,
+        "mode": "0o600",
+        "mtime_ns": 1791376403658508629,
+        "nlink": 1,
+        "size": 0,
+        "uid": 1000
+      },
+      "sourcePath": "/workspace/.zasp-cloud-owned/native-test74-approvaldiag-currentc1c45-b2h9s2m7/actual-m9ln9b3r/owned-credential-admission.stderr",
+      "sourceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 4574,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 66744,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "retry-owner-result-selected.json",
+      "selection": "derived-explicit-field-selection",
+      "sha256": "a7f48f793ad4c68989d88bedbdbef7c778fcf5689abce6fe71554f67dbc6f1ea",
+      "sourceIdentity": {
+        "ctime_ns": 1791378116073375416,
+        "dev": 27,
+        "gid": 1000,
+        "ino": 998519,
+        "mode": "0o400",
+        "mtime_ns": 1791378116073375416,
+        "nlink": 1,
+        "size": 1015813,
+        "uid": 1000
+      },
+      "sourcePath": "/workspace/.zasp-cloud-owned/native-test74-approvaldiag-currentc1c45-b2h9s2m7/actual-tvucw0d0/result.json",
+      "sourceSHA256": null
+    },
+    {
+      "bytes": 1604,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 66745,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "retry-outer-normal-outer-result.json",
+      "selection": "byte-exact-original",
+      "sha256": "20977d3d0e4278a644bde3510b1c338d0c8a4264b1b8d82addd6451aac8eae42",
+      "sourceIdentity": {
+        "ctime_ns": 1791378116097163360,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 66732,
+        "mode": "0o600",
+        "mtime_ns": 1791378116097163360,
+        "nlink": 1,
+        "size": 1604,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/test74-approvaldiag-retry-root-outer-d4e59o67/normal-outer-result.json",
+      "sourceSHA256": "20977d3d0e4278a644bde3510b1c338d0c8a4264b1b8d82addd6451aac8eae42"
+    },
+    {
+      "bytes": 234,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 66746,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "retry-outer-stdout.log",
+      "selection": "byte-exact-original",
+      "sha256": "31a23e13001dc1a16f50ab0b89cc58867b7a4cb4cc71ee89a60a293da6331526",
+      "sourceIdentity": {
+        "ctime_ns": 1791378116073375416,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 62446,
+        "mode": "0o600",
+        "mtime_ns": 1791378116073375416,
+        "nlink": 1,
+        "size": 234,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/test74-approvaldiag-retry-root-outer-d4e59o67/stdout.log",
+      "sourceSHA256": "31a23e13001dc1a16f50ab0b89cc58867b7a4cb4cc71ee89a60a293da6331526"
+    },
+    {
+      "bytes": 0,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 66747,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "retry-outer-stderr.log",
+      "selection": "byte-exact-original",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sourceIdentity": {
+        "ctime_ns": 1791377850929559311,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 62447,
+        "mode": "0o600",
+        "mtime_ns": 1791377850929559311,
+        "nlink": 1,
+        "size": 0,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/test74-approvaldiag-retry-root-outer-d4e59o67/stderr.log",
+      "sourceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 9678,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 66748,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "retry-owned-credential-admission.jsonl",
+      "selection": "byte-exact-original",
+      "sha256": "d0433178d7621930eba649598dcbf5c7bb5ba199d0ab58193c2c623d9d5e353a",
+      "sourceIdentity": {
+        "ctime_ns": 1791377989669312983,
+        "dev": 27,
+        "gid": 1000,
+        "ino": 998509,
+        "mode": "0o600",
+        "mtime_ns": 1791377989669312983,
+        "nlink": 1,
+        "size": 9678,
+        "uid": 1000
+      },
+      "sourcePath": "/workspace/.zasp-cloud-owned/native-test74-approvaldiag-currentc1c45-b2h9s2m7/actual-tvucw0d0/owned-credential-admission.jsonl",
+      "sourceSHA256": "d0433178d7621930eba649598dcbf5c7bb5ba199d0ab58193c2c623d9d5e353a"
+    },
+    {
+      "bytes": 0,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 66749,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "retry-owned-credential-admission.stderr",
+      "selection": "byte-exact-original",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sourceIdentity": {
+        "ctime_ns": 1791377856341705747,
+        "dev": 27,
+        "gid": 1000,
+        "ino": 998510,
+        "mode": "0o600",
+        "mtime_ns": 1791377856341705747,
+        "nlink": 1,
+        "size": 0,
+        "uid": 1000
+      },
+      "sourcePath": "/workspace/.zasp-cloud-owned/native-test74-approvaldiag-currentc1c45-b2h9s2m7/actual-tvucw0d0/owned-credential-admission.stderr",
+      "sourceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 29868,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 66750,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "retry-genuine-single-test-inactive-capture.jsonl",
+      "selection": "byte-exact-original",
+      "sha256": "7241c6512ef32291380dad1a5f924470addd7af34a5e6f185a2e1bb7f74e09a5",
+      "sourceIdentity": {
+        "ctime_ns": 1791378114716707338,
+        "dev": 27,
+        "gid": 1000,
+        "ino": 998516,
+        "mode": "0o600",
+        "mtime_ns": 1791378114716707338,
+        "nlink": 1,
+        "size": 29868,
+        "uid": 1000
+      },
+      "sourcePath": "/workspace/.zasp-cloud-owned/native-test74-approvaldiag-currentc1c45-b2h9s2m7/actual-tvucw0d0/genuine-single-test-inactive-capture.jsonl",
+      "sourceSHA256": "7241c6512ef32291380dad1a5f924470addd7af34a5e6f185a2e1bb7f74e09a5"
+    },
+    {
+      "bytes": 0,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 66751,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "retry-genuine-single-test-inactive-capture.stderr",
+      "selection": "byte-exact-original",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sourceIdentity": {
+        "ctime_ns": 1791377990949347662,
+        "dev": 27,
+        "gid": 1000,
+        "ino": 998517,
+        "mode": "0o600",
+        "mtime_ns": 1791377990949347662,
+        "nlink": 1,
+        "size": 0,
+        "uid": 1000
+      },
+      "sourcePath": "/workspace/.zasp-cloud-owned/native-test74-approvaldiag-currentc1c45-b2h9s2m7/actual-tvucw0d0/genuine-single-test-inactive-capture.stderr",
+      "sourceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 2535,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 66752,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "test74-V10-currentc1-memory-floor-actual-review.json",
+      "selection": "byte-exact-original",
+      "sha256": "c9f317e57b9480e9219a3806d9f641382a235fc4173ea831e7e84d60dc18414d",
+      "sourceIdentity": {
+        "ctime_ns": 1791377357093410552,
+        "dev": 27,
+        "gid": 1000,
+        "ino": 1259933,
+        "mode": "0o400",
+        "mtime_ns": 1791377357093410552,
+        "nlink": 1,
+        "size": 2535,
+        "uid": 1000
+      },
+      "sourcePath": "/workspace/.zasp-cloud-owned/spec29-independent-proof/test74-V10-currentc1-memory-floor-actual-review.json",
+      "sourceSHA256": "c9f317e57b9480e9219a3806d9f641382a235fc4173ea831e7e84d60dc18414d"
+    },
+    {
+      "bytes": 1568,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 66753,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "workspace-go-page-advice-source-review.json",
+      "selection": "byte-exact-original",
+      "sha256": "f09138fa95252d31193003ab70ad436a7415fc0d7d2e7650ad4479b19b397767",
+      "sourceIdentity": {
+        "ctime_ns": 1791377561999867005,
+        "dev": 27,
+        "gid": 1000,
+        "ino": 1259934,
+        "mode": "0o400",
+        "mtime_ns": 1791377561999867005,
+        "nlink": 1,
+        "size": 1568,
+        "uid": 1000
+      },
+      "sourcePath": "/workspace/.zasp-cloud-owned/spec29-independent-proof/workspace-go-page-advice-source-review.json",
+      "sourceSHA256": "f09138fa95252d31193003ab70ad436a7415fc0d7d2e7650ad4479b19b397767"
+    },
+    {
+      "bytes": 2277,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 66754,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "workspace-go-page-advice-actual-review.json",
+      "selection": "byte-exact-original",
+      "sha256": "a62c27a729f2e2e53e5f6158255cc28b4c178231dd974dba077e4787263469e5",
+      "sourceIdentity": {
+        "ctime_ns": 1791377819859058827,
+        "dev": 27,
+        "gid": 1000,
+        "ino": 1259935,
+        "mode": "0o400",
+        "mtime_ns": 1791377819859058827,
+        "nlink": 1,
+        "size": 2277,
+        "uid": 1000
+      },
+      "sourcePath": "/workspace/.zasp-cloud-owned/spec29-independent-proof/workspace-go-page-advice-actual-review.json",
+      "sourceSHA256": "a62c27a729f2e2e53e5f6158255cc28b4c178231dd974dba077e4787263469e5"
+    },
+    {
+      "bytes": 3732,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 66755,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "test74-V10-currentc1-actual-diagnostic-review.json",
+      "selection": "byte-exact-original",
+      "sha256": "7572761b2cb73f9c5959bae8a4f8f2ef2fb9c22ae332599d260ef0f7ae85f552",
+      "sourceIdentity": {
+        "ctime_ns": 1791378199708578707,
+        "dev": 27,
+        "gid": 1000,
+        "ino": 1259936,
+        "mode": "0o400",
+        "mtime_ns": 1791378199708578707,
+        "nlink": 1,
+        "size": 3732,
+        "uid": 1000
+      },
+      "sourcePath": "/workspace/.zasp-cloud-owned/spec29-independent-proof/test74-V10-currentc1-actual-diagnostic-review.json",
+      "sourceSHA256": "7572761b2cb73f9c5959bae8a4f8f2ef2fb9c22ae332599d260ef0f7ae85f552"
+    },
+    {
+      "bytes": 1618,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 66756,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "readonly-page-advice-first-result.json",
+      "selection": "byte-exact-original",
+      "sha256": "33812c692a05a099505ee9df76b7a8abab94c7ee83fd575ad2957f96ef21f8cb",
+      "sourceIdentity": {
+        "ctime_ns": 1791377728396226452,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 62444,
+        "mode": "0o600",
+        "mtime_ns": 1791377728396226452,
+        "nlink": 1,
+        "size": 1618,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/workspace-go-page-advice-actual-fyd91_hz/result.json",
+      "sourceSHA256": "33812c692a05a099505ee9df76b7a8abab94c7ee83fd575ad2957f96ef21f8cb"
+    },
+    {
+      "bytes": 1618,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 66757,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "readonly-page-advice-second-result.json",
+      "selection": "byte-exact-original",
+      "sha256": "fbdcfc0eed1831c6bb2e7c4fe3bb00e5c94dfd34a3413d87127f32dfc73d7000",
+      "sourceIdentity": {
+        "ctime_ns": 1791378432776002496,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 66735,
+        "mode": "0o600",
+        "mtime_ns": 1791378432776002496,
+        "nlink": 1,
+        "size": 1618,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/workspace-go-page-advice-actual-ywbgsoe0/result.json",
+      "sourceSHA256": "fbdcfc0eed1831c6bb2e7c4fe3bb00e5c94dfd34a3413d87127f32dfc73d7000"
+    },
+    {
+      "bytes": 16942,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 66758,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "launch-binding-handoff.json",
+      "selection": "byte-exact-original",
+      "sha256": "1152a053812b1a95afa9cbe689a964013b2a6ebde49602900a2aa2fc0e4b1b26",
+      "sourceIdentity": {
+        "ctime_ns": 1791378266214568650,
+        "dev": 27,
+        "gid": 1000,
+        "ino": 998528,
+        "mode": "0o400",
+        "mtime_ns": 1791378266214568650,
+        "nlink": 1,
+        "size": 16942,
+        "uid": 1000
+      },
+      "sourcePath": "/workspace/.zasp-cloud-owned/launch-prerequisite-action-handoff-3el91n9l/handoff-verified.json",
+      "sourceSHA256": "1152a053812b1a95afa9cbe689a964013b2a6ebde49602900a2aa2fc0e4b1b26"
+    },
+    {
+      "bytes": 10694,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 66759,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "hosted-run-metadata.json",
+      "selection": "derived-read-only-gh-metadata-and-labelled-ROOT-observation",
+      "sha256": "072eafe581585ded5e588a4f721d0ea9653e2e72a476d444d4cd3182754a5a29",
+      "sourceIdentity": null,
+      "sourcePath": null,
+      "sourceSHA256": null
+    },
+    {
+      "bytes": 1661,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 66760,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "README.md",
+      "selection": "new-scope-document",
+      "sha256": "803a88de477d470c32b8c151fbe7ad0b65cc668edb80af9727a3d2dd2c4a618b",
+      "sourceIdentity": null,
+      "sourcePath": null,
+      "sourceSHA256": null
+    }
+  ],
+  "publicationSafety": {
+    "encodedPayloadSelection": "none",
+    "manualSelection": "Complete selected original logs/reviews inspected; no token values, auth headers, private maps, binaries, signed download URLs or encoded vendor payloads selected.",
+    "scanner": "NOT_RUN",
+    "sharedWrites": false
+  },
+  "root": "/tmp/c1-continuation-publication-q3e3db1e",
+  "scope": "Diagnostic/refusal history only; V11 and deployment activation not accepted."
+}

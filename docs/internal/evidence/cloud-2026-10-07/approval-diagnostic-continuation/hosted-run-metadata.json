@@ -1,0 +1,328 @@
+{
+  "V11": "Pending wrong-login fixture successor; no PASS claimed",
+  "annotations": {
+    "argv": [
+      "gh",
+      "api",
+      "repos/crossbizz/zasp-sec/check-runs/112791734724/annotations"
+    ],
+    "exit": 0,
+    "parsedResponse": [
+      {
+        "annotation_level": "failure",
+        "blob_href": "https://github.com/crossbizz/zasp-sec/blob/c1c45b24c5e0eec76b49e80c9f2f632087a6b33f/.github",
+        "end_column": null,
+        "end_line": 1220,
+        "message": "Process completed with exit code 1.",
+        "path": ".github",
+        "raw_details": "",
+        "start_column": null,
+        "start_line": 1220,
+        "title": ""
+      },
+      {
+        "annotation_level": "failure",
+        "blob_href": "https://github.com/crossbizz/zasp-sec/blob/c1c45b24c5e0eec76b49e80c9f2f632087a6b33f/.github",
+        "end_column": null,
+        "end_line": 1219,
+        "message": "npm run verify failed; latest observed phase: health:contract:test.",
+        "path": ".github",
+        "raw_details": "",
+        "start_column": null,
+        "start_line": 1219,
+        "title": "npm verify failed"
+      }
+    ],
+    "responseBytes": 654,
+    "responseSHA256": "c8921e13f163d17416cad15f1dc453985c37bd566ba532c58a62423487074bfa"
+  },
+  "artifacts": "ROOT reports no artifacts; artifact listing not independently queried",
+  "cause": "UNKNOWN",
+  "format": "read-only-hosted-run-metadata-v1",
+  "logDownload403": {
+    "retainedLogBytes": 0,
+    "retrievedLogContent": false,
+    "rootSessionReference": "be0bed",
+    "scope": "ROOT message observation only"
+  },
+  "observedAtUTC": "2026-10-07T13:09:49.119199+00:00",
+  "run": {
+    "argv": [
+      "gh",
+      "run",
+      "view",
+      "37621231493",
+      "--repo",
+      "crossbizz/zasp-sec",
+      "--json",
+      "conclusion,jobs,url,headSha"
+    ],
+    "exit": 0,
+    "parsedResponse": {
+      "conclusion": "failure",
+      "headSha": "c1c45b24c5e0eec76b49e80c9f2f632087a6b33f",
+      "jobs": [
+        {
+          "completedAt": "2026-10-07T12:37:39Z",
+          "conclusion": "failure",
+          "databaseId": 112791734724,
+          "name": "Verify runnable UI",
+          "startedAt": "2026-10-07T12:28:30Z",
+          "status": "completed",
+          "steps": [
+            {
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Check out repository",
+              "number": 2,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Set up Node",
+              "number": 3,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Set up Go",
+              "number": 4,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Pin npm",
+              "number": 5,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Install locked dependencies",
+              "number": 6,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Install PostgreSQL 18 reference fixture tools",
+              "number": 7,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Install pinned secret scanner",
+              "number": 8,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Verify implementation status ledger",
+              "number": 9,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Prime platform full-MVS metadata for offline release contracts",
+              "number": 10,
+              "status": "completed"
+            },
+            {
+              "conclusion": "failure",
+              "name": "Verify runnable UI",
+              "number": 11,
+              "status": "completed"
+            },
+            {
+              "conclusion": "skipped",
+              "name": "Prime native migration compilation cache for compliance browser",
+              "number": 12,
+              "status": "completed"
+            },
+            {
+              "conclusion": "skipped",
+              "name": "Verify current runtime profile inner diagnostic tests",
+              "number": 13,
+              "status": "completed"
+            },
+            {
+              "conclusion": "skipped",
+              "name": "Provision isolated compliance browser prerequisites",
+              "number": 14,
+              "status": "completed"
+            },
+            {
+              "conclusion": "skipped",
+              "name": "Provision pinned owned authorization runtime tools",
+              "number": 15,
+              "status": "completed"
+            },
+            {
+              "conclusion": "skipped",
+              "name": "Verify current compliance browser acceptance",
+              "number": 16,
+              "status": "completed"
+            },
+            {
+              "conclusion": "skipped",
+              "name": "Verify Red Team runtime and ledger regressions",
+              "number": 17,
+              "status": "completed"
+            },
+            {
+              "conclusion": "skipped",
+              "name": "Verify production release sources",
+              "number": 18,
+              "status": "completed"
+            },
+            {
+              "conclusion": "skipped",
+              "name": "Verify session search IAM policies",
+              "number": 19,
+              "status": "completed"
+            },
+            {
+              "conclusion": "skipped",
+              "name": "Verify reconciliation maintenance alerts",
+              "number": 20,
+              "status": "completed"
+            },
+            {
+              "conclusion": "skipped",
+              "name": "Verify durable runtime sessions, enrollment pairing and candidate authority",
+              "number": 21,
+              "status": "completed"
+            },
+            {
+              "conclusion": "skipped",
+              "name": "Require audit fixture toolchains and pinned LocalStack image",
+              "number": 22,
+              "status": "completed"
+            },
+            {
+              "conclusion": "skipped",
+              "name": "Verify audit codec, configuration and artifact stores",
+              "number": 23,
+              "status": "completed"
+            },
+            {
+              "conclusion": "skipped",
+              "name": "Verify audit PostgreSQL authority A-M",
+              "number": 24,
+              "status": "completed"
+            },
+            {
+              "conclusion": "skipped",
+              "name": "Verify audit PostgreSQL authority N-Z",
+              "number": 25,
+              "status": "completed"
+            },
+            {
+              "conclusion": "skipped",
+              "name": "Verify audit public, worker and compatibility acceptance",
+              "number": 26,
+              "status": "completed"
+            },
+            {
+              "conclusion": "skipped",
+              "name": "Verify audit immutable retrieval and provider contracts",
+              "number": 27,
+              "status": "completed"
+            },
+            {
+              "conclusion": "skipped",
+              "name": "Verify audit HTTP memory, provider and lifetime helpers",
+              "number": 28,
+              "status": "completed"
+            },
+            {
+              "conclusion": "skipped",
+              "name": "Verify audit HTTP process composition and controlled zero source",
+              "number": 29,
+              "status": "completed"
+            },
+            {
+              "conclusion": "skipped",
+              "name": "Verify audit full-size functional race children",
+              "number": 30,
+              "status": "completed"
+            },
+            {
+              "conclusion": "skipped",
+              "name": "Verify both audit full-size memory sensitivity controls",
+              "number": 31,
+              "status": "completed"
+            },
+            {
+              "conclusion": "skipped",
+              "name": "Verify three serial audit full-size normal memory pairs",
+              "number": 32,
+              "status": "completed"
+            },
+            {
+              "conclusion": "skipped",
+              "name": "Verify full-size orderly API restart with numeric children",
+              "number": 33,
+              "status": "completed"
+            },
+            {
+              "conclusion": "skipped",
+              "name": "Verify full-size orderly API restart with race children",
+              "number": 34,
+              "status": "completed"
+            },
+            {
+              "conclusion": "skipped",
+              "name": "Verify sensor lineage and authenticated replay",
+              "number": 35,
+              "status": "completed"
+            },
+            {
+              "conclusion": "skipped",
+              "name": "Verify actual daemon lost-success replay",
+              "number": 36,
+              "status": "completed"
+            },
+            {
+              "conclusion": "skipped",
+              "name": "Verify bounded Attack Lab network enforcement",
+              "number": 37,
+              "status": "completed"
+            },
+            {
+              "conclusion": "skipped",
+              "name": "Post Set up Go",
+              "number": 72,
+              "status": "completed"
+            },
+            {
+              "conclusion": "skipped",
+              "name": "Post Set up Node",
+              "number": 73,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Post Check out repository",
+              "number": 74,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 75,
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/crossbizz/zasp-sec/actions/runs/37621231493/job/112791734724"
+        }
+      ],
+      "url": "https://github.com/crossbizz/zasp-sec/actions/runs/37621231493"
+    },
+    "responseBytes": 4854,
+    "responseSHA256": "2e5818dccc90d2bf881efa295507da2ca4b3c5e531ce3ecb87892909378a0afa"
+  }
+}

@@ -1,0 +1,127 @@
+{
+  "verdict": "PASS_CHERRY_SOURCE_SCOPE_STATUS_CONFLICT_EXACT_PRESERVATION",
+  "targetOriginalHEAD": "ec840b3ba00f34c6b52780cc8c654f5a0e8885ce",
+  "donorCommit": "f84adb35230dfe359efeda58da232d2c69ba29b5",
+  "changedPaths": 13,
+  "twelveNonStatusPathsExactDonorIndexWorktree": [
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/launch-prerequisite-contract/README.md",
+      "sha256": "1d3474b657e0e827bf34ba94976855bd736c86196353a9b2848637cff2297916",
+      "bytes": 881,
+      "donorAndIndexWorktreeExact": true
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/launch-prerequisite-contract/corrected-prerequisites-green.log",
+      "sha256": "6bb709044c3ac7ca75c064cbdfa3c6843964312fc32908af0545db16230ef34b",
+      "bytes": 51562,
+      "donorAndIndexWorktreeExact": true
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/launch-prerequisite-contract/hosted-annotations.json",
+      "sha256": "9295be51c91d5b53cff1dceb76094ad79d4d9953f8f1247aa0753be0d51cd680",
+      "bytes": 958,
+      "donorAndIndexWorktreeExact": true
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/launch-prerequisite-contract/independent-publication-review.json",
+      "sha256": "a6e71940cab1c75a114ceae44d0a14d6aefc23c523384ce61cb2c09e731428fc",
+      "bytes": 10456,
+      "donorAndIndexWorktreeExact": true
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/launch-prerequisite-contract/independent-source-actual-review.json",
+      "sha256": "32457ba8727c8e873cff8cb72a439f7dd78d75e4c07949f983d53dba728016ec",
+      "bytes": 2523,
+      "donorAndIndexWorktreeExact": true
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/launch-prerequisite-contract/ledger-association.json",
+      "sha256": "e9526bb305e2b1d4b74169853fd3d1703abf0cb156d96dc2806961f0e935e330",
+      "bytes": 441,
+      "donorAndIndexWorktreeExact": true
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/launch-prerequisite-contract/lint-setup-failure.log",
+      "sha256": "b7504f909ab8fa9e5031e2c0ca8028b507c6448b0f8da70ca30bbd52edb7891d",
+      "bytes": 782,
+      "donorAndIndexWorktreeExact": true
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/launch-prerequisite-contract/original-prerequisites-red.log",
+      "sha256": "534bd8241f8e8889885e1f18cf63c071fe60d47d3dcd7145cd4fe48765980b19",
+      "bytes": 51207,
+      "donorAndIndexWorktreeExact": true
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/launch-prerequisite-contract/scoped-lint.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "donorAndIndexWorktreeExact": true
+    },
+    {
+      "path": "docs/internal/launch-readiness-2026-10-07.md",
+      "sha256": "5e645667df254fb64eb6de5129fca09ff806e651063eca0cab4c080a69014725",
+      "bytes": 4321,
+      "donorAndIndexWorktreeExact": true
+    },
+    {
+      "path": "docs/internal/launch-remaining-tasks-2026-10-07.tsv",
+      "sha256": "431497e706ff2451f0d67c6a5605148808589efb32a8fdf0e2344fce1373eafb",
+      "bytes": 8982,
+      "donorAndIndexWorktreeExact": true
+    },
+    {
+      "path": "scripts/hosted-runtime-tool-intake.test.mjs",
+      "sha256": "6ebe8e057f2f81c5fbd6be7f7af7c3111c31e261c49b19d7c044998d268a8c51",
+      "bytes": 14836,
+      "donorAndIndexWorktreeExact": true
+    }
+  ],
+  "status": {
+    "sourceAppendSHA256": "1392cb45a8d9faa96812c9fc9567700e0e0f4e89b8e8dcb55ea6efb72f4b8f30",
+    "appendBytes": 798,
+    "targetPrefixUnchanged": true,
+    "resolvedSHA256": "47462154bd02930e2d1ac7ad95cb907d9b982805c805752bd6ead773128ec389",
+    "noUnrelatedProducerMetadataParagraphsCopied": true
+  },
+  "preserved": [
+    {
+      "path": ".github/workflows/runnable-ui.yml",
+      "sha256": "fd98a81d520fbd8b80fb6d404b7a8a0d0e154268f0e3adb5073a47ee4c7d4d98",
+      "unchangedVsTargetHEAD": true
+    },
+    {
+      "path": "scripts/hosted-runtime-tool-intake.mjs",
+      "sha256": "2dfb5ff525e74ff13699c054962218fb44b2f18f7b01b6f6bb62c562b603eb7e",
+      "unchangedVsTargetHEAD": true
+    },
+    {
+      "path": "docs/internal/implementation_production_availability_v1.5.tsv",
+      "sha256": "68a57855b6a4c76eb0fe9a9100b473ae818ca984e1ca3cf940d092fa48296b0e",
+      "unchangedVsTargetHEAD": true
+    },
+    {
+      "path": "docs/internal/implementation_production_availability_owners_v1.5.tsv",
+      "sha256": "b32873f73e38097f167f3075fbdacb216836c89a858cf47f3107a113cd41c125",
+      "unchangedVsTargetHEAD": true
+    }
+  ],
+  "currentAdoptedRawLog": {
+    "path": "/tmp/pr55-adopted-launch-prerequisites.log",
+    "sha256": "3d7d06bceb8e4425bf02c8d4d8d40898382d37c36e333ca44451e59f32c28285",
+    "counts": {
+      "tests": 246,
+      "pass": 246,
+      "fail": 0,
+      "skip": 0
+    },
+    "qualification": "FullTAPcompletedcountsobserved; ROOTdirectnormalwait stillpending/separate,noinventedsource-toolsmap orprocessclosure."
+  },
+  "ledger": "Canonicalledger/owners exactboth;205derivedsnapshot unchanged;523historynotfreshdeployment,144component61blocked remain/no promotion.",
+  "reviewOnlyNoMutationRuntime": true,
+  "rootCommitRequirements": [
+    "Normalactualjoin required beforecherrycontinue/push;freshstageddefaultsecret/diffchecks.",
+    "No failed/pendingCImerge/readiness/release acceptance."
+  ],
+  "noMaterialSourceBlocker": true
+}

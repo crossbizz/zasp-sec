@@ -1,0 +1,98 @@
+{
+  "afterMapSHA256": "8702811c88e584542f97cd3fe151f52d27f0799260abb803b8bc8d1935a3fa99",
+  "beforeMapSHA256": "8702811c88e584542f97cd3fe151f52d27f0799260abb803b8bc8d1935a3fa99",
+  "completed": false,
+  "elapsed": 0.5497183090010367,
+  "environment": {
+    "LC_ALL": "C",
+    "PATH": "/usr/bin:/bin",
+    "TMPDIR": "/tmp/API-tail-scratch-hotzfsvb"
+  },
+  "failure": "RuntimeError:exact causal roster refused",
+  "firstRefusal": {
+    "elapsed": 0.4307635910008685,
+    "phase": "RED",
+    "reason": "RuntimeError:exact causal roster refused",
+    "resources": null,
+    "signals": []
+  },
+  "format": "production-API-exact-tail-causal-component-v1",
+  "nativeVerified": false,
+  "reaps": [],
+  "resourceHistory": [
+    {
+      "elapsed": 0.0024821129991323687,
+      "phase": "preflight",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 3049885696,
+        "/workspace": 1500561408,
+        "memoryHeadroom": 1885818880
+      }
+    },
+    {
+      "elapsed": 0.22635885899944697,
+      "phase": "RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 3049881600,
+        "/workspace": 1500561408,
+        "memoryHeadroom": 1885556736
+      }
+    },
+    {
+      "elapsed": 0.22643597600108478,
+      "phase": "RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 3049881600,
+        "/workspace": 1500561408,
+        "memoryHeadroom": 1885556736
+      }
+    },
+    {
+      "elapsed": 0.2269284299982246,
+      "phase": "RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 3049881600,
+        "/workspace": 1500561408,
+        "memoryHeadroom": 1885294592
+      }
+    },
+    {
+      "elapsed": 0.3273340699997789,
+      "phase": "RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 3049877504,
+        "/workspace": 1500561408,
+        "memoryHeadroom": 1861124096
+      }
+    },
+    {
+      "elapsed": 0.549710426999809,
+      "phase": "final",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 3049869312,
+        "/workspace": 1500561408,
+        "memoryHeadroom": 1885741056
+      }
+    }
+  ],
+  "sessions": [
+    39022
+  ],
+  "sevenAnchorsIssued": false,
+  "statuses": {},
+  "unknown": [],
+  "waits": [
+    {
+      "joined": true,
+      "phase": "RED",
+      "pid": 39022,
+      "returnCode": 1
+    }
+  ]
+}

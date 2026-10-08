@@ -1,0 +1,365 @@
+{
+  "completed": true,
+  "elapsedSeconds": 2.1754004990034446,
+  "failure": null,
+  "firstRefusal": null,
+  "forced": false,
+  "format": "npm-public-corpus-component-actual-v1",
+  "inputs": 137,
+  "officialCorpusIntakePerformed": false,
+  "ownedReaps": [],
+  "ownedResiduals": [],
+  "processCensusUnknown": [],
+  "releaseAccepted": false,
+  "resourceHistory": [
+    {
+      "elapsedSeconds": 0.00020968700118828565,
+      "phase": "setup",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2286342144,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 983433216
+      }
+    },
+    {
+      "elapsedSeconds": 0.11492933000045014,
+      "phase": "setup",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2286268416,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 982908928
+      }
+    },
+    {
+      "elapsedSeconds": 0.22271635900324327,
+      "phase": "setup",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2286268416,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 982593536
+      }
+    },
+    {
+      "elapsedSeconds": 0.22275816200271947,
+      "phase": "source-adapted-red",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2286268416,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 982593536
+      }
+    },
+    {
+      "elapsedSeconds": 0.22283724200315191,
+      "phase": "source-adapted-red",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2286268416,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 982593536
+      }
+    },
+    {
+      "elapsedSeconds": 0.22349295300227823,
+      "phase": "source-adapted-red",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2286268416,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 982593536
+      }
+    },
+    {
+      "elapsedSeconds": 0.3238380840011814,
+      "phase": "source-adapted-red",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2286264320,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 952176640
+      }
+    },
+    {
+      "elapsedSeconds": 0.4266462190025777,
+      "phase": "source-adapted-red",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2286264320,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 982360064
+      }
+    },
+    {
+      "elapsedSeconds": 0.5353169850022823,
+      "phase": "source-adapted-red",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2286264320,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 982360064
+      }
+    },
+    {
+      "elapsedSeconds": 0.5368617510030163,
+      "phase": "source-adapted-red",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2286264320,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 982360064
+      }
+    },
+    {
+      "elapsedSeconds": 0.6419593730024644,
+      "phase": "source-adapted-red",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2286264320,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 982360064
+      }
+    },
+    {
+      "elapsedSeconds": 0.6419963690022996,
+      "phase": "portable-component-and-cli-green",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2286264320,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 982360064
+      }
+    },
+    {
+      "elapsedSeconds": 0.6420767110030283,
+      "phase": "portable-component-and-cli-green",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2286264320,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 982360064
+      }
+    },
+    {
+      "elapsedSeconds": 0.6425514390030003,
+      "phase": "portable-component-and-cli-green",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2286264320,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 982474752
+      }
+    },
+    {
+      "elapsedSeconds": 0.7429458040023746,
+      "phase": "portable-component-and-cli-green",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2285981696,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 939515904
+      }
+    },
+    {
+      "elapsedSeconds": 0.8432871740005794,
+      "phase": "portable-component-and-cli-green",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2286112768,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 904290304
+      }
+    },
+    {
+      "elapsedSeconds": 0.9457876190026582,
+      "phase": "portable-component-and-cli-green",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2286100480,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 935014400
+      }
+    },
+    {
+      "elapsedSeconds": 1.0461442720006744,
+      "phase": "portable-component-and-cli-green",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2286112768,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 934830080
+      }
+    },
+    {
+      "elapsedSeconds": 1.1465088770019065,
+      "phase": "portable-component-and-cli-green",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2286112768,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 950534144
+      }
+    },
+    {
+      "elapsedSeconds": 1.2468851100020402,
+      "phase": "portable-component-and-cli-green",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2286116864,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 944934912
+      }
+    },
+    {
+      "elapsedSeconds": 1.3473251290015469,
+      "phase": "portable-component-and-cli-green",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2286112768,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 935559168
+      }
+    },
+    {
+      "elapsedSeconds": 1.4497995440033264,
+      "phase": "portable-component-and-cli-green",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2286112768,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 930095104
+      }
+    },
+    {
+      "elapsedSeconds": 1.5501658810026129,
+      "phase": "portable-component-and-cli-green",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2286170112,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 951222272
+      }
+    },
+    {
+      "elapsedSeconds": 1.6505397000000812,
+      "phase": "portable-component-and-cli-green",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2286120960,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 951287808
+      }
+    },
+    {
+      "elapsedSeconds": 1.7508685420034453,
+      "phase": "portable-component-and-cli-green",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2286108672,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 948809728
+      }
+    },
+    {
+      "elapsedSeconds": 1.8512383440029225,
+      "phase": "portable-component-and-cli-green",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2286112768,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 944930816
+      }
+    },
+    {
+      "elapsedSeconds": 1.9536852130004263,
+      "phase": "portable-component-and-cli-green",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2286256128,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 982159360
+      }
+    },
+    {
+      "elapsedSeconds": 2.0588515300005383,
+      "phase": "portable-component-and-cli-green",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2286256128,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 982159360
+      }
+    },
+    {
+      "elapsedSeconds": 2.064725472002465,
+      "phase": "portable-component-and-cli-green",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2286256128,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 982159360
+      }
+    },
+    {
+      "elapsedSeconds": 2.171912254001654,
+      "phase": "portable-component-and-cli-green",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2286256128,
+        "/workspace": 1500483584,
+        "memoryHeadroom": 982159360
+      }
+    }
+  ],
+  "results": [
+    {
+      "counts": {
+        "cancelled": 0,
+        "fail": 1,
+        "pass": 0,
+        "skipped": 0,
+        "tests": 1
+      },
+      "name": "source-adapted-red",
+      "normalExit": 1,
+      "stderr": "/tmp/npm-portable-cli-component-actual-cai3bypv/source-adapted-red.stderr",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout": "/tmp/npm-portable-cli-component-actual-cai3bypv/source-adapted-red.jsonl",
+      "stdoutSHA256": "e7868dc2bc23a26a1e9c64b7f1262815775690d1fe6ac24337e384938a521a34"
+    },
+    {
+      "counts": {
+        "cancelled": 0,
+        "fail": 0,
+        "pass": 53,
+        "skipped": 0,
+        "tests": 53
+      },
+      "name": "portable-component-and-cli-green",
+      "normalExit": 0,
+      "stderr": "/tmp/npm-portable-cli-component-actual-cai3bypv/portable-component-and-cli-green.stderr",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout": "/tmp/npm-portable-cli-component-actual-cai3bypv/portable-component-and-cli-green.jsonl",
+      "stdoutSHA256": "93b8d5aa10e4871675ac23b6e421f7e84605d5c591b9953bc225a9bfb62aa509"
+    }
+  ],
+  "signals": [],
+  "sourceAfterSHA256": "301758f4c58a6ffbeb25da3143163e50ce671220edb4c2a75f3fe3e7ecbb015d",
+  "sourceBeforeSHA256": "301758f4c58a6ffbeb25da3143163e50ce671220edb4c2a75f3fe3e7ecbb015d",
+  "waits": [
+    {
+      "joined": true,
+      "pid": 43882,
+      "returnCode": 1,
+      "tag": "source-adapted-red"
+    },
+    {
+      "joined": true,
+      "pid": 43896,
+      "returnCode": 0,
+      "tag": "portable-component-and-cli-green"
+    }
+  ]
+}

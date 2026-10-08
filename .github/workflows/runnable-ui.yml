@@ -61,6 +61,10 @@ jobs:
       - name: Prime platform full-MVS metadata for offline release contracts
         timeout-minutes: 5
         run: GOENV=off GOWORK=off GOFLAGS= GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org go list -C services/platform -mod=readonly -m all >/dev/null
+      - name: Verify approval maintenance signed notification delivery
+        timeout-minutes: 10
+        run: |
+          go test -C services/platform -race -p 1 -count=1 -timeout=5m -json -run '^TestMaintenanceBoundary(DeliversOriginalSignedPayloadOverTLS|UnsafeDeliveryDoesNotReachHTTP|RetainsActualProviderFailure)$' ./apiserver
       - name: Verify runnable UI
         run: |-
           task_verify_log=$(mktemp "${RUNNER_TEMP}/zasp-npm-verify.XXXXXX")

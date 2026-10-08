@@ -1,0 +1,91 @@
+{
+  "adoptionStatus": "Not yet adopted; rootTMPcheckout currently clean. Exact public packet/copy plan pending. No native379/fullcomponentdeadcode adoption or sevenanchors issued.",
+  "conservation": "Same four cases/assertions baseline and successor; exactRED3 genuine assertionFAIL1refusalPASS/GREEN4PASS0SKIP; original66ddd owner forecast failure preserved8be535. Source parser threeconditions/existingoracle only; no API deadline extension, runtime guard relaxation or hosted cause established.",
+  "inputsSameAndCurrentPinsChecked": 12,
+  "noUnknownOrRefusal": true,
+  "originals": [
+    {
+      "bytes": 4069,
+      "path": "/tmp/actual-API-tail-TDD-zs9j5zwg/result.json",
+      "sha256": "4a2a02079f586cbee9bce3556b78e641508efec60aed8cdbc5ef553f9dab6068"
+    },
+    {
+      "bytes": 1775,
+      "path": "/tmp/actual-API-tail-TDD-zs9j5zwg/inputs-after.json",
+      "sha256": "5a58fe968dc43257b09ef9362c6e8169cae57c047f2f2ab11d6b72fbfc0a06b9"
+    },
+    {
+      "bytes": 0,
+      "path": "/tmp/actual-API-tail-TDD-zs9j5zwg/GREEN.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 970,
+      "path": "/tmp/actual-API-tail-TDD-zs9j5zwg/GREEN.jsonl",
+      "sha256": "0028585c6d1fc0d2b1ebdd8d7bf6c3c0f42f2877854c5ada1810c5a0970d4154"
+    },
+    {
+      "bytes": 0,
+      "path": "/tmp/actual-API-tail-TDD-zs9j5zwg/RED.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 4835,
+      "path": "/tmp/actual-API-tail-TDD-zs9j5zwg/RED.jsonl",
+      "sha256": "c313bc7d918d4b364bd0237ae05485e919d1cb7cdf705373a3a2e5d782201b1a"
+    },
+    {
+      "bytes": 1775,
+      "path": "/tmp/actual-API-tail-TDD-zs9j5zwg/inputs-before.json",
+      "sha256": "5a58fe968dc43257b09ef9362c6e8169cae57c047f2f2ab11d6b72fbfc0a06b9"
+    },
+    {
+      "bytes": 1575,
+      "path": "/tmp/api-child-exact-tail-census3-root-outer-6xcnjwff/normal-outer-result.json",
+      "sha256": "f761c6960f7360774cf02d68ecc499d172bc050e0c3db2e648c7cb2be5463b60"
+    }
+  ],
+  "outerNormalExit": 0,
+  "proposedAdoptionOnly": [
+    "scripts/browser-command-failure.mjs successor aadeca4",
+    "scripts/compliance-api-child-stage.test.mjs sole completeboundary unavailable-to-serve oracle cd248",
+    "new tracked test from unchanged exact-tail.test.mjs95706"
+  ],
+  "resourceSamplesAboveOriginalFloors": true,
+  "rosters": {
+    "GREEN": {
+      "observed": {
+        "dependency ambiguity and potential truncated leading dependency remain closed": "pass",
+        "exact retained tail preserves closed dependency alongside runtime stage": "pass",
+        "exact retained tail preserves six complete internal stage witnesses": "pass",
+        "oversized partial duplicate unknown and leading poisoned tails refuse": "pass"
+      },
+      "returnCode": 0
+    },
+    "RED": {
+      "observed": {
+        "dependency ambiguity and potential truncated leading dependency remain closed": "fail",
+        "exact retained tail preserves closed dependency alongside runtime stage": "fail",
+        "exact retained tail preserves six complete internal stage witnesses": "fail",
+        "oversized partial duplicate unknown and leading poisoned tails refuse": "pass"
+      },
+      "returnCode": 1
+    }
+  },
+  "stableMapSHA256": "f18f9de06ca0bd4b917bbb2fdd6db6c12aedcc373e8648aa72bbd5a29b3f89c4",
+  "verdict": "PASS scoped actual causal diagnostic controls",
+  "waits": [
+    {
+      "joined": true,
+      "phase": "RED",
+      "pid": 39314,
+      "returnCode": 1
+    },
+    {
+      "joined": true,
+      "phase": "GREEN",
+      "pid": 39328,
+      "returnCode": 0
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "broaderRegressions": "Existing compliance-api-child-stage and current production diagnostic suites still need guarded actual postadoption check before softwareacceptance.",
+  "format": "production-API-retained-tail-diagnostic-outcome-v1",
+  "history": "First owner forecast2FAIL2PASS was wrong, so it truthfully refused after measured baseline3FAIL1PASS and never ranGREEN. Preserved original failure and separate counter-only successor. No test assertion changed.",
+  "inputMapReferences": [
+    {
+      "after": "/tmp/actual-API-tail-TDD-pv9xlaew/inputs-after.json",
+      "attempt": "original",
+      "before": "/tmp/actual-API-tail-TDD-pv9xlaew/inputs-before.json",
+      "mapsEqual": true,
+      "sha256": "814fa5b93e6453c705cca0a6b5e61fa77b102136fc6853872d19a5905f3de0a8"
+    },
+    {
+      "after": "/tmp/actual-API-tail-TDD-zs9j5zwg/inputs-after.json",
+      "attempt": "corrected",
+      "before": "/tmp/actual-API-tail-TDD-zs9j5zwg/inputs-before.json",
+      "mapsEqual": true,
+      "sha256": "5a58fe968dc43257b09ef9362c6e8169cae57c047f2f2ab11d6b72fbfc0a06b9"
+    }
+  ],
+  "result": "SAME4 causal groups: authentic baseline3assertionFAIL1PASS; successor4PASS, no skips; ROOTnormalouter0; source maps unchanged.",
+  "scope": "Production marker parser only. Exactbufferunchanged, original60second readiness allowance unchanged. Partial/unknown/duplicate/oversized and markerbearing leading fragments refused. Closed dependency keys retained. HostedAPIreadydeadline cause and resolution NOTDEMONSTRATED. No native379 anchors/referencechanges.",
+  "softwareProblem": "The production child capture returns a tail of at most16384characters, but diagnostic parsing refused the exact16384boundary. Complete internal stage markers in a full tail lost their safe fixed annotation.",
+  "sourceTargets": [
+    "scripts/browser-command-failure.mjs",
+    "scripts/compliance-api-child-stage.test.mjs",
+    "scripts/compliance-api-exact-tail.test.mjs"
+  ]
+}

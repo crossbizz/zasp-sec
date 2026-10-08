@@ -1,0 +1,100 @@
+{
+  "format": "selected-public-safe-owner-result-v1",
+  "omittedFields": [
+    "activeOverlay",
+    "adoptedChildren",
+    "aliasTargets",
+    "ownedReaps",
+    "ownedSessions",
+    "projectionRoot",
+    "resourceHistory"
+  ],
+  "original": {
+    "bytes": 568147,
+    "identity": {
+      "ctime_ns": 1791381893552942861,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 81664,
+      "mode": "0o400",
+      "mtime_ns": 1791381893552942861,
+      "nlink": 1,
+      "size": 568147,
+      "uid": 1000
+    },
+    "path": "/tmp/health-contract-current77d90-stage1-33bi4q8s/result.json",
+    "sha256": "be07bed9fc4bfa3fbf7b6ecfdfbcb1c58680d922e6279e1c818ace7c5ccf8bb8"
+  },
+  "scope": "Selected owner scalar fields; no individual testcase or skip counts inferred from nonverbose logs.",
+  "selected": {
+    "completed": true,
+    "elapsedSeconds": 218.70836150600007,
+    "failure": null,
+    "firstRefusal": null,
+    "forced": false,
+    "format": "health-contract-serial-stage-root-actual-v1",
+    "healthContractStage": 1,
+    "inputs": 12972,
+    "ownedSessionSurvivors": [],
+    "processCensusUnknown": [],
+    "productionActivated": false,
+    "resourcesAfter": {
+      "/dev/shm": 9441349632,
+      "/tmp": 4058148864,
+      "/workspace": 1552834560,
+      "memoryHeadroom": 3760340992
+    },
+    "results": [
+      {
+        "argv": [
+          "/workspace/.zasp-cloud-owned/spec44-runtime-tools/go/bin/go",
+          "test",
+          "-C",
+          "services/platform",
+          "-p=1",
+          "-race",
+          "-count=1",
+          "./healthserver",
+          "./agentsec-api",
+          "./agentsec-worker"
+        ],
+        "individualTestsAndSkips": "Not inferred from nonverbose raw command output; preserve raw whole logs",
+        "normalExit": 0,
+        "stage": "platform-health-api-worker",
+        "stderr": "/tmp/health-contract-current77d90-stage1-33bi4q8s/platform-health-api-worker.stderr",
+        "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout": "/tmp/health-contract-current77d90-stage1-33bi4q8s/platform-health-api-worker.jsonl",
+        "stdoutSHA256": "5c7e61c2f14ac3852db9230d16f5387a970307db739bc723b23422963d3b1ed4"
+      }
+    ],
+    "signals": [],
+    "sourceAfterSHA256": "384767fa62e37bce495f769c4d8cba80bc33fa59c9ca4949caffeb6ec31bab4e",
+    "sourceBeforeSHA256": "384767fa62e37bce495f769c4d8cba80bc33fa59c9ca4949caffeb6ec31bab4e",
+    "waits": [
+      {
+        "joined": true,
+        "pid": 33850,
+        "returnCode": 0,
+        "tag": "head"
+      },
+      {
+        "joined": true,
+        "pid": 33852,
+        "returnCode": 0,
+        "tag": "selected-inputs"
+      },
+      {
+        "joined": true,
+        "pid": 33877,
+        "returnCode": 0,
+        "tag": "selected-modules"
+      },
+      {
+        "joined": true,
+        "pid": 33882,
+        "returnCode": 0,
+        "tag": "platform-health-api-worker"
+      }
+    ]
+  }
+}

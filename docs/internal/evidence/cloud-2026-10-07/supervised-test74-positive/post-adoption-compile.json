@@ -1,0 +1,20 @@
+{
+  "scope": "Current repository API package compilation only; -run ^$ executes no tests, not acceptance or an owned-process proof",
+  "command": [
+    "go",
+    "test",
+    "-C",
+    "services/platform",
+    "-p=1",
+    "-run",
+    "^$",
+    "./apiserver"
+  ],
+  "tool": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/go/bin/go",
+  "observedExitCode": 0,
+  "sourceSHA256": "fcb312455a7bcbfc1800f0d0c70334f620e20143ea0c9306dc814b8d1d3b1c7b",
+  "captures": {
+    "post-adoption-compile.stdout": "9438b6989434be41379201d576553d3f11c8be7c314a1a69c9f55e57181b75da",
+    "post-adoption-compile.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "format": "selected-public-safe-owner-result-v1",
+  "omittedFields": [
+    "activeOverlay",
+    "adoptedChildren",
+    "aliasTargets",
+    "ownedReaps",
+    "ownedSessions",
+    "projectionRoot",
+    "resourceHistory"
+  ],
+  "original": {
+    "bytes": 4822,
+    "identity": {
+      "ctime_ns": 1791381895030311659,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 81677,
+      "mode": "0o400",
+      "mtime_ns": 1791381895030311659,
+      "nlink": 1,
+      "size": 4822,
+      "uid": 1000
+    },
+    "path": "/tmp/health-contract-current77d90-stage2-vjt__b_m/result.json",
+    "sha256": "ad2ba2e60331aad11145ee44f82fe9278dfcf4244c358f201429fddec00cc596"
+  },
+  "scope": "Selected owner scalar fields; no individual testcase or skip counts inferred from nonverbose logs.",
+  "selected": {
+    "completed": false,
+    "elapsedSeconds": 1.40509427300276,
+    "failure": "RuntimeError:child stage refused:selected-modules",
+    "firstRefusal": {
+      "elapsedSeconds": 0.9629466570004297,
+      "phase": "selected-modules",
+      "reason": "RuntimeError:child stage refused:selected-modules",
+      "resources": null,
+      "signals": []
+    },
+    "forced": false,
+    "format": "health-contract-serial-stage-root-actual-v1",
+    "healthContractStage": 2,
+    "inputs": 8451,
+    "ownedSessionSurvivors": [],
+    "processCensusUnknown": [],
+    "productionActivated": false,
+    "resourcesAfter": {
+      "/dev/shm": 9441349632,
+      "/tmp": 4055932928,
+      "/workspace": 1552834560,
+      "memoryHeadroom": 3755110400
+    },
+    "results": [],
+    "signals": [],
+    "sourceAfterSHA256": "7560c5010a76af3718fa15f0c1109ebf694c64907a5e4c2858b744474b9fd507",
+    "sourceBeforeSHA256": null,
+    "waits": [
+      {
+        "joined": true,
+        "pid": 34300,
+        "returnCode": 0,
+        "tag": "head"
+      },
+      {
+        "joined": true,
+        "pid": 34302,
+        "returnCode": 0,
+        "tag": "selected-inputs"
+      },
+      {
+        "joined": true,
+        "pid": 34327,
+        "returnCode": 1,
+        "tag": "selected-modules"
+      }
+    ]
+  }
+}

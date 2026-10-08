@@ -1,0 +1,9 @@
+{
+  "conditions": "ROOT fresh default selected/decoded/staged Gitleaks must actually pass; finalcopy/whitespace gate. This is fidelity/source-shape approval, not claimed scannerPASS. No scan or sourceadoption/edits by reviewer.",
+  "manifestSHA256": "d7173866915c439826e0c55ef0efbd0e5bb022cd97ba7f4e5b93e1fd89f86585",
+  "payloadBytes": 103088,
+  "payloadFiles": 21,
+  "scope": "Same verified four diagnostic sources and210TAP/failure chronology/native-hosted limitations retained. Wholelog losslessrepresentations previously verified, originalprivatepackets unchanged.",
+  "verdict": "PASS transparent typed pin semantic/exact original reconstruction; default scan remains required",
+  "verified": "All21fullhashes/sizes,16remainingpriorpayloads unchanged. Onlytwo original review mapfields changed to visible[{path,sha256}] arrays; every originalpair/allotherfields conserved and inverse whole originalprettyJSONbytes reconstruct exact3473B54febb and3045B569c. Originalbd793manifest and exactredactedfailedscan6c0f retained; four findings independently current4349Bhelper24fedd checksumbindings, notcredential. No scanner suppression/valueomission/hidden encoding."
+}

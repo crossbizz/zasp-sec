@@ -1,0 +1,97 @@
+{
+  "format": "selected-public-safe-owner-result-v1",
+  "omittedFields": [
+    "activeOverlay",
+    "adoptedChildren",
+    "aliasTargets",
+    "ownedReaps",
+    "ownedSessions",
+    "projectionRoot",
+    "resourceHistory"
+  ],
+  "original": {
+    "bytes": 32163,
+    "identity": {
+      "ctime_ns": 1791382463438025512,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 83266,
+      "mode": "0o400",
+      "mtime_ns": 1791382463438025512,
+      "nlink": 1,
+      "size": 32163,
+      "uid": 1000
+    },
+    "path": "/tmp/health-contract-current77d90-stage3-o9_oxe9u/result.json",
+    "sha256": "c27983b1a40eb7c25b571c8a8d545ed57cb47f74daebc3421abcfecff0334e47"
+  },
+  "scope": "Selected owner scalar fields; no individual testcase or skip counts inferred from nonverbose logs.",
+  "selected": {
+    "completed": true,
+    "elapsedSeconds": 12.750670572997478,
+    "failure": null,
+    "firstRefusal": null,
+    "forced": false,
+    "format": "health-contract-serial-stage-root-actual-v1",
+    "healthContractStage": 3,
+    "inputs": 9833,
+    "ownedSessionSurvivors": [],
+    "processCensusUnknown": [],
+    "productionActivated": false,
+    "resourcesAfter": {
+      "/dev/shm": 9441349632,
+      "/tmp": 4017537024,
+      "/workspace": 1546874880,
+      "memoryHeadroom": 3704832000
+    },
+    "results": [
+      {
+        "argv": [
+          "/workspace/.zasp-cloud-owned/spec44-runtime-tools/go/bin/go",
+          "test",
+          "-C",
+          "services/runtime-gateway",
+          "-race",
+          "-count=1",
+          "./..."
+        ],
+        "individualTestsAndSkips": "Not inferred from nonverbose raw command output; preserve raw whole logs",
+        "normalExit": 0,
+        "stage": "runtime-gateway",
+        "stderr": "/tmp/health-contract-current77d90-stage3-o9_oxe9u/runtime-gateway.stderr",
+        "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout": "/tmp/health-contract-current77d90-stage3-o9_oxe9u/runtime-gateway.jsonl",
+        "stdoutSHA256": "cadc396e4d72280a6da02254b031da0ad83267b3e7a86abc2d25769542383a3a"
+      }
+    ],
+    "signals": [],
+    "sourceAfterSHA256": "b9b393ed5008168cb804857e4686eedda2f77125d7cfeed5408ee5ef05f93985",
+    "sourceBeforeSHA256": "b9b393ed5008168cb804857e4686eedda2f77125d7cfeed5408ee5ef05f93985",
+    "waits": [
+      {
+        "joined": true,
+        "pid": 35134,
+        "returnCode": 0,
+        "tag": "head"
+      },
+      {
+        "joined": true,
+        "pid": 35136,
+        "returnCode": 0,
+        "tag": "selected-inputs"
+      },
+      {
+        "joined": true,
+        "pid": 35161,
+        "returnCode": 0,
+        "tag": "selected-modules"
+      },
+      {
+        "joined": true,
+        "pid": 35166,
+        "returnCode": 0,
+        "tag": "runtime-gateway"
+      }
+    ]
+  }
+}

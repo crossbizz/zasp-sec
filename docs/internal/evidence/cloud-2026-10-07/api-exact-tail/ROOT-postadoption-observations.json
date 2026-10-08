@@ -1,0 +1,70 @@
+{
+  "ESLintArgv": [
+    "/usr/bin/env",
+    "-i",
+    "PATH=/usr/bin:/bin",
+    "/usr/bin/timeout",
+    "--signal=TERM",
+    "--kill-after=10s",
+    "90s",
+    "/workspace/.zasp-cloud-owned/spec44-runtime-tools/node-v22.23.1-linux-x64/bin/node",
+    "node_modules/eslint/bin/eslint.js",
+    "scripts/browser-command-failure.mjs",
+    "scripts/compliance-api-child-stage.test.mjs",
+    "scripts/compliance-api-exact-tail.test.mjs",
+    "scripts/compliance-browser-bytes.test.mjs"
+  ],
+  "HostedAPIcause": "UNPROVEN; no hostedreadinessrerun/resolutionclaim",
+  "Node": {
+    "actualTAP": {
+      "bytes": 45204,
+      "cancelled": 0,
+      "fail": 0,
+      "pass": 210,
+      "sha256": "2520b87472ef23945aa045ca30b686c7d7c50f45b1762cf5fa7643f9205dc0df",
+      "skip": 0,
+      "tests": 210
+    },
+    "argv": [
+      "/usr/bin/env",
+      "-i",
+      "PATH=/usr/bin:/bin",
+      "/usr/bin/timeout",
+      "--signal=TERM",
+      "--kill-after=10s",
+      "120s",
+      "/workspace/.zasp-cloud-owned/spec44-runtime-tools/node-v22.23.1-linux-x64/bin/node",
+      "--test",
+      "--test-concurrency=1",
+      "scripts/compliance-browser-bytes.test.mjs",
+      "scripts/browser-e2e-helpers.test.mjs",
+      "scripts/browser-startup-phase.test.mjs",
+      "scripts/runtime-dependency-marker.test.mjs",
+      "scripts/cbc-startup-diagnostics.test.mjs"
+    ],
+    "stderrBytes": 0,
+    "toolSessionObserved": "71142 tool observedexit0; no separateROOTownership receipt",
+    "toolVersion": "22"
+  },
+  "ROOTReportedChecks": {
+    "gitDiffCheckExit": 0,
+    "ledgerOwners": 52314461,
+    "ledgerRequirements": 728,
+    "missing": 0,
+    "scopedESLintfourfilesExit": 0
+  },
+  "authority": "ROOT message supplied actualoutcomes; not a fabricatedownedprocess receipt",
+  "cwd": "/tmp/zasp-startup-diagnostic-checkout",
+  "diffCheckArgv": [
+    "git",
+    "diff",
+    "--check"
+  ],
+  "format": "ROOT-transcribed-postadoption-command-observations-v1",
+  "independentlyObservedHere": "TAPfullbytes+summary and exactfouradoptedsource association; no new test/compiler/service commands run by publicationauthor",
+  "ledgerArgv": [
+    "/workspace/.zasp-cloud-owned/spec44-runtime-tools/node-v22.23.1-linux-x64/bin/node",
+    "scripts/implementation-status-check.mjs"
+  ],
+  "referenceLedger": "Composite728/52314461 requirement-owner ledger checked; no requirement rowpromotion or inventedlaunchblockingID"
+}

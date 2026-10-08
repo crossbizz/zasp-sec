@@ -1,0 +1,93 @@
+{
+  "format": "selected-public-safe-owner-result-v1",
+  "omittedFields": [
+    "activeOverlay",
+    "adoptedChildren",
+    "aliasTargets",
+    "fgaLiveBinding",
+    "ownedReaps",
+    "ownedSessions",
+    "projectionRoot",
+    "resourceHistory",
+    "tokenMetadata"
+  ],
+  "original": {
+    "bytes": 301330,
+    "identity": {
+      "ctime_ns": 1791376513093284658,
+      "dev": 27,
+      "gid": 1000,
+      "ino": 998498,
+      "mode": "0o400",
+      "mtime_ns": 1791376513093284658,
+      "nlink": 1,
+      "size": 301330,
+      "uid": 1000
+    },
+    "path": "/workspace/.zasp-cloud-owned/native-test74-approvaldiag-currentc1c45-b2h9s2m7/actual-m9ln9b3r/result.json",
+    "sha256": "0d931420001a94bd567fcf63d22e7eacd320df56064d7307b5cdbafd773c8ae4"
+  },
+  "scope": "Derived scalar selection; original remains private and unchanged. Completion is diagnostic acceptance only, not genuine approval PASS.",
+  "selected": {
+    "completed": false,
+    "diagnosticOnlyExpectedApprovalFailure": true,
+    "elapsedSeconds": 113.51610778000031,
+    "failure": "RuntimeError:live refusal:direct memory floor",
+    "fgaNormalStop": null,
+    "firstRefusal": {
+      "elapsedSeconds": 112.81224366199967,
+      "phase": "owned-credential-admission",
+      "reason": "direct memory floor",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 4967944192,
+        "/workspace": 1628643328,
+        "memoryHeadroom": 99373056
+      },
+      "signals": []
+    },
+    "forced": true,
+    "format": "native-fga-genuine-finding-root-actual-v1",
+    "inputs": 14004,
+    "ownedSessionSurvivors": [],
+    "processCensusUnknown": [],
+    "productionActivated": false,
+    "resourcesAfter": {
+      "/dev/shm": 9441349632,
+      "/tmp": 4967944192,
+      "/workspace": 1626058752,
+      "memoryHeadroom": 2515243008
+    },
+    "results": [],
+    "signals": [],
+    "sourceAfterSHA256": "94c8ab21057c56e0f1263c15e12607fa937c57dab250d8e943b34ddd9deafdf6",
+    "sourceBeforeSHA256": "94c8ab21057c56e0f1263c15e12607fa937c57dab250d8e943b34ddd9deafdf6",
+    "tokenValuesPublished": false,
+    "waits": [
+      {
+        "joined": true,
+        "pid": 27191,
+        "returnCode": 0,
+        "tag": "base-head"
+      },
+      {
+        "joined": true,
+        "pid": 27193,
+        "returnCode": 0,
+        "tag": "offline-modules"
+      },
+      {
+        "joined": true,
+        "pid": 27198,
+        "returnCode": 0,
+        "tag": "selected-inputs"
+      },
+      {
+        "joined": true,
+        "pid": 27222,
+        "returnCode": 143,
+        "tag": "owned-credential-admission"
+      }
+    ]
+  }
+}

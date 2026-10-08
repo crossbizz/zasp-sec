@@ -1,0 +1,59 @@
+{
+  "GREEN": {
+    "allPass": 11,
+    "packageTerminal": "pass",
+    "realOwnedTLS": true,
+    "skip": 0,
+    "subPass": 8,
+    "topPass": 3
+  },
+  "RED": {
+    "causalMarker": "authorized boundary refused actual original signed HTTPS delivery repository operation rejected",
+    "compileFailure": false,
+    "topFail": 1
+  },
+  "actualPath": "/tmp/actual-webhook-order-d3vk_m2g/result.json",
+  "actualSHA256": "6b80f0e3e829a23e358cc0ccbf8f6f596b5c57e0650dba7c5cf19530a783e978",
+  "adoptionScope": "Exact one production argument-order change and new test may be adopted after ROOT exact source preimage/postimage checks.",
+  "custody": {
+    "FGAStarted": false,
+    "directJoinedReturnCodes": [
+      0,
+      0,
+      0,
+      0,
+      1,
+      0
+    ],
+    "forced": false,
+    "ownedSessions": 6,
+    "qualification": "Recorded owner session census/joins and ROOT outer normal wait reviewed; no live replay.",
+    "signals": [],
+    "survivors": [],
+    "unknown": []
+  },
+  "limitations": "Selected component only; no whole package/nativeSQL/activation/deployed provider/release approval. TLS receiver is owned verified hostname fixture. Negative delivery fences and real503 propagation included.",
+  "outer": {
+    "elapsedSeconds": 39.65745130700088,
+    "exitCode": 0,
+    "normalWait": true,
+    "path": "/tmp/approval-webhook-order-root-outer-ju7s8s7k/normal-outer-results.json",
+    "sha256": "b79829deaae905994633d72eaf19ea969602485326dc364608e3169c8b28b2e5"
+  },
+  "resourcesAfter": {
+    "/dev/shm": 9441349632,
+    "/tmp": 2286452736,
+    "/workspace": 1500483584,
+    "memoryHeadroom": 960299008
+  },
+  "source": {
+    "bothCandidateHashesFreshlyChecked": true,
+    "canonicalMapDigest": "a778c6d0732ff1cf9ed05bae42d68ec072309c19faf54b5335543197906eb6b7",
+    "exactBeforeAfterEqual": true,
+    "fullReceiptMapCount": 20813,
+    "originalPhysicalOrigins": 2242,
+    "qualification": "Complete receipt maps and physical/origin associations reconciled; no repeat large dependency hashing/Go. Original808 omitted tests explicitly retained, not whole-package acceptance.",
+    "unselectedOriginalApiserverTests": 808
+  },
+  "verdict": "PASS-selected-actual-production-webhook-order-component"
+}

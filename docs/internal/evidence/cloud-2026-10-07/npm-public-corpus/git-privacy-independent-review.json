@@ -1,0 +1,21 @@
+{
+  "verdict": "ACTUAL_V6_FAILURE_STDERR_PRIVACY_NO_FIX_ACCEPTANCE",
+  "correctsPriorProvisionalAddendum": {
+    "path": "/tmp/npm-v6-actual-failure-addendum-hjxi80wl/review.json",
+    "sha256": "6c98fd8873fb81d72347736a92883df78a9b3281b873b2ba42fbf8683cf2dcf2",
+    "reason": "Provisional root helpertrigger interpretation repeated; actual rawfailure is stderr equality, markerabsence assertion precedes it and passed."
+  },
+  "actualLog": {
+    "path": "/tmp/npm-portable-lazy-fetch-green.log",
+    "sha256": "d51835e0547e74be7c14753c183043ac665d8197b5073add17fbd5d0a4e802d8"
+  },
+  "sourceSHA256": "b94c2f6f3ff5d83784be3400e58468cd21ce8ccdda76eed0f351e131958cab4a",
+  "counts": {
+    "tests": 54,
+    "pass": 52,
+    "fail": 2,
+    "skip": 0
+  },
+  "observedFailure": "CLI stderr is fatal:not a tree object plus finite public npm producer refused; exact finite-only stderr assertion fails at78. Source helperabsence assert at74 executes before78 and therefore passed in observed candidate.",
+  "limits": "No effective-fix acceptance, no rerun; this log does not prove helperdispatch withcandidate flags. Preserve all source/actual failures. Explicit stdio pipe capture may close failure diagnostic exposure; repo-configuration refusal is independently useful if needed."
+}

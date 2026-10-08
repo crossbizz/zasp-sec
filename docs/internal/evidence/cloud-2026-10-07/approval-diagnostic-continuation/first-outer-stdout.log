@@ -1,0 +1,1 @@
+{"result": "/workspace/.zasp-cloud-owned/native-test74-approvaldiag-currentc1c45-b2h9s2m7/actual-m9ln9b3r/result.json", "sha256": "0d931420001a94bd567fcf63d22e7eacd320df56064d7307b5cdbafd773c8ae4", "completed": false, "failure": "RuntimeError:live refusal:direct memory floor"}
