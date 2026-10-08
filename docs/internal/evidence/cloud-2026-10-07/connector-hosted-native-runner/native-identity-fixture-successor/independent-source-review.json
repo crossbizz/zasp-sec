@@ -1,0 +1,90 @@
+{
+  "A": {
+    "base": "7f200b62156cdbbfd1f6d62cb950832e4c5ba780",
+    "evidence": [
+      "Audit+identity selected before initial noncomposed migration. Both composed install/replay use TemporalIdentity; no post-Audit mode upgrade.",
+      "Real purpose-separated keys and operator registrations bind both session/webhook to auth80_api with valid derived audience/project and supported empty optional organization pin. Actual API api_ready checked before authentication.",
+      "38-character PAT constant used in digest parameter5/auth/header; original ceiling, expiry and membership/effective-scope checks retained. Existing owner maintenance allowed by identity write guards; no grant/fallback introduced.",
+      "No t.Parallel found in inspected shared fixture caller files. Setenv remains testing-owned/restored.",
+      "integrationClientRow.Scan adds existing bounded SQLSTATE diagnostic on original error before repository maps it; original PgError fixture log and returned error/classification unchanged.",
+      "Runner helper pin matches current fixture exactly; original-nine/sql/installer and command/resource/deadline/custody controls unchanged."
+    ],
+    "files": {
+      "scripts/hosted-connector-nine.mjs": "3ca0d768efaac374e747a9c10f8520a94ccc6b02b18e07e24078fffab9b8e347",
+      "services/platform/apiserver/authorization_integration_mutations_postgres_test.go": "99d3029859e9d6593e27700928aa7a4adee2815d1520ccdb685008c5fc112294"
+    },
+    "verdict": "Ready to commit/push these exact source bytes for original hosted-nine execution; no native/merge/production acceptance yet."
+  },
+  "B": {
+    "evidence": [
+      "Fresh bounded public raw-GitHub lock read at exact issuer matches local/adapter/prepare SHA.",
+      "Only public commit/hash and corresponding two descriptor hashes change; all12 bindings match. Controls derive current adapter pin. Guards/caps/lifecycles unchanged."
+    ],
+    "files": {
+      "scripts/npm-public-api-query/prepare-hosted.py": "dbb94b34206c601119c4f44a44a92fe708a7f8af51e3fb77fb5a03ec465125af",
+      "scripts/npm-public-api-query/public_lock_adapter.py": "288db96225c8f492ddd213d0645801dfefe57925935b2ed60692c49741ca3f0e",
+      "scripts/npm-public-api-query/source-manifest.json": "16215816a73dc83304f2334e0584a94a547e6a80e4176f30f38657845f380589"
+    },
+    "publicIssuer": "fcd4a52293434d962e04aa6428cb4e4c4afe5d28",
+    "publicLockSHA256": "0e8b7fa1332878386816dd73ba0118fb8dfc8a414b7912f90e95f2dda8bae51c",
+    "sourceBindings": [
+      {
+        "path": "scripts/hosted-memory-observation.mjs",
+        "sha256": "70c2ae837d040be4756842e4016acbc4eebd6bae3d8c992aba2a80e2a097ba75"
+      },
+      {
+        "path": "scripts/hosted-memory-observation.test.mjs",
+        "sha256": "75f7365042bb76f683e427862a52e9fcfd08530174c0f5fd47b0412f526d360d"
+      },
+      {
+        "path": "scripts/npm-public-api-query/cursor_component.py",
+        "sha256": "e08cdf6e88affe549fe7ed602bad51d6296cfa1e990b645d4ef42a3cfeb68c38"
+      },
+      {
+        "path": "scripts/npm-public-api-query/cursor_controls.py",
+        "sha256": "89c39e2c27c4d51545b62fc26d55e8ad06fbe12707588a86c68d9322e789b2fd"
+      },
+      {
+        "path": "scripts/npm-public-api-query/hosted-controls.py",
+        "sha256": "9395ca59d598460aee4007d183f86e74c9e5d296da279db8a776298f1f64ebf9"
+      },
+      {
+        "path": "scripts/npm-public-api-query/memory-cli.mjs",
+        "sha256": "fe3eab2c4f6afb0bb9368a679c70b49d1c65b1384093a508042d090e022afd1a"
+      },
+      {
+        "path": "scripts/npm-public-api-query/prepare-hosted.py",
+        "sha256": "dbb94b34206c601119c4f44a44a92fe708a7f8af51e3fb77fb5a03ec465125af"
+      },
+      {
+        "path": "scripts/npm-public-api-query/public_lock_adapter.py",
+        "sha256": "288db96225c8f492ddd213d0645801dfefe57925935b2ed60692c49741ca3f0e"
+      },
+      {
+        "path": "scripts/npm-public-api-query/public_lock_controls.py",
+        "sha256": "e3de00dc987f677bcee8794765880d7050ac9b3a103f7960dbea371440304497"
+      },
+      {
+        "path": "scripts/npm-public-api-query/run-hosted.py",
+        "sha256": "b7d52602e87faab69f84a26f9f32ca8e9457c5d84f0569b101f18d09748b5d43"
+      },
+      {
+        "path": "scripts/npm-public-api-query/verify-plan.py",
+        "sha256": "5e2f9448a5d08b9f994f54ffec28759785c479b88c2f9a7a4f844fb12a3037b9"
+      },
+      {
+        "path": "scripts/npm-public-api-query/safe-summary.py",
+        "sha256": "f72e09ae8ffbb4d08b081a032bea456556bdc06fa81d3c57632327f157c0c065"
+      }
+    ],
+    "verdict": "Ready to commit/push these exact source bytes for reissued hosted public-query execution; no query/merge/release acceptance yet."
+  },
+  "declinedToJudge": [
+    "Actual repaired hosted-nine runtime compatibility and acceptance.",
+    "Actual reissued public query result/advisory matches.",
+    "Merge, production/release/full728, full corpus/local OSV acceptance."
+  ],
+  "findings": [],
+  "format": "independent-fixture-public-rebind-source-review-v1",
+  "method": "Read-only source/diff/hash review plus public raw-GitHub lock read. No tests, application runtime, source/Git writes or agents."
+}

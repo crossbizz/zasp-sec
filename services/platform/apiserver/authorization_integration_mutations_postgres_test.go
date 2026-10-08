@@ -42,6 +42,8 @@ type integrationClientFixture struct {
 	reconcile           func()
 }
 
+const integrationClientPAT = "client80-pat-fixture-01234567890123456789"
+
 const integrationClientExisting = "pid_78200001-0000-4000-8000-000000000001"
 const integrationClientBody = `{"name":"Client GitHub","connector_key":"github","configuration":{"authorization_mode":"github_app"}}`
 
@@ -70,6 +72,8 @@ func newIntegrationClientFixture(t *testing.T, composed ...bool) *integrationCli
 	if os.Getenv("ZASP_P7_MODEL_TEST") != "1" {
 		t.Skip("requires owned local OpenFGA")
 	}
+	t.Setenv("ZASP_P7_AUDIT_TEST", "1")
+	t.Setenv("ZASP_P7_IDENTITY_TEST", "1")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	t.Cleanup(cancel)
 	t.Log("connector fixture stage=postgres-start")
@@ -87,6 +91,35 @@ func newIntegrationClientFixture(t *testing.T, composed ...bool) *integrationCli
 	} else {
 		migrateP7Authorization(t, ctx, owner)
 	}
+	// The current bearer consumer requires the native identity profile and both
+	// operator-installed purpose registrations bound to the actual API principal.
+	deployment := authorization.IdentityDeployment{PublicOrigin: "https://console.example", ProviderBaseURL: "https://test.stytch.com", ProjectID: "project-test-client80", ConfiguredOrganization: "organization-client80", Mode: "saas"}
+	audience, err := deployment.Audience()
+	if err != nil {
+		t.Fatal(err)
+	}
+	seed := []byte("client80-identity-fixture-01234567890123456789")
+	sessionKey, err := authorization.NewIdentitySessionKey(seed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	webhookKey, err := authorization.NewIdentityWebhookKey(seed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, registration := range []struct {
+		purpose, version string
+		verifier         []byte
+	}{
+		{"session", sessionKey.Version(), sessionKey.Verifier()},
+		{"webhook", webhookKey.Version(), webhookKey.Verifier()},
+	} {
+		var epoch int64
+		if err := owner.QueryRow(ctx, `SELECT zasp_authorization80_identity.register_`+registration.purpose+`($1,$2,$3,$4,'auth80_api','')`, registration.version, registration.verifier, audience, deployment.ProjectID).Scan(&epoch); err != nil || epoch < 1 {
+			connectorFixtureErrorDiagnostic(t, err)
+			t.Fatal("native identity fixture registration refused")
+		}
+	}
 	t.Log("connector fixture stage=fixture-data")
 	f := &integrationClientFixture{t: t, ctx: ctx, owner: owner, dsn: dsn}
 	i := fixtureRequestIdentity(t)
@@ -97,7 +130,7 @@ func newIntegrationClientFixture(t *testing.T, composed ...bool) *integrationCli
 	f.exec(`INSERT INTO zasp_identity_memberships(principal_id,organization_id,organization_reference,member_reference,role,active) VALUES($1,$2,'organization-client80','member-client80','security_engineer',true)`, p, o)
 	f.exec(`INSERT INTO zasp_authorized_scopes(principal_id,organization_id,workspace_id,environment_id,label,permissions,is_default) VALUES($1,$2,$3,$4,'Selected','[]',true)`, p, o, w, e)
 	f.exec(`INSERT INTO zasp_product_sessions(token_digest,session_id,principal_id,organization_id,workspace_id,environment_id,permissions,csrf_token,authenticated_at,expires_at) VALUES(digest('client80-session','sha256'),'session-client80',$1,$2,$3,$4,'[]',repeat('x',32),clock_timestamp()-interval '10 minutes',clock_timestamp()+interval '1 hour')`, p, o, w, e)
-	f.exec(`INSERT INTO zasp_product_api_tokens(token_digest,id,name,principal_id,organization_id,workspace_id,environment_id,permissions,expires_at) VALUES(digest('client80-pat','sha256'),'pid_78200004-0000-4000-8000-000000000004','Client PAT',$1,$2,$3,$4,'["manage_workflows","view"]',clock_timestamp()+interval '1 hour')`, p, o, w, e)
+	f.exec(`INSERT INTO zasp_product_api_tokens(token_digest,id,name,principal_id,organization_id,workspace_id,environment_id,permissions,expires_at) VALUES(digest($5,'sha256'),'pid_78200004-0000-4000-8000-000000000004','Client PAT',$1,$2,$3,$4,'["manage_workflows","view"]',clock_timestamp()+interval '1 hour')`, p, o, w, e, integrationClientPAT)
 	f.exec(`INSERT INTO zasp_integrations(organization_id,workspace_id,environment_id,id,kind,connector_version,display_name,configuration) VALUES($1,$2,$3,$4,'github','1.0.0','Existing','{"authorization_mode":"github_app"}')`, o, w, e, integrationClientExisting)
 	f.exec(`INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,kind,id,body) VALUES($1,$2,$3,'integration',$4,jsonb_build_object('id',$4::text,'name','Existing','connector_key','github','configuration','{"authorization_mode":"github_app"}'::jsonb,'status','pending_authorization','created_at','2026-01-01T00:00:00Z','updated_at','2026-01-01T00:00:00Z'))`, o, w, e, integrationClientExisting)
 	t.Log("connector fixture stage=projection-pool")
@@ -144,6 +177,10 @@ func newIntegrationClientFixture(t *testing.T, composed ...bool) *integrationCli
 		connectorFixtureErrorDiagnostic(t, err)
 		t.Fatalf("registered API=%t %v", exact, err)
 	}
+	if err := f.api.QueryRow(ctx, `SELECT zasp_authorization80_identity.api_ready()`).Scan(&exact); err != nil || !exact {
+		connectorFixtureErrorDiagnostic(t, err)
+		t.Fatal("native identity API readiness refused")
+	}
 	t.Log("connector fixture stage=database-current-authority")
 	f.driver = &integrationClientDriver{rejectionAuthorizationDriver: rejectionAuthorizationDriver{authorizationConnectionDriver: authorizationConnectionDriver{conn: f.api}}, t: t}
 	db, _ := NewPostgresJSONDatabase(f.driver)
@@ -159,7 +196,7 @@ func newIntegrationClientFixture(t *testing.T, composed ...bool) *integrationCli
 		t.Fatal(err)
 	}
 	t.Log("connector fixture stage=token-authentication")
-	f.pat, err = f.repo.Authenticate(ctx, Credential{Kind: CredentialBearerToken, Value: "client80-pat"})
+	f.pat, err = f.repo.Authenticate(ctx, Credential{Kind: CredentialBearerToken, Value: integrationClientPAT})
 	if err != nil {
 		connectorFixtureErrorDiagnostic(t, err)
 		t.Fatal(err)
@@ -286,6 +323,7 @@ type integrationClientRow struct {
 func (r integrationClientRow) Scan(out ...any) error {
 	err := r.Row.Scan(out...)
 	if err != nil {
+		connectorFixtureErrorDiagnostic(r.t, err)
 		var p *pgconn.PgError
 		if errors.As(err, &p) {
 			r.t.Logf("client native query=%s code=%s message=%s where=%s", r.query, p.Code, p.Message, p.Where)
@@ -327,7 +365,7 @@ func (f *integrationClientFixture) invokeContext(call context.Context, identity 
 	r.Header.Set("Origin", "https://console.example")
 	r.Header.Set("X-CSRF-Token", identity.CSRFToken)
 	if identity.CredentialKind == CredentialBearerToken {
-		r.Header.Set("Authorization", "Bearer client80-pat")
+		r.Header.Set("Authorization", "Bearer "+integrationClientPAT)
 	} else {
 		r.AddCookie(&http.Cookie{Name: browserSessionCookie, Value: "client80-session"})
 	}
@@ -382,14 +420,14 @@ func migrateIntegrationClientComposed(t *testing.T, ctx context.Context, conn *p
 	t.Log("connector fixture stage=execution-principals")
 	exec("SELECT zasp_execution_register_principals(session_user,'client_scheduler','auth80_discovery','client_risk','client_graph','client_search')")
 	t.Log("connector fixture stage=temporal-authorization-modules")
-	for _, up := range []func(context.Context) error{runner.UpProductionTemporalDomain, runner.UpProductionTemporalExecutor, runner.UpProductionTemporalWorkflow, runner.UpProductionTemporalCompatibility, runner.UpProductionTemporalLegacyTests, runner.UpProductionTemporalDiscovery, runner.UpProductionTemporalAdmission, runner.UpProductionTemporalTestExecutor, runner.UpProductionTemporalTestSelector, runner.UpProductionTemporalHumanAdmission, runner.UpProductionTemporalAutomaticSources, runner.UpProductionTemporalFindingResponse, runner.UpProductionAuthorizationTemporalAuditProfile} {
+	for _, up := range []func(context.Context) error{runner.UpProductionTemporalDomain, runner.UpProductionTemporalExecutor, runner.UpProductionTemporalWorkflow, runner.UpProductionTemporalCompatibility, runner.UpProductionTemporalLegacyTests, runner.UpProductionTemporalDiscovery, runner.UpProductionTemporalAdmission, runner.UpProductionTemporalTestExecutor, runner.UpProductionTemporalTestSelector, runner.UpProductionTemporalHumanAdmission, runner.UpProductionTemporalAutomaticSources, runner.UpProductionTemporalFindingResponse, runner.UpProductionAuthorizationTemporalIdentityProfile} {
 		if err := up(ctx); err != nil {
 			connectorFixtureErrorDiagnostic(t, err)
 			t.Fatal("composed client installation", err)
 		}
 	}
 	t.Log("connector fixture stage=current-authorization-replay")
-	if err := runner.UpProductionAuthorizationTemporalAuditProfile(ctx); err != nil {
+	if err := runner.UpProductionAuthorizationTemporalIdentityProfile(ctx); err != nil {
 		connectorFixtureErrorDiagnostic(t, err)
 		t.Fatal("composed current replay", err)
 	}
