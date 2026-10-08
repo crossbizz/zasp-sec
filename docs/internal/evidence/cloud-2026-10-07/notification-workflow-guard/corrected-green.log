@@ -1,0 +1,9 @@
+
+ RUN  v4.1.11 /tmp/zasp-workflow-notification-guard-fix
+
+
+ Test Files  1 passed (1)
+      Tests  326 passed (326)
+   Start at  16:36:04
+   Duration  55.72s (transform 289ms, setup 196ms, import 280ms, tests 53.92s, environment 1.10s)
+

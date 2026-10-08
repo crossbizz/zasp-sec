@@ -1,0 +1,120 @@
+{
+  "classification": [
+    "Stage0 smallhealth command normal0; nonverboseoutput does not establish namedzero-skip roster.",
+    "Stage1 healthserver passes; API eleven originalfixture assertionfail events arise in read/decide states with stale fakeSQL/probe; currentcandidate correction separately reviewed but unexecuted.",
+    "Worker renderer/comparison/nativeharness failures explicitly record missing node executable in PATH; runnerprerequisite failure, not confirmed productcause.",
+    "Aggregate stage1 normalouter1/child1, noforced/signals/residual/unknown; stopfirststagefailure leaves stages2/3 UNRUN.",
+    "No hostedCIcause inferred from this local mixedfailure; fullhealth acceptance remains required.",
+    "Full retained inputmaps agree and declared sampledfloors retained; reviewer did not rereadall payloads or perform currentprocesscensus.",
+    "No runtime/Go/cache/source mutations by reviewer."
+  ],
+  "format": "independent-health-b6c-original-serial-baseline-actual-review-v1",
+  "outerSHA256": "8ff51534a691618dc3c20318a4852cf55a608fad7090ab927a7940aa8155886c",
+  "outerSeconds": [
+    3.2054994110003463,
+    409.3214305149995
+  ],
+  "rawStage1": {
+    "APIFixtureFailureEvents": 11,
+    "APISubs": 10,
+    "APITop": 1,
+    "NodeMissingPATHOccurrences": 18,
+    "bytes": 257836,
+    "lines": 1074,
+    "sha256": "57b547e88da5b43510a4098af4a756c2f92a99f026f0717e3b0fccd1a38b26b5",
+    "workerPackageFailedSeconds": 199.409
+  },
+  "stages": [
+    {
+      "aggregateSHA256": "8289ca991ad6d34773d98a11417821621f090f0aefaae45f878b3c0376ce6912",
+      "beforeAfterEqual": true,
+      "completed": true,
+      "failure": null,
+      "forced": false,
+      "lateRefusal": false,
+      "members": 5340,
+      "minimumSampledResources": {
+        "/tmp": 4433764352,
+        "/workspace": 1564979200,
+        "memoryHeadroom": 4115546112
+      },
+      "path": "/workspace/.zasp-cloud-owned/health-contract-currentb6c0-serial-owner-7lqkymff/actual-stage0-ysjqs2u8/result.json",
+      "recordedWaits": [
+        {
+          "joined": true,
+          "pid": 30749,
+          "returnCode": 0,
+          "tag": "head"
+        },
+        {
+          "joined": true,
+          "pid": 30756,
+          "returnCode": 0,
+          "tag": "selected-inputs"
+        },
+        {
+          "joined": true,
+          "pid": 30781,
+          "returnCode": 0,
+          "tag": "selected-modules"
+        },
+        {
+          "joined": true,
+          "pid": 30786,
+          "returnCode": 0,
+          "tag": "small-health"
+        }
+      ],
+      "sha256": "d1b6b299ff79b4c004a3ee72b9221580e7c556e4e29c643bc5a2d0f73c2997f5",
+      "signals": [],
+      "survivors": [],
+      "unknownCensus": []
+    },
+    {
+      "aggregateSHA256": "e64584752b993820cb16b12aaa9a578f98eca640362f1c67efe1b575173a880b",
+      "beforeAfterEqual": true,
+      "completed": false,
+      "failure": "RuntimeError:child stage refused:platform-health-api-worker",
+      "forced": false,
+      "lateRefusal": false,
+      "members": 11006,
+      "minimumSampledResources": {
+        "/tmp": 3543658496,
+        "/workspace": 1560023040,
+        "memoryHeadroom": 1701924864
+      },
+      "path": "/workspace/.zasp-cloud-owned/health-contract-currentb6c0-serial-owner-7lqkymff/actual-stage1-y1rvyunw/result.json",
+      "recordedWaits": [
+        {
+          "joined": true,
+          "pid": 30868,
+          "returnCode": 0,
+          "tag": "head"
+        },
+        {
+          "joined": true,
+          "pid": 30870,
+          "returnCode": 0,
+          "tag": "selected-inputs"
+        },
+        {
+          "joined": true,
+          "pid": 30895,
+          "returnCode": 0,
+          "tag": "selected-modules"
+        },
+        {
+          "joined": true,
+          "pid": 30900,
+          "returnCode": 1,
+          "tag": "platform-health-api-worker"
+        }
+      ],
+      "sha256": "9d18862e84cafe73ea2b3227d087e09fe8cccb078be76dbdbb2cd6e418d22b6d",
+      "signals": [],
+      "survivors": [],
+      "unknownCensus": []
+    }
+  ],
+  "status": "VERIFIED_MIXED_LOCAL_FAILURE_PRESERVED"
+}

@@ -1,0 +1,137 @@
+{
+  "format": "test74-v11-conditional-single-file-adoption-v1",
+  "observedHEAD": "c1c45b24c5e0eec76b49e80c9f2f632087a6b33f",
+  "state": "PREPARED_ONLY_ROOT_ACTUAL_POSITIVE_AND_REVIEW_REQUIRED",
+  "changes": [
+    {
+      "path": "services/platform/apiserver/approval_maintenance_genuine_test74_postgres_test.go",
+      "sourcePath": "/workspace/.zasp-cloud-owned/approval-maintenance-test74-supervised-source-v11-api-login/services/platform/apiserver/approval_maintenance_genuine_test74_postgres_test.go",
+      "sha256": "fcb312455a7bcbfc1800f0d0c70334f620e20143ea0c9306dc814b8d1d3b1c7b",
+      "bytes": 35457,
+      "currentExists": false,
+      "currentSHA256": null,
+      "action": "ADD_IF_ACTUAL_PASS"
+    }
+  ],
+  "alreadyCurrentOverlayMembers": [
+    {
+      "path": "services/platform/apiserver/approval_maintenance_genuine_enqueue_postgres_test.go",
+      "sourcePath": "/workspace/.zasp-cloud-owned/approval-maintenance-native-finding-source-v5/services/platform/apiserver/approval_maintenance_genuine_enqueue_postgres_test.go",
+      "sha256": "0ae6bb2a4eb4a41f98e475b498fbe9f96347df3d969920e6c4455f3943cadddd",
+      "bytes": 15210,
+      "currentExists": true,
+      "currentSHA256": "0ae6bb2a4eb4a41f98e475b498fbe9f96347df3d969920e6c4455f3943cadddd",
+      "action": "ALREADY_CURRENT"
+    },
+    {
+      "path": "services/platform/apiserver/approval_maintenance_genuine_progress_postgres_test.go",
+      "sourcePath": "/workspace/.zasp-cloud-owned/approval-maintenance-family-enqueue-source-v6/services/platform/apiserver/approval_maintenance_genuine_progress_postgres_test.go",
+      "sha256": "0b64a69eb8e7ade5fcad1950d1be110e61594892e7d0675f4cc30b88e67964d9",
+      "bytes": 9629,
+      "currentExists": true,
+      "currentSHA256": "0b64a69eb8e7ade5fcad1950d1be110e61594892e7d0675f4cc30b88e67964d9",
+      "action": "ALREADY_CURRENT"
+    },
+    {
+      "path": "services/platform/apiserver/approval_maintenance_owned_credential_test.go",
+      "sourcePath": "/workspace/.zasp-cloud-owned/approval-maintenance-native-finding-source-v5/services/platform/apiserver/approval_maintenance_owned_credential_test.go",
+      "sha256": "c8c95d8eecd3294b3f1624bd4db9322305e7818bae5dd59e211ed432724085fe",
+      "bytes": 6303,
+      "currentExists": true,
+      "currentSHA256": "c8c95d8eecd3294b3f1624bd4db9322305e7818bae5dd59e211ed432724085fe",
+      "action": "ALREADY_CURRENT"
+    },
+    {
+      "path": "services/platform/apiserver/approval_maintenance_owned_fga_test.go",
+      "sourcePath": "/workspace/.zasp-cloud-owned/approval-maintenance-native-finding-source-v6-import/services/platform/apiserver/approval_maintenance_owned_fga_test.go",
+      "sha256": "e505c27d07bde5948d7ec4f4612ffc28ccb2b68f37bebc842e91cec0d5066647",
+      "bytes": 7564,
+      "currentExists": true,
+      "currentSHA256": "e505c27d07bde5948d7ec4f4612ffc28ccb2b68f37bebc842e91cec0d5066647",
+      "action": "ALREADY_CURRENT"
+    },
+    {
+      "path": "services/platform/apiserver/authorization_projection_fga_test.go",
+      "sourcePath": "/workspace/.zasp-cloud-owned/approval-maintenance-family-enqueue-source-v6/services/platform/apiserver/authorization_projection_fga_test.go",
+      "sha256": "38dd0f185d3b63390ae46208417fa56758a3764ef8fe0024b1b7190491f49782",
+      "bytes": 3131,
+      "currentExists": true,
+      "currentSHA256": "38dd0f185d3b63390ae46208417fa56758a3764ef8fe0024b1b7190491f49782",
+      "action": "ALREADY_CURRENT"
+    },
+    {
+      "path": "services/platform/apiserver/temporal_finding_configuration_nonownership_test.go",
+      "sourcePath": "/workspace/.zasp-cloud-owned/native78-test74-nonownership-source-v3-complete-census/services/platform/apiserver/temporal_finding_configuration_nonownership_test.go",
+      "sha256": "f2b42402148a8ff355317156e3d11fd466f692d8ea0eae7f011a660e1eb78f9a",
+      "bytes": 7110,
+      "currentExists": true,
+      "currentSHA256": "f2b42402148a8ff355317156e3d11fd466f692d8ea0eae7f011a660e1eb78f9a",
+      "action": "ALREADY_CURRENT"
+    },
+    {
+      "path": "services/platform/apiserver/temporal_finding_human_family_test.go",
+      "sourcePath": "/workspace/.zasp-cloud-owned/native78-test74-nonownership-source-v3-complete-census/services/platform/apiserver/temporal_finding_human_family_test.go",
+      "sha256": "389655fe568f68a1c7ba45eecc13ed27021351f0020a691a1a0f2f604617e766",
+      "bytes": 2880,
+      "currentExists": true,
+      "currentSHA256": "389655fe568f68a1c7ba45eecc13ed27021351f0020a691a1a0f2f604617e766",
+      "action": "ALREADY_CURRENT"
+    },
+    {
+      "path": "services/platform/apiserver/temporal_finding_response_repository.go",
+      "sourcePath": "/workspace/.zasp-cloud-owned/native78-test74-nonownership-source-v3-complete-census/services/platform/apiserver/temporal_finding_response_repository.go",
+      "sha256": "7d4f5d7cee446cb3e8be460ccd51a2476981002137e7ed4d01ef9bd36d0fdfca",
+      "bytes": 3516,
+      "currentExists": true,
+      "currentSHA256": "7d4f5d7cee446cb3e8be460ccd51a2476981002137e7ed4d01ef9bd36d0fdfca",
+      "action": "ALREADY_CURRENT"
+    },
+    {
+      "path": "services/platform/migrations/production_approval_maintenance_profile.go",
+      "sourcePath": "/workspace/.zasp-cloud-owned/approval-maintenance-delegation-integration-v5-case/services/platform/migrations/production_approval_maintenance_profile.go",
+      "sha256": "ea0e6dbc81cfbb979bd35dee7bc4d5a51e4134cf0ce7704d1dceb8c16800e7ad",
+      "bytes": 54811,
+      "currentExists": true,
+      "currentSHA256": "ea0e6dbc81cfbb979bd35dee7bc4d5a51e4134cf0ce7704d1dceb8c16800e7ad",
+      "action": "ALREADY_CURRENT"
+    },
+    {
+      "path": "services/platform/migrations/sql/approval_maintenance_profile.sql",
+      "sourcePath": "/workspace/.zasp-cloud-owned/approval-maintenance-delegation-integration-v5-case/services/platform/migrations/sql/approval_maintenance_profile.sql",
+      "sha256": "e894ab1c8045a23e4055ced58a89af8a795b26ebf8f4518c83caa89de53a269b",
+      "bytes": 50610,
+      "currentExists": true,
+      "currentSHA256": "e894ab1c8045a23e4055ced58a89af8a795b26ebf8f4518c83caa89de53a269b",
+      "action": "ALREADY_CURRENT"
+    }
+  ],
+  "candidateManifest": {
+    "path": "/workspace/.zasp-cloud-owned/approval-maintenance-test74-supervised-source-v11-api-login/manifest.json",
+    "sha256": "7879b471d415cf0873322385e428c64168664c7d5c8e61e7def7ac7d6f5aeace"
+  },
+  "effectiveProjectionScope": {
+    "packages": [
+      "apiserver",
+      "authorization",
+      "migrations"
+    ],
+    "remainingByteDifference": {
+      "path": "services/platform/authorization/worker.go",
+      "physicalSHA256": "485655a09c5df2572f371ec75a36878f895ad3510e480378db405bd358173d0e",
+      "currentSHA256": "5486b58c177903c65b114a2ec3347ea159b7856900c7e781bc552cba021fcb3c",
+      "scope": "WorkerExecutor field whitespace from gofmt only; not whole-module byte parity"
+    },
+    "fullCurrentModuleAcceptance": false
+  },
+  "adoptionGuards": [
+    "Re-read all source hashes and current ten member hashes",
+    "Target must remain absent; no overwrite or historical hardlink mutation",
+    "ROOT positive actual singleton plus original credential controls and independent actual review required",
+    "Copy exactly candidate bytes to sole target; verify full SHA; no gofmt delta required"
+  ],
+  "limits": [
+    "Owned native PG/FGA component fixture with synthetic human identity/provider boundary; no Stytch, deployed provider, browser or native379 authority",
+    "No ledger availability or requirement promotions",
+    "Activation, old external writer withdrawal, full-family recovery/regrant/terminal completion remain separate"
+  ]
+}

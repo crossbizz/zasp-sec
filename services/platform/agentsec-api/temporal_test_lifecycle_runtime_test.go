@@ -43,7 +43,7 @@ func (d *temporalLifecycleDatabase) QueryJSON(_ context.Context, q string, args 
 		return json.RawMessage(fmt.Sprint(d.present78)), nil
 	case "SELECT to_jsonb(zasp_temporal78.api_ready($1,$2))":
 		return json.RawMessage(`true`), nil
-	case "SELECT zasp_temporal78.approval($1,$2,$3,$4,$5)", "SELECT zasp_temporal78.decide_approval($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)":
+	case "SELECT COALESCE((SELECT zasp_temporal78.approval($1,$2,$3,$4,$5)),'null'::jsonb)", "SELECT COALESCE((SELECT zasp_temporal78.decide_approval($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)),'null'::jsonb)":
 		return json.RawMessage(`null`), nil // actual nonowner contract
 	}
 	if strings.Contains(q, "cancel") || strings.Contains(q, "approval") {
@@ -212,7 +212,7 @@ func TestTemporalLifecycleRuntimePublicRepository(t *testing.T) {
 				if base.present78 {
 					found := false
 					for _, q := range base.queries {
-						if strings.HasPrefix(q, "SELECT zasp_temporal78.") {
+						if q == "SELECT COALESCE((SELECT zasp_temporal78.approval($1,$2,$3,$4,$5)),'null'::jsonb)" || q == "SELECT COALESCE((SELECT zasp_temporal78.decide_approval($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)),'null'::jsonb)" {
 							found = true
 						}
 					}

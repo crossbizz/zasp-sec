@@ -1,0 +1,14 @@
+{
+  "bodyRetained": false,
+  "credentialsPublished": false,
+  "endpoint": "https://test.stytch.com/v1/b2b/organizations/search",
+  "format": "actual-bounded-Stytch-TEST-readonly-search-v1",
+  "httpStatus": 200,
+  "method": "POST",
+  "normalOutcome": true,
+  "organizationCountInBoundedPage": 0,
+  "providerAuthAccepted": true,
+  "scope": "TEST organization search authentication only; no retained org/member/session/deployed flow or mutations",
+  "session": "UNBOUND",
+  "targetOrganization": "UNBOUND"
+}

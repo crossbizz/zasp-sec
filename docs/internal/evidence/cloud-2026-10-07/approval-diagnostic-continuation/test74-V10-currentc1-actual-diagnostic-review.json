@@ -1,0 +1,118 @@
+{
+  "actualGenuineTestExit": 1,
+  "approvalPASS": false,
+  "cleanup": {
+    "FGA": {
+      "exit": 0,
+      "forcedCleanup": false,
+      "listenersAbsent": true,
+      "normalWait": true,
+      "routineGracefulSIGTERM": true,
+      "sessionAbsent": true
+    },
+    "PGCapturedNormalJoin": [
+      {
+        "pgControlExit": 0,
+        "pid": 28263,
+        "serverWaitExit": 0
+      }
+    ],
+    "allJoined": true,
+    "forced": false,
+    "lateRefusalExists": false,
+    "recordedWaits": [
+      {
+        "joined": true,
+        "pid": 27974,
+        "returnCode": 0,
+        "tag": "base-head"
+      },
+      {
+        "joined": true,
+        "pid": 27976,
+        "returnCode": 0,
+        "tag": "offline-modules"
+      },
+      {
+        "joined": true,
+        "pid": 27982,
+        "returnCode": 0,
+        "tag": "selected-inputs"
+      },
+      {
+        "joined": true,
+        "pid": 28007,
+        "returnCode": 0,
+        "tag": "owned-credential-admission"
+      },
+      {
+        "joined": true,
+        "pid": 28197,
+        "returnCode": 1,
+        "tag": "genuine-single-test-inactive-capture"
+      },
+      {
+        "joined": true,
+        "pid": 28185,
+        "returnCode": 0,
+        "tag": "owned-FGA-normal-stop"
+      }
+    ],
+    "signals": [],
+    "survivors": [],
+    "unknownCensus": []
+  },
+  "diagnosticScalars": {
+    "approval_current": true,
+    "approver_ready": true,
+    "committed_approved": false,
+    "context_live": true,
+    "error_code": "unavailable",
+    "returned_approved": false,
+    "run_current": true
+  },
+  "format": "independent-test74-V10-currentc1-actual-diagnostic-review-v1",
+  "innerSeconds": 265.04375695399904,
+  "markerExactlyOnceBeforeOriginalAssertion": true,
+  "normalOuterExit": 0,
+  "oldMemoryFailureOriginalSHA256": "0d931420001a94bd567fcf63d22e7eacd320df56064d7307b5cdbafd773c8ae4",
+  "outerPath": "/tmp/test74-approvaldiag-retry-root-outer-d4e59o67/normal-outer-result.json",
+  "outerSHA256": "20977d3d0e4278a644bde3510b1c338d0c8a4264b1b8d82addd6451aac8eae42",
+  "outerSeconds": 265.1658663420003,
+  "resultPath": "/workspace/.zasp-cloud-owned/native-test74-approvaldiag-currentc1c45-b2h9s2m7/actual-tvucw0d0/result.json",
+  "resultSHA256": "aa94ee07a34a640c65f1dcd2159745efc2d7c047c8c031ca533b0a6aa075084d",
+  "scope": [
+    "Credential2tops7subs PASS; singleton actualFAIL accepted only as complete diagnostic marker followed by exact original assertion.",
+    "Four measured precondition booleans true and committed/returned false with unavailable category localize observation; underlying source/SQL/provider cause remains unproven.",
+    "No approval/effect/production/native379 acceptance, deployment, activation or guard reduction.",
+    "Normal owned cleanup and source-map conservation are recorded actual scope, not global or lifetime process absence.",
+    "Read-only log/receipt/map review; no runtime or tests rerun, no original failed attempt rewrite."
+  ],
+  "sourceBeforeAfter": {
+    "aggregateSHA256": "94c8ab21057c56e0f1263c15e12607fa937c57dab250d8e943b34ddd9deafdf6",
+    "equal": true,
+    "members": 14004,
+    "notAllCurrentPayloadsRereadByReviewer": true
+  },
+  "stages": [
+    {
+      "bytes": 9678,
+      "failSubs": 0,
+      "failTops": 0,
+      "passSubs": 7,
+      "passTops": 2,
+      "sha256": "d0433178d7621930eba649598dcbf5c7bb5ba199d0ab58193c2c623d9d5e353a",
+      "stage": "owned-credential-admission"
+    },
+    {
+      "bytes": 29868,
+      "failSubs": 0,
+      "failTops": 1,
+      "passSubs": 0,
+      "passTops": 0,
+      "sha256": "7241c6512ef32291380dad1a5f924470addd7af34a5e6f185a2e1bb7f74e09a5",
+      "stage": "genuine-single-test-inactive-capture"
+    }
+  ],
+  "status": "PASS_EXPECTED_FAILURE_DIAGNOSTIC_ONLY"
+}

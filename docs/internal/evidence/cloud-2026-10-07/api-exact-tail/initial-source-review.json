@@ -1,0 +1,69 @@
+{
+  "checkedPins": [
+    {
+      "path": "/tmp/api-child-exact-tail-diagnostic-jgqpa177/PREPARATION.json",
+      "sha256": "9bd3e4ec2c0ef59d568b545d3bd8c5ccc36d4c9ea6c8762dfb5e087b9f9fcca5"
+    },
+    {
+      "path": "/tmp/api-child-exact-tail-diagnostic-jgqpa177/baseline/browser-command-failure.mjs",
+      "sha256": "8324928a8a997e093a988341bee3e86f3047686c00d5f9e39f6e4937fd21100f"
+    },
+    {
+      "path": "/tmp/api-child-exact-tail-diagnostic-jgqpa177/baseline/exact-tail.test.mjs",
+      "sha256": "95706ba5299d0d3b1d70e50524372a646f661a1cd5d44e9f1faed6a2cc1b63e9"
+    },
+    {
+      "path": "/tmp/api-child-exact-tail-diagnostic-jgqpa177/baseline/owned-api-startup-wait.mjs",
+      "sha256": "24fedd52f684a5ae252d132d50dadb4bdbca8954acd34299ad3bbc896b214f1a"
+    },
+    {
+      "path": "/tmp/api-child-exact-tail-diagnostic-jgqpa177/compliance-api-child-stage.test.mjs",
+      "sha256": "cd2483114d8c03a12b2d6ccdd874948246e1cdf3dbe74b076dd373d5271ce111"
+    },
+    {
+      "path": "/tmp/api-child-exact-tail-diagnostic-jgqpa177/run-controls.py",
+      "sha256": "d9facb195aa26642029d9dd4ee3f96172e2617bdb298a9fe332ecc4bfecf6f2d"
+    },
+    {
+      "path": "/tmp/api-child-exact-tail-diagnostic-jgqpa177/successor/browser-command-failure.mjs",
+      "sha256": "aadeca4a07046d3bdb336aa8f036140e18cfb3fa5f84faf2dfaf20f359eba233"
+    },
+    {
+      "path": "/tmp/api-child-exact-tail-diagnostic-jgqpa177/successor/exact-tail.test.mjs",
+      "sha256": "95706ba5299d0d3b1d70e50524372a646f661a1cd5d44e9f1faed6a2cc1b63e9"
+    },
+    {
+      "path": "/tmp/api-child-exact-tail-diagnostic-jgqpa177/successor/owned-api-startup-wait.mjs",
+      "sha256": "24fedd52f684a5ae252d132d50dadb4bdbca8954acd34299ad3bbc896b214f1a"
+    },
+    {
+      "path": "/usr/bin/env",
+      "sha256": "eb1c64bbc9908afcdf8cb48524f17112d8dd76a249f80dee2f01da14747b3b6e"
+    },
+    {
+      "path": "/usr/bin/python3",
+      "sha256": "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1"
+    },
+    {
+      "path": "/usr/bin/timeout",
+      "sha256": "6ca1891dfc0b05d7680770c2884c0391b92467c7bb6500a5c84677e6481739f1"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/bin/tini",
+      "sha256": "93dcc18adc78c65a028a84799ecf8ad40c936fdfc5f2a57b1acda5a8117fa82c"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/node-v22.23.1-linux-x64/bin/node",
+      "sha256": "93956de2e59480474a7b46571da1651180b1a050cdf32641ebec4ce6e478e068"
+    }
+  ],
+  "expected": "Baseline2requiredFAIL2refusalPASS; successor4PASS0SKIP. Existing broader tracked regression requires separate actual run after approved adoption.",
+  "owner": "All twelve helper function ASTs equal accepted residual94c18 donor; Node dispatch only,20s/stage60work100final105outer+25,2MiB postjoin capture guard, full numeric session UID/startticks/pidfd/subreaper census and sticky residual failure, source/tool prepost and late refusal retained. ROOT must independently precheck literal recipe/source/tool hashes and fresh unchanged resource floors, obtain normal outer exit and actual roster; no execution by reviewer.",
+  "recipe": {
+    "path": "/tmp/api-child-exact-tail-diagnostic-jgqpa177/ROOT-RECIPE.json",
+    "sha256": "5e9c888ab99c13305193973fff7fd127cc3bcee1574af671db70ad3939d9a256"
+  },
+  "scope": "Diagnostic information boundary only; hosted API ready/deadline cause remains unknown, no operational fix or native379/anchors claimed.",
+  "sourceDelta": "Three parser conditions admit exactly16384 retained characters with complete internal closed stage/dependency witnesses; leading marker-containing boundary fragments, oversize, partial, duplicate, unknown and malformed witnesses remain refused. No buffer/deadline/runtime readiness change. Existing tracked oracle sole unavailable-to-serve change for complete internal boundary. Baseline helper exact current source; same four causal bodies both fixtures.",
+  "verdict": "PASS conditional ROOT-only four source-adapted Node controls"
+}

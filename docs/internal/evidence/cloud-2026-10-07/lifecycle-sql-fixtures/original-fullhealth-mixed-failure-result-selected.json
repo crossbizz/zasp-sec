@@ -1,0 +1,84 @@
+{
+  "format": "selected-public-safe-owner-result-v1",
+  "omittedFields": [
+    "activeOverlay",
+    "adoptedChildren",
+    "aliasTargets",
+    "healthContractStage",
+    "ownedReaps",
+    "ownedSessions",
+    "projectionRoot",
+    "resourceHistory"
+  ],
+  "original": {
+    "bytes": 1064626,
+    "identity": {
+      "ctime_ns": 1791380092993473872,
+      "dev": 27,
+      "gid": 1000,
+      "ino": 998702,
+      "mode": "0o400",
+      "mtime_ns": 1791380092993473872,
+      "nlink": 1,
+      "size": 1064626,
+      "uid": 1000
+    },
+    "path": "/workspace/.zasp-cloud-owned/health-contract-currentb6c0-serial-owner-7lqkymff/actual-stage1-y1rvyunw/result.json",
+    "sha256": "9d18862e84cafe73ea2b3227d087e09fe8cccb078be76dbdbb2cd6e418d22b6d"
+  },
+  "scope": "Derived scalar selection; test fixture scope only, not whole health acceptance.",
+  "selected": {
+    "completed": false,
+    "elapsedSeconds": 409.2390246089999,
+    "failure": "RuntimeError:child stage refused:platform-health-api-worker",
+    "firstRefusal": {
+      "elapsedSeconds": 408.7138478300003,
+      "phase": "platform-health-api-worker",
+      "reason": "RuntimeError:child stage refused:platform-health-api-worker",
+      "resources": null,
+      "signals": []
+    },
+    "forced": false,
+    "format": "health-contract-serial-stage-root-actual-v1",
+    "inputs": 11006,
+    "ownedSessionSurvivors": [],
+    "processCensusUnknown": [],
+    "productionActivated": false,
+    "resourcesAfter": {
+      "/dev/shm": 9441349632,
+      "/tmp": 4092305408,
+      "/workspace": 1560023040,
+      "memoryHeadroom": 3811946496
+    },
+    "results": [],
+    "signals": [],
+    "sourceAfterSHA256": "e64584752b993820cb16b12aaa9a578f98eca640362f1c67efe1b575173a880b",
+    "sourceBeforeSHA256": "e64584752b993820cb16b12aaa9a578f98eca640362f1c67efe1b575173a880b",
+    "waits": [
+      {
+        "joined": true,
+        "pid": 30868,
+        "returnCode": 0,
+        "tag": "head"
+      },
+      {
+        "joined": true,
+        "pid": 30870,
+        "returnCode": 0,
+        "tag": "selected-inputs"
+      },
+      {
+        "joined": true,
+        "pid": 30895,
+        "returnCode": 0,
+        "tag": "selected-modules"
+      },
+      {
+        "joined": true,
+        "pid": 30900,
+        "returnCode": 1,
+        "tag": "platform-health-api-worker"
+      }
+    ]
+  }
+}

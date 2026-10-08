@@ -1,0 +1,807 @@
+{
+  "format": "closed-current77d90-restored-health-publication-candidate-v1",
+  "immediatePredecessor": {
+    "change": "README-only graph checksum authority and outer/inner timing clarification; payload bodies unchanged",
+    "path": "/tmp/health-current77d90-restored-publication-sdymh2rk/manifest.json",
+    "sha256": "7f050a08a6face63a6e92ae5faaa8aacbff6e27d1766905425d3a08a8da40b4d"
+  },
+  "omittedOriginalResultReferences": [
+    {
+      "bytes": 568147,
+      "identity": {
+        "ctime_ns": 1791381893552942861,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 81664,
+        "mode": "0o400",
+        "mtime_ns": 1791381893552942861,
+        "nlink": 1,
+        "size": 568147,
+        "uid": 1000
+      },
+      "path": "/tmp/health-contract-current77d90-stage1-33bi4q8s/result.json",
+      "sha256": "be07bed9fc4bfa3fbf7b6ecfdfbcb1c58680d922e6279e1c818ace7c5ccf8bb8"
+    },
+    {
+      "bytes": 4822,
+      "identity": {
+        "ctime_ns": 1791381895030311659,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 81677,
+        "mode": "0o400",
+        "mtime_ns": 1791381895030311659,
+        "nlink": 1,
+        "size": 4822,
+        "uid": 1000
+      },
+      "path": "/tmp/health-contract-current77d90-stage2-vjt__b_m/result.json",
+      "sha256": "ad2ba2e60331aad11145ee44f82fe9278dfcf4244c358f201429fddec00cc596"
+    },
+    {
+      "bytes": 14766,
+      "identity": {
+        "ctime_ns": 1791382450617235341,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 82097,
+        "mode": "0o400",
+        "mtime_ns": 1791382450617235341,
+        "nlink": 1,
+        "size": 14766,
+        "uid": 1000
+      },
+      "path": "/tmp/health-contract-current77d90-stage2-cv1wdu9s/result.json",
+      "sha256": "5276da64975e9c86ddab4ad1c52f756a800db146edf7f6b2f6e6202bc26f7ffe"
+    },
+    {
+      "bytes": 32163,
+      "identity": {
+        "ctime_ns": 1791382463438025512,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 83266,
+        "mode": "0o400",
+        "mtime_ns": 1791382463438025512,
+        "nlink": 1,
+        "size": 32163,
+        "uid": 1000
+      },
+      "path": "/tmp/health-contract-current77d90-stage3-o9_oxe9u/result.json",
+      "sha256": "c27983b1a40eb7c25b571c8a8d545ed57cb47f74daebc3421abcfecff0334e47"
+    }
+  ],
+  "payloadMembers": [
+    {
+      "bytes": 2938,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 89644,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "platform-stage1-result-selected.json",
+      "selection": "derived-explicit-field-selection",
+      "sha256": "51f387a150058bf1f9555bcdf22136a791b55be09495b0a0cfb10eac54d6d29b",
+      "sourceIdentity": {
+        "ctime_ns": 1791381893552942861,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 81664,
+        "mode": "0o400",
+        "mtime_ns": 1791381893552942861,
+        "nlink": 1,
+        "size": 568147,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/health-contract-current77d90-stage1-33bi4q8s/result.json",
+      "sourceSHA256": null
+    },
+    {
+      "bytes": 218,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 89645,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "platform-stage1-platform-health-api-worker.jsonl",
+      "selection": "byte-exact-original",
+      "sha256": "5c7e61c2f14ac3852db9230d16f5387a970307db739bc723b23422963d3b1ed4",
+      "sourceIdentity": {
+        "ctime_ns": 1791381892422214066,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 79082,
+        "mode": "0o600",
+        "mtime_ns": 1791381892422214066,
+        "nlink": 1,
+        "size": 218,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/health-contract-current77d90-stage1-33bi4q8s/platform-health-api-worker.jsonl",
+      "sourceSHA256": "5c7e61c2f14ac3852db9230d16f5387a970307db739bc723b23422963d3b1ed4"
+    },
+    {
+      "bytes": 0,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 89646,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "platform-stage1-platform-health-api-worker.stderr",
+      "selection": "byte-exact-original",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sourceIdentity": {
+        "ctime_ns": 1791381676696504944,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 79083,
+        "mode": "0o600",
+        "mtime_ns": 1791381676696504944,
+        "nlink": 1,
+        "size": 0,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/health-contract-current77d90-stage1-33bi4q8s/platform-health-api-worker.stderr",
+      "sourceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 2073,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 89647,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "event-stage2-pretest-refusal-result-selected.json",
+      "selection": "derived-explicit-field-selection",
+      "sha256": "0ffdbf9661a057e58869a7e9725127b81502cd0e2845044ed554532a7b64f838",
+      "sourceIdentity": {
+        "ctime_ns": 1791381895030311659,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 81677,
+        "mode": "0o400",
+        "mtime_ns": 1791381895030311659,
+        "nlink": 1,
+        "size": 4822,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/health-contract-current77d90-stage2-vjt__b_m/result.json",
+      "sourceSHA256": null
+    },
+    {
+      "bytes": 0,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 89648,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "event-stage2-pretest-refusal-selected-modules.jsonl",
+      "selection": "byte-exact-original",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sourceIdentity": {
+        "ctime_ns": 1791381894482269317,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 81674,
+        "mode": "0o600",
+        "mtime_ns": 1791381894482269317,
+        "nlink": 1,
+        "size": 0,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/health-contract-current77d90-stage2-vjt__b_m/selected-modules.jsonl",
+      "sourceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 42,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 89649,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "event-stage2-pretest-refusal-selected-modules.stderr",
+      "selection": "byte-exact-original",
+      "sha256": "3664dcaa1cf8e31d8b735428a5db453b0f2b6530e71ddbedeb5db5dea4eafada",
+      "sourceIdentity": {
+        "ctime_ns": 1791381894490269533,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 81675,
+        "mode": "0o600",
+        "mtime_ns": 1791381894490269533,
+        "nlink": 1,
+        "size": 42,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/health-contract-current77d90-stage2-vjt__b_m/selected-modules.stderr",
+      "sourceSHA256": "3664dcaa1cf8e31d8b735428a5db453b0f2b6530e71ddbedeb5db5dea4eafada"
+    },
+    {
+      "bytes": 0,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 89650,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "outer-1.stderr",
+      "selection": "byte-exact-original",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sourceIdentity": {
+        "ctime_ns": 1791381893574332824,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 81667,
+        "mode": "0o600",
+        "mtime_ns": 1791381893574332824,
+        "nlink": 1,
+        "size": 0,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/health-node22-77d90-root-outer-ji6mkft0/1.stderr",
+      "sourceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 238,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 89651,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "outer-1.stdout",
+      "selection": "byte-exact-original",
+      "sha256": "b2d95ca38f98e30466ff103213c48ac4ae9cd1e22cf76051cb340ceae3bc9d1c",
+      "sourceIdentity": {
+        "ctime_ns": 1791381895030311659,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 81666,
+        "mode": "0o600",
+        "mtime_ns": 1791381895030311659,
+        "nlink": 1,
+        "size": 238,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/health-node22-77d90-root-outer-ji6mkft0/1.stdout",
+      "sourceSHA256": "b2d95ca38f98e30466ff103213c48ac4ae9cd1e22cf76051cb340ceae3bc9d1c"
+    },
+    {
+      "bytes": 3491,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 89652,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "outer-normal-outer-results.json",
+      "selection": "byte-exact-original",
+      "sha256": "619825400328fde937cad22e30d331d58cac71fc5adf147936268be00809aedb",
+      "sourceIdentity": {
+        "ctime_ns": 1791381895047691647,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 81665,
+        "mode": "0o600",
+        "mtime_ns": 1791381895047691647,
+        "nlink": 1,
+        "size": 3491,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/health-node22-77d90-root-outer-ji6mkft0/normal-outer-results.json",
+      "sourceSHA256": "619825400328fde937cad22e30d331d58cac71fc5adf147936268be00809aedb"
+    },
+    {
+      "bytes": 0,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 89653,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "outer-0.stderr",
+      "selection": "byte-exact-original",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sourceIdentity": {
+        "ctime_ns": 1791381674784454467,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 79071,
+        "mode": "0o600",
+        "mtime_ns": 1791381674784454467,
+        "nlink": 1,
+        "size": 0,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/health-node22-77d90-root-outer-ji6mkft0/0.stderr",
+      "sourceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 190,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 89654,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "outer-0.stdout",
+      "selection": "byte-exact-original",
+      "sha256": "724fdd9393c8aefb5aa55113d957717eff9c874b201f6eeb42f5705299b229f2",
+      "sourceIdentity": {
+        "ctime_ns": 1791381893552942861,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 79070,
+        "mode": "0o600",
+        "mtime_ns": 1791381893552942861,
+        "nlink": 1,
+        "size": 190,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/health-node22-77d90-root-outer-ji6mkft0/0.stdout",
+      "sourceSHA256": "724fdd9393c8aefb5aa55113d957717eff9c874b201f6eeb42f5705299b229f2"
+    },
+    {
+      "bytes": 4081,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 89655,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "original-mixed-health-failure-review.json",
+      "selection": "byte-exact-original",
+      "sha256": "3ec59ea6d47373a0301de95717f39ac975ccb5fadebec8ec2a1cb0a57ffa62f3",
+      "sourceIdentity": {
+        "ctime_ns": 1791380394654864375,
+        "dev": 27,
+        "gid": 1000,
+        "ino": 1260006,
+        "mode": "0o400",
+        "mtime_ns": 1791380394654864375,
+        "nlink": 1,
+        "size": 4081,
+        "uid": 1000
+      },
+      "sourcePath": "/workspace/.zasp-cloud-owned/spec29-independent-proof/health-b6c-original-baseline-actual-review.json",
+      "sourceSHA256": "3ec59ea6d47373a0301de95717f39ac975ccb5fadebec8ec2a1cb0a57ffa62f3"
+    },
+    {
+      "bytes": 2797,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 89656,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "restored-stage2-result-selected.json",
+      "selection": "derived-explicit-field-selection",
+      "sha256": "1a46047cb4984a22e8f6fd70d03c6043f014ce2f95d3c65045effadf1fb77075",
+      "sourceIdentity": {
+        "ctime_ns": 1791382450617235341,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 82097,
+        "mode": "0o400",
+        "mtime_ns": 1791382450617235341,
+        "nlink": 1,
+        "size": 14766,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/health-contract-current77d90-stage2-cv1wdu9s/result.json",
+      "sourceSHA256": null
+    },
+    {
+      "bytes": 62,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 89657,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "restored-stage2-event-ingest.jsonl",
+      "selection": "byte-exact-original",
+      "sha256": "67912c69c49a39c661dd4da56d2ad2ee582e0249bb5e8f447745a9b975d4c7dc",
+      "sourceIdentity": {
+        "ctime_ns": 1791382449657256644,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 81727,
+        "mode": "0o600",
+        "mtime_ns": 1791382449657256644,
+        "nlink": 1,
+        "size": 62,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/health-contract-current77d90-stage2-cv1wdu9s/event-ingest.jsonl",
+      "sourceSHA256": "67912c69c49a39c661dd4da56d2ad2ee582e0249bb5e8f447745a9b975d4c7dc"
+    },
+    {
+      "bytes": 0,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 89658,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "restored-stage2-event-ingest.stderr",
+      "selection": "byte-exact-original",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sourceIdentity": {
+        "ctime_ns": 1791382446137161551,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 81728,
+        "mode": "0o600",
+        "mtime_ns": 1791382446137161551,
+        "nlink": 1,
+        "size": 0,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/health-contract-current77d90-stage2-cv1wdu9s/event-ingest.stderr",
+      "sourceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 2812,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 89659,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "restored-stage3-result-selected.json",
+      "selection": "derived-explicit-field-selection",
+      "sha256": "ef72276bc3b5a02e851057328a11a08e4c628ef5e96f3705f928205d43dddff4",
+      "sourceIdentity": {
+        "ctime_ns": 1791382463438025512,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 83266,
+        "mode": "0o400",
+        "mtime_ns": 1791382463438025512,
+        "nlink": 1,
+        "size": 32163,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/health-contract-current77d90-stage3-o9_oxe9u/result.json",
+      "sourceSHA256": null
+    },
+    {
+      "bytes": 65,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 89660,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "restored-stage3-runtime-gateway.jsonl",
+      "selection": "byte-exact-original",
+      "sha256": "cadc396e4d72280a6da02254b031da0ad83267b3e7a86abc2d25769542383a3a",
+      "sourceIdentity": {
+        "ctime_ns": 1791382462589606011,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 82110,
+        "mode": "0o600",
+        "mtime_ns": 1791382462589606011,
+        "nlink": 1,
+        "size": 65,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/health-contract-current77d90-stage3-o9_oxe9u/runtime-gateway.jsonl",
+      "sourceSHA256": "cadc396e4d72280a6da02254b031da0ad83267b3e7a86abc2d25769542383a3a"
+    },
+    {
+      "bytes": 0,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 89661,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "restored-stage3-runtime-gateway.stderr",
+      "selection": "byte-exact-original",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sourceIdentity": {
+        "ctime_ns": 1791382452133323530,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 82111,
+        "mode": "0o600",
+        "mtime_ns": 1791382452133323530,
+        "nlink": 1,
+        "size": 0,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/health-contract-current77d90-stage3-o9_oxe9u/runtime-gateway.stderr",
+      "sourceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 89662,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "restored-outer-3.stderr",
+      "selection": "byte-exact-original",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sourceIdentity": {
+        "ctime_ns": 1791382450637283116,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 82100,
+        "mode": "0o600",
+        "mtime_ns": 1791382450637283116,
+        "nlink": 1,
+        "size": 0,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/health-node22-77d90-restored-root-outer-cvd_6pru/3.stderr",
+      "sourceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 190,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 89663,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "restored-outer-3.stdout",
+      "selection": "byte-exact-original",
+      "sha256": "36825faed1e20c99d9185e15df79ec69cd2225b22fdc9c75030e5dd6a866f337",
+      "sourceIdentity": {
+        "ctime_ns": 1791382463438025512,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 82099,
+        "mode": "0o600",
+        "mtime_ns": 1791382463438025512,
+        "nlink": 1,
+        "size": 190,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/health-node22-77d90-restored-root-outer-cvd_6pru/3.stdout",
+      "sourceSHA256": "36825faed1e20c99d9185e15df79ec69cd2225b22fdc9c75030e5dd6a866f337"
+    },
+    {
+      "bytes": 3461,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 89664,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "restored-outer-normal-outer-results.json",
+      "selection": "byte-exact-original",
+      "sha256": "b215db9ab2a360a15a9369e540e087ef7b9419b7732e5b50003c4e65a50d2769",
+      "sourceIdentity": {
+        "ctime_ns": 1791382463454414698,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 82098,
+        "mode": "0o600",
+        "mtime_ns": 1791382463454414698,
+        "nlink": 1,
+        "size": 3461,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/health-node22-77d90-restored-root-outer-cvd_6pru/normal-outer-results.json",
+      "sourceSHA256": "b215db9ab2a360a15a9369e540e087ef7b9419b7732e5b50003c4e65a50d2769"
+    },
+    {
+      "bytes": 0,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 89665,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "restored-outer-2.stderr",
+      "selection": "byte-exact-original",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sourceIdentity": {
+        "ctime_ns": 1791382444801125451,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 81717,
+        "mode": "0o600",
+        "mtime_ns": 1791382444801125451,
+        "nlink": 1,
+        "size": 0,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/health-node22-77d90-restored-root-outer-cvd_6pru/2.stderr",
+      "sourceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 190,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 89666,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "restored-outer-2.stdout",
+      "selection": "byte-exact-original",
+      "sha256": "290f0b8fdbc3462b972a7f5f5249456b6d80fe54f490208eb339cefad2bdaacd",
+      "sourceIdentity": {
+        "ctime_ns": 1791382450617235341,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 81716,
+        "mode": "0o600",
+        "mtime_ns": 1791382450617235341,
+        "nlink": 1,
+        "size": 190,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/health-node22-77d90-restored-root-outer-cvd_6pru/2.stdout",
+      "sourceSHA256": "290f0b8fdbc3462b972a7f5f5249456b6d80fe54f490208eb339cefad2bdaacd"
+    },
+    {
+      "bytes": 8821,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 89667,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "six-locked-module-result.json",
+      "selection": "byte-exact-original",
+      "sha256": "02ff4a057a3965251e5c8ec7494decc66b5b5fdef3e7f4d1d0ae3e62a4efbfea",
+      "sourceIdentity": {
+        "ctime_ns": 1791382374876024943,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 81708,
+        "mode": "0o600",
+        "mtime_ns": 1791382374876024943,
+        "nlink": 1,
+        "size": 8821,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/health-six-locked-module-restore-8zvkb09s/result.json",
+      "sourceSHA256": "02ff4a057a3965251e5c8ec7494decc66b5b5fdef3e7f4d1d0ae3e62a4efbfea"
+    },
+    {
+      "bytes": 2457,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 89668,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "six-locked-module-offline-preflight.json",
+      "selection": "byte-exact-original",
+      "sha256": "4e4702fff198262982900fb0c21ec805d0f7eb7a5053f674a32707cf4059ecf6",
+      "sourceIdentity": {
+        "ctime_ns": 1791382403628217772,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 81713,
+        "mode": "0o600",
+        "mtime_ns": 1791382403628217772,
+        "nlink": 1,
+        "size": 2457,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/health-six-locked-module-restore-8zvkb09s/offline-preflight.json",
+      "sourceSHA256": "4e4702fff198262982900fb0c21ec805d0f7eb7a5053f674a32707cf4059ecf6"
+    },
+    {
+      "bytes": 1879,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 89669,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "current-owner-source-review.json",
+      "selection": "byte-exact-original",
+      "sha256": "4ef99dd7297f57ee6d396debea17d9752d7d2a56e62c252b05658bde9bc6bb54",
+      "sourceIdentity": {
+        "ctime_ns": 1791381604373065248,
+        "dev": 27,
+        "gid": 1000,
+        "ino": 1260042,
+        "mode": "0o400",
+        "mtime_ns": 1791381604373065248,
+        "nlink": 1,
+        "size": 1879,
+        "uid": 1000
+      },
+      "sourcePath": "/workspace/.zasp-cloud-owned/spec29-independent-proof/health-contract-current77d90-node22-owner-source-review.json",
+      "sourceSHA256": "4ef99dd7297f57ee6d396debea17d9752d7d2a56e62c252b05658bde9bc6bb54"
+    },
+    {
+      "bytes": 1872,
+      "copyIdentity": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 89670,
+        "mode": "0o600",
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "README.md",
+      "selection": "new-scope-document",
+      "sha256": "13cf7e93c336e9b1ca7811a2f143e3f0a2e160a0b9c29e6f517a8bf25f4fd79b",
+      "sourceIdentity": null,
+      "sourcePath": null,
+      "sourceSHA256": null
+    }
+  ],
+  "predecessorCandidate": {
+    "path": "/tmp/health-current77d90-publication-0rfo4h90/manifest.json",
+    "sha256": "42daaabbdb7a540c27df50fa78304cdc3ed061ac38bed2a680d0d2ea5b625a8b",
+    "status": "Unchanged original14-file pre-restoration packet"
+  },
+  "publicationSafety": {
+    "encodedPayloadSelection": "none",
+    "scanner": "NOT_RUN",
+    "sharedWrites": false
+  },
+  "root": "/tmp/health-current77d90-publication-final-h_ssvnwh",
+  "scope": "Three current Go health command stages0; prior pretest refusal preserved; no named testcase/zero-skip/deployment/fullnpm claim."
+}

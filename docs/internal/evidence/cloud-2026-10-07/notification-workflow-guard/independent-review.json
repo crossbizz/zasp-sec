@@ -1,0 +1,36 @@
+{
+  "actual": {
+    "ESLint": {
+      "exitCodeSource": "ROOT actual normal0 observation",
+      "path": "/tmp/notification-workflow-guard-eslint.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "GREEN": {
+      "fail": 0,
+      "pass": 326,
+      "path": "/tmp/notification-workflow-guard-green.log",
+      "sha256": "5787984b78d55996353978f8e748baff75c05b0f6210dee64ce9a062fc7567ba",
+      "total": 326
+    },
+    "RED": {
+      "fail": 214,
+      "pass": 105,
+      "path": "/tmp/notification-workflow-guard-red.log",
+      "scope": "Old Vitest import captured before candidate edit; stale36 step guard causes broad fixture/actual-contract refusal. Not immutable pre/post source map proof.",
+      "sha256": "65d09e44a5950fd97329e8cad6752dc9bbbb0931c673afb47582bd73f13f157d",
+      "total": 319
+    }
+  },
+  "candidateSHA256": "c2856778276768ddae4f430ab4222d65109f0560dc141f277fdc1dbfc96520fe",
+  "changes": [
+    "Exact notificationStep constant,37count, ordered run/fixture aftermetadata beforeverify, exact row equality.",
+    "Seven mutation refusals omission/skipped/allowedfailure/timeout/command/environment/order."
+  ],
+  "exactReverseDeltaEqualsOriginal": true,
+  "guardConservation": "Exact reverse delta proves all original319 definitions conserved plus7 new. No arbitrary step admission, existing command/action order/event/permission/egress/IAM/release guards unchanged.",
+  "limitations": "Root terminal exit1/0 observations combined with full logs, no owned process/inputmap receipt invented. Hosted stale36 annotation parent-corrobated only, future hosted326PASS not inferred. No product change.",
+  "originalSHA256": "04e613b2f262afb36c99cda88a5793072fe6ad03935b572f4cf2937b1ba34515",
+  "sourcePath": "/tmp/zasp-workflow-notification-guard-fix/app/quality/runnable-ui-workflow.test.ts",
+  "verdict": "PASS-notification37step-contract-source-and-ROOT-actual-group",
+  "workflowSHA256": "fd98a81d520fbd8b80fb6d404b7a8a0d0e154268f0e3adb5073a47ee4c7d4d98"
+}

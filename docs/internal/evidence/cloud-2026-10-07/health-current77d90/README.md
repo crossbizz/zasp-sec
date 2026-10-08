@@ -1,0 +1,9 @@
+Current77d90 health command completion after locked prerequisite repair
+
+Platform stage1 completed with unchanged Go race commands for healthserver/API/worker. Original stage2 refused before product tests on missing offline module metadata; retained as an explicit pretest failure. Six versions selected by the locked module graph were restored through proxy.golang.org and Go sum.golang.org checksum verification in a private mod/sum sandbox (five version h1 values were not directly present in the tracked/private input sums; official sumdb provided checksum authority); tracked sources unchanged. Full-MVS offline preflight then passed for event-ingest and runtime-gateway. Original stage2 retry completed0/5.824s and stage3 completed0/12.808s. All three current Go health command stages now passed. Earlier small stage0 and six Node health checks have separate existing receipts and are not recounted here.
+
+Whole quiet command logs are retained. Individual test counts or zero-skip rosters are NOT inferred. Original mixed health failures remain preserved; hosted main/PR health failure causes are not assumed identical or cleared by local command outcomes. No full npm verify, deployed health, production readiness, activation or task-row promotion.
+
+Exact stdout/stderr and outer receipts/logs are lossless copies. Owner results are explicit safe scalar derivatives with fulloriginalSHA/identity/omissions; private input/alias maps remain private and unchanged. Module receipt includes public h1/Sum/GoModSum and file byte hashes, not module/source payload bodies. Scanner NOT_RUN; independent actual review may be additive.
+
+Timing clarification: the earlier14-file packet labelled218.786s as owner elapsed; that is ROOT outer elapsed. Original platform inner owner elapsed is218.708361506s. Earlier packet remains unchanged; this is an additive scope correction.

@@ -1,0 +1,33 @@
+{
+  "candidateSHA256": "db1dbe8c7af164440d959684692a0232796cb462d074352b365b97f49cf0b20f",
+  "checks": {
+    "correctedCensusNoImaginaryGroupingEvents": true,
+    "currentOriginalAndProductionHelperBindingsExact": true,
+    "fiveManifestMembersHashSizeExact": true,
+    "noApplicationPermissionOrReleaseGuardChange": true,
+    "onlyTwoFakeSQLCasesAndExactTwoQueryProbeChange": true,
+    "productionCOALESCEWrapperMatchesExactFakeSQL": true,
+    "readinessAndNamespaceCaseStringsUnchanged": true,
+    "twentyStateContextArgsRefusalFallbackAndForwardingAssertionsOtherwiseByteExact": true
+  },
+  "clarificationSHA256": "cdb9e11dff601d9fd5aaed667db6968b43235a5eda2dac7beedce5c64fe8a099",
+  "conditions": [
+    "Wait ROOT active originalstage normaljoin before any candidate runtime/adoption.",
+    "Concrete finite owned Tini/session owner with pinnedtools/selectedGo dependency closure/livefloors/original limits required before execution.",
+    "Causal assertion RED must exclude setup/compile failures; final actual namedcensus/joins/inputconservation review required.",
+    "SelectedGREEN does not replace original whole three-package health guard; rerun after adoption remains required."
+  ],
+  "format": "independent-health-lifecycle-fixture-SQL-source-review-v1",
+  "manifestSHA256": "de47680abac102655cd747564e37bd9929ceb985867e730ee12ed27b6ce3f5ed",
+  "prospectiveTDD": {
+    "actualOutcomesNotYetVerified": true,
+    "baseline": "one top ten subcasesFAIL; one top ten subcasesPASS; noSKIP",
+    "candidate": "two tops twenty subcasesPASS; noFAIL/SKIP"
+  },
+  "scope": [
+    "Reviewer source-only; noGo/test/SQL/services execution.",
+    "Original plan grouping prose superseded only by additive clarification; originals unchanged.",
+    "Current local fixture mismatch is source-supported; hosted failure cause remains separate unknown."
+  ],
+  "status": "PASS_SOURCE_ONLY_CONDITIONAL_TDD_PLAN"
+}

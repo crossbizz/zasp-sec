@@ -1,0 +1,14 @@
+{
+  "candidateSHA256Prefix": "db1dbe",
+  "exitCode": 0,
+  "format": "ROOT-tool-observation-transcription-v1",
+  "individualCaseCounts": "NOT_OBSERVED",
+  "normalJoinObserved": true,
+  "observedCommand": "go test -C services/platform -p=1 -race -count=1 ./agentsec-api",
+  "scope": "Full API package command pass only; full three-package health pending.",
+  "session": 24307,
+  "source": "ROOT task message to cloud_prerequisite_preparation; no separate original receipt exists",
+  "timestampOwnershipReceipt": "NOT_CREATED",
+  "toolEnvironmentScope": "ROOT reports pinnedGo26/Node22/PG18 PATH, offline source/toolchain+volatilecache, Tini/650s timeout",
+  "zeroSkipRoster": "NOT_ESTABLISHED"
+}

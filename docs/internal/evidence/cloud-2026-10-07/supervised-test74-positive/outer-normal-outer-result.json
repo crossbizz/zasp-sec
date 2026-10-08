@@ -1,0 +1,32 @@
+{
+  "scope": "Actual ROOT normal outer positive V11 wait; original failures preserved; inner acceptance independently required",
+  "argv": [
+    "/usr/bin/env",
+    "-i",
+    "PATH=/usr/bin:/bin",
+    "/usr/bin/timeout",
+    "--signal=TERM",
+    "--kill-after=10s",
+    "1480s",
+    "/usr/bin/python3",
+    "-I",
+    "-B",
+    "/workspace/.zasp-cloud-owned/native-test74-positive-v11-currentc1-yhf1m7ve/run.py"
+  ],
+  "normalOuterWaitObserved": true,
+  "exitCode": 0,
+  "elapsedSeconds": 372.2714113759994,
+  "before": {
+    "/workspace/.zasp-cloud-owned/native-test74-positive-v11-currentc1-yhf1m7ve/run.py": "56bb32d044ac08cf5357e444c51eaae33b13e4f61974ca6e821a289925dae4c3",
+    "/workspace/.zasp-cloud-owned/native-test74-positive-v11-currentc1-yhf1m7ve/ROOT-RECIPE.json": "f74e384db8ea000a5ac4feededcb6d78266941c7da1ca96c1e34f82e86c0a018",
+    "/usr/bin/python3": "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1",
+    "/usr/bin/timeout": "6ca1891dfc0b05d7680770c2884c0391b92467c7bb6500a5c84677e6481739f1"
+  },
+  "after": {
+    "/workspace/.zasp-cloud-owned/native-test74-positive-v11-currentc1-yhf1m7ve/run.py": "56bb32d044ac08cf5357e444c51eaae33b13e4f61974ca6e821a289925dae4c3",
+    "/workspace/.zasp-cloud-owned/native-test74-positive-v11-currentc1-yhf1m7ve/ROOT-RECIPE.json": "f74e384db8ea000a5ac4feededcb6d78266941c7da1ca96c1e34f82e86c0a018",
+    "/usr/bin/python3": "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1",
+    "/usr/bin/timeout": "6ca1891dfc0b05d7680770c2884c0391b92467c7bb6500a5c84677e6481739f1"
+  },
+  "sameInputs": true
+}

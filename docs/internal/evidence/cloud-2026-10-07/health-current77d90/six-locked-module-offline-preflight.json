@@ -1,0 +1,60 @@
+{
+  "GOPROXY": "off",
+  "GOSUMDB": "off",
+  "format": "exact-health-event-gateway-full-MVS-offline-preflight-v1",
+  "stages": [
+    {
+      "argv": [
+        "/workspace/.zasp-cloud-owned/spec44-runtime-tools/go/bin/go",
+        "list",
+        "-C",
+        "/workspace/zasp-sec/services/event-ingest",
+        "-mod=readonly",
+        "-m",
+        "all"
+      ],
+      "exit": 0,
+      "metadataRows": 90,
+      "module": "event-ingest",
+      "seconds": 0.006517085999803385,
+      "sourceAfter": {
+        "/workspace/zasp-sec/services/event-ingest/go.mod": "f275f4a8cd64cf2e6cb20f591db8096e0316cb4218ac8aadd378305ecdfb28a1",
+        "/workspace/zasp-sec/services/event-ingest/go.sum": "e7a85381cac36364c7c9a75e3b50926ece9fa405e84e5626ff70cc1769f7b529"
+      },
+      "sourceBefore": {
+        "/workspace/zasp-sec/services/event-ingest/go.mod": "f275f4a8cd64cf2e6cb20f591db8096e0316cb4218ac8aadd378305ecdfb28a1",
+        "/workspace/zasp-sec/services/event-ingest/go.sum": "e7a85381cac36364c7c9a75e3b50926ece9fa405e84e5626ff70cc1769f7b529"
+      },
+      "stderrBytes": 0,
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdoutSHA256": "8b1b1232fcd5e7335680f43410c0322ba36fcdb9b7b03c94aa323ff0509528a2"
+    },
+    {
+      "argv": [
+        "/workspace/.zasp-cloud-owned/spec44-runtime-tools/go/bin/go",
+        "list",
+        "-C",
+        "/workspace/zasp-sec/services/runtime-gateway",
+        "-mod=readonly",
+        "-m",
+        "all"
+      ],
+      "exit": 0,
+      "metadataRows": 164,
+      "module": "runtime-gateway",
+      "seconds": 0.008342886001628358,
+      "sourceAfter": {
+        "/workspace/zasp-sec/services/runtime-gateway/go.mod": "70ef3f810cded6244a50b32c8cf40b6cdbb2e5732960b558e35dcd8284e9a5f5",
+        "/workspace/zasp-sec/services/runtime-gateway/go.sum": "72cfcd6ee70d31a21d1175f585c3db32aa9e7b258c181774cbeb897a9bc284c5"
+      },
+      "sourceBefore": {
+        "/workspace/zasp-sec/services/runtime-gateway/go.mod": "70ef3f810cded6244a50b32c8cf40b6cdbb2e5732960b558e35dcd8284e9a5f5",
+        "/workspace/zasp-sec/services/runtime-gateway/go.sum": "72cfcd6ee70d31a21d1175f585c3db32aa9e7b258c181774cbeb897a9bc284c5"
+      },
+      "stderrBytes": 0,
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdoutSHA256": "f6649fb30c28c0822c385f09429a071b94d7fc2fa593976d9449a85419501b9f"
+    }
+  ],
+  "testsOrCompilation": false
+}

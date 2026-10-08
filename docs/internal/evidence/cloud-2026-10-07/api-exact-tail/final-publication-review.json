@@ -1,0 +1,9 @@
+{
+  "conditions": "ROOT default selected/decoded/staged Gitleaks with noexceptions; finalwhitespace and exactdurablecopy checks. Those scans/commit not performed by reviewer. Softwarediagnosticboundary only; no productionAPIdeadline cause/resolution or allnativeclaim.",
+  "manifestSHA256": "bd793f14aac6969ef49c7c851c9f9e1edfdba8527aa9735f92aca237affbeab4",
+  "narrowSuccessor": "Onlystderrentry metadata corrected identity\u2192derived-empty-stderr-descriptor and exactoriginal0B/emptySHA; all18payloadbytes/hash exact51ec checkpoint, no original/source/logchanges. Supersedes51ec identityblocker e8dc0 preserved.",
+  "payloadBytes": 88865,
+  "payloadFiles": 18,
+  "verdict": "PASS final bounded publication fidelity/scope conditioned ROOT scans",
+  "verifiedConservation": "Priorall18fullhashes/fourwholeUTF8log reconstructions incl45204B210TAP2520 and allfourphysicaladoptedpostimages exact. Fullfailure66ddd+censuscorrection4a2a and old2/2forecast retained. ROOTCLI71142 is explicitly transcribed observedexit0, not processcustodyreceipt. Newmodule/native anchors/hostedcause notclaimed."
+}

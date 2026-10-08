@@ -1,0 +1,49 @@
+{
+  "format": "test74-v11-original-task-crosswalk-v1",
+  "ledgerReference": {
+    "path": "/workspace/zasp-sec/docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md",
+    "sha256": "2eea10a4f38be2bd76f4c1e734a2dae3d47e340fc36be42946d0762786afb102"
+  },
+  "rows": [
+    {
+      "id": "M3-02a",
+      "title": "Generic Webhook catalog entry",
+      "supplementalCheck": "Real signed74 admission captures inactive notification origin; no outbound delivery/activation proof",
+      "sourcePath": "services/platform/apiserver/approval_maintenance_genuine_test74_postgres_test.go",
+      "test": "TestApprovalMaintenanceGenuineSupervisedTest74EnqueueInactive",
+      "actualEvidence": "PENDING_ROOT_V11_POSITIVE_REVIEW"
+    },
+    {
+      "id": "M7A-53",
+      "title": "Waiting approval state",
+      "supplementalCheck": "Real supervised definition and admission require distinct human approval before retained effect path",
+      "sourcePath": "services/platform/apiserver/approval_maintenance_genuine_test74_postgres_test.go",
+      "test": "TestApprovalMaintenanceGenuineSupervisedTest74EnqueueInactive",
+      "actualEvidence": "PENDING_ROOT_V11_POSITIVE_REVIEW"
+    },
+    {
+      "id": "M7A-54",
+      "title": "Approval fresh-auth guard",
+      "supplementalCheck": "Original self-approval refusal and registered API-login distinct-human decision; synthetic identity fixture is not Stytch fresh-auth acceptance",
+      "sourcePath": "services/platform/apiserver/approval_maintenance_genuine_test74_postgres_test.go",
+      "test": "TestApprovalMaintenanceGenuineSupervisedTest74EnqueueInactive",
+      "actualEvidence": "PENDING_ROOT_V11_POSITIVE_REVIEW"
+    },
+    {
+      "id": "M7A-55",
+      "title": "Approval decision resume job",
+      "supplementalCheck": "Original real approve/replay and signed effect assertions retained; not all-family post-terminal delivery proof",
+      "sourcePath": "services/platform/apiserver/approval_maintenance_genuine_test74_postgres_test.go",
+      "test": "TestApprovalMaintenanceGenuineSupervisedTest74EnqueueInactive",
+      "actualEvidence": "PENDING_ROOT_V11_POSITIVE_REVIEW"
+    }
+  ],
+  "nativeScope": "Native74 signed admission and human approval under installed current profile; supplementary maintenance origin remains inactive. No ordinary numeric81 or canonical/native379 acceptance.",
+  "unchangedLedger": {
+    "ids": 728,
+    "productionAvailable": 523,
+    "componentOnly": 144,
+    "blocked": 61,
+    "promotions": 0
+  }
+}

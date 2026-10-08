@@ -1,0 +1,233 @@
+{
+  "afterMapSHA256": "f1ee8ba94b869e54e0481fd453bc36fef19058cbddede5418671f776a076dfa4",
+  "beforeMapSHA256": "f1ee8ba94b869e54e0481fd453bc36fef19058cbddede5418671f776a076dfa4",
+  "completed": false,
+  "elapsed": 1.5133345989997906,
+  "environment": {
+    "CC": "/usr/bin/gcc",
+    "CGO_ENABLED": "1",
+    "GOCACHE": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/go-cache",
+    "GOENV": "off",
+    "GOFLAGS": "-mod=readonly",
+    "GOGC": "50",
+    "GOMAXPROCS": "2",
+    "GOMEMLIMIT": "512MiB",
+    "GOMODCACHE": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/module-cache",
+    "GOPATH": "/tmp/native379-exact-path-scratch-zmig33ej/gopath",
+    "GOPROXY": "off",
+    "GOROOT": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/go",
+    "GOSUMDB": "off",
+    "GOTMPDIR": "/tmp/native379-exact-path-scratch-zmig33ej",
+    "GOTOOLCHAIN": "local",
+    "GOWORK": "off",
+    "LC_ALL": "C",
+    "PATH": "/workspace/.zasp-cloud-owned/spec44-runtime-tools/go/bin:/usr/bin:/bin",
+    "TMPDIR": "/tmp/native379-exact-path-scratch-zmig33ej"
+  },
+  "failure": "final source/resource refusal:RuntimeError",
+  "firstRefusal": {
+    "elapsed": 1.132004909999523,
+    "phase": "GREEN",
+    "reason": "live floor/signal/deadline",
+    "resources": {
+      "/dev/shm": 9441349632,
+      "/tmp": 2439483392,
+      "/workspace": 1499869184,
+      "memoryHeadroom": 1112510464
+    },
+    "signals": []
+  },
+  "format": "native379-full-V3-bound-loop-causal-component-v1",
+  "nativeVerified": false,
+  "reaps": [
+    {
+      "pid": 42680,
+      "session": 42649,
+      "startTicks": 2351905,
+      "status": 15
+    }
+  ],
+  "resourceHistory": [
+    {
+      "elapsed": 0.00028238699815119617,
+      "phase": "preflight",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2441789440,
+        "/workspace": 1500561408,
+        "memoryHeadroom": 1141497856
+      }
+    },
+    {
+      "elapsed": 0.42417040600048495,
+      "phase": "RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2439843840,
+        "/workspace": 1500561408,
+        "memoryHeadroom": 1132527616
+      }
+    },
+    {
+      "elapsed": 0.42423774800045067,
+      "phase": "RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2439843840,
+        "/workspace": 1500561408,
+        "memoryHeadroom": 1132527616
+      }
+    },
+    {
+      "elapsed": 0.42471624099925975,
+      "phase": "RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2439843840,
+        "/workspace": 1500561408,
+        "memoryHeadroom": 1132265472
+      }
+    },
+    {
+      "elapsed": 0.5256940639992536,
+      "phase": "RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2439835648,
+        "/workspace": 1500557312,
+        "memoryHeadroom": 1116139520
+      }
+    },
+    {
+      "elapsed": 0.6260528169987083,
+      "phase": "RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2439495680,
+        "/workspace": 1500221440,
+        "memoryHeadroom": 1106694144
+      }
+    },
+    {
+      "elapsed": 0.7264158910002152,
+      "phase": "RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2439495680,
+        "/workspace": 1500221440,
+        "memoryHeadroom": 1099997184
+      }
+    },
+    {
+      "elapsed": 0.8267354290001094,
+      "phase": "RED",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2435403776,
+        "/workspace": 1500209152,
+        "memoryHeadroom": 1101451264
+      }
+    },
+    {
+      "elapsed": 0.9301429789993563,
+      "phase": "GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2439831552,
+        "/workspace": 1500209152,
+        "memoryHeadroom": 1131409408
+      }
+    },
+    {
+      "elapsed": 0.9302160199986247,
+      "phase": "GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2439831552,
+        "/workspace": 1500209152,
+        "memoryHeadroom": 1131409408
+      }
+    },
+    {
+      "elapsed": 0.9305656579999777,
+      "phase": "GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2439831552,
+        "/workspace": 1500209152,
+        "memoryHeadroom": 1131147264
+      }
+    },
+    {
+      "elapsed": 1.0310033319983631,
+      "phase": "GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2439823360,
+        "/workspace": 1500205056,
+        "memoryHeadroom": 1116385280
+      }
+    },
+    {
+      "elapsed": 1.132000663998042,
+      "phase": "GREEN",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2439483392,
+        "/workspace": 1499869184,
+        "memoryHeadroom": 1112510464
+      }
+    },
+    {
+      "elapsed": 1.5133230319988797,
+      "phase": "final",
+      "resources": {
+        "/dev/shm": 9441349632,
+        "/tmp": 2437537792,
+        "/workspace": 1499869184,
+        "memoryHeadroom": 1128632320
+      }
+    }
+  ],
+  "sessions": [
+    42597,
+    42649
+  ],
+  "sevenAnchorsIssued": false,
+  "statuses": {
+    "RED": {
+      "boundLoopRefusalSubcases": {
+        "TestNative379FrozenBoundLoopRefusals/foreign-root": "pass",
+        "TestNative379FrozenBoundLoopRefusals/symlink-input": "pass",
+        "TestNative379FrozenBoundLoopRefusals/unlisted-health": "pass",
+        "TestNative379FrozenBoundLoopRefusals/unlisted-script": "pass",
+        "TestNative379FrozenBoundLoopRefusals/writable-ancestor": "pass",
+        "TestNative379FrozenBoundLoopRefusals/writable-input": "pass"
+      },
+      "observed": {
+        "TestNative379ExactRelativeMembers": "pass",
+        "TestNative379FrozenBoundLoopExactInputs": "fail",
+        "TestNative379FrozenBoundLoopRefusals": "pass",
+        "TestNative379ImmutableExactMembers": "pass",
+        "TestNative379ImmutableRefusals": "pass",
+        "TestNative379RelativeRefusals": "pass"
+      },
+      "returnCode": 1
+    }
+  },
+  "unknown": [],
+  "waits": [
+    {
+      "joined": true,
+      "phase": "RED",
+      "pid": 42597,
+      "returnCode": 1
+    },
+    {
+      "joined": true,
+      "phase": "GREEN",
+      "pid": 42649,
+      "returnCode": -15
+    }
+  ]
+}

@@ -43,7 +43,7 @@ export function emitComplianceMigrationFailure(emit){
 const COMPLIANCE_API_CHILD_STAGES = new Set(['config-load', 'owned-inputs', 'storage-path', 'bounded-deadline', 'runtime-build', 'serve']);
 export function emitComplianceAPIChildFailure(output, emit, startupError) {
  let stage = 'unavailable';
- if (typeof output === 'string' && output.length < 16_384) {
+ if (typeof output === 'string' && output.length <= 16_384 && (output.length !== 16_384 || !output.split('\n')[0].includes('ZASP_COMPLIANCE_API_FAILED_STAGE'))) {
   const lines = output.split('\n');
   const partial = lines.pop();
   const witnesses = lines.filter(line => line.includes('ZASP_COMPLIANCE_API_FAILED_STAGE'));
@@ -53,14 +53,14 @@ export function emitComplianceAPIChildFailure(output, emit, startupError) {
   }
  }
  try { emit(`::error title=Compliance API startup failed::Observed child stage: ${stage}.`); } catch { /* Preserve the original readiness error. */ }
- if (stage === "runtime-build" && typeof output === "string" && output.length < 16_384 && output.includes("ZASP_COMPLIANCE_API_FAILED_DEPENDENCY")) emitComplianceAPIDependencyFailure(output, emit);
+ if (stage === "runtime-build" && typeof output === "string" && output.length <= 16_384 && output.includes("ZASP_COMPLIANCE_API_FAILED_DEPENDENCY")) emitComplianceAPIDependencyFailure(output, emit);
  if (startupError !== undefined) emitComplianceAPIStartupFailure(startupError, emit);
 }
 
 const COMPLIANCE_DEPENDENCY_PHASES = new Set(["audit-export", "authorization-components", "authorization-readiness", "compliance-export", "composition", "composition-authorization", "composition-inputs", "connector-lifecycle", "connector-oauth", "connector-providers", "connector-secrets", "construction-context", "core-postgres", "core-repositories", "current-authorization", "edge-middleware", "handler-composition", "identity-authenticator", "identity-repository", "identity-webhook", "native-identity-provider", "native-services", "operational-middleware", "policy-history", "policy-surface", "product-middleware", "production-handlers", "public-surface", "reference-providers", "runtime-inputs", "security-agent-postgres", "security-agent-repositories", "temporal-observer", "ticket-services"]);
 export function emitComplianceAPIDependencyFailure(output, emit) {
  let phase = 'unavailable';
- if (typeof output === 'string' && output.length < 16_384) {
+ if (typeof output === 'string' && output.length <= 16_384 && (output.length !== 16_384 || !output.split('\n')[0].includes('ZASP_COMPLIANCE_API_FAILED_'))) {
   const lines = output.split('\n'); const partial = lines.pop();
   const stages = lines.filter(line => line.includes('ZASP_COMPLIANCE_API_FAILED_STAGE'));
   const dependencies = lines.filter(line => line.includes('ZASP_COMPLIANCE_API_FAILED_DEPENDENCY'));

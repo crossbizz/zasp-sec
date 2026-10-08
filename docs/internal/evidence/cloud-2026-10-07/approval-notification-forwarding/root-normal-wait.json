@@ -1,0 +1,36 @@
+{
+  "scope": "Selected actual production approvalnotification forwarding+real owned TLS controls; no wholepackage/nativeexecutor/deployed acceptance",
+  "argv": [
+    "/usr/bin/env",
+    "-i",
+    "PATH=/usr/bin:/bin",
+    "/usr/bin/timeout",
+    "--signal=TERM",
+    "--kill-after=10s",
+    "900s",
+    "/usr/bin/python3",
+    "-I",
+    "-B",
+    "/tmp/approval-webhook-order-root-owner-v2-0m7w0whv/run.py"
+  ],
+  "normalOuterWaitObserved": true,
+  "exitCode": 0,
+  "elapsedSeconds": 39.65745130700088,
+  "before": {
+    "/tmp/approval-webhook-order-root-owner-v2-0m7w0whv/manifest.json": "f920209f4abc12708742353b6e3eae0cd2b480191bdc47ab9d2d458f0de06205",
+    "/tmp/independent-webhook-order-product-concrete-owner-source-review.json": "725a51d70184e20070eef962f565904ca01fe25ed67ae59128b37d8a4006e3bc",
+    "/tmp/approval-webhook-order-root-owner-v2-0m7w0whv/run.py": "b785a40052e0982e37f981332c14328802067603aafa7ad45214950076413a3f",
+    "/tmp/approval-webhook-order-root-owner-v2-0m7w0whv/stage-recipe.json": "4aa17936aad416e2781c6c52958be078b7bec8523a6b95606763fdcb273a5b0b",
+    "/usr/bin/python3": "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1",
+    "/usr/bin/timeout": "6ca1891dfc0b05d7680770c2884c0391b92467c7bb6500a5c84677e6481739f1"
+  },
+  "after": {
+    "/tmp/approval-webhook-order-root-owner-v2-0m7w0whv/manifest.json": "f920209f4abc12708742353b6e3eae0cd2b480191bdc47ab9d2d458f0de06205",
+    "/tmp/independent-webhook-order-product-concrete-owner-source-review.json": "725a51d70184e20070eef962f565904ca01fe25ed67ae59128b37d8a4006e3bc",
+    "/tmp/approval-webhook-order-root-owner-v2-0m7w0whv/run.py": "b785a40052e0982e37f981332c14328802067603aafa7ad45214950076413a3f",
+    "/tmp/approval-webhook-order-root-owner-v2-0m7w0whv/stage-recipe.json": "4aa17936aad416e2781c6c52958be078b7bec8523a6b95606763fdcb273a5b0b",
+    "/usr/bin/python3": "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1",
+    "/usr/bin/timeout": "6ca1891dfc0b05d7680770c2884c0391b92467c7bb6500a5c84677e6481739f1"
+  },
+  "sameInputs": true
+}

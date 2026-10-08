@@ -41,7 +41,7 @@ test('all actual published Go producer markers join the same closed parser roste
 test('actual sliced output refuses leading fragments and unterminated marker lines',()=>{
  const witnessed=marker('serve');const full='prefix '+witnessed+'\n'+'x'.repeat(16384-witnessed.length-1);const tail=full.slice(-16384);assert.equal(tail.length,16384);assert.ok(tail.startsWith(witnessed));
  for(const output of [tail,witnessed,'prefix\n'+witnessed,witnessed+'\n'+'x'.repeat(16384-witnessed.length-1)]){const emitted=[];helper.emitComplianceAPIChildFailure(output,x=>emitted.push(x));assert.deepEqual(emitted,[expected('unavailable')]);}
- const complete='x'.repeat(16384-witnessed.length-2)+'\n'+witnessed+'\n';const emitted=[];helper.emitComplianceAPIChildFailure(complete,x=>emitted.push(x));assert.deepEqual(emitted,[expected('unavailable')]);
+ const complete='x'.repeat(16384-witnessed.length-2)+'\n'+witnessed+'\n';const emitted=[];helper.emitComplianceAPIChildFailure(complete,x=>emitted.push(x));assert.deepEqual(emitted,[expected('serve')]);
 });
 
 test('exact tail boundary retains leading marker poison in ambiguous evidence refusal',()=>{

@@ -1,0 +1,27 @@
+{
+  "HEAD": "c1c45b24c5e0eec76b49e80c9f2f632087a6b33f",
+  "checks": {
+    "V11SourceAndOverlayBound": true,
+    "all25OriginalLifecycleFunctionsASTExact": true,
+    "all3207CurrentServiceHashesExact": true,
+    "all56InputAnd8ToolSameFDMetadataAndFullHashesExact": true,
+    "approval74ExpectedFailureParserRemoved": true,
+    "credentialsTwoTopsSevenSubsRetained": true,
+    "originalAggregate1480Stage650FloorsOutputLimitsAndCleanupGatesPreserved": true,
+    "positiveSingletonExactRunOnePASSOneNoFAILNoSKIPNoSubcases": true
+  },
+  "conditions": [
+    "ROOT fresh HEAD/exact source/tool/recipe/floors/exclusive window before actual run.",
+    "Actual positive test outcomes, source conservation and normal owned cleanup require separate independent review."
+  ],
+  "format": "independent-V11-currentc1-positive-owner-source-review-v1",
+  "ownerSHA256": "56bb32d044ac08cf5357e444c51eaae33b13e4f61974ca6e821a289925dae4c3",
+  "recipeSHA256": "f74e384db8ea000a5ac4feededcb6d78266941c7da1ca96c1e34f82e86c0a018",
+  "scope": [
+    "Source-only inspection; no compiler, tests or service execution by reviewer.",
+    "V11 one-login source gate4082 remains valid; all original assertions intact.",
+    "No diagnostic expectedFAIL may count positive; genuine actualFAIL refuses owner.",
+    "All prior native/memory/diagnostic failures preserved; no CI, deployed, activation or native379 anchor acceptance."
+  ],
+  "status": "PASS_STATIC_POSITIVE_EXECUTION_PREPARATION"
+}

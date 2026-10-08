@@ -1,0 +1,16 @@
+{
+  "completed": false,
+  "firstRefusal": {
+    "elapsed": 1.132004909999523,
+    "phase": "GREEN",
+    "reason": "live floor/signal/deadline",
+    "resources": {
+      "/dev/shm": 9441349632,
+      "/tmp": 2439483392,
+      "/workspace": 1499869184,
+      "memoryHeadroom": 1112510464
+    },
+    "signals": []
+  },
+  "reason": "late floor/signal/deadline"
+}

@@ -1,0 +1,8 @@
+{
+  "associationSHA256": "b8ec9acf67ff1091ff41f0f9c04151a26bad84126249beaa45eacfe182833314",
+  "conditions": "ROOT may adopt exactfour in TMPcheckout after preimageguard, run wired bytes and affected diagnostic suites/scopedlint/defaultscans/diffcheck; actual tests required before commit. No execution by reviewer.",
+  "exactDelta": "Firstthree reviewed candidates/source mappings byteexact predecessor; fourthfile prepends only two literal testimports then full original1349bytes unchanged. Existing workflow exactSHA line114 already selects bytes entry. Existing imported suites/assertions retained; no workflowcommand/productiondeadline/authority changes.",
+  "planSHA256": "5a08fe46c956e103afd3270d57d9b1deb8ee15735ab1970ec101a5bdb8efab02",
+  "previousPublicationReviewSHA256": "f0da2c4ca8c57b29f872791d7256224512c6ce187163e3ce4ed527782a7b7002",
+  "verdict": "PASS additive CI source association; actual broader regressions pending"
+}

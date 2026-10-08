@@ -1,0 +1,42 @@
+{
+  "baseHEAD": "77d90c642828cccb2dad2f8b132f283bd4a0f566",
+  "clone": "/tmp/zasp-startup-diagnostic-checkout",
+  "files": [
+    {
+      "bytes": 8022,
+      "candidateSHA256": "aadeca4a07046d3bdb336aa8f036140e18cfb3fa5f84faf2dfaf20f359eba233",
+      "cloneAssociation": "freshread-onlyfullbytes compared to frozenfour-sourceplan; no broaderprocesssourcebeforeafterproof",
+      "path": "scripts/browser-command-failure.mjs",
+      "preimageSHA256": "8324928a8a997e093a988341bee3e86f3047686c00d5f9e39f6e4937fd21100f",
+      "sha256": "aadeca4a07046d3bdb336aa8f036140e18cfb3fa5f84faf2dfaf20f359eba233"
+    },
+    {
+      "bytes": 5749,
+      "candidateSHA256": "cd2483114d8c03a12b2d6ccdd874948246e1cdf3dbe74b076dd373d5271ce111",
+      "cloneAssociation": "freshread-onlyfullbytes compared to frozenfour-sourceplan; no broaderprocesssourcebeforeafterproof",
+      "path": "scripts/compliance-api-child-stage.test.mjs",
+      "preimageSHA256": "2c1ba28b6707a73e487a0e259cec7dadeafec317e037c63e37ac0800b8217c42",
+      "sha256": "cd2483114d8c03a12b2d6ccdd874948246e1cdf3dbe74b076dd373d5271ce111"
+    },
+    {
+      "bytes": 2308,
+      "candidateSHA256": "95706ba5299d0d3b1d70e50524372a646f661a1cd5d44e9f1faed6a2cc1b63e9",
+      "cloneAssociation": "freshread-onlyfullbytes compared to frozenfour-sourceplan; no broaderprocesssourcebeforeafterproof",
+      "path": "scripts/compliance-api-exact-tail.test.mjs",
+      "preimageSHA256": null,
+      "sha256": "95706ba5299d0d3b1d70e50524372a646f661a1cd5d44e9f1faed6a2cc1b63e9"
+    },
+    {
+      "bytes": 1439,
+      "candidateSHA256": "26934703c31507e9a675a3f9aec6868e633b91850a4e05f7ef70c1d43d07190c",
+      "cloneAssociation": "freshread-onlyfullbytes compared to frozenfour-sourceplan; no broaderprocesssourcebeforeafterproof",
+      "path": "scripts/compliance-browser-bytes.test.mjs",
+      "preimageSHA256": "8efa5f3a6465b5eabe4153e66cc38a9817e999662d998c3fd717cc5389c45c78",
+      "sha256": "26934703c31507e9a675a3f9aec6868e633b91850a4e05f7ef70c1d43d07190c"
+    }
+  ],
+  "format": "production-diagnostic-four-source-postadoption-association-v1",
+  "scope": "Only productioncloseddiagnostic parser boundary +singleexistingboundaryoracle +same4causal newtest +2CIimports. No startupbudget/buffer/fullPGpredicate/native379authority/reference changes.",
+  "sourcePlanPath": "/tmp/API-tail-four-source-CI-association-tr6bdnus/ADOPTION-PLAN.json",
+  "sourcePlanSHA256": "5a08fe46c956e103afd3270d57d9b1deb8ee15735ab1970ec101a5bdb8efab02"
+}

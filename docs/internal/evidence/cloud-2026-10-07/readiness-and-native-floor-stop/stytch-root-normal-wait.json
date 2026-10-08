@@ -1,0 +1,31 @@
+{
+  "scope": "One read-only TEST organization search only; no tenant/session/product deployment acceptance",
+  "argv": [
+    "/usr/bin/timeout",
+    "--signal=TERM",
+    "--kill-after=5s",
+    "25s",
+    "/usr/bin/python3",
+    "-I",
+    "-B",
+    "/tmp/stytch-revision64-readonly-close-source-_kcowgmg/check.py"
+  ],
+  "normalOuterWaitObserved": true,
+  "exitCode": 0,
+  "elapsedSeconds": 0.39317403599852696,
+  "before": {
+    "/tmp/stytch-revision64-readonly-close-source-_kcowgmg/ROOT-RECIPE.json": "dda86748472eee5719a41de188b8e8c03ba0f9a609e1beb40e80bb2224ddd6ab",
+    "/tmp/independent-Stytch-revision64-readonly-close-source-review.json": "7c049b1913ba24499a1243849358a29b7fc5a1bea0b166c22e5f5a482336c227",
+    "/tmp/stytch-revision64-readonly-close-source-_kcowgmg/check.py": "86c3533eabbdbf73a395b6a0d09a67d27cb85174e7ab11d206ed4fb604ba821f",
+    "/usr/bin/python3": "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1",
+    "/usr/bin/timeout": "6ca1891dfc0b05d7680770c2884c0391b92467c7bb6500a5c84677e6481739f1"
+  },
+  "after": {
+    "/tmp/stytch-revision64-readonly-close-source-_kcowgmg/ROOT-RECIPE.json": "dda86748472eee5719a41de188b8e8c03ba0f9a609e1beb40e80bb2224ddd6ab",
+    "/tmp/independent-Stytch-revision64-readonly-close-source-review.json": "7c049b1913ba24499a1243849358a29b7fc5a1bea0b166c22e5f5a482336c227",
+    "/tmp/stytch-revision64-readonly-close-source-_kcowgmg/check.py": "86c3533eabbdbf73a395b6a0d09a67d27cb85174e7ab11d206ed4fb604ba821f",
+    "/usr/bin/python3": "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1",
+    "/usr/bin/timeout": "6ca1891dfc0b05d7680770c2884c0391b92467c7bb6500a5c84677e6481739f1"
+  },
+  "sameInputs": true
+}

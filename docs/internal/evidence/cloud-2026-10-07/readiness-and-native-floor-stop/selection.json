@@ -1,0 +1,90 @@
+{
+  "scope": "Fresh scoped TEST identity observation and preserved native resource failure/recovery; no deployment or native acceptance",
+  "members": [
+    {
+      "path": "stytch-test-readonly-actual.json",
+      "originalPath": "/tmp/stytch-revision64-readonly-actual-okuvjite/result.json",
+      "sha256": "15d05bd5730b7f7ba2bf40f8641a41c3c1ee83f079d449c0a3ba4b1ea897573d",
+      "bytes": 505
+    },
+    {
+      "path": "stytch-root-normal-wait.json",
+      "originalPath": "/tmp/Stytch-test-readonly-root-outer-yk7v57ev/normal-outer-results.json",
+      "sha256": "89c21281accf8a3783442fe04af354909a1dba7b1c0e5d5bb9dedcf31301aaf2",
+      "bytes": 1693
+    },
+    {
+      "path": "stytch-independent-actual-review.json",
+      "originalPath": "/tmp/independent-Stytch-TEST-readonly-actual-review.json",
+      "sha256": "4c8311c95b45a8e846f8e50fc64f2ec67c4bf90f805c37524f59cb70c2ec65dc",
+      "bytes": 974
+    },
+    {
+      "path": "native-bound-loop-original-failure.json",
+      "originalPath": "/tmp/actual-exact-path-TDD-ffwfpgfp/result.json",
+      "sha256": "216b70a68f7849b3fa35d974c6235ac6ca65e0fc0a4f1cde182c424bbcbb445f",
+      "bytes": 6102
+    },
+    {
+      "path": "native-bound-loop-original-red.jsonl",
+      "originalPath": "/tmp/actual-exact-path-TDD-ffwfpgfp/RED.jsonl",
+      "sha256": "a11f84f0a03dfb3923c5547478f478b65bbde4f01ba136f8cdc1296ab53d30af",
+      "bytes": 9537
+    },
+    {
+      "path": "native-bound-loop-stopped-green.jsonl",
+      "originalPath": "/tmp/actual-exact-path-TDD-ffwfpgfp/GREEN.jsonl",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "native-bound-loop-late-refusal.json",
+      "originalPath": "/tmp/actual-exact-path-TDD-ffwfpgfp/late-refusal.json",
+      "sha256": "9bc6898b0a1d96758358cf2b3c170eff16fd1fd47469bee5886c8325ef88a405",
+      "bytes": 359
+    },
+    {
+      "path": "native-bound-loop-root-normal-wait.json",
+      "originalPath": "/tmp/native379-fullV3-bound-loop-root-outer-oi69a_ui/normal-outer-results.json",
+      "sha256": "51a7508dcb296e2d8da6cf65d9bd815905a94597825441b3bcfb92995e4349e2",
+      "bytes": 3918
+    },
+    {
+      "path": "native-bound-loop-independent-failure-review.json",
+      "originalPath": "/tmp/independent-native379-fullV3-bound-loop-resource-failure-actual-review.json",
+      "sha256": "f21ddc5f13b8a85124db1b78c6144da235c6c3b6a455aaf04d0892645d364756",
+      "bytes": 1650
+    },
+    {
+      "path": "exact19-cache-copy-receipt.json",
+      "originalPath": "/tmp/native379-new-cache-root-custody-wjf9jh62/copy-receipt.json",
+      "sha256": "d08a54c185d800869cf84384629432d4d4b4aec2cd789ca39a6c12c43dd6e82e",
+      "bytes": 19506
+    },
+    {
+      "path": "exact19-cache-isolation-actual.json",
+      "originalPath": "/tmp/native379-exact19-cache-isolation-actual-cix96b16/result.json",
+      "sha256": "beeb4b9b4106d63028be143cb055c44707acb623ce4bc08a70866b84214150b2",
+      "bytes": 758
+    },
+    {
+      "path": "exact19-cache-independent-actual-review.json",
+      "originalPath": "/tmp/independent-native379-exact19-cache-isolation-actual-review.json",
+      "sha256": "7c5f504a58df988335db7bd359d3ee31dd593fdf11f45185ac9a85709b00cfea",
+      "bytes": 1437
+    },
+    {
+      "path": "pr54-first-check-failure-annotations.json",
+      "originalPath": "/tmp/pr54-first-check-annotations.json",
+      "sha256": "4c74d75649c0b82c84564022d4e80291fb9b6b041e21ec42aadbda18be1194c4",
+      "bytes": 2307
+    },
+    {
+      "path": "pr54-second-check-failure-annotations.json",
+      "originalPath": "/tmp/pr54-second-check-annotations.json",
+      "sha256": "0aeb8534493161aa5ce5b4564e97b0e37b422d1e5ec235549c7e5558aae1796b",
+      "bytes": 2307
+    }
+  ],
+  "omitted": "Stytch response body deliberately not retained; no credential values. Full native input maps, all cache audit/birth metadata and 38 per-file intent/return records remain private bound receipts. All19 cache byte bodies remain in admitted TMP custody; no durable public cache/body archive claimed."
+}

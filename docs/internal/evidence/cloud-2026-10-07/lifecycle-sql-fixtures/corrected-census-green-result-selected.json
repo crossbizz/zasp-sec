@@ -1,0 +1,140 @@
+{
+  "format": "selected-public-safe-owner-result-v1",
+  "omittedFields": [
+    "activeOverlay",
+    "adoptedChildren",
+    "aliasTargets",
+    "ownedReaps",
+    "ownedSessions",
+    "projectionRoot",
+    "resourceHistory"
+  ],
+  "original": {
+    "bytes": 24949,
+    "identity": {
+      "ctime_ns": 1791380733787875753,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 77946,
+      "mode": "0o400",
+      "mtime_ns": 1791380733787875753,
+      "nlink": 1,
+      "size": 24949,
+      "uid": 1000
+    },
+    "path": "/tmp/health-lifecycle-tdd-census27-6o0c2f2p/actual-lifecycle-stage1-wau509hx/result.json",
+    "sha256": "7b9e3c4cbc76db583441c28966683776cded3b4a279ce982f75c922fb2d8351d"
+  },
+  "scope": "Derived scalar selection; test fixture scope only, not whole health acceptance.",
+  "selected": {
+    "completed": true,
+    "elapsedSeconds": 8.635999609999999,
+    "failure": null,
+    "firstRefusal": null,
+    "forced": false,
+    "format": "health-lifecycle-fixture-two-stage-tdd-actual-v1",
+    "inputs": 9785,
+    "lifecycleTDDStage": 1,
+    "ownedSessionSurvivors": [],
+    "processCensusUnknown": [],
+    "productionActivated": false,
+    "resourcesAfter": {
+      "/dev/shm": 9441349632,
+      "/tmp": 4069515264,
+      "/workspace": 1557553152,
+      "memoryHeadroom": 3774173184
+    },
+    "results": [
+      {
+        "argv": [
+          "/workspace/.zasp-cloud-owned/spec44-runtime-tools/go/bin/go",
+          "test",
+          "-C",
+          "services/platform",
+          "-overlay",
+          "/workspace/.zasp-cloud-owned/health-lifecycle-sql-fixture-source-ainjcb5u/overlay.json",
+          "-race",
+          "-p=1",
+          "-count=1",
+          "-json",
+          "-run",
+          "^(TestTemporalLifecycleRuntimePublicRepository|TestTemporalLifecycleRuntimeForwardingContract)$",
+          "./agentsec-api"
+        ],
+        "lifecycleCensus": {
+          "failSub": 0,
+          "failTop": 0,
+          "failed": [],
+          "passSub": 25,
+          "passTop": 2,
+          "passed": [
+            "TestTemporalLifecycleRuntimePublicRepository/cancel/handled",
+            "TestTemporalLifecycleRuntimePublicRepository/cancel/unhandled",
+            "TestTemporalLifecycleRuntimePublicRepository/cancel/no-interface",
+            "TestTemporalLifecycleRuntimePublicRepository/cancel/error-handled",
+            "TestTemporalLifecycleRuntimePublicRepository/cancel/error-unhandled",
+            "TestTemporalLifecycleRuntimePublicRepository/read/handled",
+            "TestTemporalLifecycleRuntimePublicRepository/read/unhandled",
+            "TestTemporalLifecycleRuntimePublicRepository/read/no-interface",
+            "TestTemporalLifecycleRuntimePublicRepository/read/error-handled",
+            "TestTemporalLifecycleRuntimePublicRepository/read/error-unhandled",
+            "TestTemporalLifecycleRuntimePublicRepository/decide/handled",
+            "TestTemporalLifecycleRuntimePublicRepository/decide/unhandled",
+            "TestTemporalLifecycleRuntimePublicRepository/decide/no-interface",
+            "TestTemporalLifecycleRuntimePublicRepository/decide/error-handled",
+            "TestTemporalLifecycleRuntimePublicRepository/decide/error-unhandled",
+            "TestTemporalLifecycleRuntimePublicRepository/page/handled",
+            "TestTemporalLifecycleRuntimePublicRepository/page/unhandled",
+            "TestTemporalLifecycleRuntimePublicRepository/page/no-interface",
+            "TestTemporalLifecycleRuntimePublicRepository/page/error-handled",
+            "TestTemporalLifecycleRuntimePublicRepository/page/error-unhandled",
+            "TestTemporalLifecycleRuntimePublicRepository",
+            "TestTemporalLifecycleRuntimeForwardingContract/nil_wrapper",
+            "TestTemporalLifecycleRuntimeForwardingContract/nil_next",
+            "TestTemporalLifecycleRuntimeForwardingContract/typed_nil",
+            "TestTemporalLifecycleRuntimeForwardingContract/nil_context",
+            "TestTemporalLifecycleRuntimeForwardingContract/cancelled",
+            "TestTemporalLifecycleRuntimeForwardingContract"
+          ],
+          "run": 27,
+          "skip": 0
+        },
+        "normalExit": 0,
+        "stage": "candidate-green",
+        "stderr": "/tmp/health-lifecycle-tdd-census27-6o0c2f2p/actual-lifecycle-stage1-wau509hx/candidate-green.stderr",
+        "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout": "/tmp/health-lifecycle-tdd-census27-6o0c2f2p/actual-lifecycle-stage1-wau509hx/candidate-green.jsonl",
+        "stdoutSHA256": "4a205de69470ce91110abfa651aa6b6b9d5d175eb3957d0ea0acabf152e1d4de"
+      }
+    ],
+    "signals": [],
+    "sourceAfterSHA256": "5a417e80621e0763f5cec8c07d687f18c2dd7ffa150a1fe53e5757326e44fb72",
+    "sourceBeforeSHA256": "5a417e80621e0763f5cec8c07d687f18c2dd7ffa150a1fe53e5757326e44fb72",
+    "waits": [
+      {
+        "joined": true,
+        "pid": 32760,
+        "returnCode": 0,
+        "tag": "head"
+      },
+      {
+        "joined": true,
+        "pid": 32762,
+        "returnCode": 0,
+        "tag": "selected-inputs"
+      },
+      {
+        "joined": true,
+        "pid": 32786,
+        "returnCode": 0,
+        "tag": "selected-modules"
+      },
+      {
+        "joined": true,
+        "pid": 32792,
+        "returnCode": 0,
+        "tag": "candidate-green"
+      }
+    ]
+  }
+}

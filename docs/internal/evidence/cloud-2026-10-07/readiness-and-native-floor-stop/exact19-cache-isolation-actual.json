@@ -1,0 +1,23 @@
+{
+  "all19ByteBodiesRetained": true,
+  "allNonselectedFileMetadataEqual": true,
+  "completed": true,
+  "failure": null,
+  "fitOrRuntimeAcceptance": false,
+  "nonselectedCount": 7596,
+  "observedWorkspaceRecoveryBytes": 614400,
+  "originalNativeFailureRetained": true,
+  "redirectedCount": 19,
+  "resourcesAfter": {
+    "memoryHeadroom": 1123614720,
+    "tmp": 2420707328,
+    "workspace": 1500483584
+  },
+  "resourcesBefore": {
+    "memoryHeadroom": 1125715968,
+    "tmp": 2420867072,
+    "workspace": 1499869184
+  },
+  "sourceIdentityLimit": "Original19 dev/inode/ctime not conserved; retained full bytes and original metadata in custody. Old inode/body integrity not inferred from prior metadata-only census.",
+  "sourcePathsNowExplicitTMPAliases": true
+}

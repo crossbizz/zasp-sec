@@ -1,0 +1,140 @@
+{
+  "format": "selected-public-safe-owner-result-v1",
+  "omittedFields": [
+    "activeOverlay",
+    "adoptedChildren",
+    "aliasTargets",
+    "fgaLiveBinding",
+    "ownedReaps",
+    "ownedSessions",
+    "projectionRoot",
+    "resourceHistory",
+    "tokenMetadata"
+  ],
+  "original": {
+    "bytes": 1015813,
+    "identity": {
+      "ctime_ns": 1791378116073375416,
+      "dev": 27,
+      "gid": 1000,
+      "ino": 998519,
+      "mode": "0o400",
+      "mtime_ns": 1791378116073375416,
+      "nlink": 1,
+      "size": 1015813,
+      "uid": 1000
+    },
+    "path": "/workspace/.zasp-cloud-owned/native-test74-approvaldiag-currentc1c45-b2h9s2m7/actual-tvucw0d0/result.json",
+    "sha256": "aa94ee07a34a640c65f1dcd2159745efc2d7c047c8c031ca533b0a6aa075084d"
+  },
+  "scope": "Derived scalar selection; original remains private and unchanged. Completion is diagnostic acceptance only, not genuine approval PASS.",
+  "selected": {
+    "completed": true,
+    "diagnosticOnlyExpectedApprovalFailure": true,
+    "elapsedSeconds": 265.04375695399904,
+    "failure": null,
+    "fgaNormalStop": {
+      "exit": 0,
+      "forcedCleanup": false,
+      "listenersAbsent": true,
+      "normalWait": true,
+      "routineGracefulSIGTERM": true,
+      "sessionAbsent": true
+    },
+    "firstRefusal": null,
+    "forced": false,
+    "format": "native-fga-genuine-finding-root-actual-v1",
+    "inputs": 14004,
+    "ownedSessionSurvivors": [],
+    "processCensusUnknown": [],
+    "productionActivated": false,
+    "resourcesAfter": {
+      "/dev/shm": 9441349632,
+      "/tmp": 4770926592,
+      "/workspace": 1615962112,
+      "memoryHeadroom": 4545560576
+    },
+    "results": [
+      {
+        "approvalDiagnosticScalars": null,
+        "fails": [],
+        "output": "/workspace/.zasp-cloud-owned/native-test74-approvaldiag-currentc1c45-b2h9s2m7/actual-tvucw0d0/owned-credential-admission.jsonl",
+        "passes": [
+          "TestApprovalMaintenanceOwnedCredentialAdmission/explicit_native",
+          "TestApprovalMaintenanceOwnedCredentialAdmission/legacy_unchanged",
+          "TestApprovalMaintenanceOwnedCredentialAdmission/no_fallback_on_native_refusal",
+          "TestApprovalMaintenanceOwnedCredentialAdmission/private_token_only",
+          "TestApprovalMaintenanceOwnedCredentialAdmission/owned_readonly_ipv6",
+          "TestApprovalMaintenanceOwnedCredentialAdmission/nonexclusive_or_nonregular_token",
+          "TestApprovalMaintenanceOwnedCredentialAdmission/invalid_token_bytes",
+          "TestApprovalMaintenanceOwnedCredentialAdmission",
+          "TestApprovalMaintenanceOwnedCredentialsRequireLiveInputs"
+        ],
+        "sha256": "d0433178d7621930eba649598dcbf5c7bb5ba199d0ab58193c2c623d9d5e353a",
+        "skips": [],
+        "stage": "owned-credential-admission"
+      },
+      {
+        "approvalDiagnosticScalars": {
+          "approval_current": true,
+          "approver_ready": true,
+          "committed_approved": false,
+          "context_live": true,
+          "error_code": "unavailable",
+          "returned_approved": false,
+          "run_current": true
+        },
+        "fails": [
+          "TestApprovalMaintenanceGenuineSupervisedTest74EnqueueInactive"
+        ],
+        "output": "/workspace/.zasp-cloud-owned/native-test74-approvaldiag-currentc1c45-b2h9s2m7/actual-tvucw0d0/genuine-single-test-inactive-capture.jsonl",
+        "passes": [],
+        "sha256": "7241c6512ef32291380dad1a5f924470addd7af34a5e6f185a2e1bb7f74e09a5",
+        "skips": [],
+        "stage": "genuine-single-test-inactive-capture"
+      }
+    ],
+    "signals": [],
+    "sourceAfterSHA256": "94c8ab21057c56e0f1263c15e12607fa937c57dab250d8e943b34ddd9deafdf6",
+    "sourceBeforeSHA256": "94c8ab21057c56e0f1263c15e12607fa937c57dab250d8e943b34ddd9deafdf6",
+    "tokenValuesPublished": false,
+    "waits": [
+      {
+        "joined": true,
+        "pid": 27974,
+        "returnCode": 0,
+        "tag": "base-head"
+      },
+      {
+        "joined": true,
+        "pid": 27976,
+        "returnCode": 0,
+        "tag": "offline-modules"
+      },
+      {
+        "joined": true,
+        "pid": 27982,
+        "returnCode": 0,
+        "tag": "selected-inputs"
+      },
+      {
+        "joined": true,
+        "pid": 28007,
+        "returnCode": 0,
+        "tag": "owned-credential-admission"
+      },
+      {
+        "joined": true,
+        "pid": 28197,
+        "returnCode": 1,
+        "tag": "genuine-single-test-inactive-capture"
+      },
+      {
+        "joined": true,
+        "pid": 28185,
+        "returnCode": 0,
+        "tag": "owned-FGA-normal-stop"
+      }
+    ]
+  }
+}

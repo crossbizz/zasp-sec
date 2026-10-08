@@ -1,0 +1,97 @@
+{
+  "format": "selected-public-safe-owner-result-v1",
+  "omittedFields": [
+    "activeOverlay",
+    "adoptedChildren",
+    "aliasTargets",
+    "ownedReaps",
+    "ownedSessions",
+    "projectionRoot",
+    "resourceHistory"
+  ],
+  "original": {
+    "bytes": 14766,
+    "identity": {
+      "ctime_ns": 1791382450617235341,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 82097,
+      "mode": "0o400",
+      "mtime_ns": 1791382450617235341,
+      "nlink": 1,
+      "size": 14766,
+      "uid": 1000
+    },
+    "path": "/tmp/health-contract-current77d90-stage2-cv1wdu9s/result.json",
+    "sha256": "5276da64975e9c86ddab4ad1c52f756a800db146edf7f6b2f6e6202bc26f7ffe"
+  },
+  "scope": "Selected owner scalar fields; no individual testcase or skip counts inferred from nonverbose logs.",
+  "selected": {
+    "completed": true,
+    "elapsedSeconds": 5.7636259280006925,
+    "failure": null,
+    "firstRefusal": null,
+    "forced": false,
+    "format": "health-contract-serial-stage-root-actual-v1",
+    "healthContractStage": 2,
+    "inputs": 8487,
+    "ownedSessionSurvivors": [],
+    "processCensusUnknown": [],
+    "productionActivated": false,
+    "resourcesAfter": {
+      "/dev/shm": 9441349632,
+      "/tmp": 4049977344,
+      "/workspace": 1546874880,
+      "memoryHeadroom": 3748790272
+    },
+    "results": [
+      {
+        "argv": [
+          "/workspace/.zasp-cloud-owned/spec44-runtime-tools/go/bin/go",
+          "test",
+          "-C",
+          "services/event-ingest",
+          "-race",
+          "-count=1",
+          "./..."
+        ],
+        "individualTestsAndSkips": "Not inferred from nonverbose raw command output; preserve raw whole logs",
+        "normalExit": 0,
+        "stage": "event-ingest",
+        "stderr": "/tmp/health-contract-current77d90-stage2-cv1wdu9s/event-ingest.stderr",
+        "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout": "/tmp/health-contract-current77d90-stage2-cv1wdu9s/event-ingest.jsonl",
+        "stdoutSHA256": "67912c69c49a39c661dd4da56d2ad2ee582e0249bb5e8f447745a9b975d4c7dc"
+      }
+    ],
+    "signals": [],
+    "sourceAfterSHA256": "29106e6aff911a0ae1f56fe087d80391e9b8c192a9affab3230cdd6d60b116f6",
+    "sourceBeforeSHA256": "29106e6aff911a0ae1f56fe087d80391e9b8c192a9affab3230cdd6d60b116f6",
+    "waits": [
+      {
+        "joined": true,
+        "pid": 35041,
+        "returnCode": 0,
+        "tag": "head"
+      },
+      {
+        "joined": true,
+        "pid": 35043,
+        "returnCode": 0,
+        "tag": "selected-inputs"
+      },
+      {
+        "joined": true,
+        "pid": 35068,
+        "returnCode": 0,
+        "tag": "selected-modules"
+      },
+      {
+        "joined": true,
+        "pid": 35073,
+        "returnCode": 0,
+        "tag": "event-ingest"
+      }
+    ]
+  }
+}

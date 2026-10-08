@@ -1,0 +1,7 @@
+Approval maintenance previously passed the delivery ID as the webhook payload and the payload as its delivery ID. The unchanged real webhook rejected the request before HTTPS. The correction forwards the original payload, digest and idempotency ID in the established order.
+
+The original code produced one causal failure. The corrected code passed three test groups and eight refusal subcases (11 events, no skips) through a hostname-verified owned TLS receiver. Tests check the payload, HMAC, delivery ID, tenant and lease refusals, and propagation of a real HTTP 503 response. All 20,813 source/tool receipts matched before and after, and six owned stages joined normally without forced cleanup, signals, unknowns or survivors.
+
+This is selected component verification. All production source was retained in the physical projection; 808 original apiserver test files were excluded from this local compilation and individually recorded. These tests do not verify the native executor, PostgreSQL, production DNS/CIDR egress or deployed Stytch/provider flows. The new hosted CI command will compile the original complete package and select the same three parent tests. Its result is pending. No availability row or activation guard is changed.
+
+The selection lists exact original paths, hashes and byte counts. Omitted private receipts are explicitly identified; no complete source archive is claimed.

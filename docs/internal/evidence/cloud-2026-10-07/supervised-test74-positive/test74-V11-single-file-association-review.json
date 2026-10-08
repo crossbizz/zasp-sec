@@ -1,0 +1,17 @@
+{
+  "actualPositiveReviewSHA256": "9edb39eb0c02f07cb43ba1cd73993c7e2099ce22974fac42dbc2f96d87a7de68",
+  "adoptionMapSHA256": "a4805bea922b7301209358aff1ad2b3c4e669d38dbd6c68c8b5a5640a307fa08",
+  "candidateSHA256": "fcb312455a7bcbfc1800f0d0c70334f620e20143ea0c9306dc814b8d1d3b1c7b",
+  "format": "independent-V11-single-test-adoption-association-review-v1",
+  "observedState": "ABSENT_PREIMAGE",
+  "scope": [
+    "One test file only, absent c1 preimage or exact approved postimage; no nativeSQL/product guard additions.",
+    "Physical projection worker gofmt whitespace distinction disclosed; no wholecurrentmodule byteparity inferred.",
+    "Crosswalk only existing M3-02a/M7A-53-55 supplemental controlledfixture checks; synthetic identity is not deployedStytch/provider acceptance.",
+    "No task/category/native379 anchor or productionactivation promotion."
+  ],
+  "status": "PASS_EXACT_ONE_FILE_ASSOCIATION_AFTER_ACTUAL_POSITIVE",
+  "target": "services/platform/apiserver/approval_maintenance_genuine_test74_postgres_test.go",
+  "taskCrosswalkSHA256": "8e0e53ea1828e100a2c27685c818718e250c39b61cc524e339f79d3262e81182",
+  "tenAlreadyCurrentOverlayMembersExact": true
+}
