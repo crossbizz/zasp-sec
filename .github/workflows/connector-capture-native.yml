@@ -4,6 +4,8 @@ name: Connector capture native integration
     paths:
       - 'services/platform/**'
       - 'scripts/hosted-connector-nine.mjs'
+      - 'scripts/hosted-memory-observation.mjs'
+      - 'scripts/hosted-memory-observation.test.mjs'
       - 'scripts/owned-command.mjs'
       - 'scripts/owned-fixed-fd-command.mjs'
       - 'scripts/official-held-tools.mjs'
@@ -12,6 +14,8 @@ name: Connector capture native integration
     paths:
       - 'services/platform/**'
       - 'scripts/hosted-connector-nine.mjs'
+      - 'scripts/hosted-memory-observation.mjs'
+      - 'scripts/hosted-memory-observation.test.mjs'
       - 'scripts/owned-command.mjs'
       - 'scripts/owned-fixed-fd-command.mjs'
       - 'scripts/official-held-tools.mjs'
@@ -33,6 +37,9 @@ jobs:
         with:
           go-version: 1.26.8
           cache: false
+      - name: Portable memory metadata parser controls
+        timeout-minutes: 1
+        run: node --test scripts/hosted-memory-observation.test.mjs
       - name: Original captured-inactive application integration
         timeout-minutes: 27
         run: node scripts/hosted-connector-nine.mjs

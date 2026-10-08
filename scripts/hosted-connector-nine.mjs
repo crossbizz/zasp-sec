@@ -3,6 +3,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { mkdtemp, mkdir, readFile, writeFile, chmod, lstat, statfs, stat, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import net from 'node:net';
+import { observeHostedMemory } from './hosted-memory-observation.mjs';
 import {openSync,writeSync,fsyncSync,closeSync,constants} from 'node:fs';
 import { captureStart, observeOwnedListener } from './owned-listener.mjs';
 import { spawnOwnedCommand } from './owned-command.mjs';
@@ -18,6 +19,7 @@ const pins = {
 const top='TestConnectorCapturedEnqueueOriginalAuthorizationPostgres';
 const cases=['authentic_capture_and_exact_replay','wrong_signed_purpose','wrong_selected_scope','modified_signed_envelope','existing_originless_effect_refused','later_transaction_failure_rolls_back_enqueue_and_origin','own_catalog_drift_refused','outbox_consumer_cannot_capture','required_inputs_concurrent_replay_and_savepoint_ownership'];
 const helperPins={
+ "scripts/hosted-memory-observation.mjs": "70c2ae837d040be4756842e4016acbc4eebd6bae3d8c992aba2a80e2a097ba75",
  "scripts/owned-command.mjs": "044e151c9260b9356ac78e5cde6b59dbbdd7b934d66ad06732288346831ad47e",
  "scripts/owned-fixed-fd-command.mjs": "15c38bd9d627124b7d81e5fe9b96dd3c4af8757b33f2204a9dce4b86e93e5693",
  "scripts/official-held-tools.mjs": "451dad7212561fc02e1f5b03280672c9d900a5ac644a665c022deafa9f72dfdd",
@@ -43,9 +45,7 @@ async function floors(){
  const values={workspaceFreeBytes:null,scratchFreeBytes:null,memoryHeadroomBytes:null};let step='workspace-statfs';
  try{
   for(const [dir,min,key]of [[root,1500000000,'workspaceFreeBytes'],[out,100000000,'scratchFreeBytes']]){step=key==='workspaceFreeBytes'?'workspace-statfs':'scratch-statfs';const v=await statfs(dir);values[key]=v.bavail*v.bsize;step=key==='workspaceFreeBytes'?'workspace-floor':'scratch-floor';assert.ok(values[key]>=min);}
-  step='memory-max-read';const maximum=(await readFile('/sys/fs/cgroup/memory.max','utf8')).trim();let available;
-  if(maximum!=='max'){step='memory-current-read';const current=Number((await readFile('/sys/fs/cgroup/memory.current','utf8')).trim());available=Number(maximum)-current;receipt.memoryObservationBasis='cgroup-max-minus-current';}
-  else{step='host-memory-read';const match=/^MemAvailable:\s+([0-9]+) kB$/m.exec(await readFile('/proc/meminfo','utf8'));assert.ok(match);available=Number(match[1])*1024;receipt.memoryObservationBasis='host-MemAvailable-unlimited-cgroup';}
+  step='portable-memory-observation';const observation=await observeHostedMemory();const available=observation.availableBytes;receipt.memoryObservationBasis=observation.basis;receipt.memoryObservation={hostAvailableBytes:observation.hostAvailableBytes,finiteAncestorLimits:observation.finiteAncestorLimits,visibleGroupsObserved:observation.visibleGroupsObserved};
   values.memoryHeadroomBytes=available;step='memory-floor';assert.ok(available>=268435456);receipt.resourceSnapshot=values;
  }catch(error){receipt.resourceSnapshot=values;receipt.resourceRefusal={step,class:failureClass(error)};throw error;}
 }

@@ -1,0 +1,46 @@
+{
+  "checks": [
+    "Actual runner uses only default capped kernel reader, no environment-selected memory paths/readers.",
+    "Exactly one unified self-membership and exactly one expected root cgroup2 mount; canonical paths and subtree mount refusal prevent visible-ancestor omission.",
+    "Minimum includes host MemAvailable and every finite visible ancestor max-current; clamps exhausted limit to zero. Missing nonroot memory.max requires controller list without memory and still walks ancestors. Non-ENOENT errors/malformed/duplicate metadata refuse.",
+    "True hierarchy root memory.max ENOENT permitted for native VM root; no floor weakening. Existing 256MiB RAM/WS1.5GB/TMP100MB/all command/test/deadline/capture/cleanup acceptance conserved.",
+    "All reads individually prebounded; depth256/rows8192 cap; fixed imports/helper hash admitted before/after.",
+    "Six declared stdlib parser groups cover root absence/finite parent/hostminimum/inactive child/missing active interface+subtree/malformed+duplicate+negative limits.",
+    "Workflow adds only parser step and exact helper/test triggers; original test singleton9/runtime step and pinned tools/permissions intact."
+  ],
+  "manifestSHA256": "d5305c218579c8630d5669c68e458aae0b7e4dab99246a2762325dd181bc6e37",
+  "qualifications": [
+    "No parser tests, runtime, services or network executed by reviewer. ROOT should run exact six controls then hosted integration with actual closure.",
+    "Visible hierarchy scope only; mount root / cannot independently prove absence of host ancestors hidden by a cgroup namespace. No global-host memory authority asserted.",
+    "Memory values are sampled kernel observations, not atomic allocation reservations or FIT promises.",
+    "Reported hosted ENOENT memory-max-read corroborates portability failure only; this source review does not certify original integration success."
+  ],
+  "verdict": "PASS_SOURCE_CONDITIONAL_PARSER_CONTROLS_AND_HOSTED_RUN",
+  "verifiedMembers": [
+    {
+      "bytes": 18150,
+      "path": "scripts/hosted-connector-nine.mjs",
+      "sha256": "7e4045d7b6deb5772c40f397d63e8ceea4e83c7866cc7732149bf265cf772ca5"
+    },
+    {
+      "bytes": 3783,
+      "path": "scripts/hosted-memory-observation.mjs",
+      "sha256": "70c2ae837d040be4756842e4016acbc4eebd6bae3d8c992aba2a80e2a097ba75"
+    },
+    {
+      "bytes": 2524,
+      "path": "scripts/hosted-memory-observation.test.mjs",
+      "sha256": "75f7365042bb76f683e427862a52e9fcfd08530174c0f5fd47b0412f526d360d"
+    },
+    {
+      "bytes": 1597,
+      "path": ".github/workflows/connector-capture-native.yml",
+      "sha256": "0fe5395ee74b53e0230166a5656b9a5e00143244748efe2134f07e13f1e18ad7"
+    },
+    {
+      "bytes": 18188,
+      "path": "prior-diagnostic-runner.mjs",
+      "sha256": "8b8e8b3e79f53c70a33c92d75df26e7ff15c9e86e697047585bebe27d2152705"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { observeHostedMemory } from './hosted-memory-observation.mjs';
+const root='/sys/fs/cgroup';
+function reader(overrides={}){const values={'/proc/meminfo':'MemAvailable: 1048576 kB\n','/proc/self/cgroup':'0::/job/child\n','/proc/self/mountinfo':'1 0 0:28 / /sys/fs/cgroup rw - cgroup2 cgroup rw\n',[root+'/job/child/memory.max']:'max\n',[root+'/job/memory.max']:'536870912\n',[root+'/job/memory.current']:'134217728\n',...overrides};return async file=>{if(!Object.hasOwn(values,file)||values[file]===undefined){const error=new Error('fixture interface absent');error.code='ENOENT';throw error;}return values[file];};}
+test('native hierarchy root lacking memory.max remains host bounded',async()=>{const value=await observeHostedMemory(reader({'/proc/self/cgroup':'0::/\n'}));assert.equal(value.availableBytes,1073741824);assert.equal(value.finiteAncestorLimits,0);assert.equal(value.visibleGroupsObserved,1);});
+test('finite parent limit is mandatory even when child is unlimited',async()=>{const value=await observeHostedMemory(reader());assert.equal(value.availableBytes,402653184);assert.equal(value.finiteAncestorLimits,1);assert.equal(value.visibleGroupsObserved,3);});
+test('host availability is included when finite limit is looser',async()=>{const value=await observeHostedMemory(reader({'/proc/meminfo':'MemAvailable: 131072 kB\n'}));assert.equal(value.availableBytes,134217728);});
+test('inactive child memory controller still observes finite parent',async()=>{const value=await observeHostedMemory(reader({[root+'/job/child/memory.max']:undefined,[root+'/job/child/cgroup.controllers']:'cpu io\n'}));assert.equal(value.availableBytes,402653184);assert.equal(value.finiteAncestorLimits,1);});
+// A missing active interface cannot become an unlimited group.
+test('missing active interface and hidden ancestors refuse',async()=>{await assert.rejects(observeHostedMemory(reader({[root+'/job/child/memory.max']:undefined})));await assert.rejects(observeHostedMemory(reader({'/proc/self/mountinfo':'1 0 0:28 /job /sys/fs/cgroup rw - cgroup2 cgroup rw\n'})));});
+test('malformed paths, duplicate host metadata and numeric controls refuse',async()=>{await assert.rejects(observeHostedMemory(reader({'/proc/self/cgroup':'0::/job/../child\n'})));await assert.rejects(observeHostedMemory(reader({'/proc/meminfo':'MemAvailable: 1 kB\nMemAvailable: 2 kB\n'})));await assert.rejects(observeHostedMemory(reader({[root+'/job/memory.max']:'-1\n'})));});
