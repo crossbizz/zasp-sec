@@ -1,0 +1,53 @@
+{
+  "files": {
+    "manifest.json": {
+      "bytes": 985,
+      "metadata": [
+        34,
+        169747,
+        33152,
+        1000,
+        1000,
+        1,
+        985,
+        1791432110721178772,
+        1791432110721178772
+      ],
+      "sha256": "14aae31a52132a4ff73a252f4e2595a6952e92a91f1f66bbd235bd477d00569c"
+    },
+    "prior-runner.mjs": {
+      "bytes": 23540,
+      "metadata": [
+        34,
+        169744,
+        33152,
+        1000,
+        1000,
+        1,
+        23540,
+        1791432110720845188,
+        1791432110720845188
+      ],
+      "sha256": "67e9f34a043a780d80d68a9b5c620b92502f65edbaa59031ba6cd7df3effeb40"
+    },
+    "scripts/hosted-connector-nine.mjs": {
+      "bytes": 24656,
+      "metadata": [
+        34,
+        169746,
+        33152,
+        1000,
+        1000,
+        1,
+        24656,
+        1791432110720948173,
+        1791432110720948173
+      ],
+      "sha256": "ea7743662c5cc5d84b678578a4df6e72dfcf42a564a9f8547532ef7db15f243e"
+    }
+  },
+  "findings": [],
+  "scope": "Only nativeDiagnostic function changed. Fifteen fixed substring patterns emit deduplicated finite enum labels; no raw output, parameters, credentials or paths added. Original execution, fixture/test/assertions, source pins, image/version, guards and caps untouched. Substrings are diagnostic observations and may overlap; they cannot establish sole failure cause. Actual original top failure/no9 subcases remains preserved. No runtime/tests/services/network by reviewer; ROOT scan and actual hosted observations separate.",
+  "source": "/tmp/hosted-connector-pg-refusal-diagnostic-__3ap_to",
+  "verdict": "PASS_OUTPUT_ONLY_SOURCE"
+}

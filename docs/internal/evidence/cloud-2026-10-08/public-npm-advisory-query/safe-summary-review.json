@@ -1,0 +1,69 @@
+{
+  "scope": "Same-FD regular result/outer reads bounded32MiB and nine metadata fields excludingatime. Ambiguous actual result refuses; format/releasefalse grammar enforced. Complete requires outer0/issuedcomplete/no forced/cancel/component traversal AND late marker lexists absence. Only fixed scalar shape/counts/resultdigest/class-name observation emitted; no raw HTTP/errors/paths/token. Missing evidence defaults incomplete; malformed grammar refuses. Exact workflow inverse removes only always summary step to prior29e381. Twelve source descriptors verified; owner/acquisition algorithms and credentials/permissions/caps unchanged. No tests/network/runtime by reviewer; ROOT scans and actual hosted closure separate.",
+  "sourceManifestSHA256": "5bbe267e9fdbdded415dd0b86a85597608d8ea2c77b46f673583b5763af12c19",
+  "sourceRows": [
+    {
+      "bytes": 3783,
+      "path": "scripts/hosted-memory-observation.mjs",
+      "sha256": "70c2ae837d040be4756842e4016acbc4eebd6bae3d8c992aba2a80e2a097ba75"
+    },
+    {
+      "bytes": 2524,
+      "path": "scripts/hosted-memory-observation.test.mjs",
+      "sha256": "75f7365042bb76f683e427862a52e9fcfd08530174c0f5fd47b0412f526d360d"
+    },
+    {
+      "bytes": 8258,
+      "path": "scripts/npm-public-api-query/cursor_component.py",
+      "sha256": "e08cdf6e88affe549fe7ed602bad51d6296cfa1e990b645d4ef42a3cfeb68c38"
+    },
+    {
+      "bytes": 5867,
+      "path": "scripts/npm-public-api-query/cursor_controls.py",
+      "sha256": "89c39e2c27c4d51545b62fc26d55e8ad06fbe12707588a86c68d9322e789b2fd"
+    },
+    {
+      "bytes": 2392,
+      "path": "scripts/npm-public-api-query/hosted-controls.py",
+      "sha256": "9395ca59d598460aee4007d183f86e74c9e5d296da279db8a776298f1f64ebf9"
+    },
+    {
+      "bytes": 260,
+      "path": "scripts/npm-public-api-query/memory-cli.mjs",
+      "sha256": "fe3eab2c4f6afb0bb9368a679c70b49d1c65b1384093a508042d090e022afd1a"
+    },
+    {
+      "bytes": 3144,
+      "path": "scripts/npm-public-api-query/prepare-hosted.py",
+      "sha256": "b091aec0f44629cc442a46ca0705229ee06e9e60afad0594b5d484cd92a6fbab"
+    },
+    {
+      "bytes": 7272,
+      "path": "scripts/npm-public-api-query/public_lock_adapter.py",
+      "sha256": "d1de39b00bd9edc154853bd0634209db1fcd629a7def30d1929674239b9519cc"
+    },
+    {
+      "bytes": 6013,
+      "path": "scripts/npm-public-api-query/public_lock_controls.py",
+      "sha256": "e3de00dc987f677bcee8794765880d7050ac9b3a103f7960dbea371440304497"
+    },
+    {
+      "bytes": 18964,
+      "path": "scripts/npm-public-api-query/run-hosted.py",
+      "sha256": "b7d52602e87faab69f84a26f9f32ca8e9457c5d84f0569b101f18d09748b5d43"
+    },
+    {
+      "bytes": 1046,
+      "path": "scripts/npm-public-api-query/verify-plan.py",
+      "sha256": "5e2f9448a5d08b9f994f54ffec28759785c479b88c2f9a7a4f844fb12a3037b9"
+    },
+    {
+      "bytes": 3233,
+      "path": "scripts/npm-public-api-query/safe-summary.py",
+      "sha256": "1c873b2f59df6d60ff4f205a9163aa54322295364ec979073d9b758616737165"
+    }
+  ],
+  "summarySHA256": "1c873b2f59df6d60ff4f205a9163aa54322295364ec979073d9b758616737165",
+  "verdict": "PASS_BOUNDED_SCALAR_SUMMARY_SOURCE",
+  "workflowSHA256": "5bdfac116bf0f46b6b8421df9dce4592932cffe858fca10f8c24e4cd11795018"
+}

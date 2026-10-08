@@ -1,0 +1,245 @@
+{
+  "base": "76ba3b53c1d4d892539da16a08db71172a49b5d2",
+  "checkout": "/tmp/npm-public-query-hosted-branch",
+  "conservedFunctionASTs": [
+    "stop",
+    "proc_row",
+    "stable",
+    "credential_row",
+    "owned_signal",
+    "owned_session",
+    "end_child",
+    "secure_snapshot",
+    "acquire",
+    "persist"
+  ],
+  "files": [
+    {
+      "bytes": 3783,
+      "metadata": [
+        34,
+        169571,
+        33152,
+        1000,
+        1000,
+        1,
+        3783,
+        1791431914327386623,
+        1791431914327386623
+      ],
+      "path": "scripts/hosted-memory-observation.mjs",
+      "sha256": "70c2ae837d040be4756842e4016acbc4eebd6bae3d8c992aba2a80e2a097ba75"
+    },
+    {
+      "bytes": 2524,
+      "metadata": [
+        34,
+        169572,
+        33152,
+        1000,
+        1000,
+        1,
+        2524,
+        1791431914327415908,
+        1791431914327415908
+      ],
+      "path": "scripts/hosted-memory-observation.test.mjs",
+      "sha256": "75f7365042bb76f683e427862a52e9fcfd08530174c0f5fd47b0412f526d360d"
+    },
+    {
+      "bytes": 8258,
+      "metadata": [
+        34,
+        169567,
+        33152,
+        1000,
+        1000,
+        1,
+        8258,
+        1791431914327080398,
+        1791431914327080398
+      ],
+      "path": "scripts/npm-public-api-query/cursor_component.py",
+      "sha256": "e08cdf6e88affe549fe7ed602bad51d6296cfa1e990b645d4ef42a3cfeb68c38"
+    },
+    {
+      "bytes": 5867,
+      "metadata": [
+        34,
+        169570,
+        33152,
+        1000,
+        1000,
+        1,
+        5867,
+        1791431914327348165,
+        1791431914327348165
+      ],
+      "path": "scripts/npm-public-api-query/cursor_controls.py",
+      "sha256": "89c39e2c27c4d51545b62fc26d55e8ad06fbe12707588a86c68d9322e789b2fd"
+    },
+    {
+      "bytes": 2392,
+      "metadata": [
+        34,
+        169752,
+        33152,
+        1000,
+        1000,
+        1,
+        2392,
+        1791432129017384635,
+        1791432129017384635
+      ],
+      "path": "scripts/npm-public-api-query/hosted-controls.py",
+      "sha256": "9395ca59d598460aee4007d183f86e74c9e5d296da279db8a776298f1f64ebf9"
+    },
+    {
+      "bytes": 260,
+      "metadata": [
+        34,
+        169573,
+        33152,
+        1000,
+        1000,
+        1,
+        260,
+        1791431914327433564,
+        1791431914327433564
+      ],
+      "path": "scripts/npm-public-api-query/memory-cli.mjs",
+      "sha256": "fe3eab2c4f6afb0bb9368a679c70b49d1c65b1384093a508042d090e022afd1a"
+    },
+    {
+      "bytes": 3144,
+      "metadata": [
+        34,
+        169575,
+        33152,
+        1000,
+        1000,
+        1,
+        3144,
+        1791431914332365974,
+        1791431914332365974
+      ],
+      "path": "scripts/npm-public-api-query/prepare-hosted.py",
+      "sha256": "b091aec0f44629cc442a46ca0705229ee06e9e60afad0594b5d484cd92a6fbab"
+    },
+    {
+      "bytes": 7272,
+      "metadata": [
+        34,
+        169568,
+        33152,
+        1000,
+        1000,
+        1,
+        7272,
+        1791431914327189814,
+        1791431914327189814
+      ],
+      "path": "scripts/npm-public-api-query/public_lock_adapter.py",
+      "sha256": "d1de39b00bd9edc154853bd0634209db1fcd629a7def30d1929674239b9519cc"
+    },
+    {
+      "bytes": 6013,
+      "metadata": [
+        34,
+        169569,
+        33152,
+        1000,
+        1000,
+        1,
+        6013,
+        1791431914327315976,
+        1791431914327315976
+      ],
+      "path": "scripts/npm-public-api-query/public_lock_controls.py",
+      "sha256": "e3de00dc987f677bcee8794765880d7050ac9b3a103f7960dbea371440304497"
+    },
+    {
+      "bytes": 18969,
+      "metadata": [
+        34,
+        169574,
+        33152,
+        1000,
+        1000,
+        1,
+        18969,
+        1791431914327561589,
+        1791431914327561589
+      ],
+      "path": "scripts/npm-public-api-query/run-hosted.py",
+      "sha256": "f6e5a8e114b331a2d184fa7702c1e05f2145245a8b2dc3a862c0ec95a020ffe1"
+    },
+    {
+      "bytes": 1046,
+      "metadata": [
+        34,
+        169576,
+        33152,
+        1000,
+        1000,
+        1,
+        1046,
+        1791432129017420870,
+        1791432129017420870
+      ],
+      "path": "scripts/npm-public-api-query/verify-plan.py",
+      "sha256": "5e2f9448a5d08b9f994f54ffec28759785c479b88c2f9a7a4f844fb12a3037b9"
+    },
+    {
+      "bytes": 2964,
+      "metadata": [
+        34,
+        169753,
+        33152,
+        1000,
+        1000,
+        1,
+        2964,
+        1791432129017443204,
+        1791432129017443204
+      ],
+      "path": ".github/workflows/npm-public-advisory-query.yml",
+      "sha256": "97dab3a3bad73f84098667fda1920be436ecaf1a7c5879df4494a9f172a7e278"
+    },
+    {
+      "bytes": 1821,
+      "metadata": [
+        34,
+        169577,
+        33152,
+        1000,
+        1000,
+        1,
+        1821,
+        1791432129018094759,
+        1791432129018094759
+      ],
+      "path": "scripts/npm-public-api-query/source-manifest.json",
+      "sha256": "f07b942ed38f1a842ed0103c66a73a5566e90b27f8a44c5bc74c65bec54b1765"
+    },
+    {
+      "bytes": 1465,
+      "metadata": [
+        34,
+        169756,
+        33152,
+        1000,
+        1000,
+        1,
+        1465,
+        1791432129017497326,
+        1791432129017497326
+      ],
+      "path": "docs/internal/npm-public-advisory-query.md",
+      "sha256": "c1bbdf7d9e14eab6c2fe8f3661470791c2ecb5772be784b6d4a95544daa5b94e"
+    }
+  ],
+  "findings": [],
+  "scope": "Manual workflow contents-read SHA-pinned checkout/setup/upload; checkout token not persisted, GH_TOKEN supplied only acquisition. Actual hosted source/tool same-FD/security plan plus exact known Node pin; other preinstalled tool hashes are observed associations, not vendor archive attestation. Reviewed adapterV2/cursor conserved, plan SHA binding and raw fsync repairs conserved. Portable memory observer has exact pinned source/tool bootstrap and direct normal join; all visible finite ancestor plus host minimum, not hidden namespace clearance. Original request/page/aggregate/time/disk/memory caps retained. Source-adapted omitted-malware causal RED and16 grouped controls plus memory tests gate acquisition but remain unrun. Upload original public pages/stderr; no private lock accepted, no authenticated immutable snapshot/OSV/full unrelated corpus/release acceptance. New14files only, package/lock/release guards unchanged. Known inherited whitespace line197 needs narrow owner+manifest rebinding before shipping; ROOT scans/diff and actual hosted source/coverage/normal0/no late marker remain required. No tests/network/acquisition by reviewer.",
+  "verdict": "PASS_HOSTED_SOURCE_CONDITIONAL_WHITESPACE_REBIND_AND_SCANS"
+}

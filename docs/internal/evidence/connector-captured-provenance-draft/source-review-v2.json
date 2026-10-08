@@ -1,0 +1,139 @@
+{
+  "format": "independent-connector-captured-inactive-v2-source-review",
+  "status": "SCOPED SOURCE PASS; runtime/production adoption HELD",
+  "manifest": {
+    "path": "/tmp/connector-enqueue-provenance-f84-i8zlb4ou/control-v2/manifest.json",
+    "sha256": "b0a0c7723334f35bc6d7c7c84f8dca9c91febc1f0fb8a779fa7dc856d816d9f9",
+    "security": {
+      "st_dev": 34,
+      "st_ino": 149212,
+      "st_mode": 33152,
+      "st_uid": 1000,
+      "st_gid": 1000,
+      "st_nlink": 1,
+      "st_size": 1645,
+      "st_mtime_ns": 1791424198935354158,
+      "st_ctime_ns": 1791424198935354158
+    }
+  },
+  "members": [
+    {
+      "path": "/tmp/connector-enqueue-provenance-f84-i8zlb4ou/repo/services/platform/migrations/sql/connector_enqueue_provenance.sql",
+      "sha256": "32b3f8cbe175b5256ff4542cdff044d6d060e0240d24632bf3d057f3553a5c13",
+      "bytes": 12222,
+      "security": {
+        "st_dev": 34,
+        "st_ino": 145890,
+        "st_mode": 33152,
+        "st_uid": 1000,
+        "st_gid": 1000,
+        "st_nlink": 1,
+        "st_size": 12222,
+        "st_mtime_ns": 1791423814144105656,
+        "st_ctime_ns": 1791423814144105656
+      }
+    },
+    {
+      "path": "/tmp/connector-enqueue-provenance-f84-i8zlb4ou/repo/services/platform/migrations/production_connector_enqueue_provenance.go",
+      "sha256": "809041eced547701b1e3ac3c1f68ac45d7b403336f5de6df4dda13b10db83267",
+      "bytes": 3818,
+      "security": {
+        "st_dev": 34,
+        "st_ino": 148861,
+        "st_mode": 33152,
+        "st_uid": 1000,
+        "st_gid": 1000,
+        "st_nlink": 1,
+        "st_size": 3818,
+        "st_mtime_ns": 1791418473200778659,
+        "st_ctime_ns": 1791418473200778659
+      }
+    },
+    {
+      "path": "/tmp/connector-enqueue-provenance-f84-i8zlb4ou/repo/services/platform/apiserver/connector_enqueue_provenance_postgres_test.go",
+      "sha256": "d6039cfa0d1673a5cf29e68e209b73c2cb6aeefd715e4d7805d3690b8ab0afde",
+      "bytes": 17593,
+      "security": {
+        "st_dev": 34,
+        "st_ino": 148884,
+        "st_mode": 33152,
+        "st_uid": 1000,
+        "st_gid": 1000,
+        "st_nlink": 1,
+        "st_size": 17593,
+        "st_mtime_ns": 1791423938467528904,
+        "st_ctime_ns": 1791423938467528904
+      }
+    },
+    {
+      "path": "/tmp/connector-enqueue-provenance-f84-i8zlb4ou/control-v2/top-xid-savepoint-omission-red.sql",
+      "sha256": "0d474adc791535689e2e611372400ff3ea049d6cd02bd2f4c5922e013cb43340",
+      "bytes": 12251,
+      "security": {
+        "st_dev": 34,
+        "st_ino": 149209,
+        "st_mode": 33152,
+        "st_uid": 1000,
+        "st_gid": 1000,
+        "st_nlink": 1,
+        "st_size": 12251,
+        "st_mtime_ns": 1791424198935026533,
+        "st_ctime_ns": 1791424198935026533
+      }
+    },
+    {
+      "path": "/tmp/connector-enqueue-provenance-f84-i8zlb4ou/control-v2/red-overlay.json",
+      "sha256": "8c03cb96d7b9bd9ec263aa5141c49c787ef47b5404e3e1342c01777a1ba6b8c0",
+      "bytes": 243,
+      "security": {
+        "st_dev": 34,
+        "st_ino": 149210,
+        "st_mode": 33152,
+        "st_uid": 1000,
+        "st_gid": 1000,
+        "st_nlink": 1,
+        "st_size": 243,
+        "st_mtime_ns": 1791424198935088887,
+        "st_ctime_ns": 1791424198935088887
+      }
+    },
+    {
+      "path": "/tmp/connector-enqueue-provenance-f84-i8zlb4ou/control-v2/ROOT-RECIPE.json",
+      "sha256": "199d964b970aed3f807a36a9328a721a7ca76a7ea937893fc38dc40e7e023ef8",
+      "bytes": 2353,
+      "security": {
+        "st_dev": 34,
+        "st_ino": 149211,
+        "st_mode": 33152,
+        "st_uid": 1000,
+        "st_gid": 1000,
+        "st_nlink": 1,
+        "st_size": 2353,
+        "st_mtime_ns": 1791424198935170651,
+        "st_ctime_ns": 1791424198935170651
+      }
+    }
+  ],
+  "historicalReview": {
+    "path": "/tmp/connector-captured-source-independent-k33ol9xt/review.json",
+    "sha256": "a25adbaa41ccaf6875a5deab7f07c0b3b447c55fee9fb3c61073d303af99b898",
+    "unchanged": true
+  },
+  "correction": "Earlier concurrent-capture loser inference was incomplete: original native80.fence calls native79.revalidate, which takes organizations FOR UPDATE before capture absence observation. Genuine same-org calls serialize. Prior review is preserved, not silently rewritten. Concurrent legacy insertion without this original fence remains guarded by creation ownership.",
+  "sourceAssessment": [
+    "Compiler byteexact historical809041. Only SQL/PG tests changed in repository. No original predecessor tables/functions/trigger/FK/grants replaced.",
+    "Creation witness is protected by same authority owner/forcedRLS policy/PUBLIC revoke and incorporated in own catalogue fingerprint. Insertion BEFORE original stage captures actual xmin; actual effect xmin must match. Witness removed with exact scoped key+xmin before success, and rollback clears witness/effect/origin/audit together. No transient witness authority or retroactive originless adoption.",
+    "All required nullable arguments now explicitly rejected with22023 before native fence or mutation. Optional empty attempt remains valid and mapped through original NULLIF semantics.",
+    "Nine prepared groups retain eight prior scenarios plus grouped NULLreason, actual subtransaction RELEASE/ROLLBACK and genuine concurrent replay. Savepoint positive asserts tuple xmin differs from established top-level xact ID and no retained witness.",
+    "Concurrent probe holds actual first native80 fence, waits on real second backend transactionid lock, then commits first capture and requires exact second replay/one origin/attempt0/no witness. Original native79 revalidate lock source inspected.",
+    "ConcurrentCtx15s bounds body; buffered outcome1 avoids stranded result send; cancellation cleanup independently rolls back with3s context and waits4s before explicit test failure. Remaining conn cleanup follows owned fixture cleanup. No test success from failed join.",
+    "RED substitutes top-level xmin comparison; requires same genuine-savepoint refusal. GREEN requires exact1top9subs/no skips. Existing300s fixture/600s Go/650s stage/1480s aggregate/30s cleanup/floors retained."
+  ],
+  "findings": [],
+  "remainingGates": [
+    "Tests/compiler/PostgreSQL/FGA unexecuted by this reviewer; no runtime owner admitted in prepared recipe. ROOT full tool/module/embed/effective source closure and normal PG/FGA/process joins required.",
+    "NULLreason is the meaningful current negative; not every required-NULL combination exercised. New guards assessed statically.",
+    "No whole uncontrolled fleet withdrawal, production enqueue route, worker lifecycle, new379 issuer, native readiness/activation, ledger promotion or deployed acceptance. Captured_inactive status remains provenance receipt only.",
+    "Concurrency timing/actual lock wait/savepoint behavior and all nine native cases await genuine execution; source-lock evidence is not a borrowed observed PASS."
+  ]
+}

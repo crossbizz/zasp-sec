@@ -1,0 +1,32 @@
+{
+  "checks": [
+    "Prior pushed 48ca runner bytecopy retained; workflow unchanged.",
+    "Diff only fixed diagnostic labels/class enum, numeric resource snapshots, selected fixed source binding, phase labels and safe annotation.",
+    "All resource thresholds, cgroup acquisition paths, sampler cadence/join, test/auth/cleanup/capture/deadline/source hash guards conserved.",
+    "No raw error message/body/header/environment/credentials printed; classes allowlist otherwise other-refusal; annotation numeric values require nonnegative safe integers."
+  ],
+  "manifestSHA256": "61b59cf8efe649d631498a743b49fae106ca04e4404d99d2b32fe24fe47d73f5",
+  "qualification": [
+    "No network/runtime/tests by reviewer. Hosted two early failures retain generic-annotation/log403 scope; cgroup path absence remains hypothesis.",
+    "resourceSnapshot/sourceBinding are latest acquisition fields and may be updated by final guards; not immutable first-failure observations or a sole-cause proof. resourceRefusal and failedPhase identify observed refusal classes/phase.",
+    "No portable cgroup fallback or successful original integration is established by this source change."
+  ],
+  "sameFDVerifiedMembers": [
+    {
+      "bytes": 18188,
+      "path": "scripts/hosted-connector-nine.mjs",
+      "sha256": "8b8e8b3e79f53c70a33c92d75df26e7ff15c9e86e697047585bebe27d2152705"
+    },
+    {
+      "bytes": 1245,
+      "path": ".github/workflows/connector-capture-native.yml",
+      "sha256": "bc396accab0677997044aabf2711227dcd59e61c0ac5972c3dba1af07a8bb147"
+    },
+    {
+      "bytes": 16646,
+      "path": "prior-pushed-runner.mjs",
+      "sha256": "48ca3d2e0af3db93e8d1fb30a482edcdce6026da55ccc1f1837530a718b83fad"
+    }
+  ],
+  "verdict": "PASS_DIAGNOSTIC_ONLY_SOURCE"
+}

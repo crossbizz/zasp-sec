@@ -1,0 +1,5 @@
+# Correct the observed PostgreSQL sample-file prerequisite
+
+Actual run 37728033310 on 7bf2aeb7d2a8794c31f16692a7f9861bcbb4203d passed the raw exact PostgreSQL version check, then initdb failed because the extracted postgresql.conf.sample did not exist. Original bounded diagnostics are retained. This is a concrete missing-file observation; the earlier loader mismatch hypothesis is unsupported.
+
+The successor copies that exact sample file with Docker source-link dereferencing from the same pinned read-only image container to an owned temporary regular file capped at 128 KiB, then atomically renames it into the verified real owned share directory. Rename replaces the copied symlink without following an absolute host target. Only file byte count/hash enters the receipt. The container is removed afterward as before; PostgreSQL binaries, original flags, exact versions, nine mandatory subcases, floors and custody remain unchanged. Independent source review passes; actual initdb and native acceptance still require the next hosted run.

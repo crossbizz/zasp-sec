@@ -1,0 +1,3 @@
+# Bounded initdb compatibility prerequisite
+
+A cold Go build precedes the observed PostgreSQL startup refusal. This successor checks the same original initdb no-locale/UTF8/trust/username arguments on a fresh owned data directory after exact pinned tool-version admission and before the FGA/Go integration command. It uses the existing owned-command helper with a 30-second bound, original floors and cleanup, and publishes only fixed failure-category labels. No server or listener is started for this prerequisite. The original nine cases remain unchanged and mandatory; a successful initdb check is only tool compatibility, not product or native acceptance. Source review passed; actual hosted observations remain pending.

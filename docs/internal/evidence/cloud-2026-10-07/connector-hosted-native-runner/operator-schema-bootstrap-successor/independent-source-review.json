@@ -1,0 +1,28 @@
+{
+  "actualCauseLimit": "Run37731078848/job113160089097 reportedly reaches full fixture then installer failure. Exact raw PostgreSQL error unavailable403. Source bug is proven; attribution of this precise run failure remains inferred, not directly observed.",
+  "concreteWorkingSuccessor": {
+    "evidence": [
+      "Original operator/session membership, canonical61/currentSQL80 readiness and migration lock remain checked.",
+      "Exact compiled fixed CREATE SCHEMA statement split requires one occurrence. Existing raw SQL source/checksum unchanged. Registered operator creates only this namespace AUTHORIZATIONauthority before role reduction; remaining table/functionDDL and registration execute under runtime authority.",
+      "All work remains single transaction; unknown existing schema still skipsDDL and must pass exact catalog_matches. No CREATE/grants/consumer/purpose/source-policy broadening introduced.",
+      "Final seal still normalizes table/function ownership, FORCE RLS and private/public ACL. Original three source pin can legitimately update installer bytes only while cases/rawSQL stay pinned."
+    ],
+    "file": "/tmp/connector-enqueue-provenance-f84-i8zlb4ou/repo/services/platform/migrations/production_connector_enqueue_provenance.go",
+    "sha256": "793b230a8572fbfbed2a4702e1513bfa90afac596a8d0707ae047bbdf8bacc36",
+    "sqlSHA256": "32b3f8cbe175b5256ff4542cdff044d6d060e0240d24632bf3d057f3553a5c13",
+    "verdict": "Inspected current concrete split/bootstrap fix is ready for source-bound hosted-nine successor once runner installer pin updates; no actual native acceptance."
+  },
+  "format": "independent-provenance-schema-bootstrap-diagnosis-v1",
+  "method": "Read-only source/canonical roles audit; current working fix read only. No tests/runtime/source/Git writes.",
+  "relatedGap": "UpProductionConnectorMaintenance also sets authority before creating capture/maintenance schemas; analogous namespace bootstrap problem must be addressed independently before its actual native install can succeed.",
+  "requiredAcceptance": [
+    "Original hosted nine mandatory, original SQL/case pins and source-map lifecycle/resource bounds unchanged; fresh normal join/no skips and cleanup receipts.",
+    "Meaningful install/replay/unknown schema/caller/rollback negatives under real registered non-superuser operator graph should accompany subsequent grouped native acceptance."
+  ],
+  "sourceFinding": {
+    "file": "services/platform/migrations/production_connector_enqueue_provenance.go",
+    "issue": "Original installer sets role to runtime authority before CREATE SCHEMA. Authority is non-superuser/noncreatedb/noncreaterole with no database CREATE grant; database owner privilege held by registered operator is lost after SETROLE. CREATE SCHEMA therefore refuses under canonical graph.",
+    "originalLine": 67,
+    "severity": "P1"
+  }
+}

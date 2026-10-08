@@ -1,0 +1,29 @@
+{
+  "scope": "Authorized empty-disposable initdb prerequisite compatibility smoke before Go test build; original9 assertion/source untouched",
+  "sourceBaseCommit": "37ce31128b116a3ece062e01c5bace7715817539",
+  "proposedPaths": [
+    "scripts/hosted-connector-nine.mjs"
+  ],
+  "predecessorSHA256": "ea7743662c5cc5d84b678578a4df6e72dfcf42a564a9f8547532ef7db15f243e",
+  "commandArguments": [
+    "--no-locale",
+    "--encoding=UTF8",
+    "--auth-local=trust",
+    "--auth-host=trust",
+    "--username=zasp_e2e",
+    "-D",
+    "owned-output/initdb-tool-smoke-data"
+  ],
+  "bounds": "30s existing ownedcommand/8MiB outputcap/floor sampler/normaljoin/refusal, no service listener; source/toolprepostunchanged",
+  "diagnostics": "Onlyfixedcategorylabels and status/timed/signal/cap/bytecounts; no rawoutputs/paths/values. GLIBC marker is observation, not solecause. Existingnative parser reuses identicalcategories +fixedbackend-version/symbol markers.",
+  "members": {
+    "prior-runner.mjs": {
+      "sha256": "ea7743662c5cc5d84b678578a4df6e72dfcf42a564a9f8547532ef7db15f243e",
+      "bytes": 24656
+    },
+    "scripts/hosted-connector-nine.mjs": {
+      "sha256": "bb2d74a925437619d1abea37f8ac8575d86f80ccb4060ac26eebfe87ea73bc82",
+      "bytes": 25850
+    }
+  }
+}

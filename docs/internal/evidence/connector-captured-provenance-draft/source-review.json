@@ -1,0 +1,159 @@
+{
+  "format": "independent-connector-captured-inactive-source-review-v1",
+  "status": "SCOPED SOURCE PASS; runtime and production adoption NOT ADMITTED",
+  "manifest": {
+    "path": "/tmp/connector-enqueue-provenance-f84-i8zlb4ou/control/manifest.json",
+    "sha256": "705bf3d597fdb0356a0fb15077e271056287110280ef8339a305ffafec6df0c5",
+    "security": {
+      "st_dev": 34,
+      "st_ino": 148892,
+      "st_mode": 33152,
+      "st_uid": 1000,
+      "st_gid": 1000,
+      "st_nlink": 1,
+      "st_size": 1844,
+      "st_mtime_ns": 1791419030504012378,
+      "st_ctime_ns": 1791419030504012378
+    }
+  },
+  "members": [
+    {
+      "path": "/tmp/connector-enqueue-provenance-f84-i8zlb4ou/repo/services/platform/migrations/sql/connector_enqueue_provenance.sql",
+      "sha256": "276a41ead1dfe581cdad1212266754fe860f1956ffe0023ea39b26263a6072c1",
+      "bytes": 10958,
+      "security": {
+        "st_dev": 34,
+        "st_ino": 145890,
+        "st_mode": 33152,
+        "st_uid": 1000,
+        "st_gid": 1000,
+        "st_nlink": 1,
+        "st_size": 10958,
+        "st_mtime_ns": 1791418472812768186,
+        "st_ctime_ns": 1791418472812768186
+      }
+    },
+    {
+      "path": "/tmp/connector-enqueue-provenance-f84-i8zlb4ou/repo/services/platform/migrations/production_connector_enqueue_provenance.go",
+      "sha256": "809041eced547701b1e3ac3c1f68ac45d7b403336f5de6df4dda13b10db83267",
+      "bytes": 3818,
+      "security": {
+        "st_dev": 34,
+        "st_ino": 148861,
+        "st_mode": 33152,
+        "st_uid": 1000,
+        "st_gid": 1000,
+        "st_nlink": 1,
+        "st_size": 3818,
+        "st_mtime_ns": 1791418473200778659,
+        "st_ctime_ns": 1791418473200778659
+      }
+    },
+    {
+      "path": "/tmp/connector-enqueue-provenance-f84-i8zlb4ou/repo/services/platform/apiserver/connector_enqueue_provenance_postgres_test.go",
+      "sha256": "8b79cae94489f790074ff5c9820d3b58884c2e51d8e95e6d33aa7704b92f28ba",
+      "bytes": 11336,
+      "security": {
+        "st_dev": 34,
+        "st_ino": 148884,
+        "st_mode": 33152,
+        "st_uid": 1000,
+        "st_gid": 1000,
+        "st_nlink": 1,
+        "st_size": 11336,
+        "st_mtime_ns": 1791418970730208552,
+        "st_ctime_ns": 1791418970730208552
+      }
+    },
+    {
+      "path": "/tmp/connector-enqueue-provenance-f84-i8zlb4ou/control/origin-insert-omission-red.sql",
+      "sha256": "a5ad84fe4c865483a06da32a5bc75257331a220333395172e5314f99035219cd",
+      "bytes": 10597,
+      "security": {
+        "st_dev": 34,
+        "st_ino": 148889,
+        "st_mode": 33152,
+        "st_uid": 1000,
+        "st_gid": 1000,
+        "st_nlink": 1,
+        "st_size": 10597,
+        "st_mtime_ns": 1791419030503659014,
+        "st_ctime_ns": 1791419030503659014
+      }
+    },
+    {
+      "path": "/tmp/connector-enqueue-provenance-f84-i8zlb4ou/control/red-overlay.json",
+      "sha256": "0493105395ac8726f77e32e673719c90de3e570038f5dc58eacd6452dbdd5382",
+      "bytes": 236,
+      "security": {
+        "st_dev": 34,
+        "st_ino": 148890,
+        "st_mode": 33152,
+        "st_uid": 1000,
+        "st_gid": 1000,
+        "st_nlink": 1,
+        "st_size": 236,
+        "st_mtime_ns": 1791419030503721668,
+        "st_ctime_ns": 1791419030503721668
+      }
+    },
+    {
+      "path": "/tmp/connector-enqueue-provenance-f84-i8zlb4ou/control/ROOT-RECIPE.json",
+      "sha256": "a873b6ec9a03a078c0b379f7432a04b9a7d6e38d06d8d4bd9296598620d1642a",
+      "bytes": 2285,
+      "security": {
+        "st_dev": 34,
+        "st_ino": 148891,
+        "st_mode": 33152,
+        "st_uid": 1000,
+        "st_gid": 1000,
+        "st_nlink": 1,
+        "st_size": 2285,
+        "st_mtime_ns": 1791419030503828590,
+        "st_ctime_ns": 1791419030503828590
+      }
+    }
+  ],
+  "sourceChecks": {
+    "exactThreeNewRepositoryFiles": [
+      "?? services/platform/apiserver/connector_enqueue_provenance_postgres_test.go",
+      "?? services/platform/migrations/production_connector_enqueue_provenance.go",
+      "?? services/platform/migrations/sql/connector_enqueue_provenance.sql"
+    ],
+    "predecessorRegexExactSingleBody": true,
+    "predecessorBodySHA256": "06b3c3230d54cb2d9181e3b50e6df9a58b39c97dd8071e84905aec6238f556de",
+    "redSourceDelta": [
+      "--- ",
+      "+++ ",
+      "@@ -78,8 +78,7 @@",
+      "   IF origin.committed_request_digest IS DISTINCT FROM n.request_digest OR origin.committed_effect_digest IS DISTINCT FROM effect_digest",
+      "   THEN RAISE EXCEPTION USING ERRCODE='23505',MESSAGE='connector provenance conflict';END IF;",
+      "  ELSE",
+      "-  INSERT INTO zasp_connector_provenance.origins(organization_id,workspace_id,environment_id,effect_id,integration_id,principal_id,operation_id,source_profile,source_proof_digest,committed_request_digest,committed_effect_digest)",
+      "-  VALUES(o,w,e,id_value,integration_value,p->>'principal_id','authorizeIntegration','-- authorization80 checksum',public.digest(convert_to(envelope,'UTF8'),'sha256'),n.request_digest,effect_digest);",
+      "+  PERFORM 1; -- diagnostic-only omission of durable origin INSERT",
+      "  END IF;",
+      "  IF zasp_authorization80.context() IS NULL THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='connector enqueue proof expired';END IF;",
+      "  RETURN result_value;"
+    ],
+    "preparedSubcases": 8,
+    "testsExecuted": 0
+  },
+  "findings": [],
+  "assessedBehavior": [
+    "Original native80 signed fence plus browser/fresh-auth/purpose/permission/integration/scope checks precede original enqueue. Registered original API session required.",
+    "Original stage body is compiled from immutable ConnectorAuthorization source; catalog requires its exact prosrc hash and authority owner. Wrapper calls original function inside same TX.",
+    "Own captured_inactive provenance stores original proof hash separately from actual committed request/effect hashes. Existing originless effects rejected. No claim, task, grant, Ready, activate or worker permission added.",
+    "Installer retains original canonical61/native80 preconditions and schema migration lock; only supplementary schema is installed; current production enqueue routing remains unchanged.",
+    "Prepared genuine fixture cases cover authenticated capture, replay conflict, wrong purpose/scope/envelope, original originless enqueue refusal, complete rollback, own catalog drift and outbox role denial. Full selected business-state digests cover original lane/audit effects."
+  ],
+  "limits": [
+    "No compiler/PostgreSQL/OpenFGA execution; prepared recipe has no admitted runtime owner or fresh whole source/tool/alias/module closure. Requires ROOT normal joins, original caps and zero skips before runtime claims.",
+    "Concurrent writers are not tested. Two captures that initially observe absence can produce a 42501 loser because xmin must equal current TX; later ordinary replay can succeed. Legacy concurrent insertion is designed to refuse adoption.",
+    "SAVEPOINT insertion can use a subtransaction xmin distinct from top-level txid_current; this fail-closed availability edge remains untested. No claim of unchanged concurrent replay availability.",
+    "NULL arguments are not tested. Original function retains SQL three-valued comparisons; optional NULL columns remain governed by original constraints/audit, not new blanket nonnull validation. No claim of comprehensive malformed-input refusal.",
+    "captured_inactive describes this new receipt only. No fleet withdrawal/worker execution inhibition or authority issuance is established; original enqueue row/lane behavior remains original.",
+    "Predecessor and shared-catalog noninterference remains a prepared native assertion, not an actual observed result. Own catalog fingerprint covers declared objects, not a general complete namespace/dynamic trust proof.",
+    "No production repository integration, native worker lifecycle, deployed provider acceptance, ledger promotion or launch readiness."
+  ]
+}
