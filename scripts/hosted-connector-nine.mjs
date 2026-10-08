@@ -20,7 +20,7 @@ const top='TestConnectorCapturedEnqueueOriginalAuthorizationPostgres';
 const cases=['authentic_capture_and_exact_replay','wrong_signed_purpose','wrong_selected_scope','modified_signed_envelope','existing_originless_effect_refused','later_transaction_failure_rolls_back_enqueue_and_origin','own_catalog_drift_refused','outbox_consumer_cannot_capture','required_inputs_concurrent_replay_and_savepoint_ownership'];
 const helperPins={
  "docs/internal/evidence/cloud-2026-10-07/native-service-readiness/openfga/09-pg-non-glibc-libs-manifest.json": "96642e82997ffd2caf2893a5ecc0116ad2aef6e982df2d929f3efda4e04f3474",
- "services/platform/apiserver/authorization_integration_mutations_postgres_test.go": "99d3029859e9d6593e27700928aa7a4adee2815d1520ccdb685008c5fc112294",
+ "services/platform/apiserver/authorization_integration_mutations_postgres_test.go": "5e4beb04b2409ad9b11b89c017ada5e2eccffd78a87bdd5692d40670f12a2ba0",
  "scripts/hosted-memory-observation.mjs": "70c2ae837d040be4756842e4016acbc4eebd6bae3d8c992aba2a80e2a097ba75",
  "scripts/owned-command.mjs": "044e151c9260b9356ac78e5cde6b59dbbdd7b934d66ad06732288346831ad47e",
  "scripts/owned-fixed-fd-command.mjs": "15c38bd9d627124b7d81e5fe9b96dd3c4af8757b33f2204a9dce4b86e93e5693",

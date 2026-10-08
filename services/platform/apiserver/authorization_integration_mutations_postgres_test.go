@@ -177,9 +177,18 @@ func newIntegrationClientFixture(t *testing.T, composed ...bool) *integrationCli
 		connectorFixtureErrorDiagnostic(t, err)
 		t.Fatalf("registered API=%t %v", exact, err)
 	}
-	if err := f.api.QueryRow(ctx, `SELECT zasp_authorization80_identity.api_ready()`).Scan(&exact); err != nil || !exact {
+	// The granted metadata consumer enforces private api_ready() internally.
+	// The API principal must not receive EXECUTE on that private helper.
+	var metadata json.RawMessage
+	if err := f.api.QueryRow(ctx, `SELECT zasp_authorization80_identity.metadata()`).Scan(&metadata); err != nil {
 		connectorFixtureErrorDiagnostic(t, err)
 		t.Fatal("native identity API readiness refused")
+	}
+	var registered map[string]struct {
+		APIPrincipal string `json:"api_principal"`
+	}
+	if json.Unmarshal(metadata, &registered) != nil || len(registered) != 2 || registered["session"].APIPrincipal != "auth80_api" || registered["webhook"].APIPrincipal != "auth80_api" {
+		t.Fatal("native identity API registration binding refused")
 	}
 	t.Log("connector fixture stage=database-current-authority")
 	f.driver = &integrationClientDriver{rejectionAuthorizationDriver: rejectionAuthorizationDriver{authorizationConnectionDriver: authorizationConnectionDriver{conn: f.api}}, t: t}

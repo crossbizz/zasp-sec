@@ -1,0 +1,21 @@
+{
+  "base": "21723a123d3b85244d210adc9a79e5597532886d",
+  "declinedToJudge": [
+    "Actual repaired hosted-nine pass/runtime compatibility.",
+    "Raw hosted evidence review, native/merge/production/release/full728 acceptance."
+  ],
+  "evidence": [
+    "metadata() is explicitly granted to zasp_discovery_api and SECURITY DEFINER, invokes the private api_ready() internally and raises42501 when native runtime readiness is false. API fixture now uses this intended consumer, preserving closed private helper ACL.",
+    "SQL metadata returns server-generated jsonb object with two purpose keys; fixture validates exactly2keys plus session/webhook APIPrincipal==auth80_api.",
+    "No grant/catalog/function/production/authentication policy change. Only fixture probe and exact helper byte pin change; original mandatory nine-case roster, deadlines, lifecycle and refusal checks retained."
+  ],
+  "files": {
+    "scripts/hosted-connector-nine.mjs": "f8d12838d57e4069eb2f4b579060e4dc3ad47192f04664343d60da321ea0463d",
+    "services/platform/apiserver/authorization_integration_mutations_postgres_test.go": "5e4beb04b2409ad9b11b89c017ada5e2eccffd78a87bdd5692d40670f12a2ba0"
+  },
+  "findings": [],
+  "format": "independent-native-identity-metadata-probe-source-review-v1",
+  "method": "Read-only exact diff and SQL consumer/ACL source inspection plus metadata hashes. No tests/runtime/source or Git writes.",
+  "priorReviewCorrection": "Previous source review missed that direct api_ready probe lacked EXECUTE for API principal. Actual hosted run37730244369/job113157484912 correctly failed42501 before nine. This successor removes the erroneous test probe without changing permissions or waiving failure.",
+  "verdict": "Ready to commit/push exact reviewed metadata-probe successor for original hosted-nine execution only."
+}
