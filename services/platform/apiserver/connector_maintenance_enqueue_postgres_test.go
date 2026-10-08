@@ -1,9 +1,11 @@
 package apiserver
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -16,7 +18,8 @@ import (
 func TestConnectorMaintenanceAuthenticatedOAuthEnqueuePostgres(t *testing.T) {
 	f := newIntegrationClientFixture(t, true)
 	f.freshReferenceSession(t)
-	runner, err := migrations.NewRunner(&orderedAdmissionMigrationDatabase{connection: f.owner, t: t})
+	diagnostic := &connectorApplicationMigrationDiagnostic{Database: &integrationMigrationDatabase{connection: f.owner}, t: t, phase: "worker-profile"}
+	runner, err := migrations.NewRunner(diagnostic)
 	if err != nil {
 		t.Fatal("original native runner unavailable")
 	}
@@ -26,9 +29,11 @@ func TestConnectorMaintenanceAuthenticatedOAuthEnqueuePostgres(t *testing.T) {
 		t.Fatal("original composed worker profile unavailable")
 	}
 	before := connectorProvenanceNativeState(t, f)
+	diagnostic.phase = "approval-profile"
 	if err := runner.UpProductionApprovalMaintenanceProfile(f.ctx); err != nil {
 		t.Fatal("original approval profile unavailable")
 	}
+	diagnostic.phase = "connector-profile"
 	if err := runner.UpProductionConnectorMaintenance(f.ctx); err != nil {
 		t.Fatal("connector profile installation refused")
 	}
@@ -125,4 +130,95 @@ func TestConnectorMaintenanceAuthenticatedOAuthEnqueuePostgres(t *testing.T) {
 			t.Fatal("native refusal left enqueue, task, witness or provenance mutation")
 		}
 	})
+}
+
+// Observe only finite setup metadata before the migration runner replaces the
+// provider error with ErrDatabase. Never print SQL, arguments or raw errors.
+type connectorApplicationMigrationDiagnostic struct {
+	migrations.Database
+	t     *testing.T
+	phase string
+}
+
+func (d *connectorApplicationMigrationDiagnostic) Begin(ctx context.Context) (migrations.Transaction, error) {
+	tx, err := d.Database.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &connectorApplicationMigrationTransaction{Transaction: tx, t: d.t, phase: d.phase}, nil
+}
+
+type connectorApplicationMigrationTransaction struct {
+	migrations.Transaction
+	t     *testing.T
+	phase string
+}
+
+func (tx *connectorApplicationMigrationTransaction) Exec(ctx context.Context, statement string, arguments ...any) error {
+	err := tx.Transaction.Exec(ctx, statement, arguments...)
+	connectorApplicationMigrationFailure(tx.t, tx.phase, statement, err)
+	return err
+}
+
+func (tx *connectorApplicationMigrationTransaction) QueryRow(ctx context.Context, statement string, arguments ...any) migrations.Row {
+	return connectorApplicationMigrationRow{Row: tx.Transaction.QueryRow(ctx, statement, arguments...), t: tx.t, phase: tx.phase, statement: statement}
+}
+
+type connectorApplicationMigrationRow struct {
+	migrations.Row
+	t                *testing.T
+	phase, statement string
+}
+
+func (r connectorApplicationMigrationRow) Scan(targets ...any) error {
+	err := r.Row.Scan(targets...)
+	connectorApplicationMigrationFailure(r.t, r.phase, r.statement, err)
+	return err
+}
+
+func connectorApplicationMigrationFailure(t *testing.T, phase, statement string, err error) {
+	var native *pgconn.PgError
+	if err == nil || !errors.As(err, &native) {
+		return
+	}
+	state := native.Code
+	if len(state) != 5 {
+		return
+	}
+	for _, char := range state {
+		if !(char >= '0' && char <= '9' || char >= 'A' && char <= 'Z') {
+			return
+		}
+	}
+	if phase != "worker-profile" && phase != "approval-profile" && phase != "connector-profile" {
+		return
+	}
+	target := "unknown"
+	for _, name := range []string{"zasp_organizations", "zasp_security_agent_approval_notifications", "zasp_authorization80_worker", "zasp_authorization80_temporal", "zasp_temporal78", "zasp_approval_maintenance", "zasp_connector_provenance", "zasp_connector_maintenance", "zasp_discovery_authority", "registration"} {
+		if native.SchemaName == name || native.TableName == name || native.ColumnName == name || native.Message == "permission denied for schema "+name || native.Message == "permission denied for table "+name {
+			target = name
+			break
+		}
+	}
+	kind := "private-query"
+	if strings.Contains(statement, "CREATE TABLE zasp_approval_maintenance.") {
+		kind = "approval-definitions"
+	} else if strings.Contains(statement, "CREATE TABLE zasp_connector_maintenance.") {
+		kind = "connector-definitions"
+	} else if strings.Contains(statement, "CREATE TABLE zasp_connector_provenance.") {
+		kind = "capture-definitions"
+	} else if strings.HasPrefix(statement, "CREATE SCHEMA ") {
+		kind = "namespace-bootstrap"
+	} else if strings.HasPrefix(statement, "GRANT REFERENCES") {
+		kind = "organization-reference"
+	} else if strings.HasPrefix(statement, "INSERT INTO ") {
+		kind = "registration-insert"
+	} else if statement == "SET LOCAL ROLE zasp_discovery_authority" {
+		kind = "authority-selection"
+	}
+	position := native.Position
+	if position < 0 || position > 2000000 {
+		position = 0
+	}
+	t.Logf("connector migration phase=%s statement=%s SQLSTATE=%s target=%s position=%d", phase, kind, state, target, position)
 }

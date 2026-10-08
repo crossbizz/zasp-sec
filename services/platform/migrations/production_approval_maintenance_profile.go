@@ -69,6 +69,9 @@ func (r *Runner) UpProductionApprovalMaintenanceProfile(ctx context.Context) err
 				return fixedDatabaseError(ctx, err)
 			}
 		}
+		if err := ensureMaintenanceOrganizationReference(ctx, tx); err != nil {
+			return err
+		}
 		if err := tx.Exec(ctx, `SET LOCAL ROLE zasp_discovery_authority`); err != nil {
 			return fixedDatabaseError(ctx, err)
 		}

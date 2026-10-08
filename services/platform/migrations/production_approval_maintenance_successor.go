@@ -1,6 +1,7 @@
 package migrations
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"strings"
@@ -34,4 +35,36 @@ func approvalMaintenanceDefinitions(source string) (string, error) {
 		return "", ErrInvalidState
 	}
 	return definitions, nil
+}
+
+// Supplementary activation tables reference only the original organization id.
+// Grant that one FK privilege as operator; no DML, table-wide privilege or
+// inherited catalog definition changes are permitted by this prerequisite.
+func ensureMaintenanceOrganizationReference(ctx context.Context, tx Transaction) error {
+	check := func(query string, arguments ...any) error {
+		var valid bool
+		if err := scanRow(ctx, tx, query, arguments, &valid); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if !valid {
+			return ErrInvalidState
+		}
+		return nil
+	}
+	if err := check(`SELECT zasp_authorization80.ready($1) AND EXISTS(SELECT 1 FROM public.zasp_discovery_principal_bindings WHERE principal_name=session_user AND authority_role='zasp_discovery_authority') AND pg_has_role(session_user,'zasp_discovery_authority','MEMBER')`, ProductionAuthorizationEnforcement().Checksum()); err != nil {
+		return err
+	}
+	if err := check(`SELECT EXISTS(SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace JOIN pg_attribute a ON a.attrelid=c.oid JOIN pg_constraint k ON k.conrelid=c.oid WHERE n.nspname='public' AND c.relname='zasp_organizations' AND c.relkind='r' AND a.attname='id' AND NOT a.attisdropped AND a.attnotnull AND a.atttypid='text'::regtype AND k.contype='p' AND k.conkey=ARRAY[a.attnum])`); err != nil {
+		return err
+	}
+	var present bool
+	if err := scanRow(ctx, tx, `SELECT has_column_privilege('zasp_discovery_authority','public.zasp_organizations','id','REFERENCES')`, nil, &present); err != nil {
+		return fixedDatabaseError(ctx, err)
+	}
+	if !present {
+		if err := tx.Exec(ctx, `GRANT REFERENCES(id) ON public.zasp_organizations TO zasp_discovery_authority`); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+	}
+	return check(`SELECT has_column_privilege('zasp_discovery_authority','public.zasp_organizations','id','REFERENCES') AND zasp_authorization80.ready($1)`, ProductionAuthorizationEnforcement().Checksum())
 }
