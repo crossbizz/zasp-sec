@@ -1,0 +1,51 @@
+{
+  "base": "5781d6be148e949c68ce77d8d7d9d7bd48f68673",
+  "broaderUI": {
+    "conclusion": null,
+    "head": "c48917379dc6b9aeb5423ae50f27936065021784",
+    "runId": 37730265673,
+    "status": "in_progress"
+  },
+  "findings": [],
+  "format": "independent-pr62-scoped-normal-component-merge-review-v1",
+  "head": "c48917379dc6b9aeb5423ae50f27936065021784",
+  "limitations": [
+    "Broader originalRunnableUI stillinprogress, including another pending Verify runnableUI check; any later failure remains reportable and must be investigated within its own scope.",
+    "Unpatched braces3.0.3 remains release blocker; source-mapGHSAabsence in issued upstream query is scoped observation.",
+    "Raw artifacts policy403: no raw inspection, corpus/localOSV/unrelatedmalware/full728/production/release clearance claim."
+  ],
+  "method": "Read-only fresh PR/check/run/job/branch/rules/files metadata plus prior exactsource independent reviews. No runtime/tests/edits/Git writes or merge actions.",
+  "pendingExplicitlyPreserved": [
+    {
+      "conclusion": null,
+      "id": 113157549044,
+      "name": "Verify runnable UI",
+      "status": "in_progress"
+    },
+    {
+      "conclusion": null,
+      "id": 113157530753,
+      "name": "Verify runnable UI",
+      "status": "in_progress"
+    }
+  ],
+  "policy": {
+    "PRmergeable": true,
+    "PRmergeableState": "unstable",
+    "branchRules": [],
+    "mainProtected": false,
+    "requiredChecks": {
+      "checks": [],
+      "contexts": [],
+      "enforcement_level": "off"
+    }
+  },
+  "reasoning": "Earlier conditional fullworkflow wording was broader than this component scope. Repository has no enforced check requirement in freshly observed metadata, and task authorizes independent verified component merge. Broader original UI includes release/native/deployment obligations that remain unaccepted; their pending state is not relabeled as success. Passing scoped repair checks substantiates package compatibility, not launch clearance.",
+  "scope": [
+    "Exactly4source-map-js1.2.1\u21921.2.2slots/global exactoverride and rebind of already-public issuedlock reviewed independently; official registry integrity/engines/license/no-dependencies match.",
+    "Fresh exacthead component workflow passed locked dependency install, typecheck, existing137 groupedUI, scopedlint and runnableUI build.",
+    "Fresh exacthead official query passed and previously verified annotation establishes57requests/19groups/one remaining bracesGHSA/releaseAcceptedfalse.",
+    "PRfiles show package/collectorpins/evidence only; originalsecurity/release pipeline untouched."
+  ],
+  "verdict": "Normal merge of this security-repair/evidence-rebind component is justified now on exact reviewed head. No dependency-related reason to wait for broader launch/release/native workflow was found. Use normal merge without admin/force/bypass."
+}

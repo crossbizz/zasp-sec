@@ -1,0 +1,11 @@
+# Original connector captured-inactive native group
+
+Actual run37731890499/job113162662836, branch headd04fd6bea97029bf4455719084554b9c9d815d4a, passed. Safe check annotations report10 named runs and passes (one top plus the original nine subcases), zero failures/skips, and all29 fixture stages. Original SQL32b3f8cb and testd6039cfa remain unchanged. The reviewed registered-operator schema bootstrap repairs the installer without granting databaseCREATE to runtime authority.
+
+The source-pinned runner cannot exit successfully without exact original named cases, package pass, unchanged module/source pins and original floors/deadlines, observed normal PostgreSQL join/PID absence, normal OpenFGA join/PID/session absence and rebindable owned ports. Official job success plus reviewed producer checks support this component verdict. Raw full receipts/logs were not downloaded and are not claimed inspected.
+
+Normal main integration ee0e78b imports UI/advisory/dependency batches. Complete services/platform, services/health, original runner, owned process/tool/memory helpers and pinned image-library manifest have zero differences from tested d04. Independent review727201e92c44d0267de17ef767d91b53f96c0c744f856a836da8e6bf318005dc approves captured-INACTIVE component merge. All prior setup/authentication/DDL refusals remain in Git and evidence; none were replaced by this pass.
+
+This does not activate a connector worker, authorize any legacy task, retire an old writer or accept deployed Stytch/provider flows. API/worker/callback/lifecycle and actual projection/readback/Ack, complete fleet/restart exclusion, native379/registration, dependency/Go/image/SBOM/legal and deployment gates remain. Fresh ledger checker retains728 distinct original rows:523 historical production-available,144 component-only,61 blocked/external,0 missing. No row is promoted.
+
+PR62 separately merged as3a83bd64: upstream source-map-js1.2.2 repair and public lock rebind. Its actual grouped UI/typecheck/npmci/lint/build and57-request official query passed. Query reports only the unpatched braces advisory and releaseAccepted=false. Its broader UI workflows were pending at component merge and are not represented as release success here.
