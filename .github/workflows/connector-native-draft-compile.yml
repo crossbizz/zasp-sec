@@ -38,16 +38,16 @@ jobs:
           import hashlib, json
           from pathlib import Path
           source = json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())
-          assert len(source['sources']) == 23
+          assert len(source['sources']) == 29
           for item in source['sources']:
               raw = Path(item['path']).read_bytes()
               assert len(raw) == item['bytes']
               assert hashlib.sha256(raw).hexdigest() == item['sha256'], item['path']
           PYVERIFY
-      - name: Compile eight affected packages without executing test binaries
+      - name: Compile nine affected packages without executing test binaries
         run: |
           output=$(mktemp -d "${RUNNER_TEMP}/connector-native-compile.XXXXXX")
-          for package in connectormaintenance authorization apiserver agentsec-api agentsec-worker runtimeservices migrations cmd/zasp-authorization-reconcile; do
+          for package in connectormaintenance connectormaintenancecutover authorization apiserver agentsec-api agentsec-worker runtimeservices migrations cmd/zasp-authorization-reconcile; do
             echo "::group::Compile $package"
             name=${package//\//-}
             go test -C services/platform -race -p 1 -c -o "$output/$name.test" "./$package"

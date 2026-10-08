@@ -1,0 +1,43 @@
+{
+  "declinedToJudge": [
+    "Compilation/SDK/PostgreSQL behavior not executed.",
+    "Actual Reconcile delivery, normal process retirement, complete fleet/restart exclusion, source executable as genuine projector, composed callback acceptance.",
+    "Deployment/release/full728 acceptance."
+  ],
+  "findings": [
+    {
+      "body": "public.zasp_discovery_principal_ready(expected_authority) in canonical0010 admits only six data-plane authorities and explicitly rejects zasp_discovery_authority membership. Passing zasp_discovery_authority is always false, so every valid controlled activation raises42501. Use the existing operator predicate/exact registered operator check, preserving canonical data-plane predicate unchanged.",
+      "file": "services/platform/migrations/sql/connector_maintenance_profile.sql",
+      "line": 748,
+      "severity": "P1",
+      "title": "Operator activation uses a predicate that always excludes operators"
+    },
+    {
+      "body": "Permit is an exported value type with per-instance spent bool. External callers can copy its value (copy := *permit) before activation, even with unexported fields, then Activate both original and &copy; each passes owner/spent and consumes separate bool. This violates one-use/uncertain-result nonresend guarantee. Store consumption in shared private pointer state or coordinator-owned issuance registry so all aliases/copies share consumption.",
+      "file": "services/platform/connectormaintenancecutover/coordinator.go",
+      "line": 80,
+      "severity": "P2",
+      "title": "Copying Permit bypasses its one-use state"
+    }
+  ],
+  "format": "independent-controlled-cutover-frozen-source-review-v1",
+  "freeze": {
+    "allHashesAndBytesMatch": true,
+    "members": 29,
+    "modes": [
+      "0o400"
+    ],
+    "predecessorMatches": true,
+    "predecessorSHA256": "ff1a3f2ad9c65ce8b9df9e387bdbd49ccc5cafa7be3647ac7aa3203215f99e90"
+  },
+  "manifestSHA256": "7b295392ff2584c193957da2208266b38c00730f8f6f3856bbe62ce0627f4ffd",
+  "method": "Read-only source/diff/canonical predicate audit and freeze metadata hashes. No edits, compiler, tests, runtime, Git writes or network/process observations.",
+  "requiredMeaningfulNativeGroups": [
+    "Compile full actual package integration against pinned SDK/Go and authentic composed PostgreSQL/FGA predecessor. Run original-nine regression and genuine original Reconcile pending delivery, nonzero tuple readback, actual Ack; hold authentic old writer, Prepare, observed normal join and old-key withdrawal, Activate and normal cleanup.",
+    "One grouped causal negatives: wrong old/new key, changed model/raw duplicate/drop/type mismatch, live/reused/restarted PID, deadline/source/catalog/revision/caller/key-registration changes, copied/cross-coordinator/spent permit, transaction rollback/uncertain commit. Verify no active rows/desire changes on refusal, original79 fences and all3 consumers unchanged.",
+    "Composed same-inventory Reconcile/Stage/Ack, real grantor-user and task/service FGA checks, full typed callback path and all8 lifecycle deny/regrant/captured/terminal-revision conditions. Use genuine native captures; no dummy active rows, fake tasks/origins or substituted Checks.",
+    "Production remains refused until implemented and verified complete writer/fleet inventory plus restart inhibition and deployment bindings; one local PID/model observation cannot satisfy it."
+  ],
+  "root": "/tmp/connector-controlled-cutover-source-at1zw1hq",
+  "verdict": "Blocked for controlled-owned native acceptance by P1 activation refusal and P2 one-use violation. Remains private uncompiled source, not deployment admission."
+}

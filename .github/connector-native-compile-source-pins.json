@@ -1,14 +1,14 @@
 {
-  "status": "INACTIVE COMPILE-ONLY CANDIDATE; NO TEST EXECUTION OR ACTIVATION",
+  "status": "INACTIVE COMPILE-ONLY CONTROLLED CUTOVER CANDIDATE; NO NATIVE EXECUTION OR DEPLOYMENT ADMISSION",
   "base": "76ba3b53c1d4d892539da16a08db71172a49b5d2",
-  "checkpointSHA256": "ff1a3f2ad9c65ce8b9df9e387bdbd49ccc5cafa7be3647ac7aa3203215f99e90",
+  "checkpointSHA256": "09da4db7494262a96c5cbf8596a6433f3b6a7b8cb31fb6b3d6027cffe0bf8eba",
   "sources": [
     {
       "path": "services/platform/agentsec-api/connector_callback_runtime.go",
-      "currentBasePreimageSHA256": null,
-      "historicalPreimageSHA256": null,
       "sha256": "3ccd362a22ef406753915e3e100b360f4281ba95785b798881a1eba8d15e7b80",
-      "bytes": 1248
+      "bytes": 1248,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
     },
     {
       "path": "services/platform/agentsec-api/connector_maintenance_runtime.go",
@@ -130,6 +130,48 @@
       "historicalPreimageSHA256": null
     },
     {
+      "path": "services/platform/connectormaintenancecutover/coordinator.go",
+      "sha256": "c6558e7dfb24121b7f84def049d7aeeef971895580d87ca2af5d61ecaaeed7c5",
+      "bytes": 3220,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/connectormaintenancecutover/fga.go",
+      "sha256": "0e80b78867c5b6bbc11e4a2a2bbb1ca3a43bbf43bd8e9fa921471914a98c924c",
+      "bytes": 5569,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/connectormaintenancecutover/model.json",
+      "sha256": "329f49e1f2effecbe1a0e9caf6c89be939b1e36e034155d74977bfc82c73cc2c",
+      "bytes": 33888,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/connectormaintenancecutover/process_linux.go",
+      "sha256": "6096f7c304818c7e6ebc31d3940bacf75932b9f2971c8c529316ebee92cede54",
+      "bytes": 3191,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/connectormaintenancecutover/raw_model.go",
+      "sha256": "4fdad0c76ea36dfdc732bad76ff010d1e50ce34e4ed1e5ba1c44ff3c678714f2",
+      "bytes": 2069,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/connectormaintenancecutover/sql.go",
+      "sha256": "11a839a8b0c73e9eb1e830e37ff070eb6824c31e87604b5103e92fc75b16a8c2",
+      "bytes": 5350,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
       "path": "services/platform/migrations/production_connector_enqueue_provenance.go",
       "sha256": "809041eced547701b1e3ac3c1f68ac45d7b403336f5de6df4dda13b10db83267",
       "bytes": 3818,
@@ -152,8 +194,8 @@
     },
     {
       "path": "services/platform/migrations/sql/connector_maintenance_profile.sql",
-      "sha256": "6c0a6dcbbbe63113309df3820bd624f642eca3268bc35b02932999ea8b467687",
-      "bytes": 104336,
+      "sha256": "1ee0fcca602f658fadee4727ed69787891be928aca2fe9e0f5a8ce141799bf3d",
+      "bytes": 109670,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },

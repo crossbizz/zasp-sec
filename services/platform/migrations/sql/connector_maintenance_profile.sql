@@ -739,6 +739,47 @@ DECLARE changed integer;BEGIN
   IF changed>0 THEN PERFORM zasp_authorization79.touch(o);END IF;
  END IF;
 END $promote_enqueued$;
+-- Operator-only controlled-owned activation. SQL validates native identity,
+-- source and revision state; the private Go adapter (not caller supplied JSON)
+-- repeats real key/model/process observations while holding this SAME79 lock.
+-- A one-local-writer observation is not production fleet/restart exclusion.
+CREATE FUNCTION zasp_connector_maintenance.activate_controlled_organization(o text,pin text,approval_pin text,store_value text,model_value text,withdrawal_value text,desired_value bigint,applied_value bigint,generation_value bigint) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $controlled_activation$
+DECLARE v zasp_authorization79.organizations;prior zasp_connector_maintenance.projection_activations;eligible integer;promoted integer;BEGIN
+ IF zasp_authorization79.operator() IS NOT TRUE OR pin IS DISTINCT FROM '-- connector maintenance checksum'
+ OR zasp_connector_maintenance.catalog_ready(pin) IS NOT TRUE OR zasp_approval_maintenance.catalog_ready() IS NOT TRUE
+ OR NOT EXISTS(SELECT 1 FROM zasp_approval_maintenance.registration WHERE singleton AND checksum=approval_pin)
+ OR withdrawal_value IS NULL OR withdrawal_value!~'^[a-f0-9]{64}$'
+ OR NOT EXISTS(SELECT 1 FROM zasp_connector_maintenance.principals p JOIN zasp_connector_maintenance.verifiers f ON(f.principal_name,f.key_version,f.purpose)=(p.principal_name,p.key_version,'connector-forward')
+ JOIN zasp_connector_maintenance.verifiers c ON c.principal_name=p.principal_name AND c.purpose='connector-captured'
+ JOIN public.zasp_discovery_principal_bindings b ON(b.principal_name,b.authority_role)=(p.principal_name,'zasp_outbox_worker')
+ WHERE p.source_checksum=pin AND octet_length(f.key_material)=32 AND octet_length(c.key_material)=32 AND f.key_material<>c.key_material)
+ THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='connector controlled activation rejected';END IF;
+ PERFORM pg_advisory_xact_lock(hashtextextended('zasp-auth79/'||o,0));
+ SELECT x.* INTO v FROM zasp_authorization79.organizations x WHERE x.organization_id=o FOR UPDATE;
+ IF NOT FOUND OR desired_value IS NULL OR applied_value IS NULL OR generation_value IS NULL OR desired_value<1 OR desired_value<>applied_value OR generation_value<1
+ OR(v.desired,v.applied,v.generation,v.store_id,v.model_id) IS DISTINCT FROM(desired_value,applied_value,generation_value,store_value,model_value)
+ THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='connector controlled revision changed';END IF;
+ SELECT x.* INTO prior FROM zasp_connector_maintenance.projection_activations x WHERE x.organization_id=o FOR UPDATE;
+ IF FOUND AND(prior.source_checksum,prior.approval_checksum,prior.store_id,prior.model_id,prior.withdrawal_reference) IS DISTINCT FROM(pin,approval_pin,store_value,model_value,withdrawal_value)
+ THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='connector controlled activation already bound';END IF;
+ -- Captures are attributable immutable native origin receipts, not legacy rows.
+ -- Preserve declined/revoked grantor work durably; every outbound effect STILL
+ -- requires current grantor plus task/service FGA decisions in the executor.
+ SELECT count(*) INTO eligible FROM zasp_connector_maintenance.tasks t JOIN public.zasp_connector_effects n ON(n.organization_id,n.workspace_id,n.environment_id,n.id)=(t.organization_id,t.workspace_id,t.environment_id,t.effect_id)
+ WHERE t.organization_id=o AND t.state='captured_inactive' AND n.status IN('pending','unknown') AND zasp_connector_maintenance.effect_matches(n,t);
+ IF eligible>20 THEN RAISE EXCEPTION USING ERRCODE='54000',MESSAGE='connector controlled capture bound exceeded';END IF;
+ INSERT INTO zasp_connector_maintenance.projection_activations VALUES(o,pin,approval_pin,store_value,model_value,desired_value,applied_value,generation_value,withdrawal_value) ON CONFLICT DO NOTHING;
+ UPDATE zasp_connector_maintenance.registration SET active=true WHERE singleton;
+ UPDATE zasp_connector_maintenance.tasks t SET state='active' WHERE t.organization_id=o AND t.state='captured_inactive'
+ AND EXISTS(SELECT 1 FROM public.zasp_connector_effects n WHERE(n.organization_id,n.workspace_id,n.environment_id,n.id)=(t.organization_id,t.workspace_id,t.environment_id,t.effect_id) AND n.status IN('pending','unknown') AND zasp_connector_maintenance.effect_matches(n,t));
+ GET DIAGNOSTICS promoted=ROW_COUNT;
+ IF promoted<>eligible THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='connector controlled captures changed';END IF;
+ IF promoted>0 OR prior.organization_id IS NULL THEN PERFORM zasp_authorization79.touch(o);END IF;
+ SELECT x.* INTO STRICT v FROM zasp_authorization79.organizations x WHERE x.organization_id=o;
+ IF(v.applied,v.generation,v.store_id,v.model_id) IS DISTINCT FROM(applied_value,generation_value,store_value,model_value) OR v.desired NOT IN(desired_value,desired_value+1)
+ THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='connector controlled publication changed';END IF;
+ RETURN jsonb_build_object('organization_id',o,'activated',true,'origins',promoted,'desired',v.desired,'applied',v.applied,'generation',v.generation,'store_id',v.store_id,'model_id',v.model_id);
+END $controlled_activation$;
 -- Do not add grants for application/worker/outbox principals.
 -- Existing module fingerprint includes all table definitions, ownership and ACL.
 CREATE VIEW zasp_connector_maintenance.connector_grants AS
@@ -821,3 +862,5 @@ GRANT EXECUTE ON FUNCTION zasp_connector_maintenance.consume_callback(text,text,
 GRANT EXECUTE ON FUNCTION zasp_connector_maintenance.callback_step(text,text,text,text,text,text,text,jsonb) TO zasp_discovery_api;
 
 GRANT EXECUTE ON FUNCTION zasp_connector_maintenance.handoff_pkce(text,text,text,text,text) TO zasp_discovery_api;
+
+GRANT EXECUTE ON FUNCTION zasp_connector_maintenance.activate_controlled_organization(text,text,text,text,text,text,bigint,bigint,bigint) TO zasp_discovery_authority;
