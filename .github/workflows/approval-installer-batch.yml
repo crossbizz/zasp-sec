@@ -1,0 +1,38 @@
+name: Approval installer compatibility batch
+on:
+  pull_request:
+    paths:
+      - 'services/platform/migrations/production_approval_maintenance_profile.go'
+      - 'services/platform/migrations/production_approval_maintenance_successor.go'
+      - '.github/workflows/approval-installer-batch.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  installer-components:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GOTOOLCHAIN: local
+      GOFLAGS: '-mod=readonly'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: 1.26.8
+          cache: false
+      - name: Compile affected consumers and existing test binaries
+        run: |
+          test "$(go version)" = 'go version go1.26.8 linux/amd64'
+          output=$(mktemp -d "${RUNNER_TEMP}/approval-installer-compile.XXXXXX")
+          for package in migrations apiserver agentsec-api agentsec-worker; do
+            go test -C services/platform -race -p 1 -c -o "$output/$package.test" "./$package"
+          done
+          git diff --exit-code -- services/platform services/health
+      - name: Existing grouped migration regressions and immutable SQL source checks
+        timeout-minutes: 5
+        run: |
+          go test -C services/platform -race -p 1 -count=1 -timeout=2m ./migrations
+          git diff --exit-code -- services/platform services/health

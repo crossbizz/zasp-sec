@@ -1,0 +1,24 @@
+{
+  "scope": "Independent read-only concrete restoredv2 identity review; no tests/runtime/compiler/Git writes",
+  "base": "eb1e815e7f4921e2fc93ac8bf437316b36e5c0eb",
+  "findings": [],
+  "verified": [
+    "Original ApprovalMaintenanceProfileName v2 matches origin/main. Decoded embedded SQL is byte-identical origin/main and hashes toe894ab1c8045a23e4055ced58a89af8a795b26ebf8f4518c83caa89de53a269b.",
+    "approvalMaintenanceVerifiedSQL validates strict originalSHA andreturnsoriginalbytes. No prefix/replacement; checksum-placeholder-bound cookeddefinitions equaloriginalmainexactly.",
+    "Existing TestApprovalMaintenanceSourcePinBindsWholeSupplementaryBody restoredbyte-for-byteorigin/main; wholebodychecksum and canonicalnoninterferenceassertions remain.",
+    "Role/bootstrap/exactcolumnREFERENCES helper/registeredoperator/current80prepostreadiness/sameatomictransaction guards unchanged versus priorreviewedsuccessor. Neitherpredicate norgrant is loosened.",
+    "Safe diagnosticwrappers andhostedclosedlabelparser remainunchanged; no newcases orboundchanges.",
+    "Existingnamespace receives no SQLdefinition/registrationrewrite; finalv2checksum/catalog/fingerprint+Worker/Temporal/current80readiness remainsrequired. A validv2catalog can pass; mismatchedv3checksum necessarilyrefuses. No migration/retirementequivalence claimed.",
+    "32membermanifestbytes/hash, compile32sourcepins/checkpoint andrunner32candidatepins allmatchbb3fed30094170f8073b56d62c21298277685bbe3b3dce45200f47a1364b939e.",
+    "READMEtruthfullycorrectsunnecessaryv3identityandpreservespriorproposals/outcomesasimmutablehistory. Actualsuccessor outcomesremainpending."
+  ],
+  "checkpointSHA256": "bb3fed30094170f8073b56d62c21298277685bbe3b3dce45200f47a1364b939e",
+  "originalSQLProfileChecksum": "e894ab1c8045a23e4055ced58a89af8a795b26ebf8f4518c83caa89de53a269b",
+  "declinedToJudge": [
+    "PendingnativeOAuthresultsoractualerrorcause",
+    "Actualexistingdeploymentcatalogstate",
+    "Activecleanup/callback/worker/cutover/ReconcileStageAckacceptance",
+    "Wholefleet/restart/realprovider/production/release/ledgerclearance"
+  ],
+  "verdict": "Safe normalpush for actualhostedOAuth andexistinggroups. Originalv2 compatibilitypreservedinsource; no native/deploymentacceptanceasserted."
+}
