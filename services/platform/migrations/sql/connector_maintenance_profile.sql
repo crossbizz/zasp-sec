@@ -99,8 +99,9 @@ $effect_matches$;
 CREATE FUNCTION zasp_connector_maintenance.catalog_ready(pin text) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $catalog$
  SELECT COALESCE(pin='-- connector maintenance checksum'
  AND EXISTS(SELECT 1 FROM zasp_connector_maintenance.registration r WHERE r.singleton AND r.checksum=pin AND r.fingerprint=zasp_connector_maintenance.fingerprint())
- AND zasp_connector_provenance.catalog_matches('-- connector provenance checksum')
- AND zasp_authorization80.ready('-- authorization80 checksum'),false)
+ -- Pinned provenance.catalog_matches already requires this exact authorization80
+ -- readiness checksum. Preserve that gate through the original function once.
+ AND zasp_connector_provenance.catalog_matches('-- connector provenance checksum'),false)
 $catalog$;
 CREATE FUNCTION zasp_connector_maintenance.caller_ready(pin text,version_value text) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $caller$
  SELECT COALESCE(zasp_connector_maintenance.catalog_ready(pin)
