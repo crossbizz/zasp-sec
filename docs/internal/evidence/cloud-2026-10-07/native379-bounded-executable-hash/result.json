@@ -1,0 +1,18 @@
+{
+  "scope": "Grouped executable bootstrap control only; no native/assembly acceptance",
+  "stages": [
+    {
+      "name": "RED",
+      "normalJoin": true,
+      "returnCode": 1,
+      "elapsedSeconds": 0.08512511099979747
+    },
+    {
+      "name": "GREEN",
+      "normalJoin": true,
+      "returnCode": 0,
+      "elapsedSeconds": 0.18400796499918215
+    }
+  ],
+  "sourceConserved": true
+}
