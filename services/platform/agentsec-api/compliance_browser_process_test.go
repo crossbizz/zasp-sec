@@ -14,7 +14,9 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
@@ -104,12 +106,20 @@ func TestComplianceBrowserAPIProcess(t *testing.T) {
 		p := c.ComplianceExports
 		return complianceStorageResources{config: apiserver.ComplianceHandlerConfiguration{Bucket: p.Bucket, ExpectedBucketOwner: p.Owner, KMSKeyARN: p.KMSKey, Client: provider, ProviderTimeout: c.ProviderTimeout}, transport: &http.Transport{}}, nil
 	}
+	// This fixture watchdog observes startup without changing the production
+	// builder, readiness result or the parent's existing 60-second allowance.
+	var startupStage atomic.Uint32
+	startupStage.Store(1)
+	watchContext, stopWatch := context.WithCancel(ctx)
+	defer stopWatch()
+	go complianceBrowserStartupWatch(watchContext, &startupStage)
 	deps, err := buildRuntimeDependenciesWithReadinessTransportDiagnostic(ctx, config, newAuditExportStorageClients, factory, nil)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, complianceBrowserFailureMarker(complianceBrowserRuntimeBuild))
 		fmt.Fprintln(os.Stderr, complianceBrowserDependencyFailureMarker(err))
 		t.Fatal("compliance browser runtime refused", err)
 	}
+	startupStage.Store(2)
 	if err := serveRuntime(ctx, io.Discard, "compliance-browser", config, deps, net.Listen); err != nil {
 		fmt.Fprintln(os.Stderr, complianceBrowserFailureMarker(complianceBrowserServe))
 		t.Fatal(err)
@@ -144,4 +154,44 @@ func complianceBrowserFailureMarker(stage complianceBrowserFailureStage) string 
 	default:
 		return "ZASP_COMPLIANCE_API_FAILED_STAGE=unavailable"
 	}
+}
+
+// Stack bytes stay private. Only a closed application-function class is emitted;
+// no stack, source path, SQL, address, arguments or provider errors are logged.
+func complianceBrowserStartupWatch(ctx context.Context, stage *atomic.Uint32) {
+	timer := time.NewTimer(45 * time.Second)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return
+	case <-timer.C:
+	}
+	phase := "unavailable"
+	switch stage.Load() {
+	case 1:
+		phase = "runtime-build"
+	case 2:
+		phase = "serve"
+	}
+	active := "unavailable"
+	stack := make([]byte, 1024*1024)
+	n := runtime.Stack(stack, true)
+	if n < len(stack) {
+		for _, frame := range []struct{ symbol, label string }{
+			{"/authorization.NewCurrentMaintenanceProjectionRepository(", "current-projection"},
+			{"/authorization.NewCurrentProjectionRepository(", "current-projection"},
+			{"/apiserver.(*PostgresJSONDatabase).CurrentAuthorizationRuntimeReady(", "authorization-readiness"},
+			{"main.checkAuthorizationRuntimeReady(", "authorization-readiness"},
+			{"main.openRuntimePostgres(", "postgres-connect"},
+			{"/runtimeservices.Connect(", "native-services"},
+			{"main.composeRuntimeDependenciesWithRecoveryDiagnostic(", "composition"},
+			{"main.serveRuntime(", "serve"},
+		} {
+			if bytes.Contains(stack[:n], []byte(frame.symbol)) {
+				active = frame.label
+				break
+			}
+		}
+	}
+	fmt.Fprintf(os.Stderr, "ZASP_COMPLIANCE_API_PROGRESS=%s;ACTIVE=%s\n", phase, active)
 }

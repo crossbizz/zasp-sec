@@ -512,7 +512,7 @@ DECLARE result_value jsonb;BEGIN
 END $workflow$;
 CREATE FUNCTION zasp_connector_maintenance.register_principal(login_value name,forward_version text,captured_version text,forward_key bytea,captured_key bytea) RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $register$
 BEGIN
- IF public.zasp_discovery_principal_ready('zasp_discovery_authority') IS NOT TRUE
+ IF zasp_authorization79.operator() IS NOT TRUE
  OR NOT EXISTS(SELECT 1 FROM public.zasp_discovery_principal_bindings WHERE principal_name=login_value AND authority_role='zasp_outbox_worker')
  OR NOT EXISTS(SELECT 1 FROM pg_roles p WHERE p.rolname=login_value AND p.rolcanlogin AND NOT(p.rolsuper OR p.rolcreatedb OR p.rolcreaterole OR p.rolreplication OR p.rolbypassrls OR p.rolinherit)
  AND pg_has_role(p.oid,'zasp_outbox_worker'::regrole,'MEMBER') AND NOT EXISTS(SELECT 1 FROM pg_auth_members m WHERE m.member=p.oid AND(m.roleid<>'zasp_outbox_worker'::regrole OR m.admin_option)))
@@ -552,7 +552,7 @@ CREATE TABLE zasp_connector_maintenance.callbacks(
  token_digest bytea NOT NULL CHECK(octet_length(token_digest)=32),
  source_proof_digest bytea NOT NULL CHECK(octet_length(source_proof_digest)=32),
  expires_at timestamptz NOT NULL,
- phase text NOT NULL CHECK(phase IN('consumed','secret','secret_settled','provider','completed','cleanup','settled','rejected')),
+ phase text NOT NULL CHECK(phase IN('consumed','secret','secret_settled','rejection_secret','rejection_secret_settled','provider','completed','cleanup','settled','rejected')),
  authorize_context bytea NOT NULL CHECK(octet_length(authorize_context)=32),
  cleanup_context bytea NOT NULL CHECK(octet_length(cleanup_context)=32),
  PRIMARY KEY(organization_id,workspace_id,environment_id,attempt_id));
@@ -601,7 +601,7 @@ BEGIN
  IF token_value IS NULL OR token_value!~'^[a-f0-9]{64}$' OR operation_value IS NULL OR jsonb_typeof(args_value) IS DISTINCT FROM 'array'
  OR zasp_connector_maintenance.catalog_ready('-- connector maintenance checksum') IS NOT TRUE OR public.zasp_discovery_principal_ready('zasp_discovery_api') IS NOT TRUE
  THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='connector callback operation rejected';END IF;
- expected_count:=CASE operation_value WHEN 'secret' THEN 0 WHEN 'provider' THEN 0 WHEN 'cleanup' THEN 0 WHEN 'activate_pkce' THEN 4 WHEN 'complete_pkce' THEN 6 WHEN 'resolve' THEN 8 WHEN 'complete_oauth' THEN 12 WHEN 'complete_cleanup' THEN 4 ELSE -1 END;
+ expected_count:=CASE operation_value WHEN 'secret' THEN 0 WHEN 'reject_secret' THEN 0 WHEN 'provider' THEN 0 WHEN 'cleanup' THEN 0 WHEN 'activate_pkce' THEN 4 WHEN 'complete_pkce' THEN 6 WHEN 'resolve' THEN 8 WHEN 'complete_oauth' THEN 12 WHEN 'complete_cleanup' THEN 4 ELSE -1 END;
  IF expected_count<0 OR jsonb_array_length(args_value) IS DISTINCT FROM expected_count
  OR(expected_count>0 AND(args_value->>0,args_value->>1,args_value->>2) IS DISTINCT FROM(o,w,e))
  THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='connector callback shape rejected';END IF;
@@ -628,9 +628,17 @@ BEGIN
   THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='connector callback live permission rejected';END IF;
  END IF;
  next_phase:=c.phase;
- IF operation_value='secret' THEN
+ IF operation_value IN('secret','reject_secret') THEN
   IF c.phase<>'consumed' THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='connector callback secret phase rejected';END IF;
-  next_phase:='secret';result_value:=jsonb_build_object('ready',true);
+  IF operation_value='reject_secret' THEN
+   -- Captured cleanup can only make this exact PKCE deletion available; it
+   -- never reads a verifier or grants the forward provider phase after revoke.
+   PERFORM public.zasp_connector_activate_pkce_cleanup(o,w,e,c.cleanup_effect_id);
+   next_phase:='rejection_secret';
+  ELSE
+   next_phase:='secret';
+  END IF;
+  result_value:=jsonb_build_object('ready',true);
  ELSIF operation_value='provider' THEN
   IF c.phase<>'secret_settled' OR cleanup.status<>'reconciled' THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='connector callback provider phase rejected';END IF;
   next_phase:='provider';result_value:=jsonb_build_object('ready',true);
@@ -651,10 +659,11 @@ BEGIN
    IF c.phase<>'consumed' THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='connector callback activation phase rejected';END IF;
    result_value:=public.zasp_connector_activate_pkce_cleanup(o,w,e,c.cleanup_effect_id);
   WHEN 'complete_pkce' THEN
-   IF c.phase<>'secret' OR(args_value->>4,args_value->>5) IS DISTINCT FROM('','') THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='connector callback secret settlement rejected';END IF;
-   result_value:=public.zasp_connector_complete_pkce_cleanup(o,w,e,c.cleanup_effect_id,'','');next_phase:='secret_settled';
+   IF c.phase NOT IN('secret','rejection_secret') OR(args_value->>4,args_value->>5) IS DISTINCT FROM('','') THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='connector callback secret settlement rejected';END IF;
+   result_value:=public.zasp_connector_complete_pkce_cleanup(o,w,e,c.cleanup_effect_id,'','');
+   next_phase:=CASE c.phase WHEN 'rejection_secret' THEN 'rejection_secret_settled' ELSE 'secret_settled' END;
   WHEN 'resolve' THEN
-   IF c.phase NOT IN('secret','secret_settled') OR args_value->>4 IS DISTINCT FROM 'failed' OR args_value->>5 IS DISTINCT FROM '' OR args_value->6 IS DISTINCT FROM '{}'::jsonb
+   IF c.phase NOT IN('secret_settled','rejection_secret_settled') OR args_value->>4 IS DISTINCT FROM 'failed' OR args_value->>5 IS DISTINCT FROM '' OR args_value->6 IS DISTINCT FROM '{}'::jsonb
    OR args_value->>7 IS NULL OR args_value->>7 NOT IN('authorization_intent_changed','verifier_unavailable','provider_invalid_request','provider_unauthorized_client','provider_access_denied','provider_unsupported_response_type','provider_invalid_scope','provider_server_error','provider_temporarily_unavailable')
    THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='connector callback rejection settlement refused';END IF;
    result_value:=public.zasp_connector_resolve_effect(o,w,e,c.authorize_effect_id,'failed','','{}'::jsonb,args_value->>7);next_phase:='rejected';remaining:=false;

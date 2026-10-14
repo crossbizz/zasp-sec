@@ -390,19 +390,44 @@ func (handler *connectorHTTPHandler) callback(writer http.ResponseWriter, reques
 		}); ok {
 			return native.PrepareConnectorOAuthCallback(request.Context(), phase, consumption)
 		}
+		if native, ok := handler.repository.(interface{ ConnectorOAuthCallbackAuthorityRequired() bool }); ok && native.ConnectorOAuthCallbackAuthorityRequired() {
+			return ErrRepositoryUnavailable
+		}
 		return nil
 	}
 	rejectConsumed := func(reason string) error {
-		_, activateErr := handler.repository.ActivatePKCECleanup(request.Context(), identity.Scope, pkceCleanupID)
-		if err := prepare("secret"); err != nil {
+		native, nativeMarker := handler.repository.(interface{ ConnectorOAuthCallbackAuthorityRequired() bool })
+		captured := nativeMarker && native.ConnectorOAuthCallbackAuthorityRequired()
+		if captured {
+			// The consumed receipt can destroy only its captured verifier. It
+			// cannot unlock a forward secret/provider phase after revocation.
+			if err := prepare("reject_secret"); err != nil {
+				return err
+			}
+		} else {
+			if _, err := handler.repository.ActivatePKCECleanup(request.Context(), identity.Scope, pkceCleanupID); err != nil {
+				return err
+			}
+			if err := prepare("secret"); err != nil {
+				return err
+			}
+		}
+		if captured {
+			if err := handler.secrets.Delete(request.Context(), consumption.PKCEVerifierReference); err != nil {
+				return ErrRepositoryUnavailable
+			}
+		} else {
+			verifier, consumeErr := handler.secrets.Consume(request.Context(), consumption.PKCEVerifierReference)
+			clear(verifier)
+			if consumeErr != nil {
+				return ErrRepositoryUnavailable
+			}
+		}
+		if _, err := handler.repository.CompletePKCECleanup(request.Context(), identity.Scope, pkceCleanupID); err != nil {
 			return err
 		}
-		verifier, consumeErr := handler.secrets.Consume(request.Context(), consumption.PKCEVerifierReference)
-		clear(verifier)
-		_, cleanupErr := handler.repository.CompletePKCECleanup(request.Context(), identity.Scope, pkceCleanupID)
-		_, resolveErr := handler.repository.ResolveConnectorEffect(request.Context(), identity.Scope, ConnectorEffectResolution{ID: effectID, Status: "failed", ErrorCode: reason, Metadata: json.RawMessage(`{}`)})
-		if activateErr != nil || consumeErr != nil || cleanupErr != nil || resolveErr != nil {
-			return ErrRepositoryUnavailable
+		if _, err := handler.repository.ResolveConnectorEffect(request.Context(), identity.Scope, ConnectorEffectResolution{ID: effectID, Status: "failed", ErrorCode: reason, Metadata: json.RawMessage(`{}`)}); err != nil {
+			return err
 		}
 		return nil
 	}
@@ -452,14 +477,22 @@ func (handler *connectorHTTPHandler) callback(writer http.ResponseWriter, reques
 		return
 	}
 	verifier, err := handler.secrets.Consume(request.Context(), consumption.PKCEVerifierReference)
-	if err != nil || !connectorPKCEVerifier(verifier) {
-		_, _ = handler.repository.ResolveConnectorEffect(request.Context(), identity.Scope, ConnectorEffectResolution{ID: effectID, Status: "failed", ErrorCode: "verifier_unavailable", Metadata: json.RawMessage(`{}`)})
+	if err != nil {
+		// Consume can fail while deleting the verifier. Preserve pending cleanup
+		// and its captured authority until removal is confirmed.
+		clear(verifier)
 		writeProductionError(writer, request, ErrRepositoryUnavailable)
 		return
 	}
 	if _, err := handler.repository.CompletePKCECleanup(request.Context(), identity.Scope, pkceCleanupID); err != nil {
 		clear(verifier)
 		writeProductionError(writer, request, err)
+		return
+	}
+	if !connectorPKCEVerifier(verifier) {
+		clear(verifier)
+		_, _ = handler.repository.ResolveConnectorEffect(request.Context(), identity.Scope, ConnectorEffectResolution{ID: effectID, Status: "failed", ErrorCode: "verifier_unavailable", Metadata: json.RawMessage(`{}`)})
+		writeProductionError(writer, request, ErrRepositoryUnavailable)
 		return
 	}
 	if err := prepare("provider"); err != nil {

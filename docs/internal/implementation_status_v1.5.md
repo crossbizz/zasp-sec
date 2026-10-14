@@ -1,5 +1,30 @@
 # Agent Security Platform Implementation Status
 
+## Connected launch continuation, October 14, 2026
+
+Fresh main is `8cbd813493947d8e26289b381d90d1a5bf2bffe3`; required ancestor
+`e13ccb95451b03107681ccb59b3fc6fe175a228f` is present. PR55 is merged. PR60
+remains an inactive draft with mixed historical hosted results. The successor
+candidate adds bounded callback admission before durable consumption, captured
+rejection cleanup, and refuses settlement after uncertain secret deletion.
+It also adds genuine signed-enqueue lifecycle fixtures for controlled one-writer
+cutover, revocation and exact captured cleanup, plus bounded browser startup
+diagnostics. These new native fixtures are not yet verified.
+
+UI typecheck and production build pass after restoring the full checkout;
+eight browser failure parser checks pass. Local grouped Go setup is blocked by
+a denied OPA dependency download, so no semantic RED/GREEN is claimed. The cloud
+cgroup mount hides ancestor limits; native memory admission remains refused
+without weakening its guard. Hosted native/application checks are pending.
+
+All 728 IDs retain 523 production-available, 144 component-only and 61
+blocked/external classifications. Production fleet/restart admission, durable
+ambiguous recovery, remaining authorization/native acceptance, connected
+M2-46b classification, retirement and real deployed provider flows remain open.
+See [the checkpoint](cloud-connected-checkpoint-2026-10-14.json) and
+[the prerequisite inventory](cloud-launch-prerequisites-2026-10-14.json).
+
+
 ## Inactive approval maintenance integration, October 7, 2026
 
 The guarded native executor/adapter, supplementary installer, original opaque

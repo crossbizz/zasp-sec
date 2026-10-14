@@ -19,7 +19,7 @@ func (d *tracedJSONDatabase) PrepareConnectorOAuthCallback(ctx context.Context, 
 		return apiserver.ErrRepositoryUnavailable
 	}
 	switch phase {
-	case "secret", "provider", "cleanup":
+	case "secret", "provider", "cleanup", "reject_secret":
 	default:
 		return apiserver.ErrAuthorizationDenied
 	}

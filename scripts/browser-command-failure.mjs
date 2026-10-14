@@ -54,6 +54,7 @@ export function emitComplianceAPIChildFailure(output, emit, startupError) {
  }
  try { emit(`::error title=Compliance API startup failed::Observed child stage: ${stage}.`); } catch { /* Preserve the original readiness error. */ }
  if (stage === "runtime-build" && typeof output === "string" && output.length <= 16_384 && output.includes("ZASP_COMPLIANCE_API_FAILED_DEPENDENCY")) emitComplianceAPIDependencyFailure(output, emit);
+ emitComplianceAPIStartupProgress(output, emit);
  if (startupError !== undefined) emitComplianceAPIStartupFailure(startupError, emit);
 }
 
@@ -83,4 +84,17 @@ export function emitComplianceAPIStartupFailure(error, emit) {
   }
  } catch { /* Untrusted error properties do not replace the readiness failure. */ }
  try { emit(`::error title=Compliance API readiness failed::Observed readiness reason: ${reason}.`); } catch { /* Preserve the original readiness error. */ }
+}
+
+// Only complete, unique fixture watchdog witnesses may cross into CI annotations.
+// The watchdog never emits its private stack sample or arbitrary error content.
+export function emitComplianceAPIStartupProgress(output, emit) {
+ if (typeof output !== 'string' || output.length > 16_384) return;
+ const lines = output.split('\n'); const partial = lines.pop();
+ const prefix = 'ZASP_COMPLIANCE_API_PROGRESS=';
+ const witnesses = lines.filter(line => line.includes(prefix));
+ if (witnesses.length !== 1 || partial.includes(prefix) || (output.length === 16_384 && lines[0].includes(prefix))) return;
+ const match = /^ZASP_COMPLIANCE_API_PROGRESS=(runtime-build|serve|unavailable);ACTIVE=(current-projection|authorization-readiness|postgres-connect|native-services|composition|serve|unavailable)$/.exec(witnesses[0]);
+ if (!match || match[0] !== witnesses[0]) return;
+ try { emit(`::error title=Compliance API startup progress::Observed startup phase: ${match[1]}; active application class: ${match[2]}.`); } catch { /* Preserve readiness failure. */ }
 }

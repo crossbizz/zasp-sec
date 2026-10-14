@@ -15,9 +15,10 @@ import (
 // authorization rule; bare runtime contexts never acquire an API grant.
 type ConnectorMaintenanceEnqueueDatabase struct {
 	*PostgresJSONDatabase
-	profile    string
-	callbackMu sync.Mutex
-	callbacks  map[[32]byte]connectorCallbackPermit
+	profile         string
+	callbackMu      sync.Mutex
+	callbacks       map[[32]byte]connectorCallbackPermit
+	callbackPending map[[32]byte]struct{}
 }
 
 func NewConnectorMaintenanceEnqueueDatabase(ctx context.Context, base *PostgresJSONDatabase, pin string) (*ConnectorMaintenanceEnqueueDatabase, error) {
@@ -40,7 +41,7 @@ func NewConnectorMaintenanceEnqueueDatabase(ctx context.Context, base *PostgresJ
 	if err := base.driver.QueryRow(ctx, `SELECT zasp_connector_maintenance.projection_profile_state()`).Scan(&raw); err != nil || connectormaintenance.VerifyActiveProfile(raw, pin) != nil || ctx.Err() != nil {
 		return nil, ErrRepositoryConfiguration
 	}
-	return &ConnectorMaintenanceEnqueueDatabase{PostgresJSONDatabase: base, profile: pin, callbacks: make(map[[32]byte]connectorCallbackPermit)}, nil
+	return &ConnectorMaintenanceEnqueueDatabase{PostgresJSONDatabase: base, profile: pin, callbacks: make(map[[32]byte]connectorCallbackPermit), callbackPending: make(map[[32]byte]struct{})}, nil
 }
 
 func (d *ConnectorMaintenanceEnqueueDatabase) QueryJSON(ctx context.Context, statement string, args ...any) (json.RawMessage, error) {

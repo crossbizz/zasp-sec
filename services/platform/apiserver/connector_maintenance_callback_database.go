@@ -9,11 +9,13 @@ import (
 )
 
 type connectorCallbackPermit struct {
-	Token   string
-	Attempt string
-	Effect  string
-	Cleanup string
-	Expires time.Time
+	Token       string
+	Attempt     string
+	Effect      string
+	Cleanup     string
+	Integration string
+	Reference   string
+	Expires     time.Time
 }
 
 func connectorCallbackKey(grant RequestAuthorization) ([32]byte, []byte, error) {
@@ -35,6 +37,40 @@ func (d *ConnectorMaintenanceEnqueueDatabase) callbackPermit(key [32]byte) (conn
 	p, ok := d.callbacks[key]
 	return p, ok
 }
+
+// Reserve local capacity before consuming the durable attempt. Pending SQL
+// transactions count against the same bound as issued permits, so concurrent
+// callbacks cannot commit consumption and then lose their private permit to a
+// capacity race. Pending entries live only until this request returns.
+func (d *ConnectorMaintenanceEnqueueDatabase) reserveCallback(key [32]byte) bool {
+	d.callbackMu.Lock()
+	defer d.callbackMu.Unlock()
+	now := time.Now()
+	for k, p := range d.callbacks {
+		if !p.Expires.After(now) {
+			delete(d.callbacks, k)
+		}
+	}
+	if _, exists := d.callbackPending[key]; exists {
+		return false
+	}
+	if _, exists := d.callbacks[key]; exists {
+		return false
+	}
+	if len(d.callbacks)+len(d.callbackPending) >= 512 {
+		return false
+	}
+	if d.callbackPending == nil {
+		d.callbackPending = make(map[[32]byte]struct{})
+	}
+	d.callbackPending[key] = struct{}{}
+	return true
+}
+func (d *ConnectorMaintenanceEnqueueDatabase) releaseCallbackReservation(key [32]byte) {
+	d.callbackMu.Lock()
+	delete(d.callbackPending, key)
+	d.callbackMu.Unlock()
+}
 func (d *ConnectorMaintenanceEnqueueDatabase) queryConnectorCallback(ctx context.Context, statement string, args []any, grant RequestAuthorization) (json.RawMessage, error) {
 	if ctx == nil || ctx.Err() != nil || grant.Credential.Kind != CredentialBrowserSession || grant.OperationID != "completeIntegrationOAuthCallback" || len(args) < 3 {
 		return nil, ErrAuthorizationDenied
@@ -55,13 +91,10 @@ func (d *ConnectorMaintenanceEnqueueDatabase) queryConnectorCallback(ctx context
 		if !ok || len(session) != 32 || string(session) != string(grant.Credential.Digest[:]) {
 			return nil, ErrAuthorizationDenied
 		}
-		d.callbackPermit(key) // Retire expired private permits before bounded admission.
-		d.callbackMu.Lock()
-		full := len(d.callbacks) >= 512
-		d.callbackMu.Unlock()
-		if full {
+		if !d.reserveCallback(key) {
 			return nil, ErrRepositoryUnavailable
 		}
+		defer d.releaseCallbackReservation(key)
 		raw, err := d.connectorCallbackTransaction(ctx, `SELECT zasp_connector_maintenance.consume_callback($1,$2,$3,$4,$5,$6,$7)`, append([]any{string(proof)}, args...)...)
 		if err != nil {
 			return nil, err
@@ -81,10 +114,11 @@ func (d *ConnectorMaintenanceEnqueueDatabase) queryConnectorCallback(ctx context
 		}
 		d.callbackMu.Lock()
 		defer d.callbackMu.Unlock()
-		if len(d.callbacks) >= 512 || ctx.Err() != nil {
+		if ctx.Err() != nil {
 			return nil, ErrRepositoryUnavailable
 		}
-		d.callbacks[key] = connectorCallbackPermit{wire.Permit, consumed.ID, consumed.EffectID, connectorDeterministicID(scope, consumed.ID, "pkce-cleanup"), wire.Expires.UTC()}
+		delete(d.callbackPending, key)
+		d.callbacks[key] = connectorCallbackPermit{Token: wire.Permit, Attempt: consumed.ID, Effect: consumed.EffectID, Cleanup: connectorDeterministicID(scope, consumed.ID, "pkce-cleanup"), Integration: consumed.IntegrationID, Reference: consumed.PKCEVerifierReference, Expires: wire.Expires.UTC()}
 		return append(json.RawMessage(nil), wire.Consumption...), nil
 	}
 	operations := map[string]string{postgresConnectorActivatePKCECleanupSQL: "activate_pkce", postgresConnectorCompletePKCECleanupSQL: "complete_pkce", postgresConnectorResolveEffectSQL: "resolve", postgresConnectorCompleteOAuthSQL: "complete_oauth", postgresConnectorCompleteCleanupSQL: "complete_cleanup"}
@@ -113,7 +147,7 @@ func (d *ConnectorMaintenanceEnqueueDatabase) PrepareConnectorOAuthCallback(ctx 
 		return ErrRepositoryUnavailable
 	}
 	grant, ok := requestAuthorizationFromContext(ctx)
-	if !ok || grant.OperationID != "completeIntegrationOAuthCallback" || !stringIn(phase, "secret", "provider", "cleanup") {
+	if !ok || grant.OperationID != "completeIntegrationOAuthCallback" || !stringIn(phase, "secret", "provider", "cleanup", "reject_secret") {
 		return ErrAuthorizationDenied
 	}
 	key, proof, err := connectorCallbackKey(grant)
@@ -121,7 +155,7 @@ func (d *ConnectorMaintenanceEnqueueDatabase) PrepareConnectorOAuthCallback(ctx 
 		return err
 	}
 	permit, ok := d.callbackPermit(key)
-	if !ok || permit.Attempt != consumed.ID || permit.Effect != consumed.EffectID || consumed.PrincipalID != grant.Identity.PrincipalID.String() {
+	if !ok || permit.Attempt != consumed.ID || permit.Effect != consumed.EffectID || permit.Integration != consumed.IntegrationID || permit.Reference != consumed.PKCEVerifierReference || consumed.PrincipalID != grant.Identity.PrincipalID.String() {
 		return ErrAuthorizationDenied
 	}
 	scope := grant.Identity.Scope
@@ -136,6 +170,17 @@ func (d *ConnectorMaintenanceEnqueueDatabase) PrepareConnectorOAuthCallback(ctx 
 		return ErrRepositoryUnavailable
 	}
 	return nil
+}
+
+// Captured rejection cleanup is selected only by the constructed native
+// database capability; an arbitrary repository does not gain it by implementing
+// the forward preparation hook.
+func (r *ConnectorRepository) ConnectorOAuthCallbackAuthorityRequired() bool {
+	if r == nil || nilInterface(r.database) {
+		return false
+	}
+	native, ok := r.database.(interface{ ConnectorOAuthCallbackAuthorityRequired() bool })
+	return ok && native.ConnectorOAuthCallbackAuthorityRequired()
 }
 func (r *ConnectorRepository) PrepareConnectorOAuthCallback(ctx context.Context, phase string, consumed OAuthConsumption) error {
 	if r == nil || nilInterface(r.database) || ctx == nil || ctx.Err() != nil {
