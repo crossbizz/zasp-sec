@@ -456,10 +456,10 @@ DECLARE owner_value text;lease_seconds integer;limit_value integer;available_slo
   OR current_body->>'purpose' IS DISTINCT FROM 'connector-captured' OR current_body->>'key_version' IS DISTINCT FROM r.captured_receipt->>'version' OR current_body->>'session_user' IS DISTINCT FROM session_user
   OR current_body->'reference' IS DISTINCT FROM zasp_connector_maintenance.reference(r,t) OR jsonb_typeof(current_body->'attempt') IS DISTINCT FROM 'number' OR(current_body->>'attempt')::integer IS DISTINCT FROM r.attempt
   OR current_body->>'lease_expires_at' IS NULL OR(current_body->>'lease_expires_at')::timestamptz IS DISTINCT FROM r.expires_at OR current_body->>'forward_digest' IS DISTINCT FROM original_body->>'forward_digest'
-  OR CASE current_body->>'kind'
+  OR (CASE current_body->>'kind'
    WHEN 'provider' THEN r.captured_receipt IS DISTINCT FROM r.origin_receipt
    WHEN 'pkce_recovery' THEN zasp_sa_multistep_prior.closed(current_body,ARRAY['purpose','key_version','reference','attempt','kind','forward_digest','lease_expires_at','session_user','origin_digest']) IS NOT TRUE OR current_body->>'origin_digest' IS DISTINCT FROM original_digest
-   ELSE true END
+   ELSE true END)
   THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='connector compensation recovery lineage rejected';END IF;
   expiry_value:=clock_timestamp()+make_interval(secs=>lease_seconds);
   r.lease_owner:=owner_value;r.lease_token:=encode(public.gen_random_bytes(32),'hex');r.expires_at:=expiry_value;

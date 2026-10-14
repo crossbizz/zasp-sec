@@ -16,6 +16,7 @@ import (
 	"os/signal"
 	"runtime"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"testing"
@@ -113,7 +114,7 @@ func TestComplianceBrowserAPIProcess(t *testing.T) {
 	watchContext, stopWatch := context.WithCancel(ctx)
 	defer stopWatch()
 	go complianceBrowserStartupWatch(watchContext, &startupStage)
-	deps, err := buildRuntimeDependenciesWithReadinessTransportDiagnostic(ctx, config, newAuditExportStorageClients, factory, nil)
+	deps, err := buildRuntimeDependenciesWithReadinessObserver(ctx, config, newAuditExportStorageClients, factory, nil, newComplianceReadinessObserver(os.Stderr))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, complianceBrowserFailureMarker(complianceBrowserRuntimeBuild))
 		fmt.Fprintln(os.Stderr, complianceBrowserDependencyFailureMarker(err))
@@ -194,4 +195,24 @@ func complianceBrowserStartupWatch(ctx context.Context, stage *atomic.Uint32) {
 		}
 	}
 	fmt.Fprintf(os.Stderr, "ZASP_COMPLIANCE_API_PROGRESS=%s;ACTIVE=%s\n", phase, active)
+}
+
+// Each fixed pair is emitted at most once, including concurrent probes.
+func newComplianceReadinessObserver(output io.Writer) readinessObserver {
+	var mu sync.Mutex
+	var seen [4][4]bool
+	return func(phase readinessPhase, outcome readinessOutcome) {
+		if phase > readinessComponents || outcome > readinessCancelled {
+			return
+		}
+		phases := [...]string{"services", "core-metadata", "security-agent-metadata", "components"}
+		outcomes := [...]string{"passed", "refused", "deadline", "cancelled"}
+		mu.Lock()
+		defer mu.Unlock()
+		if seen[phase][outcome] {
+			return
+		}
+		seen[phase][outcome] = true
+		fmt.Fprintf(output, "ZASP_COMPLIANCE_READINESS=%s:%s\n", phases[phase], outcomes[outcome])
+	}
 }

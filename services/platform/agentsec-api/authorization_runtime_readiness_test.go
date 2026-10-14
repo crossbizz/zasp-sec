@@ -1,12 +1,15 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -378,4 +381,104 @@ func TestAuthorizationProbeRefusalCancelsAndJoinsSibling(t *testing.T) {
 	if coreDriver.calls != 1 || agentDriver.calls != 1 {
 		t.Fatalf("probe calls core=%d agent=%d", coreDriver.calls, agentDriver.calls)
 	}
+}
+
+func TestOwnedReadinessDiagnosticPreservesGateAndClosedOutput(t *testing.T) {
+	t.Run("existing probes and success outcomes", func(t *testing.T) {
+		key := strings.Repeat("a", 64)
+		cd := &runtimeAuthorizationProbeDriver{t: t, role: "zasp_discovery_api", key: key}
+		ad := &runtimeAuthorizationProbeDriver{t: t, role: "zasp_security_agent_api", key: key}
+		core, _ := apiserver.NewPostgresJSONDatabase(cd)
+		agent, _ := apiserver.NewPostgresJSONDatabase(ad)
+		defer core.Close()
+		defer agent.Close()
+		if core.RequireCurrentAuthorization() != nil || agent.RequireCurrentAuthorization() != nil {
+			t.Fatal("fixture admission")
+		}
+		var output bytes.Buffer
+		observer := newComplianceReadinessObserver(&output)
+		services, components := 0, 0
+		cb := authorizationRuntimeReadinessWithDiagnostic(func(context.Context) error { services++; return nil }, func(context.Context) error { components++; return nil }, core, agent, key, time.Second, observer)
+		if cb(context.Background()) != nil || services != 1 || components != 1 || cd.calls != 1 || ad.calls != 1 {
+			t.Fatal("diagnostic changed readiness work")
+		}
+		lines := strings.Split(strings.TrimSpace(output.String()), "\n")
+		if len(lines) != 4 {
+			t.Fatalf("wanted four observations, got %d", len(lines))
+		}
+		for _, phase := range []string{"services", "core-metadata", "security-agent-metadata", "components"} {
+			if !strings.Contains(output.String(), "ZASP_COMPLIANCE_READINESS="+phase+":passed\n") {
+				t.Fatal("phase observation missing")
+			}
+		}
+	})
+	t.Run("service refusal retains original error and short circuit", func(t *testing.T) {
+		sentinel := errors.New("CANARY_SECRET_URL_SQL")
+		var output bytes.Buffer
+		cb := authorizationRuntimeReadinessWithDiagnostic(func(context.Context) error { return sentinel }, func(context.Context) error { t.Fatal("unexpected component probe"); return nil }, nil, nil, "", time.Second, newComplianceReadinessObserver(&output))
+		if cb(context.Background()) != sentinel || output.String() != "ZASP_COMPLIANCE_READINESS=services:refused\n" {
+			t.Fatal("refusal changed or exposed input")
+		}
+	})
+	t.Run("deadline and cancellation are closed outcomes", func(t *testing.T) {
+		for _, expired := range []bool{false, true} {
+			var ctx context.Context
+			var cancel context.CancelFunc
+			want := readinessCancelled
+			if expired {
+				ctx, cancel = context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+				want = readinessDeadline
+			} else {
+				ctx, cancel = context.WithCancel(context.Background())
+				cancel()
+			}
+			defer cancel()
+			sentinel := errors.New("CANARY_SECRET_URL_SQL")
+			calls := 0
+			err := observeReadiness(ctx, readinessCoreMetadata, func(phase readinessPhase, outcome readinessOutcome) {
+				calls++
+				if phase != readinessCoreMetadata || outcome != want {
+					t.Error("wrong closed outcome")
+				}
+			}, func(got context.Context) error {
+				if got != ctx {
+					t.Error("changed context")
+				}
+				return sentinel
+			})
+			if err != sentinel || calls != 1 {
+				t.Fatal("changed error or observation count")
+			}
+		}
+	})
+	t.Run("bounded concurrent deduplication and invalid enum refusal", func(t *testing.T) {
+		var output bytes.Buffer
+		observer := newComplianceReadinessObserver(&output)
+		var workers sync.WaitGroup
+		for range 8 {
+			workers.Add(1)
+			go func() {
+				defer workers.Done()
+				for phase := readinessServices; phase <= readinessComponents; phase++ {
+					for outcome := readinessPassed; outcome <= readinessCancelled; outcome++ {
+						observer(phase, outcome)
+					}
+				}
+			}()
+		}
+		workers.Wait()
+		observer(readinessPhase(255), readinessPassed)
+		observer(readinessServices, readinessOutcome(255))
+		if strings.Count(output.String(), "\n") != 16 || len(output.Bytes()) >= 16384 {
+			t.Fatal("unbounded or duplicated diagnostic")
+		}
+		for _, phase := range []string{"services", "core-metadata", "security-agent-metadata", "components"} {
+			for _, outcome := range []string{"passed", "refused", "deadline", "cancelled"} {
+				line := fmt.Sprintf("ZASP_COMPLIANCE_READINESS=%s:%s\n", phase, outcome)
+				if strings.Count(output.String(), line) != 1 {
+					t.Fatal("unexpected output contract")
+				}
+			}
+		}
+	})
 }

@@ -80,3 +80,20 @@ test('actual handled migration branch annotates nonzero only without changing st
   assert.deepEqual(calls[0],{executable:'/owned/migrate',args:['up-to-48'],options:{reject:false,env:{FIXTURE:'CANARY_ENV'}}});assert.doesNotMatch(annotations.join(''),/CANARY|SECRET|TENANT|owned/);
  }
 });
+
+
+test('readiness observations preserve only bounded unique closed fixture outcomes', async () => {
+ const { emitComplianceAPIReadinessObservations } = await import('./browser-command-failure.mjs');
+ const messages = [];
+ const valid = ['services:passed', 'core-metadata:deadline', 'security-agent-metadata:cancelled', 'components:refused'];
+ emitComplianceAPIReadinessObservations(valid.map(value => 'ZASP_COMPLIANCE_READINESS=' + value + '\n').join(''), value => messages.push(value));
+ assert.equal(messages.length, 1);
+ for (const value of valid) assert.ok(messages[0].includes(value));
+ const marker = 'ZASP_COMPLIANCE_READINESS=services:passed\n';
+ for (const output of [marker + marker, marker.trimEnd(), 'untrusted ' + marker, marker.replace('passed', 'unknown'), marker.replace('services', 'secret-value'), marker + 'ZASP_COMPLIANCE_READINESS=components:refused', 'x'.repeat(16_384) + marker, Array.from({length:17}, () => marker).join('')]) {
+  const refused = [];
+  emitComplianceAPIReadinessObservations(output, value => refused.push(value));
+  assert.deepEqual(refused, []);
+ }
+ assert.doesNotThrow(() => emitComplianceAPIReadinessObservations(marker, () => { throw new Error('untrusted emitter'); }));
+});

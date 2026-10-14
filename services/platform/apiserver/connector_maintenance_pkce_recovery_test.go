@@ -169,10 +169,11 @@ func TestConnectorMaintenancePKCERestartRecoveryPostgres(t *testing.T) {
 	}
 	claim := func(t *testing.T, repo *NativeConnectorRepository, owner string) ConnectorEffectLease {
 		t.Helper()
-		// Preserve the original 15 s unknown-effect cooldown and 5 s lease floor.
+		// Preserve the original 15 s cooldown. A 10 s lease stays within
+		// the existing 5..300 s range and covers the direct native denials.
 		deadline := time.Now().Add(22 * time.Second)
 		for time.Now().Before(deadline) {
-			items, err := repo.ClaimReconciliation(f.ctx, owner, 5, 10)
+			items, err := repo.ClaimReconciliation(f.ctx, owner, 10, 10)
 			if err != nil {
 				t.Fatal("owned reconciliation claim refused")
 			}
@@ -200,7 +201,7 @@ func TestConnectorMaintenancePKCERestartRecoveryPostgres(t *testing.T) {
 		if lease.Attempt != 0 {
 			t.Fatal("reservation consumed an attempt")
 		}
-		if original.finishPreparation(f.ctx, lease, ErrRepositoryUnavailable, time.Now().Add(2*time.Second)) != nil {
+		if original.finishPreparation(f.ctx, lease, ErrRepositoryUnavailable, lease.LeaseExpiresAt.Add(-2100*time.Millisecond)) != nil {
 			t.Fatal("genuine live preparation failure could not record finite attempt")
 		}
 		failed, ok := original.reservation(nativeConnectorKey(lease))
@@ -361,7 +362,7 @@ func connectorPKCERecoveryWorker(t *testing.T, ctx context.Context, repo *Native
 	if err != nil {
 		t.Fatal("component provider registry refused")
 	}
-	worker, err := NewAuthorizedConnectorReconciler(ctx, repo, ConnectorReconcilerConfig{Registry: registry, Secrets: secrets, Owner: "native-pkce-recovery-worker", LeaseSeconds: 5, Limit: 10, Interval: 10 * time.Millisecond})
+	worker, err := NewAuthorizedConnectorReconciler(ctx, repo, ConnectorReconcilerConfig{Registry: registry, Secrets: secrets, Owner: "native-pkce-recovery-worker", LeaseSeconds: 10, Limit: 10, Interval: 10 * time.Millisecond})
 	if err != nil {
 		t.Fatal("authorized recovery worker refused")
 	}

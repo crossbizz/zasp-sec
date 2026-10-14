@@ -1,5 +1,29 @@
 # Agent Security Platform Implementation Status
 
+## Browser readiness and native SQL blocker, October 14, 2026
+
+Hosted `13552bfe` passes all nine consumer compiles, 39 application groups and
+the original whole approval source-pin check; original native9 runs pass. Its
+new OAuth/connected fixtures fail before installation at SQLSTATE42601,
+position64948 in an unparenthesized CASE expression. The successor corrects only
+those parentheses; native parse and restart acceptance remain unverified.
+
+The earlier `344699db` broad npm verification passes, but its browser flow fails
+API readiness after startup reaches Serve. An authorization-readiness stack
+frame alone does not identify the cause. The other old browser run fails earlier
+at current-profile preparation, so a common cause is not asserted. A private fixture observer now emits
+only bounded closed services/core-metadata/security-agent-metadata/components
+outcomes. Production nil-observer behavior retains every check, deadline and
+cancellation/join. A direct owned-browser workflow preserves original fixture
+commands and budgets; the complete original release workflow is byte-identical.
+
+Grouped checks pass 15 readiness tops / 40 run-pass events and 35 Node diagnostic
+checks, plus UI typecheck/build and independent source review. The underlying
+browser readiness failure is not fixed or waived. All 728 ledger rows and
+523/144/61 categories remain unchanged, with no promotions. See the
+[browser checkpoint](cloud-browser-readiness-checkpoint-2026-10-14.json).
+
+
 ## PKCE worker recovery continuation, October 14, 2026
 
 Starting main remains `8cbd813493947d8e26289b381d90d1a5bf2bffe3`; candidate

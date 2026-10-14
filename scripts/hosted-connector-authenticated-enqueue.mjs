@@ -14,7 +14,7 @@ const image = 'postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82
 const pins = {
   "services/platform/agentsec-api/connector_callback_runtime.go": "69c0fe154628058709eaf886369e3aa92aee8a9526a1bebda091ad8147c6cd95",
   "services/platform/agentsec-api/connector_maintenance_runtime.go": "ac74dd00dc05e34e72a06962ad8d7a8f13d18bf64c0fe6e46fdbd520f4b09bab",
-  "services/platform/agentsec-api/production_runtime.go": "4a5e18ecfa79e445ac0a6c1241b471762b449288cff29858f6553a599c1bee94",
+  "services/platform/agentsec-api/production_runtime.go": "e051cec9987f311462d7f3d6b63a9ee07373a9b2e82e5bee9d320bc627605a34",
   "services/platform/agentsec-api/runtime.go": "bace8cadfe7ab3f982cfc779ebff5493590a9156bf4a2cbdf31e7be82d69e975",
   "services/platform/agentsec-worker/authorization_worker_runtime.go": "97f81ea5b11ad283eb056fe6f0fa9aefbf43e5e5161c7ff3bcfe67772f1e80e7",
   "services/platform/apiserver/connector_enqueue_provenance_postgres_test.go": "d6039cfa0d1673a5cf29e68e209b73c2cb6aeefd715e4d7805d3690b8ab0afde",
@@ -39,7 +39,7 @@ const pins = {
   "services/platform/migrations/production_connector_enqueue_provenance.go": "793b230a8572fbfbed2a4702e1513bfa90afac596a8d0707ae047bbdf8bacc36",
   "services/platform/migrations/production_connector_maintenance.go": "18b0989e395e85f18a78f5f51aee06eb1f969fba79a66650754bfc3858d055cd",
   "services/platform/migrations/sql/connector_enqueue_provenance.sql": "32b3f8cbe175b5256ff4542cdff044d6d060e0240d24632bf3d057f3553a5c13",
-  "services/platform/migrations/sql/connector_maintenance_profile.sql": "cd4e72588eeb073488d7d2b5a2077913c13672d278377db4acc3f09683c84692",
+  "services/platform/migrations/sql/connector_maintenance_profile.sql": "d3406f1dd7ec7e10763dd898e38f6b0b18ae9a3793a6c50d20d0c034ec9cd8c1",
   "services/platform/runtimeservices/config.go": "3eff9566c27b6e7c5179a8968aacf0f05b0810baf1d69abac43cb19e21dc0f77",
   "services/platform/migrations/production_approval_maintenance_profile.go": "2e98fa960c2e7b42b2a6a343b4ff47059c0d23fac83dbed887d2868f1b9c99f3",
   "services/platform/migrations/production_approval_maintenance_successor.go": "6817964c5c0dfcabe7ea9f65caf5b7840f6d9e4d29a1ec39b00e1b03b0fa6eca",

@@ -55,6 +55,7 @@ export function emitComplianceAPIChildFailure(output, emit, startupError) {
  try { emit(`::error title=Compliance API startup failed::Observed child stage: ${stage}.`); } catch { /* Preserve the original readiness error. */ }
  if (stage === "runtime-build" && typeof output === "string" && output.length <= 16_384 && output.includes("ZASP_COMPLIANCE_API_FAILED_DEPENDENCY")) emitComplianceAPIDependencyFailure(output, emit);
  emitComplianceAPIStartupProgress(output, emit);
+ emitComplianceAPIReadinessObservations(output, emit);
  if (startupError !== undefined) emitComplianceAPIStartupFailure(startupError, emit);
 }
 
@@ -97,4 +98,23 @@ export function emitComplianceAPIStartupProgress(output, emit) {
  const match = /^ZASP_COMPLIANCE_API_PROGRESS=(runtime-build|serve|unavailable);ACTIVE=(current-projection|authorization-readiness|postgres-connect|native-services|composition|serve|unavailable)$/.exec(witnesses[0]);
  if (!match || match[0] !== witnesses[0]) return;
  try { emit(`::error title=Compliance API startup progress::Observed startup phase: ${match[1]}; active application class: ${match[2]}.`); } catch { /* Preserve readiness failure. */ }
+}
+
+// These fixed fixture outcomes describe failed readiness; they are never a
+// substitute for the original readiness result or deployed acceptance.
+export function emitComplianceAPIReadinessObservations(output, emit) {
+ if (typeof output !== 'string' || output.length > 16_384) return;
+ const prefix = 'ZASP_COMPLIANCE_READINESS=';
+ const lines = output.split('\n'); const partial = lines.pop();
+ const witnesses = lines.filter(line => line.includes(prefix));
+ if (witnesses.length === 0 || witnesses.length > 16 || partial.includes(prefix) || (output.length === 16_384 && lines[0].includes(prefix))) return;
+ const observations = new Set();
+ for (const line of witnesses) {
+  const match = /^ZASP_COMPLIANCE_READINESS=(services|core-metadata|security-agent-metadata|components):(passed|refused|deadline|cancelled)$/.exec(line);
+  if (!match || match[0] !== line) return;
+  const value = match[1] + ':' + match[2];
+  if (observations.has(value)) return;
+  observations.add(value);
+ }
+ try { emit('::error title=Compliance API readiness observations::Observed fixed outcomes: ' + [...observations].sort().join(', ') + '.'); } catch { /* Preserve the original readiness failure. */ }
 }

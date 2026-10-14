@@ -48,6 +48,10 @@ func buildRuntimeDependenciesWithReadinessTransport(ctx context.Context, config 
 }
 
 func buildRuntimeDependenciesWithReadinessTransportDiagnostic(ctx context.Context, config RuntimeConfig, factory auditExportStorageFactory, complianceFactory complianceStorageFactory, readinessTransport http.RoundTripper) (RuntimeDependencies, error) {
+	return buildRuntimeDependenciesWithReadinessObserver(ctx, config, factory, complianceFactory, readinessTransport, nil)
+}
+
+func buildRuntimeDependenciesWithReadinessObserver(ctx context.Context, config RuntimeConfig, factory auditExportStorageFactory, complianceFactory complianceStorageFactory, readinessTransport http.RoundTripper, readinessDiagnostic readinessObserver) (RuntimeDependencies, error) {
 	if ctx == nil || ctx.Err() != nil || factory == nil || complianceFactory == nil || !validRuntimeConfig(config) || !config.RuntimeServices.Enabled {
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("runtime-inputs", errRuntimeUnavailable)
 	}
@@ -140,7 +144,7 @@ func buildRuntimeDependenciesWithReadinessTransportDiagnostic(ctx context.Contex
 	dependencies.Closers = append(dependencies.Closers, securityAgentDatabase, database)
 	if services != nil {
 		previous := dependencies.ReadinessCheck
-		dependencies.ReadinessCheck = authorizationRuntimeReadiness(services.Ready, previous, database, securityAgentDatabase, attestationKey.Version(), config.RuntimeServices.Timeout)
+		dependencies.ReadinessCheck = authorizationRuntimeReadinessWithDiagnostic(services.Ready, previous, database, securityAgentDatabase, attestationKey.Version(), config.RuntimeServices.Timeout, readinessDiagnostic)
 		dependencies.Closers = append(dependencies.Closers, services)
 	}
 	keepServices = true
