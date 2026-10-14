@@ -23,13 +23,13 @@ const pins = {
   "services/platform/apiserver/connector_maintenance_callback_resolver.go": "995c5238f7e4fa4a58a5d35218234600beaec374f67bb36f5a363a77357c7585",
   "services/platform/apiserver/connector_maintenance_enqueue_database.go": "df803820e44feadcbe41f4778cd50ee20edbfa1847fb82d0d9abcc39f3a962ac",
   "services/platform/apiserver/connector_maintenance_enqueue_postgres_test.go": "b45386a9d6c6390b8e30b7a071801ecf8cd2a9bc5adb0398ca8ac9e9864e8b82",
-  "services/platform/apiserver/connector_maintenance_repository.go": "25ee499093e082be2d8c0538b2e1c1fada426691270ea0a2094add29abbb698e",
-  "services/platform/apiserver/connector_reconciler.go": "496c40136548c87412eccdadbde38b41fe9c26be044113512b7537b2e35f86e6",
+  "services/platform/apiserver/connector_maintenance_repository.go": "0726280a4aaac1ca023317609910210eded8ee4e613ddf5f7351430d975e880a",
+  "services/platform/apiserver/connector_reconciler.go": "a95c6b80c40a9ce9ceb2cfa153dc346d06464c194f55cc7caea99a635670a1c6",
   "services/platform/authorization/connector_maintenance_projection.go": "e9189565c21f4d16c3f06c3cf89b35e57b1cef5e5bb51b1ff49da02349dcd7b8",
   "services/platform/authorization/worker_current_maintenance.go": "77e382687cc15c54bd3065a10caeb607921c7ee89f3f6ad373c8d645c01d9246",
   "services/platform/cmd/zasp-authorization-reconcile/main.go": "26c1d2d58289b3a2a5b5f58b55348f70f7ae3d48ef7d84b426613f79d506b27e",
   "services/platform/connectormaintenance/authority.go": "378b2b151fe9978ca28a3c40d024c52bff7d3f0b83267839ef1dd61ee3946441",
-  "services/platform/connectormaintenance/executor.go": "35e5eb12fef7a5f7178750c8d1a0bd2c6e3bcfb961c4b34b31de103c32cb8d9a",
+  "services/platform/connectormaintenance/executor.go": "b8297f04701e4c5229a05cbefeaea1427d328bddde9a39a4d03e8e1902de59de",
   "services/platform/connectormaintenancecutover/coordinator.go": "c6558e7dfb24121b7f84def049d7aeeef971895580d87ca2af5d61ecaaeed7c5",
   "services/platform/connectormaintenancecutover/fga.go": "0e80b78867c5b6bbc11e4a2a2bbb1ca3a43bbf43bd8e9fa921471914a98c924c",
   "services/platform/connectormaintenancecutover/model.json": "329f49e1f2effecbe1a0e9caf6c89be939b1e36e034155d74977bfc82c73cc2c",
@@ -39,7 +39,7 @@ const pins = {
   "services/platform/migrations/production_connector_enqueue_provenance.go": "793b230a8572fbfbed2a4702e1513bfa90afac596a8d0707ae047bbdf8bacc36",
   "services/platform/migrations/production_connector_maintenance.go": "18b0989e395e85f18a78f5f51aee06eb1f969fba79a66650754bfc3858d055cd",
   "services/platform/migrations/sql/connector_enqueue_provenance.sql": "32b3f8cbe175b5256ff4542cdff044d6d060e0240d24632bf3d057f3553a5c13",
-  "services/platform/migrations/sql/connector_maintenance_profile.sql": "0d53c78e61930b44f36dc41faa2056be9c91c86b331b7a9d4ee3138df133bff6",
+  "services/platform/migrations/sql/connector_maintenance_profile.sql": "cd4e72588eeb073488d7d2b5a2077913c13672d278377db4acc3f09683c84692",
   "services/platform/runtimeservices/config.go": "3eff9566c27b6e7c5179a8968aacf0f05b0810baf1d69abac43cb19e21dc0f77",
   "services/platform/migrations/production_approval_maintenance_profile.go": "2e98fa960c2e7b42b2a6a343b4ff47059c0d23fac83dbed887d2868f1b9c99f3",
   "services/platform/migrations/production_approval_maintenance_successor.go": "6817964c5c0dfcabe7ea9f65caf5b7840f6d9e4d29a1ec39b00e1b03b0fa6eca",
@@ -48,13 +48,18 @@ const pins = {
   "services/platform/apiserver/connector_maintenance_lifecycle_postgres_test.go": "88a650d1845d26c892c9ad99a463014078dff75624d6fb18e6cf19d1786ba932",
   "services/platform/apiserver/connector_maintenance_lifecycle_helpers_test.go": "17e25679f365e81f0450cfa2c9c5a23250afeb43f47f8577e34ed8de77029bc3",
   "services/platform/agentsec-api/compliance_browser_process_test.go": "5091e34dd5a155a84d2e56f855e030e1fefb1a29025ad73c99807090858a6fb1",
-  "scripts/browser-command-failure.mjs": "29ce4e2b762597d48ca05d1118e96284e591936dfdb2c596933738529df83193"
+  "scripts/browser-command-failure.mjs": "29ce4e2b762597d48ca05d1118e96284e591936dfdb2c596933738529df83193",
+  "services/platform/apiserver/production.go": "ca69d1bf4f7d6d0a94c68529f117a55d6e786aba437b9c55a0ee42c9af117c3c",
+  "services/platform/apiserver/connector_maintenance_pkce_recovery_test.go": "d6bf400a66775866e607040055382203b6c9b99311afd5001d338a4c8b6254f8",
+  "services/platform/apiserver/connector_maintenance_recovery_decode_test.go": "08ad69924af72241a35c146e371c2a2ec955a25a8af16cfee81537073335c8f1"
 };
 const top='TestConnectorMaintenanceAuthenticatedOAuthEnqueuePostgres';
 const cases=['genuine_same_transaction_origin_and_immutable_enrichment','rollback_removes_every_enqueue_and_provenance_write'];
 const lifecycleTop='TestConnectorMaintenanceNativeLifecyclePostgres';
 const lifecycleCases=["genuine_enqueue_controlled_cutover_and_composed_projection", "genuine_callback_consumption_captures_only_its_original_effects", "reserve_without_attempt_and_deny_cross_scope_or_unowned_replay", "revocation_blocks_forward_work_while_exact_captured_cleanup_settles", "consumed_callback_revocation_retains_only_exact_rejection_cleanup"];
-const roster=[top,...cases.map(name=>top+'/'+name),lifecycleTop,...lifecycleCases.map(name=>lifecycleTop+'/'+name)];
+const recoveryTop='TestConnectorMaintenancePKCERestartRecoveryPostgres';
+const recoveryCases=['live_preparation_failure_retries_before_captured_provider_admission_and_excludes_live_lease_adoption','restart_after_revocation_permits_only_exact_captured_deletion_without_settlement_on_failure','second_restart_preserves_original_lineage_and_settles_exact_cleanup_once'];
+const roster=[top,...cases.map(name=>top+'/'+name),lifecycleTop,...lifecycleCases.map(name=>lifecycleTop+'/'+name),recoveryTop,...recoveryCases.map(name=>recoveryTop+'/'+name)];
 const helperPins={
  "docs/internal/evidence/cloud-2026-10-07/native-service-readiness/openfga/09-pg-non-glibc-libs-manifest.json": "96642e82997ffd2caf2893a5ecc0116ad2aef6e982df2d929f3efda4e04f3474",
  "services/platform/apiserver/authorization_integration_mutations_postgres_test.go": "5e4beb04b2409ad9b11b89c017ada5e2eccffd78a87bdd5692d40670f12a2ba0",
@@ -74,7 +79,7 @@ const out=await mkdtemp(path.join(process.env.RUNNER_TEMP,'connector-authenticat
 const end=performance.now()+1500_000;
 let tokenForRedaction='', canceled=false, finished=false, refused=false, container, tool, fga, fgaPort, grpcPort, fgaStart;
 const owners=new Set();let phase='source-admission';
-const receipt={scope:'connected native enqueue, controlled one-writer cutover, execution, revocation, callback cleanup and settlement; component integration only',completed:false,activationScope:'owned-one-writer-fixture-only',deployedActivation:false,production:false,testPins:pins,helperPins,selfSHA256,pgImage:image,commands:[],authStatuses:[],normalCleanup:false};
+const receipt={scope:'connected native enqueue, controlled one-writer cutover, execution, PKCE restart recovery, revocation, callback cleanup and settlement; component integration only',completed:false,activationScope:'owned-one-writer-fixture-only',deployedActivation:false,production:false,testPins:pins,helperPins,selfSHA256,pgImage:image,commands:[],authStatuses:[],normalCleanup:false};
 function lateRefusal(reason){let fd;try{fd=openSync(path.join(out,'late-refusal.json'),constants.O_WRONLY|constants.O_CREAT|constants.O_EXCL|constants.O_NOFOLLOW,0o600);const bytes=Buffer.from(JSON.stringify({completed:false,reason})+'\n');let offset=0;while(offset<bytes.length){const written=writeSync(fd,bytes,offset,bytes.length-offset);assert.ok(written>0);offset+=written;}fsyncSync(fd);closeSync(fd);fd=undefined;const directory=openSync(out,constants.O_RDONLY|constants.O_DIRECTORY);try{fsyncSync(directory);}finally{closeSync(directory);}}catch{/* Refusal or bounded retry is handled by the enclosing guard. */}finally{if(fd!==undefined)try{closeSync(fd);}catch{/* Refusal or bounded retry is handled by the enclosing guard. */}}}
 function signal(){canceled=true; if(finished){lateRefusal('late-signal');process.exit(1);} for(const owner of owners)void owner.stop().catch(()=>{refused=true;});}
 process.on('SIGTERM',signal);process.on('SIGINT',signal);
@@ -171,11 +176,11 @@ try{
  for(;;){guard();assert.ok(!serviceExited&&performance.now()<readyEnd);try{await observeOwnedListener({pid:fga.child.pid,start:fgaStart,port:fgaPort});await observeOwnedListener({pid:fga.child.pid,start:fgaStart,port:grpcPort});const health=await auth(url+'/healthz',null),denied=await auth(url+'/stores',null),wrong=await auth(url+'/stores',randomBytes(32).toString('hex')),allowed=await auth(url+'/stores',token);if(health===200&&denied===401&&wrong===401&&allowed===200){receipt.authStatuses=[health,denied,wrong,allowed];break;}}catch{/* Refusal or bounded retry is handled by the enclosing guard. */}await new Promise(resolve=>setTimeout(resolve,100));}
  testEnv.ZASP_P6_NATIVE_OPENFGA_URL=url;testEnv.ZASP_P6_NATIVE_OPENFGA_TOKEN_FILE=tokenFile;
  testEnv.ZASP_CONNECTOR_LIFECYCLE_OPENFGA_BINARY=path.join(out,'openfga-held','openfga');testEnv.ZASP_CONNECTOR_LIFECYCLE_OPENFGA_SHA256=receipt.fgaTool.memberSHA256;
- phase='authenticated-oauth-enqueue';const test=await run('go',['test','-C','services/platform','-json','-race','-p=1','-count=1','-timeout=10m','-run','^('+top+'|'+lifecycleTop+')$','./apiserver'],650,testEnv);
+ phase='authenticated-oauth-enqueue';const test=await run('go',['test','-C','services/platform','-json','-race','-p=1','-count=1','-timeout=10m','-run','^('+top+'|'+lifecycleTop+'|'+recoveryTop+')$','./apiserver'],650,testEnv);
  phase='exact-roster-and-postgres-cleanup';const rows=test.stdout.trim().split('\n').map(line=>JSON.parse(line));assert.ok(rows.every(row=>row.Action!=='fail'&&row.Action!=='skip'));
  const expected=roster;for(const action of ['run','pass'])assert.deepEqual(rows.filter(row=>row.Action===action&&row.Test).map(row=>row.Test).sort(),expected.slice().sort());assert.equal(rows.filter(row=>row.Action==='pass'&&!row.Test).length,1);
- const outputs=rows.map(row=>row.Output??'').join('');const joined=[...outputs.matchAll(/joined owned PostgreSQL pid=(\d+).*pg_ctl exit=0 server Wait exit=0 normal-exit/g)];assert.equal(joined.length,3);for(const row of joined)assert.ok(await absent(Number(row[1])));
- assert.ok(!test.stdout.includes(token)&&!test.stderr.includes(token));receipt.test={names:expected,tops:2,subcases:7,skips:0,packagePass:true,postgresNormalJoined:true,postgresPIDAbsent:true};
+ const outputs=rows.map(row=>row.Output??'').join('');const joined=[...outputs.matchAll(/joined owned PostgreSQL pid=(\d+).*pg_ctl exit=0 server Wait exit=0 normal-exit/g)];assert.equal(joined.length,5);for(const row of joined)assert.ok(await absent(Number(row[1])));
+ assert.ok(!test.stdout.includes(token)&&!test.stderr.includes(token));receipt.test={names:expected,tops:3,subcases:10,skips:0,packagePass:true,postgresNormalJoined:true,postgresPIDAbsent:true};
  await sourcePins();for(const [file,pin]of Object.entries(sums))assert.equal(hash(await readFile(path.join(root,file))),pin);
 }catch(error){receipt.failedPhase=phase;receipt.failureClass=failureClass(error);refused=true;}
 finally{phase='owned-service-cleanup';
@@ -190,6 +195,6 @@ receipt.normalCleanup=owners.size===0&&!container&&receipt.fgaNormalJoined===tru
 receipt.completed=!refused&&!canceled&&performance.now()<end&&receipt.normalCleanup&&receipt.test?.packagePass===true;
 await writeFile(path.join(out,'result.json'),JSON.stringify(receipt,null,2)+'\n',{mode:0o600,flag:'wx'});
 finished=true;console.log(JSON.stringify(receipt));
-if(!receipt.completed||canceled||refused||performance.now()>=end){const value=n=>Number.isSafeInteger(n)&&n>=0?String(n):'unobserved';const resource=receipt.resourceSnapshot??{};console.error('::error title=Connector authenticated enqueue integration::phase='+ (receipt.failedPhase??phase)+'; class='+(receipt.failureClass??'other-refusal')+'; resource='+(receipt.resourceRefusal?.step??'not-refused')+'; resourceClass='+(receipt.resourceRefusal?.class??'none')+'; workspaceBytes='+value(resource.workspaceFreeBytes)+'; scratchBytes='+value(resource.scratchFreeBytes)+'; memoryHeadroomBytes='+value(resource.memoryHeadroomBytes)+'; binding='+(receipt.sourceBinding??'unobserved')+'. Authenticated enqueue integration refused; no deployment readiness established.');process.exitCode=1;}else console.log('Connector authenticated OAuth enqueue: connected 2 tops / 7 subcases PASS; owned PG/FGA normal cleanup. Owned controlled activation only; no fleet or deployment acceptance.');
+if(!receipt.completed||canceled||refused||performance.now()>=end){const value=n=>Number.isSafeInteger(n)&&n>=0?String(n):'unobserved';const resource=receipt.resourceSnapshot??{};console.error('::error title=Connector authenticated enqueue integration::phase='+ (receipt.failedPhase??phase)+'; class='+(receipt.failureClass??'other-refusal')+'; resource='+(receipt.resourceRefusal?.step??'not-refused')+'; resourceClass='+(receipt.resourceRefusal?.class??'none')+'; workspaceBytes='+value(resource.workspaceFreeBytes)+'; scratchBytes='+value(resource.scratchFreeBytes)+'; memoryHeadroomBytes='+value(resource.memoryHeadroomBytes)+'; binding='+(receipt.sourceBinding??'unobserved')+'. Authenticated enqueue integration refused; no deployment readiness established.');process.exitCode=1;}else console.log('Connector authenticated OAuth enqueue: connected 3 tops / 10 subcases PASS; owned PG/FGA normal cleanup. Owned controlled activation only; no fleet or deployment acceptance.');
 
 if(canceled||refused||performance.now()>=end){lateRefusal('terminal-refusal');process.exitCode=1;}

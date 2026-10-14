@@ -1328,6 +1328,9 @@ func writeProductionError(writer http.ResponseWriter, request *http.Request, err
 		}
 	}
 	status, code, message, retryable := http.StatusServiceUnavailable, "provider_unavailable", "Provider unavailable", true
+	if errors.Is(err, ErrAuthorizationDenied) {
+		status, code, message, retryable = http.StatusForbidden, "request_forbidden", "Request forbidden", false
+	}
 	if errors.Is(err, ErrRepositoryAuthentication) {
 		status, code, message, retryable = http.StatusUnauthorized, "authentication_required", "Authentication required", false
 	}

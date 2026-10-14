@@ -1,5 +1,37 @@
 # Agent Security Platform Implementation Status
 
+## PKCE worker recovery continuation, October 14, 2026
+
+Starting main remains `8cbd813493947d8e26289b381d90d1a5bf2bffe3`; candidate
+`344699db` produced passing original native and authenticated enqueue groups,
+but its connected lifecycle failed at contradictory principal registration,
+and the callback boundary group failed three HTTP-status assertions. These
+failures are retained. The successor requires the original runtime login's
+INHERIT setting and returns HTTP403 for permission denial.
+
+The bounded recovery implementation retains original signed receipt lineage,
+rotates only expired authentic PKCE leases, preserves provider attempt count,
+and allows exact captured deletion/settlement after revocation. Genuine local
+preparation failures retain their finite-budget fresh-authorization retry path.
+Recovery receipts cannot authorize workflow reads, exchange or other settlement.
+The new native fixture covers preparation failure, two restarts, deletion failure,
+revocation/restoration, exact cleanup and audit/replay boundaries, but has not
+passed native execution yet. Callback-crash and provider recovery remain open.
+
+Grouped component checks pass 39 application tops / 88 run-pass events with
+zero skips/failures, plus the original whole approval source-pin check. All nine
+affected packages compile. The 2,867-file Go/SQL/JSON source map is unchanged
+across application checks; UI typecheck and production build pass. Independent
+source review passes. These checks do not establish deployed or native acceptance.
+
+The original 728-row ledger stays 523 recorded production-available, 144
+component-only and 61 blocked/external, zero missing and no promotions. Runtime
+revision297 still lacks 50 required application bindings, production target/URLs,
+private TCP grants and an outbound deployment identity. See the
+[recovery checkpoint](cloud-pkce-recovery-checkpoint-2026-10-14.json) for remaining
+critical-path flows and the preserved evidence. No launch readiness is claimed.
+
+
 ## Connected launch continuation, October 14, 2026
 
 Fresh main is `8cbd813493947d8e26289b381d90d1a5bf2bffe3`; required ancestor

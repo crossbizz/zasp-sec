@@ -226,7 +226,7 @@ func (reconciler *ConnectorReconciler) reconcileLease(ctx context.Context, lease
 	defer finalize()
 	if lease.Operation == "pkce_cleanup" {
 		if reconciler.native != nil {
-			if err := reconciler.native.prepare(providerContext, &lease, true); err != nil {
+			if err := reconciler.native.preparePKCECleanup(providerContext, &lease); err != nil {
 				return err
 			}
 		}

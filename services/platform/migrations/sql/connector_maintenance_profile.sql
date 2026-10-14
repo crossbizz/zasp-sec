@@ -66,7 +66,7 @@ CREATE TABLE zasp_connector_maintenance.reservations(
  expires_at timestamptz NOT NULL,intent_digest bytea NOT NULL CHECK(octet_length(intent_digest)=32),
  context_digest bytea NOT NULL CHECK(octet_length(context_digest)=32),
  state text NOT NULL CHECK(state IN('reserved','attempted','settled')),attempt integer NOT NULL CHECK(attempt BETWEEN 0 AND 100),
- captured_receipt jsonb,PRIMARY KEY(organization_id,workspace_id,environment_id,effect_id),
+ captured_receipt jsonb,origin_receipt jsonb,preparation_receipts jsonb NOT NULL DEFAULT '[]'::jsonb CHECK(jsonb_typeof(preparation_receipts)='array' AND jsonb_array_length(preparation_receipts)<=99),PRIMARY KEY(organization_id,workspace_id,environment_id,effect_id),
  FOREIGN KEY(organization_id,workspace_id,environment_id,effect_id) REFERENCES zasp_connector_maintenance.tasks);
 CREATE FUNCTION zasp_connector_maintenance.fingerprint() RETURNS text LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $fp$
  WITH objects AS (
@@ -297,6 +297,43 @@ END $enrich$;
 -- Original fairness/lane/capacity selection below is compiled from the
 -- unchanged original claim body. Only genuine-task eligibility, deferred
 -- attempt increment and the exact protected reservation write are added.
+-- An interrupted, authorized local preparation failure has no provider
+-- effect to compensate. Only its authentic secret_failure receipt may return
+-- to fresh authorization; provider/recovery/malformed receipts remain fenced.
+CREATE FUNCTION zasp_connector_maintenance.may_retry_pkce_preparation(n public.zasp_connector_effects,r zasp_connector_maintenance.reservations) RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $retry_preparation$
+DECLARE t zasp_connector_maintenance.tasks;body_bytes bytea;body_value jsonb;key_value bytea;BEGIN
+ IF n.operation IS DISTINCT FROM 'pkce_cleanup' OR n.status IS DISTINCT FROM 'unknown' OR n.attempt NOT BETWEEN 1 AND 99 OR r.state IS DISTINCT FROM 'attempted'
+ OR(n.organization_id,n.workspace_id,n.environment_id,n.id,n.attempt) IS DISTINCT FROM(r.organization_id,r.workspace_id,r.environment_id,r.effect_id,r.attempt)
+ OR r.expires_at>clock_timestamp() OR r.context_digest IS DISTINCT FROM zasp_connector_maintenance.effect_context(n)
+ OR r.captured_receipt IS DISTINCT FROM r.origin_receipt OR zasp_sa_multistep_prior.closed(r.captured_receipt,ARRAY['body','version','mac']) IS NOT TRUE THEN RETURN false;END IF;
+ body_bytes:=decode(r.captured_receipt->>'body','base64');body_value:=convert_from(body_bytes,'UTF8')::jsonb;
+ IF body_value->>'kind' IS DISTINCT FROM 'secret_failure' THEN RETURN false;END IF;
+ SELECT task.* INTO STRICT t FROM zasp_connector_maintenance.tasks task WHERE(task.organization_id,task.workspace_id,task.environment_id,task.effect_id)=(r.organization_id,r.workspace_id,r.environment_id,r.effect_id);
+ SELECT key_material INTO STRICT key_value FROM zasp_connector_maintenance.verifiers WHERE(key_version,principal_name,purpose)=(r.captured_receipt->>'version',session_user,'connector-captured') FOR SHARE;
+ IF octet_length(body_bytes)>65536 OR encode(public.hmac(convert_to('zasp-connector-captured-v1','UTF8')||decode('00','hex')||body_bytes,key_value,'sha256'),'hex') IS DISTINCT FROM r.captured_receipt->>'mac'
+ OR zasp_sa_multistep_prior.closed(body_value,ARRAY['purpose','key_version','reference','attempt','kind','forward_digest','lease_expires_at','session_user']) IS NOT TRUE
+ OR body_value->>'purpose' IS DISTINCT FROM 'connector-captured' OR body_value->>'key_version' IS DISTINCT FROM r.captured_receipt->>'version' OR body_value->>'session_user' IS DISTINCT FROM session_user
+ OR body_value->'reference' IS DISTINCT FROM zasp_connector_maintenance.reference(r,t)
+ OR jsonb_typeof(body_value->'attempt') IS DISTINCT FROM 'number' OR(body_value->>'attempt')::integer IS DISTINCT FROM r.attempt
+ OR body_value->>'lease_expires_at' IS NULL OR(body_value->>'lease_expires_at')::timestamptz IS DISTINCT FROM r.expires_at
+ OR body_value->>'forward_digest' IS NULL OR body_value->>'forward_digest'!~'^[a-f0-9]{64}$'
+ OR r.intent_digest IS DISTINCT FROM t.committed_effect_digest OR t.state NOT IN('active','paused_denied') OR zasp_connector_maintenance.effect_matches(n,t) IS NOT TRUE
+ OR NOT EXISTS(SELECT 1 FROM zasp_connector_maintenance.projection_activations a JOIN zasp_authorization79.organizations v ON(v.organization_id,v.store_id,v.model_id)=(a.organization_id,a.store_id,a.model_id) JOIN zasp_approval_maintenance.registration approval ON approval.singleton AND approval.checksum=a.approval_checksum WHERE a.organization_id=t.organization_id AND a.source_checksum='-- connector maintenance checksum' AND zasp_approval_maintenance.catalog_ready() IS TRUE)
+ THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='connector preparation retry receipt rejected';END IF;
+ RETURN true;
+END $retry_preparation$;
+-- ON CONFLICT holds the prior reservation after reserve has locked/rotated the
+-- effect. Recheck that exact transition before appending immutable evidence and
+-- clearing attempted authority. A refusal rolls back the whole reservation.
+CREATE FUNCTION zasp_connector_maintenance.retain_preparation_retry(prior zasp_connector_maintenance.reservations,next_value zasp_connector_maintenance.reservations) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $retain_preparation$
+DECLARE n public.zasp_connector_effects;BEGIN
+ SELECT effect.* INTO STRICT n FROM public.zasp_connector_effects effect WHERE(effect.organization_id,effect.workspace_id,effect.environment_id,effect.id)=(prior.organization_id,prior.workspace_id,prior.environment_id,prior.effect_id);
+ IF(n.lease_owner,n.lease_token,n.lease_expires_at) IS DISTINCT FROM(next_value.lease_owner,next_value.lease_token,next_value.expires_at)
+ OR next_value.context_digest IS DISTINCT FROM prior.context_digest OR next_value.intent_digest IS DISTINCT FROM prior.intent_digest OR next_value.attempt IS DISTINCT FROM prior.attempt
+ OR zasp_connector_maintenance.may_retry_pkce_preparation(n,prior) IS NOT TRUE
+ THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='connector preparation retry transition rejected';END IF;
+ RETURN prior.preparation_receipts||jsonb_build_array(prior.captured_receipt);
+END $retain_preparation$;
 CREATE FUNCTION zasp_connector_maintenance.reserve(q jsonb,pin text,version_value text) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $reserve$
 DECLARE result_value jsonb;available_slots integer;owner_value text;lease_seconds integer;limit_value integer;BEGIN
  IF zasp_connector_maintenance.caller_ready(pin,version_value) IS NOT TRUE OR zasp_sa_multistep_prior.closed(q,ARRAY['owner','seconds','limit']) IS NOT TRUE
@@ -306,14 +343,14 @@ DECLARE result_value jsonb;available_slots integer;owner_value text;lease_second
  PERFORM pg_advisory_xact_lock(742516322);
  SELECT GREATEST(0,LEAST(limit_value,100-count(*)::integer)) INTO available_slots FROM public.zasp_connector_effects WHERE status='unknown' AND lease_expires_at>transaction_timestamp();
  IF available_slots=0 THEN RETURN jsonb_build_object('items','[]'::jsonb);END IF;
-  WITH candidates AS (SELECT lane.provider,lane.operation,effect.organization_id,effect.workspace_id,effect.environment_id,effect.id,effect.updated_at FROM zasp_connector_effect_lane_scopes lane CROSS JOIN LATERAL (SELECT candidate.organization_id,candidate.workspace_id,candidate.environment_id,candidate.id,candidate.updated_at FROM zasp_connector_effects candidate WHERE candidate.provider=lane.provider AND candidate.operation=lane.operation AND candidate.organization_id=lane.organization_id AND candidate.workspace_id=lane.workspace_id AND candidate.environment_id=lane.environment_id AND candidate.status='unknown' AND EXISTS(SELECT 1 FROM zasp_connector_maintenance.tasks task WHERE(task.organization_id,task.workspace_id,task.environment_id,task.effect_id)=(candidate.organization_id,candidate.workspace_id,candidate.environment_id,candidate.id) AND task.state IN('active','paused_denied')) AND candidate.attempt<100 AND candidate.available_at<=transaction_timestamp() AND candidate.updated_at<=transaction_timestamp()-interval '15 seconds' AND (candidate.lease_expires_at IS NULL OR candidate.lease_expires_at<=transaction_timestamp()) AND NOT EXISTS(SELECT 1 FROM zasp_connector_effects live WHERE live.provider=candidate.provider AND live.operation=candidate.operation AND live.status='unknown' AND live.lease_expires_at>transaction_timestamp()) AND (candidate.operation<>'pkce_cleanup' OR candidate.oauth_attempt_id IS NULL OR NOT EXISTS(SELECT 1 FROM zasp_connector_oauth_attempts attempt WHERE (attempt.organization_id,attempt.workspace_id,attempt.environment_id,attempt.id)=(candidate.organization_id,candidate.workspace_id,candidate.environment_id,candidate.oauth_attempt_id) AND attempt.status='consuming')) ORDER BY candidate.updated_at,candidate.id LIMIT 1) effect),
+  WITH candidates AS (SELECT lane.provider,lane.operation,effect.organization_id,effect.workspace_id,effect.environment_id,effect.id,effect.updated_at FROM zasp_connector_effect_lane_scopes lane CROSS JOIN LATERAL (SELECT candidate.organization_id,candidate.workspace_id,candidate.environment_id,candidate.id,candidate.updated_at FROM zasp_connector_effects candidate WHERE candidate.provider=lane.provider AND candidate.operation=lane.operation AND candidate.organization_id=lane.organization_id AND candidate.workspace_id=lane.workspace_id AND candidate.environment_id=lane.environment_id AND candidate.status='unknown' AND EXISTS(SELECT 1 FROM zasp_connector_maintenance.tasks task WHERE(task.organization_id,task.workspace_id,task.environment_id,task.effect_id)=(candidate.organization_id,candidate.workspace_id,candidate.environment_id,candidate.id) AND task.state IN('active','paused_denied')) AND NOT (candidate.operation='pkce_cleanup' AND EXISTS(SELECT 1 FROM zasp_connector_maintenance.reservations prior WHERE(prior.organization_id,prior.workspace_id,prior.environment_id,prior.effect_id)=(candidate.organization_id,candidate.workspace_id,candidate.environment_id,candidate.id) AND prior.state='attempted' AND NOT ((candidate.lease_owner,candidate.lease_token,candidate.lease_expires_at) IS NOT DISTINCT FROM(prior.lease_owner,prior.lease_token,prior.expires_at) AND zasp_connector_maintenance.may_retry_pkce_preparation(candidate,prior) IS TRUE))) AND candidate.attempt<100 AND candidate.available_at<=transaction_timestamp() AND candidate.updated_at<=transaction_timestamp()-interval '15 seconds' AND (candidate.lease_expires_at IS NULL OR candidate.lease_expires_at<=transaction_timestamp()) AND NOT EXISTS(SELECT 1 FROM zasp_connector_effects live WHERE live.provider=candidate.provider AND live.operation=candidate.operation AND live.status='unknown' AND live.lease_expires_at>transaction_timestamp()) AND (candidate.operation<>'pkce_cleanup' OR candidate.oauth_attempt_id IS NULL OR NOT EXISTS(SELECT 1 FROM zasp_connector_oauth_attempts attempt WHERE (attempt.organization_id,attempt.workspace_id,attempt.environment_id,attempt.id)=(candidate.organization_id,candidate.workspace_id,candidate.environment_id,candidate.oauth_attempt_id) AND attempt.status='consuming')) ORDER BY candidate.updated_at,candidate.id LIMIT 1) effect),
   lane_fair AS (SELECT candidates.*,row_number() OVER(PARTITION BY provider,operation ORDER BY updated_at,id) lane_rank FROM candidates),
   fair AS (SELECT lane_fair.*,row_number() OVER(PARTITION BY organization_id,workspace_id,environment_id ORDER BY updated_at,id) organization_rank FROM lane_fair WHERE lane_rank=1),
   selected AS (SELECT effect.organization_id,effect.workspace_id,effect.environment_id,effect.id FROM zasp_connector_effects effect JOIN fair ON (fair.organization_id,fair.workspace_id,fair.environment_id,fair.id)=(effect.organization_id,effect.workspace_id,effect.environment_id,effect.id) ORDER BY fair.organization_rank,effect.updated_at,effect.id FOR UPDATE OF effect SKIP LOCKED LIMIT available_slots),
   updated AS (UPDATE zasp_connector_effects effect SET lease_owner=owner_value,lease_token=encode(gen_random_bytes(32),'hex'),lease_expires_at=transaction_timestamp()+make_interval(secs=>lease_seconds),updated_at=transaction_timestamp() FROM selected WHERE (effect.organization_id,effect.workspace_id,effect.environment_id,effect.id)=(selected.organization_id,selected.workspace_id,selected.environment_id,selected.id) RETURNING effect.*),
- recorded AS (INSERT INTO zasp_connector_maintenance.reservations(organization_id,workspace_id,environment_id,effect_id,lease_owner,lease_token,expires_at,intent_digest,context_digest,state,attempt)
+ recorded AS (INSERT INTO zasp_connector_maintenance.reservations AS prior(organization_id,workspace_id,environment_id,effect_id,lease_owner,lease_token,expires_at,intent_digest,context_digest,state,attempt)
  SELECT u.organization_id,u.workspace_id,u.environment_id,u.id,u.lease_owner,u.lease_token,u.lease_expires_at,t.committed_effect_digest,zasp_connector_maintenance.effect_context(u),'reserved',u.attempt FROM updated u JOIN zasp_connector_maintenance.tasks t ON(t.organization_id,t.workspace_id,t.environment_id,t.effect_id)=(u.organization_id,u.workspace_id,u.environment_id,u.id)
- ON CONFLICT(organization_id,workspace_id,environment_id,effect_id) DO UPDATE SET lease_owner=EXCLUDED.lease_owner,lease_token=EXCLUDED.lease_token,expires_at=EXCLUDED.expires_at,intent_digest=EXCLUDED.intent_digest,context_digest=EXCLUDED.context_digest,state='reserved',attempt=EXCLUDED.attempt,captured_receipt=NULL
+ ON CONFLICT(organization_id,workspace_id,environment_id,effect_id) DO UPDATE SET preparation_receipts=CASE WHEN prior.state='attempted' AND EXISTS(SELECT 1 FROM zasp_connector_maintenance.tasks task WHERE(task.organization_id,task.workspace_id,task.environment_id,task.effect_id)=(prior.organization_id,prior.workspace_id,prior.environment_id,prior.effect_id) AND task.operation='pkce_cleanup') THEN zasp_connector_maintenance.retain_preparation_retry(prior,EXCLUDED) ELSE prior.preparation_receipts END,lease_owner=EXCLUDED.lease_owner,lease_token=EXCLUDED.lease_token,expires_at=EXCLUDED.expires_at,intent_digest=EXCLUDED.intent_digest,context_digest=EXCLUDED.context_digest,state='reserved',attempt=EXCLUDED.attempt,captured_receipt=NULL,origin_receipt=NULL
  RETURNING effect_id)
  SELECT jsonb_build_object('items',COALESCE(jsonb_agg(jsonb_build_object('organization_id',organization_id,'workspace_id',workspace_id,'environment_id',environment_id,'id',id,'integration_id',integration_id,'oauth_attempt_id',oauth_attempt_id,'principal_id',(SELECT principal_id FROM zasp_connector_oauth_attempts attempt WHERE (attempt.organization_id,attempt.workspace_id,attempt.environment_id,attempt.id)=(updated.organization_id,updated.workspace_id,updated.environment_id,updated.oauth_attempt_id)),'requested_scopes',(SELECT requested_scopes FROM zasp_connector_oauth_attempts attempt WHERE (attempt.organization_id,attempt.workspace_id,attempt.environment_id,attempt.id)=(updated.organization_id,updated.workspace_id,updated.environment_id,updated.oauth_attempt_id)),'provider',provider,'operation',operation,'connection_reference',connection_reference,'idempotency_key',idempotency_key,'request_digest',encode(request_digest,'hex'),'intent_digest',(SELECT encode(t.committed_effect_digest,'hex') FROM zasp_connector_maintenance.tasks t WHERE(t.organization_id,t.workspace_id,t.environment_id,t.effect_id)=(updated.organization_id,updated.workspace_id,updated.environment_id,updated.id)),'last_error_code',last_error_code,'attempt',attempt,'lease_owner',lease_owner,'lease_token',lease_token,'lease_expires_at',lease_expires_at) ORDER BY updated_at,id),'[]'::jsonb)) INTO result_value FROM updated WHERE EXISTS(SELECT 1 FROM recorded WHERE effect_id=updated.id);
 
@@ -357,6 +394,91 @@ DECLARE owner_value text;lease_seconds integer;limit_value integer;n record;toke
  END LOOP;
  RETURN jsonb_build_object('recovered',recovered_value);
 END $recover$;
+-- Only expired, already-attempted PKCE deletion can transfer its captured
+-- compensation to a new worker. Original provider authority remains immutable;
+-- recovery receipts cannot authorize a forward attempt or another effect kind.
+CREATE FUNCTION zasp_connector_maintenance.recover_compensation(q jsonb,pin text,version_value text) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $recover_compensation$
+DECLARE owner_value text;lease_seconds integer;limit_value integer;available_slots integer;selected_scope jsonb;org_value text;candidate record;
+ n public.zasp_connector_effects;r zasp_connector_maintenance.reservations;t zasp_connector_maintenance.tasks;
+ original_body jsonb;current_body jsonb;body_bytes bytea;key_value bytea;captured_version text;original_digest text;new_reference jsonb;receipt_value jsonb;expiry_value timestamptz;next_item jsonb;items_value jsonb:='[]'::jsonb;BEGIN
+ IF zasp_connector_maintenance.caller_ready(pin,version_value) IS NOT TRUE OR zasp_sa_multistep_prior.closed(q,ARRAY['owner','seconds','limit']) IS NOT TRUE
+ THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='connector compensation recovery unavailable';END IF;
+ owner_value:=q->>'owner';lease_seconds:=(q->>'seconds')::integer;limit_value:=(q->>'limit')::integer;
+ IF owner_value IS NULL OR length(owner_value) NOT BETWEEN 3 AND 128 OR lease_seconds IS NULL OR lease_seconds NOT BETWEEN 5 AND 300 OR limit_value IS NULL OR limit_value NOT BETWEEN 1 AND 100
+ THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='connector compensation recovery shape rejected';END IF;
+ PERFORM pg_advisory_xact_lock(742516322);
+ SELECT GREATEST(0,LEAST(limit_value,10,100-count(*)::integer)) INTO available_slots FROM public.zasp_connector_effects WHERE status='unknown' AND lease_expires_at>transaction_timestamp();
+ IF available_slots=0 THEN RETURN jsonb_build_object('items',items_value);END IF;
+ SELECT COALESCE(jsonb_agg(to_jsonb(selected)),'[]'::jsonb) INTO selected_scope FROM(
+  SELECT ranked.organization_id,ranked.workspace_id,ranked.environment_id,ranked.id FROM(
+   SELECT effect.*,row_number() OVER(PARTITION BY effect.provider,effect.operation ORDER BY effect.updated_at,effect.id) lane_rank
+   FROM public.zasp_connector_effects effect JOIN zasp_connector_maintenance.reservations prior ON(prior.organization_id,prior.workspace_id,prior.environment_id,prior.effect_id)=(effect.organization_id,effect.workspace_id,effect.environment_id,effect.id)
+   WHERE effect.operation='pkce_cleanup' AND effect.status='unknown' AND effect.attempt BETWEEN 1 AND 99 AND effect.available_at<=transaction_timestamp() AND effect.updated_at<=transaction_timestamp()-interval '15 seconds'
+   AND effect.lease_expires_at<=transaction_timestamp() AND prior.state='attempted'
+   AND NOT ((effect.lease_owner,effect.lease_token,effect.lease_expires_at) IS NOT DISTINCT FROM(prior.lease_owner,prior.lease_token,prior.expires_at) AND zasp_connector_maintenance.may_retry_pkce_preparation(effect,prior) IS TRUE)
+   AND NOT EXISTS(SELECT 1 FROM public.zasp_connector_effects live WHERE(live.provider,live.operation)=(effect.provider,effect.operation) AND live.status='unknown' AND live.lease_expires_at>transaction_timestamp())
+   AND NOT EXISTS(SELECT 1 FROM public.zasp_connector_oauth_attempts attempt WHERE(attempt.organization_id,attempt.workspace_id,attempt.environment_id,attempt.id)=(effect.organization_id,effect.workspace_id,effect.environment_id,effect.oauth_attempt_id) AND attempt.status='consuming')
+  ) ranked WHERE ranked.lane_rank=1 ORDER BY ranked.updated_at,ranked.id LIMIT available_slots
+ ) selected;
+ FOR org_value IN SELECT DISTINCT x->>'organization_id' FROM jsonb_array_elements(selected_scope) x ORDER BY 1 LOOP
+  PERFORM 1 FROM zasp_authorization79.organizations WHERE organization_id=org_value FOR UPDATE;
+ END LOOP;
+ FOR candidate IN SELECT x->>'organization_id' o,x->>'workspace_id' w,x->>'environment_id' e,x->>'id' id FROM jsonb_array_elements(selected_scope) x ORDER BY x->>'organization_id',x->>'id' LOOP
+  SELECT effect.* INTO STRICT n FROM public.zasp_connector_effects effect WHERE(effect.organization_id,effect.workspace_id,effect.environment_id,effect.id)=(candidate.o,candidate.w,candidate.e,candidate.id) FOR UPDATE;
+  SELECT prior.* INTO STRICT r FROM zasp_connector_maintenance.reservations prior WHERE(prior.organization_id,prior.workspace_id,prior.environment_id,prior.effect_id)=(candidate.o,candidate.w,candidate.e,candidate.id) FOR UPDATE;
+  SELECT task.* INTO STRICT t FROM zasp_connector_maintenance.tasks task WHERE(task.organization_id,task.workspace_id,task.environment_id,task.effect_id)=(candidate.o,candidate.w,candidate.e,candidate.id);
+  IF n.operation IS DISTINCT FROM 'pkce_cleanup' OR n.status IS DISTINCT FROM 'unknown' OR n.attempt NOT BETWEEN 1 AND 99 OR r.state IS DISTINCT FROM 'attempted'
+  OR(n.lease_owner,n.lease_token,n.lease_expires_at,n.attempt) IS DISTINCT FROM(r.lease_owner,r.lease_token,r.expires_at,r.attempt)
+  OR r.expires_at>clock_timestamp() OR r.context_digest IS DISTINCT FROM zasp_connector_maintenance.effect_context(n) OR r.intent_digest IS DISTINCT FROM t.committed_effect_digest
+  OR t.state NOT IN('active','paused_denied') OR zasp_connector_maintenance.effect_matches(n,t) IS NOT TRUE
+  OR NOT EXISTS(SELECT 1 FROM zasp_connector_maintenance.projection_activations a JOIN zasp_authorization79.organizations v ON(v.organization_id,v.store_id,v.model_id)=(a.organization_id,a.store_id,a.model_id) JOIN zasp_approval_maintenance.registration approval ON approval.singleton AND approval.checksum=a.approval_checksum WHERE a.organization_id=t.organization_id AND a.source_checksum=pin AND zasp_approval_maintenance.catalog_ready() IS TRUE)
+  THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='connector compensation recovery source rejected';END IF;
+  -- Authenticate the immutable original provider receipt before checking the
+  -- latest owned lease; neither an effect ID nor a caller proof is authority.
+  IF zasp_sa_multistep_prior.closed(r.origin_receipt,ARRAY['body','version','mac']) IS NOT TRUE OR zasp_sa_multistep_prior.closed(r.captured_receipt,ARRAY['body','version','mac']) IS NOT TRUE
+  THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='connector compensation recovery receipt rejected';END IF;
+  SELECT key_material INTO STRICT key_value FROM zasp_connector_maintenance.verifiers WHERE(key_version,principal_name,purpose)=(r.origin_receipt->>'version',session_user,'connector-captured') FOR SHARE;
+  body_bytes:=decode(r.origin_receipt->>'body','base64');original_body:=convert_from(body_bytes,'UTF8')::jsonb;
+  IF octet_length(body_bytes)>65536 OR encode(public.hmac(convert_to('zasp-connector-captured-v1','UTF8')||decode('00','hex')||body_bytes,key_value,'sha256'),'hex') IS DISTINCT FROM r.origin_receipt->>'mac'
+  OR zasp_sa_multistep_prior.closed(original_body,ARRAY['purpose','key_version','reference','attempt','kind','forward_digest','lease_expires_at','session_user']) IS NOT TRUE
+  OR original_body->>'purpose' IS DISTINCT FROM 'connector-captured' OR original_body->>'key_version' IS DISTINCT FROM r.origin_receipt->>'version' OR original_body->>'session_user' IS DISTINCT FROM session_user
+  OR original_body->>'kind' IS DISTINCT FROM 'provider' OR jsonb_typeof(original_body->'attempt') IS DISTINCT FROM 'number' OR(original_body->>'attempt')::integer IS DISTINCT FROM r.attempt
+  OR original_body->>'forward_digest' IS NULL OR original_body->>'forward_digest'!~'^[a-f0-9]{64}$'
+  OR zasp_sa_multistep_prior.closed(original_body->'reference',ARRAY['organization_id','workspace_id','environment_id','effect_id','integration_id','lease_owner','lease_token','intent_digest']) IS NOT TRUE
+  OR(original_body->'reference'-ARRAY['lease_owner','lease_token']) IS DISTINCT FROM(zasp_connector_maintenance.reference(r,t)-ARRAY['lease_owner','lease_token'])
+  OR length(COALESCE(original_body#>>'{reference,lease_owner}','')) NOT BETWEEN 3 AND 128 OR COALESCE(original_body#>>'{reference,lease_token}','')!~'^[a-f0-9]{64}$'
+  OR original_body->>'lease_expires_at' IS NULL OR(original_body->>'lease_expires_at')::timestamptz>r.expires_at
+  THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='connector compensation recovery origin rejected';END IF;
+  original_digest:=encode(public.digest(convert_to(r.origin_receipt::text,'UTF8'),'sha256'),'hex');
+  SELECT key_material INTO STRICT key_value FROM zasp_connector_maintenance.verifiers WHERE(key_version,principal_name,purpose)=(r.captured_receipt->>'version',session_user,'connector-captured') FOR SHARE;
+  body_bytes:=decode(r.captured_receipt->>'body','base64');current_body:=convert_from(body_bytes,'UTF8')::jsonb;
+  IF octet_length(body_bytes)>65536 OR encode(public.hmac(convert_to('zasp-connector-captured-v1','UTF8')||decode('00','hex')||body_bytes,key_value,'sha256'),'hex') IS DISTINCT FROM r.captured_receipt->>'mac'
+  OR current_body->>'purpose' IS DISTINCT FROM 'connector-captured' OR current_body->>'key_version' IS DISTINCT FROM r.captured_receipt->>'version' OR current_body->>'session_user' IS DISTINCT FROM session_user
+  OR current_body->'reference' IS DISTINCT FROM zasp_connector_maintenance.reference(r,t) OR jsonb_typeof(current_body->'attempt') IS DISTINCT FROM 'number' OR(current_body->>'attempt')::integer IS DISTINCT FROM r.attempt
+  OR current_body->>'lease_expires_at' IS NULL OR(current_body->>'lease_expires_at')::timestamptz IS DISTINCT FROM r.expires_at OR current_body->>'forward_digest' IS DISTINCT FROM original_body->>'forward_digest'
+  OR CASE current_body->>'kind'
+   WHEN 'provider' THEN r.captured_receipt IS DISTINCT FROM r.origin_receipt
+   WHEN 'pkce_recovery' THEN zasp_sa_multistep_prior.closed(current_body,ARRAY['purpose','key_version','reference','attempt','kind','forward_digest','lease_expires_at','session_user','origin_digest']) IS NOT TRUE OR current_body->>'origin_digest' IS DISTINCT FROM original_digest
+   ELSE true END
+  THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='connector compensation recovery lineage rejected';END IF;
+  expiry_value:=clock_timestamp()+make_interval(secs=>lease_seconds);
+  r.lease_owner:=owner_value;r.lease_token:=encode(public.gen_random_bytes(32),'hex');r.expires_at:=expiry_value;
+  new_reference:=zasp_connector_maintenance.reference(r,t);
+  SELECT key_version,key_material INTO STRICT captured_version,key_value FROM zasp_connector_maintenance.verifiers WHERE principal_name=session_user AND purpose='connector-captured' FOR SHARE;
+  current_body:=jsonb_build_object('purpose','connector-captured','key_version',captured_version,'reference',new_reference,'attempt',r.attempt,'kind','pkce_recovery','forward_digest',original_body->>'forward_digest','lease_expires_at',expiry_value,'session_user',session_user,'origin_digest',original_digest);
+  body_bytes:=convert_to(current_body::text,'UTF8');receipt_value:=jsonb_build_object('body',encode(body_bytes,'base64'),'version',captured_version,'mac',encode(public.hmac(convert_to('zasp-connector-captured-v1','UTF8')||decode('00','hex')||body_bytes,key_value,'sha256'),'hex'));
+  IF expiry_value<=clock_timestamp() THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='connector compensation recovery deadline lost';END IF;
+  n.lease_owner:=r.lease_owner;n.lease_token:=r.lease_token;n.lease_expires_at:=expiry_value;
+  next_item:=jsonb_build_object('organization_id',n.organization_id,'workspace_id',n.workspace_id,'environment_id',n.environment_id,'id',n.id,'integration_id',n.integration_id,'oauth_attempt_id',n.oauth_attempt_id,'principal_id',(SELECT a.principal_id FROM public.zasp_connector_oauth_attempts a WHERE(a.organization_id,a.workspace_id,a.environment_id,a.id)=(n.organization_id,n.workspace_id,n.environment_id,n.oauth_attempt_id)),'requested_scopes',(SELECT a.requested_scopes FROM public.zasp_connector_oauth_attempts a WHERE(a.organization_id,a.workspace_id,a.environment_id,a.id)=(n.organization_id,n.workspace_id,n.environment_id,n.oauth_attempt_id)),'provider',n.provider,'operation',n.operation,'connection_reference',n.connection_reference,'idempotency_key',n.idempotency_key,'request_digest',encode(n.request_digest,'hex'),'intent_digest',encode(r.intent_digest,'hex'),'last_error_code',n.last_error_code,'attempt',n.attempt,'lease_owner',n.lease_owner,'lease_token',n.lease_token,'lease_expires_at',n.lease_expires_at,'captured_proof',receipt_value);
+  -- Fit the executor wire bound before committing any ownership transition.
+  IF octet_length(convert_to(jsonb_build_object('items',items_value||jsonb_build_array(next_item))::text,'UTF8'))>131072 THEN EXIT;END IF;
+  UPDATE public.zasp_connector_effects effect SET lease_owner=r.lease_owner,lease_token=r.lease_token,lease_expires_at=expiry_value,updated_at=transaction_timestamp() WHERE(effect.organization_id,effect.workspace_id,effect.environment_id,effect.id)=(r.organization_id,r.workspace_id,r.environment_id,r.effect_id) RETURNING effect.* INTO n;
+  UPDATE zasp_connector_maintenance.reservations prior SET lease_owner=r.lease_owner,lease_token=r.lease_token,expires_at=expiry_value,captured_receipt=receipt_value WHERE(prior.organization_id,prior.workspace_id,prior.environment_id,prior.effect_id)=(r.organization_id,r.workspace_id,r.environment_id,r.effect_id);
+  items_value:=items_value||jsonb_build_array(next_item);
+ END LOOP;
+ IF EXISTS(SELECT 1 FROM jsonb_array_elements(items_value) item WHERE(item->>'lease_expires_at')::timestamptz<=clock_timestamp()) THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='connector compensation recovery deadline lost';END IF;
+ RETURN jsonb_build_object('items',items_value);
+END $recover_compensation$;
 CREATE FUNCTION zasp_connector_maintenance.revision(o text,pin text,version_value text) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $revision$
 DECLARE result_value jsonb;BEGIN
  IF zasp_connector_maintenance.caller_ready(pin,version_value) IS NOT TRUE THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='connector caller unavailable';END IF;
@@ -390,7 +512,7 @@ DECLARE r zasp_connector_maintenance.reservations;t zasp_connector_maintenance.t
  r:=zasp_connector_maintenance.reserved(q,pin,version_value);
  SELECT * INTO STRICT t FROM zasp_connector_maintenance.tasks WHERE(organization_id,workspace_id,environment_id,effect_id)=(r.organization_id,r.workspace_id,r.environment_id,r.effect_id);
  SELECT * INTO STRICT n FROM public.zasp_connector_effects WHERE(organization_id,workspace_id,environment_id,id)=(r.organization_id,r.workspace_id,r.environment_id,r.effect_id);
- IF t.state NOT IN('active','paused_denied') OR n.operation NOT IN('authorize','revoke','pkce_cleanup') OR n.operation IS DISTINCT FROM t.operation OR n.attempt<>r.attempt OR n.attempt>=100
+ IF convert_from(decode(r.captured_receipt->>'body','base64'),'UTF8')::jsonb->>'kind'='pkce_recovery' OR t.state NOT IN('active','paused_denied') OR n.operation NOT IN('authorize','revoke','pkce_cleanup') OR n.operation IS DISTINCT FROM t.operation OR n.attempt<>r.attempt OR n.attempt>=100
  OR NOT EXISTS(SELECT 1 FROM zasp_connector_maintenance.projection_activations a JOIN zasp_authorization79.organizations v ON(v.organization_id,v.store_id,v.model_id)=(a.organization_id,a.store_id,a.model_id) JOIN zasp_approval_maintenance.registration approval ON approval.singleton AND approval.checksum=a.approval_checksum WHERE a.organization_id=t.organization_id AND a.source_checksum=pin AND zasp_approval_maintenance.catalog_ready() IS TRUE)
  THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='connector forward source unavailable';END IF;
  RETURN jsonb_build_object('profile_checksum',pin,'context_digest',encode(r.context_digest,'hex'),'reference',q,'task_id',t.task_id,'purpose',t.purpose,'grantor_id',t.grantor_id,'principal_id',t.principal_id,'source_profile',t.source_profile,'source_proof_digest',encode(t.source_proof_digest,'hex'),'committed_request_digest',encode(t.committed_request_digest,'hex'),'committed_effect_digest',encode(t.committed_effect_digest,'hex'),'operation',n.operation,'attempt',n.attempt,'lease_expires_at',r.expires_at,'session_user',session_user);
@@ -443,12 +565,12 @@ DECLARE r zasp_connector_maintenance.reservations;forward_value jsonb;body_value
  IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='connector attempt lease lost';END IF;
  body_value:=json_build_object('purpose','connector-captured','key_version',captured_version,'reference',q,'attempt',r.attempt+1,'kind',kind_value,'forward_digest',encode(public.digest(convert_to(envelope_value::text,'UTF8'),'sha256'),'hex'),'lease_expires_at',r.expires_at,'session_user',session_user);
  receipt_value:=jsonb_build_object('body',encode(convert_to(body_value::text,'UTF8'),'base64'),'version',captured_version,'mac',encode(public.hmac(convert_to('zasp-connector-captured-v1','UTF8')||decode('00','hex')||convert_to(body_value::text,'UTF8'),key_value,'sha256'),'hex'));
- UPDATE zasp_connector_maintenance.reservations SET state='attempted',attempt=attempt+1,captured_receipt=receipt_value WHERE(organization_id,workspace_id,environment_id,effect_id)=(r.organization_id,r.workspace_id,r.environment_id,r.effect_id);
+ UPDATE zasp_connector_maintenance.reservations SET state='attempted',attempt=attempt+1,captured_receipt=receipt_value,origin_receipt=receipt_value WHERE(organization_id,workspace_id,environment_id,effect_id)=(r.organization_id,r.workspace_id,r.environment_id,r.effect_id);
  UPDATE zasp_connector_maintenance.tasks SET state='active' WHERE(organization_id,workspace_id,environment_id,effect_id)=(r.organization_id,r.workspace_id,r.environment_id,r.effect_id) AND state='paused_denied';
  RETURN jsonb_build_object('created',true,'attempt',r.attempt+1,'captured_proof',receipt_value);
 END $begin$;
 CREATE FUNCTION zasp_connector_maintenance.captured(q jsonb,envelope_value json,pin text,version_value text) RETURNS zasp_connector_maintenance.reservations LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $captured$
-DECLARE r zasp_connector_maintenance.reservations;body_bytes bytea;body_value jsonb;key_value bytea;BEGIN
+DECLARE r zasp_connector_maintenance.reservations;body_bytes bytea;body_value jsonb;key_value bytea;origin_bytes bytea;origin_body jsonb;BEGIN
  r:=zasp_connector_maintenance.reserved(q,pin,version_value);
  IF r.state IS DISTINCT FROM 'attempted' OR r.captured_receipt IS DISTINCT FROM envelope_value::jsonb
  OR zasp_sa_multistep_prior.closed(envelope_value::jsonb,ARRAY['body','version','mac']) IS NOT TRUE THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='connector captured receipt rejected';END IF;
@@ -458,12 +580,32 @@ DECLARE r zasp_connector_maintenance.reservations;body_bytes bytea;body_value js
  OR body_value->>'purpose' IS DISTINCT FROM 'connector-captured' OR body_value->>'session_user' IS DISTINCT FROM session_user
  OR body_value->'reference' IS DISTINCT FROM q OR(body_value->>'attempt')::integer IS DISTINCT FROM r.attempt OR(body_value->>'lease_expires_at')::timestamptz IS DISTINCT FROM r.expires_at
  OR r.expires_at<=clock_timestamp() THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='connector captured receipt rejected';END IF;
+ IF body_value->>'kind'='pkce_recovery' THEN
+  IF zasp_sa_multistep_prior.closed(body_value,ARRAY['purpose','key_version','reference','attempt','kind','forward_digest','lease_expires_at','session_user','origin_digest']) IS NOT TRUE
+  OR body_value->>'key_version' IS DISTINCT FROM envelope_value->>'version' OR r.attempt NOT BETWEEN 1 AND 99
+  OR NOT EXISTS(SELECT 1 FROM public.zasp_connector_effects effect WHERE(effect.organization_id,effect.workspace_id,effect.environment_id,effect.id)=(r.organization_id,r.workspace_id,r.environment_id,r.effect_id) AND effect.operation='pkce_cleanup')
+  OR zasp_sa_multistep_prior.closed(r.origin_receipt,ARRAY['body','version','mac']) IS NOT TRUE
+  OR body_value->>'origin_digest' IS DISTINCT FROM encode(public.digest(convert_to(r.origin_receipt::text,'UTF8'),'sha256'),'hex')
+  THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='connector captured recovery purpose rejected';END IF;
+  SELECT key_material INTO STRICT key_value FROM zasp_connector_maintenance.verifiers WHERE(key_version,principal_name,purpose)=(r.origin_receipt->>'version',session_user,'connector-captured') FOR SHARE;
+  origin_bytes:=decode(r.origin_receipt->>'body','base64');origin_body:=convert_from(origin_bytes,'UTF8')::jsonb;
+  IF octet_length(origin_bytes)>65536 OR encode(public.hmac(convert_to('zasp-connector-captured-v1','UTF8')||decode('00','hex')||origin_bytes,key_value,'sha256'),'hex') IS DISTINCT FROM r.origin_receipt->>'mac'
+  OR zasp_sa_multistep_prior.closed(origin_body,ARRAY['purpose','key_version','reference','attempt','kind','forward_digest','lease_expires_at','session_user']) IS NOT TRUE
+  OR origin_body->>'purpose' IS DISTINCT FROM 'connector-captured' OR origin_body->>'key_version' IS DISTINCT FROM r.origin_receipt->>'version' OR origin_body->>'session_user' IS DISTINCT FROM session_user OR origin_body->>'kind' IS DISTINCT FROM 'provider'
+  OR jsonb_typeof(origin_body->'attempt') IS DISTINCT FROM 'number' OR(origin_body->>'attempt')::integer IS DISTINCT FROM r.attempt
+  OR origin_body->>'forward_digest' IS DISTINCT FROM body_value->>'forward_digest'
+  OR zasp_sa_multistep_prior.closed(origin_body->'reference',ARRAY['organization_id','workspace_id','environment_id','effect_id','integration_id','lease_owner','lease_token','intent_digest']) IS NOT TRUE
+  OR(origin_body->'reference'-ARRAY['lease_owner','lease_token']) IS DISTINCT FROM(q-ARRAY['lease_owner','lease_token'])
+  OR origin_body->>'lease_expires_at' IS NULL OR(origin_body->>'lease_expires_at')::timestamptz>=r.expires_at
+  THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='connector captured recovery origin rejected';END IF;
+ END IF;
  RETURN r;
 END $captured$;
 CREATE FUNCTION zasp_connector_maintenance.validate_captured(q jsonb,envelope_value json,pin text,version_value text) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $validate$
-BEGIN
- PERFORM zasp_connector_maintenance.captured(q,envelope_value,pin,version_value);
- IF convert_from(decode(envelope_value->>'body','base64'),'UTF8')::jsonb->>'kind' IS DISTINCT FROM 'provider' THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='connector compensation purpose rejected';END IF;
+DECLARE r zasp_connector_maintenance.reservations;kind_value text;BEGIN
+ r:=zasp_connector_maintenance.captured(q,envelope_value,pin,version_value);
+ kind_value:=convert_from(decode(envelope_value->>'body','base64'),'UTF8')::jsonb->>'kind';
+ IF kind_value IS DISTINCT FROM 'provider' AND kind_value IS DISTINCT FROM 'pkce_recovery' THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='connector compensation purpose rejected';END IF;
  RETURN jsonb_build_object('valid',true);
 END $validate$;
 CREATE FUNCTION zasp_connector_maintenance.settle(q jsonb,envelope_value json,transition_value text,pin text,version_value text) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $settle$
@@ -471,7 +613,8 @@ DECLARE r zasp_connector_maintenance.reservations;ref jsonb;payload jsonb;result
  IF zasp_sa_multistep_prior.closed(q,ARRAY['reference','payload']) IS NOT TRUE THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='connector settlement shape rejected';END IF;
  ref:=q->'reference';payload:=q->'payload';r:=zasp_connector_maintenance.captured(ref,envelope_value,pin,version_value);
  SELECT * INTO STRICT n FROM public.zasp_connector_effects WHERE(organization_id,workspace_id,environment_id,id)=(r.organization_id,r.workspace_id,r.environment_id,r.effect_id);
- IF transition_value NOT IN('fail','quarantine') AND convert_from(decode(envelope_value->>'body','base64'),'UTF8')::jsonb->>'kind' IS DISTINCT FROM 'provider' THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='connector settlement attempt rejected';END IF;
+ IF convert_from(decode(envelope_value->>'body','base64'),'UTF8')::jsonb->>'kind'='pkce_recovery' AND transition_value IS DISTINCT FROM 'complete_pkce_cleanup' THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='connector recovery settlement purpose rejected';END IF;
+ IF transition_value NOT IN('fail','quarantine','complete_pkce_cleanup') AND convert_from(decode(envelope_value->>'body','base64'),'UTF8')::jsonb->>'kind' IS DISTINCT FROM 'provider' OR transition_value='complete_pkce_cleanup' AND convert_from(decode(envelope_value->>'body','base64'),'UTF8')::jsonb->>'kind' NOT IN('provider','pkce_recovery') THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='connector settlement attempt rejected';END IF;
  -- Captured settlement is exact attempted-lease compensation. It deliberately
  -- does not repeat forward FGA authorization or authorize another provider call.
  IF transition_value IS NULL OR jsonb_typeof(payload) IS DISTINCT FROM 'object'
@@ -514,7 +657,7 @@ CREATE FUNCTION zasp_connector_maintenance.register_principal(login_value name,f
 BEGIN
  IF zasp_authorization79.operator() IS NOT TRUE
  OR NOT EXISTS(SELECT 1 FROM public.zasp_discovery_principal_bindings WHERE principal_name=login_value AND authority_role='zasp_outbox_worker')
- OR NOT EXISTS(SELECT 1 FROM pg_roles p WHERE p.rolname=login_value AND p.rolcanlogin AND NOT(p.rolsuper OR p.rolcreatedb OR p.rolcreaterole OR p.rolreplication OR p.rolbypassrls OR p.rolinherit)
+ OR NOT EXISTS(SELECT 1 FROM pg_roles p WHERE p.rolname=login_value AND p.rolcanlogin AND p.rolinherit AND NOT(p.rolsuper OR p.rolcreatedb OR p.rolcreaterole OR p.rolreplication OR p.rolbypassrls)
  AND pg_has_role(p.oid,'zasp_outbox_worker'::regrole,'MEMBER') AND NOT EXISTS(SELECT 1 FROM pg_auth_members m WHERE m.member=p.oid AND(m.roleid<>'zasp_outbox_worker'::regrole OR m.admin_option)))
  OR forward_key IS NULL OR captured_key IS NULL OR octet_length(forward_key)<>32 OR octet_length(captured_key)<>32
  OR forward_key=captured_key OR forward_version IS DISTINCT FROM encode(public.digest(forward_key,'sha256'),'hex') OR captured_version IS DISTINCT FROM encode(public.digest(captured_key,'sha256'),'hex')
@@ -850,7 +993,7 @@ GRANT USAGE ON SCHEMA zasp_connector_maintenance TO zasp_discovery_api,zasp_outb
 GRANT EXECUTE ON FUNCTION zasp_connector_maintenance.capture_pkce_cleanup(text,text,text,text,text,text,text,text,text,bytea,timestamptz,text) TO zasp_discovery_api;
 GRANT EXECUTE ON FUNCTION zasp_connector_maintenance.caller_ready(text,text) TO zasp_outbox_worker;
 GRANT EXECUTE ON FUNCTION zasp_connector_maintenance.register_principal(name,text,text,bytea,bytea) TO zasp_discovery_authority;
-GRANT EXECUTE ON FUNCTION zasp_connector_maintenance.source(jsonb,text,text),zasp_connector_maintenance.revision(text,text,text),zasp_connector_maintenance.recover(jsonb,text,text),zasp_connector_maintenance.reserve(jsonb,text,text),zasp_connector_maintenance.release(jsonb,boolean,text,text),zasp_connector_maintenance.begin_attempt(jsonb,text,json,text,text),zasp_connector_maintenance.workflow(jsonb,json,text,text),zasp_connector_maintenance.settle(jsonb,json,text,text,text) TO zasp_outbox_worker;
+GRANT EXECUTE ON FUNCTION zasp_connector_maintenance.source(jsonb,text,text),zasp_connector_maintenance.revision(text,text,text),zasp_connector_maintenance.recover(jsonb,text,text),zasp_connector_maintenance.recover_compensation(jsonb,text,text),zasp_connector_maintenance.reserve(jsonb,text,text),zasp_connector_maintenance.release(jsonb,boolean,text,text),zasp_connector_maintenance.begin_attempt(jsonb,text,json,text,text),zasp_connector_maintenance.workflow(jsonb,json,text,text),zasp_connector_maintenance.settle(jsonb,json,text,text,text) TO zasp_outbox_worker;
 GRANT EXECUTE ON FUNCTION zasp_connector_maintenance.validate_captured(jsonb,json,text,text) TO zasp_outbox_worker;
 
 GRANT EXECUTE ON FUNCTION zasp_connector_maintenance.projection_profile_state(),zasp_connector_maintenance.snapshot(text,text,text) TO zasp_outbox_worker;

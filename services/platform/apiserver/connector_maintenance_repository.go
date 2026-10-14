@@ -3,6 +3,7 @@ package apiserver
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -18,6 +19,7 @@ type nativeConnectorReservation struct {
 	reference connectormaintenance.Reference
 	lease     ConnectorEffectLease
 	captured  json.RawMessage
+	recovery  bool
 }
 
 type NativeConnectorRepository struct {
@@ -86,49 +88,30 @@ func (r *NativeConnectorRepository) ClaimReconciliation(ctx context.Context, own
 	if !validNativeConnectorRepository(r, ctx) || len(owner) < 3 || len(owner) > 128 || seconds < 5 || seconds > 300 || limit < 1 || limit > 100 {
 		return nil, ErrRepositoryOperation
 	}
+	// Recovery owns only expired, authentic PKCE compensation. Its native
+	// admission never requires or grants a new forward authorization.
 	q, _ := json.Marshal(map[string]any{"owner": owner, "seconds": seconds, "limit": limit})
-	raw, err := r.executor.Invoke(ctx, connectormaintenance.ReserveReconciliation, q, nil)
+	raw, err := r.executor.Invoke(ctx, connectormaintenance.RecoverCompensation, q, nil)
 	if err != nil {
 		return nil, connectorNativeError(err)
 	}
-	var page struct {
-		Items []json.RawMessage `json:"items"`
+	leases, pending, err := decodeNativeConnectorClaims(raw, owner, seconds, limit, true)
+	if err != nil {
+		return nil, err
 	}
-	if decodeStrictDiscovery(raw, &page) != nil || page.Items == nil || len(page.Items) > limit {
-		return nil, ErrRepositoryUnavailable
+	// Return an admitted recovery page directly. An unrelated forward-lane
+	// failure must not discard already committed compensation ownership.
+	if len(leases) == 0 {
+		raw, err = r.executor.Invoke(ctx, connectormaintenance.ReserveReconciliation, q, nil)
+		if err != nil {
+			return nil, connectorNativeError(err)
+		}
+		leases, pending, err = decodeNativeConnectorClaims(raw, owner, seconds, limit, false)
+		if err != nil {
+			return nil, err
+		}
 	}
-	leases := make([]ConnectorEffectLease, 0, len(page.Items))
-	pending := make(map[string]*nativeConnectorReservation, len(page.Items))
-	for _, item := range page.Items {
-		// Admission remains strict after removing this ONE separately bounded field.
-		var object map[string]json.RawMessage
-		if json.Unmarshal(item, &object) != nil {
-			return nil, ErrRepositoryUnavailable
-		}
-		var intent string
-		if json.Unmarshal(object["intent_digest"], &intent) != nil {
-			return nil, ErrRepositoryUnavailable
-		}
-		delete(object, "intent_digest")
-		remaining, _ := json.Marshal(object)
-		var lease ConnectorEffectLease
-		if decodeStrictDiscovery(remaining, &lease) != nil {
-			return nil, ErrRepositoryUnavailable
-		}
-		check := lease
-		check.Attempt++
-		digest, err := hex.DecodeString(intent)
-		if err != nil || len(digest) != 32 || hex.EncodeToString(digest) != intent || !validConnectorLease(check) || lease.Attempt < 0 || lease.Attempt >= 100 || lease.LeaseOwner != owner || lease.LeaseExpiresAt.After(time.Now().Add(time.Duration(seconds)*time.Second+time.Second)) || !stringIn(lease.Operation, "authorize", "revoke", "pkce_cleanup") {
-			return nil, ErrRepositoryUnavailable
-		}
-		key := nativeConnectorKey(lease)
-		if pending[key] != nil {
-			return nil, ErrRepositoryUnavailable
-		}
-		ref := connectormaintenance.Reference{Organization: lease.OrganizationID, Workspace: lease.WorkspaceID, Environment: lease.EnvironmentID, Effect: lease.ID, Integration: lease.IntegrationID, Owner: lease.LeaseOwner, Token: lease.LeaseToken, IntentDigest: intent}
-		pending[key] = &nativeConnectorReservation{reference: ref, lease: lease}
-		leases = append(leases, lease)
-	}
+
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for key, value := range r.reservations {
@@ -136,13 +119,121 @@ func (r *NativeConnectorRepository) ClaimReconciliation(ctx context.Context, own
 			delete(r.reservations, key)
 		}
 	}
-	for key, value := range pending {
-		if previous := r.reservations[key]; previous != nil {
+	for key := range pending {
+		if r.reservations[key] != nil {
 			return nil, ErrRepositoryUnavailable
 		}
+	}
+	for key, value := range pending {
 		r.reservations[key] = value
 	}
 	return leases, nil
+}
+
+// decodeNativeConnectorClaims accepts the native operation's exact response,
+// never a caller-supplied recovery flag or an arbitrary pre-existing lease.
+func decodeNativeConnectorClaims(raw json.RawMessage, owner string, seconds, limit int, recovery bool) ([]ConnectorEffectLease, map[string]*nativeConnectorReservation, error) {
+	var page struct {
+		Items []json.RawMessage `json:"items"`
+	}
+	if decodeStrictDiscovery(raw, &page) != nil || page.Items == nil || len(page.Items) > limit {
+		return nil, nil, ErrRepositoryUnavailable
+	}
+	leases := make([]ConnectorEffectLease, 0, len(page.Items))
+	pending := make(map[string]*nativeConnectorReservation, len(page.Items))
+	for _, item := range page.Items {
+		var object map[string]json.RawMessage
+		if json.Unmarshal(item, &object) != nil {
+			return nil, nil, ErrRepositoryUnavailable
+		}
+		var intent string
+		if json.Unmarshal(object["intent_digest"], &intent) != nil {
+			return nil, nil, ErrRepositoryUnavailable
+		}
+		delete(object, "intent_digest")
+		captured := object["captured_proof"]
+		if recovery {
+			delete(object, "captured_proof")
+		}
+		remaining, _ := json.Marshal(object)
+		var lease ConnectorEffectLease
+		if decodeStrictDiscovery(remaining, &lease) != nil {
+			return nil, nil, ErrRepositoryUnavailable
+		}
+		check := lease
+		if !recovery {
+			check.Attempt++
+		}
+		digest, err := hex.DecodeString(intent)
+		now := time.Now()
+		if err != nil || len(digest) != 32 || hex.EncodeToString(digest) != intent || !validConnectorLease(check) || lease.Attempt < 0 || lease.Attempt >= 100 || lease.LeaseOwner != owner || !lease.LeaseExpiresAt.After(now) || lease.LeaseExpiresAt.After(now.Add(time.Duration(seconds)*time.Second+time.Second)) || !stringIn(lease.Operation, "authorize", "revoke", "pkce_cleanup") {
+			return nil, nil, ErrRepositoryUnavailable
+		}
+		ref := connectormaintenance.Reference{Organization: lease.OrganizationID, Workspace: lease.WorkspaceID, Environment: lease.EnvironmentID, Effect: lease.ID, Integration: lease.IntegrationID, Owner: lease.LeaseOwner, Token: lease.LeaseToken, IntentDigest: intent}
+		if recovery && (lease.Operation != "pkce_cleanup" || !validNativePKCERecoveryProof(captured, ref, lease)) {
+			return nil, nil, ErrRepositoryUnavailable
+		}
+		key := nativeConnectorKey(lease)
+		if pending[key] != nil {
+			return nil, nil, ErrRepositoryUnavailable
+		}
+		pending[key] = &nativeConnectorReservation{reference: ref, lease: lease, captured: append(json.RawMessage(nil), captured...), recovery: recovery}
+		leases = append(leases, lease)
+	}
+	return leases, pending, nil
+}
+
+// SQL verifies the HMAC and authentic lineage. This second boundary rejects a
+// malformed native response before it can enter the process reservation map.
+func validNativePKCERecoveryProof(raw json.RawMessage, ref connectormaintenance.Reference, lease ConnectorEffectLease) bool {
+	if len(raw) == 0 || len(raw) > 65536 {
+		return false
+	}
+	var envelope struct {
+		Body    string `json:"body"`
+		Version string `json:"version"`
+		MAC     string `json:"mac"`
+	}
+	if decodeStrictDiscovery(raw, &envelope) != nil {
+		return false
+	}
+	validDigest := func(value string) bool {
+		decoded, err := hex.DecodeString(value)
+		return err == nil && len(decoded) == 32 && hex.EncodeToString(decoded) == value
+	}
+	if !validDigest(envelope.Version) || !validDigest(envelope.MAC) {
+		return false
+	}
+	body, err := base64.StdEncoding.DecodeString(envelope.Body)
+	if err != nil || len(body) > 65536 {
+		return false
+	}
+	var receipt struct {
+		Purpose       string                         `json:"purpose"`
+		Version       string                         `json:"key_version"`
+		Reference     connectormaintenance.Reference `json:"reference"`
+		Attempt       int                            `json:"attempt"`
+		Kind          string                         `json:"kind"`
+		ForwardDigest string                         `json:"forward_digest"`
+		Expires       time.Time                      `json:"lease_expires_at"`
+		SessionUser   string                         `json:"session_user"`
+		OriginDigest  string                         `json:"origin_digest"`
+	}
+	return decodeStrictDiscovery(body, &receipt) == nil && receipt.Purpose == "connector-captured" && receipt.Version == envelope.Version && receipt.Reference == ref && receipt.Attempt == lease.Attempt && receipt.Attempt > 0 && receipt.Kind == "pkce_recovery" && validDigest(receipt.ForwardDigest) && validDigest(receipt.OriginDigest) && receipt.Expires.Equal(lease.LeaseExpiresAt) && len(receipt.SessionUser) > 0 && len(receipt.SessionUser) <= 63
+}
+
+func (r *NativeConnectorRepository) preparePKCECleanup(ctx context.Context, lease *ConnectorEffectLease) error {
+	if !validNativeConnectorRepository(r, ctx) || lease == nil || lease.Operation != "pkce_cleanup" {
+		return ErrRepositoryUnavailable
+	}
+	state, ok := r.reservation(nativeConnectorKey(*lease))
+	if !ok || !connectorNativeLeaseEqual(*lease, state.lease) {
+		return ErrRepositoryUnavailable
+	}
+	if state.recovery {
+		return r.compensation(ctx, *lease)
+	}
+	return r.prepare(ctx, lease, true)
 }
 
 // prepare begins only the actual first effect, after live authorization. A
@@ -155,6 +246,9 @@ func (r *NativeConnectorRepository) prepare(ctx context.Context, lease *Connecto
 	state, ok := r.reservation(key)
 	if !ok || !connectorNativeLeaseEqual(*lease, state.lease) {
 		return ErrRepositoryUnavailable
+	}
+	if state.recovery {
+		return ErrAuthorizationDenied
 	}
 	phase := connectormaintenance.BeforeProvider
 	if secret {
@@ -244,6 +338,9 @@ func (r *NativeConnectorRepository) GetWorkflow(ctx context.Context, scope domai
 	if !ok || state.reference.Organization != scope.OrganizationID().String() || state.reference.Workspace != scope.WorkspaceID().String() || state.reference.Environment != scope.EnvironmentID().String() || state.reference.Integration != id {
 		return result, ErrRepositoryUnavailable
 	}
+	if state.recovery {
+		return result, ErrAuthorizationDenied
+	}
 	proof, err := r.authority.Authorize(ctx, state.reference, connectormaintenance.BeforeMetadata)
 	if err != nil {
 		return result, connectorNativeError(err)
@@ -265,6 +362,9 @@ func (r *NativeConnectorRepository) settlement(ctx context.Context, op connector
 	state, ok := r.reservation(nativeConnectorKey(lease))
 	if !ok || len(state.captured) == 0 || !connectorNativeLeaseEqual(lease, state.lease) {
 		return nil, ErrRepositoryUnavailable
+	}
+	if state.recovery && op != connectormaintenance.CompletePKCECleanup {
+		return nil, ErrAuthorizationDenied
 	}
 	q, err := json.Marshal(map[string]any{"reference": state.reference, "payload": payload})
 	if err != nil {

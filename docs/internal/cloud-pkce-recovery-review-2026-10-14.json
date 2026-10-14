@@ -1,0 +1,93 @@
+{
+  "base_commit": "344699dbb01a827aec5ea2c6bf270b4943552a5d",
+  "bound_files": [
+    {
+      "path": "services/platform/migrations/sql/connector_maintenance_profile.sql",
+      "sha256": "cd4e72588eeb073488d7d2b5a2077913c13672d278377db4acc3f09683c84692"
+    },
+    {
+      "path": "services/platform/apiserver/connector_maintenance_repository.go",
+      "sha256": "0726280a4aaac1ca023317609910210eded8ee4e613ddf5f7351430d975e880a"
+    },
+    {
+      "path": "services/platform/apiserver/connector_reconciler.go",
+      "sha256": "a95c6b80c40a9ce9ceb2cfa153dc346d06464c194f55cc7caea99a635670a1c6"
+    },
+    {
+      "path": "services/platform/apiserver/production.go",
+      "sha256": "ca69d1bf4f7d6d0a94c68529f117a55d6e786aba437b9c55a0ee42c9af117c3c"
+    },
+    {
+      "path": "services/platform/connectormaintenance/executor.go",
+      "sha256": "b8297f04701e4c5229a05cbefeaea1427d328bddde9a39a4d03e8e1902de59de"
+    },
+    {
+      "path": "services/platform/apiserver/connector_maintenance_pkce_recovery_test.go",
+      "sha256": "d6bf400a66775866e607040055382203b6c9b99311afd5001d338a4c8b6254f8"
+    },
+    {
+      "path": "services/platform/apiserver/connector_maintenance_recovery_decode_test.go",
+      "sha256": "08ad69924af72241a35c146e371c2a2ec955a25a8af16cfee81537073335c8f1"
+    }
+  ],
+  "date_utc": "2026-10-14",
+  "findings_resolved": [
+    {
+      "finding": "Recovery-first admission rejected genuine secret_failure preparation retry before normal reserve could run",
+      "resolution": "Compensation candidates exclude authentic exact-old-lease preparation retry; normal reserve authenticates and atomically archives prior receipt before new live authorization"
+    },
+    {
+      "finding": "Successful recovery ownership could be dropped when unrelated subsequent forward reservation failed",
+      "resolution": "Return accepted recovery page directly; normal reserve runs only when recovery page is empty"
+    },
+    {
+      "finding": "Transaction-start expiry could already be stale after lock contention; final-page expiry guard was misplaced in empty-page branch",
+      "resolution": "Issue recovery expiry from clock_timestamp and validate all returned lease deadlines immediately before final return"
+    },
+    {
+      "finding": "Recovery response could exceed executor wire bound after ownership commit",
+      "resolution": "Check aggregate serialized response size before each ownership transition, with bounded page size"
+    },
+    {
+      "finding": "Original provider-call assertion observed an unrelated fixture dependency",
+      "resolution": "Install strict counted provider and workflow dependencies actually used by recovery worker"
+    },
+    {
+      "finding": "Recovery needed native forward and settlement purpose fences independent of application recovery flag",
+      "resolution": "Native source rejects pkce_recovery and native settlement admits only complete_pkce_cleanup for that kind"
+    }
+  ],
+  "limitations": [
+    "Source review is not execution evidence",
+    "No claim of production task promotion or deployed acceptance",
+    "Callback crash bridge, provider compensation, fleet restart exclusion and full deployed acceptance remain outside this batch",
+    "Workflow and runner pins are outside these bound files and require separate validation"
+  ],
+  "repository_mutations_by_reviewer": false,
+  "result": "source-review-pass-native-acceptance-required",
+  "review_kind": "independent read-only source review",
+  "reviewer": "recovery_security_review",
+  "schema": "zasp-independent-source-review-v1",
+  "scope": [
+    "Bounded PKCE worker restart compensation recovery for authentic expired attempted leases",
+    "Exact source, principal, context, HMAC, reference, intent and expiry validation",
+    "Exclusive lease rotation without incrementing attempted provider execution",
+    "Immutable original captured receipt lineage and bounded preparation retry evidence",
+    "Application and native rejection of forward/provider/metadata/unrelated settlement from recovery",
+    "Exact PKCE Delete and completion; no verifier consumption or provider access",
+    "Genuine native fixture construction and strict actual worker dependency observations"
+  ],
+  "source_assessment": [
+    "No remaining actionable security or correctness finding identified in the bound reviewed scope",
+    "Recovery receipts retain immutable origin digest without recursively nesting envelopes",
+    "Live lease adoption, changed scope/reference, stale lease and terminal replay are refused",
+    "Secret deletion failure does not produce successful cleanup settlement or audit receipt"
+  ],
+  "tests_not_run": [
+    "All Go component and native PostgreSQL/OpenFGA acceptance tests",
+    "UI typecheck and production build",
+    "Hosted workflow, source pin and runner binding checks",
+    "Deployed end-to-end/provider acceptance"
+  ],
+  "tests_run_by_reviewer": []
+}

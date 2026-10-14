@@ -33,6 +33,7 @@ const (
 	CompleteRevocation
 	ReadWorkflow
 	BeforeCompensation
+	RecoverCompensation
 )
 
 type Executor struct {
@@ -163,6 +164,11 @@ func (e *Executor) Invoke(ctx context.Context, op Operation, request json.RawMes
 			return nil, ErrUnavailable
 		}
 		return e.query(ctx, `SELECT zasp_connector_maintenance.recover($1::jsonb,$2,$3)`, request, e.profile, e.version)
+	case RecoverCompensation:
+		if len(proof) != 0 {
+			return nil, ErrUnavailable
+		}
+		return e.query(ctx, `SELECT zasp_connector_maintenance.recover_compensation($1::jsonb,$2,$3)`, request, e.profile, e.version)
 	case ReserveReconciliation:
 		if len(proof) != 0 {
 			return nil, ErrUnavailable
