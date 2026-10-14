@@ -1,5 +1,29 @@
 # Agent Security Platform Implementation Status
 
+## Bounded health-probe observation checkpoint, October 14, 2026
+
+The API now runs its two original role-specific native readiness queries first,
+in parallel, then reuses only their identical validated release/principal
+observations within that one component callback and remaining original deadline.
+Product authorization, identity, source/export and connector-native checks remain
+live. Pointer/role/pin/cancellation bounds prevent reuse across probes or after
+callback return. This is not an atomic PostgreSQL snapshot or a deployed proof.
+
+Affected component verification passes 12 groups / 48 named events, including
+concurrent query counts, exact metadata pins, next-probe refusal, canceled and
+escaped contexts, and independent product authorization denial. Source review
+passes. The initial compile RED is retained and is not claimed as behavior-first
+TDD. Hosted browser performance and native DDL/revocation acceptance remain open.
+
+A separate deterministic startup gap remains: the owned browser configures
+current80 but neither secure connector nor approval maintenance profile, selecting
+legacy workers whose ambient claims are correctly denied. Both secure worker
+profiles, distinct principals/keys and controlled fixture cutover must be connected;
+readiness is not waived. This supports M1-28a/M1-28b/M1-28 without promoting any
+original task. All 728 rows retain 523/144/61 categories and zero promotions.
+See the [health checkpoint](cloud-health-probe-checkpoint-2026-10-14.json).
+
+
 ## Callback crash compensation checkpoint, October 14, 2026
 
 The inactive connector candidate now connects expired pre-provider callbacks to

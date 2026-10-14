@@ -15,6 +15,10 @@ import { loadOfficialHeldTool, spawnHeldTool, closeHeldTool, verifyHeldTool } fr
 // Connected application acceptance using original signed native admissions. No production credentials, fleet admission or deployment proof.
 const image = 'postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba';
 const pins = {
+  "services/platform/agentsec-api/bounded_parallel_readiness_test.go": "4a82a77cf64184177b7f7bde1ee56d736e5d9bd6624b7174e9f45e9a48043951",
+  "services/platform/apiserver/authorization_readiness.go": "ad1a94117de4e63b9c7ef15faf4c4744e6a6675b44ad6da1d7991cb63fcb683a",
+  "services/platform/apiserver/current_authorization_health_probe_test.go": "09361c7c963d5f3d508b9c534d92c5b7d6bcf2f19c4c46b8413088c0b974c593",
+  "services/platform/apiserver/current_authorization_health_probe.go": "3bed74745ef1056405965605ea6c45b949e842bf29065e8665e7900ec3cd8a66",
   "services/platform/connectormaintenancecutover/coordinator_test.go": "77160f406d7637a2d4372511e2e319e874bcc46494bb4d492ba260dc01f15b3e",
   "services/platform/apiserver/connector_maintenance_catalog_diagnostic_test.go": "fb4add6de1bfad2e20311e5da0fb82f215eacb456ea588de8bbea2a890566868",
   "services/platform/apiserver/connector_maintenance_callback_restart_postgres_test.go": "203a8a388ccfad5e5caaadab7c7c6b6b0045d32c5f5be57cfffddfbf9c0c8512",
@@ -61,7 +65,7 @@ const pins = {
   "services/platform/apiserver/production.go": "ca69d1bf4f7d6d0a94c68529f117a55d6e786aba437b9c55a0ee42c9af117c3c",
   "services/platform/apiserver/connector_maintenance_pkce_recovery_test.go": "c340f800aba6d297cfdcf976eda67406fe8cb08d10333927c93b33f6a9eabc94",
   "services/platform/apiserver/connector_maintenance_recovery_decode_test.go": "08ad69924af72241a35c146e371c2a2ec955a25a8af16cfee81537073335c8f1",
-  "services/platform/agentsec-api/authorization_runtime_readiness.go": "9a3901f7d3ac21b22807b74c4c2f1a2a15da43a3e8f6236073ee8329f257f77e",
+  "services/platform/agentsec-api/authorization_runtime_readiness.go": "33d0478de4ed7db1b79ad12fe63fb117965bb95cef770f999ab4ef35f015284d",
   "services/platform/agentsec-api/authorization_runtime_readiness_test.go": "ce2482c386799ad758b374d4e823a0e797cb907cf01daad2c449eb68fb3eb781",
   "scripts/browser-command-failure.test.mjs": "d080296bbc585802d4f531caa5e29ea0306d2b42243bb9e34a5e29f19659ef09"
 };

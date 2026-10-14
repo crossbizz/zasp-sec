@@ -13,6 +13,11 @@ import { loadOfficialHeldTool, spawnHeldTool, closeHeldTool, verifyHeldTool } fr
 // Existing authenticated enqueue application group; no added cases, production credentials or deployment.
 const image = 'postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba';
 const pins = {
+  "services/platform/agentsec-api/bounded_parallel_readiness_test.go": "4a82a77cf64184177b7f7bde1ee56d736e5d9bd6624b7174e9f45e9a48043951",
+  "services/platform/agentsec-api/authorization_runtime_readiness.go": "33d0478de4ed7db1b79ad12fe63fb117965bb95cef770f999ab4ef35f015284d",
+  "services/platform/apiserver/authorization_readiness.go": "ad1a94117de4e63b9c7ef15faf4c4744e6a6675b44ad6da1d7991cb63fcb683a",
+  "services/platform/apiserver/current_authorization_health_probe_test.go": "09361c7c963d5f3d508b9c534d92c5b7d6bcf2f19c4c46b8413088c0b974c593",
+  "services/platform/apiserver/current_authorization_health_probe.go": "3bed74745ef1056405965605ea6c45b949e842bf29065e8665e7900ec3cd8a66",
   "services/platform/apiserver/connector_maintenance_catalog_diagnostic_test.go": "fb4add6de1bfad2e20311e5da0fb82f215eacb456ea588de8bbea2a890566868",
   "services/platform/agentsec-api/connector_callback_runtime.go": "69c0fe154628058709eaf886369e3aa92aee8a9526a1bebda091ad8147c6cd95",
   "services/platform/agentsec-api/connector_maintenance_runtime.go": "ac74dd00dc05e34e72a06962ad8d7a8f13d18bf64c0fe6e46fdbd520f4b09bab",

@@ -103,14 +103,22 @@ func authorizationRuntimeReadinessWithDiagnostic(servicesReady, previous func(co
 		if database.CurrentAuthorizationRequired() && securityAgentDatabase.CurrentAuthorizationRequired() {
 			bounded, cancel := context.WithTimeout(ctx, timeout)
 			defer cancel()
-			return boundedParallelReadiness(bounded,
-				func(probe context.Context) error {
-					return checkAuthorizationRuntimeReadyWithDiagnostic(probe, database, securityAgentDatabase, keyVersion, observer)
-				},
-				func(probe context.Context) error {
-					return observeReadiness(probe, readinessComponents, observer, previous)
-				},
-			)
+			var probeObserver func(context.Context, bool, error)
+			if observer != nil {
+				probeObserver = func(probe context.Context, security bool, err error) {
+					phase := readinessCoreMetadata
+					if security {
+						phase = readinessSecurityAgentMetadata
+					}
+					_ = observeReadiness(probe, phase, observer, func(context.Context) error { return err })
+				}
+			}
+			if err := apiserver.WithCurrentAuthorizationHealthProbe(bounded, database, securityAgentDatabase, keyVersion, probeObserver, func(probe context.Context) error {
+				return observeReadiness(probe, readinessComponents, observer, previous)
+			}); err != nil {
+				return errRuntimeUnavailable
+			}
+			return nil
 		}
 		if err := func() error {
 			bounded, cancel := context.WithTimeout(ctx, timeout)

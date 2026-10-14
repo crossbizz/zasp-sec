@@ -71,6 +71,9 @@ func currentAuthorizationRequired(database JSONDatabase) bool {
 // Called with database.mu held. Registered 80 readiness includes the exact
 // canonical 61 private predecessor chain and current 79 projection catalog.
 func (database *PostgresJSONDatabase) currentAuthorizationSchemaVersion(ctx context.Context) (string, error) {
+	if database.hasCurrentAuthorizationHealthObservation(ctx, "") {
+		return ProductionRecoverySchemaVersion, nil
+	}
 	var ready bool
 	if err := database.driver.QueryRow(ctx, postgresAuthorizationReadySQL, migrations.ProductionAuthorizationEnforcement().Checksum()).Scan(&ready); err != nil || !ready {
 		return "", ErrRepositoryUnavailable
@@ -107,6 +110,12 @@ func (database *PostgresJSONDatabase) authorizationMetadataQuery(ctx context.Con
 	}
 	if checksum != "" && (len(arguments) != 2 || arguments[0] != checksum || arguments[1] != fingerprint) {
 		return nil, true, ErrRepositoryUnavailable
+	}
+	if database.hasCurrentAuthorizationHealthObservation(ctx, authority) {
+		if object {
+			return json.RawMessage(`{"release":true,"principal":true}`), true, nil
+		}
+		return json.RawMessage(`true`), true, nil
 	}
 	var release, principal bool
 	query := `SELECT zasp_authorization80.ready($1), public.zasp_discovery_principal_ready('zasp_discovery_api')`
