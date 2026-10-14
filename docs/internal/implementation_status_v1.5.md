@@ -1,5 +1,23 @@
 # Agent Security Platform Implementation Status
 
+## Direct browser setup checkpoint, October 14, 2026
+
+Candidate `59ea2a72` reaches a new prerequisite failure before browser execution
+in both direct lanes: the offline inner-profile diagnostic refuses stderr with
+zero observed test events. The production migration build does not warm its
+complete test import graph: 94 additional packages and 12 additional modules
+are required. The successor primes that exact test compilation online with
+CGO disabled before the unchanged strict offline observer. This is a reviewed
+setup correction; the unseen stderr cause and actual browser acceptance remain
+unproven. UI typecheck/build pass. Native results remain separately tracked.
+
+Fresh runtime revision301 remains running and connected, with 50 required
+application settings unbound and no private TCP or outbound deployment identity.
+Callback crash recovery, provider recovery, fleet cutover and deployed acceptance
+remain open. All 728 rows retain 523/144/61 classifications and zero promotions.
+See [the setup checkpoint](cloud-browser-setup-checkpoint-2026-10-14.json).
+
+
 ## Browser readiness and native SQL blocker, October 14, 2026
 
 Hosted `13552bfe` passes all nine consumer compiles, 39 application groups and
