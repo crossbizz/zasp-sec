@@ -45,7 +45,7 @@ type permitState struct{ spent bool }
 
 func (c *Coordinator) Prepare(ctx context.Context, organization string, oldWriterPID int) (*Permit, error) {
 	if c == nil || c.observations == nil || c.sql == nil || ctx == nil || ctx.Err() != nil || organization == "" || oldWriterPID <= 0 || c.ttl <= 0 || c.ttl > 30*time.Second {
-		return nil, ErrRefused
+		return nil, prepareRefused(ctx, "invalid")
 	}
 	expires := time.Now().Add(c.ttl)
 	if parent, ok := ctx.Deadline(); ok && parent.Before(expires) {
@@ -57,14 +57,14 @@ func (c *Coordinator) Prepare(ctx context.Context, organization string, oldWrite
 	// Authentic old credential and a live exact writer are mandatory, not optional.
 	before, err := c.observations.live(ctx, oldWriterPID)
 	if err != nil {
-		return nil, ErrRefused
+		return nil, prepareRefused(ctx, "live-before")
 	}
 	if c.observations.oldModel(ctx) != nil {
-		return nil, ErrRefused
+		return nil, prepareRefused(ctx, "model-read")
 	}
 	after, err := c.observations.live(ctx, oldWriterPID)
 	if err != nil || before != after || ctx.Err() != nil {
-		return nil, ErrRefused
+		return nil, prepareRefused(ctx, "live-after")
 	}
 	return &Permit{owner: c, organization: organization, writer: after, expires: expires, state: &permitState{}}, nil
 }
@@ -94,4 +94,30 @@ func (c *Coordinator) Activate(ctx context.Context, p *Permit) error {
 		return ErrRefused
 	}
 	return nil
+}
+
+// PrepareRefusalStage returns only a fixed diagnostic stage, without exposing
+// process identity, credentials, model contents or dependency errors.
+func PrepareRefusalStage(err error) string {
+	var refusal *prepareRefusal
+	if !errors.As(err, &refusal) || refusal == nil {
+		return "unknown"
+	}
+	switch refusal.stage {
+	case "invalid", "live-before", "model-read", "live-after", "deadline":
+		return refusal.stage
+	default:
+		return "unknown"
+	}
+}
+
+type prepareRefusal struct{ stage string }
+
+func (*prepareRefusal) Error() string { return ErrRefused.Error() }
+func (*prepareRefusal) Unwrap() error { return ErrRefused }
+func prepareRefused(ctx context.Context, stage string) error {
+	if ctx != nil && ctx.Err() != nil {
+		stage = "deadline"
+	}
+	return &prepareRefusal{stage: stage}
 }

@@ -359,7 +359,7 @@ DECLARE result_value jsonb;available_slots integer;owner_value text;lease_second
  PERFORM pg_advisory_xact_lock(742516322);
  SELECT GREATEST(0,LEAST(limit_value,100-count(*)::integer)) INTO available_slots FROM public.zasp_connector_effects WHERE status='unknown' AND lease_expires_at>transaction_timestamp();
  IF available_slots=0 THEN RETURN jsonb_build_object('items','[]'::jsonb);END IF;
-  WITH candidates AS (SELECT lane.provider,lane.operation,effect.organization_id,effect.workspace_id,effect.environment_id,effect.id,effect.updated_at FROM zasp_connector_effect_lane_scopes lane CROSS JOIN LATERAL (SELECT candidate.organization_id,candidate.workspace_id,candidate.environment_id,candidate.id,candidate.updated_at FROM zasp_connector_effects candidate WHERE candidate.provider=lane.provider AND candidate.operation=lane.operation AND candidate.organization_id=lane.organization_id AND candidate.workspace_id=lane.workspace_id AND candidate.environment_id=lane.environment_id AND candidate.status='unknown' AND EXISTS(SELECT 1 FROM zasp_connector_maintenance.tasks task WHERE(task.organization_id,task.workspace_id,task.environment_id,task.effect_id)=(candidate.organization_id,candidate.workspace_id,candidate.environment_id,candidate.id) AND task.state IN('active','paused_denied')) AND NOT (candidate.operation='pkce_cleanup' AND EXISTS(SELECT 1 FROM zasp_connector_maintenance.reservations prior WHERE(prior.organization_id,prior.workspace_id,prior.environment_id,prior.effect_id)=(candidate.organization_id,candidate.workspace_id,candidate.environment_id,candidate.id) AND prior.state='attempted' AND NOT ((candidate.lease_owner,candidate.lease_token,candidate.lease_expires_at) IS NOT DISTINCT FROM(prior.lease_owner,prior.lease_token,prior.expires_at) AND zasp_connector_maintenance.may_retry_pkce_preparation(candidate,prior) IS TRUE))) AND candidate.attempt<100 AND candidate.available_at<=transaction_timestamp() AND candidate.updated_at<=transaction_timestamp()-interval '15 seconds' AND (candidate.lease_expires_at IS NULL OR candidate.lease_expires_at<=transaction_timestamp()) AND NOT EXISTS(SELECT 1 FROM zasp_connector_effects live WHERE live.provider=candidate.provider AND live.operation=candidate.operation AND live.status='unknown' AND live.lease_expires_at>transaction_timestamp()) AND (candidate.operation<>'pkce_cleanup' OR candidate.oauth_attempt_id IS NULL OR NOT EXISTS(SELECT 1 FROM zasp_connector_oauth_attempts attempt WHERE (attempt.organization_id,attempt.workspace_id,attempt.environment_id,attempt.id)=(candidate.organization_id,candidate.workspace_id,candidate.environment_id,candidate.oauth_attempt_id) AND attempt.status='consuming')) ORDER BY candidate.updated_at,candidate.id LIMIT 1) effect),
+  WITH candidates AS (SELECT lane.provider,lane.operation,effect.organization_id,effect.workspace_id,effect.environment_id,effect.id,effect.updated_at FROM zasp_connector_effect_lane_scopes lane CROSS JOIN LATERAL (SELECT candidate.organization_id,candidate.workspace_id,candidate.environment_id,candidate.id,candidate.updated_at FROM zasp_connector_effects candidate WHERE candidate.provider=lane.provider AND candidate.operation=lane.operation AND candidate.organization_id=lane.organization_id AND candidate.workspace_id=lane.workspace_id AND candidate.environment_id=lane.environment_id AND candidate.status='unknown' AND EXISTS(SELECT 1 FROM zasp_connector_maintenance.tasks task WHERE(task.organization_id,task.workspace_id,task.environment_id,task.effect_id)=(candidate.organization_id,candidate.workspace_id,candidate.environment_id,candidate.id) AND task.state IN('active','paused_denied')) AND NOT (candidate.operation='pkce_cleanup' AND EXISTS(SELECT 1 FROM zasp_connector_maintenance.reservations prior WHERE(prior.organization_id,prior.workspace_id,prior.environment_id,prior.effect_id)=(candidate.organization_id,candidate.workspace_id,candidate.environment_id,candidate.id) AND prior.state='attempted' AND NOT ((candidate.lease_owner,candidate.lease_token,candidate.lease_expires_at) IS NOT DISTINCT FROM(prior.lease_owner,prior.lease_token,prior.expires_at) AND zasp_connector_maintenance.may_retry_pkce_preparation(candidate,prior) IS TRUE))) AND NOT EXISTS(SELECT 1 FROM zasp_connector_maintenance.callbacks callback WHERE(callback.organization_id,callback.workspace_id,callback.environment_id,callback.attempt_id)=(candidate.organization_id,candidate.workspace_id,candidate.environment_id,candidate.oauth_attempt_id) AND callback.phase IN('consumed','secret','rejection_secret','secret_settled','rejection_secret_settled')) AND candidate.attempt<100 AND candidate.available_at<=transaction_timestamp() AND candidate.updated_at<=transaction_timestamp()-interval '15 seconds' AND (candidate.lease_expires_at IS NULL OR candidate.lease_expires_at<=transaction_timestamp()) AND NOT EXISTS(SELECT 1 FROM zasp_connector_effects live WHERE live.provider=candidate.provider AND live.operation=candidate.operation AND live.status='unknown' AND live.lease_expires_at>transaction_timestamp()) AND (candidate.operation<>'pkce_cleanup' OR candidate.oauth_attempt_id IS NULL OR NOT EXISTS(SELECT 1 FROM zasp_connector_oauth_attempts attempt WHERE (attempt.organization_id,attempt.workspace_id,attempt.environment_id,attempt.id)=(candidate.organization_id,candidate.workspace_id,candidate.environment_id,candidate.oauth_attempt_id) AND attempt.status='consuming')) ORDER BY candidate.updated_at,candidate.id LIMIT 1) effect),
   lane_fair AS (SELECT candidates.*,row_number() OVER(PARTITION BY provider,operation ORDER BY updated_at,id) lane_rank FROM candidates),
   fair AS (SELECT lane_fair.*,row_number() OVER(PARTITION BY organization_id,workspace_id,environment_id ORDER BY updated_at,id) organization_rank FROM lane_fair WHERE lane_rank=1),
   selected AS (SELECT effect.organization_id,effect.workspace_id,effect.environment_id,effect.id FROM zasp_connector_effects effect JOIN fair ON (fair.organization_id,fair.workspace_id,fair.environment_id,fair.id)=(effect.organization_id,effect.workspace_id,effect.environment_id,effect.id) ORDER BY fair.organization_rank,effect.updated_at,effect.id FOR UPDATE OF effect SKIP LOCKED LIMIT available_slots),
@@ -993,6 +993,127 @@ CREATE FUNCTION zasp_connector_maintenance.projection_profile_state() RETURNS js
  SELECT jsonb_build_object('active',active,'checksum',checksum,'catalog_ready',zasp_connector_maintenance.catalog_ready(checksum)) FROM zasp_connector_maintenance.registration WHERE singleton
 $profile_state$;
 
+-- Durable pre-provider callback recovery never recreates browser authority.
+-- The original callback receipt remains immutable until terminal rejection.
+CREATE TABLE zasp_connector_maintenance.callback_recoveries(
+ organization_id text NOT NULL,workspace_id text NOT NULL,environment_id text NOT NULL,attempt_id text NOT NULL,
+ session_user_name name NOT NULL,reference jsonb NOT NULL,captured_receipt jsonb NOT NULL,
+ expires_at timestamptz NOT NULL,
+ PRIMARY KEY(organization_id,workspace_id,environment_id,attempt_id),
+ FOREIGN KEY(organization_id,workspace_id,environment_id,attempt_id) REFERENCES zasp_connector_maintenance.callbacks);
+CREATE FUNCTION zasp_connector_maintenance.callback_recovery_source(c zasp_connector_maintenance.callbacks,a public.zasp_connector_effects,k public.zasp_connector_effects) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $callback_recovery_source$
+ SELECT COALESCE(c.phase IN('consumed','secret','rejection_secret','secret_settled','rejection_secret_settled') AND c.expires_at<=clock_timestamp()
+ AND c.authorize_context=zasp_connector_maintenance.effect_context(a) AND c.cleanup_context=zasp_connector_maintenance.effect_context(k)
+ AND(a.organization_id,a.workspace_id,a.environment_id,a.id,a.integration_id,a.oauth_attempt_id,a.operation,a.status,a.last_error_code)=(c.organization_id,c.workspace_id,c.environment_id,c.authorize_effect_id,c.integration_id,c.attempt_id,'authorize','unknown','provider_effect_started')
+ AND a.connection_reference IS NULL
+ AND(k.organization_id,k.workspace_id,k.environment_id,k.id,k.integration_id,k.oauth_attempt_id,k.operation)=(c.organization_id,c.workspace_id,c.environment_id,c.cleanup_effect_id,c.integration_id,c.attempt_id,'pkce_cleanup')
+ AND k.status=CASE WHEN c.phase IN('secret_settled','rejection_secret_settled') THEN 'reconciled' ELSE 'unknown' END
+ AND EXISTS(SELECT 1 FROM public.zasp_connector_oauth_attempts x WHERE(x.organization_id,x.workspace_id,x.environment_id,x.id,x.integration_id,x.principal_id,x.session_digest,x.pkce_verifier_reference,x.status)=(c.organization_id,c.workspace_id,c.environment_id,c.attempt_id,c.integration_id,c.principal_id,c.credential_digest,k.connection_reference,'consuming'))
+ AND EXISTS(SELECT 1 FROM zasp_connector_maintenance.tasks t WHERE(t.organization_id,t.workspace_id,t.environment_id,t.effect_id,t.grantor_id)=(c.organization_id,c.workspace_id,c.environment_id,a.id,c.principal_id) AND zasp_connector_maintenance.effect_matches(a,t) IS TRUE)
+ AND EXISTS(SELECT 1 FROM zasp_connector_maintenance.tasks t WHERE(t.organization_id,t.workspace_id,t.environment_id,t.effect_id,t.grantor_id)=(c.organization_id,c.workspace_id,c.environment_id,k.id,c.principal_id) AND zasp_connector_maintenance.effect_matches(k,t) IS TRUE)
+ AND EXISTS(SELECT 1 FROM zasp_connector_maintenance.projection_activations x WHERE x.organization_id=c.organization_id AND x.source_checksum='-- connector maintenance checksum'),false)
+$callback_recovery_source$;
+CREATE FUNCTION zasp_connector_maintenance.recover_callbacks(q jsonb,pin text,version_value text) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $recover_callbacks$
+DECLARE owner_value text;seconds_value integer;limit_value integer;slots_value integer;selected_value jsonb;candidate record;org_value text;c zasp_connector_maintenance.callbacks;a public.zasp_connector_effects;k public.zasp_connector_effects;r zasp_connector_maintenance.callback_recoveries;reference_value jsonb;receipt_value jsonb;body_bytes bytea;captured_version text;key_value bytea;expiry_value timestamptz;items_value jsonb:='[]'::jsonb;next_value jsonb;
+BEGIN
+ IF zasp_connector_maintenance.caller_ready(pin,version_value) IS NOT TRUE OR zasp_sa_multistep_prior.closed(q,ARRAY['owner','seconds','limit']) IS NOT TRUE
+ OR jsonb_typeof(q->'owner') IS DISTINCT FROM 'string' OR jsonb_typeof(q->'seconds') IS DISTINCT FROM 'number' OR jsonb_typeof(q->'limit') IS DISTINCT FROM 'number'
+ THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='callback recovery claim rejected';END IF;
+ owner_value:=q->>'owner';seconds_value:=(q->>'seconds')::integer;limit_value:=(q->>'limit')::integer;
+ IF length(owner_value) NOT BETWEEN 3 AND 128 OR seconds_value NOT BETWEEN 5 AND 300 OR limit_value NOT BETWEEN 1 AND 10 THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='callback recovery bounds rejected';END IF;
+ PERFORM pg_advisory_xact_lock(742516322);
+ SELECT GREATEST(0,LEAST(limit_value,(100-count(*)::integer)/2)) INTO slots_value FROM public.zasp_connector_effects WHERE status='unknown' AND lease_expires_at>clock_timestamp();
+ IF slots_value=0 THEN RETURN jsonb_build_object('items',items_value);END IF;
+ SELECT COALESCE(jsonb_agg(to_jsonb(selected)),'[]'::jsonb) INTO selected_value FROM(
+  SELECT ranked.organization_id,ranked.workspace_id,ranked.environment_id,ranked.attempt_id FROM(
+   SELECT x.*,a.provider,row_number() OVER(PARTITION BY a.provider ORDER BY x.expires_at,x.organization_id,x.attempt_id) lane_rank
+   FROM zasp_connector_maintenance.callbacks x JOIN public.zasp_connector_effects a ON(a.organization_id,a.workspace_id,a.environment_id,a.id)=(x.organization_id,x.workspace_id,x.environment_id,x.authorize_effect_id)
+   WHERE x.phase IN('consumed','secret','rejection_secret','secret_settled','rejection_secret_settled') AND x.expires_at<=clock_timestamp() AND a.status='unknown' AND a.lease_expires_at<=clock_timestamp()
+   AND NOT EXISTS(SELECT 1 FROM public.zasp_connector_effects live WHERE live.provider=a.provider AND live.operation IN('authorize','pkce_cleanup') AND live.status='unknown' AND live.lease_expires_at>clock_timestamp())
+  ) ranked WHERE lane_rank=1 ORDER BY ranked.expires_at,ranked.organization_id,ranked.attempt_id LIMIT slots_value
+ ) selected;
+ FOR org_value IN SELECT DISTINCT x->>'organization_id' FROM jsonb_array_elements(selected_value) x ORDER BY 1 LOOP
+  PERFORM 1 FROM zasp_authorization79.organizations WHERE organization_id=org_value FOR UPDATE;
+ END LOOP;
+ FOR candidate IN SELECT x AS item FROM jsonb_array_elements(selected_value) x ORDER BY x->>'organization_id',x->>'attempt_id' LOOP
+  SELECT x.* INTO STRICT c FROM zasp_connector_maintenance.callbacks x WHERE(x.organization_id,x.workspace_id,x.environment_id,x.attempt_id)=(candidate.item->>'organization_id',candidate.item->>'workspace_id',candidate.item->>'environment_id',candidate.item->>'attempt_id');
+  PERFORM 1 FROM public.zasp_connector_effects x WHERE(x.organization_id,x.workspace_id,x.environment_id)=(c.organization_id,c.workspace_id,c.environment_id) AND x.id IN(c.authorize_effect_id,c.cleanup_effect_id) ORDER BY x.id FOR UPDATE;
+  SELECT x.* INTO STRICT c FROM zasp_connector_maintenance.callbacks x WHERE(x.organization_id,x.workspace_id,x.environment_id,x.attempt_id)=(c.organization_id,c.workspace_id,c.environment_id,c.attempt_id) FOR UPDATE;
+  SELECT x.* INTO STRICT a FROM public.zasp_connector_effects x WHERE(x.organization_id,x.workspace_id,x.environment_id,x.id)=(c.organization_id,c.workspace_id,c.environment_id,c.authorize_effect_id);
+  SELECT x.* INTO STRICT k FROM public.zasp_connector_effects x WHERE(x.organization_id,x.workspace_id,x.environment_id,x.id)=(c.organization_id,c.workspace_id,c.environment_id,c.cleanup_effect_id);
+  SELECT x.* INTO r FROM zasp_connector_maintenance.callback_recoveries x WHERE(x.organization_id,x.workspace_id,x.environment_id,x.attempt_id)=(c.organization_id,c.workspace_id,c.environment_id,c.attempt_id) FOR UPDATE;
+  IF zasp_connector_maintenance.callback_recovery_source(c,a,k) IS NOT TRUE THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='callback recovery source rejected';END IF;
+  IF r.attempt_id IS NULL THEN
+   IF(a.lease_owner,public.digest(decode(a.lease_token,'hex'),'sha256'),a.lease_expires_at) IS DISTINCT FROM('connector-callback:'||c.attempt_id,c.token_digest,c.expires_at)
+   OR(k.status<>'reconciled' AND(k.lease_owner,k.lease_token,k.lease_expires_at) IS DISTINCT FROM(a.lease_owner,a.lease_token,a.lease_expires_at))
+   THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='callback recovery origin ownership rejected';END IF;
+  ELSE
+   IF r.session_user_name IS DISTINCT FROM session_user OR r.expires_at>clock_timestamp()
+   OR(a.lease_owner,a.lease_token,a.lease_expires_at) IS DISTINCT FROM(r.reference->>'lease_owner',r.reference->>'lease_token',r.expires_at)
+   OR(k.status<>'reconciled' AND(k.lease_owner,k.lease_token,k.lease_expires_at) IS DISTINCT FROM(a.lease_owner,a.lease_token,a.lease_expires_at))
+   THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='callback recovery prior ownership rejected';END IF;
+  END IF;
+  expiry_value:=clock_timestamp()+make_interval(secs=>seconds_value);
+  reference_value:=jsonb_build_object('organization_id',c.organization_id,'workspace_id',c.workspace_id,'environment_id',c.environment_id,'attempt_id',c.attempt_id,'integration_id',c.integration_id,'authorize_effect_id',a.id,'cleanup_effect_id',k.id,'pkce_reference',k.connection_reference,'lease_owner',owner_value,'lease_token',encode(public.gen_random_bytes(32),'hex'),'lease_expires_at',expiry_value,'phase',c.phase,'secret_settled',k.status='reconciled');
+  SELECT key_version,key_material INTO STRICT captured_version,key_value FROM zasp_connector_maintenance.verifiers WHERE principal_name=session_user AND purpose='connector-captured' FOR SHARE;
+  body_bytes:=convert_to(jsonb_build_object('purpose','connector-callback-compensation','reference',reference_value,'session_user',session_user,'source_proof_digest',encode(c.source_proof_digest,'hex'))::text,'UTF8');
+  receipt_value:=jsonb_build_object('body',encode(body_bytes,'base64'),'version',captured_version,'mac',encode(public.hmac(convert_to('zasp-connector-callback-compensation-v1','UTF8')||decode('00','hex')||body_bytes,key_value,'sha256'),'hex'));
+  next_value:=reference_value||jsonb_build_object('captured_proof',receipt_value);
+  IF octet_length(convert_to(jsonb_build_object('items',items_value||jsonb_build_array(next_value))::text,'UTF8'))>131072 THEN EXIT;END IF;
+  UPDATE public.zasp_connector_effects x SET lease_owner=owner_value,lease_token=reference_value->>'lease_token',lease_expires_at=expiry_value WHERE(x.organization_id,x.workspace_id,x.environment_id)=(c.organization_id,c.workspace_id,c.environment_id) AND x.id IN(a.id,k.id) AND x.status='unknown';
+  INSERT INTO zasp_connector_maintenance.callback_recoveries VALUES(c.organization_id,c.workspace_id,c.environment_id,c.attempt_id,session_user,reference_value,receipt_value,expiry_value)
+  ON CONFLICT(organization_id,workspace_id,environment_id,attempt_id) DO UPDATE SET reference=EXCLUDED.reference,captured_receipt=EXCLUDED.captured_receipt,expires_at=EXCLUDED.expires_at;
+  items_value:=items_value||jsonb_build_array(next_value);
+ END LOOP;
+ IF EXISTS(SELECT 1 FROM jsonb_array_elements(items_value) x WHERE(x->>'lease_expires_at')::timestamptz<=clock_timestamp()) THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='callback recovery claim deadline lost';END IF;
+ RETURN jsonb_build_object('items',items_value);
+END $recover_callbacks$;
+CREATE FUNCTION zasp_connector_maintenance.callback_recovery_reserved(q jsonb,proof_value jsonb,pin text,version_value text) RETURNS zasp_connector_maintenance.callback_recoveries LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $callback_recovery_reserved$
+DECLARE c zasp_connector_maintenance.callbacks;a public.zasp_connector_effects;k public.zasp_connector_effects;r zasp_connector_maintenance.callback_recoveries;key_value bytea;body_bytes bytea;
+BEGIN
+ IF zasp_connector_maintenance.caller_ready(pin,version_value) IS NOT TRUE OR zasp_sa_multistep_prior.closed(q,ARRAY['organization_id','workspace_id','environment_id','attempt_id','integration_id','authorize_effect_id','cleanup_effect_id','pkce_reference','lease_owner','lease_token','lease_expires_at','phase','secret_settled']) IS NOT TRUE
+ THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='callback recovery purpose rejected';END IF;
+ PERFORM 1 FROM zasp_authorization79.organizations WHERE organization_id=q->>'organization_id' FOR UPDATE;
+ SELECT x.* INTO STRICT c FROM zasp_connector_maintenance.callbacks x WHERE(x.organization_id,x.workspace_id,x.environment_id,x.attempt_id)=(q->>'organization_id',q->>'workspace_id',q->>'environment_id',q->>'attempt_id');
+ PERFORM 1 FROM public.zasp_connector_effects x WHERE(x.organization_id,x.workspace_id,x.environment_id)=(c.organization_id,c.workspace_id,c.environment_id) AND x.id IN(c.authorize_effect_id,c.cleanup_effect_id) ORDER BY x.id FOR UPDATE;
+ SELECT x.* INTO STRICT c FROM zasp_connector_maintenance.callbacks x WHERE(x.organization_id,x.workspace_id,x.environment_id,x.attempt_id)=(c.organization_id,c.workspace_id,c.environment_id,c.attempt_id) FOR UPDATE;
+ SELECT x.* INTO STRICT r FROM zasp_connector_maintenance.callback_recoveries x WHERE(x.organization_id,x.workspace_id,x.environment_id,x.attempt_id)=(c.organization_id,c.workspace_id,c.environment_id,c.attempt_id) FOR UPDATE;
+ SELECT x.* INTO STRICT a FROM public.zasp_connector_effects x WHERE(x.organization_id,x.workspace_id,x.environment_id,x.id)=(c.organization_id,c.workspace_id,c.environment_id,c.authorize_effect_id);
+ SELECT x.* INTO STRICT k FROM public.zasp_connector_effects x WHERE(x.organization_id,x.workspace_id,x.environment_id,x.id)=(c.organization_id,c.workspace_id,c.environment_id,c.cleanup_effect_id);
+ IF r.session_user_name IS DISTINCT FROM session_user OR r.expires_at<=clock_timestamp() OR proof_value IS DISTINCT FROM r.captured_receipt
+ OR(q-'lease_expires_at') IS DISTINCT FROM(r.reference-'lease_expires_at') OR(q->>'lease_expires_at')::timestamptz IS DISTINCT FROM r.expires_at
+ OR(a.lease_owner,a.lease_token,a.lease_expires_at) IS DISTINCT FROM(r.reference->>'lease_owner',r.reference->>'lease_token',r.expires_at)
+ OR(k.status<>'reconciled' AND(k.lease_owner,k.lease_token,k.lease_expires_at) IS DISTINCT FROM(a.lease_owner,a.lease_token,a.lease_expires_at))
+ OR zasp_connector_maintenance.callback_recovery_source(c,a,k) IS NOT TRUE
+ THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='callback recovery captured lease rejected';END IF;
+ SELECT key_material INTO STRICT key_value FROM zasp_connector_maintenance.verifiers WHERE(key_version,principal_name,purpose)=(proof_value->>'version',session_user,'connector-captured');
+ body_bytes:=decode(proof_value->>'body','base64');
+ IF encode(public.hmac(convert_to('zasp-connector-callback-compensation-v1','UTF8')||decode('00','hex')||body_bytes,key_value,'sha256'),'hex') IS DISTINCT FROM proof_value->>'mac' THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='callback recovery signature rejected';END IF;
+ RETURN r;
+END $callback_recovery_reserved$;
+CREATE FUNCTION zasp_connector_maintenance.before_callback_compensation(q jsonb,proof_value jsonb,pin text,version_value text) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $before_callback_compensation$
+BEGIN
+ PERFORM zasp_connector_maintenance.callback_recovery_reserved(q,proof_value,pin,version_value);
+ RETURN jsonb_build_object('valid',true);
+END $before_callback_compensation$;
+CREATE FUNCTION zasp_connector_maintenance.settle_callback_recovery(q jsonb,proof_value jsonb,pin text,version_value text) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $settle_callback_recovery$
+DECLARE r zasp_connector_maintenance.callback_recoveries;o text;w text;e text;a text;k text;
+BEGIN
+ r:=zasp_connector_maintenance.callback_recovery_reserved(q,proof_value,pin,version_value);
+ o:=r.organization_id;w:=r.workspace_id;e:=r.environment_id;a:=q->>'authorize_effect_id';k:=q->>'cleanup_effect_id';
+ -- Original functions keep their unleased callback contract. Clear only the
+ -- exact validated recovery leases while both effect locks remain held.
+ UPDATE public.zasp_connector_effects x SET lease_owner=NULL,lease_token=NULL,lease_expires_at=NULL WHERE(x.organization_id,x.workspace_id,x.environment_id)=(o,w,e) AND x.id IN(a,k);
+ IF(q->>'secret_settled')::boolean IS NOT TRUE THEN PERFORM public.zasp_connector_complete_pkce_cleanup(o,w,e,k,'','');END IF;
+ PERFORM public.zasp_connector_resolve_effect(o,w,e,a,'failed','','{}'::jsonb,'verifier_unavailable');
+ UPDATE zasp_connector_maintenance.callbacks x SET phase='rejected' WHERE(x.organization_id,x.workspace_id,x.environment_id,x.attempt_id)=(o,w,e,r.attempt_id);
+ UPDATE zasp_connector_maintenance.tasks x SET state='settled' WHERE(x.organization_id,x.workspace_id,x.environment_id)=(o,w,e) AND x.effect_id IN(a,k);
+ PERFORM zasp_authorization79.touch(o);
+ IF r.expires_at<=clock_timestamp() THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='callback recovery settlement deadline lost';END IF;
+ RETURN jsonb_build_object('settled',true);
+END $settle_callback_recovery$;
+
+
 -- All module tables remain authority-only. Role72 and every original SQL
 -- consumer remain unchanged. No worker function is selected without ready.
 DO $security$ DECLARE object_value record;BEGIN
@@ -1011,6 +1132,7 @@ GRANT EXECUTE ON FUNCTION zasp_connector_maintenance.caller_ready(text,text) TO 
 GRANT EXECUTE ON FUNCTION zasp_connector_maintenance.register_principal(name,text,text,bytea,bytea) TO zasp_discovery_authority;
 GRANT EXECUTE ON FUNCTION zasp_connector_maintenance.source(jsonb,text,text),zasp_connector_maintenance.revision(text,text,text),zasp_connector_maintenance.recover(jsonb,text,text),zasp_connector_maintenance.recover_compensation(jsonb,text,text),zasp_connector_maintenance.reserve(jsonb,text,text),zasp_connector_maintenance.release(jsonb,boolean,text,text),zasp_connector_maintenance.begin_attempt(jsonb,text,json,text,text),zasp_connector_maintenance.workflow(jsonb,json,text,text),zasp_connector_maintenance.settle(jsonb,json,text,text,text) TO zasp_outbox_worker;
 GRANT EXECUTE ON FUNCTION zasp_connector_maintenance.validate_captured(jsonb,json,text,text) TO zasp_outbox_worker;
+GRANT EXECUTE ON FUNCTION zasp_connector_maintenance.recover_callbacks(jsonb,text,text),zasp_connector_maintenance.before_callback_compensation(jsonb,jsonb,text,text),zasp_connector_maintenance.settle_callback_recovery(jsonb,jsonb,text,text) TO zasp_outbox_worker;
 
 GRANT EXECUTE ON FUNCTION zasp_connector_maintenance.projection_profile_state(),zasp_connector_maintenance.snapshot(text,text,text) TO zasp_outbox_worker;
 

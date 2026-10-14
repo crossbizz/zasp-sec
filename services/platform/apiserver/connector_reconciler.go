@@ -125,6 +125,11 @@ func (reconciler *ConnectorReconciler) dispatchAvailable(ctx context.Context) (b
 	if available < 1 {
 		return true, nil
 	}
+	if reconciler.native != nil {
+		if _, err := runConnectorCallbackRecovery(ctx, reconciler.native, reconciler.secrets, reconciler.owner, reconciler.leaseSeconds, min(available, 10)); err != nil {
+			return false, err
+		}
+	}
 	leases, err := reconciler.repository.ClaimReconciliation(ctx, reconciler.owner, reconciler.leaseSeconds, available)
 	if err != nil {
 		return false, err
@@ -167,6 +172,11 @@ func (reconciler *ConnectorReconciler) reconcileBatch(ctx context.Context) (bool
 	}
 	if _, err := reconciler.repository.RecoverExpiredFinalAttempts(ctx, reconciler.owner, reconciler.leaseSeconds, reconciler.limit); err != nil {
 		return false, err
+	}
+	if reconciler.native != nil {
+		if _, err := runConnectorCallbackRecovery(ctx, reconciler.native, reconciler.secrets, reconciler.owner, reconciler.leaseSeconds, min(reconciler.limit, 10)); err != nil {
+			return false, err
+		}
 	}
 	leases, err := reconciler.repository.ClaimReconciliation(ctx, reconciler.owner, reconciler.leaseSeconds, reconciler.limit)
 	if err != nil {

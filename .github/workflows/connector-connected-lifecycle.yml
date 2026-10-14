@@ -5,6 +5,8 @@ name: Connector connected lifecycle integration
       - 'services/platform/**'
       - '.github/connector-native-compile-source-pins.json'
       - 'scripts/hosted-connected-connector-acceptance.mjs'
+      - 'scripts/connector-acceptance-groups.mjs'
+      - 'scripts/connector-acceptance-groups.test.mjs'
       - 'scripts/hosted-memory-observation.mjs'
       - 'scripts/hosted-memory-observation.test.mjs'
       - 'scripts/owned-command.mjs'
@@ -18,6 +20,8 @@ name: Connector connected lifecycle integration
       - 'services/platform/**'
       - '.github/connector-native-compile-source-pins.json'
       - 'scripts/hosted-connected-connector-acceptance.mjs'
+      - 'scripts/connector-acceptance-groups.mjs'
+      - 'scripts/connector-acceptance-groups.test.mjs'
       - 'scripts/hosted-memory-observation.mjs'
       - 'scripts/hosted-memory-observation.test.mjs'
       - 'scripts/owned-command.mjs'
@@ -29,7 +33,11 @@ name: Connector connected lifecycle integration
 permissions:
   contents: read
 jobs:
-  connected-lifecycle:
+  connected-group:
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [oauth, lifecycle, pkce, callback]
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -45,7 +53,7 @@ jobs:
           cache: false
       - name: Portable memory metadata parser controls
         timeout-minutes: 1
-        run: node --test scripts/hosted-memory-observation.test.mjs
+        run: node --test scripts/hosted-memory-observation.test.mjs scripts/connector-acceptance-groups.test.mjs
       # Tool prerequisite only. The native test still uses the exact held PG image.
       - name: Official Ubuntu Docker prerequisite
         timeout-minutes: 6
@@ -65,4 +73,15 @@ jobs:
           stat --format='socket mode=%a uid=%u gid=%g' /var/run/docker.sock
       - name: Connected enqueue, execution, revocation and settlement application group
         timeout-minutes: 27
-        run: node scripts/hosted-connected-connector-acceptance.mjs
+        run: node scripts/hosted-connected-connector-acceptance.mjs "${{ matrix.group }}"
+
+  connected-lifecycle:
+    if: ${{ always() }}
+    needs: [connected-group]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 1
+    steps:
+      - name: Require all four connected application groups
+        env:
+          CONNECTED_GROUP_RESULT: ${{ needs.connected-group.result }}
+        run: test "$CONNECTED_GROUP_RESULT" = success

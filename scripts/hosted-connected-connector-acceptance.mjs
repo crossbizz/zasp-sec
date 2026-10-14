@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import { selectConnectorAcceptanceGroup, validateConnectorAcceptanceTrace, parseConnectorNativeObservation } from './connector-acceptance-groups.mjs';
+const selectedGroup = selectConnectorAcceptanceGroup(process.argv.slice(2));
+const selectedGroupName = process.argv[2];
 import { createHash, randomBytes } from 'node:crypto';
 import { mkdtemp, mkdir, readFile, writeFile, chmod, lstat, statfs, stat, readdir, symlink, realpath, rename } from 'node:fs/promises';
 import path from 'node:path';
@@ -12,6 +15,12 @@ import { loadOfficialHeldTool, spawnHeldTool, closeHeldTool, verifyHeldTool } fr
 // Connected application acceptance using original signed native admissions. No production credentials, fleet admission or deployment proof.
 const image = 'postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba';
 const pins = {
+  "services/platform/connectormaintenancecutover/coordinator_test.go": "77160f406d7637a2d4372511e2e319e874bcc46494bb4d492ba260dc01f15b3e",
+  "services/platform/apiserver/connector_maintenance_catalog_diagnostic_test.go": "fb4add6de1bfad2e20311e5da0fb82f215eacb456ea588de8bbea2a890566868",
+  "services/platform/apiserver/connector_maintenance_callback_restart_postgres_test.go": "203a8a388ccfad5e5caaadab7c7c6b6b0045d32c5f5be57cfffddfbf9c0c8512",
+  "services/platform/apiserver/connector_maintenance_callback_recovery_test.go": "18274be7f5b461c1fe3447db1b8d6761428f41955250313e8ed8ea346a1fe18f",
+  "services/platform/apiserver/connector_maintenance_callback_recovery_database.go": "a9330f0ece5e4349f9a3252a5b44f5409340130b125763dab6cefe49aaa89b6a",
+  "services/platform/apiserver/connector_maintenance_callback_recovery.go": "78ab4d746bf9d76d65f5113df17865fed91ba0ebdd7c55d4ba023612533d1b75",
   "services/platform/agentsec-api/connector_callback_runtime.go": "69c0fe154628058709eaf886369e3aa92aee8a9526a1bebda091ad8147c6cd95",
   "services/platform/agentsec-api/connector_maintenance_runtime.go": "ac74dd00dc05e34e72a06962ad8d7a8f13d18bf64c0fe6e46fdbd520f4b09bab",
   "services/platform/agentsec-api/production_runtime.go": "e051cec9987f311462d7f3d6b63a9ee07373a9b2e82e5bee9d320bc627605a34",
@@ -22,15 +31,15 @@ const pins = {
   "services/platform/apiserver/connector_maintenance_callback_database.go": "68daa6030d5ad5e51dbcd95c5c7d3a77160dc74bafea1a986049b937bf787efc",
   "services/platform/apiserver/connector_maintenance_callback_resolver.go": "995c5238f7e4fa4a58a5d35218234600beaec374f67bb36f5a363a77357c7585",
   "services/platform/apiserver/connector_maintenance_enqueue_database.go": "df803820e44feadcbe41f4778cd50ee20edbfa1847fb82d0d9abcc39f3a962ac",
-  "services/platform/apiserver/connector_maintenance_enqueue_postgres_test.go": "036597f5431971369f2a3cd0e56d143e2104d34999cecece1abac2365990348f",
+  "services/platform/apiserver/connector_maintenance_enqueue_postgres_test.go": "76da1cc4969e8ad84f3f61410e2be98e6ecc48facf1e42ec10b82ab66d93628e",
   "services/platform/apiserver/connector_maintenance_repository.go": "0726280a4aaac1ca023317609910210eded8ee4e613ddf5f7351430d975e880a",
-  "services/platform/apiserver/connector_reconciler.go": "a95c6b80c40a9ce9ceb2cfa153dc346d06464c194f55cc7caea99a635670a1c6",
+  "services/platform/apiserver/connector_reconciler.go": "3170126141cde2be045e2a04727a1c9658a0100cfd610ea45ea3a7c5d359689d",
   "services/platform/authorization/connector_maintenance_projection.go": "e9189565c21f4d16c3f06c3cf89b35e57b1cef5e5bb51b1ff49da02349dcd7b8",
   "services/platform/authorization/worker_current_maintenance.go": "77e382687cc15c54bd3065a10caeb607921c7ee89f3f6ad373c8d645c01d9246",
   "services/platform/cmd/zasp-authorization-reconcile/main.go": "26c1d2d58289b3a2a5b5f58b55348f70f7ae3d48ef7d84b426613f79d506b27e",
   "services/platform/connectormaintenance/authority.go": "378b2b151fe9978ca28a3c40d024c52bff7d3f0b83267839ef1dd61ee3946441",
-  "services/platform/connectormaintenance/executor.go": "b8297f04701e4c5229a05cbefeaea1427d328bddde9a39a4d03e8e1902de59de",
-  "services/platform/connectormaintenancecutover/coordinator.go": "c6558e7dfb24121b7f84def049d7aeeef971895580d87ca2af5d61ecaaeed7c5",
+  "services/platform/connectormaintenance/executor.go": "24ac12fb20e753ec433464e6220bc7aaf4127fb9e7e3803831553bb75e7a40f3",
+  "services/platform/connectormaintenancecutover/coordinator.go": "e1c4da1ab45067c9181e14f9120d44edd4e911a6cd7f68ceb171a86ef0246465",
   "services/platform/connectormaintenancecutover/fga.go": "0e80b78867c5b6bbc11e4a2a2bbb1ca3a43bbf43bd8e9fa921471914a98c924c",
   "services/platform/connectormaintenancecutover/model.json": "329f49e1f2effecbe1a0e9caf6c89be939b1e36e034155d74977bfc82c73cc2c",
   "services/platform/connectormaintenancecutover/process_linux.go": "6096f7c304818c7e6ebc31d3940bacf75932b9f2971c8c529316ebee92cede54",
@@ -39,31 +48,27 @@ const pins = {
   "services/platform/migrations/production_connector_enqueue_provenance.go": "793b230a8572fbfbed2a4702e1513bfa90afac596a8d0707ae047bbdf8bacc36",
   "services/platform/migrations/production_connector_maintenance.go": "18b0989e395e85f18a78f5f51aee06eb1f969fba79a66650754bfc3858d055cd",
   "services/platform/migrations/sql/connector_enqueue_provenance.sql": "32b3f8cbe175b5256ff4542cdff044d6d060e0240d24632bf3d057f3553a5c13",
-  "services/platform/migrations/sql/connector_maintenance_profile.sql": "965a8799758225d1afcd903eb0cf3d3902d55d0a7faff1c93e99ac949caa587d",
+  "services/platform/migrations/sql/connector_maintenance_profile.sql": "23ff42e7e492591ef76076523b6c9c19f25c6ada21aad38d104e3066b5ecf5e2",
   "services/platform/runtimeservices/config.go": "3eff9566c27b6e7c5179a8968aacf0f05b0810baf1d69abac43cb19e21dc0f77",
   "services/platform/migrations/production_approval_maintenance_profile.go": "2e98fa960c2e7b42b2a6a343b4ff47059c0d23fac83dbed887d2868f1b9c99f3",
   "services/platform/migrations/production_approval_maintenance_successor.go": "6817964c5c0dfcabe7ea9f65caf5b7840f6d9e4d29a1ec39b00e1b03b0fa6eca",
   "services/platform/migrations/production_approval_maintenance_profile_test.go": "5592e136c7578bac21bf698c675762b28b68b46a37b1d2ed7670e2d707150a6a",
   "services/platform/apiserver/connector_maintenance_callback_execution_test.go": "aeed97eabbf32cb8f2af66d8b4ca37ceeeb6d6a4ad6dcc9e4f4961f198bdff2d",
-  "services/platform/apiserver/connector_maintenance_lifecycle_postgres_test.go": "88a650d1845d26c892c9ad99a463014078dff75624d6fb18e6cf19d1786ba932",
+  "services/platform/apiserver/connector_maintenance_lifecycle_postgres_test.go": "62964237c0ff8e4f3ab3ace33b87c5af599c9e068655d2ee4895c475deb3a8fb",
   "services/platform/apiserver/connector_maintenance_lifecycle_helpers_test.go": "17e25679f365e81f0450cfa2c9c5a23250afeb43f47f8577e34ed8de77029bc3",
   "services/platform/agentsec-api/compliance_browser_process_test.go": "7a8a66cb13308e02a30175c482226c6c49cd5487a10e194707a8fbf9b16f10e6",
   "scripts/browser-command-failure.mjs": "0af8e330beaf024940732d50629b1c95252674b509d455fbd1f2808eaa40dc86",
   "services/platform/apiserver/production.go": "ca69d1bf4f7d6d0a94c68529f117a55d6e786aba437b9c55a0ee42c9af117c3c",
-  "services/platform/apiserver/connector_maintenance_pkce_recovery_test.go": "23d3015ed536e347f23bd4ce318a7125390e2477a83bd0808595cbd5c29aa036",
+  "services/platform/apiserver/connector_maintenance_pkce_recovery_test.go": "c340f800aba6d297cfdcf976eda67406fe8cb08d10333927c93b33f6a9eabc94",
   "services/platform/apiserver/connector_maintenance_recovery_decode_test.go": "08ad69924af72241a35c146e371c2a2ec955a25a8af16cfee81537073335c8f1",
   "services/platform/agentsec-api/authorization_runtime_readiness.go": "9a3901f7d3ac21b22807b74c4c2f1a2a15da43a3e8f6236073ee8329f257f77e",
   "services/platform/agentsec-api/authorization_runtime_readiness_test.go": "ce2482c386799ad758b374d4e823a0e797cb907cf01daad2c449eb68fb3eb781",
   "scripts/browser-command-failure.test.mjs": "d080296bbc585802d4f531caa5e29ea0306d2b42243bb9e34a5e29f19659ef09"
 };
-const top='TestConnectorMaintenanceAuthenticatedOAuthEnqueuePostgres';
-const cases=['genuine_same_transaction_origin_and_immutable_enrichment','rollback_removes_every_enqueue_and_provenance_write'];
-const lifecycleTop='TestConnectorMaintenanceNativeLifecyclePostgres';
-const lifecycleCases=["genuine_enqueue_controlled_cutover_and_composed_projection", "genuine_callback_consumption_captures_only_its_original_effects", "reserve_without_attempt_and_deny_cross_scope_or_unowned_replay", "revocation_blocks_forward_work_while_exact_captured_cleanup_settles", "consumed_callback_revocation_retains_only_exact_rejection_cleanup"];
-const recoveryTop='TestConnectorMaintenancePKCERestartRecoveryPostgres';
-const recoveryCases=['live_preparation_failure_retries_before_captured_provider_admission_and_excludes_live_lease_adoption','restart_after_revocation_permits_only_exact_captured_deletion_without_settlement_on_failure','second_restart_preserves_original_lineage_and_settles_exact_cleanup_once'];
-const roster=[top,...cases.map(name=>top+'/'+name),lifecycleTop,...lifecycleCases.map(name=>lifecycleTop+'/'+name),recoveryTop,...recoveryCases.map(name=>recoveryTop+'/'+name)];
+const roster = selectedGroup.names;
 const helperPins={
+ "scripts/connector-acceptance-groups.test.mjs": "10db1e5a1402db95be1da49c036cbc0b111e5f15b8e005be11c7d1b6f0f9dcba",
+ "scripts/connector-acceptance-groups.mjs": "b288f9ecf529e14ee5c9b0b99fa8c70def4d54cdb02d45c1582787e2b95cdc40",
  "docs/internal/evidence/cloud-2026-10-07/native-service-readiness/openfga/09-pg-non-glibc-libs-manifest.json": "96642e82997ffd2caf2893a5ecc0116ad2aef6e982df2d929f3efda4e04f3474",
  "services/platform/apiserver/authorization_integration_mutations_postgres_test.go": "5e4beb04b2409ad9b11b89c017ada5e2eccffd78a87bdd5692d40670f12a2ba0",
  "scripts/hosted-memory-observation.mjs": "70c2ae837d040be4756842e4016acbc4eebd6bae3d8c992aba2a80e2a097ba75",
@@ -82,7 +87,7 @@ const out=await mkdtemp(path.join(process.env.RUNNER_TEMP,'connector-authenticat
 const end=performance.now()+1500_000;
 let tokenForRedaction='', canceled=false, finished=false, refused=false, container, tool, fga, fgaPort, grpcPort, fgaStart;
 const owners=new Set();let phase='source-admission';
-const receipt={scope:'connected native enqueue, controlled one-writer cutover, execution, PKCE restart recovery, revocation, callback cleanup and settlement; component integration only',completed:false,activationScope:'owned-one-writer-fixture-only',deployedActivation:false,production:false,testPins:pins,helperPins,selfSHA256,pgImage:image,commands:[],authStatuses:[],normalCleanup:false};
+const receipt={scope:'connected native enqueue, controlled one-writer cutover, execution, PKCE restart recovery, revocation, callback cleanup and settlement; component integration only',completed:false,activationScope:'owned-one-writer-fixture-only',deployedActivation:false,production:false,acceptanceGroup:selectedGroupName,testPins:pins,helperPins,selfSHA256,pgImage:image,commands:[],authStatuses:[],normalCleanup:false};
 function lateRefusal(reason){let fd;try{fd=openSync(path.join(out,'late-refusal.json'),constants.O_WRONLY|constants.O_CREAT|constants.O_EXCL|constants.O_NOFOLLOW,0o600);const bytes=Buffer.from(JSON.stringify({completed:false,reason})+'\n');let offset=0;while(offset<bytes.length){const written=writeSync(fd,bytes,offset,bytes.length-offset);assert.ok(written>0);offset+=written;}fsyncSync(fd);closeSync(fd);fd=undefined;const directory=openSync(out,constants.O_RDONLY|constants.O_DIRECTORY);try{fsyncSync(directory);}finally{closeSync(directory);}}catch{/* Refusal or bounded retry is handled by the enclosing guard. */}finally{if(fd!==undefined)try{closeSync(fd);}catch{/* Refusal or bounded retry is handled by the enclosing guard. */}}}
 function signal(){canceled=true; if(finished){lateRefusal('late-signal');process.exit(1);} for(const owner of owners)void owner.stop().catch(()=>{refused=true;});}
 process.on('SIGTERM',signal);process.on('SIGINT',signal);
@@ -107,8 +112,10 @@ function initdbDiagnostic(stderr){
  for(let line of lines){line=line.replaceAll(out,'[owned-runtime]');for(const key of ['HTTPS_PROXY','HTTP_PROXY','NO_PROXY','https_proxy','http_proxy','no_proxy'])if(typeof closed[key]==='string'&&closed[key])line=line.replaceAll(closed[key],'[redacted-env]');line=line.slice(0,512).replaceAll('%','%25').replaceAll('\r','%0D').replaceAll('\n','%0A');console.log('::notice title=Owned initdb diagnostic::'+line);}
 }
 function nativeDiagnostic(result,timed){
- const allowed=roster;const diagnostic={status:Number.isInteger(result.status)?result.status:null,signal:['SIGTERM','SIGKILL','SIGINT','SIGABRT','SIGSEGV'].includes(result.signal)?result.signal:null,timed,outputLimitExceeded:result.outputLimitExceeded,counts:{run:0,pass:0,fail:0,skip:0},failedCases:[],locations:[],jsonMalformed:false,fixtureStages:[],sqlStates:[],canonicalVersions:[],fixtureErrorCategory:null,postgresCategories:[],migrationDiagnostics:[],rollbackDiagnostic:null};
+ const allowed=roster;const diagnostic={status:Number.isInteger(result.status)?result.status:null,signal:['SIGTERM','SIGKILL','SIGINT','SIGABRT','SIGSEGV'].includes(result.signal)?result.signal:null,timed,outputLimitExceeded:result.outputLimitExceeded,counts:{run:0,pass:0,fail:0,skip:0},failedCases:[],locations:[],jsonMalformed:false,fixtureStages:[],sqlStates:[],canonicalVersions:[],fixtureErrorCategory:null,postgresCategories:[],migrationDiagnostics:[],rollbackDiagnostic:null,catalogDiagnostic:null,catalogKinds:[],cutoverPrepareStages:[]};
  const fixedStages=["postgres-start", "postgres-connect", "canonical-install", "fixture-data", "projection-pool", "owned-fga-model", "tuple-writer", "fga-checker", "projection-configure", "projection-reconcile", "registered-api-connect", "registered-api-role", "database-current-authority", "browser-authentication", "token-authentication", "authorization-resolver", "connector-registry", "reference-registry", "workflow-handler", "router", "canonical-cutover", "data-plane-roles", "data-plane-principals", "current-authorization-modules", "execution-roles", "execution-principals", "temporal-authorization-modules", "current-authorization-replay", "verifier-registration"];const locations=new Set();for(const line of result.stdout.split('\n').filter(Boolean)){let row;try{row=JSON.parse(line);}catch{diagnostic.jsonMalformed=true;continue;}if(allowed.includes(row.Test)&&['run','pass','fail','skip'].includes(row.Action)){diagnostic.counts[row.Action]++;if(row.Action==='fail')diagnostic.failedCases.push(row.Test);}if(typeof row.Output==='string'){
+ const observed=parseConnectorNativeObservation(row.Output);if(observed?.kind==='catalog-summary'&&diagnostic.catalogDiagnostic===null)diagnostic.catalogDiagnostic=observed.value;else if(observed?.kind==='catalog-object'&&diagnostic.catalogKinds.length<9&&!diagnostic.catalogKinds.some(value=>value.kind===observed.value.kind))diagnostic.catalogKinds.push(observed.value);else if(observed?.kind==='cutover'&&diagnostic.cutoverPrepareStages.length<4&&!diagnostic.cutoverPrepareStages.includes(observed.stage))diagnostic.cutoverPrepareStages.push(observed.stage);
+
 
  for(const label of postgresFailureCategories(row.Output))if(!diagnostic.postgresCategories.includes(label))diagnostic.postgresCategories.push(label);
 
@@ -118,10 +125,10 @@ function nativeDiagnostic(result,timed){
  for(const match of row.Output.matchAll(/failed after canonical version ([0-9]{1,4})(?:\s|$)/g))if(diagnostic.canonicalVersions.length<16)diagnostic.canonicalVersions.push(Number(match[1]));
  if(row.Output.includes('connector rollback result=admitted'))diagnostic.rollbackDiagnostic='admitted';else if(row.Output.includes('connector rollback result=non-postgres-error'))diagnostic.rollbackDiagnostic='non-postgres-error';
  if(row.Output.includes('connector fixture errorCategory=non-postgres-or-unclassified'))diagnostic.fixtureErrorCategory='non-postgres-or-unclassified';
- for(const match of row.Output.matchAll(/(?:connector_maintenance_pkce_recovery_test|connector_maintenance_lifecycle_postgres_test|connector_maintenance_lifecycle_helpers_test|connector_maintenance_enqueue_postgres_test|connector_enqueue_provenance_postgres_test|authorization_integration_mutations_postgres_test|authorization_projection_fga_test|approval_maintenance_owned_fga_test|postgres_integration_test)\.go:[0-9]{1,6}:/g))locations.add(match[0].slice(0,-1));}
+ for(const match of row.Output.matchAll(/(?:connector_maintenance_callback_restart_postgres_test|connector_maintenance_catalog_diagnostic_test|connector_maintenance_pkce_recovery_test|connector_maintenance_lifecycle_postgres_test|connector_maintenance_lifecycle_helpers_test|connector_maintenance_enqueue_postgres_test|connector_enqueue_provenance_postgres_test|authorization_integration_mutations_postgres_test|authorization_projection_fga_test|approval_maintenance_owned_fga_test|postgres_integration_test)\.go:[0-9]{1,6}:/g))locations.add(match[0].slice(0,-1));}
 }
  diagnostic.locations=[...locations].slice(0,16);diagnostic.failedCases=diagnostic.failedCases.slice(0,10);receipt.nativeDiagnostic=diagnostic;
- const scalar=n=>Number.isInteger(n)?String(n):'unobserved';console.log('::notice title=Connector native command outcome::status='+scalar(diagnostic.status)+'; timed='+String(timed)+'; signal='+(diagnostic.signal??'none')+'; cap='+String(diagnostic.outputLimitExceeded)+'; namedRUN='+diagnostic.counts.run+'; namedPASS='+diagnostic.counts.pass+'; namedFAIL='+diagnostic.counts.fail+'; namedSKIP='+diagnostic.counts.skip+'; failedCases='+diagnostic.failedCases.join(',')+'; sourceLocations='+diagnostic.locations.join(',')+'; postgresCategories='+diagnostic.postgresCategories.join(',')+'; fixtureStages='+diagnostic.fixtureStages.join(',')+'; SQLSTATE='+diagnostic.sqlStates.join(',')+'; canonicalVersions='+diagnostic.canonicalVersions.join(',')+'; fixtureErrorCategory='+(diagnostic.fixtureErrorCategory??'none')+'; rollbackDiagnostic='+(diagnostic.rollbackDiagnostic??'none')+'; migrationDiagnostics='+JSON.stringify(diagnostic.migrationDiagnostics)+'; JSONMalformed='+String(diagnostic.jsonMalformed)+'. No deployment readiness established.');
+ const scalar=n=>Number.isInteger(n)?String(n):'unobserved';console.log('::notice title=Connector native command outcome::status='+scalar(diagnostic.status)+'; timed='+String(timed)+'; signal='+(diagnostic.signal??'none')+'; cap='+String(diagnostic.outputLimitExceeded)+'; namedRUN='+diagnostic.counts.run+'; namedPASS='+diagnostic.counts.pass+'; namedFAIL='+diagnostic.counts.fail+'; namedSKIP='+diagnostic.counts.skip+'; failedCases='+diagnostic.failedCases.join(',')+'; sourceLocations='+diagnostic.locations.join(',')+'; postgresCategories='+diagnostic.postgresCategories.join(',')+'; fixtureStages='+diagnostic.fixtureStages.join(',')+'; SQLSTATE='+diagnostic.sqlStates.join(',')+'; canonicalVersions='+diagnostic.canonicalVersions.join(',')+'; fixtureErrorCategory='+(diagnostic.fixtureErrorCategory??'none')+'; rollbackDiagnostic='+(diagnostic.rollbackDiagnostic??'none')+'; migrationDiagnostics='+JSON.stringify(diagnostic.migrationDiagnostics)+'; catalogDiagnostic='+JSON.stringify(diagnostic.catalogDiagnostic)+'; catalogKinds='+JSON.stringify(diagnostic.catalogKinds)+'; cutoverPrepareStages='+diagnostic.cutoverPrepareStages.join(',')+'; JSONMalformed='+String(diagnostic.jsonMalformed)+'. No deployment readiness established.');
 }
 async function run(exe,args,seconds=60,env=closed,cleanup=false){if(!cleanup){guard();await floors();guard();}const owner=spawnOwnedCommand(exe,args,{cwd:root,env,maxOutputBytes:8*1024*1024});owners.add(owner);let timed=false;const timer=setTimeout(()=>{timed=true;void owner.stop().catch(()=>{refused=true;});},cleanup?seconds*1000:Math.min(seconds*1000,end-performance.now()));let result;
  try{result=await owner.completed;receipt.commands.push({command:exe==='docker'?'docker':path.basename(exe),status:result.status,signal:result.signal,outputLimitExceeded:result.outputLimitExceeded,stdoutBytes:Buffer.byteLength(result.stdout),stderrBytes:Buffer.byteLength(result.stderr),stdoutSHA256:hash(result.stdout),stderrSHA256:hash(result.stderr)});if(exe==='go'&&args[0]==='test')nativeDiagnostic(result,timed);if(['owned-initdb-tool-smoke','owned-raw-postgres-version-probe'].includes(phase)){const observation={status:result.status,signal:result.signal,timed,outputLimitExceeded:result.outputLimitExceeded,categories:postgresFailureCategories(result.stdout+'\n'+result.stderr),stdoutBytes:Buffer.byteLength(result.stdout),stderrBytes:Buffer.byteLength(result.stderr)};if(phase==='owned-initdb-tool-smoke')receipt.initdbToolSmoke=observation;else receipt.rawPostgresVersionProbe=observation;console.log('::notice title=Owned PostgreSQL prerequisite::phase='+phase+'; status='+String(result.status)+'; timed='+String(timed)+'; signal='+(result.signal??'none')+'; cap='+String(result.outputLimitExceeded)+'; categories='+observation.categories.join(',')+'. Tool compatibility only; no product test or deployment acceptance.');}if(phase==='owned-initdb-tool-smoke'&&result.status!==0)initdbDiagnostic(result.stderr);assert.ok(!timed&&(cleanup||!canceled)&&result.status===0&&!result.signal&&!result.outputLimitExceeded,'owned command refused');if(!cleanup)guard();return result;}
@@ -179,11 +186,11 @@ try{
  for(;;){guard();assert.ok(!serviceExited&&performance.now()<readyEnd);try{await observeOwnedListener({pid:fga.child.pid,start:fgaStart,port:fgaPort});await observeOwnedListener({pid:fga.child.pid,start:fgaStart,port:grpcPort});const health=await auth(url+'/healthz',null),denied=await auth(url+'/stores',null),wrong=await auth(url+'/stores',randomBytes(32).toString('hex')),allowed=await auth(url+'/stores',token);if(health===200&&denied===401&&wrong===401&&allowed===200){receipt.authStatuses=[health,denied,wrong,allowed];break;}}catch{/* Refusal or bounded retry is handled by the enclosing guard. */}await new Promise(resolve=>setTimeout(resolve,100));}
  testEnv.ZASP_P6_NATIVE_OPENFGA_URL=url;testEnv.ZASP_P6_NATIVE_OPENFGA_TOKEN_FILE=tokenFile;
  testEnv.ZASP_CONNECTOR_LIFECYCLE_OPENFGA_BINARY=path.join(out,'openfga-held','openfga');testEnv.ZASP_CONNECTOR_LIFECYCLE_OPENFGA_SHA256=receipt.fgaTool.memberSHA256;
- phase='authenticated-oauth-enqueue';const test=await run('go',['test','-C','services/platform','-json','-race','-p=1','-count=1','-timeout=10m','-run','^('+top+'|'+lifecycleTop+'|'+recoveryTop+')$','./apiserver'],650,testEnv);
- phase='exact-roster-and-postgres-cleanup';const rows=test.stdout.trim().split('\n').map(line=>JSON.parse(line));assert.ok(rows.every(row=>row.Action!=='fail'&&row.Action!=='skip'));
- const expected=roster;for(const action of ['run','pass'])assert.deepEqual(rows.filter(row=>row.Action===action&&row.Test).map(row=>row.Test).sort(),expected.slice().sort());assert.equal(rows.filter(row=>row.Action==='pass'&&!row.Test).length,1);
- const outputs=rows.map(row=>row.Output??'').join('');const joined=[...outputs.matchAll(/joined owned PostgreSQL pid=(\d+).*pg_ctl exit=0 server Wait exit=0 normal-exit/g)];assert.equal(joined.length,5);for(const row of joined)assert.ok(await absent(Number(row[1])));
- assert.ok(!test.stdout.includes(token)&&!test.stderr.includes(token));receipt.test={names:expected,tops:3,subcases:10,skips:0,packagePass:true,postgresNormalJoined:true,postgresPIDAbsent:true};
+ phase='authenticated-oauth-enqueue';const test=await run('go',['test','-C','services/platform','-json','-race','-p=1','-count=1','-timeout=10m','-run','^'+selectedGroup.top+'$','./apiserver'],650,testEnv);
+ phase='exact-roster-and-postgres-cleanup';const rows=test.stdout.trim().split('\n').map(line=>JSON.parse(line));validateConnectorAcceptanceTrace(rows,selectedGroup);
+ const expected=roster;
+ const outputs=rows.map(row=>row.Output??'').join('');const joined=[...outputs.matchAll(/joined owned PostgreSQL pid=(\d+).*pg_ctl exit=0 server Wait exit=0 normal-exit/g)];assert.equal(joined.length,selectedGroup.postgresJoins);assert.equal(new Set(joined.map(row=>row[1])).size,joined.length);for(const row of joined)assert.ok(await absent(Number(row[1])));
+ assert.ok(!test.stdout.includes(token)&&!test.stderr.includes(token));receipt.test={names:expected,tops:1,subcases:selectedGroup.subcases,skips:0,packagePass:true,postgresNormalJoined:true,postgresPIDAbsent:true};
  await sourcePins();for(const [file,pin]of Object.entries(sums))assert.equal(hash(await readFile(path.join(root,file))),pin);
 }catch(error){receipt.failedPhase=phase;receipt.failureClass=failureClass(error);refused=true;}
 finally{phase='owned-service-cleanup';
@@ -198,6 +205,6 @@ receipt.normalCleanup=owners.size===0&&!container&&receipt.fgaNormalJoined===tru
 receipt.completed=!refused&&!canceled&&performance.now()<end&&receipt.normalCleanup&&receipt.test?.packagePass===true;
 await writeFile(path.join(out,'result.json'),JSON.stringify(receipt,null,2)+'\n',{mode:0o600,flag:'wx'});
 finished=true;console.log(JSON.stringify(receipt));
-if(!receipt.completed||canceled||refused||performance.now()>=end){const value=n=>Number.isSafeInteger(n)&&n>=0?String(n):'unobserved';const resource=receipt.resourceSnapshot??{};console.error('::error title=Connector authenticated enqueue integration::phase='+ (receipt.failedPhase??phase)+'; class='+(receipt.failureClass??'other-refusal')+'; resource='+(receipt.resourceRefusal?.step??'not-refused')+'; resourceClass='+(receipt.resourceRefusal?.class??'none')+'; workspaceBytes='+value(resource.workspaceFreeBytes)+'; scratchBytes='+value(resource.scratchFreeBytes)+'; memoryHeadroomBytes='+value(resource.memoryHeadroomBytes)+'; binding='+(receipt.sourceBinding??'unobserved')+'. Authenticated enqueue integration refused; no deployment readiness established.');process.exitCode=1;}else console.log('Connector authenticated OAuth enqueue: connected 3 tops / 10 subcases PASS; owned PG/FGA normal cleanup. Owned controlled activation only; no fleet or deployment acceptance.');
+if(!receipt.completed||canceled||refused||performance.now()>=end){const value=n=>Number.isSafeInteger(n)&&n>=0?String(n):'unobserved';const resource=receipt.resourceSnapshot??{};console.error('::error title=Connector authenticated enqueue integration::phase='+ (receipt.failedPhase??phase)+'; class='+(receipt.failureClass??'other-refusal')+'; resource='+(receipt.resourceRefusal?.step??'not-refused')+'; resourceClass='+(receipt.resourceRefusal?.class??'none')+'; workspaceBytes='+value(resource.workspaceFreeBytes)+'; scratchBytes='+value(resource.scratchFreeBytes)+'; memoryHeadroomBytes='+value(resource.memoryHeadroomBytes)+'; binding='+(receipt.sourceBinding??'unobserved')+'. Authenticated enqueue integration refused; no deployment readiness established.');process.exitCode=1;}else console.log('Connector connected '+selectedGroupName+': 1 top / '+selectedGroup.subcases+' subcases PASS; owned PG/FGA normal cleanup. All four workflow groups are required; no fleet or deployment acceptance.');
 
 if(canceled||refused||performance.now()>=end){lateRefusal('terminal-refusal');process.exitCode=1;}

@@ -40,6 +40,7 @@ func TestConnectorMaintenanceAuthenticatedOAuthEnqueuePostgres(t *testing.T) {
 	if connectorProvenanceNativeState(t, f) != before {
 		t.Fatal("supplementary install changed original native state")
 	}
+	catalogBefore := connectorCatalogCapture(f)
 	grant, err := f.authorizer.Authorize(f.ctx, f.browser, f.browser.credentialBinding, RoutedOperation{OperationID: "authorizeIntegration", PathParameters: map[string]string{"id": integrationClientExisting}})
 	if err != nil {
 		t.Fatal("original signed browser admission refused")
@@ -70,6 +71,8 @@ func TestConnectorMaintenanceAuthenticatedOAuthEnqueuePostgres(t *testing.T) {
 		var result []byte
 		if err := tx.QueryRow(f.ctx, query, args...).Scan(&result); err != nil {
 			connectorApplicationMigrationFailure(t, "oauth-first-attempt", query, err)
+			connectorProvenanceRollback(tx)
+			connectorCatalogReport(t, f, catalogBefore)
 			t.Fatal("genuine authenticated OAuth enqueue refused")
 		}
 		if !json.Valid(result) {

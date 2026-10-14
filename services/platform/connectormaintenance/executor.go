@@ -34,6 +34,9 @@ const (
 	ReadWorkflow
 	BeforeCompensation
 	RecoverCompensation
+	RecoverCallbacks
+	BeforeCallbackCompensation
+	SettleCallbackRecovery
 )
 
 type Executor struct {
@@ -159,6 +162,19 @@ func (e *Executor) Invoke(ctx context.Context, op Operation, request json.RawMes
 	// native SQL. Attempted transitions require captured proof, never a newly
 	// issued forward decision. Recovery may inspect only registered origins.
 	switch op {
+	case RecoverCallbacks:
+		if len(proof) != 0 {
+			return nil, ErrUnavailable
+		}
+		return e.query(ctx, `SELECT zasp_connector_maintenance.recover_callbacks($1::jsonb,$2,$3)`, request, e.profile, e.version)
+	case BeforeCallbackCompensation, SettleCallbackRecovery:
+		if len(proof) == 0 || !json.Valid(proof) {
+			return nil, ErrUnavailable
+		}
+		if op == BeforeCallbackCompensation {
+			return e.query(ctx, `SELECT zasp_connector_maintenance.before_callback_compensation($1::jsonb,$2::jsonb,$3,$4)`, request, json.RawMessage(proof), e.profile, e.version)
+		}
+		return e.query(ctx, `SELECT zasp_connector_maintenance.settle_callback_recovery($1::jsonb,$2::jsonb,$3,$4)`, request, json.RawMessage(proof), e.profile, e.version)
 	case RecoverExpiredFinalAttempts:
 		if len(proof) != 0 {
 			return nil, ErrUnavailable

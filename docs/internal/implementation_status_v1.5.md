@@ -1,5 +1,26 @@
 # Agent Security Platform Implementation Status
 
+## Callback crash compensation checkpoint, October 14, 2026
+
+The inactive connector candidate now connects expired pre-provider callbacks to
+worker-only exact verifier deletion and atomic original rejection/audit settlement.
+Failed deletion stays pending; restart rotates captured ownership without forward
+authority or provider attempt increments. Provider-phase ambiguity and provider
+cleanup recovery remain separate open work. This supports M3-24/M3-52a acceptance
+without completing or replacing either original requirement.
+
+Isolated staged-source application verification passes 40 groups / 108 named
+events, plus 8 controlled-cutover diagnostic events, the original whole approval
+source pin, 4 Node controls, UI typecheck/build and independent source review.
+Native acceptance remains pending. Four complete required hosted groups preserve
+all 17 names and seven owned PostgreSQL joins under unchanged per-group guards;
+the aggregate refuses unless every group succeeds. Historical fingerprint,
+cutover and browser deadline failures remain recorded. Neither a fingerprint
+refresh nor a release-guard waiver is used. All 728 rows retain 523/144/61
+classifications and zero promotions. See the
+[callback checkpoint](cloud-callback-recovery-checkpoint-2026-10-14.json).
+
+
 ## Native refusal diagnosis checkpoint, October 14, 2026
 
 At `59ea2a72`, compilation and both original native capture runs pass. The

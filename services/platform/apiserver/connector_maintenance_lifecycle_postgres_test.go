@@ -179,6 +179,7 @@ func TestConnectorMaintenanceNativeLifecyclePostgres(t *testing.T) {
 		pid, stopWriter := startConnectorLifecycleWriter(t, f.dsn, owned.endpoint, owned.oldFile, o, store, model)
 		permit, err := cutover.Prepare(f.ctx, o, pid)
 		if err != nil {
+			t.Log("connector cutover prepare stage=" + connectormaintenancecutover.PrepareRefusalStage(err))
 			t.Fatal("authentic old writer preparation refused")
 		}
 		stopWriter()
