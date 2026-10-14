@@ -1,5 +1,20 @@
 # Agent Security Platform Implementation Status
 
+## Native refusal diagnosis checkpoint, October 14, 2026
+
+At `59ea2a72`, compilation and both original native capture runs pass. The
+same-head authenticated enqueue push run passes all three named events while
+the PR run fails SQLSTATE42501 at the first catalog/principal gate. This mixed
+result is preserved, not counted as stable acceptance. The successor keeps
+both original checks and rejection code, adding only closed failure labels to
+distinguish registration, fingerprint, provenance and principal readiness.
+Diagnostic errors retain the original refusal. No fingerprint or immutable
+reference is refreshed. Connected lifecycle and actual browser acceptance
+remain open; callback recovery is a separate in-progress batch. All 728 rows
+retain 523/144/61 categories and zero promotions. See the
+[native refusal checkpoint](cloud-native-refusal-checkpoint-2026-10-14.json).
+
+
 ## Direct browser setup checkpoint, October 14, 2026
 
 Candidate `59ea2a72` reaches a new prerequisite failure before browser execution

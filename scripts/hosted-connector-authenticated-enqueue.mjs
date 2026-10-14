@@ -22,7 +22,7 @@ const pins = {
   "services/platform/apiserver/connector_maintenance_callback_database.go": "68daa6030d5ad5e51dbcd95c5c7d3a77160dc74bafea1a986049b937bf787efc",
   "services/platform/apiserver/connector_maintenance_callback_resolver.go": "995c5238f7e4fa4a58a5d35218234600beaec374f67bb36f5a363a77357c7585",
   "services/platform/apiserver/connector_maintenance_enqueue_database.go": "df803820e44feadcbe41f4778cd50ee20edbfa1847fb82d0d9abcc39f3a962ac",
-  "services/platform/apiserver/connector_maintenance_enqueue_postgres_test.go": "b45386a9d6c6390b8e30b7a071801ecf8cd2a9bc5adb0398ca8ac9e9864e8b82",
+  "services/platform/apiserver/connector_maintenance_enqueue_postgres_test.go": "036597f5431971369f2a3cd0e56d143e2104d34999cecece1abac2365990348f",
   "services/platform/apiserver/connector_maintenance_repository.go": "0726280a4aaac1ca023317609910210eded8ee4e613ddf5f7351430d975e880a",
   "services/platform/apiserver/connector_reconciler.go": "a95c6b80c40a9ce9ceb2cfa153dc346d06464c194f55cc7caea99a635670a1c6",
   "services/platform/authorization/connector_maintenance_projection.go": "e9189565c21f4d16c3f06c3cf89b35e57b1cef5e5bb51b1ff49da02349dcd7b8",
@@ -39,7 +39,7 @@ const pins = {
   "services/platform/migrations/production_connector_enqueue_provenance.go": "793b230a8572fbfbed2a4702e1513bfa90afac596a8d0707ae047bbdf8bacc36",
   "services/platform/migrations/production_connector_maintenance.go": "18b0989e395e85f18a78f5f51aee06eb1f969fba79a66650754bfc3858d055cd",
   "services/platform/migrations/sql/connector_enqueue_provenance.sql": "32b3f8cbe175b5256ff4542cdff044d6d060e0240d24632bf3d057f3553a5c13",
-  "services/platform/migrations/sql/connector_maintenance_profile.sql": "d3406f1dd7ec7e10763dd898e38f6b0b18ae9a3793a6c50d20d0c034ec9cd8c1",
+  "services/platform/migrations/sql/connector_maintenance_profile.sql": "965a8799758225d1afcd903eb0cf3d3902d55d0a7faff1c93e99ac949caa587d",
   "services/platform/runtimeservices/config.go": "3eff9566c27b6e7c5179a8968aacf0f05b0810baf1d69abac43cb19e21dc0f77",
   "services/platform/migrations/production_approval_maintenance_profile.go": "2e98fa960c2e7b42b2a6a343b4ff47059c0d23fac83dbed887d2868f1b9c99f3",
   "services/platform/migrations/production_approval_maintenance_successor.go": "6817964c5c0dfcabe7ea9f65caf5b7840f6d9e4d29a1ec39b00e1b03b0fa6eca",
@@ -96,7 +96,7 @@ function nativeDiagnostic(result,timed){
 
  for(const label of postgresFailureCategories(row.Output))if(!diagnostic.postgresCategories.includes(label))diagnostic.postgresCategories.push(label);
 
- for(const match of row.Output.matchAll(/connector migration phase=(worker-profile|approval-profile|connector-profile|oauth-competing-attempt|oauth-first-attempt) statement=(oauth-admission|private-query|approval-definitions|connector-definitions|capture-definitions|namespace-bootstrap|organization-reference|registration-insert|authority-selection) SQLSTATE=([0-9A-Z]{5}) target=(unknown|zasp_organizations|zasp_security_agent_approval_notifications|zasp_authorization80_worker|zasp_authorization80_temporal|zasp_temporal78|zasp_approval_maintenance|zasp_connector_provenance|zasp_connector_maintenance|zasp_discovery_authority|registration) position=([0-9]{1,7}) reason=(unknown|attestation|fence|scope|oauth-catalog|oauth-source|cleanup-source|oauth-expired|task-purpose|task-source|task-witness)(?:\s|$)/g))if(diagnostic.migrationDiagnostics.length<16&&Number(match[5])<=2000000)diagnostic.migrationDiagnostics.push({phase:match[1],statement:match[2],sqlState:match[3],target:match[4],position:Number(match[5]),reason:match[6]});
+ for(const match of row.Output.matchAll(/connector migration phase=(worker-profile|approval-profile|connector-profile|oauth-competing-attempt|oauth-first-attempt) statement=(oauth-admission|private-query|approval-definitions|connector-definitions|capture-definitions|namespace-bootstrap|organization-reference|registration-insert|authority-selection) SQLSTATE=([0-9A-Z]{5}) target=(unknown|zasp_organizations|zasp_security_agent_approval_notifications|zasp_authorization80_worker|zasp_authorization80_temporal|zasp_temporal78|zasp_approval_maintenance|zasp_connector_provenance|zasp_connector_maintenance|zasp_discovery_authority|registration) position=([0-9]{1,7}) reason=(unknown|attestation|fence|scope|oauth-catalog|oauth-registration|oauth-fingerprint|oauth-provenance|oauth-principal|oauth-source|cleanup-source|oauth-expired|task-purpose|task-source|task-witness)(?:\s|$)/g))if(diagnostic.migrationDiagnostics.length<16&&Number(match[5])<=2000000)diagnostic.migrationDiagnostics.push({phase:match[1],statement:match[2],sqlState:match[3],target:match[4],position:Number(match[5]),reason:match[6]});
  for(const match of row.Output.matchAll(/connector fixture stage=([a-z-]+)/g))if(fixedStages.includes(match[1])&&diagnostic.fixtureStages.length<32)diagnostic.fixtureStages.push(match[1]);
  for(const match of row.Output.matchAll(/connector fixture SQLSTATE=([0-9A-Z]{5})(?:\s|$)/g))if(diagnostic.sqlStates.length<16)diagnostic.sqlStates.push(match[1]);
  for(const match of row.Output.matchAll(/failed after canonical version ([0-9]{1,4})(?:\s|$)/g))if(diagnostic.canonicalVersions.length<16)diagnostic.canonicalVersions.push(Number(match[1]));

@@ -1,7 +1,7 @@
 {
   "status": "INACTIVE API/WORKER CONTROLLED CUTOVER CANDIDATE; AUTHENTICATED APPLICATION VERIFICATION PENDING; NO DEPLOYMENT ADMISSION",
   "base": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
-  "checkpointSHA256": "273277bbe0a0c029721c0f956883916112be0ddbce0f5d06917c64cda919885c",
+  "checkpointSHA256": "22a434380f2272f03655bddf86d6aa34c91e1dd859bc79f0c85848237bb872db",
   "sources": [
     {
       "path": "services/platform/agentsec-api/connector_callback_runtime.go",
@@ -75,8 +75,8 @@
     },
     {
       "path": "services/platform/apiserver/connector_maintenance_enqueue_postgres_test.go",
-      "sha256": "b45386a9d6c6390b8e30b7a071801ecf8cd2a9bc5adb0398ca8ac9e9864e8b82",
-      "bytes": 13105,
+      "sha256": "036597f5431971369f2a3cd0e56d143e2104d34999cecece1abac2365990348f",
+      "bytes": 13421,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -194,8 +194,8 @@
     },
     {
       "path": "services/platform/migrations/sql/connector_maintenance_profile.sql",
-      "sha256": "d3406f1dd7ec7e10763dd898e38f6b0b18ae9a3793a6c50d20d0c034ec9cd8c1",
-      "bytes": 133620,
+      "sha256": "965a8799758225d1afcd903eb0cf3d3902d55d0a7faff1c93e99ac949caa587d",
+      "bytes": 134634,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },

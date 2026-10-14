@@ -199,8 +199,24 @@ DECLARE p jsonb;n public.zasp_connector_effects;receipt zasp_connector_maintenan
  END IF;
 END $created_origin$;
 CREATE FUNCTION zasp_connector_maintenance.start_oauth(envelope text,o text,w text,e text,attempt_value text,integration_value text,provider_value text,principal_value text,session_value bytea,state_value bytea,reference_value text,request_value bytea,scopes_value jsonb,expires_value timestamptz,integration_version_value bigint,configuration_value jsonb,cleanup_value text,authorize_value text) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $start_oauth$
-DECLARE p jsonb;result_value jsonb;t zasp_connector_maintenance.tasks;witness_value xid;previous_value jsonb;BEGIN
- IF zasp_connector_maintenance.catalog_ready('-- connector maintenance checksum') IS NOT TRUE OR public.zasp_discovery_principal_ready('zasp_discovery_api') IS NOT TRUE THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='connector OAuth capture unavailable';END IF;
+DECLARE p jsonb;result_value jsonb;t zasp_connector_maintenance.tasks;witness_value xid;previous_value jsonb;refusal_value text;BEGIN
+ IF zasp_connector_maintenance.catalog_ready('-- connector maintenance checksum') IS NOT TRUE THEN
+  -- Refusal diagnostics use closed labels only. The original catalog check
+  -- remains authoritative; a diagnostic failure cannot admit the operation.
+  refusal_value:='connector OAuth capture unavailable';
+  BEGIN
+   IF NOT EXISTS(SELECT 1 FROM zasp_connector_maintenance.registration r WHERE r.singleton AND r.checksum='-- connector maintenance checksum') THEN
+    refusal_value:='connector OAuth registration unavailable';
+   ELSIF NOT EXISTS(SELECT 1 FROM zasp_connector_maintenance.registration r WHERE r.singleton AND r.fingerprint=zasp_connector_maintenance.fingerprint()) THEN
+    refusal_value:='connector OAuth fingerprint unavailable';
+   ELSIF zasp_connector_provenance.catalog_matches('-- connector provenance checksum') IS NOT TRUE THEN
+    refusal_value:='connector OAuth provenance unavailable';
+   END IF;
+  EXCEPTION WHEN OTHERS THEN refusal_value:='connector OAuth capture unavailable';
+  END;
+  RAISE EXCEPTION USING ERRCODE='42501',MESSAGE=refusal_value;
+ END IF;
+ IF public.zasp_discovery_principal_ready('zasp_discovery_api') IS NOT TRUE THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='connector OAuth principal unavailable';END IF;
  PERFORM zasp_authorization80.fence(envelope);p:=zasp_authorization80.context();
  IF p IS NULL OR(p->>'organization_id',p->>'workspace_id',p->>'environment_id',p->>'principal_id',p->>'operation_id',p->>'permission',p->>'credential_kind',p->>'fresh_auth') IS DISTINCT FROM(o,w,e,principal_value,'authorizeIntegration','manage_workflows','1','true')
  OR session_value IS DISTINCT FROM decode(p->>'credential_digest','hex') OR p#>>'{path_parameters,id}' IS DISTINCT FROM integration_value

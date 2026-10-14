@@ -236,6 +236,14 @@ func connectorApplicationMigrationFailure(t *testing.T, phase, statement string,
 		reason = "scope"
 	case "connector OAuth capture unavailable":
 		reason = "oauth-catalog"
+	case "connector OAuth registration unavailable":
+		reason = "oauth-registration"
+	case "connector OAuth fingerprint unavailable":
+		reason = "oauth-fingerprint"
+	case "connector OAuth provenance unavailable":
+		reason = "oauth-provenance"
+	case "connector OAuth principal unavailable":
+		reason = "oauth-principal"
 	case "connector OAuth source rejected":
 		reason = "oauth-source"
 	case "connector OAuth cleanup source changed":
