@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { selectConnectorAcceptanceGroup, validateConnectorAcceptanceTrace, parseConnectorNativeObservation, describeConnectorAcceptanceTraceFailure } from './connector-acceptance-groups.mjs';
+import { selectConnectorAcceptanceGroup, validateConnectorAcceptanceTrace, parseConnectorNativeObservation, describeConnectorAcceptanceTraceFailure, describeConnectorAcceptanceTraceEvent } from './connector-acceptance-groups.mjs';
 const selectedGroup = selectConnectorAcceptanceGroup(process.argv.slice(2));
 const selectedGroupName = process.argv[2];
 import { createHash, randomBytes } from 'node:crypto';
@@ -61,13 +61,13 @@ const pins = {
   "services/platform/apiserver/connector_maintenance_lifecycle_postgres_test.go": "345c365921cdc9281ec767e00fd3e934f31fa4badb393f4a6b6e5793bd544e2d",
   "services/platform/apiserver/connector_maintenance_lifecycle_helpers_test.go": "17e25679f365e81f0450cfa2c9c5a23250afeb43f47f8577e34ed8de77029bc3",
   "services/platform/agentsec-api/compliance_browser_process_test.go": "ce30c1b24c754ee92be7cbc8c3fb82182b5416609b87aa0763aa7edf805e7aef",
-  "scripts/browser-command-failure.mjs": "576a9878ea365c2e9d988a325d9b063eedf8f1980d5015f08ce7c17e9168e751",
+  "scripts/browser-command-failure.mjs": "04cac4762fed7431263b7b01fdd9a562efcb57125da453d3e49c842f3eb03407",
   "services/platform/apiserver/production.go": "ca69d1bf4f7d6d0a94c68529f117a55d6e786aba437b9c55a0ee42c9af117c3c",
   "services/platform/apiserver/connector_maintenance_pkce_recovery_test.go": "db05051ac764c5a1d57dac9e8c3691660c284a2a6f5fb088b8cd10acef7c7f96",
   "services/platform/apiserver/connector_maintenance_recovery_decode_test.go": "08ad69924af72241a35c146e371c2a2ec955a25a8af16cfee81537073335c8f1",
   "services/platform/agentsec-api/authorization_runtime_readiness.go": "7999316f721e079c16656412eb594e460ca154f6f78a5cee5a1d894bf000ae21",
   "services/platform/agentsec-api/authorization_runtime_readiness_test.go": "d5900ebdd4e1a9663dceddd61b08e18b24ad540b385b1b1357122e797984e417",
-  "scripts/browser-command-failure.test.mjs": "0abdd6bf9a4d17cc8d88771a2a62329e1642bb531589e30e9122fc599b4f41ae",
+  "scripts/browser-command-failure.test.mjs": "9058178b89b07a810e50c8b098800c4072879a95a9ac7a686d6ce40032735f29",
   "services/platform/connectormaintenancecutover/readback_defaults.json": "d4c42d89fa77b89513e732b6d5bdd206c808111096307d38784cc6f1ba639835",
   "services/platform/connectormaintenancecutover/readback_test.go": "e4970d8ef25f042e9948abb5cbb0557c32988a50bd80b3bcddd6c8f74a8da23a",
   "services/platform/agentsec-migrate/main.go": "ed0705033dd88d12551eb2ee97fc674729f02c5fadb3f64742f845e9173124be",
@@ -108,8 +108,8 @@ const pins = {
 };
 const roster = selectedGroup.names;
 const helperPins={
-  "scripts/connector-acceptance-groups.test.mjs": "646a6b9d7205f622a158fc1101b1158a593c9786a8ab30bef3d37906424d0773",
-  "scripts/connector-acceptance-groups.mjs": "f73b9b670dfcc00ccd0250253cb9f0d521fe03ee9a86a6c87309f8e1f6d1beb4",
+  "scripts/connector-acceptance-groups.test.mjs": "0e78e56c953ad0df6ceecdc026acfc29165252ce4f56825703a06489addf7df2",
+  "scripts/connector-acceptance-groups.mjs": "1327003c353b4bd157b66c11bad9da30701c50e568e773028c62deafd74083be",
   "docs/internal/evidence/cloud-2026-10-07/native-service-readiness/openfga/09-pg-non-glibc-libs-manifest.json": "96642e82997ffd2caf2893a5ecc0116ad2aef6e982df2d929f3efda4e04f3474",
   "services/platform/apiserver/authorization_integration_mutations_postgres_test.go": "5e4beb04b2409ad9b11b89c017ada5e2eccffd78a87bdd5692d40670f12a2ba0",
   "scripts/hosted-memory-observation.mjs": "70c2ae837d040be4756842e4016acbc4eebd6bae3d8c992aba2a80e2a097ba75",
@@ -233,7 +233,7 @@ try{
  const outputs=rows.map(row=>row.Output??'').join('');const joined=[...outputs.matchAll(/joined owned PostgreSQL pid=(\d+).*pg_ctl exit=0 server Wait exit=0 normal-exit/g)];phase='postgres-join-count';assert.equal(joined.length,selectedGroup.postgresJoins);phase='postgres-join-uniqueness';assert.equal(new Set(joined.map(row=>row[1])).size,joined.length);phase='postgres-pid-absence';for(const row of joined)assert.ok(await absent(Number(row[1])));
  assert.ok(!test.stdout.includes(token)&&!test.stderr.includes(token));receipt.test={names:expected,tops:1,subcases:selectedGroup.subcases,skips:0,packagePass:true,postgresNormalJoined:true,postgresPIDAbsent:true};
  await sourcePins();for(const [file,pin]of Object.entries(sums))assert.equal(hash(await readFile(path.join(root,file))),pin);
-}catch(error){if(phase==='exact-test-roster'){receipt.traceFailureStage=describeConnectorAcceptanceTraceFailure(error);console.log('::notice title=Connector acceptance trace refusal::stage='+receipt.traceFailureStage+'. Closed diagnostic only; acceptance remains refused.');}receipt.failedPhase=phase;receipt.failureClass=failureClass(error);refused=true;}
+}catch(error){if(phase==='exact-test-roster'){receipt.traceFailureStage=describeConnectorAcceptanceTraceFailure(error);const event=describeConnectorAcceptanceTraceEvent(error);console.log('::notice title=Connector acceptance trace refusal::stage='+receipt.traceFailureStage+'; eventAction='+(event?.action??'none')+'; eventTestShape='+(event?.testShape??'none')+'; eventCaseClass='+(event?.caseClass??'none')+'. Closed diagnostic only; acceptance remains refused.');}receipt.failedPhase=phase;receipt.failureClass=failureClass(error);refused=true;}
 finally{phase='owned-service-cleanup';
  for(const owner of [...owners].reverse()){try{await owner.stop();const result=await owner.completed;if(owner===fga){assert.ok(result.status===0&&!result.signal&&!result.outputLimitExceeded);assert.ok(!result.stdout.includes(tokenForRedaction)&&!result.stderr.includes(tokenForRedaction));receipt.fgaNormalJoined=true;receipt.fgaPIDAbsent=await absent(owner.child.pid);assert.ok(receipt.fgaPIDAbsent);receipt.fgaSessionAbsent=await sessionEmpty(owner.child.pid);assert.ok(receipt.fgaSessionAbsent);}}catch{refused=true;}owners.delete(owner);}
  if(tool)try{await closeHeldTool(tool);}catch{refused=true;}

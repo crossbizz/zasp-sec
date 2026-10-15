@@ -1,7 +1,7 @@
 {
-  "status": "EXACT BROWSER UNIT PREREQUISITES REPAIRED; NATIVE ASSERTIONS RETAINED WITH CLOSED FAILURE ATTRIBUTION; HOSTED AND DEPLOYED GATES PENDING",
+  "status": "CLOSED NATIVE EVENT AND PROJECTOR COMMAND ATTRIBUTION VERIFIED; ORIGINAL ACCEPTANCE GUARDS RETAINED; HOSTED AND DEPLOYED GATES UNRESOLVED",
   "base": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
-  "checkpointSHA256": "4e1be309ce5e8f4d85edfb4ae576eb46dfefa74455ed03d7965448094bbf7f5d",
+  "checkpointSHA256": "614d137f1ad4bac2500d10f5b4405f76789bd19d3fad2079ec5edf3ff0ae9b07",
   "sources": [
     {
       "path": "services/platform/agentsec-api/connector_callback_runtime.go",
@@ -376,28 +376,28 @@
     },
     {
       "path": "scripts/connector-acceptance-groups.mjs",
-      "sha256": "f73b9b670dfcc00ccd0250253cb9f0d521fe03ee9a86a6c87309f8e1f6d1beb4",
-      "bytes": 8967,
+      "sha256": "1327003c353b4bd157b66c11bad9da30701c50e568e773028c62deafd74083be",
+      "bytes": 10027,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/connector-acceptance-groups.test.mjs",
-      "sha256": "646a6b9d7205f622a158fc1101b1158a593c9786a8ab30bef3d37906424d0773",
-      "bytes": 7033,
+      "sha256": "0e78e56c953ad0df6ceecdc026acfc29165252ce4f56825703a06489addf7df2",
+      "bytes": 11807,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connected-connector-acceptance.mjs",
-      "sha256": "846ffedf969261ca95a7cd1489bea0b9339d82f72ccfa94f20b495e69ee0eee9",
-      "bytes": 45401,
+      "sha256": "e5a4cba1f29ce3ce7a9dff62d2ed155a85e38ee23781407cdfa245d5f67678fa",
+      "bytes": 45632,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
-      "sha256": "dddaebc97296a832f0c55f9918e66d46a176f18b8dd0ecc3b261ee0cc73123f8",
+      "sha256": "079b58a416769c061524ff5e62390cfe91f611a8a65a7fab1c3785f629dfa61d",
       "bytes": 42287,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
@@ -418,8 +418,8 @@
     },
     {
       "path": "scripts/owned-current80-composition.mjs",
-      "sha256": "9badbf2df3f1956d291b6af8f1654b81429c08f7e7215aecff8835f538ad20a1",
-      "bytes": 8255,
+      "sha256": "c18e89ca390ebb51894c933e68f3b73a1bc5fb28a220f6c59fb30824ac756bbf",
+      "bytes": 8354,
       "currentBasePreimageSHA256": "3f9143d9a00cd880b5fe64e27b245fd802142ecbefe61c22694e41ca132a499f",
       "historicalPreimageSHA256": null
     },
@@ -509,8 +509,8 @@
     },
     {
       "path": "scripts/production-combined-e2e.mjs",
-      "sha256": "f5186230a3a3bf3d7e162612daf5f2a4dfc7dc55aa23d599b8436ac343c26a5a",
-      "bytes": 678304,
+      "sha256": "cbb91bf5a8b52017e6bdad334dd473fbb3a36105216734f6b1de5795e66cf676",
+      "bytes": 678861,
       "currentBasePreimageSHA256": "e0fa7575954efc744ccaf52c4644b65a81985773b99b3af3ec3ea8b31bc46da4",
       "historicalPreimageSHA256": null
     },
@@ -698,8 +698,8 @@
     },
     {
       "path": "scripts/browser-command-failure.test.mjs",
-      "sha256": "0abdd6bf9a4d17cc8d88771a2a62329e1642bb531589e30e9122fc599b4f41ae",
-      "bytes": 16290,
+      "sha256": "9058178b89b07a810e50c8b098800c4072879a95a9ac7a686d6ce40032735f29",
+      "bytes": 18958,
       "currentBasePreimageSHA256": "335bf1380f140e48a3067d6f969a5cb2a4d6134dec7aab246f3216ee38746eac",
       "historicalPreimageSHA256": "335bf1380f140e48a3067d6f969a5cb2a4d6134dec7aab246f3216ee38746eac"
     },
@@ -782,8 +782,8 @@
     },
     {
       "path": "scripts/browser-command-failure.mjs",
-      "sha256": "576a9878ea365c2e9d988a325d9b063eedf8f1980d5015f08ce7c17e9168e751",
-      "bytes": 14239,
+      "sha256": "04cac4762fed7431263b7b01fdd9a562efcb57125da453d3e49c842f3eb03407",
+      "bytes": 14980,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -796,5 +796,5 @@
     }
   ],
   "predecessorCheckpointSHA256": "364ada857d54ce83d678e00eb3d61d55c6a036d22cc1f7ebc9170432079ece05",
-  "previousCheckpointSHA256": "62a639835489746c875f535052b606b0bf114f805444ac7b26ec9df411e332bc"
+  "previousCheckpointSHA256": "4e1be309ce5e8f4d85edfb4ae576eb46dfefa74455ed03d7965448094bbf7f5d"
 }

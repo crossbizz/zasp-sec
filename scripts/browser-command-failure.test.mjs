@@ -13,14 +13,14 @@ assert.ok(start>0&&end>start);
 const commandSource=src.slice(start,end);
 const build=['build','-o','/owned/CANARY_SECRET','./agentsec-migrate'];
 function harness({deadline=false,status=0,signal=null}={}){
- const annotations=[],events=[],children=[],ownedCommands=new WeakMap();let settle;
+ const annotations=[],events=[],children=[],errors=[],ownedCommands=new WeakMap();let settle;
  const completed=deadline?new Promise(resolve=>{settle=resolve;}):Promise.resolve({status,signal,stdout:'CANARY_STDOUT',stderr:'CANARY_STDERR'});
  const child={};
- const owned={child,completed,stop:async()=>{events.push('stop');settle({status:null,signal:'SIGTERM',stdout:'',stderr:''});}};
+ const owned={child,completed,stop:async()=>{events.push('stop');settle?.({status:null,signal:'SIGTERM',stdout:'',stderr:''});}};
  const spawn=(executable,args,options)=>{events.push({executable,args,options});return owned;};
  const fakeSet=(cb,ms)=>{events.push({deadline:ms});if(deadline)queueMicrotask(cb);return 1;};
- const command=new Function('spawnOwnedCommand','auditBrowserEnvironment','children','ownedCommands','temporaryRoot','root','existingTestMountedMode','path','setTimeout','clearTimeout','browserCommandFailureAnnotation','console','const currentComplianceFailure=undefined,currentComplianceClosing=false,currentComplianceServices=undefined;'+commandSource+'\nreturn command;')(spawn,x=>x,children,ownedCommands,'/owned/tmp','/repo',false,path,fakeSet,()=>events.push('clear'),browserCommandFailureAnnotation,{error:x=>annotations.push(x)});
- return {command,annotations,events,children,ownedCommands,child};
+ const command=new Function('spawnOwnedCommand','auditBrowserEnvironment','children','ownedCommands','temporaryRoot','root','existingTestMountedMode','path','setTimeout','clearTimeout','browserCommandFailureAnnotation','console','Error','const currentComplianceFailure=undefined,currentComplianceClosing=false,currentComplianceServices=undefined;'+commandSource+'\nreturn command;')(spawn,x=>x,children,ownedCommands,'/owned/tmp','/repo',false,path,fakeSet,()=>events.push('clear'),browserCommandFailureAnnotation,{error:x=>annotations.push(x)},function(message){const error=Error(message);errors.push(error);return error;});
+ return {command,annotations,events,children,ownedCommands,child,errors};
 }
 test('fixed command classes never include arguments, paths or unknown failure text',()=>{
  for(const [args,label]of [[build,'go-migration-build'],[['test','-c','-o','CANARY','./agentsec-api'],'go-api-test-compile'],[['test','-c','-o','CANARY','./agentsec-worker'],'go-worker-test-compile']]){
@@ -38,6 +38,28 @@ test('actual command nonzero retains original error, explicit deadline and optio
 });
 test('actual command success and explicit nonreject remain unchanged without annotations',async()=>{
  for(const status of [0,9]){const h=harness({status});const r=await h.command('go',build,{reject:false});assert.equal(r.status,status);assert.deepEqual(h.annotations,[]);assert.ok(h.events.includes('clear'));}
+});
+
+test('trusted projection contexts expose only fixed command role and requested cancellation',async()=>{
+ for(const context of ['owned-projection-reconcile','owned-projection-revision'])for(const cancellationRequested of [false,true]){
+  const h=harness({status:37}),controller=new AbortController();if(cancellationRequested)controller.abort();
+  await assert.rejects(h.command('/CANARY_EXEC',['PRIVATE_SQL_CANARY'],{complianceDiagnostic:context,signal:controller.signal}),error=>{assert.equal(error,h.errors[0]);assert.equal(error.message,'CANARY_EXEC failed (37): CANARY_STDERR');return true;});
+  assert.deepEqual(h.annotations,[`::error title=Compliance browser command failed::Observed command class: ${context}; failure: nonzero-exit; cancellation-requested=${cancellationRequested}.`]);
+  assert.doesNotMatch(h.annotations.join(''),/CANARY|PRIVATE|SQL|STDERR/);assert.equal(h.events.includes('stop'),cancellationRequested);assert.ok(h.events.includes('clear'));
+ }
+ const h=harness({deadline:true});await assert.rejects(h.command('/CANARY_EXEC',[],{complianceDiagnostic:'owned-projection-reconcile'}),{message:'CANARY_EXEC exceeded its deadline'});
+ assert.deepEqual(h.annotations,['::error title=Compliance browser command failed::Observed command class: owned-projection-reconcile; failure: deadline; cancellation-requested=false.']);
+});
+
+test('malformed or throwing projection diagnostics retain original notices and command errors',async()=>{
+ const old=browserCommandFailureAnnotation('/CANARY_EXEC',['PRIVATE_SQL_CANARY'],'nonzero-exit');
+ const throwing={get context(){throw Error('PRIVATE_DIAGNOSTIC_CANARY');},cancellationRequested:false};
+ for(const diagnostic of [null,[],{},throwing,{context:'PRIVATE_CANARY',cancellationRequested:false},{context:'owned-projection-reconcile',cancellationRequested:'PRIVATE_CANARY'},{context:'owned-projection-reconcile',cancellationRequested:false,PRIVATE_CANARY:true},new Proxy({},{ownKeys(){throw Error('PRIVATE_CANARY');}})]){
+  assert.equal(browserCommandFailureAnnotation('/CANARY_EXEC',['PRIVATE_SQL_CANARY'],'nonzero-exit','PRIVATE_STDERR_CANARY',diagnostic),old);
+ }
+ const h=harness({status:37}),options={get complianceDiagnostic(){throw Error('PRIVATE_OPTION_CANARY');}};
+ await assert.rejects(h.command('go',build,options),error=>{assert.equal(error,h.errors[0]);assert.equal(error.message,'go failed (37): CANARY_STDERR');return true;});
+ assert.deepEqual(h.annotations,['::error title=Compliance browser command failed::Observed command class: go-migration-build; failure: nonzero-exit.']);
 });
 
 import * as phaseHelpers from './browser-command-failure.mjs';

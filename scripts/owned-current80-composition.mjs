@@ -27,12 +27,12 @@ const required=['ZASP_PUBLIC_ORIGIN','ZASP_STYTCH_BASE_URL','ZASP_STYTCH_PROJECT
  const delivery={...migration,ZASP_POSTGRES_DSN:dsn(roles.ZASP_OUTBOX_WORKER_DB_PRINCIPAL)};
  const reader={...migration,ZASP_POSTGRES_DSN:dsn(roles.ZASP_DISCOVERY_API_DB_PRINCIPAL)};
  const pass=async(signal)=>{if(signal?.aborted)throw Error('owned projection canceled');
-  const result=await command(reconcile,['-mode','reconcile','-organization',organization,'-limit','1','-timeout','2m'],{env:delivery,timeout:125000,signal});if(result.status!==0||result.signal||typeof result.stdout!=='string'||result.stdout.length>65536)refusal();
+  const result=await command(reconcile,['-mode','reconcile','-organization',organization,'-limit','1','-timeout','2m'],{env:delivery,timeout:125000,signal,complianceDiagnostic:'owned-projection-reconcile'});if(result.status!==0||result.signal||typeof result.stdout!=='string'||result.stdout.length>65536)refusal();
   let receipt;try{receipt=JSON.parse(result.stdout);}catch{refusal();}
   if(receipt.organization_id!==organization||receipt.status!=='applied'||receipt.receipt?.Applied!==true||!Number.isSafeInteger(receipt.receipt.TupleCount)||receipt.receipt.TupleCount<0)refusal();
   const applied=revision(receipt.receipt.Revision,organization,runtimeEnvironment);
   const sql=`SELECT jsonb_build_object('organization_id',r->'organization_id','desired',r->'desired','applied',r->'applied','generation',r->'generation','store_id',r->'store_id','model_id',r->'model_id') FROM (SELECT zasp_authorization79.revision('${organization}') r) observed`;
-  const observation=await command(psql,[reader.ZASP_POSTGRES_DSN,'-X','-v','ON_ERROR_STOP=1','-At','-c',sql],{env:closed(identityEnvironment),timeout:5000,signal});if(observation.status!==0||observation.signal||typeof observation.stdout!=='string'||observation.stdout.length>65536)refusal();
+  const observation=await command(psql,[reader.ZASP_POSTGRES_DSN,'-X','-v','ON_ERROR_STOP=1','-At','-c',sql],{env:closed(identityEnvironment),timeout:5000,signal,complianceDiagnostic:'owned-projection-revision'});if(observation.status!==0||observation.signal||typeof observation.stdout!=='string'||observation.stdout.length>65536)refusal();
   let data;try{data=JSON.parse(observation.stdout);}catch{refusal();}const observed=revision(data,organization,runtimeEnvironment);if(fields.some(key=>observed[key]!==applied[key]))refusal();return Object.freeze(observed);
  };
  let sequence=Promise.resolve();const refresh=signal=>{const pending=sequence.then(()=>pass(signal));sequence=pending.catch(()=>{});return pending;};

@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import * as traceDiagnostics from './connector-acceptance-groups.mjs';
 import { CONNECTOR_ACCEPTANCE_GROUPS as groups, selectConnectorAcceptanceGroup as select, validateConnectorAcceptanceTrace as validate, parseConnectorNativeObservation as observation, describeConnectorAcceptanceTraceFailure as describeTraceFailure } from './connector-acceptance-groups.mjs';
 const pkg = 'github.com/zasp-ai/zasp-sec/services/platform/apiserver';
 const trace = selected => [...selected.names.flatMap(Test => [{Package: pkg, Test, Action: 'run'}, {Package: pkg, Test, Action: 'pass'}]), {Package: pkg, Action: 'pass'}];
@@ -34,6 +36,56 @@ test('partial, duplicated, skipped, failed, foreign, or cross-group traces refus
     assert.equal(describeTraceFailure(error), stage); return true;
   });
   for (const value of [new Error('PRIVATE_CANARY'), {stage:'event-package'}, {message:'event-case'}, null, 'event-action']) assert.equal(describeTraceFailure(value), 'unknown');
+});
+
+test('rejected extra event cases expose only issued fixed descriptors and never change acceptance',()=>{
+  const selected=groups.approval,good=trace(selected);
+  validate([...good,{Package:pkg,Action:'output',Output:'PRIVATE_PACKAGE_CANARY'}],selected);
+  const cases=[
+    [groups.pkce.top,'nonempty-string','other-fixed-group'],
+    ['TestApprovalActivationOldWriterProcess','nonempty-string','source-known-owned-helper'],
+    ['PRIVATE_TEST_CANARY','nonempty-string','unrecognized'],
+    ['','empty-string','unrecognized'],[null,'null','non-string'],[[],'non-string','non-string'],
+  ];
+  for(const [Test,testShape,caseClass]of cases)for(const action of ['start','run','output','pass']){
+    const rows=[...good,{Package:pkg,Test,Action:action,Output:'PRIVATE_OUTPUT_CANARY'}];let issued;
+    assert.throws(()=>validate(rows,selected),error=>{issued=error;assert.equal(describeTraceFailure(error),'event-case');return true;});
+    assert.equal(typeof traceDiagnostics.describeConnectorAcceptanceTraceEvent,'function');
+    const descriptor=traceDiagnostics.describeConnectorAcceptanceTraceEvent(issued);
+    assert.deepEqual(descriptor,{action,testShape,caseClass});assert.equal(Object.isFrozen(descriptor),true);
+    assert.equal(traceDiagnostics.describeConnectorAcceptanceTraceEvent(issued),descriptor);
+    assert.doesNotMatch(JSON.stringify(descriptor),/PRIVATE|CANARY|TestApproval|TestConnector|stack|hash/i);
+    assert.throws(()=>validate(rows,selected));
+  }
+  let actionReads=0,changedActionError;
+  const changing={Package:pkg,Test:'PRIVATE_TEST_CANARY',get Action(){return ++actionReads<=3?'output':'PRIVATE_ACTION_CANARY';}};
+  assert.throws(()=>validate([...good,changing],selected),error=>{changedActionError=error;assert.equal(describeTraceFailure(error),'event-case');return true;});
+  assert.equal(traceDiagnostics.describeConnectorAcceptanceTraceEvent(changedActionError),null);
+  for(const error of [null,{},Error('PRIVATE_ERROR_CANARY'),{action:'output',testShape:'nonempty-string',caseClass:'unrecognized'}])assert.equal(traceDiagnostics.describeConnectorAcceptanceTraceEvent(error),null);
+});
+
+test('closed event observation preserves the exact original assertion error and existing stage API',()=>{
+  const original=Error('PRIVATE_ASSERTION_CANARY'),stages=new WeakMap(),events=new WeakMap();
+  const guarded={...assert,ok(value,...args){if(!value)throw original;return assert.ok(value,...args);}};
+  // Execute the actual unchanged assertion function with a controlled issued
+  // error. This verifies catch/observation never replaces that original object.
+  const actual=new Function('assert','CONNECTOR_ACCEPTANCE_GROUPS','applicationPackage','traceFailureStages','traceFailureEvents',`return (${validate.toString()});`)(guarded,groups,pkg,stages,events);
+  assert.throws(()=>actual([...trace(groups.approval),{Package:pkg,Test:'PRIVATE_EXTRA_CANARY',Action:'output'}],groups.approval),error=>error===original);
+  assert.equal(stages.get(original),'event-case');
+  assert.deepEqual(events.get(original),{action:'output',testShape:'nonempty-string',caseClass:'unrecognized'});
+  assert.doesNotMatch(JSON.stringify(events.get(original)),/PRIVATE|CANARY/);
+});
+
+test('actual hosted refusal notice emits fixed fields without reflecting rejected test or output',()=>{
+  const source=fs.readFileSync(new URL('./hosted-connected-connector-acceptance.mjs',import.meta.url),'utf8');
+  const begin=source.indexOf("}catch(error){if(phase==='exact-test-roster')"),end=source.indexOf("\nfinally{phase='owned-service-cleanup';",begin);
+  assert.ok(begin>0&&end>begin);
+  const messages=[],receipt={};let issued;
+  assert.throws(()=>validate([...trace(groups.approval),{Package:pkg,Test:'PRIVATE_TEST_CANARY',Action:'output',Output:'PRIVATE_OUTPUT_CANARY'}],groups.approval),error=>{issued=error;return true;});
+  const run=new Function('describeConnectorAcceptanceTraceFailure','describeConnectorAcceptanceTraceEvent','receipt','console','failureClass','issued',`let phase='exact-test-roster',refused=false;try{throw issued;}${source.slice(begin+1,end)};return refused;`);
+  assert.equal(run(describeTraceFailure,traceDiagnostics.describeConnectorAcceptanceTraceEvent,receipt,{log:value=>messages.push(value)},()=> 'ERR_ASSERTION',issued),true);
+  assert.deepEqual(messages,['::notice title=Connector acceptance trace refusal::stage=event-case; eventAction=output; eventTestShape=nonempty-string; eventCaseClass=unrecognized. Closed diagnostic only; acceptance remains refused.']);
+  assert.equal(receipt.traceFailureStage,'event-case');assert.equal(receipt.failedPhase,'exact-test-roster');assert.doesNotMatch(messages.join(''),/PRIVATE|CANARY|Output:/);
 });
 
 test('native observations expose only bounded closed catalog and cutover fields', () => {

@@ -1,6 +1,33 @@
 # Agent Security Platform Implementation Status
 
 
+## Closed acceptance diagnostics and rejected source candidates, October 15, 2026
+
+Starting from `4e282b01f6d72b0a7f2bf877553e42268fa30ada`, strict native trace
+refusals now expose only fixed offending-event categories. Projection command
+failures identify the original reconciliation/revision operation and observed
+cancellation-request state. Original assertions, rosters, command arguments,
+timeouts, errors, stop/join and periodic behavior remain unchanged. Ordinary
+helper calls retain their original arity. Independent reviews, 285 grouped
+checks, lint and ledger validation pass. Original RED and intermediate failures
+remain retained. See `cloud-closed-diagnostics-checkpoint-2026-10-15.json`.
+
+Current hosted browser results differ: push advanced to browser-startup phase,
+while PR passed both metadata checks then refused approval-reconciler readiness.
+Concurrent command failure does not identify Chrome as the cause. Native future
+Test74 confirms a nil-error grant expectation mismatch; other native and strict
+event-case failures remain. No native or deployed acceptance is claimed.
+
+Two genuine upstream source rebuilds succeeded but their replacement glob engine
+changed real consumer behavior: extensionless import precedence and a symlink
+project lint diagnostic. Both candidates were rejected; original dependencies
+remain. Automatic review stopped the subsequent vulnerability reproduction and
+source-fork implementation subtask for possible cybersecurity risk; no verified
+remediation receipt exists. The security/release gate remains held. Helm remains
+absent pending capacity admission for its verified source-build recipe. Counts
+remain 728/523/144/61 with zero promotions; launch is not accepted.
+
+
 ## Browser unit prerequisites and native attribution, October 15, 2026
 
 Starting from `2b32a6b15c98d50f3b36f93a250c96c22fc8760a`, the exact hosted

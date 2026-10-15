@@ -17,7 +17,7 @@ const CURRENT_PROFILE_COMMANDS=new Map([
  ['register-compensation-authorization-verifier','current-profile-register-compensation-authorization-verifier'],
 ]);
 const CURRENT_PROFILE_INNER_STEPS=new Set(["up-to-60", "up-temporal-domain", "up-temporal-executor", "up-temporal-workflow", "up-temporal-compatibility", "up-temporal-legacy-tests", "up-temporal-discovery", "up-temporal-admission", "up-temporal-test-executor", "up-temporal-test-selector", "up-temporal-human-admission", "up-temporal-automatic-sources", "up-temporal-finding-response", "up-authorization-temporal-identity-profile", "up-authorization-worker-profile"]);
-export function browserCommandFailureAnnotation(executable,args,kind,stderr){
+export function browserCommandFailureAnnotation(executable,args,kind,stderr,diagnostic){
  if(kind!=='deadline'&&kind!=='nonzero-exit')return null;
  let label='other-command';
  if(typeof executable==='string'&&executable.startsWith('/')&&executable.endsWith('/agentsec-migrate')&&Array.isArray(args)&&args.length===1&&typeof args[0]==='string')label=CURRENT_PROFILE_COMMANDS.get(args[0])??label;
@@ -25,7 +25,15 @@ export function browserCommandFailureAnnotation(executable,args,kind,stderr){
   if(args.length===4&&args[0]==='build'&&args[1]==='-o'&&typeof args[2]==='string'&&typeof args[3]==='string')label=CLASSES.get('build|'+args[3])??label;
   if(args.length===5&&args[0]==='test'&&args[1]==='-c'&&args[2]==='-o'&&typeof args[3]==='string'&&typeof args[4]==='string')label=CLASSES.get('test|-c|'+args[4])??label;
  }
- const annotation=`::error title=Compliance browser command failed::Observed command class: ${label}; failure: ${kind}.`;
+ let cancellationRequested;
+ try{
+  if(diagnostic&&typeof diagnostic==='object'&&!Array.isArray(diagnostic)&&Object.keys(diagnostic).length===2&&Object.hasOwn(diagnostic,'context')&&Object.hasOwn(diagnostic,'cancellationRequested')){
+   const context=diagnostic.context,canceled=diagnostic.cancellationRequested;
+   const fixed=new Map([['owned-projection-reconcile','owned-projection-reconcile'],['owned-projection-revision','owned-projection-revision']]).get(context);
+   if(fixed&&typeof canceled==='boolean'){label=fixed;cancellationRequested=canceled;}
+  }
+ }catch{/* Diagnostic input cannot replace the original command failure. */}
+ const annotation=`::error title=Compliance browser command failed::Observed command class: ${label}; failure: ${kind}${cancellationRequested===undefined?'':`; cancellation-requested=${cancellationRequested}`}.`;
  if(label!=='current-profile-up-authorization-runtime-profile'||kind!=='nonzero-exit'||typeof stderr!=='string'||stderr.length>512)return annotation;
  const match=/^ZASP_AUTHORIZATION_RUNTIME_PROFILE_FAILED_STEP=([a-z0-9-]+);STAGE=(install|forward-readiness)\n$/.exec(stderr);
  if(!match||match[0]!==stderr||!CURRENT_PROFILE_INNER_STEPS.has(match[1]))return annotation;

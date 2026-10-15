@@ -96,8 +96,8 @@ const pins = {
 const top='TestConnectorMaintenanceAuthenticatedOAuthEnqueuePostgres';
 const cases=['genuine_same_transaction_origin_and_immutable_enrichment','rollback_removes_every_enqueue_and_provenance_write'];
 const helperPins={
-  "scripts/connector-acceptance-groups.test.mjs": "646a6b9d7205f622a158fc1101b1158a593c9786a8ab30bef3d37906424d0773",
-  "scripts/connector-acceptance-groups.mjs": "f73b9b670dfcc00ccd0250253cb9f0d521fe03ee9a86a6c87309f8e1f6d1beb4",
+  "scripts/connector-acceptance-groups.test.mjs": "0e78e56c953ad0df6ceecdc026acfc29165252ce4f56825703a06489addf7df2",
+  "scripts/connector-acceptance-groups.mjs": "1327003c353b4bd157b66c11bad9da30701c50e568e773028c62deafd74083be",
   "docs/internal/evidence/cloud-2026-10-07/native-service-readiness/openfga/09-pg-non-glibc-libs-manifest.json": "96642e82997ffd2caf2893a5ecc0116ad2aef6e982df2d929f3efda4e04f3474",
   "services/platform/apiserver/authorization_integration_mutations_postgres_test.go": "5e4beb04b2409ad9b11b89c017ada5e2eccffd78a87bdd5692d40670f12a2ba0",
   "scripts/hosted-memory-observation.mjs": "70c2ae837d040be4756842e4016acbc4eebd6bae3d8c992aba2a80e2a097ba75",

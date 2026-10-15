@@ -7214,6 +7214,7 @@ async function stopChild(child) {
 }
 
 async function command(executable, args, options = {}) {
+  const failureDiagnostic=()=>{try{const context=options.complianceDiagnostic;return context==='owned-projection-reconcile'||context==='owned-projection-revision'?{context,cancellationRequested:options.signal?.aborted===true}:undefined;}catch{return undefined;}};
   if(currentComplianceFailure||currentComplianceClosing&&currentComplianceServices)throw new Error("owned current runtime unavailable");
   if(existingTestMountedMode && executable === "docker" && (args[0] === "pull" || args[0] === "build")) throw new Error("mounted acceptance forbids image downloads and builds");
   const environment = options.env ?? auditBrowserEnvironment(process.env);
@@ -7238,12 +7239,14 @@ async function command(executable, args, options = {}) {
   if(cleanupFailed)throw new OwnedProjectionCleanupIncomplete();
   if(operationFailed)throw operationError;
   if (timedOut) {
-    console.error(browserCommandFailureAnnotation(executable,args,"deadline"));
+    const diagnostic=failureDiagnostic();
+    console.error(diagnostic===undefined?browserCommandFailureAnnotation(executable,args,"deadline"):browserCommandFailureAnnotation(executable,args,"deadline",undefined,diagnostic));
     throw new Error(`${path.basename(executable)} exceeded its deadline`);
   }
   const { status, signal, stdout, stderr } = result;
 	if (status !== 0 && options.reject !== false) {
-    console.error(browserCommandFailureAnnotation(executable,args,"nonzero-exit",stderr));
+    const diagnostic=failureDiagnostic();
+    console.error(diagnostic===undefined?browserCommandFailureAnnotation(executable,args,"nonzero-exit",stderr):browserCommandFailureAnnotation(executable,args,"nonzero-exit",stderr,diagnostic));
     throw new Error(`${path.basename(executable)} failed (${status ?? signal}): ${stderr || stdout}`);
   }
   return result;

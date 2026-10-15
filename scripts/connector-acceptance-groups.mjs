@@ -56,9 +56,14 @@ export function selectConnectorAcceptanceGroup(args) {
 }
 // Only errors issued by the unchanged acceptance assertions carry diagnostics.
 const traceFailureStages = new WeakMap();
+const traceFailureEvents = new WeakMap();
 export function describeConnectorAcceptanceTraceFailure(error) {
   return error !== null && (typeof error === 'object' || typeof error === 'function')
     ? traceFailureStages.get(error) ?? 'unknown' : 'unknown';
+}
+export function describeConnectorAcceptanceTraceEvent(error) {
+  return error !== null && (typeof error === 'object' || typeof error === 'function')
+    ? traceFailureEvents.get(error) ?? null : null;
 }
 // This validates application test events, not Temporal or OpenFGA internals.
 export function validateConnectorAcceptanceTrace(rows, selected) {
@@ -87,6 +92,15 @@ export function validateConnectorAcceptanceTrace(rows, selected) {
           (row.Test !== undefined && !selected.names.includes(row.Test)));
         stage = !row ? 'event-shape' : row.Package !== applicationPackage ? 'event-package' :
           !['start', 'run', 'output', 'pass'].includes(row.Action) ? 'event-action' : 'event-case';
+        if (stage === 'event-case' && error !== null && (typeof error === 'object' || typeof error === 'function')) {
+          const test = row.Test;
+          const testShape = typeof test === 'string' ? (test === '' ? 'empty-string' : 'nonempty-string') : test === null ? 'null' : 'non-string';
+          const caseClass = typeof test !== 'string' ? 'non-string' :
+            Object.values(CONNECTOR_ACCEPTANCE_GROUPS).some(group => group !== selected && group.names.includes(test)) ? 'other-fixed-group' :
+              test === 'TestApprovalActivationOldWriterProcess' ? 'source-known-owned-helper' : 'unrecognized';
+          const action = row.Action;
+          if (['start', 'run', 'output', 'pass'].includes(action)) traceFailureEvents.set(error, Object.freeze({action, testShape, caseClass}));
+        }
       } catch { stage = 'events'; }
     }
     if (error !== null && (typeof error === 'object' || typeof error === 'function')) traceFailureStages.set(error, stage);
