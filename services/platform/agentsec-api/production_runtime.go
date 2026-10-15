@@ -92,7 +92,7 @@ func buildRuntimeDependenciesWithReadinessObserver(ctx context.Context, config R
 		_ = database.Close()
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("authorization-components", errRuntimeUnavailable)
 	}
-	if err := checkAuthorizationRuntimeReadyWithinTimeout(ctx, database, securityAgentDatabase, attestationKey.Version(), config.ProviderTimeout); err != nil {
+	if err := checkAuthorizationRuntimeReadyWithinTimeout(ctx, database, securityAgentDatabase, attestationKey.Version(), config.ProviderTimeout, readinessDiagnostic); err != nil {
 		_ = securityAgentDatabase.Close()
 		_ = database.Close()
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("authorization-readiness", errRuntimeUnavailable)

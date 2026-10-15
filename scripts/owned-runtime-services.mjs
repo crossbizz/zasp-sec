@@ -129,7 +129,7 @@ export async function startOwnedRuntimeServices(config,adapters=defaultAdapters,
     const readback=await adapters.request(url,{method:'GET',redirect:'error',signal,headers:{Authorization:'Bearer '+token}});
     if(!exactModel(JSON.parse(model),readback?.authorization_model,published.authorization_model_id))fail();await fgaListeners(signal);if(signal.aborted||exited||aborted)fail();
     return Object.freeze({storeID:store.id,modelID:published.authorization_model_id,withdrawn:true});
-   });}catch(error){exited=true;finishLifetime({status:1});throw Error('owned runtime credential withdrawal unavailable');}
+   });}catch{exited=true;finishLifetime({status:1});throw Error('owned runtime credential withdrawal unavailable');}
   };
   const credentialOwner=persistent?{oldTokenFile:path.join(root,'openfga-old.token'),newTokenFile:path.join(root,'openfga.token'),withdrawOldCredential}:{};
   return Object.freeze({environment,root,close,completed,...credentialOwner,projection:'pending',acceptance:false,native:false,production:false,upgradeInstalled:false,deployed:false,ledger:false});

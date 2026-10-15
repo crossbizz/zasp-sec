@@ -520,7 +520,7 @@ func assertApprovalActivationSettlementAudit(t *testing.T, ctx context.Context, 
  jsonb_build_object('delivery_id',n.delivery_id,'run_id',n.run_id,'approval_id',n.approval_id,'step_id',a.step_id,'attempt',r.attempt,'kind',r.kind,'transition',n.state,'payload_digest','sha256:'||encode(n.payload_digest,'hex'),'source_digest','sha256:'||o.source_digest,'receipt_digest','sha256:'||encode(digest(convert_to(r.receipt::text,'UTF8'),'sha256'),'hex')) evidence
  FROM public.zasp_security_agent_approval_notifications n JOIN zasp_approval_maintenance.reservations r USING(organization_id,workspace_id,environment_id,delivery_id)
  JOIN zasp_approval_maintenance.origins o USING(organization_id,workspace_id,environment_id,delivery_id)
- JOIN public.zasp_security_agent_approvals a USING(organization_id,workspace_id,environment_id,approval_id,run_id)
+ JOIN public.zasp_security_agent_approvals a ON(a.organization_id,a.workspace_id,a.environment_id,a.approval_id,a.run_id)=(n.organization_id,n.workspace_id,n.environment_id,n.approval_id,n.run_id)
  WHERE n.run_id=$1 AND r.state='settled')
  SELECT count(*)=1 AND bool_and(x.state=$2 AND
  (v.organization_id,v.workspace_id,v.environment_id,v.audit_id,v.correlation_id,v.run_id,v.step_id,v.approval_id,v.actor_id,v.event_kind,v.body) IS NOT DISTINCT FROM
@@ -569,7 +569,7 @@ func assertApprovalSettlementRefusalAtomicity(t *testing.T, ctx context.Context,
  public.zasp_discovery_canonical_id(n.organization_id,n.workspace_id,n.environment_id,'approval_delivery_attempt',n.delivery_id||chr(31)||r.attempt::text||chr(31)||r.kind),n.run_id,a.step_id,n.approval_id,o.delegation->>'principal_id','approval_notification_delivered',decode(repeat('00',32),'hex'),'{}'::jsonb
  FROM public.zasp_security_agent_approval_notifications n JOIN zasp_approval_maintenance.reservations r USING(organization_id,workspace_id,environment_id,delivery_id)
  JOIN zasp_approval_maintenance.origins o USING(organization_id,workspace_id,environment_id,delivery_id)
- JOIN public.zasp_security_agent_approvals a USING(organization_id,workspace_id,environment_id,approval_id,run_id)
+ JOIN public.zasp_security_agent_approvals a ON(a.organization_id,a.workspace_id,a.environment_id,a.approval_id,a.run_id)=(n.organization_id,n.workspace_id,n.environment_id,n.approval_id,n.run_id)
  WHERE(n.organization_id,n.workspace_id,n.environment_id,n.delivery_id,r.lease_token)=($1::jsonb->>'organization_id',$1::jsonb->>'workspace_id',$1::jsonb->>'environment_id',$1::jsonb->>'delivery_id',$1::jsonb->>'lease_token')`, r.Reference)
 			if err != nil {
 				_ = tx.Rollback(ctx)

@@ -85,10 +85,17 @@ func checkAuthorizationRuntimeReadyWithDiagnostic(ctx context.Context, database,
 
 // Connection setup and metadata preparation have their own lifetime. Both
 // readiness probes share a fresh budget bounded by the runtime parent.
-func checkAuthorizationRuntimeReadyWithinTimeout(ctx context.Context, database, securityAgentDatabase *apiserver.PostgresJSONDatabase, keyVersion string, timeout time.Duration) error {
+func checkAuthorizationRuntimeReadyWithinTimeout(ctx context.Context, database, securityAgentDatabase *apiserver.PostgresJSONDatabase, keyVersion string, timeout time.Duration, observers ...readinessObserver) error {
+	if len(observers) > 1 {
+		return errRuntimeUnavailable
+	}
+	var observer readinessObserver
+	if len(observers) == 1 {
+		observer = observers[0]
+	}
 	bounded, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	return checkAuthorizationRuntimeReady(bounded, database, securityAgentDatabase, keyVersion)
+	return checkAuthorizationRuntimeReadyWithDiagnostic(bounded, database, securityAgentDatabase, keyVersion, observer)
 }
 
 func authorizationRuntimeReadiness(servicesReady, previous func(context.Context) error, database, securityAgentDatabase *apiserver.PostgresJSONDatabase, keyVersion string, timeout time.Duration) func(context.Context) error {

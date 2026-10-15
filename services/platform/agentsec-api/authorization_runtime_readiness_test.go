@@ -36,13 +36,111 @@ func TestStartupAuthorizationUsesIndependentParentBudget(t *testing.T) {
 		}
 		found = true
 		parent, ok := call.Args[0].(*ast.Ident)
-		if name.Name != "checkAuthorizationRuntimeReadyWithinTimeout" || !ok || parent.Name != "ctx" || len(call.Args) != 5 {
+		if name.Name != "checkAuthorizationRuntimeReadyWithinTimeout" || !ok || parent.Name != "ctx" || len(call.Args) != 6 {
 			t.Error("startup readiness reuses the connection budget instead of the runtime parent")
+		}
+		if len(call.Args) == 6 {
+			observer, ok := call.Args[5].(*ast.Ident)
+			if !ok || observer.Name != "readinessDiagnostic" {
+				t.Error("startup readiness drops the existing fixed diagnostic observer")
+			}
 		}
 		return true
 	})
 	if !found {
 		t.Fatal("startup readiness gate missing")
+	}
+}
+
+func TestInitialAuthorizationReadinessForwardsOnlyExistingRoleOutcomes(t *testing.T) {
+	for _, name := range []string{"healthy", "core refused", "agent refused", "deadline", "canceled parent"} {
+		t.Run(name, func(t *testing.T) {
+			key := strings.Repeat("a", 64)
+			contexts := make(chan context.Context, 2)
+			entered := make(chan struct{}, 2)
+			bothEntered := make(chan struct{})
+			var release sync.Once
+			probe := func(ctx context.Context) {
+				contexts <- ctx
+				entered <- struct{}{}
+				if len(entered) == 2 {
+					release.Do(func() { close(bothEntered) })
+				}
+				select {
+				case <-bothEntered:
+				case <-ctx.Done():
+				}
+				if name == "deadline" {
+					<-ctx.Done()
+				}
+			}
+			coreDriver := &runtimeAuthorizationProbeDriver{t: t, role: "zasp_discovery_api", key: key, fail: name == "core refused", observe: probe}
+			agentDriver := &runtimeAuthorizationProbeDriver{t: t, role: "zasp_security_agent_api", key: key, fail: name == "agent refused", observe: probe}
+			core, _ := apiserver.NewPostgresJSONDatabase(coreDriver)
+			agent, _ := apiserver.NewPostgresJSONDatabase(agentDriver)
+			defer core.Close()
+			defer agent.Close()
+			if core.RequireCurrentAuthorization() != nil || agent.RequireCurrentAuthorization() != nil {
+				t.Fatal("enforcing fixture refused")
+			}
+			parent, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			if name == "canceled parent" {
+				cancel()
+			}
+			var mu sync.Mutex
+			observed := map[readinessPhase]readinessOutcome{}
+			observer := func(phase readinessPhase, outcome readinessOutcome) {
+				mu.Lock()
+				defer mu.Unlock()
+				if _, exists := observed[phase]; exists {
+					t.Error("duplicate role observation")
+				}
+				observed[phase] = outcome
+			}
+			timeout := time.Second
+			if name == "deadline" {
+				timeout = 100 * time.Millisecond
+			}
+			err := checkAuthorizationRuntimeReadyWithinTimeout(parent, core, agent, key, timeout, observer)
+			if (err == nil) != (name == "healthy") {
+				t.Fatal("initial admission outcome changed")
+			}
+			if name == "canceled parent" {
+				if coreDriver.calls != 0 || agentDriver.calls != 0 || len(observed) != 0 {
+					t.Fatal("canceled startup queried or manufactured observations")
+				}
+				return
+			}
+			if coreDriver.calls != 1 || agentDriver.calls != 1 || len(observed) != 2 {
+				t.Fatal("shadow query or missing original role observation")
+			}
+			first, second := <-contexts, <-contexts
+			if first != second {
+				t.Fatal("original probes no longer share one budget")
+			}
+			if _, ok := first.Deadline(); !ok || first.Err() == nil {
+				t.Fatal("bounded probe context was not joined and canceled")
+			}
+			for _, phase := range []readinessPhase{readinessCoreMetadata, readinessSecurityAgentMetadata} {
+				outcome, ok := observed[phase]
+				if !ok {
+					t.Fatal("role observation missing")
+				}
+				if name == "healthy" && outcome != readinessPassed {
+					t.Fatal("healthy observation changed")
+				}
+				if name == "deadline" && outcome != readinessDeadline {
+					t.Fatal("deadline was hidden")
+				}
+			}
+			if name == "core refused" && observed[readinessCoreMetadata] != readinessRefused {
+				t.Fatal("core refusal was hidden")
+			}
+			if name == "agent refused" && observed[readinessSecurityAgentMetadata] != readinessRefused {
+				t.Fatal("agent refusal was hidden")
+			}
+		})
 	}
 }
 

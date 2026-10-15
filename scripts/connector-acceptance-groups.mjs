@@ -6,6 +6,9 @@ function group(top, cases, postgresJoins) {
     names: Object.freeze([top, ...cases.map(name => `${top}/${name}`)])});
 }
 export const CONNECTOR_ACCEPTANCE_GROUPS = Object.freeze({
+  'approval-test74': group('TestApprovalActivationNativeTest74DeliveryFlow', [], 2),
+  'approval-ordered-planning': group('TestApprovalActivationNativeOrderedPlanningDeliveryFlow', [], 2),
+  'approval-ordered-progress': group('TestApprovalActivationNativeOrderedProgressDeliveryFlow', [], 2),
   'approval-flow': group('TestApprovalActivationNativeFindingDeliveryFlow', [
     'measured_combined_activation_and_complete_projection',
     'native_signed_delivery_settles_exact_receipt',

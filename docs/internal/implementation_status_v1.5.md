@@ -1,5 +1,27 @@
 # Agent Security Platform Implementation Status
 
+
+## Approval family acceptance checkpoint, October 15, 2026
+
+Three additional genuine approval-family flows now reuse a measured native runtime:
+Test74 takeover, ordered68 planning and signed ordered progress. The original six
+hosted groups remain required alongside the three additions. Planning includes a
+fresh public trigger in the same activated organization. Test74/progress future
+admissions, authentic overflow refusal and cross-tenant family acceptance remain open.
+
+The batch fixes two ambiguous full-scope audit verification joins and the two
+reported runtime lint failures. Initial readiness now forwards existing closed
+role/outcome observations under the same original queries and timeout; the startup
+cause is still unproven. No lease/deadline or authorization guard is relaxed.
+
+Fresh local checks pass: 16 named readiness cases, full native fixture compilation,
+55 runtime/cutover regressions, four roster cases and full UI lint/typecheck/build.
+Independent static reviews pass. Native and deployed acceptance remain pending;
+no task classifications change: 728 total, 523 recorded production-available,
+144 component-only and 61 externally blocked. Recorded availability is not a fresh
+deployment result. Exact source and evidence references are retained in
+`cloud-approval-family-acceptance-checkpoint-2026-10-15.json`.
+
 ## Audited approval settlement checkpoint, October 15, 2026
 
 An additive sealed profile now connects captured approval settlement to canonical

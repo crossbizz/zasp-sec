@@ -24,6 +24,15 @@ func TestApprovalMaintenanceGenuineSupervisedTest74EnqueueInactive(t *testing.T)
 }
 
 func runApprovalOriginTest74PlanningFixture(t *testing.T, mode string, afterCapture ...workerRuntimeCaptureConsumer) {
+	runApprovalOriginTest74PlanningFixtureWithAdmission(t, mode, nil, afterCapture...)
+}
+
+// The optional consumer observes only genuine completed native admission after
+// all original capture/accounting assertions. Existing fixture paths pass nil.
+func runApprovalOriginTest74PlanningFixtureWithAdmission(t *testing.T, mode string, consumer approvalActivationTest74AdmissionConsumer, afterCapture ...workerRuntimeCaptureConsumer) {
+	if consumer != nil && mode != "approval-activation" {
+		t.Fatal("native approval consumer requires explicit fixture mode")
+	}
 	if len(afterCapture) > 1 || (len(afterCapture) == 1 && mode != "runtime-retained") {
 		t.Fatal("captured runtime fixture callback requires one retained runtime consumer")
 	}
@@ -182,7 +191,7 @@ UPDATE zasp_authorized_scopes SET permissions='["view","manage_identity","manage
 		if t.Failed() {
 			return
 		}
-		assertApprovalOriginTest74PlanningLoad(t, ctx, owner, o, w, e, run, testID, selection, mode, afterCapture...)
+		assertApprovalOriginTest74PlanningLoadWithAdmission(t, ctx, owner, o, w, e, run, testID, selection, mode, nil, consumer, afterCapture...)
 	})
 }
 
@@ -201,6 +210,12 @@ type approvalOriginSingleRecoveryPlanningSeam struct {
 }
 
 func assertApprovalOriginTest74PlanningLoadWith(t *testing.T, ctx context.Context, owner *pgx.Conn, o, w, e, run, testID string, selection map[string]any, mode string, seam *approvalOriginSingleRecoveryPlanningSeam, afterCapture ...workerRuntimeCaptureConsumer) {
+	assertApprovalOriginTest74PlanningLoadWithAdmission(t, ctx, owner, o, w, e, run, testID, selection, mode, seam, nil, afterCapture...)
+}
+func assertApprovalOriginTest74PlanningLoadWithAdmission(t *testing.T, ctx context.Context, owner *pgx.Conn, o, w, e, run, testID string, selection map[string]any, mode string, seam *approvalOriginSingleRecoveryPlanningSeam, consumer approvalActivationTest74AdmissionConsumer, afterCapture ...workerRuntimeCaptureConsumer) {
+	if consumer != nil && (mode != "approval-activation" || seam != nil || len(afterCapture) != 0) {
+		t.Fatal("native approval consumer cannot replace another fixture seam")
+	}
 	if len(afterCapture) > 1 || (len(afterCapture) == 1 && mode != "runtime-retained") {
 		t.Fatal("captured runtime callback requires one retained runtime consumer")
 	}
@@ -495,6 +510,14 @@ func assertApprovalOriginTest74PlanningLoadWith(t *testing.T, ctx context.Contex
 	}
 	if err := owner.QueryRow(ctx, `SELECT p.total_tokens=30 AND p.cost_nano_credits=30000 AND p.settled_at IS NOT NULL AND (SELECT count(*)=1 FROM zasp_security_agent_steps WHERE run_id=$1 AND step_index=0 AND action_key=$2) AND NOT EXISTS(SELECT 1 FROM zasp_sa_multistep_runs WHERE run_id=$1) FROM zasp_temporal74.provider_reservations p WHERE run_id=$1`, run, action).Scan(&one); err != nil || !one {
 		t.Fatal("native74 accounting and single canonical step", err)
+	}
+	if consumer != nil {
+		var actor string
+		if err := owner.QueryRow(ctx, `SELECT requested_by FROM public.zasp_security_agent_runs WHERE(organization_id,workspace_id,environment_id,run_id)=($1,$2,$3,$4)`, o, w, e, run).Scan(&actor); err != nil {
+			t.Fatal("genuine74 grantor unavailable", err)
+		}
+		consumer(approvalActivationTest74Admission{ctx: ctx, owner: owner, o: o, w: w, e: e, run: run, actor: actor, config: config})
+		return
 	}
 	if seam != nil {
 		seam.afterAdmission(forward, poolFor, func() {

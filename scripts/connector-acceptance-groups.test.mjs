@@ -4,11 +4,11 @@ import { CONNECTOR_ACCEPTANCE_GROUPS as groups, selectConnectorAcceptanceGroup a
 const pkg = 'github.com/zasp-ai/zasp-sec/services/platform/apiserver';
 const trace = selected => [...selected.names.flatMap(Test => [{Package: pkg, Test, Action: 'run'}, {Package: pkg, Test, Action: 'pass'}]), {Package: pkg, Action: 'pass'}];
 test('required application groups retain every flow and owned database', () => {
-  assert.deepEqual(Object.keys(groups), ['approval-flow', 'approval', 'oauth', 'lifecycle', 'pkce', 'callback']);
-  assert.deepEqual(Object.values(groups).map(g => [g.names.length, g.postgresJoins]), [[6, 2], [6, 1], [3, 1], [6, 2], [4, 2], [4, 2]]);
+  assert.deepEqual(Object.keys(groups), ['approval-test74', 'approval-ordered-planning', 'approval-ordered-progress', 'approval-flow', 'approval', 'oauth', 'lifecycle', 'pkce', 'callback']);
+  assert.deepEqual(Object.values(groups).map(g => [g.names.length, g.postgresJoins]), [[1, 2], [1, 2], [1, 2], [6, 2], [6, 1], [3, 1], [6, 2], [4, 2], [4, 2]]);
   const names = Object.values(groups).flatMap(g => g.names);
-  assert.equal(names.length, 29); assert.equal(new Set(names).size, 29);
-  assert.equal(Object.values(groups).reduce((n, g) => n + g.postgresJoins, 0), 10);
+  assert.equal(names.length, 32); assert.equal(new Set(names).size, 32);
+  assert.equal(Object.values(groups).reduce((n, g) => n + g.postgresJoins, 0), 16);
   for (const key of Object.keys(groups)) { assert.equal(select([key]), groups[key]); validate(trace(groups[key]), groups[key]); }
 });
 test('missing, arbitrary, inherited, or multiple selectors cannot silently run a subset', () => {

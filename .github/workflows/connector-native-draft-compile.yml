@@ -38,7 +38,7 @@ jobs:
           import hashlib, json
           from pathlib import Path
           source = json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())
-          assert len(source['sources']) == 102
+          assert len(source['sources']) == 106
           for item in source['sources']:
               raw = Path(item['path']).read_bytes()
               assert len(raw) == item['bytes']
@@ -85,7 +85,7 @@ jobs:
           PYAPPLICATION
       - name: Current authorization health probe integration group
         timeout-minutes: 5
-        run: go test -C services/platform -race -p=1 -count=1 -timeout=2m -run '^(TestCurrentReadinessPipelineStartsAllIndependentMetadata|TestLegacyReadinessNeverStartsPreviousAfterAuthorizationRefusal|TestOwnedReadinessDiagnosticPreservesGateAndClosedOutput|TestP7GuardedRuntimeReadinessCallback|TestP7GuardedRuntimeReadinessStartupGate|TestServiceRefusalIdentityAndNoMetadataArePreserved|TestStartupAuthorizationUsesIndependentParentBudget)$' ./agentsec-api
+        run: go test -C services/platform -race -p=1 -count=1 -timeout=2m -run '^(TestCurrentReadinessPipelineStartsAllIndependentMetadata|TestLegacyReadinessNeverStartsPreviousAfterAuthorizationRefusal|TestOwnedReadinessDiagnosticPreservesGateAndClosedOutput|TestP7GuardedRuntimeReadinessCallback|TestP7GuardedRuntimeReadinessStartupGate|TestServiceRefusalIdentityAndNoMetadataArePreserved|TestStartupAuthorizationUsesIndependentParentBudget|TestStartupAuthorizationFreshBudgetRemainsFailClosed|TestInitialAuthorizationReadinessForwardsOnlyExistingRoleOutcomes)$' ./agentsec-api
       - name: Controlled cutover model and writer application group
         timeout-minutes: 5
         run: go test -C services/platform -race -p=1 -count=1 -timeout=2m -run '^(TestControlledPrepareRefusalStages|TestControlledActivateRefusalStages|TestControlledModelReadbackCompatibility|TestControlledModelSDKReadbackBoundary|TestControlledModelReadbackRejectsAlteredDefaults)$' ./connectormaintenancecutover

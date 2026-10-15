@@ -51,7 +51,8 @@ export async function runOwnedMaintenanceCutover({reconcile,cutover,organization
   // The credential owner must honor cancellation and join its bounded normal
   // stop/restart finalizers before settling this callback. Never discard it.
   const workPromise=work();
-  try{const result=await Promise.race([workPromise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(refused()),timeoutMs);})]);succeededWork=true;return result;}
+  let result,cleanupFailed=false;
+  try{result=await Promise.race([workPromise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(refused()),timeoutMs);})]);succeededWork=true;}
   catch{throw refused();}
   finally{
     closed=true;clearTimeout(timer);if(!succeededWork)withdrawal.abort();
@@ -59,6 +60,8 @@ export async function runOwnedMaintenanceCutover({reconcile,cutover,organization
     // Stopping the children releases any pending protocol reads. The retained
     // work also joins a credential withdrawal already in progress on timeout.
     await workPromise.catch(()=>{});
-    if(cleanup.some(result=>result.status!=='fulfilled'))throw refused();
+    cleanupFailed=cleanup.some(result=>result.status!=='fulfilled');
   }
+  if(cleanupFailed)throw refused();
+  return result;
 }
