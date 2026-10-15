@@ -17,6 +17,21 @@ const (
 	readinessCoreMetadata
 	readinessSecurityAgentMetadata
 	readinessComponents
+	readinessMaintenanceOwner
+	readinessConnectorConfig
+	readinessConnectorAuthorizer
+	readinessConnectorKey
+	readinessConnectorPool
+	readinessConnectorExecutor
+	readinessConnectorAuthority
+	readinessConnectorRepository
+	readinessConnectorReconciler
+	readinessApprovalConfig
+	readinessApprovalAuthorizer
+	readinessApprovalKey
+	readinessApprovalPool
+	readinessApprovalExecutor
+	readinessApprovalReconciler
 )
 
 type readinessOutcome uint8
@@ -29,6 +44,27 @@ const (
 )
 
 type readinessObserver func(readinessPhase, readinessOutcome)
+
+type runtimeConstructorObserverKey struct{}
+
+// This private diagnostic context carries no authorization or business input.
+// Ordinary constructor callers retain their original context and error values.
+func withRuntimeConstructorObserver(ctx context.Context, observer readinessObserver) context.Context {
+	if observer == nil {
+		return ctx
+	}
+	return context.WithValue(ctx, runtimeConstructorObserverKey{}, observer)
+}
+
+func observeRuntimeConstructorFailure(ctx context.Context, phase readinessPhase) {
+	if ctx == nil {
+		return
+	}
+	observer, _ := ctx.Value(runtimeConstructorObserverKey{}).(readinessObserver)
+	if observer != nil {
+		_ = observeReadiness(ctx, phase, observer, func(context.Context) error { return errRuntimeUnavailable })
+	}
+}
 
 func observeReadiness(ctx context.Context, phase readinessPhase, observer readinessObserver, check func(context.Context) error) error {
 	err := check(ctx)

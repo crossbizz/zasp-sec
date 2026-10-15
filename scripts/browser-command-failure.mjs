@@ -157,6 +157,7 @@ export function emitComplianceAPIStartupProgress(output, emit) {
  try { emit(`::error title=Compliance API startup progress::Observed startup phase: ${match[1]}; active application class: ${match[2]}.`); } catch { /* Preserve readiness failure. */ }
 }
 
+const constructorReadinessPhases=new Set(['maintenance-owner','connector-config','connector-authorizer','connector-key','connector-pool','connector-executor','connector-authority','connector-repository','connector-reconciler','approval-config','approval-authorizer','approval-key','approval-pool','approval-executor','approval-reconciler']);
 // These fixed fixture outcomes describe failed readiness; they are never a
 // substitute for the original readiness result or deployed acceptance.
 export function emitComplianceAPIReadinessObservations(output, emit) {
@@ -167,8 +168,8 @@ export function emitComplianceAPIReadinessObservations(output, emit) {
  if (witnesses.length === 0 || witnesses.length > 16 || partial.includes(prefix) || (output.length === 16_384 && lines[0].includes(prefix))) return;
  const observations = new Set();
  for (const line of witnesses) {
-  const match = /^ZASP_COMPLIANCE_READINESS=(services|core-metadata|security-agent-metadata|components):(passed|refused|deadline|cancelled)$/.exec(line);
-  if (!match || match[0] !== line) return;
+  const match = /^ZASP_COMPLIANCE_READINESS=([a-z-]+):(passed|refused|deadline|cancelled)$/.exec(line);
+  if (!match || match[0] !== line || (!['services','core-metadata','security-agent-metadata','components'].includes(match[1]) && (!constructorReadinessPhases.has(match[1]) || match[2]==='passed'))) return;
   const value = match[1] + ':' + match[2];
   if (observations.has(value)) return;
   observations.add(value);

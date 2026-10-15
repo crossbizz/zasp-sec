@@ -134,3 +134,8 @@ test('actual runner child hook binds closed process status while preserving the 
  phaseHelpers.emitComplianceAPIChildFailure(child.output(),value=>messages.push(value),undefined,observation);
  assert.equal(child.output().length,16384);assert.equal(children[0],child);assert.match(messages.at(-1),/exit=2; signal=none;.*truncated=true; fatal=panic/);assert.doesNotMatch(messages.join(''),/CANARY|SECRET|PAYLOAD/);
 });
+test('constructor observations accept only fixed failed lanes and preserve original byte and count caps',()=>{
+ const phases=['maintenance-owner','connector-config','connector-authorizer','connector-key','connector-pool','connector-executor','connector-authority','connector-repository','connector-reconciler','approval-config','approval-authorizer','approval-key','approval-pool','approval-executor','approval-reconciler'];
+ for(const phase of phases)for(const outcome of ['refused','deadline','cancelled']){const output=[],line=`ZASP_COMPLIANCE_READINESS=${phase}:${outcome}\n`;phaseHelpers.emitComplianceAPIReadinessObservations(line,x=>output.push(x));assert.equal(output.length,1);assert.ok(output[0].includes(phase+':'+outcome));assert.doesNotMatch(output[0],/CANARY/);}
+ for(const line of ['ZASP_COMPLIANCE_READINESS=connector-executor:passed\n','ZASP_COMPLIANCE_READINESS=approval-CANARY_SECRET:refused\n','ZASP_COMPLIANCE_READINESS=connector-executor:CANARY\n','ZASP_COMPLIANCE_READINESS=connector-executor:refused\n'.repeat(17),'x'.repeat(16385)+'ZASP_COMPLIANCE_READINESS=connector-executor:refused\n']){const output=[];phaseHelpers.emitComplianceAPIReadinessObservations(line,x=>output.push(x));assert.deepEqual(output,[]);}
+});

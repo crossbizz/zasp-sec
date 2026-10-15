@@ -200,19 +200,21 @@ func complianceBrowserStartupWatch(ctx context.Context, stage *atomic.Uint32) {
 // Each fixed pair is emitted at most once, including concurrent probes.
 func newComplianceReadinessObserver(output io.Writer) readinessObserver {
 	var mu sync.Mutex
-	var seen [4][4]bool
+	var seen [readinessApprovalReconciler + 1][4]bool
+	emitted := 0
 	return func(phase readinessPhase, outcome readinessOutcome) {
-		if phase > readinessComponents || outcome > readinessCancelled {
+		if phase > readinessApprovalReconciler || outcome > readinessCancelled || phase > readinessComponents && outcome == readinessPassed {
 			return
 		}
-		phases := [...]string{"services", "core-metadata", "security-agent-metadata", "components"}
+		phases := [...]string{"services", "core-metadata", "security-agent-metadata", "components", "maintenance-owner", "connector-config", "connector-authorizer", "connector-key", "connector-pool", "connector-executor", "connector-authority", "connector-repository", "connector-reconciler", "approval-config", "approval-authorizer", "approval-key", "approval-pool", "approval-executor", "approval-reconciler"}
 		outcomes := [...]string{"passed", "refused", "deadline", "cancelled"}
 		mu.Lock()
 		defer mu.Unlock()
-		if seen[phase][outcome] {
+		if seen[phase][outcome] || emitted >= 16 {
 			return
 		}
 		seen[phase][outcome] = true
+		emitted++
 		fmt.Fprintf(output, "ZASP_COMPLIANCE_READINESS=%s:%s\n", phases[phase], outcomes[outcome])
 	}
 }

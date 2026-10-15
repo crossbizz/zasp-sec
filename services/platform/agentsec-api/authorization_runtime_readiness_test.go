@@ -15,7 +15,100 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
+	"github.com/zasp-ai/zasp-sec/services/platform/authorization"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimeservices"
 )
+
+type constructorDiagnosticChecker struct{ t *testing.T }
+
+func (c constructorDiagnosticChecker) Check(context.Context, authorization.CheckRequest) (authorization.Decision, error) {
+	c.t.Fatal("diagnostic attempted a provider check")
+	return authorization.Decision{}, nil
+}
+
+func TestMaintenanceConstructorDiagnosticsPreserveFailureIdentity(t *testing.T) {
+	c := fixtureRuntimeConfig()
+	c.RuntimeServices = runtimeservices.Config{Enabled: true, Environment: "development", TemporalAddress: "127.0.0.1:7233", Namespace: "zasp-dev", TaskQueue: "zasp-agent", DiscoveryTaskQueue: "zasp-discovery", FGAURL: "http://127.0.0.1:8088", StoreID: "01ARZ3NDEKTSV4RRFFQ69G5FAV", ModelID: "01ARZ3NDEKTSV4RRFFQ69G5FAW", FGATokenFile: "/owned/test-fga-token", Timeout: time.Second, ApprovalMaintenanceProfileChecksum: strings.Repeat("a", 64), ConnectorMaintenanceProfileChecksum: strings.Repeat("b", 64)}
+	c.ConnectorMaintenanceKeyFile = t.TempDir() + "/CANARY_CONNECTOR_SEED"
+	c.ApprovalMaintenanceKeyFile = t.TempDir() + "/CANARY_APPROVAL_SEED"
+	c.ConnectorMaintenancePostgresDSN = "postgres://zasp_connector_native@db.internal:5432/zasp?sslmode=require"
+	c.ApprovalMaintenancePostgresDSN = "postgres://zasp_approval_native@db.internal:5432/zasp?sslmode=require"
+	authorizer := &apiserver.OpenFGAAuthorizer{Checker: constructorDiagnosticChecker{t}, StoreID: c.RuntimeServices.StoreID, ModelID: c.RuntimeServices.ModelID}
+	if !validConnectorMaintenanceRuntimeConfig(c) || !validApprovalMaintenanceRuntimeConfig(c) {
+		t.Fatal("closed diagnostic fixture refused")
+	}
+	for _, observed := range []bool{false, true} {
+		var output bytes.Buffer
+		ctx := context.Background()
+		if observed {
+			ctx = withRuntimeConstructorObserver(ctx, newComplianceReadinessObserver(&output))
+		}
+		_, ready, closer, err := newRuntimeConnectorMaintenance(ctx, c, authorizer, apiserver.ConnectorReconcilerConfig{})
+		if err != errRuntimeUnavailable || ready != nil || closer != nil {
+			t.Fatal("connector original refusal identity or resources changed")
+		}
+		_, approvalCloser, err := newRuntimeApprovalMaintenance(ctx, c, authorizer, nil, nil, "fixed-owner")
+		if err != errRuntimeUnavailable || approvalCloser != nil {
+			t.Fatal("approval original refusal identity or resources changed")
+		}
+		if !observed {
+			if output.Len() != 0 {
+				t.Fatal("unselected observation emitted")
+			}
+			continue
+		}
+		if output.String() != "ZASP_COMPLIANCE_READINESS=connector-key:refused\nZASP_COMPLIANCE_READINESS=approval-key:refused\n" {
+			t.Fatal("failed key lanes were not closed exact observations")
+		}
+		if strings.Contains(output.String(), "CANARY") {
+			t.Fatal("diagnostic reflected private input")
+		}
+	}
+}
+
+func TestMaintenanceConstructorOutcomeAndEmissionBounds(t *testing.T) {
+	for phase := readinessMaintenanceOwner; phase <= readinessApprovalReconciler; phase++ {
+		var output bytes.Buffer
+		observer := newComplianceReadinessObserver(&output)
+		observer(phase, readinessPassed)
+		if output.Len() != 0 {
+			t.Fatal("constructor manufactured successful readiness")
+		}
+		for _, outcome := range []readinessOutcome{readinessRefused, readinessDeadline, readinessCancelled} {
+			observer(phase, outcome)
+			observer(phase, outcome)
+		}
+		if strings.Count(output.String(), "\n") != 3 {
+			t.Fatal("fixed failed constructor outcomes missing or duplicated")
+		}
+	}
+	for _, outcome := range []string{"deadline", "cancelled"} {
+		var output bytes.Buffer
+		ctx := withRuntimeConstructorObserver(context.Background(), newComplianceReadinessObserver(&output))
+		var cancel context.CancelFunc
+		if outcome == "deadline" {
+			ctx, cancel = context.WithDeadline(ctx, time.Now().Add(-time.Second))
+		} else {
+			ctx, cancel = context.WithCancel(ctx)
+			cancel()
+		}
+		observeRuntimeConstructorFailure(ctx, readinessConnectorExecutor)
+		cancel()
+		if output.String() != "ZASP_COMPLIANCE_READINESS=connector-executor:"+outcome+"\n" {
+			t.Fatal("actual failure context outcome hidden")
+		}
+	}
+	var output bytes.Buffer
+	observer := newComplianceReadinessObserver(&output)
+	for phase := readinessServices; phase <= readinessApprovalReconciler; phase++ {
+		for outcome := readinessPassed; outcome <= readinessCancelled; outcome++ {
+			observer(phase, outcome)
+		}
+	}
+	if strings.Count(output.String(), "\n") != 16 {
+		t.Fatal("existing total emission cap widened")
+	}
+}
 
 // Startup must derive readiness from the runtime parent, after connection and
 // metadata preparation, rather than reuse the spent connection deadline.

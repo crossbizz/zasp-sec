@@ -84,15 +84,18 @@ func selectConnectorLifecycle(c RuntimeConfig, native, legacy connectorRuntimeFa
 
 func newRuntimeConnectorMaintenance(ctx context.Context, c RuntimeConfig, a apiserver.RequestAuthorizer, config apiserver.ConnectorReconcilerConfig) (*apiserver.ConnectorReconciler, func(context.Context) error, io.Closer, error) {
 	if ctx == nil || ctx.Err() != nil || !validConnectorMaintenanceRuntimeConfig(c) || c.ConnectorMaintenancePostgresDSN == "" {
+		observeRuntimeConstructorFailure(ctx, readinessConnectorConfig)
 		return nil, nil, nil, errRuntimeUnavailable
 	}
 	authorizer, ok := a.(*apiserver.OpenFGAAuthorizer)
 	if !ok || authorizer == nil || authorizer.Checker == nil || authorizer.StoreID != c.RuntimeServices.StoreID || authorizer.ModelID != c.RuntimeServices.ModelID {
+		observeRuntimeConstructorFailure(ctx, readinessConnectorAuthorizer)
 		return nil, nil, nil, errRuntimeUnavailable
 	}
 	// Reuse the existing bounded private same-FD 0400/32-byte key reader.
 	seed, err := loadApprovalMaintenanceKey(c.ConnectorMaintenanceKeyFile)
 	if err != nil {
+		observeRuntimeConstructorFailure(ctx, readinessConnectorKey)
 		return nil, nil, nil, errRuntimeUnavailable
 	}
 	defer clear(seed)
@@ -100,33 +103,39 @@ func newRuntimeConnectorMaintenance(ctx context.Context, c RuntimeConfig, a apis
 	defer cancel()
 	poolConfig, err := runtimepostgres.ParsePoolConfig(c.ConnectorMaintenancePostgresDSN)
 	if err != nil {
+		observeRuntimeConstructorFailure(probe, readinessConnectorPool)
 		return nil, nil, nil, errRuntimeUnavailable
 	}
 	poolConfig.MaxConns = 2
 	poolConfig.MinConns = 0
 	pool, err := pgxpool.NewWithConfig(probe, poolConfig)
 	if err != nil {
+		observeRuntimeConstructorFailure(probe, readinessConnectorPool)
 		return nil, nil, nil, errRuntimeUnavailable
 	}
 	closer := &connectorMaintenanceRuntimeCloser{pool: pool}
 	executor, err := connectormaintenance.NewExecutor(probe, pool, c.RuntimeServices.ConnectorMaintenanceProfileChecksum, seed)
 	if err != nil {
+		observeRuntimeConstructorFailure(probe, readinessConnectorExecutor)
 		_ = closer.Close()
 		return nil, nil, nil, errRuntimeUnavailable
 	}
 	authority, err := connectormaintenance.NewAuthority(executor, authorizer.Checker, authorizer.StoreID, authorizer.ModelID, c.RuntimeServices.ConnectorMaintenanceProfileChecksum, seed)
 	if err != nil {
+		observeRuntimeConstructorFailure(probe, readinessConnectorAuthority)
 		_ = closer.Close()
 		return nil, nil, nil, errRuntimeUnavailable
 	}
 	closer.authority = authority
 	native, err := apiserver.NewNativeConnectorRepository(probe, executor, authority)
 	if err != nil {
+		observeRuntimeConstructorFailure(probe, readinessConnectorRepository)
 		_ = closer.Close()
 		return nil, nil, nil, errRuntimeUnavailable
 	}
 	reconciler, err := apiserver.NewAuthorizedConnectorReconciler(probe, native, config)
 	if err != nil {
+		observeRuntimeConstructorFailure(probe, readinessConnectorReconciler)
 		_ = closer.Close()
 		return nil, nil, nil, errRuntimeUnavailable
 	}

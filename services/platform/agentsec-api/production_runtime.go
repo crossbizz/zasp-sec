@@ -135,7 +135,7 @@ func buildRuntimeDependenciesWithReadinessObserver(ctx context.Context, config R
 		_ = database.Close()
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("temporal-observer", errRuntimeUnavailable)
 	}
-	dependencies, err := composeRuntimeDependenciesWithRecoveryDiagnostic(ctx, config, database, securityAgentDatabase, provider, factory, complianceFactory, os.Stdout, readinessTransport, observer, authorizer)
+	dependencies, err := composeRuntimeDependenciesWithRecoveryDiagnostic(withRuntimeConstructorObserver(ctx, readinessDiagnostic), config, database, securityAgentDatabase, provider, factory, complianceFactory, os.Stdout, readinessTransport, observer, authorizer)
 	if err != nil {
 		_ = securityAgentDatabase.Close()
 		_ = database.Close()
@@ -481,6 +481,7 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 	}
 	workerOwner, err := newConnectorWorkerOwner(os.Getenv("HOSTNAME"), rand.Reader)
 	if err != nil {
+		observeRuntimeConstructorFailure(ctx, readinessMaintenanceOwner)
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("connector-lifecycle", errRuntimeUnavailable)
 	}
 	connectorConfig := apiserver.ConnectorReconcilerConfig{Repository: connectorRepository, Workflows: repository, Registry: connectorRegistry, Secrets: secretStore, Owner: workerOwner, LeaseSeconds: 30, Limit: 25, Interval: time.Second}

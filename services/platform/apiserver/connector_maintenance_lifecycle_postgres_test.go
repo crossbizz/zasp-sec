@@ -221,6 +221,34 @@ func TestConnectorMaintenanceNativeLifecyclePostgres(t *testing.T) {
 	if err != nil {
 		t.Fatal("native worker repository refused")
 	}
+	// Finish read-only callback adapter and catalog setup before holding the
+	// cleanup lease. Genuine callback authorization and consumption remain after
+	// Begin so its provider lane cannot block this unrelated cleanup reservation.
+	base, err := NewPostgresJSONDatabase(f.driver)
+	if err != nil || base.RequireCurrentAuthorization() != nil {
+		t.Fatal("callback base authority refused")
+	}
+	native, err := NewConnectorMaintenanceEnqueueDatabase(f.ctx, base, pin)
+	if err != nil {
+		t.Fatal("active callback adapter refused")
+	}
+	callbackRepository, err = NewConnectorRepository(native)
+	if err != nil {
+		t.Fatal("native callback repository refused")
+	}
+	resolver, err := NewConnectorMaintenanceCallbackResolver(f.authorizer.Resolver, base, pin)
+	if err != nil {
+		t.Fatal("genuine callback target resolver refused")
+	}
+	projection, err := authorization.NewCurrentMaintenanceProjectionRepository(f.ctx, workerPool, approvalPin, pin)
+	if err != nil {
+		t.Fatal("callback current projection refused")
+	}
+	callbackAuthorizer := *f.authorizer
+	callbackAuthorizer.Resolver = resolver
+	callbackAuthorizer.Reader = projection
+	callbackAuthorizer.Checker = checker
+
 	var lease ConnectorEffectLease
 	t.Run("reserve without attempt and deny cross scope or unowned replay", func(t *testing.T) {
 		// Original product reconciliation intentionally waits 15 seconds before
@@ -268,30 +296,6 @@ func TestConnectorMaintenanceNativeLifecyclePostgres(t *testing.T) {
 	// A consumed callback legitimately owns its provider's cleanup lane until
 	// settlement; creating that lease first would block the reservation above.
 	t.Run("genuine callback consumption captures only its original effects", func(t *testing.T) {
-		base, err := NewPostgresJSONDatabase(f.driver)
-		if err != nil || base.RequireCurrentAuthorization() != nil {
-			t.Fatal("callback base authority refused")
-		}
-		native, err := NewConnectorMaintenanceEnqueueDatabase(f.ctx, base, pin)
-		if err != nil {
-			t.Fatal("active callback adapter refused")
-		}
-		callbackRepository, err = NewConnectorRepository(native)
-		if err != nil {
-			t.Fatal("native callback repository refused")
-		}
-		resolver, err := NewConnectorMaintenanceCallbackResolver(f.authorizer.Resolver, base, pin)
-		if err != nil {
-			t.Fatal("genuine callback target resolver refused")
-		}
-		projection, err := authorization.NewCurrentMaintenanceProjectionRepository(f.ctx, workerPool, approvalPin, pin)
-		if err != nil {
-			t.Fatal("callback current projection refused")
-		}
-		callbackAuthorizer := *f.authorizer
-		callbackAuthorizer.Resolver = resolver
-		callbackAuthorizer.Reader = projection
-		callbackAuthorizer.Checker = checker
 		queryContext := context.WithValue(f.ctx, authorizationQueryContextKey{}, url.Values{"state": {callbackState}, "code": {"provider-code-0001"}})
 		grant, err := callbackAuthorizer.Authorize(queryContext, f.browser, f.browser.credentialBinding, RoutedOperation{OperationID: "completeIntegrationOAuthCallback"})
 		if err != nil {

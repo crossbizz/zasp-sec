@@ -1,6 +1,24 @@
 # Agent Security Platform Implementation Status
 
 
+## Maintenance startup checkpoint, October 15, 2026
+
+Maintenance constructors now report a bounded, fixed failure stage through the
+existing readiness observer, retaining the original public error identity,
+queries, deadlines and cleanup. Lifecycle callback adapter setup moves before
+the cleanup claim; actual authorization and consumption stay after Begin.
+All lease limits and security assertions remain unchanged.
+
+Grouped constructor checks passed 19 named cases, the complete API fixture
+compiled, 41 Node checks passed, and UI lint/typecheck/build and the 728-row
+ledger passed. Independent source review passed. Exact results, original RED
+output and the incomplete hosted snapshot are retained in
+`cloud-maintenance-startup-checkpoint-2026-10-15.json` and its committed bundle.
+These are component results. Native failures, deployed journeys, production
+fleet activation and the dependency security gate remain unresolved; the ledger
+stays at 523 recorded production-available, 144 component-only and 61 external.
+
+
 ## Native approval diagnostic checkpoint, October 15, 2026
 
 Original trace acceptance errors now carry private, fixed refusal stages; every

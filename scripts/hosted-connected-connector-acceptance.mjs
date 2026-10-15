@@ -26,8 +26,8 @@ const pins = {
   "services/platform/apiserver/connector_maintenance_callback_recovery_database.go": "a9330f0ece5e4349f9a3252a5b44f5409340130b125763dab6cefe49aaa89b6a",
   "services/platform/apiserver/connector_maintenance_callback_recovery.go": "78ab4d746bf9d76d65f5113df17865fed91ba0ebdd7c55d4ba023612533d1b75",
   "services/platform/agentsec-api/connector_callback_runtime.go": "69c0fe154628058709eaf886369e3aa92aee8a9526a1bebda091ad8147c6cd95",
-  "services/platform/agentsec-api/connector_maintenance_runtime.go": "ac74dd00dc05e34e72a06962ad8d7a8f13d18bf64c0fe6e46fdbd520f4b09bab",
-  "services/platform/agentsec-api/production_runtime.go": "040ea8d733d5c22dc0e67279889605ad4fc68cb2e55131d2f546d0285e43dd2a",
+  "services/platform/agentsec-api/connector_maintenance_runtime.go": "8f7207d81d37dcceb02dcfd55975eefe407cebca06eaf7b99a6bd9eb555d5dc3",
+  "services/platform/agentsec-api/production_runtime.go": "715b0185a3c8237f814203bd9056baa416fee76ea732c26f6b7b4216ccc48a3a",
   "services/platform/agentsec-api/runtime.go": "bace8cadfe7ab3f982cfc779ebff5493590a9156bf4a2cbdf31e7be82d69e975",
   "services/platform/agentsec-worker/authorization_worker_runtime.go": "18ed70e4f9a8efbefb6cb623f493465739a29de81cae4340e3629d0dda7a7abe",
   "services/platform/apiserver/connector_enqueue_provenance_postgres_test.go": "d6039cfa0d1673a5cf29e68e209b73c2cb6aeefd715e4d7805d3690b8ab0afde",
@@ -58,16 +58,16 @@ const pins = {
   "services/platform/migrations/production_approval_maintenance_successor.go": "6817964c5c0dfcabe7ea9f65caf5b7840f6d9e4d29a1ec39b00e1b03b0fa6eca",
   "services/platform/migrations/production_approval_maintenance_profile_test.go": "5592e136c7578bac21bf698c675762b28b68b46a37b1d2ed7670e2d707150a6a",
   "services/platform/apiserver/connector_maintenance_callback_execution_test.go": "aeed97eabbf32cb8f2af66d8b4ca37ceeeb6d6a4ad6dcc9e4f4961f198bdff2d",
-  "services/platform/apiserver/connector_maintenance_lifecycle_postgres_test.go": "9707643f5de7feab9497f7c56b11942e3e579bd2b1950a1ea5ac6836baddcfa4",
+  "services/platform/apiserver/connector_maintenance_lifecycle_postgres_test.go": "7455a18298448d561d46b4d77f31cb52e22ff7780fbe020fa2ccf2cc759833fd",
   "services/platform/apiserver/connector_maintenance_lifecycle_helpers_test.go": "17e25679f365e81f0450cfa2c9c5a23250afeb43f47f8577e34ed8de77029bc3",
-  "services/platform/agentsec-api/compliance_browser_process_test.go": "7a8a66cb13308e02a30175c482226c6c49cd5487a10e194707a8fbf9b16f10e6",
-  "scripts/browser-command-failure.mjs": "9f8849dc015884c7ce2377ac6d28b5fe0994365030fe29dd36f251e1006fa614",
+  "services/platform/agentsec-api/compliance_browser_process_test.go": "ce30c1b24c754ee92be7cbc8c3fb82182b5416609b87aa0763aa7edf805e7aef",
+  "scripts/browser-command-failure.mjs": "576a9878ea365c2e9d988a325d9b063eedf8f1980d5015f08ce7c17e9168e751",
   "services/platform/apiserver/production.go": "ca69d1bf4f7d6d0a94c68529f117a55d6e786aba437b9c55a0ee42c9af117c3c",
   "services/platform/apiserver/connector_maintenance_pkce_recovery_test.go": "db05051ac764c5a1d57dac9e8c3691660c284a2a6f5fb088b8cd10acef7c7f96",
   "services/platform/apiserver/connector_maintenance_recovery_decode_test.go": "08ad69924af72241a35c146e371c2a2ec955a25a8af16cfee81537073335c8f1",
-  "services/platform/agentsec-api/authorization_runtime_readiness.go": "1be22a87267f5d86e94867afc5ed6ef3cbf829de91319b8171fc110eb46e0f5c",
-  "services/platform/agentsec-api/authorization_runtime_readiness_test.go": "f874e75c9984b428cd645fc194c41e0eb200559e133a989d0eb3ae25e45c99c5",
-  "scripts/browser-command-failure.test.mjs": "5ad36b201f5e47117ca3d042d60f00fb1e5b4800cb687c1dc3c7708bb84b2b81",
+  "services/platform/agentsec-api/authorization_runtime_readiness.go": "7999316f721e079c16656412eb594e460ca154f6f78a5cee5a1d894bf000ae21",
+  "services/platform/agentsec-api/authorization_runtime_readiness_test.go": "d5900ebdd4e1a9663dceddd61b08e18b24ad540b385b1b1357122e797984e417",
+  "scripts/browser-command-failure.test.mjs": "0abdd6bf9a4d17cc8d88771a2a62329e1642bb531589e30e9122fc599b4f41ae",
   "services/platform/connectormaintenancecutover/readback_defaults.json": "d4c42d89fa77b89513e732b6d5bdd206c808111096307d38784cc6f1ba639835",
   "services/platform/connectormaintenancecutover/readback_test.go": "e4970d8ef25f042e9948abb5cbb0557c32988a50bd80b3bcddd6c8f74a8da23a",
   "services/platform/agentsec-migrate/main.go": "ed0705033dd88d12551eb2ee97fc674729f02c5fadb3f64742f845e9173124be",
@@ -89,7 +89,7 @@ const pins = {
   "services/platform/runtimeservices/approval_activation_config_test.go": "d288ebc83684b8d49bdfab4fabb30bf4e65dc530f327ea06e205c415bd7195df",
   "services/platform/apiserver/approval_activation_flow_test.go": "6900d4c1d649744d99f915b7f1d8c1c25aac20d2d0917168f635886fb14bc757",
   "services/platform/apiserver/connector_preparation_stage_test.go": "338c9d4717d2c505f3af9d153d3dfcd58a4027a98c7232e0daa4316bfd466e37",
-  "services/platform/agentsec-api/approval_maintenance_runtime.go": "aaa1cfcfc997a9a6cee529f08b405083552669d8be79b2891205c7a80e267177",
+  "services/platform/agentsec-api/approval_maintenance_runtime.go": "a235067f39d719f9c81fc170b18d366ecb86ce5326de5d275c0065db178d2ac9",
   "services/platform/agentsec-api/approval_settlement_runtime_selection_test.go": "c241cfeb1a0024787ca1b8d620fea2c17cb28eceeb9761db0f22a5d431980d42",
   "services/platform/approvalmaintenance/executor.go": "848fd46743bcacb6066156736dde8365fbcc18e4e5657312b0198669e617d86f",
   "services/platform/approvalmaintenance/settlement_audit_executor_test.go": "42c4253f03f02398a4c47ee252cd3ee3500f0bf72ba1a45cfb9b5079d4794b8b",
@@ -166,7 +166,7 @@ function nativeDiagnostic(result,timed){
  for(const match of row.Output.matchAll(/failed after canonical version ([0-9]{1,4})(?:\s|$)/g))if(diagnostic.canonicalVersions.length<16)diagnostic.canonicalVersions.push(Number(match[1]));
  if(row.Output.includes('connector rollback result=admitted'))diagnostic.rollbackDiagnostic='admitted';else if(row.Output.includes('connector rollback result=non-postgres-error'))diagnostic.rollbackDiagnostic='non-postgres-error';
  if(row.Output.includes('connector fixture errorCategory=non-postgres-or-unclassified'))diagnostic.fixtureErrorCategory='non-postgres-or-unclassified';
- for(const match of row.Output.matchAll(/(?:approval_activation_postgres_test|approval_activation_flow_test|approval_activation_family_flow_test|approval_activation_family_runtime_test|approval_activation_ordered_progress_test|approval_activation_future_family_test|approval_activation_overflow_test|connector_maintenance_failure_observation_test|connector_maintenance_callback_restart_postgres_test|connector_maintenance_catalog_diagnostic_test|connector_maintenance_pkce_recovery_test|connector_maintenance_lifecycle_postgres_test|connector_maintenance_lifecycle_helpers_test|connector_maintenance_enqueue_postgres_test|connector_enqueue_provenance_postgres_test|authorization_integration_mutations_postgres_test|authorization_projection_fga_test|approval_maintenance_owned_fga_test|postgres_integration_test)\.go:[0-9]{1,6}:/g))locations.add(match[0].slice(0,-1));}
+ for(const match of row.Output.matchAll(/(?:approval_activation_postgres_test|approval_activation_flow_test|approval_activation_family_flow_test|approval_activation_family_runtime_test|approval_activation_ordered_progress_test|approval_activation_future_family_test|approval_activation_overflow_test|connector_maintenance_failure_observation_test|connector_maintenance_callback_restart_postgres_test|connector_maintenance_catalog_diagnostic_test|connector_maintenance_pkce_recovery_test|connector_maintenance_lifecycle_postgres_test|connector_maintenance_lifecycle_helpers_test|connector_maintenance_enqueue_postgres_test|connector_enqueue_provenance_postgres_test|authorization_integration_mutations_postgres_test|authorization_projection_fga_test|approval_maintenance_owned_fga_test|approval_maintenance_genuine_test74_postgres_test|approval_maintenance_genuine_progress_postgres_test|authorization_worker_ordered_planning_postgres_test|authorization_worker_ordered_policy_postgres_test|authorization_worker_ordered_policy_flow_test|security_agent_temporal_test_executor_postgres_test|security_agent_temporal_executor_postgres_test|security_agent_multistep_dependencies_test|temporal_finding_response_postgres_test|postgres_integration_test)\.go:[0-9]{1,6}:/g))locations.add(match[0].slice(0,-1));}
 }
  diagnostic.locations=[...locations].slice(0,16);diagnostic.failedCases=diagnostic.failedCases.slice(0,10);receipt.nativeDiagnostic=diagnostic;
  const scalar=n=>Number.isInteger(n)?String(n):'unobserved';console.log('::notice title=Connector native command outcome::status='+scalar(diagnostic.status)+'; timed='+String(timed)+'; signal='+(diagnostic.signal??'none')+'; cap='+String(diagnostic.outputLimitExceeded)+'; namedRUN='+diagnostic.counts.run+'; namedPASS='+diagnostic.counts.pass+'; namedFAIL='+diagnostic.counts.fail+'; namedSKIP='+diagnostic.counts.skip+'; failedCases='+diagnostic.failedCases.join(',')+'; sourceLocations='+diagnostic.locations.join(',')+'; postgresCategories='+diagnostic.postgresCategories.join(',')+'; fixtureStages='+diagnostic.fixtureStages.join(',')+'; SQLSTATE='+diagnostic.sqlStates.join(',')+'; canonicalVersions='+diagnostic.canonicalVersions.join(',')+'; fixtureErrorCategory='+(diagnostic.fixtureErrorCategory??'none')+'; rollbackDiagnostic='+(diagnostic.rollbackDiagnostic??'none')+'; migrationDiagnostics='+JSON.stringify(diagnostic.migrationDiagnostics)+'; catalogDiagnostic='+JSON.stringify(diagnostic.catalogDiagnostic)+'; catalogKinds='+JSON.stringify(diagnostic.catalogKinds)+'; cutoverPrepareStages='+diagnostic.cutoverPrepareStages.join(',')+'; cutoverActivationStages='+diagnostic.cutoverActivationStages.join(',')+'; preparationStages='+diagnostic.preparationStages.join(',')+'; leaseObservations='+JSON.stringify(diagnostic.leaseObservations)+'; approvalPayloadObservations='+JSON.stringify(diagnostic.approvalPayloadObservations)+'; JSONMalformed='+String(diagnostic.jsonMalformed)+'. No deployment readiness established.');
