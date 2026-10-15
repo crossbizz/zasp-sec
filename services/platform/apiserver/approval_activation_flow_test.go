@@ -15,6 +15,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	fga "github.com/openfga/go-sdk/client"
 	"github.com/openfga/go-sdk/credentials"
@@ -38,6 +40,19 @@ func TestApprovalActivationNativeFindingDeliveryFlow(t *testing.T) {
 			if err := up(ctx); err != nil {
 				t.Fatal("native maintenance composition refused", err)
 			}
+		}
+		var predecessorBefore, predecessorAfter string
+		const predecessorObservation = `SELECT jsonb_build_array(zasp_approval_activation_v1.fingerprint(),zasp_approval_maintenance.fingerprint(),zasp_connector_maintenance.fingerprint(),zasp_authorization79.fingerprint(),zasp_authorization80.fingerprint())::text`
+		if err := f.owner.QueryRow(ctx, predecessorObservation).Scan(&predecessorBefore); err != nil {
+			t.Fatal(err)
+		}
+		for range 2 {
+			if err := runner.UpProductionApprovalSettlementAuditProfile(ctx); err != nil {
+				t.Fatal("additive audit installation/idempotency refused", err)
+			}
+		}
+		if err := f.owner.QueryRow(ctx, predecessorObservation).Scan(&predecessorAfter); err != nil || predecessorBefore != predecessorAfter {
+			t.Fatal("additive audit installer changed predecessor catalog", err)
 		}
 		if _, err := f.owner.Exec(ctx, `INSERT INTO public.zasp_workflow_records(organization_id,workspace_id,environment_id,kind,id,body) VALUES($1,$2,$3,'integration',$4,jsonb_build_object('id',$4::text,'name','Owned approval delivery','connector_key','generic-webhook','status','configured','configuration',jsonb_build_object('destination_url','https://hooks.example.test/zasp','signing_secret_reference','secret_ref_approval_fixture')))`, f.o, f.w, f.e, f.next()); err != nil {
 			t.Fatal("original webhook configuration refused", err)
@@ -177,7 +192,7 @@ func TestApprovalActivationNativeFindingDeliveryFlow(t *testing.T) {
 		if t.Failed() {
 			return
 		}
-		native, err := approvalmaintenance.NewExecutor(poolFor("approval_activation_delivery"), checker, pins.StoreID, pins.ModelID, approvalPin, af[:])
+		native, err := approvalmaintenance.NewActivatedExecutor(ctx, poolFor("approval_activation_delivery"), checker, pins.StoreID, pins.ModelID, approvalPin, af[:], activationPin)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -215,6 +230,7 @@ func TestApprovalActivationNativeFindingDeliveryFlow(t *testing.T) {
 			if err := f.owner.QueryRow(ctx, `SELECT count(*)=1 AND bool_and(n.state='delivered' AND n.attempt=1 AND n.completed_at IS NOT NULL AND r.state='settled' AND r.attempt=1 AND r.kind='delivery' AND r.receipt IS NOT NULL) FROM public.zasp_security_agent_approval_notifications n JOIN zasp_approval_maintenance.reservations r USING(organization_id,workspace_id,environment_id,delivery_id) WHERE n.run_id=$1 AND r.state='settled'`, first).Scan(&settled); err != nil || !settled || calls.Load() != 1 || secrets.calls != 1 {
 				t.Fatal("signed delivery lacks exact durable settlement", err)
 			}
+			assertApprovalActivationSettlementAudit(t, ctx, f, first, "delivered")
 			if err := reconciler.ReconcileOnce(ctx); err != nil || calls.Load() != 1 {
 				t.Fatal("settled notification resent", err)
 			}
@@ -306,6 +322,7 @@ func TestApprovalActivationNativeFindingDeliveryFlow(t *testing.T) {
 			if _, err := adapter.Authorize(ctx, r, approvalmaintenance.BeforeDelivery); !errors.Is(err, approvalmaintenance.ErrDenied) {
 				t.Fatal("captured receipt recreated forward permission", err)
 			}
+			assertApprovalSettlementRefusalAtomicity(t, ctx, f, r, attempt)
 			// Fail, never Complete: no provider call was made for this held attempt.
 			if err := adapter.Fail(ctx, r, attempt); err != nil {
 				t.Fatal("original captured settlement lost after revocation", err)
@@ -314,6 +331,11 @@ func TestApprovalActivationNativeFindingDeliveryFlow(t *testing.T) {
 			if err := f.owner.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM public.zasp_security_agent_approval_notifications WHERE run_id=$1 AND attempt=1 AND state='retryable' AND completed_at IS NULL) AND EXISTS(SELECT 1 FROM zasp_approval_maintenance.reservations r JOIN public.zasp_security_agent_approval_notifications n USING(organization_id,workspace_id,environment_id,delivery_id) WHERE n.run_id=$1 AND r.state='settled' AND r.attempt=1 AND r.receipt IS NOT NULL)`, second).Scan(&valid); err != nil || !valid || calls.Load() != 1 {
 				t.Fatal("captured settlement altered attempt/outcome or sent after revocation", err)
 			}
+			assertApprovalActivationSettlementAudit(t, ctx, f, second, "retryable")
+			if err := adapter.Fail(ctx, r, attempt); err == nil {
+				t.Fatal("committed captured settlement replay was accepted")
+			}
+			assertApprovalActivationSettlementAudit(t, ctx, f, second, "retryable")
 		})
 	}, true, 3)
 }
@@ -485,5 +507,117 @@ func TestApprovalActivationOldWriterProcess(t *testing.T) {
 	}
 	if _, err := io.Copy(io.Discard, os.Stdin); err != nil {
 		t.Fatal("owned writer close refused")
+	}
+}
+
+func assertApprovalActivationSettlementAudit(t *testing.T, ctx context.Context, f findingResponseFixture, run, transition string) {
+	t.Helper()
+	var valid bool
+	const exactAudit = `WITH expected AS (
+ SELECT n.*,r.kind,r.receipt,o.source_digest,o.delegation->>'principal_id' actor,a.step_id,
+ public.zasp_discovery_canonical_id(n.organization_id,n.workspace_id,n.environment_id,'approval_delivery_audit',n.delivery_id||chr(31)||r.attempt::text||chr(31)||r.kind||chr(31)||n.state) aid,
+ public.zasp_discovery_canonical_id(n.organization_id,n.workspace_id,n.environment_id,'approval_delivery_attempt',n.delivery_id||chr(31)||r.attempt::text||chr(31)||r.kind) cid,
+ jsonb_build_object('delivery_id',n.delivery_id,'run_id',n.run_id,'approval_id',n.approval_id,'step_id',a.step_id,'attempt',r.attempt,'kind',r.kind,'transition',n.state,'payload_digest','sha256:'||encode(n.payload_digest,'hex'),'source_digest','sha256:'||o.source_digest,'receipt_digest','sha256:'||encode(digest(convert_to(r.receipt::text,'UTF8'),'sha256'),'hex')) evidence
+ FROM public.zasp_security_agent_approval_notifications n JOIN zasp_approval_maintenance.reservations r USING(organization_id,workspace_id,environment_id,delivery_id)
+ JOIN zasp_approval_maintenance.origins o USING(organization_id,workspace_id,environment_id,delivery_id)
+ JOIN public.zasp_security_agent_approvals a USING(organization_id,workspace_id,environment_id,approval_id,run_id)
+ WHERE n.run_id=$1 AND r.state='settled')
+ SELECT count(*)=1 AND bool_and(x.state=$2 AND
+ (v.organization_id,v.workspace_id,v.environment_id,v.audit_id,v.correlation_id,v.run_id,v.step_id,v.approval_id,v.actor_id,v.event_kind,v.body) IS NOT DISTINCT FROM
+ (x.organization_id,x.workspace_id,x.environment_id,x.aid,x.cid,x.run_id,x.step_id,x.approval_id,x.actor,'approval_notification_'||x.state,x.evidence)
+ AND v.event_digest=digest(convert_to(jsonb_build_object('organization_id',x.organization_id,'workspace_id',x.workspace_id,'environment_id',x.environment_id,'audit_id',x.aid,'correlation_id',x.cid,'actor_id',x.actor,'event_kind','approval_notification_'||x.state,'body',x.evidence)::text,'UTF8'),'sha256'))
+ FROM expected x JOIN public.zasp_security_agent_audit v ON(v.organization_id,v.audit_id)=(x.organization_id,x.aid)`
+	if err := f.owner.QueryRow(ctx, exactAudit, run, transition).Scan(&valid); err != nil || !valid {
+		t.Fatal("settlement audit missing exact canonical scope, actor, receipt digest or outcome", err)
+	}
+	var count int
+	if err := f.owner.QueryRow(ctx, `SELECT count(*) FROM public.zasp_security_agent_audit WHERE run_id=$1 AND event_kind LIKE 'approval_notification_%'`, run).Scan(&count); err != nil || count != 1 {
+		t.Fatal("settlement audit duplicated", err)
+	}
+}
+
+// Corrupt evidence exists only inside a rollback-only negative transaction.
+// It is never accepted as a receipt, committed, deleted or rewritten. The real
+// stored captured attempt remains the sole authority for the settlement call.
+func assertApprovalSettlementRefusalAtomicity(t *testing.T, ctx context.Context, f findingResponseFixture, r approvalmaintenance.Reservation, attempt approvalmaintenance.Attempt) {
+	t.Helper()
+	pin, err := migrations.ApprovalSettlementAuditProfileChecksum()
+	if err != nil {
+		t.Fatal(err)
+	}
+	read := func() string {
+		t.Helper()
+		var snapshot string
+		if err := f.owner.QueryRow(ctx, `SELECT jsonb_build_array(to_jsonb(n),to_jsonb(a),(SELECT jsonb_agg(to_jsonb(v) ORDER BY audit_id) FROM public.zasp_security_agent_audit v WHERE(v.organization_id,v.run_id)=(n.organization_id,n.run_id)),(SELECT to_jsonb(v) FROM zasp_authorization79.organizations v WHERE v.organization_id=n.organization_id))::text FROM public.zasp_security_agent_approval_notifications n JOIN zasp_approval_maintenance.reservations a USING(organization_id,workspace_id,environment_id,delivery_id) WHERE(n.organization_id,n.workspace_id,n.environment_id,n.delivery_id,a.lease_token)=($1::jsonb->>'organization_id',$1::jsonb->>'workspace_id',$1::jsonb->>'environment_id',$1::jsonb->>'delivery_id',$1::jsonb->>'lease_token')`, r.Reference).Scan(&snapshot); err != nil {
+			t.Fatal(err)
+		}
+		return snapshot
+	}
+	before := read()
+	for _, mode := range []string{"wrong-audit-pin", "foreign-scope", "audit-conflict"} {
+		tx, err := f.owner.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if mode == "audit-conflict" {
+			// Rollback-only security negative: exercise the original delivered
+			// branch's revision touch, then force an audit conflict. No HTTP
+			// success or delivery outcome is accepted or committed here.
+			_, err = tx.Exec(ctx, `INSERT INTO public.zasp_security_agent_audit(organization_id,workspace_id,environment_id,audit_id,correlation_id,run_id,step_id,approval_id,actor_id,event_kind,event_digest,body)
+ SELECT n.organization_id,n.workspace_id,n.environment_id,
+ public.zasp_discovery_canonical_id(n.organization_id,n.workspace_id,n.environment_id,'approval_delivery_audit',n.delivery_id||chr(31)||r.attempt::text||chr(31)||r.kind||chr(31)||'delivered'),
+ public.zasp_discovery_canonical_id(n.organization_id,n.workspace_id,n.environment_id,'approval_delivery_attempt',n.delivery_id||chr(31)||r.attempt::text||chr(31)||r.kind),n.run_id,a.step_id,n.approval_id,o.delegation->>'principal_id','approval_notification_delivered',decode(repeat('00',32),'hex'),'{}'::jsonb
+ FROM public.zasp_security_agent_approval_notifications n JOIN zasp_approval_maintenance.reservations r USING(organization_id,workspace_id,environment_id,delivery_id)
+ JOIN zasp_approval_maintenance.origins o USING(organization_id,workspace_id,environment_id,delivery_id)
+ JOIN public.zasp_security_agent_approvals a USING(organization_id,workspace_id,environment_id,approval_id,run_id)
+ WHERE(n.organization_id,n.workspace_id,n.environment_id,n.delivery_id,r.lease_token)=($1::jsonb->>'organization_id',$1::jsonb->>'workspace_id',$1::jsonb->>'environment_id',$1::jsonb->>'delivery_id',$1::jsonb->>'lease_token')`, r.Reference)
+			if err != nil {
+				_ = tx.Rollback(ctx)
+				t.Fatal("rollback-only audit conflict fixture refused", err)
+			}
+		}
+		if _, err = tx.Exec(ctx, `SET LOCAL SESSION AUTHORIZATION approval_activation_delivery;SET LOCAL ROLE zasp_approval_maintenance_worker`); err != nil {
+			_ = tx.Rollback(ctx)
+			t.Fatal("original registered native caller context refused", err)
+		}
+		q, auditPin := r.Reference, pin
+		if mode == "wrong-audit-pin" {
+			auditPin = hex.EncodeToString(make([]byte, 32))
+		}
+		if mode == "foreign-scope" {
+			var fields map[string]any
+			if json.Unmarshal([]byte(q), &fields) != nil {
+				_ = tx.Rollback(ctx)
+				t.Fatal("original reference invalid")
+			}
+			fields["workspace_id"] = f.next()
+			raw, _ := json.Marshal(fields)
+			q = string(raw)
+		}
+		var result json.RawMessage
+		err = tx.QueryRow(ctx, `SELECT zasp_approval_settlement_v1.settle($1::jsonb,$2::json,$3,$4)`, q, json.RawMessage(attempt.CapturedProof), mode == "audit-conflict", auditPin).Scan(&result)
+		var native *pgconn.PgError
+		expected := "42501"
+		if mode == "audit-conflict" {
+			expected = "40001"
+		}
+		if mode == "foreign-scope" {
+			expected = "P0002"
+		}
+		refused := errors.As(err, &native) && native.Code == expected
+		if rollbackErr := tx.Rollback(ctx); rollbackErr != nil {
+			t.Fatal(rollbackErr)
+		}
+		if !refused {
+			t.Fatal("audited settlement did not reject exact refusal case", mode, err)
+		}
+		if after := read(); after != before {
+			t.Fatal("refused/conflicting audit mutated original attempt, revision or durable evidence", mode)
+		}
+	}
+	// Confirm the negative fixture cannot alter either immutable predecessor.
+	var ready bool
+	if err := f.owner.QueryRow(ctx, `SELECT zasp_approval_settlement_v1.catalog_ready($1)`, pin).Scan(&ready); err != nil || !ready {
+		t.Fatal("negative audit fixture changed catalog", err)
 	}
 }

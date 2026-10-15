@@ -20,7 +20,7 @@ const pins = {
   "services/platform/apiserver/current_authorization_health_probe_test.go": "09361c7c963d5f3d508b9c534d92c5b7d6bcf2f19c4c46b8413088c0b974c593",
   "services/platform/apiserver/current_authorization_health_probe.go": "3bed74745ef1056405965605ea6c45b949e842bf29065e8665e7900ec3cd8a66",
   "services/platform/connectormaintenancecutover/coordinator_test.go": "26ce6254da116eb381365e2c90ae97e4c7366d829168e5a55438b40dc8ba9a90",
-  "services/platform/apiserver/connector_maintenance_catalog_diagnostic_test.go": "fb4add6de1bfad2e20311e5da0fb82f215eacb456ea588de8bbea2a890566868",
+  "services/platform/apiserver/connector_maintenance_catalog_diagnostic_test.go": "3a0a5a0dc9c6fa4d74cae94d06ddfd470473a2d07dd0d673d1d9c62359a3a426",
   "services/platform/apiserver/connector_maintenance_callback_restart_postgres_test.go": "fe1f04ee8d9d6c78814a05df0fb976f4aedd5f1667e648c5342fbc14ea1d46bf",
   "services/platform/apiserver/connector_maintenance_callback_recovery_test.go": "18274be7f5b461c1fe3447db1b8d6761428f41955250313e8ed8ea346a1fe18f",
   "services/platform/apiserver/connector_maintenance_callback_recovery_database.go": "a9330f0ece5e4349f9a3252a5b44f5409340130b125763dab6cefe49aaa89b6a",
@@ -52,7 +52,7 @@ const pins = {
   "services/platform/migrations/production_connector_enqueue_provenance.go": "793b230a8572fbfbed2a4702e1513bfa90afac596a8d0707ae047bbdf8bacc36",
   "services/platform/migrations/production_connector_maintenance.go": "18b0989e395e85f18a78f5f51aee06eb1f969fba79a66650754bfc3858d055cd",
   "services/platform/migrations/sql/connector_enqueue_provenance.sql": "32b3f8cbe175b5256ff4542cdff044d6d060e0240d24632bf3d057f3553a5c13",
-  "services/platform/migrations/sql/connector_maintenance_profile.sql": "966bfbeba5976b2c7edb78853b884e118955462eba5e8b627c21a12e1449bdef",
+  "services/platform/migrations/sql/connector_maintenance_profile.sql": "9b6d105e1f69f46719d001cd80c3e540a8fabbf00b364cf0281857575d2c5bf7",
   "services/platform/runtimeservices/config.go": "5cd087e846c9106c07c0734f06937e727c25fb04887dbfdf8d78da4c70e48731",
   "services/platform/migrations/production_approval_maintenance_profile.go": "2e98fa960c2e7b42b2a6a343b4ff47059c0d23fac83dbed887d2868f1b9c99f3",
   "services/platform/migrations/production_approval_maintenance_successor.go": "6817964c5c0dfcabe7ea9f65caf5b7840f6d9e4d29a1ec39b00e1b03b0fa6eca",
@@ -61,17 +61,17 @@ const pins = {
   "services/platform/apiserver/connector_maintenance_lifecycle_postgres_test.go": "bfa570c34198136d1d3d88909e08ef6b0737abcee7465b0617f1fe2b3b4f35c0",
   "services/platform/apiserver/connector_maintenance_lifecycle_helpers_test.go": "17e25679f365e81f0450cfa2c9c5a23250afeb43f47f8577e34ed8de77029bc3",
   "services/platform/agentsec-api/compliance_browser_process_test.go": "7a8a66cb13308e02a30175c482226c6c49cd5487a10e194707a8fbf9b16f10e6",
-  "scripts/browser-command-failure.mjs": "0af8e330beaf024940732d50629b1c95252674b509d455fbd1f2808eaa40dc86",
+  "scripts/browser-command-failure.mjs": "9f8849dc015884c7ce2377ac6d28b5fe0994365030fe29dd36f251e1006fa614",
   "services/platform/apiserver/production.go": "ca69d1bf4f7d6d0a94c68529f117a55d6e786aba437b9c55a0ee42c9af117c3c",
   "services/platform/apiserver/connector_maintenance_pkce_recovery_test.go": "c9f81b86c14f4fa76c24a830371cdec7ce8ac5d2b1a34fee4a994719d3c6a797",
   "services/platform/apiserver/connector_maintenance_recovery_decode_test.go": "08ad69924af72241a35c146e371c2a2ec955a25a8af16cfee81537073335c8f1",
   "services/platform/agentsec-api/authorization_runtime_readiness.go": "33d0478de4ed7db1b79ad12fe63fb117965bb95cef770f999ab4ef35f015284d",
   "services/platform/agentsec-api/authorization_runtime_readiness_test.go": "ce2482c386799ad758b374d4e823a0e797cb907cf01daad2c449eb68fb3eb781",
-  "scripts/browser-command-failure.test.mjs": "d080296bbc585802d4f531caa5e29ea0306d2b42243bb9e34a5e29f19659ef09",
+  "scripts/browser-command-failure.test.mjs": "5ad36b201f5e47117ca3d042d60f00fb1e5b4800cb687c1dc3c7708bb84b2b81",
   "services/platform/connectormaintenancecutover/readback_defaults.json": "d4c42d89fa77b89513e732b6d5bdd206c808111096307d38784cc6f1ba639835",
   "services/platform/connectormaintenancecutover/readback_test.go": "e4970d8ef25f042e9948abb5cbb0557c32988a50bd80b3bcddd6c8f74a8da23a",
-  "services/platform/agentsec-migrate/main.go": "f9bccafecba7ceb576f1673a369143d49ec807bc30ef438e4103543467ca234e",
-  "services/platform/agentsec-migrate/maintenance_profile_commands_test.go": "d972fdf1601462a73bf98a08fbc085ec57b31ffec63180f25e45a38695779119",
+  "services/platform/agentsec-migrate/main.go": "ed0705033dd88d12551eb2ee97fc674729f02c5fadb3f64742f845e9173124be",
+  "services/platform/agentsec-migrate/maintenance_profile_commands_test.go": "8745c207020f6b8cf7992aed8a00e518f61869568a50f9bfcebb19f8e004ae22",
   "services/platform/agentsec-worker/authorization_worker_activation_config_test.go": "3b66404d7740592ad2c42e6491861e26f11788b3b6be0b7e68cbe9a6c20bca23",
   "services/platform/apiserver/approval_activation_postgres_test.go": "4a40ff1c879cd4c1af951ba8bc812d0d9ea81a360c856fcde4235b63581ae6e5",
   "services/platform/authorization/worker.go": "6717074205fbaf48d970b1a6bdbc6613779d492a388c6d6446fe78608ff3efe4",
@@ -87,8 +87,15 @@ const pins = {
   "services/platform/migrations/production_approval_activation_profile_test.go": "4d1c29736e796e8e9deecd7845a0ad6ba2e3948043427e2cc88c57b32fdfdf16",
   "services/platform/migrations/sql/approval_activation_profile.sql": "f256e35509c6573b85fda9babb8e5d87641927c5246d5d1408f98a0159cd139d",
   "services/platform/runtimeservices/approval_activation_config_test.go": "d288ebc83684b8d49bdfab4fabb30bf4e65dc530f327ea06e205c415bd7195df",
-  "services/platform/apiserver/approval_activation_flow_test.go": "2d6a704c607d9d222760a490eec2e1717825bbcb962c66a954a01e43b023ac49",
-  "services/platform/apiserver/connector_preparation_stage_test.go": "338c9d4717d2c505f3af9d153d3dfcd58a4027a98c7232e0daa4316bfd466e37"
+  "services/platform/apiserver/approval_activation_flow_test.go": "f2aaf0affdb8d81886a43b1850b3f106e54cc86bde382a6975631592f5a1509c",
+  "services/platform/apiserver/connector_preparation_stage_test.go": "338c9d4717d2c505f3af9d153d3dfcd58a4027a98c7232e0daa4316bfd466e37",
+  "services/platform/agentsec-api/approval_maintenance_runtime.go": "aaa1cfcfc997a9a6cee529f08b405083552669d8be79b2891205c7a80e267177",
+  "services/platform/agentsec-api/approval_settlement_runtime_selection_test.go": "c241cfeb1a0024787ca1b8d620fea2c17cb28eceeb9761db0f22a5d431980d42",
+  "services/platform/approvalmaintenance/executor.go": "848fd46743bcacb6066156736dde8365fbcc18e4e5657312b0198669e617d86f",
+  "services/platform/approvalmaintenance/settlement_audit_executor_test.go": "42c4253f03f02398a4c47ee252cd3ee3500f0bf72ba1a45cfb9b5079d4794b8b",
+  "services/platform/migrations/production_approval_settlement_audit_profile.go": "48cf793e911b7766da1de15b01ee741c6c6cb1e800654fcd5d495d156886f7d1",
+  "services/platform/migrations/production_approval_settlement_audit_profile_test.go": "868232f1bce320c00d360d5b023628b22e385dcfe7345e83755d04a656569434",
+  "services/platform/migrations/sql/approval_settlement_audit_profile.sql": "5d32526a3e1029c031193e689186b3892535f98e1a882e2a2f46d7f11f4361c2"
 };
 const roster = selectedGroup.names;
 const helperPins={
@@ -150,7 +157,7 @@ function nativeDiagnostic(result,timed){
  for(const match of row.Output.matchAll(/failed after canonical version ([0-9]{1,4})(?:\s|$)/g))if(diagnostic.canonicalVersions.length<16)diagnostic.canonicalVersions.push(Number(match[1]));
  if(row.Output.includes('connector rollback result=admitted'))diagnostic.rollbackDiagnostic='admitted';else if(row.Output.includes('connector rollback result=non-postgres-error'))diagnostic.rollbackDiagnostic='non-postgres-error';
  if(row.Output.includes('connector fixture errorCategory=non-postgres-or-unclassified'))diagnostic.fixtureErrorCategory='non-postgres-or-unclassified';
- for(const match of row.Output.matchAll(/(?:connector_maintenance_callback_restart_postgres_test|connector_maintenance_catalog_diagnostic_test|connector_maintenance_pkce_recovery_test|connector_maintenance_lifecycle_postgres_test|connector_maintenance_lifecycle_helpers_test|connector_maintenance_enqueue_postgres_test|connector_enqueue_provenance_postgres_test|authorization_integration_mutations_postgres_test|authorization_projection_fga_test|approval_maintenance_owned_fga_test|postgres_integration_test)\.go:[0-9]{1,6}:/g))locations.add(match[0].slice(0,-1));}
+ for(const match of row.Output.matchAll(/(?:approval_activation_postgres_test|approval_activation_flow_test|connector_maintenance_callback_restart_postgres_test|connector_maintenance_catalog_diagnostic_test|connector_maintenance_pkce_recovery_test|connector_maintenance_lifecycle_postgres_test|connector_maintenance_lifecycle_helpers_test|connector_maintenance_enqueue_postgres_test|connector_enqueue_provenance_postgres_test|authorization_integration_mutations_postgres_test|authorization_projection_fga_test|approval_maintenance_owned_fga_test|postgres_integration_test)\.go:[0-9]{1,6}:/g))locations.add(match[0].slice(0,-1));}
 }
  diagnostic.locations=[...locations].slice(0,16);diagnostic.failedCases=diagnostic.failedCases.slice(0,10);receipt.nativeDiagnostic=diagnostic;
  const scalar=n=>Number.isInteger(n)?String(n):'unobserved';console.log('::notice title=Connector native command outcome::status='+scalar(diagnostic.status)+'; timed='+String(timed)+'; signal='+(diagnostic.signal??'none')+'; cap='+String(diagnostic.outputLimitExceeded)+'; namedRUN='+diagnostic.counts.run+'; namedPASS='+diagnostic.counts.pass+'; namedFAIL='+diagnostic.counts.fail+'; namedSKIP='+diagnostic.counts.skip+'; failedCases='+diagnostic.failedCases.join(',')+'; sourceLocations='+diagnostic.locations.join(',')+'; postgresCategories='+diagnostic.postgresCategories.join(',')+'; fixtureStages='+diagnostic.fixtureStages.join(',')+'; SQLSTATE='+diagnostic.sqlStates.join(',')+'; canonicalVersions='+diagnostic.canonicalVersions.join(',')+'; fixtureErrorCategory='+(diagnostic.fixtureErrorCategory??'none')+'; rollbackDiagnostic='+(diagnostic.rollbackDiagnostic??'none')+'; migrationDiagnostics='+JSON.stringify(diagnostic.migrationDiagnostics)+'; catalogDiagnostic='+JSON.stringify(diagnostic.catalogDiagnostic)+'; catalogKinds='+JSON.stringify(diagnostic.catalogKinds)+'; cutoverPrepareStages='+diagnostic.cutoverPrepareStages.join(',')+'; cutoverActivationStages='+diagnostic.cutoverActivationStages.join(',')+'; preparationStages='+diagnostic.preparationStages.join(',')+'; JSONMalformed='+String(diagnostic.jsonMalformed)+'. No deployment readiness established.');

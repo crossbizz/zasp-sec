@@ -115,7 +115,13 @@ func newRuntimeApprovalMaintenance(ctx context.Context, c RuntimeConfig, a apise
 		return nil, nil, errRuntimeUnavailable
 	}
 	closer := &approvalMaintenanceRuntimeCloser{pool: pool}
-	executor, err := approvalmaintenance.NewExecutor(pool, authorizer.Checker, authorizer.StoreID, authorizer.ModelID, c.RuntimeServices.ApprovalMaintenanceProfileChecksum, seed)
+	executor, err := selectApprovalMaintenanceExecutor(c.RuntimeServices.ApprovalActivationProfileChecksum,
+		func() (*approvalmaintenance.Executor, error) {
+			return approvalmaintenance.NewActivatedExecutor(bounded, pool, authorizer.Checker, authorizer.StoreID, authorizer.ModelID, c.RuntimeServices.ApprovalMaintenanceProfileChecksum, seed, c.RuntimeServices.ApprovalActivationProfileChecksum)
+		},
+		func() (*approvalmaintenance.Executor, error) {
+			return approvalmaintenance.NewExecutor(pool, authorizer.Checker, authorizer.StoreID, authorizer.ModelID, c.RuntimeServices.ApprovalMaintenanceProfileChecksum, seed)
+		})
 	if err != nil {
 		_ = closer.Close()
 		return nil, nil, errRuntimeUnavailable
@@ -165,4 +171,24 @@ func approvalNotificationLifecycleReady(ctx context.Context, metadata func(conte
 		return errRuntimeUnavailable
 	}
 	return nil
+}
+
+// An explicitly selected additive profile cannot fall back after construction
+// or catalog refusal. The caller retains ownership of key and pool cleanup.
+func selectApprovalMaintenanceExecutor(activationPin string, activated, original func() (*approvalmaintenance.Executor, error)) (*approvalmaintenance.Executor, error) {
+	selected := original
+	if activationPin != "" {
+		selected = activated
+	}
+	if selected == nil {
+		return nil, errRuntimeUnavailable
+	}
+	executor, err := selected()
+	if err != nil {
+		return nil, err
+	}
+	if executor == nil {
+		return nil, errRuntimeUnavailable
+	}
+	return executor, nil
 }

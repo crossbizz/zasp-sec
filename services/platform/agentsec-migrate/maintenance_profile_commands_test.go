@@ -11,8 +11,8 @@ import (
 
 type maintenanceProfileRunner struct {
 	*scriptedMigrationRunner
-	approval, connector, activation int
-	failure                         error
+	approval, connector, activation, settlement int
+	failure                                     error
 }
 
 func (r *maintenanceProfileRunner) UpProductionApprovalMaintenanceProfile(context.Context) error {
@@ -29,8 +29,13 @@ func (r *maintenanceProfileRunner) UpProductionApprovalActivationProfile(context
 	return r.failure
 }
 
+func (r *maintenanceProfileRunner) UpProductionApprovalSettlementAuditProfile(context.Context) error {
+	r.settlement++
+	return r.failure
+}
+
 func TestMaintenanceProfileExplicitCommands(t *testing.T) {
-	for _, command := range []string{"up-approval-maintenance-profile", "up-connector-maintenance-profile", "up-approval-activation-profile"} {
+	for _, command := range []string{"up-approval-maintenance-profile", "up-connector-maintenance-profile", "up-approval-activation-profile", "up-approval-settlement-audit-profile"} {
 		t.Run(command, func(t *testing.T) {
 			base := &maintenanceProfileRunner{scriptedMigrationRunner: &scriptedMigrationRunner{version: 61}}
 			registered := &registeredReleaseMigrationRunner{releaseMigrationRunner: base, queryer: &releaseReadinessQueryer{}, registration: discoveryPrincipalRegistration{migration: "profile_operator"}}
@@ -43,10 +48,10 @@ func TestMaintenanceProfileExplicitCommands(t *testing.T) {
 					t.Errorf("guarded installer dispatch refused: %v", err)
 				}
 			}
-			if command == "up-approval-maintenance-profile" && (base.approval != 2 || base.connector != 0 || base.activation != 0) || command == "up-connector-maintenance-profile" && (base.connector != 2 || base.approval != 0 || base.activation != 0) || command == "up-approval-activation-profile" && (base.activation != 2 || base.approval != 0 || base.connector != 0) {
+			if command == "up-approval-settlement-audit-profile" && (base.settlement != 2 || base.approval != 0 || base.connector != 0 || base.activation != 0) || command == "up-approval-maintenance-profile" && (base.approval != 2 || base.connector != 0 || base.activation != 0) || command == "up-connector-maintenance-profile" && (base.connector != 2 || base.approval != 0 || base.activation != 0) || command == "up-approval-activation-profile" && (base.activation != 2 || base.approval != 0 || base.connector != 0) {
 				t.Error("wrong installer or replay count", base.approval, base.connector)
 			}
-			before := base.approval + base.connector + base.activation
+			before := base.approval + base.connector + base.activation + base.settlement
 			for _, version := range []int64{0, 60, 62, 80} {
 				base.version = version
 				if err := runReleaseMigration(context.Background(), registered, args); !errors.Is(err, migrations.ErrInvalidState) {
@@ -54,11 +59,11 @@ func TestMaintenanceProfileExplicitCommands(t *testing.T) {
 				}
 			}
 			base.version = 61
-			if base.approval+base.connector+base.activation != before {
+			if base.approval+base.connector+base.activation+base.settlement != before {
 				t.Error("invalid version reached installer")
 			}
 			registered.queryer = &releaseReadinessQueryer{failAt: 1}
-			if err := runReleaseMigration(context.Background(), registered, args); !errors.Is(err, errReleasePrincipalRegistration) || base.approval+base.connector+base.activation != before {
+			if err := runReleaseMigration(context.Background(), registered, args); !errors.Is(err, errReleasePrincipalRegistration) || base.approval+base.connector+base.activation+base.settlement != before {
 				t.Error("operator admission bypass", err)
 			}
 			registered.queryer = &releaseReadinessQueryer{}
@@ -81,7 +86,7 @@ func TestMaintenanceProfileExplicitCommands(t *testing.T) {
 }
 
 func TestMaintenanceProfilePostInstallCatalogOnly(t *testing.T) {
-	for _, command := range []string{"up-approval-maintenance-profile", "up-connector-maintenance-profile", "up-approval-activation-profile"} {
+	for _, command := range []string{"up-approval-maintenance-profile", "up-connector-maintenance-profile", "up-approval-activation-profile", "up-approval-settlement-audit-profile"} {
 		t.Run(command, func(t *testing.T) {
 			q := &releaseReadinessQueryer{}
 			if err := registerForwardRelease(context.Background(), q, discoveryPrincipalRegistration{migration: "profile_operator"}, []string{command}); err != nil {

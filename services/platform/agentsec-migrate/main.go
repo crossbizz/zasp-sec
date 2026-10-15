@@ -420,6 +420,15 @@ func registerForwardRelease(ctx context.Context, queryer principalQueryer, regis
 			}
 			statement = `SELECT session_user=$1 AND zasp_approval_activation_v1.catalog_ready($2)`
 		}
+		if arguments[0] == "up-approval-settlement-audit-profile" {
+			var err error
+			pin, err = migrations.ApprovalSettlementAuditProfileChecksum()
+			if err != nil {
+				return errReleasePrincipalRegistration
+			}
+			statement = `SELECT session_user=$1 AND zasp_approval_settlement_v1.catalog_ready($2)`
+		}
+
 		var ready bool
 		if err := queryer.QueryRow(ctx, statement, registration.migration, pin).Scan(&ready); err != nil || !ready {
 			return errReleasePrincipalRegistration
@@ -734,7 +743,7 @@ func (r *registeredReleaseMigrationRunner) UpProductionTemporalSingleRecovery(ct
 }
 
 func maintenanceProfileCommand(command string) bool {
-	return command == "up-approval-maintenance-profile" || command == "up-connector-maintenance-profile" || command == "up-approval-activation-profile"
+	return command == "up-approval-maintenance-profile" || command == "up-connector-maintenance-profile" || command == "up-approval-activation-profile" || command == "up-approval-settlement-audit-profile"
 }
 
 func (r *registeredReleaseMigrationRunner) UpProductionApprovalMaintenanceProfile(ctx context.Context) error {
@@ -768,6 +777,17 @@ func (r *registeredReleaseMigrationRunner) UpProductionApprovalActivationProfile
 		return migrations.ErrInvalidState
 	}
 	return extension.UpProductionApprovalActivationProfile(ctx)
+}
+
+func (r *registeredReleaseMigrationRunner) UpProductionApprovalSettlementAuditProfile(ctx context.Context) error {
+	if err := r.auditProfilePrincipal(ctx); err != nil {
+		return err
+	}
+	extension, ok := r.releaseMigrationRunner.(interface{ UpProductionApprovalSettlementAuditProfile(context.Context) error })
+	if !ok {
+		return migrations.ErrInvalidState
+	}
+	return extension.UpProductionApprovalSettlementAuditProfile(ctx)
 }
 
 func isForwardMigration(arguments []string) bool {
@@ -822,6 +842,16 @@ func runReleaseMigration(ctx context.Context, runner releaseMigrationRunner, arg
 		return err
 	}
 	switch arguments[0] {
+	case "up-approval-settlement-audit-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		extension, ok := runner.(interface{ UpProductionApprovalSettlementAuditProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return extension.UpProductionApprovalSettlementAuditProfile(ctx)
+
 	case "up-approval-activation-profile":
 		if version != 61 {
 			return migrations.ErrInvalidState

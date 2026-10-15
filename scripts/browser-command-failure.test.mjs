@@ -2,6 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import {EventEmitter} from 'node:events';
+import {PassThrough} from 'node:stream';
+import {spawn} from 'node:child_process';
 import {browserCommandFailureAnnotation} from './browser-command-failure.mjs';
 const src=fs.readFileSync(new URL('./production-combined-e2e.mjs',import.meta.url),'utf8');
 const start=src.indexOf('async function command(executable, args, options = {}) {');
@@ -96,4 +99,38 @@ test('readiness observations preserve only bounded unique closed fixture outcome
   assert.deepEqual(refused, []);
  }
  assert.doesNotThrow(() => emitComplianceAPIReadinessObservations(marker, () => { throw new Error('untrusted emitter'); }));
+});
+
+function observedAPIChild(){const child=new EventEmitter();child.exitCode=null;child.signalCode=null;child.stdout=new PassThrough();child.stderr=new PassThrough();return child;}
+test('joined API exit metadata survives oversized poisoned markers without disclosing output',async()=>{
+ const child=observedAPIChild(),observe=phaseHelpers.observeComplianceAPIChild(child);
+ child.stderr.write('CANARY_DSN_SECRET\n'+'x'.repeat(17000)+'\nZASP_COMPLIANCE_API_FAILED_STAGE=serve\nZASP_COMPLIANCE_API_FAILED_STAGE=runtime-build\npanic: CANARY_PROVIDER_PAYLOAD\n');
+ child.exitCode=2;child.emit('exit',2,null);child.emit('close',2,null);
+ const observation=await observe(),messages=[];
+ phaseHelpers.emitComplianceAPIChildFailure('x'.repeat(16385),x=>messages.push(x),undefined,observation);
+ assert.deepEqual(messages,['::error title=Compliance API startup failed::Observed child stage: unavailable.','::error title=Compliance API child exit::Observed exit=2; signal=none; outputLimitExceeded=false; truncated=true; fatal=panic.']);
+ assert.doesNotMatch(messages.join(''),/CANARY|DSN|SECRET|PAYLOAD|PROVIDER/);
+});
+test('API metadata never waits for a live child and joins exited streams before observing',async()=>{
+ const child=observedAPIChild(),observe=phaseHelpers.observeComplianceAPIChild(child);
+ assert.equal(await observe(),undefined);
+ child.exitCode=1;child.emit('exit',1,null);
+ let settled=false;const pending=observe().then(value=>{settled=true;return value;});await new Promise(resolve=>setImmediate(resolve));assert.equal(settled,false);
+ child.stderr.write('--- FAIL: TestComplianceBrowserAPIProcess (1.00s)\nCANARY_SECRET\n');child.emit('close',1,null);
+ const observation=await pending,messages=[];phaseHelpers.emitComplianceAPIChildFailure('',x=>messages.push(x),undefined,observation);
+ assert.match(messages.at(-1),/exit=1; signal=none;.*fatal=testfail/);
+});
+test('fatal categories, signals and malformed receipts remain closed scalar observations',async()=>{
+ for(const [line,category] of [['panic: test timed out after 1m0s\n','testtimeout'],['fatal error: CANARY_FATAL\n','runtimefatal'],['panic: CANARY_PANIC\n','panic'],['FAIL\n','testfail'],['CANARY_UNKNOWN\n','unknown'],['x'.repeat(1025)+'panic: CANARY_SECRET\n','unknown']]){
+  const child=observedAPIChild(),observe=phaseHelpers.observeComplianceAPIChild(child);for(const part of [line.slice(0,3),line.slice(3)])child.stderr.write(part);child.signalCode='SIGKILL';child.emit('close',null,'SIGKILL');const observation=await observe(),messages=[];phaseHelpers.emitComplianceAPIChildFailure('',x=>messages.push(x),undefined,observation);assert.match(messages.at(-1),new RegExp('exit=unavailable; signal=SIGKILL;.*fatal='+category+'\\.$'));assert.doesNotMatch(messages.join(''),/CANARY/);
+ }
+ for(const observation of [{status:1,signal:'SIGCANARY',truncated:true,fatal:'panic'},null,{},Object.create(null)]){const messages=[];phaseHelpers.emitComplianceAPIChildFailure('',x=>messages.push(x),undefined,observation);assert.equal(messages.length,1);}
+});
+test('actual runner child hook binds closed process status while preserving the existing output tail',async()=>{
+ const declaration=parsed.statements.find(node=>ts.isFunctionDeclaration(node)&&node.name?.text==='startChild');assert.ok(declaration);
+ const children=[],start=new Function('spawn','root','auditBrowserEnvironment','children','currentComplianceFailure','currentComplianceClosing','currentComplianceServices','observeComplianceAPIChild',`return (${declaration.getText(parsed)});`)(spawn,process.cwd(),value=>value,children,false,false,undefined,phaseHelpers.observeComplianceAPIChild);
+ const child=start(process.execPath,['-e',`process.stderr.write('CANARY_SECRET\\n'+'x'.repeat(17000)+'\\npanic: CANARY_PAYLOAD\\n');process.exitCode=2;`],{env:process.env,observeComplianceFailure:true});
+ await new Promise(resolve=>child.once('exit',resolve));const observation=await child.failureObservation(),messages=[];
+ phaseHelpers.emitComplianceAPIChildFailure(child.output(),value=>messages.push(value),undefined,observation);
+ assert.equal(child.output().length,16384);assert.equal(children[0],child);assert.match(messages.at(-1),/exit=2; signal=none;.*truncated=true; fatal=panic/);assert.doesNotMatch(messages.join(''),/CANARY|SECRET|PAYLOAD/);
 });

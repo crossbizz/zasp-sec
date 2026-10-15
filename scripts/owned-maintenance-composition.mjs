@@ -54,7 +54,7 @@ export async function activateOwnedMaintenance(config,runCutover=runOwnedMainten
   if(migrationEnvironment.ZASP_POSTGRES_DSN!==dsn('zasp_e2e'))refuse();
   const root=await lstat(keyRoot);if(!root.isDirectory()||(root.mode&0o7777)!==0o700||root.uid!==process.geteuid())refuse();
   const cleanEnvironment={...migrationEnvironment};for(const name of pinNames)delete cleanEnvironment[name];
-  for(const action of ['up-approval-maintenance-profile','up-connector-maintenance-profile','up-approval-activation-profile'])succeeded(await command(migrate,[action],{env:cleanEnvironment,cwd,timeout:300000}));
+  for(const action of ['up-approval-maintenance-profile','up-connector-maintenance-profile','up-approval-activation-profile','up-approval-settlement-audit-profile'])succeeded(await command(migrate,[action],{env:cleanEnvironment,cwd,timeout:300000}));
   succeeded(await command(psql,[migrationEnvironment.ZASP_POSTGRES_DSN,'-X','-v','ON_ERROR_STOP=1','-c',roleSQL],{env:cleanEnvironment,cwd,timeout:10000}));
   const pins=objectOutput(await command(cutover,['-mode','pins'],{env:cleanEnvironment,cwd,timeout:10000}),pinFields);
   if(pinFields.some(field=>typeof pins[field]!=='string'||!/^[a-f0-9]{64}$/.test(pins[field])))refuse();

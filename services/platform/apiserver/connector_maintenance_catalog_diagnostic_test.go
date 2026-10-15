@@ -14,7 +14,7 @@ import (
 
 var connectorCatalogKinds = [...]string{"namespace", "table", "view", "column", "constraint", "index", "policy", "trigger", "function"}
 
-const connectorCatalogFingerprintSuffix = ") SELECT encode(public.digest(convert_to(COALESCE(jsonb_agg(jsonb_build_array(k,i,d) ORDER BY k,i)::text,'[]'),'UTF8'),'sha256'),'hex') FROM objects"
+const connectorCatalogFingerprintSuffix = ") SELECT encode(public.digest(convert_to(COALESCE(jsonb_agg(jsonb_build_array(k,i,d) ORDER BY k,i,d)::text,'[]'),'UTF8'),'sha256'),'hex') FROM objects"
 const connectorCatalogGUCQuery = `SELECT ARRAY[current_setting('TimeZone'),current_setting('DateStyle'),current_setting('quote_all_identifiers'),current_setting('standard_conforming_strings'),current_setting('extra_float_digits')]`
 
 type connectorCatalogSnapshot struct {

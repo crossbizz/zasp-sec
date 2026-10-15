@@ -41,7 +41,7 @@ export function emitComplianceMigrationFailure(emit){
 }
 
 const COMPLIANCE_API_CHILD_STAGES = new Set(['config-load', 'owned-inputs', 'storage-path', 'bounded-deadline', 'runtime-build', 'serve']);
-export function emitComplianceAPIChildFailure(output, emit, startupError) {
+export function emitComplianceAPIChildFailure(output, emit, startupError, childObservation) {
  let stage = 'unavailable';
  if (typeof output === 'string' && output.length <= 16_384 && (output.length !== 16_384 || !output.split('\n')[0].includes('ZASP_COMPLIANCE_API_FAILED_STAGE'))) {
   const lines = output.split('\n');
@@ -57,6 +57,63 @@ export function emitComplianceAPIChildFailure(output, emit, startupError) {
  emitComplianceAPIStartupProgress(output, emit);
  emitComplianceAPIReadinessObservations(output, emit);
  if (startupError !== undefined) emitComplianceAPIStartupFailure(startupError, emit);
+ emitComplianceAPIChildExit(childObservation, emit);
+}
+
+const joinedAPIObservations = new WeakSet();
+const childSignals = new Set(['SIGABRT','SIGALRM','SIGBUS','SIGFPE','SIGHUP','SIGILL','SIGINT','SIGKILL','SIGPIPE','SIGQUIT','SIGSEGV','SIGTERM','SIGTRAP','SIGUSR1','SIGUSR2','SIGXCPU','SIGXFSZ']);
+const fatalRanks = new Map([['unknown',0],['testfail',1],['panic',2],['runtimefatal',3],['testtimeout',4]]);
+
+// Observe the actual child's streams and close event. Retain only bounded line
+// prefixes and closed scalar facts; the existing raw-output parser is separate.
+// startChild has no capture-overflow killer, so its outputLimitExceeded is false.
+export function observeComplianceAPIChild(child) {
+ if(!child||typeof child.once!=='function'||typeof child.stdout?.on!=='function'||typeof child.stderr?.on!=='function')return async()=>undefined;
+ let joined,resolveJoined,characters=0,fatal='unknown';
+ const completed=new Promise(resolve=>{resolveJoined=resolve;});
+ const classify=line=>{
+  let category='unknown';
+  if(/^panic: test timed out after /.test(line))category='testtimeout';
+  else if(/^fatal error: /.test(line))category='runtimefatal';
+  else if(/^panic: /.test(line))category='panic';
+  else if(/^--- FAIL: TestComplianceBrowserAPIProcess(?:[ /\t(]|$)/.test(line)||line==='FAIL')category='testfail';
+  if(fatalRanks.get(category)>fatalRanks.get(fatal))fatal=category;
+ };
+ const streamObserver=()=>{
+  let prefix='';
+  return chunk=>{
+   if(joined||(!Buffer.isBuffer(chunk)&&typeof chunk!=='string'))return;
+   const text=typeof chunk==='string'?chunk:chunk.toString('utf8');
+   characters=Math.min(16_385,characters+text.length);
+   let offset=0;
+   for(let end;(end=text.indexOf('\n',offset))>=0;){
+    prefix+=text.slice(offset,Math.min(end,offset+1024-prefix.length));
+    classify(prefix);prefix='';offset=end+1;
+   }
+   prefix+=text.slice(offset,offset+1024-prefix.length);
+  };
+ };
+ const stdout=streamObserver(),stderr=streamObserver();
+ child.stdout.on('data',stdout);child.stderr.on('data',stderr);
+ child.once('close',(status,signal)=>{
+  child.stdout.removeListener('data',stdout);child.stderr.removeListener('data',stderr);
+  joined=Object.freeze({status:Number.isSafeInteger(status)&&status>=0&&status<=255?status:'unavailable',signal:signal===null?'none':childSignals.has(signal)?signal:'unavailable',outputLimitExceeded:false,truncated:characters>16_384,fatal});
+  joinedAPIObservations.add(joined);resolveJoined(joined);
+ });
+ return async()=>{
+  if(joined)return joined;
+  // A readiness deadline while the child is still alive must never wait for
+  // that lifetime. After actual exit, allow only a bounded inherited-pipe join.
+  if(!(Number.isSafeInteger(child.exitCode)&&child.exitCode>=0)&&!(typeof child.signalCode==='string'&&child.signalCode.length>0))return undefined;
+  let timer;
+  try{return await Promise.race([completed,new Promise(resolve=>{timer=setTimeout(()=>resolve(undefined),2000);})]);}
+  finally{clearTimeout(timer);}
+ };
+}
+
+function emitComplianceAPIChildExit(observation,emit){
+ if(!observation||!joinedAPIObservations.has(observation))return;
+ try{emit(`::error title=Compliance API child exit::Observed exit=${observation.status}; signal=${observation.signal}; outputLimitExceeded=${observation.outputLimitExceeded}; truncated=${observation.truncated}; fatal=${observation.fatal}.`);}catch{/* Preserve the original readiness failure. */}
 }
 
 const COMPLIANCE_DEPENDENCY_PHASES = new Set(["audit-export", "authorization-components", "authorization-readiness", "compliance-export", "composition", "composition-authorization", "composition-inputs", "connector-lifecycle", "connector-oauth", "connector-providers", "connector-secrets", "construction-context", "core-postgres", "core-repositories", "current-authorization", "edge-middleware", "handler-composition", "identity-authenticator", "identity-repository", "identity-webhook", "native-identity-provider", "native-services", "operational-middleware", "policy-history", "policy-surface", "product-middleware", "production-handlers", "public-surface", "reference-providers", "runtime-inputs", "security-agent-postgres", "security-agent-repositories", "temporal-observer", "ticket-services"]);

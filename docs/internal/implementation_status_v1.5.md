@@ -1,5 +1,35 @@
 # Agent Security Platform Implementation Status
 
+## Audited approval settlement checkpoint, October 15, 2026
+
+An additive sealed profile now connects captured approval settlement to canonical
+audit evidence in the same transaction. The selected production API worker uses
+that profile without fallback; captured settlement after revocation retains its
+original narrow authority. The original approval and activation SQL/installers
+remain unchanged. A fourth inactive operator installer is required before starting
+the selected release; it does not activate a fleet or bless catalog drift.
+
+The mutable connector candidate fingerprint now orders duplicate keys by their
+full content, retaining every catalog row. Hosted observations showed registration
+changing from valid to invalid with unchanged metadata and session settings.
+This corrects undefined aggregate ordering; successful hosted acceptance remains
+pending. Existing older sealed candidates still require a guarded upgrade or
+verified fresh rollout. Closed child-exit observations and three VM fixture
+repairs retain original startup, cleanup and resource guards.
+
+Final local checks pass: 37 named Go cases across four application packages,
+native fixture compilation, 321 browser/helper cases and UI typecheck/build.
+Independent reviews pass, including corrected terminal-revision rollback coverage.
+The prior hosted production Helm render passes; browser startup still fails with
+an early API exit. Local native SIGTERM acceptance remains unexecuted after a
+prerequisite failure, and no deployed proof is claimed.
+
+This contributes to M1-28, M3-24, P7/P8 and T15-deployment without promoting a row.
+All 728 original tasks retain 523/144/61 categories. Full native family coverage,
+fleet cutover, release advisory evidence and real Stytch/provider deployment
+acceptance remain open. See the
+[settlement audit checkpoint](cloud-approval-settlement-audit-checkpoint-2026-10-15.json).
+
 ## Production maintenance wiring checkpoint, October 15, 2026
 
 The optional production chart bundle now wires the same three maintenance pins

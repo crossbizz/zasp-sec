@@ -62,13 +62,22 @@ the guarded discovery transition when advancing an older live deployment.
 ## Installation and activation remain separate gates
 
 The reviewed operator release supplies `up-connector-maintenance-profile`,
-`up-approval-maintenance-profile` and `up-approval-activation-profile` through
+`up-approval-maintenance-profile`, `up-approval-activation-profile` and
+`up-approval-settlement-audit-profile` through
 `agentsec-migrate`. They add supplementary namespaces, preserve the original
 source/catalog fingerprints and create no organization activation. Principal and
 purpose-key registration must use the original native registration functions
 with separate registered roles and seed material; these functions do not make
 fleet credential withdrawal safe. This runtime profile intentionally adds no
 migration or registration Helm hook and never automatically calls activation SQL.
+
+The activated API worker also requires the additive settlement-audit catalog.
+Its source checksum is compiled into the release and binds the unchanged
+activation profile; no fourth environment pin is supplied. Install the audit
+profile with the registered operator before starting that API release. Missing
+or changed audit catalogs refuse startup and captured settlement; the selected
+worker never falls back to unaudited settlement. This does not prove webhook
+delivery or authorize activation of a production fleet.
 
 The current `zasp-controlled-maintenance-cutover` and
 `reconcile-and-hold` commands prove only an owned, bounded loopback environment

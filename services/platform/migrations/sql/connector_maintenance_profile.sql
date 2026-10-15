@@ -79,7 +79,7 @@ CREATE FUNCTION zasp_connector_maintenance.fingerprint() RETURNS text LANGUAGE s
  UNION ALL SELECT 'policy',c.relname||'.'||p.polname,jsonb_build_array(p.polcmd,p.polpermissive,p.polroles,pg_get_expr(p.polqual,p.polrelid),pg_get_expr(p.polwithcheck,p.polrelid)) FROM pg_policy p JOIN pg_class c ON c.oid=p.polrelid WHERE c.relnamespace='zasp_connector_maintenance'::regnamespace
  UNION ALL SELECT 'trigger',c.relname||'.'||t.tgname,jsonb_build_array(pg_get_triggerdef(t.oid),t.tgenabled) FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid WHERE c.relnamespace='zasp_connector_maintenance'::regnamespace AND NOT t.tgisinternal
  UNION ALL SELECT 'function',p.oid::regprocedure::text,jsonb_build_array(pg_get_functiondef(p.oid),p.proowner::regrole::text,p.proacl::text) FROM pg_proc p WHERE p.pronamespace='zasp_connector_maintenance'::regnamespace
- ) SELECT encode(public.digest(convert_to(COALESCE(jsonb_agg(jsonb_build_array(k,i,d) ORDER BY k,i)::text,'[]'),'UTF8'),'sha256'),'hex') FROM objects
+ ) SELECT encode(public.digest(convert_to(COALESCE(jsonb_agg(jsonb_build_array(k,i,d) ORDER BY k,i,d)::text,'[]'),'UTF8'),'sha256'),'hex') FROM objects
  $fp$;
 CREATE FUNCTION zasp_connector_maintenance.effect_snapshot(n public.zasp_connector_effects) RETURNS jsonb LANGUAGE sql IMMUTABLE AS $effect_snapshot$
  SELECT jsonb_build_object('organization_id',n.organization_id,'workspace_id',n.workspace_id,'environment_id',n.environment_id,'effect_id',n.id,'integration_id',n.integration_id,'oauth_attempt_id',n.oauth_attempt_id,'provider',n.provider,'operation',n.operation,'idempotency_key',n.idempotency_key,'request_digest',encode(n.request_digest,'hex'),'reference',n.connection_reference,'available_at',n.available_at,'reason',n.last_error_code)
