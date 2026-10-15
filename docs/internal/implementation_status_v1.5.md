@@ -1,6 +1,27 @@
 # Agent Security Platform Implementation Status
 
 
+## Read-only maintenance fleet planner checkpoint, October 15, 2026
+
+A strict review planner records the required eleven rollout phases and keeps
+all old/new clients fenced through activation and the same coordinator's first
+composed acknowledgement. Every trust, census, credential, namespace, normal-exit
+and enforcement prerequisite remains unverified. Separate admission review
+candidates cover fixed operations; they are neither installed nor a complete
+fence and authorize no production constructor or deployment.
+
+Four grouped application cases passed after retained RED checks, and all ten
+locally runnable profile/planner/release-gate cases passed. The new cases join
+the existing production release command without removing checks. Five broader
+chart-render cases failed because Helm is absent locally (ENOENT); those failures
+and one skipped case are retained. Independent review, UI lint/typecheck/build
+and the original ledger passed. The full plan,
+reviews, results and unresolved hosted observations are retained in
+`cloud-maintenance-deployment-plan-checkpoint-2026-10-15.json` and its committed
+bundle. Actual trust/target integration and the deployment protocol remain open.
+No native or deployed acceptance, availability promotion or launch is claimed.
+
+
 ## Durable approval capture overflow checkpoint, October 15, 2026
 
 The native overflow fixture now releases organization capacity through original
