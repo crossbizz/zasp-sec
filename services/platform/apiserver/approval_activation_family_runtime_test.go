@@ -39,7 +39,6 @@ type approvalActivationFamilyRuntime struct {
 }
 
 func newApprovalActivationFamilyRuntime(t *testing.T, ctx context.Context, owner *pgx.Conn, o, w, e, actor string, owned *connectorLifecycleFGA, pins runtimeservices.Config) *approvalActivationFamilyRuntime {
-	t.Helper()
 	f := &approvalActivationFamilyRuntime{t: t, ctx: ctx, owner: owner, o: o, w: w, e: e, actor: actor, owned: owned, approvalPin: migrations.ApprovalMaintenanceProfileChecksum()}
 	runner := workerMigrationRunner(t, owner)
 	for _, up := range []func(context.Context) error{runner.UpProductionApprovalMaintenanceProfile, runner.UpProductionConnectorMaintenance, runner.UpProductionApprovalActivationProfile, runner.UpProductionApprovalSettlementAuditProfile} {

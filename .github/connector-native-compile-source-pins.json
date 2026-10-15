@@ -1,7 +1,7 @@
 {
-  "status": "CONFIGURED APPROVAL STARTUP WITH MANDATORY SINGLE LIVE RECONCILER READINESS; COMPONENT VERIFIED; HOSTED AND DEPLOYED GATES PENDING",
+  "status": "OWNED INITIAL API BOOTSTRAP SERIALIZED; ORIGINAL NATIVE FAILURE FRAMES PRESERVED; COMPONENT VERIFIED; HOSTED AND DEPLOYED GATES PENDING",
   "base": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
-  "checkpointSHA256": "cd3683ae1d237de8a1f8fd89f542a942a75075a52e9474d1a0bfd265d52419e4",
+  "checkpointSHA256": "62a639835489746c875f535052b606b0bf114f805444ac7b26ec9df411e332bc",
   "sources": [
     {
       "path": "services/platform/agentsec-api/connector_callback_runtime.go",
@@ -369,8 +369,8 @@
     },
     {
       "path": "scripts/compliance-current-runtime.test.mjs",
-      "sha256": "7eee06e1207db3a40305b8d0818cdb3b9dea15502be30bd34f8bd66f62b9e459",
-      "bytes": 14312,
+      "sha256": "01e2e5aae260d6ffe199cfee20dfcd371fe2c1191fab7ce15051fa50832417b9",
+      "bytes": 14356,
       "currentBasePreimageSHA256": "e64841a20c01c414ee578da567983e3ea135225250501f635aafeeeef6207b82",
       "historicalPreimageSHA256": null
     },
@@ -390,14 +390,14 @@
     },
     {
       "path": "scripts/hosted-connected-connector-acceptance.mjs",
-      "sha256": "4a5af26e208c6be6d3c8e83e4952522fba278f530299db0c7aeb6c75bae2dc7d",
+      "sha256": "1623c580b727ae8ed9b00b9721a7773d3b363d7d0432023631c4967825fb5ba3",
       "bytes": 45401,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
-      "sha256": "73602d8be1f25b56440b981ce2e64c467a6cdf7f8891bc63016cfde37398fd75",
+      "sha256": "3ea8c43090ed5487e22599a341ff594e6b0605e5f1294690cf901a6a69cf465f",
       "bytes": 42287,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
@@ -509,8 +509,8 @@
     },
     {
       "path": "scripts/production-combined-e2e.mjs",
-      "sha256": "1814f60e4d0f3a4710add099a7f684663dda4c0d040c66f9366d7c5e5dbf44a2",
-      "bytes": 676306,
+      "sha256": "f5186230a3a3bf3d7e162612daf5f2a4dfc7dc55aa23d599b8436ac343c26a5a",
+      "bytes": 678304,
       "currentBasePreimageSHA256": "e0fa7575954efc744ccaf52c4644b65a81985773b99b3af3ec3ea8b31bc46da4",
       "historicalPreimageSHA256": null
     },
@@ -628,8 +628,8 @@
     },
     {
       "path": "services/platform/apiserver/approval_activation_flow_test.go",
-      "sha256": "6900d4c1d649744d99f915b7f1d8c1c25aac20d2d0917168f635886fb14bc757",
-      "bytes": 33582,
+      "sha256": "80caab8829ae1e4eae077562437f36b75341dd83cb9b98765b608308f78a0c5a",
+      "bytes": 33570,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -642,8 +642,8 @@
     },
     {
       "path": "scripts/browser-provisioning-subphase.test.mjs",
-      "sha256": "46d249b290058cfc36ae4dc05e06875d4a129670798f4f3de2e7afaea33d4cab",
-      "bytes": 9275,
+      "sha256": "71dea6c7f01d85a821bc1d4280e4987557634556da5ae58632d17e229ab2736a",
+      "bytes": 9257,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -719,8 +719,8 @@
     },
     {
       "path": "services/platform/apiserver/approval_maintenance_genuine_test74_postgres_test.go",
-      "sha256": "0c6a559cdbf4379eedcb6b5dc6896ba18facb858a347d6e212f7405f39f994fd",
-      "bytes": 38721,
+      "sha256": "c83c002c70fa5d9fbad0a136c7995d347b2d8f6cff6b4165b141c371d11d3abe",
+      "bytes": 38709,
       "currentBasePreimageSHA256": "fcb312455a7bcbfc1800f0d0c70334f620e20143ea0c9306dc814b8d1d3b1c7b",
       "historicalPreimageSHA256": "fcb312455a7bcbfc1800f0d0c70334f620e20143ea0c9306dc814b8d1d3b1c7b"
     },
@@ -733,8 +733,8 @@
     },
     {
       "path": "services/platform/apiserver/approval_activation_family_runtime_test.go",
-      "sha256": "a53c18a6796d8ed4e724e9c31ec2ce6c16d493400bc9b0c2824965d2a73dccbc",
-      "bytes": 13752,
+      "sha256": "fff68ca1b09942be107df4b1b5345277aa9d0a96a7a2325ff76684289c46e12a",
+      "bytes": 13740,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -796,5 +796,5 @@
     }
   ],
   "predecessorCheckpointSHA256": "364ada857d54ce83d678e00eb3d61d55c6a036d22cc1f7ebc9170432079ece05",
-  "previousCheckpointSHA256": "8c752ce824986bb0839f4e70d1d548763bdf83aa5e0d449528551b596e19d175"
+  "previousCheckpointSHA256": "cd3683ae1d237de8a1f8fd89f542a942a75075a52e9474d1a0bfd265d52419e4"
 }

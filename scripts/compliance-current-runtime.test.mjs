@@ -83,7 +83,7 @@ export function cases(sourceURL) {
     ZASP_CONNECTOR_MAINTENANCE_POSTGRES_DSN:"postgres://connector@127.0.0.1:15432/postgres?sslmode=disable",ZASP_APPROVAL_MAINTENANCE_POSTGRES_DSN:"postgres://approval@127.0.0.1:15432/postgres?sslmode=disable",
     ZASP_CONNECTOR_MAINTENANCE_KEY_FILE:"/owned/state/connector.seed",ZASP_APPROVAL_MAINTENANCE_KEY_FILE:"/owned/state/approval.seed"}};
   };
-  const context=vm.createContext({assert,path,Buffer,AbortController,command,postgresBin:"/owned",installOwnedCurrent80:input=>installOwnedCurrent80(input,activationBoundary),complianceRuntimeBindings,closedOwnedAmbientEnvironment,
+  const context=vm.createContext({assert,path,Buffer,AbortController,command,postgresBin:"/owned",installOwnedCurrent80:async input=>{observedProjection=await installOwnedCurrent80(input,activationBoundary);return observedProjection;},complianceRuntimeBindings,closedOwnedAmbientEnvironment,
     complianceBrowserMode:true,compliancePhase:"services",ownedResourceCleanupStarted:false,currentComplianceClosing:false,currentComplianceFailure:undefined,currentCompliancePreparation:undefined,currentComplianceRuntimeStartup:undefined,
     currentComplianceStateRoot:undefined,currentComplianceServices:undefined,currentCompliancePostgres:undefined,currentComplianceProjectionController:undefined,currentComplianceProjectionLoop:undefined,
     process:{env:{ZASP_BROWSER_RUNTIME_ARCHIVE_ROOT:"/owned/archives",ZASP_BROWSER_RUNTIME_RAW_ROOT:"/owned/raw",ZASP_UNRELATED_SECRET:"must-not-propagate"}},
@@ -92,7 +92,7 @@ export function cases(sourceURL) {
     startRetainedOwnedRuntimeLifetime:async input=>{assert.deepEqual(order,["postgres-start","fga-storage"]);assert.equal(input.openfgaPostgresDSN,"controlled-private-storage-dsn");order.push("services-start");return services;},
     provisionOwnedFGAStorage:async input=>{assert.deepEqual(order,["postgres-start"]);assert.equal(input.port,15432);assert.equal(input.psql,"/owned/psql");assert.equal(input.environment.ZASP_UNRELATED_SECRET,undefined);order.push("fga-storage");return {dsn:"controlled-private-storage-dsn"};},
     reservePort:async()=>15432,createOwnedBrowserPostgres:()=>({start:async()=>{order.push("postgres-start");}}),
-    provisionPostgresPrincipals:async()=>{},seedPostgres:async()=>{currentSeeded=true;},runOwnedProjectionLoop:(projector,signal)=>{observedProjection=projector;assert.equal(signal.aborted,false);return pending;},cleanupController:{run:async()=>{}},
+    provisionPostgresPrincipals:async()=>{},seedPostgres:async()=>{currentSeeded=true;},runOwnedProjectionLoop:()=>{assert.fail("periodic projection started before actual initial API readiness");},cleanupController:{run:async()=>{}},
     combinedAPIEnvironment:()=>({ZASP_PUBLIC_ORIGIN:"https://owned-browser.test",ZASP_STYTCH_BASE_URL:"http://127.0.0.1:18082",ZASP_STYTCH_PROJECT_ID:"fixture",ZASP_STYTCH_ORGANIZATION_ID:"fixture",ZASP_DEPLOYMENT_MODE:"saas",ZASP_ORGANIZATION_ID:"",ZASP_WORKFLOW_SIGNING_KEY:signingKey})});
   const actual=vm.runInContext(text.slice(prepareStart,start)+text.slice(start,end)+"\n};exerciseComplianceBrowser",context);
   await actual({dsn:"controlled-owner-dsn",migrate:"/owned/migrate",migrationEnvironment:{ZASP_MIGRATION_DB_PRINCIPAL:"owned_migration",ZASP_UNRELATED_SECRET:"must-not-propagate"},proxyPort:18089});

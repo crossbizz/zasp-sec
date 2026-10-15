@@ -345,7 +345,6 @@ func TestApprovalActivationNativeFindingDeliveryFlow(t *testing.T) {
 // Provider body is controlled fixture input; all admission/source/proof/effect
 // validation remains in the actual worker executor and original SQL.
 func approvalActivationPlanFinding(t *testing.T, ctx context.Context, f findingResponseFixture, original string, executor *authorization.WorkerExecutor, pricing json.RawMessage, reconcile func()) string {
-	t.Helper()
 	run, ref := admitWorkerFindingTask(t, ctx, f, original)
 	if err := executor.PrepareFinding(ctx, ref); err != nil {
 		t.Fatal("original finding preparation refused", err)

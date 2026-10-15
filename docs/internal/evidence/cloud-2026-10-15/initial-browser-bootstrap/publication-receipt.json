@@ -1,0 +1,67 @@
+{
+  "format": "cloud-continuation-final-publication-receipt-v1",
+  "sourceHeadBeforeCommits": "e3141930eb1b732ff958ea45b153eb5cf87cc249",
+  "classification": "Additional final publication checks and independent review; no native/deployed acceptance",
+  "scratchValidationCorrection": "Initial scratch validators counted only services paths or primary pins map, so expected101/90 falsely failed. Corrected validator covers all fixed path/digest literals across all maps;113manifest+191runner associations pass. No implementation or guard was changed for this correction.",
+  "finalChecks": {
+    "cloud-continuation-final-lint": 0,
+    "cloud-continuation-final-ledger": 0,
+    "cloud-continuation-final-associations-v2": 0
+  },
+  "members": [
+    {
+      "original_path": "/tmp/component-two-batch-final-publication-review-20261015.json",
+      "bytes": 1846,
+      "sha256": "65a2ea92c9bd4666570e20c1f422b6c7532decc543b3d0910f4eb476a344b0e6",
+      "content": "{\n  \"at\": \"2026-10-15T04:42:49.013575+00:00\",\n  \"verdict\": \"APPROVED component batch publication after root final staged secret/diff/lint/ledger/Node checks. No merge, native acceptance, launch or deployed clearance.\",\n  \"blockingFindings\": [],\n  \"checks\": {\n    \"advisoryArchiveMembersHashAndOriginalBytes\": 38,\n    \"bootstrapArchiveMembersHashAndOriginalBytes\": 41,\n    \"allOriginalFilesPresent\": true,\n    \"literalCRPreservedViaUTF8Bytes\": true,\n    \"checkpointSourceHashes\": true,\n    \"manifestExactSources\": 113,\n    \"connectedLiteralSourcePins\": 101,\n    \"authenticatedLiteralSourcePins\": 90,\n    \"runnerBodiesUnchangedExceptSHA256Literals\": true,\n    \"runnableUIOriginalSHA256\": \"fd98a81d520fbd8b80fb6d404b7a8a0d0e154268f0e3adb5073a47ee4c7d4d98\",\n    \"ledger728NoChanges\": true,\n    \"ownerInventoryExact205\": true,\n    \"noSQLWorkflowLedgerOwnersDiff\": true,\n    \"threeHelperDeletionsExactPreviouslyApproved\": true,\n    \"rootNormalExitReceipts92NodeAndFixtureCompile0\": true,\n    \"authorMissingOriginalExitHonest\": true,\n    \"originalFailuresAndReviewChangesRequestedPreserved\": true,\n    \"nativeBrowserE314FailuresRetained\": true,\n    \"reusedUIReceiptsExplicit\": true,\n    \"offlineAdvisoryNoAcquisitionReleaseAcceptanceClaim\": true\n  },\n  \"archiveHashes\": {\n    \"A\": \"086d3b910261cf153e16e17b1af29c0042f2bce9a4b3bf1085c3c41a200c8a72\",\n    \"B\": \"eaab1196adc4cea1a9ac7c42841abfd29d7f564d83b339f09fc3489b795c2c7a\"\n  },\n  \"remainingRequired\": \"Root final staged secret scan/diff/freshlint/ledger/Node checks; hosted native/browser failures unresolved; actual advisory acquisition/fullMVS/images/release and deployedStytch/provider acceptance open.\",\n  \"scope\": \"Read-only finalpublicationevidence/sourceassociation review; no network/Go/Git mutation/sourceedits. Existing independent implementation reviews accepted forapplicationbehavior.\"\n}\n"
+    },
+    {
+      "original_path": "/tmp/cloud-continuation-final-lint-20261015.log",
+      "bytes": 2702,
+      "sha256": "202ad562e6476793abaf73077ae3025a77b2a219a19980b11275c5d9874538ee",
+      "content": "\n> zasp-agent-security-console@0.1.0 lint\n> node --test scripts/eslint-scope.test.mjs && eslint . --ignore-pattern dist --ignore-pattern .next\n\nTAP version 13\n# Subtest: the immutable Stytch proof keeps lint coverage for locally caught cleanup throws\nok 1 - the immutable Stytch proof keeps lint coverage for locally caught cleanup throws\n  ---\n  duration_ms: 1671.103484\n  type: 'test'\n  ...\n# Subtest: ordinary scripts and unreviewed proof neighbors reject throws from finally\nok 2 - ordinary scripts and unreviewed proof neighbors reject throws from finally\n  ---\n  duration_ms: 61.071508\n  type: 'test'\n  ...\n# Subtest: lint excludes local agent evidence without excluding product code or durable tests\nok 3 - lint excludes local agent evidence without excluding product code or durable tests\n  ---\n  duration_ms: 27.194181\n  type: 'test'\n  ...\n# Subtest: recovery confirmation component satisfies active UI lint rules\nok 4 - recovery confirmation component satisfies active UI lint rules\n  ---\n  duration_ms: 362.939349\n  type: 'test'\n  ...\n# Subtest: ordinary product scripts still reject accidental control-byte regexes\nok 5 - ordinary product scripts still reject accidental control-byte regexes\n  ---\n  duration_ms: 18.851956\n  type: 'test'\n  ...\n# Subtest: the two archived Node evidence files retain lint coverage without the Next-only module rule\nok 6 - the two archived Node evidence files retain lint coverage without the Next-only module rule\n  ---\n  duration_ms: 222.830878\n  type: 'test'\n  ...\n# Subtest: ordinary web modules retain the module-name and raw-fetch security rules\nok 7 - ordinary web modules retain the module-name and raw-fetch security rules\n  ---\n  duration_ms: 19.412765\n  type: 'test'\n  ...\n# Subtest: unreviewed evidence neighbors and later dates retain the Next-only module rule\nok 8 - unreviewed evidence neighbors and later dates retain the Next-only module rule\n  ---\n  duration_ms: 22.429566\n  type: 'test'\n  ...\n# Subtest: both archived Node paths still reject control-byte regexes\nok 9 - both archived Node paths still reject control-byte regexes\n  ---\n  duration_ms: 22.971346\n  type: 'test'\n  ...\n# Subtest: exact immutable Linux source snapshots retain every other lint rule\nok 10 - exact immutable Linux source snapshots retain every other lint rule\n  ---\n  duration_ms: 188.002643\n  type: 'test'\n  ...\n# Subtest: current Linux tools and unreviewed neighboring snapshots retain unused-binding errors\nok 11 - current Linux tools and unreviewed neighboring snapshots retain unused-binding errors\n  ---\n  duration_ms: 38.929295\n  type: 'test'\n  ...\n1..11\n# tests 11\n# suites 0\n# pass 11\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 2837.107048\n"
+    },
+    {
+      "original_path": "/tmp/cloud-continuation-final-lint-20261015.status",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "content": "0\n"
+    },
+    {
+      "original_path": "/tmp/cloud-continuation-final-ledger-20261015.log",
+      "bytes": 237,
+      "sha256": "cb7fdd9a95e56ba9775dc8bc225b21b93b6661dcd9c648b4457b67c69f795c41",
+      "content": "\n> zasp-agent-security-console@0.1.0 implementation:status:check\n> node scripts/implementation-status-check.mjs\n\nImplementation status ledger valid: 728 rows; 523 production-available, 144 component-only, 61 blocked/external, 0 missing.\n"
+    },
+    {
+      "original_path": "/tmp/cloud-continuation-final-ledger-20261015.status",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "content": "0\n"
+    },
+    {
+      "original_path": "/tmp/cloud-continuation-final-associations-v2-20261015.log",
+      "bytes": 99,
+      "sha256": "b59bf76abbf99f5738459c8c9bbae65f3b69923097e0fbc59d22314f90bb028b",
+      "content": "113 manifest and 191 runner source associations verified; immutable workflow and ledgers unchanged\n"
+    },
+    {
+      "original_path": "/tmp/cloud-continuation-final-associations-v2-20261015.status",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "content": "0\n"
+    },
+    {
+      "original_path": "/tmp/cloud-continuation-final-associations-20261015.log",
+      "bytes": 147,
+      "sha256": "3926d93f4901ed4f6d61dbd1647b1679c4c15266c3a0f9e29f734b2c35fa5960",
+      "content": "Traceback (most recent call last):\n  File \"<stdin>\", line 9, in <module>\nAssertionError: ('scripts/hosted-connected-connector-acceptance.mjs', 90)\n"
+    },
+    {
+      "original_path": "/tmp/cloud-continuation-final-associations-20261015.status",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "content": "1\n"
+    }
+  ]
+}

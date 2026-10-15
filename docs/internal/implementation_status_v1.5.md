@@ -1,6 +1,49 @@
 # Agent Security Platform Implementation Status
 
 
+## Initial API bootstrap and remaining-task inventory, October 15, 2026
+
+The owned acceptance runner finishes a genuine projection pass before initial
+API admission and starts its unchanged periodic projection loop after actual
+readiness. Tracked startup now owns late identity/policy listeners through exact
+close callbacks. All live checks, five-second admission, leases and later API
+restarts remain intact. This removes overlapping setup work; hosted timing
+improvement is unverified. Three fixture helper markers were removed solely to
+expose actual failure lines through existing bounded annotations.
+
+Independent review, 88 grouped startup/runtime checks, four existing cleanup
+checks, complete API fixture compilation with zero selected tests, lint and the
+original ledger passed. Every intermediate failure is retained. Original author
+TAP wrappers lacked separate Node exit receipts; additional ROOT runs capture
+normal exit zero without replacing those results. Details and evidence are in
+`cloud-initial-browser-bootstrap-checkpoint-2026-10-15.json`. Latest preceding
+CI still fails browser readiness and several native flows; no native/deployed
+acceptance or availability promotion is claimed.
+
+The exact 205 recorded nonproduction task IDs are grouped by owner in
+`cloud-goal-remaining-task-inventory-2026-10-15.json`. Counts remain 728 total,
+523 recorded production-available, 144 component-only and 61 external. Historical
+production classification does not establish current deployed acceptance.
+
+## Immutable advisory roster component, October 15, 2026
+
+A bounded offline verifier checks exact commit/tree content addressing and
+complete selected advisory topology, producing a reusable path/blob manifest.
+Its local CLI pins input bytes and output-directory custody. Four grouped checks
+and independent review pass, including regression fixes for directory replacement
+and contradictory blob-size declarations. Original review failures and RED
+results remain retained. See
+`cloud-advisory-roster-offline-checkpoint-2026-10-15.json`.
+
+Sizes remain unauthenticated API declarations. No real complete transcript or
+raw commit intake was available, so no actual corpus measurement, upstream/blob
+verification or release acceptance is claimed. Original intake caps, network
+owners, hosted census and production release denial remain unchanged. The HIGH
+braces advisory still includes bundled implementation surfaces; reviewed source
+replacement/rebuild work, current full Go and image evidence, and final release
+integration remain open.
+
+
 ## Configured approval runtime startup, October 15, 2026
 
 Activated approval runtime configuration now uses a pure compiled-pin factory,

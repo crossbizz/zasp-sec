@@ -233,7 +233,6 @@ func assertApprovalOriginTest74PlanningLoadWithAdmissionHooks(t *testing.T, ctx 
 			t.Error("expected actual lifecycle product child did not complete")
 		}
 	}()
-	t.Helper()
 	for _, mutation := range []struct{ name, sql string }{
 		{"planning body", `CREATE OR REPLACE FUNCTION zasp_temporal74.plan(q jsonb) RETURNS jsonb LANGUAGE sql AS $$ SELECT '{}'::jsonb $$`},
 		{"planning reader", `CREATE OR REPLACE FUNCTION zasp_temporal74.planning_state(q jsonb) RETURNS jsonb LANGUAGE sql AS $$ SELECT '{}'::jsonb $$`},
