@@ -205,7 +205,9 @@ func TestConnectorMaintenancePKCERestartRecoveryPostgres(t *testing.T) {
 		if lease.Attempt != 0 {
 			t.Fatal("reservation consumed an attempt")
 		}
-		if original.finishPreparation(f.ctx, lease, ErrRepositoryUnavailable, lease.LeaseExpiresAt.Add(-2100*time.Millisecond)) != nil {
+		providerDeadline := lease.LeaseExpiresAt.Add(-2100 * time.Millisecond)
+		if err := original.finishPreparation(f.ctx, lease, ErrRepositoryUnavailable, providerDeadline); err != nil {
+			t.Log("connector preparation stage=" + connectorPreparationFailureStage(err))
 			t.Fatal("genuine live preparation failure could not record finite attempt")
 		}
 		failed, ok := original.reservation(nativeConnectorKey(lease))

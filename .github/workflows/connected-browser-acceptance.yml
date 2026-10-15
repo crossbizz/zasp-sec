@@ -4,6 +4,7 @@ name: Connected compliance browser acceptance
 "on":
   push:
     paths:
+      - 'deploy/**'
       - '.github/workflows/connected-browser-acceptance.yml'
       - '.github/workflows/runnable-ui.yml'
       - 'app/**'
@@ -22,6 +23,7 @@ name: Connected compliance browser acceptance
       - 'postcss.config.mjs'
   pull_request:
     paths:
+      - 'deploy/**'
       - '.github/workflows/connected-browser-acceptance.yml'
       - '.github/workflows/runnable-ui.yml'
       - 'app/**'
@@ -98,6 +100,12 @@ jobs:
       - name: Verify runtime ownership and startup cleanup ordering
         timeout-minutes: 2
         run: node --test scripts/startup-observer-lifetime.test.mjs scripts/owned-runtime-services.test.mjs scripts/owned-runtime-lifetime.test.mjs scripts/retained-allocation-diagnostics.test.mjs scripts/retained-runtime-lifetime.test.mjs scripts/owned-runtime-persistent.test.mjs scripts/owned-maintenance-cutover.test.mjs scripts/owned-maintenance-composition.test.mjs scripts/owned-fga-storage.test.mjs scripts/compliance-current-runtime.test.mjs scripts/owned-command.test.mjs
+      - name: Verify production maintenance profile rendering and permissions
+        timeout-minutes: 3
+        run: |
+          command -v helm
+          helm version --short
+          node --test deploy/production/authorization-temporal-profile.test.mjs deploy/production/authorization-temporal-render.test.mjs deploy/production/maintenance-runtime-render.test.mjs
       - name: Prime native migration and diagnostic test compilation cache
         timeout-minutes: 5
         run: |

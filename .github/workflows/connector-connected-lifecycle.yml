@@ -37,7 +37,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [approval, oauth, lifecycle, pkce, callback]
+        group: [approval-flow, approval, oauth, lifecycle, pkce, callback]
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -81,7 +81,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 1
     steps:
-      - name: Require all four connected application groups
+      - name: Require all six connected application groups
         env:
           CONNECTED_GROUP_RESULT: ${{ needs.connected-group.result }}
         run: test "$CONNECTED_GROUP_RESULT" = success

@@ -520,18 +520,18 @@ func (r *NativeConnectorRepository) finishPreparation(ctx context.Context, lease
 		return nil
 	}
 	if cause == nil || errors.Is(cause, ErrAuthorizationDenied) || ctx.Err() != nil || providerDeadline.IsZero() || !providerDeadline.After(time.Now()) {
-		return r.releaseUnattempted(ctx, lease, cause)
+		return connectorPreparationFailure("release", r.releaseUnattempted(ctx, lease, cause))
 	}
 	authorized, cancel := context.WithDeadline(ctx, providerDeadline)
 	defer cancel()
 	proof, err := r.authority.Authorize(authorized, state.reference, connectormaintenance.BeforeSecretFailure)
 	if err != nil {
-		return r.releaseUnattempted(ctx, lease, connectorNativeError(err))
+		return connectorPreparationFailure("release", r.releaseUnattempted(ctx, lease, connectorNativeError(err)))
 	}
 	q, _ := json.Marshal(state.reference)
 	raw, err := r.executor.Invoke(authorized, connectormaintenance.BeginSecretFailureAttempt, q, proof)
 	if err != nil {
-		return connectorNativeError(err)
+		return connectorPreparationFailure("begin", connectorNativeError(err))
 	} // ambiguous Begin never releases
 	var result struct {
 		Created *bool           `json:"created"`
@@ -539,13 +539,13 @@ func (r *NativeConnectorRepository) finishPreparation(ctx context.Context, lease
 		Proof   json.RawMessage `json:"captured_proof"`
 	}
 	if decodeStrictDiscovery(raw, &result) != nil || result.Created == nil || !*result.Created || result.Attempt == nil || *result.Attempt != state.lease.Attempt+1 || len(result.Proof) == 0 || string(result.Proof) == "null" {
-		return ErrRepositoryUnavailable
+		return connectorPreparationFailure("result", ErrRepositoryUnavailable)
 	}
 	r.mu.Lock()
 	current := r.reservations[nativeConnectorKey(lease)]
 	if current == nil || len(current.captured) != 0 {
 		r.mu.Unlock()
-		return ErrRepositoryUnavailable
+		return connectorPreparationFailure("local-state", ErrRepositoryUnavailable)
 	}
 	current.captured = append(json.RawMessage(nil), result.Proof...)
 	current.lease.Attempt = *result.Attempt
@@ -565,5 +565,42 @@ func (r *NativeConnectorRepository) finishPreparation(ctx context.Context, lease
 	cleanup, stop := context.WithDeadline(context.WithoutCancel(ctx), lease.LeaseExpiresAt.Add(-100*time.Millisecond))
 	defer stop()
 	_, err = r.QuarantineConnectorReconciliation(cleanup, lease, reason)
-	return err
+	return connectorPreparationFailure("quarantine", err)
+}
+
+// Only typed, fixed stages can leave the private preparation boundary. Keep
+// dependency details out of Error while retaining errors.Is through Unwrap.
+type connectorPreparationStageError struct {
+	stage string
+	cause error
+}
+
+func (e *connectorPreparationStageError) Error() string {
+	switch {
+	case errors.Is(e.cause, ErrAuthorizationDenied):
+		return ErrAuthorizationDenied.Error()
+	case errors.Is(e.cause, ErrRepositoryOperation):
+		return ErrRepositoryOperation.Error()
+	default:
+		return ErrRepositoryUnavailable.Error()
+	}
+}
+func (e *connectorPreparationStageError) Unwrap() error { return e.cause }
+func connectorPreparationFailure(stage string, cause error) error {
+	if cause == nil {
+		return nil
+	}
+	return &connectorPreparationStageError{stage: stage, cause: cause}
+}
+func connectorPreparationFailureStage(err error) string {
+	var failure *connectorPreparationStageError
+	if !errors.As(err, &failure) || failure == nil {
+		return "unknown"
+	}
+	switch failure.stage {
+	case "release", "begin", "result", "local-state", "quarantine":
+		return failure.stage
+	default:
+		return "unknown"
+	}
 }

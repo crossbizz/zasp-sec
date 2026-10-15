@@ -1,7 +1,7 @@
 {
-  "status": "CONNECTED CONTROLLED DUAL-WORKER CANDIDATE; COMPONENT VERIFICATION; NATIVE AND DEPLOYED ACCEPTANCE PENDING",
+  "status": "CONNECTED MAINTENANCE DEPLOYMENT CANDIDATE; COMPONENT VERIFIED; NATIVE HELM AND DEPLOYED ACCEPTANCE PENDING",
   "base": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
-  "checkpointSHA256": "024555db108402f1f7e0269f3927e0a2fde6716639a5a3fa70ac247107f9c0da",
+  "checkpointSHA256": "34dfdc0dd2febae7b7e99c09164b0a5293ac09cc819468f9fd6a863d6546287d",
   "sources": [
     {
       "path": "services/platform/agentsec-api/connector_callback_runtime.go",
@@ -82,8 +82,8 @@
     },
     {
       "path": "services/platform/apiserver/connector_maintenance_repository.go",
-      "sha256": "0726280a4aaac1ca023317609910210eded8ee4e613ddf5f7351430d975e880a",
-      "bytes": 25083,
+      "sha256": "12ae3d8d18cda869818522852509340687372558fbbfb3ff1826171008d2b119",
+      "bytes": 26431,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -236,8 +236,8 @@
     },
     {
       "path": "services/platform/apiserver/connector_maintenance_pkce_recovery_test.go",
-      "sha256": "0542a89f2ac018cbca92a423f9c196cc464180ae310143f6048ec280e2b90bca",
-      "bytes": 19780,
+      "sha256": "c9f81b86c14f4fa76c24a830371cdec7ce8ac5d2b1a34fee4a994719d3c6a797",
+      "bytes": 19914,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -299,8 +299,8 @@
     },
     {
       "path": "services/platform/apiserver/connector_maintenance_lifecycle_postgres_test.go",
-      "sha256": "e02e54c911aa83af1c2586af293ade3d58630b987dbecce24e1534483223eafa",
-      "bytes": 20171,
+      "sha256": "bfa570c34198136d1d3d88909e08ef6b0737abcee7465b0617f1fe2b3b4f35c0",
+      "bytes": 20401,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -376,29 +376,29 @@
     },
     {
       "path": "scripts/connector-acceptance-groups.mjs",
-      "sha256": "c24b78c03c8df55a973b0314fb7adffb0135d3fba79639f8e3cd8fe4c041c4ca",
-      "bytes": 5417,
+      "sha256": "2fc9c54b8076ea344b2ad9897d8cbea99cc546547c551965c1e5ffa87db05429",
+      "bytes": 5998,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/connector-acceptance-groups.test.mjs",
-      "sha256": "68c683f3a74f08b17e0202a9287604d4c89d9a6835c3deebcba36e5a295bdba2",
-      "bytes": 3908,
+      "sha256": "a246ad0a5086babec48fc9a662f1828eb983e92169baeaaf8fcf898bbaddb6d8",
+      "bytes": 4121,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connected-connector-acceptance.mjs",
-      "sha256": "84719e630712e488bce47de559ebbf1e3f78f796a436dedd4f6aa1a7c73329ce",
-      "bytes": 40945,
+      "sha256": "5dd2d6d7b5ba7c311f2265d8b5920de1b880c42d4fa1044eef94e4695205c0e5",
+      "bytes": 41556,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
-      "sha256": "ec40f1751d808094dd39b6269efed8be802a06a76004b0c7a3ce81c3a5293812",
-      "bytes": 38910,
+      "sha256": "1c8af3da908b12f71ec00b2cfbcac4d62c8ccdbd44b6dfc1cbdec7fa12bb9df9",
+      "bytes": 39448,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -623,6 +623,27 @@
       "path": "services/platform/runtimeservices/approval_activation_config_test.go",
       "sha256": "d288ebc83684b8d49bdfab4fabb30bf4e65dc530f327ea06e205c415bd7195df",
       "bytes": 1306,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/apiserver/approval_activation_flow_test.go",
+      "sha256": "2d6a704c607d9d222760a490eec2e1717825bbcb962c66a954a01e43b023ac49",
+      "bytes": 24185,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/apiserver/connector_preparation_stage_test.go",
+      "sha256": "338c9d4717d2c505f3af9d153d3dfcd58a4027a98c7232e0daa4316bfd466e37",
+      "bytes": 1651,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "scripts/browser-provisioning-subphase.test.mjs",
+      "sha256": "46d249b290058cfc36ae4dc05e06875d4a129670798f4f3de2e7afaea33d4cab",
+      "bytes": 9275,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     }

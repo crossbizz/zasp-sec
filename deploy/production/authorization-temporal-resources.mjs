@@ -1,3 +1,4 @@
+import { validateMaintenanceRuntimeResources } from './maintenance-runtime-profile.mjs';
 import { normalizeAuthorizationTemporalProfile } from './authorization-temporal-profile.mjs';
 
 const consumers = ['agentsec-api', 'agentsec-discovery-scheduler', 'agentsec-discovery-worker', 'agentsec-red-team-adapter', 'agentsec-red-team-worker', 'agentsec-security-agent', 'zasp-authorization-projector'];
@@ -17,6 +18,7 @@ export function validateAuthorizationTemporalResources(resources, profile, accou
   const key = field => field === 'TIMEOUT' ? 'ZASP_RUNTIME_SERVICES_TIMEOUT' : `ZASP_${field}`;
   const runtime = {enabled:true, ...Object.fromEntries(Object.entries(fields).map(([field,suffix]) => [field,entry(api,key(suffix)).value])), clientSecret: pod(api).volumes?.find(v=>v.name==='runtime-services')?.secret?.secretName};
   normalizeAuthorizationTemporalProfile(profile, {schemaVersion:61,runtimeServices:runtime}, accountID);
+  validateMaintenanceRuntimeResources(resources, profile);
   expect(one('Deployment', 'agentsec-event-ingest'), 'ZASP_RUNTIME_DATABASE_PROFILE', 'canonical61-temporal78-authorization79-80-runtime-v1');
   for (const suffix of ['outbox', 'coordinator', 'archive', 'index', 'correlation', 'projection', 'complete', 'session-index-v2']) {
     const worker = one('Deployment', `agentsec-runtime-${suffix}`);

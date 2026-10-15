@@ -6,6 +6,13 @@ function group(top, cases, postgresJoins) {
     names: Object.freeze([top, ...cases.map(name => `${top}/${name}`)])});
 }
 export const CONNECTOR_ACCEPTANCE_GROUPS = Object.freeze({
+  'approval-flow': group('TestApprovalActivationNativeFindingDeliveryFlow', [
+    'measured_combined_activation_and_complete_projection',
+    'native_signed_delivery_settles_exact_receipt',
+    'future_native_enqueue_inherits_organization_activation',
+    'permission_revocation_preserves_membership_and_prevents_send',
+    'captured_attempt_settles_after_permission_revocation_without_fresh_authority',
+  ], 2),
   approval: group('TestApprovalActivationNativeCapturedOriginControls', [
     'catalog_privacy_and_inactive_registration',
     'genuine_revoked_capture_stays_inactive',
@@ -63,6 +70,8 @@ export function parseConnectorNativeObservation(output) {
   if (match) return {kind: 'cutover', stage: match[1]};
   match = /^connector cutover activation stage=(invalid|permit|deadline|old-credential|writer-absence|new-model|sql-begin|sql-role|sql-lock|sql-baseline|sql-activation|sql-result|sql-commit|unknown)$/.exec(line);
   if (match) return {kind: 'activation', stage: match[1]};
+  match = /^connector preparation stage=(release|begin|result|local-state|quarantine|unknown)$/.exec(line);
+  if (match) return {kind: 'preparation', stage: match[1]};
   if (line === 'connector catalog diagnostic=unavailable') return {kind: 'catalog-summary', value: {observed: false}};
   match = /^connector catalog diagnostic=observed before_rows=([0-9]{1,4}) after_rows=([0-9]{1,4}) before_duplicates=([0-9]{1,4}) after_duplicates=([0-9]{1,4}) before_registered=(true|false) after_registered=(true|false) before_guc_equal=(true|false) after_guc_equal=(true|false) owner_guc_stable=(true|false) api_guc_stable=(true|false)$/.exec(line);
   if (match) {

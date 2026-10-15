@@ -1,5 +1,33 @@
 # Agent Security Platform Implementation Status
 
+## Production maintenance wiring checkpoint, October 15, 2026
+
+The optional production chart bundle now wires the same three maintenance pins
+into API, executor and projector, with distinct API-only DSNs and private copied
+0400 seeds. Indirect secret references and secondary-container access are denied.
+Defaults remain unchanged; no activation hook or fleet-withdrawal proof is supplied.
+
+The next native finding flow exercises genuine capture, measured cutover, signed
+delivery, future enqueue, permission revocation and captured settlement. It is
+written and compiled, not natively accepted. Lifecycle fixture ordering now
+respects existing provider-lane exclusion. Closed preparation stages diagnose the
+remaining PKCE refusal without changing permissions, deadlines or attempt rules.
+
+Local checks pass: 265 browser/helper cases, 73 named Go application cases, 22
+profile/permission cases and UI typecheck/build. Independent source review passes.
+Helm is absent locally; actual rendering is required in hosted checks. The prior
+callback push run passes but its PR counterpart fails, and approval controls pass
+six named cases while their outer acceptance guard refuses. These are unresolved
+failures. Successful-delivery audit emission, all four approval origin families,
+production fleet cutover, release advisory evidence and real deployed flows remain
+open software or external prerequisites.
+
+This contributes to M1-28, M3-24, T15-deployment and P7/P8 without promoting any
+original row. All 728 tasks retain 523/144/61 categories and zero promotions.
+The selected Nexus license issue is already fixed; the current braces advisory
+and approved fresh scan evidence remain open. See the
+[production wiring checkpoint](cloud-launch-maintenance-runtime-checkpoint-2026-10-15.json).
+
 ## Connected dual-worker composition checkpoint, October 15, 2026
 
 The candidate connects real maintenance profile installation, distinct worker key
