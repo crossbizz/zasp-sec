@@ -1,7 +1,7 @@
 {
-  "status": "PRE-LEASE PROJECTION REUSE; SOURCE REVIEWED AND API FIXTURE COMPILED; NATIVE ACCEPTANCE PENDING",
+  "status": "CONFIGURED APPROVAL STARTUP WITH MANDATORY SINGLE LIVE RECONCILER READINESS; COMPONENT VERIFIED; HOSTED AND DEPLOYED GATES PENDING",
   "base": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
-  "checkpointSHA256": "8a43b3dc423ce444d8e7cb1b4118c9c6a7082999b6e383ac89d17a89bdff8aac",
+  "checkpointSHA256": "cd3683ae1d237de8a1f8fd89f542a942a75075a52e9474d1a0bfd265d52419e4",
   "sources": [
     {
       "path": "services/platform/agentsec-api/connector_callback_runtime.go",
@@ -390,14 +390,14 @@
     },
     {
       "path": "scripts/hosted-connected-connector-acceptance.mjs",
-      "sha256": "e3670ea3c469f55fc6d1278b4312ce973a9788dee28de468e1c63384877f753c",
+      "sha256": "4a5af26e208c6be6d3c8e83e4952522fba278f530299db0c7aeb6c75bae2dc7d",
       "bytes": 45401,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
-      "sha256": "6e7f7fc312b119c2783634558410b6b3cf81c4bc1e61b7ccae5036b163ed1815",
+      "sha256": "73602d8be1f25b56440b981ce2e64c467a6cdf7f8891bc63016cfde37398fd75",
       "bytes": 42287,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
@@ -649,8 +649,8 @@
     },
     {
       "path": "services/platform/agentsec-api/approval_maintenance_runtime.go",
-      "sha256": "a235067f39d719f9c81fc170b18d366ecb86ce5326de5d275c0065db178d2ac9",
-      "bytes": 8317,
+      "sha256": "6ef7c41f56c46ab93460471e7c7f4cb92db3b6b68e9aebd9d68ea3129de96039",
+      "bytes": 8318,
       "currentBasePreimageSHA256": "fc7003ff9073e566577b678e45c27b37d0c18f1588d1f4dd97e066e9b69feb7c",
       "historicalPreimageSHA256": "fc7003ff9073e566577b678e45c27b37d0c18f1588d1f4dd97e066e9b69feb7c"
     },
@@ -663,15 +663,15 @@
     },
     {
       "path": "services/platform/approvalmaintenance/executor.go",
-      "sha256": "848fd46743bcacb6066156736dde8365fbcc18e4e5657312b0198669e617d86f",
-      "bytes": 16458,
+      "sha256": "f165e9528741feb99d18abab61eb739ee1efac8687f6a3d3a402ba50b4631e8f",
+      "bytes": 17380,
       "currentBasePreimageSHA256": "cc250d64a85d364502c4082dc1c160ed8d3490398a1803a53a15fb64b5e06c18",
       "historicalPreimageSHA256": "cc250d64a85d364502c4082dc1c160ed8d3490398a1803a53a15fb64b5e06c18"
     },
     {
       "path": "services/platform/approvalmaintenance/settlement_audit_executor_test.go",
-      "sha256": "42c4253f03f02398a4c47ee252cd3ee3500f0bf72ba1a45cfb9b5079d4794b8b",
-      "bytes": 6228,
+      "sha256": "2bf91ce4d0c27c14bb67ff9293a50728b28d7e45923a09c600ea17cb784d0b3f",
+      "bytes": 10911,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },

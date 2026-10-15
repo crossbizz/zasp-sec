@@ -1,6 +1,29 @@
 # Agent Security Platform Implementation Status
 
 
+## Configured approval runtime startup, October 15, 2026
+
+Activated approval runtime configuration now uses a pure compiled-pin factory,
+then the existing mandatory reconciler performs live readiness once. This removes
+a duplicate identical startup probe under the unchanged provider budget. The
+existing live constructor, original caller/audit gates, per-operation authority,
+captured settlement routing and key ownership remain intact; no readiness result
+is cached and no production guard is relaxed.
+
+Behavioral RED retained three passes and nine failures, then all 40 approval
+component checks and 28 targeted API runtime checks passed. Independent review
+passed. Prior frontend checks are reused for unchanged frontend inputs. The
+original RED source was reconstructed to its recorded exact hash and is clearly
+labeled; original execution results are unchanged. Nine superseded CI cancellation
+requests were accepted, preserving observed results including 15 failed jobs;
+the current head, main, release workflows and required guards were untouched.
+
+Evidence is retained in `cloud-approval-configured-runtime-checkpoint-2026-10-15.json`
+and its committed bundle. A preceding run timed out during the first probe, so
+startup success remains unverified. Native/deployed gates and all ledger counts
+remain unchanged.
+
+
 ## Lifecycle pre-lease projection reuse, October 15, 2026
 
 The native lifecycle fixture reuses its already constructed projection repository

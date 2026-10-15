@@ -46,6 +46,21 @@ func NewExecutor(pool *pgxpool.Pool, checker authorization.Checker, store, model
 	return &Executor{pool: pool, checker: checker, store: store, model: model, profile: profile, version: hex.EncodeToString(h[:]), key: append([]byte(nil), key...)}, nil
 }
 
+// NewConfiguredActivatedExecutor validates compiled profile selection without I/O.
+// Construction establishes no live authority. Callers must complete Ready before
+// publishing a runtime consumer; native operations retain their live guards.
+func NewConfiguredActivatedExecutor(pool *pgxpool.Pool, checker authorization.Checker, store, model, profile string, key []byte, activationPin string) (*Executor, error) {
+	e, err := NewExecutor(pool, checker, store, model, profile, key)
+	if err != nil {
+		return nil, err
+	}
+	if err = e.configureSettlementAudit(activationPin); err != nil {
+		e.Close()
+		return nil, err
+	}
+	return e, nil
+}
+
 // NewActivatedExecutor requires the explicit immutable activation selection and
 // the separately installed additive settlement-audit catalog. Its restricted
 // role never needs execution permission on the immutable activation namespace.
@@ -62,13 +77,24 @@ func NewActivatedExecutor(ctx context.Context, pool *pgxpool.Pool, checker autho
 }
 
 func (e *Executor) bindSettlementAudit(ctx context.Context, activationPin string) error {
+	if ctx == nil || ctx.Err() != nil {
+		return ErrConfiguration
+	}
+	if err := e.configureSettlementAudit(activationPin); err != nil {
+		return err
+	}
+	return e.Ready(ctx)
+}
+
+// configureSettlementAudit binds compiled selection only, never live readiness.
+func (e *Executor) configureSettlementAudit(activationPin string) error {
 	expected, err := migrations.ApprovalActivationProfileChecksum()
 	auditPin, auditErr := migrations.ApprovalSettlementAuditProfileChecksum()
-	if e == nil || ctx == nil || ctx.Err() != nil || err != nil || auditErr != nil || activationPin != expected || e.profile != migrations.ApprovalMaintenanceProfileChecksum() {
+	if e == nil || err != nil || auditErr != nil || activationPin != expected || e.profile != migrations.ApprovalMaintenanceProfileChecksum() {
 		return ErrConfiguration
 	}
 	e.settlementAuditPin = auditPin
-	return e.Ready(ctx)
+	return nil
 }
 
 var maintenanceULID = regexp.MustCompile(`^[0-7][0-9A-HJKMNP-TV-Z]{25}$`)

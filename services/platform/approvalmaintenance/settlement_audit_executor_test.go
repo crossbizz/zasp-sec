@@ -10,6 +10,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/zasp-ai/zasp-sec/services/platform/authorization"
 	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 )
@@ -176,4 +177,116 @@ func TestSettlementAuditCapturedDispatchNeverReauthorizesOrFallsBack(t *testing.
 			}
 		}
 	}
+}
+
+// A zero pool makes any constructor I/O invalid. The transport substituted only
+// after construction observes live gate/dispatch behavior, not native authority.
+func TestConfiguredActivatedExecutorDefersLiveReadinessWithoutDroppingAudit(t *testing.T) {
+	activation, err := migrations.ApprovalActivationProfileChecksum()
+	if err != nil {
+		t.Fatal("compiled activation profile unavailable")
+	}
+	audit, err := migrations.ApprovalSettlementAuditProfileChecksum()
+	if err != nil {
+		t.Fatal("compiled settlement audit profile unavailable")
+	}
+	original := migrations.ApprovalMaintenanceProfileChecksum()
+	construct := func(t *testing.T, profile, pin string, key []byte) (*Executor, error) {
+		t.Helper()
+		e, err := NewConfiguredActivatedExecutor(&pgxpool.Pool{}, executorChecker{}, "01ARZ3NDEKTSV4RRFFQ69G5FAV", "01ARZ3NDEKTSV4RRFFQ69G5FAW", profile, key, pin)
+		if e != nil {
+			t.Cleanup(e.Close)
+		}
+		return e, err
+	}
+	t.Run("compiled-selection", func(t *testing.T) {
+		for _, bad := range []struct{ name, profile, activation string }{
+			{"missing-activation", original, ""},
+			{"wrong-activation", original, strings.Repeat("0", 64)},
+			{"wrong-original", strings.Repeat("0", 64), activation},
+		} {
+			t.Run(bad.name, func(t *testing.T) {
+				key := bytes.Repeat([]byte{7}, 32)
+				e, err := construct(t, bad.profile, bad.activation, key)
+				if e != nil || !errors.Is(err, ErrConfiguration) {
+					t.Fatal("invalid compiled selection admitted")
+				}
+				if !bytes.Equal(key, bytes.Repeat([]byte{7}, 32)) {
+					t.Fatal("selection failure erased caller-owned key")
+				}
+			})
+		}
+		e, err := construct(t, original, activation, bytes.Repeat([]byte{7}, 32))
+		if err != nil || e == nil || e.settlementAuditPin != audit {
+			t.Fatal("pure construction omitted compiled audit selection")
+		}
+	})
+	for _, mode := range []string{"ready", "original-refused", "audit-refused", "catalog-error"} {
+		t.Run(mode, func(t *testing.T) {
+			e, err := construct(t, original, activation, bytes.Repeat([]byte{7}, 32))
+			if err != nil || e == nil {
+				t.Fatal("pure construction failed before live readiness")
+			}
+			tx := &settlementAuditTx{ready: true, auditReady: true}
+			db := &settlementAuditDB{tx: tx}
+			e.pool = db
+			switch mode {
+			case "original-refused":
+				tx.ready = false
+			case "audit-refused":
+				tx.auditReady = false
+			case "catalog-error":
+				tx.failure = errors.New("controlled native catalog failure")
+			}
+			err = e.Ready(context.Background())
+			if mode == "ready" {
+				if err != nil || db.begins != 1 || tx.commits != 1 || len(tx.queries) != 2 || tx.queries[0] != `SELECT zasp_approval_maintenance.caller_ready($1,$2)` || tx.queries[1] != `SELECT zasp_approval_settlement_v1.catalog_ready($1)` || tx.args[0][0] != original || tx.args[0][1] != e.version || tx.args[1][0] != audit {
+					t.Fatal("mandatory live readiness omitted caller or audit catalog gate")
+				}
+			} else if !errors.Is(err, ErrUnavailable) || tx.commits != 0 {
+				t.Fatal("live native refusal admitted after pure construction")
+			}
+			if mode == "original-refused" && len(tx.queries) != 1 {
+				t.Fatal("audit gate ran after original caller refusal")
+			}
+		})
+	}
+	for _, op := range []Operation{NativeComplete, NativeFail} {
+		name := "captured-fail"
+		if op == NativeComplete {
+			name = "captured-complete"
+		}
+		t.Run(name, func(t *testing.T) {
+			e, err := construct(t, original, activation, bytes.Repeat([]byte{7}, 32))
+			if err != nil || e == nil {
+				t.Fatal("pure construction failed")
+			}
+			tx := &settlementAuditTx{}
+			e.pool = &settlementAuditDB{tx: tx}
+			checker := &settlementRevokedChecker{}
+			e.checker = checker
+			q := json.RawMessage(`{"opaque_native_reference":true}`)
+			proof := []byte(`{"opaque_captured_receipt":true}`)
+			_, err = e.Invoke(context.Background(), op, q, proof)
+			if err != nil || checker.calls != 0 || len(tx.queries) != 1 || tx.queries[0] != `SELECT zasp_approval_settlement_v1.settle($1::jsonb,$2::json,$3,$4)` || len(tx.args[0]) != 4 || tx.args[0][3] != audit || tx.args[0][2] != (op == NativeComplete) {
+				t.Fatal("configured captured settlement lost audit routing or reauthorized")
+			}
+		})
+	}
+	t.Run("owned-key", func(t *testing.T) {
+		key := bytes.Repeat([]byte{7}, 32)
+		e, err := construct(t, original, activation, key)
+		if err != nil || e == nil {
+			t.Fatal("pure construction failed")
+		}
+		clear(key)
+		if !bytes.Equal(e.key, bytes.Repeat([]byte{7}, 32)) {
+			t.Fatal("configured executor aliased caller signing key")
+		}
+		owned := e.key
+		e.Close()
+		if !bytes.Equal(owned, make([]byte, 32)) || e.key != nil {
+			t.Fatal("configured executor retained owned signing key")
+		}
+	})
 }

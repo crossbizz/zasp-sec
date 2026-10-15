@@ -122,7 +122,7 @@ func newRuntimeApprovalMaintenance(ctx context.Context, c RuntimeConfig, a apise
 	closer := &approvalMaintenanceRuntimeCloser{pool: pool}
 	executor, err := selectApprovalMaintenanceExecutor(c.RuntimeServices.ApprovalActivationProfileChecksum,
 		func() (*approvalmaintenance.Executor, error) {
-			return approvalmaintenance.NewActivatedExecutor(bounded, pool, authorizer.Checker, authorizer.StoreID, authorizer.ModelID, c.RuntimeServices.ApprovalMaintenanceProfileChecksum, seed, c.RuntimeServices.ApprovalActivationProfileChecksum)
+			return approvalmaintenance.NewConfiguredActivatedExecutor(pool, authorizer.Checker, authorizer.StoreID, authorizer.ModelID, c.RuntimeServices.ApprovalMaintenanceProfileChecksum, seed, c.RuntimeServices.ApprovalActivationProfileChecksum)
 		},
 		func() (*approvalmaintenance.Executor, error) {
 			return approvalmaintenance.NewExecutor(pool, authorizer.Checker, authorizer.StoreID, authorizer.ModelID, c.RuntimeServices.ApprovalMaintenanceProfileChecksum, seed)
