@@ -45,20 +45,63 @@ export async function startOwnedRuntimeLifetime(config,adapters=defaults){
  }catch(error){controller.abort();try{await loading;}catch{/* Preserve the original failure after joining the losing startup operation. */}await close();throw error;}
 }
 
-export async function observeRetainedAllocation(roots){
+const retainedFileOperations=Object.freeze({lstat,readdir,realpath,statfs});
+export async function observeRetainedAllocation(roots,io=retainedFileOperations){
  try {
- const identities=new Set();let allocated=0n,free,device,entries=0;
- for(const root of roots){const before=await lstat(root,{bigint:true});if(!before.isDirectory()||before.isSymbolicLink()||(before.mode&0o077n)!==0n||before.uid!==BigInt(process.getuid())||await realpath(root)!==root||device!==undefined&&before.dev!==device)allocationFail('allocation-root');device=before.dev;const pending=[root];
-  while(pending.length){const current=pending.pop(),info=await lstat(current,{bigint:true});const identity=info.dev+':'+info.ino;
-   if(++entries>100000)allocationFail('allocation-limit');
-   if(info.dev!==device||info.uid!==BigInt(process.getuid())||identities.has(identity))allocationFail('allocation-identity');
-   if(info.isSymbolicLink()||info.isFile()&&info.nlink!==1n)allocationFail('allocation-link');
-   if(info.isSocket())allocationFail('allocation-socket');
-   if(!info.isDirectory()&&!info.isFile())allocationFail('allocation-node');
-   identities.add(identity);allocated+=info.blocks*512n;if(info.isDirectory()){const names=await readdir(current);if(names.length+entries>100000)allocationFail('allocation-limit');for(const name of names)pending.push(path.join(current,name));}}
-  const after=await lstat(root,{bigint:true});if(before.dev!==after.dev||before.ino!==after.ino||before.uid!==after.uid||before.mode!==after.mode||await realpath(root)!==root)allocationFail('allocation-root');const disk=await statfs(root,{bigint:true}),observed=disk.bavail*disk.bsize;free=free===undefined?observed:free<observed?free:observed;
- }
- return {allocated,free};
+  if(!io||Object.getPrototypeOf(io)!==Object.prototype||Object.keys(io).length!==4||!['lstat','readdir','realpath','statfs'].every(name=>typeof io[name]==='function'))allocationFail('allocation-io');
+  const pins=[];let device;
+  // A retry never adopts replacement roots. Pin every root before either walk.
+  for(const root of roots){
+   const info=await io.lstat(root,{bigint:true});
+   if(!info.isDirectory()||info.isSymbolicLink()||(info.mode&0o077n)!==0n||info.uid!==BigInt(process.getuid())||await io.realpath(root)!==root||device!==undefined&&info.dev!==device)allocationFail('allocation-root');
+   device=info.dev;pins.push({root,info});
+  }
+  const checkRoot=async({root,info})=>{
+   const current=await io.lstat(root,{bigint:true});
+   if(current.dev!==info.dev||current.ino!==info.ino||current.uid!==info.uid||current.mode!==info.mode||!current.isDirectory()||current.isSymbolicLink()||await io.realpath(root)!==root)allocationFail('allocation-root');
+  };
+  const missingDescendants=new WeakSet();let entries=0,peakAllocated=0n,minimumFree;
+  const descendantOperation=async(root,current,operation)=>{
+   try{return await operation();}
+   catch(error){
+    // Only disappearance of a generated, strict descendant during lstat or
+    // readdir can restart the whole observation. Root and other I/O fail shut.
+    if(error instanceof Error&&error.code==='ENOENT'&&current!==root&&current.startsWith(root+'/')&&path.normalize(current)===current)missingDescendants.add(error);
+    throw error;
+   }
+  };
+  for(let attempt=0;attempt<2;attempt++){
+   const identities=new Set();let allocated=0n;
+   try{
+    for(const pin of pins){
+     const {root}=pin;await checkRoot(pin);const pending=[root];
+     while(pending.length){
+      const current=pending.pop();if(++entries>100000)allocationFail('allocation-limit');
+      const info=await descendantOperation(root,current,()=>io.lstat(current,{bigint:true})),identity=info.dev+':'+info.ino;
+      if(info.dev!==device||info.uid!==BigInt(process.getuid())||identities.has(identity))allocationFail('allocation-identity');
+      if(info.isSymbolicLink()||info.isFile()&&info.nlink!==1n)allocationFail('allocation-link');
+      if(info.isSocket())allocationFail('allocation-socket');
+      if(!info.isDirectory()&&!info.isFile())allocationFail('allocation-node');
+      identities.add(identity);allocated+=info.blocks*512n;if(allocated>peakAllocated)peakAllocated=allocated;
+      if(info.isDirectory()){
+       const names=await descendantOperation(root,current,()=>io.readdir(current));
+       if(names.length+entries>100000)allocationFail('allocation-limit');
+       for(const name of names)pending.push(path.join(current,name));
+      }
+     }
+     await checkRoot(pin);
+     const disk=await io.statfs(root,{bigint:true}),free=disk.bavail*disk.bsize;
+     minimumFree=minimumFree===undefined?free:free<minimumFree?free:minimumFree;
+    }
+    for(const pin of pins)await checkRoot(pin);
+    return {allocated:peakAllocated,free:minimumFree};
+   }catch(error){
+    if(attempt!==0||!missingDescendants.has(error))throw error;
+    for(const pin of pins)await checkRoot(pin);
+    // Keep the aggregate work cap, partial allocation high-water mark and
+    // lowest observed reserve. No entry is omitted from the successful walk.
+   }
+  }
  } catch(error) {
   if(error instanceof Error&&!allocationReasons.has(error))allocationReasons.set(error,error.code==='ENOENT'?'allocation-missing':'allocation-io');
   throw error;

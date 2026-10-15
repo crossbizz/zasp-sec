@@ -208,6 +208,7 @@ func TestConnectorMaintenancePKCERestartRecoveryPostgres(t *testing.T) {
 		providerDeadline := lease.LeaseExpiresAt.Add(-2100 * time.Millisecond)
 		if err := original.finishPreparation(f.ctx, lease, ErrRepositoryUnavailable, providerDeadline); err != nil {
 			t.Log("connector preparation stage=" + connectorPreparationFailureStage(err))
+			t.Log(connectorMaintenanceFailureObservation(f.ctx, lease, providerDeadline, "preparation-finish", err))
 			t.Fatal("genuine live preparation failure could not record finite attempt")
 		}
 		failed, ok := original.reservation(nativeConnectorKey(lease))
@@ -224,7 +225,8 @@ func TestConnectorMaintenancePKCERestartRecoveryPostgres(t *testing.T) {
 		if !ok || lease.Attempt != 1 || len(retry.captured) != 0 {
 			t.Fatal("preparation retry gained captured compensation or lost attempt budget")
 		}
-		if original.prepare(f.ctx, &lease, true) != nil || lease.Attempt != 2 {
+		if err := original.prepare(f.ctx, &lease, true); err != nil || lease.Attempt != 2 {
+			t.Log(connectorMaintenanceFailureObservation(f.ctx, lease, time.Time{}, "preparation-forward", err))
 			t.Fatal("fresh live authority did not begin next bounded attempt")
 		}
 		if f.owner.QueryRow(f.ctx, `SELECT captured_receipt::text FROM zasp_connector_maintenance.reservations WHERE effect_id=$1`, cleanup).Scan(&originalReceipt) != nil || originalReceipt == "" {
@@ -259,8 +261,10 @@ func TestConnectorMaintenancePKCERestartRecoveryPostgres(t *testing.T) {
 		if firstRecovered.Attempt != 2 || firstRecovered.LeaseToken == lease.LeaseToken || firstRecovered.ConnectionReference != lease.ConnectionReference {
 			t.Fatal("recovery changed attempt, reference or retained expired lease")
 		}
-		if restarted.prepare(f.ctx, &firstRecovered, true) == nil {
-			t.Fatal("captured recovery reopened forward authority")
+		beforeForward := connectorMaintenanceLeaseLive(f.ctx, firstRecovered)
+		if err := restarted.prepare(f.ctx, &firstRecovered, true); !beforeForward || !connectorMaintenanceLeaseLive(f.ctx, firstRecovered) || !errors.Is(err, ErrAuthorizationDenied) {
+			t.Log(connectorMaintenanceFailureObservation(f.ctx, firstRecovered, time.Time{}, "recovery-forward", err))
+			t.Fatal("live captured recovery did not deny fresh forward authority")
 		}
 		altered := firstRecovered
 		altered.EnvironmentID = "pid_78219309-0000-4000-8000-000000000009"
@@ -272,7 +276,8 @@ func TestConnectorMaintenancePKCERestartRecoveryPostgres(t *testing.T) {
 		if restarted.compensation(f.ctx, altered) == nil {
 			t.Fatal("captured recovery changed secret reference")
 		}
-		if restarted.compensation(f.ctx, firstRecovered) != nil {
+		if err := restarted.compensation(f.ctx, firstRecovered); err != nil {
+			t.Log(connectorMaintenanceFailureObservation(f.ctx, firstRecovered, time.Time{}, "captured-compensation", err))
 			t.Fatal("exact captured recovery refused after revocation")
 		}
 		secrets := &connectorSecretStub{deleteErr: ErrRepositoryUnavailable}
@@ -307,8 +312,10 @@ func TestConnectorMaintenancePKCERestartRecoveryPostgres(t *testing.T) {
 		if original.compensation(f.ctx, lease) == nil {
 			t.Fatal("original expired receipt remained usable")
 		}
-		if restarted.prepare(f.ctx, &recovered, false) == nil {
-			t.Fatal("recovery permitted provider forward boundary")
+		beforeForward := connectorMaintenanceLeaseLive(f.ctx, recovered)
+		if err := restarted.prepare(f.ctx, &recovered, false); !beforeForward || !connectorMaintenanceLeaseLive(f.ctx, recovered) || !errors.Is(err, ErrAuthorizationDenied) {
+			t.Log(connectorMaintenanceFailureObservation(f.ctx, recovered, time.Time{}, "recovery-forward", err))
+			t.Fatal("live captured recovery did not deny provider forward boundary")
 		}
 		state, ok := restarted.reservation(nativeConnectorKey(recovered))
 		if !ok || len(state.captured) == 0 {

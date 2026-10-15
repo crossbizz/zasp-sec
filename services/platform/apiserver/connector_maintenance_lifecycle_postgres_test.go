@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"net/url"
 	"os"
 	"strings"
@@ -312,8 +313,10 @@ func TestConnectorMaintenanceNativeLifecyclePostgres(t *testing.T) {
 
 	t.Run("revocation blocks forward work while exact captured cleanup settles", func(t *testing.T) {
 		f.exec(`UPDATE public.zasp_identity_memberships SET active=false WHERE principal_id=$1 AND organization_id=$2`, f.browser.PrincipalID.String(), o)
-		if repo.prepare(f.ctx, &lease, true) == nil {
-			t.Fatal("pending revocation admitted secret forward boundary")
+		beforeForward := connectorMaintenanceLeaseLive(f.ctx, lease)
+		if err := repo.prepare(f.ctx, &lease, true); !beforeForward || !connectorMaintenanceLeaseLive(f.ctx, lease) || !errors.Is(err, ErrRepositoryUnavailable) {
+			t.Log(connectorMaintenanceFailureObservation(f.ctx, lease, time.Time{}, "revocation-pending", err))
+			t.Fatal("pending revocation did not refuse live forward authority through its unapplied revision")
 		}
 		projection, err := authorization.NewCurrentMaintenanceProjectionRepository(f.ctx, workerPool, approvalPin, pin)
 		if err != nil {
@@ -323,15 +326,18 @@ func TestConnectorMaintenanceNativeLifecyclePostgres(t *testing.T) {
 		if err != nil || !receipt.Applied {
 			t.Fatal("revocation Reconcile Stage Ack refused")
 		}
-		if repo.prepare(f.ctx, &lease, true) == nil {
-			t.Fatal("applied grantor revocation admitted forward work")
+		beforeForward = connectorMaintenanceLeaseLive(f.ctx, lease)
+		if err := repo.prepare(f.ctx, &lease, true); !beforeForward || !connectorMaintenanceLeaseLive(f.ctx, lease) || !errors.Is(err, ErrAuthorizationDenied) {
+			t.Log(connectorMaintenanceFailureObservation(f.ctx, lease, time.Time{}, "revocation-applied", err))
+			t.Fatal("applied grantor revocation did not deny live forward authority")
 		}
 		wrong := lease
 		wrong.ID = "pid_78219108-0000-4000-8000-000000000008"
 		if repo.compensation(f.ctx, wrong) == nil {
 			t.Fatal("captured cleanup admitted different effect")
 		}
-		if repo.compensation(f.ctx, lease) != nil {
+		if err := repo.compensation(f.ctx, lease); err != nil {
+			t.Log(connectorMaintenanceFailureObservation(f.ctx, lease, time.Time{}, "captured-compensation", err))
 			t.Fatal("exact retained compensation authority refused after revocation")
 		}
 		secrets := &connectorSecretStub{}

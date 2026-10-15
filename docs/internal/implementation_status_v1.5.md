@@ -1,6 +1,29 @@
 # Agent Security Platform Implementation Status
 
 
+## Future approval and authentic overflow checkpoint, October 15, 2026
+
+Genuine Test74 and ordered-progress producers now have explicit flows that activate
+and acknowledge the organization before their fresh signed notification admission.
+A separate overflow fixture creates three real public definitions and 21 authentic
+captures while retaining the public concurrency limit of 10. All previous native
+groups remain required: 12 groups, 35 named cases and 22 owned PostgreSQL joins.
+These new native flows compile; their actual hosted execution remains pending.
+
+The retained filesystem observer now permits one complete restart for a descendant
+ENOENT race, preserving original root identities, aggregate work/resource limits
+and all unsafe-node, permission, deadline and cleanup refusals. The exact c508
+missing path is unknown. Stricter revocation assertions require live fences and
+the exact pending/applied error class; bounded diagnostics expose no raw errors.
+
+Fresh checks pass: two fixture-boundary cases and full API fixture compilation,
+111 runtime/helper cases, UI lint/typecheck/build and the unchanged 728-row ledger.
+Independent reviews pass. Exact logs, preceding hosted failures and both successful
+c508 Test74 native results are retained in the committed compressed evidence bundle
+referenced by `cloud-approval-future-overflow-checkpoint-2026-10-15.json`.
+The original categories remain 523 recorded production-available, 144 component-only
+and 61 externally blocked. No task is promoted and no launch readiness is inferred.
+
 ## Approval family acceptance checkpoint, October 15, 2026
 
 Three additional genuine approval-family flows now reuse a measured native runtime:

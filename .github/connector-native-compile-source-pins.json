@@ -1,7 +1,7 @@
 {
-  "status": "APPROVAL FAMILY ACCEPTANCE CANDIDATE; COMPONENT VERIFIED; HOSTED NATIVE AND DEPLOYED ACCEPTANCE PENDING",
+  "status": "FUTURE APPROVAL AND AUTHENTIC OVERFLOW CANDIDATE; COMPONENT VERIFIED; HOSTED NATIVE AND DEPLOYED ACCEPTANCE PENDING",
   "base": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
-  "checkpointSHA256": "e9752bacca3c35242432925494a1e96eda64afcdbdc1390532fec89f21ba88ee",
+  "checkpointSHA256": "e17efa3ab23263e4a92178a422e1251d228d36a964414a9994008ce04720cdbe",
   "sources": [
     {
       "path": "services/platform/agentsec-api/connector_callback_runtime.go",
@@ -236,8 +236,8 @@
     },
     {
       "path": "services/platform/apiserver/connector_maintenance_pkce_recovery_test.go",
-      "sha256": "c9f81b86c14f4fa76c24a830371cdec7ce8ac5d2b1a34fee4a994719d3c6a797",
-      "bytes": 19914,
+      "sha256": "db05051ac764c5a1d57dac9e8c3691660c284a2a6f5fb088b8cd10acef7c7f96",
+      "bytes": 20878,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -299,8 +299,8 @@
     },
     {
       "path": "services/platform/apiserver/connector_maintenance_lifecycle_postgres_test.go",
-      "sha256": "bfa570c34198136d1d3d88909e08ef6b0737abcee7465b0617f1fe2b3b4f35c0",
-      "bytes": 20401,
+      "sha256": "9707643f5de7feab9497f7c56b11942e3e579bd2b1950a1ea5ac6836baddcfa4",
+      "bytes": 21126,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -376,29 +376,29 @@
     },
     {
       "path": "scripts/connector-acceptance-groups.mjs",
-      "sha256": "b610eaf412d67e28406960c2f6e2f458ebfb53c8b9168b203a890c6f32d39f9c",
-      "bytes": 6291,
+      "sha256": "72ff74c1b3e27c1b006de34a8f602a1adcc152afd5abe196050965c1affccb40",
+      "bytes": 7190,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/connector-acceptance-groups.test.mjs",
-      "sha256": "62f12a89735b152d0bd999e73a55ec279246c2fa50abed7221eecd2ca0391471",
-      "bytes": 4222,
+      "sha256": "507b9b18e4d952d3053fc6a7e300efc301ea9336e4ea0903ae83f20b6c029566",
+      "bytes": 5418,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connected-connector-acceptance.mjs",
-      "sha256": "eb74b5f3aa61d1620767ea5c1d0df6656e8cd71447053dafbbc671bbe7737498",
-      "bytes": 43208,
+      "sha256": "72be19764f13ee794ec67ede773ff165d8b0ec820504507ab57bf64b56d7b0a9",
+      "bytes": 44246,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
-      "sha256": "ccac15b38943912e78e6d04e97c16cf16a931a7a978a1151fdd59aa19bdd1712",
-      "bytes": 41100,
+      "sha256": "68db49ab2f1a653f144483e6e07f7c7896b4c58e1b3afbc386cf31aef0921c82",
+      "bytes": 42138,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -467,8 +467,8 @@
     },
     {
       "path": "scripts/owned-runtime-lifetime.mjs",
-      "sha256": "7a08feae3e56fb3bfba1bf060eeb4cfa141a793db9d2a6c7e184cc1ba126d551",
-      "bytes": 11801,
+      "sha256": "c2e387619d07e3b99f013acd20ffb5d8f3ada4ab64dcf361d072fa6f23c9c9be",
+      "bytes": 13630,
       "currentBasePreimageSHA256": "f673b69d50139ce818457b7c38f169a16c613487ba82e8a967acd299984565f7",
       "historicalPreimageSHA256": null
     },
@@ -719,8 +719,8 @@
     },
     {
       "path": "services/platform/apiserver/approval_maintenance_genuine_test74_postgres_test.go",
-      "sha256": "e9b8a99b4d5fe0ed086c130b68551996613828f60646bfdec71ecf3e5b8007cc",
-      "bytes": 37119,
+      "sha256": "0c6a559cdbf4379eedcb6b5dc6896ba18facb858a347d6e212f7405f39f994fd",
+      "bytes": 38721,
       "currentBasePreimageSHA256": "fcb312455a7bcbfc1800f0d0c70334f620e20143ea0c9306dc814b8d1d3b1c7b",
       "historicalPreimageSHA256": "fcb312455a7bcbfc1800f0d0c70334f620e20143ea0c9306dc814b8d1d3b1c7b"
     },
@@ -742,6 +742,34 @@
       "path": "services/platform/apiserver/approval_activation_ordered_progress_test.go",
       "sha256": "d4046a280bbe47b705f5851ac656a63c20fe46031c80b264fdd9678b36ec825a",
       "bytes": 3849,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/apiserver/approval_activation_future_family_test.go",
+      "sha256": "baf589a10beee3b81ee430757a81adb06ab255be992f7cd75bb1896c3c265158",
+      "bytes": 8299,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/apiserver/approval_activation_overflow_test.go",
+      "sha256": "63c357dfef18f21b121fe26b92d3de3d5b21214847d23ab90a3f1b1b99df1952",
+      "bytes": 11291,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/apiserver/approval_maintenance_genuine_progress_postgres_test.go",
+      "sha256": "8549253bdb1d36a5c957735bffef03adaf7070cce650058e97b505667fc4119d",
+      "bytes": 10023,
+      "currentBasePreimageSHA256": "0b64a69eb8e7ade5fcad1950d1be110e61594892e7d0675f4cc30b88e67964d9",
+      "historicalPreimageSHA256": "0b64a69eb8e7ade5fcad1950d1be110e61594892e7d0675f4cc30b88e67964d9"
+    },
+    {
+      "path": "services/platform/apiserver/connector_maintenance_failure_observation_test.go",
+      "sha256": "38e59d1e256423bda47285786edcd4ecbb1f95fb32a85153559e9ce65aabb36f",
+      "bytes": 3960,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     }

@@ -30,7 +30,11 @@ func runApprovalOriginTest74PlanningFixture(t *testing.T, mode string, afterCapt
 // The optional consumer observes only genuine completed native admission after
 // all original capture/accounting assertions. Existing fixture paths pass nil.
 func runApprovalOriginTest74PlanningFixtureWithAdmission(t *testing.T, mode string, consumer approvalActivationTest74AdmissionConsumer, afterCapture ...workerRuntimeCaptureConsumer) {
-	if consumer != nil && mode != "approval-activation" {
+	runApprovalOriginTest74PlanningFixtureWithAdmissionHooks(t, mode, consumer, nil, afterCapture...)
+}
+
+func runApprovalOriginTest74PlanningFixtureWithAdmissionHooks(t *testing.T, mode string, consumer approvalActivationTest74AdmissionConsumer, before approvalActivationTest74BeforeAdmit, afterCapture ...workerRuntimeCaptureConsumer) {
+	if !approvalActivationTest74HooksValid(mode, consumer != nil, before != nil, false, len(afterCapture)) {
 		t.Fatal("native approval consumer requires explicit fixture mode")
 	}
 	if len(afterCapture) > 1 || (len(afterCapture) == 1 && mode != "runtime-retained") {
@@ -191,7 +195,7 @@ UPDATE zasp_authorized_scopes SET permissions='["view","manage_identity","manage
 		if t.Failed() {
 			return
 		}
-		assertApprovalOriginTest74PlanningLoadWithAdmission(t, ctx, owner, o, w, e, run, testID, selection, mode, nil, consumer, afterCapture...)
+		assertApprovalOriginTest74PlanningLoadWithAdmissionHooks(t, ctx, owner, o, w, e, run, testID, selection, mode, nil, consumer, before, afterCapture...)
 	})
 }
 
@@ -213,7 +217,11 @@ func assertApprovalOriginTest74PlanningLoadWith(t *testing.T, ctx context.Contex
 	assertApprovalOriginTest74PlanningLoadWithAdmission(t, ctx, owner, o, w, e, run, testID, selection, mode, seam, nil, afterCapture...)
 }
 func assertApprovalOriginTest74PlanningLoadWithAdmission(t *testing.T, ctx context.Context, owner *pgx.Conn, o, w, e, run, testID string, selection map[string]any, mode string, seam *approvalOriginSingleRecoveryPlanningSeam, consumer approvalActivationTest74AdmissionConsumer, afterCapture ...workerRuntimeCaptureConsumer) {
-	if consumer != nil && (mode != "approval-activation" || seam != nil || len(afterCapture) != 0) {
+	assertApprovalOriginTest74PlanningLoadWithAdmissionHooks(t, ctx, owner, o, w, e, run, testID, selection, mode, seam, consumer, nil, afterCapture...)
+}
+
+func assertApprovalOriginTest74PlanningLoadWithAdmissionHooks(t *testing.T, ctx context.Context, owner *pgx.Conn, o, w, e, run, testID string, selection map[string]any, mode string, seam *approvalOriginSingleRecoveryPlanningSeam, consumer approvalActivationTest74AdmissionConsumer, before approvalActivationTest74BeforeAdmit, afterCapture ...workerRuntimeCaptureConsumer) {
+	if !approvalActivationTest74HooksValid(mode, consumer != nil, before != nil, seam != nil, len(afterCapture)) {
 		t.Fatal("native approval consumer cannot replace another fixture seam")
 	}
 	if len(afterCapture) > 1 || (len(afterCapture) == 1 && mode != "runtime-retained") {
@@ -497,15 +505,27 @@ func assertApprovalOriginTest74PlanningLoadWithAdmission(t *testing.T, ctx conte
 	call("result", map[string]any{"raw": string(response)})
 	settled := call("settle", map[string]any{})
 	call("artifacts", map[string]any{"input_version": "worker74-input-v1", "output_version": "worker74-output-v1", "output_digest": settled["output_digest"]})
+	expectedCaptureState := "captured_inactive"
+	if before != nil {
+		var actor string
+		if err := owner.QueryRow(ctx, `SELECT requested_by FROM public.zasp_security_agent_runs WHERE(organization_id,workspace_id,environment_id,run_id)=($1,$2,$3,$4)`, o, w, e, run).Scan(&actor); err != nil {
+			t.Fatal("genuine74 pre-admit grantor unavailable", err)
+		}
+		forward = before(approvalActivationTest74Admission{ctx: ctx, owner: owner, o: o, w: w, e: e, run: run, actor: actor, config: config})
+		if forward == nil {
+			t.Fatal("explicit future admission requires activated executor")
+		}
+		expectedCaptureState = "active"
+	}
 	if receipt := call("admit", map[string]any{}); receipt["outcome"] != "admitted" {
 		t.Fatal("native74 complete admission")
 	}
 	var nativeCapture bool
-	if err := owner.QueryRow(ctx, `SELECT count(*)=1 AND bool_and(o.status='captured_inactive' AND o.family='test74' AND o.delegation->>'purpose'='approval_notification_delivery' AND public.zasp_valid_product_id(o.delegation->>'task_id') AND o.delegation->>'grantor_id'=o.facts->>'grantor_id' AND o.delegation->>'principal_id'=o.facts->>'principal_id' AND o.payload_digest=n.payload_digest AND o.destination_url=n.destination_url AND o.secret_reference=n.secret_reference AND n.attempt=0 AND n.state='pending' AND jsonb_array_length(o.facts->'checks')>=2) FROM zasp_approval_maintenance.origins o JOIN public.zasp_security_agent_approval_notifications n USING(organization_id,workspace_id,environment_id,delivery_id) WHERE o.run_id=$1`, run).Scan(&nativeCapture); err != nil || !nativeCapture {
+	if err := owner.QueryRow(ctx, `SELECT count(*)=1 AND bool_and(o.status=$2 AND o.family='test74' AND o.delegation->>'purpose'='approval_notification_delivery' AND public.zasp_valid_product_id(o.delegation->>'task_id') AND o.delegation->>'grantor_id'=o.facts->>'grantor_id' AND o.delegation->>'principal_id'=o.facts->>'principal_id' AND o.payload_digest=n.payload_digest AND o.destination_url=n.destination_url AND o.secret_reference=n.secret_reference AND n.attempt=0 AND n.state='pending' AND jsonb_array_length(o.facts->'checks')>=2) FROM zasp_approval_maintenance.origins o JOIN public.zasp_security_agent_approval_notifications n USING(organization_id,workspace_id,environment_id,delivery_id) WHERE o.run_id=$1`, run, expectedCaptureState).Scan(&nativeCapture); err != nil || !nativeCapture {
 		t.Fatal("genuine signed74 admission failed inactive origin capture", err)
 	}
 	var projected bool
-	if err := owner.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM zasp_approval_maintenance.delivery_grants WHERE organization_id=$1)`, o).Scan(&projected); err != nil || projected {
+	if err := owner.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM zasp_approval_maintenance.delivery_grants WHERE organization_id=$1)`, o).Scan(&projected); err != nil || projected != (expectedCaptureState == "active") {
 		t.Fatal("inactive74 capture issued delegation", err)
 	}
 	if err := owner.QueryRow(ctx, `SELECT p.total_tokens=30 AND p.cost_nano_credits=30000 AND p.settled_at IS NOT NULL AND (SELECT count(*)=1 FROM zasp_security_agent_steps WHERE run_id=$1 AND step_index=0 AND action_key=$2) AND NOT EXISTS(SELECT 1 FROM zasp_sa_multistep_runs WHERE run_id=$1) FROM zasp_temporal74.provider_reservations p WHERE run_id=$1`, run, action).Scan(&one); err != nil || !one {

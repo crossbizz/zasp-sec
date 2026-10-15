@@ -44,6 +44,9 @@ export const CONNECTOR_ACCEPTANCE_GROUPS = Object.freeze({
     'expired_revoked_callback_permits_exact_deletion_but_failure_never_settles',
     'second_worker_restart_rotates_receipts_and_atomically_rejects_once',
   ], 2),
+  'approval-overflow': group('TestApprovalActivationNativeAuthenticCaptureOverflow', [], 2),
+  'approval-future-test74': group('TestApprovalActivationNativeFutureTest74DeliveryFlow', [], 2),
+  'approval-future-progress': group('TestApprovalActivationNativeFutureOrderedProgressDeliveryFlow', [], 2),
 });
 export function selectConnectorAcceptanceGroup(args) {
   assert.ok(Array.isArray(args) && args.length === 1 &&
@@ -75,6 +78,11 @@ export function parseConnectorNativeObservation(output) {
   if (match) return {kind: 'activation', stage: match[1]};
   match = /^connector preparation stage=(release|begin|result|local-state|quarantine|unknown)$/.exec(line);
   if (match) return {kind: 'preparation', stage: match[1]};
+  match = /^connector lease observation stage=(preparation-finish|preparation-forward|captured-compensation|revocation-pending|revocation-applied|recovery-forward|unknown) outcome=(denied|unavailable|operation|other) parent_live=(true|false) lease_live=(true|false) provider_bound=(true|false) provider_live=(true|false)$/.exec(line);
+  if (match) {
+    if(match[5]==='false'&&match[6]==='true')return null;
+    return {kind:'lease',value:{stage:match[1],outcome:match[2],parentLive:match[3]==='true',leaseLive:match[4]==='true',providerBound:match[5]==='true',providerLive:match[6]==='true'}};
+  }
   if (line === 'connector catalog diagnostic=unavailable') return {kind: 'catalog-summary', value: {observed: false}};
   match = /^connector catalog diagnostic=observed before_rows=([0-9]{1,4}) after_rows=([0-9]{1,4}) before_duplicates=([0-9]{1,4}) after_duplicates=([0-9]{1,4}) before_registered=(true|false) after_registered=(true|false) before_guc_equal=(true|false) after_guc_equal=(true|false) owner_guc_stable=(true|false) api_guc_stable=(true|false)$/.exec(line);
   if (match) {
