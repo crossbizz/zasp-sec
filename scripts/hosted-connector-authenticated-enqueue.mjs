@@ -23,7 +23,7 @@ const pins = {
   "services/platform/agentsec-api/connector_maintenance_runtime.go": "ac74dd00dc05e34e72a06962ad8d7a8f13d18bf64c0fe6e46fdbd520f4b09bab",
   "services/platform/agentsec-api/production_runtime.go": "e051cec9987f311462d7f3d6b63a9ee07373a9b2e82e5bee9d320bc627605a34",
   "services/platform/agentsec-api/runtime.go": "bace8cadfe7ab3f982cfc779ebff5493590a9156bf4a2cbdf31e7be82d69e975",
-  "services/platform/agentsec-worker/authorization_worker_runtime.go": "97f81ea5b11ad283eb056fe6f0fa9aefbf43e5e5161c7ff3bcfe67772f1e80e7",
+  "services/platform/agentsec-worker/authorization_worker_runtime.go": "18ed70e4f9a8efbefb6cb623f493465739a29de81cae4340e3629d0dda7a7abe",
   "services/platform/apiserver/connector_enqueue_provenance_postgres_test.go": "d6039cfa0d1673a5cf29e68e209b73c2cb6aeefd715e4d7805d3690b8ab0afde",
   "services/platform/apiserver/connector_handler.go": "e8a28640de67507a0676a882cc627bc20910d4fc55c606b08c9bc6663de76eb0",
   "services/platform/apiserver/connector_maintenance_callback_database.go": "68daa6030d5ad5e51dbcd95c5c7d3a77160dc74bafea1a986049b937bf787efc",
@@ -34,42 +34,61 @@ const pins = {
   "services/platform/apiserver/connector_reconciler.go": "3170126141cde2be045e2a04727a1c9658a0100cfd610ea45ea3a7c5d359689d",
   "services/platform/authorization/connector_maintenance_projection.go": "e9189565c21f4d16c3f06c3cf89b35e57b1cef5e5bb51b1ff49da02349dcd7b8",
   "services/platform/authorization/worker_current_maintenance.go": "77e382687cc15c54bd3065a10caeb607921c7ee89f3f6ad373c8d645c01d9246",
-  "services/platform/cmd/zasp-authorization-reconcile/main.go": "26c1d2d58289b3a2a5b5f58b55348f70f7ae3d48ef7d84b426613f79d506b27e",
+  "services/platform/cmd/zasp-authorization-reconcile/main.go": "bdaa8815eb14bf35e19d4a5e76764f623ce0277c9d04ebfbfc9f120dba244a6d",
   "services/platform/connectormaintenance/authority.go": "378b2b151fe9978ca28a3c40d024c52bff7d3f0b83267839ef1dd61ee3946441",
   "services/platform/connectormaintenance/executor.go": "24ac12fb20e753ec433464e6220bc7aaf4127fb9e7e3803831553bb75e7a40f3",
-  "services/platform/connectormaintenancecutover/coordinator.go": "e1c4da1ab45067c9181e14f9120d44edd4e911a6cd7f68ceb171a86ef0246465",
+  "services/platform/connectormaintenancecutover/coordinator.go": "d2867a6154c9df7b00a6e575d08cdcf33e6e7bf1d71b493baa7428334af286fe",
   "services/platform/connectormaintenancecutover/fga.go": "d3b9b4bea7f707e802c11e62c3e331477a3ff23a5f8d2049125155fd9e2bcb46",
   "services/platform/connectormaintenancecutover/model.json": "329f49e1f2effecbe1a0e9caf6c89be939b1e36e034155d74977bfc82c73cc2c",
   "services/platform/connectormaintenancecutover/process_linux.go": "6096f7c304818c7e6ebc31d3940bacf75932b9f2971c8c529316ebee92cede54",
   "services/platform/connectormaintenancecutover/raw_model.go": "4a5732177b025ec3e7306dd1186c2c358d59a3b7df235e53e12f34384ecc6d3e",
-  "services/platform/connectormaintenancecutover/sql.go": "11a839a8b0c73e9eb1e830e37ff070eb6824c31e87604b5103e92fc75b16a8c2",
+  "services/platform/connectormaintenancecutover/sql.go": "baaa4fe83a4689b053387fc7a8a3abe34d6130384d4197e244aab1c21f5a20b8",
   "services/platform/migrations/production_connector_enqueue_provenance.go": "793b230a8572fbfbed2a4702e1513bfa90afac596a8d0707ae047bbdf8bacc36",
   "services/platform/migrations/production_connector_maintenance.go": "18b0989e395e85f18a78f5f51aee06eb1f969fba79a66650754bfc3858d055cd",
   "services/platform/migrations/sql/connector_enqueue_provenance.sql": "32b3f8cbe175b5256ff4542cdff044d6d060e0240d24632bf3d057f3553a5c13",
-  "services/platform/migrations/sql/connector_maintenance_profile.sql": "23ff42e7e492591ef76076523b6c9c19f25c6ada21aad38d104e3066b5ecf5e2",
-  "services/platform/runtimeservices/config.go": "3eff9566c27b6e7c5179a8968aacf0f05b0810baf1d69abac43cb19e21dc0f77",
+  "services/platform/migrations/sql/connector_maintenance_profile.sql": "966bfbeba5976b2c7edb78853b884e118955462eba5e8b627c21a12e1449bdef",
+  "services/platform/runtimeservices/config.go": "5cd087e846c9106c07c0734f06937e727c25fb04887dbfdf8d78da4c70e48731",
   "services/platform/migrations/production_approval_maintenance_profile.go": "2e98fa960c2e7b42b2a6a343b4ff47059c0d23fac83dbed887d2868f1b9c99f3",
   "services/platform/migrations/production_approval_maintenance_successor.go": "6817964c5c0dfcabe7ea9f65caf5b7840f6d9e4d29a1ec39b00e1b03b0fa6eca",
   "services/platform/migrations/production_approval_maintenance_profile_test.go": "5592e136c7578bac21bf698c675762b28b68b46a37b1d2ed7670e2d707150a6a",
   "services/platform/connectormaintenancecutover/readback_defaults.json": "d4c42d89fa77b89513e732b6d5bdd206c808111096307d38784cc6f1ba639835",
   "services/platform/connectormaintenancecutover/readback_test.go": "e4970d8ef25f042e9948abb5cbb0557c32988a50bd80b3bcddd6c8f74a8da23a",
-  "services/platform/agentsec-migrate/main.go": "9c9fa6e67255abe494515fc16d0f9bed934278dfcf5fbccf4720161550de0776",
-  "services/platform/agentsec-migrate/maintenance_profile_commands_test.go": "93f17c2f7ee39082666201505d04b363c36ccf615a0b2f56aa2385348ad73512"
+  "services/platform/agentsec-migrate/main.go": "f9bccafecba7ceb576f1673a369143d49ec807bc30ef438e4103543467ca234e",
+  "services/platform/agentsec-migrate/maintenance_profile_commands_test.go": "d972fdf1601462a73bf98a08fbc085ec57b31ffec63180f25e45a38695779119",
+  "services/platform/agentsec-worker/authorization_worker_activation_config_test.go": "3b66404d7740592ad2c42e6491861e26f11788b3b6be0b7e68cbe9a6c20bca23",
+  "services/platform/apiserver/approval_activation_postgres_test.go": "4a40ff1c879cd4c1af951ba8bc812d0d9ea81a360c856fcde4235b63581ae6e5",
+  "services/platform/apiserver/connector_maintenance_callback_restart_postgres_test.go": "fe1f04ee8d9d6c78814a05df0fb976f4aedd5f1667e648c5342fbc14ea1d46bf",
+  "services/platform/apiserver/connector_maintenance_lifecycle_postgres_test.go": "e02e54c911aa83af1c2586af293ade3d58630b987dbecce24e1534483223eafa",
+  "services/platform/apiserver/connector_maintenance_pkce_recovery_test.go": "0542a89f2ac018cbca92a423f9c196cc464180ae310143f6048ec280e2b90bca",
+  "services/platform/authorization/worker.go": "6717074205fbaf48d970b1a6bdbc6613779d492a388c6d6446fe78608ff3efe4",
+  "services/platform/authorization/worker_approval_activation_test.go": "15e44850678ba5b9b385023555fcc501eca600c53c1f912dbf799841387d7b0b",
+  "services/platform/authorization/worker_approval_origin.go": "6f83d9f2998fdf8d94beb69e3c4c15fe11037a8bb386303a831f5f1dfee8a69f",
+  "services/platform/cmd/zasp-authorization-reconcile/hold_test.go": "07465bbdeb1bcb66a865f855279fe1b764063aba0f17bbcdfecb5726eef9ffe6",
+  "services/platform/cmd/zasp-controlled-maintenance-cutover/main.go": "90a0e4a39acaf006571f2a3a610bf1b8b4881c39645fbea10cb5c81290eea5e8",
+  "services/platform/cmd/zasp-controlled-maintenance-cutover/main_test.go": "a8e1b3d97076b74daa29f60e117b9ca0f370bcd627d9819152b418c992e8da74",
+  "services/platform/cmd/zasp-maintenance-register/main.go": "f2f2ac05671b7738f3c12b1206e7865cff514606189da3a82c888732acd60fc9",
+  "services/platform/cmd/zasp-maintenance-register/main_test.go": "5ae1660fd2e5de9961c459d619cf291ae6d730896d9126c2074f68ed2c8069c0",
+  "services/platform/connectormaintenancecutover/combined.go": "b841c26caee24f7948d43ec72b1b2d2dc53ce0661845af73a9f417ae93091f84",
+  "services/platform/connectormaintenancecutover/coordinator_test.go": "26ce6254da116eb381365e2c90ae97e4c7366d829168e5a55438b40dc8ba9a90",
+  "services/platform/migrations/production_approval_activation_profile.go": "a770b962f1c3f3622a368d32d19f865231f458a1c36d2db764056fb60f6faea2",
+  "services/platform/migrations/production_approval_activation_profile_test.go": "4d1c29736e796e8e9deecd7845a0ad6ba2e3948043427e2cc88c57b32fdfdf16",
+  "services/platform/migrations/sql/approval_activation_profile.sql": "f256e35509c6573b85fda9babb8e5d87641927c5246d5d1408f98a0159cd139d",
+  "services/platform/runtimeservices/approval_activation_config_test.go": "d288ebc83684b8d49bdfab4fabb30bf4e65dc530f327ea06e205c415bd7195df"
 };
 const top='TestConnectorMaintenanceAuthenticatedOAuthEnqueuePostgres';
 const cases=['genuine_same_transaction_origin_and_immutable_enrichment','rollback_removes_every_enqueue_and_provenance_write'];
 const helperPins={
- "scripts/connector-acceptance-groups.test.mjs": "10db1e5a1402db95be1da49c036cbc0b111e5f15b8e005be11c7d1b6f0f9dcba",
- "scripts/connector-acceptance-groups.mjs": "b288f9ecf529e14ee5c9b0b99fa8c70def4d54cdb02d45c1582787e2b95cdc40",
- "docs/internal/evidence/cloud-2026-10-07/native-service-readiness/openfga/09-pg-non-glibc-libs-manifest.json": "96642e82997ffd2caf2893a5ecc0116ad2aef6e982df2d929f3efda4e04f3474",
- "services/platform/apiserver/authorization_integration_mutations_postgres_test.go": "5e4beb04b2409ad9b11b89c017ada5e2eccffd78a87bdd5692d40670f12a2ba0",
- "scripts/hosted-memory-observation.mjs": "70c2ae837d040be4756842e4016acbc4eebd6bae3d8c992aba2a80e2a097ba75",
- "scripts/owned-command.mjs": "044e151c9260b9356ac78e5cde6b59dbbdd7b934d66ad06732288346831ad47e",
- "scripts/owned-fixed-fd-command.mjs": "15c38bd9d627124b7d81e5fe9b96dd3c4af8757b33f2204a9dce4b86e93e5693",
- "scripts/official-held-tools.mjs": "451dad7212561fc02e1f5b03280672c9d900a5ac644a665c022deafa9f72dfdd",
- "scripts/owned-listener.mjs": "3e5a4357fb53a412d0c38ab608c49543cf1bf74b2bb624022791a8bb6d1a43de",
- "services/platform/apiserver/postgres_integration_test.go": "0d908c53cdea021e4c60adc412a04d631fd58c0b0544e7cce723884ea4002a42",
- "services/platform/apiserver/approval_maintenance_owned_fga_test.go": "e505c27d07bde5948d7ec4f4612ffc28ccb2b68f37bebc842e91cec0d5066647"
+  "scripts/connector-acceptance-groups.test.mjs": "68c683f3a74f08b17e0202a9287604d4c89d9a6835c3deebcba36e5a295bdba2",
+  "scripts/connector-acceptance-groups.mjs": "c24b78c03c8df55a973b0314fb7adffb0135d3fba79639f8e3cd8fe4c041c4ca",
+  "docs/internal/evidence/cloud-2026-10-07/native-service-readiness/openfga/09-pg-non-glibc-libs-manifest.json": "96642e82997ffd2caf2893a5ecc0116ad2aef6e982df2d929f3efda4e04f3474",
+  "services/platform/apiserver/authorization_integration_mutations_postgres_test.go": "5e4beb04b2409ad9b11b89c017ada5e2eccffd78a87bdd5692d40670f12a2ba0",
+  "scripts/hosted-memory-observation.mjs": "70c2ae837d040be4756842e4016acbc4eebd6bae3d8c992aba2a80e2a097ba75",
+  "scripts/owned-command.mjs": "50b5481d008546a713ac730cb933108be66b2f08226ced8bc47deaea14e95ec8",
+  "scripts/owned-fixed-fd-command.mjs": "15c38bd9d627124b7d81e5fe9b96dd3c4af8757b33f2204a9dce4b86e93e5693",
+  "scripts/official-held-tools.mjs": "451dad7212561fc02e1f5b03280672c9d900a5ac644a665c022deafa9f72dfdd",
+  "scripts/owned-listener.mjs": "3e5a4357fb53a412d0c38ab608c49543cf1bf74b2bb624022791a8bb6d1a43de",
+  "services/platform/apiserver/postgres_integration_test.go": "0d908c53cdea021e4c60adc412a04d631fd58c0b0544e7cce723884ea4002a42",
+  "services/platform/apiserver/approval_maintenance_owned_fga_test.go": "e505c27d07bde5948d7ec4f4612ffc28ccb2b68f37bebc842e91cec0d5066647"
 };
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 const root=process.cwd();const selfSHA256=hash(await readFile(new URL(import.meta.url)));
@@ -104,9 +123,9 @@ function initdbDiagnostic(stderr){
  for(let line of lines){line=line.replaceAll(out,'[owned-runtime]');for(const key of ['HTTPS_PROXY','HTTP_PROXY','NO_PROXY','https_proxy','http_proxy','no_proxy'])if(typeof closed[key]==='string'&&closed[key])line=line.replaceAll(closed[key],'[redacted-env]');line=line.slice(0,512).replaceAll('%','%25').replaceAll('\r','%0D').replaceAll('\n','%0A');console.log('::notice title=Owned initdb diagnostic::'+line);}
 }
 function nativeDiagnostic(result,timed){
- const allowed=[top,...cases.map(name=>top+'/'+name)];const diagnostic={status:Number.isInteger(result.status)?result.status:null,signal:['SIGTERM','SIGKILL','SIGINT','SIGABRT','SIGSEGV'].includes(result.signal)?result.signal:null,timed,outputLimitExceeded:result.outputLimitExceeded,counts:{run:0,pass:0,fail:0,skip:0},failedCases:[],locations:[],jsonMalformed:false,fixtureStages:[],sqlStates:[],canonicalVersions:[],fixtureErrorCategory:null,postgresCategories:[],migrationDiagnostics:[],rollbackDiagnostic:null,catalogDiagnostic:null,catalogKinds:[],cutoverPrepareStages:[]};
+ const allowed=[top,...cases.map(name=>top+'/'+name)];const diagnostic={status:Number.isInteger(result.status)?result.status:null,signal:['SIGTERM','SIGKILL','SIGINT','SIGABRT','SIGSEGV'].includes(result.signal)?result.signal:null,timed,outputLimitExceeded:result.outputLimitExceeded,counts:{run:0,pass:0,fail:0,skip:0},failedCases:[],locations:[],jsonMalformed:false,fixtureStages:[],sqlStates:[],canonicalVersions:[],fixtureErrorCategory:null,postgresCategories:[],migrationDiagnostics:[],rollbackDiagnostic:null,catalogDiagnostic:null,catalogKinds:[],cutoverPrepareStages:[],cutoverActivationStages:[]};
  const fixedStages=["postgres-start", "postgres-connect", "canonical-install", "fixture-data", "projection-pool", "owned-fga-model", "tuple-writer", "fga-checker", "projection-configure", "projection-reconcile", "registered-api-connect", "registered-api-role", "database-current-authority", "browser-authentication", "token-authentication", "authorization-resolver", "connector-registry", "reference-registry", "workflow-handler", "router", "canonical-cutover", "data-plane-roles", "data-plane-principals", "current-authorization-modules", "execution-roles", "execution-principals", "temporal-authorization-modules", "current-authorization-replay", "verifier-registration"];const locations=new Set();for(const line of result.stdout.split('\n').filter(Boolean)){let row;try{row=JSON.parse(line);}catch{diagnostic.jsonMalformed=true;continue;}if(allowed.includes(row.Test)&&['run','pass','fail','skip'].includes(row.Action)){diagnostic.counts[row.Action]++;if(row.Action==='fail')diagnostic.failedCases.push(row.Test);}if(typeof row.Output==='string'){
- const observed=parseConnectorNativeObservation(row.Output);if(observed?.kind==='catalog-summary'&&diagnostic.catalogDiagnostic===null)diagnostic.catalogDiagnostic=observed.value;else if(observed?.kind==='catalog-object'&&diagnostic.catalogKinds.length<9&&!diagnostic.catalogKinds.some(value=>value.kind===observed.value.kind))diagnostic.catalogKinds.push(observed.value);else if(observed?.kind==='cutover'&&diagnostic.cutoverPrepareStages.length<4&&!diagnostic.cutoverPrepareStages.includes(observed.stage))diagnostic.cutoverPrepareStages.push(observed.stage);
+ const observed=parseConnectorNativeObservation(row.Output);if(observed?.kind==='catalog-summary'&&diagnostic.catalogDiagnostic===null)diagnostic.catalogDiagnostic=observed.value;else if(observed?.kind==='catalog-object'&&diagnostic.catalogKinds.length<9&&!diagnostic.catalogKinds.some(value=>value.kind===observed.value.kind))diagnostic.catalogKinds.push(observed.value);else if(observed?.kind==='cutover'&&diagnostic.cutoverPrepareStages.length<4&&!diagnostic.cutoverPrepareStages.includes(observed.stage))diagnostic.cutoverPrepareStages.push(observed.stage);else if(observed?.kind==='activation'&&diagnostic.cutoverActivationStages.length<4&&!diagnostic.cutoverActivationStages.includes(observed.stage))diagnostic.cutoverActivationStages.push(observed.stage);
 
 
  for(const label of postgresFailureCategories(row.Output))if(!diagnostic.postgresCategories.includes(label))diagnostic.postgresCategories.push(label);
@@ -120,7 +139,7 @@ function nativeDiagnostic(result,timed){
  for(const match of row.Output.matchAll(/(?:connector_maintenance_enqueue_postgres_test|connector_enqueue_provenance_postgres_test|authorization_integration_mutations_postgres_test|authorization_projection_fga_test|approval_maintenance_owned_fga_test|postgres_integration_test)\.go:[0-9]{1,6}:/g))locations.add(match[0].slice(0,-1));}
 }
  diagnostic.locations=[...locations].slice(0,16);diagnostic.failedCases=diagnostic.failedCases.slice(0,10);receipt.nativeDiagnostic=diagnostic;
- const scalar=n=>Number.isInteger(n)?String(n):'unobserved';console.log('::notice title=Connector native command outcome::status='+scalar(diagnostic.status)+'; timed='+String(timed)+'; signal='+(diagnostic.signal??'none')+'; cap='+String(diagnostic.outputLimitExceeded)+'; namedRUN='+diagnostic.counts.run+'; namedPASS='+diagnostic.counts.pass+'; namedFAIL='+diagnostic.counts.fail+'; namedSKIP='+diagnostic.counts.skip+'; failedCases='+diagnostic.failedCases.join(',')+'; sourceLocations='+diagnostic.locations.join(',')+'; postgresCategories='+diagnostic.postgresCategories.join(',')+'; fixtureStages='+diagnostic.fixtureStages.join(',')+'; SQLSTATE='+diagnostic.sqlStates.join(',')+'; canonicalVersions='+diagnostic.canonicalVersions.join(',')+'; fixtureErrorCategory='+(diagnostic.fixtureErrorCategory??'none')+'; rollbackDiagnostic='+(diagnostic.rollbackDiagnostic??'none')+'; migrationDiagnostics='+JSON.stringify(diagnostic.migrationDiagnostics)+'; catalogDiagnostic='+JSON.stringify(diagnostic.catalogDiagnostic)+'; catalogKinds='+JSON.stringify(diagnostic.catalogKinds)+'; cutoverPrepareStages='+diagnostic.cutoverPrepareStages.join(',')+'; JSONMalformed='+String(diagnostic.jsonMalformed)+'. No deployment readiness established.');
+ const scalar=n=>Number.isInteger(n)?String(n):'unobserved';console.log('::notice title=Connector native command outcome::status='+scalar(diagnostic.status)+'; timed='+String(timed)+'; signal='+(diagnostic.signal??'none')+'; cap='+String(diagnostic.outputLimitExceeded)+'; namedRUN='+diagnostic.counts.run+'; namedPASS='+diagnostic.counts.pass+'; namedFAIL='+diagnostic.counts.fail+'; namedSKIP='+diagnostic.counts.skip+'; failedCases='+diagnostic.failedCases.join(',')+'; sourceLocations='+diagnostic.locations.join(',')+'; postgresCategories='+diagnostic.postgresCategories.join(',')+'; fixtureStages='+diagnostic.fixtureStages.join(',')+'; SQLSTATE='+diagnostic.sqlStates.join(',')+'; canonicalVersions='+diagnostic.canonicalVersions.join(',')+'; fixtureErrorCategory='+(diagnostic.fixtureErrorCategory??'none')+'; rollbackDiagnostic='+(diagnostic.rollbackDiagnostic??'none')+'; migrationDiagnostics='+JSON.stringify(diagnostic.migrationDiagnostics)+'; catalogDiagnostic='+JSON.stringify(diagnostic.catalogDiagnostic)+'; catalogKinds='+JSON.stringify(diagnostic.catalogKinds)+'; cutoverPrepareStages='+diagnostic.cutoverPrepareStages.join(',')+'; cutoverActivationStages='+diagnostic.cutoverActivationStages.join(',')+'; JSONMalformed='+String(diagnostic.jsonMalformed)+'. No deployment readiness established.');
 }
 async function run(exe,args,seconds=60,env=closed,cleanup=false){if(!cleanup){guard();await floors();guard();}const owner=spawnOwnedCommand(exe,args,{cwd:root,env,maxOutputBytes:8*1024*1024});owners.add(owner);let timed=false;const timer=setTimeout(()=>{timed=true;void owner.stop().catch(()=>{refused=true;});},cleanup?seconds*1000:Math.min(seconds*1000,end-performance.now()));let result;
  try{result=await owner.completed;receipt.commands.push({command:exe==='docker'?'docker':path.basename(exe),status:result.status,signal:result.signal,outputLimitExceeded:result.outputLimitExceeded,stdoutBytes:Buffer.byteLength(result.stdout),stderrBytes:Buffer.byteLength(result.stderr),stdoutSHA256:hash(result.stdout),stderrSHA256:hash(result.stderr)});if(exe==='go'&&args[0]==='test')nativeDiagnostic(result,timed);if(['owned-initdb-tool-smoke','owned-raw-postgres-version-probe'].includes(phase)){const observation={status:result.status,signal:result.signal,timed,outputLimitExceeded:result.outputLimitExceeded,categories:postgresFailureCategories(result.stdout+'\n'+result.stderr),stdoutBytes:Buffer.byteLength(result.stdout),stderrBytes:Buffer.byteLength(result.stderr)};if(phase==='owned-initdb-tool-smoke')receipt.initdbToolSmoke=observation;else receipt.rawPostgresVersionProbe=observation;console.log('::notice title=Owned PostgreSQL prerequisite::phase='+phase+'; status='+String(result.status)+'; timed='+String(timed)+'; signal='+(result.signal??'none')+'; cap='+String(result.outputLimitExceeded)+'; categories='+observation.categories.join(',')+'. Tool compatibility only; no product test or deployment acceptance.');}if(phase==='owned-initdb-tool-smoke'&&result.status!==0)initdbDiagnostic(result.stderr);assert.ok(!timed&&(cleanup||!canceled)&&result.status===0&&!result.signal&&!result.outputLimitExceeded,'owned command refused');if(!cleanup)guard();return result;}

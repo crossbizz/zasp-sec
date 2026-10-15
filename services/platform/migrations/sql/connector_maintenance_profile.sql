@@ -1026,10 +1026,10 @@ BEGIN
  IF slots_value=0 THEN RETURN jsonb_build_object('items',items_value);END IF;
  SELECT COALESCE(jsonb_agg(to_jsonb(selected)),'[]'::jsonb) INTO selected_value FROM(
   SELECT ranked.organization_id,ranked.workspace_id,ranked.environment_id,ranked.attempt_id FROM(
-   SELECT x.*,a.provider,row_number() OVER(PARTITION BY a.provider ORDER BY x.expires_at,x.organization_id,x.attempt_id) lane_rank
-   FROM zasp_connector_maintenance.callbacks x JOIN public.zasp_connector_effects a ON(a.organization_id,a.workspace_id,a.environment_id,a.id)=(x.organization_id,x.workspace_id,x.environment_id,x.authorize_effect_id)
-   WHERE x.phase IN('consumed','secret','rejection_secret','secret_settled','rejection_secret_settled') AND x.expires_at<=clock_timestamp() AND a.status='unknown' AND a.lease_expires_at<=clock_timestamp()
-   AND NOT EXISTS(SELECT 1 FROM public.zasp_connector_effects live WHERE live.provider=a.provider AND live.operation IN('authorize','pkce_cleanup') AND live.status='unknown' AND live.lease_expires_at>clock_timestamp())
+   SELECT x.*,authorize_effect.provider,row_number() OVER(PARTITION BY authorize_effect.provider ORDER BY x.expires_at,x.organization_id,x.attempt_id) lane_rank
+   FROM zasp_connector_maintenance.callbacks x JOIN public.zasp_connector_effects authorize_effect ON(authorize_effect.organization_id,authorize_effect.workspace_id,authorize_effect.environment_id,authorize_effect.id)=(x.organization_id,x.workspace_id,x.environment_id,x.authorize_effect_id)
+   WHERE x.phase IN('consumed','secret','rejection_secret','secret_settled','rejection_secret_settled') AND x.expires_at<=clock_timestamp() AND authorize_effect.status='unknown' AND authorize_effect.lease_expires_at<=clock_timestamp()
+   AND NOT EXISTS(SELECT 1 FROM public.zasp_connector_effects live WHERE live.provider=authorize_effect.provider AND live.operation IN('authorize','pkce_cleanup') AND live.status='unknown' AND live.lease_expires_at>clock_timestamp())
   ) ranked WHERE lane_rank=1 ORDER BY ranked.expires_at,ranked.organization_id,ranked.attempt_id LIMIT slots_value
  ) selected;
  FOR org_value IN SELECT DISTINCT x->>'organization_id' FROM jsonb_array_elements(selected_value) x ORDER BY 1 LOOP

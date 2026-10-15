@@ -223,8 +223,14 @@ func TestConnectorMaintenanceCallbackRestartRecoveryPostgres(t *testing.T) {
 		// Both original adapters go out of scope here. No secret or provider ran.
 		page, _ := json.Marshal(map[string]any{"owner": "native-callback-live-contender", "seconds": 10, "limit": 10})
 		result, err := newRepository(t).invokeCallbackRecovery(f.ctx, callbackRecoveryClaim, page, nil)
+		if err != nil {
+			t.Fatal("live callback recovery claim refused")
+		}
 		items, decodeErr := decodeConnectorCallbackRecovery(result, "native-callback-live-contender", 10, 10)
-		if err != nil || decodeErr != nil || len(items) != 0 {
+		if decodeErr != nil {
+			t.Fatal("live callback recovery response grammar refused")
+		}
+		if len(items) != 0 {
 			t.Fatal("live original callback admitted recovery")
 		}
 	})

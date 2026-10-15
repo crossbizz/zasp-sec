@@ -38,16 +38,16 @@ jobs:
           import hashlib, json
           from pathlib import Path
           source = json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())
-          assert len(source['sources']) == 52
+          assert len(source['sources']) == 89
           for item in source['sources']:
               raw = Path(item['path']).read_bytes()
               assert len(raw) == item['bytes']
               assert hashlib.sha256(raw).hexdigest() == item['sha256'], item['path']
           PYVERIFY
-      - name: Compile nine affected packages without executing test binaries
+      - name: Compile twelve affected packages without executing test binaries
         run: |
           output=$(mktemp -d "${RUNNER_TEMP}/connector-native-compile.XXXXXX")
-          for package in connectormaintenance connectormaintenancecutover authorization apiserver agentsec-api agentsec-worker runtimeservices migrations cmd/zasp-authorization-reconcile; do
+          for package in connectormaintenance connectormaintenancecutover authorization apiserver agentsec-api agentsec-worker runtimeservices migrations agentsec-migrate cmd/zasp-authorization-reconcile cmd/zasp-controlled-maintenance-cutover cmd/zasp-maintenance-register; do
             echo "::group::Compile $package"
             name=${package//\//-}
             go test -C services/platform -race -p 1 -c -o "$output/$name.test" "./$package"
@@ -88,10 +88,16 @@ jobs:
         run: go test -C services/platform -race -p=1 -count=1 -timeout=2m -run '^(TestCurrentReadinessPipelineStartsAllIndependentMetadata|TestLegacyReadinessNeverStartsPreviousAfterAuthorizationRefusal|TestOwnedReadinessDiagnosticPreservesGateAndClosedOutput|TestP7GuardedRuntimeReadinessCallback|TestP7GuardedRuntimeReadinessStartupGate|TestServiceRefusalIdentityAndNoMetadataArePreserved|TestStartupAuthorizationUsesIndependentParentBudget)$' ./agentsec-api
       - name: Controlled cutover model and writer application group
         timeout-minutes: 5
-        run: go test -C services/platform -race -p=1 -count=1 -timeout=2m -run '^(TestControlledPrepareRefusalStages|TestControlledModelReadbackCompatibility|TestControlledModelSDKReadbackBoundary|TestControlledModelReadbackRejectsAlteredDefaults)$' ./connectormaintenancecutover
+        run: go test -C services/platform -race -p=1 -count=1 -timeout=2m -run '^(TestControlledPrepareRefusalStages|TestControlledActivateRefusalStages|TestControlledModelReadbackCompatibility|TestControlledModelSDKReadbackBoundary|TestControlledModelReadbackRejectsAlteredDefaults)$' ./connectormaintenancecutover
       - name: Guarded inactive maintenance profile commands
         timeout-minutes: 5
         run: go test -C services/platform -race -p=1 -count=1 -timeout=2m -run '^(TestAuthorizationRuntimeProfilePlan|TestAuthorizationRuntimeWorkerSelectsExplicitAuditRecipe|TestAuthorizationWorkerProfileCommand|TestMaintenanceProfileExplicitCommands|TestMaintenanceProfilePostInstallCatalogOnly)$' ./agentsec-migrate
+      - name: Connected maintenance installer and operator application group
+        timeout-minutes: 5
+        run: go test -C services/platform -race -p=1 -count=1 -timeout=2m -run '^(TestApprovalActivation.*|TestRegistration.*|TestContinueHandshake|TestCompiledPins.*|TestHoldProtocol)$' ./migrations ./authorization ./runtimeservices ./cmd/zasp-controlled-maintenance-cutover ./cmd/zasp-maintenance-register ./cmd/zasp-authorization-reconcile
+      - name: Temporal worker activated configuration and signing boundaries
+        timeout-minutes: 5
+        run: go test -C services/platform -race -p=1 -count=1 -timeout=2m -run '^(TestTemporalWorkerRetainsExplicitApprovalActivationSelection|TestOrderedSigningRuntimeRejectsWrongVerifierMount|TestOrderedSigningRuntimeReadsVerifierMount|TestComposeWorkerRuntimeMountsOnlyProductionReadyModes)$' ./agentsec-worker
       - name: Existing whole approval source pin verification
         timeout-minutes: 5
         run: go test -C services/platform -race -p=1 -count=1 -timeout=2m -run '^TestApprovalMaintenanceSourcePinBindsWholeSupplementaryBody$' ./migrations

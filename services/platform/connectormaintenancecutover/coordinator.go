@@ -71,28 +71,49 @@ func (c *Coordinator) Prepare(ctx context.Context, organization string, oldWrite
 
 func (c *Coordinator) Activate(ctx context.Context, p *Permit) error {
 	if c == nil || ctx == nil {
-		return ErrRefused
+		return activationRefused(ctx, "invalid")
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if p == nil || p.owner != c || p.state == nil || p.state.spent || !time.Now().Before(p.expires) || ctx.Err() != nil {
-		return ErrRefused
+		return activationRefused(ctx, "permit")
 	}
 	// Consume before any fallible effect. An uncertain SQL result cannot be resent.
 	p.state.spent = true
 	bounded, cancel := context.WithDeadline(ctx, p.expires)
 	defer cancel()
 	verify := func(check context.Context) error {
-		if check.Err() != nil || !time.Now().Before(p.expires) || c.observations.oldUnauthorized(check) != nil || c.observations.absent(check, p.writer) != nil || c.observations.newModel(check) != nil || check.Err() != nil {
-			return ErrRefused
+		if check.Err() != nil || !time.Now().Before(p.expires) {
+			return activationRefused(check, "deadline")
+		}
+		if c.observations.oldUnauthorized(check) != nil {
+			return activationRefused(check, "old-credential")
+		}
+		if c.observations.absent(check, p.writer) != nil {
+			return activationRefused(check, "writer-absence")
+		}
+		if c.observations.newModel(check) != nil {
+			return activationRefused(check, "new-model")
+		}
+		if check.Err() != nil {
+			return activationRefused(check, "deadline")
 		}
 		return nil
 	}
-	// Concrete SQL adapter must call verify after original79 organization lock,
-	// before fixed operator-only activation, in the same bounded transaction.
-	if verify(bounded) != nil || c.sql.activate(bounded, p.organization, p.writer, verify) != nil || bounded.Err() != nil {
-		return ErrRefused
+	// Verify again after the SQL adapter acquires the original organization lock.
+	if err := verify(bounded); err != nil {
+		return err
 	}
+	if err := c.sql.activate(bounded, p.organization, p.writer, verify); err != nil {
+		if ActivationRefusalStage(err) != "unknown" {
+			return err
+		}
+		return activationRefused(bounded, "sql-activation")
+	}
+	if bounded.Err() != nil {
+		return activationRefused(bounded, "deadline")
+	}
+
 	return nil
 }
 
@@ -120,4 +141,30 @@ func prepareRefused(ctx context.Context, stage string) error {
 		stage = "deadline"
 	}
 	return &prepareRefusal{stage: stage}
+}
+
+// ActivationRefusalStage returns a fixed guard stage only. It never exposes
+// database errors, process identities, credentials or model contents.
+func ActivationRefusalStage(err error) string {
+	var refusal *activationRefusal
+	if !errors.As(err, &refusal) || refusal == nil {
+		return "unknown"
+	}
+	switch refusal.stage {
+	case "invalid", "permit", "deadline", "old-credential", "writer-absence", "new-model", "sql-begin", "sql-role", "sql-lock", "sql-baseline", "sql-activation", "sql-result", "sql-commit":
+		return refusal.stage
+	default:
+		return "unknown"
+	}
+}
+
+type activationRefusal struct{ stage string }
+
+func (*activationRefusal) Error() string { return ErrRefused.Error() }
+func (*activationRefusal) Unwrap() error { return ErrRefused }
+func activationRefused(ctx context.Context, stage string) error {
+	if ctx != nil && ctx.Err() != nil {
+		stage = "deadline"
+	}
+	return &activationRefusal{stage: stage}
 }

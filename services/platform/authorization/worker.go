@@ -108,13 +108,14 @@ type WorkerDecision struct {
 }
 
 type WorkerExecutor struct {
-	approvalOriginProfile string
-	pool                  *pgxpool.Pool
-	checker               Checker
-	storeID, modelID      string
-	key                   *WorkerKey
-	adapter               bool
-	discovery             bool
+	approvalOriginProfile     string
+	approvalActivationProfile string
+	pool                      *pgxpool.Pool
+	checker                   Checker
+	storeID, modelID          string
+	key                       *WorkerKey
+	adapter                   bool
+	discovery                 bool
 }
 
 func NewWorkerExecutor(pool *pgxpool.Pool, checker Checker, storeID, modelID string, key *WorkerKey) (*WorkerExecutor, error) {

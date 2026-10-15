@@ -3,7 +3,7 @@ export {describeOwnedRuntimeStartupFailure} from './owned-runtime-startup-diagno
 import { lstat, readdir, realpath, statfs } from 'node:fs/promises';
 import path from 'node:path';
 import { loadOfficialHeldTool, reopenOfficialHeldTool, closeHeldTool } from './official-held-tools.mjs';
-import { startOwnedRuntimeServices } from './owned-runtime-services.mjs';
+import { startOwnedRuntimeServices, validOwnedOpenFGAPostgresDSN } from './owned-runtime-services.mjs';
 
 const RESERVE=2684354560n,BUDGET=536870912n,MARGIN=33554432n;
 const fail=()=>{throw Error('owned runtime resource unavailable');};
@@ -27,7 +27,7 @@ const defaults={observe:observeOwnedAllocation,load:loadOfficialHeldTool,closeTo
 // This owner keeps the sampled disk guard alive after startup. Its completion
 // settles only after service/tool joins; the caller removes its allocation last.
 export async function startOwnedRuntimeLifetime(config,adapters=defaults){
- if(!config||Object.getPrototypeOf(config)!==Object.prototype||Object.keys(config).length!==2||!Object.hasOwn(config,'root')||!Object.hasOwn(config,'run')||typeof config.root!=='string'||!path.isAbsolute(config.root)||path.normalize(config.root)!==config.root||typeof config.run!=='string'||!/^[a-f0-9]{16}$/.test(config.run))fail();
+ if(!config||Object.getPrototypeOf(config)!==Object.prototype||(Object.keys(config).length!==2&&!(Object.keys(config).length===3&&Object.hasOwn(config,'openfgaPostgresDSN')&&validOwnedOpenFGAPostgresDSN(config.openfgaPostgresDSN)))||!Object.hasOwn(config,'root')||!Object.hasOwn(config,'run')||typeof config.root!=='string'||!path.isAbsolute(config.root)||path.normalize(config.root)!==config.root||typeof config.run!=='string'||!/^[a-f0-9]{16}$/.test(config.run))fail();
  const initial=await adapters.observe(config.root);if(typeof initial.free!=='bigint'||typeof initial.allocated!=='bigint'||initial.free<RESERVE+BUDGET+MARGIN||initial.allocated>BUDGET||initial.allocated<0n)fail();
  const controller=new AbortController(),tools={};let services,timer,sampling=Promise.resolve(),stopped=false,closePromise,rejectResource;
  const resourceFailure=new Promise((_,reject)=>{rejectResource=reject;});void resourceFailure.catch(()=>{});
@@ -38,10 +38,10 @@ export async function startOwnedRuntimeLifetime(config,adapters=defaults){
  timer=adapters.setTimer(sample,100);
  let loading=Promise.resolve();
  try{
-  loading=(async()=>{for(const name of ['temporal','openfga']){if(controller.signal.aborted)fail();tools[name]=await adapters.load(name,path.join(config.root,name+'.tar.gz'),path.join(config.root,name+'-held'));if(controller.signal.aborted)fail();}services=await adapters.start({run:config.run,rootParent:config.root,tools},undefined,controller.signal,beforeStartupCleanup);return services;})();
+  loading=(async()=>{for(const name of ['temporal','openfga']){if(controller.signal.aborted)fail();tools[name]=await adapters.load(name,path.join(config.root,name+'.tar.gz'),path.join(config.root,name+'-held'));if(controller.signal.aborted)fail();}services=await adapters.start({run:config.run,rootParent:config.root,tools,...(Object.hasOwn(config,'openfgaPostgresDSN')?{openfgaPostgresDSN:config.openfgaPostgresDSN}:{})},undefined,controller.signal,beforeStartupCleanup);return services;})();
   await Promise.race([loading,resourceFailure]);
   const completed=Promise.race([services.completed,resourceFailure]).then(async value=>{await close();return value;},async error=>{await close();throw error;});void completed.catch(()=>{});
-  return Object.freeze({environment:services.environment,completed,close,root:config.root,acceptance:false,native:false,production:false,deployed:false,upgradeInstalled:false,ledger:false});
+  return Object.freeze({environment:services.environment,...(services.withdrawOldCredential?{oldTokenFile:services.oldTokenFile,newTokenFile:services.newTokenFile,withdrawOldCredential:services.withdrawOldCredential}:{}),completed,close,root:config.root,acceptance:false,native:false,production:false,deployed:false,upgradeInstalled:false,ledger:false});
  }catch(error){controller.abort();try{await loading;}catch{/* Preserve the original failure after joining the losing startup operation. */}await close();throw error;}
 }
 
@@ -68,7 +68,7 @@ const retainedDefaults={...defaults,observe:observeRetainedAllocation,reopen:reo
 export async function startRetainedOwnedRuntimeLifetime(config,adapters=retainedDefaults){
  let diagnosticPhase='retained-input';
  try{
- const keys=['stateRoot','archiveRoot','rawRoot','run'];if(!config||Object.getPrototypeOf(config)!==Object.prototype||Object.keys(config).length!==keys.length||!keys.every(key=>Object.hasOwn(config,key))||typeof config.run!=='string'||!/^[a-f0-9]{16}$/.test(config.run))fail();
+ const keys=['stateRoot','archiveRoot','rawRoot','run'];if(!config||Object.getPrototypeOf(config)!==Object.prototype||(Object.keys(config).length!==keys.length&&!(Object.keys(config).length===keys.length+1&&Object.hasOwn(config,'openfgaPostgresDSN')&&validOwnedOpenFGAPostgresDSN(config.openfgaPostgresDSN)))||!keys.every(key=>Object.hasOwn(config,key))||typeof config.run!=='string'||!/^[a-f0-9]{16}$/.test(config.run))fail();
  diagnosticPhase='retained-roots';
  const roots=['stateRoot','archiveRoot','rawRoot'].map(key=>config[key]);if(!roots.every(root=>typeof root==='string'&&path.isAbsolute(root)&&path.normalize(root)===root)||roots.some((root,index)=>roots.some((other,otherIndex)=>index!==otherIndex&&(root===other||root.startsWith(other+'/')))))fail();
  diagnosticPhase='retained-allocation-observe';
@@ -81,8 +81,8 @@ export async function startRetainedOwnedRuntimeLifetime(config,adapters=retained
  const sample=()=>{if(stopped)return;sampling=(async()=>{try{const value=await adapters.observe(roots);checkRetainedSample(value);}catch(error){controller.abort();rejectResource(recordOwnedRuntimeStartupFailure(Error('owned runtime sampled resource refusal'),'retained-sampled-resource',allocationReasons.get(error)??'refused'));}finally{if(!stopped&&!controller.signal.aborted)timer=adapters.setTimer(sample,100);}})();};
  diagnosticPhase='retained-sampler-start';
  timer=adapters.setTimer(sample,100);let loading=Promise.resolve();
- try{loading=(async()=>{for(const name of ['temporal','openfga']){if(controller.signal.aborted)fail();diagnosticPhase=name==='temporal'?'retained-temporal-custody':'retained-openfga-custody';tools[name]=await adapters.reopen(name,path.join(config.archiveRoot,name+'.tar.gz'),path.join(config.rawRoot,name+'-held'));if(controller.signal.aborted)fail();}diagnosticPhase='retained-service-start';services=await adapters.start({run:config.run,rootParent:config.stateRoot,tools},undefined,controller.signal,beforeStartupCleanup);return services;})();await Promise.race([loading,resourceFailure]);
-  const completed=Promise.race([services.completed,resourceFailure]).then(async value=>{await close();return value;},async error=>{await close();throw error;});void completed.catch(()=>{});return Object.freeze({environment:services.environment,completed,close,root:config.stateRoot,acceptance:false,native:false,production:false,deployed:false,upgradeInstalled:false,ledger:false});
+ try{loading=(async()=>{for(const name of ['temporal','openfga']){if(controller.signal.aborted)fail();diagnosticPhase=name==='temporal'?'retained-temporal-custody':'retained-openfga-custody';tools[name]=await adapters.reopen(name,path.join(config.archiveRoot,name+'.tar.gz'),path.join(config.rawRoot,name+'-held'));if(controller.signal.aborted)fail();}diagnosticPhase='retained-service-start';services=await adapters.start({run:config.run,rootParent:config.stateRoot,tools,...(Object.hasOwn(config,'openfgaPostgresDSN')?{openfgaPostgresDSN:config.openfgaPostgresDSN}:{})},undefined,controller.signal,beforeStartupCleanup);return services;})();await Promise.race([loading,resourceFailure]);
+  const completed=Promise.race([services.completed,resourceFailure]).then(async value=>{await close();return value;},async error=>{await close();throw error;});void completed.catch(()=>{});return Object.freeze({environment:services.environment,...(services.withdrawOldCredential?{oldTokenFile:services.oldTokenFile,newTokenFile:services.newTokenFile,withdrawOldCredential:services.withdrawOldCredential}:{}),completed,close,root:config.stateRoot,acceptance:false,native:false,production:false,deployed:false,upgradeInstalled:false,ledger:false});
  }catch(error){controller.abort();try{await loading;}catch{/* Preserve the original failure after joining the losing startup operation. */}await close();throw error;}
 
  }catch(error){recordOwnedRuntimeStartupFailure(error,diagnosticPhase,allocationReasons.get(error)??'refused');throw error;}

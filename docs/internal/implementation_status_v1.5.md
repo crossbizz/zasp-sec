@@ -1,5 +1,27 @@
 # Agent Security Platform Implementation Status
 
+## Connected dual-worker composition checkpoint, October 15, 2026
+
+The candidate connects real maintenance profile installation, distinct worker key
+registration, measured old-writer exit and OpenFGA credential withdrawal, combined
+activation, and composed projection refresh to browser startup. Worker dispatch
+requires exact compiled pins and live catalog readiness. The supplementary approval
+profile preserves the original immutable implementation and live permission checks.
+Callback recovery also corrects a SQL alias collision.
+
+Grouped local checks pass: 117 JavaScript cases, 144 named Go cases across ten
+package results, UI typecheck/build, and independent source reviews. Native database
+acceptance remains pending. At the preceding hosted commit, OAuth/capture passed;
+lifecycle/recovery and browser API readiness failed. The overall Runnable UI workflow
+failed at browser acceptance, leaving subsequent release checks unexecuted.
+
+This contributes to M1-28, M3-24 and P7/P8 prerequisites without promoting any original
+task. All 728 rows retain 523 production-available, 144 component-only and 61 external
+categories; those recorded categories do not prove deployed readiness. Positive native
+activation, all approval origin families, real webhook settlement and deployed
+Stytch/provider flows remain open. See the
+[dual-worker checkpoint](cloud-dual-worker-composition-checkpoint-2026-10-15.json).
+
 
 ## Startup supervision checkpoint, October 15, 2026
 

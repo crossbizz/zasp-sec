@@ -128,6 +128,7 @@ func TestConnectorMaintenanceNativeLifecyclePostgres(t *testing.T) {
 			}
 			return raw
 		}
+		catalogBefore := connectorCatalogCapture(f)
 		raw := proof()
 		var version int64
 		var configuration json.RawMessage
@@ -142,6 +143,7 @@ func TestConnectorMaintenanceNativeLifecyclePostgres(t *testing.T) {
 		var response []byte
 		if err := f.api.QueryRow(f.ctx, `SELECT zasp_connector_maintenance.start_oauth($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14,$15,$16::jsonb,$17,$18)`, string(raw), o, w, e, attempt, integrationClientExisting, "github", f.browser.PrincipalID.String(), f.browser.credentialBinding.Digest[:], state[:], "ref:oauth/pkce/native-lifecycle", request[:], `["read:org"]`, time.Now().UTC().Add(5*time.Minute), version, configuration, cleanup, authorize).Scan(&response); err != nil {
 			connectorFixtureErrorDiagnostic(t, err)
+			connectorCatalogReport(t, f, catalogBefore)
 			t.Fatal("original authenticated enqueue refused")
 		}
 		if err := f.api.QueryRow(f.ctx, `SELECT zasp_connector_maintenance.handoff_pkce($1,$2,$3,$4,$5)`, string(proof()), o, w, e, cleanup).Scan(&response); err != nil {
@@ -185,6 +187,7 @@ func TestConnectorMaintenanceNativeLifecyclePostgres(t *testing.T) {
 		stopWriter()
 		owned.withdrawOld(t)
 		if err := cutover.Activate(f.ctx, permit); err != nil {
+			t.Log("connector cutover activation stage=" + connectormaintenancecutover.ActivationRefusalStage(err))
 			t.Fatal("controlled measured activation refused")
 		}
 		projection, err := authorization.NewCurrentMaintenanceProjectionRepository(f.ctx, workerPool, approvalPin, pin)

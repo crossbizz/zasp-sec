@@ -90,3 +90,80 @@ func TestControlledPrepareRefusalStages(t *testing.T) {
 		}
 	})
 }
+
+// Activation diagnostics disclose fixed guard stages while keeping one-use permits.
+func TestControlledActivateRefusalStages(t *testing.T) {
+	for _, stage := range []string{"old-credential", "writer-absence", "new-model", "sql-activation", "deadline"} {
+		t.Run(stage, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			observations := &activationStageEvidence{failure: stage, cancel: cancel}
+			operation := &activationStageSQL{failure: stage}
+			coordinator := &Coordinator{observations: observations, sql: operation, ttl: time.Second}
+			permit, err := coordinator.Prepare(ctx, "organization", 123)
+			if err != nil {
+				t.Fatal("prepare refused")
+			}
+			err = coordinator.Activate(ctx, permit)
+			if !errors.Is(err, ErrRefused) || err.Error() != ErrRefused.Error() || ActivationRefusalStage(fmt.Errorf("private wrapper: %w", err)) != stage {
+				t.Fatalf("closed stage mismatch: %s", ActivationRefusalStage(err))
+			}
+			if coordinator.Activate(context.Background(), permit) == nil || operation.calls > 1 {
+				t.Fatal("spent permit replayed")
+			}
+		})
+	}
+	for _, err := range []error{nil, ErrRefused, errors.New("sql-activation: private SQL text")} {
+		if ActivationRefusalStage(err) != "unknown" {
+			t.Fatal("untyped diagnostic accepted")
+		}
+	}
+}
+
+type activationStageEvidence struct {
+	failure string
+	cancel  context.CancelFunc
+}
+
+func (*activationStageEvidence) live(_ context.Context, pid int) (identity, error) {
+	return identity{pid: pid, start: "owned-process"}, nil
+}
+func (*activationStageEvidence) oldModel(context.Context) error { return nil }
+func (e *activationStageEvidence) oldUnauthorized(context.Context) error {
+	if e.failure == "deadline" {
+		e.cancel()
+		return context.Canceled
+	}
+	if e.failure == "old-credential" {
+		return errors.New("private token failure")
+	}
+	return nil
+}
+func (e *activationStageEvidence) absent(context.Context, identity) error {
+	if e.failure == "writer-absence" {
+		return errors.New("private process detail")
+	}
+	return nil
+}
+func (e *activationStageEvidence) newModel(context.Context) error {
+	if e.failure == "new-model" {
+		return errors.New("private model detail")
+	}
+	return nil
+}
+
+type activationStageSQL struct {
+	failure string
+	calls   int
+}
+
+func (s *activationStageSQL) activate(ctx context.Context, _ string, _ identity, verify func(context.Context) error) error {
+	s.calls++
+	if e := verify(ctx); e != nil {
+		return e
+	}
+	if s.failure == "sql-activation" {
+		return activationRefused(ctx, "sql-activation")
+	}
+	return nil
+}

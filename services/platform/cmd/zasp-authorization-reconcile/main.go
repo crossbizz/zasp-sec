@@ -13,6 +13,9 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimepostgres"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeservices"
+	"io"
+	"net"
+	"net/url"
 	"os"
 	"os/signal"
 	"syscall"
@@ -26,13 +29,13 @@ func main() {
 	}
 }
 func run() error {
-	mode := flag.String("mode", "reconcile", "configure or reconcile")
+	mode := flag.String("mode", "reconcile", "configure, reconcile or reconcile-and-hold")
 	org := flag.String("organization", "", "canonical product organization ID; required for configure")
 	repair := flag.Bool("repair", false, "mark configured organization pending for a full replay")
 	limit := flag.Int("limit", 20, "maximum pending organizations in this pass (1..100)")
 	timeout := flag.Duration("timeout", 2*time.Minute, "total pass deadline (1s..10m)")
 	flag.Parse()
-	if flag.NArg() != 0 || (*mode != "configure" && *mode != "reconcile") || *limit < 1 || *limit > 100 || *timeout < time.Second || *timeout > 10*time.Minute || (*repair && *mode != "configure") {
+	if flag.NArg() != 0 || (*mode != "configure" && *mode != "reconcile" && *mode != "reconcile-and-hold") || *limit < 1 || *limit > 100 || *timeout < time.Second || *timeout > 10*time.Minute || (*repair && *mode != "configure") {
 		return authorization.ErrInvalid
 	}
 	if *org != "" {
@@ -40,12 +43,15 @@ func run() error {
 			return authorization.ErrInvalid
 		}
 	}
-	if *mode == "configure" && *org == "" {
+	if (*mode == "configure" || *mode == "reconcile-and-hold") && *org == "" {
 		return authorization.ErrInvalid
 	}
 	config, err := runtimeservices.Load(os.Getenv)
 	if err != nil || !config.Enabled {
 		return runtimeservices.ErrConfiguration
+	}
+	if *mode == "reconcile-and-hold" && (*timeout > 2*time.Minute || config.Environment != "test" || config.ApprovalMaintenanceProfileChecksum != "" || config.ConnectorMaintenanceProfileChecksum != "" || config.ApprovalActivationProfileChecksum != "" || !controlledLoopback(config.FGAURL) || !controlledTemporal(config.TemporalAddress)) {
+		return authorization.ErrInvalid
 	}
 	signalCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -57,6 +63,9 @@ func run() error {
 	}
 	poolConfig, err := runtimepostgres.ParsePoolConfig(dsn)
 	if err != nil {
+		return authorization.ErrInvalid
+	}
+	if *mode == "reconcile-and-hold" && !net.ParseIP(poolConfig.ConnConfig.Host).IsLoopback() {
 		return authorization.ErrInvalid
 	}
 	poolConfig.MaxConns = 3
@@ -139,5 +148,41 @@ func run() error {
 	if failed {
 		return authorization.ErrPending
 	}
+	if *mode == "reconcile-and-hold" {
+		if err := json.NewEncoder(os.Stdout).Encode(map[string]string{"status": "writer-held"}); err != nil {
+			return authorization.ErrUnavailable
+		}
+		return holdWriter(ctx, os.Stdin)
+	}
 	return nil
+}
+
+// The hold mode is only for a single owned local runtime, never a fleet witness.
+func controlledLoopback(raw string) bool {
+	u, e := url.Parse(raw)
+	if e != nil || u.Scheme != "http" || u.User != nil || u.Path != "" || u.RawQuery != "" || u.Fragment != "" || u.Port() == "" {
+		return false
+	}
+	ip := net.ParseIP(u.Hostname())
+	return ip != nil && ip.IsLoopback()
+}
+func controlledTemporal(raw string) bool {
+	host, port, e := net.SplitHostPort(raw)
+	ip := net.ParseIP(host)
+	return e == nil && port != "" && ip != nil && ip.IsLoopback()
+}
+func holdWriter(ctx context.Context, r io.Reader) error {
+	done := make(chan bool, 1)
+	go func() { var b [1]byte; n, e := r.Read(b[:]); done <- n == 0 && e == io.EOF }()
+	if ctx.Err() != nil {
+		return authorization.ErrUnavailable
+	}
+	select {
+	case ok := <-done:
+		if ok && ctx.Err() == nil {
+			return nil
+		}
+	case <-ctx.Done():
+	}
+	return authorization.ErrUnavailable
 }

@@ -11,6 +11,7 @@ const MODEL_SHA='329f49e1f2effecbe1a0e9caf6c89be939b1e36e034155d74977bfc82c73cc2
 const hash=b=>createHash('sha256').update(b).digest('hex');
 const fail=()=>{throw Error('owned runtime fixture unavailable');};
 const exact=(v,k)=>v&&Object.getPrototypeOf(v)===Object.prototype&&Object.keys(v).length===k.length&&k.every(x=>Object.hasOwn(v,x));
+export function validOwnedOpenFGAPostgresDSN(value){try{if(typeof value!=='string'||value.length>4096)return false;const u=new URL(value);return u.protocol==='postgres:'&&u.hostname==='127.0.0.1'&&/^[1-9][0-9]{0,4}$/.test(u.port)&&Number(u.port)<=65535&&/^[a-z][a-z0-9_]{0,62}$/.test(u.username)&&!['postgres','root'].includes(u.username)&&u.password.length>0&&/^\/[a-z][a-z0-9_]{0,62}$/.test(u.pathname)&&u.search==='?sslmode=disable'&&!u.hash;}catch{return false;}}
 const ulid=v=>typeof v==='string'&&/^[0-7][0-9A-HJKMNP-TV-Z]{25}$/.test(v);
 class CleanupIncomplete extends Error { constructor(){super('owned runtime cleanup incomplete');} }
 const lifetimes=new WeakMap();
@@ -24,7 +25,7 @@ function exactModel(expected,actual,id){if(!actual||actual.id!==id)return false;
 const defaultAdapters={
  verify:async tools=>{for(const name of ['temporal','openfga']){if(heldToolName(tools[name])!==name)fail();await verifyHeldTool(tools[name]);}},
  makeRoot:async(run,parent)=>{const info=await lstat(parent);if(!info.isDirectory()||info.isSymbolicLink()||(info.mode&0o077)!==0||info.uid!==process.getuid()||await realpath(parent)!==parent)fail();return mkdtemp(path.join(parent,'zasp-browser-'+run+'-'));},
- writeToken:async(root,token)=>{await mkdir(path.join(root,'home'),{mode:0o700});await writeFile(path.join(root,'openfga.token'),token,{flag:'wx',mode:0o600});},
+ writeToken:async(root,token,name='openfga.token')=>{await mkdir(path.join(root,'home'),{mode:0o700,recursive:true});await writeFile(path.join(root,name),token,{flag:'wx',mode:0o600});},
  now:()=>Date.now(), wait:milliseconds=>delay(milliseconds),
  token:()=>randomBytes(32).toString('hex'),
  reservePort:()=>new Promise((resolve,reject)=>{const s=net.createServer();s.once('error',reject);s.listen(0,'127.0.0.1',()=>{const port=s.address().port;s.close(error=>error?reject(error):resolve(port));});}),
@@ -34,12 +35,13 @@ const defaultAdapters={
   const cancel=()=>{cleanup??=owner.stop();void cleanup.catch(()=>{});};
   options.signal.addEventListener('abort',cancel,{once:true});if(options.signal.aborted)cancel();
   let result,operationError,operationFailed=false,cleanupFailed=false;
-  try{const completed=await owner.completed;if(options.signal.aborted||completed.status!==0||completed.signal||completed.outputLimitExceeded)fail();result=JSON.parse(completed.stdout);}
+  try{const completed=await owner.completed;if(options.signal.aborted||completed.status!==0||completed.signal||completed.outputLimitExceeded)fail();result=options.json===false?undefined:JSON.parse(completed.stdout);}
   catch(error){operationError=error;operationFailed=true;}
   finally{options.signal.removeEventListener('abort',cancel);try{await (cleanup??owner.stop());}catch{cleanupFailed=true;}}
   if(cleanupFailed)throw new CleanupIncomplete();if(operationFailed)throw operationError;return result;
  },
  request:async(url,options)=>{const response=await fetch(url,{...options,signal:options.signal});if(!response.ok){await response.body?.cancel();fail();}const reader=response.body.getReader();let size=0;const chunks=[];try{for(;;){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>1024*1024)fail();chunks.push(Buffer.from(value));}return JSON.parse(Buffer.concat(chunks).toString('utf8'));}finally{await reader.cancel();}},
+ requestStatus:async(url,options)=>{const response=await fetch(url,options);try{return response.status;}finally{await response.body?.cancel();}},
  health:async(url,signal)=>{const response=await fetch(url,{redirect:'error',signal});try{return response.ok;}finally{await response.body?.cancel();}},
  removeRoot:root=>rm(root,{recursive:true,force:false}),
 };
@@ -49,7 +51,7 @@ const defaultAdapters={
 export async function startOwnedRuntimeServices(config,adapters=defaultAdapters,signal,beforeStartupCleanup){
  let diagnosticPhase='service-input';
  try{
- if((beforeStartupCleanup!==undefined&&typeof beforeStartupCleanup!=='function')||(signal!==undefined&&!(signal instanceof AbortSignal))||!exact(config,['run','rootParent','tools'])||typeof config.run!=='string'||!/^[a-f0-9]{16}$/.test(config.run)||!exact(config.tools,['temporal','openfga'])||typeof config.rootParent!=='string'||!path.isAbsolute(config.rootParent)||path.normalize(config.rootParent)!==config.rootParent)fail();
+ if((beforeStartupCleanup!==undefined&&typeof beforeStartupCleanup!=='function')||(signal!==undefined&&!(signal instanceof AbortSignal))||!(exact(config,['run','rootParent','tools'])||exact(config,['run','rootParent','tools','openfgaPostgresDSN'])&&validOwnedOpenFGAPostgresDSN(config.openfgaPostgresDSN))||typeof config.run!=='string'||!/^[a-f0-9]{16}$/.test(config.run)||!exact(config.tools,['temporal','openfga'])||typeof config.rootParent!=='string'||!path.isAbsolute(config.rootParent)||path.normalize(config.rootParent)!==config.rootParent)fail();
  diagnosticPhase='service-tool-capabilities';
  if(adapters===defaultAdapters){for(const name of ['temporal','openfga'])if(heldToolName(config.tools[name])!==name)fail();}
  else for(const name of ['temporal','openfga']){const t=config.tools[name];if(!exact(t,['path','archive','sha256'])||path.basename(t.path??'')!==name)fail();}
@@ -59,32 +61,34 @@ export async function startOwnedRuntimeServices(config,adapters=defaultAdapters,
  try{await adapters.verify(config.tools);}catch(error){if(adapters===defaultAdapters)await Promise.allSettled(Object.values(config.tools).map(closeHeldTool));throw error;}
  diagnosticPhase='service-root-create';
  let root;try{root=await adapters.makeRoot(config.run,config.rootParent);}catch(error){if(adapters===defaultAdapters)await Promise.allSettled(Object.values(config.tools).map(closeHeldTool));throw error;}
- const owners=[],operations=new Set();let closePromise,exited=false,incompleteOperation=false,aborted=signal?.aborted??false;
+ const owners=[],operations=new Set(),expectedStops=new WeakSet();let finishLifetime;const completed=new Promise(resolve=>{finishLifetime=resolve;});const watch=owner=>{void owner.completed.then(value=>{if(!expectedStops.has(owner)){exited=true;finishLifetime(value);}},()=>{if(!expectedStops.has(owner)){exited=true;finishLifetime({status:1});}});};let closePromise,exited=false,incompleteOperation=false,aborted=signal?.aborted??false;
  const abort=()=>{aborted=true;for(const op of operations)op.controller.abort();};signal?.addEventListener('abort',abort,{once:true});
- const close=()=>closePromise??=(async()=>{let incomplete=incompleteOperation;for(const op of operations)op.controller.abort();await Promise.allSettled([...operations].map(op=>op.finalized));incomplete||=incompleteOperation;for(const owner of owners.slice().reverse()){try{await owner.stop();}catch{incomplete=true;}}if(adapters===defaultAdapters)for(const tool of Object.values(config.tools)){try{await closeHeldTool(tool);}catch{incomplete=true;}}signal?.removeEventListener('abort',abort);if(incomplete)throw new CleanupIncomplete();await adapters.removeRoot(root);})();
+ const close=()=>closePromise??=(async()=>{aborted=true;let incomplete=incompleteOperation;for(const op of operations)op.controller.abort();await Promise.allSettled([...operations].map(op=>op.finalized));incomplete||=incompleteOperation;for(const owner of owners.slice().reverse()){try{await owner.stop();}catch{incomplete=true;}}if(adapters===defaultAdapters)for(const tool of Object.values(config.tools)){try{await closeHeldTool(tool);}catch{incomplete=true;}}signal?.removeEventListener('abort',abort);if(incomplete)throw new CleanupIncomplete();await adapters.removeRoot(root);})();
  const namespace='zasp-browser-'+config.run;
  const guard=async action=>{
-  if(exited||aborted)fail();const controller=new AbortController();let timer;
+  if(exited||aborted||closePromise)fail();const controller=new AbortController();let timer;
   const op={controller};op.finalized=Promise.resolve().then(()=>action(controller.signal));operations.add(op);
   void op.finalized.catch(error=>{if(error instanceof CleanupIncomplete)incompleteOperation=true;});
   let result,operationError,operationFailed=false;
-  try{result=await Promise.race([op.finalized,new Promise((_,reject)=>controller.signal.addEventListener('abort',()=>reject(Error('cancelled')),{once:true})),...owners.map(owner=>owner.completed.then(fail,fail)),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('deadline')),5000);})]);if(exited||aborted)fail();}
+  try{result=await Promise.race([op.finalized,new Promise((_,reject)=>controller.signal.addEventListener('abort',()=>reject(Error('cancelled')),{once:true})),completed.then(fail,fail),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('deadline')),5000);})]);if(exited||aborted)fail();}
   catch(error){operationError=error;operationFailed=true;}
   finally{clearTimeout(timer);controller.abort();try{await op.finalized;}catch(error){if(error instanceof CleanupIncomplete)incompleteOperation=true;}operations.delete(op);}
   if(incompleteOperation)throw new CleanupIncomplete();if(operationFailed)throw operationError;return result;
  };
  try{
  diagnosticPhase='service-token-generate';
-  const token=adapters.token();if(typeof token!=='string'||!/^[a-f0-9]{64}$/.test(token))fail();diagnosticPhase='service-token-file';await adapters.writeToken(root,token);
+  const token=adapters.token(),persistent=config.openfgaPostgresDSN!==undefined,oldToken=persistent?adapters.token():undefined;if(persistent&&(typeof oldToken!=='string'||!/^[a-f0-9]{64}$/.test(oldToken)||oldToken===token))fail();if(typeof token!=='string'||!/^[a-f0-9]{64}$/.test(token))fail();diagnosticPhase='service-token-file';await adapters.writeToken(root,token);if(persistent)await adapters.writeToken(root,oldToken,'openfga-old.token');
   diagnosticPhase='service-ports';
   const temporalPort=await adapters.reservePort(),fgaPort=await adapters.reservePort(),grpcPort=await adapters.reservePort();if(![temporalPort,fgaPort,grpcPort].every(v=>Number.isSafeInteger(v)&&v>=1024&&v<=65535)||new Set([temporalPort,fgaPort,grpcPort]).size!==3)fail();
   const temporalAddress='127.0.0.1:'+temporalPort,fgaURL='http://127.0.0.1:'+fgaPort;
   const env={PATH:'/usr/bin:/bin',HOME:path.join(root,'home'),TMPDIR:root,LANG:'C',LC_ALL:'C'};
   diagnosticPhase='service-temporal-start';
   if(aborted)fail();owners.push(await adapters.start('temporal',['server','start-dev','--ip','127.0.0.1','--port',String(temporalPort),'--headless','--db-filename',path.join(root,'temporal.sqlite'),'--namespace',namespace],{tool:config.tools.temporal,cwd:root,env}));
+  watch(owners[0]);
+  const fgaEnv=keys=>({...env,OPENFGA_HTTP_ADDR:'127.0.0.1:'+fgaPort,OPENFGA_GRPC_ADDR:'127.0.0.1:'+grpcPort,OPENFGA_DATASTORE_ENGINE:persistent?'postgres':'memory',...(persistent?{OPENFGA_DATASTORE_URI:config.openfgaPostgresDSN}:{}),OPENFGA_AUTHN_METHOD:'preshared',OPENFGA_AUTHN_PRESHARED_KEYS:keys,OPENFGA_PLAYGROUND_ENABLED:'false',OPENFGA_METRICS_ENABLED:'false',OPENFGA_LOG_LEVEL:'warn'});
+  if(persistent){diagnosticPhase='service-openfga-migrate';await guard(signal=>adapters.command(config.tools.openfga,['migrate'],{cwd:root,env:fgaEnv(oldToken+','+token),signal,json:false}));}
   diagnosticPhase='service-openfga-start';
-  if(aborted)fail();owners.push(await adapters.start('openfga',['run'],{tool:config.tools.openfga,cwd:root,env:{...env,OPENFGA_HTTP_ADDR:'127.0.0.1:'+fgaPort,OPENFGA_GRPC_ADDR:'127.0.0.1:'+grpcPort,OPENFGA_DATASTORE_ENGINE:'memory',OPENFGA_AUTHN_METHOD:'preshared',OPENFGA_AUTHN_PRESHARED_KEYS:token,OPENFGA_PLAYGROUND_ENABLED:'false',OPENFGA_METRICS_ENABLED:'false',OPENFGA_LOG_LEVEL:'warn'}}));
-  for(const owner of owners)void owner.completed.then(()=>{exited=true;},()=>{exited=true;});
+  if(aborted)fail();owners.push(await adapters.start('openfga',['run'],{tool:config.tools.openfga,cwd:root,env:fgaEnv(persistent?oldToken+','+token:token)}));watch(owners[1]);
   // Poll only read-only namespace describe; no existing namespace is modified.
   diagnosticPhase='service-temporal-namespace';
   const deadline=adapters.now()+45000;let described;
@@ -108,8 +112,27 @@ export async function startOwnedRuntimeServices(config,adapters=defaultAdapters,
   diagnosticPhase='service-openfga-listeners';
   await guard(fgaListeners);
   const environment=Object.freeze({ZASP_RUNTIME_SERVICES_ENABLED:'true',ZASP_ENVIRONMENT:'test',ZASP_RUNTIME_SERVICES_TIMEOUT:'5s',ZASP_TEMPORAL_ADDRESS:temporalAddress,ZASP_TEMPORAL_NAMESPACE:namespace,ZASP_TEMPORAL_TASK_QUEUE:'zasp-browser-main-'+config.run,ZASP_TEMPORAL_DISCOVERY_TASK_QUEUE:'zasp-browser-discovery-'+config.run,ZASP_OPENFGA_URL:fgaURL,ZASP_OPENFGA_STORE_ID:store.id,ZASP_OPENFGA_MODEL_ID:published.authorization_model_id,ZASP_OPENFGA_TOKEN_FILE:path.join(root,'openfga.token')});
-  const completed=Promise.race(owners.map(owner=>owner.completed));void completed.catch(()=>{});
-  return Object.freeze({environment,root,close,completed,projection:'pending',acceptance:false,native:false,production:false,upgradeInstalled:false,deployed:false,ledger:false});
+  let withdrawn=false;
+  const withdrawOldCredential=async withdrawSignal=>{
+   if(withdrawSignal!==undefined&&!(withdrawSignal instanceof AbortSignal))fail();
+   if(!persistent||withdrawn||exited||aborted||closePromise)fail();withdrawn=true;
+   try{return await guard(async guardSignal=>{
+    const signal=withdrawSignal===undefined?guardSignal:AbortSignal.any([guardSignal,withdrawSignal]);if(signal.aborted)fail();
+    // Mark only this exact generation as expected; no other exit is forgiven.
+    const previous=owners[1];await fgaListeners(signal);if(signal.aborted||exited||aborted)fail();expectedStops.add(previous);await previous.stop();const stopped=await previous.completed;if(stopped?.status!==0||stopped.signal!==null||stopped.outputLimitExceeded)fail();
+    if(signal.aborted||exited||aborted)fail();await adapters.verify(config.tools);if(signal.aborted||exited||aborted)fail();
+    const replacement=await adapters.start('openfga',['run'],{tool:config.tools.openfga,cwd:root,env:fgaEnv(token)});owners[1]=replacement;watch(replacement);
+    const deadline=adapters.now()+4500;
+    for(;;){if(signal.aborted||exited||aborted)fail();try{await fgaListeners(signal);if(!adapters.health||await adapters.health(fgaURL+'/healthz',signal))break;}catch{if(signal.aborted||exited||aborted)fail();}if(adapters.now()>=deadline)fail();await adapters.wait(50);}
+    const url=fgaURL+'/stores/'+store.id+'/authorization-models/'+published.authorization_model_id;
+    if(await adapters.requestStatus(url,{method:'GET',redirect:'error',signal,headers:{Authorization:'Bearer '+oldToken}})!==401)fail();
+    const readback=await adapters.request(url,{method:'GET',redirect:'error',signal,headers:{Authorization:'Bearer '+token}});
+    if(!exactModel(JSON.parse(model),readback?.authorization_model,published.authorization_model_id))fail();await fgaListeners(signal);if(signal.aborted||exited||aborted)fail();
+    return Object.freeze({storeID:store.id,modelID:published.authorization_model_id,withdrawn:true});
+   });}catch(error){exited=true;finishLifetime({status:1});throw Error('owned runtime credential withdrawal unavailable');}
+  };
+  const credentialOwner=persistent?{oldTokenFile:path.join(root,'openfga-old.token'),newTokenFile:path.join(root,'openfga.token'),withdrawOldCredential}:{};
+  return Object.freeze({environment,root,close,completed,...credentialOwner,projection:'pending',acceptance:false,native:false,production:false,upgradeInstalled:false,deployed:false,ledger:false});
  }catch(error){recordOwnedRuntimeStartupFailure(error,diagnosticPhase);/* The enclosing allocation observer owns its sampling lifetime. Join it before deleting failed-start state. */try{await beforeStartupCleanup?.();}catch{incompleteOperation=true;}try{await close();}catch(cleanupError){throw carryOwnedRuntimeStartupFailure(recordOwnedRuntimeStartupFailure(cleanupError,'service-startup-cleanup','cleanup-incomplete'),Error('owned runtime cleanup incomplete'));}throw carryOwnedRuntimeStartupFailure(error,Error('owned runtime fixture unavailable'));}
 
  }catch(error){recordOwnedRuntimeStartupFailure(error,diagnosticPhase);throw error;}

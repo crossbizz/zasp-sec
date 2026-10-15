@@ -412,6 +412,14 @@ func registerForwardRelease(ctx context.Context, queryer principalQueryer, regis
 			}
 			statement = `SELECT session_user=$1 AND zasp_connector_maintenance.catalog_ready($2)`
 		}
+		if arguments[0] == "up-approval-activation-profile" {
+			var err error
+			pin, err = migrations.ApprovalActivationProfileChecksum()
+			if err != nil {
+				return errReleasePrincipalRegistration
+			}
+			statement = `SELECT session_user=$1 AND zasp_approval_activation_v1.catalog_ready($2)`
+		}
 		var ready bool
 		if err := queryer.QueryRow(ctx, statement, registration.migration, pin).Scan(&ready); err != nil || !ready {
 			return errReleasePrincipalRegistration
@@ -726,7 +734,7 @@ func (r *registeredReleaseMigrationRunner) UpProductionTemporalSingleRecovery(ct
 }
 
 func maintenanceProfileCommand(command string) bool {
-	return command == "up-approval-maintenance-profile" || command == "up-connector-maintenance-profile"
+	return command == "up-approval-maintenance-profile" || command == "up-connector-maintenance-profile" || command == "up-approval-activation-profile"
 }
 
 func (r *registeredReleaseMigrationRunner) UpProductionApprovalMaintenanceProfile(ctx context.Context) error {
@@ -749,6 +757,17 @@ func (r *registeredReleaseMigrationRunner) UpProductionConnectorMaintenance(ctx 
 		return migrations.ErrInvalidState
 	}
 	return extension.UpProductionConnectorMaintenance(ctx)
+}
+
+func (r *registeredReleaseMigrationRunner) UpProductionApprovalActivationProfile(ctx context.Context) error {
+	if err := r.auditProfilePrincipal(ctx); err != nil {
+		return err
+	}
+	extension, ok := r.releaseMigrationRunner.(interface{ UpProductionApprovalActivationProfile(context.Context) error })
+	if !ok {
+		return migrations.ErrInvalidState
+	}
+	return extension.UpProductionApprovalActivationProfile(ctx)
 }
 
 func isForwardMigration(arguments []string) bool {
@@ -803,6 +822,15 @@ func runReleaseMigration(ctx context.Context, runner releaseMigrationRunner, arg
 		return err
 	}
 	switch arguments[0] {
+	case "up-approval-activation-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		extension, ok := runner.(interface{ UpProductionApprovalActivationProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return extension.UpProductionApprovalActivationProfile(ctx)
 	case "up-approval-maintenance-profile":
 		if version != 61 {
 			return migrations.ErrInvalidState

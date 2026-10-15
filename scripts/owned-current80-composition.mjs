@@ -1,3 +1,4 @@
+import {activateOwnedMaintenance} from './owned-maintenance-composition.mjs';
 import {setTimeout as delay}from 'node:timers/promises';
 import { readFile } from 'node:fs/promises';
 export class OwnedProjectionCleanupIncomplete extends Error {constructor(){super('owned projection cleanup incomplete');}}
@@ -12,8 +13,8 @@ function revision(value,organization,environment){if(!value||Object.keys(value).
 // Existing commands remain the only installer, verifier and projection writers.
 // Call this after the independently retained legacy56 controls, before either
 // current API lifetime. No registration or acknowledgement SQL is manufactured.
-export async function installOwnedCurrent80({command,migrate,reconcile,psql,port,organization,identityEnvironment,runtimeEnvironment,keyFiles}){
- if(typeof command!=='function'||![migrate,reconcile,psql].every(absolute)||!Number.isSafeInteger(port)||port<1024||port>65535||!canonicalID(organization)||!identityEnvironment||!runtimeEnvironment||runtimeEnvironment.ZASP_RUNTIME_SERVICES_ENABLED!=='true'||runtimeEnvironment.ZASP_ENVIRONMENT!=='test'||!keyFiles||!absolute(keyFiles.forward)||!absolute(keyFiles.compensation)||keyFiles.forward===keyFiles.compensation)refusal();
+export async function installOwnedCurrent80({command,migrate,reconcile,psql,port,organization,identityEnvironment,runtimeEnvironment,keyFiles,maintenance},activateMaintenance=activateOwnedMaintenance){
+ if(typeof activateMaintenance!=='function'||typeof command!=='function'||![migrate,reconcile,psql].every(absolute)||!Number.isSafeInteger(port)||port<1024||port>65535||!canonicalID(organization)||!identityEnvironment||!runtimeEnvironment||runtimeEnvironment.ZASP_RUNTIME_SERVICES_ENABLED!=='true'||runtimeEnvironment.ZASP_ENVIRONMENT!=='test'||!keyFiles||!absolute(keyFiles.forward)||!absolute(keyFiles.compensation)||keyFiles.forward===keyFiles.compensation)refusal();
   const runtimeKeys=['ZASP_RUNTIME_SERVICES_ENABLED','ZASP_ENVIRONMENT','ZASP_RUNTIME_SERVICES_TIMEOUT','ZASP_TEMPORAL_ADDRESS','ZASP_TEMPORAL_NAMESPACE','ZASP_TEMPORAL_TASK_QUEUE','ZASP_TEMPORAL_DISCOVERY_TASK_QUEUE','ZASP_OPENFGA_URL','ZASP_OPENFGA_STORE_ID','ZASP_OPENFGA_MODEL_ID','ZASP_OPENFGA_TOKEN_FILE'];
  if(Object.keys(runtimeEnvironment).length!==runtimeKeys.length||runtimeKeys.some(key=>typeof runtimeEnvironment[key]!=='string')||!/^127\.0\.0\.1:[0-9]{4,5}$/.test(runtimeEnvironment.ZASP_TEMPORAL_ADDRESS)||!/^http:\/\/127\.0\.0\.1:[0-9]{4,5}$/.test(runtimeEnvironment.ZASP_OPENFGA_URL)||![runtimeEnvironment.ZASP_OPENFGA_STORE_ID,runtimeEnvironment.ZASP_OPENFGA_MODEL_ID].every(value=>/^[0-7][0-9A-HJKMNP-TV-Z]{25}$/.test(value))||!absolute(runtimeEnvironment.ZASP_OPENFGA_TOKEN_FILE))refusal();
 const required=['ZASP_PUBLIC_ORIGIN','ZASP_STYTCH_BASE_URL','ZASP_STYTCH_PROJECT_ID','ZASP_STYTCH_ORGANIZATION_ID','ZASP_DEPLOYMENT_MODE','ZASP_ORGANIZATION_ID','ZASP_WORKFLOW_SIGNING_KEY'];
@@ -35,8 +36,17 @@ const required=['ZASP_PUBLIC_ORIGIN','ZASP_STYTCH_BASE_URL','ZASP_STYTCH_PROJECT
   let data;try{data=JSON.parse(observation.stdout);}catch{refusal();}const observed=revision(data,organization,runtimeEnvironment);if(fields.some(key=>observed[key]!==applied[key]))refusal();return Object.freeze(observed);
  };
  let sequence=Promise.resolve();const refresh=signal=>{const pending=sequence.then(()=>pass(signal));sequence=pending.catch(()=>{});return pending;};
- const applied=await refresh();
- return Object.freeze({refresh,applied,apiDSN:reader.ZASP_POSTGRES_DSN,environment:Object.freeze({...runtimeEnvironment,ZASP_AUTHORIZATION_WORKER_KEY_FILE:keyFiles.forward,ZASP_AUTHORIZATION_COMPENSATION_KEY_FILE:keyFiles.compensation}),acceptance:false,native:false,production:false,deployed:false,upgradeInstalled:false,ledger:false});
+ let applied=await refresh();
+ let environment={...runtimeEnvironment,ZASP_AUTHORIZATION_WORKER_KEY_FILE:keyFiles.forward,ZASP_AUTHORIZATION_COMPENSATION_KEY_FILE:keyFiles.compensation};
+ if(maintenance!==undefined){
+  if(!maintenance||typeof maintenance!=='object'||Array.isArray(maintenance))refusal();
+  const installed=await activateMaintenance({...maintenance,command,migrate,reconcile,psql,port,organization,migrationEnvironment:migration,runtimeEnvironment});
+  if(!installed||!installed.environment||Object.hasOwn(installed.environment,'ZASP_POSTGRES_DSN'))refusal();
+  environment={...environment,...installed.environment};
+  Object.assign(delivery,installed.environment);Object.assign(reader,installed.environment);
+  applied=await refresh();
+ }
+ return Object.freeze({refresh,applied,apiDSN:reader.ZASP_POSTGRES_DSN,environment:Object.freeze(environment),acceptance:false,native:false,production:false,deployed:false,upgradeInstalled:false,ledger:false});
 }
 
 export async function runOwnedProjectionLoop(projector,signal,onFailure,wait=delay){

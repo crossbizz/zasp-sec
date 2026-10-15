@@ -4,11 +4,11 @@ import { CONNECTOR_ACCEPTANCE_GROUPS as groups, selectConnectorAcceptanceGroup a
 const pkg = 'github.com/zasp-ai/zasp-sec/services/platform/apiserver';
 const trace = selected => [...selected.names.flatMap(Test => [{Package: pkg, Test, Action: 'run'}, {Package: pkg, Test, Action: 'pass'}]), {Package: pkg, Action: 'pass'}];
 test('required application groups retain every flow and owned database', () => {
-  assert.deepEqual(Object.keys(groups), ['oauth', 'lifecycle', 'pkce', 'callback']);
-  assert.deepEqual(Object.values(groups).map(g => [g.names.length, g.postgresJoins]), [[3, 1], [6, 2], [4, 2], [4, 2]]);
+  assert.deepEqual(Object.keys(groups), ['approval', 'oauth', 'lifecycle', 'pkce', 'callback']);
+  assert.deepEqual(Object.values(groups).map(g => [g.names.length, g.postgresJoins]), [[6, 1], [3, 1], [6, 2], [4, 2], [4, 2]]);
   const names = Object.values(groups).flatMap(g => g.names);
-  assert.equal(names.length, 17); assert.equal(new Set(names).size, 17);
-  assert.equal(Object.values(groups).reduce((n, g) => n + g.postgresJoins, 0), 7);
+  assert.equal(names.length, 23); assert.equal(new Set(names).size, 23);
+  assert.equal(Object.values(groups).reduce((n, g) => n + g.postgresJoins, 0), 8);
   for (const key of Object.keys(groups)) { assert.equal(select([key]), groups[key]); validate(trace(groups[key]), groups[key]); }
 });
 test('missing, arbitrary, inherited, or multiple selectors cannot silently run a subset', () => {
@@ -24,6 +24,8 @@ test('native observations expose only bounded closed catalog and cutover fields'
   const value = observation('    connector_maintenance_catalog_diagnostic_test.go:12: connector catalog kind=function before=4 after=4 added=0 removed=0 changed=1\n');
   assert.deepEqual(value, {kind: 'catalog-object', value: {kind: 'function', before:4, after:4, added:0, removed:0, changed:1}});
   assert.deepEqual(observation('connector cutover prepare stage=model-read\n'), {kind:'cutover',stage:'model-read'});
+  for(const stage of ['invalid','permit','deadline','old-credential','writer-absence','new-model','sql-begin','sql-role','sql-lock','sql-baseline','sql-activation','sql-result','sql-commit','unknown'])assert.deepEqual(observation('connector cutover activation stage='+stage+'\n'),{kind:'activation',stage});
+  for(const input of ['connector cutover activation stage=PRIVATE_CANARY','connector cutover activation stage=sql-role PRIVATE_CANARY','connector cutover activation stage=sql-role\nPRIVATE_CANARY'])assert.equal(observation(input),null);
   assert.deepEqual(observation('connector catalog diagnostic=unavailable\n'), {kind:'catalog-summary',value:{observed:false}});
   const summary='connector catalog diagnostic=observed before_rows=20 after_rows=20 before_duplicates=0 after_duplicates=0 before_registered=true after_registered=false before_guc_equal=true after_guc_equal=false owner_guc_stable=true api_guc_stable=true';
   assert.equal(observation(summary).value.afterRegistered,false);
