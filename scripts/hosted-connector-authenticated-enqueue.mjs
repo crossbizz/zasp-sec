@@ -83,7 +83,7 @@ const pins = {
   "services/platform/migrations/production_approval_settlement_audit_profile.go": "48cf793e911b7766da1de15b01ee741c6c6cb1e800654fcd5d495d156886f7d1",
   "services/platform/migrations/production_approval_settlement_audit_profile_test.go": "868232f1bce320c00d360d5b023628b22e385dcfe7345e83755d04a656569434",
   "services/platform/migrations/sql/approval_settlement_audit_profile.sql": "5d32526a3e1029c031193e689186b3892535f98e1a882e2a2f46d7f11f4361c2",
-  "services/platform/apiserver/approval_maintenance_genuine_test74_postgres_test.go": "c83c002c70fa5d9fbad0a136c7995d347b2d8f6cff6b4165b141c371d11d3abe",
+  "services/platform/apiserver/approval_maintenance_genuine_test74_postgres_test.go": "2711ebe5ad3cde21d243ff8d1347c5db8a3b4f01330c5105cc6d093a53657a0d",
   "services/platform/apiserver/approval_activation_family_flow_test.go": "95272945e897f76c0d73b7722aa6fde436aff342b18e5109c2073206af709156",
   "services/platform/apiserver/approval_activation_family_runtime_test.go": "fff68ca1b09942be107df4b1b5345277aa9d0a96a7a2325ff76684289c46e12a",
   "services/platform/apiserver/approval_activation_ordered_progress_test.go": "d4046a280bbe47b705f5851ac656a63c20fe46031c80b264fdd9678b36ec825a",

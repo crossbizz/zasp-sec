@@ -524,8 +524,18 @@ func assertApprovalOriginTest74PlanningLoadWithAdmissionHooks(t *testing.T, ctx 
 		t.Fatal("genuine signed74 admission failed inactive origin capture", err)
 	}
 	var projected bool
-	if err := owner.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM zasp_approval_maintenance.delivery_grants WHERE organization_id=$1)`, o).Scan(&projected); err != nil || projected != (expectedCaptureState == "active") {
-		t.Fatal("inactive74 capture issued delegation", err)
+	if err := owner.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM zasp_approval_maintenance.delivery_grants WHERE organization_id=$1)`, o).Scan(&projected); err != nil {
+		connectorFixtureErrorDiagnostic(t, err)
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) || errors.Is(err, context.DeadlineExceeded) {
+			t.Fatal("native74 delivery grant query failed with observed context deadline")
+		}
+		if errors.Is(ctx.Err(), context.Canceled) || errors.Is(err, context.Canceled) {
+			t.Fatal("native74 delivery grant query failed with observed context cancellation")
+		}
+		t.Fatal("native74 delivery grant query failed")
+	}
+	if projected != (expectedCaptureState == "active") {
+		t.Fatal("native74 immediate delivery grant expectation mismatch")
 	}
 	if err := owner.QueryRow(ctx, `SELECT p.total_tokens=30 AND p.cost_nano_credits=30000 AND p.settled_at IS NOT NULL AND (SELECT count(*)=1 FROM zasp_security_agent_steps WHERE run_id=$1 AND step_index=0 AND action_key=$2) AND NOT EXISTS(SELECT 1 FROM zasp_sa_multistep_runs WHERE run_id=$1) FROM zasp_temporal74.provider_reservations p WHERE run_id=$1`, run, action).Scan(&one); err != nil || !one {
 		t.Fatal("native74 accounting and single canonical step", err)

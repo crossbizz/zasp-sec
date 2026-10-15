@@ -1,6 +1,30 @@
 # Agent Security Platform Implementation Status
 
 
+## Browser unit prerequisites and native attribution, October 15, 2026
+
+Starting from `2b32a6b15c98d50f3b36f93a250c96c22fc8760a`, the exact hosted
+browser unit prerequisite group reproduced four failures before API startup.
+The isolated actual-source fixture lacked the reviewed bootstrap scope and
+expected the previous ordering. Its repair retains every original failure,
+privacy, deadline and cleanup assertion, and checks projection refresh before
+API startup and the periodic loop after readiness. The exact group changed
+from 257 PASS/4 FAIL to 261 PASS/zero FAIL; root confirmation, lint and ledger
+checks pass. No production runner or workflow changed.
+
+Native query errors now have fixed, closed failure frames separate from
+unchanged grant/permit expectation mismatches. Independent reviews and full API
+fixture compilation pass; zero selected native tests ran locally. The immediate
+delivery-grant view assertion remains in place. Neither a context deadline nor
+a nil-error mismatch is presented as a proven cause before new native evidence.
+
+See `cloud-browser-unit-attribution-checkpoint-2026-10-15.json` for original
+RED evidence, exact commands and reviews. Current hosted native/browser gates,
+dependency security and real deployed acceptance remain unresolved. Counts
+remain 728 total, 523 historically production-available, 144 component-only,
+61 external, zero promotions. This is not launch acceptance.
+
+
 ## Initial API bootstrap and remaining-task inventory, October 15, 2026
 
 The owned acceptance runner finishes a genuine projection pass before initial

@@ -1,0 +1,111 @@
+{
+  "checkpoint": "cloud-browser-unit-attribution-2026-10-15",
+  "observedAt": "2026-10-15T05:08:36.877419+00:00",
+  "startingSHA": "2b32a6b15c98d50f3b36f93a250c96c22fc8760a",
+  "mainSHA": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
+  "requiredAncestor": "e13ccb95451b03107681ccb59b3fc6fe175a228f",
+  "classification": "Exact local unit prerequisite repair and diagnostic-only native attribution; hosted and deployed gates unresolved",
+  "ledger": {
+    "original_rows": 728,
+    "production_available_recorded": 523,
+    "component_only": 144,
+    "blocked_external": 61,
+    "missing": 0,
+    "promotions": 0
+  },
+  "taskCrosswalk": [
+    {
+      "id": "M7A-90c",
+      "owner": "T10-product-ui",
+      "contribution": "Repair actual-source browser prerequisite fixture after reviewed initial bootstrap ordering; no production availability promotion."
+    },
+    {
+      "id": "M8-41",
+      "owner": "T03-launch-connectors",
+      "contribution": "Separate unchanged native query failure from expectation mismatch using closed source annotations; no native success claim."
+    }
+  ],
+  "sources": [
+    {
+      "path": "scripts/browser-startup-phase.test.mjs",
+      "sha256": "0c06fa704d12c259898aecfb90847aa8f8856526fb82cc85a51e1d282acd82b2",
+      "bytes": 11344
+    },
+    {
+      "path": "services/platform/apiserver/approval_maintenance_genuine_test74_postgres_test.go",
+      "sha256": "2711ebe5ad3cde21d243ff8d1347c5db8a3b4f01330c5105cc6d093a53657a0d",
+      "bytes": 39176
+    },
+    {
+      "path": "services/platform/apiserver/security_agent_temporal_executor_postgres_test.go",
+      "sha256": "7ad3b0253559a4edf43dafd96a3c62bf4eba322599219889f2b0034b0e165c1f",
+      "bytes": 107620
+    },
+    {
+      "path": "scripts/hosted-connected-connector-acceptance.mjs",
+      "sha256": "846ffedf969261ca95a7cd1489bea0b9339d82f72ccfa94f20b495e69ee0eee9",
+      "bytes": 45401
+    },
+    {
+      "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
+      "sha256": "dddaebc97296a832f0c55f9918e66d46a176f18b8dd0ecc3b261ee0cc73123f8",
+      "bytes": 42287
+    }
+  ],
+  "verification": {
+    "exactWorkflowUnitRoster": {
+      "files": [
+        "scripts/browser-prerequisites.test.mjs",
+        "scripts/browser-e2e-helpers.test.mjs",
+        "scripts/owned-browser-postgres.test.mjs",
+        "scripts/compliance-browser-bytes.test.mjs"
+      ],
+      "red": {
+        "normalExit": 1,
+        "passes": 257,
+        "failures": 4
+      },
+      "green": {
+        "normalExit": 0,
+        "passes": 261,
+        "failures": 0,
+        "skipped": 0
+      },
+      "rootConfirmation": true
+    },
+    "fullApiFixtureCompilation": {
+      "normalExit": 0,
+      "selectedTests": 0,
+      "nativeExecution": false
+    },
+    "lintNormalExit": 0,
+    "ledgerNormalExit": 0,
+    "independentReviews": [
+      "browser-startup-phase-fixture-independent-review-20261015.json",
+      "native-failure-attribution-independent-review-20261015.json"
+    ],
+    "evidence": {
+      "path": "docs/internal/evidence/cloud-2026-10-15/browser-unit-attribution/verified-batch-evidence.json.gz",
+      "sha256": "dca6ca43dc0a9a342478bb3efc387682f984ed5d4e1d24f9453d3674135e7351",
+      "bytes": 87052,
+      "uncompressedSHA256": "ad7e79d2b32f7c7473081ae9afdc932fc642fe2082d508c342a91e075288094e",
+      "members": 24
+    }
+  },
+  "precedingHosted": {
+    "head": "2b32a6b15c98d50f3b36f93a250c96c22fc8760a",
+    "snapshot": "pr60-2b32-monitor-2-20261015.json",
+    "browserPR": "Unit prerequisites exit1 before API readiness; locally reproduced missing actual-source VM bindings, not a runtime metadata timing conclusion.",
+    "otherFailures": "Native grant/planner/overflow/finding/lifecycle and strict event-case refusal remain. Inner Go PASS with outer event-case refusal is not accepted. PR capture failed pinned setup-go codeload infrastructure; push capture passed.",
+    "access": "Official finite check/job metadata and bounded annotations only; restricted raw logs/artifacts not fetched."
+  },
+  "invariants": [
+    "Production runner, all SQL/queries/execution order/boolean assertions unchanged.",
+    "Original timeout/lease/FGA/tenant/RLS/rosters/release guards unchanged.",
+    "Delivery grants is a live view, not populated by asynchronous Stage; immediate assertion is retained.",
+    "Observed context expiry is attribution, not a proven causal explanation."
+  ],
+  "nativeAccepted": false,
+  "deployedAccepted": false,
+  "launchReady": false
+}

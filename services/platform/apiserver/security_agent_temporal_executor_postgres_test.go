@@ -366,12 +366,32 @@ func runTemporalExecutorPlanningFixtureWithHook(t *testing.T, beforeLoad tempora
 			t.Fatal("admitted without usage or artifacts")
 		}
 		job, err := call("start", map[string]any{})
-		if err != nil || job["send_permit"] != true {
-			t.Fatal("initial planner send permit", job, err)
+		if err != nil {
+			connectorFixtureErrorDiagnostic(t, err)
+			if errors.Is(ctx.Err(), context.DeadlineExceeded) || errors.Is(err, context.DeadlineExceeded) {
+				t.Fatal("initial planner start query failed with observed context deadline")
+			}
+			if errors.Is(ctx.Err(), context.Canceled) || errors.Is(err, context.Canceled) {
+				t.Fatal("initial planner start query failed with observed context cancellation")
+			}
+			t.Fatal("initial planner start query failed")
+		}
+		if job["send_permit"] != true {
+			t.Fatal("initial planner start send permit mismatch")
 		}
 		job, err = call("start", map[string]any{})
-		if err != nil || job["send_permit"] != false {
-			t.Fatal("uncertain start permitted another send", job, err)
+		if err != nil {
+			connectorFixtureErrorDiagnostic(t, err)
+			if errors.Is(ctx.Err(), context.DeadlineExceeded) || errors.Is(err, context.DeadlineExceeded) {
+				t.Fatal("uncertain planner start query failed with observed context deadline")
+			}
+			if errors.Is(ctx.Err(), context.Canceled) || errors.Is(err, context.Canceled) {
+				t.Fatal("uncertain planner start query failed with observed context cancellation")
+			}
+			t.Fatal("uncertain planner start query failed")
+		}
+		if job["send_permit"] != false {
+			t.Fatal("uncertain planner start send permit mismatch")
 		}
 		candidate := map[string]any{"version": 1, "summary": "Contain and retest", "steps": []any{map[string]any{"index": 0, "action": "create_temporary_policy", "target_id": e}, map[string]any{"index": 1, "action": "run_test", "target_id": testID}}}
 		content, _ := json.Marshal(candidate)
