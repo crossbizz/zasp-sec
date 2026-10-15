@@ -95,6 +95,9 @@ jobs:
         run: |
           npm run typecheck
           npm run build
+      - name: Verify runtime ownership and startup cleanup ordering
+        timeout-minutes: 2
+        run: node --test scripts/startup-observer-lifetime.test.mjs scripts/owned-runtime-services.test.mjs scripts/owned-runtime-lifetime.test.mjs scripts/retained-allocation-diagnostics.test.mjs
       - name: Prime native migration and diagnostic test compilation cache
         timeout-minutes: 5
         run: |

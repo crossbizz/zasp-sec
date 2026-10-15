@@ -46,10 +46,10 @@ const defaultAdapters={
 // This is service ownership/model publication only. It does not install SQL,
 // register principals/verifiers, acknowledge projection, or grant acceptance.
 // Production tools are opaque capabilities minted from exact official archives and consumed members. Test adapters never mint production authority.
-export async function startOwnedRuntimeServices(config,adapters=defaultAdapters,signal){
+export async function startOwnedRuntimeServices(config,adapters=defaultAdapters,signal,beforeStartupCleanup){
  let diagnosticPhase='service-input';
  try{
- if((signal!==undefined&&!(signal instanceof AbortSignal))||!exact(config,['run','rootParent','tools'])||typeof config.run!=='string'||!/^[a-f0-9]{16}$/.test(config.run)||!exact(config.tools,['temporal','openfga'])||typeof config.rootParent!=='string'||!path.isAbsolute(config.rootParent)||path.normalize(config.rootParent)!==config.rootParent)fail();
+ if((beforeStartupCleanup!==undefined&&typeof beforeStartupCleanup!=='function')||(signal!==undefined&&!(signal instanceof AbortSignal))||!exact(config,['run','rootParent','tools'])||typeof config.run!=='string'||!/^[a-f0-9]{16}$/.test(config.run)||!exact(config.tools,['temporal','openfga'])||typeof config.rootParent!=='string'||!path.isAbsolute(config.rootParent)||path.normalize(config.rootParent)!==config.rootParent)fail();
  diagnosticPhase='service-tool-capabilities';
  if(adapters===defaultAdapters){for(const name of ['temporal','openfga'])if(heldToolName(config.tools[name])!==name)fail();}
  else for(const name of ['temporal','openfga']){const t=config.tools[name];if(!exact(t,['path','archive','sha256'])||path.basename(t.path??'')!==name)fail();}
@@ -110,7 +110,7 @@ export async function startOwnedRuntimeServices(config,adapters=defaultAdapters,
   const environment=Object.freeze({ZASP_RUNTIME_SERVICES_ENABLED:'true',ZASP_ENVIRONMENT:'test',ZASP_RUNTIME_SERVICES_TIMEOUT:'5s',ZASP_TEMPORAL_ADDRESS:temporalAddress,ZASP_TEMPORAL_NAMESPACE:namespace,ZASP_TEMPORAL_TASK_QUEUE:'zasp-browser-main-'+config.run,ZASP_TEMPORAL_DISCOVERY_TASK_QUEUE:'zasp-browser-discovery-'+config.run,ZASP_OPENFGA_URL:fgaURL,ZASP_OPENFGA_STORE_ID:store.id,ZASP_OPENFGA_MODEL_ID:published.authorization_model_id,ZASP_OPENFGA_TOKEN_FILE:path.join(root,'openfga.token')});
   const completed=Promise.race(owners.map(owner=>owner.completed));void completed.catch(()=>{});
   return Object.freeze({environment,root,close,completed,projection:'pending',acceptance:false,native:false,production:false,upgradeInstalled:false,deployed:false,ledger:false});
- }catch(error){recordOwnedRuntimeStartupFailure(error,diagnosticPhase);try{await close();}catch(cleanupError){throw carryOwnedRuntimeStartupFailure(recordOwnedRuntimeStartupFailure(cleanupError,'service-startup-cleanup','cleanup-incomplete'),Error('owned runtime cleanup incomplete'));}throw carryOwnedRuntimeStartupFailure(error,Error('owned runtime fixture unavailable'));}
+ }catch(error){recordOwnedRuntimeStartupFailure(error,diagnosticPhase);/* The enclosing allocation observer owns its sampling lifetime. Join it before deleting failed-start state. */try{await beforeStartupCleanup?.();}catch{incompleteOperation=true;}try{await close();}catch(cleanupError){throw carryOwnedRuntimeStartupFailure(recordOwnedRuntimeStartupFailure(cleanupError,'service-startup-cleanup','cleanup-incomplete'),Error('owned runtime cleanup incomplete'));}throw carryOwnedRuntimeStartupFailure(error,Error('owned runtime fixture unavailable'));}
 
  }catch(error){recordOwnedRuntimeStartupFailure(error,diagnosticPhase);throw error;}
 }

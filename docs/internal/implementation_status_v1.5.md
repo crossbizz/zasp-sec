@@ -1,6 +1,18 @@
 # Agent Security Platform Implementation Status
 
 
+## Startup supervision checkpoint, October 15, 2026
+
+Failed owned-runtime startup now joins the outer allocation sampler before
+removing inner service state, preserving the original failure. Failed sampler
+joins retain state while other resources are joined. Normal shutdown and all
+resource, custody and authorization guards remain enforced. Grouped application
+checks, UI typecheck/build and independent review pass; hosted browser acceptance
+and the exact earlier ENOENT cause remain open. This contributes to M1-28 without
+promoting any of the 728 original tasks. See the
+[startup supervision checkpoint](cloud-startup-supervision-checkpoint-2026-10-15.json).
+
+
 ## Controlled cutover readback checkpoint, October 15, 2026
 
 The Go cutover reader now uses the existing runtime adapter's exact 312 reviewed

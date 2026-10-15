@@ -34,6 +34,34 @@ for(const failure of ['temporal','store','model','invalid-store','invalid-model'
  assert.deepEqual(h.calls.slice(-3),['join-openfga','join-temporal','remove']);
 });
 test('cleanup failure joins remaining children and retains state',async()=>{const h=harness('cleanup-openfga');const value=await startOwnedRuntimeServices(h.config,h.adapters);await assert.rejects(value.close(),/^Error: owned runtime cleanup incomplete$/);assert.ok(h.calls.includes('join-temporal'));assert.ok(!h.calls.includes('remove'));});
+test('startup failure joins the allocation observer before service state removal',async()=>{
+ const h=harness('store');let entered,release;
+ const reached=new Promise(resolve=>{entered=resolve;}),joined=new Promise(resolve=>{release=resolve;});
+ const running=startOwnedRuntimeServices(h.config,h.adapters,undefined,async()=>{h.calls.push('observer-stop');entered();await joined;h.calls.push('observer-joined');});
+ void running.catch(()=>{});
+ try {
+  const first=await Promise.race([reached.then(()=>'observer'),running.then(()=>'success',()=>'startup-failure')]);
+  assert.equal(first,'observer');assert.ok(!h.calls.includes('remove'));
+  release();await assert.rejects(running,/owned runtime fixture unavailable/);
+  assert.ok(h.calls.indexOf('observer-joined')<h.calls.indexOf('join-openfga'));
+  assert.equal(h.calls.at(-1),'remove');
+ } finally {release();await running.catch(()=>{});}
+});
+test('failed allocation observer join retains state while joining every service',async()=>{
+ const h=harness('store');
+ await assert.rejects(startOwnedRuntimeServices(h.config,h.adapters,undefined,async()=>{throw Error('private observer failure');}),/owned runtime cleanup incomplete/);
+ assert.ok(h.calls.includes('join-openfga'));assert.ok(h.calls.includes('join-temporal'));assert.ok(!h.calls.includes('remove'));
+});
+test('successful startup and normal close do not invoke startup failure observer',async()=>{
+ const h=harness();let calls=0;
+ const owner=await startOwnedRuntimeServices(h.config,h.adapters,undefined,async()=>{calls++;});
+ await owner.close();assert.equal(calls,0);assert.equal(h.calls.filter(v=>v==='remove').length,1);
+});
+test('invalid startup failure observer refuses before allocation or tool access',async()=>{
+ const h=harness();let owner;
+ try{await assert.rejects(async()=>{owner=await startOwnedRuntimeServices(h.config,h.adapters,undefined,{});});assert.equal(h.calls.length,0);}
+ finally{await owner?.close();}
+});
 for(const field of ['run','tools'])test('missing '+field+' refuses before any launch',async()=>{const h=harness();delete h.config[field];await assert.rejects(startOwnedRuntimeServices(h.config,h.adapters));assert.equal(h.calls.length,0);});
 test('ambient authority options refused before launch',async()=>{const h=harness();h.config.ready=true;await assert.rejects(startOwnedRuntimeServices(h.config,h.adapters));assert.equal(h.calls.length,0);});
 
