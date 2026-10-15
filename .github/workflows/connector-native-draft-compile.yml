@@ -38,7 +38,7 @@ jobs:
           import hashlib, json
           from pathlib import Path
           source = json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())
-          assert len(source['sources']) == 48
+          assert len(source['sources']) == 52
           for item in source['sources']:
               raw = Path(item['path']).read_bytes()
               assert len(raw) == item['bytes']
@@ -86,9 +86,12 @@ jobs:
       - name: Current authorization health probe integration group
         timeout-minutes: 5
         run: go test -C services/platform -race -p=1 -count=1 -timeout=2m -run '^(TestCurrentReadinessPipelineStartsAllIndependentMetadata|TestLegacyReadinessNeverStartsPreviousAfterAuthorizationRefusal|TestOwnedReadinessDiagnosticPreservesGateAndClosedOutput|TestP7GuardedRuntimeReadinessCallback|TestP7GuardedRuntimeReadinessStartupGate|TestServiceRefusalIdentityAndNoMetadataArePreserved|TestStartupAuthorizationUsesIndependentParentBudget)$' ./agentsec-api
-      - name: Controlled writer preparation diagnostic application group
+      - name: Controlled cutover model and writer application group
         timeout-minutes: 5
-        run: go test -C services/platform -race -p=1 -count=1 -timeout=2m -run '^TestControlledPrepareRefusalStages$' ./connectormaintenancecutover
+        run: go test -C services/platform -race -p=1 -count=1 -timeout=2m -run '^(TestControlledPrepareRefusalStages|TestControlledModelReadbackCompatibility|TestControlledModelSDKReadbackBoundary|TestControlledModelReadbackRejectsAlteredDefaults)$' ./connectormaintenancecutover
+      - name: Guarded inactive maintenance profile commands
+        timeout-minutes: 5
+        run: go test -C services/platform -race -p=1 -count=1 -timeout=2m -run '^(TestAuthorizationRuntimeProfilePlan|TestAuthorizationRuntimeWorkerSelectsExplicitAuditRecipe|TestAuthorizationWorkerProfileCommand|TestMaintenanceProfileExplicitCommands|TestMaintenanceProfilePostInstallCatalogOnly)$' ./agentsec-migrate
       - name: Existing whole approval source pin verification
         timeout-minutes: 5
         run: go test -C services/platform -race -p=1 -count=1 -timeout=2m -run '^TestApprovalMaintenanceSourcePinBindsWholeSupplementaryBody$' ./migrations

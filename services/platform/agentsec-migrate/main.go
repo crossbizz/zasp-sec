@@ -296,7 +296,7 @@ func main() {
 		}
 	}
 	if isForwardMigration(arguments) {
-		if authorizationProfileCommand(arguments[0]) {
+		if authorizationProfileCommand(arguments[0]) || maintenanceProfileCommand(arguments[0]) {
 			registration.migration = os.Getenv(migrationPrincipalEnvironment)
 			if !databasePrincipalPattern.MatchString(registration.migration) {
 				err = errInvalidMigrationCommand
@@ -397,6 +397,26 @@ func registerAuthorizationVerifier(ctx context.Context, queryer principalQueryer
 func registerForwardRelease(ctx context.Context, queryer principalQueryer, registration discoveryPrincipalRegistration, arguments []string) error {
 	if !isForwardMigration(arguments) {
 		return errInvalidMigrationCommand
+	}
+	if maintenanceProfileCommand(arguments[0]) {
+		if ctx == nil || ctx.Err() != nil || queryer == nil {
+			return errReleasePrincipalRegistration
+		}
+		statement := `SELECT session_user=$1 AND zasp_approval_maintenance.catalog_ready() AND EXISTS(SELECT 1 FROM zasp_approval_maintenance.registration WHERE singleton AND checksum=$2)`
+		pin := migrations.ApprovalMaintenanceProfileChecksum()
+		if arguments[0] == "up-connector-maintenance-profile" {
+			var err error
+			pin, err = migrations.ConnectorMaintenanceProfileChecksum()
+			if err != nil {
+				return errReleasePrincipalRegistration
+			}
+			statement = `SELECT session_user=$1 AND zasp_connector_maintenance.catalog_ready($2)`
+		}
+		var ready bool
+		if err := queryer.QueryRow(ctx, statement, registration.migration, pin).Scan(&ready); err != nil || !ready {
+			return errReleasePrincipalRegistration
+		}
+		return nil
 	}
 	if arguments[0] == "up-authorization-identity-profile" || arguments[0] == "up-authorization-temporal-identity-profile" {
 		var ready bool
@@ -705,7 +725,36 @@ func (r *registeredReleaseMigrationRunner) UpProductionTemporalSingleRecovery(ct
 	return extension.UpProductionTemporalSingleRecovery(ctx)
 }
 
+func maintenanceProfileCommand(command string) bool {
+	return command == "up-approval-maintenance-profile" || command == "up-connector-maintenance-profile"
+}
+
+func (r *registeredReleaseMigrationRunner) UpProductionApprovalMaintenanceProfile(ctx context.Context) error {
+	if err := r.auditProfilePrincipal(ctx); err != nil {
+		return err
+	}
+	extension, ok := r.releaseMigrationRunner.(interface{ UpProductionApprovalMaintenanceProfile(context.Context) error })
+	if !ok {
+		return migrations.ErrInvalidState
+	}
+	return extension.UpProductionApprovalMaintenanceProfile(ctx)
+}
+
+func (r *registeredReleaseMigrationRunner) UpProductionConnectorMaintenance(ctx context.Context) error {
+	if err := r.auditProfilePrincipal(ctx); err != nil {
+		return err
+	}
+	extension, ok := r.releaseMigrationRunner.(interface{ UpProductionConnectorMaintenance(context.Context) error })
+	if !ok {
+		return migrations.ErrInvalidState
+	}
+	return extension.UpProductionConnectorMaintenance(ctx)
+}
+
 func isForwardMigration(arguments []string) bool {
+	if len(arguments) == 1 && maintenanceProfileCommand(arguments[0]) {
+		return true
+	}
 	if len(arguments) == 1 && arguments[0] == "up-temporal-single-recovery" {
 		return true
 	}
@@ -754,6 +803,24 @@ func runReleaseMigration(ctx context.Context, runner releaseMigrationRunner, arg
 		return err
 	}
 	switch arguments[0] {
+	case "up-approval-maintenance-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		extension, ok := runner.(interface{ UpProductionApprovalMaintenanceProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return extension.UpProductionApprovalMaintenanceProfile(ctx)
+	case "up-connector-maintenance-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		extension, ok := runner.(interface{ UpProductionConnectorMaintenance(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return extension.UpProductionConnectorMaintenance(ctx)
 	case "up-temporal-single-recovery":
 		if version != 61 {
 			return migrations.ErrInvalidState

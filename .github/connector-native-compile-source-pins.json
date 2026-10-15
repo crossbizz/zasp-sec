@@ -1,7 +1,7 @@
 {
   "status": "INACTIVE API/WORKER CONTROLLED CUTOVER CANDIDATE; AUTHENTICATED APPLICATION VERIFICATION PENDING; NO DEPLOYMENT ADMISSION",
   "base": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
-  "checkpointSHA256": "8c752ce824986bb0839f4e70d1d548763bdf83aa5e0d449528551b596e19d175",
+  "checkpointSHA256": "4f25cd56a8e837b76161fb69149d087f40a2c2b192750b8d0a7e932c39384315",
   "sources": [
     {
       "path": "services/platform/agentsec-api/connector_callback_runtime.go",
@@ -138,8 +138,8 @@
     },
     {
       "path": "services/platform/connectormaintenancecutover/fga.go",
-      "sha256": "0e80b78867c5b6bbc11e4a2a2bbb1ca3a43bbf43bd8e9fa921471914a98c924c",
-      "bytes": 5569,
+      "sha256": "d3b9b4bea7f707e802c11e62c3e331477a3ff23a5f8d2049125155fd9e2bcb46",
+      "bytes": 5665,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -159,8 +159,8 @@
     },
     {
       "path": "services/platform/connectormaintenancecutover/raw_model.go",
-      "sha256": "4fdad0c76ea36dfdc732bad76ff010d1e50ce34e4ed1e5ba1c44ff3c678714f2",
-      "bytes": 2069,
+      "sha256": "4a5732177b025ec3e7306dd1186c2c358d59a3b7df235e53e12f34384ecc6d3e",
+      "bytes": 4479,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -338,8 +338,36 @@
       "bytes": 7875,
       "currentBasePreimageSHA256": "d48148963b251a70b39b72704508af953785d5faa750d0f1b80fa9e07f230bf6",
       "historicalPreimageSHA256": "d48148963b251a70b39b72704508af953785d5faa750d0f1b80fa9e07f230bf6"
+    },
+    {
+      "path": "services/platform/connectormaintenancecutover/readback_defaults.json",
+      "sha256": "d4c42d89fa77b89513e732b6d5bdd206c808111096307d38784cc6f1ba639835",
+      "bytes": 62393,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/connectormaintenancecutover/readback_test.go",
+      "sha256": "e4970d8ef25f042e9948abb5cbb0557c32988a50bd80b3bcddd6c8f74a8da23a",
+      "bytes": 5991,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/agentsec-migrate/main.go",
+      "sha256": "9c9fa6e67255abe494515fc16d0f9bed934278dfcf5fbccf4720161550de0776",
+      "bytes": 68871,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/agentsec-migrate/maintenance_profile_commands_test.go",
+      "sha256": "93f17c2f7ee39082666201505d04b363c36ccf615a0b2f56aa2385348ad73512",
+      "bytes": 4218,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
     }
   ],
   "predecessorCheckpointSHA256": "364ada857d54ce83d678e00eb3d61d55c6a036d22cc1f7ebc9170432079ece05",
-  "previousCheckpointSHA256": "b9d0ab1ef1f8bde69b76e3ce2251eff31081ab6b2246a55570ce01574029f910"
+  "previousCheckpointSHA256": "8c752ce824986bb0839f4e70d1d548763bdf83aa5e0d449528551b596e19d175"
 }

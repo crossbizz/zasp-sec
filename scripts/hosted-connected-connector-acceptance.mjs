@@ -44,10 +44,10 @@ const pins = {
   "services/platform/connectormaintenance/authority.go": "378b2b151fe9978ca28a3c40d024c52bff7d3f0b83267839ef1dd61ee3946441",
   "services/platform/connectormaintenance/executor.go": "24ac12fb20e753ec433464e6220bc7aaf4127fb9e7e3803831553bb75e7a40f3",
   "services/platform/connectormaintenancecutover/coordinator.go": "e1c4da1ab45067c9181e14f9120d44edd4e911a6cd7f68ceb171a86ef0246465",
-  "services/platform/connectormaintenancecutover/fga.go": "0e80b78867c5b6bbc11e4a2a2bbb1ca3a43bbf43bd8e9fa921471914a98c924c",
+  "services/platform/connectormaintenancecutover/fga.go": "d3b9b4bea7f707e802c11e62c3e331477a3ff23a5f8d2049125155fd9e2bcb46",
   "services/platform/connectormaintenancecutover/model.json": "329f49e1f2effecbe1a0e9caf6c89be939b1e36e034155d74977bfc82c73cc2c",
   "services/platform/connectormaintenancecutover/process_linux.go": "6096f7c304818c7e6ebc31d3940bacf75932b9f2971c8c529316ebee92cede54",
-  "services/platform/connectormaintenancecutover/raw_model.go": "4fdad0c76ea36dfdc732bad76ff010d1e50ce34e4ed1e5ba1c44ff3c678714f2",
+  "services/platform/connectormaintenancecutover/raw_model.go": "4a5732177b025ec3e7306dd1186c2c358d59a3b7df235e53e12f34384ecc6d3e",
   "services/platform/connectormaintenancecutover/sql.go": "11a839a8b0c73e9eb1e830e37ff070eb6824c31e87604b5103e92fc75b16a8c2",
   "services/platform/migrations/production_connector_enqueue_provenance.go": "793b230a8572fbfbed2a4702e1513bfa90afac596a8d0707ae047bbdf8bacc36",
   "services/platform/migrations/production_connector_maintenance.go": "18b0989e395e85f18a78f5f51aee06eb1f969fba79a66650754bfc3858d055cd",
@@ -67,7 +67,11 @@ const pins = {
   "services/platform/apiserver/connector_maintenance_recovery_decode_test.go": "08ad69924af72241a35c146e371c2a2ec955a25a8af16cfee81537073335c8f1",
   "services/platform/agentsec-api/authorization_runtime_readiness.go": "33d0478de4ed7db1b79ad12fe63fb117965bb95cef770f999ab4ef35f015284d",
   "services/platform/agentsec-api/authorization_runtime_readiness_test.go": "ce2482c386799ad758b374d4e823a0e797cb907cf01daad2c449eb68fb3eb781",
-  "scripts/browser-command-failure.test.mjs": "d080296bbc585802d4f531caa5e29ea0306d2b42243bb9e34a5e29f19659ef09"
+  "scripts/browser-command-failure.test.mjs": "d080296bbc585802d4f531caa5e29ea0306d2b42243bb9e34a5e29f19659ef09",
+  "services/platform/connectormaintenancecutover/readback_defaults.json": "d4c42d89fa77b89513e732b6d5bdd206c808111096307d38784cc6f1ba639835",
+  "services/platform/connectormaintenancecutover/readback_test.go": "e4970d8ef25f042e9948abb5cbb0557c32988a50bd80b3bcddd6c8f74a8da23a",
+  "services/platform/agentsec-migrate/main.go": "9c9fa6e67255abe494515fc16d0f9bed934278dfcf5fbccf4720161550de0776",
+  "services/platform/agentsec-migrate/maintenance_profile_commands_test.go": "93f17c2f7ee39082666201505d04b363c36ccf615a0b2f56aa2385348ad73512"
 };
 const roster = selectedGroup.names;
 const helperPins={

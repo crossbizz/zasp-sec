@@ -1,5 +1,26 @@
 # Agent Security Platform Implementation Status
 
+
+## Controlled cutover readback checkpoint, October 15, 2026
+
+The Go cutover reader now uses the existing runtime adapter's exact 312 reviewed
+protobuf defaults for the pinned complete model. Only source-absent fields at
+those fixed paths with those exact default values are removed before full-model
+and SDK equality. Unknown fields, changed permissions/conditions, duplicate keys,
+wrong model identity and nondefault values still refuse.
+
+Explicit registered-operator commands install the unchanged inactive approval and
+connector profiles. They do not activate workers or issue keys. Grouped local
+adapter and installer checks, race checks, UI typecheck/build and independent
+reviews pass. Hosted acceptance of this source remains pending. Earlier OAuth and
+capture native checks passed at b0661681; lifecycle/recovery and browser checks
+failed there. These results do not prove the new batch or deployed readiness.
+
+This supports M3-24 cutover and M1-28 composition prerequisites. All 728 original
+rows retain their recorded 523/144/61 categories, with zero promotions. Secure
+worker activation, browser acceptance and real deployed provider flows remain
+open. See the [readback checkpoint](cloud-cutover-readback-checkpoint-2026-10-15.json).
+
 ## Bounded health-probe observation checkpoint, October 14, 2026
 
 The API now runs its two original role-specific native readiness queries first,

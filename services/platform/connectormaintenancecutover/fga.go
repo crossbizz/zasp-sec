@@ -65,9 +65,14 @@ func (t cappedTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 	if e != nil || closed != nil || len(data) > 1<<20 || r.Context().Err() != nil {
 		return nil, ErrRefused
 	}
-	if v.StatusCode == http.StatusOK && wholeRawModel(data, productModel, t.model) != nil {
-		return nil, ErrRefused
+	if v.StatusCode == http.StatusOK {
+		data, e = normalizedRawModel(data, productModel, t.model)
+		if e != nil {
+			return nil, ErrRefused
+		}
 	}
+	v.ContentLength = int64(len(data))
+	v.Header.Del("Content-Length")
 	v.Body = io.NopCloser(bytes.NewReader(data))
 	return v, nil
 }
