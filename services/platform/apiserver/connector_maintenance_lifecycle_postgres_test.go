@@ -322,10 +322,8 @@ func TestConnectorMaintenanceNativeLifecyclePostgres(t *testing.T) {
 			t.Log(connectorMaintenanceFailureObservation(f.ctx, lease, time.Time{}, "revocation-pending", err))
 			t.Fatal("pending revocation did not refuse live forward authority through its unapplied revision")
 		}
-		projection, err := authorization.NewCurrentMaintenanceProjectionRepository(f.ctx, workerPool, approvalPin, pin)
-		if err != nil {
-			t.Fatal("composed revocation projection refused")
-		}
+		// Reuse the pre-lease repository; Reconcile still reads a fresh, fully
+		// guarded composed snapshot before Stage, FGA delivery and Ack.
 		receipt, err := authorization.Reconcile(f.ctx, projection, writer, o, store, model)
 		if err != nil || !receipt.Applied {
 			t.Fatal("revocation Reconcile Stage Ack refused")

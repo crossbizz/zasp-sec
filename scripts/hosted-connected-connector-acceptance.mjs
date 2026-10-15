@@ -58,7 +58,7 @@ const pins = {
   "services/platform/migrations/production_approval_maintenance_successor.go": "6817964c5c0dfcabe7ea9f65caf5b7840f6d9e4d29a1ec39b00e1b03b0fa6eca",
   "services/platform/migrations/production_approval_maintenance_profile_test.go": "5592e136c7578bac21bf698c675762b28b68b46a37b1d2ed7670e2d707150a6a",
   "services/platform/apiserver/connector_maintenance_callback_execution_test.go": "aeed97eabbf32cb8f2af66d8b4ca37ceeeb6d6a4ad6dcc9e4f4961f198bdff2d",
-  "services/platform/apiserver/connector_maintenance_lifecycle_postgres_test.go": "7455a18298448d561d46b4d77f31cb52e22ff7780fbe020fa2ccf2cc759833fd",
+  "services/platform/apiserver/connector_maintenance_lifecycle_postgres_test.go": "345c365921cdc9281ec767e00fd3e934f31fa4badb393f4a6b6e5793bd544e2d",
   "services/platform/apiserver/connector_maintenance_lifecycle_helpers_test.go": "17e25679f365e81f0450cfa2c9c5a23250afeb43f47f8577e34ed8de77029bc3",
   "services/platform/agentsec-api/compliance_browser_process_test.go": "ce30c1b24c754ee92be7cbc8c3fb82182b5416609b87aa0763aa7edf805e7aef",
   "scripts/browser-command-failure.mjs": "576a9878ea365c2e9d988a325d9b063eedf8f1980d5015f08ce7c17e9168e751",

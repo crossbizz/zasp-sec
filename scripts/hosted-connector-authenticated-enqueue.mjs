@@ -58,7 +58,7 @@ const pins = {
   "services/platform/agentsec-worker/authorization_worker_activation_config_test.go": "3b66404d7740592ad2c42e6491861e26f11788b3b6be0b7e68cbe9a6c20bca23",
   "services/platform/apiserver/approval_activation_postgres_test.go": "4a40ff1c879cd4c1af951ba8bc812d0d9ea81a360c856fcde4235b63581ae6e5",
   "services/platform/apiserver/connector_maintenance_callback_restart_postgres_test.go": "fe1f04ee8d9d6c78814a05df0fb976f4aedd5f1667e648c5342fbc14ea1d46bf",
-  "services/platform/apiserver/connector_maintenance_lifecycle_postgres_test.go": "7455a18298448d561d46b4d77f31cb52e22ff7780fbe020fa2ccf2cc759833fd",
+  "services/platform/apiserver/connector_maintenance_lifecycle_postgres_test.go": "345c365921cdc9281ec767e00fd3e934f31fa4badb393f4a6b6e5793bd544e2d",
   "services/platform/apiserver/connector_maintenance_pkce_recovery_test.go": "db05051ac764c5a1d57dac9e8c3691660c284a2a6f5fb088b8cd10acef7c7f96",
   "services/platform/authorization/worker.go": "6717074205fbaf48d970b1a6bdbc6613779d492a388c6d6446fe78608ff3efe4",
   "services/platform/authorization/worker_approval_activation_test.go": "15e44850678ba5b9b385023555fcc501eca600c53c1f912dbf799841387d7b0b",

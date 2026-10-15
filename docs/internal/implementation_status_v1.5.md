@@ -1,6 +1,22 @@
 # Agent Security Platform Implementation Status
 
 
+## Lifecycle pre-lease projection reuse, October 15, 2026
+
+The native lifecycle fixture reuses its already constructed projection repository
+instead of issuing four additional setup queries during the cleanup lease.
+Reconcile retains a fresh guarded snapshot, organization lock, Stage/Ack/CAS and
+actual FGA delivery; all cases, live-denial assertions and lease limits remain.
+
+Independent source review and complete API fixture compilation passed with zero
+selected tests. Prior successful UI lint/typecheck/build results are reused for
+unchanged UI inputs; no per-change tests were added. The ledger is unchanged.
+Evidence and retained hosted failures are recorded in
+`cloud-lifecycle-prelease-reuse-checkpoint-2026-10-15.json` and its committed bundle.
+Native acceptance remains pending. Independent review rejected SQL-only idle
+polling because it would drop authenticated service probes; it was not implemented.
+
+
 ## Read-only maintenance fleet planner checkpoint, October 15, 2026
 
 A strict review planner records the required eleven rollout phases and keeps
