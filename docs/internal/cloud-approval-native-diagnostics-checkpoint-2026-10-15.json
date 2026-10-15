@@ -1,0 +1,131 @@
+{
+  "checkpoint": "cloud-approval-native-diagnostics-2026-10-15",
+  "observed_at": "2026-10-15T02:59:22.219889+00:00",
+  "starting_sha": "b17ddc2449d75e9473b8e0631c67d85e3453195a",
+  "main_sha": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
+  "classification": "Component-verified failure diagnostics only; underlying native and deployed gates remain unresolved",
+  "ledger": {
+    "original_rows": 728,
+    "production_available_recorded": 523,
+    "component_only": 144,
+    "blocked_external": 61,
+    "missing": 0,
+    "promotions": 0,
+    "interpretation": "All original IDs/owners/categories retained; recorded availability is not current deployed proof."
+  },
+  "task_crosswalk": [
+    {
+      "id": "M7A-90c",
+      "owner": "T10-product-ui",
+      "contribution": "Verification support for the original signed approval-required webhook requirement. Preserve native payload/identity/permission/lease failure assertions and privacy; no production-availability promotion."
+    }
+  ],
+  "implementation": [
+    "Tag the exact original trace acceptance assertion error in a private WeakMap with fixed selection/empty/event/run/pass/package stages. Classify event refusal only after the original assertion rejects. The same original error is rethrown; all predicates, counts and rosters are unchanged. Ordinary or forged errors have no issued diagnostic.",
+    "Emit the fixed trace stage only from the connected runner when its original phase is exact-test-roster; keep the authenticated runner body unchanged. Diagnostic labels never accept an unknown event or partial roster.",
+    "Observe an existing finding payload-load failure using actual context cancellation/deadline, the original reservation expiry and two-second margin, original typed denial/unavailability errors and exact run-match boolean. Keep the original failure predicate unchanged and remove raw error reflection. No new SQL probe, retry, permission, payload or tenant identifier is introduced.",
+    "Parse only the fixed payload stage, seven closed outcomes and booleans within the original 16KiB input cap. Reject impossible provider-live with an expired lease and bound observations to four. These observations do not decide acceptance.",
+    "Preserve final source associations, grouped results, RED and GREEN logs, review and preceding incomplete hosted snapshot in a committed compressed evidence bundle scanned before compression."
+  ],
+  "verification": {
+    "go": {
+      "status": 0,
+      "top_level_passes": 1,
+      "named_passes": 6,
+      "failed": 0,
+      "skipped": 0,
+      "scope": "Normal closed payload failure boundary application check and complete API fixture compilation. No native test selected and no local race/native acceptance inferred."
+    },
+    "node": {
+      "status": 0,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "scope": "Existing grouped exact-roster/selector/trace/privacy observations, including issued-stage rejection and unissued forged-error protection. Payload RED retained with three passes and one failure before parser implementation."
+    },
+    "ui": {
+      "lint": 0,
+      "typecheck": 0,
+      "build": 0
+    },
+    "ledger_valid": true,
+    "review": "approval-trace-payload-diagnostic-independent-review-20261015.json",
+    "evidence": {
+      "path": "docs/internal/evidence/cloud-2026-10-15/approval-native-diagnostics/verified-batch-evidence.json.gz",
+      "sha256": "5898fb57df09aba763c61dba093d05e9763b59931a74625394c2203ea2d37842",
+      "bytes": 13766,
+      "uncompressed_sha256": "403bf6eb986b4e791943f197c174f50d330d56522ffa1db513a42350dc59c9c4",
+      "uncompressed_bytes": 191603,
+      "members": 19,
+      "availability": "Committed compressed JSON; every member contains original text, SHA256 and byte count."
+    },
+    "preceding_hosted": {
+      "sha": "b17ddc2449d75e9473b8e0631c67d85e3453195a",
+      "scope": "Incomplete exact-head hosted snapshot retained, not a complete native or deployment acceptance.",
+      "browser": "One actual browser run passed both core and security-agent initial metadata checks, then exited during the broad connector-lifecycle phase. That phase also covers approval worker construction; the failing lane/constructor is not established.",
+      "lifecycle": "A retained native observation shows revocation-pending unavailable with parentLive=true and leaseLive=false. This proves the old test held an expired lease at that assertion; it does not justify increasing the lease or claiming permission denial.",
+      "remaining": "New future/overflow/progress flows and finding delivery still failed in the snapshot; all authored fixtures remain unverified until their exact hosted gates pass. Approval controls can pass six named cases while the exact roster gate refuses; the new issued diagnostic preserves that refusal."
+    }
+  },
+  "source_association": {
+    "manifest_sources": 111,
+    "changed_sources": [
+      {
+        "path": ".github/workflows/connector-native-draft-compile.yml",
+        "sha256": "f2fde08dc2d603b226958263630865cd4e630869d0bbda7759c829f627f6d15c",
+        "bytes": 11777
+      },
+      {
+        "path": "scripts/connector-acceptance-groups.mjs",
+        "sha256": "f73b9b670dfcc00ccd0250253cb9f0d521fe03ee9a86a6c87309f8e1f6d1beb4",
+        "bytes": 8967
+      },
+      {
+        "path": "scripts/connector-acceptance-groups.test.mjs",
+        "sha256": "646a6b9d7205f622a158fc1101b1158a593c9786a8ab30bef3d37906424d0773",
+        "bytes": 7033
+      },
+      {
+        "path": "scripts/hosted-connected-connector-acceptance.mjs",
+        "sha256": "3f6635076eb3c13b3e51ea037348fd13fb7c821dd25936bceb9916b1cd3cda58",
+        "bytes": 44969
+      },
+      {
+        "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
+        "sha256": "5283bccfb0508b936b5ade68032b24146cec53a27bed0ccce62e8dc40a96c50a",
+        "bytes": 42287
+      },
+      {
+        "path": "services/platform/apiserver/approval_activation_failure_observation_test.go",
+        "sha256": "d521fb9a290f1969ea355e5d95632f6777132a21f86eade1f18a5db1b47d7d18",
+        "bytes": 4066
+      },
+      {
+        "path": "services/platform/apiserver/approval_activation_flow_test.go",
+        "sha256": "6900d4c1d649744d99f915b7f1d8c1c25aac20d2d0917168f635886fb14bc757",
+        "bytes": 33582
+      }
+    ],
+    "runner_literal_pins": {
+      "hosted-connected-connector-acceptance.mjs": 101,
+      "hosted-connector-authenticated-enqueue.mjs": 90,
+      "hosted-connector-nine.mjs": 12
+    }
+  },
+  "preserved": [
+    "All 728 original requirements, categories and owner mappings",
+    "All 12 native groups, 35 named tests and 22 PostgreSQL joins",
+    "Every original acceptance assertion, permission boundary and failure predicate",
+    "Original and pushed sealed SQL/installers, lockfile and complete Runnable UI workflow",
+    "All source/resource/cancellation/deadline/cleanup/security/release guards"
+  ],
+  "open_work": [
+    "Exact-head native/browser/UI gates and real deployed end-to-end acceptance remain pending. Diagnostics are not fixes or deployment evidence.",
+    "Apply reviewed lifecycle fixture reordering of read-only callback construction before acquiring the authentic 30-second lease, retaining Authorize/Consume after Begin and all original controls.",
+    "Distinguish the broad API connector-lifecycle owner/connector/approval constructor lane using bounded existing work only; do not add probes or raise timeouts without evidence.",
+    "Resolve genuine future/overflow/progress/finding payload and exact approval trace failures. Whole-command compilation and nested migration CLI compilation remain timing risks rather than proven timeout causes.",
+    "Implement independently reviewed production fleet activation with authenticated release/target/census, normal old process/server termination and enforced restart exclusion. All old AND new credential holders/writers must remain excluded until activation and first composed Ack; current NewDeployment remains refusing.",
+    "Approved fresh full advisory evidence and reviewed braces HIGH remediation, exact deployment target and role/provider bindings, real retained Stytch/provider journeys, all original tenant/discovery/budget/approval/recovery/audit/operational milestones and obsolete-equivalence retirement remain required. No launch/completion claim."
+  ],
+  "next": "Publish bounded diagnostics normally and continue reviewed fixes; merge only after required guards pass."
+}

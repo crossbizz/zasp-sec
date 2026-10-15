@@ -74,7 +74,7 @@ const pins = {
   "services/platform/migrations/production_approval_activation_profile_test.go": "4d1c29736e796e8e9deecd7845a0ad6ba2e3948043427e2cc88c57b32fdfdf16",
   "services/platform/migrations/sql/approval_activation_profile.sql": "f256e35509c6573b85fda9babb8e5d87641927c5246d5d1408f98a0159cd139d",
   "services/platform/runtimeservices/approval_activation_config_test.go": "d288ebc83684b8d49bdfab4fabb30bf4e65dc530f327ea06e205c415bd7195df",
-  "services/platform/apiserver/approval_activation_flow_test.go": "bb084df5346039a4b5dea8f08e834808f1ccb0b169ccd6b0ffdc35e7d62ba4ef",
+  "services/platform/apiserver/approval_activation_flow_test.go": "6900d4c1d649744d99f915b7f1d8c1c25aac20d2d0917168f635886fb14bc757",
   "services/platform/apiserver/connector_preparation_stage_test.go": "338c9d4717d2c505f3af9d153d3dfcd58a4027a98c7232e0daa4316bfd466e37",
   "services/platform/agentsec-api/approval_maintenance_runtime.go": "aaa1cfcfc997a9a6cee529f08b405083552669d8be79b2891205c7a80e267177",
   "services/platform/agentsec-api/approval_settlement_runtime_selection_test.go": "c241cfeb1a0024787ca1b8d620fea2c17cb28eceeb9761db0f22a5d431980d42",
@@ -90,13 +90,14 @@ const pins = {
   "services/platform/apiserver/approval_activation_future_family_test.go": "baf589a10beee3b81ee430757a81adb06ab255be992f7cd75bb1896c3c265158",
   "services/platform/apiserver/approval_activation_overflow_test.go": "63c357dfef18f21b121fe26b92d3de3d5b21214847d23ab90a3f1b1b99df1952",
   "services/platform/apiserver/approval_maintenance_genuine_progress_postgres_test.go": "8549253bdb1d36a5c957735bffef03adaf7070cce650058e97b505667fc4119d",
-  "services/platform/apiserver/connector_maintenance_failure_observation_test.go": "38e59d1e256423bda47285786edcd4ecbb1f95fb32a85153559e9ce65aabb36f"
+  "services/platform/apiserver/connector_maintenance_failure_observation_test.go": "38e59d1e256423bda47285786edcd4ecbb1f95fb32a85153559e9ce65aabb36f",
+  "services/platform/apiserver/approval_activation_failure_observation_test.go": "d521fb9a290f1969ea355e5d95632f6777132a21f86eade1f18a5db1b47d7d18"
 };
 const top='TestConnectorMaintenanceAuthenticatedOAuthEnqueuePostgres';
 const cases=['genuine_same_transaction_origin_and_immutable_enrichment','rollback_removes_every_enqueue_and_provenance_write'];
 const helperPins={
-  "scripts/connector-acceptance-groups.test.mjs": "507b9b18e4d952d3053fc6a7e300efc301ea9336e4ea0903ae83f20b6c029566",
-  "scripts/connector-acceptance-groups.mjs": "72ff74c1b3e27c1b006de34a8f602a1adcc152afd5abe196050965c1affccb40",
+  "scripts/connector-acceptance-groups.test.mjs": "646a6b9d7205f622a158fc1101b1158a593c9786a8ab30bef3d37906424d0773",
+  "scripts/connector-acceptance-groups.mjs": "f73b9b670dfcc00ccd0250253cb9f0d521fe03ee9a86a6c87309f8e1f6d1beb4",
   "docs/internal/evidence/cloud-2026-10-07/native-service-readiness/openfga/09-pg-non-glibc-libs-manifest.json": "96642e82997ffd2caf2893a5ecc0116ad2aef6e982df2d929f3efda4e04f3474",
   "services/platform/apiserver/authorization_integration_mutations_postgres_test.go": "5e4beb04b2409ad9b11b89c017ada5e2eccffd78a87bdd5692d40670f12a2ba0",
   "scripts/hosted-memory-observation.mjs": "70c2ae837d040be4756842e4016acbc4eebd6bae3d8c992aba2a80e2a097ba75",

@@ -54,18 +54,44 @@ export function selectConnectorAcceptanceGroup(args) {
   'one fixed connector acceptance group is required');
   return CONNECTOR_ACCEPTANCE_GROUPS[args[0]];
 }
+// Only errors issued by the unchanged acceptance assertions carry diagnostics.
+const traceFailureStages = new WeakMap();
+export function describeConnectorAcceptanceTraceFailure(error) {
+  return error !== null && (typeof error === 'object' || typeof error === 'function')
+    ? traceFailureStages.get(error) ?? 'unknown' : 'unknown';
+}
 // This validates application test events, not Temporal or OpenFGA internals.
 export function validateConnectorAcceptanceTrace(rows, selected) {
-  assert.ok(Object.values(CONNECTOR_ACCEPTANCE_GROUPS).includes(selected));
-  assert.ok(Array.isArray(rows) && rows.length > 0);
-  assert.ok(rows.every(row => row && row.Package === applicationPackage &&
-    ['start', 'run', 'output', 'pass'].includes(row.Action) &&
-    (row.Test === undefined || selected.names.includes(row.Test))), 'unexpected connector test event');
-  for (const action of ['run', 'pass']) {
-    assert.deepEqual(rows.filter(row => row.Action === action && row.Test).map(row => row.Test).sort(),
-      selected.names.slice().sort(), 'connector acceptance roster differs');
+  let stage = 'selection';
+  try {
+    assert.ok(Object.values(CONNECTOR_ACCEPTANCE_GROUPS).includes(selected));
+    stage = 'empty';
+    assert.ok(Array.isArray(rows) && rows.length > 0);
+    stage = 'events';
+    assert.ok(rows.every(row => row && row.Package === applicationPackage &&
+      ['start', 'run', 'output', 'pass'].includes(row.Action) &&
+      (row.Test === undefined || selected.names.includes(row.Test))), 'unexpected connector test event');
+    for (const action of ['run', 'pass']) {
+      stage = action === 'run' ? 'run-roster' : 'pass-roster';
+      assert.deepEqual(rows.filter(row => row.Action === action && row.Test).map(row => row.Test).sort(),
+        selected.names.slice().sort(), 'connector acceptance roster differs');
+    }
+    stage = 'package-pass';
+    assert.equal(rows.filter(row => row.Action === 'pass' && row.Test === undefined).length, 1);
+  } catch (error) {
+    if (stage === 'events') {
+      // Inspect only fixed shape/category after refusal; never retain payloads.
+      try {
+        const row = rows.find(row => !row || row.Package !== applicationPackage ||
+          !['start', 'run', 'output', 'pass'].includes(row.Action) ||
+          (row.Test !== undefined && !selected.names.includes(row.Test)));
+        stage = !row ? 'event-shape' : row.Package !== applicationPackage ? 'event-package' :
+          !['start', 'run', 'output', 'pass'].includes(row.Action) ? 'event-action' : 'event-case';
+      } catch { stage = 'events'; }
+    }
+    if (error !== null && (typeof error === 'object' || typeof error === 'function')) traceFailureStages.set(error, stage);
+    throw error;
   }
-  assert.equal(rows.filter(row => row.Action === 'pass' && row.Test === undefined).length, 1);
 }
 
 // Diagnostic observations never decide acceptance and never reflect raw output.
@@ -78,6 +104,11 @@ export function parseConnectorNativeObservation(output) {
   if (match) return {kind: 'activation', stage: match[1]};
   match = /^connector preparation stage=(release|begin|result|local-state|quarantine|unknown)$/.exec(line);
   if (match) return {kind: 'preparation', stage: match[1]};
+  match = /^approval payload observation stage=payload-load outcome=(context-deadline|context-canceled|lease-margin|denied|unavailable|other-error|run-mismatch) parent_live=(true|false) lease_live=(true|false) provider_live=(true|false)$/.exec(line);
+  if(match) {
+    if(match[3]==='false'&&match[4]==='true')return null;
+    return {kind:'approval-payload',value:{stage:'payload-load',outcome:match[1],parentLive:match[2]==='true',leaseLive:match[3]==='true',providerLive:match[4]==='true'}};
+  }
   match = /^connector lease observation stage=(preparation-finish|preparation-forward|captured-compensation|revocation-pending|revocation-applied|recovery-forward|unknown) outcome=(denied|unavailable|operation|other) parent_live=(true|false) lease_live=(true|false) provider_bound=(true|false) provider_live=(true|false)$/.exec(line);
   if (match) {
     if(match[5]==='false'&&match[6]==='true')return null;

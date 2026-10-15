@@ -1,6 +1,27 @@
 # Agent Security Platform Implementation Status
 
 
+## Native approval diagnostic checkpoint, October 15, 2026
+
+Original trace acceptance errors now carry private, fixed refusal stages; every
+assertion and roster remains unchanged. Finding payload failures expose only
+actual context/lease state and fixed typed outcomes. Raw errors are omitted and
+no SQL probe, retry, deadline increase or new authority is introduced.
+
+The normal payload boundary case, full API fixture compilation, four grouped Node
+checks, UI lint/typecheck/build and the original ledger pass. Independent review
+passes; exact results and failed observations are retained in the committed bundle
+referenced by `cloud-approval-native-diagnostics-checkpoint-2026-10-15.json`.
+These diagnostics do not claim to fix the underlying native failures.
+
+A b17 browser run passed both initial authorization metadata checks and then failed
+at the shared connector-lifecycle phase; connector versus approval construction is
+still unknown. A native lifecycle observation now proves a live parent with an
+expired lease before revocation. Reviewed read-only setup reordering is next; the
+30-second lease and permission assertions remain enforced. Production fleet cutover
+and real deployed/provider acceptance remain open. All 728 original task categories
+and owner mappings remain unchanged, with no availability promotion.
+
 ## Future approval and authentic overflow checkpoint, October 15, 2026
 
 Genuine Test74 and ordered-progress producers now have explicit flows that activate

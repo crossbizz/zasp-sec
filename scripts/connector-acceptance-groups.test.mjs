@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CONNECTOR_ACCEPTANCE_GROUPS as groups, selectConnectorAcceptanceGroup as select, validateConnectorAcceptanceTrace as validate, parseConnectorNativeObservation as observation } from './connector-acceptance-groups.mjs';
+import { CONNECTOR_ACCEPTANCE_GROUPS as groups, selectConnectorAcceptanceGroup as select, validateConnectorAcceptanceTrace as validate, parseConnectorNativeObservation as observation, describeConnectorAcceptanceTraceFailure as describeTraceFailure } from './connector-acceptance-groups.mjs';
 const pkg = 'github.com/zasp-ai/zasp-sec/services/platform/apiserver';
 const trace = selected => [...selected.names.flatMap(Test => [{Package: pkg, Test, Action: 'run'}, {Package: pkg, Test, Action: 'pass'}]), {Package: pkg, Action: 'pass'}];
 test('required application groups retain every flow and owned database', () => {
@@ -14,13 +14,33 @@ test('required application groups retain every flow and owned database', () => {
 test('missing, arbitrary, inherited, or multiple selectors cannot silently run a subset', () => {
   for (const args of [[], [''], ['all'], ['oauth|callback'], ['oauth', 'pkce'], ['constructor'], ['__proto__'], null, 'oauth']) assert.throws(() => select(args));
 });
-test('partial, duplicated, skipped, failed, foreign, or cross-group traces refuse', () => {
+test('partial, duplicated, skipped, failed, foreign, or cross-group traces refuse with issued closed stages', () => {
   const selected = groups.callback, good = trace(selected);
-  for (const bad of [good.slice(1), [...good, good[0]], [...good, {Package: pkg, Action: 'skip'}], [...good, {Package: pkg, Action: 'fail'}], [...good, {Package: pkg, Action: 'unknown'}], [...good, {Package: pkg, Test: groups.pkce.top, Action: 'run'}], good.map(row => ({...row, Package: 'other/package'})), good.filter(row => row.Test !== undefined)]) assert.throws(() => validate(bad, selected));
-  assert.throws(() => validate(good, {...selected}));
+  const cases = [
+    [good.slice(1), selected, 'run-roster'],
+    [[...good, good[0]], selected, 'run-roster'],
+    [[...good, {Package: pkg, Action: 'skip'}], selected, 'event-action'],
+    [[...good, {Package: pkg, Action: 'fail'}], selected, 'event-action'],
+    [[...good, {Package: pkg, Action: 'unknown'}], selected, 'event-action'],
+    [[...good, {Package: pkg, Test: groups.pkce.top, Action: 'run'}], selected, 'event-case'],
+    [good.map(row => ({...row, Package: 'other/package'})), selected, 'event-package'],
+    [good.filter(row => row.Test !== undefined), selected, 'package-pass'],
+    [good, {...selected}, 'selection'],
+    [[], selected, 'empty'],
+    [[null], selected, 'event-shape'],
+    [good.filter(row => !(row.Action === 'pass' && row.Test === selected.top)), selected, 'pass-roster'],
+  ];
+  for (const [rows, group, stage] of cases) assert.throws(() => validate(rows, group), error => {
+    assert.equal(describeTraceFailure(error), stage); return true;
+  });
+  for (const value of [new Error('PRIVATE_CANARY'), {stage:'event-package'}, {message:'event-case'}, null, 'event-action']) assert.equal(describeTraceFailure(value), 'unknown');
 });
 
 test('native observations expose only bounded closed catalog and cutover fields', () => {
+  const payload='approval payload observation stage=payload-load outcome=denied parent_live=true lease_live=true provider_live=true';
+  assert.deepEqual(observation(payload), {kind:'approval-payload',value:{stage:'payload-load',outcome:'denied',parentLive:true,leaseLive:true,providerLive:true}});
+  for(const outcome of ['context-deadline','context-canceled','lease-margin','denied','unavailable','other-error','run-mismatch']) assert.equal(observation(payload.replace('outcome=denied','outcome='+outcome)).value.outcome,outcome);
+  for(const input of [payload+' PRIVATE_CANARY',payload+'\nPRIVATE_CANARY',payload.replace('payload-load','PRIVATE_CANARY'),payload.replace('outcome=denied','outcome=PRIVATE_CANARY'),payload.replace('lease_live=true','lease_live=false')])assert.equal(observation(input),null);
   const lease='connector lease observation stage=preparation-finish outcome=denied parent_live=true lease_live=false provider_bound=true provider_live=false';
   assert.deepEqual(observation(lease), {kind:'lease',value:{stage:'preparation-finish',outcome:'denied',parentLive:true,leaseLive:false,providerBound:true,providerLive:false}});
   for(const stage of ['preparation-finish','preparation-forward','captured-compensation','revocation-pending','revocation-applied','recovery-forward','unknown']) {

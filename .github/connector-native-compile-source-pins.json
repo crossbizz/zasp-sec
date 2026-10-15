@@ -1,7 +1,7 @@
 {
-  "status": "FUTURE APPROVAL AND AUTHENTIC OVERFLOW CANDIDATE; COMPONENT VERIFIED; HOSTED NATIVE AND DEPLOYED ACCEPTANCE PENDING",
+  "status": "CLOSED NATIVE FAILURE DIAGNOSTICS; COMPONENT VERIFIED; NATIVE AND DEPLOYED ACCEPTANCE PENDING",
   "base": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
-  "checkpointSHA256": "e17efa3ab23263e4a92178a422e1251d228d36a964414a9994008ce04720cdbe",
+  "checkpointSHA256": "7e6d5a9e97739298f34ab00eb6e540704f77b133521cf9ccf58520282243d061",
   "sources": [
     {
       "path": "services/platform/agentsec-api/connector_callback_runtime.go",
@@ -376,29 +376,29 @@
     },
     {
       "path": "scripts/connector-acceptance-groups.mjs",
-      "sha256": "72ff74c1b3e27c1b006de34a8f602a1adcc152afd5abe196050965c1affccb40",
-      "bytes": 7190,
+      "sha256": "f73b9b670dfcc00ccd0250253cb9f0d521fe03ee9a86a6c87309f8e1f6d1beb4",
+      "bytes": 8967,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/connector-acceptance-groups.test.mjs",
-      "sha256": "507b9b18e4d952d3053fc6a7e300efc301ea9336e4ea0903ae83f20b6c029566",
-      "bytes": 5418,
+      "sha256": "646a6b9d7205f622a158fc1101b1158a593c9786a8ab30bef3d37906424d0773",
+      "bytes": 7033,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connected-connector-acceptance.mjs",
-      "sha256": "72be19764f13ee794ec67ede773ff165d8b0ec820504507ab57bf64b56d7b0a9",
-      "bytes": 44246,
+      "sha256": "3f6635076eb3c13b3e51ea037348fd13fb7c821dd25936bceb9916b1cd3cda58",
+      "bytes": 44969,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
-      "sha256": "68db49ab2f1a653f144483e6e07f7c7896b4c58e1b3afbc386cf31aef0921c82",
-      "bytes": 42138,
+      "sha256": "5283bccfb0508b936b5ade68032b24146cec53a27bed0ccce62e8dc40a96c50a",
+      "bytes": 42287,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -628,8 +628,8 @@
     },
     {
       "path": "services/platform/apiserver/approval_activation_flow_test.go",
-      "sha256": "bb084df5346039a4b5dea8f08e834808f1ccb0b169ccd6b0ffdc35e7d62ba4ef",
-      "bytes": 33493,
+      "sha256": "6900d4c1d649744d99f915b7f1d8c1c25aac20d2d0917168f635886fb14bc757",
+      "bytes": 33582,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -770,6 +770,13 @@
       "path": "services/platform/apiserver/connector_maintenance_failure_observation_test.go",
       "sha256": "38e59d1e256423bda47285786edcd4ecbb1f95fb32a85153559e9ce65aabb36f",
       "bytes": 3960,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/apiserver/approval_activation_failure_observation_test.go",
+      "sha256": "d521fb9a290f1969ea355e5d95632f6777132a21f86eade1f18a5db1b47d7d18",
+      "bytes": 4066,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     }

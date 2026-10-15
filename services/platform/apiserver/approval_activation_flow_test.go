@@ -211,7 +211,8 @@ func TestApprovalActivationNativeFindingDeliveryFlow(t *testing.T) {
 		}
 		payload, err := native.LoadDelivery(ctx, reservation)
 		if err != nil || payload.RunID != first {
-			t.Fatal("live original payload unavailable", err)
+			t.Log(approvalActivationFailureObservation(ctx, reservation, err, payload.RunID == first))
+			t.Fatal("live original payload unavailable")
 		}
 		if err := adapter.ReleaseUnattempted(ctx, reservation); err != nil {
 			t.Fatal(err)
