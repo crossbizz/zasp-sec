@@ -16,9 +16,11 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeservices"
 )
 
-// Twenty-one receipts come from complete signed planning across three actual
-// publicly created, validated and supervised definitions. Each retains the
-// original maximum concurrency10. No origin/task/delegation is inserted here.
+// Twenty-one durable eligible receipts come from complete signed planning
+// across three actual publicly created, validated and supervised definitions.
+// Original public cancellation releases organization capacity after each
+// capture; these are not 21 simultaneous pending approval runs. Every original
+// concurrency limit remains 10. No origin/task/delegation is inserted here.
 func TestApprovalActivationNativeAuthenticCaptureOverflow(t *testing.T) {
 	if os.Getenv("ZASP_P7_MODEL_TEST") != "1" {
 		t.Skip("requires owned native PostgreSQL/OpenFGA runtime")
@@ -63,6 +65,9 @@ func TestApprovalActivationNativeAuthenticCaptureOverflow(t *testing.T) {
 			for range 7 {
 				run := approvalActivationPlanFinding(t, ctx, current, original, forward, pricing, runtime.Reconcile)
 				runtime.AssertCapture(run, "finding78", "captured_inactive")
+				cancelApprovalOverflowCapturedRun(t, ctx, current, run)
+				runtime.AssertCapture(run, "finding78", "captured_inactive")
+				runtime.Reconcile()
 			}
 		}
 		var authentic bool
@@ -172,4 +177,48 @@ func approvalOverflowSnapshot(t *testing.T, ctx context.Context, f findingRespon
 		t.Fatal("overflow durable snapshot unavailable", err)
 	}
 	return digest
+}
+
+// Genuine public cancellation frees the original organization quota without
+// inventing a terminal state or losing the independently durable notification.
+// Native cancellation audit/receipt and deferred 78 manager checks remain intact.
+func cancelApprovalOverflowCapturedRun(t *testing.T, ctx context.Context, f findingResponseFixture, run string) {
+	t.Helper()
+	snapshot := func() string {
+		t.Helper()
+		var value string
+		if err := f.owner.QueryRow(ctx, `SELECT encode(digest(convert_to(jsonb_build_array(to_jsonb(o),to_jsonb(n))::text,'UTF8'),'sha256'),'hex')
+ FROM zasp_approval_maintenance.origins o JOIN public.zasp_security_agent_approval_notifications n USING(organization_id,workspace_id,environment_id,delivery_id)
+ WHERE(o.organization_id,o.workspace_id,o.environment_id,o.run_id)=($1,$2,$3,$4)`, f.o, f.w, f.e, run).Scan(&value); err != nil {
+			t.Fatal("original durable capture snapshot unavailable")
+		}
+		return value
+	}
+	before := snapshot()
+	var version int64
+	var state string
+	if err := f.owner.QueryRow(ctx, `SELECT version,state FROM public.zasp_security_agent_runs WHERE(organization_id,workspace_id,environment_id,run_id)=($1,$2,$3,$4)`, f.o, f.w, f.e, run).Scan(&version, &state); err != nil || state != "waiting_approval" {
+		t.Fatal("genuine captured run is not waiting for approval")
+	}
+	input := SecurityAgentCancelRequest{RunID: run, ExpectedVersion: version, IdempotencyKey: "approval-overflow-cancel-" + run, AuditID: f.next(), CorrelationID: f.next(), ReceiptID: f.next()}
+	result, err := f.repository.CancelSecurityAgentRun(ctx, f.identity, input)
+	if err != nil || result.ID != run || result.State != "cancelled" || result.Version != version+1 || result.Replayed || result.AuditID != input.AuditID || result.CorrelationID != input.CorrelationID || result.ReceiptID != input.ReceiptID {
+		t.Fatal("original public overflow cancellation failed")
+	}
+	if after := snapshot(); after != before {
+		t.Fatal("public cancellation rewrote authentic origin or pending notification evidence")
+	}
+	var valid bool
+	if err := f.owner.QueryRow(ctx, `SELECT
+ EXISTS(SELECT 1 FROM public.zasp_security_agent_runs r WHERE(r.organization_id,r.workspace_id,r.environment_id,r.run_id,r.definition_id,r.state,r.version)=($1,$2,$3,$4,$5,'cancelled',$6+1) AND r.completed_at IS NOT NULL AND r.lease_owner IS NULL AND r.lease_token IS NULL AND r.lease_expires_at IS NULL)
+ AND EXISTS(SELECT 1 FROM public.zasp_security_agent_audit a WHERE(a.organization_id,a.workspace_id,a.environment_id,a.run_id,a.audit_id,a.correlation_id,a.actor_id,a.event_kind)=($1,$2,$3,$4,$7,$8,$9,'run_cancelled') AND a.body=jsonb_build_object('run_id',$4::text,'prior_state','waiting_approval','version',$6::bigint+1) AND a.event_digest=digest(convert_to(jsonb_build_object('run_id',$4::text,'expected_version',$6::bigint)::text,'UTF8'),'sha256'))
+ AND EXISTS(SELECT 1 FROM public.zasp_security_agent_request_receipts rc WHERE(rc.organization_id,rc.workspace_id,rc.environment_id,rc.principal_id,rc.operation,rc.idempotency_key,rc.resource_id,rc.expected_version,rc.audit_id,rc.correlation_id,rc.receipt_id)=($1,$2,$3,$9,'cancelSecurityAgentRun',$10,$4,$6,$7,$8,$11) AND rc.intent=jsonb_build_object('run_id',$4::text,'expected_version',$6::bigint) AND rc.intent_digest=digest(convert_to(rc.intent::text,'UTF8'),'sha256') AND rc.response->>'id'=$4 AND rc.response->>'state'='cancelled' AND rc.response->'version'=to_jsonb($6::bigint+1))
+ AND EXISTS(SELECT 1 FROM zasp_approval_maintenance.origins o JOIN public.zasp_security_agent_approval_notifications n USING(organization_id,workspace_id,environment_id,delivery_id) WHERE(o.organization_id,o.workspace_id,o.environment_id,o.run_id)=($1,$2,$3,$4) AND o.status='captured_inactive' AND o.delegation IS NOT NULL AND zasp_approval_activation_v1.eligible(o) AND n.state='pending' AND n.attempt=0 AND n.completed_at IS NULL AND n.lease_token IS NULL)
+ AND EXISTS(SELECT 1 FROM zasp_temporal78.provider_reservations p WHERE(p.organization_id,p.workspace_id,p.environment_id,p.run_id)=($1,$2,$3,$4) AND p.settled_at IS NOT NULL AND p.total_tokens=30 AND p.cost_nano_credits=30000)
+ AND NOT EXISTS(SELECT 1 FROM zasp_temporal78.provider_reservations p WHERE(p.organization_id,p.workspace_id,p.environment_id,p.run_id)=($1,$2,$3,$4) AND p.settled_at IS NULL AND p.released_at IS NULL)
+ AND NOT zasp_temporal74.unresolved($1,$2,$3,$4)
+ AND NOT EXISTS(SELECT 1 FROM public.zasp_security_agent_effects x WHERE(x.organization_id,x.workspace_id,x.environment_id,x.run_id)=($1,$2,$3,$4))
+ AND NOT EXISTS(SELECT 1 FROM public.zasp_security_agent_step_reservations x WHERE(x.organization_id,x.workspace_id,x.environment_id,x.run_id)=($1,$2,$3,$4))`, f.o, f.w, f.e, run, f.definition, version, input.AuditID, input.CorrelationID, f.actor, input.IdempotencyKey, input.ReceiptID).Scan(&valid); err != nil || !valid {
+		t.Fatal("public cancellation lacks exact receipt/audit, released capacity or preserved native capture")
+	}
 }

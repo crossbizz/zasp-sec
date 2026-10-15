@@ -1,6 +1,21 @@
 # Agent Security Platform Implementation Status
 
 
+## Durable approval capture overflow checkpoint, October 15, 2026
+
+The native overflow fixture now releases organization capacity through original
+public cancellation after each genuine signed capture. It checks exact native
+cancellation receipt/audit, settled provider debt, unchanged whole origin and
+notification records, and continued eligibility. All 21 captures and the original
+concurrency limits, withdrawal, atomic refusal and consumed-permit checks remain.
+This exercises durable eligible captures, not 21 simultaneous pending runs.
+
+Independent source review, complete API fixture compilation with zero selected
+tests, UI lint/typecheck/build and the 728-row ledger pass. Exact evidence is in
+`cloud-approval-overflow-public-cancel-checkpoint-2026-10-15.json` and its committed
+bundle. Native acceptance remains pending; no availability classification changes.
+
+
 ## Maintenance startup checkpoint, October 15, 2026
 
 Maintenance constructors now report a bounded, fixed failure stage through the

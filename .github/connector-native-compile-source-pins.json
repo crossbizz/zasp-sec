@@ -1,7 +1,7 @@
 {
-  "status": "BOUNDED MAINTENANCE STARTUP DIAGNOSTICS AND LIFECYCLE SETUP; COMPONENT VERIFIED; HOSTED AND DEPLOYED ACCEPTANCE PENDING",
+  "status": "AUTHENTIC DURABLE APPROVAL CAPTURE OVERFLOW VIA ORIGINAL PUBLIC CANCELLATION; COMPILE/REVIEW ONLY; NATIVE ACCEPTANCE PENDING",
   "base": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
-  "checkpointSHA256": "c22145ae254462181d959a6f4ab809c9f40d47317db580cc2bef5e65b23c5c97",
+  "checkpointSHA256": "2eb931fb92eed44ab8a96707857f3cb9936b8ac09fbce563dd97a2ed5e155df4",
   "sources": [
     {
       "path": "services/platform/agentsec-api/connector_callback_runtime.go",
@@ -390,14 +390,14 @@
     },
     {
       "path": "scripts/hosted-connected-connector-acceptance.mjs",
-      "sha256": "13dc3700b225608b57157c04719f8fe742732be2e52d76e46e2a49269fe5c832",
+      "sha256": "e1ef02a38394b0337764a1d8db5aeac72c1e6f99ddca6b2c2dd63adf3e45f02c",
       "bytes": 45401,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
-      "sha256": "9053935be2e8375104e8187a91ead79fe5a86cf736678455179d771401e6ae59",
+      "sha256": "61bd444aef3c0959320388c9554a4fbfabaa137636098abf6c3c0a1e71950f85",
       "bytes": 42287,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
@@ -754,8 +754,8 @@
     },
     {
       "path": "services/platform/apiserver/approval_activation_overflow_test.go",
-      "sha256": "63c357dfef18f21b121fe26b92d3de3d5b21214847d23ab90a3f1b1b99df1952",
-      "bytes": 11291,
+      "sha256": "16b8a4826129804e73d6292eaa3778068ff7946f96ae303b7bd4070da28c6eea",
+      "bytes": 16543,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
