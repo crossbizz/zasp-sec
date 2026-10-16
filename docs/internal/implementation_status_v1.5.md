@@ -1,6 +1,31 @@
 # Agent Security Platform Implementation Status
 
 
+## Native approval permission acceptance, October 16, 2026
+
+Starting from `5808fb58e7a2063543fd2e8bc3b8ba9dc0f470d9`, the two immediate
+approval grant observations now use the actual registered production outbox
+snapshot before reconciliation. Bootstrap raw-view denial remains an explicit
+permission check. Exact scoped grant matching and before/snapshot/after revision
+equality retain the original delivery, revocation, recovery and audit assertions.
+No production SQL, authority, lease, deadline or acceptance guard changes.
+
+Independent source review, complete API fixture compilation, focused comparison
+group, fresh UI typecheck, production UI build and lint pass. These are component
+checks. The unchanged native ownership guard refuses this environment's hidden
+cgroup ancestors; candidate native execution is unverified. Existing hosted
+future/progress/finding/overflow, strict event and approval readiness failures
+remain unresolved. Full source associations and preceding failures are retained
+in `cloud-native-permission-checkpoint-2026-10-16.json` and its immutable packet.
+
+Actual official advisory raw Git commit bytes were acquired and hash-verified;
+complete corpus and malware coverage remain open. Production target, role and
+provider bindings, fleet authority and deployed Stytch/provider journeys are
+still required. All 728 ledger rows remain: 523 historical production-available,
+144 component-only and 61 externally blocked, with zero promotions. Historical
+classifications do not establish current launch readiness.
+
+
 ## Closed acceptance diagnostics and rejected source candidates, October 15, 2026
 
 Starting from `4e282b01f6d72b0a7f2bf877553e42268fa30ada`, strict native trace

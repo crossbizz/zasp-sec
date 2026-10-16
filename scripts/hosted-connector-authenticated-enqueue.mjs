@@ -13,6 +13,7 @@ import { loadOfficialHeldTool, spawnHeldTool, closeHeldTool, verifyHeldTool } fr
 // Existing authenticated enqueue application group; no added cases, production credentials or deployment.
 const image = 'postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba';
 const pins = {
+  "services/platform/apiserver/approval_projection_visibility_test.go": "b8f964ffe558539a52e1fca5c97cac4f7add6e366b18a88f0e6682e72def526b",
   "services/platform/agentsec-api/bounded_parallel_readiness_test.go": "4a82a77cf64184177b7f7bde1ee56d736e5d9bd6624b7174e9f45e9a48043951",
   "services/platform/agentsec-api/authorization_runtime_readiness.go": "7999316f721e079c16656412eb594e460ca154f6f78a5cee5a1d894bf000ae21",
   "services/platform/apiserver/authorization_readiness.go": "ad1a94117de4e63b9c7ef15faf4c4744e6a6675b44ad6da1d7991cb63fcb683a",
@@ -83,13 +84,13 @@ const pins = {
   "services/platform/migrations/production_approval_settlement_audit_profile.go": "48cf793e911b7766da1de15b01ee741c6c6cb1e800654fcd5d495d156886f7d1",
   "services/platform/migrations/production_approval_settlement_audit_profile_test.go": "868232f1bce320c00d360d5b023628b22e385dcfe7345e83755d04a656569434",
   "services/platform/migrations/sql/approval_settlement_audit_profile.sql": "5d32526a3e1029c031193e689186b3892535f98e1a882e2a2f46d7f11f4361c2",
-  "services/platform/apiserver/approval_maintenance_genuine_test74_postgres_test.go": "2711ebe5ad3cde21d243ff8d1347c5db8a3b4f01330c5105cc6d093a53657a0d",
+  "services/platform/apiserver/approval_maintenance_genuine_test74_postgres_test.go": "77293329f990aafb033e634603742afd0578dd0fec7d3c42127ce35cd77d1075",
   "services/platform/apiserver/approval_activation_family_flow_test.go": "95272945e897f76c0d73b7722aa6fde436aff342b18e5109c2073206af709156",
   "services/platform/apiserver/approval_activation_family_runtime_test.go": "fff68ca1b09942be107df4b1b5345277aa9d0a96a7a2325ff76684289c46e12a",
   "services/platform/apiserver/approval_activation_ordered_progress_test.go": "d4046a280bbe47b705f5851ac656a63c20fe46031c80b264fdd9678b36ec825a",
   "services/platform/apiserver/approval_activation_future_family_test.go": "baf589a10beee3b81ee430757a81adb06ab255be992f7cd75bb1896c3c265158",
   "services/platform/apiserver/approval_activation_overflow_test.go": "16b8a4826129804e73d6292eaa3778068ff7946f96ae303b7bd4070da28c6eea",
-  "services/platform/apiserver/approval_maintenance_genuine_progress_postgres_test.go": "8549253bdb1d36a5c957735bffef03adaf7070cce650058e97b505667fc4119d",
+  "services/platform/apiserver/approval_maintenance_genuine_progress_postgres_test.go": "a25253c3d04a09e0a0186e6c989c8b787fad2df5103e2c592b6d3c67c37e0321",
   "services/platform/apiserver/connector_maintenance_failure_observation_test.go": "38e59d1e256423bda47285786edcd4ecbb1f95fb32a85153559e9ce65aabb36f",
   "services/platform/apiserver/approval_activation_failure_observation_test.go": "d521fb9a290f1969ea355e5d95632f6777132a21f86eade1f18a5db1b47d7d18"
 };

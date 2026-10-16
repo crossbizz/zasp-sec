@@ -523,20 +523,7 @@ func assertApprovalOriginTest74PlanningLoadWithAdmissionHooks(t *testing.T, ctx 
 	if err := owner.QueryRow(ctx, `SELECT count(*)=1 AND bool_and(o.status=$2 AND o.family='test74' AND o.delegation->>'purpose'='approval_notification_delivery' AND public.zasp_valid_product_id(o.delegation->>'task_id') AND o.delegation->>'grantor_id'=o.facts->>'grantor_id' AND o.delegation->>'principal_id'=o.facts->>'principal_id' AND o.payload_digest=n.payload_digest AND o.destination_url=n.destination_url AND o.secret_reference=n.secret_reference AND n.attempt=0 AND n.state='pending' AND jsonb_array_length(o.facts->'checks')>=2) FROM zasp_approval_maintenance.origins o JOIN public.zasp_security_agent_approval_notifications n USING(organization_id,workspace_id,environment_id,delivery_id) WHERE o.run_id=$1`, run, expectedCaptureState).Scan(&nativeCapture); err != nil || !nativeCapture {
 		t.Fatal("genuine signed74 admission failed inactive origin capture", err)
 	}
-	var projected bool
-	if err := owner.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM zasp_approval_maintenance.delivery_grants WHERE organization_id=$1)`, o).Scan(&projected); err != nil {
-		connectorFixtureErrorDiagnostic(t, err)
-		if errors.Is(ctx.Err(), context.DeadlineExceeded) || errors.Is(err, context.DeadlineExceeded) {
-			t.Fatal("native74 delivery grant query failed with observed context deadline")
-		}
-		if errors.Is(ctx.Err(), context.Canceled) || errors.Is(err, context.Canceled) {
-			t.Fatal("native74 delivery grant query failed with observed context cancellation")
-		}
-		t.Fatal("native74 delivery grant query failed")
-	}
-	if projected != (expectedCaptureState == "active") {
-		t.Fatal("native74 immediate delivery grant expectation mismatch")
-	}
+	assertApprovalImmediateProjection(t, ctx, owner, o, w, e, run, expectedCaptureState == "active")
 	if err := owner.QueryRow(ctx, `SELECT p.total_tokens=30 AND p.cost_nano_credits=30000 AND p.settled_at IS NOT NULL AND (SELECT count(*)=1 FROM zasp_security_agent_steps WHERE run_id=$1 AND step_index=0 AND action_key=$2) AND NOT EXISTS(SELECT 1 FROM zasp_sa_multistep_runs WHERE run_id=$1) FROM zasp_temporal74.provider_reservations p WHERE run_id=$1`, run, action).Scan(&one); err != nil || !one {
 		t.Fatal("native74 accounting and single canonical step", err)
 	}
