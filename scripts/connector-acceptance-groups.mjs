@@ -8,7 +8,12 @@ function group(top, cases, postgresJoins) {
 export const CONNECTOR_ACCEPTANCE_GROUPS = Object.freeze({
   'approval-test74': group('TestApprovalActivationNativeTest74DeliveryFlow', [], 2),
   'approval-ordered-planning': group('TestApprovalActivationNativeOrderedPlanningDeliveryFlow', [], 2),
-  'approval-ordered-progress': group('TestApprovalActivationNativeOrderedProgressDeliveryFlow', [], 2),
+  'approval-ordered-progress': group('TestApprovalActivationNativeOrderedProgressDeliveryFlow', [
+    'provider-evidence-unchanged',
+    'provider-evidence-ordinary-field',
+    'provider-evidence-timestamp-instant',
+    'provider-canonical-row-leaf',
+  ], 2),
   'approval-flow': group('TestApprovalActivationNativeFindingDeliveryFlow', [
     'measured_combined_activation_and_complete_projection',
     'native_signed_delivery_settles_exact_receipt',
@@ -46,7 +51,12 @@ export const CONNECTOR_ACCEPTANCE_GROUPS = Object.freeze({
   ], 2),
   'approval-overflow': group('TestApprovalActivationNativeAuthenticCaptureOverflow', [], 2),
   'approval-future-test74': group('TestApprovalActivationNativeFutureTest74DeliveryFlow', [], 2),
-  'approval-future-progress': group('TestApprovalActivationNativeFutureOrderedProgressDeliveryFlow', [], 2),
+  'approval-future-progress': group('TestApprovalActivationNativeFutureOrderedProgressDeliveryFlow', [
+    'provider-evidence-unchanged',
+    'provider-evidence-ordinary-field',
+    'provider-evidence-timestamp-instant',
+    'provider-canonical-row-leaf',
+  ], 2),
 });
 export function selectConnectorAcceptanceGroup(args) {
   assert.ok(Array.isArray(args) && args.length === 1 &&

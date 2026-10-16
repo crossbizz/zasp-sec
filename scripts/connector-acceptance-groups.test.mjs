@@ -7,11 +7,29 @@ const pkg = 'github.com/zasp-ai/zasp-sec/services/platform/apiserver';
 const trace = selected => [...selected.names.flatMap(Test => [{Package: pkg, Test, Action: 'run'}, {Package: pkg, Test, Action: 'pass'}]), {Package: pkg, Action: 'pass'}];
 test('required application groups retain every flow and owned database', () => {
   assert.deepEqual(Object.keys(groups), ['approval-test74', 'approval-ordered-planning', 'approval-ordered-progress', 'approval-flow', 'approval', 'oauth', 'lifecycle', 'pkce', 'callback', 'approval-overflow', 'approval-future-test74', 'approval-future-progress']);
-  assert.deepEqual(Object.values(groups).map(g => [g.names.length, g.postgresJoins]), [[1, 2], [1, 2], [1, 2], [6, 2], [6, 1], [3, 1], [6, 2], [4, 2], [4, 2], [1, 2], [1, 2], [1, 2]]);
+  assert.deepEqual(Object.values(groups).map(g => [g.names.length, g.postgresJoins]), [[1, 2], [1, 2], [5, 2], [6, 2], [6, 1], [3, 1], [6, 2], [4, 2], [4, 2], [1, 2], [1, 2], [5, 2]]);
   const names = Object.values(groups).flatMap(g => g.names);
-  assert.equal(names.length, 35); assert.equal(new Set(names).size, 35);
+  assert.equal(names.length, 43); assert.equal(new Set(names).size, 43);
   assert.equal(Object.values(groups).reduce((n, g) => n + g.postgresJoins, 0), 22);
   for (const key of Object.keys(groups)) { assert.equal(select([key]), groups[key]); validate(trace(groups[key]), groups[key]); }
+});
+test('both ordered progress flows require every original provider evidence control', () => {
+  const cases = ['provider-evidence-unchanged', 'provider-evidence-ordinary-field', 'provider-evidence-timestamp-instant', 'provider-canonical-row-leaf'];
+  const helper = fs.readFileSync(new URL('../services/platform/apiserver/authorization_worker_ordered_provider_evidence_test.go', import.meta.url), 'utf8');
+  assert.match(helper, /\[\]string\{"unchanged", "ordinary-field", "timestamp-instant"\}/);
+  assert.match(helper, /t\.Run\("provider-evidence-"\+control/);
+  assert.match(helper, /t\.Run\("provider-canonical-row-leaf"/);
+  for (const key of ['approval-ordered-progress', 'approval-future-progress']) {
+    const selected = groups[key];
+    assert.deepEqual(selected.names, [selected.top, ...cases.map(name => `${selected.top}/${name}`)]);
+    validate(trace(selected), selected);
+    for (const name of selected.names.slice(1)) {
+      assert.throws(() => validate(trace(selected).filter(row => row.Test !== name), selected));
+      assert.throws(() => validate(trace(selected).map(row => row.Test === name ? {...row, Test: `${name}-unknown`} : row), selected));
+      assert.throws(() => validate([...trace(selected), {Package: pkg, Test: name, Action: 'pass'}], selected));
+      assert.throws(() => validate(trace(selected).map(row => row.Test === name && row.Action === 'pass' ? {...row, Action: 'skip'} : row), selected));
+    }
+  }
 });
 test('missing, arbitrary, inherited, or multiple selectors cannot silently run a subset', () => {
   for (const args of [[], [''], ['all'], ['oauth|callback'], ['oauth', 'pkce'], ['constructor'], ['__proto__'], null, 'oauth']) assert.throws(() => select(args));

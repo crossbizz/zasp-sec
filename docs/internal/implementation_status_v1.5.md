@@ -1,6 +1,32 @@
 # Agent Security Platform Implementation Status
 
 
+## Connected native and browser acceptance boundaries, October 16, 2026
+
+The preceding `c3fe641a46c4e9944d8c2f68e307e35a03a01aba` passes genuine future
+Test74 delivery on both hosted events. Capture, authenticated enqueue, Test74,
+OAuth and callback also pass on both events. These are native component flows,
+not deployed Stytch/provider proof. Future progress passes its inner Go flow but
+the strict outer runner rejects four existing provider-evidence child cases
+missing from its roster. Both progress groups now require all four explicitly:
+43 required cases retain the original35,12 groups and22 PostgreSQL joins.
+
+The combined batch also handles one legitimate concurrent projection advance
+through a second full reconciliation, bounded by the original125-second active
+budget and exact final acknowledgement. Real migration CLI compilation moves
+before the native application's120-second context; both original commands,
+principal bindings and30-second migration limits remain unchanged. No runtime
+SQL, lease, provider, permission or acceptance safeguards are relaxed.
+
+Independent reviews,96 grouped application controls, full API fixture compile,
+focused grant comparison, fresh UI typecheck/build and lint pass. New native
+whole-flow acceptance remains pending. Existing native leases/planner deadlines,
+browser readiness/assertions and public-query coverage failures remain open.
+See `cloud-connected-progress-checkpoint-2026-10-16.json` for exact scope and
+retained original failures. All728 ledger rows and523/144/61 classifications
+remain unchanged. No launch or production-availability promotion is claimed.
+
+
 ## Native approval permission acceptance, October 16, 2026
 
 Starting from `5808fb58e7a2063543fd2e8bc3b8ba9dc0f470d9`, the two immediate

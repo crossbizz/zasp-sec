@@ -13,6 +13,10 @@ import { loadOfficialHeldTool, spawnHeldTool, closeHeldTool, verifyHeldTool } fr
 // Existing authenticated enqueue application group; no added cases, production credentials or deployment.
 const image = 'postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba';
 const pins = {
+  "services/platform/apiserver/security_agent_temporal_ownership_postgres_test.go": "bb7df4a074825f91c29970ef2fed9c4d363f5dcdcbb82e03e5cbc5c3070df78d",
+  "services/platform/apiserver/security_agent_temporal_executor_postgres_test.go": "c2ef8641fe329f9f50dba2f9c0e35766c82832966153d86e54b56c41d5bb531b",
+  "services/platform/apiserver/authorization_worker_ordered_provider_evidence_test.go": "f1f1f4d26aa6c03a0955e87cc35ca29ec860430abfc5c5c343f81e7eff39a843",
+
   "services/platform/apiserver/approval_projection_visibility_test.go": "b8f964ffe558539a52e1fca5c97cac4f7add6e366b18a88f0e6682e72def526b",
   "services/platform/agentsec-api/bounded_parallel_readiness_test.go": "4a82a77cf64184177b7f7bde1ee56d736e5d9bd6624b7174e9f45e9a48043951",
   "services/platform/agentsec-api/authorization_runtime_readiness.go": "7999316f721e079c16656412eb594e460ca154f6f78a5cee5a1d894bf000ae21",
@@ -97,8 +101,8 @@ const pins = {
 const top='TestConnectorMaintenanceAuthenticatedOAuthEnqueuePostgres';
 const cases=['genuine_same_transaction_origin_and_immutable_enrichment','rollback_removes_every_enqueue_and_provenance_write'];
 const helperPins={
-  "scripts/connector-acceptance-groups.test.mjs": "0e78e56c953ad0df6ceecdc026acfc29165252ce4f56825703a06489addf7df2",
-  "scripts/connector-acceptance-groups.mjs": "1327003c353b4bd157b66c11bad9da30701c50e568e773028c62deafd74083be",
+  "scripts/connector-acceptance-groups.test.mjs": "bb60493c915feba2ed701ff05768545382cca48dc5f3743ff1827c4345b26d90",
+  "scripts/connector-acceptance-groups.mjs": "91678d92887fc584bdbd5a2422d5f56c890cfe1d5d9972ef75a97bac5241a401",
   "docs/internal/evidence/cloud-2026-10-07/native-service-readiness/openfga/09-pg-non-glibc-libs-manifest.json": "96642e82997ffd2caf2893a5ecc0116ad2aef6e982df2d929f3efda4e04f3474",
   "services/platform/apiserver/authorization_integration_mutations_postgres_test.go": "5e4beb04b2409ad9b11b89c017ada5e2eccffd78a87bdd5692d40670f12a2ba0",
   "scripts/hosted-memory-observation.mjs": "70c2ae837d040be4756842e4016acbc4eebd6bae3d8c992aba2a80e2a097ba75",

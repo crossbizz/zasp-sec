@@ -1,7 +1,7 @@
 {
-  "status": "NATIVE APPROVAL PERMISSION HARNESS COMPONENT VERIFIED; ORIGINAL WHOLE-FLOW GUARDS RETAINED; HOSTED NATIVE AND DEPLOYED ACCEPTANCE UNRESOLVED",
+  "status": "CONNECTED ORDERED PROVIDER ROSTER, PROJECTION CONVERGENCE AND NATIVE BUILD PREPARATION COMPONENT VERIFIED; CANDIDATE NATIVE AND DEPLOYED ACCEPTANCE PENDING",
   "base": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
-  "checkpointSHA256": "b04a555103feeaff0ff31d66c2165743a7ad47270ae052a58e8ed7e9e758be8f",
+  "checkpointSHA256": "8e0f94b9b6fc0367f2fc4e4f97ed62efccc71e9bd47abdd7650d887fe5536d9b",
   "sources": [
     {
       "path": "services/platform/agentsec-api/connector_callback_runtime.go",
@@ -376,29 +376,29 @@
     },
     {
       "path": "scripts/connector-acceptance-groups.mjs",
-      "sha256": "1327003c353b4bd157b66c11bad9da30701c50e568e773028c62deafd74083be",
-      "bytes": 10027,
+      "sha256": "91678d92887fc584bdbd5a2422d5f56c890cfe1d5d9972ef75a97bac5241a401",
+      "bytes": 10339,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/connector-acceptance-groups.test.mjs",
-      "sha256": "0e78e56c953ad0df6ceecdc026acfc29165252ce4f56825703a06489addf7df2",
-      "bytes": 11807,
+      "sha256": "bb60493c915feba2ed701ff05768545382cca48dc5f3743ff1827c4345b26d90",
+      "bytes": 13255,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connected-connector-acceptance.mjs",
-      "sha256": "bf49504009a6e98af28806708afac5f9887061a08349c39ae6030d4845d8f6ff",
-      "bytes": 45772,
+      "sha256": "d2455ab838e630a54d900e0c4609834913f3e767e15644aca9ec37be00ec396b",
+      "bytes": 46232,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
-      "sha256": "93256010f9515123781d284179809d68fd5de34b4516068730d59583a482b606",
-      "bytes": 42427,
+      "sha256": "902890477fffaa5b55ce6656fb9717f77000914ecf10f7f2b9ecf3b9c7f78138",
+      "bytes": 42887,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -418,8 +418,8 @@
     },
     {
       "path": "scripts/owned-current80-composition.mjs",
-      "sha256": "c18e89ca390ebb51894c933e68f3b73a1bc5fb28a220f6c59fb30824ac756bbf",
-      "bytes": 8354,
+      "sha256": "557b17fafe8f94daf882f1f56309f6ff607886e822c6e2a76e732b5487a9a512",
+      "bytes": 9615,
       "currentBasePreimageSHA256": "3f9143d9a00cd880b5fe64e27b245fd802142ecbefe61c22694e41ca132a499f",
       "historicalPreimageSHA256": null
     },
@@ -800,8 +800,36 @@
       "bytes": 8954,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/apiserver/security_agent_temporal_ownership_postgres_test.go",
+      "sha256": "bb7df4a074825f91c29970ef2fed9c4d363f5dcdcbb82e03e5cbc5c3070df78d",
+      "bytes": 22718,
+      "currentBasePreimageSHA256": "5990a20495d16b42d21702c016b6c3b26298b7262a8c81157153c629709025fa",
+      "historicalPreimageSHA256": "5990a20495d16b42d21702c016b6c3b26298b7262a8c81157153c629709025fa"
+    },
+    {
+      "path": "services/platform/apiserver/security_agent_temporal_executor_postgres_test.go",
+      "sha256": "c2ef8641fe329f9f50dba2f9c0e35766c82832966153d86e54b56c41d5bb531b",
+      "bytes": 107715,
+      "currentBasePreimageSHA256": "ba094a67bb90c1275dd75e1505d9a43e63900e5718c1092058b1f64489e29833",
+      "historicalPreimageSHA256": "ba094a67bb90c1275dd75e1505d9a43e63900e5718c1092058b1f64489e29833"
+    },
+    {
+      "path": "services/platform/apiserver/authorization_worker_ordered_provider_evidence_test.go",
+      "sha256": "f1f1f4d26aa6c03a0955e87cc35ca29ec860430abfc5c5c343f81e7eff39a843",
+      "bytes": 6194,
+      "currentBasePreimageSHA256": "f1f1f4d26aa6c03a0955e87cc35ca29ec860430abfc5c5c343f81e7eff39a843",
+      "historicalPreimageSHA256": "f1f1f4d26aa6c03a0955e87cc35ca29ec860430abfc5c5c343f81e7eff39a843"
+    },
+    {
+      "path": "scripts/owned-current80-composition.test.mjs",
+      "sha256": "f7e7043060e0b688c0b5a07609cc03d8836b63ac2a73303f0a97da5b599d51f3",
+      "bytes": 12931,
+      "currentBasePreimageSHA256": "23402325b7c371b91a8e7cb8abc4707bc7be2c97a1e48beea8c4128d385fc303",
+      "historicalPreimageSHA256": "23402325b7c371b91a8e7cb8abc4707bc7be2c97a1e48beea8c4128d385fc303"
     }
   ],
   "predecessorCheckpointSHA256": "364ada857d54ce83d678e00eb3d61d55c6a036d22cc1f7ebc9170432079ece05",
-  "previousCheckpointSHA256": "614d137f1ad4bac2500d10f5b4405f76789bd19d3fad2079ec5edf3ff0ae9b07"
+  "previousCheckpointSHA256": "b04a555103feeaff0ff31d66c2165743a7ad47270ae052a58e8ed7e9e758be8f"
 }

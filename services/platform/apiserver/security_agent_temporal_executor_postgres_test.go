@@ -240,8 +240,9 @@ type temporalExecutorPlanningPreLoad func(context.Context, *pgx.Conn, *pgx.Conn,
 
 func runTemporalExecutorPlanningFixtureWithHook(t *testing.T, beforeLoad temporalExecutorPlanningPreLoad, inspect func(context.Context, *pgx.Conn, *pgx.Conn, *pgx.Conn, string, string, string, string, string), recovery func(context.Context, *pgx.Conn, *pgx.Conn, *pgx.Conn, string, string, string, string, string, []byte, func(string, map[string]any) (map[string]any, error)), transport ...func(context.Context, *pgx.Conn, *pgx.Conn, *pgx.Conn, string, string, string, string, string, map[string]any)) {
 	t.Helper()
+	migrationCLI := buildTemporalMigrationFixtureCLI(t)
 	runTemporalDomainFreshFixture(t, func(ctx context.Context, owner, worker, api *pgx.Conn, o, w, e, testID, actor string) {
-		runTemporalMigrationCLI(t, ctx, owner, "up-temporal-domain")
+		runTemporalMigrationFixtureCLI(t, ctx, owner, migrationCLI, "up-temporal-domain")
 		if _, err := owner.Exec(ctx, `INSERT INTO zasp_temporal66.admission_routes VALUES($1,$2,$3,'temporal')`, o, w, e); err != nil {
 			t.Fatal(err)
 		}
@@ -263,7 +264,7 @@ func runTemporalExecutorPlanningFixtureWithHook(t *testing.T, beforeLoad tempora
 		if err := owner.QueryRow(ctx, `SELECT r.state='queued' AND r.plan_hash IS NULL AND r.lease_token IS NULL AND r.lease_owner IS NULL AND r.lease_expires_at IS NULL AND x.execution_owner='temporal' AND NOT EXISTS(SELECT 1 FROM zasp_security_agent_run_budgets WHERE run_id=$1) FROM zasp_security_agent_runs r JOIN zasp_temporal66.run_owners x USING(organization_id,workspace_id,environment_id,run_id) WHERE r.run_id=$1`, run).Scan(&fresh); err != nil || !fresh {
 			t.Fatal("API did not create fresh Temporal run", fresh, err)
 		}
-		runTemporalMigrationCLI(t, ctx, owner, "up-temporal-executor")
+		runTemporalMigrationFixtureCLI(t, ctx, owner, migrationCLI, "up-temporal-executor")
 		if err := precisionMigrationRunner(t, owner).UpProductionTemporalExecutor(ctx); err != nil {
 			t.Fatal(err)
 		}
