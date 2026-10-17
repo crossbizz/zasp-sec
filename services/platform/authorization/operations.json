@@ -45,6 +45,8 @@
   {"ID":"getDataControls","Method":"GET","Path":"/api/v1/settings/data-controls","Permission":"view_compliance","Relation":"view_compliance","Surface":"core","Security":["BrowserSession"],"FreshAuth":false},
   {"ID":"updateDataControls","Method":"PATCH","Path":"/api/v1/settings/data-controls","Permission":"manage_data_controls","Relation":"manage_data_controls","Surface":"core","Security":["BrowserSession"],"FreshAuth":true},
   {"ID":"getExternalDataFlows","Method":"GET","Path":"/api/v1/settings/external-data-flows","Permission":"view","Relation":"view","Surface":"core","Security":["BrowserSession"],"FreshAuth":false},
+  {"ID":"updateExternalDataFlows","Method":"PATCH","Path":"/api/v1/settings/external-data-flows","Permission":"manage_data_controls","Relation":"manage_data_controls","Surface":"core","Security":["BrowserSession"],"FreshAuth":true},
+  {"ID":"createAIExplanation","Method":"POST","Path":"/api/v1/ai/explanations","Permission":"view","Relation":"view","Surface":"core","Security":["BrowserSession"],"FreshAuth":false},
   {"ID":"getSystemStatus","Method":"GET","Path":"/api/v1/system/status","Permission":"view","Relation":"view","Surface":"core","Security":["BrowserSession"],"FreshAuth":false},
   {"ID":"listSystemComponents","Method":"GET","Path":"/api/v1/system/components","Permission":"view","Relation":"view","Surface":"core","Security":["BrowserSession"],"FreshAuth":false},
   {"ID":"getSystemVersion","Method":"GET","Path":"/api/v1/system/version","Permission":"view","Relation":"view","Surface":"core","Security":["BrowserSession"],"FreshAuth":false},

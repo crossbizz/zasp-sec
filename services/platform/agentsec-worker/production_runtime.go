@@ -378,6 +378,12 @@ func composeWorkerRuntimeWithIO(ctx context.Context, config workerRuntimeConfig,
 		if err != nil {
 			return workerRuntimeDependencies{}, errRuntimeUnavailable
 		}
+		if configureOptionalPlannerEgress(basePlanner, config.OptionalEgressEnabled, config.OptionalEgressProfileChecksum) != nil {
+			if basePlanner != nil {
+				_ = basePlanner.Close()
+			}
+			return workerRuntimeDependencies{}, errRuntimeUnavailable
+		}
 		var planner securityAgentPlanner = basePlanner
 		if config.TemporalPricingBindingsFile != "" {
 			if probe, ok := database.(interface {

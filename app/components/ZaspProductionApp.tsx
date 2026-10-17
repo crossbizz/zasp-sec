@@ -90,7 +90,15 @@ function ProductionRouteSurface({ path, location, navigate }: { path: string; lo
   if (path === "/administration/data-retention") return <SessionsComplianceView surface="data-controls" client={client} canMutate={session.hasCapability("data-controls.manage")} />;
   if (path === "/administration/recovery") return <RecoveryOperationsView client={client} expectedScope={`${session.organizationID}/${session.workspaceID}/${session.environmentID}`} canWrite={session.hasCapability("recovery.write")} fresh={session.isFreshAuthenticated} onReauthenticate={session.reauthenticate} />;
   if (path === "/administration/system-health") return <AdminOperationsView surface="health" client={client} />;
-  if (path === "/administration/external-data-flows") return <AdminOperationsView surface="external" client={client} />;
+  if (path === "/administration/external-data-flows") {
+    const expiry = getSessionInvalidationGeneration(), stale = getScopeStaleGeneration();
+    return <AdminOperationsView surface="external" client={client} externalBoundary={{
+      identityKey: queryScopeKey === null ? null : `${session.principal.id}/${session.organizationID}/${session.workspaceID}/${session.environmentID}/${queryGeneration}`,
+      permitted: queryScopeKey !== null && session.hasCapability("data-controls.manage") && session.permissions.includes("manage_data_controls"),
+      fresh: session.isFreshAuthenticated, reauthenticate: session.reauthenticate,
+      isCurrent: () => expiry === getSessionInvalidationGeneration() && stale === getScopeStaleGeneration(),
+    }} />;
+  }
   if (path === "/administration/audit-log") {
     const expiry = getSessionInvalidationGeneration(), stale = getScopeStaleGeneration();
     return <AdminOperationsView surface="audit" client={client} auditExport={session.hasCapability("audit.exports") ? {

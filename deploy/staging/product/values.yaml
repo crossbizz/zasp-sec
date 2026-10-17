@@ -499,6 +499,14 @@ evidenceExportWorkflow:
   enabled: false
 runtimeServices:
   enabled: false
+optionalEgress:
+  # Opt in only after the selected supplementary recipe and every planner
+  # principal are registered. This setting does not install or activate SQL.
+  enabled: false
+  profileChecksum: ""
+  # Existing namespace-local Secret; postgres-dsn is a dedicated registered
+  # captured-settlement login. It is exposed only to the API, never planners.
+  settlementDSNSecret: ""
 authorizationTemporal:
   profile: ""
   # Omit until supplementary catalogs, principals and real fleet cutover are verified.

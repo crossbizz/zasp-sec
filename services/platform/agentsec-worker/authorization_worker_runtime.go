@@ -92,7 +92,7 @@ func bindTemporalWorkerAuthorization(ctx context.Context, cfg workerRuntimeConfi
 		return errRuntimeUnavailable
 	}
 	if !installed[0] {
-		if cfg.WorkerAuthorizationKeyFile != "" || cfg.CompensationAuthorizationKeyFile != "" || cfg.RuntimeServices.ApprovalActivationProfileChecksum != "" || cfg.RuntimeServices.ApprovalMaintenanceProfileChecksum != "" || cfg.RuntimeServices.ConnectorMaintenanceProfileChecksum != "" {
+		if cfg.OptionalEgressEnabled || cfg.WorkerAuthorizationKeyFile != "" || cfg.CompensationAuthorizationKeyFile != "" || cfg.RuntimeServices.ApprovalActivationProfileChecksum != "" || cfg.RuntimeServices.ApprovalMaintenanceProfileChecksum != "" || cfg.RuntimeServices.ConnectorMaintenanceProfileChecksum != "" {
 			return errRuntimeUnavailable
 		}
 		return nil
@@ -133,6 +133,9 @@ func bindTemporalWorkerAuthorization(ctx context.Context, cfg workerRuntimeConfi
 		return errRuntimeUnavailable
 	}
 	if forward.Ready(ctx) != nil || compensation.Ready(ctx) != nil {
+		return errRuntimeUnavailable
+	}
+	if cfg.OptionalEgressEnabled && forward.OptionalEgressReady(ctx, cfg.OptionalEgressProfileChecksum) != nil {
 		return errRuntimeUnavailable
 	}
 	p.workerForward, p.workerCompensation = forward, compensation

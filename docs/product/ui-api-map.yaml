@@ -176,7 +176,7 @@ screens:
         availability: available
       - id: create_ai_explanation
         operation_id: createAIExplanation
-        availability: planned
+        availability: available
   - id: attack_paths
     label: Attack Paths
     actions:
@@ -544,4 +544,4 @@ screens:
         availability: available
       - id: update_external_data_flows
         operation_id: updateExternalDataFlows
-        availability: planned
+        availability: available

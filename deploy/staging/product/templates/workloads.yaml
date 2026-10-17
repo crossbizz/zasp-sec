@@ -1,3 +1,4 @@
+{{- include "zasp.optionalEgress.validate" . }}
 {{- if ne .Values.profile "customer_edge" }}
 {{- $root := . -}}
 {{- $workloads := list
@@ -71,6 +72,8 @@ spec:
             {{- include "zasp.runtimeServices.env" $root | nindent 12 }}
             {{- include "zasp.maintenanceRuntime.pins" $root | nindent 12 }}
             {{- include "zasp.maintenanceRuntime.apiEnv" $root | nindent 12 }}
+            {{- include "zasp.optionalEgress.env" $root | nindent 12 }}
+            {{- include "zasp.optionalEgress.apiEnv" $root | nindent 12 }}
             - { name: ZASP_PRODUCT_LISTEN_ADDRESS, value: ":8080" }
             - { name: ZASP_INTERNAL_LISTEN_ADDRESS, value: ":8081" }
             - { name: ZASP_COOKIE_SECURE, value: "true" }
@@ -297,6 +300,7 @@ spec:
           securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
           env:
             - { name: ZASP_WORKER_MODE, value: "security-agent" }
+            {{- include "zasp.optionalEgress.env" . | nindent 12 }}
             {{- if .Values.authorizationTemporal.profile }}
             - { name: ZASP_ENVIRONMENT, value: {{ .Values.global.environment | quote }} }
             {{- include "zasp.runtimeServices.env" . | nindent 12 }}

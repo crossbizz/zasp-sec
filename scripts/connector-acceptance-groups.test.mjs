@@ -1,16 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { createHash } from 'node:crypto';
 import * as traceDiagnostics from './connector-acceptance-groups.mjs';
 import { CONNECTOR_ACCEPTANCE_GROUPS as groups, selectConnectorAcceptanceGroup as select, validateConnectorAcceptanceTrace as validate, parseConnectorNativeObservation as observation, describeConnectorAcceptanceTraceFailure as describeTraceFailure } from './connector-acceptance-groups.mjs';
 const pkg = 'github.com/zasp-ai/zasp-sec/services/platform/apiserver';
 const trace = selected => [...selected.names.flatMap(Test => [{Package: pkg, Test, Action: 'run'}, {Package: pkg, Test, Action: 'pass'}]), {Package: pkg, Action: 'pass'}];
 test('required application groups retain every flow and owned database', () => {
-  assert.deepEqual(Object.keys(groups), ['approval-test74', 'approval-ordered-planning', 'approval-ordered-progress', 'approval-flow', 'approval', 'oauth', 'lifecycle', 'pkce', 'callback', 'approval-overflow', 'approval-future-test74', 'approval-future-progress']);
-  assert.deepEqual(Object.values(groups).map(g => [g.names.length, g.postgresJoins]), [[1, 2], [1, 2], [5, 2], [6, 2], [6, 1], [3, 1], [6, 2], [4, 2], [4, 2], [1, 2], [1, 2], [5, 2]]);
+  assert.deepEqual(Object.keys(groups), ['approval-test74', 'approval-ordered-planning', 'approval-ordered-progress', 'approval-flow', 'approval', 'oauth', 'lifecycle', 'pkce', 'callback', 'approval-overflow', 'approval-future-test74', 'approval-future-progress', 'optional-egress-audit']);
+  assert.deepEqual(Object.values(groups).map(g => [g.names.length, g.postgresJoins]), [[1, 2], [1, 2], [5, 2], [6, 2], [22, 1], [3, 1], [6, 2], [4, 2], [4, 2], [1, 2], [1, 2], [5, 2], [9, 1]]);
   const names = Object.values(groups).flatMap(g => g.names);
-  assert.equal(names.length, 43); assert.equal(new Set(names).size, 43);
-  assert.equal(Object.values(groups).reduce((n, g) => n + g.postgresJoins, 0), 22);
+  assert.equal(names.length, 68); assert.equal(new Set(names).size, 68);
+  assert.equal(Object.values(groups).reduce((n, g) => n + g.postgresJoins, 0), 23);
   for (const key of Object.keys(groups)) { assert.equal(select([key]), groups[key]); validate(trace(groups[key]), groups[key]); }
 });
 test('both ordered progress flows require every original provider evidence control', () => {
@@ -29,6 +30,42 @@ test('both ordered progress flows require every original provider evidence contr
       assert.throws(() => validate([...trace(selected), {Package: pkg, Test: name, Action: 'pass'}], selected));
       assert.throws(() => validate(trace(selected).map(row => row.Test === name && row.Action === 'pass' ? {...row, Action: 'skip'} : row), selected));
     }
+  }
+});
+test('approval requires all original native signed planning proof controls', () => {
+  const selected = groups.approval;
+  const helper = fs.readFileSync(new URL('../services/platform/apiserver/authorization_worker_planning_proof_postgres_test.go', import.meta.url), 'utf8');
+  const origin = fs.readFileSync(new URL('../services/platform/apiserver/approval_maintenance_genuine_enqueue_postgres_test.go', import.meta.url), 'utf8');
+  const parent = fs.readFileSync(new URL('../services/platform/apiserver/approval_activation_postgres_test.go', import.meta.url), 'utf8');
+  assert.match(parent, /assertApprovalOriginFindingPlanning\(t, ctx, f, run, other, otherRef, complete, completeRef, false\)/);
+  assert.match(origin, /if !cleanupOnly \{\s*assertWorkerPlanningProofBindings\(/);
+  assert.match(helper, /t\.Run\("planning proof "\+test\.name/);
+  const cases = ['wrong purpose', 'wrong phase', 'wrong principal', 'expired', 'non-null request', 'wrong canonical digest', 'wrong job digest', 'other task', 'changed target', 'changed revision', 'repeatable read', 'serializable', 'state repeatable read', 'recovery serializable', 'compensation forward call', 'canonical formatting'];
+  const names = cases.map(name => `${selected.top}/planning_proof_${name.replaceAll(' ', '_')}`);
+  assert.equal(selected.names.length, 22);
+  assert.deepEqual(selected.names.filter(name => name.includes('/planning_proof_')), names);
+  for (let i = 0; i < cases.length; i++) {
+    assert.ok(helper.includes(`{"${cases[i]}",`), cases[i]);
+    const name = names[i];
+    assert.throws(() => validate(trace(selected).filter(row => row.Test !== name), selected));
+    assert.throws(() => validate(trace(selected).map(row => row.Test === name ? {...row, Test: `${name}-unknown`} : row), selected));
+    assert.throws(() => validate([...trace(selected), {Package: pkg, Test: name, Action: 'pass'}], selected));
+    for (const action of ['skip', 'fail']) assert.throws(() => validate(trace(selected).map(row => row.Test === name && row.Action === 'pass' ? {...row, Action: action} : row), selected));
+  }
+});
+test('optional egress audit requires every exact native permission and settlement case', () => {
+  const selected = groups['optional-egress-audit'];
+  const source = fs.readFileSync(new URL('../services/platform/apiserver/optional_egress_native_postgres_test.go', import.meta.url), 'utf8');
+  assert.equal(selected.top, 'TestOptionalEgressCurrentAuditNativePostgres');
+  assert.equal(selected.postgresJoins, 1);
+  assert.equal(selected.names.length, 9);
+  for (const name of selected.names.slice(1)) {
+    const child = name.slice(selected.top.length + 1);
+    assert.ok(source.includes(`t.Run("${child}"`), child);
+    assert.throws(() => validate(trace(selected).filter(row => row.Test !== name), selected));
+    assert.throws(() => validate(trace(selected).map(row => row.Test === name ? {...row, Test: `${name}-unknown`} : row), selected));
+    assert.throws(() => validate([...trace(selected), {Package: pkg, Test: name, Action: 'pass'}], selected));
+    for (const action of ['skip', 'fail']) assert.throws(() => validate(trace(selected).map(row => row.Test === name && row.Action === 'pass' ? {...row, Action: action} : row), selected));
   }
 });
 test('missing, arbitrary, inherited, or multiple selectors cannot silently run a subset', () => {
@@ -128,4 +165,45 @@ test('native observations expose only bounded closed catalog and cutover fields'
   const summary='connector catalog diagnostic=observed before_rows=20 after_rows=20 before_duplicates=0 after_duplicates=0 before_registered=true after_registered=false before_guc_equal=true after_guc_equal=false owner_guc_stable=true api_guc_stable=true';
   assert.equal(observation(summary).value.afterRegistered,false);
   for (const input of [summary+' PRIVATE_CANARY',summary+'\nPRIVATE_CANARY',summary.replace('20','4097'),'connector catalog kind=PRIVATE_CANARY before=1 after=1 added=0 removed=0 changed=0','connector cutover prepare stage=PRIVATE_CANARY','PRIVATE_CANARY'+summary,'x'.repeat(16385),null]) assert.equal(observation(input),null);
+});
+
+test('optional egress hosted sources bind the complete connected application closure', () => {
+  const root = new URL('../', import.meta.url);
+  const relative = name => fs.readFileSync(new URL(name, root));
+  const sha = bytes => createHash('sha256').update(bytes).digest('hex');
+  const files = [
+    ...['agentsec-api', 'agentsec-migrate', 'agentsec-worker', 'apiserver', 'authorization', 'migrations'].flatMap(directory =>
+      fs.readdirSync(new URL(`services/platform/${directory}/`, root)).filter(name => name.includes('optional_egress') && name.endsWith('.go')).map(name => `services/platform/${directory}/${name}`)),
+    ...fs.readdirSync(new URL('services/platform/optionalegress/', root)).filter(name => name.endsWith('.go')).map(name => `services/platform/optionalegress/${name}`),
+    'services/platform/migrations/sql/optional_egress_profile.sql',
+    'services/platform/authorization/worker.go',
+    'services/platform/authorization/operations.json',
+    'services/platform/agentsec-worker/authorization_worker_planning.go',
+    'services/platform/agentsec-worker/authorization_worker_runtime.go',
+    'services/platform/agentsec-worker/runtime_config.go',
+    'services/platform/agentsec-worker/production_runtime.go',
+    'services/platform/agentsec-worker/security_agent_planner.go',
+    'services/platform/agentsec-worker/security_agent_multistep_planning.go',
+    'services/platform/agentsec-worker/security_agent_temporal_planning.go',
+    'services/platform/agentsec-worker/security_agent_temporal_product.go',
+    'services/platform/agentsec-worker/security_agent_temporal_runtime.go',
+    'services/platform/agentsec-api/runtime.go',
+    'services/platform/agentsec-api/production_runtime.go',
+    'services/platform/agentsec-api/runtime_dependency_diagnostic.go',
+    'services/platform/apiserver/composition.go',
+    'services/platform/apiserver/authorization_targets.go',
+  ];
+  const compiled = JSON.parse(relative('.github/connector-native-compile-source-pins.json'));
+  const compilePins = new Map(compiled.sources.map(item => [item.path, item]));
+  assert.equal(compilePins.size, compiled.sources.length);
+  for (const runner of ['scripts/hosted-connected-connector-acceptance.mjs', 'scripts/hosted-connector-authenticated-enqueue.mjs']) {
+    const source = relative(runner).toString('utf8');
+    const pins = JSON.parse(/const pins = (\{.*?\n\});/s.exec(source)[1]);
+    for (const file of files) {
+      const bytes = relative(file), digest = sha(bytes), compiledPin = compilePins.get(file);
+      assert.equal(pins[file], digest, `${runner}: ${file}`);
+      assert.equal(compiledPin?.sha256, digest, `compile: ${file}`);
+      assert.equal(compiledPin?.bytes, bytes.length, `compile bytes: ${file}`);
+    }
+  }
 });

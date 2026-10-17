@@ -1,6 +1,37 @@
 # Agent Security Platform Implementation Status
 
 
+## Connected governed egress and explanation batch, October 17, 2026
+
+Tenant optional-flow controls and finding explanations now connect real API,
+registered SQL authority, current finding authorization, durable no-resend claims,
+separate captured settlement, provider transport, planner send guards and UI.
+Operator installation/registration and deployment bindings are explicit; adoption
+is disabled by default pending actual approved profiles and fleet verification.
+The new typed transaction adapter publishes a claim only after confirmed commit.
+Raw prompts/model output are not retained. Shared planner disable retains original
+proof, pricing and budget authority; it does not establish planner privacy or
+fleet cutover equivalence.
+
+Grouped API/configuration/migrations, CLI/composition/regressions, worker/auth,
+owned TLS socket/race, connected UI, fresh typecheck/build, API contract and lint
+checks pass. Source review is independent. The strict native harness now requires
+all16 existing approval proof children and the new9-event optional authority
+group:68 named events/13 groups/23 PostgreSQL joins, with204 compiler source pins.
+Native SQL execution, real provider/Stytch deployment, Helm/Terraform validation,
+complete release-corpus/image security clearance and golden end-to-end flows
+remain open. Native memory admission still refuses this runtime; no guard bypass.
+
+Official-advisory streaming components are verified but actual acquisition and
+release coverage remain closed. Retention still lacks a durable production
+worker and preflight/upgrade observations remain incomplete. See
+`cloud-governed-egress-checkpoint-2026-10-17.json` for exact source, immutable
+failure/verification evidence and limits. All728 rows and523/144/61 production
+classifications are preserved; historical Complete counts are not launch proof.
+The final fixture-only publication correction and original scanner refusal are
+retained in `cloud-governed-egress-publication-checkpoint-2026-10-17.json`.
+
+
 ## Connected native and browser acceptance boundaries, October 16, 2026
 
 The preceding `c3fe641a46c4e9944d8c2f68e307e35a03a01aba` passes genuine future

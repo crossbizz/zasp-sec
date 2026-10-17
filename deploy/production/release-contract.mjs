@@ -16,6 +16,7 @@ import { normalizeTestReconciler, validateTestReconcilerResources } from "./test
 import { normalizeComplianceExports, validateComplianceExportResources, validateComplianceExportCollisions, complianceExportMigrationCommand } from "./compliance-export-rollout.mjs";
 import { normalizeAuthorizationTemporalProfile, authorizationTemporalMigrationCommands } from "./authorization-temporal-profile.mjs";
 import { validateAuthorizationTemporalResources } from "./authorization-temporal-resources.mjs";
+import { normalizeOptionalEgress, validateOptionalEgressResources } from "./optional-egress-profile.mjs";
 
 const exec = promisify(execFile);
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -77,10 +78,11 @@ export async function inspectContainerBuilds() {
 }
 
 export async function renderRelease(value, options = { schemaVersion: 49 }) {
-  if (!validRelease(value) || !options || Object.keys(options).some(key => !["schemaVersion", "sessionSearchPhase", "auditExports", "testReconciler", "complianceExports", "attackLabReconciler", "evidenceExportWorkflow", "discoveryScheduleReplayPhase", "runtimeServices", "authorizationTemporal"].includes(key))) throw new Error("release rejected");
+  if (!validRelease(value) || !options || Object.keys(options).some(key => !["schemaVersion", "sessionSearchPhase", "auditExports", "testReconciler", "complianceExports", "attackLabReconciler", "evidenceExportWorkflow", "discoveryScheduleReplayPhase", "runtimeServices", "authorizationTemporal", "optionalEgress"].includes(key))) throw new Error("release rejected");
   const platformAccountID = value.discovery.roleArn.match(/^arn:aws:iam::([0-9]{12}):role\//)[1];
   const authorizationTemporal = normalizeAuthorizationTemporalProfile(options.authorizationTemporal, options, platformAccountID);
   const runtimeServices = options.runtimeServices ? structuredClone(options.runtimeServices) : undefined;
+  const optionalEgress = normalizeOptionalEgress(options.optionalEgress, authorizationTemporal, runtimeServices);
   if (authorizationTemporal) {
     const roles = Object.values(value).flatMap(section => section && typeof section === "object" ? Object.entries(section).filter(([key]) => /rolearn$/i.test(key)).map(([, role]) => role) : []);
     if (roles.includes(authorizationTemporal.workerRoleArn) || roles.includes(authorizationTemporal.projectorRoleArn) || authorizationTemporal.adapterRoleArn !== value.redTeam.adapterRoleArn) throw new Error("release rejected");
@@ -375,11 +377,11 @@ export async function renderRelease(value, options = { schemaVersion: 49 }) {
   let stdout;
   let exportValuesDirectory;
   try {
-    if (auditExports || testReconciler || complianceExports || attackLabReconciler || options.runtimeServices) {
+    if (auditExports || testReconciler || complianceExports || attackLabReconciler || options.runtimeServices || optionalEgress) {
       // A complete policy history can exceed the per-argument limit on Linux.
       exportValuesDirectory = await mkdtemp(path.join(tmpdir(), "zasp-audit-export-values-"));
       const exportValuesPath = path.join(exportValuesDirectory, "values.json");
-      await writeFile(exportValuesPath, JSON.stringify({ auditExports, testReconciler, complianceExports, attackLabReconciler, ...(authorizationTemporal ? { authorizationTemporal } : {}), ...(runtimeServices ? { runtimeServices } : {}), ...(evidenceExportWorkflow ? { evidenceExportWorkflow: { enabled: true } } : {}) }), { mode: 0o600 });
+      await writeFile(exportValuesPath, JSON.stringify({ auditExports, testReconciler, complianceExports, attackLabReconciler, ...(authorizationTemporal ? { authorizationTemporal } : {}), ...(optionalEgress ? { optionalEgress } : {}), ...(runtimeServices ? { runtimeServices } : {}), ...(evidenceExportWorkflow ? { evidenceExportWorkflow: { enabled: true } } : {}) }), { mode: 0o600 });
       valueArgs.push("--values", exportValuesPath);
     }
     await exec("helm", ["lint", chart, "--namespace", "agentsec", ...valueArgs], { cwd: root, encoding: "utf8", maxBuffer: 4 * 1024 * 1024 });
@@ -396,7 +398,7 @@ export async function renderRelease(value, options = { schemaVersion: 49 }) {
     throw new Error("release rejected");
   }
   if (resources.length < 20 || resources.some((resource) => !resource?.apiVersion || !resource?.kind || !resource?.metadata?.name)) throw new Error("release rejected");
-  validateRenderedRelease(resources, platformAccountID, schemaVersion, sessionSearchPhase, auditExports, testReconciler, complianceExports, attackLabReconciler, evidenceExportWorkflow, discoveryScheduleReplayPhase, authorizationTemporal);
+  validateRenderedRelease(resources, platformAccountID, schemaVersion, sessionSearchPhase, auditExports, testReconciler, complianceExports, attackLabReconciler, evidenceExportWorkflow, discoveryScheduleReplayPhase, authorizationTemporal, optionalEgress, value.securityAgentPlanner.egressCIDRs);
   return Object.freeze(resources);
 }
 
@@ -566,7 +568,10 @@ function validRelease(value) {
   return value.telemetry.backend === "newrelic" && value.telemetry.endpoint === "https://otlp.nr-data.net";
 }
 
-export function validateRenderedRelease(resources, platformAccountID, schemaVersion = 49, sessionSearchPhase = "compatibility", expectedAuditExports, expectedTestReconciler, expectedComplianceExports, expectedAttackLabReconciler, expectedEvidenceExportWorkflow, discoveryScheduleReplayPhase, authorizationTemporal) {
+export function validateRenderedRelease(resources, platformAccountID, schemaVersion = 49, sessionSearchPhase = "compatibility", expectedAuditExports, expectedTestReconciler, expectedComplianceExports, expectedAttackLabReconciler, expectedEvidenceExportWorkflow, discoveryScheduleReplayPhase, authorizationTemporal, expectedOptionalEgress, expectedOptionalPlannerCIDRs) {
+  // Standalone callers must provide reviewed provider ranges too; equality
+  // against a simultaneously widened expected/rendered policy is insufficient.
+  if (expectedOptionalEgress?.enabled === true && !validProviderCIDRList(expectedOptionalPlannerCIDRs)) throw new Error("optional egress provider CIDRs rejected");
   const accountPattern = /^[0-9]{12}$/;
   if (!Array.isArray(resources) || !accountPattern.test(platformAccountID) || platformAccountID === "000000000000" || (authorizationTemporal ? schemaVersion !== 61 || sessionSearchPhase !== "precision-intake" || discoveryScheduleReplayPhase !== "active" : !validSessionSearchPhase(schemaVersion, sessionSearchPhase) || !validDiscoveryScheduleReplayPhase(schemaVersion, discoveryScheduleReplayPhase))) throw new Error("release rejected");
   const auditExports = normalizeAuditExports(expectedAuditExports, platformAccountID, schemaVersion, sessionSearchPhase);
@@ -725,6 +730,9 @@ export function validateRenderedRelease(resources, platformAccountID, schemaVers
   const cronJobs = resources.filter(({ kind }) => kind === "CronJob");
   if (cronJobs.length !== cronJobIdentities.size || cronJobs.some((resource) => cronJobIdentities.get(resource.metadata?.name) !== resource.spec?.jobTemplate?.spec?.template?.spec?.serviceAccountName)) throw new Error("release rejected");
   validateAuthorizationTemporalResources(resources, authorizationTemporal, platformAccountID);
+  const optionalRuntime = { enabled: Boolean(authorizationTemporal), clientSecret: api?.spec?.template?.spec?.volumes?.find(v=>v.name==='runtime-services')?.secret?.secretName };
+  const optionalEgress = normalizeOptionalEgress(expectedOptionalEgress, authorizationTemporal, optionalRuntime);
+  validateOptionalEgressResources(resources, optionalEgress, expectedOptionalPlannerCIDRs);
   return Object.freeze({ deployments: deployments.size, identities: accounts.size, platformAccountID });
 }
 

@@ -1061,6 +1061,22 @@ resource "aws_iam_role_policy" "api_connectors" {
         Resource = ["arn:${local.partition}:secretsmanager:${var.region}:${var.account_id}:secret:${local.connector_secret_root}/webhook/*"]
       },
       {
+        Effect   = "Allow"
+        Action   = ["secretsmanager:GetSecretValue"]
+        Resource = ["arn:${local.partition}:secretsmanager:${var.region}:${var.account_id}:secret:${local.connector_secret_root}/ai/openrouter/*"]
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt"]
+        Resource = aws_kms_key.connector_oauth.arn
+        Condition = {
+          StringEquals = { "kms:ViaService" = "secretsmanager.${var.region}.amazonaws.com" }
+          ArnLike = {
+            "kms:EncryptionContext:SecretARN" = "arn:${local.partition}:secretsmanager:${var.region}:${var.account_id}:secret:${local.connector_secret_root}/ai/openrouter/*"
+          }
+        }
+      },
+      {
         Effect = "Allow"
         Action = [
           "secretsmanager:CreateSecret",

@@ -558,6 +558,17 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 	}
 	var composition http.Handler
 	handlers.Authorizer = authorizer
+	optionalEgress, optionalCloser, optionalErr := newRuntimeOptionalEgress(ctx, config, securityAgentDatabase, authorizer, secretsDriver)
+	if optionalErr != nil {
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("optional-egress", errRuntimeUnavailable)
+	}
+	if optionalCloser != nil {
+		connectorResources = append(connectorResources, optionalCloser)
+	}
+	handlers, err = apiserver.WithOptionalEgressSurfaces(handlers, optionalEgress)
+	if err != nil {
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("optional-egress", errRuntimeUnavailable)
+	}
 	if agentExports != nil {
 		composition, err = apiserver.NewCompositionWithSecurityAgentExports(handlers, auditExports, compliance, agentExports)
 	} else if compliance != nil {
@@ -613,6 +624,9 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 	return RuntimeDependencies{ProductHandler: edge, Metrics: metrics, LifecycleWorker: func(ctx context.Context) error { return runLifecycleWorkers(ctx, lifecycleWorkers...) }, ReadinessCheck: func(ctx context.Context) error {
 		if currentRequired(database) && currentRequired(securityAgentDatabase) {
 			checks := []func(context.Context) error{connectorNativeReady, repository.Ready, connectorRepository.Ready, referenceRepository.Ready, policyHandler.Ready, tracedProvider.Ready}
+			if optionalEgress != nil {
+				checks = append(checks, optionalEgress.Repository.Ready)
+			}
 			if agentExports != nil {
 				checks = append(checks, agentExports.Ready)
 			}
@@ -636,6 +650,11 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 			return currentComponentReadiness(ctx, connectorReconciler.Ready, checks...)
 		}
 
+		if optionalEgress != nil {
+			if err := optionalEgress.Repository.Ready(ctx); err != nil {
+				return errRuntimeUnavailable
+			}
+		}
 		if agentExports != nil {
 			if err := agentExports.Ready(ctx); err != nil {
 				return errRuntimeUnavailable

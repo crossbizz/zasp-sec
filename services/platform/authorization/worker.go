@@ -366,6 +366,11 @@ func (e *WorkerExecutor) Execute(ctx context.Context, decision WorkerDecision) (
 
 // Callers validate the closed operation and supply a compiled literal only.
 func (e *WorkerExecutor) executeWorkerStatement(ctx context.Context, decision WorkerDecision, statement string) (json.RawMessage, error) {
+	return e.executeWorkerStatementArguments(ctx, decision, statement, decision.request)
+}
+
+// Only closed operation methods may add trusted arguments to compiled SQL.
+func (e *WorkerExecutor) executeWorkerStatementArguments(ctx context.Context, decision WorkerDecision, statement string, args ...any) (json.RawMessage, error) {
 	tx, err := e.pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
 	if err != nil {
 		return nil, workerDatabaseError(err)
@@ -379,7 +384,7 @@ func (e *WorkerExecutor) executeWorkerStatement(ctx context.Context, decision Wo
 		return nil, workerDatabaseError(err)
 	}
 	var result json.RawMessage
-	if err = tx.QueryRow(ctx, statement, decision.request).Scan(&result); err != nil {
+	if err = tx.QueryRow(ctx, statement, args...).Scan(&result); err != nil {
 		return nil, workerDatabaseError(err)
 	}
 	if err = tx.Commit(ctx); err != nil {

@@ -89,6 +89,8 @@ var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"GET", "/api/v1/settings/data-controls", "getDataControls", "view_compliance", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"PATCH", "/api/v1/settings/data-controls", "updateDataControls", "manage_data_controls", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"GET", "/api/v1/settings/external-data-flows", "getExternalDataFlows", "view", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"PATCH", "/api/v1/settings/external-data-flows", "updateExternalDataFlows", "manage_data_controls", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"POST", "/api/v1/ai/explanations", "createAIExplanation", "view", []string{"BrowserSession"}}, riskDependency},
 	{OperationDefinition{"GET", "/api/v1/system/status", "getSystemStatus", "view", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"GET", "/api/v1/system/components", "listSystemComponents", "view", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"GET", "/api/v1/system/version", "getSystemVersion", "view", []string{"BrowserSession"}}, identityDependency},
@@ -327,7 +329,7 @@ func requiresFreshAuthentication(operationID string) bool {
 	case "createWorkspace", "updateWorkspace", "createEnvironment", "updateEnvironment",
 		"updateMemberRole", "updateGroupMappings", "createAPIToken", "rotateAPIToken", "revokeAPIToken", "revealAPIToken", "acknowledgeAPITokenRevealGrant",
 		"createSSOConnection", "deleteSSOConnection", "testSSOConnection", "createSCIMConnection", "deleteSCIMConnection",
-		"revokeSession", "updateDataControls", "authorizeIntegration", "authorizeIntegrationReference", "remediateIntegrationAuthorization", "createSensorEnrollment", "rotateSensorToken":
+		"revokeSession", "updateDataControls", "updateExternalDataFlows", "authorizeIntegration", "authorizeIntegrationReference", "remediateIntegrationAuthorization", "createSensorEnrollment", "rotateSensorToken":
 		return true
 	case "activateSecurityAgent", "decideSecurityAgentApproval", "setSecurityAgentExecutionControl", "startRecoveryBackup", "startRecoveryRestore":
 		return true

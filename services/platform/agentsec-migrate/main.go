@@ -201,6 +201,22 @@ func main() {
 	ctx, cancel := context.WithTimeout(signalCtx, timeout)
 	defer cancel()
 	arguments := os.Args[1:]
+	if len(arguments) > 0 && arguments[0] == "optional-egress-profile-checksums" {
+		if len(arguments) != 1 {
+			log.Fatal("release migration configuration rejected")
+		}
+		if err := writeOptionalEgressChecksums(os.Stdout); err != nil {
+			log.Fatal("release migration output failed")
+		}
+		return
+	}
+	var optionalEgressRegistration *optionalEgressOperatorInput
+	if len(arguments) > 0 && optionalEgressOperatorCommand(arguments[0]) {
+		optionalEgressRegistration, err = loadOptionalEgressOperator(arguments, os.Getenv)
+		if err != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+	}
 	var verifierKey *authorization.AttestationKey
 	var verifierPrincipal string
 	var identityRegistration *identityVerifierRegistration
@@ -296,7 +312,7 @@ func main() {
 		}
 	}
 	if isForwardMigration(arguments) {
-		if authorizationProfileCommand(arguments[0]) || maintenanceProfileCommand(arguments[0]) {
+		if authorizationProfileCommand(arguments[0]) || maintenanceProfileCommand(arguments[0]) || optionalEgressProfileCommand(arguments[0]) {
 			registration.migration = os.Getenv(migrationPrincipalEnvironment)
 			if !databasePrincipalPattern.MatchString(registration.migration) {
 				err = errInvalidMigrationCommand
@@ -342,7 +358,10 @@ func main() {
 		}
 		return
 	}
-	if temporalRegistration != nil {
+	if optionalEgressRegistration != nil {
+		defer clear(optionalEgressRegistration.body)
+		err = runOptionalEgressOperator(ctx, connection, optionalEgressRegistration)
+	} else if temporalRegistration != nil {
 		err = registerTemporalPrincipals(ctx, connection, temporalRegistration)
 	} else if workerRegistration != nil {
 		err = registerWorkerVerifier(ctx, connection, workerRegistration)
@@ -397,6 +416,9 @@ func registerAuthorizationVerifier(ctx context.Context, queryer principalQueryer
 func registerForwardRelease(ctx context.Context, queryer principalQueryer, registration discoveryPrincipalRegistration, arguments []string) error {
 	if !isForwardMigration(arguments) {
 		return errInvalidMigrationCommand
+	}
+	if optionalEgressProfileCommand(arguments[0]) {
+		return optionalEgressPostInstall(ctx, queryer, registration.migration, arguments[0])
 	}
 	if maintenanceProfileCommand(arguments[0]) {
 		if ctx == nil || ctx.Err() != nil || queryer == nil {
@@ -791,6 +813,9 @@ func (r *registeredReleaseMigrationRunner) UpProductionApprovalSettlementAuditPr
 }
 
 func isForwardMigration(arguments []string) bool {
+	if len(arguments) == 1 && optionalEgressProfileCommand(arguments[0]) {
+		return true
+	}
 	if len(arguments) == 1 && maintenanceProfileCommand(arguments[0]) {
 		return true
 	}
@@ -842,6 +867,24 @@ func runReleaseMigration(ctx context.Context, runner releaseMigrationRunner, arg
 		return err
 	}
 	switch arguments[0] {
+	case "up-optional-egress-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		extension, ok := runner.(interface{ UpProductionOptionalEgressProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return extension.UpProductionOptionalEgressProfile(ctx)
+	case "up-optional-egress-audit-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		extension, ok := runner.(interface{ UpProductionOptionalEgressAuditProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return extension.UpProductionOptionalEgressAuditProfile(ctx)
 	case "up-approval-settlement-audit-profile":
 		if version != 61 {
 			return migrations.ErrInvalidState

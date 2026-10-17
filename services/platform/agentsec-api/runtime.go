@@ -26,6 +26,9 @@ var (
 )
 
 type RuntimeConfig struct {
+	OptionalEgressEnabled          bool
+	OptionalEgressProfileChecksum  string
+	OptionalEgressSettlementDSN    string
 	ConnectorMaintenancePostgresDSN string
 	ConnectorMaintenanceKeyFile     string
 	RuntimeServices                 runtimeservices.Config
@@ -106,6 +109,13 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 	if getenv == nil {
 		return RuntimeConfig{}, errInvalidRuntimeConfig
 	}
+	optionalEgressEnabled := false
+	if value := getenv("ZASP_OPTIONAL_EGRESS_ENABLED"); value != "" {
+		if value != "true" && value != "false" {
+			return RuntimeConfig{}, errInvalidRuntimeConfig
+		}
+		optionalEgressEnabled = value == "true"
+	}
 	services, servicesErr := runtimeservices.Load(getenv)
 	if servicesErr != nil {
 		return RuntimeConfig{}, errInvalidRuntimeConfig
@@ -127,6 +137,7 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 	requestRate, requestRateErr := strconv.Atoi(getenv("ZASP_REQUEST_RATE_PER_SECOND"))
 	requestBurst, requestBurstErr := strconv.Atoi(getenv("ZASP_REQUEST_BURST"))
 	config := RuntimeConfig{
+		OptionalEgressEnabled: optionalEgressEnabled, OptionalEgressProfileChecksum: getenv("ZASP_OPTIONAL_EGRESS_PROFILE_CHECKSUM"), OptionalEgressSettlementDSN: getenv("ZASP_OPTIONAL_EGRESS_SETTLEMENT_POSTGRES_DSN"),
 		RuntimeServices:                 services,
 		SecurityAgentOrderedHTTPEnabled: orderedHTTPEnabled,
 
@@ -223,7 +234,7 @@ func validRuntimeConfig(config RuntimeConfig) bool {
 			return false
 		}
 	}
-	if !validRuntimePostgresAuthorities(config.PostgresDSN, config.SecurityAgentPostgresDSN) || !validApprovalMaintenanceRuntimeConfig(config) || !validConnectorMaintenanceRuntimeConfig(config) {
+	if !validRuntimePostgresAuthorities(config.PostgresDSN, config.SecurityAgentPostgresDSN) || !validApprovalMaintenanceRuntimeConfig(config) || !validConnectorMaintenanceRuntimeConfig(config) || !validOptionalEgressRuntimeConfig(config) {
 		return false
 	}
 	authorize, authorizeErr := url.Parse(config.StytchAuthorizeURL)

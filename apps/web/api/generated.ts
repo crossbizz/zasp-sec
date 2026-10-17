@@ -377,6 +377,26 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/ai/explanations": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Explain the current version of an authorized finding
+         * @description Sends only a server-derived rule, severity and evidence count under an approved tenant policy. Model, backend, token and price limits are server-owned. The same idempotency key reads an existing request without repeating an uncertain provider effect. Explanation text is transient and is not retained for replay; deterministic finding guidance remains available.
+         */
+        readonly post: operations["createAIExplanation"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/assets/{id}": {
         readonly parameters: {
             readonly query?: never;
@@ -2234,7 +2254,11 @@ export type paths = {
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
-        readonly patch?: never;
+        /**
+         * Change an optional destination under the current tenant policy
+         * @description Required Stytch and PostgreSQL dependencies cannot be disabled. Enabling an optional destination requires its installed adapter and a current approved server profile. Disable fences subsequent governed dispatches; already admitted requests may finish.
+         */
+        readonly patch: operations["updateExternalDataFlows"];
         readonly trace?: never;
     };
     readonly "/api/v1/system/components": {
@@ -2535,25 +2559,27 @@ export type components = {
             readonly page_info: components["schemas"]["PageInfo"];
         };
         readonly AIExplanation: {
-            readonly explanation: string;
-            readonly model: string;
+            readonly explanation?: string;
+            readonly recommendation?: string;
+            readonly request_id: components["schemas"]["ProductID"];
             /** @constant */
-            readonly no_storage: true;
-            readonly provider: string;
-            readonly recommendation: string;
+            readonly result_retained: false;
+            readonly sent_fields: readonly [
+                "rule",
+                "severity",
+                "evidence_count"
+            ];
+            readonly source: {
+                readonly finding_id: components["schemas"]["ProductID"];
+                readonly finding_version: number;
+            };
+            /** @enum {string} */
+            readonly state: "reserved" | "started" | "complete" | "failed" | "unknown";
         };
         readonly AIExplanationInput: {
-            readonly cost_cents: number;
-            readonly fields: {
-                readonly [key: string]: string;
-            };
-            readonly model: string;
-            readonly provider: string;
-            /** @enum {string} */
-            readonly purpose: "finding_explanation";
-            /** @constant */
-            readonly require_no_storage: true;
-            readonly tokens: number;
+            readonly finding_id: components["schemas"]["ProductID"];
+            readonly finding_version: number;
+            readonly idempotency_key: string;
         };
         readonly APIToken: {
             readonly audit_correlation_id?: components["schemas"]["ProductID"];
@@ -3246,15 +3272,32 @@ export type components = {
             readonly target?: components["schemas"]["ComplianceEvidenceTarget"];
         };
         readonly ExternalFlow: {
-            readonly categories: readonly ("identity_metadata" | "product_usage" | "redacted_summary" | "remote_telemetry")[];
+            readonly available?: boolean;
+            readonly categories: readonly ("identity_metadata" | "product_metadata" | "security_metadata" | "product_usage" | "redacted_summary" | "remote_telemetry")[];
             readonly enabled: boolean;
             /** @enum {string} */
-            readonly health: "healthy" | "degraded" | "disabled";
+            readonly health: "healthy" | "degraded" | "disabled" | "unknown";
             readonly id: string;
+            readonly name?: string;
             readonly required: boolean;
+            readonly version?: number;
+        };
+        readonly ExternalFlowMutation: {
+            readonly enabled: boolean;
+            /** @enum {string} */
+            readonly flow_id: "posthog" | "openrouter" | "remote-otlp";
+            readonly idempotency_key: string;
+            readonly version: number;
         };
         readonly ExternalFlowPage: {
             readonly items: readonly components["schemas"]["ExternalFlow"][];
+        };
+        readonly ExternalFlowUpdate: {
+            readonly enabled: boolean;
+            readonly expected_version: number;
+            /** @enum {string} */
+            readonly flow_id: "posthog" | "openrouter" | "remote-otlp";
+            readonly idempotency_key: string;
         };
         readonly Finding: {
             readonly acceptance_reason?: string;
@@ -5245,7 +5288,9 @@ export type EnvironmentMutation = components['schemas']['EnvironmentMutation'];
 export type EnvironmentPage = components['schemas']['EnvironmentPage'];
 export type EvidenceRecord = components['schemas']['EvidenceRecord'];
 export type ExternalFlow = components['schemas']['ExternalFlow'];
+export type ExternalFlowMutation = components['schemas']['ExternalFlowMutation'];
 export type ExternalFlowPage = components['schemas']['ExternalFlowPage'];
+export type ExternalFlowUpdate = components['schemas']['ExternalFlowUpdate'];
 export type Finding = components['schemas']['Finding'];
 export type FindingAcceptanceInput = components['schemas']['FindingAcceptanceInput'];
 export type FindingPage = components['schemas']['FindingPage'];
@@ -6243,6 +6288,37 @@ export interface operations {
                 };
                 content: {
                     readonly "application/json": components["schemas"]["AgentSessionPage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly createAIExplanation: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["AIExplanationInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Current request state and any first-response explanation. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AIExplanation"];
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];
@@ -10032,6 +10108,39 @@ export interface operations {
                 };
                 content: {
                     readonly "application/json": components["schemas"]["ExternalFlowPage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly updateExternalDataFlows: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Explicit fresh-auth confirmation required for a sensitive approval or connector authorization mutation. */
+                readonly "X-Zasp-Fresh-Auth": components["parameters"]["FreshAuth"];
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["ExternalFlowUpdate"];
+            };
+        };
+        readonly responses: {
+            /** @description Durable policy mutation receipt. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ExternalFlowMutation"];
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];

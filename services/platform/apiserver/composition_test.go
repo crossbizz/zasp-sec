@@ -78,8 +78,8 @@ func TestCoreCompositionMatchesPublicOpenAPI(t *testing.T) {
 			public[key] = documented.OperationID
 		}
 	}
-	if len(seen) != 152 || len(public) != 162 {
-		t.Fatalf("base/public operation counts = %d/%d, want 152/162", len(seen), len(public))
+	if len(seen) != 154 || len(public) != 164 {
+		t.Fatalf("base/public operation counts = %d/%d, want 154/164", len(seen), len(public))
 	}
 	extended, err := NewCompositionWithSecurityAgentExports(auditExportCompositionDependencies(), handlerResponse("export"), handlerResponse("compliance"), handlerResponse("agent-export"))
 	if err != nil {
@@ -200,11 +200,16 @@ func TestCoreCompositionHasExactProductionSecuritySurfaceWithoutUnimplementedOve
 			t.Errorf("policy provider operation %q definition=%#v exists=%v", operationID, definition, ok)
 		}
 	}
-	for _, operationID := range []string{
-		"createAIExplanation",
+	for operationID, expected := range map[string]struct {
+		method, pattern, permission string
+		fresh                       bool
+	}{
+		"createAIExplanation":     {http.MethodPost, "/api/v1/ai/explanations", "view", false},
+		"updateExternalDataFlows": {http.MethodPatch, "/api/v1/settings/external-data-flows", "manage_data_controls", true},
 	} {
-		if _, mounted := definitions[operationID]; mounted {
-			t.Errorf("incomplete operation %q remains mounted", operationID)
+		definition, ok := definitions[operationID]
+		if !ok || definition.Method != expected.method || definition.Pattern != expected.pattern || definition.Permission != expected.permission || !equalStrings(definition.Security, []string{"BrowserExpectedScope", "BrowserSession"}) || requiresFreshAuthentication(operationID) != expected.fresh {
+			t.Errorf("optional egress operation %q definition=%#v exists=%v", operationID, definition, ok)
 		}
 	}
 	activation, ok := definitions["activateSecurityAgent"]
@@ -397,7 +402,7 @@ func TestBatchThreeCompositionExposesOnlyCompleteDurableOperations(t *testing.T)
 		"listSessions", "getSession", "listSessionEvents", "getSessionEvent", "revokeSession",
 		"listComplianceControls", "listComplianceEvidence",
 		"getDataControls", "updateDataControls",
-		"getExternalDataFlows",
+		"getExternalDataFlows", "updateExternalDataFlows", "createAIExplanation",
 		"getSystemStatus", "listSystemComponents", "getSystemVersion",
 		"listSSOConnections", "createSSOConnection", "deleteSSOConnection", "testSSOConnection",
 		"listSCIMConnections", "createSCIMConnection", "deleteSCIMConnection",
@@ -416,7 +421,6 @@ func TestBatchThreeCompositionExposesOnlyCompleteDurableOperations(t *testing.T)
 	for _, operationID := range []string{
 		"createAuditExport", "getAuditExport",
 		"createComplianceExport", "getComplianceExport",
-		"updateExternalDataFlows",
 	} {
 		t.Run("hidden_"+operationID, func(t *testing.T) {
 			if _, mounted := definitions[operationID]; mounted {
