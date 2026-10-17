@@ -218,6 +218,17 @@ func main() {
 		}
 		return
 	}
+	if len(arguments) > 0 && arguments[0] == "environment-class-profile-checksums" {
+		if len(arguments) != 1 || writeEnvironmentClassChecksums(os.Stdout) != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+		return
+	}
+	if len(arguments) > 0 && environmentClassProfileCommand(arguments[0]) {
+		if validateEnvironmentClassCommand(arguments, os.Getenv) != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+	}
 	signalCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 	timeout, err := loadMigrationTimeout(os.Getenv)
@@ -350,7 +361,7 @@ func main() {
 		}
 	}
 	if isForwardMigration(arguments) {
-		if authorizationProfileCommand(arguments[0]) || maintenanceProfileCommand(arguments[0]) || optionalEgressProfileCommand(arguments[0]) || retentionProfileCommand(arguments[0]) {
+		if authorizationProfileCommand(arguments[0]) || maintenanceProfileCommand(arguments[0]) || optionalEgressProfileCommand(arguments[0]) || retentionProfileCommand(arguments[0]) || environmentClassProfileCommand(arguments[0]) {
 			registration.migration = os.Getenv(migrationPrincipalEnvironment)
 			if !databasePrincipalPattern.MatchString(registration.migration) {
 				err = errInvalidMigrationCommand
@@ -460,6 +471,13 @@ func main() {
 	}
 	if isForwardMigration(arguments) {
 		confirmRelease := func() error {
+			if environmentClassProfileCommand(arguments[0]) {
+				return withRetentionOperatorTransaction(ctx, func(c context.Context) (retentionOperatorTransaction, error) {
+					return connection.BeginTx(c, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
+				}, func(c context.Context, q principalQueryer, _ io.Writer) error {
+					return environmentClassPostInstall(c, q, registration.migration, arguments[0])
+				}, nil)
+			}
 			if retentionProfileCommand(arguments[0]) {
 				return withRetentionOperatorTransaction(ctx, func(c context.Context) (retentionOperatorTransaction, error) {
 					return connection.BeginTx(c, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
@@ -491,6 +509,9 @@ func registerAuthorizationVerifier(ctx context.Context, queryer principalQueryer
 func registerForwardRelease(ctx context.Context, queryer principalQueryer, registration discoveryPrincipalRegistration, arguments []string) error {
 	if !isForwardMigration(arguments) {
 		return errInvalidMigrationCommand
+	}
+	if environmentClassProfileCommand(arguments[0]) {
+		return environmentClassPostInstall(ctx, queryer, registration.migration, arguments[0])
 	}
 	if retentionProfileCommand(arguments[0]) {
 		return retentionPostInstall(ctx, queryer, registration.migration)
@@ -891,6 +912,9 @@ func (r *registeredReleaseMigrationRunner) UpProductionApprovalSettlementAuditPr
 }
 
 func isForwardMigration(arguments []string) bool {
+	if len(arguments) == 1 && environmentClassProfileCommand(arguments[0]) {
+		return true
+	}
 	if len(arguments) == 1 && retentionProfileCommand(arguments[0]) {
 		return true
 	}
@@ -948,6 +972,24 @@ func runReleaseMigration(ctx context.Context, runner releaseMigrationRunner, arg
 		return err
 	}
 	switch arguments[0] {
+	case "up-environment-class-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		extension, ok := runner.(interface{ UpProductionEnvironmentClassProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return extension.UpProductionEnvironmentClassProfile(ctx)
+	case "up-environment-class-audit-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		extension, ok := runner.(interface{ UpProductionEnvironmentClassAuditProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return extension.UpProductionEnvironmentClassAuditProfile(ctx)
 	case "up-retention-audit-profile":
 		if version != 61 {
 			return migrations.ErrInvalidState

@@ -684,7 +684,7 @@ func (handler *identityHTTPHandler) mutateAdministration(writer http.ResponseWri
 			mutation.InitialEnvironmentID, err = newWorkflowProductID()
 		}
 		mutation.Name, status = input.Name, http.StatusCreated
-	case "updateWorkspace", "updateEnvironment":
+	case "updateWorkspace":
 		var input struct {
 			Name string `json:"name"`
 		}
@@ -696,17 +696,25 @@ func (handler *identityHTTPHandler) mutateAdministration(writer http.ResponseWri
 			writeWorkflowMutationError(writer, request, errOrOperation(err))
 			return
 		}
-		if routed.OperationID == "updateEnvironment" && mutation.ID != identity.Scope.EnvironmentID().String() {
+		mutation.Name = input.Name
+	case "updateEnvironment":
+		mutation.ExpectedVersion, err = parseVersion(request.Header.Get("If-Match"))
+		var input environmentClassificationInput
+		if err == nil {
+			input, err = decodeEnvironmentClassification(request, false)
+		}
+		if err != nil || !validAdministrationProductID(mutation.ID) {
+			writeWorkflowMutationError(writer, request, errOrOperation(err))
+			return
+		}
+		if mutation.ID != identity.Scope.EnvironmentID().String() {
 			writeProductionError(writer, request, ErrRepositoryNotFound)
 			return
 		}
-		mutation.Name = input.Name
+		mutation.Name, mutation.EnvironmentClass, mutation.EnvironmentClassPresent = input.Name, input.Class, input.ClassPresent
 	case "createEnvironment":
-		var input struct {
-			WorkspaceID string `json:"workspace_id"`
-			Name        string `json:"name"`
-		}
-		if decodeProductionJSON(request, &input) != nil || !validAdministrationProductID(input.WorkspaceID) || !validAdministrationName(input.Name) {
+		input, decodeErr := decodeEnvironmentClassification(request, true)
+		if decodeErr != nil {
 			writeProductionError(writer, request, ErrRepositoryOperation)
 			return
 		}
@@ -716,6 +724,7 @@ func (handler *identityHTTPHandler) mutateAdministration(writer http.ResponseWri
 		}
 		mutation.ID, err = newWorkflowProductID()
 		mutation.WorkspaceID, mutation.Name, status = input.WorkspaceID, input.Name, http.StatusCreated
+		mutation.EnvironmentClass, mutation.EnvironmentClassPresent = input.Class, input.ClassPresent
 	case "updateMemberRole":
 		var input struct {
 			Role string `json:"role"`

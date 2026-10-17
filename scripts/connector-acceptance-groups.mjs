@@ -96,11 +96,35 @@ export const CONNECTOR_ACCEPTANCE_GROUPS = Object.freeze({
     'future_journal_enrollment_dispatch_and_settlement',
   ], 1),
 });
+// Keep the original acceptance roster immutable. These supplementary groups
+// require the new installed profiles and retain the same owned service guards.
+const environmentClassCases = Object.freeze([
+  'compiled_profile_and_current_capability',
+  'four_classes_create_atomically_without_collection_expansion',
+  'omission_preserves_legacy_create_and_update_semantics',
+  'class_change_invalidates_controls_and_other_resource_proofs',
+  'production_extended_refuses_and_departure_never_expands',
+  'hostile_class_bodies_have_zero_effects',
+  'attack_lab_future_effects_refuse_class_drift_and_production',
+  'revoked_session_and_stale_version_cannot_write',
+]);
+const environmentClassCatalogCases = Object.freeze([
+  'closed_private_privileges', 'nonpublic_inner_execute', 'helper_execute',
+  'table_read', 'column_read', 'schema_create', 'changed_body',
+  'unwanted_initial_acl_not_sealable',
+]);
+export const ENVIRONMENT_CLASS_ACCEPTANCE_GROUPS = Object.freeze({
+  'environment-class': group('TestEnvironmentClassificationMountedPostgres', environmentClassCases, 1),
+  'environment-class-audit': group('TestEnvironmentClassificationAuditMountedPostgres', environmentClassCases, 1),
+  'environment-class-catalog': group('TestEnvironmentClassProfileNativeCatalogControls',
+    ['normal', 'audit'].flatMap(variant => [variant, ...environmentClassCatalogCases.map(name => `${variant}/${name}`)]), 2),
+});
+const acceptanceGroups = Object.freeze({...CONNECTOR_ACCEPTANCE_GROUPS, ...ENVIRONMENT_CLASS_ACCEPTANCE_GROUPS});
 export function selectConnectorAcceptanceGroup(args) {
   assert.ok(Array.isArray(args) && args.length === 1 &&
-    typeof args[0] === 'string' && Object.hasOwn(CONNECTOR_ACCEPTANCE_GROUPS, args[0]),
+    typeof args[0] === 'string' && Object.hasOwn(acceptanceGroups, args[0]),
   'one fixed connector acceptance group is required');
-  return CONNECTOR_ACCEPTANCE_GROUPS[args[0]];
+  return acceptanceGroups[args[0]];
 }
 // Only errors issued by the unchanged acceptance assertions carry diagnostics.
 const traceFailureStages = new WeakMap();
@@ -117,7 +141,7 @@ export function describeConnectorAcceptanceTraceEvent(error) {
 export function validateConnectorAcceptanceTrace(rows, selected) {
   let stage = 'selection';
   try {
-    assert.ok(Object.values(CONNECTOR_ACCEPTANCE_GROUPS).includes(selected));
+    assert.ok(Object.values(acceptanceGroups).includes(selected));
     stage = 'empty';
     assert.ok(Array.isArray(rows) && rows.length > 0);
     stage = 'events';
@@ -144,7 +168,7 @@ export function validateConnectorAcceptanceTrace(rows, selected) {
           const test = row.Test;
           const testShape = typeof test === 'string' ? (test === '' ? 'empty-string' : 'nonempty-string') : test === null ? 'null' : 'non-string';
           const caseClass = typeof test !== 'string' ? 'non-string' :
-            Object.values(CONNECTOR_ACCEPTANCE_GROUPS).some(group => group !== selected && group.names.includes(test)) ? 'other-fixed-group' :
+            Object.values(acceptanceGroups).some(group => group !== selected && group.names.includes(test)) ? 'other-fixed-group' :
               test === 'TestApprovalActivationOldWriterProcess' ? 'source-known-owned-helper' : 'unrecognized';
           const action = row.Action;
           if (['start', 'run', 'output', 'pass'].includes(action)) traceFailureEvents.set(error, Object.freeze({action, testShape, caseClass}));

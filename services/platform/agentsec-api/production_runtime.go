@@ -108,6 +108,19 @@ func buildRuntimeDependenciesWithReadinessObserver(ctx context.Context, config R
 		selectedResolver = callbackResolver
 	}
 	authorizer := &apiserver.OpenFGAAuthorizer{Reader: revisions, Checker: checker, Resolver: selectedResolver, StoreID: config.RuntimeServices.StoreID, ModelID: config.RuntimeServices.ModelID, AttestationKey: attestationKey}
+	if config.EnvironmentClassEnabled {
+		bounded, cancel := context.WithTimeout(ctx, config.ProviderTimeout)
+		ready, readyErr := database.EnvironmentClassProfileReady(bounded, config.EnvironmentClassProfileChecksum)
+		cancel()
+		if readyErr != nil || !ready {
+			_ = securityAgentDatabase.Close()
+			_ = database.Close()
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("environment-class-profile", errRuntimeUnavailable)
+		}
+		authorizer.EnvironmentClassReady = func(ctx context.Context) (bool, error) {
+			return database.EnvironmentClassProfileReady(ctx, config.EnvironmentClassProfileChecksum)
+		}
+	}
 	authenticator, err := apiserver.NewStytchOAuthAuthenticator(config.StytchBaseURL, config.StytchProjectID, config.StytchSecret, config.ProviderTimeout, func() time.Time { return time.Now().UTC().Truncate(time.Millisecond) })
 	if err != nil {
 		_ = securityAgentDatabase.Close()
@@ -321,6 +334,9 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 	}
 	if retentionVisibility != nil && repository.RequireRetentionProfile(config.RetentionProfileChecksum) != nil {
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("retention-repositories", errRuntimeUnavailable)
+	}
+	if config.EnvironmentClassEnabled && repository.RequireEnvironmentClassProfile(config.EnvironmentClassProfileChecksum) != nil {
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("environment-class-repositories", errRuntimeUnavailable)
 	}
 	connectorRepository, err := apiserver.NewConnectorRepository(tracedDatabase)
 	if err != nil {
@@ -657,6 +673,15 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 	return RuntimeDependencies{ProductHandler: edge, Metrics: metrics, LifecycleWorker: func(ctx context.Context) error { return runLifecycleWorkers(ctx, lifecycleWorkers...) }, ReadinessCheck: func(ctx context.Context) error {
 		if currentRequired(database) && currentRequired(securityAgentDatabase) {
 			checks := []func(context.Context) error{connectorNativeReady, repository.Ready, connectorRepository.Ready, referenceRepository.Ready, policyHandler.Ready, tracedProvider.Ready}
+			if config.EnvironmentClassEnabled {
+				checks = append(checks, func(probe context.Context) error {
+					ready, err := database.EnvironmentClassProfileReady(probe, config.EnvironmentClassProfileChecksum)
+					if err != nil || !ready {
+						return errRuntimeUnavailable
+					}
+					return nil
+				})
+			}
 			if retentionVisibility != nil {
 				checks = append(checks, retentionVisibility.Ready)
 			}

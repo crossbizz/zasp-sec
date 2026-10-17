@@ -1,0 +1,79 @@
+{
+  "observed_at": "2026-10-17T10:50:01.628076+00:00",
+  "source_head": "2e99c3b463db1081a3831e9aab5f0ed8a3eb96c5",
+  "task_mapping": [
+    "M2-06"
+  ],
+  "official_job": {
+    "completed_at": "2026-10-17T10:46:53Z",
+    "conclusion": "success",
+    "head_sha": "2e99c3b463db1081a3831e9aab5f0ed8a3eb96c5",
+    "id": 117375248815,
+    "name": "connected-session-bootstrap",
+    "run_id": 39025386351,
+    "started_at": "2026-10-17T10:42:56Z",
+    "status": "completed",
+    "steps": [
+      {
+        "conclusion": "success",
+        "name": "Set up job",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "name": "Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "name": "Verify session bootstrap source custody",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "name": "Require all composed resolver bootstrap application cases",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "name": "Keep consumed bootstrap and module source unchanged",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "name": "Post Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "name": "Complete job",
+        "status": "completed"
+      }
+    ]
+  },
+  "enforced_source": {
+    "workflow": ".github/workflows/connector-native-draft-compile.yml",
+    "workflow_sha256": "d006650caa1b629e8e579239ad455693d78dd5340b6c3f1ceddd0b0f520e71ad",
+    "bootstrap_job_body_sha256": "dba3cbdd1e5d56a4d90d720daa758d1948cebbf95c0e804210c7265a5e227d95",
+    "source_pin_count": 449,
+    "required_named_passes": 9,
+    "skips_allowed": false,
+    "success_inference": "The exact-head official job and its source-custody, actual Go/application case gate and final source-unchanged steps all succeeded. The source gate requires precisely the parent and all eight modes to PASS, no SKIP, plus package PASS. No raw logs or artifacts were fetched."
+  },
+  "metadata": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/callback-bootstrap-hosted/job-metadata.json",
+    "bytes": 1187,
+    "sha256": "7d6656ff1ecf41a5aa804ae092571eba9fcc59f7666164fbe5b4f305e343b504"
+  },
+  "scope": "Controlled application snapshot/FGA dependency integration acceptance; real Stytch/provider, native installed PostgreSQL and deployed end-to-end not established. This successor does not retroactively rewrite the prior local0case setup-block evidence or promote task availability. The new environment-class native37 cases remain unexecuted."
+}

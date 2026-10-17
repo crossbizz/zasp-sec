@@ -14,6 +14,25 @@ test('required application groups retain every flow and owned database', () => {
   assert.equal(Object.values(groups).reduce((n, g) => n + g.postgresJoins, 0), 24);
   for (const key of Object.keys(groups)) { assert.equal(select([key]), groups[key]); validate(trace(groups[key]), groups[key]); }
 });
+test('environment classification adds fixed normal Audit and catalog groups without changing original acceptance', () => {
+  const added = traceDiagnostics.ENVIRONMENT_CLASS_ACCEPTANCE_GROUPS;
+  assert.ok(added, 'fixed supplementary environment classification acceptance groups are missing');
+  assert.deepEqual(Object.keys(added), ['environment-class', 'environment-class-audit', 'environment-class-catalog']);
+  assert.deepEqual(Object.values(added).map(g => [g.names.length, g.postgresJoins]), [[9, 1], [9, 1], [19, 2]]);
+  const names = Object.values(added).flatMap(g => g.names);
+  assert.equal(names.length, 37); assert.equal(new Set(names).size, 37);
+  assert.equal(Object.values(added).reduce((n, g) => n + g.postgresJoins, 0), 4);
+  assert.ok(names.every(name => !Object.values(groups).some(g => g.names.includes(name))));
+  for (const [key, selected] of Object.entries(added)) {
+    assert.equal(select([key]), selected);
+    validate(trace(selected), selected);
+    for (const name of selected.names) {
+      assert.throws(() => validate(trace(selected).filter(row => row.Test !== name), selected));
+      assert.throws(() => validate([...trace(selected), {Package: pkg, Test: name, Action: 'pass'}], selected));
+      for (const action of ['skip', 'fail']) assert.throws(() => validate(trace(selected).map(row => row.Test === name && row.Action === 'pass' ? {...row, Action: action} : row), selected));
+    }
+  }
+});
 test('both ordered progress flows require every original provider evidence control', () => {
   const cases = ['provider-evidence-unchanged', 'provider-evidence-ordinary-field', 'provider-evidence-timestamp-instant', 'provider-canonical-row-leaf'];
   const helper = fs.readFileSync(new URL('../services/platform/apiserver/authorization_worker_ordered_provider_evidence_test.go', import.meta.url), 'utf8');
@@ -122,9 +141,9 @@ test('rejected extra event cases expose only issued fixed descriptors and never 
 test('closed event observation preserves the exact original assertion error and existing stage API',()=>{
   const original=Error('PRIVATE_ASSERTION_CANARY'),stages=new WeakMap(),events=new WeakMap();
   const guarded={...assert,ok(value,...args){if(!value)throw original;return assert.ok(value,...args);}};
-  // Execute the actual unchanged assertion function with a controlled issued
+  // Execute the actual acceptance assertion function with a controlled issued
   // error. This verifies catch/observation never replaces that original object.
-  const actual=new Function('assert','CONNECTOR_ACCEPTANCE_GROUPS','applicationPackage','traceFailureStages','traceFailureEvents',`return (${validate.toString()});`)(guarded,groups,pkg,stages,events);
+  const actual=new Function('assert','acceptanceGroups','applicationPackage','traceFailureStages','traceFailureEvents',`return (${validate.toString()});`)(guarded,Object.freeze({...groups,...traceDiagnostics.ENVIRONMENT_CLASS_ACCEPTANCE_GROUPS}),pkg,stages,events);
   assert.throws(()=>actual([...trace(groups.approval),{Package:pkg,Test:'PRIVATE_EXTRA_CANARY',Action:'output'}],groups.approval),error=>error===original);
   assert.equal(stages.get(original),'event-case');
   assert.deepEqual(events.get(original),{action:'output',testShape:'nonempty-string',caseClass:'unrecognized'});
@@ -494,7 +513,28 @@ test('retention connected sources retain the complete declared application closu
   "services/platform/preflight/sqs_permissions_mounted_test.go",
   "services/platform/preflight/sqs_permissions_integration.go",
   "services/platform/apiserver/authorization_post_login_resolver.go",
-  "services/platform/apiserver/authorization_post_login_callback_resolver_test.go"
+  "services/platform/apiserver/authorization_post_login_callback_resolver_test.go",
+  "services/platform/apiserver/environment_class.go",
+  "services/platform/apiserver/environment_class_statement.go",
+  "services/platform/apiserver/authorization_openfga.go",
+  "services/platform/apiserver/authorization_post_login.go",
+  "services/platform/apiserver/environment_class_http_test.go",
+  "services/platform/apiserver/environment_class_statement_test.go",
+  "services/platform/apiserver/environment_class_postgres_test.go",
+  "services/platform/agentsec-api/environment_class_runtime.go",
+  "services/platform/agentsec-api/environment_class_runtime_test.go",
+  "deploy/production/environment-class-profile.mjs",
+  "deploy/production/environment-class-profile.test.mjs",
+  "deploy/staging/product/templates/_environment-class.tpl",
+  "services/platform/apiserver/environment_class_attack_lab_postgres_test.go",
+  "services/platform/apiserver/environment_class_repository_test.go",
+  "services/platform/migrations/sql/environment_class_profile.sql",
+  "services/platform/migrations/production_environment_class_profile.go",
+  "services/platform/migrations/production_environment_class_profile_test.go",
+  "services/platform/agentsec-migrate/environment_class_profile.go",
+  "services/platform/agentsec-migrate/environment_class_profile_test.go",
+  "services/platform/apiserver/environment_class_profile_catalog_postgres_test.go",
+  ".github/workflows/connector-connected-lifecycle.yml"
 ];
   const compiled = JSON.parse(relative('.github/connector-native-compile-source-pins.json'));
   const compilePins = new Map(compiled.sources.map(item => [item.path, item]));

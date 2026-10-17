@@ -63,6 +63,7 @@ type administrationMutation struct {
 	EnvironmentClass, CollectionMode, IdempotencyKey, GrantID, AuditID   string
 	RetentionDays                                                        int
 	DeletionEnabled                                                      bool
+	EnvironmentClassPresent                                              bool
 	Permissions                                                          json.RawMessage
 	ExpiresAt                                                            time.Time
 	GrantExpiresAt                                                       time.Time
@@ -193,6 +194,22 @@ func (repository *PostgresRepository) MutateAdministration(ctx context.Context, 
 		if mutation.WorkspaceID != workspace {
 			return nil, ErrRepositoryNotFound
 		}
+		if repository.environmentClassProfileChecksum != "" {
+			if _, checked := requestAuthorizationFromContext(ctx); !checked {
+				return nil, ErrAuthorizationDenied
+			}
+			class := mutation.EnvironmentClass
+			if !mutation.EnvironmentClassPresent {
+				class = "development"
+			}
+			if !validEnvironmentClass(class) {
+				return nil, ErrRepositoryOperation
+			}
+			return repository.database.QueryJSON(ctx, postgresClassifiedEnvironmentCreateSQL, mutation.ID, organization, mutation.WorkspaceID, mutation.Name, class, mutation.AuditID, actor, workspace, environment, []byte("[]"), repository.environmentClassProfileChecksum)
+		}
+		if mutation.EnvironmentClassPresent {
+			return nil, ErrRepositoryOperation
+		}
 		if _, checked := requestAuthorizationFromContext(ctx); checked {
 			return repository.database.QueryJSON(ctx, postgresCreateEnvironmentCurrentSQL, mutation.ID, organization, mutation.WorkspaceID, mutation.Name, mutation.AuditID, actor, workspace, environment, []byte("[]"))
 		}
@@ -204,6 +221,22 @@ func (repository *PostgresRepository) MutateAdministration(ctx context.Context, 
 	case "updateEnvironment":
 		if mutation.ID != environment {
 			return nil, ErrRepositoryNotFound
+		}
+		if repository.environmentClassProfileChecksum != "" {
+			if _, checked := requestAuthorizationFromContext(ctx); !checked {
+				return nil, ErrAuthorizationDenied
+			}
+			var class any
+			if mutation.EnvironmentClassPresent {
+				if !validEnvironmentClass(mutation.EnvironmentClass) {
+					return nil, ErrRepositoryOperation
+				}
+				class = mutation.EnvironmentClass
+			}
+			return repository.preconditionedAdministrationMutation(ctx, postgresClassifiedEnvironmentUpdateSQL, organization, workspace, environment, mutation.ID, mutation.Name, class, mutation.ExpectedVersion, mutation.AuditID, actor, repository.environmentClassProfileChecksum)
+		}
+		if mutation.EnvironmentClassPresent {
+			return nil, ErrRepositoryOperation
 		}
 		return repository.preconditionedAdministrationMutation(ctx, postgresUpdateEnvironmentSQL, organization, workspace, mutation.ID, environment, mutation.Name, mutation.ExpectedVersion, mutation.AuditID, actor)
 	case "updateMemberRole":

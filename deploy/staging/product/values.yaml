@@ -522,3 +522,8 @@ authorizationTemporal:
   profile: ""
   # Omit until supplementary catalogs, principals and real fleet cutover are verified.
   # This optional object selects registered runtime consumers; it never activates.
+
+environmentClass:
+  # API consumer opt-in after exact supplementary profile native admission.
+  enabled: false
+  profileChecksum: ""
