@@ -92,7 +92,7 @@ func runAgentCurrentOwnershipWrite(t *testing.T, audit bool) {
 		t.Fatal("actual current inventory configuration refused")
 	}
 	// Exact production repository-to-inventory configuration copy; no fake pin.
-	inventory.agentOwnerFilterProfileChecksum = f.repository.agentOwnerFilterProfileChecksum
+	inventory.agentOwnerProfileChecksum = f.repository.agentOwnerProfileChecksum
 	inventory.agentExposureFilterProfileChecksum = f.repository.agentExposureFilterProfileChecksum
 	resolver, err := NewAgentExposureFilterResolver(f.authorizer.Resolver, f.db, exposurePin)
 	if err != nil {

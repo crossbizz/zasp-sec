@@ -602,7 +602,7 @@ const pins = {
   "services/platform/agentsec-migrate/agent_ownership_write_profile.go": "c400a5b68597c12e0344cabb5f9e1b5fc2491ffe825521871227257f2a06b844",
   "services/platform/agentsec-migrate/agent_ownership_write_profile_test.go": "8b1b73a905a670bce29b31807ea36972dc5248259b74fdefd37c0ba0a618dfd7",
   "services/platform/apiserver/agent_current_ownership_write.go": "0c398aee7ade9988b21833d42bd61ece571aef7156fbf736e46b59bf9b6fd6c9",
-  "services/platform/apiserver/agent_current_ownership_write_postgres_test.go": "ce3e350a7c87cda23e5b5f6bf6cee9aaad0190f5ad3f0f6ba03722b94bcbbe37",
+  "services/platform/apiserver/agent_current_ownership_write_postgres_test.go": "1e029236425a963b085a5fec157fdbcf10edec03960d952fb1ae13ba6c28bf3d",
   "services/platform/apiserver/agent_current_ownership_write_test.go": "c1aff3628c6264b6972358112cae7d97051dd84f976663030e6a9f2e200cd9e9",
   "services/platform/migrations/migrations.go": "5774a44a1217948185cc5051aed3f3e69a7fa1e2006c3a0682df7b431df2e925",
   "services/platform/migrations/production_agent_ownership_write_compiler_test.go": "7479817afc1545686c9c8f68c436a33ec55ca4fb524b1db8b4764a2401c46891",

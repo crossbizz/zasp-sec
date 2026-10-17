@@ -390,14 +390,14 @@
     },
     {
       "path": "scripts/hosted-connected-connector-acceptance.mjs",
-      "sha256": "b5e176eca37fbc156a6f8d0f77a1c43d013b949d8aafb794df5b958b90a5159b",
+      "sha256": "41292cce618590d9bb3965db8eb8d9fb6545059562c6c0e8fd934552cf8fae79",
       "bytes": 147754,
       "currentBasePreimageSHA256": "f248c6d9182ca08cb518cd54c620844c987f4ae723a38badb463c59e010db578",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
-      "sha256": "eb16a241e091581c9aaf1bfa4b0817e51bafd397699971857ea02843274ae750",
+      "sha256": "b5e4d096c1433ac53504f7eb35e7d6e77bccec26a6dbe458305ee5374b286f44",
       "bytes": 144270,
       "currentBasePreimageSHA256": "e66722e4daf5b1482c253d1f14b4c533c329fde202252c16f87ad3e0130e8524",
       "historicalPreimageSHA256": null
@@ -4387,8 +4387,8 @@
     },
     {
       "path": "services/platform/apiserver/agent_current_ownership_write_postgres_test.go",
-      "sha256": "ce3e350a7c87cda23e5b5f6bf6cee9aaad0190f5ad3f0f6ba03722b94bcbbe37",
-      "bytes": 30557,
+      "sha256": "1e029236425a963b085a5fec157fdbcf10edec03960d952fb1ae13ba6c28bf3d",
+      "bytes": 30545,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -6258,5 +6258,7 @@
   "agentDeviceAssociationSourceAssociationBase": "a05532e8b76c10db5cd01d0375131cb8f95ec441",
   "agentDeviceAssociationPredecessorManifestSHA256": "ad071312a1143442f4f8d937c79a9ef7399006ac6d0fd163f8cdb4b87d6f9da1",
   "legacyDeviceAssociationSourceAssociationBase": "3c27c968886b411fdcb51956976cf1aa180d691b",
-  "legacyDeviceAssociationPredecessorManifestSHA256": "a322f07fa07c132f15690139d510728d4a70ed02b4805730fe2545535ba80bde"
+  "legacyDeviceAssociationPredecessorManifestSHA256": "a322f07fa07c132f15690139d510728d4a70ed02b4805730fe2545535ba80bde",
+  "ownerFilterCompileRepairSourceAssociationBase": "3eb7b88f641821a1bc8271ede2eddd0144547f06",
+  "ownerFilterCompileRepairPredecessorManifestSHA256": "478ce0fe022bb9967af8c619099223df306f5b9842e7543d5bd3ba7d2b3f0d7b"
 }
