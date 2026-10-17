@@ -41,6 +41,15 @@ worker/CLI/API setup remains blocked by missing dependencies. Native SQL and rea
 provider custody remain unverified. See
 `cloud-retention-journal-component-checkpoint-2026-10-17.json`.
 
+The `373653ed` hosted draft lane passes compilation of all nineteen affected
+packages and its existing application groups. A new strict hosted group now
+requires the atomic connector and retained writer journal contracts: six
+packages, ten top-level tests and 86 named cases. Its collector rejects missing,
+duplicated, skipped or foreign events. Local collector controls pass, with 32
+case names corroborated by actual SDK/migration results; 54 await hosted
+execution. This does not establish native SQL or deployed acceptance. See
+`cloud-journal-application-ci-checkpoint-2026-10-17.json`.
+
 The CLI now returns structured preflight and upgrade blocker reports with the
 original nonzero exit status, instead of discarding their remediation hints.
 Malformed inputs remain rejected without a report. This fixes output behavior;

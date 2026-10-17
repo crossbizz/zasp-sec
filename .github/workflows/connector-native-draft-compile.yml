@@ -37,6 +37,7 @@ jobs:
           test -z "${ZASP_CONNECTOR_MAINTENANCE_POSTGRES_DSN:-}"
           test -z "${ZASP_CONNECTOR_MAINTENANCE_KEY_FILE:-}"
           test -z "${ZASP_RETENTION_PROFILE_CHECKSUM:-}"
+          test -z "${ZASP_RETENTION_JOURNAL_PROFILE_CHECKSUM:-}"
           test -z "${ZASP_RETENTION_CONFIGURATION_FILE:-}"
           python3 - <<'PYVERIFY'
           import hashlib, json
@@ -58,6 +59,64 @@ jobs:
             echo '::endgroup::'
           done
           git diff --exit-code -- services/platform services/health
+      - name: Atomic connector and retained writer journal application contracts
+        timeout-minutes: 5
+        run: |
+          python3 - <<'PYJOURNALAPPLICATION'
+          import hashlib, json, subprocess, tempfile
+          from pathlib import Path
+          base = 'github.com/zasp-ai/zasp-sec/services/platform/'
+          groups = {
+              'connectormaintenance': {
+                  'TestAtomicConnectorObservation': ['#00', 'before_pending', 'user', 'service', 'wrong_model', 'after_source', 'after_revision', 'after_expiry', 'after_error'],
+                  'TestAtomicObservationStoredValues': ['exact_stored_pair', 'unknown_outer_field', 'internal_disposition', 'missing_revision', 'foreign_organization', 'pending_projection', 'unknown_nested_field', 'wrong_source_pin', 'null_facts'],
+                  'TestAtomicObservationDatabaseFailureClasses': ['expired_or_changed_lease', 'missing_original_task', 'current_source_or_permission_denied'],
+              },
+              'runtimeindex': {'TestRetainedJournalClaimCrashAndOneUseBoundaries': ['reserve', 'unknown_commit', 'replay', 'confirmed']},
+              'runtimeindex/opensearchdriver': {'TestRetainedJournalAtActualSerializedBulkBoundary': [family+'/'+outcome for family in ['raw', 'session-v1', 'session-v2'] for outcome in ['created', 'known_conflict', 'lost_acknowledgement', 'truncated_response', 'reserve_failure', 'unknown_claim', 'replay_claim', 'append_failure']]},
+              'agentsec-worker': {
+                  'TestRetainedWorkerJournalArtifactCommitAndCapturedBoundaries': ['confirmed', 'uncertain_put', 'changed_pinned_bytes', 'claim_unknown', 'late_captured', 'suppressed_zero_request'],
+                  'TestRetainedWriterJournalExactUnknownCommitRecovery': [operation+'/'+mode for operation in ['begin_execution', 'admit_execution', 'reserve_request', 'claim_send', 'append_terminal', 'close_inventory', 'seal_partition'] for mode in ['exact', 'mismatch', 'lookup_unavailable']],
+              },
+              'agentsec-migrate': {'TestRetentionJournalOperatorBoundary': []},
+              'migrations': {'TestRetentionJournalCompiledClosureAndInstaller': [], 'TestRetentionJournalRawSealHasNoReadinessRecursion': []},
+          }
+          expected = {(base+package, name): {'run': 0, 'pass': 0} for package, tops in groups.items() for top, children in tops.items() for name in [top]+[top+'/'+child for child in children]}
+          assert len(groups) == 6 and sum(len(tops) for tops in groups.values()) == 10 and len(expected) == 86
+          def check_sources():
+              source = json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())
+              assert len(source['sources']) == 345
+              for item in source['sources']:
+                  raw = Path(item['path']).read_bytes()
+                  assert len(raw) == item['bytes'] and hashlib.sha256(raw).hexdigest() == item['sha256'], item['path']
+          check_sources()
+          names = [name for tops in groups.values() for name in tops]
+          with tempfile.TemporaryFile() as output, tempfile.TemporaryFile() as errors:
+              result = subprocess.run(['go', 'test', '-C', 'services/platform', '-race', '-p=1', '-count=1', '-timeout=2m', '-json', '-run', '^('+'|'.join(names)+')$']+['./'+package for package in groups], stdout=output, stderr=errors, timeout=180)
+              assert output.tell() <= 8*1024*1024 and errors.tell() <= 1024*1024, 'output bounds exceeded'
+              output.seek(0)
+              package_pass = {base+package: 0 for package in groups}
+              valid = True
+              for line in output:
+                  event = json.loads(line)
+                  package, name, action = event.get('Package'), event.get('Test'), event.get('Action')
+                  if package not in package_pass or action not in ['start', 'run', 'output', 'pass']:
+                      valid = False
+                      continue
+                  if name is None:
+                      if action == 'pass':
+                          package_pass[package] += 1
+                      continue
+                  key = (package, name)
+                  if key not in expected:
+                      valid = False
+                  elif action in expected[key]:
+                      expected[key][action] += 1
+              missing = sum(count != {'run': 1, 'pass': 1} for count in expected.values())
+              print('::notice title=Connector and journal application contracts::packages='+str(len(groups))+'; tops='+str(len(names))+'; named='+str(len(expected))+'; missingOrDuplicate='+str(missing)+'; validEvents='+str(valid)+'; exit='+str(result.returncode)+'. Component application checks only; no native SQL or deployed provider acceptance.')
+              assert result.returncode == 0 and valid and not missing and all(count == 1 for count in package_pass.values()), 'connector/journal application group refused'
+          check_sources()
+          PYJOURNALAPPLICATION
       - name: Compiled source pin retains fresh connector authorization
         timeout-minutes: 5
         run: go test -C services/platform -race -p=1 -count=1 -timeout=2m -run '^TestCompiledPinKeepsFreshConnectorAuthority$' ./connectormaintenance
