@@ -21,7 +21,7 @@ func (a *OpenFGAAuthorizer) preparePostLogin(ctx context.Context, i RequestIdent
 	if a == nil || a.Reader == nil || a.Checker == nil || !postLoginOperation(route.OperationID) {
 		return g, authorization.ErrUnavailable
 	}
-	r, ok := a.Resolver.(*PostgresAuthorizationResolver)
+	r, ok := postLoginSnapshotResolver(a.Resolver)
 	if !ok || r == nil || r.database == nil {
 		return g, authorization.ErrUnavailable
 	}

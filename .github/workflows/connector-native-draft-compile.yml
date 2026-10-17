@@ -45,7 +45,7 @@ jobs:
           import hashlib, json
           from pathlib import Path
           source = json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())
-          assert len(source['sources']) == 447
+          assert len(source['sources']) == 449
           for item in source['sources']:
               raw = Path(item['path']).read_bytes()
               assert len(raw) == item['bytes']
@@ -87,7 +87,7 @@ jobs:
           assert len(groups) == 6 and sum(len(tops) for tops in groups.values()) == 10 and len(expected) == 86
           def check_sources():
               source = json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())
-              assert len(source['sources']) == 447
+              assert len(source['sources']) == 449
               for item in source['sources']:
                   raw = Path(item['path']).read_bytes()
                   assert len(raw) == item['bytes'] and hashlib.sha256(raw).hexdigest() == item['sha256'], item['path']
@@ -312,6 +312,49 @@ jobs:
         run: go test -C services/platform -race -p=1 -count=1 -timeout=2m -run '^TestProductionAttackLabKubernetesAPIReadiness(CollectsAndUIDFencesCleanup|RejectsPrivilegeAndEgressDrift)$' ./agentsec-worker
       - name: Keep consumed Fargate configuration and module source unchanged
         run: git diff --exit-code -- services/platform cmd/agentsecctl services/health
+
+  connected-session-bootstrap:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GOTOOLCHAIN: local
+      GOWORK: 'off'
+      GOFLAGS: '-mod=readonly'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: 1.26.8
+          cache: false
+      - name: Verify session bootstrap source custody
+        run: |
+          python3 - <<'PYBOOTSTRAP'
+          import hashlib, json
+          from pathlib import Path
+          for item in json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())['sources']:
+              raw = Path(item['path']).read_bytes()
+              assert len(raw) == item['bytes'] and hashlib.sha256(raw).hexdigest() == item['sha256'], item['path']
+          PYBOOTSTRAP
+      - name: Require all composed resolver bootstrap application cases
+        timeout-minutes: 10
+        run: |
+          go test -C services/platform -race -p=1 -count=1 -timeout=2m -json -run '^TestPostLoginKnownCallbackResolverKeepsCurrentSnapshotBinding$' ./apiserver > session-bootstrap.jsonl
+          python3 - <<'PYBOOTSTRAPCASES'
+          import json
+          from pathlib import Path
+          parent = 'TestPostLoginKnownCallbackResolverKeepsCurrentSnapshotBinding'
+          modes = ['direct', 'known_wrapper', 'nil_wrapper', 'wrong_database', 'wrong_profile', 'nested_wrapper', 'unrecognized_resolver', 'missing_original']
+          expected = {parent, *(parent + '/' + mode for mode in modes)}
+          events = [json.loads(line) for line in Path('session-bootstrap.jsonl').read_text().splitlines() if line.strip()]
+          results = [e for e in events if e.get('Test') and e.get('Action') in ('pass', 'fail', 'skip')]
+          assert len(results) == 9 and {e['Test'] for e in results} == expected
+          assert all(e['Action'] == 'pass' for e in results)
+          assert any(e.get('Action') == 'pass' and not e.get('Test') for e in events)
+          PYBOOTSTRAPCASES
+      - name: Keep consumed bootstrap and module source unchanged
+        run: git diff --exit-code -- services/platform services/health
 
   connected-sqs-permission-diagnostics:
     runs-on: ubuntu-24.04

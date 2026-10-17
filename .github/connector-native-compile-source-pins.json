@@ -383,22 +383,22 @@
     },
     {
       "path": "scripts/connector-acceptance-groups.test.mjs",
-      "sha256": "59573b593269d195f92f1ff3849f4075f953791899a73be684d1ece0c873eeed",
-      "bytes": 40902,
+      "sha256": "131b7a556bc8205d824878ab8964a46d93e02262cbbe14f7bfc7ee17e92aa97e",
+      "bytes": 41056,
       "currentBasePreimageSHA256": "a1622a9417e9fe4d62c2aed82bcf5f7f3e11dce841d802bf005b29d54405d388",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connected-connector-acceptance.mjs",
-      "sha256": "bcab1f8a05b7425dbf9fadadbd71f85d3c451174aad68e055f4de5c4b77d4aee",
-      "bytes": 90684,
+      "sha256": "71d22d02d404f9a2288c0a83008a98134dde79cbbfff25bbc88933028b6b9a87",
+      "bytes": 90974,
       "currentBasePreimageSHA256": "f248c6d9182ca08cb518cd54c620844c987f4ae723a38badb463c59e010db578",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
-      "sha256": "f3887b8f2b5abeeabbfc3e5c26ce2c72940c334a0b9f1847f344bf3e2a68b930",
-      "bytes": 87085,
+      "sha256": "4ea5ab1f32ba71272e0006f15b3adb690f025f6daa82b2176177149f28aafcea",
+      "bytes": 87375,
       "currentBasePreimageSHA256": "e66722e4daf5b1482c253d1f14b4c533c329fde202252c16f87ad3e0130e8524",
       "historicalPreimageSHA256": null
     },
@@ -3129,6 +3129,20 @@
       "path": "services/platform/preflight/sqs_permissions_integration.go",
       "sha256": "98d387048c3bccd89cb6f4648a0789a34d40356b3784a6a5b4dae2522d158dd8",
       "bytes": 5993,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/apiserver/authorization_post_login_resolver.go",
+      "sha256": "58ea1982b092d29464a703315f1d76a425e2469b4ef2aa1e4d6a52d04fa1b97e",
+      "bytes": 1044,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/apiserver/authorization_post_login_callback_resolver_test.go",
+      "sha256": "6025c6df5fe188e1f3f2188816c2043a253b83392cdc67ed3f7a534f470591b3",
+      "bytes": 3138,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     }

@@ -422,12 +422,14 @@ const pins = {
   "services/platform/preflight/sqs_permissions_kubernetes.go": "a88367037fea53f0c4d63f5701ae1c63e6e85bfcea6a862cd4dae1fc70eb3560",
   "services/platform/preflight/sqs_permissions_kubernetes_test.go": "12ac1ebc0d6c9bf19a88431fcd3bbe476ed379af2005ebcefbf00936cec8d35c",
   "services/platform/preflight/sqs_permissions_mounted_test.go": "2045da335fb40f9093632ecdfbc3e76b5073eb0f64aca97272811f6b539587bf",
-  "services/platform/preflight/sqs_permissions_integration.go": "98d387048c3bccd89cb6f4648a0789a34d40356b3784a6a5b4dae2522d158dd8"
+  "services/platform/preflight/sqs_permissions_integration.go": "98d387048c3bccd89cb6f4648a0789a34d40356b3784a6a5b4dae2522d158dd8",
+  "services/platform/apiserver/authorization_post_login_resolver.go": "58ea1982b092d29464a703315f1d76a425e2469b4ef2aa1e4d6a52d04fa1b97e",
+  "services/platform/apiserver/authorization_post_login_callback_resolver_test.go": "6025c6df5fe188e1f3f2188816c2043a253b83392cdc67ed3f7a534f470591b3"
 };
 const top='TestConnectorMaintenanceAuthenticatedOAuthEnqueuePostgres';
 const cases=['genuine_same_transaction_origin_and_immutable_enrichment','rollback_removes_every_enqueue_and_provenance_write'];
 const helperPins={
-  "scripts/connector-acceptance-groups.test.mjs": "59573b593269d195f92f1ff3849f4075f953791899a73be684d1ece0c873eeed",
+  "scripts/connector-acceptance-groups.test.mjs": "131b7a556bc8205d824878ab8964a46d93e02262cbbe14f7bfc7ee17e92aa97e",
   "scripts/connector-acceptance-groups.mjs": "ab1f58397774edfd228cda738ac27d0b5e9d3d47cd939c231f02fb319a0dea32",
   "docs/internal/evidence/cloud-2026-10-07/native-service-readiness/openfga/09-pg-non-glibc-libs-manifest.json": "96642e82997ffd2caf2893a5ecc0116ad2aef6e982df2d929f3efda4e04f3474",
   "services/platform/apiserver/authorization_integration_mutations_postgres_test.go": "5e4beb04b2409ad9b11b89c017ada5e2eccffd78a87bdd5692d40670f12a2ba0",
