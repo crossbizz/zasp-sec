@@ -324,18 +324,18 @@ const pins = {
   "cmd/agentsecctl/go.mod": "6d5122f515105e69fa0b769e083bc7fdf6a792dfadc4239a37b6483f6a3f9688",
   "cmd/agentsecctl/go.sum": "19de766843e2410e35dca9ed4a563e8ac72b66a131fa7938f701d079cc418aff",
   "cmd/agentsecctl/preflight_live.go": "035ca8ed41d9c739cf3ce5ca21e6deda9068bcfcf9d4af5cb705cc299c4d8474",
-  "cmd/agentsecctl/preflight_live_contract_test.go": "54e3e19289f439056d8de8760d0bf6181eb591a05a50539d5ce0801e067c54f4",
+  "cmd/agentsecctl/preflight_live_contract_test.go": "e870771d23bce28eb9c20a4026169b4de113462f406a50d8e21aa0570c36dc89",
   "cmd/agentsecctl/release.go": "21af11955e700a655efbbf45fdc9732ec8ddc24c6e33bd16421dd488ddf77f1b",
   "services/platform/agentsec-worker/discovery_dependencies.go": "e9d1b0ad9a59dce01fba6084e37c6b93e14622239dec628fbfed557b46c71df3",
   "services/platform/cloudreadiness/aws.go": "ec2f446982306fdb94d39f335d28b3821282e5fe4ec8d2d47ebef6b99453b399",
   "services/platform/preflight/aws_contract_test.go": "e205663ee2b2c7c1069c2c44ab16802b40c8df95d0e1a3abc3c93f16caf440f8",
   "services/platform/preflight/config.go": "4aeba33a62a7aafee1b50caadd2101f1c0bf204f215ca7250cbba1070d582229",
-  "services/platform/preflight/config_contract_test.go": "ef7e114168516955252a09a99d38683a80e6325924e743c33a11f753c40a0ab7",
+  "services/platform/preflight/config_contract_test.go": "b79f34c209a7b3da41555204adb758bd36754739f97b594ae3f76ec5976f5408",
   "services/platform/preflight/contract.go": "38bd06c94f6b348dae50e91efd35b457fa6b16b48cfb2fbff5f9bcdd4b6cef56",
   "services/platform/preflight/credentials.go": "ab2971f2bc5e654523d85ae285393081d37f0f296c429a4e4add7a2cecbf4c9a",
-  "services/platform/preflight/failures.go": "a51398a557401c5a12cd790481fbe2afba79782490ea2d9eb5c10c95fe7ff01f",
+  "services/platform/preflight/failures.go": "f5fcaee92a7f9f72cb0a42a987b56bd1a7896cd328a2762258711fbb99aaf428",
   "services/platform/preflight/report.go": "d8e69a39382179c3f1c71cc1c4548f15a81b85fd6352addd7de4c3072f823d4f",
-  "services/platform/preflight/runner.go": "51e30a2e299ceffb86283cb2ec3d9562c613c5c2e0b66820e8d6e4e5810d698d",
+  "services/platform/preflight/runner.go": "e99199173526674f878d8353bdc9efd1d7eda5ddb246d88c75115a7b8be029e2",
   "services/platform/preflight/transport.go": "20365db0991b2302ccdc16e1066f2506113dbb9cb6b6ae6803e2349bd9f05d94"
 };
 const top='TestConnectorMaintenanceAuthenticatedOAuthEnqueuePostgres';

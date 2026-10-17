@@ -38,7 +38,10 @@ func TestStrictTargetAndCredentialBoundary(t *testing.T) {
 					mode = 0644
 				}
 				body := []byte(`{"access_key_id":"fixture-key-only","secret_access_key":"fixture-secret-only","expires_at":"2020-01-01T00:00:00Z"}`)
-				if os.WriteFile(path, body, mode) != nil {
+				if name == "public-credentials" {
+					body = []byte(`{"access_key_id":"fixture-key-only","secret_access_key":"fixture-secret-only"}`)
+				}
+				if os.WriteFile(path, body, mode) != nil || os.Chmod(path, mode) != nil {
 					t.Fatal("controlled credential fixture unavailable")
 				}
 				config.Credentials.Kind = "operator_file"

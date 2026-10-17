@@ -2,6 +2,15 @@
 
 ## Current continuation, October 17, 2026
 
+The connected AWS preflight follow-up passes all 20 SDK/configuration and 148 CLI
+cases with race detection, after restoring exact SDK dependencies from the allowed
+official proxy. It corrects malformed STS output classification and makes negative
+permission fixtures independent of umask. Actual compiled CLI missing-credential
+reports retain all eight sections and nonzero exit. Current-head hosted and real
+provider/deployed acceptance remain required. Earlier setup failures and snapshots
+remain unchanged. See
+`cloud-preflight-sts-classification-component-checkpoint-2026-10-17.json`.
+
 Hosted run `39011704182` on exact head `aea3b9d8` passes nineteen-package
 compilation and the enforced 86-case atomic connector/writer-journal application
 gate. This supersedes the pending observation in that batch's publication snapshot,
@@ -15,8 +24,9 @@ and queue/DLQ attributes. Explicit credential sources replace ambient fallback;
 legacy Boolean evaluation is labeled offline. All eight original sections remain,
 and unimplemented probes stay unobserved. No install, runtime or production
 readiness is asserted by this bounded batch. Independent source review passes;
-local SDK/CLI execution remains blocked by four uncached pinned modules, with
-hosted compilation and application checks required. See
+at its publication, local SDK/CLI execution was blocked by four uncached pinned
+modules. The follow-up above records fresh actual results; hosted/provider
+acceptance remains required. See
 `cloud-connected-preflight-component-checkpoint-2026-10-17.json` and
 `connected-preflight-operator-contract-2026-10-17.md`.
 

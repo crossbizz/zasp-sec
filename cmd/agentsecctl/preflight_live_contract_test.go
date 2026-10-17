@@ -37,7 +37,9 @@ func livePreflightContractConfig(t *testing.T, kind string) []byte {
 func writeLivePreflightContractFile(t *testing.T, body []byte, mode os.FileMode) string {
 	t.Helper()
 	file := filepath.Join(t.TempDir(), "preflight.json")
-	if os.WriteFile(file, body, mode) != nil {
+	// Set the intended fixture permissions explicitly; inherited umask must not
+	// turn a public-file rejection case into a private, valid config.
+	if os.WriteFile(file, body, mode) != nil || os.Chmod(file, mode) != nil {
 		t.Fatal("controlled private config unavailable")
 	}
 	return file

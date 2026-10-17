@@ -390,14 +390,14 @@
     },
     {
       "path": "scripts/hosted-connected-connector-acceptance.mjs",
-      "sha256": "83b2a7435ac5b95364ca41e2ced0e24c5af8618027307ea6f3f7f84a42f56c0a",
+      "sha256": "16ecbc95295c324dedd43c0ebbea49529581a786b1e20a36d4a90ebd39ab92a1",
       "bytes": 80068,
       "currentBasePreimageSHA256": "f248c6d9182ca08cb518cd54c620844c987f4ae723a38badb463c59e010db578",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
-      "sha256": "1149ce9991a0637703467e60fc89ad82044793b65bd7105f5f41c1cd34928b58",
+      "sha256": "737a6bb1260720ce0364429e54307b74b03576be4de1b727f929edb88ad06817",
       "bytes": 76469,
       "currentBasePreimageSHA256": "e66722e4daf5b1482c253d1f14b4c533c329fde202252c16f87ad3e0130e8524",
       "historicalPreimageSHA256": null
@@ -2441,8 +2441,8 @@
     },
     {
       "path": "cmd/agentsecctl/preflight_live_contract_test.go",
-      "sha256": "54e3e19289f439056d8de8760d0bf6181eb591a05a50539d5ce0801e067c54f4",
-      "bytes": 6626,
+      "sha256": "e870771d23bce28eb9c20a4026169b4de113462f406a50d8e21aa0570c36dc89",
+      "bytes": 6803,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -2483,8 +2483,8 @@
     },
     {
       "path": "services/platform/preflight/config_contract_test.go",
-      "sha256": "ef7e114168516955252a09a99d38683a80e6325924e743c33a11f753c40a0ab7",
-      "bytes": 3872,
+      "sha256": "b79f34c209a7b3da41555204adb758bd36754739f97b594ae3f76ec5976f5408",
+      "bytes": 4048,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -2504,8 +2504,8 @@
     },
     {
       "path": "services/platform/preflight/failures.go",
-      "sha256": "a51398a557401c5a12cd790481fbe2afba79782490ea2d9eb5c10c95fe7ff01f",
-      "bytes": 3182,
+      "sha256": "f5fcaee92a7f9f72cb0a42a987b56bd1a7896cd328a2762258711fbb99aaf428",
+      "bytes": 3344,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -2518,8 +2518,8 @@
     },
     {
       "path": "services/platform/preflight/runner.go",
-      "sha256": "51e30a2e299ceffb86283cb2ec3d9562c613c5c2e0b66820e8d6e4e5810d698d",
-      "bytes": 10600,
+      "sha256": "e99199173526674f878d8353bdc9efd1d7eda5ddb246d88c75115a7b8be029e2",
+      "bytes": 10915,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },

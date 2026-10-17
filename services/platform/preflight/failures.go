@@ -24,7 +24,12 @@ var operationHints = map[string]string{
 	"sqs:GetQueueAttributes":        "verify exact queue/DLQ ARN, KMS and redrive configuration; inspect sqs:GetQueueAttributes on this queue",
 }
 
+var errMalformedProviderObservation = errors.New("provider observation malformed")
+
 func failureOutcome(err error) string {
+	if errors.Is(err, errMalformedProviderObservation) {
+		return "malformed"
+	}
 	if err == nil {
 		return "binding_mismatch"
 	}

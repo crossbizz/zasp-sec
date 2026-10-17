@@ -49,6 +49,11 @@ func (r *Runner) Run(ctx context.Context, mode string) (report Report, resultErr
 	}), Retryer: func() aws.Retryer { return aws.NopRetryer{} }}
 	roleCtx, roleCancel := context.WithTimeout(bounded, 10*time.Second)
 	output, roleErr := sts.NewFromConfig(sdk).GetCallerIdentity(roleCtx, &sts.GetCallerIdentityInput{})
+	// Query protocol decoders may accept character-only XML as an empty output.
+	// Missing identity fields are malformed observations, not a different role.
+	if roleErr == nil && (output == nil || aws.ToString(output.Account) == "" || aws.ToString(output.Arn) == "") {
+		roleErr = errMalformedProviderObservation
+	}
 	roleReady := roleErr == nil && roleCtx.Err() == nil && cloudreadiness.Role(output, r.config.Deployment.Partition, r.config.Deployment.AccountID, r.config.Credentials.ExpectedRoleARN)
 	r.failure(&report, "iam_role", "sts:GetCallerIdentity", r.config.Credentials.ExpectedRoleARN, probeError(roleCtx, roleErr), roleReady)
 	roleCancel()
