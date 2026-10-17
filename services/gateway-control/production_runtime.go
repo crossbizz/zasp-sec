@@ -122,9 +122,23 @@ func buildProductionControlDependenciesWithFactory(ctx context.Context, config p
 			return failRepository()
 		}
 	}
+	// Select from the original pool before its legacy interface is cached.
+	var association gatewaycontrol.AssociationRepository
+	if config.AgentDeviceAssociationEnabled {
+		factory, ok := repository.(interface {
+			AssociationRepositoryForProfile(string) (gatewaycontrol.AssociationRepository, error)
+		})
+		if !ok {
+			return failRepository()
+		}
+		association, err = factory.AssociationRepositoryForProfile(config.AgentDeviceAssociationProfileChecksum)
+		if err != nil || invalidProductionValue(association) {
+			return failRepository()
+		}
+	}
 	cached := cachedControlRepository{Repository: repository, ready: readiness.Ready}
 	handler, err := gatewaycontrol.NewHTTPHandler(gatewaycontrol.HTTPHandlerConfig{
-		Repository: cached, EnrollmentRepository: enrollment, InstallationRepository: installation, Clock: clock, OperationTimeout: config.OperationTimeout, MaximumBodyBytes: config.MaximumBodyBytes,
+		Repository: cached, AssociationRepository: association, EnrollmentRepository: enrollment, InstallationRepository: installation, Clock: clock, OperationTimeout: config.OperationTimeout, MaximumBodyBytes: config.MaximumBodyBytes,
 	})
 	if err != nil {
 		return failRepository()

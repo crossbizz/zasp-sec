@@ -61,6 +61,9 @@ func parseGatewayCommand(arguments []string) (gatewayCommandOptions, error) {
 			allowed[k] = true
 		}
 	case "status":
+	case "accept-agent":
+		allowed["--ca-bundle-file"] = true
+		allowed["--timeout"] = true
 	case "recover":
 		for _, k := range []string{"--ca-bundle-file", "--timeout", "--credential-output"} {
 			allowed[k] = true
@@ -84,12 +87,12 @@ func parseGatewayCommand(arguments []string) (gatewayCommandOptions, error) {
 	if q.action == "export" && !gatewayCommandAbsolutePath(q.credentialOutput) {
 		return gatewayCommandOptions{}, errInvalidArguments
 	}
-	if q.action == "recover" {
+	if q.action == "recover" || q.action == "accept-agent" {
 		if !gatewayCommandAbsolutePath(q.caFile) || (q.credentialOutput != "" && !gatewayCommandAbsolutePath(q.credentialOutput)) {
 			return gatewayCommandOptions{}, errInvalidArguments
 		}
 	}
-	if q.action == "enroll" || q.action == "recover" {
+	if q.action == "enroll" || q.action == "recover" || q.action == "accept-agent" {
 		if q.action == "enroll" && (!gatewayCommandEndpoint(q.endpoint) || !gatewayCommandAbsolutePath(q.caFile)) {
 			return gatewayCommandOptions{}, errInvalidArguments
 		}
@@ -208,6 +211,9 @@ func runGatewayCommand(output io.Writer, input io.Reader, arguments []string) er
 	q, err := parseGatewayCommand(arguments)
 	if err != nil {
 		return err
+	}
+	if q.action == "accept-agent" {
+		return runGatewayAgentAssociationCommand(output, input, q)
 	}
 	var bundle wire.TokenBundle
 	var client *http.Client

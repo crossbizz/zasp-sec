@@ -567,3 +567,8 @@ runtimeGateway:
 gatewayBootstrap:
   enabled: false
   profileChecksum: ""
+
+# Administrative Agent/Device admission only; original runtime identities unchanged.
+agentDeviceAssociation:
+  enabled: false
+  profileChecksum: ""

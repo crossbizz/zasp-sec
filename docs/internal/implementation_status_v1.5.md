@@ -16905,3 +16905,32 @@ DDL permissions, remaining command families, exact-head checks and real deployed
 Stytch/provider flows remain open. All 728 original task classifications remain
 unchanged. Evidence:
 `cloud-cli-temporal-confirmation-source-checkpoint-2026-10-17.json`.
+
+
+## Administrative Agent–Device association source, October 17, 2026
+
+An additive default-off Normal/Audit profile, four public operations, signed Device
+accept API/CLI and real Agent UI now connect the three administrative phases:
+recent browser intent, current Device proof, and fresh authorization by the same
+human at activation. Source provenance, tenant boundaries, original roles/grants,
+credential export safeguards and same-transaction final confirmation are retained.
+Administrative association does not establish observed workload routing or Agent
+coverage. The legacy standalone credential adapter remains required.
+
+Local race checks pass 217 CLI and 13 association-wire/custody results. The exact
+new CI gate requires 99 results: 24 pass locally and 75 are absent because affected
+API/control/runtime/migration packages fail OPA dependency setup. The strict gate
+fails; these packages have no compiler or behavioral acceptance. UI regressions
+pass 75 before the clock correction and its affected seven checks pass afterward.
+OpenAPI46, changed UI contracts15, coverage10, generation/check/lint, final UI
+typecheck/scoped lint/build and 21 custody guards pass. All 882 bindings match
+current source. Independent source review findings and corrections are retained.
+
+All 728 original ledger rows and owners remain byte unchanged: 509 recorded
+production-available,158 component-only,61 blocked/external. All 219 remaining
+records and every original deployed acceptance remain open. Previous head a055
+has 14 successful and83 failed hosted checks; causes remain unknown. Native
+admission, real Stytch/provider/Temporal/OpenFGA/browser flows, applicable hosted
+and release guards and equivalent obsolete retirement remain required. No launch
+clearance, task closure or availability promotion is claimed. Evidence:
+`cloud-agent-device-association-checkpoint-2026-10-17.json`.

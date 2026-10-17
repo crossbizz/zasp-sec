@@ -1,3 +1,4 @@
+import {validateAgentDeviceAssociationJSON} from "./agent-device-association-decoders";
 import {validateGatewayBootstrapJSON} from "./gateway-bootstrap-decoders";
 import createClient from "openapi-fetch";
 import type { ClientOptions } from "openapi-fetch";
@@ -124,8 +125,9 @@ export function createAPIClient(options: APIClientOptions = {}) {
 	  const orderedRunResponse = /\/api\/v1\/security-agent-runs\/[^/]+(?:\/cancel)?$/.test(new URL(request.url).pathname);
       const nodeObservationRead = securedRequest.method === "GET" && /^\/api\/v1\/sensors\/pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/coverage$/.test(new URL(securedRequest.url).pathname) && securedRequest.headers.get("X-Zasp-Schema-Version") === "sensor-coverage-node-observation-v2";
       const responseMaximum = nodeObservationRead ? Math.min(options.maximumResponseBytes ?? (16 * 1024 * 1024 + 65536), 16 * 1024 * 1024 + 65536) : maximumResponseBytes;
+      const agentDeviceAssociationResponse = /^\/api\/v1\/agents\/pid_[0-9a-f-]+\/(?:device-association-intents|device-associations(?:\/pid_[0-9a-f-]+\/(?:activate|revoke))?)$/.test(new URL(securedRequest.url).pathname);
       const gatewayBootstrapResponse = /^\/api\/v1\/gateways(?:\/pid_[0-9a-f-]+(?:\/enrollments(?:\/pid_[0-9a-f-]+\/revoke)?)?)?$/.test(new URL(securedRequest.url).pathname);
-	  await validateResponse(response, gatewayBootstrapResponse ? Math.min(responseMaximum, 16384) : responseMaximum, onSessionExpired, onScopeStale, onFreshAuthRequired, signal, download, attachmentMaximumBytes, orderedRunResponse, gatewayBootstrapResponse);
+	  await validateResponse(response, gatewayBootstrapResponse ? Math.min(responseMaximum, 16384) : responseMaximum, onSessionExpired, onScopeStale, onFreshAuthRequired, signal, download, attachmentMaximumBytes, orderedRunResponse, gatewayBootstrapResponse, agentDeviceAssociationResponse);
 	  throwIfRequestStopped(request.signal, timeout.signal);
       return response;
     } catch (error) {
@@ -189,7 +191,7 @@ async function validateComplianceDownloadBody(request: Request, id: string): Pro
   if (Object.keys(v).length !== 2 || typeof v.token !== "string" || !/^[a-f0-9]{64}$/.test(v.token) || !["json", "csv", "human"].includes(v.format as string)) throw new APITransportError("invalid_configuration", "Invalid compliance download request");
   return { id, media: v.format === "human" ? "text/plain" : v.format === "csv" ? "text/csv" : "application/json", extension: v.format === "human" ? "txt" : v.format as string };
 }
-async function validateResponse(response: Response, maximumBytes: number, onSessionExpired: () => void, onScopeStale: () => void, onFreshAuthRequired: () => void, signal: AbortSignal, download?: ComplianceDownloadExpectation, attachmentMaximumBytes = MAXIMUM_COMPLIANCE_ATTACHMENT_BYTES, orderedRunResponse = false, gatewayBootstrapResponse = false): Promise<void> {
+async function validateResponse(response: Response, maximumBytes: number, onSessionExpired: () => void, onScopeStale: () => void, onFreshAuthRequired: () => void, signal: AbortSignal, download?: ComplianceDownloadExpectation, attachmentMaximumBytes = MAXIMUM_COMPLIANCE_ATTACHMENT_BYTES, orderedRunResponse = false, gatewayBootstrapResponse = false, agentDeviceAssociationResponse = false): Promise<void> {
   if (signal.aborted) throw signal.reason;
   if (!(response instanceof Response) || response.redirected) {
     throw new APITransportError("invalid_response", "API returned an invalid response");
@@ -215,6 +217,7 @@ async function validateResponse(response: Response, maximumBytes: number, onSess
   try {
     decoded = JSON.parse(new TextDecoder().decode(payload));
     if (response.ok && gatewayBootstrapResponse) validateGatewayBootstrapJSON(new TextDecoder("utf-8", {fatal:true}).decode(payload));
+    if (response.ok && agentDeviceAssociationResponse) validateAgentDeviceAssociationJSON(new TextDecoder("utf-8", {fatal:true}).decode(payload));
     if (response.ok && orderedRunResponse && hasOrderedSecurityAgent(decoded)) validateOrderedSecurityAgentJSON(new TextDecoder("utf-8", { fatal: true }).decode(payload));
   } catch {
     throw new APITransportError(response.ok ? "invalid_response" : "invalid_error", "API returned malformed JSON");

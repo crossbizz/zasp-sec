@@ -1,0 +1,16 @@
+{
+  "classification": "SOURCE_DESIGN_CLARIFICATION_NOT_EXECUTED_FAILURE",
+  "observed_at": "2026-10-17T20:24:49.411524+00:00",
+  "predecessor_contract_sha256": "157737017951379e64e0a00ad0ad4d6042e08c2d7a27e8689fe864a85d44e942",
+  "findings": [
+    {
+      "issue": "create_intent expiry argument versus requestedTTL ambiguity",
+      "required": "Native authoritative expiry from validated requestedTTL60..300, preserving13arity with TTL integer replacing client expiresAt; final expiry check after waits. No minremaining60 assumption that rejects clientfloor/DBmicro or lockwait."
+    },
+    {
+      "issue": "Historical receipt replay cannot have original created_tx equal new TX",
+      "required": "Explicit distinguish newly created same-TX marker from replay false new_mutation. Exact historical receipt and fresh current-TX authorization/current state fences for replay; never relabel old marker as new effect. Backend successor pending."
+    }
+  ],
+  "scope": "No implementation or native/deployed claim; independently reviewed backend baseline retained."
+}

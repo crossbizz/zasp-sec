@@ -782,10 +782,28 @@ describe("production workflow concurrency contract", () => {
         "method": "post"
       }
     };
+    const agentDeviceAssociationOperations = {
+      "createAgentDeviceIntent": {
+        "path": "/api/v1/agents/{id}/device-association-intents",
+        "method": "post"
+      },
+      "listAgentDeviceAssociations": {
+        "path": "/api/v1/agents/{id}/device-associations",
+        "method": "get"
+      },
+      "activateAgentDeviceAssociation": {
+        "path": "/api/v1/agents/{id}/device-associations/{associationId}/activate",
+        "method": "post"
+      },
+      "revokeAgentDeviceAssociation": {
+        "path": "/api/v1/agents/{id}/device-associations/{associationId}/revoke",
+        "method": "post"
+      }
+    };
     assert.equal(originalOperationIDs.length, 164);
     assert.equal(new Set(originalOperationIDs).size, 164);
-    assert.deepEqual([...operations.keys()].sort(), [...originalOperationIDs, ...Object.keys(gatewayBootstrapOperations)].sort());
-    for (const [id, expected] of Object.entries(gatewayBootstrapOperations)) {
+    assert.deepEqual([...operations.keys()].sort(), [...originalOperationIDs, ...Object.keys(gatewayBootstrapOperations), ...Object.keys(agentDeviceAssociationOperations)].sort());
+    for (const [id, expected] of Object.entries({...gatewayBootstrapOperations, ...agentDeviceAssociationOperations})) {
       const actual = operations.get(id);
       assert.equal(actual.path, expected.path, id);
       assert.equal(actual.method, expected.method, id);

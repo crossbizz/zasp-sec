@@ -83,22 +83,23 @@ type JSONDatabase interface {
 }
 
 type PostgresRepository struct {
-	gatewayBootstrapProfileChecksum    string
-	sensorNodeCoverageProfileChecksum  string
-	retentionProfileChecksum           string
-	environmentClassProfileChecksum    string
-	agentOwnerProfileChecksum          string
-	agentReadProfileChecksum           string
-	agentOwnershipWriteProfileChecksum string
-	agentExposureFilterProfileChecksum string
-	currentAuthorization               bool
-	database                           JSONDatabase
-	schema                             string
-	connectorWorkflows                 bool
-	securityAgentExecution             bool
-	runtimeSessionSearch               RuntimeSessionSearchIndex
-	sandboxSessionReads                bool
-	sandboxSessionSearch               bool
+	gatewayBootstrapProfileChecksum       string
+	agentDeviceAssociationProfileChecksum string
+	sensorNodeCoverageProfileChecksum     string
+	retentionProfileChecksum              string
+	environmentClassProfileChecksum       string
+	agentOwnerProfileChecksum             string
+	agentReadProfileChecksum              string
+	agentOwnershipWriteProfileChecksum    string
+	agentExposureFilterProfileChecksum    string
+	currentAuthorization                  bool
+	database                              JSONDatabase
+	schema                                string
+	connectorWorkflows                    bool
+	securityAgentExecution                bool
+	runtimeSessionSearch                  RuntimeSessionSearchIndex
+	sandboxSessionReads                   bool
+	sandboxSessionSearch                  bool
 }
 
 func NewPostgresRepository(database JSONDatabase) (*PostgresRepository, error) {

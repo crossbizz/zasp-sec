@@ -101,6 +101,9 @@ func (database *PostgresJSONDatabase) authorizedQueryJSON(ctx context.Context, g
 	if err = confirmGatewayBootstrapMutation(ctx, tx, grant, statement, arguments, payload); err != nil {
 		return nil, err
 	}
+	if err = confirmAgentDeviceAssociationMutation(ctx, tx, grant, statement, arguments, payload); err != nil {
+		return nil, err
+	}
 	if err = tx.Commit(ctx); err != nil {
 		return nil, classifyPostgresError(err)
 	}

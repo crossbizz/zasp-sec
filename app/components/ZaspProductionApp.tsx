@@ -114,7 +114,9 @@ function ProductionRouteSurface({ path, location, navigate, inventoryDetailID }:
     getScopeStaleGeneration,
   }} />;
   }
-  return <ProductionAgentSecurityView path={path} inventoryDetailID={path === "/discovery/assets" ? inventoryDetailID : undefined} ownerFilterAvailable={session.hasCapability("inventory.agents.owner_filter")} exposureFiltersAvailable={session.hasCapability("inventory.agents.exposure_filter")} onNavigate={navigate} canWrite={session.hasCapability("inventory.write")} />;
+  const associationExpiry=getSessionInvalidationGeneration(),associationStale=getScopeStaleGeneration();
+  const associationContext={scope:{organization_id:session.organizationID,workspace_id:session.workspaceID,environment_id:session.environmentID},authority:{key:JSON.stringify([session.principal.id,session.organizationID,session.workspaceID,session.environmentID,queryGeneration,associationExpiry,associationStale]),principalID:session.principal.id,fresh:session.isFreshAuthenticated,sessionValid:queryScopeKey!==null,isCurrent:()=>associationExpiry===getSessionInvalidationGeneration()&&associationStale===getScopeStaleGeneration()},onReauthenticate:session.reauthenticate};
+  return <ProductionAgentSecurityView associationContext={path==="/discovery/assets"?associationContext:undefined} path={path} inventoryDetailID={path === "/discovery/assets" ? inventoryDetailID : undefined} ownerFilterAvailable={session.hasCapability("inventory.agents.owner_filter")} exposureFiltersAvailable={session.hasCapability("inventory.agents.exposure_filter")} onNavigate={navigate} canWrite={session.hasCapability("inventory.write")} />;
 }
 
 function ProductionScopeSelector() {

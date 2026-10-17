@@ -110,6 +110,10 @@ var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"GET", "/api/v1/search", "globalSearch", "view", []string{"BrowserSession", "ProductAPIToken"}}, riskDependency},
 	{OperationDefinition{"GET", "/api/v1/agents", "listAgents", "view", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
 	{OperationDefinition{"GET", "/api/v1/agents/{id}", "getAgent", "view", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
+	{OperationDefinition{"POST", "/api/v1/agents/{id}/device-association-intents", "createAgentDeviceIntent", "manage_identity", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/agents/{id}/device-associations/{associationId}/activate", "activateAgentDeviceAssociation", "manage_identity", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/agents/{id}/device-associations/{associationId}/revoke", "revokeAgentDeviceAssociation", "manage_identity", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/agents/{id}/device-associations", "listAgentDeviceAssociations", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"PATCH", "/api/v1/agents/{id}", "updateAgent", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
 	{OperationDefinition{"GET", "/api/v1/agents/{id}/capabilities", "getAgentCapabilities", "view", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
 	{OperationDefinition{"GET", "/api/v1/agents/{id}/relationships", "getAgentRelationships", "view", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
@@ -330,7 +334,7 @@ func newComposition(dependencies Dependencies, exports http.Handler, compliance 
 
 func requiresFreshAuthentication(operationID string) bool {
 	switch operationID {
-	case "createWorkspace", "updateWorkspace", "createEnvironment", "updateEnvironment",
+	case "createAgentDeviceIntent", "activateAgentDeviceAssociation", "revokeAgentDeviceAssociation", "createWorkspace", "updateWorkspace", "createEnvironment", "updateEnvironment",
 		"updateMemberRole", "updateGroupMappings", "createAPIToken", "rotateAPIToken", "revokeAPIToken", "revealAPIToken", "acknowledgeAPITokenRevealGrant",
 		"createSSOConnection", "deleteSSOConnection", "testSSOConnection", "createSCIMConnection", "deleteSCIMConnection",
 		"createGatewayDevice", "issueGatewayEnrollment", "revokeGatewayEnrollment", "revokeSession", "updateDataControls", "updateExternalDataFlows", "authorizeIntegration", "authorizeIntegrationReference", "remediateIntegrationAuthorization", "createSensorEnrollment", "rotateSensorToken":

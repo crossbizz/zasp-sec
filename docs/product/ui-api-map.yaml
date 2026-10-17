@@ -562,3 +562,20 @@ screens:
       - id: revoke_gateway_enrollment
         operation_id: revokeGatewayEnrollment
         availability: available
+  # Connected Agent drawer actions: administrative source availability only.
+  # Native/deployed launch gates remain in the original 728-task internal ledger.
+  - id: agent_device_associations
+    label: Agent Device Associations
+    actions:
+      - id: create_agent_device_intent
+        operation_id: createAgentDeviceIntent
+        availability: available
+      - id: view_agent_device_associations
+        operation_id: listAgentDeviceAssociations
+        availability: available
+      - id: activate_agent_device_association
+        operation_id: activateAgentDeviceAssociation
+        availability: available
+      - id: revoke_agent_device_association
+        operation_id: revokeAgentDeviceAssociation
+        availability: available

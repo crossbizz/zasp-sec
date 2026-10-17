@@ -1,0 +1,26 @@
+{
+  "classification": "NARROW_DESIGN_SUCCESSOR_DIFF_NO_PRODUCT_IMPLEMENTATION",
+  "predecessor": {
+    "path": "docs/internal/agent-device-association-design-2026-10-17/contract.json",
+    "sha256": "157737017951379e64e0a00ad0ad4d6042e08c2d7a27e8689fe864a85d44e942",
+    "preserved": true
+  },
+  "successor": {
+    "path": "docs/internal/agent-device-association-design-2026-10-17/contract-successor.json",
+    "sha256": "b9836e3097a31f317318427d64739e2f082af60edae009ff1e81bfc031b217f9"
+  },
+  "changes": [
+    "create_intent13arity unchanged; arg12 now ttl_seconds integer, serverauthoritative immutablewholeUTCexpiry generatedafterwaits; no minremaining60 fence.",
+    "Private originalcreated_tx/accepted_tx derive NEWvsHISTORICAL branch; exactoldreceipt+currentfreshproof/state allowedasmetadata, never oldXIDrelabelednew; primaryconfirmationABIs unchanged, no extra witness table.",
+    "ExactPairIDsource_native_id AgentID||chr31||DeviceID; noJSONBtext equivalence.",
+    "RegisteredAPIlogin cannotcall originalgateway-control authority; ownprivate ownerhelper validatescurrentDevice/credential predicates underoriginalAgentbeforeDeviceorder, no borrowedcredentials/grants.",
+    "Distinct credential_revoked unavailable reason closes reviewercondition; preserveotherDTO shapes.",
+    "OwnnativeexplicitUTCZ<=6fraction builders for strictpublic/internalJSON and exactoriginalownreceiptconfirm; no defaultnative+00:00 known-answerfiction."
+  ],
+  "unchanged": [
+    "Fournewpublicops+signedDeviceaccept; browser-onlyfreshAgentmanage_identity; originalownership13 untouched.",
+    "AllprimaryABIs/arities/pinlastexceptcreatearg12TYPEsemanticTTL; body/paths/page/markerspublicfields stable.",
+    "Pairmultiplicity/version0/onepending/wholepairrevoke/noobservedroutingorcoverage/nativecompletionclaim."
+  ],
+  "execution": "NoGo/Node/tests/native/network/Git/productedits."
+}

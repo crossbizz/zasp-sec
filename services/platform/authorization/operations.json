@@ -817,6 +817,55 @@
     "FreshAuth": false
   },
   {
+    "ID": "createAgentDeviceIntent",
+    "Method": "POST",
+    "Path": "/api/v1/agents/{id}/device-association-intents",
+    "Permission": "manage_identity",
+    "Relation": "manage_identity",
+    "Surface": "core",
+    "Security": [
+      "BrowserSession"
+    ],
+    "FreshAuth": true
+  },
+  {
+    "ID": "activateAgentDeviceAssociation",
+    "Method": "POST",
+    "Path": "/api/v1/agents/{id}/device-associations/{associationId}/activate",
+    "Permission": "manage_identity",
+    "Relation": "manage_identity",
+    "Surface": "core",
+    "Security": [
+      "BrowserSession"
+    ],
+    "FreshAuth": true
+  },
+  {
+    "ID": "revokeAgentDeviceAssociation",
+    "Method": "POST",
+    "Path": "/api/v1/agents/{id}/device-associations/{associationId}/revoke",
+    "Permission": "manage_identity",
+    "Relation": "manage_identity",
+    "Surface": "core",
+    "Security": [
+      "BrowserSession"
+    ],
+    "FreshAuth": true
+  },
+  {
+    "ID": "listAgentDeviceAssociations",
+    "Method": "GET",
+    "Path": "/api/v1/agents/{id}/device-associations",
+    "Permission": "view",
+    "Relation": "view",
+    "Surface": "core",
+    "Security": [
+      "BrowserSession",
+      "ProductAPIToken"
+    ],
+    "FreshAuth": false
+  },
+  {
     "ID": "updateAgent",
     "Method": "PATCH",
     "Path": "/api/v1/agents/{id}",

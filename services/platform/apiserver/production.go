@@ -159,6 +159,17 @@ func newProductionHandlers(repository, securityAgentRepository *PostgresReposito
 			return Dependencies{}, nil, ErrRepositoryConfiguration
 		}
 	}
+	if repository.agentDeviceAssociationProfileChecksum != "" {
+		associationRepository, associationErr := NewAgentDeviceAssociationRepository(repository.database, repository.agentDeviceAssociationProfileChecksum)
+		if associationErr != nil {
+			return Dependencies{}, nil, ErrRepositoryConfiguration
+		}
+		associationHandler, associationErr := NewAgentDeviceAssociationHTTPHandler(associationRepository, AgentDeviceAssociationHandlerConfig{SigningKey: cookie.WorkflowSigningKey, Clock: cookie.Clock, NewProductID: newWorkflowProductID, NewNonce: newAgentDeviceAssociationNonce})
+		if associationErr != nil {
+			return Dependencies{}, nil, associationErr
+		}
+		workflowSurface = &agentDeviceAssociationSurface{fallback: workflowSurface, associations: associationHandler}
+	}
 	if repository.gatewayBootstrapProfileChecksum != "" {
 		gatewayRepository, gatewayErr := NewGatewayBootstrapRepository(repository.database, repository.gatewayBootstrapProfileChecksum)
 		if gatewayErr != nil {

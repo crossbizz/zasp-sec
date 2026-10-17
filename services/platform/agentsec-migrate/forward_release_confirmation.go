@@ -13,6 +13,11 @@ func confirmForwardRelease(ctx context.Context, queryer principalQueryer, begin 
 		return errInvalidMigrationCommand
 	}
 
+	if agentDeviceAssociationProfileCommand(arguments[0]) {
+		return withRetentionOperatorTransaction(ctx, begin, func(c context.Context, q principalQueryer, _ io.Writer) error {
+			return agentDeviceAssociationPostInstall(c, q, registration.migration, arguments[0])
+		}, nil)
+	}
 	if gatewayBootstrapProfileCommand(arguments[0]) {
 		return withRetentionOperatorTransaction(ctx, begin, func(c context.Context, q principalQueryer, _ io.Writer) error {
 			return gatewayBootstrapPostInstall(c, q, registration.migration, arguments[0])

@@ -1,4 +1,5 @@
 "use client";
+import {AgentDeviceAssociationsSurface,type AgentDeviceAssociationContext} from "./device-associations/AgentDeviceAssociationsPanel";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -101,7 +102,7 @@ type AgentContext = {
   sessions: readonly AgentSession[];
 };
 
-export function ProductionAgentSecurityView({ path, onNavigate, api: suppliedAPI, canWrite = false, inventoryDetailID, ownerFilterAvailable = false, exposureFiltersAvailable = false }: { path: string; onNavigate(path: string): void; api?: ProductionAgentSecurityAPI; canWrite?: boolean; inventoryDetailID?: string; ownerFilterAvailable?: boolean; exposureFiltersAvailable?: boolean }) {
+export function ProductionAgentSecurityView({ path, onNavigate, api: suppliedAPI, canWrite = false, inventoryDetailID, ownerFilterAvailable = false, exposureFiltersAvailable = false, associationContext }: { path: string; onNavigate(path: string): void; api?: ProductionAgentSecurityAPI; canWrite?: boolean; inventoryDetailID?: string; ownerFilterAvailable?: boolean; exposureFiltersAvailable?: boolean; associationContext?: AgentDeviceAssociationContext }) {
   const { client, queryScopeKey, queryGeneration } = useAPI();
   const api = useMemo(() => suppliedAPI ?? createProductionAgentSecurityAPI(client), [client, suppliedAPI]);
   const initialDetailID = inventoryDetailID ?? (typeof window === "undefined" ? "" : inventoryDetailIDFromSearch(window.location.search));
@@ -121,7 +122,7 @@ export function ProductionAgentSecurityView({ path, onNavigate, api: suppliedAPI
   const query = useAPIQuery(`core:${path}`, load, supported && path !== "/discovery/assets");
   if (path === "/discovery/assets") {
     if (queryScopeKey === null) return <State title="Agents" status="Revalidating inventory access…" />;
-    return <ConnectedAgentPages key={agentAuthority} api={api} initialDetailID={inventoryDetailID !== undefined ? inventoryDetailID : initialAgentDetail.authority === agentAuthority ? initialAgentDetail.id : ""} canWrite={canWrite} ownerFilterAvailable={ownerFilterAvailable} exposureFiltersAvailable={exposureFiltersAvailable} />;
+    return <ConnectedAgentPages key={agentAuthority} api={api} initialDetailID={inventoryDetailID !== undefined ? inventoryDetailID : initialAgentDetail.authority === agentAuthority ? initialAgentDetail.id : ""} canWrite={canWrite} ownerFilterAvailable={ownerFilterAvailable} exposureFiltersAvailable={exposureFiltersAvailable} associationContext={associationContext} />;
   }
   if (!supported) return <State title="Unavailable" alert="Product route unavailable" />;
   if (query.status === "loading" || query.status === "idle") return <State title="Loading" status="Loading authorized data…" />;
@@ -175,7 +176,7 @@ type InventoryNavigation = {
   onFilters(owner?: string, filters?: AgentListFilters): void;
 };
 
-function ConnectedAgentPages({ api, initialDetailID, canWrite, ownerFilterAvailable, exposureFiltersAvailable }: { api: ProductionAgentSecurityAPI; initialDetailID: string; canWrite: boolean; ownerFilterAvailable: boolean; exposureFiltersAvailable: boolean }) {
+function ConnectedAgentPages({ api, initialDetailID, canWrite, ownerFilterAvailable, exposureFiltersAvailable, associationContext }: { api: ProductionAgentSecurityAPI; initialDetailID: string; canWrite: boolean; ownerFilterAvailable: boolean; exposureFiltersAvailable: boolean; associationContext?: AgentDeviceAssociationContext }) {
   const { revisions, invalidate } = useAPI();
   const [navigation, setNavigation] = useState<{ cursor?: string; history: (string | undefined)[]; owner?: string; filters?: AgentListFilters }>({ history: [] });
   const ownerFilterBlocked = navigation.owner !== undefined && !ownerFilterAvailable;
@@ -215,10 +216,10 @@ function ConnectedAgentPages({ api, initialDetailID, canWrite, ownerFilterAvaila
   };
   // Keep this state owner mounted through same-scope revision/load/refusal. Its
   // retained ownership intent must outlive a transient list refresh failure.
-  return <ConnectedInventory title="Agents" category="agent" values={visible ? query.data!.items : []} api={api} initialDetailID={initialDetailID} canWrite={canWrite} page={controls} />;
+  return <ConnectedInventory title="Agents" category="agent" values={visible ? query.data!.items : []} api={api} initialDetailID={initialDetailID} canWrite={canWrite} page={controls} associationContext={associationContext} />;
 }
 
-function ConnectedInventory({ title, category, values, api, initialDetailID, canWrite, page }: { title: string; category: "agent" | "tool" | "identity" | "runtime"; values: readonly InventorySummary[]; api: ProductionAgentSecurityAPI; initialDetailID: string; canWrite: boolean; page?: InventoryNavigation }) {
+function ConnectedInventory({ title, category, values, api, initialDetailID, canWrite, page, associationContext }: { title: string; category: "agent" | "tool" | "identity" | "runtime"; values: readonly InventorySummary[]; api: ProductionAgentSecurityAPI; initialDetailID: string; canWrite: boolean; page?: InventoryNavigation; associationContext?: AgentDeviceAssociationContext }) {
   const [mutatedRows, setMutatedRows] = useState<Record<string, InventorySummary>>({});
   const rows = values.map((value) => mutatedRows[value.id] && mutatedRows[value.id].version >= value.version ? mutatedRows[value.id] : value);
   const [selected, setSelected] = useState<InventoryDetail | null>(null);
@@ -395,6 +396,7 @@ function ConnectedInventory({ title, category, values, api, initialDetailID, can
         <h3>Evidence and freshness</h3>{category === "agent" ? <p>{selected.summary.evidence_id} · observed <time dateTime={selected.summary.observed_at}>{selected.summary.observed_at}</time> · {sourceFreshnessLabel(selected.summary.freshness_state)} · source expiry <time dateTime={selected.summary.fresh_until}>{selected.summary.fresh_until}</time></p> : <p>{selected.summary.evidence_id} · observed {selected.summary.observed_at} · {selected.summary.freshness_state}</p>}
         <h3>Source authority</h3><p>{selected.sources.length} source observation{selected.sources.length === 1 ? "" : "s"} · confidence {selected.summary.confidence_basis_points / 100}%</p>
         {category === "agent" && <InventorySourceEvidence detail={selected} />}
+        {category === "agent" && associationContext && <AgentDeviceAssociationsSurface agentID={selected.summary.id} context={associationContext} />}
         {category === "agent" && agentContext && <AgentContextDetail value={agentContext} />}
       </div>
     </Drawer>}

@@ -54,7 +54,7 @@ jobs:
           import hashlib, json
           from pathlib import Path
           source = json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())
-          assert len(source['sources']) == 846
+          assert len(source['sources']) == 882
           for item in source['sources']:
               raw = Path(item['path']).read_bytes()
               assert len(raw) == item['bytes']
@@ -96,7 +96,7 @@ jobs:
           assert len(groups) == 6 and sum(len(tops) for tops in groups.values()) == 10 and len(expected) == 86
           def check_sources():
               source = json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())
-              assert len(source['sources']) == 846
+              assert len(source['sources']) == 882
               for item in source['sources']:
                   raw = Path(item['path']).read_bytes()
                   assert len(raw) == item['bytes'] and hashlib.sha256(raw).hexdigest() == item['sha256'], item['path']
@@ -1531,6 +1531,284 @@ jobs:
           path: |
             gateway-authority-recovery-components.jsonl
             gateway-authority-recovery-components.stderr
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Confirm checks did not alter tracked source
+        if: always()
+        run: git diff --exit-code
+
+
+  agent-device-association-components:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      GOTOOLCHAIN: local
+      GOWORK: 'off'
+      GOFLAGS: '-mod=readonly'
+      GOMAXPROCS: '2'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version: 1.26.8
+          cache: false
+      - name: Require all 99 exact administrative association component results
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 0027
+          test "$(go version)" = 'go version go1.26.8 linux/amd64'
+          test -z "${ZASP_AGENT_DEVICE_ASSOCIATION_ENABLED:-}"
+          test -z "${ZASP_AGENT_DEVICE_ASSOCIATION_PROFILE_CHECKSUM:-}"
+          python3 - <<'PYAGENTDEVICEASSOCIATION'
+          import json, re, subprocess, sys
+          from pathlib import Path
+          sys.path.insert(0, str(Path('scripts').resolve()))
+          from validate_agent_read_components import check_sources, load_events, validate_events
+          # All original guards remain separate. Application components never prove native/deployed readiness.
+          expected = {'github.com/zasp-ai/zasp-sec/services/platform/gatewayassociationwire': ['TestAgentDeviceAssociationNativeByteKnownAnswer',
+                                                                                    'TestAgentDeviceAssociationClosedNestedContract',
+                                                                                    'TestAgentDeviceAssociationExistingDeviceProof'],
+           'github.com/zasp-ai/zasp-sec/services/platform/gatewayenrollmentcustody': ['TestAgentDeviceAssociationCustodyMultipleExactIntents',
+                                                                                      'TestAgentDeviceAssociationCustodyStageAndOrphanBoundaries',
+                                                                                      'TestAgentDeviceAssociationCustodyBothExportPathsReserveNamespace'],
+           'github.com/zasp-ai/zasp-sec/cmd/agentsecctl': ['TestGatewayAgentAssociationCommandConnectedTLSPhaseTwoOnly',
+                                                           'TestGatewayAgentAssociationCommandUnknownRetryAndIndependentHistory',
+                                                           'TestGatewayAgentAssociationCommandRefusesInvalidChallengeAndEvidence'],
+           'github.com/zasp-ai/zasp-sec/services/platform/migrations': ['TestAgentDeviceAssociationInstallerClosedAdmission',
+                                                                        'TestAgentDeviceAssociationInstallerClosedAdmission/normal-fresh',
+                                                                        'TestAgentDeviceAssociationInstallerClosedAdmission/audit-fresh',
+                                                                        'TestAgentDeviceAssociationInstallerClosedAdmission/normal-existing',
+                                                                        'TestAgentDeviceAssociationInstallerClosedAdmission/audit-existing',
+                                                                        'TestAgentDeviceAssociationInstallerClosedAdmission/normal-explicit-self-role',
+                                                                        'TestAgentDeviceAssociationInstallerClosedAdmission/audit-explicit-self-role',
+                                                                        'TestAgentDeviceAssociationInstallerClosedAdmission/source-operator-refused',
+                                                                        'TestAgentDeviceAssociationInstallerClosedAdmission/parent-refused',
+                                                                        'TestAgentDeviceAssociationInstallerClosedAdmission/runtime-parent-refused',
+                                                                        'TestAgentDeviceAssociationInstallerClosedAdmission/normal-wrong-parent-variant',
+                                                                        'TestAgentDeviceAssociationInstallerClosedAdmission/audit-wrong-parent-variant',
+                                                                        'TestAgentDeviceAssociationInstallerClosedAdmission/hostile-default-acl',
+                                                                        'TestAgentDeviceAssociationInstallerClosedAdmission/catalog-refused',
+                                                                        'TestAgentDeviceAssociationInstallerClosedAdmission/restore-refused'],
+           'github.com/zasp-ai/zasp-sec/services/platform/apiserver': ['TestAgentDeviceAssociationClosedOperationPermissionSurface',
+                                                                       'TestAgentDeviceAssociationClosedOperationPermissionSurface/createAgentDeviceIntent',
+                                                                       'TestAgentDeviceAssociationClosedOperationPermissionSurface/activateAgentDeviceAssociation',
+                                                                       'TestAgentDeviceAssociationClosedOperationPermissionSurface/revokeAgentDeviceAssociation',
+                                                                       'TestAgentDeviceAssociationClosedOperationPermissionSurface/listAgentDeviceAssociations',
+                                                                       'TestAgentDeviceAssociationHumanFlowAndUnknownCommit',
+                                                                       'TestAgentDeviceAssociationHumanFlowAndUnknownCommit/fresh_intent',
+                                                                       'TestAgentDeviceAssociationHumanFlowAndUnknownCommit/historical_intent',
+                                                                       'TestAgentDeviceAssociationHumanFlowAndUnknownCommit/PAT_refused',
+                                                                       'TestAgentDeviceAssociationHumanFlowAndUnknownCommit/browser_not_fresh',
+                                                                       'TestAgentDeviceAssociationHumanFlowAndUnknownCommit/unknown_commit',
+                                                                       'TestAgentDeviceAssociationHumanFlowAndUnknownCommit/closed_body_refused',
+                                                                       'TestAgentDeviceAssociationHumanFlowAndUnknownCommit/revoke_whole_pair',
+                                                                       'TestAgentDeviceAssociationOriginalTransactionConfirmation',
+                                                                       'TestAgentDeviceAssociationOriginalTransactionConfirmation/confirm_before_commit',
+                                                                       'TestAgentDeviceAssociationOriginalTransactionConfirmation/final_fence_refused',
+                                                                       'TestAgentDeviceAssociationOriginalTransactionConfirmation/unknown_commit',
+                                                                       'TestAgentDeviceAssociationOriginalTransactionConfirmation/wrong_Agent_refused',
+                                                                       'TestAgentDeviceAssociationOriginalTransactionConfirmation/PAT_refused'],
+           'github.com/zasp-ai/zasp-sec/services/platform/agentsec-migrate': ['TestAgentDeviceAssociationMigrationDispatchAndConfirmation',
+                                                                              'TestAgentDeviceAssociationMigrationDispatchAndConfirmation/up-agent-device-association-profile',
+                                                                              'TestAgentDeviceAssociationMigrationDispatchAndConfirmation/up-agent-device-association-profile/dispatch',
+                                                                              'TestAgentDeviceAssociationMigrationDispatchAndConfirmation/up-agent-device-association-profile/source-principal-refused',
+                                                                              'TestAgentDeviceAssociationMigrationDispatchAndConfirmation/up-agent-device-association-profile/canonical61-refused',
+                                                                              'TestAgentDeviceAssociationMigrationDispatchAndConfirmation/up-agent-device-association-profile/strict-arguments',
+                                                                              'TestAgentDeviceAssociationMigrationDispatchAndConfirmation/up-agent-device-association-profile/confirm-accepted',
+                                                                              'TestAgentDeviceAssociationMigrationDispatchAndConfirmation/up-agent-device-association-profile/confirm-catalog-refused',
+                                                                              'TestAgentDeviceAssociationMigrationDispatchAndConfirmation/up-agent-device-association-profile/confirm-unknown-commit',
+                                                                              'TestAgentDeviceAssociationMigrationDispatchAndConfirmation/up-agent-device-association-profile/confirm-canceled',
+                                                                              'TestAgentDeviceAssociationMigrationDispatchAndConfirmation/up-agent-device-association-audit-profile',
+                                                                              'TestAgentDeviceAssociationMigrationDispatchAndConfirmation/up-agent-device-association-audit-profile/dispatch',
+                                                                              'TestAgentDeviceAssociationMigrationDispatchAndConfirmation/up-agent-device-association-audit-profile/source-principal-refused',
+                                                                              'TestAgentDeviceAssociationMigrationDispatchAndConfirmation/up-agent-device-association-audit-profile/canonical61-refused',
+                                                                              'TestAgentDeviceAssociationMigrationDispatchAndConfirmation/up-agent-device-association-audit-profile/strict-arguments',
+                                                                              'TestAgentDeviceAssociationMigrationDispatchAndConfirmation/up-agent-device-association-audit-profile/confirm-accepted',
+                                                                              'TestAgentDeviceAssociationMigrationDispatchAndConfirmation/up-agent-device-association-audit-profile/confirm-catalog-refused',
+                                                                              'TestAgentDeviceAssociationMigrationDispatchAndConfirmation/up-agent-device-association-audit-profile/confirm-unknown-commit',
+                                                                              'TestAgentDeviceAssociationMigrationDispatchAndConfirmation/up-agent-device-association-audit-profile/confirm-canceled',
+                                                                              'TestAgentDeviceAssociationCLIInputsAndChecksums',
+                                                                              'TestAgentDeviceAssociationCLIInputsAndChecksums/up-agent-device-association-profile',
+                                                                              'TestAgentDeviceAssociationCLIInputsAndChecksums/up-agent-device-association-audit-profile'],
+           'github.com/zasp-ai/zasp-sec/services/platform/agentsec-api': ['TestAgentDeviceAssociationRuntimeProfileIsExplicitAndFailClosed'],
+           'github.com/zasp-ai/zasp-sec/services/platform/gatewaycontrol': ['TestAgentDeviceAssociationSignedAcceptRequiresCurrentDevice',
+                                                                            'TestAgentDeviceAssociationSignedAcceptRequiresCurrentDevice/accepted',
+                                                                            'TestAgentDeviceAssociationSignedAcceptRequiresCurrentDevice/off',
+                                                                            'TestAgentDeviceAssociationSignedAcceptRequiresCurrentDevice/catalog_failure',
+                                                                            'TestAgentDeviceAssociationSignedAcceptRequiresCurrentDevice/bad_signature',
+                                                                            'TestAgentDeviceAssociationSignedAcceptRequiresCurrentDevice/scope_header',
+                                                                            'TestAgentDeviceAssociationSignedAcceptRequiresCurrentDevice/malformed',
+                                                                            'TestAgentDeviceAssociationSignedAcceptRequiresCurrentDevice/oversize',
+                                                                            'TestAgentDeviceAssociationSignedAcceptRequiresCurrentDevice/wrong_receipt_generation',
+                                                                            'TestAgentDeviceAssociationSignedAcceptRequiresCurrentDevice/wrong_media',
+                                                                            'TestAgentDeviceAssociationSignedAcceptRequiresCurrentDevice/query',
+                                                                            'TestAgentDeviceAssociationSignedAcceptRequiresCurrentDevice/foreign_device',
+                                                                            'TestAgentDeviceAssociationSignedAcceptRequiresCurrentDevice/expired_authority',
+                                                                            'TestAgentDeviceAssociationSignedAcceptRequiresCurrentDevice/empty_query',
+                                                                            'TestAgentDeviceAssociationSamePoolConfirmBeforeCommit',
+                                                                            'TestAgentDeviceAssociationSamePoolConfirmBeforeCommit/strict_private_wrapper',
+                                                                            'TestAgentDeviceAssociationSamePoolConfirmBeforeCommit/own_profile_pins',
+                                                                            'TestAgentDeviceAssociationSamePoolConfirmBeforeCommit/accepted',
+                                                                            'TestAgentDeviceAssociationSamePoolConfirmBeforeCommit/replay',
+                                                                            'TestAgentDeviceAssociationSamePoolConfirmBeforeCommit/final_fence_false',
+                                                                            'TestAgentDeviceAssociationSamePoolConfirmBeforeCommit/unknown_commit',
+                                                                            'TestAgentDeviceAssociationSamePoolConfirmBeforeCommit/wrong_generation',
+                                                                            'TestAgentDeviceAssociationSamePoolConfirmBeforeCommit/missing_private_marker',
+                                                                            'TestAgentDeviceAssociationSamePoolConfirmBeforeCommit/historical_marker_mismatch'],
+           'github.com/zasp-ai/zasp-sec/services/gateway-control': ['TestAgentDeviceAssociationProductionClosedSelection',
+                                                                    'TestAgentDeviceAssociationProductionClosedSelection/normal_selected_mount',
+                                                                    'TestAgentDeviceAssociationProductionClosedSelection/audit_selected_mount',
+                                                                    'TestAgentDeviceAssociationProductionClosedSelection/legacy',
+                                                                    'TestAgentDeviceAssociationProductionClosedSelection/disabled_empty',
+                                                                    'TestAgentDeviceAssociationProductionClosedSelection/disabled_pin',
+                                                                    'TestAgentDeviceAssociationProductionClosedSelection/invalid_flag',
+                                                                    'TestAgentDeviceAssociationProductionClosedSelection/missing_pin',
+                                                                    'TestAgentDeviceAssociationProductionClosedSelection/unknown_pin']}
+          required = frozenset(['.github/workflows/connector-native-draft-compile.yml',
+           'app/components/ZaspProductionApp.tsx',
+           'app/features/agents/ProductionAgentSecurityView.tsx',
+           'app/features/agents/device-associations/AgentDeviceAssociationsPanel.test.tsx',
+           'app/features/agents/device-associations/AgentDeviceAssociationsPanel.tsx',
+           'app/features/agents/device-associations/api.test.ts',
+           'app/features/agents/device-associations/api.ts',
+           'app/features/agents/device-associations/fixtures.ts',
+           'app/quality/m2-closure-contract.test.ts',
+           'app/quality/m2-identity-governance-ui-batch-contract.test.ts',
+           'app/quality/ui-api-coverage-ci-contract.test.ts',
+           'app/quality/ui-api-map-contract.test.ts',
+           'apps/web/api/agent-device-association-decoders.ts',
+           'apps/web/api/client.ts',
+           'apps/web/api/generated.ts',
+           'cmd/agentsecctl/gateway_agent_association.go',
+           'cmd/agentsecctl/gateway_agent_association_test.go',
+           'cmd/agentsecctl/gateway_authority_recovery.go',
+           'cmd/agentsecctl/gateway_enrollment.go',
+           'cmd/agentsecctl/go.mod',
+           'cmd/agentsecctl/go.sum',
+           'cmd/agentsecctl/main.go',
+           'cmd/agentsecctl/release.go',
+           'deploy/production/agent-device-association-profile.mjs',
+           'deploy/production/agent-device-association-profile.test.mjs',
+           'deploy/production/release-contract.mjs',
+           'deploy/staging/product/templates/_agent-device-association.tpl',
+           'deploy/staging/product/templates/runtime.yaml',
+           'deploy/staging/product/templates/workloads.yaml',
+           'deploy/staging/product/values.yaml',
+           'docs/internal/agent-device-association-design-2026-10-17/contract-final.json',
+           'docs/product/ui-api-map.yaml',
+           'openapi/openapi.test.mjs',
+           'openapi/openapi.yaml',
+           'package-lock.json',
+           'package.json',
+           'scripts/check-ui-api-coverage.test.mjs',
+           'scripts/validate_agent_read_components.py',
+           'scripts/validate_agent_read_components_test.py',
+           'services/gateway-control/association_test.go',
+           'services/gateway-control/go.mod',
+           'services/gateway-control/go.sum',
+           'services/gateway-control/production.go',
+           'services/gateway-control/production_runtime.go',
+           'services/platform/agentsec-api/agent_device_association_runtime.go',
+           'services/platform/agentsec-api/agent_device_association_runtime_test.go',
+           'services/platform/agentsec-api/production_runtime.go',
+           'services/platform/agentsec-api/runtime.go',
+           'services/platform/agentsec-migrate/agent_device_association_profile.go',
+           'services/platform/agentsec-migrate/agent_device_association_profile_test.go',
+           'services/platform/agentsec-migrate/forward_release_confirmation.go',
+           'services/platform/agentsec-migrate/main.go',
+           'services/platform/apiserver/agent_device_association.go',
+           'services/platform/apiserver/agent_device_association_flow_test.go',
+           'services/platform/apiserver/agent_device_association_repository.go',
+           'services/platform/apiserver/agent_device_association_surface.go',
+           'services/platform/apiserver/agent_device_association_transaction_test.go',
+           'services/platform/apiserver/authorization_openfga.go',
+           'services/platform/apiserver/authorization_statement.go',
+           'services/platform/apiserver/authorization_targets.go',
+           'services/platform/apiserver/authorization_transaction.go',
+           'services/platform/apiserver/composition.go',
+           'services/platform/apiserver/composition_test.go',
+           'services/platform/apiserver/production.go',
+           'services/platform/apiserver/repository.go',
+           'services/platform/authorization/operations.json',
+           'services/platform/gatewayassociationwire/testdata/known-answer.json',
+           'services/platform/gatewayassociationwire/wire.go',
+           'services/platform/gatewayassociationwire/wire_test.go',
+           'services/platform/gatewaycontrol/association.go',
+           'services/platform/gatewaycontrol/association_test.go',
+           'services/platform/gatewaycontrol/client.go',
+           'services/platform/gatewaycontrol/contract.go',
+           'services/platform/gatewaycontrol/http.go',
+           'services/platform/gatewaycontrol/postgres.go',
+           'services/platform/gatewayenrollmentcustody/association.go',
+           'services/platform/gatewayenrollmentcustody/association_directory_linux.go',
+           'services/platform/gatewayenrollmentcustody/association_directory_other.go',
+           'services/platform/gatewayenrollmentcustody/association_export_parent.go',
+           'services/platform/gatewayenrollmentcustody/association_test.go',
+           'services/platform/gatewayenrollmentcustody/custody.go',
+           'services/platform/gatewayenrollmentcustody/custody_test.go',
+           'services/platform/gatewayenrollmentcustody/files_linux.go',
+           'services/platform/gatewayenrollmentcustody/files_other.go',
+           'services/platform/gatewayenrollmentcustody/publication.go',
+           'services/platform/gatewayenrollmentcustody/recovery.go',
+           'services/platform/gatewayenrollmentcustody/recovery_test.go',
+           'services/platform/gatewayenrollmentwire/authority.go',
+           'services/platform/gatewayenrollmentwire/authority_test.go',
+           'services/platform/gatewayenrollmentwire/wire.go',
+           'services/platform/gatewayenrollmentwire/wire_test.go',
+           'services/platform/go.mod',
+           'services/platform/go.sum',
+           'services/platform/internal/cacheownership/ownership.go',
+           'services/platform/internal/cacheownership/ownership_linux.go',
+           'services/platform/internal/cacheownership/ownership_other.go',
+           'services/platform/internal/cacheownership/ownership_test.go',
+           'services/platform/migrations/production_agent_device_association_profile.go',
+           'services/platform/migrations/production_agent_device_association_profile_test.go',
+           'services/platform/migrations/sql/0014_typed_inventory_cutover.up.sql',
+           'services/platform/migrations/sql/0015_runtime_data_plane.up.sql',
+           'services/platform/migrations/sql/0079_production_authorization_projection.up.sql',
+           'services/platform/migrations/sql/0080_authorization_worker_gateway_writers.sql',
+           'services/platform/migrations/sql/0080_production_authorization_enforcement.up.sql',
+           'services/platform/migrations/sql/agent_device_association_profile.sql'])
+          assert len(expected) == 9 and sum(map(len, expected.values())) == 99
+          assert all(len(names) == len(set(names)) and all('Postgres' not in name for name in names) for names in expected.values())
+          print(json.dumps(check_sources(Path.cwd(), '.github/connector-native-compile-source-pins.json', required), sort_keys=True))
+          modules = {'cmd/agentsecctl': ['.'],
+           'services/gateway-control': ['.'],
+           'services/platform': ['./gatewayassociationwire',
+                                 './gatewayenrollmentcustody',
+                                 './migrations',
+                                 './apiserver',
+                                 './agentsec-api',
+                                 './agentsec-migrate',
+                                 './gatewaycontrol']}
+          status = 0
+          executions = []
+          with Path('agent-device-association-components.jsonl').open('wb') as out, Path('agent-device-association-components.stderr').open('wb') as err:
+              for module, packages in modules.items():
+                  prefix = 'github.com/zasp-ai/zasp-sec/' + module
+                  heads = [name for package, names in expected.items() if package == prefix or package.startswith(prefix + '/') for name in names if '/' not in name]
+                  assert heads
+                  command = ['go','test','-C',module,'-race','-p=1','-count=1','-timeout=3m','-json','-run','^('+'|'.join(map(re.escape, heads))+')$',*packages]
+                  result = subprocess.run(command, stdout=out, stderr=err, timeout=1200, check=False)
+                  executions.append({'module':module,'command':command,'exit_code':result.returncode,'classification':'component-behavior'})
+                  if result.returncode != 0 and status == 0:
+                      status = result.returncode
+          Path('agent-device-association-component-executions.json').write_text(json.dumps(executions, indent=2)+'\n')
+          assert len(executions) == 3
+          print(json.dumps(validate_events(load_events('agent-device-association-components.jsonl'), status, expected), sort_keys=True))
+          PYAGENTDEVICEASSOCIATION
+      - name: Preserve component evidence without native or deployed promotion
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: agent-device-association-component-evidence
+          path: |
+            agent-device-association-components.jsonl
+            agent-device-association-components.stderr
+            agent-device-association-component-executions.json
           if-no-files-found: warn
           retention-days: 14
       - name: Confirm checks did not alter tracked source

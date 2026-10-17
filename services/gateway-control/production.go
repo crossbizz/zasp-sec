@@ -8,15 +8,17 @@ import (
 )
 
 type productionControlConfig struct {
-	EnrollmentEnabled           bool
-	EnrollmentProfileChecksum   string
-	InstallationACKEnabled      bool
-	InstallationProfileChecksum string
-	DatabaseURL                 string
-	MaximumBodyBytes            int64
-	OperationTimeout            time.Duration
-	ReadinessTTL                time.Duration
-	ShutdownTimeout             time.Duration
+	AgentDeviceAssociationEnabled         bool
+	AgentDeviceAssociationProfileChecksum string
+	EnrollmentEnabled                     bool
+	EnrollmentProfileChecksum             string
+	InstallationACKEnabled                bool
+	InstallationProfileChecksum           string
+	DatabaseURL                           string
+	MaximumBodyBytes                      int64
+	OperationTimeout                      time.Duration
+	ReadinessTTL                          time.Duration
+	ShutdownTimeout                       time.Duration
 }
 
 func loadProductionControlConfig(getenv func(string) string) (productionControlConfig, error) {
@@ -27,6 +29,10 @@ func loadProductionControlConfig(getenv func(string) string) (productionControlC
 	operationTimeout, operationErr := time.ParseDuration(getenv("ZASP_GATEWAY_CONTROL_OPERATION_TIMEOUT"))
 	readinessTTL, readinessErr := time.ParseDuration(getenv("ZASP_GATEWAY_CONTROL_READINESS_TTL"))
 	shutdownTimeout, shutdownErr := time.ParseDuration(getenv("ZASP_GATEWAY_CONTROL_SHUTDOWN_TIMEOUT"))
+	associationFlag := getenv("ZASP_AGENT_DEVICE_ASSOCIATION_ENABLED")
+	if associationFlag != "" && associationFlag != "false" && associationFlag != "true" {
+		return productionControlConfig{}, errControlUnavailable
+	}
 	enrollmentFlag := getenv("ZASP_GATEWAY_ENROLLMENT_ENABLED")
 	if enrollmentFlag != "" && enrollmentFlag != "false" && enrollmentFlag != "true" {
 		return productionControlConfig{}, errControlUnavailable
@@ -35,7 +41,7 @@ func loadProductionControlConfig(getenv func(string) string) (productionControlC
 	if flag != "" && flag != "false" && flag != "true" {
 		return productionControlConfig{}, errControlUnavailable
 	}
-	config := productionControlConfig{EnrollmentEnabled: enrollmentFlag == "true", EnrollmentProfileChecksum: getenv("ZASP_GATEWAY_ENROLLMENT_PROFILE_CHECKSUM"), InstallationACKEnabled: flag == "true", InstallationProfileChecksum: getenv("ZASP_GATEWAY_INSTALLATION_PROFILE_CHECKSUM"),
+	config := productionControlConfig{AgentDeviceAssociationEnabled: associationFlag == "true", AgentDeviceAssociationProfileChecksum: getenv("ZASP_AGENT_DEVICE_ASSOCIATION_PROFILE_CHECKSUM"), EnrollmentEnabled: enrollmentFlag == "true", EnrollmentProfileChecksum: getenv("ZASP_GATEWAY_ENROLLMENT_PROFILE_CHECKSUM"), InstallationACKEnabled: flag == "true", InstallationProfileChecksum: getenv("ZASP_GATEWAY_INSTALLATION_PROFILE_CHECKSUM"),
 		DatabaseURL: getenv("ZASP_DATABASE_URL"), MaximumBodyBytes: maximumBodyBytes,
 		OperationTimeout: operationTimeout, ReadinessTTL: readinessTTL, ShutdownTimeout: shutdownTimeout,
 	}
@@ -46,6 +52,13 @@ func loadProductionControlConfig(getenv func(string) string) (productionControlC
 }
 
 func validProductionControlConfig(config productionControlConfig) bool {
+	if config.AgentDeviceAssociationEnabled {
+		if !migrations.IsAgentDeviceAssociationProfileChecksum(config.AgentDeviceAssociationProfileChecksum) {
+			return false
+		}
+	} else if config.AgentDeviceAssociationProfileChecksum != "" {
+		return false
+	}
 	if config.EnrollmentEnabled {
 		if !migrations.IsGatewayBootstrapProfileChecksum(config.EnrollmentProfileChecksum) {
 			return false

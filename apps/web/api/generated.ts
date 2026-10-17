@@ -339,6 +339,86 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/agents/{id}/device-association-intents": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Create a nonauthorizing Agent device challenge
+         * @description Administrative configuration only; no observed workload routing, installation, policy enforcement or Agent coverage claim. BrowserSession only: real fresh authentication, current exact Agent manage_identity, CSRF, same-origin Origin and expected scope. PAT writes denied. Version is explicit body; If-Match rejected. Device acceptance never delegates the original human authorization. Replay is historical metadata; refetch current list after mutation.
+         */
+        readonly post: operations["createAgentDeviceIntent"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/agents/{id}/device-associations": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * List administrative associations for one currently authorized Agent
+         * @description Administrative configuration only; no observed workload routing, installation, policy enforcement or Agent coverage claim. Current exact Agent view, browser or current PAT view ceiling. can_manage comes only from an independent current exact Agent manage_identity check for the same browser identity/revision. Challenge nonce is public and nonauthorizing; signed Device acceptance and separate fresh human approval are required.
+         */
+        readonly get: operations["listAgentDeviceAssociations"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/agents/{id}/device-associations/{associationId}/activate": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Approve an accepted association as its original human creator
+         * @description Administrative configuration only; no observed workload routing, installation, policy enforcement or Agent coverage claim. BrowserSession only: real fresh authentication, current exact Agent manage_identity, CSRF, same-origin Origin and expected scope. PAT writes denied. Version is explicit body; If-Match rejected. Device acceptance never delegates the original human authorization. Replay is historical metadata; refetch current list after mutation.
+         */
+        readonly post: operations["activateAgentDeviceAssociation"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/agents/{id}/device-associations/{associationId}/revoke": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Revoke the whole Agent device pair and all pending intents
+         * @description Administrative configuration only; no observed workload routing, installation, policy enforcement or Agent coverage claim. BrowserSession only: real fresh authentication, current exact Agent manage_identity, CSRF, same-origin Origin and expected scope. PAT writes denied. Version is explicit body; If-Match rejected. Device acceptance never delegates the original human authorization. Replay is historical metadata; refetch current list after mutation.
+         */
+        readonly post: operations["revokeAgentDeviceAssociation"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/agents/{id}/relationships": {
         readonly parameters: {
             readonly query?: never;
@@ -2629,6 +2709,114 @@ export type components = {
             readonly sequence: number;
             /** Format: date-time */
             readonly source_observed_at: string;
+        };
+        readonly AgentDeviceAcceptance: {
+            /** Format: date-time */
+            readonly accepted_at: string;
+            readonly credential: components["schemas"]["AgentDeviceCredential"];
+            /** Format: date-time */
+            readonly expires_at: string;
+            readonly request_sha256: string;
+        };
+        readonly AgentDeviceActivateInput: {
+            readonly challenge_id: components["schemas"]["ProductID"];
+            readonly challenge_sha256: string;
+            readonly expected_association_version: number;
+        };
+        readonly AgentDeviceAdmissionSnapshot: {
+            readonly content_sha256: string;
+            readonly evidence_id: components["schemas"]["ProductID"];
+            /** Format: date-time */
+            readonly fresh_until: string;
+            readonly generation: number;
+            /** Format: date-time */
+            readonly observed_at: string;
+            readonly snapshot_id: components["schemas"]["ProductID"];
+        };
+        readonly AgentDeviceAssociation: {
+            readonly activated_at: string | null;
+            readonly activated_by: components["schemas"]["ProductID"] | null;
+            readonly admission_snapshot: components["schemas"]["AgentDeviceAdmissionSnapshot"] | null;
+            readonly agent_id: components["schemas"]["ProductID"];
+            readonly association_id: components["schemas"]["ProductID"];
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly created_by: components["schemas"]["ProductID"];
+            readonly device_credential: components["schemas"]["AgentDeviceCredential"] | null;
+            readonly device_id: components["schemas"]["ProductID"];
+            readonly pending_intent: components["schemas"]["AgentDevicePendingIntent"] | null;
+            readonly revoked_at: string | null;
+            readonly source_identity: components["schemas"]["AgentDeviceSourceIdentity"] | null;
+            /** @enum {string} */
+            readonly state: "none" | "admitted" | "revoked" | "unavailable";
+            /** @enum {string} */
+            readonly unavailable_reason: "none" | "source_stale" | "source_removed" | "source_identity_changed" | "device_unavailable" | "credential_expired" | "credential_rotated" | "credential_revoked";
+            readonly version: number;
+        };
+        readonly AgentDeviceAssociationPage: {
+            readonly capabilities: {
+                readonly can_manage: boolean;
+            };
+            readonly items: readonly components["schemas"]["AgentDeviceAssociation"][];
+            readonly next_cursor: string | null;
+        };
+        readonly AgentDeviceChallengeEnvelope: {
+            readonly challenge_sha256: string;
+            readonly challenge_wire: string;
+            /** @constant */
+            readonly schema: "agent-device-challenge-envelope-v1";
+        };
+        readonly AgentDeviceCredential: {
+            readonly credential_generation: number;
+            readonly credential_id: components["schemas"]["ProductID"];
+            /** Format: date-time */
+            readonly expires_at: string;
+        };
+        readonly AgentDeviceIntentInput: {
+            readonly device_id: components["schemas"]["ProductID"];
+            readonly expected_association_version: number;
+            readonly ttl_seconds: number;
+        };
+        readonly AgentDeviceMutationReceipt: {
+            readonly association_id: components["schemas"]["ProductID"];
+            readonly challenge_id: components["schemas"]["ProductID"] | null;
+            /** @enum {string} */
+            readonly operation: "createAgentDeviceIntent" | "activateAgentDeviceAssociation" | "revokeAgentDeviceAssociation";
+            /** Format: date-time */
+            readonly recorded_at: string;
+            /** @enum {string} */
+            readonly recorded_state: "intent_created" | "activated" | "revoked";
+            readonly version: number;
+        };
+        readonly AgentDeviceMutationResult: {
+            readonly challenge: components["schemas"]["AgentDeviceChallengeEnvelope"] | null;
+            readonly receipt: components["schemas"]["AgentDeviceMutationReceipt"];
+            readonly replayed: boolean;
+        };
+        readonly AgentDevicePendingIntent: {
+            readonly acceptance: components["schemas"]["AgentDeviceAcceptance"] | null;
+            readonly challenge_id: components["schemas"]["ProductID"];
+            readonly challenge_sha256: string;
+            readonly challenge_wire: string;
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly created_by: components["schemas"]["ProductID"];
+            /** Format: date-time */
+            readonly expires_at: string;
+            /** @enum {string} */
+            readonly state: "pending_device" | "pending_human" | "expired" | "superseded";
+        };
+        readonly AgentDeviceRevokeInput: {
+            readonly expected_association_version: number;
+        };
+        readonly AgentDeviceSourceIdentity: {
+            readonly agent_id: components["schemas"]["ProductID"];
+            readonly identity_namespace: string;
+            readonly integration_id: components["schemas"]["ProductID"];
+            readonly provider: string;
+            readonly rule_version: number;
+            readonly source: string;
+            readonly source_native_id: string;
         };
         readonly AgentMutation: {
             readonly agent: components["schemas"]["InventoryRecord"];
@@ -5494,6 +5682,19 @@ export type components = {
     pathItems: never;
 };
 export type AcceptedNodeCoverageObservation = components['schemas']['AcceptedNodeCoverageObservation'];
+export type AgentDeviceAcceptance = components['schemas']['AgentDeviceAcceptance'];
+export type AgentDeviceActivateInput = components['schemas']['AgentDeviceActivateInput'];
+export type AgentDeviceAdmissionSnapshot = components['schemas']['AgentDeviceAdmissionSnapshot'];
+export type AgentDeviceAssociation = components['schemas']['AgentDeviceAssociation'];
+export type AgentDeviceAssociationPage = components['schemas']['AgentDeviceAssociationPage'];
+export type AgentDeviceChallengeEnvelope = components['schemas']['AgentDeviceChallengeEnvelope'];
+export type AgentDeviceCredential = components['schemas']['AgentDeviceCredential'];
+export type AgentDeviceIntentInput = components['schemas']['AgentDeviceIntentInput'];
+export type AgentDeviceMutationReceipt = components['schemas']['AgentDeviceMutationReceipt'];
+export type AgentDeviceMutationResult = components['schemas']['AgentDeviceMutationResult'];
+export type AgentDevicePendingIntent = components['schemas']['AgentDevicePendingIntent'];
+export type AgentDeviceRevokeInput = components['schemas']['AgentDeviceRevokeInput'];
+export type AgentDeviceSourceIdentity = components['schemas']['AgentDeviceSourceIdentity'];
 export type AgentMutation = components['schemas']['AgentMutation'];
 export type AgentOwnershipInput = components['schemas']['AgentOwnershipInput'];
 export type AgentSession = components['schemas']['AgentSession'];
@@ -6552,6 +6753,185 @@ export interface operations {
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly createAgentDeviceIntent: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
+                readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
+                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+                /** @description Explicit fresh-auth confirmation required for a sensitive approval or connector authorization mutation. */
+                readonly "X-Zasp-Fresh-Auth": components["parameters"]["FreshAuth"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["AgentDeviceIntentInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Confirmed mutation or immutable metadata replay. Refetch current state. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly Pragma?: "no-cache";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AgentDeviceMutationResult"];
+                };
+            };
+            /** @description New pending challenge confirmed. No active association is created. */
+            readonly 201: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly Pragma?: "no-cache";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AgentDeviceMutationResult"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listAgentDeviceAssociations: {
+        readonly parameters: {
+            readonly query?: {
+                readonly cursor?: string;
+                readonly limit?: number;
+            };
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Current scoped page. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly Pragma?: "no-cache";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AgentDeviceAssociationPage"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly activateAgentDeviceAssociation: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
+                readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
+                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+                /** @description Explicit fresh-auth confirmation required for a sensitive approval or connector authorization mutation. */
+                readonly "X-Zasp-Fresh-Auth": components["parameters"]["FreshAuth"];
+            };
+            readonly path: {
+                readonly associationId: components["schemas"]["ProductID"];
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["AgentDeviceActivateInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Confirmed mutation or immutable metadata replay. Refetch current state. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly Pragma?: "no-cache";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AgentDeviceMutationResult"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly revokeAgentDeviceAssociation: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
+                readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
+                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+                /** @description Explicit fresh-auth confirmation required for a sensitive approval or connector authorization mutation. */
+                readonly "X-Zasp-Fresh-Auth": components["parameters"]["FreshAuth"];
+            };
+            readonly path: {
+                readonly associationId: components["schemas"]["ProductID"];
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["AgentDeviceRevokeInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Confirmed mutation or immutable metadata replay. Refetch current state. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly Pragma?: "no-cache";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AgentDeviceMutationResult"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };

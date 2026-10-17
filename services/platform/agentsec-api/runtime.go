@@ -27,24 +27,25 @@ var (
 )
 
 type RuntimeConfig struct {
-	GatewayBootstrapProfileChecksum    string
-	SensorNodeCoverageRetentionEnabled bool
-	SensorNodeCoverageProfileChecksum  string
-	RetentionProfileChecksum           string
-	OptionalEgressEnabled              bool
-	AgentOwnerFilterEnabled            bool
-	AgentOwnerFilterProfileChecksum    string
-	AgentReadProfileChecksum           string
-	AgentOwnershipWriteProfileChecksum string
-	AgentExposureFilterProfileChecksum string
-	EnvironmentClassEnabled            bool
-	EnvironmentClassProfileChecksum    string
-	OptionalEgressProfileChecksum      string
-	OptionalEgressSettlementDSN        string
-	ConnectorMaintenancePostgresDSN    string
-	ConnectorMaintenanceKeyFile        string
-	RuntimeServices                    runtimeservices.Config
-	SecurityAgentOrderedHTTPEnabled    bool
+	GatewayBootstrapProfileChecksum       string
+	AgentDeviceAssociationProfileChecksum string
+	SensorNodeCoverageRetentionEnabled    bool
+	SensorNodeCoverageProfileChecksum     string
+	RetentionProfileChecksum              string
+	OptionalEgressEnabled                 bool
+	AgentOwnerFilterEnabled               bool
+	AgentOwnerFilterProfileChecksum       string
+	AgentReadProfileChecksum              string
+	AgentOwnershipWriteProfileChecksum    string
+	AgentExposureFilterProfileChecksum    string
+	EnvironmentClassEnabled               bool
+	EnvironmentClassProfileChecksum       string
+	OptionalEgressProfileChecksum         string
+	OptionalEgressSettlementDSN           string
+	ConnectorMaintenancePostgresDSN       string
+	ConnectorMaintenanceKeyFile           string
+	RuntimeServices                       runtimeservices.Config
+	SecurityAgentOrderedHTTPEnabled       bool
 
 	EvidenceExportWorkflow         string
 	AttackLabWorkflow              string
@@ -163,14 +164,15 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 	requestRate, requestRateErr := strconv.Atoi(getenv("ZASP_REQUEST_RATE_PER_SECOND"))
 	requestBurst, requestBurstErr := strconv.Atoi(getenv("ZASP_REQUEST_BURST"))
 	config := RuntimeConfig{
-		RetentionProfileChecksum:           getenv("ZASP_RETENTION_PROFILE_CHECKSUM"),
-		AgentReadProfileChecksum:           getenv("ZASP_AGENT_READ_PROFILE_CHECKSUM"),
-		SensorNodeCoverageRetentionEnabled: getenv("ZASP_SENSOR_NODE_COVERAGE_RETENTION_ENABLED") == "true",
-		GatewayBootstrapProfileChecksum:    getenv("ZASP_GATEWAY_BOOTSTRAP_PROFILE_CHECKSUM"),
-		SensorNodeCoverageProfileChecksum:  getenv("ZASP_SENSOR_NODE_COVERAGE_PROFILE_CHECKSUM"),
-		AgentOwnershipWriteProfileChecksum: getenv("ZASP_AGENT_OWNERSHIP_WRITE_PROFILE_CHECKSUM"),
-		AgentExposureFilterProfileChecksum: getenv("ZASP_AGENT_EXPOSURE_FILTER_PROFILE_CHECKSUM"),
-		AgentOwnerFilterEnabled:            agentOwnerFilterEnabled, AgentOwnerFilterProfileChecksum: getenv("ZASP_AGENT_OWNER_FILTER_CHECKSUM"),
+		RetentionProfileChecksum:              getenv("ZASP_RETENTION_PROFILE_CHECKSUM"),
+		AgentReadProfileChecksum:              getenv("ZASP_AGENT_READ_PROFILE_CHECKSUM"),
+		SensorNodeCoverageRetentionEnabled:    getenv("ZASP_SENSOR_NODE_COVERAGE_RETENTION_ENABLED") == "true",
+		GatewayBootstrapProfileChecksum:       getenv("ZASP_GATEWAY_BOOTSTRAP_PROFILE_CHECKSUM"),
+		AgentDeviceAssociationProfileChecksum: getenv("ZASP_AGENT_DEVICE_ASSOCIATION_PROFILE_CHECKSUM"),
+		SensorNodeCoverageProfileChecksum:     getenv("ZASP_SENSOR_NODE_COVERAGE_PROFILE_CHECKSUM"),
+		AgentOwnershipWriteProfileChecksum:    getenv("ZASP_AGENT_OWNERSHIP_WRITE_PROFILE_CHECKSUM"),
+		AgentExposureFilterProfileChecksum:    getenv("ZASP_AGENT_EXPOSURE_FILTER_PROFILE_CHECKSUM"),
+		AgentOwnerFilterEnabled:               agentOwnerFilterEnabled, AgentOwnerFilterProfileChecksum: getenv("ZASP_AGENT_OWNER_FILTER_CHECKSUM"),
 		EnvironmentClassEnabled: environmentClassEnabled, EnvironmentClassProfileChecksum: getenv("ZASP_ENVIRONMENT_CLASS_PROFILE_CHECKSUM"),
 		OptionalEgressEnabled: optionalEgressEnabled, OptionalEgressProfileChecksum: getenv("ZASP_OPTIONAL_EGRESS_PROFILE_CHECKSUM"), OptionalEgressSettlementDSN: getenv("ZASP_OPTIONAL_EGRESS_SETTLEMENT_POSTGRES_DSN"),
 		RuntimeServices:                 services,
@@ -275,7 +277,7 @@ func validRuntimeConfig(config RuntimeConfig) bool {
 			return false
 		}
 	}
-	if !validRuntimePostgresAuthorities(config.PostgresDSN, config.SecurityAgentPostgresDSN) || !validApprovalMaintenanceRuntimeConfig(config) || !validConnectorMaintenanceRuntimeConfig(config) || !validOptionalEgressRuntimeConfig(config) || !validEnvironmentClassRuntimeConfig(config) || !validAgentOwnerFilterRuntimeConfig(config) || !validAgentReadRuntimeConfig(config) || !validGatewayBootstrapRuntimeConfig(config) || !validSensorNodeCoverageRuntimeConfig(config) || !validAgentOwnershipWriteRuntimeConfig(config) || !validAgentExposureFilterRuntimeConfig(config) {
+	if !validRuntimePostgresAuthorities(config.PostgresDSN, config.SecurityAgentPostgresDSN) || !validApprovalMaintenanceRuntimeConfig(config) || !validConnectorMaintenanceRuntimeConfig(config) || !validOptionalEgressRuntimeConfig(config) || !validEnvironmentClassRuntimeConfig(config) || !validAgentOwnerFilterRuntimeConfig(config) || !validAgentReadRuntimeConfig(config) || !validGatewayBootstrapRuntimeConfig(config) || !validAgentDeviceAssociationRuntimeConfig(config) || !validSensorNodeCoverageRuntimeConfig(config) || !validAgentOwnershipWriteRuntimeConfig(config) || !validAgentExposureFilterRuntimeConfig(config) {
 		return false
 	}
 	authorize, authorizeErr := url.Parse(config.StytchAuthorizeURL)

@@ -77,6 +77,9 @@ var authorizationStatementRules = []authorizationStatementRule{
 }
 
 func authorizationStatementAllowed(g RequestAuthorization, q string, args []any) bool {
+	if q == associationCreateSQL || q == associationActivateSQL || q == associationRevokeSQL || q == associationPageSQL {
+		return agentDeviceAssociationStatementAllowed(g, q, args)
+	}
 	if q == gatewayBootstrapCreateSQL || q == gatewayBootstrapIssueSQL || q == gatewayBootstrapRevokeSQL || q == gatewayBootstrapGetSQL {
 		return gatewayBootstrapStatementAllowed(g, q, args)
 	}

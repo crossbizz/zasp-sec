@@ -411,6 +411,18 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 		_ = securityAgentDatabase.Close()
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("agent-ownership-write-profile", errRuntimeUnavailable)
 	}
+	if config.AgentDeviceAssociationProfileChecksum != "" {
+		if repository.RequireAgentDeviceAssociationProfile(config.AgentDeviceAssociationProfileChecksum) != nil {
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("agent-device-association-configuration", errRuntimeUnavailable)
+		}
+		// Own feature readiness is checked only for the new operations. A missing
+		// catalog/profile never replaces original global API health or authorization.
+		authorizer.AgentDeviceAssociationReady = func(ctx context.Context) (bool, error) {
+			probe, cancel := context.WithTimeout(ctx, 5*time.Second)
+			defer cancel()
+			return database.AgentDeviceAssociationProfileReady(probe, config.AgentDeviceAssociationProfileChecksum)
+		}
+	}
 	if config.GatewayBootstrapProfileChecksum != "" {
 		if repository.RequireGatewayBootstrapProfile(config.GatewayBootstrapProfileChecksum) != nil {
 			return RuntimeDependencies{}, markRuntimeDependencyFailure("gateway-bootstrap-configuration", errRuntimeUnavailable)

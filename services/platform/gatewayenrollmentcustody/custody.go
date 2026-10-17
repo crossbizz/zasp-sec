@@ -57,18 +57,19 @@ type custodyBundle struct {
 	PublicKey            string          `json:"public_key"`
 }
 type Store struct {
-	mu          sync.Mutex
-	root        *os.Root
-	name        string
-	receiptName string
-	guard       *cacheownership.Guard
-	bundle      *custodyBundle
-	bundleRaw   []byte
-	request     wire.Request
-	key         ed25519.PrivateKey
-	receipt     *wire.Receipt
-	closed      bool
-	failed      bool
+	mu              sync.Mutex
+	root            *os.Root
+	associationRoot *os.Root
+	name            string
+	receiptName     string
+	guard           *cacheownership.Guard
+	bundle          *custodyBundle
+	bundleRaw       []byte
+	request         wire.Request
+	key             ed25519.PrivateKey
+	receipt         *wire.Receipt
+	closed          bool
+	failed          bool
 }
 
 // Formatting a Store must never print its retained private key.
@@ -97,7 +98,7 @@ func Open(path string) (*Store, error) {
 		return fail()
 	}
 	if !present {
-		for _, artifact := range []string{s.receiptName, publicationStage(s.receiptName), s.authorityName(), publicationStage(s.authorityName())} {
+		for _, artifact := range []string{s.receiptName, publicationStage(s.receiptName), s.authorityName(), publicationStage(s.authorityName()), s.associationDirectoryName()} {
 			if _, e := root.Lstat(artifact); !errors.Is(e, os.ErrNotExist) {
 				return fail()
 			}
@@ -129,6 +130,9 @@ func Open(path string) (*Store, error) {
 		s.receipt = &receipt
 	}
 	if s.recoverAuthorityHistory() != nil {
+		return fail()
+	}
+	if s.openAssociationNamespace() != nil {
 		return fail()
 	}
 	return s, nil
@@ -272,7 +276,7 @@ func (s *Store) exportCredentialLocked(path string) error {
 	if !s.validLocked() || s.bundle == nil {
 		return ErrUnavailable
 	}
-	root, name, e := pinParent(path)
+	root, name, e := s.pinExportParent(path)
 	if e != nil {
 		return ErrUnavailable
 	}
@@ -334,6 +338,12 @@ func (s *Store) Close() error {
 	clear(s.bundleRaw)
 	s.bundleRaw = nil
 	var result error
+	if s.associationRoot != nil {
+		if s.associationRoot.Close() != nil {
+			result = ErrUnavailable
+		}
+		s.associationRoot = nil
+	}
 	if s.guard != nil {
 		if s.guard.Close() != nil {
 			result = ErrUnavailable
@@ -350,6 +360,9 @@ func (s *Store) Close() error {
 }
 func (s *Store) validLocked() bool {
 	if s.closed || s.failed || s.root == nil || s.guard == nil || !s.guard.Valid() {
+		return false
+	}
+	if !s.associationNamespaceValid() {
 		return false
 	}
 	if s.bundle == nil {
