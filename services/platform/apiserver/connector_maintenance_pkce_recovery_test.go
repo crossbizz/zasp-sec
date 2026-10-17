@@ -213,6 +213,7 @@ func TestConnectorMaintenancePKCERestartRecoveryPostgres(t *testing.T) {
 		}
 		failed, ok := original.reservation(nativeConnectorKey(lease))
 		if !ok || failed.lease.Attempt != 1 || len(failed.captured) == 0 {
+			t.Log(connectorMaintenanceFailureObservation(f.ctx, lease, providerDeadline, "preparation-finish", ErrRepositoryUnavailable))
 			t.Fatal("preparation failure did not capture exactly one attempt")
 		}
 		var failedKind string

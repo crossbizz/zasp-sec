@@ -63,7 +63,7 @@ const pins = {
   "services/platform/apiserver/approval_activation_postgres_test.go": "4a40ff1c879cd4c1af951ba8bc812d0d9ea81a360c856fcde4235b63581ae6e5",
   "services/platform/apiserver/connector_maintenance_callback_restart_postgres_test.go": "fe1f04ee8d9d6c78814a05df0fb976f4aedd5f1667e648c5342fbc14ea1d46bf",
   "services/platform/apiserver/connector_maintenance_lifecycle_postgres_test.go": "345c365921cdc9281ec767e00fd3e934f31fa4badb393f4a6b6e5793bd544e2d",
-  "services/platform/apiserver/connector_maintenance_pkce_recovery_test.go": "db05051ac764c5a1d57dac9e8c3691660c284a2a6f5fb088b8cd10acef7c7f96",
+  "services/platform/apiserver/connector_maintenance_pkce_recovery_test.go": "87e4d51d94e1d3176c14dce23a9215b5379aec8399a0cdd87ef5616fef240a1e",
   "services/platform/authorization/worker.go": "6693ec0a0aae3b18a0db4ebbaf3f5b80d7c2c54be8983b918e29ec4936554ac2",
   "services/platform/authorization/worker_approval_activation_test.go": "15e44850678ba5b9b385023555fcc501eca600c53c1f912dbf799841387d7b0b",
   "services/platform/authorization/worker_approval_origin.go": "6f83d9f2998fdf8d94beb69e3c4c15fe11037a8bb386303a831f5f1dfee8a69f",
@@ -180,8 +180,8 @@ const pins = {
   "services/platform/optionalegress/service.go": "bf52b87033c002e105432e3220cb80f375855d1868fc588ea1c887f8877588de",
   "services/platform/optionalegress/socket_flow_test.go": "16d441ba697cc3baa979e71ff6a07b9b3ec2dc496e44f76b260b9d2b21251872",
   "services/platform/optionalegress/transport.go": "78f915fdff74c5b57f33621af11e6b5996e5ee8d56c762d8d7753e157ca02c3e",
-  "services/platform/apiserver/approval_maintenance_genuine_enqueue_postgres_test.go": "0ae6bb2a4eb4a41f98e475b498fbe9f96347df3d969920e6c4455f3943cadddd",
-  "services/platform/apiserver/authorization_worker_planning_proof_postgres_test.go": "b8963bd92123726ed121f2d59a5419d59fd36b7519a91bf0de5dc41d6d6c231a"
+  "services/platform/apiserver/approval_maintenance_genuine_enqueue_postgres_test.go": "376c63e3b498569d5287f0ebeeaa956de8e62ee25216a3ec8bb55b27a4ec2995",
+  "services/platform/apiserver/authorization_worker_planning_proof_postgres_test.go": "05d5049ad6854c19eaede77eb60b4aa628d26710bdde8fdb56f7dd8de358c743"
 };
 const top='TestConnectorMaintenanceAuthenticatedOAuthEnqueuePostgres';
 const cases=['genuine_same_transaction_origin_and_immutable_enrichment','rollback_removes_every_enqueue_and_provenance_write'];

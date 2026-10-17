@@ -236,8 +236,8 @@
     },
     {
       "path": "services/platform/apiserver/connector_maintenance_pkce_recovery_test.go",
-      "sha256": "db05051ac764c5a1d57dac9e8c3691660c284a2a6f5fb088b8cd10acef7c7f96",
-      "bytes": 20878,
+      "sha256": "87e4d51d94e1d3176c14dce23a9215b5379aec8399a0cdd87ef5616fef240a1e",
+      "bytes": 21007,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -390,14 +390,14 @@
     },
     {
       "path": "scripts/hosted-connected-connector-acceptance.mjs",
-      "sha256": "86c1401e137ad23d8d19de091ac4b54138fd8e94b5b1194195f7257c45da1fec",
-      "bytes": 58432,
+      "sha256": "410fe8a9e41769dd11739a18c83436f7a053983778149fcd292ca655584abc7c",
+      "bytes": 58533,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
-      "sha256": "8435b37ba2b44a60250e009c0fc4023a6d93aac9e2dfbd4a44f9ac5760dfe072",
+      "sha256": "fdd930db8f4a044ce566942ef996f7b93d2987516cff931f402a74b9a31ef23f",
       "bytes": 55050,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
@@ -1421,15 +1421,15 @@
       "path": "services/platform/apiserver/approval_maintenance_genuine_enqueue_postgres_test.go",
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null,
-      "sha256": "0ae6bb2a4eb4a41f98e475b498fbe9f96347df3d969920e6c4455f3943cadddd",
-      "bytes": 15210
+      "sha256": "376c63e3b498569d5287f0ebeeaa956de8e62ee25216a3ec8bb55b27a4ec2995",
+      "bytes": 16065
     },
     {
       "path": "services/platform/apiserver/authorization_worker_planning_proof_postgres_test.go",
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null,
-      "sha256": "b8963bd92123726ed121f2d59a5419d59fd36b7519a91bf0de5dc41d6d6c231a",
-      "bytes": 6526
+      "sha256": "05d5049ad6854c19eaede77eb60b4aa628d26710bdde8fdb56f7dd8de358c743",
+      "bytes": 6588
     }
   ],
   "predecessorCheckpointSHA256": "364ada857d54ce83d678e00eb3d61d55c6a036d22cc1f7ebc9170432079ece05",
