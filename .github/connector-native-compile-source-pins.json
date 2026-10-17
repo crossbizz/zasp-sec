@@ -383,22 +383,22 @@
     },
     {
       "path": "scripts/connector-acceptance-groups.test.mjs",
-      "sha256": "e31216ab5e6078b2a07b25e3a6e4e090870ccb050a5c45799b4bf45353d49778",
-      "bytes": 51424,
+      "sha256": "08161b38d4f92380bf1f475cc6bd7b2b9f11b70c1d74013d06bb13c8a87703ed",
+      "bytes": 52108,
       "currentBasePreimageSHA256": "a1622a9417e9fe4d62c2aed82bcf5f7f3e11dce841d802bf005b29d54405d388",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connected-connector-acceptance.mjs",
-      "sha256": "143ced77371fdf468d9d9d2f1a8922abe74d3435a8f20497f52dc57d7c6ad219",
-      "bytes": 101035,
+      "sha256": "0ff3bb21adbc7e1ebb564e30d8d4b5938898fe98a2831a236822787401ecf7d5",
+      "bytes": 102875,
       "currentBasePreimageSHA256": "f248c6d9182ca08cb518cd54c620844c987f4ae723a38badb463c59e010db578",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
-      "sha256": "7096e738041b4600bec1ac73f86ff0a496a2f28560d725ab184de34c7fae34fc",
-      "bytes": 97436,
+      "sha256": "544e9cd2356ae1d747a0592157900934eb7e6e26941e197b553ab1344e1b08de",
+      "bytes": 99276,
       "currentBasePreimageSHA256": "e66722e4daf5b1482c253d1f14b4c533c329fde202252c16f87ad3e0130e8524",
       "historicalPreimageSHA256": null
     },
@@ -3661,6 +3661,125 @@
       "path": "deploy/staging/product/templates/_agent-owner-filter.tpl",
       "sha256": "8454fb79c3c8a9d6d719fcb1259a7609c834ee49add1fcb3fb487c4239a5e87b",
       "bytes": 1146,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "cmd/agentsecctl/api_load.go",
+      "sha256": "6fef2ee1644080d8bfa323d6e3d5908380808c800cf2a298e7f4957976b83dd6",
+      "bytes": 8268,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "cmd/agentsecctl/api_load_runner.go",
+      "sha256": "5cf9a0df999c13342f24b3f47f877c8d6891a5d8d6270895ade325e805c9ac4c",
+      "bytes": 7565,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "cmd/agentsecctl/api_load_test.go",
+      "sha256": "45fdc0a1b9f48c5df9b110ead9c618ef18f1c32a4bd0b11e441474113a280170",
+      "bytes": 15773,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "cmd/agentsecctl/diagnostics_sensitive_keys_test.go",
+      "sha256": "ce3c8d70fe8ff4f6b68dbb3e294aee7377f23c69a47ecb601fb3516dc8b1f691",
+      "bytes": 3502,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "cmd/agentsecctl/main.go",
+      "sha256": "78e83d4b204997a3eacfadb6d7d4998db5b87d45be1b25eb482e48adb9d563ad",
+      "bytes": 1654,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "cmd/agentsecctl/main_test.go",
+      "sha256": "341c0bd78403f56027b38bdc7d1f6acd26b79495f724bbf86851ef15727e4316",
+      "bytes": 2915,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "cmd/agentsecctl/preflight_report_test.go",
+      "sha256": "85ca0f8627c024b79f7227e5b4c9503374a48b8eea3405e88d0fad42dbd31c8d",
+      "bytes": 3149,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "cmd/agentsecctl/profiles.go",
+      "sha256": "253487fb0a467a737a5f1331f89a4bb686dc673a7fc12f8c142a3d279f2922d1",
+      "bytes": 18351,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "cmd/agentsecctl/profiles_test.go",
+      "sha256": "e81e17d1f77c2778151cb78a1016926f9f9a5c19aaf7e8b0f43a922e0f7f9c1a",
+      "bytes": 11217,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "cmd/agentsecctl/recovery_client.go",
+      "sha256": "bae28a722f29e15848b4460d6c1bf0af74a43ad1114e7605e324eb9ea1e2519d",
+      "bytes": 27246,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "cmd/agentsecctl/recovery_client_test.go",
+      "sha256": "d250639ebc02c2e31e7e5dc45f4c8ac28041dbd67287b141611bd23f3cadd49b",
+      "bytes": 16621,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "cmd/agentsecctl/release_test.go",
+      "sha256": "40ce4b9c8eb45ed554ba75857a17bfe0a3745fb0422c952c93f67b41db177316",
+      "bytes": 13239,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "cmd/agentsecctl/resilience.go",
+      "sha256": "0ca28882d8c870b5d618fa966f4ac7eb12c349361cc0e28028a357559731e478",
+      "bytes": 14074,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "cmd/agentsecctl/resilience_test.go",
+      "sha256": "ff84796bb705a33e3f320dcb7c7abf7ad739536d7c74ddbf16890b5afa4fe45b",
+      "bytes": 8229,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "cmd/agentsecctl/security_release.go",
+      "sha256": "bef6dc7f2152b3bfcacfe4fc723628c4345146617aec6d1ed6b0c71ac2845c7b",
+      "bytes": 12335,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "cmd/agentsecctl/security_release_test.go",
+      "sha256": "5c50ec1bbc2af688f0254da25ee8917c1cbce0bb1855031c7b669a56cfda84c5",
+      "bytes": 5721,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "cmd/agentsecctl/vulnerability_exception_test.go",
+      "sha256": "fd47947eec26b0d425b604c840d69a0d907157eac2eaa69dcdd9b52b9389e90f",
+      "bytes": 4594,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     }

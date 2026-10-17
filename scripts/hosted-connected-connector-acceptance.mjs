@@ -511,11 +511,28 @@ const pins = {
   "openapi/openapi.yaml": "374acf7080ed7ca35096aa4141fdab2d895ea7f686224742bf65715689aa37e6",
   "deploy/production/agent-owner-filter-profile.test.mjs": "a1639ed21cfef26ca5071039c1ea7ef5247fac26da4913479f78fb7c5c44eacd",
   "deploy/production/agent-owner-filter-profile.mjs": "758289d0eaa0a4bb119306d6cc16a38a2fd9c67f100bb0a7d8c5b60e7145a36f",
-  "deploy/staging/product/templates/_agent-owner-filter.tpl": "8454fb79c3c8a9d6d719fcb1259a7609c834ee49add1fcb3fb487c4239a5e87b"
+  "deploy/staging/product/templates/_agent-owner-filter.tpl": "8454fb79c3c8a9d6d719fcb1259a7609c834ee49add1fcb3fb487c4239a5e87b",
+  "cmd/agentsecctl/api_load.go": "6fef2ee1644080d8bfa323d6e3d5908380808c800cf2a298e7f4957976b83dd6",
+  "cmd/agentsecctl/api_load_runner.go": "5cf9a0df999c13342f24b3f47f877c8d6891a5d8d6270895ade325e805c9ac4c",
+  "cmd/agentsecctl/api_load_test.go": "45fdc0a1b9f48c5df9b110ead9c618ef18f1c32a4bd0b11e441474113a280170",
+  "cmd/agentsecctl/diagnostics_sensitive_keys_test.go": "ce3c8d70fe8ff4f6b68dbb3e294aee7377f23c69a47ecb601fb3516dc8b1f691",
+  "cmd/agentsecctl/main.go": "78e83d4b204997a3eacfadb6d7d4998db5b87d45be1b25eb482e48adb9d563ad",
+  "cmd/agentsecctl/main_test.go": "341c0bd78403f56027b38bdc7d1f6acd26b79495f724bbf86851ef15727e4316",
+  "cmd/agentsecctl/preflight_report_test.go": "85ca0f8627c024b79f7227e5b4c9503374a48b8eea3405e88d0fad42dbd31c8d",
+  "cmd/agentsecctl/profiles.go": "253487fb0a467a737a5f1331f89a4bb686dc673a7fc12f8c142a3d279f2922d1",
+  "cmd/agentsecctl/profiles_test.go": "e81e17d1f77c2778151cb78a1016926f9f9a5c19aaf7e8b0f43a922e0f7f9c1a",
+  "cmd/agentsecctl/recovery_client.go": "bae28a722f29e15848b4460d6c1bf0af74a43ad1114e7605e324eb9ea1e2519d",
+  "cmd/agentsecctl/recovery_client_test.go": "d250639ebc02c2e31e7e5dc45f4c8ac28041dbd67287b141611bd23f3cadd49b",
+  "cmd/agentsecctl/release_test.go": "40ce4b9c8eb45ed554ba75857a17bfe0a3745fb0422c952c93f67b41db177316",
+  "cmd/agentsecctl/resilience.go": "0ca28882d8c870b5d618fa966f4ac7eb12c349361cc0e28028a357559731e478",
+  "cmd/agentsecctl/resilience_test.go": "ff84796bb705a33e3f320dcb7c7abf7ad739536d7c74ddbf16890b5afa4fe45b",
+  "cmd/agentsecctl/security_release.go": "bef6dc7f2152b3bfcacfe4fc723628c4345146617aec6d1ed6b0c71ac2845c7b",
+  "cmd/agentsecctl/security_release_test.go": "5c50ec1bbc2af688f0254da25ee8917c1cbce0bb1855031c7b669a56cfda84c5",
+  "cmd/agentsecctl/vulnerability_exception_test.go": "fd47947eec26b0d425b604c840d69a0d907157eac2eaa69dcdd9b52b9389e90f"
 };
 const roster = selectedGroup.names;
 const helperPins={
-  "scripts/connector-acceptance-groups.test.mjs": "e31216ab5e6078b2a07b25e3a6e4e090870ccb050a5c45799b4bf45353d49778",
+  "scripts/connector-acceptance-groups.test.mjs": "08161b38d4f92380bf1f475cc6bd7b2b9f11b70c1d74013d06bb13c8a87703ed",
   "scripts/connector-acceptance-groups.mjs": "1d0ac8bd39cde881ee26949586ede1fb401692c51d1e0cd351bb34535bfafb07",
   "docs/internal/evidence/cloud-2026-10-07/native-service-readiness/openfga/09-pg-non-glibc-libs-manifest.json": "96642e82997ffd2caf2893a5ecc0116ad2aef6e982df2d929f3efda4e04f3474",
   "services/platform/apiserver/authorization_integration_mutations_postgres_test.go": "5e4beb04b2409ad9b11b89c017ada5e2eccffd78a87bdd5692d40670f12a2ba0",

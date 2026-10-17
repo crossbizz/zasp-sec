@@ -629,7 +629,24 @@ test('retention connected sources retain the complete declared application closu
   "openapi/openapi.yaml",
   "deploy/production/agent-owner-filter-profile.test.mjs",
   "deploy/production/agent-owner-filter-profile.mjs",
-  "deploy/staging/product/templates/_agent-owner-filter.tpl"
+  "deploy/staging/product/templates/_agent-owner-filter.tpl",
+  "cmd/agentsecctl/api_load.go",
+  "cmd/agentsecctl/api_load_runner.go",
+  "cmd/agentsecctl/api_load_test.go",
+  "cmd/agentsecctl/diagnostics_sensitive_keys_test.go",
+  "cmd/agentsecctl/main.go",
+  "cmd/agentsecctl/main_test.go",
+  "cmd/agentsecctl/preflight_report_test.go",
+  "cmd/agentsecctl/profiles.go",
+  "cmd/agentsecctl/profiles_test.go",
+  "cmd/agentsecctl/recovery_client.go",
+  "cmd/agentsecctl/recovery_client_test.go",
+  "cmd/agentsecctl/release_test.go",
+  "cmd/agentsecctl/resilience.go",
+  "cmd/agentsecctl/resilience_test.go",
+  "cmd/agentsecctl/security_release.go",
+  "cmd/agentsecctl/security_release_test.go",
+  "cmd/agentsecctl/vulnerability_exception_test.go"
 ];
   const compiled = JSON.parse(relative('.github/connector-native-compile-source-pins.json'));
   const compilePins = new Map(compiled.sources.map(item => [item.path, item]));
