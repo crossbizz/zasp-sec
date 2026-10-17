@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/zasp-ai/zasp-sec/services/platform/authorization"
+	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 )
 
 // Operation contains every original reconciliation transition and the new
@@ -42,6 +43,7 @@ const (
 type Executor struct {
 	pool             *pgxpool.Pool
 	profile, version string
+	sourceProfile    string
 }
 
 // NewExecutor refuses before returning when the complete registered native
@@ -52,7 +54,7 @@ func NewExecutor(ctx context.Context, pool *pgxpool.Pool, profile string, key []
 		return nil, ErrConfiguration
 	}
 	h := sha256.Sum256(key)
-	e := &Executor{pool: pool, profile: profile, version: hex.EncodeToString(h[:])}
+	e := &Executor{pool: pool, profile: profile, version: hex.EncodeToString(h[:]), sourceProfile: migrations.ProductionAuthorizationEnforcement().Checksum()}
 	if e.Ready(ctx) != nil {
 		return nil, ErrConfiguration
 	}
@@ -124,7 +126,7 @@ func (e *Executor) Facts(ctx context.Context, r Reference) (Facts, error) {
 	if err != nil {
 		return f, err
 	}
-	if decodeObject(raw, &f, "profile_checksum", "context_digest", "reference", "task_id", "purpose", "grantor_id", "principal_id", "source_profile", "source_proof_digest", "committed_request_digest", "committed_effect_digest", "operation", "attempt", "lease_expires_at", "session_user") != nil || !validFacts(f, r, e.profile) {
+	if decodeObject(raw, &f, "profile_checksum", "context_digest", "reference", "task_id", "purpose", "grantor_id", "principal_id", "source_profile", "source_proof_digest", "committed_request_digest", "committed_effect_digest", "operation", "attempt", "lease_expires_at", "session_user") != nil || !validFacts(f, r, e.profile, e.sourceProfile) {
 		return Facts{}, ErrUnavailable
 	}
 	var fields map[string]json.RawMessage

@@ -78,6 +78,7 @@ type Authority struct {
 	source                         Source
 	checker                        authorization.Checker
 	store, model, profile, version string
+	sourceProfile                  string
 	key                            []byte
 	keyMu                          sync.RWMutex
 }
@@ -89,7 +90,7 @@ func NewAuthority(source Source, checker authorization.Checker, store, model, pr
 		return nil, ErrConfiguration
 	}
 	h := sha256.Sum256(key)
-	return &Authority{source: source, checker: checker, store: store, model: model, profile: profile, version: hex.EncodeToString(h[:]), key: append([]byte(nil), key...)}, nil
+	return &Authority{source: source, checker: checker, store: store, model: model, profile: profile, version: hex.EncodeToString(h[:]), sourceProfile: migrations.ProductionAuthorizationEnforcement().Checksum(), key: append([]byte(nil), key...)}, nil
 }
 
 // Close erases this authority's private signing-key copy. It never closes the
@@ -126,7 +127,7 @@ func (a *Authority) Authorize(ctx context.Context, ref Reference, phase Phase) (
 	}
 	defer clear(key)
 	f, err := a.source.Facts(ctx, ref)
-	if err != nil || !validFacts(f, ref, a.profile) || ctx.Err() != nil {
+	if err != nil || !validFacts(f, ref, a.profile, a.sourceProfile) || ctx.Err() != nil {
 		return nil, ErrUnavailable
 	}
 	r, err := a.source.Revision(ctx, ref.Organization)
@@ -198,8 +199,8 @@ func (a *Authority) Authorize(ctx context.Context, ref Reference, phase Phase) (
 	return proof, nil
 }
 
-func validFacts(f Facts, r Reference, profile string) bool {
-	return f.Reference == r && digest(f.ContextDigest) && f.Purpose == "connector_reconciliation" && f.Profile == profile && f.SourceProfile == migrations.ProductionAuthorizationEnforcement().Checksum() && validID(f.Task) && validID(f.Grantor) && validID(f.Service) && digest(f.SourceProofDigest) && digest(f.CommittedRequestDigest) && digest(f.CommittedEffectDigest) && f.CommittedEffectDigest == r.IntentDigest && f.Attempt >= 0 && f.Attempt < 100 && f.Expires.After(time.Now()) && f.SessionUser != "" && (f.Operation == "authorize" || f.Operation == "revoke" || f.Operation == "pkce_cleanup")
+func validFacts(f Facts, r Reference, profile, sourceProfile string) bool {
+	return f.Reference == r && digest(f.ContextDigest) && f.Purpose == "connector_reconciliation" && f.Profile == profile && digest(sourceProfile) && f.SourceProfile == sourceProfile && validID(f.Task) && validID(f.Grantor) && validID(f.Service) && digest(f.SourceProofDigest) && digest(f.CommittedRequestDigest) && digest(f.CommittedEffectDigest) && f.CommittedEffectDigest == r.IntentDigest && f.Attempt >= 0 && f.Attempt < 100 && f.Expires.After(time.Now()) && f.SessionUser != "" && (f.Operation == "authorize" || f.Operation == "revoke" || f.Operation == "pkce_cleanup")
 }
 func missing(v any) bool {
 	if v == nil {

@@ -1,5 +1,5 @@
 {
-  "status": "CONNECTED RETENTION AND CAPTURED FIXTURE SOURCE CUSTODY; NATIVE AND DEPLOYED ACCEPTANCE PENDING",
+  "status": "CONSTRUCTOR-BOUND COMPILED SOURCE PIN; ALL LIVE AUTHORIZATION CHECKS RETAINED; NATIVE ACCEPTANCE PENDING",
   "base": "1457b8afd91ce27a60d1b78aa7024c1540bb8b09",
   "checkpointSHA256": "9f47c3c1f225d02c64d1f5d66e8636e562cecec37f17cf6560ac6992194ac953",
   "sources": [
@@ -117,16 +117,16 @@
     },
     {
       "path": "services/platform/connectormaintenance/authority.go",
-      "sha256": "378b2b151fe9978ca28a3c40d024c52bff7d3f0b83267839ef1dd61ee3946441",
-      "bytes": 10047,
-      "currentBasePreimageSHA256": null,
+      "sha256": "6165e9fc541c82439e4cb5cad6f71c91d6507cd49d3b70e526ea57354db8898a",
+      "bytes": 10173,
+      "currentBasePreimageSHA256": "378b2b151fe9978ca28a3c40d024c52bff7d3f0b83267839ef1dd61ee3946441",
       "historicalPreimageSHA256": null
     },
     {
       "path": "services/platform/connectormaintenance/executor.go",
-      "sha256": "24ac12fb20e753ec433464e6220bc7aaf4127fb9e7e3803831553bb75e7a40f3",
-      "bytes": 9171,
-      "currentBasePreimageSHA256": null,
+      "sha256": "8ed045a49c94dd100633e3837d0236f0124d6fcb5e88dc818fd107c30e01d598",
+      "bytes": 9348,
+      "currentBasePreimageSHA256": "24ac12fb20e753ec433464e6220bc7aaf4127fb9e7e3803831553bb75e7a40f3",
       "historicalPreimageSHA256": null
     },
     {
@@ -390,16 +390,16 @@
     },
     {
       "path": "scripts/hosted-connected-connector-acceptance.mjs",
-      "sha256": "7b1d31e540607213c6526aadbab575989d2f32e716a073e0e04d8600957baded",
-      "bytes": 73348,
-      "currentBasePreimageSHA256": "410fe8a9e41769dd11739a18c83436f7a053983778149fcd292ca655584abc7c",
+      "sha256": "f248c6d9182ca08cb518cd54c620844c987f4ae723a38badb463c59e010db578",
+      "bytes": 73491,
+      "currentBasePreimageSHA256": "7b1d31e540607213c6526aadbab575989d2f32e716a073e0e04d8600957baded",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
-      "sha256": "21f7ada5fa68189d8e04f51c2f8f1ae151baf97e4a73ac457d652e3cf3f0960d",
-      "bytes": 69834,
-      "currentBasePreimageSHA256": "fdd930db8f4a044ce566942ef996f7b93d2987516cff931f402a74b9a31ef23f",
+      "sha256": "e66722e4daf5b1482c253d1f14b4c533c329fde202252c16f87ad3e0130e8524",
+      "bytes": 69977,
+      "currentBasePreimageSHA256": "21f7ada5fa68189d8e04f51c2f8f1ae151baf97e4a73ac457d652e3cf3f0960d",
       "historicalPreimageSHA256": null
     },
     {
@@ -2242,11 +2242,19 @@
       "bytes": 15083,
       "currentBasePreimageSHA256": "d17e31da8e66cffd2eb15d13496a3f800438e1f6e23d880520b068451f6930ac",
       "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/connectormaintenance/compiled_pin_freshness_test.go",
+      "sha256": "16fd332bc993cb575ecc60cf4d416b4b488afac8ad24a60acd88aa6839a1944d",
+      "bytes": 4973,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
     }
   ],
   "predecessorCheckpointSHA256": "364ada857d54ce83d678e00eb3d61d55c6a036d22cc1f7ebc9170432079ece05",
   "previousCheckpointSHA256": "b04a555103feeaff0ff31d66c2165743a7ad47270ae052a58e8ed7e9e758be8f",
   "optionalEgressSourceAssociationBase": "c6b13e37d1588d8e45646f3d9b195336844febbd",
-  "predecessorManifestSHA256": "098fac564fdb0d2fc7eb455f65312dfad62f10c764bacc867e04fbdb5d7c8a51",
-  "checkpointRelation": "Immutable predecessor checkpoint; this current source manifest is retained by the successor retention checkpoint."
+  "predecessorManifestSHA256": "4ee59612b60a104712293b311b12375cc8babcda022f6395ace634fb44ac7213",
+  "checkpointRelation": "Existing immutable predecessor checkpoints remain unchanged; successor compiled-pin checkpoint records these current source associations.",
+  "compiledPinOptimizationSourceAssociationBase": "5ab3be6067573fa369f73e3836c99cc81aff46c8"
 }

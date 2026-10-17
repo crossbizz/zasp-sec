@@ -42,7 +42,7 @@ jobs:
           import hashlib, json
           from pathlib import Path
           source = json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())
-          assert len(source['sources']) == 320
+          assert len(source['sources']) == 321
           for item in source['sources']:
               raw = Path(item['path']).read_bytes()
               assert len(raw) == item['bytes']
@@ -58,6 +58,9 @@ jobs:
             echo '::endgroup::'
           done
           git diff --exit-code -- services/platform services/health
+      - name: Compiled source pin retains fresh connector authorization
+        timeout-minutes: 5
+        run: go test -C services/platform -race -p=1 -count=1 -timeout=2m -run '^TestCompiledPinKeepsFreshConnectorAuthority$' ./connectormaintenance
       - name: Existing connector handler and reconciler application regressions
         timeout-minutes: 5
         run: |

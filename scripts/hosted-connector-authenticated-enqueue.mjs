@@ -39,8 +39,8 @@ const pins = {
   "services/platform/authorization/connector_maintenance_projection.go": "e9189565c21f4d16c3f06c3cf89b35e57b1cef5e5bb51b1ff49da02349dcd7b8",
   "services/platform/authorization/worker_current_maintenance.go": "77e382687cc15c54bd3065a10caeb607921c7ee89f3f6ad373c8d645c01d9246",
   "services/platform/cmd/zasp-authorization-reconcile/main.go": "bdaa8815eb14bf35e19d4a5e76764f623ce0277c9d04ebfbfc9f120dba244a6d",
-  "services/platform/connectormaintenance/authority.go": "378b2b151fe9978ca28a3c40d024c52bff7d3f0b83267839ef1dd61ee3946441",
-  "services/platform/connectormaintenance/executor.go": "24ac12fb20e753ec433464e6220bc7aaf4127fb9e7e3803831553bb75e7a40f3",
+  "services/platform/connectormaintenance/authority.go": "6165e9fc541c82439e4cb5cad6f71c91d6507cd49d3b70e526ea57354db8898a",
+  "services/platform/connectormaintenance/executor.go": "8ed045a49c94dd100633e3837d0236f0124d6fcb5e88dc818fd107c30e01d598",
   "services/platform/connectormaintenancecutover/coordinator.go": "d2867a6154c9df7b00a6e575d08cdcf33e6e7bf1d71b493baa7428334af286fe",
   "services/platform/connectormaintenancecutover/fga.go": "d3b9b4bea7f707e802c11e62c3e331477a3ff23a5f8d2049125155fd9e2bcb46",
   "services/platform/connectormaintenancecutover/model.json": "329f49e1f2effecbe1a0e9caf6c89be939b1e36e034155d74977bfc82c73cc2c",
@@ -295,7 +295,8 @@ const pins = {
   "services/platform/apiserver/runtime_data_plane_postgres_test.go": "67be7e13317379c4f51c3a37db649d509141f02f496b7fe99826ce281007780d",
   "services/platform/apiserver/runtime_sandbox_candidate_postgres_test.go": "cb1f0862ce4b1df4fe1d198f3f2c2bd0ce44017b42c30bec01a369dc72d78e48",
   "services/platform/apiserver/runtime_sessions_postgres_test.go": "359a5aa7338fda86269ff527467453c0d46769784578302c6e89140f4848b418",
-  "services/platform/apiserver/security_agent_temporal_automatic_sources_postgres_test.go": "d17e31da8e66cffd2eb15d13496a3f800438e1f6e23d880520b068451f6930ac"
+  "services/platform/apiserver/security_agent_temporal_automatic_sources_postgres_test.go": "d17e31da8e66cffd2eb15d13496a3f800438e1f6e23d880520b068451f6930ac",
+  "services/platform/connectormaintenance/compiled_pin_freshness_test.go": "16fd332bc993cb575ecc60cf4d416b4b488afac8ad24a60acd88aa6839a1944d"
 };
 const top='TestConnectorMaintenanceAuthenticatedOAuthEnqueuePostgres';
 const cases=['genuine_same_transaction_origin_and_immutable_enrichment','rollback_removes_every_enqueue_and_provenance_write'];
