@@ -60,6 +60,8 @@ type AWSConfig struct {
 	Queues  []Queue  `json:"queues"`
 }
 type Config struct {
+	Neon        *NeonConfig      `json:"neon,omitempty"`
+	Stytch      *StytchConfig    `json:"stytch,omitempty"`
 	Schema      string           `json:"schema"`
 	Deployment  Deployment       `json:"deployment"`
 	Scope       Scope            `json:"scope"`

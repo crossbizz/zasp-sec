@@ -406,7 +406,17 @@ test('retention connected sources retain the complete declared application closu
   "services/platform/preflight/failures.go",
   "services/platform/preflight/report.go",
   "services/platform/preflight/runner.go",
-  "services/platform/preflight/transport.go"
+  "services/platform/preflight/transport.go",
+  "services/platform/preflight/dependency_config.go",
+  "services/platform/preflight/dependency_runner.go",
+  "services/platform/preflight/stytch.go",
+  "services/platform/preflight/stytch_test.go",
+  "services/platform/preflight/postgres.go",
+  "services/platform/preflight/postgres_test.go",
+  "services/platform/preflight/postgres_flow_test.go",
+  "services/platform/migrations/preflight_observation.go",
+  "services/platform/migrations/preflight_observation_test.go",
+  "services/platform/preflight/connected_core_test.go"
 ];
   const compiled = JSON.parse(relative('.github/connector-native-compile-source-pins.json'));
   const compilePins = new Map(compiled.sources.map(item => [item.path, item]));

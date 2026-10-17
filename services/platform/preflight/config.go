@@ -87,6 +87,9 @@ func uniqueJSON(payload []byte) bool {
 	return e == io.EOF
 }
 func validConfig(c Config) bool {
+	if !validCoreDependencies(CoreDependencies{Neon: c.Neon, Stytch: c.Stytch}) {
+		return false
+	}
 	d := c.Deployment
 	if c.Schema != "agentsec-preflight-config-v1" || (!accountPattern.MatchString(d.AccountID) || d.AccountID == "000000000000") || !regionPattern.MatchString(d.Region) || d.Profile != supportedProfile || !namePattern.MatchString(d.ReleaseVersion) || !partitionRegion(d.Partition, d.Region) {
 		return false

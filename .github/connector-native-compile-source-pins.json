@@ -383,22 +383,22 @@
     },
     {
       "path": "scripts/connector-acceptance-groups.test.mjs",
-      "sha256": "e21970bbc226462cc6510897b46ab92566de5e5b2214e4d6f38a215a81a15020",
-      "bytes": 36134,
+      "sha256": "6bab6a296f7898133e5487d399340a5276692d88a53ed1cce494521739fe0da0",
+      "bytes": 36662,
       "currentBasePreimageSHA256": "a1622a9417e9fe4d62c2aed82bcf5f7f3e11dce841d802bf005b29d54405d388",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connected-connector-acceptance.mjs",
-      "sha256": "16ecbc95295c324dedd43c0ebbea49529581a786b1e20a36d4a90ebd39ab92a1",
-      "bytes": 80068,
+      "sha256": "8ad8ed841e05b8f3933c00d10759d043a52e1ec77dbb4199454e4bb9c97520cc",
+      "bytes": 81276,
       "currentBasePreimageSHA256": "f248c6d9182ca08cb518cd54c620844c987f4ae723a38badb463c59e010db578",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
-      "sha256": "737a6bb1260720ce0364429e54307b74b03576be4de1b727f929edb88ad06817",
-      "bytes": 76469,
+      "sha256": "f49c0ba89b136903f02311d5a3ace681d8f9961cd3c7339cbabdf5679b984e41",
+      "bytes": 77677,
       "currentBasePreimageSHA256": "e66722e4daf5b1482c253d1f14b4c533c329fde202252c16f87ad3e0130e8524",
       "historicalPreimageSHA256": null
     },
@@ -2420,15 +2420,15 @@
     },
     {
       "path": "cmd/agentsecctl/go.mod",
-      "sha256": "6d5122f515105e69fa0b769e083bc7fdf6a792dfadc4239a37b6483f6a3f9688",
-      "bytes": 1316,
+      "sha256": "d60b140ec5981344c4c462680018cbc921033fb6e64a29e50d0a803d2649daac",
+      "bytes": 1613,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
     {
       "path": "cmd/agentsecctl/go.sum",
-      "sha256": "19de766843e2410e35dca9ed4a563e8ac72b66a131fa7938f701d079cc418aff",
-      "bytes": 3193,
+      "sha256": "532eeaecd32ae5fd2bcb5c717bb67c9779f532b901aa7bb16ad060e5c26dd539",
+      "bytes": 5706,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -2476,8 +2476,8 @@
     },
     {
       "path": "services/platform/preflight/config.go",
-      "sha256": "4aeba33a62a7aafee1b50caadd2101f1c0bf204f215ca7250cbba1070d582229",
-      "bytes": 6390,
+      "sha256": "3c185cfc9c11a44bb1c896620b1641bf6ecebcaa97c3adf784544ed57b4e5a05",
+      "bytes": 6487,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -2490,8 +2490,8 @@
     },
     {
       "path": "services/platform/preflight/contract.go",
-      "sha256": "38bd06c94f6b348dae50e91efd35b457fa6b16b48cfb2fbff5f9bcdd4b6cef56",
-      "bytes": 3613,
+      "sha256": "8338c5c11835e8485fa2f2eb7acf213bb7042072d67d769f4caf1be9a07d030c",
+      "bytes": 3723,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -2518,8 +2518,8 @@
     },
     {
       "path": "services/platform/preflight/runner.go",
-      "sha256": "e99199173526674f878d8353bdc9efd1d7eda5ddb246d88c75115a7b8be029e2",
-      "bytes": 10915,
+      "sha256": "41cf87bf093f1c0b87c45c8ec1f58846792a71b3e538828be2256a5444f27b03",
+      "bytes": 11170,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -2527,6 +2527,76 @@
       "path": "services/platform/preflight/transport.go",
       "sha256": "20365db0991b2302ccdc16e1066f2506113dbb9cb6b6ae6803e2349bd9f05d94",
       "bytes": 1839,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/preflight/dependency_config.go",
+      "sha256": "053b2439e2b865c6d62a912a64bf32158e389a47c1a243950ac1f1154be7eb1f",
+      "bytes": 2215,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/preflight/dependency_runner.go",
+      "sha256": "62aa109d2feee90334b9eebcdb264b25426d81616feb3645d688cd2cae0bbd1b",
+      "bytes": 2555,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/preflight/stytch.go",
+      "sha256": "e2c9c43dfa09156cdf73500e24f4feb7d9888964586a110df98d49afdf3677df",
+      "bytes": 9124,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/preflight/stytch_test.go",
+      "sha256": "26f49939e618c12e50e6ff071f1aa16044975be2b8cf7965be260d2567545731",
+      "bytes": 5795,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/preflight/postgres.go",
+      "sha256": "ab0498c49a99dd4a1adfa401cd9d0f94380e499d3eeb6dc0ec924a0dd35ebde2",
+      "bytes": 10387,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/preflight/postgres_test.go",
+      "sha256": "eb57d5351e6feb6309f3b1328e9914ab8d19b2048ad81aaf09ee3729ff12c88d",
+      "bytes": 2470,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/preflight/postgres_flow_test.go",
+      "sha256": "1e2edf4ef094777d3bb04d3962c2725325065a72d237537d0aa71e7c72c8f15b",
+      "bytes": 5409,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/migrations/preflight_observation.go",
+      "sha256": "f75935583c37ecaeea27cc84b7bef7c37ec352fbfc0c3483f3cb2b69661ffe00",
+      "bytes": 3557,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/migrations/preflight_observation_test.go",
+      "sha256": "1e230130fdb837fd1a574f258d6b5e2f3ebcd7559c1af779cf03ae4f62dd8f36",
+      "bytes": 2293,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/preflight/connected_core_test.go",
+      "sha256": "ee0e0016946b3e69e13bc018bf85d771ebdd5f41779769238dcc3c0bc76aa13b",
+      "bytes": 1987,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     }

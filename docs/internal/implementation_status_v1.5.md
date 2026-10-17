@@ -2,6 +2,14 @@
 
 ## Current continuation, October 17, 2026
 
+The connected core preflight batch adds real read-only Neon profile inspection
+and nonrenewing Stytch organization/session GETs. Its complete runner preserves
+these observations when AWS credentials fail. All 54 preflight and 148 CLI cases
+pass with race detection; the full migrations suite passes 446 cases with four
+native database skips. Those skips and missing real provider/deployed acceptance
+remain explicit. No original requirement is promoted. See
+`cloud-preflight-core-observations-component-checkpoint-2026-10-17.json`.
+
 The connected AWS preflight follow-up passes all 20 SDK/configuration and 148 CLI
 cases with race detection, after restoring exact SDK dependencies from the allowed
 official proxy. It corrects malformed STS output classification and makes negative

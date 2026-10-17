@@ -44,7 +44,7 @@ jobs:
           import hashlib, json
           from pathlib import Path
           source = json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())
-          assert len(source['sources']) == 361
+          assert len(source['sources']) == 371
           for item in source['sources']:
               raw = Path(item['path']).read_bytes()
               assert len(raw) == item['bytes']
@@ -86,7 +86,7 @@ jobs:
           assert len(groups) == 6 and sum(len(tops) for tops in groups.values()) == 10 and len(expected) == 86
           def check_sources():
               source = json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())
-              assert len(source['sources']) == 361
+              assert len(source['sources']) == 371
               for item in source['sources']:
                   raw = Path(item['path']).read_bytes()
                   assert len(raw) == item['bytes'] and hashlib.sha256(raw).hexdigest() == item['sha256'], item['path']
@@ -202,6 +202,9 @@ jobs:
       - name: Actual SDK protocol and credential boundary application checks
         timeout-minutes: 5
         run: go test -C services/platform -race -p=1 -count=1 -timeout=2m ./cloudreadiness ./preflight
+      - name: Read-only compiled PostgreSQL profile observation contracts
+        timeout-minutes: 2
+        run: go test -C services/platform -race -p=1 -count=1 -timeout=90s -run '^TestReadOnlyPreflightCurrentProfile$' ./migrations
       - name: Full CLI application regressions and explicit offline compatibility
         timeout-minutes: 3
         run: go test -C cmd/agentsecctl -race -p=1 -count=1 -timeout=2m ./...

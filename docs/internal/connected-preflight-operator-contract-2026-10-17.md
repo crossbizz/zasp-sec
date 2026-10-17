@@ -2,7 +2,7 @@
 
 This component observes intended AWS targets through official SDK APIs. It is
 not a launch acceptance receipt. Its current report always keeps readiness false
-because the original IRSA, OpenSearch, EKS/private network, Neon, Stytch and selected
+because the original IRSA, OpenSearch, EKS/private network and selected
 EC2 sensor checks are not all connected. Queue metadata does not prove send,
 receive or delete authority. S3/KMS metadata does not prove artifact write rights.
 
@@ -37,6 +37,32 @@ identity is checked before resource reads. It does not establish the remaining
 IRSA trust or Kubernetes binding observations. No permissions are installed.
 Secret values are transient and never reported. Mutable buffers are cleared;
 immutable Go/SDK strings cannot be guaranteed erased from memory.
+
+Optional `neon` config selects `credential_file`, `expected_host`,
+`expected_database`, `expected_principal` and compiled `profile_recipe`
+(`worker-v1` or `audit-identity-worker-v1`). The private credential JSON contains
+only `host`, `port` (5432), `database`, `user` and `password`. Host must be the exact
+Neon pooled endpoint; database and principal must match the intended values.
+Nonempty `PG*` environment settings are rejected before parsing; there is no
+service, passfile, host, TLS or credential fallback. The bounded pool verifies
+TLS hostname and authenticated principal, then uses a read-only transaction and
+fixed SELECTs for the complete compiled canonical61 and selected private78/79/80
+metadata. Missing schema before installation is `not_installed`, not current
+schema compatibility. No migration, DDL, role change or grant is performed.
+
+Optional `stytch` config selects fixed test/live `origin`, `credential_file`, exact
+`organization_id`, `member_id` and `member_session_id`. The private credential JSON
+contains only `project_id` and `secret`, matching the selected environment. The
+observer GETs the exact organization and the member's active sessions, requires
+the selected session and expiry, and never creates, exchanges, authenticates or
+renews a session. These provider observations do not establish product tenant
+enrollment or fresh product grants. Unknown optional vendor fields can be null;
+authority aliases, duplicate bindings and replacement sessions are rejected.
+
+Neon and Stytch use independent authorities and run before AWS credential early
+returns. Their success cannot clear another original prerequisite. Missing config
+stays explicitly unobserved. Actual provider credentials, metadata-read access,
+approved target bindings and working network routes remain prerequisites.
 
 Use `agentsecctl preflight evaluate --offline` for the original Boolean policy
 evaluator. Bare `preflight` retains this compatibility mode. Its report states

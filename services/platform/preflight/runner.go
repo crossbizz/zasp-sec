@@ -31,6 +31,9 @@ func (r *Runner) Run(ctx context.Context, mode string) (report Report, resultErr
 	}()
 	bounded, cancel := context.WithTimeout(ctx, 90*time.Second)
 	defer cancel()
+	// Independent authorities must be observed while this context is live,
+	// including when the selected AWS credentials or role are unavailable.
+	r.observeCoreDependencies(bounded, &report, CoreDependencies{Neon: r.config.Neon, Stytch: r.config.Stytch})
 	credentials, e := r.credentials(bounded)
 	if e != nil {
 		r.record(&report, "iam_role", false, "credentials_unavailable", "none", r.config.Credentials.ExpectedRoleARN, false)
