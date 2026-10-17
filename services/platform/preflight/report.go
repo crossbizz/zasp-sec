@@ -32,6 +32,9 @@ func initialReport(c Config, mode string) Report {
 		if disabled {
 			check.Status = "warn"
 		}
+		if r.name == "sqs" && c.SQSPermissions != nil {
+			check.PermissionDiagnostic = &SQSPermissionDiagnostic{Observation: Observation{Name: "sqs_identity_policy_simulation", Status: "unobserved", Kind: "unobserved", Code: "verified_authority_unavailable", IdentityKind: "none"}}
+		}
 		report.Checks = append(report.Checks, check)
 	}
 	return report

@@ -329,13 +329,13 @@ const pins = {
   "services/platform/agentsec-worker/discovery_dependencies.go": "e9d1b0ad9a59dce01fba6084e37c6b93e14622239dec628fbfed557b46c71df3",
   "services/platform/cloudreadiness/aws.go": "ec2f446982306fdb94d39f335d28b3821282e5fe4ec8d2d47ebef6b99453b399",
   "services/platform/preflight/aws_contract_test.go": "e205663ee2b2c7c1069c2c44ab16802b40c8df95d0e1a3abc3c93f16caf440f8",
-  "services/platform/preflight/config.go": "4e6f80c4489d7d840a102ebcbeb9d68335d8b25c2fee531d60639b2dc8233e97",
+  "services/platform/preflight/config.go": "10e40d4ae14946365f51fa5793e82c5babe8882e28d6e1814dbf37e02589f7b0",
   "services/platform/preflight/config_contract_test.go": "b79f34c209a7b3da41555204adb758bd36754739f97b594ae3f76ec5976f5408",
-  "services/platform/preflight/contract.go": "f949c0e365f5862f7f6776cc84ee8ae0d730c836cc58e71147dfd35905481759",
+  "services/platform/preflight/contract.go": "3aee5452c018494faa34a290091f97e2583482d3f151ace8d7802b40056f8a5c",
   "services/platform/preflight/credentials.go": "ebfc21b55848d42e3b843816aac327f172f27e613f8e3c1c82f8b5984e741ab2",
   "services/platform/preflight/failures.go": "f5fcaee92a7f9f72cb0a42a987b56bd1a7896cd328a2762258711fbb99aaf428",
-  "services/platform/preflight/report.go": "d8e69a39382179c3f1c71cc1c4548f15a81b85fd6352addd7de4c3072f823d4f",
-  "services/platform/preflight/runner.go": "17a8331d8ad3f1e6188bfb8f02f8462d52d6592e71c69cd5980069f8fde3b939",
+  "services/platform/preflight/report.go": "019afcb723e55a87df941a3cf66ae2924fb0c61abc8c7f0621993bb02cf58f86",
+  "services/platform/preflight/runner.go": "f83548416743db2f17fd2c57586cfbca2bd7f42cc8d97f3f7d89d3a68e622820",
   "services/platform/preflight/transport.go": "20365db0991b2302ccdc16e1066f2506113dbb9cb6b6ae6803e2349bd9f05d94",
   "services/platform/preflight/dependency_config.go": "053b2439e2b865c6d62a912a64bf32158e389a47c1a243950ac1f1154be7eb1f",
   "services/platform/preflight/dependency_runner.go": "62aa109d2feee90334b9eebcdb264b25426d81616feb3645d688cd2cae0bbd1b",
@@ -370,7 +370,7 @@ const pins = {
   "deploy/production/release-fixture.mjs": "e8ef3db8a8be4aeb1c7db20bfb90d36bb543a366d206a5477e05a0e469b2b88e",
   "services/sensor-agent/node_coverage_flow_test.go": "46e32d0cf9cf252d02ee09dd8a1df426ff0042171544b5d2b3b5e7b0b160cfa6",
   "services/sensor-agent/lineage_consumer_daemon.go": "0bc04b949222d0fda7e0e7930168ad52dfbdc73af3af201fa438fba37100adba",
-  "services/platform/preflight/aws_authority.go": "d2cddc6993299b25cf991067a488e5d1ea0de6e84e69f1b71dfba5a7fe361ca9",
+  "services/platform/preflight/aws_authority.go": "664b544d43ca0c040f586f956c8c5b119c00a9a929ad2cf9753ecc90cc410206",
   "services/platform/preflight/aws_authority_catalog.go": "1ab08ade8e14f2d8e247bd5667a775f917d039bb98eb3bdea1b0690cedef61d3",
   "services/platform/preflight/aws_authority_config.go": "2432b8b787b1a83d6a2e58c14248205c1e52d25d7364855f406961d3f5dd6f35",
   "services/platform/preflight/aws_authority_policy.go": "ff6a4cdb8f156e4c8d9ab0f0eae215e69abcc8d97478471f292cd2ab18147344",
@@ -416,12 +416,18 @@ const pins = {
   "services/platform/cloudreadiness/attack_lab_test.go": "c08172d0af15da1a96cf1dbb62b8e19563fef4aa51f2f7a8bef853ee8be32e92",
   "services/platform/agentsec-worker/attack_lab_kubernetes_api.go": "21c5a5d1aa686e62e1ad057f881c74715939ed8c4ffea07609a34c744b7ab1b4",
   "services/platform/preflight/attack_lab_failures.go": "7f30b4d666b7d5ff709d952e056ab03cca0224a10e28dffbc71e1223d545cb02",
-  "services/platform/preflight/attack_lab_mounted_recipe_test.go": "c4709e51167e00b415f4447b3506f2cd5c77c965ec2e5bc36efd7d9f6a8deb55"
+  "services/platform/preflight/attack_lab_mounted_recipe_test.go": "c4709e51167e00b415f4447b3506f2cd5c77c965ec2e5bc36efd7d9f6a8deb55",
+  "services/platform/preflight/sqs_permissions.go": "b0921127c71fbb56305f0a9861be754a526808c5c8f00601497aac232569fd6a",
+  "services/platform/preflight/sqs_permissions_flow_test.go": "2c37828e2b1537ce5a142eb5283e4799e650ea637bab3fcaa11115c8abb08549",
+  "services/platform/preflight/sqs_permissions_kubernetes.go": "a88367037fea53f0c4d63f5701ae1c63e6e85bfcea6a862cd4dae1fc70eb3560",
+  "services/platform/preflight/sqs_permissions_kubernetes_test.go": "12ac1ebc0d6c9bf19a88431fcd3bbe476ed379af2005ebcefbf00936cec8d35c",
+  "services/platform/preflight/sqs_permissions_mounted_test.go": "2045da335fb40f9093632ecdfbc3e76b5073eb0f64aca97272811f6b539587bf",
+  "services/platform/preflight/sqs_permissions_integration.go": "98d387048c3bccd89cb6f4648a0789a34d40356b3784a6a5b4dae2522d158dd8"
 };
 const top='TestConnectorMaintenanceAuthenticatedOAuthEnqueuePostgres';
 const cases=['genuine_same_transaction_origin_and_immutable_enrichment','rollback_removes_every_enqueue_and_provenance_write'];
 const helperPins={
-  "scripts/connector-acceptance-groups.test.mjs": "fff7b939e32c01abff67579488730d1ed1cba098063884683331f611e8005eeb",
+  "scripts/connector-acceptance-groups.test.mjs": "59573b593269d195f92f1ff3849f4075f953791899a73be684d1ece0c873eeed",
   "scripts/connector-acceptance-groups.mjs": "ab1f58397774edfd228cda738ac27d0b5e9d3d47cd939c231f02fb319a0dea32",
   "docs/internal/evidence/cloud-2026-10-07/native-service-readiness/openfga/09-pg-non-glibc-libs-manifest.json": "96642e82997ffd2caf2893a5ecc0116ad2aef6e982df2d929f3efda4e04f3474",
   "services/platform/apiserver/authorization_integration_mutations_postgres_test.go": "5e4beb04b2409ad9b11b89c017ada5e2eccffd78a87bdd5692d40670f12a2ba0",

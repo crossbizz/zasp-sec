@@ -170,7 +170,7 @@ func (r *Runner) inspectAWSAuthority(ctx context.Context, report *Report, c *AWS
 		return evidence
 	}
 	evidence.clusterVerified = true
-	if c.Fargate != nil {
+	if c.Fargate != nil || r.config.SQSPermissions != nil {
 		evidence.inspectionSDK = &sdk
 		evidence.inspectionRelease = capture.release
 		evidence.clusterSecurityGroupID = aws.ToString(cluster.Cluster.ResourcesVpcConfig.ClusterSecurityGroupId)

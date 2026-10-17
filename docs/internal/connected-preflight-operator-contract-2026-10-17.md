@@ -169,3 +169,26 @@ invented provider failure or timestamp. Fixed operation/target-digest failures
 never include provider bodies or credential values. Network enforcement and
 actual canary/cleanup remain unobserved; metadata cannot clear private networking,
 launch readiness or real Fargate scheduling acceptance.
+
+Optional `sqs_permissions` config pins only the expected immutable workload
+`image`. The diagnostic uses twelve fixed original role/queue/container/mode
+relationships; actions, queue URLs and resource lists cannot be supplied through
+this config. A selected role requires current same-exchange STS proof, cluster/
+ServiceAccount/Pod bindings and the actual container's literal queue environment.
+Unsupported roles remain unobserved and retain their original requirements.
+
+The same verified per-run inspector calls IAM SimulatePrincipalPolicy for the
+exact selected role and queue. Complete action and resource-specific results
+are required; missing context, contradictory boundary/organization details,
+foreign/duplicate/partial results or truncation are indeterminate. SDK batch
+operation names do not substitute for IAM permission names. Inspector simulation
+access is an explicit prerequisite; no policy or workload grant is installed.
+
+Results appear in `permission_diagnostic` within the original SQS check. A
+separate selected-workload observation records the actual Kubernetes credential
+kind. Local prerequisites never fabricate simulation dispatch or timestamps.
+Action-specific simulated denials are reported with bounded fixed remediation;
+provider bodies, tokens and credentials are excluded. Simulation Allow describes
+identity-policy evaluation only: resource/KMS policies, SCPs, sessions, network
+and actual send/receive/delete remain independently required. The diagnostic
+cannot pass `queue_permissions`, establish effective authority or clear readiness.

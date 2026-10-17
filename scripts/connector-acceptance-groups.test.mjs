@@ -486,7 +486,13 @@ test('retention connected sources retain the complete declared application closu
   "services/platform/cloudreadiness/attack_lab_test.go",
   "services/platform/agentsec-worker/attack_lab_kubernetes_api.go",
   "services/platform/preflight/attack_lab_failures.go",
-  "services/platform/preflight/attack_lab_mounted_recipe_test.go"
+  "services/platform/preflight/attack_lab_mounted_recipe_test.go",
+  "services/platform/preflight/sqs_permissions.go",
+  "services/platform/preflight/sqs_permissions_flow_test.go",
+  "services/platform/preflight/sqs_permissions_kubernetes.go",
+  "services/platform/preflight/sqs_permissions_kubernetes_test.go",
+  "services/platform/preflight/sqs_permissions_mounted_test.go",
+  "services/platform/preflight/sqs_permissions_integration.go"
 ];
   const compiled = JSON.parse(relative('.github/connector-native-compile-source-pins.json'));
   const compilePins = new Map(compiled.sources.map(item => [item.path, item]));

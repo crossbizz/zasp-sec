@@ -19,13 +19,16 @@ import (
 )
 
 func (r *Runner) Run(ctx context.Context, mode string) (Report, error) {
-	return r.runWithIdentityReader(ctx, mode, r.openAWSIdentityReader)
+	return r.runWithAuthorities(ctx, mode, r.openAWSIdentityReader, r.credentialsObserved)
 }
 
 // The public entry point always selects the real bound authority opener. This
 // private seam permits protocol tests of the same loop without relaxed target
 // validation, public injection, or shared mutable credential state.
-func (r *Runner) runWithIdentityReader(ctx context.Context, mode string, openIdentityReader func() (KubernetesIdentityReader, func())) (report Report, resultErr error) {
+func (r *Runner) runWithIdentityReader(ctx context.Context, mode string, openIdentityReader func() (KubernetesIdentityReader, func())) (Report, error) {
+	return r.runWithAuthorities(ctx, mode, openIdentityReader, r.credentialsObserved)
+}
+func (r *Runner) runWithAuthorities(ctx context.Context, mode string, openIdentityReader func() (KubernetesIdentityReader, func()), loadCredentials func(context.Context) (aws.Credentials, *awsWebIdentityProof, error)) (report Report, resultErr error) {
 	if r == nil || r.http == nil || ctx == nil || !validConfig(r.config) || (mode != "before-install" && mode != "installed") {
 		return Report{}, ErrRejected
 	}
@@ -53,7 +56,7 @@ func (r *Runner) runWithIdentityReader(ctx context.Context, mode string, openIde
 	defer r.finishAWSAuthority(&report, authority)
 	r.observeAttackLabConfiguration(bounded, &report, authority, identityReader)
 	searchDomain := r.observeOpenSearchDomain(bounded, &report)
-	credentials, exchangeProof, e := r.credentialsObserved(bounded)
+	credentials, exchangeProof, e := loadCredentials(bounded)
 	if e != nil {
 		r.record(&report, "iam_role", false, "credentials_unavailable", "none", r.config.Credentials.ExpectedRoleARN, false)
 		return report, ErrRejected
@@ -84,6 +87,7 @@ func (r *Runner) runWithIdentityReader(ctx context.Context, mode string, openIde
 		return report, ErrRejected
 	}
 	r.observeSelectedAWSBinding(bounded, &report, r.config.AWSAuthority, authority, exchangeProof, identityReader)
+	r.observeSQSQueuePermissions(bounded, &report, authority, exchangeProof, identityReader)
 	r.observeOpenSearchSchemas(bounded, &report, sdk, authority, exchangeProof, identityReader, searchDomain)
 	r.buckets(bounded, &report, sdk, identity)
 	r.secrets(bounded, &report, sdk, identity)
