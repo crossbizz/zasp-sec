@@ -79,6 +79,8 @@ func TestConnectorMaintenancePKCERestartRecoveryPostgres(t *testing.T) {
 	}
 	config.ConnConfig.User = "auth80_outbox"
 	config.MaxConns = 3
+	observation := &pkceNativeObservation{}
+	config.ConnConfig.Tracer = observation
 	workerPool, err := pgxpool.NewWithConfig(f.ctx, config)
 	if err != nil {
 		t.Fatal("native worker pool refused")
@@ -206,11 +208,16 @@ func TestConnectorMaintenancePKCERestartRecoveryPostgres(t *testing.T) {
 			t.Fatal("reservation consumed an attempt")
 		}
 		providerDeadline := lease.LeaseExpiresAt.Add(-2100 * time.Millisecond)
+		observation.start(lease.LeaseExpiresAt, providerDeadline)
 		if err := original.finishPreparation(f.ctx, lease, ErrRepositoryUnavailable, providerDeadline); err != nil {
+			for _, line := range observation.stop() {
+				t.Log(line)
+			}
 			t.Log("connector preparation stage=" + connectorPreparationFailureStage(err))
 			t.Log(connectorMaintenanceFailureObservation(f.ctx, lease, providerDeadline, "preparation-finish", err))
 			t.Fatal("genuine live preparation failure could not record finite attempt")
 		}
+		observation.stop() // Successful paths emit no diagnostic records.
 		failed, ok := original.reservation(nativeConnectorKey(lease))
 		if !ok || failed.lease.Attempt != 1 || len(failed.captured) == 0 {
 			t.Log(connectorMaintenanceFailureObservation(f.ctx, lease, providerDeadline, "preparation-finish", ErrRepositoryUnavailable))

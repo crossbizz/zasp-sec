@@ -31,7 +31,7 @@ func TestRetainedWriteValidatesWholeArchiveBeforePartition(t *testing.T) {
 				}
 				return map[string]bool{ids[0]: !expired}, nil
 			})
-			store, err := NewRetained(driver, Config{MaximumBatchBytes: 1 << 20, MaximumDocuments: 1000}, gate)
+			store, err := NewRetained(retainedTestDriver{driver}, Config{MaximumBatchBytes: 1 << 20, MaximumDocuments: 1000}, gate)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -83,7 +83,7 @@ func TestRetainedWriteMixedBatchKeepsWholeReceiptAndExplicitPartition(t *testing
 		}
 		return map[string]bool{ids[0]: false, ids[1]: true}, nil
 	})
-	store, err := NewRetained(driver, Config{MaximumBatchBytes: 1 << 20, MaximumDocuments: 1000}, gate)
+	store, err := NewRetained(retainedTestDriver{driver}, Config{MaximumBatchBytes: 1 << 20, MaximumDocuments: 1000}, gate)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,5 +91,22 @@ func TestRetainedWriteMixedBatchKeepsWholeReceiptAndExplicitPartition(t *testing
 	out, err := store.Apply(context.Background(), input)
 	if err != nil || len(out.DocumentIDs) != 2 || driver.calls != 1 || len(driver.input.Documents) != 1 || driver.input.ContentDigest != out.ContentDigest || out.Retention == nil || len(out.Retention.WrittenDocumentIDs) != 1 || len(out.Retention.SuppressedDocumentIDs) != 1 || out.Retention.WrittenDocumentIDs[0] != driver.input.Documents[0].DocumentID {
 		t.Fatal("mixed source receipt/provider partition inconsistent", err)
+	}
+}
+
+// This explicit fixture capability models an already terminal provider result;
+// ordinary driverStub remains a legacy driver and cannot silently opt in.
+type retainedTestDriver struct{ *driverStub }
+
+func (d retainedTestDriver) ApplyRetained(ctx context.Context, input DriverBatch) (DriverResult, error) {
+	return d.driverStub.Apply(ctx, input)
+}
+func TestRetainedWriteRequiresExplicitTerminalDriver(t *testing.T) {
+	gate := retainedWriteGate(func(context.Context, domain.Scope, []string) (map[string]bool, error) {
+		t.Fatal("constructor reached authority without retained capability")
+		return nil, nil
+	})
+	if store, err := NewRetained(&driverStub{}, Config{MaximumBatchBytes: 1 << 20, MaximumDocuments: 1000}, gate); store != nil || err != ErrConfiguration {
+		t.Fatal("normal driver silently supplied retained terminal authority")
 	}
 }

@@ -136,6 +136,11 @@ func (index *SessionIndex) applyProfile(ctx context.Context, binding sessionsear
 	}
 	path := "/" + index.indexName() + "/_bulk?refresh=wait_for&timeout=" + strconv.Itoa(int(index.transport.config.RequestTimeout/time.Second)) + "s"
 	result, writeErr := index.transport.request(ctx, http.MethodPost, path, "application/x-ndjson", body.Bytes(), true)
+	// A matching document and refresh cannot prove that an ambiguously
+	// acknowledged bulk has stopped. Leave its original admissions unsettled.
+	if index.retentionWrite != nil && (writeErr != nil || !retainedBulkTerminal(result, index.indexName(), ids)) {
+		return SessionWriteResult{}, runtimeindex.ErrUnknownOutcome
+	}
 	if writeErr == nil && result.status != http.StatusOK {
 		if err := classifyStatus(result.status, true); err == runtimeindex.ErrDenied || err == runtimeindex.ErrRejected {
 			return SessionWriteResult{}, err

@@ -55,7 +55,15 @@ END $preimages$;
 -- row. Canonical receipts, duplicate IDs, whole receipt IDs and native leases
 -- stay in the complete original bodies. Unexpected constraint families refuse.
 DO $validator$ DECLARE conditions text;predicate text;r record;d text;BEGIN
- IF EXISTS(SELECT 1 FROM pg_constraint WHERE conrelid='public.zasp_runtime_session_events'::regclass AND contype NOT IN('c','p')) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='retention runtime constraint family changed';END IF;
+ -- PostgreSQL 18 also catalogs column NOT NULL constraints. Accept only
+ -- their exact live attnotnull column; the validator below retains its check.
+ IF EXISTS(SELECT 1 FROM pg_constraint c WHERE c.conrelid='public.zasp_runtime_session_events'::regclass AND(
+  c.contype NOT IN('c','p','n') OR(c.contype='n' AND(
+   cardinality(c.conkey) IS DISTINCT FROM 1 OR NOT EXISTS(
+    SELECT 1 FROM pg_attribute a WHERE a.attrelid=c.conrelid AND a.attnum=c.conkey[1] AND a.attnum>0 AND NOT a.attisdropped AND a.attnotnull
+   )
+  ))
+ )) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='retention runtime constraint family changed';END IF;
  SELECT string_agg(format('%I IS NOT NULL',attname),' AND ' ORDER BY attnum) INTO conditions FROM pg_attribute WHERE attrelid='public.zasp_runtime_session_events'::regclass AND attnum>0 AND NOT attisdropped AND attnotnull;
  FOR r IN SELECT pg_get_expr(conbin,conrelid) expression FROM pg_constraint WHERE conrelid='public.zasp_runtime_session_events'::regclass AND contype='c' ORDER BY conname LOOP
   conditions:=conditions||' AND COALESCE(('||r.expression||'),true)';

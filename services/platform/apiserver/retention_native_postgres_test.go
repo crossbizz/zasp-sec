@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/zasp-ai/zasp-sec/services/platform/authorization"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
@@ -592,6 +594,58 @@ type retentionObservedMigrationTransaction struct {
 	t *testing.T
 }
 
+// Classify only exact fixed installer guards; dependency text never leaves this
+// function. SQLSTATE alone cannot distinguish these authority-definition guards.
+func retentionInstallerRefusalClass(err error) string {
+	var pgerr *pgconn.PgError
+	if !errors.As(err, &pgerr) || pgerr == nil || pgerr.Code != "55000" {
+		return "other"
+	}
+	switch pgerr.Message {
+	case "retention exact source anchor changed":
+		return "source-anchor"
+	case "retention exact Audit preimage closure required":
+		return "preimage-closure"
+	case "retention runtime constraint family changed":
+		return "constraint-family"
+	case "retention original source owner required":
+		return "original-source-owner"
+	default:
+		return "other"
+	}
+}
+
+func TestRetentionInstallerRefusalClassification(t *testing.T) {
+	guards := []struct{ message, class string }{
+		{"retention exact source anchor changed", "source-anchor"},
+		{"retention exact Audit preimage closure required", "preimage-closure"},
+		{"retention runtime constraint family changed", "constraint-family"},
+		{"retention original source owner required", "original-source-owner"},
+	}
+	for _, guard := range guards {
+		for _, wrapped := range []bool{false, true} {
+			var err error = &pgconn.PgError{Code: "55000", Message: guard.message, Where: "untrusted dependency context"}
+			if wrapped {
+				err = fmt.Errorf("untrusted wrapper: %w", err)
+			}
+			if got := retentionInstallerRefusalClass(err); got != guard.class {
+				t.Fatalf("fixed refusal classification mismatch: got %q; want %q", got, guard.class)
+			}
+		}
+	}
+	var typedNil *pgconn.PgError
+	for _, err := range []error{
+		nil, typedNil, errors.New(guards[0].message),
+		&pgconn.PgError{Code: "42501", Message: guards[0].message},
+		&pgconn.PgError{Code: "55000", Message: guards[0].message + " untrusted suffix"},
+		&pgconn.PgError{Code: "55000", Message: "untrusted dependency detail", Where: guards[0].message},
+	} {
+		if got := retentionInstallerRefusalClass(err); got != "other" {
+			t.Fatalf("non-allowlisted refusal classification: got %q", got)
+		}
+	}
+}
+
 func retentionObserveFailure(t *testing.T, phase string, err error) {
 	t.Helper()
 	switch phase {
@@ -599,6 +653,9 @@ func retentionObserveFailure(t *testing.T, phase string, err error) {
 		t.Log("connector fixture stage=" + phase)
 	}
 	if err != nil {
+		if phase == "retention-definitions" {
+			t.Log("connector fixture stage=retention-refusal-" + retentionInstallerRefusalClass(err))
+		}
 		connectorFixtureErrorDiagnostic(t, err)
 	}
 }

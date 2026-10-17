@@ -15,6 +15,7 @@ import (
 	"net/url"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -67,6 +68,7 @@ type Driver struct {
 }
 
 var _ runtimeindex.Driver = (*Driver)(nil)
+var _ runtimeindex.RetainedDriver = (*Driver)(nil)
 
 func New(config Config, credentials aws.CredentialsProvider, signer HTTPSigner, clock func() time.Time) (*Driver, error) {
 	endpoint, err := validateConfig(config, credentials, signer, clock)
@@ -249,6 +251,17 @@ type multiGetResponse struct {
 }
 
 func (driver *Driver) Apply(ctx context.Context, input runtimeindex.DriverBatch) (runtimeindex.DriverResult, error) {
+	return driver.apply(ctx, input, false)
+}
+
+// ApplyRetained requires an observed complete terminal bulk response before
+// readback can contribute to a retained partition. It does not resolve earlier
+// unknown requests or manufacture durable terminal evidence.
+func (driver *Driver) ApplyRetained(ctx context.Context, input runtimeindex.DriverBatch) (runtimeindex.DriverResult, error) {
+	return driver.apply(ctx, input, true)
+}
+
+func (driver *Driver) apply(ctx context.Context, input runtimeindex.DriverBatch, requireTerminal bool) (runtimeindex.DriverResult, error) {
 	if ctx == nil || ctx.Err() != nil || !validInput(input) {
 		if ctx != nil && ctx.Err() != nil {
 			return runtimeindex.DriverResult{}, runtimeindex.ErrCanceled
@@ -261,6 +274,15 @@ func (driver *Driver) Apply(ctx context.Context, input runtimeindex.DriverBatch)
 	}
 	query := url.Values{"refresh": {"wait_for"}, "timeout": {fmt.Sprintf("%ds", int(driver.config.RequestTimeout/time.Second))}}
 	result, err := driver.request(ctx, http.MethodPost, "/"+indexName+"/_bulk?"+query.Encode(), "application/x-ndjson", body, true)
+	if requireTerminal {
+		ids := make([]string, len(input.Documents))
+		for i, document := range input.Documents {
+			ids[i] = document.DocumentID
+		}
+		if err != nil || !retainedBulkTerminal(result, indexName, ids) {
+			return runtimeindex.DriverResult{}, runtimeindex.ErrUnknownOutcome
+		}
+	}
 	if err != nil {
 		if errors.Is(err, runtimeindex.ErrUnknownOutcome) {
 			return driver.reconcile(ctx, input, expected)
@@ -438,4 +460,98 @@ func nilInterface(value any) bool {
 	default:
 		return false
 	}
+}
+
+// Readback cannot establish that a previously accepted write has stopped. Only
+// the complete ordered response for this exact request permits reconciliation.
+func retainedBulkTerminal(result response, index string, ids []string) bool {
+	if result.status != http.StatusOK || len(ids) == 0 {
+		return false
+	}
+	var decoded struct {
+		Errors *bool `json:"errors"`
+		Took   *int  `json:"took"`
+		Items  []struct {
+			Create *struct {
+				Index       string `json:"_index"`
+				ID          string `json:"_id"`
+				Version     *int   `json:"_version,omitempty"`
+				Result      string `json:"result,omitempty"`
+				Status      int    `json:"status"`
+				Sequence    *int64 `json:"_seq_no,omitempty"`
+				PrimaryTerm *int64 `json:"_primary_term,omitempty"`
+				Shards      *struct {
+					Total      *int `json:"total"`
+					Successful *int `json:"successful"`
+					Failed     *int `json:"failed"`
+				} `json:"_shards,omitempty"`
+				ForcedRefresh *bool                  `json:"forced_refresh,omitempty"`
+				Error         *retainedConflictError `json:"error,omitempty"`
+			} `json:"create"`
+		} `json:"items"`
+	}
+	if decodeSessionResponse(result.body, &decoded) != nil || decoded.Errors == nil || decoded.Took == nil || *decoded.Took < 0 || len(decoded.Items) != len(ids) {
+		return false
+	}
+	conflict := false
+	for i, item := range decoded.Items {
+		v := item.Create
+		if v == nil || v.Index != index || v.ID != ids[i] {
+			return false
+		}
+		switch v.Status {
+		case http.StatusCreated:
+			if v.Error != nil || v.Version == nil || *v.Version != 1 || v.Result != "created" || v.Sequence == nil || *v.Sequence < 0 || v.PrimaryTerm == nil || *v.PrimaryTerm < 1 || v.Shards == nil || v.Shards.Total == nil || *v.Shards.Total < 1 || v.Shards.Successful == nil || (*v.Shards.Successful < 1 || *v.Shards.Successful > *v.Shards.Total) || v.Shards.Failed == nil || *v.Shards.Failed != 0 {
+				return false
+			}
+		case http.StatusConflict:
+			if !validRetainedConflict(v.Error, index) || v.Result != "" {
+				return false
+			}
+			conflict = true
+		default:
+			return false
+		}
+	}
+	return *decoded.Errors == conflict
+}
+
+// Conflict metadata has a closed retained-only shape; the ordinary driver keeps
+// its historical decoder and reconciliation behavior.
+type retainedConflictError struct {
+	Type      string          `json:"type"`
+	Reason    string          `json:"reason"`
+	Index     json.RawMessage `json:"index,omitempty"`
+	IndexUUID json.RawMessage `json:"index_uuid,omitempty"`
+	Shard     json.RawMessage `json:"shard,omitempty"`
+}
+
+func validRetainedConflict(value *retainedConflictError, index string) bool {
+	if value == nil || value.Type != "version_conflict_engine_exception" {
+		return false
+	}
+	if len(value.Index) > 0 {
+		var supplied string
+		if json.Unmarshal(value.Index, &supplied) != nil || supplied != index {
+			return false
+		}
+	}
+	if len(value.IndexUUID) > 0 {
+		var supplied string
+		if json.Unmarshal(value.IndexUUID, &supplied) != nil || len(supplied) < 1 || len(supplied) > 128 || !versionPattern.MatchString(supplied) {
+			return false
+		}
+	}
+	if len(value.Shard) > 0 {
+		// OpenSearch commonly renders the shard integer as a decimal string.
+		text := string(value.Shard)
+		if strings.HasPrefix(text, `"`) && json.Unmarshal(value.Shard, &text) != nil {
+			return false
+		}
+		shard, err := strconv.ParseUint(text, 10, 32)
+		if err != nil || strconv.FormatUint(shard, 10) != text {
+			return false
+		}
+	}
+	return true
 }

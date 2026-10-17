@@ -36,11 +36,29 @@ type RetainedWriteAuthority interface {
 	RecordRetainedWrite(context.Context, RetainedWriteReceipt) error
 }
 
+// RetainedDriver guarantees that a mutation with an ambiguous acknowledgement
+// cannot become successful merely because matching documents can be read back.
+// Historical drivers preserve their existing reconciliation contract.
+type RetainedDriver interface {
+	Driver
+	ApplyRetained(context.Context, DriverBatch) (DriverResult, error)
+}
+
+type retainedDriverAdapter struct{ driver RetainedDriver }
+
+func (d retainedDriverAdapter) Apply(ctx context.Context, input DriverBatch) (DriverResult, error) {
+	return d.driver.ApplyRetained(ctx, input)
+}
+
 func NewRetained(driver Driver, config Config, authority RetainedWriteAuthority) (*Store, error) {
 	if nilInterface(driver) || nilInterface(authority) {
 		return nil, ErrConfiguration
 	}
-	return New(&retainedWriteDriver{driver: driver, authority: authority}, config)
+	retained, ok := driver.(RetainedDriver)
+	if !ok || nilInterface(retained) {
+		return nil, ErrConfiguration
+	}
+	return New(&retainedWriteDriver{driver: retainedDriverAdapter{driver: retained}, authority: authority}, config)
 }
 
 type retainedWriteDriver struct {

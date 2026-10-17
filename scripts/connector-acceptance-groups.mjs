@@ -159,7 +159,19 @@ export function validateConnectorAcceptanceTrace(rows, selected) {
 export function parseConnectorNativeObservation(output) {
   if (typeof output !== 'string' || Buffer.byteLength(output) > 16384) return null;
   const line = output.replace(/^[ \t]*[a-z_]+\.go:[0-9]{1,6}: /, '').replace(/\n$/, '');
-  let match = /^connector cutover prepare stage=(invalid|live-before|model-read|live-after|deadline|unknown)$/.exec(line);
+  let match = /^connector pkce budget initial_lease_ms=([0-9]{1,6}) initial_provider_ms=([0-9]{1,6}) lease_live=(true|false) provider_live=(true|false)$/.exec(line);
+  if (match) {
+    const [lease, provider] = match.slice(1,3).map(Number);
+    if (lease > 120000 || provider > lease || (match[3] === 'false' && match[4] === 'true')) return null;
+    return {kind: 'pkce-budget', value: {initialLeaseMS: lease, initialProviderMS: provider, leaseLive: match[3] === 'true', providerLive: match[4] === 'true'}};
+  }
+  match = /^connector pkce phase=(pool-acquire|tx-begin|set-role|source|revision|begin-attempt|commit|rollback) count=([0-9]{1,2}) elapsed_ms=([0-9]{1,6}) max_ms=([0-9]{1,6}) failed=(true|false) context_done=(true|false) deadline=(true|false) canceled=(true|false) SQLSTATE=(none|[0-9A-Z]{5}) capped=(true|false)$/.exec(line);
+  if (match) {
+    const [count, elapsed, maximum] = match.slice(2,5).map(Number);
+    if (count < 1 || count > 16 || elapsed > 120000 || maximum > elapsed) return null;
+    return {kind: 'pkce-phase', value: {phase: match[1], count, elapsedMS: elapsed, maxMS: maximum, failed: match[5] === 'true', contextDone: match[6] === 'true', deadline: match[7] === 'true', canceled: match[8] === 'true', sqlState: match[9], capped: match[10] === 'true'}};
+  }
+  match = /^connector cutover prepare stage=(invalid|live-before|model-read|live-after|deadline|unknown)$/.exec(line);
   if (match) return {kind: 'cutover', stage: match[1]};
   match = /^connector cutover activation stage=(invalid|permit|deadline|old-credential|writer-absence|new-model|sql-begin|sql-role|sql-lock|sql-baseline|sql-activation|sql-result|sql-commit|unknown)$/.exec(line);
   if (match) return {kind: 'activation', stage: match[1]};

@@ -128,3 +128,7 @@ func TestRetentionIndexActualExecutorRequiresPrivateLeaseAndDurablePartition(t *
 		})
 	}
 }
+
+func (d *retentionProviderDriverFixture) ApplyRetained(ctx context.Context, input runtimeindex.DriverBatch) (runtimeindex.DriverResult, error) {
+	return d.Apply(ctx, input)
+}

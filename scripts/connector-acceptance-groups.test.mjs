@@ -144,6 +144,14 @@ test('actual hosted refusal notice emits fixed fields without reflecting rejecte
 });
 
 test('native observations expose only bounded closed catalog and cutover fields', () => {
+  const budget = 'connector pkce budget initial_lease_ms=9000 initial_provider_ms=6900 lease_live=true provider_live=true';
+  assert.deepEqual(observation(budget), {kind: 'pkce-budget', value: {initialLeaseMS: 9000, initialProviderMS: 6900, leaseLive: true, providerLive: true}});
+  const phase = 'connector pkce phase=begin-attempt count=2 elapsed_ms=500 max_ms=400 failed=true context_done=true deadline=true canceled=false SQLSTATE=57014 capped=false';
+  assert.deepEqual(observation(phase), {kind: 'pkce-phase', value: {phase: 'begin-attempt', count: 2, elapsedMS: 500, maxMS: 400, failed: true, contextDone: true, deadline: true, canceled: false, sqlState: '57014', capped: false}});
+  assert.equal(observation(phase.replace('context_done=true', 'context_done=false')).value.deadline, true);
+  assert.equal(observation(phase.replace('canceled=false', 'canceled=true')).value.canceled, true);
+  for (const name of ['pool-acquire', 'tx-begin', 'set-role', 'source', 'revision', 'begin-attempt', 'commit', 'rollback']) assert.equal(observation(phase.replace('phase=begin-attempt', 'phase='+name)).value.phase, name);
+  for (const input of [budget+' PRIVATE_CANARY', budget+'\nPRIVATE_CANARY', budget.replace('9000', '120001'), budget.replace('lease_live=true', 'lease_live=false'), phase+' PRIVATE_CANARY', phase+'\nPRIVATE_CANARY', phase.replace('begin-attempt', 'PRIVATE_CANARY'), phase.replace('count=2', 'count=0'), phase.replace('count=2', 'count=17'), phase.replace('500', '120001'), phase.replace('max_ms=400', 'max_ms=501'), phase.replace('57014', 'private_payload')]) assert.equal(observation(input), null);
   const payload='approval payload observation stage=payload-load outcome=denied parent_live=true lease_live=true provider_live=true';
   assert.deepEqual(observation(payload), {kind:'approval-payload',value:{stage:'payload-load',outcome:'denied',parentLive:true,leaseLive:true,providerLive:true}});
   for(const outcome of ['context-deadline','context-canceled','lease-margin','denied','unavailable','other-error','run-mismatch']) assert.equal(observation(payload.replace('outcome=denied','outcome='+outcome)).value.outcome,outcome);
@@ -360,6 +368,8 @@ test('retention connected sources retain the complete declared application closu
   "services/platform/apiserver/runtime_sessions_postgres_test.go",
   "services/platform/apiserver/security_agent_temporal_automatic_sources_postgres_test.go",
   "services/platform/apiserver/retention_index_native_acceptance_test.go",
+  "services/platform/runtimeindex/opensearchdriver/retained_terminal_flow_test.go",
+  "services/platform/apiserver/connector_maintenance_pkce_observation_test.go",
   "deploy/staging/iam-policy-union-v1.mjs",
   "deploy/staging/iam-policy-union-v1.test.mjs",
   "deploy/staging/tests/session_search_iam.tftest.hcl",
@@ -383,7 +393,7 @@ test('retention connected sources retain the complete declared application closu
 });
 
 test('native retention installer diagnostics retain only bounded declared stages', () => {
-  const expected = ["retention-lock", "retention-role", "retention-parent", "retention-namespace", "retention-bridges", "retention-definitions", "retention-registration", "retention-ready", "retention-commit", "retention-parent-binding", "retention-parent-membership", "retention-parent-canonical", "retention-parent-source-owners", "retention-parent-worker-catalog", "retention-parent-worker-pin", "retention-parent-runtime-catalog", "retention-parent-runtime-pin", "retention-parent-authorization"];
+  const expected = ["retention-lock", "retention-role", "retention-parent", "retention-namespace", "retention-bridges", "retention-definitions", "retention-registration", "retention-ready", "retention-commit", "retention-parent-binding", "retention-parent-membership", "retention-parent-canonical", "retention-parent-source-owners", "retention-parent-worker-catalog", "retention-parent-worker-pin", "retention-parent-runtime-catalog", "retention-parent-runtime-pin", "retention-parent-authorization", "retention-refusal-source-anchor", "retention-refusal-preimage-closure", "retention-refusal-constraint-family", "retention-refusal-original-source-owner", "retention-refusal-other"];
   for (const name of ['hosted-connected-connector-acceptance.mjs', 'hosted-connector-authenticated-enqueue.mjs']) {
     const source = fs.readFileSync(new URL(name, import.meta.url), 'utf8');
     const stages = JSON.parse(source.match(/const fixedStages=(\[[^\n]*?\]);const locations/)[1]);
@@ -391,5 +401,9 @@ test('native retention installer diagnostics retain only bounded declared stages
     for (const label of expected) assert.ok(stages.includes(label), label);
     assert.ok(!stages.includes('retention-PRIVATE_CANARY'));
     assert.ok(source.includes('fixedStages.includes(match[1])&&diagnostic.fixtureStages.length<32'));
+    assert.ok(source.includes("observed?.kind==='pkce-budget'&&diagnostic.pkceBudget===null"));
+    assert.ok(source.includes("observed?.kind==='pkce-phase'&&diagnostic.pkcePhases.length<8"));
+    assert.ok(source.includes('!diagnostic.pkcePhases.some(value=>value.phase===observed.value.phase)'));
+    assert.ok(source.includes("'; pkceBudget='+JSON.stringify(diagnostic.pkceBudget)+'; pkcePhases='+JSON.stringify(diagnostic.pkcePhases)"));
   }
 });

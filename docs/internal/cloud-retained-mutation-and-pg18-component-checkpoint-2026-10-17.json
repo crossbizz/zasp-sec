@@ -1,0 +1,178 @@
+{
+  "observed_at": "2026-10-17T04:26:49.763197+00:00",
+  "source_base": "d3dcf00d042946370a903bac7d2dbaecc27de3a7",
+  "scope": "Retained-only mutation acknowledgement barrier, PostgreSQL18 NOT NULL catalog compatibility and bounded native refusal observations",
+  "changed_sources": [
+    {
+      "path": ".github/connector-native-compile-source-pins.json",
+      "sha256": "3a5c3339897c50b18c66d3da7e357efa71bf8f0f1c9f4183a9ae3bc74386f063",
+      "bytes": 101583
+    },
+    {
+      "path": ".github/workflows/connector-native-draft-compile.yml",
+      "sha256": "c59a11b00d1f4d6cdca8976321e85c67fa76605fdf27c7365edbbb9d517676f1",
+      "bytes": 12497
+    },
+    {
+      "path": "scripts/connector-acceptance-groups.mjs",
+      "sha256": "29cfe9e6936f86c97f3f8e8d4093a9d0f77297f8360c6e95184c542f4c09f8a7",
+      "bytes": 13382
+    },
+    {
+      "path": "scripts/connector-acceptance-groups.test.mjs",
+      "sha256": "adf598fae0f5cbc97ddabf3d2821f2e24e6c2583d4b535bfedbca60a9aa2214a",
+      "bytes": 33889
+    },
+    {
+      "path": "scripts/hosted-connected-connector-acceptance.mjs",
+      "sha256": "6ae2533a247966f6a75a6c174ab0e8d8d31e648adeed11fefd1161653657abb9",
+      "bytes": 75538
+    },
+    {
+      "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
+      "sha256": "286ec3ea0056f4b93c93624dc9ebf4a544dec89100131c224b399636ac6bbb42",
+      "bytes": 71980
+    },
+    {
+      "path": "services/platform/agentsec-worker/retention_runtime_index_test.go",
+      "sha256": "7759330963b776b4ef2a1934064cd37dccaf6db8efeb8515c3d11e2cd43076dc",
+      "bytes": 5461
+    },
+    {
+      "path": "services/platform/apiserver/connector_maintenance_pkce_recovery_test.go",
+      "sha256": "38dae368b3cdc7aeca83b48cd84c57a3ce6712c120cbab4152fe84f2da30b321",
+      "bytes": 21283
+    },
+    {
+      "path": "services/platform/apiserver/retention_native_postgres_test.go",
+      "sha256": "a015ceb77a7ccfcbaeaf91fc35478444a5f000535c4802a70eebc0bda0516c75",
+      "bytes": 39695
+    },
+    {
+      "path": "services/platform/migrations/sql/retention_successor.sql",
+      "sha256": "d1cfad551006cb1768dff15cae27cd8547e1e10ada41ce78b0417cbd98add1b1",
+      "bytes": 18245
+    },
+    {
+      "path": "services/platform/runtimeindex/opensearchdriver/driver.go",
+      "sha256": "acfca6f0a47bfb1c5ab3c4aa2a585ae87706973b611ec4e1c2ef026447fd1ae5",
+      "bytes": 21449
+    },
+    {
+      "path": "services/platform/runtimeindex/opensearchdriver/session_write.go",
+      "sha256": "9754769d5388bb68c34f6b8e1c19c92638f6b07dc883f8d5ed38592caea08fd5",
+      "bytes": 8631
+    },
+    {
+      "path": "services/platform/runtimeindex/retained_write.go",
+      "sha256": "a47c63824ff9148d97ba8b6ac16159e56d1c4c379e5756f0eb954e85e5ba6001",
+      "bytes": 4921
+    },
+    {
+      "path": "services/platform/runtimeindex/retained_write_test.go",
+      "sha256": "2734856464d89488d751da5841e27abee9299163ed7abcf65a98f1096b08c7a0",
+      "bytes": 4766
+    },
+    {
+      "path": "services/platform/apiserver/connector_maintenance_pkce_observation_test.go",
+      "sha256": "9fe70cedf86e4053e0515fb761a7206b5918b9a3cb05cacd969cab575b1238b0",
+      "bytes": 9684
+    },
+    {
+      "path": "services/platform/runtimeindex/opensearchdriver/retained_terminal_flow_test.go",
+      "sha256": "46407cd75e08e8726de360a80376d085f400dcd86d344b5018fa42b1465554d6",
+      "bytes": 8630
+    }
+  ],
+  "source_custody": {
+    "receipt": "/tmp/retained-terminal-pg18-combined-source-freeze-20261017.json",
+    "sha256": "373493070d5d907c65096f818ddc4919f7cfaec85b752c7cae9d04b58dc6a8c6",
+    "compiler_sources": 328,
+    "declared_sources": 332,
+    "original326_retained": true,
+    "native_groups": 14,
+    "native_named_cases": 78,
+    "postgres_joins": 24,
+    "primary_pins": [
+      302,
+      291
+    ],
+    "helpers_each": 11
+  },
+  "validation": {
+    "sdk": {
+      "final_named_pass": 149,
+      "fail": 0,
+      "native_skip": 1,
+      "flow_children": 48,
+      "older442_pass_group": "Predecessor before two reviewed compatibility refinements; preserved, not additive or final-tree proof"
+    },
+    "new_recipe_components": {
+      "migrations_pass": 7,
+      "cli_pass": 4,
+      "apiserver_pass": 22,
+      "apiserver_native_skip": 1,
+      "worker_pass": 51,
+      "final_component_command_exits": 0
+    },
+    "cli": {
+      "build_exit": 0,
+      "offline_checksum_exit": 0,
+      "profile_checksum": "b0478f732810e15a687aef676a6173e7822c231b436637bb0de9a2a8199f59c2"
+    },
+    "source_guards": {
+      "existing_node_cases_pass": 14,
+      "actual_workflow_328_source_guard_exit": 0
+    },
+    "ui": {
+      "typecheck_exit": 0,
+      "production_build_exit": 0,
+      "frozen_inputs": 376
+    },
+    "failures_retained": [
+      "Witnessed33 ambiguous flow RED children plus parent failure",
+      "First16KiB-truncated Go JSON stream, exit not persisted by wrapper: not accepted",
+      "Final-recipe worker build failed no space before running any tests, then bounded verified-copy trim and successful51-case retry",
+      "Earlier broad UI240s timeout remains not accepted; targeted checks do not establish full-suite success"
+    ]
+  },
+  "independent_source_reviews": [
+    "/tmp/retention-terminal-flow-final-independent-review-20261017.json",
+    "/tmp/retention-pg18-successor-compatibility-independent-review-20261017.json",
+    "/tmp/native-pkce-and-retention-diagnostics-three-source-independent-review-20261017.json",
+    "/tmp/retained-terminal-pg18-intake-custody-six-source-independent-review-20261017.json"
+  ],
+  "ledger": {
+    "rows": 728,
+    "unique_ids": 728,
+    "class_counts": {
+      "production-available": 523,
+      "component-only": 144,
+      "blocked/external": 61
+    },
+    "availability_promotions": 0,
+    "evidence_suffix_ids": [
+      "M3-24",
+      "M7-19",
+      "M7-26"
+    ],
+    "previous_sha256": "fbe98f64ef4aba7857148d4ab97f0b683e31f8950f3b09688886590cc5a592eb",
+    "new_sha256": "d223e4206511b441e3aa7290b22d1ec7ddd20b828a14d24238782ec38bd84d0f",
+    "all_original_fields_and_evidence_prefixes_preserved": true
+  },
+  "evidence": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/retained-mutation-and-pg18/verified-component-batch.json.gz",
+    "sha256": "2c4c93cdda3f4b715eff85899c3627c9336c58d9a5f08bc70f6b17d5752db7df",
+    "uncompressed_sha256": "369e71990859dae1e1facefb99974184c2258c51b3b2b30203469556191cffc2",
+    "members": 119
+  },
+  "limits": [
+    "Official PG18 release notes prove column NOT NULL catalog representation changed; actual observed55000 first cause remains unproved until hosted installer execution",
+    "No local native PostgreSQL/OpenFGA/OpenSearch startup, no deployed Stytch/provider or physical deletion proof",
+    "No durable terminal journal or authentic historical writer resolution implemented; original unknown admissions/history remain blocked",
+    "PKCE observation does not implement a deadline/authorization fix; live checks and original deadlines unchanged",
+    "Hosted native/full UI, production identity/role/provider bindings, dependency/security release guards and deployed E2E remain open"
+  ],
+  "production_availability_promotions": 0,
+  "goal": "active; all728 original requirements retained"
+}
