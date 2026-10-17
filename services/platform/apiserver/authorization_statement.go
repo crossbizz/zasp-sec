@@ -65,6 +65,7 @@ var authorizationStatementRules = []authorizationStatementRule{
 	{`SELECT zasp_authorization80.risk_page('attack_path',$1,$2,$3,NULLIF($4,''),$5)`, []string{"listAttackPaths"}, 5, 0, 0, ""},
 	{`SELECT to_jsonb(zasp_authorization80.high_path_count($1,$2,$3))`, []string{"listAttackPaths"}, 3, 0, 0, ""},
 	{`SELECT zasp_authorization80.product_session_event_page($1,$2,$3,$4,$5,$6,$7)`, []string{"listSessionEvents"}, 7, 0, 4, "product_session"},
+	{postgresRetainedProductSessionEventPageSQL, []string{"listSessionEvents"}, 7, 0, 4, "product_session"},
 	{`SELECT zasp_authorization80.audit_page($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`, []string{"listAuditEvents"}, 12, 4, 0, ""},
 	{`SELECT zasp_authorization80.compliance_read($1,$2,$3,$4,$5,$6,$7,$8,$9)`, []string{"listComplianceControls", "listComplianceEvidence", "getComplianceEvidence"}, 9, 4, 0, ""},
 	{`SELECT zasp_authorization80.inventory_page($1,$2,$3,$4,NULLIF($5,''),$6)`, []string{"listAgents", "listTools", "listIdentities", "listRuntimes", "listAssets"}, 6, 0, 0, ""},
@@ -228,7 +229,7 @@ func authorizationStatementAllowed(g RequestAuthorization, q string, args []any)
 		return g.OperationID == "listEnvironments" && g.Collection && g.WorkspaceSelector != "" && len(args) == 5 && args[0] == g.Identity.Scope.OrganizationID().String() && args[1] == g.WorkspaceSelector && args[2] == g.Identity.PrincipalID.String()
 	case `SELECT to_jsonb(zasp_authorization80.session_source_readiness(50,$1,$2))`:
 		return slices.Contains([]string{"listSessions", "listSessionEvents", "getSessionEvent"}, g.OperationID) && len(args) == 2 && args[0] == migrations.ProductionRuntimeSandboxBinding().Checksum() && args[1] == migrations.ProductionRuntimeSandboxBindingSemanticFingerprint()
-	case `SELECT zasp_authorization80.product_session_event_page($1,$2,$3,$4,$5,$6,$7)`:
+	case `SELECT zasp_authorization80.product_session_event_page($1,$2,$3,$4,$5,$6,$7)`, postgresRetainedProductSessionEventPageSQL:
 		if len(args) != 7 {
 			return false
 		}

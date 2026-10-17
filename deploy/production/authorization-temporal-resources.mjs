@@ -1,3 +1,4 @@
+import { validateRetentionExecutorCapability } from './retention-profile.mjs';
 import { validateMaintenanceRuntimeResources } from './maintenance-runtime-profile.mjs';
 import { normalizeAuthorizationTemporalProfile } from './authorization-temporal-profile.mjs';
 
@@ -5,7 +6,7 @@ const consumers = ['agentsec-api', 'agentsec-discovery-scheduler', 'agentsec-dis
 const fail = () => { throw new Error('authorization temporal resources rejected'); };
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
-export function validateAuthorizationTemporalResources(resources, profile, accountID) {
+export function validateAuthorizationTemporalResources(resources, profile, accountID, retention) {
   if (!profile) return;
   const one = (kind, name) => { const rows = resources.filter(r => r.kind === kind && r.metadata?.name === name); if (rows.length !== 1) fail(); return rows[0]; };
   const pod = r => r.kind === 'CronJob' ? r.spec?.jobTemplate?.spec?.template?.spec : r.spec?.template?.spec;
@@ -45,7 +46,9 @@ export function validateAuthorizationTemporalResources(resources, profile, accou
   for (const r of resources.filter(r=>['Deployment','Job','CronJob'].includes(r.kind))) {
     const p=pod(r);
     if (r !== worker && (p?.volumes?.some(v=>v.configMap?.name===profile.gatewayPolicyKeysConfigMap) || p?.containers?.some(c=>c.env?.some(e=>e.name==='ZASP_GATEWAY_POLICY_KEYS_FILE')))) fail();
-    if (!authorityPods.has(r) && (p?.volumes?.some(v=>restrictedSecrets.includes(v.secret?.secretName)) || p?.containers?.some(c=>c.env?.some(e=>restrictedSecrets.includes(e.valueFrom?.secretKeyRef?.name) || /^ZASP_(AUTHORIZATION_(WORKER|COMPENSATION)_KEY_FILE|TEMPORAL_(EXECUTOR|COMPENSATION)_POSTGRES_DSN)$/.test(e.name))))) fail();
+    const retentionExecutor = retention?.enabled === true && r.kind === 'Deployment' && r.metadata?.name === 'agentsec-retention-reference-expiry';
+    if (retentionExecutor) validateRetentionExecutorCapability(r, profile, retention, runtime.clientSecret);
+    if (!authorityPods.has(r) && !retentionExecutor && (p?.volumes?.some(v=>restrictedSecrets.includes(v.secret?.secretName)) || p?.containers?.some(c=>c.env?.some(e=>restrictedSecrets.includes(e.valueFrom?.secretKeyRef?.name) || /^ZASP_(AUTHORIZATION_(WORKER|COMPENSATION)_KEY_FILE|TEMPORAL_(EXECUTOR|COMPENSATION)_POSTGRES_DSN)$/.test(e.name))))) fail();
   }
   expect(worker,'ZASP_WORKER_MODE','security-agent');
   if (!same(container(worker).command,['/bin/sh','-ec']) || !same(container(worker).args,['export ZASP_POSTGRES_DSN="$(cat /var/run/secrets/zasp-security-agent/postgres-dsn)"; exec /app/agentsec-worker'])) fail();

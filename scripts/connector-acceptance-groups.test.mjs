@@ -7,11 +7,11 @@ import { CONNECTOR_ACCEPTANCE_GROUPS as groups, selectConnectorAcceptanceGroup a
 const pkg = 'github.com/zasp-ai/zasp-sec/services/platform/apiserver';
 const trace = selected => [...selected.names.flatMap(Test => [{Package: pkg, Test, Action: 'run'}, {Package: pkg, Test, Action: 'pass'}]), {Package: pkg, Action: 'pass'}];
 test('required application groups retain every flow and owned database', () => {
-  assert.deepEqual(Object.keys(groups), ['approval-test74', 'approval-ordered-planning', 'approval-ordered-progress', 'approval-flow', 'approval', 'oauth', 'lifecycle', 'pkce', 'callback', 'approval-overflow', 'approval-future-test74', 'approval-future-progress', 'optional-egress-audit']);
-  assert.deepEqual(Object.values(groups).map(g => [g.names.length, g.postgresJoins]), [[1, 2], [1, 2], [5, 2], [6, 2], [22, 1], [3, 1], [6, 2], [4, 2], [4, 2], [1, 2], [1, 2], [5, 2], [9, 1]]);
+  assert.deepEqual(Object.keys(groups), ['approval-test74', 'approval-ordered-planning', 'approval-ordered-progress', 'approval-flow', 'approval', 'oauth', 'lifecycle', 'pkce', 'callback', 'approval-overflow', 'approval-future-test74', 'approval-future-progress', 'optional-egress-audit', 'retention-audit']);
+  assert.deepEqual(Object.values(groups).map(g => [g.names.length, g.postgresJoins]), [[1, 2], [1, 2], [5, 2], [6, 2], [22, 1], [3, 1], [6, 2], [4, 2], [4, 2], [1, 2], [1, 2], [5, 2], [9, 1], [9, 1]]);
   const names = Object.values(groups).flatMap(g => g.names);
-  assert.equal(names.length, 68); assert.equal(new Set(names).size, 68);
-  assert.equal(Object.values(groups).reduce((n, g) => n + g.postgresJoins, 0), 23);
+  assert.equal(names.length, 77); assert.equal(new Set(names).size, 77);
+  assert.equal(Object.values(groups).reduce((n, g) => n + g.postgresJoins, 0), 24);
   for (const key of Object.keys(groups)) { assert.equal(select([key]), groups[key]); validate(trace(groups[key]), groups[key]); }
 });
 test('both ordered progress flows require every original provider evidence control', () => {
@@ -202,6 +202,175 @@ test('optional egress hosted sources bind the complete connected application clo
     for (const file of files) {
       const bytes = relative(file), digest = sha(bytes), compiledPin = compilePins.get(file);
       assert.equal(pins[file], digest, `${runner}: ${file}`);
+      assert.equal(compiledPin?.sha256, digest, `compile: ${file}`);
+      assert.equal(compiledPin?.bytes, bytes.length, `compile bytes: ${file}`);
+    }
+  }
+});
+
+// Proposed supplement: original groups/cases are retained above. This guards
+// actual application test events and source custody, not service internals.
+test('retention audit requires every original native permission and expiry case', () => {
+  const selected = groups['retention-audit'];
+  const source = fs.readFileSync(new URL('../services/platform/apiserver/retention_native_postgres_test.go', import.meta.url), 'utf8');
+  assert.equal(selected.top, 'TestRetentionAuditProfileNativePostgres');
+  assert.equal(selected.postgresJoins, 1);
+  assert.equal(selected.names.length, 9);
+  assert.match(source, /func TestRetentionAuditProfileNativePostgres\(t \*testing\.T\)/);
+  assert.match(source, /newAuthorizationProjectionFGA\(t\)/);
+  assert.match(source, /startDisposablePostgresAs\(t, "zasp_test"\)/);
+  for (const name of selected.names.slice(1)) {
+    const child = name.slice(selected.top.length + 1);
+    assert.ok(source.includes(`t.Run("${child}"`), child);
+    assert.throws(() => validate(trace(selected).filter(row => row.Test !== name), selected));
+    assert.throws(() => validate(trace(selected).map(row => row.Test === name ? {...row, Test: `${name}-unknown`} : row), selected));
+    assert.throws(() => validate([...trace(selected), {Package: pkg, Test: name, Action: 'pass'}], selected));
+    for (const action of ['skip', 'fail']) assert.throws(() => validate(trace(selected).map(row => row.Test === name && row.Action === 'pass' ? {...row, Action: action} : row), selected));
+  }
+});
+test('retention connected sources retain the complete declared application closure', () => {
+  const root = new URL('../', import.meta.url);
+  const relative = name => fs.readFileSync(new URL(name, root));
+  const sha = bytes => createHash('sha256').update(bytes).digest('hex');
+  const required = [
+  "deploy/production/authorization-temporal-resources.mjs",
+  "deploy/production/release-contract.mjs",
+  "deploy/production/release-contract.test.mjs",
+  "deploy/production/session-search-rollout.mjs",
+  "deploy/staging/main.tf",
+  "deploy/staging/product/templates/runtime.yaml",
+  "deploy/staging/product/templates/workloads.yaml",
+  "deploy/staging/product/values.yaml",
+  "services/platform/agentsec-api/policy_production.go",
+  "services/platform/agentsec-api/production_runtime.go",
+  "services/platform/agentsec-api/runtime.go",
+  "services/platform/agentsec-migrate/main.go",
+  "services/platform/agentsec-worker/production_runtime.go",
+  "services/platform/agentsec-worker/runtime_archive_production.go",
+  "services/platform/agentsec-worker/runtime_config.go",
+  "services/platform/agentsec-worker/runtime_index.go",
+  "services/platform/agentsec-worker/runtime_index_production.go",
+  "services/platform/agentsec-worker/runtime_session_search_current.go",
+  "services/platform/agentsec-worker/runtime_session_search_processor.go",
+  "services/platform/apiserver/administration_repository.go",
+  "services/platform/apiserver/authorization_statement.go",
+  "services/platform/apiserver/repository.go",
+  "services/platform/policy/opensearchhistory/driver.go",
+  "services/platform/runtimeindex/opensearchdriver/session_index.go",
+  "services/platform/runtimeindex/opensearchdriver/session_selection.go",
+  "services/platform/runtimeindex/opensearchdriver/session_visibility.go",
+  "services/platform/runtimeindex/opensearchdriver/session_write.go",
+  "services/platform/runtimeindex/opensearchdriver/session_write_test.go",
+  "services/platform/runtimeindex/store.go",
+  "deploy/production/retention-profile.mjs",
+  "deploy/production/retention-profile.test.mjs",
+  "deploy/staging/product/templates/_retention.tpl",
+  "deploy/staging/product/templates/retention.yaml",
+  "services/platform/agentsec-migrate/retention_profile.go",
+  "services/platform/agentsec-migrate/retention_profile_test.go",
+  "services/platform/agentsec-worker/retention_cleanup.go",
+  "services/platform/agentsec-worker/retention_cleanup_test.go",
+  "services/platform/agentsec-worker/retention_runtime.go",
+  "services/platform/agentsec-worker/retention_runtime_index.go",
+  "services/platform/agentsec-worker/retention_runtime_index_test.go",
+  "services/platform/agentsec-worker/retention_runtime_pipeline.go",
+  "services/platform/agentsec-worker/retention_runtime_pipeline_test.go",
+  "services/platform/agentsec-worker/retention_runtime_test.go",
+  "services/platform/apiserver/retention_native_postgres_test.go",
+  "services/platform/apiserver/retention_visibility_repository.go",
+  "services/platform/apiserver/retention_visibility_repository_test.go",
+  "services/platform/apiserver/runtime_session_retention_search.go",
+  "services/platform/apiserver/runtime_session_retention_search_test.go",
+  "services/platform/migrations/production_retention_profile.go",
+  "services/platform/migrations/production_retention_profile_test.go",
+  "services/platform/migrations/sql/retention_cleanup.sql",
+  "services/platform/migrations/sql/retention_index.sql",
+  "services/platform/migrations/sql/retention_partition.sql",
+  "services/platform/migrations/sql/retention_profile.sql",
+  "services/platform/migrations/sql/retention_successor.sql",
+  "services/platform/orchestration/retention_activities.go",
+  "services/platform/orchestration/retention_schedule.go",
+  "services/platform/orchestration/retention_schedule_test.go",
+  "services/platform/orchestration/retention_workflow.go",
+  "services/platform/orchestration/retention_workflow_test.go",
+  "services/platform/policy/opensearchhistory/retention.go",
+  "services/platform/policy/opensearchhistory/retention_test.go",
+  "services/platform/runtimeevent/production_retention_profile.go",
+  "services/platform/runtimeevent/production_retention_profile_test.go",
+  "services/platform/runtimeindex/opensearchdriver/retention_purge.go",
+  "services/platform/runtimeindex/opensearchdriver/retention_purge_test.go",
+  "services/platform/runtimeindex/opensearchdriver/session_retention_test.go",
+  "services/platform/runtimeindex/retained_write.go",
+  "services/platform/runtimeindex/retained_write_test.go",
+  "services/platform/runtimeindex/retention_visibility.go",
+  "services/platform/runtimeindex/retention_visibility_test.go",
+  "services/platform/runtimeevent/production_pipeline_repository.go",
+  "services/platform/runtimeevent/production_current_profile.go",
+  "services/platform/runtimeevent/production_ingest.go",
+  "services/platform/runtimeevent/production_session_routing.go",
+  "services/platform/runtimeevent/production_precise_ingest_repository.go",
+  "services/platform/runtimeevent/production_precise_completion.go",
+  "services/platform/runtimeevent/stage_receipt.go",
+  "services/platform/runtimeevent/runtimeevent.go",
+  "services/platform/runtimeprojection/projector.go",
+  "services/platform/runtimeprojection/receipt.go",
+  "services/platform/runtimeprojection/precise.go",
+  "services/platform/runtimeprojection/precise_receipt.go",
+  "services/platform/runtimecorrelation/correlator.go",
+  "services/platform/runtimecorrelation/frozen_correlator.go",
+  "services/platform/runtimecorrelation/sandbox_correlator.go",
+  "services/platform/runtimecorrelation/precise_correlator.go",
+  "services/platform/runtimecorrelation/receipt.go",
+  "services/platform/runtimecorrelation/precise_receipt.go",
+  "services/platform/runtimeindex/precise.go",
+  "services/platform/runtimeindex/opensearchdriver/driver.go",
+  "services/platform/runtimeindex/opensearchdriver/schema.go",
+  "services/platform/runtimeindex/opensearchdriver/session_precise.go",
+  "services/platform/sessionsearch/query.go",
+  "services/platform/sessionsearch/document.go",
+  "services/platform/sessionsearch/precise.go",
+  "services/platform/orchestration/schedules.go",
+  "services/platform/orchestration/contracts.go",
+  "services/platform/orchestration/temporal_client.go",
+  "services/platform/runtimepostgres/config.go",
+  "services/platform/runtimeservices/config.go",
+  "services/platform/runtimeservices/clients.go",
+  "services/platform/sensoradapter/adapter.go",
+  "services/platform/sensoradapter/envelope.go",
+  "services/platform/sensoradapter/precise_envelope.go",
+  "services/platform/sensoradapter/precise_record.go",
+  "services/platform/apiserver/postgres_integration_test.go",
+  "services/platform/apiserver/authorization_projection_fga_test.go",
+  "services/platform/migrations/production_authorization_worker_profile.go",
+  "services/platform/migrations/production_authorization_worker_runtime.go",
+  "services/platform/migrations/production_authorization_runtime_profile.go",
+  "services/platform/apiserver/approval_maintenance_owned_fga_test.go",
+  "services/platform/apiserver/audit_export_http_size_lifetime_test.go",
+  "services/platform/apiserver/authorization_attestation_test.go",
+  "services/platform/apiserver/authorization_enforcement_postgres_test.go",
+  "services/platform/apiserver/authorization_integration_mutations_postgres_test.go",
+  "services/platform/apiserver/connector_authorization_postgres_test.go",
+  "services/platform/apiserver/discovery_execution_postgres_test.go",
+  "services/platform/apiserver/discovery_postgres_test.go",
+  "services/platform/apiserver/inventory_cutover_postgres_test.go",
+  "services/platform/apiserver/middleware_test.go",
+  "services/platform/apiserver/reference_authorization_postgres_test.go",
+  "services/platform/apiserver/runtime_data_plane_postgres_test.go",
+  "services/platform/apiserver/runtime_sandbox_candidate_postgres_test.go",
+  "services/platform/apiserver/runtime_sessions_postgres_test.go",
+  "services/platform/apiserver/security_agent_temporal_automatic_sources_postgres_test.go"
+];
+  const compiled = JSON.parse(relative('.github/connector-native-compile-source-pins.json'));
+  const compilePins = new Map(compiled.sources.map(item => [item.path, item]));
+  assert.equal(compilePins.size, compiled.sources.length);
+  for (const runner of ['scripts/hosted-connected-connector-acceptance.mjs', 'scripts/hosted-connector-authenticated-enqueue.mjs']) {
+    const source = relative(runner).toString('utf8');
+    const pins = JSON.parse(/const pins = (\{.*?\n\});/s.exec(source)[1]);
+    for (const file of required) {
+      const bytes = relative(file), digest = sha(bytes), compiledPin = compilePins.get(file);
+      const helperPins = JSON.parse(/const helperPins\s*=\s*(\{.*?\n\});/s.exec(source)[1]);
+      assert.equal(pins[file] ?? helperPins[file], digest, `${runner}: ${file}`);
+      if (file in helperPins) assert.equal(helperPins[file], digest, `helper custody: ${file}`);
       assert.equal(compiledPin?.sha256, digest, `compile: ${file}`);
       assert.equal(compiledPin?.bytes, bytes.length, `compile bytes: ${file}`);
     }

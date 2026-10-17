@@ -129,7 +129,14 @@ func (repository *PostgresRepository) ReadAdministration(ctx context.Context, id
 		if runtimeSessionTarget(parameters["id"]) {
 			return repository.readRuntimeSession(ctx, identity, operation, parameters)
 		}
-		return repository.database.QueryJSON(ctx, authorizationReadStatement(ctx, postgresListSessionEventsSQL, `SELECT zasp_authorization80.product_session_event_page($1,$2,$3,$4,$5,$6,$7)`), identity.Scope.OrganizationID().String(), parameters["id"], identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), optionalAdministrationTime(parameters["after_time"]), parameters["after_id"], adminLimit(parameters)+1)
+		statement := authorizationReadStatement(ctx, postgresListSessionEventsSQL, `SELECT zasp_authorization80.product_session_event_page($1,$2,$3,$4,$5,$6,$7)`)
+		if repository.retentionProfileChecksum != "" {
+			if _, ok := requestAuthorizationFromContext(ctx); !ok {
+				return nil, ErrAuthorizationDenied
+			}
+			statement = postgresRetainedProductSessionEventPageSQL
+		}
+		return repository.database.QueryJSON(ctx, statement, identity.Scope.OrganizationID().String(), parameters["id"], identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), optionalAdministrationTime(parameters["after_time"]), parameters["after_id"], adminLimit(parameters)+1)
 	case "getSessionEvent":
 		return repository.readRuntimeSession(ctx, identity, operation, parameters)
 	case "listComplianceControls":

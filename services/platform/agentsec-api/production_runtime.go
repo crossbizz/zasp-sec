@@ -236,6 +236,23 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 	if config.EvidenceExportWorkflow == "enabled" && (config.ComplianceExports == nil || invalidRuntimeValue(securityAgentDatabase)) {
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("composition-authorization", errRuntimeUnavailable)
 	}
+	var retentionVisibility *apiserver.RetentionEventVisibility
+	if config.RetentionProfileChecksum != "" {
+		base, ok := database.(*apiserver.PostgresJSONDatabase)
+		if !ok || base == nil {
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("retention-authorization", errRuntimeUnavailable)
+		}
+		var retentionErr error
+		retentionVisibility, retentionErr = apiserver.NewRetentionEventVisibility(base, config.RetentionProfileChecksum)
+		probe, cancel := context.WithTimeout(ctx, config.ProviderTimeout)
+		if retentionErr == nil {
+			retentionErr = retentionVisibility.Ready(probe)
+		}
+		cancel()
+		if retentionErr != nil {
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("retention-authorization", errRuntimeUnavailable)
+		}
+	}
 	// Selection follows the original current-authorization admission. The
 	// adapter preserves all other database capabilities and grants no purpose
 	// to a bare runtime context. Selected native capture never falls back.
@@ -275,7 +292,13 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 		}
 	}
 	tracedProvider := &tracedCallbackProvider{next: provider, metrics: metrics, exporter: exporter}
-	policyHistory, err := newProductionPolicyHistory(config)
+	var policyHistory *productionPolicyHistory
+	var err error
+	if retentionVisibility != nil {
+		policyHistory, err = newProductionPolicyHistoryWithRetention(config, retentionVisibility)
+	} else {
+		policyHistory, err = newProductionPolicyHistory(config)
+	}
 	if err != nil {
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("policy-history", errRuntimeUnavailable)
 	}
@@ -285,9 +308,19 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 			_ = policyHistory.Close()
 		}
 	}()
-	repository, err := apiserver.NewPostgresRepositoryWithRuntimeSessionSearchIndex(tracedDatabase, policyHistory.sessionSearch, config.RuntimeSessionIndex)
+	var sessionSearch apiserver.RuntimeSessionSearchIndex = policyHistory.sessionSearch
+	if retentionVisibility != nil {
+		sessionSearch, err = apiserver.NewRetentionRuntimeSessionSearchIndex(sessionSearch)
+		if err != nil {
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("retention-search", errRuntimeUnavailable)
+		}
+	}
+	repository, err := apiserver.NewPostgresRepositoryWithRuntimeSessionSearchIndex(tracedDatabase, sessionSearch, config.RuntimeSessionIndex)
 	if err != nil {
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("core-repositories", errRuntimeUnavailable)
+	}
+	if retentionVisibility != nil && repository.RequireRetentionProfile(config.RetentionProfileChecksum) != nil {
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("retention-repositories", errRuntimeUnavailable)
 	}
 	connectorRepository, err := apiserver.NewConnectorRepository(tracedDatabase)
 	if err != nil {
@@ -624,6 +657,9 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 	return RuntimeDependencies{ProductHandler: edge, Metrics: metrics, LifecycleWorker: func(ctx context.Context) error { return runLifecycleWorkers(ctx, lifecycleWorkers...) }, ReadinessCheck: func(ctx context.Context) error {
 		if currentRequired(database) && currentRequired(securityAgentDatabase) {
 			checks := []func(context.Context) error{connectorNativeReady, repository.Ready, connectorRepository.Ready, referenceRepository.Ready, policyHandler.Ready, tracedProvider.Ready}
+			if retentionVisibility != nil {
+				checks = append(checks, retentionVisibility.Ready)
+			}
 			if optionalEgress != nil {
 				checks = append(checks, optionalEgress.Repository.Ready)
 			}

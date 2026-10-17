@@ -1,4 +1,5 @@
 {{- include "zasp.optionalEgress.validate" . }}
+{{- include "zasp.retention.validate" . }}
 {{- if ne .Values.profile "customer_edge" }}
 {{- $root := . -}}
 {{- $workloads := list
@@ -74,6 +75,7 @@ spec:
             {{- include "zasp.maintenanceRuntime.apiEnv" $root | nindent 12 }}
             {{- include "zasp.optionalEgress.env" $root | nindent 12 }}
             {{- include "zasp.optionalEgress.apiEnv" $root | nindent 12 }}
+            {{- include "zasp.retention.pin" $root | nindent 12 }}
             - { name: ZASP_PRODUCT_LISTEN_ADDRESS, value: ":8080" }
             - { name: ZASP_INTERNAL_LISTEN_ADDRESS, value: ":8081" }
             - { name: ZASP_COOKIE_SECURE, value: "true" }

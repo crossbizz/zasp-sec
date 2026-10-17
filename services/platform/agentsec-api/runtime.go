@@ -16,6 +16,7 @@ import (
 
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	"github.com/zasp-ai/zasp-sec/services/platform/healthserver"
+	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 	runtimeopensearch "github.com/zasp-ai/zasp-sec/services/platform/runtimeindex/opensearchdriver"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeservices"
 )
@@ -26,9 +27,10 @@ var (
 )
 
 type RuntimeConfig struct {
-	OptionalEgressEnabled          bool
-	OptionalEgressProfileChecksum  string
-	OptionalEgressSettlementDSN    string
+	RetentionProfileChecksum        string
+	OptionalEgressEnabled           bool
+	OptionalEgressProfileChecksum   string
+	OptionalEgressSettlementDSN     string
 	ConnectorMaintenancePostgresDSN string
 	ConnectorMaintenanceKeyFile     string
 	RuntimeServices                 runtimeservices.Config
@@ -137,7 +139,8 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 	requestRate, requestRateErr := strconv.Atoi(getenv("ZASP_REQUEST_RATE_PER_SECOND"))
 	requestBurst, requestBurstErr := strconv.Atoi(getenv("ZASP_REQUEST_BURST"))
 	config := RuntimeConfig{
-		OptionalEgressEnabled: optionalEgressEnabled, OptionalEgressProfileChecksum: getenv("ZASP_OPTIONAL_EGRESS_PROFILE_CHECKSUM"), OptionalEgressSettlementDSN: getenv("ZASP_OPTIONAL_EGRESS_SETTLEMENT_POSTGRES_DSN"),
+		RetentionProfileChecksum: getenv("ZASP_RETENTION_PROFILE_CHECKSUM"),
+		OptionalEgressEnabled:    optionalEgressEnabled, OptionalEgressProfileChecksum: getenv("ZASP_OPTIONAL_EGRESS_PROFILE_CHECKSUM"), OptionalEgressSettlementDSN: getenv("ZASP_OPTIONAL_EGRESS_SETTLEMENT_POSTGRES_DSN"),
 		RuntimeServices:                 services,
 		SecurityAgentOrderedHTTPEnabled: orderedHTTPEnabled,
 
@@ -169,6 +172,9 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 }
 
 func validRuntimeConfig(config RuntimeConfig) bool {
+	if config.RetentionProfileChecksum != "" && (!config.RuntimeServices.Enabled || config.RetentionProfileChecksum != migrations.RetentionAuditProfileChecksum()) {
+		return false
+	}
 	if config.RuntimeServices.Validate() != nil {
 		return false
 	}

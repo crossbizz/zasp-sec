@@ -37,7 +37,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [approval-test74, approval-ordered-planning, approval-ordered-progress, approval-flow, approval, oauth, lifecycle, pkce, callback, approval-overflow, approval-future-test74, approval-future-progress, optional-egress-audit]
+        group: [approval-test74, approval-ordered-planning, approval-ordered-progress, approval-flow, approval, oauth, lifecycle, pkce, callback, approval-overflow, approval-future-test74, approval-future-progress, optional-egress-audit, retention-audit]
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:

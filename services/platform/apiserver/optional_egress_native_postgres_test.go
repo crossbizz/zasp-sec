@@ -407,8 +407,16 @@ func TestOptionalEgressCurrentAuditNativePostgres(t *testing.T) {
 		}
 	})
 	t.Run("captured_settlement_survives_revoke_and_read_denies", func(t *testing.T) {
-		if admitted.Nonce == "" {
-			t.Fatal("previous actual dispatch missing")
+		// This capture owns a fresh genuine claim. The separate concurrency
+		// replay may already have converged its original request to UNKNOWN.
+		b := binding(t, "optional-native-captured-settlement-0001")
+		reserved, err := repo.Reserve(ctx, b, mustProof(t, "getFinding"))
+		if err != nil || !reserved.NewlyReserved || reserved.State != optionalegress.Reserved {
+			t.Fatal("independent captured reservation", err)
+		}
+		admitted, err := repo.Dispatch(ctx, b, mustProof(t, "getFinding"))
+		if err != nil || !admitted.NewlyStarted || admitted.State != optionalegress.Started || len(admitted.Nonce) != 64 {
+			t.Fatal("independent captured dispatch", err)
 		}
 		stale := mustProof(t, "getFinding")
 		exec(t, `UPDATE zasp_identity_memberships SET active=false WHERE principal_id=$1 AND organization_id=$2`, actor, o)
@@ -503,6 +511,10 @@ func TestOptionalEgressCurrentAuditNativePostgres(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		concurrentDeadline, err := time.Parse(optionalegress.TimeFormat, admitted.Binding.Deadline)
+		if err != nil || concurrentDeadline.After(end) {
+			t.Fatal("concurrency claim did not precede original expiry wait", err)
+		}
 		if wait := time.Until(end) + 10*time.Millisecond; wait > 0 {
 			if wait > 31*time.Second {
 				t.Fatal("fixture escaped approved original deadline")
@@ -530,8 +542,14 @@ func TestOptionalEgressCurrentAuditNativePostgres(t *testing.T) {
 				t.Fatal("expired request acquired a new send claim")
 			}
 		}
+		// The independent concurrency claim retains its own original debt.
+		// Converge it through the same real mounted read, never a fixture UPDATE.
+		concurrent, err := repo.Replay(ctx, admitted.Binding.Intent, mustProof(t, "getFinding"))
+		if err != nil || !concurrent.Found || concurrent.Receipt == nil || concurrent.Receipt.Binding != admitted.Binding || concurrent.Receipt.State != optionalegress.Unknown || concurrent.Receipt.FailureCode != "deadline" || concurrent.Receipt.Usage != nil {
+			t.Fatal("concurrency claim lost exact unknown expiry debt", err)
+		}
 		var unknownCeiling int64
-		if err := owner.QueryRow(ctx, `SELECT sum((binding->>'cost_ceiling_nano_credits')::bigint) FROM zasp_optional_egress_v1.requests WHERE state='unknown'`).Scan(&unknownCeiling); err != nil || retainedUnknownCost <= 0 || unknownCeiling != retainedUnknownCost+startedBinding.CostCeilingNanoCredits {
+		if err := owner.QueryRow(ctx, `SELECT sum((binding->>'cost_ceiling_nano_credits')::bigint) FROM zasp_optional_egress_v1.requests WHERE state='unknown'`).Scan(&unknownCeiling); err != nil || retainedUnknownCost <= 0 || unknownCeiling != admitted.Binding.CostCeilingNanoCredits+retainedUnknownCost+startedBinding.CostCeilingNanoCredits {
 			t.Fatal("expiry released unknown charges")
 		}
 	})

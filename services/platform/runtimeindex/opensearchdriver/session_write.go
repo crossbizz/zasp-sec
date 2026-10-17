@@ -16,6 +16,7 @@ import (
 )
 
 type SessionWriteResult struct {
+	Retention     *runtimeindex.WritePartition
 	Scope         domain.Scope
 	BatchID       domain.ProductID
 	Generation    int64
@@ -63,6 +64,53 @@ func (index *SessionIndex) applyProfile(ctx context.Context, binding sessionsear
 		if err != nil || receipt.ImplementationVersion != "runtime-projection-v1" {
 			return SessionWriteResult{}, runtimeindex.ErrRejected
 		}
+	}
+	originalDocuments := append([]sessionsearch.Document(nil), documents...)
+	originalIDs := make([]string, len(documents))
+	events := make([]string, len(documents))
+	for i, doc := range documents {
+		originalIDs[i], events[i] = doc.DocumentID, doc.EventID
+	}
+	var partition *runtimeindex.WritePartition
+	if index.retentionWrite != nil {
+		states, err := runtimeindex.CheckEventVisibility(ctx, index.retentionWrite, binding.Scope, events)
+		if err != nil {
+			return SessionWriteResult{}, err
+		}
+		partition = &runtimeindex.WritePartition{WrittenDocumentIDs: []string{}, SuppressedDocumentIDs: []string{}}
+		documents = nil
+		for _, doc := range originalDocuments {
+			if states[doc.EventID] {
+				documents = append(documents, doc)
+				partition.WrittenDocumentIDs = append(partition.WrittenDocumentIDs, doc.DocumentID)
+			} else {
+				partition.SuppressedDocumentIDs = append(partition.SuppressedDocumentIDs, doc.DocumentID)
+			}
+		}
+	}
+	finish := func() (SessionWriteResult, error) {
+		if partition != nil {
+			if _, err := runtimeindex.CheckEventVisibility(ctx, index.retentionWrite, binding.Scope, events); err != nil {
+				return SessionWriteResult{}, err
+			}
+			originalBody, err := json.Marshal(originalDocuments)
+			if err != nil {
+				return SessionWriteResult{}, runtimeindex.ErrRejected
+			}
+			providerBody, err := json.Marshal(documents)
+			if err != nil {
+				return SessionWriteResult{}, runtimeindex.ErrRejected
+			}
+			partition.ProviderContentDigest = sha256.Sum256(providerBody)
+			receipt := runtimeindex.RetainedWriteReceipt{Scope: binding.Scope, BatchID: binding.BatchID.String(), Generation: binding.Generation, InputDigest: binding.ReceiptDigest, OriginalContentDigest: sha256.Sum256(originalBody), DocumentIDs: append([]string(nil), originalIDs...), EventIDs: append([]string(nil), events...), Partition: *partition}
+			if index.retentionWrite.RecordRetainedWrite(ctx, receipt) != nil {
+				return SessionWriteResult{}, runtimeindex.ErrUnknownOutcome
+			}
+		}
+		return SessionWriteResult{Scope: binding.Scope, BatchID: binding.BatchID, Generation: binding.Generation, ReceiptDigest: binding.ReceiptDigest, DocumentIDs: originalIDs, Retention: partition}, nil
+	}
+	if len(documents) == 0 {
+		return finish()
 	}
 	var body bytes.Buffer
 	ids := make([]string, len(documents))
@@ -118,7 +166,7 @@ func (index *SessionIndex) applyProfile(ctx context.Context, binding sessionsear
 	if *refreshed.Shards.Failed != 0 || refreshed.Shards.Successful != refreshed.Shards.Total {
 		return SessionWriteResult{}, runtimeindex.ErrRetryable
 	}
-	return SessionWriteResult{Scope: binding.Scope, BatchID: binding.BatchID, Generation: binding.Generation, ReceiptDigest: binding.ReceiptDigest, DocumentIDs: ids}, nil
+	return finish()
 }
 
 func (index *SessionIndex) exactDocuments(ctx context.Context, expected []sessionsearch.Document, ids []string) error {

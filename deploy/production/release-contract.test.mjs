@@ -242,13 +242,21 @@ test("runtime session search bootstrap and worker IAM have separate fixed paths"
   assert.ok(init.includes("/zasp-runtime-sessions-v1/_doc/_zasp_session_schema_v1"));
   assert.doesNotMatch(init, /es:ESHttpPost|es:ESHttpDelete|_bulk|_mget|_refresh|_search"/);
   const sessionBlocks = [...block("runtime").matchAll(/each\.key == "index" \? jsonencode\(\{[\s\S]*?\}\) : null/g)].map(match=>match[0]).filter(value=>value.includes("zasp-runtime-sessions-v1"));
-  assert.equal(sessionBlocks.length, 2);
+  assert.equal(sessionBlocks.length, 4);
   const get = sessionBlocks.find(value=>value.includes('["es:ESHttpGet"]'));
   const post = sessionBlocks.find(value=>value.includes('["es:ESHttpPost"]'));
   assert.ok(get && post);
   for (const path of ["_mapping", "_doc/_zasp_session_schema_v1"]) assert.ok(get.includes(`/zasp-runtime-sessions-v1/${path}`));
   for (const path of ["_bulk", "_mget", "_refresh"]) assert.ok(post.includes(`/zasp-runtime-sessions-v1/${path}`));
-  for (const statement of sessionBlocks) assert.doesNotMatch(statement, /ESHttpPut|ESHttpDelete|sessions-v1\/\*|sessions-v1"/);
+  for (const statement of [get, post]) assert.doesNotMatch(statement, /ESHttpPut|ESHttpDelete|sessions-v1\/\*|sessions-v1"/);
+  const cleanup = sessionBlocks.find(value=>value.includes('["es:ESHttpGet", "es:ESHttpDelete"]'));
+  const search = sessionBlocks.find(value=>value.includes('["es:ESHttpPost"]') && value.includes('/zasp-runtime-sessions-v1/_search'));
+  assert.ok(cleanup && search);
+  for(const index of ["zasp-runtime-events-v1","zasp-runtime-sessions-v1","zasp-runtime-sessions-v2"]) {
+    assert.ok(search.includes(`/${index}/_search`));
+    assert.ok(cleanup.includes(`/${index}/_doc/${index.includes("events") ? "evt_" : ""}${"?".repeat(64)}`));
+  }
+  for(const statement of [cleanup, search]) assert.doesNotMatch(statement, /_delete_by_query|_zasp_.*schema|ESHttpPut|events-v1\/\*|sessions-v[12]\/\*/);
   const source = await readFile(new URL("../../services/platform/agentsec-worker/projection_init.go", import.meta.url), "utf8");
   assert.match(source, /initializeProductionSearchSchemas\(bounded, driver, raw, sessions\)/);
 });

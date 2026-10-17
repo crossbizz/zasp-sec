@@ -170,6 +170,10 @@ spec:
 {{- $workers = append $workers $v2 }}
 {{- end }}
 {{- range $worker := $workers }}
+{{- if and $root.Values.retentionReferenceExpiry.enabled (eq $worker.kind "index") }}
+{{- $_ := set $worker "version" $root.Values.retentionReferenceExpiry.indexStageVersion }}
+{{- $_ := set $worker "sessionIndex" $root.Values.retentionReferenceExpiry.sessionIndex }}
+{{- end }}
 {{- if has $root.Values.runtime.sessionSearchPhase (list "precision-consumers" "precision-intake") }}
 {{- $version := index (dict "runtime-archive" "runtime-archive-v2" "runtime-correlation" "runtime-correlation-v4" "runtime-projection" "runtime-projection-v3" "runtime-complete" "runtime-complete-v3") $worker.mode }}
 {{- if $version }}{{- $_ := set $worker "version" $version }}{{- end }}
@@ -212,6 +216,9 @@ spec:
           securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
           env:
             - { name: ZASP_WORKER_MODE, value: {{ $worker.mode | quote }} }
+            {{- if has $worker.mode (list "runtime-coordinator" "runtime-complete" "runtime-index") }}
+            {{- include "zasp.retention.pin" $root | nindent 12 }}
+            {{- end }}
             {{- if $root.Values.authorizationTemporal.profile }}
             - { name: ZASP_RUNTIME_DATABASE_PROFILE, value: "canonical61-temporal78-authorization79-80-runtime-v1" }
             {{- end }}

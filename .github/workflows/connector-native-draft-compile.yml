@@ -5,6 +5,8 @@ on:
     paths:
       - 'services/platform/**'
       - 'services/health/**'
+      - 'deploy/production/**'
+      - 'deploy/staging/**'
       - '.github/workflows/connector-native-draft-compile.yml'
       - '.github/connector-native-compile-source-pins.json'
   workflow_dispatch:
@@ -34,20 +36,22 @@ jobs:
           test -z "${ZASP_CONNECTOR_MAINTENANCE_PROFILE_CHECKSUM:-}"
           test -z "${ZASP_CONNECTOR_MAINTENANCE_POSTGRES_DSN:-}"
           test -z "${ZASP_CONNECTOR_MAINTENANCE_KEY_FILE:-}"
+          test -z "${ZASP_RETENTION_PROFILE_CHECKSUM:-}"
+          test -z "${ZASP_RETENTION_CONFIGURATION_FILE:-}"
           python3 - <<'PYVERIFY'
           import hashlib, json
           from pathlib import Path
           source = json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())
-          assert len(source['sources']) == 204
+          assert len(source['sources']) == 320
           for item in source['sources']:
               raw = Path(item['path']).read_bytes()
               assert len(raw) == item['bytes']
               assert hashlib.sha256(raw).hexdigest() == item['sha256'], item['path']
           PYVERIFY
-      - name: Compile fourteen affected packages without executing test binaries
+      - name: Compile nineteen affected packages without executing test binaries
         run: |
           output=$(mktemp -d "${RUNNER_TEMP}/connector-native-compile.XXXXXX")
-          for package in connectormaintenance connectormaintenancecutover authorization approvalmaintenance apiserver agentsec-api agentsec-worker runtimeservices migrations optionalegress agentsec-migrate cmd/zasp-authorization-reconcile cmd/zasp-controlled-maintenance-cutover cmd/zasp-maintenance-register; do
+          for package in connectormaintenance connectormaintenancecutover authorization approvalmaintenance apiserver agentsec-api agentsec-worker runtimeservices migrations optionalegress agentsec-migrate cmd/zasp-authorization-reconcile cmd/zasp-controlled-maintenance-cutover cmd/zasp-maintenance-register runtimeevent runtimeindex runtimeindex/opensearchdriver policy/opensearchhistory orchestration; do
             echo "::group::Compile $package"
             name=${package//\//-}
             go test -C services/platform -race -p 1 -c -o "$output/$name.test" "./$package"

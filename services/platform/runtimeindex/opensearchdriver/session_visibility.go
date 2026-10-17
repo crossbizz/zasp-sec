@@ -130,3 +130,191 @@ func (index *SessionIndex) VerifyVisibleDocuments(ctx context.Context, expected 
 	}
 	return nil
 }
+
+const sessionRetentionWitnessLimit = 32
+
+type sessionSearchBucket struct {
+	Key struct {
+		InvestigationID string `json:"investigation_id"`
+	} `json:"key"`
+	Count          int64                      `json:"doc_count"`
+	MatchingEvents *sessionRetentionWitnesses `json:"matching_events,omitempty"`
+}
+
+type sessionRetentionWitnesses struct {
+	Hits *struct {
+		Total *struct {
+			Value    int64  `json:"value"`
+			Relation string `json:"relation"`
+		} `json:"total"`
+		MaxScore json.RawMessage `json:"max_score"`
+		Hits     []struct {
+			Index  string          `json:"_index"`
+			ID     string          `json:"_id"`
+			Score  json.RawMessage `json:"_score"`
+			Sort   []string        `json:"sort"`
+			Source struct {
+				OrganizationID  string `json:"organization_id"`
+				WorkspaceID     string `json:"workspace_id"`
+				EnvironmentID   string `json:"environment_id"`
+				RecordType      string `json:"record_type"`
+				InvestigationID string `json:"investigation_id"`
+				EventID         string `json:"event_id"`
+			} `json:"_source"`
+		} `json:"hits"`
+	} `json:"hits"`
+}
+
+func withSessionRetentionWitnesses(body []byte) ([]byte, error) {
+	var query map[string]any
+	if json.Unmarshal(body, &query) != nil {
+		return nil, runtimeindex.ErrRejected
+	}
+	aggregations, ok := query["aggs"].(map[string]any)
+	if !ok {
+		return nil, runtimeindex.ErrRejected
+	}
+	sessions, ok := aggregations["sessions"].(map[string]any)
+	if !ok {
+		return nil, runtimeindex.ErrRejected
+	}
+	sessions["aggs"] = map[string]any{"matching_events": map[string]any{"top_hits": map[string]any{
+		"size":    sessionRetentionWitnessLimit,
+		"_source": []string{"organization_id", "workspace_id", "environment_id", "record_type", "investigation_id", "event_id"},
+		"sort":    []any{map[string]any{"event_id": map[string]string{"order": "asc"}}, map[string]any{"document_id": map[string]string{"order": "asc"}}},
+	}}}
+	result, err := json.Marshal(query)
+	if err != nil {
+		return nil, runtimeindex.ErrRejected
+	}
+	return result, nil
+}
+
+func (index *SessionIndex) retainedSessionCandidates(ctx context.Context, scope domain.Scope, buckets []sessionSearchBucket) ([]string, error) {
+	eventIDs := make([]string, 0, len(buckets)*sessionRetentionWitnessLimit)
+	for _, bucket := range buckets {
+		witnesses := bucket.MatchingEvents
+		if witnesses == nil || witnesses.Hits == nil || witnesses.Hits.Total == nil || witnesses.Hits.Total.Value != bucket.Count || witnesses.Hits.Total.Relation != "eq" || string(witnesses.Hits.MaxScore) != "null" {
+			return nil, runtimeindex.ErrDrift
+		}
+		hits := witnesses.Hits.Hits
+		expected := bucket.Count
+		if expected > sessionRetentionWitnessLimit {
+			expected = sessionRetentionWitnessLimit
+		}
+		if hits == nil || int64(len(hits)) != expected {
+			return nil, runtimeindex.ErrDrift
+		}
+		previousEvent, previousDocument := "", ""
+		for _, hit := range hits {
+			source := hit.Source
+			decoded, err := hex.DecodeString(hit.ID)
+			if err != nil || len(decoded) != 32 || hex.EncodeToString(decoded) != hit.ID || hit.Index != index.indexName() || string(hit.Score) != "null" || len(hit.Sort) != 2 || hit.Sort[0] != source.EventID || hit.Sort[1] != hit.ID || source.RecordType != "runtime_session_event" || source.InvestigationID != bucket.Key.InvestigationID || source.OrganizationID != scope.OrganizationID().String() || source.WorkspaceID != scope.WorkspaceID().String() || source.EnvironmentID != scope.EnvironmentID().String() {
+				return nil, runtimeindex.ErrDrift
+			}
+			if _, err := domain.ParseProductID(source.EventID); err != nil {
+				return nil, runtimeindex.ErrDrift
+			}
+			if source.EventID < previousEvent || source.EventID == previousEvent && hit.ID <= previousDocument {
+				return nil, runtimeindex.ErrDrift
+			}
+			previousEvent, previousDocument = source.EventID, hit.ID
+			eventIDs = append(eventIDs, source.EventID)
+		}
+	}
+	states, err := runtimeindex.CheckEventVisibility(ctx, index.retention, scope, eventIDs)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]string, 0, len(buckets))
+	for _, bucket := range buckets {
+		live := false
+		for _, hit := range bucket.MatchingEvents.Hits.Hits {
+			if states[hit.Source.EventID] {
+				live = true
+			}
+		}
+		if live {
+			result = append(result, bucket.Key.InvestigationID)
+		} else if int64(len(bucket.MatchingEvents.Hits.Hits)) != bucket.Count {
+			return nil, runtimeindex.ErrRetryable
+		}
+	}
+	return result, nil
+}
+
+// These witnesses remain opaque to API composition and JSON serialization.
+// They bind a page to this exact index instance and scope; callers cannot forge
+// event IDs or reuse a different request/index's visibility decision.
+type sessionPageRetentionWitnesses struct {
+	index          *SessionIndex
+	scope          domain.Scope
+	after          string
+	investigations []string
+	events         [][]string
+}
+
+func (index *SessionIndex) retainPageWitnesses(scope domain.Scope, page SessionSearchPage, buckets []sessionSearchBucket) *sessionPageRetentionWitnesses {
+	witness := &sessionPageRetentionWitnesses{index: index, scope: scope, after: page.After, investigations: append([]string(nil), page.InvestigationIDs...), events: make([][]string, 0, len(page.InvestigationIDs))}
+	retained := make(map[string]bool, len(page.InvestigationIDs))
+	for _, id := range page.InvestigationIDs {
+		retained[id] = true
+	}
+	for _, bucket := range buckets {
+		if !retained[bucket.Key.InvestigationID] {
+			continue
+		}
+		ids := make([]string, 0, len(bucket.MatchingEvents.Hits.Hits))
+		for _, hit := range bucket.MatchingEvents.Hits.Hits {
+			ids = append(ids, hit.Source.EventID)
+		}
+		witness.events = append(witness.events, ids)
+	}
+	return witness
+}
+
+// RecheckRetainedCandidates is the final collective barrier for a bounded
+// multi-page API search. It checks every retained candidate's actual matching
+// witnesses after all provider requests. A witness expiring between pages makes
+// the search unavailable rather than inventing a short or exhausted page.
+func (index *SessionIndex) RecheckRetainedCandidates(ctx context.Context, scope domain.Scope, pages []SessionSearchPage) error {
+	if index == nil || index.retention == nil || ctx == nil || ctx.Err() != nil || scope.Validate() != nil || len(pages) < 1 || len(pages) > 8 {
+		return runtimeindex.ErrRejected
+	}
+	all := make([]string, 0)
+	candidates := make([][]string, 0)
+	seen := make(map[string]bool)
+	for _, page := range pages {
+		witness := page.retentionWitnesses
+		if witness == nil || witness.index != index || witness.scope != scope || witness.after != page.After || len(witness.investigations) != len(page.InvestigationIDs) || len(witness.events) != len(page.InvestigationIDs) {
+			return runtimeindex.ErrRejected
+		}
+		for i, id := range page.InvestigationIDs {
+			if id != witness.investigations[i] || seen[id] || !validSessionInvestigationID(id) || len(witness.events[i]) < 1 || len(witness.events[i]) > sessionRetentionWitnessLimit {
+				return runtimeindex.ErrRejected
+			}
+			seen[id] = true
+			candidates = append(candidates, witness.events[i])
+			all = append(all, witness.events[i]...)
+		}
+	}
+	if len(candidates) > 101 {
+		return runtimeindex.ErrRejected
+	}
+	states, err := runtimeindex.CheckEventVisibility(ctx, index.retention, scope, all)
+	if err != nil {
+		return err
+	}
+	for _, ids := range candidates {
+		live := false
+		for _, id := range ids {
+			if states[id] {
+				live = true
+			}
+		}
+		if !live {
+			return runtimeindex.ErrRetryable
+		}
+	}
+	return nil
+}

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/signal"
@@ -193,6 +194,15 @@ type releaseMigrationRunner interface {
 
 func main() {
 	arguments := os.Args[1:]
+	if len(arguments) > 0 && arguments[0] == "retention-profile-checksum" {
+		if len(arguments) != 1 {
+			log.Fatal("release migration configuration rejected")
+		}
+		if err := writeRetentionChecksum(os.Stdout); err != nil {
+			log.Fatal("release migration output failed")
+		}
+		return
+	}
 	if len(arguments) > 0 && arguments[0] == "optional-egress-profile-checksums" {
 		if len(arguments) != 1 {
 			log.Fatal("release migration configuration rejected")
@@ -210,6 +220,13 @@ func main() {
 	}
 	ctx, cancel := context.WithTimeout(signalCtx, timeout)
 	defer cancel()
+	var retentionRegistration *retentionOperatorInput
+	if len(arguments) > 0 && retentionOperatorCommand(arguments[0]) {
+		retentionRegistration, err = loadRetentionOperator(arguments, os.Getenv)
+		if err != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+	}
 	var optionalEgressRegistration *optionalEgressOperatorInput
 	if len(arguments) > 0 && optionalEgressOperatorCommand(arguments[0]) {
 		optionalEgressRegistration, err = loadOptionalEgressOperator(arguments, os.Getenv)
@@ -312,7 +329,7 @@ func main() {
 		}
 	}
 	if isForwardMigration(arguments) {
-		if authorizationProfileCommand(arguments[0]) || maintenanceProfileCommand(arguments[0]) || optionalEgressProfileCommand(arguments[0]) {
+		if authorizationProfileCommand(arguments[0]) || maintenanceProfileCommand(arguments[0]) || optionalEgressProfileCommand(arguments[0]) || retentionProfileCommand(arguments[0]) {
 			registration.migration = os.Getenv(migrationPrincipalEnvironment)
 			if !databasePrincipalPattern.MatchString(registration.migration) {
 				err = errInvalidMigrationCommand
@@ -358,7 +375,14 @@ func main() {
 		}
 		return
 	}
-	if optionalEgressRegistration != nil {
+	if retentionRegistration != nil {
+		defer clear(retentionRegistration.body)
+		err = withRetentionOperatorTransaction(ctx, func(c context.Context) (retentionOperatorTransaction, error) {
+			return connection.BeginTx(c, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
+		}, func(c context.Context, q principalQueryer, w io.Writer) error {
+			return runRetentionOperator(c, q, retentionRegistration, w)
+		}, os.Stdout)
+	} else if optionalEgressRegistration != nil {
 		defer clear(optionalEgressRegistration.body)
 		err = runOptionalEgressOperator(ctx, connection, optionalEgressRegistration)
 	} else if temporalRegistration != nil {
@@ -394,7 +418,17 @@ func main() {
 		log.Fatal("release migration failed")
 	}
 	if isForwardMigration(arguments) {
-		if err := registerForwardRelease(ctx, connection, registration, arguments); err != nil {
+		confirmRelease := func() error {
+			if retentionProfileCommand(arguments[0]) {
+				return withRetentionOperatorTransaction(ctx, func(c context.Context) (retentionOperatorTransaction, error) {
+					return connection.BeginTx(c, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
+				}, func(c context.Context, q principalQueryer, _ io.Writer) error {
+					return retentionPostInstall(c, q, registration.migration)
+				}, nil)
+			}
+			return registerForwardRelease(ctx, connection, registration, arguments)
+		}
+		if err := confirmRelease(); err != nil {
 			log.Fatal("release principal registration or readiness failed")
 		}
 	}
@@ -416,6 +450,9 @@ func registerAuthorizationVerifier(ctx context.Context, queryer principalQueryer
 func registerForwardRelease(ctx context.Context, queryer principalQueryer, registration discoveryPrincipalRegistration, arguments []string) error {
 	if !isForwardMigration(arguments) {
 		return errInvalidMigrationCommand
+	}
+	if retentionProfileCommand(arguments[0]) {
+		return retentionPostInstall(ctx, queryer, registration.migration)
 	}
 	if optionalEgressProfileCommand(arguments[0]) {
 		return optionalEgressPostInstall(ctx, queryer, registration.migration, arguments[0])
@@ -813,6 +850,9 @@ func (r *registeredReleaseMigrationRunner) UpProductionApprovalSettlementAuditPr
 }
 
 func isForwardMigration(arguments []string) bool {
+	if len(arguments) == 1 && retentionProfileCommand(arguments[0]) {
+		return true
+	}
 	if len(arguments) == 1 && optionalEgressProfileCommand(arguments[0]) {
 		return true
 	}
@@ -867,6 +907,15 @@ func runReleaseMigration(ctx context.Context, runner releaseMigrationRunner, arg
 		return err
 	}
 	switch arguments[0] {
+	case "up-retention-audit-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		extension, ok := runner.(interface{ UpProductionRetentionAuditProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return extension.UpProductionRetentionAuditProfile(ctx)
 	case "up-optional-egress-profile":
 		if version != 61 {
 			return migrations.ErrInvalidState

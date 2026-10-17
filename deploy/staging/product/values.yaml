@@ -499,6 +499,15 @@ evidenceExportWorkflow:
   enabled: false
 runtimeServices:
   enabled: false
+retentionReferenceExpiry:
+  # Deploy consumers only after an exact prepared Audit profile and approved
+  # cutover. This never installs or activates SQL or withdraws credentials.
+  enabled: false
+  profileChecksum: ""
+  taskQueue: ""
+  # Explicit precise executor and physical index selection; no implicit cutover.
+  indexStageVersion: ""
+  sessionIndex: ""
 optionalEgress:
   # Opt in only after the selected supplementary recipe and every planner
   # principal are registered. This setting does not install or activate SQL.

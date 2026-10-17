@@ -69,7 +69,7 @@ func (processor *runtimeSessionSearchProcessor) process(ctx context.Context, lea
 	defer stopHeartbeat()
 	done := make(chan error, 1)
 	go processor.keepLease(heartbeatCtx, cancel, lease, token, done)
-	ids, executeErr := callRuntimeSessionSearchWork(processor.config.Executor, workCtx, lease)
+	ids, executeErr := callRuntimeSessionSearchWork(processor.config.Executor, context.WithValue(retentionAdmissionContext(workCtx), retentionSessionContextKey{}, retentionSessionExecution{lease: lease, workerID: processor.config.WorkerID, token: token}), lease)
 	stopHeartbeat()
 	var heartbeatErr error
 	select {

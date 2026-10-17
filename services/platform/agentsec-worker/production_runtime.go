@@ -56,6 +56,9 @@ func productionWorkerIO() workerExternalIO {
 	return workerExternalIO{planner: newProductionSecurityAgentPlanner, temporal: newTemporalExecutionIO, discovery: newProductionDiscoveryIO, outbox: newProductionOutboxIO, redTeam: newProductionRedTeamDependencies}
 }
 func buildWorkerRuntimeWithIO(ctx context.Context, config workerRuntimeConfig, external workerExternalIO) (workerRuntimeDependencies, error) {
+	if config.Mode == workerModeRetentionReferenceExpiry {
+		return buildProductionRetentionRuntime(ctx, config)
+	}
 	if external.planner == nil || external.temporal == nil {
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
@@ -75,7 +78,11 @@ func buildWorkerRuntimeWithIO(ctx context.Context, config workerRuntimeConfig, e
 		pool.Close()
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
-	if workerStartupProfileReady(connectCtx, pool, config) != nil {
+	startupReady := workerStartupProfileReady
+	if config.RetentionProfileChecksum != "" {
+		startupReady = retentionPipelineStartupReady
+	}
+	if startupReady(connectCtx, pool, config) != nil {
 		pool.Close()
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
@@ -101,7 +108,11 @@ func buildWorkerRuntimeWithIO(ctx context.Context, config workerRuntimeConfig, e
 			return buildTemporalDiscoveryRuntime(ctx, config, database, external)
 		}
 	}
-	dependencies, err := composeWorkerRuntimeWithIO(connectCtx, config, database, external)
+	var compositionDatabase apiserver.JSONDatabase = database
+	if config.Mode == workerModeRuntimeIndex && workerUsesRetentionRuntimeProfile(config) {
+		compositionDatabase = &retentionWorkerDatabase{JSONDatabase: database, pool: pool}
+	}
+	dependencies, err := composeWorkerRuntimeWithIO(connectCtx, config, compositionDatabase, external)
 	if err != nil {
 		_ = database.Close()
 		return workerRuntimeDependencies{}, err
@@ -231,7 +242,7 @@ func closeWorkerRuntimeServices(previous, services func() error) func() error {
 func closeWorkerRuntimeDatabase(mode workerMode, closeDependencies, closeDatabase func() error) func() error {
 	return func() error {
 		dependencyErr := closeDependencies()
-		if dependencyErr != nil && (mode == workerModeAuditExport || mode == workerModeAuditExportOutbox || mode == workerModeTestReconciler || mode == workerModeAttackLabReconciler || mode == workerModeComplianceExport || mode == workerModeComplianceCleanup) {
+		if dependencyErr != nil && (mode == workerModeRuntimeIndex || mode == workerModeAuditExport || mode == workerModeAuditExportOutbox || mode == workerModeTestReconciler || mode == workerModeAttackLabReconciler || mode == workerModeComplianceExport || mode == workerModeComplianceCleanup) {
 			// The audit runtime retains clients while canceled borrowers join.
 			// Its database must survive that failed Close for the same reason.
 			return dependencyErr
@@ -456,7 +467,7 @@ func composeWorkerRuntimeWithIO(ctx context.Context, config workerRuntimeConfig,
 		if config.Mode == workerModeRuntimeArchive {
 			stage, err = newProductionRuntimeArchive(ctx, config)
 		} else if config.Mode == workerModeRuntimeIndex {
-			stage, err = newProductionRuntimeIndex(ctx, config)
+			stage, err = newProductionRuntimeIndex(ctx, config, database)
 		} else if config.Mode == workerModeRuntimeCorrelation {
 			stage, err = newProductionRuntimeCorrelation(ctx, config, database)
 		} else if config.Mode == workerModeRuntimeProjection {
@@ -540,6 +551,9 @@ func composeRuntimeCoordinatorWorkerRuntime(config workerRuntimeConfig, database
 	if workerUsesCurrentRuntimeProfile(config) {
 		repository, err = runtimeevent.NewPostgresCurrentRuntimePipelineRepository(database, runtimeevent.ProductionPipelineAuthorityCoordinator)
 	}
+	if workerUsesRetentionRuntimeProfile(config) {
+		repository, err = runtimeevent.NewPostgresRetentionRuntimePipelineRepository(database, runtimeevent.ProductionPipelineAuthorityCoordinator, config.RetentionProfileChecksum)
+	}
 	if err != nil {
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
@@ -592,6 +606,9 @@ func composeRuntimeStageWorkerRuntime(config workerRuntimeConfig, database apise
 	if workerUsesCurrentRuntimeProfile(config) {
 		repository, err = runtimeevent.NewPostgresCurrentRuntimePipelineRepository(database, authority)
 	}
+	if workerUsesRetentionRuntimeProfile(config) {
+		repository, err = runtimeevent.NewPostgresRetentionRuntimePipelineRepository(database, authority, config.RetentionProfileChecksum)
+	}
 	if err != nil {
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
@@ -603,6 +620,9 @@ func composeRuntimeStageWorkerRuntime(config workerRuntimeConfig, database apise
 		}
 		if workerUsesCurrentRuntimeProfile(config) {
 			sessionAuthority, err = newCurrentPostgresRuntimeSessionSearchAuthority(database)
+		}
+		if workerUsesRetentionRuntimeProfile(config) {
+			sessionAuthority, err = newRetentionPostgresRuntimeSessionSearchAuthority(database, config.RetentionProfileChecksum)
 		}
 		if err != nil {
 			return workerRuntimeDependencies{}, errRuntimeUnavailable
@@ -646,6 +666,9 @@ func composeRuntimeStageWorkerRuntime(config workerRuntimeConfig, database apise
 		}
 		combined = runtimeIndexAndSessionProcessor{raw: combined, sessions: readinessGatedWorkerProcessor{delegate: sessions, ready: sessionReady}}
 		healthReady = func(ctx context.Context) error { return errors.Join(ready(ctx), sessionReady(ctx)) }
+	}
+	if stage.retentionCleanup != nil {
+		combined = retentionCleanupAndIndexProcessor{cleanup: stage.retentionCleanup, index: combined}
 	}
 	return workerRuntimeDependencies{Processor: combined, Ready: healthReady, Close: stage.Close}, nil
 }
@@ -1034,3 +1057,9 @@ func (driver *workerPostgresDriver) Close() error {
 type workerUnavailableRow struct{}
 
 func (workerUnavailableRow) Scan(...any) error { return errors.New("database unavailable") }
+
+type retentionCleanupAndIndexProcessor struct{ cleanup, index workerProcessor }
+
+func (p retentionCleanupAndIndexProcessor) RunOnce(ctx context.Context) error {
+	return errors.Join(p.cleanup.RunOnce(ctx), p.index.RunOnce(ctx))
+}

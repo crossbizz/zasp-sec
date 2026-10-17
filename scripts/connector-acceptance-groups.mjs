@@ -83,6 +83,16 @@ export const CONNECTOR_ACCEPTANCE_GROUPS = Object.freeze({
     'mounted_expiry_converges_without_background_worker',
     'operator_rotation_preserves_captured_binding_and_no_raw_storage',
   ], 1),
+  'retention-audit': group('TestRetentionAuditProfileNativePostgres', [
+    'prepared_exact_recipe_and_noinherit_owner',
+    'registered_purposes_and_explicit_local_cutover',
+    'same_full_receipt_current_writers_before_expiry',
+    'immutable_origin_scope_switch_and_legacy_replay',
+    'audited_policy_expiry_and_idempotent_cycle',
+    'mixed_replay_preserves_whole_receipts_without_resurrection',
+    'real_api_visibility_unknown_and_foreign_scope_denied',
+    'independent_live_guard_drift_refuses_and_rolls_back',
+  ], 1),
 });
 export function selectConnectorAcceptanceGroup(args) {
   assert.ok(Array.isArray(args) && args.length === 1 &&
