@@ -6,23 +6,31 @@ const RELEASE_TEST_SET=new Set(RELEASE_TEST_NAMES);
 const SUMMARY_KEYS=["tests","pass","fail","cancelled","skipped","todo"];
 const MAX_BYTES=256*1024;
 const GENERIC='::error title=npm verify failed::npm run verify failed; phase unavailable.';
-export function verifyFailureAnnotation(raw){
- if(!Buffer.isBuffer(raw)||raw.length>MAX_BYTES)return GENERIC;
+const MAX_READ_BYTES=64*1024*1024;
+const READ_CHUNK_BYTES=64*1024;
+const MAX_LINE_BYTES=16*1024;
+const MAX_LINES=1000000;
+function annotationParser(){
  let phase=null,failed=[],summary=new Map(),invalidSummary=false;
- for(const line of raw.toString('utf8').split(/\r?\n/)){
-  if(line.length>4096){if(line.startsWith('> ')){phase=null;failed=[];summary=new Map();invalidSummary=false;}continue;}
+ return {
+  line(line){
+  if(line.length>4096){if(line.startsWith('> ')){phase=null;failed=[];summary=new Map();invalidSummary=false;}return;}
   if(/^> [^ \t]+@[^ \t]+ [^\r\n]+$/.test(line)){
    const match=/^> zasp-agent-security-console@0\.1\.0 ([a-z:.-]+)$/.exec(line);
    phase=match&&PHASES.includes(match[1])?match[1]:null;failed=[];summary=new Map();invalidSummary=false;
-   continue;
+   return;
   }
-  if(phase!=='production:release:test')continue;
+  if(phase!=='production:release:test')return;
   const result=/^not ok (?:0|[1-9][0-9]{0,6}) - (.+)$/.exec(line)??/^✖ (.+) \((?:0|[1-9][0-9]{0,9})(?:\.[0-9]{1,9})?ms\)$/.exec(line);
   const name=result?.[result.length-1];
   if(name&&RELEASE_TEST_SET.has(name)&&!failed.includes(name)&&failed.length<4)failed.push(RELEASE_TEST_NAMES.find(value=>value===name));
   const counter=/^(?:#|ℹ) (tests|pass|fail|cancelled|skipped|todo)(?: (.*))?$/.exec(line);
   if(counter){const key=counter[1],text=counter[2]??'';if(!/^(?:0|[1-9][0-9]{0,6})$/.test(text)||Number(text)>1000000||summary.has(key))invalidSummary=true;else summary.set(key,Number(text));}
- }
+  },
+  oversizedLine(startsHeader){
+   if(startsHeader){phase=null;failed=[];summary=new Map();invalidSummary=false;}
+  },
+  finish(){
  if(phase==='production:release:test'){
   const valid=!invalidSummary&&SUMMARY_KEYS.every(key=>summary.has(key))&&SUMMARY_KEYS.every(key=>summary.get(key)<=summary.get('tests'))&&summary.get('pass')+summary.get('fail')+summary.get('cancelled')<=summary.get('tests');
   const counters=valid?SUMMARY_KEYS.map(key=>key+'='+summary.get(key)).join(', '):'unavailable';
@@ -30,13 +38,59 @@ export function verifyFailureAnnotation(raw){
   return Buffer.byteLength(annotation)<=4096?annotation:'::error title=npm verify failed::npm run verify failed; latest observed phase: production:release:test. Observed failed tests: unavailable. Observed summary: unavailable.';
  }
  return phase===null?GENERIC:`::error title=npm verify failed::npm run verify failed; latest observed phase: ${phase}.`;
+  }
+ };
 }
-function boundedLog(file){
- const fd=fs.openSync(file,fs.constants.O_RDONLY|fs.constants.O_NOFOLLOW);
- try{const st=fs.fstatSync(fd);if(!st.isFile()||!Number.isSafeInteger(st.size)||st.size<0)throw Error();const length=Math.min(st.size,MAX_BYTES),offset=st.size-length,raw=Buffer.alloc(length);if(fs.readSync(fd,raw,0,length,offset)!==length)throw Error();const after=fs.fstatSync(fd);if(st.dev!==after.dev||st.ino!==after.ino||st.size!==after.size||st.mtimeMs!==after.mtimeMs)throw Error();if(offset){const newline=raw.indexOf(10);return newline<0?Buffer.alloc(0):raw.subarray(newline+1);}return raw;}finally{fs.closeSync(fd);}
+export function verifyFailureAnnotation(raw){
+ if(!Buffer.isBuffer(raw)||raw.length>MAX_BYTES)return GENERIC;
+ const parser=annotationParser();
+ for(const line of raw.toString('utf8').split(/\r?\n/))parser.line(line);
+ return parser.finish();
+}
+function fileAnnotation(file){
+ const fd=fs.openSync(file,fs.constants.O_RDONLY|fs.constants.O_NOFOLLOW|fs.constants.O_NONBLOCK);
+ try{
+  const before=fs.fstatSync(fd,{bigint:true});
+  if(!before.isFile()||before.size<0n||before.size>BigInt(MAX_READ_BYTES))throw Error();
+  const parser=annotationParser(),chunk=Buffer.alloc(READ_CHUNK_BYTES);
+  let pending=Buffer.alloc(0),discarded=false,lines=0,position=0;
+  const finishLine=(newline)=>{
+   if(++lines>MAX_LINES)throw Error();
+   if(!discarded){
+    const value=newline&&pending.at(-1)===13?pending.subarray(0,-1):pending;
+    parser.line(value.toString('utf8'));
+   }
+   pending=Buffer.alloc(0);discarded=false;
+  };
+  const feed=(part)=>{
+   if(discarded)return;
+   if(pending.length+part.length>MAX_LINE_BYTES){
+    const prefix=pending.length>=2?pending.subarray(0,2):Buffer.concat([pending,part.subarray(0,2-pending.length)]);
+    parser.oversizedLine(prefix[0]===62&&prefix[1]===32);
+    pending=Buffer.alloc(0);discarded=true;
+   }else pending=Buffer.concat([pending,part]);
+  };
+  const size=Number(before.size);
+  while(position<size){
+   const wanted=Math.min(chunk.length,size-position);
+   if(fs.readSync(fd,chunk,0,wanted,position)!==wanted)throw Error();
+   position+=wanted;
+   let start=0;
+   while(start<wanted){
+    const newline=chunk.indexOf(10,start),end=newline>=0&&newline<wanted?newline:wanted;
+    feed(chunk.subarray(start,end));
+    if(end===wanted)break;
+    finishLine(true);start=end+1;
+   }
+  }
+  if(pending.length||discarded)finishLine(false);
+  const after=fs.fstatSync(fd,{bigint:true});
+  if(position!==size||!after.isFile()||before.dev!==after.dev||before.ino!==after.ino||before.size!==after.size||before.mtimeNs!==after.mtimeNs||before.ctimeNs!==after.ctimeNs)throw Error();
+  return parser.finish();
+ }finally{fs.closeSync(fd);}
 }
 if(process.argv[1]===fileURLToPath(import.meta.url)){
  let annotation=GENERIC;
- try{if(process.argv.length===3)annotation=verifyFailureAnnotation(boundedLog(process.argv[2]));}catch{/* Diagnostic failure never changes the verifier status or emits input details. */}
+ try{if(process.argv.length===3)annotation=fileAnnotation(process.argv[2]);}catch{/* Diagnostic failure never changes the verifier status or emits input details. */}
  process.stdout.write(annotation+'\n');
 }

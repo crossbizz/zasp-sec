@@ -41,3 +41,25 @@ test('release diagnostics bound names, deduplicate, and require complete coheren
  const src=fs.readFileSync(new URL('./annotate-verify-failure.mjs',import.meta.url),'utf8');const names=JSON.parse(src.match(/const RELEASE_TEST_NAMES = (\[[^\n]*\]);/)[1]);assert.ok(names.length>100);const rows=names.slice(0,8).map((name,i)=>`not ok ${i+1} - ${name}\n`).join('');const result=verifyFailureAnnotation(Buffer.from(header('production:release:test')+rows+rows));assert.ok(Buffer.byteLength(result)<=4096);for(const n of names.slice(0,4))assert.ok(result.includes(n));for(const n of names.slice(4,8))assert.ok(!result.includes(n));
  for(const summary of ['# tests 285\n# pass 284\n# fail 1\n','# tests 2\n# pass 2\n# fail 1\n# cancelled 0\n# skipped 0\n# todo 0\n','# tests 1\n# tests 2\n# pass 0\n# fail 1\n# cancelled 0\n# skipped 0\n# todo 0\n'])assert.match(verifyFailureAnnotation(Buffer.from(header('production:release:test')+summary)),/Observed summary: unavailable\.$/);
 });
+
+test('CLI retains closed phases across verbose output and refuses incomplete or hostile streams',()=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'verify-stream-'));
+ const helper=new URL('./annotate-verify-failure.mjs',import.meta.url).pathname;
+ const annotate=(file,extra={})=>spawnSync(process.execPath,[helper,file],{encoding:'utf8',timeout:3000,maxBuffer:4096,...extra});
+ const phase=label=>`::error title=npm verify failed::npm run verify failed; latest observed phase: ${label}.`;
+ try{
+  const rows=[
+   ['header before verbose tail',header('test')+'x'.repeat(300000)+'\nCANARY_SECRET\n',phase('test')],
+   ['real header split across chunks','x'.repeat(65530)+'\n'+header('lint')+'CANARY_SECRET\n',phase('lint')],
+   ['oversized line cannot inject a chunk-tail header',header('test')+'x'.repeat(65536)+header('lint'),phase('test')],
+   ['oversized header clears earlier phase',header('test')+'> '+'x'.repeat(65536)+header('lint'),generic],
+   ['unknown package clears earlier phase',header('test')+'> other-package@1.0.0 install\n',generic],
+  ];
+  for(const [name,body,want]of rows){const file=path.join(dir,name);fs.writeFileSync(file,body);const r=annotate(file);assert.equal(r.status,0,name);assert.equal(r.stderr,'',name);assert.equal(r.stdout.trim(),want,name);assert.doesNotMatch(r.stdout,/CANARY_SECRET|verify-stream-|x{16}/);}
+  const capped=path.join(dir,'oversize');fs.writeFileSync(capped,header('lint'));fs.truncateSync(capped,64*1024*1024+1);const capfd=fs.openSync(capped,'r+');try{const ending=Buffer.from('\n'+header('lint'));fs.writeSync(capfd,ending,0,ending.length,64*1024*1024+1-ending.length);}finally{fs.closeSync(capfd);}const over=annotate(capped);assert.equal(over.status,0);assert.equal(over.stdout.trim(),generic);assert.equal(over.stderr,'');
+  const lines=path.join(dir,'too-many-lines');fs.writeFileSync(lines,header('lint')+'\n'.repeat(1000001));const lineResult=annotate(lines);assert.equal(lineResult.status,0);assert.equal(lineResult.stdout.trim(),generic);assert.equal(lineResult.stderr,'');
+  const preload=path.join(dir,'mutate.mjs');fs.writeFileSync(preload,`import fs from 'node:fs';const read=fs.readSync,target=fs.statSync(process.env.VERIFY_TARGET);let changed=false;fs.readSync=function(...args){const n=read.apply(this,args),current=fs.fstatSync(args[0]);if(!changed&&current.dev===target.dev&&current.ino===target.ino){changed=true;if(process.env.VERIFY_MUTATION==='truncate')fs.truncateSync(process.env.VERIFY_TARGET,0);else fs.appendFileSync(process.env.VERIFY_TARGET,'CANARY_SECRET appended\\n');}return n;};`);
+  for(const mutation of ['append','truncate']){const file=path.join(dir,mutation);fs.writeFileSync(file,header('lint')+'x'.repeat(100000)+'\n');const actual=spawnSync(process.execPath,['--import',preload,helper,file],{env:{...process.env,VERIFY_TARGET:file,VERIFY_MUTATION:mutation},encoding:'utf8',timeout:3000,maxBuffer:4096});assert.equal(actual.status,0,mutation);assert.equal(actual.stdout.trim(),generic,mutation);assert.equal(actual.stderr,'');assert.doesNotMatch(actual.stdout,/CANARY_SECRET|verify-stream-/);}
+  const fifo=path.join(dir,'fifo');const made=spawnSync('mkfifo',[fifo],{encoding:'utf8',timeout:3000});assert.equal(made.status,0);const nonregular=annotate(fifo);assert.equal(nonregular.status,0,'FIFO must be rejected before blocking read');assert.equal(nonregular.stdout.trim(),generic);assert.equal(nonregular.stderr,'');
+ }finally{fs.rmSync(dir,{recursive:true,force:true});}
+});
