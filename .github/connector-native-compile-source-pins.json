@@ -19,8 +19,8 @@
     },
     {
       "path": "services/platform/agentsec-api/production_runtime.go",
-      "sha256": "6ebadde201a3b2ac9a3888710017e9fed097fc0e06e93787231646439aaf4881",
-      "bytes": 67036,
+      "sha256": "c7f3bd59a3dff305450249f406cd0b8f16fdf161dea7f4e9ac1e7083ac670950",
+      "bytes": 67000,
       "currentBasePreimageSHA256": "bbcc0ce1843601dfdfbde2ffe2aa710ed26239d7eb27849f2b5e9582338b09ef",
       "historicalPreimageSHA256": "10f33b11d8e05b35b4814a1a3e58889c5a4d592dce82e1010fd92874c22ac7fa"
     },
@@ -390,14 +390,14 @@
     },
     {
       "path": "scripts/hosted-connected-connector-acceptance.mjs",
-      "sha256": "50c08a6b73ab6b09376738922e657fb6667159f8a4e32ead6b0a9c90e4e3177a",
+      "sha256": "cf35b38c5deea805772ef8eb01266c27a748e455fdd8eaa78e28a6e2749541c2",
       "bytes": 151911,
       "currentBasePreimageSHA256": "f248c6d9182ca08cb518cd54c620844c987f4ae723a38badb463c59e010db578",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
-      "sha256": "0e9dc3406009887639601d7b7cbaaaa4d9ef585c48ea3a91cb76b2df70e85129",
+      "sha256": "0afb227ad937dfb36604f285c4be585e68690392d1935ad413c6ea2016ffdd9f",
       "bytes": 148427,
       "currentBasePreimageSHA256": "e66722e4daf5b1482c253d1f14b4c533c329fde202252c16f87ad3e0130e8524",
       "historicalPreimageSHA256": null
@@ -6519,5 +6519,7 @@
   "reviewerPublisherSourceAssociationBase": "cfdb32d9aa40fe9ef3c234eef0c7af0a4d4ad0e5",
   "reviewerPublisherPredecessorManifestSHA256": "2e25573bc5cf65e7ddf1dd35a9383c95baeefa3086101757fbfc19ac9a1ceb47",
   "reviewerPublisherImageSourceAssociationBase": "1c9827946f94e92c1b32fcbb46bf789048dd7809",
-  "reviewerPublisherImagePredecessorManifestSHA256": "21a8276631772b504a018b4e5da081ecb5562e16a96c09ebb835fbce01af6f9c"
+  "reviewerPublisherImagePredecessorManifestSHA256": "21a8276631772b504a018b4e5da081ecb5562e16a96c09ebb835fbce01af6f9c",
+  "apiJSONReturnRepairSourceAssociationBase": "ccbaa28ede1e07fac9d5dc47858ed337b2766c94",
+  "apiJSONReturnRepairPredecessorManifestSHA256": "566ef87f3fd43009f4801a0f170dc1384de450f6f714cd0b68861b48e794dc7a"
 }

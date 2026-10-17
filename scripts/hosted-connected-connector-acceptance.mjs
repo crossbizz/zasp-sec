@@ -31,7 +31,7 @@ const pins = {
   "services/platform/apiserver/connector_maintenance_callback_recovery.go": "78ab4d746bf9d76d65f5113df17865fed91ba0ebdd7c55d4ba023612533d1b75",
   "services/platform/agentsec-api/connector_callback_runtime.go": "69c0fe154628058709eaf886369e3aa92aee8a9526a1bebda091ad8147c6cd95",
   "services/platform/agentsec-api/connector_maintenance_runtime.go": "8f7207d81d37dcceb02dcfd55975eefe407cebca06eaf7b99a6bd9eb555d5dc3",
-  "services/platform/agentsec-api/production_runtime.go": "6ebadde201a3b2ac9a3888710017e9fed097fc0e06e93787231646439aaf4881",
+  "services/platform/agentsec-api/production_runtime.go": "c7f3bd59a3dff305450249f406cd0b8f16fdf161dea7f4e9ac1e7083ac670950",
   "services/platform/agentsec-api/runtime.go": "b14b68d53acba7cd4cd3dc875cb1d070a5140fb05500a6b5fd8f748770a3357e",
   "services/platform/agentsec-worker/authorization_worker_runtime.go": "9616068ff5d9121bbe8f4c017b1580a99898dbb90ee8b538f4ec7f4a47bfc5e2",
   "services/platform/apiserver/connector_enqueue_provenance_postgres_test.go": "d6039cfa0d1673a5cf29e68e209b73c2cb6aeefd715e4d7805d3690b8ab0afde",

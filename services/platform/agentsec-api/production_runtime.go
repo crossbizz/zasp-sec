@@ -1004,13 +1004,13 @@ func (database *tracedJSONDatabase) CurrentAuthorizationRequired() bool {
 
 func (database *tracedJSONDatabase) ActivateCurrentTemporalTestDefinition(ctx context.Context, args ...any) (json.RawMessage, error) {
 	if database == nil || invalidRuntimeValue(database.next) {
-		return RuntimeDependencies{}, markRuntimeDependencyFailure("agent-owner-filter-profile", errRuntimeUnavailable)
+		return nil, markRuntimeDependencyFailure("agent-owner-filter-profile", errRuntimeUnavailable)
 	}
 	current, ok := database.next.(interface {
 		ActivateCurrentTemporalTestDefinition(context.Context, ...any) (json.RawMessage, error)
 	})
 	if !ok {
-		return RuntimeDependencies{}, markRuntimeDependencyFailure("agent-owner-filter-profile", errRuntimeUnavailable)
+		return nil, markRuntimeDependencyFailure("agent-owner-filter-profile", errRuntimeUnavailable)
 	}
 	return current.ActivateCurrentTemporalTestDefinition(ctx, args...)
 }
