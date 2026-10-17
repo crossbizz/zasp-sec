@@ -383,22 +383,22 @@
     },
     {
       "path": "scripts/connector-acceptance-groups.test.mjs",
-      "sha256": "a1a21cb11177d456182368c65571804775e7d6312248656d79e7ad2595ee828e",
-      "bytes": 83878,
+      "sha256": "5d00c70dfa0193dba35ca5f89fa513050c585554906a15b9d1bce4ecb7d539ff",
+      "bytes": 84151,
       "currentBasePreimageSHA256": "a1622a9417e9fe4d62c2aed82bcf5f7f3e11dce841d802bf005b29d54405d388",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connected-connector-acceptance.mjs",
-      "sha256": "9e3f4e0ab191e6de4b1cbc6dbe4d6d725a8704b969650bf81b49f1c53475df92",
-      "bytes": 151027,
+      "sha256": "cfccc23dc49ebb2963d8165bdc8ada2df0c1baf878ad1828c2c19e5d13697c43",
+      "bytes": 151640,
       "currentBasePreimageSHA256": "f248c6d9182ca08cb518cd54c620844c987f4ae723a38badb463c59e010db578",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
-      "sha256": "00005eca97b541b9a3b359ea5ba3f29e8f0c7bdce610a8474a69544d9ca0f82b",
-      "bytes": 147543,
+      "sha256": "1300b9090ac56b9c1558dbd5fe4232d710168e23146439802a4be89846f3023f",
+      "bytes": 148156,
       "currentBasePreimageSHA256": "e66722e4daf5b1482c253d1f14b4c533c329fde202252c16f87ad3e0130e8524",
       "historicalPreimageSHA256": null
     },
@@ -5108,7 +5108,7 @@
     },
     {
       "path": ".github/workflows/connector-native-draft-compile.yml",
-      "sha256": "7ed70a6b1f63476a99477f8127f99007880493d3d9a68363b6f9c6d8499fa4a0",
+      "sha256": "8c9b67826582571d5db9432519fed446e54f9d76513e1ba25a6f535a67e27ed7",
       "bytes": 197473,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
@@ -6235,15 +6235,15 @@
     },
     {
       "path": ".github/workflows/gateway-pod-identity-components.yml",
-      "sha256": "103ecc7ffd1edf71e596d81f013d0c24d69b432e3426538d025f8f6e3444fe52",
-      "bytes": 3762,
+      "sha256": "c6358ba331f5d8128e272bd51d54dc3035a38a9d9c7e0100193872ae4f0663f8",
+      "bytes": 4641,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
     {
       "path": "services/gatewaypodidentity/README.md",
-      "sha256": "d29bbc5b42856abb533a46529692b9e43b32b8d618e71f180b2db92f6f587b2a",
-      "bytes": 1817,
+      "sha256": "936a7b066fec66ce8005c0c0dd26fd6e4ff5b5197bf0abedc6f1010e47242638",
+      "bytes": 3839,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -6428,6 +6428,41 @@
       "bytes": 1392,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/gatewaypodidentity/cmd/gateway-reviewer-publisher/main.go",
+      "sha256": "3fbfc96b8d91ef6f789154010b793cab7b4685e37b0973a3734e70769f9c0036",
+      "bytes": 1790,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/gatewaypodidentity/publisher.go",
+      "sha256": "7e681f4bdf3fa41beb6f0326576c0cd53870eec4cd5cc791bce9474ada8cd022",
+      "bytes": 935,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/gatewaypodidentity/publisher_linux.go",
+      "sha256": "a459d848a6a69e5b8969859380cde43694774c29a3763a7d29815ffbdc3ab68b",
+      "bytes": 15458,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/gatewaypodidentity/publisher_other.go",
+      "sha256": "bd6ecaea1888de9d386ef0f40e2a405ebf15bfd6cf96435628d3fc69e6c04d59",
+      "bytes": 152,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/gatewaypodidentity/publisher_test.go",
+      "sha256": "2f82979afb51270a4b7f1610a55f725b001d848b7d61680404bd378d3835dff0",
+      "bytes": 8855,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
     }
   ],
   "predecessorCheckpointSHA256": "364ada857d54ce83d678e00eb3d61d55c6a036d22cc1f7ebc9170432079ece05",
@@ -6466,5 +6501,7 @@
   "scopedDependencyCleanupPredecessorManifestSHA256": "6cd38276accaf6c2eb4c16d0fe459d4ea9553985b50523bd2e3a64c14fb5f9b7",
   "scopedDependencyCleanupCIParserPredecessorManifestSHA256": "9efd3de468cde38d4156e7bae4d1255a7235c02f068fedc2272ea58f39819e4e",
   "runtimePolicyEvaluationSourceAssociationBase": "07c14b21d46fed868457c5f6172b33776239bd85",
-  "runtimePolicyEvaluationPredecessorManifestSHA256": "c995275c656b0c758142985dff4d7fb3b596b9dc4e11383a7eb8aa5d5376477d"
+  "runtimePolicyEvaluationPredecessorManifestSHA256": "c995275c656b0c758142985dff4d7fb3b596b9dc4e11383a7eb8aa5d5376477d",
+  "reviewerPublisherSourceAssociationBase": "cfdb32d9aa40fe9ef3c234eef0c7af0a4d4ad0e5",
+  "reviewerPublisherPredecessorManifestSHA256": "2e25573bc5cf65e7ddf1dd35a9383c95baeefa3086101757fbfc19ac9a1ceb47"
 }

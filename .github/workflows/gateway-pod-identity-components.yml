@@ -41,6 +41,9 @@ jobs:
               'TestProjectedPodIdentityCurrentOwnershipAndDoubleRead',
               'TestProjectedPodIdentityTransportBoundsAndDeadline',
               'TestProjectedPodIdentitySecretReadinessAndLifecycle',
+              'TestReviewerPublisherProjectedRotationAndConsumer',
+              'TestReviewerPublisherSourceAndDestinationSafety',
+              'TestReviewerPublisherCancellationExpiryAndOwnership',
           }
           def check_sources():
               manifest = json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())
@@ -55,7 +58,7 @@ jobs:
                   assert hashlib.sha256(raw).hexdigest() == entry['sha256'], entry['path']
           check_sources()
           with tempfile.TemporaryFile() as output:
-              result = subprocess.run(['go', 'test', '-C', 'services/gatewaypodidentity', '-race', '-p', '1', '-count=1', '-timeout=45s', '-json', './...'], stdout=output, stderr=subprocess.STDOUT)
+              result = subprocess.run(['go', 'test', '-C', 'services/gatewaypodidentity', '-race', '-p', '1', '-count=1', '-timeout=45s', '-json', '.'], stdout=output, stderr=subprocess.STDOUT)
               output.seek(0)
               counts = {name: {'run': 0, 'pass': 0} for name in heads}
               lifecycle = {'start': 0, 'pass': 0}
@@ -74,6 +77,12 @@ jobs:
                           lifecycle[event['Action']] += 1
               assert result.returncode == 0 and lifecycle == {'start': 1, 'pass': 1}
               assert all(count == {'run': 1, 'pass': 1} for count in counts.values()), counts
+          # The original package and all eight grouped checks run above. The new
+          # thin operator command is compiled separately; no CLI test PASS is invented.
+          with tempfile.TemporaryDirectory() as directory:
+              command = subprocess.run(['go', 'build', '-C', 'services/gatewaypodidentity', '-o', str(Path(directory) / 'gateway-reviewer-publisher'), './cmd/gateway-reviewer-publisher'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=90)
+              print(command.stdout.decode('utf-8', errors='strict'), end='')
+              assert command.returncode == 0, 'reviewer publisher command compilation failed'
           check_sources()
-          print('Five configured-provider component groups passed; native and deployed acceptance remain separate.')
+          print('Eight configured-provider and publisher component groups passed; command compiled; native and deployed acceptance remain separate.')
           PYPODIDENTITY
