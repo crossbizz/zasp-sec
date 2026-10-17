@@ -1,0 +1,280 @@
+{
+  "observed_at": "2026-10-17T08:13:56.507862+00:00",
+  "continued_published_base": "26c8b5595d51e47461cd5ece8bd82fb1e96b5778",
+  "scope": "Selected Node inventory joins exact deployed sensor/Tetragon DaemonSets, Pods and current UID/boot/generation-bound Lease reports. Existing producer/consumer mounts carry protected observation witness. Monotonic final freshness and immutable pending payload/config/time binding prevent stale reports or old pending records from becoming current coverage. Legacy unconfigured path remains; deployed cutover/retirement verification pending.",
+  "sources": [
+    {
+      "path": "services/platform/sensoradapter/node_coverage.go",
+      "bytes": 19673,
+      "sha256": "437a16057db286c1c563a23b0d0597925effd6fa1dafb2662c008c10a54d966a"
+    },
+    {
+      "path": "services/platform/sensoradapter/node_coverage_client.go",
+      "bytes": 7150,
+      "sha256": "18cabbb9724cef6c3c0a6b7160fa01c09a23a3ebccff252ca15a6701c62f5c52"
+    },
+    {
+      "path": "services/platform/sensoradapter/node_coverage_test.go",
+      "bytes": 12078,
+      "sha256": "c65aed1418b0be398516160d9da53118093bf47076f9729c33e2f8d59354410c"
+    },
+    {
+      "path": "services/platform/preflight/sensor.go",
+      "bytes": 5829,
+      "sha256": "8914b9d172e6e3d7bbb022280d43ac53ea60ff448493df443bb1ccac42dbf472"
+    },
+    {
+      "path": "services/platform/preflight/sensor_test.go",
+      "bytes": 3586,
+      "sha256": "28b7aabea49153017b8cdbafda29666156c04abdb72f55fb261ad592e84d25de"
+    },
+    {
+      "path": "services/platform/preflight/config.go",
+      "bytes": 6719,
+      "sha256": "2bf7a2a716927794c7e11c1009119e28e17bcad93f9e4e8e2ee1b8c37ceed644"
+    },
+    {
+      "path": "services/platform/preflight/contract.go",
+      "bytes": 4102,
+      "sha256": "984b571417fc282f518c7b0d3325b7f9dafb70122f38d643c6539c895e7a4d15"
+    },
+    {
+      "path": "services/platform/preflight/runner.go",
+      "bytes": 11198,
+      "sha256": "afde4ad927189139ff736f04c7700103246157dd8f01ee0ae63c20545b2a5e69"
+    },
+    {
+      "path": "services/sensor-agent/node_coverage_identity.go",
+      "bytes": 5468,
+      "sha256": "337e62c686c0ab9dae32c30af01f68c9f78742e042117342a6c1616dddf538cd"
+    },
+    {
+      "path": "services/sensor-agent/node_coverage_runtime.go",
+      "bytes": 9532,
+      "sha256": "ecd43f32e0360e0ed9a48931484a2a74d25921fef419081c8f0879dbdce7be97"
+    },
+    {
+      "path": "services/sensor-agent/node_coverage_contract_test.go",
+      "bytes": 2263,
+      "sha256": "0827842bb675ff3acb91c799a5958560024eac8d84d4ca70ee90d62c11dc30c2"
+    },
+    {
+      "path": "services/sensor-agent/cluster.go",
+      "bytes": 23222,
+      "sha256": "946b399b41996a2d42ca02e2aa6fee4db43cdeca22410203dccb312dfd57c4f5"
+    },
+    {
+      "path": "services/sensor-agent/runtime_config.go",
+      "bytes": 7977,
+      "sha256": "8f6625db6dc5762d3595ecc44b2c5b82b21fa5cc42d79eb9392666efe1b3bfcb"
+    },
+    {
+      "path": "services/sensor-agent/production.go",
+      "bytes": 13077,
+      "sha256": "1a03a452451c660e5f9ab9a40c8c8fd7d9d0487e25274e74447dd3634cac4650"
+    },
+    {
+      "path": "services/sensor-agent/lineage_generation.go",
+      "bytes": 4825,
+      "sha256": "51bf3a6d1f0b407db857f8b89ccf9c8bcb494d0fd387d11fc5d12ed73da017e9"
+    },
+    {
+      "path": "services/sensor-agent/lineage_pump.go",
+      "bytes": 9600,
+      "sha256": "2e361664529d16fee745eb1e361957be8192aecd0bdbb9dcb4bb50ccf2ce4f38"
+    },
+    {
+      "path": "services/sensor-agent/lineage_daemon.go",
+      "bytes": 10183,
+      "sha256": "d7fd65077ba5949c971794aad3626123081dda234d2491c2a0c59f2a2afe77e8"
+    },
+    {
+      "path": "services/sensor-agent/lineage_layout.go",
+      "bytes": 7662,
+      "sha256": "5f8cc178a8282f4fb95347ee975f0ebe35ebda1032a00da6cf0f2c3e27198599"
+    },
+    {
+      "path": "services/sensor-agent/lineage_layout_test.go",
+      "bytes": 5969,
+      "sha256": "704e48dea371571e43794d9f2e51f85ec87fee4f64a3b16da0e47e84884f1770"
+    },
+    {
+      "path": "deploy/staging/product/templates/edge.yaml",
+      "bytes": 33148,
+      "sha256": "fd4b8bcaab7ea86a9c6ef4dde9872ffc301aca2ed7cc44a294d03b9252b5f7f0"
+    },
+    {
+      "path": "deploy/staging/product/values-customer-edge.yaml",
+      "bytes": 761,
+      "sha256": "5e3c71d07e622ddd15a82913355465093d141d4f87fcba3e5a48512f3de4cffe"
+    },
+    {
+      "path": "deploy/staging/tetragon/values.yaml",
+      "bytes": 1557,
+      "sha256": "b7ec8fa5b0a34cfb6163c6541972eb6f5474a4ccfc852a1ee180e8bbd11a79bf"
+    },
+    {
+      "path": "deploy/staging/tetragon/templates/sensor-coverage-reader.yaml",
+      "bytes": 1423,
+      "sha256": "513e4c6db8329239dcc4bf3fcdc1d154ff8472b96eb59d73332035b2b63e3455"
+    },
+    {
+      "path": "deploy/production/release-contract.mjs",
+      "bytes": 84013,
+      "sha256": "18731e1f224fd3c8b1497c1b1d8566aa80f6db523538b26aacb6169d6954be1d"
+    },
+    {
+      "path": "deploy/production/release-contract.test.mjs",
+      "bytes": 181525,
+      "sha256": "6c09456bf2c1bb3e17b875c13605ed32a70465a9ac6e27295f0bd2e67d739763"
+    },
+    {
+      "path": "deploy/production/release-fixture.mjs",
+      "bytes": 13168,
+      "sha256": "e8ef3db8a8be4aeb1c7db20bfb90d36bb543a366d206a5477e05a0e469b2b88e"
+    },
+    {
+      "path": "services/sensor-agent/node_coverage_flow_test.go",
+      "bytes": 12438,
+      "sha256": "46e32d0cf9cf252d02ee09dd8a1df426ff0042171544b5d2b3b5e7b0b160cfa6"
+    },
+    {
+      "path": "services/sensor-agent/lineage_consumer_daemon.go",
+      "bytes": 10257,
+      "sha256": "0bc04b949222d0fda7e0e7930168ad52dfbdc73af3af201fa438fba37100adba"
+    }
+  ],
+  "source_associations": [
+    {
+      "path": "scripts/connector-acceptance-groups.test.mjs",
+      "sha256": "6a896f71b5746ab8c31e54256d4b17dbd1c98cff1a060339821fcf0ef16acc70",
+      "bytes": 37807
+    },
+    {
+      "path": ".github/workflows/connector-native-draft-compile.yml",
+      "sha256": "dd4e5043b39a33e5ff65722074f98f536aff01c14d49be7a1ec87a5bc62acf97",
+      "bytes": 20848
+    },
+    {
+      "path": "scripts/hosted-connected-connector-acceptance.mjs",
+      "sha256": "01eacfad1eb15b0b0d125e3c55042c4d22864b306ef7013262887be8cd7fdcfb",
+      "bytes": 83985
+    },
+    {
+      "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
+      "sha256": "bac0c230a553a6a8ff721403562938d879af9abee63d0108e668e3e82a673e0c",
+      "bytes": 80386
+    },
+    {
+      "path": ".github/connector-native-compile-source-pins.json",
+      "sha256": "1b2f28b9289438d980411e6bc8ae9ffc10b0fc399c3a5e28dfdd6fc008ac6500",
+      "bytes": 119620
+    }
+  ],
+  "verification": {
+    "frozen-adapter-race": {
+      "cases": {
+        "pass": 425
+      },
+      "skipped": []
+    },
+    "frozen-sensor-agent-0027-race": {
+      "cases": {
+        "pass": 854,
+        "skip": 22
+      },
+      "skipped": [
+        "TestLineageAcknowledgmentLinuxRejectsForeignOwnedScratch",
+        "TestLineageCgroupHistoricalBinaryRefusesBeforeCursorAndACK",
+        "TestLineageConsumerDaemonActualBinaryUploadsAndRetiresWithoutToken",
+        "TestLineageConsumerDaemonActualBinaryRotatesProjectedToken",
+        "TestLineageConsumerDaemonProjectionWriter",
+        "TestLineageConsumerDaemonStateProbe",
+        "TestLineageProducerDaemonActualBinaryRotatesAndStops",
+        "TestInstalledLineageConsumerProcess",
+        "TestLineageLayoutCompletedDirectoryRequiresSync",
+        "TestLineageLayoutActualBinaryInitializesAndRestarts",
+        "TestLineageLayoutCreatesExactDirectoriesAndPreservesRestart",
+        "TestLineageLayoutRecoversOnlyEmptyOwnedPartialDirectories",
+        "TestLineageLayoutPreservesCompletedFilesAndRejectsBusyLock",
+        "TestLineageLayoutRejectsForeignEntriesBeforeWrites",
+        "TestLineageReadOnlyMountLifecycle",
+        "TestLineageSpoolReaderLinuxNonRootRecovery",
+        "TestLineageSocketLinuxPeerUIDMismatch",
+        "TestLineageSocketLinuxPeerHelper",
+        "TestLineageSpoolReaderLinuxNonRootConsumerCannotWriteProducerFiles",
+        "TestSelectedCoverageMountedGenerationWitnessProbeAndLease",
+        "TestProjectedLineageTokenRotationMount",
+        "TestProjectedLineageTokenRejectsWritableMount"
+      ]
+    },
+    "integrated-preflight-adapter-successor-race": {
+      "cases": {
+        "pass": 480
+      },
+      "skipped": []
+    },
+    "integrated-full-cli-race": {
+      "cases": {
+        "pass": 148
+      },
+      "skipped": []
+    },
+    "source_ledger_checks_pass": 54,
+    "source_pins_verified": 394,
+    "fresh_UI_typecheck_exit": 0,
+    "fresh_UI_build_exit": 0,
+    "lint_exit": 0,
+    "lint_scope_checks_pass": 11,
+    "full_sensor_runtime_uid": 1000,
+    "full_sensor_child_umask": "0027 supplies original fixture file modes; no source guard change",
+    "prior_failed_umask_runs": {
+      "qualification": "Full native-application test run executed as actual uid1000. Existing protected spool fixtures fail; no root privilege or production guards changed. Differential comparison only, not full passing regression.",
+      "baseline_counts": {
+        "pass": 443,
+        "fail": 398,
+        "skip": 21
+      },
+      "frozen_counts": {
+        "pass": 451,
+        "fail": 396,
+        "skip": 22
+      },
+      "new_failures": [],
+      "baseline_failures_now_pass": [
+        "TestSensorReportTimestampCannotBeRefreshedByCoordinator"
+      ],
+      "new_skips": [
+        "TestSelectedCoverageMountedGenerationWitnessProbeAndLease"
+      ]
+    },
+    "original_missing_selected_pod_regression": "Original test used legacy constructor without selection; final shared selected-coverage matrix covers missing selected Pod and deployed exact selection. Legacy compatibility path remains; no claim that historical unconfigured coordinators become selected inventory.",
+    "Helm": {
+      "preinstalled_helm_found": false,
+      "render_executed": false,
+      "reason": "No installed Helm on PATH. Prior official download redirect403 remains denied; no retry, alternate installation or substitute renderer attempted. Actual Helm release/RBAC render remains required hosted acceptance."
+    },
+    "hosted_new_batch": "pending exact published head",
+    "protected_root_owned_mounted_witness_executed": false,
+    "native_database_execution": false,
+    "real_provider_requests": false,
+    "production_or_deployed_E2E": false
+  },
+  "ledger": {
+    "rows": 728,
+    "unique_ids": 728,
+    "classes": {
+      "production-available": 523,
+      "component-only": 144,
+      "blocked/external": 61
+    },
+    "promotions": 0
+  },
+  "archive": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/selected-node-sensor/component-evidence.json.gz",
+    "bytes": 336478,
+    "sha256": "ef6461e4943021a12af85e8b1e04b1a87bcb5a37c266dbeee309763e4a062887",
+    "members": 59
+  },
+  "remaining": "Actual Helm/rendered RBAC, protected root-mounted producer/consumer witness, real Kubernetes fleet coverage and provider/deployed end-to-end flows remain mandatory, together with original Temporal/OpenFGA/native/browser/security/release acceptance. No production promotion."
+}

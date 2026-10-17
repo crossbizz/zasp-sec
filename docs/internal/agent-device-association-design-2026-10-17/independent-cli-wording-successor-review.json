@@ -1,0 +1,17 @@
+{
+  "status": "CLEAR_DOC_ONLY_CLI_WORDING_SUCCESSOR",
+  "reviewer": "/root/gateway_review",
+  "created_at": "2026-10-17T20:36:38.249008+00:00",
+  "successor": {
+    "path": "docs/internal/agent-device-association-design-2026-10-17/contract-final-cli-wording-successor.json",
+    "sha256": "81ae7ee8a6f486f49b397b5983f494f3ed61f0b4de5b9b47fd8dd9902972ee21"
+  },
+  "original_final_sha256": "ba2d9cc1601ad7f07f1bf547f9f1d114a76c13593566f2883f5b1c35d32dec43",
+  "only_cli_sentence_and_explicit_successor_metadata": true,
+  "new_metadata": {
+    "predecessor_final_contract_sha256": "ba2d9cc1601ad7f07f1bf547f9f1d114a76c13593566f2883f5b1c35d32dec43"
+  },
+  "findings": [],
+  "reviewed": "CLI sentence nowmatches alreadyauthoritative guarded --custody-file freshcustody API. No wire/DTO/signature/permission/ABI/namespace/legacyremaininglane changes. Originalfinalcontract andfinalreview retained.",
+  "limits": "Docs-only consistency review; priorfinite design clearance unchanged. No product/tests/native/deployed/coverage or launch proof."
+}

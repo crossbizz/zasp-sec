@@ -152,6 +152,9 @@ func runLineagePumpWithStorage(ctx context.Context, generation *lineageGeneratio
 		if identity.NodeName != generation.source.NodeName || identity.ClusterUID != generation.source.ClusterUID || identity.NodeUID != generation.source.NodeUID || identity.BootID != generation.source.BootID {
 			return "identity_changed"
 		}
+		if generation.coverage != nil && generation.coverage.publish(checkContext, generation.source) != nil {
+			return "identity_unavailable"
+		}
 		return ""
 	}
 	flush := func(flushContext context.Context) string {

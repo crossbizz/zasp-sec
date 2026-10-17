@@ -353,7 +353,7 @@ test("rejects audited production-class count drift", async () => {
     async (ledgerPath) => {
       await assert.rejects(
         () => validateLedger({ ledgerPath, sourcePlanPath }),
-        /production-available count is 522; expected 523/,
+        /production-available count is 508; expected 509/,
       );
     },
   );
@@ -577,7 +577,7 @@ test("rejects a published availability summary that drifts from the audited ledg
   await withLedgerAndStatus(
     (ledger) => ledger,
     (status) => {
-      const expected = "| Production-available | 523 |";
+      const expected = "| Production-available | 509 |";
       assert.ok(status.includes(expected), "summary-drift fixture must match the current total");
       return status.replace(expected, "| Production-available | 496 |");
     },
@@ -588,4 +588,78 @@ test("rejects a published availability summary that drifts from the audited ledg
       );
     },
   );
+});
+
+test("Original Agents requirements cannot gain production credit from historical composition or component checks", async (t) => {
+  const ledger = await readFile(canonicalLedgerPath, "utf8");
+  const owners = await readFile(path.join(repositoryRoot, "docs/internal/implementation_production_availability_owners_v1.5.tsv"), "utf8");
+  for (const id of ["M4-50a", "M4-50b1", "M4-50b2", "M4-50b3", "M4-50c", "M4-50"]) await t.test(id, async () => {
+    const original = ledger.split("\n").find((line) => line.split("\t")[1] === id);
+    assert.ok(original);
+    const row = original.split("\t");
+    assert.equal(row[2], "Complete", "retain the historical execution record");
+    assert.equal(row[3], "component-only", "source gaps and missing deployed acceptance prohibit production credit");
+    assert.equal(row[4], "T10-product-ui");
+    assert.ok(owners.split("\n").includes(`${id}\tT10-product-ui`));
+    assert.ok(row[5].startsWith("audited shipped composition:"), "retain prior evidence before its explicit correction");
+    const directory = await mkdtemp(path.join(os.tmpdir(), "agents-availability-"));
+    try {
+      const promoted = [...row]; promoted[3] = "production-available";
+      const altered = path.join(directory, "ledger.tsv");
+      const balanced = ledger.replace(original, promoted.join("\t")).replace("M4\tM4-51\tComplete\tproduction-available\t", "M4\tM4-51\tComplete\tcomponent-only\t");
+      assert.notEqual(balanced, ledger.replace(original, promoted.join("\t")), "retain milestone totals while challenging per-task admission");
+      await writeFile(altered, balanced);
+      await assert.rejects(validateLedger({ ledgerPath: altered }), new RegExp(`production class production-available does not match audited component-only for ${id}`));
+    } finally { await rm(directory, { recursive: true, force: true }); }
+  });
+});
+
+
+test("Original health requirements cannot gain production credit from contradictory required dependency classification", async (t) => {
+  const ledger = await readFile(canonicalLedgerPath, "utf8");
+  const owners = await readFile(path.join(repositoryRoot, "docs/internal/implementation_production_availability_owners_v1.5.tsv"), "utf8");
+  for (const id of ["M7-29", "M7-30", "M7-40d"]) await t.test(id, async () => {
+    const original = ledger.split("\n").find((line) => line.split("\t")[1] === id);
+    assert.ok(original);
+    const row = original.split("\t");
+    assert.equal(row[2], "Complete", "retain historical execution status");
+    assert.equal(row[3], "component-only", "source contradiction and unverified repair prohibit production credit");
+    assert.equal(row[4], "T14-data-workflows");
+    assert.ok(owners.split("\n").includes(`${id}\tT14-data-workflows`));
+    assert.ok(row[5].startsWith("audited shipped composition:"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "health-availability-"));
+    try {
+      const promoted = [...row]; promoted[3] = "production-available";
+      const altered = path.join(directory, "ledger.tsv");
+      const balanced = ledger.replace(original, promoted.join("\t")).replace("M7\tM7-31\tComplete\tproduction-available\t", "M7\tM7-31\tComplete\tcomponent-only\t");
+      assert.notEqual(balanced, ledger.replace(original, promoted.join("\t")));
+      await writeFile(altered, balanced);
+      await assert.rejects(validateLedger({ ledgerPath: altered }), new RegExp(`production class production-available does not match audited component-only for ${id}`));
+    } finally { await rm(directory, { recursive: true, force: true }); }
+  });
+});
+
+
+test("Original Agent API contracts cannot gain production credit from rejected current authorization paths", async (t) => {
+  const ledger = await readFile(canonicalLedgerPath, "utf8");
+  const owners = await readFile(path.join(repositoryRoot, "docs/internal/implementation_production_availability_owners_v1.5.tsv"), "utf8");
+  for (const id of ["M4-04", "M4-05", "M4-06", "M4-07", "M4-08"]) await t.test(id, async () => {
+    const original = ledger.split("\n").find((line) => line.split("\t")[1] === id);
+    assert.ok(original);
+    const row = original.split("\t");
+    assert.equal(row[2], "Complete", "retain historical execution status");
+    assert.equal(row[3], "component-only", "source refusal and unverified repair prohibit production credit");
+    assert.equal(row[4], "T05-inventory-cutover");
+    assert.ok(owners.split("\n").includes(`${id}\tT05-inventory-cutover`));
+    assert.ok(row[5].startsWith("audited shipped composition:"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "agent-read-availability-"));
+    try {
+      const promoted = [...row]; promoted[3] = "production-available";
+      const altered = path.join(directory, "ledger.tsv");
+      const balanced = ledger.replace(original, promoted.join("\t")).replace("M4\tM4-51\tComplete\tproduction-available\t", "M4\tM4-51\tComplete\tcomponent-only\t");
+      assert.notEqual(balanced, ledger.replace(original, promoted.join("\t")));
+      await writeFile(altered, balanced);
+      await assert.rejects(validateLedger({ ledgerPath: altered }), new RegExp(`production class production-available does not match audited component-only for ${id}`));
+    } finally { await rm(directory, { recursive: true, force: true }); }
+  });
 });

@@ -1,0 +1,2912 @@
+{
+  "observed_at": "2026-10-17T16:15:38.539112+00:00",
+  "classification": "PREDECESSOR_HOSTED_FAILURE_METADATA_NOT_INNER_CAUSE",
+  "head": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c",
+  "counts": {
+    "failure": 34,
+    "success": 27,
+    "in_progress": 17
+  },
+  "metadata": [
+    {
+      "path": "agent-exposure-prepush-hosted-check-metadata-20261017.json",
+      "bytes": 22566,
+      "sha256": "0dd36daa70558c10c9152aba82e7ea0360bccca0eea77d3237f7fffd46d36b5b",
+      "data": {
+        "total_count": 78,
+        "counts": {
+          "failure": 34,
+          "in_progress": 17,
+          "success": 27
+        },
+        "check_runs": [
+          {
+            "name": "connected-lifecycle",
+            "status": "completed",
+            "conclusion": "failure",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045193826/job/117441570709",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-group (maintenance-operator-audit)",
+            "status": "in_progress",
+            "conclusion": null,
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197044/job/117432423845",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-group (optional-egress-operator-audit)",
+            "status": "in_progress",
+            "conclusion": null,
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197044/job/117432423843",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-group (agent-current-read)",
+            "status": "in_progress",
+            "conclusion": null,
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197044/job/117432423802",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-group (optional-egress-operator)",
+            "status": "completed",
+            "conclusion": "failure",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197044/job/117432423739",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-group (approval-test74)",
+            "status": "in_progress",
+            "conclusion": null,
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197044/job/117432423727",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-group (approval-overflow)",
+            "status": "in_progress",
+            "conclusion": null,
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197044/job/117432423718",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-group (maintenance-operator)",
+            "status": "in_progress",
+            "conclusion": null,
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197044/job/117432423712",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-group (environment-class-catalog)",
+            "status": "in_progress",
+            "conclusion": null,
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197044/job/117432423710",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-group (callback)",
+            "status": "in_progress",
+            "conclusion": null,
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197044/job/117432423706",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-group (agent-current-read-audit)",
+            "status": "in_progress",
+            "conclusion": null,
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197044/job/117432423688",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "system-health-probe-components",
+            "status": "completed",
+            "conclusion": "success",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197031/job/117432423683",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-group (approval)",
+            "status": "in_progress",
+            "conclusion": null,
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197044/job/117432423676",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-group (retention-audit)",
+            "status": "in_progress",
+            "conclusion": null,
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197044/job/117432423664",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-group (approval-future-progress)",
+            "status": "in_progress",
+            "conclusion": null,
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197044/job/117432423649",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "maintenance-operator-components",
+            "status": "completed",
+            "conclusion": "success",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197031/job/117432423635",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-group (approval-ordered-planning)",
+            "status": "in_progress",
+            "conclusion": null,
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197044/job/117432423633",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-group (approval-future-test74)",
+            "status": "in_progress",
+            "conclusion": null,
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197044/job/117432423632",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "cli-principal-preflight-components",
+            "status": "completed",
+            "conclusion": "success",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197031/job/117432423623",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-group (approval-flow)",
+            "status": "in_progress",
+            "conclusion": null,
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197044/job/117432423621",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-group (lifecycle)",
+            "status": "completed",
+            "conclusion": "success",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197044/job/117432423617",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-group (environment-class)",
+            "status": "completed",
+            "conclusion": "failure",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197044/job/117432423608",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-group (oauth)",
+            "status": "completed",
+            "conclusion": "success",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197044/job/117432423598",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-group (approval-ordered-progress)",
+            "status": "in_progress",
+            "conclusion": null,
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197044/job/117432423589",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-session-bootstrap",
+            "status": "completed",
+            "conclusion": "success",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197031/job/117432423581",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "agent-owner-filter-components",
+            "status": "completed",
+            "conclusion": "failure",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197031/job/117432423575",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "selected-node-observation",
+            "status": "completed",
+            "conclusion": "success",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197031/job/117432423573",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-group (pkce)",
+            "status": "completed",
+            "conclusion": "failure",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197044/job/117432423560",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "authorization-confirmation-components",
+            "status": "completed",
+            "conclusion": "failure",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197031/job/117432423557",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-group (environment-class-audit)",
+            "status": "completed",
+            "conclusion": "failure",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197044/job/117432423555",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "diagnostics-cli-components",
+            "status": "completed",
+            "conclusion": "success",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197031/job/117432423552",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "agent-current-read-components",
+            "status": "completed",
+            "conclusion": "failure",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197125/job/117432423544",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "environment-class-components",
+            "status": "completed",
+            "conclusion": "failure",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197031/job/117432423534",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "Verify runnable UI",
+            "status": "completed",
+            "conclusion": "failure",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197047/job/117432423521",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "optional-egress-operator-components",
+            "status": "completed",
+            "conclusion": "success",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197031/job/117432423505",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-group (optional-egress-audit)",
+            "status": "in_progress",
+            "conclusion": null,
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197044/job/117432423491",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "installer-components",
+            "status": "completed",
+            "conclusion": "failure",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197127/job/117432423469",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "compile",
+            "status": "completed",
+            "conclusion": "failure",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197031/job/117432423465",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "featureflag-server-cache-components",
+            "status": "completed",
+            "conclusion": "success",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197031/job/117432423463",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "temporal-confirmation-components",
+            "status": "completed",
+            "conclusion": "failure",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197031/job/117432423402",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-opensearch",
+            "status": "completed",
+            "conclusion": "success",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197031/job/117432423393",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-preflight",
+            "status": "completed",
+            "conclusion": "success",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197031/job/117432423369",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-sqs-permission-diagnostics",
+            "status": "completed",
+            "conclusion": "success",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197031/job/117432423366",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "installer-binding-authority-components",
+            "status": "completed",
+            "conclusion": "success",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197031/job/117432423307",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "Owned compliance browser component acceptance",
+            "status": "completed",
+            "conclusion": "failure",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197073/job/117432423283",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "verify-component",
+            "status": "completed",
+            "conclusion": "success",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197036/job/117432423261",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "Locked Terraform mock-plan and complete IAM unions",
+            "status": "completed",
+            "conclusion": "success",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197048/job/117432423247",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "public-query",
+            "status": "completed",
+            "conclusion": "success",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197069/job/117432423201",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-fargate-configuration",
+            "status": "completed",
+            "conclusion": "success",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197031/job/117432423170",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "original-nine",
+            "status": "completed",
+            "conclusion": "success",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197032/job/117432423163",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "authenticated-enqueue",
+            "status": "completed",
+            "conclusion": "success",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045197050/job/117432423084",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-group (agent-current-read)",
+            "status": "completed",
+            "conclusion": "failure",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045193826/job/117432413582",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-group (optional-egress-operator-audit)",
+            "status": "completed",
+            "conclusion": "failure",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045193826/job/117432413571",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-group (maintenance-operator-audit)",
+            "status": "completed",
+            "conclusion": "failure",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045193826/job/117432413569",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-group (approval-flow)",
+            "status": "completed",
+            "conclusion": "failure",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045193826/job/117432413537",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-group (retention-audit)",
+            "status": "completed",
+            "conclusion": "failure",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045193826/job/117432413521",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-group (optional-egress-operator)",
+            "status": "completed",
+            "conclusion": "failure",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045193826/job/117432413512",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-group (environment-class-catalog)",
+            "status": "completed",
+            "conclusion": "failure",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045193826/job/117432413507",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-group (approval-future-progress)",
+            "status": "completed",
+            "conclusion": "failure",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045193826/job/117432413506",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-group (maintenance-operator)",
+            "status": "completed",
+            "conclusion": "failure",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045193826/job/117432413485",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-group (environment-class-audit)",
+            "status": "completed",
+            "conclusion": "failure",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045193826/job/117432413476",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-group (approval-ordered-planning)",
+            "status": "completed",
+            "conclusion": "failure",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045193826/job/117432413463",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-group (environment-class)",
+            "status": "completed",
+            "conclusion": "failure",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045193826/job/117432413457",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-group (lifecycle)",
+            "status": "completed",
+            "conclusion": "failure",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045193826/job/117432413446",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-group (oauth)",
+            "status": "completed",
+            "conclusion": "success",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045193826/job/117432413439",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-group (approval-ordered-progress)",
+            "status": "completed",
+            "conclusion": "failure",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045193826/job/117432413435",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-group (approval-overflow)",
+            "status": "completed",
+            "conclusion": "failure",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045193826/job/117432413427",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-group (approval-future-test74)",
+            "status": "completed",
+            "conclusion": "success",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045193826/job/117432413420",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-group (approval-test74)",
+            "status": "completed",
+            "conclusion": "success",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045193826/job/117432413418",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-group (pkce)",
+            "status": "completed",
+            "conclusion": "failure",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045193826/job/117432413381",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-group (agent-current-read-audit)",
+            "status": "completed",
+            "conclusion": "failure",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045193826/job/117432413371",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-group (optional-egress-audit)",
+            "status": "completed",
+            "conclusion": "failure",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045193826/job/117432413369",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-group (approval)",
+            "status": "completed",
+            "conclusion": "success",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045193826/job/117432413346",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "connected-group (callback)",
+            "status": "completed",
+            "conclusion": "success",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045193826/job/117432413237",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "Verify runnable UI",
+            "status": "completed",
+            "conclusion": "failure",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045193827/job/117432413106",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "original-nine",
+            "status": "completed",
+            "conclusion": "success",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045193811/job/117432412956",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "authenticated-enqueue",
+            "status": "completed",
+            "conclusion": "success",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045193803/job/117432412916",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          },
+          {
+            "name": "Owned compliance browser component acceptance",
+            "status": "completed",
+            "conclusion": "failure",
+            "details_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39045193797/job/117432412897",
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c"
+          }
+        ]
+      }
+    },
+    {
+      "path": "agent-exposure-predecessor-failed-job-step-metadata-20261017.json",
+      "bytes": 69520,
+      "sha256": "870bbe5a4bd347ac5c2c2858d7a301eba49eb5da7a7efdfa1bac9d54bef66871",
+      "data": {
+        "classification": "HOSTED_JOB_STEP_METADATA_ONLY_NO_RAW_LOGS_OR_INNER_CAUSE",
+        "jobs": [
+          {
+            "name": "connected-lifecycle",
+            "job_id": 117441570709,
+            "run_id": 39045193826,
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c",
+            "conclusion": "failure",
+            "steps": [
+              {
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 1
+              },
+              {
+                "name": "Require all twenty-three connected application groups",
+                "status": "completed",
+                "conclusion": "failure",
+                "number": 2
+              },
+              {
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 3
+              }
+            ]
+          },
+          {
+            "name": "connected-group (optional-egress-operator)",
+            "job_id": 117432423739,
+            "run_id": 39045197044,
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c",
+            "conclusion": "failure",
+            "steps": [
+              {
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 1
+              },
+              {
+                "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 2
+              },
+              {
+                "name": "Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 3
+              },
+              {
+                "name": "Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 4
+              },
+              {
+                "name": "Portable memory metadata parser controls",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 5
+              },
+              {
+                "name": "Official Ubuntu Docker prerequisite",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 6
+              },
+              {
+                "name": "Connected enqueue, execution, revocation and settlement application group",
+                "status": "completed",
+                "conclusion": "failure",
+                "number": 7
+              },
+              {
+                "name": "Post Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 12
+              },
+              {
+                "name": "Post Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 13
+              },
+              {
+                "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 14
+              },
+              {
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 15
+              }
+            ]
+          },
+          {
+            "name": "connected-group (environment-class)",
+            "job_id": 117432423608,
+            "run_id": 39045197044,
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c",
+            "conclusion": "failure",
+            "steps": [
+              {
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 1
+              },
+              {
+                "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 2
+              },
+              {
+                "name": "Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 3
+              },
+              {
+                "name": "Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 4
+              },
+              {
+                "name": "Portable memory metadata parser controls",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 5
+              },
+              {
+                "name": "Official Ubuntu Docker prerequisite",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 6
+              },
+              {
+                "name": "Connected enqueue, execution, revocation and settlement application group",
+                "status": "completed",
+                "conclusion": "failure",
+                "number": 7
+              },
+              {
+                "name": "Post Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 12
+              },
+              {
+                "name": "Post Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 13
+              },
+              {
+                "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 14
+              },
+              {
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 15
+              }
+            ]
+          },
+          {
+            "name": "agent-owner-filter-components",
+            "job_id": 117432423575,
+            "run_id": 39045197031,
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c",
+            "conclusion": "failure",
+            "steps": [
+              {
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 1
+              },
+              {
+                "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 2
+              },
+              {
+                "name": "Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 3
+              },
+              {
+                "name": "Check frozen owner filter source custody",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 4
+              },
+              {
+                "name": "Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 5
+              },
+              {
+                "name": "Require every owner-filter application boundary component",
+                "status": "completed",
+                "conclusion": "failure",
+                "number": 6
+              },
+              {
+                "name": "Require owner query and API-only deployment contract components",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 7
+              },
+              {
+                "name": "Keep consumed owner filter source unchanged",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 8
+              },
+              {
+                "name": "Post Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 14
+              },
+              {
+                "name": "Post Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 15
+              },
+              {
+                "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 16
+              },
+              {
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 17
+              }
+            ]
+          },
+          {
+            "name": "connected-group (pkce)",
+            "job_id": 117432423560,
+            "run_id": 39045197044,
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c",
+            "conclusion": "failure",
+            "steps": [
+              {
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 1
+              },
+              {
+                "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 2
+              },
+              {
+                "name": "Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 3
+              },
+              {
+                "name": "Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 4
+              },
+              {
+                "name": "Portable memory metadata parser controls",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 5
+              },
+              {
+                "name": "Official Ubuntu Docker prerequisite",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 6
+              },
+              {
+                "name": "Connected enqueue, execution, revocation and settlement application group",
+                "status": "completed",
+                "conclusion": "failure",
+                "number": 7
+              },
+              {
+                "name": "Post Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 12
+              },
+              {
+                "name": "Post Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 13
+              },
+              {
+                "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 14
+              },
+              {
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 15
+              }
+            ]
+          },
+          {
+            "name": "authorization-confirmation-components",
+            "job_id": 117432423557,
+            "run_id": 39045197031,
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c",
+            "conclusion": "failure",
+            "steps": [
+              {
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 1
+              },
+              {
+                "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 2
+              },
+              {
+                "name": "Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 3
+              },
+              {
+                "name": "Check frozen authorization confirmation source custody",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 4
+              },
+              {
+                "name": "Require every authorization confirmation and inner ordering component",
+                "status": "completed",
+                "conclusion": "failure",
+                "number": 5
+              },
+              {
+                "name": "Keep consumed authorization confirmation source unchanged",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 6
+              },
+              {
+                "name": "Post Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 11
+              },
+              {
+                "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 12
+              },
+              {
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 13
+              }
+            ]
+          },
+          {
+            "name": "connected-group (environment-class-audit)",
+            "job_id": 117432423555,
+            "run_id": 39045197044,
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c",
+            "conclusion": "failure",
+            "steps": [
+              {
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 1
+              },
+              {
+                "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 2
+              },
+              {
+                "name": "Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 3
+              },
+              {
+                "name": "Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 4
+              },
+              {
+                "name": "Portable memory metadata parser controls",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 5
+              },
+              {
+                "name": "Official Ubuntu Docker prerequisite",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 6
+              },
+              {
+                "name": "Connected enqueue, execution, revocation and settlement application group",
+                "status": "completed",
+                "conclusion": "failure",
+                "number": 7
+              },
+              {
+                "name": "Post Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 12
+              },
+              {
+                "name": "Post Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 13
+              },
+              {
+                "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 14
+              },
+              {
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 15
+              }
+            ]
+          },
+          {
+            "name": "agent-current-read-components",
+            "job_id": 117432423544,
+            "run_id": 39045197125,
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c",
+            "conclusion": "failure",
+            "steps": [
+              {
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 1
+              },
+              {
+                "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 2
+              },
+              {
+                "name": "Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 3
+              },
+              {
+                "name": "Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 4
+              },
+              {
+                "name": "Require exact toolchain and complete existing source custody",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 5
+              },
+              {
+                "name": "Check strict validator rejection controls",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 6
+              },
+              {
+                "name": "Require API-only Agent read deployment contract",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 7
+              },
+              {
+                "name": "Run all 76 exact application and installer component results",
+                "status": "completed",
+                "conclusion": "failure",
+                "number": 8
+              },
+              {
+                "name": "Preserve component-only execution evidence",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 9
+              },
+              {
+                "name": "Confirm checks did not alter source",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 10
+              },
+              {
+                "name": "Post Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 18
+              },
+              {
+                "name": "Post Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 19
+              },
+              {
+                "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 20
+              },
+              {
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 21
+              }
+            ]
+          },
+          {
+            "name": "environment-class-components",
+            "job_id": 117432423534,
+            "run_id": 39045197031,
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c",
+            "conclusion": "failure",
+            "steps": [
+              {
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 1
+              },
+              {
+                "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 2
+              },
+              {
+                "name": "Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 3
+              },
+              {
+                "name": "Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 4
+              },
+              {
+                "name": "Verify environment classification source custody",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 5
+              },
+              {
+                "name": "Require all application permission runtime and installer groups",
+                "status": "completed",
+                "conclusion": "failure",
+                "number": 6
+              },
+              {
+                "name": "API-only deployment option application controls",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 7
+              },
+              {
+                "name": "Keep consumed environment classification and module source unchanged",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 8
+              },
+              {
+                "name": "Post Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 14
+              },
+              {
+                "name": "Post Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 15
+              },
+              {
+                "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 16
+              },
+              {
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 17
+              }
+            ]
+          },
+          {
+            "name": "Verify runnable UI",
+            "job_id": 117432423521,
+            "run_id": 39045197047,
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c",
+            "conclusion": "failure",
+            "steps": [
+              {
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 1
+              },
+              {
+                "name": "Check out repository",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 2
+              },
+              {
+                "name": "Set up Node",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 3
+              },
+              {
+                "name": "Set up Go",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 4
+              },
+              {
+                "name": "Pin npm",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 5
+              },
+              {
+                "name": "Install locked dependencies",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 6
+              },
+              {
+                "name": "Install PostgreSQL 18 reference fixture tools",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 7
+              },
+              {
+                "name": "Install pinned secret scanner",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 8
+              },
+              {
+                "name": "Verify implementation status ledger",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 9
+              },
+              {
+                "name": "Prime platform full-MVS metadata for offline release contracts",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 10
+              },
+              {
+                "name": "Verify approval maintenance signed notification delivery",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 11
+              },
+              {
+                "name": "Verify runnable UI",
+                "status": "completed",
+                "conclusion": "failure",
+                "number": 12
+              },
+              {
+                "name": "Prime native migration compilation cache for compliance browser",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 13
+              },
+              {
+                "name": "Verify current runtime profile inner diagnostic tests",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 14
+              },
+              {
+                "name": "Provision isolated compliance browser prerequisites",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 15
+              },
+              {
+                "name": "Provision pinned owned authorization runtime tools",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 16
+              },
+              {
+                "name": "Verify current compliance browser acceptance",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 17
+              },
+              {
+                "name": "Verify Red Team runtime and ledger regressions",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 18
+              },
+              {
+                "name": "Verify production release sources",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 19
+              },
+              {
+                "name": "Verify session search IAM policies",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 20
+              },
+              {
+                "name": "Verify reconciliation maintenance alerts",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 21
+              },
+              {
+                "name": "Verify durable runtime sessions, enrollment pairing and candidate authority",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 22
+              },
+              {
+                "name": "Require audit fixture toolchains and pinned LocalStack image",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 23
+              },
+              {
+                "name": "Verify audit codec, configuration and artifact stores",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 24
+              },
+              {
+                "name": "Verify audit PostgreSQL authority A-M",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 25
+              },
+              {
+                "name": "Verify audit PostgreSQL authority N-Z",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 26
+              },
+              {
+                "name": "Verify audit public, worker and compatibility acceptance",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 27
+              },
+              {
+                "name": "Verify audit immutable retrieval and provider contracts",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 28
+              },
+              {
+                "name": "Verify audit HTTP memory, provider and lifetime helpers",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 29
+              },
+              {
+                "name": "Verify audit HTTP process composition and controlled zero source",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 30
+              },
+              {
+                "name": "Verify audit full-size functional race children",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 31
+              },
+              {
+                "name": "Verify both audit full-size memory sensitivity controls",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 32
+              },
+              {
+                "name": "Verify three serial audit full-size normal memory pairs",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 33
+              },
+              {
+                "name": "Verify full-size orderly API restart with numeric children",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 34
+              },
+              {
+                "name": "Verify full-size orderly API restart with race children",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 35
+              },
+              {
+                "name": "Verify sensor lineage and authenticated replay",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 36
+              },
+              {
+                "name": "Verify actual daemon lost-success replay",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 37
+              },
+              {
+                "name": "Verify bounded Attack Lab network enforcement",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 38
+              },
+              {
+                "name": "Post Set up Go",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 74
+              },
+              {
+                "name": "Post Set up Node",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 75
+              },
+              {
+                "name": "Post Check out repository",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 76
+              },
+              {
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 77
+              }
+            ]
+          },
+          {
+            "name": "installer-components",
+            "job_id": 117432423469,
+            "run_id": 39045197127,
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c",
+            "conclusion": "failure",
+            "steps": [
+              {
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 1
+              },
+              {
+                "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 2
+              },
+              {
+                "name": "Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 3
+              },
+              {
+                "name": "Compile affected consumers and existing test binaries",
+                "status": "completed",
+                "conclusion": "failure",
+                "number": 4
+              },
+              {
+                "name": "Existing grouped migration regressions and immutable SQL source checks",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 5
+              },
+              {
+                "name": "Post Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 9
+              },
+              {
+                "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 10
+              },
+              {
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 11
+              }
+            ]
+          },
+          {
+            "name": "compile",
+            "job_id": 117432423465,
+            "run_id": 39045197031,
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c",
+            "conclusion": "failure",
+            "steps": [
+              {
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 1
+              },
+              {
+                "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 2
+              },
+              {
+                "name": "Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 3
+              },
+              {
+                "name": "Check frozen source association and absence of activation configuration",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 4
+              },
+              {
+                "name": "Compile nineteen affected packages without executing test binaries",
+                "status": "completed",
+                "conclusion": "failure",
+                "number": 5
+              },
+              {
+                "name": "Atomic connector and retained writer journal application contracts",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 6
+              },
+              {
+                "name": "Compiled source pin retains fresh connector authorization",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 7
+              },
+              {
+                "name": "Existing connector handler and reconciler application regressions",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 8
+              },
+              {
+                "name": "Current authorization health probe integration group",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 9
+              },
+              {
+                "name": "Controlled cutover model and writer application group",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 10
+              },
+              {
+                "name": "Guarded inactive maintenance profile commands",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 11
+              },
+              {
+                "name": "Connected maintenance installer and operator application group",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 12
+              },
+              {
+                "name": "Temporal worker activated configuration and signing boundaries",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 13
+              },
+              {
+                "name": "Audited captured settlement and runtime selection boundaries",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 14
+              },
+              {
+                "name": "Existing whole approval source pin verification",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 15
+              },
+              {
+                "name": "Post Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 29
+              },
+              {
+                "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 30
+              },
+              {
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 31
+              }
+            ]
+          },
+          {
+            "name": "temporal-confirmation-components",
+            "job_id": 117432423402,
+            "run_id": 39045197031,
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c",
+            "conclusion": "failure",
+            "steps": [
+              {
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 1
+              },
+              {
+                "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 2
+              },
+              {
+                "name": "Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 3
+              },
+              {
+                "name": "Check frozen Temporal confirmation source custody",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 4
+              },
+              {
+                "name": "Require every Temporal confirmation and inner ordering component",
+                "status": "completed",
+                "conclusion": "failure",
+                "number": 5
+              },
+              {
+                "name": "Keep consumed Temporal confirmation source unchanged",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 6
+              },
+              {
+                "name": "Post Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 11
+              },
+              {
+                "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 12
+              },
+              {
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 13
+              }
+            ]
+          },
+          {
+            "name": "Owned compliance browser component acceptance",
+            "job_id": 117432423283,
+            "run_id": 39045197073,
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c",
+            "conclusion": "failure",
+            "steps": [
+              {
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 1
+              },
+              {
+                "name": "Check out repository",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 2
+              },
+              {
+                "name": "Set up Node",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 3
+              },
+              {
+                "name": "Set up Go",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 4
+              },
+              {
+                "name": "Pin npm",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 5
+              },
+              {
+                "name": "Install locked dependencies",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 6
+              },
+              {
+                "name": "Install PostgreSQL 18 reference fixture tools",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 7
+              },
+              {
+                "name": "Prime platform full-MVS metadata for offline release contracts",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 8
+              },
+              {
+                "name": "Typecheck and build production UI",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 9
+              },
+              {
+                "name": "Verify runtime ownership and startup cleanup ordering",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 10
+              },
+              {
+                "name": "Verify production maintenance profile rendering and permissions",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 11
+              },
+              {
+                "name": "Prime native migration and diagnostic test compilation cache",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 12
+              },
+              {
+                "name": "Verify current runtime profile inner diagnostic tests",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 13
+              },
+              {
+                "name": "Provision isolated compliance browser prerequisites",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 14
+              },
+              {
+                "name": "Provision pinned owned authorization runtime tools",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 15
+              },
+              {
+                "name": "Verify current compliance browser acceptance",
+                "status": "completed",
+                "conclusion": "failure",
+                "number": 16
+              },
+              {
+                "name": "Post Set up Go",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 30
+              },
+              {
+                "name": "Post Set up Node",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 31
+              },
+              {
+                "name": "Post Check out repository",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 32
+              },
+              {
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 33
+              }
+            ]
+          },
+          {
+            "name": "connected-group (agent-current-read)",
+            "job_id": 117432413582,
+            "run_id": 39045193826,
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c",
+            "conclusion": "failure",
+            "steps": [
+              {
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 1
+              },
+              {
+                "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 2
+              },
+              {
+                "name": "Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 3
+              },
+              {
+                "name": "Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 4
+              },
+              {
+                "name": "Portable memory metadata parser controls",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 5
+              },
+              {
+                "name": "Official Ubuntu Docker prerequisite",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 6
+              },
+              {
+                "name": "Connected enqueue, execution, revocation and settlement application group",
+                "status": "completed",
+                "conclusion": "failure",
+                "number": 7
+              },
+              {
+                "name": "Post Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 12
+              },
+              {
+                "name": "Post Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 13
+              },
+              {
+                "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 14
+              },
+              {
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 15
+              }
+            ]
+          },
+          {
+            "name": "connected-group (optional-egress-operator-audit)",
+            "job_id": 117432413571,
+            "run_id": 39045193826,
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c",
+            "conclusion": "failure",
+            "steps": [
+              {
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 1
+              },
+              {
+                "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 2
+              },
+              {
+                "name": "Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 3
+              },
+              {
+                "name": "Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 4
+              },
+              {
+                "name": "Portable memory metadata parser controls",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 5
+              },
+              {
+                "name": "Official Ubuntu Docker prerequisite",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 6
+              },
+              {
+                "name": "Connected enqueue, execution, revocation and settlement application group",
+                "status": "completed",
+                "conclusion": "failure",
+                "number": 7
+              },
+              {
+                "name": "Post Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 12
+              },
+              {
+                "name": "Post Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 13
+              },
+              {
+                "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 14
+              },
+              {
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 15
+              }
+            ]
+          },
+          {
+            "name": "connected-group (maintenance-operator-audit)",
+            "job_id": 117432413569,
+            "run_id": 39045193826,
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c",
+            "conclusion": "failure",
+            "steps": [
+              {
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 1
+              },
+              {
+                "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 2
+              },
+              {
+                "name": "Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 3
+              },
+              {
+                "name": "Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 4
+              },
+              {
+                "name": "Portable memory metadata parser controls",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 5
+              },
+              {
+                "name": "Official Ubuntu Docker prerequisite",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 6
+              },
+              {
+                "name": "Connected enqueue, execution, revocation and settlement application group",
+                "status": "completed",
+                "conclusion": "failure",
+                "number": 7
+              },
+              {
+                "name": "Post Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 12
+              },
+              {
+                "name": "Post Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 13
+              },
+              {
+                "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 14
+              },
+              {
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 15
+              }
+            ]
+          },
+          {
+            "name": "connected-group (approval-flow)",
+            "job_id": 117432413537,
+            "run_id": 39045193826,
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c",
+            "conclusion": "failure",
+            "steps": [
+              {
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 1
+              },
+              {
+                "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 2
+              },
+              {
+                "name": "Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 3
+              },
+              {
+                "name": "Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 4
+              },
+              {
+                "name": "Portable memory metadata parser controls",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 5
+              },
+              {
+                "name": "Official Ubuntu Docker prerequisite",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 6
+              },
+              {
+                "name": "Connected enqueue, execution, revocation and settlement application group",
+                "status": "completed",
+                "conclusion": "failure",
+                "number": 7
+              },
+              {
+                "name": "Post Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 12
+              },
+              {
+                "name": "Post Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 13
+              },
+              {
+                "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 14
+              },
+              {
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 15
+              }
+            ]
+          },
+          {
+            "name": "connected-group (retention-audit)",
+            "job_id": 117432413521,
+            "run_id": 39045193826,
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c",
+            "conclusion": "failure",
+            "steps": [
+              {
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 1
+              },
+              {
+                "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 2
+              },
+              {
+                "name": "Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 3
+              },
+              {
+                "name": "Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 4
+              },
+              {
+                "name": "Portable memory metadata parser controls",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 5
+              },
+              {
+                "name": "Official Ubuntu Docker prerequisite",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 6
+              },
+              {
+                "name": "Connected enqueue, execution, revocation and settlement application group",
+                "status": "completed",
+                "conclusion": "failure",
+                "number": 7
+              },
+              {
+                "name": "Post Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 12
+              },
+              {
+                "name": "Post Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 13
+              },
+              {
+                "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 14
+              },
+              {
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 15
+              }
+            ]
+          },
+          {
+            "name": "connected-group (environment-class-catalog)",
+            "job_id": 117432413507,
+            "run_id": 39045193826,
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c",
+            "conclusion": "failure",
+            "steps": [
+              {
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 1
+              },
+              {
+                "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 2
+              },
+              {
+                "name": "Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 3
+              },
+              {
+                "name": "Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 4
+              },
+              {
+                "name": "Portable memory metadata parser controls",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 5
+              },
+              {
+                "name": "Official Ubuntu Docker prerequisite",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 6
+              },
+              {
+                "name": "Connected enqueue, execution, revocation and settlement application group",
+                "status": "completed",
+                "conclusion": "failure",
+                "number": 7
+              },
+              {
+                "name": "Post Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 12
+              },
+              {
+                "name": "Post Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 13
+              },
+              {
+                "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 14
+              },
+              {
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 15
+              }
+            ]
+          },
+          {
+            "name": "connected-group (approval-future-progress)",
+            "job_id": 117432413506,
+            "run_id": 39045193826,
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c",
+            "conclusion": "failure",
+            "steps": [
+              {
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 1
+              },
+              {
+                "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 2
+              },
+              {
+                "name": "Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 3
+              },
+              {
+                "name": "Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 4
+              },
+              {
+                "name": "Portable memory metadata parser controls",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 5
+              },
+              {
+                "name": "Official Ubuntu Docker prerequisite",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 6
+              },
+              {
+                "name": "Connected enqueue, execution, revocation and settlement application group",
+                "status": "completed",
+                "conclusion": "failure",
+                "number": 7
+              },
+              {
+                "name": "Post Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 12
+              },
+              {
+                "name": "Post Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 13
+              },
+              {
+                "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 14
+              },
+              {
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 15
+              }
+            ]
+          },
+          {
+            "name": "connected-group (maintenance-operator)",
+            "job_id": 117432413485,
+            "run_id": 39045193826,
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c",
+            "conclusion": "failure",
+            "steps": [
+              {
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 1
+              },
+              {
+                "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 2
+              },
+              {
+                "name": "Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 3
+              },
+              {
+                "name": "Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 4
+              },
+              {
+                "name": "Portable memory metadata parser controls",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 5
+              },
+              {
+                "name": "Official Ubuntu Docker prerequisite",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 6
+              },
+              {
+                "name": "Connected enqueue, execution, revocation and settlement application group",
+                "status": "completed",
+                "conclusion": "failure",
+                "number": 7
+              },
+              {
+                "name": "Post Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 12
+              },
+              {
+                "name": "Post Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 13
+              },
+              {
+                "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 14
+              },
+              {
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 15
+              }
+            ]
+          },
+          {
+            "name": "connected-group (approval-ordered-planning)",
+            "job_id": 117432413463,
+            "run_id": 39045193826,
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c",
+            "conclusion": "failure",
+            "steps": [
+              {
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 1
+              },
+              {
+                "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 2
+              },
+              {
+                "name": "Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 3
+              },
+              {
+                "name": "Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 4
+              },
+              {
+                "name": "Portable memory metadata parser controls",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 5
+              },
+              {
+                "name": "Official Ubuntu Docker prerequisite",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 6
+              },
+              {
+                "name": "Connected enqueue, execution, revocation and settlement application group",
+                "status": "completed",
+                "conclusion": "failure",
+                "number": 7
+              },
+              {
+                "name": "Post Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 12
+              },
+              {
+                "name": "Post Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 13
+              },
+              {
+                "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 14
+              },
+              {
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 15
+              }
+            ]
+          },
+          {
+            "name": "connected-group (lifecycle)",
+            "job_id": 117432413446,
+            "run_id": 39045193826,
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c",
+            "conclusion": "failure",
+            "steps": [
+              {
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 1
+              },
+              {
+                "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 2
+              },
+              {
+                "name": "Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 3
+              },
+              {
+                "name": "Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 4
+              },
+              {
+                "name": "Portable memory metadata parser controls",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 5
+              },
+              {
+                "name": "Official Ubuntu Docker prerequisite",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 6
+              },
+              {
+                "name": "Connected enqueue, execution, revocation and settlement application group",
+                "status": "completed",
+                "conclusion": "failure",
+                "number": 7
+              },
+              {
+                "name": "Post Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 12
+              },
+              {
+                "name": "Post Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 13
+              },
+              {
+                "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 14
+              },
+              {
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 15
+              }
+            ]
+          },
+          {
+            "name": "connected-group (approval-ordered-progress)",
+            "job_id": 117432413435,
+            "run_id": 39045193826,
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c",
+            "conclusion": "failure",
+            "steps": [
+              {
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 1
+              },
+              {
+                "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 2
+              },
+              {
+                "name": "Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 3
+              },
+              {
+                "name": "Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 4
+              },
+              {
+                "name": "Portable memory metadata parser controls",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 5
+              },
+              {
+                "name": "Official Ubuntu Docker prerequisite",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 6
+              },
+              {
+                "name": "Connected enqueue, execution, revocation and settlement application group",
+                "status": "completed",
+                "conclusion": "failure",
+                "number": 7
+              },
+              {
+                "name": "Post Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 12
+              },
+              {
+                "name": "Post Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 13
+              },
+              {
+                "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 14
+              },
+              {
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 15
+              }
+            ]
+          },
+          {
+            "name": "connected-group (approval-overflow)",
+            "job_id": 117432413427,
+            "run_id": 39045193826,
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c",
+            "conclusion": "failure",
+            "steps": [
+              {
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 1
+              },
+              {
+                "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 2
+              },
+              {
+                "name": "Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 3
+              },
+              {
+                "name": "Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 4
+              },
+              {
+                "name": "Portable memory metadata parser controls",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 5
+              },
+              {
+                "name": "Official Ubuntu Docker prerequisite",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 6
+              },
+              {
+                "name": "Connected enqueue, execution, revocation and settlement application group",
+                "status": "completed",
+                "conclusion": "failure",
+                "number": 7
+              },
+              {
+                "name": "Post Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 12
+              },
+              {
+                "name": "Post Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 13
+              },
+              {
+                "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 14
+              },
+              {
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 15
+              }
+            ]
+          },
+          {
+            "name": "connected-group (agent-current-read-audit)",
+            "job_id": 117432413371,
+            "run_id": 39045193826,
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c",
+            "conclusion": "failure",
+            "steps": [
+              {
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 1
+              },
+              {
+                "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 2
+              },
+              {
+                "name": "Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 3
+              },
+              {
+                "name": "Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 4
+              },
+              {
+                "name": "Portable memory metadata parser controls",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 5
+              },
+              {
+                "name": "Official Ubuntu Docker prerequisite",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 6
+              },
+              {
+                "name": "Connected enqueue, execution, revocation and settlement application group",
+                "status": "completed",
+                "conclusion": "failure",
+                "number": 7
+              },
+              {
+                "name": "Post Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 12
+              },
+              {
+                "name": "Post Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 13
+              },
+              {
+                "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 14
+              },
+              {
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 15
+              }
+            ]
+          },
+          {
+            "name": "connected-group (optional-egress-audit)",
+            "job_id": 117432413369,
+            "run_id": 39045193826,
+            "head_sha": "f10b6d2ba4a3a8821586c7ed56396d90467ceb6c",
+            "conclusion": "failure",
+            "steps": [
+              {
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 1
+              },
+              {
+                "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 2
+              },
+              {
+                "name": "Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 3
+              },
+              {
+                "name": "Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 4
+              },
+              {
+                "name": "Portable memory metadata parser controls",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 5
+              },
+              {
+                "name": "Official Ubuntu Docker prerequisite",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 6
+              },
+              {
+                "name": "Connected enqueue, execution, revocation and settlement application group",
+                "status": "completed",
+                "conclusion": "failure",
+                "number": 7
+              },
+              {
+                "name": "Post Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 12
+              },
+              {
+                "name": "Post Run actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 13
+              },
+              {
+                "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 14
+              },
+              {
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 15
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "limits": [
+    "Snapshot has both push and pull-request jobs; counts are check runs, not unique requirements.",
+    "Job step names do not establish inner failure cause or any test-case count.",
+    "No raw logs/artifacts/annotations retried after existing access rejections.",
+    "This follow-on receipt preserves newly observed predecessor failures after the immutable source archive snapshot. New source publication neither supersedes nor clears failures.",
+    "Keep PR draft; no merge or release while required applicable checks fail or remain pending."
+  ]
+}

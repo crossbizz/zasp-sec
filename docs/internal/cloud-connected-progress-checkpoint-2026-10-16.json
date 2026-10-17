@@ -1,0 +1,128 @@
+{
+  "checkpoint": "cloud-connected-progress-2026-10-16",
+  "observedAt": "2026-10-16T23:24:05.650113+00:00",
+  "startingSHA": "c3fe641a46c4e9944d8c2f68e307e35a03a01aba",
+  "mainSHA": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
+  "classification": "Coherent native/browser acceptance boundary components verified; preceding future Test74 accepted on both hosted events; candidate whole-flow and deployed acceptance pending",
+  "ledger": {
+    "original_rows": 728,
+    "production_available_recorded": 523,
+    "component_only": 144,
+    "blocked_external": 61,
+    "missing": 0,
+    "promotions": 0
+  },
+  "taskCrosswalk": [
+    {
+      "id": "M7A-90c",
+      "owner": "T10-product-ui",
+      "contribution": "Genuine future Test74 now accepted on both preceding hosted events; bounded full projection convergence handles legitimate concurrent revision advancement without accepting pending authority."
+    },
+    {
+      "id": "M8-41",
+      "owner": "T03-launch-connectors",
+      "contribution": "Two ordered progress rosters require all original provider evidence cases; real migration CLI builds before native application timer without changing application/SQL/lease deadlines."
+    }
+  ],
+  "sources": [
+    {
+      "path": "scripts/connector-acceptance-groups.mjs",
+      "bytes": 10339,
+      "sha256": "91678d92887fc584bdbd5a2422d5f56c890cfe1d5d9972ef75a97bac5241a401"
+    },
+    {
+      "path": "scripts/connector-acceptance-groups.test.mjs",
+      "bytes": 13255,
+      "sha256": "bb60493c915feba2ed701ff05768545382cca48dc5f3743ff1827c4345b26d90"
+    },
+    {
+      "path": "scripts/owned-current80-composition.mjs",
+      "bytes": 9615,
+      "sha256": "557b17fafe8f94daf882f1f56309f6ff607886e822c6e2a76e732b5487a9a512"
+    },
+    {
+      "path": "scripts/owned-current80-composition.test.mjs",
+      "bytes": 12931,
+      "sha256": "f7e7043060e0b688c0b5a07609cc03d8836b63ac2a73303f0a97da5b599d51f3"
+    },
+    {
+      "path": "services/platform/apiserver/security_agent_temporal_ownership_postgres_test.go",
+      "bytes": 22718,
+      "sha256": "bb7df4a074825f91c29970ef2fed9c4d363f5dcdcbb82e03e5cbc5c3070df78d"
+    },
+    {
+      "path": "services/platform/apiserver/security_agent_temporal_executor_postgres_test.go",
+      "bytes": 107715,
+      "sha256": "c2ef8641fe329f9f50dba2f9c0e35766c82832966153d86e54b56c41d5bb531b"
+    },
+    {
+      "path": "services/platform/apiserver/authorization_worker_ordered_provider_evidence_test.go",
+      "bytes": 6194,
+      "sha256": "f1f1f4d26aa6c03a0955e87cc35ca29ec860430abfc5c5c343f81e7eff39a843"
+    },
+    {
+      "path": "scripts/hosted-connected-connector-acceptance.mjs",
+      "bytes": 46232,
+      "sha256": "d2455ab838e630a54d900e0c4609834913f3e767e15644aca9ec37be00ec396b"
+    },
+    {
+      "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
+      "bytes": 42887,
+      "sha256": "902890477fffaa5b55ce6656fb9717f77000914ecf10f7f2b9ecf3b9c7f78138"
+    },
+    {
+      "path": ".github/workflows/connector-native-draft-compile.yml",
+      "bytes": 11963,
+      "sha256": "180adf6c7ca1b2b22e8e903f01e329c352c52faa4f52020aec9e94e88eab0bcc"
+    }
+  ],
+  "implemented": [
+    "Both ordered progress groups now require the four exact existing provider-evidence child cases emitted unconditionally by the original helper. All original35 cases retained, eight additional required cases total43;12groups and22PostgreSQL joins unchanged. Missing, renamed, duplicated, skipped, foreign and unknown events remain refused.",
+    "Full projection refresh may make at most two genuine full CLI reconciliation passes under one original125-second active refresh budget. Retry only when independent SQL proves strictly advanced desired with unchanged organization/store/model/generation and applied equal just acknowledged revision. Retried receipt must cover the pending floor; final SQL must exactly equal final applied receipt. No authority cache or SQL-only substitute.",
+    "Real migration CLI builds once to a private fixture artifact before PostgreSQL/application context begins. The same binary runs the original two domain/executor operations with original environment/principal bindings and30-second migration limit. Existing four local tool prerequisites,120-second bounded build and test deadline, owned child group joins and1MiB output cap retained. Other helper callers keep go-run behavior.",
+    "Source closure expands114to118 manifest entries and runner102/91to105/94 pins, binding the original provider helper, two native fixture sources and browser composition tests. Six original source verification stages retained; existing50 application regression names/six pins unchanged."
+  ],
+  "verification": {
+    "rootNode": {
+      "normalExit": 0,
+      "passes": 96,
+      "failures": 0,
+      "skips": 0
+    },
+    "rootGo": "Full original API fixture package compiled; focused immediate-grant comparison group PASS, normal0. No native PostgreSQL test executed.",
+    "freshUITypecheckNormalExit": 0,
+    "freshProductionUIBuildNormalExit": 0,
+    "lintNormalExit": 0,
+    "reviews": [
+      "browser-projection-convergence-independent-implementation-review-20261016.json",
+      "native-migration-cli-final-independent-review-20261016.json",
+      "ordered-provider-strict-roster-final-independent-review-20261016.json"
+    ],
+    "evidence": {
+      "path": "docs/internal/evidence/cloud-2026-10-16/connected-progress/verified-batch-evidence.json.gz",
+      "bytes": 72493,
+      "sha256": "9d97bf4b6dd952b6753e2f461822836236d42ed3a16233373fb8e708fe2c66bf",
+      "uncompressedSHA256": "f05169b2ef4bf77dfd3fd6f12d4729121c891fc40b51f67f86bb65939f2e0eba",
+      "members": 61
+    }
+  },
+  "precedingHosted": {
+    "head": "c3fe641a46c4e9944d8c2f68e307e35a03a01aba",
+    "jobs": 37,
+    "snapshot": "pr60-c3fe-exacthead-metadata-20261016.json",
+    "newAcceptedFlow": "Future Test74 delivery passes on both push and PR after permission-interface repair. Test74, OAuth, callback, capture and authenticated enqueue also pass on both events. Native component acceptance only; no live customer provider or deployment claim.",
+    "stillRefused": "Future progress innerGoPASS but strict unrecognized event (original provider child cases now source-identified); ordered progress second-start context deadline; lifecycle/PKCE expired leases; finding deadline/constructor errors; overflow admission/control; captured origin controls SQL errors; browser readiness/assertions. No setup-job failures on this head. Public advisory query incomplete at attempt51/50recordedresponses; lastHTTP200 does not establish coverage.",
+    "browserProgress": "Push connected browser reaches browser-assertions. Other browser/UI runs fail at different readiness phases; no single root cause established.",
+    "scope": "Finite official metadata and bounded annotations only; no restricted raw logs or artifacts accessed."
+  },
+  "limits": [
+    "No compiler timing measurement establishes the previous native deadline cause; candidate native execution still required.",
+    "Projection concurrency source contract is repaired, but current hosted browser assertion cause remains unproven.",
+    "Fresh managed cloud spec600 is current/running/connected with51 generic variables ready and0outbound identities. Unchanged native cgroup observation still refuses hidden ancestor mount root /..; no bypass.",
+    "Actual production target/roles/provider bindings, complete release corpus/Go/image clearance, fleet cutover authority and deployed Stytch/provider journeys remain required.",
+    "Further audit found unmounted governed explanation/external-egress controls, nonpersistent retention and preflight booleans; those software gaps remain open and are not accepted by this batch. All728 original requirements retained; no promotions."
+  ],
+  "nativeCandidateAccepted": false,
+  "deployedAccepted": false,
+  "launchReady": false
+}

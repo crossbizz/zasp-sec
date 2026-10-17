@@ -1,0 +1,36 @@
+{
+  "status": "CLEAR_SCOPED_LINUX_DESIGN_SOURCE_ONLY",
+  "reviewer": "/root/gateway_review",
+  "created_at": "2026-10-17T22:15:52.590613+00:00",
+  "design": {
+    "path": "/tmp/esbuild-scoped-reaper-design-20261017.json",
+    "sha256": "d0b2936a623e4643abc3fd58b9369363240a0473114118c12015bc4700dee66b"
+  },
+  "source_pin_mismatches": [],
+  "findings": [],
+  "reviewed_clear": [
+    "Fresh dedicated threadless launcher subreaper applies only to its own descendant chain; waitpid(-1,WNOHANG) kernel directchild/adoptee ownership reaps already-exited descendants even after setsid, while Node remains alive. This can make actual processgroup disappear; it does not ignore zombies or relax original probes.",
+    "Original esbuild/parser tests and fixtures remain byte-identical, same fixed node --test two-file invocation and all9 heads, actual Node return status and unfiltered stdout/stderr. Inventory-first failfast npm chain preserved; no test name/pattern/skip/filter option.",
+    "Normal eventloop reaps only, never signals live services to manufacture group absence. Main exit0 plus remaining live owned child is frozen as cleanup failure before any termination. Node nonzero remains failure and cleanup cannot produce success.",
+    "Single wait implementation with stored main status avoids Popen wait races or SIGCHLD SIG_IGN loss. SIGCHLD wakeup/<=25ms polling can reap adopted zombies within unchanged original500ms guard; scheduling delays still fail original guard rather than extending it.",
+    "Cleanup snapshots only kernel direct children via perthread children list; pidfd plus current PPID/startticks/UID validates identity before any signal. Reap/adopt/rediscover covers orphaned detached descendants without names, ambient groups, PID1 interventions or stale historical PID signals.",
+    "Overall90s is a wrapper upper bound, not extension of existing individual15s/test cleanup windows. Cancel/timeout/internal failure freezes nonsuccess; bounded5s TERM/KILL/join, no unsafe ambient fallback on refused/ambiguous capabilities.",
+    "Subreaper prior setting restored only after owned children reaped; historical PID1 zombies cannot be adopted retroactively and remain untouched. Unsupported prctl/pidfd/proc capability fails before test launch where possible, without native service/admission bypass."
+  ],
+  "finite_implementation_conditions": [
+    "Freeze portability explicitly before code: preserve original strict two-test direct execution on macOS if supported; otherwise document selected Linux-only prerequisite honestly and do not claim cross-platform preservation. Existing Windows POSIX-process-group limitation remains explicit.",
+    "Pre-exec handshake is deny by default: child must exit without exec on EOF/malformed token/cancel/setup failure; parent closes gate on every early failure and joins that exact child. Parent must establish pidfd/current PPID/startticks/UID before granting exec. No successful launch reported before this ownership fence.",
+    "Signal handlers only mark/wake; cancellation during fork/pidfd capture cannot throw past ownership cleanup. Keep wakeup FD and signal handlers valid until all owned reaping completes, then restore/close resources deterministically.",
+    "Final success requires real owned-children empty and ECHILD after main status capture. Unjoinable descendants/refused signals/identity ambiguity stays nonzero; no ignore-Z, /proc ambient scan, killall, broader PGID, timer expansion or success relabel.",
+    "Define exact outcome precedence in source: ordinary joined run returns Node code/signal mapping; setup125/timeout124/cancel128+signal/cleanup125 apply as specified, while existing Node nonzero must never become0 if cleanup also fails. Fixed cleanup diagnostic preserves actual failure context without environment/process secrets.",
+    "Root runs reversible capability probes on owned process only, then three grouped real OS boundaries and unchanged9 actual Node tests. Source/HOLD findings and capability checks are not claimed behavioral RED or proof of native app/deployment readiness."
+  ],
+  "evidence_qualifiers": [
+    "Existing7PASS2FAIL and observed PID1 zombies motivate bounded repair research but do not prove which exact failed head orphaned a particular process. Fresh successful actual tests plus owned-reap evidence must establish repair; design alone does not.",
+    "Trusted repo/dependency descendants are the cleanup threat boundary. SIGKILL of launcher or external privileged reparenting can defeat cleanup and must not be represented as guaranteed hostile-host isolation."
+  ],
+  "limits": [
+    "Read-only design/source/hash review; no implementation edits, Go/Node/tests/process/prctl/pidfd/Git/network/native execution. Kernel/runtime capability remains unknown to reviewer.",
+    "No DB/worker/native gate bypass, launch acceptance, ledger/task/availability promotion or original requirement retirement."
+  ]
+}

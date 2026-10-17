@@ -1,0 +1,54 @@
+{
+  "status": "HOLD_P2_PRESERVE_KNOWN_NODE_FAILURE_DURING_INCOMPLETE_CLEANUP",
+  "reviewer": "/root/gateway_review",
+  "created_at": "2026-10-17T22:29:33.310023+00:00",
+  "freeze": {
+    "path": "/tmp/esbuild-scoped-reaper-evidence-20261017/compatibility-source-successor.json",
+    "sha256": "cc28eeda39c1fb6eab3654941fc35d7a4845534622bb8626c2fffae5a84de47d"
+  },
+  "source_pins": [
+    {
+      "path": "scripts/run-dependency-regressions.py",
+      "sha256": "f06de58add672f4db6fcd1051489732c3481b9c68ca766442ec3fda560337f16"
+    },
+    {
+      "path": "scripts/run-dependency-regressions.test.py",
+      "sha256": "abbcdc7f87c42be893738f5392e9181c07753cb8e48c1e6a0ddb886a3db8208a"
+    },
+    {
+      "path": "package.json",
+      "sha256": "d5f171cfb0218ca78e01f3cf292516c14fc9dc76af6b78a066a700dd170aa08a"
+    },
+    {
+      "path": "scripts/dependency-esbuild-regression.test.mjs",
+      "sha256": "e95dbf56f6b30313954ff6a4d3a5780a1a03026d81d83152148019717ec692d9"
+    },
+    {
+      "path": "scripts/fixtures/dependency-esbuild-regression-child.mjs",
+      "sha256": "2a456acd0302ea8563b4f22d7ddb7b5d5f207b96a67f1a5abd67605162971640"
+    }
+  ],
+  "hash_mismatches": [],
+  "findings": [
+    {
+      "priority": "P2",
+      "id": "ACTUAL_NODE_STATUS_ON_CLEANUP_FAILURE",
+      "path": "scripts/run-dependency-regressions.py",
+      "symbol": "_run_owned final exit selection",
+      "problem": "Final early guard returns125 for incomplete join even when main_status already records actual Node nonzero. Closed exit contract explicitly requires preserving existing Node failure/signal code plus fixed cleanup diagnostic when cleanup also fails. All results remain nonzero, but actual failure code is lost.",
+      "required": "If known main_status is nonzero, preserve its existing mapping (positive exit unchanged, negative signal=>128+signal) in incomplete-cleanup failure branch while emitting fixed cleanup diagnostic. Unknown/no main status or main exit0 with failed setup/cleanup stays125. Do not convert any cleanup failure to0."
+    }
+  ],
+  "reviewed_clear": [
+    "ENOENT-only optional children fallback independently validates /proc/self/stat PID, bounded numeric metadata scan65536, per-read stat/status16KiB, per-entry monotonic bounds. EACCES/EPERM/malformed/overflow propagate to nonzero, never treated as absence. Clearly nonchild PPIDs skipped before UID lookup; vanished entries repeat bounded cleanup.",
+    "Only kernel current PPID plus expected UID yield candidates; _pin_child before/after identity and pidfd/current_startticks revalidation required for signals. No cmdline/environ/name/SID inference or ambient/historical signaling. Original comments retain no historical PID1 intervention.",
+    "Single waitpid owner reaps exited direct/adopted children while Node alive; no normal-run live signaling. Final join requires waitpid ECHILD, WNOHANG0 not absence. Same original strict9 Node guards/files remain unchanged.",
+    "Preexec gate defaults noexec on EOF, earlycancel orsetup failure; source captures pidfd/current parent/start before permission and validates child setsid completion. Exception closes gate before owned cleanup, actual cancellation/timeout can never create success.",
+    "One bounded cleanup deadline persists across loop and exception path, TERM then KILL only current owned pidfds; refused/ambiguous identities never broaden kill scope. Prior subreaper state restored only after join; stream output inherited untouched and fixed Node argv only public CLI.",
+    "Linux mandatory capability probes/current-process subreaper; macOS exact original direct exec, unsupported125. Package inventory-first npm chain preserved and npmtest/verify chain otherwise unchanged."
+  ],
+  "verification_limits": [
+    "Source-only no reviewer process/Go/Node/test/prctl/pidfd/Git/network execution. Root original RED/first failure/compatibility runtime checks separately preserved, not inferred from source.",
+    "No DB/native service/admission bypass, production availability/deployed launch/task/ledger promotion."
+  ]
+}

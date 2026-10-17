@@ -1,0 +1,248 @@
+{
+  "observed_at": "2026-10-17T09:10:41.892873+00:00",
+  "continued_published_base": "dc8d203030e3cd9dba8a386565023e5ecbc54397",
+  "scope": "Connected read-only OpenSearch preflight: explicit inspector STS identity and official exact DescribeDomain; fresh B2 cluster/selected service-account exchange/Pod authority plus current selected STS identity; allowlisted actual literal container endpoint/index/stage/image footprint; unchanged canonical mapping and immutable marker Ready validators over the borrowed bounded Runner transport. Typed Kubernetes outcomes preserved. Missing local inspector credentials remain unobserved without inventing STS attempt/time; earlier attempted failures retained.",
+  "sources": [
+    {
+      "path": "services/platform/runtimeindex/opensearchdriver/schema_observer.go",
+      "bytes": 2911,
+      "sha256": "d8c2f181f1969ae5771cf5bb5e315ae34c67c2aedaef890114ee0ca3c30846cf"
+    },
+    {
+      "path": "services/platform/runtimeindex/opensearchdriver/schema_observer_test.go",
+      "bytes": 4122,
+      "sha256": "3f9143efd08cd8b58e7b8e0c2c0f58d0901ef51d1ba3d22c7c7a23824a23426d"
+    },
+    {
+      "path": "services/platform/inventorysearch/opensearchdriver/schema_observer.go",
+      "bytes": 2455,
+      "sha256": "06d19b66ec2bcc5672b6773d38a4302022636b278c21d9570b472c4b04679945"
+    },
+    {
+      "path": "services/platform/inventorysearch/opensearchdriver/schema_observer_test.go",
+      "bytes": 2274,
+      "sha256": "8a6319b89cf5f1a744c36c55a9c24d122e3d7c9ba877934e922a7e41cc5e0182"
+    },
+    {
+      "path": "services/platform/preflight/opensearch_config.go",
+      "bytes": 3605,
+      "sha256": "e3cf984fd11467156436488c239872f7129cec8aa4228eb160149e0794f84195"
+    },
+    {
+      "path": "services/platform/preflight/opensearch_test.go",
+      "bytes": 3436,
+      "sha256": "a6805a7ae50f4cce7199b5538240d9f8e3a458a8b893f1580d1a5ee8784c6f1e"
+    },
+    {
+      "path": "services/platform/preflight/contract.go",
+      "bytes": 4971,
+      "sha256": "7ac1af3cada54125322f991bb51f21c8fb309697d65e0324cd00f50728b367e7"
+    },
+    {
+      "path": "services/platform/preflight/runner.go",
+      "bytes": 11737,
+      "sha256": "5b1686e89efad306cf9ace6234474b5cc83a176d560e838a8689950a09bc09ee"
+    },
+    {
+      "path": "services/platform/preflight/config.go",
+      "bytes": 6877,
+      "sha256": "4e7ba1f2edbbd4630dd1076882f8c92efbf16b5437238fc98517af686bc7545a"
+    },
+    {
+      "path": "services/platform/preflight/opensearch.go",
+      "bytes": 14543,
+      "sha256": "0f2d4a3acbf7b5d43dd858cfa80a86ac7f0864c375c9ea5220e7f3bc8add6d98"
+    },
+    {
+      "path": "services/platform/preflight/opensearch_flow_test.go",
+      "bytes": 7075,
+      "sha256": "5b69a9336f1424f5402c8ceda27a43d78a578a275048d4d140b4faf7cf1993c6"
+    },
+    {
+      "path": "services/platform/preflight/opensearch_kubernetes.go",
+      "bytes": 5167,
+      "sha256": "79ace397b8dbe45335583703772e0ab3270d1c446130244b532bfffe2c6987fb"
+    },
+    {
+      "path": "services/platform/preflight/opensearch_kubernetes_test.go",
+      "bytes": 4594,
+      "sha256": "d2872d8f24f4a9e0936c25e311ba902e25a5c81b7a8d627259500ab8ddc2ca91"
+    },
+    {
+      "path": "services/platform/preflight/opensearch_data_flow_test.go",
+      "bytes": 9390,
+      "sha256": "d9898363450e29118a7a24cf7e4dc9ccc2a7d948c6f663a5f96fa566ce6f78bc"
+    },
+    {
+      "path": "cmd/agentsecctl/go.mod",
+      "bytes": 1806,
+      "sha256": "0fa0e8647690141a23c7422fa721dd6ab3778f39e4740236e541a49e120661d2"
+    },
+    {
+      "path": "cmd/agentsecctl/go.sum",
+      "bytes": 6476,
+      "sha256": "686048a9c5a2ce0f2a7d6c2006b72ec7a3c986173bbfa8b56a9fe9a7bad3581e"
+    },
+    {
+      "path": "services/platform/inventorysearch/opensearchdriver/driver.go",
+      "bytes": 8985,
+      "sha256": "7e9350bc8f783281f6d4bf39a00ca8db12e8bb6611995a039534c97eda5e80eb"
+    },
+    {
+      "path": "services/platform/inventorysearch/opensearchdriver/schema.go",
+      "bytes": 6714,
+      "sha256": "54d016d9c71e3312c51a2f2ae213752a409a07a4e2b67254a08c25736f2cbcc5"
+    }
+  ],
+  "source_associations": [
+    {
+      "path": "scripts/connector-acceptance-groups.test.mjs",
+      "sha256": "998ba12718253f2ea6a81f33d3c57aa96f746afbb7194935818d0106dcdfc899",
+      "bytes": 39298
+    },
+    {
+      "path": ".github/workflows/connector-native-draft-compile.yml",
+      "sha256": "9f115b84130f903a20ce5269c8fe4bbc03fe5e65b01c27548dc8b0aed466cf74",
+      "bytes": 22385
+    },
+    {
+      "path": "scripts/hosted-connected-connector-acceptance.mjs",
+      "sha256": "64f05adbbfc21b044f2b321910131f3a5afef7daccf2edbfbf8c13ab469062f2",
+      "bytes": 87244
+    },
+    {
+      "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
+      "sha256": "666e8e88b5ba21f9966bfd38f87ba6a5a2e6605318c1fd56ee9fa591835f94af",
+      "bytes": 83645
+    },
+    {
+      "path": ".github/connector-native-compile-source-pins.json",
+      "sha256": "bc088fa72402fb57a5c9058e2bcf3b36fea5b0997b7d49852fd0a59e6dd911d1",
+      "bytes": 126575
+    }
+  ],
+  "module_qualification": "14exact reviewed product files;2 genuine offline CLI metadata files;2 unchanged canonical inventory Ready validators newly associated. No existing SDK upgrade; OpenSearch1.75.6 already pinned platform.",
+  "verification": {
+    "final-full-preflight-drivers-race-v2": {
+      "pass": 382,
+      "fail": 0,
+      "skip": 1,
+      "packages": [
+        "github.com/zasp-ai/zasp-sec/services/platform/inventorysearch/opensearchdriver",
+        "github.com/zasp-ai/zasp-sec/services/platform/preflight",
+        "github.com/zasp-ai/zasp-sec/services/platform/runtimeindex/opensearchdriver"
+      ],
+      "skipped_cases": [
+        {
+          "package": "github.com/zasp-ai/zasp-sec/services/platform/runtimeindex/opensearchdriver",
+          "test": "TestSandboxSessionIndexLocalOpenSearch"
+        }
+      ],
+      "jsonl": {
+        "path": "/tmp/preflight-opensearch-evidence-20261017/final-full-preflight-drivers-race-v2.jsonl",
+        "bytes": 430511,
+        "sha256": "17ecd1aa9786d87791c05b3197ed5fce0c7219b72d3d5ac7db0f82f1f44dcc9c"
+      },
+      "stderr": {
+        "path": "/tmp/preflight-opensearch-evidence-20261017/final-full-preflight-drivers-race-v2.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    "integrated-full-cli-race-v2": {
+      "pass": 148,
+      "fail": 0,
+      "skip": 0,
+      "packages": [
+        "github.com/zasp-ai/zasp-sec/cmd/agentsecctl"
+      ],
+      "skipped_cases": [],
+      "jsonl": {
+        "path": "/tmp/preflight-opensearch-evidence-20261017/integrated-full-cli-race-v2.jsonl",
+        "bytes": 158839,
+        "sha256": "89cabae2f0042f0e4c0f38c2e70b08f090729a34e825744aa732b9f889c000a9"
+      },
+      "stderr": {
+        "path": "/tmp/preflight-opensearch-evidence-20261017/integrated-full-cli-race-v2.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    "source_ledger_checks": {
+      "tests": 54,
+      "pass": 54,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0
+    },
+    "lint_scope_checks": {
+      "tests": 11,
+      "pass": 11,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0
+    },
+    "actual_compiled_CLI": {
+      "binary_sha256": "f9c97208311fdf14a997f988c75140e5d5809a23e83dbcd5e4f7cec5a4cfd856",
+      "cases": [
+        {
+          "mode": "before-install",
+          "exit": 1,
+          "checks": 8,
+          "ready": false,
+          "opensearch_reachable": {
+            "name": "opensearch_reachable",
+            "status": "unobserved",
+            "kind": "unobserved",
+            "code": "inspection_credentials_unavailable",
+            "identity_kind": "none"
+          },
+          "stdout_sha256": "dcf85f382aa4f57ea534fc7a68e70694f75cee3e0141745b53329295453fe190",
+          "stderr_bytes": 0
+        },
+        {
+          "mode": "installed",
+          "exit": 1,
+          "checks": 8,
+          "ready": false,
+          "opensearch_reachable": {
+            "name": "opensearch_reachable",
+            "status": "unobserved",
+            "kind": "unobserved",
+            "code": "inspection_credentials_unavailable",
+            "identity_kind": "none"
+          },
+          "stdout_sha256": "9e2509ee336d79c01bc0127c3a65249526cc704d18c7a4181fdfe94dec24e684",
+          "stderr_bytes": 0
+        }
+      ],
+      "qualification": "Actual compiled CLI with controlled missing local credentials. No provider requests or real deployment proof. OpenSearch local prerequisite stays unobserved without an STS attempt."
+    },
+    "source_pins_verified": 420,
+    "fresh_UI_typecheck_exit": 0,
+    "fresh_UI_build_exit": 0,
+    "lint_exit": 0,
+    "exit_receipt_qualification": "Root confirmed these actual command exits; original text logs retained byte-for-byte.",
+    "hosted_new_batch": "pending exact published head",
+    "native_database_execution": false,
+    "real_provider_requests": false,
+    "production_or_deployed_E2E": false
+  },
+  "ledger": {
+    "rows": 728,
+    "unique_ids": 728,
+    "classes": {
+      "production-available": 523,
+      "component-only": 144,
+      "blocked/external": 61
+    },
+    "promotions": 0
+  },
+  "archive": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/opensearch-preflight/component-evidence.json.gz",
+    "bytes": 139173,
+    "sha256": "f241775b8ce60ec846507008dfc19a42808829b1ce4d133f2fb477dc27e522c5",
+    "members": 66
+  },
+  "remaining": "Read-only metadata and schema reads do not prove required search/write/init/refresh/delete permissions, every workload-role footprint, actual workload network origin or global deployed release phase. Unsupported selected purposes remain unobserved without reducing the original inventory. Fargate/network/canary, real Stytch/provider/tenant flows, historical writer resolution, native database, security/browser/release guards and full deployed acceptance remain mandatory. No original task promoted."
+}

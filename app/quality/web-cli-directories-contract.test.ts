@@ -74,10 +74,11 @@ describe("M1-01c web and CLI directories repository contract", () => {
   });
 
   it("keeps web dependency ownership at root and the CLI boundary no-I/O", async () => {
-    const [webPackageText, webFiles, goModule, cliSource] = await Promise.all([
+    const [webPackageText, webFiles, goModule, platformModule, cliSource] = await Promise.all([
       readFile(resolve(repositoryRoot, "apps/web/package.json"), "utf8"),
       readdir(resolve(repositoryRoot, "apps/web")),
       readFile(resolve(repositoryRoot, "cmd/agentsecctl/go.mod"), "utf8"),
+      readFile(resolve(repositoryRoot, "services/platform/go.mod"), "utf8"),
       readFile(resolve(repositoryRoot, "cmd/agentsecctl/main.go"), "utf8"),
     ]);
     const webPackage = JSON.parse(webPackageText) as Record<string, unknown>;
@@ -90,7 +91,35 @@ describe("M1-01c web and CLI directories repository contract", () => {
       scripts: { build: "npm --prefix ../.. run build" },
     });
     expect(webFiles.sort()).toEqual(["README.md", "api", "package.json"]);
-    expect(goModule).toBe("module github.com/zasp-ai/zasp-sec/cmd/agentsecctl\n\ngo 1.25.0\n");
+    // The version entrypoint remains no-I/O; live preflight now delegates to
+    // the reviewed platform module instead of the original empty CLI skeleton.
+    const lines = goModule.split("\n").map(line => line.trim()).filter(Boolean);
+    expect(lines.filter(line => line.startsWith("module "))).toEqual(["module github.com/zasp-ai/zasp-sec/cmd/agentsecctl"]);
+    expect(lines.filter(line => line.startsWith("go "))).toEqual(["go 1.26.0"]);
+    expect(lines.filter(line => line.startsWith("replace ")).sort()).toEqual([
+      "replace github.com/zasp-ai/zasp-sec/services/health => ../../services/health",
+      "replace github.com/zasp-ai/zasp-sec/services/platform => ../../services/platform",
+    ]);
+    const requirement = /^(?:require\s+)?(\S+)\s+(v[\w.+-]+)(?:\s+\/\/ (indirect))?$/;
+    const requirements = lines.flatMap(line => {
+      const match = requirement.exec(line);
+      return match ? [{ name: match[1], version: match[2], indirect: match[3] === "indirect" }] : [];
+    });
+    expect(requirements.filter(entry => !entry.indirect)).toEqual([
+      { name: "github.com/zasp-ai/zasp-sec/services/platform", version: "v0.0.0", indirect: false },
+    ]);
+    expect(new Set(requirements.map(entry => entry.name)).size).toBe(requirements.length);
+    const platformPins = new Map(platformModule.split("\n").flatMap(line => {
+      const match = requirement.exec(line.trim());
+      return match ? [[match[1], match[2]] as const] : [];
+    }));
+    const indirect = requirements.filter(entry => entry.indirect);
+    expect(indirect.length).toBeGreaterThan(0);
+    for (const entry of indirect) {
+      expect(entry.name).toMatch(/^(?:github\.com\/aws\/(?:aws-sdk-go-v2(?:\/[a-z0-9/.-]+)?|smithy-go)|github\.com\/jackc\/(?:pgx\/v5|pgpassfile|pgservicefile|puddle\/v2)|golang\.org\/x\/(?:sync|text))$/);
+      expect(entry.version).toBe(platformPins.get(entry.name));
+    }
+    expect(lines.filter(line => !requirement.test(line) && !/^(?:module |go |replace |require \($|\)$)/.test(line))).toEqual([]);
     expect(cliSource).toContain('"agentsecctl version " + version + "\\n"');
     for (const forbidden of ["os.Getenv", "net/http", "net.Listen", "AWS_", "KUBECONFIG", "STYTCH_"]) {
       expect(cliSource).not.toContain(forbidden);

@@ -15,15 +15,22 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeevent"
 )
 
+type retentionIndexCleanupRuntime interface {
+	workerProcessor
+	Ready(context.Context) error
+	Close() error
+}
+
 type productionRuntimeStageDependencies struct {
-	Stage        runtimeevent.RuntimeStage
-	Executor     runtimeStageExecutor
-	Sessions     runtimeSessionSearchWork
-	SessionReady func(context.Context) error
-	ready        func(context.Context) error
-	close        func() error
-	closeOnce    sync.Once
-	closeErr     error
+	retentionCleanup retentionIndexCleanupRuntime
+	Stage            runtimeevent.RuntimeStage
+	Executor         runtimeStageExecutor
+	Sessions         runtimeSessionSearchWork
+	SessionReady     func(context.Context) error
+	ready            func(context.Context) error
+	close            func() error
+	closeOnce        sync.Once
+	closeErr         error
 }
 
 func newProductionRuntimeArchive(ctx context.Context, config workerRuntimeConfig) (*productionRuntimeStageDependencies, error) {
@@ -70,12 +77,20 @@ func (dependencies *productionRuntimeStageDependencies) Ready(ctx context.Contex
 	if dependencies == nil || dependencies.ready == nil || ctx == nil || ctx.Err() != nil {
 		return errRuntimeUnavailable
 	}
+	if dependencies.retentionCleanup != nil && dependencies.retentionCleanup.Ready(ctx) != nil {
+		return errRuntimeUnavailable
+	}
 	return dependencies.ready(ctx)
 }
 
 func (dependencies *productionRuntimeStageDependencies) Close() error {
 	if dependencies == nil {
 		return nil
+	}
+	if dependencies.retentionCleanup != nil {
+		if err := dependencies.retentionCleanup.Close(); err != nil {
+			return err
+		}
 	}
 	dependencies.closeOnce.Do(func() {
 		if dependencies.close != nil {

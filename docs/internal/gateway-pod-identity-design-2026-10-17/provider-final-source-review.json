@@ -1,0 +1,50 @@
+{
+  "status": "CLEAR_FINAL_PROVIDER_COMPONENT_SOURCE_ONLY",
+  "reviewer": "/root/gateway_review",
+  "created_at": "2026-10-17T21:58:34.309232+00:00",
+  "freeze": {
+    "path": "/tmp/gateway-pod-identity-component-evidence-20261017/credential-review-successor-source.json",
+    "sha256": "27c1a18a852101ed90a7c0e1377ec6c4caef21357a632718118bef1a4ad212f6"
+  },
+  "actual_reviewed_sources": {
+    "services/gatewaypodidentity/README.md": "d29bbc5b42856abb533a46529692b9e43b32b8d618e71f180b2db92f6f587b2a",
+    "services/gatewaypodidentity/chain.go": "51cb08c1c7b3de621b5f19419d1da879a5c5e32867f93b59652b08bbe12a0e3b",
+    "services/gatewaypodidentity/credential_linux.go": "f1839053a1ba42fc7902c8d181fa00a2611c2c80605f10f78f51c40a824d8c9d",
+    "services/gatewaypodidentity/credential_other.go": "25c50d6ba4c740167eb38cc5aff2c12bfa3719f40b318310d5ccca2418c5351a",
+    "services/gatewaypodidentity/go.mod": "181430e321f407f020922eaa24199661ff52e8739ff454ab96002ff343459f91",
+    "services/gatewaypodidentity/json.go": "8dae00404594cb2768e01d8d720773237926257495bec6d067e11402046f661f",
+    "services/gatewaypodidentity/verifier.go": "f18b481a93e5dbfb9c7ebaf65717bf2487b64c7f056b7ad7b179c2057a53f14a",
+    "services/gatewaypodidentity/verifier_test.go": "5dcf4b38dcc991066d8f556e10463d7ea0f25aa2598683c3ab094e7e957d405d"
+  },
+  "freeze_hash_differences": [
+    "services/gatewaypodidentity/README.md"
+  ],
+  "authorized_metadata_difference": {
+    "path": "services/gatewaypodidentity/README.md",
+    "freeze_sha256": "9472ab6749524141030e6ff344561a801e9538e1d111f3aa0fb5522e61f9034f",
+    "actual_sha256": "d29bbc5b42856abb533a46529692b9e43b32b8d618e71f180b2db92f6f587b2a",
+    "authority": "Root explicitly notified README-only testimony/non-atomic/TTL qualification append; all Go/module/test hashes remain exact freeze. Actual appended paragraph independently read, no behavioral claim broadened."
+  },
+  "closed_findings": [
+    "TOKENREVIEW_AUDIENCES_TYPE: status array type required, JWT string/array support retained.",
+    "EXPIRY_MARSHAL_FAILURE: max exp RFC3339 year9999, serialization error denies rather than domain-only digest.",
+    "CERTIFICATE_ONLY_PEM_PREFIX: next trimmed block requires actual CERTIFICATE boundary, no skipped prefix.",
+    "REVIEWER_POSTREAD_METADATA: stable() now validates BOTH afterFD and current-path snapshots against original safe UID/GID/nlink1/mode/size/mtime/ctime/dev/inode and exact read length; access time deliberately omitted.",
+    "Root zero-value Close nil transport check retained."
+  ],
+  "preserved_reviews": {
+    "independent-first-functional-source-review.json": "9a862fb7d1d93cb2d2c6851afb4497e04a6da4c4138d95e0f14de986468f8ccf",
+    "independent-hardening-successor-source-review.json": "e284c46a392e650dc38ec7498add3281ec2cb6b67d1f49c0c76856da436c0129"
+  },
+  "delta_scope": "Only Linux credential product helper differs from hardening freeze; root README qualification append separately reviewed. Same grouped5 test heads and all other functional source unchanged. Initial source capture mismatches explicitly retained as known authorized successor changes, not fabricated original freeze matches.",
+  "reviewed_limits": [
+    "Fresh protected reviewer credential read supports operator rotation and checks final nofollow/currentUID0600/nlink1; parent is operator trust. It does not support direct projected-secret symlink or establish malicious parent protection; secure publisher remains external prerequisite.",
+    "TokenReview is actual authentication authority; local strict claims follow accepted same-token review. Thirteen bounded live provider calls/double identity reads produce short-lived Gateway testimony, not detached K8s signature or atomic snapshot. Current source-level chain/JSON/DNSCIDR/TLS/opaque proof/lifecycle clear from prior review remains retained.",
+    "No runtime wiring/product permission/native policy dispatch integration/SA UID native catalog mapping included. Projected Pod bearer possession is not container/process identity or coverage."
+  ],
+  "findings": [],
+  "verification_limits": [
+    "No reviewer Go/Node/tests/build/Git/network/provider/native execution. Root original5RED/predecessor5PASS and hardening5PASS are separately recorded; final corrected checks remain root-owned.",
+    "No live Kubernetes credentials/RBAC/native/deployed real Stytch/provider/Temporal/OpenFGA/browser acceptance, launch readiness, ledger promotion or original-task closure."
+  ]
+}

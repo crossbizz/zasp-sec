@@ -1,0 +1,59 @@
+{
+  "status": "ROOT_MERGED_CONTRACT_DRAFT_REQUIRES_INDEPENDENT_REVIEW_BEFORE_IMPLEMENTATION",
+  "source_parent": "c1406c61",
+  "goal": "Connect real current Device bootstrap API to original native15 enrollment and durable CLI credential custody. No Agent association or coverage claim. Preserve every original requirement.",
+  "proposal_pins": {
+    "backend-contract-proposal.json": "409b341c1eb97b0adfa91f8dfdf45038c7a20a020d2a33869b2149b9836687af",
+    "transport-contract-proposal.json": "bfb5a9fc1877f5974f9f1413bc9d5f8be629f327d3dbd2b1eb4f112fba6bbd29",
+    "cli-custody-contract-proposal.json": "e5d32f19ff413d489ad7ec717e5418072c75f44257cf60b746c29b26ddcb8463"
+  },
+  "selected_decisions": {
+    "public_operations": [
+      {
+        "id": "createGatewayDevice",
+        "method": "POST",
+        "path": "/api/v1/gateways",
+        "permission": "manage_identity",
+        "body": "closed {name}; canonical user intent only; generated nativeDeviceID server-owned"
+      },
+      {
+        "id": "getGatewayDevice",
+        "method": "GET",
+        "path": "/api/v1/gateways/{id}",
+        "permission": "view",
+        "body": "none; scoped metadata including bounded latest enrollment needed explicit recovery"
+      },
+      {
+        "id": "issueGatewayEnrollment",
+        "method": "POST",
+        "path": "/api/v1/gateways/{id}/enrollments",
+        "permission": "manage_identity",
+        "body": "closed {expected_version,ttl_seconds}; ttl60..86400; expires canonical wholeUTCsecond from server; token material cryptographic server-owned"
+      },
+      {
+        "id": "revokeGatewayEnrollment",
+        "method": "POST",
+        "path": "/api/v1/gateways/{id}/enrollments/{enrollmentId}/revoke",
+        "permission": "manage_identity",
+        "body": "closed {expected_version}; only exact enrollment token, never claim credential revocation"
+      }
+    ],
+    "human_authority": "All four are NEW explicit closed environment targets with original scope/current membership/FGA proof. Mutations require browser real fresh authentication+CSRF/origin/current expected scope, or existing PAT manage_identity ceiling/current environment grant as current product policy. Read permission view. Native EXECUTE never substitutes authorization. No new Device FGA kind/relation or organization identity.manage inference.",
+    "profile": "Own sealed namespace zasp_gateway_bootstrap_v1, Normal/Audit variants, exact current80worker/runtime/79/80 source frames, currentregisteredAPI principal. Minimal new own function grants only; all original parent bodies/grants/fingerprints unchanged. API and enrollment activation defaultoff, exactcompiledprofile pin; own readiness isolated from original global health.",
+    "public_mutation_recovery": "Separate device/create/issue/read/revoke. Own scoped actor+operation+idempotency receipt and canonical user input digest, audit once atomically; generated randomness excluded from user intent digest but immutable actual native material bound in own receipt. Fresh issue wrapper returns original metadata plus explicit new_mutation marker, final confirmation proves sameTX receipt/current authority. Plaintext token only when current TX newly minted exact native token and confirmedCOMMIT; metadata replay never remints or redelivers secret. Unknown response tells user issue may have committed; explicit status read and deliberate revoke then new idempotency issue. Expired unconsumed native token still blocks issuance until explicitly revoked. No automatic secret mutation retry.",
+    "secret_delivery": "No locator/secret/privatekey in URL, argv, logs, traces, durable SQL receipt/audit or UI storage. Fresh successful issue returns an exact closed protected-input enrollment bundle suitable for CLI stdin; browser holds only in memory and clears on close/fresh-auth loss/principal/scope/query-generation/session change. No browser privatekey generation.",
+    "token_bundle": "gateway-enrollment-token-v1: schema, organization_id, workspace_id, environment_id, device_id, enrollment_id, token_generation, credential_generation, enrollment_expires_at, locator, secret. CanonicalIDs; positive bounded generations; original native locator16/secret32 canonicalRawURL; currentnextcredentialgeneration derived by authoritative SQL, not caller privilege. Fixed enrollment audience implicit.",
+    "enrollment_transport": "Use transport-contract-proposal body13 and receipt17, <=4096 strictUTF8JSON, canonical fullIDs/integers/times/RawURL, no duplicate/null/unknown/casealias/trailing/surrogate. Fixed POST /internal/v1/runtime-gateway/enrollments, production HTTPS/noquery/redirects. Exactly one Authorization ZaspGatewayEnrollmentV1 locator.secret; required fresh submitted-key proof over existing canonical request context, preserving enrollment bearer. Token proof authorizes original scope; body scope only exact expected constraints.",
+    "enrollment_transaction": "Original samepool ReadCommitted. Preauth original15/current80 enrollment authority; compare constraints; original9arg enroll; strict native result; final sequential reauth, credentialauthority, THEN DBclock expiry check; no blocking application query after clock; confirmedCOMMIT before200, unknowncommit neverACK. Original token/currentcredential semantics preserved, no expiry resurrection or parent/grant changes. Prefer existing functions plus fixedqueries rather than unnecessary new gateway SQL wrapper.",
+    "cli": "Add real gateway enroll/status/export commands in cmd/agentsecctl, stdlib shared wire/custody package. Token bundle stdin only. Nonsecret endpoint/custody/output/TTL options. Persist immutable 0600 privatekey and EXACT raw enrollment request before any HTTP. CredentialID/gen/keyID/publickey/expiry fixed forever for that intent; retries never regenerate. Token need not be persisted; same protected stdin bundle required for retry. Cooperative common cacheownership lock on pinned actual root, no Linux fallback. No-overwrite publication must be atomic and directorysynced; any uncertain/inconsistent custody remains unresolved and never autoreplaced. Export exact existing canonical credentialJSON {credential_id,key_id,private_key} only after strictboundreceipt or separately labelled current signed authority confirmation; no privatekey stdout.",
+    "unknown_enrollment": "Retain key+original intent on any network/commit ambiguity. Retry same exact body/key while tokencurrent. After tokenexpiry, do not pretend nevercommitted, silently regenerate identity, resurrect token, or fabricate enrollmentreceipt. Optional status can separately prove current native credential with preserved key; label evidence as currentauthority, not originalenrollmentreceipt/firstcommit.",
+    "ui": "Separate Runtime gateways panel under production integrations; NEW gateways.manage from exact environment manage_identity without collection fallback and actualprofile capability. Generated OpenAPI client only, strict response/no-store decoders, metadata exactrefetch. Device create then issue, one-time bundle, status/revoke/reissue. Existing deployment secret consumers unchanged; publicIDs+precreatedsecret names only. Authentic policykey/proxy-token handoff remains separate and cannot be invented from enrollment."
+  },
+  "sql_api": "Use backend-contract-proposal exact create8/issue13/revoke9/get4/confirm8 private ABIs and closed statement proof. Backend must add selected profile pin parameters consistently if ABI requires them and freeze exact successor before tests. No unreviewed argument drift.",
+  "grouped_verification": "Tests first grouped by connected flow: shared strictwire/custody+actualCLI have executable RED with available dependencies; dynamic installer capability tests executable RED. API/policy/server baseline already OPA blocked means0tests, not behavioral RED. Source reviewers independently validate permissions/integrations. One final affected integration attempt after freeze, no repeatunchanged blocked loops. Required native/deployed flows remain gates. No Temporal/OpenFGA internal tests.",
+  "open_before_implementation": [
+    "Freeze exact public response DTOs and fresh-vs-replay marker before grouped acceptance scaffolds.",
+    "Freeze no-overwrite durable custody primitive and failure recovery state before product IO implementation.",
+    "Independent reviewer must clear generic new operation proof, environment permissions/PAT/fresh semantics, lock order, expiry checks, final receipt and secret lifecycle."
+  ]
+}

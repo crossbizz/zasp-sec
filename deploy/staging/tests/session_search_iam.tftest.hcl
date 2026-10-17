@@ -329,9 +329,13 @@ run "session_search_exact_method_path_authority" {
       flatten([for version in [1, 2] : concat(
         [for path in ["_mapping", "_doc/_zasp_session_schema_v${version}"] : "es:ESHttpGet arn:aws:es:us-west-2:000000000000:domain/session-search-test/zasp-runtime-sessions-v${version}/${path}"],
         [for path in ["_bulk", "_mget", "_refresh"] : "es:ESHttpPost arn:aws:es:us-west-2:000000000000:domain/session-search-test/zasp-runtime-sessions-v${version}/${path}"]
-      )])
+      )]),
+      [for index in ["zasp-runtime-events-v1", "zasp-runtime-sessions-v1", "zasp-runtime-sessions-v2"] : "es:ESHttpPost arn:aws:es:us-west-2:000000000000:domain/session-search-test/${index}/_search"],
+      flatten([for action in ["es:ESHttpGet", "es:ESHttpDelete"] : [
+        for index, prefix in { zasp-runtime-events-v1 = "evt_", zasp-runtime-sessions-v1 = "", zasp-runtime-sessions-v2 = "" } : "${action} arn:aws:es:us-west-2:000000000000:domain/session-search-test/${index}/_doc/${prefix}${join("", [for offset in range(64) : "?"])}"
+      ]])
     ))
-    error_message = "Runtime index must retain v1 and have only v2 mapping/marker GET plus bulk/mget/refresh POST; no search, PUT, DELETE, or wildcard expansion."
+    error_message = "Runtime index must retain original raw/v1/v2 writes and only add fixed three-index search POST and 64-character document GET/DELETE; schema-marker DELETE, foreign paths and other method expansion remain excluded."
   }
 
   assert {

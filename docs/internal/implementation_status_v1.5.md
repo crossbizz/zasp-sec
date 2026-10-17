@@ -1,4 +1,825 @@
+Gateway bootstrap supporting candidate (2026-10-17): connected source adds current-authorized Runtime gateway Device management and one-time enrollment delivery, an isolated default-off Normal/Audit profile, original-pool enrollment confirmation, protected-stdin CLI and durable original key/request/receipt custody. Actual full CLI211, wire5, custody4 and migration18 local race cases, deployment3 controls, final gateway/changed-quality22 and retained SDK21 cases, OpenAPI46 and UI/API coverage10 pass. Typecheck, scoped lint, official generation and production build pass; independent source review is clear. Both compiled profiles pass offline SQL/PLpgSQL grammar only; API/control/installer compilation is dependency-blocked with zero cases, native admission was refused, and real deployed Stytch/provider acceptance remains unverified. Post-expiry authority recovery, authentic Agent-to-Device binding and composed coverage/filter behavior remain required. All728 tasks, 509/158/61 classes and219 remaining records remain unchanged; no task closure, obsolete retirement or launch claim. See `cloud-gateway-bootstrap-source-checkpoint-2026-10-17.json`.
+
+2026-10-17 current-authority recovery supporting batch: explicit retained-key live Authority GET and optional same-call export implemented; original enrollment remains unknown without its actual receipt. Full CLI 214 and shared 15 local race cases pass, including nine grouped recovery heads; exact new CI script validates nine actual local results and 21 source guards pass over 846 bindings. No server permission/profile/UI changes. All 728 rows, 509/158/61 classifications and 219 remaining records are unchanged; native/deployed real integrations and launch remain unverified. Evidence: `cloud-gateway-authority-recovery-checkpoint-2026-10-17.json`.
+
+Gateway installation acknowledgment supporting candidate (2026-10-17): the connected source adds authenticated device-credential installation testimony, durable original cache observation custody, signed delivery and same-pool record/confirm/commit through an isolated default-off Normal/Audit profile. Local wire/cache-ownership10 and migration18 race cases, deployment4 plus actual-entry1 controls, UI typecheck/build and offline compiled SQL/PLpgSQL grammar checks pass. API/policy/runtime/installer compilation is OPA/Badger setup-blocked; independent connected/deployment source reviews are clear, but connected compilation, native/deployed acceptance and hosted release guards remain open. This does not establish an authentic Agent-to-Device association or complete Agent coverage/filter behavior. All728 requirements, 509/158/61 classes and219 remaining records are unchanged; no obsolete retirement or launch claim. See `cloud-gateway-installation-ack-source-checkpoint-2026-10-17.json`.
+
+Agent-to-node placement supporting continuation (2026-10-17): an explicit Kubernetes placement-v2 recipe now retains observed cluster and controller-to-Pod-to-Node UID/boot lineage in optional Agent attributes. Full local collector and parser packages pass 58 and 117 named race cases respectively. Worker compilation remains dependency-blocked; real provider discovery and Agent-bound policy installation/coverage composition remain unverified. This supports M4-50b3 without completing or promoting it. All 728 requirements and 509/158/61 classes, including all 219 remaining records, remain intact. See `cloud-agent-node-placement-checkpoint-2026-10-17.json`.
+
+Retained node observation pipeline supporting continuation (2026-10-17): original selected node UID/boot testimony now has bounded durable producer custody, versioned authenticated heartbeat delivery, transaction-confirmed persistence, current-authorized API reads and typed SDK support. Explicit producer and server activation remain off by default. Local component verification passes; API/installer compilation, native PostgreSQL/OpenFGA, real chart rendering and deployed provider/browser flows remain open. This is a prerequisite for M4-50b3, not completed Agent coverage or production filter availability. All 728 requirements and 509/158/61 classes remain unchanged, with 219 recorded outside production-available. See `cloud-sensor-node-observation-pipeline-checkpoint-2026-10-17.json`.
+
+Upgrade preflight supporting correction (2026-10-17): plausible rollback URLs and caller compatibility booleans no longer make the real CLI ready. The command reads authenticated completed-backup metadata, checks exact scoped immutable manifest identity, and labels compatibility evaluation offline. Artifact verification is still required, so overall readiness remains false. Actual full CLI verification passes 203 named race cases, 20 source-custody checks and three compiled CLI stdin/exit/report checks; independent source review is clear. This does not complete M8-22d or verify real provider/deployed flows. All 728 requirements, 509/158/61 classes and 219 remaining records remain unchanged. See `cloud-recovery-upgrade-live-prerequisite-checkpoint-2026-10-17.json`.
+
+Current ownership-write source continuation (2026-10-17): the M4-05 repair now has an additive explicit default-off Normal/Audit profile and API/runtime/migration/deployment integration. Canonical CAS, idempotent receipts and audit behavior remain authoritative; current authority is rechecked after waits before replay. Controlled installer/compiler checks pass (13 named cases) with race detection. API/runtime/CLI compilation is setup-blocked by missing OPA; native SQL/FGA/credential flows and real deployed Stytch/provider/browser verification remain open. All 728 requirements remain active, with 509 production-available evidence classes, 158 component-only and 61 blocked/external; no availability promotions or obsolete retirement. See `cloud-agents-current-ownership-write-source-checkpoint-2026-10-17.json`.
+
+> October 17, 2026 combined Agent filter source batch: owner conjunction, recorded visible unresolved finding severity, and versioned evidence-backed execution/reach filters are implemented through an explicit disabled-by-default Normal/Audit API profile and real capability-gated UI. Winning source/relationship bindings, independent finding authorization, complete bounded candidate-reference checks and filter-before-limit pagination are required. Actual122 UI/client cases,13 Go compiler/fake-backed installer cases, official API generation, typecheck and build pass; API/runtime/migration CLI compilation remains OPA setup-blocked0cases, native SQL/FGA and real deployed Stytch/provider/browser acceptance unverified. No component-to-production promotions. See cloud-agents-combined-filter-source-checkpoint-2026-10-17.json.
+
+> Current original ownership-write correction: source proves M4-05 updateAgent is rejected before Begin by the closed current query classifier. Its historical Complete status and T05 owner remain, but availability is component-only until actual guarded PATCH/idempotent replay/audit/ACK/refetch works. Filter UI mock ACK cases do not verify this flow. Current classes509 production-available /158 component-only /61 blocked-external,219 recorded non-production requirements; all728 original IDs and fresh deployed acceptance remain mandatory. Prior dated counts below are history.
+
+> Current Agent-read availability correction, October 17, 2026: source review proves the current-authorized Agent detail, capability, relationship and session reads select legacy SQL rejected by the closed statement classifier; the legacy Agent session source additionally returns constant empty data. M4-04, M4-06, M4-07 and M4-08 are component-only under T05-inventory-cutover until actual current-read/native/deployed verification passes. A sealed additive profile and real attributed session read are the implementation batch; source/component checks do not restore production credit. All 728 IDs and historical statuses remain intact. Current classes: 510 production-available / 157 component-only / 61 blocked/external; 218 recorded non-production rows. All 728 requirements still need fresh deployed acceptance. Prior dated counts below are historical. See cloud-agents-current-authorized-read-source-checkpoint-2026-10-17.json.
+
+> October 17, 2026 Agents source-indicator component successor: the real Agents API data now renders exact last-seen times, freshness at the last API read, and winning/nonwinning source observation provenance. Recorded blocking capability evidence is labelled separately from policy and runtime sensor coverage, which remain unavailable without authoritative per-Agent bindings. Actual grouped verification passes 95 UI/client cases with typecheck, scoped lint and build; native/deployed stale-state and full M4-50c acceptance remain open. All 728 requirements and current 514/153/61 classes remain intact; no availability promotion. See cloud-agents-source-indicators-source-checkpoint-2026-10-17.json.
+
+> Current health availability correction, October 17, 2026: independent source review found that required identity failures were reported as optional degradation. The actual API now uses the existing shared aggregator, but local API compilation and behavior remain blocked by unavailable OPA. M7-29, M7-30 and M7-40d are component-only pending actual required/optional outage and E2E acceptance; M7-31 retains its historical class with a scoped limitation. All 728 IDs and historical statuses remain intact. Current classes: 514 production-available / 153 component-only / 61 blocked/external; the 214 remaining inventory records do not replace fresh deployed verification of every requirement. Prior dated counts below are historical. See cloud-system-health-probe-integration-source-checkpoint-2026-10-17.json.
+
+> October 17, 2026 diagnostics privacy component successor: the actual CLI now rejects existing sensitive-marker map keys as well as values before emitting a bundle. Full CLI package verification passes 175 named cases with the race detector; original controls remain intact. Real diagnostic collection and full M8-24/deployed acceptance remain open. Separately, permitted metadata reports the cache component gate SUCCESS on exact6ade39af; raw hosted logs are unavailable and other failed/pending checks remain recorded. No production promotion: all 728 requirements and 517/150/61 classes remain unchanged. See cloud-diagnostics-secret-key-refusal-source-checkpoint-2026-10-17.json and cloud-featureflag-cache-hosted-status-successor-2026-10-17.json.
+
+> October 17, 2026 owner-filter component successor: the real Agents API and production UI now implement exact owner/all/unowned filtering with filter-bound cursors, scoped authorization, capability-loss handling, pending ownership locks and authoritative refetch after known ownership changes. The new Normal/Audit profile remains disabled by default and requires explicit validated installation/configuration; 80 UI/client cases and eight installer component cases pass. API/runtime/migration CLI local Go remains setup-blocked by OPA (zero named cases); native/database/provider/deployed acceptance and the original risk-filter slice remain open. All 728 requirements stay required, M4-50b1 remains component-only, current classes stay 517/150/61. Source custody retains 500 prior bindings and adds 23 for 523 total. See cloud-agents-owner-filter-source-checkpoint-2026-10-17.json.
+
+> October 17, 2026 M7-24 server cache component successor: implemented a bounded tenant-scoped server cache rather than forwarding every provider evaluation. Valid provider age plus local elapsed time bounds reuse; expired/outage responses use the current explicit code default without caching fallback. Actual full package verification passes 73 named cases with the race detector; source review is clear. Real PostHog and production consumer acceptance remain open, M7-24 remains component-only and all 728 original requirements remain in scope. Current classes remain 517/150/61. See cloud-featureflag-server-cache-source-checkpoint-2026-10-17.json.
+
+> October 17, 2026 detail supersession successor: the previously recorded post-confirmation deep-link navigation corner is fixed at component level. Accepted row navigation consumes the superseded initial intent while StrictMode can restart genuine unfinished reads. Actual verification: 74 grouped UI/client checks and typecheck/lint/build pass. M4-50a remains component-only; all 728 deployed requirements and current 517/150/61 classes remain unchanged. See cloud-agents-detail-supersession-source-checkpoint-2026-10-17.json.
+
+> October 17, 2026 Agents pagination component successor: the production Agents route now requests one bounded server-cursor page at a time, supports Next/Previous/First and resets on authority changes. Unknown ownership outcomes retain exact retries and lock navigation. Actual verification: 73 focused UI/client checks, 65 integrated guards, typecheck, lint and build pass. One nonblocking post-confirmation deep-link navigation corner remains recorded. M4-50a remains component-only pending native/deployed acceptance; all 728 original requirements remain required. Current classes remain 517 production-available / 150 component-only / 61 blocked/external. See cloud-production-agent-pagination-source-checkpoint-2026-10-17.json.
+
+> Current availability correction, October 17, 2026: six original Agents requirements
+> (M4-50a, M4-50b1, M4-50b2, M4-50b3, M4-50c and M4-50) are component-only.
+> Fresh source review found missing production pagination, filters and coverage
+> behavior. Prior historical Complete records and evidence remain intact below.
+> All 728 requirements remain in scope; no availability promotion is made.
+> Even the remaining 517 production-available labels require fresh deployed acceptance.
+
+## Production availability summary
+
+| Production class | Count |
+| --- | ---: |
+| Production-available | 509 |
+| Component-only | 158 |
+| Blocked/external | 61 |
+| Missing | 0 |
+
+## Production availability by milestone
+
+| Milestone | Total | Production-available | Component-only | Blocked/external | Missing |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| M0 | 27 | 7 | 17 | 3 | 0 |
+| M1 | 68 | 57 | 11 | 0 | 0 |
+| M1A | 10 | 0 | 6 | 4 | 0 |
+| M2 | 72 | 67 | 5 | 0 | 0 |
+| M3 | 75 | 73 | 0 | 2 | 0 |
+| M4 | 82 | 71 | 11 | 0 | 0 |
+| M5 | 42 | 42 | 0 | 0 | 0 |
+| M6 | 36 | 36 | 0 | 0 | 0 |
+| M7 | 62 | 27 | 35 | 0 | 0 |
+| M7A | 113 | 95 | 18 | 0 | 0 |
+| M8 | 141 | 34 | 55 | 52 | 0 |
+| **Total** | **728** | **509** | **158** | **61** | **0** |
+
+## Agents source availability correction evidence
+
+The six corrected rows belong to T10-product-ui. The current ledger guard pins
+each row to component-only and rejects false promotion even when milestone
+counts are balanced. Pagination implementation alone does not close the filters,
+coverage indicators or composed M4-50 requirement.
+
+Evidence: `cloud-agents-availability-source-audit-checkpoint-2026-10-17.json`.
+The new remaining-work inventory contains 211 records: all 205 predecessor
+records plus these six original requirements. Original inventories and evidence
+archives remain unchanged. This is a negative correction, not new scope.
+
+## Historical status and prior evidence
+
+The following preexisting content is retained verbatim. Older availability
+counts describe their recorded checkpoints and are superseded by the current
+summary above.
+
 # Agent Security Platform Implementation Status
+
+## Current continuation, October 17, 2026
+
+Hosted run `39017288925` at exact `e04df7d9` passes compilation, connected
+preflight/CLI/catalog checks and selected-node adapter/sensor application jobs.
+All 407 source bindings match that commit. Metadata does not establish inner
+hosted case/skip counts or native/provider/deployed acceptance. Earlier pending
+checkpoints remain unchanged; no original task is promoted. See
+`cloud-connected-preflight-sensor-hosted-checkpoint-2026-10-17.json`.
+
+Connected AWS authorization preflight now checks the original compiled 38 IRSA
+and three service-role inventory, EKS private endpoint identity, OIDC trust and
+current Kubernetes ServiceAccount/selected Pod specification. Actual credentials
+and private selected-workload proof derive from the same STS exchange. Final
+inventory counts prevent a single selected role from clearing missing coverage.
+All 104 preflight/SDK and 148 CLI cases pass with race detection. No metadata or
+trust observation proves remaining network, Fargate, OpenSearch or write/consume
+requirements. Real target/provider and deployed acceptance remain required; no
+original requirement is promoted. See
+`cloud-aws-authority-component-checkpoint-2026-10-17.json`.
+
+Selected-node sensor coverage now joins independent Node inventory, exact deployed
+DaemonSets/Pods, UID/boot-bound producer observations and Lease evidence, with
+monotonic final freshness and pending-send fences. Integrated preflight/adapter
+checks pass 480 cases and the CLI passes 148 cases with race detection. The full
+sensor suite passes 854 cases with 22 explicit skips under the existing fixtures'
+required file modes; failed inherited-umask runs are retained. Helm rendering,
+root-owned mounted witness and real Kubernetes/deployed acceptance remain open.
+No original task is promoted. See
+`cloud-selected-node-sensor-component-checkpoint-2026-10-17.json`.
+
+The connected core preflight batch adds real read-only Neon profile inspection
+and nonrenewing Stytch organization/session GETs. Its complete runner preserves
+these observations when AWS credentials fail. All 54 preflight and 148 CLI cases
+pass with race detection; the full migrations suite passes 446 cases with four
+native database skips. Those skips and missing real provider/deployed acceptance
+remain explicit. No original requirement is promoted. See
+`cloud-preflight-core-observations-component-checkpoint-2026-10-17.json`.
+
+The connected AWS preflight follow-up passes all 20 SDK/configuration and 148 CLI
+cases with race detection, after restoring exact SDK dependencies from the allowed
+official proxy. It corrects malformed STS output classification and makes negative
+permission fixtures independent of umask. Actual compiled CLI missing-credential
+reports retain all eight sections and nonzero exit. Current-head hosted and real
+provider/deployed acceptance remain required. Earlier setup failures and snapshots
+remain unchanged. See
+`cloud-preflight-sts-classification-component-checkpoint-2026-10-17.json`.
+
+Hosted run `39011704182` on exact head `aea3b9d8` passes nineteen-package
+compilation and the enforced 86-case atomic connector/writer-journal application
+gate. This supersedes the pending observation in that batch's publication snapshot,
+which remains unchanged. It does not establish native SQL, deployed provider or
+browser acceptance, and does not cover the later preflight batch. See
+`cloud-journal-application-hosted-checkpoint-2026-10-17.json`.
+
+The connected preflight component now uses actual AWS SDK read operations for
+STS identity, versioned encrypted S3 buckets, KMS metadata, current secret retrieval
+and queue/DLQ attributes. Explicit credential sources replace ambient fallback;
+legacy Boolean evaluation is labeled offline. All eight original sections remain,
+and unimplemented probes stay unobserved. No install, runtime or production
+readiness is asserted by this bounded batch. Independent source review passes;
+at its publication, local SDK/CLI execution was blocked by four uncached pinned
+modules. The follow-up above records fresh actual results; hosted/provider
+acceptance remains required. See
+`cloud-connected-preflight-component-checkpoint-2026-10-17.json` and
+`connected-preflight-operator-contract-2026-10-17.md`.
+
+All 728 original requirements remain in scope. The ledger retains 523 historical
+production-available classifications, 144 component-only and 61 blocked/external,
+with zero promotions from component checks. These classifications do not prove
+current deployed launch readiness.
+
+The published retention bootstrap batch, `de2a76dc`, adds an explicit schema-owner
+bootstrap for the trusted migration authority's public-schema CREATE permission.
+The production CLI and native fixture share the same guarded operation. Preparing
+an inactive retention profile requires this capability; active structural checks
+and captured cleanup settlement retain their existing boundaries after withdrawal.
+Original parent recipes, registered operators and worker privileges are preserved.
+See `cloud-retention-public-ddl-component-checkpoint-2026-10-17.json`.
+
+That batch passes 20 migration checks, 14 source contracts, 331 compiler source
+bindings, lint and fresh UI typecheck/build, with independent review. The
+replacement cloud runtime lacks the old module/tool caches. Local CLI compilation
+and scanner installation encountered denied dependency downloads; API/native
+acceptance and current-head hosted/security checks remain open. The preceding
+`c5be8a4c` hosted IAM mock-plan/union jobs pass on both events; no production apply
+or deployed receipt access is established.
+
+The published `0e7739d5` approval-flow component uses two separately committed atomic source and
+authorization-revision observations around both existing live OpenFGA checks.
+Its SQL guard runs after lock waits, preserves lease versus permission error
+categories, and retains the late begin-attempt check. Independent source review
+passes; local application tests are dependency-blocked. Native concurrency,
+unchanged-deadline PKCE acceptance and any latency improvement remain unverified.
+See `cloud-pkce-atomic-observation-component-checkpoint-2026-10-17.json`.
+
+The connected future writer journal is implemented as a separate component:
+actual SDK dispatch, private execution capabilities, SQL admission/settlement
+hooks, version-pinned terminal artifacts, exact uncertain-commit recovery and
+explicit worker/deployment configuration are wired together. Independent source
+review cleared four corrections covering recovery, canonical references, default
+privileges and historical replay. SDK and bounded migration checks pass; full
+worker/CLI/API setup remains blocked by missing dependencies. Native SQL and real
+provider custody remain unverified. See
+`cloud-retention-journal-component-checkpoint-2026-10-17.json`.
+
+The `373653ed` hosted draft lane passes compilation of all nineteen affected
+packages and its existing application groups. A new strict hosted group now
+requires the atomic connector and retained writer journal contracts: six
+packages, ten top-level tests and 86 named cases. Its collector rejects missing,
+duplicated, skipped or foreign events. Local collector controls pass, with 32
+case names corroborated by actual SDK/migration results; 54 await hosted
+execution. This does not establish native SQL or deployed acceptance. See
+`cloud-journal-application-ci-checkpoint-2026-10-17.json`.
+
+The CLI now returns structured preflight and upgrade blocker reports with the
+original nonzero exit status, instead of discarding their remediation hints.
+Malformed inputs remain rejected without a report. This fixes output behavior;
+caller-supplied booleans still do not establish live dependency readiness. Real
+provider preflight and upgrade observations remain required. See
+`cloud-preflight-blocker-report-component-checkpoint-2026-10-17.json`.
+
+The retention worker, scoped readers, writer barriers and cleanup implementation
+are present as components. Native activation/expiry acceptance, fleet cutover and
+real Stytch/provider journeys remain required. Future durable dispatch custody requires native/deployed verification;
+historical unknown-writer reconciliation remains incomplete. Reference expiration
+does not establish physical S3 erasure. PKCE/approval/lifecycle/browser acceptance,
+planner proofs, complete deployment rendering and release security clearance also
+remain open. The dated entries below retain their historical evidence and limits.
+
+
+## Connected governed egress and explanation batch, October 17, 2026
+
+Tenant optional-flow controls and finding explanations now connect real API,
+registered SQL authority, current finding authorization, durable no-resend claims,
+separate captured settlement, provider transport, planner send guards and UI.
+Operator installation/registration and deployment bindings are explicit; adoption
+is disabled by default pending actual approved profiles and fleet verification.
+The new typed transaction adapter publishes a claim only after confirmed commit.
+Raw prompts/model output are not retained. Shared planner disable retains original
+proof, pricing and budget authority; it does not establish planner privacy or
+fleet cutover equivalence.
+
+Grouped API/configuration/migrations, CLI/composition/regressions, worker/auth,
+owned TLS socket/race, connected UI, fresh typecheck/build, API contract and lint
+checks pass. Source review is independent. The strict native harness now requires
+all16 existing approval proof children and the new9-event optional authority
+group:68 named events/13 groups/23 PostgreSQL joins, with204 compiler source pins.
+Native SQL execution, real provider/Stytch deployment, Helm/Terraform validation,
+complete release-corpus/image security clearance and golden end-to-end flows
+remain open. Native memory admission still refuses this runtime; no guard bypass.
+
+Official-advisory streaming components are verified but actual acquisition and
+release coverage remain closed. Retention still lacks a durable production
+worker and preflight/upgrade observations remain incomplete. See
+`cloud-governed-egress-checkpoint-2026-10-17.json` for exact source, immutable
+failure/verification evidence and limits. All728 rows and523/144/61 production
+classifications are preserved; historical Complete counts are not launch proof.
+The final fixture-only publication correction and original scanner refusal are
+retained in `cloud-governed-egress-publication-checkpoint-2026-10-17.json`.
+
+
+## Connected native and browser acceptance boundaries, October 16, 2026
+
+The preceding `c3fe641a46c4e9944d8c2f68e307e35a03a01aba` passes genuine future
+Test74 delivery on both hosted events. Capture, authenticated enqueue, Test74,
+OAuth and callback also pass on both events. These are native component flows,
+not deployed Stytch/provider proof. Future progress passes its inner Go flow but
+the strict outer runner rejects four existing provider-evidence child cases
+missing from its roster. Both progress groups now require all four explicitly:
+43 required cases retain the original35,12 groups and22 PostgreSQL joins.
+
+The combined batch also handles one legitimate concurrent projection advance
+through a second full reconciliation, bounded by the original125-second active
+budget and exact final acknowledgement. Real migration CLI compilation moves
+before the native application's120-second context; both original commands,
+principal bindings and30-second migration limits remain unchanged. No runtime
+SQL, lease, provider, permission or acceptance safeguards are relaxed.
+
+Independent reviews,96 grouped application controls, full API fixture compile,
+focused grant comparison, fresh UI typecheck/build and lint pass. New native
+whole-flow acceptance remains pending. Existing native leases/planner deadlines,
+browser readiness/assertions and public-query coverage failures remain open.
+See `cloud-connected-progress-checkpoint-2026-10-16.json` for exact scope and
+retained original failures. All728 ledger rows and523/144/61 classifications
+remain unchanged. No launch or production-availability promotion is claimed.
+
+
+## Native approval permission acceptance, October 16, 2026
+
+Starting from `5808fb58e7a2063543fd2e8bc3b8ba9dc0f470d9`, the two immediate
+approval grant observations now use the actual registered production outbox
+snapshot before reconciliation. Bootstrap raw-view denial remains an explicit
+permission check. Exact scoped grant matching and before/snapshot/after revision
+equality retain the original delivery, revocation, recovery and audit assertions.
+No production SQL, authority, lease, deadline or acceptance guard changes.
+
+Independent source review, complete API fixture compilation, focused comparison
+group, fresh UI typecheck, production UI build and lint pass. These are component
+checks. The unchanged native ownership guard refuses this environment's hidden
+cgroup ancestors; candidate native execution is unverified. Existing hosted
+future/progress/finding/overflow, strict event and approval readiness failures
+remain unresolved. Full source associations and preceding failures are retained
+in `cloud-native-permission-checkpoint-2026-10-16.json` and its immutable packet.
+
+Actual official advisory raw Git commit bytes were acquired and hash-verified;
+complete corpus and malware coverage remain open. Production target, role and
+provider bindings, fleet authority and deployed Stytch/provider journeys are
+still required. All 728 ledger rows remain: 523 historical production-available,
+144 component-only and 61 externally blocked, with zero promotions. Historical
+classifications do not establish current launch readiness.
+
+
+## Closed acceptance diagnostics and rejected source candidates, October 15, 2026
+
+Starting from `4e282b01f6d72b0a7f2bf877553e42268fa30ada`, strict native trace
+refusals now expose only fixed offending-event categories. Projection command
+failures identify the original reconciliation/revision operation and observed
+cancellation-request state. Original assertions, rosters, command arguments,
+timeouts, errors, stop/join and periodic behavior remain unchanged. Ordinary
+helper calls retain their original arity. Independent reviews, 285 grouped
+checks, lint and ledger validation pass. Original RED and intermediate failures
+remain retained. See `cloud-closed-diagnostics-checkpoint-2026-10-15.json`.
+
+Current hosted browser results differ: push advanced to browser-startup phase,
+while PR passed both metadata checks then refused approval-reconciler readiness.
+Concurrent command failure does not identify Chrome as the cause. Native future
+Test74 confirms a nil-error grant expectation mismatch; other native and strict
+event-case failures remain. No native or deployed acceptance is claimed.
+
+Two genuine upstream source rebuilds succeeded but their replacement glob engine
+changed real consumer behavior: extensionless import precedence and a symlink
+project lint diagnostic. Both candidates were rejected; original dependencies
+remain. Automatic review stopped the subsequent vulnerability reproduction and
+source-fork implementation subtask for possible cybersecurity risk; no verified
+remediation receipt exists. The security/release gate remains held. Helm remains
+absent pending capacity admission for its verified source-build recipe. Counts
+remain 728/523/144/61 with zero promotions; launch is not accepted.
+
+
+## Browser unit prerequisites and native attribution, October 15, 2026
+
+Starting from `2b32a6b15c98d50f3b36f93a250c96c22fc8760a`, the exact hosted
+browser unit prerequisite group reproduced four failures before API startup.
+The isolated actual-source fixture lacked the reviewed bootstrap scope and
+expected the previous ordering. Its repair retains every original failure,
+privacy, deadline and cleanup assertion, and checks projection refresh before
+API startup and the periodic loop after readiness. The exact group changed
+from 257 PASS/4 FAIL to 261 PASS/zero FAIL; root confirmation, lint and ledger
+checks pass. No production runner or workflow changed.
+
+Native query errors now have fixed, closed failure frames separate from
+unchanged grant/permit expectation mismatches. Independent reviews and full API
+fixture compilation pass; zero selected native tests ran locally. The immediate
+delivery-grant view assertion remains in place. Neither a context deadline nor
+a nil-error mismatch is presented as a proven cause before new native evidence.
+
+See `cloud-browser-unit-attribution-checkpoint-2026-10-15.json` for original
+RED evidence, exact commands and reviews. Current hosted native/browser gates,
+dependency security and real deployed acceptance remain unresolved. Counts
+remain 728 total, 523 historically production-available, 144 component-only,
+61 external, zero promotions. This is not launch acceptance.
+
+
+## Initial API bootstrap and remaining-task inventory, October 15, 2026
+
+The owned acceptance runner finishes a genuine projection pass before initial
+API admission and starts its unchanged periodic projection loop after actual
+readiness. Tracked startup now owns late identity/policy listeners through exact
+close callbacks. All live checks, five-second admission, leases and later API
+restarts remain intact. This removes overlapping setup work; hosted timing
+improvement is unverified. Three fixture helper markers were removed solely to
+expose actual failure lines through existing bounded annotations.
+
+Independent review, 88 grouped startup/runtime checks, four existing cleanup
+checks, complete API fixture compilation with zero selected tests, lint and the
+original ledger passed. Every intermediate failure is retained. Original author
+TAP wrappers lacked separate Node exit receipts; additional ROOT runs capture
+normal exit zero without replacing those results. Details and evidence are in
+`cloud-initial-browser-bootstrap-checkpoint-2026-10-15.json`. Latest preceding
+CI still fails browser readiness and several native flows; no native/deployed
+acceptance or availability promotion is claimed.
+
+The exact 205 recorded nonproduction task IDs are grouped by owner in
+`cloud-goal-remaining-task-inventory-2026-10-15.json`. Counts remain 728 total,
+523 recorded production-available, 144 component-only and 61 external. Historical
+production classification does not establish current deployed acceptance.
+
+## Immutable advisory roster component, October 15, 2026
+
+A bounded offline verifier checks exact commit/tree content addressing and
+complete selected advisory topology, producing a reusable path/blob manifest.
+Its local CLI pins input bytes and output-directory custody. Four grouped checks
+and independent review pass, including regression fixes for directory replacement
+and contradictory blob-size declarations. Original review failures and RED
+results remain retained. See
+`cloud-advisory-roster-offline-checkpoint-2026-10-15.json`.
+
+Sizes remain unauthenticated API declarations. No real complete transcript or
+raw commit intake was available, so no actual corpus measurement, upstream/blob
+verification or release acceptance is claimed. Original intake caps, network
+owners, hosted census and production release denial remain unchanged. The HIGH
+braces advisory still includes bundled implementation surfaces; reviewed source
+replacement/rebuild work, current full Go and image evidence, and final release
+integration remain open.
+
+
+## Configured approval runtime startup, October 15, 2026
+
+Activated approval runtime configuration now uses a pure compiled-pin factory,
+then the existing mandatory reconciler performs live readiness once. This removes
+a duplicate identical startup probe under the unchanged provider budget. The
+existing live constructor, original caller/audit gates, per-operation authority,
+captured settlement routing and key ownership remain intact; no readiness result
+is cached and no production guard is relaxed.
+
+Behavioral RED retained three passes and nine failures, then all 40 approval
+component checks and 28 targeted API runtime checks passed. Independent review
+passed. Prior frontend checks are reused for unchanged frontend inputs. The
+original RED source was reconstructed to its recorded exact hash and is clearly
+labeled; original execution results are unchanged. Nine superseded CI cancellation
+requests were accepted, preserving observed results including 15 failed jobs;
+the current head, main, release workflows and required guards were untouched.
+
+Evidence is retained in `cloud-approval-configured-runtime-checkpoint-2026-10-15.json`
+and its committed bundle. A preceding run timed out during the first probe, so
+startup success remains unverified. Native/deployed gates and all ledger counts
+remain unchanged.
+
+
+## Lifecycle pre-lease projection reuse, October 15, 2026
+
+The native lifecycle fixture reuses its already constructed projection repository
+instead of issuing four additional setup queries during the cleanup lease.
+Reconcile retains a fresh guarded snapshot, organization lock, Stage/Ack/CAS and
+actual FGA delivery; all cases, live-denial assertions and lease limits remain.
+
+Independent source review and complete API fixture compilation passed with zero
+selected tests. Prior successful UI lint/typecheck/build results are reused for
+unchanged UI inputs; no per-change tests were added. The ledger is unchanged.
+Evidence and retained hosted failures are recorded in
+`cloud-lifecycle-prelease-reuse-checkpoint-2026-10-15.json` and its committed bundle.
+Native acceptance remains pending. Independent review rejected SQL-only idle
+polling because it would drop authenticated service probes; it was not implemented.
+
+
+## Read-only maintenance fleet planner checkpoint, October 15, 2026
+
+A strict review planner records the required eleven rollout phases and keeps
+all old/new clients fenced through activation and the same coordinator's first
+composed acknowledgement. Every trust, census, credential, namespace, normal-exit
+and enforcement prerequisite remains unverified. Separate admission review
+candidates cover fixed operations; they are neither installed nor a complete
+fence and authorize no production constructor or deployment.
+
+Four grouped application cases passed after retained RED checks, and all ten
+locally runnable profile/planner/release-gate cases passed. The new cases join
+the existing production release command without removing checks. Five broader
+chart-render cases failed because Helm is absent locally (ENOENT); those failures
+and one skipped case are retained. Independent review, UI lint/typecheck/build
+and the original ledger passed. The full plan,
+reviews, results and unresolved hosted observations are retained in
+`cloud-maintenance-deployment-plan-checkpoint-2026-10-15.json` and its committed
+bundle. Actual trust/target integration and the deployment protocol remain open.
+No native or deployed acceptance, availability promotion or launch is claimed.
+
+
+## Durable approval capture overflow checkpoint, October 15, 2026
+
+The native overflow fixture now releases organization capacity through original
+public cancellation after each genuine signed capture. It checks exact native
+cancellation receipt/audit, settled provider debt, unchanged whole origin and
+notification records, and continued eligibility. All 21 captures and the original
+concurrency limits, withdrawal, atomic refusal and consumed-permit checks remain.
+This exercises durable eligible captures, not 21 simultaneous pending runs.
+
+Independent source review, complete API fixture compilation with zero selected
+tests, UI lint/typecheck/build and the 728-row ledger pass. Exact evidence is in
+`cloud-approval-overflow-public-cancel-checkpoint-2026-10-15.json` and its committed
+bundle. Native acceptance remains pending; no availability classification changes.
+
+
+## Maintenance startup checkpoint, October 15, 2026
+
+Maintenance constructors now report a bounded, fixed failure stage through the
+existing readiness observer, retaining the original public error identity,
+queries, deadlines and cleanup. Lifecycle callback adapter setup moves before
+the cleanup claim; actual authorization and consumption stay after Begin.
+All lease limits and security assertions remain unchanged.
+
+Grouped constructor checks passed 19 named cases, the complete API fixture
+compiled, 41 Node checks passed, and UI lint/typecheck/build and the 728-row
+ledger passed. Independent source review passed. Exact results, original RED
+output and the incomplete hosted snapshot are retained in
+`cloud-maintenance-startup-checkpoint-2026-10-15.json` and its committed bundle.
+These are component results. Native failures, deployed journeys, production
+fleet activation and the dependency security gate remain unresolved; the ledger
+stays at 523 recorded production-available, 144 component-only and 61 external.
+
+
+## Native approval diagnostic checkpoint, October 15, 2026
+
+Original trace acceptance errors now carry private, fixed refusal stages; every
+assertion and roster remains unchanged. Finding payload failures expose only
+actual context/lease state and fixed typed outcomes. Raw errors are omitted and
+no SQL probe, retry, deadline increase or new authority is introduced.
+
+The normal payload boundary case, full API fixture compilation, four grouped Node
+checks, UI lint/typecheck/build and the original ledger pass. Independent review
+passes; exact results and failed observations are retained in the committed bundle
+referenced by `cloud-approval-native-diagnostics-checkpoint-2026-10-15.json`.
+These diagnostics do not claim to fix the underlying native failures.
+
+A b17 browser run passed both initial authorization metadata checks and then failed
+at the shared connector-lifecycle phase; connector versus approval construction is
+still unknown. A native lifecycle observation now proves a live parent with an
+expired lease before revocation. Reviewed read-only setup reordering is next; the
+30-second lease and permission assertions remain enforced. Production fleet cutover
+and real deployed/provider acceptance remain open. All 728 original task categories
+and owner mappings remain unchanged, with no availability promotion.
+
+## Future approval and authentic overflow checkpoint, October 15, 2026
+
+Genuine Test74 and ordered-progress producers now have explicit flows that activate
+and acknowledge the organization before their fresh signed notification admission.
+A separate overflow fixture creates three real public definitions and 21 authentic
+captures while retaining the public concurrency limit of 10. All previous native
+groups remain required: 12 groups, 35 named cases and 22 owned PostgreSQL joins.
+These new native flows compile; their actual hosted execution remains pending.
+
+The retained filesystem observer now permits one complete restart for a descendant
+ENOENT race, preserving original root identities, aggregate work/resource limits
+and all unsafe-node, permission, deadline and cleanup refusals. The exact c508
+missing path is unknown. Stricter revocation assertions require live fences and
+the exact pending/applied error class; bounded diagnostics expose no raw errors.
+
+Fresh checks pass: two fixture-boundary cases and full API fixture compilation,
+111 runtime/helper cases, UI lint/typecheck/build and the unchanged 728-row ledger.
+Independent reviews pass. Exact logs, preceding hosted failures and both successful
+c508 Test74 native results are retained in the committed compressed evidence bundle
+referenced by `cloud-approval-future-overflow-checkpoint-2026-10-15.json`.
+The original categories remain 523 recorded production-available, 144 component-only
+and 61 externally blocked. No task is promoted and no launch readiness is inferred.
+
+## Approval family acceptance checkpoint, October 15, 2026
+
+Three additional genuine approval-family flows now reuse a measured native runtime:
+Test74 takeover, ordered68 planning and signed ordered progress. The original six
+hosted groups remain required alongside the three additions. Planning includes a
+fresh public trigger in the same activated organization. Test74/progress future
+admissions, authentic overflow refusal and cross-tenant family acceptance remain open.
+
+The batch fixes two ambiguous full-scope audit verification joins and the two
+reported runtime lint failures. Initial readiness now forwards existing closed
+role/outcome observations under the same original queries and timeout; the startup
+cause is still unproven. No lease/deadline or authorization guard is relaxed.
+
+Fresh local checks pass: 16 named readiness cases, full native fixture compilation,
+55 runtime/cutover regressions, four roster cases and full UI lint/typecheck/build.
+Independent static reviews pass. Native and deployed acceptance remain pending;
+no task classifications change: 728 total, 523 recorded production-available,
+144 component-only and 61 externally blocked. Recorded availability is not a fresh
+deployment result. Exact source and evidence references are retained in
+`cloud-approval-family-acceptance-checkpoint-2026-10-15.json`.
+
+## Audited approval settlement checkpoint, October 15, 2026
+
+An additive sealed profile now connects captured approval settlement to canonical
+audit evidence in the same transaction. The selected production API worker uses
+that profile without fallback; captured settlement after revocation retains its
+original narrow authority. The original approval and activation SQL/installers
+remain unchanged. A fourth inactive operator installer is required before starting
+the selected release; it does not activate a fleet or bless catalog drift.
+
+The mutable connector candidate fingerprint now orders duplicate keys by their
+full content, retaining every catalog row. Hosted observations showed registration
+changing from valid to invalid with unchanged metadata and session settings.
+This corrects undefined aggregate ordering; successful hosted acceptance remains
+pending. Existing older sealed candidates still require a guarded upgrade or
+verified fresh rollout. Closed child-exit observations and three VM fixture
+repairs retain original startup, cleanup and resource guards.
+
+Final local checks pass: 37 named Go cases across four application packages,
+native fixture compilation, 321 browser/helper cases and UI typecheck/build.
+Independent reviews pass, including corrected terminal-revision rollback coverage.
+The prior hosted production Helm render passes; browser startup still fails with
+an early API exit. Local native SIGTERM acceptance remains unexecuted after a
+prerequisite failure, and no deployed proof is claimed.
+
+This contributes to M1-28, M3-24, P7/P8 and T15-deployment without promoting a row.
+All 728 original tasks retain 523/144/61 categories. Full native family coverage,
+fleet cutover, release advisory evidence and real Stytch/provider deployment
+acceptance remain open. See the
+[settlement audit checkpoint](cloud-approval-settlement-audit-checkpoint-2026-10-15.json).
+
+## Production maintenance wiring checkpoint, October 15, 2026
+
+The optional production chart bundle now wires the same three maintenance pins
+into API, executor and projector, with distinct API-only DSNs and private copied
+0400 seeds. Indirect secret references and secondary-container access are denied.
+Defaults remain unchanged; no activation hook or fleet-withdrawal proof is supplied.
+
+The next native finding flow exercises genuine capture, measured cutover, signed
+delivery, future enqueue, permission revocation and captured settlement. It is
+written and compiled, not natively accepted. Lifecycle fixture ordering now
+respects existing provider-lane exclusion. Closed preparation stages diagnose the
+remaining PKCE refusal without changing permissions, deadlines or attempt rules.
+
+Local checks pass: 265 browser/helper cases, 73 named Go application cases, 22
+profile/permission cases and UI typecheck/build. Independent source review passes.
+Helm is absent locally; actual rendering is required in hosted checks. The prior
+callback push run passes but its PR counterpart fails, and approval controls pass
+six named cases while their outer acceptance guard refuses. These are unresolved
+failures. Successful-delivery audit emission, all four approval origin families,
+production fleet cutover, release advisory evidence and real deployed flows remain
+open software or external prerequisites.
+
+This contributes to M1-28, M3-24, T15-deployment and P7/P8 without promoting any
+original row. All 728 tasks retain 523/144/61 categories and zero promotions.
+The selected Nexus license issue is already fixed; the current braces advisory
+and approved fresh scan evidence remain open. See the
+[production wiring checkpoint](cloud-launch-maintenance-runtime-checkpoint-2026-10-15.json).
+
+## Connected dual-worker composition checkpoint, October 15, 2026
+
+The candidate connects real maintenance profile installation, distinct worker key
+registration, measured old-writer exit and OpenFGA credential withdrawal, combined
+activation, and composed projection refresh to browser startup. Worker dispatch
+requires exact compiled pins and live catalog readiness. The supplementary approval
+profile preserves the original immutable implementation and live permission checks.
+Callback recovery also corrects a SQL alias collision.
+
+Grouped local checks pass: 117 JavaScript cases, 144 named Go cases across ten
+package results, UI typecheck/build, and independent source reviews. Native database
+acceptance remains pending. At the preceding hosted commit, OAuth/capture passed;
+lifecycle/recovery and browser API readiness failed. The overall Runnable UI workflow
+failed at browser acceptance, leaving subsequent release checks unexecuted.
+
+This contributes to M1-28, M3-24 and P7/P8 prerequisites without promoting any original
+task. All 728 rows retain 523 production-available, 144 component-only and 61 external
+categories; those recorded categories do not prove deployed readiness. Positive native
+activation, all approval origin families, real webhook settlement and deployed
+Stytch/provider flows remain open. See the
+[dual-worker checkpoint](cloud-dual-worker-composition-checkpoint-2026-10-15.json).
+
+
+## Startup supervision checkpoint, October 15, 2026
+
+Failed owned-runtime startup now joins the outer allocation sampler before
+removing inner service state, preserving the original failure. Failed sampler
+joins retain state while other resources are joined. Normal shutdown and all
+resource, custody and authorization guards remain enforced. Grouped application
+checks, UI typecheck/build and independent review pass; hosted browser acceptance
+and the exact earlier ENOENT cause remain open. This contributes to M1-28 without
+promoting any of the 728 original tasks. See the
+[startup supervision checkpoint](cloud-startup-supervision-checkpoint-2026-10-15.json).
+
+
+## Controlled cutover readback checkpoint, October 15, 2026
+
+The Go cutover reader now uses the existing runtime adapter's exact 312 reviewed
+protobuf defaults for the pinned complete model. Only source-absent fields at
+those fixed paths with those exact default values are removed before full-model
+and SDK equality. Unknown fields, changed permissions/conditions, duplicate keys,
+wrong model identity and nondefault values still refuse.
+
+Explicit registered-operator commands install the unchanged inactive approval and
+connector profiles. They do not activate workers or issue keys. Grouped local
+adapter and installer checks, race checks, UI typecheck/build and independent
+reviews pass. Hosted acceptance of this source remains pending. Earlier OAuth and
+capture native checks passed at b0661681; lifecycle/recovery and browser checks
+failed there. These results do not prove the new batch or deployed readiness.
+
+This supports M3-24 cutover and M1-28 composition prerequisites. All 728 original
+rows retain their recorded 523/144/61 categories, with zero promotions. Secure
+worker activation, browser acceptance and real deployed provider flows remain
+open. See the [readback checkpoint](cloud-cutover-readback-checkpoint-2026-10-15.json).
+
+## Bounded health-probe observation checkpoint, October 14, 2026
+
+The API now runs its two original role-specific native readiness queries first,
+in parallel, then reuses only their identical validated release/principal
+observations within that one component callback and remaining original deadline.
+Product authorization, identity, source/export and connector-native checks remain
+live. Pointer/role/pin/cancellation bounds prevent reuse across probes or after
+callback return. This is not an atomic PostgreSQL snapshot or a deployed proof.
+
+Affected component verification passes 12 groups / 48 named events, including
+concurrent query counts, exact metadata pins, next-probe refusal, canceled and
+escaped contexts, and independent product authorization denial. Source review
+passes. The initial compile RED is retained and is not claimed as behavior-first
+TDD. Hosted browser performance and native DDL/revocation acceptance remain open.
+
+A separate deterministic startup gap remains: the owned browser configures
+current80 but neither secure connector nor approval maintenance profile, selecting
+legacy workers whose ambient claims are correctly denied. Both secure worker
+profiles, distinct principals/keys and controlled fixture cutover must be connected;
+readiness is not waived. This supports M1-28a/M1-28b/M1-28 without promoting any
+original task. All 728 rows retain 523/144/61 categories and zero promotions.
+See the [health checkpoint](cloud-health-probe-checkpoint-2026-10-14.json).
+
+
+## Callback crash compensation checkpoint, October 14, 2026
+
+The inactive connector candidate now connects expired pre-provider callbacks to
+worker-only exact verifier deletion and atomic original rejection/audit settlement.
+Failed deletion stays pending; restart rotates captured ownership without forward
+authority or provider attempt increments. Provider-phase ambiguity and provider
+cleanup recovery remain separate open work. This supports M3-24/M3-52a acceptance
+without completing or replacing either original requirement.
+
+Isolated staged-source application verification passes 40 groups / 108 named
+events, plus 8 controlled-cutover diagnostic events, the original whole approval
+source pin, 4 Node controls, UI typecheck/build and independent source review.
+Native acceptance remains pending. Four complete required hosted groups preserve
+all 17 names and seven owned PostgreSQL joins under unchanged per-group guards;
+the aggregate refuses unless every group succeeds. Historical fingerprint,
+cutover and browser deadline failures remain recorded. Neither a fingerprint
+refresh nor a release-guard waiver is used. All 728 rows retain 523/144/61
+classifications and zero promotions. See the
+[callback checkpoint](cloud-callback-recovery-checkpoint-2026-10-14.json).
+
+
+## Native refusal diagnosis checkpoint, October 14, 2026
+
+At `59ea2a72`, compilation and both original native capture runs pass. The
+same-head authenticated enqueue push run passes all three named events while
+the PR run fails SQLSTATE42501 at the first catalog/principal gate. This mixed
+result is preserved, not counted as stable acceptance. The successor keeps
+both original checks and rejection code, adding only closed failure labels to
+distinguish registration, fingerprint, provenance and principal readiness.
+Diagnostic errors retain the original refusal. No fingerprint or immutable
+reference is refreshed. Connected lifecycle and actual browser acceptance
+remain open; callback recovery is a separate in-progress batch. All 728 rows
+retain 523/144/61 categories and zero promotions. See the
+[native refusal checkpoint](cloud-native-refusal-checkpoint-2026-10-14.json).
+
+
+## Direct browser setup checkpoint, October 14, 2026
+
+Candidate `59ea2a72` reaches a new prerequisite failure before browser execution
+in both direct lanes: the offline inner-profile diagnostic refuses stderr with
+zero observed test events. The production migration build does not warm its
+complete test import graph: 94 additional packages and 12 additional modules
+are required. The successor primes that exact test compilation online with
+CGO disabled before the unchanged strict offline observer. This is a reviewed
+setup correction; the unseen stderr cause and actual browser acceptance remain
+unproven. UI typecheck/build pass. Native results remain separately tracked.
+
+Fresh runtime revision301 remains running and connected, with 50 required
+application settings unbound and no private TCP or outbound deployment identity.
+Callback crash recovery, provider recovery, fleet cutover and deployed acceptance
+remain open. All 728 rows retain 523/144/61 classifications and zero promotions.
+See [the setup checkpoint](cloud-browser-setup-checkpoint-2026-10-14.json).
+
+
+## Browser readiness and native SQL blocker, October 14, 2026
+
+Hosted `13552bfe` passes all nine consumer compiles, 39 application groups and
+the original whole approval source-pin check; original native9 runs pass. Its
+new OAuth/connected fixtures fail before installation at SQLSTATE42601,
+position64948 in an unparenthesized CASE expression. The successor corrects only
+those parentheses; native parse and restart acceptance remain unverified.
+
+The earlier `344699db` broad npm verification passes, but its browser flow fails
+API readiness after startup reaches Serve. An authorization-readiness stack
+frame alone does not identify the cause. The other old browser run fails earlier
+at current-profile preparation, so a common cause is not asserted. A private fixture observer now emits
+only bounded closed services/core-metadata/security-agent-metadata/components
+outcomes. Production nil-observer behavior retains every check, deadline and
+cancellation/join. A direct owned-browser workflow preserves original fixture
+commands and budgets; the complete original release workflow is byte-identical.
+
+Grouped checks pass 15 readiness tops / 40 run-pass events and 35 Node diagnostic
+checks, plus UI typecheck/build and independent source review. The underlying
+browser readiness failure is not fixed or waived. All 728 ledger rows and
+523/144/61 categories remain unchanged, with no promotions. See the
+[browser checkpoint](cloud-browser-readiness-checkpoint-2026-10-14.json).
+
+
+## PKCE worker recovery continuation, October 14, 2026
+
+Starting main remains `8cbd813493947d8e26289b381d90d1a5bf2bffe3`; candidate
+`344699db` produced passing original native and authenticated enqueue groups,
+but its connected lifecycle failed at contradictory principal registration,
+and the callback boundary group failed three HTTP-status assertions. These
+failures are retained. The successor requires the original runtime login's
+INHERIT setting and returns HTTP403 for permission denial.
+
+The bounded recovery implementation retains original signed receipt lineage,
+rotates only expired authentic PKCE leases, preserves provider attempt count,
+and allows exact captured deletion/settlement after revocation. Genuine local
+preparation failures retain their finite-budget fresh-authorization retry path.
+Recovery receipts cannot authorize workflow reads, exchange or other settlement.
+The new native fixture covers preparation failure, two restarts, deletion failure,
+revocation/restoration, exact cleanup and audit/replay boundaries, but has not
+passed native execution yet. Callback-crash and provider recovery remain open.
+
+Grouped component checks pass 39 application tops / 88 run-pass events with
+zero skips/failures, plus the original whole approval source-pin check. All nine
+affected packages compile. The 2,867-file Go/SQL/JSON source map is unchanged
+across application checks; UI typecheck and production build pass. Independent
+source review passes. These checks do not establish deployed or native acceptance.
+
+The original 728-row ledger stays 523 recorded production-available, 144
+component-only and 61 blocked/external, zero missing and no promotions. Runtime
+revision297 still lacks 50 required application bindings, production target/URLs,
+private TCP grants and an outbound deployment identity. See the
+[recovery checkpoint](cloud-pkce-recovery-checkpoint-2026-10-14.json) for remaining
+critical-path flows and the preserved evidence. No launch readiness is claimed.
+
+
+## Connected launch continuation, October 14, 2026
+
+Fresh main is `8cbd813493947d8e26289b381d90d1a5bf2bffe3`; required ancestor
+`e13ccb95451b03107681ccb59b3fc6fe175a228f` is present. PR55 is merged. PR60
+remains an inactive draft with mixed historical hosted results. The successor
+candidate adds bounded callback admission before durable consumption, captured
+rejection cleanup, and refuses settlement after uncertain secret deletion.
+It also adds genuine signed-enqueue lifecycle fixtures for controlled one-writer
+cutover, revocation and exact captured cleanup, plus bounded browser startup
+diagnostics. These new native fixtures are not yet verified.
+
+UI typecheck and production build pass after restoring the full checkout;
+eight browser failure parser checks pass. Local grouped Go setup is blocked by
+a denied OPA dependency download, so no semantic RED/GREEN is claimed. The cloud
+cgroup mount hides ancestor limits; native memory admission remains refused
+without weakening its guard. Hosted native/application checks are pending.
+
+All 728 IDs retain 523 production-available, 144 component-only and 61
+blocked/external classifications. Production fleet/restart admission, durable
+ambiguous recovery, remaining authorization/native acceptance, connected
+M2-46b classification, retirement and real deployed provider flows remain open.
+See [the checkpoint](cloud-connected-checkpoint-2026-10-14.json) and
+[the prerequisite inventory](cloud-launch-prerequisites-2026-10-14.json).
+
 
 ## Inactive approval maintenance integration, October 7, 2026
 
@@ -15920,3 +16741,221 @@ Fresh official advisory capacity attempt is incomplete (27.519seconds, normal ex
 
 
 Launch prerequisite correction and full remaining-task snapshot: two hosted prerequisite tests retained the old 36-step roster after mandatory signed notification verification was added. The original command reproduces 235 PASS / 2 FAIL; the exact-step correction and nine new refusal cases pass 246 with zero skips. Original 34-step fingerprint and all runtime/permission/release guards remain unchanged. The [launch report](launch-readiness-2026-10-07.md) and [205-row remaining list](launch-remaining-tasks-2026-10-07.tsv) distinguish recorded component/external work from required fresh deployed acceptance of all 728 requirements. Original failure and source associations are retained under `evidence/cloud-2026-10-07/launch-prerequisite-contract`. No ledger promotion or launch acceptance.
+
+
+## Maintenance operator role windows, October 17, 2026
+
+The maintenance installers now select the existing authority role only for the
+private authorization readiness read, then restore both the incoming role setting
+and effective identity before original-owner schema or REFERENCES operations.
+Approval, connector, activation and settlement installers retain their canonical
+SQL and ACLs. The four maintenance CLI confirmations use bounded authority
+transactions. No profile is activated by this source change.
+
+Grouped migration component checks pass 30 named cases after a genuine failing
+permission-boundary group. The actual migration CLI package remains setup-blocked
+by unavailable OPA dependencies locally; its compilation and behavior are not
+claimed. New normal/Audit restricted-owner native acceptance adds 18 mandatory
+cases and two PostgreSQL joins; these remain unexecuted. All previous acceptance
+groups are retained. UI typecheck/build and 57 source/ledger/deployment checks pass.
+
+The ledger retains 728 rows, 523 historical production-available classifications,
+144 component-only and 61 blocked/external entries. No availability is promoted.
+Published-head compile and environment-class component CI failures remain unresolved;
+finite metadata does not identify their cause. Real deployed Stytch/provider flows,
+all mandatory release checks and merge remain outstanding. Evidence:
+`cloud-maintenance-operator-role-source-component-checkpoint-2026-10-17.json`.
+
+
+## Optional-egress operator role windows, October 17, 2026
+
+Both normal and Audit optional-egress installers now reuse the reviewed bounded
+authority readiness read, restoring the original operator role before its schema
+bootstrap. Their two actual CLI confirmation paths use the existing ReadCommitted
+authority transaction. Canonical SQL, checksums, grants, runtime-purpose membership
+and activation behavior remain unchanged. This fixes the existing NOINHERIT owner
+composition; it does not enable external flows.
+
+A genuine four-leaf permission-boundary failure preceded the fix. All 22 grouped
+optional-egress and maintenance migration component cases now pass, along with
+58 source/ledger/deployment checks and fresh UI typecheck/build. The actual CLI
+package remains setup-blocked before named cases by unavailable cached OPA.
+Twelve additive normal/Audit native cases remain unexecuted, and all original
+acceptance groups remain required. No ledger classification or original scope
+changes. Evidence: `cloud-optional-egress-operator-role-source-component-checkpoint-2026-10-17.json`.
+
+
+## Protected installer binding authority, October 17, 2026
+
+Canonical10 owns and FORCE-RLS protects the principal-binding table despite its
+public schema location. Eight maintenance, optional-egress and environment-class
+installer recipes now check the exact original-session binding, authority
+membership and compiled private80 readiness inside the existing bounded authority
+window. They restore the exact incoming role before owner operations. Original
+version, membership and class LOGIN/object-owner restrictions remain in place;
+approval/class admission precedes namespace or purpose-role DDL. SQL, checksums,
+ACLs and activation remain unchanged.
+
+The stronger application permission model produced 31 named failures and three
+passes before the fix; all 58 affected grouped migration cases now pass. Fresh
+UI typecheck/build and 58 source/ledger/deployment checks pass. Shared native
+fixtures now preserve exact original membership grantors/options, require no
+effective inherited authority and real protected-read denial, and restore original
+state. All 21 existing native groups/146 cases/32 PostgreSQL joins remain required
+and unexecuted for this source successor. No native or deployed acceptance follows
+from the component checks.
+
+The audit also corrected an unreferenced-source inference: ordered_current is a
+development-only module absent from the compiled worker assembly. Its installation
+refusal and namespace rejection are preserved, and the incorrect design receipt
+is retained with its explicit correction. Four existing development/assembly guards
+pass. CLI protected preflight, worker/Temporal role phases and internal composite
+confirmations remain separate unresolved prerequisites; this patch does not claim
+full CLI or composite installation. The ledger retains all 728 requirements and
+its historical classifications with zero promotions. Evidence:
+`cloud-installer-binding-authority-source-component-checkpoint-2026-10-17.json`.
+
+
+## CLI principal preflight source correction, October 17, 2026
+
+The actual profile preflight retains the byte-identical configured-session and
+registered-binding SQL. It now runs that protected read through the existing
+bounded authority transaction, using only the same concrete PostgreSQL connection
+and ReadCommitted isolation in production. Unsupported, nontransactional and nil
+queryers reject before any protected read. The private recorder capability has
+implementations only in explicit test files. Confirmed commit precedes installer
+dispatch; no SQL, grants, checksums or runtime activation changes.
+
+Both actual local CLI attempts remain setup-blocked before zero named cases by
+the unavailable OPA dependency. There is no behavioral RED, test pass or compiler
+pass for this patch. The source/ledger/deployment contract checks pass 58 cases,
+and fresh UI typecheck/build pass. New hosted acceptance requires all14preflight
+cases and11retained consumer groups without skip/failure or incomplete results.
+All489source pins preserve479predecessors, including newly explicit existing
+consumer bindings. Existing native21groups/146cases/32owned PostgreSQL joins and
+all previous guards remain required.
+
+Seven final/internal authorization confirmations, worker/Temporal owner phases,
+actual native execution and deployed real Stytch/provider acceptance remain open.
+No requirement or availability classification changes. Evidence:
+`cloud-cli-principal-preflight-source-checkpoint-2026-10-17.json`.
+
+
+## Seven authorization confirmations, October 17, 2026
+
+The six authorization profile commands and composite runtime confirmation now
+use the existing bounded authority transaction. Composite identity and worker
+confirmations use the same actual connection and confirm commit before the next
+installer. Original query text, arguments, release pins, existing branches,
+error stages and normal/Audit recipe selection remain unchanged. The twelve
+earlier Temporal confirmations remain a separate unresolved scope.
+
+Both local CLI attempts were blocked by the missing OPA dependency before any
+named test ran. This is a source correction with no CLI compiler or behavioral
+acceptance. Source/ledger/deployment checks pass 58 cases, and fresh UI typecheck
+and build pass. A new strict hosted job requires all 49 confirmation cases; its
+execution remains pending. All 493 source pins retain the 489 predecessor paths.
+The 21 native groups, 146 cases and 32 owned PostgreSQL joins remain mandatory
+and unexecuted for this successor.
+
+No task status or availability promotion is made. Worker/Temporal installation,
+required exact-head checks, real deployed Stytch/provider flows and equivalent
+obsolete retirement remain open. Evidence:
+`cloud-cli-authorization-confirmation-source-checkpoint-2026-10-17.json`.
+
+
+## Maintenance CI selected-case roster correction, October 17, 2026
+
+Static review found that the unchanged maintenance job selector includes two
+existing CLI consumer tests, each with four command children, omitted from the
+strict result roster. The roster now requires all ten additional selected names:
+30 migration cases and 31 CLI cases. No test, selector or acceptance guard was
+removed or relaxed. This supersedes the earlier roster-completeness review; the
+earlier receipt remains preserved.
+
+A synthetic validator replay rejects the predecessor roster for the full
+selected trace, accepts the corrected roster, and rejects missing, duplicate,
+skipped, failed and unknown-package events. These are validator checks, not Go
+test execution or evidence of the hosted failure's cause. Hosted job metadata
+identifies failed steps only; actual exact-head component/native/deployed
+acceptance remains required. All 728 task classifications remain unchanged.
+Evidence: `cloud-maintenance-selected-roster-checkpoint-2026-10-17.json`.
+
+
+## Twelve Temporal confirmations, October 17, 2026
+
+The twelve explicit Temporal 67–78 confirmation commands now reuse the bounded
+authority transaction on the same actual PostgreSQL connection. Original
+configured-session SQL, arguments, checksum/fingerprint functions and all other
+command branches remain unchanged. The composite fixture now requires all
+fourteen confirmations to finish their authority transaction before the next
+installer while retaining original diagnostic, identity and worker controls.
+The predecessor fixture bytes remain preserved in the evidence archive.
+
+Both actual CLI attempts were OPA setup-blocked before zero named cases. No
+behavioral RED, compiler pass or native proof is claimed. Source checks pass
+58 cases; fresh UI typecheck/build pass. A separate strict hosted job requires
+all 93 Temporal confirmation, ordering, legacy-fallback and checksum-cost cases.
+All prior jobs remain required; all 496 source pins retain 493 predecessor paths.
+Native 21 groups/146 cases/32 owned PostgreSQL joins remain mandatory.
+
+This supports installation and upgrade prerequisites M8-22b, M8-23b and M8-52a;
+it does not establish acceptance of those requirements. Worker/Temporal installer
+DDL permissions, remaining command families, exact-head checks and real deployed
+Stytch/provider flows remain open. All 728 original task classifications remain
+unchanged. Evidence:
+`cloud-cli-temporal-confirmation-source-checkpoint-2026-10-17.json`.
+
+
+## Administrative Agent–Device association source, October 17, 2026
+
+An additive default-off Normal/Audit profile, four public operations, signed Device
+accept API/CLI and real Agent UI now connect the three administrative phases:
+recent browser intent, current Device proof, and fresh authorization by the same
+human at activation. Source provenance, tenant boundaries, original roles/grants,
+credential export safeguards and same-transaction final confirmation are retained.
+Administrative association does not establish observed workload routing or Agent
+coverage. The legacy standalone credential adapter remains required.
+
+Local race checks pass 217 CLI and 13 association-wire/custody results. The exact
+new CI gate requires 99 results: 24 pass locally and 75 are absent because affected
+API/control/runtime/migration packages fail OPA dependency setup. The strict gate
+fails; these packages have no compiler or behavioral acceptance. UI regressions
+pass 75 before the clock correction and its affected seven checks pass afterward.
+OpenAPI46, changed UI contracts15, coverage10, generation/check/lint, final UI
+typecheck/scoped lint/build and 21 custody guards pass. All 882 bindings match
+current source. Independent source review findings and corrections are retained.
+
+All 728 original ledger rows and owners remain byte unchanged: 509 recorded
+production-available,158 component-only,61 blocked/external. All 219 remaining
+records and every original deployed acceptance remain open. Previous head a055
+has 14 successful and83 failed hosted checks; causes remain unknown. Native
+admission, real Stytch/provider/Temporal/OpenFGA/browser flows, applicable hosted
+and release guards and equivalent obsolete retirement remain required. No launch
+clearance, task closure or availability promotion is claimed. Evidence:
+`cloud-agent-device-association-checkpoint-2026-10-17.json`.
+
+
+## Existing Device credential association source, October 17, 2026
+
+The standalone runtime credential path now uses a fresh signed current-Authority
+GET before the existing signed acceptance POST. Credential files remain read-only;
+separate guarded state retains public identity history and immutable per-challenge
+intent and receipts. No enrollment history is invented. The original custody path,
+Stytch human activation, server permissions and default-off profile remain intact.
+
+Actual local race regressions pass220 CLI,6 association-wire and22 custody named
+results. The exact new CI Python body passes all18 required results across three
+packages/two modules; these overlap the full regressions. All890 source bindings
+match and21 custody guards pass. Original failures, a stale new-test clock fixture,
+one parser review finding and their corrections are preserved. UI source remains
+unchanged from the verified3c27 build/typecheck/lint; no new UI run is claimed.
+
+This is local component acceptance only. API/native/deployed launch gates remain
+open, including real Stytch/provider/Temporal/OpenFGA/browser verification. Shared
+gateway tokens and caller Agent headers do not establish actual Agent origin;
+authentic workload routing and coverage composition remain required. All728 ledger
+rows/owners and219 remaining inventory records are byte unchanged:509 recorded
+production-available,158 component-only,61 blocked/external. No task closure,
+availability promotion or obsolete retirement is claimed. See
+`cloud-legacy-device-association-checkpoint-2026-10-17.json` and the operator guide.

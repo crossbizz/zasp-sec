@@ -1,0 +1,235 @@
+{
+  "observed_at": "2026-10-17T09:45:39.411985+00:00",
+  "continued_published_base": "e5f12d2a8f04f4ac516b311258dfa1df9a47029c",
+  "scope": "Connected read-only selected-workload SQS permission diagnostics: original twelve compiled role-purpose/queue/action bindings; same-run B2-verified inspector SDK capture and selected STS service-output exchange/current identity/Pod specification; typed actual Pod literal queue URL, original producer/consumer queue config and immutable expected image. Official IAM1.59.2 SimulatePrincipalPolicy results require complete exact resource-specific decisions per action; aggregate ARN templates do not bind queues. Context/boundary/organization contradictions, incomplete pages and unknown decisions refuse completeness. Actual Kubernetes credential identity and HTTP dispatch attempt metadata are separate from selected AWS workload proof. No credential reload, fallback, new grants, provider mutation or queue permission/readiness promotion.",
+  "sources": [
+    {
+      "path": "services/platform/preflight/contract.go",
+      "bytes": 5469,
+      "sha256": "3aee5452c018494faa34a290091f97e2583482d3f151ace8d7802b40056f8a5c"
+    },
+    {
+      "path": "services/platform/preflight/runner.go",
+      "bytes": 12786,
+      "sha256": "f83548416743db2f17fd2c57586cfbca2bd7f42cc8d97f3f7d89d3a68e622820"
+    },
+    {
+      "path": "services/platform/preflight/config.go",
+      "bytes": 6987,
+      "sha256": "10e40d4ae14946365f51fa5793e82c5babe8882e28d6e1814dbf37e02589f7b0"
+    },
+    {
+      "path": "services/platform/preflight/report.go",
+      "bytes": 3089,
+      "sha256": "019afcb723e55a87df941a3cf66ae2924fb0c61abc8c7f0621993bb02cf58f86"
+    },
+    {
+      "path": "services/platform/preflight/aws_authority.go",
+      "bytes": 11619,
+      "sha256": "664b544d43ca0c040f586f956c8c5b119c00a9a929ad2cf9753ecc90cc410206"
+    },
+    {
+      "path": "services/platform/preflight/sqs_permissions.go",
+      "bytes": 10160,
+      "sha256": "b0921127c71fbb56305f0a9861be754a526808c5c8f00601497aac232569fd6a"
+    },
+    {
+      "path": "services/platform/preflight/sqs_permissions_flow_test.go",
+      "bytes": 12422,
+      "sha256": "2c37828e2b1537ce5a142eb5283e4799e650ea637bab3fcaa11115c8abb08549"
+    },
+    {
+      "path": "services/platform/preflight/sqs_permissions_kubernetes.go",
+      "bytes": 4677,
+      "sha256": "a88367037fea53f0c4d63f5701ae1c63e6e85bfcea6a862cd4dae1fc70eb3560"
+    },
+    {
+      "path": "services/platform/preflight/sqs_permissions_kubernetes_test.go",
+      "bytes": 4302,
+      "sha256": "12ac1ebc0d6c9bf19a88431fcd3bbe476ed379af2005ebcefbf00936cec8d35c"
+    },
+    {
+      "path": "services/platform/preflight/sqs_permissions_mounted_test.go",
+      "bytes": 11386,
+      "sha256": "2045da335fb40f9093632ecdfbc3e76b5073eb0f64aca97272811f6b539587bf"
+    },
+    {
+      "path": "services/platform/preflight/sqs_permissions_integration.go",
+      "bytes": 5993,
+      "sha256": "98d387048c3bccd89cb6f4648a0789a34d40356b3784a6a5b4dae2522d158dd8"
+    },
+    {
+      "path": "cmd/agentsecctl/go.mod",
+      "bytes": 1869,
+      "sha256": "ebf97b7c55a47ac9263107eff6cdb0f7928f3610d66eba47c0cbdfc66737fab1"
+    },
+    {
+      "path": "cmd/agentsecctl/go.sum",
+      "bytes": 6679,
+      "sha256": "ba9715433e35f6e74f03fb8cb57c043d6f6a0ef39a8be25f27687d7580f0a58e"
+    }
+  ],
+  "source_associations": [
+    {
+      "path": "scripts/connector-acceptance-groups.test.mjs",
+      "sha256": "59573b593269d195f92f1ff3849f4075f953791899a73be684d1ece0c873eeed",
+      "bytes": 40902
+    },
+    {
+      "path": ".github/workflows/connector-native-draft-compile.yml",
+      "sha256": "069febeb615f61cfd14733b7321c139fe4d67cbdfcaffe432fac701fd29c7da2",
+      "bytes": 25334
+    },
+    {
+      "path": "scripts/hosted-connected-connector-acceptance.mjs",
+      "sha256": "bcab1f8a05b7425dbf9fadadbd71f85d3c451174aad68e055f4de5c4b77d4aee",
+      "bytes": 90684
+    },
+    {
+      "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
+      "sha256": "f3887b8f2b5abeeabbfc3e5c26ce2c72940c334a0b9f1847f344bf3e2a68b930",
+      "bytes": 87085
+    },
+    {
+      "path": ".github/connector-native-compile-source-pins.json",
+      "sha256": "eb5d050b102ae2ec1e5d36ce0fcade52c45fca19d53f45b776d34cbb29cfc8b5",
+      "bytes": 133855
+    }
+  ],
+  "module_qualification": "Mounted production-loop protocol tests use real SDK exchange/typed reader with private factory seams; public entry always real authority loaders. Physical projected token mount, real provider permissions and deployed acceptance are not established.",
+  "verification": {
+    "integrated-final-connected-full-race": {
+      "pass": 562,
+      "fail": 0,
+      "skip": 1,
+      "packages": [
+        "github.com/zasp-ai/zasp-sec/services/platform/cloudreadiness",
+        "github.com/zasp-ai/zasp-sec/services/platform/inventorysearch/opensearchdriver",
+        "github.com/zasp-ai/zasp-sec/services/platform/preflight",
+        "github.com/zasp-ai/zasp-sec/services/platform/runtimeindex/opensearchdriver"
+      ],
+      "skipped_cases": [
+        {
+          "package": "github.com/zasp-ai/zasp-sec/services/platform/runtimeindex/opensearchdriver",
+          "test": "TestSandboxSessionIndexLocalOpenSearch"
+        }
+      ],
+      "jsonl": {
+        "path": "/tmp/preflight-sqs-permissions-evidence-20261017/integrated-final-connected-full-race.jsonl",
+        "bytes": 623688,
+        "sha256": "4b42c1800abc8aa443081d8ca088472b8c223e71111d6425188d8f3040a5d4c8"
+      },
+      "stderr": {
+        "path": "/tmp/preflight-sqs-permissions-evidence-20261017/integrated-final-connected-full-race.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    "integrated-final-full-cli-race": {
+      "pass": 148,
+      "fail": 0,
+      "skip": 0,
+      "packages": [
+        "github.com/zasp-ai/zasp-sec/cmd/agentsecctl"
+      ],
+      "skipped_cases": [],
+      "jsonl": {
+        "path": "/tmp/preflight-sqs-permissions-evidence-20261017/integrated-final-full-cli-race.jsonl",
+        "bytes": 158859,
+        "sha256": "bbfffe484dd3fc08e4f22f41d949cd2bedb0a9df9087820c1acc91c45c83712d"
+      },
+      "stderr": {
+        "path": "/tmp/preflight-sqs-permissions-evidence-20261017/integrated-final-full-cli-race.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    "source_ledger_checks": {
+      "tests": 54,
+      "pass": 54,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0
+    },
+    "lint_scope_checks": {
+      "tests": 11,
+      "pass": 11,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0
+    },
+    "actual_compiled_CLI": {
+      "binary_sha256": "e107e7b5c27f76c9b9d5415fab35b57dbac0795a94e7c9f2fedcc7cf84e720bd",
+      "cases": [
+        {
+          "mode": "before-install",
+          "exit": 1,
+          "checks": 8,
+          "ready": false,
+          "permission_diagnostic": {
+            "observation": {
+              "name": "sqs_identity_policy_simulation",
+              "status": "unobserved",
+              "kind": "unobserved",
+              "code": "verified_authority_unavailable",
+              "identity_kind": "none"
+            },
+            "effective_authority_observed": false
+          },
+          "stdout_sha256": "a7bedf1a9c00f21ee8fd8c1a54063a3e883eb0b32b30c2b853c639f415d05083",
+          "stderr_bytes": 0
+        },
+        {
+          "mode": "installed",
+          "exit": 1,
+          "checks": 8,
+          "ready": false,
+          "permission_diagnostic": {
+            "observation": {
+              "name": "sqs_identity_policy_simulation",
+              "status": "unobserved",
+              "kind": "unobserved",
+              "code": "verified_authority_unavailable",
+              "identity_kind": "none"
+            },
+            "effective_authority_observed": false
+          },
+          "stdout_sha256": "ad69d82ef945fd57d21f01419e46bcb6b6ef0c5cd417c501972a928ce42b35c5",
+          "stderr_bytes": 0
+        }
+      ],
+      "qualification": "Actual compiled CLI with controlled missing local credentials and no selected workload authority. Original8sections and nonzero exits retained. SQS simulation remains unobserved/noAPIattempt, no authority or decision fabricated. No real provider/native/deployed proof."
+    },
+    "source_pins_verified": 447,
+    "fresh_UI_typecheck_exit": 0,
+    "fresh_UI_build_exit": 0,
+    "lint_exit": 0,
+    "exit_receipt_qualification": "Root supplied actual final-command-exits.json; original text logs retained byte-for-byte.",
+    "hosted_new_batch": "pending exact published head",
+    "native_database_execution": false,
+    "real_provider_requests": false,
+    "production_or_deployed_E2E": false,
+    "command_exits_receipt": {
+      "path": "/tmp/preflight-sqs-permissions-evidence-20261017/final-command-exits.json",
+      "bytes": 322,
+      "sha256": "21fbd190c9edd6121c82ad5150f402a98d33cce177b39a739b35974c8f8f6af9"
+    }
+  },
+  "ledger": {
+    "rows": 728,
+    "unique_ids": 728,
+    "classes": {
+      "production-available": 523,
+      "component-only": 144,
+      "blocked/external": 61
+    },
+    "promotions": 0
+  },
+  "archive": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/sqs-permission-diagnostics/component-evidence.json.gz",
+    "bytes": 126207,
+    "sha256": "f142ffe533be5d69361b90550c6f6b8142d9565af68cb2d4098bdd74b8a5ce34",
+    "members": 44
+  },
+  "remaining": "Simulation Allow does not prove effective SQS permissions or real send/receive/delete/visibility behavior. Only twelve explicitly mapped selected purposes are diagnosed; unsupported families remain unknown without reducing the original inventory. Resource/KMS/SCP/session conditions, real workload network origin, provider and tenant bindings, retained historical writer resolution, native database, security/browser/release guards and full deployed end-to-end acceptance remain mandatory. Original queue_permissions remains unobserved and aggregate Ready false. No original task promoted."
+}

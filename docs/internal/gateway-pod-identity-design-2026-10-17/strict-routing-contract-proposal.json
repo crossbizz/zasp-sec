@@ -1,0 +1,247 @@
+{
+  "classification": "ROOT_SELECTED_POLICY_ONLY_AUTHENTICATED_PROXY_CONTRACT_PROPOSAL_SOURCE_ONLY_PENDING_BACKEND_MANIFEST_AND_INDEPENDENT_REVIEW",
+  "source_pins": [
+    {
+      "path": "services/runtime-gateway/proxy.go",
+      "sha256": "9ccb065b54d4f8314f192cee25a39620a9c92596b46797c161cd2bee8e3695ee"
+    },
+    {
+      "path": "services/runtime-gateway/handler.go",
+      "sha256": "ddc9a3ec8c35cc089064fcc9ea0e153dd35dda29cedbc403a059af459cd99509"
+    },
+    {
+      "path": "services/runtime-gateway/runtime.go",
+      "sha256": "7c75246c62d66554630d8131a5dccc3d1fe948284fd79e90a01107e0733fa6e5"
+    },
+    {
+      "path": "services/runtime-gateway/production.go",
+      "sha256": "6ce7c2c72927ff16cc47dae63fa0eee728c5f4c7e14e217302a0680be65b8a36"
+    },
+    {
+      "path": "services/runtime-gateway/production_runtime.go",
+      "sha256": "b29f3251884e0b9006a54354208eba7fd34f1123158711093c9579a2f14ac023"
+    },
+    {
+      "path": "services/runtime-gateway/production_proxy.go",
+      "sha256": "b1e6081dfe896343f9e287cf3825aad821b9053ae27dbf46676937d1da4816aa"
+    },
+    {
+      "path": "services/platform/policy/runtime.go",
+      "sha256": "09cb87fcb013d30def6829f3582f226dd5c4384d25973c77bdc06826ad9a4e2f"
+    },
+    {
+      "path": "services/platform/policy/gateway_cache.go",
+      "sha256": "6bd8b87fdf2da26dd90b0dc181f9b805c158021a61bb621fbbefb5a781bad32a"
+    },
+    {
+      "path": "services/platform/gatewaycontrol/postgres.go",
+      "sha256": "72d569fc199d85e196d990885e6e7b86e2423fe5a580df4b6ca60635b81e279f"
+    },
+    {
+      "path": "services/platform/gatewaycontrol/association.go",
+      "sha256": "21f66b09326d9e1492f67ab55f9fc6dd2752ca3aafbd1559620a23c0d629baf4"
+    },
+    {
+      "path": "services/platform/connectors/kubernetesdiscovery/collection_api.go",
+      "sha256": "c8f7d039b324d8426564de4456ce64f14635b9b3e6b8c4053592f487dd570a5d"
+    },
+    {
+      "path": "services/platform/connectors/kubernetesdiscovery/node_placement.go",
+      "sha256": "320f728344c96e548c38d6149d7f7b535a816ede9e241f8323bfcf02e78fc7f4"
+    },
+    {
+      "path": "services/platform/migrations/sql/agent_device_association_profile.sql",
+      "sha256": "e542faa66034d66eab08aa54dfa5542749634bba4d571f7f878e3eac8bb35f14"
+    }
+  ],
+  "supersession": "Root selected gateway-local TokenReview+livePod ownerchain. Native Device-signed facts are explicitly TRUSTED GATEWAY TESTIMONY, not detached provider/hardware proof. PrincipalID maps actual current SA inventory identity; no securityAgent taskprincipal invented. Initialstrictlane POLICY-ONLY; original taskdelegation/approval/budget/capabilityallow authority untouched and remains separate mandatory futurework.",
+  "mode_route": {
+    "operator_mode": "ZASP_GATEWAY_PROXY_MODE exact legacy(default) or kubernetes-policy-v1. One process mode immutable until operator restart; no client-selectable flag/header/pathfallback. In legacy oldbehavior stays byte/semanticcompatible and provenance remains unverifiedclaim. No legacy implementation retired.",
+    "strict_routes": "Selectedstrictmode mounts authenticatedhandler ONLY for existing /v1/proxy/http[/suffix] and /v1/proxy/mcp. /v1/evaluate and every old sharedtoken proxy bypass MUST be absent/404 or failclosed in strictmode; health/controlsync are not bypass routes. Reusing canonical paths avoids deploying parallel legacyescape. Oldmode preserves originalmux unchanged.",
+    "credentials": "Exactly one Authorization Bearer Pod-bound projectedJWT<=16KiB; Cookie/ProxyAuthorization/X-Forwarded-Authorization/tenant-scope claims refused. No gateway sharedtoken can substitute for workload proof. Optional X-Zasp-Gateway-Token may be rejected in strictmode to avoid ambiguity. All workload/reviewer/deviceauth credentials stripped from upstream and all errors/logs/audit.",
+    "nonidentity_headers": "Require exactlyone X-Zasp-Event-ID canonicalnonzero ProductID as caller idempotency/requestselector, NOT identity. HTTP method/path/query/body authoritativebytes; MCP exact JSONRPC tools/call body. Standardexisting header allowlist preserved; duplicate or contradictory X-Zasp-Principal-ID/Agent-ID/Session-ID against native-derived values rejected BEFORE pure policy evaluation. Reject caller TaskID and all capabilitymetadata headers in this initialpolicy-only mode, never authorize capabilityallow.",
+    "action_resource": "HTTP action fixed lower-case http.<method>; resource exactcanonical configured upstreamtarget URL <=256UTF8bytes, reject longer instead of truncation/hashalias; route_class authenticated_http/resource_class network serverconstant. MCP existing ParseMCPAction after own strict duplicate/UTF/surrogate JSON scan: action actual params.name, resource actual args.resource, method tools/call, no X-Zasp-Action overwrite. If caller Action/Resource headers supplied require EXACTderived match; otherwise reject. Exactbody never reserialize beforeforward.",
+    "bounds": "HTTP max existing configured1..64KiB with existing lowerbound rules; MCP<=16KiB inherited ParseMCPAction limit. Existingtarget path/query/DNS/CIDR/TLS checks remain; action/resource normalization constraints frozen above must be reviewed with policy vocabulary beforeTDD."
+  },
+  "provider_phase": {
+    "deadlines": "One overall requestcontext<=30s. Provider evidence stage childcontext max5s TOTAL, not percall5s. No positiveidentity cache and no automatic retries/redirects. Admission/claim each checks observationage<=5s and noforward after contextual/credential/policy expiry; if upstreamclaim misses observationwindow, reverify explicitly within same unconsumedrequest only before dispatchclaim, never renew consumedclaim.",
+    "budget": "Exactly13maximum provider calls: TokenReview1, then kube-systemnamespace/ServiceAccount/Pod/ReplicaSet/Deployment/Node (6 reads), repeat same6 securityidentity reads. Perresponse TokenReview64KiB/providerobject1MiB; aggregate12MiB+64KiB, no clipping. Providerchildcontext5s TOTAL, boundedparent overall. Compare immutableUID/owner/namespace/SA/nodename/boot/deletefacts; resourceVersion churn alone not identitychange. No retries/redirects/positivecache.",
+    "configured_trust": "Explicit serverconfigured IntegrationID, KubernetesHTTPSorigin+CA+allowedCIDRs, expected ClusterUID, exact audience, rotated protected reviewercredential file/secretref, provider timeout/budget and namespace constraint. No supplied tokenissuer/URL chooses endpoint or integration. Verify providerconnection and allcurrentcatalog/profile readiness without asserting available cloud credentials.",
+    "TokenReview": "Actual POST fixed authentication.k8s.io/v1 TokenReview with exactprotectedtoken and audiences=[configuredAudience]. Require authenticatedtrue,error empty,actual status.audiences includes exactselected audience. user.username system:serviceaccount:<ns>:<sa>,user.uid actualSAUID; exactlyone authenticated extra pod-name+pod-uid. Providerextra alone unsupported/non-Pod token =>deny. Groups are not product grants.",
+    "JWT_exp": "Only AFTER actual SAME-token TokenReview succeeds, strictdecode projectedJWT boundedcanonicalbase64url payload/duplicate keys/types and exp integerUnixseconds validfuture; crosscheck JWTsub and kubernetes.io namespace/SA name+UID/Pod name+UID with authenticatedreview/liveobjects. No unsignedidentity fallback; no exp attributed to TokenReview response. expiry=min(exp,observedAt+5s), no credential caching. Reject unsupported JWTformats/extra absence; no fakehardware guarantee.",
+    "live_chain": "Require live Pod exactreviewed UID, namespace,SA name; actual live ServiceAccount name/UID from both fixed GETs must matchreview user.uid and Pod serviceAccountName; singlecontroller owner ReplicaSet exactUID/name\u2192singleDeployment controller exactUID/name. Require live Node UID/BootID+Pod spec.nodeName and actual kube-system UID==configuredClusterUID. Copy facts around readsequence; no atomicprovider/DB snapshot claim. Container/process identity NOT established by Podtoken.",
+    "maxcalls_selection": "Recommend freeze13 now, including explicit ServiceAccount doubleGET, rather than assume nativeinventory freshness supplies unmade providerreads. Root may select a smaller reviewed providerprofile only by explicit contractsuccessor before TDD."
+  },
+  "Go_ABI_proposal": {
+    "gatewayPodVerifier": "Verify(context.Context,gatewayPodProof)(gatewayVerifiedPod,error); Ready(context.Context)error; Close()error",
+    "gatewayPodProof": "unexported opaque token []byte +RequestID/Method/ExactTarget/BodySHA256; redacted String/GoString/Format, no credential getter. Createdonly by strictHTTPheaderparser; caller ID/scope excluded.",
+    "gatewayVerifiedPod": {
+      "Profile": "kubernetes-tokenreview-pod-v1 literal",
+      "IntegrationID": "serverconfigured canonicalproductID",
+      "ClusterUID": "actualconfigured providerUID",
+      "Namespace": "canonicalname",
+      "ServiceAccountName": "canonicalname",
+      "ServiceAccountUID": "actualauthenticated UID",
+      "PodName": "canonicalname",
+      "PodUID": "actualreview/liveUID",
+      "ReplicaSetUID": "actualliveownerUID",
+      "DeploymentUID": "actuallivecontrollerUID",
+      "NodeUID": "actualliveNodeUID",
+      "BootID": "actualliveNodebootUUID",
+      "ObservedAt": "actualgateway UTCmicro afterfinalread",
+      "TokenExpiresAt": "reviewedJWT exp UTCwhole",
+      "ExpiresAt": "min(tokenexp,observed+5s)",
+      "FactsSHA256": "versioneddomain canonical normalizedfacts/request digest, no rawtoken/providercertsignature"
+    },
+    "gatewayWorkloadControl": "Snapshot(ctx,wire.SnapshotRequest)(wire.Snapshot,error); Claim(ctx,wire.ClaimRequest)(wire.ClaimReceipt,error); Finish(ctx,wire.FinishRequest)(wire.FinishReceipt,error). NEWoptional capability from actual original gateway-control client/repository; methods use existing fixedDevice request signing/rawbody. Public legacygatewayControlPlane interface unchanged.",
+    "gatewayPolicyOnlyIdentity": {
+      "AgentID": "nativeUNIQUE currentAgent source matching configuredintegration/cluster/DeploymentUID+currentfresh sourcefacts",
+      "PrincipalID": "nativeactual current KubernetesSA inventoryprincipal matching reviewed namespace/name/UID and current uses_identity relation to SAME Agent; no Stytch/human/securityAgent taskprincipal",
+      "SessionID": "native deterministic workload-instance attribution ID (not authsession)",
+      "SessionKind": "workload-instance literal",
+      "AssociationID": "nativeactive AgentDevicepair",
+      "AssociationVersion": "currentpositive pairversion",
+      "AgentSourceDigest": "current originalstable sourceidentitydigest",
+      "DeviceBinding": "actualorg/work/env/device/credID/gen/expiry",
+      "ProviderFactsSHA256": "trustedGatewaysigned testimony ref",
+      "SnapshotID": "opaque one-use native snapshotID",
+      "SnapshotExpiresAt": "nativebounded expiry"
+    },
+    "session_derivation": "Propose originalcanonicalID helper(scope,kind gateway_workload_instance,nativeID integrationID/ClusterUID/PodUID). Namespace includesintegration topreventcrosscluster collision. Node/boot stored occurrencefacts; exactderivation/backend freeze required. ID is attribution only, no sessiondelegation/permission implied.",
+    "pure_eval": "EvaluateStrictEnvelope(ctx, validatedExactSnapshotEnvelope, normalizedAction)(decision,matchedPolicyIDs,evaluationEvidence,error): pure policyEvaluate only. MUST NOT call legacy runtime.Evaluate/enqueue beforeclaim, no asyncdecisionRecordOnce race. Valid live signedEnvelope only; cacheexpired_open/bootstrapopen do not authorize strictforward. Originallegacy failuremodes unchanged.",
+    "serialization": "PerDevice strictdispatch mutex/lifecycle barrier covers snapshot\u2192pureeval\u2192claim\u2192nativeACK/cachefloor reconciliation\u2192oneupstreamattempt. Before strictReady oldpending decisions must successfully drain and no oldlegacy evaluate routecanenqueue; unknown/quarantine/faileddrain keepsstrictunready. Sync/replayfloor refresh coordinated sameDevice boundary; do not loosen legacyauthority equality or corrupt v2evidence."
+  },
+  "wire_descriptor_proposal": {
+    "encoding": "NEWshared stdlib gatewayworkloadwire; closedversioned JSON exactDTOs/duplicate/null/alias/trailing/UTF/integer/time bounds; frozenfieldorder/nativecanonicalfunctions+knownanswer beforeTDD. Digests only claimbyteidentity whereactualrawbody retained. Device HTTPsignature binds EXACTouterbody; backend treatsproviderfacts ascurrentDevice testimony.",
+    "paths": {
+      "snapshot": "POST /internal/v1/runtime-gateway/workload-policy/snapshot",
+      "claim": "POST /internal/v1/runtime-gateway/workload-policy/claim",
+      "finish": "POST /internal/v1/runtime-gateway/workload-policy/finish"
+    },
+    "SnapshotRequest_keys": [
+      "schema",
+      "request_id",
+      "request_sha256",
+      "provider",
+      "action_kind",
+      "method",
+      "target",
+      "body_sha256",
+      "action",
+      "resource",
+      "policy_version",
+      "policy_sequence",
+      "policy_payload_digest"
+    ],
+    "provider_keys": [
+      "profile",
+      "integration_id",
+      "cluster_uid",
+      "namespace",
+      "service_account_name",
+      "service_account_uid",
+      "pod_name",
+      "pod_uid",
+      "replicaset_uid",
+      "deployment_uid",
+      "node_uid",
+      "boot_id",
+      "observed_at",
+      "token_expires_at",
+      "expires_at"
+    ],
+    "Snapshot_result": "Closed snapshot_id/requestid/requestsha/providerfactsdigest/derivedidentity/associationversion/actualDevicebinding/fullimmutablepublishedsignedpolicyenvelope/installationwitness/expires_at. Native exactpublished policy version+sequence+payloaddigest+key/signature/immutablebody AND original current samecredential installationwitness required; no rawJSONBtext=GoJSON equivalence. Must comparelocalverifiedcurrentEnvelope with nativeexactpublished snapshot according to frozensemanticdigest contract.",
+    "ClaimRequest_keys": [
+      "schema",
+      "snapshot_id",
+      "request_id",
+      "request_sha256",
+      "decision",
+      "policy_ids",
+      "evaluation",
+      "expected_floor",
+      "next_floor",
+      "occurred_at"
+    ],
+    "ClaimReceipt_result": "Exactnativeclaim/dispatchID+requestid/requestsha/snapshotID+decisionID/outcome+currentcredentialgen/newfloor/Deviceversion+dispatchpermit bool derivednativebranch/expiry. Userboolean cannotchoosepermit. NEW committedbranch exactlyonepermit; historicalbranch NEVER permitsforward even if earlierupstreameffectunknown. Fullpublic/private nestedDTOs tobe backendclosed; this proposal doesnot invent implementedfunctions.",
+    "native_claim_required": "Same original registeredgateway-control transaction invokes ORIGINAL Temporal77 eventwriter using exact policy-onlyderivedidentity decision, persists own durableone-use dispatchclaim/immutableorigin facts, performs ownconfirm LASTquery\u2192confirmedCOMMIT\u2192actualnativeACK. No asynclegacyEvaluate enqueuedecision first. Missing/unknowncommit/context/catalog/pair/source/policy/installation/Devicegen/floor =>no forward; authenticatedblockdecision canACKwithoutdispatchpermit.",
+    "floor_reconciliation": "Original nativeRecord writer advances mutablefloor and may Deviceversion. AfternativeACK persist exactconfirmedfloor into runtimeevidence underexistingcacheowner, refreshactualAuthority consistently when nooldpending; never pretend oldfloor mismatch is malicious/stale if matching actualclaimACK. Localpersistfailure aftercommittednativeclaim =>unknown/no forward; nativehistoryconsumed preventslaterpermission toredispatch.",
+    "FinishRequest_keys": [
+      "schema",
+      "dispatch_id",
+      "request_id",
+      "request_sha256",
+      "outcome",
+      "upstream_status",
+      "response_sha256",
+      "completed_at"
+    ],
+    "finish_outcomes": [
+      "succeeded",
+      "rejected",
+      "unknown"
+    ],
+    "unknown_effect": "Claimcommit consumesforwardpermit BEFORE networkeffect. Crashed/lostACK means operationmaynotexecute; sent/lostupstreamresponse means effectUNKNOWN. RetainUNKNOWN immutably; no autoreforward/relabel success and no exactlyonceclaim. Finishrecords metadata only; no responsebody/secret auth.",
+    "backend_manifest_gate": "These names/keys are concrete proposals pending backend frozenmanifest. Root must reconcile exactsnapshot/claim/confirm/finish ABI, nativeone-use authorization/floor and immutablepolicy/installation comparisons before groupedTDD.",
+    "backend_native_ABI_received": {
+      "namespace": "zasp_gateway_workload_route_v1",
+      "snapshot": "snapshot(credential_id,testimony jsonb,request jsonb,pin) -> internalwrapper; confirm_snapshot(cred,testimony,request,expectedwrapper,pin) -> bool",
+      "claim": "claim(cred,snapshot_id,claim_id,decision jsonb,pin) -> wrapper; confirm_claim(cred,snapshot_id,claim_id,expectedwrapper,pin) -> bool",
+      "finish": "finish(cred,snapshot_id,claim_id nullable,outcome jsonb,pin) -> wrapper; confirm_outcome exactargs pendingnativefreeze",
+      "status": "status/expire_routes metadataonly; NEVER recoverdispatchpermit from history",
+      "critical_publishers_gap": "Original publisher15 uses scope+Device+gateway-policy advisory; directpublisher28/22/24/68 sources do not uniformly acquire it. Backendstill auditing actual headserialization seal. Proposedproxy MUST NOT claim complete atomiclatest-policy/currentpublication fence until allwriters composition is closed. No invented advisory fence or immutableparentrewrite."
+    }
+  },
+  "config_proposal": {
+    "keys": [
+      "ZASP_GATEWAY_PROXY_MODE=legacy|kubernetes-policy-v1",
+      "ZASP_GATEWAY_WORKLOAD_INTEGRATION_ID",
+      "ZASP_GATEWAY_WORKLOAD_CLUSTER_UID",
+      "ZASP_GATEWAY_WORKLOAD_KUBERNETES_BASE_URL",
+      "ZASP_GATEWAY_WORKLOAD_KUBERNETES_CA_FILE",
+      "ZASP_GATEWAY_WORKLOAD_KUBERNETES_ALLOWED_CIDRS",
+      "ZASP_GATEWAY_WORKLOAD_REVIEWER_CREDENTIAL_FILE",
+      "ZASP_GATEWAY_WORKLOAD_AUDIENCE",
+      "ZASP_GATEWAY_WORKLOAD_PROFILE_CHECKSUM"
+    ],
+    "fixed_limits": "Providerstage min(parentremaining,5s),evidenceTTL5s,exactMAX13 calls and12MiB+64KiB aggregate. Overall min(existingconfigOperationTimeout,30s); existing operationTimeout<=10s implies actual<=10s unless root separately selects strict-only expansion, never silently broaden legacy config. No perphase deadline reset. Reviewercredential protectedfile rotation and explicit providerTLS.",
+    "default_legacy": "ExistingmandatoryclientTokenFile/config unchanged in legacy. In strictmode no legacytoken/evaluate bypass and no requirement that sharedtoken grantanything. Validate onlyselectedstrict completeconfiguration; feature-specificnative/profile readiness never falselymarks otherglobalplatformgoalscomplete.",
+    "lifecycle": "Cancel incomingstrictrequests and joinflight verifications/dispatchmutex beforeclosingprovidercredential, HTTPtransport, controlclient/runtime/evidenceguard. Never holdsharedcache mutex duringprovider IO; perDevice dispatch barrier is separate."
+  },
+  "five_grouped_boundaries": [
+    {
+      "group": 1,
+      "purpose": "Actual selectedmode/no-bypass/requestshape",
+      "checks": "legacydefault originalmuxregression; strictmode /evaluate andsharedtoken bypassrefused; actual Bearerpodcredential+derivedheaders only; contradictory IDs/capability/taskselectors refused; correct HTTP/MCP action-resource derivesactualtarget/body; no authheader forwarding."
+    },
+    {
+      "group": 2,
+      "purpose": "Actual configured providerverification",
+      "checks": "TLS TokenReview exacttoken+audience plusliveUIDownerchain/SA/cluster/node/boot; JWTexp onlyafteracceptedreview; no unsignedidentity/cachedpositive; malformed/audience/nonPod/deleted/ownerchange/wrongcluster/expiry/redirect/bodybudget/5sstage andsharedoverallcontext refusals. Componentfakeprovider notnativeproof."
+    },
+    {
+      "group": 3,
+      "purpose": "Currentnative snapshot+pureexactpolicy composition",
+      "checks": "actualAgentuniquesource+SA inventoryprincipal+workloadinstancesession/currentpair/currentDevicegen and validexactpublishedinstalledpolicy; obsolete/stale/sourcechanged/multiplematch/policygen/witnessscope failures. Pureevaluation producesNOlegacyenqueue andcapabilityallowdenied; legacyopenmodes unchanged."
+    },
+    {
+      "group": 4,
+      "purpose": "One-useclaim/nativeACK/floor/replay/upstreamunknown",
+      "checks": "originalTemporal77 eventwriter withinclaimTX+lastconfirm+confirmedcommit beforeANYforward; oldpendingdrain/strictready/deviceserialization; actualACKfloor/persist/Authorityupdate; unknowncommit/lostACK/localpersist/crash/upstreamunknown/historicalclaim neverredispatch. Twoindependentcalls sameeventbody mutateatmostonce perclaim; no distributedexactlyonceclaim."
+    },
+    {
+      "group": 5,
+      "purpose": "Productioncomposition/native/deployed evidence",
+      "checks": "closedconfig/defaultlegacy/providercredentials/rbac/readiness/lifecycle; registeredactual Normal/Audit ownprofile proof usingrealprovider+originalTemporal77/nativeDevice/association/policyinstallation, realStytchhumanadmission+actualproviderworkload\u2192gateway\u2192upstream\u2192audit evidence. Originalapproval/budget/task/capabilityauthority untouched/separatemandatory; mockedcomponentpass cannotpromote728ledger orlaunchfullplatform."
+    }
+  ],
+  "remaining_open_before_implementation": [
+    "Backendmanifest exactnative/policy/installation/dispatch receipt andfloor ABI, providerfactsfieldcanonicalization/sourceprincipal mapping/sessionderivation.",
+    "HTTPaction/resource mapping toexisting policyvocabulary andactualURI lengthlimits; confirmquery canonicalization preservesexacttargetwithout semanticloss.",
+    "Currentapprovedmode andstate transitions for strictready/devicefloor/oldpendingdrain+persistentUNKNOWN; preventsameeventlegacy/strict writer race.",
+    "Actual restricted TokenReview+readonly RBAC/provider credentials/CA/cluster scope availableorhonestexternalgate; no approvalbudget/task work closed bypolicyonlylane.",
+    "Actualallpublisher policyhead serialization/fence:15advisory alone insufficient while28/22/24/68directINSERT sources do not share it. Backendsealaudit unresolved; do not fabricate atomiccurrentpolicy proof."
+  ],
+  "claims": "SOURCEONLY draftcontract, no repository/currentbatch edits, Go/Node/tests/native/Git/network execution, detachedprovider/hardwareguarantee, taskscope reduction or productioncompletion. Originalgoals and remainingnonKubernetes/provider/taskapprovalbudget/fullcoverage requirements retained.",
+  "first_draft_sha256": "a51af3a312308a7af4652e919ea4dd69c0e7c7632120eee5b6c90c8861bbc22f"
+}

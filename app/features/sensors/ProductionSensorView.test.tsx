@@ -16,6 +16,7 @@ function sensorAPI(overrides: Partial<SensorsAPI> = {}): SensorsAPI {
     listSensors: async () => [sensor],
     getSensor: async () => ({ value: sensor, version: '"4"' }),
     getSensorCoverage: async () => coverage,
+    getSensorNodeCoverage: async () => { throw new Error("unexpected retained observation read in legacy sensor view"); },
     createSensor: async () => ({ value: enrollment, version: '"1"' }),
     updateSensor: async (_id, _version, value) => ({ value: { ...sensor, ...value, version: 5 }, version: '"5"' }),
     deleteSensor: async () => ({ version: '"5"' }),

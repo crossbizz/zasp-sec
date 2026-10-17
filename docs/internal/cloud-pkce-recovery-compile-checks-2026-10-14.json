@@ -1,0 +1,50 @@
+{
+  "scope": "Compile only, no test execution or native/deployed proof",
+  "packages": [
+    {
+      "package": "connectormaintenance",
+      "exit": 0,
+      "log_sha256": "3d889ab5fff5a7020f59bb82d4ce036c811bd8c5747397e5a78eb7a4e75b1c98"
+    },
+    {
+      "package": "connectormaintenancecutover",
+      "exit": 0,
+      "log_sha256": "9390a873a9a9a50ec85a00835c6adc7e42a63de2b7559e1a0b6adad01f3709ce"
+    },
+    {
+      "package": "authorization",
+      "exit": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "package": "apiserver",
+      "exit": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "package": "agentsec-api",
+      "exit": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "package": "agentsec-worker",
+      "exit": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "package": "runtimeservices",
+      "exit": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "package": "migrations",
+      "exit": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "package": "cmd/zasp-authorization-reconcile",
+      "exit": 0,
+      "log_sha256": "d86d7957db78722731b45f825fea07017157a0bb5cd1f30a11140f1855626f30"
+    }
+  ]
+}

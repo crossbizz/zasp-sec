@@ -20,6 +20,8 @@ import (
 	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+	wire "github.com/zasp-ai/zasp-sec/services/platform/gatewayinstallationwire"
+	"github.com/zasp-ai/zasp-sec/services/platform/internal/cacheownership"
 )
 
 var ErrGatewayPolicy = errors.New("gateway policy rejected")
@@ -31,7 +33,7 @@ const (
 	GatewayPolicyExpiredOpen      = "expired_open"
 	GatewayPolicyExpiredClosed    = "expired_closed"
 	maximumGatewayPolicyBytes     = 1024 * 1024
-	maximumGatewayPolicyDiskBytes = maximumGatewayPolicyBytes + 512
+	maximumGatewayPolicyDiskBytes = maximumGatewayPolicyBytes + 8192
 	ed25519RawURLSignatureLength  = 86
 	maximumGatewayPolicies        = 100
 )
@@ -72,8 +74,10 @@ type GatewayPolicySigningInput struct {
 }
 
 type gatewayPolicyDiskState struct {
-	Envelope   GatewayPolicyEnvelope `json:"envelope"`
-	ObservedAt time.Time             `json:"observed_at"`
+	Version      int                        `json:"version,omitempty"`
+	Installation *gatewayPolicyInstallation `json:"installation,omitempty"`
+	Envelope     GatewayPolicyEnvelope      `json:"envelope"`
+	ObservedAt   time.Time                  `json:"observed_at"`
 }
 
 type GatewayPolicyKeys struct {
@@ -274,15 +278,19 @@ func canonicalGatewayPolicyPayload(envelope GatewayPolicyEnvelope) (string, []by
 }
 
 type GatewayPolicyCache struct {
-	mu         sync.Mutex
-	keys       GatewayPolicyKeys
-	binding    GatewayPolicyBinding
-	now        func() time.Time
-	root       *os.Root
-	name       string
-	closed     bool
-	current    *GatewayPolicyEnvelope
-	observedAt time.Time
+	ownership           *cacheownership.Guard
+	installationEnabled bool
+	diskVersion         int
+	installation        *gatewayPolicyInstallation
+	mu                  sync.Mutex
+	keys                GatewayPolicyKeys
+	binding             GatewayPolicyBinding
+	now                 func() time.Time
+	root                *os.Root
+	name                string
+	closed              bool
+	current             *GatewayPolicyEnvelope
+	observedAt          time.Time
 }
 
 func NewGatewayPolicyCache(keys GatewayPolicyKeys, binding GatewayPolicyBinding, now func() time.Time) (*GatewayPolicyCache, error) {
@@ -290,6 +298,9 @@ func NewGatewayPolicyCache(keys GatewayPolicyKeys, binding GatewayPolicyBinding,
 }
 
 func NewGatewayPolicyDiskCache(path string, keys GatewayPolicyKeys, binding GatewayPolicyBinding, now func() time.Time) (*GatewayPolicyCache, error) {
+	return newGatewayPolicyDiskCache(path, keys, binding, now, false)
+}
+func newGatewayPolicyDiskCache(path string, keys GatewayPolicyKeys, binding GatewayPolicyBinding, now func() time.Time, installationEnabled bool) (*GatewayPolicyCache, error) {
 	if !filepath.IsAbs(path) || filepath.Clean(path) != path || filepath.Base(path) == "." || filepath.Base(path) == string(filepath.Separator) {
 		return nil, ErrGatewayPolicy
 	}
@@ -302,6 +313,18 @@ func NewGatewayPolicyDiskCache(path string, keys GatewayPolicyKeys, binding Gate
 		return nil, ErrGatewayPolicy
 	}
 	cache.root, cache.name = root, name
+	if installationEnabled && !cacheownership.Supported() {
+		_ = cache.Close()
+		return nil, ErrGatewayPolicy
+	}
+	if cacheownership.Supported() {
+		cache.ownership, err = cacheownership.Acquire(root, name)
+		if err != nil {
+			_ = cache.Close()
+			return nil, ErrGatewayPolicy
+		}
+	}
+	cache.installationEnabled = installationEnabled
 	raw, err := readGatewayPolicyRoot(root, name)
 	if errors.Is(err, os.ErrNotExist) {
 		return cache, nil
@@ -315,7 +338,7 @@ func NewGatewayPolicyDiskCache(path string, keys GatewayPolicyKeys, binding Gate
 		_ = cache.Close()
 		return nil, err
 	}
-	if !canonicalGatewayTime(state.ObservedAt) {
+	if !canonicalGatewayTime(state.ObservedAt) || state.Version != 0 && state.Version != 2 || state.Version == 0 && state.Installation != nil {
 		_ = cache.Close()
 		return nil, ErrGatewayPolicy
 	}
@@ -325,13 +348,27 @@ func NewGatewayPolicyDiskCache(path string, keys GatewayPolicyKeys, binding Gate
 		_ = cache.Close()
 		return nil, err
 	}
-	canonical, err := marshalGatewayPolicyDiskState(verified, state.ObservedAt)
+	if !validGatewayInstallation(state.Installation, verified) {
+		_ = cache.Close()
+		return nil, ErrGatewayPolicy
+	}
+	if state.Installation != nil {
+		witness, err := wire.ParseObservation(state.Installation.Body)
+		if err != nil || witness.InstalledObservedAt.After(state.ObservedAt) {
+			_ = cache.Close()
+			return nil, ErrGatewayPolicy
+		}
+	}
+	cache.diskVersion, cache.installation = state.Version, cloneGatewayInstallation(state.Installation)
+	canonical, err := marshalGatewayPolicyState(verified, state.ObservedAt, state.Version, state.Installation)
 	if err != nil || !bytes.Equal(raw, canonical) {
 		_ = cache.Close()
 		return nil, ErrGatewayPolicy
 	}
-	if effectiveNow.After(state.ObservedAt) {
-		if err := writeGatewayPolicyRoot(root, name, verified, effectiveNow); err != nil {
+	// Re-establish full durability of a recovered witness before exposing it.
+	// This also covers a previous process whose final write outcome was unknown.
+	if effectiveNow.After(state.ObservedAt) || installationEnabled && state.Installation != nil {
+		if err := cache.persistInstallationStateLocked(verified, effectiveNow, cache.installation, cache.diskVersion); err != nil {
 			_ = cache.Close()
 			return nil, err
 		}
@@ -366,7 +403,7 @@ func (cache *GatewayPolicyCache) Store(envelope GatewayPolicyEnvelope) error {
 	}
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
-	if cache.closed {
+	if cache.closed || cache.ownership != nil && !cache.ownership.Valid() {
 		return ErrGatewayPolicy
 	}
 	effectiveNow := laterGatewayTime(nowValue, cache.observedAt)
@@ -383,7 +420,7 @@ func (cache *GatewayPolicyCache) Store(envelope GatewayPolicyEnvelope) error {
 				return ErrGatewayPolicy
 			}
 			if cache.root != nil {
-				if err := writeGatewayPolicyRoot(cache.root, cache.name, verified, effectiveNow); err != nil {
+				if err := cache.persistInstallationStateLocked(verified, effectiveNow, cache.installation, cache.diskVersion); err != nil {
 					return err
 				}
 			}
@@ -395,10 +432,13 @@ func (cache *GatewayPolicyCache) Store(envelope GatewayPolicyEnvelope) error {
 		}
 	}
 	if cache.root != nil {
-		if err := writeGatewayPolicyRoot(cache.root, cache.name, verified, effectiveNow); err != nil {
+		// A genuinely newer legacy Store supersedes the old credential-bound
+		// witness explicitly. It cannot attribute that witness to this envelope.
+		if err := cache.persistInstallationStateLocked(verified, effectiveNow, nil, cache.diskVersion); err != nil {
 			return err
 		}
 	}
+	cache.installation = nil
 	cloned := cloneGatewayPolicyEnvelope(verified)
 	cache.current = &cloned
 	cache.observedAt = effectiveNow
@@ -415,7 +455,7 @@ func (cache *GatewayPolicyCache) Current() (GatewayPolicyEnvelope, string, error
 	}
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
-	if cache.closed {
+	if cache.closed || cache.ownership != nil && !cache.ownership.Valid() {
 		return GatewayPolicyEnvelope{}, "", ErrGatewayPolicy
 	}
 	if cache.current == nil {
@@ -429,7 +469,7 @@ func (cache *GatewayPolicyCache) Current() (GatewayPolicyEnvelope, string, error
 	}
 	if effectiveNow.After(cache.observedAt) {
 		if cache.root != nil {
-			if err := writeGatewayPolicyRoot(cache.root, cache.name, verified, effectiveNow); err != nil {
+			if err := cache.persistInstallationStateLocked(verified, effectiveNow, cache.installation, cache.diskVersion); err != nil {
 				return GatewayPolicyEnvelope{}, "", err
 			}
 		}
@@ -460,9 +500,14 @@ func (cache *GatewayPolicyCache) Close() error {
 	if cache.root == nil {
 		return nil
 	}
+	var ownershipErr error
+	if cache.ownership != nil {
+		ownershipErr = cache.ownership.Close()
+		cache.ownership = nil
+	}
 	err := cache.root.Close()
 	cache.root = nil
-	if err != nil {
+	if err != nil || ownershipErr != nil {
 		return ErrGatewayPolicy
 	}
 	return nil
@@ -497,10 +542,13 @@ func decodeGatewayPolicyDiskState(reader io.Reader) (gatewayPolicyDiskState, err
 }
 
 func marshalGatewayPolicyDiskState(envelope GatewayPolicyEnvelope, observedAt time.Time) ([]byte, error) {
+	return marshalGatewayPolicyState(envelope, observedAt, 0, nil)
+}
+func marshalGatewayPolicyState(envelope GatewayPolicyEnvelope, observedAt time.Time, version int, installation *gatewayPolicyInstallation) ([]byte, error) {
 	if !canonicalGatewayTime(observedAt) {
 		return nil, ErrGatewayPolicy
 	}
-	bytesValue, err := json.Marshal(gatewayPolicyDiskState{Envelope: cloneGatewayPolicyEnvelope(envelope), ObservedAt: observedAt})
+	bytesValue, err := json.Marshal(gatewayPolicyDiskState{Version: version, Installation: cloneGatewayInstallation(installation), Envelope: cloneGatewayPolicyEnvelope(envelope), ObservedAt: observedAt})
 	if err != nil || len(bytesValue) > maximumGatewayPolicyDiskBytes {
 		return nil, ErrGatewayPolicy
 	}
@@ -538,12 +586,15 @@ func readGatewayPolicyRoot(root *os.Root, name string) ([]byte, error) {
 	return raw, nil
 }
 
-func writeGatewayPolicyRoot(root *os.Root, name string, envelope GatewayPolicyEnvelope, observedAt time.Time) (result error) {
-	if root == nil || name == "" {
-		return ErrGatewayPolicy
-	}
+func writeGatewayPolicyRoot(root *os.Root, name string, envelope GatewayPolicyEnvelope, observedAt time.Time) error {
 	bytesValue, err := marshalGatewayPolicyDiskState(envelope, observedAt)
 	if err != nil {
+		return ErrGatewayPolicy
+	}
+	return writeGatewayPolicyBytesRoot(root, name, bytesValue)
+}
+func writeGatewayPolicyBytesRoot(root *os.Root, name string, bytesValue []byte) (result error) {
+	if root == nil || name == "" {
 		return ErrGatewayPolicy
 	}
 	if info, statErr := root.Lstat(name); statErr == nil {
@@ -585,6 +636,12 @@ func writeGatewayPolicyRoot(root *os.Root, name string, envelope GatewayPolicyEn
 	}
 	defer directoryFile.Close()
 	if err := directoryFile.Sync(); err != nil {
+		return ErrGatewayPolicy
+	}
+	// Emission is permitted only after the completed fsync/rename/directory
+	// fsync sequence and an exact readback through the pinned parent.
+	readback, err := readGatewayPolicyRoot(root, name)
+	if err != nil || !bytes.Equal(readback, bytesValue) {
 		return ErrGatewayPolicy
 	}
 	return nil

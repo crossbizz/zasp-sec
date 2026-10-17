@@ -103,12 +103,12 @@ func TestConfiguredButUnverifiedIdentityProviderCannotMakeSystemHealthy(t *testi
 	request = request.WithContext(context.WithValue(request.Context(), identityContextKey{}, fixtureRequestIdentity(t)))
 	request = request.WithContext(context.WithValue(request.Context(), routedOperationContextKey{}, RoutedOperation{OperationID: "getSystemStatus", PathParameters: map[string]string{}}))
 	response := httptest.NewRecorder()
-	(&identityHTTPHandler{provider: CallbackProviderFunc(func(context.Context, string, string) (SessionGrant, error) { return SessionGrant{}, nil }), now: func() time.Time { return time.Date(2026, 8, 19, 0, 0, 0, 0, time.UTC) }}).ServeHTTP(response, request)
+	(&identityHTTPHandler{version: "1.5.0", provider: CallbackProviderFunc(func(context.Context, string, string) (SessionGrant, error) { return SessionGrant{}, nil }), now: func() time.Time { return time.Date(2026, 8, 19, 0, 0, 0, 0, time.UTC) }}).ServeHTTP(response, request)
 	var value struct {
 		Healthy  bool `json:"security_plane_healthy"`
 		Degraded bool `json:"optional_degraded"`
 	}
-	if json.Unmarshal(response.Body.Bytes(), &value) != nil || response.Code != http.StatusOK || value.Healthy || !value.Degraded {
+	if json.Unmarshal(response.Body.Bytes(), &value) != nil || response.Code != http.StatusOK || value.Healthy || value.Degraded {
 		t.Fatalf("configured-only provider health = %d %s", response.Code, response.Body.String())
 	}
 }

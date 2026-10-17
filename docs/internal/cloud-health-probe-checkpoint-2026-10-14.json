@@ -1,0 +1,197 @@
+{
+  "schema": "zasp-health-probe-checkpoint-v1",
+  "date_utc": "2026-10-14",
+  "base": "0a30e517cc89aa82eb5ab4e8b9b93439ab1ee02d",
+  "scope": "One bounded API health-probe observation; no product authorization cache, native worker activation or deployment proof.",
+  "original_requirements": [
+    "M1-28a",
+    "M1-28b",
+    "M1-28"
+  ],
+  "change": [
+    "Both original role-specific native runtime queries execute freshly and concurrently; failure cancels and joins both.",
+    "After both pass, identical release/principal metadata can reuse those observations only within the component callback and remaining original deadline.",
+    "An unexported seal binds database pointers, API roles, current compiled pins and original parent cancellation; it is invalidated on return.",
+    "Only SchemaVersion and four exact closed metadata cases consult it after original checks; identity, source/export, connector-native and every product authorization path remain independent."
+  ],
+  "limits": [
+    "Two separate connections do not form one atomic PostgreSQL snapshot.",
+    "Fake-driver counts show redundant calls removed; hosted performance and real native DDL/revocation acceptance are unproven.",
+    "Current browser setup still selects legacy connector AND approval workers under current80; ambient worker claims are correctly denied and final worker readiness cannot pass. Supported profile/principal/key installation and controlled cutover are separate next work."
+  ],
+  "checks": [
+    {
+      "group": "apiserver",
+      "tops": [
+        "TestCurrentAuthorizationHealthProbeCancellationAndAdmission",
+        "TestCurrentAuthorizationHealthProbeScope",
+        "TestP7AuthorizationConstructorPrincipal"
+      ],
+      "events": {
+        "run": 6,
+        "pass": 6,
+        "fail": 0,
+        "skip": 0
+      },
+      "log": "/tmp/health-probe-apiserver-final-20261014.jsonl",
+      "sha256": "578c65f17cdb9bed51033658028fe080977c0914f2c18d847ab191dee493987f"
+    },
+    {
+      "group": "existing-boundaries",
+      "tops": [
+        "TestP7AuthorizationTransactionBoundary",
+        "TestP7GuardedRuntimeReadinessAdapter"
+      ],
+      "events": {
+        "run": 18,
+        "pass": 18,
+        "fail": 0,
+        "skip": 0
+      },
+      "log": "/tmp/health-probe-existing-boundaries-final-20261014.jsonl",
+      "sha256": "e8c840901df59581d0d783c514f5a9655dfce690a7612c510e387ebc3e38e279"
+    },
+    {
+      "group": "main",
+      "tops": [
+        "TestCurrentReadinessPipelineStartsAllIndependentMetadata",
+        "TestLegacyReadinessNeverStartsPreviousAfterAuthorizationRefusal",
+        "TestOwnedReadinessDiagnosticPreservesGateAndClosedOutput",
+        "TestP7GuardedRuntimeReadinessCallback",
+        "TestP7GuardedRuntimeReadinessStartupGate",
+        "TestServiceRefusalIdentityAndNoMetadataArePreserved",
+        "TestStartupAuthorizationUsesIndependentParentBudget"
+      ],
+      "events": {
+        "run": 24,
+        "pass": 24,
+        "fail": 0,
+        "skip": 0
+      },
+      "log": "/tmp/health-probe-main-final-20261014.jsonl",
+      "sha256": "e4f631ccd698329eae211289a21972b9360be6b3b104ecc0423123ce2e0b7238"
+    }
+  ],
+  "test_totals": {
+    "tops": 12,
+    "named_run_pass_events": 48,
+    "fail": 0,
+    "skip": 0
+  },
+  "review": {
+    "status": "source-review-pass",
+    "review_scope": "Independent read-only security and performance review of health-only observation changes against index; excludes reviewer-owned callback implementation and native execution claims.",
+    "source_bindings": {
+      "services/platform/apiserver/current_authorization_health_probe.go": {
+        "sha256": "3bed74745ef1056405965605ea6c45b949e842bf29065e8665e7900ec3cd8a66",
+        "bytes": 3588,
+        "index_sha256": null,
+        "differs_from_index": true
+      },
+      "services/platform/apiserver/current_authorization_health_probe_test.go": {
+        "sha256": "09361c7c963d5f3d508b9c534d92c5b7d6bcf2f19c4c46b8413088c0b974c593",
+        "bytes": 8849,
+        "index_sha256": null,
+        "differs_from_index": true
+      },
+      "services/platform/apiserver/authorization_readiness.go": {
+        "sha256": "ad1a94117de4e63b9c7ef15faf4c4744e6a6675b44ad6da1d7991cb63fcb683a",
+        "bytes": 6038,
+        "index_sha256": "98b9b65bcecf092609ea978ee04f60ccb14016240a82745a49ee776d36478ca4",
+        "differs_from_index": true
+      },
+      "services/platform/agentsec-api/authorization_runtime_readiness.go": {
+        "sha256": "33d0478de4ed7db1b79ad12fe63fb117965bb95cef770f999ab4ef35f015284d",
+        "bytes": 5114,
+        "index_sha256": "9a3901f7d3ac21b22807b74c4c2f1a2a15da43a3e8f6236073ee8329f257f77e",
+        "differs_from_index": true
+      },
+      "services/platform/agentsec-api/bounded_parallel_readiness_test.go": {
+        "sha256": "4a82a77cf64184177b7f7bde1ee56d736e5d9bd6624b7174e9f45e9a48043951",
+        "bytes": 7875,
+        "index_sha256": "d48148963b251a70b39b72704508af953785d5faa750d0f1b80fa9e07f230bf6",
+        "differs_from_index": true
+      },
+      "services/platform/agentsec-api/authorization_runtime_readiness_test.go": {
+        "sha256": "ce2482c386799ad758b374d4e823a0e797cb907cf01daad2c449eb68fb3eb781",
+        "bytes": 17768,
+        "index_sha256": "ce2482c386799ad758b374d4e823a0e797cb907cf01daad2c449eb68fb3eb781",
+        "differs_from_index": false
+      }
+    },
+    "findings": [],
+    "resolved_during_review": [
+      {
+        "id": "escaped-cancelled-test-expectation",
+        "description": "Originally escaped callback context was incorrectly expected to query fresh SQL despite deferred cancellation. Current test correctly requires canceled-context denial and separately verifies bounded WithoutCancel reattachment falls back to fresh SQL after seal invalidation.",
+        "status": "resolved in reviewed current source"
+      }
+    ],
+    "security_conclusions": [
+      "Both actual role-specific CurrentAuthorizationRuntimeReady SQL queries execute before observation creation; production_ready validates exact principal, composed profile, catalog/audit and key.",
+      "Reuse is limited to identical database pointers with matching fixed API authority and exact existing SchemaVersion/four metadata operations after original pin/argument checks.",
+      "Database mutex/closed checks, request context cancellation, original observation parent cancellation, bounded deadline and atomic active flag constrain reuse.",
+      "No reuse added to product QueryJSON authorization, identity SQL, CurrentAuthorizationSourceReady52/56, actual runtime probe SQL, FGA decisions or attestation paths.",
+      "Current runtime caller keeps original shared five-second bound; components receive only remaining time after successful role probes. No deadline extension or positive authorization cache introduced.",
+      "Observer production caller maps to closed phase/outcome enums; no dependency error contents are published by reviewed runtime observer."
+    ],
+    "performance_conclusions": [
+      "Two role-specific queries remain parallel and joined; duplicated covered metadata reads within component health callback can be avoided.",
+      "Independent connections do not form one MVCC snapshot. Health can become stale within the bounded callback after concurrent DDL/key/principal change; product authorization must continue fresh checks, as current paths do.",
+      "No measured speedup or browser startup fix is established by source review."
+    ],
+    "execution_limits": {
+      "reviewer_executed_tests": false,
+      "reviewer_executed_native_postgres": false,
+      "reviewer_executed_race_checks": false,
+      "production_or_provider_verification": false,
+      "behavioral_red_observed": false,
+      "tdd_note": "Reported earlier RED was compilation-only; no behavioral RED or TDD completion claimed by this review.",
+      "native_remaining": "Actual new health scope with role/key revocation and catalog DDL must be verified through guarded native acceptance; component driver refusals are not native proof."
+    },
+    "mutations": {
+      "repository_files": false,
+      "git": false
+    }
+  },
+  "review_artifact_sha256": "9f999d1a285c5b7a66c34c2d009b91917bc15f7cbc3e01309fc4732ab3618f1f",
+  "preserved_development_failures": [
+    {
+      "path": "/tmp/health-probe-red-20261014.log",
+      "sha256": "27e42c60508fc6af8501fa16fdbc19b80cd17b4b1d27dc90fc7d1c019ba4cfea",
+      "classification": "missing API compile refusal; not behavior-first RED"
+    },
+    {
+      "path": "/tmp/health-probe-green-20261014.log",
+      "sha256": "e464bf549f39d152dbdcdeaf8ed95fa7d0b1622e77cbe62982e7188ef282122d",
+      "classification": "duplicate retained escaped canceled-context expectation failure; identical bytes to intermediate-failure log, not a distinct failed run"
+    },
+    {
+      "path": "/tmp/health-probe-intermediate-failure-20261014.log",
+      "sha256": "e464bf549f39d152dbdcdeaf8ed95fa7d0b1622e77cbe62982e7188ef282122d",
+      "classification": "incorrect escaped canceled-context expectation; corrected before final verification"
+    }
+  ],
+  "tdd_limitation": "The initial RED was a compile boundary, not an observed preimplementation behavioral failure. No strict behavior-first TDD claim is made for this performance batch.",
+  "ui_checks": {
+    "typecheck": {
+      "result": "pass",
+      "log": "/tmp/zasp-combined-publication-typecheck-20261014.log",
+      "sha256": "f48bd1876f5408ffc0d939a2b0d826961d6115e6598a272fea04d98ac0431816"
+    },
+    "production_build": {
+      "result": "pass",
+      "log": "/tmp/zasp-combined-publication-build-20261014.log",
+      "sha256": "8910c0fe486a92a7bbcfb8a9f2d935bd46aa3cc28b5a69a7af43400c8f72b759"
+    }
+  },
+  "ledger": {
+    "rows": 728,
+    "recorded_production_available": 523,
+    "component_only": 144,
+    "blocked_external": 61,
+    "missing": 0,
+    "promotions": 0
+  },
+  "production": "not accepted; real deployment account/origins/private access, 50 application bindings, worker activation, provider integrations and all remaining original requirements remain required"
+}

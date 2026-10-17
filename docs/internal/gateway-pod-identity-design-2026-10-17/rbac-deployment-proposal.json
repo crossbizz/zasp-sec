@@ -1,0 +1,178 @@
+{
+  "classification": "SOURCE_ONLY_LEAST_PRIVILEGE_OPERATOR_AND_DEPLOYMENT_PROPOSAL_NOT_APPLIED_NOT_PROVIDER_OR_LAUNCH_EVIDENCE",
+  "created_at": "2026-10-17T21:53:01.739800+00:00",
+  "selected_contract": {
+    "path": "/tmp/authentic-agent-routing-proxy-contract-20261017.json",
+    "sha256": "231a8ed445fbd563e70b9aecf4f7d91e1c245ba58010007d357c72c4e63c00f3"
+  },
+  "source_pins": [
+    {
+      "path": "services/gatewaypodidentity/verifier.go",
+      "bytes": 2424,
+      "sha256": "6bec9810b38f6fa7d91c8ae4a9563dc5eb66446f6380f27f81591a4c9b3562ca"
+    },
+    {
+      "path": "services/gatewaypodidentity/verifier_test.go",
+      "bytes": 15529,
+      "sha256": "4d1fd5b47c96f5a18fc23a76cb8903fc083172832eefdfb17a2f50748ce6d28d"
+    },
+    {
+      "path": "services/gatewaypodidentity/go.mod",
+      "bytes": 74,
+      "sha256": "181430e321f407f020922eaa24199661ff52e8739ff454ab96002ff343459f91"
+    },
+    {
+      "path": "deploy/staging/product/templates/edge.yaml",
+      "bytes": 34227,
+      "sha256": "a1da5ca57f332644bbacaf367c94e3dde3479315bfb2bc64a653e4d7b082f7e3"
+    },
+    {
+      "path": "deploy/staging/product/values-customer-edge.yaml",
+      "bytes": 846,
+      "sha256": "35b8ac91426acf20091c0e551b31e8eae45a57bd2e77edfbeb49d8d1de820b19"
+    },
+    {
+      "path": "deploy/production/release-contract.mjs",
+      "bytes": 89859,
+      "sha256": "583d0123267baa68180b549f44d9458fd6b769a19456ed3dbc26d3a356ea0536"
+    }
+  ],
+  "initial_profile": "Gateway-local TokenReview plus kube-system Namespace/ServiceAccount/Pod/ReplicaSet/Deployment/Node double GET. Deployment\u2192ReplicaSet\u2192Pod only; no DaemonSet/StatefulSet/Job/standalone-Pod ownership fallback. Root is shipping independent stdlib verifier component first, not activating strict production proxy.",
+  "exact_calls_and_bounds": {
+    "TokenReview_POST": 1,
+    "read_objects_each_round": [
+      "kube-system Namespace",
+      "actual authenticated workload ServiceAccount",
+      "actual reviewed Pod",
+      "single controlling ReplicaSet",
+      "single controlling Deployment",
+      "Pod-scheduled Node"
+    ],
+    "GET_rounds": 2,
+    "max_total_calls": 13,
+    "stage_deadline": "min(parentremaining,5s) TOTAL, no per-call reset",
+    "budgets": "TokenReview<=64KiB, each object<=1MiB, aggregate<=12MiB+64KiB, no truncation",
+    "evidence": "Gateway observedAt after final read, expires=min(authenticated JWTexp,observedAt+5s); no positive identity cache/retries/redirects. ResourceVersion churn alone not identity change; compare UID/namespace/SA/controller/delete/node/boot facts."
+  },
+  "permission_mapping": [
+    {
+      "api_group": "authentication.k8s.io",
+      "resource": "tokenreviews",
+      "verb": "create",
+      "scope": "cluster",
+      "resource_names": null,
+      "reason": "POST TokenReview is create, even though it is an authentication check rather than a stored credential. resourceNames cannot meaningfully constrain this unnamed create request. This permission authenticates presented tokens; it does NOT mint tokens or product grants."
+    },
+    {
+      "api_group": "",
+      "resource": "namespaces",
+      "verb": "get",
+      "scope": "cluster",
+      "resource_names": [
+        "kube-system"
+      ],
+      "reason": "Read exact namespace UID and deletion facts. No namespace list/watch/allnamespace GET."
+    },
+    {
+      "api_group": "",
+      "resource": "nodes",
+      "verb": "get",
+      "scope": "cluster",
+      "resource_names": "Preferred explicit operator-approved actual Node name allowlist",
+      "reason": "Node name is learned from authenticated live Pod scheduling. No Nodes list/watch/proxy. RBAC cannot dynamically constrain GET to the Node referenced by a reviewed Pod. New scheduling outside finite allowlist fails closed until explicit operator reconciliation; never auto-widen."
+    },
+    {
+      "api_group": "",
+      "resource": "serviceaccounts",
+      "verb": "get",
+      "scope": "configured workload Namespace only",
+      "resource_names": "Explicit operator-approved ServiceAccount names",
+      "reason": "Must compare actual SA UID to same-token TokenReview user.uid and Pod serviceAccountName on both reads. Not a token creation or identity grant."
+    },
+    {
+      "api_group": "",
+      "resource": "pods",
+      "verb": "get",
+      "scope": "configured workload Namespace only",
+      "resource_names": "Dynamic rollout names; exact allowlist if operator can maintain it, otherwise namespaced GET only",
+      "reason": "RBAC has no ownerUID/label predicate for GET. This inevitably permits metadata GET of other known Pod names in the same namespace; declare the blast radius. Verifier still follows only authenticated Pod name+UID."
+    },
+    {
+      "api_group": "apps",
+      "resource": "replicasets",
+      "verb": "get",
+      "scope": "same configured workload Namespace",
+      "resource_names": "Dynamic rollout names; same least-privilege limitation as Pod GET",
+      "reason": "Follow single Pod controller owner and compare actual UID, then single Deployment owner. No ReplicaSet list/watch."
+    },
+    {
+      "api_group": "apps",
+      "resource": "deployments",
+      "verb": "get",
+      "scope": "same configured workload Namespace",
+      "resource_names": "Explicit operator-approved Deployment names",
+      "reason": "Deployment-only initial profile validates actual parent UID twice; no alternate workload type fallback."
+    }
+  ],
+  "reviewer_identity": {
+    "selected_minimal_incluster_proposal": "Explicit operator binding of existing agentsec/runtime-gateway Kubernetes ServiceAccount to NEW narrow reviewer ClusterRole and namespaced object-reader Role. Retain serviceAccountName and automountServiceAccountToken:false. Separate credential purpose/file, not a new Device identity. This is proposed additional Kubernetes privilege requiring normal operator provisioning; no permission has been granted.",
+    "why_not_discovery": "Do not reuse sensor-agent, connector/discovery get/list/watch roles or their tokens. Existing sensor-lineage ClusterRole grants Nodes get/list and sensor observation is a different purpose. New verifier requires only the exact TokenReview create + GET rules above. Groups from TokenReview are not product authorization.",
+    "explicit_exclusions": [
+      "list",
+      "watch",
+      "secrets get",
+      "configmaps API get",
+      "serviceaccounts/token create",
+      "tokenrequests create",
+      "pods/exec",
+      "pods/log",
+      "pods/attach",
+      "nodes/proxy",
+      "impersonate",
+      "bind",
+      "escalate",
+      "admission webhooks",
+      "RBAC/namespace/workload mutation"
+    ],
+    "remote_cluster": "If gateway runs outside target cluster, kubelet projection from the local cluster cannot supply remote reviewer identity. Operator must provision an independently approved conforming rotating reviewer file for the pinned target cluster; no credentials are borrowed from discovery or Device clients."
+  },
+  "trust_and_credentials": {
+    "provider_origin_CA": "Operator pins one HTTPS Kubernetes origin, explicit CA PEM and approved actual destination CIDRs/port. Endpoint/integration/namespace/clusterUID never selected by JWTissuer, body, URL or caller tenant headers. No redirect/JWKS/discovery fallback. Read public CA from separately trusted projected ConfigMap or operator file; CA rotation requires explicit trust/config replacement and verifier restart if CA is pinned at construction.",
+    "reviewer_file_contract": "ReviewerCredentialFile is a bounded current-UID-owned regular0600 file according to the selected verifier plan; reread at each verification, no auth-token cache. Protect parent/output ownership through the publisher contract. File path is not a Device key, browser session, PAT, sensor token, workload bearer or AWS token.",
+    "projection_mismatch_gate": "Direct kubelet projected token paths are symlinks/root-owned with read permissions via fsGroup. They DO NOT satisfy currentUID regular0600 input. Existing one-time materialize-config init copy would cease rotating. No claim that the raw projection can be fed directly to the selected verifier.",
+    "rotation_prerequisite": "A continuously running, separately reviewed same-UID protected-file publisher must safely reopen rotated kubelet projection input, validate bounded complete token bytes, publish immutable0600 owned regular output atomically with inode/lifecycle protections, and refresh before actual expiry. Alternatively an already provisioned operator secret agent may provide the identical contract. That publisher/agent image, implementation and real rotation evidence are NOT present or invented in this proposal. Absent/malformed/expired file => new strict request denied, no stale-token or legacy fallback.",
+    "reviewer_audience": "Projected reviewer token audience must exactly be a REAL accepted Kubernetes API audience; https://kubernetes.default.svc in fragment is illustrative and must be verified from cluster operator configuration. This is distinct from the selected workload audience.",
+    "workload_audience_projection": "Operator explicitly configures one workload audience, illustrated zasp-gateway-policy-v1. Workload Deployment Pod uses bound serviceAccountToken projection, expirationSeconds900 (Kubernetes minimum requested lifetime600). Caller reopens projected path for each request and sends Bearer only to configured strict gateway. Requested lifetime is not assumed equal to actual JWTexp; verifier uses exp only after authenticated same-token TokenReview.",
+    "issuer": "Trusted target API server TokenReview is the signature/issuer authority; cluster --service-account-issuer must be recorded/verified in operator handoff. Never fetch a caller iss URL or use an unsigned decoded issuer as identity. Current verifier Config has no explicit ExpectedIssuer; if root requires local issuer equality in addition to TokenReview, add a reviewed closed contract successor before implementation rather than pretending an issuer pin already exists.",
+    "pod_binding": "Require actual authenticated TokenReview status audience and exact pod-name/pod-uid extras, username system:serviceaccount:<namespace>:<SA>, user.uid actual SA UID. Only afterwards parse/crosscheck JWT sub,kubernetes.io namespace/SA UID/Pod UID and actual exp. Actual provider must support required bound-token extras; unsupported cluster/non-Pod/legacy token denied. Pod bearer possession does not prove originating process/container, node hardware or network path."
+  },
+  "network_and_deployment": {
+    "default": "No production activation. Future strict mode exact kubernetes-policy-v1 must be explicit operator selection; legacy remains default and old implementation is not retired. Independent verifier component passing is not native/control/proxy integration.",
+    "egress": "Only pinned API-server CIDRs and actual HTTPS port, preserving existing DNS/control/upstream egress. If service VIP NAT policy behavior differs, validate real CNI and allow only actual approved destinations; no 0.0.0.0/0, redirects, hostname-only NetworkPolicy assumption or network-policy-as-identity claim.",
+    "ingress": "Strict proxy receives only intended workload namespaces/Pod selectors at existing product port8080 under normal operator NetworkPolicy. Selectors reduce network exposure; cryptographic authorization remains current bound token+live chain. Do not expose internal health/control port8081 to workloads.",
+    "separation": "Mount reviewer sources/protected output only into actual runtime-gateway verifier consumer and admitted file publisher. Workload receives only its own Pod token. No secret data/issuer/rawtoken in Helm args/release history, browser, logs, traces or upstream headers. TLS provider/reviewer config and Device credential files are distinct purposes.",
+    "operational": "Cancel/join outstanding verifier requests before transport/file publisher close; no cache-owner mutex during provider I/O. Actual projected token expiry/rotation, provider401/403, DNS/CA/CIDR failures deny strict requests without bypass. Provider read success does not prove product association/current publication/one-use dispatch fences."
+  },
+  "yaml_proposals": {
+    "rbac_multi_document": "# SOURCE-ONLY operator proposal; NOT applied or production-ready evidence.\n# Replace named workload/deployment/service-account/node constraints from an\n# approved real cluster inventory before submitting through normal change review.\napiVersion: rbac.authorization.k8s.io/v1\nkind: ClusterRole\nmetadata:\n  name: zasp-runtime-gateway-token-reviewer\nrules:\n  - apiGroups: [authentication.k8s.io]\n    resources: [tokenreviews]\n    verbs: [create]\n  - apiGroups: [\"\"]\n    resources: [namespaces]\n    resourceNames: [kube-system]\n    verbs: [get]\n  - apiGroups: [\"\"]\n    resources: [nodes]\n    resourceNames: [operator-approved-node-replace]\n    verbs: [get]\n---\napiVersion: rbac.authorization.k8s.io/v1\nkind: ClusterRoleBinding\nmetadata:\n  name: zasp-runtime-gateway-token-reviewer\nroleRef:\n  apiGroup: rbac.authorization.k8s.io\n  kind: ClusterRole\n  name: zasp-runtime-gateway-token-reviewer\nsubjects:\n  - kind: ServiceAccount\n    name: runtime-gateway\n    namespace: agentsec\n---\napiVersion: rbac.authorization.k8s.io/v1\nkind: Role\nmetadata:\n  name: zasp-runtime-gateway-object-reader\n  namespace: workload-namespace-replace\nrules:\n  - apiGroups: [\"\"]\n    resources: [serviceaccounts]\n    resourceNames: [operator-approved-workload-sa-replace]\n    verbs: [get]\n  # Pod and ReplicaSet names change on rollout. Kubernetes RBAC cannot bind\n  # these GET permissions to owner UID or labels. No list/watch is granted.\n  - apiGroups: [\"\"]\n    resources: [pods]\n    verbs: [get]\n  - apiGroups: [apps]\n    resources: [replicasets]\n    verbs: [get]\n  - apiGroups: [apps]\n    resources: [deployments]\n    resourceNames: [operator-approved-deployment-replace]\n    verbs: [get]\n---\napiVersion: rbac.authorization.k8s.io/v1\nkind: RoleBinding\nmetadata:\n  name: zasp-runtime-gateway-object-reader\n  namespace: workload-namespace-replace\nroleRef:\n  apiGroup: rbac.authorization.k8s.io\n  kind: Role\n  name: zasp-runtime-gateway-object-reader\nsubjects:\n  - kind: ServiceAccount\n    name: runtime-gateway\n    namespace: agentsec\n",
+    "reviewer_input_and_protected_output_fragments": "# FRAGMENTS ONLY, not a complete Deployment or a credential publisher.\n# Add only to an explicitly selected future strict-mode runtime-gateway Pod.\n# Existing runtime-gateway ServiceAccount and automountServiceAccountToken:false\n# remain unchanged. Never mount reviewer input/output into workload containers.\n# Reviewer projection is INPUT to a separately admitted continuously rotating\n# same-UID protected-file publisher. Direct verifier use fails the current\n# regular/currentUID/0600 contract; a one-time init copy does not rotate.\nvolumes:\n  - name: provider-reviewer-source\n    projected:\n      defaultMode: 288 # 0440; root:Pod fsGroup, publisher-readable source only\n      sources:\n        - serviceAccountToken:\n            path: reviewer-token\n            expirationSeconds: 900\n            # Must be the REAL API-server accepted audience; not workload audience.\n            audience: https://kubernetes.default.svc\n        - configMap:\n            name: kube-root-ca.crt\n            items:\n              - {key: ca.crt, path: ca.crt}\n  - name: provider-reviewer-protected\n    emptyDir: {medium: Memory, sizeLimit: 1Mi}\n# Application-only read mounts; the proposed conforming publisher owns writes.\n# Its image, implementation, lifecycle, inode safety and rotation checks are\n# absent prerequisites, deliberately not invented here.\nvolumeMounts:\n  - {name: provider-reviewer-protected, mountPath: /var/run/zasp-provider-reviewer, readOnly: true}\n  - {name: provider-reviewer-source, mountPath: /var/run/zasp-provider-source, readOnly: true}\n# Proposed selected application files:\n# ZASP_GATEWAY_WORKLOAD_REVIEWER_CREDENTIAL_FILE=/var/run/zasp-provider-reviewer/credential\n# ZASP_GATEWAY_WORKLOAD_KUBERNETES_CA_FILE=/var/run/zasp-provider-source/ca.crt\n",
+    "workload_projection_fragment": "# Fragment for an operator-approved Deployment workload, not the gateway.\n# The kubelet creates a token bound to THIS actual Pod and ServiceAccount.\nspec:\n  template:\n    spec:\n      serviceAccountName: operator-approved-workload-sa-replace\n      automountServiceAccountToken: false\n      volumes:\n        - name: zasp-gateway-workload-identity\n          projected:\n            defaultMode: 288 # 0440; operator must verify existing Pod fsGroup/app readability\n            sources:\n              - serviceAccountToken:\n                  audience: zasp-gateway-policy-v1\n                  expirationSeconds: 900\n                  path: token\n      containers:\n        - name: application-replace\n          volumeMounts:\n            - name: zasp-gateway-workload-identity\n              mountPath: /var/run/zasp-gateway-workload-identity\n              readOnly: true\n# Preserve the workload existing UID/GID/securityContext. If its current fsGroup\n# cannot read this projection, operator must resolve that exact file-read\n# prerequisite; this proposal does not silently change application UID/groups.\n# Caller must reopen the token path for rotation and send only via protected\n# Authorization to the fixed strict proxy endpoint; no URL/argv/log token use.\n",
+    "additional_provider_egress": "# SOURCE-ONLY example of the exact additional provider egress shape.\n# 192.0.2.10/32 is DOCUMENTATION ONLY. Substitute verified API-server CIDRs/port.\n# Do not apply a permissive 0.0.0.0/0 rule or modify existing control/upstream rules.\napiVersion: networking.k8s.io/v1\nkind: NetworkPolicy\nmetadata:\n  name: runtime-gateway-provider-verifier\n  namespace: agentsec\nspec:\n  podSelector:\n    matchLabels: {app.kubernetes.io/name: runtime-gateway}\n  policyTypes: [Egress]\n  egress:\n    - to:\n        - ipBlock: {cidr: 192.0.2.10/32}\n      ports: [{protocol: TCP, port: 443}]\n",
+    "status": "Embedded source-only YAML proposals in this one /tmp JSON artifact. Placeholders/documentation CIDR deliberately require real operator inputs; NOT applied, Helm-rendered or production-ready manifests."
+  },
+  "honest_missing_prerequisites": [
+    "No real Kubernetes endpoint/CA/accepted API audience/issuer/current kube-system UID or provider credential is known from this research; no network/credential probing performed.",
+    "No verified exact workload Namespace/ServiceAccount/Deployment/Node allowlists or current13-call provider result. No claim reviewer RBAC has been granted.",
+    "No actual target-cluster Pod-bound workload projection with required TokenReview extras or authenticated live double-read chain.",
+    "No current-UID regular0600 continuous protected reviewer-file publisher integrated/tested; direct projected-file compatibility is explicitly unresolved.",
+    "No real TokenReview 401/403/revocation/Pod deletion/owner churn/Node boot/CA/credential rotation/deadline/native/deployed acceptance.",
+    "No closed native policy publication/installation/association/snapshot/dispatch authority integration from this stdlib component alone; original task/approval/budget/capability/provider coverage scope remains open."
+  ],
+  "future_grouped_acceptance": [
+    "Operator-level SAR/RBAC evidence: exact TokenReview create and required GET permissions; denial of list/watch/secrets/tokenrequest/exec/log/proxy/mutation plus wrong Namespace/SA/Deployment/Node allowlist.",
+    "Real target cluster: actual bound Pod projection + same-token TokenReview +13 security reads currentUID owner/deletion/boot; scope/audience/issuer unsupported extras and wrong scope denied; no positive cache.",
+    "Protected reviewer-file rotation through actual publisher, no secret logging; symlink/owner/mode/partial rotation/missing/expired credential and CA rotation handled honestly.",
+    "Selected strict production proxy integration must independently verify current Agent/SA inventory identity, administrative Device association/current credential, exact published installed policy, one-use native dispatch and audit before forwarding. Component fixture/provider tests never close deployment or all728."
+  ],
+  "no_action_or_completion": "Only the requested /tmp JSON file written. No repository edits, Go/Node/tests/network/Git/Docker/service startup, provider calls, credential exposure, Kubernetes changes, permission grants, ledger promotion or launch/completion claim."
+}

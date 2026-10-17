@@ -1,0 +1,51 @@
+{
+  "status": "CLEAR_FINITE_DESIGN_FOR_GROUPED_ACCEPTANCE_AND_IMPLEMENTATION_ONLY",
+  "reviewer": "/root/gateway_review",
+  "created_at": "2026-10-17T20:05:16.669763+00:00",
+  "contract": {
+    "path": "docs/internal/gateway-authority-recovery-design-2026-10-17/contract.json",
+    "sha256": "d79da904951b385f40fcee7a6bdf3ae85bb69cfc9e17886f79b8ed60a4c2cf04"
+  },
+  "source_research": {
+    "path": "docs/internal/gateway-authority-recovery-design-2026-10-17/source-research.json",
+    "sha256": "112952b02f862242d90473ffc5883c99d14ed324c90dd127b84d15517569ac83",
+    "pinned_sources": 11,
+    "hash_mismatches": []
+  },
+  "findings": [],
+  "closed_api": {
+    "wire_signatures": [
+      "ParseCurrentAuthority(raw []byte) (CurrentAuthority,error)",
+      "MarshalCurrentAuthority(CurrentAuthority) ([]byte,error)",
+      "CurrentAuthorityMatchesRequest(CurrentAuthority,Request,time.Time) bool",
+      "SignAuthorityRequest(*http.Request,Request,func([]byte)([]byte,error),time.Time) error"
+    ],
+    "custody_signatures": [
+      "Store.BeginRecovery() (*Recovery,error)",
+      "Recovery.Source() (string,Snapshot,error)",
+      "Recovery.Sign([]byte) ([]byte,error)",
+      "Recovery.Observe(raw []byte,sentAt,observedAt time.Time) error",
+      "Recovery.ExportCredential(path string,now time.Time) error",
+      "Recovery.Close() error"
+    ]
+  },
+  "reviewed": [
+    "Exact original13field Authority GET is currentcredential authenticated with retainedkey/device signature and TLSauthenticatedresponse. No independently signedserver attestation; no enrollmentID/tokenGeneration/issuedAt/enrollmentreceipt invented. FixedemptyGET originalcontext/bodyhash preserves oldPOSTsigner.",
+    "Source endpoint and tuple come from verified guarded custody; no token/endpointoverride/keygetter. Strict closed bounded actualresponse, exactscope/device/credential/generation/key/publickey/audience/expiry and afterbody wallclock match. Current mutable deviceversion/floor mayadvance without changing credential intent.",
+    "Opaque inprocess Recovery separates historical persisted observation from one live accepted capability. Begin doesnotadopt artifact as live, savedartifact doesnotgrant export, Observe validates sent<=observed<=sent+30s and strict sourcebinding, Export requires samehandle consumed singleattempt and observed<=now<=observed+30s plus expiry>now/validguard. Close invalidates.",
+    "First historical observation retained immutable through exact priorRoot.Link publication protocol, distinctauthorityschema/localprovenance hashes, nooriginalStateAccepted. Openhistorical checks use historicaltime rather than inventcurrentness; orphan/partial/foreign/alias states refuse. Bothreceiptandrecoveryexports reserve authority/stage/inodealiases.",
+    "Actual trustedCLI performs concrete directHTTPS explicitCA/no redirects and strictsingleheaders/bounded/context response before Observe. Optional export is explicit and on samefreshhandle, localstatus/artifact alone cannotauthorize futureofflineexport. Existing receipt-only Store.ExportCredential remains unchanged.",
+    "Unknown originalenrollment outcome remainsunknown withoutactualenrollmentreceipt, evenwhen operationalcredential restored. Existingrealreceipt mayconfirmhistoricalenrollment; every explicitrecover stilldoesactualcurrentGET. Concurrent laterrevocation/runtime reauth limitations stated. No server/profile/grant/enrollment mutation."
+  ],
+  "implementation_conditions": [
+    "Recovery capability lifetime must be monotone: after exportattempt consumed (including failure), Observe/Sign/retry cannotreset it or enable secondexport. Newattempt requiresnewhandle andnewliveHTTP. SynchronizeClose/Observe/Export andStore lifecycle/guard; neverreleaseownershipduringIO.",
+    "Freshness is an application invariant of trustedCLI HTTPexecution + handle state, not cryptographic proof suppliedby JSON/timestamps or isolationfrom malicioussameprocess/sameUID. Observe(raw,sentAt,observedAt) doesnotitself prove networkorigin; do notclaim otherwise.",
+    "Actual CLI mustread freshlocalclock aftercompletebody/context andagain immediatelybeforeexport, no reportconfirmed solelyfromauthority. Preservehistoricalfirstartifact with laterfloor/deviceversion differences, but do notignore malformed/conflicting sourcebinding or failedpublication.",
+    "Source-research candidate wholeexpiry and requiredoutput wording is overridden by final contract exactmicrocanonicalDTO/originalrequestexactexpiry match and optional output; existingrequestexpiry iswholeUTC. Root exactselectedAPIs authoritative."
+  ],
+  "proof_limits": [
+    "Design/sourcehashinspection only; no Go/Node/test/build/Git/network/native execution by reviewer.",
+    "Groupedapplicationacceptance mustestablishactualTLS lostresponse+expiredtoken recovery/custody/revocation/wrongtuple/context/nooverwrite/aliases/capabilityconsumption andregressions; source/componentfixtures notnative/deployedproof.",
+    "No originaltaskclosure, productionpromotion, Agentassociation/coverage, permanentcredentialvalidity or launchclearance."
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "scope": "Independent read-only corrected approval successor review; no runtime/tests/Git writes",
+  "head": "4a61fa4f69d4814094eee494bc012421ba111927",
+  "findings": [
+    {
+      "priority": "P1",
+      "file": "services/platform/migrations/production_approval_maintenance_successor.go",
+      "line": 18,
+      "title": "Remove the nonexistent newline replacement anchor",
+      "evidence": "Immutable decoded SQL SHAe894ab1c8045a23e4055ced58a89af8a795b26ebf8f4518c83caa89de53a269b has E quote backslash n quote with exactly one92 byte. Compiler raw-string anchor has two92 bytes, and its count in immutable SQL is zero. approvalMaintenanceSource always invokes this compiler, which panics before bootstrap/native source assembly.",
+      "fix": "Withdraw the erroneous newline diagnosis and replacement. Preserve the exact original v2 SQL bytes and current correct newline semantics. If v3 source identity is desired for the reviewed installer successor, truthfully prefix the new profile name under strict original body SHA without pretending to correct its newline; rebind source/checkpoint pins."
+    }
+  ],
+  "correctionOfPriorReview": {
+    "priorSHA256": "25087a0cf26989d08e048101a6f5a4b5089f06478326a3e292eeb2e61a689288",
+    "withdrawn": "Second P1 alleging malformed existing newline was incorrect: escaped tool output was misread. Original SQL already has the correct one-backslash PostgreSQL escape string.",
+    "retained": "Missing role transition for an admitted non-inheriting operator remains a valid permission closure finding."
+  },
+  "observations": [
+    "Proposed bootstrap/role transition otherwise follows safe ordering: public operator/version validation and strict role provisioning under operator, fixed absent namespace creation, SET LOCAL ROLE authority before private predecessor check, unchanged definitions/registration/catalog in same transaction.",
+    "Existing namespace remains closed and incompatible catalog/checksum refuses. No broad grants, inherited privileges or SQL guards weakened.",
+    "32-member closure adds installer/compiler/existing whole-source test; frozen checkpoint389d association reviewed. Existing source-pin test remains and workflow selects it within original25m job."
+  ],
+  "checkpoint": {
+    "sha256": "389d2a18d70b8ee07e7b2ba498e036ee49138d295fc991f0d35a1d7338da87ff",
+    "path": "/tmp/connector-native-hosted-compile-draft/docs/internal/evidence/cloud-2026-10-08/approval-profile-v3-installer-successor/SOURCE-MANIFEST.json",
+    "mismatchesAtRead": []
+  },
+  "declinedToJudge": [
+    "Uninspected raw hosted SQL error cause",
+    "Native successor application results",
+    "Production, activation, fleet retirement, restart, release or ledger acceptance"
+  ],
+  "verdict": "Do not push this exact compiler source as a ready successor: it deterministically refuses at missing-anchor compilation. Repair the compiler and truthful evidence, then repin and re-review."
+}

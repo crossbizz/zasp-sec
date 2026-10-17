@@ -216,7 +216,21 @@ func (p *temporalSecurityAgentProduct) Plan(ctx context.Context, q orchestration
 	}
 	for _, selection := range p.bindings {
 		if selection.OrganizationID == q.Ref.OrganizationID && selection.WorkspaceID == q.Ref.WorkspaceID && selection.EnvironmentID == q.Ref.EnvironmentID {
-			_, err := p.planner.RunTemporalPlanning(ctx, p.executor, p.store, selection, q.Ref.RunID, q.DefinitionVersion)
+			db := p.executor
+			if optionalPlannerEgressEnabled(p.planner) {
+				if p.workerForward == nil || p.workerCompensation == nil {
+					return orchestration.ErrUnavailable
+				}
+				request, err := json.Marshal(temporalStartFields(q))
+				if err != nil {
+					return orchestration.ErrInvalid
+				}
+				if err := p.workerForward.PrepareOrdered68(ctx, request); err != nil {
+					return err
+				}
+				db = &workerFindingPlanningDatabase{base: db, forward: p.workerForward, compensation: p.workerCompensation, start: q, family: workerPlanningOrdered68}
+			}
+			_, err := p.planner.RunTemporalPlanning(ctx, db, p.store, selection, q.Ref.RunID, q.DefinitionVersion)
 			return err
 		}
 	}

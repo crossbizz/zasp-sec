@@ -1,0 +1,515 @@
+{
+  "checkpoint": "cloud-dual-worker-composition-2026-10-15",
+  "recorded_at": "2026-10-15T01:09:17.542698+00:00",
+  "classification": "component-verified candidate; native and deployed acceptance pending",
+  "starting_sha": "686d4a9c1e47e465ef108d06ba4d0e089fffb10e",
+  "fetched_main_sha": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
+  "required_ancestor": "e13ccb95451b03107681ccb59b3fc6fe175a228f",
+  "required_ancestor_present": true,
+  "scope": {
+    "original_rows": 728,
+    "production_available_recorded": 523,
+    "component_only": 144,
+    "blocked_external": 61,
+    "missing": 0,
+    "promotions": 0,
+    "caution": "Recorded production categories are not current deployed end-to-end proof. Original scope and owner TSVs unchanged."
+  },
+  "contributes_to": [
+    "M1-28 composition readiness",
+    "M3-24 connector cutover and callback recovery",
+    "P7/P8 application permission and acceptance prerequisites"
+  ],
+  "implementation": [
+    "Install supplementary sealed approval activation without editing immutable approval installers or SQL. Preserve original captured delegation, tenant locks, projection generation, membership and live worker FGA checks.",
+    "Register distinct connector/approval worker signing keys and principals with original registered operator functions. Reuse canonical outbox principal; no ambient authority, no second outbox binding.",
+    "Bootstrap actual browser composition through profile installation, real held reconciliation writer receipt, writer exit, old OpenFGA credential withdrawal, combined activation and composed projection refresh before API startup.",
+    "Retain official OpenFGA binary, store and whole model over measured old-token withdrawal using an owned restricted PostgreSQL store. Join in-flight withdrawal on cancellation; no late activation or credential rollback.",
+    "Route only four original closed worker admission/progress operations to the activated supplementary profile under exact compiled pins and catalog readiness.",
+    "Correct recover_callbacks SQL alias collision without weakening predicates; add bounded closed activation-stage and enqueue-catalog diagnosis.",
+    "Append native approval capture denial/catalog checks to the hosted matrix; retain all original groups and acceptance guards."
+  ],
+  "verification": {
+    "go": [
+      {
+        "path": "/tmp/connected-maintenance-application-batch-20261015.jsonl",
+        "bytes": 77693,
+        "sha256": "01b12ca888c520584ed27d0955f3a8d45eb761ee48123500897d32cc08695db6",
+        "availability": "current cloud workspace; not a deployed evidence archive",
+        "top_level_passes": 23,
+        "named_passes": 73,
+        "package_passes": 8,
+        "fail_events": 0,
+        "skip_events": 0,
+        "recorded_exit": 0,
+        "mode": "selected application logic, normal Go; native database cases not executed"
+      },
+      {
+        "path": "/tmp/connected-maintenance-worker-runtime-20261015.jsonl",
+        "bytes": 4455,
+        "sha256": "216e6df1bdb8864d6a88e9bd2c857881a4dbf6ba642371305f619b37a93936fe",
+        "availability": "current cloud workspace; not a deployed evidence archive",
+        "top_level_passes": 4,
+        "named_passes": 4,
+        "package_passes": 1,
+        "fail_events": 0,
+        "skip_events": 0,
+        "recorded_exit": 0,
+        "mode": "selected application logic, normal Go; native database cases not executed"
+      },
+      {
+        "path": "/tmp/connected-maintenance-callback-application-20261015.jsonl",
+        "bytes": 72855,
+        "sha256": "eba401cbad62eaa2928d491fdfee90531e9c04710fb8c8dd8c1a1078af4615e8",
+        "availability": "current cloud workspace; not a deployed evidence archive",
+        "top_level_passes": 4,
+        "named_passes": 67,
+        "package_passes": 1,
+        "fail_events": 0,
+        "skip_events": 0,
+        "recorded_exit": 0,
+        "mode": "selected application logic, normal Go; native database cases not executed"
+      }
+    ],
+    "javascript": {
+      "path": "/tmp/connected-maintenance-node-final-20261015.log",
+      "bytes": 25271,
+      "sha256": "6bea8a05fab8385cc3f981842f674cb33ec62f4bf3d0fa5198d83f0d7cb2ad4c",
+      "availability": "current cloud workspace; not a deployed evidence archive",
+      "passed": 117,
+      "failed": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "recorded_exit": 0,
+      "scope": "12 ownership, composition, storage, cancellation and trace-parser component files; no hosted service acceptance"
+    },
+    "ui": [
+      {
+        "check": "typecheck",
+        "log": {
+          "path": "/tmp/connected-maintenance-ui-typecheck-final-20261015.log",
+          "bytes": 63,
+          "sha256": "f48bd1876f5408ffc0d939a2b0d826961d6115e6598a272fea04d98ac0431816",
+          "availability": "current cloud workspace; not a deployed evidence archive"
+        },
+        "status": 0
+      },
+      {
+        "check": "build",
+        "log": {
+          "path": "/tmp/connected-maintenance-ui-build-final-20261015.log",
+          "bytes": 1043,
+          "sha256": "d25e967e3620bac8bb1fee853d95dfec94da5c8724dd1ad4942a7294cf6055d7",
+          "availability": "current cloud workspace; not a deployed evidence archive"
+        },
+        "status": 0
+      }
+    ],
+    "ledger": "Fresh implementation-status-check passes 728 rows and 523/144/61/0 categories.",
+    "independent_reviews": [
+      {
+        "path": "/tmp/native-activation-independent-review-20261015.json",
+        "bytes": 3334,
+        "sha256": "f2c887a4f01eae387a67f0a67a4108b254236bb67b9f6d8050254f3e2fbfb62d",
+        "availability": "current cloud workspace; not a deployed evidence archive"
+      },
+      {
+        "path": "/tmp/approval-successor-independent-source-review-20261015.json",
+        "bytes": 2814,
+        "sha256": "93623a824a9228578f0ac4caad987d29b837259524927c59bc10dc14ba7f33fe",
+        "availability": "current cloud workspace; not a deployed evidence archive"
+      },
+      {
+        "path": "/tmp/maintenance-permissions-review-20261015.json",
+        "bytes": 3189,
+        "sha256": "c9428cbd2fa57a371da9cf4b0139e861bc1fd77643f9d271fff84bf6bc6f8ff0",
+        "availability": "current cloud workspace; not a deployed evidence archive"
+      },
+      {
+        "path": "/tmp/persistent-owned-fga-independent-final-review-20261015.json",
+        "bytes": 3617,
+        "sha256": "ce3ffea227e9c1cdb75c55d7b1b98ec5c774853ff34a8ad8ea69fd37fa431f2c",
+        "availability": "current cloud workspace; not a deployed evidence archive"
+      },
+      {
+        "path": "/tmp/combined-cutover-independent-final-review-20261015.json",
+        "bytes": 2439,
+        "sha256": "257542fbc3f5e71513e38526547a824a804a9454b1448d316e785d94f93dd670",
+        "availability": "current cloud workspace; not a deployed evidence archive"
+      },
+      {
+        "path": "/tmp/root-maintenance-integration-review-20261015.json",
+        "bytes": 3479,
+        "sha256": "de5f5462e4efaff0a19eef16eefc698b8fb518e24ea5b528c3c7145406adc84a",
+        "availability": "current cloud workspace; not a deployed evidence archive"
+      },
+      {
+        "path": "/tmp/dual-worker-publication-review-20261015.json",
+        "bytes": 2634,
+        "sha256": "ad72e9cb06fe5bc74ce1e64d3826741c50d62544125e38596c239218c9e3e6a9",
+        "availability": "current cloud workspace; not a deployed evidence archive",
+        "scope": "final source manifest, runner associations, original roster and workflow guard review; zero blockers to candidate push; not merge approval"
+      }
+    ],
+    "review_limit": "Source reviews found no remaining blockers within their recorded file scopes. They do not establish positive native activation or deployed readiness.",
+    "tdd_limit": "Grouped application controls include behavioral refusal/cancellation RED-to-GREEN cases and initial compile REDs. Compile failures and ENOSPC are not behavior-first TDD."
+  },
+  "preceding_hosted_head": {
+    "sha": "686d4a9c1e47e465ef108d06ba4d0e089fffb10e",
+    "metadata": {
+      "path": "/tmp/pr60-686d-final-before-dual-worker-20261015.json",
+      "bytes": 95309,
+      "sha256": "72476906d914954c14fa245ea13f43a1edaf69bc2d7764015fd3c7475452a9d9",
+      "availability": "current cloud workspace; not a deployed evidence archive"
+    },
+    "pull_request_runs": [
+      {
+        "id": 38658772461,
+        "name": "Connected compliance browser acceptance",
+        "conclusion": "failure",
+        "url": "https://github.com/crossbizz/zasp-sec/actions/runs/38658772461",
+        "failed_steps": [
+          "Verify current compliance browser acceptance"
+        ]
+      },
+      {
+        "id": 38658772462,
+        "name": "Connector authenticated enqueue integration",
+        "conclusion": "success",
+        "url": "https://github.com/crossbizz/zasp-sec/actions/runs/38658772462",
+        "failed_steps": []
+      },
+      {
+        "id": 38658772463,
+        "name": "Runnable UI",
+        "conclusion": "failure",
+        "url": "https://github.com/crossbizz/zasp-sec/actions/runs/38658772463",
+        "failed_steps": [
+          "Verify current compliance browser acceptance"
+        ]
+      },
+      {
+        "id": 38658772413,
+        "name": "Connector capture native integration",
+        "conclusion": "success",
+        "url": "https://github.com/crossbizz/zasp-sec/actions/runs/38658772413",
+        "failed_steps": []
+      },
+      {
+        "id": 38658772428,
+        "name": "Connector native draft compilation",
+        "conclusion": "success",
+        "url": "https://github.com/crossbizz/zasp-sec/actions/runs/38658772428",
+        "failed_steps": []
+      },
+      {
+        "id": 38658772412,
+        "name": "Connector connected lifecycle integration",
+        "conclusion": "failure",
+        "url": "https://github.com/crossbizz/zasp-sec/actions/runs/38658772412",
+        "failed_steps": [
+          "Connected enqueue, execution, revocation and settlement application group",
+          "Connected enqueue, execution, revocation and settlement application group",
+          "Connected enqueue, execution, revocation and settlement application group",
+          "Require all four connected application groups"
+        ]
+      }
+    ],
+    "interpretation": "OAuth enqueue, original capture and compilation passed. Lifecycle 42501, PKCE activation, callback recovery and browser API readiness failed. Runnable UI build/verification step passed, but the overall Runnable UI workflow failed at compliance browser acceptance; subsequent release/security checks were skipped. This checkpoint candidate has not yet run hosted acceptance."
+  },
+  "source_association": {
+    "manifest": ".github/connector-native-compile-source-pins.json",
+    "source_rows": 89,
+    "changed_sources": [
+      {
+        "path": "scripts/owned-fga-storage.mjs",
+        "sha256": "935228214c5a05b4d3902a246aa0ce09f9120ed388ca42fd87f9c0db3eb9b0c4",
+        "bytes": 2137
+      },
+      {
+        "path": "scripts/owned-fga-storage.test.mjs",
+        "sha256": "5bd06b8008d68b4d617d6a0313dc809bf408fb8406aabdf701f2a0ff38e409f4",
+        "bytes": 2025
+      },
+      {
+        "path": "scripts/owned-maintenance-composition.mjs",
+        "sha256": "e75109466fa4a50b002a37222998df9fd154f6fbab02aed6c2cade1926a8df82",
+        "bytes": 7464
+      },
+      {
+        "path": "scripts/owned-maintenance-composition.test.mjs",
+        "sha256": "986f9d0fd8363d78bef3ad4e4f75a4d7c76597e7632c560e34948ca83fb10b4f",
+        "bytes": 5897
+      },
+      {
+        "path": "scripts/owned-maintenance-cutover.mjs",
+        "sha256": "f48885c10efd50e692382863dfa131c9e3faa77367e6478bdb8ee95ddf771357",
+        "bytes": 5144
+      },
+      {
+        "path": "scripts/owned-maintenance-cutover.test.mjs",
+        "sha256": "193253310eb18dded0b81a8ebd04a7be8a76adfe9ff379f58aa9f19071d2c61f",
+        "bytes": 4712
+      },
+      {
+        "path": "scripts/owned-runtime-persistent.test.mjs",
+        "sha256": "abd4fc957613991f2ab23733e3648ed9416320fd1580367628f31483cbeba931",
+        "bytes": 9060
+      },
+      {
+        "path": "services/platform/agentsec-worker/authorization_worker_activation_config_test.go",
+        "sha256": "3b66404d7740592ad2c42e6491861e26f11788b3b6be0b7e68cbe9a6c20bca23",
+        "bytes": 1517
+      },
+      {
+        "path": "services/platform/apiserver/approval_activation_postgres_test.go",
+        "sha256": "4a40ff1c879cd4c1af951ba8bc812d0d9ea81a360c856fcde4235b63581ae6e5",
+        "bytes": 8487
+      },
+      {
+        "path": "services/platform/authorization/worker_approval_activation_test.go",
+        "sha256": "15e44850678ba5b9b385023555fcc501eca600c53c1f912dbf799841387d7b0b",
+        "bytes": 2764
+      },
+      {
+        "path": "services/platform/cmd/zasp-authorization-reconcile/hold_test.go",
+        "sha256": "07465bbdeb1bcb66a865f855279fe1b764063aba0f17bbcdfecb5726eef9ffe6",
+        "bytes": 810
+      },
+      {
+        "path": "services/platform/cmd/zasp-controlled-maintenance-cutover/main.go",
+        "sha256": "90a0e4a39acaf006571f2a3a610bf1b8b4881c39645fbea10cb5c81290eea5e8",
+        "bytes": 3724
+      },
+      {
+        "path": "services/platform/cmd/zasp-controlled-maintenance-cutover/main_test.go",
+        "sha256": "a8e1b3d97076b74daa29f60e117b9ca0f370bcd627d9819152b418c992e8da74",
+        "bytes": 1259
+      },
+      {
+        "path": "services/platform/cmd/zasp-maintenance-register/main.go",
+        "sha256": "f2f2ac05671b7738f3c12b1206e7865cff514606189da3a82c888732acd60fc9",
+        "bytes": 6861
+      },
+      {
+        "path": "services/platform/cmd/zasp-maintenance-register/main_test.go",
+        "sha256": "5ae1660fd2e5de9961c459d619cf291ae6d730896d9126c2074f68ed2c8069c0",
+        "bytes": 5052
+      },
+      {
+        "path": "services/platform/connectormaintenancecutover/combined.go",
+        "sha256": "b841c26caee24f7948d43ec72b1b2d2dc53ce0661845af73a9f417ae93091f84",
+        "bytes": 5370
+      },
+      {
+        "path": "services/platform/migrations/production_approval_activation_profile.go",
+        "sha256": "a770b962f1c3f3622a368d32d19f865231f458a1c36d2db764056fb60f6faea2",
+        "bytes": 4981
+      },
+      {
+        "path": "services/platform/migrations/production_approval_activation_profile_test.go",
+        "sha256": "4d1c29736e796e8e9deecd7845a0ad6ba2e3948043427e2cc88c57b32fdfdf16",
+        "bytes": 3845
+      },
+      {
+        "path": "services/platform/migrations/sql/approval_activation_profile.sql",
+        "sha256": "f256e35509c6573b85fda9babb8e5d87641927c5246d5d1408f98a0159cd139d",
+        "bytes": 18206
+      },
+      {
+        "path": "services/platform/runtimeservices/approval_activation_config_test.go",
+        "sha256": "d288ebc83684b8d49bdfab4fabb30bf4e65dc530f327ea06e205c415bd7195df",
+        "bytes": 1306
+      },
+      {
+        "path": ".github/workflows/connected-browser-acceptance.yml",
+        "sha256": "3fef88ec3bae9c8e1250d89dadfb3ca632ed84a3b6b90ef5bacf52d815a05b3f",
+        "bytes": 7508
+      },
+      {
+        "path": ".github/workflows/connector-connected-lifecycle.yml",
+        "sha256": "2a3a47b2c1d9a36c5a7d9a15e88045b0fc6bddc67068f0af32ff384220d47af7",
+        "bytes": 4002
+      },
+      {
+        "path": ".github/workflows/connector-native-draft-compile.yml",
+        "sha256": "29f63e4228bbc07f17fc3100f294eb4f05515f1b03f931365d771d1b46d10764",
+        "bytes": 10372
+      },
+      {
+        "path": "scripts/compliance-current-runtime.test.mjs",
+        "sha256": "7eee06e1207db3a40305b8d0818cdb3b9dea15502be30bd34f8bd66f62b9e459",
+        "bytes": 14312
+      },
+      {
+        "path": "scripts/connector-acceptance-groups.mjs",
+        "sha256": "c24b78c03c8df55a973b0314fb7adffb0135d3fba79639f8e3cd8fe4c041c4ca",
+        "bytes": 5417
+      },
+      {
+        "path": "scripts/connector-acceptance-groups.test.mjs",
+        "sha256": "68c683f3a74f08b17e0202a9287604d4c89d9a6835c3deebcba36e5a295bdba2",
+        "bytes": 3908
+      },
+      {
+        "path": "scripts/hosted-connected-connector-acceptance.mjs",
+        "sha256": "84719e630712e488bce47de559ebbf1e3f78f796a436dedd4f6aa1a7c73329ce",
+        "bytes": 40945
+      },
+      {
+        "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
+        "sha256": "ec40f1751d808094dd39b6269efed8be802a06a76004b0c7a3ce81c3a5293812",
+        "bytes": 38910
+      },
+      {
+        "path": "scripts/owned-command.mjs",
+        "sha256": "50b5481d008546a713ac730cb933108be66b2f08226ced8bc47deaea14e95ec8",
+        "bytes": 4331
+      },
+      {
+        "path": "scripts/owned-command.test.mjs",
+        "sha256": "76d234fe9d4a4b755379736dcfc9193977c1b0eb3af2561fa5445f0992f7496a",
+        "bytes": 3954
+      },
+      {
+        "path": "scripts/owned-current80-composition.mjs",
+        "sha256": "9badbf2df3f1956d291b6af8f1654b81429c08f7e7215aecff8835f538ad20a1",
+        "bytes": 8255
+      },
+      {
+        "path": "scripts/owned-runtime-lifetime.mjs",
+        "sha256": "7a08feae3e56fb3bfba1bf060eeb4cfa141a793db9d2a6c7e184cc1ba126d551",
+        "bytes": 11801
+      },
+      {
+        "path": "scripts/owned-runtime-lifetime.test.mjs",
+        "sha256": "0dd3453a7a16497ae03954f3d39c4505b17cb098637b76f2cd5ede959548dcd4",
+        "bytes": 3725
+      },
+      {
+        "path": "scripts/owned-runtime-services.mjs",
+        "sha256": "05f7aa072682025232a7bfa41a80c46a79c2a799a340c1c565b56d448ea160f0",
+        "bytes": 56807
+      },
+      {
+        "path": "scripts/owned-runtime-services.test.mjs",
+        "sha256": "626d1384e41c076835094657bb34d059deec36b50908085342cf03357fee505a",
+        "bytes": 62852
+      },
+      {
+        "path": "scripts/owned-runtime-startup-diagnostics.mjs",
+        "sha256": "e3c1cf71b223b4b72a76432584eaff951903e33555ed18a31df23e6554579866",
+        "bytes": 2412
+      },
+      {
+        "path": "scripts/production-combined-e2e.mjs",
+        "sha256": "072635caac1ddfcc0233e939db0292c1268ae3ce9f748c896c12b737b7e9f654",
+        "bytes": 676112
+      },
+      {
+        "path": "scripts/retained-runtime-lifetime.test.mjs",
+        "sha256": "fddcbfbafcfc220621c32e13fa13bb97a0fdc32767197711514023549e3d579a",
+        "bytes": 4758
+      },
+      {
+        "path": "services/platform/agentsec-migrate/main.go",
+        "sha256": "f9bccafecba7ceb576f1673a369143d49ec807bc30ef438e4103543467ca234e",
+        "bytes": 69943
+      },
+      {
+        "path": "services/platform/agentsec-migrate/maintenance_profile_commands_test.go",
+        "sha256": "d972fdf1601462a73bf98a08fbc085ec57b31ffec63180f25e45a38695779119",
+        "bytes": 4661
+      },
+      {
+        "path": "services/platform/agentsec-worker/authorization_worker_runtime.go",
+        "sha256": "18ed70e4f9a8efbefb6cb623f493465739a29de81cae4340e3629d0dda7a7abe",
+        "bytes": 5727
+      },
+      {
+        "path": "services/platform/apiserver/connector_maintenance_callback_restart_postgres_test.go",
+        "sha256": "fe1f04ee8d9d6c78814a05df0fb976f4aedd5f1667e648c5342fbc14ea1d46bf",
+        "bytes": 16738
+      },
+      {
+        "path": "services/platform/apiserver/connector_maintenance_lifecycle_postgres_test.go",
+        "sha256": "e02e54c911aa83af1c2586af293ade3d58630b987dbecce24e1534483223eafa",
+        "bytes": 20171
+      },
+      {
+        "path": "services/platform/apiserver/connector_maintenance_pkce_recovery_test.go",
+        "sha256": "0542a89f2ac018cbca92a423f9c196cc464180ae310143f6048ec280e2b90bca",
+        "bytes": 19780
+      },
+      {
+        "path": "services/platform/authorization/worker.go",
+        "sha256": "6717074205fbaf48d970b1a6bdbc6613779d492a388c6d6446fe78608ff3efe4",
+        "bytes": 14959
+      },
+      {
+        "path": "services/platform/authorization/worker_approval_origin.go",
+        "sha256": "6f83d9f2998fdf8d94beb69e3c4c15fe11037a8bb386303a831f5f1dfee8a69f",
+        "bytes": 5436
+      },
+      {
+        "path": "services/platform/cmd/zasp-authorization-reconcile/main.go",
+        "sha256": "bdaa8815eb14bf35e19d4a5e76764f623ce0277c9d04ebfbfc9f120dba244a6d",
+        "bytes": 6525
+      },
+      {
+        "path": "services/platform/connectormaintenancecutover/coordinator.go",
+        "sha256": "d2867a6154c9df7b00a6e575d08cdcf33e6e7bf1d71b493baa7428334af286fe",
+        "bytes": 5446
+      },
+      {
+        "path": "services/platform/connectormaintenancecutover/coordinator_test.go",
+        "sha256": "26ce6254da116eb381365e2c90ae97e4c7366d829168e5a55438b40dc8ba9a90",
+        "bytes": 5783
+      },
+      {
+        "path": "services/platform/connectormaintenancecutover/sql.go",
+        "sha256": "baaa4fe83a4689b053387fc7a8a3abe34d6130384d4197e244aab1c21f5a20b8",
+        "bytes": 5613
+      },
+      {
+        "path": "services/platform/migrations/sql/connector_maintenance_profile.sql",
+        "sha256": "966bfbeba5976b2c7edb78853b884e118955462eba5e8b627c21a12e1449bdef",
+        "bytes": 152269
+      },
+      {
+        "path": "services/platform/runtimeservices/config.go",
+        "sha256": "5cd087e846c9106c07c0734f06937e727c25fb04887dbfdf8d78da4c70e48731",
+        "bytes": 5466
+      }
+    ],
+    "no_manifest_hash": "Manifest references this checkpoint hash; omit manifest hash to avoid a cycle."
+  },
+  "immutable_guards": {
+    "runnable_ui_workflow_sha256": "fd98a81d520fbd8b80fb6d404b7a8a0d0e154268f0e3adb5073a47ee4c7d4d98",
+    "unchanged": "Original approval profile and successor SQL/installers, enqueue provenance SQL/fixture, release/security guards and owner/availability TSVs.",
+    "native_roster": "Original four groups, 17 names and seven PostgreSQL joins retained; appended approval group has six named cases and one PostgreSQL join. Total five groups / 23 names / eight joins.",
+    "no_bypass": "No force push, admin merge, release/security bypass, fabricated grants/origins or local cgroup guard bypass."
+  },
+  "open_acceptance": [
+    "Hosted native execution of this candidate, including positive combined activation and current browser API startup.",
+    "All four genuine approval origin families, future enqueue after activation, 21-origin overflow refusal, individual permission revocation no-send, webhook settlement and audit end-to-end.",
+    "Resolve remaining original connector lifecycle/PKCE/callback native failures and complete every required release/security check; prior skipped checks are not passing evidence.",
+    "Real deployed Stytch login, organization/SSO, provider connection, automatic discovery/sync, authorization, approval, containment, TTL cleanup, retest and audit flow; retire obsolete paths only after equivalent acceptance.",
+    "All 728 original requirements and milestones remain authoritative; component work does not promote ledger rows."
+  ],
+  "runtime_limits": [
+    "Cloud local native ownership guard refuses hidden cgroup ancestry; unchanged hosted Ubuntu guards must run native services.",
+    "Fresh Go linking initially encountered ENOSPC; failed/empty logs are retained, not passing evidence. Subsequent selected sequential Go checks passed using separate task-owned link scratch.",
+    "Evicted only cold generated task-owned Go cache artifacts, not source, dependencies, user state or evidence; eviction manifest is recorded below.",
+    "No configured production target/account or deployed acceptance proof. Earlier runtime observations found required role-specific bindings unavailable; no new exact missing count is asserted.",
+    "GitHub repository access permits ordinary candidate pushes. Secret/variable inventories returned 403, which does not establish absence. Raw Actions log/artifact access was policy denied; bounded official metadata/annotations only.",
+    "Cloud runtime skill was used earlier but was no longer listed in the last skill inventory. Superpowers package unavailable; official upstream grouped execution/TDD/review workflow was read and followed within the user instruction to avoid tests for every small change."
+  ],
+  "cache_eviction": {
+    "path": "/tmp/zasp-owned-cold-build-cache-eviction-20261015.json",
+    "bytes": 23450,
+    "sha256": "b3d325dc3299fa1599d1f54bba713180f1f3bae122dcc49919d4192070f6abc4",
+    "availability": "current cloud workspace; not a deployed evidence archive"
+  },
+  "next": "Publish reviewed candidate to PR60, run exact-commit hosted acceptance, correct observed failures, and merge only after required guards pass. No launch/completion claim."
+}

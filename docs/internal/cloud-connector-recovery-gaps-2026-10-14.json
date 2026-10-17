@@ -1,0 +1,70 @@
+{
+  "reviewed_commit": "344699dbb01a827aec5ea2c6bf270b4943552a5d",
+  "scope": "Read-only audit of application-owned connector orchestration, not Temporal/OpenFGA internals. No source or Git mutations.",
+  "findings": [
+    {
+      "id": "durable-attempt-capture-lost",
+      "priority": "launch-blocker",
+      "source": [
+        "services/platform/migrations/sql/connector_maintenance_profile.sql:300",
+        "services/platform/migrations/sql/connector_maintenance_profile.sql:316",
+        "services/platform/apiserver/connector_maintenance_repository.go:139",
+        "services/platform/apiserver/connector_reconciler.go:295"
+      ],
+      "trigger": "Begin commits and provider/cleanup may occur, then response loss or process restart before settlement; old lease expires with attempt below100.",
+      "actual": "reserve overwrites attempted reservation as reserved and captured_receipt=NULL; fresh adapter installs reservation with no captured proof. Worker calls GetWorkflow/prepare which require fresh live authorization. Revoked work pauses instead of completing exact prior cleanup.",
+      "required": "A native durable recovery operation must validate the original attempted receipt and immutable source before rotating lease, preserving original capture lineage. Recovery authority must be explicitly compensation-only, distinct from forward provider preparation. Old expired lease and any other repository cannot adopt a live lease.",
+      "risk": "Do not simply return captured_receipt after reserve: its signed reference includes old owner/token/expiry, so correctly fails existing captured guards. Do not mint normal provider-kind receipt for cleanup-only recovery because CompleteOAuth and forward metadata read might then broaden authority."
+    },
+    {
+      "id": "callback-crash-strands-pkce",
+      "priority": "launch-blocker",
+      "source": [
+        "services/platform/migrations/sql/connector_maintenance_profile.sql:547",
+        "services/platform/migrations/sql/connector_maintenance_profile.sql:588",
+        "services/platform/migrations/sql/connector_maintenance_profile.sql:308",
+        "services/platform/apiserver/connector_maintenance_callback_database.go:102"
+      ],
+      "trigger": "consume_callback commits, then response is lost or process dies before exact verifier removal; OAuth is consuming and callback has short expiry.",
+      "actual": "Only callback token digest persists; plaintext permit is process-local. Callback cannot be re-consumed. callback_step expires. PKCE reserve excludes all consuming attempts, even expired callback. Authorize recovery requires fresh live authority, so revocation blocks recovery and leaves cleanup pending.",
+      "required": "Bridge expired authenticated callback into phase-specific durable compensation for the exact captured PKCE/authorize effects under native SQL scope/source checks, with old callback lease exclusion and no verifier read/exchange. Preserve unknown external outcomes honestly."
+    },
+    {
+      "id": "cleanup-metadata-live-gate",
+      "priority": "launch-blocker",
+      "source": [
+        "services/platform/apiserver/connector_reconciler.go:292",
+        "services/platform/migrations/sql/connector_maintenance_profile.sql:507"
+      ],
+      "trigger": "Authorization succeeded; cleanup_pending persisted; process restarts or cleanup retries after grant revocation.",
+      "actual": "Before testing cleanup_pending, reconcileLease calls workflows.GetWorkflow. Native workflow requires fresh before_metadata authority. Then cleanup branch calls prepare, which requires fresh BeforeProvider, rather than captured compensation.",
+      "required": "Recovery cleanup must use an immutable captured provider binding/configuration reference with narrowly scoped read if necessary; current arbitrary workflow metadata must remain forbidden after revoke. Captured cleanup operations may Discard/Delete only exact effect/reference and never start exchange, RecoverAuthorization, or new Revoke."
+    }
+  ],
+  "proposed_batch": {
+    "title": "Durable phase-aware connector recovery and exact compensation",
+    "sql": [
+      "Separate reserved forward leases from compensation recovery leases/purpose.",
+      "Under global lane lock and organization->effect->reservation lock order, validate stored original HMAC plus exact full scope, integration, effect, intent/context, attempt kind and original expiry before rotating an expired owned lease.",
+      "Persist immutable receipt lineage and phase/provider binding; retain attempt budget and original audit semantics. Do not change original immutable SQL/provenance.",
+      "Add callback expiry bridge limited by durable phase: consumed/secret/rejection secret permit Delete only; provider phase remains unknown outcome, never invent success; completed/cleanup permits exact Discard(false) and cleanup settlement.",
+      "At attempt100 preserve quarantine path and require authentic receipt."
+    ],
+    "adapter_worker": [
+      "Strictly decode bounded recovery mode/proof from native SQL, never caller flags.",
+      "Hydrate only newly claimed expired lease, never adopt arbitrary live lease.",
+      "Dispatch recovery cleanup before live metadata path; fresh provider operations continue full current authority.",
+      "Ensure ambiguous SQL commit or external effect response cannot erase the only durable compensation proof."
+    ]
+  },
+  "grouped_acceptance_cases": [
+    "Real signed enqueue -> Begin -> restart a new repository after natural minimum lease expiry -> revoke -> exact Delete/Discard succeeds and audit settles; no secret Consume or provider forward calls.",
+    "Crash after callback consume commit before local permit installation -> natural expiry -> revoke -> exact PKCE Delete through recovery, attempted callback replay denied.",
+    "External cleanup succeeds but SQL response lost -> restart/retry idempotently -> one terminal application state with preserved audit; no fabricated provider proof.",
+    "Cleanup_pending after CompleteOAuth -> revoke membership and reconcile projection -> restart -> exact Discard(false) allowed, arbitrary workflow read/provider exchange denied.",
+    "Forged, wrong tenant/workspace/environment, integration/effect/reference, wrong principal/key, changed intent/context, live-lease adoption, old lease replay and cross-operation recovery all denied with zero external calls.",
+    "Final100 genuine captured attempt -> natural expiry -> authentic quarantine/audit and no further external attempt.",
+    "Full deployed provider/Stytch browser flows remain separately required; local fixtures cannot promote original task availability."
+  ],
+  "existing_coverage_limit": "Current five lifecycle subcases verify genuine enqueues, controlled single-writer cutover, live-lease adoption denial, and same-process captured compensation. They do not verify durable repository restart/expired callback recovery."
+}

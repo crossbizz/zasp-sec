@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { StrictMode } from "react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { APIClient } from "../../../apps/web/api/client";
 import { APIProvider } from "../../api/APIProvider";
@@ -18,13 +19,15 @@ function summary(id: string, name: string) {
   return { id, name, kind: "agent" as const, owner: "", team: "", tags: [], evidence_id: ids.evidence, confidence_basis_points: 9500, first_seen: "2026-08-19T00:00:00Z", last_seen: "2026-08-19T01:00:00Z", observed_at: "2026-08-19T01:00:00Z", fresh_until: "2026-08-19T01:15:00Z", freshness_state: "fresh" as const, version: 1 };
 }
 
+beforeEach(() => { window.history.replaceState({}, "", "/discovery/assets"); });
+
 describe("production typed inventory API", () => {
   it("renders the tenant-scoped Security Agent attention queue and routes every operational card", async () => {
     const user = userEvent.setup();
     const onNavigate = vi.fn();
     const home = { agent_count: 4, high_risk_paths: 2, verified_changes: 3, blocked_changes: 1, pending_approvals: 5, oldest_approval_age_seconds: 900, needs_human_runs: 2, failed_runs: 1, inconclusive_runs: 3, recent_contained: 4, recent_remediated: 2, healthy: false, attention_required: true } as const;
     const api: ProductionAgentSecurityAPI = {
-      listAgents: async () => [], listTools: async () => [], listIdentities: async () => [], listRuntimes: async () => [],
+      listAgentsPage: async () => ({ items: [], page_info: { next_cursor: null, has_more: false } }), listAgents: async () => [], listTools: async () => [], listIdentities: async () => [], listRuntimes: async () => [],
       getAgent: async () => { throw new Error("unused"); }, getTool: async () => { throw new Error("unused"); }, getIdentity: async () => { throw new Error("unused"); }, getRuntime: async () => { throw new Error("unused"); },
       getAgentCapabilities: async () => [], getAgentRelationships: async () => [], listAgentSessions: async () => [],
       updateAgent: async () => { throw new Error("unused"); }, getHomeSummary: async () => home,
@@ -88,19 +91,20 @@ describe("production typed inventory API", () => {
     });
   });
 
-  it("reloads an exact stable detail URL and rejects ambiguous detail queries", async () => {
+  it.each([false, true])("reloads an exact stable detail URL and rejects ambiguous detail queries (StrictMode %s)", async (strict) => {
     const value = summary(ids.first, "First");
     const detail = { summary: value, sources: [], evidence: [] } as never;
     const getAgent = vi.fn(async () => detail);
     const api: ProductionAgentSecurityAPI = {
-      listAgents: async () => [value], listTools: async () => [], listIdentities: async () => [], listRuntimes: async () => [],
+      listAgentsPage: async () => ({ items: [value], page_info: { next_cursor: null, has_more: false } }), listAgents: async () => [value], listTools: async () => [], listIdentities: async () => [], listRuntimes: async () => [],
       getAgent, getTool: async () => detail, getIdentity: async () => detail, getRuntime: async () => detail,
       getAgentCapabilities: async () => [], getAgentRelationships: async () => [], listAgentSessions: async () => [],
       updateAgent: async () => ({ agent: value, audit_id: ids.evidence }),
       getHomeSummary: async () => ({ agent_count: 1, high_risk_paths: 0, verified_changes: 0, blocked_changes: 0, pending_approvals: 0, oldest_approval_age_seconds: 0, needs_human_runs: 0, failed_runs: 0, inconclusive_runs: 0, recent_contained: 0, recent_remediated: 0, healthy: true, attention_required: false }),
     };
     window.history.replaceState({}, "", `/discovery/assets?inventory=${ids.first}`);
-    render(<APIProvider><ProductionAgentSecurityView path="/discovery/assets" api={api} onNavigate={() => undefined} /></APIProvider>);
+    const surface = <APIProvider><ProductionAgentSecurityView path="/discovery/assets" api={api} onNavigate={() => undefined} /></APIProvider>;
+    render(strict ? <StrictMode>{surface}</StrictMode> : surface);
     expect(await screen.findByRole("dialog", { name: "First" })).toBeVisible();
     expect(getAgent).toHaveBeenCalledWith(ids.first, expect.any(AbortSignal));
     expect(inventoryDetailIDFromSearch(`?inventory=${ids.first}&extra=1`)).toBe("");
@@ -114,7 +118,7 @@ describe("production typed inventory API", () => {
     const getAgentRelationships = vi.fn(async () => [{ id: ids.relationship, from_id: ids.first, to_id: ids.second, type: "uses_identity", evidence_id: ids.evidence }]);
     const listAgentSessions = vi.fn(async () => [{ id: ids.session, agent_id: ids.first, started_at: "2026-08-19T01:00:00Z" }]);
     const api: ProductionAgentSecurityAPI = {
-      listAgents: async () => [value], listTools: async () => [], listIdentities: async () => [], listRuntimes: async () => [],
+      listAgentsPage: async () => ({ items: [value], page_info: { next_cursor: null, has_more: false } }), listAgents: async () => [value], listTools: async () => [], listIdentities: async () => [], listRuntimes: async () => [],
       getAgent: async () => detail, getTool: async () => detail, getIdentity: async () => detail, getRuntime: async () => detail,
       getAgentCapabilities, getAgentRelationships, listAgentSessions,
       updateAgent: async () => ({ agent: value, audit_id: ids.evidence }),
@@ -137,7 +141,7 @@ describe("production typed inventory API", () => {
     const detail = { summary: value, sources: [], evidence: [] } as never;
     const updateAgent = vi.fn(async (_id: string, _version: number, input: { owner: string; team: string; tags: readonly string[] }) => ({ agent: { ...value, ...input, version: 2 }, audit_id: ids.evidence }));
     const api: ProductionAgentSecurityAPI = {
-      listAgents: async () => [value], listTools: async () => [], listIdentities: async () => [], listRuntimes: async () => [],
+      listAgentsPage: async () => ({ items: [value], page_info: { next_cursor: null, has_more: false } }), listAgents: async () => [value], listTools: async () => [], listIdentities: async () => [], listRuntimes: async () => [],
       getAgent: async () => detail, getTool: async () => detail, getIdentity: async () => detail, getRuntime: async () => detail,
       getAgentCapabilities: async () => [], getAgentRelationships: async () => [], listAgentSessions: async () => [], updateAgent,
       getHomeSummary: async () => ({ agent_count: 1, high_risk_paths: 0, verified_changes: 0, blocked_changes: 0, pending_approvals: 0, oldest_approval_age_seconds: 0, needs_human_runs: 0, failed_runs: 0, inconclusive_runs: 0, recent_contained: 0, recent_remediated: 0, healthy: true, attention_required: false }),

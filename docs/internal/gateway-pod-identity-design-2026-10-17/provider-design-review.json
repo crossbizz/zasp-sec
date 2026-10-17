@@ -1,0 +1,43 @@
+{
+  "status": "CLEAR_FINITE_PROVIDER_COMPONENT_DESIGN_ONLY",
+  "reviewer": "/root/gateway_review",
+  "created_at": "2026-10-17T21:52:40.647568+00:00",
+  "contract": {
+    "path": "/tmp/gateway-pod-identity-component-contract-20261017.json",
+    "sha256": "a2a5cb3895586bd1b89e820ae27d13d54ca619bb10164ea6d2ae2142f5466aa3"
+  },
+  "sources": {
+    "services/gatewaypodidentity/go.mod": "181430e321f407f020922eaa24199661ff52e8739ff454ab96002ff343459f91",
+    "services/gatewaypodidentity/verifier.go": "6bec9810b38f6fa7d91c8ae4a9563dc5eb66446f6380f27f81591a4c9b3562ca",
+    "services/gatewaypodidentity/verifier_test.go": "4d1fd5b47c96f5a18fc23a76cb8903fc083172832eefdfb17a2f50748ce6d28d"
+  },
+  "hash_mismatches": [],
+  "prior_review": {
+    "path": "/tmp/gateway-pod-identity-design-review-20261017.json",
+    "sha256": "eeaae6c82795d771da91092736efb458bf67afed35b4cc23e33de993c9b6e49c",
+    "preserved": true
+  },
+  "closed_provider_findings": {
+    "LIVE_AGENT_LABEL": "Both live Deployment reads require Agent label; both RS and Deployment template serviceAccountName normalize omitted to default and match reviewed/live SA. Pod both reads Running now explicit.",
+    "PROVIDER_JSON_COMPATIBILITY": "Unknown normal Kubernetes fields allowed, strict duplicate/UTF8/surrogate/type extraction; case aliases scoped to security paths, not arbitrary map keys; no echoed TokenReview token raw body retained/logged.",
+    "PRODUCT_ID_ABI": "Config IntegrationID and request selector RequestID now exact existing pid_UUIDv4 syntax; Kubernetes native cluster/SA/Pod/RS/Deployment/Node/Boot remain plain nonzero lowercase UUID.",
+    "JWT_ISSUER_AUDIENCE": "Config Issuer explicitly operator pinned HTTPS, allowed different API origin; local JWT iss exactmatch and aud string/string-array inclusion occur only AFTER actual same-token TokenReview success; TokenReview remains authentication authority."
+  },
+  "remaining_separate_gate": {
+    "SA_UID_NATIVE_PROVENANCE": "Root/backend must require actual fresh UID-bearing ServiceAccount occurrence/evidence/contains edge, not name-only normalized entity/reference. Provider component returns live UID and does not implement or approve product principal mapping.",
+    "ROOT_RUNTIME_AND_NATIVE_FLOW": "Component isolated from proxy/DB current authority, policy claim/forward path and provider RBAC. No runtime/native policy head/floor/permission/coverage claim."
+  },
+  "reviewed_contract": [
+    "Fixed configured HTTPS API origin/CA/CIDRs, no proxy/redirect/retry/positiveidentity cache; each dial evaluates actual resolved addresses against allowlist. Protected current-user0600 singlelink reviewer source reread every Verify. All errors stable redacted and tokens opaque with no accessor.",
+    "Exactly13 call budget and single5second child deadline, TokenReview64KiB/object1MiB/aggregate12MiB+64KiB, no percall window renewal. Same authenticated token/audience/Pod extras/user SAUID match strict projected payload and two complete current owner/source node/boot/cluster read rounds.",
+    "Real system UTCmicro observation after finalread and ExpiresAt=min(tokenexp,observed+5s); final cancellation/expiry refusal. Current facts digest includes local request binding and excludes raw secrets. ResourceVersion churn alone permitted.",
+    "Projected Pod token is bearer possession authenticated under configured cluster issuer/RBAC trust, not process/container or detached server/hardware proof. Ownerreferences and labels are cluster-authorized metadata; principals able to create Pods or mint/impersonate SA tokens are part of that trust boundary.",
+    "Public New/NewProof/Verify/Ready still failclosed scaffolds in exact source snapshot; selected five grouped application/protocol boundaries ready for root actual behavioral RED before product. Stub negative passes are not verification of guards."
+  ],
+  "findings": [],
+  "limits": [
+    "Source/design/static hash review only. No reviewer Go/Node/tests/build/network/Git/native execution; no behavioral RED/PASS invented.",
+    "No live Kubernetes TokenReview compatibility/provider RBAC/credentials or native/deployed Stytch/provider/Temporal/OpenFGA/browser evidence. No launch, task, ledger, observedrouting or coverage promotion.",
+    "Initial root proposal, first component contract01e48 and issuer successor0460 plus original HOLD remain separate preserved provenance."
+  ]
+}

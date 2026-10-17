@@ -10,15 +10,16 @@ import { Button, Card, EmptyState, Field, LoadingState, Select } from "../../com
 import { useOptionalSession } from "../../auth/SessionProvider";
 
 export interface ScopeWorkspace { id: string; name: string; version?: number; initialEnvironmentId?: string }
-export interface ScopeEnvironment { id: string; workspaceId: string; name: string; version?: number }
+export type ScopeEnvironmentClass = EnvironmentMutation["environment_class"];
+export interface ScopeEnvironment { id: string; workspaceId: string; name: string; version?: number; environmentClass?: ScopeEnvironmentClass }
 export interface ScopeAdminAPI {
   getOrganization?(): Promise<{ id: string; name: string; domain: string }>;
   listWorkspaces(): Promise<ScopeWorkspace[]>;
   createWorkspace(name: string): Promise<ScopeWorkspace>;
   updateWorkspace(id: string, name: string, version?: number): Promise<ScopeWorkspace>;
   listEnvironments(workspaceId: string): Promise<ScopeEnvironment[]>;
-  createEnvironment(workspaceId: string, name: string): Promise<ScopeEnvironment>;
-  updateEnvironment(id: string, name: string, version?: number): Promise<ScopeEnvironment>;
+  createEnvironment(workspaceId: string, name: string, environmentClass?: ScopeEnvironmentClass): Promise<ScopeEnvironment>;
+  updateEnvironment(id: string, name: string, version?: number, environmentClass?: ScopeEnvironmentClass): Promise<ScopeEnvironment>;
 }
 
 export function createScopeAdminAPI(client: APIClient): ScopeAdminAPI {
@@ -27,9 +28,15 @@ export function createScopeAdminAPI(client: APIClient): ScopeAdminAPI {
     async listWorkspaces() { const loaded = await loadAllCursorPages(async (cursor) => requireAPIData<WorkspacePage>(await client.GET("/api/v1/workspaces", { params: { query: { limit: 100, ...(cursor ? { cursor } : {}) } } }), decodeWorkspacePage), { maximumItems: 2_000, maximumPages: 20 }); return loaded.items.map((item) => ({ id: item.id, name: item.name, version: item.version })); },
     async createWorkspace(name) { const item = requireAPIData<WorkspaceMutation>(await client.POST("/api/v1/workspaces", { params: { header: { "X-CSRF-Token": "" } }, body: { name } }), decodeWorkspace); return { id: item.id, name: item.name, version: item.version, initialEnvironmentId: item.initial_environment_id }; },
     async updateWorkspace(id, name, version = 1) { const item = requireAPIData<WorkspaceMutation>(await client.PATCH("/api/v1/workspaces/{id}", { params: { path: { id }, header: { "X-CSRF-Token": "", "If-Match": `"${version}"` } }, body: { name } }), decodeWorkspace); return { id: item.id, name: item.name, version: item.version }; },
-    async listEnvironments(workspaceId) { const loaded = await loadAllCursorPages(async (cursor) => requireAPIData<EnvironmentPage>(await client.GET("/api/v1/environments", { params: { query: { workspace_id: workspaceId, limit: 100, ...(cursor ? { cursor } : {}) } } }), decodeEnvironmentPage), { maximumItems: 2_000, maximumPages: 20 }); return loaded.items.map((item) => ({ id: item.id, workspaceId: item.workspace_id, name: item.name, version: item.version })); },
-    async createEnvironment(workspaceId, name) { const item = requireAPIData<EnvironmentMutation>(await client.POST("/api/v1/environments", { params: { header: { "X-CSRF-Token": "" } }, body: { workspace_id: workspaceId, name } }), decodeEnvironment); return { id: item.id, workspaceId: item.workspace_id, name: item.name, version: item.version }; },
-    async updateEnvironment(id, name, version = 1) { const item = requireAPIData<EnvironmentMutation>(await client.PATCH("/api/v1/environments/{id}", { params: { path: { id }, header: { "X-CSRF-Token": "", "If-Match": `"${version}"` } }, body: { name } }), decodeEnvironment); return { id: item.id, workspaceId: item.workspace_id, name: item.name, version: item.version }; },
+    async listEnvironments(workspaceId) { const loaded = await loadAllCursorPages(async (cursor) => requireAPIData<EnvironmentPage>(await client.GET("/api/v1/environments", { params: { query: { workspace_id: workspaceId, limit: 100, ...(cursor ? { cursor } : {}) } } }), decodeEnvironmentPage), { maximumItems: 2_000, maximumPages: 20 }); return loaded.items.map((item) => ({ id: item.id, workspaceId: item.workspace_id, name: item.name, environmentClass: item.environment_class, version: item.version })); },
+    async createEnvironment(workspaceId, name, environmentClass) {
+      const item = requireAPIData<EnvironmentMutation>(await client.POST("/api/v1/environments", { params: { header: { "X-CSRF-Token": "" } }, body: { workspace_id: workspaceId, name, ...(environmentClass === undefined ? {} : { environment_class: environmentClass }) } }), decodeEnvironment);
+      return { id: item.id, workspaceId: item.workspace_id, name: item.name, environmentClass: item.environment_class, version: item.version };
+    },
+    async updateEnvironment(id, name, version = 1, environmentClass) {
+      const item = requireAPIData<EnvironmentMutation>(await client.PATCH("/api/v1/environments/{id}", { params: { path: { id }, header: { "X-CSRF-Token": "", "If-Match": `"${version}"` } }, body: { name, ...(environmentClass === undefined ? {} : { environment_class: environmentClass }) } }), decodeEnvironment);
+      return { id: item.id, workspaceId: item.workspace_id, name: item.name, environmentClass: item.environment_class, version: item.version };
+    },
   };
 }
 
@@ -47,6 +54,11 @@ export function ScopeOnboardingView({ api: suppliedAPI, client, onScopeChange }:
   const [newWorkspaceName, setNewWorkspaceName] = useState("");
   const [environmentName, setEnvironmentName] = useState("");
   const [newEnvironmentName, setNewEnvironmentName] = useState("");
+  const [environmentClass, setEnvironmentClass] = useState<ScopeEnvironmentClass | "">("");
+  const [newEnvironmentClass, setNewEnvironmentClass] = useState<ScopeEnvironmentClass>("development");
+  const canClassify = session?.status === "authenticated"
+    && session.hasCapability("identity.scopes.manage")
+    && session.hasCapability("identity.environments.classify");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -73,27 +85,75 @@ export function ScopeOnboardingView({ api: suppliedAPI, client, onScopeChange }:
     let active = true;
     if (!workspaceId) return () => { active = false; };
     if (!api) return () => { active = false; };
-    void api.listEnvironments(workspaceId).then((values) => { if (!active) return; const requiresActive = session?.status === "authenticated" && session.workspaceID === workspaceId; const selected = requiresActive ? values.find((item) => item.id === session.environmentID) : values[0]; if (requiresActive && !selected) throw new Error("active environment not authorized"); setEnvironments(values); setEnvironmentId(selected?.id ?? ""); setEnvironmentName(selected?.name ?? ""); }).catch(() => { if (active) setError("Authorized environments could not be loaded"); });
+    void api.listEnvironments(workspaceId).then((values) => { if (!active) return; const requiresActive = session?.status === "authenticated" && session.workspaceID === workspaceId; const selected = requiresActive ? values.find((item) => item.id === session.environmentID) : values[0]; if (requiresActive && !selected) throw new Error("active environment not authorized"); setEnvironments(values); setEnvironmentId(selected?.id ?? ""); setEnvironmentName(selected?.name ?? ""); setEnvironmentClass(selected?.environmentClass ?? ""); }).catch(() => { if (active) setError("Authorized environments could not be loaded"); });
     return () => { active = false; };
   }, [api, session, workspaceId]);
   if (loading) return <LoadingState label="Loading authorized scopes…" />;
 
-  const run = async (operation: () => Promise<void>, message: string) => { setError(null); try { await operation(); setNotice(message); } catch { setError("Scope action could not be completed"); } };
+  const run = async (operation: () => Promise<void>, message: string) => { setError(null); setNotice(null); try { await operation(); setNotice(message); } catch { setError("Scope action could not be completed"); } };
   return <section id="scope-onboarding" className="page identity-access">
     {error && <div className="error-banner" role="alert">{error}</div>}{notice && <div className="success-banner" role="status">{notice}</div>}
     {!fresh && <div className="error-banner" role="alert">Fresh authentication expired. <Button onClick={() => session?.reauthenticate()}>Reauthenticate</Button></div>}
     <div className="identity-grid">
       {organization && <Card title={<h2>Organization</h2>}><p><strong>{organization.name}</strong></p><p>{organization.domain}</p></Card>}
       <Card title={<h2>Workspace onboarding</h2>}>
-        {workspaces.length === 0 ? <EmptyState title="No authorized workspaces" description="Create the first Workspace to begin onboarding." /> : <Select label="Authorized workspace" value={activeWorkspaceId} onChange={(event) => { const id = event.target.value; const selected = workspaces.find((item) => item.id === id); setWorkspaceId(id); setWorkspaceName(selected?.name ?? ""); void run(async () => { if (!api) throw new Error(); const authorized = session?.status === "authenticated" ? session.scopes.find((scope) => scope.workspace_id === id) : undefined; if (authorized) { await changeScope({ workspaceId: authorized.workspace_id, environmentId: authorized.environment_id }); return; } const values = await api.listEnvironments(id); const firstEnvironment = values[0]; if (!firstEnvironment) throw new Error("workspace has no authorized environment"); await changeScope({ workspaceId: id, environmentId: firstEnvironment.id }); setEnvironments(values); setEnvironmentId(firstEnvironment.id); setEnvironmentName(firstEnvironment.name); }, "Active scope changed"); }}>{workspaces.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</Select>}
-        <div className="identity-form-row"><Field disabled={!fresh} label="New workspace name" value={newWorkspaceName} onChange={(event) => setNewWorkspaceName(event.target.value)} /><Button disabled={!fresh} variant="primary" onClick={() => { if (!newWorkspaceName.trim()) { setError("Enter a workspace name"); return; } void run(async () => { if (!api) throw new Error(); const created = await api.createWorkspace(newWorkspaceName.trim()); if (!created.initialEnvironmentId) throw new Error("initial environment missing"); await changeScope({ workspaceId: created.id, environmentId: created.initialEnvironmentId }); const initialEnvironment = { id: created.initialEnvironmentId, workspaceId: created.id, name: "Development", version: 1 }; setWorkspaces((current) => [...current, created]); setEnvironments([initialEnvironment]); setWorkspaceId(created.id); setWorkspaceName(created.name); setEnvironmentId(initialEnvironment.id); setEnvironmentName(initialEnvironment.name); setNewWorkspaceName(""); }, "Workspace and initial environment created"); }}>Create workspace</Button></div>
+        {workspaces.length === 0 ? <EmptyState title="No authorized workspaces" description="Create the first Workspace to begin onboarding." /> : <Select label="Authorized workspace" value={activeWorkspaceId} onChange={(event) => { const id = event.target.value; const selected = workspaces.find((item) => item.id === id); setWorkspaceId(id); setWorkspaceName(selected?.name ?? ""); void run(async () => { if (!api) throw new Error(); const authorized = session?.status === "authenticated" ? session.scopes.find((scope) => scope.workspace_id === id) : undefined; if (authorized) { await changeScope({ workspaceId: authorized.workspace_id, environmentId: authorized.environment_id }); return; } const values = await api.listEnvironments(id); const firstEnvironment = values[0]; if (!firstEnvironment) throw new Error("workspace has no authorized environment"); await changeScope({ workspaceId: id, environmentId: firstEnvironment.id }); setEnvironments(values); setEnvironmentId(firstEnvironment.id); setEnvironmentName(firstEnvironment.name); setEnvironmentClass(firstEnvironment.environmentClass ?? ""); }, "Active scope changed"); }}>{workspaces.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</Select>}
+        <div className="identity-form-row"><Field disabled={!fresh} label="New workspace name" value={newWorkspaceName} onChange={(event) => setNewWorkspaceName(event.target.value)} /><Button disabled={!fresh} variant="primary" onClick={() => { if (!newWorkspaceName.trim()) { setError("Enter a workspace name"); return; } void run(async () => { if (!api) throw new Error(); const created = await api.createWorkspace(newWorkspaceName.trim()); if (!created.initialEnvironmentId) throw new Error("initial environment missing"); await changeScope({ workspaceId: created.id, environmentId: created.initialEnvironmentId }); const initialEnvironment = { id: created.initialEnvironmentId, workspaceId: created.id, name: "Development", version: 1 }; setWorkspaces((current) => [...current, created]); setEnvironments([initialEnvironment]); setWorkspaceId(created.id); setWorkspaceName(created.name); setEnvironmentId(initialEnvironment.id); setEnvironmentName(initialEnvironment.name); setEnvironmentClass(""); setNewWorkspaceName(""); }, "Workspace and initial environment created"); }}>Create workspace</Button></div>
         {workspaceId && <div className="identity-form-row"><Field disabled={!fresh} label="Workspace display name" value={workspaceName} onChange={(event) => setWorkspaceName(event.target.value)} /><Button disabled={!fresh} onClick={() => void run(async () => { if (!api) throw new Error(); const current = workspaces.find((item) => item.id === workspaceId); const updated = await api.updateWorkspace(workspaceId, workspaceName.trim(), current?.version); setWorkspaces((values) => values.map((item) => item.id === updated.id ? updated : item)); }, "Workspace updated")}>Update workspace</Button></div>}
       </Card>
       <Card title={<h2>Environment onboarding</h2>}>
-        {workspaceId && environments.length === 0 ? <EmptyState title="No authorized environments" /> : workspaceId && <Select label="Authorized environment" value={activeEnvironmentId} onChange={(event) => { const id = event.target.value; setEnvironmentId(id); setEnvironmentName(environments.find((item) => item.id === id)?.name ?? ""); void changeScope({ workspaceId, environmentId: id }); }}>{environments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</Select>}
-        {workspaceId && <div className="identity-form-row"><Field disabled={!fresh} label="New environment name" value={newEnvironmentName} onChange={(event) => setNewEnvironmentName(event.target.value)} /><Button disabled={!fresh} variant="primary" onClick={() => { if (!newEnvironmentName.trim()) { setError("Enter an environment name"); return; } void run(async () => { if (!api) throw new Error(); const created = await api.createEnvironment(workspaceId, newEnvironmentName.trim()); await changeScope({ workspaceId, environmentId: created.id }); setEnvironments((current) => [...current, created]); setEnvironmentId(created.id); setEnvironmentName(created.name); setNewEnvironmentName(""); }, "Environment created"); }}>Create environment</Button></div>}
-        {environmentId && <div className="identity-form-row"><Field disabled={!fresh} label="Environment display name" value={environmentName} onChange={(event) => setEnvironmentName(event.target.value)} /><Button disabled={!fresh} onClick={() => void run(async () => { if (!api) throw new Error(); const current = environments.find((item) => item.id === environmentId); const updated = await api.updateEnvironment(environmentId, environmentName.trim(), current?.version); setEnvironments((values) => values.map((item) => item.id === updated.id ? updated : item)); }, "Environment updated")}>Update environment</Button></div>}
+        {workspaceId && environments.length === 0 ? <EmptyState title="No authorized environments" /> : workspaceId && <Select label="Authorized environment" value={activeEnvironmentId} onChange={(event) => { const id = event.target.value; setEnvironmentId(id); setEnvironmentName(environments.find((item) => item.id === id)?.name ?? ""); setEnvironmentClass(environments.find((item) => item.id === id)?.environmentClass ?? ""); void changeScope({ workspaceId, environmentId: id }); }}>{environments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</Select>}
+        {workspaceId && <div className="identity-form-row">
+          <Field disabled={!fresh} label="New environment name" value={newEnvironmentName} onChange={(event) => setNewEnvironmentName(event.target.value)} />
+          {canClassify && <Select disabled={!fresh} label="New environment classification" value={newEnvironmentClass} onChange={(event) => { if (isEnvironmentClass(event.target.value)) setNewEnvironmentClass(event.target.value); }}>
+            <EnvironmentClassOptions />
+          </Select>}
+          <Button disabled={!fresh} variant="primary" onClick={() => {
+            if (!newEnvironmentName.trim()) { setError("Enter an environment name"); return; }
+            void run(async () => {
+              if (!api) throw new Error();
+              const created = canClassify
+                ? await api.createEnvironment(workspaceId, newEnvironmentName.trim(), newEnvironmentClass)
+                : await api.createEnvironment(workspaceId, newEnvironmentName.trim());
+              await changeScope({ workspaceId, environmentId: created.id });
+              setEnvironments((current) => [...current, created]);
+              setEnvironmentId(created.id); setEnvironmentName(created.name);
+              setEnvironmentClass(created.environmentClass ?? ""); setNewEnvironmentName("");
+            }, "Environment created");
+          }}>Create environment</Button>
+        </div>}
+        {environmentId && <div className="identity-form-row">
+          <Field disabled={!fresh} label="Environment display name" value={environmentName} onChange={(event) => setEnvironmentName(event.target.value)} />
+          {canClassify && <Select disabled={!fresh || !environmentClass} label="Environment classification" value={environmentClass} onChange={(event) => { if (isEnvironmentClass(event.target.value)) setEnvironmentClass(event.target.value); }}>
+            {!environmentClass && <option value="">Classification unavailable</option>}
+            <EnvironmentClassOptions />
+          </Select>}
+          {!canClassify && environmentClass && <p>Classification: {environmentClassLabels[environmentClass]}</p>}
+          <Button disabled={!fresh || (canClassify && !environmentClass)} onClick={() => void run(async () => {
+            if (!api) throw new Error();
+            const current = environments.find((item) => item.id === environmentId);
+            let updated: ScopeEnvironment;
+            if (canClassify) {
+              if (!isEnvironmentClass(environmentClass) || !current?.version) throw new Error("Current environment version unavailable");
+              updated = await api.updateEnvironment(environmentId, environmentName.trim(), current.version, environmentClass);
+            } else {
+              updated = await api.updateEnvironment(environmentId, environmentName.trim(), current?.version);
+            }
+            setEnvironments((values) => values.map((item) => item.id === updated.id ? updated : item));
+            setEnvironmentName(updated.name); setEnvironmentClass(updated.environmentClass ?? "");
+          }, "Environment updated")}>Update environment</Button>
+        </div>}
       </Card>
     </div>
   </section>;
+}
+
+const environmentClassLabels: Record<ScopeEnvironmentClass, string> = {
+  development: "Development", test: "Test", staging: "Staging", production: "Production",
+};
+function isEnvironmentClass(value: string): value is ScopeEnvironmentClass {
+  return Object.hasOwn(environmentClassLabels, value);
+}
+function EnvironmentClassOptions() {
+  return Object.entries(environmentClassLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>);
 }

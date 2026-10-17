@@ -24,10 +24,11 @@ const (
 var publicSensorFields = []string{"created_at", "id", "kind", "last_heartbeat_at", "mode", "name", "state", "token_expires_at", "updated_at", "version"}
 
 type SensorPublicRepository struct {
-	database     JSONDatabase
-	readinessSQL string
-	checksum     string
-	fingerprint  string
+	nodeCoverageProfileChecksum string
+	database                    JSONDatabase
+	readinessSQL                string
+	checksum                    string
+	fingerprint                 string
 }
 
 type ProductSensor struct {

@@ -1,0 +1,51 @@
+{
+  "observed_at": "2026-10-17T08:44:56.870119+00:00",
+  "verified_head": "e04df7d9da0baa09576344181323e11283ad024d",
+  "run": {
+    "conclusion": "success",
+    "event": "pull_request",
+    "head_sha": "e04df7d9da0baa09576344181323e11283ad024d",
+    "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39017288925",
+    "id": 39017288925,
+    "path": ".github/workflows/connector-native-draft-compile.yml",
+    "run_attempt": 1,
+    "status": "completed"
+  },
+  "jobs": [
+    {
+      "id": 117351913516,
+      "name": "compile",
+      "conclusion": "success"
+    },
+    {
+      "id": 117351913707,
+      "name": "selected-node-observation",
+      "conclusion": "success"
+    },
+    {
+      "id": 117351913737,
+      "name": "connected-preflight",
+      "conclusion": "success"
+    }
+  ],
+  "source_pins_verified": 407,
+  "workflow_sha256": "9f715b7802b35a5bedf950f2c45aad61fd5dd99eb10a045b9c73f76c47693902",
+  "verified_behavior": "Exact frozen workflow passed nineteen-package compilation, strict86 connector/journal application gate, existing handler/worker groups, full connected SDK/preflight and CLI groups, read-only catalog group and full selected-node adapter/sensor application steps. Source/module custody postconditions passed.",
+  "qualification": "Application and source evidence only. Finite official metadata does not reveal inner Go trace or hosted skip counts. Local exact-source component results and explicit skips remain in earlier immutable checkpoints. No original native SQL, real tenant/provider, protected mounted witness, Helm, workload-network or deployed E2E acceptance inferred. Earlier pending checkpoints remain unchanged.",
+  "ledger": {
+    "rows": 728,
+    "classes": {
+      "production-available": 523,
+      "component-only": 144,
+      "blocked/external": 61
+    },
+    "promotions": 0
+  },
+  "archive": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/preflight-sensor-hosted/component-evidence.json.gz",
+    "bytes": 27940,
+    "sha256": "3952dad08ae4ef6e57150424e70b376bd5ce015b61959e09bb2eb0c47f88e50b",
+    "members": 3
+  },
+  "remaining": "Current-head browser/lifecycle/security/native/release and real provider/deployed acceptance remain required. No task promoted."
+}
