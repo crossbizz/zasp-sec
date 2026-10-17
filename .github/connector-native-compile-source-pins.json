@@ -19,8 +19,8 @@
     },
     {
       "path": "services/platform/agentsec-api/production_runtime.go",
-      "sha256": "1596cbdaca990dec1c7ff613a8ba4e43ad873efe64ed3e839563f93d21ba96a2",
-      "bytes": 66067,
+      "sha256": "6ebadde201a3b2ac9a3888710017e9fed097fc0e06e93787231646439aaf4881",
+      "bytes": 67036,
       "currentBasePreimageSHA256": "bbcc0ce1843601dfdfbde2ffe2aa710ed26239d7eb27849f2b5e9582338b09ef",
       "historicalPreimageSHA256": "10f33b11d8e05b35b4814a1a3e58889c5a4d592dce82e1010fd92874c22ac7fa"
     },
@@ -390,14 +390,14 @@
     },
     {
       "path": "scripts/hosted-connected-connector-acceptance.mjs",
-      "sha256": "d780d1d46ea673459435cfe825c7ec06b29823832af626cc8301648179a5bb58",
+      "sha256": "ae164627ca0b7a5b97e373fd21b329e2c7305ef587c92e6e538aa7efa5c6f0e1",
       "bytes": 149113,
       "currentBasePreimageSHA256": "f248c6d9182ca08cb518cd54c620844c987f4ae723a38badb463c59e010db578",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
-      "sha256": "a1f41ce1317f99208a013960416a13e2847851c50448e33a6c68c1d9714155a3",
+      "sha256": "a371bd07112694b0c713cb5a4a47dfb154a71513486eedf1dee8842e8a4c9d69",
       "bytes": 145629,
       "currentBasePreimageSHA256": "e66722e4daf5b1482c253d1f14b4c533c329fde202252c16f87ad3e0130e8524",
       "historicalPreimageSHA256": null
@@ -6347,5 +6347,7 @@
   "ownerFilterCompileRepairPredecessorManifestSHA256": "478ce0fe022bb9967af8c619099223df306f5b9842e7543d5bd3ba7d2b3f0d7b",
   "podIdentityComponentSourceAssociationBase": "c1a06e304260f36c8fabafa81951fef91463928c",
   "podIdentityComponentPredecessorManifestSHA256": "fbd88729a0e33d98c0d48203dc531b97de77ac456a9fa4346bb1ca1a64c4b684",
-  "podIdentityDependencyIntegrationIntermediateManifestSHA256": "13ebd9535c4ffeacf9ea31700759cef6815dbe5b3fec46fafb328f51d915d0c1"
+  "podIdentityDependencyIntegrationIntermediateManifestSHA256": "13ebd9535c4ffeacf9ea31700759cef6815dbe5b3fec46fafb328f51d915d0c1",
+  "apiCompositionCompileRepairSourceAssociationBase": "ea4c011dc484089b0df01e40515ad2d3c19fc3de",
+  "apiCompositionCompileRepairPredecessorManifestSHA256": "7cf7b093a6b02128b3ad2781fda02ca1cb048ef386266f34fd685235a0fb5a15"
 }

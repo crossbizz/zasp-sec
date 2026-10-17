@@ -30,6 +30,17 @@ import (
 type auditExportStorageFactory func(RuntimeConfig) ([]apiserver.AuditExportStorageConfiguration, *http.Transport, error)
 type complianceStorageFactory func(RuntimeConfig) (complianceStorageResources, error)
 
+// runtimeProfileReadinessDatabase is required only when a selected profile uses
+// its native readiness check. Generic database fixtures keep the narrow API.
+type runtimeProfileReadinessDatabase interface {
+	AgentExposureFilterProfileReady(context.Context, string) (bool, error)
+	AgentOwnershipWriteProfileReady(context.Context, string) (bool, error)
+	SensorNodeCoverageProfileReady(context.Context, string) (bool, error)
+	AgentReadProfileReady(context.Context, string) (bool, error)
+	AgentOwnerFilterProfileReady(context.Context, string) (bool, error)
+	EnvironmentClassProfileReady(context.Context, string) (bool, error)
+}
+
 func buildRuntimeDependencies(ctx context.Context, config RuntimeConfig) (RuntimeDependencies, error) {
 	return buildRuntimeDependenciesWithAuditExportStorage(ctx, config, newAuditExportStorageClients)
 }
@@ -117,6 +128,22 @@ func buildRuntimeDependenciesWithReadinessObserver(ctx context.Context, config R
 		selectedResolver = decorated
 	}
 	authorizer := &apiserver.OpenFGAAuthorizer{Reader: revisions, Checker: checker, Resolver: selectedResolver, StoreID: config.RuntimeServices.StoreID, ModelID: config.RuntimeServices.ModelID, AttestationKey: attestationKey}
+
+	// Optional profile readiness gates only its feature operations.
+	if config.AgentDeviceAssociationProfileChecksum != "" {
+		authorizer.AgentDeviceAssociationReady = func(ctx context.Context) (bool, error) {
+			probe, cancel := context.WithTimeout(ctx, 5*time.Second)
+			defer cancel()
+			return database.AgentDeviceAssociationProfileReady(probe, config.AgentDeviceAssociationProfileChecksum)
+		}
+	}
+	if config.GatewayBootstrapProfileChecksum != "" {
+		authorizer.GatewayBootstrapReady = func(ctx context.Context) (bool, error) {
+			probe, cancel := context.WithTimeout(ctx, 5*time.Second)
+			defer cancel()
+			return database.GatewayBootstrapProfileReady(probe, config.GatewayBootstrapProfileChecksum)
+		}
+	}
 
 	if config.AgentExposureFilterProfileChecksum != "" {
 		bounded, cancel := context.WithTimeout(ctx, config.ProviderTimeout)
@@ -349,6 +376,16 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 		}
 		database = selected
 	}
+	var profileDatabase runtimeProfileReadinessDatabase
+	if config.AgentExposureFilterProfileChecksum != "" || config.AgentOwnershipWriteProfileChecksum != "" ||
+		config.SensorNodeCoverageRetentionEnabled || config.AgentReadProfileChecksum != "" ||
+		config.AgentOwnerFilterEnabled || config.EnvironmentClassEnabled {
+		var ok bool
+		profileDatabase, ok = database.(runtimeProfileReadinessDatabase)
+		if !ok || invalidRuntimeValue(profileDatabase) {
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("composition-profile-readiness", errRuntimeUnavailable)
+		}
+	}
 	metrics := newOperationalMetrics()
 	exporter := newStructuredSpanExporter(output)
 	tracedDatabase := &tracedJSONDatabase{next: database, metrics: metrics, exporter: exporter}
@@ -402,50 +439,28 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("retention-repositories", errRuntimeUnavailable)
 	}
 	if config.AgentExposureFilterProfileChecksum != "" && repository.RequireAgentExposureFilterProfile(config.AgentExposureFilterProfileChecksum) != nil {
-		_ = database.Close()
-		_ = securityAgentDatabase.Close()
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("agent-exposure-filter-profile", errRuntimeUnavailable)
 	}
 	if config.AgentOwnershipWriteProfileChecksum != "" && repository.RequireAgentOwnershipWriteProfile(config.AgentOwnershipWriteProfileChecksum) != nil {
-		_ = database.Close()
-		_ = securityAgentDatabase.Close()
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("agent-ownership-write-profile", errRuntimeUnavailable)
 	}
 	if config.AgentDeviceAssociationProfileChecksum != "" {
 		if repository.RequireAgentDeviceAssociationProfile(config.AgentDeviceAssociationProfileChecksum) != nil {
 			return RuntimeDependencies{}, markRuntimeDependencyFailure("agent-device-association-configuration", errRuntimeUnavailable)
 		}
-		// Own feature readiness is checked only for the new operations. A missing
-		// catalog/profile never replaces original global API health or authorization.
-		authorizer.AgentDeviceAssociationReady = func(ctx context.Context) (bool, error) {
-			probe, cancel := context.WithTimeout(ctx, 5*time.Second)
-			defer cancel()
-			return database.AgentDeviceAssociationProfileReady(probe, config.AgentDeviceAssociationProfileChecksum)
-		}
 	}
 	if config.GatewayBootstrapProfileChecksum != "" {
 		if repository.RequireGatewayBootstrapProfile(config.GatewayBootstrapProfileChecksum) != nil {
 			return RuntimeDependencies{}, markRuntimeDependencyFailure("gateway-bootstrap-configuration", errRuntimeUnavailable)
 		}
-		authorizer.GatewayBootstrapReady = func(ctx context.Context) (bool, error) {
-			probe, cancel := context.WithTimeout(ctx, 5*time.Second)
-			defer cancel()
-			return database.GatewayBootstrapProfileReady(probe, config.GatewayBootstrapProfileChecksum)
-		}
 	}
 	if config.SensorNodeCoverageRetentionEnabled && repository.RequireSensorNodeCoverageProfile(config.SensorNodeCoverageProfileChecksum) != nil {
-		_ = database.Close()
-		_ = securityAgentDatabase.Close()
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("sensor-node-coverage-profile", errRuntimeUnavailable)
 	}
 	if config.AgentReadProfileChecksum != "" && repository.RequireAgentReadProfile(config.AgentReadProfileChecksum) != nil {
-		_ = database.Close()
-		_ = securityAgentDatabase.Close()
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("agent-read-profile", errRuntimeUnavailable)
 	}
 	if config.AgentOwnerFilterEnabled && repository.RequireAgentOwnerFilterProfile(config.AgentOwnerFilterProfileChecksum) != nil {
-		_ = database.Close()
-		_ = securityAgentDatabase.Close()
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("agent-owner-filter-profile", errRuntimeUnavailable)
 	}
 	if config.EnvironmentClassEnabled && repository.RequireEnvironmentClassProfile(config.EnvironmentClassProfileChecksum) != nil {
@@ -788,7 +803,7 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 			checks := []func(context.Context) error{connectorNativeReady, repository.Ready, connectorRepository.Ready, referenceRepository.Ready, policyHandler.Ready, tracedProvider.Ready}
 			if config.AgentExposureFilterProfileChecksum != "" {
 				checks = append(checks, func(probe context.Context) error {
-					ready, err := database.AgentExposureFilterProfileReady(probe, config.AgentExposureFilterProfileChecksum)
+					ready, err := profileDatabase.AgentExposureFilterProfileReady(probe, config.AgentExposureFilterProfileChecksum)
 					if err != nil || !ready {
 						return errRuntimeUnavailable
 					}
@@ -797,7 +812,7 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 			}
 			if config.AgentOwnershipWriteProfileChecksum != "" {
 				checks = append(checks, func(probe context.Context) error {
-					ready, err := database.AgentOwnershipWriteProfileReady(probe, config.AgentOwnershipWriteProfileChecksum)
+					ready, err := profileDatabase.AgentOwnershipWriteProfileReady(probe, config.AgentOwnershipWriteProfileChecksum)
 					if err != nil || !ready {
 						return errRuntimeUnavailable
 					}
@@ -806,7 +821,7 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 			}
 			if config.SensorNodeCoverageRetentionEnabled {
 				checks = append(checks, func(probe context.Context) error {
-					ready, err := database.SensorNodeCoverageProfileReady(probe, config.SensorNodeCoverageProfileChecksum)
+					ready, err := profileDatabase.SensorNodeCoverageProfileReady(probe, config.SensorNodeCoverageProfileChecksum)
 					if err != nil || !ready {
 						return errRuntimeUnavailable
 					}
@@ -815,7 +830,7 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 			}
 			if config.AgentReadProfileChecksum != "" {
 				checks = append(checks, func(probe context.Context) error {
-					ready, err := database.AgentReadProfileReady(probe, config.AgentReadProfileChecksum)
+					ready, err := profileDatabase.AgentReadProfileReady(probe, config.AgentReadProfileChecksum)
 					if err != nil || !ready {
 						return errRuntimeUnavailable
 					}
@@ -824,7 +839,7 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 			}
 			if config.AgentOwnerFilterEnabled {
 				checks = append(checks, func(probe context.Context) error {
-					ready, e := database.AgentOwnerFilterProfileReady(probe, config.AgentOwnerFilterProfileChecksum)
+					ready, e := profileDatabase.AgentOwnerFilterProfileReady(probe, config.AgentOwnerFilterProfileChecksum)
 					if e != nil || !ready {
 						return errRuntimeUnavailable
 					}
@@ -833,7 +848,7 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 			}
 			if config.EnvironmentClassEnabled {
 				checks = append(checks, func(probe context.Context) error {
-					ready, err := database.EnvironmentClassProfileReady(probe, config.EnvironmentClassProfileChecksum)
+					ready, err := profileDatabase.EnvironmentClassProfileReady(probe, config.EnvironmentClassProfileChecksum)
 					if err != nil || !ready {
 						return errRuntimeUnavailable
 					}
