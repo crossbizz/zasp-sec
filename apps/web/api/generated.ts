@@ -2539,6 +2539,17 @@ export type paths = {
 export type webhooks = Record<string, never>;
 export type components = {
     schemas: {
+        readonly AcceptedNodeCoverageObservation: {
+            /** Format: date-time */
+            readonly expires_at: string;
+            readonly observation: components["schemas"]["NodeCoverageEnvelope"];
+            /** Format: date-time */
+            readonly received_at: string;
+            readonly request_digest: string;
+            readonly sequence: number;
+            /** Format: date-time */
+            readonly source_observed_at: string;
+        };
         readonly AgentMutation: {
             readonly agent: components["schemas"]["InventoryRecord"];
             readonly audit_id: components["schemas"]["ProductID"];
@@ -3642,6 +3653,102 @@ export type components = {
         };
         readonly NameInput: {
             readonly name: string;
+        };
+        readonly NodeCoverageEnvelope: {
+            readonly btf: boolean;
+            readonly capabilities: readonly ("file" | "network" | "process")[];
+            /** @constant */
+            readonly coverage_schema: "zasp-node-coverage-retained-v1";
+            readonly drops: number;
+            readonly event_rate: number;
+            /** Format: date-time */
+            readonly inventory_observed_at: string;
+            readonly kernel: string;
+            readonly reports: readonly components["schemas"]["NodeCoverageReport"][];
+            readonly selected_nodes: readonly {
+                /** Format: uuid */
+                readonly boot_id: string;
+                readonly node_name: string;
+                /** Format: uuid */
+                readonly node_uid: string;
+            }[];
+            readonly selection: components["schemas"]["NodeCoverageSelection"];
+            /** Format: uuid */
+            readonly sensor_daemonset_uid: string;
+            readonly sequence: number;
+            /** Format: date-time */
+            readonly source_observed_at: string;
+            /** Format: uuid */
+            readonly state_uid: string;
+            /** @enum {string} */
+            readonly status: "healthy" | "degraded";
+            readonly storage_epoch: number;
+            readonly target_digest: string;
+            /** Format: uuid */
+            readonly tetragon_daemonset_uid: string;
+            readonly ttl_seconds: number;
+        };
+        readonly NodeCoverageReport: {
+            /** Format: uuid */
+            readonly boot_id: string;
+            readonly btf: boolean;
+            readonly capabilities: readonly ("file" | "network" | "process")[];
+            /** Format: uuid */
+            readonly cluster_uid: string;
+            readonly drops: number;
+            readonly enrollment_binding: string;
+            readonly event_rate: number;
+            /** Format: uuid */
+            readonly generation_id: string;
+            /** Format: date-time */
+            readonly identity_observed_at: string;
+            readonly kernel: string;
+            /** Format: date-time */
+            readonly measured_at: string;
+            readonly node_name: string;
+            /** Format: uuid */
+            readonly node_uid: string;
+            readonly reporter_pod_name: string;
+            /** Format: uuid */
+            readonly reporter_pod_uid: string;
+            /** @constant */
+            readonly schema: "zasp-node-coverage-v2";
+            /** @enum {string} */
+            readonly source_profile: "tetragon-local-stream-v2" | "tetragon-local-stream-v3";
+            /** @enum {string} */
+            readonly status: "healthy" | "degraded";
+            readonly tetragon_pod_name: string;
+            /** Format: uuid */
+            readonly tetragon_pod_uid: string;
+        };
+        readonly NodeCoverageSelection: {
+            /** Format: uuid */
+            readonly cluster_uid: string;
+            readonly enrollment_binding: string;
+            readonly match_labels: {
+                readonly [key: string]: string;
+            };
+            readonly sensor: components["schemas"]["NodeCoverageTarget"];
+            /** @enum {string} */
+            readonly source_profile: "tetragon-local-stream-v2" | "tetragon-local-stream-v3";
+            readonly tetragon: components["schemas"]["NodeCoverageTarget"];
+        };
+        readonly NodeCoverageTarget: {
+            readonly container: string;
+            readonly image: string;
+            readonly name: string;
+            readonly namespace: string;
+            readonly release: string;
+            readonly release_namespace: string;
+            readonly service_account: string;
+        };
+        /** @description Retained authenticated sensor testimony at the last scoped database read. source_current is not live Kubernetes reobservation or Agent coverage. */
+        readonly NodeObservationRead: {
+            readonly receipt: components["schemas"]["AcceptedNodeCoverageObservation"] | null;
+            /** @constant */
+            readonly schema: "zasp-node-observation-read-v1";
+            /** @enum {string} */
+            readonly state: "unavailable" | "source_current" | "source_expired" | "source_superseded" | "enrollment_revoked";
         };
         readonly OAuthCompletionReceiptIntent: {
             readonly authorization_attempt_id: components["schemas"]["ProductID"];
@@ -4821,6 +4928,19 @@ export type components = {
         readonly SensorKind: "tetragon" | "otlp";
         /** @enum {string} */
         readonly SensorMode: "metadata_only" | "full";
+        readonly SensorNodeCoverage: {
+            readonly btf: boolean;
+            readonly capabilities: readonly string[];
+            readonly drops: number;
+            readonly event_rate: number;
+            readonly kernel: string;
+            readonly last_heartbeat: string | null;
+            readonly node_observation: components["schemas"]["NodeObservationRead"];
+            readonly sensor_id: components["schemas"]["ProductID"];
+            /** @enum {string} */
+            readonly status: "pending" | "healthy" | "degraded" | "offline" | "revoked";
+            readonly supported: boolean;
+        };
         readonly SensorPage: {
             readonly items: readonly components["schemas"]["Sensor"][];
             readonly page_info: components["schemas"]["PageInfo"];
@@ -5212,6 +5332,7 @@ export type components = {
     };
     pathItems: never;
 };
+export type AcceptedNodeCoverageObservation = components['schemas']['AcceptedNodeCoverageObservation'];
 export type AgentMutation = components['schemas']['AgentMutation'];
 export type AgentOwnershipInput = components['schemas']['AgentOwnershipInput'];
 export type AgentSession = components['schemas']['AgentSession'];
@@ -5352,6 +5473,11 @@ export type KubernetesReferenceAuthorizationConfiguration = components['schemas'
 export type KubernetesReferenceAuthorizationReceiptIntent = components['schemas']['KubernetesReferenceAuthorizationReceiptIntent'];
 export type MemberRoleInput = components['schemas']['MemberRoleInput'];
 export type NameInput = components['schemas']['NameInput'];
+export type NodeCoverageEnvelope = components['schemas']['NodeCoverageEnvelope'];
+export type NodeCoverageReport = components['schemas']['NodeCoverageReport'];
+export type NodeCoverageSelection = components['schemas']['NodeCoverageSelection'];
+export type NodeCoverageTarget = components['schemas']['NodeCoverageTarget'];
+export type NodeObservationRead = components['schemas']['NodeObservationRead'];
 export type OAuthCompletionReceiptIntent = components['schemas']['OAuthCompletionReceiptIntent'];
 export type OAuthCompletionWorkflowMutationReceipt = components['schemas']['OAuthCompletionWorkflowMutationReceipt'];
 export type Organization = components['schemas']['Organization'];
@@ -5477,6 +5603,7 @@ export type SensorEnrollment = components['schemas']['SensorEnrollment'];
 export type SensorInput = components['schemas']['SensorInput'];
 export type SensorKind = components['schemas']['SensorKind'];
 export type SensorMode = components['schemas']['SensorMode'];
+export type SensorNodeCoverage = components['schemas']['SensorNodeCoverage'];
 export type SensorPage = components['schemas']['SensorPage'];
 export type SensorState = components['schemas']['SensorState'];
 export type SensorUpdateInput = components['schemas']['SensorUpdateInput'];
@@ -9678,7 +9805,9 @@ export interface operations {
     readonly getSensorCoverage: {
         readonly parameters: {
             readonly query?: never;
-            readonly header?: never;
+            readonly header?: {
+                readonly "X-Zasp-Schema-Version"?: "sensor-coverage-node-observation-v2";
+            };
             readonly path: {
                 readonly id: components["schemas"]["ProductID"];
             };
@@ -9693,7 +9822,7 @@ export interface operations {
                     readonly [name: string]: unknown;
                 };
                 content: {
-                    readonly "application/json": components["schemas"]["SensorCoverage"];
+                    readonly "application/json": components["schemas"]["SensorCoverage"] | components["schemas"]["SensorNodeCoverage"];
                 };
             };
             readonly 400: components["responses"]["ProductErrorResponse"];

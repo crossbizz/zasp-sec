@@ -27,6 +27,8 @@ var (
 )
 
 type RuntimeConfig struct {
+	SensorNodeCoverageRetentionEnabled bool
+	SensorNodeCoverageProfileChecksum  string
 	RetentionProfileChecksum           string
 	OptionalEgressEnabled              bool
 	AgentOwnerFilterEnabled            bool
@@ -162,6 +164,8 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 	config := RuntimeConfig{
 		RetentionProfileChecksum:           getenv("ZASP_RETENTION_PROFILE_CHECKSUM"),
 		AgentReadProfileChecksum:           getenv("ZASP_AGENT_READ_PROFILE_CHECKSUM"),
+		SensorNodeCoverageRetentionEnabled: getenv("ZASP_SENSOR_NODE_COVERAGE_RETENTION_ENABLED") == "true",
+		SensorNodeCoverageProfileChecksum:  getenv("ZASP_SENSOR_NODE_COVERAGE_PROFILE_CHECKSUM"),
 		AgentOwnershipWriteProfileChecksum: getenv("ZASP_AGENT_OWNERSHIP_WRITE_PROFILE_CHECKSUM"),
 		AgentExposureFilterProfileChecksum: getenv("ZASP_AGENT_EXPOSURE_FILTER_PROFILE_CHECKSUM"),
 		AgentOwnerFilterEnabled:            agentOwnerFilterEnabled, AgentOwnerFilterProfileChecksum: getenv("ZASP_AGENT_OWNER_FILTER_CHECKSUM"),
@@ -185,6 +189,9 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 		AWSCustomerRolePrefixes: parseAWSCustomerRolePrefixes(getenv("ZASP_AWS_CUSTOMER_ROLE_PREFIXES")), AWSCustomerRoleARNs: parseAWSCustomerRoleARNs(getenv("ZASP_AWS_CUSTOMER_ROLE_ARNS")), KubernetesEgressCIDRs: parseTrustedProxyCIDRs(getenv("ZASP_KUBERNETES_EGRESS_CIDRS")), FindingTicketEgressCIDRs: parseTrustedProxyCIDRs(getenv("ZASP_FINDING_TICKET_EGRESS_CIDRS")),
 		GitHubClientID: getenv("ZASP_GITHUB_CLIENT_ID"), GitHubSecretReference: getenv("ZASP_GITHUB_CLIENT_SECRET_REFERENCE"), GitHubAppID: getenv("ZASP_GITHUB_APP_ID"), GitHubPrivateKeyReference: getenv("ZASP_GITHUB_PRIVATE_KEY_REFERENCE"), OktaClientID: getenv("ZASP_OKTA_CLIENT_ID"), OktaSecretReference: getenv("ZASP_OKTA_CLIENT_SECRET_REFERENCE"),
 		NangoBaseURL: getenv("ZASP_NANGO_BASE_URL"), NangoServiceSecretReference: getenv("ZASP_NANGO_SERVICE_SECRET_REFERENCE"), NangoEnvironment: getenv("ZASP_NANGO_ENVIRONMENT"),
+	}
+	if value := getenv("ZASP_SENSOR_NODE_COVERAGE_RETENTION_ENABLED"); value != "" && value != "false" && value != "true" {
+		return RuntimeConfig{}, errInvalidRuntimeConfig
 	}
 	revealKey := getenv("ZASP_TOKEN_REVEAL_KEY")
 	decodedRevealKey, revealKeyErr := base64.RawURLEncoding.DecodeString(revealKey)
@@ -266,7 +273,7 @@ func validRuntimeConfig(config RuntimeConfig) bool {
 			return false
 		}
 	}
-	if !validRuntimePostgresAuthorities(config.PostgresDSN, config.SecurityAgentPostgresDSN) || !validApprovalMaintenanceRuntimeConfig(config) || !validConnectorMaintenanceRuntimeConfig(config) || !validOptionalEgressRuntimeConfig(config) || !validEnvironmentClassRuntimeConfig(config) || !validAgentOwnerFilterRuntimeConfig(config) || !validAgentReadRuntimeConfig(config) || !validAgentOwnershipWriteRuntimeConfig(config) || !validAgentExposureFilterRuntimeConfig(config) {
+	if !validRuntimePostgresAuthorities(config.PostgresDSN, config.SecurityAgentPostgresDSN) || !validApprovalMaintenanceRuntimeConfig(config) || !validConnectorMaintenanceRuntimeConfig(config) || !validOptionalEgressRuntimeConfig(config) || !validEnvironmentClassRuntimeConfig(config) || !validAgentOwnerFilterRuntimeConfig(config) || !validAgentReadRuntimeConfig(config) || !validSensorNodeCoverageRuntimeConfig(config) || !validAgentOwnershipWriteRuntimeConfig(config) || !validAgentExposureFilterRuntimeConfig(config) {
 		return false
 	}
 	authorize, authorizeErr := url.Parse(config.StytchAuthorizeURL)

@@ -744,7 +744,87 @@ test('retention connected sources retain the complete declared application closu
   "services/platform/migrations/sql/0079_production_authorization_projection.up.sql",
   "services/platform/migrations/sql/agent_ownership_write_profile.sql",
   "cmd/agentsecctl/upgrade_preflight.go",
-  "cmd/agentsecctl/upgrade_preflight_test.go"
+  "cmd/agentsecctl/upgrade_preflight_test.go",
+  ".github/sensor-node-coverage-component-roster.json",
+  ".github/workflows/sensor-node-coverage-components.yml",
+  "app/features/sensors/ProductionSensorView.test.tsx",
+  "app/features/sensors/ProductionSensorView.tsx",
+  "app/features/sensors/api.test.ts",
+  "app/features/sensors/api.ts",
+  "apps/web/api/client.ts",
+  "apps/web/api/decoders.ts",
+  "apps/web/api/generated.ts",
+  "apps/web/api/sensor-node-coverage.test.ts",
+  "apps/web/api/sensor-node-coverage.ts",
+  "deploy/production/sensor-node-coverage-profile.mjs",
+  "deploy/production/sensor-node-coverage-profile.test.mjs",
+  "deploy/staging/product/templates/_sensor-node-coverage.tpl",
+  "openapi/generated-client.test.mjs",
+  "openapi/openapi.test.mjs",
+  "scripts/validate_sensor_node_coverage_components.py",
+  "scripts/validate_sensor_node_coverage_components_test.py",
+  "services/event-ingest/go.mod",
+  "services/event-ingest/go.sum",
+  "services/event-ingest/production.go",
+  "services/event-ingest/production_composition.go",
+  "services/event-ingest/production_composition_test.go",
+  "services/event-ingest/production_node_coverage.go",
+  "services/event-ingest/production_node_coverage_config_test.go",
+  "services/event-ingest/production_node_coverage_test.go",
+  "services/event-ingest/production_node_coverage_transaction_test.go",
+  "services/event-ingest/production_precision.go",
+  "services/event-ingest/production_runtime.go",
+  "services/event-ingest/production_runtime_test.go",
+  "services/event-ingest/production_test.go",
+  "services/health/go.mod",
+  "services/platform/agentsec-api/sensor_node_coverage_runtime.go",
+  "services/platform/agentsec-api/sensor_node_coverage_runtime_test.go",
+  "services/platform/agentsec-migrate/sensor_node_coverage_profile.go",
+  "services/platform/agentsec-migrate/sensor_node_coverage_profile_test.go",
+  "services/platform/apiserver/discovery_repository_test.go",
+  "services/platform/apiserver/sensor_node_coverage.go",
+  "services/platform/apiserver/sensor_node_coverage_postgres_test.go",
+  "services/platform/apiserver/sensor_node_coverage_test.go",
+  "services/platform/apiserver/sensor_public_handler.go",
+  "services/platform/apiserver/sensor_public_handler_test.go",
+  "services/platform/apiserver/sensor_public_repository.go",
+  "services/platform/migrations/production_authorization_audit_profile.go",
+  "services/platform/migrations/production_authorization_identity_profile.go",
+  "services/platform/migrations/production_authorization_projection.go",
+  "services/platform/migrations/production_sensor_node_coverage_compiler_test.go",
+  "services/platform/migrations/production_sensor_node_coverage_profile.go",
+  "services/platform/migrations/production_sensor_node_coverage_profile_test.go",
+  "services/platform/migrations/sql/sensor_node_coverage_profile.sql",
+  "services/platform/nodecoveragewire/envelope.go",
+  "services/platform/nodecoveragewire/receipt.go",
+  "services/platform/nodecoveragewire/report.go",
+  "services/platform/nodecoveragewire/strict.go",
+  "services/platform/nodecoveragewire/wire.go",
+  "services/platform/nodecoveragewire/wire_test.go",
+  "services/platform/runtimeevent/production_acceptance_test.go",
+  "services/platform/runtimeevent/production_current_profile_test.go",
+  "services/platform/runtimeevent/production_ingest_test.go",
+  "services/platform/runtimeevent/production_node_coverage.go",
+  "services/platform/runtimeevent/production_node_coverage_transaction.go",
+  "services/platform/runtimeevent/production_repository.go",
+  "services/platform/runtimeevent/production_repository_test.go",
+  "services/platform/sensor/enrollment_binding.go",
+  "services/platform/sensor/private_heartbeat.go",
+  "services/platform/sensor/private_node_coverage_heartbeat.go",
+  "services/platform/sensor/private_node_coverage_heartbeat_test.go",
+  "services/platform/sensor/token.go",
+  "services/platform/sensoradapter/retained_heartbeat_client.go",
+  "services/platform/sensoradapter/retained_heartbeat_client_test.go",
+  "services/sensor-agent/cluster_test.go",
+  "services/sensor-agent/go.mod",
+  "services/sensor-agent/go.sum",
+  "services/sensor-agent/main.go",
+  "services/sensor-agent/node_coverage_retention_coordinator.go",
+  "services/sensor-agent/node_coverage_retention_coordinator_test.go",
+  "services/sensor-agent/node_coverage_retention_state.go",
+  "services/sensor-agent/node_coverage_retention_storage_test.go",
+  "services/sensor-agent/production_test.go",
+  "services/sensor-agent/runtime_config_test.go"
 ];
   const compiled = JSON.parse(relative('.github/connector-native-compile-source-pins.json'));
   const compilePins = new Map(compiled.sources.map(item => [item.path, item]));
@@ -859,6 +939,38 @@ test('current Agent ownership writes retain every native group and require both 
   for (const [key, selected] of Object.entries(added)) {
     assert.equal(select([key]), selected);
     assert.equal(selected.names.length, 9); assert.equal(selected.postgresJoins, 1);
+    assert.ok(source.includes(`func ${selected.top}(t *testing.T)`));
+    assert.ok(workflow.includes(key));
+    validate(trace(selected), selected);
+    for (const name of selected.names) {
+      if (name !== selected.top) assert.ok(source.includes(`t.Run("${name.slice(selected.top.length + 1)}"`));
+      assert.ok(!Object.values(previous).some(g => g.names.includes(name)));
+      assert.throws(() => validate(trace(selected).filter(row => row.Test !== name), selected));
+      assert.throws(() => validate([...trace(selected), {Package: pkg, Test: name, Action: 'pass'}], selected));
+      for (const action of ['skip', 'fail']) assert.throws(() => validate(trace(selected).map(row => row.Test === name && row.Action === 'pass' ? {...row, Action: action} : row), selected));
+    }
+  }
+});
+
+
+test('retained node observations add both exact profiles while preserving every native group', () => {
+  const added = traceDiagnostics.SENSOR_NODE_COVERAGE_ACCEPTANCE_GROUPS;
+  const previous = {...groups, ...traceDiagnostics.ENVIRONMENT_CLASS_ACCEPTANCE_GROUPS,
+    ...traceDiagnostics.MAINTENANCE_OPERATOR_ACCEPTANCE_GROUPS, ...traceDiagnostics.OPTIONAL_EGRESS_OPERATOR_ACCEPTANCE_GROUPS,
+    ...traceDiagnostics.AGENT_CURRENT_READ_ACCEPTANCE_GROUPS, ...traceDiagnostics.AGENT_EXPOSURE_FILTER_ACCEPTANCE_GROUPS,
+    ...traceDiagnostics.AGENT_OWNERSHIP_WRITE_ACCEPTANCE_GROUPS};
+  const all = {...previous, ...added};
+  assert.equal(Object.keys(previous).length, 27);
+  assert.equal(Object.values(previous).flatMap(g => g.names).length, 198);
+  assert.equal(Object.values(previous).reduce((n,g) => n + g.postgresJoins, 0), 38);
+  assert.equal(Object.keys(all).length, 29);
+  assert.equal(Object.values(all).flatMap(g => g.names).length, 206);
+  assert.equal(Object.values(all).reduce((n,g) => n + g.postgresJoins, 0), 40);
+  const source = fs.readFileSync(new URL('../services/platform/apiserver/sensor_node_coverage_postgres_test.go', import.meta.url), 'utf8');
+  const workflow = fs.readFileSync(new URL('../.github/workflows/connector-connected-lifecycle.yml', import.meta.url), 'utf8');
+  for (const [key, selected] of Object.entries(added)) {
+    assert.equal(select([key]), selected);
+    assert.equal(selected.names.length, 4); assert.equal(selected.postgresJoins, 1);
     assert.ok(source.includes(`func ${selected.top}(t *testing.T)`));
     assert.ok(workflow.includes(key));
     validate(trace(selected), selected);

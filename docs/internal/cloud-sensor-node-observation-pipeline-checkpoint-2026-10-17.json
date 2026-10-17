@@ -1,0 +1,945 @@
+{
+  "observed_at": "2026-10-17T18:11:57.116186+00:00",
+  "continued_published_base": "48173525f29365affd5f8d86202da1a9280d9724",
+  "latest_origin_main": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
+  "required_ancestor_present": "e13ccb95451b03107681ccb59b3fc6fe175a228f",
+  "classification": "SOURCE_AND_COMPONENT_IMPLEMENTATION_NATIVE_PROVIDER_DEPLOYED_ACCEPTANCE_OPEN",
+  "task_mapping": [
+    "M4-50b3"
+  ],
+  "scope": "Retain original selected node/report facts through durable Lease custody, strict versioned heartbeat, same original registered-runtime transaction with confirm-before-commit, sealed additive profile and current source/scope-authorized public read. Separate legacy heartbeat/read semantics retained. No Agent placement association, gateway install acknowledgment or coverage/filter success is inferred. Feature off by default; no parent grants or deployed identity/provider changes. The additive own-namespace ACL source remains subject to installation and native acceptance.",
+  "sources": [
+    {
+      "path": ".github/connector-native-compile-source-pins.json",
+      "sha256": "38bedec0d4667bfcce898b0851110eef7f3c4bd0ab07818de4f1e2032de28b65",
+      "bytes": 207622
+    },
+    {
+      "path": ".github/sensor-node-coverage-component-roster.json",
+      "sha256": "c31f39fc0cfc58f6cf9ca2a8dd77d7a442eb6959aa04a42005f4d936b5aaad20",
+      "bytes": 23979
+    },
+    {
+      "path": ".github/workflows/connector-connected-lifecycle.yml",
+      "sha256": "7bf380df177736496792b45217072023184720b6423f4d85b6be58664c935d0d",
+      "bytes": 4571
+    },
+    {
+      "path": ".github/workflows/connector-native-draft-compile.yml",
+      "sha256": "1c8857bb75168922c9134055abe6b79d110fca0b7ed4f644ee1bb3f51b49904b",
+      "bytes": 100990
+    },
+    {
+      "path": ".github/workflows/sensor-node-coverage-components.yml",
+      "sha256": "683fcf06229519aa5c4ddd57dd8f5d98e3eb75bb0c8fc491c6c22fdee2ccb5ca",
+      "bytes": 5798
+    },
+    {
+      "path": "app/features/sensors/ProductionSensorView.test.tsx",
+      "sha256": "9e029f47733cc33b4e5386b6130e519dc15e7ea1729d28614fe72d561194ff4e",
+      "bytes": 10241
+    },
+    {
+      "path": "app/features/sensors/ProductionSensorView.tsx",
+      "sha256": "743ee23d21a2390e4db3915b21883110fea52e044bf33bdfec8254acc580bfdc",
+      "bytes": 13860
+    },
+    {
+      "path": "app/features/sensors/api.test.ts",
+      "sha256": "6f1621a5ac901bdb1267e515bba538f7e2d3fc40074f7b032e3e72fad3a1edb7",
+      "bytes": 6740
+    },
+    {
+      "path": "app/features/sensors/api.ts",
+      "sha256": "baf6fc967061bd3876018a72e155969d30678cb3acb4f1fd558fa7c4b830810d",
+      "bytes": 6858
+    },
+    {
+      "path": "apps/web/api/client.ts",
+      "sha256": "b479bc7ec387f06924dcb6c0c0651d1d6013437436e6a1b7411a734a11a84963",
+      "bytes": 14478
+    },
+    {
+      "path": "apps/web/api/decoders.ts",
+      "sha256": "c2147ef69575d8f24a91a1f84c6659739463848e8614c137cab420faa595aa78",
+      "bytes": 133512
+    },
+    {
+      "path": "apps/web/api/generated.ts",
+      "sha256": "2a26783decd9187f230de84669761643de050a8dfaf41d91b06457dde292e196",
+      "bytes": 516578
+    },
+    {
+      "path": "apps/web/api/sensor-node-coverage.test.ts",
+      "sha256": "048c34f1f9146f8b23e1b11a49a14285ecabc6ebcd1353e329e925740ebc39c6",
+      "bytes": 4802
+    },
+    {
+      "path": "apps/web/api/sensor-node-coverage.ts",
+      "sha256": "0364aa2b1d7b8612388928f3ce6eec811b313ff8521666aed7adc4b4061279f9",
+      "bytes": 9487
+    },
+    {
+      "path": "deploy/production/release-contract.mjs",
+      "sha256": "cdd8cc4fee989a0ad98aaaeabe5797425e1d74c10141e2c5e8fde36a9ce05b4c",
+      "bytes": 87773
+    },
+    {
+      "path": "deploy/production/release-contract.test.mjs",
+      "sha256": "1e8f777639f1f93c0d1d9953c034cd8d6f8d6f30ab2f3648f87c10e4fd1c9cc7",
+      "bytes": 182623
+    },
+    {
+      "path": "deploy/production/sensor-node-coverage-profile.mjs",
+      "sha256": "ba3723c4804ff7d02e5c778f26b4943076820da00253ad1bd0ca01ce8114fee0",
+      "bytes": 4694
+    },
+    {
+      "path": "deploy/production/sensor-node-coverage-profile.test.mjs",
+      "sha256": "8fefa365bd0b7aceeaffd4555043e3c4b7b10578ec15fe6be807cc19ebba9e79",
+      "bytes": 5284
+    },
+    {
+      "path": "deploy/staging/product/templates/_sensor-node-coverage.tpl",
+      "sha256": "f66ec5ca7440cf6b61cdb0ea286b15c83234c2f0ee81fff5eca4e299ae7a2a46",
+      "bytes": 1348
+    },
+    {
+      "path": "deploy/staging/product/templates/edge.yaml",
+      "sha256": "c6d53ed9cfce7337b3015c42b866462aa6100fcf55fcf9b49e34d29e33706b33",
+      "bytes": 34059
+    },
+    {
+      "path": "deploy/staging/product/templates/runtime.yaml",
+      "sha256": "5f926429026ea9e79039222fd910e3fbe1b52fc9d050ebd97598f309f30f241c",
+      "bytes": 29059
+    },
+    {
+      "path": "deploy/staging/product/templates/workloads.yaml",
+      "sha256": "98182b6708ca6c0d09d3548ebc5d9ea02183b63bec71a5f28814c8909d836c5c",
+      "bytes": 71236
+    },
+    {
+      "path": "deploy/staging/product/values-customer-edge.yaml",
+      "sha256": "6b68f45676b9989ddf74aa56db54c4b8b66df51824bfda8072017b4c36218574",
+      "bytes": 814
+    },
+    {
+      "path": "deploy/staging/product/values.yaml",
+      "sha256": "83936a653b64aa41c72bca8f86f73663a3c0e2e34a3f53ea7404333f2bd69f28",
+      "bytes": 16233
+    },
+    {
+      "path": "openapi/generated-client.test.mjs",
+      "sha256": "eafbc1cc402ef3d145659da4052b87f7c52001611bde3dc02349d40cdcaba12f",
+      "bytes": 18468
+    },
+    {
+      "path": "openapi/openapi.test.mjs",
+      "sha256": "5222287648258240145a7c5806042433eb0f1df52c42642c598487caf77d9637",
+      "bytes": 78869
+    },
+    {
+      "path": "openapi/openapi.yaml",
+      "sha256": "f8d747c7d7cd5e586196ca5f72f65175043b59988765710e4fb61dae25158257",
+      "bytes": 381905
+    },
+    {
+      "path": "scripts/connector-acceptance-groups.mjs",
+      "sha256": "70da54d5a2eb61535af55afe53e944ca815550a0319943ffe1e46466f8b8cfd4",
+      "bytes": 19667
+    },
+    {
+      "path": "scripts/connector-acceptance-groups.test.mjs",
+      "sha256": "96bd2c5f963e9e94ccf845a5cbaa1b344859ec14470ccdb2a79b1298cd596fb6",
+      "bytes": 71997
+    },
+    {
+      "path": "scripts/hosted-connected-connector-acceptance.mjs",
+      "sha256": "bba10e652d065db07bda5d52c2d4df08752ee3774f7f74ede78525e6238d83d3",
+      "bytes": 125889
+    },
+    {
+      "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
+      "sha256": "96baadfe36e747dfabdfb0cdd784aca0c94c0c3f9492e7362b9eea0c12c74c76",
+      "bytes": 122290
+    },
+    {
+      "path": "scripts/validate_agent_read_components.py",
+      "sha256": "65b66896db61f2a27b419423d21605039d1de024d23ae82b2765ec0f98be2dfb",
+      "bytes": 22239
+    },
+    {
+      "path": "scripts/validate_sensor_node_coverage_components.py",
+      "sha256": "8e024ca289b48da321544a760728c9dfeed0d41f3af93b36d635f2e180ca1d9f",
+      "bytes": 6335
+    },
+    {
+      "path": "scripts/validate_sensor_node_coverage_components_test.py",
+      "sha256": "daaafdafafd2e8a5f47ad6f672b5dd72b818218f3a07d7e9e2e72767a15bfd0d",
+      "bytes": 4763
+    },
+    {
+      "path": "services/event-ingest/go.mod",
+      "sha256": "f275f4a8cd64cf2e6cb20f591db8096e0316cb4218ac8aadd378305ecdfb28a1",
+      "bytes": 1614
+    },
+    {
+      "path": "services/event-ingest/go.sum",
+      "sha256": "e7a85381cac36364c7c9a75e3b50926ece9fa405e84e5626ff70cc1769f7b529",
+      "bytes": 5902
+    },
+    {
+      "path": "services/event-ingest/production.go",
+      "sha256": "cb9c13269d5b1a356c775848b1fd6ebe7d6f0c58137e3c9e75f813c4c554f71e",
+      "bytes": 7937
+    },
+    {
+      "path": "services/event-ingest/production_composition.go",
+      "sha256": "fccfba9d5a3c3b6f4fefb02cda41cb7f3d68ebe5dae637e904a578593a232532",
+      "bytes": 3145
+    },
+    {
+      "path": "services/event-ingest/production_composition_test.go",
+      "sha256": "663055e6d5936a869443fcbe847e4fb0b67ba6a0ff89c755668aab302730a0e3",
+      "bytes": 4297
+    },
+    {
+      "path": "services/event-ingest/production_node_coverage.go",
+      "sha256": "da21d03839f55cd380b47766bc192f4281b652b5bd62e639ecc2291f34a4ab64",
+      "bytes": 2622
+    },
+    {
+      "path": "services/event-ingest/production_node_coverage_config_test.go",
+      "sha256": "e6ef4a838c55397b118bb5d026307a40917c4a8f8c319bd70b7d10ff33c8fe23",
+      "bytes": 1767
+    },
+    {
+      "path": "services/event-ingest/production_node_coverage_test.go",
+      "sha256": "ec7ad14df6fbc76df1a65e57106ec7763163c7bf67f1b8b4f97a8320838138c3",
+      "bytes": 8168
+    },
+    {
+      "path": "services/event-ingest/production_node_coverage_transaction_test.go",
+      "sha256": "c624353f360a34c53cbb0378786b22c2567f768a147a95d69abc828bc773e31e",
+      "bytes": 6300
+    },
+    {
+      "path": "services/event-ingest/production_precision.go",
+      "sha256": "41c61d36d009c3505c9fa5718477c83e2ace387853c747540a278369f8915696",
+      "bytes": 2924
+    },
+    {
+      "path": "services/event-ingest/production_runtime.go",
+      "sha256": "d9c96ebc5ecd6d6f627e8c7e0ca4dfd3e56dd9db2b2fc5fee8c696ef1e2b2acf",
+      "bytes": 16165
+    },
+    {
+      "path": "services/event-ingest/production_runtime_test.go",
+      "sha256": "b105380e2db176cd9ac166f959c13cb50e5d60fa1f69946ff4cd437b856b6a86",
+      "bytes": 10493
+    },
+    {
+      "path": "services/event-ingest/production_test.go",
+      "sha256": "7fa78281aacdfb69e98e1988953068c968a4ffa95c903c2af4d3400c9e164464",
+      "bytes": 7384
+    },
+    {
+      "path": "services/health/go.mod",
+      "sha256": "800feb2d307b99dc161ce73170609d4cbe535f840aedf013c7c8392977ba9737",
+      "bytes": 62
+    },
+    {
+      "path": "services/platform/agentsec-api/production_runtime.go",
+      "sha256": "9c6c4618dfaae77c611238e88e57e2d3011de67c4ab8311efc938c4a47730598",
+      "bytes": 64806
+    },
+    {
+      "path": "services/platform/agentsec-api/runtime.go",
+      "sha256": "87e239c7f65ec7d0134db560db40a146239b8b56e088493e450f67a3ce40f50f",
+      "bytes": 27733
+    },
+    {
+      "path": "services/platform/agentsec-api/sensor_node_coverage_runtime.go",
+      "sha256": "5971935bc807deaecae9006fcd1e2f28de3a387543aa6769fa463f939284343e",
+      "bytes": 368
+    },
+    {
+      "path": "services/platform/agentsec-api/sensor_node_coverage_runtime_test.go",
+      "sha256": "58a40419e94e7c40b7b323cb6d8c7e7c73891619ed646e9dee3a46ffd108dacb",
+      "bytes": 1327
+    },
+    {
+      "path": "services/platform/agentsec-migrate/agent_ownership_write_profile.go",
+      "sha256": "c400a5b68597c12e0344cabb5f9e1b5fc2491ffe825521871227257f2a06b844",
+      "bytes": 3461
+    },
+    {
+      "path": "services/platform/agentsec-migrate/forward_release_confirmation.go",
+      "sha256": "8835bc1a1cddbc9b04f6a7838f3c768edaaf32a210272dfbf1e62947b14cf02e",
+      "bytes": 4114
+    },
+    {
+      "path": "services/platform/agentsec-migrate/main.go",
+      "sha256": "ed911a4292e8b9d8b9f373c2583bd71989dda72f0d66020c131506f5890f225c",
+      "bytes": 84367
+    },
+    {
+      "path": "services/platform/agentsec-migrate/main_test.go",
+      "sha256": "4bd8f91f3bfa0897d5d91ac64e9bc7f2a48fb5deea87c37f2641f4955fd81fa8",
+      "bytes": 269160
+    },
+    {
+      "path": "services/platform/agentsec-migrate/maintenance_confirmation_role_test.go",
+      "sha256": "efea4551621dbd95e91f08eb93fbeddd6a45c8ec6ebd36160b22881e41cfbccf",
+      "bytes": 3147
+    },
+    {
+      "path": "services/platform/agentsec-migrate/release_readiness_test.go",
+      "sha256": "fd588fe201d6af56cedf499bf5977c70e45f8e310e09dcb2c429b7459de4e7f8",
+      "bytes": 5477
+    },
+    {
+      "path": "services/platform/agentsec-migrate/retention_profile.go",
+      "sha256": "8b21374e7005295990b6ad4a40be2fbf9f3522e4c3167a26d593a9722c9d20c6",
+      "bytes": 13038
+    },
+    {
+      "path": "services/platform/agentsec-migrate/sensor_node_coverage_profile.go",
+      "sha256": "e6d2979631e28a43ff8696078a161cd1203007397eaf2a1e86622b8db343119d",
+      "bytes": 3566
+    },
+    {
+      "path": "services/platform/agentsec-migrate/sensor_node_coverage_profile_test.go",
+      "sha256": "b1b1ccf89e3ed1ccb827020c0954a1575785ca0f8197b260c1b4a6239089a096",
+      "bytes": 6864
+    },
+    {
+      "path": "services/platform/apiserver/agent_current_read_test.go",
+      "sha256": "1f740cf090d78094743d44c8481c15423583677e3d9329e111bc05bd49e81d20",
+      "bytes": 8321
+    },
+    {
+      "path": "services/platform/apiserver/authorization_readiness.go",
+      "sha256": "ad1a94117de4e63b9c7ef15faf4c4744e6a6675b44ad6da1d7991cb63fcb683a",
+      "bytes": 6038
+    },
+    {
+      "path": "services/platform/apiserver/authorization_statement.go",
+      "sha256": "cb9e13eb9c3fbe95a916a986590e01318a4e01f28c7a4cc5c1cbde1fc59ae667",
+      "bytes": 18517
+    },
+    {
+      "path": "services/platform/apiserver/authorization_targets.go",
+      "sha256": "badfabbcff13b4f6f0e7b9bc354dd8f7cc9135d09d824980392bc962fc4fb2c9",
+      "bytes": 6055
+    },
+    {
+      "path": "services/platform/apiserver/authorization_transaction.go",
+      "sha256": "95a188b5d23de72a69a9f82c8719bf1b040295642710c1e87e1c617be65a6471",
+      "bytes": 4789
+    },
+    {
+      "path": "services/platform/apiserver/discovery_repository_test.go",
+      "sha256": "9fc7adcdc86885d015f8b7e5251fbd4b8def8e2ec4051ea910f61edbf3b28502",
+      "bytes": 40846
+    },
+    {
+      "path": "services/platform/apiserver/inventory_handler_test.go",
+      "sha256": "aa7d09ef7c6435e5ab96c96f47247b6905bc582ef63ce6226cb6d03073978b9c",
+      "bytes": 9311
+    },
+    {
+      "path": "services/platform/apiserver/middleware.go",
+      "sha256": "767d8631d688331e897ff78d22695ba7e20ec47905e77c2fc7ef6108fa27f7a2",
+      "bytes": 7510
+    },
+    {
+      "path": "services/platform/apiserver/middleware_test.go",
+      "sha256": "a2a1a979e9364056f2efdaf7f4d849f73ab4c977244376e85319741e5b39a220",
+      "bytes": 9538
+    },
+    {
+      "path": "services/platform/apiserver/postgres_database.go",
+      "sha256": "48c9214c8d9bb4d0e7c4a2a73b58b8e3499f2d7fec2defca65c70e43213e598c",
+      "bytes": 30576
+    },
+    {
+      "path": "services/platform/apiserver/production.go",
+      "sha256": "5d66fe2fad86ee43a0265971ff6118007a5f27068d5d7f059959aecf4868521d",
+      "bytes": 57995
+    },
+    {
+      "path": "services/platform/apiserver/repository.go",
+      "sha256": "5ce2ac8bf37b166fc0c1f0896c31e296e27417b51c0a158654c388cb7dde61a7",
+      "bytes": 40641
+    },
+    {
+      "path": "services/platform/apiserver/sensor_node_coverage.go",
+      "sha256": "b27e81557193156de08e5ed4b227a7f25d71c25585ec4330adf086c7aa7a7cdb",
+      "bytes": 7017
+    },
+    {
+      "path": "services/platform/apiserver/sensor_node_coverage_postgres_test.go",
+      "sha256": "b5fd8f4d51fefeceb86580caec4b7a24f01674e0fe5cd4347e9c6481f281a4f4",
+      "bytes": 17142
+    },
+    {
+      "path": "services/platform/apiserver/sensor_node_coverage_test.go",
+      "sha256": "e63cd5a80d639ab33a0bd74634d170e2a98c879722c1e8193383c082998fbf55",
+      "bytes": 11500
+    },
+    {
+      "path": "services/platform/apiserver/sensor_public_handler.go",
+      "sha256": "fb4d6bcbd2b16138a26cabb78492afa3c136de87756b207f927587444d213c85",
+      "bytes": 20334
+    },
+    {
+      "path": "services/platform/apiserver/sensor_public_handler_test.go",
+      "sha256": "fc6254f41b162988d48b8808c5e80a984772d3e8ac2b2324472dd3069079ded9",
+      "bytes": 13159
+    },
+    {
+      "path": "services/platform/apiserver/sensor_public_repository.go",
+      "sha256": "558be85a4fb344123d1f1f97f0fb998b6198f4ddccfa117792d13a5673f5e2f8",
+      "bytes": 20616
+    },
+    {
+      "path": "services/platform/domain/ids.go",
+      "sha256": "2064d5c029400ddd5d2b667d2cd7138093a3d87219a34f2c2d9d95855c4f7c87",
+      "bytes": 4587
+    },
+    {
+      "path": "services/platform/domain/scope.go",
+      "sha256": "78b563657623186c85bd7e40ae8539063537654109cb64aebec740e9114574e5",
+      "bytes": 1129
+    },
+    {
+      "path": "services/platform/go.mod",
+      "sha256": "865b28a2dcdfcfd455676709a399096190500a13337a294051047e69588238e1",
+      "bytes": 4740
+    },
+    {
+      "path": "services/platform/go.sum",
+      "sha256": "4e030769478ca921923be45538ff8184f2d4850433b707de91bb128c51a85099",
+      "bytes": 27777
+    },
+    {
+      "path": "services/platform/migrations/maintenance_operator_role.go",
+      "sha256": "0dbd6184ce85995d7ff524419ad5d2db6b847ddc606dbd5c0243eafc1b6272bb",
+      "bytes": 1773
+    },
+    {
+      "path": "services/platform/migrations/migrations.go",
+      "sha256": "5774a44a1217948185cc5051aed3f3e69a7fa1e2006c3a0682df7b431df2e925",
+      "bytes": 190892
+    },
+    {
+      "path": "services/platform/migrations/migrations_test.go",
+      "sha256": "396ef89e352ae3e32c48040b753870f5e3f72af257eececf07e0779d3f21492b",
+      "bytes": 64174
+    },
+    {
+      "path": "services/platform/migrations/production_agent_owner_filter_profile.go",
+      "sha256": "aaa43569170599e6245dbe27cdcdb821171e3c1563d20788f4e8be525e89718a",
+      "bytes": 11040
+    },
+    {
+      "path": "services/platform/migrations/production_agent_read_profile.go",
+      "sha256": "3ed1566979c5294c80a79ab84024c61bccde5f6b2449dcff02148422770ed482",
+      "bytes": 13659
+    },
+    {
+      "path": "services/platform/migrations/production_authorization_audit_profile.go",
+      "sha256": "4d1a693c9b78a535e6d623297047f16bf50808faf9b2aac58d69d0fe67fd4bb1",
+      "bytes": 7337
+    },
+    {
+      "path": "services/platform/migrations/production_authorization_enforcement.go",
+      "sha256": "3d23b8ad822363dcb512066a71bf5bf7a522be3ef7fedbf30ebd6832d5dedda1",
+      "bytes": 7302
+    },
+    {
+      "path": "services/platform/migrations/production_authorization_identity_profile.go",
+      "sha256": "d0023e7828a2d6e69485f95aba915f5c04125c45f0d32e9842970a9d95ff99d1",
+      "bytes": 7986
+    },
+    {
+      "path": "services/platform/migrations/production_authorization_projection.go",
+      "sha256": "6eed219ccaa0d10d6dd33c45742b64b84f1850e7381a342cb03f69a8054cdf6a",
+      "bytes": 2442
+    },
+    {
+      "path": "services/platform/migrations/production_authorization_runtime_profile.go",
+      "sha256": "2e1505d973f621b97081cef217fa0f7f56f3d501ba77a15228a7b9bfb50a6c70",
+      "bytes": 1636
+    },
+    {
+      "path": "services/platform/migrations/production_authorization_temporal_profile.go",
+      "sha256": "200ef3c555982eebc01efdd5810e5260fd8f758ca54bf2d966a5dbd6d8380168",
+      "bytes": 7777
+    },
+    {
+      "path": "services/platform/migrations/production_authorization_worker_audit_profile.go",
+      "sha256": "82e305184878089e91dfd39d5a8b70216a2a23fc302cbdbfaae8f512510a541d",
+      "bytes": 800
+    },
+    {
+      "path": "services/platform/migrations/production_authorization_worker_profile.go",
+      "sha256": "84944f2610080b581102b3cc1cc649c42af394acccb3d8ae3f7bc38eb40165f3",
+      "bytes": 10325
+    },
+    {
+      "path": "services/platform/migrations/production_authorization_worker_runtime.go",
+      "sha256": "3f93b8bd2ae8b08e61eaf9ffccb0694d559b93f81b03e03df3d1cbe2faa874ab",
+      "bytes": 1224
+    },
+    {
+      "path": "services/platform/migrations/production_sensor_node_coverage_compiler_test.go",
+      "sha256": "5e35d37cef19485fe960f9a7f936b9e041a6449509b3ca7efa70ccf61f091075",
+      "bytes": 1095
+    },
+    {
+      "path": "services/platform/migrations/production_sensor_node_coverage_profile.go",
+      "sha256": "dffccceb81ce38c1038381de9bc240812f2ef6a657cbb2caeae65666c0d93da5",
+      "bytes": 16369
+    },
+    {
+      "path": "services/platform/migrations/production_sensor_node_coverage_profile_test.go",
+      "sha256": "1106ce4f4b005736a6a87ee263ee8e18832f9ff7300de79219cc65ff2c5eb0dd",
+      "bytes": 7219
+    },
+    {
+      "path": "services/platform/migrations/sql/sensor_node_coverage_profile.sql",
+      "sha256": "318b65a4587b0d08ef6a79e4597748400a39b92673fd2313d488f7873ddcdb98",
+      "bytes": 51491
+    },
+    {
+      "path": "services/platform/nodecoveragewire/envelope.go",
+      "sha256": "5b580fbfe492e433ada29a93b321b733afc6e664ae700dd49d1cb66d4436c00f",
+      "bytes": 5307
+    },
+    {
+      "path": "services/platform/nodecoveragewire/receipt.go",
+      "sha256": "e10eaf592f897d0d0126a19360f41fdd9ee53e8190eab58643acb4025be45788",
+      "bytes": 1227
+    },
+    {
+      "path": "services/platform/nodecoveragewire/report.go",
+      "sha256": "e47c387513beb95393784780fa4c6f419f0b33087f0173abca86055f3dbebbe2",
+      "bytes": 3705
+    },
+    {
+      "path": "services/platform/nodecoveragewire/strict.go",
+      "sha256": "ba8fc54baac040bea2e2e7ba216d5ca4a944377d6ec0a279208059c398aab589",
+      "bytes": 4435
+    },
+    {
+      "path": "services/platform/nodecoveragewire/wire.go",
+      "sha256": "ad4f35075b589118f21a985b35e6335a102f4b9bbc3a620eba0cc2ede6954346",
+      "bytes": 4596
+    },
+    {
+      "path": "services/platform/nodecoveragewire/wire_test.go",
+      "sha256": "67868fcdf8a7213826ef9f14c06299781a1d54d865d175b21f7876645778b7cd",
+      "bytes": 8527
+    },
+    {
+      "path": "services/platform/runtimeevent/production_acceptance_test.go",
+      "sha256": "973ae950570f38e2171d255de691d94cee5e4960f349268bd85c18e1e640a1f3",
+      "bytes": 4496
+    },
+    {
+      "path": "services/platform/runtimeevent/production_current_profile.go",
+      "sha256": "2a9cb8fed5d5d85cd90907368f4a0e1c37c1a5eb4fb81060781dc1e1204fbfe1",
+      "bytes": 7951
+    },
+    {
+      "path": "services/platform/runtimeevent/production_current_profile_test.go",
+      "sha256": "37348c9075027d3aa5634012552bdf1f4eba6bd62dc9ce2caf10b6460994db36",
+      "bytes": 11042
+    },
+    {
+      "path": "services/platform/runtimeevent/production_ingest_test.go",
+      "sha256": "da6f3ef9bf6447ad01b2077329cc2ee44a910b0c3f4eb3f745fca197b2bbfa1c",
+      "bytes": 18437
+    },
+    {
+      "path": "services/platform/runtimeevent/production_node_coverage.go",
+      "sha256": "6236fdde732d1782449a6f1ab8449a14a07a63f50350bf4cac666a304bae44db",
+      "bytes": 4274
+    },
+    {
+      "path": "services/platform/runtimeevent/production_node_coverage_transaction.go",
+      "sha256": "c6760502cfcf26140cecef1810dfc58cf5e8ecac0de1563b51c2c37fdbd568e2",
+      "bytes": 2918
+    },
+    {
+      "path": "services/platform/runtimeevent/production_repository.go",
+      "sha256": "a6c88ab1a6f45c8a3714b78d7556d564ca8cd9cd19be910783a798105982918e",
+      "bytes": 21571
+    },
+    {
+      "path": "services/platform/runtimeevent/production_repository_test.go",
+      "sha256": "d5181e0a031eae119c0fe71de6960f6a419498536665add4e5e72a8d3747f913",
+      "bytes": 12278
+    },
+    {
+      "path": "services/platform/sensor/enrollment_binding.go",
+      "sha256": "5774f1f11f56d7fa1f1c025793eacb2d567b995c1927d16ac99ee44859b58dcc",
+      "bytes": 871
+    },
+    {
+      "path": "services/platform/sensor/private_heartbeat.go",
+      "sha256": "03e8d14bcbe468a3e49b67543c9348dba39832955592ccaab56027811e3cd062",
+      "bytes": 8092
+    },
+    {
+      "path": "services/platform/sensor/private_node_coverage_heartbeat.go",
+      "sha256": "a3b6dc1f31738158be81aca01d704b0397f13318030207ff40efd6450739b12c",
+      "bytes": 5814
+    },
+    {
+      "path": "services/platform/sensor/private_node_coverage_heartbeat_test.go",
+      "sha256": "bc44f59f5db91c339f1bae506a763bcd2a31978600449f3bd7665121c459075b",
+      "bytes": 11859
+    },
+    {
+      "path": "services/platform/sensor/token.go",
+      "sha256": "02a2d598e181fe068120ad6272332607f969e33f35c38b18ebabec67908f5b09",
+      "bytes": 5049
+    },
+    {
+      "path": "services/platform/sensoradapter/adapter.go",
+      "sha256": "0c39dd1b680467f95565a741748a85be7cbfb8ff66fd0b65a75016936b2b94ac",
+      "bytes": 28825
+    },
+    {
+      "path": "services/platform/sensoradapter/node_coverage.go",
+      "sha256": "e423ed7ced6c3c01411c3b7545c3e49b7b5be4722ef5984d79c8d5a5c09dd306",
+      "bytes": 16015
+    },
+    {
+      "path": "services/platform/sensoradapter/node_coverage_client.go",
+      "sha256": "18cabbb9724cef6c3c0a6b7160fa01c09a23a3ebccff252ca15a6701c62f5c52",
+      "bytes": 7150
+    },
+    {
+      "path": "services/platform/sensoradapter/node_coverage_test.go",
+      "sha256": "c65aed1418b0be398516160d9da53118093bf47076f9729c33e2f8d59354410c",
+      "bytes": 12078
+    },
+    {
+      "path": "services/platform/sensoradapter/retained_heartbeat_client.go",
+      "sha256": "8e14ad875cd2e10618b8dfd5385d78b23f28c25e4730a02ff5e84ea194c304e0",
+      "bytes": 3075
+    },
+    {
+      "path": "services/platform/sensoradapter/retained_heartbeat_client_test.go",
+      "sha256": "75cbe26ab1437970816c72c2120f3751d2f4c31cf9ef74497e1bfdedb8af0365",
+      "bytes": 8385
+    },
+    {
+      "path": "services/sensor-agent/cluster.go",
+      "sha256": "c2769cb85df3ea3346aa2524587a811c0c4f429a1c2fbd5154a95c05506711f2",
+      "bytes": 24372
+    },
+    {
+      "path": "services/sensor-agent/cluster_test.go",
+      "sha256": "78d3cb089fed6b7fb08461b996efbe1a186458789598a7d26beac13d215b2a8f",
+      "bytes": 10772
+    },
+    {
+      "path": "services/sensor-agent/go.mod",
+      "sha256": "f1bbe57d774296b048148c1e16f75197760544ff0caa40d2405d0d08dcb2ac9a",
+      "bytes": 2616
+    },
+    {
+      "path": "services/sensor-agent/go.sum",
+      "sha256": "1343f1d907678f4c9acedf607587181945312b2c927ad7c301ff4e247deb40a3",
+      "bytes": 16065
+    },
+    {
+      "path": "services/sensor-agent/lineage_consumer_daemon.go",
+      "sha256": "b993e8a6b4803cdd18baf928cdff7e62278408bd8fba3ee42419e1c8f2aef6c3",
+      "bytes": 10337
+    },
+    {
+      "path": "services/sensor-agent/main.go",
+      "sha256": "b09fceff8f7b39a33528b108ed509e40715e00762a9c473af725130c8e531d4b",
+      "bytes": 5455
+    },
+    {
+      "path": "services/sensor-agent/node_coverage_contract_test.go",
+      "sha256": "0827842bb675ff3acb91c799a5958560024eac8d84d4ca70ee90d62c11dc30c2",
+      "bytes": 2263
+    },
+    {
+      "path": "services/sensor-agent/node_coverage_flow_test.go",
+      "sha256": "46e32d0cf9cf252d02ee09dd8a1df426ff0042171544b5d2b3b5e7b0b160cfa6",
+      "bytes": 12438
+    },
+    {
+      "path": "services/sensor-agent/node_coverage_identity.go",
+      "sha256": "337e62c686c0ab9dae32c30af01f68c9f78742e042117342a6c1616dddf538cd",
+      "bytes": 5468
+    },
+    {
+      "path": "services/sensor-agent/node_coverage_retention_coordinator.go",
+      "sha256": "6adde3d7b884216441561d23c9bfe1e08e7b05f4e03d6a086b668cc6167377c2",
+      "bytes": 11201
+    },
+    {
+      "path": "services/sensor-agent/node_coverage_retention_coordinator_test.go",
+      "sha256": "9a839a8db956b7a9e86e7fe51e3cf95c8de067d51db8b15a51e6a9777abdcf3e",
+      "bytes": 14355
+    },
+    {
+      "path": "services/sensor-agent/node_coverage_retention_state.go",
+      "sha256": "105a11a907d8682ec8284dbe4f3bbd05286cdeb62a91e96137cdc9463568f335",
+      "bytes": 14477
+    },
+    {
+      "path": "services/sensor-agent/node_coverage_retention_storage_test.go",
+      "sha256": "f7a376843b74aaa9cdea19db2e79f597242fd6f7d52465abb1301c99ec8ac63c",
+      "bytes": 6083
+    },
+    {
+      "path": "services/sensor-agent/node_coverage_runtime.go",
+      "sha256": "139352c2f4aff920e9ff383ae44e0a5a5b4e3c6f2df328b04d80a0c8dd8e3741",
+      "bytes": 9711
+    },
+    {
+      "path": "services/sensor-agent/production.go",
+      "sha256": "3f204af6b5d791ca5ee90bd1a43e0094693d4fd6ba155a846f96b58eb9f39a69",
+      "bytes": 13481
+    },
+    {
+      "path": "services/sensor-agent/production_test.go",
+      "sha256": "7cd23b28d244f5efb2f84fe5199391adfd4886378bca2c78d0cfffdfe20d5ad0",
+      "bytes": 21401
+    },
+    {
+      "path": "services/sensor-agent/runtime_config.go",
+      "sha256": "6c739333115c0cc0b1f198fb0734c852b2aef12db06508c5d5392e36b3c1fff1",
+      "bytes": 8542
+    },
+    {
+      "path": "services/sensor-agent/runtime_config_test.go",
+      "sha256": "170aab502d6f87d3cf6f1e3a3488095a319049909b5c29d8d890fefc7a7ebdd8",
+      "bytes": 6191
+    }
+  ],
+  "verification": {
+    "sensor_agent_race": {
+      "pass": 871,
+      "fail": 0,
+      "skip": 22
+    },
+    "wire_sensor_client_race": {
+      "pass": 497,
+      "fail": 0,
+      "skip": 0
+    },
+    "event_ingest_race": {
+      "pass": 107,
+      "fail": 0,
+      "skip": 0
+    },
+    "runtimeevent_race": {
+      "pass": 444,
+      "fail": 0,
+      "skip": 0
+    },
+    "migration_component_race": {
+      "pass": 18,
+      "fail": 0,
+      "skip": 0
+    },
+    "api_runtime_installer": {
+      "named_executed": 0,
+      "exit_code": 1,
+      "classification": "OPA_DEPENDENCY_SETUP_BLOCKED_COMPILATION_AND_BEHAVIOR_UNKNOWN"
+    },
+    "focused_ui": {
+      "files": 3,
+      "pass": 15,
+      "fail": 0
+    },
+    "typecheck": {
+      "exit_code": 0,
+      "initial_two_failures_preserved": true
+    },
+    "scoped_lint_exit_code": 0,
+    "production_build_exit_code": 0,
+    "openapi_generate_check_exit_code": 0,
+    "openapi_contract_cases": 46,
+    "deployment_guard_cases": 2,
+    "real_edge_chart_render": {
+      "exit_code": 1,
+      "helm_present": false,
+      "classification": "REAL_RENDER_NOT_VERIFIED"
+    },
+    "source_custody_node": {
+      "pass": 21,
+      "fail": 0
+    },
+    "component_guard_synthetic_units": {
+      "pass": 6,
+      "classification": "GUARD_ONLY_NOT_APPLICATION_ACCEPTANCE"
+    },
+    "component_source_closure": {
+      "exit_code": 0,
+      "required_paths": 135,
+      "sources": 718
+    },
+    "component_gate_roster": {
+      "declared_names": 152,
+      "heads": 28,
+      "packages": 10,
+      "modules": 3,
+      "qualification": "Full roster not passed. Missing API/runtime/CLI execution cannot be substituted by available packages."
+    },
+    "native_acceptance": {
+      "old_groups": 27,
+      "old_names": 198,
+      "old_postgres_joins": 38,
+      "current_groups": 29,
+      "current_names": 206,
+      "current_postgres_joins": 40,
+      "approval_controls": 16,
+      "new_cases_executed": 0,
+      "qualification": "Source reviewed only; canonical memory gate and OPA dependency prevent native execution."
+    },
+    "source_reviews": "Independent design, wire/observer, coordinator/client, HTTP/client, migration SQL final clock, shared transaction DAL, CLI, API/producer and native source reviews retained in evidence archive. Source review does not prove SQL parsing or native behavior.",
+    "preserved_failures": "Initial genuine behavioral RED, compile/setup failures, fixture corrections, first API/deployment/source HOLDs, original 396 directory-mode failures in candidate and published315 baseline, exact child-umask correction, initial UI type errors and missing Helm render failure preserved.",
+    "test_creation_mode": "Original inherited umask0077 made requested0750 directories0700. Published315 control and candidate ran with child-test-only umask0027. No UID, existing file mode or production storage guard was weakened."
+  },
+  "evidence": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/sensor-node-observation-pipeline/source-execution-evidence.json.gz",
+    "bytes": 1326098,
+    "sha256": "33565e0e4cab710451a7787aa50612b134741ccdc1b3ee3bd7ec65f33d9a0659",
+    "members": 370
+  },
+  "source_custody": {
+    "prior_count": 638,
+    "current_count": 718,
+    "prior_paths_preserved": true,
+    "new_sources": [
+      ".github/sensor-node-coverage-component-roster.json",
+      ".github/workflows/sensor-node-coverage-components.yml",
+      "app/features/sensors/ProductionSensorView.test.tsx",
+      "app/features/sensors/ProductionSensorView.tsx",
+      "app/features/sensors/api.test.ts",
+      "app/features/sensors/api.ts",
+      "apps/web/api/client.ts",
+      "apps/web/api/decoders.ts",
+      "apps/web/api/generated.ts",
+      "apps/web/api/sensor-node-coverage.test.ts",
+      "apps/web/api/sensor-node-coverage.ts",
+      "deploy/production/sensor-node-coverage-profile.mjs",
+      "deploy/production/sensor-node-coverage-profile.test.mjs",
+      "deploy/staging/product/templates/_sensor-node-coverage.tpl",
+      "openapi/generated-client.test.mjs",
+      "openapi/openapi.test.mjs",
+      "scripts/validate_sensor_node_coverage_components.py",
+      "scripts/validate_sensor_node_coverage_components_test.py",
+      "services/event-ingest/go.mod",
+      "services/event-ingest/go.sum",
+      "services/event-ingest/production.go",
+      "services/event-ingest/production_composition.go",
+      "services/event-ingest/production_composition_test.go",
+      "services/event-ingest/production_node_coverage.go",
+      "services/event-ingest/production_node_coverage_config_test.go",
+      "services/event-ingest/production_node_coverage_test.go",
+      "services/event-ingest/production_node_coverage_transaction_test.go",
+      "services/event-ingest/production_precision.go",
+      "services/event-ingest/production_runtime.go",
+      "services/event-ingest/production_runtime_test.go",
+      "services/event-ingest/production_test.go",
+      "services/health/go.mod",
+      "services/platform/agentsec-api/sensor_node_coverage_runtime.go",
+      "services/platform/agentsec-api/sensor_node_coverage_runtime_test.go",
+      "services/platform/agentsec-migrate/sensor_node_coverage_profile.go",
+      "services/platform/agentsec-migrate/sensor_node_coverage_profile_test.go",
+      "services/platform/apiserver/discovery_repository_test.go",
+      "services/platform/apiserver/sensor_node_coverage.go",
+      "services/platform/apiserver/sensor_node_coverage_postgres_test.go",
+      "services/platform/apiserver/sensor_node_coverage_test.go",
+      "services/platform/apiserver/sensor_public_handler.go",
+      "services/platform/apiserver/sensor_public_handler_test.go",
+      "services/platform/apiserver/sensor_public_repository.go",
+      "services/platform/migrations/production_authorization_audit_profile.go",
+      "services/platform/migrations/production_authorization_identity_profile.go",
+      "services/platform/migrations/production_authorization_projection.go",
+      "services/platform/migrations/production_sensor_node_coverage_compiler_test.go",
+      "services/platform/migrations/production_sensor_node_coverage_profile.go",
+      "services/platform/migrations/production_sensor_node_coverage_profile_test.go",
+      "services/platform/migrations/sql/sensor_node_coverage_profile.sql",
+      "services/platform/nodecoveragewire/envelope.go",
+      "services/platform/nodecoveragewire/receipt.go",
+      "services/platform/nodecoveragewire/report.go",
+      "services/platform/nodecoveragewire/strict.go",
+      "services/platform/nodecoveragewire/wire.go",
+      "services/platform/nodecoveragewire/wire_test.go",
+      "services/platform/runtimeevent/production_acceptance_test.go",
+      "services/platform/runtimeevent/production_current_profile_test.go",
+      "services/platform/runtimeevent/production_ingest_test.go",
+      "services/platform/runtimeevent/production_node_coverage.go",
+      "services/platform/runtimeevent/production_node_coverage_transaction.go",
+      "services/platform/runtimeevent/production_repository.go",
+      "services/platform/runtimeevent/production_repository_test.go",
+      "services/platform/sensor/enrollment_binding.go",
+      "services/platform/sensor/private_heartbeat.go",
+      "services/platform/sensor/private_node_coverage_heartbeat.go",
+      "services/platform/sensor/private_node_coverage_heartbeat_test.go",
+      "services/platform/sensor/token.go",
+      "services/platform/sensoradapter/retained_heartbeat_client.go",
+      "services/platform/sensoradapter/retained_heartbeat_client_test.go",
+      "services/sensor-agent/cluster_test.go",
+      "services/sensor-agent/go.mod",
+      "services/sensor-agent/go.sum",
+      "services/sensor-agent/main.go",
+      "services/sensor-agent/node_coverage_retention_coordinator.go",
+      "services/sensor-agent/node_coverage_retention_coordinator_test.go",
+      "services/sensor-agent/node_coverage_retention_state.go",
+      "services/sensor-agent/node_coverage_retention_storage_test.go",
+      "services/sensor-agent/production_test.go",
+      "services/sensor-agent/runtime_config_test.go"
+    ]
+  },
+  "ledger": {
+    "rows": 728,
+    "unique_ids": 728,
+    "historical_complete": 667,
+    "historical_blocked": 61,
+    "classes": {
+      "production-available": 509,
+      "component-only": 158,
+      "blocked/external": 61
+    },
+    "remaining_recorded": 219,
+    "only_evidence_append": "M4-50b3",
+    "predecessor_sha256": "b874ae6a436b3acba43a3b49fdd0678832aa254297d3c239bc35bc159749f79c",
+    "sha256": "6ec4e7f3a90afb2d80ea0c1bb9c1f52e4547a3fc8dff702086374a9cee558db3",
+    "owners_unchanged": true,
+    "availability_promotions": 0,
+    "inventory": "docs/internal/cloud-goal-remaining-task-inventory-2026-10-17-node-observation-source-successor.json"
+  },
+  "remaining": [
+    "Agent-to-node placement must be integrated independently; source candidate exists in separate worktree, not this batch.",
+    "Agent-bound gateway installation acknowledgment and actual coverage/filter composition remain required.",
+    "SQL parsing, same owned PostgreSQL/OpenFGA native application cases and installed-profile acceptance.",
+    "API/runtime/installer compile and application execution after official OPA dependency is available.",
+    "Real Helm render and deployment with current Temporal/OpenFGA/Stytch/provider credentials.",
+    "All original 728 requirements and fresh deployed end-to-end acceptance; 219 recorded outside production-available."
+  ],
+  "merge_status": "Not merge/release cleared. Applicable hosted checks, missing native/deployed evidence and production access gates remain.",
+  "retired_obsolete_implementations": false,
+  "status_predecessor_sha256": "cd3617aabe69ecff50992c9abbc0eacf17fb631ecd01e23fb7b8bc263a0e51a4",
+  "preserved_draft_checkpoint": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/sensor-node-observation-pipeline/checkpoint-draft-preimage.json",
+    "sha256": "efb5d15c9b866edcc20968d49978bb64bec17d9250c8a9096e567088981d77bc",
+    "reason": "Independent publication review requested precise distinction between own-namespace ACL source and unchanged parent/deployed permissions. No failed execution evidence changed."
+  }
+}

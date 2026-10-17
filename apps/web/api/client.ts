@@ -121,7 +121,9 @@ export function createAPIClient(options: APIClientOptions = {}) {
       const response = await configuredFetch(securedRequest);
 	  throwIfRequestStopped(request.signal, timeout.signal);
 	  const orderedRunResponse = /\/api\/v1\/security-agent-runs\/[^/]+(?:\/cancel)?$/.test(new URL(request.url).pathname);
-	  await validateResponse(response, maximumResponseBytes, onSessionExpired, onScopeStale, onFreshAuthRequired, signal, download, attachmentMaximumBytes, orderedRunResponse);
+      const nodeObservationRead = securedRequest.method === "GET" && /^\/api\/v1\/sensors\/pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/coverage$/.test(new URL(securedRequest.url).pathname) && securedRequest.headers.get("X-Zasp-Schema-Version") === "sensor-coverage-node-observation-v2";
+      const responseMaximum = nodeObservationRead ? Math.min(options.maximumResponseBytes ?? (16 * 1024 * 1024 + 65536), 16 * 1024 * 1024 + 65536) : maximumResponseBytes;
+	  await validateResponse(response, responseMaximum, onSessionExpired, onScopeStale, onFreshAuthRequired, signal, download, attachmentMaximumBytes, orderedRunResponse);
 	  throwIfRequestStopped(request.signal, timeout.signal);
       return response;
     } catch (error) {

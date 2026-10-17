@@ -129,6 +129,10 @@ func (c *ClusterCoordinator) aggregateCoverage(ctx context.Context, now time.Tim
 	if e != nil {
 		return sensoradapter.Heartbeat{}, time.Time{}, ErrClusterRetryable
 	}
+	return aggregateCoverageReport(result, now)
+}
+
+func aggregateCoverageReport(result sensoradapter.NodeCoverageResult, now time.Time) (sensoradapter.Heartbeat, time.Time, error) {
 	observed := now
 	status := "healthy"
 	if !result.Complete {

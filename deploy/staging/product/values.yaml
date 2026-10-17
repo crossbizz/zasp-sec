@@ -544,3 +544,13 @@ agentExposureFilter:
 # API-only current ownership writer; separate profile installation required.
 agentOwnershipWrite:
   profileChecksum: ""
+
+# Opted-in API read and event-ingest write. Exact installed compiled pin required.
+sensorNodeCoverage:
+  enabled: false
+  profileChecksum: ""
+
+# Explicit customer-edge producer constraint only; no implicit enrollment.
+sensorAgent:
+  nodeCoverageRetentionEnabled: false
+  sensorID: ""

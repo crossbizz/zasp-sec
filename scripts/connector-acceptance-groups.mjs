@@ -185,7 +185,18 @@ export const AGENT_OWNERSHIP_WRITE_ACCEPTANCE_GROUPS = Object.freeze({
   'agent-ownership-write': group('TestAgentCurrentOwnershipWriteNormalPostgres', agentOwnershipWriteCases, 1),
   'agent-ownership-write-audit': group('TestAgentCurrentOwnershipWriteAuditPostgres', agentOwnershipWriteCases, 1),
 });
-const acceptanceGroups = Object.freeze({...CONNECTOR_ACCEPTANCE_GROUPS, ...ENVIRONMENT_CLASS_ACCEPTANCE_GROUPS, ...MAINTENANCE_OPERATOR_ACCEPTANCE_GROUPS, ...OPTIONAL_EGRESS_OPERATOR_ACCEPTANCE_GROUPS, ...AGENT_CURRENT_READ_ACCEPTANCE_GROUPS, ...AGENT_EXPOSURE_FILTER_ACCEPTANCE_GROUPS, ...AGENT_OWNERSHIP_WRITE_ACCEPTANCE_GROUPS});
+// Additive application acceptance only; these cases remain unexecuted until
+// the unchanged owned PostgreSQL/OpenFGA prerequisite guards admit execution.
+const sensorNodeCoverageCases = Object.freeze([
+  'accepted_original_observation_expired_replay_and_terminal_gap',
+  'stored_credentials_scope_and_rotated_sensor_authority',
+  'actual_transaction_token_wait_expires_before_final_clock_check',
+]);
+export const SENSOR_NODE_COVERAGE_ACCEPTANCE_GROUPS = Object.freeze({
+  'sensor-node-coverage': group('TestSensorNodeCoverageNormalPostgres', sensorNodeCoverageCases, 1),
+  'sensor-node-coverage-audit': group('TestSensorNodeCoverageAuditPostgres', sensorNodeCoverageCases, 1),
+});
+const acceptanceGroups = Object.freeze({...CONNECTOR_ACCEPTANCE_GROUPS, ...ENVIRONMENT_CLASS_ACCEPTANCE_GROUPS, ...MAINTENANCE_OPERATOR_ACCEPTANCE_GROUPS, ...OPTIONAL_EGRESS_OPERATOR_ACCEPTANCE_GROUPS, ...AGENT_CURRENT_READ_ACCEPTANCE_GROUPS, ...AGENT_EXPOSURE_FILTER_ACCEPTANCE_GROUPS, ...AGENT_OWNERSHIP_WRITE_ACCEPTANCE_GROUPS, ...SENSOR_NODE_COVERAGE_ACCEPTANCE_GROUPS});
 export function selectConnectorAcceptanceGroup(args) {
   assert.ok(Array.isArray(args) && args.length === 1 &&
     typeof args[0] === 'string' && Object.hasOwn(acceptanceGroups, args[0]),

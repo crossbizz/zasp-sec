@@ -15,6 +15,8 @@ var errSensorConfig = errors.New("sensor agent configuration rejected")
 var enrollmentBindingPattern = regexp.MustCompile(`^[0-9a-f]{64}$`)
 
 type sensorAgentConfig struct {
+	SensorID                                     string
+	NodeCoverageRetention                        bool
 	Role                                         string
 	Coverage                                     *sensoradapter.NodeCoverageSelection
 	ObservationDirectory, PodUID                 string
@@ -45,12 +47,19 @@ func loadSensorAgentConfig(getenv func(string) string) (sensorAgentConfig, error
 		return sensorAgentConfig{}, errSensorConfig
 	}
 	config := sensorAgentConfig{
-		Role: getenv("ZASP_SENSOR_ROLE"), SpoolDirectory: getenv("ZASP_LINEAGE_SPOOL_DIRECTORY"), AckDirectory: getenv("ZASP_LINEAGE_ACK_DIRECTORY"), StateDirectory: getenv("ZASP_LINEAGE_STATE_DIRECTORY"),
+		SensorID: getenv("ZASP_SENSOR_ID"), Role: getenv("ZASP_SENSOR_ROLE"), SpoolDirectory: getenv("ZASP_LINEAGE_SPOOL_DIRECTORY"), AckDirectory: getenv("ZASP_LINEAGE_ACK_DIRECTORY"), StateDirectory: getenv("ZASP_LINEAGE_STATE_DIRECTORY"),
 		ControlPlaneURL: getenv("ZASP_SENSOR_CONTROL_PLANE_URL"), TokenFile: getenv("ZASP_SENSOR_TOKEN_FILE"), TokenSource: getenv("ZASP_SENSOR_TOKEN_SOURCE"),
 		EnrollmentBinding: getenv("ZASP_SENSOR_ENROLLMENT_BINDING"),
 		LogFile:           getenv("ZASP_TETRAGON_LOG_FILE"), CursorFile: getenv("ZASP_SENSOR_CURSOR_FILE"),
 		Namespace: getenv("ZASP_SENSOR_NAMESPACE"), PodName: getenv("ZASP_SENSOR_POD_NAME"), NodeName: getenv("ZASP_SENSOR_NODE_NAME"),
 		KernelFile: getenv("ZASP_SENSOR_KERNEL_FILE"), BTFFile: getenv("ZASP_SENSOR_BTF_FILE"), MetricsURL: getenv("ZASP_TETRAGON_METRICS_URL"),
+	}
+	if value := getenv("ZASP_SENSOR_NODE_COVERAGE_RETENTION_ENABLED"); value != "" {
+		var e error
+		config.NodeCoverageRetention, e = strconv.ParseBool(value)
+		if e != nil {
+			return sensorAgentConfig{}, errSensorConfig
+		}
 	}
 	if config.Role == "lineage-consumer" && getenv("ZASP_SENSOR_COVERAGE_CONFIG") != "" {
 		var e error
@@ -93,6 +102,9 @@ func loadSensorAgentConfig(getenv func(string) string) (sensorAgentConfig, error
 }
 
 func validSensorAgentConfig(config sensorAgentConfig) bool {
+	if config.NodeCoverageRetention && (!validRetainedSensorID(config.SensorID) || config.Role != "lineage-consumer" || config.Coverage == nil || config.Coverage.Validate() != nil) {
+		return false
+	}
 	if !enrollmentBindingPattern.MatchString(config.EnrollmentBinding) {
 		return false
 	}

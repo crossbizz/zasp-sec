@@ -2172,3 +2172,17 @@ test("selected sensor inventory has shared pool, identity witness and exact read
   assert.deepEqual(nodes.verbs, ["get", "list"]);
   for (const invalid of [{ ...edgeRelease, sensorClusterUID: "" }, { ...edgeRelease, sensorNodeSelector: {} }]) await assert.rejects(renderCustomerEdgeRelease(invalid), /edge release rejected/);
 });
+
+test("customer edge retained observation maps explicit enrollment constraint only to consumer", async () => {
+ const sensorID="pid_91000001-0000-4000-8000-000000000001";
+ for(const selected of [undefined,{enabled:false,sensorID:""},{enabled:true,sensorID}]){
+  const value=selected===undefined?edgeRelease:{...edgeRelease,sensorNodeCoverage:selected};
+  const resources=await renderCustomerEdgeRelease(value);
+  const pod=one(resources,"DaemonSet","sensor-agent").spec.template.spec;
+  for(const container of [...pod.containers,...pod.initContainers]){
+   const entries=(container.env??[]).filter(e=>e.name?.startsWith("ZASP_SENSOR_NODE_COVERAGE_")||e.name==="ZASP_SENSOR_ID");
+   assert.deepEqual(entries,selected?.enabled&&container.name==="sensor-agent"?[{name:"ZASP_SENSOR_NODE_COVERAGE_RETENTION_ENABLED",value:"true"},{name:"ZASP_SENSOR_ID",value:sensorID}]:[]);
+  }
+ }
+ for(const sensorNodeCoverage of [null,{}, {enabled:true,sensorID:""},{enabled:false,sensorID},{enabled:true,sensorID,extra:true}])await assert.rejects(renderCustomerEdgeRelease({...edgeRelease,sensorNodeCoverage}));
+});

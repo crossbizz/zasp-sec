@@ -1,0 +1,99 @@
+name: Sensor node coverage component contracts
+
+"on":
+  pull_request:
+    paths:
+      - 'services/platform/**'
+      - 'services/event-ingest/**'
+      - 'services/sensor-agent/**'
+      - 'services/health/**'
+      - 'scripts/validate_sensor_node_coverage_components*.py'
+      - 'scripts/validate_agent_read_components.py'
+      - '.github/sensor-node-coverage-component-roster.json'
+      - '.github/connector-native-compile-source-pins.json'
+      - '.github/workflows/sensor-node-coverage-components.yml'
+  push:
+    branches: [main]
+    paths:
+      - "services/platform/**"
+      - "services/event-ingest/**"
+      - "services/sensor-agent/**"
+      - "services/health/**"
+      - "scripts/validate_sensor_node_coverage_components*.py"
+      - "scripts/validate_agent_read_components.py"
+      - ".github/sensor-node-coverage-component-roster.json"
+      - ".github/connector-native-compile-source-pins.json"
+      - ".github/workflows/sensor-node-coverage-components.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sensor-node-coverage-components:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      GOTOOLCHAIN: local
+      GOWORK: 'off'
+      GOFLAGS: '-mod=readonly'
+      GOMAXPROCS: '2'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version: 1.26.8
+          cache: false
+      - name: Require exact toolchain and complete source custody
+        run: |
+          test "$(go version)" = 'go version go1.26.8 linux/amd64'
+          test -z "${ZASP_SENSOR_NODE_COVERAGE_RETENTION_ENABLED:-}"
+          test -z "${ZASP_SENSOR_NODE_COVERAGE_PROFILE_CHECKSUM:-}"
+          python3 scripts/validate_sensor_node_coverage_components.py --check-sources .github/connector-native-compile-source-pins.json
+      - name: Require strict component guard rejection controls
+        run: python3 -m unittest discover -s scripts -p 'validate_sensor_node_coverage_components_test.py' -v
+      - name: Require all 152 exact component results across three real modules
+        timeout-minutes: 20
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Application fixtures create protected0750 storage; preserve actual
+          # required modes through the child process instead of weakening guards.
+          umask 0027
+          : > sensor-node-coverage-components.jsonl
+          : > sensor-node-coverage-components.stderr
+          go_status=0
+          if go test -C services/platform -race -p=1 -count=1 -timeout=3m -json -run '^(TestSensorNodeCoverageRepresentationAdmission|TestSensorNodeCoverageCurrentRepositoryAndStatement|TestSensorNodeCoverageStrictReadDTO|TestSensorNodeCoverageMountedHandlerSelectsExactRead|TestSensorNodeCoverageRuntimeExplicitCompiledPin|TestSensorNodeCoverageMigrationDispatchAndConfirmation|TestSensorNodeCoverageCLIInputsAndChecksums|TestSensorNodeCoverageInstallerClosedAdmission|TestSensorNodeCoverageCompilerIdentity|TestCurrentRuntimeIngestRoutesSemanticAndPreciseSources|TestCurrentRuntimeIntakeIdentityDoesNotReplaceHealth|TestRetainedCoverageWireFullInventoryAndOriginalTimes|TestRetainedCoverageWireStructuralExpiryAndIncompleteInventory|TestRetainedCoverageWireClosedNestedContract|TestRetainedCoverageWireReceiptDispositionsAreExact|TestRetainedCoverageWireExistingReportCompatibility|TestPrivateNodeCoverageHeartbeatAdmissionAndReceipt|TestProductionClientRetainedHeartbeatExactWireAndReceipt)$' ./apiserver ./agentsec-api ./agentsec-migrate ./migrations ./runtimeevent ./nodecoveragewire ./sensor ./sensoradapter >> sensor-node-coverage-components.jsonl 2>> sensor-node-coverage-components.stderr; then
+            :
+          else
+            phase_status=$?
+            if [ "$go_status" -eq 0 ]; then go_status=$phase_status; fi
+          fi
+          if go test -C services/event-ingest -race -p=1 -count=1 -timeout=3m -json -run '^(TestNodeCoverageRetentionConfigRefusesImplicitAuthority|TestProductionNodeCoverageComposedCommitBoundary|TestProductionNodeCoverageSamePoolTransaction)$' . >> sensor-node-coverage-components.jsonl 2>> sensor-node-coverage-components.stderr; then
+            :
+          else
+            phase_status=$?
+            if [ "$go_status" -eq 0 ]; then go_status=$phase_status; fi
+          fi
+          if go test -C services/sensor-agent -race -p=1 -count=1 -timeout=3m -json -run '^(TestRetainedCoordinatorPreparesFullCapacityWithoutLegacyAnnotation|TestRetainedCoordinatorResolvesExactPendingWithoutFreshObservation|TestRetainedCoordinatorRefusesIncompleteOptInConfiguration|TestRetainedCoordinatorStorageCustodyAndEpoch|TestRetainedCoordinatorAbortsUnsentPrepareWithoutEpochReuse|TestRetainedCoordinatorStateCASDoesNotEraseSealedPending|TestRetainedCoordinatorRequiresExactSensorReceipt)$' . >> sensor-node-coverage-components.jsonl 2>> sensor-node-coverage-components.stderr; then
+            :
+          else
+            phase_status=$?
+            if [ "$go_status" -eq 0 ]; then go_status=$phase_status; fi
+          fi
+          python3 scripts/validate_sensor_node_coverage_components.py --go-exit-code "$go_status" sensor-node-coverage-components.jsonl
+      - name: Preserve component-only execution evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: sensor-node-coverage-component-evidence
+          path: |
+            sensor-node-coverage-components.jsonl
+            sensor-node-coverage-components.stderr
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Confirm checks did not alter tracked source
+        if: always()
+        run: git diff --exit-code

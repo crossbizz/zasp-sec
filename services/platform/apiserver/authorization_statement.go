@@ -77,6 +77,9 @@ var authorizationStatementRules = []authorizationStatementRule{
 }
 
 func authorizationStatementAllowed(g RequestAuthorization, q string, args []any) bool {
+	if q == postgresSensorNodeCoverageSQL {
+		return sensorNodeCoverageStatementAllowed(g, q, args)
+	}
 	if handled, allowed := agentOwnershipWriteStatementAllowed(g, q, args); handled {
 		return allowed
 	}

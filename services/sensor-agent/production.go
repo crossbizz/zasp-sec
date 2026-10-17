@@ -106,7 +106,7 @@ func buildSensorAgentDependencies(config sensorAgentConfig, injectedDo func(*htt
 		client := &http.Client{Transport: transport, Timeout: config.OperationTimeout, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 		do = client.Do
 	}
-	client, err := sensoradapter.NewProductionClient(sensoradapter.ProductionClientConfig{BaseURL: config.ControlPlaneURL, EnrollmentBinding: config.EnrollmentBinding, Token: reader.Read, Do: do, Now: time.Now})
+	client, err := sensoradapter.NewProductionClient(sensoradapter.ProductionClientConfig{SensorID: config.SensorID, NodeCoverageRetention: config.NodeCoverageRetention, BaseURL: config.ControlPlaneURL, EnrollmentBinding: config.EnrollmentBinding, Token: reader.Read, Do: do, Now: time.Now})
 	if err != nil {
 		if transport != nil {
 			transport.CloseIdleConnections()
@@ -177,7 +177,15 @@ func buildClusteredSensorAgentDependencies(config sensorAgentConfig, api cluster
 			return fail()
 		}
 	}
-	coordinator, err := NewClusterCoordinator(ClusterCoordinatorConfig{Namespace: config.Namespace, PodName: config.PodName, NodeName: config.NodeName, Coverage: config.Coverage, CoverageReader: coverageReader, Witness: witness, LeaseDuration: config.LeaseDuration, ReportTTL: config.ReportTTL, Leases: api, Pods: api, Heartbeats: dependencies.heartbeats, Now: time.Now})
+	var retained RetainedHeartbeatSink
+	if config.NodeCoverageRetention {
+		var ok bool
+		retained, ok = dependencies.heartbeats.(RetainedHeartbeatSink)
+		if !ok || nilClusterValue(retained) {
+			return fail()
+		}
+	}
+	coordinator, err := NewClusterCoordinator(ClusterCoordinatorConfig{SensorID: config.SensorID, NodeCoverageRetention: config.NodeCoverageRetention, RetainedHeartbeats: retained, Namespace: config.Namespace, PodName: config.PodName, NodeName: config.NodeName, Coverage: config.Coverage, CoverageReader: coverageReader, Witness: witness, LeaseDuration: config.LeaseDuration, ReportTTL: config.ReportTTL, Leases: api, Pods: api, Heartbeats: dependencies.heartbeats, Now: time.Now})
 	if err != nil {
 		return fail()
 	}

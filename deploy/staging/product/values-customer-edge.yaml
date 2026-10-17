@@ -16,6 +16,8 @@ runtimeGateway:
     maximumBytes: 67108864
     storageClassName: ""
 sensorAgent:
+  nodeCoverageRetentionEnabled: false
+  sensorID: ""
   enabled: true
   sourceProfile: tetragon-local-stream-v2
   enrollmentBinding: ""

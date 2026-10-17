@@ -13,6 +13,11 @@ func confirmForwardRelease(ctx context.Context, queryer principalQueryer, begin 
 		return errInvalidMigrationCommand
 	}
 
+	if sensorNodeCoverageProfileCommand(arguments[0]) {
+		return withRetentionOperatorTransaction(ctx, begin, func(c context.Context, q principalQueryer, _ io.Writer) error {
+			return sensorNodeCoveragePostInstall(c, q, registration.migration, arguments[0])
+		}, nil)
+	}
 	if agentExposureFilterProfileCommand(arguments[0]) {
 		return withRetentionOperatorTransaction(ctx, begin, func(c context.Context, q principalQueryer, _ io.Writer) error {
 			return agentExposureFilterPostInstall(c, q, registration.migration, arguments[0])

@@ -1,4 +1,9 @@
 {{- if eq .Values.profile "customer_edge" }}
+{{- if not (and (kindIs "bool" .Values.sensorAgent.nodeCoverageRetentionEnabled) (kindIs "string" .Values.sensorAgent.sensorID)) }}{{ fail "sensor retained producer configuration types rejected" }}{{- end }}
+{{- if .Values.sensorAgent.nodeCoverageRetentionEnabled }}
+{{- if not (and .Values.sensorAgent.enabled (regexMatch "^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" .Values.sensorAgent.sensorID)) }}{{ fail "sensor retained producer requires explicit canonical sensor ID" }}{{- end }}
+{{- else if .Values.sensorAgent.sensorID }}{{ fail "disabled sensor retained producer requires empty sensor ID" }}{{- end }}
+
 {{- $cov := dict }}
 {{- $coverage := dict }}
 {{- $tns := "" }}
@@ -207,6 +212,10 @@ spec:
           env:
             - { name: GOMEMLIMIT, value: "128MiB" }
             - { name: ZASP_SENSOR_ROLE, value: lineage-consumer }
+            {{- if .Values.sensorAgent.nodeCoverageRetentionEnabled }}
+            - { name: ZASP_SENSOR_NODE_COVERAGE_RETENTION_ENABLED, value: "true" }
+            - { name: ZASP_SENSOR_ID, value: {{ .Values.sensorAgent.sensorID | quote }} }
+            {{- end }}
             - { name: ZASP_SENSOR_COVERAGE_CONFIG, value: {{ toJson $coverage | quote }} }
             - { name: ZASP_SENSOR_OBSERVATION_DIRECTORY, value: /var/lib/zasp-lineage/observations }
             - name: ZASP_SENSOR_POD_UID

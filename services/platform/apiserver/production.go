@@ -147,6 +147,9 @@ func newProductionHandlers(repository, securityAgentRepository *PostgresReposito
 		if sensorErr != nil {
 			return Dependencies{}, nil, ErrRepositoryConfiguration
 		}
+		if repository.sensorNodeCoverageProfileChecksum != "" && sensorRepository.RequireSensorNodeCoverageProfile(repository.sensorNodeCoverageProfileChecksum) != nil {
+			return Dependencies{}, nil, ErrRepositoryConfiguration
+		}
 		sensorHandler, sensorErr := NewSensorPublicHTTPHandler(sensorRepository, cookie.WorkflowSigningKey)
 		if sensorErr != nil {
 			return Dependencies{}, nil, ErrRepositoryConfiguration

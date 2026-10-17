@@ -23,6 +23,8 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+	"github.com/zasp-ai/zasp-sec/services/platform/nodecoveragewire"
 	"github.com/zasp-ai/zasp-sec/services/platform/sensoradapter"
 )
 
@@ -84,28 +86,42 @@ type clusterReportWire struct {
 	Drops        uint64   `json:"drops"`
 }
 
+// Tests-first ABI scaffold only; retained implementation follows root execution.
+type RetainedHeartbeatSink interface {
+	SendRetainedHeartbeat(context.Context, []byte) (nodecoveragewire.Receipt, error)
+}
+
 type ClusterCoordinatorConfig struct {
-	Namespace      string
-	Coverage       *sensoradapter.NodeCoverageSelection
-	CoverageReader sensoradapter.NodeCoverageReader
-	Witness        *nodeWitnessFile
-	PodName        string
-	NodeName       string
-	LeaseDuration  time.Duration
-	ReportTTL      time.Duration
-	Leases         clusterLeaseAPI
-	Pods           clusterPodAPI
-	Heartbeats     heartbeatSink
-	Now            func() time.Time
+	SensorID              string
+	NodeCoverageRetention bool
+	RetainedHeartbeats    RetainedHeartbeatSink
+	Namespace             string
+	Coverage              *sensoradapter.NodeCoverageSelection
+	CoverageReader        sensoradapter.NodeCoverageReader
+	Witness               *nodeWitnessFile
+	PodName               string
+	NodeName              string
+	LeaseDuration         time.Duration
+	ReportTTL             time.Duration
+	Leases                clusterLeaseAPI
+	Pods                  clusterPodAPI
+	Heartbeats            heartbeatSink
+	Now                   func() time.Time
 }
 
 type ClusterCoordinator struct {
 	mu                    sync.Mutex
 	config                ClusterCoordinatorConfig
 	pendingCoverageMarker string
+	retainedAnchorUID     string
+	retainedStateSeen     bool
+	pendingRetainedBody   []byte
 }
 
 func NewClusterCoordinator(config ClusterCoordinatorConfig) (*ClusterCoordinator, error) {
+	if config.NodeCoverageRetention && (!validRetainedSensorID(config.SensorID) || config.Coverage == nil || nilClusterValue(config.RetainedHeartbeats)) {
+		return nil, ErrCluster
+	}
 	if config.Coverage != nil && (config.Coverage.Validate() != nil || nilClusterValue(config.CoverageReader) || config.Witness == nil || config.Coverage.Sensor.Namespace != config.Namespace) {
 		return nil, ErrCluster
 	}
@@ -130,6 +146,9 @@ func (coordinator *ClusterCoordinator) Tick(ctx context.Context, local NodeRepor
 	now, ok := clusterNow(coordinator.config.Now)
 	if !ok {
 		return ErrClusterRetryable
+	}
+	if coordinator.config.NodeCoverageRetention {
+		return coordinator.tickRetained(ctx, local, now, started)
 	}
 	if coordinator.config.Coverage != nil {
 		if err := coordinator.upsertCoverage(ctx, local, now); err != nil {
@@ -247,6 +266,9 @@ func (coordinator *ClusterCoordinator) acquireLeader(ctx context.Context, now ti
 }
 
 func (coordinator *ClusterCoordinator) pendingOrPrepare(ctx context.Context, now time.Time) (sensoradapter.Heartbeat, error) {
+	if coordinator.config.NodeCoverageRetention {
+		return coordinator.pendingRetainedOrPrepare(ctx, now)
+	}
 	started := time.Now()
 	coordinator.pendingCoverageMarker = ""
 	state, err := coordinator.config.Leases.Get(ctx, clusterStateLeaseName, metav1.GetOptions{})
@@ -575,4 +597,9 @@ func nilClusterValue(value any) bool {
 	}
 	reflected := reflect.ValueOf(value)
 	return reflected.Kind() == reflect.Pointer && reflected.IsNil()
+}
+
+func validRetainedSensorID(value string) bool {
+	id, err := domain.ParseProductID(value)
+	return err == nil && !id.IsZero() && id.String() == value
 }

@@ -141,6 +141,16 @@ func buildRuntimeDependenciesWithReadinessObserver(ctx context.Context, config R
 			return RuntimeDependencies{}, markRuntimeDependencyFailure("agent-ownership-write-profile", errRuntimeUnavailable)
 		}
 	}
+	if config.SensorNodeCoverageRetentionEnabled {
+		bounded, cancel := context.WithTimeout(ctx, config.ProviderTimeout)
+		ready, readyErr := database.SensorNodeCoverageProfileReady(bounded, config.SensorNodeCoverageProfileChecksum)
+		cancel()
+		if readyErr != nil || !ready {
+			_ = database.Close()
+			_ = securityAgentDatabase.Close()
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("sensor-node-coverage-profile", errRuntimeUnavailable)
+		}
+	}
 	if config.AgentReadProfileChecksum != "" {
 		bounded, cancel := context.WithTimeout(ctx, config.ProviderTimeout)
 		ready, readyErr := database.AgentReadProfileReady(bounded, config.AgentReadProfileChecksum)
@@ -400,6 +410,11 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 		_ = database.Close()
 		_ = securityAgentDatabase.Close()
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("agent-ownership-write-profile", errRuntimeUnavailable)
+	}
+	if config.SensorNodeCoverageRetentionEnabled && repository.RequireSensorNodeCoverageProfile(config.SensorNodeCoverageProfileChecksum) != nil {
+		_ = database.Close()
+		_ = securityAgentDatabase.Close()
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("sensor-node-coverage-profile", errRuntimeUnavailable)
 	}
 	if config.AgentReadProfileChecksum != "" && repository.RequireAgentReadProfile(config.AgentReadProfileChecksum) != nil {
 		_ = database.Close()
@@ -761,6 +776,15 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 			if config.AgentOwnershipWriteProfileChecksum != "" {
 				checks = append(checks, func(probe context.Context) error {
 					ready, err := database.AgentOwnershipWriteProfileReady(probe, config.AgentOwnershipWriteProfileChecksum)
+					if err != nil || !ready {
+						return errRuntimeUnavailable
+					}
+					return nil
+				})
+			}
+			if config.SensorNodeCoverageRetentionEnabled {
+				checks = append(checks, func(probe context.Context) error {
+					ready, err := database.SensorNodeCoverageProfileReady(probe, config.SensorNodeCoverageProfileChecksum)
 					if err != nil || !ready {
 						return errRuntimeUnavailable
 					}

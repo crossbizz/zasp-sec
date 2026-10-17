@@ -1,21 +1,18 @@
 package sensoradapter
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
-	"io"
+	"github.com/zasp-ai/zasp-sec/services/platform/nodecoveragewire"
 	"regexp"
 	"sort"
 	"strings"
 	"time"
 )
 
-var ErrNodeCoverage = errors.New("selected sensor coverage unavailable")
+var ErrNodeCoverage = nodecoveragewire.ErrInvalid
 
 const NodeCoverageAnnotation = "zasp.io/node-coverage-v2"
 const NodeCoverageLabel = "zasp.io/coverage-version"
@@ -24,52 +21,10 @@ const NodeCoverageSchema = "zasp-node-coverage-v2"
 var coverageUUID = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 var coverageName = regexp.MustCompile(`^[a-z0-9]([a-z0-9.-]{0,251}[a-z0-9])?$`)
 var coverageBinding = regexp.MustCompile(`^[0-9a-f]{64}$`)
-var coverageLabel = regexp.MustCompile(`^[A-Za-z0-9]([A-Za-z0-9_.-]{0,61}[A-Za-z0-9])?$`)
 
-type CoverageTarget struct {
-	Namespace        string `json:"namespace"`
-	Name             string `json:"name"`
-	Release          string `json:"release"`
-	ReleaseNamespace string `json:"release_namespace"`
-	Image            string `json:"image"`
-	ServiceAccount   string `json:"service_account"`
-	Container        string `json:"container"`
-}
-type NodeCoverageSelection struct {
-	SourceProfile     string            `json:"source_profile"`
-	ClusterUID        string            `json:"cluster_uid"`
-	EnrollmentBinding string            `json:"enrollment_binding"`
-	MatchLabels       map[string]string `json:"match_labels"`
-	Sensor            CoverageTarget    `json:"sensor"`
-	Tetragon          CoverageTarget    `json:"tetragon"`
-}
+type CoverageTarget = nodecoveragewire.CoverageTarget
+type NodeCoverageSelection = nodecoveragewire.NodeCoverageSelection
 
-func (s NodeCoverageSelection) Validate() error {
-	if s.SourceProfile != "tetragon-local-stream-v2" && s.SourceProfile != "tetragon-local-stream-v3" {
-		return ErrNodeCoverage
-	}
-	if !validCoverageUUID(s.ClusterUID) || !coverageBinding.MatchString(s.EnrollmentBinding) || len(s.MatchLabels) < 1 || len(s.MatchLabels) > 8 {
-		return ErrNodeCoverage
-	}
-	for k, v := range s.MatchLabels {
-		parts := strings.Split(k, "/")
-		if len(parts) > 2 || len(k) > 253 || !coverageLabel.MatchString(parts[len(parts)-1]) || !coverageLabel.MatchString(v) {
-			return ErrNodeCoverage
-		}
-		if len(parts) == 2 && !coverageName.MatchString(parts[0]) {
-			return ErrNodeCoverage
-		}
-	}
-	for _, t := range []CoverageTarget{s.Sensor, s.Tetragon} {
-		if !coverageName.MatchString(t.Namespace) || !coverageName.MatchString(t.Name) || !coverageName.MatchString(t.Release) || t.ReleaseNamespace != t.Namespace || !coverageName.MatchString(t.ServiceAccount) || !coverageName.MatchString(t.Container) || len(t.Image) > 512 || !regexp.MustCompile(`^[-A-Za-z0-9./:]+@sha256:[0-9a-f]{64}$`).MatchString(t.Image) {
-			return ErrNodeCoverage
-		}
-	}
-	if s.Sensor.Namespace == s.Tetragon.Namespace && s.Sensor.Name == s.Tetragon.Name {
-		return ErrNodeCoverage
-	}
-	return nil
-}
 func validCoverageUUID(s string) bool {
 	return coverageUUID.MatchString(s) && s != "00000000-0000-0000-0000-000000000000"
 }
@@ -96,68 +51,13 @@ func CoverageLeaseName(r NodeCoverageV2) string {
 	return "zasp-coverage-v2-" + hex.EncodeToString(sum[:20])
 }
 
-type NodeCoverageV2 struct {
-	Schema             string    `json:"schema"`
-	EnrollmentBinding  string    `json:"enrollment_binding"`
-	ClusterUID         string    `json:"cluster_uid"`
-	NodeName           string    `json:"node_name"`
-	NodeUID            string    `json:"node_uid"`
-	BootID             string    `json:"boot_id"`
-	ReporterPodName    string    `json:"reporter_pod_name"`
-	ReporterPodUID     string    `json:"reporter_pod_uid"`
-	TetragonPodName    string    `json:"tetragon_pod_name"`
-	TetragonPodUID     string    `json:"tetragon_pod_uid"`
-	GenerationID       string    `json:"generation_id"`
-	SourceProfile      string    `json:"source_profile"`
-	IdentityObservedAt time.Time `json:"identity_observed_at"`
-	MeasuredAt         time.Time `json:"measured_at"`
-	Status             string    `json:"status"`
-	Capabilities       []string  `json:"capabilities"`
-	Kernel             string    `json:"kernel"`
-	BTF                bool      `json:"btf"`
-	EventRate          uint64    `json:"event_rate"`
-	Drops              uint64    `json:"drops"`
-}
+type NodeCoverageV2 = nodecoveragewire.NodeCoverageV2
 
-func (r NodeCoverageV2) Validate() error {
-	if r.Schema != NodeCoverageSchema || !coverageBinding.MatchString(r.EnrollmentBinding) || !validCoverageUUID(r.ClusterUID) || !validCoverageUUID(r.NodeUID) || !validCoverageUUID(r.BootID) || !validCoverageUUID(r.ReporterPodUID) || !validCoverageUUID(r.TetragonPodUID) || !validCoverageUUID(r.GenerationID) || !coverageName.MatchString(r.NodeName) || !coverageName.MatchString(r.ReporterPodName) || !coverageName.MatchString(r.TetragonPodName) || r.IdentityObservedAt.IsZero() || r.MeasuredAt.IsZero() || r.SourceProfile != "tetragon-local-stream-v2" && r.SourceProfile != "tetragon-local-stream-v3" || r.Status != "healthy" && r.Status != "degraded" || len(r.Kernel) < 1 || len(r.Kernel) > 128 || len(r.Capabilities) < 1 || len(r.Capabilities) > 3 || r.EventRate > 1_000_000_000 || r.Drops > 1_000_000_000 {
-		return ErrNodeCoverage
-	}
-	seen := map[string]bool{}
-	for _, c := range r.Capabilities {
-		if c != "process" && c != "file" && c != "network" || seen[c] {
-			return ErrNodeCoverage
-		}
-		seen[c] = true
-	}
-	return nil
-}
 func EncodeNodeCoverage(r NodeCoverageV2) (string, error) {
-	if r.Validate() != nil {
-		return "", ErrNodeCoverage
-	}
-	b, e := json.Marshal(r)
-	if e != nil || len(b) > 8192 {
-		return "", ErrNodeCoverage
-	}
-	return base64.RawURLEncoding.EncodeToString(b), nil
+	return nodecoveragewire.EncodeNodeCoverage(r)
 }
 func DecodeNodeCoverage(v string) (NodeCoverageV2, error) {
-	var r NodeCoverageV2
-	b, e := base64.RawURLEncoding.DecodeString(v)
-	if e != nil || len(b) > 8192 || base64.RawURLEncoding.EncodeToString(b) != v {
-		return r, ErrNodeCoverage
-	}
-	d := json.NewDecoder(bytes.NewReader(b))
-	d.DisallowUnknownFields()
-	if d.Decode(&r) != nil || d.Decode(new(any)) != io.EOF || r.Validate() != nil {
-		return NodeCoverageV2{}, ErrNodeCoverage
-	}
-	canonical, e := EncodeNodeCoverage(r)
-	if e != nil || canonical != v {
-		return NodeCoverageV2{}, ErrNodeCoverage
-	}
-	return r, nil
+	return nodecoveragewire.DecodeNodeCoverage(v)
 }
 
 type CoverageMeta struct {
@@ -259,11 +159,16 @@ type NodeCoverageReader interface {
 	Reports(context.Context, string, string) ([]CoverageLease, error)
 }
 type NodeCoverageResult struct {
-	Complete     bool
-	Nodes        int
-	Reports      []NodeCoverageV2
-	Reason       string
-	TargetDigest string
+	// These identities come from the same double-validated inventory, not a reread.
+	SelectedNodes        []nodecoveragewire.SelectedNode
+	InventoryObservedAt  time.Time
+	SensorDaemonSetUID   string
+	TetragonDaemonSetUID string
+	Complete             bool
+	Nodes                int
+	Reports              []NodeCoverageV2
+	Reason               string
+	TargetDigest         string
 }
 
 func sameLabels(a, b map[string]string) bool { return CoverageSelector(a) == CoverageSelector(b) }
@@ -340,6 +245,7 @@ func ObserveNodeCoverage(ctx context.Context, reader NodeCoverageReader, s NodeC
 	if e != nil || uid != s.ClusterUID {
 		return result, ErrNodeCoverage
 	}
+	inventoryObservedAt := now.Add(time.Since(started))
 	nodes, e := reader.Nodes(ctx, CoverageSelector(s.MatchLabels))
 	if e != nil || len(nodes) < 1 || len(nodes) > 1000 {
 		return result, ErrNodeCoverage
@@ -383,6 +289,7 @@ func ObserveNodeCoverage(ctx context.Context, reader NodeCoverageReader, s NodeC
 		reports[key] = r
 	}
 	identities := make([]string, 0, len(nodes))
+	selectedNodes := make([]nodecoveragewire.SelectedNode, 0, len(nodes))
 	seen := map[string]bool{}
 	providers := map[string]bool{}
 	result.Complete = true
@@ -399,6 +306,7 @@ func ObserveNodeCoverage(ctx context.Context, reader NodeCoverageReader, s NodeC
 			nodeReady = nodeReady || c.Type == "Ready" && c.Status == "True"
 		}
 		identities = append(identities, coverageNodeState(n))
+		selectedNodes = append(selectedNodes, nodecoveragewire.SelectedNode{NodeName: n.Metadata.Name, NodeUID: n.Metadata.UID, BootID: n.Status.NodeInfo.BootID})
 		r, ok := reports[key]
 		fresh := ok && !r.MeasuredAt.After(now.Add(5*time.Second)) && !r.MeasuredAt.Before(now.Add(-ttl)) && !r.IdentityObservedAt.After(r.MeasuredAt.Add(5*time.Second)) && !r.IdentityObservedAt.Before(now.Add(-ttl)) && r.NodeName == n.Metadata.Name && r.Kernel == n.Status.NodeInfo.KernelVersion && r.SourceProfile == s.SourceProfile
 		sc, tc := 0, 0
@@ -462,6 +370,16 @@ func ObserveNodeCoverage(ctx context.Context, reader NodeCoverageReader, s NodeC
 	sum := sha256.Sum256(digest)
 	result.TargetDigest = hex.EncodeToString(sum[:])
 	result.Nodes = len(nodes)
+	sort.Slice(selectedNodes, func(i, j int) bool {
+		if selectedNodes[i].NodeUID == selectedNodes[j].NodeUID {
+			return selectedNodes[i].BootID < selectedNodes[j].BootID
+		}
+		return selectedNodes[i].NodeUID < selectedNodes[j].NodeUID
+	})
+	result.SelectedNodes = selectedNodes
+	result.InventoryObservedAt = inventoryObservedAt
+	result.SensorDaemonSetUID = sensor.Metadata.UID
+	result.TetragonDaemonSetUID = tetragon.Metadata.UID
 	return result, nil
 }
 
