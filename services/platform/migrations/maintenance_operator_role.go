@@ -3,7 +3,7 @@ package migrations
 import "context"
 
 // requireMaintenanceAuthorizationReady reads only the fixed parent readiness
-// gate under its existing authority membership. Restore the exact server role
+// and registered-session binding under existing authority membership. Restore the exact server role
 // state before the caller performs source-owner namespace or REFERENCES DDL.
 func requireMaintenanceAuthorizationReady(ctx context.Context, tx Transaction) error {
 	var incomingUser, incomingRole string
@@ -17,7 +17,7 @@ func requireMaintenanceAuthorizationReady(ctx context.Context, tx Transaction) e
 		return fixedDatabaseError(ctx, err)
 	}
 	var ready bool
-	if err := scanRow(ctx, tx, `SELECT zasp_authorization80.ready($1)`, []any{ProductionAuthorizationEnforcement().Checksum()}, &ready); err != nil {
+	if err := scanRow(ctx, tx, `SELECT EXISTS(SELECT 1 FROM public.zasp_discovery_principal_bindings WHERE principal_name=session_user AND authority_role='zasp_discovery_authority') AND pg_has_role(session_user,'zasp_discovery_authority','MEMBER') AND zasp_authorization80.ready($1)`, []any{ProductionAuthorizationEnforcement().Checksum()}, &ready); err != nil {
 		return fixedDatabaseError(ctx, err)
 	}
 	if !ready {

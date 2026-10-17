@@ -82,7 +82,7 @@ func (r *Runner) upProductionOptionalEgressProfile(ctx context.Context, audit bo
 			}
 			return nil
 		}
-		if err := check(`SELECT EXISTS(SELECT 1 FROM public.zasp_discovery_principal_bindings WHERE principal_name=session_user AND authority_role='zasp_discovery_authority') AND pg_has_role(session_user,'zasp_discovery_authority','MEMBER') AND (SELECT count(*)=61 FROM public.zasp_schema_versions) AND EXISTS(SELECT 1 FROM public.zasp_schema_versions WHERE version=61 AND checksum=$1)`, ProductionSecurityAgentMultistep().Checksum()); err != nil {
+		if err := check(`SELECT pg_has_role(session_user,'zasp_discovery_authority','MEMBER') AND (SELECT count(*)=61 FROM public.zasp_schema_versions) AND EXISTS(SELECT 1 FROM public.zasp_schema_versions WHERE version=61 AND checksum=$1)`, ProductionSecurityAgentMultistep().Checksum()); err != nil {
 			return err
 		}
 		if err := requireMaintenanceAuthorizationReady(ctx, tx); err != nil {

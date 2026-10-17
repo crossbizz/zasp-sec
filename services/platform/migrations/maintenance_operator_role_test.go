@@ -21,6 +21,8 @@ type maintenanceRoleTransaction struct {
 	committed, rolledBack, referenced                bool
 	ownerDDL, windows, restores                      int
 	denyReady, denyRestore, drift                    bool
+	denyBinding, profilePresent                      bool
+	bindingReads, outsideBindingReads                int
 }
 
 func (x *maintenanceRoleTransaction) QueryRow(_ context.Context, q string, args ...any) Row {
@@ -45,6 +47,16 @@ func (x *maintenanceRoleTransaction) QueryRow(_ context.Context, q string, args 
 	if strings.Contains(q, "current_setting('role')") {
 		return fakeRow{values: []any{x.role}}
 	}
+	if strings.Contains(q, "public.zasp_discovery_principal_bindings") {
+		x.bindingReads++
+		if x.effective != "zasp_discovery_authority" {
+			x.outsideBindingReads++
+			return fakeRow{err: errors.New("protected binding permission denied")}
+		}
+		if x.denyBinding {
+			return fakeRow{values: []any{false}}
+		}
+	}
 	if strings.Contains(q, "zasp_authorization80.ready(") {
 		if x.effective != "zasp_discovery_authority" {
 			return fakeRow{err: errors.New("private schema permission denied")}
@@ -57,7 +69,7 @@ func (x *maintenanceRoleTransaction) QueryRow(_ context.Context, q string, args 
 		return fakeRow{values: []any{x.referenced}}
 	}
 	if strings.Contains(q, "to_regnamespace(") && !strings.Contains(q, "zasp_approval_maintenance") {
-		return fakeRow{values: []any{false}}
+		return fakeRow{values: []any{x.profilePresent}}
 	}
 	return fakeRow{values: []any{true}}
 }

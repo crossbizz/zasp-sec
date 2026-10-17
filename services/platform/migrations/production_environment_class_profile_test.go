@@ -13,7 +13,7 @@ func TestEnvironmentClassInstallerPreservesParentsAndTransactionalAdmission(t *t
 		t.Run(mode, func(t *testing.T) {
 			present := strings.Contains(mode, "existing") || mode == "catalog-refused"
 			admission, catalog := mode != "parent-refused", mode != "catalog-refused"
-			tx := &fakeTransaction{rows: []Row{fakeRow{values: []any{admission}}, fakeRow{values: []any{present}}, fakeRow{values: []any{true}}, fakeRow{values: []any{catalog}}, fakeRow{values: []any{true}}}}
+			tx := &fakeTransaction{rows: maintenanceRoleAdmissionRows([]Row{fakeRow{values: []any{admission}}, fakeRow{values: []any{present}}, fakeRow{values: []any{true}}, fakeRow{values: []any{catalog}}, fakeRow{values: []any{true}}})}
 			db := &fakeDatabase{transaction: tx}
 			r, e := NewRunner(db)
 			if e != nil {

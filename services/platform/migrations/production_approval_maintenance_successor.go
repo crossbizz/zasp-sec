@@ -51,7 +51,7 @@ func ensureMaintenanceOrganizationReference(ctx context.Context, tx Transaction)
 		}
 		return nil
 	}
-	if err := check(`SELECT EXISTS(SELECT 1 FROM public.zasp_discovery_principal_bindings WHERE principal_name=session_user AND authority_role='zasp_discovery_authority') AND pg_has_role(session_user,'zasp_discovery_authority','MEMBER')`); err != nil {
+	if err := check(`SELECT pg_has_role(session_user,'zasp_discovery_authority','MEMBER')`); err != nil {
 		return err
 	}
 	if err := requireMaintenanceAuthorizationReady(ctx, tx); err != nil {

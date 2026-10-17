@@ -75,7 +75,10 @@ func (r *Runner) upProductionEnvironmentClassProfile(ctx context.Context, audit 
 		}
 		// The operator MUST be the original LOGIN table owner, not a delegated API
 		// or merely a member of the nonlogin authority. No predecessor ACL changes.
-		if err := check(`SELECT EXISTS(SELECT 1 FROM public.zasp_discovery_principal_bindings b JOIN pg_roles p ON p.rolname=b.principal_name JOIN pg_class e ON e.oid='public.zasp_environments'::regclass JOIN pg_class d ON d.oid='public.zasp_data_controls'::regclass WHERE b.principal_name=session_user AND b.authority_role='zasp_discovery_authority' AND e.relowner=p.oid AND d.relowner=p.oid AND p.rolcanlogin AND NOT(p.rolsuper OR p.rolbypassrls OR p.rolcreaterole OR p.rolcreatedb) AND pg_has_role(session_user,'zasp_discovery_authority','MEMBER')) AND (SELECT count(*)=61 FROM public.zasp_schema_versions) AND EXISTS(SELECT 1 FROM public.zasp_schema_versions WHERE version=61 AND checksum=$1)`, ProductionSecurityAgentMultistep().Checksum()); err != nil {
+		if err := check(`SELECT EXISTS(SELECT 1 FROM pg_roles p JOIN pg_class e ON e.oid='public.zasp_environments'::regclass JOIN pg_class d ON d.oid='public.zasp_data_controls'::regclass WHERE p.rolname=session_user AND e.relowner=p.oid AND d.relowner=p.oid AND p.rolcanlogin AND NOT(p.rolsuper OR p.rolbypassrls OR p.rolcreaterole OR p.rolcreatedb) AND pg_has_role(session_user,'zasp_discovery_authority','MEMBER')) AND (SELECT count(*)=61 FROM public.zasp_schema_versions) AND EXISTS(SELECT 1 FROM public.zasp_schema_versions WHERE version=61 AND checksum=$1)`, ProductionSecurityAgentMultistep().Checksum()); err != nil {
+			return err
+		}
+		if err := requireMaintenanceAuthorizationReady(ctx, tx); err != nil {
 			return err
 		}
 		var present bool

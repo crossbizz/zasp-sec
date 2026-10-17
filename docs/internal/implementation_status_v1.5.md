@@ -16698,3 +16698,34 @@ package remains setup-blocked before named cases by unavailable cached OPA.
 Twelve additive normal/Audit native cases remain unexecuted, and all original
 acceptance groups remain required. No ledger classification or original scope
 changes. Evidence: `cloud-optional-egress-operator-role-source-component-checkpoint-2026-10-17.json`.
+
+
+## Protected installer binding authority, October 17, 2026
+
+Canonical10 owns and FORCE-RLS protects the principal-binding table despite its
+public schema location. Eight maintenance, optional-egress and environment-class
+installer recipes now check the exact original-session binding, authority
+membership and compiled private80 readiness inside the existing bounded authority
+window. They restore the exact incoming role before owner operations. Original
+version, membership and class LOGIN/object-owner restrictions remain in place;
+approval/class admission precedes namespace or purpose-role DDL. SQL, checksums,
+ACLs and activation remain unchanged.
+
+The stronger application permission model produced 31 named failures and three
+passes before the fix; all 58 affected grouped migration cases now pass. Fresh
+UI typecheck/build and 58 source/ledger/deployment checks pass. Shared native
+fixtures now preserve exact original membership grantors/options, require no
+effective inherited authority and real protected-read denial, and restore original
+state. All 21 existing native groups/146 cases/32 PostgreSQL joins remain required
+and unexecuted for this source successor. No native or deployed acceptance follows
+from the component checks.
+
+The audit also corrected an unreferenced-source inference: ordered_current is a
+development-only module absent from the compiled worker assembly. Its installation
+refusal and namespace rejection are preserved, and the incorrect design receipt
+is retained with its explicit correction. Four existing development/assembly guards
+pass. CLI protected preflight, worker/Temporal role phases and internal composite
+confirmations remain separate unresolved prerequisites; this patch does not claim
+full CLI or composite installation. The ledger retains all 728 requirements and
+its historical classifications with zero promotions. Evidence:
+`cloud-installer-binding-authority-source-component-checkpoint-2026-10-17.json`.

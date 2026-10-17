@@ -3,8 +3,10 @@ package apiserver
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/zasp-ai/zasp-sec/services/platform/authorization"
 	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
@@ -150,33 +152,126 @@ func newEnvironmentClassNativeFixture(t *testing.T) environmentClassNativeFixtur
 	}
 	resolver, _ := NewPostgresAuthorizationResolver(db)
 	a := &OpenFGAAuthorizer{Reader: projection, Checker: checker, Resolver: resolver, StoreID: fgaConfig.StoreID, ModelID: fgaConfig.ModelID, AttestationKey: authorizationFixtureAttestor(t)}
-	// Only this owned disposable cluster is demoted. Restore through bootstrap,
-	// verify using the original registered owner session, then join cluster cleanup.
-	var priorSuper, priorBypass bool
-	if err = owner.QueryRow(ctx, `SELECT rolsuper,rolbypassrls FROM pg_roles WHERE rolname=session_user`).Scan(&priorSuper, &priorBypass); err != nil {
-		t.Fatal(err)
+	// PostgreSQL16+ stores inheritance per membership. NOINHERIT on the role
+	// alone does not remove already granted INHERIT TRUE membership paths.
+	// Change only the owned operator's exact existing authority grant rows.
+	var serverVersion int
+	if err = bootstrap.QueryRow(ctx, `SELECT current_setting('server_version_num')::integer`).Scan(&serverVersion); err != nil || serverVersion < 160000 {
+		t.Fatal("native membership options require PostgreSQL16 or later")
 	}
+	var ownerOID, authorityOID uint32
+	var ownerName, priorCurrent, priorRole string
+	var priorLogin, priorInherit, priorSuper, priorCreateDB, priorCreateRole, priorReplication, priorBypass bool
+	if err = owner.QueryRow(ctx, `SELECT p.oid,p.rolname,current_user::text,current_setting('role'),p.rolcanlogin,p.rolinherit,p.rolsuper,p.rolcreatedb,p.rolcreaterole,p.rolreplication,p.rolbypassrls,'zasp_discovery_authority'::regrole::oid FROM pg_roles p WHERE p.rolname=session_user`).Scan(&ownerOID, &ownerName, &priorCurrent, &priorRole, &priorLogin, &priorInherit, &priorSuper, &priorCreateDB, &priorCreateRole, &priorReplication, &priorBypass, &authorityOID); err != nil || ownerName != "zasp_e2e" || priorCurrent != ownerName || priorRole == "" {
+		t.Fatal("original disposable operator identity unavailable")
+	}
+	type authorityMembership struct {
+		role, member, grantor uint32
+		grantorName           string
+		admin, inherit, set   bool
+	}
+	readMemberships := func(c context.Context) ([]authorityMembership, error) {
+		rows, err := bootstrap.Query(c, `SELECT m.roleid,m.member,m.grantor,g.rolname,m.admin_option,m.inherit_option,m.set_option FROM pg_auth_members m JOIN pg_roles g ON g.oid=m.grantor WHERE m.roleid=$1 AND m.member=$2 ORDER BY m.grantor`, authorityOID, ownerOID)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		var result []authorityMembership
+		for rows.Next() {
+			var membership authorityMembership
+			if err := rows.Scan(&membership.role, &membership.member, &membership.grantor, &membership.grantorName, &membership.admin, &membership.inherit, &membership.set); err != nil {
+				return nil, err
+			}
+			result = append(result, membership)
+		}
+		return result, rows.Err()
+	}
+	otherMemberships := func(c context.Context) (string, error) {
+		var result string
+		err := bootstrap.QueryRow(c, `SELECT COALESCE(jsonb_agg(jsonb_build_array(roleid,member,grantor,admin_option,inherit_option,set_option) ORDER BY roleid,member,grantor),'[]'::jsonb)::text FROM pg_auth_members WHERE NOT(roleid=$1 AND member=$2)`, authorityOID, ownerOID).Scan(&result)
+		return result, err
+	}
+	originalMemberships, err := readMemberships(ctx)
+	if err != nil || len(originalMemberships) == 0 {
+		t.Fatal("original authority membership identities unavailable")
+	}
+	adminPresent, setPresent := false, false
+	for _, membership := range originalMemberships {
+		if membership.role != authorityOID || membership.member != ownerOID || membership.grantorName == "" {
+			t.Fatal("original authority grant identity rejected")
+		}
+		adminPresent = adminPresent || membership.admin
+		setPresent = setPresent || membership.set
+	}
+	if !adminPresent || !setPresent {
+		t.Fatal("original operator ADMIN and SET prerequisites absent")
+	}
+	originalOtherMemberships, err := otherMemberships(ctx)
+	if err != nil {
+		t.Fatal("original unrelated memberships unavailable")
+	}
+	grantMembership := func(c context.Context, m authorityMembership, inherit bool) error {
+		// Every role/member/grantor is an existing server-observed identity.
+		// Preserve ADMIN/SET and grantor; never revoke or introduce another grant.
+		query := fmt.Sprintf("GRANT %s TO %s WITH ADMIN %s, INHERIT %s, SET %s GRANTED BY %s", pgx.Identifier{"zasp_discovery_authority"}.Sanitize(), pgx.Identifier{ownerName}.Sanitize(), strings.ToUpper(strconv.FormatBool(m.admin)), strings.ToUpper(strconv.FormatBool(inherit)), strings.ToUpper(strconv.FormatBool(m.set)), pgx.Identifier{m.grantorName}.Sanitize())
+		_, err := bootstrap.Exec(c, query)
+		return err
+	}
+	membershipsMatch := func(c context.Context, restored bool) bool {
+		actual, err := readMemberships(c)
+		if err != nil || len(actual) != len(originalMemberships) {
+			return false
+		}
+		for n, want := range originalMemberships {
+			if !restored {
+				want.inherit = false
+			}
+			if actual[n] != want {
+				return false
+			}
+		}
+		other, err := otherMemberships(c)
+		return err == nil && other == originalOtherMemberships
+	}
+	// Always restore through the separate owned bootstrap, including partial
+	// preparation failures, and verify exact identities/options after restoration.
 	t.Cleanup(func() {
 		c, stop := context.WithTimeout(context.Background(), 10*time.Second)
 		defer stop()
-		super, bypass := "NOSUPERUSER", "NOBYPASSRLS"
-		if priorSuper {
-			super = "SUPERUSER"
+		flag := func(value bool, yes, no string) string {
+			if value {
+				return yes
+			}
+			return no
 		}
-		if priorBypass {
-			bypass = "BYPASSRLS"
+		attributes := []string{flag(priorLogin, "LOGIN", "NOLOGIN"), flag(priorInherit, "INHERIT", "NOINHERIT"), flag(priorSuper, "SUPERUSER", "NOSUPERUSER"), flag(priorCreateDB, "CREATEDB", "NOCREATEDB"), flag(priorCreateRole, "CREATEROLE", "NOCREATEROLE"), flag(priorReplication, "REPLICATION", "NOREPLICATION"), flag(priorBypass, "BYPASSRLS", "NOBYPASSRLS")}
+		if _, err := bootstrap.Exec(c, `ALTER ROLE `+pgx.Identifier{ownerName}.Sanitize()+` `+strings.Join(attributes, " ")); err != nil {
+			t.Error("original disposable operator attributes restoration refused")
 		}
-		if _, err := bootstrap.Exec(c, `ALTER ROLE zasp_e2e INHERIT `+super+` `+bypass); err != nil {
-			t.Error(err)
-			return
+		for _, membership := range originalMemberships {
+			if err := grantMembership(c, membership, membership.inherit); err != nil {
+				t.Error("original authority grant options restoration refused")
+			}
 		}
-		var ok bool
-		if err := owner.QueryRow(c, `SELECT rolsuper=$1 AND rolbypassrls=$2 FROM pg_roles WHERE rolname=session_user`, priorSuper, priorBypass).Scan(&ok); err != nil || !ok {
-			t.Errorf("owner restoration=%v %v", ok, err)
+		var role string
+		if err := owner.QueryRow(c, `SELECT set_config('role',$1,false)`, priorRole).Scan(&role); err != nil || role != priorRole {
+			t.Error("original operator role context restoration refused")
+		}
+		var identity bool
+		if err := owner.QueryRow(c, `SELECT p.oid=$1 AND session_user=$2 AND current_user=$3 AND current_setting('role')=$4 AND (p.rolcanlogin,p.rolinherit,p.rolsuper,p.rolcreatedb,p.rolcreaterole,p.rolreplication,p.rolbypassrls)=($5,$6,$7,$8,$9,$10,$11) FROM pg_roles p WHERE p.rolname=session_user`, ownerOID, ownerName, priorCurrent, priorRole, priorLogin, priorInherit, priorSuper, priorCreateDB, priorCreateRole, priorReplication, priorBypass).Scan(&identity); err != nil || !identity || !membershipsMatch(c, true) {
+			t.Error("original operator identity, attributes or exact memberships not restored")
 		} else {
-			t.Log("restored disposable registered owner role attributes")
+			t.Log("restored exact disposable operator identity and original membership options")
 		}
 	})
+	for _, membership := range originalMemberships {
+		if err := grantMembership(ctx, membership, false); err != nil {
+			t.Fatal("owned membership inheritance restriction refused")
+		}
+	}
+	if !membershipsMatch(ctx, false) {
+		t.Fatal("owned membership restriction changed grant identities, ADMIN, SET or unrelated members")
+	}
 	// The actual migration LOGIN needs CREATE on this owned disposable database
 	// to bootstrap its new namespace. No public-schema or production grant.
 	if _, err = bootstrap.Exec(ctx, `GRANT CREATE ON DATABASE `+pgx.Identifier{config.Database}.Sanitize()+` TO zasp_e2e`); err != nil {
@@ -188,6 +283,24 @@ func newEnvironmentClassNativeFixture(t *testing.T) environmentClassNativeFixtur
 	var ownerBound bool
 	if err = owner.QueryRow(ctx, `SELECT session_user='zasp_e2e' AND current_user=session_user AND NOT rolinherit AND NOT rolsuper AND NOT rolbypassrls FROM pg_roles WHERE rolname=session_user`).Scan(&ownerBound); err != nil || !ownerBound {
 		t.Fatalf("nonsuper owner=%v %v", ownerBound, err)
+	}
+	var effectiveNoInherit bool
+	if err = owner.QueryRow(ctx, `SELECT pg_has_role(session_user,'zasp_discovery_authority','MEMBER') AND pg_has_role(session_user,'zasp_discovery_authority','SET') AND NOT pg_has_role(session_user,'zasp_discovery_authority','USAGE')`).Scan(&effectiveNoInherit); err != nil || !effectiveNoInherit {
+		t.Fatal("operator retains an inherited authority path or lost legitimate MEMBER/SET ability")
+	}
+	for _, probe := range []struct {
+		query string
+		args  []any
+	}{
+		{`SELECT zasp_authorization80.ready($1)`, []any{migrations.ProductionAuthorizationEnforcement().Checksum()}},
+		{`SELECT principal_name FROM public.zasp_discovery_principal_bindings LIMIT 1`, nil},
+	} {
+		var value any
+		err := owner.QueryRow(ctx, probe.query, probe.args...).Scan(&value)
+		var refusal *pgconn.PgError
+		if !errors.As(err, &refusal) || refusal.Code != "42501" {
+			t.Fatal("effective NOINHERIT operator unexpectedly read protected authority metadata")
+		}
 	}
 	var databaseCreate bool
 	if err = owner.QueryRow(ctx, `SELECT has_database_privilege(session_user,current_database(),'CREATE')`).Scan(&databaseCreate); err != nil || !databaseCreate {
