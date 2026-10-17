@@ -182,7 +182,7 @@ function ConnectedInventory({ title, category, values, api, initialDetailID, can
   const [saving, setSaving] = useState(false);
   const [pending, setPending] = useState<{ id: string; version: number; input: AgentOwnershipInput; key: string } | null>(null);
   const detailRequest = useRef<AbortController | null>(null);
-  const processedDetailIntent = useRef<{ api: ProductionAgentSecurityAPI; category: typeof category; id: string } | null>(null);
+  const processedDetailIntent = useRef<{ api: ProductionAgentSecurityAPI; category: typeof category; id: string; superseded: boolean } | null>(null);
   const loadDetail = async (id: string, signal?: AbortSignal) => {
     const loaders = { agent: api.getAgent, tool: api.getTool, identity: api.getIdentity, runtime: api.getRuntime };
     try {
@@ -199,7 +199,7 @@ function ConnectedInventory({ title, category, values, api, initialDetailID, can
     if (saving || pending !== null) return;
     const processed = processedDetailIntent.current;
     if (processed?.api === api && processed.category === category && processed.id === initialDetailID) return;
-    const intent = { api, category, id: initialDetailID };
+    const intent = { api, category, id: initialDetailID, superseded: false };
     processedDetailIntent.current = intent;
     if (initialDetailID === "") return;
     let completed = false;
@@ -213,13 +213,15 @@ function ConnectedInventory({ title, category, values, api, initialDetailID, can
     return () => {
       controller.abort();
       // A cleanup-aborted attempt was never processed; StrictMode may set it up again.
-      if (!completed && processedDetailIntent.current === intent) processedDetailIntent.current = null;
+      if (!completed && !intent.superseded && processedDetailIntent.current === intent) processedDetailIntent.current = null;
       if (detailRequest.current === controller) detailRequest.current = null;
     };
   }, [api, category, initialDetailID, pending, saving]);
   useEffect(() => () => detailRequest.current?.abort(), []);
   const open = (item: InventorySummary) => {
     if (saving || pending !== null) return;
+    // An accepted row selection supersedes the unfinished initial link permanently.
+    if (processedDetailIntent.current) processedDetailIntent.current.superseded = true;
     detailRequest.current?.abort(); const controller = new AbortController(); detailRequest.current = controller;
     setInventoryDetailURL(item.id); void loadDetail(item.id, controller.signal);
   };

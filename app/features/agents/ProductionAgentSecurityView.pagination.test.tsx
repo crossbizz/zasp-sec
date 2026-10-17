@@ -188,6 +188,33 @@ describe("M4-50a mounted production Agents server pagination", () => {
     expect(update.mock.calls[1]).toEqual(update.mock.calls[0]); expect(update.mock.calls[0][0]).toBe(first.id);
   });
 
+  it("keeps a superseding row selected after confirmed ownership instead of replaying the unfinished initial link", async () => {
+    const user = userEvent.setup(); const first = row("Initial unfinished Agent"); const second = row("Explicitly selected Agent", 2);
+    window.history.replaceState({}, "", `/discovery/assets?inventory=${first.id}`);
+    const initial = deferred<{ summary: InventorySummary; sources: []; evidence: [] }>();
+    let initialSignal: AbortSignal | undefined;
+    const api = apiFixture(async () => page([first, second]));
+    const detail = vi.fn(async (id: string, signal?: AbortSignal) => {
+      if (id === first.id) { initialSignal = signal; return initial.promise; }
+      return { summary: second, sources: [], evidence: [] };
+    }); api.getAgent = detail;
+    const update = vi.fn<ProductionAgentSecurityAPI["updateAgent"]>().mockResolvedValue({ agent: { ...second, owner: "security", team: "platform", version: 2 }, audit_id: productID(901) }); api.updateAgent = update;
+    mount(api);
+    await waitFor(() => expect(detail).toHaveBeenCalledWith(first.id, expect.any(AbortSignal)));
+    await user.click(await screen.findByRole("button", { name: "Open Explicitly selected Agent" }));
+    expect(initialSignal?.aborted).toBe(true);
+    await user.type(await screen.findByLabelText("Owner"), "security"); await user.type(screen.getByLabelText("Team"), "platform");
+    await user.click(screen.getByRole("button", { name: "Save ownership" }));
+    await waitFor(() => expect(update).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Save ownership" })).toBeEnabled());
+    expect(update.mock.calls[0][0]).toBe(second.id);
+    expect(detail.mock.calls.map(([id]) => id)).toEqual([first.id, second.id]);
+    await act(async () => { initial.resolve({ summary: first, sources: [], evidence: [] }); });
+    expect(screen.getByRole("dialog", { name: "Explicitly selected Agent" })).toBeVisible();
+    expect(screen.queryByRole("dialog", { name: "Initial unfinished Agent" })).not.toBeInTheDocument();
+    expect(detail.mock.calls.map(([id]) => id)).toEqual([first.id, second.id]);
+  });
+
   it("defers incoming same-scope detail navigation until retained ownership has a known outcome", async () => {
     const user = userEvent.setup(); const first = row("Retained original Agent"); const second = row("Incoming Agent", 2);
     const api = apiFixture(async () => page([first, second]));
