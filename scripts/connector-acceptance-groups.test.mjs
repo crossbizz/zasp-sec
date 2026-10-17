@@ -1035,7 +1035,9 @@ test('retention connected sources retain the complete declared application closu
   "services/gatewaypodidentity/publisher.go",
   "services/gatewaypodidentity/publisher_linux.go",
   "services/gatewaypodidentity/publisher_other.go",
-  "services/gatewaypodidentity/publisher_test.go"
+  "services/gatewaypodidentity/publisher_test.go",
+  "deploy/production/gateway-reviewer-publisher.Dockerfile",
+  "deploy/production/gateway-reviewer-publisher.Dockerfile.dockerignore"
 ];
   const compiled = JSON.parse(relative('.github/connector-native-compile-source-pins.json'));
   const compilePins = new Map(compiled.sources.map(item => [item.path, item]));

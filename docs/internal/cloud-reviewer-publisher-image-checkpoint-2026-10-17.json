@@ -1,0 +1,52 @@
+{
+  "classification": "REVIEWER_PUBLISHER_LOCAL_IMAGE_AND_CONTAINER_COMPONENT_VERIFIED",
+  "observed_at": "2026-10-17T23:10:22.748966+00:00",
+  "source_parent": "1c9827946f94e92c1b32fcbb46bf789048dd7809",
+  "original_requirement_mapping": "M4-50b3 Gateway coverage prerequisite only; no original requirement closure or scope reduction.",
+  "change": "Dedicated minimal-context Dockerfile reuses existing immutableGo1.26.8base, verifies exactSDK version and disables modulelookup; staticpublisher in scratch image with configuredUID65532 and fixedentrypoint. ExistingruntimeGatewayimages and productionreleaseconsumers unchanged. No source/runtime/provider/permission activation.",
+  "runtime_access": "Existing managed localDocker28.4.0 daemonready; taskUID1000. Cloudruntime skill+Dockerreference read; selectedlocal socket/cleared endpointselectors/preservedDockerconfig and proxy. No daemonstart/restart, nativeDB/executorstartup or rejecteddependency reroute.",
+  "actual_verification": {
+    "image_build": "PASS actual Dockerbuild; standardlibraryonly/offlineRUN; no newexternalsoftwaredependency",
+    "local_image_id": "sha256:dcc7436a6411b7287d9ac2de62e3ce569705ce1d681714b8e8332916ebb1d995",
+    "container_flow": "PASS actual selectedimageID, explicitUID1000override to match temporaryhostdirs, readonlysource+rootfilesystem, networknone, capdropALL, nonewprivileges; realfilepublication0600/currentUID/singlelink, projectedrotation, SIGTERMjoinedwithdrawal, exit0, ownedcontainerremoved",
+    "original_Go_and_CLI_source": "BYTE_UNCHANGED from parent verified8race/CLIcomponentbatch; no repeatnecessary",
+    "source_guards": "21PASS; all925sourcehash/bytebindingsverified",
+    "independent_review": "CLEAR exactDockerfile/ignore/READMEhashes and actualbuild/containerreceipts; noexecutionsbyreviewer",
+    "hosted_image_verification": "NOT RUN; existing providerCIbehaviorunchanged; no hostedimagePASS claim"
+  },
+  "remaining_acceptance": [
+    "DefaultUID65532 volumeprovisioning and real Kubernetes root/fsGroup/read-only tokenmount/rotation",
+    "ReviewerRBAC, sharedmount provisioning and signed/pinnedregistryimage publication/attestation",
+    "StrictauthenticatedGatewayruntime/nativecatalog/publicationlocks/currentauthorization/TemporalACK/approval-budget integration",
+    "All original Stytch/provider/browser deployedacceptance and releaseguards; priorHelm/dependencysetup failures retained"
+  ],
+  "source_custody": {
+    "previous": 923,
+    "bindings": 925,
+    "new": 2,
+    "original_order_and_history_preserved": true,
+    "runner_code": "literalpinmaps only",
+    "original_compile_job": "only2countliterals923to925; no executableguardrelaxation"
+  },
+  "evidence": {
+    "path": "docs/internal/cloud-reviewer-publisher-image-evidence-2026-10-17.tar.gz",
+    "sha256": "3ce8f43bca8d402a2a3575353a26d55227c9d4b9622086d81ff30980b2ae8f5a",
+    "bytes": 268767,
+    "members": 17,
+    "status": "ALL_MEMBER_BYTES_VERIFIED; payloadSHA256/bytesmanifestincluded; noimagelayers orcompiledbinaryexported, localimageIDandbuildreceiptretained"
+  },
+  "ledger": {
+    "total": 728,
+    "production_available_recorded": 509,
+    "component_only": 158,
+    "blocked_external": 61,
+    "remaining_recorded_nonproduction": 219,
+    "promotions": 0,
+    "all_original_deployed_acceptance_still_required": true
+  },
+  "registry_published": false,
+  "launch_ready": false,
+  "merge_release_cleared": false,
+  "task_closed": false,
+  "obsolete_retired": false
+}

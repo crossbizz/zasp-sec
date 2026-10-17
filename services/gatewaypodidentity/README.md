@@ -65,3 +65,21 @@ publisher checks use real temporary files and rotation, alongside the original
 five verifier groups. Actual Kubernetes root/fsGroup mounts, reviewer RBAC,
 sidecar provisioning, runtime wiring and deployed rotation acceptance remain
 required; this component does not activate authenticated Gateway routing.
+
+## Container packaging
+
+`deploy/production/gateway-reviewer-publisher.Dockerfile` builds this module with
+the repository's pinned Go 1.26.8 image and disables module downloads. Its
+Dockerfile-specific ignore file admits only module and command build sources.
+The final scratch image contains the static publisher executable, selects UID
+and GID 65532, and has no network client, shell or embedded credential.
+
+Provision the protected output directory for that same UID and mount the
+projected source read-only. A container should use a read-only root filesystem,
+drop capabilities and prevent privilege escalation. The local container check
+uses an explicit UID1000 override to match its temporary host-owned directories;
+it establishes local rotation and shutdown behavior for that configuration.
+Default-UID volume provisioning, actual Kubernetes root/fsGroup mounts and
+rotation still need deployed acceptance. Building a local image does not
+publish a registry digest or establish image attestation, release clearance or
+Gateway activation. Existing release consumers remain unchanged.

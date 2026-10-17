@@ -383,22 +383,22 @@
     },
     {
       "path": "scripts/connector-acceptance-groups.test.mjs",
-      "sha256": "5d00c70dfa0193dba35ca5f89fa513050c585554906a15b9d1bce4ecb7d539ff",
-      "bytes": 84151,
+      "sha256": "14e48b6bc491daab4629512cc70e5672491cd45f894fa9b192ac4f1cacf3f9bc",
+      "bytes": 84286,
       "currentBasePreimageSHA256": "a1622a9417e9fe4d62c2aed82bcf5f7f3e11dce841d802bf005b29d54405d388",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connected-connector-acceptance.mjs",
-      "sha256": "cfccc23dc49ebb2963d8165bdc8ada2df0c1baf878ad1828c2c19e5d13697c43",
-      "bytes": 151640,
+      "sha256": "50c08a6b73ab6b09376738922e657fb6667159f8a4e32ead6b0a9c90e4e3177a",
+      "bytes": 151911,
       "currentBasePreimageSHA256": "f248c6d9182ca08cb518cd54c620844c987f4ae723a38badb463c59e010db578",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
-      "sha256": "1300b9090ac56b9c1558dbd5fe4232d710168e23146439802a4be89846f3023f",
-      "bytes": 148156,
+      "sha256": "0e9dc3406009887639601d7b7cbaaaa4d9ef585c48ea3a91cb76b2df70e85129",
+      "bytes": 148427,
       "currentBasePreimageSHA256": "e66722e4daf5b1482c253d1f14b4c533c329fde202252c16f87ad3e0130e8524",
       "historicalPreimageSHA256": null
     },
@@ -5108,7 +5108,7 @@
     },
     {
       "path": ".github/workflows/connector-native-draft-compile.yml",
-      "sha256": "8c9b67826582571d5db9432519fed446e54f9d76513e1ba25a6f535a67e27ed7",
+      "sha256": "fe0742c96a7040d518f9b087241f39b8649ce593c88512f9973ddcb020b59559",
       "bytes": 197473,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
@@ -6242,8 +6242,8 @@
     },
     {
       "path": "services/gatewaypodidentity/README.md",
-      "sha256": "936a7b066fec66ce8005c0c0dd26fd6e4ff5b5197bf0abedc6f1010e47242638",
-      "bytes": 3839,
+      "sha256": "137d52f394bd5ac977d42e0ec7d0c7c4a73a728b698f0d430823b5785f6d556d",
+      "bytes": 4930,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -6463,6 +6463,20 @@
       "bytes": 8855,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
+    },
+    {
+      "path": "deploy/production/gateway-reviewer-publisher.Dockerfile",
+      "sha256": "68be38973238b7062e1e1a16ec2a62ecdeaf01d042fb8b3286a2c487758f87d1",
+      "bytes": 553,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "deploy/production/gateway-reviewer-publisher.Dockerfile.dockerignore",
+      "sha256": "f0afa2635ed8eaa2b2675ce271d76003038bbfb61659d192d98b486abfeacd0f",
+      "bytes": 287,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
     }
   ],
   "predecessorCheckpointSHA256": "364ada857d54ce83d678e00eb3d61d55c6a036d22cc1f7ebc9170432079ece05",
@@ -6503,5 +6517,7 @@
   "runtimePolicyEvaluationSourceAssociationBase": "07c14b21d46fed868457c5f6172b33776239bd85",
   "runtimePolicyEvaluationPredecessorManifestSHA256": "c995275c656b0c758142985dff4d7fb3b596b9dc4e11383a7eb8aa5d5376477d",
   "reviewerPublisherSourceAssociationBase": "cfdb32d9aa40fe9ef3c234eef0c7af0a4d4ad0e5",
-  "reviewerPublisherPredecessorManifestSHA256": "2e25573bc5cf65e7ddf1dd35a9383c95baeefa3086101757fbfc19ac9a1ceb47"
+  "reviewerPublisherPredecessorManifestSHA256": "2e25573bc5cf65e7ddf1dd35a9383c95baeefa3086101757fbfc19ac9a1ceb47",
+  "reviewerPublisherImageSourceAssociationBase": "1c9827946f94e92c1b32fcbb46bf789048dd7809",
+  "reviewerPublisherImagePredecessorManifestSHA256": "21a8276631772b504a018b4e5da081ecb5562e16a96c09ebb835fbce01af6f9c"
 }

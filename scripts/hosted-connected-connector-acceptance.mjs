@@ -746,7 +746,7 @@ const pins = {
   "services/platform/policy/gateway_cache_test.go": "d1a894f056788253b33801964cbeb171ad0cb67705d772526808ceed27aba786",
   "deploy/staging/product/templates/_gateway-installation.tpl": "9babf066a786a0c007206b99e579382caa9ac50d2eaa0803fb44b78d813fb655",
   "services/platform/gatewaycontrol/installation_test.go": "e57e80f019825d15997aeecaf7d4983a6143a8ccccc367b079e5abce01d328f7",
-  ".github/workflows/connector-native-draft-compile.yml": "8c9b67826582571d5db9432519fed446e54f9d76513e1ba25a6f535a67e27ed7",
+  ".github/workflows/connector-native-draft-compile.yml": "fe0742c96a7040d518f9b087241f39b8649ce593c88512f9973ddcb020b59559",
   "services/gateway-control/production_test.go": "255476e93ec22d7f2c4ec1d51ce730e352f0246dc5b15608ab5778abb9bb2a29",
   "services/runtime-gateway/production.go": "6ce7c2c72927ff16cc47dae63fa0eee728c5f4c7e14e217302a0680be65b8a36",
   "services/gateway-control/go.mod": "77d4922e3192e996ca9a0975b0bcd2d4711b18844e62f7ae82923cfb60df6995",
@@ -884,7 +884,7 @@ const pins = {
   "services/gatewaypodidentity/credential_linux.go": "f1839053a1ba42fc7902c8d181fa00a2611c2c80605f10f78f51c40a824d8c9d",
   ".github/workflows/gateway-pod-identity-components.yml": "c6358ba331f5d8128e272bd51d54dc3035a38a9d9c7e0100193872ae4f0663f8",
   "services/gatewaypodidentity/chain.go": "51cb08c1c7b3de621b5f19419d1da879a5c5e32867f93b59652b08bbe12a0e3b",
-  "services/gatewaypodidentity/README.md": "936a7b066fec66ce8005c0c0dd26fd6e4ff5b5197bf0abedc6f1010e47242638",
+  "services/gatewaypodidentity/README.md": "137d52f394bd5ac977d42e0ec7d0c7c4a73a728b698f0d430823b5785f6d556d",
   "services/gatewaypodidentity/verifier_test.go": "cc4932669ada87d6b66e12bc7c0d14bcc085429f9adc7d77f001d2bcab9f4bca",
   "services/gatewaypodidentity/credential_other.go": "25c50d6ba4c740167eb38cc5aff2c12bfa3719f40b318310d5ccca2418c5351a",
   "services/gatewaypodidentity/go.mod": "181430e321f407f020922eaa24199661ff52e8739ff454ab96002ff343459f91",
@@ -911,11 +911,13 @@ const pins = {
   "services/gatewaypodidentity/publisher.go": "7e681f4bdf3fa41beb6f0326576c0cd53870eec4cd5cc791bce9474ada8cd022",
   "services/gatewaypodidentity/publisher_linux.go": "a459d848a6a69e5b8969859380cde43694774c29a3763a7d29815ffbdc3ab68b",
   "services/gatewaypodidentity/publisher_other.go": "bd6ecaea1888de9d386ef0f40e2a405ebf15bfd6cf96435628d3fc69e6c04d59",
-  "services/gatewaypodidentity/publisher_test.go": "2f82979afb51270a4b7f1610a55f725b001d848b7d61680404bd378d3835dff0"
+  "services/gatewaypodidentity/publisher_test.go": "2f82979afb51270a4b7f1610a55f725b001d848b7d61680404bd378d3835dff0",
+  "deploy/production/gateway-reviewer-publisher.Dockerfile": "68be38973238b7062e1e1a16ec2a62ecdeaf01d042fb8b3286a2c487758f87d1",
+  "deploy/production/gateway-reviewer-publisher.Dockerfile.dockerignore": "f0afa2635ed8eaa2b2675ce271d76003038bbfb61659d192d98b486abfeacd0f"
 };
 const roster = selectedGroup.names;
 const helperPins={
-  "scripts/connector-acceptance-groups.test.mjs": "5d00c70dfa0193dba35ca5f89fa513050c585554906a15b9d1bce4ecb7d539ff",
+  "scripts/connector-acceptance-groups.test.mjs": "14e48b6bc491daab4629512cc70e5672491cd45f894fa9b192ac4f1cacf3f9bc",
   "scripts/connector-acceptance-groups.mjs": "70da54d5a2eb61535af55afe53e944ca815550a0319943ffe1e46466f8b8cfd4",
   "docs/internal/evidence/cloud-2026-10-07/native-service-readiness/openfga/09-pg-non-glibc-libs-manifest.json": "96642e82997ffd2caf2893a5ecc0116ad2aef6e982df2d929f3efda4e04f3474",
   "services/platform/apiserver/authorization_integration_mutations_postgres_test.go": "5e4beb04b2409ad9b11b89c017ada5e2eccffd78a87bdd5692d40670f12a2ba0",
