@@ -69,6 +69,7 @@ var authorizationStatementRules = []authorizationStatementRule{
 	{`SELECT zasp_authorization80.audit_page($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`, []string{"listAuditEvents"}, 12, 4, 0, ""},
 	{`SELECT zasp_authorization80.compliance_read($1,$2,$3,$4,$5,$6,$7,$8,$9)`, []string{"listComplianceControls", "listComplianceEvidence", "getComplianceEvidence"}, 9, 4, 0, ""},
 	{`SELECT zasp_authorization80.inventory_page($1,$2,$3,$4,NULLIF($5,''),$6)`, []string{"listAgents", "listTools", "listIdentities", "listRuntimes", "listAssets"}, 6, 0, 0, ""},
+	{postgresAgentOwnerPageSQL, []string{"listAgents"}, 7, 0, 0, ""},
 	{`SELECT zasp_authorization80.receipt_page($1,$2,$3,$4,$5)`, []string{"listWorkflowMutationReceipts"}, 5, 4, 0, ""},
 	{postgresRiskFindingGetSQL, []string{"getFinding"}, 4, 0, 4, "finding"},
 	{postgresRiskAttackPathGetSQL, []string{"getAttackPath"}, 4, 0, 4, "attack_path"},
@@ -242,6 +243,8 @@ func authorizationStatementAllowed(g RequestAuthorization, q string, args []any)
 			return false
 		}
 		args = []any{args[1], args[2], args[3], args[0]}
+	case postgresAgentOwnerPageSQL:
+		return g.OperationID == "listAgents" && g.Collection && len(args) == 7 && args[0] == g.Identity.Scope.OrganizationID().String() && args[1] == g.Identity.Scope.WorkspaceID().String() && args[2] == g.Identity.Scope.EnvironmentID().String() && ownerFilterStatementArguments(args)
 	case `SELECT zasp_authorization80.inventory_page($1,$2,$3,$4,NULLIF($5,''),$6)`:
 		kind := map[string]string{"listAgents": "agent", "listTools": "tool", "listIdentities": "identity", "listRuntimes": "runtime", "listAssets": "asset"}[g.OperationID]
 		if len(args) != 6 || kind == "" || args[3] != kind {

@@ -606,7 +606,30 @@ test('retention connected sources retain the complete declared application closu
   "services/platform/featureflags/featureflags.go",
   "services/platform/featureflags/server_cache_test.go",
   "services/platform/featureflags/server_cache_clock_test.go",
-  "services/platform/featureflags/featureflags_test.go"
+  "services/platform/featureflags/featureflags_test.go",
+  "services/platform/migrations/production_agent_owner_filter_profile.go",
+  "services/platform/migrations/sql/agent_owner_filter_profile.sql",
+  "services/platform/migrations/production_agent_owner_filter_profile_test.go",
+  "services/platform/apiserver/agent_owner_filter.go",
+  "services/platform/apiserver/agent_owner_filter_test.go",
+  "services/platform/apiserver/agent_owner_filter_authorization_test.go",
+  "services/platform/apiserver/agent_owner_filter_repository_test.go",
+  "services/platform/apiserver/inventory_handler.go",
+  "services/platform/apiserver/inventory_repository.go",
+  "services/platform/agentsec-api/agent_owner_filter_runtime.go",
+  "services/platform/agentsec-api/agent_owner_filter_runtime_test.go",
+  "services/platform/agentsec-migrate/agent_owner_filter_profile.go",
+  "services/platform/apiserver/inventory_handler_test.go",
+  "services/platform/apiserver/inventory_repository_test.go",
+  "services/platform/apiserver/authorization_transaction_test.go",
+  "services/platform/migrations/migrations_test.go",
+  "services/platform/apiserver/authorization_statement_test.go",
+  "services/platform/apiserver/authorization_openfga_test.go",
+  "openapi/agents-owner-filter.test.mjs",
+  "openapi/openapi.yaml",
+  "deploy/production/agent-owner-filter-profile.test.mjs",
+  "deploy/production/agent-owner-filter-profile.mjs",
+  "deploy/staging/product/templates/_agent-owner-filter.tpl"
 ];
   const compiled = JSON.parse(relative('.github/connector-native-compile-source-pins.json'));
   const compilePins = new Map(compiled.sources.map(item => [item.path, item]));

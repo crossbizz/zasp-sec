@@ -108,6 +108,20 @@ func buildRuntimeDependenciesWithReadinessObserver(ctx context.Context, config R
 		selectedResolver = callbackResolver
 	}
 	authorizer := &apiserver.OpenFGAAuthorizer{Reader: revisions, Checker: checker, Resolver: selectedResolver, StoreID: config.RuntimeServices.StoreID, ModelID: config.RuntimeServices.ModelID, AttestationKey: attestationKey}
+
+	if config.AgentOwnerFilterEnabled {
+		bounded, cancel := context.WithTimeout(ctx, 5*time.Second)
+		ready, readyErr := database.AgentOwnerFilterProfileReady(bounded, config.AgentOwnerFilterProfileChecksum)
+		cancel()
+		if readyErr != nil || !ready {
+			_ = database.Close()
+			_ = securityAgentDatabase.Close()
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("agent-owner-filter-profile", errRuntimeUnavailable)
+		}
+		authorizer.AgentOwnerFilterReady = func(ctx context.Context) (bool, error) {
+			return database.AgentOwnerFilterProfileReady(ctx, config.AgentOwnerFilterProfileChecksum)
+		}
+	}
 	if config.EnvironmentClassEnabled {
 		bounded, cancel := context.WithTimeout(ctx, config.ProviderTimeout)
 		ready, readyErr := database.EnvironmentClassProfileReady(bounded, config.EnvironmentClassProfileChecksum)
@@ -334,6 +348,11 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 	}
 	if retentionVisibility != nil && repository.RequireRetentionProfile(config.RetentionProfileChecksum) != nil {
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("retention-repositories", errRuntimeUnavailable)
+	}
+	if config.AgentOwnerFilterEnabled && repository.RequireAgentOwnerFilterProfile(config.AgentOwnerFilterProfileChecksum) != nil {
+		_ = database.Close()
+		_ = securityAgentDatabase.Close()
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("agent-owner-filter-profile", errRuntimeUnavailable)
 	}
 	if config.EnvironmentClassEnabled && repository.RequireEnvironmentClassProfile(config.EnvironmentClassProfileChecksum) != nil {
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("environment-class-repositories", errRuntimeUnavailable)
@@ -673,6 +692,15 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 	return RuntimeDependencies{ProductHandler: edge, Metrics: metrics, LifecycleWorker: func(ctx context.Context) error { return runLifecycleWorkers(ctx, lifecycleWorkers...) }, ReadinessCheck: func(ctx context.Context) error {
 		if currentRequired(database) && currentRequired(securityAgentDatabase) {
 			checks := []func(context.Context) error{connectorNativeReady, repository.Ready, connectorRepository.Ready, referenceRepository.Ready, policyHandler.Ready, tracedProvider.Ready}
+			if config.AgentOwnerFilterEnabled {
+				checks = append(checks, func(probe context.Context) error {
+					ready, e := database.AgentOwnerFilterProfileReady(probe, config.AgentOwnerFilterProfileChecksum)
+					if e != nil || !ready {
+						return errRuntimeUnavailable
+					}
+					return nil
+				})
+			}
 			if config.EnvironmentClassEnabled {
 				checks = append(checks, func(probe context.Context) error {
 					ready, err := database.EnvironmentClassProfileReady(probe, config.EnvironmentClassProfileChecksum)
@@ -831,13 +859,13 @@ func (database *tracedJSONDatabase) CurrentAuthorizationRequired() bool {
 
 func (database *tracedJSONDatabase) ActivateCurrentTemporalTestDefinition(ctx context.Context, args ...any) (json.RawMessage, error) {
 	if database == nil || invalidRuntimeValue(database.next) {
-		return nil, apiserver.ErrRepositoryUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("agent-owner-filter-profile", errRuntimeUnavailable)
 	}
 	current, ok := database.next.(interface {
 		ActivateCurrentTemporalTestDefinition(context.Context, ...any) (json.RawMessage, error)
 	})
 	if !ok {
-		return nil, apiserver.ErrRepositoryUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("agent-owner-filter-profile", errRuntimeUnavailable)
 	}
 	return current.ActivateCurrentTemporalTestDefinition(ctx, args...)
 }

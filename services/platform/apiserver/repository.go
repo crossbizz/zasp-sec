@@ -85,6 +85,7 @@ type JSONDatabase interface {
 type PostgresRepository struct {
 	retentionProfileChecksum        string
 	environmentClassProfileChecksum string
+	agentOwnerProfileChecksum       string
 	currentAuthorization            bool
 	database                        JSONDatabase
 	schema                          string

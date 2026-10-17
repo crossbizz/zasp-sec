@@ -214,7 +214,10 @@ type InventoryRepository interface {
 	UpdateAgentOwnership(context.Context, RequestIdentity, domain.ProductID, int64, string, AgentOwnershipInput, string, string) (AgentMutationResult, error)
 }
 
-type PostgresInventoryRepository struct{ database JSONDatabase }
+type PostgresInventoryRepository struct {
+	database                  JSONDatabase
+	agentOwnerProfileChecksum string
+}
 
 func NewPostgresInventoryRepository(database JSONDatabase) (*PostgresInventoryRepository, error) {
 	if nilInterface(database) {
@@ -465,7 +468,7 @@ func equalInventoryStrings(left, right []string) bool {
 }
 
 func validInventorySummary(item InventorySummary, kind InventoryKind) bool {
-	if !validProductID(item.ID) || item.Kind != kind || !printableInventoryString(item.Name, 1, 256, false) || !printableInventoryString(item.Owner, 0, 128, true) || !printableInventoryString(item.Team, 0, 128, true) || item.Tags == nil || len(item.Tags) > 32 || !validProductID(item.EvidenceID) || item.ConfidenceBasisPoints < 1 || item.ConfidenceBasisPoints > 10000 || item.Version < 1 || item.FreshnessState != "fresh" && item.FreshnessState != "stale" {
+	if !validProductID(item.ID) || item.Kind != kind || !printableInventoryString(item.Name, 1, 256, false) || !validAgentOwnerReadLabel(item.Owner) || !printableInventoryString(item.Team, 0, 128, true) || item.Tags == nil || len(item.Tags) > 32 || !validProductID(item.EvidenceID) || item.ConfidenceBasisPoints < 1 || item.ConfidenceBasisPoints > 10000 || item.Version < 1 || item.FreshnessState != "fresh" && item.FreshnessState != "stale" {
 		return false
 	}
 	prior := ""

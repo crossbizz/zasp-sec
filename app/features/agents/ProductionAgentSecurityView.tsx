@@ -12,7 +12,7 @@ import { useAPIQuery, type QueryStatus } from "../../api/query";
 import { Button, Card, Drawer, Field, MetricGrid, PageHeader } from "../../components/ui";
 
 export type ProductionAgentSecurityAPI = {
-  listAgentsPage(cursor?: string, signal?: AbortSignal): Promise<InventoryPage>;
+  listAgentsPage(cursor?: string, signal?: AbortSignal, owner?: string): Promise<InventoryPage>;
   listAgents(signal?: AbortSignal): Promise<readonly InventorySummary[]>;
   listTools(signal?: AbortSignal): Promise<readonly InventorySummary[]>;
   listIdentities(signal?: AbortSignal): Promise<readonly InventorySummary[]>;
@@ -30,10 +30,11 @@ export type ProductionAgentSecurityAPI = {
 
 export function createProductionAgentSecurityAPI(client: APIClient = createAPIClient()): ProductionAgentSecurityAPI {
   return {
-    async listAgentsPage(cursor, signal) {
+    async listAgentsPage(cursor, signal, owner) {
+      if (owner !== undefined && !validOwnerSelector(owner)) throw new APITransportError("invalid_configuration", "Invalid Agent owner selector");
       if (cursor !== undefined && (!/^[A-Za-z0-9_-]{2,512}$/.test(cursor))) throw new APITransportError("invalid_configuration", "Invalid Agent page cursor");
       signal?.throwIfAborted();
-      const page = requireAPIData(await client.GET("/api/v1/agents", { params: { query: { limit: 100, ...(cursor === undefined ? {} : { cursor }) } }, signal }), decodeInventoryPage);
+      const page = requireAPIData(await client.GET("/api/v1/agents", { params: { query: { limit: 100, ...(cursor === undefined ? {} : { cursor }), ...(owner === undefined ? {} : { owner }) } }, signal }), decodeInventoryPage);
       signal?.throwIfAborted();
       if (page.items.length > 100 || (page.page_info.has_more && (page.items.length === 0 || page.page_info.next_cursor === cursor))) throw new APITransportError("invalid_response", "Invalid Agent page continuation");
       return page;
@@ -60,6 +61,12 @@ export function createProductionAgentSecurityAPI(client: APIClient = createAPICl
   };
 }
 
+function validOwnerSelector(owner: string): boolean {
+  const characters = Array.from(owner);
+  if (characters.length > 128 || new TextEncoder().encode(owner).length > 512) return false;
+  return characters.every(character => { const code = character.codePointAt(0)!; return code >= 0x20 && code !== 0x7f && !(code >= 0xd800 && code <= 0xdfff); });
+}
+
 const inventoryPageBounds = { maximumItems: 10_000, maximumPages: 100 } as const;
 
 type ConnectedData =
@@ -72,7 +79,7 @@ type AgentContext = {
   sessions: readonly AgentSession[];
 };
 
-export function ProductionAgentSecurityView({ path, onNavigate, api: suppliedAPI, canWrite = false, inventoryDetailID }: { path: string; onNavigate(path: string): void; api?: ProductionAgentSecurityAPI; canWrite?: boolean; inventoryDetailID?: string }) {
+export function ProductionAgentSecurityView({ path, onNavigate, api: suppliedAPI, canWrite = false, inventoryDetailID, ownerFilterAvailable = false }: { path: string; onNavigate(path: string): void; api?: ProductionAgentSecurityAPI; canWrite?: boolean; inventoryDetailID?: string; ownerFilterAvailable?: boolean }) {
   const { client, queryScopeKey, queryGeneration } = useAPI();
   const api = useMemo(() => suppliedAPI ?? createProductionAgentSecurityAPI(client), [client, suppliedAPI]);
   const initialDetailID = inventoryDetailID ?? (typeof window === "undefined" ? "" : inventoryDetailIDFromSearch(window.location.search));
@@ -92,7 +99,7 @@ export function ProductionAgentSecurityView({ path, onNavigate, api: suppliedAPI
   const query = useAPIQuery(`core:${path}`, load, supported && path !== "/discovery/assets");
   if (path === "/discovery/assets") {
     if (queryScopeKey === null) return <State title="Agents" status="Revalidating inventory access…" />;
-    return <ConnectedAgentPages key={agentAuthority} api={api} initialDetailID={inventoryDetailID !== undefined ? inventoryDetailID : initialAgentDetail.authority === agentAuthority ? initialAgentDetail.id : ""} canWrite={canWrite} />;
+    return <ConnectedAgentPages key={agentAuthority} api={api} initialDetailID={inventoryDetailID !== undefined ? inventoryDetailID : initialAgentDetail.authority === agentAuthority ? initialAgentDetail.id : ""} canWrite={canWrite} ownerFilterAvailable={ownerFilterAvailable} />;
   }
   if (!supported) return <State title="Unavailable" alert="Product route unavailable" />;
   if (query.status === "loading" || query.status === "idle") return <State title="Loading" status="Loading authorized data…" />;
@@ -135,21 +142,27 @@ type InventoryNavigation = {
   onNext(): void;
   onFirst(): void;
   retry(): Promise<void>;
+  ownerFilterAvailable: boolean;
+  ownerFilterBlocked: boolean;
+  owner?: string;
+  onOwner(owner?: string): void;
+  onOwnershipConfirmed(): void;
 };
 
-function ConnectedAgentPages({ api, initialDetailID, canWrite }: { api: ProductionAgentSecurityAPI; initialDetailID: string; canWrite: boolean }) {
-  const { revisions } = useAPI();
-  const [navigation, setNavigation] = useState<{ cursor?: string; history: (string | undefined)[] }>({ history: [] });
+function ConnectedAgentPages({ api, initialDetailID, canWrite, ownerFilterAvailable }: { api: ProductionAgentSecurityAPI; initialDetailID: string; canWrite: boolean; ownerFilterAvailable: boolean }) {
+  const { revisions, invalidate } = useAPI();
+  const [navigation, setNavigation] = useState<{ cursor?: string; history: (string | undefined)[]; owner?: string }>({ history: [] });
+  const ownerFilterBlocked = navigation.owner !== undefined && !ownerFilterAvailable;
   const revision = revisions.get("core:/discovery/assets") ?? 0;
   const load = useCallback(async (signal?: AbortSignal) => {
-    const page = await api.listAgentsPage(navigation.cursor, signal);
+    const page = navigation.owner === undefined ? await api.listAgentsPage(navigation.cursor, signal) : await api.listAgentsPage(navigation.cursor, signal, navigation.owner);
     const next = page.page_info.next_cursor;
     if (page.page_info.has_more && (!next || page.items.length === 0 || next === navigation.cursor || navigation.history.includes(next))) throw new APITransportError("invalid_response", "Repeated Agent page continuation");
     return page;
   }, [api, navigation]);
-  const query = useAPIQuery(JSON.stringify(["core:/discovery/assets", 100, navigation.cursor ?? null, revision]), load);
-  const visible = (query.status === "success" || query.status === "empty") && query.data !== undefined;
-  const loading = query.status === "idle" || query.status === "loading";
+  const query = useAPIQuery(JSON.stringify(["core:/discovery/assets", 100, navigation.cursor ?? null, revision, navigation.owner ?? null, ownerFilterBlocked]), load, !ownerFilterBlocked);
+  const visible = !ownerFilterBlocked && (query.status === "success" || query.status === "empty") && query.data !== undefined;
+  const loading = ownerFilterBlocked || query.status === "idle" || query.status === "loading";
   const controls: InventoryNavigation = {
     status: query.status, visible,
     previous: !loading && query.status !== "forbidden" && navigation.history.length > 0,
@@ -158,11 +171,14 @@ function ConnectedAgentPages({ api, initialDetailID, canWrite }: { api: Producti
     onNext() {
       const next = query.data?.page_info.next_cursor;
       if (!visible || !next) return;
-      setNavigation((current) => ({ cursor: next, history: [...current.history, current.cursor].slice(-100) }));
+      setNavigation((current) => ({ ...current, cursor: next, history: [...current.history, current.cursor].slice(-100) }));
     },
-    onPrevious() { setNavigation((current) => current.history.length ? { cursor: current.history.at(-1), history: current.history.slice(0, -1) } : current); },
-    onFirst() { setNavigation({ history: [] }); },
+    onPrevious() { setNavigation((current) => current.history.length ? { ...current, cursor: current.history.at(-1), history: current.history.slice(0, -1) } : current); },
+    onFirst() { setNavigation(current => ({ ...current, cursor: undefined, history: [] })); },
     retry: query.retry,
+    ownerFilterAvailable, ownerFilterBlocked, owner: navigation.owner,
+    onOwner(owner) { if (owner !== undefined && !ownerFilterAvailable) return; setNavigation({ owner, history: [] }); },
+    onOwnershipConfirmed() { invalidate(["core:/discovery/assets"]); },
   };
   // Keep this state owner mounted through same-scope revision/load/refusal. Its
   // retained ownership intent must outlive a transient list refresh failure.
@@ -181,6 +197,9 @@ function ConnectedInventory({ title, category, values, api, initialDetailID, can
   const [mutationError, setMutationError] = useState("");
   const [saving, setSaving] = useState(false);
   const [pending, setPending] = useState<{ id: string; version: number; input: AgentOwnershipInput; key: string } | null>(null);
+  const [ownerMode, setOwnerMode] = useState<"all" | "unowned" | "exact">("all");
+  const [ownerDraft, setOwnerDraft] = useState("");
+  const [ownerFilterError, setOwnerFilterError] = useState("");
   const detailRequest = useRef<AbortController | null>(null);
   const processedDetailIntent = useRef<{ api: ProductionAgentSecurityAPI; category: typeof category; id: string; superseded: boolean } | null>(null);
   const loadDetail = async (id: string, signal?: AbortSignal) => {
@@ -241,7 +260,10 @@ function ConnectedInventory({ title, category, values, api, initialDetailID, can
     try {
       const result = await api.updateAgent(retained.id, retained.version, retained.input, retained.key);
       const next = { ...selected, summary: result.agent };
-      setSelected(next); setMutatedRows((current) => ({ ...current, [result.agent.id]: result.agent })); setPending(null);
+      setSelected(next);
+      if (page?.owner !== undefined) { setMutatedRows({}); page.onOwnershipConfirmed(); }
+      else setMutatedRows((current) => ({ ...current, [result.agent.id]: result.agent }));
+      setPending(null);
     } catch (error) {
       if (error instanceof APIProductError && error.status === 409) {
         setPending(null);
@@ -258,16 +280,36 @@ function ConnectedInventory({ title, category, values, api, initialDetailID, can
     setMutationError(""); setMutatedRows({});
     navigate();
   };
+  const applyOwnerFilter = () => {
+    if (ownershipLocked || !page?.ownerFilterAvailable) return;
+    const owner = ownerMode === "all" ? undefined : ownerMode === "unowned" ? "" : ownerDraft;
+    if (ownerMode === "exact" && (ownerDraft.length === 0 || !validOwnerSelector(ownerDraft))) { setOwnerFilterError("Enter an exact owner label of 1–128 Unicode characters without control characters."); return; }
+    setOwnerFilterError(""); changePage(() => page.onOwner(owner));
+  };
+  const resetOwnerFilter = () => {
+    if (ownershipLocked || !page) return;
+    setOwnerMode("all"); setOwnerDraft(""); setOwnerFilterError(""); changePage(() => page.onOwner(undefined));
+  };
   const visible = page?.visible ?? true;
   const pendingDetail = selected && !visible && ownershipLocked;
   return <div className="page">
     <PageHeader title={title} description="Authorized canonical inventory." />
     {detailError && visible && <div role="alert">Inventory detail unavailable</div>}
     {page && <>
-      {(page.status === "idle" || page.status === "loading") && <p role="status">Loading authorized Agent page…</p>}
-      {page.status === "forbidden" && <p role="alert">Authorization rejected</p>}
-      {(page.status === "error" || page.status === "stale") && <div role="alert">Agent page unavailable. Reload before making changes.</div>}
-      {(page.status === "error" || page.status === "stale") && <Button onClick={() => void page.retry()}>Retry page</Button>}
+      {(page.ownerFilterAvailable || page.ownerFilterBlocked) && <section aria-label="Agent owner filter">
+        {page.ownerFilterAvailable && <>
+          <label>Owner filter<select value={ownerMode} disabled={ownershipLocked} onChange={event => { const mode = event.target.value; if (!ownershipLocked && page.ownerFilterAvailable && (mode === "all" || mode === "unowned" || mode === "exact")) { setOwnerMode(mode); setOwnerFilterError(""); } }}><option value="all">All owners</option><option value="unowned">Unowned</option><option value="exact">Exact owner</option></select></label>
+          {ownerMode === "exact" && <Field label="Exact owner" value={ownerDraft} maxLength={512} disabled={ownershipLocked} onChange={event => { if (!ownershipLocked && page.ownerFilterAvailable) setOwnerDraft(event.target.value); }} />}
+          <Button disabled={ownershipLocked} onClick={applyOwnerFilter}>Apply owner filter</Button>
+        </>}
+        <Button disabled={ownershipLocked} onClick={resetOwnerFilter}>Reset owner filter</Button>
+        {page.ownerFilterBlocked && <p role="alert">Owner filtering unavailable. Reset the filter to request all authorized owners.</p>}
+        {ownerFilterError && <p role="alert">{ownerFilterError}</p>}
+      </section>}
+      {!page.ownerFilterBlocked && (page.status === "idle" || page.status === "loading") && <p role="status">Loading authorized Agent page…</p>}
+      {!page.ownerFilterBlocked && page.status === "forbidden" && <p role="alert">Authorization rejected</p>}
+      {!page.ownerFilterBlocked && (page.status === "error" || page.status === "stale") && <div role="alert">Agent page unavailable. Reload before making changes.</div>}
+      {!page.ownerFilterBlocked && (page.status === "error" || page.status === "stale") && <Button onClick={() => void page.retry()}>Retry page</Button>}
       <nav aria-label="Agent pages">
         <Button disabled={!page.first || ownershipLocked} onClick={() => changePage(page.onFirst)}>First page</Button>
         <Button disabled={!page.previous || ownershipLocked} onClick={() => changePage(page.onPrevious)}>Previous page</Button>

@@ -1566,6 +1566,15 @@ paths:
       parameters:
         - $ref: '#/components/parameters/PageCursor'
         - $ref: '#/components/parameters/PageLimit'
+        - name: owner
+          in: query
+          required: false
+          allowEmptyValue: true
+          description: Omitted selects all owners; an empty value selects unowned Agents. A nonempty value matches the exact persisted owner label, including whitespace, without normalization. Requires the configured owner-filter capability.
+          schema:
+            type: string
+            maxLength: 128
+            pattern: '^[^\x00-\x1F\x7F]*$'
       responses:
         '200': { description: Authorized Agent records., content: { application/json: { schema: { $ref: '#/components/schemas/InventoryPage' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }

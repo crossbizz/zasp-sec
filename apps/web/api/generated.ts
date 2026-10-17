@@ -6133,6 +6133,8 @@ export interface operations {
                 readonly cursor?: components["parameters"]["PageCursor"];
                 /** @description Maximum number of records to return. */
                 readonly limit?: components["parameters"]["PageLimit"];
+                /** @description Omitted selects all owners; an empty value selects unowned Agents. A nonempty value matches the exact persisted owner label, including whitespace, without normalization. Requires the configured owner-filter capability. */
+                readonly owner?: string;
             };
             readonly header?: never;
             readonly path?: never;

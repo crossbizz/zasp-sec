@@ -19,15 +19,15 @@
     },
     {
       "path": "services/platform/agentsec-api/production_runtime.go",
-      "sha256": "1a556458188b3cdb41d4d9224665c9098e7d940d4f4fe533c42e6f62541b13e3",
-      "bytes": 58469,
+      "sha256": "90f659abf44a131ad57c8e13feedb86f370ac1bb8609e9b66d6fa5f88bce5033",
+      "bytes": 59818,
       "currentBasePreimageSHA256": "bbcc0ce1843601dfdfbde2ffe2aa710ed26239d7eb27849f2b5e9582338b09ef",
       "historicalPreimageSHA256": "10f33b11d8e05b35b4814a1a3e58889c5a4d592dce82e1010fd92874c22ac7fa"
     },
     {
       "path": "services/platform/agentsec-api/runtime.go",
-      "sha256": "d2630e6ab92198875ca39de27b55fddfee265abf4205fc1c82c299b93d5ea24f",
-      "bytes": 26135,
+      "sha256": "0d4f62d7e85c4df46a6d259cfc23b8fc7e3d8f914c917825d33bb43cb35fdbd2",
+      "bytes": 26638,
       "currentBasePreimageSHA256": "376900f43e60d5896e4804bce8f9a7685000a28396857c8b42b35b8c3554d2d7",
       "historicalPreimageSHA256": "3dfb3b451f763b086121d97f969dc5347cb5ae838a79a6f084b281d211dce449"
     },
@@ -229,8 +229,8 @@
     },
     {
       "path": "services/platform/apiserver/production.go",
-      "sha256": "7ce20d0a9c3f33a673bc39698fde35521bc08d38d4b42a93dd0ec46a570df601",
-      "bytes": 56853,
+      "sha256": "326292e13a4a98ff8b3f504df4597be326a27cdc266f6383643ee3c38e3d9a0a",
+      "bytes": 56940,
       "currentBasePreimageSHA256": "fbb8dcc0ada9972280a5243cceb34a3787283104d22194fa9876162d56be8087",
       "historicalPreimageSHA256": "fbb8dcc0ada9972280a5243cceb34a3787283104d22194fa9876162d56be8087"
     },
@@ -355,8 +355,8 @@
     },
     {
       "path": "services/platform/agentsec-migrate/main.go",
-      "sha256": "7b2fd908f091b06ea83b23e66d58dd688188741af8cb0abe8f8ccb423dbd7748",
-      "bytes": 77696,
+      "sha256": "75af7ea0951ed2fe8e5f14608a49977e50ca7c14f553c378d6a3cdea2fe43d03",
+      "bytes": 79028,
       "currentBasePreimageSHA256": "19c0b192ab81b04c6ff0487fb93c7b6fa566a39a1cd82dcf5f8c44bfd3807426",
       "historicalPreimageSHA256": null
     },
@@ -383,22 +383,22 @@
     },
     {
       "path": "scripts/connector-acceptance-groups.test.mjs",
-      "sha256": "dab05a96c632f1e0045618da8bebcced5a9e588e19ab0498af1b2adec62f9277",
-      "bytes": 50010,
+      "sha256": "e31216ab5e6078b2a07b25e3a6e4e090870ccb050a5c45799b4bf45353d49778",
+      "bytes": 51424,
       "currentBasePreimageSHA256": "a1622a9417e9fe4d62c2aed82bcf5f7f3e11dce841d802bf005b29d54405d388",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connected-connector-acceptance.mjs",
-      "sha256": "f65f98f7e15b8c9bc23d1ea3a997cfeae0c49f1b444c1735f0f40464b87c79a9",
-      "bytes": 98057,
+      "sha256": "143ced77371fdf468d9d9d2f1a8922abe74d3435a8f20497f52dc57d7c6ad219",
+      "bytes": 101035,
       "currentBasePreimageSHA256": "f248c6d9182ca08cb518cd54c620844c987f4ae723a38badb463c59e010db578",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
-      "sha256": "e1d00ee08b534ea63ef78dec368a2a96f17bbbbc7eebb51a99f6dfd468a08252",
-      "bytes": 94458,
+      "sha256": "7096e738041b4600bec1ac73f86ff0a496a2f28560d725ab184de34c7fae34fc",
+      "bytes": 97436,
       "currentBasePreimageSHA256": "e66722e4daf5b1482c253d1f14b4c533c329fde202252c16f87ad3e0130e8524",
       "historicalPreimageSHA256": null
     },
@@ -1440,8 +1440,8 @@
     },
     {
       "path": "deploy/production/release-contract.mjs",
-      "sha256": "606e9986676d7a60bc2d3146ce1eaba94c11962d3acb78045b7b981248e39a00",
-      "bytes": 84566,
+      "sha256": "86d9cf812ffe8000278bd73878b649771b025b78da0c8e7773f5e72a08406acf",
+      "bytes": 85120,
       "currentBasePreimageSHA256": "cc162864456876d7194fd68af75c055b66409e4a2c1d2c69cb0597af89f9a973",
       "historicalPreimageSHA256": null
     },
@@ -1475,15 +1475,15 @@
     },
     {
       "path": "deploy/staging/product/templates/workloads.yaml",
-      "sha256": "3c4373f050569b44dadcd10f76f6590cc13671b01274938ac21c8954dff7ade3",
-      "bytes": 70614,
+      "sha256": "9aea5efefab33357e92a0c8bc6d9e38c23159d535b2531340bcd14feb07879e5",
+      "bytes": 70738,
       "currentBasePreimageSHA256": "3ef5d0a1914c165847fc302a579401fab6b8a6a870c732a75bfad5f2668ff45c",
       "historicalPreimageSHA256": null
     },
     {
       "path": "deploy/staging/product/values.yaml",
-      "sha256": "8888997adc8ec9e80f174ce92592bb009d6c1ba39fce4590c8bb6a99b9c56a32",
-      "bytes": 15446,
+      "sha256": "54ff0849baeea91bfe76f0c8e6519f9b0f6ed4d309059784cc089887a05ffc99",
+      "bytes": 15586,
       "currentBasePreimageSHA256": "f47256cda7ac09c2eb24c6b1e17040edcfb2a07b2efb813e87c79a1478c17775",
       "historicalPreimageSHA256": null
     },
@@ -1538,15 +1538,15 @@
     },
     {
       "path": "services/platform/apiserver/authorization_statement.go",
-      "sha256": "9d84737ed1268d8d43e0d04fa5d8b32e1a7653bbff1d93e22ca0aff7d59df617",
-      "bytes": 17745,
+      "sha256": "6318139a55f442878f1e3b514d0ee4b657a28ad817de2cd1003d187eb04e394c",
+      "bytes": 18124,
       "currentBasePreimageSHA256": "f568db123f03fd13feb518d29481a6fc0ad85c57e7c103e4fd8b3eb9c48c6fa5",
       "historicalPreimageSHA256": null
     },
     {
       "path": "services/platform/apiserver/repository.go",
-      "sha256": "3dda929484c5830a92b115bec160342b212629f67b31600445008a6dc4f0e92a",
-      "bytes": 40396,
+      "sha256": "b7391ca8e8aa05af07f18ee841afbfe282769984d97a6e801dc1b833b550739f",
+      "bytes": 40436,
       "currentBasePreimageSHA256": "e9962c3d78e0f8443938e9300dcbb414b4604bf9e9fe4cd0e45c80e25fcc6126",
       "historicalPreimageSHA256": null
     },
@@ -3162,15 +3162,15 @@
     },
     {
       "path": "services/platform/apiserver/authorization_openfga.go",
-      "sha256": "9d34fd2775ce2c864735a9674cacc76bfbdd5f2b91eb4cc05875c695fbe77b36",
-      "bytes": 10002,
+      "sha256": "6487ab52735ed07cdb58fe31685ede87bda8d0c137dda6fc6e38cbbb72695e8e",
+      "bytes": 10061,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
     {
       "path": "services/platform/apiserver/authorization_post_login.go",
-      "sha256": "0ff2371c286f2075aebf14346f79c7f973ed31b279864ad8e6066377c2c96ca7",
-      "bytes": 9192,
+      "sha256": "5baddd7915a758e847a60e1c6aa739bd0b038eb4e0021c133219d145a70b687a",
+      "bytes": 9507,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -3309,8 +3309,8 @@
     },
     {
       "path": "services/platform/agentsec-migrate/forward_release_confirmation.go",
-      "sha256": "1f609c41e77eb6e4a00729b74e80a9328441dc1fa49382aa2114604914a44980",
-      "bytes": 2787,
+      "sha256": "b039fb9389b82ee234ecdb05c0eef6a515dad99fefbba4c03dc617e1703238ac",
+      "bytes": 3052,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -3500,6 +3500,167 @@
       "path": "services/platform/featureflags/featureflags_test.go",
       "sha256": "cb9c002409392ba19b090f8d4e20148f4db2f59c363b0e98f44852ffcdccdf7d",
       "bytes": 14658,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/migrations/production_agent_owner_filter_profile.go",
+      "sha256": "aaa43569170599e6245dbe27cdcdb821171e3c1563d20788f4e8be525e89718a",
+      "bytes": 11040,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/migrations/sql/agent_owner_filter_profile.sql",
+      "sha256": "6ee809ba189c0559c02fbce977e958e21529e1a58bc4d71edbee125210f31bc5",
+      "bytes": 17611,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/migrations/production_agent_owner_filter_profile_test.go",
+      "sha256": "334d290c8aca07d3abca622276d1f533cafd0c59f8d841ee1a77c6b1394f776f",
+      "bytes": 5044,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/apiserver/agent_owner_filter.go",
+      "sha256": "968f73a8fc8d16e918c53576f64aa326e35635d2144b7bcf10cd6403244b5205",
+      "bytes": 7350,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/apiserver/agent_owner_filter_test.go",
+      "sha256": "8959bb0f4678372406e36d152a09d04a72acfbfbf8401c7ad079f3a216e8416b",
+      "bytes": 5836,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/apiserver/agent_owner_filter_authorization_test.go",
+      "sha256": "cc249a7fa544ddb437cd8bc5ad9ab4a1cf6c622affe31acfb237d0605bd8ce07",
+      "bytes": 3228,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/apiserver/agent_owner_filter_repository_test.go",
+      "sha256": "3b1a02e424f1ecc0d035e7b947112c0ffce531cd701fa2e3d01a5530f68f51d4",
+      "bytes": 2926,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/apiserver/inventory_handler.go",
+      "sha256": "9311f5cfadb1104db1996e4714063c65a2a862183f9f71289d953d98dd484a3a",
+      "bytes": 11486,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/apiserver/inventory_repository.go",
+      "sha256": "d7f8cba10659099df28884c7a2ad83922bf834c9d93a820e1fd70cb280c59fd4",
+      "bytes": 27668,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/agentsec-api/agent_owner_filter_runtime.go",
+      "sha256": "fb089aa67dae1986c59439658d24dcb5ac1dfe1e35957a9a032e6ad7171c0128",
+      "bytes": 349,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/agentsec-api/agent_owner_filter_runtime_test.go",
+      "sha256": "18d39cb584cb8ec38ac57995fd469bbcc880b5bb121c44841af19e41f75d026e",
+      "bytes": 979,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/agentsec-migrate/agent_owner_filter_profile.go",
+      "sha256": "d2106b98c7971d0f41500725ebb934bc0f1418b42d2599c77577077ae618eb62",
+      "bytes": 3371,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/apiserver/inventory_handler_test.go",
+      "sha256": "aa7d09ef7c6435e5ab96c96f47247b6905bc582ef63ce6226cb6d03073978b9c",
+      "bytes": 9311,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/apiserver/inventory_repository_test.go",
+      "sha256": "8bb13519e023aa503558f48ee529838d19430f7ef2ef6061c9a1a0624a58e97f",
+      "bytes": 9084,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/apiserver/authorization_transaction_test.go",
+      "sha256": "10977390589610f645485439f0abfeb122dfffa6a6d3673706259adcb423a03a",
+      "bytes": 3636,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/migrations/migrations_test.go",
+      "sha256": "396ef89e352ae3e32c48040b753870f5e3f72af257eececf07e0779d3f21492b",
+      "bytes": 64174,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/apiserver/authorization_statement_test.go",
+      "sha256": "4e95468d9382edaef0045383fbb95a9f1b77a4a41a28d7cb635e55aa0becfccc",
+      "bytes": 10654,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/apiserver/authorization_openfga_test.go",
+      "sha256": "f076fd353c7397e7024cb9e4387439e936473db297a4a1f9a5726df0296a70a2",
+      "bytes": 13244,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "openapi/agents-owner-filter.test.mjs",
+      "sha256": "96c90ae233e9171b0da0d7affef0a1873ec1dac5eee3990b13345b0a0e5119cb",
+      "bytes": 1215,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "openapi/openapi.yaml",
+      "sha256": "374acf7080ed7ca35096aa4141fdab2d895ea7f686224742bf65715689aa37e6",
+      "bytes": 373718,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "deploy/production/agent-owner-filter-profile.test.mjs",
+      "sha256": "a1639ed21cfef26ca5071039c1ea7ef5247fac26da4913479f78fb7c5c44eacd",
+      "bytes": 3167,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "deploy/production/agent-owner-filter-profile.mjs",
+      "sha256": "758289d0eaa0a4bb119306d6cc16a38a2fd9c67f100bb0a7d8c5b60e7145a36f",
+      "bytes": 2716,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "deploy/staging/product/templates/_agent-owner-filter.tpl",
+      "sha256": "8454fb79c3c8a9d6d719fcb1259a7609c834ee49add1fcb3fb487c4239a5e87b",
+      "bytes": 1146,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     }

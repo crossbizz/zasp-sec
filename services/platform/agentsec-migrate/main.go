@@ -218,6 +218,17 @@ func main() {
 		}
 		return
 	}
+	if len(arguments) > 0 && arguments[0] == "agent-owner-filter-profile-checksums" {
+		if len(arguments) != 1 || writeAgentOwnerFilterChecksums(os.Stdout) != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+		return
+	}
+	if len(arguments) > 0 && agentOwnerFilterProfileCommand(arguments[0]) {
+		if validateAgentOwnerFilterCommand(arguments, os.Getenv) != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+	}
 	if len(arguments) > 0 && arguments[0] == "environment-class-profile-checksums" {
 		if len(arguments) != 1 || writeEnvironmentClassChecksums(os.Stdout) != nil {
 			log.Fatal("release migration configuration rejected")
@@ -361,7 +372,7 @@ func main() {
 		}
 	}
 	if isForwardMigration(arguments) {
-		if authorizationProfileCommand(arguments[0]) || maintenanceProfileCommand(arguments[0]) || optionalEgressProfileCommand(arguments[0]) || retentionProfileCommand(arguments[0]) || environmentClassProfileCommand(arguments[0]) {
+		if authorizationProfileCommand(arguments[0]) || maintenanceProfileCommand(arguments[0]) || optionalEgressProfileCommand(arguments[0]) || retentionProfileCommand(arguments[0]) || environmentClassProfileCommand(arguments[0]) || agentOwnerFilterProfileCommand(arguments[0]) {
 			registration.migration = os.Getenv(migrationPrincipalEnvironment)
 			if !databasePrincipalPattern.MatchString(registration.migration) {
 				err = errInvalidMigrationCommand
@@ -497,6 +508,9 @@ func registerAuthorizationVerifier(ctx context.Context, queryer principalQueryer
 func registerForwardRelease(ctx context.Context, queryer principalQueryer, registration discoveryPrincipalRegistration, arguments []string) error {
 	if !isForwardMigration(arguments) {
 		return errInvalidMigrationCommand
+	}
+	if agentOwnerFilterProfileCommand(arguments[0]) {
+		return agentOwnerFilterPostInstall(ctx, queryer, registration.migration, arguments[0])
 	}
 	if environmentClassProfileCommand(arguments[0]) {
 		return environmentClassPostInstall(ctx, queryer, registration.migration, arguments[0])
@@ -900,6 +914,9 @@ func (r *registeredReleaseMigrationRunner) UpProductionApprovalSettlementAuditPr
 }
 
 func isForwardMigration(arguments []string) bool {
+	if len(arguments) == 1 && agentOwnerFilterProfileCommand(arguments[0]) {
+		return true
+	}
 	if len(arguments) == 1 && environmentClassProfileCommand(arguments[0]) {
 		return true
 	}
@@ -960,6 +977,24 @@ func runReleaseMigration(ctx context.Context, runner releaseMigrationRunner, arg
 		return err
 	}
 	switch arguments[0] {
+	case "up-agent-owner-filter-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		e, ok := runner.(interface{ UpProductionAgentOwnerFilterProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return e.UpProductionAgentOwnerFilterProfile(ctx)
+	case "up-agent-owner-filter-audit-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		e, ok := runner.(interface{ UpProductionAgentOwnerFilterAuditProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return e.UpProductionAgentOwnerFilterAuditProfile(ctx)
 	case "up-environment-class-profile":
 		if version != 61 {
 			return migrations.ErrInvalidState

@@ -70,6 +70,7 @@ type OpenFGAAuthorizer struct {
 	StoreID, ModelID      string
 	AttestationKey        *authorization.AttestationKey
 	EnvironmentClassReady func(context.Context) (bool, error)
+	AgentOwnerFilterReady func(context.Context) (bool, error)
 }
 
 func (a *OpenFGAAuthorizer) Authorize(ctx context.Context, identity RequestIdentity, credential CredentialBinding, route RoutedOperation) (RequestAuthorization, error) {

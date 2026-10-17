@@ -1,3 +1,4 @@
+import { normalizeAgentOwnerFilter, validateAgentOwnerFilterResources } from "./agent-owner-filter-profile.mjs";
 import { normalizeEnvironmentClass, validateEnvironmentClassResources } from "./environment-class-profile.mjs";
 import { execFile } from "node:child_process";
 import { createHash, X509Certificate } from "node:crypto";
@@ -80,12 +81,13 @@ export async function inspectContainerBuilds() {
 }
 
 export async function renderRelease(value, options = { schemaVersion: 49 }) {
-  if (!validRelease(value) || !options || Object.keys(options).some(key => !["schemaVersion", "sessionSearchPhase", "auditExports", "testReconciler", "complianceExports", "attackLabReconciler", "evidenceExportWorkflow", "discoveryScheduleReplayPhase", "runtimeServices", "authorizationTemporal", "optionalEgress", "retentionReferenceExpiry", "environmentClass"].includes(key))) throw new Error("release rejected");
+  if (!validRelease(value) || !options || Object.keys(options).some(key => !["schemaVersion", "sessionSearchPhase", "auditExports", "testReconciler", "complianceExports", "attackLabReconciler", "evidenceExportWorkflow", "discoveryScheduleReplayPhase", "runtimeServices", "authorizationTemporal", "optionalEgress", "retentionReferenceExpiry", "environmentClass", "agentOwnerFilter"].includes(key))) throw new Error("release rejected");
   const platformAccountID = value.discovery.roleArn.match(/^arn:aws:iam::([0-9]{12}):role\//)[1];
   const authorizationTemporal = normalizeAuthorizationTemporalProfile(options.authorizationTemporal, options, platformAccountID);
   const runtimeServices = options.runtimeServices ? structuredClone(options.runtimeServices) : undefined;
   const optionalEgress = normalizeOptionalEgress(options.optionalEgress, authorizationTemporal, runtimeServices);
   const environmentClass = normalizeEnvironmentClass(options.environmentClass, authorizationTemporal, runtimeServices);
+  const agentOwnerFilter = normalizeAgentOwnerFilter(options.agentOwnerFilter, authorizationTemporal, runtimeServices);
   const retention = normalizeRetention(options.retentionReferenceExpiry, authorizationTemporal, runtimeServices);
   if (authorizationTemporal) {
     const roles = Object.values(value).flatMap(section => section && typeof section === "object" ? Object.entries(section).filter(([key]) => /rolearn$/i.test(key)).map(([, role]) => role) : []);
@@ -381,11 +383,11 @@ export async function renderRelease(value, options = { schemaVersion: 49 }) {
   let stdout;
   let exportValuesDirectory;
   try {
-    if (auditExports || testReconciler || complianceExports || attackLabReconciler || options.runtimeServices || optionalEgress || retention || environmentClass) {
+    if (auditExports || testReconciler || complianceExports || attackLabReconciler || options.runtimeServices || optionalEgress || retention || environmentClass || agentOwnerFilter) {
       // A complete policy history can exceed the per-argument limit on Linux.
       exportValuesDirectory = await mkdtemp(path.join(tmpdir(), "zasp-audit-export-values-"));
       const exportValuesPath = path.join(exportValuesDirectory, "values.json");
-      await writeFile(exportValuesPath, JSON.stringify({ auditExports, testReconciler, complianceExports, attackLabReconciler, ...(authorizationTemporal ? { authorizationTemporal } : {}), ...(optionalEgress ? { optionalEgress } : {}), ...(retention ? { retentionReferenceExpiry: retention } : {}), ...(environmentClass ? { environmentClass } : {}), ...(runtimeServices ? { runtimeServices } : {}), ...(evidenceExportWorkflow ? { evidenceExportWorkflow: { enabled: true } } : {}) }), { mode: 0o600 });
+      await writeFile(exportValuesPath, JSON.stringify({ auditExports, testReconciler, complianceExports, attackLabReconciler, ...(authorizationTemporal ? { authorizationTemporal } : {}), ...(optionalEgress ? { optionalEgress } : {}), ...(retention ? { retentionReferenceExpiry: retention } : {}), ...(environmentClass ? { environmentClass } : {}), ...(agentOwnerFilter ? { agentOwnerFilter } : {}), ...(runtimeServices ? { runtimeServices } : {}), ...(evidenceExportWorkflow ? { evidenceExportWorkflow: { enabled: true } } : {}) }), { mode: 0o600 });
       valueArgs.push("--values", exportValuesPath);
     }
     await exec("helm", ["lint", chart, "--namespace", "agentsec", ...valueArgs], { cwd: root, encoding: "utf8", maxBuffer: 4 * 1024 * 1024 });
@@ -402,7 +404,7 @@ export async function renderRelease(value, options = { schemaVersion: 49 }) {
     throw new Error("release rejected");
   }
   if (resources.length < 20 || resources.some((resource) => !resource?.apiVersion || !resource?.kind || !resource?.metadata?.name)) throw new Error("release rejected");
-  validateRenderedRelease(resources, platformAccountID, schemaVersion, sessionSearchPhase, auditExports, testReconciler, complianceExports, attackLabReconciler, evidenceExportWorkflow, discoveryScheduleReplayPhase, authorizationTemporal, optionalEgress, value.securityAgentPlanner.egressCIDRs, retention, environmentClass);
+  validateRenderedRelease(resources, platformAccountID, schemaVersion, sessionSearchPhase, auditExports, testReconciler, complianceExports, attackLabReconciler, evidenceExportWorkflow, discoveryScheduleReplayPhase, authorizationTemporal, optionalEgress, value.securityAgentPlanner.egressCIDRs, retention, environmentClass, agentOwnerFilter);
   return Object.freeze(resources);
 }
 
@@ -588,7 +590,7 @@ function validRelease(value) {
   return value.telemetry.backend === "newrelic" && value.telemetry.endpoint === "https://otlp.nr-data.net";
 }
 
-export function validateRenderedRelease(resources, platformAccountID, schemaVersion = 49, sessionSearchPhase = "compatibility", expectedAuditExports, expectedTestReconciler, expectedComplianceExports, expectedAttackLabReconciler, expectedEvidenceExportWorkflow, discoveryScheduleReplayPhase, authorizationTemporal, expectedOptionalEgress, expectedOptionalPlannerCIDRs, expectedRetention, expectedEnvironmentClass) {
+export function validateRenderedRelease(resources, platformAccountID, schemaVersion = 49, sessionSearchPhase = "compatibility", expectedAuditExports, expectedTestReconciler, expectedComplianceExports, expectedAttackLabReconciler, expectedEvidenceExportWorkflow, discoveryScheduleReplayPhase, authorizationTemporal, expectedOptionalEgress, expectedOptionalPlannerCIDRs, expectedRetention, expectedEnvironmentClass, expectedAgentOwnerFilter) {
   // Standalone callers must provide reviewed provider ranges too; equality
   // against a simultaneously widened expected/rendered policy is insufficient.
   if (expectedOptionalEgress?.enabled === true && !validProviderCIDRList(expectedOptionalPlannerCIDRs)) throw new Error("optional egress provider CIDRs rejected");
@@ -759,6 +761,8 @@ export function validateRenderedRelease(resources, platformAccountID, schemaVers
   validateRetentionResources(resources, retention, authorizationTemporal);
   const environmentClass = normalizeEnvironmentClass(expectedEnvironmentClass, authorizationTemporal, optionalRuntime);
   validateEnvironmentClassResources(resources, environmentClass);
+  const agentOwnerFilter = normalizeAgentOwnerFilter(expectedAgentOwnerFilter, authorizationTemporal, optionalRuntime);
+  validateAgentOwnerFilterResources(resources, agentOwnerFilter);
   return Object.freeze({ deployments: deployments.size, identities: accounts.size, platformAccountID });
 }
 

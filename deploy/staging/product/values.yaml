@@ -527,3 +527,8 @@ environmentClass:
   # API consumer opt-in after exact supplementary profile native admission.
   enabled: false
   profileChecksum: ""
+
+agentOwnerFilter:
+  # API consumer only after exact supplementary native admission; never installs.
+  enabled: false
+  profileChecksum: ""

@@ -111,7 +111,7 @@ function ProductionRouteSurface({ path, location, navigate, inventoryDetailID }:
     getScopeStaleGeneration,
   }} />;
   }
-  return <ProductionAgentSecurityView path={path} inventoryDetailID={path === "/discovery/assets" ? inventoryDetailID : undefined} onNavigate={navigate} canWrite={session.hasCapability("inventory.write")} />;
+  return <ProductionAgentSecurityView path={path} inventoryDetailID={path === "/discovery/assets" ? inventoryDetailID : undefined} ownerFilterAvailable={session.hasCapability("inventory.agents.owner_filter")} onNavigate={navigate} canWrite={session.hasCapability("inventory.write")} />;
 }
 
 function ProductionScopeSelector() {

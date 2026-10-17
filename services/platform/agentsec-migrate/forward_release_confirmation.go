@@ -13,6 +13,11 @@ func confirmForwardRelease(ctx context.Context, queryer principalQueryer, begin 
 		return errInvalidMigrationCommand
 	}
 
+	if agentOwnerFilterProfileCommand(arguments[0]) {
+		return withRetentionOperatorTransaction(ctx, begin, func(c context.Context, q principalQueryer, _ io.Writer) error {
+			return agentOwnerFilterPostInstall(c, q, registration.migration, arguments[0])
+		}, nil)
+	}
 	if environmentClassProfileCommand(arguments[0]) {
 		return withRetentionOperatorTransaction(ctx, begin, func(c context.Context, q principalQueryer, _ io.Writer) error {
 			return environmentClassPostInstall(c, q, registration.migration, arguments[0])

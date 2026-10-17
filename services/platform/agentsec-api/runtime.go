@@ -29,6 +29,8 @@ var (
 type RuntimeConfig struct {
 	RetentionProfileChecksum        string
 	OptionalEgressEnabled           bool
+	AgentOwnerFilterEnabled         bool
+	AgentOwnerFilterProfileChecksum string
 	EnvironmentClassEnabled         bool
 	EnvironmentClassProfileChecksum string
 	OptionalEgressProfileChecksum   string
@@ -113,6 +115,13 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 	if getenv == nil {
 		return RuntimeConfig{}, errInvalidRuntimeConfig
 	}
+	agentOwnerFilterEnabled := false
+	if value := getenv("ZASP_AGENT_OWNER_FILTER_ENABLED"); value != "" {
+		if value != "true" && value != "false" {
+			return RuntimeConfig{}, errInvalidRuntimeConfig
+		}
+		agentOwnerFilterEnabled = value == "true"
+	}
 	environmentClassEnabled := false
 	if value := getenv("ZASP_ENVIRONMENT_CLASS_ENABLED"); value != "" {
 		if value != "true" && value != "false" {
@@ -149,7 +158,8 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 	requestBurst, requestBurstErr := strconv.Atoi(getenv("ZASP_REQUEST_BURST"))
 	config := RuntimeConfig{
 		RetentionProfileChecksum: getenv("ZASP_RETENTION_PROFILE_CHECKSUM"),
-		EnvironmentClassEnabled:  environmentClassEnabled, EnvironmentClassProfileChecksum: getenv("ZASP_ENVIRONMENT_CLASS_PROFILE_CHECKSUM"),
+		AgentOwnerFilterEnabled:  agentOwnerFilterEnabled, AgentOwnerFilterProfileChecksum: getenv("ZASP_AGENT_OWNER_FILTER_CHECKSUM"),
+		EnvironmentClassEnabled: environmentClassEnabled, EnvironmentClassProfileChecksum: getenv("ZASP_ENVIRONMENT_CLASS_PROFILE_CHECKSUM"),
 		OptionalEgressEnabled: optionalEgressEnabled, OptionalEgressProfileChecksum: getenv("ZASP_OPTIONAL_EGRESS_PROFILE_CHECKSUM"), OptionalEgressSettlementDSN: getenv("ZASP_OPTIONAL_EGRESS_SETTLEMENT_POSTGRES_DSN"),
 		RuntimeServices:                 services,
 		SecurityAgentOrderedHTTPEnabled: orderedHTTPEnabled,
@@ -250,7 +260,7 @@ func validRuntimeConfig(config RuntimeConfig) bool {
 			return false
 		}
 	}
-	if !validRuntimePostgresAuthorities(config.PostgresDSN, config.SecurityAgentPostgresDSN) || !validApprovalMaintenanceRuntimeConfig(config) || !validConnectorMaintenanceRuntimeConfig(config) || !validOptionalEgressRuntimeConfig(config) || !validEnvironmentClassRuntimeConfig(config) {
+	if !validRuntimePostgresAuthorities(config.PostgresDSN, config.SecurityAgentPostgresDSN) || !validApprovalMaintenanceRuntimeConfig(config) || !validConnectorMaintenanceRuntimeConfig(config) || !validOptionalEgressRuntimeConfig(config) || !validEnvironmentClassRuntimeConfig(config) || !validAgentOwnerFilterRuntimeConfig(config) {
 		return false
 	}
 	authorize, authorizeErr := url.Parse(config.StytchAuthorizeURL)

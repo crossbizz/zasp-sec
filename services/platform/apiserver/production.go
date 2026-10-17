@@ -219,6 +219,7 @@ func newProductionHandlers(repository, securityAgentRepository *PostgresReposito
 		if inventoryErr != nil {
 			return Dependencies{}, nil, ErrRepositoryConfiguration
 		}
+		inventoryRepository.agentOwnerProfileChecksum = repository.agentOwnerProfileChecksum
 		inventoryHandler, inventoryErr := newInventoryHTTPHandler(inventoryRepository, cookie.WorkflowSigningKey)
 		if inventoryErr != nil {
 			return Dependencies{}, nil, ErrRepositoryConfiguration

@@ -59,6 +59,16 @@ func (a *OpenFGAAuthorizer) preparePostLogin(ctx context.Context, i RequestIdent
 		slices.Sort(g.permissions)
 		g.environmentAudit = c.decisions[c.request(environment, "view_audit")]
 		g.capabilities = append(g.capabilities, "scope.switch")
+		if a.AgentOwnerFilterReady != nil && slices.Contains(g.capabilities, "inventory.read") {
+			ready, readyErr := a.AgentOwnerFilterReady(ctx)
+			if readyErr != nil {
+				return g, authorization.ErrUnavailable
+			}
+			if ready {
+				g.capabilities = append(g.capabilities, "inventory.agents.owner_filter")
+			}
+		}
+
 		if a.EnvironmentClassReady != nil && i.CredentialKind == CredentialBrowserSession && slices.Contains(g.capabilities, "identity.scopes.manage") && c.decisions[c.request(environment, "view")] && c.decisions[c.request(environment, "manage_identity")] {
 			ready, readyErr := a.EnvironmentClassReady(ctx)
 			if readyErr != nil {
