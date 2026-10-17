@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"time"
 
 	assoc "github.com/zasp-ai/zasp-sec/services/platform/gatewayassociationwire"
 	custody "github.com/zasp-ai/zasp-sec/services/platform/gatewayenrollmentcustody"
@@ -57,6 +58,9 @@ func runGatewayAgentAssociationCommand(output io.Writer, input io.Reader, q gate
 	if err != nil {
 		return unresolved()
 	}
+	if q.credentialFile != "" {
+		return runGatewayLegacyAgentAssociation(output, q, envelope)
+	}
 	store, err := custody.Open(q.custodyFile)
 	if err != nil {
 		return unresolved()
@@ -80,8 +84,28 @@ func runGatewayAgentAssociationCommand(output io.Writer, input io.Reader, q gate
 			operationErr = errGatewayAgentAssociation
 		}
 	}()
+	ctx, cancel := context.WithTimeout(context.Background(), q.timeout)
+	defer cancel()
+	return runGatewayAgentAssociationPost(ctx, output, client, association, nil)
+}
+
+type gatewayAssociationHandle interface {
+	Source() (string, custody.AssociationSnapshot, error)
+	Sign([]byte) ([]byte, error)
+	Confirm(assoc.AcceptResponse, time.Time) error
+	Close() error
+}
+
+func runGatewayAgentAssociationPost(ctx context.Context, output io.Writer, client *http.Client, association gatewayAssociationHandle, expected *assoc.DeviceBinding) error {
+	report := gatewayAgentAssociationReport{State: "unresolved", Outcome: "unknown"}
+	unresolved := func() error {
+		if err := writeGatewayAgentAssociationReport(output, report); err != nil {
+			return err
+		}
+		return errGatewayAgentAssociation
+	}
 	endpoint, snapshot, err := association.Source()
-	if err != nil || !gatewayCommandEndpoint(endpoint) {
+	if err != nil || !gatewayCommandEndpoint(endpoint) || ctx.Err() != nil || expected != nil && !sameGatewayAssociationBinding(snapshot.Binding, *expected) {
 		return unresolved()
 	}
 	report.AssociationID = snapshot.Challenge.AssociationID
@@ -92,8 +116,6 @@ func runGatewayAgentAssociationCommand(output io.Writer, input io.Reader, q gate
 	if !snapshot.Challenge.ExpiresAt.After(sentAt) || !snapshot.Binding.ExpiresAt.After(sentAt) {
 		return unresolved()
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), q.timeout)
-	defer cancel()
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint+assoc.AcceptPath, bytes.NewReader(snapshot.RequestRaw))
 	if err != nil {
 		return unresolved()
@@ -130,4 +152,8 @@ func runGatewayAgentAssociationCommand(output io.Writer, input io.Reader, q gate
 	report.State = "device_accepted_pending_human"
 	report.Outcome = "confirmed_device_acceptance"
 	return writeGatewayAgentAssociationReport(output, report)
+}
+
+func sameGatewayAssociationBinding(a, b assoc.DeviceBinding) bool {
+	return a.OrganizationID == b.OrganizationID && a.WorkspaceID == b.WorkspaceID && a.EnvironmentID == b.EnvironmentID && a.DeviceID == b.DeviceID && a.CredentialID == b.CredentialID && a.CredentialGeneration == b.CredentialGeneration && a.PublicKey == b.PublicKey && a.ExpiresAt.Equal(b.ExpiresAt)
 }

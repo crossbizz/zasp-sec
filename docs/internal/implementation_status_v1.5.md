@@ -16934,3 +16934,28 @@ admission, real Stytch/provider/Temporal/OpenFGA/browser flows, applicable hoste
 and release guards and equivalent obsolete retirement remain required. No launch
 clearance, task closure or availability promotion is claimed. Evidence:
 `cloud-agent-device-association-checkpoint-2026-10-17.json`.
+
+
+## Existing Device credential association source, October 17, 2026
+
+The standalone runtime credential path now uses a fresh signed current-Authority
+GET before the existing signed acceptance POST. Credential files remain read-only;
+separate guarded state retains public identity history and immutable per-challenge
+intent and receipts. No enrollment history is invented. The original custody path,
+Stytch human activation, server permissions and default-off profile remain intact.
+
+Actual local race regressions pass220 CLI,6 association-wire and22 custody named
+results. The exact new CI Python body passes all18 required results across three
+packages/two modules; these overlap the full regressions. All890 source bindings
+match and21 custody guards pass. Original failures, a stale new-test clock fixture,
+one parser review finding and their corrections are preserved. UI source remains
+unchanged from the verified3c27 build/typecheck/lint; no new UI run is claimed.
+
+This is local component acceptance only. API/native/deployed launch gates remain
+open, including real Stytch/provider/Temporal/OpenFGA/browser verification. Shared
+gateway tokens and caller Agent headers do not establish actual Agent origin;
+authentic workload routing and coverage composition remain required. All728 ledger
+rows/owners and219 remaining inventory records are byte unchanged:509 recorded
+production-available,158 component-only,61 blocked/external. No task closure,
+availability promotion or obsolete retirement is claimed. See
+`cloud-legacy-device-association-checkpoint-2026-10-17.json` and the operator guide.

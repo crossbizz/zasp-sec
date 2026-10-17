@@ -1,0 +1,40 @@
+{
+  "status": "CLEAR_FINITE_ADDITIVE_DESIGN_SOURCE_ONLY",
+  "reviewer": "/root/gateway_review",
+  "created_at": "2026-10-17T21:10:52.942866+00:00",
+  "design": {
+    "path": "/tmp/legacy-device-association-evidence-20261017/design-candidate.json",
+    "sha256": "ed72b90e93a38f98d63f66c2a492a40172d3f61f505318a6094ee8733d4afb0c"
+  },
+  "research": {
+    "path": "/tmp/legacy-device-association-adapter-research-20261017.json",
+    "sha256": "3257c30e3a7a4f166c01698959ef11cf8de80a74ac4cc27f0ac974f774f7c9ca",
+    "source_pins": 11,
+    "hash_mismatches": []
+  },
+  "findings": [],
+  "reviewed_clear": [
+    "Existing real credential3 format has no enrollment lineage, scope, Device, generation or expiry. Separate LegacyDeviceStore/LegacyAssociation correctly avoid fabricated Store, enrollment Request, bundle, token metadata or receipts. Strict canonical credential decoding and seed/public-half consistency strengthen this adapter without rewriting original runtime loader.",
+    "Reviewed publication helpers are package-level functions and already accessible to separate opaque types inside gatewayenrollmentcustody; no publication implementation copy/refactor or duplicate durability primitive is needed. Existing enrollment/recovery/association behavior can remain unchanged.",
+    "New pure stdlib fixed Authority GET signer can reproduce original exact signature tuple using authentic credentialID/keyID/publickey and opaque signer, without importing OPA-linked gatewaycontrol or fake enrollment request. Existing exact13 parser remains unchanged.",
+    "Actual CLI Authority GET matches local credential/key/public facts and original challenge scope/Device before binding generation/expiry from server. Current signed POST native revalidation remains authoritative; Authority is TLS-authenticated and not independently server signed. No new grant/profile/API/activation/export or observed workload claim.",
+    "Separate writable state common guard precedes state disk I/O; readonly source descriptor and path/metadata/bytes are revalidated on each use without source lock writes/chmod/chown/move. State/source/lock/stage/artifact collisions refuse. Close joins signing/state access then clears private memory.",
+    "First actual Authority observation is public immutable history; retries compare stable identity binding, endpoint and credential generation/expiry while allowing mutable DeviceVersion/ReplayFloor changes. Saved history never skips fresh GET or POST and is not an enrollment or current administrative admission proof.",
+    "Per-state private0700 namespace and immutable perchallenge intent/receipt reuse root-relative exclusive publish/fsync/readback, retain partial/orphan evidence, refuse orphan namespace adoption, and coexist across Agent challenges. No global scan or registry is required.",
+    "Existing export parent walk can add static prefix denial on every ancestor, preserving pinned own namespace inode checks for both ordinary and recovery exports. This provides the stated cooperating-process boundary, not malicious sameUID/privileged mount isolation.",
+    "Mutually exclusive complete legacy flags preserve old custody command. One shared request context and explicit CA/no redirect/no proxy TLS client cover Authority GET plus POST; durable intent precedes mutating POST. After receipt fsync, fresh context/clock/binding checks precede existing six-key pending-human report."
+  ],
+  "finite_implementation_acceptance": [
+    "Use exact existing Association method signatures/types for LegacyAssociation; no new secret-bearing getters. Make store/handle lock order and monotone closed/one-Begin flags explicit; failed attempts cannot reset capability lifetime or revive a closed handle.",
+    "Treat Begin(CurrentAuthority,now) as a locally validated DTO constructor, not proof of live transport. Actual current HTTP provenance and <=30second overall deadline must be enforced by CLI: fresh GET each invocation, completed-response clock checks, then POST even if immutable historical receipt exists. Generic signer callbacks do not defend against malicious in-process callers, consistent with existing APIs.",
+    "Define first Authority history as validated canonical DTO serialization (existing MarshalCurrentAuthority) and observation time, or explicitly distinguish raw HTTP bytes if chosen. Never claim a canonical reserialization is the original HTTP body. Preserve original raw accept body/hash exactly.",
+    "Create/validate durable descriptor before namespace acceptance; reject empty protected namespace without valid descriptor. On any new or reopened namespace, fsync child plus original parent and recheck guard/inode before successful Begin/network POST, retaining the prior durability correction.",
+    "Apply unconditional lexical denial for both .zasp-gateway-associations- and .zasp-gateway-device-associations- ancestor components in existing export walk; retain current ownnamespace inode alias checks. Reject unsafe nested state/artifact placement and sameinode source/state collisions without claiming unknown mount alias protection.",
+    "Root must establish grouped behavioral RED on actual scaffolds, then source freezes/independent implementation review and meaningful existing CLI/custody regression. Source findings and late controls are not retroactively labeled executed RED."
+  ],
+  "verification_limits": [
+    "Independent source/design review only; no product code edited and no Go/Node/test/native/Git/network execution.",
+    "Concrete implementation is not yet reviewed or compiled. Local fixture TLS checks cannot establish native authorization/RLS/concurrency or deployed real Stytch/provider/Temporal/OpenFGA/browser acceptance.",
+    "All original728 rows and509/158/61 classifications,219 recorded remaining records, legacy behavior and prior archives remain unchanged. No task closure, equivalent obsolete retirement, coverage or launch claim."
+  ]
+}

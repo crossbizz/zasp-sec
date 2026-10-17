@@ -46,6 +46,10 @@ func (s *Store) pinExportParent(path string) (*os.Root, string, error) {
 		return root, name, nil
 	}
 	for _, part := range strings.Split(relative, string(filepath.Separator)) {
+		if strings.HasPrefix(part, ".zasp-gateway-device-associations-") || strings.HasPrefix(part, ".zasp-gateway-associations-") {
+			root.Close()
+			return nil, "", ErrUnavailable
+		}
 		before, e := root.Lstat(part)
 		if e != nil || !before.IsDir() || before.Mode()&os.ModeSymlink != 0 {
 			root.Close()

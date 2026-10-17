@@ -29,13 +29,15 @@ const gatewayEnrollmentDefaultTTL = 24 * time.Hour
 const gatewayEnrollmentDefaultTimeout = 10 * time.Second
 
 type gatewayCommandOptions struct {
-	action           string
-	endpoint         string
-	caFile           string
-	custodyFile      string
-	credentialOutput string
-	credentialTTL    time.Duration
-	timeout          time.Duration
+	action               string
+	endpoint             string
+	caFile               string
+	custodyFile          string
+	credentialFile       string
+	associationStateFile string
+	credentialOutput     string
+	credentialTTL        time.Duration
+	timeout              time.Duration
 }
 type gatewayCommandReport struct {
 	State        string `json:"state"`
@@ -64,6 +66,9 @@ func parseGatewayCommand(arguments []string) (gatewayCommandOptions, error) {
 	case "accept-agent":
 		allowed["--ca-bundle-file"] = true
 		allowed["--timeout"] = true
+		allowed["--credential-file"] = true
+		allowed["--endpoint"] = true
+		allowed["--association-state-file"] = true
 	case "recover":
 		for _, k := range []string{"--ca-bundle-file", "--timeout", "--credential-output"} {
 			allowed[k] = true
@@ -81,7 +86,12 @@ func parseGatewayCommand(arguments []string) (gatewayCommandOptions, error) {
 		values[arguments[i]] = arguments[i+1]
 	}
 	q.endpoint, q.caFile, q.custodyFile, q.credentialOutput = values["--endpoint"], values["--ca-bundle-file"], values["--custody-file"], values["--credential-output"]
-	if !gatewayCommandAbsolutePath(q.custodyFile) {
+	q.credentialFile, q.associationStateFile = values["--credential-file"], values["--association-state-file"]
+	if q.action == "accept-agent" && (q.credentialFile != "" || q.associationStateFile != "" || q.endpoint != "") {
+		if q.custodyFile != "" || !gatewayCommandAbsolutePath(q.credentialFile) || !gatewayCommandAbsolutePath(q.associationStateFile) || q.credentialFile == q.associationStateFile || !gatewayCommandEndpoint(q.endpoint) {
+			return gatewayCommandOptions{}, errInvalidArguments
+		}
+	} else if !gatewayCommandAbsolutePath(q.custodyFile) {
 		return gatewayCommandOptions{}, errInvalidArguments
 	}
 	if q.action == "export" && !gatewayCommandAbsolutePath(q.credentialOutput) {

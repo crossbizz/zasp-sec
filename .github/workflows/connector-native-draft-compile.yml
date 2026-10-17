@@ -54,7 +54,7 @@ jobs:
           import hashlib, json
           from pathlib import Path
           source = json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())
-          assert len(source['sources']) == 882
+          assert len(source['sources']) == 890
           for item in source['sources']:
               raw = Path(item['path']).read_bytes()
               assert len(raw) == item['bytes']
@@ -96,7 +96,7 @@ jobs:
           assert len(groups) == 6 and sum(len(tops) for tops in groups.values()) == 10 and len(expected) == 86
           def check_sources():
               source = json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())
-              assert len(source['sources']) == 882
+              assert len(source['sources']) == 890
               for item in source['sources']:
                   raw = Path(item['path']).read_bytes()
                   assert len(raw) == item['bytes'] and hashlib.sha256(raw).hexdigest() == item['sha256'], item['path']
@@ -1809,6 +1809,142 @@ jobs:
             agent-device-association-components.jsonl
             agent-device-association-components.stderr
             agent-device-association-component-executions.json
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Confirm checks did not alter tracked source
+        if: always()
+        run: git diff --exit-code
+
+  legacy-device-association-components:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      GOTOOLCHAIN: local
+      GOWORK: 'off'
+      GOFLAGS: '-mod=readonly'
+      GOMAXPROCS: '2'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version: 1.26.8
+          cache: false
+      - name: Require all 18 exact existing-credential association component results
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 0027
+          test "$(go version)" = 'go version go1.26.8 linux/amd64'
+          python3 - <<'PYLEGACYDEVICEASSOCIATION'
+          import json, re, subprocess, sys
+          from pathlib import Path
+          sys.path.insert(0, str(Path('scripts').resolve()))
+          from validate_agent_read_components import check_sources, load_events, validate_events
+          # Exact heads: a broad TestLegacy selector also selects an unrelated old CLI test.
+          # Component success does not substitute for original native or deployed acceptance.
+          expected = {'github.com/zasp-ai/zasp-sec/services/platform/gatewayassociationwire': ['TestLegacyCurrentDeviceAuthorityExistingRequestABI',
+                                                                                    'TestLegacyCurrentDeviceAuthorityRejectsAliasAndBody',
+                                                                                    'TestLegacyCurrentDeviceAuthorityRetainedKeyProofRefusals'],
+           'github.com/zasp-ai/zasp-sec/services/platform/gatewayenrollmentcustody': ['TestLegacyDeviceAssociationReadonlyCurrentAuthority',
+                                                                                      'TestLegacyDeviceAssociationReadonlyCurrentAuthority/actual_three_fields_and_durable_intent',
+                                                                                      'TestLegacyDeviceAssociationReadonlyCurrentAuthority/no_offline_or_repeat_capability',
+                                                                                      'TestLegacyDeviceAssociationReadonlyCurrentAuthority/source_swap_invalidates_signing',
+                                                                                      'TestLegacyDeviceAssociationDurableRecovery',
+                                                                                      'TestLegacyDeviceAssociationDurableRecovery/exact_restart_and_immutable_receipt',
+                                                                                      'TestLegacyDeviceAssociationDurableRecovery/partial_intent_stage_refused',
+                                                                                      'TestLegacyDeviceAssociationDurableRecovery/orphan_namespace_refused',
+                                                                                      'TestLegacyDeviceAssociationSourceAndNamespaceBoundaries',
+                                                                                      'TestLegacyDeviceAssociationSourceAndNamespaceBoundaries/guard_and_key_consistency',
+                                                                                      'TestLegacyDeviceAssociationSourceAndNamespaceBoundaries/binding_rotation_refused',
+                                                                                      'TestLegacyDeviceAssociationSourceAndNamespaceBoundaries/cross_store_export_ancestors'],
+           'github.com/zasp-ai/zasp-sec/cmd/agentsecctl': ['TestGatewayLegacyAgentAssociationCommandConnectedCurrentAuthority',
+                                                           'TestGatewayLegacyAgentAssociationCommandUnknownRetryRequiresFreshAuthority',
+                                                           'TestGatewayLegacyAgentAssociationCommandRefusesTrustAndAuthorityFailures']}
+          required = frozenset(['.github/workflows/connector-native-draft-compile.yml',
+           'cmd/agentsecctl/gateway_agent_association.go',
+           'cmd/agentsecctl/gateway_agent_association_test.go',
+           'cmd/agentsecctl/gateway_authority_recovery.go',
+           'cmd/agentsecctl/gateway_authority_recovery_test.go',
+           'cmd/agentsecctl/gateway_enrollment.go',
+           'cmd/agentsecctl/gateway_enrollment_test.go',
+           'cmd/agentsecctl/gateway_legacy_agent_association.go',
+           'cmd/agentsecctl/gateway_legacy_agent_association_test.go',
+           'cmd/agentsecctl/go.mod',
+           'cmd/agentsecctl/go.sum',
+           'cmd/agentsecctl/main.go',
+           'cmd/agentsecctl/release.go',
+           'scripts/validate_agent_read_components.py',
+           'scripts/validate_agent_read_components_test.py',
+           'services/platform/gatewayassociationwire/current_device_authority.go',
+           'services/platform/gatewayassociationwire/current_device_authority_test.go',
+           'services/platform/gatewayassociationwire/testdata/known-answer.json',
+           'services/platform/gatewayassociationwire/wire.go',
+           'services/platform/gatewayassociationwire/wire_test.go',
+           'services/platform/gatewaycontrol/client.go',
+           'services/platform/gatewaycontrol/contract.go',
+           'services/platform/gatewaycontrol/http.go',
+           'services/platform/gatewaycontrol/postgres.go',
+           'services/platform/gatewayenrollmentcustody/association.go',
+           'services/platform/gatewayenrollmentcustody/association_directory_linux.go',
+           'services/platform/gatewayenrollmentcustody/association_directory_other.go',
+           'services/platform/gatewayenrollmentcustody/association_export_parent.go',
+           'services/platform/gatewayenrollmentcustody/association_test.go',
+           'services/platform/gatewayenrollmentcustody/custody.go',
+           'services/platform/gatewayenrollmentcustody/custody_test.go',
+           'services/platform/gatewayenrollmentcustody/files_linux.go',
+           'services/platform/gatewayenrollmentcustody/files_other.go',
+           'services/platform/gatewayenrollmentcustody/legacy_association.go',
+           'services/platform/gatewayenrollmentcustody/legacy_association_linux.go',
+           'services/platform/gatewayenrollmentcustody/legacy_association_other.go',
+           'services/platform/gatewayenrollmentcustody/legacy_association_test.go',
+           'services/platform/gatewayenrollmentcustody/publication.go',
+           'services/platform/gatewayenrollmentcustody/recovery.go',
+           'services/platform/gatewayenrollmentcustody/recovery_test.go',
+           'services/platform/gatewayenrollmentwire/authority.go',
+           'services/platform/gatewayenrollmentwire/authority_test.go',
+           'services/platform/gatewayenrollmentwire/wire.go',
+           'services/platform/gatewayenrollmentwire/wire_test.go',
+           'services/platform/go.mod',
+           'services/platform/go.sum',
+           'services/platform/internal/cacheownership/ownership.go',
+           'services/platform/internal/cacheownership/ownership_linux.go',
+           'services/platform/internal/cacheownership/ownership_other.go',
+           'services/platform/internal/cacheownership/ownership_test.go',
+           'services/platform/migrations/sql/0015_runtime_data_plane.up.sql',
+           'services/platform/migrations/sql/0080_authorization_worker_gateway_writers.sql',
+           'services/runtime-gateway/production.go'])
+          assert len(expected) == 3 and sum(map(len, expected.values())) == 18
+          assert all(len(names) == len(set(names)) and all('Postgres' not in n for n in names) for names in expected.values())
+          print(json.dumps(check_sources(Path.cwd(), '.github/connector-native-compile-source-pins.json', required), sort_keys=True))
+          modules = {'cmd/agentsecctl': ['.'],
+           'services/platform': ['./gatewayassociationwire', './gatewayenrollmentcustody']}
+          status = 0
+          executions = []
+          with Path('legacy-device-association-components.jsonl').open('wb') as out, Path('legacy-device-association-components.stderr').open('wb') as err:
+              for module, packages in modules.items():
+                  prefix = 'github.com/zasp-ai/zasp-sec/' + module
+                  heads = [name for package, names in expected.items() if package == prefix or package.startswith(prefix + '/') for name in names if '/' not in name]
+                  assert heads
+                  command = ['go','test','-C',module,'-race','-p=1','-count=1','-timeout=3m','-json','-run','^('+'|'.join(map(re.escape, heads))+')$',*packages]
+                  result = subprocess.run(command, stdout=out, stderr=err, timeout=900, check=False)
+                  executions.append({'module':module,'command':command,'exit_code':result.returncode,'classification':'component-behavior'})
+                  if result.returncode != 0 and status == 0:
+                      status = result.returncode
+          Path('legacy-device-association-component-executions.json').write_text(json.dumps(executions, indent=2)+'\n')
+          assert len(executions) == 2
+          print(json.dumps(validate_events(load_events('legacy-device-association-components.jsonl'), status, expected), sort_keys=True))
+          PYLEGACYDEVICEASSOCIATION
+      - name: Preserve component evidence without native or deployed promotion
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: legacy-device-association-component-evidence
+          path: |
+            legacy-device-association-components.jsonl
+            legacy-device-association-components.stderr
+            legacy-device-association-component-executions.json
           if-no-files-found: warn
           retention-days: 14
       - name: Confirm checks did not alter tracked source

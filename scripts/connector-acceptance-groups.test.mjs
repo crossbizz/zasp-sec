@@ -994,7 +994,15 @@ test('retention connected sources retain the complete declared application closu
   "services/platform/migrations/production_agent_device_association_profile.go",
   "services/platform/migrations/production_agent_device_association_profile_test.go",
   "services/platform/migrations/sql/0080_authorization_worker_gateway_writers.sql",
-  "services/platform/migrations/sql/agent_device_association_profile.sql"
+  "services/platform/migrations/sql/agent_device_association_profile.sql",
+  "cmd/agentsecctl/gateway_legacy_agent_association.go",
+  "cmd/agentsecctl/gateway_legacy_agent_association_test.go",
+  "services/platform/gatewayassociationwire/current_device_authority.go",
+  "services/platform/gatewayassociationwire/current_device_authority_test.go",
+  "services/platform/gatewayenrollmentcustody/legacy_association.go",
+  "services/platform/gatewayenrollmentcustody/legacy_association_linux.go",
+  "services/platform/gatewayenrollmentcustody/legacy_association_other.go",
+  "services/platform/gatewayenrollmentcustody/legacy_association_test.go"
 ];
   const compiled = JSON.parse(relative('.github/connector-native-compile-source-pins.json'));
   const compilePins = new Map(compiled.sources.map(item => [item.path, item]));
