@@ -951,7 +951,13 @@ test('retention connected sources retain the complete declared application closu
   "services/platform/migrations/sql/gateway_bootstrap_profile.sql",
   "package-lock.json",
   "package.json",
-  "services/platform/migrations/sql/0015_runtime_data_plane.up.sql"
+  "services/platform/migrations/sql/0015_runtime_data_plane.up.sql",
+  "cmd/agentsecctl/gateway_authority_recovery.go",
+  "cmd/agentsecctl/gateway_authority_recovery_test.go",
+  "services/platform/gatewayenrollmentcustody/recovery.go",
+  "services/platform/gatewayenrollmentcustody/recovery_test.go",
+  "services/platform/gatewayenrollmentwire/authority.go",
+  "services/platform/gatewayenrollmentwire/authority_test.go"
 ];
   const compiled = JSON.parse(relative('.github/connector-native-compile-source-pins.json'));
   const compilePins = new Map(compiled.sources.map(item => [item.path, item]));

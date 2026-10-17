@@ -1,0 +1,200 @@
+{
+  "classification": "DRAFT_SOURCE_RESEARCH_AND_PROPOSED_CONTRACT_ONLY_REQUIRES_ROOT_AND_INDEPENDENT_REVIEW",
+  "created_at": "2026-10-17T20:03:08.483926+00:00",
+  "goal": "Recover operational use of an already committed current Device credential after an ambiguous enrollment response and original token expiry, using the exact retained private key. Never fabricate the original enrollment receipt or resurrect a token.",
+  "source_pins": [
+    {
+      "path": "services/platform/gatewaycontrol/contract.go",
+      "bytes": 7008,
+      "sha256": "7811c187c21a1290ace9dd99cadf55afe708e72db51e36e9ee0b04e3dc70e67a"
+    },
+    {
+      "path": "services/platform/gatewaycontrol/http.go",
+      "bytes": 14406,
+      "sha256": "7e398a58006662cb15f64073bc894c75f9229a6057e71c681b7a122ba8ef11a1"
+    },
+    {
+      "path": "services/platform/gatewaycontrol/client.go",
+      "bytes": 9519,
+      "sha256": "ef0680440857f7847e29f37f822b6494791e82e3fcaee0edd6835c1aaf3daf6b"
+    },
+    {
+      "path": "services/platform/gatewaycontrol/postgres.go",
+      "bytes": 11605,
+      "sha256": "72d569fc199d85e196d990885e6e7b86e2423fe5a580df4b6ca60635b81e279f"
+    },
+    {
+      "path": "services/platform/migrations/sql/0015_runtime_data_plane.up.sql",
+      "bytes": 204144,
+      "sha256": "11c0b05a0a264ba9654c9646b18633c45469f495fa819b28b89e207aefc5ce9a"
+    },
+    {
+      "path": "services/platform/migrations/sql/0080_authorization_worker_gateway_writers.sql",
+      "bytes": 17859,
+      "sha256": "5ce0934637fddd422c5c01f3d8e7e44737ac106cd013fc97649955e710228901"
+    },
+    {
+      "path": "services/platform/gatewayenrollmentwire/wire.go",
+      "bytes": 16534,
+      "sha256": "66ce78613f09003541c3273101b7700453f6b9d3c6722a55d3ded899690a7af7"
+    },
+    {
+      "path": "services/platform/gatewayenrollmentcustody/custody.go",
+      "bytes": 13905,
+      "sha256": "c0afd14339f321b08ca4129fe22f7c2c44b497158fd8be1c43a68234649e1457"
+    },
+    {
+      "path": "services/platform/gatewayenrollmentcustody/publication.go",
+      "bytes": 6797,
+      "sha256": "1c3884caa4a68cc3a8dcecd1309437238c6406a7c14205ff71d45331231d54ac"
+    },
+    {
+      "path": "services/platform/internal/cacheownership/ownership.go",
+      "bytes": 1976,
+      "sha256": "b6a9d31b04ed8a523f56583afba6acda0b6f133445fed0cbefc84d0f71c1f27a"
+    },
+    {
+      "path": "cmd/agentsecctl/gateway_enrollment.go",
+      "bytes": 11166,
+      "sha256": "5170f163e8b44c8c6811626906550868fb4732d132545391f43fc5f0f3954c7e"
+    }
+  ],
+  "source_facts": [
+    {
+      "anchor": {
+        "path": "services/platform/gatewaycontrol/contract.go",
+        "line": 22,
+        "text": "AuthorityPath"
+      },
+      "fact": "Existing fixed GET /internal/v1/runtime-gateway/authority already returns the current native Device credential authority; no enrollment bearer or new route is needed."
+    },
+    {
+      "anchor": {
+        "path": "services/platform/gatewaycontrol/http.go",
+        "line": 25,
+        "text": "requestSignaturePrefix"
+      },
+      "fact": "Original device Authorization prefix is exactly ZaspGatewayV1 followed by credential ID. Existing request signing context is zasp-runtime-gateway-request-v1; method/host/path/query/credentialID/wholeUTCtimestamp/bodySHA256 are signed with the current retained Ed25519 key."
+    },
+    {
+      "anchor": {
+        "path": "services/platform/gatewaycontrol/http.go",
+        "line": 51,
+        "text": "type authorityPayload struct"
+      },
+      "fact": "Original authority response has exactly13 fields: scope3, DeviceID, DeviceVersion,ReplayFloor,CredentialID,CredentialGeneration,KeyID,Algorithm,PublicKey,Audience,ExpiresAt. It has NO enrollment ID, token generation, original enrollment request digest or issued_at."
+    },
+    {
+      "anchor": {
+        "path": "services/platform/gatewaycontrol/http.go",
+        "line": 169,
+        "text": "func (handler *httpHandler) authenticate"
+      },
+      "fact": "Original handler authenticates every request using current repository authority, checks submitted signature against its current public key, and serves native authority only on exact empty-body GET/noquery. Read does not consume decision floor or alter enrollment."
+    },
+    {
+      "anchor": {
+        "path": "services/platform/gatewaycontrol/client.go",
+        "line": 86,
+        "text": "func (client *HTTPClient) Authority"
+      },
+      "fact": "Existing concrete client validates current response scope/Device/credential/key identity and retained private-key public half, and checks expiry using its clock after reading the response. It directly imports policy/OPA, so the pure CLI must not import this package merely to recover credentials."
+    },
+    {
+      "anchor": {
+        "path": "services/platform/migrations/sql/0015_runtime_data_plane.up.sql",
+        "line": 485,
+        "text": "CREATE FUNCTION public.zasp_runtime_gateway_credential_authority"
+      },
+      "fact": "Native source requires original registered gateway-control caller, format1 current credential, correct audience, unrevoked/unexpired credential, active Device and no higher generation. Its authority lookup is independent of the expired enrollment token."
+    },
+    {
+      "anchor": {
+        "path": "services/platform/gatewayenrollmentcustody/custody.go",
+        "line": 34,
+        "text": "type Snapshot struct"
+      },
+      "fact": "Custody currently exposes exact original Request/RequestRaw and local absent/pending/accepted state, but not its pinned original endpoint. A new readonly recovery accessor is needed; CLI must not parse private custody bytes or request a key getter."
+    },
+    {
+      "anchor": {
+        "path": "services/platform/gatewayenrollmentcustody/custody.go",
+        "line": 219,
+        "text": "func (s *Store) Sign"
+      },
+      "fact": "Existing custody can sign with the exact retained key without exporting it. Open/validLocked recheck canonical private/public/request binding, current guard and disk equality."
+    },
+    {
+      "anchor": {
+        "path": "services/platform/gatewayenrollmentcustody/custody.go",
+        "line": 256,
+        "text": "func (s *Store) ExportCredential"
+      },
+      "fact": "Current ExportCredential explicitly requires a real bound enrollment receipt. That API must retain this contract; a separate explicit current-authority recovery/export API is needed."
+    }
+  ],
+  "critical_semantic_distinction": {
+    "proof": "This is a signed DEVICE REQUEST and a TLS-authenticated current-authority RESPONSE. The server response is not an independently signed attestation. Do not call the stored JSON a cryptographically signed server receipt.",
+    "what_is_proven": "At the bounded live observation, the original retained key can authenticate the exact intended scope/Device/credential/generation/key/public-key/expiry tuple as a current native credential.",
+    "what_stays_unknown": "Whether the original enrollment transaction committed first, exact original enrollment ID/token generation/issued_at/enrollment request digest and whether its original response was lost. The Authority API does not expose those fields, so they must not be inferred or inserted into an enrollment receipt.",
+    "not_proven": "Current routing, installation, Agent association/coverage, full enforcement, perpetual credential validity or deployed/native acceptance."
+  },
+  "minimal_connected_batch": {
+    "scope": "Explicit CLI live authority recovery + stdlib wire/custody extension only. Reuse existing server native Authority GET and original credential authentication. No new server SQL function/profile/grant/role, Device FGA kind, provider credential, replay-floor mutation, enrollment mutation or automatic retry/rekey.",
+    "command": "agentsecctl gateway recover --custody-file ABS --ca-bundle-file ABS --credential-output ABS [--timeout 10s]",
+    "inputs": "No token stdin, locator, secret, key or credential ID flags. Original endpoint and immutable request identity come from held verified custody. Explicit CA remains normal verified HTTPS/direct dial/no redirect; literal IP origin works only with actual certificate IP SAN. Timeout retains existing1..30s canonical-duration grammar.",
+    "state_precondition": "Require complete valid original pending custody and still-future requested credential expiry. Missing/unsafe/partial/orphan custody is unresolved, never mint a key. Original enrollment token expiry is permitted because the existing credential authenticates this read. Existing accepted enrollment receipt remains a separate receipt-backed export path; recover must not silently label it current-authority recovery without a live call.",
+    "steps": [
+      "Open original custody under original pinned parent/common ownership guard, obtain new readonly RecoverySource endpoint + exact original Request/RequestRaw; no private-key getter and no Prepare or token parsing.",
+      "Construct exact empty-body GET original endpoint + AuthorityPath, no query/redirect/alternate route. Set Authorization ZaspGatewayV1 original credentialID and original request context headers, using retained Store.Sign and canonical SHA256(empty bytes); fresh actual wholeUTC send time.",
+      "Use concrete existing CLI verified-TLS/direct-dial transport. Require HTTP200/application-json/no-store, single exact relevant headers, <=4096 bounded strict UTF8/UTF16 JSON13field authority, canonical v4/nonzero IDs, bounded integer generations/deviceVersion/floor and canonical wholeUTC expiry.",
+      "Match exact original scope3/DeviceID/CredentialID/CredentialGeneration/KeyID/Ed25519/PublicKey/runtime-gateway audience and ExpiresAt. DeviceVersion must be positive and ReplayFloor nonnegative but are current mutable facts, not enrollment constraints. Recheck actual local clock after complete body/context and before export; expiry must still be future. Do not change or consume replay floor.",
+      "Persist a separately named current-authority observation artifact under the same deterministic immutable publication primitive, bound locally to the exact original raw request digest and endpoint. This is not an enrollment receipt; do not call Accept(receipt), invent enrollment fields or set original StateAccepted.",
+      "Only after live response matching and durable distinct observation, explicitly export identical existing runtime-compatible credential material via a new recovery-specific custody method. Hold custody guard through export and preserve no-overwrite/alias rules. Emit nonsecret report naming current_authority as credential source and original_enrollment_outcome unknown.",
+      "Any TLS/auth/revocation/rotation/expiry/size/strictDTO/signature/publication/export/context failure retains original key/request and returns current_authority_unavailable or unresolved; never infer never-committed, resubmit expired enrollment, remint/rekey or reveal secrets."
+    ],
+    "pure_shared_wire_candidate": {
+      "package": "Existing stdlib-only gatewayenrollmentwire (or separately reviewed stdlib gatewayauthoritywire); no gatewaycontrol/policy/OPA import from CLI.",
+      "new_types_functions": "Strict CurrentAuthority DTO exact original13fields; Parse/MarshalCurrentAuthority; AuthorityMatchesRequest; SignAuthorityRequest fixedGET using callback Store.Sign and exact original device request context. No general target/URL/scope-signing override. Existing enrollment SignRequest keeps its POST/enrollment bearer contract unchanged."
+    },
+    "custody_candidate": {
+      "readonly_accessor": "RecoverySource() returns original stored endpoint + exact request/raw owned copy, never private material or token. Existing Snapshot/Prepare semantics remain intact.",
+      "artifact": "Deterministic sibling .zasp-gateway-enrollment-<SHA256(custody_basename)>.authority, with its own same-primitive stage; reserve artifact/stage/lock names and same-inode aliases against every export. Reject authority or stage orphan without original bundle; preserve malformed/partial state.",
+      "observation_schema": "gateway-current-authority-observation-v1: local_enrollment_request_sha256, endpoint, request_sent_at, response_observed_at, authority_response_sha256, authority exact13DTO. The request hash is explicitly a LOCAL provenance link, not a value confirmed by the server. No original enrollment receipt fields are invented.",
+      "publication": "Reuse exact completed stage/fsync/exclusiveLink/fsync/remove-sameinode-stage/fsync/readback primitive under the same custody guard; no overwrite/rename/parentpermission changes.",
+      "repeat_semantics": "Retain first durable bound authority observation unchanged. Later recover commands must perform a NEW live native authority GET before exporting again; mutable DeviceVersion/ReplayFloor/new local timestamps need not match historical observation. Preserve first evidence honestly as historical, never label it latest/current forever. If a new observation history is required, choose a separately bounded append/slot contract before implementation rather than overwriting immutable evidence.",
+      "export_api": "Keep ExportCredential strictly receipt-backed. Add an explicit recovery-only export accepting fresh matched authority evidence and bounded local observation time; it must internally recheck original custody/guard/request binding/expiry and alias/nooverwrite publication. API/capability exact type and freshness admission require design review before code.",
+      "local_status": "Original enrollment remains pending/unknown if no enrollment receipt. Optionally expose a distinct historical_authority_observation marker/time. No offline status or saved artifact alone authorizes a fresh export or claims current credential health."
+    },
+    "report_candidate": {
+      "schema": "gateway-authority-recovery-report-v1",
+      "state": "credential_exported_from_current_authority OR unresolved",
+      "original_enrollment_outcome": "unknown unless an actual enrollment receipt already exists; no synthesized confirmed value",
+      "credential_source": "current_authority",
+      "authority_observed_at": "actual local post-response observation time; not server-recorded/first-enrollment time",
+      "secret_policy": "No raw response/request, private/public key, locator/secret, token digest, endpoint error reflection or credential file contents in stdout/stderr. Stable public Device/credential IDs are sufficient."
+    }
+  },
+  "revocation_and_recovery_limits": [
+    "Every recovery/export must obtain a fresh authority response; a previous artifact cannot bypass later current Device/credential revocation, expiry or generation replacement.",
+    "A 401/403/404/503 cannot distinguish never enrolled from revoked/expired/rotated/unavailable. Preserve UNKNOWN, never fabricate a rollback or new identity.",
+    "Authority is a point-in-time source observation. Concurrent revocation after the native read/export can still occur; actual runtime reauth continues unchanged. No perpetual current/enforced status claim.",
+    "If original credential has expired or been replaced, this lane intentionally cannot recover it. Explicit human-authorized Device/credential lifecycle actions remain a separate real prerequisite; current bootstrap token revoke does not revoke credentials."
+  ],
+  "grouped_acceptance_plan": [
+    "Actual CLI pending custody with lost enrollment response and expired token -> real signed fixed Authority TLS call -> strict currenttuple match -> distinct durable observation -> exact runtime credential export; original receipt absent and original outcome remainsunknown.",
+    "Same retained key/body/id/expiry across restart and repeat recovery; new live checks required despite saved observation; revoked/rotated/wrongscope/wrongkey/expiry/currentclock/context and malformed/cacheable/oversized response refuse without mutation/rekey/export.",
+    "Artifact orphan/partial/link/fsync/alias/nooverwrite and failed output handling; old receipt-backed enroll/status/export behavior remains intact. No profile per phase or Temporal/OpenFGA internal tests. Source/component fixtures do not establish native/deployed acceptance."
+  ],
+  "open_decisions_before_implementation": [
+    "Select precise recovery DTO, command/report and custody API; enforce that local proof timing/callback is not presented as server attestation.",
+    "Choose and freeze live-evidence freshness/export admission, including whether opaque in-process capability is needed rather than caller-supplied JSON/time.",
+    "Confirm first immutable observation preservation versus separately bounded additional observation history; never overwrite old evidence to refresh a timestamp.",
+    "Decide existing accepted-receipt behavior on explicit recover command without claiming a current check that did not happen.",
+    "Verify exact server Authority expiry/revocation behavior with original guarded native application flow when admission permits; do not change parent SQL solely for component fixtures."
+  ],
+  "limits": [
+    "Read-only source/Python/cat/rg research only. This /tmp draft JSON is the only file authored for this task; no product/docs source edits.",
+    "No Go/Node/tests/build/Git/network/native services/execution or deployment. No new authorization, feature activation, task completion or production availability claim."
+  ]
+}

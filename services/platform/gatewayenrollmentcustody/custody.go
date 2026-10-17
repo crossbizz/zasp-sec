@@ -97,7 +97,7 @@ func Open(path string) (*Store, error) {
 		return fail()
 	}
 	if !present {
-		for _, artifact := range []string{s.receiptName, publicationStage(s.receiptName)} {
+		for _, artifact := range []string{s.receiptName, publicationStage(s.receiptName), s.authorityName(), publicationStage(s.authorityName())} {
 			if _, e := root.Lstat(artifact); !errors.Is(e, os.ErrNotExist) {
 				return fail()
 			}
@@ -127,6 +127,9 @@ func Open(path string) (*Store, error) {
 			return fail()
 		}
 		s.receipt = &receipt
+	}
+	if s.recoverAuthorityHistory() != nil {
+		return fail()
 	}
 	return s, nil
 }
@@ -262,6 +265,13 @@ func (s *Store) ExportCredential(path string) error {
 	if !s.validLocked() || s.bundle == nil || s.receipt == nil {
 		return ErrUnavailable
 	}
+	return s.exportCredentialLocked(path)
+}
+
+func (s *Store) exportCredentialLocked(path string) error {
+	if !s.validLocked() || s.bundle == nil {
+		return ErrUnavailable
+	}
 	root, name, e := pinParent(path)
 	if e != nil {
 		return ErrUnavailable
@@ -273,7 +283,7 @@ func (s *Store) ExportCredential(path string) error {
 		return ErrUnavailable
 	}
 	if os.SameFile(parent, sourceParent) {
-		for _, reserved := range []string{s.name, s.receiptName, publicationStage(s.name), publicationStage(s.receiptName), ".zasp-cache-ownership-" + wire.Digest([]byte(s.name)) + ".lock"} {
+		for _, reserved := range []string{s.name, s.receiptName, s.authorityName(), publicationStage(s.name), publicationStage(s.receiptName), publicationStage(s.authorityName()), ".zasp-cache-ownership-" + wire.Digest([]byte(s.name)) + ".lock"} {
 			if name == reserved || publicationStage(name) == reserved {
 				return ErrUnavailable
 			}
@@ -287,7 +297,7 @@ func (s *Store) ExportCredential(path string) error {
 	for _, candidate := range []string{name, publicationStage(name)} {
 		info, e := root.Lstat(candidate)
 		if e == nil {
-			for _, source := range []string{s.name, s.receiptName} {
+			for _, source := range []string{s.name, s.receiptName, s.authorityName()} {
 				sourceInfo, se := s.root.Lstat(source)
 				if se == nil && os.SameFile(info, sourceInfo) {
 					return ErrUnavailable
@@ -359,7 +369,7 @@ func (s *Store) validLocked() bool {
 			return false
 		}
 	}
-	return true
+	return s.checkAuthorityHistory()
 }
 func metadataFor(b wire.TokenBundle) tokenMetadata {
 	return tokenMetadata{b.OrganizationID, b.WorkspaceID, b.EnvironmentID, b.DeviceID, b.EnrollmentID, b.TokenGeneration, b.CredentialGeneration, b.EnrollmentExpiresAt}

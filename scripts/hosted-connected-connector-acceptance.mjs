@@ -746,7 +746,7 @@ const pins = {
   "services/platform/policy/gateway_cache_test.go": "d1a894f056788253b33801964cbeb171ad0cb67705d772526808ceed27aba786",
   "deploy/staging/product/templates/_gateway-installation.tpl": "9babf066a786a0c007206b99e579382caa9ac50d2eaa0803fb44b78d813fb655",
   "services/platform/gatewaycontrol/installation_test.go": "e57e80f019825d15997aeecaf7d4983a6143a8ccccc367b079e5abce01d328f7",
-  ".github/workflows/connector-native-draft-compile.yml": "e6270ea1084732cebe2f444356ca2537768e9c49615e1a7eb5c6d28adead94c9",
+  ".github/workflows/connector-native-draft-compile.yml": "331eb8cfa16ffde52fb5bf4e7f3585394a52900bd411fe9dd538cb0612fadf82",
   "services/gateway-control/production_test.go": "255476e93ec22d7f2c4ec1d51ce730e352f0246dc5b15608ab5778abb9bb2a29",
   "services/runtime-gateway/production.go": "6ce7c2c72927ff16cc47dae63fa0eee728c5f4c7e14e217302a0680be65b8a36",
   "services/gateway-control/go.mod": "77d4922e3192e996ca9a0975b0bcd2d4711b18844e62f7ae82923cfb60df6995",
@@ -824,15 +824,21 @@ const pins = {
   "services/platform/gatewayenrollmentcustody/files_linux.go": "97657aba14757a57ae95090f3b314a9727c7d8ee6762103342a80f1e62ec6a53",
   "services/platform/apiserver/gateway_bootstrap_repository.go": "24f86d7d9cc5916df4fcbe03731098840160e789d1108b557ec0c51305c740e0",
   "apps/web/api/gateway-bootstrap-decoders.ts": "2c32e877aaa891d591ac0150d4c58b094b80673c2d6ea51e4751dc084cba58eb",
-  "services/platform/gatewayenrollmentcustody/custody.go": "c0afd14339f321b08ca4129fe22f7c2c44b497158fd8be1c43a68234649e1457",
-  "cmd/agentsecctl/gateway_enrollment.go": "5170f163e8b44c8c6811626906550868fb4732d132545391f43fc5f0f3954c7e",
+  "services/platform/gatewayenrollmentcustody/custody.go": "36e4b14e5df3ea6c4799d6f2ea9f263eac2546d2161a4fb46c30b7103331eabb",
+  "cmd/agentsecctl/gateway_enrollment.go": "604bc8a6455d26f8e850d1d795e053b0f300c39f071834594a086e0ceb6245e6",
   "package-lock.json": "0e8b7fa1332878386816dd73ba0118fb8dfc8a414b7912f90e95f2dda8bae51c",
   "package.json": "0dd4697c7feb7a59a83be241ec4f71de74941400d16537fafceb80716eeb8198",
-  "services/platform/migrations/sql/0015_runtime_data_plane.up.sql": "11c0b05a0a264ba9654c9646b18633c45469f495fa819b28b89e207aefc5ce9a"
+  "services/platform/migrations/sql/0015_runtime_data_plane.up.sql": "11c0b05a0a264ba9654c9646b18633c45469f495fa819b28b89e207aefc5ce9a",
+  "cmd/agentsecctl/gateway_authority_recovery_test.go": "fc6fd7d29d54f05119176ae153caf3a1886dbe0a1e8e878c0a828bccd5f7b254",
+  "services/platform/gatewayenrollmentwire/authority.go": "6695b2bca8b1871c2063603f35fd2bee8e9149be52f8bbcfe47ffdb7d8cd7e30",
+  "services/platform/gatewayenrollmentwire/authority_test.go": "0fe2e4cfd15bc97e55b1db0b39f48758b186b607c0682c3494ce168000c0d5ca",
+  "services/platform/gatewayenrollmentcustody/recovery.go": "950f023d341634d81af8afa7604f0fff628333f53c5940e433434ababf880ce6",
+  "services/platform/gatewayenrollmentcustody/recovery_test.go": "87b370a3c9c3f74152cd6a732c5c6d9b76dbe1b1766c784ed932a2d0bd084f21",
+  "cmd/agentsecctl/gateway_authority_recovery.go": "3bcab50e45da468c4ee7e999b47118a7b35720b152c336fe06d1e0cab00bed70"
 };
 const roster = selectedGroup.names;
 const helperPins={
-  "scripts/connector-acceptance-groups.test.mjs": "1ca713b21b063403cdbb827135159c7281b0f35554f84fbe10a99b1ee7fc90d5",
+  "scripts/connector-acceptance-groups.test.mjs": "21327606137dac73d713ff6cae81f70009f3ece4f4771e1e3251f2b58801eefe",
   "scripts/connector-acceptance-groups.mjs": "70da54d5a2eb61535af55afe53e944ca815550a0319943ffe1e46466f8b8cfd4",
   "docs/internal/evidence/cloud-2026-10-07/native-service-readiness/openfga/09-pg-non-glibc-libs-manifest.json": "96642e82997ffd2caf2893a5ecc0116ad2aef6e982df2d929f3efda4e04f3474",
   "services/platform/apiserver/authorization_integration_mutations_postgres_test.go": "5e4beb04b2409ad9b11b89c017ada5e2eccffd78a87bdd5692d40670f12a2ba0",

@@ -42,6 +42,8 @@ type gatewayCommandReport struct {
 	Outcome      string `json:"outcome"`
 	DeviceID     string `json:"device_id,omitempty"`
 	CredentialID string `json:"credential_id,omitempty"`
+	Source       string `json:"source,omitempty"`
+	ObservedAt   string `json:"observed_at,omitempty"`
 }
 
 // gateway enroll reads only the protected token bundle from stdin. Enrollment
@@ -59,6 +61,10 @@ func parseGatewayCommand(arguments []string) (gatewayCommandOptions, error) {
 			allowed[k] = true
 		}
 	case "status":
+	case "recover":
+		for _, k := range []string{"--ca-bundle-file", "--timeout", "--credential-output"} {
+			allowed[k] = true
+		}
 	case "export":
 		allowed["--credential-output"] = true
 	default:
@@ -78,8 +84,13 @@ func parseGatewayCommand(arguments []string) (gatewayCommandOptions, error) {
 	if q.action == "export" && !gatewayCommandAbsolutePath(q.credentialOutput) {
 		return gatewayCommandOptions{}, errInvalidArguments
 	}
-	if q.action == "enroll" {
-		if !gatewayCommandEndpoint(q.endpoint) || !gatewayCommandAbsolutePath(q.caFile) {
+	if q.action == "recover" {
+		if !gatewayCommandAbsolutePath(q.caFile) || (q.credentialOutput != "" && !gatewayCommandAbsolutePath(q.credentialOutput)) {
+			return gatewayCommandOptions{}, errInvalidArguments
+		}
+	}
+	if q.action == "enroll" || q.action == "recover" {
+		if q.action == "enroll" && (!gatewayCommandEndpoint(q.endpoint) || !gatewayCommandAbsolutePath(q.caFile)) {
 			return gatewayCommandOptions{}, errInvalidArguments
 		}
 		for _, item := range []struct {
@@ -216,6 +227,13 @@ func runGatewayCommand(output io.Writer, input io.Reader, arguments []string) er
 		}
 		defer client.CloseIdleConnections()
 	}
+	if q.action == "recover" {
+		client, err = newGatewayEnrollmentHTTPClient(q)
+		if err != nil {
+			return errGatewayEnrollment
+		}
+		defer client.CloseIdleConnections()
+	}
 	store, err := custody.Open(q.custodyFile)
 	if err != nil {
 		return errGatewayEnrollment
@@ -242,6 +260,8 @@ func runGatewayCommand(output io.Writer, input io.Reader, arguments []string) er
 				operationErr = writeGatewayCommandReport(output, snapshot, "exported")
 			}
 		}
+	case "recover":
+		operationErr = runGatewayAuthorityRecovery(output, store, client, q)
 	case "enroll":
 		operationErr = runGatewayEnrollment(output, store, client, q, bundle)
 	}

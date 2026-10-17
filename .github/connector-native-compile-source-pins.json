@@ -383,22 +383,22 @@
     },
     {
       "path": "scripts/connector-acceptance-groups.test.mjs",
-      "sha256": "1ca713b21b063403cdbb827135159c7281b0f35554f84fbe10a99b1ee7fc90d5",
-      "bytes": 79072,
+      "sha256": "21327606137dac73d713ff6cae81f70009f3ece4f4771e1e3251f2b58801eefe",
+      "bytes": 79425,
       "currentBasePreimageSHA256": "a1622a9417e9fe4d62c2aed82bcf5f7f3e11dce841d802bf005b29d54405d388",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connected-connector-acceptance.mjs",
-      "sha256": "a6c7c22f2dd32b9e1aaaab1e1454f0969d009733545f9f956a12ab2dcdc9597c",
-      "bytes": 141001,
+      "sha256": "77bf6d117fe51be46fe37908ecffc1adc9574c24a93e6163dbff9acb80c9162d",
+      "bytes": 141762,
       "currentBasePreimageSHA256": "f248c6d9182ca08cb518cd54c620844c987f4ae723a38badb463c59e010db578",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
-      "sha256": "d77fac0a51ebf79325e6468f822ce63bed6e104d489b3940445dca7bbb5af2fb",
-      "bytes": 137517,
+      "sha256": "dff893c7492bebac45f062088dd3ba63427f42e73d17474875d84679cc1cd93e",
+      "bytes": 138278,
       "currentBasePreimageSHA256": "e66722e4daf5b1482c253d1f14b4c533c329fde202252c16f87ad3e0130e8524",
       "historicalPreimageSHA256": null
     },
@@ -5108,8 +5108,8 @@
     },
     {
       "path": ".github/workflows/connector-native-draft-compile.yml",
-      "sha256": "e6270ea1084732cebe2f444356ca2537768e9c49615e1a7eb5c6d28adead94c9",
-      "bytes": 148083,
+      "sha256": "331eb8cfa16ffde52fb5bf4e7f3585394a52900bd411fe9dd538cb0612fadf82",
+      "bytes": 154484,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -5675,8 +5675,8 @@
     },
     {
       "path": "cmd/agentsecctl/gateway_enrollment.go",
-      "sha256": "5170f163e8b44c8c6811626906550868fb4732d132545391f43fc5f0f3954c7e",
-      "bytes": 11166,
+      "sha256": "604bc8a6455d26f8e850d1d795e053b0f300c39f071834594a086e0ceb6245e6",
+      "bytes": 11921,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -5787,8 +5787,8 @@
     },
     {
       "path": "services/platform/gatewayenrollmentcustody/custody.go",
-      "sha256": "c0afd14339f321b08ca4129fe22f7c2c44b497158fd8be1c43a68234649e1457",
-      "bytes": 13905,
+      "sha256": "36e4b14e5df3ea6c4799d6f2ea9f263eac2546d2161a4fb46c30b7103331eabb",
+      "bytes": 14288,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -5882,6 +5882,48 @@
       "bytes": 204144,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
+    },
+    {
+      "path": "cmd/agentsecctl/gateway_authority_recovery.go",
+      "sha256": "3bcab50e45da468c4ee7e999b47118a7b35720b152c336fe06d1e0cab00bed70",
+      "bytes": 3335,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "cmd/agentsecctl/gateway_authority_recovery_test.go",
+      "sha256": "fc6fd7d29d54f05119176ae153caf3a1886dbe0a1e8e878c0a828bccd5f7b254",
+      "bytes": 11466,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/gatewayenrollmentcustody/recovery.go",
+      "sha256": "950f023d341634d81af8afa7604f0fff628333f53c5940e433434ababf880ce6",
+      "bytes": 6697,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/gatewayenrollmentcustody/recovery_test.go",
+      "sha256": "87b370a3c9c3f74152cd6a732c5c6d9b76dbe1b1766c784ed932a2d0bd084f21",
+      "bytes": 5339,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/gatewayenrollmentwire/authority.go",
+      "sha256": "6695b2bca8b1871c2063603f35fd2bee8e9149be52f8bbcfe47ffdb7d8cd7e30",
+      "bytes": 5537,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/gatewayenrollmentwire/authority_test.go",
+      "sha256": "0fe2e4cfd15bc97e55b1db0b39f48758b186b607c0682c3494ce168000c0d5ca",
+      "bytes": 5186,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
     }
   ],
   "predecessorCheckpointSHA256": "364ada857d54ce83d678e00eb3d61d55c6a036d22cc1f7ebc9170432079ece05",
@@ -5902,5 +5944,7 @@
   "gatewayInstallationSourceAssociationBase": "e735ca7d812a94b7c01700c35ea082276ac42aed",
   "gatewayInstallationPredecessorManifestSHA256": "56944b0cc91b04d73c725ba2536e9dde85f586b77bd82158a824a87593fd6d17",
   "gatewayBootstrapSourceAssociationBase": "c1406c61121f0d781ccc213f42e3f7e01105e122",
-  "gatewayBootstrapPredecessorManifestSHA256": "e168bbc0edd80eaaa193c4ac711052c64c3fb7f2276e6038c101d86d71abf65f"
+  "gatewayBootstrapPredecessorManifestSHA256": "e168bbc0edd80eaaa193c4ac711052c64c3fb7f2276e6038c101d86d71abf65f",
+  "gatewayAuthorityRecoverySourceAssociationBase": "3693cd2fe0f04322065811af979f03cb60a9c3e4",
+  "gatewayAuthorityRecoveryPredecessorManifestSHA256": "e36d44b9bdf66d9d26c569ab81676e7b5fd02ba607fcea3c76f5420690bf46a7"
 }
