@@ -1029,7 +1029,8 @@ test('retention connected sources retain the complete declared application closu
   "workers/security-python/cartography/requirements.lock",
   "workers/security-python/prowler/pyproject.toml",
   "workers/security-python/prowler/requirements.lock",
-  "workers/security-python/pyproject.toml"
+  "workers/security-python/pyproject.toml",
+  "services/runtime-gateway/runtime_policy_evaluation.go"
 ];
   const compiled = JSON.parse(relative('.github/connector-native-compile-source-pins.json'));
   const compilePins = new Map(compiled.sources.map(item => [item.path, item]));

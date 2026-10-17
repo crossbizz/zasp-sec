@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -369,29 +368,10 @@ func (runtime *gatewayRuntime) Evaluate(ctx context.Context, request gatewayEval
 		result.PolicyVersion = envelope.PolicyVersion
 		result.CacheState = state
 	case state == policy.GatewayPolicyValid:
-		result.PolicyVersion = envelope.PolicyVersion
-		result.CacheState = state
-		trigger := gatewayTrigger(request.ActionKind)
-		for _, compiled := range envelope.Policies {
-			if compiled.Trigger != trigger {
-				continue
-			}
-			decision, err := policy.Evaluate(ctx, compiled, request.Attributes)
-			if err != nil {
-				return gatewayEvaluationResult{}, errGatewayRuntime
-			}
-			if !decision.Matched {
-				continue
-			}
-			result.MatchedPolicyIDs = append(result.MatchedPolicyIDs, compiled.ID)
-			matched = append(matched, compiled)
-			if decision.Action == policy.ActionBlock {
-				result.Decision = "block"
-			} else if result.Decision == "allow" {
-				result.Decision = "monitor"
-			}
+		result, matched, err = evaluateGatewayPolicyRules(ctx, request, envelope)
+		if err != nil {
+			return gatewayEvaluationResult{}, errGatewayRuntime
 		}
-		sort.Strings(result.MatchedPolicyIDs)
 	default:
 		return gatewayEvaluationResult{}, errGatewayRuntime
 	}

@@ -746,7 +746,7 @@ const pins = {
   "services/platform/policy/gateway_cache_test.go": "d1a894f056788253b33801964cbeb171ad0cb67705d772526808ceed27aba786",
   "deploy/staging/product/templates/_gateway-installation.tpl": "9babf066a786a0c007206b99e579382caa9ac50d2eaa0803fb44b78d813fb655",
   "services/platform/gatewaycontrol/installation_test.go": "e57e80f019825d15997aeecaf7d4983a6143a8ccccc367b079e5abce01d328f7",
-  ".github/workflows/connector-native-draft-compile.yml": "eab30e4c66adc550fecebb9ec8c2e0f1798f930ab4096b23c28d7722125891c2",
+  ".github/workflows/connector-native-draft-compile.yml": "7ed70a6b1f63476a99477f8127f99007880493d3d9a68363b6f9c6d8499fa4a0",
   "services/gateway-control/production_test.go": "255476e93ec22d7f2c4ec1d51ce730e352f0246dc5b15608ab5778abb9bb2a29",
   "services/runtime-gateway/production.go": "6ce7c2c72927ff16cc47dae63fa0eee728c5f4c7e14e217302a0680be65b8a36",
   "services/gateway-control/go.mod": "77d4922e3192e996ca9a0975b0bcd2d4711b18844e62f7ae82923cfb60df6995",
@@ -781,7 +781,7 @@ const pins = {
   "services/gateway-control/installation_test.go": "9d44d82246fb7d2b1ca2ee800b0d2ea734bb95bee0321347af2f76f29e3cd6bf",
   "services/gateway-control/production.go": "2f365b3d56ca32d89cbf2215b822bcb353ae5e738c8a0d4046aa5af1feb7f710",
   "services/runtime-gateway/production_runtime_test.go": "bcccee06b8551a2a5318e579cfdbca2bf212e140576b72c8d27686d1081f3e63",
-  "services/runtime-gateway/runtime.go": "7c75246c62d66554630d8131a5dccc3d1fe948284fd79e90a01107e0733fa6e5",
+  "services/runtime-gateway/runtime.go": "a247c50929952f5c93487cd1d2e6cf44f29ca04f05f4dab1be34871f9f523831",
   "services/platform/gatewaycontrol/postgres.go": "72d569fc199d85e196d990885e6e7b86e2423fe5a580df4b6ca60635b81e279f",
   "services/platform/gatewaycontrol/evaluation_http_test.go": "7c6b0f24a0c96e85b3e574cd71f5fdca00a370d22a0f3a17861dbfb81fd2adac",
   "services/platform/agentsec-migrate/gateway_installation_profile.go": "0d1665a833ddfe1e10cad299f0fa5b20b5a57086971179d1b1478db7925f5300",
@@ -905,11 +905,12 @@ const pins = {
   "workers/security-python/cartography/pyproject.toml": "2196a1091fa23af6ba42e9ce5cc5542576006c4ec16569bd22e419b5a000a08e",
   "workers/redteam-node/package.json": "0154258ebf954f4e1a6203e40bd3bba32308b35f34cb57ab2720828acae8f987",
   "workers/security-python/pyproject.toml": "9250b52a161721e8933c1be193691d494a59c06fb7f2cd967ccfd22666451178",
-  "workers/security-python/build-requirements.lock": "9415ac080e4169856325998ab71d3258c16c02a1d0d3cfa837bfca1290faa8db"
+  "workers/security-python/build-requirements.lock": "9415ac080e4169856325998ab71d3258c16c02a1d0d3cfa837bfca1290faa8db",
+  "services/runtime-gateway/runtime_policy_evaluation.go": "5380cada4bce49ddb529744645b72b239fb727d75060a9a0b586fb5bcfcd39a5"
 };
 const roster = selectedGroup.names;
 const helperPins={
-  "scripts/connector-acceptance-groups.test.mjs": "448eba82f95329b1b0bec7f80d64fa975e5f33a9008cbf97573b12c8830d994a",
+  "scripts/connector-acceptance-groups.test.mjs": "a1a21cb11177d456182368c65571804775e7d6312248656d79e7ad2595ee828e",
   "scripts/connector-acceptance-groups.mjs": "70da54d5a2eb61535af55afe53e944ca815550a0319943ffe1e46466f8b8cfd4",
   "docs/internal/evidence/cloud-2026-10-07/native-service-readiness/openfga/09-pg-non-glibc-libs-manifest.json": "96642e82997ffd2caf2893a5ecc0116ad2aef6e982df2d929f3efda4e04f3474",
   "services/platform/apiserver/authorization_integration_mutations_postgres_test.go": "5e4beb04b2409ad9b11b89c017ada5e2eccffd78a87bdd5692d40670f12a2ba0",

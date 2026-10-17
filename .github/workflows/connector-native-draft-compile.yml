@@ -54,7 +54,7 @@ jobs:
           import hashlib, json
           from pathlib import Path
           source = json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())
-          assert len(source['sources']) == 917
+          assert len(source['sources']) == 918
           for item in source['sources']:
               raw = Path(item['path']).read_bytes()
               assert len(raw) == item['bytes']
@@ -96,7 +96,7 @@ jobs:
           assert len(groups) == 6 and sum(len(tops) for tops in groups.values()) == 10 and len(expected) == 86
           def check_sources():
               source = json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())
-              assert len(source['sources']) == 917
+              assert len(source['sources']) == 918
               for item in source['sources']:
                   raw = Path(item['path']).read_bytes()
                   assert len(raw) == item['bytes'] and hashlib.sha256(raw).hexdigest() == item['sha256'], item['path']
@@ -1161,6 +1161,43 @@ jobs:
                       status = result.returncode
           print(json.dumps(validate_events(load_events('gateway-installation-components.jsonl'), status, expected), sort_keys=True))
           PYGATEWAYINSTALLATION
+      - name: Require ten existing runtime policy evaluation groups and every observed child
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 0027
+          python3 - <<'PYRUNTIMEPOLICYEVALUATION'
+          import json, re, subprocess, sys
+          from pathlib import Path
+          sys.path.insert(0, str(Path('scripts').resolve()))
+          from validate_agent_read_components import check_sources, load_events, validate_events
+          # Existing production runtime groups only; compile setup failure is not behavior proof.
+          heads = ['TestGatewayRuntimeSyncsSignedPolicyAndEvaluatesWithoutControlPlaneCall', 'TestGatewayRuntimeBlocksOnlyTheSignedIsolatedSession', 'TestGatewayRuntimeBindsBlockedCapabilityEvidence', 'TestGatewayRuntimeAppliesDeterministicOfflineFailureMode', 'TestGatewayRuntimeRejectsRawOrUnboundEvaluationData', 'TestGatewayRuntimeReplaysDrainedEvaluationWithoutAllocatingAnotherFloor', 'TestGatewayRuntimePersistsAllowAndExpiredDecisionReplayReceipts', 'TestGatewayRuntimePersistsSessionBoundAllowAtExistingReplayFloor', 'TestGatewayProxyAcceptsCapabilityEvidenceOnlyForBlockingDecision', 'TestEvaluationRiskResolvedContributors']
+          required = frozenset(['.github/workflows/connector-native-draft-compile.yml', 'deploy/production/gateway-installation-profile.mjs', 'deploy/production/gateway-installation-profile.test.mjs', 'deploy/production/release-contract.mjs', 'deploy/production/release-contract.test.mjs', 'deploy/staging/product/templates/_gateway-installation.tpl', 'deploy/staging/product/templates/edge.yaml', 'deploy/staging/product/templates/runtime.yaml', 'deploy/staging/product/templates/workloads.yaml', 'deploy/staging/product/values-customer-edge.yaml', 'deploy/staging/product/values.yaml', 'scripts/validate_agent_read_components.py', 'scripts/validate_agent_read_components_test.py', 'services/gateway-control/go.mod', 'services/gateway-control/go.sum', 'services/gateway-control/installation_test.go', 'services/gateway-control/production.go', 'services/gateway-control/production_runtime.go', 'services/gateway-control/production_server.go', 'services/gateway-control/production_test.go', 'services/platform/agentsec-migrate/forward_release_confirmation.go', 'services/platform/agentsec-migrate/gateway_installation_profile.go', 'services/platform/agentsec-migrate/gateway_installation_profile_test.go', 'services/platform/agentsec-migrate/main.go', 'services/platform/agentsec-migrate/maintenance_confirmation_role_test.go', 'services/platform/gatewaycontrol/client.go', 'services/platform/gatewaycontrol/contract.go', 'services/platform/gatewaycontrol/http.go', 'services/platform/gatewaycontrol/http_test.go', 'services/platform/gatewaycontrol/installation.go', 'services/platform/gatewaycontrol/installation_test.go', 'services/platform/gatewaycontrol/postgres.go', 'services/platform/gatewayinstallationwire/wire.go', 'services/platform/gatewayinstallationwire/wire_test.go', 'services/platform/go.mod', 'services/platform/go.sum', 'services/platform/internal/cacheownership/ownership.go', 'services/platform/internal/cacheownership/ownership_linux.go', 'services/platform/internal/cacheownership/ownership_other.go', 'services/platform/internal/cacheownership/ownership_test.go', 'services/platform/migrations/maintenance_operator_role.go', 'services/platform/migrations/migrations.go', 'services/platform/migrations/migrations_test.go', 'services/platform/migrations/production_gateway_installation_compiler_test.go', 'services/platform/migrations/production_gateway_installation_profile.go', 'services/platform/migrations/production_gateway_installation_profile_test.go', 'services/platform/migrations/sql/gateway_installation_profile.sql', 'services/platform/policy/gateway_cache.go', 'services/platform/policy/gateway_cache_test.go', 'services/platform/policy/gateway_installation.go', 'services/platform/policy/gateway_installation_test.go', 'services/platform/policy/policy.go', 'services/runtime-gateway/evaluation_risk.go', 'services/runtime-gateway/evaluation_risk_test.go', 'services/runtime-gateway/go.mod', 'services/runtime-gateway/go.sum', 'services/runtime-gateway/installation_ack.go', 'services/runtime-gateway/installation_ack_test.go', 'services/runtime-gateway/production.go', 'services/runtime-gateway/production_runtime.go', 'services/runtime-gateway/production_runtime_test.go', 'services/runtime-gateway/production_test.go', 'services/runtime-gateway/proxy.go', 'services/runtime-gateway/proxy_test.go', 'services/runtime-gateway/runtime.go', 'services/runtime-gateway/runtime_policy_evaluation.go', 'services/runtime-gateway/runtime_test.go'])
+          package = 'github.com/zasp-ai/zasp-sec/services/runtime-gateway'
+          manifest = Path('.github/connector-native-compile-source-pins.json')
+          manifest_before = manifest.read_bytes()
+          assert len(heads) == 10 and len(set(heads)) == 10
+          print(json.dumps(check_sources(Path.cwd(), manifest, required), sort_keys=True))
+          try:
+              with Path('runtime-policy-evaluation-components.jsonl').open('wb') as out, Path('runtime-policy-evaluation-components.stderr').open('wb') as err:
+                  result = subprocess.run(['go', 'test', '-C', 'services/runtime-gateway', '-race', '-p=1', '-count=1', '-timeout=90s', '-json', '-run', '^(' + '|'.join(re.escape(name) for name in heads) + ')$', '.'], stdout=out, stderr=err, timeout=150, check=False)
+              Path('runtime-policy-evaluation-components.status.json').write_text(json.dumps({'go_exit_code': result.returncode, 'expected_heads': heads}, sort_keys=True) + '\n')
+              events = load_events('runtime-policy-evaluation-components.jsonl')
+              # Children may be data-driven; every observed child must belong to a fixed
+              # selected head and complete its own unique run/pass lifecycle below.
+              names = set(heads)
+              for event in events:
+                  if 'Test' in event:
+                      name = event['Test']
+                      assert isinstance(name, str) and name.split('/')[0] in heads, 'unexpected runtime head'
+                      names.add(name)
+              summary = validate_events(events, result.returncode, {package: sorted(names)})
+              print(json.dumps(summary, sort_keys=True))
+          finally:
+              assert manifest.read_bytes() == manifest_before, 'source custody manifest changed'
+              print(json.dumps(check_sources(Path.cwd(), manifest, required), sort_keys=True))
+          PYRUNTIMEPOLICYEVALUATION
       - name: Preserve component-only execution evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -1169,6 +1206,9 @@ jobs:
           path: |
             gateway-installation-components.jsonl
             gateway-installation-components.stderr
+            runtime-policy-evaluation-components.jsonl
+            runtime-policy-evaluation-components.stderr
+            runtime-policy-evaluation-components.status.json
           if-no-files-found: warn
           retention-days: 14
       - name: Confirm checks did not alter tracked source
