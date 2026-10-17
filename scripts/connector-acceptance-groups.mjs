@@ -93,6 +93,7 @@ export const CONNECTOR_ACCEPTANCE_GROUPS = Object.freeze({
     'real_api_visibility_unknown_and_foreign_scope_denied',
     'independent_live_guard_drift_refuses_and_rolls_back',
     'index_admission_ownership_epoch_and_captured_cleanup',
+    'future_journal_enrollment_dispatch_and_settlement',
   ], 1),
 });
 export function selectConnectorAcceptanceGroup(args) {

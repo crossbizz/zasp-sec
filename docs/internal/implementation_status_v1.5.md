@@ -7,7 +7,7 @@ production-available classifications, 144 component-only and 61 blocked/external
 with zero promotions from component checks. These classifications do not prove
 current deployed launch readiness.
 
-The latest published component batch, `de2a76dc`, adds an explicit schema-owner
+The published retention bootstrap batch, `de2a76dc`, adds an explicit schema-owner
 bootstrap for the trusted migration authority's public-schema CREATE permission.
 The production CLI and native fixture share the same guarded operation. Preparing
 an inactive retention profile requires this capability; active structural checks
@@ -23,7 +23,7 @@ acceptance and current-head hosted/security checks remain open. The preceding
 `c5be8a4c` hosted IAM mock-plan/union jobs pass on both events; no production apply
 or deployed receipt access is established.
 
-The next approval-flow component uses two separately committed atomic source and
+The published `0e7739d5` approval-flow component uses two separately committed atomic source and
 authorization-revision observations around both existing live OpenFGA checks.
 Its SQL guard runs after lock waits, preserves lease versus permission error
 categories, and retains the late begin-attempt check. Independent source review
@@ -31,10 +31,20 @@ passes; local application tests are dependency-blocked. Native concurrency,
 unchanged-deadline PKCE acceptance and any latency improvement remain unverified.
 See `cloud-pkce-atomic-observation-component-checkpoint-2026-10-17.json`.
 
+The connected future writer journal is implemented as a separate component:
+actual SDK dispatch, private execution capabilities, SQL admission/settlement
+hooks, version-pinned terminal artifacts, exact uncertain-commit recovery and
+explicit worker/deployment configuration are wired together. Independent source
+review cleared four corrections covering recovery, canonical references, default
+privileges and historical replay. SDK and bounded migration checks pass; full
+worker/CLI/API setup remains blocked by missing dependencies. Native SQL and real
+provider custody remain unverified. See
+`cloud-retention-journal-component-checkpoint-2026-10-17.json`.
+
 The retention worker, scoped readers, writer barriers and cleanup implementation
 are present as components. Native activation/expiry acceptance, fleet cutover and
-real Stytch/provider journeys remain required. Future durable dispatch custody and
-historical unknown-writer reconciliation remain incomplete. Reference expiration
+real Stytch/provider journeys remain required. Future durable dispatch custody requires native/deployed verification;
+historical unknown-writer reconciliation remains incomplete. Reference expiration
 does not establish physical S3 erasure. PKCE/approval/lifecycle/browser acceptance,
 planner proofs, complete deployment rendering and release security clearance also
 remain open. The dated entries below retain their historical evidence and limits.

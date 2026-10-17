@@ -8,9 +8,9 @@ const pkg = 'github.com/zasp-ai/zasp-sec/services/platform/apiserver';
 const trace = selected => [...selected.names.flatMap(Test => [{Package: pkg, Test, Action: 'run'}, {Package: pkg, Test, Action: 'pass'}]), {Package: pkg, Action: 'pass'}];
 test('required application groups retain every flow and owned database', () => {
   assert.deepEqual(Object.keys(groups), ['approval-test74', 'approval-ordered-planning', 'approval-ordered-progress', 'approval-flow', 'approval', 'oauth', 'lifecycle', 'pkce', 'callback', 'approval-overflow', 'approval-future-test74', 'approval-future-progress', 'optional-egress-audit', 'retention-audit']);
-  assert.deepEqual(Object.values(groups).map(g => [g.names.length, g.postgresJoins]), [[1, 2], [1, 2], [5, 2], [6, 2], [22, 1], [3, 1], [6, 2], [4, 2], [4, 2], [1, 2], [1, 2], [5, 2], [9, 1], [10, 1]]);
+  assert.deepEqual(Object.values(groups).map(g => [g.names.length, g.postgresJoins]), [[1, 2], [1, 2], [5, 2], [6, 2], [22, 1], [3, 1], [6, 2], [4, 2], [4, 2], [1, 2], [1, 2], [5, 2], [9, 1], [11, 1]]);
   const names = Object.values(groups).flatMap(g => g.names);
-  assert.equal(names.length, 78); assert.equal(new Set(names).size, 78);
+  assert.equal(names.length, 79); assert.equal(new Set(names).size, 79);
   assert.equal(Object.values(groups).reduce((n, g) => n + g.postgresJoins, 0), 24);
   for (const key of Object.keys(groups)) { assert.equal(select([key]), groups[key]); validate(trace(groups[key]), groups[key]); }
 });
@@ -223,7 +223,7 @@ test('retention audit requires every original native permission and expiry case'
   const source = fs.readFileSync(new URL('../services/platform/apiserver/retention_native_postgres_test.go', import.meta.url), 'utf8');
   assert.equal(selected.top, 'TestRetentionAuditProfileNativePostgres');
   assert.equal(selected.postgresJoins, 1);
-  assert.equal(selected.names.length, 10);
+  assert.equal(selected.names.length, 11);
   assert.match(source, /func TestRetentionAuditProfileNativePostgres\(t \*testing\.T\)/);
   assert.match(source, /newAuthorizationProjectionFGA\(t\)/);
   assert.match(source, /startDisposablePostgresAs\(t, "zasp_test"\)/);
@@ -377,7 +377,20 @@ test('retention connected sources retain the complete declared application closu
   "services/platform/migrations/production_retention_ddl.go",
   "services/platform/migrations/production_retention_ddl_test.go",
   "services/platform/agentsec-migrate/retention_ddl_test.go",
-  "services/platform/connectormaintenance/atomic_observation_test.go"
+  "services/platform/connectormaintenance/atomic_observation_test.go",
+  "services/platform/migrations/sql/retention_journal.sql",
+  "services/platform/migrations/production_retention_journal.go",
+  "services/platform/migrations/production_retention_journal_test.go",
+  "services/platform/agentsec-migrate/retention_journal.go",
+  "services/platform/agentsec-migrate/retention_journal_test.go",
+  "services/platform/apiserver/retention_journal_native_acceptance_test.go",
+  "services/platform/runtimeindex/retained_journal.go",
+  "services/platform/runtimeindex/retained_journal_test.go",
+  "services/platform/runtimeindex/opensearchdriver/retained_journal_flow_test.go",
+  "services/platform/agentsec-worker/retention_writer_journal.go",
+  "services/platform/agentsec-worker/retention_writer_journal_test.go",
+  "services/platform/agentsec-worker/retention_writer_journal_recovery.go",
+  "services/platform/agentsec-worker/retention_writer_journal_recovery_test.go"
 ];
   const compiled = JSON.parse(relative('.github/connector-native-compile-source-pins.json'));
   const compilePins = new Map(compiled.sources.map(item => [item.path, item]));

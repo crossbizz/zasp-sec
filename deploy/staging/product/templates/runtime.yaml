@@ -218,6 +218,9 @@ spec:
             - { name: ZASP_WORKER_MODE, value: {{ $worker.mode | quote }} }
             {{- if has $worker.mode (list "runtime-coordinator" "runtime-complete" "runtime-index") }}
             {{- include "zasp.retention.pin" $root | nindent 12 }}
+            {{- if and $root.Values.retentionReferenceExpiry.enabled (eq $worker.kind "index") }}
+            - { name: ZASP_RETENTION_JOURNAL_PROFILE_CHECKSUM, value: {{ $root.Values.retentionReferenceExpiry.journalProfileChecksum | quote }} }
+            {{- end }}
             {{- end }}
             {{- if $root.Values.authorizationTemporal.profile }}
             - { name: ZASP_RUNTIME_DATABASE_PROFILE, value: "canonical61-temporal78-authorization79-80-runtime-v1" }

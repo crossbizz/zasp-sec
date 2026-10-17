@@ -504,6 +504,8 @@ retentionReferenceExpiry:
   # cutover. This never installs or activates SQL or withdraws credentials.
   enabled: false
   profileChecksum: ""
+  # Prepared current journal recipe; consumer rollout does not install SQL.
+  journalProfileChecksum: ""
   taskQueue: ""
   # Explicit precise executor and physical index selection; no implicit cutover.
   indexStageVersion: ""

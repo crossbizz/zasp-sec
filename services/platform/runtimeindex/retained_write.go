@@ -72,6 +72,11 @@ func (d *retainedWriteDriver) Apply(ctx context.Context, input DriverBatch) (Dri
 	for i, doc := range input.Documents {
 		ids[i], events[i] = doc.DocumentID, doc.EventID
 	}
+	var err error
+	ctx, err = BeginRetainedJournal(ctx, d.authority, RetainedExecutionInput{Kind: "raw-index", Scope: input.Scope, BatchID: input.BatchID, Generation: input.Generation, InputDigest: input.InputDigest, DocumentIDs: append([]string(nil), ids...), EventIDs: append([]string(nil), events...)})
+	if err != nil {
+		return DriverResult{}, err
+	}
 	states, err := CheckEventVisibility(ctx, d.authority, input.Scope, events)
 	if err != nil {
 		return DriverResult{}, err

@@ -71,6 +71,16 @@ func (index *SessionIndex) applyProfile(ctx context.Context, binding sessionsear
 	for i, doc := range documents {
 		originalIDs[i], events[i] = doc.DocumentID, doc.EventID
 	}
+	if index.retentionWrite != nil {
+		kind := "session-index-v1"
+		if index.sandboxV2 {
+			kind = "session-index-v2"
+		}
+		ctx, err = runtimeindex.BeginRetainedJournal(ctx, index.retentionWrite, runtimeindex.RetainedExecutionInput{Kind: kind, Scope: binding.Scope, BatchID: binding.BatchID.String(), Generation: binding.Generation, InputDigest: binding.ReceiptDigest, DocumentIDs: append([]string(nil), originalIDs...), EventIDs: append([]string(nil), events...)})
+		if err != nil {
+			return SessionWriteResult{}, err
+		}
+	}
 	var partition *runtimeindex.WritePartition
 	if index.retentionWrite != nil {
 		states, err := runtimeindex.CheckEventVisibility(ctx, index.retentionWrite, binding.Scope, events)
@@ -135,10 +145,18 @@ func (index *SessionIndex) applyProfile(ctx context.Context, binding sessionsear
 		return SessionWriteResult{}, err
 	}
 	path := "/" + index.indexName() + "/_bulk?refresh=wait_for&timeout=" + strconv.Itoa(int(index.transport.config.RequestTimeout/time.Second)) + "s"
+	submittedEvents := make([]string, len(documents))
+	for i, document := range documents {
+		submittedEvents[i] = document.EventID
+	}
+	ctx = runtimeindex.WithRetainedBulkItems(ctx, ids, submittedEvents)
 	result, writeErr := index.transport.request(ctx, http.MethodPost, path, "application/x-ndjson", body.Bytes(), true)
 	// A matching document and refresh cannot prove that an ambiguously
 	// acknowledged bulk has stopped. Leave its original admissions unsettled.
 	if index.retentionWrite != nil && (writeErr != nil || !retainedBulkTerminal(result, index.indexName(), ids)) {
+		return SessionWriteResult{}, runtimeindex.ErrUnknownOutcome
+	}
+	if index.retentionWrite != nil && runtimeindex.AppendRetainedTerminal(ctx, result.status, result.body) != nil {
 		return SessionWriteResult{}, runtimeindex.ErrUnknownOutcome
 	}
 	if writeErr == nil && result.status != http.StatusOK {

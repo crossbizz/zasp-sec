@@ -61,6 +61,7 @@ var (
 type workerRuntimeConfig struct {
 	RetentionTaskQueue               string
 	RetentionProfileChecksum         string
+	RetentionJournalProfileChecksum  string
 	RuntimeServices                  runtimeservices.Config
 	RuntimeDatabaseProfile           string
 	TemporalExecutorDSN              string
@@ -234,7 +235,7 @@ func loadWorkerRuntimeConfig(getenv func(string) string) (workerRuntimeConfig, e
 	batch, batchErr := strconv.Atoi(getenv("ZASP_BATCH_SIZE"))
 	config := workerRuntimeConfig{
 		RuntimeServices:    services,
-		RetentionTaskQueue: getenv("ZASP_RETENTION_TASK_QUEUE"), RetentionProfileChecksum: getenv("ZASP_RETENTION_PROFILE_CHECKSUM"),
+		RetentionTaskQueue: getenv("ZASP_RETENTION_TASK_QUEUE"), RetentionProfileChecksum: getenv("ZASP_RETENTION_PROFILE_CHECKSUM"), RetentionJournalProfileChecksum: getenv("ZASP_RETENTION_JOURNAL_PROFILE_CHECKSUM"),
 		OptionalEgressEnabled:         optionalEgressEnabled,
 		OptionalEgressProfileChecksum: getenv("ZASP_OPTIONAL_EGRESS_PROFILE_CHECKSUM"),
 		RuntimeDatabaseProfile:        getenv("ZASP_RUNTIME_DATABASE_PROFILE"),
@@ -677,6 +678,13 @@ func projectionKind(mode workerMode) string {
 // A retention worker is an explicit new composition; its profile cannot fall
 // back to either legacy worker or current runtime profile readiness.
 func validRetentionRuntimeConfiguration(c workerRuntimeConfig) bool {
+	if c.RetentionJournalProfileChecksum != "" && (c.Mode != workerModeRuntimeIndex || !workerUsesRetentionRuntimeProfile(c) || !migrations.IsRetentionJournalProfileChecksum(c.RetentionJournalProfileChecksum)) {
+		return false
+	}
+	if c.Mode == workerModeRuntimeIndex && c.RetentionProfileChecksum != "" && !migrations.IsRetentionJournalProfileChecksum(c.RetentionJournalProfileChecksum) {
+		return false
+	}
+
 	if c.Mode != workerModeRetentionReferenceExpiry {
 		return c.RetentionTaskQueue == "" && (c.RetentionProfileChecksum == "" || workerUsesRetentionRuntimeProfile(c))
 	}

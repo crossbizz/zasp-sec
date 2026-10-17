@@ -194,6 +194,12 @@ type releaseMigrationRunner interface {
 
 func main() {
 	arguments := os.Args[1:]
+	if len(arguments) > 0 && arguments[0] == "retention-journal-profile-checksum" {
+		if len(arguments) != 1 || writeRetentionJournalChecksum(os.Stdout) != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+		return
+	}
 	if len(arguments) > 0 && arguments[0] == "retention-profile-checksum" {
 		if len(arguments) != 1 {
 			log.Fatal("release migration configuration rejected")
@@ -220,6 +226,13 @@ func main() {
 	}
 	ctx, cancel := context.WithTimeout(signalCtx, timeout)
 	defer cancel()
+	var journalInput *retentionJournalInput
+	if len(arguments) > 0 && retentionJournalCommand(arguments[0]) {
+		journalInput, err = loadRetentionJournalCommand(arguments, os.Getenv)
+		if err != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+	}
 	var retentionDDLBootstrap *migrations.RetentionDDLBootstrapRequest
 	if len(arguments) > 0 && arguments[0] == retentionDDLBootstrapCommand {
 		request, loadErr := loadRetentionDDLBootstrap(arguments, os.Getenv)
@@ -383,7 +396,22 @@ func main() {
 		}
 		return
 	}
-	if retentionDDLBootstrap != nil {
+	if journalInput != nil {
+		if journalInput.command == "up-retention-writer-journal" {
+			var identityReady bool
+			if connection.QueryRow(ctx, `SELECT session_user=$1 AND current_user=session_user`, journalInput.principal).Scan(&identityReady) != nil || !identityReady {
+				log.Fatal("release principal registration rejected")
+			}
+			err = runner.UpProductionRetentionJournalProfile(ctx)
+		}
+		if err == nil {
+			err = withRetentionOperatorTransaction(ctx, func(c context.Context) (retentionOperatorTransaction, error) {
+				return connection.BeginTx(c, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
+			}, func(c context.Context, q principalQueryer, _ io.Writer) error {
+				return runRetentionJournalOperator(c, q, journalInput)
+			}, nil)
+		}
+	} else if retentionDDLBootstrap != nil {
 		err = runRetentionDDLBootstrap(ctx, runner, *retentionDDLBootstrap, os.Stdout)
 	} else if retentionRegistration != nil {
 		defer clear(retentionRegistration.body)

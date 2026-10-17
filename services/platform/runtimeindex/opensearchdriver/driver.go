@@ -167,6 +167,15 @@ func (driver *Driver) request(ctx context.Context, method, path, contentType str
 		}
 		return response{}, runtimeindex.ErrDenied
 	}
+	// Reserve the exact signed serialized bulk descriptor before the single
+	// actual transport call. No status/retry path can reconstruct a permit.
+	if mutation && strings.HasSuffix(relative.Path, "/_bulk") {
+		target := strings.TrimSuffix(strings.TrimPrefix(relative.Path, "/"), "/_bulk")
+		permit, permitErr := runtimeindex.PrepareRetainedBulk(ctx, runtimeindex.RetainedRequestDescriptor{Ordinal: 0, Method: method, Target: target, Path: relative.Path, Query: relative.RawQuery, MediaType: contentType, BodySHA256: hex.EncodeToString(digest[:]), BodyLength: len(body), SerializerProfile: "runtime-retained-bulk-v1"})
+		if permitErr != nil || runtimeindex.ConsumeRetainedSendPermit(ctx, permit) != nil {
+			return response{}, runtimeindex.ErrUnknownOutcome
+		}
+	}
 	returned, err := driver.client.Do(request)
 	if err != nil || returned == nil {
 		if mutation {
@@ -273,6 +282,11 @@ func (driver *Driver) apply(ctx context.Context, input runtimeindex.DriverBatch,
 		return runtimeindex.DriverResult{}, runtimeindex.ErrRejected
 	}
 	query := url.Values{"refresh": {"wait_for"}, "timeout": {fmt.Sprintf("%ds", int(driver.config.RequestTimeout/time.Second))}}
+	documents, events := make([]string, len(input.Documents)), make([]string, len(input.Documents))
+	for i, document := range input.Documents {
+		documents[i], events[i] = document.DocumentID, document.EventID
+	}
+	ctx = runtimeindex.WithRetainedBulkItems(ctx, documents, events)
 	result, err := driver.request(ctx, http.MethodPost, "/"+indexName+"/_bulk?"+query.Encode(), "application/x-ndjson", body, true)
 	if requireTerminal {
 		ids := make([]string, len(input.Documents))
@@ -280,6 +294,9 @@ func (driver *Driver) apply(ctx context.Context, input runtimeindex.DriverBatch,
 			ids[i] = document.DocumentID
 		}
 		if err != nil || !retainedBulkTerminal(result, indexName, ids) {
+			return runtimeindex.DriverResult{}, runtimeindex.ErrUnknownOutcome
+		}
+		if runtimeindex.AppendRetainedTerminal(ctx, result.status, result.body) != nil {
 			return runtimeindex.DriverResult{}, runtimeindex.ErrUnknownOutcome
 		}
 	}

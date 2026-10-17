@@ -51,9 +51,9 @@ func newProductionRuntimeIndex(ctx context.Context, config workerRuntimeConfig, 
 		return nil, errRuntimeUnavailable
 	}
 	index, err := runtimeindex.New(driver, runtimeindex.Config{MaximumBatchBytes: 64 << 20, MaximumDocuments: 1000})
-	var retentionGate *retentionIndexVisibility
+	var retentionGate *retentionJournalIndexVisibility
 	if workerUsesRetentionRuntimeProfile(config) {
-		retentionGate, err = newRetentionIndexVisibility(database, config.RetentionProfileChecksum)
+		retentionGate, err = newRetentionJournalIndexVisibility(database, config.RetentionProfileChecksum, config.RetentionJournalProfileChecksum, receipts)
 		if err == nil {
 			index, err = runtimeindex.NewRetained(driver, runtimeindex.Config{MaximumBatchBytes: 64 << 20, MaximumDocuments: 1000}, retentionGate)
 		}
@@ -127,6 +127,10 @@ func newProductionRuntimeIndex(ctx context.Context, config workerRuntimeConfig, 
 		if readyCtx == nil || readyCtx.Err() != nil {
 			return errRuntimeUnavailable
 		}
+		if retentionGate != nil && retentionGate.Ready(readyCtx) != nil {
+			return errRuntimeUnavailable
+		}
+
 		if _, err := credentials.Retrieve(readyCtx); err != nil || readyProductionDiscoveryRole(readyCtx, identityAPI, cloud, artifacts) != nil || readyProductionDiscoveryArtifactAuthority(readyCtx, s3API, kmsAPI, cloud, artifacts) != nil || driver.Ready(readyCtx) != nil {
 			return errRuntimeUnavailable
 		}

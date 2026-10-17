@@ -541,6 +541,9 @@ func TestRetentionAuditProfileNativePostgres(t *testing.T) {
 			t.Fatal("rollback did not restore live seal")
 		}
 	})
+	t.Run("future_journal_enrollment_dispatch_and_settlement", func(t *testing.T) {
+		runRetentionJournalNativeAcceptance(t, ctx, bootstrap, owner, index, scope, pin, cases[2].archive)
+	})
 }
 
 func seedRetentionMixedProjection(t *testing.T, ctx context.Context, connection *pgx.Conn, scope domain.Scope, agent string, sandbox, precise bool, identityBase int) ([]any, runtimeprojection.ProjectedBatch, []byte) {

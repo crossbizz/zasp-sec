@@ -17,10 +17,44 @@ All subsequent commands require `ZASP_RETENTION_PROFILE_CHECKSUM` equal to this 
 - `record-retention-cutover`: exact `profile_checksum`, `release_digest`, `consumer_manifest_digest`, `deployment_evidence_digest`, `credential_withdrawal_digest`, each 64 lowercase hex characters. Supply the approved release, fixed consumer manifest and actual deployment/credential retirement evidence. The database binds the whole JSON artifact to its actual database identity and exact parent profiles, stores an immutable receipt and returns only `receipt_digest`. A source test, native fixture or rendered chart cannot substitute for deployment or withdrawal evidence.
 - `activate-retention-profile`: exact `receipt_digest` from that confirmed database receipt. Activation requires the original registered operator and validates the actual current ancestry and finite catalog successors transactionally. No boolean activation bypass is accepted. Repeating the same active receipt is idempotent; mismatched receipts or drift fail.
 
-Deployment opt-in is `retentionReferenceExpiry: { enabled: true, profileChecksum: <compiled-pin>, taskQueue: <dedicated-queue>, indexStageVersion: runtime-index-v2, sessionIndex: zasp-runtime-sessions-v2 }`. The queue must differ from execution/discovery queues. Both index deployments require explicit precise executor and physical v2 target values. Defaults disable the feature and contain no orphan pin, queue or index selection. The exact pin is mounted on API, runtime coordinator, runtime complete, raw/session index consumers and the dedicated sweeper. Runtime projection keeps its original stage authority. No other workload receives retention environment settings.
+Deployment opt-in is `retentionReferenceExpiry: { enabled: true, profileChecksum: <compiled-pin>, journalProfileChecksum: <compiled-journal-pin>, taskQueue: <dedicated-queue>, indexStageVersion: runtime-index-v2, sessionIndex: zasp-runtime-sessions-v2 }`. The queue must differ from execution/discovery queues. Both index deployments require explicit precise executor and physical v2 target values. Defaults disable the feature and contain no orphan pin, queue or index selection. The exact pin is mounted on API, runtime coordinator, runtime complete, raw/session index consumers and the dedicated sweeper. Runtime projection keeps its original stage authority. No other workload receives retention environment settings.
 
 The sweeper runs `retention-reference-expiry` with batch size one and only the original registered Temporal executor DSN. Its dedicated Kubernetes service account has no IAM annotation or ambient service account token; its runtime TLS/FGA secret is the existing approved client secret. Egress is limited to the existing production PostgreSQL range, Temporal and OpenFGA services plus existing DNS policy. It receives no signing seeds, compensation credentials, provider credentials or cloud roles.
 
 Plan a coordinated cutover: prepare and register the exact profile, freeze and verify the fixed consumer manifest, establish the reviewed release and real fleet/credential retirement evidence, record its cutover receipt, then activate using that receipt. New consumers require ACTIVE readiness and will remain unavailable until activation; readiness must never be bypassed to make rollout green. Keep original implementations and immutable evidence until equivalent behavior and fleet retirement are verified. The release guard validates a deployment contract; it does not execute or attest fleet cutover.
 
 Runtime index IAM adds only POST search and GET/DELETE actual document paths in the three fixed raw/session indexes. Single-character IAM wildcards preserve the compiled document ID lengths and exclude protected schema markers; conditional sequence/primary-term deletion and current SQL cleanup claims remain application requirements. This source contract does not attest deployed IAM or physical cleanup.
+
+## Future writer dispatch journal
+
+The independently compiled writer journal records future raw/session bulk dispatch
+custody in `zasp_retention_journal_v1`. It preserves existing retention parent
+registrations and projects only three finite function successors and two mandatory
+hooks into their catalog seal. Existing mismatched journal installations refuse;
+there is no automatic registration rewrite or historical backfill.
+
+`agentsec-migrate retention-journal-profile-checksum` prints the compiled journal
+and parent checksums without database credentials. `up-retention-writer-journal`
+requires the original operator connection and exact
+`ZASP_RETENTION_JOURNAL_PROFILE_CHECKSUM`; it installs the journal but enrolls no
+tenant. `enroll-retention-journal-scope` uses that same pin and a protected
+`ZASP_RETENTION_CONFIGURATION_FILE` containing exactly `organization_id`,
+`workspace_id`, and `environment_id`. Enrollment binds the existing scope under
+its organization lock. It changes neither identity nor role memberships.
+
+Retention-enabled raw and session index workers require the explicit compiled
+journal pin. They reserve the actual serialized request descriptor and confirm a
+new durable send claim before the one-use HTTP permit is returned. A response is
+terminal only after existing strict acknowledgement validation and version-pinned
+storage in the original source bucket's canonical scoped writer-outcome path.
+Original settlement occurs in the journal transaction. Exact status lookup can
+recover committed stages using the still-held private capability; it never
+regrants a send permit after an uncertain claim.
+
+Captured terminal append uses only the already captured bytes and its bound
+private capability. It does not refresh forward authority or perform another
+provider request. Losing that capability or an uncaptured response across process
+death remains conservatively unresolved. Public execution IDs and readable
+artifacts cannot reconstruct it. This implementation does not establish historical
+unknown-write terminality, genuine provider/S3 custody, physical erasure, or
+successful deployed cutover. Native and deployed acceptance remain required.

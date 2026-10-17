@@ -9,10 +9,10 @@ const queuePattern=/^[a-z][a-z0-9._-]{1,127}$/;
 export const retentionConsumers=Object.freeze(['agentsec-api','agentsec-runtime-coordinator','agentsec-runtime-complete','agentsec-runtime-index','agentsec-runtime-session-index-v2','agentsec-retention-reference-expiry']);
 export function normalizeRetention(value,profile,runtime){
  if(value===undefined)return undefined;
- if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).sort().join(',')!=='enabled,indexStageVersion,profileChecksum,sessionIndex,taskQueue'||typeof value.enabled!=='boolean'||typeof value.profileChecksum!=='string'||typeof value.taskQueue!=='string'||typeof value.indexStageVersion!=='string'||typeof value.sessionIndex!=='string')reject();
+ if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).sort().join(',')!=='enabled,indexStageVersion,journalProfileChecksum,profileChecksum,sessionIndex,taskQueue'||typeof value.enabled!=='boolean'||typeof value.profileChecksum!=='string'||typeof value.journalProfileChecksum!=='string'||typeof value.taskQueue!=='string'||typeof value.indexStageVersion!=='string'||typeof value.sessionIndex!=='string')reject();
  if(value.enabled){
-  if(profile?.profile!=='canonical61-temporal78-authorization79-80-worker-v1'||runtime?.enabled!==true||!pinPattern.test(value.profileChecksum)||!queuePattern.test(value.taskQueue)||[runtime.taskQueue,runtime.discoveryTaskQueue].includes(value.taskQueue)||value.indexStageVersion!=='runtime-index-v2'||value.sessionIndex!=='zasp-runtime-sessions-v2')reject();
- }else if(value.profileChecksum!==''||value.taskQueue!==''||value.indexStageVersion!==''||value.sessionIndex!=='')reject();
+  if(profile?.profile!=='canonical61-temporal78-authorization79-80-worker-v1'||runtime?.enabled!==true||(!pinPattern.test(value.profileChecksum)||!pinPattern.test(value.journalProfileChecksum))||!queuePattern.test(value.taskQueue)||[runtime.taskQueue,runtime.discoveryTaskQueue].includes(value.taskQueue)||value.indexStageVersion!=='runtime-index-v2'||value.sessionIndex!=='zasp-runtime-sessions-v2')reject();
+ }else if(value.profileChecksum!==''||value.journalProfileChecksum!==''||value.taskQueue!==''||value.indexStageVersion!==''||value.sessionIndex!=='')reject();
  return Object.freeze({...value});
 }
 export function validateRetentionResources(resources,config,profile){
@@ -29,9 +29,11 @@ export function validateRetentionResources(resources,config,profile){
    const entries=c.env?.filter(e=>e.name?.startsWith('ZASP_RETENTION_'))??[];
    if(!target||i!==0){if(entries.length)reject();continue;}
    const sweep=r.metadata.name==='agentsec-retention-reference-expiry';
-   if(c.envFrom!==undefined||entries.length!==(sweep?2:1))reject();
+   const index=['agentsec-runtime-index','agentsec-runtime-session-index-v2'].includes(r.metadata.name);
+   if(c.envFrom!==undefined||entries.length!==(sweep||index?2:1))reject();
    const exact=(name,value)=>{const rows=c.env?.filter(e=>e.name===name);if(rows?.length!==1||rows[0].value!==value||rows[0].valueFrom!==undefined)reject();};
    exact('ZASP_RETENTION_PROFILE_CHECKSUM',config.profileChecksum);
+   if(index)exact('ZASP_RETENTION_JOURNAL_PROFILE_CHECKSUM',config.journalProfileChecksum);
    if(['agentsec-runtime-index','agentsec-runtime-session-index-v2'].includes(r.metadata.name)){exact('ZASP_RUNTIME_STAGE_VERSION',config.indexStageVersion);exact('ZASP_RUNTIME_SESSION_INDEX',config.sessionIndex);}
    if(sweep){
     exact('ZASP_RETENTION_TASK_QUEUE',config.taskQueue);exact('ZASP_WORKER_MODE','retention-reference-expiry');exact('ZASP_DATABASE_AUTHORITY','zasp_temporal_executor');exact('ZASP_BATCH_SIZE','1');
@@ -54,8 +56,8 @@ export function validateRetentionResources(resources,config,profile){
 // A source/release guard result is a component artifact, never proof that the
 // observed fleet has rolled or old credentials have been withdrawn.
 export function retentionConsumerManifest(config){
- if(config?.enabled!==true||!pinPattern.test(config.profileChecksum)||!queuePattern.test(config.taskQueue)||config.indexStageVersion!=='runtime-index-v2'||config.sessionIndex!=='zasp-runtime-sessions-v2')reject();
- const manifest={version:1,profileChecksum:config.profileChecksum,taskQueue:config.taskQueue,indexStageVersion:config.indexStageVersion,sessionIndex:config.sessionIndex,consumers:retentionConsumers};
+ if(config?.enabled!==true||(!pinPattern.test(config.profileChecksum)||!pinPattern.test(config.journalProfileChecksum))||!queuePattern.test(config.taskQueue)||config.indexStageVersion!=='runtime-index-v2'||config.sessionIndex!=='zasp-runtime-sessions-v2')reject();
+ const manifest={version:1,profileChecksum:config.profileChecksum,journalProfileChecksum:config.journalProfileChecksum,taskQueue:config.taskQueue,indexStageVersion:config.indexStageVersion,sessionIndex:config.sessionIndex,consumers:retentionConsumers};
  return Object.freeze({...manifest,digest:createHash('sha256').update(JSON.stringify(manifest)).digest('hex')});
 }
 
