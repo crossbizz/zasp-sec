@@ -1,0 +1,117 @@
+{
+  "observed_at": "2026-10-17T06:39:51.764364+00:00",
+  "continued_published_base": "373653ed75247a0828df9477f43d76e3468ccb6b",
+  "fresh_main_sha": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
+  "scope": "Return evaluated preflight and upgrade blocker reports on stdout while retaining original evaluator errors and main exit1. Invalid or unevaluated inputs remain rejected without report; output errors propagate. No evaluation/probe/permission/schema changes.",
+  "sources": [
+    {
+      "path": "cmd/agentsecctl/release.go",
+      "sha256": "787815a9f973945a69856e528bbc803f51f7d32eb07e3959a8f07ceb3db79ffe",
+      "bytes": 19142
+    },
+    {
+      "path": "docs/internal/implementation_production_availability_v1.5.tsv",
+      "sha256": "e8e81de9c8bb3b49cb4884b83e58208a6da56f239abc537381059b45384ba807",
+      "bytes": 185418
+    },
+    {
+      "path": "docs/internal/implementation_status_v1.5.md",
+      "sha256": "0da4b2064f599de3f214b05f9e24e3fcf00fa1c31dd3b2404e93d88ad057bd3d",
+      "bytes": 1319974
+    },
+    {
+      "path": "cmd/agentsecctl/preflight_report_test.go",
+      "sha256": "85ca0f8627c024b79f7227e5b4c9503374a48b8eea3405e88d0fad42dbd31c8d",
+      "bytes": 3149
+    }
+  ],
+  "validation": {
+    "genuine_grouped_RED": {
+      "fail": 6,
+      "pass": 1
+    },
+    "full_CLI_suite": {
+      "pass": 138
+    },
+    "actual_compiled_CLI": {
+      "qualification": "Actual compiled CLI command exit/JSON report contract using supplied component inputs; not real AWS/Neon/Stytch/provider readiness",
+      "binary_sha256": "042c87bd618b2a41db5388b9ea829c1183bc03bbc1058549c86c7653ec3365d0",
+      "cases": [
+        {
+          "case": "preflight-blocked",
+          "exit": 1,
+          "checks": 8,
+          "stdout_sha256": "fde2f389bd528c31ac8ae0645cfdd50ccc5043c20a48936eed34b08a21f72f7b",
+          "stderr_bytes": 0
+        },
+        {
+          "case": "upgrade-blocked",
+          "exit": 1,
+          "checks": 4,
+          "stdout_sha256": "62b3a28fdaf1e4350217c02724abe30b061fe4e458b7db928c161fb7f3e1516b",
+          "stderr_bytes": 0
+        },
+        {
+          "case": "preflight-malformed",
+          "exit": 1,
+          "checks": 0,
+          "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderr_bytes": 0
+        }
+      ]
+    },
+    "fresh_UI_typecheck_exit": 0,
+    "fresh_UI_build_exit": 0,
+    "lint_exit": 0,
+    "lint_scope_checks_pass": 11,
+    "ledger_runner_checks_pass": 52,
+    "unchanged_workflow_source_pins_verified": 345,
+    "unchanged_UI_inputs_verified": 380,
+    "native_execution": false,
+    "real_provider_readiness": false,
+    "production_or_deployed_E2E": false
+  },
+  "compatibility": "Intentional stdout behavior correction for failed evaluations. Consumers must keep using the nonzero exit code as failure; a JSON report never changes that outcome. Successful report shape and invalid-input failure behavior remain unchanged.",
+  "independent_source_review": {
+    "path": "/tmp/preflight-report-source-independent-review-20261017.json",
+    "sha256": "25cb7b485e6c33a28fecb15f94481911e06907da330d94453f7534b0de292dc4",
+    "decision": "Source CLEAR; supplied booleans remain component inputs, not live observations."
+  },
+  "ledger": {
+    "rows": 728,
+    "unique_ids": 728,
+    "classes": {
+      "production-available": 523,
+      "component-only": 144,
+      "blocked/external": 61
+    },
+    "promotions": 0,
+    "evidence_only_ids": [
+      "M8-16",
+      "M8-22"
+    ],
+    "owners_unchanged": true
+  },
+  "task_crosswalk": [
+    {
+      "id": "M8-16",
+      "qualification": "CLI report and failure-exit behavior component; real dependency observations remain required."
+    },
+    {
+      "id": "M8-22",
+      "qualification": "Upgrade blocker report component; real migration/bundle/rollback observations remain required."
+    }
+  ],
+  "evidence_archive": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/preflight-blocker-report/component-evidence.json.gz",
+    "sha256": "06d0122bcdac31fff0812be0e09bfb3be35973b96d62ee7d4c5535f48803791a",
+    "bytes": 37572,
+    "members": 20
+  },
+  "open_gates": [
+    "Complete live AWS IAM/IRSA/storage/queues/search/EKS/Fargate, Neon/Stytch and selected-node sensor preflight; current command still evaluates supplied component inputs.",
+    "Real upgrade observation and rollback lifecycle, hosted native/browser acceptance, dependency/security/release clearance and deployed tenant/provider/fleet journeys.",
+    "Managed cloud spec638 reports current/enforced restricted networking,51 ready variable bindings and zero outbound identities. No TCP destinations/VPN; ready variables alone do not establish endpoint authorization. Denied module downloads require the supported reviewed configuration workflow; no bypass or retry."
+  ],
+  "publication": "Normal review-branch push after final independent index review only; no merge/release or task promotion."
+}

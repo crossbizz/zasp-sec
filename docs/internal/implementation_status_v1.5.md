@@ -41,6 +41,13 @@ worker/CLI/API setup remains blocked by missing dependencies. Native SQL and rea
 provider custody remain unverified. See
 `cloud-retention-journal-component-checkpoint-2026-10-17.json`.
 
+The CLI now returns structured preflight and upgrade blocker reports with the
+original nonzero exit status, instead of discarding their remediation hints.
+Malformed inputs remain rejected without a report. This fixes output behavior;
+caller-supplied booleans still do not establish live dependency readiness. Real
+provider preflight and upgrade observations remain required. See
+`cloud-preflight-blocker-report-component-checkpoint-2026-10-17.json`.
+
 The retention worker, scoped readers, writer barriers and cleanup implementation
 are present as components. Native activation/expiry acceptance, fleet cutover and
 real Stytch/provider journeys remain required. Future durable dispatch custody requires native/deployed verification;

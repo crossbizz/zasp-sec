@@ -427,10 +427,13 @@ func runReleaseCommand(output io.Writer, input io.Reader, arguments []string) er
 			return errPreflightRejected
 		}
 		report, err := EvaluatePreflight(value)
-		if err != nil {
+		if err != nil && len(report.Checks) == 0 {
 			return err
 		}
-		return encodeJSON(output, report)
+		if outputErr := encodeJSON(output, report); outputErr != nil {
+			return outputErr
+		}
+		return err
 	case "backup":
 		if len(arguments) < 2 {
 			return errInvalidArguments
@@ -459,10 +462,10 @@ func runReleaseCommand(output io.Writer, input io.Reader, arguments []string) er
 			return errUpgradeRejected
 		}
 		report, err := EvaluateUpgrade(value)
-		if err != nil {
-			return err
+		if outputErr := encodeJSON(output, report); outputErr != nil {
+			return outputErr
 		}
-		return encodeJSON(output, report)
+		return err
 	case "diagnostics":
 		if len(arguments) != 1 {
 			return errInvalidArguments

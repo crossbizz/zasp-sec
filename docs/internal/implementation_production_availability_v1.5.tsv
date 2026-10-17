@@ -610,7 +610,7 @@ M8	M8-12	Complete	production-available	T15-deployment	audited shipped compositio
 M8	M8-13	Complete	production-available	T15-deployment	audited shipped composition: exact-pinned private OTel Collector with fail-closed bounded redaction and release proof
 M8	M8-14	Complete	production-available	T15-deployment	customer-edge release renders the exact-digest Tetragon 1.7 wrapper, documented privilege boundary, two tracing policies, and disable-safe sensor profile; release render gate 20/20 at b0caf99
 M8	M8-15	Complete	production-available	PROD-current-composition	audited shipped composition: Pod disruption/topology
-M8	M8-16	Complete	component-only	T16-recovery-ops	audited component-only proof: preflight base
+M8	M8-16	Complete	component-only	T16-recovery-ops	audited component-only proof: preflight base; 2026-10-17 actual compiled CLI retains structured blocker/remediation JSON and original nonzero exit; grouped command/full CLI checks and independent review; live provider observations still incomplete; docs/internal/cloud-preflight-blocker-report-component-checkpoint-2026-10-17.json
 M8	M8-17a	Complete	component-only	T16-recovery-ops	audited component-only proof: preflight IAM IRSA
 M8	M8-17b	Complete	component-only	T16-recovery-ops	audited component-only proof: preflight S3 KMS Secrets
 M8	M8-17c	Complete	component-only	T16-recovery-ops	audited component-only proof: preflight SQS
@@ -633,7 +633,7 @@ M8	M8-22a	Complete	component-only	T16-recovery-ops	audited component-only proof:
 M8	M8-22b	Complete	component-only	T16-recovery-ops	audited component-only proof: upgrade migration check
 M8	M8-22c	Complete	component-only	T16-recovery-ops	audited component-only proof: upgrade bundle check
 M8	M8-22d	Complete	component-only	T16-recovery-ops	audited component-only proof: upgrade rollback check
-M8	M8-22	Complete	component-only	T16-recovery-ops	audited component-only proof: upgrade preflight
+M8	M8-22	Complete	component-only	T16-recovery-ops	audited component-only proof: upgrade preflight; 2026-10-17 actual compiled CLI retains structured blocker/remediation JSON and original nonzero exit; grouped command/full CLI checks and independent review; live provider observations still incomplete; docs/internal/cloud-preflight-blocker-report-component-checkpoint-2026-10-17.json
 M8	M8-23a	Complete	component-only	T16-recovery-ops	audited component-only proof: Start upgrade fixture
 M8	M8-23b	Complete	component-only	T16-recovery-ops	audited component-only proof: Run upgrade
 M8	M8-23c	Complete	component-only	T16-recovery-ops	audited component-only proof: Inject rollback condition
