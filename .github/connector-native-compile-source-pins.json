@@ -383,22 +383,22 @@
     },
     {
       "path": "scripts/connector-acceptance-groups.test.mjs",
-      "sha256": "adf598fae0f5cbc97ddabf3d2821f2e24e6c2583d4b535bfedbca60a9aa2214a",
-      "bytes": 33889,
+      "sha256": "b361a644397faf3744a773e0d8778a76908c22c704ed9f98d0fe1e070fe841fa",
+      "bytes": 34261,
       "currentBasePreimageSHA256": "a1622a9417e9fe4d62c2aed82bcf5f7f3e11dce841d802bf005b29d54405d388",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connected-connector-acceptance.mjs",
-      "sha256": "8548a278b53bf987e1ac69a15bd3f6fe43c22210bb69486beb7a207360a8eca6",
-      "bytes": 75538,
+      "sha256": "751e03966c4a193a973ad5f5a41690a0ac38bcbabf15594b7fcd919e9912464d",
+      "bytes": 75910,
       "currentBasePreimageSHA256": "f248c6d9182ca08cb518cd54c620844c987f4ae723a38badb463c59e010db578",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
-      "sha256": "b6f73088708e2a75f2b4377c545e1568c81313bdb40d8e2793c54c9fec9b6636",
-      "bytes": 71980,
+      "sha256": "302c339f2072a3fc6a3facf580466d5a67e9756e1d3d8d74781adc230b82f52f",
+      "bytes": 72352,
       "currentBasePreimageSHA256": "e66722e4daf5b1482c253d1f14b4c533c329fde202252c16f87ad3e0130e8524",
       "historicalPreimageSHA256": null
     },
@@ -1699,8 +1699,8 @@
     },
     {
       "path": "services/platform/apiserver/retention_native_postgres_test.go",
-      "sha256": "a015ceb77a7ccfcbaeaf91fc35478444a5f000535c4802a70eebc0bda0516c75",
-      "bytes": 39695,
+      "sha256": "75ef110453ffa8b7d52d1649370a26e31d11b45c69aec0098cfeb48abeab3926",
+      "bytes": 41381,
       "currentBasePreimageSHA256": "598976d7d8f237df54475194016086de7e716490bb535fd7587f31b71e7eb31b",
       "historicalPreimageSHA256": null
     },
@@ -2310,5 +2310,7 @@
   "retainedTerminalPG18SourceAssociationBase": "d3dcf00d042946370a903bac7d2dbaecc27de3a7",
   "retainedTerminalPredecessorManifestSHA256": "8b21e7ca7a623858512892d1187968c811eac7e02188e24c7b3645171d6c878f",
   "lintContractSourceAssociationBase": "d35f38087015141a9608fd16cac96a356dbfadf9",
-  "lintContractPredecessorManifestSHA256": "3a5c3339897c50b18c66d3da7e357efa71bf8f0f1c9f4183a9ae3bc74386f063"
+  "lintContractPredecessorManifestSHA256": "3a5c3339897c50b18c66d3da7e357efa71bf8f0f1c9f4183a9ae3bc74386f063",
+  "activationDiagnosticSourceAssociationBase": "5ae84c89dfcbb0588e5d9fe66d3ba89cafd14f05",
+  "activationDiagnosticPredecessorManifestSHA256": "95ff38811360b979340547781ddc37162dfa9705b339521e20db79705beda7ab"
 }

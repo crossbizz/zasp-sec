@@ -208,6 +208,7 @@ func TestRetentionAuditProfileNativePostgres(t *testing.T) {
 		}
 		var raw json.RawMessage
 		if err = tx.QueryRow(ctx, query, args...).Scan(&raw); err != nil {
+			t.Log("connector fixture stage=retention-refusal-" + retentionInstallerRefusalClass(err))
 			connectorFixtureErrorDiagnostic(t, err)
 			t.Fatal("retention operator operation refused")
 		}
@@ -314,6 +315,21 @@ func TestRetentionAuditProfileNativePostgres(t *testing.T) {
 			t.Fatal("local artifact receipt refused")
 		}
 		cutover = receipt.Digest
+		// Observe fixed effective DDL privileges without granting authority or
+		// replacing the original activation decision. No names/errors are emitted.
+		var publicCreate, runtimeTrigger, inventoryTrigger bool
+		if err := owner.QueryRow(ctx, `SELECT has_schema_privilege('zasp_discovery_authority','public','CREATE'),has_table_privilege('zasp_discovery_authority','public.zasp_runtime_session_events','TRIGGER'),has_table_privilege('zasp_discovery_authority','public.zasp_inventory_evidence','TRIGGER')`).Scan(&publicCreate, &runtimeTrigger, &inventoryTrigger); err == nil {
+			for _, privilege := range []struct {
+				stage   string
+				allowed bool
+			}{{"public-create", publicCreate}, {"runtime-trigger", runtimeTrigger}, {"inventory-trigger", inventoryTrigger}} {
+				outcome := "refused"
+				if privilege.allowed {
+					outcome = "granted"
+				}
+				t.Log("connector fixture stage=retention-ddl-" + privilege.stage + "-" + outcome)
+			}
+		}
 		active = boolOp(`SELECT zasp_retention_v1.activate($1,$2)`, pin, cutover)
 		if !active {
 			t.Fatal("exact successor activation refused")
@@ -598,7 +614,22 @@ type retentionObservedMigrationTransaction struct {
 // function. SQLSTATE alone cannot distinguish these authority-definition guards.
 func retentionInstallerRefusalClass(err error) string {
 	var pgerr *pgconn.PgError
-	if !errors.As(err, &pgerr) || pgerr == nil || pgerr.Code != "55000" {
+	if !errors.As(err, &pgerr) || pgerr == nil {
+		return "other"
+	}
+	if pgerr.Code == "42501" {
+		switch pgerr.Message {
+		case "retention activation rejected":
+			return "activation-rejected"
+		case "retention prepared cutover evidence required":
+			return "activation-cutover"
+		case "retention original-owner activation required":
+			return "activation-source-owner"
+		default:
+			return "other"
+		}
+	}
+	if pgerr.Code != "55000" {
 		return "other"
 	}
 	switch pgerr.Message {
@@ -616,15 +647,18 @@ func retentionInstallerRefusalClass(err error) string {
 }
 
 func TestRetentionInstallerRefusalClassification(t *testing.T) {
-	guards := []struct{ message, class string }{
-		{"retention exact source anchor changed", "source-anchor"},
-		{"retention exact Audit preimage closure required", "preimage-closure"},
-		{"retention runtime constraint family changed", "constraint-family"},
-		{"retention original source owner required", "original-source-owner"},
+	guards := []struct{ code, message, class string }{
+		{"55000", "retention exact source anchor changed", "source-anchor"},
+		{"55000", "retention exact Audit preimage closure required", "preimage-closure"},
+		{"55000", "retention runtime constraint family changed", "constraint-family"},
+		{"55000", "retention original source owner required", "original-source-owner"},
+		{"42501", "retention activation rejected", "activation-rejected"},
+		{"42501", "retention prepared cutover evidence required", "activation-cutover"},
+		{"42501", "retention original-owner activation required", "activation-source-owner"},
 	}
 	for _, guard := range guards {
 		for _, wrapped := range []bool{false, true} {
-			var err error = &pgconn.PgError{Code: "55000", Message: guard.message, Where: "untrusted dependency context"}
+			var err error = &pgconn.PgError{Code: guard.code, Message: guard.message, Where: "untrusted dependency context"}
 			if wrapped {
 				err = fmt.Errorf("untrusted wrapper: %w", err)
 			}
