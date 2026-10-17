@@ -3244,7 +3244,11 @@ export type components = {
             readonly version: number;
             readonly workspace_id: components["schemas"]["ProductID"];
         };
+        /** @enum {string} */
+        readonly EnvironmentClass: "development" | "test" | "staging" | "production";
         readonly EnvironmentCreateInput: {
+            /** @description Optional explicit classification. Omission creates development. Requires the current registered classification capability; names never determine class. */
+            readonly environment_class?: components["schemas"]["EnvironmentClass"];
             readonly name: string;
             readonly workspace_id: components["schemas"]["ProductID"];
         };
@@ -3261,6 +3265,11 @@ export type components = {
         readonly EnvironmentPage: {
             readonly items: readonly components["schemas"]["Environment"][];
             readonly page_info: components["schemas"]["PageInfo"];
+        };
+        readonly EnvironmentUpdateInput: {
+            /** @description Optional explicit classification. Omission preserves the stored class. Requires current registered classification capability and the original scope, version and fresh mutation authority. */
+            readonly environment_class?: components["schemas"]["EnvironmentClass"];
+            readonly name: string;
         };
         readonly EvidenceRecord: {
             readonly asset_id: string;
@@ -5283,9 +5292,11 @@ export type DeleteIntegrationScheduleReceiptIntent = components['schemas']['Dele
 export type DeleteIntegrationScheduleWorkflowMutationReceipt = components['schemas']['DeleteIntegrationScheduleWorkflowMutationReceipt'];
 export type EmptyInput = components['schemas']['EmptyInput'];
 export type Environment = components['schemas']['Environment'];
+export type EnvironmentClass = components['schemas']['EnvironmentClass'];
 export type EnvironmentCreateInput = components['schemas']['EnvironmentCreateInput'];
 export type EnvironmentMutation = components['schemas']['EnvironmentMutation'];
 export type EnvironmentPage = components['schemas']['EnvironmentPage'];
+export type EnvironmentUpdateInput = components['schemas']['EnvironmentUpdateInput'];
 export type EvidenceRecord = components['schemas']['EvidenceRecord'];
 export type ExternalFlow = components['schemas']['ExternalFlow'];
 export type ExternalFlowMutation = components['schemas']['ExternalFlowMutation'];
@@ -7044,7 +7055,7 @@ export interface operations {
         };
         readonly requestBody: {
             readonly content: {
-                readonly "application/json": components["schemas"]["NameInput"];
+                readonly "application/json": components["schemas"]["EnvironmentUpdateInput"];
             };
         };
         readonly responses: {

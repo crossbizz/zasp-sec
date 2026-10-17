@@ -318,7 +318,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/NameInput'
+              $ref: '#/components/schemas/EnvironmentUpdateInput'
       responses:
         '200':
           description: Updated Environment.
@@ -5049,6 +5049,25 @@ components:
           minLength: 1
           maxLength: 128
           pattern: '^(?!\s)(?!.*\s$)[^\x00-\x1F\x7F-\x9F]+$'
+        environment_class:
+          $ref: '#/components/schemas/EnvironmentClass'
+          description: Optional explicit classification. Omission creates development. Requires the current registered classification capability; names never determine class.
+    EnvironmentUpdateInput:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 128
+          pattern: '^(?!\s)(?!.*\s$)[^\x00-\x1F\x7F-\x9F]+$'
+        environment_class:
+          $ref: '#/components/schemas/EnvironmentClass'
+          description: Optional explicit classification. Omission preserves the stored class. Requires current registered classification capability and the original scope, version and fresh mutation authority.
+    EnvironmentClass:
+      type: string
+      enum: [development, test, staging, production]
     ComplianceCursor:
       type: string
       minLength: 2
