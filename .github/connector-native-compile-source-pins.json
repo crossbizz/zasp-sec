@@ -390,14 +390,14 @@
     },
     {
       "path": "scripts/hosted-connected-connector-acceptance.mjs",
-      "sha256": "751e03966c4a193a973ad5f5a41690a0ac38bcbabf15594b7fcd919e9912464d",
+      "sha256": "fbede9b33f5228305d0e6989243fea4cb79c3cb3a43c3583bb55c08a7da3cd8f",
       "bytes": 75910,
       "currentBasePreimageSHA256": "f248c6d9182ca08cb518cd54c620844c987f4ae723a38badb463c59e010db578",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
-      "sha256": "302c339f2072a3fc6a3facf580466d5a67e9756e1d3d8d74781adc230b82f52f",
+      "sha256": "611074599d770d4eb9c277ee5a9f29f0591dc14df077e4283d56936210a682e7",
       "bytes": 72352,
       "currentBasePreimageSHA256": "e66722e4daf5b1482c253d1f14b4c533c329fde202252c16f87ad3e0130e8524",
       "historicalPreimageSHA256": null
@@ -1461,8 +1461,8 @@
     },
     {
       "path": "deploy/staging/main.tf",
-      "sha256": "454558b65382c7da5406d4218ef8aec136c819d969e52473e294286d228bada6",
-      "bytes": 101783,
+      "sha256": "1f52871bb91b4f982f72196c421964ee12b0037678a51cae00e56bfdbbee5f4d",
+      "bytes": 102649,
       "currentBasePreimageSHA256": "f312a2c660dc907269c9ecf79c90e714b1c79abd0d6d944986e1daefd8f656b8",
       "historicalPreimageSHA256": null
     },
@@ -2259,15 +2259,15 @@
     },
     {
       "path": "deploy/staging/iam-policy-union-v1.mjs",
-      "sha256": "2922333e7f9fbd9f3de74c761d7064931ced2f7d6bc60f0000b68d9f2945907d",
-      "bytes": 88883,
+      "sha256": "c12dc17df268cd21f324b9d577b4c05fa7b1684c604ec27af4c03f20d35e7b34",
+      "bytes": 95052,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
     {
       "path": "deploy/staging/iam-policy-union-v1.test.mjs",
-      "sha256": "e302692402c02c09e142a4a8672e9acc00730326524059b4f8335d12503fb24d",
-      "bytes": 19153,
+      "sha256": "03eb62c4369eeae2684ebda1fde793e3dc77cf7157332b10b01043d37fb7393f",
+      "bytes": 28747,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -2312,5 +2312,7 @@
   "lintContractSourceAssociationBase": "d35f38087015141a9608fd16cac96a356dbfadf9",
   "lintContractPredecessorManifestSHA256": "3a5c3339897c50b18c66d3da7e357efa71bf8f0f1c9f4183a9ae3bc74386f063",
   "activationDiagnosticSourceAssociationBase": "5ae84c89dfcbb0588e5d9fe66d3ba89cafd14f05",
-  "activationDiagnosticPredecessorManifestSHA256": "95ff38811360b979340547781ddc37162dfa9705b339521e20db79705beda7ab"
+  "activationDiagnosticPredecessorManifestSHA256": "95ff38811360b979340547781ddc37162dfa9705b339521e20db79705beda7ab",
+  "runtimeReceiptPolicySourceAssociationBase": "504377e421bfd16e7d8dc66d2fc8711afeacd63e",
+  "runtimeReceiptPolicyPredecessorManifestSHA256": "18ca4da252014ed8f820f587a3ada629ba42934440258554be9619488195c39d"
 }

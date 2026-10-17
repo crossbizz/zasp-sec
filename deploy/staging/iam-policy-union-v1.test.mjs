@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { evaluateUnion, parseMockPlan, verifyMockPlan, retentionIndexRequests } from './iam-policy-union-v1.mjs';
+import { evaluateUnion, parseMockPlan, verifyMockPlan, retentionIndexRequests, runtimeReceiptRequests, bindRuntimeRawBucketPolicy, evaluateRuntimeRawUnion } from './iam-policy-union-v1.mjs';
 const doc = (...Statement) => ({ Version: '2012-10-17', Statement });
 const allow = (Action, Resource = '*', Condition) => ({ Effect: 'Allow', Action, Resource, ...(Condition ? { Condition } : {}) });
 const request = { action: 's3:DeleteObject', resource: 'arn:aws:s3:::owned/organizations/example/object', context: {} };
@@ -82,6 +82,100 @@ test('retention positive and negative requests detect missing targets and broade
  assert.ok(mismatches(widened).some(r => r.label.includes('no-foreign-index')));
 });
 
+// Parse only the literal HCL objects under test, retaining their actual source
+// expressions. This does not manufacture a Terraform plan or provider result.
+const rawBucket = 'arn:aws:s3:::runtime-receipt-source-test';
+const rawKey = 'arn:aws:kms:us-west-2:000000000000:key/runtime-receipt-source-test';
+function sourceObject(source, marker, references) {
+ const from = source.indexOf(marker); assert.ok(from >= 0, `source marker ${marker}`);
+ const start = source.indexOf('{', from);
+ const tokens = source.slice(start).match(/"(?:\\.|[^"\\])*"|[A-Za-z_][A-Za-z0-9_.]*|[{}[\]=,]/g);
+ let i = 0;
+ const resolve = text => text.replace(/\$\{([^}]+)\}/g, (_, ref) => { assert.ok(Object.hasOwn(references, ref), 'source reference bound'); return references[ref]; });
+ const value = () => {
+  const token = tokens[i++];
+  if (token === '{') {
+   const object = {};
+   while (tokens[i] !== '}') {
+    const raw = tokens[i++], key = raw.startsWith('"') ? JSON.parse(raw) : raw;
+    assert.equal(tokens[i++], '='); assert.ok(!Object.hasOwn(object, key)); object[key] = value();
+    if (tokens[i] === ',') i++;
+   }
+   i++; return object;
+  }
+  if (token === '[') {
+   const array = []; while (tokens[i] !== ']') { array.push(value()); if (tokens[i] === ',') i++; } i++; return array;
+  }
+  if (token.startsWith('"')) return resolve(JSON.parse(token));
+  assert.ok(Object.hasOwn(references, token), `source reference ${token}`); return references[token];
+ };
+ return value();
+}
+function runtimeReceiptSource() {
+ const source = fs.readFileSync(new URL('./main.tf', import.meta.url), 'utf8');
+ const local = /runtime_receipt_object_path\s*=\s*"([^"]+)"/.exec(source);
+ const references = { 'aws_s3_bucket.runtime_raw.arn': rawBucket, 'aws_kms_key.runtime_raw.arn': rawKey, 'var.region': 'us-west-2', 'local.runtime_receipt_object_path': local?.[1] ?? '' };
+ const bucketSource = source.slice(source.indexOf('resource "aws_s3_bucket_policy" "runtime_raw"'));
+ const bucketPolicy = sourceObject(bucketSource, 'policy = jsonencode(', references);
+ const binding = bindRuntimeRawBucketPolicy(JSON.stringify(bucketPolicy), rawBucket, rawKey);
+ const runtime = source.slice(source.indexOf('resource "aws_iam_role_policy" "runtime"'));
+ const marker = runtime.indexOf('Sid      = "RuntimeArtifactReceipts"');
+ assert.ok(marker >= 0, 'actual receipt statement exists');
+ const conditional = runtime.slice(0, marker).match(/contains\(\[([^\]]+)\], each.key\) \? jsonencode\(\{\s*$/);
+ assert.ok(conditional); const owners = [...conditional[1].matchAll(/"([^"]+)"/g)].map(m => m[1]);
+ const receipt = sourceObject(runtime, runtime.slice(runtime.lastIndexOf('{', marker), marker + 3), references);
+ const kmsAt = runtime.indexOf('Resource = aws_kms_key.runtime_raw.arn');
+ assert.ok(kmsAt >= 0);
+ const kmsBefore = runtime.slice(0, kmsAt);
+ const kmsRoles = [...kmsBefore.matchAll(/contains\(\[([^\]]+)\], each.key\) \? jsonencode\(\{/g)].at(-1);
+ assert.ok(kmsRoles);
+ const objectRoles = [...kmsRoles[1].matchAll(/"([^"]+)"/g)].map(m => m[1]);
+ assert.match(kmsBefore.slice(kmsRoles.index), /Action\s*= compact\(\["kms:Decrypt", each.key == "archive" \? null : "kms:GenerateDataKey"\]\)/);
+ const kmsCondition = sourceObject(runtime.slice(kmsAt), 'Condition =', references);
+ return { bucketPolicy, binding, owners, objectRoles, receipt, kmsCondition };
+}
+function receiptPolicies(source, role) {
+ const name = /^aws_iam_role\.runtime\["([^"]+)"\]$/.exec(role)?.[1];
+ const statements = [allow('s3:GetObject', 'arn:aws:s3:::nonmatching-source-test/never')];
+ if (source.owners.includes(name)) statements.push(source.receipt);
+ if (source.objectRoles.includes(name)) {
+  statements.push(allow(['s3:GetObject', 's3:GetObjectVersion', ...(name === 'archive' ? [] : ['s3:PutObject'])], `${rawBucket}/runtime/v15/*`));
+  statements.push(allow(['kms:Decrypt', ...(name === 'archive' ? [] : ['kms:GenerateDataKey'])], rawKey, source.kmsCondition));
+ }
+ return [doc(...statements)];
+}
+test('actual runtime receipt/KMS and bucket sources meet canonical path, exact role and encryption requests', () => {
+ const source = runtimeReceiptSource();
+ assert.equal(runtimeReceiptRequests(rawBucket, rawKey).length, 420);
+ assert.deepEqual(source.owners, ['index', 'correlation', 'projection', 'complete']);
+ assert.deepEqual(source.receipt.Action, ['s3:GetObject', 's3:GetObjectVersion', 's3:PutObject']);
+ assert.deepEqual(source.objectRoles, ['ingest', 'archive', 'index', 'correlation', 'projection', 'complete']);
+ for (const row of runtimeReceiptRequests(rawBucket, rawKey)) assert.equal(evaluateRuntimeRawUnion(receiptPolicies(source, row.role), row.request, source.binding), row.expected, `${row.role}:${row.label}`);
+});
+test('closed actual bucket policy rejects omitted, widened, extra and unknown encryption/transport controls', () => {
+ const source = runtimeReceiptSource();
+ const mutations = [
+  p => p.Statement.pop(), p => p.Statement.push(structuredClone(p.Statement[0])),
+  p => delete p.Statement[1].Condition, p => p.Statement[1].Resource.pop(),
+  p => p.Statement[2].Resource.push(`${rawBucket}/*`), p => p.Statement[2].Condition.ArnNotEquals['s3:x-amz-server-side-encryption-aws-kms-key-id'] = 'foreign',
+  p => p.Statement[0].Principal = { AWS: '*' }, p => p.Statement[0].Condition.Bool['aws:SecureTransport'] = 'true',
+  p => p.Statement[0].Resource.pop(), p => p.Statement[1].Condition.Unknown = {},
+ ];
+ for (const mutate of mutations) { const policy = structuredClone(source.bucketPolicy); mutate(policy); assert.throws(() => bindRuntimeRawBucketPolicy(JSON.stringify(policy), rawBucket, rawKey), /raw bucket/); }
+ for (const operator of ['StringNotEquals', 'ArnNotEquals']) assert.throws(() => evaluateUnion([doc(allow('s3:PutObject', '*', { [operator]: { 's3:x-amz-server-side-encryption': 'aws:kms' } }))], request), /unsupported/);
+ assert.throws(() => evaluateUnion([doc({ ...allow('s3:PutObject'), Principal: '*' })], request), /unsupported/);
+});
+test('runtime receipt request corpus detects missing grants, widened shapes, deletes and KMS context loss', () => {
+ const source = runtimeReceiptSource(), role = 'aws_iam_role.runtime["index"]';
+ const own = runtimeReceiptRequests(rawBucket, rawKey).filter(r => r.role === role);
+ const mismatches = policies => own.filter(row => evaluateRuntimeRawUnion(policies, row.request, source.binding) !== row.expected);
+ const original = receiptPolicies(source, role);
+ const missing = structuredClone(original); missing[0].Statement = missing[0].Statement.filter(s => s.Sid !== 'RuntimeArtifactReceipts'); assert.ok(mismatches(missing).some(r => r.label.includes('role:')));
+ const widened = structuredClone(original); widened[0].Statement.find(s => s.Sid === 'RuntimeArtifactReceipts').Resource = `${rawBucket}/organizations/*`; assert.ok(mismatches(widened).some(r => r.label.includes('shape:')));
+ const deleting = structuredClone(original); deleting[0].Statement.push(allow('s3:DeleteObject', `${rawBucket}/*`)); assert.ok(mismatches(deleting).some(r => r.label.includes('no-delete')));
+ const unbound = structuredClone(original); delete unbound[0].Statement.find(s => s.Resource === rawKey).Condition; assert.ok(mismatches(unbound).some(r => r.label.includes('bucket-key-missing:')));
+});
+
 // CI explicitly supplies its complete fixed mock-plan capture. Default unit tests require no providers or private fixtures.
 if (process.argv.length > 2) {
  if (process.argv.length !== 4 || process.argv[2] !== '--plan') throw new Error('IAM controls require --plan complete Terraform JSONL');
@@ -102,8 +196,17 @@ function refuse(name, mutate, reason) {
  });
 }
 test('captured mock plan: complete distinct workload unions pass independently specified requests', () => {
- assert.equal(verifyMockPlan(parseMockPlan(input)).decisionCases, 2859);
+ assert.equal(verifyMockPlan(parseMockPlan(input)).decisionCases, 3279);
 });
+refuse('runtime receipt grant removal refuses original receipt flow', e => policy(e, 'aws_iam_role_policy.runtime["index"]', v => { v.Statement = v.Statement.filter(s => s.Sid !== 'RuntimeArtifactReceipts'); }), /decision matrix/);
+refuse('runtime receipt shape widening refuses extra paths', e => policy(e, 'aws_iam_role_policy.runtime["projection"]', v => { v.Statement.find(s => s.Sid === 'RuntimeArtifactReceipts').Resource = `${row(e, 'aws_s3_bucket.runtime_raw').change.after.arn}/organizations/*`; }), /decision matrix/);
+refuse('runtime receipt DELETE cannot hide in another role union', e => policy(e, 'aws_iam_role_policy.runtime["archive"]', v => v.Statement.push(allow('s3:DeleteObject', `${row(e, 'aws_s3_bucket.runtime_raw').change.after.arn}/*`))), /decision matrix/);
+refuse('raw bucket policy cannot be attached to another bucket', e => { row(e, 'aws_s3_bucket_policy.runtime_raw').change.after.bucket = 'foreign-bucket'; }, /raw bucket policy attachment/);
+refuse('unknown raw bucket policy attachment refuses', e => { row(e, 'aws_s3_bucket_policy.runtime_raw').change.after_unknown.bucket = true; }, /unknown raw bucket policy/);
+refuse('raw bucket receipt encryption denial removal refuses', e => policy(e, 'aws_s3_bucket_policy.runtime_raw', v => { v.Statement.find(s => s.Sid === 'DenyUnencryptedRuntimeWrites').Resource.pop(); }), /raw bucket/);
+refuse('raw bucket receipt KMS denial removal refuses', e => policy(e, 'aws_s3_bucket_policy.runtime_raw', v => { delete v.Statement.find(s => s.Sid === 'DenyWrongRuntimeKey').Condition; }), /raw bucket/);
+refuse('runtime bucket key context removal refuses', e => policy(e, 'aws_iam_role_policy.runtime["index"]', v => { const condition = v.Statement.find(s => s.Resource === row(e, 'aws_kms_key.runtime_raw').change.after.arn && s.Condition?.StringLike).Condition; condition.StringLike['kms:EncryptionContext:aws:s3:arn'] = `${row(e, 'aws_s3_bucket.runtime_raw').change.after.arn}/*`; }), /decision matrix/);
+refuse('runtime KMS context unbinding refuses wrong and missing contexts', e => policy(e, 'aws_iam_role_policy.runtime["correlation"]', v => { delete v.Statement.find(s => s.Resource === row(e, 'aws_kms_key.runtime_raw').change.after.arn && s.Condition?.StringLike).Condition; }), /decision matrix/);
 refuse('unlisted inline policy with unrelated-write Allow refuses', e => {
  const rows = e.find(x => x.type === 'test_plan').test_plan.resource_changes;
  const r = structuredClone(row(e, 'aws_iam_role_policy.audit_exports["writer"]'));
