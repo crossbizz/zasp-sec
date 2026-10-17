@@ -35,7 +35,11 @@ func (r *Runner) Run(ctx context.Context, mode string) (report Report, resultErr
 	// including when the selected AWS credentials or role are unavailable.
 	r.observeCoreDependencies(bounded, &report, CoreDependencies{Neon: r.config.Neon, Stytch: r.config.Stytch})
 	r.sensor(bounded, &report)
-	credentials, e := r.credentials(bounded)
+	identityReader, closeIdentityReader := r.openAWSIdentityReader()
+	defer closeIdentityReader()
+	authority := r.inspectAWSAuthority(bounded, &report, r.config.AWSAuthority, identityReader)
+	defer r.finishAWSAuthority(&report, authority)
+	credentials, exchangeProof, e := r.credentialsObserved(bounded)
 	if e != nil {
 		r.record(&report, "iam_role", false, "credentials_unavailable", "none", r.config.Credentials.ExpectedRoleARN, false)
 		return report, ErrRejected
@@ -65,6 +69,7 @@ func (r *Runner) Run(ctx context.Context, mode string) (report Report, resultErr
 	if !roleReady {
 		return report, ErrRejected
 	}
+	r.observeSelectedAWSBinding(bounded, &report, r.config.AWSAuthority, authority, exchangeProof, identityReader)
 	r.buckets(bounded, &report, sdk, identity)
 	r.secrets(bounded, &report, sdk, identity)
 	r.queues(bounded, &report, sdk, identity)

@@ -2,8 +2,8 @@
 
 This component observes intended AWS targets through official SDK APIs. It is
 not a launch acceptance receipt. Its current report always keeps readiness false
-because the original IRSA, OpenSearch, EKS/private network and selected
-EC2 sensor checks are not all connected. Queue metadata does not prove send,
+because original OpenSearch, Fargate, network and data-plane permission
+observations remain incomplete. Queue metadata does not prove send,
 receive or delete authority. S3/KMS metadata does not prove artifact write rights.
 
 After the CLI build passes, invoke the read-only inspector with an absolute,
@@ -33,8 +33,9 @@ Select exactly one credential source: `operator_file` (private owned JSON),
 `operator_environment` (explicit standard AWS variables), or
 `workload_web_identity` (the fixed EKS projected token path and expected role).
 No profile, IMDS or operator fallback is attempted. Workload exchange uses STS;
-identity is checked before resource reads. It does not establish the remaining
-IRSA trust or Kubernetes binding observations. No permissions are installed.
+identity is checked before resource reads. A selected identity alone does not
+establish the full IRSA inventory or Kubernetes bindings described below. No
+permissions are installed.
 Secret values are transient and never reported. Mutable buffers are cleared;
 immutable Go/SDK strings cannot be guaranteed erased from memory.
 
@@ -97,3 +98,30 @@ coordinator remains for compatibility; deployment of the selected-coverage profi
 and retirement acceptance remain required. Host kernel/BTF, root-owned mounted
 witness, actual Helm rendering and real Kubernetes coverage are separate acceptance
 gates. Component fixtures do not satisfy them.
+
+Optional `aws_authority` selects separate explicit operator inspection credentials,
+the exact EKS cluster ARN/name/VPC/issuer/endpoint/CA digest/cluster UID, and exact
+role purpose-to-ARN bindings. Its compiled inventory retains all 38 original IRSA
+purposes and three infrastructure service roles, including optional Attack Lab
+selection rules. A partial supplied inventory cannot establish full coverage.
+Read-only EKS DescribeCluster and IAM GetRole/GetOpenIDConnectProvider observations
+require the intended EKS 1.34 private-only endpoint contract and exact trust shape.
+No inspection permission is added to workload roles.
+
+The shared explicit Kubernetes authority reads the selected cluster namespace,
+compiled ServiceAccounts and selected Pod specification through exact GET paths.
+It binds the EKS endpoint, CA digest and cluster UID. Auxiliary API role trust is
+checked separately from the primary role annotation on its shared ServiceAccount.
+A configured selected workload is proved against the subject, audience and issuer
+returned by the same successful STS web-identity exchange that supplied its actual
+credentials. Unverified JWT claims and a second exchange do not supply proof.
+Current Pod specification is separate evidence: it cannot prove token ownership
+of a Pod UID, ServiceAccount recreation or token revocation. No TokenReview grant
+or mutation is added. Per-run private proof is never cached in the Runner.
+
+The report exposes required/observed role and trust counts and separate selected
+exchange/specification booleans. A selected-role identity success cannot clear an
+incomplete original inventory. Failure outcomes and exact Kubernetes read actions
+remain bounded and redacted. Fargate, network reachability, OpenSearch and actual
+write/consume permissions remain separate original requirements; metadata and
+trust inspection do not establish them.

@@ -2,6 +2,17 @@
 
 ## Current continuation, October 17, 2026
 
+Connected AWS authorization preflight now checks the original compiled 38 IRSA
+and three service-role inventory, EKS private endpoint identity, OIDC trust and
+current Kubernetes ServiceAccount/selected Pod specification. Actual credentials
+and private selected-workload proof derive from the same STS exchange. Final
+inventory counts prevent a single selected role from clearing missing coverage.
+All 104 preflight/SDK and 148 CLI cases pass with race detection. No metadata or
+trust observation proves remaining network, Fargate, OpenSearch or write/consume
+requirements. Real target/provider and deployed acceptance remain required; no
+original requirement is promoted. See
+`cloud-aws-authority-component-checkpoint-2026-10-17.json`.
+
 Selected-node sensor coverage now joins independent Node inventory, exact deployed
 DaemonSets/Pods, UID/boot-bound producer observations and Lease evidence, with
 monotonic final freshness and pending-send fences. Integrated preflight/adapter

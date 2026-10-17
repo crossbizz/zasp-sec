@@ -439,7 +439,20 @@ test('retention connected sources retain the complete declared application closu
   "deploy/staging/tetragon/templates/sensor-coverage-reader.yaml",
   "deploy/production/release-fixture.mjs",
   "services/sensor-agent/node_coverage_flow_test.go",
-  "services/sensor-agent/lineage_consumer_daemon.go"
+  "services/sensor-agent/lineage_consumer_daemon.go",
+  "services/platform/preflight/aws_authority.go",
+  "services/platform/preflight/aws_authority_catalog.go",
+  "services/platform/preflight/aws_authority_config.go",
+  "services/platform/preflight/aws_authority_policy.go",
+  "services/platform/preflight/aws_authority_test.go",
+  "services/platform/preflight/aws_webidentity.go",
+  "services/platform/preflight/aws_webidentity_test.go",
+  "services/platform/preflight/aws_kubernetes.go",
+  "services/platform/preflight/aws_kubernetes_test.go",
+  "services/platform/preflight/aws_integration.go",
+  "services/platform/preflight/aws_integration_test.go",
+  "services/platform/go.mod",
+  "services/platform/go.sum"
 ];
   const compiled = JSON.parse(relative('.github/connector-native-compile-source-pins.json'));
   const compilePins = new Map(compiled.sources.map(item => [item.path, item]));

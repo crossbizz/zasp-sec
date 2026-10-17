@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/sts"
 )
 
 func privateFile(path string, max int64) ([]byte, error) {
@@ -57,6 +56,13 @@ type fileCredentials struct {
 }
 
 func (r *Runner) credentials(ctx context.Context) (aws.Credentials, error) {
+	c, _, e := r.credentialsObserved(ctx)
+	return c, e
+}
+
+// The exchange proof is returned to this run only; no shared mutable cache can
+// carry signed service facts into another invocation or inspector identity.
+func (r *Runner) credentialsObserved(ctx context.Context) (aws.Credentials, *awsWebIdentityProof, error) {
 	cr := r.config.Credentials
 	var c aws.Credentials
 	switch cr.Kind {
@@ -65,56 +71,47 @@ func (r *Runner) credentials(ctx context.Context) (aws.Credentials, error) {
 	case "operator_file":
 		b, e := privateFile(cr.File, 16384)
 		if e != nil {
-			return c, ErrRejected
+			return c, nil, ErrRejected
 		}
 		defer clear(b)
 		if !uniqueJSON(b) {
-			return c, ErrRejected
+			return c, nil, ErrRejected
 		}
 		d := json.NewDecoder(bytes.NewReader(b))
 		d.DisallowUnknownFields()
 		var f fileCredentials
 		if d.Decode(&f) != nil {
-			return c, ErrRejected
+			return c, nil, ErrRejected
 		}
 		c = aws.Credentials{AccessKeyID: f.AccessKeyID, SecretAccessKey: f.SecretAccessKey, SessionToken: f.SessionToken, Source: "zasp-preflight-explicit-file"}
 		if f.ExpiresAt != "" {
 			expiry, e := time.Parse(time.RFC3339, f.ExpiresAt)
 			if e != nil || !expiry.After(time.Now().Add(time.Minute)) {
-				return aws.Credentials{}, ErrRejected
+				return aws.Credentials{}, nil, ErrRejected
 			}
 			c.CanExpire = true
 			c.Expires = expiry
 		}
 	case "workload_web_identity":
 		if cr.TokenFile != "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" {
-			return c, ErrRejected
+			return c, nil, ErrRejected
 		}
 		f, e := os.Open(cr.TokenFile)
 		if e != nil {
-			return c, ErrRejected
+			return c, nil, ErrRejected
 		}
 		token, e := io.ReadAll(io.LimitReader(f, 16385))
 		ce := f.Close()
 		defer clear(token)
 		if e != nil || ce != nil || len(token) < 64 || len(token) > 16384 || !regexp.MustCompile(`^[A-Za-z0-9._~-]+$`).Match(token) {
-			return c, ErrRejected
+			return c, nil, ErrRejected
 		}
-		bounded, cancel := context.WithTimeout(ctx, 10*time.Second)
-		defer cancel()
-		api := sts.NewFromConfig(aws.Config{Region: r.config.Deployment.Region, HTTPClient: r.http, Credentials: aws.AnonymousCredentials{}, Retryer: func() aws.Retryer { return aws.NopRetryer{} }})
-		out, e := api.AssumeRoleWithWebIdentity(bounded, &sts.AssumeRoleWithWebIdentityInput{RoleArn: aws.String(cr.ExpectedRoleARN), RoleSessionName: aws.String("zasp-preflight-inspector"), WebIdentityToken: aws.String(string(token)), DurationSeconds: aws.Int32(900)})
-		now := time.Now().UTC()
-		if e != nil || bounded.Err() != nil || out == nil || out.Credentials == nil || out.Credentials.Expiration == nil || !out.Credentials.Expiration.After(now.Add(time.Minute)) || out.Credentials.Expiration.After(now.Add(16*time.Minute)) {
-			return c, ErrRejected
-		}
-		sc := out.Credentials
-		c = aws.Credentials{AccessKeyID: aws.ToString(sc.AccessKeyId), SecretAccessKey: aws.ToString(sc.SecretAccessKey), SessionToken: aws.ToString(sc.SessionToken), CanExpire: true, Expires: sc.Expiration.UTC(), Source: "zasp-preflight-web-identity"}
+		return r.exchangeAWSWebIdentity(ctx, cr.ExpectedRoleARN, token)
 	default:
-		return c, ErrRejected
+		return c, nil, ErrRejected
 	}
 	if !validCredentialValue(c.AccessKeyID, 8, 128) || !validCredentialValue(c.SecretAccessKey, 8, 256) || (c.SessionToken != "" && !validCredentialValue(c.SessionToken, 8, 16384)) || ctx.Err() != nil {
-		return aws.Credentials{}, ErrRejected
+		return aws.Credentials{}, nil, ErrRejected
 	}
-	return c, nil
+	return c, nil, nil
 }

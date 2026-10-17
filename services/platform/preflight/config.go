@@ -87,6 +87,9 @@ func uniqueJSON(payload []byte) bool {
 	return e == io.EOF
 }
 func validConfig(c Config) bool {
+	if !validAWSAuthority(c.AWSAuthority, c.Deployment, c.Features.AttackLab == "enabled") {
+		return false
+	}
 	if !validCoreDependencies(CoreDependencies{Neon: c.Neon, Stytch: c.Stytch}) {
 		return false
 	}

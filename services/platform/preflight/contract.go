@@ -61,16 +61,17 @@ type AWSConfig struct {
 	Queues  []Queue  `json:"queues"`
 }
 type Config struct {
-	Neon        *NeonConfig                          `json:"neon,omitempty"`
-	Stytch      *StytchConfig                        `json:"stytch,omitempty"`
-	Schema      string                               `json:"schema"`
-	Deployment  Deployment                           `json:"deployment"`
-	Scope       Scope                                `json:"scope"`
-	Credentials CredentialConfig                     `json:"credentials"`
-	Features    Features                             `json:"features"`
-	AWS         AWSConfig                            `json:"aws"`
-	Kubernetes  *KubernetesAuthority                 `json:"kubernetes,omitempty"`
-	Sensor      *sensoradapter.NodeCoverageSelection `json:"sensor,omitempty"`
+	AWSAuthority *AWSAuthorityConfig                  `json:"aws_authority,omitempty"`
+	Neon         *NeonConfig                          `json:"neon,omitempty"`
+	Stytch       *StytchConfig                        `json:"stytch,omitempty"`
+	Schema       string                               `json:"schema"`
+	Deployment   Deployment                           `json:"deployment"`
+	Scope        Scope                                `json:"scope"`
+	Credentials  CredentialConfig                     `json:"credentials"`
+	Features     Features                             `json:"features"`
+	AWS          AWSConfig                            `json:"aws"`
+	Kubernetes   *KubernetesAuthority                 `json:"kubernetes,omitempty"`
+	Sensor       *sensoradapter.NodeCoverageSelection `json:"sensor,omitempty"`
 }
 type Failure struct {
 	Operation    string `json:"operation"`
@@ -96,15 +97,24 @@ type Check struct {
 	Hint         string        `json:"hint"`
 	Observations []Observation `json:"observations"`
 }
+type AWSAuthoritySummary struct {
+	RequiredRoles                  int  `json:"required_roles"`
+	ObservedRoles                  int  `json:"observed_roles"`
+	RequiredTrust                  int  `json:"required_trust"`
+	ObservedTrust                  int  `json:"observed_trust"`
+	SelectedServiceAccountExchange bool `json:"selected_service_account_exchange"`
+	SelectedDeployedSpec           bool `json:"selected_deployed_spec"`
+}
 type Report struct {
-	Schema                     string  `json:"schema"`
-	Mode                       string  `json:"mode"`
-	Source                     string  `json:"source"`
-	Ready                      bool    `json:"ready"`
-	InstallPrerequisitesReady  bool    `json:"install_prerequisites_ready"`
-	RuntimeObservationsReady   bool    `json:"runtime_observations_ready"`
-	ProductionEndToEndVerified bool    `json:"production_end_to_end_verified"`
-	Checks                     []Check `json:"checks"`
+	AWSAuthority               *AWSAuthoritySummary `json:"aws_authority,omitempty"`
+	Schema                     string               `json:"schema"`
+	Mode                       string               `json:"mode"`
+	Source                     string               `json:"source"`
+	Ready                      bool                 `json:"ready"`
+	InstallPrerequisitesReady  bool                 `json:"install_prerequisites_ready"`
+	RuntimeObservationsReady   bool                 `json:"runtime_observations_ready"`
+	ProductionEndToEndVerified bool                 `json:"production_end_to_end_verified"`
+	Checks                     []Check              `json:"checks"`
 }
 
 type Runner struct {
