@@ -16729,3 +16729,28 @@ confirmations remain separate unresolved prerequisites; this patch does not clai
 full CLI or composite installation. The ledger retains all 728 requirements and
 its historical classifications with zero promotions. Evidence:
 `cloud-installer-binding-authority-source-component-checkpoint-2026-10-17.json`.
+
+
+## CLI principal preflight source correction, October 17, 2026
+
+The actual profile preflight retains the byte-identical configured-session and
+registered-binding SQL. It now runs that protected read through the existing
+bounded authority transaction, using only the same concrete PostgreSQL connection
+and ReadCommitted isolation in production. Unsupported, nontransactional and nil
+queryers reject before any protected read. The private recorder capability has
+implementations only in explicit test files. Confirmed commit precedes installer
+dispatch; no SQL, grants, checksums or runtime activation changes.
+
+Both actual local CLI attempts remain setup-blocked before zero named cases by
+the unavailable OPA dependency. There is no behavioral RED, test pass or compiler
+pass for this patch. The source/ledger/deployment contract checks pass 58 cases,
+and fresh UI typecheck/build pass. New hosted acceptance requires all14preflight
+cases and11retained consumer groups without skip/failure or incomplete results.
+All489source pins preserve479predecessors, including newly explicit existing
+consumer bindings. Existing native21groups/146cases/32owned PostgreSQL joins and
+all previous guards remain required.
+
+Seven final/internal authorization confirmations, worker/Temporal owner phases,
+actual native execution and deployed real Stytch/provider acceptance remain open.
+No requirement or availability classification changes. Evidence:
+`cloud-cli-principal-preflight-source-checkpoint-2026-10-17.json`.

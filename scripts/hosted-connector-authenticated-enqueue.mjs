@@ -454,12 +454,22 @@ const pins = {
   "services/platform/migrations/optional_egress_operator_role_test.go": "0cbfba3b99c9fd7942a4bf00d013e81a61cc40dc5bae90b8ce5eb747ce9d09aa",
   "services/platform/agentsec-migrate/optional_egress_confirmation_role_test.go": "6a441c1700513c3e9d566d7a95b57c4522a9d2e290cf00e57f77dbb7aaf57cbe",
   "services/platform/apiserver/optional_egress_operator_noinherit_postgres_test.go": "60247da61533c8e749c3303b7146afd992f3a2760990b1682570dea529bfce5c",
-  "services/platform/migrations/installer_binding_authority_test.go": "d1729206065e1792c07b263d3b410d1be2bf885a73a1b96d62ef808ad5bd85a4"
+  "services/platform/migrations/installer_binding_authority_test.go": "d1729206065e1792c07b263d3b410d1be2bf885a73a1b96d62ef808ad5bd85a4",
+  "services/platform/agentsec-migrate/principal_authority_transaction.go": "e34533f7705790ad6855280b905e78f593c4dc7c8d6bf229f47039ce72e5d388",
+  "services/platform/agentsec-migrate/authorization_audit_profile.go": "03e569ad7e9e24c23c75d06af9d2edf1f5812d6a5dd804dd538efde3356b6b52",
+  "services/platform/agentsec-migrate/principal_preflight_authority_test.go": "45d81ea2ebc6e291545756dbb8b2cd2a09b5f88c11e7518735f365dcce85694e",
+  "services/platform/agentsec-migrate/principal_preflight_recorders_test.go": "8f401a5d111182fd1f9fca35ade88c1765c2d104a35cc42243af0a2a6d2c404f",
+  "services/platform/agentsec-migrate/authorization_audit_profile_test.go": "4fbccd1d6779b43a7ab8b9316aeeeec7b1d4cfd5698920cd4bcaa8aaad7c75b3",
+  "services/platform/agentsec-migrate/authorization_runtime_profile_inner_diagnostic_test.go": "8108ac45747d66422273cde94783ca20c1f85c6fc072fc2d313fbf634c77ecf3",
+  "services/platform/agentsec-migrate/authorization_runtime_worker_profile_test.go": "bb43ed5704075c66bd4b43ae675fae15424bf8488e7191eb5381e0df76934713",
+  "services/platform/agentsec-migrate/authorization_temporal_profile_test.go": "605557d5b6e61661b730b33408d0f5c0ed4fa85ebdfa54a7fa594123b879e335",
+  "services/platform/agentsec-migrate/authorization_worker_profile_test.go": "ae0b022b39c2d63196767766dc61a155c374cdab1250823bf414db2224a363a4",
+  "services/platform/agentsec-migrate/identity_profile_test.go": "10d781fab61207b446f9ab7f9b22567dd33022800efbee4eb2062b26f6cab289"
 };
 const top='TestConnectorMaintenanceAuthenticatedOAuthEnqueuePostgres';
 const cases=['genuine_same_transaction_origin_and_immutable_enrichment','rollback_removes_every_enqueue_and_provenance_write'];
 const helperPins={
-  "scripts/connector-acceptance-groups.test.mjs": "5a13d97c8c14c587c8a360317c23e0a4ba6fb60da14c42d5cb736d2d0b0145ad",
+  "scripts/connector-acceptance-groups.test.mjs": "4cc3efd54586199d50a2854f2ea2c48598c69bd3ca90cd723f79836aca96e754",
   "scripts/connector-acceptance-groups.mjs": "1d0ac8bd39cde881ee26949586ede1fb401692c51d1e0cd351bb34535bfafb07",
   "docs/internal/evidence/cloud-2026-10-07/native-service-readiness/openfga/09-pg-non-glibc-libs-manifest.json": "96642e82997ffd2caf2893a5ecc0116ad2aef6e982df2d929f3efda4e04f3474",
   "services/platform/apiserver/authorization_integration_mutations_postgres_test.go": "5e4beb04b2409ad9b11b89c017ada5e2eccffd78a87bdd5692d40670f12a2ba0",
