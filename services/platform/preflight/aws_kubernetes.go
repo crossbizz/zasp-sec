@@ -71,50 +71,54 @@ func (r *awsKubernetesIdentityReader) Close() {
 	}
 }
 func (r *awsKubernetesIdentityReader) get(ctx context.Context, path string) ([]byte, error) {
+	b, _, e := r.getObserved(ctx, path)
+	return b, e
+}
+func (r *awsKubernetesIdentityReader) getObserved(ctx context.Context, path string) ([]byte, bool, error) {
 	if r == nil || ctx == nil || !r.paths[path] {
-		return nil, ErrRejected
+		return nil, false, ErrRejected
 	}
 	child, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	token, e := r.token(child)
 	if e != nil {
 		clear(token)
-		return nil, ErrRejected
+		return nil, false, ErrRejected
 	}
 	defer clear(token)
 	if !validCredentialValue(string(token), 16, 16384) {
-		return nil, ErrRejected
+		return nil, false, ErrRejected
 	}
 	req, e := http.NewRequestWithContext(child, http.MethodGet, r.endpoint+path, nil)
 	if e != nil {
-		return nil, ErrRejected
+		return nil, false, ErrRejected
 	}
 	req.Header.Set("Authorization", "Bearer "+string(token))
 	req.Header.Set("Accept", "application/json")
 	out, e := r.client.Do(req)
 	if e != nil {
-		return nil, ErrRejected
+		return nil, true, ErrRejected
 	}
 	defer out.Body.Close()
 	if out.StatusCode == 401 || out.StatusCode == 403 {
-		return nil, &awsKubernetesOutcomeError{outcome: "denied"}
+		return nil, true, &awsKubernetesOutcomeError{outcome: "denied"}
 	}
 	if out.StatusCode != 200 {
-		return nil, &awsKubernetesOutcomeError{outcome: "binding_mismatch"}
+		return nil, true, &awsKubernetesOutcomeError{outcome: "binding_mismatch"}
 	}
 	if out.Header.Get("Content-Type") != "application/json" {
-		return nil, &awsKubernetesOutcomeError{outcome: "malformed"}
+		return nil, true, &awsKubernetesOutcomeError{outcome: "malformed"}
 	}
 	b, e := io.ReadAll(io.LimitReader(out.Body, 1<<20+1))
 	if e != nil || child.Err() != nil {
 		clear(b)
-		return nil, ErrRejected
+		return nil, true, ErrRejected
 	}
 	if len(b) > 1<<20 || !uniqueProviderJSON(b) || !exactKubernetesAuthorityKeys(b, "") {
 		clear(b)
-		return nil, &awsKubernetesOutcomeError{outcome: "malformed"}
+		return nil, true, &awsKubernetesOutcomeError{outcome: "malformed"}
 	}
-	return b, nil
+	return b, true, nil
 }
 
 // Unknown extension keys (including null) may be present, but spelling aliases

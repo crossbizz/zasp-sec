@@ -107,16 +107,17 @@ type AWSAuthoritySummary struct {
 	SelectedDeployedSpec           bool `json:"selected_deployed_spec"`
 }
 type Report struct {
-	OpenSearch                 *OpenSearchSummary   `json:"opensearch,omitempty"`
-	AWSAuthority               *AWSAuthoritySummary `json:"aws_authority,omitempty"`
-	Schema                     string               `json:"schema"`
-	Mode                       string               `json:"mode"`
-	Source                     string               `json:"source"`
-	Ready                      bool                 `json:"ready"`
-	InstallPrerequisitesReady  bool                 `json:"install_prerequisites_ready"`
-	RuntimeObservationsReady   bool                 `json:"runtime_observations_ready"`
-	ProductionEndToEndVerified bool                 `json:"production_end_to_end_verified"`
-	Checks                     []Check              `json:"checks"`
+	AttackLabConfiguration     *AttackLabConfigurationSummary `json:"attack_lab_configuration,omitempty"`
+	OpenSearch                 *OpenSearchSummary             `json:"opensearch,omitempty"`
+	AWSAuthority               *AWSAuthoritySummary           `json:"aws_authority,omitempty"`
+	Schema                     string                         `json:"schema"`
+	Mode                       string                         `json:"mode"`
+	Source                     string                         `json:"source"`
+	Ready                      bool                           `json:"ready"`
+	InstallPrerequisitesReady  bool                           `json:"install_prerequisites_ready"`
+	RuntimeObservationsReady   bool                           `json:"runtime_observations_ready"`
+	ProductionEndToEndVerified bool                           `json:"production_end_to_end_verified"`
+	Checks                     []Check                        `json:"checks"`
 }
 
 type Runner struct {

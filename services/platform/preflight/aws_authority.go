@@ -121,12 +121,16 @@ func (r *Runner) inspectAWSAuthority(ctx context.Context, report *Report, c *AWS
 	if err != nil {
 		return evidence
 	}
-	sdk := aws.Config{Region: r.config.Deployment.Region, HTTPClient: r.http, Credentials: aws.CredentialsProviderFunc(func(context.Context) (aws.Credentials, error) {
-		if credentials.CanExpire && !credentials.Expires.After(time.Now().Add(time.Minute)) {
-			return aws.Credentials{}, ErrRejected
+	capture := &awsInspectionCapture{credentials: credentials}
+	credentials = aws.Credentials{}
+	handedOff := false
+	defer func() {
+		if !handedOff {
+			capture.release()
 		}
-		return credentials, nil
-	}), Retryer: func() aws.Retryer { return aws.NopRetryer{} }}
+	}()
+	sdk := aws.Config{Region: r.config.Deployment.Region, HTTPClient: r.http, Credentials: capture, Retryer: func() aws.Retryer { return aws.NopRetryer{} }}
+
 	child, stop := context.WithTimeout(bounded, 10*time.Second)
 	evidence.inspectionAttempted = true
 	caller, err := sts.NewFromConfig(sdk).GetCallerIdentity(child, &sts.GetCallerIdentityInput{})
@@ -166,6 +170,12 @@ func (r *Runner) inspectAWSAuthority(ctx context.Context, report *Report, c *AWS
 		return evidence
 	}
 	evidence.clusterVerified = true
+	if c.Fargate != nil {
+		evidence.inspectionSDK = &sdk
+		evidence.inspectionRelease = capture.release
+		evidence.clusterSecurityGroupID = aws.ToString(cluster.Cluster.ResourcesVpcConfig.ClusterSecurityGroupId)
+		handedOff = true
+	}
 	r.record(report, "eks_version_supported", true, "", "operator", c.Cluster.ARN, true)
 	roles, _ := authorityRoles(c, inventory, r.config.Deployment)
 	providerARN := "arn:" + r.config.Deployment.Partition + ":iam::" + r.config.Deployment.AccountID + ":oidc-provider/" + strings.TrimPrefix(c.Cluster.Issuer, "https://")

@@ -465,7 +465,28 @@ test('retention connected sources retain the complete declared application closu
   "services/platform/preflight/opensearch_kubernetes_test.go",
   "services/platform/preflight/opensearch_data_flow_test.go",
   "services/platform/inventorysearch/opensearchdriver/driver.go",
-  "services/platform/inventorysearch/opensearchdriver/schema.go"
+  "services/platform/inventorysearch/opensearchdriver/schema.go",
+  "services/platform/preflight/attack_lab.go",
+  "services/platform/preflight/attack_lab_config.go",
+  "services/platform/preflight/attack_lab_identity.go",
+  "services/platform/preflight/attack_lab_identity_test.go",
+  "services/platform/preflight/attack_lab_integration.go",
+  "services/platform/preflight/attack_lab_integration_test.go",
+  "services/platform/preflight/attack_lab_kubernetes.go",
+  "services/platform/preflight/attack_lab_kubernetes_test.go",
+  "services/platform/preflight/attack_lab_network.go",
+  "services/platform/preflight/attack_lab_network_test.go",
+  "services/platform/preflight/attack_lab_test.go",
+  "services/platform/preflight/attack_lab_topology.go",
+  "services/platform/preflight/attack_lab_topology_predicates.go",
+  "services/platform/preflight/attack_lab_topology_test.go",
+  "services/platform/preflight/attack_lab_validation.go",
+  "services/platform/preflight/aws_inspection_capture.go",
+  "services/platform/cloudreadiness/attack_lab.go",
+  "services/platform/cloudreadiness/attack_lab_test.go",
+  "services/platform/agentsec-worker/attack_lab_kubernetes_api.go",
+  "services/platform/preflight/attack_lab_failures.go",
+  "services/platform/preflight/attack_lab_mounted_recipe_test.go"
 ];
   const compiled = JSON.parse(relative('.github/connector-native-compile-source-pins.json'));
   const compilePins = new Map(compiled.sources.map(item => [item.path, item]));

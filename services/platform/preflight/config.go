@@ -87,6 +87,9 @@ func uniqueJSON(payload []byte) bool {
 	return e == io.EOF
 }
 func validConfig(c Config) bool {
+	if !validAWSAttackLabConfig(c) {
+		return false
+	}
 	if !validOpenSearchConfig(c) {
 		return false
 	}

@@ -143,3 +143,29 @@ initialization, document write, fallback identity or new workload permission is
 introduced. Expected phase is configuration, not an observed deployment phase.
 Inspector-origin reads do not prove workload network origin, global deployment
 phase, index write authority or full installation readiness.
+
+Optional `aws_authority.fargate` binds the original Attack Lab profile ARN,
+operator-selected VPC CNI build, two isolated runner subnets, separate product
+subnets, explicit isolated route table, four distinct security groups, exact
+runner deny-all boundary, proxy CA digest, nine endpoint IDs and bounded target/
+database CIDRs. No production CNI build or authority is invented by default.
+The same verified inspector credential capture and DescribeCluster security-group
+observation supply the bounded per-run SDK reads; credentials are released when
+the run ends. Disabled Attack Lab causes zero additional feature requests.
+
+Configuration observations inspect the exact EKS profile/addon, runner deny-all
+boundary and inline policy, separate pod-execution role, original Kubernetes
+readiness prerequisites and proxy security-group policy. EC2 joins bind owners,
+VPC/subnets/AZs, routes, security groups and endpoints. Product subnets can use
+the unique same-VPC main route table when no explicit association exists;
+runner subnets require explicit dedicated isolation. General product S3 and
+image-layer-only S3 endpoints remain separate requirements. Operator metadata
+read permissions are explicit prerequisites; no workload grant is installed.
+
+The separate `attack_lab_configuration` summary retains five observation results.
+An earlier successful Namespace read survives a later prerequisite failure.
+A local credential failure before an HTTP request remains unobserved without an
+invented provider failure or timestamp. Fixed operation/target-digest failures
+never include provider bodies or credential values. Network enforcement and
+actual canary/cleanup remain unobserved; metadata cannot clear private networking,
+launch readiness or real Fargate scheduling acceptance.

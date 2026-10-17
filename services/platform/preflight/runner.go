@@ -18,7 +18,14 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/cloudreadiness"
 )
 
-func (r *Runner) Run(ctx context.Context, mode string) (report Report, resultErr error) {
+func (r *Runner) Run(ctx context.Context, mode string) (Report, error) {
+	return r.runWithIdentityReader(ctx, mode, r.openAWSIdentityReader)
+}
+
+// The public entry point always selects the real bound authority opener. This
+// private seam permits protocol tests of the same loop without relaxed target
+// validation, public injection, or shared mutable credential state.
+func (r *Runner) runWithIdentityReader(ctx context.Context, mode string, openIdentityReader func() (KubernetesIdentityReader, func())) (report Report, resultErr error) {
 	if r == nil || r.http == nil || ctx == nil || !validConfig(r.config) || (mode != "before-install" && mode != "installed") {
 		return Report{}, ErrRejected
 	}
@@ -35,10 +42,16 @@ func (r *Runner) Run(ctx context.Context, mode string) (report Report, resultErr
 	// including when the selected AWS credentials or role are unavailable.
 	r.observeCoreDependencies(bounded, &report, CoreDependencies{Neon: r.config.Neon, Stytch: r.config.Stytch})
 	r.sensor(bounded, &report)
-	identityReader, closeIdentityReader := r.openAWSIdentityReader()
+	identityReader, closeIdentityReader := openIdentityReader()
 	defer closeIdentityReader()
 	authority := r.inspectAWSAuthority(bounded, &report, r.config.AWSAuthority, identityReader)
+	defer func() {
+		if authority.inspectionRelease != nil {
+			authority.inspectionRelease()
+		}
+	}()
 	defer r.finishAWSAuthority(&report, authority)
+	r.observeAttackLabConfiguration(bounded, &report, authority, identityReader)
 	searchDomain := r.observeOpenSearchDomain(bounded, &report)
 	credentials, exchangeProof, e := r.credentialsObserved(bounded)
 	if e != nil {

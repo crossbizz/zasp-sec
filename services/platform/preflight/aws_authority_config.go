@@ -1,6 +1,9 @@
 package preflight
 
-import "context"
+import (
+	"context"
+	"github.com/aws/aws-sdk-go-v2/aws"
+)
 
 type AWSClusterTarget struct {
 	Name       string `json:"name"`
@@ -21,6 +24,7 @@ type AWSSelectedWorkload struct {
 	PodUID  string `json:"pod_uid"`
 }
 type AWSAuthorityConfig struct {
+	Fargate    *AWSAttackLabTarget  `json:"fargate,omitempty"`
 	Inspection CredentialConfig     `json:"inspection"`
 	Cluster    AWSClusterTarget     `json:"cluster"`
 	Roles      []AWSRoleBinding     `json:"roles"`
@@ -41,6 +45,9 @@ type KubernetesIdentityReader interface {
 	Pod(context.Context, string, string) (KubernetesWorkloadBinding, error)
 }
 type awsAuthorityEvidence struct {
+	inspectionRelease                                          func()
+	inspectionSDK                                              *aws.Config
+	clusterSecurityGroupID                                     string
 	requiredRoles, observedRoles, requiredTrust, observedTrust int
 	inspectionAttempted                                        bool
 	clusterVerified                                            bool

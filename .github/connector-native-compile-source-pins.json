@@ -383,22 +383,22 @@
     },
     {
       "path": "scripts/connector-acceptance-groups.test.mjs",
-      "sha256": "998ba12718253f2ea6a81f33d3c57aa96f746afbb7194935818d0106dcdfc899",
-      "bytes": 39298,
+      "sha256": "fff7b939e32c01abff67579488730d1ed1cba098063884683331f611e8005eeb",
+      "bytes": 40528,
       "currentBasePreimageSHA256": "a1622a9417e9fe4d62c2aed82bcf5f7f3e11dce841d802bf005b29d54405d388",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connected-connector-acceptance.mjs",
-      "sha256": "64f05adbbfc21b044f2b321910131f3a5afef7daccf2edbfbf8c13ab469062f2",
-      "bytes": 87244,
+      "sha256": "c41dc2804e51ba86716e54ae805fbcb75ae34aeb281ce13a731375f8fefd080d",
+      "bytes": 89902,
       "currentBasePreimageSHA256": "f248c6d9182ca08cb518cd54c620844c987f4ae723a38badb463c59e010db578",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
-      "sha256": "666e8e88b5ba21f9966bfd38f87ba6a5a2e6605318c1fd56ee9fa591835f94af",
-      "bytes": 83645,
+      "sha256": "52d5c698e68a500422b351de1bbe445e73324bb377fc079e3a131359dda7272d",
+      "bytes": 86303,
       "currentBasePreimageSHA256": "e66722e4daf5b1482c253d1f14b4c533c329fde202252c16f87ad3e0130e8524",
       "historicalPreimageSHA256": null
     },
@@ -2420,15 +2420,15 @@
     },
     {
       "path": "cmd/agentsecctl/go.mod",
-      "sha256": "0fa0e8647690141a23c7422fa721dd6ab3778f39e4740236e541a49e120661d2",
-      "bytes": 1806,
+      "sha256": "ebf97b7c55a47ac9263107eff6cdb0f7928f3610d66eba47c0cbdfc66737fab1",
+      "bytes": 1869,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
     {
       "path": "cmd/agentsecctl/go.sum",
-      "sha256": "686048a9c5a2ce0f2a7d6c2006b72ec7a3c986173bbfa8b56a9fe9a7bad3581e",
-      "bytes": 6476,
+      "sha256": "ba9715433e35f6e74f03fb8cb57c043d6f6a0ef39a8be25f27687d7580f0a58e",
+      "bytes": 6679,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -2476,8 +2476,8 @@
     },
     {
       "path": "services/platform/preflight/config.go",
-      "sha256": "4e7ba1f2edbbd4630dd1076882f8c92efbf16b5437238fc98517af686bc7545a",
-      "bytes": 6877,
+      "sha256": "4e6f80c4489d7d840a102ebcbeb9d68335d8b25c2fee531d60639b2dc8233e97",
+      "bytes": 6929,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -2490,8 +2490,8 @@
     },
     {
       "path": "services/platform/preflight/contract.go",
-      "sha256": "7ac1af3cada54125322f991bb51f21c8fb309697d65e0324cd00f50728b367e7",
-      "bytes": 4971,
+      "sha256": "f949c0e365f5862f7f6776cc84ee8ae0d730c836cc58e71147dfd35905481759",
+      "bytes": 5174,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -2518,8 +2518,8 @@
     },
     {
       "path": "services/platform/preflight/runner.go",
-      "sha256": "5b1686e89efad306cf9ace6234474b5cc83a176d560e838a8689950a09bc09ee",
-      "bytes": 11737,
+      "sha256": "17a8331d8ad3f1e6188bfb8f02f8462d52d6592e71c69cd5980069f8fde3b939",
+      "bytes": 12361,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -2763,8 +2763,8 @@
     },
     {
       "path": "services/platform/preflight/aws_authority.go",
-      "sha256": "f2160f9ed52637407ec90190d1443314d9c862f1c940efd7a9033fbe45bb02f4",
-      "bytes": 11407,
+      "sha256": "d2cddc6993299b25cf991067a488e5d1ea0de6e84e69f1b71dfba5a7fe361ca9",
+      "bytes": 11585,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -2777,8 +2777,8 @@
     },
     {
       "path": "services/platform/preflight/aws_authority_config.go",
-      "sha256": "4cf79349b488b692af1912a298fa794f3981d33e1e8d9b233a4bad5ffc70feb2",
-      "bytes": 1723,
+      "sha256": "2432b8b787b1a83d6a2e58c14248205c1e52d25d7364855f406961d3f5dd6f35",
+      "bytes": 2030,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -2812,8 +2812,8 @@
     },
     {
       "path": "services/platform/preflight/aws_kubernetes.go",
-      "sha256": "683a8314445ba07b9d67eaf26e2f52e8c71e80f12827cffd88b0be8cb098df8d",
-      "bytes": 9158,
+      "sha256": "de4d98d121c789f40200c31db643078abf302dde4deb022bc51c65ff43519dc9",
+      "bytes": 9388,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -2940,6 +2940,153 @@
       "path": "services/platform/inventorysearch/opensearchdriver/schema.go",
       "sha256": "54d016d9c71e3312c51a2f2ae213752a409a07a4e2b67254a08c25736f2cbcc5",
       "bytes": 6714,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/preflight/attack_lab.go",
+      "sha256": "458c5fbbdc9a8351431513ddb074ca365f65ae609052f043020ae568a0f9736b",
+      "bytes": 4828,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/preflight/attack_lab_config.go",
+      "sha256": "8cf17d0f700bb05cf096d526afe6ad66feb07812fdc5c94b846b024d7060246c",
+      "bytes": 1874,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/preflight/attack_lab_identity.go",
+      "sha256": "f6eb8de36d3b700374f63fce573c637cbe265a8a92e1e22562810f7f03a5f6b3",
+      "bytes": 7634,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/preflight/attack_lab_identity_test.go",
+      "sha256": "33896087377d550d6002d24756dd9cdb835763108a9bf2700df36de3d6ade2c8",
+      "bytes": 7252,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/preflight/attack_lab_integration.go",
+      "sha256": "45fad83db37e8bd3eb6eca75dffaae3a338ea1bbfc9751ffda156b02014432b2",
+      "bytes": 4651,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/preflight/attack_lab_integration_test.go",
+      "sha256": "524c0721a7692531d9752af05c7a66b9e4f76d898227bbf5c460a31e5cd89520",
+      "bytes": 5521,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/preflight/attack_lab_kubernetes.go",
+      "sha256": "a7da708c2e9db51f61c02251620a79fa83a2d29cbb34eaf239355aa604f410a3",
+      "bytes": 8269,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/preflight/attack_lab_kubernetes_test.go",
+      "sha256": "5358696df3ce8042002c100bdc66058abbb4adcf7613d39478ec37bbe91388c4",
+      "bytes": 6272,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/preflight/attack_lab_network.go",
+      "sha256": "3783f7c215002aada177aa81ed7492e38030b6ea5811ecbe6fc9e2555ff7ec93",
+      "bytes": 2001,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/preflight/attack_lab_network_test.go",
+      "sha256": "7f861b6197f2b291a505b964c18b9d40f8f5831095bd9a303a637c2d7e69f3c1",
+      "bytes": 2672,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/preflight/attack_lab_test.go",
+      "sha256": "ccb59ea4911fe79f5065daea3e9c2821d3a6c70c6630986c7f97ae5b26ab6e14",
+      "bytes": 6897,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/preflight/attack_lab_topology.go",
+      "sha256": "cf2af8c0a4502debe3a90e375ba8b337a3f6e17d966fe895bdecf27d6355206e",
+      "bytes": 6585,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/preflight/attack_lab_topology_predicates.go",
+      "sha256": "eede5a4c9f5d126396499f44cfb0f7e32b085f8321ad70da5272a605f9163f0b",
+      "bytes": 12247,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/preflight/attack_lab_topology_test.go",
+      "sha256": "96b230c9a7202c37616fbb85f7a156561627b3bf95cc8d0f55522873fc82a546",
+      "bytes": 11860,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/preflight/attack_lab_validation.go",
+      "sha256": "43c2f92e6d7cc5e0c63c175fd1502e590ed43e94738313eee7eee7b111b85b42",
+      "bytes": 3656,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/preflight/aws_inspection_capture.go",
+      "sha256": "e2ad0171509803dab726b151ced966186c477bff91c7630873d44b1e0faf9405",
+      "bytes": 853,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/cloudreadiness/attack_lab.go",
+      "sha256": "e0f7914e8157405c9a8adef5e52f9b6d99fb32c5a63b20e05a6e7d1ee9be97d3",
+      "bytes": 7023,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/cloudreadiness/attack_lab_test.go",
+      "sha256": "c08172d0af15da1a96cf1dbb62b8e19563fef4aa51f2f7a8bef853ee8be32e92",
+      "bytes": 4969,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/agentsec-worker/attack_lab_kubernetes_api.go",
+      "sha256": "21c5a5d1aa686e62e1ad057f881c74715939ed8c4ffea07609a34c744b7ab1b4",
+      "bytes": 47601,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/preflight/attack_lab_failures.go",
+      "sha256": "7f30b4d666b7d5ff709d952e056ab03cca0224a10e28dffbc71e1223d545cb02",
+      "bytes": 3535,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/preflight/attack_lab_mounted_recipe_test.go",
+      "sha256": "c4709e51167e00b415f4447b3506f2cd5c77c965ec2e5bc36efd7d9f6a8deb55",
+      "bytes": 12748,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     }
