@@ -140,8 +140,8 @@ const pins = {
   "services/platform/migrations/production_authorization_runtime_profile.go": "2e1505d973f621b97081cef217fa0f7f56f3d501ba77a15228a7b9bfb50a6c70",
   "services/platform/migrations/production_authorization_worker_audit_profile.go": "82e305184878089e91dfd39d5a8b70216a2a23fc302cbdbfaae8f512510a541d",
   "services/platform/migrations/production_authorization_worker_profile.go": "84944f2610080b581102b3cc1cc649c42af394acccb3d8ae3f7bc38eb40165f3",
-  "services/platform/migrations/production_optional_egress_profile.go": "1fbc36a8d55e2734deda4a4110c9b997c09a49c02c4c022b44e5cbafc6b237d0",
-  "services/platform/migrations/production_optional_egress_profile_test.go": "fd16b29786485429910097ea8fab567b03d0be252725d709376b04b41ab77ab8",
+  "services/platform/migrations/production_optional_egress_profile.go": "5a96c57c85ab75f671db0db0992fef86cd5efc48d6147e305bc106e8e9522988",
+  "services/platform/migrations/production_optional_egress_profile_test.go": "de0db47a4a2ef4710a0136a6d3fb208d7fc38fac97dedfc5dbd0ab417749b8bf",
   "services/platform/migrations/production_temporal_finding_response.go": "02149437927657c7d54c856093f7831d92263e8ed458d4d9a45f745d30229590",
   "services/platform/migrations/sql/0078_production_temporal_finding_response.accounting.sql": "e071cee3ea0a7d87cfff2386272f485c0e1bbe98ac18cc0b5ea0f68c5ecdad9e",
   "services/platform/migrations/sql/0078_production_temporal_finding_response.admission.sql": "c0e37bef70540aa8df5f580573a32d60340876bb9a919ba3a75da135b7d4c499",
@@ -445,18 +445,21 @@ const pins = {
   "services/platform/agentsec-migrate/environment_class_profile.go": "507f6fa5bf1c2cda0f6113a4848fd4ff9a5f08ddd5f581ba6101fe93a0788c75",
   "services/platform/agentsec-migrate/environment_class_profile_test.go": "e130c7932e6f0007b42e2877fc9461f755972d8a797840f29ec7cf6103c276e7",
   "services/platform/apiserver/environment_class_profile_catalog_postgres_test.go": "1b0958269782e88e4a3449160e3371ef2298aeb9ac43d8e861252d9bf0a963a4",
-  ".github/workflows/connector-connected-lifecycle.yml": "18ed9beb9ba8e5f367cd659202cb2b3f9cd53d5c2ec1badd42aad1f05000601f",
+  ".github/workflows/connector-connected-lifecycle.yml": "2e5adac7fd116a54721312719bcb9b0522222f1115e034d7178977a9817bab2d",
   "services/platform/migrations/maintenance_operator_role.go": "6d3e84f0e562859447d0360ede57102f1530ee24bde2d7910da8f9760721b7b6",
   "services/platform/migrations/maintenance_operator_role_test.go": "73c1c2ba61c1a809d1a15353ba21caa2265c690f6bea0bedf56d0836aeaf25cf",
-  "services/platform/agentsec-migrate/forward_release_confirmation.go": "35e7b8a54517dd69ad251988fb67fe78e11670df40b892e840098faa90ccc039",
+  "services/platform/agentsec-migrate/forward_release_confirmation.go": "dafa9ba00072fec7b6005ea74a7b5fee79400849773b37ab0b53a2790eeb9a65",
   "services/platform/agentsec-migrate/maintenance_confirmation_role_test.go": "efea4551621dbd95e91f08eb93fbeddd6a45c8ec6ebd36160b22881e41cfbccf",
-  "services/platform/apiserver/maintenance_operator_noinherit_postgres_test.go": "6184ff4e860185928eba4676f65c26f3af9b005221e981eb8d43a4d22f28b62d"
+  "services/platform/apiserver/maintenance_operator_noinherit_postgres_test.go": "6184ff4e860185928eba4676f65c26f3af9b005221e981eb8d43a4d22f28b62d",
+  "services/platform/migrations/optional_egress_operator_role_test.go": "0cbfba3b99c9fd7942a4bf00d013e81a61cc40dc5bae90b8ce5eb747ce9d09aa",
+  "services/platform/agentsec-migrate/optional_egress_confirmation_role_test.go": "6a441c1700513c3e9d566d7a95b57c4522a9d2e290cf00e57f77dbb7aaf57cbe",
+  "services/platform/apiserver/optional_egress_operator_noinherit_postgres_test.go": "60247da61533c8e749c3303b7146afd992f3a2760990b1682570dea529bfce5c"
 };
 const top='TestConnectorMaintenanceAuthenticatedOAuthEnqueuePostgres';
 const cases=['genuine_same_transaction_origin_and_immutable_enrichment','rollback_removes_every_enqueue_and_provenance_write'];
 const helperPins={
-  "scripts/connector-acceptance-groups.test.mjs": "911babee2f0a65b5494e18a26e2717cc47dc9fdd0b9ecf38ec0378697d4061e7",
-  "scripts/connector-acceptance-groups.mjs": "b82363c15c436677c429bb8d68c3889a5c94c6325241b34bdc94890e231185b4",
+  "scripts/connector-acceptance-groups.test.mjs": "ec81f02e01c2482d6a04c891fdfe437ae5a18bbb1f2cd91e96cf25ed51e9c4d8",
+  "scripts/connector-acceptance-groups.mjs": "1d0ac8bd39cde881ee26949586ede1fb401692c51d1e0cd351bb34535bfafb07",
   "docs/internal/evidence/cloud-2026-10-07/native-service-readiness/openfga/09-pg-non-glibc-libs-manifest.json": "96642e82997ffd2caf2893a5ecc0116ad2aef6e982df2d929f3efda4e04f3474",
   "services/platform/apiserver/authorization_integration_mutations_postgres_test.go": "5e4beb04b2409ad9b11b89c017ada5e2eccffd78a87bdd5692d40670f12a2ba0",
   "scripts/hosted-memory-observation.mjs": "70c2ae837d040be4756842e4016acbc4eebd6bae3d8c992aba2a80e2a097ba75",

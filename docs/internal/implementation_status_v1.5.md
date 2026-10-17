@@ -16680,3 +16680,21 @@ Published-head compile and environment-class component CI failures remain unreso
 finite metadata does not identify their cause. Real deployed Stytch/provider flows,
 all mandatory release checks and merge remain outstanding. Evidence:
 `cloud-maintenance-operator-role-source-component-checkpoint-2026-10-17.json`.
+
+
+## Optional-egress operator role windows, October 17, 2026
+
+Both normal and Audit optional-egress installers now reuse the reviewed bounded
+authority readiness read, restoring the original operator role before its schema
+bootstrap. Their two actual CLI confirmation paths use the existing ReadCommitted
+authority transaction. Canonical SQL, checksums, grants, runtime-purpose membership
+and activation behavior remain unchanged. This fixes the existing NOINHERIT owner
+composition; it does not enable external flows.
+
+A genuine four-leaf permission-boundary failure preceded the fix. All 22 grouped
+optional-egress and maintenance migration component cases now pass, along with
+58 source/ledger/deployment checks and fresh UI typecheck/build. The actual CLI
+package remains setup-blocked before named cases by unavailable cached OPA.
+Twelve additive normal/Audit native cases remain unexecuted, and all original
+acceptance groups remain required. No ledger classification or original scope
+changes. Evidence: `cloud-optional-egress-operator-role-source-component-checkpoint-2026-10-17.json`.

@@ -133,7 +133,18 @@ export const MAINTENANCE_OPERATOR_ACCEPTANCE_GROUPS = Object.freeze({
   'maintenance-operator': group('TestMaintenanceOperatorNoInheritPostgres', maintenanceOperatorCases, 1),
   'maintenance-operator-audit': group('TestMaintenanceOperatorNoInheritAuditPostgres', maintenanceOperatorCases, 1),
 });
-const acceptanceGroups = Object.freeze({...CONNECTOR_ACCEPTANCE_GROUPS, ...ENVIRONMENT_CLASS_ACCEPTANCE_GROUPS, ...MAINTENANCE_OPERATOR_ACCEPTANCE_GROUPS});
+const optionalEgressOperatorCases = Object.freeze([
+  'restricted_original_login_private80_denied',
+  'selected_recipe_installs_unconfigured_and_restores_role',
+  'idempotent_recipe_preserves_explicit_incoming_role',
+  'other_parent_recipe_refuses_without_effects',
+  'rejected_private_parent_rolls_back_role_and_effects',
+]);
+export const OPTIONAL_EGRESS_OPERATOR_ACCEPTANCE_GROUPS = Object.freeze({
+  'optional-egress-operator': group('TestOptionalEgressOperatorNoInheritPostgres', optionalEgressOperatorCases, 1),
+  'optional-egress-operator-audit': group('TestOptionalEgressOperatorNoInheritAuditPostgres', optionalEgressOperatorCases, 1),
+});
+const acceptanceGroups = Object.freeze({...CONNECTOR_ACCEPTANCE_GROUPS, ...ENVIRONMENT_CLASS_ACCEPTANCE_GROUPS, ...MAINTENANCE_OPERATOR_ACCEPTANCE_GROUPS, ...OPTIONAL_EGRESS_OPERATOR_ACCEPTANCE_GROUPS});
 export function selectConnectorAcceptanceGroup(args) {
   assert.ok(Array.isArray(args) && args.length === 1 &&
     typeof args[0] === 'string' && Object.hasOwn(acceptanceGroups, args[0]),

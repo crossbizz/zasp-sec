@@ -23,6 +23,11 @@ func confirmForwardRelease(ctx context.Context, queryer principalQueryer, begin 
 			return retentionPostInstall(c, q, registration.migration)
 		}, nil)
 	}
+	if optionalEgressProfileCommand(arguments[0]) {
+		return withRetentionOperatorTransaction(ctx, begin, func(c context.Context, q principalQueryer, _ io.Writer) error {
+			return optionalEgressPostInstall(c, q, registration.migration, arguments[0])
+		}, nil)
+	}
 	if maintenanceProfileCommand(arguments[0]) {
 		return withRetentionOperatorTransaction(ctx, begin, func(c context.Context, q principalQueryer, _ io.Writer) error {
 			return registerForwardRelease(c, q, registration, arguments)

@@ -66,7 +66,7 @@ func TestOptionalEgressInstallerTransactions(t *testing.T) {
 	}
 	for _, present := range []bool{false, true} {
 		rows := []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{present}}, fakeRow{values: []any{true}}, fakeRow{values: []any{true}}, fakeRow{values: []any{true}}}
-		tx := &fakeTransaction{rows: rows}
+		tx := &fakeTransaction{rows: maintenanceRoleAdmissionRows(rows)}
 		db := &fakeDatabase{transaction: tx}
 		r, err := NewRunner(db)
 		if err != nil {
@@ -89,7 +89,7 @@ func TestOptionalEgressInstallerTransactions(t *testing.T) {
 	for _, failure := range []int{0, 2, 3, 4} {
 		rows := []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{true}}, fakeRow{values: []any{true}}, fakeRow{values: []any{true}}, fakeRow{values: []any{true}}}
 		rows[failure] = fakeRow{values: []any{false}}
-		tx := &fakeTransaction{rows: rows}
+		tx := &fakeTransaction{rows: maintenanceRoleAdmissionRows(rows)}
 		db := &fakeDatabase{transaction: tx}
 		r, err := NewRunner(db)
 		if err != nil {
@@ -105,7 +105,7 @@ func TestOptionalEgressInstallerTransactions(t *testing.T) {
 	}
 	for _, present := range []bool{false, true} {
 		rows := []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{present}}, fakeRow{values: []any{true}}, fakeRow{values: []any{true}}, fakeRow{values: []any{true}}}
-		tx := &fakeTransaction{rows: rows}
+		tx := &fakeTransaction{rows: maintenanceRoleAdmissionRows(rows)}
 		db := &fakeDatabase{transaction: tx}
 		r, err := NewRunner(db)
 		if err != nil {
