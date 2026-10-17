@@ -390,14 +390,14 @@
     },
     {
       "path": "scripts/hosted-connected-connector-acceptance.mjs",
-      "sha256": "cf35b38c5deea805772ef8eb01266c27a748e455fdd8eaa78e28a6e2749541c2",
+      "sha256": "15a704b722c368d9bbe78a24f0410602fe710180566e4e309548e4f273043da1",
       "bytes": 151911,
       "currentBasePreimageSHA256": "f248c6d9182ca08cb518cd54c620844c987f4ae723a38badb463c59e010db578",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
-      "sha256": "0afb227ad937dfb36604f285c4be585e68690392d1935ad413c6ea2016ffdd9f",
+      "sha256": "5685b75d0899d3a6faa345125ef147818c433df0cf4a9ad4ce22c432a2af0ca9",
       "bytes": 148427,
       "currentBasePreimageSHA256": "e66722e4daf5b1482c253d1f14b4c533c329fde202252c16f87ad3e0130e8524",
       "historicalPreimageSHA256": null
@@ -6235,8 +6235,8 @@
     },
     {
       "path": ".github/workflows/gateway-pod-identity-components.yml",
-      "sha256": "c6358ba331f5d8128e272bd51d54dc3035a38a9d9c7e0100193872ae4f0663f8",
-      "bytes": 4641,
+      "sha256": "e8f79b7dba0f51107a384e645fc2575ed2cce93d70589c3502f39a674eb428f0",
+      "bytes": 5437,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -6521,5 +6521,7 @@
   "reviewerPublisherImageSourceAssociationBase": "1c9827946f94e92c1b32fcbb46bf789048dd7809",
   "reviewerPublisherImagePredecessorManifestSHA256": "21a8276631772b504a018b4e5da081ecb5562e16a96c09ebb835fbce01af6f9c",
   "apiJSONReturnRepairSourceAssociationBase": "ccbaa28ede1e07fac9d5dc47858ed337b2766c94",
-  "apiJSONReturnRepairPredecessorManifestSHA256": "566ef87f3fd43009f4801a0f170dc1384de450f6f714cd0b68861b48e794dc7a"
+  "apiJSONReturnRepairPredecessorManifestSHA256": "566ef87f3fd43009f4801a0f170dc1384de450f6f714cd0b68861b48e794dc7a",
+  "publisherCIDiagnosticSourceAssociationBase": "5f9a4edf26733268ecc9b6464481f21fb9b8efb5",
+  "publisherCIDiagnosticPredecessorManifestSHA256": "42224e8ff984283140523eba899b9c4db46eb16861e848763627b014fcc61a4c"
 }

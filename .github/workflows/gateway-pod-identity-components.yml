@@ -32,8 +32,16 @@ jobs:
       - name: Verify the configured-provider component boundary
         run: |
           python3 - <<'PYPODIDENTITY'
-          import hashlib, json, os, subprocess, tempfile
+          import hashlib, json, os, subprocess, sys, tempfile
           from pathlib import Path
+          phase = 'source-before'
+          observed_test = 'none'
+          def report_failure(kind, value, traceback):
+              # Fixed phases and allowlisted test heads only; no exception text,
+              # tokens, environment values or untrusted provider bodies in annotations.
+              print(f'::error title=Gateway component verification failed::phase={phase}; test={observed_test}; exception={kind.__name__}', flush=True)
+              sys.__excepthook__(kind, value, traceback)
+          sys.excepthook = report_failure
           package = 'github.com/zasp-ai/zasp-sec/services/gatewaypodidentity'
           heads = {
               'TestProjectedPodIdentityThirteenCallChain',
@@ -57,6 +65,7 @@ jobs:
                   assert len(raw) == entry['bytes'], entry['path']
                   assert hashlib.sha256(raw).hexdigest() == entry['sha256'], entry['path']
           check_sources()
+          phase = 'grouped-tests'
           with tempfile.TemporaryFile() as output:
               result = subprocess.run(['go', 'test', '-C', 'services/gatewaypodidentity', '-race', '-p', '1', '-count=1', '-timeout=45s', '-json', '.'], stdout=output, stderr=subprocess.STDOUT)
               output.seek(0)
@@ -65,6 +74,7 @@ jobs:
               for raw in output:
                   print(raw.decode('utf-8', errors='strict'), end='')
                   event = json.loads(raw)
+                  observed_test = event.get('Test') if event.get('Test') in heads else 'none-or-unrecognized'
                   assert event.get('Package') == package
                   assert event.get('Action') in {'start', 'run', 'pass', 'output'}
                   if 'Test' in event:
@@ -79,10 +89,13 @@ jobs:
               assert all(count == {'run': 1, 'pass': 1} for count in counts.values()), counts
           # The original package and all eight grouped checks run above. The new
           # thin operator command is compiled separately; no CLI test PASS is invented.
+          phase = 'command-compilation'
+          observed_test = 'none'
           with tempfile.TemporaryDirectory() as directory:
               command = subprocess.run(['go', 'build', '-C', 'services/gatewaypodidentity', '-o', str(Path(directory) / 'gateway-reviewer-publisher'), './cmd/gateway-reviewer-publisher'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=90)
               print(command.stdout.decode('utf-8', errors='strict'), end='')
               assert command.returncode == 0, 'reviewer publisher command compilation failed'
+          phase = 'source-after'
           check_sources()
           print('Eight configured-provider and publisher component groups passed; command compiled; native and deployed acceptance remain separate.')
           PYPODIDENTITY

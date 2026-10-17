@@ -882,7 +882,7 @@ const pins = {
   "services/gatewaypodidentity/json.go": "8dae00404594cb2768e01d8d720773237926257495bec6d067e11402046f661f",
   "services/gatewaypodidentity/verifier.go": "f18b481a93e5dbfb9c7ebaf65717bf2487b64c7f056b7ad7b179c2057a53f14a",
   "services/gatewaypodidentity/credential_linux.go": "f1839053a1ba42fc7902c8d181fa00a2611c2c80605f10f78f51c40a824d8c9d",
-  ".github/workflows/gateway-pod-identity-components.yml": "c6358ba331f5d8128e272bd51d54dc3035a38a9d9c7e0100193872ae4f0663f8",
+  ".github/workflows/gateway-pod-identity-components.yml": "e8f79b7dba0f51107a384e645fc2575ed2cce93d70589c3502f39a674eb428f0",
   "services/gatewaypodidentity/chain.go": "51cb08c1c7b3de621b5f19419d1da879a5c5e32867f93b59652b08bbe12a0e3b",
   "services/gatewaypodidentity/README.md": "137d52f394bd5ac977d42e0ec7d0c7c4a73a728b698f0d430823b5785f6d556d",
   "services/gatewaypodidentity/verifier_test.go": "cc4932669ada87d6b66e12bc7c0d14bcc085429f9adc7d77f001d2bcab9f4bca",
