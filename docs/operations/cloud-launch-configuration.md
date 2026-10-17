@@ -89,6 +89,14 @@ node --use-env-proxy proofs/stytch-b2b-jwt.mjs
 
 This invocation passed against the configured Stytch Test project on 2026-10-17, including eligible local JWT verification, forced remote authentication and disposable organization deletion. Forced remote authentication uses `max_token_age_seconds: 0` on an unexpired JWT; it does not establish expiry, revocation or a deployed browser login. Preserve the inherited proxy and CA settings. The initial incomplete proxy setup failed JWT validation; that failure and the later success are retained in `docs/internal/cloud-stytch-provider-proof-checkpoint-2026-10-17.json`. Local repository secret scanning remains unverified for that observation.
 
+The separate revocation proof creates another disposable Test session, authenticates it remotely with matching organization/member/session scope, revokes only that session, and requires an explicit provider `404 session_not_found` from forced remote authentication:
+
+```sh
+node --use-env-proxy proofs/stytch-b2b-revocation.mjs
+```
+
+This passed against the configured Test provider on 2026-10-17, including owned organization cleanup. Network errors, other provider errors, unconfirmed revocation and continued acceptance fail the proof. The local grouped controls run with `node --test proofs/stytch-b2b-revocation.test.mjs`; CI runs these synthetic controls without creating provider resources. This provider result does not establish wall-clock JWT expiry or deployed browser/API logout enforcement. See `docs/internal/cloud-stytch-revocation-checkpoint-2026-10-17.json`.
+
 Complete the real organization/session bootstrap, database principal/schema/identity registration, native model/namespace authority, public TLS/proxy configuration and external connector/policy resources before reporting full launch. Record actual outcomes and normal cleanup separately from configuration presence. Hosted promotion additionally requires the immutable release and infrastructure gates in [production-deployment.md](production-deployment.md); this guide supplies no deployment acceptance or guard waiver.
 
 ## Report prerequisite name gaps
