@@ -229,8 +229,8 @@
     },
     {
       "path": "services/platform/apiserver/production.go",
-      "sha256": "326292e13a4a98ff8b3f504df4597be326a27cdc266f6383643ee3c38e3d9a0a",
-      "bytes": 56940,
+      "sha256": "4db8cead48cee815edf3cffd7c1bebca892113de2172e94ce7b31ecf06d95bf1",
+      "bytes": 57474,
       "currentBasePreimageSHA256": "fbb8dcc0ada9972280a5243cceb34a3787283104d22194fa9876162d56be8087",
       "historicalPreimageSHA256": "fbb8dcc0ada9972280a5243cceb34a3787283104d22194fa9876162d56be8087"
     },
@@ -383,22 +383,22 @@
     },
     {
       "path": "scripts/connector-acceptance-groups.test.mjs",
-      "sha256": "08161b38d4f92380bf1f475cc6bd7b2b9f11b70c1d74013d06bb13c8a87703ed",
-      "bytes": 52108,
+      "sha256": "5d9bebf7c99be73ffb10ec40f994ff39a1b9e583ee270aeaafaa62437cbf028e",
+      "bytes": 52524,
       "currentBasePreimageSHA256": "a1622a9417e9fe4d62c2aed82bcf5f7f3e11dce841d802bf005b29d54405d388",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connected-connector-acceptance.mjs",
-      "sha256": "0ff3bb21adbc7e1ebb564e30d8d4b5938898fe98a2831a236822787401ecf7d5",
-      "bytes": 102875,
+      "sha256": "6a16b1cb3cbebac82ae261c4275bf8d777c4b83fbbb71b5a0b6e51846f30b503",
+      "bytes": 103835,
       "currentBasePreimageSHA256": "f248c6d9182ca08cb518cd54c620844c987f4ae723a38badb463c59e010db578",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
-      "sha256": "544e9cd2356ae1d747a0592157900934eb7e6e26941e197b553ab1344e1b08de",
-      "bytes": 99276,
+      "sha256": "b5b6d574bc9f2b3dcba8ee9a0bd807ffacbe18004037126c2753c57fee4e8101",
+      "bytes": 100236,
       "currentBasePreimageSHA256": "e66722e4daf5b1482c253d1f14b4c533c329fde202252c16f87ad3e0130e8524",
       "historicalPreimageSHA256": null
     },
@@ -3780,6 +3780,62 @@
       "path": "cmd/agentsecctl/vulnerability_exception_test.go",
       "sha256": "fd47947eec26b0d425b604c840d69a0d907157eac2eaa69dcdd9b52b9389e90f",
       "bytes": 4594,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/apiserver/system_health_probe_integration_test.go",
+      "sha256": "1c4dc75253b7d54b5418ba60c26c34bd95e408b63e60b622feac4b54087635be",
+      "bytes": 6523,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/apiserver/administration_fix_round1_test.go",
+      "sha256": "a33e272f327ff4b893c1e3540c801677c223e31b0e32d5acffa7ac20fe040239",
+      "bytes": 6854,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/apiserver/middleware.go",
+      "sha256": "767d8631d688331e897ff78d22695ba7e20ec47905e77c2fc7ef6108fa27f7a2",
+      "bytes": 7510,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/admincontrol/admincontrol.go",
+      "sha256": "863d38c15d9419dff2a4f4d9903a81d41d382107696a34edffe453b78b3cda7d",
+      "bytes": 7283,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/admincontrol/http.go",
+      "sha256": "9291924b68d4eafe250e848890e7eec7e69c10395f5496f0edd1a6cff61f32af",
+      "bytes": 2864,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/admincontrol/admincontrol_test.go",
+      "sha256": "d9c165b8c3344f4baaab05124a12829dc7069365825c33924c460cf7b3a090d2",
+      "bytes": 4340,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/domain/ids.go",
+      "sha256": "2064d5c029400ddd5d2b667d2cd7138093a3d87219a34f2c2d9d95855c4f7c87",
+      "bytes": 4587,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/domain/scope.go",
+      "sha256": "78b563657623186c85bd7e40ae8539063537654109cb64aebec740e9114574e5",
+      "bytes": 1129,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     }

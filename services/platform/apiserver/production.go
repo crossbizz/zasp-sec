@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/zasp-ai/zasp-sec/services/platform/admincontrol"
 	"github.com/zasp-ai/zasp-sec/services/platform/authorization"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	"github.com/zasp-ai/zasp-sec/services/platform/orchestration"
@@ -1204,20 +1205,37 @@ func (handler *identityHTTPHandler) serveLocalAdministration(writer http.Respons
 			databaseHealthy = repository.Ready(request.Context()) == nil
 		}
 		providerHealthy := handler.providerLiveVerified(request.Context())
+		componentState := func(healthy bool) string {
+			if healthy {
+				return "healthy"
+			}
+			return "unavailable"
+		}
+		providerState := "degraded"
+		if providerHealthy {
+			providerState = "healthy"
+		}
+		// Both observed dependencies are required. Aggregate their actual
+		// observations through the shared service instead of treating a failed
+		// identity dependency as evidence of an optional exporter failure.
+		probes := admincontrol.NewSystemProbes(handler.version, []admincontrol.ComponentProbe{
+			{ID: "postgresql", Required: true, State: componentState(databaseHealthy), FreshAt: now},
+			{ID: "identity-provider", Required: true, State: providerState, FreshAt: now},
+		})
 		if routed.OperationID == "getSystemStatus" {
-			writeJSONValue(writer, request, http.StatusOK, map[string]any{"security_plane_healthy": databaseHealthy && providerHealthy, "optional_degraded": !providerHealthy, "fresh_at": now}, nil)
+			status, err := probes.Status(request.Context(), now)
+			if err != nil {
+				writeProductionError(writer, request, ErrRepositoryUnavailable)
+				return true
+			}
+			writeJSONValue(writer, request, http.StatusOK, status, nil)
 		} else {
-			componentState := func(healthy bool) string {
-				if healthy {
-					return "healthy"
-				}
-				return "unavailable"
+			components, err := probes.Components(request.Context(), now)
+			if err != nil {
+				writeProductionError(writer, request, ErrRepositoryUnavailable)
+				return true
 			}
-			providerState := "degraded"
-			if providerHealthy {
-				providerState = "healthy"
-			}
-			writeJSONValue(writer, request, http.StatusOK, map[string]any{"items": []any{map[string]any{"id": "postgresql", "required": true, "state": componentState(databaseHealthy), "fresh_at": now}, map[string]any{"id": "identity-provider", "required": true, "state": providerState, "fresh_at": now}}}, nil)
+			writeJSONValue(writer, request, http.StatusOK, map[string]any{"items": components}, nil)
 		}
 	case "getSystemVersion":
 		writeJSONValue(writer, request, http.StatusOK, map[string]string{"version": handler.version}, nil)

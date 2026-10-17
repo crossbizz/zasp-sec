@@ -646,7 +646,15 @@ test('retention connected sources retain the complete declared application closu
   "cmd/agentsecctl/resilience_test.go",
   "cmd/agentsecctl/security_release.go",
   "cmd/agentsecctl/security_release_test.go",
-  "cmd/agentsecctl/vulnerability_exception_test.go"
+  "cmd/agentsecctl/vulnerability_exception_test.go",
+  "services/platform/apiserver/system_health_probe_integration_test.go",
+  "services/platform/apiserver/administration_fix_round1_test.go",
+  "services/platform/apiserver/middleware.go",
+  "services/platform/admincontrol/admincontrol.go",
+  "services/platform/admincontrol/http.go",
+  "services/platform/admincontrol/admincontrol_test.go",
+  "services/platform/domain/ids.go",
+  "services/platform/domain/scope.go"
 ];
   const compiled = JSON.parse(relative('.github/connector-native-compile-source-pins.json'));
   const compilePins = new Map(compiled.sources.map(item => [item.path, item]));

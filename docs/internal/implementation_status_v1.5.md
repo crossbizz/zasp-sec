@@ -1,3 +1,5 @@
+> Current health availability correction, October 17, 2026: independent source review found that required identity failures were reported as optional degradation. The actual API now uses the existing shared aggregator, but local API compilation and behavior remain blocked by unavailable OPA. M7-29, M7-30 and M7-40d are component-only pending actual required/optional outage and E2E acceptance; M7-31 retains its historical class with a scoped limitation. All 728 IDs and historical statuses remain intact. Current classes: 514 production-available / 153 component-only / 61 blocked/external; the 214 remaining inventory records do not replace fresh deployed verification of every requirement. Prior dated counts below are historical. See cloud-system-health-probe-integration-source-checkpoint-2026-10-17.json.
+
 > October 17, 2026 diagnostics privacy component successor: the actual CLI now rejects existing sensitive-marker map keys as well as values before emitting a bundle. Full CLI package verification passes 175 named cases with the race detector; original controls remain intact. Real diagnostic collection and full M8-24/deployed acceptance remain open. Separately, permitted metadata reports the cache component gate SUCCESS on exact6ade39af; raw hosted logs are unavailable and other failed/pending checks remain recorded. No production promotion: all 728 requirements and 517/150/61 classes remain unchanged. See cloud-diagnostics-secret-key-refusal-source-checkpoint-2026-10-17.json and cloud-featureflag-cache-hosted-status-successor-2026-10-17.json.
 
 > October 17, 2026 owner-filter component successor: the real Agents API and production UI now implement exact owner/all/unowned filtering with filter-bound cursors, scoped authorization, capability-loss handling, pending ownership locks and authoritative refetch after known ownership changes. The new Normal/Audit profile remains disabled by default and requires explicit validated installation/configuration; 80 UI/client cases and eight installer component cases pass. API/runtime/migration CLI local Go remains setup-blocked by OPA (zero named cases); native/database/provider/deployed acceptance and the original risk-filter slice remain open. All 728 requirements stay required, M4-50b1 remains component-only, current classes stay 517/150/61. Source custody retains 500 prior bindings and adds 23 for 523 total. See cloud-agents-owner-filter-source-checkpoint-2026-10-17.json.
@@ -19,8 +21,8 @@
 
 | Production class | Count |
 | --- | ---: |
-| Production-available | 517 |
-| Component-only | 150 |
+| Production-available | 514 |
+| Component-only | 153 |
 | Blocked/external | 61 |
 | Missing | 0 |
 
@@ -36,10 +38,10 @@
 | M4 | 82 | 76 | 6 | 0 | 0 |
 | M5 | 42 | 42 | 0 | 0 | 0 |
 | M6 | 36 | 36 | 0 | 0 | 0 |
-| M7 | 62 | 30 | 32 | 0 | 0 |
+| M7 | 62 | 27 | 35 | 0 | 0 |
 | M7A | 113 | 95 | 18 | 0 | 0 |
 | M8 | 141 | 34 | 55 | 52 | 0 |
-| **Total** | **728** | **517** | **150** | **61** | **0** |
+| **Total** | **728** | **514** | **153** | **61** | **0** |
 
 ## Agents source availability correction evidence
 

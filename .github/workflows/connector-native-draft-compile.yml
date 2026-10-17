@@ -45,7 +45,7 @@ jobs:
           import hashlib, json
           from pathlib import Path
           source = json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())
-          assert len(source['sources']) == 540
+          assert len(source['sources']) == 548
           for item in source['sources']:
               raw = Path(item['path']).read_bytes()
               assert len(raw) == item['bytes']
@@ -87,7 +87,7 @@ jobs:
           assert len(groups) == 6 and sum(len(tops) for tops in groups.values()) == 10 and len(expected) == 86
           def check_sources():
               source = json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())
-              assert len(source['sources']) == 540
+              assert len(source['sources']) == 548
               for item in source['sources']:
                   raw = Path(item['path']).read_bytes()
                   assert len(raw) == item['bytes'] and hashlib.sha256(raw).hexdigest() == item['sha256'], item['path']
@@ -612,6 +612,52 @@ jobs:
         run: node --test openapi/agents-owner-filter.test.mjs deploy/production/agent-owner-filter-profile.test.mjs
       - name: Keep consumed owner filter source unchanged
         run: git diff --exit-code -- services/platform .github scripts apps/web/api openapi deploy
+
+  system-health-probe-components:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GOTOOLCHAIN: local
+      GOWORK: 'off'
+      GOFLAGS: '-mod=readonly'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version: 1.26.8
+          cache: false
+      - name: Check frozen system health source custody
+        run: |
+          python3 - <<'PYHEALTHCUSTODY'
+          import hashlib,json
+          from pathlib import Path
+          for item in json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())['sources']:
+              raw=Path(item['path']).read_bytes()
+              assert len(raw)==item['bytes'] and hashlib.sha256(raw).hexdigest()==item['sha256'],item['path']
+          PYHEALTHCUSTODY
+      - name: Require actual health API integration and existing required optional aggregator
+        timeout-minutes: 8
+        run: |
+          go test -C services/platform -race -p=1 -count=1 -timeout=3m -json ./apiserver -run '^Test(SystemHealthProbeIntegration|ConfiguredButUnverifiedIdentityProviderCannotMakeSystemHealthy)' > system-health-api-components.jsonl
+          go test -C services/platform -race -p=1 -count=1 -timeout=3m -json ./admincontrol > system-health-aggregate-components.jsonl
+          python3 - <<'PYHEALTHCASES'
+          import json
+          from pathlib import Path
+          expected=['TestConfiguredButUnverifiedIdentityProviderCannotMakeSystemHealthy', 'TestSystemHealthProbeIntegrationRequiredStatesMatchActualComponents', 'TestSystemHealthProbeIntegrationRejectsInvalidAggregateAndMissingIdentity', 'TestSystemHealthProbeIntegrationRequiredStatesMatchActualComponents/healthy', 'TestSystemHealthProbeIntegrationRequiredStatesMatchActualComponents/required_database_failed', 'TestSystemHealthProbeIntegrationRequiredStatesMatchActualComponents/required_identity_failed', 'TestSystemHealthProbeIntegrationRequiredStatesMatchActualComponents/both_required_failed', 'TestSystemHealthProbeIntegrationRejectsInvalidAggregateAndMissingIdentity/invalid_version', 'TestSystemHealthProbeIntegrationRejectsInvalidAggregateAndMissingIdentity/canceled', 'TestSystemHealthProbeIntegrationRejectsInvalidAggregateAndMissingIdentity/missing_identity', 'TestSystemHealthProbeIntegrationRejectsInvalidAggregateAndMissingIdentity/unexpected_query']
+          rosters={'github.com/zasp-ai/zasp-sec/services/platform/apiserver':('system-health-api-components.jsonl',expected),'github.com/zasp-ai/zasp-sec/services/platform/admincontrol':('system-health-aggregate-components.jsonl',['TestRetentionExternalFlowsSystemHealthAndHTTP'])}
+          for package,(filename,names) in rosters.items():
+              events=[json.loads(line) for line in Path(filename).read_text().splitlines() if line.strip()]
+              assert events and all(e.get('Action') in ('start','run','output','pass') for e in events)
+              assert all(e.get('Package')==package for e in events)
+              for action in ('run','pass'):
+                  actual=[e['Test'] for e in events if e.get('Action')==action and e.get('Test')]
+                  assert sorted(actual)==sorted(names),action
+              assert sum(e.get('Action')=='pass' and not e.get('Test') for e in events)==1
+          PYHEALTHCASES
+      - name: Keep consumed health integration sources unchanged
+        run: git diff --exit-code -- services/platform .github scripts
 
   diagnostics-cli-components:
     runs-on: ubuntu-24.04
