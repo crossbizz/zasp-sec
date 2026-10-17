@@ -1457,6 +1457,35 @@ export function bindMockPlan(plan) {
  return { resources, get, unions };
 }
 
+// Fixed retention HTTP capabilities are additive to the original raw-index
+// writer. IAM ? constrains path width; the SDK independently emits hash IDs.
+// This matrix deliberately does not claim IAM enforces hexadecimal characters.
+export function retentionIndexRequests(domain) {
+ const rows = [];
+ const add = (role, label, expected, action, path) => rows.push({ role: `aws_iam_role.${role}`, label, expected, request: { action, resource: `${domain}/${path}`, context: {} } });
+ const own = (label, expected, action, path) => add('runtime["index"]', label, expected, action, path);
+ for (const index of ['zasp-runtime-events-v1', 'zasp-runtime-sessions-v1', 'zasp-runtime-sessions-v2']) {
+  const raw = index === 'zasp-runtime-events-v1';
+  const id = (raw ? 'evt_' : '') + 'a'.repeat(64);
+  own(`retention:search:${index}`, 'allowed', 'es:ESHttpPost', `${index}/_search`);
+  for (const action of ['es:ESHttpGet', 'es:ESHttpDelete']) own(`retention:document:${index}:${action}`, 'allowed', action, `${index}/_doc/${id}`);
+  for (const invalid of ['_zasp_session_schema_v1', '_zasp_session_schema_v2', '_zasp_runtime_schema_v1', (raw ? 'evt_' : '') + 'a'.repeat(63), (raw ? 'evt_' : '') + 'a'.repeat(65), 'foreign_' + 'a'.repeat(64)]) own(`retention:no-other-document:${index}:${invalid}`, 'denied', 'es:ESHttpDelete', `${index}/_doc/${invalid}`);
+  for (const path of ['_search', '_mapping', '_bulk', '_delete_by_query', `_doc/${id}/extra`]) own(`retention:no-other-delete:${index}:${path}`, 'denied', 'es:ESHttpDelete', `${index}/${path}`);
+  own(`retention:no-patch:${index}`, 'denied', 'es:ESHttpPatch', `${index}/_doc/${id}`);
+  if (!raw) {
+   own(`retention:no-search-get:${index}`, 'denied', 'es:ESHttpGet', `${index}/_search`);
+   own(`retention:no-search-put:${index}`, 'denied', 'es:ESHttpPut', `${index}/_search`);
+   own(`retention:no-document-put:${index}`, 'denied', 'es:ESHttpPut', `${index}/_doc/${id}`);
+   own(`retention:no-search-subpath:${index}`, 'denied', 'es:ESHttpPost', `${index}/_search/extra`);
+  }
+  for (const fullRole of workloadRoles) if (fullRole !== 'aws_iam_role.runtime["index"]') add(fullRole.slice('aws_iam_role.'.length), `retention:no-other-role-delete:${index}`, 'denied', 'es:ESHttpDelete', `${index}/_doc/${id}`);
+ }
+ for (const index of ['zasp-inventory-v1', 'foreign-runtime-sessions-v2', 'zasp-runtime-sessions-v3']) for (const action of ['es:ESHttpPost', 'es:ESHttpGet', 'es:ESHttpDelete']) own(`retention:no-foreign-index:${index}:${action}`, 'denied', action, `${index}/${action === 'es:ESHttpPost' ? '_search' : '_doc/' + 'a'.repeat(64)}`);
+ // A granted local-domain path cannot authorize a different AWS domain.
+ rows.push({ role: 'aws_iam_role.runtime["index"]', label: 'retention:no-foreign-domain-delete', expected: 'denied', request: { action: 'es:ESHttpDelete', resource: `arn:aws:es:us-west-2:111111111111:domain/foreign/zasp-runtime-sessions-v2/_doc/${'a'.repeat(64)}`, context: {} } });
+ return rows;
+}
+
 // Normative workload requests originate in the original B04 product contracts, main.tf workload split,
 // audit_exports.tf and the existing exact session-search assertions. They do not inspect Allow rows.
 function matrix(bound) {
@@ -1558,7 +1587,7 @@ function matrix(bound) {
   const marker = index.endsWith('v1') ? '_zasp_session_schema_v1' : '_zasp_session_schema_v2';
   for (const r of ['api_connectors', 'runtime["index"]', 'projection_search_init']) for (const path of ['_mapping', `_doc/${marker}`]) allow(r, 'session-schema-read', 'es:ESHttpGet', `${es}/${index}/${path}`);
   allow('api_connectors', 'session-search', 'es:ESHttpPost', `${es}/${index}/_search`);
-  deny('runtime["index"]', 'session-index-no-search', 'es:ESHttpPost', `${es}/${index}/_search`);
+  allow('runtime["index"]', 'session-index-retention-search', 'es:ESHttpPost', `${es}/${index}/_search`);
   for (const path of ['_bulk', '_mget', '_refresh']) {
    allow('runtime["index"]', 'session-index-ingest', 'es:ESHttpPost', `${es}/${index}/${path}`);
    deny('api_connectors', 'session-search-no-ingest', 'es:ESHttpPost', `${es}/${index}/${path}`);
@@ -1605,6 +1634,7 @@ function matrix(bound) {
   deny(r, 'secret-only:no-queue-consume', 'sqs:ReceiveMessage', queue('discovery-jobs'));
  }
  deny('attack_lab_runner_test', 'runner:no-secret', 'secretsmanager:GetSecretValue', productSecret('postgres-api-dsn'));
+ cases.push(...retentionIndexRequests(es));
  return cases;
 }
 export function verifyMockPlan(plan) {

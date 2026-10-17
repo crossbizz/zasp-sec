@@ -8,9 +8,9 @@ const pkg = 'github.com/zasp-ai/zasp-sec/services/platform/apiserver';
 const trace = selected => [...selected.names.flatMap(Test => [{Package: pkg, Test, Action: 'run'}, {Package: pkg, Test, Action: 'pass'}]), {Package: pkg, Action: 'pass'}];
 test('required application groups retain every flow and owned database', () => {
   assert.deepEqual(Object.keys(groups), ['approval-test74', 'approval-ordered-planning', 'approval-ordered-progress', 'approval-flow', 'approval', 'oauth', 'lifecycle', 'pkce', 'callback', 'approval-overflow', 'approval-future-test74', 'approval-future-progress', 'optional-egress-audit', 'retention-audit']);
-  assert.deepEqual(Object.values(groups).map(g => [g.names.length, g.postgresJoins]), [[1, 2], [1, 2], [5, 2], [6, 2], [22, 1], [3, 1], [6, 2], [4, 2], [4, 2], [1, 2], [1, 2], [5, 2], [9, 1], [9, 1]]);
+  assert.deepEqual(Object.values(groups).map(g => [g.names.length, g.postgresJoins]), [[1, 2], [1, 2], [5, 2], [6, 2], [22, 1], [3, 1], [6, 2], [4, 2], [4, 2], [1, 2], [1, 2], [5, 2], [9, 1], [10, 1]]);
   const names = Object.values(groups).flatMap(g => g.names);
-  assert.equal(names.length, 77); assert.equal(new Set(names).size, 77);
+  assert.equal(names.length, 78); assert.equal(new Set(names).size, 78);
   assert.equal(Object.values(groups).reduce((n, g) => n + g.postgresJoins, 0), 24);
   for (const key of Object.keys(groups)) { assert.equal(select([key]), groups[key]); validate(trace(groups[key]), groups[key]); }
 });
@@ -215,7 +215,7 @@ test('retention audit requires every original native permission and expiry case'
   const source = fs.readFileSync(new URL('../services/platform/apiserver/retention_native_postgres_test.go', import.meta.url), 'utf8');
   assert.equal(selected.top, 'TestRetentionAuditProfileNativePostgres');
   assert.equal(selected.postgresJoins, 1);
-  assert.equal(selected.names.length, 9);
+  assert.equal(selected.names.length, 10);
   assert.match(source, /func TestRetentionAuditProfileNativePostgres\(t \*testing\.T\)/);
   assert.match(source, /newAuthorizationProjectionFGA\(t\)/);
   assert.match(source, /startDisposablePostgresAs\(t, "zasp_test"\)/);
@@ -358,7 +358,12 @@ test('retention connected sources retain the complete declared application closu
   "services/platform/apiserver/runtime_data_plane_postgres_test.go",
   "services/platform/apiserver/runtime_sandbox_candidate_postgres_test.go",
   "services/platform/apiserver/runtime_sessions_postgres_test.go",
-  "services/platform/apiserver/security_agent_temporal_automatic_sources_postgres_test.go"
+  "services/platform/apiserver/security_agent_temporal_automatic_sources_postgres_test.go",
+  "services/platform/apiserver/retention_index_native_acceptance_test.go",
+  "deploy/staging/iam-policy-union-v1.mjs",
+  "deploy/staging/iam-policy-union-v1.test.mjs",
+  "deploy/staging/tests/session_search_iam.tftest.hcl",
+  ".github/workflows/retention-iam-acceptance.yml"
 ];
   const compiled = JSON.parse(relative('.github/connector-native-compile-source-pins.json'));
   const compilePins = new Map(compiled.sources.map(item => [item.path, item]));
@@ -374,5 +379,17 @@ test('retention connected sources retain the complete declared application closu
       assert.equal(compiledPin?.sha256, digest, `compile: ${file}`);
       assert.equal(compiledPin?.bytes, bytes.length, `compile bytes: ${file}`);
     }
+  }
+});
+
+test('native retention installer diagnostics retain only bounded declared stages', () => {
+  const expected = ["retention-lock", "retention-role", "retention-parent", "retention-namespace", "retention-bridges", "retention-definitions", "retention-registration", "retention-ready", "retention-commit", "retention-parent-binding", "retention-parent-membership", "retention-parent-canonical", "retention-parent-source-owners", "retention-parent-worker-catalog", "retention-parent-worker-pin", "retention-parent-runtime-catalog", "retention-parent-runtime-pin", "retention-parent-authorization"];
+  for (const name of ['hosted-connected-connector-acceptance.mjs', 'hosted-connector-authenticated-enqueue.mjs']) {
+    const source = fs.readFileSync(new URL(name, import.meta.url), 'utf8');
+    const stages = JSON.parse(source.match(/const fixedStages=(\[[^\n]*?\]);const locations/)[1]);
+    assert.equal(new Set(stages).size, stages.length);
+    for (const label of expected) assert.ok(stages.includes(label), label);
+    assert.ok(!stages.includes('retention-PRIVATE_CANARY'));
+    assert.ok(source.includes('fixedStages.includes(match[1])&&diagnostic.fixtureStages.length<32'));
   }
 });

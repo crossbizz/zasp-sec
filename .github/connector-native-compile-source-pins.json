@@ -1,5 +1,5 @@
 {
-  "status": "CONSTRUCTOR-BOUND COMPILED SOURCE PIN; ALL LIVE AUTHORIZATION CHECKS RETAINED; NATIVE ACCEPTANCE PENDING",
+  "status": "RETENTION NATIVE ADMISSION AND DEPLOYMENT PERMISSION SOURCE CUSTODY; NATIVE/DEPLOYED VERIFICATION PENDING",
   "base": "1457b8afd91ce27a60d1b78aa7024c1540bb8b09",
   "checkpointSHA256": "9f47c3c1f225d02c64d1f5d66e8636e562cecec37f17cf6560ac6992194ac953",
   "sources": [
@@ -376,30 +376,30 @@
     },
     {
       "path": "scripts/connector-acceptance-groups.mjs",
-      "sha256": "35d642c4a4fa0b95d027940d40ceab73116f03b38dc4c0fa6a29982d88e49b61",
-      "bytes": 12035,
-      "currentBasePreimageSHA256": "9a4d01d30165dae0e75ca0183878656bb7cf8a30aa51657f87c335fc66ad5b00",
+      "sha256": "f49796d14f45ccca08ba06f16ea8bec304e04184be34a1934ac882234664ca59",
+      "bytes": 12095,
+      "currentBasePreimageSHA256": "35d642c4a4fa0b95d027940d40ceab73116f03b38dc4c0fa6a29982d88e49b61",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/connector-acceptance-groups.test.mjs",
-      "sha256": "a1622a9417e9fe4d62c2aed82bcf5f7f3e11dce841d802bf005b29d54405d388",
-      "bytes": 30017,
-      "currentBasePreimageSHA256": "56488ada37d53171d7b7387b0c52c1f4815dd1c728aa634503387f14a08f09b9",
+      "sha256": "f4b902d80c804d37d1ba4e07091de3ccc40ba0fab5d51999d655dd2d977aa95f",
+      "bytes": 31482,
+      "currentBasePreimageSHA256": "a1622a9417e9fe4d62c2aed82bcf5f7f3e11dce841d802bf005b29d54405d388",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connected-connector-acceptance.mjs",
-      "sha256": "f248c6d9182ca08cb518cd54c620844c987f4ae723a38badb463c59e010db578",
-      "bytes": 73491,
-      "currentBasePreimageSHA256": "7b1d31e540607213c6526aadbab575989d2f32e716a073e0e04d8600957baded",
+      "sha256": "4de70cd965d2e444b4139e72f51732f230f718d708fef375dc47b428c302e01e",
+      "bytes": 74588,
+      "currentBasePreimageSHA256": "f248c6d9182ca08cb518cd54c620844c987f4ae723a38badb463c59e010db578",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
-      "sha256": "e66722e4daf5b1482c253d1f14b4c533c329fde202252c16f87ad3e0130e8524",
-      "bytes": 69977,
-      "currentBasePreimageSHA256": "21f7ada5fa68189d8e04f51c2f8f1ae151baf97e4a73ac457d652e3cf3f0960d",
+      "sha256": "9b8ac2c743383061b42263dd0bfbd6a48dc6c719c24980fb69c39078f6fec4bf",
+      "bytes": 71074,
+      "currentBasePreimageSHA256": "e66722e4daf5b1482c253d1f14b4c533c329fde202252c16f87ad3e0130e8524",
       "historicalPreimageSHA256": null
     },
     {
@@ -1699,9 +1699,9 @@
     },
     {
       "path": "services/platform/apiserver/retention_native_postgres_test.go",
-      "sha256": "598976d7d8f237df54475194016086de7e716490bb535fd7587f31b71e7eb31b",
-      "bytes": 31030,
-      "currentBasePreimageSHA256": null,
+      "sha256": "192e82bd211d6ebe79000b6d80a26f5504358201169f25d788a05faf4801d380",
+      "bytes": 37463,
+      "currentBasePreimageSHA256": "598976d7d8f237df54475194016086de7e716490bb535fd7587f31b71e7eb31b",
       "historicalPreimageSHA256": null
     },
     {
@@ -2249,12 +2249,48 @@
       "bytes": 4973,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/apiserver/retention_index_native_acceptance_test.go",
+      "sha256": "1d1b3fa40a6208620106acd43b9bae238e9e4363a85e0a2059f5343a71dd2402",
+      "bytes": 25313,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "deploy/staging/iam-policy-union-v1.mjs",
+      "sha256": "2922333e7f9fbd9f3de74c761d7064931ced2f7d6bc60f0000b68d9f2945907d",
+      "bytes": 88883,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "deploy/staging/iam-policy-union-v1.test.mjs",
+      "sha256": "b768ff64f68847ae92a18fe8091b8b51aaf18a2104e082befb14b19dc71aca8d",
+      "bytes": 19151,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "deploy/staging/tests/session_search_iam.tftest.hcl",
+      "sha256": "bc795d3e7c43a6786126eccc464515208d3ab867b994e27e71fbfc33b3ded47b",
+      "bytes": 23744,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": ".github/workflows/retention-iam-acceptance.yml",
+      "sha256": "9cc7da80388b0ab955e7167af8547cc1bc58621a9b4c14bdd415087039c8305d",
+      "bytes": 3208,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
     }
   ],
   "predecessorCheckpointSHA256": "364ada857d54ce83d678e00eb3d61d55c6a036d22cc1f7ebc9170432079ece05",
   "previousCheckpointSHA256": "b04a555103feeaff0ff31d66c2165743a7ad47270ae052a58e8ed7e9e758be8f",
   "optionalEgressSourceAssociationBase": "c6b13e37d1588d8e45646f3d9b195336844febbd",
-  "predecessorManifestSHA256": "4ee59612b60a104712293b311b12375cc8babcda022f6395ace634fb44ac7213",
-  "checkpointRelation": "Existing immutable predecessor checkpoints remain unchanged; successor compiled-pin checkpoint records these current source associations.",
-  "compiledPinOptimizationSourceAssociationBase": "5ab3be6067573fa369f73e3836c99cc81aff46c8"
+  "predecessorManifestSHA256": "7b9d6967ad4cd1b7605fbdd18522b5d87002a4033a5a733d1bb521ebeccc7406",
+  "checkpointRelation": "Immutable predecessor checkpoints remain unchanged; this current manifest is retained by the successor retention native/deployment component checkpoint.",
+  "compiledPinOptimizationSourceAssociationBase": "5ab3be6067573fa369f73e3836c99cc81aff46c8",
+  "retentionNativeClosureSourceAssociationBase": "527cb366c842cf245fe01843f7e9bc952f4e0255"
 }

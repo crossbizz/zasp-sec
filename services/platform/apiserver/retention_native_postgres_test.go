@@ -83,6 +83,12 @@ func TestRetentionAuditProfileNativePostgres(t *testing.T) {
 	if err = runner.UpProductionAuthorizationWorkerAuditProfile(ctx); err != nil {
 		t.Fatal("actual Audit parent refused", err)
 	}
+	// Observe only this supplementary install through the original native driver.
+	// The preceding immutable parent installation keeps its original runner.
+	runner, err = migrations.NewRunner(&retentionObservedMigrationDatabase{Database: &integrationMigrationDatabase{connection: owner}, t: t})
+	if err != nil {
+		t.Fatal("retention diagnostic runner refused")
+	}
 	identity := fixtureRequestIdentity(t)
 	scope := identity.Scope
 	o, w, e, actor := scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), identity.PrincipalID.String()
@@ -99,15 +105,19 @@ func TestRetentionAuditProfileNativePostgres(t *testing.T) {
 		name, entry string
 		args        []any
 		projected   runtimeprojection.ProjectedBatch
+		archive     []byte
 	}
 	var cases []projectionCase
 	for i, family := range []struct {
 		name             string
 		sandbox, precise bool
 	}{{"session", false, false}, {"sandbox_session", true, false}, {"precise_session", false, true}} {
-		args, projected := seedRetentionMixedProjection(t, ctx, owner, scope, automaticSourceID(99001), family.sandbox, family.precise, 99010+i*10)
-		cases = append(cases, projectionCase{family.name, "zasp_retention_v1.current_finish_" + family.name + "_projection", args, projected})
+		args, projected, archive := seedRetentionMixedProjection(t, ctx, owner, scope, automaticSourceID(99001), family.sandbox, family.precise, 99010+i*10)
+		cases = append(cases, projectionCase{family.name, "zasp_retention_v1.current_finish_" + family.name + "_projection", args, projected, archive})
 	}
+	// This raw cohort preserves the same authenticated precise archive under a
+	// separate original batch authority; it creates no projected SQL events.
+	rawIndexFixture := seedRetentionNativeRaw(t, ctx, owner, scope, cases[2].archive)
 	connect := func(login string) *pgx.Conn {
 		t.Helper()
 		c := cfg.Copy()
@@ -120,6 +130,7 @@ func TestRetentionAuditProfileNativePostgres(t *testing.T) {
 		return connection
 	}
 	api, executor, coordinator := connect("auth80_api"), connect("retention_executor"), connect("retention_coordinator")
+	index := connect("retention_index")
 	db, err := NewPostgresJSONDatabase(&authorizationConnectionDriver{conn: api})
 	if err != nil {
 		t.Fatal(err)
@@ -423,6 +434,13 @@ func TestRetentionAuditProfileNativePostgres(t *testing.T) {
 			t.Fatal("foreign scope reused proof")
 		}
 	})
+	t.Run("index_admission_ownership_epoch_and_captured_cleanup", func(t *testing.T) {
+		projections := make([]retentionNativeProjection, len(cases))
+		for i, c := range cases {
+			projections[i] = retentionNativeProjection{args: c.args, archive: c.archive}
+		}
+		runRetentionIndexNativeAcceptance(t, ctx, index, api, scope, pin, rawIndexFixture, projections, countOp)
+	})
 	t.Run("independent_live_guard_drift_refuses_and_rolls_back", func(t *testing.T) {
 		tx, err := owner.Begin(ctx)
 		if err != nil {
@@ -445,7 +463,7 @@ func TestRetentionAuditProfileNativePostgres(t *testing.T) {
 	})
 }
 
-func seedRetentionMixedProjection(t *testing.T, ctx context.Context, connection *pgx.Conn, scope domain.Scope, agent string, sandbox, precise bool, identityBase int) ([]any, runtimeprojection.ProjectedBatch) {
+func seedRetentionMixedProjection(t *testing.T, ctx context.Context, connection *pgx.Conn, scope domain.Scope, agent string, sandbox, precise bool, identityBase int) ([]any, runtimeprojection.ProjectedBatch, []byte) {
 	t.Helper()
 	org, workspace, environment := scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String()
 	batchID := mustProductID(t, "pid_96000001-0000-4000-8000-000000000001")
@@ -549,5 +567,134 @@ func seedRetentionMixedProjection(t *testing.T, ctx context.Context, connection 
 		}
 	}
 	resultDigest := sha256.Sum256([]byte("completion"))
-	return []any{org, workspace, environment, batchID.String(), int64(1), "session-worker", "session-lease-token-0001", 1, projected.ContentDigest[:], completionVersion, "succeeded", projected.ContentDigest[:], completionReference, "completed-v1", resultDigest[:], nil, 0, receiptBytes}, projected
+	return []any{org, workspace, environment, batchID.String(), int64(1), "session-worker", "session-lease-token-0001", 1, projected.ContentDigest[:], completionVersion, "succeeded", projected.ContentDigest[:], completionReference, "completed-v1", resultDigest[:], nil, 0, receiptBytes}, projected, append([]byte(nil), body...)
+}
+
+// These native-only wrappers preserve every original driver call and result.
+// Only fixed failure phases and the existing sanitized SQLSTATE diagnostic leave
+// the wrapper; SQL, arguments, source definitions and error strings never do.
+type retentionObservedMigrationDatabase struct {
+	migrations.Database
+	t *testing.T
+}
+
+func (d *retentionObservedMigrationDatabase) Begin(ctx context.Context) (migrations.Transaction, error) {
+	tx, err := d.Database.Begin(ctx)
+	if err != nil {
+		retentionObserveFailure(d.t, "retention-lock", err)
+		return nil, err
+	}
+	return &retentionObservedMigrationTransaction{Transaction: tx, t: d.t}, nil
+}
+
+type retentionObservedMigrationTransaction struct {
+	migrations.Transaction
+	t *testing.T
+}
+
+func retentionObserveFailure(t *testing.T, phase string, err error) {
+	t.Helper()
+	switch phase {
+	case "retention-lock", "retention-role", "retention-parent", "retention-namespace", "retention-bridges", "retention-definitions", "retention-registration", "retention-ready", "retention-commit":
+		t.Log("connector fixture stage=" + phase)
+	}
+	if err != nil {
+		connectorFixtureErrorDiagnostic(t, err)
+	}
+}
+func (tx *retentionObservedMigrationTransaction) Exec(ctx context.Context, q string, args ...any) error {
+	err := tx.Transaction.Exec(ctx, q, args...)
+	if err == nil {
+		return nil
+	}
+	phase := ""
+	switch {
+	case strings.HasPrefix(q, "SET LOCAL lock_timeout='3s';SELECT pg_advisory_xact_lock"):
+		phase = "retention-lock"
+	case q == "SET LOCAL ROLE zasp_discovery_authority" || q == "SET LOCAL ROLE NONE":
+		phase = "retention-role"
+	case strings.HasPrefix(q, "-- Additive M7-19 authority."):
+		phase = "retention-bridges"
+	case strings.HasPrefix(strings.TrimSpace(q), "CREATE TABLE zasp_retention_v1.preimages("):
+		phase = "retention-definitions"
+	case strings.HasPrefix(q, "INSERT INTO zasp_retention_v1.registration VALUES("):
+		phase = "retention-registration"
+	}
+	retentionObserveFailure(tx.t, phase, err)
+	return err
+}
+func (tx *retentionObservedMigrationTransaction) QueryRow(ctx context.Context, q string, args ...any) migrations.Row {
+	phase := ""
+	switch {
+	case strings.HasPrefix(q, "SELECT EXISTS(SELECT 1 FROM public.zasp_discovery_principal_bindings WHERE principal_name=session_user"):
+		phase = "retention-parent"
+	case q == "SELECT to_regnamespace('zasp_retention_v1') IS NOT NULL":
+		phase = "retention-namespace"
+	case strings.HasPrefix(q, "SELECT (zasp_retention_v1.prepared_ready($1) OR zasp_retention_v1.effective_catalog_ready($1))"):
+		phase = "retention-ready"
+	}
+	return &retentionObservedMigrationRow{Row: tx.Transaction.QueryRow(ctx, q, args...), tx: tx, ctx: ctx, phase: phase, args: args}
+}
+func (tx *retentionObservedMigrationTransaction) Commit(ctx context.Context) error {
+	err := tx.Transaction.Commit(ctx)
+	if err != nil {
+		retentionObserveFailure(tx.t, "retention-commit", err)
+	}
+	return err
+}
+
+type retentionObservedMigrationRow struct {
+	migrations.Row
+	tx    *retentionObservedMigrationTransaction
+	ctx   context.Context
+	phase string
+	args  []any
+}
+
+func (r *retentionObservedMigrationRow) Scan(dest ...any) error {
+	err := r.Row.Scan(dest...)
+	if err != nil {
+		retentionObserveFailure(r.tx.t, r.phase, err)
+		return err
+	}
+	if len(dest) == 1 {
+		value, ok := dest[0].(*bool)
+		if ok && value != nil && !*value && (r.phase == "retention-parent" || r.phase == "retention-ready") {
+			retentionObserveFailure(r.tx.t, r.phase, nil)
+			if r.phase == "retention-parent" && len(r.args) == 4 {
+				r.observeParentRefusal()
+			}
+		}
+	}
+	return err
+}
+func (r *retentionObservedMigrationRow) observeParentRefusal() {
+	// Run only after the real preflight has returned false without a database
+	// error. This query is diagnostic and cannot replace that failed decision.
+	// No mutation, new transaction, permission bypass or error replacement occurs.
+	const q = `SELECT
+ EXISTS(SELECT 1 FROM public.zasp_discovery_principal_bindings WHERE principal_name=session_user AND authority_role='zasp_discovery_authority'),
+ pg_has_role(session_user,'zasp_discovery_authority','MEMBER'),
+ (SELECT count(*)=61 FROM public.zasp_schema_versions) AND EXISTS(SELECT 1 FROM public.zasp_schema_versions WHERE version=61 AND checksum=$1),
+ (SELECT count(*)=2 FROM pg_class WHERE oid IN('public.zasp_data_controls'::regclass,'public.zasp_session_events'::regclass) AND relowner=session_user::regrole),
+ zasp_authorization80_worker.catalog_ready(),
+ EXISTS(SELECT 1 FROM zasp_authorization80_worker.registration WHERE singleton AND checksum=$2),
+ zasp_authorization80_runtime.catalog_ready(),
+ EXISTS(SELECT 1 FROM zasp_authorization80_runtime.registration WHERE singleton AND checksum=$3),
+ zasp_authorization80.ready($4)`
+	var values [9]bool
+	dest := make([]any, len(values))
+	for i := range values {
+		dest[i] = &values[i]
+	}
+	if err := r.tx.Transaction.QueryRow(r.ctx, q, r.args...).Scan(dest...); err != nil {
+		connectorFixtureErrorDiagnostic(r.tx.t, err)
+		return
+	}
+	labels := [9]string{"retention-parent-binding", "retention-parent-membership", "retention-parent-canonical", "retention-parent-source-owners", "retention-parent-worker-catalog", "retention-parent-worker-pin", "retention-parent-runtime-catalog", "retention-parent-runtime-pin", "retention-parent-authorization"}
+	for i, allowed := range values {
+		if !allowed {
+			r.tx.t.Log("connector fixture stage=" + labels[i])
+		}
+	}
 }
