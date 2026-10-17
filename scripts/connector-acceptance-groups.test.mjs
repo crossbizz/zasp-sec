@@ -452,7 +452,20 @@ test('retention connected sources retain the complete declared application closu
   "services/platform/preflight/aws_integration.go",
   "services/platform/preflight/aws_integration_test.go",
   "services/platform/go.mod",
-  "services/platform/go.sum"
+  "services/platform/go.sum",
+  "services/platform/runtimeindex/opensearchdriver/schema_observer.go",
+  "services/platform/runtimeindex/opensearchdriver/schema_observer_test.go",
+  "services/platform/inventorysearch/opensearchdriver/schema_observer.go",
+  "services/platform/inventorysearch/opensearchdriver/schema_observer_test.go",
+  "services/platform/preflight/opensearch_config.go",
+  "services/platform/preflight/opensearch_test.go",
+  "services/platform/preflight/opensearch.go",
+  "services/platform/preflight/opensearch_flow_test.go",
+  "services/platform/preflight/opensearch_kubernetes.go",
+  "services/platform/preflight/opensearch_kubernetes_test.go",
+  "services/platform/preflight/opensearch_data_flow_test.go",
+  "services/platform/inventorysearch/opensearchdriver/driver.go",
+  "services/platform/inventorysearch/opensearchdriver/schema.go"
 ];
   const compiled = JSON.parse(relative('.github/connector-native-compile-source-pins.json'));
   const compilePins = new Map(compiled.sources.map(item => [item.path, item]));

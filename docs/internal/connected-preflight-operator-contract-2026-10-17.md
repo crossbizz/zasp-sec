@@ -2,8 +2,9 @@
 
 This component observes intended AWS targets through official SDK APIs. It is
 not a launch acceptance receipt. Its current report always keeps readiness false
-because original OpenSearch, Fargate, network and data-plane permission
-observations remain incomplete. Queue metadata does not prove send,
+because original Fargate, network and data-plane permission
+acceptance remains incomplete. OpenSearch metadata/schema observations do not
+prove workload-origin reachability or write permission. Queue metadata does not prove send,
 receive or delete authority. S3/KMS metadata does not prove artifact write rights.
 
 After the CLI build passes, invoke the read-only inspector with an absolute,
@@ -125,3 +126,20 @@ incomplete original inventory. Failure outcomes and exact Kubernetes read action
 remain bounded and redacted. Fargate, network reachability, OpenSearch and actual
 write/consume permissions remain separate original requirements; metadata and
 trust inspection do not establish them.
+
+Optional `opensearch` config binds the exact domain name/ARN, private regional
+HTTPS endpoint, VPC/subnets/security groups, KMS key, expected session-search
+phase and selected container/image digest. Separate explicit inspection
+credentials perform STS identity and DescribeDomain reads; local credential
+prerequisite failure stays unobserved, without fabricating an attempted STS call.
+The domain must meet the original OpenSearch 2.19 private/encrypted/TLS contract.
+
+Schema reads require the same verified selected workload exchange and fresh
+cluster/Pod/container/environment bindings. Runtime-index observes its raw-event
+and actual configured session index; projection-search observes its inventory
+index. Only fixed canonical schema GETs are allowed, using the existing Ready
+validators. Unsupported workload purposes remain unobserved. No index creation,
+initialization, document write, fallback identity or new workload permission is
+introduced. Expected phase is configuration, not an observed deployment phase.
+Inspector-origin reads do not prove workload network origin, global deployment
+phase, index write authority or full installation readiness.

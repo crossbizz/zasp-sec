@@ -383,22 +383,22 @@
     },
     {
       "path": "scripts/connector-acceptance-groups.test.mjs",
-      "sha256": "a4b90a7e34bcf4164051e6e496ad4493e4dde50250087aa1dced720a6fd49667",
-      "bytes": 38469,
+      "sha256": "998ba12718253f2ea6a81f33d3c57aa96f746afbb7194935818d0106dcdfc899",
+      "bytes": 39298,
       "currentBasePreimageSHA256": "a1622a9417e9fe4d62c2aed82bcf5f7f3e11dce841d802bf005b29d54405d388",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connected-connector-acceptance.mjs",
-      "sha256": "b0b8eb16a544f7e60f95cb99f186d14efa3d636dc42c6abc28f3670416d480e6",
-      "bytes": 85531,
+      "sha256": "64f05adbbfc21b044f2b321910131f3a5afef7daccf2edbfbf8c13ab469062f2",
+      "bytes": 87244,
       "currentBasePreimageSHA256": "f248c6d9182ca08cb518cd54c620844c987f4ae723a38badb463c59e010db578",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
-      "sha256": "52ba192f30f7f0fdaac265f0079d89cd3b5bec66b251abc25316cb04beb4b4f0",
-      "bytes": 81932,
+      "sha256": "666e8e88b5ba21f9966bfd38f87ba6a5a2e6605318c1fd56ee9fa591835f94af",
+      "bytes": 83645,
       "currentBasePreimageSHA256": "e66722e4daf5b1482c253d1f14b4c533c329fde202252c16f87ad3e0130e8524",
       "historicalPreimageSHA256": null
     },
@@ -2420,15 +2420,15 @@
     },
     {
       "path": "cmd/agentsecctl/go.mod",
-      "sha256": "4c68dd671f9e67b06a8ca1c0eaedafaefdff965dfaa1122351ccc472831c809d",
-      "bytes": 1737,
+      "sha256": "0fa0e8647690141a23c7422fa721dd6ab3778f39e4740236e541a49e120661d2",
+      "bytes": 1806,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
     {
       "path": "cmd/agentsecctl/go.sum",
-      "sha256": "edb4a61d04d22f7bc129baab930234a27c53175082fa8110ca097304c4945d1b",
-      "bytes": 6261,
+      "sha256": "686048a9c5a2ce0f2a7d6c2006b72ec7a3c986173bbfa8b56a9fe9a7bad3581e",
+      "bytes": 6476,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -2476,8 +2476,8 @@
     },
     {
       "path": "services/platform/preflight/config.go",
-      "sha256": "631244f930031a2e988bf67006d8dbac241931829b1f1b90cf303be60e6e2d20",
-      "bytes": 6827,
+      "sha256": "4e7ba1f2edbbd4630dd1076882f8c92efbf16b5437238fc98517af686bc7545a",
+      "bytes": 6877,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -2490,8 +2490,8 @@
     },
     {
       "path": "services/platform/preflight/contract.go",
-      "sha256": "2fb6562f74cf96a91a2543ecab20299a096866a750c80114c44f0eb0eedd9cab",
-      "bytes": 4811,
+      "sha256": "7ac1af3cada54125322f991bb51f21c8fb309697d65e0324cd00f50728b367e7",
+      "bytes": 4971,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -2518,8 +2518,8 @@
     },
     {
       "path": "services/platform/preflight/runner.go",
-      "sha256": "4e023766d2298f707faee01f201ff92dabba123a8aec4aed6992d80101ac6a72",
-      "bytes": 11569,
+      "sha256": "5b1686e89efad306cf9ace6234474b5cc83a176d560e838a8689950a09bc09ee",
+      "bytes": 11737,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -2849,6 +2849,97 @@
       "path": "services/platform/go.sum",
       "sha256": "4e030769478ca921923be45538ff8184f2d4850433b707de91bb128c51a85099",
       "bytes": 27777,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/runtimeindex/opensearchdriver/schema_observer.go",
+      "sha256": "d8c2f181f1969ae5771cf5bb5e315ae34c67c2aedaef890114ee0ca3c30846cf",
+      "bytes": 2911,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/runtimeindex/opensearchdriver/schema_observer_test.go",
+      "sha256": "3f9143efd08cd8b58e7b8e0c2c0f58d0901ef51d1ba3d22c7c7a23824a23426d",
+      "bytes": 4122,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/inventorysearch/opensearchdriver/schema_observer.go",
+      "sha256": "06d19b66ec2bcc5672b6773d38a4302022636b278c21d9570b472c4b04679945",
+      "bytes": 2455,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/inventorysearch/opensearchdriver/schema_observer_test.go",
+      "sha256": "8a6319b89cf5f1a744c36c55a9c24d122e3d7c9ba877934e922a7e41cc5e0182",
+      "bytes": 2274,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/preflight/opensearch_config.go",
+      "sha256": "e3cf984fd11467156436488c239872f7129cec8aa4228eb160149e0794f84195",
+      "bytes": 3605,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/preflight/opensearch_test.go",
+      "sha256": "a6805a7ae50f4cce7199b5538240d9f8e3a458a8b893f1580d1a5ee8784c6f1e",
+      "bytes": 3436,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/preflight/opensearch.go",
+      "sha256": "0f2d4a3acbf7b5d43dd858cfa80a86ac7f0864c375c9ea5220e7f3bc8add6d98",
+      "bytes": 14543,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/preflight/opensearch_flow_test.go",
+      "sha256": "5b69a9336f1424f5402c8ceda27a43d78a578a275048d4d140b4faf7cf1993c6",
+      "bytes": 7075,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/preflight/opensearch_kubernetes.go",
+      "sha256": "79ace397b8dbe45335583703772e0ab3270d1c446130244b532bfffe2c6987fb",
+      "bytes": 5167,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/preflight/opensearch_kubernetes_test.go",
+      "sha256": "d2872d8f24f4a9e0936c25e311ba902e25a5c81b7a8d627259500ab8ddc2ca91",
+      "bytes": 4594,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/preflight/opensearch_data_flow_test.go",
+      "sha256": "d9898363450e29118a7a24cf7e4dc9ccc2a7d948c6f663a5f96fa566ce6f78bc",
+      "bytes": 9390,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/inventorysearch/opensearchdriver/driver.go",
+      "sha256": "7e9350bc8f783281f6d4bf39a00ca8db12e8bb6611995a039534c97eda5e80eb",
+      "bytes": 8985,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/inventorysearch/opensearchdriver/schema.go",
+      "sha256": "54d016d9c71e3312c51a2f2ae213752a409a07a4e2b67254a08c25736f2cbcc5",
+      "bytes": 6714,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     }

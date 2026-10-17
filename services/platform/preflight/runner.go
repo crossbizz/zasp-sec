@@ -39,6 +39,7 @@ func (r *Runner) Run(ctx context.Context, mode string) (report Report, resultErr
 	defer closeIdentityReader()
 	authority := r.inspectAWSAuthority(bounded, &report, r.config.AWSAuthority, identityReader)
 	defer r.finishAWSAuthority(&report, authority)
+	searchDomain := r.observeOpenSearchDomain(bounded, &report)
 	credentials, exchangeProof, e := r.credentialsObserved(bounded)
 	if e != nil {
 		r.record(&report, "iam_role", false, "credentials_unavailable", "none", r.config.Credentials.ExpectedRoleARN, false)
@@ -70,6 +71,7 @@ func (r *Runner) Run(ctx context.Context, mode string) (report Report, resultErr
 		return report, ErrRejected
 	}
 	r.observeSelectedAWSBinding(bounded, &report, r.config.AWSAuthority, authority, exchangeProof, identityReader)
+	r.observeOpenSearchSchemas(bounded, &report, sdk, authority, exchangeProof, identityReader, searchDomain)
 	r.buckets(bounded, &report, sdk, identity)
 	r.secrets(bounded, &report, sdk, identity)
 	r.queues(bounded, &report, sdk, identity)

@@ -17,6 +17,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.38 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.19.38 // indirect
 	github.com/aws/aws-sdk-go-v2/service/kms v1.55.6 // indirect
+	github.com/aws/aws-sdk-go-v2/service/opensearch v1.75.6 // indirect
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.107.2 // indirect
 	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.44.6 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.46.6 // indirect

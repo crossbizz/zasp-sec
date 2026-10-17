@@ -61,6 +61,7 @@ type AWSConfig struct {
 	Queues  []Queue  `json:"queues"`
 }
 type Config struct {
+	OpenSearch   *OpenSearchConfig                    `json:"opensearch,omitempty"`
 	AWSAuthority *AWSAuthorityConfig                  `json:"aws_authority,omitempty"`
 	Neon         *NeonConfig                          `json:"neon,omitempty"`
 	Stytch       *StytchConfig                        `json:"stytch,omitempty"`
@@ -106,6 +107,7 @@ type AWSAuthoritySummary struct {
 	SelectedDeployedSpec           bool `json:"selected_deployed_spec"`
 }
 type Report struct {
+	OpenSearch                 *OpenSearchSummary   `json:"opensearch,omitempty"`
 	AWSAuthority               *AWSAuthoritySummary `json:"aws_authority,omitempty"`
 	Schema                     string               `json:"schema"`
 	Mode                       string               `json:"mode"`
