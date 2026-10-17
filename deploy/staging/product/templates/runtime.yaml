@@ -145,6 +145,7 @@ spec:
           resources: { requests: { cpu: 100m, memory: 128Mi, ephemeral-storage: 64Mi }, limits: { cpu: "1", memory: 512Mi, ephemeral-storage: 256Mi } }
           securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
           env:
+            {{- include "zasp.gatewayInstallation.env" . | nindent 12 }}
             - { name: ZASP_GATEWAY_CONTROL_MAX_BODY_BYTES, value: "65536" }
             - { name: ZASP_GATEWAY_CONTROL_OPERATION_TIMEOUT, value: "5s" }
             - { name: ZASP_GATEWAY_CONTROL_READINESS_TTL, value: "30s" }

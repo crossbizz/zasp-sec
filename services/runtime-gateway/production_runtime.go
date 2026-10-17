@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/gatewaycontrol"
+	"github.com/zasp-ai/zasp-sec/services/platform/gatewayinstallationwire"
 	"github.com/zasp-ai/zasp-sec/services/platform/policy"
 )
 
@@ -176,7 +177,16 @@ func buildProductionGatewayDependenciesWithFactories(ctx context.Context, config
 		return failClient()
 	}
 	expected := gatewayAuthority{OrganizationID: config.OrganizationID, WorkspaceID: config.WorkspaceID, EnvironmentID: config.EnvironmentID, DeviceID: config.DeviceID, CredentialID: config.CredentialID}
-	cache, err := policy.NewGatewayPolicyDiskCache(config.PolicyCacheFile, keys, expected.Binding(), gatewayUTCNow)
+	cacheConstructor := policy.NewGatewayPolicyDiskCache
+	if config.InstallationACKEnabled {
+		if _, ok := client.(interface {
+			RecordInstallation(context.Context, string, []byte) (gatewayinstallationwire.Receipt, error)
+		}); !ok {
+			return failClient()
+		}
+		cacheConstructor = policy.NewGatewayPolicyInstallationDiskCache
+	}
+	cache, err := cacheConstructor(config.PolicyCacheFile, keys, expected.Binding(), gatewayUTCNow)
 	if err != nil {
 		return failClient()
 	}
@@ -195,7 +205,8 @@ func buildProductionGatewayDependenciesWithFactories(ctx context.Context, config
 	}
 	control := boundGatewayControl{next: gatewayHTTPControl{next: client}, expected: expected}
 	runtime, err := newGatewayRuntime(gatewayRuntimeConfig{
-		Control: control, Cache: cache, Evidence: evidence, ExpectedAuthority: expected, CredentialID: config.CredentialID, BootstrapFailureMode: config.BootstrapFailureMode,
+		InstallationACKEnabled: config.InstallationACKEnabled,
+		Control:                control, Cache: cache, Evidence: evidence, ExpectedAuthority: expected, CredentialID: config.CredentialID, BootstrapFailureMode: config.BootstrapFailureMode,
 		MaximumPendingEvents: config.MaximumPendingEvents, Now: gatewayUTCNow,
 	})
 	if err != nil {
@@ -216,10 +227,23 @@ func buildProductionGatewayDependenciesWithFactories(ctx context.Context, config
 	if err != nil {
 		return failProxy()
 	}
+	var installationWorker *gatewayInstallationWorker
+	if config.InstallationACKEnabled {
+		installationWorker, err = newGatewayInstallationWorker(cache, control, expected, gatewayUTCNow)
+		if err != nil {
+			return failProxy()
+		}
+	}
 	var closeOnce sync.Once
 	var closeErr error
 	closeDependencies := func() error {
 		closeOnce.Do(func() {
+			// Join all installation I/O before releasing cache ownership or keys.
+			if installationWorker != nil {
+				if err := installationWorker.Close(); err != nil {
+					closeErr = errRuntimeUnavailable
+				}
+			}
 			if err := proxy.Close(); err != nil {
 				closeErr = errRuntimeUnavailable
 			}
@@ -243,9 +267,15 @@ func buildProductionGatewayDependenciesWithFactories(ctx context.Context, config
 			}
 			return nil
 		},
-		Metrics:               runtime.Metrics,
+		Metrics:               func() string { return runtime.Metrics() + installationWorker.Metrics() },
 		AcknowledgeQuarantine: runtime.AcknowledgeQuarantine,
 		Run: func(runCtx context.Context) error {
+			if installationWorker != nil {
+				if err := installationWorker.Start(runCtx, config.SyncInterval, config.OperationTimeout); err != nil {
+					return err
+				}
+				defer installationWorker.Close()
+			}
 			return runtime.Run(runCtx, config.SyncInterval, gatewayEvidenceRecordInterval)
 		},
 		Drain: runtime.Drain,

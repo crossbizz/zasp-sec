@@ -2186,3 +2186,14 @@ test("customer edge retained observation maps explicit enrollment constraint onl
  }
  for(const sensorNodeCoverage of [null,{}, {enabled:true,sensorID:""},{enabled:false,sensorID},{enabled:true,sensorID,extra:true}])await assert.rejects(renderCustomerEdgeRelease({...edgeRelease,sensorNodeCoverage}));
 });
+
+// This grouped boundary uses actual release entry points and refuses malformed
+// selection before Helm. Successful chart rendering remains a separate gate.
+test("gateway installation release entry points refuse malformed server and edge selection before rendering", async () => {
+  for (const gatewayInstallation of [null, {}, {enabled:'true',profileChecksum:''}, {enabled:false,profileChecksum:'a'.repeat(64)}, {enabled:true,profileChecksum:'a'.repeat(64)}]) {
+    await assert.rejects(renderRelease(release, {schemaVersion:49,gatewayInstallation}), /gateway installation deployment rejected/);
+  }
+  for (const gatewayInstallation of [null, {}, {enabled:'true'}, {enabled:true,profileChecksum:'a'.repeat(64)}]) {
+    await assert.rejects(renderCustomerEdgeRelease({...edgeRelease,gatewayInstallation}), /edge release rejected/);
+  }
+});

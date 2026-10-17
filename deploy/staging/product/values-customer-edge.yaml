@@ -1,5 +1,6 @@
 profile: customer_edge
 runtimeGateway:
+  installationACKEnabled: false
   enabled: true
   controlPlaneURL: ""
   organizationID: ""

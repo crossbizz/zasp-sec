@@ -130,6 +130,9 @@ spec:
           resources: { requests: { cpu: 100m, memory: 128Mi, ephemeral-storage: 32Mi }, limits: { cpu: "1", memory: 512Mi, ephemeral-storage: 128Mi } }
           securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
           env:
+            {{- if .Values.runtimeGateway.installationACKEnabled }}
+            - { name: ZASP_GATEWAY_INSTALLATION_ACK_ENABLED, value: "true" }
+            {{- end }}
             - { name: ZASP_GATEWAY_CONTROL_BASE_URL, value: {{ required "runtimeGateway.controlPlaneURL is required" .Values.runtimeGateway.controlPlaneURL | quote }} }
             - { name: ZASP_GATEWAY_ORGANIZATION_ID, value: {{ required "runtimeGateway.organizationID is required" .Values.runtimeGateway.organizationID | quote }} }
             - { name: ZASP_GATEWAY_WORKSPACE_ID, value: {{ required "runtimeGateway.workspaceID is required" .Values.runtimeGateway.workspaceID | quote }} }

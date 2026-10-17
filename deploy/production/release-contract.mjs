@@ -1,3 +1,4 @@
+import { normalizeGatewayInstallation, normalizeGatewayInstallationProducer, validateGatewayInstallationResources, validateGatewayInstallationProducerResources } from "./gateway-installation-profile.mjs";
 import { normalizeSensorNodeCoverage, validateSensorNodeCoverageResources, normalizeSensorNodeCoverageProducer, validateSensorNodeCoverageProducerResources } from "./sensor-node-coverage-profile.mjs";
 import { normalizeAgentOwnershipWrite, validateAgentOwnershipWriteResources } from "./agent-ownership-write-profile.mjs";
 import { normalizeAgentExposureFilter, validateAgentExposureFilterResources } from "./agent-exposure-filter-profile.mjs";
@@ -85,7 +86,7 @@ export async function inspectContainerBuilds() {
 }
 
 export async function renderRelease(value, options = { schemaVersion: 49 }) {
-  if (!validRelease(value) || !options || Object.keys(options).some(key => !["schemaVersion", "sessionSearchPhase", "auditExports", "testReconciler", "complianceExports", "attackLabReconciler", "evidenceExportWorkflow", "discoveryScheduleReplayPhase", "runtimeServices", "authorizationTemporal", "optionalEgress", "retentionReferenceExpiry", "environmentClass", "agentOwnerFilter", "agentRead", "agentOwnershipWrite", "agentExposureFilter", "sensorNodeCoverage"].includes(key))) throw new Error("release rejected");
+  if (!validRelease(value) || !options || Object.keys(options).some(key => !["schemaVersion", "sessionSearchPhase", "auditExports", "testReconciler", "complianceExports", "attackLabReconciler", "evidenceExportWorkflow", "discoveryScheduleReplayPhase", "runtimeServices", "authorizationTemporal", "optionalEgress", "retentionReferenceExpiry", "environmentClass", "agentOwnerFilter", "agentRead", "agentOwnershipWrite", "agentExposureFilter", "sensorNodeCoverage", "gatewayInstallation"].includes(key))) throw new Error("release rejected");
   const platformAccountID = value.discovery.roleArn.match(/^arn:aws:iam::([0-9]{12}):role\//)[1];
   const authorizationTemporal = normalizeAuthorizationTemporalProfile(options.authorizationTemporal, options, platformAccountID);
   const runtimeServices = options.runtimeServices ? structuredClone(options.runtimeServices) : undefined;
@@ -94,6 +95,7 @@ export async function renderRelease(value, options = { schemaVersion: 49 }) {
   const agentOwnerFilter = normalizeAgentOwnerFilter(options.agentOwnerFilter, authorizationTemporal, runtimeServices);
   const agentRead = normalizeAgentRead(options.agentRead, authorizationTemporal, runtimeServices);
   const sensorNodeCoverage = normalizeSensorNodeCoverage(options.sensorNodeCoverage, authorizationTemporal, runtimeServices);
+  const gatewayInstallation = normalizeGatewayInstallation(options.gatewayInstallation, authorizationTemporal, runtimeServices);
   const agentOwnershipWrite = normalizeAgentOwnershipWrite(options.agentOwnershipWrite, authorizationTemporal, runtimeServices);
   const agentExposureFilter = normalizeAgentExposureFilter(options.agentExposureFilter, authorizationTemporal, runtimeServices);
   const retention = normalizeRetention(options.retentionReferenceExpiry, authorizationTemporal, runtimeServices);
@@ -391,11 +393,11 @@ export async function renderRelease(value, options = { schemaVersion: 49 }) {
   let stdout;
   let exportValuesDirectory;
   try {
-    if (auditExports || testReconciler || complianceExports || attackLabReconciler || options.runtimeServices || optionalEgress || retention || environmentClass || agentOwnerFilter || agentRead || agentOwnershipWrite || agentExposureFilter || sensorNodeCoverage) {
+    if (auditExports || testReconciler || complianceExports || attackLabReconciler || options.runtimeServices || optionalEgress || retention || environmentClass || agentOwnerFilter || agentRead || agentOwnershipWrite || agentExposureFilter || sensorNodeCoverage || gatewayInstallation) {
       // A complete policy history can exceed the per-argument limit on Linux.
       exportValuesDirectory = await mkdtemp(path.join(tmpdir(), "zasp-audit-export-values-"));
       const exportValuesPath = path.join(exportValuesDirectory, "values.json");
-      await writeFile(exportValuesPath, JSON.stringify({ auditExports, testReconciler, complianceExports, attackLabReconciler, ...(authorizationTemporal ? { authorizationTemporal } : {}), ...(optionalEgress ? { optionalEgress } : {}), ...(retention ? { retentionReferenceExpiry: retention } : {}), ...(environmentClass ? { environmentClass } : {}), ...(agentOwnerFilter ? { agentOwnerFilter } : {}), ...(agentRead ? { agentRead } : {}), ...(sensorNodeCoverage ? { sensorNodeCoverage } : {}), ...(agentOwnershipWrite ? { agentOwnershipWrite } : {}), ...(agentExposureFilter ? { agentExposureFilter } : {}), ...(runtimeServices ? { runtimeServices } : {}), ...(evidenceExportWorkflow ? { evidenceExportWorkflow: { enabled: true } } : {}) }), { mode: 0o600 });
+      await writeFile(exportValuesPath, JSON.stringify({ auditExports, testReconciler, complianceExports, attackLabReconciler, ...(authorizationTemporal ? { authorizationTemporal } : {}), ...(optionalEgress ? { optionalEgress } : {}), ...(retention ? { retentionReferenceExpiry: retention } : {}), ...(environmentClass ? { environmentClass } : {}), ...(agentOwnerFilter ? { agentOwnerFilter } : {}), ...(agentRead ? { agentRead } : {}), ...(sensorNodeCoverage ? { sensorNodeCoverage } : {}), ...(gatewayInstallation ? { gatewayInstallation } : {}), ...(agentOwnershipWrite ? { agentOwnershipWrite } : {}), ...(agentExposureFilter ? { agentExposureFilter } : {}), ...(runtimeServices ? { runtimeServices } : {}), ...(evidenceExportWorkflow ? { evidenceExportWorkflow: { enabled: true } } : {}) }), { mode: 0o600 });
       valueArgs.push("--values", exportValuesPath);
     }
     await exec("helm", ["lint", chart, "--namespace", "agentsec", ...valueArgs], { cwd: root, encoding: "utf8", maxBuffer: 4 * 1024 * 1024 });
@@ -412,7 +414,7 @@ export async function renderRelease(value, options = { schemaVersion: 49 }) {
     throw new Error("release rejected");
   }
   if (resources.length < 20 || resources.some((resource) => !resource?.apiVersion || !resource?.kind || !resource?.metadata?.name)) throw new Error("release rejected");
-  validateRenderedRelease(resources, platformAccountID, schemaVersion, sessionSearchPhase, auditExports, testReconciler, complianceExports, attackLabReconciler, evidenceExportWorkflow, discoveryScheduleReplayPhase, authorizationTemporal, optionalEgress, value.securityAgentPlanner.egressCIDRs, retention, environmentClass, agentOwnerFilter, agentRead, agentExposureFilter, agentOwnershipWrite, sensorNodeCoverage);
+  validateRenderedRelease(resources, platformAccountID, schemaVersion, sessionSearchPhase, auditExports, testReconciler, complianceExports, attackLabReconciler, evidenceExportWorkflow, discoveryScheduleReplayPhase, authorizationTemporal, optionalEgress, value.securityAgentPlanner.egressCIDRs, retention, environmentClass, agentOwnerFilter, agentRead, agentExposureFilter, agentOwnershipWrite, sensorNodeCoverage, gatewayInstallation);
   return Object.freeze(resources);
 }
 
@@ -420,6 +422,7 @@ export async function renderCustomerEdgeRelease(value, options = {}) {
   if (!validCustomerEdgeRelease(value) || !options || typeof options !== "object" || Array.isArray(options) || Object.keys(options).some(key => key !== "sourceProfile") || options.sourceProfile !== undefined && !["tetragon-local-stream-v2", "tetragon-local-stream-v3"].includes(options.sourceProfile)) throw new Error("edge release rejected");
   const sourceProfile = options.sourceProfile ?? "tetragon-local-stream-v2";
   const nodeCoverage = normalizeSensorNodeCoverageProducer(value.sensorNodeCoverage);
+  const gatewayInstallation = normalizeGatewayInstallationProducer(value.gatewayInstallation);
   const set = [
     ["sensorAgent.sourceProfile", sourceProfile],
     ["global.productImages.runtimeGateway", value.image],
@@ -455,7 +458,7 @@ export async function renderCustomerEdgeRelease(value, options = {}) {
     if (createHash("sha256").update(dependency).digest("hex") !== tetragonChartDigest) throw new Error("tetragon dependency rejected");
     coverageDirectory = await mkdtemp(path.join(tmpdir(), "zasp-sensor-coverage-values-"));
     const productCoveragePath = path.join(coverageDirectory,"product.json"), tetragonCoveragePath = path.join(coverageDirectory,"tetragon.json");
-    await writeFile(productCoveragePath,JSON.stringify({sensorAgent:{nodeCoverageRetentionEnabled:nodeCoverage?.enabled===true,sensorID:nodeCoverage?.sensorID??"",coverage:{clusterUID:value.sensorClusterUID,matchLabels:nodeSelector,tetragonNamespace:"agentsec",tetragonName:"zasp-tetragon",tetragonRelease:"zasp-tetragon",tetragonServiceAccount:"zasp-tetragon"}}}),{mode:0o600});
+    await writeFile(productCoveragePath,JSON.stringify({runtimeGateway:{installationACKEnabled:gatewayInstallation?.enabled===true},sensorAgent:{nodeCoverageRetentionEnabled:nodeCoverage?.enabled===true,sensorID:nodeCoverage?.sensorID??"",coverage:{clusterUID:value.sensorClusterUID,matchLabels:nodeSelector,tetragonNamespace:"agentsec",tetragonName:"zasp-tetragon",tetragonRelease:"zasp-tetragon",tetragonServiceAccount:"zasp-tetragon"}}}),{mode:0o600});
     await writeFile(tetragonCoveragePath,JSON.stringify({tetragon:{nodeSelector},coverageObserver:{enabled:true,namespace:"agentsec",serviceAccount:"sensor-agent"}}),{mode:0o600});
     valueArgs.push("--values",productCoveragePath);
     const tetragonArgs=["--values",tetragonCoveragePath];
@@ -480,6 +483,7 @@ export async function renderCustomerEdgeRelease(value, options = {}) {
     throw new Error("edge release rejected");
   }
   validateSensorNodeCoverageProducerResources(resources,nodeCoverage);
+  validateGatewayInstallationProducerResources(resources,gatewayInstallation);
   const deployments = resources.filter(({ kind }) => kind === "Deployment");
   const daemonSets = resources.filter(({ kind }) => kind === "DaemonSet");
   const accounts = resources.filter(({ kind }) => kind === "ServiceAccount");
@@ -495,8 +499,8 @@ export async function renderCustomerEdgeRelease(value, options = {}) {
 
 function validCustomerEdgeRelease(value) {
   const keys = ["controlPlaneURL", "image", "sensorImage", "organizationID", "workspaceID", "environmentID", "deviceID", "credentialID", "credentialSecretName", "policyKeysSecretName", "proxyClientTokenSecretName", "proxyUpstreamURL", "sensorTokenSecretName", "sensorEnrollmentBinding", "sensorClusterUID", "sensorNodeSelector", "storageClassName", "controlPlaneCIDRs", "proxyAllowedCIDRs", "kubernetesAPICIDRs", "nodeCIDRs", "stateHostPath"];
-  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).filter(key=>key!=="sensorNodeCoverage").sort().join("\0") !== keys.sort().join("\0") || !digestPattern.test(value.image) || !digestPattern.test(value.sensorImage) || value.image === value.sensorImage) return false;
-  try { normalizeSensorNodeCoverageProducer(value.sensorNodeCoverage); } catch { return false; }
+  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).filter(key=>!["sensorNodeCoverage","gatewayInstallation"].includes(key)).sort().join("\0") !== keys.sort().join("\0") || !digestPattern.test(value.image) || !digestPattern.test(value.sensorImage) || value.image === value.sensorImage) return false;
+  try { normalizeSensorNodeCoverageProducer(value.sensorNodeCoverage); normalizeGatewayInstallationProducer(value.gatewayInstallation); } catch { return false; }
   if (typeof value.sensorClusterUID !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(value.sensorClusterUID) || value.sensorClusterUID === "00000000-0000-0000-0000-000000000000" || !value.sensorNodeSelector || Array.isArray(value.sensorNodeSelector) || Object.keys(value.sensorNodeSelector).length < 1 || Object.keys(value.sensorNodeSelector).length > 8 || !Object.entries(value.sensorNodeSelector).every(([k,v]) => /^[A-Za-z0-9./_-]{1,253}$/.test(k) && typeof v === "string" && /^[A-Za-z0-9][A-Za-z0-9_.-]{0,62}$/.test(v))) return false;
   if (typeof value.sensorEnrollmentBinding !== "string" || !/^[0-9a-f]{64}$/.test(value.sensorEnrollmentBinding)) return false;
   if (!/^https:\/\/(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(value.controlPlaneURL)) return false;
@@ -601,7 +605,7 @@ function validRelease(value) {
   return value.telemetry.backend === "newrelic" && value.telemetry.endpoint === "https://otlp.nr-data.net";
 }
 
-export function validateRenderedRelease(resources, platformAccountID, schemaVersion = 49, sessionSearchPhase = "compatibility", expectedAuditExports, expectedTestReconciler, expectedComplianceExports, expectedAttackLabReconciler, expectedEvidenceExportWorkflow, discoveryScheduleReplayPhase, authorizationTemporal, expectedOptionalEgress, expectedOptionalPlannerCIDRs, expectedRetention, expectedEnvironmentClass, expectedAgentOwnerFilter, expectedAgentRead, expectedAgentExposureFilter, expectedAgentOwnershipWrite, expectedSensorNodeCoverage) {
+export function validateRenderedRelease(resources, platformAccountID, schemaVersion = 49, sessionSearchPhase = "compatibility", expectedAuditExports, expectedTestReconciler, expectedComplianceExports, expectedAttackLabReconciler, expectedEvidenceExportWorkflow, discoveryScheduleReplayPhase, authorizationTemporal, expectedOptionalEgress, expectedOptionalPlannerCIDRs, expectedRetention, expectedEnvironmentClass, expectedAgentOwnerFilter, expectedAgentRead, expectedAgentExposureFilter, expectedAgentOwnershipWrite, expectedSensorNodeCoverage, expectedGatewayInstallation) {
   // Standalone callers must provide reviewed provider ranges too; equality
   // against a simultaneously widened expected/rendered policy is insufficient.
   if (expectedOptionalEgress?.enabled === true && !validProviderCIDRList(expectedOptionalPlannerCIDRs)) throw new Error("optional egress provider CIDRs rejected");
@@ -777,6 +781,7 @@ export function validateRenderedRelease(resources, platformAccountID, schemaVers
   const agentRead = normalizeAgentRead(expectedAgentRead, authorizationTemporal, optionalRuntime);
   validateAgentReadResources(resources, agentRead);
   validateSensorNodeCoverageResources(resources, normalizeSensorNodeCoverage(expectedSensorNodeCoverage, authorizationTemporal, optionalRuntime));
+  validateGatewayInstallationResources(resources, normalizeGatewayInstallation(expectedGatewayInstallation, authorizationTemporal, optionalRuntime));
   const agentOwnershipWrite = normalizeAgentOwnershipWrite(expectedAgentOwnershipWrite, authorizationTemporal, optionalRuntime);
   validateAgentOwnershipWriteResources(resources, agentOwnershipWrite);
   const agentExposureFilter = normalizeAgentExposureFilter(expectedAgentExposureFilter, authorizationTemporal, optionalRuntime);

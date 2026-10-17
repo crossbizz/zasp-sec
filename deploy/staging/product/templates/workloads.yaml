@@ -1,3 +1,4 @@
+{{- include "zasp.gatewayInstallation.validate" . }}
 {{- include "zasp.sensorNodeCoverage.validate" . }}
 {{- include "zasp.agentOwnershipWrite.validate" . }}
 {{- include "zasp.agentExposureFilter.validate" . }}

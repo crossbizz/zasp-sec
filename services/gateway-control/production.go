@@ -1,17 +1,20 @@
 package main
 
 import (
+	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 	"net/url"
 	"strconv"
 	"time"
 )
 
 type productionControlConfig struct {
-	DatabaseURL      string
-	MaximumBodyBytes int64
-	OperationTimeout time.Duration
-	ReadinessTTL     time.Duration
-	ShutdownTimeout  time.Duration
+	InstallationACKEnabled      bool
+	InstallationProfileChecksum string
+	DatabaseURL                 string
+	MaximumBodyBytes            int64
+	OperationTimeout            time.Duration
+	ReadinessTTL                time.Duration
+	ShutdownTimeout             time.Duration
 }
 
 func loadProductionControlConfig(getenv func(string) string) (productionControlConfig, error) {
@@ -22,7 +25,11 @@ func loadProductionControlConfig(getenv func(string) string) (productionControlC
 	operationTimeout, operationErr := time.ParseDuration(getenv("ZASP_GATEWAY_CONTROL_OPERATION_TIMEOUT"))
 	readinessTTL, readinessErr := time.ParseDuration(getenv("ZASP_GATEWAY_CONTROL_READINESS_TTL"))
 	shutdownTimeout, shutdownErr := time.ParseDuration(getenv("ZASP_GATEWAY_CONTROL_SHUTDOWN_TIMEOUT"))
-	config := productionControlConfig{
+	flag := getenv("ZASP_GATEWAY_INSTALLATION_ACK_ENABLED")
+	if flag != "" && flag != "false" && flag != "true" {
+		return productionControlConfig{}, errControlUnavailable
+	}
+	config := productionControlConfig{InstallationACKEnabled: flag == "true", InstallationProfileChecksum: getenv("ZASP_GATEWAY_INSTALLATION_PROFILE_CHECKSUM"),
 		DatabaseURL: getenv("ZASP_DATABASE_URL"), MaximumBodyBytes: maximumBodyBytes,
 		OperationTimeout: operationTimeout, ReadinessTTL: readinessTTL, ShutdownTimeout: shutdownTimeout,
 	}
@@ -33,6 +40,13 @@ func loadProductionControlConfig(getenv func(string) string) (productionControlC
 }
 
 func validProductionControlConfig(config productionControlConfig) bool {
+	if config.InstallationACKEnabled {
+		if !migrations.IsGatewayInstallationProfileChecksum(config.InstallationProfileChecksum) {
+			return false
+		}
+	} else if config.InstallationProfileChecksum != "" {
+		return false
+	}
 	database, err := url.Parse(config.DatabaseURL)
 	if err != nil || database.String() != config.DatabaseURL || database.Scheme != "postgres" && database.Scheme != "postgresql" || database.User == nil || database.User.Username() == "" || database.Hostname() == "" || database.Path == "" || database.Fragment != "" {
 		return false

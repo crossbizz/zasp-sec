@@ -554,3 +554,11 @@ sensorNodeCoverage:
 sensorAgent:
   nodeCoverageRetentionEnabled: false
   sensorID: ""
+
+# Optional gateway-control installation testimony; profile installation is separate.
+gatewayInstallation:
+  enabled: false
+  profileChecksum: ""
+# Customer-edge producer only; typed default remains off.
+runtimeGateway:
+  installationACKEnabled: false

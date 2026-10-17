@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - 'services/platform/**'
+      - 'services/gateway-control/**'
+      - 'services/runtime-gateway/**'
       - 'services/health/**'
       - 'services/sensor-agent/**'
       - 'cmd/agentsecctl/**'
@@ -45,7 +47,7 @@ jobs:
           import hashlib, json
           from pathlib import Path
           source = json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())
-          assert len(source['sources']) == 729
+          assert len(source['sources']) == 799
           for item in source['sources']:
               raw = Path(item['path']).read_bytes()
               assert len(raw) == item['bytes']
@@ -87,7 +89,7 @@ jobs:
           assert len(groups) == 6 and sum(len(tops) for tops in groups.values()) == 10 and len(expected) == 86
           def check_sources():
               source = json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())
-              assert len(source['sources']) == 729
+              assert len(source['sources']) == 799
               for item in source['sources']:
                   raw = Path(item['path']).read_bytes()
                   assert len(raw) == item['bytes'] and hashlib.sha256(raw).hexdigest() == item['sha256'], item['path']
@@ -930,3 +932,238 @@ jobs:
         run: go test -C services/platform -race -p=1 -count=1 -timeout=2m -run '^TestSQS' ./preflight
       - name: Keep consumed SQS diagnostic and module source unchanged
         run: git diff --exit-code -- services/platform cmd/agentsecctl services/health
+
+  gateway-installation-components:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      GOTOOLCHAIN: local
+      GOWORK: 'off'
+      GOFLAGS: '-mod=readonly'
+      GOMAXPROCS: '2'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version: 1.26.8
+          cache: false
+      - name: Require exact toolchain and no ambient ACK activation
+        shell: bash
+        run: |
+          test "$(go version)" = 'go version go1.26.8 linux/amd64'
+          test -z "${ZASP_GATEWAY_INSTALLATION_ACK_ENABLED:-}"
+          test -z "${ZASP_GATEWAY_INSTALLATION_PROFILE_CHECKSUM:-}"
+      - name: Require every one of 105 exact gateway installation component results
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 0027
+          python3 - <<'PYGATEWAYINSTALLATION'
+          import json, os, subprocess, sys
+          from pathlib import Path
+          sys.path.insert(0, str(Path('scripts').resolve()))
+          from validate_agent_read_components import check_sources, load_events, validate_events
+          # Fixed source-reviewed full named roster, including every child and ancestor.
+          # Component success never substitutes for PostgreSQL/native/deployed acceptance.
+          expected = {'github.com/zasp-ai/zasp-sec/services/platform/gatewayinstallationwire': ['TestInstallationObservationRoundTrip',
+                                                                                     'TestInstallationObservationClosedSyntax',
+                                                                                     'TestInstallationObservationTimeAndIdentity',
+                                                                                     'TestInstallationReceiptRoundTripAndBinding',
+                                                                                     'TestInstallationReceiptCoalescedRank',
+                                                                                     'TestInstallationReceiptClosedSyntaxAndTimes'],
+           'github.com/zasp-ai/zasp-sec/services/platform/internal/cacheownership': ['TestCacheOwnershipExclusiveLifetime',
+                                                                                     'TestCacheOwnershipPathAndReplacementRefusal',
+                                                                                     'TestCacheOwnershipUnsafeExistingLock',
+                                                                                     'TestCacheOwnershipCrossProcess'],
+           'github.com/zasp-ai/zasp-sec/services/platform/migrations': ['TestGatewayInstallationInstallerClosedAdmission',
+                                                                        'TestGatewayInstallationInstallerClosedAdmission/normal-fresh',
+                                                                        'TestGatewayInstallationInstallerClosedAdmission/audit-fresh',
+                                                                        'TestGatewayInstallationInstallerClosedAdmission/normal-existing',
+                                                                        'TestGatewayInstallationInstallerClosedAdmission/audit-existing',
+                                                                        'TestGatewayInstallationInstallerClosedAdmission/normal-explicit-self-role',
+                                                                        'TestGatewayInstallationInstallerClosedAdmission/audit-explicit-self-role',
+                                                                        'TestGatewayInstallationInstallerClosedAdmission/source-operator-refused',
+                                                                        'TestGatewayInstallationInstallerClosedAdmission/parent-refused',
+                                                                        'TestGatewayInstallationInstallerClosedAdmission/runtime-parent-refused',
+                                                                        'TestGatewayInstallationInstallerClosedAdmission/normal-wrong-parent-variant',
+                                                                        'TestGatewayInstallationInstallerClosedAdmission/audit-wrong-parent-variant',
+                                                                        'TestGatewayInstallationInstallerClosedAdmission/hostile-default-acl',
+                                                                        'TestGatewayInstallationInstallerClosedAdmission/catalog-refused',
+                                                                        'TestGatewayInstallationInstallerClosedAdmission/restore-refused',
+                                                                        'TestGatewayInstallationCompilerIdentity',
+                                                                        'TestGatewayInstallationCompilerIdentity/normal',
+                                                                        'TestGatewayInstallationCompilerIdentity/audit'],
+           'github.com/zasp-ai/zasp-sec/services/platform/policy': ['TestGatewayInstallationCacheDurableOriginalObservationAndRestart',
+                                                                    'TestGatewayInstallationCacheCompareClearAndSupersession',
+                                                                    'TestGatewayInstallationCacheLegacyMemoryAndRotationNeverFabricate',
+                                                                    'TestGatewayInstallationCacheFailedWriteCannotEmitPending',
+                                                                    'TestGatewayInstallationCacheLegacyWritesPreserveCurrentWitness',
+                                                                    'TestGatewayInstallationCacheRejectsCorruptWitnessWithoutCredentialRelabel',
+                                                                    'TestGatewayInstallationCacheSelectedFileIsOneGeneration',
+                                                                    'TestGatewayPolicyDiskCacheWrites0600AndReverifiesOnRestore',
+                                                                    'TestGatewayPolicyCacheRejectsNoncanonicalDiskAndClockPanic',
+                                                                    'TestGatewayPolicyCacheNeverReactivatesExpiredPolicyAfterClockRollbackOrRestart'],
+           'github.com/zasp-ai/zasp-sec/services/platform/gatewaycontrol': ['TestInstallationSignedHandlerConnectedAdmission',
+                                                                            'TestInstallationSignedHandlerConnectedAdmission/recorded',
+                                                                            'TestInstallationSignedHandlerConnectedAdmission/off',
+                                                                            'TestInstallationSignedHandlerConnectedAdmission/catalog_failure',
+                                                                            'TestInstallationSignedHandlerConnectedAdmission/foreign_receipt',
+                                                                            'TestInstallationSignedHandlerConnectedAdmission/generation_mismatch',
+                                                                            'TestInstallationSignedHandlerConnectedAdmission/malformed',
+                                                                            'TestInstallationSignedHandlerConnectedAdmission/oversize',
+                                                                            'TestInstallationSignedHandlerConnectedAdmission/scope_injection',
+                                                                            'TestInstallationSignedHandlerConnectedAdmission/mutated_signature',
+                                                                            'TestInstallationSignedHandlerConnectedAdmission/wrong_media',
+                                                                            'TestInstallationSignedHandlerConnectedAdmission/query',
+                                                                            'TestInstallationSignedClientStrictReceipt',
+                                                                            'TestInstallationSignedClientStrictReceipt/recorded',
+                                                                            'TestInstallationSignedClientStrictReceipt/coalesced',
+                                                                            'TestInstallationSignedClientStrictReceipt/legacy_204',
+                                                                            'TestInstallationSignedClientStrictReceipt/foreign_scope',
+                                                                            'TestInstallationSignedClientStrictReceipt/wrong_generation',
+                                                                            'TestInstallationSignedClientStrictReceipt/wrong_digest',
+                                                                            'TestInstallationSignedClientStrictReceipt/bad_rank',
+                                                                            'TestInstallationSignedClientStrictReceipt/oversize',
+                                                                            'TestInstallationSignedClientStrictReceipt/duplicate',
+                                                                            'TestInstallationSignedClientStrictReceipt/missing_no_store',
+                                                                            'TestInstallationSignedClientStrictReceipt/wrong_media',
+                                                                            'TestInstallationTransactionRequiresConfirmedCommit',
+                                                                            'TestInstallationTransactionRequiresConfirmedCommit/committed',
+                                                                            'TestInstallationTransactionRequiresConfirmedCommit/confirmation_false',
+                                                                            'TestInstallationTransactionRequiresConfirmedCommit/unknown_commit',
+                                                                            'TestInstallationTransactionRequiresConfirmedCommit/malformed_receipt',
+                                                                            'TestInstallationTransactionRequiresConfirmedCommit/wrong_generation',
+                                                                            'TestInstallationRepositoryUsesOwnCompiledProfileWithoutLegacyReadiness'],
+           'github.com/zasp-ai/zasp-sec/services/platform/agentsec-migrate': ['TestGatewayInstallationMigrationDispatchAndConfirmation',
+                                                                              'TestGatewayInstallationMigrationDispatchAndConfirmation/up-gateway-installation-profile',
+                                                                              'TestGatewayInstallationMigrationDispatchAndConfirmation/up-gateway-installation-profile/dispatch',
+                                                                              'TestGatewayInstallationMigrationDispatchAndConfirmation/up-gateway-installation-profile/source-principal-refused',
+                                                                              'TestGatewayInstallationMigrationDispatchAndConfirmation/up-gateway-installation-profile/canonical61-refused',
+                                                                              'TestGatewayInstallationMigrationDispatchAndConfirmation/up-gateway-installation-profile/strict-arguments',
+                                                                              'TestGatewayInstallationMigrationDispatchAndConfirmation/up-gateway-installation-profile/confirm-accepted',
+                                                                              'TestGatewayInstallationMigrationDispatchAndConfirmation/up-gateway-installation-profile/confirm-catalog-refused',
+                                                                              'TestGatewayInstallationMigrationDispatchAndConfirmation/up-gateway-installation-profile/confirm-unknown-commit',
+                                                                              'TestGatewayInstallationMigrationDispatchAndConfirmation/up-gateway-installation-profile/confirm-canceled',
+                                                                              'TestGatewayInstallationMigrationDispatchAndConfirmation/up-gateway-installation-audit-profile',
+                                                                              'TestGatewayInstallationMigrationDispatchAndConfirmation/up-gateway-installation-audit-profile/dispatch',
+                                                                              'TestGatewayInstallationMigrationDispatchAndConfirmation/up-gateway-installation-audit-profile/source-principal-refused',
+                                                                              'TestGatewayInstallationMigrationDispatchAndConfirmation/up-gateway-installation-audit-profile/canonical61-refused',
+                                                                              'TestGatewayInstallationMigrationDispatchAndConfirmation/up-gateway-installation-audit-profile/strict-arguments',
+                                                                              'TestGatewayInstallationMigrationDispatchAndConfirmation/up-gateway-installation-audit-profile/confirm-accepted',
+                                                                              'TestGatewayInstallationMigrationDispatchAndConfirmation/up-gateway-installation-audit-profile/confirm-catalog-refused',
+                                                                              'TestGatewayInstallationMigrationDispatchAndConfirmation/up-gateway-installation-audit-profile/confirm-unknown-commit',
+                                                                              'TestGatewayInstallationMigrationDispatchAndConfirmation/up-gateway-installation-audit-profile/confirm-canceled',
+                                                                              'TestGatewayInstallationCLIInputsAndChecksums',
+                                                                              'TestGatewayInstallationCLIInputsAndChecksums/up-gateway-installation-profile',
+                                                                              'TestGatewayInstallationCLIInputsAndChecksums/up-gateway-installation-audit-profile'],
+           'github.com/zasp-ai/zasp-sec/services/gateway-control': ['TestGatewayInstallationConfigClosedActivation',
+                                                                    'TestGatewayInstallationConfigClosedActivation/legacy',
+                                                                    'TestGatewayInstallationConfigClosedActivation/disabled_empty',
+                                                                    'TestGatewayInstallationConfigClosedActivation/disabled_pin',
+                                                                    'TestGatewayInstallationConfigClosedActivation/invalid_flag',
+                                                                    'TestGatewayInstallationConfigClosedActivation/enabled_missing_pin',
+                                                                    'TestGatewayInstallationConfigClosedActivation/enabled_unknown_pin',
+                                                                    'TestGatewayInstallationProductionMountSurvivesReadinessCache',
+                                                                    'TestGatewayInstallationProductionConfigSelectsOnlyCompiledProfiles'],
+           'github.com/zasp-ai/zasp-sec/services/runtime-gateway': ['TestGatewayInstallationWorkerRetriesOriginalBodyAndPersistsConfirmation',
+                                                                    'TestGatewayInstallationWorkerUnknownOldResponseCannotClearNewer',
+                                                                    'TestGatewayInstallationWorkerCurrentAuthorityAndReceiptScope',
+                                                                    'TestGatewayInstallationWorkerCancellationJoinsBlockedDelivery',
+                                                                    'TestLoadProductionGatewayConfigRequiresExactAuthority']}
+          required = frozenset(['.github/workflows/connector-native-draft-compile.yml',
+           'deploy/production/gateway-installation-profile.mjs',
+           'deploy/production/gateway-installation-profile.test.mjs',
+           'deploy/production/release-contract.mjs',
+           'deploy/production/release-contract.test.mjs',
+           'deploy/staging/product/templates/_gateway-installation.tpl',
+           'deploy/staging/product/templates/edge.yaml',
+           'deploy/staging/product/templates/runtime.yaml',
+           'deploy/staging/product/templates/workloads.yaml',
+           'deploy/staging/product/values-customer-edge.yaml',
+           'deploy/staging/product/values.yaml',
+           'scripts/validate_agent_read_components.py',
+           'scripts/validate_agent_read_components_test.py',
+           'services/gateway-control/go.mod',
+           'services/gateway-control/go.sum',
+           'services/gateway-control/installation_test.go',
+           'services/gateway-control/production.go',
+           'services/gateway-control/production_runtime.go',
+           'services/gateway-control/production_server.go',
+           'services/gateway-control/production_test.go',
+           'services/platform/agentsec-migrate/forward_release_confirmation.go',
+           'services/platform/agentsec-migrate/gateway_installation_profile.go',
+           'services/platform/agentsec-migrate/gateway_installation_profile_test.go',
+           'services/platform/agentsec-migrate/main.go',
+           'services/platform/agentsec-migrate/maintenance_confirmation_role_test.go',
+           'services/platform/gatewaycontrol/client.go',
+           'services/platform/gatewaycontrol/contract.go',
+           'services/platform/gatewaycontrol/http.go',
+           'services/platform/gatewaycontrol/http_test.go',
+           'services/platform/gatewaycontrol/installation.go',
+           'services/platform/gatewaycontrol/installation_test.go',
+           'services/platform/gatewaycontrol/postgres.go',
+           'services/platform/gatewayinstallationwire/wire.go',
+           'services/platform/gatewayinstallationwire/wire_test.go',
+           'services/platform/go.mod',
+           'services/platform/go.sum',
+           'services/platform/internal/cacheownership/ownership.go',
+           'services/platform/internal/cacheownership/ownership_linux.go',
+           'services/platform/internal/cacheownership/ownership_other.go',
+           'services/platform/internal/cacheownership/ownership_test.go',
+           'services/platform/migrations/maintenance_operator_role.go',
+           'services/platform/migrations/migrations.go',
+           'services/platform/migrations/migrations_test.go',
+           'services/platform/migrations/production_gateway_installation_compiler_test.go',
+           'services/platform/migrations/production_gateway_installation_profile.go',
+           'services/platform/migrations/production_gateway_installation_profile_test.go',
+           'services/platform/migrations/sql/gateway_installation_profile.sql',
+           'services/platform/policy/gateway_cache.go',
+           'services/platform/policy/gateway_cache_test.go',
+           'services/platform/policy/gateway_installation.go',
+           'services/platform/policy/gateway_installation_test.go',
+           'services/platform/policy/policy.go',
+           'services/runtime-gateway/go.mod',
+           'services/runtime-gateway/go.sum',
+           'services/runtime-gateway/installation_ack.go',
+           'services/runtime-gateway/installation_ack_test.go',
+           'services/runtime-gateway/production.go',
+           'services/runtime-gateway/production_runtime.go',
+           'services/runtime-gateway/production_runtime_test.go',
+           'services/runtime-gateway/production_test.go',
+           'services/runtime-gateway/runtime.go',
+           'services/runtime-gateway/runtime_test.go'])
+          assert len(expected) == 8 and sum(map(len, expected.values())) == 105
+          assert all(len(names) == len(set(names)) and all("Postgres" not in n for n in names) for names in expected.values())
+          print(json.dumps(check_sources(Path.cwd(), '.github/connector-native-compile-source-pins.json', required), sort_keys=True))
+          modules = {
+            'services/platform': ['./gatewayinstallationwire','./internal/cacheownership','./migrations','./policy','./gatewaycontrol','./agentsec-migrate'],
+            'services/gateway-control': ['.'],
+            'services/runtime-gateway': ['.'],
+          }
+          status = 0
+          with Path('gateway-installation-components.jsonl').open('wb') as out, Path('gateway-installation-components.stderr').open('wb') as err:
+              for module, packages in modules.items():
+                  prefix = 'github.com/zasp-ai/zasp-sec/' + module
+                  selected = [n for package, names in expected.items() if package == prefix or package.startswith(prefix + '/') for n in names if '/' not in n]
+                  assert selected
+                  command = ['go','test','-C',module,'-race','-p=1','-count=1','-timeout=3m','-json','-run','^('+'|'.join(selected)+')$',*packages]
+                  result = subprocess.run(command, stdout=out, stderr=err, timeout=1200, check=False)
+                  if result.returncode != 0 and status == 0:
+                      status = result.returncode
+          print(json.dumps(validate_events(load_events('gateway-installation-components.jsonl'), status, expected), sort_keys=True))
+          PYGATEWAYINSTALLATION
+      - name: Preserve component-only execution evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: gateway-installation-component-evidence
+          path: |
+            gateway-installation-components.jsonl
+            gateway-installation-components.stderr
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Confirm checks did not alter tracked source
+        if: always()
+        run: git diff --exit-code

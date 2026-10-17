@@ -229,6 +229,17 @@ func main() {
 			log.Fatal("release migration configuration rejected")
 		}
 	}
+	if len(arguments) > 0 && arguments[0] == "gateway-installation-profile-checksums" {
+		if len(arguments) != 1 || writeGatewayInstallationChecksums(os.Stdout) != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+		return
+	}
+	if len(arguments) > 0 && gatewayInstallationProfileCommand(arguments[0]) {
+		if validateGatewayInstallationCommand(arguments, os.Getenv) != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+	}
 	if len(arguments) > 0 && arguments[0] == "sensor-node-coverage-profile-checksums" {
 		if len(arguments) != 1 || writeSensorNodeCoverageChecksums(os.Stdout) != nil {
 			log.Fatal("release migration configuration rejected")
@@ -416,7 +427,7 @@ func main() {
 		}
 	}
 	if isForwardMigration(arguments) {
-		if sensorNodeCoverageProfileCommand(arguments[0]) || authorizationProfileCommand(arguments[0]) || maintenanceProfileCommand(arguments[0]) || optionalEgressProfileCommand(arguments[0]) || retentionProfileCommand(arguments[0]) || environmentClassProfileCommand(arguments[0]) || agentOwnerFilterProfileCommand(arguments[0]) || agentReadProfileCommand(arguments[0]) || agentOwnershipWriteProfileCommand(arguments[0]) || agentExposureFilterProfileCommand(arguments[0]) {
+		if gatewayInstallationProfileCommand(arguments[0]) || sensorNodeCoverageProfileCommand(arguments[0]) || authorizationProfileCommand(arguments[0]) || maintenanceProfileCommand(arguments[0]) || optionalEgressProfileCommand(arguments[0]) || retentionProfileCommand(arguments[0]) || environmentClassProfileCommand(arguments[0]) || agentOwnerFilterProfileCommand(arguments[0]) || agentReadProfileCommand(arguments[0]) || agentOwnershipWriteProfileCommand(arguments[0]) || agentExposureFilterProfileCommand(arguments[0]) {
 			registration.migration = os.Getenv(migrationPrincipalEnvironment)
 			if !databasePrincipalPattern.MatchString(registration.migration) {
 				err = errInvalidMigrationCommand
@@ -555,6 +566,9 @@ func registerForwardRelease(ctx context.Context, queryer principalQueryer, regis
 	}
 	if agentExposureFilterProfileCommand(arguments[0]) {
 		return agentExposureFilterPostInstall(ctx, queryer, registration.migration, arguments[0])
+	}
+	if gatewayInstallationProfileCommand(arguments[0]) {
+		return gatewayInstallationPostInstall(ctx, queryer, registration.migration, arguments[0])
 	}
 	if sensorNodeCoverageProfileCommand(arguments[0]) {
 		return sensorNodeCoveragePostInstall(ctx, queryer, registration.migration, arguments[0])
@@ -970,6 +984,9 @@ func (r *registeredReleaseMigrationRunner) UpProductionApprovalSettlementAuditPr
 }
 
 func isForwardMigration(arguments []string) bool {
+	if len(arguments) == 1 && gatewayInstallationProfileCommand(arguments[0]) {
+		return true
+	}
 	if len(arguments) == 1 && sensorNodeCoverageProfileCommand(arguments[0]) {
 		return true
 	}
@@ -1063,6 +1080,24 @@ func runReleaseMigration(ctx context.Context, runner releaseMigrationRunner, arg
 			return migrations.ErrInvalidState
 		}
 		return e.UpProductionAgentExposureFilterAuditProfile(ctx)
+	case "up-gateway-installation-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		e, ok := runner.(interface{ UpProductionGatewayInstallationProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return e.UpProductionGatewayInstallationProfile(ctx)
+	case "up-gateway-installation-audit-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		e, ok := runner.(interface{ UpProductionGatewayInstallationAuditProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return e.UpProductionGatewayInstallationAuditProfile(ctx)
 	case "up-sensor-node-coverage-profile":
 		if version != 61 {
 			return migrations.ErrInvalidState
