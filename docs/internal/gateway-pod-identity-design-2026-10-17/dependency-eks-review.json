@@ -1,0 +1,44 @@
+{
+  "schema": "independent-dependency-registration-successor-source-review-v1",
+  "status": "CLEAR",
+  "reviewer": "gateway_transport",
+  "scope": "Finite existing EKS dependency metadata registration delta only",
+  "author_freeze": {
+    "path": "/tmp/pod-identity-dependency-registration-eks-successor-20261017.json",
+    "sha256": "ccaa2bf27a77712c3c52b89e4504b54757a3f913396cbfa32e8e3915236f4057"
+  },
+  "sources": [
+    {
+      "path": "scripts/validate-dependencies.mjs",
+      "bytes": 25302,
+      "sha256": "dafa938d6d2dbe4c74f15e3e8c971c72dcfee3541068001e61c0f6066227dd12",
+      "preimage_sha256": "abc9203ef8f6a4f78f51b799a107e8a8d4a5b773ee017f76999fb56548766bb7"
+    },
+    {
+      "path": "build/dependencies.lock.yaml",
+      "bytes": 9876,
+      "sha256": "c20764f58910d65c99ff84db6bec11b045f4928052e2091a4e76b03dde7773c0",
+      "preimage_sha256": "8d546fdd521ae87d540d207185ac3edc5df2ffb8c6a1290f2ac2376ebbacd56c"
+    },
+    {
+      "path": "scripts/validate-dependencies.test.mjs",
+      "bytes": 33481,
+      "sha256": "ab8cbab594057c16815e5183373fed16b20bcd6da9b79a6b57dac935ae035f60",
+      "preimage_sha256": "9c449016133a4bf8347abec83d666c113f4d6d54ec4edfcc30aef50199ce9c4b"
+    }
+  ],
+  "prior_clear_preserved": {
+    "path": "/tmp/pod-identity-dependency-registration-review-20261017.json",
+    "sha256": "d358f24bc232c704e38c8b39cf9e6ac696686d8ef78fcdbacc2aa3c729dbd626"
+  },
+  "checks": [
+    "All frozen three source hashes/bytes and predecessor preimage hashes matched.",
+    "Actual platform go.mod already directly requires exact EKS v1.92.1; this adds metadata for existing software, no module dependency change.",
+    "Validator delta is precisely one EKS exactmetadata list entry; no parser/permissions/CLI replacement/unknownmanifest/version/license guard code changes.",
+    "Lock adds one lexically positioned EKS record with Apache-2.0/platform-data/runtime/approved peer metadata. License provenance is root-reported cached exact-module read, not independently fetched by reviewer.",
+    "Fixture adds corresponding AWS record and expected counts fixture35->36/repository42->43/custom37->38; fourteen manifests unchanged. Existing AWS cohort title ten->eleven accurately reflects metadata list; no new head or guard relaxation.",
+    "Initial actual root93PASS1FAIL evidence preserved by successor packet; source review does not relabel that failure or claim hosted success."
+  ],
+  "findings": [],
+  "verification": "Source-only review; no Go/Node/tests/Git/network/native/deployed execution. Parent owns real dependency checks and publication; no production or task-completion credit."
+}

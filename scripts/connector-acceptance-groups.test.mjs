@@ -1002,7 +1002,19 @@ test('retention connected sources retain the complete declared application closu
   "services/platform/gatewayenrollmentcustody/legacy_association.go",
   "services/platform/gatewayenrollmentcustody/legacy_association_linux.go",
   "services/platform/gatewayenrollmentcustody/legacy_association_other.go",
-  "services/platform/gatewayenrollmentcustody/legacy_association_test.go"
+  "services/platform/gatewayenrollmentcustody/legacy_association_test.go",
+  ".github/workflows/gateway-pod-identity-components.yml",
+  "services/gatewaypodidentity/README.md",
+  "services/gatewaypodidentity/chain.go",
+  "services/gatewaypodidentity/credential_linux.go",
+  "services/gatewaypodidentity/credential_other.go",
+  "services/gatewaypodidentity/go.mod",
+  "services/gatewaypodidentity/json.go",
+  "services/gatewaypodidentity/verifier.go",
+  "services/gatewaypodidentity/verifier_test.go",
+  "build/dependencies.lock.yaml",
+  "scripts/validate-dependencies.mjs",
+  "scripts/validate-dependencies.test.mjs"
 ];
   const compiled = JSON.parse(relative('.github/connector-native-compile-source-pins.json'));
   const compilePins = new Map(compiled.sources.map(item => [item.path, item]));

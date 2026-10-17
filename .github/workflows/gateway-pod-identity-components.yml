@@ -1,0 +1,79 @@
+name: Gateway Pod identity components
+
+on:
+  pull_request:
+    paths:
+      - 'services/gatewaypodidentity/**'
+      - '.github/workflows/gateway-pod-identity-components.yml'
+      - '.github/connector-native-compile-source-pins.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  provider-components:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      GOTOOLCHAIN: local
+      GOWORK: 'off'
+      GOFLAGS: '-mod=readonly'
+      GOPROXY: 'off'
+      GOSUMDB: 'off'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: 1.26.8
+          cache: false
+      - name: Verify the configured-provider component boundary
+        run: |
+          python3 - <<'PYPODIDENTITY'
+          import hashlib, json, os, subprocess, tempfile
+          from pathlib import Path
+          package = 'github.com/zasp-ai/zasp-sec/services/gatewaypodidentity'
+          heads = {
+              'TestProjectedPodIdentityThirteenCallChain',
+              'TestProjectedPodIdentityAuthenticatedClaimsAndJSON',
+              'TestProjectedPodIdentityCurrentOwnershipAndDoubleRead',
+              'TestProjectedPodIdentityTransportBoundsAndDeadline',
+              'TestProjectedPodIdentitySecretReadinessAndLifecycle',
+          }
+          def check_sources():
+              manifest = json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())
+              paths = [entry['path'] for entry in manifest['sources']]
+              assert len(paths) == len(set(paths))
+              required = {str(p) for p in Path('services/gatewaypodidentity').rglob('*.go')}
+              required.update({'services/gatewaypodidentity/go.mod', '.github/workflows/gateway-pod-identity-components.yml'})
+              assert required.issubset(paths)
+              for entry in manifest['sources']:
+                  raw = Path(entry['path']).read_bytes()
+                  assert len(raw) == entry['bytes'], entry['path']
+                  assert hashlib.sha256(raw).hexdigest() == entry['sha256'], entry['path']
+          check_sources()
+          with tempfile.TemporaryFile() as output:
+              result = subprocess.run(['go', 'test', '-C', 'services/gatewaypodidentity', '-race', '-p', '1', '-count=1', '-timeout=45s', '-json', './...'], stdout=output, stderr=subprocess.STDOUT)
+              output.seek(0)
+              counts = {name: {'run': 0, 'pass': 0} for name in heads}
+              lifecycle = {'start': 0, 'pass': 0}
+              for raw in output:
+                  print(raw.decode('utf-8', errors='strict'), end='')
+                  event = json.loads(raw)
+                  assert event.get('Package') == package
+                  assert event.get('Action') in {'start', 'run', 'pass', 'output'}
+                  if 'Test' in event:
+                      assert event['Action'] in {'run', 'pass', 'output'} and event['Test'] in counts
+                      if event['Action'] in {'run', 'pass'}:
+                          counts[event['Test']][event['Action']] += 1
+                  else:
+                      assert event['Action'] in {'start', 'pass', 'output'}
+                      if event['Action'] in lifecycle:
+                          lifecycle[event['Action']] += 1
+              assert result.returncode == 0 and lifecycle == {'start': 1, 'pass': 1}
+              assert all(count == {'run': 1, 'pass': 1} for count in counts.values()), counts
+          check_sources()
+          print('Five configured-provider component groups passed; native and deployed acceptance remain separate.')
+          PYPODIDENTITY

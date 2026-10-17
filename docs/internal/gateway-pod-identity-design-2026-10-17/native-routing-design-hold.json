@@ -1,0 +1,118 @@
+{
+  "schema": "authentic-agent-routing-backend-contract-candidate-v1",
+  "status": "DESIGN HOLD: additive publication-serialization successor catalog closure required; no implementation/native/deployed verification",
+  "date": "2026-10-17",
+  "selected_scope": {
+    "boundary": "Trusted Gateway application performs real TokenReview and live Kubernetes reads; signed Device testimony is not independently provider-attested or hardware-origin proof.",
+    "principal": "Current ServiceAccount inventory identity only, not Stytch/FGA/security-Agent definition/task principal.",
+    "session_kind": "workload_instance_attribution",
+    "unchanged_requirements": "All original providers, permissions, approvals, budgets, tasks, discovery, isolation and 728-task scope remain required. Capability allow remains denied in this policy-only lane."
+  },
+  "publication_audit": [
+    {
+      "entry": "public.zasp_runtime_gateway_put_policy_bundle (15)",
+      "locks": "Original per-Device gateway-policy advisory only; current credential authority reads Device/credential without row locks. Not in80 gateway writer predecessors.",
+      "gap": true
+    },
+    {
+      "entry": "public.zasp_policy_deployment_store (28)",
+      "locks": "Direct work FOR UPDATE then bundle INSERT. Original zasp_policy_deployment_worker EXECUTE retained; direct entry has no org79 or gateway-policy lock. Calling it through an ordered outer worker does not protect every retained direct call.",
+      "gap": true
+    },
+    {
+      "entry": "public.zasp_security_agent_store_temporary_policy_target; session equivalent; v27 variants (22/24/27)",
+      "locks": "80 ordered_writers prepends ordered_legacy_writer_organization(organization_value), obtaining org79 FOR UPDATE before original locks. Exact effective predecessor hashes/ACLs checked.",
+      "gap": false
+    },
+    {
+      "entry": "public.zasp_policy_deployment_store_temporary_source; multistep application_source",
+      "locks": "80 ordered_writers prepends same org79 guard. This is not the public28 store.",
+      "gap": false
+    },
+    {
+      "entry": "zasp_temporal68.delivery store (68)",
+      "locks": "Public ordinary boundary denies signing store path; own80 ordered68_policy_store calls require_ordered68_policy, cloned require_planning68 with org79 proof/revision lock, before private ordered68_delivery_store. Existing signing admission source equality and after-wait proof checks retained.",
+      "gap": false
+    },
+    {
+      "entry": "80 runtime_admission",
+      "locks": "Wraps runtime source/admission/takeover, not either unguarded policy publisher. Not evidence all publishers serialize.",
+      "gap": false
+    }
+  ],
+  "selected_next_compatible_publication_profile": {
+    "name": "Additive publisher serialization successor; separate own namespace and Normal/Audit seals",
+    "mutation_set": [
+      "Effective public15 put_policy_bundle: prepend closed org79 guard after read-only credential-to-scope lookup and before original gateway-policy advisory. Revalidate actual credential and final wall clock after waits.",
+      "Effective public28 store: prepend org79 guard at BEGIN before original work FOR UPDATE. Revalidate original role/catalog/current binding and final wall clock after waits."
+    ],
+    "preservation": "No original checked-in migration/body/evidence changes; store exact effective predecessor definitions, owners and ACLs immutably. Retain original external signatures, grants and supported callers. No new FGA or native-role grants.",
+    "guard": "Require read committed and shared zasp-schema-migrations advisory; original purpose-specific registered caller check; org79 organization row FOR UPDATE; own full literal catalog seal and same original parent readiness under projected identity; final current caller/clock after waits.",
+    "projection_required": [
+      "80 gateway projected15: add exact saved put_policy_bundle identity without broad fallback",
+      "80 ordered_projected28 and ordered_writer_definition: add exact saved public28 store identity without treating temporary_source as the same function",
+      "Affected public15/28 fingerprint function bodies, multistep/budget/77 identity-reader paths and80 own literal catalogs must project exact predecessor identity only when successor full seal is valid"
+    ],
+    "not_closed": "Exact effective Normal/Audit pg_get_functiondef/proacl hashes and finite dependent readiness reader closure require actual compiled catalog extraction and review; cannot claim source-only proposal is native-ready. No changes until manifest exact closure.",
+    "rejected_shortcuts": [
+      "Device FOR UPDATE is not bundle-FK lock: FK references credential, not Device",
+      "existing-head row lock does not prevent new sequence INSERT",
+      "no global policy table lock",
+      "no silent bounded-observation downgrade",
+      "no disabling supported direct writers"
+    ]
+  },
+  "authority_source": {
+    "agent": "Current unique winning integration observation/binding for kubernetes_agent; actual source native ID kubernetes:deployment:<DeploymentUID>; exact association source identity + current entity and observation freshness; configured integration and current placement cluster/pod/RS/Deployment/Node/boot tuple required.",
+    "service_account": "Name-addressed SA inventory entity alone is insufficient: it can be synthesized from RBAC references and does not retain SAUID. Require current fresh same-integration live ServiceAccount Namespace contains observation whose source_native_id is kubernetes:serviceaccount:<actualSAUID>:namespace:<ns>, correct endpoints/type/namespace/name plus current Agent uses_identity relation. Uniqueness and both entity/edge provenance/freshness checked; absence fails closed. Never infer current UID from logical identity ID.",
+    "locks": "Org79 before Agent FOR SHARE, then current SA identity/relationship provenance, existing Device advisory/rows and credential, current admitted association pair, installed representative and actual published head, then own rows. Final clocks cover every entity/observation/edge freshness and credential/token/policy/provider expiry. Publication org79 fence prerequisite blocks all supported writers only after successor installed and sealed."
+  },
+  "proposed_native_profile": {
+    "namespace": "zasp_gateway_workload_route_v1",
+    "tables": [
+      "registration(singleton own seal)",
+      "requests(immutable scoped event-id request and snapshot, created_tx, fixed expiry)",
+      "claims(immutable one per request, unique dispatch-id, original native event receipt and post-write floor/version)",
+      "outcomes(immutable first-terminal response or unknown; never permits dispatch)"
+    ],
+    "public_abis": [
+      "caller_ready(purpose text,pin text) returns boolean",
+      "snapshot(credential_id text,body bytea,pin text) returns jsonb",
+      "confirm_snapshot(credential_id text,body bytea,expected_receipt jsonb,pin text) returns boolean",
+      "claim(credential_id text,body bytea,pin text) returns jsonb",
+      "confirm_claim(credential_id text,body bytea,expected_receipt jsonb,pin text) returns boolean",
+      "finish(credential_id text,body bytea,pin text) returns jsonb",
+      "confirm_outcome(credential_id text,body bytea,expected_receipt jsonb,pin text) returns boolean",
+      "status(credential_id text,event_id text,pin text) returns jsonb"
+    ],
+    "abi_qualification": "Candidate raw bytea ABIs preserve original signed wire and duplicate detection; not yet coordinated final producer schema or approved functional contract. All pin-last; registered original control principal execute only; no raw table grants.",
+    "same_tx": "Own claim calls unchanged zasp_temporal77.record_gateway_event(12 original args) in SAME original control pool transaction, demands native replayed=false, inserts own claim, final own confirm LAST query then COMMIT. Actual acknowledged new claim only may forward once.",
+    "new_vs_historical": "Current-XID private new marker required for new receipt confirmation; historical exact replay returns metadata and dispatch_allowed=false forever. Lost COMMIT acknowledgement never forwards. Historical legacy event cannot bootstrap own permission.",
+    "known_native_mutation": "Original advance_replay increments Device version and floor. Own final confirm checks exact known post-write increment, never stale pre-write sameAuthority equality; stable current credential/gen/key/source/pair unchanged.",
+    "state": "requested -> claimed -> response|unknown; expiration may append unknown, no regrant. Terminal outcome append is historical evidence, not fresh forwarding authorization; unknown never rewritten to hide failure.",
+    "gateway_seam": "Pure strict evaluation of exact immutable installed/published signed envelope must avoid legacy Evaluate enqueue. Serialize Device event writer and drain legacy pending before strict readiness. Strict new Record cannot race async RecordOnce. Actual native ACK and successful local durable claim publication precede forwarding.",
+    "pending_contract_closure": [
+      "Exact strict request/result key rosters with producer",
+      "Finite own helper/function/index manifest after publisher successor review",
+      "Bounded expiry/unknown maintenance ABI and original service scheduling",
+      "Full Normal/Audit current native identities and lock/concurrency verification"
+    ]
+  },
+  "verification": "Read-only source audit only. No Go/Node/native execution, no deployment, no 728-task or production-completion claim.",
+  "source_pins": {
+    "services/platform/migrations/sql/0015_runtime_data_plane.up.sql": "11c0b05a0a264ba9654c9646b18633c45469f495fa819b28b89e207aefc5ce9a",
+    "services/platform/migrations/sql/0022_security_agent_temporary_policy.up.sql": "900eedae776ebe9486c32f64237665d26e83b7978ee56bf788c58079a573b184",
+    "services/platform/migrations/sql/0024_security_agent_session_isolation.up.sql": "68ac0f5629bdd4d6fc366376e0939f7a2298ab612d416574a8b956ebf020f655",
+    "services/platform/migrations/sql/0028_production_policy_deployment.up.sql": "93ff35bb1d977eba322d42183e088e1bccd6be83f68d5fca3f70e0d00deba981",
+    "services/platform/migrations/sql/0068_production_temporal_executor.delivery.sql": "aeb59694e432edfe721ead2df69cd35b733e986f9ea5529532c6914b6a2149d6",
+    "services/platform/migrations/sql/0077_production_temporal_automatic_sources.runtime.sql": "d3d14f7a00573e42d1eb433cb155828c1ab8fbb13ebbe23c63c2e94a29933361",
+    "services/platform/migrations/sql/0080_authorization_worker_gateway_writers.sql": "5ce0934637fddd422c5c01f3d8e7e44737ac106cd013fc97649955e710228901",
+    "services/platform/migrations/sql/0080_authorization_worker_ordered_writers.sql": "146629e30258c7fb120c880d19f11a1c80c51e859c11bbd3460645018ba359b5",
+    "services/platform/migrations/sql/0080_authorization_worker_ordered_writer_catalog.sql": "b1482aa3eea946a599e9d0d43a97f1d3689dd65a6da8dd73965b061d6c6d2909",
+    "services/platform/migrations/sql/0080_authorization_worker_ordered_policy.sql": "a65a32c6892c9769b8170dc682c53484dacf18f5fe04c14ad9872f17ac0f0ae6",
+    "services/platform/migrations/sql/0080_authorization_worker_ordered_operations.sql": "a6d43329e20c6ba6b5cd3d6f55aa8b3587761e16afb06d1f13b765af75f96ab8",
+    "services/platform/migrations/sql/0080_authorization_worker_planning.sql": "189fe98490de3964d2c7be7e96b1e697d16ae03087c6134c1e3331689cf2a336",
+    "services/platform/migrations/sql/0080_authorization_worker_runtime_admission.sql": "eda6dac4f8ee0956532dc46ad7629e0c921464e1eb4b215912ca01444fb7788c",
+    "services/platform/connectors/kubernetesdiscovery/collection_api.go": "c8f7d039b324d8426564de4456ce64f14635b9b3e6b8c4053592f487dd570a5d"
+  }
+}

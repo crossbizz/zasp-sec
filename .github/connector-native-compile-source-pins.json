@@ -383,22 +383,22 @@
     },
     {
       "path": "scripts/connector-acceptance-groups.test.mjs",
-      "sha256": "70f10113990b5661191e5b1acd71c55dbb319c39ed06d36ad9b069c3d3fdfc02",
-      "bytes": 82509,
+      "sha256": "5a5e69bad628ad55f0183b7b27663eafcc70f8b8153836ab6992cb21f64f8925",
+      "bytes": 83052,
       "currentBasePreimageSHA256": "a1622a9417e9fe4d62c2aed82bcf5f7f3e11dce841d802bf005b29d54405d388",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connected-connector-acceptance.mjs",
-      "sha256": "41292cce618590d9bb3965db8eb8d9fb6545059562c6c0e8fd934552cf8fae79",
-      "bytes": 147754,
+      "sha256": "d780d1d46ea673459435cfe825c7ec06b29823832af626cc8301648179a5bb58",
+      "bytes": 149113,
       "currentBasePreimageSHA256": "f248c6d9182ca08cb518cd54c620844c987f4ae723a38badb463c59e010db578",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
-      "sha256": "b5e4d096c1433ac53504f7eb35e7d6e77bccec26a6dbe458305ee5374b286f44",
-      "bytes": 144270,
+      "sha256": "a1f41ce1317f99208a013960416a13e2847851c50448e33a6c68c1d9714155a3",
+      "bytes": 145629,
       "currentBasePreimageSHA256": "e66722e4daf5b1482c253d1f14b4c533c329fde202252c16f87ad3e0130e8524",
       "historicalPreimageSHA256": null
     },
@@ -5108,7 +5108,7 @@
     },
     {
       "path": ".github/workflows/connector-native-draft-compile.yml",
-      "sha256": "d48c34d6d2e7c265d6dc52d298e777a766fa91bfc81f0a28d393481d1fbd8131",
+      "sha256": "d61da1e5eba751b01947063d88f8515b905b45dc05f9c09d30c8845a73f636a0",
       "bytes": 190703,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
@@ -6232,6 +6232,90 @@
       "bytes": 12342,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
+    },
+    {
+      "path": ".github/workflows/gateway-pod-identity-components.yml",
+      "sha256": "103ecc7ffd1edf71e596d81f013d0c24d69b432e3426538d025f8f6e3444fe52",
+      "bytes": 3762,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/gatewaypodidentity/README.md",
+      "sha256": "d29bbc5b42856abb533a46529692b9e43b32b8d618e71f180b2db92f6f587b2a",
+      "bytes": 1817,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/gatewaypodidentity/chain.go",
+      "sha256": "51cb08c1c7b3de621b5f19419d1da879a5c5e32867f93b59652b08bbe12a0e3b",
+      "bytes": 4750,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/gatewaypodidentity/credential_linux.go",
+      "sha256": "f1839053a1ba42fc7902c8d181fa00a2611c2c80605f10f78f51c40a824d8c9d",
+      "bytes": 1769,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/gatewaypodidentity/credential_other.go",
+      "sha256": "25c50d6ba4c740167eb38cc5aff2c12bfa3719f40b318310d5ccca2418c5351a",
+      "bytes": 121,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/gatewaypodidentity/go.mod",
+      "sha256": "181430e321f407f020922eaa24199661ff52e8739ff454ab96002ff343459f91",
+      "bytes": 74,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/gatewaypodidentity/json.go",
+      "sha256": "8dae00404594cb2768e01d8d720773237926257495bec6d067e11402046f661f",
+      "bytes": 3896,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/gatewaypodidentity/verifier.go",
+      "sha256": "f18b481a93e5dbfb9c7ebaf65717bf2487b64c7f056b7ad7b179c2057a53f14a",
+      "bytes": 15426,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/gatewaypodidentity/verifier_test.go",
+      "sha256": "cc4932669ada87d6b66e12bc7c0d14bcc085429f9adc7d77f001d2bcab9f4bca",
+      "bytes": 16480,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "build/dependencies.lock.yaml",
+      "sha256": "c20764f58910d65c99ff84db6bec11b045f4928052e2091a4e76b03dde7773c0",
+      "bytes": 9876,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "scripts/validate-dependencies.mjs",
+      "sha256": "dafa938d6d2dbe4c74f15e3e8c971c72dcfee3541068001e61c0f6066227dd12",
+      "bytes": 25302,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "scripts/validate-dependencies.test.mjs",
+      "sha256": "ab8cbab594057c16815e5183373fed16b20bcd6da9b79a6b57dac935ae035f60",
+      "bytes": 33481,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
     }
   ],
   "predecessorCheckpointSHA256": "364ada857d54ce83d678e00eb3d61d55c6a036d22cc1f7ebc9170432079ece05",
@@ -6260,5 +6344,8 @@
   "legacyDeviceAssociationSourceAssociationBase": "3c27c968886b411fdcb51956976cf1aa180d691b",
   "legacyDeviceAssociationPredecessorManifestSHA256": "a322f07fa07c132f15690139d510728d4a70ed02b4805730fe2545535ba80bde",
   "ownerFilterCompileRepairSourceAssociationBase": "3eb7b88f641821a1bc8271ede2eddd0144547f06",
-  "ownerFilterCompileRepairPredecessorManifestSHA256": "478ce0fe022bb9967af8c619099223df306f5b9842e7543d5bd3ba7d2b3f0d7b"
+  "ownerFilterCompileRepairPredecessorManifestSHA256": "478ce0fe022bb9967af8c619099223df306f5b9842e7543d5bd3ba7d2b3f0d7b",
+  "podIdentityComponentSourceAssociationBase": "c1a06e304260f36c8fabafa81951fef91463928c",
+  "podIdentityComponentPredecessorManifestSHA256": "fbd88729a0e33d98c0d48203dc531b97de77ac456a9fa4346bb1ca1a64c4b684",
+  "podIdentityDependencyIntegrationIntermediateManifestSHA256": "13ebd9535c4ffeacf9ea31700759cef6815dbe5b3fec46fafb328f51d915d0c1"
 }

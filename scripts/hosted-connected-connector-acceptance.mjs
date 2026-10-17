@@ -746,7 +746,7 @@ const pins = {
   "services/platform/policy/gateway_cache_test.go": "d1a894f056788253b33801964cbeb171ad0cb67705d772526808ceed27aba786",
   "deploy/staging/product/templates/_gateway-installation.tpl": "9babf066a786a0c007206b99e579382caa9ac50d2eaa0803fb44b78d813fb655",
   "services/platform/gatewaycontrol/installation_test.go": "e57e80f019825d15997aeecaf7d4983a6143a8ccccc367b079e5abce01d328f7",
-  ".github/workflows/connector-native-draft-compile.yml": "d48c34d6d2e7c265d6dc52d298e777a766fa91bfc81f0a28d393481d1fbd8131",
+  ".github/workflows/connector-native-draft-compile.yml": "d61da1e5eba751b01947063d88f8515b905b45dc05f9c09d30c8845a73f636a0",
   "services/gateway-control/production_test.go": "255476e93ec22d7f2c4ec1d51ce730e352f0246dc5b15608ab5778abb9bb2a29",
   "services/runtime-gateway/production.go": "6ce7c2c72927ff16cc47dae63fa0eee728c5f4c7e14e217302a0680be65b8a36",
   "services/gateway-control/go.mod": "77d4922e3192e996ca9a0975b0bcd2d4711b18844e62f7ae82923cfb60df6995",
@@ -878,11 +878,23 @@ const pins = {
   "cmd/agentsecctl/gateway_legacy_agent_association_test.go": "ce31140a2bf816b4c2338c1496b4caf05da8b7229111fdefc2cfd58efd008352",
   "services/platform/gatewayenrollmentcustody/legacy_association_test.go": "f3954c3a0171731705a5d84883288449eb7d39952af88ab92b099b149b664a32",
   "services/platform/gatewayassociationwire/current_device_authority.go": "3281241ed76caaf1b5ff49c8a362896d10ae090e95520ef7411a1cc37f986cd0",
-  "services/platform/gatewayenrollmentcustody/legacy_association_linux.go": "4b14a7ab72f000280e9cda39a10ff6c51dbffa9bbc5420606ba4e3f331c8eb9b"
+  "services/platform/gatewayenrollmentcustody/legacy_association_linux.go": "4b14a7ab72f000280e9cda39a10ff6c51dbffa9bbc5420606ba4e3f331c8eb9b",
+  "services/gatewaypodidentity/json.go": "8dae00404594cb2768e01d8d720773237926257495bec6d067e11402046f661f",
+  "services/gatewaypodidentity/verifier.go": "f18b481a93e5dbfb9c7ebaf65717bf2487b64c7f056b7ad7b179c2057a53f14a",
+  "services/gatewaypodidentity/credential_linux.go": "f1839053a1ba42fc7902c8d181fa00a2611c2c80605f10f78f51c40a824d8c9d",
+  ".github/workflows/gateway-pod-identity-components.yml": "103ecc7ffd1edf71e596d81f013d0c24d69b432e3426538d025f8f6e3444fe52",
+  "services/gatewaypodidentity/chain.go": "51cb08c1c7b3de621b5f19419d1da879a5c5e32867f93b59652b08bbe12a0e3b",
+  "services/gatewaypodidentity/README.md": "d29bbc5b42856abb533a46529692b9e43b32b8d618e71f180b2db92f6f587b2a",
+  "services/gatewaypodidentity/verifier_test.go": "cc4932669ada87d6b66e12bc7c0d14bcc085429f9adc7d77f001d2bcab9f4bca",
+  "services/gatewaypodidentity/credential_other.go": "25c50d6ba4c740167eb38cc5aff2c12bfa3719f40b318310d5ccca2418c5351a",
+  "services/gatewaypodidentity/go.mod": "181430e321f407f020922eaa24199661ff52e8739ff454ab96002ff343459f91",
+  "scripts/validate-dependencies.test.mjs": "ab8cbab594057c16815e5183373fed16b20bcd6da9b79a6b57dac935ae035f60",
+  "build/dependencies.lock.yaml": "c20764f58910d65c99ff84db6bec11b045f4928052e2091a4e76b03dde7773c0",
+  "scripts/validate-dependencies.mjs": "dafa938d6d2dbe4c74f15e3e8c971c72dcfee3541068001e61c0f6066227dd12"
 };
 const roster = selectedGroup.names;
 const helperPins={
-  "scripts/connector-acceptance-groups.test.mjs": "70f10113990b5661191e5b1acd71c55dbb319c39ed06d36ad9b069c3d3fdfc02",
+  "scripts/connector-acceptance-groups.test.mjs": "5a5e69bad628ad55f0183b7b27663eafcc70f8b8153836ab6992cb21f64f8925",
   "scripts/connector-acceptance-groups.mjs": "70da54d5a2eb61535af55afe53e944ca815550a0319943ffe1e46466f8b8cfd4",
   "docs/internal/evidence/cloud-2026-10-07/native-service-readiness/openfga/09-pg-non-glibc-libs-manifest.json": "96642e82997ffd2caf2893a5ecc0116ad2aef6e982df2d929f3efda4e04f3474",
   "services/platform/apiserver/authorization_integration_mutations_postgres_test.go": "5e4beb04b2409ad9b11b89c017ada5e2eccffd78a87bdd5692d40670f12a2ba0",
