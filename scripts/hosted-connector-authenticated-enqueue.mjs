@@ -39,8 +39,8 @@ const pins = {
   "services/platform/authorization/connector_maintenance_projection.go": "e9189565c21f4d16c3f06c3cf89b35e57b1cef5e5bb51b1ff49da02349dcd7b8",
   "services/platform/authorization/worker_current_maintenance.go": "77e382687cc15c54bd3065a10caeb607921c7ee89f3f6ad373c8d645c01d9246",
   "services/platform/cmd/zasp-authorization-reconcile/main.go": "bdaa8815eb14bf35e19d4a5e76764f623ce0277c9d04ebfbfc9f120dba244a6d",
-  "services/platform/connectormaintenance/authority.go": "6165e9fc541c82439e4cb5cad6f71c91d6507cd49d3b70e526ea57354db8898a",
-  "services/platform/connectormaintenance/executor.go": "8ed045a49c94dd100633e3837d0236f0124d6fcb5e88dc818fd107c30e01d598",
+  "services/platform/connectormaintenance/authority.go": "ec9ad919066e01d8f2652b6cd1da3a490811b086b6cf0293f42a06cfb88c0bcd",
+  "services/platform/connectormaintenance/executor.go": "114bc22d636e58737f2e57a606a1142249519506a92d6d853a4a7bc5695593c3",
   "services/platform/connectormaintenancecutover/coordinator.go": "d2867a6154c9df7b00a6e575d08cdcf33e6e7bf1d71b493baa7428334af286fe",
   "services/platform/connectormaintenancecutover/fga.go": "d3b9b4bea7f707e802c11e62c3e331477a3ff23a5f8d2049125155fd9e2bcb46",
   "services/platform/connectormaintenancecutover/model.json": "329f49e1f2effecbe1a0e9caf6c89be939b1e36e034155d74977bfc82c73cc2c",
@@ -50,7 +50,7 @@ const pins = {
   "services/platform/migrations/production_connector_enqueue_provenance.go": "793b230a8572fbfbed2a4702e1513bfa90afac596a8d0707ae047bbdf8bacc36",
   "services/platform/migrations/production_connector_maintenance.go": "18b0989e395e85f18a78f5f51aee06eb1f969fba79a66650754bfc3858d055cd",
   "services/platform/migrations/sql/connector_enqueue_provenance.sql": "32b3f8cbe175b5256ff4542cdff044d6d060e0240d24632bf3d057f3553a5c13",
-  "services/platform/migrations/sql/connector_maintenance_profile.sql": "9b6d105e1f69f46719d001cd80c3e540a8fabbf00b364cf0281857575d2c5bf7",
+  "services/platform/migrations/sql/connector_maintenance_profile.sql": "c8bc65ef78a11ebdaea73b06cbf9a1ed7c6fadd4d541ce10725c0e903be182ba",
   "services/platform/runtimeservices/config.go": "5cd087e846c9106c07c0734f06937e727c25fb04887dbfdf8d78da4c70e48731",
   "services/platform/migrations/production_approval_maintenance_profile.go": "2e98fa960c2e7b42b2a6a343b4ff47059c0d23fac83dbed887d2868f1b9c99f3",
   "services/platform/migrations/production_approval_maintenance_successor.go": "6817964c5c0dfcabe7ea9f65caf5b7840f6d9e4d29a1ec39b00e1b03b0fa6eca",
@@ -296,22 +296,23 @@ const pins = {
   "services/platform/apiserver/runtime_sandbox_candidate_postgres_test.go": "cb1f0862ce4b1df4fe1d198f3f2c2bd0ce44017b42c30bec01a369dc72d78e48",
   "services/platform/apiserver/runtime_sessions_postgres_test.go": "359a5aa7338fda86269ff527467453c0d46769784578302c6e89140f4848b418",
   "services/platform/apiserver/security_agent_temporal_automatic_sources_postgres_test.go": "d17e31da8e66cffd2eb15d13496a3f800438e1f6e23d880520b068451f6930ac",
-  "services/platform/connectormaintenance/compiled_pin_freshness_test.go": "16fd332bc993cb575ecc60cf4d416b4b488afac8ad24a60acd88aa6839a1944d",
+  "services/platform/connectormaintenance/compiled_pin_freshness_test.go": "f9cb23efad7e5fae20fa3d86087789c7670b18a0c0901c2504798280ecceb352",
   "services/platform/apiserver/retention_index_native_acceptance_test.go": "1d1b3fa40a6208620106acd43b9bae238e9e4363a85e0a2059f5343a71dd2402",
   "deploy/staging/iam-policy-union-v1.mjs": "c12dc17df268cd21f324b9d577b4c05fa7b1684c604ec27af4c03f20d35e7b34",
   "deploy/staging/iam-policy-union-v1.test.mjs": "03eb62c4369eeae2684ebda1fde793e3dc77cf7157332b10b01043d37fb7393f",
   "deploy/staging/tests/session_search_iam.tftest.hcl": "bc795d3e7c43a6786126eccc464515208d3ab867b994e27e71fbfc33b3ded47b",
   ".github/workflows/retention-iam-acceptance.yml": "9cc7da80388b0ab955e7167af8547cc1bc58621a9b4c14bdd415087039c8305d",
   "services/platform/runtimeindex/opensearchdriver/retained_terminal_flow_test.go": "46407cd75e08e8726de360a80376d085f400dcd86d344b5018fa42b1465554d6",
-  "services/platform/apiserver/connector_maintenance_pkce_observation_test.go": "9fe70cedf86e4053e0515fb761a7206b5918b9a3cb05cacd969cab575b1238b0",
+  "services/platform/apiserver/connector_maintenance_pkce_observation_test.go": "385cc795b49fd47976368d703df945b60a6a796d3d8cc09f17aa548e9951992f",
   "services/platform/migrations/production_retention_ddl.go": "c78dcd1e75260b186aeb56defa93c2548427f77b9756038bb406288e53a9932b",
   "services/platform/migrations/production_retention_ddl_test.go": "8fec9ba85c2e198c2e6a91ea3b910923d5073da5e47ec604a29262429a204265",
-  "services/platform/agentsec-migrate/retention_ddl_test.go": "df255689eff0e91d779e2d5d75d07603c7ad8fcad07a15c2787cb30bdc5ff27f"
+  "services/platform/agentsec-migrate/retention_ddl_test.go": "df255689eff0e91d779e2d5d75d07603c7ad8fcad07a15c2787cb30bdc5ff27f",
+  "services/platform/connectormaintenance/atomic_observation_test.go": "96a1475aed073fb8091b8f0044a09fc06b14288aa73cb8521f3da3fa85856ecd"
 };
 const top='TestConnectorMaintenanceAuthenticatedOAuthEnqueuePostgres';
 const cases=['genuine_same_transaction_origin_and_immutable_enrichment','rollback_removes_every_enqueue_and_provenance_write'];
 const helperPins={
-  "scripts/connector-acceptance-groups.test.mjs": "13c35b6d39989329daf9b7f6c0e70db9d6b356ebc33089bf219b2f75e30e9409",
+  "scripts/connector-acceptance-groups.test.mjs": "5d709f8c867f5f40d1356eeb7cccc06e0ee4667230ef431d8905161d36b91757",
   "scripts/connector-acceptance-groups.mjs": "29cfe9e6936f86c97f3f8e8d4093a9d0f77297f8360c6e95184c542f4c09f8a7",
   "docs/internal/evidence/cloud-2026-10-07/native-service-readiness/openfga/09-pg-non-glibc-libs-manifest.json": "96642e82997ffd2caf2893a5ecc0116ad2aef6e982df2d929f3efda4e04f3474",
   "services/platform/apiserver/authorization_integration_mutations_postgres_test.go": "5e4beb04b2409ad9b11b89c017ada5e2eccffd78a87bdd5692d40670f12a2ba0",

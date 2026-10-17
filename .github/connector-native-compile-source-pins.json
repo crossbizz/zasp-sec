@@ -117,15 +117,15 @@
     },
     {
       "path": "services/platform/connectormaintenance/authority.go",
-      "sha256": "6165e9fc541c82439e4cb5cad6f71c91d6507cd49d3b70e526ea57354db8898a",
-      "bytes": 10173,
+      "sha256": "ec9ad919066e01d8f2652b6cd1da3a490811b086b6cf0293f42a06cfb88c0bcd",
+      "bytes": 10030,
       "currentBasePreimageSHA256": "378b2b151fe9978ca28a3c40d024c52bff7d3f0b83267839ef1dd61ee3946441",
       "historicalPreimageSHA256": null
     },
     {
       "path": "services/platform/connectormaintenance/executor.go",
-      "sha256": "8ed045a49c94dd100633e3837d0236f0124d6fcb5e88dc818fd107c30e01d598",
-      "bytes": 9348,
+      "sha256": "114bc22d636e58737f2e57a606a1142249519506a92d6d853a4a7bc5695593c3",
+      "bytes": 11150,
       "currentBasePreimageSHA256": "24ac12fb20e753ec433464e6220bc7aaf4127fb9e7e3803831553bb75e7a40f3",
       "historicalPreimageSHA256": null
     },
@@ -194,8 +194,8 @@
     },
     {
       "path": "services/platform/migrations/sql/connector_maintenance_profile.sql",
-      "sha256": "9b6d105e1f69f46719d001cd80c3e540a8fabbf00b364cf0281857575d2c5bf7",
-      "bytes": 152271,
+      "sha256": "c8bc65ef78a11ebdaea73b06cbf9a1ed7c6fadd4d541ce10725c0e903be182ba",
+      "bytes": 156809,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -383,22 +383,22 @@
     },
     {
       "path": "scripts/connector-acceptance-groups.test.mjs",
-      "sha256": "13c35b6d39989329daf9b7f6c0e70db9d6b356ebc33089bf219b2f75e30e9409",
-      "bytes": 34452,
+      "sha256": "5d709f8c867f5f40d1356eeb7cccc06e0ee4667230ef431d8905161d36b91757",
+      "bytes": 34523,
       "currentBasePreimageSHA256": "a1622a9417e9fe4d62c2aed82bcf5f7f3e11dce841d802bf005b29d54405d388",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connected-connector-acceptance.mjs",
-      "sha256": "8d7576a5b9c03cf635238184db6e11bfc34a609449dcd9365f10db3fb3b0497d",
-      "bytes": 76305,
+      "sha256": "a7ea0de1798a433b8fa0d3487cc5eeae67fb318904833edc88993c2226000c69",
+      "bytes": 76444,
       "currentBasePreimageSHA256": "f248c6d9182ca08cb518cd54c620844c987f4ae723a38badb463c59e010db578",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
-      "sha256": "16974668fa3242cbcb763beebd42f072127c309c324334edff7a987e9ee1e4cb",
-      "bytes": 72747,
+      "sha256": "b44ef05ce703208d59ebd53ae7ac5d6cdf3c742bc35a576aa64e393157af598d",
+      "bytes": 72886,
       "currentBasePreimageSHA256": "e66722e4daf5b1482c253d1f14b4c533c329fde202252c16f87ad3e0130e8524",
       "historicalPreimageSHA256": null
     },
@@ -2245,8 +2245,8 @@
     },
     {
       "path": "services/platform/connectormaintenance/compiled_pin_freshness_test.go",
-      "sha256": "16fd332bc993cb575ecc60cf4d416b4b488afac8ad24a60acd88aa6839a1944d",
-      "bytes": 4973,
+      "sha256": "f9cb23efad7e5fae20fa3d86087789c7670b18a0c0901c2504798280ecceb352",
+      "bytes": 5272,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -2294,8 +2294,8 @@
     },
     {
       "path": "services/platform/apiserver/connector_maintenance_pkce_observation_test.go",
-      "sha256": "9fe70cedf86e4053e0515fb761a7206b5918b9a3cb05cacd969cab575b1238b0",
-      "bytes": 9684,
+      "sha256": "385cc795b49fd47976368d703df945b60a6a796d3d8cc09f17aa548e9951992f",
+      "bytes": 9948,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -2317,6 +2317,13 @@
       "path": "services/platform/agentsec-migrate/retention_ddl_test.go",
       "sha256": "df255689eff0e91d779e2d5d75d07603c7ad8fcad07a15c2787cb30bdc5ff27f",
       "bytes": 2264,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/connectormaintenance/atomic_observation_test.go",
+      "sha256": "96a1475aed073fb8091b8f0044a09fc06b14288aa73cb8521f3da3fa85856ecd",
+      "bytes": 7210,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     }

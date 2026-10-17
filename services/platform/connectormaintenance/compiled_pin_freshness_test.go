@@ -41,6 +41,14 @@ func (f *pinFreshnessFixture) Revision(context.Context, string) (authorization.R
 	}
 	return result, nil
 }
+func (f *pinFreshnessFixture) Observe(ctx context.Context, ref Reference) (Facts, authorization.Revision, error) {
+	facts, err := f.Facts(ctx, ref)
+	if err != nil {
+		return Facts{}, authorization.Revision{}, err
+	}
+	revision, err := f.Revision(ctx, ref.Organization)
+	return facts, revision, err
+}
 func (f *pinFreshnessFixture) Check(_ context.Context, q authorization.CheckRequest) (authorization.Decision, error) {
 	f.events = append(f.events, q.PrincipalKind)
 	f.checks++
@@ -93,7 +101,7 @@ func TestCompiledPinKeepsFreshConnectorAuthority(t *testing.T) {
 			if err != nil || len(proof) == 0 {
 				t.Fatalf("current authority refused: %v; stages %v", err, f.events)
 			}
-			want := []string{"facts", "revision", "user", "service", "revision", "facts"}
+			want := []string{"facts", "revision", "user", "service", "facts", "revision"}
 			if !reflect.DeepEqual(f.events, want) {
 				t.Fatal("fresh authorization sequence changed")
 			}

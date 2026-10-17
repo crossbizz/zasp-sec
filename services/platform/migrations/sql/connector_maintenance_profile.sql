@@ -504,16 +504,35 @@ END $revision$;
 CREATE FUNCTION zasp_connector_maintenance.reference(r zasp_connector_maintenance.reservations,t zasp_connector_maintenance.tasks) RETURNS jsonb LANGUAGE sql IMMUTABLE AS $reference$
  SELECT jsonb_build_object('organization_id',r.organization_id,'workspace_id',r.workspace_id,'environment_id',r.environment_id,'effect_id',r.effect_id,'integration_id',t.integration_id,'lease_owner',r.lease_owner,'lease_token',r.lease_token,'intent_digest',encode(r.intent_digest,'hex'))
 $reference$;
-CREATE FUNCTION zasp_connector_maintenance.reserved(q jsonb,pin text,version_value text) RETURNS zasp_connector_maintenance.reservations LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $reserved$
-DECLARE r zasp_connector_maintenance.reservations;t zasp_connector_maintenance.tasks;n public.zasp_connector_effects;BEGIN
- IF zasp_connector_maintenance.caller_ready(pin,version_value) IS NOT TRUE
+-- Private admission only: a bound native worker may take the original locks,
+-- but no business helper or source result is admitted before the full guard.
+CREATE FUNCTION zasp_connector_maintenance.caller_binding(pin text,version_value text) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $binding$
+ SELECT COALESCE(pin='-- connector maintenance checksum'
+ AND EXISTS(SELECT 1 FROM zasp_connector_maintenance.registration WHERE singleton AND checksum=pin AND active)
+ AND public.zasp_discovery_principal_ready('zasp_outbox_worker')
+ AND EXISTS(SELECT 1 FROM zasp_connector_maintenance.principals p JOIN zasp_connector_maintenance.verifiers v ON(v.principal_name,v.key_version)=(p.principal_name,p.key_version)
+ WHERE p.principal_name=session_user AND p.source_checksum=pin AND p.key_version=version_value AND v.purpose='connector-forward'),false)
+$binding$;
+CREATE FUNCTION zasp_connector_maintenance.lock_reserved(q jsonb,pin text,version_value text) RETURNS zasp_connector_maintenance.reservations LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $lock_reserved$
+DECLARE r zasp_connector_maintenance.reservations;n public.zasp_connector_effects;BEGIN
+ IF zasp_connector_maintenance.caller_binding(pin,version_value) IS NOT TRUE
  OR zasp_sa_multistep_prior.closed(q,ARRAY['organization_id','workspace_id','environment_id','effect_id','integration_id','lease_owner','lease_token','intent_digest']) IS NOT TRUE
  THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='connector reservation unavailable';END IF;
  -- Always acquire organization before original effect before reservation.
  PERFORM 1 FROM zasp_authorization79.organizations WHERE organization_id=q->>'organization_id' FOR UPDATE;
  SELECT x.* INTO n FROM public.zasp_connector_effects x WHERE(x.organization_id,x.workspace_id,x.environment_id,x.id)=(q->>'organization_id',q->>'workspace_id',q->>'environment_id',q->>'effect_id') FOR UPDATE;
  SELECT x.* INTO r FROM zasp_connector_maintenance.reservations x WHERE(x.organization_id,x.workspace_id,x.environment_id,x.effect_id)=(q->>'organization_id',q->>'workspace_id',q->>'environment_id',q->>'effect_id') FOR UPDATE;
- IF NOT FOUND OR r.state NOT IN('reserved','attempted') OR r.expires_at<=clock_timestamp()
+ IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='connector reservation lease lost';END IF;
+ RETURN r;
+END $lock_reserved$;
+CREATE FUNCTION zasp_connector_maintenance.reserved(q jsonb,pin text,version_value text) RETURNS zasp_connector_maintenance.reservations LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $reserved$
+DECLARE r zasp_connector_maintenance.reservations;t zasp_connector_maintenance.tasks;n public.zasp_connector_effects;BEGIN
+ IF zasp_connector_maintenance.caller_ready(pin,version_value) IS NOT TRUE
+ OR zasp_sa_multistep_prior.closed(q,ARRAY['organization_id','workspace_id','environment_id','effect_id','integration_id','lease_owner','lease_token','intent_digest']) IS NOT TRUE
+ THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='connector reservation unavailable';END IF;
+ r:=zasp_connector_maintenance.lock_reserved(q,pin,version_value);
+ SELECT x.* INTO n FROM public.zasp_connector_effects x WHERE(x.organization_id,x.workspace_id,x.environment_id,x.id)=(q->>'organization_id',q->>'workspace_id',q->>'environment_id',q->>'effect_id');
+ IF r.state NOT IN('reserved','attempted') OR r.expires_at<=clock_timestamp()
  OR r.context_digest IS DISTINCT FROM zasp_connector_maintenance.effect_context(n)
  OR(n.lease_owner,n.lease_token,n.lease_expires_at) IS DISTINCT FROM(r.lease_owner,r.lease_token,r.expires_at)
  THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='connector reservation lease lost';END IF;
@@ -523,25 +542,56 @@ DECLARE r zasp_connector_maintenance.reservations;t zasp_connector_maintenance.t
  THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='connector reservation source changed';END IF;
  RETURN r;
 END $reserved$;
+CREATE FUNCTION zasp_connector_maintenance.observation(q jsonb,pin text,version_value text) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $observation$
+DECLARE locked_value zasp_connector_maintenance.reservations;result_value jsonb;BEGIN
+ locked_value:=zasp_connector_maintenance.lock_reserved(q,pin,version_value);
+ -- CASE enforces the post-wait catalog guard before any business helper.
+ -- Both values come from this single post-lock statement snapshot.
+ SELECT CASE WHEN zasp_connector_maintenance.caller_ready(pin,version_value) IS TRUE THEN (
+  SELECT jsonb_build_object('disposition',CASE
+   WHEN (n.id IS NOT NULL AND r.state IN('reserved','attempted') AND r.expires_at>clock_timestamp()
+  AND r.context_digest IS NOT DISTINCT FROM zasp_connector_maintenance.effect_context(n)
+  AND(n.lease_owner,n.lease_token,n.lease_expires_at) IS NOT DISTINCT FROM(r.lease_owner,r.lease_token,r.expires_at)) IS NOT TRUE THEN 'lease'
+   WHEN t.effect_id IS NULL THEN 'missing_task'
+   WHEN (zasp_connector_maintenance.reference(r,t) IS NOT DISTINCT FROM q
+  AND zasp_connector_maintenance.effect_matches(n,t) IS TRUE
+  AND n.integration_id IS NOT DISTINCT FROM t.integration_id AND n.request_digest IS NOT DISTINCT FROM t.committed_request_digest
+  AND convert_from(decode(r.captured_receipt->>'body','base64'),'UTF8')::jsonb->>'kind' IS DISTINCT FROM 'pkce_recovery'
+  AND t.state IN('active','paused_denied') AND n.operation IN('authorize','revoke','pkce_cleanup') AND n.operation IS NOT DISTINCT FROM t.operation AND n.attempt=r.attempt AND n.attempt<100
+  AND EXISTS(SELECT 1 FROM zasp_connector_maintenance.projection_activations a JOIN zasp_approval_maintenance.registration approval ON approval.singleton AND approval.checksum=a.approval_checksum WHERE(a.organization_id,a.store_id,a.model_id)=(v.organization_id,v.store_id,v.model_id) AND a.source_checksum=pin AND zasp_approval_maintenance.catalog_ready() IS TRUE)) IS NOT TRUE THEN 'source'
+   ELSE 'ok' END,
+   'facts',jsonb_build_object('profile_checksum',pin,'context_digest',encode(r.context_digest,'hex'),'reference',q,'task_id',t.task_id,'purpose',t.purpose,'grantor_id',t.grantor_id,'principal_id',t.principal_id,'source_profile',t.source_profile,'source_proof_digest',encode(t.source_proof_digest,'hex'),'committed_request_digest',encode(t.committed_request_digest,'hex'),'committed_effect_digest',encode(t.committed_effect_digest,'hex'),'operation',n.operation,'attempt',n.attempt,'lease_expires_at',r.expires_at,'session_user',session_user),
+   'revision',jsonb_build_object('organization_id',v.organization_id,'desired',v.desired,'applied',v.applied,'generation',v.generation,'store_id',v.store_id,'model_id',v.model_id))
+  FROM zasp_connector_maintenance.reservations r
+  LEFT JOIN public.zasp_connector_effects n ON(n.organization_id,n.workspace_id,n.environment_id,n.id)=(r.organization_id,r.workspace_id,r.environment_id,r.effect_id)
+  LEFT JOIN zasp_connector_maintenance.tasks t ON(t.organization_id,t.workspace_id,t.environment_id,t.effect_id)=(r.organization_id,r.workspace_id,r.environment_id,r.effect_id)
+  LEFT JOIN zasp_authorization79.organizations v ON v.organization_id=r.organization_id
+  WHERE(r.organization_id,r.workspace_id,r.environment_id,r.effect_id)=(q->>'organization_id',q->>'workspace_id',q->>'environment_id',q->>'effect_id')
+
+ ) ELSE NULL END INTO result_value;
+ IF result_value IS NULL THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='connector forward source unavailable';END IF;
+ -- Preserve retry/unavailable versus authorization-denied outcomes from the
+ -- original reserved/source path, using this same guarded row snapshot.
+ IF result_value->>'disposition'='lease' THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='connector reservation lease lost';END IF;
+ IF result_value->>'disposition'='missing_task' THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='connector reservation task unavailable';END IF;
+ IF result_value->>'disposition' IS DISTINCT FROM 'ok' THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='connector forward source unavailable';END IF;
+ IF(result_value#>>'{facts,lease_expires_at}')::timestamptz<=clock_timestamp() THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='connector reservation lease lost';END IF;
+ RETURN result_value-'disposition';
+END $observation$;
 CREATE FUNCTION zasp_connector_maintenance.source(q jsonb,pin text,version_value text) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $source$
-DECLARE r zasp_connector_maintenance.reservations;t zasp_connector_maintenance.tasks;n public.zasp_connector_effects;BEGIN
- r:=zasp_connector_maintenance.reserved(q,pin,version_value);
- SELECT * INTO STRICT t FROM zasp_connector_maintenance.tasks WHERE(organization_id,workspace_id,environment_id,effect_id)=(r.organization_id,r.workspace_id,r.environment_id,r.effect_id);
- SELECT * INTO STRICT n FROM public.zasp_connector_effects WHERE(organization_id,workspace_id,environment_id,id)=(r.organization_id,r.workspace_id,r.environment_id,r.effect_id);
- IF convert_from(decode(r.captured_receipt->>'body','base64'),'UTF8')::jsonb->>'kind'='pkce_recovery' OR t.state NOT IN('active','paused_denied') OR n.operation NOT IN('authorize','revoke','pkce_cleanup') OR n.operation IS DISTINCT FROM t.operation OR n.attempt<>r.attempt OR n.attempt>=100
- OR NOT EXISTS(SELECT 1 FROM zasp_connector_maintenance.projection_activations a JOIN zasp_authorization79.organizations v ON(v.organization_id,v.store_id,v.model_id)=(a.organization_id,a.store_id,a.model_id) JOIN zasp_approval_maintenance.registration approval ON approval.singleton AND approval.checksum=a.approval_checksum WHERE a.organization_id=t.organization_id AND a.source_checksum=pin AND zasp_approval_maintenance.catalog_ready() IS TRUE)
- THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='connector forward source unavailable';END IF;
- RETURN jsonb_build_object('profile_checksum',pin,'context_digest',encode(r.context_digest,'hex'),'reference',q,'task_id',t.task_id,'purpose',t.purpose,'grantor_id',t.grantor_id,'principal_id',t.principal_id,'source_profile',t.source_profile,'source_proof_digest',encode(t.source_proof_digest,'hex'),'committed_request_digest',encode(t.committed_request_digest,'hex'),'committed_effect_digest',encode(t.committed_effect_digest,'hex'),'operation',n.operation,'attempt',n.attempt,'lease_expires_at',r.expires_at,'session_user',session_user);
+BEGIN
+ RETURN zasp_connector_maintenance.observation(q,pin,version_value)->'facts';
 END $source$;
 CREATE FUNCTION zasp_connector_maintenance.require_forward(q jsonb,envelope_value json,phase_value text,pin text,version_value text) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $forward$
-DECLARE body_bytes bytea;body_value jsonb;key_value bytea;facts_value jsonb;revision_value jsonb;BEGIN
+DECLARE body_bytes bytea;body_value jsonb;key_value bytea;facts_value jsonb;revision_value jsonb;observation_value jsonb;BEGIN
  IF zasp_sa_multistep_prior.closed(envelope_value::jsonb,ARRAY['body','version','mac']) IS NOT TRUE OR envelope_value->>'version' IS DISTINCT FROM version_value THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='connector forward rejected';END IF;
  SELECT key_material INTO STRICT key_value FROM zasp_connector_maintenance.verifiers WHERE(key_version,principal_name,purpose)=(version_value,session_user,'connector-forward');
  body_bytes:=decode(envelope_value->>'body','base64');
  IF octet_length(body_bytes)>65536 OR encode(public.hmac(convert_to('zasp-connector-forward-v1','UTF8')||decode('00','hex')||body_bytes,key_value,'sha256'),'hex') IS DISTINCT FROM envelope_value->>'mac' THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='connector forward rejected';END IF;
  body_value:=convert_from(body_bytes,'UTF8')::jsonb;
- facts_value:=zasp_connector_maintenance.source(q,pin,version_value);
- revision_value:=zasp_connector_maintenance.revision(q->>'organization_id',pin,version_value);
+ observation_value:=zasp_connector_maintenance.observation(q,pin,version_value);
+ facts_value:=observation_value->'facts';
+ revision_value:=observation_value->'revision';
  IF zasp_sa_multistep_prior.closed(body_value,ARRAY['purpose','key_version','phase','facts','revision','issued_at','expires_at']) IS NOT TRUE
  OR body_value->>'purpose' IS DISTINCT FROM 'connector-forward' OR body_value->>'key_version' IS DISTINCT FROM version_value OR body_value->>'phase' IS DISTINCT FROM phase_value
  -- Go RFC3339Nano and PostgreSQL timestamptz JSON spell the same
@@ -1130,7 +1180,7 @@ GRANT USAGE ON SCHEMA zasp_connector_maintenance TO zasp_discovery_api,zasp_outb
 GRANT EXECUTE ON FUNCTION zasp_connector_maintenance.capture_pkce_cleanup(text,text,text,text,text,text,text,text,text,bytea,timestamptz,text) TO zasp_discovery_api;
 GRANT EXECUTE ON FUNCTION zasp_connector_maintenance.caller_ready(text,text) TO zasp_outbox_worker;
 GRANT EXECUTE ON FUNCTION zasp_connector_maintenance.register_principal(name,text,text,bytea,bytea) TO zasp_discovery_authority;
-GRANT EXECUTE ON FUNCTION zasp_connector_maintenance.source(jsonb,text,text),zasp_connector_maintenance.revision(text,text,text),zasp_connector_maintenance.recover(jsonb,text,text),zasp_connector_maintenance.recover_compensation(jsonb,text,text),zasp_connector_maintenance.reserve(jsonb,text,text),zasp_connector_maintenance.release(jsonb,boolean,text,text),zasp_connector_maintenance.begin_attempt(jsonb,text,json,text,text),zasp_connector_maintenance.workflow(jsonb,json,text,text),zasp_connector_maintenance.settle(jsonb,json,text,text,text) TO zasp_outbox_worker;
+GRANT EXECUTE ON FUNCTION zasp_connector_maintenance.observation(jsonb,text,text),zasp_connector_maintenance.source(jsonb,text,text),zasp_connector_maintenance.revision(text,text,text),zasp_connector_maintenance.recover(jsonb,text,text),zasp_connector_maintenance.recover_compensation(jsonb,text,text),zasp_connector_maintenance.reserve(jsonb,text,text),zasp_connector_maintenance.release(jsonb,boolean,text,text),zasp_connector_maintenance.begin_attempt(jsonb,text,json,text,text),zasp_connector_maintenance.workflow(jsonb,json,text,text),zasp_connector_maintenance.settle(jsonb,json,text,text,text) TO zasp_outbox_worker;
 GRANT EXECUTE ON FUNCTION zasp_connector_maintenance.validate_captured(jsonb,json,text,text) TO zasp_outbox_worker;
 GRANT EXECUTE ON FUNCTION zasp_connector_maintenance.recover_callbacks(jsonb,text,text),zasp_connector_maintenance.before_callback_compensation(jsonb,jsonb,text,text),zasp_connector_maintenance.settle_callback_recovery(jsonb,jsonb,text,text) TO zasp_outbox_worker;
 

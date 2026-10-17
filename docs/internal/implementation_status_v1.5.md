@@ -1,5 +1,44 @@
 # Agent Security Platform Implementation Status
 
+## Current continuation, October 17, 2026
+
+All 728 original requirements remain in scope. The ledger retains 523 historical
+production-available classifications, 144 component-only and 61 blocked/external,
+with zero promotions from component checks. These classifications do not prove
+current deployed launch readiness.
+
+The latest published component batch, `de2a76dc`, adds an explicit schema-owner
+bootstrap for the trusted migration authority's public-schema CREATE permission.
+The production CLI and native fixture share the same guarded operation. Preparing
+an inactive retention profile requires this capability; active structural checks
+and captured cleanup settlement retain their existing boundaries after withdrawal.
+Original parent recipes, registered operators and worker privileges are preserved.
+See `cloud-retention-public-ddl-component-checkpoint-2026-10-17.json`.
+
+That batch passes 20 migration checks, 14 source contracts, 331 compiler source
+bindings, lint and fresh UI typecheck/build, with independent review. The
+replacement cloud runtime lacks the old module/tool caches. Local CLI compilation
+and scanner installation encountered denied dependency downloads; API/native
+acceptance and current-head hosted/security checks remain open. The preceding
+`c5be8a4c` hosted IAM mock-plan/union jobs pass on both events; no production apply
+or deployed receipt access is established.
+
+The next approval-flow component uses two separately committed atomic source and
+authorization-revision observations around both existing live OpenFGA checks.
+Its SQL guard runs after lock waits, preserves lease versus permission error
+categories, and retains the late begin-attempt check. Independent source review
+passes; local application tests are dependency-blocked. Native concurrency,
+unchanged-deadline PKCE acceptance and any latency improvement remain unverified.
+See `cloud-pkce-atomic-observation-component-checkpoint-2026-10-17.json`.
+
+The retention worker, scoped readers, writer barriers and cleanup implementation
+are present as components. Native activation/expiry acceptance, fleet cutover and
+real Stytch/provider journeys remain required. Future durable dispatch custody and
+historical unknown-writer reconciliation remain incomplete. Reference expiration
+does not establish physical S3 erasure. PKCE/approval/lifecycle/browser acceptance,
+planner proofs, complete deployment rendering and release security clearance also
+remain open. The dated entries below retain their historical evidence and limits.
+
 
 ## Connected governed egress and explanation batch, October 17, 2026
 

@@ -70,8 +70,7 @@ type Facts struct {
 // reservation and live purpose at every call. SQL installation and runtime
 // selection remain separate required gates; this package supplies no fallback.
 type Source interface {
-	Facts(context.Context, Reference) (Facts, error)
-	Revision(context.Context, string) (authorization.Revision, error)
+	Observe(context.Context, Reference) (Facts, authorization.Revision, error)
 }
 
 type Authority struct {
@@ -126,12 +125,11 @@ func (a *Authority) Authorize(ctx context.Context, ref Reference, phase Phase) (
 		return nil, ErrUnavailable
 	}
 	defer clear(key)
-	f, err := a.source.Facts(ctx, ref)
+	f, r, err := a.source.Observe(ctx, ref)
 	if err != nil || !validFacts(f, ref, a.profile, a.sourceProfile) || ctx.Err() != nil {
 		return nil, ErrUnavailable
 	}
-	r, err := a.source.Revision(ctx, ref.Organization)
-	if err != nil || r.OrganizationID != ref.Organization || r.Desired < 1 || r.Desired != r.Applied || r.Generation < 1 || r.StoreID != a.store || r.ModelID != a.model {
+	if r.OrganizationID != ref.Organization || r.Desired < 1 || r.Desired != r.Applied || r.Generation < 1 || r.StoreID != a.store || r.ModelID != a.model {
 		return nil, ErrUnavailable
 	}
 	// The authenticated source targets exactly this integration. A new native
@@ -150,12 +148,8 @@ func (a *Authority) Authorize(ctx context.Context, ref Reference, phase Phase) (
 			return nil, ErrDenied
 		}
 	}
-	after, err := a.source.Revision(ctx, ref.Organization)
-	if err != nil || after != r {
-		return nil, ErrUnavailable
-	}
-	fresh, err := a.source.Facts(ctx, ref)
-	if err != nil || fresh != f || ctx.Err() != nil {
+	fresh, after, err := a.source.Observe(ctx, ref)
+	if err != nil || after != r || fresh != f || !validFacts(fresh, ref, a.profile, a.sourceProfile) || ctx.Err() != nil {
 		return nil, ErrUnavailable
 	}
 	now := time.Now()

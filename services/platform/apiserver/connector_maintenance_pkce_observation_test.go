@@ -72,7 +72,7 @@ func pkceNativeQueryPhase(sql string) int {
 		return 1
 	case "SET LOCAL ROLE zasp_outbox_worker":
 		return 2
-	case "SELECT zasp_connector_maintenance.source($1::jsonb,$2,$3)":
+	case "SELECT zasp_connector_maintenance.source($1::jsonb,$2,$3)", "SELECT zasp_connector_maintenance.observation($1::jsonb,$2,$3)":
 		return 3
 	case "SELECT zasp_connector_maintenance.revision($1,$2,$3)":
 		return 4
@@ -192,7 +192,7 @@ func TestPKCENativeObservationBoundaries(t *testing.T) {
 			t.Fatal("unknown SQL produced a phase")
 		}
 		o.start(time.Now().Add(time.Minute), time.Now().Add(time.Second))
-		for _, sql := range []string{"begin isolation level read committed", "SET LOCAL ROLE zasp_outbox_worker", "SELECT zasp_connector_maintenance.source($1::jsonb,$2,$3)", "SELECT zasp_connector_maintenance.revision($1,$2,$3)", "SELECT zasp_connector_maintenance.begin_attempt($1::jsonb,$2,$3::json,$4,$5)", "commit", "rollback"} {
+		for _, sql := range []string{"begin isolation level read committed", "SET LOCAL ROLE zasp_outbox_worker", "SELECT zasp_connector_maintenance.source($1::jsonb,$2,$3)", "SELECT zasp_connector_maintenance.observation($1::jsonb,$2,$3)", "SELECT zasp_connector_maintenance.revision($1,$2,$3)", "SELECT zasp_connector_maintenance.begin_attempt($1::jsonb,$2,$3::json,$4,$5)", "commit", "rollback"} {
 			ctx := o.TraceQueryStart(context.Background(), nil, pgx.TraceQueryStartData{SQL: sql, Args: []any{"private-secret-argument"}})
 			o.TraceQueryEnd(ctx, nil, pgx.TraceQueryEndData{Err: &pgconn.PgError{Code: "57014", Message: "private-secret-error"}})
 		}
@@ -203,6 +203,9 @@ func TestPKCENativeObservationBoundaries(t *testing.T) {
 		joined := strings.Join(lines, "\n")
 		if strings.Contains(joined, "private-secret") || strings.Contains(joined, "SELECT ") || !strings.Contains(joined, "SQLSTATE=57014") {
 			t.Fatal("diagnostic grammar or redaction changed")
+		}
+		if !strings.Contains(joined, "phase=source count=2 ") {
+			t.Fatal("atomic source observation escaped its existing category")
 		}
 		if pkceNativeSQLState(&pgconn.PgError{Code: "secret"}) != "none" || pkceNativeSQLState(errors.New("private-secret-error")) != "none" {
 			t.Fatal("arbitrary error became SQLSTATE")

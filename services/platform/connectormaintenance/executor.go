@@ -126,7 +126,12 @@ func (e *Executor) Facts(ctx context.Context, r Reference) (Facts, error) {
 	if err != nil {
 		return f, err
 	}
-	if decodeObject(raw, &f, "profile_checksum", "context_digest", "reference", "task_id", "purpose", "grantor_id", "principal_id", "source_profile", "source_proof_digest", "committed_request_digest", "committed_effect_digest", "operation", "attempt", "lease_expires_at", "session_user") != nil || !validFacts(f, r, e.profile, e.sourceProfile) {
+	return decodeFacts(raw, r, e.profile, e.sourceProfile)
+}
+
+func decodeFacts(raw []byte, r Reference, profile, sourceProfile string) (Facts, error) {
+	var f Facts
+	if decodeObject(raw, &f, "profile_checksum", "context_digest", "reference", "task_id", "purpose", "grantor_id", "principal_id", "source_profile", "source_proof_digest", "committed_request_digest", "committed_effect_digest", "operation", "attempt", "lease_expires_at", "session_user") != nil || !validFacts(f, r, profile, sourceProfile) {
 		return Facts{}, ErrUnavailable
 	}
 	var fields map[string]json.RawMessage
@@ -139,6 +144,42 @@ func (e *Executor) Facts(ctx context.Context, r Reference) (Facts, error) {
 	}
 
 	return f, nil
+}
+
+// Observe commits one guarded SQL snapshot before exposing either value.
+// A missing or differently installed recipe has no legacy query fallback.
+func (e *Executor) Observe(ctx context.Context, ref Reference) (Facts, authorization.Revision, error) {
+	if !validReference(ref) {
+		return Facts{}, authorization.Revision{}, ErrUnavailable
+	}
+	q, err := json.Marshal(ref)
+	if err != nil {
+		return Facts{}, authorization.Revision{}, err
+	}
+	raw, err := e.query(ctx, `SELECT zasp_connector_maintenance.observation($1::jsonb,$2,$3)`, q, e.profile, e.version)
+	if err != nil {
+		return Facts{}, authorization.Revision{}, err
+	}
+	return decodeObservation(raw, ref, e.profile, e.sourceProfile)
+}
+
+func decodeObservation(raw []byte, ref Reference, profile, sourceProfile string) (Facts, authorization.Revision, error) {
+	var pair struct {
+		Facts    json.RawMessage `json:"facts"`
+		Revision json.RawMessage `json:"revision"`
+	}
+	if decodeObject(raw, &pair, "facts", "revision") != nil {
+		return Facts{}, authorization.Revision{}, ErrUnavailable
+	}
+	facts, err := decodeFacts(pair.Facts, ref, profile, sourceProfile)
+	if err != nil {
+		return Facts{}, authorization.Revision{}, ErrUnavailable
+	}
+	var revision authorization.Revision
+	if decodeObject(pair.Revision, &revision, "organization_id", "desired", "applied", "generation", "store_id", "model_id") != nil || revision.OrganizationID != ref.Organization || revision.Desired < 1 || revision.Desired != revision.Applied || revision.Generation < 1 || !ulid(revision.StoreID) || !ulid(revision.ModelID) {
+		return Facts{}, authorization.Revision{}, ErrUnavailable
+	}
+	return facts, revision, nil
 }
 
 func (e *Executor) Revision(ctx context.Context, org string) (authorization.Revision, error) {
