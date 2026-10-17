@@ -1,0 +1,60 @@
+{
+  "classification": "ACTUAL_LOCAL_DEFAULT_UID_CONTAINER_COMPONENT_PASS_NOT_DEPLOYED_ACCEPTANCE",
+  "observed_at": "2026-10-17T23:34:00.032285+00:00",
+  "source_parent": "ec877795fdaf6cce989d60aacc78ea519f122d91",
+  "requirement": "M4-50b3 Gateway reviewer publisher deployment prerequisite; no original requirement closure.",
+  "actual_verification": {
+    "qualification": "Local default-image UID65532 component with explicitly provisioned dedicated Docker volumes, synthetic JWTs and no network. Not Kubernetes, fsGroup, real TokenReview authentication, deployed workload, registry or attestation evidence.",
+    "image": "sha256:dcc7436a6411b7287d9ac2de62e3ce569705ce1d681714b8e8332916ebb1d995",
+    "user_override": false,
+    "volumes_removed": true,
+    "initial_output_owner_mode_links": "65532:65532:600:1",
+    "rotated_output_owner_mode_links": "65532:65532:600:1",
+    "status": "PASS",
+    "exit_code": 0,
+    "rotation_observed": true,
+    "owned_output_withdrawn": true,
+    "signal_shutdown_joined": true,
+    "network": "none",
+    "read_only_rootfs": true,
+    "source_mount_read_only": true,
+    "capabilities_dropped": "ALL",
+    "no_new_privileges": true,
+    "owned_container_removed": true,
+    "owned_helpers_removed": true
+  },
+  "independent_review": {
+    "status": "CLEAR source only",
+    "sha256": "7ce160dd401216468afdd39239521670072fc8bd5d447255c786f2656937623e",
+    "driver_sha256": "5de3d3da02325ee033cd1f0d646861602a70dd49fe535240327dcf9d77ec84bb",
+    "limits": "CLI timeout during creation/finally can interrupt cleanup/evidence; any such attempt is not accepted and requires owned-resource recovery. Actual accepted run has every cleanup field true."
+  },
+  "prior_failures": "Initial provisioning FAIL and initial/successor review HOLD receipts preserved; mode-before-owner and named-helper cleanup corrected; no product code, permissions or guards relaxed.",
+  "checks": {
+    "custody": "925 existing bindings PASS",
+    "ledger": "728 unique rows and matching owners PASS; ledger and owner SHA256 unchanged",
+    "api_configuration": "Actual names-only inventory: required53, direct0, supportedStytchaliases3, unbound50; values/syntax/provider authority unverified",
+    "hosted": "ec877795 compile and UI/provider checks queued at last readback; PR60 open draft/unstable",
+    "source_build": "Cached same pinned official Go1.26.8 builder target actual build PASS; GOPROXYoff; final runtime image unchanged"
+  },
+  "evidence": {
+    "path": "docs/internal/cloud-reviewer-default-uid-evidence-2026-10-17.tar.gz",
+    "sha256": "dd356e4023330f7bc19d091a222526508f8c6a9a851eb091fea5aaa763b33755",
+    "bytes": 7542,
+    "members": 14,
+    "verification": "All archived member bytes verified; SHA256+byte manifest included; checkpoint excluded."
+  },
+  "ledger": {
+    "total": 728,
+    "production_available_recorded": 509,
+    "component_only": 158,
+    "blocked_external": 61,
+    "promotions": 0
+  },
+  "production_available": false,
+  "launch_ready": false,
+  "task_closed": false,
+  "obsolete_retired": false,
+  "merge_release_cleared": false,
+  "remaining": "Kubernetes root/fsGroup mounts, actual reviewer RBAC/authentication and production wiring; registry publication/attestation; current hosted guards; native catalog/admission; Neon TCP grants and full product configuration; deployed Stytch/Temporal/OpenFGA/provider end-to-end acceptance."
+}
