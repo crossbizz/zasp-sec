@@ -33,6 +33,27 @@ test('environment classification adds fixed normal Audit and catalog groups with
     }
   }
 });
+test('maintenance operators add exact restricted owner acceptance without replacing prior groups', () => {
+  const added = traceDiagnostics.MAINTENANCE_OPERATOR_ACCEPTANCE_GROUPS;
+  assert.ok(added, 'fixed supplementary maintenance operator groups are missing');
+  assert.deepEqual(Object.keys(added), ['maintenance-operator', 'maintenance-operator-audit']);
+  assert.deepEqual(Object.values(added).map(g => [g.names.length, g.postgresJoins]), [[9, 1], [9, 1]]);
+  const source = fs.readFileSync(new URL('../services/platform/apiserver/maintenance_operator_noinherit_postgres_test.go', import.meta.url), 'utf8');
+  for (const [key, selected] of Object.entries(added)) {
+    assert.equal(select([key]), selected); validate(trace(selected), selected);
+    assert.ok(source.includes(`func ${selected.top}(t *testing.T)`));
+    for (const name of selected.names.slice(1)) assert.ok(source.includes(`t.Run("${name.slice(selected.top.length + 1)}"`));
+    for (const name of selected.names) {
+      assert.throws(() => validate(trace(selected).filter(row => row.Test !== name), selected));
+      assert.throws(() => validate([...trace(selected), {Package: pkg, Test: name, Action: 'pass'}], selected));
+      for (const action of ['skip', 'fail']) assert.throws(() => validate(trace(selected).map(row => row.Test === name && row.Action === 'pass' ? {...row, Action: action} : row), selected));
+    }
+  }
+  const previous = {...groups, ...traceDiagnostics.ENVIRONMENT_CLASS_ACCEPTANCE_GROUPS};
+  assert.ok(Object.values(added).flatMap(g => g.names).every(name => !Object.values(previous).some(g => g.names.includes(name))));
+  const workflow = fs.readFileSync(new URL('../.github/workflows/connector-connected-lifecycle.yml', import.meta.url), 'utf8');
+  for (const key of Object.keys(added)) assert.ok(workflow.includes(key));
+});
 test('both ordered progress flows require every original provider evidence control', () => {
   const cases = ['provider-evidence-unchanged', 'provider-evidence-ordinary-field', 'provider-evidence-timestamp-instant', 'provider-canonical-row-leaf'];
   const helper = fs.readFileSync(new URL('../services/platform/apiserver/authorization_worker_ordered_provider_evidence_test.go', import.meta.url), 'utf8');
@@ -143,7 +164,7 @@ test('closed event observation preserves the exact original assertion error and 
   const guarded={...assert,ok(value,...args){if(!value)throw original;return assert.ok(value,...args);}};
   // Execute the actual acceptance assertion function with a controlled issued
   // error. This verifies catch/observation never replaces that original object.
-  const actual=new Function('assert','acceptanceGroups','applicationPackage','traceFailureStages','traceFailureEvents',`return (${validate.toString()});`)(guarded,Object.freeze({...groups,...traceDiagnostics.ENVIRONMENT_CLASS_ACCEPTANCE_GROUPS}),pkg,stages,events);
+  const actual=new Function('assert','acceptanceGroups','applicationPackage','traceFailureStages','traceFailureEvents',`return (${validate.toString()});`)(guarded,Object.freeze({...groups,...traceDiagnostics.ENVIRONMENT_CLASS_ACCEPTANCE_GROUPS,...traceDiagnostics.MAINTENANCE_OPERATOR_ACCEPTANCE_GROUPS}),pkg,stages,events);
   assert.throws(()=>actual([...trace(groups.approval),{Package:pkg,Test:'PRIVATE_EXTRA_CANARY',Action:'output'}],groups.approval),error=>error===original);
   assert.equal(stages.get(original),'event-case');
   assert.deepEqual(events.get(original),{action:'output',testShape:'nonempty-string',caseClass:'unrecognized'});
@@ -534,7 +555,12 @@ test('retention connected sources retain the complete declared application closu
   "services/platform/agentsec-migrate/environment_class_profile.go",
   "services/platform/agentsec-migrate/environment_class_profile_test.go",
   "services/platform/apiserver/environment_class_profile_catalog_postgres_test.go",
-  ".github/workflows/connector-connected-lifecycle.yml"
+  ".github/workflows/connector-connected-lifecycle.yml",
+  "services/platform/migrations/maintenance_operator_role.go",
+  "services/platform/migrations/maintenance_operator_role_test.go",
+  "services/platform/agentsec-migrate/forward_release_confirmation.go",
+  "services/platform/agentsec-migrate/maintenance_confirmation_role_test.go",
+  "services/platform/apiserver/maintenance_operator_noinherit_postgres_test.go"
 ];
   const compiled = JSON.parse(relative('.github/connector-native-compile-source-pins.json'));
   const compilePins = new Map(compiled.sources.map(item => [item.path, item]));

@@ -16656,3 +16656,27 @@ Fresh official advisory capacity attempt is incomplete (27.519seconds, normal ex
 
 
 Launch prerequisite correction and full remaining-task snapshot: two hosted prerequisite tests retained the old 36-step roster after mandatory signed notification verification was added. The original command reproduces 235 PASS / 2 FAIL; the exact-step correction and nine new refusal cases pass 246 with zero skips. Original 34-step fingerprint and all runtime/permission/release guards remain unchanged. The [launch report](launch-readiness-2026-10-07.md) and [205-row remaining list](launch-remaining-tasks-2026-10-07.tsv) distinguish recorded component/external work from required fresh deployed acceptance of all 728 requirements. Original failure and source associations are retained under `evidence/cloud-2026-10-07/launch-prerequisite-contract`. No ledger promotion or launch acceptance.
+
+
+## Maintenance operator role windows, October 17, 2026
+
+The maintenance installers now select the existing authority role only for the
+private authorization readiness read, then restore both the incoming role setting
+and effective identity before original-owner schema or REFERENCES operations.
+Approval, connector, activation and settlement installers retain their canonical
+SQL and ACLs. The four maintenance CLI confirmations use bounded authority
+transactions. No profile is activated by this source change.
+
+Grouped migration component checks pass 30 named cases after a genuine failing
+permission-boundary group. The actual migration CLI package remains setup-blocked
+by unavailable OPA dependencies locally; its compilation and behavior are not
+claimed. New normal/Audit restricted-owner native acceptance adds 18 mandatory
+cases and two PostgreSQL joins; these remain unexecuted. All previous acceptance
+groups are retained. UI typecheck/build and 57 source/ledger/deployment checks pass.
+
+The ledger retains 728 rows, 523 historical production-available classifications,
+144 component-only and 61 blocked/external entries. No availability is promoted.
+Published-head compile and environment-class component CI failures remain unresolved;
+finite metadata does not identify their cause. Real deployed Stytch/provider flows,
+all mandatory release checks and merge remain outstanding. Evidence:
+`cloud-maintenance-operator-role-source-component-checkpoint-2026-10-17.json`.

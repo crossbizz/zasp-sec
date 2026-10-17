@@ -51,7 +51,7 @@ func TestApprovalSettlementAuditInstallerTransactions(t *testing.T) {
 			name = "existing"
 		}
 		t.Run(name, func(t *testing.T) {
-			tx := &fakeTransaction{rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{present}}, fakeRow{values: []any{true}}, fakeRow{values: []any{true}}, fakeRow{values: []any{true}}}}
+			tx := &fakeTransaction{rows: maintenanceRoleAdmissionRows([]Row{fakeRow{values: []any{true}}, fakeRow{values: []any{present}}, fakeRow{values: []any{true}}, fakeRow{values: []any{true}}, fakeRow{values: []any{true}}})}
 			db := &fakeDatabase{transaction: tx}
 			runner, err := NewRunner(db)
 			if err != nil {
@@ -73,7 +73,7 @@ func TestApprovalSettlementAuditInstallerTransactions(t *testing.T) {
 		t.Run("refused-catalog-"+string(rune('0'+at)), func(t *testing.T) {
 			rows := []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{true}}, fakeRow{values: []any{true}}, fakeRow{values: []any{true}}, fakeRow{values: []any{true}}}
 			rows[at-1] = fakeRow{values: []any{false}}
-			tx := &fakeTransaction{rows: rows}
+			tx := &fakeTransaction{rows: maintenanceRoleAdmissionRows(rows)}
 			db := &fakeDatabase{transaction: tx}
 			r, err := NewRunner(db)
 			if err != nil {

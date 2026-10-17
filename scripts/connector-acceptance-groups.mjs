@@ -119,7 +119,21 @@ export const ENVIRONMENT_CLASS_ACCEPTANCE_GROUPS = Object.freeze({
   'environment-class-catalog': group('TestEnvironmentClassProfileNativeCatalogControls',
     ['normal', 'audit'].flatMap(variant => [variant, ...environmentClassCatalogCases.map(name => `${variant}/${name}`)]), 2),
 });
-const acceptanceGroups = Object.freeze({...CONNECTOR_ACCEPTANCE_GROUPS, ...ENVIRONMENT_CLASS_ACCEPTANCE_GROUPS});
+const maintenanceOperatorCases = Object.freeze([
+  'restricted_original_login_private80_denied',
+  'approval_installs_as_original_owner_and_restores_role',
+  'connector_installs_as_original_owner_and_restores_role',
+  'activation_installs_as_original_owner_and_restores_role',
+  'settlement_installs_as_original_owner_and_restores_role',
+  'idempotent_install_preserves_explicit_incoming_role',
+  'rejected_parent_rolls_back_role_and_effects',
+  'immutable_parents_and_inactive_fk_owner_effects',
+]);
+export const MAINTENANCE_OPERATOR_ACCEPTANCE_GROUPS = Object.freeze({
+  'maintenance-operator': group('TestMaintenanceOperatorNoInheritPostgres', maintenanceOperatorCases, 1),
+  'maintenance-operator-audit': group('TestMaintenanceOperatorNoInheritAuditPostgres', maintenanceOperatorCases, 1),
+});
+const acceptanceGroups = Object.freeze({...CONNECTOR_ACCEPTANCE_GROUPS, ...ENVIRONMENT_CLASS_ACCEPTANCE_GROUPS, ...MAINTENANCE_OPERATOR_ACCEPTANCE_GROUPS});
 export function selectConnectorAcceptanceGroup(args) {
   assert.ok(Array.isArray(args) && args.length === 1 &&
     typeof args[0] === 'string' && Object.hasOwn(acceptanceGroups, args[0]),

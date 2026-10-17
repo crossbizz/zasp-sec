@@ -471,21 +471,9 @@ func main() {
 	}
 	if isForwardMigration(arguments) {
 		confirmRelease := func() error {
-			if environmentClassProfileCommand(arguments[0]) {
-				return withRetentionOperatorTransaction(ctx, func(c context.Context) (retentionOperatorTransaction, error) {
-					return connection.BeginTx(c, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
-				}, func(c context.Context, q principalQueryer, _ io.Writer) error {
-					return environmentClassPostInstall(c, q, registration.migration, arguments[0])
-				}, nil)
-			}
-			if retentionProfileCommand(arguments[0]) {
-				return withRetentionOperatorTransaction(ctx, func(c context.Context) (retentionOperatorTransaction, error) {
-					return connection.BeginTx(c, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
-				}, func(c context.Context, q principalQueryer, _ io.Writer) error {
-					return retentionPostInstall(c, q, registration.migration)
-				}, nil)
-			}
-			return registerForwardRelease(ctx, connection, registration, arguments)
+			return confirmForwardRelease(ctx, connection, func(c context.Context) (retentionOperatorTransaction, error) {
+				return connection.BeginTx(c, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
+			}, registration, arguments)
 		}
 		if err := confirmRelease(); err != nil {
 			log.Fatal("release principal registration or readiness failed")

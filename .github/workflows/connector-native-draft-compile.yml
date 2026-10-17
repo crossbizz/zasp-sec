@@ -45,7 +45,7 @@ jobs:
           import hashlib, json
           from pathlib import Path
           source = json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())
-          assert len(source['sources']) == 470
+          assert len(source['sources']) == 475
           for item in source['sources']:
               raw = Path(item['path']).read_bytes()
               assert len(raw) == item['bytes']
@@ -87,7 +87,7 @@ jobs:
           assert len(groups) == 6 and sum(len(tops) for tops in groups.values()) == 10 and len(expected) == 86
           def check_sources():
               source = json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())
-              assert len(source['sources']) == 470
+              assert len(source['sources']) == 475
               for item in source['sources']:
                   raw = Path(item['path']).read_bytes()
                   assert len(raw) == item['bytes'] and hashlib.sha256(raw).hexdigest() == item['sha256'], item['path']
@@ -312,6 +312,52 @@ jobs:
         run: go test -C services/platform -race -p=1 -count=1 -timeout=2m -run '^TestProductionAttackLabKubernetesAPIReadiness(CollectsAndUIDFencesCleanup|RejectsPrivilegeAndEgressDrift)$' ./agentsec-worker
       - name: Keep consumed Fargate configuration and module source unchanged
         run: git diff --exit-code -- services/platform cmd/agentsecctl services/health
+
+  maintenance-operator-components:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GOTOOLCHAIN: local
+      GOWORK: 'off'
+      GOFLAGS: '-mod=readonly'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version: 1.26.8
+          cache: false
+      - name: Check frozen maintenance source custody
+        run: |
+          python3 - <<'PYMAINTENANCE'
+          import hashlib,json
+          from pathlib import Path
+          for item in json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())['sources']:
+              raw=Path(item['path']).read_bytes()
+              assert len(raw)==item['bytes'] and hashlib.sha256(raw).hexdigest()==item['sha256'],item['path']
+          PYMAINTENANCE
+      - name: Require every maintenance installer and actual CLI confirmation component
+        timeout-minutes: 8
+        run: |
+          go test -C services/platform -race -p=1 -count=1 -timeout=3m -json -run '^Test(Maintenance|ApprovalActivationInstallerTransactions|ApprovalSettlementAudit)' ./migrations ./agentsec-migrate > maintenance-operator-components.jsonl
+          python3 - <<'PYMAINTENANCECASES'
+          import json
+          from pathlib import Path
+          expected = {'migrations': ['TestMaintenanceInstallerNoInheritRoleWindows/approval/none', 'TestMaintenanceInstallerNoInheritRoleWindows/approval/registered_source_owner', 'TestMaintenanceInstallerNoInheritRoleWindows/connector/none', 'TestMaintenanceInstallerNoInheritRoleWindows/connector/registered_source_owner', 'TestMaintenanceInstallerNoInheritRoleWindows/activation/none', 'TestMaintenanceInstallerNoInheritRoleWindows/activation/registered_source_owner', 'TestMaintenanceInstallerNoInheritRoleWindows/settlement/none', 'TestMaintenanceInstallerNoInheritRoleWindows/settlement/registered_source_owner', 'TestMaintenanceInstallerNoInheritRoleWindows', 'TestMaintenanceReferenceRoleWindowsAndRollback/none', 'TestMaintenanceReferenceRoleWindowsAndRollback/registered_source_owner', 'TestMaintenanceReferenceRoleWindowsAndRollback/parent-denied', 'TestMaintenanceReferenceRoleWindowsAndRollback/restore-denied', 'TestMaintenanceReferenceRoleWindowsAndRollback/restored-identity-drift', 'TestMaintenanceReferenceRoleWindowsAndRollback', 'TestApprovalActivationInstallerTransactions/fresh', 'TestApprovalActivationInstallerTransactions/existing', 'TestApprovalActivationInstallerTransactions/catalog-refusal-1', 'TestApprovalActivationInstallerTransactions/catalog-refusal-3', 'TestApprovalActivationInstallerTransactions/catalog-refusal-4', 'TestApprovalActivationInstallerTransactions/catalog-refusal-5', 'TestApprovalActivationInstallerTransactions', 'TestApprovalSettlementAuditProfileBoundaries', 'TestApprovalSettlementAuditInstallerTransactions/fresh', 'TestApprovalSettlementAuditInstallerTransactions/existing', 'TestApprovalSettlementAuditInstallerTransactions/refused-catalog-1', 'TestApprovalSettlementAuditInstallerTransactions/refused-catalog-3', 'TestApprovalSettlementAuditInstallerTransactions/refused-catalog-4', 'TestApprovalSettlementAuditInstallerTransactions/refused-catalog-5', 'TestApprovalSettlementAuditInstallerTransactions'], 'agentsec-migrate': ['TestMaintenanceConfirmationUsesActualBoundedAuthorityPath', 'TestMaintenanceConfirmationUsesActualBoundedAuthorityPath/up-approval-maintenance-profile', 'TestMaintenanceConfirmationUsesActualBoundedAuthorityPath/up-approval-maintenance-profile/accepted', 'TestMaintenanceConfirmationUsesActualBoundedAuthorityPath/up-approval-maintenance-profile/catalog-refused', 'TestMaintenanceConfirmationUsesActualBoundedAuthorityPath/up-approval-maintenance-profile/uncertain-commit', 'TestMaintenanceConfirmationUsesActualBoundedAuthorityPath/up-approval-maintenance-profile/canceled', 'TestMaintenanceConfirmationUsesActualBoundedAuthorityPath/up-connector-maintenance-profile', 'TestMaintenanceConfirmationUsesActualBoundedAuthorityPath/up-connector-maintenance-profile/accepted', 'TestMaintenanceConfirmationUsesActualBoundedAuthorityPath/up-connector-maintenance-profile/catalog-refused', 'TestMaintenanceConfirmationUsesActualBoundedAuthorityPath/up-connector-maintenance-profile/uncertain-commit', 'TestMaintenanceConfirmationUsesActualBoundedAuthorityPath/up-connector-maintenance-profile/canceled', 'TestMaintenanceConfirmationUsesActualBoundedAuthorityPath/up-approval-activation-profile', 'TestMaintenanceConfirmationUsesActualBoundedAuthorityPath/up-approval-activation-profile/accepted', 'TestMaintenanceConfirmationUsesActualBoundedAuthorityPath/up-approval-activation-profile/catalog-refused', 'TestMaintenanceConfirmationUsesActualBoundedAuthorityPath/up-approval-activation-profile/uncertain-commit', 'TestMaintenanceConfirmationUsesActualBoundedAuthorityPath/up-approval-activation-profile/canceled', 'TestMaintenanceConfirmationUsesActualBoundedAuthorityPath/up-approval-settlement-audit-profile', 'TestMaintenanceConfirmationUsesActualBoundedAuthorityPath/up-approval-settlement-audit-profile/accepted', 'TestMaintenanceConfirmationUsesActualBoundedAuthorityPath/up-approval-settlement-audit-profile/catalog-refused', 'TestMaintenanceConfirmationUsesActualBoundedAuthorityPath/up-approval-settlement-audit-profile/uncertain-commit', 'TestMaintenanceConfirmationUsesActualBoundedAuthorityPath/up-approval-settlement-audit-profile/canceled']}
+          prefix='github.com/zasp-ai/zasp-sec/services/platform/'
+          events=[json.loads(line) for line in Path('maintenance-operator-components.jsonl').read_text().splitlines() if line.strip()]
+          assert not any(e.get('Action') in ('skip','fail','build-fail') for e in events)
+          assert all(e.get('Package') in {prefix+p for p in expected} for e in events)
+          for package,names in expected.items():
+              rows=[e for e in events if e.get('Package')==prefix+package]
+              for action in ('run','pass'):
+                  actual=[e['Test'] for e in rows if e.get('Action')==action and e.get('Test')]
+                  assert sorted(actual)==sorted(names), (package,action)
+              assert sum(e.get('Action')=='pass' and not e.get('Test') for e in rows)==1
+          PYMAINTENANCECASES
+      - name: Keep consumed maintenance source unchanged
+        run: git diff --exit-code -- services/platform .github scripts
 
   environment-class-components:
     runs-on: ubuntu-24.04
