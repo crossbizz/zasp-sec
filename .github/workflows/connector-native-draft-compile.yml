@@ -45,7 +45,7 @@ jobs:
           import hashlib, json
           from pathlib import Path
           source = json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())
-          assert len(source['sources']) == 489
+          assert len(source['sources']) == 493
           for item in source['sources']:
               raw = Path(item['path']).read_bytes()
               assert len(raw) == item['bytes']
@@ -87,7 +87,7 @@ jobs:
           assert len(groups) == 6 and sum(len(tops) for tops in groups.values()) == 10 and len(expected) == 86
           def check_sources():
               source = json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())
-              assert len(source['sources']) == 489
+              assert len(source['sources']) == 493
               for item in source['sources']:
                   raw = Path(item['path']).read_bytes()
                   assert len(raw) == item['bytes'] and hashlib.sha256(raw).hexdigest() == item['sha256'], item['path']
@@ -469,6 +469,53 @@ jobs:
           assert sum(e.get('Action')=='pass' and not e.get('Test') for e in rows)==1
           PYPRINCIPALCONSUMERS
       - name: Keep consumed principal preflight source unchanged
+        run: git diff --exit-code -- services/platform .github scripts
+
+  authorization-confirmation-components:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GOTOOLCHAIN: local
+      GOWORK: 'off'
+      GOFLAGS: '-mod=readonly'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version: 1.26.8
+          cache: false
+      - name: Check frozen authorization confirmation source custody
+        run: |
+          python3 - <<'PYMAINTENANCE'
+          import hashlib,json
+          from pathlib import Path
+          for item in json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())['sources']:
+              raw=Path(item['path']).read_bytes()
+              assert len(raw)==item['bytes'] and hashlib.sha256(raw).hexdigest()==item['sha256'],item['path']
+          PYMAINTENANCE
+      - name: Require every authorization confirmation and inner ordering component
+        timeout-minutes: 8
+        run: |
+          go test -C services/platform -race -p=1 -count=1 -timeout=3m -json -run '^TestAuthorizationConfirmation' ./agentsec-migrate > authorization-confirmation-components.jsonl
+          python3 - <<'PYMAINTENANCECASES'
+          import json
+          from pathlib import Path
+          expected = {'agentsec-migrate': ['TestAuthorizationConfirmationUsesActualBoundedAuthorityPath', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-worker-profile', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-worker-profile/accepted', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-worker-profile/catalog-refused', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-worker-profile/uncertain-commit', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-worker-profile/canceled', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-worker-profile/missing-closed-begin', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-temporal-profile', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-temporal-profile/accepted', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-temporal-profile/catalog-refused', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-temporal-profile/uncertain-commit', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-temporal-profile/canceled', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-temporal-profile/missing-closed-begin', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-audit-profile', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-audit-profile/accepted', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-audit-profile/catalog-refused', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-audit-profile/uncertain-commit', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-audit-profile/canceled', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-audit-profile/missing-closed-begin', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-temporal-audit-profile', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-temporal-audit-profile/accepted', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-temporal-audit-profile/catalog-refused', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-temporal-audit-profile/uncertain-commit', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-temporal-audit-profile/canceled', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-temporal-audit-profile/missing-closed-begin', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-identity-profile', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-identity-profile/accepted', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-identity-profile/catalog-refused', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-identity-profile/uncertain-commit', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-identity-profile/canceled', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-identity-profile/missing-closed-begin', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-temporal-identity-profile', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-temporal-identity-profile/accepted', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-temporal-identity-profile/catalog-refused', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-temporal-identity-profile/uncertain-commit', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-temporal-identity-profile/canceled', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-temporal-identity-profile/missing-closed-begin', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-runtime-profile', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-runtime-profile/accepted', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-runtime-profile/catalog-refused', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-runtime-profile/uncertain-commit', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-runtime-profile/canceled', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-runtime-profile/missing-closed-begin', 'TestAuthorizationConfirmationActualInnerLoopCommitAndFailureOrder', 'TestAuthorizationConfirmationActualInnerLoopCommitAndFailureOrder/accepted', 'TestAuthorizationConfirmationActualInnerLoopCommitAndFailureOrder/identity-catalog', 'TestAuthorizationConfirmationActualInnerLoopCommitAndFailureOrder/identity-commit', 'TestAuthorizationConfirmationActualInnerLoopCommitAndFailureOrder/worker-catalog', 'TestAuthorizationConfirmationActualInnerLoopCommitAndFailureOrder/worker-commit']}
+          prefix='github.com/zasp-ai/zasp-sec/services/platform/'
+          events=[json.loads(line) for line in Path('authorization-confirmation-components.jsonl').read_text().splitlines() if line.strip()]
+          assert events and all(e.get('Action') in ('start','run','output','pass') for e in events)
+          assert not any(e.get('Action') in ('skip','fail','build-fail') for e in events)
+          assert all(e.get('Package') in {prefix+p for p in expected} for e in events)
+          for package,names in expected.items():
+              rows=[e for e in events if e.get('Package')==prefix+package]
+              for action in ('run','pass'):
+                  actual=[e['Test'] for e in rows if e.get('Action')==action and e.get('Test')]
+                  assert sorted(actual)==sorted(names), (package,action)
+              assert sum(e.get('Action')=='pass' and not e.get('Test') for e in rows)==1
+          PYMAINTENANCECASES
+      - name: Keep consumed authorization confirmation source unchanged
         run: git diff --exit-code -- services/platform .github scripts
 
   maintenance-operator-components:

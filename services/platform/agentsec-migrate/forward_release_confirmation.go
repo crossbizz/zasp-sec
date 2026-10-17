@@ -33,5 +33,10 @@ func confirmForwardRelease(ctx context.Context, queryer principalQueryer, begin 
 			return registerForwardRelease(c, q, registration, arguments)
 		}, nil)
 	}
+	if authorizationProfileCommand(arguments[0]) || arguments[0] == "up-authorization-runtime-profile" {
+		return withRetentionOperatorTransaction(ctx, begin, func(c context.Context, q principalQueryer, _ io.Writer) error {
+			return registerForwardRelease(c, q, registration, arguments)
+		}, nil)
+	}
 	return registerForwardRelease(ctx, queryer, registration, arguments)
 }

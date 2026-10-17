@@ -114,7 +114,7 @@ func (r *registeredReleaseMigrationRunner) UpAuthorizationRuntimeProfile(ctx con
 		if err = runReleaseMigration(ctx, installer, []string{command}); err != nil {
 			return authorizationRuntimeProfileStepRefusal(command, "install", err)
 		}
-		if err = registerForwardRelease(ctx, r.queryer, r.registration, []string{command}); err != nil {
+		if err = confirmForwardRelease(ctx, r.queryer, principalAuthorityTransactionBegin(r.queryer), r.registration, []string{command}); err != nil {
 			return authorizationRuntimeProfileStepRefusal(command, "forward-readiness", err)
 		}
 	}

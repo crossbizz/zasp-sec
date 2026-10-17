@@ -595,7 +595,11 @@ test('retention connected sources retain the complete declared application closu
   "services/platform/agentsec-migrate/authorization_runtime_worker_profile_test.go",
   "services/platform/agentsec-migrate/authorization_temporal_profile_test.go",
   "services/platform/agentsec-migrate/authorization_worker_profile_test.go",
-  "services/platform/agentsec-migrate/identity_profile_test.go"
+  "services/platform/agentsec-migrate/identity_profile_test.go",
+  "services/platform/agentsec-migrate/authorization_runtime_profile.go",
+  "services/platform/agentsec-migrate/authorization_confirmation_role_test.go",
+  "services/platform/agentsec-migrate/authorization_confirmation_inner_loop_test.go",
+  "services/platform/agentsec-migrate/authorization_runtime_worker_profile.go"
 ];
   const compiled = JSON.parse(relative('.github/connector-native-compile-source-pins.json'));
   const compilePins = new Map(compiled.sources.map(item => [item.path, item]));

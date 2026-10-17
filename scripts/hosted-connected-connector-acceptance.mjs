@@ -461,7 +461,7 @@ const pins = {
   ".github/workflows/connector-connected-lifecycle.yml": "2e5adac7fd116a54721312719bcb9b0522222f1115e034d7178977a9817bab2d",
   "services/platform/migrations/maintenance_operator_role.go": "0dbd6184ce85995d7ff524419ad5d2db6b847ddc606dbd5c0243eafc1b6272bb",
   "services/platform/migrations/maintenance_operator_role_test.go": "c85bad201234d28b0d4896eb8da837331e299af97496dfef01889fced4461e85",
-  "services/platform/agentsec-migrate/forward_release_confirmation.go": "dafa9ba00072fec7b6005ea74a7b5fee79400849773b37ab0b53a2790eeb9a65",
+  "services/platform/agentsec-migrate/forward_release_confirmation.go": "7a32ad567bdf0d9355efce02f5a54297f1dacfd63b395dd25b936b3b6759ccc0",
   "services/platform/agentsec-migrate/maintenance_confirmation_role_test.go": "efea4551621dbd95e91f08eb93fbeddd6a45c8ec6ebd36160b22881e41cfbccf",
   "services/platform/apiserver/maintenance_operator_noinherit_postgres_test.go": "6184ff4e860185928eba4676f65c26f3af9b005221e981eb8d43a4d22f28b62d",
   "services/platform/migrations/optional_egress_operator_role_test.go": "0cbfba3b99c9fd7942a4bf00d013e81a61cc40dc5bae90b8ce5eb747ce9d09aa",
@@ -477,11 +477,15 @@ const pins = {
   "services/platform/agentsec-migrate/authorization_runtime_worker_profile_test.go": "bb43ed5704075c66bd4b43ae675fae15424bf8488e7191eb5381e0df76934713",
   "services/platform/agentsec-migrate/authorization_temporal_profile_test.go": "605557d5b6e61661b730b33408d0f5c0ed4fa85ebdfa54a7fa594123b879e335",
   "services/platform/agentsec-migrate/authorization_worker_profile_test.go": "ae0b022b39c2d63196767766dc61a155c374cdab1250823bf414db2224a363a4",
-  "services/platform/agentsec-migrate/identity_profile_test.go": "10d781fab61207b446f9ab7f9b22567dd33022800efbee4eb2062b26f6cab289"
+  "services/platform/agentsec-migrate/identity_profile_test.go": "10d781fab61207b446f9ab7f9b22567dd33022800efbee4eb2062b26f6cab289",
+  "services/platform/agentsec-migrate/authorization_runtime_profile.go": "11d147ebb2bebe0dcc67d43dc6b991cae6b1afb3789740b53aa0d5056a046ee1",
+  "services/platform/agentsec-migrate/authorization_confirmation_role_test.go": "7e5e291becd74dfa7a060ffef7c8d480e42f65d9c18b63be65d3386c4c310853",
+  "services/platform/agentsec-migrate/authorization_confirmation_inner_loop_test.go": "59fa595855d95533d9d774b86856a1ac65c60a9410cf20515a0a197d2159de15",
+  "services/platform/agentsec-migrate/authorization_runtime_worker_profile.go": "9aecbea5cf2be4576f50e43962d99054638c7a9f2f93ce88751d145bcdd83663"
 };
 const roster = selectedGroup.names;
 const helperPins={
-  "scripts/connector-acceptance-groups.test.mjs": "4cc3efd54586199d50a2854f2ea2c48598c69bd3ca90cd723f79836aca96e754",
+  "scripts/connector-acceptance-groups.test.mjs": "7b36c2474101aac48ede2f46f27b28028288b4c19abb4346df711ac09f3833f7",
   "scripts/connector-acceptance-groups.mjs": "1d0ac8bd39cde881ee26949586ede1fb401692c51d1e0cd351bb34535bfafb07",
   "docs/internal/evidence/cloud-2026-10-07/native-service-readiness/openfga/09-pg-non-glibc-libs-manifest.json": "96642e82997ffd2caf2893a5ecc0116ad2aef6e982df2d929f3efda4e04f3474",
   "services/platform/apiserver/authorization_integration_mutations_postgres_test.go": "5e4beb04b2409ad9b11b89c017ada5e2eccffd78a87bdd5692d40670f12a2ba0",

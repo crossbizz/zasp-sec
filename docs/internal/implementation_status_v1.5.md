@@ -16754,3 +16754,26 @@ Seven final/internal authorization confirmations, worker/Temporal owner phases,
 actual native execution and deployed real Stytch/provider acceptance remain open.
 No requirement or availability classification changes. Evidence:
 `cloud-cli-principal-preflight-source-checkpoint-2026-10-17.json`.
+
+
+## Seven authorization confirmations, October 17, 2026
+
+The six authorization profile commands and composite runtime confirmation now
+use the existing bounded authority transaction. Composite identity and worker
+confirmations use the same actual connection and confirm commit before the next
+installer. Original query text, arguments, release pins, existing branches,
+error stages and normal/Audit recipe selection remain unchanged. The twelve
+earlier Temporal confirmations remain a separate unresolved scope.
+
+Both local CLI attempts were blocked by the missing OPA dependency before any
+named test ran. This is a source correction with no CLI compiler or behavioral
+acceptance. Source/ledger/deployment checks pass 58 cases, and fresh UI typecheck
+and build pass. A new strict hosted job requires all 49 confirmation cases; its
+execution remains pending. All 493 source pins retain the 489 predecessor paths.
+The 21 native groups, 146 cases and 32 owned PostgreSQL joins remain mandatory
+and unexecuted for this successor.
+
+No task status or availability promotion is made. Worker/Temporal installation,
+required exact-head checks, real deployed Stytch/provider flows and equivalent
+obsolete retirement remain open. Evidence:
+`cloud-cli-authorization-confirmation-source-checkpoint-2026-10-17.json`.
