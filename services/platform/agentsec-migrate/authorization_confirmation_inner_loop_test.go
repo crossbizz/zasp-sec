@@ -19,6 +19,8 @@ type authorizationConfirmationLoopQueryer struct {
 	tx                                   *authorizationConfirmationLoopTransaction
 	failureStep, failureMode             string
 	events                               []string
+	temporalEvents                       []string
+	commitPositions                      []int
 	violations, workerInstalls           int
 }
 
@@ -29,14 +31,14 @@ func (q *authorizationConfirmationLoopQueryer) QueryRow(c context.Context, s str
 	}
 	step := q.delegate.runner.pending
 	if step != "" {
-		private := step == "up-authorization-temporal-identity-profile" || step == "up-authorization-worker-profile"
+		private := temporalConfirmationFixtureStep(step) || step == "up-authorization-temporal-identity-profile" || step == "up-authorization-worker-profile"
 		if private {
 			if !q.active || !q.authority || q.tx == nil {
 				q.violations++
 				return releaseReadinessErrorRow{}
 			}
 			q.tx.step = step
-			q.events = append(q.events, "read:"+step)
+			q.recordConfirmationEvent("read", step)
 		} else if q.active {
 			q.violations++
 			return releaseReadinessErrorRow{}
@@ -77,10 +79,11 @@ func (x *authorizationConfirmationLoopTransaction) Exec(_ context.Context, s str
 func (x *authorizationConfirmationLoopTransaction) Commit(context.Context) error {
 	if x.step != "" {
 		if x.q.failureStep == x.step && x.q.failureMode == "commit" {
-			x.q.events = append(x.q.events, "commit-refused:"+x.step)
+			x.q.recordConfirmationEvent("commit-refused", x.step)
 			return errors.New("private commit detail")
 		}
-		x.q.events = append(x.q.events, "commit:"+x.step)
+		x.q.recordConfirmationEvent("commit", x.step)
+		x.q.commitPositions = append(x.q.commitPositions, len(x.q.delegate.runner.events))
 		if x.step == "up-authorization-temporal-identity-profile" {
 			x.q.identityCommitted = true
 		}
@@ -165,8 +168,8 @@ func TestAuthorizationConfirmationActualInnerLoopCommitAndFailureOrder(t *testin
 					t.Fatal("worker installed after refused identity confirmation")
 				}
 			}
-			// The original twelve earlier Temporal stages still use their original
-			// QueryRow path; no transaction events were inserted into this recorder.
+			// Authority now guards all fourteen confirmations. Transaction events
+			// remain separate from the original diagnostic dispatch/readiness roster.
 			prefix := []string{}
 			for _, step := range innerDiagnosticSteps[:12] {
 				prefix = append(prefix, "install:"+step, "forward-readiness:"+step)

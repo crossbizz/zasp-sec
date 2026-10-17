@@ -16795,3 +16795,28 @@ test execution or evidence of the hosted failure's cause. Hosted job metadata
 identifies failed steps only; actual exact-head component/native/deployed
 acceptance remains required. All 728 task classifications remain unchanged.
 Evidence: `cloud-maintenance-selected-roster-checkpoint-2026-10-17.json`.
+
+
+## Twelve Temporal confirmations, October 17, 2026
+
+The twelve explicit Temporal 67–78 confirmation commands now reuse the bounded
+authority transaction on the same actual PostgreSQL connection. Original
+configured-session SQL, arguments, checksum/fingerprint functions and all other
+command branches remain unchanged. The composite fixture now requires all
+fourteen confirmations to finish their authority transaction before the next
+installer while retaining original diagnostic, identity and worker controls.
+The predecessor fixture bytes remain preserved in the evidence archive.
+
+Both actual CLI attempts were OPA setup-blocked before zero named cases. No
+behavioral RED, compiler pass or native proof is claimed. Source checks pass
+58 cases; fresh UI typecheck/build pass. A separate strict hosted job requires
+all 93 Temporal confirmation, ordering, legacy-fallback and checksum-cost cases.
+All prior jobs remain required; all 496 source pins retain 493 predecessor paths.
+Native 21 groups/146 cases/32 owned PostgreSQL joins remain mandatory.
+
+This supports installation and upgrade prerequisites M8-22b, M8-23b and M8-52a;
+it does not establish acceptance of those requirements. Worker/Temporal installer
+DDL permissions, remaining command families, exact-head checks and real deployed
+Stytch/provider flows remain open. All 728 original task classifications remain
+unchanged. Evidence:
+`cloud-cli-temporal-confirmation-source-checkpoint-2026-10-17.json`.

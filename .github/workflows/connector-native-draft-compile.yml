@@ -45,7 +45,7 @@ jobs:
           import hashlib, json
           from pathlib import Path
           source = json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())
-          assert len(source['sources']) == 493
+          assert len(source['sources']) == 496
           for item in source['sources']:
               raw = Path(item['path']).read_bytes()
               assert len(raw) == item['bytes']
@@ -87,7 +87,7 @@ jobs:
           assert len(groups) == 6 and sum(len(tops) for tops in groups.values()) == 10 and len(expected) == 86
           def check_sources():
               source = json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())
-              assert len(source['sources']) == 493
+              assert len(source['sources']) == 496
               for item in source['sources']:
                   raw = Path(item['path']).read_bytes()
                   assert len(raw) == item['bytes'] and hashlib.sha256(raw).hexdigest() == item['sha256'], item['path']
@@ -469,6 +469,53 @@ jobs:
           assert sum(e.get('Action')=='pass' and not e.get('Test') for e in rows)==1
           PYPRINCIPALCONSUMERS
       - name: Keep consumed principal preflight source unchanged
+        run: git diff --exit-code -- services/platform .github scripts
+
+  temporal-confirmation-components:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GOTOOLCHAIN: local
+      GOWORK: 'off'
+      GOFLAGS: '-mod=readonly'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version: 1.26.8
+          cache: false
+      - name: Check frozen Temporal confirmation source custody
+        run: |
+          python3 - <<'PYMAINTENANCE'
+          import hashlib,json
+          from pathlib import Path
+          for item in json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())['sources']:
+              raw=Path(item['path']).read_bytes()
+              assert len(raw)==item['bytes'] and hashlib.sha256(raw).hexdigest()==item['sha256'],item['path']
+          PYMAINTENANCE
+      - name: Require every Temporal confirmation and inner ordering component
+        timeout-minutes: 8
+        run: |
+          go test -C services/platform -race -p=1 -count=1 -timeout=3m -json -run '^Test(TemporalConfirmation|TemporalForwardReadiness)' ./agentsec-migrate > temporal-confirmation-components.jsonl
+          python3 - <<'PYMAINTENANCECASES'
+          import json
+          from pathlib import Path
+          expected = {'agentsec-migrate': ['TestTemporalConfirmationUsesActualBoundedAuthorityPath', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-domain', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-domain/accepted', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-domain/catalog-refused', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-domain/uncertain-commit', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-domain/canceled', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-domain/missing-closed-begin', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-executor', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-executor/accepted', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-executor/catalog-refused', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-executor/uncertain-commit', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-executor/canceled', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-executor/missing-closed-begin', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-workflow', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-workflow/accepted', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-workflow/catalog-refused', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-workflow/uncertain-commit', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-workflow/canceled', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-workflow/missing-closed-begin', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-compatibility', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-compatibility/accepted', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-compatibility/catalog-refused', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-compatibility/uncertain-commit', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-compatibility/canceled', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-compatibility/missing-closed-begin', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-legacy-tests', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-legacy-tests/accepted', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-legacy-tests/catalog-refused', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-legacy-tests/uncertain-commit', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-legacy-tests/canceled', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-legacy-tests/missing-closed-begin', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-discovery', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-discovery/accepted', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-discovery/catalog-refused', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-discovery/uncertain-commit', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-discovery/canceled', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-discovery/missing-closed-begin', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-admission', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-admission/accepted', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-admission/catalog-refused', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-admission/uncertain-commit', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-admission/canceled', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-admission/missing-closed-begin', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-test-executor', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-test-executor/accepted', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-test-executor/catalog-refused', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-test-executor/uncertain-commit', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-test-executor/canceled', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-test-executor/missing-closed-begin', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-test-selector', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-test-selector/accepted', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-test-selector/catalog-refused', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-test-selector/uncertain-commit', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-test-selector/canceled', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-test-selector/missing-closed-begin', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-human-admission', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-human-admission/accepted', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-human-admission/catalog-refused', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-human-admission/uncertain-commit', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-human-admission/canceled', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-human-admission/missing-closed-begin', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-automatic-sources', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-automatic-sources/accepted', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-automatic-sources/catalog-refused', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-automatic-sources/uncertain-commit', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-automatic-sources/canceled', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-automatic-sources/missing-closed-begin', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-finding-response', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-finding-response/accepted', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-finding-response/catalog-refused', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-finding-response/uncertain-commit', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-finding-response/canceled', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-finding-response/missing-closed-begin', 'TestTemporalConfirmationRetainsExcludedLegacyFallbacks', 'TestTemporalConfirmationRetainsExcludedLegacyFallbacks/up-temporal-outbox', 'TestTemporalConfirmationRetainsExcludedLegacyFallbacks/up-temporal-ownership', 'TestTemporalConfirmationActualInnerLoopCommitAndFailureOrder', 'TestTemporalConfirmationActualInnerLoopCommitAndFailureOrder/accepted', 'TestTemporalConfirmationActualInnerLoopCommitAndFailureOrder/domain-catalog', 'TestTemporalConfirmationActualInnerLoopCommitAndFailureOrder/test-executor-commit', 'TestTemporalConfirmationActualInnerLoopCommitAndFailureOrder/finding-response-catalog', 'TestTemporalForwardReadinessDoesNotBuildAncestorSQL', 'TestTemporalForwardReadinessSourceIdentities', 'TestTemporalForwardReadinessSourceIdentities/up-temporal-domain', 'TestTemporalForwardReadinessSourceIdentities/up-temporal-executor', 'TestTemporalForwardReadinessSourceIdentities/up-temporal-workflow', 'TestTemporalForwardReadinessSourceIdentities/up-temporal-compatibility', 'TestTemporalForwardReadinessSourceIdentities/up-temporal-legacy-tests', 'TestTemporalForwardReadinessSourceIdentities/up-temporal-discovery', 'TestTemporalForwardReadinessSourceIdentities/up-temporal-admission', 'TestTemporalForwardReadinessSourceIdentities/up-temporal-test-executor', 'TestTemporalForwardReadinessSourceIdentities/up-temporal-test-selector', 'TestTemporalForwardReadinessSourceIdentities/up-temporal-human-admission']}
+          prefix='github.com/zasp-ai/zasp-sec/services/platform/'
+          events=[json.loads(line) for line in Path('temporal-confirmation-components.jsonl').read_text().splitlines() if line.strip()]
+          assert events and all(e.get('Action') in ('start','run','output','pass') for e in events)
+          assert not any(e.get('Action') in ('skip','fail','build-fail') for e in events)
+          assert all(e.get('Package') in {prefix+p for p in expected} for e in events)
+          for package,names in expected.items():
+              rows=[e for e in events if e.get('Package')==prefix+package]
+              for action in ('run','pass'):
+                  actual=[e['Test'] for e in rows if e.get('Action')==action and e.get('Test')]
+                  assert sorted(actual)==sorted(names), (package,action)
+              assert sum(e.get('Action')=='pass' and not e.get('Test') for e in rows)==1
+          PYMAINTENANCECASES
+      - name: Keep consumed Temporal confirmation source unchanged
         run: git diff --exit-code -- services/platform .github scripts
 
   authorization-confirmation-components:

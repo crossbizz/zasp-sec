@@ -38,5 +38,21 @@ func confirmForwardRelease(ctx context.Context, queryer principalQueryer, begin 
 			return registerForwardRelease(c, q, registration, arguments)
 		}, nil)
 	}
+	if temporalConfirmationCommand(arguments[0]) {
+		return withRetentionOperatorTransaction(ctx, begin, func(c context.Context, q principalQueryer, _ io.Writer) error {
+			return registerForwardRelease(c, q, registration, arguments)
+		}, nil)
+	}
 	return registerForwardRelease(ctx, queryer, registration, arguments)
+}
+
+// Only the twelve original composite steps select this authority read frame.
+// Older Temporal commands retain their original explicit fallback semantics.
+func temporalConfirmationCommand(command string) bool {
+	switch command {
+	case "up-temporal-domain", "up-temporal-executor", "up-temporal-workflow", "up-temporal-compatibility", "up-temporal-legacy-tests", "up-temporal-discovery", "up-temporal-admission", "up-temporal-test-executor", "up-temporal-test-selector", "up-temporal-human-admission", "up-temporal-automatic-sources", "up-temporal-finding-response":
+		return true
+	default:
+		return false
+	}
 }
