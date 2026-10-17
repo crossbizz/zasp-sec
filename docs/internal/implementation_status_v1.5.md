@@ -1,3 +1,54 @@
+> Current availability correction, October 17, 2026: six original Agents requirements
+> (M4-50a, M4-50b1, M4-50b2, M4-50b3, M4-50c and M4-50) are component-only.
+> Fresh source review found missing production pagination, filters and coverage
+> behavior. Prior historical Complete records and evidence remain intact below.
+> All 728 requirements remain in scope; no availability promotion is made.
+> Even the remaining 517 production-available labels require fresh deployed acceptance.
+
+## Production availability summary
+
+| Production class | Count |
+| --- | ---: |
+| Production-available | 517 |
+| Component-only | 150 |
+| Blocked/external | 61 |
+| Missing | 0 |
+
+## Production availability by milestone
+
+| Milestone | Total | Production-available | Component-only | Blocked/external | Missing |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| M0 | 27 | 7 | 17 | 3 | 0 |
+| M1 | 68 | 57 | 11 | 0 | 0 |
+| M1A | 10 | 0 | 6 | 4 | 0 |
+| M2 | 72 | 67 | 5 | 0 | 0 |
+| M3 | 75 | 73 | 0 | 2 | 0 |
+| M4 | 82 | 76 | 6 | 0 | 0 |
+| M5 | 42 | 42 | 0 | 0 | 0 |
+| M6 | 36 | 36 | 0 | 0 | 0 |
+| M7 | 62 | 30 | 32 | 0 | 0 |
+| M7A | 113 | 95 | 18 | 0 | 0 |
+| M8 | 141 | 34 | 55 | 52 | 0 |
+| **Total** | **728** | **517** | **150** | **61** | **0** |
+
+## Agents source availability correction evidence
+
+The six corrected rows belong to T10-product-ui. The current ledger guard pins
+each row to component-only and rejects false promotion even when milestone
+counts are balanced. Pagination implementation alone does not close the filters,
+coverage indicators or composed M4-50 requirement.
+
+Evidence: `cloud-agents-availability-source-audit-checkpoint-2026-10-17.json`.
+The new remaining-work inventory contains 211 records: all 205 predecessor
+records plus these six original requirements. Original inventories and evidence
+archives remain unchanged. This is a negative correction, not new scope.
+
+## Historical status and prior evidence
+
+The following preexisting content is retained verbatim. Older availability
+counts describe their recorded checkpoints and are superseded by the current
+summary above.
+
 # Agent Security Platform Implementation Status
 
 ## Current continuation, October 17, 2026
