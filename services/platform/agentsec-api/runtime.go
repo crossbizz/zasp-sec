@@ -32,6 +32,7 @@ type RuntimeConfig struct {
 	AgentOwnerFilterEnabled            bool
 	AgentOwnerFilterProfileChecksum    string
 	AgentReadProfileChecksum           string
+	AgentOwnershipWriteProfileChecksum string
 	AgentExposureFilterProfileChecksum string
 	EnvironmentClassEnabled            bool
 	EnvironmentClassProfileChecksum    string
@@ -161,6 +162,7 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 	config := RuntimeConfig{
 		RetentionProfileChecksum:           getenv("ZASP_RETENTION_PROFILE_CHECKSUM"),
 		AgentReadProfileChecksum:           getenv("ZASP_AGENT_READ_PROFILE_CHECKSUM"),
+		AgentOwnershipWriteProfileChecksum: getenv("ZASP_AGENT_OWNERSHIP_WRITE_PROFILE_CHECKSUM"),
 		AgentExposureFilterProfileChecksum: getenv("ZASP_AGENT_EXPOSURE_FILTER_PROFILE_CHECKSUM"),
 		AgentOwnerFilterEnabled:            agentOwnerFilterEnabled, AgentOwnerFilterProfileChecksum: getenv("ZASP_AGENT_OWNER_FILTER_CHECKSUM"),
 		EnvironmentClassEnabled: environmentClassEnabled, EnvironmentClassProfileChecksum: getenv("ZASP_ENVIRONMENT_CLASS_PROFILE_CHECKSUM"),
@@ -264,7 +266,7 @@ func validRuntimeConfig(config RuntimeConfig) bool {
 			return false
 		}
 	}
-	if !validRuntimePostgresAuthorities(config.PostgresDSN, config.SecurityAgentPostgresDSN) || !validApprovalMaintenanceRuntimeConfig(config) || !validConnectorMaintenanceRuntimeConfig(config) || !validOptionalEgressRuntimeConfig(config) || !validEnvironmentClassRuntimeConfig(config) || !validAgentOwnerFilterRuntimeConfig(config) || !validAgentReadRuntimeConfig(config) || !validAgentExposureFilterRuntimeConfig(config) {
+	if !validRuntimePostgresAuthorities(config.PostgresDSN, config.SecurityAgentPostgresDSN) || !validApprovalMaintenanceRuntimeConfig(config) || !validConnectorMaintenanceRuntimeConfig(config) || !validOptionalEgressRuntimeConfig(config) || !validEnvironmentClassRuntimeConfig(config) || !validAgentOwnerFilterRuntimeConfig(config) || !validAgentReadRuntimeConfig(config) || !validAgentOwnershipWriteRuntimeConfig(config) || !validAgentExposureFilterRuntimeConfig(config) {
 		return false
 	}
 	authorize, authorizeErr := url.Parse(config.StytchAuthorizeURL)

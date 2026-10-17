@@ -171,7 +171,21 @@ export const AGENT_EXPOSURE_FILTER_ACCEPTANCE_GROUPS = Object.freeze({
   'agent-exposure-filter': group('TestAgentExposureFilterNormalMountedPostgres', agentExposureFilterCases, 1),
   'agent-exposure-filter-audit': group('TestAgentExposureFilterAuditMountedPostgres', agentExposureFilterCases, 1),
 });
-const acceptanceGroups = Object.freeze({...CONNECTOR_ACCEPTANCE_GROUPS, ...ENVIRONMENT_CLASS_ACCEPTANCE_GROUPS, ...MAINTENANCE_OPERATOR_ACCEPTANCE_GROUPS, ...OPTIONAL_EGRESS_OPERATOR_ACCEPTANCE_GROUPS, ...AGENT_CURRENT_READ_ACCEPTANCE_GROUPS, ...AGENT_EXPOSURE_FILTER_ACCEPTANCE_GROUPS});
+const agentOwnershipWriteCases = Object.freeze([
+  "selected_profile_private_acl_and_browser_transport_guards",
+  "browser_patch_atomic_posture_revision_and_fresh_refetch",
+  "same_intent_replay_original_receipt_and_conflicting_intent_cas",
+  "actual_pat_permission_ceiling_fresh_auth_false_and_revocation",
+  "captured_scope_actor_read_profile_and_live_membership_refuse_replay",
+  "actual_key_and_entity_wait_expiry_refuse_before_receipt",
+  "two_actual_connections_cas_and_same_key_exactly_once",
+  "own_catalog_drift_parent_immutability_and_no_extra_effects"
+]);
+export const AGENT_OWNERSHIP_WRITE_ACCEPTANCE_GROUPS = Object.freeze({
+  'agent-ownership-write': group('TestAgentCurrentOwnershipWriteNormalPostgres', agentOwnershipWriteCases, 1),
+  'agent-ownership-write-audit': group('TestAgentCurrentOwnershipWriteAuditPostgres', agentOwnershipWriteCases, 1),
+});
+const acceptanceGroups = Object.freeze({...CONNECTOR_ACCEPTANCE_GROUPS, ...ENVIRONMENT_CLASS_ACCEPTANCE_GROUPS, ...MAINTENANCE_OPERATOR_ACCEPTANCE_GROUPS, ...OPTIONAL_EGRESS_OPERATOR_ACCEPTANCE_GROUPS, ...AGENT_CURRENT_READ_ACCEPTANCE_GROUPS, ...AGENT_EXPOSURE_FILTER_ACCEPTANCE_GROUPS, ...AGENT_OWNERSHIP_WRITE_ACCEPTANCE_GROUPS});
 export function selectConnectorAcceptanceGroup(args) {
   assert.ok(Array.isArray(args) && args.length === 1 &&
     typeof args[0] === 'string' && Object.hasOwn(acceptanceGroups, args[0]),

@@ -720,7 +720,29 @@ test('retention connected sources retain the complete declared application closu
   "services/platform/migrations/production_authorization_enforcement.go",
   "services/platform/migrations/production_authorization_temporal_profile.go",
   "services/platform/migrations/sql/0014_typed_inventory_cutover.up.sql",
-  "services/platform/migrations/sql/agent_exposure_filter_profile.sql"
+  "services/platform/migrations/sql/agent_exposure_filter_profile.sql",
+  ".github/agent-ownership-write-component-roster.json",
+  ".github/workflows/agents-ownership-write-components.yml",
+  "deploy/production/agent-ownership-write-profile.mjs",
+  "deploy/production/agent-ownership-write-profile.test.mjs",
+  "deploy/staging/product/templates/_agent-ownership-write.tpl",
+  "scripts/validate_agent_ownership_write_components.py",
+  "scripts/validate_agent_ownership_write_components_test.py",
+  "services/platform/agentsec-api/agent_ownership_write_runtime.go",
+  "services/platform/agentsec-api/agent_ownership_write_runtime_test.go",
+  "services/platform/agentsec-migrate/agent_ownership_write_profile.go",
+  "services/platform/agentsec-migrate/agent_ownership_write_profile_test.go",
+  "services/platform/apiserver/agent_current_ownership_write.go",
+  "services/platform/apiserver/agent_current_ownership_write_postgres_test.go",
+  "services/platform/apiserver/agent_current_ownership_write_test.go",
+  "services/platform/migrations/migrations.go",
+  "services/platform/migrations/production_agent_ownership_write_compiler_test.go",
+  "services/platform/migrations/production_agent_ownership_write_profile.go",
+  "services/platform/migrations/production_agent_ownership_write_profile_test.go",
+  "services/platform/migrations/production_temporal_domain.go",
+  "services/platform/migrations/sql/0010_production_discovery.up.sql",
+  "services/platform/migrations/sql/0079_production_authorization_projection.up.sql",
+  "services/platform/migrations/sql/agent_ownership_write_profile.sql"
 ];
   const compiled = JSON.parse(relative('.github/connector-native-compile-source-pins.json'));
   const compilePins = new Map(compiled.sources.map(item => [item.path, item]));
@@ -800,6 +822,37 @@ test('combined Agent filters retain every earlier native group and require both 
   assert.equal(Object.values(all).flatMap(g => g.names).length, 180);
   assert.equal(Object.values(all).reduce((n,g) => n + g.postgresJoins, 0), 36);
   const source = fs.readFileSync(new URL('../services/platform/apiserver/agent_exposure_filter_postgres_test.go', import.meta.url), 'utf8');
+  const workflow = fs.readFileSync(new URL('../.github/workflows/connector-connected-lifecycle.yml', import.meta.url), 'utf8');
+  for (const [key, selected] of Object.entries(added)) {
+    assert.equal(select([key]), selected);
+    assert.equal(selected.names.length, 9); assert.equal(selected.postgresJoins, 1);
+    assert.ok(source.includes(`func ${selected.top}(t *testing.T)`));
+    assert.ok(workflow.includes(key));
+    validate(trace(selected), selected);
+    for (const name of selected.names) {
+      if (name !== selected.top) assert.ok(source.includes(`t.Run("${name.slice(selected.top.length + 1)}"`));
+      assert.ok(!Object.values(previous).some(g => g.names.includes(name)));
+      assert.throws(() => validate(trace(selected).filter(row => row.Test !== name), selected));
+      assert.throws(() => validate([...trace(selected), {Package: pkg, Test: name, Action: 'pass'}], selected));
+      for (const action of ['skip', 'fail']) assert.throws(() => validate(trace(selected).map(row => row.Test === name && row.Action === 'pass' ? {...row, Action: action} : row), selected));
+    }
+  }
+});
+
+test('current Agent ownership writes retain every native group and require both exact profiles', () => {
+  const added = traceDiagnostics.AGENT_OWNERSHIP_WRITE_ACCEPTANCE_GROUPS;
+  const previous = {...groups, ...traceDiagnostics.ENVIRONMENT_CLASS_ACCEPTANCE_GROUPS,
+    ...traceDiagnostics.MAINTENANCE_OPERATOR_ACCEPTANCE_GROUPS, ...traceDiagnostics.OPTIONAL_EGRESS_OPERATOR_ACCEPTANCE_GROUPS,
+    ...traceDiagnostics.AGENT_CURRENT_READ_ACCEPTANCE_GROUPS, ...traceDiagnostics.AGENT_EXPOSURE_FILTER_ACCEPTANCE_GROUPS};
+  assert.deepEqual(Object.keys(added), ['agent-ownership-write', 'agent-ownership-write-audit']);
+  const all = {...previous, ...added};
+  assert.equal(Object.keys(previous).length, 25);
+  assert.equal(Object.values(previous).flatMap(g => g.names).length, 180);
+  assert.equal(Object.values(previous).reduce((n,g) => n + g.postgresJoins, 0), 36);
+  assert.equal(Object.keys(all).length, 27);
+  assert.equal(Object.values(all).flatMap(g => g.names).length, 198);
+  assert.equal(Object.values(all).reduce((n,g) => n + g.postgresJoins, 0), 38);
+  const source = fs.readFileSync(new URL('../services/platform/apiserver/agent_current_ownership_write_postgres_test.go', import.meta.url), 'utf8');
   const workflow = fs.readFileSync(new URL('../.github/workflows/connector-connected-lifecycle.yml', import.meta.url), 'utf8');
   for (const [key, selected] of Object.entries(added)) {
     assert.equal(select([key]), selected);

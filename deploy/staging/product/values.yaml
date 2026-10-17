@@ -540,3 +540,7 @@ agentRead:
 # API consumer only; installation and native profile acceptance are separate.
 agentExposureFilter:
   profileChecksum: ""
+
+# API-only current ownership writer; separate profile installation required.
+agentOwnershipWrite:
+  profileChecksum: ""

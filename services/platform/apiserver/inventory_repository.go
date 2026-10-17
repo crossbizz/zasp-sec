@@ -218,6 +218,7 @@ type PostgresInventoryRepository struct {
 	database                           JSONDatabase
 	agentOwnerProfileChecksum          string
 	agentReadProfileChecksum           string
+	agentOwnershipWriteProfileChecksum string
 	agentExposureFilterProfileChecksum string
 }
 
@@ -429,9 +430,11 @@ func (repository *PostgresInventoryRepository) UpdateAgentOwnership(ctx context.
 	if err != nil {
 		return AgentMutationResult{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresInventoryUpdateAgentSQL,
-		identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), id.String(), idempotencyKey, expectedVersion, input.Owner, input.Team, json.RawMessage(tags), auditID, correlationID,
-	)
+	statement, arguments, err := repository.agentOwnershipWriteQuery(ctx, []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), id.String(), idempotencyKey, expectedVersion, input.Owner, input.Team, json.RawMessage(tags), auditID, correlationID})
+	if err != nil {
+		return AgentMutationResult{}, err
+	}
+	payload, err := repository.database.QueryJSON(ctx, statement, arguments...)
 	if err != nil {
 		return AgentMutationResult{}, inventoryProviderError(err)
 	}

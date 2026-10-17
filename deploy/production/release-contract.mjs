@@ -1,3 +1,4 @@
+import { normalizeAgentOwnershipWrite, validateAgentOwnershipWriteResources } from "./agent-ownership-write-profile.mjs";
 import { normalizeAgentExposureFilter, validateAgentExposureFilterResources } from "./agent-exposure-filter-profile.mjs";
 import { normalizeAgentRead, validateAgentReadResources } from "./agent-read-profile.mjs";
 import { normalizeAgentOwnerFilter, validateAgentOwnerFilterResources } from "./agent-owner-filter-profile.mjs";
@@ -83,7 +84,7 @@ export async function inspectContainerBuilds() {
 }
 
 export async function renderRelease(value, options = { schemaVersion: 49 }) {
-  if (!validRelease(value) || !options || Object.keys(options).some(key => !["schemaVersion", "sessionSearchPhase", "auditExports", "testReconciler", "complianceExports", "attackLabReconciler", "evidenceExportWorkflow", "discoveryScheduleReplayPhase", "runtimeServices", "authorizationTemporal", "optionalEgress", "retentionReferenceExpiry", "environmentClass", "agentOwnerFilter", "agentRead", "agentExposureFilter"].includes(key))) throw new Error("release rejected");
+  if (!validRelease(value) || !options || Object.keys(options).some(key => !["schemaVersion", "sessionSearchPhase", "auditExports", "testReconciler", "complianceExports", "attackLabReconciler", "evidenceExportWorkflow", "discoveryScheduleReplayPhase", "runtimeServices", "authorizationTemporal", "optionalEgress", "retentionReferenceExpiry", "environmentClass", "agentOwnerFilter", "agentRead", "agentOwnershipWrite", "agentExposureFilter"].includes(key))) throw new Error("release rejected");
   const platformAccountID = value.discovery.roleArn.match(/^arn:aws:iam::([0-9]{12}):role\//)[1];
   const authorizationTemporal = normalizeAuthorizationTemporalProfile(options.authorizationTemporal, options, platformAccountID);
   const runtimeServices = options.runtimeServices ? structuredClone(options.runtimeServices) : undefined;
@@ -91,6 +92,7 @@ export async function renderRelease(value, options = { schemaVersion: 49 }) {
   const environmentClass = normalizeEnvironmentClass(options.environmentClass, authorizationTemporal, runtimeServices);
   const agentOwnerFilter = normalizeAgentOwnerFilter(options.agentOwnerFilter, authorizationTemporal, runtimeServices);
   const agentRead = normalizeAgentRead(options.agentRead, authorizationTemporal, runtimeServices);
+  const agentOwnershipWrite = normalizeAgentOwnershipWrite(options.agentOwnershipWrite, authorizationTemporal, runtimeServices);
   const agentExposureFilter = normalizeAgentExposureFilter(options.agentExposureFilter, authorizationTemporal, runtimeServices);
   const retention = normalizeRetention(options.retentionReferenceExpiry, authorizationTemporal, runtimeServices);
   if (authorizationTemporal) {
@@ -387,11 +389,11 @@ export async function renderRelease(value, options = { schemaVersion: 49 }) {
   let stdout;
   let exportValuesDirectory;
   try {
-    if (auditExports || testReconciler || complianceExports || attackLabReconciler || options.runtimeServices || optionalEgress || retention || environmentClass || agentOwnerFilter || agentRead || agentExposureFilter) {
+    if (auditExports || testReconciler || complianceExports || attackLabReconciler || options.runtimeServices || optionalEgress || retention || environmentClass || agentOwnerFilter || agentRead || agentOwnershipWrite || agentExposureFilter) {
       // A complete policy history can exceed the per-argument limit on Linux.
       exportValuesDirectory = await mkdtemp(path.join(tmpdir(), "zasp-audit-export-values-"));
       const exportValuesPath = path.join(exportValuesDirectory, "values.json");
-      await writeFile(exportValuesPath, JSON.stringify({ auditExports, testReconciler, complianceExports, attackLabReconciler, ...(authorizationTemporal ? { authorizationTemporal } : {}), ...(optionalEgress ? { optionalEgress } : {}), ...(retention ? { retentionReferenceExpiry: retention } : {}), ...(environmentClass ? { environmentClass } : {}), ...(agentOwnerFilter ? { agentOwnerFilter } : {}), ...(agentRead ? { agentRead } : {}), ...(agentExposureFilter ? { agentExposureFilter } : {}), ...(runtimeServices ? { runtimeServices } : {}), ...(evidenceExportWorkflow ? { evidenceExportWorkflow: { enabled: true } } : {}) }), { mode: 0o600 });
+      await writeFile(exportValuesPath, JSON.stringify({ auditExports, testReconciler, complianceExports, attackLabReconciler, ...(authorizationTemporal ? { authorizationTemporal } : {}), ...(optionalEgress ? { optionalEgress } : {}), ...(retention ? { retentionReferenceExpiry: retention } : {}), ...(environmentClass ? { environmentClass } : {}), ...(agentOwnerFilter ? { agentOwnerFilter } : {}), ...(agentRead ? { agentRead } : {}), ...(agentOwnershipWrite ? { agentOwnershipWrite } : {}), ...(agentExposureFilter ? { agentExposureFilter } : {}), ...(runtimeServices ? { runtimeServices } : {}), ...(evidenceExportWorkflow ? { evidenceExportWorkflow: { enabled: true } } : {}) }), { mode: 0o600 });
       valueArgs.push("--values", exportValuesPath);
     }
     await exec("helm", ["lint", chart, "--namespace", "agentsec", ...valueArgs], { cwd: root, encoding: "utf8", maxBuffer: 4 * 1024 * 1024 });
@@ -408,7 +410,7 @@ export async function renderRelease(value, options = { schemaVersion: 49 }) {
     throw new Error("release rejected");
   }
   if (resources.length < 20 || resources.some((resource) => !resource?.apiVersion || !resource?.kind || !resource?.metadata?.name)) throw new Error("release rejected");
-  validateRenderedRelease(resources, platformAccountID, schemaVersion, sessionSearchPhase, auditExports, testReconciler, complianceExports, attackLabReconciler, evidenceExportWorkflow, discoveryScheduleReplayPhase, authorizationTemporal, optionalEgress, value.securityAgentPlanner.egressCIDRs, retention, environmentClass, agentOwnerFilter, agentRead, agentExposureFilter);
+  validateRenderedRelease(resources, platformAccountID, schemaVersion, sessionSearchPhase, auditExports, testReconciler, complianceExports, attackLabReconciler, evidenceExportWorkflow, discoveryScheduleReplayPhase, authorizationTemporal, optionalEgress, value.securityAgentPlanner.egressCIDRs, retention, environmentClass, agentOwnerFilter, agentRead, agentExposureFilter, agentOwnershipWrite);
   return Object.freeze(resources);
 }
 
@@ -594,7 +596,7 @@ function validRelease(value) {
   return value.telemetry.backend === "newrelic" && value.telemetry.endpoint === "https://otlp.nr-data.net";
 }
 
-export function validateRenderedRelease(resources, platformAccountID, schemaVersion = 49, sessionSearchPhase = "compatibility", expectedAuditExports, expectedTestReconciler, expectedComplianceExports, expectedAttackLabReconciler, expectedEvidenceExportWorkflow, discoveryScheduleReplayPhase, authorizationTemporal, expectedOptionalEgress, expectedOptionalPlannerCIDRs, expectedRetention, expectedEnvironmentClass, expectedAgentOwnerFilter, expectedAgentRead, expectedAgentExposureFilter) {
+export function validateRenderedRelease(resources, platformAccountID, schemaVersion = 49, sessionSearchPhase = "compatibility", expectedAuditExports, expectedTestReconciler, expectedComplianceExports, expectedAttackLabReconciler, expectedEvidenceExportWorkflow, discoveryScheduleReplayPhase, authorizationTemporal, expectedOptionalEgress, expectedOptionalPlannerCIDRs, expectedRetention, expectedEnvironmentClass, expectedAgentOwnerFilter, expectedAgentRead, expectedAgentExposureFilter, expectedAgentOwnershipWrite) {
   // Standalone callers must provide reviewed provider ranges too; equality
   // against a simultaneously widened expected/rendered policy is insufficient.
   if (expectedOptionalEgress?.enabled === true && !validProviderCIDRList(expectedOptionalPlannerCIDRs)) throw new Error("optional egress provider CIDRs rejected");
@@ -769,6 +771,8 @@ export function validateRenderedRelease(resources, platformAccountID, schemaVers
   validateAgentOwnerFilterResources(resources, agentOwnerFilter);
   const agentRead = normalizeAgentRead(expectedAgentRead, authorizationTemporal, optionalRuntime);
   validateAgentReadResources(resources, agentRead);
+  const agentOwnershipWrite = normalizeAgentOwnershipWrite(expectedAgentOwnershipWrite, authorizationTemporal, optionalRuntime);
+  validateAgentOwnershipWriteResources(resources, agentOwnershipWrite);
   const agentExposureFilter = normalizeAgentExposureFilter(expectedAgentExposureFilter, authorizationTemporal, optionalRuntime);
   validateAgentExposureFilterResources(resources, agentExposureFilter);
   return Object.freeze({ deployments: deployments.size, identities: accounts.size, platformAccountID });

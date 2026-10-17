@@ -18,6 +18,11 @@ func confirmForwardRelease(ctx context.Context, queryer principalQueryer, begin 
 			return agentExposureFilterPostInstall(c, q, registration.migration, arguments[0])
 		}, nil)
 	}
+	if agentOwnershipWriteProfileCommand(arguments[0]) {
+		return withRetentionOperatorTransaction(ctx, begin, func(c context.Context, q principalQueryer, _ io.Writer) error {
+			return agentOwnershipWritePostInstall(c, q, registration.migration, arguments[0])
+		}, nil)
+	}
 	if agentReadProfileCommand(arguments[0]) {
 		return withRetentionOperatorTransaction(ctx, begin, func(c context.Context, q principalQueryer, _ io.Writer) error {
 			return agentReadPostInstall(c, q, registration.migration, arguments[0])

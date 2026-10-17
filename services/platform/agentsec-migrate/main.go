@@ -229,6 +229,17 @@ func main() {
 			log.Fatal("release migration configuration rejected")
 		}
 	}
+	if len(arguments) > 0 && arguments[0] == "agent-ownership-write-profile-checksums" {
+		if len(arguments) != 1 || writeAgentOwnershipWriteChecksums(os.Stdout) != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+		return
+	}
+	if len(arguments) > 0 && agentOwnershipWriteProfileCommand(arguments[0]) {
+		if validateAgentOwnershipWriteCommand(arguments, os.Getenv) != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+	}
 	if len(arguments) > 0 && arguments[0] == "agent-read-profile-checksums" {
 		if len(arguments) != 1 || writeAgentReadChecksums(os.Stdout) != nil {
 			log.Fatal("release migration configuration rejected")
@@ -394,7 +405,7 @@ func main() {
 		}
 	}
 	if isForwardMigration(arguments) {
-		if authorizationProfileCommand(arguments[0]) || maintenanceProfileCommand(arguments[0]) || optionalEgressProfileCommand(arguments[0]) || retentionProfileCommand(arguments[0]) || environmentClassProfileCommand(arguments[0]) || agentOwnerFilterProfileCommand(arguments[0]) || agentReadProfileCommand(arguments[0]) || agentExposureFilterProfileCommand(arguments[0]) {
+		if authorizationProfileCommand(arguments[0]) || maintenanceProfileCommand(arguments[0]) || optionalEgressProfileCommand(arguments[0]) || retentionProfileCommand(arguments[0]) || environmentClassProfileCommand(arguments[0]) || agentOwnerFilterProfileCommand(arguments[0]) || agentReadProfileCommand(arguments[0]) || agentOwnershipWriteProfileCommand(arguments[0]) || agentExposureFilterProfileCommand(arguments[0]) {
 			registration.migration = os.Getenv(migrationPrincipalEnvironment)
 			if !databasePrincipalPattern.MatchString(registration.migration) {
 				err = errInvalidMigrationCommand
@@ -533,6 +544,9 @@ func registerForwardRelease(ctx context.Context, queryer principalQueryer, regis
 	}
 	if agentExposureFilterProfileCommand(arguments[0]) {
 		return agentExposureFilterPostInstall(ctx, queryer, registration.migration, arguments[0])
+	}
+	if agentOwnershipWriteProfileCommand(arguments[0]) {
+		return agentOwnershipWritePostInstall(ctx, queryer, registration.migration, arguments[0])
 	}
 	if agentReadProfileCommand(arguments[0]) {
 		return agentReadPostInstall(ctx, queryer, registration.migration, arguments[0])
@@ -945,6 +959,9 @@ func isForwardMigration(arguments []string) bool {
 	if len(arguments) == 1 && agentExposureFilterProfileCommand(arguments[0]) {
 		return true
 	}
+	if len(arguments) == 1 && agentOwnershipWriteProfileCommand(arguments[0]) {
+		return true
+	}
 	if len(arguments) == 1 && agentReadProfileCommand(arguments[0]) {
 		return true
 	}
@@ -1029,6 +1046,24 @@ func runReleaseMigration(ctx context.Context, runner releaseMigrationRunner, arg
 			return migrations.ErrInvalidState
 		}
 		return e.UpProductionAgentExposureFilterAuditProfile(ctx)
+	case "up-agent-ownership-write-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		e, ok := runner.(interface{ UpProductionAgentOwnershipWriteProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return e.UpProductionAgentOwnershipWriteProfile(ctx)
+	case "up-agent-ownership-write-audit-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		e, ok := runner.(interface{ UpProductionAgentOwnershipWriteAuditProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return e.UpProductionAgentOwnershipWriteAuditProfile(ctx)
 	case "up-agent-read-profile":
 		if version != 61 {
 			return migrations.ErrInvalidState

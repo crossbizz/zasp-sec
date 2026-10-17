@@ -131,6 +131,16 @@ func buildRuntimeDependenciesWithReadinessObserver(ctx context.Context, config R
 			return database.AgentExposureFilterProfileReady(ctx, config.AgentExposureFilterProfileChecksum)
 		}
 	}
+	if config.AgentOwnershipWriteProfileChecksum != "" {
+		bounded, cancel := context.WithTimeout(ctx, config.ProviderTimeout)
+		ready, readyErr := database.AgentOwnershipWriteProfileReady(bounded, config.AgentOwnershipWriteProfileChecksum)
+		cancel()
+		if readyErr != nil || !ready {
+			_ = database.Close()
+			_ = securityAgentDatabase.Close()
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("agent-ownership-write-profile", errRuntimeUnavailable)
+		}
+	}
 	if config.AgentReadProfileChecksum != "" {
 		bounded, cancel := context.WithTimeout(ctx, config.ProviderTimeout)
 		ready, readyErr := database.AgentReadProfileReady(bounded, config.AgentReadProfileChecksum)
@@ -385,6 +395,11 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 		_ = database.Close()
 		_ = securityAgentDatabase.Close()
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("agent-exposure-filter-profile", errRuntimeUnavailable)
+	}
+	if config.AgentOwnershipWriteProfileChecksum != "" && repository.RequireAgentOwnershipWriteProfile(config.AgentOwnershipWriteProfileChecksum) != nil {
+		_ = database.Close()
+		_ = securityAgentDatabase.Close()
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("agent-ownership-write-profile", errRuntimeUnavailable)
 	}
 	if config.AgentReadProfileChecksum != "" && repository.RequireAgentReadProfile(config.AgentReadProfileChecksum) != nil {
 		_ = database.Close()
@@ -737,6 +752,15 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 			if config.AgentExposureFilterProfileChecksum != "" {
 				checks = append(checks, func(probe context.Context) error {
 					ready, err := database.AgentExposureFilterProfileReady(probe, config.AgentExposureFilterProfileChecksum)
+					if err != nil || !ready {
+						return errRuntimeUnavailable
+					}
+					return nil
+				})
+			}
+			if config.AgentOwnershipWriteProfileChecksum != "" {
+				checks = append(checks, func(probe context.Context) error {
+					ready, err := database.AgentOwnershipWriteProfileReady(probe, config.AgentOwnershipWriteProfileChecksum)
 					if err != nil || !ready {
 						return errRuntimeUnavailable
 					}
