@@ -46,8 +46,8 @@ describe("M2 identity and authorization milestone closure", () => {
     expect(scopeView).toContain("client ? createScopeAdminAPI(client)");
     expect(tokenView).not.toContain("createAPIClient()");
     expect(scopeView).not.toContain("createAPIClient()");
-    expect(map.match(/availability: planned/g)).toHaveLength(2);
-    expect(map.match(/availability: available/g)).toHaveLength(147);
+    expect(map.match(/availability: planned/g) ?? []).toHaveLength(0);
+    expect(map.match(/availability: available/g)).toHaveLength(149);
     expect(map.match(/availability: api_available/g)).toHaveLength(15);
     expect(readme).toContain("M2-01 through M2-50 and the M2-47 gate are Complete");
     expect(readme).toContain("M2 gate: PASS");

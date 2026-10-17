@@ -97,7 +97,7 @@ const expectedMap: MapDocument = {
         { id: "update_finding", operation_id: "updateFinding", availability: "available" },
         { id: "accept_finding_risk", operation_id: "acceptFindingRisk", availability: "available" },
         { id: "create_finding_ticket", operation_id: "createFindingTicket", availability: "available" },
-        { id: "create_ai_explanation", operation_id: "createAIExplanation", availability: "planned" },
+        { id: "create_ai_explanation", operation_id: "createAIExplanation", availability: "available" },
       ],
     },
     {
@@ -274,7 +274,7 @@ const expectedMap: MapDocument = {
       label: "External Data Flows",
       actions: [
         { id: "view_external_data_flows", operation_id: "getExternalDataFlows", availability: "available" },
-        { id: "update_external_data_flows", operation_id: "updateExternalDataFlows", availability: "planned" },
+        { id: "update_external_data_flows", operation_id: "updateExternalDataFlows", availability: "available" },
       ],
     },
   ],
