@@ -727,7 +727,7 @@ describe("production workflow concurrency contract", () => {
         if (operation?.operationId) operations.set(operation.operationId, { path, method, operation });
       }
     }
-    assert.equal(operations.size, 162);
+    assert.equal(operations.size, 164);
     for (const operationId of ["getSingleTestCleanupRecovery", "requestSingleTestCleanupRecovery"]) {
       assert.ok(operations.has(operationId), operationId);
     }
@@ -744,7 +744,46 @@ describe("production workflow concurrency contract", () => {
       assert.ok(operations.has(operationId), operationId);
     }
     for (const operationId of ["simulatePolicy", "listPolicyDecisions"]) assert.ok(operations.has(operationId), operationId);
-    assert.equal(operations.has("createAIExplanation"), false, "createAIExplanation");
+    for (const [id, path, method, input, output, parameters] of [
+      ["createAIExplanation", "/api/v1/ai/explanations", "post", "AIExplanationInput", "AIExplanation", ["CSRFToken", "IdempotencyKey"]],
+      ["updateExternalDataFlows", "/api/v1/settings/external-data-flows", "patch", "ExternalFlowUpdate", "ExternalFlowMutation", ["CSRFToken", "FreshAuth", "IdempotencyKey"]],
+    ]) {
+      const mounted = operations.get(id);
+      assert.ok(mounted, id);
+      assert.equal(mounted.path, path);
+      assert.equal(mounted.method, method);
+      assert.deepEqual(mounted.operation.security, [{ BrowserSession: [], BrowserExpectedScope: [] }]);
+      assert.deepEqual(mounted.operation.parameters, parameters.map(name => ({ $ref: `#/components/parameters/${name}` })));
+      assert.deepEqual(mounted.operation.requestBody, { required: true, content: { "application/json": { schema: { $ref: `#/components/schemas/${input}` } } } });
+      assert.deepEqual(Object.keys(mounted.operation.responses).sort(), ["200", "401", "default"]);
+      assert.deepEqual(mounted.operation.responses["200"].content, { "application/json": { schema: { $ref: `#/components/schemas/${output}` } } });
+    }
+    const intentKey = { type: "string", minLength: 16, maxLength: 128, pattern: "^[A-Za-z0-9][A-Za-z0-9_.:-]{15,127}$" };
+    const findingVersion = { type: "integer", minimum: 1, maximum: 1000000 };
+    assert.deepEqual(document.components.schemas.AIExplanationInput, {
+      type: "object", additionalProperties: false, required: ["finding_id", "finding_version", "idempotency_key"],
+      properties: { finding_id: { $ref: "#/components/schemas/ProductID" }, finding_version: findingVersion, idempotency_key: intentKey },
+    });
+    assert.deepEqual(document.components.schemas.ExternalFlowUpdate, {
+      type: "object", additionalProperties: false, required: ["flow_id", "enabled", "expected_version", "idempotency_key"],
+      properties: {
+        flow_id: { type: "string", enum: ["posthog", "openrouter", "remote-otlp"] }, enabled: { type: "boolean" },
+        expected_version: { type: "integer", minimum: 1, maximum: 100000000000000 }, idempotency_key: intentKey,
+      },
+    });
+    const explanation = document.components.schemas.AIExplanation;
+    assert.equal(explanation.additionalProperties, false);
+    assert.deepEqual(explanation.required, ["request_id", "state", "result_retained", "source", "sent_fields"]);
+    assert.deepEqual(explanation.properties.result_retained, { const: false });
+    assert.deepEqual(explanation.properties.source, {
+      type: "object", additionalProperties: false, required: ["finding_id", "finding_version"],
+      properties: { finding_id: { $ref: "#/components/schemas/ProductID" }, finding_version: findingVersion },
+    });
+    assert.deepEqual(explanation.properties.sent_fields, {
+      type: "array", minItems: 3, maxItems: 3, prefixItems: [{ const: "rule" }, { const: "severity" }, { const: "evidence_count" }], items: false,
+    });
+    assert.deepEqual(Object.keys(explanation.properties).sort(), ["explanation", "recommendation", "request_id", "result_retained", "sent_fields", "source", "state"]);
+    for (const field of ["explanation", "recommendation"]) assert.deepEqual(explanation.properties[field], { type: "string", minLength: 1, maxLength: 2048 });
 
     const simulatePolicy = operations.get("simulatePolicy").operation;
     assert.equal(operations.get("simulatePolicy").method, "post");

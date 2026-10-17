@@ -54,7 +54,7 @@ M1	M1-19	Complete	production-available	PROD-current-composition	audited shipped 
 M1	M1-20	Complete	production-available	PROD-current-composition	audited shipped composition: AI gateway contract
 M1	M1-21	Complete	production-available	PROD-current-composition	audited shipped composition: observability contract
 M1	M1-22	Complete	production-available	T04-discovery-worker	production evidence: event envelope; verified by Task 4 source/deploy review and focused race/release gates
-M1	M1-23	Complete	production-available	PROD-current-composition	audited shipped composition: OpenAPI root
+M1	M1-23	Complete	production-available	PROD-current-composition	audited shipped composition: OpenAPI root; 2026-10-17 component contract verification: 164 already-mounted operations, 45 OpenAPI checks pass, official generation/check and UI typecheck/build pass; no deployed acceptance promotion; docs/internal/cloud-github-and-mounted-api-component-checkpoint-2026-10-17.json
 M1	M1-24	Complete	production-available	PROD-current-composition	audited shipped composition: generated TS client
 M1	M1-25	Complete	production-available	PROD-current-composition	audited shipped composition: UI API map seed
 M1	M1-26	Complete	production-available	PROD-current-composition	audited shipped composition: UI API coverage CI
@@ -77,7 +77,7 @@ M1	M1-34	Complete	component-only	T04-discovery-worker	audited component-only pro
 M1	M1-35	Complete	production-available	PROD-current-composition	audited shipped composition: base web shell
 M1	M1-36a	Complete	production-available	PROD-current-composition	audited shipped composition: M1 build check
 M1	M1-36b	Complete	production-available	PROD-current-composition	audited shipped composition: M1 schema check
-M1	M1-36c	Complete	production-available	PROD-current-composition	audited shipped composition: M1 OpenAPI check
+M1	M1-36c	Complete	production-available	PROD-current-composition	audited shipped composition: M1 OpenAPI check; 2026-10-17 component contract verification: stale mounted-operation assertions corrected, original blanket vendor guard retained, official generated-client check and 45 contract checks pass; full hosted verification pending; docs/internal/cloud-github-and-mounted-api-component-checkpoint-2026-10-17.json
 M1	M1-36d	Complete	production-available	PROD-current-composition	audited shipped composition: M1 UI API coverage check
 M1	M1-36e	Complete	component-only	T04-discovery-worker	audited component-only proof: M1 local infrastructure smoke
 M1	M1-37	Complete	production-available	PROD-current-composition	audited shipped composition: deployment mode config
@@ -195,7 +195,7 @@ M3	M3-15	Complete	production-available	T04-discovery-worker	production evidence:
 M3	M3-16	Complete	production-available	T04-discovery-worker	production evidence: bounded Prowler process output persists canonical finding and version-pinned artifact evidence without credential echo in the combined discovery gate at 1f2031f
 M3	M3-17	Complete	production-available	T04-discovery-worker	production evidence: multi-region AWS inventory and security sources normalize stable account, role, policy, resource, and evidence relationships under exact tenant scope at 1f2031f
 M3	M3-18	Complete	production-available	T04-discovery-worker	production evidence: all Kubernetes launch phases normalize cluster, namespace, service-account, RBAC, workload, and posture relationships with exact cursor lineage at 1f2031f
-M3	M3-19	Complete	production-available	T04-discovery-worker	production evidence: GitHub installation, repository, workflow, environment, permission, and identity relationships pass exact subject-bound pagination and resume gates at 1f2031f
+M3	M3-19	Complete	production-available	T04-discovery-worker	production evidence: GitHub installation, repository, workflow, environment, permission, and identity relationships pass exact subject-bound pagination and resume gates at 1f2031f; 2026-10-17 component correction: bounded GitHub metadata readiness accepts captured public HTTP200 response and retains negative refusal contracts; 41 package checks pass including one private captured-body overlay; production constructor reachability and installation/tenant authority remain unverified; docs/internal/cloud-github-and-mounted-api-component-checkpoint-2026-10-17.json
 M3	M3-20	Complete	production-available	T04-discovery-worker	production evidence: Okta users, groups, applications, assignments, roles, and service principals normalize with exact issuer/subject scope and cursor lineage at 1f2031f
 M3	M3-21	Complete	production-available	T04-discovery-worker	production evidence: integration freshness; verified by Task 4 source/deploy review and focused race/release gates
 M3	M3-22a	Complete	production-available	T03-launch-connectors	production Nango runs as an exact-pinned private two-replica service with no ingress and product-only admission

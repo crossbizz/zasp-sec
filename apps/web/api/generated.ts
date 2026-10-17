@@ -2256,7 +2256,7 @@ export type paths = {
         readonly head?: never;
         /**
          * Change an optional destination under the current tenant policy
-         * @description Required Stytch and PostgreSQL dependencies cannot be disabled. Enabling an optional destination requires its installed adapter and a current approved server profile. Disable fences subsequent governed dispatches; already admitted requests may finish.
+         * @description Required identity and PostgreSQL dependencies cannot be disabled. Enabling an optional destination requires its installed adapter and a current approved server profile. Disable fences subsequent governed dispatches; already admitted requests may finish.
          */
         readonly patch: operations["updateExternalDataFlows"];
         readonly trace?: never;

@@ -99,7 +99,21 @@ test("exports the mounted Security Agent, red team, Attack Lab, and policy evide
     assert.match(generated, new RegExp(`\\b${operationId}:`), operationId);
   }
   for (const operationId of ["simulatePolicy", "listPolicyDecisions"]) assert.match(generated, new RegExp(`\\b${operationId}:`), operationId);
-  assert.doesNotMatch(generated, /\bcreateAIExplanation:/, "createAIExplanation");
+  for (const [operationId, input, output, fresh] of [
+    ["createAIExplanation", "AIExplanationInput", "AIExplanation", false],
+    ["updateExternalDataFlows", "ExternalFlowUpdate", "ExternalFlowMutation", true],
+  ]) {
+    const start = generated.indexOf(`readonly ${operationId}:`);
+    const end = generated.indexOf("readonly responses:", start);
+    assert.notEqual(start, -1, operationId);
+    const parameters = generated.slice(start, end);
+    assert.match(parameters, /readonly "X-CSRF-Token": components\["parameters"\]\["CSRFToken"\]/);
+    assert.match(parameters, /readonly "Idempotency-Key": components\["parameters"\]\["IdempotencyKey"\]/);
+    if (fresh) assert.match(parameters, /readonly "X-Zasp-Fresh-Auth": components\["parameters"\]\["FreshAuth"\]/);
+    assert.ok(parameters.includes(`readonly "application/json": components["schemas"]["${input}"]`), `${operationId} closed request`);
+    const responses = generated.slice(end, generated.indexOf("readonly default:", end));
+    assert.ok(responses.includes(`readonly "application/json": components["schemas"]["${output}"]`), `${operationId} bounded response`);
+  }
   const simulatePolicyStart = generated.indexOf("readonly simulatePolicy:");
   const simulatePolicyEnd = generated.indexOf("readonly responses:", simulatePolicyStart);
   assert.notEqual(simulatePolicyStart, -1);
