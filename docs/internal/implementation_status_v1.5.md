@@ -2,6 +2,13 @@
 
 ## Current continuation, October 17, 2026
 
+Hosted run `39017288925` at exact `e04df7d9` passes compilation, connected
+preflight/CLI/catalog checks and selected-node adapter/sensor application jobs.
+All 407 source bindings match that commit. Metadata does not establish inner
+hosted case/skip counts or native/provider/deployed acceptance. Earlier pending
+checkpoints remain unchanged; no original task is promoted. See
+`cloud-connected-preflight-sensor-hosted-checkpoint-2026-10-17.json`.
+
 Connected AWS authorization preflight now checks the original compiled 38 IRSA
 and three service-role inventory, EKS private endpoint identity, OIDC trust and
 current Kubernetes ServiceAccount/selected Pod specification. Actual credentials
