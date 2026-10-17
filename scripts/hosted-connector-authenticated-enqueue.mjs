@@ -899,7 +899,7 @@ const pins = {
   "services/gatewaypodidentity/publisher.go": "7e681f4bdf3fa41beb6f0326576c0cd53870eec4cd5cc791bce9474ada8cd022",
   "services/gatewaypodidentity/publisher_linux.go": "a459d848a6a69e5b8969859380cde43694774c29a3763a7d29815ffbdc3ab68b",
   "services/gatewaypodidentity/publisher_other.go": "bd6ecaea1888de9d386ef0f40e2a405ebf15bfd6cf96435628d3fc69e6c04d59",
-  "services/gatewaypodidentity/publisher_test.go": "2f82979afb51270a4b7f1610a55f725b001d848b7d61680404bd378d3835dff0",
+  "services/gatewaypodidentity/publisher_test.go": "b9f5976495b53eca680feb1d5166fa31d818f5df0064512d994a2b1b02467a86",
   "deploy/production/gateway-reviewer-publisher.Dockerfile": "68be38973238b7062e1e1a16ec2a62ecdeaf01d042fb8b3286a2c487758f87d1",
   "deploy/production/gateway-reviewer-publisher.Dockerfile.dockerignore": "f0afa2635ed8eaa2b2675ce271d76003038bbfb61659d192d98b486abfeacd0f"
 };

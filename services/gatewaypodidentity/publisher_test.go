@@ -20,6 +20,11 @@ type publisherFixture struct {
 func newPublisherFixture(t *testing.T) *publisherFixture {
 	t.Helper()
 	f := &publisherFixture{config: PublisherConfig{SourceDirectory: t.TempDir(), SourceName: "reviewer-token", DestinationDirectory: t.TempDir(), PollInterval: 250 * time.Millisecond, MinimumRemainingLifetime: 5 * time.Second}}
+	// Go's inner test temp directories honor the process umask. Provision the
+	// positive fixture's required private namespace explicitly, as operators do.
+	if e := os.Chmod(f.config.DestinationDirectory, 0700); e != nil {
+		t.Fatal(e)
+	}
 	if e := os.Symlink("..data/reviewer-token", filepath.Join(f.config.SourceDirectory, "reviewer-token")); e != nil {
 		t.Fatal(e)
 	}
