@@ -355,7 +355,7 @@
     },
     {
       "path": "services/platform/agentsec-migrate/main.go",
-      "sha256": "673529ddb4aa4e51bed487edd228b95f206957f9599089922b33e7acde4e7c2e",
+      "sha256": "19c0b192ab81b04c6ff0487fb93c7b6fa566a39a1cd82dcf5f8c44bfd3807426",
       "bytes": 72738,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
@@ -390,14 +390,14 @@
     },
     {
       "path": "scripts/hosted-connected-connector-acceptance.mjs",
-      "sha256": "9a94bc0dbce89d5acefac33e52824ce61ff77e878147c12698b60ff83e4cff81",
+      "sha256": "528f36459555a46b4afb1e75c8d77a6044e5bdbaef2305b388b21da6f3244936",
       "bytes": 58432,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
-      "sha256": "a55feaf4ebf1d35951fbe908e9810719ebbcc8c3b5e2776a9353b0b01b28333e",
+      "sha256": "705051059683e6be0543f8bb27f42668ea70df060e72666ee044ae2d1773a0ea",
       "bytes": 55050,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
@@ -1372,8 +1372,8 @@
       "path": "services/platform/migrations/sql/optional_egress_profile.sql",
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null,
-      "sha256": "408be53b7c2ea4725191eb94524d0b5fa0e883ef0c68c61f3a31c87e2c51cfcd",
-      "bytes": 54835
+      "sha256": "887f93fc0d986ee649cd9fb48d5016142a89e539c1df0f5b3c7aedd2d5865b31",
+      "bytes": 54837
     },
     {
       "path": "services/platform/optionalegress/contract.go",

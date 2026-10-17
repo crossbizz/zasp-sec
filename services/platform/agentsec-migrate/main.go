@@ -192,14 +192,6 @@ type releaseMigrationRunner interface {
 }
 
 func main() {
-	signalCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
-	timeout, err := loadMigrationTimeout(os.Getenv)
-	if err != nil {
-		log.Fatal("release migration configuration rejected")
-	}
-	ctx, cancel := context.WithTimeout(signalCtx, timeout)
-	defer cancel()
 	arguments := os.Args[1:]
 	if len(arguments) > 0 && arguments[0] == "optional-egress-profile-checksums" {
 		if len(arguments) != 1 {
@@ -210,6 +202,14 @@ func main() {
 		}
 		return
 	}
+	signalCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+	timeout, err := loadMigrationTimeout(os.Getenv)
+	if err != nil {
+		log.Fatal("release migration configuration rejected")
+	}
+	ctx, cancel := context.WithTimeout(signalCtx, timeout)
+	defer cancel()
 	var optionalEgressRegistration *optionalEgressOperatorInput
 	if len(arguments) > 0 && optionalEgressOperatorCommand(arguments[0]) {
 		optionalEgressRegistration, err = loadOptionalEgressOperator(arguments, os.Getenv)
