@@ -316,7 +316,7 @@ function ConnectedInventory({ title, category, values, api, initialDetailID, can
         <Button disabled={!page.next || ownershipLocked} onClick={() => changePage(page.onNext)}>Next page</Button>
       </nav>
     </>}
-    {visible && <Card>{rows.length === 0 ? <p>No records in this scope.</p> : <div className="table-scroll"><table className="data-table"><thead><tr><th>Name</th><th>Owner</th><th>Freshness</th><th>Last seen</th></tr></thead><tbody>{rows.map((item) => <tr key={item.id}><td><button className="row-title" aria-label={`Open ${item.name}`} disabled={ownershipLocked} onClick={() => open(item)}>{item.name}</button></td><td>{item.owner || "Unowned"}</td><td>{item.freshness_state}</td><td>{item.last_seen}</td></tr>)}</tbody></table></div>}</Card>}
+    {visible && <Card>{rows.length === 0 ? <p>No records in this scope.</p> : <div className="table-scroll"><table className="data-table"><thead><tr><th>Name</th><th>Owner</th><th>Freshness</th><th>Last seen</th></tr></thead><tbody>{rows.map((item) => <tr key={item.id}><td><button className="row-title" aria-label={`Open ${item.name}`} disabled={ownershipLocked} onClick={() => open(item)}>{item.name}</button></td><td>{item.owner || "Unowned"}</td><td>{category === "agent" ? sourceFreshnessLabel(item.freshness_state) : item.freshness_state}</td><td>{category === "agent" ? <time dateTime={item.last_seen}>{item.last_seen}</time> : item.last_seen}</td></tr>)}</tbody></table></div>}</Card>}
     {pendingDetail && <Drawer open title="Ownership change pending" closeDisabled onClose={close}>
       <p role="status">The ownership response is unconfirmed. Retry retains the exact change while this scope remains authorized.</p>
       {mutationError && <p role="alert">{mutationError}</p>}
@@ -331,12 +331,31 @@ function ConnectedInventory({ title, category, values, api, initialDetailID, can
           <Button disabled={saving} onClick={() => void save()}>{pending ? "Retry ownership change" : "Save ownership"}</Button>
         </section>}
         {mutationError && <p role="alert">{mutationError}</p>}
-        <h3>Evidence and freshness</h3><p>{selected.summary.evidence_id} · observed {selected.summary.observed_at} · {selected.summary.freshness_state}</p>
+        <h3>Evidence and freshness</h3>{category === "agent" ? <p>{selected.summary.evidence_id} · observed <time dateTime={selected.summary.observed_at}>{selected.summary.observed_at}</time> · {sourceFreshnessLabel(selected.summary.freshness_state)} · source expiry <time dateTime={selected.summary.fresh_until}>{selected.summary.fresh_until}</time></p> : <p>{selected.summary.evidence_id} · observed {selected.summary.observed_at} · {selected.summary.freshness_state}</p>}
         <h3>Source authority</h3><p>{selected.sources.length} source observation{selected.sources.length === 1 ? "" : "s"} · confidence {selected.summary.confidence_basis_points / 100}%</p>
+        {category === "agent" && <InventorySourceEvidence detail={selected} />}
         {category === "agent" && agentContext && <AgentContextDetail value={agentContext} />}
       </div>
     </Drawer>}
   </div>;
+}
+
+function sourceFreshnessLabel(state: InventorySummary["freshness_state"]): string {
+  return state === "fresh" ? "Source fresh at last API read" : "Source stale at last API read";
+}
+
+function InventorySourceEvidence({ detail }: { detail: InventoryDetail }) {
+  return <section aria-label="Inventory source evidence">
+    <h3>Inventory source evidence</h3>
+    <p>Source observations and expiry timestamps from this inventory read.</p>
+    <div className="table-scroll"><table className="data-table"><thead><tr><th>Selection</th><th>Provider</th><th>Source</th><th>Observed</th><th>Expires</th><th>Snapshot</th><th>Generation</th><th>Evidence</th></tr></thead>
+      <tbody>{detail.sources.map(source => <tr key={`${source.integration_id}/${source.provider}/${source.source}/${source.source_identifier}`}>
+        <td>{source.winning ? "Winning source" : "Additional source"}</td><td>{source.provider}</td><td>{source.source}</td>
+        <td><time dateTime={source.observed_at}>{source.observed_at}</time></td><td><time dateTime={source.fresh_until}>{source.fresh_until}</time></td>
+        <td><code>{source.snapshot_id}</code></td><td>{source.generation}</td><td><code>{source.evidence_id}</code></td>
+      </tr>)}</tbody>
+    </table></div>
+  </section>;
 }
 
 async function loadAgentContext(api: ProductionAgentSecurityAPI, id: string, signal?: AbortSignal): Promise<AgentContext> {
@@ -350,7 +369,7 @@ async function loadAgentContext(api: ProductionAgentSecurityAPI, id: string, sig
 
 function AgentContextDetail({ value }: { value: AgentContext }) {
   const blocked = value.capabilities.filter((capability) => capability.state === "blocked");
-  return <><h3>Effective capabilities</h3>{value.capabilities.length === 0 ? <p>No capability evidence recorded.</p> : <ul>{value.capabilities.map((capability) => <li key={`${capability.category}/${capability.target_id}/${capability.outcome}`}>{capability.category} · {capability.state} · {capability.outcome} <code>{capability.target_id}</code> · evidence {capability.evidence_ids.map((id) => <code key={id}>{id}</code>)}</li>)}</ul>}<h3>Relationships</h3>{value.relationships.length === 0 ? <p>No Agent relationships recorded.</p> : <ul>{value.relationships.map((relationship) => <li key={relationship.id}>{relationship.type} · <code>{relationship.from_id}</code> → <code>{relationship.to_id}</code> · evidence <code>{relationship.evidence_id}</code></li>)}</ul>}<h3>Sessions</h3>{value.sessions.length === 0 ? <p>No observed sessions.</p> : <ul>{value.sessions.map((session) => <li key={session.id}><code>{session.id}</code> · started {session.started_at}</li>)}</ul>}<h3>Runtime policy coverage</h3><p>{blocked.length === 0 ? "No blocking capability evidence is active." : `${blocked.length} capability ${blocked.length === 1 ? "is" : "are"} covered by active blocking evidence.`}</p></>;
+  return <><h3>Effective capabilities</h3>{value.capabilities.length === 0 ? <p>No capability evidence recorded.</p> : <ul>{value.capabilities.map((capability) => <li key={`${capability.category}/${capability.target_id}/${capability.outcome}`}>{capability.category} · {capability.state} · {capability.outcome} <code>{capability.target_id}</code> · evidence {capability.evidence_ids.map((id) => <code key={id}>{id}</code>)}</li>)}</ul>}<h3>Relationships</h3>{value.relationships.length === 0 ? <p>No Agent relationships recorded.</p> : <ul>{value.relationships.map((relationship) => <li key={relationship.id}>{relationship.type} · <code>{relationship.from_id}</code> → <code>{relationship.to_id}</code> · evidence <code>{relationship.evidence_id}</code></li>)}</ul>}<h3>Sessions</h3>{value.sessions.length === 0 ? <p>No observed sessions.</p> : <ul>{value.sessions.map((session) => <li key={session.id}><code>{session.id}</code> · started {session.started_at}</li>)}</ul>}<h3>Recorded blocking capability evidence</h3><p>{blocked.length === 0 ? "No blocking capability evidence recorded." : `${blocked.length} recorded blocking ${blocked.length === 1 ? "capability" : "capabilities"}.`}</p><h3>Runtime policy coverage</h3><p>Policy coverage unavailable</p><h3>Runtime sensor coverage</h3><p>Runtime sensor coverage unavailable</p></>;
 }
 
 const PRODUCT_ID = /^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
