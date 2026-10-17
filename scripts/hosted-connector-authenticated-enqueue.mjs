@@ -124,7 +124,7 @@ const pins = {
   "services/platform/apiserver/composition_test.go": "2541f7646a2b15e29d7438675eb2bd8d857b560240d13b63d52c6133188a347f",
   "services/platform/apiserver/optional_egress_handler.go": "cac826d2e545ae6c198c1f9aba191429fdf55e7cda0fc4938a6cfd3c0206d97d",
   "services/platform/apiserver/optional_egress_handler_test.go": "40f8920127b0f6f441ce65d1679f6bb7bd6a82f4c79ff0fbad80dfefcde10911",
-  "services/platform/apiserver/optional_egress_native_postgres_test.go": "47a888587eeba70839df2d41a82418d305a17283d084f32bfe7795d67b89ff40",
+  "services/platform/apiserver/optional_egress_native_postgres_test.go": "e169e86f5c4f9eb092ce3dbc75256a84c2829f85a95424291ef49e1907ed9c17",
   "services/platform/apiserver/optional_egress_repository.go": "b69bca265a600b1f1b47f680b4e50cccb0889a38498fd3bddce8259048af795c",
   "services/platform/apiserver/optional_egress_repository_test.go": "9dbf6142153eddd2bd472e918a7638e8649a0afa2048798291b6d6b6e0e544d5",
   "services/platform/authorization/identity_attestation.go": "71d040a8b9b961745bdf0abc9b6902b45756c2da0c54b84fd0d3f1b04650fbb7",

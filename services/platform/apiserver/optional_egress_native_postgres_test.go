@@ -278,10 +278,13 @@ func TestOptionalEgressCurrentAuditNativePostgres(t *testing.T) {
 		var catalog struct {
 			Items []struct {
 				ID         string   `json:"id"`
+				Name       string   `json:"name"`
 				Required   bool     `json:"required"`
 				Enabled    bool     `json:"enabled"`
 				Version    int64    `json:"version"`
 				Categories []string `json:"categories"`
+				Available  bool     `json:"available"`
+				Health     string   `json:"health"`
 			} `json:"items"`
 		}
 		if err := repo.query(ctx, mustProof(t, "getExternalDataFlows"), "catalog", scope, &catalog); err != nil || len(catalog.Items) != 5 {

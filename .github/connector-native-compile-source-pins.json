@@ -390,14 +390,14 @@
     },
     {
       "path": "scripts/hosted-connected-connector-acceptance.mjs",
-      "sha256": "528f36459555a46b4afb1e75c8d77a6044e5bdbaef2305b388b21da6f3244936",
+      "sha256": "86c1401e137ad23d8d19de091ac4b54138fd8e94b5b1194195f7257c45da1fec",
       "bytes": 58432,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
-      "sha256": "705051059683e6be0543f8bb27f42668ea70df060e72666ee044ae2d1773a0ea",
+      "sha256": "8435b37ba2b44a60250e009c0fc4023a6d93aac9e2dfbd4a44f9ac5760dfe072",
       "bytes": 55050,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
@@ -1029,8 +1029,8 @@
       "path": "services/platform/apiserver/optional_egress_native_postgres_test.go",
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null,
-      "sha256": "47a888587eeba70839df2d41a82418d305a17283d084f32bfe7795d67b89ff40",
-      "bytes": 28744
+      "sha256": "e169e86f5c4f9eb092ce3dbc75256a84c2829f85a95424291ef49e1907ed9c17",
+      "bytes": 28865
     },
     {
       "path": "services/platform/apiserver/optional_egress_repository.go",
