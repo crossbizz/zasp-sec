@@ -383,22 +383,22 @@
     },
     {
       "path": "scripts/connector-acceptance-groups.test.mjs",
-      "sha256": "5a5e69bad628ad55f0183b7b27663eafcc70f8b8153836ab6992cb21f64f8925",
-      "bytes": 83052,
+      "sha256": "448eba82f95329b1b0bec7f80d64fa975e5f33a9008cbf97573b12c8830d994a",
+      "bytes": 83819,
       "currentBasePreimageSHA256": "a1622a9417e9fe4d62c2aed82bcf5f7f3e11dce841d802bf005b29d54405d388",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connected-connector-acceptance.mjs",
-      "sha256": "ae164627ca0b7a5b97e373fd21b329e2c7305ef587c92e6e538aa7efa5c6f0e1",
-      "bytes": 149113,
+      "sha256": "73480a45e9e0d6c3c2de3c98ae73dc7e525add45e901de49246b3f6b2eacb455",
+      "bytes": 150900,
       "currentBasePreimageSHA256": "f248c6d9182ca08cb518cd54c620844c987f4ae723a38badb463c59e010db578",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
-      "sha256": "a371bd07112694b0c713cb5a4a47dfb154a71513486eedf1dee8842e8a4c9d69",
-      "bytes": 145629,
+      "sha256": "71e9cfd4f572bd730f918b3861a1bd0d423b9bb73de0c2349c665d2516837e14",
+      "bytes": 147416,
       "currentBasePreimageSHA256": "e66722e4daf5b1482c253d1f14b4c533c329fde202252c16f87ad3e0130e8524",
       "historicalPreimageSHA256": null
     },
@@ -5108,7 +5108,7 @@
     },
     {
       "path": ".github/workflows/connector-native-draft-compile.yml",
-      "sha256": "d61da1e5eba751b01947063d88f8515b905b45dc05f9c09d30c8845a73f636a0",
+      "sha256": "eab30e4c66adc550fecebb9ec8c2e0f1798f930ab4096b23c28d7722125891c2",
       "bytes": 190703,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
@@ -5871,8 +5871,8 @@
     },
     {
       "path": "package.json",
-      "sha256": "0dd4697c7feb7a59a83be241ec4f71de74941400d16537fafceb80716eeb8198",
-      "bytes": 17607,
+      "sha256": "d5f171cfb0218ca78e01f3cf292516c14fc9dc76af6b78a066a700dd170aa08a",
+      "bytes": 17548,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -6316,6 +6316,111 @@
       "bytes": 33481,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
+    },
+    {
+      "path": ".github/workflows/dependency-process-cleanup-components.yml",
+      "sha256": "638d547c4a022f32448d85559dd78e66b8dad56e046c33457948700c7070cff8",
+      "bytes": 8820,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "apps/web/package.json",
+      "sha256": "dfe98b1f4c6dae13c78206677c067c286015edc8b173e954888052802aa9c982",
+      "bytes": 173,
+      "currentBasePreimageSHA256": "dfe98b1f4c6dae13c78206677c067c286015edc8b173e954888052802aa9c982",
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "scripts/dependency-esbuild-regression.test.mjs",
+      "sha256": "e95dbf56f6b30313954ff6a4d3a5780a1a03026d81d83152148019717ec692d9",
+      "bytes": 4703,
+      "currentBasePreimageSHA256": "e95dbf56f6b30313954ff6a4d3a5780a1a03026d81d83152148019717ec692d9",
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "scripts/dependency-parser-regression.test.mjs",
+      "sha256": "988e6e3fcf3ea32f6011f0ad305eeabaefbb37137a69eb01043683667c74e810",
+      "bytes": 2976,
+      "currentBasePreimageSHA256": "988e6e3fcf3ea32f6011f0ad305eeabaefbb37137a69eb01043683667c74e810",
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "scripts/fixtures/dependency-esbuild-regression-child.mjs",
+      "sha256": "2a456acd0302ea8563b4f22d7ddb7b5d5f207b96a67f1a5abd67605162971640",
+      "bytes": 5241,
+      "currentBasePreimageSHA256": "2a456acd0302ea8563b4f22d7ddb7b5d5f207b96a67f1a5abd67605162971640",
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "scripts/fixtures/dependency-parser-regression-child.mjs",
+      "sha256": "a76954cf906509d53af93e2f341e728e0f7f31af1abf366e75fa685f2fb679d8",
+      "bytes": 2639,
+      "currentBasePreimageSHA256": "a76954cf906509d53af93e2f341e728e0f7f31af1abf366e75fa685f2fb679d8",
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "scripts/run-dependency-regressions.py",
+      "sha256": "4836a9eb6c264a50375d9f172319e5e6930ea49416ca2f96a348d5fcb317fa4f",
+      "bytes": 15619,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "scripts/run-dependency-regressions.test.py",
+      "sha256": "abbcdc7f87c42be893738f5392e9181c07753cb8e48c1e6a0ddb886a3db8208a",
+      "bytes": 9020,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "workers/redteam-node/package.json",
+      "sha256": "0154258ebf954f4e1a6203e40bd3bba32308b35f34cb57ab2720828acae8f987",
+      "bytes": 292,
+      "currentBasePreimageSHA256": "0154258ebf954f4e1a6203e40bd3bba32308b35f34cb57ab2720828acae8f987",
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "workers/security-python/build-requirements.lock",
+      "sha256": "9415ac080e4169856325998ab71d3258c16c02a1d0d3cfa837bfca1290faa8db",
+      "bytes": 189,
+      "currentBasePreimageSHA256": "9415ac080e4169856325998ab71d3258c16c02a1d0d3cfa837bfca1290faa8db",
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "workers/security-python/cartography/pyproject.toml",
+      "sha256": "2196a1091fa23af6ba42e9ce5cc5542576006c4ec16569bd22e419b5a000a08e",
+      "bytes": 144,
+      "currentBasePreimageSHA256": "2196a1091fa23af6ba42e9ce5cc5542576006c4ec16569bd22e419b5a000a08e",
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "workers/security-python/cartography/requirements.lock",
+      "sha256": "18c72d58e8b054064e66aef990f9e35d398aae8b451f8d632a883a67ba97a164",
+      "bytes": 161275,
+      "currentBasePreimageSHA256": "18c72d58e8b054064e66aef990f9e35d398aae8b451f8d632a883a67ba97a164",
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "workers/security-python/prowler/pyproject.toml",
+      "sha256": "8f0a27588aeb356df7c5c0e80e3c62418e41fea72fe92033c0bdf5eeca889da9",
+      "bytes": 135,
+      "currentBasePreimageSHA256": "8f0a27588aeb356df7c5c0e80e3c62418e41fea72fe92033c0bdf5eeca889da9",
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "workers/security-python/prowler/requirements.lock",
+      "sha256": "bff5f5d116c0c0c8c8f6aff872348e804ef6cc5638ba0f113fccc0bafa51d83a",
+      "bytes": 219335,
+      "currentBasePreimageSHA256": "bff5f5d116c0c0c8c8f6aff872348e804ef6cc5638ba0f113fccc0bafa51d83a",
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "workers/security-python/pyproject.toml",
+      "sha256": "9250b52a161721e8933c1be193691d494a59c06fb7f2cd967ccfd22666451178",
+      "bytes": 227,
+      "currentBasePreimageSHA256": "9250b52a161721e8933c1be193691d494a59c06fb7f2cd967ccfd22666451178",
+      "historicalPreimageSHA256": null
     }
   ],
   "predecessorCheckpointSHA256": "364ada857d54ce83d678e00eb3d61d55c6a036d22cc1f7ebc9170432079ece05",
@@ -6349,5 +6454,8 @@
   "podIdentityComponentPredecessorManifestSHA256": "fbd88729a0e33d98c0d48203dc531b97de77ac456a9fa4346bb1ca1a64c4b684",
   "podIdentityDependencyIntegrationIntermediateManifestSHA256": "13ebd9535c4ffeacf9ea31700759cef6815dbe5b3fec46fafb328f51d915d0c1",
   "apiCompositionCompileRepairSourceAssociationBase": "ea4c011dc484089b0df01e40515ad2d3c19fc3de",
-  "apiCompositionCompileRepairPredecessorManifestSHA256": "7cf7b093a6b02128b3ad2781fda02ca1cb048ef386266f34fd685235a0fb5a15"
+  "apiCompositionCompileRepairPredecessorManifestSHA256": "7cf7b093a6b02128b3ad2781fda02ca1cb048ef386266f34fd685235a0fb5a15",
+  "scopedDependencyCleanupSourceAssociationBase": "27b5c93d5b6006216834233ae6ac66cf218bdb8f",
+  "scopedDependencyCleanupPredecessorManifestSHA256": "6cd38276accaf6c2eb4c16d0fe459d4ea9553985b50523bd2e3a64c14fb5f9b7",
+  "scopedDependencyCleanupCIParserPredecessorManifestSHA256": "9efd3de468cde38d4156e7bae4d1255a7235c02f068fedc2272ea58f39819e4e"
 }

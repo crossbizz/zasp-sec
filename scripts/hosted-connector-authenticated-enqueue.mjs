@@ -733,7 +733,7 @@ const pins = {
   "services/platform/policy/gateway_cache_test.go": "d1a894f056788253b33801964cbeb171ad0cb67705d772526808ceed27aba786",
   "deploy/staging/product/templates/_gateway-installation.tpl": "9babf066a786a0c007206b99e579382caa9ac50d2eaa0803fb44b78d813fb655",
   "services/platform/gatewaycontrol/installation_test.go": "e57e80f019825d15997aeecaf7d4983a6143a8ccccc367b079e5abce01d328f7",
-  ".github/workflows/connector-native-draft-compile.yml": "d61da1e5eba751b01947063d88f8515b905b45dc05f9c09d30c8845a73f636a0",
+  ".github/workflows/connector-native-draft-compile.yml": "eab30e4c66adc550fecebb9ec8c2e0f1798f930ab4096b23c28d7722125891c2",
   "services/gateway-control/production_test.go": "255476e93ec22d7f2c4ec1d51ce730e352f0246dc5b15608ab5778abb9bb2a29",
   "services/runtime-gateway/production.go": "6ce7c2c72927ff16cc47dae63fa0eee728c5f4c7e14e217302a0680be65b8a36",
   "services/gateway-control/go.mod": "77d4922e3192e996ca9a0975b0bcd2d4711b18844e62f7ae82923cfb60df6995",
@@ -815,7 +815,7 @@ const pins = {
   "services/platform/gatewayenrollmentcustody/custody.go": "93a027e798199f7738ffb32ed34f9b1e8fce87b88bde3329b854fcd72e10c04f",
   "cmd/agentsecctl/gateway_enrollment.go": "e727c97304825905e5ead5107b2f2d61cbe51b5a838a7ffc47af3e869f3c2a69",
   "package-lock.json": "0e8b7fa1332878386816dd73ba0118fb8dfc8a414b7912f90e95f2dda8bae51c",
-  "package.json": "0dd4697c7feb7a59a83be241ec4f71de74941400d16537fafceb80716eeb8198",
+  "package.json": "d5f171cfb0218ca78e01f3cf292516c14fc9dc76af6b78a066a700dd170aa08a",
   "services/platform/migrations/sql/0015_runtime_data_plane.up.sql": "11c0b05a0a264ba9654c9646b18633c45469f495fa819b28b89e207aefc5ce9a",
   "cmd/agentsecctl/gateway_authority_recovery_test.go": "fc6fd7d29d54f05119176ae153caf3a1886dbe0a1e8e878c0a828bccd5f7b254",
   "services/platform/gatewayenrollmentwire/authority.go": "6695b2bca8b1871c2063603f35fd2bee8e9149be52f8bbcfe47ffdb7d8cd7e30",
@@ -878,12 +878,27 @@ const pins = {
   "services/gatewaypodidentity/go.mod": "181430e321f407f020922eaa24199661ff52e8739ff454ab96002ff343459f91",
   "scripts/validate-dependencies.test.mjs": "ab8cbab594057c16815e5183373fed16b20bcd6da9b79a6b57dac935ae035f60",
   "build/dependencies.lock.yaml": "c20764f58910d65c99ff84db6bec11b045f4928052e2091a4e76b03dde7773c0",
-  "scripts/validate-dependencies.mjs": "dafa938d6d2dbe4c74f15e3e8c971c72dcfee3541068001e61c0f6066227dd12"
+  "scripts/validate-dependencies.mjs": "dafa938d6d2dbe4c74f15e3e8c971c72dcfee3541068001e61c0f6066227dd12",
+  "workers/security-python/cartography/requirements.lock": "18c72d58e8b054064e66aef990f9e35d398aae8b451f8d632a883a67ba97a164",
+  "workers/security-python/prowler/pyproject.toml": "8f0a27588aeb356df7c5c0e80e3c62418e41fea72fe92033c0bdf5eeca889da9",
+  "scripts/dependency-esbuild-regression.test.mjs": "e95dbf56f6b30313954ff6a4d3a5780a1a03026d81d83152148019717ec692d9",
+  "scripts/fixtures/dependency-esbuild-regression-child.mjs": "2a456acd0302ea8563b4f22d7ddb7b5d5f207b96a67f1a5abd67605162971640",
+  "scripts/run-dependency-regressions.py": "4836a9eb6c264a50375d9f172319e5e6930ea49416ca2f96a348d5fcb317fa4f",
+  "apps/web/package.json": "dfe98b1f4c6dae13c78206677c067c286015edc8b173e954888052802aa9c982",
+  "scripts/run-dependency-regressions.test.py": "abbcdc7f87c42be893738f5392e9181c07753cb8e48c1e6a0ddb886a3db8208a",
+  "workers/security-python/prowler/requirements.lock": "bff5f5d116c0c0c8c8f6aff872348e804ef6cc5638ba0f113fccc0bafa51d83a",
+  "scripts/fixtures/dependency-parser-regression-child.mjs": "a76954cf906509d53af93e2f341e728e0f7f31af1abf366e75fa685f2fb679d8",
+  ".github/workflows/dependency-process-cleanup-components.yml": "638d547c4a022f32448d85559dd78e66b8dad56e046c33457948700c7070cff8",
+  "scripts/dependency-parser-regression.test.mjs": "988e6e3fcf3ea32f6011f0ad305eeabaefbb37137a69eb01043683667c74e810",
+  "workers/security-python/cartography/pyproject.toml": "2196a1091fa23af6ba42e9ce5cc5542576006c4ec16569bd22e419b5a000a08e",
+  "workers/redteam-node/package.json": "0154258ebf954f4e1a6203e40bd3bba32308b35f34cb57ab2720828acae8f987",
+  "workers/security-python/pyproject.toml": "9250b52a161721e8933c1be193691d494a59c06fb7f2cd967ccfd22666451178",
+  "workers/security-python/build-requirements.lock": "9415ac080e4169856325998ab71d3258c16c02a1d0d3cfa837bfca1290faa8db"
 };
 const top='TestConnectorMaintenanceAuthenticatedOAuthEnqueuePostgres';
 const cases=['genuine_same_transaction_origin_and_immutable_enrichment','rollback_removes_every_enqueue_and_provenance_write'];
 const helperPins={
-  "scripts/connector-acceptance-groups.test.mjs": "5a5e69bad628ad55f0183b7b27663eafcc70f8b8153836ab6992cb21f64f8925",
+  "scripts/connector-acceptance-groups.test.mjs": "448eba82f95329b1b0bec7f80d64fa975e5f33a9008cbf97573b12c8830d994a",
   "scripts/connector-acceptance-groups.mjs": "70da54d5a2eb61535af55afe53e944ca815550a0319943ffe1e46466f8b8cfd4",
   "docs/internal/evidence/cloud-2026-10-07/native-service-readiness/openfga/09-pg-non-glibc-libs-manifest.json": "96642e82997ffd2caf2893a5ecc0116ad2aef6e982df2d929f3efda4e04f3474",
   "services/platform/apiserver/authorization_integration_mutations_postgres_test.go": "5e4beb04b2409ad9b11b89c017ada5e2eccffd78a87bdd5692d40670f12a2ba0",

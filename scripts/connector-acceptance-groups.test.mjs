@@ -1014,7 +1014,22 @@ test('retention connected sources retain the complete declared application closu
   "services/gatewaypodidentity/verifier_test.go",
   "build/dependencies.lock.yaml",
   "scripts/validate-dependencies.mjs",
-  "scripts/validate-dependencies.test.mjs"
+  "scripts/validate-dependencies.test.mjs",
+  ".github/workflows/dependency-process-cleanup-components.yml",
+  "apps/web/package.json",
+  "scripts/dependency-esbuild-regression.test.mjs",
+  "scripts/dependency-parser-regression.test.mjs",
+  "scripts/fixtures/dependency-esbuild-regression-child.mjs",
+  "scripts/fixtures/dependency-parser-regression-child.mjs",
+  "scripts/run-dependency-regressions.py",
+  "scripts/run-dependency-regressions.test.py",
+  "workers/redteam-node/package.json",
+  "workers/security-python/build-requirements.lock",
+  "workers/security-python/cartography/pyproject.toml",
+  "workers/security-python/cartography/requirements.lock",
+  "workers/security-python/prowler/pyproject.toml",
+  "workers/security-python/prowler/requirements.lock",
+  "workers/security-python/pyproject.toml"
 ];
   const compiled = JSON.parse(relative('.github/connector-native-compile-source-pins.json'));
   const compilePins = new Map(compiled.sources.map(item => [item.path, item]));
