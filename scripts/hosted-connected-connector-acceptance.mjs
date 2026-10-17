@@ -484,11 +484,15 @@ const pins = {
   "services/platform/agentsec-migrate/authorization_runtime_worker_profile.go": "9aecbea5cf2be4576f50e43962d99054638c7a9f2f93ce88751d145bcdd83663",
   "services/platform/agentsec-migrate/temporal_confirmation_role_test.go": "e491bfba764e928dbe67d509fc736855d9382844072e77f290a71f60da51cfaa",
   "services/platform/agentsec-migrate/temporal_forward_readiness_cost_test.go": "8bbfe47cde47e294755ec38187bea72c98d36b95c162fc674bc787bcede391f4",
-  "services/platform/migrations/temporal_source_checksums.go": "1318b4a31393294667a521384c9ddfb3fc875d8f4493364e6f284cae80abae7d"
+  "services/platform/migrations/temporal_source_checksums.go": "1318b4a31393294667a521384c9ddfb3fc875d8f4493364e6f284cae80abae7d",
+  "services/platform/featureflags/featureflags.go": "93a085e25e5d90c20d8c9310933604e1978c5312b443bd1dcda8d24822779518",
+  "services/platform/featureflags/server_cache_test.go": "61daf2dbdb52c28bcf6546e06c52875e3ebb20d4997c38576f511fab05604155",
+  "services/platform/featureflags/server_cache_clock_test.go": "6398dd9ff20eaf271507d5306890095a59efb351a166435b80e83cfb31cfea37",
+  "services/platform/featureflags/featureflags_test.go": "cb9c002409392ba19b090f8d4e20148f4db2f59c363b0e98f44852ffcdccdf7d"
 };
 const roster = selectedGroup.names;
 const helperPins={
-  "scripts/connector-acceptance-groups.test.mjs": "dc4ced4101040740580c2d7aadffa434f4b0f1b1134250c28ee6c73075736071",
+  "scripts/connector-acceptance-groups.test.mjs": "dab05a96c632f1e0045618da8bebcced5a9e588e19ab0498af1b2adec62f9277",
   "scripts/connector-acceptance-groups.mjs": "1d0ac8bd39cde881ee26949586ede1fb401692c51d1e0cd351bb34535bfafb07",
   "docs/internal/evidence/cloud-2026-10-07/native-service-readiness/openfga/09-pg-non-glibc-libs-manifest.json": "96642e82997ffd2caf2893a5ecc0116ad2aef6e982df2d929f3efda4e04f3474",
   "services/platform/apiserver/authorization_integration_mutations_postgres_test.go": "5e4beb04b2409ad9b11b89c017ada5e2eccffd78a87bdd5692d40670f12a2ba0",

@@ -383,22 +383,22 @@
     },
     {
       "path": "scripts/connector-acceptance-groups.test.mjs",
-      "sha256": "dc4ced4101040740580c2d7aadffa434f4b0f1b1134250c28ee6c73075736071",
-      "bytes": 49781,
+      "sha256": "dab05a96c632f1e0045618da8bebcced5a9e588e19ab0498af1b2adec62f9277",
+      "bytes": 50010,
       "currentBasePreimageSHA256": "a1622a9417e9fe4d62c2aed82bcf5f7f3e11dce841d802bf005b29d54405d388",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connected-connector-acceptance.mjs",
-      "sha256": "7beb2026652b5c6adb61af7fca75f505723a80c3640bb794e2d11cfc790c2bc4",
-      "bytes": 97556,
+      "sha256": "f65f98f7e15b8c9bc23d1ea3a997cfeae0c49f1b444c1735f0f40464b87c79a9",
+      "bytes": 98057,
       "currentBasePreimageSHA256": "f248c6d9182ca08cb518cd54c620844c987f4ae723a38badb463c59e010db578",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
-      "sha256": "0e42c814aae5f2a4949a02f23ff554e76fc27157463884d56305c87372161320",
-      "bytes": 93957,
+      "sha256": "e1d00ee08b534ea63ef78dec368a2a96f17bbbbc7eebb51a99f6dfd468a08252",
+      "bytes": 94458,
       "currentBasePreimageSHA256": "e66722e4daf5b1482c253d1f14b4c533c329fde202252c16f87ad3e0130e8524",
       "historicalPreimageSHA256": null
     },
@@ -3472,6 +3472,34 @@
       "path": "services/platform/migrations/temporal_source_checksums.go",
       "sha256": "1318b4a31393294667a521384c9ddfb3fc875d8f4493364e6f284cae80abae7d",
       "bytes": 1672,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/featureflags/featureflags.go",
+      "sha256": "93a085e25e5d90c20d8c9310933604e1978c5312b443bd1dcda8d24822779518",
+      "bytes": 7796,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/featureflags/server_cache_test.go",
+      "sha256": "61daf2dbdb52c28bcf6546e06c52875e3ebb20d4997c38576f511fab05604155",
+      "bytes": 7047,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/featureflags/server_cache_clock_test.go",
+      "sha256": "6398dd9ff20eaf271507d5306890095a59efb351a166435b80e83cfb31cfea37",
+      "bytes": 5643,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/featureflags/featureflags_test.go",
+      "sha256": "cb9c002409392ba19b090f8d4e20148f4db2f59c363b0e98f44852ffcdccdf7d",
+      "bytes": 14658,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     }

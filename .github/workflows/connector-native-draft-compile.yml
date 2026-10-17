@@ -45,7 +45,7 @@ jobs:
           import hashlib, json
           from pathlib import Path
           source = json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())
-          assert len(source['sources']) == 496
+          assert len(source['sources']) == 500
           for item in source['sources']:
               raw = Path(item['path']).read_bytes()
               assert len(raw) == item['bytes']
@@ -87,7 +87,7 @@ jobs:
           assert len(groups) == 6 and sum(len(tops) for tops in groups.values()) == 10 and len(expected) == 86
           def check_sources():
               source = json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())
-              assert len(source['sources']) == 496
+              assert len(source['sources']) == 500
               for item in source['sources']:
                   raw = Path(item['path']).read_bytes()
                   assert len(raw) == item['bytes'] and hashlib.sha256(raw).hexdigest() == item['sha256'], item['path']
@@ -516,6 +516,50 @@ jobs:
               assert sum(e.get('Action')=='pass' and not e.get('Test') for e in rows)==1
           PYMAINTENANCECASES
       - name: Keep consumed Temporal confirmation source unchanged
+        run: git diff --exit-code -- services/platform .github scripts
+
+  featureflag-server-cache-components:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GOTOOLCHAIN: local
+      GOWORK: 'off'
+      GOFLAGS: '-mod=readonly'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version: 1.26.8
+          cache: false
+      - name: Check frozen feature flag cache source custody
+        run: |
+          python3 - <<'PYMAINTENANCE'
+          import hashlib,json
+          from pathlib import Path
+          for item in json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())['sources']:
+              raw=Path(item['path']).read_bytes()
+              assert len(raw)==item['bytes'] and hashlib.sha256(raw).hexdigest()==item['sha256'],item['path']
+          PYMAINTENANCE
+      - name: Require all scoped cache, defaults, expiry and cancellation components
+        timeout-minutes: 8
+        run: |
+          go test -C services/platform -race -p=1 -count=1 -timeout=3m -json ./featureflags > featureflag-server-cache-components.jsonl
+          python3 - <<'PYCACHECASES'
+          import json
+          from pathlib import Path
+          expected=['TestEvaluatorAcceptsExactConfigurationLimits', 'TestEvaluatorAcceptsExactKeyGrammar', 'TestEvaluatorAcceptsExactKeyGrammar/a', 'TestEvaluatorAcceptsExactKeyGrammar/aaaaaaaaaaaaaaaaaaaaaaaa', 'TestEvaluatorAcceptsExactKeyGrammar/experiment_2', 'TestEvaluatorAcceptsExactKeyGrammar/launch-darkly', 'TestEvaluatorAcceptsExactKeyGrammar/ui.flag', 'TestEvaluatorDoesNotMislabelProviderValueEqualToDefault', 'TestEvaluatorDoesNotMislabelProviderValueEqualToDefault/disabled', 'TestEvaluatorDoesNotMislabelProviderValueEqualToDefault/enabled', 'TestEvaluatorFallsBackOnCancellationAndDeadline', 'TestEvaluatorFallsBackOnUnavailableOrMalformedDriverState', 'TestEvaluatorFallsBackOnUnavailableOrMalformedDriverState/driver_error_default=false', 'TestEvaluatorFallsBackOnUnavailableOrMalformedDriverState/driver_error_default=true', 'TestEvaluatorFallsBackOnUnavailableOrMalformedDriverState/driver_panic_default=false', 'TestEvaluatorFallsBackOnUnavailableOrMalformedDriverState/driver_panic_default=true', 'TestEvaluatorFallsBackOnUnavailableOrMalformedDriverState/empty_success_default=false', 'TestEvaluatorFallsBackOnUnavailableOrMalformedDriverState/empty_success_default=true', 'TestEvaluatorFallsBackOnUnavailableOrMalformedDriverState/environment_drift_default=false', 'TestEvaluatorFallsBackOnUnavailableOrMalformedDriverState/environment_drift_default=true', 'TestEvaluatorFallsBackOnUnavailableOrMalformedDriverState/key_drift_default=false', 'TestEvaluatorFallsBackOnUnavailableOrMalformedDriverState/key_drift_default=true', 'TestEvaluatorFallsBackOnUnavailableOrMalformedDriverState/miss_with_age_default=false', 'TestEvaluatorFallsBackOnUnavailableOrMalformedDriverState/miss_with_age_default=true', 'TestEvaluatorFallsBackOnUnavailableOrMalformedDriverState/negative_hit_age_default=false', 'TestEvaluatorFallsBackOnUnavailableOrMalformedDriverState/negative_hit_age_default=true', 'TestEvaluatorFallsBackOnUnavailableOrMalformedDriverState/organization_drift_default=false', 'TestEvaluatorFallsBackOnUnavailableOrMalformedDriverState/organization_drift_default=true', 'TestEvaluatorFallsBackOnUnavailableOrMalformedDriverState/over-age_hit_default=false', 'TestEvaluatorFallsBackOnUnavailableOrMalformedDriverState/over-age_hit_default=true', 'TestEvaluatorFallsBackOnUnavailableOrMalformedDriverState/workspace_drift_default=false', 'TestEvaluatorFallsBackOnUnavailableOrMalformedDriverState/workspace_drift_default=true', 'TestEvaluatorKeepsConcurrentDefaultsIsolated', 'TestEvaluatorRejectsInvalidConstruction', 'TestEvaluatorRejectsInvalidConstruction/cache_age_over_limit', 'TestEvaluatorRejectsInvalidConstruction/negative_cache_age', 'TestEvaluatorRejectsInvalidConstruction/negative_timeout', 'TestEvaluatorRejectsInvalidConstruction/nil_driver', 'TestEvaluatorRejectsInvalidConstruction/timeout_over_limit', 'TestEvaluatorRejectsInvalidConstruction/typed_nil_driver', 'TestEvaluatorRejectsInvalidConstruction/zero_maximum_cache_age', 'TestEvaluatorRejectsInvalidConstruction/zero_timeout', 'TestEvaluatorRejectsInvalidRequestBeforeIO', 'TestEvaluatorRejectsInvalidRequestBeforeIO/invalid_key_0', 'TestEvaluatorRejectsInvalidRequestBeforeIO/invalid_key_1', 'TestEvaluatorRejectsInvalidRequestBeforeIO/invalid_key_10', 'TestEvaluatorRejectsInvalidRequestBeforeIO/invalid_key_11', 'TestEvaluatorRejectsInvalidRequestBeforeIO/invalid_key_2', 'TestEvaluatorRejectsInvalidRequestBeforeIO/invalid_key_3', 'TestEvaluatorRejectsInvalidRequestBeforeIO/invalid_key_4', 'TestEvaluatorRejectsInvalidRequestBeforeIO/invalid_key_5', 'TestEvaluatorRejectsInvalidRequestBeforeIO/invalid_key_6', 'TestEvaluatorRejectsInvalidRequestBeforeIO/invalid_key_7', 'TestEvaluatorRejectsInvalidRequestBeforeIO/invalid_key_8', 'TestEvaluatorRejectsInvalidRequestBeforeIO/invalid_key_9', 'TestEvaluatorRejectsInvalidRequestBeforeIO/zero_scope', 'TestEvaluatorRejectsNilContextAndUnusableReceiver', 'TestEvaluatorRequiresExplicitCodeDefaultBeforeIO', 'TestEvaluatorRequiresExplicitCodeDefaultBeforeIO/missing', 'TestEvaluatorRequiresExplicitCodeDefaultBeforeIO/unknown', 'TestEvaluatorReturnsExactScopedProviderDecision', 'TestServerFlagCacheBackwardObservationInvalidatesPreviouslyAgedDecision', 'TestServerFlagCacheBoundedLRUEvictsOldestUntouchedDecision', 'TestServerFlagCacheConcurrentWarmHitsRemainScoped', 'TestServerFlagCacheExpiryRetainsProviderAgeAndRefusesStaleOutage', 'TestServerFlagCacheNeverCachesUnavailableDefaults', 'TestServerFlagCacheRechecksCancellationDuringLookupAndStore', 'TestServerFlagCacheRechecksCancellationDuringLookupAndStore/lookup', 'TestServerFlagCacheRechecksCancellationDuringLookupAndStore/store', 'TestServerFlagCacheRetainsProviderAge', 'TestServerFlagCacheReusesAuthoritativeDecisionAcrossCodeDefaults', 'TestServerFlagCacheSeparatesEveryTenantDimensionAndKey', 'TestServerFlagCacheValidatesCancellationAndDefaultsBeforeWarmHit']
+          package='github.com/zasp-ai/zasp-sec/services/platform/featureflags'
+          events=[json.loads(line) for line in Path('featureflag-server-cache-components.jsonl').read_text().splitlines() if line.strip()]
+          assert events and all(e.get('Action') in ('start','run','output','pass') for e in events)
+          assert all(e.get('Package')==package for e in events)
+          for action in ('run','pass'):
+              actual=[e['Test'] for e in events if e.get('Action')==action and e.get('Test')]
+              assert sorted(actual)==sorted(expected),action
+          assert sum(e.get('Action')=='pass' and not e.get('Test') for e in events)==1
+          PYCACHECASES
+      - name: Keep consumed server cache source unchanged
         run: git diff --exit-code -- services/platform .github scripts
 
   authorization-confirmation-components:
