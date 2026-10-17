@@ -37,7 +37,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [approval-test74, approval-ordered-planning, approval-ordered-progress, approval-flow, approval, oauth, lifecycle, pkce, callback, approval-overflow, approval-future-test74, approval-future-progress, optional-egress-audit, retention-audit, environment-class, environment-class-audit, environment-class-catalog, maintenance-operator, maintenance-operator-audit, optional-egress-operator, optional-egress-operator-audit, agent-current-read, agent-current-read-audit]
+        group: [approval-test74, approval-ordered-planning, approval-ordered-progress, approval-flow, approval, oauth, lifecycle, pkce, callback, approval-overflow, approval-future-test74, approval-future-progress, optional-egress-audit, retention-audit, environment-class, environment-class-audit, environment-class-catalog, maintenance-operator, maintenance-operator-audit, optional-egress-operator, optional-egress-operator-audit, agent-current-read, agent-current-read-audit, agent-exposure-filter, agent-exposure-filter-audit]
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:

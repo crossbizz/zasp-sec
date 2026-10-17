@@ -353,7 +353,7 @@ test("rejects audited production-class count drift", async () => {
     async (ledgerPath) => {
       await assert.rejects(
         () => validateLedger({ ledgerPath, sourcePlanPath }),
-        /production-available count is 509; expected 510/,
+        /production-available count is 508; expected 509/,
       );
     },
   );
@@ -577,7 +577,7 @@ test("rejects a published availability summary that drifts from the audited ledg
   await withLedgerAndStatus(
     (ledger) => ledger,
     (status) => {
-      const expected = "| Production-available | 510 |";
+      const expected = "| Production-available | 509 |";
       assert.ok(status.includes(expected), "summary-drift fixture must match the current total");
       return status.replace(expected, "| Production-available | 496 |");
     },
@@ -640,10 +640,10 @@ test("Original health requirements cannot gain production credit from contradict
 });
 
 
-test("Original Agent read contracts cannot gain production credit from rejected current authorization paths", async (t) => {
+test("Original Agent API contracts cannot gain production credit from rejected current authorization paths", async (t) => {
   const ledger = await readFile(canonicalLedgerPath, "utf8");
   const owners = await readFile(path.join(repositoryRoot, "docs/internal/implementation_production_availability_owners_v1.5.tsv"), "utf8");
-  for (const id of ["M4-04", "M4-06", "M4-07", "M4-08"]) await t.test(id, async () => {
+  for (const id of ["M4-04", "M4-05", "M4-06", "M4-07", "M4-08"]) await t.test(id, async () => {
     const original = ledger.split("\n").find((line) => line.split("\t")[1] === id);
     assert.ok(original);
     const row = original.split("\t");

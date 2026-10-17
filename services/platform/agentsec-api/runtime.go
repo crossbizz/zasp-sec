@@ -27,19 +27,20 @@ var (
 )
 
 type RuntimeConfig struct {
-	RetentionProfileChecksum        string
-	OptionalEgressEnabled           bool
-	AgentOwnerFilterEnabled         bool
-	AgentOwnerFilterProfileChecksum string
-	AgentReadProfileChecksum        string
-	EnvironmentClassEnabled         bool
-	EnvironmentClassProfileChecksum string
-	OptionalEgressProfileChecksum   string
-	OptionalEgressSettlementDSN     string
-	ConnectorMaintenancePostgresDSN string
-	ConnectorMaintenanceKeyFile     string
-	RuntimeServices                 runtimeservices.Config
-	SecurityAgentOrderedHTTPEnabled bool
+	RetentionProfileChecksum           string
+	OptionalEgressEnabled              bool
+	AgentOwnerFilterEnabled            bool
+	AgentOwnerFilterProfileChecksum    string
+	AgentReadProfileChecksum           string
+	AgentExposureFilterProfileChecksum string
+	EnvironmentClassEnabled            bool
+	EnvironmentClassProfileChecksum    string
+	OptionalEgressProfileChecksum      string
+	OptionalEgressSettlementDSN        string
+	ConnectorMaintenancePostgresDSN    string
+	ConnectorMaintenanceKeyFile        string
+	RuntimeServices                    runtimeservices.Config
+	SecurityAgentOrderedHTTPEnabled    bool
 
 	EvidenceExportWorkflow         string
 	AttackLabWorkflow              string
@@ -158,9 +159,10 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 	requestRate, requestRateErr := strconv.Atoi(getenv("ZASP_REQUEST_RATE_PER_SECOND"))
 	requestBurst, requestBurstErr := strconv.Atoi(getenv("ZASP_REQUEST_BURST"))
 	config := RuntimeConfig{
-		RetentionProfileChecksum: getenv("ZASP_RETENTION_PROFILE_CHECKSUM"),
-		AgentReadProfileChecksum: getenv("ZASP_AGENT_READ_PROFILE_CHECKSUM"),
-		AgentOwnerFilterEnabled:  agentOwnerFilterEnabled, AgentOwnerFilterProfileChecksum: getenv("ZASP_AGENT_OWNER_FILTER_CHECKSUM"),
+		RetentionProfileChecksum:           getenv("ZASP_RETENTION_PROFILE_CHECKSUM"),
+		AgentReadProfileChecksum:           getenv("ZASP_AGENT_READ_PROFILE_CHECKSUM"),
+		AgentExposureFilterProfileChecksum: getenv("ZASP_AGENT_EXPOSURE_FILTER_PROFILE_CHECKSUM"),
+		AgentOwnerFilterEnabled:            agentOwnerFilterEnabled, AgentOwnerFilterProfileChecksum: getenv("ZASP_AGENT_OWNER_FILTER_CHECKSUM"),
 		EnvironmentClassEnabled: environmentClassEnabled, EnvironmentClassProfileChecksum: getenv("ZASP_ENVIRONMENT_CLASS_PROFILE_CHECKSUM"),
 		OptionalEgressEnabled: optionalEgressEnabled, OptionalEgressProfileChecksum: getenv("ZASP_OPTIONAL_EGRESS_PROFILE_CHECKSUM"), OptionalEgressSettlementDSN: getenv("ZASP_OPTIONAL_EGRESS_SETTLEMENT_POSTGRES_DSN"),
 		RuntimeServices:                 services,
@@ -262,7 +264,7 @@ func validRuntimeConfig(config RuntimeConfig) bool {
 			return false
 		}
 	}
-	if !validRuntimePostgresAuthorities(config.PostgresDSN, config.SecurityAgentPostgresDSN) || !validApprovalMaintenanceRuntimeConfig(config) || !validConnectorMaintenanceRuntimeConfig(config) || !validOptionalEgressRuntimeConfig(config) || !validEnvironmentClassRuntimeConfig(config) || !validAgentOwnerFilterRuntimeConfig(config) || !validAgentReadRuntimeConfig(config) {
+	if !validRuntimePostgresAuthorities(config.PostgresDSN, config.SecurityAgentPostgresDSN) || !validApprovalMaintenanceRuntimeConfig(config) || !validConnectorMaintenanceRuntimeConfig(config) || !validOptionalEgressRuntimeConfig(config) || !validEnvironmentClassRuntimeConfig(config) || !validAgentOwnerFilterRuntimeConfig(config) || !validAgentReadRuntimeConfig(config) || !validAgentExposureFilterRuntimeConfig(config) {
 		return false
 	}
 	authorize, authorizeErr := url.Parse(config.StytchAuthorizeURL)

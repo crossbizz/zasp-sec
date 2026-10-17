@@ -59,13 +59,27 @@ func (a *OpenFGAAuthorizer) preparePostLogin(ctx context.Context, i RequestIdent
 		slices.Sort(g.permissions)
 		g.environmentAudit = c.decisions[c.request(environment, "view_audit")]
 		g.capabilities = append(g.capabilities, "scope.switch")
+		if a.AgentExposureFilterReady != nil && slices.Contains(g.capabilities, "inventory.read") && c.decisions[c.request(environment, "view")] {
+			ready, readyErr := a.AgentExposureFilterReady(ctx)
+			if readyErr != nil {
+				return g, authorization.ErrUnavailable
+			}
+			if ready {
+				g.capabilities = append(g.capabilities, "inventory.agents.exposure_filter")
+				if !slices.Contains(g.capabilities, "inventory.agents.owner_filter") {
+					g.capabilities = append(g.capabilities, "inventory.agents.owner_filter")
+				}
+			}
+		}
 		if a.AgentOwnerFilterReady != nil && slices.Contains(g.capabilities, "inventory.read") {
 			ready, readyErr := a.AgentOwnerFilterReady(ctx)
 			if readyErr != nil {
 				return g, authorization.ErrUnavailable
 			}
 			if ready {
-				g.capabilities = append(g.capabilities, "inventory.agents.owner_filter")
+				if !slices.Contains(g.capabilities, "inventory.agents.owner_filter") {
+					g.capabilities = append(g.capabilities, "inventory.agents.owner_filter")
+				}
 			}
 		}
 

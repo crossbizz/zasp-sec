@@ -167,10 +167,11 @@ def load_events(path):
     return [decode_json(line) for line in lines]
 
 
-def validate_events(events, go_exit_code):
+def validate_events(events, go_exit_code, expected_roster=None):
     if type(go_exit_code) is not int or go_exit_code != 0:
         raise EvidenceRejected("Go execution did not succeed")
-    expected = {package: set(names) for package, names in EXPECTED.items()}
+    roster = EXPECTED if expected_roster is None else expected_roster
+    expected = {package: set(names) for package, names in roster.items()}
     state = {package: {"started": False, "passed": False, "tests": {}} for package in expected}
     if not events:
         raise EvidenceRejected("empty evidence")
@@ -244,7 +245,7 @@ def validate_events(events, go_exit_code):
     return {"classification": "component-only", "packages": len(expected), "named_passes": sum(map(len, expected.values()))}
 
 
-def check_sources(root, manifest):
+def check_sources(root, manifest, required_paths=None):
     root = Path(root).resolve()
     with Path(manifest).open("rb") as stream:
         raw = stream.read(16 * 1024 * 1024 + 1)
@@ -275,7 +276,7 @@ def check_sources(root, manifest):
         if size != item["bytes"] or digest.hexdigest() != item["sha256"]:
             raise EvidenceRejected("source mismatch")
         seen.add(item["path"])
-    if not REQUIRED_SOURCE_PATHS.issubset(seen):
+    if not (REQUIRED_SOURCE_PATHS if required_paths is None else required_paths).issubset(seen):
         raise EvidenceRejected("missing required source custody")
     return {"classification": "source-custody-only", "sources": len(seen)}
 

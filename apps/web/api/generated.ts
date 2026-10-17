@@ -6131,10 +6131,16 @@ export interface operations {
             readonly query?: {
                 /** @description Opaque cursor returned by the preceding page. */
                 readonly cursor?: components["parameters"]["PageCursor"];
+                /** @description Fresh positive shell or code execution evidence under agent-exposure-v1; unknown is not a safety or coverage guarantee. Requires inventory.agents.exposure_filter. */
+                readonly execution?: "shell" | "code" | "shell_or_code" | "unknown";
+                /** @description Fresh positive sensitive or high-impact reach evidence under agent-exposure-v1; unknown is not a safety or coverage guarantee. Requires inventory.agents.exposure_filter. */
+                readonly impact?: "high" | "unknown";
                 /** @description Maximum number of records to return. */
                 readonly limit?: components["parameters"]["PageLimit"];
                 /** @description Omitted selects all owners; an empty value selects unowned Agents. A nonempty value matches the exact persisted owner label, including whitespace, without normalization. Requires the configured owner-filter capability. */
                 readonly owner?: string;
+                /** @description Highest recorded visible unresolved Finding severity; unknown means no independently authorized unresolved severity is recorded. Requires inventory.agents.exposure_filter. Combined selectors are conjoined before pagination. */
+                readonly risk?: "critical" | "high" | "medium" | "low" | "unknown";
             };
             readonly header?: never;
             readonly path?: never;

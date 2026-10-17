@@ -2,11 +2,22 @@ package apiserver
 
 import "github.com/zasp-ai/zasp-sec/services/platform/migrations"
 
-// Only the application's known callback decorator can expose its original
-// snapshot reader. Target resolution continues through the selected resolver.
+// Only the application's finite callback and exposure decorators can expose
+// their original snapshot reader. Target resolution continues through the selected resolver.
 // A mismatched reader/pin, nesting or an unrelated implementation refuses.
 func postLoginSnapshotResolver(selected AuthorizationTargetResolver) (*PostgresAuthorizationResolver, bool) {
 	switch resolver := selected.(type) {
+	case *AgentExposureFilterResolver:
+		if resolver == nil || resolver.database == nil || !migrations.IsAgentExposureFilterProfileChecksum(resolver.profile) {
+			return nil, false
+		}
+		switch resolver.original.(type) {
+		case *PostgresAuthorizationResolver, *ConnectorMaintenanceCallbackResolver:
+		default:
+			return nil, false
+		}
+		original, ok := postLoginSnapshotResolver(resolver.original)
+		return original, ok && original != nil && original.database == resolver.database
 	case *PostgresAuthorizationResolver:
 		return resolver, resolver != nil && resolver.database != nil
 	case *ConnectorMaintenanceCallbackResolver:

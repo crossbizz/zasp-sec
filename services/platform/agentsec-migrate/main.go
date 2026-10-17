@@ -218,6 +218,17 @@ func main() {
 		}
 		return
 	}
+	if len(arguments) > 0 && arguments[0] == "agent-exposure-filter-profile-checksums" {
+		if len(arguments) != 1 || writeAgentExposureFilterChecksums(os.Stdout) != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+		return
+	}
+	if len(arguments) > 0 && agentExposureFilterProfileCommand(arguments[0]) {
+		if validateAgentExposureFilterCommand(arguments, os.Getenv) != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+	}
 	if len(arguments) > 0 && arguments[0] == "agent-read-profile-checksums" {
 		if len(arguments) != 1 || writeAgentReadChecksums(os.Stdout) != nil {
 			log.Fatal("release migration configuration rejected")
@@ -383,7 +394,7 @@ func main() {
 		}
 	}
 	if isForwardMigration(arguments) {
-		if authorizationProfileCommand(arguments[0]) || maintenanceProfileCommand(arguments[0]) || optionalEgressProfileCommand(arguments[0]) || retentionProfileCommand(arguments[0]) || environmentClassProfileCommand(arguments[0]) || agentOwnerFilterProfileCommand(arguments[0]) || agentReadProfileCommand(arguments[0]) {
+		if authorizationProfileCommand(arguments[0]) || maintenanceProfileCommand(arguments[0]) || optionalEgressProfileCommand(arguments[0]) || retentionProfileCommand(arguments[0]) || environmentClassProfileCommand(arguments[0]) || agentOwnerFilterProfileCommand(arguments[0]) || agentReadProfileCommand(arguments[0]) || agentExposureFilterProfileCommand(arguments[0]) {
 			registration.migration = os.Getenv(migrationPrincipalEnvironment)
 			if !databasePrincipalPattern.MatchString(registration.migration) {
 				err = errInvalidMigrationCommand
@@ -519,6 +530,9 @@ func registerAuthorizationVerifier(ctx context.Context, queryer principalQueryer
 func registerForwardRelease(ctx context.Context, queryer principalQueryer, registration discoveryPrincipalRegistration, arguments []string) error {
 	if !isForwardMigration(arguments) {
 		return errInvalidMigrationCommand
+	}
+	if agentExposureFilterProfileCommand(arguments[0]) {
+		return agentExposureFilterPostInstall(ctx, queryer, registration.migration, arguments[0])
 	}
 	if agentReadProfileCommand(arguments[0]) {
 		return agentReadPostInstall(ctx, queryer, registration.migration, arguments[0])
@@ -928,6 +942,9 @@ func (r *registeredReleaseMigrationRunner) UpProductionApprovalSettlementAuditPr
 }
 
 func isForwardMigration(arguments []string) bool {
+	if len(arguments) == 1 && agentExposureFilterProfileCommand(arguments[0]) {
+		return true
+	}
 	if len(arguments) == 1 && agentReadProfileCommand(arguments[0]) {
 		return true
 	}
@@ -994,6 +1011,24 @@ func runReleaseMigration(ctx context.Context, runner releaseMigrationRunner, arg
 		return err
 	}
 	switch arguments[0] {
+	case "up-agent-exposure-filter-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		e, ok := runner.(interface{ UpProductionAgentExposureFilterProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return e.UpProductionAgentExposureFilterProfile(ctx)
+	case "up-agent-exposure-filter-audit-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		e, ok := runner.(interface{ UpProductionAgentExposureFilterAuditProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return e.UpProductionAgentExposureFilterAuditProfile(ctx)
 	case "up-agent-read-profile":
 		if version != 61 {
 			return migrations.ErrInvalidState

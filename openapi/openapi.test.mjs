@@ -1147,10 +1147,30 @@ describe("production workflow concurrency contract", () => {
 
   it("publishes typed discovery inventory pages, details, evidence, and freshness", () => {
     for (const path of ["/api/v1/agents", "/api/v1/tools", "/api/v1/identities", "/api/v1/runtimes", "/api/v1/agents/{id}/capabilities", "/api/v1/agents/{id}/relationships", "/api/v1/agents/{id}/sessions"]) {
-      assert.deepEqual(document.paths[path].get.parameters, [
+      const parameters = document.paths[path].get.parameters;
+      const pagination = [
         { $ref: "#/components/parameters/PageCursor" },
         { $ref: "#/components/parameters/PageLimit" },
-      ]);
+      ];
+      if (path !== "/api/v1/agents") {
+        assert.deepEqual(parameters, pagination);
+        continue;
+      }
+      assert.deepEqual(parameters.slice(0, 2), pagination);
+      const selectors = parameters.slice(2);
+      assert.deepEqual(selectors.map(value => value.name), ["owner", "risk", "execution", "impact"]);
+      for (const selector of selectors) {
+        assert.equal(selector.in, "query");
+        assert.equal(selector.required, false);
+        assert.equal(selector.schema.type, "string");
+      }
+      assert.equal(selectors[0].allowEmptyValue, true);
+      assert.equal(selectors[0].schema.maxLength, 128);
+      assert.equal(selectors[0].schema.pattern, "^[^\\x00-\\x1F\\x7F]*$");
+      assert.deepEqual(selectors[1].schema.enum, ["critical", "high", "medium", "low", "unknown"]);
+      assert.match(selectors[1].description, /recorded visible unresolved/i);
+      assert.deepEqual(selectors[2].schema.enum, ["shell", "code", "shell_or_code", "unknown"]);
+      assert.deepEqual(selectors[3].schema.enum, ["high", "unknown"]);
     }
     for (const name of ["InventoryPage", "CapabilityPage", "RelationshipPage", "AgentSessionPage"]) {
       const page = document.components.schemas[name];

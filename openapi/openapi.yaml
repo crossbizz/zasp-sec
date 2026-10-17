@@ -1575,6 +1575,21 @@ paths:
             type: string
             maxLength: 128
             pattern: '^[^\x00-\x1F\x7F]*$'
+        - name: risk
+          in: query
+          required: false
+          description: Highest recorded visible unresolved Finding severity; unknown means no independently authorized unresolved severity is recorded. Requires inventory.agents.exposure_filter. Combined selectors are conjoined before pagination.
+          schema: { type: string, enum: [critical, high, medium, low, unknown] }
+        - name: execution
+          in: query
+          required: false
+          description: Fresh positive shell or code execution evidence under agent-exposure-v1; unknown is not a safety or coverage guarantee. Requires inventory.agents.exposure_filter.
+          schema: { type: string, enum: [shell, code, shell_or_code, unknown] }
+        - name: impact
+          in: query
+          required: false
+          description: Fresh positive sensitive or high-impact reach evidence under agent-exposure-v1; unknown is not a safety or coverage guarantee. Requires inventory.agents.exposure_filter.
+          schema: { type: string, enum: [high, unknown] }
       responses:
         '200': { description: Authorized Agent records., content: { application/json: { schema: { $ref: '#/components/schemas/InventoryPage' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }

@@ -107,8 +107,30 @@ func buildRuntimeDependenciesWithReadinessObserver(ctx context.Context, config R
 		}
 		selectedResolver = callbackResolver
 	}
+	if config.AgentExposureFilterProfileChecksum != "" {
+		decorated, err := apiserver.NewAgentExposureFilterResolver(selectedResolver, database, config.AgentExposureFilterProfileChecksum)
+		if err != nil {
+			_ = securityAgentDatabase.Close()
+			_ = database.Close()
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("agent-exposure-filter-profile", errRuntimeUnavailable)
+		}
+		selectedResolver = decorated
+	}
 	authorizer := &apiserver.OpenFGAAuthorizer{Reader: revisions, Checker: checker, Resolver: selectedResolver, StoreID: config.RuntimeServices.StoreID, ModelID: config.RuntimeServices.ModelID, AttestationKey: attestationKey}
 
+	if config.AgentExposureFilterProfileChecksum != "" {
+		bounded, cancel := context.WithTimeout(ctx, config.ProviderTimeout)
+		ready, readyErr := database.AgentExposureFilterProfileReady(bounded, config.AgentExposureFilterProfileChecksum)
+		cancel()
+		if readyErr != nil || !ready {
+			_ = database.Close()
+			_ = securityAgentDatabase.Close()
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("agent-exposure-filter-profile", errRuntimeUnavailable)
+		}
+		authorizer.AgentExposureFilterReady = func(ctx context.Context) (bool, error) {
+			return database.AgentExposureFilterProfileReady(ctx, config.AgentExposureFilterProfileChecksum)
+		}
+	}
 	if config.AgentReadProfileChecksum != "" {
 		bounded, cancel := context.WithTimeout(ctx, config.ProviderTimeout)
 		ready, readyErr := database.AgentReadProfileReady(bounded, config.AgentReadProfileChecksum)
@@ -358,6 +380,11 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 	}
 	if retentionVisibility != nil && repository.RequireRetentionProfile(config.RetentionProfileChecksum) != nil {
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("retention-repositories", errRuntimeUnavailable)
+	}
+	if config.AgentExposureFilterProfileChecksum != "" && repository.RequireAgentExposureFilterProfile(config.AgentExposureFilterProfileChecksum) != nil {
+		_ = database.Close()
+		_ = securityAgentDatabase.Close()
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("agent-exposure-filter-profile", errRuntimeUnavailable)
 	}
 	if config.AgentReadProfileChecksum != "" && repository.RequireAgentReadProfile(config.AgentReadProfileChecksum) != nil {
 		_ = database.Close()
@@ -707,6 +734,15 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 	return RuntimeDependencies{ProductHandler: edge, Metrics: metrics, LifecycleWorker: func(ctx context.Context) error { return runLifecycleWorkers(ctx, lifecycleWorkers...) }, ReadinessCheck: func(ctx context.Context) error {
 		if currentRequired(database) && currentRequired(securityAgentDatabase) {
 			checks := []func(context.Context) error{connectorNativeReady, repository.Ready, connectorRepository.Ready, referenceRepository.Ready, policyHandler.Ready, tracedProvider.Ready}
+			if config.AgentExposureFilterProfileChecksum != "" {
+				checks = append(checks, func(probe context.Context) error {
+					ready, err := database.AgentExposureFilterProfileReady(probe, config.AgentExposureFilterProfileChecksum)
+					if err != nil || !ready {
+						return errRuntimeUnavailable
+					}
+					return nil
+				})
+			}
 			if config.AgentReadProfileChecksum != "" {
 				checks = append(checks, func(probe context.Context) error {
 					ready, err := database.AgentReadProfileReady(probe, config.AgentReadProfileChecksum)

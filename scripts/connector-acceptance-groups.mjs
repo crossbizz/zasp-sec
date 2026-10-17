@@ -157,7 +157,21 @@ export const AGENT_CURRENT_READ_ACCEPTANCE_GROUPS = Object.freeze({
   'agent-current-read': group('TestAgentCurrentReadNormalMountedPostgres', agentCurrentReadCases, 1),
   'agent-current-read-audit': group('TestAgentCurrentReadAuditMountedPostgres', agentCurrentReadCases, 1),
 });
-const acceptanceGroups = Object.freeze({...CONNECTOR_ACCEPTANCE_GROUPS, ...ENVIRONMENT_CLASS_ACCEPTANCE_GROUPS, ...MAINTENANCE_OPERATOR_ACCEPTANCE_GROUPS, ...OPTIONAL_EGRESS_OPERATOR_ACCEPTANCE_GROUPS, ...AGENT_CURRENT_READ_ACCEPTANCE_GROUPS});
+const agentExposureFilterCases = Object.freeze([
+  "selected_profile_current_page_and_private_boundary",
+  "recorded_severity_status_and_real_finding_denial",
+  "literal_owner_conjunction_before_limit_and_cursor",
+  "winning_source_role_reference_and_cross_namespace_subject",
+  "same_rule_code_positives_and_unproved_unknown",
+  "fresh_high_impact_and_malformed_source_rules",
+  "private_classifier_own_body_acl_and_catalog_drift",
+  "complete_target_drift_bound_and_live_revocation"
+]);
+export const AGENT_EXPOSURE_FILTER_ACCEPTANCE_GROUPS = Object.freeze({
+  'agent-exposure-filter': group('TestAgentExposureFilterNormalMountedPostgres', agentExposureFilterCases, 1),
+  'agent-exposure-filter-audit': group('TestAgentExposureFilterAuditMountedPostgres', agentExposureFilterCases, 1),
+});
+const acceptanceGroups = Object.freeze({...CONNECTOR_ACCEPTANCE_GROUPS, ...ENVIRONMENT_CLASS_ACCEPTANCE_GROUPS, ...MAINTENANCE_OPERATOR_ACCEPTANCE_GROUPS, ...OPTIONAL_EGRESS_OPERATOR_ACCEPTANCE_GROUPS, ...AGENT_CURRENT_READ_ACCEPTANCE_GROUPS, ...AGENT_EXPOSURE_FILTER_ACCEPTANCE_GROUPS});
 export function selectConnectorAcceptanceGroup(args) {
   assert.ok(Array.isArray(args) && args.length === 1 &&
     typeof args[0] === 'string' && Object.hasOwn(acceptanceGroups, args[0]),

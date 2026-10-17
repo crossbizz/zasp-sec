@@ -215,9 +215,10 @@ type InventoryRepository interface {
 }
 
 type PostgresInventoryRepository struct {
-	database                  JSONDatabase
-	agentOwnerProfileChecksum string
-	agentReadProfileChecksum  string
+	database                           JSONDatabase
+	agentOwnerProfileChecksum          string
+	agentReadProfileChecksum           string
+	agentExposureFilterProfileChecksum string
 }
 
 func NewPostgresInventoryRepository(database JSONDatabase) (*PostgresInventoryRepository, error) {

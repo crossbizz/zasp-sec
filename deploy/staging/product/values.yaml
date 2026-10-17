@@ -536,3 +536,7 @@ agentOwnerFilter:
 agentRead:
   # API consumer only after supplementary profile native admission; empty stays off.
   profileChecksum: ""
+
+# API consumer only; installation and native profile acceptance are separate.
+agentExposureFilter:
+  profileChecksum: ""
