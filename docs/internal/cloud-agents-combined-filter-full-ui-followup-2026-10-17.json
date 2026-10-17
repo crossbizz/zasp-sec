@@ -1,0 +1,39 @@
+{
+  "observed_at": "2026-10-17T16:19:01.728289+00:00",
+  "tested_source_head": "10c55921b9916933b1147c77baf05bf6307296f9",
+  "classification": "ACTUAL_BROADER_UI_CHECK_ONE_FAILURE_RETAINED",
+  "UI": {
+    "files": 255,
+    "files_pass": 254,
+    "files_fail": 1,
+    "tests": 2687,
+    "pass": 2686,
+    "fail": 1,
+    "exit": 1
+  },
+  "sole_failed_case": "app/quality/m3-connectors-sensors-batch-contract.test.ts / keeps Nango private, pinned, bounded, and secret-referenced",
+  "nested_command": {
+    "actual_named_pass": 0,
+    "actual_named_fail": 1,
+    "error": "release rejected",
+    "source": "deploy/production/release-contract.mjs:400",
+    "correct_supported_Go_Node_environment": true
+  },
+  "prerequisites": {
+    "helm_on_PATH": false,
+    "helm_install_attempt": false
+  },
+  "limits": [
+    "Full npm test was run after newly observed predecessor hosted Verify runnable UI failure. It is broader than the 122 previously recorded controlled UI checks; neither establishes end-to-end production acceptance.",
+    "The sole failing wrapper invokes actual release Helm lint/template; Helm is unavailable here. The nested command still fails with supported Go/Node. No Helm stub, alternate install, weakened assertion or skipped test was used.",
+    "Initial full-suite environment selected supported Node but default /usr/bin/go. This mistake is preserved; the nested failure recheck uses the supported Go/Node environment. No full-suite green claim.",
+    "No inner cause for predecessor hosted failures is inferred from this local failure.",
+    "The published source checkpoint/archive remain unchanged; this adds new failures and raw receipts after that immutable snapshot."
+  ],
+  "archive": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/agents-combined-filter-followup/full-ui-check.json.gz",
+    "bytes": 1665,
+    "sha256": "bf6a35af91a58c08c8c73dfb87127b44e969c9b0bd7dddd05192bbe098450b3c",
+    "members": 6
+  }
+}
