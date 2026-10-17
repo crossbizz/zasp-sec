@@ -2,6 +2,13 @@
 
 ## Current continuation, October 17, 2026
 
+Hosted run `39011704182` on exact head `aea3b9d8` passes nineteen-package
+compilation and the enforced 86-case atomic connector/writer-journal application
+gate. This supersedes the pending observation in that batch's publication snapshot,
+which remains unchanged. It does not establish native SQL, deployed provider or
+browser acceptance, and does not cover the later preflight batch. See
+`cloud-journal-application-hosted-checkpoint-2026-10-17.json`.
+
 The connected preflight component now uses actual AWS SDK read operations for
 STS identity, versioned encrypted S3 buckets, KMS metadata, current secret retrieval
 and queue/DLQ attributes. Explicit credential sources replace ambient fallback;
