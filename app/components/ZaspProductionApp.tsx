@@ -7,7 +7,7 @@ import { APIProvider, useAPI } from "../api/APIProvider";
 import { SessionProvider, useSession, type SessionContextValue } from "../auth/SessionProvider";
 import { AdminOperationsView } from "../features/administration/AdminOperationsView";
 import { AuditExportSaveNotice } from "../features/administration/AuditExportPanel";
-import { ProductionAgentSecurityView } from "../features/agents/ProductionAgentSecurityView";
+import { inventoryDetailIDFromSearch, ProductionAgentSecurityView } from "../features/agents/ProductionAgentSecurityView";
 import { APIAccessView } from "../features/identity/APIAccessView";
 import { IdentityAPIProvider } from "../features/identity/IdentityAPIProvider";
 import { IdentityAccessView } from "../features/identity/IdentityAccessView";
@@ -54,7 +54,7 @@ const productionRoutes = [
   { path: "/administration/system-health", label: "System Health", capability: "system.read" },
 ] as const;
 
-function ProductionRouteSurface({ path, location, navigate }: { path: string; location: string; navigate(path: string): void }) {
+function ProductionRouteSurface({ path, location, navigate, inventoryDetailID }: { path: string; location: string; navigate(path: string): void; inventoryDetailID: string }) {
   const session = useSession();
   const { client, auditExports, queryScopeKey, queryGeneration, getSessionInvalidationGeneration, getScopeStaleGeneration } = useAPI();
   if (session.status !== "authenticated") return null;
@@ -111,7 +111,7 @@ function ProductionRouteSurface({ path, location, navigate }: { path: string; lo
     getScopeStaleGeneration,
   }} />;
   }
-  return <ProductionAgentSecurityView path={path} onNavigate={navigate} canWrite={session.hasCapability("inventory.write")} />;
+  return <ProductionAgentSecurityView path={path} inventoryDetailID={path === "/discovery/assets" ? inventoryDetailID : undefined} onNavigate={navigate} canWrite={session.hasCapability("inventory.write")} />;
 }
 
 function ProductionScopeSelector() {
@@ -149,19 +149,41 @@ function ProductionSignOutControl() {
 
 function ProductionAppContent() {
   const session = useSession();
-  const { client } = useAPI();
+  const { client, queryScopeKey, queryGeneration } = useAPI();
   const [location, setLocation] = useState(() => { const candidate = typeof window === "undefined" ? "/" : window.location.pathname; return productionRoutes.some((route) => route.path === candidate) ? `${candidate}${typeof window === "undefined" ? "" : window.location.search + window.location.hash}` : "/"; });
   const path = location.split(/[?#]/, 1)[0];
+  const inventoryAuthority = session.status === "authenticated" && session.scopeSwitch.status !== "pending" && queryScopeKey !== null && queryScopeKey !== "__unscoped__"
+    ? JSON.stringify([session.principal.id, session.organizationID, session.workspaceID, session.environmentID, queryScopeKey, queryGeneration]) : null;
+  const [inventoryIntent, setInventoryIntent] = useState(() => ({ bound: false, authority: null as string | null, id: inventoryIDForLocation(location) }));
+  useEffect(() => {
+    if (inventoryAuthority === null || inventoryIntent.bound && inventoryIntent.authority === inventoryAuthority) return;
+    let cancelled = false;
+    // Authority gating below is synchronous. URL cleanup must never be its substitute.
+    if (inventoryIntent.bound) {
+      const current = new URL(window.location.href);
+      if (current.pathname === "/discovery/assets") {
+        current.searchParams.delete("inventory");
+        window.history.replaceState({}, "", `${current.pathname}${current.search}${current.hash}`);
+      }
+    }
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setInventoryIntent({ bound: true, authority: inventoryAuthority, id: inventoryIntent.bound ? "" : inventoryIntent.id });
+      if (inventoryIntent.bound) setLocation(current => withoutInventorySelection(current));
+    });
+    return () => { cancelled = true; };
+  }, [inventoryAuthority, inventoryIntent]);
+  const inventoryDetailID = inventoryIntent.bound && inventoryIntent.authority === inventoryAuthority ? inventoryIntent.id : "";
   useEffect(() => { if (!productionRoutes.some((route) => route.path === window.location.pathname)) window.history.replaceState({}, "", "/"); }, []);
   useEffect(() => {
     const handlePopState = () => {
       const candidate = window.location.pathname;
       const allowed = session.status === "authenticated" && productionRoutes.some((route) => route.path === candidate && hasProductionCapability(session, route.capability));
-      if (allowed) { setLocation(`${candidate}${window.location.search}${window.location.hash}`); return; }
+      if (allowed) { const next = `${candidate}${window.location.search}${window.location.hash}`; setInventoryIntent({ bound: true, authority: inventoryAuthority, id: inventoryIDForLocation(next) }); setLocation(next); return; }
       window.history.replaceState({}, "", "/"); setLocation("/");
     };
     window.addEventListener("popstate", handlePopState); return () => window.removeEventListener("popstate", handlePopState);
-  }, [session]);
+  }, [session, inventoryAuthority]);
   useEffect(() => {
     if (session.status !== "authenticated") return;
     const allowed = productionRoutes.some((route) => route.path === window.location.pathname && hasProductionCapability(session, route.capability));
@@ -175,10 +197,22 @@ function ProductionAppContent() {
   const routes = productionRoutes.filter((route) => hasProductionCapability(session, route.capability));
   if (routes.length === 0) return <main className="page"><h1>No product capabilities</h1><p>Your account has no enabled product routes in this scope.</p><ProductionScopeSelector /><ProductionSignOutControl /></main>;
   const visiblePath = routes.some((route) => route.path === path) ? path : routes[0].path;
-  const navigate = (nextLocation: string) => { const nextPath = nextLocation.split(/[?#]/, 1)[0]; if (!routes.some((route) => route.path === nextPath)) return; window.history.pushState({}, "", nextLocation); setLocation(nextLocation); };
+  const navigate = (nextLocation: string) => { const nextPath = nextLocation.split(/[?#]/, 1)[0]; if (!routes.some((route) => route.path === nextPath)) return; window.history.pushState({}, "", nextLocation); setInventoryIntent({ bound: true, authority: inventoryAuthority, id: inventoryIDForLocation(nextLocation) }); setLocation(nextLocation); };
   const workflowScopeKey = `${session.principal.id}/${session.organizationID}/${session.workspaceID}/${session.environmentID}`;
   const expectedScope = `${session.organizationID}/${session.workspaceID}/${session.environmentID}`;
-  return <ProductionWorkflowMutationProvider scopeKey={workflowScopeKey} expectedScope={expectedScope}><div className="app-shell production-app"><header className="topbar"><button className="brand" onClick={() => navigate("/")} aria-label="Zasp overview">Zasp</button><span>Agent Security</span><ProductionScopeSelector /><ProductionGlobalSearch key={expectedScope} client={client} onNavigate={navigate} /><ProductionSignOutControl /></header><aside className="sidebar"><nav aria-label="Main navigation">{routes.map((route) => <a key={route.path} href={route.path} aria-label={route.label} aria-current={visiblePath === route.path ? "page" : undefined} onClick={(event) => { event.preventDefault(); navigate(route.path); }}>{route.label}</a>)}</nav></aside><main className="main-content">{session.scopeSwitch.status === "pending" ? <LoadingState label="Switching authorized scope…" /> : <ProductionRouteSurface key={`${session.organizationID}/${session.workspaceID}/${session.environmentID}`} path={visiblePath} location={visiblePath === path ? location : visiblePath} navigate={navigate} />}</main></div></ProductionWorkflowMutationProvider>;
+  return <ProductionWorkflowMutationProvider scopeKey={workflowScopeKey} expectedScope={expectedScope}><div className="app-shell production-app"><header className="topbar"><button className="brand" onClick={() => navigate("/")} aria-label="Zasp overview">Zasp</button><span>Agent Security</span><ProductionScopeSelector /><ProductionGlobalSearch key={expectedScope} client={client} onNavigate={navigate} /><ProductionSignOutControl /></header><aside className="sidebar"><nav aria-label="Main navigation">{routes.map((route) => <a key={route.path} href={route.path} aria-label={route.label} aria-current={visiblePath === route.path ? "page" : undefined} onClick={(event) => { event.preventDefault(); navigate(route.path); }}>{route.label}</a>)}</nav></aside><main className="main-content">{session.scopeSwitch.status === "pending" ? <LoadingState label="Switching authorized scope…" /> : <ProductionRouteSurface key={`${session.organizationID}/${session.workspaceID}/${session.environmentID}`} path={visiblePath} location={visiblePath === path ? location : visiblePath} inventoryDetailID={inventoryDetailID} navigate={navigate} />}</main></div></ProductionWorkflowMutationProvider>;
+}
+
+function inventoryIDForLocation(location: string): string {
+  const url = new URL(location, "https://zasp.invalid");
+  return url.pathname === "/discovery/assets" ? inventoryDetailIDFromSearch(url.search) : "";
+}
+
+function withoutInventorySelection(location: string): string {
+  const url = new URL(location, "https://zasp.invalid");
+  if (url.pathname !== "/discovery/assets") return location;
+  url.searchParams.delete("inventory");
+  return `${url.pathname}${url.search}${url.hash}`;
 }
 
 function hasProductionCapability(session: SessionContextValue, capability: string): boolean {

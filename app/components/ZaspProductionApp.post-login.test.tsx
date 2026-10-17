@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, it, vi } from "vitest";
 import { ZaspProductionApp } from "./ZaspProductionApp";
@@ -130,4 +130,35 @@ it.each([[true,false],[false,true],[true,true]] as const)("loads only authorized
   if(environmentAllowed){expect(within(screen.getByRole("combobox",{name:"Mapped role"})).getByRole("option",{name:"read only viewer"})).toBeVisible();expect(await screen.findByRole("button",{name:"Create workspace"})).toBeVisible();}
   expect(screen.queryByText("Identity data could not be loaded")).not.toBeInTheDocument();
   expect(forbidden).toEqual([]);
+});
+
+
+it.each(["row-open", "initial-link"] as const)("does not replay an Agents detail URL after the actual keyed scope remount (%s)", async (entry) => {
+  const agentID = "pid_60000001-0000-4000-8000-000000000001";
+  const summary = { id: agentID, name: "Scoped initial Agent", kind: "agent", owner: "", team: "", tags: [], evidence_id: principal, confidence_basis_points: 9500, first_seen: "2026-08-19T00:00:00Z", last_seen: "2026-08-19T01:00:00Z", observed_at: "2026-08-19T01:00:00Z", fresh_until: "2026-08-19T01:15:00Z", freshness_state: "fresh", version: 1 };
+  window.history.replaceState({}, "", `/discovery/assets${entry === "initial-link" ? `?inventory=${agentID}` : ""}`);
+  let switched = false;
+  const detailScopes: (string | null)[] = [];
+  vi.stubGlobal("fetch", async (request: Request) => {
+    const path = new URL(request.url).pathname;
+    if (path === "/api/v1/session/bootstrap") return json(bootstrap(["scope.switch", "inventory.read"], switched ? second : environment));
+    if (path === "/api/v1/session/scopes") return json({ items: [{ organization_id: org, workspace_id: workspace, environment_id: environment, label: "Original" }, { organization_id: org, workspace_id: workspace, environment_id: second, label: "Second" }] });
+    if (path === "/api/v1/session/scope") { expect(request.method).toBe("PUT"); expect(await request.json()).toEqual({ workspace_id: workspace, environment_id: second }); switched = true; return new Response(null, { status: 204 }); }
+    if (path === "/api/v1/workflow-mutation-receipts") return json({ items: [] });
+    if (path === "/api/v1/agents") return json({ items: switched ? [] : [summary], page_info: { has_more: false, next_cursor: null } });
+    if (path === `/api/v1/agents/${agentID}`) { detailScopes.push(request.headers.get("X-Zasp-Expected-Scope")); return json({ summary, sources: [{ integration_id: second, provider: "kubernetes", source: "kubernetes", source_identifier: `sha256:${"b".repeat(64)}`, snapshot_id: second, generation: 1, evidence_id: principal, confidence_basis_points: 9500, observed_at: summary.observed_at, fresh_until: summary.fresh_until, projection_version: 1, winning: true }], evidence: [{ id: principal, checksum: `sha256:${"a".repeat(64)}`, media_type: "application/json", schema_version: "raw_v1", parser_version: "parser_v1", tool_version: "tool_v1", collected_at: summary.observed_at, size_bytes: 128 }] }); }
+    if (["capabilities", "relationships", "sessions"].some(suffix => path === `/api/v1/agents/${agentID}/${suffix}`)) return emptyPage();
+    throw new Error("Unexpected mounted Agents fixture request");
+  });
+  render(<ZaspProductionApp />);
+  if (entry === "row-open") await userEvent.click(await screen.findByRole("button", { name: "Open Scoped initial Agent" }));
+  expect(await screen.findByRole("dialog", { name: "Scoped initial Agent" })).toBeVisible();
+  expect(detailScopes).toEqual([`${org}/${workspace}/${environment}`]);
+  // External scope selection exercises the real pending-unmount/keyed-remount path.
+  // It does not relax the active modal's accessibility or change backend authority.
+  fireEvent.change(document.querySelector('[aria-label="Authorized scope"]')!, { target: { value: `${workspace}/${second}` } });
+  await waitFor(() => expect(screen.getByRole("combobox", { name: "Authorized scope" })).toHaveValue(`${workspace}/${second}`));
+  expect(await screen.findByText("No records in this scope.")).toBeVisible();
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  expect(detailScopes).toEqual([`${org}/${workspace}/${environment}`]);
 });
