@@ -1,3 +1,5 @@
+> Current Agent-read availability correction, October 17, 2026: source review proves the current-authorized Agent detail, capability, relationship and session reads select legacy SQL rejected by the closed statement classifier; the legacy Agent session source additionally returns constant empty data. M4-04, M4-06, M4-07 and M4-08 are component-only under T05-inventory-cutover until actual current-read/native/deployed verification passes. A sealed additive profile and real attributed session read are the implementation batch; source/component checks do not restore production credit. All 728 IDs and historical statuses remain intact. Current classes: 510 production-available / 157 component-only / 61 blocked/external; 218 recorded non-production rows. All 728 requirements still need fresh deployed acceptance. Prior dated counts below are historical. See cloud-agents-current-authorized-read-source-checkpoint-2026-10-17.json.
+
 > October 17, 2026 Agents source-indicator component successor: the real Agents API data now renders exact last-seen times, freshness at the last API read, and winning/nonwinning source observation provenance. Recorded blocking capability evidence is labelled separately from policy and runtime sensor coverage, which remain unavailable without authoritative per-Agent bindings. Actual grouped verification passes 95 UI/client cases with typecheck, scoped lint and build; native/deployed stale-state and full M4-50c acceptance remain open. All 728 requirements and current 514/153/61 classes remain intact; no availability promotion. See cloud-agents-source-indicators-source-checkpoint-2026-10-17.json.
 
 > Current health availability correction, October 17, 2026: independent source review found that required identity failures were reported as optional degradation. The actual API now uses the existing shared aggregator, but local API compilation and behavior remain blocked by unavailable OPA. M7-29, M7-30 and M7-40d are component-only pending actual required/optional outage and E2E acceptance; M7-31 retains its historical class with a scoped limitation. All 728 IDs and historical statuses remain intact. Current classes: 514 production-available / 153 component-only / 61 blocked/external; the 214 remaining inventory records do not replace fresh deployed verification of every requirement. Prior dated counts below are historical. See cloud-system-health-probe-integration-source-checkpoint-2026-10-17.json.
@@ -23,8 +25,8 @@
 
 | Production class | Count |
 | --- | ---: |
-| Production-available | 514 |
-| Component-only | 153 |
+| Production-available | 510 |
+| Component-only | 157 |
 | Blocked/external | 61 |
 | Missing | 0 |
 
@@ -37,13 +39,13 @@
 | M1A | 10 | 0 | 6 | 4 | 0 |
 | M2 | 72 | 67 | 5 | 0 | 0 |
 | M3 | 75 | 73 | 0 | 2 | 0 |
-| M4 | 82 | 76 | 6 | 0 | 0 |
+| M4 | 82 | 72 | 10 | 0 | 0 |
 | M5 | 42 | 42 | 0 | 0 | 0 |
 | M6 | 36 | 36 | 0 | 0 | 0 |
 | M7 | 62 | 27 | 35 | 0 | 0 |
 | M7A | 113 | 95 | 18 | 0 | 0 |
 | M8 | 141 | 34 | 55 | 52 | 0 |
-| **Total** | **728** | **514** | **153** | **61** | **0** |
+| **Total** | **728** | **510** | **157** | **61** | **0** |
 
 ## Agents source availability correction evidence
 

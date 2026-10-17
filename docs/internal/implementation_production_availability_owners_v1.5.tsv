@@ -260,11 +260,11 @@ M4-01f	T05-inventory-cutover
 M4-01	T05-inventory-cutover
 M4-02	T05-inventory-cutover
 M4-03	PROD-current-composition
-M4-04	PROD-current-composition
+M4-04	T05-inventory-cutover
 M4-05	T05-inventory-cutover
-M4-06	PROD-current-composition
-M4-07	PROD-current-composition
-M4-08	PROD-current-composition
+M4-06	T05-inventory-cutover
+M4-07	T05-inventory-cutover
+M4-08	T05-inventory-cutover
 M4-09	PROD-current-composition
 M4-10	PROD-current-composition
 M4-11	PROD-current-composition

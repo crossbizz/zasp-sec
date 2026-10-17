@@ -77,6 +77,9 @@ var authorizationStatementRules = []authorizationStatementRule{
 }
 
 func authorizationStatementAllowed(g RequestAuthorization, q string, args []any) bool {
+	if handled, allowed := agentReadStatementAllowed(g, q, args); handled {
+		return allowed
+	}
 	if handled, allowed := environmentClassStatementAllowed(g, q, args); handled {
 		return allowed
 	}

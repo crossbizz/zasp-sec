@@ -86,6 +86,7 @@ type PostgresRepository struct {
 	retentionProfileChecksum        string
 	environmentClassProfileChecksum string
 	agentOwnerProfileChecksum       string
+	agentReadProfileChecksum        string
 	currentAuthorization            bool
 	database                        JSONDatabase
 	schema                          string

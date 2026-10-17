@@ -217,6 +217,7 @@ type InventoryRepository interface {
 type PostgresInventoryRepository struct {
 	database                  JSONDatabase
 	agentOwnerProfileChecksum string
+	agentReadProfileChecksum  string
 }
 
 func NewPostgresInventoryRepository(database JSONDatabase) (*PostgresInventoryRepository, error) {
@@ -278,7 +279,18 @@ func (repository *PostgresInventoryRepository) GetInventory(ctx context.Context,
 	if repository == nil || nilInterface(repository.database) || ctx == nil || ctx.Err() != nil || scope.Validate() != nil || id.IsZero() || !validInventoryKind(kind) {
 		return InventoryDetail{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresInventoryDetailSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), id.String(), kind)
+	statement := postgresInventoryDetailSQL
+	arguments := []any{scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), id.String(), kind}
+	if kind == InventoryKindAgent {
+		if _, current := requestAuthorizationFromContext(ctx); current {
+			var queryErr error
+			statement, arguments, queryErr = repository.agentReadQuery(ctx, postgresInventoryDetailSQL, postgresAgentReadDetailSQL, arguments[:4])
+			if queryErr != nil {
+				return InventoryDetail{}, queryErr
+			}
+		}
+	}
+	payload, err := repository.database.QueryJSON(ctx, statement, arguments...)
 	if err != nil {
 		return InventoryDetail{}, inventoryProviderError(err)
 	}
@@ -293,7 +305,11 @@ func (repository *PostgresInventoryRepository) ListAgentCapabilitiesPage(ctx con
 	if !validInventorySubresourceCall(repository, ctx, scope, id, after, limit) {
 		return CapabilityPage{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresInventoryCapabilitiesSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), id.String(), after, limit)
+	statement, arguments, queryErr := repository.agentReadQuery(ctx, postgresInventoryCapabilitiesSQL, postgresAgentReadCapabilitiesSQL, []any{scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), id.String(), after, limit})
+	if queryErr != nil {
+		return CapabilityPage{}, queryErr
+	}
+	payload, err := repository.database.QueryJSON(ctx, statement, arguments...)
 	if err != nil {
 		return CapabilityPage{}, inventoryProviderError(err)
 	}
@@ -323,7 +339,11 @@ func (repository *PostgresInventoryRepository) ListAgentRelationshipsPage(ctx co
 	if !validInventorySubresourceCall(repository, ctx, scope, id, after, limit) {
 		return RelationshipPage{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresInventoryRelationshipsSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), id.String(), after, limit)
+	statement, arguments, queryErr := repository.agentReadQuery(ctx, postgresInventoryRelationshipsSQL, postgresAgentReadRelationshipsSQL, []any{scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), id.String(), after, limit})
+	if queryErr != nil {
+		return RelationshipPage{}, queryErr
+	}
+	payload, err := repository.database.QueryJSON(ctx, statement, arguments...)
 	if err != nil {
 		return RelationshipPage{}, inventoryProviderError(err)
 	}
@@ -352,7 +372,11 @@ func (repository *PostgresInventoryRepository) ListAgentSessionsPage(ctx context
 	if !validInventorySubresourceCall(repository, ctx, scope, id, after, limit) {
 		return SessionPage{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresInventorySessionsSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), id.String(), after, limit)
+	statement, arguments, queryErr := repository.agentReadQuery(ctx, postgresInventorySessionsSQL, postgresAgentReadSessionsSQL, []any{scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), id.String(), after, limit})
+	if queryErr != nil {
+		return SessionPage{}, queryErr
+	}
+	payload, err := repository.database.QueryJSON(ctx, statement, arguments...)
 	if err != nil {
 		return SessionPage{}, inventoryProviderError(err)
 	}

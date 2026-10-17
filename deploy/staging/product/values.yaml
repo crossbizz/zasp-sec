@@ -532,3 +532,7 @@ agentOwnerFilter:
   # API consumer only after exact supplementary native admission; never installs.
   enabled: false
   profileChecksum: ""
+
+agentRead:
+  # API consumer only after supplementary profile native admission; empty stays off.
+  profileChecksum: ""

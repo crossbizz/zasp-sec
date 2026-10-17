@@ -185,7 +185,7 @@ test('closed event observation preserves the exact original assertion error and 
   const guarded={...assert,ok(value,...args){if(!value)throw original;return assert.ok(value,...args);}};
   // Execute the actual acceptance assertion function with a controlled issued
   // error. This verifies catch/observation never replaces that original object.
-  const actual=new Function('assert','acceptanceGroups','applicationPackage','traceFailureStages','traceFailureEvents',`return (${validate.toString()});`)(guarded,Object.freeze({...groups,...traceDiagnostics.ENVIRONMENT_CLASS_ACCEPTANCE_GROUPS,...traceDiagnostics.MAINTENANCE_OPERATOR_ACCEPTANCE_GROUPS,...traceDiagnostics.OPTIONAL_EGRESS_OPERATOR_ACCEPTANCE_GROUPS}),pkg,stages,events);
+  const actual=new Function('assert','acceptanceGroups','applicationPackage','traceFailureStages','traceFailureEvents',`return (${validate.toString()});`)(guarded,Object.freeze({...groups,...traceDiagnostics.ENVIRONMENT_CLASS_ACCEPTANCE_GROUPS,...traceDiagnostics.MAINTENANCE_OPERATOR_ACCEPTANCE_GROUPS,...traceDiagnostics.OPTIONAL_EGRESS_OPERATOR_ACCEPTANCE_GROUPS,...traceDiagnostics.AGENT_CURRENT_READ_ACCEPTANCE_GROUPS}),pkg,stages,events);
   assert.throws(()=>actual([...trace(groups.approval),{Package:pkg,Test:'PRIVATE_EXTRA_CANARY',Action:'output'}],groups.approval),error=>error===original);
   assert.equal(stages.get(original),'event-case');
   assert.deepEqual(events.get(original),{action:'output',testShape:'nonempty-string',caseClass:'unrecognized'});
@@ -654,7 +654,44 @@ test('retention connected sources retain the complete declared application closu
   "services/platform/admincontrol/http.go",
   "services/platform/admincontrol/admincontrol_test.go",
   "services/platform/domain/ids.go",
-  "services/platform/domain/scope.go"
+  "services/platform/domain/scope.go",
+  ".github/workflows/agents-current-read-components.yml",
+  "deploy/production/agent-read-profile.mjs",
+  "deploy/production/agent-read-profile.test.mjs",
+  "deploy/staging/product/templates/_agent-read.tpl",
+  "scripts/implementation-status-check.mjs",
+  "scripts/implementation-status-check.test.mjs",
+  "scripts/validate_agent_read_components.py",
+  "scripts/validate_agent_read_components_test.py",
+  "services/platform/agentsec-api/agent_read_runtime.go",
+  "services/platform/agentsec-api/agent_read_runtime_test.go",
+  "services/platform/agentsec-api/runtime_test.go",
+  "services/platform/agentsec-migrate/AGENT_READ.md",
+  "services/platform/agentsec-migrate/agent_read_profile.go",
+  "services/platform/agentsec-migrate/agent_read_profile_test.go",
+  "services/platform/agentsec-migrate/main_test.go",
+  "services/platform/agentsec-migrate/release_readiness_test.go",
+  "services/platform/apiserver/agent_current_read.go",
+  "services/platform/apiserver/agent_current_read_handler_test.go",
+  "services/platform/apiserver/agent_current_read_postgres_test.go",
+  "services/platform/apiserver/agent_current_read_test.go",
+  "services/platform/apiserver/authorization_projection_postgres_test.go",
+  "services/platform/apiserver/authorization_transaction.go",
+  "services/platform/apiserver/authorization_worker_runtime_postgres_test.go",
+  "services/platform/apiserver/discovery_fix_round1_postgres_test.go",
+  "services/platform/apiserver/postgres_database.go",
+  "services/platform/apiserver/security_agent_multistep_admission_repository_postgres_test.go",
+  "services/platform/migrations/production_agent_read_compiler_test.go",
+  "services/platform/migrations/production_agent_read_profile.go",
+  "services/platform/migrations/production_agent_read_profile_test.go",
+  "services/platform/migrations/sql/0041_production_runtime_session_reads.up.sql",
+  "services/platform/migrations/sql/0061_production_security_agent_multistep.promote.sql",
+  "services/platform/migrations/sql/0067_production_temporal_domain.base.sql",
+  "services/platform/migrations/sql/0067_production_temporal_domain.up.sql",
+  "services/platform/migrations/sql/0068_production_temporal_executor.up.sql",
+  "services/platform/migrations/sql/0080_authorization_temporal_profile.sql",
+  "services/platform/migrations/sql/0080_production_authorization_enforcement.up.sql",
+  "services/platform/migrations/sql/agent_read_profile.sql"
 ];
   const compiled = JSON.parse(relative('.github/connector-native-compile-source-pins.json'));
   const compilePins = new Map(compiled.sources.map(item => [item.path, item]));
@@ -686,5 +723,35 @@ test('native retention installer diagnostics retain only bounded declared stages
     assert.ok(source.includes("observed?.kind==='pkce-phase'&&diagnostic.pkcePhases.length<8"));
     assert.ok(source.includes('!diagnostic.pkcePhases.some(value=>value.phase===observed.value.phase)'));
     assert.ok(source.includes("'; pkceBudget='+JSON.stringify(diagnostic.pkceBudget)+'; pkcePhases='+JSON.stringify(diagnostic.pkcePhases)"));
+  }
+});
+
+
+test('current Agent reads require both exact native profiles and every refusal case', () => {
+  const added = traceDiagnostics.AGENT_CURRENT_READ_ACCEPTANCE_GROUPS;
+  assert.deepEqual(Object.keys(added), ['agent-current-read', 'agent-current-read-audit']);
+  const previous = {...groups, ...traceDiagnostics.ENVIRONMENT_CLASS_ACCEPTANCE_GROUPS,
+    ...traceDiagnostics.MAINTENANCE_OPERATOR_ACCEPTANCE_GROUPS, ...traceDiagnostics.OPTIONAL_EGRESS_OPERATOR_ACCEPTANCE_GROUPS};
+  const all = {...previous, ...added};
+  assert.equal(Object.keys(previous).length, 21);
+  assert.equal(Object.values(previous).flatMap(g => g.names).length, 146);
+  assert.equal(Object.keys(all).length, 23);
+  assert.equal(Object.values(all).flatMap(g => g.names).length, 162);
+  assert.equal(Object.values(all).reduce((n,g) => n + g.postgresJoins, 0), 34);
+  const source = fs.readFileSync(new URL('../services/platform/apiserver/agent_current_read_postgres_test.go', import.meta.url), 'utf8');
+  const workflow = fs.readFileSync(new URL('../.github/workflows/connector-connected-lifecycle.yml', import.meta.url), 'utf8');
+  for (const [key, selected] of Object.entries(added)) {
+    assert.equal(select([key]), selected);
+    assert.equal(selected.names.length, 8); assert.equal(selected.postgresJoins, 1);
+    assert.ok(source.includes(`func ${selected.top}(t *testing.T)`));
+    assert.ok(workflow.includes(key));
+    validate(trace(selected), selected);
+    for (const name of selected.names) {
+      if (name !== selected.top) assert.ok(source.includes(`t.Run("${name.slice(selected.top.length + 1)}"`));
+      assert.ok(!Object.values(previous).some(g => g.names.includes(name)));
+      assert.throws(() => validate(trace(selected).filter(row => row.Test !== name), selected));
+      assert.throws(() => validate([...trace(selected), {Package: pkg, Test: name, Action: 'pass'}], selected));
+      for (const action of ['skip', 'fail']) assert.throws(() => validate(trace(selected).map(row => row.Test === name && row.Action === 'pass' ? {...row, Action: action} : row), selected));
+    }
   }
 });

@@ -1,3 +1,4 @@
+{{- include "zasp.agentRead.validate" . }}
 {{- include "zasp.environmentClass.validate" . }}
 {{- include "zasp.agentOwnerFilter.validate" . }}
 {{- include "zasp.optionalEgress.validate" . }}
@@ -79,6 +80,7 @@ spec:
             {{- include "zasp.optionalEgress.apiEnv" $root | nindent 12 }}
             {{- include "zasp.environmentClass.env" $root | nindent 12 }}
             {{- include "zasp.agentOwnerFilter.env" $root | nindent 12 }}
+            {{- include "zasp.agentRead.env" $root | nindent 12 }}
             {{- include "zasp.retention.pin" $root | nindent 12 }}
             - { name: ZASP_PRODUCT_LISTEN_ADDRESS, value: ":8080" }
             - { name: ZASP_INTERNAL_LISTEN_ADDRESS, value: ":8081" }

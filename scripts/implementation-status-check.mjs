@@ -20,8 +20,8 @@ const allowedProductionClasses = new Set([
   "missing",
 ]);
 const expectedClassCounts = new Map([
-  ["production-available", 514],
-  ["component-only", 153],
+  ["production-available", 510],
+  ["component-only", 157],
   ["blocked/external", 61],
   ["missing", 0],
 ]);
@@ -31,7 +31,7 @@ const expectedMilestoneClassCounts = new Map([
   ["M1A", new Map([["production-available", 0], ["component-only", 6], ["blocked/external", 4], ["missing", 0]])],
   ["M2", new Map([["production-available", 67], ["component-only", 5], ["blocked/external", 0], ["missing", 0]])],
   ["M3", new Map([["production-available", 73], ["component-only", 0], ["blocked/external", 2], ["missing", 0]])],
-  ["M4", new Map([["production-available", 76], ["component-only", 6], ["blocked/external", 0], ["missing", 0]])],
+  ["M4", new Map([["production-available", 72], ["component-only", 10], ["blocked/external", 0], ["missing", 0]])],
   ["M5", new Map([["production-available", 42], ["component-only", 0], ["blocked/external", 0], ["missing", 0]])],
   ["M6", new Map([["production-available", 36], ["component-only", 0], ["blocked/external", 0], ["missing", 0]])],
   ["M7", new Map([["production-available", 27], ["component-only", 35], ["blocked/external", 0], ["missing", 0]])],
@@ -82,7 +82,7 @@ const auditedProductionAvailableIDs = new Set([
   "M8-20a", "M8-20b", "M8-20c", "M8-20", "M8-21a", "M8-21b", "M8-21c", "M8-21d", "M8-21e", "M8-21", "M8-43", "M8-44",
   "M8-57a", "M8-57b", "M8-57c", "M8-57",
 ]);
-const auditedComponentOnlyIDs = new Set(["M7-29", "M7-30", "M7-40d", "M4-50", "M4-50a", "M4-50b1", "M4-50b2", "M4-50b3", "M4-50c", "M1-33", "M2-33", "M2-46b", "M7-08", "M7-09", "M7-10", "M7-11", "M7-15a", "M7-15b", "M7-15", "M7-36", "M7A-16", "M7A-25", "M7A-49", "M8-47"]);
+const auditedComponentOnlyIDs = new Set(["M4-04", "M4-06", "M4-07", "M4-08", "M7-29", "M7-30", "M7-40d", "M4-50", "M4-50a", "M4-50b1", "M4-50b2", "M4-50b3", "M4-50c", "M1-33", "M2-33", "M2-46b", "M7-08", "M7-09", "M7-10", "M7-11", "M7-15a", "M7-15b", "M7-15", "M7-36", "M7A-16", "M7A-25", "M7A-49", "M8-47"]);
 const auditedMissingIDs = new Set();
 const externalGateIDs = new Set([
   "EXT-cloud-deploy",

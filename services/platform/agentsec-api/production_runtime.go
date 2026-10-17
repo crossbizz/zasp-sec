@@ -109,6 +109,16 @@ func buildRuntimeDependenciesWithReadinessObserver(ctx context.Context, config R
 	}
 	authorizer := &apiserver.OpenFGAAuthorizer{Reader: revisions, Checker: checker, Resolver: selectedResolver, StoreID: config.RuntimeServices.StoreID, ModelID: config.RuntimeServices.ModelID, AttestationKey: attestationKey}
 
+	if config.AgentReadProfileChecksum != "" {
+		bounded, cancel := context.WithTimeout(ctx, config.ProviderTimeout)
+		ready, readyErr := database.AgentReadProfileReady(bounded, config.AgentReadProfileChecksum)
+		cancel()
+		if readyErr != nil || !ready {
+			_ = database.Close()
+			_ = securityAgentDatabase.Close()
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("agent-read-profile", errRuntimeUnavailable)
+		}
+	}
 	if config.AgentOwnerFilterEnabled {
 		bounded, cancel := context.WithTimeout(ctx, 5*time.Second)
 		ready, readyErr := database.AgentOwnerFilterProfileReady(bounded, config.AgentOwnerFilterProfileChecksum)
@@ -348,6 +358,11 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 	}
 	if retentionVisibility != nil && repository.RequireRetentionProfile(config.RetentionProfileChecksum) != nil {
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("retention-repositories", errRuntimeUnavailable)
+	}
+	if config.AgentReadProfileChecksum != "" && repository.RequireAgentReadProfile(config.AgentReadProfileChecksum) != nil {
+		_ = database.Close()
+		_ = securityAgentDatabase.Close()
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("agent-read-profile", errRuntimeUnavailable)
 	}
 	if config.AgentOwnerFilterEnabled && repository.RequireAgentOwnerFilterProfile(config.AgentOwnerFilterProfileChecksum) != nil {
 		_ = database.Close()
@@ -692,6 +707,15 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 	return RuntimeDependencies{ProductHandler: edge, Metrics: metrics, LifecycleWorker: func(ctx context.Context) error { return runLifecycleWorkers(ctx, lifecycleWorkers...) }, ReadinessCheck: func(ctx context.Context) error {
 		if currentRequired(database) && currentRequired(securityAgentDatabase) {
 			checks := []func(context.Context) error{connectorNativeReady, repository.Ready, connectorRepository.Ready, referenceRepository.Ready, policyHandler.Ready, tracedProvider.Ready}
+			if config.AgentReadProfileChecksum != "" {
+				checks = append(checks, func(probe context.Context) error {
+					ready, err := database.AgentReadProfileReady(probe, config.AgentReadProfileChecksum)
+					if err != nil || !ready {
+						return errRuntimeUnavailable
+					}
+					return nil
+				})
+			}
 			if config.AgentOwnerFilterEnabled {
 				checks = append(checks, func(probe context.Context) error {
 					ready, e := database.AgentOwnerFilterProfileReady(probe, config.AgentOwnerFilterProfileChecksum)

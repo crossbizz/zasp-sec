@@ -144,7 +144,20 @@ export const OPTIONAL_EGRESS_OPERATOR_ACCEPTANCE_GROUPS = Object.freeze({
   'optional-egress-operator': group('TestOptionalEgressOperatorNoInheritPostgres', optionalEgressOperatorCases, 1),
   'optional-egress-operator-audit': group('TestOptionalEgressOperatorNoInheritAuditPostgres', optionalEgressOperatorCases, 1),
 });
-const acceptanceGroups = Object.freeze({...CONNECTOR_ACCEPTANCE_GROUPS, ...ENVIRONMENT_CLASS_ACCEPTANCE_GROUPS, ...MAINTENANCE_OPERATOR_ACCEPTANCE_GROUPS, ...OPTIONAL_EGRESS_OPERATOR_ACCEPTANCE_GROUPS});
+const agentCurrentReadCases = Object.freeze([
+  'normal_selected_catalog_and_restricted_installer',
+  'mounted_five_request_current_drawer',
+  'real_projection_sessions_second_page_and_mixed_agent',
+  'exact_operation_parent_scope_and_expiry_refusal',
+  'cursor_stays_bound_to_current_parent_and_operation',
+  'catalog_body_acl_and_projection_drift_refused',
+  'current_membership_revocation_denies_all_drawer_reads',
+]);
+export const AGENT_CURRENT_READ_ACCEPTANCE_GROUPS = Object.freeze({
+  'agent-current-read': group('TestAgentCurrentReadNormalMountedPostgres', agentCurrentReadCases, 1),
+  'agent-current-read-audit': group('TestAgentCurrentReadAuditMountedPostgres', agentCurrentReadCases, 1),
+});
+const acceptanceGroups = Object.freeze({...CONNECTOR_ACCEPTANCE_GROUPS, ...ENVIRONMENT_CLASS_ACCEPTANCE_GROUPS, ...MAINTENANCE_OPERATOR_ACCEPTANCE_GROUPS, ...OPTIONAL_EGRESS_OPERATOR_ACCEPTANCE_GROUPS, ...AGENT_CURRENT_READ_ACCEPTANCE_GROUPS});
 export function selectConnectorAcceptanceGroup(args) {
   assert.ok(Array.isArray(args) && args.length === 1 &&
     typeof args[0] === 'string' && Object.hasOwn(acceptanceGroups, args[0]),
