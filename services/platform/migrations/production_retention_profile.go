@@ -95,6 +95,15 @@ func (r *Runner) UpProductionRetentionAuditProfile(ctx context.Context) error {
 			return fixedDatabaseError(ctx, err)
 		}
 		if !present {
+			// Provisioning is a separate genuine schema-owner operation. The
+			// ordinary NOINHERIT source installer never grants itself privileges.
+			var ddlReady bool
+			if err := scanRow(ctx, tx, retentionPublicDDLReadySQL, nil, &ddlReady); err != nil {
+				return fixedDatabaseError(ctx, err)
+			}
+			if !ddlReady {
+				return ErrRetentionPublicDDLPrerequisite
+			}
 			if err := tx.Exec(ctx, `SET LOCAL ROLE NONE`); err != nil {
 				return fixedDatabaseError(ctx, err)
 			}

@@ -52,7 +52,12 @@ func TestRetentionCompiledRecipeAndInstaller(t *testing.T) {
 			name = "existing_exact"
 		}
 		t.Run(name, func(t *testing.T) {
-			tx := &fakeTransaction{rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{present}}, fakeRow{values: []any{true}}}}
+			rows := []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{present}}}
+			if !present {
+				rows = append(rows, fakeRow{values: []any{true}})
+			}
+			rows = append(rows, fakeRow{values: []any{true}})
+			tx := &fakeTransaction{rows: rows}
 			db := &fakeDatabase{transaction: tx}
 			r, err := NewRunner(db)
 			if err != nil {

@@ -260,6 +260,37 @@ func TestRetentionAuditProfileNativePostgres(t *testing.T) {
 		if err := owner.QueryRow(ctx, `SELECT session_user=current_user AND NOT rolsuper AND NOT rolbypassrls AND NOT rolinherit FROM pg_roles WHERE rolname=session_user`).Scan(&genuine); err != nil || !genuine {
 			t.Fatal("genuine source owner required")
 		}
+		var ownerIdentity, publicCreate bool
+		if err := bootstrap.QueryRow(ctx, `SELECT db.datdba=session_user::regrole AND ns.nspowner=(SELECT oid FROM pg_roles WHERE rolname='pg_database_owner'),has_schema_privilege('zasp_discovery_authority',ns.oid,'CREATE') FROM pg_database db CROSS JOIN pg_namespace ns WHERE db.datname=current_database() AND ns.nspname='public'`).Scan(&ownerIdentity, &publicCreate); err != nil || !ownerIdentity || publicCreate {
+			t.Fatal("genuine unprovisioned database/public owner fixture required")
+		}
+		request := migrations.RetentionDDLBootstrapRequest{Principal: "zasp_test", Database: "postgres"}
+		// The separate former-superuser source login is not the schema owner
+		// or a direct grant-option holder; no privilege inference is permitted.
+		if receipt, err := runner.BootstrapProductionRetentionPublicDDL(ctx, migrations.RetentionDDLBootstrapRequest{Principal: "zasp_e2e", Database: "postgres"}); !errors.Is(err, migrations.ErrRetentionDDLAuthority) || receipt != (migrations.RetentionDDLBootstrapReceipt{}) {
+			t.Fatal("unprivileged source login provisioned DDL authority")
+		}
+		if err := runner.UpProductionRetentionAuditProfile(ctx); !errors.Is(err, migrations.ErrRetentionPublicDDLPrerequisite) {
+			t.Fatal("missing DDL capability did not require explicit owner provisioning")
+		}
+		if err := bootstrap.QueryRow(ctx, `SELECT has_schema_privilege('zasp_discovery_authority','public','CREATE') OR to_regnamespace('zasp_retention_v1') IS NOT NULL`).Scan(&publicCreate); err != nil || publicCreate {
+			t.Fatal("ordinary installer silently granted or installed authority")
+		}
+		bootstrapRunner, err := migrations.NewRunner(&integrationMigrationDatabase{connection: bootstrap})
+		if err != nil {
+			t.Fatal("owner bootstrap runner refused")
+		}
+		receipt, err := bootstrapRunner.BootstrapProductionRetentionPublicDDL(ctx, request)
+		if err != nil || receipt.Principal != "zasp_test" || receipt.Database != "postgres" || receipt.Schema != "public" || receipt.Grantee != "zasp_discovery_authority" {
+			t.Fatal("genuine owner bootstrap refused", err)
+		}
+		again, err := bootstrapRunner.BootstrapProductionRetentionPublicDDL(ctx, request)
+		if err != nil || receipt != again {
+			t.Fatal("fixed owner bootstrap changed on replay")
+		}
+		if err := bootstrap.QueryRow(ctx, `SELECT NOT(r.rolcanlogin OR r.rolinherit OR r.rolsuper OR r.rolcreatedb OR r.rolcreaterole OR r.rolreplication OR r.rolbypassrls) AND has_schema_privilege(r.oid,'public','CREATE') AND NOT has_schema_privilege('zasp_e2e','public','CREATE') AND NOT has_schema_privilege('auth80_api','public','CREATE') AND NOT has_schema_privilege('retention_index','public','CREATE') FROM pg_roles r WHERE r.rolname='zasp_discovery_authority'`).Scan(&publicCreate); err != nil || !publicCreate {
+			t.Fatal("bootstrap expanded source/API/worker rights or changed authority safety")
+		}
 		if err := runner.UpProductionRetentionAuditProfile(ctx); err != nil {
 			connectorFixtureErrorDiagnostic(t, err)
 			t.Fatal("retention prepare refused")
@@ -273,6 +304,20 @@ func TestRetentionAuditProfileNativePostgres(t *testing.T) {
 		var ready bool
 		if err := executor.QueryRow(ctx, `SELECT zasp_retention_v1.caller_ready('sweep',$1)`, pin).Scan(&ready); err != nil || ready {
 			t.Fatal("unactivated authority admitted")
+		}
+		ddlTx, err := bootstrap.Begin(ctx)
+		if err != nil {
+			t.Fatal("owned capability drift transaction refused")
+		}
+		defer ddlTx.Rollback(context.Background())
+		if _, err = ddlTx.Exec(ctx, `REVOKE CREATE ON SCHEMA public FROM zasp_discovery_authority`); err != nil {
+			t.Fatal("owned rollback-only DDL withdrawal refused")
+		}
+		if err = ddlTx.QueryRow(ctx, `SELECT NOT zasp_retention_v1.prepared_ready($1) AND zasp_authorization80_worker.catalog_ready() AND zasp_authorization80_runtime.catalog_ready() AND EXISTS(SELECT 1 FROM zasp_retention_v1.registration WHERE fingerprint=zasp_retention_v1.fingerprint())`, pin).Scan(&ready); err != nil || !ready {
+			t.Fatal("mutable DDL prerequisite altered structural parent seal")
+		}
+		if err = ddlTx.Rollback(ctx); err != nil {
+			t.Fatal("owned capability drift rollback refused")
 		}
 	})
 	t.Run("registered_purposes_and_explicit_local_cutover", func(t *testing.T) {
@@ -336,6 +381,23 @@ func TestRetentionAuditProfileNativePostgres(t *testing.T) {
 		}
 		if !boolOp(`SELECT zasp_retention_v1.activate($1,$2) AND zasp_authorization80_worker.catalog_ready() AND zasp_authorization80_runtime.current_ready()`, pin, cutover) {
 			t.Fatal("full current Audit parent equivalence failed")
+		}
+		// Capability withdrawal is a rollback-only DDL fact, never a runtime
+		// seal input. No alternate identity is used to exercise the operator.
+		ddlTx, err := bootstrap.Begin(ctx)
+		if err != nil {
+			t.Fatal("owned active DDL observation refused")
+		}
+		defer ddlTx.Rollback(context.Background())
+		if _, err = ddlTx.Exec(ctx, `REVOKE CREATE ON SCHEMA public FROM zasp_discovery_authority`); err != nil {
+			t.Fatal("owned active rollback-only DDL withdrawal refused")
+		}
+		var structural bool
+		if err = ddlTx.QueryRow(ctx, `SELECT NOT zasp_retention_v1.catalog_ddl_ready() AND zasp_retention_v1.independent_seal($1) AND zasp_retention_v1.effective_catalog_ready($1) AND zasp_authorization80_worker.catalog_ready() AND zasp_authorization80_runtime.current_ready()`, pin).Scan(&structural); err != nil || !structural {
+			t.Fatal("active structural/captured cleanup prerequisite depended on mutable DDL")
+		}
+		if err = ddlTx.Rollback(ctx); err != nil {
+			t.Fatal("owned active DDL observation rollback refused")
 		}
 	})
 	t.Run("same_full_receipt_current_writers_before_expiry", func(t *testing.T) {

@@ -373,7 +373,10 @@ test('retention connected sources retain the complete declared application closu
   "deploy/staging/iam-policy-union-v1.mjs",
   "deploy/staging/iam-policy-union-v1.test.mjs",
   "deploy/staging/tests/session_search_iam.tftest.hcl",
-  ".github/workflows/retention-iam-acceptance.yml"
+  ".github/workflows/retention-iam-acceptance.yml",
+  "services/platform/migrations/production_retention_ddl.go",
+  "services/platform/migrations/production_retention_ddl_test.go",
+  "services/platform/agentsec-migrate/retention_ddl_test.go"
 ];
   const compiled = JSON.parse(relative('.github/connector-native-compile-source-pins.json'));
   const compilePins = new Map(compiled.sources.map(item => [item.path, item]));

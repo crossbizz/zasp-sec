@@ -220,6 +220,14 @@ func main() {
 	}
 	ctx, cancel := context.WithTimeout(signalCtx, timeout)
 	defer cancel()
+	var retentionDDLBootstrap *migrations.RetentionDDLBootstrapRequest
+	if len(arguments) > 0 && arguments[0] == retentionDDLBootstrapCommand {
+		request, loadErr := loadRetentionDDLBootstrap(arguments, os.Getenv)
+		if loadErr != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+		retentionDDLBootstrap = &request
+	}
 	var retentionRegistration *retentionOperatorInput
 	if len(arguments) > 0 && retentionOperatorCommand(arguments[0]) {
 		retentionRegistration, err = loadRetentionOperator(arguments, os.Getenv)
@@ -375,7 +383,9 @@ func main() {
 		}
 		return
 	}
-	if retentionRegistration != nil {
+	if retentionDDLBootstrap != nil {
+		err = runRetentionDDLBootstrap(ctx, runner, *retentionDDLBootstrap, os.Stdout)
+	} else if retentionRegistration != nil {
 		defer clear(retentionRegistration.body)
 		err = withRetentionOperatorTransaction(ctx, func(c context.Context) (retentionOperatorTransaction, error) {
 			return connection.BeginTx(c, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
@@ -409,6 +419,9 @@ func main() {
 		err = runReleaseMigration(ctx, &registeredReleaseMigrationRunner{releaseMigrationRunner: runner, queryer: connection, registration: registration}, arguments)
 	}
 	if err != nil {
+		if errors.Is(err, migrations.ErrRetentionPublicDDLPrerequisite) {
+			log.Fatal("retention public DDL requires explicit schema-owner provisioning")
+		}
 		if marker := authorizationRuntimeProfileFailureMarker(err); marker != "" {
 			if _, writeErr := fmt.Fprint(os.Stderr, marker); writeErr != nil {
 				log.Fatal("release migration output failed")

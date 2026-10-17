@@ -253,8 +253,14 @@ CREATE FUNCTION zasp_retention_v1.fingerprint() RETURNS text LANGUAGE sql STABLE
  UNION ALL SELECT concat_ws('|','source-owner',r.oid,r.rolname,r.rolcanlogin,b.authority_role) FROM pg_proc p JOIN pg_roles r ON r.oid=p.proowner LEFT JOIN public.zasp_discovery_principal_bindings b ON b.principal_name=r.rolname WHERE p.oid='zasp_retention_v1.policy_lock(text,text,text)'::regprocedure
  ) SELECT encode(digest(convert_to(string_agg(v,E'\n' ORDER BY v),'UTF8'),'sha256'),'hex') FROM facts
 $fingerprint$;
+-- Catalog replacement needs namespace CREATE as well as function ownership.
+-- This is a prepare/activation prerequisite, not a runtime structural fact:
+-- withdrawing migration DDL access must preserve captured cleanup settlement.
+CREATE FUNCTION zasp_retention_v1.catalog_ddl_ready() RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $catalog_ddl$
+ SELECT EXISTS(SELECT 1 FROM pg_roles r JOIN pg_namespace n ON n.nspname='public' WHERE r.rolname='zasp_discovery_authority' AND NOT(r.rolcanlogin OR r.rolinherit OR r.rolsuper OR r.rolcreatedb OR r.rolcreaterole OR r.rolreplication OR r.rolbypassrls) AND has_schema_privilege(r.oid,n.oid,'CREATE'))
+$catalog_ddl$;
 CREATE FUNCTION zasp_retention_v1.prepared_ready(pin text) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $prepared$
- SELECT coalesce(pin='-- retention checksum' AND(SELECT count(*)=1 FROM zasp_retention_v1.registration) AND EXISTS(SELECT 1 FROM zasp_retention_v1.registration WHERE singleton AND checksum=pin AND parent_worker='-- retention worker checksum' AND parent_runtime='-- retention runtime checksum' AND fingerprint=zasp_retention_v1.fingerprint()),false)
+ SELECT coalesce(zasp_retention_v1.catalog_ddl_ready() AND pin='-- retention checksum' AND(SELECT count(*)=1 FROM zasp_retention_v1.registration) AND EXISTS(SELECT 1 FROM zasp_retention_v1.registration WHERE singleton AND checksum=pin AND parent_worker='-- retention worker checksum' AND parent_runtime='-- retention runtime checksum' AND fingerprint=zasp_retention_v1.fingerprint()),false)
 $prepared$;
 CREATE FUNCTION zasp_retention_v1.register_principal(login_value text,purpose_value text) RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $register$
 DECLARE role_value text;BEGIN

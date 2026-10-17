@@ -261,3 +261,32 @@ func withRetentionOperatorTransaction(ctx context.Context, begin func(context.Co
 	}
 	return nil
 }
+
+const retentionDDLBootstrapCommand = "bootstrap-retention-public-ddl"
+const retentionDDLPrincipalEnvironment = "ZASP_RETENTION_DDL_BOOTSTRAP_PRINCIPAL"
+const retentionDDLDatabaseEnvironment = "ZASP_RETENTION_DDL_BOOTSTRAP_DATABASE"
+
+type retentionDDLBootstrapper interface {
+	BootstrapProductionRetentionPublicDDL(context.Context, migrations.RetentionDDLBootstrapRequest) (migrations.RetentionDDLBootstrapReceipt, error)
+}
+
+func loadRetentionDDLBootstrap(args []string, getenv func(string) string) (migrations.RetentionDDLBootstrapRequest, error) {
+	if len(args) != 1 || args[0] != retentionDDLBootstrapCommand || getenv == nil {
+		return migrations.RetentionDDLBootstrapRequest{}, errInvalidMigrationCommand
+	}
+	request := migrations.RetentionDDLBootstrapRequest{Principal: getenv(retentionDDLPrincipalEnvironment), Database: getenv(retentionDDLDatabaseEnvironment)}
+	if request.Validate() != nil {
+		return migrations.RetentionDDLBootstrapRequest{}, errInvalidMigrationCommand
+	}
+	return request, nil
+}
+func runRetentionDDLBootstrap(ctx context.Context, runner retentionDDLBootstrapper, request migrations.RetentionDDLBootstrapRequest, out io.Writer) error {
+	if ctx == nil || ctx.Err() != nil || runner == nil || request.Validate() != nil || out == nil {
+		return errInvalidMigrationCommand
+	}
+	receipt, err := runner.BootstrapProductionRetentionPublicDDL(ctx, request)
+	if err != nil {
+		return err
+	}
+	return json.NewEncoder(out).Encode(receipt)
+}
