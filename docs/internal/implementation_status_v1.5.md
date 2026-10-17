@@ -2,6 +2,17 @@
 
 ## Current continuation, October 17, 2026
 
+The connected preflight component now uses actual AWS SDK read operations for
+STS identity, versioned encrypted S3 buckets, KMS metadata, current secret retrieval
+and queue/DLQ attributes. Explicit credential sources replace ambient fallback;
+legacy Boolean evaluation is labeled offline. All eight original sections remain,
+and unimplemented probes stay unobserved. No install, runtime or production
+readiness is asserted by this bounded batch. Independent source review passes;
+local SDK/CLI execution remains blocked by four uncached pinned modules, with
+hosted compilation and application checks required. See
+`cloud-connected-preflight-component-checkpoint-2026-10-17.json` and
+`connected-preflight-operator-contract-2026-10-17.md`.
+
 All 728 original requirements remain in scope. The ledger retains 523 historical
 production-available classifications, 144 component-only and 61 blocked/external,
 with zero promotions from component checks. These classifications do not prove

@@ -9,10 +9,9 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/kms"
-	kmstypes "github.com/aws/aws-sdk-go-v2/service/kms/types"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
+	"github.com/zasp-ai/zasp-sec/services/platform/cloudreadiness"
 )
 
 type productionDiscoveryDependencyConfig struct {
@@ -61,28 +60,19 @@ func readyProductionDiscoveryArtifactAuthority(ctx context.Context, s3API discov
 		return errRuntimeUnavailable
 	}
 	head, err := s3API.HeadBucket(ctx, &s3.HeadBucketInput{Bucket: aws.String(artifacts.Bucket), ExpectedBucketOwner: aws.String(artifacts.ExpectedBucketOwner)}, func(options *s3.Options) { options.Retryer = aws.NopRetryer{} })
-	if err != nil || ctx.Err() != nil || head == nil || aws.ToString(head.BucketRegion) != cloud.Region {
+	if err != nil || ctx.Err() != nil || !cloudreadiness.BucketHead(head, cloud.Region) {
 		return errRuntimeUnavailable
 	}
 	versioning, err := s3API.GetBucketVersioning(ctx, &s3.GetBucketVersioningInput{Bucket: aws.String(artifacts.Bucket), ExpectedBucketOwner: aws.String(artifacts.ExpectedBucketOwner)}, func(options *s3.Options) { options.Retryer = aws.NopRetryer{} })
-	if err != nil || ctx.Err() != nil || versioning == nil || versioning.Status != s3types.BucketVersioningStatusEnabled {
+	if err != nil || ctx.Err() != nil || !cloudreadiness.BucketVersioning(versioning) {
 		return errRuntimeUnavailable
 	}
 	encryption, err := s3API.GetBucketEncryption(ctx, &s3.GetBucketEncryptionInput{Bucket: aws.String(artifacts.Bucket), ExpectedBucketOwner: aws.String(artifacts.ExpectedBucketOwner)}, func(options *s3.Options) { options.Retryer = aws.NopRetryer{} })
-	if err != nil || ctx.Err() != nil || encryption == nil || encryption.ServerSideEncryptionConfiguration == nil || len(encryption.ServerSideEncryptionConfiguration.Rules) != 1 {
-		return errRuntimeUnavailable
-	}
-	rule := encryption.ServerSideEncryptionConfiguration.Rules[0]
-	if rule.ApplyServerSideEncryptionByDefault == nil || rule.ApplyServerSideEncryptionByDefault.SSEAlgorithm != s3types.ServerSideEncryptionAwsKms || aws.ToString(rule.ApplyServerSideEncryptionByDefault.KMSMasterKeyID) != artifacts.KMSKeyARN || !aws.ToBool(rule.BucketKeyEnabled) {
+	if err != nil || ctx.Err() != nil || !cloudreadiness.BucketEncryption(encryption, artifacts.KMSKeyARN) {
 		return errRuntimeUnavailable
 	}
 	key, err := kmsAPI.DescribeKey(ctx, &kms.DescribeKeyInput{KeyId: aws.String(artifacts.KMSKeyARN)}, func(options *kms.Options) { options.Retryer = aws.NopRetryer{} })
-	if err != nil || ctx.Err() != nil || key == nil || key.KeyMetadata == nil {
-		return errRuntimeUnavailable
-	}
-	metadata := key.KeyMetadata
-	wantKeyID := strings.TrimPrefix(strings.Split(artifacts.KMSKeyARN, ":")[5], "key/")
-	if aws.ToString(metadata.Arn) != artifacts.KMSKeyARN || aws.ToString(metadata.KeyId) != wantKeyID || aws.ToString(metadata.AWSAccountId) != artifacts.ExpectedBucketOwner || !metadata.Enabled || metadata.KeyManager != kmstypes.KeyManagerTypeCustomer || metadata.KeyState != kmstypes.KeyStateEnabled || metadata.KeyUsage != kmstypes.KeyUsageTypeEncryptDecrypt || metadata.KeySpec != kmstypes.KeySpecSymmetricDefault || metadata.Origin != kmstypes.OriginTypeAwsKms {
+	if err != nil || ctx.Err() != nil || !cloudreadiness.Key(key, artifacts.KMSKeyARN, artifacts.ExpectedBucketOwner) {
 		return errRuntimeUnavailable
 	}
 	return nil
@@ -99,8 +89,7 @@ func readyProductionDiscoveryRole(ctx context.Context, api discoveryRoleReadines
 		return errRuntimeUnavailable
 	}
 	output, err := api.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{}, func(options *sts.Options) { options.Retryer = aws.NopRetryer{} })
-	roleName := cloud.RoleARN[strings.LastIndex(cloud.RoleARN, "/")+1:]
-	if err != nil || ctx.Err() != nil || output == nil || aws.ToString(output.Account) != artifacts.ExpectedBucketOwner || !strings.HasPrefix(aws.ToString(output.Arn), "arn:aws:sts::"+artifacts.ExpectedBucketOwner+":assumed-role/"+roleName+"/") {
+	if err != nil || ctx.Err() != nil || !cloudreadiness.Role(output, "aws", artifacts.ExpectedBucketOwner, cloud.RoleARN) {
 		return errRuntimeUnavailable
 	}
 	return nil

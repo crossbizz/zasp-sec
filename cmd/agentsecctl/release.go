@@ -419,21 +419,7 @@ func runReleaseCommand(output io.Writer, input io.Reader, arguments []string) er
 	case "api-load":
 		return runAPILoadCommand(output, input, arguments)
 	case "preflight":
-		if len(arguments) != 1 {
-			return errInvalidArguments
-		}
-		var value PreflightInput
-		if err := decodeCommandInput(input, &value); err != nil {
-			return errPreflightRejected
-		}
-		report, err := EvaluatePreflight(value)
-		if err != nil && len(report.Checks) == 0 {
-			return err
-		}
-		if outputErr := encodeJSON(output, report); outputErr != nil {
-			return outputErr
-		}
-		return err
+		return runPreflightCommand(output, input, arguments)
 	case "backup":
 		if len(arguments) < 2 {
 			return errInvalidArguments

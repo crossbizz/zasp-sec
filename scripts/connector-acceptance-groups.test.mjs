@@ -390,7 +390,23 @@ test('retention connected sources retain the complete declared application closu
   "services/platform/agentsec-worker/retention_writer_journal.go",
   "services/platform/agentsec-worker/retention_writer_journal_test.go",
   "services/platform/agentsec-worker/retention_writer_journal_recovery.go",
-  "services/platform/agentsec-worker/retention_writer_journal_recovery_test.go"
+  "services/platform/agentsec-worker/retention_writer_journal_recovery_test.go",
+  "cmd/agentsecctl/go.mod",
+  "cmd/agentsecctl/go.sum",
+  "cmd/agentsecctl/preflight_live.go",
+  "cmd/agentsecctl/preflight_live_contract_test.go",
+  "cmd/agentsecctl/release.go",
+  "services/platform/agentsec-worker/discovery_dependencies.go",
+  "services/platform/cloudreadiness/aws.go",
+  "services/platform/preflight/aws_contract_test.go",
+  "services/platform/preflight/config.go",
+  "services/platform/preflight/config_contract_test.go",
+  "services/platform/preflight/contract.go",
+  "services/platform/preflight/credentials.go",
+  "services/platform/preflight/failures.go",
+  "services/platform/preflight/report.go",
+  "services/platform/preflight/runner.go",
+  "services/platform/preflight/transport.go"
 ];
   const compiled = JSON.parse(relative('.github/connector-native-compile-source-pins.json'));
   const compilePins = new Map(compiled.sources.map(item => [item.path, item]));
