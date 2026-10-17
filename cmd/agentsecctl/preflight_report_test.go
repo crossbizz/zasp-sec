@@ -40,8 +40,21 @@ func TestPreflightCommandsRetainBlockerReports(t *testing.T) {
 			}
 			var report PreflightReport
 			decoder := json.NewDecoder(&output)
-			if err := decoder.Decode(&report); err != nil || report.Ready || len(report.Checks) != c.count {
-				t.Fatalf("operator blocker report unavailable: checks=%d ready=%t error=%v", len(report.Checks), report.Ready, err)
+			var decodeErr error
+			if c.command == "upgrade-preflight" {
+				var live liveUpgradeReport
+				decodeErr = decoder.Decode(&live)
+				if live.Mode != "live-upgrade-prerequisites" || live.Compatibility.Kind != "offline-input-evaluation" || len(live.Checks) != 2 || live.Checks[1].Name != "rollback_artifact_observation" || live.Checks[1].Status != checkFail || !live.Checks[1].Required {
+					t.Fatal("live upgrade report lost explicit unverified artifact blocker")
+				}
+				// Preserve all original four compatibility blocker assertions in
+				// their now-explicit offline evidence location.
+				report = PreflightReport{Ready: live.Ready, Checks: live.Compatibility.Report.Checks}
+			} else {
+				decodeErr = decoder.Decode(&report)
+			}
+			if decodeErr != nil || report.Ready || len(report.Checks) != c.count {
+				t.Fatalf("operator blocker report unavailable: checks=%d ready=%t error=%v", len(report.Checks), report.Ready, decodeErr)
 			}
 			var trailing any
 			if decoder.Decode(&trailing) != io.EOF {

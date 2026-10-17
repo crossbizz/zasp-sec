@@ -742,7 +742,9 @@ test('retention connected sources retain the complete declared application closu
   "services/platform/migrations/production_temporal_domain.go",
   "services/platform/migrations/sql/0010_production_discovery.up.sql",
   "services/platform/migrations/sql/0079_production_authorization_projection.up.sql",
-  "services/platform/migrations/sql/agent_ownership_write_profile.sql"
+  "services/platform/migrations/sql/agent_ownership_write_profile.sql",
+  "cmd/agentsecctl/upgrade_preflight.go",
+  "cmd/agentsecctl/upgrade_preflight_test.go"
 ];
   const compiled = JSON.parse(relative('.github/connector-native-compile-source-pins.json'));
   const compilePins = new Map(compiled.sources.map(item => [item.path, item]));

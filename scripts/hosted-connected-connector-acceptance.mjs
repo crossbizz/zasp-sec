@@ -338,7 +338,7 @@ const pins = {
   "cmd/agentsecctl/go.sum": "ba9715433e35f6e74f03fb8cb57c043d6f6a0ef39a8be25f27687d7580f0a58e",
   "cmd/agentsecctl/preflight_live.go": "035ca8ed41d9c739cf3ce5ca21e6deda9068bcfcf9d4af5cb705cc299c4d8474",
   "cmd/agentsecctl/preflight_live_contract_test.go": "e870771d23bce28eb9c20a4026169b4de113462f406a50d8e21aa0570c36dc89",
-  "cmd/agentsecctl/release.go": "21af11955e700a655efbbf45fdc9732ec8ddc24c6e33bd16421dd488ddf77f1b",
+  "cmd/agentsecctl/release.go": "d8f460f15198193f647f0e3e7358286cb838ea7abdc16046d9f74c9923c2d4ee",
   "services/platform/agentsec-worker/discovery_dependencies.go": "e9d1b0ad9a59dce01fba6084e37c6b93e14622239dec628fbfed557b46c71df3",
   "services/platform/cloudreadiness/aws.go": "ec2f446982306fdb94d39f335d28b3821282e5fe4ec8d2d47ebef6b99453b399",
   "services/platform/preflight/aws_contract_test.go": "e205663ee2b2c7c1069c2c44ab16802b40c8df95d0e1a3abc3c93f16caf440f8",
@@ -518,12 +518,12 @@ const pins = {
   "cmd/agentsecctl/diagnostics_sensitive_keys_test.go": "ce3c8d70fe8ff4f6b68dbb3e294aee7377f23c69a47ecb601fb3516dc8b1f691",
   "cmd/agentsecctl/main.go": "78e83d4b204997a3eacfadb6d7d4998db5b87d45be1b25eb482e48adb9d563ad",
   "cmd/agentsecctl/main_test.go": "341c0bd78403f56027b38bdc7d1f6acd26b79495f724bbf86851ef15727e4316",
-  "cmd/agentsecctl/preflight_report_test.go": "85ca0f8627c024b79f7227e5b4c9503374a48b8eea3405e88d0fad42dbd31c8d",
+  "cmd/agentsecctl/preflight_report_test.go": "d615832c9a31165a3e3d4cca563e9af11408da5d246c5f988decd5dbeee41195",
   "cmd/agentsecctl/profiles.go": "253487fb0a467a737a5f1331f89a4bb686dc673a7fc12f8c142a3d279f2922d1",
   "cmd/agentsecctl/profiles_test.go": "e81e17d1f77c2778151cb78a1016926f9f9a5c19aaf7e8b0f43a922e0f7f9c1a",
   "cmd/agentsecctl/recovery_client.go": "bae28a722f29e15848b4460d6c1bf0af74a43ad1114e7605e324eb9ea1e2519d",
   "cmd/agentsecctl/recovery_client_test.go": "d250639ebc02c2e31e7e5dc45f4c8ac28041dbd67287b141611bd23f3cadd49b",
-  "cmd/agentsecctl/release_test.go": "40ce4b9c8eb45ed554ba75857a17bfe0a3745fb0422c952c93f67b41db177316",
+  "cmd/agentsecctl/release_test.go": "f74dc5958fb4397cda7e5cdd1c687c85e4f0b794662342efc3dca0ac7f85f25d",
   "cmd/agentsecctl/resilience.go": "0ca28882d8c870b5d618fa966f4ac7eb12c349361cc0e28028a357559731e478",
   "cmd/agentsecctl/resilience_test.go": "ff84796bb705a33e3f320dcb7c7abf7ad739536d7c74ddbf16890b5afa4fe45b",
   "cmd/agentsecctl/security_release.go": "bef6dc7f2152b3bfcacfe4fc723628c4345146617aec6d1ed6b0c71ac2845c7b",
@@ -624,11 +624,13 @@ const pins = {
   "services/platform/migrations/production_temporal_domain.go": "75f7a13446c377fc3d3551059badf44dd8448974db3c2a6f0daf0c52948531ba",
   "services/platform/migrations/sql/0010_production_discovery.up.sql": "b7bc32c642cb57988e4e6a0a89feed0ffe1d4396daa3f213c76a2f59b1b1154e",
   "services/platform/migrations/sql/0079_production_authorization_projection.up.sql": "8b358e304b2eedaed7a4148f317f6d21d9c624ccc39105ca6199265ae661a987",
-  "services/platform/migrations/sql/agent_ownership_write_profile.sql": "74de88d317674b498f70347d458c5bb8bdd2a338c7dc25cd2531b636f885bb79"
+  "services/platform/migrations/sql/agent_ownership_write_profile.sql": "74de88d317674b498f70347d458c5bb8bdd2a338c7dc25cd2531b636f885bb79",
+  "cmd/agentsecctl/upgrade_preflight.go": "c35b79a1623dea7022995b77418ee4a4468db18f2c8d9306fbce5d2a77430cfe",
+  "cmd/agentsecctl/upgrade_preflight_test.go": "8899d102b7bb4ff6ad7f9445f58eb29b7a2df2527ac12262fa7a7c1d717aaa19"
 };
 const roster = selectedGroup.names;
 const helperPins={
-  "scripts/connector-acceptance-groups.test.mjs": "51629265b4526de1bb7abe08637ba575633ff714e4ef9d7b64a1db7f3b2053a3",
+  "scripts/connector-acceptance-groups.test.mjs": "95cc47f69c079a082f5a5d3331e62b9033652377c83b553ed68c4a976a995318",
   "scripts/connector-acceptance-groups.mjs": "db8e1e154de8b0fbf80e2d0801c8a4c43f88033da2d551273b6727a6982ce98b",
   "docs/internal/evidence/cloud-2026-10-07/native-service-readiness/openfga/09-pg-non-glibc-libs-manifest.json": "96642e82997ffd2caf2893a5ecc0116ad2aef6e982df2d929f3efda4e04f3474",
   "services/platform/apiserver/authorization_integration_mutations_postgres_test.go": "5e4beb04b2409ad9b11b89c017ada5e2eccffd78a87bdd5692d40670f12a2ba0",

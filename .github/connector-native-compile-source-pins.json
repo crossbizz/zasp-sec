@@ -383,22 +383,22 @@
     },
     {
       "path": "scripts/connector-acceptance-groups.test.mjs",
-      "sha256": "51629265b4526de1bb7abe08637ba575633ff714e4ef9d7b64a1db7f3b2053a3",
-      "bytes": 65137,
+      "sha256": "95cc47f69c079a082f5a5d3331e62b9033652377c83b553ed68c4a976a995318",
+      "bytes": 65226,
       "currentBasePreimageSHA256": "a1622a9417e9fe4d62c2aed82bcf5f7f3e11dce841d802bf005b29d54405d388",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connected-connector-acceptance.mjs",
-      "sha256": "48bfcfeb7c4f161f812a32d9bf4a2a705c150df91cad0a8c4bc0aae79eb7bcf9",
-      "bytes": 115727,
+      "sha256": "dec086db8189594c5dbbd42333fe53c61e2d29e1c27fb71c449a1a61eb720aa3",
+      "bytes": 115952,
       "currentBasePreimageSHA256": "f248c6d9182ca08cb518cd54c620844c987f4ae723a38badb463c59e010db578",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
-      "sha256": "85e5027a2e30ff06531c993f892ff5f322075075f766b4e3c3f06d3d7fa1faec",
-      "bytes": 112128,
+      "sha256": "d695c59212bcaedec2c8d2d0edbbd69472c97934f7d347360b4dc5883005636c",
+      "bytes": 112353,
       "currentBasePreimageSHA256": "e66722e4daf5b1482c253d1f14b4c533c329fde202252c16f87ad3e0130e8524",
       "historicalPreimageSHA256": null
     },
@@ -2448,8 +2448,8 @@
     },
     {
       "path": "cmd/agentsecctl/release.go",
-      "sha256": "21af11955e700a655efbbf45fdc9732ec8ddc24c6e33bd16421dd488ddf77f1b",
-      "bytes": 18807,
+      "sha256": "d8f460f15198193f647f0e3e7358286cb838ea7abdc16046d9f74c9923c2d4ee",
+      "bytes": 18731,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -3708,8 +3708,8 @@
     },
     {
       "path": "cmd/agentsecctl/preflight_report_test.go",
-      "sha256": "85ca0f8627c024b79f7227e5b4c9503374a48b8eea3405e88d0fad42dbd31c8d",
-      "bytes": 3149,
+      "sha256": "d615832c9a31165a3e3d4cca563e9af11408da5d246c5f988decd5dbeee41195",
+      "bytes": 3873,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -3743,8 +3743,8 @@
     },
     {
       "path": "cmd/agentsecctl/release_test.go",
-      "sha256": "40ce4b9c8eb45ed554ba75857a17bfe0a3745fb0422c952c93f67b41db177316",
-      "bytes": 13239,
+      "sha256": "f74dc5958fb4397cda7e5cdd1c687c85e4f0b794662342efc3dca0ac7f85f25d",
+      "bytes": 13661,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -4452,6 +4452,20 @@
       "path": "services/platform/migrations/sql/agent_ownership_write_profile.sql",
       "sha256": "74de88d317674b498f70347d458c5bb8bdd2a338c7dc25cd2531b636f885bb79",
       "bytes": 22190,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "cmd/agentsecctl/upgrade_preflight.go",
+      "sha256": "c35b79a1623dea7022995b77418ee4a4468db18f2c8d9306fbce5d2a77430cfe",
+      "bytes": 7587,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "cmd/agentsecctl/upgrade_preflight_test.go",
+      "sha256": "8899d102b7bb4ff6ad7f9445f58eb29b7a2df2527ac12262fa7a7c1d717aaa19",
+      "bytes": 11014,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     }
