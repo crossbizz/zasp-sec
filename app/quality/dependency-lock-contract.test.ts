@@ -83,13 +83,21 @@ describe("M1-02 dependency lock contract", () => {
   });
 
   it("wires the dependency validator into the existing CI verification path", async () => {
-    const [packageText, workflow] = await Promise.all([
+    const [packageText, workflow, launcher] = await Promise.all([
       readFile(resolve(repositoryRoot, "package.json"), "utf8"),
       readFile(resolve(repositoryRoot, ".github/workflows/runnable-ui.yml"), "utf8"),
+      readFile(resolve(repositoryRoot, "scripts/run-dependency-regressions.py"), "utf8"),
     ]);
     const packageJson = JSON.parse(packageText) as { scripts?: Record<string, string> };
 
-    expect(packageJson.scripts?.["dependencies:check"]).toBe("node scripts/validate-dependencies.mjs && node --test scripts/dependency-parser-regression.test.mjs scripts/dependency-esbuild-regression.test.mjs");
+    expect(packageJson.scripts?.["dependencies:check"]).toBe("node scripts/validate-dependencies.mjs && python3 scripts/run-dependency-regressions.py");
+    expect(launcher).toMatch(/argv = \[node, '--test', 'scripts\/dependency-parser-regression\.test\.mjs',\s*'scripts\/dependency-esbuild-regression\.test\.mjs'\]/);
+    expect(launcher.match(/^\s*argv =/gm)).toHaveLength(1);
+    expect(launcher.match(/parser\.add_argument\(/g)).toHaveLength(1);
+    expect(launcher).toContain("parser.add_argument('--node', metavar='ABSOLUTE_NODE_EXECUTABLE')");
+    expect(launcher).toContain("options = parser.parse_args()");
+    expect(launcher).toContain("return _run_owned(argv)");
+    expect(launcher).toContain("os.execve(node, argv, os.environ.copy())");
     expect(packageJson.scripts?.verify).toBe(
       "npm run dependencies:check && npm run health:contract:test && npm run openapi:test && npm run openapi:lint && npm run openapi:check && npm run ui-api:test && npm run ui-api:check && npm run raw-fetch:test && npm run saas:tenancy:test && npm run graph:neo4j:test && npm run db:tenant-rls:test && npm test && npm run typecheck && npm run lint && npm run production:imports:test && npm run production:imports:source && npm run staging:gate:test && npm run production:release:test && npm run build && npm run production:imports:compiled && npm run implementation:status:check",
     );
