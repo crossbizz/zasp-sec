@@ -20,6 +20,7 @@ import { ProductionSecurityAgentsView } from "../features/securityagents/Securit
 import { SecurityAgentAuditView } from "../features/securityagents/SecurityAgentAuditView";
 import { SessionsComplianceView } from "../features/sessions/SessionsComplianceView";
 import { ProductionSessionsView } from "../features/sessions/RuntimeSessionsView";
+import {ProductionGatewayBootstrapSurface} from "../features/gateways/ProductionGatewayBootstrapView";
 import { ProductionSensorSurface } from "../features/sensors/ProductionSensorView";
 import { ProductionIntegrationsView, ProductionPoliciesView } from "../features/workflows/ProductionWorkflowViews";
 import { ProductionWorkflowMutationProvider, useWorkflowMutationScopeLock } from "../features/workflows/useRetainedWorkflowMutation";
@@ -41,6 +42,7 @@ const productionRoutes = [
   { path: "/policies", label: "Policies", capability: "policies.read" },
   { path: "/connectors", label: "Integrations", capability: "integrations.read" },
   { path: "/integrations/sensors", label: "Sensors", capability: "sensors.read" },
+  { path: "/integrations/gateways", label: "Runtime gateways", capability: "gateways.manage" },
   { path: "/protect/security-agents", label: "Security agents", capability: "security-agents.read" },
   { path: "/protect/approvals", label: "Approvals", capability: "security-agents.read" },
   { path: "/administration/identity-access", label: "Identity & Access", capability: "identity.manage" },
@@ -81,6 +83,7 @@ function ProductionRouteSurface({ path, location, navigate, inventoryDetailID }:
   if (path === "/test/attack-lab") return <ProductionAttackLabView key={`${session.principal.id}/${queryGeneration}`} canWrite={session.hasCapability("red-team.write")} selectedID={selected?.kind === "attack_lab_run" ? selected.id : undefined} />;
   if (path === "/policies") return <ProductionPoliciesView canWrite={session.hasCapability("policies.write")} />;
   if (path === "/connectors") return <ProductionIntegrationsView canWrite={session.hasCapability("integrations.write")} navigate={navigate} />;
+  if (path === "/integrations/gateways") return <ProductionGatewayBootstrapSurface />;
   if (path === "/integrations/sensors") return <ProductionSensorSurface canWrite={session.hasCapability("sensors.write")} fresh={session.isFreshAuthenticated} onReauthenticate={session.reauthenticate} />;
   if (path === "/protect/security-agents") return <ProductionSecurityAgentsView environmentID={session.environmentID} selectedID={selected?.id} onNavigate={navigate} />;
   if (path === "/protect/approvals") return <ProductionSecurityAgentsView environmentID={session.environmentID} surface="approvals" onNavigate={navigate} />;

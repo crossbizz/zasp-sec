@@ -109,9 +109,22 @@ func buildProductionControlDependenciesWithFactory(ctx context.Context, config p
 			return failRepository()
 		}
 	}
+	var enrollment gatewaycontrol.EnrollmentRepository
+	if config.EnrollmentEnabled {
+		factory, ok := repository.(interface {
+			EnrollmentRepositoryForProfile(string) (gatewaycontrol.EnrollmentRepository, error)
+		})
+		if !ok {
+			return failRepository()
+		}
+		enrollment, err = factory.EnrollmentRepositoryForProfile(config.EnrollmentProfileChecksum)
+		if err != nil || invalidProductionValue(enrollment) {
+			return failRepository()
+		}
+	}
 	cached := cachedControlRepository{Repository: repository, ready: readiness.Ready}
 	handler, err := gatewaycontrol.NewHTTPHandler(gatewaycontrol.HTTPHandlerConfig{
-		Repository: cached, InstallationRepository: installation, Clock: clock, OperationTimeout: config.OperationTimeout, MaximumBodyBytes: config.MaximumBodyBytes,
+		Repository: cached, EnrollmentRepository: enrollment, InstallationRepository: installation, Clock: clock, OperationTimeout: config.OperationTimeout, MaximumBodyBytes: config.MaximumBodyBytes,
 	})
 	if err != nil {
 		return failRepository()

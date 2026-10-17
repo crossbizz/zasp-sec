@@ -83,6 +83,7 @@ type JSONDatabase interface {
 }
 
 type PostgresRepository struct {
+	gatewayBootstrapProfileChecksum    string
 	sensorNodeCoverageProfileChecksum  string
 	retentionProfileChecksum           string
 	environmentClassProfileChecksum    string

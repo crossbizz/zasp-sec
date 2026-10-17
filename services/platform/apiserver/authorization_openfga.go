@@ -64,6 +64,7 @@ type RequestAuthorizer interface {
 	Authorize(context.Context, RequestIdentity, CredentialBinding, RoutedOperation) (RequestAuthorization, error)
 }
 type OpenFGAAuthorizer struct {
+	GatewayBootstrapReady    func(context.Context) (bool, error)
 	Reader                   authorization.RevisionReader
 	Checker                  authorization.Checker
 	Resolver                 AuthorizationTargetResolver

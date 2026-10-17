@@ -159,6 +159,17 @@ func newProductionHandlers(repository, securityAgentRepository *PostgresReposito
 			return Dependencies{}, nil, ErrRepositoryConfiguration
 		}
 	}
+	if repository.gatewayBootstrapProfileChecksum != "" {
+		gatewayRepository, gatewayErr := NewGatewayBootstrapRepository(repository.database, repository.gatewayBootstrapProfileChecksum)
+		if gatewayErr != nil {
+			return Dependencies{}, nil, ErrRepositoryConfiguration
+		}
+		gatewayHandler, gatewayErr := NewGatewayBootstrapHTTPHandler(gatewayRepository)
+		if gatewayErr != nil {
+			return Dependencies{}, nil, gatewayErr
+		}
+		workflowSurface = &gatewayBootstrapSurface{fallback: workflowSurface, gateways: gatewayHandler}
+	}
 	if securityAgentSchema {
 		securityAgentDefinitions, securityAgentErr := newWorkflowHTTPHandler(securityAgentRepository, cookie.WorkflowSigningKey, cookie.Clock, workflowCapabilities)
 		if securityAgentErr != nil {

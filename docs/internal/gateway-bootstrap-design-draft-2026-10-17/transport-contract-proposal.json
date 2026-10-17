@@ -1,0 +1,219 @@
+{
+  "status": "PROPOSED_SOURCE_RESEARCH_ONLY_REQUIRES_MERGED_DESIGN_REVIEW_NO_IMPLEMENTATION",
+  "observed_at": "2026-10-17T19:16:49.353924+00:00",
+  "scope": "Expose the already-authorized runtime15 gateway enrollment through a bounded production gateway-control adapter using existing one-time locator/secret and submitted Ed25519 key. No new database grant, login, identity, table or immutable SQL rewrite. This is Device enrollment, not authentic Agent-to-Device association.",
+  "sources": [
+    {
+      "path": "services/platform/migrations/sql/0015_runtime_data_plane.up.sql",
+      "sha256": "11c0b05a0a264ba9654c9646b18633c45469f495fa819b28b89e207aefc5ce9a",
+      "anchors": [
+        {
+          "text": "CREATE FUNCTION public.zasp_runtime_authenticate_gateway_enrollment",
+          "line": 448
+        },
+        {
+          "text": "CREATE FUNCTION public.zasp_runtime_gateway_enroll",
+          "line": 212
+        },
+        {
+          "text": "GRANT EXECUTE ON FUNCTION public.zasp_runtime_authenticate_gateway_enrollment",
+          "line": 1045
+        }
+      ]
+    },
+    {
+      "path": "services/platform/migrations/sql/0080_authorization_worker_gateway_writers.sql",
+      "sha256": "5ce0934637fddd422c5c01f3d8e7e44737ac106cd013fc97649955e710228901",
+      "anchors": [
+        {
+          "text": "CREATE FUNCTION zasp_authorization80_worker.gateway_organization_lock",
+          "line": 19
+        },
+        {
+          "text": "DO $writers$",
+          "line": 101
+        },
+        {
+          "text": "token_row.expires_at<=clock_timestamp()",
+          "line": 124
+        }
+      ]
+    },
+    {
+      "path": "services/platform/gatewaycontrol/http.go",
+      "sha256": "fe9a94769610272125a55bca13076b645b619cff629967b3d2623153e8c1148d",
+      "anchors": [
+        {
+          "text": "func (handler *httpHandler) ServeHTTP",
+          "line": 75
+        },
+        {
+          "text": "func (handler *httpHandler) authenticate",
+          "line": 160
+        },
+        {
+          "text": "func canonicalRequest",
+          "line": 277
+        }
+      ]
+    },
+    {
+      "path": "services/platform/gatewaycontrol/postgres.go",
+      "sha256": "72d569fc199d85e196d990885e6e7b86e2423fe5a580df4b6ca60635b81e279f",
+      "anchors": [
+        {
+          "text": "func (repository *PostgresRepository) Authority",
+          "line": 108
+        }
+      ]
+    },
+    {
+      "path": "services/gateway-control/production_runtime.go",
+      "sha256": "cfdddfb80f1dd8c8f9cc48b74b5b734b893d03e4d58a95144a29d371406f52b6",
+      "anchors": [
+        {
+          "text": "func buildProductionControlDependenciesWithFactory",
+          "line": 77
+        },
+        {
+          "text": "func newProductionPostgresRepository",
+          "line": 132
+        }
+      ]
+    },
+    {
+      "path": "services/platform/apiserver/runtime_data_plane_postgres_test.go",
+      "sha256": "67be7e13317379c4f51c3a37db649d509141f02f496b7fe99826ce281007780d",
+      "anchors": [
+        {
+          "text": "func TestProductionRuntimeDataPlanePostgresBindsGatewayEnrollmentReplayAndPolicy",
+          "line": 716
+        }
+      ]
+    }
+  ],
+  "existing_abi": {
+    "authenticate": {
+      "sql": "SELECT public.zasp_runtime_authenticate_gateway_enrollment($1,$2,'runtime-gateway-enroll')",
+      "args": "locator bytea16,secret bytea32; fixed audience",
+      "result_keys": [
+        "organization_id",
+        "workspace_id",
+        "environment_id",
+        "device_id",
+        "device_version",
+        "enrollment_id",
+        "token_generation",
+        "consumed",
+        "audience"
+      ],
+      "current_checks": "Registered original zasp_gateway_control login, format1, exact enrollment audience, digest locator lookup and domain-separated salted secret hash, current live pending/active Device, token notrevoked/notexpired/latest generation. Original15 token expiry uses transaction timestamp; current80 live replacement uses clock_timestamp and organization serialization."
+    },
+    "enroll": {
+      "sql": "SELECT public.zasp_runtime_gateway_enroll($1,$2,'runtime-gateway-enroll',$3,$4,$5,'Ed25519',$6,$7)",
+      "argument_types": [
+        "bytea locator16",
+        "bytea secret32",
+        "text credentialID",
+        "bigint requested credentialGeneration",
+        "text keyID",
+        "bytea publicKey32",
+        "timestamptz requestedExpiresAt"
+      ],
+      "original_nine_argument_abi": "locator bytea, secret bytea, audience text, credential text, generation bigint, keyID text, algorithm text, publicKey bytea, expires timestamptz",
+      "result_keys": [
+        "id",
+        "device_id",
+        "credential_generation",
+        "key_id",
+        "algorithm",
+        "audience",
+        "issued_at",
+        "expires_at",
+        "replayed"
+      ],
+      "scope": "Derived only from original authenticate result; not supplied to SQL by HTTP caller.",
+      "receipt_is_not_commit_proof": "SQL JSONB can precede actual transaction COMMIT; only successful COMMIT permits HTTP200."
+    },
+    "privilege": "Original0015 GRANT EXECUTE already grants both functions and current credential authority to zasp_gateway_control. Actual registered login/pool must be retained; no SET ROLE, direct table reads or grant expansion.",
+    "current80": "Original authenticate replacement acquires current organization authority before device advisory, rechecks after wait, then locks token and Device rows; token expiry wallclock check follows waits. ReadCommitted required. gateway_enroll body itself is not replaced by this80 file and inherits authenticate locks/checks."
+  },
+  "replay_expiry": {
+    "exact_replay": "gateway_enroll first authenticates current token; consumed=true is accepted only if retained credential for same scoped Device/enrollment matches enrollment_digest of scope, enrollmentID, requestedcredentialID/generation/keyID/algorithm/publickey/expiresmicroseconds. Original issued_at stable, replayed=true. No newDeviceversion increment on replay.",
+    "changed_request": "Retained different semantic enrollment digest rejects23505. Fresh enrollment needs not-consumed token, exact next credentialgeneration=max+1, and no other format1 unrevoked credential.",
+    "token_after_success": "Consumption alone does not invalidate exact retry, but expiry/revoke/newer enrollment generation does. No expiry bypass or historical consumed-token resurrection.",
+    "credential_expiry_gap": "Requested credential expiry validation remains transaction_timestamp in originalenroll (future and <=90days). After blocking auth/device waits it may already expire by wallclock. Proposed adapter must compare actual credential expiry against database clock_timestamp in final confirmation before COMMIT. Existing HTTP Authority also requires whole-second UTC credential expiry, so bootstrap request chooses whole-second UTC.",
+    "unknown_commit": "Return no success on commit/context ambiguity. Preserve same privatekey+credentialID/generation/keyID/requestedexpiry/rawbody and retry using same token while current. Token expiry may prevent replay resolution; report outcome UNKNOWN, never never-committed or automatically issue changed intent. Operator recovery can use existing signed current Authority with the preserved key, but must not fabricate an enrollment receipt/first-commit claim."
+  },
+  "proposed_http": {
+    "path": "/internal/v1/runtime-gateway/enrollments",
+    "method": "POST",
+    "transport": "HTTPS production endpoint; no query, escaped path aliases, redirects or forwarded/caller scope headers. application/json, exact closed keys, maximum4096 bytes; no null/duplicate/casealias/unknown/trailing/invalidUTF8 or UTF16 JSON. Fixed bounded operation deadline. No cookies/session/Stytch token replaces enrollment bearer.",
+    "optional_activation": "Optional dedicated repository/handler capability selected from original pool before cached legacy interface wrapping; off by default. Bootstrap route must branch before ordinary Device-credential HTTP authentication because no credential exists yet. Existing signed Authority/Policy/Decision/installation routes and global readiness unchanged.",
+    "authorization": "Proposed closed Authorization: ZaspGatewayEnrollmentV1 <canonicalRawURLlocator22>.<canonicalRawURLsecret43>. Exactly one header, decoded lengths16/32, no token in URL/body/response/log/metrics/traces. This is a proposed transport encoding, not a claimed existing gateway token codec.",
+    "proof_of_new_key_possession": "Recommended required existing request-signing context/timestamp/bodyhash/signature headers, verified with publickey from strict submitted body and credentialID from samebody. Existing canonicalRequest binds method/host/path/query/credentialID/freshwholeUTCtimestamp/bodyhash; verify using supplied Ed25519 key without querying current Authority first. Enrollment locator/secret remains sole original authorization; proof only demonstrates new key possession/intent. A dedicated bootstrap signer must preserve enrollment Authorization instead of calling existing SignRequest unmodified, which writes Device authorization.",
+    "body_schema": "gateway-enrollment-request-v1",
+    "body_keys": [
+      "schema",
+      "organization_id",
+      "workspace_id",
+      "environment_id",
+      "device_id",
+      "enrollment_id",
+      "token_generation",
+      "credential_id",
+      "credential_generation",
+      "key_id",
+      "algorithm",
+      "public_key",
+      "expires_at"
+    ],
+    "body_validation": "All six productIDs canonical; expected org/work/env/device/enrollment/tokenGeneration must equal original authenticated authority and are constraints, not granted caller scope. Both generations positive<=MaxInt64. keyID original regex, algorithm exactlyEd25519, publickey canonicalRawURL32bytes, expires canonicalwholeUTCsecond. Do not accept server-generated default IDs/generation/key or changeexpiry on retries.",
+    "receipt_schema": "gateway-enrollment-receipt-v1",
+    "receipt_keys": [
+      "schema",
+      "request_sha256",
+      "organization_id",
+      "workspace_id",
+      "environment_id",
+      "device_id",
+      "enrollment_id",
+      "token_generation",
+      "credential_id",
+      "credential_generation",
+      "key_id",
+      "algorithm",
+      "public_key",
+      "audience",
+      "issued_at",
+      "expires_at",
+      "replayed"
+    ],
+    "receipt": "Strict <=4096 application/json, Cache-Control:no-store, HTTP200 only after successful COMMIT. Scope/enrollment/gen from authenticated SQL; credential/key/expiry from strict enrolled and final credential authority matching requested intent. request_sha256 hashes original exactbody. issued_at/expires_at canonicalUTC up to6fractiondigits (wholeexpiry required); replayed retained presentation only, never first-ever commit guarantee. No locator/secret/privatekey returned.",
+    "errors": "Uniform generic authentication rejection for wrong/missing/expired/revoked/newer-token cases; malformed bounded body400, route/media404or415 chosen consistently, current catalog/backend/unknowncommit503. No raw SQL errors, token existence oracle, body/header/key dumps or unbounded echo. Validly authenticated changed intent may409 without exposing other tuple state; exact error map requires grouped review."
+  },
+  "proposed_transaction": {
+    "pool": "Borrow BeginTx(ReadCommitted) from same original gateway-control pool. Shared exported production helper for live adapter and later native application fixture; no duplicate fixture SQL/alternate role helper.",
+    "steps": [
+      "Strict parse and proof verification before Begin; authenticate original locator/secret in transaction.",
+      "Compare all expected scope/enrollment/tokenGeneration constraints; never SQL caller-supplied orgscope.",
+      "Call exact original gateway_enroll fixedABI with requested tuple; strictly decode and compare retained receipt.",
+      "Final fixed queries: reauthenticate enrollment; read current credential authority via existing original function; read database clock_timestamp. Compare bound scope/device/enrollment/tokenGeneration, consumed=true, samecredential/key/publickey/generation/expiry and expiry>databasewallclock; compare enrolled immutable fields and originalissuedtime. Original transaction holds organization/advisory/token/device locks until COMMIT.",
+      "If any check/read/context fails rollback with bounded cancellation-independent cleanup. COMMIT must return success and context remain valid before200. Unknown commit has no receipt ACK."
+    ],
+    "final_query_note": "Use existing granted functions plus built-in clock_timestamp in fixed SELECT(s), no new SQL function/grant. Ensure function evaluation/clock ordering is explicit (sequential final authenticate, credential authority, THEN clock read) and no further potentially blocking application query follows final clock validation. Clock can pass during network COMMIT; this defines admission at last authoritative check, not perpetual credential validity."
+  },
+  "grouped_acceptance": [
+    "Exact original SQL success/replay/currenttokenboundaries and changedintent conflicts; no native rolehelper replacement.",
+    "Actual TLS bootstrap route with original bearer+freshnewkeyproof; strictbody/headers/size, caller scope injection,wrongkey/bodymutation and no credential prerequisite.",
+    "Samepool preauth/enroll/finalreauth/currentauthority/DBwallclock/commit with unknowncommit no200; expiry and revocation across actual organization/device/token waits.",
+    "Actual CLI pendingkey/request durability, unknown retry sameintent, no regenerated IDs/expiry/privatekey, atomic resulting runtimecredential config and current signed Authority confirmation.",
+    "Legacy signed routes/health, tenant denial, no-secret logs, deployment explicit consumer and real deployed Stytch/provider launch flows remain required."
+  ],
+  "not_proven": [
+    "No implementation or commands/tests/native/network were run for this research",
+    "Existing15/native tests are source references only, not current executed acceptance",
+    "No production enrollment issuance API or CLI is inferred from legacy discovery repository methods",
+    "No authentic Agent-to-Device binding or Agentcoverage/filter completion"
+  ]
+}

@@ -122,6 +122,10 @@ var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"GET", "/api/v1/runtimes/{id}", "getRuntime", "view", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
 	{OperationDefinition{"GET", "/api/v1/assets/{id}", "getAsset", "view", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
 	{OperationDefinition{"GET", "/api/v1/sensors", "listSensors", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/gateways", "createGatewayDevice", "manage_identity", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/gateways/{id}", "getGatewayDevice", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/gateways/{id}/enrollments", "issueGatewayEnrollment", "manage_identity", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/gateways/{id}/enrollments/{enrollmentId}/revoke", "revokeGatewayEnrollment", "manage_identity", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"POST", "/api/v1/sensors", "createSensorEnrollment", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/sensors/{id}", "getSensor", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"PATCH", "/api/v1/sensors/{id}", "updateSensor", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
@@ -329,7 +333,7 @@ func requiresFreshAuthentication(operationID string) bool {
 	case "createWorkspace", "updateWorkspace", "createEnvironment", "updateEnvironment",
 		"updateMemberRole", "updateGroupMappings", "createAPIToken", "rotateAPIToken", "revokeAPIToken", "revealAPIToken", "acknowledgeAPITokenRevealGrant",
 		"createSSOConnection", "deleteSSOConnection", "testSSOConnection", "createSCIMConnection", "deleteSCIMConnection",
-		"revokeSession", "updateDataControls", "updateExternalDataFlows", "authorizeIntegration", "authorizeIntegrationReference", "remediateIntegrationAuthorization", "createSensorEnrollment", "rotateSensorToken":
+		"createGatewayDevice", "issueGatewayEnrollment", "revokeGatewayEnrollment", "revokeSession", "updateDataControls", "updateExternalDataFlows", "authorizeIntegration", "authorizeIntegrationReference", "remediateIntegrationAuthorization", "createSensorEnrollment", "rotateSensorToken":
 		return true
 	case "activateSecurityAgent", "decideSecurityAgentApproval", "setSecurityAgentExecutionControl", "startRecoveryBackup", "startRecoveryRestore":
 		return true

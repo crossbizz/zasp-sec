@@ -411,6 +411,16 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 		_ = securityAgentDatabase.Close()
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("agent-ownership-write-profile", errRuntimeUnavailable)
 	}
+	if config.GatewayBootstrapProfileChecksum != "" {
+		if repository.RequireGatewayBootstrapProfile(config.GatewayBootstrapProfileChecksum) != nil {
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("gateway-bootstrap-configuration", errRuntimeUnavailable)
+		}
+		authorizer.GatewayBootstrapReady = func(ctx context.Context) (bool, error) {
+			probe, cancel := context.WithTimeout(ctx, 5*time.Second)
+			defer cancel()
+			return database.GatewayBootstrapProfileReady(probe, config.GatewayBootstrapProfileChecksum)
+		}
+	}
 	if config.SensorNodeCoverageRetentionEnabled && repository.RequireSensorNodeCoverageProfile(config.SensorNodeCoverageProfileChecksum) != nil {
 		_ = database.Close()
 		_ = securityAgentDatabase.Close()

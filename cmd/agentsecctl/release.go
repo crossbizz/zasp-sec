@@ -418,6 +418,8 @@ func runReleaseCommand(output io.Writer, input io.Reader, arguments []string) er
 		return errInvalidArguments
 	}
 	switch arguments[0] {
+	case "gateway":
+		return runGatewayCommand(output, input, arguments)
 	case "api-load":
 		return runAPILoadCommand(output, input, arguments)
 	case "preflight":

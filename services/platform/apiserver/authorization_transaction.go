@@ -84,6 +84,10 @@ func (database *PostgresJSONDatabase) authorizedQueryJSON(ctx context.Context, g
 	if _, err = tx.Exec(ctx, `SELECT zasp_authorization80.fence($1::text)`, string(proof)); err != nil {
 		return nil, classifyPostgresError(err)
 	}
+	arguments, err = prepareGatewayBootstrapIssue(ctx, tx, grant, statement, arguments)
+	if err != nil {
+		return nil, err
+	}
 	var payload []byte
 	if err = tx.QueryRow(ctx, statement, arguments...).Scan(&payload); err != nil {
 		return nil, classifyPostgresError(err)
@@ -93,6 +97,9 @@ func (database *PostgresJSONDatabase) authorizedQueryJSON(ctx context.Context, g
 	}
 	if !json.Valid(payload) {
 		return nil, ErrRepositoryUnavailable
+	}
+	if err = confirmGatewayBootstrapMutation(ctx, tx, grant, statement, arguments, payload); err != nil {
+		return nil, err
 	}
 	if err = tx.Commit(ctx); err != nil {
 		return nil, classifyPostgresError(err)

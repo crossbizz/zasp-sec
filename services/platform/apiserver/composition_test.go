@@ -78,8 +78,8 @@ func TestCoreCompositionMatchesPublicOpenAPI(t *testing.T) {
 			public[key] = documented.OperationID
 		}
 	}
-	if len(seen) != 154 || len(public) != 164 {
-		t.Fatalf("base/public operation counts = %d/%d, want 154/164", len(seen), len(public))
+	if len(seen) != 158 || len(public) != 168 {
+		t.Fatalf("base/public operation counts = %d/%d, want 158/168", len(seen), len(public))
 	}
 	extended, err := NewCompositionWithSecurityAgentExports(auditExportCompositionDependencies(), handlerResponse("export"), handlerResponse("compliance"), handlerResponse("agent-export"))
 	if err != nil {
@@ -113,6 +113,23 @@ func TestCoreCompositionHasExactProductionSecuritySurfaceWithoutUnimplementedOve
 	definitions := make(map[string]OperationDefinition)
 	for _, operation := range CoreOperations() {
 		definitions[operation.OperationID] = operation
+	}
+	// Late inventory regression guard for four additive checked gateway routes.
+	// All original operation assertions and their exact security surface remain.
+	for _, gateway := range []struct{ id, method, path, permission string }{
+		{"createGatewayDevice", "POST", "/api/v1/gateways", "manage_identity"},
+		{"getGatewayDevice", "GET", "/api/v1/gateways/{id}", "view"},
+		{"issueGatewayEnrollment", "POST", "/api/v1/gateways/{id}/enrollments", "manage_identity"},
+		{"revokeGatewayEnrollment", "POST", "/api/v1/gateways/{id}/enrollments/{enrollmentId}/revoke", "manage_identity"},
+	} {
+		definition, ok := definitions[gateway.id]
+		if !ok || definition.Method != gateway.method || definition.Pattern != gateway.path || definition.Permission != gateway.permission || !equalStrings(definition.Security, []string{"BrowserExpectedScope", "BrowserSession", "ProductAPIToken"}) || requiresFreshAuthentication(gateway.id) != (gateway.method == "POST") {
+			t.Errorf("gateway operation %s lost exact closed route/permission/security/freshness", gateway.id)
+		}
+		target, err := authorizationTargetPolicy(gateway.id)
+		if err != nil || target.Mode != "scope" || target.Kind != "environment" || target.Parameter != "" {
+			t.Errorf("gateway operation %s borrowed a collection, organization or object target", gateway.id)
+		}
 	}
 	for _, operationID := range []string{"listFindings", "getFinding", "updateFinding", "acceptFindingRisk", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions"} {
 		definition, ok := definitions[operationID]

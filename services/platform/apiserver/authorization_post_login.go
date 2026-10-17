@@ -59,6 +59,13 @@ func (a *OpenFGAAuthorizer) preparePostLogin(ctx context.Context, i RequestIdent
 		slices.Sort(g.permissions)
 		g.environmentAudit = c.decisions[c.request(environment, "view_audit")]
 		g.capabilities = append(g.capabilities, "scope.switch")
+		if a.GatewayBootstrapReady != nil && c.decisions[c.request(environment, "manage_identity")] {
+			// An unavailable additive bootstrap profile hides only this feature.
+			if ready, e := a.GatewayBootstrapReady(ctx); e == nil && ready {
+				g.capabilities = append(g.capabilities, "gateways.manage")
+			}
+		}
+
 		if a.AgentExposureFilterReady != nil && slices.Contains(g.capabilities, "inventory.read") && c.decisions[c.request(environment, "view")] {
 			ready, readyErr := a.AgentExposureFilterReady(ctx)
 			if readyErr != nil {

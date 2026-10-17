@@ -1,0 +1,159 @@
+{
+  "classification": "PROPOSED_EXACT_RESPONSE_AND_ABI_SUCCESSOR_REQUIRES_ROOT_MERGE_AND_INDEPENDENT_REVIEW_NO_IMPLEMENTATION",
+  "parent": {
+    "path": "docs/internal/gateway-bootstrap-design-draft-2026-10-17/contract.json",
+    "sha256": "18128f0a558f3334063918faaecc4ac0aecad65caea603d4a82423bb379a1c1e"
+  },
+  "pin_abi_decision": "Append pin text LAST to every own public SQL API, preserving scope1..3/actor4/environmenttarget3. Defaultoff API constructor requires exact immutable compiled Normal/Audit pin. SQL independently requires passed pin equals installed compiled checksum through caller_ready(public-api,pin). No unbound installed-checksum-only selection.",
+  "exact_sql_abis": [
+    "create_device(o text,w text,e text,actor text,idempotency_key text,request_digest bytea,device_id text,device_name text,pin text) RETURNS jsonb",
+    "issue_enrollment(o text,w text,e text,actor text,idempotency_key text,request_digest bytea,device_id text,expected_device_version bigint,enrollment_id text,locator_digest bytea,salt bytea,token_hash bytea,expires_at timestamptz,pin text) RETURNS jsonb",
+    "revoke_enrollment(o text,w text,e text,actor text,idempotency_key text,request_digest bytea,device_id text,expected_device_version bigint,enrollment_id text,pin text) RETURNS jsonb",
+    "get_device(o text,w text,e text,device_id text,pin text) RETURNS jsonb",
+    "confirm_public(o text,w text,e text,actor text,operation text,idempotency_key text,request_digest bytea,expected_receipt jsonb,pin text) RETURNS boolean"
+  ],
+  "arities": {
+    "create": 9,
+    "issue": 14,
+    "revoke": 10,
+    "get": 5,
+    "confirm": 9
+  },
+  "public_scalar_rules": "Canonical full product IDs; generation/version positive1..MaxInt64; replay_floor0..MaxInt64. Device name1..128UTF8bytes trimmed/no control. All server metadata timestamps canonicalUTC RFC3339Nano <=6fraction digits without trailingzeros; retain original native instants. Tokenbundle expiry canonical wholeUTC seconds. Unknown/duplicate/null/casealias/trailing reject except explicitly nullable metadata below.",
+  "device_dto": {
+    "exact_keys": [
+      "id",
+      "name",
+      "state",
+      "version",
+      "replay_floor",
+      "created_at"
+    ],
+    "state_enum": [
+      "pending",
+      "active",
+      "revoked",
+      "deleted"
+    ],
+    "source": "Exact original native device metadata; current version/state on GET. Do not turn pending/active into health/coverage claim."
+  },
+  "enrollment_dto": {
+    "exact_keys": [
+      "id",
+      "device_id",
+      "token_generation",
+      "device_version",
+      "audience",
+      "issued_at",
+      "expires_at",
+      "consumed_at",
+      "revoked_at"
+    ],
+    "audience": "runtime-gateway-enroll",
+    "nullable_only": [
+      "consumed_at",
+      "revoked_at"
+    ],
+    "source": "Native15 format1 row in exact scope/device. device_version means original device_version_at_issue, not current device version. Original issued_at/expires_at stable; consumed/revoked are current row facts on GET, original own receipt snapshot on mutation replay."
+  },
+  "get_response": {
+    "exact_keys": [
+      "device",
+      "latest_enrollment",
+      "next_credential_generation",
+      "issuance_state"
+    ],
+    "latest_enrollment": "EnrollmentDTO or explicit null; exact scope/device FORMAT1 only, greatest token_generation LIMIT1, no legacy-token false claim. No unbounded history.",
+    "next_credential_generation": "Authoritative COALESCE(max(format1 credential_generation),0)+1 under current org/device serialization; fail on MaxInt64 overflow. A metadata hint, not a guarantee or privilege; issue rederives and binds authoritative value.",
+    "issuance_state_enum": [
+      "available",
+      "existing_enrollment",
+      "existing_credential",
+      "device_unavailable"
+    ],
+    "issuance_state_order": "device_unavailable when state not pending/active; else existing_credential when ANY original unrevoked format1 credential (including expired) because native enroll refuses those; else existing_enrollment when ANY original format1 token unconsumed+unrevoked (including expired); else available. Does not imply a revoked token revokes a credential."
+  },
+  "create_response": {
+    "exact_keys": [
+      "device",
+      "replayed"
+    ],
+    "fresh_status": 201,
+    "replay_status": 200,
+    "replayed": "false fresh original own mutation; true exact prior metadata receipt. No secret."
+  },
+  "issue_response": {
+    "fresh_exact_keys": [
+      "device",
+      "enrollment",
+      "replayed",
+      "token_bundle"
+    ],
+    "replay_exact_keys": [
+      "device",
+      "enrollment",
+      "replayed"
+    ],
+    "fresh_status": 201,
+    "replay_status": 200,
+    "fresh_replayed": false,
+    "replay_replayed": true,
+    "token_bundle": "Present ONLY fresh exact sameTX native token insertion AND confirmed COMMIT; never null, absent on metadata replay. Replay response includes original device/enrollment receipt snapshots, not fresh generated candidates; client refetch GET for current status."
+  },
+  "revoke_response": {
+    "exact_keys": [
+      "device",
+      "enrollment",
+      "replayed"
+    ],
+    "status": 200,
+    "replayed": "Original metadata snapshot exact prior receipt if true; false freshly recorded native revoke. Original token id/device match; no credential revocation claim."
+  },
+  "bundle_dto": {
+    "exact_keys": [
+      "schema",
+      "organization_id",
+      "workspace_id",
+      "environment_id",
+      "device_id",
+      "enrollment_id",
+      "token_generation",
+      "credential_generation",
+      "enrollment_expires_at",
+      "locator",
+      "secret"
+    ],
+    "schema": "gateway-enrollment-token-v1",
+    "enrollment_expires_at": "Whole-second UTC exact native token expiry. Must remain future at final DBclock check before COMMIT.",
+    "locator": "canonical RawURL exactly16decodedbytes",
+    "secret": "canonical RawURL exactly32decodedbytes",
+    "credential_generation": "Current authoritative next original native credential_generation returned/bound by own SQL receipt, never client-supplied. Recheck original no-unrevoked-credential condition at issue and final confirm."
+  },
+  "internal_sql_receipt": {
+    "exact_keys": [
+      "operation",
+      "device",
+      "enrollment",
+      "credential_generation",
+      "replayed",
+      "new_mutation"
+    ],
+    "nullable_only": [
+      "enrollment",
+      "credential_generation"
+    ],
+    "operation": "Exact createGatewayDevice|issueGatewayEnrollment|revokeGatewayEnrollment. create has enrollment=null,credential_generation=null; revoke has enrollment DTO,credential_generation=null; issue has DTO and positive authoritative next credential generation.",
+    "new_mutation": "TRUE only this operation newly performed original native effect AND inserted own receipt in current pg_current_xact_id. Own receipt row has immutable created_tx xid8 DEFAULT pg_current_xact_id(). Existing receipt replay returns FALSE regardless native metadata equality; never trust caller/GUC/HTTP boolean. Native issue result replayed:true with absent own receipt MUST NOT become new_mutation:true.",
+    "own_storage": "Persist stable result without new_mutation/replayed presentation markers, exact canonical intent digest, actual generated native material binding, original recorded_at, created_tx. Native material binding covers exact device/tokenID, token generation/deviceVersion, locator_digest32,salt32,token_hash32,expiry and authoritative next credentialgen. Hash/private fields never public DTO/audit; plaintext secret/locator never stored.",
+    "confirmation": "Same actual authorization-context READ COMMITTED transaction: fixed mutation -> strictinternalreceipt decode -> exact confirm_public(expected_receipt,pin) -> COMMIT. Confirm rechecks own exact scope/actor/operation/key/digest, stable receipt and current created_tx marker; compares every returned field; uses current proof+identity/revision/profile/pin/native state+postwait expiry. Publicsecretrelease requires new_mutation=true AND replayed=false AND original exact input IDs/hash generation/expiry binding; COMMIT success. Unknown commit never secretrelease.",
+    "replay_discipline": "Exact historical mutation receipt replay always new_mutation=false/replayed=true; no new audit, no native effect, no token material redisclosure. Canonical intent excludes all generated randomness and includes normalized operation/scope/actor/idempotency/body/path device/enrollment/expectedversion/TTL; changed intent conflicts. Current full permission/fresh policy still required for replay."
+  },
+  "headers_and_inputs": {
+    "all": "Production HTTPS, noquery, strict JSON exactbody and existing scope headers. Cache-Control:no-store and Pragma:no-cache on success/error containing flow state. No token URLs/logs/storage.",
+    "mutations": "Exactly one Idempotency-Key using existing canonical16..128 ASCII public idempotency rule. Required JSON media. Reject If-Match because expected_version is explicit body field (avoid conflicting version sources). create body{name}; issue body{expected_version,ttl_seconds60..86400}; revoke body{expected_version}. No generated IDs/gens/hashes/secret in user body.",
+    "GET": "No body, no mutation idempotency/version/fresh headers; normal current view authorization. Exact metadata refetch after create/issue/revoke and scope/identity change.",
+    "authority": "Browser mutation current CSRF/origin/scope plus real fresh auth and X-Zasp-Fresh-Auth:confirmed. PAT requires manage_identity ceiling/current grant, rejects browser fresh-auth header. Read current view; all environment allowed target(e), noncollection. No organization identity.manage shortcut."
+  },
+  "unknown_response_recovery": "A lost/unknown issue may have committed: replay gives metadata without secret; GET shows actuallatest token; deliberate exact revoke using new idempotency then issue with NEW idempotency creates fresh token. Never automatic retry/mint or claim old request never committed. Existing credential blockage is reported explicitly and is outside enrollment-token revocation.",
+  "limits": "Source proposal only. No product change, SQL/native execution or tests. Root merge must update prior arities and every acceptance classifier/CLI/SDK contract together."
+}

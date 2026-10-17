@@ -727,7 +727,70 @@ describe("production workflow concurrency contract", () => {
         if (operation?.operationId) operations.set(operation.operationId, { path, method, operation });
       }
     }
-    assert.equal(operations.size, 164);
+    // Preserve every original operation, then admit only the four explicit
+    // gateway bootstrap additions. Count equality alone could hide replacement.
+    const originalOperationIDs = `
+      startSession bootstrapSession completeSessionCallback signOutSession listSessionScopes
+      switchSessionScope getOrganization listWorkspaces createWorkspace getWorkspace updateWorkspace
+      listEnvironments createEnvironment getEnvironment updateEnvironment getCurrentPrincipal listMembers
+      updateMemberRole listGroupMappings updateGroupMappings listBuiltInRoles listSSOConnections
+      createSSOConnection deleteSSOConnection testSSOConnection listSCIMConnections createSCIMConnection
+      deleteSCIMConnection listAPITokens createAPIToken revokeAPIToken rotateAPIToken listAPITokenRevealGrants
+      revealAPIToken acknowledgeAPITokenRevealGrant listAuditEvents createAuditExport getAuditExport
+      listIntegrationCatalog listWorkflowMutationReceipts acknowledgeWorkflowMutationReceipt listSensors
+      createSensorEnrollment getSensor updateSensor deleteSensor rotateSensorToken getSensorCoverage
+      listIntegrations createIntegration completeIntegrationOAuthCallback getIntegration updateIntegration
+      deleteIntegration syncIntegration listIntegrationSyncs getIntegrationSync getIntegrationSchedule
+      putIntegrationSchedule deleteIntegrationSchedule getIntegrationFreshness getIntegrationSetupStatus
+      testIntegrationWebhook getIntegrationWebhookStatus authorizeIntegration authorizeIntegrationReference
+      remediateIntegrationAuthorization listAgents getAgent updateAgent getAgentCapabilities
+      getAgentRelationships listAgentSessions listTools getTool listIdentities getIdentity listRuntimes
+      getRuntime getAsset listFindings getFinding updateFinding acceptFindingRisk createFindingTicket
+      listAttackPaths getAttackPath getAttackPathBreakOptions globalSearch listPolicies createPolicy getPolicy
+      updatePolicy deletePolicy rolloutPolicy simulatePolicy listPolicyDecisions disablePolicy
+      listSecurityAgentTemplates listSecurityActions listSecurityAgents createSecurityAgent getSecurityAgent
+      updateSecurityAgent deleteSecurityAgent getSecurityAgentActivation activateSecurityAgent
+      getSecurityAgentExecutionControls setSecurityAgentExecutionControl simulateSecurityAgent
+      runSecurityAgent listSecurityAgentRuns getSecurityAgentRun getSecurityAgentAuditEvent
+      listSecurityAgentRunActivity listSecurityAgentActivityRuns getSecurityAgentExport
+      createSecurityAgentExportDownloadGrant downloadSecurityAgentExport cancelSecurityAgentRun
+      getSingleTestCleanupRecovery requestSingleTestCleanupRecovery listSecurityAgentApprovals
+      getSecurityAgentApproval decideSecurityAgentApproval getHomeSummary listSessions getSession
+      revokeSession listSessionEvents getSessionEvent listComplianceControls listComplianceEvidence
+      getComplianceEvidence createComplianceExport getComplianceExport createComplianceDownloadGrant
+      downloadComplianceExport getDataControls updateDataControls getExternalDataFlows updateExternalDataFlows
+      createAIExplanation getSystemStatus listSystemComponents getSystemVersion startRecoveryBackup
+      getRecoveryBackup startRecoveryRestore getRecoveryRestore listTests createTest getTest updateTest
+      runTest listTestRuns getTestRun cancelTestRun preflightAttackLabRun listAttackLabRuns createAttackLabRun
+      getAttackLabRun cancelAttackLabRun rerunAttackLabRun
+    `.trim().split(/\s+/);
+    const gatewayBootstrapOperations = {
+      "createGatewayDevice": {
+        "path": "/api/v1/gateways",
+        "method": "post"
+      },
+      "getGatewayDevice": {
+        "path": "/api/v1/gateways/{id}",
+        "method": "get"
+      },
+      "issueGatewayEnrollment": {
+        "path": "/api/v1/gateways/{id}/enrollments",
+        "method": "post"
+      },
+      "revokeGatewayEnrollment": {
+        "path": "/api/v1/gateways/{id}/enrollments/{enrollmentId}/revoke",
+        "method": "post"
+      }
+    };
+    assert.equal(originalOperationIDs.length, 164);
+    assert.equal(new Set(originalOperationIDs).size, 164);
+    assert.deepEqual([...operations.keys()].sort(), [...originalOperationIDs, ...Object.keys(gatewayBootstrapOperations)].sort());
+    for (const [id, expected] of Object.entries(gatewayBootstrapOperations)) {
+      const actual = operations.get(id);
+      assert.equal(actual.path, expected.path, id);
+      assert.equal(actual.method, expected.method, id);
+    }
+
     for (const operationId of ["getSingleTestCleanupRecovery", "requestSingleTestCleanupRecovery"]) {
       assert.ok(operations.has(operationId), operationId);
     }

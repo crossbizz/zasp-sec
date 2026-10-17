@@ -562,3 +562,8 @@ gatewayInstallation:
 # Customer-edge producer only; typed default remains off.
 runtimeGateway:
   installationACKEnabled: false
+
+# Device bootstrap API and native enrollment transport only; install profile separately.
+gatewayBootstrap:
+  enabled: false
+  profileChecksum: ""

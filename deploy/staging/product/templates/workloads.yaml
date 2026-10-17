@@ -1,3 +1,4 @@
+{{- include "zasp.gatewayBootstrap.validate" . }}
 {{- include "zasp.gatewayInstallation.validate" . }}
 {{- include "zasp.sensorNodeCoverage.validate" . }}
 {{- include "zasp.agentOwnershipWrite.validate" . }}
@@ -86,6 +87,7 @@ spec:
             {{- include "zasp.agentOwnerFilter.env" $root | nindent 12 }}
             {{- include "zasp.agentRead.env" $root | nindent 12 }}
             {{- include "zasp.sensorNodeCoverage.env" $root | nindent 12 }}
+            {{- include "zasp.gatewayBootstrap.apiEnv" $root | nindent 12 }}
             {{- include "zasp.agentOwnershipWrite.env" $root | nindent 12 }}
             {{- include "zasp.agentExposureFilter.env" $root | nindent 12 }}
             {{- include "zasp.retention.pin" $root | nindent 12 }}

@@ -11,6 +11,13 @@ on:
       - 'cmd/agentsecctl/**'
       - 'deploy/production/**'
       - 'deploy/staging/**'
+      - 'app/**'
+      - 'apps/web/api/**'
+      - 'openapi/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'scripts/validate_agent_read_components.py'
+      - 'scripts/validate_agent_read_components_test.py'
       - '.github/workflows/connector-native-draft-compile.yml'
       - '.github/connector-native-compile-source-pins.json'
   workflow_dispatch:
@@ -47,7 +54,7 @@ jobs:
           import hashlib, json
           from pathlib import Path
           source = json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())
-          assert len(source['sources']) == 799
+          assert len(source['sources']) == 840
           for item in source['sources']:
               raw = Path(item['path']).read_bytes()
               assert len(raw) == item['bytes']
@@ -89,7 +96,7 @@ jobs:
           assert len(groups) == 6 and sum(len(tops) for tops in groups.values()) == 10 and len(expected) == 86
           def check_sources():
               source = json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())
-              assert len(source['sources']) == 799
+              assert len(source['sources']) == 840
               for item in source['sources']:
                   raw = Path(item['path']).read_bytes()
                   assert len(raw) == item['bytes'] and hashlib.sha256(raw).hexdigest() == item['sha256'], item['path']
@@ -1162,6 +1169,269 @@ jobs:
           path: |
             gateway-installation-components.jsonl
             gateway-installation-components.stderr
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Confirm checks did not alter tracked source
+        if: always()
+        run: git diff --exit-code
+
+  gateway-bootstrap-components:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      GOTOOLCHAIN: local
+      GOWORK: 'off'
+      GOFLAGS: '-mod=readonly'
+      GOMAXPROCS: '2'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version: 1.26.8
+          cache: false
+      - name: Require exact toolchain and no ambient bootstrap activation
+        shell: bash
+        run: |
+          test "$(go version)" = 'go version go1.26.8 linux/amd64'
+          test -z "${ZASP_GATEWAY_ENROLLMENT_ENABLED:-}"
+          test -z "${ZASP_GATEWAY_ENROLLMENT_PROFILE_CHECKSUM:-}"
+          test -z "${ZASP_GATEWAY_BOOTSTRAP_PROFILE_CHECKSUM:-}"
+      - name: Require all 98 exact bootstrap component results and API compilation
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 0027
+          python3 - <<'PYGATEWAYBOOTSTRAP'
+          import json, os, re, subprocess, sys
+          from pathlib import Path
+          sys.path.insert(0, str(Path('scripts').resolve()))
+          from validate_agent_read_components import check_sources, load_events, validate_events
+          # Exact component roster; native PostgreSQL and deployed acceptance remain separate.
+          expected = {'github.com/zasp-ai/zasp-sec/services/platform/gatewayenrollmentwire': ['TestGatewayEnrollmentTokenClosedRoundTrip',
+                                                                                   'TestGatewayEnrollmentRequestExactIntent',
+                                                                                   'TestGatewayEnrollmentReceiptExactBinding',
+                                                                                   'TestGatewayEnrollmentWireBoundaryRefusals',
+                                                                                   'TestGatewayEnrollmentSubmittedKeyProof'],
+           'github.com/zasp-ai/zasp-sec/services/platform/gatewayenrollmentcustody': ['TestGatewayEnrollmentCustodyDurableReplay',
+                                                                                      'TestGatewayEnrollmentCustodyExclusiveConflict',
+                                                                                      'TestGatewayEnrollmentCustodyStageRecovery',
+                                                                                      'TestGatewayEnrollmentCustodyReceiptExport'],
+           'github.com/zasp-ai/zasp-sec/services/platform/migrations': ['TestGatewayBootstrapCompilerIdentity',
+                                                                        'TestGatewayBootstrapCompilerIdentity/normal',
+                                                                        'TestGatewayBootstrapCompilerIdentity/audit',
+                                                                        'TestGatewayBootstrapInstallerClosedAdmission',
+                                                                        'TestGatewayBootstrapInstallerClosedAdmission/normal-fresh',
+                                                                        'TestGatewayBootstrapInstallerClosedAdmission/audit-fresh',
+                                                                        'TestGatewayBootstrapInstallerClosedAdmission/normal-existing',
+                                                                        'TestGatewayBootstrapInstallerClosedAdmission/audit-existing',
+                                                                        'TestGatewayBootstrapInstallerClosedAdmission/normal-explicit-self-role',
+                                                                        'TestGatewayBootstrapInstallerClosedAdmission/audit-explicit-self-role',
+                                                                        'TestGatewayBootstrapInstallerClosedAdmission/source-operator-refused',
+                                                                        'TestGatewayBootstrapInstallerClosedAdmission/parent-refused',
+                                                                        'TestGatewayBootstrapInstallerClosedAdmission/runtime-parent-refused',
+                                                                        'TestGatewayBootstrapInstallerClosedAdmission/normal-wrong-parent-variant',
+                                                                        'TestGatewayBootstrapInstallerClosedAdmission/audit-wrong-parent-variant',
+                                                                        'TestGatewayBootstrapInstallerClosedAdmission/hostile-default-acl',
+                                                                        'TestGatewayBootstrapInstallerClosedAdmission/catalog-refused',
+                                                                        'TestGatewayBootstrapInstallerClosedAdmission/restore-refused'],
+           'github.com/zasp-ai/zasp-sec/cmd/agentsecctl': ['TestGatewayEnrollmentCommandConnectedTLSAndCredentialExport',
+                                                           'TestGatewayEnrollmentCommandUnknownRetryRetainsExactIntent',
+                                                           'TestGatewayEnrollmentCommandLocalStatusAndExpiredUnknown',
+                                                           'TestGatewayEnrollmentCommandRefusesUntrustedInputsAndReceipts',
+                                                           'TestGatewayEnrollmentCommandRefusesUntrustedInputsAndReceipts/cleartext_origin',
+                                                           'TestGatewayEnrollmentCommandRefusesUntrustedInputsAndReceipts/secret_flag',
+                                                           'TestGatewayEnrollmentCommandRefusesUntrustedInputsAndReceipts/duplicate_input',
+                                                           'TestGatewayEnrollmentCommandRefusesUntrustedInputsAndReceipts/oversized_input'],
+           'github.com/zasp-ai/zasp-sec/services/platform/apiserver': ['TestGatewayBootstrapConnectedOneTimeDelivery',
+                                                                       'TestGatewayBootstrapConnectedOneTimeDelivery/fresh_browser',
+                                                                       'TestGatewayBootstrapConnectedOneTimeDelivery/fresh_PAT',
+                                                                       'TestGatewayBootstrapConnectedOneTimeDelivery/metadata_replay',
+                                                                       'TestGatewayBootstrapConnectedOneTimeDelivery/unknown_transaction',
+                                                                       'TestGatewayBootstrapConnectedOneTimeDelivery/browser_without_fresh',
+                                                                       'TestGatewayBootstrapConnectedOneTimeDelivery/duplicate_body_member',
+                                                                       'TestGatewayBootstrapConnectedOneTimeDelivery/changed_expected_version',
+                                                                       'TestGatewayBootstrapCanonicalIntentExcludesMintedRandomness'],
+           'github.com/zasp-ai/zasp-sec/services/platform/gatewaycontrol': ['TestGatewayEnrollmentSignedHTTPAdmission',
+                                                                            'TestGatewayEnrollmentSignedHTTPAdmission/accepted',
+                                                                            'TestGatewayEnrollmentSignedHTTPAdmission/off',
+                                                                            'TestGatewayEnrollmentSignedHTTPAdmission/catalog_failure',
+                                                                            'TestGatewayEnrollmentSignedHTTPAdmission/wrong_scope_receipt',
+                                                                            'TestGatewayEnrollmentSignedHTTPAdmission/bad_proof',
+                                                                            'TestGatewayEnrollmentSignedHTTPAdmission/scope_header',
+                                                                            'TestGatewayEnrollmentSignedHTTPAdmission/malformed',
+                                                                            'TestGatewayEnrollmentSignedHTTPAdmission/oversize',
+                                                                            'TestGatewayEnrollmentSignedHTTPAdmission/duplicate_authorization',
+                                                                            'TestGatewayEnrollmentSignedHTTPAdmission/wrong_media',
+                                                                            'TestGatewayEnrollmentSignedHTTPAdmission/query',
+                                                                            'TestGatewayEnrollmentTransactionCurrentAuthorityBeforeCommit',
+                                                                            'TestGatewayEnrollmentTransactionCurrentAuthorityBeforeCommit/own_profile_pins',
+                                                                            'TestGatewayEnrollmentTransactionCurrentAuthorityBeforeCommit/committed',
+                                                                            'TestGatewayEnrollmentTransactionCurrentAuthorityBeforeCommit/exact_replay',
+                                                                            'TestGatewayEnrollmentTransactionCurrentAuthorityBeforeCommit/foreign_initial_scope',
+                                                                            'TestGatewayEnrollmentTransactionCurrentAuthorityBeforeCommit/changed_final_token',
+                                                                            'TestGatewayEnrollmentTransactionCurrentAuthorityBeforeCommit/wrong_current_key',
+                                                                            'TestGatewayEnrollmentTransactionCurrentAuthorityBeforeCommit/expired_after_wait',
+                                                                            'TestGatewayEnrollmentTransactionCurrentAuthorityBeforeCommit/unknown_commit',
+                                                                            'TestGatewayEnrollmentTransactionCurrentAuthorityBeforeCommit/bad_native_receipt',
+                                                                            'TestGatewayEnrollmentTransactionCurrentAuthorityBeforeCommit/token_expired_at_final_fence'],
+           'github.com/zasp-ai/zasp-sec/services/gateway-control': ['TestGatewayEnrollmentProductionClosedSelection',
+                                                                    'TestGatewayEnrollmentProductionClosedSelection/legacy',
+                                                                    'TestGatewayEnrollmentProductionClosedSelection/disabled_empty',
+                                                                    'TestGatewayEnrollmentProductionClosedSelection/disabled_pin',
+                                                                    'TestGatewayEnrollmentProductionClosedSelection/bad_flag',
+                                                                    'TestGatewayEnrollmentProductionClosedSelection/missing_pin',
+                                                                    'TestGatewayEnrollmentProductionClosedSelection/unknown_pin',
+                                                                    'TestGatewayEnrollmentProductionClosedSelection/normal_selected_mount',
+                                                                    'TestGatewayEnrollmentProductionClosedSelection/audit_selected_mount'],
+           'github.com/zasp-ai/zasp-sec/services/platform/agentsec-migrate': ['TestGatewayBootstrapMigrationDispatchAndConfirmation',
+                                                                              'TestGatewayBootstrapMigrationDispatchAndConfirmation/up-gateway-bootstrap-profile',
+                                                                              'TestGatewayBootstrapMigrationDispatchAndConfirmation/up-gateway-bootstrap-profile/dispatch',
+                                                                              'TestGatewayBootstrapMigrationDispatchAndConfirmation/up-gateway-bootstrap-profile/source-principal-refused',
+                                                                              'TestGatewayBootstrapMigrationDispatchAndConfirmation/up-gateway-bootstrap-profile/canonical61-refused',
+                                                                              'TestGatewayBootstrapMigrationDispatchAndConfirmation/up-gateway-bootstrap-profile/strict-arguments',
+                                                                              'TestGatewayBootstrapMigrationDispatchAndConfirmation/up-gateway-bootstrap-profile/confirm-accepted',
+                                                                              'TestGatewayBootstrapMigrationDispatchAndConfirmation/up-gateway-bootstrap-profile/confirm-catalog-refused',
+                                                                              'TestGatewayBootstrapMigrationDispatchAndConfirmation/up-gateway-bootstrap-profile/confirm-unknown-commit',
+                                                                              'TestGatewayBootstrapMigrationDispatchAndConfirmation/up-gateway-bootstrap-profile/confirm-canceled',
+                                                                              'TestGatewayBootstrapMigrationDispatchAndConfirmation/up-gateway-bootstrap-audit-profile',
+                                                                              'TestGatewayBootstrapMigrationDispatchAndConfirmation/up-gateway-bootstrap-audit-profile/dispatch',
+                                                                              'TestGatewayBootstrapMigrationDispatchAndConfirmation/up-gateway-bootstrap-audit-profile/source-principal-refused',
+                                                                              'TestGatewayBootstrapMigrationDispatchAndConfirmation/up-gateway-bootstrap-audit-profile/canonical61-refused',
+                                                                              'TestGatewayBootstrapMigrationDispatchAndConfirmation/up-gateway-bootstrap-audit-profile/strict-arguments',
+                                                                              'TestGatewayBootstrapMigrationDispatchAndConfirmation/up-gateway-bootstrap-audit-profile/confirm-accepted',
+                                                                              'TestGatewayBootstrapMigrationDispatchAndConfirmation/up-gateway-bootstrap-audit-profile/confirm-catalog-refused',
+                                                                              'TestGatewayBootstrapMigrationDispatchAndConfirmation/up-gateway-bootstrap-audit-profile/confirm-unknown-commit',
+                                                                              'TestGatewayBootstrapMigrationDispatchAndConfirmation/up-gateway-bootstrap-audit-profile/confirm-canceled',
+                                                                              'TestGatewayBootstrapCLIInputsAndChecksums',
+                                                                              'TestGatewayBootstrapCLIInputsAndChecksums/up-gateway-bootstrap-profile',
+                                                                              'TestGatewayBootstrapCLIInputsAndChecksums/up-gateway-bootstrap-audit-profile']}
+          required = frozenset(['.github/workflows/connector-native-draft-compile.yml',
+           'app/components/ZaspProductionApp.tsx',
+           'app/features/gateways/ProductionGatewayBootstrapView.test.tsx',
+           'app/features/gateways/ProductionGatewayBootstrapView.tsx',
+           'app/features/gateways/api.test.ts',
+           'app/features/gateways/api.ts',
+           'app/features/gateways/bootstrap-fixtures.ts',
+           'apps/web/api/client.ts',
+           'apps/web/api/gateway-bootstrap-decoders.ts',
+           'apps/web/api/generated.ts',
+           'cmd/agentsecctl/gateway_enrollment.go',
+           'cmd/agentsecctl/gateway_enrollment_test.go',
+           'cmd/agentsecctl/go.mod',
+           'cmd/agentsecctl/go.sum',
+           'cmd/agentsecctl/main.go',
+           'cmd/agentsecctl/recovery_client.go',
+           'cmd/agentsecctl/release.go',
+           'deploy/production/gateway-bootstrap-profile.mjs',
+           'deploy/production/gateway-bootstrap-profile.test.mjs',
+           'deploy/production/release-contract.mjs',
+           'deploy/staging/product/templates/_gateway-bootstrap.tpl',
+           'deploy/staging/product/templates/runtime.yaml',
+           'deploy/staging/product/templates/workloads.yaml',
+           'deploy/staging/product/values.yaml',
+           'openapi/openapi.yaml',
+           'package-lock.json',
+           'package.json',
+           'scripts/validate_agent_read_components.py',
+           'scripts/validate_agent_read_components_test.py',
+           'services/gateway-control/enrollment_test.go',
+           'services/gateway-control/go.mod',
+           'services/gateway-control/go.sum',
+           'services/gateway-control/production.go',
+           'services/gateway-control/production_runtime.go',
+           'services/platform/agentsec-api/gateway_bootstrap_runtime.go',
+           'services/platform/agentsec-api/production_runtime.go',
+           'services/platform/agentsec-api/runtime.go',
+           'services/platform/agentsec-migrate/forward_release_confirmation.go',
+           'services/platform/agentsec-migrate/gateway_bootstrap_profile.go',
+           'services/platform/agentsec-migrate/gateway_bootstrap_profile_test.go',
+           'services/platform/agentsec-migrate/main.go',
+           'services/platform/apiserver/authorization_openfga.go',
+           'services/platform/apiserver/authorization_post_login.go',
+           'services/platform/apiserver/authorization_statement.go',
+           'services/platform/apiserver/authorization_targets.go',
+           'services/platform/apiserver/authorization_transaction.go',
+           'services/platform/apiserver/composition.go',
+           'services/platform/apiserver/gateway_bootstrap.go',
+           'services/platform/apiserver/gateway_bootstrap_flow_test.go',
+           'services/platform/apiserver/gateway_bootstrap_repository.go',
+           'services/platform/apiserver/production.go',
+           'services/platform/apiserver/repository.go',
+           'services/platform/authorization/operations.json',
+           'services/platform/gatewaycontrol/client.go',
+           'services/platform/gatewaycontrol/contract.go',
+           'services/platform/gatewaycontrol/enrollment.go',
+           'services/platform/gatewaycontrol/enrollment_test.go',
+           'services/platform/gatewaycontrol/http.go',
+           'services/platform/gatewaycontrol/postgres.go',
+           'services/platform/gatewayenrollmentcustody/custody.go',
+           'services/platform/gatewayenrollmentcustody/custody_test.go',
+           'services/platform/gatewayenrollmentcustody/files_linux.go',
+           'services/platform/gatewayenrollmentcustody/files_other.go',
+           'services/platform/gatewayenrollmentcustody/publication.go',
+           'services/platform/gatewayenrollmentwire/wire.go',
+           'services/platform/gatewayenrollmentwire/wire_test.go',
+           'services/platform/go.mod',
+           'services/platform/go.sum',
+           'services/platform/internal/cacheownership/ownership.go',
+           'services/platform/internal/cacheownership/ownership_linux.go',
+           'services/platform/internal/cacheownership/ownership_other.go',
+           'services/platform/internal/cacheownership/ownership_test.go',
+           'services/platform/migrations/production_gateway_bootstrap_compiler_test.go',
+           'services/platform/migrations/production_gateway_bootstrap_profile.go',
+           'services/platform/migrations/production_gateway_bootstrap_profile_test.go',
+           'services/platform/migrations/sql/0015_runtime_data_plane.up.sql',
+           'services/platform/migrations/sql/0079_production_authorization_projection.up.sql',
+           'services/platform/migrations/sql/0080_authorization_worker_gateway_writers.sql',
+           'services/platform/migrations/sql/gateway_bootstrap_profile.sql'])
+          assert len(expected) == 8 and sum(map(len, expected.values())) == 98
+          assert all(len(names) == len(set(names)) and all('Postgres' not in n for n in names) for names in expected.values())
+          print(json.dumps(check_sources(Path.cwd(), '.github/connector-native-compile-source-pins.json', required), sort_keys=True))
+          modules = {'cmd/agentsecctl': ['.'],
+           'services/gateway-control': ['.'],
+           'services/platform': ['./gatewayenrollmentwire',
+                                 './gatewayenrollmentcustody',
+                                 './migrations',
+                                 './apiserver',
+                                 './gatewaycontrol',
+                                 './agentsec-migrate']}
+          status = 0
+          executions = []
+          with Path('gateway-bootstrap-components.jsonl').open('wb') as out, Path('gateway-bootstrap-components.stderr').open('wb') as err:
+              for module, packages in modules.items():
+                  prefix = 'github.com/zasp-ai/zasp-sec/' + module
+                  heads = [name for package, names in expected.items() if package == prefix or package.startswith(prefix + '/') for name in names if '/' not in name]
+                  assert heads
+                  command = ['go','test','-C',module,'-race','-p=1','-count=1','-timeout=3m','-json','-run','^('+'|'.join(map(re.escape, heads))+')$',*packages]
+                  result = subprocess.run(command, stdout=out, stderr=err, timeout=1200, check=False)
+                  executions.append({'module':module,'command':command,'exit_code':result.returncode,'classification':'component-behavior'})
+                  if result.returncode != 0 and status == 0:
+                      status = result.returncode
+          # The API service has new composition/configuration without a new test head.
+          # Keep its required compile-only result out of the 98-name behavior stream.
+          with Path('gateway-bootstrap-api-compile.jsonl').open('wb') as out, Path('gateway-bootstrap-api-compile.stderr').open('wb') as err:
+              command = ['go','test','-C','services/platform','-race','-p=1','-count=1','-timeout=3m','-json','-run','^$','./agentsec-api']
+              result = subprocess.run(command, stdout=out, stderr=err, timeout=1200, check=False)
+              executions.append({'module':'services/platform','command':command,'exit_code':result.returncode,'classification':'compile-only-no-behavior'})
+              if result.returncode != 0 and status == 0:
+                  status = result.returncode
+          Path('gateway-bootstrap-component-executions.json').write_text(json.dumps(executions, indent=2)+'\n')
+          assert len(executions) == 4 and all(item['exit_code'] == 0 for item in executions), 'required behavior or API compilation failed'
+          print(json.dumps(validate_events(load_events('gateway-bootstrap-components.jsonl'), status, expected), sort_keys=True))
+          PYGATEWAYBOOTSTRAP
+      - name: Preserve component and compile-only evidence with separate labels
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: gateway-bootstrap-component-evidence
+          path: |
+            gateway-bootstrap-components.jsonl
+            gateway-bootstrap-components.stderr
+            gateway-bootstrap-api-compile.jsonl
+            gateway-bootstrap-api-compile.stderr
+            gateway-bootstrap-component-executions.json
           if-no-files-found: warn
           retention-days: 14
       - name: Confirm checks did not alter tracked source

@@ -32,6 +32,7 @@ var errHTTPControl = errors.New("gateway control unavailable")
 
 type HTTPHandlerConfig struct {
 	Repository             Repository
+	EnrollmentRepository   EnrollmentRepository
 	InstallationRepository InstallationRepository
 	Clock                  func() time.Time
 	OperationTimeout       time.Duration
@@ -39,6 +40,7 @@ type HTTPHandlerConfig struct {
 }
 
 type httpHandler struct {
+	enrollmentRepository   EnrollmentRepository
 	installationRepository InstallationRepository
 	repository             Repository
 	clock                  func() time.Time
@@ -66,10 +68,13 @@ func NewHTTPHandler(config HTTPHandlerConfig) (http.Handler, error) {
 	if config.Repository == nil || config.Clock == nil || config.OperationTimeout < 50*time.Millisecond || config.OperationTimeout > 10*time.Second || config.MaximumBodyBytes < 1024 || config.MaximumBodyBytes > 64*1024 {
 		return nil, errHTTPControl
 	}
+	if config.EnrollmentRepository != nil && nilInstallationValue(config.EnrollmentRepository) {
+		return nil, errHTTPControl
+	}
 	if config.InstallationRepository != nil && nilInstallationValue(config.InstallationRepository) {
 		return nil, errHTTPControl
 	}
-	return &httpHandler{installationRepository: config.InstallationRepository, repository: config.Repository, clock: config.Clock, timeout: config.OperationTimeout, maximumBodyBytes: config.MaximumBodyBytes}, nil
+	return &httpHandler{enrollmentRepository: config.EnrollmentRepository, installationRepository: config.InstallationRepository, repository: config.Repository, clock: config.Clock, timeout: config.OperationTimeout, maximumBodyBytes: config.MaximumBodyBytes}, nil
 }
 
 func (handler *httpHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
@@ -83,6 +88,10 @@ func (handler *httpHandler) ServeHTTP(writer http.ResponseWriter, request *http.
 	readyCancel()
 	if readyErr != nil || readyContextErr != nil {
 		writeError(writer, http.StatusServiceUnavailable, "service_unavailable")
+		return
+	}
+	if request.URL.Path == EnrollmentPath {
+		handler.serveEnrollment(writer, request)
 		return
 	}
 	if request.URL.Path == InstallationPath {

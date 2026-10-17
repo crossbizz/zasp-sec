@@ -545,3 +545,20 @@ screens:
       - id: update_external_data_flows
         operation_id: updateExternalDataFlows
         availability: available
+  # Product UI/API source availability. Native and deployed acceptance remains
+  # tracked independently in docs/internal/implementation_status_v1.5.md.
+  - id: runtime_gateways
+    label: Runtime Gateways
+    actions:
+      - id: create_gateway_device
+        operation_id: createGatewayDevice
+        availability: available
+      - id: view_gateway_device
+        operation_id: getGatewayDevice
+        availability: available
+      - id: issue_gateway_enrollment
+        operation_id: issueGatewayEnrollment
+        availability: available
+      - id: revoke_gateway_enrollment
+        operation_id: revokeGatewayEnrollment
+        availability: available

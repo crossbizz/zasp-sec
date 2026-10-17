@@ -8,6 +8,8 @@ import (
 )
 
 type productionControlConfig struct {
+	EnrollmentEnabled           bool
+	EnrollmentProfileChecksum   string
 	InstallationACKEnabled      bool
 	InstallationProfileChecksum string
 	DatabaseURL                 string
@@ -25,11 +27,15 @@ func loadProductionControlConfig(getenv func(string) string) (productionControlC
 	operationTimeout, operationErr := time.ParseDuration(getenv("ZASP_GATEWAY_CONTROL_OPERATION_TIMEOUT"))
 	readinessTTL, readinessErr := time.ParseDuration(getenv("ZASP_GATEWAY_CONTROL_READINESS_TTL"))
 	shutdownTimeout, shutdownErr := time.ParseDuration(getenv("ZASP_GATEWAY_CONTROL_SHUTDOWN_TIMEOUT"))
+	enrollmentFlag := getenv("ZASP_GATEWAY_ENROLLMENT_ENABLED")
+	if enrollmentFlag != "" && enrollmentFlag != "false" && enrollmentFlag != "true" {
+		return productionControlConfig{}, errControlUnavailable
+	}
 	flag := getenv("ZASP_GATEWAY_INSTALLATION_ACK_ENABLED")
 	if flag != "" && flag != "false" && flag != "true" {
 		return productionControlConfig{}, errControlUnavailable
 	}
-	config := productionControlConfig{InstallationACKEnabled: flag == "true", InstallationProfileChecksum: getenv("ZASP_GATEWAY_INSTALLATION_PROFILE_CHECKSUM"),
+	config := productionControlConfig{EnrollmentEnabled: enrollmentFlag == "true", EnrollmentProfileChecksum: getenv("ZASP_GATEWAY_ENROLLMENT_PROFILE_CHECKSUM"), InstallationACKEnabled: flag == "true", InstallationProfileChecksum: getenv("ZASP_GATEWAY_INSTALLATION_PROFILE_CHECKSUM"),
 		DatabaseURL: getenv("ZASP_DATABASE_URL"), MaximumBodyBytes: maximumBodyBytes,
 		OperationTimeout: operationTimeout, ReadinessTTL: readinessTTL, ShutdownTimeout: shutdownTimeout,
 	}
@@ -40,6 +46,13 @@ func loadProductionControlConfig(getenv func(string) string) (productionControlC
 }
 
 func validProductionControlConfig(config productionControlConfig) bool {
+	if config.EnrollmentEnabled {
+		if !migrations.IsGatewayBootstrapProfileChecksum(config.EnrollmentProfileChecksum) {
+			return false
+		}
+	} else if config.EnrollmentProfileChecksum != "" {
+		return false
+	}
 	if config.InstallationACKEnabled {
 		if !migrations.IsGatewayInstallationProfileChecksum(config.InstallationProfileChecksum) {
 			return false
