@@ -16777,3 +16777,21 @@ No task status or availability promotion is made. Worker/Temporal installation,
 required exact-head checks, real deployed Stytch/provider flows and equivalent
 obsolete retirement remain open. Evidence:
 `cloud-cli-authorization-confirmation-source-checkpoint-2026-10-17.json`.
+
+
+## Maintenance CI selected-case roster correction, October 17, 2026
+
+Static review found that the unchanged maintenance job selector includes two
+existing CLI consumer tests, each with four command children, omitted from the
+strict result roster. The roster now requires all ten additional selected names:
+30 migration cases and 31 CLI cases. No test, selector or acceptance guard was
+removed or relaxed. This supersedes the earlier roster-completeness review; the
+earlier receipt remains preserved.
+
+A synthetic validator replay rejects the predecessor roster for the full
+selected trace, accepts the corrected roster, and rejects missing, duplicate,
+skipped, failed and unknown-package events. These are validator checks, not Go
+test execution or evidence of the hosted failure's cause. Hosted job metadata
+identifies failed steps only; actual exact-head component/native/deployed
+acceptance remains required. All 728 task classifications remain unchanged.
+Evidence: `cloud-maintenance-selected-roster-checkpoint-2026-10-17.json`.
