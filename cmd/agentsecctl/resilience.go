@@ -75,7 +75,7 @@ func BuildDiagnosticsBundle(input DiagnosticsInput) (DiagnosticsBundle, error) {
 	}
 	for _, values := range []map[string]string{input.Health, input.Versions, input.Configuration} {
 		for key, value := range values {
-			if !validIdentifier(key) || unsafeDiagnostic(value) || len(value) > 256 {
+			if !validIdentifier(key) || unsafeDiagnostic(key) || unsafeDiagnostic(value) || len(value) > 256 {
 				return DiagnosticsBundle{}, errResilienceRejected
 			}
 		}
