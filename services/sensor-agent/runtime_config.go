@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"github.com/zasp-ai/zasp-sec/services/platform/sensoradapter"
 	"net"
 	"net/url"
 	"path/filepath"
@@ -15,6 +16,8 @@ var enrollmentBindingPattern = regexp.MustCompile(`^[0-9a-f]{64}$`)
 
 type sensorAgentConfig struct {
 	Role                                         string
+	Coverage                                     *sensoradapter.NodeCoverageSelection
+	ObservationDirectory, PodUID                 string
 	SpoolDirectory, AckDirectory, StateDirectory string
 	ControlPlaneURL                              string
 	EnrollmentBinding                            string
@@ -48,6 +51,18 @@ func loadSensorAgentConfig(getenv func(string) string) (sensorAgentConfig, error
 		LogFile:           getenv("ZASP_TETRAGON_LOG_FILE"), CursorFile: getenv("ZASP_SENSOR_CURSOR_FILE"),
 		Namespace: getenv("ZASP_SENSOR_NAMESPACE"), PodName: getenv("ZASP_SENSOR_POD_NAME"), NodeName: getenv("ZASP_SENSOR_NODE_NAME"),
 		KernelFile: getenv("ZASP_SENSOR_KERNEL_FILE"), BTFFile: getenv("ZASP_SENSOR_BTF_FILE"), MetricsURL: getenv("ZASP_TETRAGON_METRICS_URL"),
+	}
+	if config.Role == "lineage-consumer" && getenv("ZASP_SENSOR_COVERAGE_CONFIG") != "" {
+		var e error
+		config.Coverage, e = decodeCoverageSelection(getenv("ZASP_SENSOR_COVERAGE_CONFIG"))
+		if e != nil {
+			return sensorAgentConfig{}, errSensorConfig
+		}
+		config.ObservationDirectory = getenv("ZASP_SENSOR_OBSERVATION_DIRECTORY")
+		config.PodUID = getenv("ZASP_SENSOR_POD_UID")
+		if !validLineageUUID(config.PodUID) || !validCoverageWitnessPath(config.ObservationDirectory, config.SpoolDirectory) {
+			return sensorAgentConfig{}, errSensorConfig
+		}
 	}
 	var err error
 	if config.BatchSize, err = parseBoundedInteger(getenv("ZASP_SENSOR_BATCH_SIZE"), 1, 1000); err != nil {

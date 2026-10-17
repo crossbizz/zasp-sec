@@ -383,22 +383,22 @@
     },
     {
       "path": "scripts/connector-acceptance-groups.test.mjs",
-      "sha256": "6bab6a296f7898133e5487d399340a5276692d88a53ed1cce494521739fe0da0",
-      "bytes": 36662,
+      "sha256": "6a896f71b5746ab8c31e54256d4b17dbd1c98cff1a060339821fcf0ef16acc70",
+      "bytes": 37807,
       "currentBasePreimageSHA256": "a1622a9417e9fe4d62c2aed82bcf5f7f3e11dce841d802bf005b29d54405d388",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connected-connector-acceptance.mjs",
-      "sha256": "8ad8ed841e05b8f3933c00d10759d043a52e1ec77dbb4199454e4bb9c97520cc",
-      "bytes": 81276,
+      "sha256": "01eacfad1eb15b0b0d125e3c55042c4d22864b306ef7013262887be8cd7fdcfb",
+      "bytes": 83985,
       "currentBasePreimageSHA256": "f248c6d9182ca08cb518cd54c620844c987f4ae723a38badb463c59e010db578",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
-      "sha256": "f49c0ba89b136903f02311d5a3ace681d8f9961cd3c7339cbabdf5679b984e41",
-      "bytes": 77677,
+      "sha256": "bac0c230a553a6a8ff721403562938d879af9abee63d0108e668e3e82a673e0c",
+      "bytes": 80386,
       "currentBasePreimageSHA256": "e66722e4daf5b1482c253d1f14b4c533c329fde202252c16f87ad3e0130e8524",
       "historicalPreimageSHA256": null
     },
@@ -1440,15 +1440,15 @@
     },
     {
       "path": "deploy/production/release-contract.mjs",
-      "sha256": "cb519e962ad32317770fde21a5921837df9f2606833a7b169a4834b4b1b99a0a",
-      "bytes": 81473,
+      "sha256": "18731e1f224fd3c8b1497c1b1d8566aa80f6db523538b26aacb6169d6954be1d",
+      "bytes": 84013,
       "currentBasePreimageSHA256": "cc162864456876d7194fd68af75c055b66409e4a2c1d2c69cb0597af89f9a973",
       "historicalPreimageSHA256": null
     },
     {
       "path": "deploy/production/release-contract.test.mjs",
-      "sha256": "47623043760755736745ada4882ba3c34b875ae67401d187c8cc153d8a21b7ba",
-      "bytes": 179394,
+      "sha256": "6c09456bf2c1bb3e17b875c13605ed32a70465a9ac6e27295f0bd2e67d739763",
+      "bytes": 181525,
       "currentBasePreimageSHA256": "7acd21db240f1444e556aa959d97e32d6834b205f1b39776f170dc33a2c43141",
       "historicalPreimageSHA256": null
     },
@@ -2476,8 +2476,8 @@
     },
     {
       "path": "services/platform/preflight/config.go",
-      "sha256": "3c185cfc9c11a44bb1c896620b1641bf6ecebcaa97c3adf784544ed57b4e5a05",
-      "bytes": 6487,
+      "sha256": "2bf7a2a716927794c7e11c1009119e28e17bcad93f9e4e8e2ee1b8c37ceed644",
+      "bytes": 6719,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -2490,8 +2490,8 @@
     },
     {
       "path": "services/platform/preflight/contract.go",
-      "sha256": "8338c5c11835e8485fa2f2eb7acf213bb7042072d67d769f4caf1be9a07d030c",
-      "bytes": 3723,
+      "sha256": "984b571417fc282f518c7b0d3325b7f9dafb70122f38d643c6539c895e7a4d15",
+      "bytes": 4102,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -2518,8 +2518,8 @@
     },
     {
       "path": "services/platform/preflight/runner.go",
-      "sha256": "41cf87bf093f1c0b87c45c8ec1f58846792a71b3e538828be2256a5444f27b03",
-      "bytes": 11170,
+      "sha256": "afde4ad927189139ff736f04c7700103246157dd8f01ee0ae63c20545b2a5e69",
+      "bytes": 11198,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -2597,6 +2597,167 @@
       "path": "services/platform/preflight/connected_core_test.go",
       "sha256": "ee0e0016946b3e69e13bc018bf85d771ebdd5f41779769238dcc3c0bc76aa13b",
       "bytes": 1987,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/sensoradapter/node_coverage.go",
+      "sha256": "437a16057db286c1c563a23b0d0597925effd6fa1dafb2662c008c10a54d966a",
+      "bytes": 19673,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/sensoradapter/node_coverage_client.go",
+      "sha256": "18cabbb9724cef6c3c0a6b7160fa01c09a23a3ebccff252ca15a6701c62f5c52",
+      "bytes": 7150,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/sensoradapter/node_coverage_test.go",
+      "sha256": "c65aed1418b0be398516160d9da53118093bf47076f9729c33e2f8d59354410c",
+      "bytes": 12078,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/preflight/sensor.go",
+      "sha256": "8914b9d172e6e3d7bbb022280d43ac53ea60ff448493df443bb1ccac42dbf472",
+      "bytes": 5829,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/preflight/sensor_test.go",
+      "sha256": "28b7aabea49153017b8cdbafda29666156c04abdb72f55fb261ad592e84d25de",
+      "bytes": 3586,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/sensor-agent/node_coverage_identity.go",
+      "sha256": "337e62c686c0ab9dae32c30af01f68c9f78742e042117342a6c1616dddf538cd",
+      "bytes": 5468,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/sensor-agent/node_coverage_runtime.go",
+      "sha256": "ecd43f32e0360e0ed9a48931484a2a74d25921fef419081c8f0879dbdce7be97",
+      "bytes": 9532,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/sensor-agent/node_coverage_contract_test.go",
+      "sha256": "0827842bb675ff3acb91c799a5958560024eac8d84d4ca70ee90d62c11dc30c2",
+      "bytes": 2263,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/sensor-agent/cluster.go",
+      "sha256": "946b399b41996a2d42ca02e2aa6fee4db43cdeca22410203dccb312dfd57c4f5",
+      "bytes": 23222,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/sensor-agent/runtime_config.go",
+      "sha256": "8f6625db6dc5762d3595ecc44b2c5b82b21fa5cc42d79eb9392666efe1b3bfcb",
+      "bytes": 7977,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/sensor-agent/production.go",
+      "sha256": "1a03a452451c660e5f9ab9a40c8c8fd7d9d0487e25274e74447dd3634cac4650",
+      "bytes": 13077,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/sensor-agent/lineage_generation.go",
+      "sha256": "51bf3a6d1f0b407db857f8b89ccf9c8bcb494d0fd387d11fc5d12ed73da017e9",
+      "bytes": 4825,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/sensor-agent/lineage_pump.go",
+      "sha256": "2e361664529d16fee745eb1e361957be8192aecd0bdbb9dcb4bb50ccf2ce4f38",
+      "bytes": 9600,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/sensor-agent/lineage_daemon.go",
+      "sha256": "d7fd65077ba5949c971794aad3626123081dda234d2491c2a0c59f2a2afe77e8",
+      "bytes": 10183,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/sensor-agent/lineage_layout.go",
+      "sha256": "5f8cc178a8282f4fb95347ee975f0ebe35ebda1032a00da6cf0f2c3e27198599",
+      "bytes": 7662,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/sensor-agent/lineage_layout_test.go",
+      "sha256": "704e48dea371571e43794d9f2e51f85ec87fee4f64a3b16da0e47e84884f1770",
+      "bytes": 5969,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "deploy/staging/product/templates/edge.yaml",
+      "sha256": "fd4b8bcaab7ea86a9c6ef4dde9872ffc301aca2ed7cc44a294d03b9252b5f7f0",
+      "bytes": 33148,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "deploy/staging/product/values-customer-edge.yaml",
+      "sha256": "5e3c71d07e622ddd15a82913355465093d141d4f87fcba3e5a48512f3de4cffe",
+      "bytes": 761,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "deploy/staging/tetragon/values.yaml",
+      "sha256": "b7ec8fa5b0a34cfb6163c6541972eb6f5474a4ccfc852a1ee180e8bbd11a79bf",
+      "bytes": 1557,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "deploy/staging/tetragon/templates/sensor-coverage-reader.yaml",
+      "sha256": "513e4c6db8329239dcc4bf3fcdc1d154ff8472b96eb59d73332035b2b63e3455",
+      "bytes": 1423,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "deploy/production/release-fixture.mjs",
+      "sha256": "e8ef3db8a8be4aeb1c7db20bfb90d36bb543a366d206a5477e05a0e469b2b88e",
+      "bytes": 13168,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/sensor-agent/node_coverage_flow_test.go",
+      "sha256": "46e32d0cf9cf252d02ee09dd8a1df426ff0042171544b5d2b3b5e7b0b160cfa6",
+      "bytes": 12438,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/sensor-agent/lineage_consumer_daemon.go",
+      "sha256": "0bc04b949222d0fda7e0e7930168ad52dfbdc73af3af201fa438fba37100adba",
+      "bytes": 10257,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     }

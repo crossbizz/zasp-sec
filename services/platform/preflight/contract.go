@@ -4,6 +4,7 @@ package preflight
 
 import (
 	"errors"
+	"github.com/zasp-ai/zasp-sec/services/platform/sensoradapter"
 	"net/http"
 	"time"
 )
@@ -60,14 +61,16 @@ type AWSConfig struct {
 	Queues  []Queue  `json:"queues"`
 }
 type Config struct {
-	Neon        *NeonConfig      `json:"neon,omitempty"`
-	Stytch      *StytchConfig    `json:"stytch,omitempty"`
-	Schema      string           `json:"schema"`
-	Deployment  Deployment       `json:"deployment"`
-	Scope       Scope            `json:"scope"`
-	Credentials CredentialConfig `json:"credentials"`
-	Features    Features         `json:"features"`
-	AWS         AWSConfig        `json:"aws"`
+	Neon        *NeonConfig                          `json:"neon,omitempty"`
+	Stytch      *StytchConfig                        `json:"stytch,omitempty"`
+	Schema      string                               `json:"schema"`
+	Deployment  Deployment                           `json:"deployment"`
+	Scope       Scope                                `json:"scope"`
+	Credentials CredentialConfig                     `json:"credentials"`
+	Features    Features                             `json:"features"`
+	AWS         AWSConfig                            `json:"aws"`
+	Kubernetes  *KubernetesAuthority                 `json:"kubernetes,omitempty"`
+	Sensor      *sensoradapter.NodeCoverageSelection `json:"sensor,omitempty"`
 }
 type Failure struct {
 	Operation    string `json:"operation"`

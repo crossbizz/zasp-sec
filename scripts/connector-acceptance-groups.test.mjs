@@ -416,7 +416,30 @@ test('retention connected sources retain the complete declared application closu
   "services/platform/preflight/postgres_flow_test.go",
   "services/platform/migrations/preflight_observation.go",
   "services/platform/migrations/preflight_observation_test.go",
-  "services/platform/preflight/connected_core_test.go"
+  "services/platform/preflight/connected_core_test.go",
+  "services/platform/sensoradapter/node_coverage.go",
+  "services/platform/sensoradapter/node_coverage_client.go",
+  "services/platform/sensoradapter/node_coverage_test.go",
+  "services/platform/preflight/sensor.go",
+  "services/platform/preflight/sensor_test.go",
+  "services/sensor-agent/node_coverage_identity.go",
+  "services/sensor-agent/node_coverage_runtime.go",
+  "services/sensor-agent/node_coverage_contract_test.go",
+  "services/sensor-agent/cluster.go",
+  "services/sensor-agent/runtime_config.go",
+  "services/sensor-agent/production.go",
+  "services/sensor-agent/lineage_generation.go",
+  "services/sensor-agent/lineage_pump.go",
+  "services/sensor-agent/lineage_daemon.go",
+  "services/sensor-agent/lineage_layout.go",
+  "services/sensor-agent/lineage_layout_test.go",
+  "deploy/staging/product/templates/edge.yaml",
+  "deploy/staging/product/values-customer-edge.yaml",
+  "deploy/staging/tetragon/values.yaml",
+  "deploy/staging/tetragon/templates/sensor-coverage-reader.yaml",
+  "deploy/production/release-fixture.mjs",
+  "services/sensor-agent/node_coverage_flow_test.go",
+  "services/sensor-agent/lineage_consumer_daemon.go"
 ];
   const compiled = JSON.parse(relative('.github/connector-native-compile-source-pins.json'));
   const compilePins = new Map(compiled.sources.map(item => [item.path, item]));

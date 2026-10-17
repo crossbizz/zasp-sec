@@ -90,6 +90,12 @@ func validConfig(c Config) bool {
 	if !validCoreDependencies(CoreDependencies{Neon: c.Neon, Stytch: c.Stytch}) {
 		return false
 	}
+	if c.Kubernetes != nil && !validKubernetesAuthority(c.Kubernetes) {
+		return false
+	}
+	if c.Sensor != nil && (c.Sensor.Validate() != nil || c.Kubernetes == nil || c.Kubernetes.ClusterUID != c.Sensor.ClusterUID) {
+		return false
+	}
 	d := c.Deployment
 	if c.Schema != "agentsec-preflight-config-v1" || (!accountPattern.MatchString(d.AccountID) || d.AccountID == "000000000000") || !regionPattern.MatchString(d.Region) || d.Profile != supportedProfile || !namePattern.MatchString(d.ReleaseVersion) || !partitionRegion(d.Partition, d.Region) {
 		return false

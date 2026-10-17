@@ -2,6 +2,16 @@
 
 ## Current continuation, October 17, 2026
 
+Selected-node sensor coverage now joins independent Node inventory, exact deployed
+DaemonSets/Pods, UID/boot-bound producer observations and Lease evidence, with
+monotonic final freshness and pending-send fences. Integrated preflight/adapter
+checks pass 480 cases and the CLI passes 148 cases with race detection. The full
+sensor suite passes 854 cases with 22 explicit skips under the existing fixtures'
+required file modes; failed inherited-umask runs are retained. Helm rendering,
+root-owned mounted witness and real Kubernetes/deployed acceptance remain open.
+No original task is promoted. See
+`cloud-selected-node-sensor-component-checkpoint-2026-10-17.json`.
+
 The connected core preflight batch adds real read-only Neon profile inspection
 and nonrenewing Stytch organization/session GETs. Its complete runner preserves
 these observations when AWS credentials fail. All 54 preflight and 148 CLI cases

@@ -85,23 +85,30 @@ type clusterReportWire struct {
 }
 
 type ClusterCoordinatorConfig struct {
-	Namespace     string
-	PodName       string
-	NodeName      string
-	LeaseDuration time.Duration
-	ReportTTL     time.Duration
-	Leases        clusterLeaseAPI
-	Pods          clusterPodAPI
-	Heartbeats    heartbeatSink
-	Now           func() time.Time
+	Namespace      string
+	Coverage       *sensoradapter.NodeCoverageSelection
+	CoverageReader sensoradapter.NodeCoverageReader
+	Witness        *nodeWitnessFile
+	PodName        string
+	NodeName       string
+	LeaseDuration  time.Duration
+	ReportTTL      time.Duration
+	Leases         clusterLeaseAPI
+	Pods           clusterPodAPI
+	Heartbeats     heartbeatSink
+	Now            func() time.Time
 }
 
 type ClusterCoordinator struct {
-	mu     sync.Mutex
-	config ClusterCoordinatorConfig
+	mu                    sync.Mutex
+	config                ClusterCoordinatorConfig
+	pendingCoverageMarker string
 }
 
 func NewClusterCoordinator(config ClusterCoordinatorConfig) (*ClusterCoordinator, error) {
+	if config.Coverage != nil && (config.Coverage.Validate() != nil || nilClusterValue(config.CoverageReader) || config.Witness == nil || config.Coverage.Sensor.Namespace != config.Namespace) {
+		return nil, ErrCluster
+	}
 	if !validKubernetesName(config.Namespace) || !validKubernetesName(config.PodName) || !validKubernetesName(config.NodeName) || config.LeaseDuration < 5*time.Second || config.LeaseDuration > time.Minute || config.LeaseDuration%time.Second != 0 || config.ReportTTL <= config.LeaseDuration || config.ReportTTL > 5*time.Minute || config.ReportTTL%time.Second != 0 || nilClusterValue(config.Leases) || nilClusterValue(config.Pods) || nilClusterValue(config.Heartbeats) || config.Now == nil {
 		return nil, ErrCluster
 	}
@@ -119,24 +126,42 @@ func (coordinator *ClusterCoordinator) Tick(ctx context.Context, local NodeRepor
 	}
 	coordinator.mu.Lock()
 	defer coordinator.mu.Unlock()
+	started := time.Now()
 	now, ok := clusterNow(coordinator.config.Now)
 	if !ok {
 		return ErrClusterRetryable
 	}
-	local.NodeName, local.ObservedAt = coordinator.config.NodeName, now
+	if coordinator.config.Coverage != nil {
+		if err := coordinator.upsertCoverage(ctx, local, now); err != nil {
+			return err
+		}
+	} else {
+		local.NodeName = coordinator.config.NodeName
+		if local.ObservedAt.IsZero() || local.ObservedAt.Before(now.Add(-coordinator.config.ReportTTL)) || local.ObservedAt.After(now.Add(5*time.Second)) {
+			return ErrCluster
+		}
+	}
 	if !validNodeReport(local) {
 		return ErrCluster
 	}
-	if err := coordinator.upsertNodeReport(ctx, local, now); err != nil {
-		return err
+	if coordinator.config.Coverage == nil {
+		if err := coordinator.upsertNodeReport(ctx, local, now); err != nil {
+			return err
+		}
 	}
 	leader, owned, err := coordinator.acquireLeader(ctx, now)
 	if err != nil || !owned {
 		return err
 	}
-	heartbeat, err := coordinator.pendingOrPrepare(ctx, now)
+	heartbeat, err := coordinator.pendingOrPrepare(ctx, now.Add(time.Since(started)))
 	if err != nil {
 		return err
+	}
+	if coordinator.config.Coverage != nil {
+		payload, e := encodePendingHeartbeat(heartbeat)
+		if e != nil || !coordinator.validCoveragePending(payload, coordinator.pendingCoverageMarker, now.Add(time.Since(started))) {
+			return ErrCluster
+		}
 	}
 	if err := safeHeartbeat(coordinator.config.Heartbeats, ctx, heartbeat); err != nil {
 		return ErrClusterRetryable
@@ -222,6 +247,8 @@ func (coordinator *ClusterCoordinator) acquireLeader(ctx context.Context, now ti
 }
 
 func (coordinator *ClusterCoordinator) pendingOrPrepare(ctx context.Context, now time.Time) (sensoradapter.Heartbeat, error) {
+	started := time.Now()
+	coordinator.pendingCoverageMarker = ""
 	state, err := coordinator.config.Leases.Get(ctx, clusterStateLeaseName, metav1.GetOptions{})
 	if apierrors.IsNotFound(err) {
 		holder := coordinator.config.PodName
@@ -239,15 +266,22 @@ func (coordinator *ClusterCoordinator) pendingOrPrepare(ctx context.Context, now
 	}
 	if pending := state.Annotations[clusterPendingAnnotation]; pending != "" {
 		heartbeat, decodeErr := decodePendingHeartbeat(pending)
-		if decodeErr != nil || heartbeat.Sequence != sequence+1 {
+		if decodeErr != nil || heartbeat.Sequence != sequence+1 || coordinator.config.Coverage != nil && !coordinator.validCoveragePending(pending, state.Annotations[clusterCoveragePendingAnnotation], now.Add(time.Since(started))) {
 			return sensoradapter.Heartbeat{}, ErrCluster
 		}
+		coordinator.pendingCoverageMarker = state.Annotations[clusterCoveragePendingAnnotation]
 		return heartbeat, nil
 	}
 	if sequence == math.MaxInt64 {
 		return sensoradapter.Heartbeat{}, ErrCluster
 	}
-	heartbeat, err := coordinator.aggregate(ctx, now)
+	var heartbeat sensoradapter.Heartbeat
+	observed := now
+	if coordinator.config.Coverage != nil {
+		heartbeat, observed, err = coordinator.aggregateCoverage(ctx, now.Add(time.Since(started)))
+	} else {
+		heartbeat, err = coordinator.aggregate(ctx, now)
+	}
 	if err != nil {
 		return sensoradapter.Heartbeat{}, err
 	}
@@ -259,9 +293,20 @@ func (coordinator *ClusterCoordinator) pendingOrPrepare(ctx context.Context, now
 	updated := state.DeepCopy()
 	updated.Spec.HolderIdentity = &coordinator.config.PodName
 	updated.Annotations = map[string]string{clusterSequenceAnnotation: strconv.FormatInt(sequence, 10), clusterPendingAnnotation: pending}
+	if coordinator.config.Coverage != nil {
+		marker := coordinator.encodeCoveragePending(pending, observed)
+		if !coordinator.validCoveragePending(pending, marker, now.Add(time.Since(started))) {
+			return sensoradapter.Heartbeat{}, ErrCluster
+		}
+		updated.Annotations[clusterCoveragePendingAnnotation] = marker
+	}
 	if _, err = coordinator.config.Leases.Update(ctx, updated, metav1.UpdateOptions{}); err != nil {
 		return sensoradapter.Heartbeat{}, clusterMutationError(err)
 	}
+	if coordinator.config.Coverage != nil && !coordinator.validCoveragePending(pending, updated.Annotations[clusterCoveragePendingAnnotation], now.Add(time.Since(started))) {
+		return sensoradapter.Heartbeat{}, ErrCluster
+	}
+	coordinator.pendingCoverageMarker = updated.Annotations[clusterCoveragePendingAnnotation]
 	return heartbeat, nil
 }
 

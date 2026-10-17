@@ -76,6 +76,9 @@ func buildLineageConsumerDependencies(config sensorAgentConfig, controlPlaneDo, 
 	}
 	protected = append(protected, extraProtected...)
 	paths := []string{config.SpoolDirectory, config.AckDirectory, config.StateDirectory, filepath.Dir(config.TokenFile), filepath.Dir(config.KernelFile), filepath.Dir(config.BTFFile)}
+	if config.Coverage != nil {
+		paths = append(paths, config.ObservationDirectory)
+	}
 	for _, input := range extraProtected {
 		if input.Parent == nil {
 			return sensorAgentDependencies{}, errSensorRuntime

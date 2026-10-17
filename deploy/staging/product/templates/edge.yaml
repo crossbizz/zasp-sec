@@ -1,10 +1,27 @@
 {{- if eq .Values.profile "customer_edge" }}
+{{- $cov := dict }}
+{{- $coverage := dict }}
+{{- $tns := "" }}
+{{- $tname := "" }}
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata: { name: runtime-gateway, labels: { app.kubernetes.io/name: runtime-gateway, app.kubernetes.io/part-of: zasp } }
 automountServiceAccountToken: false
 {{- if .Values.sensorAgent.enabled }}
+{{- $cov = .Values.sensorAgent.coverage }}
+{{- $cluster := required "sensorAgent.coverage.clusterUID is required" $cov.clusterUID }}
+{{- if not (regexMatch "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" $cluster) }}{{ fail "sensor coverage requires actual cluster UID" }}{{ end }}
+{{- if or (not $cov.matchLabels) (gt (len $cov.matchLabels) 8) }}{{ fail "sensor coverage requires selected node labels" }}{{ end }}
+{{- $tns = required "sensorAgent.coverage.tetragonNamespace is required" $cov.tetragonNamespace }}
+{{- $tname = required "sensorAgent.coverage.tetragonName is required" $cov.tetragonName }}
+{{- $trelease := required "sensorAgent.coverage.tetragonRelease is required" $cov.tetragonRelease }}
+{{- $tsa := required "sensorAgent.coverage.tetragonServiceAccount is required" $cov.tetragonServiceAccount }}
+{{- range $target := list $tns $tname $trelease $tsa }}
+{{- if not (regexMatch "^[a-z0-9]([a-z0-9.-]{0,61}[a-z0-9])?$" $target) }}{{ fail "sensor coverage requires exact named Kubernetes targets" }}{{ end }}
+{{- end }}
+{{- $coverage = dict "source_profile" .Values.sensorAgent.sourceProfile "cluster_uid" $cluster "enrollment_binding" .Values.sensorAgent.enrollmentBinding "match_labels" $cov.matchLabels "sensor" (dict "namespace" .Release.Namespace "name" "sensor-agent" "release" .Release.Name "release_namespace" .Release.Namespace "image" .Values.global.productImages.sensorAgent "service_account" "sensor-agent" "container" "sensor-agent") "tetragon" (dict "namespace" $tns "name" $tname "release" $trelease "release_namespace" $tns "image" .Values.global.dependencyImages.tetragon "service_account" $tsa "container" "tetragon") }}
+
 {{- if not (has .Values.sensorAgent.sourceProfile (list "tetragon-local-stream-v2" "tetragon-local-stream-v3")) }}
 {{- fail "sensorAgent.sourceProfile must select a supported immutable stream format" }}
 {{- end }}
@@ -27,6 +44,10 @@ rules:
   - apiGroups: [""]
     resources: [pods]
     verbs: [list]
+  - apiGroups: [apps]
+    resources: [daemonsets]
+    resourceNames: ["sensor-agent"{{ if eq $tns .Release.Namespace }}, {{ $tname | quote }}{{ end }}]
+    verbs: [get]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -40,7 +61,7 @@ metadata: { name: sensor-lineage-identity, labels: { app.kubernetes.io/part-of: 
 rules:
   - apiGroups: [""]
     resources: [nodes]
-    verbs: [get]
+    verbs: [get, list]
   - apiGroups: [""]
     resources: [namespaces]
     resourceNames: [kube-system]
@@ -151,6 +172,8 @@ spec:
     metadata: { labels: { app.kubernetes.io/name: sensor-agent, app.kubernetes.io/part-of: zasp } }
     spec:
       serviceAccountName: sensor-agent
+      nodeSelector:
+{{ toYaml $cov.matchLabels | indent 8 }}
       automountServiceAccountToken: false
       enableServiceLinks: false
       hostNetwork: false
@@ -184,6 +207,10 @@ spec:
           env:
             - { name: GOMEMLIMIT, value: "128MiB" }
             - { name: ZASP_SENSOR_ROLE, value: lineage-consumer }
+            - { name: ZASP_SENSOR_COVERAGE_CONFIG, value: {{ toJson $coverage | quote }} }
+            - { name: ZASP_SENSOR_OBSERVATION_DIRECTORY, value: /var/lib/zasp-lineage/observations }
+            - name: ZASP_SENSOR_POD_UID
+              valueFrom: { fieldRef: { fieldPath: metadata.uid } }
             - { name: ZASP_SENSOR_ENROLLMENT_BINDING, value: {{ .Values.sensorAgent.enrollmentBinding | quote }} }
             - { name: ZASP_SENSOR_CONTROL_PLANE_URL, value: {{ required "runtimeGateway.controlPlaneURL is required" .Values.runtimeGateway.controlPlaneURL | quote }} }
             - { name: ZASP_SENSOR_TOKEN_FILE, value: /var/run/secrets/zasp-sensor/token }
@@ -212,6 +239,7 @@ spec:
           volumeMounts:
             - { name: token-source, mountPath: /var/run/secrets/zasp-sensor, readOnly: true }
             - { name: state, subPath: producer, mountPath: /var/lib/zasp-lineage/producer, readOnly: true }
+            - { name: state, subPath: observations, mountPath: /var/lib/zasp-lineage/observations, readOnly: true }
             - { name: state, subPath: acks, mountPath: /var/lib/zasp-lineage/acks }
             - { name: state, subPath: consumer, mountPath: /var/lib/zasp-lineage/consumer }
             - { name: kubernetes-authority, mountPath: /var/run/secrets/kubernetes.io/serviceaccount, readOnly: true }
@@ -230,6 +258,11 @@ spec:
           env:
             - { name: GOMEMLIMIT, value: "128MiB" }
             - { name: ZASP_SENSOR_ROLE, value: lineage-producer }
+            - { name: ZASP_SENSOR_OBSERVATION_DIRECTORY, value: /var/lib/zasp-lineage/observations }
+            - name: ZASP_SENSOR_POD_NAME
+              valueFrom: { fieldRef: { fieldPath: metadata.name } }
+            - name: ZASP_SENSOR_POD_UID
+              valueFrom: { fieldRef: { fieldPath: metadata.uid } }
             - { name: ZASP_LINEAGE_SOURCE_PROFILE, value: {{ .Values.sensorAgent.sourceProfile | quote }} }
             - { name: ZASP_SENSOR_ENROLLMENT_BINDING, value: {{ .Values.sensorAgent.enrollmentBinding | quote }} }
             - { name: ZASP_SENSOR_CONTROL_PLANE_URL, value: {{ .Values.runtimeGateway.controlPlaneURL | quote }} }
@@ -249,6 +282,7 @@ spec:
             - { name: ZASP_SENSOR_SHUTDOWN_TIMEOUT, value: "15s" }
           volumeMounts:
             - { name: state, subPath: producer, mountPath: /var/lib/zasp-lineage/producer }
+            - { name: state, subPath: observations, mountPath: /var/lib/zasp-lineage/observations }
             - { name: state, subPath: acks, mountPath: /var/lib/zasp-lineage/acks, readOnly: true }
             - { name: tetragon-socket, mountPath: /var/run/tetragon, readOnly: true }
             - { name: host-boot, mountPath: /host/proc/sys/kernel/random, readOnly: true }

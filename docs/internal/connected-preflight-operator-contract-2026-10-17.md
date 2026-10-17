@@ -72,3 +72,28 @@ evaluator. Bare `preflight` retains this compatibility mode. Its report states
 Production acceptance still requires the documented target, least-privilege
 workload bindings, real Stytch/provider integrations and deployed end-to-end
 flows. No original task is promoted by this component.
+
+Selected-node sensor observations use explicit `kubernetes` authority (HTTPS
+endpoint, CA file, cluster UID, and existing service-account or private bearer-file
+credentials) and a `sensor` selection. The selection binds the exact cluster UID,
+enrollment binding, source profile, Node label selector, and both deployed
+sensor/Tetragon DaemonSet identities, container images and service accounts.
+Both charts require the same explicit cluster UID and Node selector; no default
+cluster identity or invented fleet coverage is supplied.
+
+The reader lists actual selected Nodes, reads each exact named DaemonSet and its
+namespace Pods, and joins current UID/boot/generation-bound reports from Leases.
+It repeats the Node observation and applies a final freshness fence. Selecting
+Nodes requires cluster-wide Node metadata LIST permission: a label selector is
+not an RBAC restriction. Named DaemonSet GET and namespace Pod LIST bindings are
+explicit. No secret read, exec, TokenReview or provider mutation is added.
+
+The lineage producer writes a protected sibling observation witness through its
+existing writable state mount; the consumer reads it through its existing read-only
+mount. Original observation time is retained. New pending coverage records bind
+exact payload, selection and freshness; legacy, copied or expired pending records
+are preserved and refused, without rewriting sequence history. The old unconfigured
+coordinator remains for compatibility; deployment of the selected-coverage profile
+and retirement acceptance remain required. Host kernel/BTF, root-owned mounted
+witness, actual Helm rendering and real Kubernetes coverage are separate acceptance
+gates. Component fixtures do not satisfy them.

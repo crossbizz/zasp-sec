@@ -5,6 +5,7 @@ on:
     paths:
       - 'services/platform/**'
       - 'services/health/**'
+      - 'services/sensor-agent/**'
       - 'cmd/agentsecctl/**'
       - 'deploy/production/**'
       - 'deploy/staging/**'
@@ -44,7 +45,7 @@ jobs:
           import hashlib, json
           from pathlib import Path
           source = json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())
-          assert len(source['sources']) == 371
+          assert len(source['sources']) == 394
           for item in source['sources']:
               raw = Path(item['path']).read_bytes()
               assert len(raw) == item['bytes']
@@ -86,7 +87,7 @@ jobs:
           assert len(groups) == 6 and sum(len(tops) for tops in groups.values()) == 10 and len(expected) == 86
           def check_sources():
               source = json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())
-              assert len(source['sources']) == 371
+              assert len(source['sources']) == 394
               for item in source['sources']:
                   raw = Path(item['path']).read_bytes()
                   assert len(raw) == item['bytes'] and hashlib.sha256(raw).hexdigest() == item['sha256'], item['path']
@@ -210,3 +211,38 @@ jobs:
         run: go test -C cmd/agentsecctl -race -p=1 -count=1 -timeout=2m ./...
       - name: Keep consumed source and module metadata unchanged
         run: git diff --exit-code -- cmd/agentsecctl services/platform services/health
+
+  selected-node-observation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GOTOOLCHAIN: local
+      GOWORK: 'off'
+      GOFLAGS: '-mod=readonly'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: 1.26.8
+          cache: false
+      - name: Verify selected-node application source custody
+        run: |
+          python3 - <<'PYSENSOR'
+          import hashlib, json
+          from pathlib import Path
+          for item in json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())['sources']:
+              raw = Path(item['path']).read_bytes()
+              assert len(raw) == item['bytes'] and hashlib.sha256(raw).hexdigest() == item['sha256'], item['path']
+          PYSENSOR
+      - name: Selected-node adapter application regressions
+        timeout-minutes: 5
+        run: go test -C services/platform -race -p=1 -count=1 -timeout=2m ./sensoradapter
+      - name: Sensor application regressions with original fixture permissions
+        timeout-minutes: 5
+        run: |
+          umask 0027
+          go test -C services/sensor-agent -race -p=1 -count=1 -timeout=2m ./...
+      - name: Keep consumed sensor and module source unchanged
+        run: git diff --exit-code -- services/sensor-agent services/platform services/health

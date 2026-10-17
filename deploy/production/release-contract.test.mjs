@@ -217,7 +217,7 @@ test("customer edge isolates lineage producer, consumer and layout initializatio
   assert.deepEqual(socket.hostPath, { path: "/var/run/tetragon", type: "DirectoryOrCreate" });
   assert.equal(pod.volumes.find(({ name }) => name === "state").hostPath.path, "/var/lib/zasp-sensor-lineage");
   assert.deepEqual(one(resources, "ClusterRole", "sensor-lineage-identity").rules, [
-    { apiGroups: [""], resources: ["nodes"], verbs: ["get"] },
+    { apiGroups: [""], resources: ["nodes"], verbs: ["get", "list"] },
     { apiGroups: [""], resources: ["namespaces"], resourceNames: ["kube-system"], verbs: ["get"] },
   ]);
 });
@@ -2145,4 +2145,30 @@ test("API build dependency stage resolves its copied local health module", async
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
+});
+
+test("selected sensor inventory has shared pool, identity witness and exact read permissions", async () => {
+  const resources = await renderCustomerEdgeRelease(edgeRelease);
+  const sensor = one(resources, "DaemonSet", "sensor-agent");
+  const tetragon = one(resources, "DaemonSet", "zasp-tetragon");
+  assert.deepEqual(sensor.spec.template.spec.nodeSelector, edgeRelease.sensorNodeSelector);
+  assert.deepEqual(tetragon.spec.template.spec.nodeSelector, edgeRelease.sensorNodeSelector);
+  const containers = sensor.spec.template.spec.containers;
+  const consumer = containers.find(c => c.name === "sensor-agent"), producer = containers.find(c => c.name === "lineage-producer");
+  const config = JSON.parse(Object.fromEntries(consumer.env.filter(e => e.value !== undefined).map(e => [e.name,e.value])).ZASP_SENSOR_COVERAGE_CONFIG);
+  assert.equal(config.cluster_uid, edgeRelease.sensorClusterUID);
+  assert.equal(config.enrollment_binding, edgeRelease.sensorEnrollmentBinding);
+  assert.equal(config.sensor.name, "sensor-agent");
+  assert.equal(config.tetragon.name, "zasp-tetragon");
+  assert.equal(consumer.env.find(e => e.name === "ZASP_SENSOR_POD_UID").valueFrom.fieldRef.fieldPath, "metadata.uid");
+  assert.equal(producer.env.find(e => e.name === "ZASP_SENSOR_POD_UID").valueFrom.fieldRef.fieldPath, "metadata.uid");
+  assert.equal(consumer.volumeMounts.find(m => m.subPath === "observations").readOnly, true);
+  assert.notEqual(producer.volumeMounts.find(m => m.subPath === "observations").readOnly, true);
+  const role = one(resources, "Role", "sensor-agent");
+  const ds = role.rules.find(r => r.resources.includes("daemonsets"));
+  assert.deepEqual(ds.verbs, ["get"]);
+  assert.deepEqual(ds.resourceNames, ["sensor-agent", "zasp-tetragon"]);
+  const nodes = one(resources, "ClusterRole", "sensor-lineage-identity").rules.find(r => r.resources.includes("nodes"));
+  assert.deepEqual(nodes.verbs, ["get", "list"]);
+  for (const invalid of [{ ...edgeRelease, sensorClusterUID: "" }, { ...edgeRelease, sensorNodeSelector: {} }]) await assert.rejects(renderCustomerEdgeRelease(invalid), /edge release rejected/);
 });

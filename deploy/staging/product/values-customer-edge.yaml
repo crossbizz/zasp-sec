@@ -21,6 +21,13 @@ sensorAgent:
   enrollmentBinding: ""
   tokenSecretName: ""
   stateHostPath: /var/lib/zasp-sensor-lineage
+  coverage:
+    clusterUID: ""
+    matchLabels: {}
+    tetragonNamespace: ""
+    tetragonName: ""
+    tetragonRelease: ""
+    tetragonServiceAccount: ""
 network:
   controlPlaneCIDRs: []
   kubernetesAPICIDRs: []

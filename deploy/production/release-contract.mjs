@@ -434,21 +434,30 @@ export async function renderCustomerEdgeRelease(value, options = {}) {
   const edgeValues = path.join(chart, "values-customer-edge.yaml");
   const valueArgs = [];
   for (const [key, entry] of set) valueArgs.push("--set-string", `${key}=${entry.replaceAll("\\", "\\\\").replaceAll(",", "\\,")}`);
-  let productOutput, tetragonOutput;
+  let productOutput, tetragonOutput, coverageDirectory;
+  const nodeSelector = structuredClone(value.sensorNodeSelector);
   try {
     const tetragonChart = path.join(root, "deploy/staging/tetragon");
     const dependency = await readFile(path.join(tetragonChart, "charts/tetragon-1.7.0.tgz"));
     if (createHash("sha256").update(dependency).digest("hex") !== tetragonChartDigest) throw new Error("tetragon dependency rejected");
+    coverageDirectory = await mkdtemp(path.join(tmpdir(), "zasp-sensor-coverage-values-"));
+    const productCoveragePath = path.join(coverageDirectory,"product.json"), tetragonCoveragePath = path.join(coverageDirectory,"tetragon.json");
+    await writeFile(productCoveragePath,JSON.stringify({sensorAgent:{coverage:{clusterUID:value.sensorClusterUID,matchLabels:nodeSelector,tetragonNamespace:"agentsec",tetragonName:"zasp-tetragon",tetragonRelease:"zasp-tetragon",tetragonServiceAccount:"zasp-tetragon"}}}),{mode:0o600});
+    await writeFile(tetragonCoveragePath,JSON.stringify({tetragon:{nodeSelector},coverageObserver:{enabled:true,namespace:"agentsec",serviceAccount:"sensor-agent"}}),{mode:0o600});
+    valueArgs.push("--values",productCoveragePath);
+    const tetragonArgs=["--values",tetragonCoveragePath];
     const results = await Promise.all([
       exec("helm", ["lint", chart, "--namespace", "agentsec", "--values", edgeValues, ...valueArgs], { cwd: root, encoding: "utf8", maxBuffer: 8 * 1024 * 1024 }),
       exec("helm", ["template", "zasp", chart, "--namespace", "agentsec", "--values", edgeValues, ...valueArgs], { cwd: root, encoding: "utf8", maxBuffer: 8 * 1024 * 1024 }),
-      exec("helm", ["lint", tetragonChart, "--namespace", "agentsec"], { cwd: root, encoding: "utf8", maxBuffer: 8 * 1024 * 1024 }),
-      exec("helm", ["template", "zasp-tetragon", tetragonChart, "--namespace", "agentsec"], { cwd: root, encoding: "utf8", maxBuffer: 8 * 1024 * 1024 }),
+      exec("helm", ["lint", tetragonChart, "--namespace", "agentsec", ...tetragonArgs], { cwd: root, encoding: "utf8", maxBuffer: 8 * 1024 * 1024 }),
+      exec("helm", ["template", "zasp-tetragon", tetragonChart, "--namespace", "agentsec", ...tetragonArgs], { cwd: root, encoding: "utf8", maxBuffer: 8 * 1024 * 1024 }),
     ]);
     productOutput = results[1].stdout;
     tetragonOutput = results[3].stdout;
   } catch {
     throw new Error("edge release rejected");
+  } finally {
+    if (coverageDirectory) await rm(coverageDirectory,{recursive:true,force:true});
   }
   const resources = [];
   try {
@@ -461,12 +470,19 @@ export async function renderCustomerEdgeRelease(value, options = {}) {
   const daemonSets = resources.filter(({ kind }) => kind === "DaemonSet");
   const accounts = resources.filter(({ kind }) => kind === "ServiceAccount");
   if (resources.length < 20 || resources.some((resource) => !resource?.apiVersion || !resource?.kind || !resource?.metadata?.name) || deployments.length !== 1 || deployments[0].metadata.name !== "runtime-gateway" || daemonSets.length !== 2 || !daemonSets.some(({ metadata }) => metadata.name === "sensor-agent") || !daemonSets.some(({ metadata }) => metadata.name === "zasp-tetragon") || accounts.length !== 3 || !["runtime-gateway", "sensor-agent", "zasp-tetragon"].every((name) => accounts.some(({ metadata }) => metadata.name === name)) || accounts.some(({ metadata }) => metadata.annotations?.["eks.amazonaws.com/role-arn"] !== undefined)) throw new Error("edge release rejected");
+  const sensorDS=resources.find(r=>r.kind==="DaemonSet"&&r.metadata.name==="sensor-agent"), tetragonDS=resources.find(r=>r.kind==="DaemonSet"&&r.metadata.name==="zasp-tetragon");
+  const normalize=v=>JSON.stringify(Object.fromEntries(Object.entries(v??{}).sort(([a],[b])=>a.localeCompare(b))));
+  if(normalize(sensorDS?.spec?.template?.spec?.nodeSelector)!==normalize(nodeSelector)||normalize(tetragonDS?.spec?.template?.spec?.nodeSelector)!==normalize(nodeSelector)) throw new Error("edge release rejected");
+  const role=resources.find(r=>r.kind==="Role"&&r.metadata.name==="sensor-agent");
+  const dsRule=role?.rules?.find(r=>r.apiGroups?.includes("apps")&&r.resources?.includes("daemonsets"));
+  if(!dsRule||JSON.stringify(dsRule.verbs)!==JSON.stringify(["get"])||normalize(dsRule.resourceNames)!==normalize(["sensor-agent","zasp-tetragon"])) throw new Error("edge release rejected");
   return Object.freeze(resources);
 }
 
 function validCustomerEdgeRelease(value) {
-  const keys = ["controlPlaneURL", "image", "sensorImage", "organizationID", "workspaceID", "environmentID", "deviceID", "credentialID", "credentialSecretName", "policyKeysSecretName", "proxyClientTokenSecretName", "proxyUpstreamURL", "sensorTokenSecretName", "sensorEnrollmentBinding", "storageClassName", "controlPlaneCIDRs", "proxyAllowedCIDRs", "kubernetesAPICIDRs", "nodeCIDRs", "stateHostPath"];
+  const keys = ["controlPlaneURL", "image", "sensorImage", "organizationID", "workspaceID", "environmentID", "deviceID", "credentialID", "credentialSecretName", "policyKeysSecretName", "proxyClientTokenSecretName", "proxyUpstreamURL", "sensorTokenSecretName", "sensorEnrollmentBinding", "sensorClusterUID", "sensorNodeSelector", "storageClassName", "controlPlaneCIDRs", "proxyAllowedCIDRs", "kubernetesAPICIDRs", "nodeCIDRs", "stateHostPath"];
   if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).sort().join("\0") !== keys.sort().join("\0") || !digestPattern.test(value.image) || !digestPattern.test(value.sensorImage) || value.image === value.sensorImage) return false;
+  if (typeof value.sensorClusterUID !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(value.sensorClusterUID) || value.sensorClusterUID === "00000000-0000-0000-0000-000000000000" || !value.sensorNodeSelector || Array.isArray(value.sensorNodeSelector) || Object.keys(value.sensorNodeSelector).length < 1 || Object.keys(value.sensorNodeSelector).length > 8 || !Object.entries(value.sensorNodeSelector).every(([k,v]) => /^[A-Za-z0-9./_-]{1,253}$/.test(k) && typeof v === "string" && /^[A-Za-z0-9][A-Za-z0-9_.-]{0,62}$/.test(v))) return false;
   if (typeof value.sensorEnrollmentBinding !== "string" || !/^[0-9a-f]{64}$/.test(value.sensorEnrollmentBinding)) return false;
   if (!/^https:\/\/(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(value.controlPlaneURL)) return false;
   if (![value.organizationID, value.workspaceID, value.environmentID, value.deviceID, value.credentialID].every((identifier) => productIDPattern.test(identifier)) || new Set([value.organizationID, value.workspaceID, value.environmentID, value.deviceID, value.credentialID]).size !== 5) return false;

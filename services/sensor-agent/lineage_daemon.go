@@ -16,6 +16,7 @@ import (
 type lineageProducerDaemonConfig struct {
 	SpoolDirectory, AckDirectory, SocketPath, BootFile string
 	SourceProfile                                      string
+	CoverageDirectory, PodName, PodUID                 string
 	Loop                                               lineageProducerLoopConfig
 	PollInterval, ShutdownTimeout                      time.Duration
 }
@@ -28,6 +29,7 @@ func loadLineageProducerDaemonConfig(getenv func(string) string) (lineageProduce
 	config.SpoolDirectory, config.AckDirectory = getenv("ZASP_LINEAGE_SPOOL_DIRECTORY"), getenv("ZASP_LINEAGE_ACK_DIRECTORY")
 	config.SocketPath, config.BootFile = getenv("ZASP_TETRAGON_SOCKET"), getenv("ZASP_HOST_BOOT_ID_FILE")
 	config.SourceProfile = getenv("ZASP_LINEAGE_SOURCE_PROFILE")
+	config.CoverageDirectory, config.PodName, config.PodUID = getenv("ZASP_SENSOR_OBSERVATION_DIRECTORY"), getenv("ZASP_SENSOR_POD_NAME"), getenv("ZASP_SENSOR_POD_UID")
 	config.Loop.NodeName = getenv("ZASP_SENSOR_NODE_NAME")
 	config.Loop.Scope.EnrollmentBinding = getenv("ZASP_SENSOR_ENROLLMENT_BINDING")
 	config.Loop.Scope.Destination = getenv("ZASP_SENSOR_CONTROL_PLANE_URL") + "/internal/v1/runtime/events"
@@ -95,6 +97,7 @@ type lineageProducerDependencies struct {
 	receipts        *lineageReceiptReader
 	boot            *hostBootReader
 	api             *lineageKubernetesAPI
+	coverage        *nodeWitnessFile
 	mu              sync.Mutex
 	running, closed bool
 }
@@ -107,12 +110,24 @@ func buildProductionLineageProducer(config lineageProducerDaemonConfig) (_ *line
 		return nil, errSensorRuntime
 	}
 	dependencies := &lineageProducerDependencies{config: config}
+	if config.CoverageDirectory != "" {
+		if !validCoverageWitnessPath(config.CoverageDirectory, config.SpoolDirectory) {
+			return nil, errSensorConfig
+		}
+		dependencies.coverage, err = openNodeWitness(config.CoverageDirectory, config.PodName, config.PodUID, config.Loop.Scope.ConsumerUID, true)
+		if err != nil {
+			return nil, errSensorRuntime
+		}
+	}
 	defer func() {
 		if err != nil {
 			dependencies.Close()
 		}
 	}()
 	paths := []string{config.SpoolDirectory, config.AckDirectory, filepath.Dir(config.SocketPath), filepath.Dir(config.BootFile), "/var/run/secrets/kubernetes.io/serviceaccount"}
+	if config.CoverageDirectory != "" {
+		paths = append(paths, config.CoverageDirectory)
+	}
 	var roots []*os.Root
 	defer func() {
 		for _, root := range roots {
@@ -187,7 +202,15 @@ func (dependencies *lineageProducerDependencies) run(ctx context.Context, ticks 
 		if err != nil {
 			return nil, err
 		}
-		return startConfiguredLineageGeneration(ctx, dependencies.config, dependencies.api, dependencies.boot, endpoint, dependencies.spool)
+		generation, err := startConfiguredLineageGeneration(ctx, dependencies.config, dependencies.api, dependencies.boot, endpoint, dependencies.spool)
+		if err == nil {
+			generation.coverage = dependencies.coverage
+			if dependencies.coverage != nil && dependencies.coverage.publish(ctx, generation.source) != nil {
+				generation.Close()
+				return nil, errSensorRuntime
+			}
+		}
+		return generation, err
 	}, ticks, ready)
 }
 
@@ -220,6 +243,9 @@ func (dependencies *lineageProducerDependencies) Close() error {
 		dependencies.api.Close()
 	}
 	var failed bool
+	if dependencies.coverage != nil {
+		failed = dependencies.coverage.Close() != nil || failed
+	}
 	if dependencies.boot != nil {
 		failed = dependencies.boot.Close() != nil || failed
 	}
