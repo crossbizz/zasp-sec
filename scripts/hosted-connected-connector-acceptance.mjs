@@ -706,11 +706,22 @@ const pins = {
   "services/sensor-agent/node_coverage_retention_state.go": "105a11a907d8682ec8284dbe4f3bbd05286cdeb62a91e96137cdc9463568f335",
   "services/sensor-agent/node_coverage_retention_storage_test.go": "f7a376843b74aaa9cdea19db2e79f597242fd6f7d52465abb1301c99ec8ac63c",
   "services/sensor-agent/production_test.go": "7cd23b28d244f5efb2f84fe5199391adfd4886378bca2c78d0cfffdfe20d5ad0",
-  "services/sensor-agent/runtime_config_test.go": "170aab502d6f87d3cf6f1e3a3488095a319049909b5c29d8d890fefc7a7ebdd8"
+  "services/sensor-agent/runtime_config_test.go": "170aab502d6f87d3cf6f1e3a3488095a319049909b5c29d8d890fefc7a7ebdd8",
+  "services/platform/connectors/kubernetesdiscovery/collection_api.go": "c8f7d039b324d8426564de4456ce64f14635b9b3e6b8c4053592f487dd570a5d",
+  "services/platform/connectors/kubernetesdiscovery/pinned_collection_api.go": "d8e5c14635ad00dfb11586156c120a02533b78b8f612b0ac5f0c23f23be3c4f9",
+  "services/platform/connectors/kubernetesdiscovery/collection.go": "8e826becac8aaaeba2812e6ad0c17d2b99e8eb6649ee218c6717dba70776851a",
+  "services/platform/connectors/kubernetesdiscovery/node_placement.go": "320f728344c96e548c38d6149d7f7b535a816ede9e241f8323bfcf02e78fc7f4",
+  "services/platform/connectors/kubernetesdiscovery/node_placement_test.go": "4bbaab2ad12ea156ea01f56337c05a18791d4627792909c88a68365874c4029f",
+  "services/platform/connectors/internal/providercollection/client.go": "a850173cd86aea7464c48e8982ff32c34eda2c25302a0cdd8c97bd4cf8e530e3",
+  "services/platform/connectors/internal/providercollection/node_placement.go": "a40fb68d067c6d6d84c4857dbec66be1da98c0c31d6470981a38aba5d324cba1",
+  "services/platform/connectors/internal/providercollection/node_placement_schema_test.go": "48cdee37c194500c1e06c479d3ad903565a97773915cb83fcdf875fb7a32716b",
+  "services/platform/agentsec-worker/discovery_clients.go": "c2cb43ae313ae499481de29502650125747c8b4b72642c9fe5e9d1e3e83c5f45",
+  "services/platform/agentsec-worker/discovery_composition.go": "facd4680cbf2b9d97a2c76e7563e9434864a14cd5f5ddd924dc65fb9ac404d91",
+  "services/platform/agentsec-worker/discovery_node_placement_test.go": "ec2a929e1ad3743cf1d65e3b735dee54768863c2e3c3ebae8f85d9bc3463efa9"
 };
 const roster = selectedGroup.names;
 const helperPins={
-  "scripts/connector-acceptance-groups.test.mjs": "96bd2c5f963e9e94ccf845a5cbaa1b344859ec14470ccdb2a79b1298cd596fb6",
+  "scripts/connector-acceptance-groups.test.mjs": "ecd6b3037567b319bc6cc569102a4357c0b60df8ff7f189afa5bbfd1ae36bf90",
   "scripts/connector-acceptance-groups.mjs": "70da54d5a2eb61535af55afe53e944ca815550a0319943ffe1e46466f8b8cfd4",
   "docs/internal/evidence/cloud-2026-10-07/native-service-readiness/openfga/09-pg-non-glibc-libs-manifest.json": "96642e82997ffd2caf2893a5ecc0116ad2aef6e982df2d929f3efda4e04f3474",
   "services/platform/apiserver/authorization_integration_mutations_postgres_test.go": "5e4beb04b2409ad9b11b89c017ada5e2eccffd78a87bdd5692d40670f12a2ba0",

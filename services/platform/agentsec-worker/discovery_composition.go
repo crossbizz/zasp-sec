@@ -111,7 +111,7 @@ func (factory *productionLiveDiscoveryCollectorFactory) collectionFactoryForAuth
 	if err != nil {
 		return nil, errRuntimeUnavailable
 	}
-	kubernetesAPI := &discoveryBearerCollectionAPI{provider: collection.ProviderKubernetes, kubernetes: func(config kubernetesdiscovery.PinnedCollectionAPIConfig) (kubernetesdiscovery.CollectionAPI, error) {
+	kubernetesAPI := &discoveryBearerCollectionAPI{nodePlacement: factory.config.KubernetesCollectorVersion == kubernetesdiscovery.NodePlacementCollectorVersion, provider: collection.ProviderKubernetes, kubernetes: func(config kubernetesdiscovery.PinnedCollectionAPIConfig) (kubernetesdiscovery.CollectionAPI, error) {
 		if network := factory.config.KubernetesNetwork; network != nil {
 			return kubernetesdiscovery.NewPinnedKubernetesCollectionAPIWithNetwork(config, *network)
 		}

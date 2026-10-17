@@ -1,0 +1,210 @@
+{
+  "classification": "SOURCE_AUDIT_AND_FINITE_PLAN_ONLY_NO_IMPLEMENTATION",
+  "verdict": "DEVICE_INSTALL_ACK_MISSING_AND_AGENT_BINDING_NOT_ESTABLISHED",
+  "source_workspace": "/workspace/zasp-node-coverage-retention",
+  "source_pins": [
+    {
+      "path": "services/runtime-gateway/runtime.go",
+      "bytes": 36190,
+      "sha256": "a0cd1562d784d57c92240a7cbf7bd791c41b9cc38d1d7b20fdc65cd32c16620b",
+      "root_workspace_byte_identical": true
+    },
+    {
+      "path": "services/platform/policy/gateway_cache.go",
+      "bytes": 24993,
+      "sha256": "78d330883ef8e811b4a3d3b2f76dc18bb660934e304d5daa45cf3470f1f1fe21",
+      "root_workspace_byte_identical": true
+    },
+    {
+      "path": "services/platform/gatewaycontrol/contract.go",
+      "bytes": 7008,
+      "sha256": "7811c187c21a1290ace9dd99cadf55afe708e72db51e36e9ee0b04e3dc70e67a",
+      "root_workspace_byte_identical": true
+    },
+    {
+      "path": "services/platform/gatewaycontrol/http.go",
+      "bytes": 12488,
+      "sha256": "d2ec7e7d321e3072737cdaffb6ade9dc5f81c87b11b627ea589bc82aea1949a8",
+      "root_workspace_byte_identical": true
+    },
+    {
+      "path": "services/platform/gatewaycontrol/client.go",
+      "bytes": 9519,
+      "sha256": "ef0680440857f7847e29f37f822b6494791e82e3fcaee0edd6835c1aaf3daf6b",
+      "root_workspace_byte_identical": true
+    },
+    {
+      "path": "services/platform/gatewaycontrol/postgres.go",
+      "bytes": 11605,
+      "sha256": "72d569fc199d85e196d990885e6e7b86e2423fe5a580df4b6ca60635b81e279f",
+      "root_workspace_byte_identical": true
+    },
+    {
+      "path": "services/platform/migrations/sql/0010_production_discovery.up.sql",
+      "bytes": 134477,
+      "sha256": "b7bc32c642cb57988e4e6a0a89feed0ffe1d4396daa3f213c76a2f59b1b1154e",
+      "root_workspace_byte_identical": true
+    },
+    {
+      "path": "services/platform/migrations/sql/0028_production_policy_deployment.up.sql",
+      "bytes": 59594,
+      "sha256": "93ff35bb1d977eba322d42183e088e1bccd6be83f68d5fca3f70e0d00deba981",
+      "root_workspace_byte_identical": true
+    },
+    {
+      "path": "services/platform/migrations/sql/0077_production_temporal_automatic_sources.runtime.sql",
+      "bytes": 6240,
+      "sha256": "d3d14f7a00573e42d1eb433cb155828c1ab8fbb13ebbe23c63c2e94a29933361",
+      "root_workspace_byte_identical": true
+    },
+    {
+      "path": "services/runtime-gateway/evaluation_risk.go",
+      "bytes": 2066,
+      "sha256": "a6be1dab3a15ac7d724348e6dd8fe1e9a404f3270f91cc8cdf851ffd6e9d1d32",
+      "root_workspace_byte_identical": true
+    },
+    {
+      "path": "services/runtime-gateway/production_runtime.go",
+      "bytes": 9638,
+      "sha256": "f6e7ea26f3abf58b818071361c99113bf50d245792f7f56624a7b9d3eecf5c91",
+      "root_workspace_byte_identical": true
+    }
+  ],
+  "facts": [
+    {
+      "source": "services/runtime-gateway/runtime.go",
+      "lines": [
+        202,
+        220,
+        237,
+        242,
+        278,
+        287
+      ],
+      "finding": "Actual SyncOnce obtains current credential authority, fetches signed policy after local sequence, calls cache.Store then updates runtime policySequence. It sends no installed-policy ACK. Authority and event evidence stores are separate."
+    },
+    {
+      "source": "services/platform/policy/gateway_cache.go",
+      "lines": [
+        44,
+        359,
+        375,
+        396,
+        401,
+        573,
+        579,
+        587
+      ],
+      "finding": "Binding is org/work/env/device only. Store verifies Ed25519 audience/binding/digest/time and sequence/policy-version antirollback. Configured disk path writes/syncs/renames and syncs directory before installing current in memory. Cache can also be constructed without persistent root, so Store success alone cannot universally mean durable installation."
+    },
+    {
+      "source": "services/platform/gatewaycontrol/contract.go",
+      "lines": [
+        20,
+        23,
+        38,
+        68
+      ],
+      "finding": "Authority contains credential/device/generation/version/replay-floor/key/audience/expiry, not AgentID. Repository exposes Ready/Authority/Policy/Record. Fixed routes cover authority, policy bundle and decision events; no installation receipt route/model."
+    },
+    {
+      "source": "services/platform/gatewaycontrol/http.go",
+      "lines": [
+        65,
+        94,
+        133,
+        140,
+        153,
+        166,
+        209
+      ],
+      "finding": "Existing control requests authenticate Ed25519 signed exact method/authority/path/query/body digest/timestamp against current credential authority. Decision POST validates credential/device and returns204 after event Record; that acknowledgment is decision recording, not policy installation."
+    },
+    {
+      "source": "services/platform/migrations/sql/0010_production_discovery.up.sql",
+      "lines": [
+        291,
+        309,
+        322
+      ],
+      "finding": "Original gateway device table is scoped ID/name/state/version/replay floor. Credential FK binds scoped device and enrolled/rotated credential chain. No Agent foreign key exists in these original identity records. Policy subscription digest binds server-side device policy intent, not client installed-state ACK."
+    },
+    {
+      "source": "services/platform/migrations/sql/0028_production_policy_deployment.up.sql",
+      "lines": [
+        53,
+        197,
+        203,
+        275,
+        283
+      ],
+      "finding": "Policy deployment work desired/applied generation and applied_envelope_digest track server stored signed bundle reconciliation. finish executes in control-plane deployment worker; does not observe gateway cache.Store or receive a gateway installation receipt. Names such as stored/verified must not be repurposed as client installation."
+    },
+    {
+      "source": "services/runtime-gateway/evaluation_risk.go",
+      "lines": [
+        11,
+        17
+      ],
+      "finding": "EvaluationEvidence.AgentID is read from gateway evaluation request Attributes[agent_id], paired with session/action facts. It is action-event attribution, not an authority-registered gateway-device-to-Agent installation association."
+    },
+    {
+      "source": "services/platform/migrations/sql/0077_production_temporal_automatic_sources.runtime.sql",
+      "lines": [
+        10,
+        25,
+        32
+      ],
+      "finding": "Current temporal runtime writer validates recorded evaluation envelope and uses original credential/device/floor writer; it does not establish a persistent gateway-to-Agent installation binding or ACK route."
+    },
+    {
+      "source": "services/runtime-gateway/production_runtime.go",
+      "lines": [
+        64,
+        71,
+        174,
+        179
+      ],
+      "finding": "Production uses existing HTTP control client and actual disk cache constructor. No new identity provenance or installation callback is mounted."
+    }
+  ],
+  "bounded_search": {
+    "scope": [
+      "services/runtime-gateway",
+      "services/platform/gatewaycontrol",
+      "services/platform/migrations/sql"
+    ],
+    "queries": [
+      "gateway_device_id",
+      "gateway_credential_id",
+      "gateway.*agent_id",
+      "agent_id.*gateway",
+      "installed.*policy",
+      "policy.*ack"
+    ],
+    "qualification": "No durable authoritative Agent\u2194Device installation relation or policy-installation ACK flow was identified in this bounded source trace. Event classification agent_id and server desired/applied generation are not substituted. This is source evidence, not deployed-database inspection."
+  },
+  "smallest_useful_next_batch": {
+    "scope": "Device-bound authenticated installed-policy receipt only; supporting prerequisite for M4-50b3, never Agent coverage completion.",
+    "sender": "After actual production disk-cache Store succeeds and cache current binding/envelope identity is confirmed, prepare exact immutable tuple of scoped device, current credential ID/generation, envelope sequence, policy version, payload digest and agreed complete envelope digest plus source issued/expires and original installation time. Do not infer disk persistence from memory-only cache success. Exact tuple semantics/hash canonicalization must be frozen against signed envelope before code.",
+    "transport": "One closed versioned installation-ACK request/receipt on existing authenticated gateway-control transport with existing credential signing and fixed route. Keep credentials/enrollment audience; no new identity, raw payload logs or borrowed human proof. Sender must retain exact pending ACK/retry intent across lost response/restart without restamping installation time; existing decision evidence replay floor must not be consumed or altered.",
+    "server": "Additive separately reviewed contract only. Derive org/work/env/device solely from current authenticated credential; match exact published immutable bundle and credential generation, reject revoked/expired/rotated/rebound/current-profile-invalid caller and conflicting same identity/digest. Serialize idempotent receipt and confirm COMMIT before public success. ACK means authenticated gateway testimony of successful cache installation, not remote attestation of effective enforcement or observation of actions. Do not mutate canonical published SQL, ACLs or server deployment applied_generation. Exact owner/purpose/schema/ACL/native admission must be separately source-proven before implementation; none are approved/invented in this audit.",
+    "read": "If later exposed, distinguish latest current matching device acknowledgment from stale/superseded/revoked/unavailable. A signed server policy or HTTP policy GET success is insufficient. No current Agent policy/sensor coverage boolean/filter until independently authorized binding and freshness evidence exists.",
+    "tests_first": [
+      "Real production SyncOnce->verified persistent Store->ACK call ordering; invalid signature/payload/scope/expiry/rollback/disk fsync failures produce zero ACK.",
+      "Credential-bound current server receipt with exact tuple equality, conflicting replay refusal, revoked/rotated credential rejection and unknown COMMIT nonacknowledgment.",
+      "Lost ACK retains original source install time and tuple, exact retry after restart; concurrent policy refresh never relabels old receipt as new.",
+      "Existing cache signatures/antirollback/failure-mode, revocation, decision replay/evidence quarantine, proxy and budget controls remain required. Controlled fixture assertions do not claim provider/browser/native acceptance."
+    ]
+  },
+  "agent_bound_followup_prerequisite": {
+    "state": "UNKNOWN_NOT_IMPLEMENTED",
+    "required_source_of_truth": "A server-authorized explicit scoped Agent\u2194gateway Device relation must originate from an actual admitted enrollment/association writer that proves the current active typed Agent identity and actual device/enrollment credential ownership. No such writer/record was found. Do not derive it from equal environment, DeviceID/name/IP, policy presence, sensor selector, mutable annotations or caller Evaluation.AgentID.",
+    "next_design_boundary": "Before Agent-facing coverage implementation, freeze actual existing owner/caller/target authorization provenance for that association writer and current read contract, multiplicity/revocation/replacement semantics, and version/freshness invalidation. If no existing authorized writer can own it, return a concrete contract gap rather than invent grants, identity kinds or permissive mutation permissions. Device ACK work may proceed separately with its narrower label."
+  },
+  "limits": [
+    "Read-only source/Python/rg inspection only; no tests/build/Go/Node/Git/network/native or product edits.",
+    "M4-50b3 remains open, as do actual Agent placement and policy/sensor acknowledgment acceptance.",
+    "No deployed enrollment/provider/device-cache or real Agent\u2194Device association was inspected; source-only facts cannot promote production availability."
+  ]
+}

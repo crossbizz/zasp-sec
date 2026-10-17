@@ -383,22 +383,22 @@
     },
     {
       "path": "scripts/connector-acceptance-groups.test.mjs",
-      "sha256": "96bd2c5f963e9e94ccf845a5cbaa1b344859ec14470ccdb2a79b1298cd596fb6",
-      "bytes": 71997,
+      "sha256": "ecd6b3037567b319bc6cc569102a4357c0b60df8ff7f189afa5bbfd1ae36bf90",
+      "bytes": 72805,
       "currentBasePreimageSHA256": "a1622a9417e9fe4d62c2aed82bcf5f7f3e11dce841d802bf005b29d54405d388",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connected-connector-acceptance.mjs",
-      "sha256": "bba10e652d065db07bda5d52c2d4df08752ee3774f7f74ede78525e6238d83d3",
-      "bytes": 125889,
+      "sha256": "69d18b08e454c2e8c43b3c76ff68ea7f8707c11c1647eb023519869caad05a71",
+      "bytes": 127445,
       "currentBasePreimageSHA256": "f248c6d9182ca08cb518cd54c620844c987f4ae723a38badb463c59e010db578",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
-      "sha256": "96baadfe36e747dfabdfb0cdd784aca0c94c0c3f9492e7362b9eea0c12c74c76",
-      "bytes": 122290,
+      "sha256": "1da2466a070dea8078732fa442e3afcb91453ad9cc5027fe8128d1e848835557",
+      "bytes": 123846,
       "currentBasePreimageSHA256": "e66722e4daf5b1482c253d1f14b4c533c329fde202252c16f87ad3e0130e8524",
       "historicalPreimageSHA256": null
     },
@@ -5026,6 +5026,83 @@
       "path": "services/sensor-agent/runtime_config_test.go",
       "sha256": "170aab502d6f87d3cf6f1e3a3488095a319049909b5c29d8d890fefc7a7ebdd8",
       "bytes": 6191,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/connectors/kubernetesdiscovery/collection_api.go",
+      "sha256": "c8f7d039b324d8426564de4456ce64f14635b9b3e6b8c4053592f487dd570a5d",
+      "bytes": 48746,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/connectors/kubernetesdiscovery/pinned_collection_api.go",
+      "sha256": "d8e5c14635ad00dfb11586156c120a02533b78b8f612b0ac5f0c23f23be3c4f9",
+      "bytes": 5804,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/connectors/kubernetesdiscovery/collection.go",
+      "sha256": "8e826becac8aaaeba2812e6ad0c17d2b99e8eb6649ee218c6717dba70776851a",
+      "bytes": 1622,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/connectors/kubernetesdiscovery/node_placement.go",
+      "sha256": "320f728344c96e548c38d6149d7f7b535a816ede9e241f8323bfcf02e78fc7f4",
+      "bytes": 17195,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/connectors/kubernetesdiscovery/node_placement_test.go",
+      "sha256": "4bbaab2ad12ea156ea01f56337c05a18791d4627792909c88a68365874c4029f",
+      "bytes": 11274,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/connectors/internal/providercollection/client.go",
+      "sha256": "a850173cd86aea7464c48e8982ff32c34eda2c25302a0cdd8c97bd4cf8e530e3",
+      "bytes": 72390,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/connectors/internal/providercollection/node_placement.go",
+      "sha256": "a40fb68d067c6d6d84c4857dbec66be1da98c0c31d6470981a38aba5d324cba1",
+      "bytes": 2843,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/connectors/internal/providercollection/node_placement_schema_test.go",
+      "sha256": "48cdee37c194500c1e06c479d3ad903565a97773915cb83fcdf875fb7a32716b",
+      "bytes": 2893,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/agentsec-worker/discovery_clients.go",
+      "sha256": "c2cb43ae313ae499481de29502650125747c8b4b72642c9fe5e9d1e3e83c5f45",
+      "bytes": 8856,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/agentsec-worker/discovery_composition.go",
+      "sha256": "facd4680cbf2b9d97a2c76e7563e9434864a14cd5f5ddd924dc65fb9ac404d91",
+      "bytes": 11377,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/agentsec-worker/discovery_node_placement_test.go",
+      "sha256": "ec2a929e1ad3743cf1d65e3b735dee54768863c2e3c3ebae8f85d9bc3463efa9",
+      "bytes": 2109,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     }

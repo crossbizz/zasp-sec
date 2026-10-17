@@ -824,7 +824,18 @@ test('retention connected sources retain the complete declared application closu
   "services/sensor-agent/node_coverage_retention_state.go",
   "services/sensor-agent/node_coverage_retention_storage_test.go",
   "services/sensor-agent/production_test.go",
-  "services/sensor-agent/runtime_config_test.go"
+  "services/sensor-agent/runtime_config_test.go",
+  "services/platform/connectors/kubernetesdiscovery/collection_api.go",
+  "services/platform/connectors/kubernetesdiscovery/pinned_collection_api.go",
+  "services/platform/connectors/kubernetesdiscovery/collection.go",
+  "services/platform/connectors/kubernetesdiscovery/node_placement.go",
+  "services/platform/connectors/kubernetesdiscovery/node_placement_test.go",
+  "services/platform/connectors/internal/providercollection/client.go",
+  "services/platform/connectors/internal/providercollection/node_placement.go",
+  "services/platform/connectors/internal/providercollection/node_placement_schema_test.go",
+  "services/platform/agentsec-worker/discovery_clients.go",
+  "services/platform/agentsec-worker/discovery_composition.go",
+  "services/platform/agentsec-worker/discovery_node_placement_test.go"
 ];
   const compiled = JSON.parse(relative('.github/connector-native-compile-source-pins.json'));
   const compilePins = new Map(compiled.sources.map(item => [item.path, item]));
