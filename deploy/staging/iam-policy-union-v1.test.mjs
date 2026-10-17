@@ -152,7 +152,7 @@ refuse('unknown boundary policy cannot become evaluated known bytes', e => { row
 test('independent retention IAM workflow reaches the exact locked mock-plan sequence without release authority', () => {
  const file = new URL('../../.github/workflows/retention-iam-acceptance.yml', import.meta.url);
  const validate = source => {
-  assert.match(source, /^permissions:\n  contents: read\n\njobs:\n/m);
+  assert.match(source, /^permissions:\n {2}contents: read\n\njobs:\n/m);
   assert.doesNotMatch(source, /\bneeds:|continue-on-error:|pull_request_target:|id-token:|secrets:|environment:|secrets\.|configure-aws-credentials|terraform\s+(?:apply|destroy)|production-release-gate/);
   const actions = [...source.matchAll(/uses: ([^\s]+)(?:\s|$)/g)].map(m => m[1]);
   assert.deepEqual(actions, ['actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1', 'actions/setup-node@820762786026740c76f36085b0efc47a31fe5020']);

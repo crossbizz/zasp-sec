@@ -312,7 +312,7 @@ const pins = {
   "services/platform/connectormaintenance/compiled_pin_freshness_test.go": "16fd332bc993cb575ecc60cf4d416b4b488afac8ad24a60acd88aa6839a1944d",
   "services/platform/apiserver/retention_index_native_acceptance_test.go": "1d1b3fa40a6208620106acd43b9bae238e9e4363a85e0a2059f5343a71dd2402",
   "deploy/staging/iam-policy-union-v1.mjs": "2922333e7f9fbd9f3de74c761d7064931ced2f7d6bc60f0000b68d9f2945907d",
-  "deploy/staging/iam-policy-union-v1.test.mjs": "b768ff64f68847ae92a18fe8091b8b51aaf18a2104e082befb14b19dc71aca8d",
+  "deploy/staging/iam-policy-union-v1.test.mjs": "e302692402c02c09e142a4a8672e9acc00730326524059b4f8335d12503fb24d",
   "deploy/staging/tests/session_search_iam.tftest.hcl": "bc795d3e7c43a6786126eccc464515208d3ab867b994e27e71fbfc33b3ded47b",
   ".github/workflows/retention-iam-acceptance.yml": "9cc7da80388b0ab955e7167af8547cc1bc58621a9b4c14bdd415087039c8305d",
   "services/platform/runtimeindex/opensearchdriver/retained_terminal_flow_test.go": "46407cd75e08e8726de360a80376d085f400dcd86d344b5018fa42b1465554d6",

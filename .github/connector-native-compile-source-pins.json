@@ -390,14 +390,14 @@
     },
     {
       "path": "scripts/hosted-connected-connector-acceptance.mjs",
-      "sha256": "6ae2533a247966f6a75a6c174ab0e8d8d31e648adeed11fefd1161653657abb9",
+      "sha256": "8548a278b53bf987e1ac69a15bd3f6fe43c22210bb69486beb7a207360a8eca6",
       "bytes": 75538,
       "currentBasePreimageSHA256": "f248c6d9182ca08cb518cd54c620844c987f4ae723a38badb463c59e010db578",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
-      "sha256": "286ec3ea0056f4b93c93624dc9ebf4a544dec89100131c224b399636ac6bbb42",
+      "sha256": "b6f73088708e2a75f2b4377c545e1568c81313bdb40d8e2793c54c9fec9b6636",
       "bytes": 71980,
       "currentBasePreimageSHA256": "e66722e4daf5b1482c253d1f14b4c533c329fde202252c16f87ad3e0130e8524",
       "historicalPreimageSHA256": null
@@ -2266,8 +2266,8 @@
     },
     {
       "path": "deploy/staging/iam-policy-union-v1.test.mjs",
-      "sha256": "b768ff64f68847ae92a18fe8091b8b51aaf18a2104e082befb14b19dc71aca8d",
-      "bytes": 19151,
+      "sha256": "e302692402c02c09e142a4a8672e9acc00730326524059b4f8335d12503fb24d",
+      "bytes": 19153,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -2308,5 +2308,7 @@
   "compiledPinOptimizationSourceAssociationBase": "5ab3be6067573fa369f73e3836c99cc81aff46c8",
   "retentionNativeClosureSourceAssociationBase": "527cb366c842cf245fe01843f7e9bc952f4e0255",
   "retainedTerminalPG18SourceAssociationBase": "d3dcf00d042946370a903bac7d2dbaecc27de3a7",
-  "retainedTerminalPredecessorManifestSHA256": "8b21e7ca7a623858512892d1187968c811eac7e02188e24c7b3645171d6c878f"
+  "retainedTerminalPredecessorManifestSHA256": "8b21e7ca7a623858512892d1187968c811eac7e02188e24c7b3645171d6c878f",
+  "lintContractSourceAssociationBase": "d35f38087015141a9608fd16cac96a356dbfadf9",
+  "lintContractPredecessorManifestSHA256": "3a5c3339897c50b18c66d3da7e357efa71bf8f0f1c9f4183a9ae3bc74386f063"
 }
