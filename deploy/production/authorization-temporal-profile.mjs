@@ -10,7 +10,8 @@ const keys = ['profile',...names,...secrets,...roles,'forwardKey','compensationK
 const dnsName = /^[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?$/;
 const login = /^[a-z][a-z0-9_]{2,62}$/;
 const ulid = /^[0-7][0-9A-HJKMNP-TV-Z]{25}$/;
-const queue = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
+// Match the API/worker name contract, including absolute end-of-string.
+const queue = /^[a-z][a-z0-9._-]{1,127}(?![\s\S])/;
 const reject = () => { throw new Error('authorization temporal profile rejected'); };
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const distinct = values => new Set(values).size === values.length;
