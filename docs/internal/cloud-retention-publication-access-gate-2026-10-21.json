@@ -1,0 +1,26 @@
+{
+  "classification": "CONFIGURED_GIT_PUSH_AUTHENTICATION_REJECTED_LOCAL_CORRECTION_PRESERVED",
+  "observed_at": "2026-10-21T12:07:39.362242+00:00",
+  "local_correction_commit": "beb19b536517c312bd6f3e9d1db62943c743051b",
+  "last_confirmed_remote_PR_head": "f6d335897a628eb4ec05e34878dfdda311db4ba4",
+  "PR": "https://github.com/crossbizz/zasp-sec/pull/60",
+  "attempted_action": "Normal nonforce Git push with existing gh auth git-credential helper to existing PR branch codex/connector-native-api-worker-20261008",
+  "result": "exit128: Invalid username or token; authentication failed. No source commit published by this attempt.",
+  "read_only_diagnosis": "Configured gh account remains active; normal GitHubAPI PR read succeeds and confirms prior remote head. Cloud runtime observations current/running/connected and GITHUB_TOKEN variable ready; none establishes Git write authorization.",
+  "preserved_guards": "No forcepush, alternate identity/token route, credential replacement, login, releaseguard bypass or immutable evidence rewrite attempted.",
+  "required_prerequisite": "Restore Git write authorization for the existing configured identity through supported environment/credential workflow; then normal push and required hosted native acceptance.",
+  "local_verification": "Independent review CLEAR, sourceguards21PASS, typecheck/build/scopedlintPASS. NativeGREEN not established.",
+  "ledger": {
+    "total": 728,
+    "recorded_production_available": 509,
+    "component_only": 158,
+    "blocked_external": 61,
+    "availability_promotions": 0,
+    "tasks_closed": 0,
+    "previousSHA256": "5a86328f53a968b87f37d941b258c11aed5314a05e66f1f97938c2b47cdbc8e1",
+    "currentSHA256": "f5bc4f102be6d711beebc9053378b78647bc4f56db9d190234b5c26d46511994"
+  },
+  "launch_ready": false,
+  "goal_complete": false,
+  "merge_cleared": false
+}
