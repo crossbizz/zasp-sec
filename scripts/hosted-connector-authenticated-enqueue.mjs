@@ -47,8 +47,8 @@ const pins = {
   "services/platform/connectormaintenancecutover/process_linux.go": "6096f7c304818c7e6ebc31d3940bacf75932b9f2971c8c529316ebee92cede54",
   "services/platform/connectormaintenancecutover/raw_model.go": "4a5732177b025ec3e7306dd1186c2c358d59a3b7df235e53e12f34384ecc6d3e",
   "services/platform/connectormaintenancecutover/sql.go": "baaa4fe83a4689b053387fc7a8a3abe34d6130384d4197e244aab1c21f5a20b8",
-  "services/platform/migrations/production_connector_enqueue_provenance.go": "793b230a8572fbfbed2a4702e1513bfa90afac596a8d0707ae047bbdf8bacc36",
-  "services/platform/migrations/production_connector_maintenance.go": "14525f68992b3e1d5583af48039a032c2d43a30681a8b69788b490915b3a3075",
+  "services/platform/migrations/production_connector_enqueue_provenance.go": "26a5e65d0dcc04e93e3aa4b0c7de0deed5cc8afcca16eb0fed9dbdab0c2e3666",
+  "services/platform/migrations/production_connector_maintenance.go": "a9f8a0924e4aad46ca43cb5fbd36b083a9eedea52d774fa47cd047e0275d10d0",
   "services/platform/migrations/sql/connector_enqueue_provenance.sql": "32b3f8cbe175b5256ff4542cdff044d6d060e0240d24632bf3d057f3553a5c13",
   "services/platform/migrations/sql/connector_maintenance_profile.sql": "c8bc65ef78a11ebdaea73b06cbf9a1ed7c6fadd4d541ce10725c0e903be182ba",
   "services/platform/runtimeservices/config.go": "5cd087e846c9106c07c0734f06937e727c25fb04887dbfdf8d78da4c70e48731",
@@ -74,7 +74,7 @@ const pins = {
   "services/platform/cmd/zasp-maintenance-register/main_test.go": "5ae1660fd2e5de9961c459d619cf291ae6d730896d9126c2074f68ed2c8069c0",
   "services/platform/connectormaintenancecutover/combined.go": "b841c26caee24f7948d43ec72b1b2d2dc53ce0661845af73a9f417ae93091f84",
   "services/platform/connectormaintenancecutover/coordinator_test.go": "26ce6254da116eb381365e2c90ae97e4c7366d829168e5a55438b40dc8ba9a90",
-  "services/platform/migrations/production_approval_activation_profile.go": "103e8ac435fcaf7d643cab92d8de8cca8f4b22ce85b1da0c8c63b4603f5a0497",
+  "services/platform/migrations/production_approval_activation_profile.go": "304ee04b8189cca905cafe99296477190f4f176efc95d774d5c543c7ae523095",
   "services/platform/migrations/production_approval_activation_profile_test.go": "addb1bd0b837d02da580feeb57b3d1e9fe4abca61f067060cee59e6963cc73ab",
   "services/platform/migrations/sql/approval_activation_profile.sql": "f256e35509c6573b85fda9babb8e5d87641927c5246d5d1408f98a0159cd139d",
   "services/platform/runtimeservices/approval_activation_config_test.go": "d288ebc83684b8d49bdfab4fabb30bf4e65dc530f327ea06e205c415bd7195df",
@@ -184,7 +184,7 @@ const pins = {
   "services/platform/apiserver/authorization_worker_planning_proof_postgres_test.go": "05d5049ad6854c19eaede77eb60b4aa628d26710bdde8fdb56f7dd8de358c743",
   "deploy/production/authorization-temporal-resources.mjs": "ecc112b8fd0fad16830cc1c32d535776244382a11416158fc8d5aedd2c1a4401",
   "deploy/production/release-contract.mjs": "583d0123267baa68180b549f44d9458fd6b769a19456ed3dbc26d3a356ea0536",
-  "deploy/production/release-contract.test.mjs": "a24acd8b3f184dc65db820357c45a309b5f796132ccfaa9f660e5f222dda24ef",
+  "deploy/production/release-contract.test.mjs": "532188082428540063829ab532186a6b82f9de7c9caca874ba471a7a6954474a",
   "deploy/production/session-search-rollout.mjs": "a1690c1d62442cc26290d391db3b77f6665dc7c7e3c06de5220ff8f469b16398",
   "deploy/staging/main.tf": "1f52871bb91b4f982f72196c421964ee12b0037678a51cae00e56bfdbbee5f4d",
   "deploy/staging/product/templates/runtime.yaml": "b0411e94ed459f2bf719b232265cf4e6e34bdfb148be8b858de531e42aa0015f",
@@ -733,7 +733,7 @@ const pins = {
   "services/platform/policy/gateway_cache_test.go": "d1a894f056788253b33801964cbeb171ad0cb67705d772526808ceed27aba786",
   "deploy/staging/product/templates/_gateway-installation.tpl": "9babf066a786a0c007206b99e579382caa9ac50d2eaa0803fb44b78d813fb655",
   "services/platform/gatewaycontrol/installation_test.go": "e57e80f019825d15997aeecaf7d4983a6143a8ccccc367b079e5abce01d328f7",
-  ".github/workflows/connector-native-draft-compile.yml": "fe0742c96a7040d518f9b087241f39b8649ce593c88512f9973ddcb020b59559",
+  ".github/workflows/connector-native-draft-compile.yml": "dd5dabdcf255e99d1c102d2fc84d1f8978aea6d3ce780140435c82afcc6743b2",
   "services/gateway-control/production_test.go": "255476e93ec22d7f2c4ec1d51ce730e352f0246dc5b15608ab5778abb9bb2a29",
   "services/runtime-gateway/production.go": "6ce7c2c72927ff16cc47dae63fa0eee728c5f4c7e14e217302a0680be65b8a36",
   "services/gateway-control/go.mod": "77d4922e3192e996ca9a0975b0bcd2d4711b18844e62f7ae82923cfb60df6995",
@@ -901,7 +901,8 @@ const pins = {
   "services/gatewaypodidentity/publisher_other.go": "bd6ecaea1888de9d386ef0f40e2a405ebf15bfd6cf96435628d3fc69e6c04d59",
   "services/gatewaypodidentity/publisher_test.go": "b9f5976495b53eca680feb1d5166fa31d818f5df0064512d994a2b1b02467a86",
   "deploy/production/gateway-reviewer-publisher.Dockerfile": "68be38973238b7062e1e1a16ec2a62ecdeaf01d042fb8b3286a2c487758f87d1",
-  "deploy/production/gateway-reviewer-publisher.Dockerfile.dockerignore": "f0afa2635ed8eaa2b2675ce271d76003038bbfb61659d192d98b486abfeacd0f"
+  "deploy/production/gateway-reviewer-publisher.Dockerfile.dockerignore": "f0afa2635ed8eaa2b2675ce271d76003038bbfb61659d192d98b486abfeacd0f",
+  "services/platform/migrations/connector_approval_assembly_test.go": "1e73eeff76c53ab4417ebeb1fad5fbe9bbeba2ac82910e9559215ac6f3b26958"
 };
 const top='TestConnectorMaintenanceAuthenticatedOAuthEnqueuePostgres';
 const cases=['genuine_same_transaction_origin_and_immutable_enrichment','rollback_removes_every_enqueue_and_provenance_write'];

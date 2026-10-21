@@ -17,11 +17,15 @@ const ConnectorMaintenanceProfileName = "canonical61-authorization80-connector-m
 var connectorMaintenanceSQL string
 
 func connectorMaintenanceSource() (string, string, error) {
-	_, capturePin, err := connectorEnqueueProvenanceSource()
+	return connectorMaintenanceSourceWithEnforcement(newEnforcementChecksumAssembly())
+}
+
+func connectorMaintenanceSourceWithEnforcement(enforcement func() string) (string, string, error) {
+	_, capturePin, err := connectorEnqueueProvenanceSourceWithEnforcement(enforcement)
 	if err != nil {
 		return "", "", err
 	}
-	source := strings.NewReplacer("-- authorization80 checksum", ProductionAuthorizationEnforcement().Checksum(), "-- connector provenance checksum", capturePin).Replace(connectorMaintenanceSQL)
+	source := strings.NewReplacer("-- authorization80 checksum", enforcement(), "-- connector provenance checksum", capturePin).Replace(connectorMaintenanceSQL)
 	h := sha256.Sum256([]byte(source))
 	pin := hex.EncodeToString(h[:])
 	return strings.ReplaceAll(source, "-- connector maintenance checksum", pin), pin, nil

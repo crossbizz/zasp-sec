@@ -16,11 +16,12 @@ const ApprovalActivationProfileName = "canonical61-authorization80-approval-acti
 var approvalActivationSQL string
 
 func approvalActivationSource() (string, string, error) {
-	connectorPin, err := ConnectorMaintenanceProfileChecksum()
+	enforcement := newEnforcementChecksumAssembly()
+	_, connectorPin, err := connectorMaintenanceSourceWithEnforcement(enforcement)
 	if err != nil {
 		return "", "", err
 	}
-	source := strings.NewReplacer("-- authorization79 checksum", ProductionAuthorizationProjection().Checksum(), "-- authorization80 checksum", ProductionAuthorizationEnforcement().Checksum(), "-- connector checksum", connectorPin, "-- approval checksum", ApprovalMaintenanceProfileChecksum()).Replace(approvalActivationSQL)
+	source := strings.NewReplacer("-- authorization79 checksum", ProductionAuthorizationProjection().Checksum(), "-- authorization80 checksum", enforcement(), "-- connector checksum", connectorPin, "-- approval checksum", ApprovalMaintenanceProfileChecksum()).Replace(approvalActivationSQL)
 	digest := sha256.Sum256([]byte(source))
 	pin := hex.EncodeToString(digest[:])
 	return strings.ReplaceAll(source, "-- activation checksum", pin), pin, nil

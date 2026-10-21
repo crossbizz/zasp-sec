@@ -173,15 +173,15 @@
     },
     {
       "path": "services/platform/migrations/production_connector_enqueue_provenance.go",
-      "sha256": "793b230a8572fbfbed2a4702e1513bfa90afac596a8d0707ae047bbdf8bacc36",
-      "bytes": 4521,
+      "sha256": "26a5e65d0dcc04e93e3aa4b0c7de0deed5cc8afcca16eb0fed9dbdab0c2e3666",
+      "bytes": 5211,
       "currentBasePreimageSHA256": "793b230a8572fbfbed2a4702e1513bfa90afac596a8d0707ae047bbdf8bacc36",
       "historicalPreimageSHA256": "809041eced547701b1e3ac3c1f68ac45d7b403336f5de6df4dda13b10db83267"
     },
     {
       "path": "services/platform/migrations/production_connector_maintenance.go",
-      "sha256": "14525f68992b3e1d5583af48039a032c2d43a30681a8b69788b490915b3a3075",
-      "bytes": 6044,
+      "sha256": "a9f8a0924e4aad46ca43cb5fbd36b083a9eedea52d774fa47cd047e0275d10d0",
+      "bytes": 6223,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -390,15 +390,15 @@
     },
     {
       "path": "scripts/hosted-connected-connector-acceptance.mjs",
-      "sha256": "04c51854cfffafd5eb99e115b5181286a0b27e4c995f700d9636168bc2f66fee",
-      "bytes": 151911,
+      "sha256": "08300bf71e415e84823d0efcdc0c8eb9156c29bcb468ebca9185238ec8abe4d5",
+      "bytes": 152049,
       "currentBasePreimageSHA256": "f248c6d9182ca08cb518cd54c620844c987f4ae723a38badb463c59e010db578",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
-      "sha256": "1c8040a4a4a728be41045414a4d0d61d8e1c840714077b07d4a01fcd69845e91",
-      "bytes": 148427,
+      "sha256": "6c53aee3c24f3630240962f77cc0896710353457666a66fb53e95a4a131b5859",
+      "bytes": 148565,
       "currentBasePreimageSHA256": "e66722e4daf5b1482c253d1f14b4c533c329fde202252c16f87ad3e0130e8524",
       "historicalPreimageSHA256": null
     },
@@ -600,8 +600,8 @@
     },
     {
       "path": "services/platform/migrations/production_approval_activation_profile.go",
-      "sha256": "103e8ac435fcaf7d643cab92d8de8cca8f4b22ce85b1da0c8c63b4603f5a0497",
-      "bytes": 4840,
+      "sha256": "304ee04b8189cca905cafe99296477190f4f176efc95d774d5c543c7ae523095",
+      "bytes": 4875,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -1447,8 +1447,8 @@
     },
     {
       "path": "deploy/production/release-contract.test.mjs",
-      "sha256": "a24acd8b3f184dc65db820357c45a309b5f796132ccfaa9f660e5f222dda24ef",
-      "bytes": 183465,
+      "sha256": "532188082428540063829ab532186a6b82f9de7c9caca874ba471a7a6954474a",
+      "bytes": 184728,
       "currentBasePreimageSHA256": "7acd21db240f1444e556aa959d97e32d6834b205f1b39776f170dc33a2c43141",
       "historicalPreimageSHA256": null
     },
@@ -5108,7 +5108,7 @@
     },
     {
       "path": ".github/workflows/connector-native-draft-compile.yml",
-      "sha256": "fe0742c96a7040d518f9b087241f39b8649ce593c88512f9973ddcb020b59559",
+      "sha256": "dd5dabdcf255e99d1c102d2fc84d1f8978aea6d3ce780140435c82afcc6743b2",
       "bytes": 197473,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
@@ -6477,6 +6477,13 @@
       "bytes": 287,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
+    },
+    {
+      "path": "services/platform/migrations/connector_approval_assembly_test.go",
+      "sha256": "1e73eeff76c53ab4417ebeb1fad5fbe9bbeba2ac82910e9559215ac6f3b26958",
+      "bytes": 7030,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
     }
   ],
   "predecessorCheckpointSHA256": "364ada857d54ce83d678e00eb3d61d55c6a036d22cc1f7ebc9170432079ece05",
@@ -6525,5 +6532,7 @@
   "publisherCIDiagnosticSourceAssociationBase": "5f9a4edf26733268ecc9b6464481f21fb9b8efb5",
   "publisherCIDiagnosticPredecessorManifestSHA256": "42224e8ff984283140523eba899b9c4db46eb16861e848763627b014fcc61a4c",
   "publisherFixturePrivateModeSourceAssociationBase": "0725e5937f6048d32a184de97347cc4f1d524880",
-  "publisherFixturePrivateModePredecessorManifestSHA256": "8c865dbf54ec49dee32e80c355cc550cc2f05d1f5a2fbf24dca2087c2d58bd73"
+  "publisherFixturePrivateModePredecessorManifestSHA256": "8c865dbf54ec49dee32e80c355cc550cc2f05d1f5a2fbf24dca2087c2d58bd73",
+  "startupAssemblySourceAssociationBase": "5e51264ce139c34a4d10c2558f377351c42f7107",
+  "startupAssemblyPredecessorManifestSHA256": "42be4d9782d90d09c5a4e65ced47f8aa3228978a796931f11baf6ae18bc56e01"
 }

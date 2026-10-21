@@ -1805,7 +1805,14 @@ test("terraform isolates connector mutation and reference authorization behind o
   const policyStart = terraform.indexOf('resource "aws_iam_role_policy" "api_connectors"');
   const policy = terraform.slice(policyStart, terraform.indexOf("\nresource ", policyStart + 1));
   const actions = [...policy.matchAll(/Action\s*=\s*\[([\s\S]*?)\]/g)].flatMap(([, list]) => [...list.matchAll(/"([^"]+)"/g)].map(([, action]) => action)).sort();
-  assert.deepEqual(actions, ["es:ESHttpGet", "es:ESHttpPost", "kms:Decrypt", "kms:Decrypt", "kms:GenerateDataKey", "secretsmanager:CreateSecret", "secretsmanager:DeleteSecret", "secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue", "secretsmanager:GetSecretValue", "secretsmanager:GetSecretValue", "secretsmanager:GetSecretValue", "sts:AssumeRole"].sort());
+  assert.deepEqual(actions, ["es:ESHttpGet", "es:ESHttpPost", "kms:Decrypt", "kms:Decrypt", "kms:Decrypt", "kms:GenerateDataKey", "secretsmanager:CreateSecret", "secretsmanager:DeleteSecret", "secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue", "secretsmanager:GetSecretValue", "secretsmanager:GetSecretValue", "secretsmanager:GetSecretValue", "secretsmanager:GetSecretValue", "sts:AssumeRole"].sort());
+  // The API's OpenRouter credential read is intentionally separate from
+  // connector mutations and is confined to the same exact secret namespace.
+  const openRouterSecretARN = String.raw`arn:\$\{local\.partition\}:secretsmanager:\$\{var\.region\}:\$\{var\.account_id\}:secret:\$\{local\.connector_secret_root\}/ai/openrouter/\*`;
+  const openRouterRead = new RegExp(String.raw`\{\s*Effect\s*=\s*"Allow"\s*Action\s*=\s*\["secretsmanager:GetSecretValue"\]\s*Resource\s*=\s*\["${openRouterSecretARN}"\]\s*\}`, "g");
+  assert.equal([...policy.matchAll(openRouterRead)].length, 1, "OpenRouter read must use only its configured credential namespace");
+  const openRouterDecrypt = new RegExp(String.raw`\{\s*Effect\s*=\s*"Allow"\s*Action\s*=\s*\["kms:Decrypt"\]\s*Resource\s*=\s*aws_kms_key\.connector_oauth\.arn\s*Condition\s*=\s*\{\s*StringEquals\s*=\s*\{\s*"kms:ViaService"\s*=\s*"secretsmanager\.\$\{var\.region\}\.amazonaws\.com"\s*\}\s*ArnLike\s*=\s*\{\s*"kms:EncryptionContext:SecretARN"\s*=\s*"${openRouterSecretARN}"\s*\}\s*\}\s*\}`, "g");
+  assert.equal([...policy.matchAll(openRouterDecrypt)].length, 1, "OpenRouter decrypt must use the connector key through Secrets Manager with the same secret context");
 	assert.match(policy, /Action\s*=\s*\["es:ESHttpGet"\][\s\S]*zasp-runtime-events-v1\/_mapping[\s\S]*zasp-runtime-events-v1\/_doc\/_zasp_schema_v1/);
 	assert.match(policy, /Action\s*=\s*\["es:ESHttpPost"\][\s\S]*zasp-runtime-events-v1\/_search/);
 	assert.doesNotMatch(policy, /es:ESHttp(?:Delete|Patch|Put)/);
