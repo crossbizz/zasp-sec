@@ -1,0 +1,315 @@
+{
+  "checkpoint": "cloud-launch-maintenance-runtime-2026-10-15",
+  "recorded_at": "2026-10-15T01:28:36.454199+00:00",
+  "classification": "reviewed component candidate; native, Helm rendering and deployment verification pending",
+  "starting_sha": "7f6174af45e5b2a5d363f0e10ef08dbbacd9fb59",
+  "main_sha": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
+  "ledger": {
+    "original_rows": 728,
+    "production_available_recorded": 523,
+    "component_only": 144,
+    "blocked_external": 61,
+    "missing": 0,
+    "promotions": 0,
+    "interpretation": "Historical categories do not prove current deployed availability. Original scope and TSVs unchanged."
+  },
+  "contributes_to": [
+    "M1-28 real API/worker composition",
+    "M3-24 controlled cutover and recovery",
+    "T15-deployment production consumer wiring",
+    "P7/P8 native permission and settlement acceptance prerequisites"
+  ],
+  "implementation": [
+    "Add optional closed registered-dual-maintenance-runtime-v1 production chart bundle. API receives distinct maintenance DSN references and copied owner-only 0400 seed files; API, executor and projector receive the same three source pins. Defaults and unrelated worker authority remain unchanged.",
+    "Rendered consumer validator checks regular/init/ephemeral actors, env/envFrom, direct/projected secret references, image-pull references and raw/private key volumes. Only the exact API main container and exact materializer may receive maintenance credentials.",
+    "No installation, registration or activation hook is added. Real fleet withdrawal remains an independent unimplemented production prerequisite; the controlled loopback CLI remains ineligible for fleet activation.",
+    "Add genuine native finding flow from signed planner capture through measured writer/credential cutover, composed projection acknowledgement, actual owned HTTPS HMAC delivery and captured settlement, fresh activated enqueue, membership-preserving permission revocation no-send, and narrow captured failure settlement. This is written/compiled, not native acceptance.",
+    "Correct lifecycle fixture ordering: reserve/begin ordinary cleanup before callback consumption occupies the same provider lane. Preserve all five cases, assertions, deadlines and production lane exclusion.",
+    "Expose closed private preparation error stages while preserving errors.Is, nil success, authorization, deadlines and ambiguous-attempt behavior. PKCE native cause is still unknown; this is diagnosis, not a claimed correction.",
+    "Update the existing extracted preparation VM with real storage/build dependency bindings and preserve failure identity and fixed subphase assertions.",
+    "Append the finding-flow native group and hosted production chart checks. Retain original groups and exact acceptance/cleanup guards; distinguish test-roster, PostgreSQL join-count/uniqueness and process-absence failures without relaxing them."
+  ],
+  "verification": {
+    "application_go": {
+      "path": "/tmp/maintenance-launch-connected-application-20261015.jsonl",
+      "sha256": "29b7943430506f55c21d2a303d09a835cb18042199df9de7db9ec9bd0610887f",
+      "bytes": 78475,
+      "availability": "current cloud workspace; not deployed evidence",
+      "status": 0,
+      "top_level_pass": 5,
+      "named_pass": 73,
+      "failed": 0,
+      "skipped": 0,
+      "package_pass": 1,
+      "mode": "normal selected application Go checks; not race or native service execution"
+    },
+    "positive_native_flow_compile": {
+      "path": "/tmp/approval-positive-flow-compile-20261015.log",
+      "sha256": "accbbb4b1201763f772b191486eae5756a5685dc2fae1864a19d8fe48c3dc8da",
+      "bytes": 86,
+      "availability": "current cloud workspace; not deployed evidence",
+      "status": 0,
+      "scope": "Go -run ^$ compiled apiserver tests; no native test ran"
+    },
+    "browser_components": {
+      "path": "/tmp/maintenance-launch-connected-node-20261015.log",
+      "sha256": "ab8cec6327bc2c1e52073a7f4053e47e3e831dabf1501f9d4ab13277b3fb81ca",
+      "bytes": 55696,
+      "availability": "current cloud workspace; not deployed evidence",
+      "status": 0,
+      "passed": 265,
+      "failed": 0,
+      "skipped": 0
+    },
+    "chart_components": [
+      {
+        "log": {
+          "path": "/tmp/maintenance-runtime-current-component-20261015.log",
+          "sha256": "75d3e07d1cef0cfc9bfdfc0dc143ab43ada17ca4d4c4559b6ea932ab2cba2408",
+          "bytes": 1188,
+          "availability": "current cloud workspace; not deployed evidence"
+        },
+        "passed": 19,
+        "scope": "closed-profile and permission mutation controls, excludes actual Helm render"
+      },
+      {
+        "log": {
+          "path": "/tmp/maintenance-original-profile-current-20261015.log",
+          "sha256": "c598438b8d0d6fd93c787be8a76b695bd9159f79c972c2110e0ecea8abaaa3f4",
+          "bytes": 427,
+          "availability": "current cloud workspace; not deployed evidence"
+        },
+        "passed": 3,
+        "scope": "existing profile compatibility"
+      }
+    ],
+    "ui": [
+      {
+        "check": "typecheck",
+        "log": {
+          "path": "/tmp/connected-maintenance-launch-batch-ui-typecheck-20261015.log",
+          "sha256": "f48bd1876f5408ffc0d939a2b0d826961d6115e6598a272fea04d98ac0431816",
+          "bytes": 63,
+          "availability": "current cloud workspace; not deployed evidence"
+        },
+        "status": 0
+      },
+      {
+        "check": "build",
+        "log": {
+          "path": "/tmp/connected-maintenance-launch-batch-ui-build-20261015.log",
+          "sha256": "2de4a39d4837ec4c934048530124a85c6aef9e789e087a5539fba24e9d068174",
+          "bytes": 1043,
+          "availability": "current cloud workspace; not deployed evidence"
+        },
+        "status": 0
+      }
+    ],
+    "ledger": "Fresh original 728-row validator passes 523/144/61/0 categories.",
+    "independent_reviews": [
+      {
+        "path": "/tmp/launch-maintenance-connected-publication-review-20261015.json",
+        "sha256": "4fe75c482974f09d3fcd67e33da5aa55dcd305c11219c32aa223f1966e1ae375",
+        "bytes": 5950,
+        "availability": "current cloud workspace; not deployed evidence"
+      },
+      {
+        "path": "/tmp/production-maintenance-runtime-independent-review-20261015.json",
+        "sha256": "d287eebe5f2129b7749bd536b3f1296e73661d9c9c2b34bc6cff2703088957c0",
+        "bytes": 4072,
+        "availability": "current cloud workspace; not deployed evidence"
+      },
+      {
+        "path": "/tmp/approval-native-positive-flow-independent-review-20261015.json",
+        "sha256": "3a52eff51110378f44ab34cf6bbc67cb44995fc0631404bfca35500e0366c050",
+        "bytes": 2860,
+        "availability": "current cloud workspace; not deployed evidence"
+      },
+      {
+        "path": "/tmp/browser-provisioning-fixture-independent-review-20261015.json",
+        "sha256": "da94e5988567d2a8950ae7220a90b3f719ed3795072f467c61c037386fafae32",
+        "bytes": 2375,
+        "availability": "current cloud workspace; not deployed evidence"
+      }
+    ],
+    "meaningful_failure_evidence": [
+      {
+        "path": "/tmp/current-browser-unit-prerequisites-20261015.log",
+        "sha256": "5a3a2d2b163f8909b89acf5aa3983dffb93fb03270ea81f54824cdf2e0f9c2e0",
+        "bytes": 36865,
+        "availability": "current cloud workspace; not deployed evidence"
+      },
+      {
+        "path": "/tmp/maintenance-permissions-correction-20261015.json",
+        "sha256": "106a5d7192e61a68aa49c2dd1406eb0bc2b9da95d3f79cea278281354b5f5e1e",
+        "bytes": 1673,
+        "availability": "current cloud workspace; not deployed evidence"
+      },
+      {
+        "path": "/tmp/maintenance-runtime-render-current-20261015.log",
+        "sha256": "572c9749393f77bf0c0db13e6be701d9d42fc07d5bdcff8a5b0a918d0858d72d",
+        "bytes": 1096,
+        "availability": "current cloud workspace; not deployed evidence"
+      }
+    ],
+    "failure_interpretation": "Browser RED has ten genuine missing VM binding/obsolete command-flow failures and one unrelated wrong-Node24 harness failure; final group uses pinned Node22. Eight indirect-reference/secondary-container mutations established behavioral RED before the validator fix. Initial native fixture compilation is not behavior-first TDD. Helm render failed because the executable is absent; no local render pass is claimed."
+  },
+  "hosted_predecessor": {
+    "metadata": {
+      "path": "/tmp/pr60-d404-launch-batch-predecessor-20261015.json",
+      "sha256": "840e3d412bdc25eb1975a00e4ec5e7aed36e3a1341913f0637cbeaa553732ec8",
+      "bytes": 141732,
+      "availability": "current cloud workspace; not deployed evidence"
+    },
+    "d4049efc": "Compile and authenticated enqueue pass. Callback push group passes but PR counterpart fails at durable callback-expiry lookup. Lifecycle activation/projection passes then ordinary cleanup lane reservation fails due fixture ordering. PKCE advances to preparation-failure recording and fails. Approval controls have all six named RUN/PASS but outer roster/normal-cleanup guard refuses. Browser prerequisite VM fails; overall Runnable UI fails, later release checks remain unexecuted.",
+    "7f6174af": "Official capture workflow success observed after its one stale helper pin correction; compile and OAuth checks success observed. This is not acceptance of the current unpushed changes."
+  },
+  "source_association": {
+    "manifest": ".github/connector-native-compile-source-pins.json",
+    "source_rows": 92,
+    "hosted_roster": "Six required groups, 29 named cases, ten owned PostgreSQL joins. All prior groups retained.",
+    "changed_sources": [
+      {
+        "path": "deploy/production/maintenance-runtime-profile.mjs",
+        "sha256": "e6f46705a235a49da35464a19dfd005f10c6a7047cfb20421fb5b7bfa80e8890"
+      },
+      {
+        "path": "deploy/production/maintenance-runtime-render.test.mjs",
+        "sha256": "8073147eff77ab67921b23e9c97a0331dac558918f49a4d72176489c53d976ad"
+      },
+      {
+        "path": "deploy/staging/product/templates/_maintenance-runtime.tpl",
+        "sha256": "b2e3bb74600df4ec6785ca7edc0e6a59374088a54d98a0da6a16462aa885001f"
+      },
+      {
+        "path": "docs/operations/maintenance-runtime-rollout.md",
+        "sha256": "0cc7739a6d0ed3e2a400b7b8d288d33c872616cc4a3487cefb9317c8ba24baff"
+      },
+      {
+        "path": "services/platform/apiserver/approval_activation_flow_test.go",
+        "sha256": "2d6a704c607d9d222760a490eec2e1717825bbcb962c66a954a01e43b023ac49"
+      },
+      {
+        "path": "services/platform/apiserver/connector_preparation_stage_test.go",
+        "sha256": "338c9d4717d2c505f3af9d153d3dfcd58a4027a98c7232e0daa4316bfd466e37"
+      },
+      {
+        "path": ".github/workflows/connected-browser-acceptance.yml",
+        "sha256": "d9672208939a8670330ca0ef72530ea1ad5e6ba781edcc0756d7aa51d339c178"
+      },
+      {
+        "path": ".github/workflows/connector-connected-lifecycle.yml",
+        "sha256": "9a33317586626c5048677f162ec7e663acf44ec219a3376eb15d5d2df9ab2af7"
+      },
+      {
+        "path": ".github/workflows/connector-native-draft-compile.yml",
+        "sha256": "5805589c7a6cc9fe11ae32609b836a2445119581417d26737bb700b779588e1d"
+      },
+      {
+        "path": "deploy/production/authorization-temporal-profile.mjs",
+        "sha256": "db13d5607db362c3ecc22a6611a2cc8580eb70e843d349fdc0ad470eb36b004b"
+      },
+      {
+        "path": "deploy/production/authorization-temporal-resources.mjs",
+        "sha256": "e2ec2536ff5a58c62d61ce770f4016a56024df8aa1ad96a6ee3966032490104a"
+      },
+      {
+        "path": "deploy/staging/product/templates/_session-search.tpl",
+        "sha256": "e061c515d51d167676cd95176780ee96a574066a1bc5df025d4bde53408d8fc3"
+      },
+      {
+        "path": "deploy/staging/product/templates/authorization-temporal.yaml",
+        "sha256": "81b1bad5fc38c7e3cc8ee0a62bd370ce9350091fc5a371501f555dfa0a757e0c"
+      },
+      {
+        "path": "deploy/staging/product/templates/workloads.yaml",
+        "sha256": "dde0d49cc9d33990c47f3fd674711c38faf65cd8583e5027535bc114122c211d"
+      },
+      {
+        "path": "deploy/staging/product/values.yaml",
+        "sha256": "5603a0bd5a4bb73e0fb514f69d20e08cc24a16b56ebcf21835c780a28af4d686"
+      },
+      {
+        "path": "package.json",
+        "sha256": "7cf4823323d0799006370441c4b02abd578c7344d1b4ab79a9191056238ce784"
+      },
+      {
+        "path": "scripts/browser-provisioning-subphase.test.mjs",
+        "sha256": "46d249b290058cfc36ae4dc05e06875d4a129670798f4f3de2e7afaea33d4cab"
+      },
+      {
+        "path": "scripts/connector-acceptance-groups.mjs",
+        "sha256": "2fc9c54b8076ea344b2ad9897d8cbea99cc546547c551965c1e5ffa87db05429"
+      },
+      {
+        "path": "scripts/connector-acceptance-groups.test.mjs",
+        "sha256": "a246ad0a5086babec48fc9a662f1828eb983e92169baeaaf8fcf898bbaddb6d8"
+      },
+      {
+        "path": "scripts/hosted-connected-connector-acceptance.mjs",
+        "sha256": "5dd2d6d7b5ba7c311f2265d8b5920de1b880c42d4fa1044eef94e4695205c0e5"
+      },
+      {
+        "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
+        "sha256": "1c8af3da908b12f71ec00b2cfbcac4d62c8ccdbd44b6dfc1cbdec7fa12bb9df9"
+      },
+      {
+        "path": "services/platform/apiserver/connector_maintenance_lifecycle_postgres_test.go",
+        "sha256": "bfa570c34198136d1d3d88909e08ef6b0737abcee7465b0617f1fe2b3b4f35c0"
+      },
+      {
+        "path": "services/platform/apiserver/connector_maintenance_pkce_recovery_test.go",
+        "sha256": "c9f81b86c14f4fa76c24a830371cdec7ce8ac5d2b1a34fee4a994719d3c6a797"
+      },
+      {
+        "path": "services/platform/apiserver/connector_maintenance_repository.go",
+        "sha256": "12ae3d8d18cda869818522852509340687372558fbbfb3ff1826171008d2b119"
+      }
+    ],
+    "manifest_hash_omitted": "Manifest references checkpoint hash, avoiding a cycle."
+  },
+  "guards": {
+    "runnable_ui_sha256": "fd98a81d520fbd8b80fb6d404b7a8a0d0e154268f0e3adb5073a47ee4c7d4d98",
+    "unchanged": [
+      "original approval SQL/installers",
+      "original enqueue provenance SQL/fixture",
+      "package-lock.json",
+      "original ledger TSVs",
+      "security/release and native ownership guards"
+    ],
+    "no_bypass": "No force/admin merge, fabricated origins/grants/withdrawal, local cgroup override, secret exposure or failed-evidence rewrite."
+  },
+  "prerequisites": {
+    "inventory": {
+      "path": "/tmp/production-launch-prerequisites-current-20261015.json",
+      "sha256": "d91af5e3d1e3e2b5ba1b4a3bfd5635328c855a6f017884f0a5934ddb1c3d4c43",
+      "bytes": 9028,
+      "availability": "current cloud workspace; not deployed evidence"
+    },
+    "runtime": "Fresh selected spec435 running/connected, current observations and enforced restricted network; 51 generic runtime variables ready, no outbound identities or VPN/TCP grants. Generic names do not establish role-specific credentials. Inventory identifies 50 unbound names after supported aliases.",
+    "helm": {
+      "path": "/tmp/helm-prerequisite-diagnosis-20261015.json",
+      "sha256": "cc7155209f95f6ed257220c4e15bf78b38e8db00adab0820abba86e0994257e9",
+      "bytes": 2253,
+      "availability": "current cloud workspace; not deployed evidence"
+    },
+    "helm_limit": "No verified local executable. Cold source build refused because disk capacity and hidden cgroup ancestry cannot establish safe headroom. Hosted render check is required; no missing-tool skip or substitute render accepted.",
+    "release_dependency_diagnosis": {
+      "path": "/tmp/production-release-dependency-diagnosis-20261015.json",
+      "sha256": "1e648b1b1ddaa12cdbc2a75baa5d8479975ec3d13463ff3a625b4bbda98dbbbe",
+      "bytes": 20058,
+      "availability": "current cloud workspace; not deployed evidence"
+    },
+    "release_status": "Selected Nexus licensed successor already resolves the historical v0.1.0 license issue. Current HIGH braces advisory has no patched registry release; generic parent upgrades do not resolve it. Fresh approved exact-input advisory evidence remains unimplemented; release guard stays closed."
+  },
+  "open_work": [
+    "Run new native finding flow and actual Helm chart rendering; current browser API readiness and every required release/security check must pass.",
+    "Resolve unknown PKCE preparation refusal, intermittent callback expiry lookup, and approval outer acceptance/cleanup refusal; new stages do not count as fixes.",
+    "Implement successful approval-delivery audit emission through a guarded supplementary integration without editing immutable predecessor settlement SQL; current signed settlement is not delivery-audit proof.",
+    "Cover all four genuine approval origin families, future family flows and authentic >20-origin overflow refusal.",
+    "Implement verifiable production fleet withdrawal/cutover; controlled single local writer proof cannot authorize a fleet.",
+    "Bind a real authorized production target, role-specific database/runtime principals and Stytch/provider identities, then execute deployed first-admin/SSO/connect/discovery/security-plan/authorization/approval/containment/TTL cleanup/retest/audit flows with cross-tenant denial, revocation, budgets and restart acceptance.",
+    "Every original requirement remains authoritative; retire superseded implementations only after equivalent real acceptance."
+  ],
+  "next": "Publish reviewed candidate, verify exact-commit hosted native/Helm/browser checks, fix concrete failures and continue audit/fleet/runtime integration. Merge only after required guards pass."
+}

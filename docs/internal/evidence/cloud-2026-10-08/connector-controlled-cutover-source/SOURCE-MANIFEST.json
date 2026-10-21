@@ -1,0 +1,226 @@
+{
+  "status": "UNCOMPILED CONTROLLED CUTOVER SOURCE REPAIR; NO ACCEPTANCE",
+  "predecessor": {
+    "path": "/tmp/connector-controlled-cutover-source-at1zw1hq/SOURCE-MANIFEST.json",
+    "sha256": "7b295392ff2584c193957da2208266b38c00730f8f6f3856bbe62ce0627f4ffd"
+  },
+  "members": [
+    {
+      "path": "services/platform/agentsec-api/connector_callback_runtime.go",
+      "sha256": "3ccd362a22ef406753915e3e100b360f4281ba95785b798881a1eba8d15e7b80",
+      "bytes": 1248,
+      "predecessorSHA256": "3ccd362a22ef406753915e3e100b360f4281ba95785b798881a1eba8d15e7b80",
+      "donorSHA256": null
+    },
+    {
+      "path": "services/platform/agentsec-api/connector_maintenance_runtime.go",
+      "sha256": "ac74dd00dc05e34e72a06962ad8d7a8f13d18bf64c0fe6e46fdbd520f4b09bab",
+      "bytes": 5379,
+      "predecessorSHA256": "ac74dd00dc05e34e72a06962ad8d7a8f13d18bf64c0fe6e46fdbd520f4b09bab",
+      "donorSHA256": null
+    },
+    {
+      "path": "services/platform/agentsec-api/production_runtime.go",
+      "sha256": "4a5e18ecfa79e445ac0a6c1241b471762b449288cff29858f6553a599c1bee94",
+      "bytes": 54329,
+      "predecessorSHA256": "4a5e18ecfa79e445ac0a6c1241b471762b449288cff29858f6553a599c1bee94",
+      "donorSHA256": null
+    },
+    {
+      "path": "services/platform/agentsec-api/runtime.go",
+      "sha256": "bace8cadfe7ab3f982cfc779ebff5493590a9156bf4a2cbdf31e7be82d69e975",
+      "bytes": 24656,
+      "predecessorSHA256": "bace8cadfe7ab3f982cfc779ebff5493590a9156bf4a2cbdf31e7be82d69e975",
+      "donorSHA256": null
+    },
+    {
+      "path": "services/platform/agentsec-worker/authorization_worker_runtime.go",
+      "sha256": "97f81ea5b11ad283eb056fe6f0fa9aefbf43e5e5161c7ff3bcfe67772f1e80e7",
+      "bytes": 5249,
+      "predecessorSHA256": "97f81ea5b11ad283eb056fe6f0fa9aefbf43e5e5161c7ff3bcfe67772f1e80e7",
+      "donorSHA256": null
+    },
+    {
+      "path": "services/platform/apiserver/connector_enqueue_provenance_postgres_test.go",
+      "sha256": "d6039cfa0d1673a5cf29e68e209b73c2cb6aeefd715e4d7805d3690b8ab0afde",
+      "bytes": 17593,
+      "predecessorSHA256": "d6039cfa0d1673a5cf29e68e209b73c2cb6aeefd715e4d7805d3690b8ab0afde",
+      "donorSHA256": null
+    },
+    {
+      "path": "services/platform/apiserver/connector_handler.go",
+      "sha256": "0b4d920daf35a72e11ff194de8a705ec3b54c1b6b4ef782bffa660909cff1224",
+      "bytes": 28945,
+      "predecessorSHA256": "0b4d920daf35a72e11ff194de8a705ec3b54c1b6b4ef782bffa660909cff1224",
+      "donorSHA256": null
+    },
+    {
+      "path": "services/platform/apiserver/connector_maintenance_callback_database.go",
+      "sha256": "bf9b56569921688a612b99d498448b2add21985eecb94281810abcd0e871ad01",
+      "bytes": 8062,
+      "predecessorSHA256": "bf9b56569921688a612b99d498448b2add21985eecb94281810abcd0e871ad01",
+      "donorSHA256": null
+    },
+    {
+      "path": "services/platform/apiserver/connector_maintenance_callback_resolver.go",
+      "sha256": "995c5238f7e4fa4a58a5d35218234600beaec374f67bb36f5a363a77357c7585",
+      "bytes": 3231,
+      "predecessorSHA256": "995c5238f7e4fa4a58a5d35218234600beaec374f67bb36f5a363a77357c7585",
+      "donorSHA256": null
+    },
+    {
+      "path": "services/platform/apiserver/connector_maintenance_enqueue_database.go",
+      "sha256": "81bebc71801cd1b6c2530241cfb8c26f402faa76baaf68383ef572f63d549b51",
+      "bytes": 6419,
+      "predecessorSHA256": "81bebc71801cd1b6c2530241cfb8c26f402faa76baaf68383ef572f63d549b51",
+      "donorSHA256": null
+    },
+    {
+      "path": "services/platform/apiserver/connector_maintenance_enqueue_postgres_test.go",
+      "sha256": "565ae565e80a15e0834ff17696cc9313e55609932f16fbb46a7bb237b9149c14",
+      "bytes": 7678,
+      "predecessorSHA256": "565ae565e80a15e0834ff17696cc9313e55609932f16fbb46a7bb237b9149c14",
+      "donorSHA256": null
+    },
+    {
+      "path": "services/platform/apiserver/connector_maintenance_repository.go",
+      "sha256": "48ac59befe7c9afb3d3aaf877250ddb3ac6ac0c9c24e873ff0ee8cc1a7855ac9",
+      "bytes": 20071,
+      "predecessorSHA256": "48ac59befe7c9afb3d3aaf877250ddb3ac6ac0c9c24e873ff0ee8cc1a7855ac9",
+      "donorSHA256": null
+    },
+    {
+      "path": "services/platform/apiserver/connector_reconciler.go",
+      "sha256": "697643e887c7df0efa24608abd0055aa7442c315dd6373efa0b733efa2f7ee68",
+      "bytes": 19512,
+      "predecessorSHA256": "697643e887c7df0efa24608abd0055aa7442c315dd6373efa0b733efa2f7ee68",
+      "donorSHA256": null
+    },
+    {
+      "path": "services/platform/authorization/connector_maintenance_projection.go",
+      "sha256": "e9189565c21f4d16c3f06c3cf89b35e57b1cef5e5bb51b1ff49da02349dcd7b8",
+      "bytes": 3497,
+      "predecessorSHA256": "e9189565c21f4d16c3f06c3cf89b35e57b1cef5e5bb51b1ff49da02349dcd7b8",
+      "donorSHA256": null
+    },
+    {
+      "path": "services/platform/authorization/worker_current_maintenance.go",
+      "sha256": "77e382687cc15c54bd3065a10caeb607921c7ee89f3f6ad373c8d645c01d9246",
+      "bytes": 894,
+      "predecessorSHA256": "77e382687cc15c54bd3065a10caeb607921c7ee89f3f6ad373c8d645c01d9246",
+      "donorSHA256": null
+    },
+    {
+      "path": "services/platform/cmd/zasp-authorization-reconcile/main.go",
+      "sha256": "26c1d2d58289b3a2a5b5f58b55348f70f7ae3d48ef7d84b426613f79d506b27e",
+      "bytes": 4773,
+      "predecessorSHA256": "26c1d2d58289b3a2a5b5f58b55348f70f7ae3d48ef7d84b426613f79d506b27e",
+      "donorSHA256": null
+    },
+    {
+      "path": "services/platform/connectormaintenance/authority.go",
+      "sha256": "378b2b151fe9978ca28a3c40d024c52bff7d3f0b83267839ef1dd61ee3946441",
+      "bytes": 10047,
+      "predecessorSHA256": "378b2b151fe9978ca28a3c40d024c52bff7d3f0b83267839ef1dd61ee3946441",
+      "donorSHA256": null
+    },
+    {
+      "path": "services/platform/connectormaintenance/executor.go",
+      "sha256": "35e5eb12fef7a5f7178750c8d1a0bd2c6e3bcfb961c4b34b31de103c32cb8d9a",
+      "bytes": 8144,
+      "predecessorSHA256": "35e5eb12fef7a5f7178750c8d1a0bd2c6e3bcfb961c4b34b31de103c32cb8d9a",
+      "donorSHA256": null
+    },
+    {
+      "path": "services/platform/connectormaintenancecutover/coordinator.go",
+      "sha256": "c6558e7dfb24121b7f84def049d7aeeef971895580d87ca2af5d61ecaaeed7c5",
+      "bytes": 3220,
+      "predecessorSHA256": "70c648c1816ed83a11ca205e7c6b59e7115a2bf3e64ffe67550b56cb44d6ada8",
+      "donorSHA256": "e325f8a9246071758e6772a63f108825118e58e4fe44f895e047756dd5dc9d02"
+    },
+    {
+      "path": "services/platform/connectormaintenancecutover/fga.go",
+      "sha256": "0e80b78867c5b6bbc11e4a2a2bbb1ca3a43bbf43bd8e9fa921471914a98c924c",
+      "bytes": 5569,
+      "predecessorSHA256": "0e80b78867c5b6bbc11e4a2a2bbb1ca3a43bbf43bd8e9fa921471914a98c924c",
+      "donorSHA256": "978e6d178812b51d1a78f7e0b540348257758c57d0b3a61a791c0ae2a7e21dd6"
+    },
+    {
+      "path": "services/platform/connectormaintenancecutover/model.json",
+      "sha256": "329f49e1f2effecbe1a0e9caf6c89be939b1e36e034155d74977bfc82c73cc2c",
+      "bytes": 33888,
+      "predecessorSHA256": "329f49e1f2effecbe1a0e9caf6c89be939b1e36e034155d74977bfc82c73cc2c",
+      "donorSHA256": "329f49e1f2effecbe1a0e9caf6c89be939b1e36e034155d74977bfc82c73cc2c"
+    },
+    {
+      "path": "services/platform/connectormaintenancecutover/process_linux.go",
+      "sha256": "6096f7c304818c7e6ebc31d3940bacf75932b9f2971c8c529316ebee92cede54",
+      "bytes": 3191,
+      "predecessorSHA256": "6096f7c304818c7e6ebc31d3940bacf75932b9f2971c8c529316ebee92cede54",
+      "donorSHA256": "2836a60e074bc5d07c4b67dfe13dfd1f0e66f6f82e8b1e4dd1ff0c86ba406e0e"
+    },
+    {
+      "path": "services/platform/connectormaintenancecutover/raw_model.go",
+      "sha256": "4fdad0c76ea36dfdc732bad76ff010d1e50ce34e4ed1e5ba1c44ff3c678714f2",
+      "bytes": 2069,
+      "predecessorSHA256": "4fdad0c76ea36dfdc732bad76ff010d1e50ce34e4ed1e5ba1c44ff3c678714f2",
+      "donorSHA256": "5535ab82eb7e3bfb1bc824d0ee1f7e11ec152690bff6b45ae96e0625e09d4255"
+    },
+    {
+      "path": "services/platform/connectormaintenancecutover/sql.go",
+      "sha256": "11a839a8b0c73e9eb1e830e37ff070eb6824c31e87604b5103e92fc75b16a8c2",
+      "bytes": 5350,
+      "predecessorSHA256": "11a839a8b0c73e9eb1e830e37ff070eb6824c31e87604b5103e92fc75b16a8c2",
+      "donorSHA256": "367cfafed7bdb3d42c193767414088dd792069bc1cea436e774897134b6f046e"
+    },
+    {
+      "path": "services/platform/migrations/production_connector_enqueue_provenance.go",
+      "sha256": "809041eced547701b1e3ac3c1f68ac45d7b403336f5de6df4dda13b10db83267",
+      "bytes": 3818,
+      "predecessorSHA256": "809041eced547701b1e3ac3c1f68ac45d7b403336f5de6df4dda13b10db83267",
+      "donorSHA256": null
+    },
+    {
+      "path": "services/platform/migrations/production_connector_maintenance.go",
+      "sha256": "03510257999d7bfb58852f1b27aabb9b207010912e7ae47a1d76858c7dc88e67",
+      "bytes": 4590,
+      "predecessorSHA256": "03510257999d7bfb58852f1b27aabb9b207010912e7ae47a1d76858c7dc88e67",
+      "donorSHA256": null
+    },
+    {
+      "path": "services/platform/migrations/sql/connector_enqueue_provenance.sql",
+      "sha256": "32b3f8cbe175b5256ff4542cdff044d6d060e0240d24632bf3d057f3553a5c13",
+      "bytes": 12222,
+      "predecessorSHA256": "32b3f8cbe175b5256ff4542cdff044d6d060e0240d24632bf3d057f3553a5c13",
+      "donorSHA256": null
+    },
+    {
+      "path": "services/platform/migrations/sql/connector_maintenance_profile.sql",
+      "sha256": "1ee0fcca602f658fadee4727ed69787891be928aca2fe9e0f5a8ce141799bf3d",
+      "bytes": 109670,
+      "predecessorSHA256": "49305a7dd5b045beccff77e94a8c3f185da1a89f5d4dd53c6baaf2aad19e5bc4",
+      "donorSHA256": null
+    },
+    {
+      "path": "services/platform/runtimeservices/config.go",
+      "sha256": "3eff9566c27b6e7c5179a8968aacf0f05b0810baf1d69abac43cb19e21dc0f77",
+      "bytes": 4978,
+      "predecessorSHA256": "3eff9566c27b6e7c5179a8968aacf0f05b0810baf1d69abac43cb19e21dc0f77",
+      "donorSHA256": null
+    }
+  ],
+  "scope": "One observed exact local process plus authentic old-model200, actual old-key401, exact process absence and new whole-model200, repeated after original79org lock by opaque one-use permit. This DOES NOT prove a complete fleet, source executable identity as a registered projector, restart inhibition, or actual Reconcile delivery. Genuine owned writer producer/reconciliation/readback is a mandatory remaining fixture gate. No runtime or permit issued.",
+  "sourceChanges": [
+    "Existing reviewed operatorV4 observer/parser source reused unchanged except package/domain names.",
+    "Prepare bounds original entire observation+activation window from start <=30s.",
+    "SQL adapter targets exact new connector controlled-only operator function with actual connector+approval pins; no public supplied withdrawal digest field.",
+    "Operator SQL validates original72 identity/all original79 revision IDs plus registered private caller/keys, promotes at most20 authentic receipts, touches desired only; no original principal/consumer rewrite.",
+    "NewDeployment always refuses while fleet/restart observer is absent; no caller bypass flag."
+  ],
+  "actualValidation": "gofmt0/readback hashes0400 only; no Go compiler/PG/FGA/network/process execution.",
+  "requiredNativeGroups": [
+    "Real genuine pending original Reconcile+nonzero stored tuple readback+actualAck held writer, opaque Prepare\u2192normal join\u2192same-model credential withdrawal\u2192Activate.",
+    "Wrong key/model/live-or-restarted process/source/revision/catalog/caller/rollback and all3consumer noninterference; no fake tasks/origins/seeded active record.",
+    "Composed same-inventory Reconcile + both live user/task FGA checks, callback full typed body + all8 lifecycle denial/regrant/captured settle and terminal revision."
+  ]
+}

@@ -1,0 +1,75 @@
+{
+  "format": "cloud-closed-diagnostics-final-publication-independent-review-v1",
+  "createdAt": "2026-10-15T05:33:40.616666+00:00",
+  "verdict": "APPROVE publication of component diagnostics/evidence checkpoint; no launch or remediation acceptance",
+  "findings": [],
+  "checkpoint": {
+    "path": "docs/internal/cloud-closed-diagnostics-checkpoint-2026-10-15.json",
+    "sha256": "614d137f1ad4bac2500d10f5b4405f76789bd19d3fad2079ec5edf3ff0ae9b07",
+    "allSourceHashesAndLengthsMatch": true
+  },
+  "archive": {
+    "path": "docs/internal/evidence/cloud-2026-10-15/closed-diagnostics/verified-batch-evidence.json.gz",
+    "sha256": "421e1706b93dbcfdbce50b400030766f8a24d8faa4dafeab966104bb6a8ad3f7",
+    "compressedBytes": 276413,
+    "compressedHashAndLengthMatch": true,
+    "uncompressedSHA256": "e1b97091a4c0c57d1c49218add80285f06d1441f4d703a126b4e02ec811fec2f",
+    "uncompressedHashMatches": true,
+    "members": 80,
+    "all80FullContentsLengthAndHashBound": true,
+    "uniqueOriginalMemberPaths": true,
+    "sourceRosterEqualsCheckpoint": true
+  },
+  "runnerPinTables": {
+    "scripts/hosted-connected-connector-acceptance.mjs": [
+      {
+        "table": "pins",
+        "count": 90,
+        "matches": true
+      },
+      {
+        "table": "helperPins",
+        "count": 11,
+        "matches": true
+      }
+    ],
+    "scripts/hosted-connector-authenticated-enqueue.mjs": [
+      {
+        "table": "pins",
+        "count": 79,
+        "matches": true
+      },
+      {
+        "table": "helperPins",
+        "count": 11,
+        "matches": true
+      }
+    ]
+  },
+  "compileManifest": {
+    "path": ".github/connector-native-compile-source-pins.json",
+    "sha256": "ddae864cea52e8b312d0f1fa8a56357a501b9d546c895f19cb42b4b1c9574fec",
+    "count": 113,
+    "all113SourcesMatch": true,
+    "checkpointDigestMatches": true
+  },
+  "unchangedReleaseGuardHashesAgainstPriorPlan": {
+    "scripts/production-release-gate.mjs": true,
+    "deploy/production/release-gates.mjs": true,
+    "cmd/agentsecctl/security_release.go": true
+  },
+  "unchangedRunnableUIWorkflow": true,
+  "claimsReviewed": [
+    "Original root285PASS0FAIL0SKIP status0, lint0 and ledger0 full TAP/log/status bytes are retained. No new native/Go/deployment run implied.",
+    "Recorded728 ledger523production/144component/61external totals728; no promotions,205nonproduction, launch/native/deployed acceptance false.",
+    "Closed fixed diagnostics preserve source categories and cancellation-requeststate without asserting primary Chrome/SQL cause. Independent implementation reviews preserved.",
+    "Both real source candidates remain rejected: dynamic-import file\u2192index behavior and Next symlink lintdiagnostic regression. Original dependencies retained; no braces-removal claim.",
+    "Automatic review stop receipt5d821010 preserved:35unchanged files perlane, zero verified reproduction/remediation, no remediation/release/production acceptance. No attempt to restart that action.",
+    "Restricted hosted logs/artifacts not used; native/target/trust/providers/deployment/Helm gates remain open."
+  ],
+  "reviewLimits": [
+    "Read-only review; no test/build/Go/network/Git execution or project edits.",
+    "Root supplied prior secret/git-leak0 scan; this review validates archive full-byte/source/guard bindings, not a new secret scan.",
+    "Prior frontend build/typecheck reused explicitly as component evidence, not native/business/provider/deployed acceptance."
+  ]
+}

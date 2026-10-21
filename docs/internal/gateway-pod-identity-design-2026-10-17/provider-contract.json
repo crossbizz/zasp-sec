@@ -1,0 +1,76 @@
+{
+  "classification": "Design/API and test scaffold only; independent component, no runtime wiring, no production identity or launch claim",
+  "module": "github.com/zasp-ai/zasp-sec/services/gatewaypodidentity",
+  "go": "1.26.0",
+  "source_directory": "/workspace/zasp-node-coverage-retention/services/gatewaypodidentity",
+  "exports": {
+    "constants": [
+      "Profile=kubernetes-tokenreview-pod-v1",
+      "MaximumCalls=13",
+      "MaximumStageDuration=5*time.Second",
+      "ErrDenied stable redacted error"
+    ],
+    "Config": [
+      "IntegrationID string exact existing canonical productID ^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "Endpoint string HTTPS origin with optional explicit port; no user/query/fragment/path except optional slash",
+      "CABundlePEM []byte explicit certificate-only bounded PEM",
+      "AllowedCIDRs []string canonical bounded CIDRs",
+      "ClusterUID string canonical nonzero lowercase UUID",
+      "Audience string bounded exact nonempty ASCII",
+      "Namespace string explicit Kubernetes namespace",
+      "ReviewerCredentialFile string absolute protected current-user regular0600 singlelink file, no symlink, bounded ASCII bearer; reread each Verify",
+      "Issuer string exact operator-selected HTTPS issuer, may differ provider endpoint; no user/query/fragment"
+    ],
+    "RequestBinding": "RequestID exact canonical pid_UUIDv4; Method HTTP token; ExactTarget exact origin-form path/query with no fragment/control; BodySHA256 lowercase64hex",
+    "Proof": "private cloned token bytes + binding; NewProof([]byte,RequestBinding)(Proof,error); token ASCII bounded16KiB, no JWT claim decode before TokenReview. String/GoString/Format always redacted, no accessor.",
+    "Verifier": [
+      "New(Config)(*Verifier,error)",
+      "Verify(context.Context,Proof)(VerifiedPod,error)",
+      "Ready(context.Context)error local configuration/reviewer file checks only, no providerIO",
+      "Close()error idempotent, blocks subsequent observations"
+    ],
+    "VerifiedPod": [
+      "Profile",
+      "IntegrationID",
+      "ClusterUID",
+      "Namespace",
+      "ServiceAccountName",
+      "ServiceAccountUID",
+      "PodName",
+      "PodUID",
+      "ReplicaSetUID",
+      "DeploymentUID",
+      "NodeUID",
+      "BootID",
+      "ObservedAt",
+      "TokenExpiresAt",
+      "ExpiresAt",
+      "FactsSHA256"
+    ]
+  },
+  "transport": "stdlib HTTPS only; explicit CA with original hostname/IP SAN validation, Proxy nil; no custom RoundTripper or clock; each dial checks every DNS answer against configured CIDRs before dialing exactly one sorted pinned IP, no retries/redirects/positive cache. Explicit ports allowed for provider origins and TLS protocol fixtures. Child context <=5s across ALL13 calls; response max TokenReview64KiB, object1MiB, aggregate12MiB+64KiB. Close bodies; no provider errors/raw body/token in returned errors.",
+  "protocol": "POST TokenReview with exact opaque token and audiences=[configured]. Require authenticated true/noerror/audience includes configured/user exact system:serviceaccount namespace name/UID/exactlyone pod-name+pod-uid extras. Only then canonical JWT segments+strict payload exp integer future/sub/kubernetes.io namespace/serviceaccount name UID/pod name UID match authenticated review. JWT iss must equal configured Issuer; aud string or string-array must include configured audience after actual TokenReview.",
+  "object_policy": "Unknown Kubernetes fields allowed, all JSON UTF8/escape surrogate integrity, exact duplicate keys, type-safe selected paths, bounded nesting. Case alias rejection scoped to actual security object fields, never arbitrary labels/annotations/extra-map extension keys. No raw TokenReview echo storage/logging. Explicit apiVersion/kind, immutable UID/currentname/namespace/deletion checked. SA, Pod, RS, Deployment, Node and kube-system read twice. Single controller apps/v1 RS then Deployment. Deployment zasp.ai/entity-kind=agent BOTHreads; both RS/Deployment pod-template SA match reviewed SA (omitted maps default). Pod actual nodeName -> Node actual UID+boot canonicalUUID. All13 stable security facts; resourceVersion alone may change. Pod status.phase must equal Running BOTH reads.",
+  "output": "ObservedAt real systemUTC microseconds AFTER final read; tokenexpiry real JWT Unixseconds; ExpiresAt min(exp, observed+5s), deny expired/canceled at output. FactsSHA256 sha256 domain zasp-kubernetes-pod-facts-v1 newline then deterministic JSON struct containing output facts, observation/expiry and request binding, never rawtoken or reviewersecret. Facts are gateway observed testimony, not detached Kubernetes signed proof.",
+  "not_included": [
+    "root configuration or runtime proxy activation",
+    "product authorization/catalog matching",
+    "native authority, process/container identity",
+    "provider internals tests"
+  ],
+  "test_heads": [
+    "TestProjectedPodIdentityThirteenCallChain",
+    "TestProjectedPodIdentityAuthenticatedClaimsAndJSON",
+    "TestProjectedPodIdentityCurrentOwnershipAndDoubleRead",
+    "TestProjectedPodIdentityTransportBoundsAndDeadline",
+    "TestProjectedPodIdentitySecretReadinessAndLifecycle"
+  ],
+  "source_files": {
+    "services/gatewaypodidentity/go.mod": "181430e321f407f020922eaa24199661ff52e8739ff454ab96002ff343459f91",
+    "services/gatewaypodidentity/verifier.go": "6bec9810b38f6fa7d91c8ae4a9563dc5eb66446f6380f27f81591a4c9b3562ca",
+    "services/gatewaypodidentity/verifier_test.go": "4d1fd5b47c96f5a18fc23a76cb8903fc083172832eefdfb17a2f50748ce6d28d"
+  },
+  "baseline": "Unexecuted by author. Stub New/NewProof/Verify/Ready fail closed. Root actual positive TLS13-chain RED required before product implementation. Negative stub passes do not prove guards.",
+  "predecessor_sha256": "0460d4f6a684677ff421e50238d41ddbdfc7341612f1b9cb8f666fcd6b52c7a9",
+  "successor_reason": "Root confirmed existing domain canonical product ID pid_UUIDv4 for IntegrationID and RequestID, distinct from provider UUIDs; final pre-RED successor."
+}

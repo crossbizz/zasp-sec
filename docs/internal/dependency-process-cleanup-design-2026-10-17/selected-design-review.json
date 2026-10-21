@@ -1,0 +1,22 @@
+{
+  "status": "CLEAR_FINITE_ROOT_SELECTED_PLATFORM_AND_HANDSHAKE_CHOICES",
+  "reviewer": "/root/gateway_review",
+  "created_at": "2026-10-17T22:16:09.297224+00:00",
+  "prior_review": {
+    "path": "/tmp/esbuild-scoped-reaper-design-review-20261017.json",
+    "sha256": "001e45ce5de2da5957c72a086a32174b842b5e9c03bb67a9fa6c15eba97ee3e2",
+    "preserved": true
+  },
+  "root_selected_choices": {
+    "Linux": "Mandatory prctl subreaper plus pidfd/proc; capability refusal125 before launch, no silent fallback.",
+    "macOS": "Direct exec of same original node --test two files; original strict guards/exit status preserved.",
+    "other_platforms": "Explicit unsupported125.",
+    "handshake": "EOF/setup/cancel before established pidfd is NOEXEC; child exits125 and parent closes gate/reaps exact child.",
+    "cleanup": "Unjoinable owned child or ambiguous ownership always nonsuccess, never broad ambient fallback."
+  },
+  "assessment": "Selections close earlier finite choices without weakening original checks. Root may proceed scoped capability probes and actual grouped3RED before functional implementation. Producer concrete contract and implementation need independent source review; scaffolds alone do not satisfy checks.",
+  "findings": [],
+  "limits": [
+    "Source/design review and authorized root-message selections only; no process/test/Go/Node/prctl/pidfd/network/Git execution. No native/app/deployed/launch/task promotion."
+  ]
+}

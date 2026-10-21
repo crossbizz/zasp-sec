@@ -1,0 +1,432 @@
+{
+  "status": "FINITE_CANDIDATE_READY_FOR_INDEPENDENT_DESIGN_REVIEW_NOT_IMPLEMENTATION",
+  "parent_research": {
+    "path": "docs/internal/gateway-authority-recovery-design-2026-10-17/next-agent-device-association-research.json",
+    "sha256": "f2f8d78fba3985b1f7d95251d848d5e908c428d37261d8a8092d2883ab9b3fa7"
+  },
+  "source_pins": [
+    {
+      "path": "docs/internal/cloud-agent-device-association-source-audit-2026-10-17.json",
+      "bytes": 22273,
+      "sha256": "0a20dda161821a471a12e2562b0ee483966ce4cb4ebfced306dc8fd690a86c70"
+    },
+    {
+      "path": "docs/internal/cloud-agent-device-association-source-audit-supplement-2026-10-17.json",
+      "bytes": 29731,
+      "sha256": "2488d31750152132b662347efe25e9599936858b45a6759916d6e02ac5ad24ee"
+    },
+    {
+      "path": "docs/internal/cloud-agent-device-association-source-audit-review-2026-10-17.json",
+      "bytes": 4120,
+      "sha256": "d15f3b1b2d00f811d0157c695d959a070c1dff3079ffb37b1a5abd92d7e02cb0"
+    },
+    {
+      "path": "services/platform/migrations/sql/0080_production_authorization_enforcement.up.sql",
+      "bytes": 40560,
+      "sha256": "552b75399fed93e44a8c42f4c32e4658fb8d0aab9fdff8a043d5d8b187b0cd7b"
+    },
+    {
+      "path": "services/platform/migrations/sql/0079_production_authorization_projection.up.sql",
+      "bytes": 26450,
+      "sha256": "8b358e304b2eedaed7a4148f317f6d21d9c624ccc39105ca6199265ae661a987"
+    },
+    {
+      "path": "services/platform/migrations/sql/0080_authorization_worker_gateway_writers.sql",
+      "bytes": 17859,
+      "sha256": "5ce0934637fddd422c5c01f3d8e7e44737ac106cd013fc97649955e710228901"
+    },
+    {
+      "path": "services/platform/migrations/sql/0014_typed_inventory_cutover.up.sql",
+      "bytes": 187556,
+      "sha256": "06ed7d1310bee92bfd80c92698b91c18e3932a573793dcb32344a3fea56831b8"
+    },
+    {
+      "path": "services/platform/migrations/sql/0015_runtime_data_plane.up.sql",
+      "bytes": 204144,
+      "sha256": "11c0b05a0a264ba9654c9646b18633c45469f495fa819b28b89e207aefc5ce9a"
+    },
+    {
+      "path": "services/platform/migrations/sql/agent_ownership_write_profile.sql",
+      "bytes": 22190,
+      "sha256": "74de88d317674b498f70347d458c5bb8bdd2a338c7dc25cd2531b636f885bb79"
+    },
+    {
+      "path": "services/platform/apiserver/agent_current_ownership_write.go",
+      "bytes": 4462,
+      "sha256": "0c398aee7ade9988b21833d42bd61ece571aef7156fbf736e46b59bf9b6fd6c9"
+    },
+    {
+      "path": "services/platform/apiserver/authorization_transaction.go",
+      "bytes": 5036,
+      "sha256": "654e051e70e25fa1490e751412981bc4ede7020fcd9a6d4f96ee65e0d63b85fb"
+    },
+    {
+      "path": "services/platform/apiserver/authorization_targets.go",
+      "bytes": 6139,
+      "sha256": "9f7eeacb1607836815be0e6d2515c4c48bd5b38777429eb62e7aeeaa5b602804"
+    },
+    {
+      "path": "services/platform/authorization/model.fga",
+      "bytes": 4582,
+      "sha256": "677aff1f026c6a82d15af212efad93152ffb2c3f7cb21ce19acb6241a8aa3966"
+    },
+    {
+      "path": "services/platform/migrations/sql/gateway_bootstrap_profile.sql",
+      "bytes": 39606,
+      "sha256": "9dd223663a1e931a934af728efe59f58bd016da83b60f56f50140661b3d86f5d"
+    },
+    {
+      "path": "services/platform/gatewaycontrol/contract.go",
+      "bytes": 7008,
+      "sha256": "7811c187c21a1290ace9dd99cadf55afe708e72db51e36e9ee0b04e3dc70e67a"
+    }
+  ],
+  "scope": "Administrative admission of existing typed Agent to existing native Device plus current Device credential possession. No observed workload routing, Agent/fleet enforcement, policy coverage, or microtask completion. Preserve all original requirements and identity/provenance.",
+  "permission_policy": {
+    "selected_by_root": "NEW exact Agent resource operations. Browser-only writes with REAL recent Stytch-backed session authentication, current CSRF/origin/expected scope, current manage_identity on exact Agent. Root selected this routine policy; no user approval or new FGA grants required.",
+    "write_operations": [
+      "createAgentDeviceIntent",
+      "activateAgentDeviceAssociation",
+      "revokeAgentDeviceAssociation"
+    ],
+    "read_operation": "listAgentDeviceAssociations",
+    "read": "Current Agent view, browser or PAT with current view ceiling; single actual Agent target even though results paginate its associations. Collection=false, no environment/org/collection fallback.",
+    "agent_target": "Original resource kind agent maps through existing authorization.Map to resource:<o>/<w>/<e>/agent/<id>; no Agent principal, Device inventory alias or new relation/model change.",
+    "immutable_preservation": "Original ownership updateAgent13arg ABI/body/permission/FreshAuth=false/PAT support unchanged. No association hidden in owner/team/tags or attributes. New op IDs admitted explicitly in Go registry/targets/statement classifier and own SQL helpers; original80 generic context/require_read/allowed/identity_fence already accepts dynamic operation values and exact existing Agent target. No original SQL/fingerprint/grant rewrite."
+  },
+  "operations": [
+    {
+      "id": "createAgentDeviceIntent",
+      "method": "POST",
+      "path": "/api/v1/agents/{id}/device-association-intents",
+      "body": [
+        "device_id",
+        "expected_association_version",
+        "ttl_seconds"
+      ],
+      "status_fresh": 201,
+      "status_replay": 200,
+      "contract": "DeviceID canonical; pairversion0..MaxInt64; TTL60..300. Intended Device is expectation only. Fresh same-Agent manage_identity required. New nonce/candidate only, never creates active association."
+    },
+    {
+      "id": "activateAgentDeviceAssociation",
+      "method": "POST",
+      "path": "/api/v1/agents/{id}/device-associations/{associationId}/activate",
+      "body": [
+        "challenge_id",
+        "challenge_sha256",
+        "expected_association_version"
+      ],
+      "status": 200,
+      "contract": "SAME original challenge creator, fresh current Agent manage_identity again, exact expectedpairversion, same stable source, accepted current Device credentialID/generation and live nonce. No phase1 authorization delegation."
+    },
+    {
+      "id": "revokeAgentDeviceAssociation",
+      "method": "POST",
+      "path": "/api/v1/agents/{id}/device-associations/{associationId}/revoke",
+      "body": [
+        "expected_association_version"
+      ],
+      "status": 200,
+      "contract": "Any currently fresh Agent-authorized operator; exact pairversion. Revoke WHOLE pair: invalidates pending candidate AND active association. UI must not label this as cancelpending-only. Never revokes Device credential or unrelated pair."
+    },
+    {
+      "id": "listAgentDeviceAssociations",
+      "method": "GET",
+      "path": "/api/v1/agents/{id}/device-associations",
+      "query": [
+        "limit",
+        "cursor"
+      ],
+      "status": 200,
+      "contract": "No body/mutation headers; defaultlimit20 max100. Own records only for currently view-authorized single Agent. Exact NONAUTHORIZING live challenge can be echoed for reload; no identity/token/privatekey disclosure."
+    },
+    {
+      "id": "acceptAgentDeviceIntent",
+      "method": "POST",
+      "path": "/internal/v1/runtime-gateway/agent-device-associations/accept",
+      "body": [
+        "schema",
+        "challenge_wire",
+        "challenge_sha256"
+      ],
+      "status": 200,
+      "contract": "schema agent-device-accept-v1. Existing current Device signed HTTP proof, original registered gateway-control pool, exact original frozen challenge bytes/hash, actual same-scope intended Device and current credentialID/generation. No human proof accepted, no activation."
+    }
+  ],
+  "headers": "POST human writes require exactly one existing canonical Idempotency-Key16..128. Version is explicit body; reject If-Match ambiguity. Browser fresh header confirmed, CSRF/origin/current scope; PAT writes rejected by route AND SQL credential_kind1. GET accepts only one limit/cursor, no unknown/duplicate query keys. All responses no-store/Pragma:no-cache. No nonce or credentials in URLs/logs/argv.",
+  "wire_builder": {
+    "choice": "Native authoritative deterministic ASCII byte builder; no separate preparation transaction, no Go-vs-JSONB rehash equivalence.",
+    "challenge_keys_in_EXACT_order": [
+      "schema",
+      "challenge_id",
+      "association_id",
+      "organization_id",
+      "workspace_id",
+      "environment_id",
+      "agent_id",
+      "agent_source_digest",
+      "device_id",
+      "expected_association_version",
+      "nonce",
+      "expires_at"
+    ],
+    "schema": "agent-device-intent-v1",
+    "encoding": "UTF8 JSON, no whitespace, keys exactly above, string values canonical ASCII product IDs/lowerhex digest/RawURL32nonce/wholeUTC expiry. expected version canonical decimal integer. All variable scalar alphabets validated before SQL concatenation; no arbitrary source names in raw challenge.",
+    "challenge_wire": "CanonicalRawURL of EXACT original bounded bytea, <=4096 decoded bytes. ChallengeSHA256 lowerhex64 of exact bytea. Persist immutable original bytes and nonce hash; no reserialize/restamp. Go parser has matching fixed struct order for verification only; never replaces stored bytes.",
+    "non_authorizing": "Nonce/challenge are NONAUTHORIZING public challenge material. Key possession signature plus separate fresh human finalization required. Storing/echoing exact challenge is allowed; nonce alone grants nothing. Human/device credentials and private keys never stored.",
+    "accept_body": "Exact3keys schema,challenge_wire,challenge_sha256. Strict UTF8/JSON duplicate/null/unknown/casealias/trailing/surrogate refusal. Existing HTTP signature binds exact outer body and current credential/method/host/path/query/time. Control SQL validates decoded raw challenge exactly equals private pending row bytea and nonce hash, not just a caller hash."
+  },
+  "source_identity": {
+    "exact_keys": [
+      "integration_id",
+      "provider",
+      "source",
+      "identity_namespace",
+      "source_native_id",
+      "rule_version",
+      "agent_id"
+    ],
+    "selection": "Actual active typed Agent winning integration/provider/source/nativeID/rule plus EXACT matching current present/fresh typed source observation and original identity-binding tuple. Exactly one matching namespace/binding; ambiguity fails closed, no fabricated identity. Confirm observation/evidence/snapshot belong to same original scope/entity/integration.",
+    "digest_algorithm": "SHA256 UTF8 prefix zasp-agent-device-source-v1 then NUL, then each field o,w,e,agentID,integrationID,provider,source,namespace,sourceNativeID,ruleVersionCanonicalDecimal encoded uint32 bigEndian BYTE length + original UTF8 bytes. No JSON text hash normalization or displayname/owner/tags attribution.",
+    "snapshot_keys": [
+      "snapshot_id",
+      "evidence_id",
+      "generation",
+      "content_sha256",
+      "observed_at",
+      "fresh_until"
+    ],
+    "refresh": "Snapshot/evidence record original admission facts; normal later fresh snapshot with SAME stable identity retains administrative admission. Current active/present/fresh tests always live. Changed identity/integration never autorebinds. Stale/removed/tombstoned =>unavailable while invalid; subsequent fresh SAMEidentity can restore availability, never coverage/enforcement."
+  },
+  "dtos": {
+    "challenge_envelope": {
+      "exact_keys": [
+        "schema",
+        "challenge_wire",
+        "challenge_sha256"
+      ],
+      "schema": "agent-device-challenge-envelope-v1",
+      "nullable": []
+    },
+    "credential": {
+      "exact_keys": [
+        "credential_id",
+        "credential_generation",
+        "expires_at"
+      ],
+      "nullable": []
+    },
+    "acceptance": {
+      "exact_keys": [
+        "request_sha256",
+        "credential",
+        "accepted_at",
+        "expires_at"
+      ],
+      "nullable": [],
+      "expires_at": "min(original challenge expiry,currentcredential expiry), never extended on replay"
+    },
+    "pending_intent": {
+      "exact_keys": [
+        "challenge_id",
+        "challenge_wire",
+        "challenge_sha256",
+        "created_by",
+        "created_at",
+        "expires_at",
+        "state",
+        "acceptance"
+      ],
+      "nullable": [
+        "acceptance"
+      ],
+      "state": [
+        "pending_device",
+        "pending_human",
+        "expired",
+        "superseded"
+      ],
+      "contract": "GET item includes only latest candidate. Older candidates retained privately for terminal replay/conflict evidence, never current again."
+    },
+    "item": {
+      "exact_keys": [
+        "association_id",
+        "agent_id",
+        "device_id",
+        "version",
+        "state",
+        "unavailable_reason",
+        "source_identity",
+        "admission_snapshot",
+        "device_credential",
+        "created_by",
+        "activated_by",
+        "created_at",
+        "activated_at",
+        "revoked_at",
+        "pending_intent"
+      ],
+      "nullable": [
+        "source_identity",
+        "admission_snapshot",
+        "device_credential",
+        "activated_by",
+        "activated_at",
+        "revoked_at",
+        "pending_intent"
+      ],
+      "state": [
+        "none",
+        "admitted",
+        "revoked",
+        "unavailable"
+      ],
+      "unavailable_reason": [
+        "none",
+        "source_stale",
+        "source_removed",
+        "source_identity_changed",
+        "device_unavailable",
+        "credential_expired",
+        "credential_rotated"
+      ],
+      "contract": "Pair row version0 has state none, no active source/admission/credential/activation fields. Admitted active configuration may coexist with pending replacement: report active state and pending_intent separately. Revoked retains historical source/admission/credential provenance; does not claim current validity. activated_by must latest candidate creator."
+    },
+    "receipt": {
+      "exact_keys": [
+        "operation",
+        "association_id",
+        "challenge_id",
+        "version",
+        "recorded_state",
+        "recorded_at"
+      ],
+      "nullable": [
+        "challenge_id"
+      ],
+      "contract": "Immutable original effect snapshot. recorded_state intent_created|activated|revoked. Replay is historical metadata, not current availability; UI must GETrefetch."
+    },
+    "human_mutation_response": {
+      "exact_keys": [
+        "receipt",
+        "challenge",
+        "replayed"
+      ],
+      "nullable": [
+        "challenge"
+      ],
+      "contract": "challenge envelope present only createIntent, null activate/revoke. Same-intent replay returns stable original receipt/challenge, replayedtrue, never resurrects expired/superseded candidate."
+    },
+    "device_accept_response": {
+      "exact_keys": [
+        "challenge_id",
+        "challenge_sha256",
+        "association_id",
+        "acceptance",
+        "replayed"
+      ],
+      "nullable": [],
+      "contract": "Current exactsamecredential rawrequest replay stable BEFOREexpiry; superseded/expired/revoked/rotated candidate denied. No accepted response implies active association."
+    },
+    "page_response": {
+      "exact_keys": [
+        "items",
+        "next_cursor",
+        "capabilities"
+      ],
+      "nullable": [
+        "next_cursor"
+      ],
+      "capabilities": {
+        "exact_keys": [
+          "can_manage"
+        ],
+        "contract": "True only selected own profile actually ready plus BrowserSession plus independent CURRENT manage_identity Check on SAME actual Agent, bound sameprincipal/credentialdigest/scope/Agentversion/79revision asviewgrant. Additional private Go metadata only: no newfield in immutable80attestation, no SQLwriteauthority. Failure false, no environment/org/collectionfallback. Every mutation still freshauthorizes."
+      }
+    },
+    "scalar_rules": "Canonical full product IDs; counters0..MaxInt64 as defined; hashes64lowerhex; nonceRawURL32. Challengeexpiry wholeUTC; native server metadata canonicalUTC<=6fraction without trailingzeros. Strict complete required nested keysets; only listed nullable fields permitnull; none omitted. Source strings retained exact original UTF8, nevertruncated."
+  },
+  "pagination": {
+    "SQL": "ownpage ORDER BY association_id COLLATE C, after exact canonicalassociationID exclusive, LIMIT requested+1; response raw next_association_id nullable, HTTP wrapper emitsopaque HMACcursor. No unrestricted count/allAgent scan.",
+    "cursor_keys": [
+      "v",
+      "organization_id",
+      "workspace_id",
+      "environment_id",
+      "principal_id",
+      "credential_kind",
+      "credential_id",
+      "agent_id",
+      "agent_version",
+      "desired_revision",
+      "generation",
+      "store_id",
+      "model_id",
+      "limit",
+      "after_association_id",
+      "profile_checksum",
+      "expires_at"
+    ],
+    "format": "v1 canonicalJSON+HMACSHA256 existingserver workflow signing key, canonicalRawURL max4096, expiry<=5minutes. Bind exact actorcredential/scope/Agentcurrentversion/revision/pin/limit; invalid changed binding requires explicit pagination restart. No new credential/key. No filters in initial contract."
+  },
+  "sql_primary_ABIs": [
+    "caller_ready(purpose text,pin text) RETURNS boolean",
+    "create_intent(o text,w text,e text,actor text,agent_id text,device_id text,idempotency_key text,request_digest bytea,expected_version bigint,challenge_id text,nonce bytea,expires_at timestamptz,pin text) RETURNS jsonb",
+    "activate(o text,w text,e text,actor text,agent_id text,association_id text,challenge_id text,challenge_sha256 bytea,expected_version bigint,idempotency_key text,request_digest bytea,pin text) RETURNS jsonb",
+    "revoke(o text,w text,e text,actor text,agent_id text,association_id text,expected_version bigint,idempotency_key text,request_digest bytea,pin text) RETURNS jsonb",
+    "page(o text,w text,e text,agent_id text,after_association_id text,page_limit integer,pin text) RETURNS jsonb",
+    "confirm_human(o text,w text,e text,actor text,agent_id text,operation text,idempotency_key text,request_digest bytea,expected_receipt jsonb,pin text) RETURNS boolean",
+    "accept_intent(credential_id text,body bytea,pin text) RETURNS jsonb",
+    "confirm_device(credential_id text,body bytea,expected_receipt jsonb,pin text) RETURNS boolean"
+  ],
+  "ABI_arities": {
+    "create": 13,
+    "activate": 12,
+    "revoke": 10,
+    "page": 7,
+    "confirm_human": 10,
+    "accept": 3,
+    "confirm_device": 4
+  },
+  "private_receipt_marker": "Own human mutation receipt includes immutable created_tx xid8 DEFAULT pg_current_xact_id() plus exact material/result binding. Internal result EXACT {receipt,challenge,replayed,new_mutation}; markertrue only actual native own effect+receipt newlycreated thisTX, not caller/GUC/nativeboolean. Historicalreplayfalse/true. confirm_human compares exact sameTX marker and original material; no public new_mutation marker. Device receipt separately immutable accepted_tx xid8 and exactrawrequestSHA/currentcredentialgeneration; confirm_device matches exactbody/receipt beforeCOMMIT.",
+  "storage_and_transitions": {
+    "namespace": "zasp_agent_device_association_v1",
+    "registration": "Immutable singleton compiledNormal/Audit ownchecksum/rawseal/parent identities; exact relation/type/constraint/index/function/trigger/ACL manifest, unexpecteddefaultACL refused beforeseal.",
+    "pairs": "PK(o,w,e,agent_id,device_id); UNIQUE(o,w,e,association_id). PairID deterministic existing zasp_discovery_canonical_id namespace agent_device_association withexact[agentID,DeviceID], application recordonly. No parent FK alias/newentity. version0 initially; active state none|admitted|revoked; activefields nullablebeforefirstadmission.",
+    "challenges": "PK(o,w,e,challenge_id); own FKpair same scope; immutable wire/hash/sourceidentity+originalsnapshot/author/expectedpairversion/expiry. Partial UNIQUE(o,w,e,association_id) WHEREstate IN(pending_device,pending_human) ensures one live pending candidate. Replacing intent explicitly expires/supersedes prior candidate underpairlock before insert; oldnonce terminal.",
+    "acceptances": "PK(o,w,e,challenge_id), exactcurrentDevicecredentialID/generation/rawrequestdigest/acceptedtime/expiry/accepted_tx. Immutable except own terminal challenge state; conflictingrawrequest or generation refuses, no crossgeneration coalescing.",
+    "human_receipts": "PK(o,w,e,actor,operation,idempotency_key); requestdigest32 +exact generatedmaterial snapshot+result+created_tx/recordedtime. Existing identical canonicalintent returnsoriginalreceipt only afterfreshauthority; changeddigest conflict. Canonicaluserintent excludesgenerated IDs/nonce/expiry, includesop/scope/actor/path/body/TTL/expectedversion.",
+    "indexes": "Only primary/unique constraints above plus pageindex(o,w,e,agent_id,association_id COLLATE C) and challenge pairing index(o,w,e,association_id,created_at,challenge_id); boundedtyped lookup, no parent indexes/grants. Full proposed function/index definitions require source review, not fake model inference.",
+    "intent": "Compareexpected pairversion underlock, no increment and NOactiveassociation. Initialpairversion0; new candidate canreplacepending whileactive config remains. Exactreplayedoldintent neverresurrects oldcandidate.",
+    "accept": "pending_device\u2192pending_human only, pairversionunchanged. Acceptedcurrentcredentialgeneration fixed. Expired/superseded/revoked candidates terminal; accept cannot renew expiry.",
+    "activate": "Freshsamecreator and livepending_human with exactpairversion\u2192version+1,stateadmitted; candidate consumed, olderpending superseded; atomically replace activebinding onlynow. Newlyrotated/expired Device gen or changedsource identity refuses.",
+    "revoke": "CASversion\u2192version+1 evenversion0 pending-only; state revoked, invalidateALLpending+activepair in sameTX. No cancelpending-only operation in thisbatch. Newfutureintent requiresnewversion; explicitnew3phase canreadmit.",
+    "author_revocation": "Pendingcreator losingpermission/session blocksfinalphase. Completedhistoricalconfig persists afterauthor losesrights; noongoingaccessgranted. Explicitrevoke terminal; Device revoke/credentialrotation/expiry/sourceunavailability computedlive denycurrentavailability."
+  },
+  "lock_and_transaction_order": {
+    "human_actual": "ActualauthorizedQueryJSON invokes original80fence BEFOREcustomSQL:79organization FORUPDATE \u2192membership/session identityFORSHARE \u2192Agent source_rows FORSHARE. Preserve this real order, do not pretend org/device-first afterthefact. AdditivecustomSQL never UPDATEAgent/annotations and doesNOTupgradeAgent lock.",
+    "human_additional": "After already-held org/identity/Agent locks: same nativeDevice advisory\u2192currentDevice/credential rows\u2192ownpair\u2192challenge\u2192ownreceipt in fixedorder. P1 usesDevice expectation as scopedrow constraint, not Device-managementauthority. Revalidate current proof/identity/revision/source/pin afterwaits; finalizerchecksoriginalauthor/currentcredentialgen/nonce.",
+    "device": "Read nativeauthoritywithoutlocking to derivescope; acquireexisting current80gateway organizationFORUPDATE; identifyAgent fromownchallenge and takeexactAgentFORSHARE as identityconstraint only; then nativeDevice advisory/Devicecredential locks; ownpair\u2192challenge\u2192acceptance. Never holdDevice then acquireAgent. Allphases retain originalorg serialization and no parentwrites.",
+    "same_pool": "HumanactualAPI authorization TX: fence\u2192fixedownoperation\u2192strictinternalreceipt\u2192confirm_human\u2192confirmedCOMMIT\u2192HTTPsuccess. Controlactualoriginal gateway-control pool ReadCommitted: verifycurrentsignature\u2192ownaccept\u2192strictreceipt\u2192confirm_device\u2192confirmedCOMMIT. Missingcapability/rollback/unknowncommit/context =>nosuccess, preserveunknownoutcome; no newconnection/credential borrowing.",
+    "last_fences": "AfterALLpotentialrow/advisory/source/catalog waits: repeat currenthumanproof+identity+sourcefreshness or currentnativeDeviceauthority; finalDBclock checks challenge/acceptance/Devicecredentialexpiry and actualrecentbrowser/sessionexpiry. No blockingquery afterfinalclock beforecommit. Existingcurrent79 orglockheld. Independently verify concurrent source/revoke writers under native fixture; no deadlockprooffromunitmodels."
+  },
+  "activation_and_UI": {
+    "API": "ZASP_AGENT_DEVICE_ASSOCIATION_PROFILE_CHECKSUM emptydefaultoff; exactcompiledNormal/Audit pinonly. Newownfeatureavailability probe independent oforiginalAPIhealth. Unknown/unavailableprofile denies/hidesnewops only.",
+    "control": "ZASP_AGENT_DEVICE_ASSOCIATION_ENABLED false +ZASP_AGENT_DEVICE_ASSOCIATION_PROFILE_CHECKSUM exactownpin; signedacceptonly, neverglobalgatewayhealth/policydecision gate.",
+    "migrations": "Exports AgentDeviceAssociationProfileChecksum/AgentDeviceAssociationAuditProfileChecksum/IsAgentDeviceAssociationProfileChecksum and Runner.UpProductionAgentDeviceAssociationProfile/AuditProfile. Commands up-agent-device-association-profile/up-agent-device-association-audit-profile/agent-device-association-profile-checksums. Original registered source-owner/operator creates ownnamespace, boundedauthorityrole definitions/restoration/confirmedcommit, originalparents/grantsunchanged.",
+    "parent_frames": "Exactcurrent79/80/temporal78/current80worker/runtime, typed14Agentidentity/provenance andoriginal15Deviceauthority/lock frames; selectedNormal/Audit variants. Source-principal andcurrentAPI/controlcaller binding+purposepin. No widening oldownershipprofile.",
+    "UI": "RealAgentdetailpanel +generatedclient. GETactualAgentview; can_manage onlyexactAgentcurrentcheck+actualownprofile (notinventory.write,identity.manage org,gateways.manage env). Mutationfreshrecheckalways. Samecreator+currentfreshhuman+liveDeviceacceptedpending are activationprerequisites. GETresume exposesnon-authorizingchallenge; noautomaticPOST/revoke/reissue. Showactivepair separatelyfrompendingreplacement. Revoke labelwholeassociation.",
+    "CLI": "agentsecctl gateway association accept reads exactchallengeenvelope via protectedstdin, existing0600 Device credentialfile; no privatekeyargv/stdout/browser. SignedfixedHTTPSaccept request usingexisting canonicalauth; exactresponse validation. Existinglocalcredentialidentityunchanged; no newenrollment/grants.",
+    "provenance_and_claims": "Metadata-only immutable audit intent/deviceaccept/activate/revoke once pernewreceipt, creator/actualcredentialgen/stablesource/admission/current versions+correlation. Administrative admission/sourcefreshness/currentkeypossession labels only; no covered/healthy/fleet shortcuts."
+  },
+  "grouped_acceptance": [
+    "OwnNormal/Audit installer/defaultACL/rawseal/currentrole admission +oldownership13unchanged; SQLgrammar distinctfromnativeproof.",
+    "Humanintent currentAgentpermission/freshbrowser/PATdenial +canonicalidempotency/onepending/replacement/expiry; sourcewinneridentityandsnapshotretention acrossnormalfreshsync.",
+    "ActualsignedDeviceaccept exactnonce/rawwire/currentgen/crossscope/expiry/replay; samepoolcommitfaults/restart and currentcredentialrotation/revoke afterwait.",
+    "Freshsameauthor activation fullrecheck +pairversion increment +wholepairrevoke; no preservedauthcontextdelegation.",
+    "RealGETHMACpagination/perAgenteligibility/defaultoffprofileisolation +AgentUIreloadunknownintent/CLIaccept/finalactivation/read/revoke; retainactualStytch/provider/native gaps."
+  ],
+  "open_decisions": [],
+  "verification_limits": "Design sourceproposal only; no product code, SQLbody implementation, Go/Node/tests/native/network/Git execution, ledgerpromotion or completionclaim. Requires independentdesignreview, groupedTDD/sourceimplementation, realregisteredNormal/Audit/API/control native acceptance and deployedStytch/provider/browser/Device flows. Originalobservedrouting/fullcoverage requirements remain open."
+}

@@ -16,6 +16,7 @@ import (
 
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	"github.com/zasp-ai/zasp-sec/services/platform/healthserver"
+	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 	runtimeopensearch "github.com/zasp-ai/zasp-sec/services/platform/runtimeindex/opensearchdriver"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeservices"
 )
@@ -26,8 +27,25 @@ var (
 )
 
 type RuntimeConfig struct {
-	RuntimeServices                 runtimeservices.Config
-	SecurityAgentOrderedHTTPEnabled bool
+	GatewayBootstrapProfileChecksum       string
+	AgentDeviceAssociationProfileChecksum string
+	SensorNodeCoverageRetentionEnabled    bool
+	SensorNodeCoverageProfileChecksum     string
+	RetentionProfileChecksum              string
+	OptionalEgressEnabled                 bool
+	AgentOwnerFilterEnabled               bool
+	AgentOwnerFilterProfileChecksum       string
+	AgentReadProfileChecksum              string
+	AgentOwnershipWriteProfileChecksum    string
+	AgentExposureFilterProfileChecksum    string
+	EnvironmentClassEnabled               bool
+	EnvironmentClassProfileChecksum       string
+	OptionalEgressProfileChecksum         string
+	OptionalEgressSettlementDSN           string
+	ConnectorMaintenancePostgresDSN       string
+	ConnectorMaintenanceKeyFile           string
+	RuntimeServices                       runtimeservices.Config
+	SecurityAgentOrderedHTTPEnabled       bool
 
 	EvidenceExportWorkflow         string
 	AttackLabWorkflow              string
@@ -104,6 +122,27 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 	if getenv == nil {
 		return RuntimeConfig{}, errInvalidRuntimeConfig
 	}
+	agentOwnerFilterEnabled := false
+	if value := getenv("ZASP_AGENT_OWNER_FILTER_ENABLED"); value != "" {
+		if value != "true" && value != "false" {
+			return RuntimeConfig{}, errInvalidRuntimeConfig
+		}
+		agentOwnerFilterEnabled = value == "true"
+	}
+	environmentClassEnabled := false
+	if value := getenv("ZASP_ENVIRONMENT_CLASS_ENABLED"); value != "" {
+		if value != "true" && value != "false" {
+			return RuntimeConfig{}, errInvalidRuntimeConfig
+		}
+		environmentClassEnabled = value == "true"
+	}
+	optionalEgressEnabled := false
+	if value := getenv("ZASP_OPTIONAL_EGRESS_ENABLED"); value != "" {
+		if value != "true" && value != "false" {
+			return RuntimeConfig{}, errInvalidRuntimeConfig
+		}
+		optionalEgressEnabled = value == "true"
+	}
 	services, servicesErr := runtimeservices.Load(getenv)
 	if servicesErr != nil {
 		return RuntimeConfig{}, errInvalidRuntimeConfig
@@ -125,6 +164,17 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 	requestRate, requestRateErr := strconv.Atoi(getenv("ZASP_REQUEST_RATE_PER_SECOND"))
 	requestBurst, requestBurstErr := strconv.Atoi(getenv("ZASP_REQUEST_BURST"))
 	config := RuntimeConfig{
+		RetentionProfileChecksum:              getenv("ZASP_RETENTION_PROFILE_CHECKSUM"),
+		AgentReadProfileChecksum:              getenv("ZASP_AGENT_READ_PROFILE_CHECKSUM"),
+		SensorNodeCoverageRetentionEnabled:    getenv("ZASP_SENSOR_NODE_COVERAGE_RETENTION_ENABLED") == "true",
+		GatewayBootstrapProfileChecksum:       getenv("ZASP_GATEWAY_BOOTSTRAP_PROFILE_CHECKSUM"),
+		AgentDeviceAssociationProfileChecksum: getenv("ZASP_AGENT_DEVICE_ASSOCIATION_PROFILE_CHECKSUM"),
+		SensorNodeCoverageProfileChecksum:     getenv("ZASP_SENSOR_NODE_COVERAGE_PROFILE_CHECKSUM"),
+		AgentOwnershipWriteProfileChecksum:    getenv("ZASP_AGENT_OWNERSHIP_WRITE_PROFILE_CHECKSUM"),
+		AgentExposureFilterProfileChecksum:    getenv("ZASP_AGENT_EXPOSURE_FILTER_PROFILE_CHECKSUM"),
+		AgentOwnerFilterEnabled:               agentOwnerFilterEnabled, AgentOwnerFilterProfileChecksum: getenv("ZASP_AGENT_OWNER_FILTER_CHECKSUM"),
+		EnvironmentClassEnabled: environmentClassEnabled, EnvironmentClassProfileChecksum: getenv("ZASP_ENVIRONMENT_CLASS_PROFILE_CHECKSUM"),
+		OptionalEgressEnabled: optionalEgressEnabled, OptionalEgressProfileChecksum: getenv("ZASP_OPTIONAL_EGRESS_PROFILE_CHECKSUM"), OptionalEgressSettlementDSN: getenv("ZASP_OPTIONAL_EGRESS_SETTLEMENT_POSTGRES_DSN"),
 		RuntimeServices:                 services,
 		SecurityAgentOrderedHTTPEnabled: orderedHTTPEnabled,
 
@@ -136,13 +186,16 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 		CookieSecure: cookieSecure, ProviderTimeout: providerTimeout, RequestTimeout: requestTimeout, ShutdownTimeout: shutdownTimeout,
 		ReadinessInterval: readinessInterval, ReadinessMaxInterval: readinessMaxInterval,
 		DiscoveryParserVersion: getenv("ZASP_DISCOVERY_PARSER_VERSION"), DiscoveryToolVersion: getenv("ZASP_DISCOVERY_TOOL_VERSION"),
-		ApprovalMaintenancePostgresDSN: getenv("ZASP_APPROVAL_MAINTENANCE_POSTGRES_DSN"), ApprovalMaintenanceKeyFile: getenv("ZASP_APPROVAL_MAINTENANCE_KEY_FILE"), PostgresDSN: getenv("ZASP_POSTGRES_DSN"), SecurityAgentPostgresDSN: getenv("ZASP_SECURITY_AGENT_POSTGRES_DSN"), StytchBaseURL: getenv("ZASP_STYTCH_BASE_URL"), StytchAuthorizeURL: getenv("ZASP_STYTCH_AUTHORIZE_URL"), StytchProjectID: getenv("ZASP_STYTCH_PROJECT_ID"), StytchSecret: getenv("ZASP_STYTCH_SECRET"), StytchWebhookSecret: getenv("ZASP_STYTCH_WEBHOOK_SECRET"), StytchPublicToken: getenv("ZASP_STYTCH_PUBLIC_TOKEN"), StytchOrganizationID: getenv("ZASP_STYTCH_ORGANIZATION_ID"), WorkflowSigningKey: getenv("ZASP_WORKFLOW_SIGNING_KEY"),
+		ConnectorMaintenancePostgresDSN: getenv("ZASP_CONNECTOR_MAINTENANCE_POSTGRES_DSN"), ConnectorMaintenanceKeyFile: getenv("ZASP_CONNECTOR_MAINTENANCE_KEY_FILE"), ApprovalMaintenancePostgresDSN: getenv("ZASP_APPROVAL_MAINTENANCE_POSTGRES_DSN"), ApprovalMaintenanceKeyFile: getenv("ZASP_APPROVAL_MAINTENANCE_KEY_FILE"), PostgresDSN: getenv("ZASP_POSTGRES_DSN"), SecurityAgentPostgresDSN: getenv("ZASP_SECURITY_AGENT_POSTGRES_DSN"), StytchBaseURL: getenv("ZASP_STYTCH_BASE_URL"), StytchAuthorizeURL: getenv("ZASP_STYTCH_AUTHORIZE_URL"), StytchProjectID: getenv("ZASP_STYTCH_PROJECT_ID"), StytchSecret: getenv("ZASP_STYTCH_SECRET"), StytchWebhookSecret: getenv("ZASP_STYTCH_WEBHOOK_SECRET"), StytchPublicToken: getenv("ZASP_STYTCH_PUBLIC_TOKEN"), StytchOrganizationID: getenv("ZASP_STYTCH_ORGANIZATION_ID"), WorkflowSigningKey: getenv("ZASP_WORKFLOW_SIGNING_KEY"),
 		ConnectorAWSRegion: getenv("ZASP_CONNECTOR_AWS_REGION"), ConnectorRoleARN: getenv("ZASP_CONNECTOR_ROLE_ARN"), ConnectorTokenFile: getenv("ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE"), ConnectorKMSKeyARN: getenv("ZASP_CONNECTOR_KMS_KEY_ARN"), ConnectorSecretPrefix: getenv("ZASP_CONNECTOR_SECRET_PREFIX"),
 		PolicyHistoryEndpoint: getenv("ZASP_POLICY_HISTORY_ENDPOINT"), PolicyHistoryIndex: getenv("ZASP_POLICY_HISTORY_INDEX"),
 		RuntimeSessionIndex:     getenv("ZASP_RUNTIME_SESSION_INDEX"),
 		AWSCustomerRolePrefixes: parseAWSCustomerRolePrefixes(getenv("ZASP_AWS_CUSTOMER_ROLE_PREFIXES")), AWSCustomerRoleARNs: parseAWSCustomerRoleARNs(getenv("ZASP_AWS_CUSTOMER_ROLE_ARNS")), KubernetesEgressCIDRs: parseTrustedProxyCIDRs(getenv("ZASP_KUBERNETES_EGRESS_CIDRS")), FindingTicketEgressCIDRs: parseTrustedProxyCIDRs(getenv("ZASP_FINDING_TICKET_EGRESS_CIDRS")),
 		GitHubClientID: getenv("ZASP_GITHUB_CLIENT_ID"), GitHubSecretReference: getenv("ZASP_GITHUB_CLIENT_SECRET_REFERENCE"), GitHubAppID: getenv("ZASP_GITHUB_APP_ID"), GitHubPrivateKeyReference: getenv("ZASP_GITHUB_PRIVATE_KEY_REFERENCE"), OktaClientID: getenv("ZASP_OKTA_CLIENT_ID"), OktaSecretReference: getenv("ZASP_OKTA_CLIENT_SECRET_REFERENCE"),
 		NangoBaseURL: getenv("ZASP_NANGO_BASE_URL"), NangoServiceSecretReference: getenv("ZASP_NANGO_SERVICE_SECRET_REFERENCE"), NangoEnvironment: getenv("ZASP_NANGO_ENVIRONMENT"),
+	}
+	if value := getenv("ZASP_SENSOR_NODE_COVERAGE_RETENTION_ENABLED"); value != "" && value != "false" && value != "true" {
+		return RuntimeConfig{}, errInvalidRuntimeConfig
 	}
 	revealKey := getenv("ZASP_TOKEN_REVEAL_KEY")
 	decodedRevealKey, revealKeyErr := base64.RawURLEncoding.DecodeString(revealKey)
@@ -156,6 +209,9 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 }
 
 func validRuntimeConfig(config RuntimeConfig) bool {
+	if config.RetentionProfileChecksum != "" && (!config.RuntimeServices.Enabled || config.RetentionProfileChecksum != migrations.RetentionAuditProfileChecksum()) {
+		return false
+	}
 	if config.RuntimeServices.Validate() != nil {
 		return false
 	}
@@ -221,7 +277,7 @@ func validRuntimeConfig(config RuntimeConfig) bool {
 			return false
 		}
 	}
-	if !validRuntimePostgresAuthorities(config.PostgresDSN, config.SecurityAgentPostgresDSN) || !validApprovalMaintenanceRuntimeConfig(config) {
+	if !validRuntimePostgresAuthorities(config.PostgresDSN, config.SecurityAgentPostgresDSN) || !validApprovalMaintenanceRuntimeConfig(config) || !validConnectorMaintenanceRuntimeConfig(config) || !validOptionalEgressRuntimeConfig(config) || !validEnvironmentClassRuntimeConfig(config) || !validAgentOwnerFilterRuntimeConfig(config) || !validAgentReadRuntimeConfig(config) || !validGatewayBootstrapRuntimeConfig(config) || !validAgentDeviceAssociationRuntimeConfig(config) || !validSensorNodeCoverageRuntimeConfig(config) || !validAgentOwnershipWriteRuntimeConfig(config) || !validAgentExposureFilterRuntimeConfig(config) {
 		return false
 	}
 	authorize, authorizeErr := url.Parse(config.StytchAuthorizeURL)

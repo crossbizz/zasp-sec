@@ -1,0 +1,17 @@
+{
+  "decision": "HOLD",
+  "classification": "FINITE_EVIDENCE_PACKAGING_REVIEW_NO_PRODUCT_DEFECT_INFERRED",
+  "checkpoint_sha256": "884eaf24e25a76b9dfa51d0d2be31db7cb92c71b31c5bb0976e6c04e3e78a80f",
+  "archive_sha256": "d4c19736216fc38181088579d26e4d75bd04ea4652038dddb07e043bdab29ad9",
+  "members": 42,
+  "finding": {
+    "member": "recovery-upgrade-publication-package-receipt.json",
+    "archived_bytes": 0,
+    "archived_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "actual_path": "/tmp/node-coverage-retention-evidence-20261017/recovery-upgrade-publication-package-receipt.json",
+    "actual_sha256": "d740db862405f637b83b280e7341160f367e20e72ac20a1215a8713697d8bba4",
+    "reason": "Packager self receipt included before written; other41 originals match exact bytes. Empty scratch member is not identified as predecessor/scratch provenance, so all-current-original member matching claim fails.",
+    "correction": "Preserve first archive/CP/receipt and create successor excluding self receipt, or explicitly label distinct immutable scratch with honest source provenance. Do not rewrite prior review."
+  },
+  "limits": "Source/custody/ledger review continuing separately; no Go/Node/build/tests/Git/network/native execution."
+}

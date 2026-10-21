@@ -1,0 +1,23 @@
+{
+  "scope": "Read-only approval profile identity compatibility assessment; concrete reverting source not yet reviewed",
+  "findings": [],
+  "conclusion": "Installer-only role/bootstrap/column REFERENCES repair does not require a new compiled SQL profile identity. Restore original v2 name and exact original SQL checksum/body to preserve equivalent existing admission safely.",
+  "reasoning": [
+    "Original embedded body is unchanged and newline diagnosis was withdrawn. Final module tables/views/functions retain the same authority owners, ACLs, FORCE RLS policies and definitions after source sealing.",
+    "A v3 comment prefix changes whole-source checksum and checksum-bearing native function bodies despite no intended module behavior change. Current installer/runtime require exact supplied pin, so valid previously installed v2 catalogs become unnecessarily incompatible.",
+    "Bootstrap and explicit authority role transition alter how the fixed original definitions are safely installed; column REFERENCES(id) is an external minimal FK prerequisite already reviewed as excluded from original guard fingerprints. These installer changes belong in Git/source closure pins, not fabricated SQL semantic profileversion."
+  ],
+  "requiredImplementation": [
+    "Restore ApprovalMaintenanceProfileName canonical61-authorization80-approval-maintenance-v2.",
+    "Have guarded source assembly return exact original approvalMaintenanceSQL with no prefix/replacement; strict originalbodySHAe894 validation may remain. Whole-sourcehash returns original e894ab1c8045a23e4055ced58a89af8a795b26ebf8f4518c83caa89de53a269b before placeholder binding.",
+    "Retain role/bootstrap/exactcolumnFK prerequisites, original80 pre/postreadiness, existing whole-body source test and finite diagnosticadapter.",
+    "Existing namespace gets no definitions/registration rewrite. Require same v2checksum and currentfingerprint/catalog plus predecessor readiness. Never overwrite registrationfingerprints or rewrite storednativechecksumfunctions to force admission.",
+    "Keep unpushed/pushedv3proposals and actualfailures as immutable evidence; append compatibilitycorrection and repin32sourceclosure truthfully."
+  ],
+  "limits": [
+    "Validv2 admission retains every originalguard; returning v2does not bless corrupted/incompatible catalogs.",
+    "An already installed v3candidate remains incompatible with v2 unless separately explicitly handled; no v3retirement/migrationequivalence inferred.",
+    "Pendingeb1nativeoutcome is not acceptance and does not determine SQLprofileversion need."
+  ],
+  "verdict": "Conceptually approve preserving v2SQLidentity while keeping reviewed installerrepair. Concrete source diff/pins review still required before nextnormalpush; no native/deployed/productionacceptance."
+}

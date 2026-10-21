@@ -1,0 +1,38 @@
+{{- if .Values.coverageObserver.enabled }}
+{{- $subject := required "coverageObserver.namespace is required" .Values.coverageObserver.namespace }}
+{{- $sa := required "coverageObserver.serviceAccount is required" .Values.coverageObserver.serviceAccount }}
+{{- range $target := list $subject $sa }}
+{{- if not (regexMatch "^[a-z0-9]([a-z0-9.-]{0,61}[a-z0-9])?$" $target) }}{{ fail "coverage observer requires exact named subject" }}{{ end }}
+{{- end }}
+{{- if ne $subject .Release.Namespace }}
+{{- $name := default .Release.Name .Values.tetragon.tetragon.nameOverride | trunc 63 | trimSuffix "-" }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ printf "%s-sensor-observer" .Release.Name | trunc 63 | trimSuffix "-" }}
+  namespace: {{ .Release.Namespace }}
+rules:
+  - apiGroups: [apps]
+    resources: [daemonsets]
+    resourceNames: [{{ $name | quote }}]
+    verbs: [get]
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ printf "%s-sensor-observer" .Release.Name | trunc 63 | trimSuffix "-" }}
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ printf "%s-sensor-observer" .Release.Name | trunc 63 | trimSuffix "-" }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $sa | quote }}
+    namespace: {{ $subject | quote }}
+{{- end }}
+{{- end }}

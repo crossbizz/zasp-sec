@@ -1,0 +1,98 @@
+{
+  "checkpoint": "bounded-native-failure-attribution-2026-10-17",
+  "observedAt": "2026-10-17T02:06:13.596017+00:00",
+  "base": "eafa1d4b39bf56694901f371185146ee03418849",
+  "originMain": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
+  "status": "SOURCE/COMPILATION/GUARDS VERIFIED; ACTUAL APPROVAL AND PKCE CAUSES STILL OPEN",
+  "changes": [
+    "Keep exact native helper failure source lines and closed fixture phase labels so existing bounded metadata can identify the actual failing operation.",
+    "Emit existing preparation-finish live authority observation on missing captured PKCE attempt. Preserve actual assertion and successful-release fallback.",
+    "Add only the two exact existing native helper filenames to bounded sourceLocations. Preserve every acceptance group/case, deadline, authority predicate and source/security guard.",
+    "Refresh all source associations against exact eafa base plus six explicit overlays; exclude unpublished retention implementation."
+  ],
+  "sources": [
+    {
+      "path": "services/platform/apiserver/connector_maintenance_pkce_recovery_test.go",
+      "sha256": "87e4d51d94e1d3176c14dce23a9215b5379aec8399a0cdd87ef5616fef240a1e",
+      "bytes": 21007
+    },
+    {
+      "path": "services/platform/apiserver/approval_maintenance_genuine_enqueue_postgres_test.go",
+      "sha256": "376c63e3b498569d5287f0ebeeaa956de8e62ee25216a3ec8bb55b27a4ec2995",
+      "bytes": 16065
+    },
+    {
+      "path": "services/platform/apiserver/authorization_worker_planning_proof_postgres_test.go",
+      "sha256": "05d5049ad6854c19eaede77eb60b4aa628d26710bdde8fdb56f7dd8de358c743",
+      "bytes": 6588
+    },
+    {
+      "path": "scripts/hosted-connected-connector-acceptance.mjs",
+      "sha256": "410fe8a9e41769dd11739a18c83436f7a053983778149fcd292ca655584abc7c",
+      "bytes": 58533
+    },
+    {
+      "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
+      "sha256": "fdd930db8f4a044ce566942ef996f7b93d2987516cff931f402a74b9a31ef23f",
+      "bytes": 55050
+    },
+    {
+      "path": ".github/connector-native-compile-source-pins.json",
+      "sha256": "26566e8eef27dddc729107994a51ceb32fb878577b6501f739e325c39a2b79f3",
+      "bytes": 61960
+    }
+  ],
+  "verification": {
+    "isolatedCompilationExit": 0,
+    "nativeNamedPass": 0,
+    "nativeNamedSkip": 2,
+    "nativeSkipReason": "Required native PostgreSQL/OpenFGA fixture unavailable locally; no native pass inferred.",
+    "isolatedStrictNodeGuards": {
+      "pass": 11,
+      "fail": 0,
+      "skip": 0,
+      "exit": 0
+    },
+    "sourceSnapshotFiles": 205,
+    "compilerSourcePins": 204,
+    "runnerPrimaryPins": [
+      180,
+      169
+    ],
+    "runnerSupplementalPins": [
+      11,
+      11
+    ],
+    "freshUITypecheckExit": 0,
+    "freshUIBuildExit": 0,
+    "independentSourceAndOverlayReview": "CLEAR"
+  },
+  "observedHostedPredecessor": {
+    "head": "eafa1d4b39bf56694901f371185146ee03418849",
+    "optionalEgressNative": "9 RUN, 9 PASS, 0 FAIL, 0 SKIP; strict outer command accepted",
+    "approval": "16 original planning proof controls pass; parent fails before five activation controls; root cause unavailable in bounded metadata",
+    "pkce": "nil preparation finish can mean successful release, so captured-attempt assertion alone cannot identify branch",
+    "otherGates": "Lifecycle, approval payload/browser and full UI verification failures remain open; no timer extension or authority guard removal."
+  },
+  "retainedFailures": [
+    "Initial shared-workspace Node closure check: 10 PASS, 1 FAIL due unpublished runtime_config hash; subsequent exact intended snapshot passes without relaxing guard.",
+    "All original hosted eafa failures retained; no raw403 logs/artifacts retried."
+  ],
+  "evidence": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/native-diagnostics/verified-batch-evidence.json.gz",
+    "sha256": "d3afff07a09234360046a9f9b066d1b468496fbd2bf5ff290541359a0a0c2cd4",
+    "bytes": 32057,
+    "members": 22,
+    "uncompressedSHA256": "4616621c189992228ec3682eb6410928f57e4d008e20a2c0a187b9cb4aca953d"
+  },
+  "ledger": {
+    "total": 728,
+    "historicalProductionAvailable": 523,
+    "componentOnly": 144,
+    "blockedExternal": 61,
+    "promotions": 0,
+    "rowsReclassified": 0
+  },
+  "scopeQualification": "Goal verification infrastructure only; no original microtask marked complete or promoted. Retention application changes and their component evidence are excluded.",
+  "launch": "Not verified. Requires actual whole required native/browser/release checks plus deployed real Stytch and provider acceptance."
+}

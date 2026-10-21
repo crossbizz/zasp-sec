@@ -1,3 +1,12 @@
+import {normalizeAgentDeviceAssociation,validateAgentDeviceAssociationResources} from "./agent-device-association-profile.mjs";
+import {normalizeGatewayBootstrap,validateGatewayBootstrapResources} from "./gateway-bootstrap-profile.mjs";
+import { normalizeGatewayInstallation, normalizeGatewayInstallationProducer, validateGatewayInstallationResources, validateGatewayInstallationProducerResources } from "./gateway-installation-profile.mjs";
+import { normalizeSensorNodeCoverage, validateSensorNodeCoverageResources, normalizeSensorNodeCoverageProducer, validateSensorNodeCoverageProducerResources } from "./sensor-node-coverage-profile.mjs";
+import { normalizeAgentOwnershipWrite, validateAgentOwnershipWriteResources } from "./agent-ownership-write-profile.mjs";
+import { normalizeAgentExposureFilter, validateAgentExposureFilterResources } from "./agent-exposure-filter-profile.mjs";
+import { normalizeAgentRead, validateAgentReadResources } from "./agent-read-profile.mjs";
+import { normalizeAgentOwnerFilter, validateAgentOwnerFilterResources } from "./agent-owner-filter-profile.mjs";
+import { normalizeEnvironmentClass, validateEnvironmentClassResources } from "./environment-class-profile.mjs";
 import { execFile } from "node:child_process";
 import { createHash, X509Certificate } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -16,6 +25,8 @@ import { normalizeTestReconciler, validateTestReconcilerResources } from "./test
 import { normalizeComplianceExports, validateComplianceExportResources, validateComplianceExportCollisions, complianceExportMigrationCommand } from "./compliance-export-rollout.mjs";
 import { normalizeAuthorizationTemporalProfile, authorizationTemporalMigrationCommands } from "./authorization-temporal-profile.mjs";
 import { validateAuthorizationTemporalResources } from "./authorization-temporal-resources.mjs";
+import { normalizeOptionalEgress, validateOptionalEgressResources } from "./optional-egress-profile.mjs";
+import { normalizeRetention, validateRetentionResources } from "./retention-profile.mjs";
 
 const exec = promisify(execFile);
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -77,10 +88,21 @@ export async function inspectContainerBuilds() {
 }
 
 export async function renderRelease(value, options = { schemaVersion: 49 }) {
-  if (!validRelease(value) || !options || Object.keys(options).some(key => !["schemaVersion", "sessionSearchPhase", "auditExports", "testReconciler", "complianceExports", "attackLabReconciler", "evidenceExportWorkflow", "discoveryScheduleReplayPhase", "runtimeServices", "authorizationTemporal"].includes(key))) throw new Error("release rejected");
+  if (!validRelease(value) || !options || Object.keys(options).some(key => !["schemaVersion", "sessionSearchPhase", "auditExports", "testReconciler", "complianceExports", "attackLabReconciler", "evidenceExportWorkflow", "discoveryScheduleReplayPhase", "runtimeServices", "authorizationTemporal", "optionalEgress", "retentionReferenceExpiry", "environmentClass", "agentOwnerFilter", "agentRead", "agentOwnershipWrite", "agentExposureFilter", "sensorNodeCoverage", "gatewayInstallation", "gatewayBootstrap", "agentDeviceAssociation"].includes(key))) throw new Error("release rejected");
   const platformAccountID = value.discovery.roleArn.match(/^arn:aws:iam::([0-9]{12}):role\//)[1];
   const authorizationTemporal = normalizeAuthorizationTemporalProfile(options.authorizationTemporal, options, platformAccountID);
   const runtimeServices = options.runtimeServices ? structuredClone(options.runtimeServices) : undefined;
+  const optionalEgress = normalizeOptionalEgress(options.optionalEgress, authorizationTemporal, runtimeServices);
+  const environmentClass = normalizeEnvironmentClass(options.environmentClass, authorizationTemporal, runtimeServices);
+  const agentOwnerFilter = normalizeAgentOwnerFilter(options.agentOwnerFilter, authorizationTemporal, runtimeServices);
+  const agentRead = normalizeAgentRead(options.agentRead, authorizationTemporal, runtimeServices);
+  const sensorNodeCoverage = normalizeSensorNodeCoverage(options.sensorNodeCoverage, authorizationTemporal, runtimeServices);
+  const gatewayInstallation = normalizeGatewayInstallation(options.gatewayInstallation, authorizationTemporal, runtimeServices);
+  const gatewayBootstrap = normalizeGatewayBootstrap(options.gatewayBootstrap, authorizationTemporal, runtimeServices);
+  const agentDeviceAssociation = normalizeAgentDeviceAssociation(options.agentDeviceAssociation, authorizationTemporal, runtimeServices);
+  const agentOwnershipWrite = normalizeAgentOwnershipWrite(options.agentOwnershipWrite, authorizationTemporal, runtimeServices);
+  const agentExposureFilter = normalizeAgentExposureFilter(options.agentExposureFilter, authorizationTemporal, runtimeServices);
+  const retention = normalizeRetention(options.retentionReferenceExpiry, authorizationTemporal, runtimeServices);
   if (authorizationTemporal) {
     const roles = Object.values(value).flatMap(section => section && typeof section === "object" ? Object.entries(section).filter(([key]) => /rolearn$/i.test(key)).map(([, role]) => role) : []);
     if (roles.includes(authorizationTemporal.workerRoleArn) || roles.includes(authorizationTemporal.projectorRoleArn) || authorizationTemporal.adapterRoleArn !== value.redTeam.adapterRoleArn) throw new Error("release rejected");
@@ -375,11 +397,11 @@ export async function renderRelease(value, options = { schemaVersion: 49 }) {
   let stdout;
   let exportValuesDirectory;
   try {
-    if (auditExports || testReconciler || complianceExports || attackLabReconciler || options.runtimeServices) {
+    if (auditExports || testReconciler || complianceExports || attackLabReconciler || options.runtimeServices || optionalEgress || retention || environmentClass || agentOwnerFilter || agentRead || agentOwnershipWrite || agentExposureFilter || sensorNodeCoverage || gatewayInstallation || gatewayBootstrap || agentDeviceAssociation) {
       // A complete policy history can exceed the per-argument limit on Linux.
       exportValuesDirectory = await mkdtemp(path.join(tmpdir(), "zasp-audit-export-values-"));
       const exportValuesPath = path.join(exportValuesDirectory, "values.json");
-      await writeFile(exportValuesPath, JSON.stringify({ auditExports, testReconciler, complianceExports, attackLabReconciler, ...(authorizationTemporal ? { authorizationTemporal } : {}), ...(runtimeServices ? { runtimeServices } : {}), ...(evidenceExportWorkflow ? { evidenceExportWorkflow: { enabled: true } } : {}) }), { mode: 0o600 });
+      await writeFile(exportValuesPath, JSON.stringify({ auditExports, testReconciler, complianceExports, attackLabReconciler, ...(authorizationTemporal ? { authorizationTemporal } : {}), ...(optionalEgress ? { optionalEgress } : {}), ...(retention ? { retentionReferenceExpiry: retention } : {}), ...(environmentClass ? { environmentClass } : {}), ...(agentOwnerFilter ? { agentOwnerFilter } : {}), ...(agentRead ? { agentRead } : {}), ...(sensorNodeCoverage ? { sensorNodeCoverage } : {}), ...(gatewayInstallation ? { gatewayInstallation } : {}), ...(gatewayBootstrap ? { gatewayBootstrap } : {}), ...(agentDeviceAssociation ? { agentDeviceAssociation } : {}), ...(agentOwnershipWrite ? { agentOwnershipWrite } : {}), ...(agentExposureFilter ? { agentExposureFilter } : {}), ...(runtimeServices ? { runtimeServices } : {}), ...(evidenceExportWorkflow ? { evidenceExportWorkflow: { enabled: true } } : {}) }), { mode: 0o600 });
       valueArgs.push("--values", exportValuesPath);
     }
     await exec("helm", ["lint", chart, "--namespace", "agentsec", ...valueArgs], { cwd: root, encoding: "utf8", maxBuffer: 4 * 1024 * 1024 });
@@ -396,13 +418,15 @@ export async function renderRelease(value, options = { schemaVersion: 49 }) {
     throw new Error("release rejected");
   }
   if (resources.length < 20 || resources.some((resource) => !resource?.apiVersion || !resource?.kind || !resource?.metadata?.name)) throw new Error("release rejected");
-  validateRenderedRelease(resources, platformAccountID, schemaVersion, sessionSearchPhase, auditExports, testReconciler, complianceExports, attackLabReconciler, evidenceExportWorkflow, discoveryScheduleReplayPhase, authorizationTemporal);
+  validateRenderedRelease(resources, platformAccountID, schemaVersion, sessionSearchPhase, auditExports, testReconciler, complianceExports, attackLabReconciler, evidenceExportWorkflow, discoveryScheduleReplayPhase, authorizationTemporal, optionalEgress, value.securityAgentPlanner.egressCIDRs, retention, environmentClass, agentOwnerFilter, agentRead, agentExposureFilter, agentOwnershipWrite, sensorNodeCoverage, gatewayInstallation, gatewayBootstrap, agentDeviceAssociation);
   return Object.freeze(resources);
 }
 
 export async function renderCustomerEdgeRelease(value, options = {}) {
   if (!validCustomerEdgeRelease(value) || !options || typeof options !== "object" || Array.isArray(options) || Object.keys(options).some(key => key !== "sourceProfile") || options.sourceProfile !== undefined && !["tetragon-local-stream-v2", "tetragon-local-stream-v3"].includes(options.sourceProfile)) throw new Error("edge release rejected");
   const sourceProfile = options.sourceProfile ?? "tetragon-local-stream-v2";
+  const nodeCoverage = normalizeSensorNodeCoverageProducer(value.sensorNodeCoverage);
+  const gatewayInstallation = normalizeGatewayInstallationProducer(value.gatewayInstallation);
   const set = [
     ["sensorAgent.sourceProfile", sourceProfile],
     ["global.productImages.runtimeGateway", value.image],
@@ -430,21 +454,30 @@ export async function renderCustomerEdgeRelease(value, options = {}) {
   const edgeValues = path.join(chart, "values-customer-edge.yaml");
   const valueArgs = [];
   for (const [key, entry] of set) valueArgs.push("--set-string", `${key}=${entry.replaceAll("\\", "\\\\").replaceAll(",", "\\,")}`);
-  let productOutput, tetragonOutput;
+  let productOutput, tetragonOutput, coverageDirectory;
+  const nodeSelector = structuredClone(value.sensorNodeSelector);
   try {
     const tetragonChart = path.join(root, "deploy/staging/tetragon");
     const dependency = await readFile(path.join(tetragonChart, "charts/tetragon-1.7.0.tgz"));
     if (createHash("sha256").update(dependency).digest("hex") !== tetragonChartDigest) throw new Error("tetragon dependency rejected");
+    coverageDirectory = await mkdtemp(path.join(tmpdir(), "zasp-sensor-coverage-values-"));
+    const productCoveragePath = path.join(coverageDirectory,"product.json"), tetragonCoveragePath = path.join(coverageDirectory,"tetragon.json");
+    await writeFile(productCoveragePath,JSON.stringify({runtimeGateway:{installationACKEnabled:gatewayInstallation?.enabled===true},sensorAgent:{nodeCoverageRetentionEnabled:nodeCoverage?.enabled===true,sensorID:nodeCoverage?.sensorID??"",coverage:{clusterUID:value.sensorClusterUID,matchLabels:nodeSelector,tetragonNamespace:"agentsec",tetragonName:"zasp-tetragon",tetragonRelease:"zasp-tetragon",tetragonServiceAccount:"zasp-tetragon"}}}),{mode:0o600});
+    await writeFile(tetragonCoveragePath,JSON.stringify({tetragon:{nodeSelector},coverageObserver:{enabled:true,namespace:"agentsec",serviceAccount:"sensor-agent"}}),{mode:0o600});
+    valueArgs.push("--values",productCoveragePath);
+    const tetragonArgs=["--values",tetragonCoveragePath];
     const results = await Promise.all([
       exec("helm", ["lint", chart, "--namespace", "agentsec", "--values", edgeValues, ...valueArgs], { cwd: root, encoding: "utf8", maxBuffer: 8 * 1024 * 1024 }),
       exec("helm", ["template", "zasp", chart, "--namespace", "agentsec", "--values", edgeValues, ...valueArgs], { cwd: root, encoding: "utf8", maxBuffer: 8 * 1024 * 1024 }),
-      exec("helm", ["lint", tetragonChart, "--namespace", "agentsec"], { cwd: root, encoding: "utf8", maxBuffer: 8 * 1024 * 1024 }),
-      exec("helm", ["template", "zasp-tetragon", tetragonChart, "--namespace", "agentsec"], { cwd: root, encoding: "utf8", maxBuffer: 8 * 1024 * 1024 }),
+      exec("helm", ["lint", tetragonChart, "--namespace", "agentsec", ...tetragonArgs], { cwd: root, encoding: "utf8", maxBuffer: 8 * 1024 * 1024 }),
+      exec("helm", ["template", "zasp-tetragon", tetragonChart, "--namespace", "agentsec", ...tetragonArgs], { cwd: root, encoding: "utf8", maxBuffer: 8 * 1024 * 1024 }),
     ]);
     productOutput = results[1].stdout;
     tetragonOutput = results[3].stdout;
   } catch {
     throw new Error("edge release rejected");
+  } finally {
+    if (coverageDirectory) await rm(coverageDirectory,{recursive:true,force:true});
   }
   const resources = [];
   try {
@@ -453,16 +486,26 @@ export async function renderCustomerEdgeRelease(value, options = {}) {
   } catch {
     throw new Error("edge release rejected");
   }
+  validateSensorNodeCoverageProducerResources(resources,nodeCoverage);
+  validateGatewayInstallationProducerResources(resources,gatewayInstallation);
   const deployments = resources.filter(({ kind }) => kind === "Deployment");
   const daemonSets = resources.filter(({ kind }) => kind === "DaemonSet");
   const accounts = resources.filter(({ kind }) => kind === "ServiceAccount");
   if (resources.length < 20 || resources.some((resource) => !resource?.apiVersion || !resource?.kind || !resource?.metadata?.name) || deployments.length !== 1 || deployments[0].metadata.name !== "runtime-gateway" || daemonSets.length !== 2 || !daemonSets.some(({ metadata }) => metadata.name === "sensor-agent") || !daemonSets.some(({ metadata }) => metadata.name === "zasp-tetragon") || accounts.length !== 3 || !["runtime-gateway", "sensor-agent", "zasp-tetragon"].every((name) => accounts.some(({ metadata }) => metadata.name === name)) || accounts.some(({ metadata }) => metadata.annotations?.["eks.amazonaws.com/role-arn"] !== undefined)) throw new Error("edge release rejected");
+  const sensorDS=resources.find(r=>r.kind==="DaemonSet"&&r.metadata.name==="sensor-agent"), tetragonDS=resources.find(r=>r.kind==="DaemonSet"&&r.metadata.name==="zasp-tetragon");
+  const normalize=v=>JSON.stringify(Object.fromEntries(Object.entries(v??{}).sort(([a],[b])=>a.localeCompare(b))));
+  if(normalize(sensorDS?.spec?.template?.spec?.nodeSelector)!==normalize(nodeSelector)||normalize(tetragonDS?.spec?.template?.spec?.nodeSelector)!==normalize(nodeSelector)) throw new Error("edge release rejected");
+  const role=resources.find(r=>r.kind==="Role"&&r.metadata.name==="sensor-agent");
+  const dsRule=role?.rules?.find(r=>r.apiGroups?.includes("apps")&&r.resources?.includes("daemonsets"));
+  if(!dsRule||JSON.stringify(dsRule.verbs)!==JSON.stringify(["get"])||normalize(dsRule.resourceNames)!==normalize(["sensor-agent","zasp-tetragon"])) throw new Error("edge release rejected");
   return Object.freeze(resources);
 }
 
 function validCustomerEdgeRelease(value) {
-  const keys = ["controlPlaneURL", "image", "sensorImage", "organizationID", "workspaceID", "environmentID", "deviceID", "credentialID", "credentialSecretName", "policyKeysSecretName", "proxyClientTokenSecretName", "proxyUpstreamURL", "sensorTokenSecretName", "sensorEnrollmentBinding", "storageClassName", "controlPlaneCIDRs", "proxyAllowedCIDRs", "kubernetesAPICIDRs", "nodeCIDRs", "stateHostPath"];
-  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).sort().join("\0") !== keys.sort().join("\0") || !digestPattern.test(value.image) || !digestPattern.test(value.sensorImage) || value.image === value.sensorImage) return false;
+  const keys = ["controlPlaneURL", "image", "sensorImage", "organizationID", "workspaceID", "environmentID", "deviceID", "credentialID", "credentialSecretName", "policyKeysSecretName", "proxyClientTokenSecretName", "proxyUpstreamURL", "sensorTokenSecretName", "sensorEnrollmentBinding", "sensorClusterUID", "sensorNodeSelector", "storageClassName", "controlPlaneCIDRs", "proxyAllowedCIDRs", "kubernetesAPICIDRs", "nodeCIDRs", "stateHostPath"];
+  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).filter(key=>!["sensorNodeCoverage","gatewayInstallation"].includes(key)).sort().join("\0") !== keys.sort().join("\0") || !digestPattern.test(value.image) || !digestPattern.test(value.sensorImage) || value.image === value.sensorImage) return false;
+  try { normalizeSensorNodeCoverageProducer(value.sensorNodeCoverage); normalizeGatewayInstallationProducer(value.gatewayInstallation); } catch { return false; }
+  if (typeof value.sensorClusterUID !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(value.sensorClusterUID) || value.sensorClusterUID === "00000000-0000-0000-0000-000000000000" || !value.sensorNodeSelector || Array.isArray(value.sensorNodeSelector) || Object.keys(value.sensorNodeSelector).length < 1 || Object.keys(value.sensorNodeSelector).length > 8 || !Object.entries(value.sensorNodeSelector).every(([k,v]) => /^[A-Za-z0-9./_-]{1,253}$/.test(k) && typeof v === "string" && /^[A-Za-z0-9][A-Za-z0-9_.-]{0,62}$/.test(v))) return false;
   if (typeof value.sensorEnrollmentBinding !== "string" || !/^[0-9a-f]{64}$/.test(value.sensorEnrollmentBinding)) return false;
   if (!/^https:\/\/(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(value.controlPlaneURL)) return false;
   if (![value.organizationID, value.workspaceID, value.environmentID, value.deviceID, value.credentialID].every((identifier) => productIDPattern.test(identifier)) || new Set([value.organizationID, value.workspaceID, value.environmentID, value.deviceID, value.credentialID]).size !== 5) return false;
@@ -566,7 +609,10 @@ function validRelease(value) {
   return value.telemetry.backend === "newrelic" && value.telemetry.endpoint === "https://otlp.nr-data.net";
 }
 
-export function validateRenderedRelease(resources, platformAccountID, schemaVersion = 49, sessionSearchPhase = "compatibility", expectedAuditExports, expectedTestReconciler, expectedComplianceExports, expectedAttackLabReconciler, expectedEvidenceExportWorkflow, discoveryScheduleReplayPhase, authorizationTemporal) {
+export function validateRenderedRelease(resources, platformAccountID, schemaVersion = 49, sessionSearchPhase = "compatibility", expectedAuditExports, expectedTestReconciler, expectedComplianceExports, expectedAttackLabReconciler, expectedEvidenceExportWorkflow, discoveryScheduleReplayPhase, authorizationTemporal, expectedOptionalEgress, expectedOptionalPlannerCIDRs, expectedRetention, expectedEnvironmentClass, expectedAgentOwnerFilter, expectedAgentRead, expectedAgentExposureFilter, expectedAgentOwnershipWrite, expectedSensorNodeCoverage, expectedGatewayInstallation, expectedGatewayBootstrap, expectedAgentDeviceAssociation) {
+  // Standalone callers must provide reviewed provider ranges too; equality
+  // against a simultaneously widened expected/rendered policy is insufficient.
+  if (expectedOptionalEgress?.enabled === true && !validProviderCIDRList(expectedOptionalPlannerCIDRs)) throw new Error("optional egress provider CIDRs rejected");
   const accountPattern = /^[0-9]{12}$/;
   if (!Array.isArray(resources) || !accountPattern.test(platformAccountID) || platformAccountID === "000000000000" || (authorizationTemporal ? schemaVersion !== 61 || sessionSearchPhase !== "precision-intake" || discoveryScheduleReplayPhase !== "active" : !validSessionSearchPhase(schemaVersion, sessionSearchPhase) || !validDiscoveryScheduleReplayPhase(schemaVersion, discoveryScheduleReplayPhase))) throw new Error("release rejected");
   const auditExports = normalizeAuditExports(expectedAuditExports, platformAccountID, schemaVersion, sessionSearchPhase);
@@ -580,6 +626,7 @@ export function validateRenderedRelease(resources, platformAccountID, schemaVers
   validateAuditExportResources(resources, auditExports, schemaVersion, complianceExports, attackLabReconciler);
   const testReconciler = normalizeTestReconciler(expectedTestReconciler, platformAccountID, schemaVersion, sessionSearchPhase);
   validateTestReconcilerResources(resources, testReconciler, schemaVersion);
+  const retention = normalizeRetention(expectedRetention, authorizationTemporal, { enabled: Boolean(authorizationTemporal), taskQueue: resources.find(r=>r.kind==="Deployment"&&r.metadata?.name==="agentsec-api")?.spec?.template?.spec?.containers?.[0]?.env?.find(e=>e.name==="ZASP_TEMPORAL_TASK_QUEUE")?.value, discoveryTaskQueue: resources.find(r=>r.kind==="Deployment"&&r.metadata?.name==="agentsec-api")?.spec?.template?.spec?.containers?.[0]?.env?.find(e=>e.name==="ZASP_TEMPORAL_DISCOVERY_TASK_QUEUE")?.value });
   const deployments = new Map(resources.filter(({ kind }) => kind === "Deployment").map((resource) => [resource.metadata?.name, resource]));
   const deploymentIdentities = new Map([
     ["web", "agentsec-web"],
@@ -615,6 +662,7 @@ export function validateRenderedRelease(resources, platformAccountID, schemaVers
     ["nango", "nango"],
     ["otel-collector", "otel-collector"],
   ]);
+  if (retention?.enabled) deploymentIdentities.set("agentsec-retention-reference-expiry", "zasp-retention-reference-expiry");
   if (sessionSearchPhase !== "compatibility") deploymentIdentities.set("agentsec-runtime-session-index-v2", "zasp-runtime-index");
   if (attackLabReconciler) deploymentIdentities.set("security-agent-attack-lab-reconciler", "security-agent-attack-lab-reconciler");
   if (testReconciler) deploymentIdentities.set("zasp-test-reconciler", "zasp-test-reconciler");
@@ -624,7 +672,7 @@ export function validateRenderedRelease(resources, platformAccountID, schemaVers
     deploymentIdentities.set("zasp-audit-export-outbox", "zasp-audit-export-outbox");
   }
   if (deployments.size !== deploymentIdentities.size || [...deploymentIdentities].some(([name, serviceAccount]) => deployments.get(name)?.spec?.template?.spec?.serviceAccountName !== serviceAccount)) throw new Error("release rejected");
-  validateSessionSearchResources(resources, sessionSearchPhase);
+  validateSessionSearchResources(resources, sessionSearchPhase, retention);
   validateDiscoveryScheduleReplayResources(resources, authorizationTemporal ? 60 : schemaVersion, discoveryScheduleReplayPhase);
   // Pre-stage the compatible reader before a later migration routes new v2 work.
   // A downgraded reader can claim those jobs and exhaust their retry budget.
@@ -689,6 +737,7 @@ export function validateRenderedRelease(resources, platformAccountID, schemaVers
     identityContracts.set("zasp-compliance-export-worker", complianceExports.writerRoleArn);
     identityContracts.set("zasp-compliance-cleanup-worker", complianceExports.cleanupRoleArn);
   }
+  if (retention?.enabled) identityContracts.set("zasp-retention-reference-expiry", null);
   if (accounts.size !== identityContracts.size) throw new Error("release rejected");
   for (const [name, role] of identityContracts) {
     const rendered = accounts.get(name);
@@ -724,7 +773,25 @@ export function validateRenderedRelease(resources, platformAccountID, schemaVers
   if (authorizationTemporal) cronJobIdentities.set("zasp-authorization-projector", "zasp-authorization-projector");
   const cronJobs = resources.filter(({ kind }) => kind === "CronJob");
   if (cronJobs.length !== cronJobIdentities.size || cronJobs.some((resource) => cronJobIdentities.get(resource.metadata?.name) !== resource.spec?.jobTemplate?.spec?.template?.spec?.serviceAccountName)) throw new Error("release rejected");
-  validateAuthorizationTemporalResources(resources, authorizationTemporal, platformAccountID);
+  validateAuthorizationTemporalResources(resources, authorizationTemporal, platformAccountID, retention);
+  const optionalRuntime = { enabled: Boolean(authorizationTemporal), clientSecret: api?.spec?.template?.spec?.volumes?.find(v=>v.name==='runtime-services')?.secret?.secretName };
+  const optionalEgress = normalizeOptionalEgress(expectedOptionalEgress, authorizationTemporal, optionalRuntime);
+  validateOptionalEgressResources(resources, optionalEgress, expectedOptionalPlannerCIDRs);
+  validateRetentionResources(resources, retention, authorizationTemporal);
+  const environmentClass = normalizeEnvironmentClass(expectedEnvironmentClass, authorizationTemporal, optionalRuntime);
+  validateEnvironmentClassResources(resources, environmentClass);
+  const agentOwnerFilter = normalizeAgentOwnerFilter(expectedAgentOwnerFilter, authorizationTemporal, optionalRuntime);
+  validateAgentOwnerFilterResources(resources, agentOwnerFilter);
+  const agentRead = normalizeAgentRead(expectedAgentRead, authorizationTemporal, optionalRuntime);
+  validateAgentReadResources(resources, agentRead);
+  validateSensorNodeCoverageResources(resources, normalizeSensorNodeCoverage(expectedSensorNodeCoverage, authorizationTemporal, optionalRuntime));
+  validateGatewayInstallationResources(resources, normalizeGatewayInstallation(expectedGatewayInstallation, authorizationTemporal, optionalRuntime));
+  validateGatewayBootstrapResources(resources, normalizeGatewayBootstrap(expectedGatewayBootstrap, authorizationTemporal, optionalRuntime));
+  validateAgentDeviceAssociationResources(resources, normalizeAgentDeviceAssociation(expectedAgentDeviceAssociation, authorizationTemporal, optionalRuntime));
+  const agentOwnershipWrite = normalizeAgentOwnershipWrite(expectedAgentOwnershipWrite, authorizationTemporal, optionalRuntime);
+  validateAgentOwnershipWriteResources(resources, agentOwnershipWrite);
+  const agentExposureFilter = normalizeAgentExposureFilter(expectedAgentExposureFilter, authorizationTemporal, optionalRuntime);
+  validateAgentExposureFilterResources(resources, agentExposureFilter);
   return Object.freeze({ deployments: deployments.size, identities: accounts.size, platformAccountID });
 }
 

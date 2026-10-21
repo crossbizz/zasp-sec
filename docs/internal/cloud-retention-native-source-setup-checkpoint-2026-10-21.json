@@ -1,0 +1,66 @@
+{
+  "classification": "RETENTION_NATIVE_FIXTURE_SOURCE_CORRECTION_PENDING_HOSTED_NATIVE_ACCEPTANCE",
+  "observed_at": "2026-10-21T12:06:34.889584+00:00",
+  "starting_SHA": "f6d335897a628eb4ec05e34878dfdda311db4ba4",
+  "fetched_main_SHA": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
+  "required_ancestor": "e13ccb95451b03107681ccb59b3fc6fe175a228f",
+  "task_mapping": {
+    "M7-19": "Correct owned source-role setup so native retention guard can test actual intended noninheriting operator; original production flow remains component-only and unaccepted."
+  },
+  "observed_RED": "Exactf6d33589check119200757721 retentionnative no-effective-CREATE guard failed before installation; SQLSTATE3F000 in later subtest is secondary absentprofile. PostgreSQL toolsmoke and sourcepins matched. No rawlog/artifact denial bypassed.",
+  "source_correction": "Create ownedsourceSUPERUSER NOINHERIT before canonical0010 grant; PostgreSQL16+ membership option otherwise remains inherited after late roleNOINHERIT. Strengthen existing directmembershipadmin/set/noninherit and effectiveMEMBER/SET/noUSAGE assertion. Original no-effectiveCREATE guard and all runtime/catalog/cutover/refusal logic retained. ImmutablecanonicalSQL/runtimepermissions unchanged. Existing environment_class_postgres_test.go documents same semantics.",
+  "actual_verification": {
+    "gofmt": "PASS source formatting and gitdiffcheck",
+    "source_guards": "21PASS0FAIL0SKIP; all926manifestbytes/hashes and bothliteral source maps match; samepaths/order/preimage fields retained; only3boundhashes changed",
+    "typecheck": "npm run typecheck exit0",
+    "production_build": "npm run build exit0 complete5vinextstages and standaloneoutput",
+    "scoped_lint": "eslint on2changedJSrunnerfiles exit0",
+    "independent_review": {
+      "result": "CLEAR",
+      "sha256": "48d789020c8263a33f2c3002fcfc1936da1a86c333c02e1abdb57170ec46eb4c",
+      "all4frozenfilehashes_match": true
+    },
+    "native_GREEN": "NOTRUN locally and NOTESTABLISHED. Original OPA/nativeadmission limitations preserved. Hosted native rerun required on pushed candidate before acceptance. This push prepares reviewable source correction; it is not a verified native-flow completion.",
+    "full_verify_provider_deployed": "NOTRUN or claimed; hostedbrowser still approval-reconciler deadline, releasegroup6failures1skip, realprovider/Stytchdeployedacceptance open."
+  },
+  "ledger": {
+    "total": 728,
+    "statuses": {
+      "Complete": 667,
+      "Blocked": 61
+    },
+    "production_classes": {
+      "production-available": 509,
+      "component-only": 158,
+      "blocked/external": 61
+    },
+    "changed_evidence_rows": [
+      "M7-19"
+    ],
+    "all_other_fields_unchanged": true,
+    "availability_promotions": 0,
+    "tasks_closed": 0,
+    "beforeSHA256": "5b33e242a5b3bbd5e494474a92772905f3924fa69f271618fc48053d82d28087",
+    "afterSHA256": "5a86328f53a968b87f37d941b258c11aed5314a05e66f1f97938c2b47cdbc8e1"
+  },
+  "readiness": "Cloud runtime running/connected/enforced, noTCPgrants/VPN, no added productconfiguration or native authority. Runtime skill rechecked. Superpowers unavailable, previously read official upstream groupedTDD/reviewworkflow followed; this correction has actual hostedRED and sourcechecks, nativeGREEN remains external.",
+  "remaining_critical_path": [
+    "Hosted retention PostgreSQL/OpenFGA native acceptance of source correction; no privilegegate relaxation.",
+    "Browser constructor exact SQL/cleanup/budget step diagnostic needed; no proven new sourcebug and no timeout increase/authoritycache applied.",
+    "Release gate sanitized failingstage needed; no proven stale documentation/imagecontract, Helm unavailable.",
+    "Implement current signedwebhook execution/capturedsettlement and all other originalrequirements, then realStytch/provider deployedacceptance and verifiedobsolete retirement."
+  ],
+  "evidence": {
+    "path": "docs/internal/cloud-retention-native-source-setup-evidence-2026-10-21.tar.gz",
+    "sha256": "1085372816700db3f10a14ec72724acd28bcfd413fe9f5390675a72ba75b0634",
+    "bytes": 466928,
+    "members": 30,
+    "verification": "All memberbytes verified, payloadmanifest included, checkpointexcluded selfreference; originalRED preserved."
+  },
+  "launch_ready": false,
+  "goal_complete": false,
+  "task_closed": false,
+  "availability_promoted": false,
+  "obsolete_retired": false,
+  "merge_release_cleared": false
+}

@@ -1,0 +1,1992 @@
+name: Connector native draft compilation
+
+on:
+  pull_request:
+    paths:
+      - 'services/platform/**'
+      - 'services/gateway-control/**'
+      - 'services/runtime-gateway/**'
+      - 'services/health/**'
+      - 'services/sensor-agent/**'
+      - 'cmd/agentsecctl/**'
+      - 'deploy/production/**'
+      - 'deploy/staging/**'
+      - 'app/**'
+      - 'apps/web/api/**'
+      - 'openapi/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'scripts/validate_agent_read_components.py'
+      - 'scripts/validate_agent_read_components_test.py'
+      - '.github/workflows/connector-native-draft-compile.yml'
+      - '.github/connector-native-compile-source-pins.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compile:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      GOTOOLCHAIN: local
+      GOWORK: 'off'
+      GOFLAGS: '-mod=readonly'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: 1.26.8
+          cache: false
+      - name: Check frozen source association and absence of activation configuration
+        run: |
+          test "$(go version)" = 'go version go1.26.8 linux/amd64'
+          test -z "${ZASP_CONNECTOR_MAINTENANCE_PROFILE_CHECKSUM:-}"
+          test -z "${ZASP_CONNECTOR_MAINTENANCE_POSTGRES_DSN:-}"
+          test -z "${ZASP_CONNECTOR_MAINTENANCE_KEY_FILE:-}"
+          test -z "${ZASP_RETENTION_PROFILE_CHECKSUM:-}"
+          test -z "${ZASP_RETENTION_JOURNAL_PROFILE_CHECKSUM:-}"
+          test -z "${ZASP_RETENTION_CONFIGURATION_FILE:-}"
+          python3 - <<'PYVERIFY'
+          import hashlib, json
+          from pathlib import Path
+          source = json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())
+          assert len(source['sources']) == 926
+          for item in source['sources']:
+              raw = Path(item['path']).read_bytes()
+              assert len(raw) == item['bytes']
+              assert hashlib.sha256(raw).hexdigest() == item['sha256'], item['path']
+          PYVERIFY
+      - name: Compile nineteen affected packages without executing test binaries
+        run: |
+          output=$(mktemp -d "${RUNNER_TEMP}/connector-native-compile.XXXXXX")
+          for package in connectormaintenance connectormaintenancecutover authorization approvalmaintenance apiserver agentsec-api agentsec-worker runtimeservices migrations optionalegress agentsec-migrate cmd/zasp-authorization-reconcile cmd/zasp-controlled-maintenance-cutover cmd/zasp-maintenance-register runtimeevent runtimeindex runtimeindex/opensearchdriver policy/opensearchhistory orchestration; do
+            echo "::group::Compile $package"
+            name=${package//\//-}
+            go test -C services/platform -race -p 1 -c -o "$output/$name.test" "./$package"
+            echo '::endgroup::'
+          done
+          git diff --exit-code -- services/platform services/health
+      - name: Atomic connector and retained writer journal application contracts
+        timeout-minutes: 5
+        run: |
+          python3 - <<'PYJOURNALAPPLICATION'
+          import hashlib, json, subprocess, tempfile
+          from pathlib import Path
+          base = 'github.com/zasp-ai/zasp-sec/services/platform/'
+          groups = {
+              'connectormaintenance': {
+                  'TestAtomicConnectorObservation': ['#00', 'before_pending', 'user', 'service', 'wrong_model', 'after_source', 'after_revision', 'after_expiry', 'after_error'],
+                  'TestAtomicObservationStoredValues': ['exact_stored_pair', 'unknown_outer_field', 'internal_disposition', 'missing_revision', 'foreign_organization', 'pending_projection', 'unknown_nested_field', 'wrong_source_pin', 'null_facts'],
+                  'TestAtomicObservationDatabaseFailureClasses': ['expired_or_changed_lease', 'missing_original_task', 'current_source_or_permission_denied'],
+              },
+              'runtimeindex': {'TestRetainedJournalClaimCrashAndOneUseBoundaries': ['reserve', 'unknown_commit', 'replay', 'confirmed']},
+              'runtimeindex/opensearchdriver': {'TestRetainedJournalAtActualSerializedBulkBoundary': [family+'/'+outcome for family in ['raw', 'session-v1', 'session-v2'] for outcome in ['created', 'known_conflict', 'lost_acknowledgement', 'truncated_response', 'reserve_failure', 'unknown_claim', 'replay_claim', 'append_failure']]},
+              'agentsec-worker': {
+                  'TestRetainedWorkerJournalArtifactCommitAndCapturedBoundaries': ['confirmed', 'uncertain_put', 'changed_pinned_bytes', 'claim_unknown', 'late_captured', 'suppressed_zero_request'],
+                  'TestRetainedWriterJournalExactUnknownCommitRecovery': [operation+'/'+mode for operation in ['begin_execution', 'admit_execution', 'reserve_request', 'claim_send', 'append_terminal', 'close_inventory', 'seal_partition'] for mode in ['exact', 'mismatch', 'lookup_unavailable']],
+              },
+              'agentsec-migrate': {'TestRetentionJournalOperatorBoundary': []},
+              'migrations': {'TestRetentionJournalCompiledClosureAndInstaller': [], 'TestRetentionJournalRawSealHasNoReadinessRecursion': []},
+          }
+          expected = {(base+package, name): {'run': 0, 'pass': 0} for package, tops in groups.items() for top, children in tops.items() for name in [top]+[top+'/'+child for child in children]}
+          assert len(groups) == 6 and sum(len(tops) for tops in groups.values()) == 10 and len(expected) == 86
+          def check_sources():
+              source = json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())
+              assert len(source['sources']) == 926
+              for item in source['sources']:
+                  raw = Path(item['path']).read_bytes()
+                  assert len(raw) == item['bytes'] and hashlib.sha256(raw).hexdigest() == item['sha256'], item['path']
+          check_sources()
+          names = [name for tops in groups.values() for name in tops]
+          with tempfile.TemporaryFile() as output, tempfile.TemporaryFile() as errors:
+              result = subprocess.run(['go', 'test', '-C', 'services/platform', '-race', '-p=1', '-count=1', '-timeout=2m', '-json', '-run', '^('+'|'.join(names)+')$']+['./'+package for package in groups], stdout=output, stderr=errors, timeout=180)
+              assert output.tell() <= 8*1024*1024 and errors.tell() <= 1024*1024, 'output bounds exceeded'
+              output.seek(0)
+              package_pass = {base+package: 0 for package in groups}
+              valid = True
+              for line in output:
+                  event = json.loads(line)
+                  package, name, action = event.get('Package'), event.get('Test'), event.get('Action')
+                  if package not in package_pass or action not in ['start', 'run', 'output', 'pass']:
+                      valid = False
+                      continue
+                  if name is None:
+                      if action == 'pass':
+                          package_pass[package] += 1
+                      continue
+                  key = (package, name)
+                  if key not in expected:
+                      valid = False
+                  elif action in expected[key]:
+                      expected[key][action] += 1
+              missing = sum(count != {'run': 1, 'pass': 1} for count in expected.values())
+              print('::notice title=Connector and journal application contracts::packages='+str(len(groups))+'; tops='+str(len(names))+'; named='+str(len(expected))+'; missingOrDuplicate='+str(missing)+'; validEvents='+str(valid)+'; exit='+str(result.returncode)+'. Component application checks only; no native SQL or deployed provider acceptance.')
+              assert result.returncode == 0 and valid and not missing and all(count == 1 for count in package_pass.values()), 'connector/journal application group refused'
+          check_sources()
+          PYJOURNALAPPLICATION
+      - name: Compiled source pin retains fresh connector authorization
+        timeout-minutes: 5
+        run: go test -C services/platform -race -p=1 -count=1 -timeout=2m -run '^TestCompiledPinKeepsFreshConnectorAuthority$' ./connectormaintenance
+      - name: Existing connector handler and reconciler application regressions
+        timeout-minutes: 5
+        run: |
+          python3 - <<'PYAPPLICATION'
+          import hashlib, json, subprocess, tempfile
+          from pathlib import Path
+          pins = {'services/platform/apiserver/approval_projection_visibility_test.go': 'b8f964ffe558539a52e1fca5c97cac4f7add6e366b18a88f0e6682e72def526b', 'services/platform/apiserver/approval_activation_failure_observation_test.go': 'd521fb9a290f1969ea355e5d95632f6777132a21f86eade1f18a5db1b47d7d18', 'services/platform/apiserver/approval_activation_future_family_test.go': 'baf589a10beee3b81ee430757a81adb06ab255be992f7cd75bb1896c3c265158', 'services/platform/apiserver/connector_maintenance_failure_observation_test.go': '38e59d1e256423bda47285786edcd4ecbb1f95fb32a85153559e9ce65aabb36f', 'services/platform/apiserver/connector_handler_test.go': 'e62ba6a2e46a3c3b3b60a662d24b92f0ba4a1b409d3ed0c4f5d1d4ff0f23d80f', 'services/platform/apiserver/connector_reconciler_test.go': 'e8bcdefa818f3467c58f51a79085e48a3b2b2c89db40ce8a8fb6c2c0f3862309'}
+          names = ['TestApprovalImmediateGrantSetPermissionCases', 'TestApprovalActivationFailureObservationBoundaries', 'TestApprovalActivationFutureFixtureSeamsAreClosed', 'TestConnectorMaintenanceFailureObservationBoundaries', 'TestConnectorPreparationFailureStagesAreClosed', 'TestConnectorCallbackRecoveryApplicationBoundaries', 'TestConnectorMaintenanceRecoveryDecodeBoundaries', 'TestConnectorMaintenanceCallbackExecutionBoundaries', 'TestConnectorMaintenanceCallbackAdmissionReservesBeforeConsume', 'TestConnectorAuthorizeActivatesDurablePKCECleanupAfterRejectedStart', 'TestConnectorAuthorizeDurablyStagesCleanupBeforeCreatingPKCE', 'TestConnectorAuthorizeActivatesAtomicPKCECleanupWhenProviderURLFails', 'TestConnectorAuthorizeBindsPublicLongTailKeyToPrivateProviderAuthority', 'TestConnectorCallbackCompletesLongTailAgainstPrivateAuthority', 'TestConnectorCallbackMarksEffectUnknownBeforeProviderAndRetainsRecoveryAfterPersistenceFailure', 'TestConnectorAuthorizeCreatesStateBoundPKCEAttemptWithoutSecretResponse', 'TestConnectorOAuthCallbackConsumesStateBeforeProviderAndRedirectsSafely', 'TestConnectorCallbackRejectsChangedIntentAfterConsumingStateAndDestroysVerifier', 'TestConnectorCallbackDoesNotReportIntentConflictUntilConsumedAttemptCleanupIsDurable', 'TestConnectorCallbackLeavesDurableCleanupPendingWhenDiscardFails', 'TestConnectorQuarantineRemediationRequiresFreshExactIntentAndReturnsDurableReceipt', 'TestConnectorQuarantineRemediationLostResponseReplaysBeforeHistoricalLookup', 'TestConnectorOktaRevocationRemediationDoesNotRequireOAuthEffectManifest', 'TestConnectorCallbackReplayNeverCallsProvider', 'TestConnectorCallbackConsumesFixedProviderDenialWithoutExchange', 'TestConnectorReconcilerDispatchesNextHealthyLaneWithoutWaitingForSlowSibling', 'TestConnectorReconcilerShutdownDoesNotWaitIndefinitelyForHostileProvider', 'TestConnectorReconcilerProviderFailuresDoNotBackOffGlobalClaims', 'TestConnectorReconcilerRecoversDurableOutcomeWithoutRepeatingProviderEffect', 'TestConnectorReconcilerRecoversLongTailOutcomeFromTenantBoundAuthority', 'TestConnectorReconcilerNeverRejectsUnknownOutcomeOnTransientWorkflowFailure', 'TestConnectorReconcilerNeverRejectsUnknownOutcomeOnProviderReadinessFailure', 'TestConnectorReconcilerRetriesPostCompletionCleanupWithoutRecoveringOrExchanging', 'TestConnectorReconcilerQuarantinesFinalAttemptCleanupAndRevocationFailures', 'TestConnectorReconcilerDefersAmbiguousCompletionAndQuarantinesOtherFinalAttemptFailures', 'TestConnectorReconcilerDeletesExpiredPKCEUnderLiveLease', 'TestConnectorReconcilerDrainsClaimAfterOneProviderFailure', 'TestConnectorReconcilerProcessesSlowProvidersWithoutStarvingOtherLeases', 'TestConnectorReconciliationBatchDoesNotCollapseDistinctNangoProviders', 'TestConnectorReconcilerReservesLiveLeaseTimeForFinalAttemptQuarantine', 'TestConnectorReconcilerQuarantinesExpiredFinalAttemptBeforeProviderWork', 'TestConnectorReconcilerConfirmsProviderRevocationBeforeLocalTerminalState', 'TestConnectorReconcilerRevokesLongTailConnectionWithTenantBinding', 'TestConnectorReconcilerRejectsChangedAuthorizationIntentAndRunCancels', 'TestConnectorReconcilerNeverFailsUnknownEffectWithoutPositiveProviderCleanup', 'TestCurrentAuthorizationHealthProbeCancellationAndAdmission', 'TestCurrentAuthorizationHealthProbeScope', 'TestP7AuthorizationConstructorPrincipal', 'TestP7AuthorizationTransactionBoundary', 'TestP7GuardedRuntimeReadinessAdapter']
+          for file, pin in pins.items():
+              assert hashlib.sha256(Path(file).read_bytes()).hexdigest() == pin, file
+          with tempfile.TemporaryFile() as output, tempfile.TemporaryFile() as errors:
+              result = subprocess.run(['go', 'test', '-C', 'services/platform', '-race', '-p=1', '-count=1', '-timeout=2m', '-json', '-run', '^('+'|'.join(names)+')$', './apiserver'], stdout=output, stderr=errors, timeout=180)
+              assert output.tell() <= 8*1024*1024 and errors.tell() <= 1024*1024, 'output bounds exceeded'
+              output.seek(0)
+              counts = {name: {'run': 0, 'pass': 0, 'fail': 0, 'skip': 0} for name in names}
+              package_pass = 0
+              for line in output:
+                  event = json.loads(line)
+                  name, action = event.get('Test'), event.get('Action')
+                  if name in counts and action in counts[name]:
+                      counts[name][action] += 1
+                  if name is None and action == 'pass':
+                      package_pass += 1
+              failed = [name for name, value in counts.items() if value != {'run': 1, 'pass': 1, 'fail': 0, 'skip': 0}]
+              print('::notice title=Existing connector application regressions::tops='+str(len(names))+'; failedOrUnobserved='+','.join(failed)+'; exit='+str(result.returncode)+'. Component application checks only; no native lifecycle or deployment acceptance.')
+              assert result.returncode == 0 and package_pass == 1 and not failed, 'existing application group refused'
+          for file, pin in pins.items():
+              assert hashlib.sha256(Path(file).read_bytes()).hexdigest() == pin, file
+          PYAPPLICATION
+      - name: Current authorization health probe integration group
+        timeout-minutes: 5
+        run: go test -C services/platform -race -p=1 -count=1 -timeout=2m -run '^(TestCurrentReadinessPipelineStartsAllIndependentMetadata|TestLegacyReadinessNeverStartsPreviousAfterAuthorizationRefusal|TestOwnedReadinessDiagnosticPreservesGateAndClosedOutput|TestP7GuardedRuntimeReadinessCallback|TestP7GuardedRuntimeReadinessStartupGate|TestServiceRefusalIdentityAndNoMetadataArePreserved|TestStartupAuthorizationUsesIndependentParentBudget|TestStartupAuthorizationFreshBudgetRemainsFailClosed|TestInitialAuthorizationReadinessForwardsOnlyExistingRoleOutcomes)$' ./agentsec-api
+      - name: Controlled cutover model and writer application group
+        timeout-minutes: 5
+        run: go test -C services/platform -race -p=1 -count=1 -timeout=2m -run '^(TestControlledPrepareRefusalStages|TestControlledActivateRefusalStages|TestControlledModelReadbackCompatibility|TestControlledModelSDKReadbackBoundary|TestControlledModelReadbackRejectsAlteredDefaults)$' ./connectormaintenancecutover
+      - name: Guarded inactive maintenance profile commands
+        timeout-minutes: 5
+        run: go test -C services/platform -race -p=1 -count=1 -timeout=2m -run '^(TestAuthorizationRuntimeProfilePlan|TestAuthorizationRuntimeWorkerSelectsExplicitAuditRecipe|TestAuthorizationWorkerProfileCommand|TestMaintenanceProfileExplicitCommands|TestMaintenanceProfilePostInstallCatalogOnly)$' ./agentsec-migrate
+      - name: Connected maintenance installer and operator application group
+        timeout-minutes: 5
+        run: go test -C services/platform -race -p=1 -count=1 -timeout=2m -run '^(TestApprovalActivation.*|TestRegistration.*|TestContinueHandshake|TestCompiledPins.*|TestHoldProtocol)$' ./migrations ./authorization ./runtimeservices ./cmd/zasp-controlled-maintenance-cutover ./cmd/zasp-maintenance-register ./cmd/zasp-authorization-reconcile
+      - name: Temporal worker activated configuration and signing boundaries
+        timeout-minutes: 5
+        run: go test -C services/platform -race -p=1 -count=1 -timeout=2m -run '^(TestTemporalWorkerRetainsExplicitApprovalActivationSelection|TestOrderedSigningRuntimeRejectsWrongVerifierMount|TestOrderedSigningRuntimeReadsVerifierMount|TestComposeWorkerRuntimeMountsOnlyProductionReadyModes)$' ./agentsec-worker
+      - name: Audited captured settlement and runtime selection boundaries
+        timeout-minutes: 5
+        run: go test -C services/platform -race -p=1 -count=1 -timeout=2m -run '^(TestApprovalSettlementAuditProfileBoundaries|TestApprovalSettlementAuditInstallerTransactions|TestSettlementAuditSelectionRequiresOriginalAndAdditiveCatalog|TestSettlementAuditCapturedDispatchNeverReauthorizesOrFallsBack|TestApprovalSettlementRuntimeSelectionHasNoFallback|TestMaintenanceProfileExplicitCommands|TestMaintenanceProfilePostInstallCatalogOnly)$' ./migrations ./approvalmaintenance ./agentsec-api ./agentsec-migrate
+      - name: Existing whole approval source pin verification
+        timeout-minutes: 5
+        run: go test -C services/platform -race -p=1 -count=1 -timeout=2m -run '^TestApprovalMaintenanceSourcePinBindsWholeSupplementaryBody$' ./migrations
+      # No production configuration, database start, activation, credential
+      # issuance or native lifecycle admission is performed by this workflow.
+
+  connected-preflight:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GOTOOLCHAIN: local
+      GOWORK: 'off'
+      GOFLAGS: '-mod=readonly'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: 1.26.8
+          cache: false
+      - name: Verify connected preflight source custody
+        run: |
+          python3 - <<'PYPREFLIGHT'
+          import hashlib, json
+          from pathlib import Path
+          pins = json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())['sources']
+          for item in pins:
+              raw = Path(item['path']).read_bytes()
+              assert len(raw) == item['bytes'] and hashlib.sha256(raw).hexdigest() == item['sha256'], item['path']
+          PYPREFLIGHT
+      - name: Actual SDK protocol and credential boundary application checks
+        timeout-minutes: 5
+        run: go test -C services/platform -race -p=1 -count=1 -timeout=2m ./cloudreadiness ./preflight
+      - name: Read-only compiled PostgreSQL profile observation contracts
+        timeout-minutes: 2
+        run: go test -C services/platform -race -p=1 -count=1 -timeout=90s -run '^TestReadOnlyPreflightCurrentProfile$' ./migrations
+      - name: Full CLI application regressions and explicit offline compatibility
+        timeout-minutes: 3
+        run: go test -C cmd/agentsecctl -race -p=1 -count=1 -timeout=2m ./...
+      - name: Keep consumed source and module metadata unchanged
+        run: git diff --exit-code -- cmd/agentsecctl services/platform services/health
+
+  selected-node-observation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GOTOOLCHAIN: local
+      GOWORK: 'off'
+      GOFLAGS: '-mod=readonly'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: 1.26.8
+          cache: false
+      - name: Verify selected-node application source custody
+        run: |
+          python3 - <<'PYSENSOR'
+          import hashlib, json
+          from pathlib import Path
+          for item in json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())['sources']:
+              raw = Path(item['path']).read_bytes()
+              assert len(raw) == item['bytes'] and hashlib.sha256(raw).hexdigest() == item['sha256'], item['path']
+          PYSENSOR
+      - name: Selected-node adapter application regressions
+        timeout-minutes: 5
+        run: go test -C services/platform -race -p=1 -count=1 -timeout=2m ./sensoradapter
+      - name: Sensor application regressions with original fixture permissions
+        timeout-minutes: 5
+        run: |
+          umask 0027
+          go test -C services/sensor-agent -race -p=1 -count=1 -timeout=2m ./...
+      - name: Keep consumed sensor and module source unchanged
+        run: git diff --exit-code -- services/sensor-agent services/platform services/health
+
+  connected-opensearch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GOTOOLCHAIN: local
+      GOWORK: 'off'
+      GOFLAGS: '-mod=readonly'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: 1.26.8
+          cache: false
+      - name: Verify connected OpenSearch source custody
+        run: |
+          python3 - <<'PYOPENSEARCH'
+          import hashlib, json
+          from pathlib import Path
+          for item in json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())['sources']:
+              raw = Path(item['path']).read_bytes()
+              assert len(raw) == item['bytes'] and hashlib.sha256(raw).hexdigest() == item['sha256'], item['path']
+          PYOPENSEARCH
+      - name: Canonical driver and read-only schema observer regressions
+        timeout-minutes: 5
+        run: go test -C services/platform -race -p=1 -count=1 -timeout=2m ./runtimeindex/opensearchdriver ./inventorysearch/opensearchdriver
+      - name: Connected domain and selected-workload schema application checks
+        timeout-minutes: 5
+        run: go test -C services/platform -race -p=1 -count=1 -timeout=2m -run '^TestOpenSearch' ./preflight
+      - name: Keep consumed OpenSearch and module source unchanged
+        run: git diff --exit-code -- services/platform cmd/agentsecctl services/health
+
+  connected-fargate-configuration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GOTOOLCHAIN: local
+      GOWORK: 'off'
+      GOFLAGS: '-mod=readonly'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: 1.26.8
+          cache: false
+      - name: Verify connected Fargate configuration source custody
+        run: |
+          python3 - <<'PYFARGATE'
+          import hashlib, json
+          from pathlib import Path
+          for item in json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())['sources']:
+              raw = Path(item['path']).read_bytes()
+              assert len(raw) == item['bytes'] and hashlib.sha256(raw).hexdigest() == item['sha256'], item['path']
+          PYFARGATE
+      - name: Connected Fargate configuration application checks
+        timeout-minutes: 5
+        run: go test -C services/platform -race -p=1 -count=1 -timeout=2m -run '^TestAttackLab' ./cloudreadiness ./preflight
+      - name: Original worker Kubernetes readiness and refusal controls
+        timeout-minutes: 5
+        run: go test -C services/platform -race -p=1 -count=1 -timeout=2m -run '^TestProductionAttackLabKubernetesAPIReadiness(CollectsAndUIDFencesCleanup|RejectsPrivilegeAndEgressDrift)$' ./agentsec-worker
+      - name: Keep consumed Fargate configuration and module source unchanged
+        run: git diff --exit-code -- services/platform cmd/agentsecctl services/health
+
+  optional-egress-operator-components:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GOTOOLCHAIN: local
+      GOWORK: 'off'
+      GOFLAGS: '-mod=readonly'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version: 1.26.8
+          cache: false
+      - name: Check frozen optional egress source custody
+        run: |
+          python3 - <<'PYMAINTENANCE'
+          import hashlib,json
+          from pathlib import Path
+          for item in json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())['sources']:
+              raw=Path(item['path']).read_bytes()
+              assert len(raw)==item['bytes'] and hashlib.sha256(raw).hexdigest()==item['sha256'],item['path']
+          PYMAINTENANCE
+      - name: Require every optional egress installer and actual CLI confirmation component
+        timeout-minutes: 8
+        run: |
+          go test -C services/platform -race -p=1 -count=1 -timeout=3m -json -run '^TestOptionalEgress(ProfileSealsAndAdmissionBoundaries|InstallerTransactions|InstallerNoInheritRoleWindows|ConfirmationUsesActualBoundedAuthorityPath)$' ./migrations ./agentsec-migrate > optional-egress-operator-components.jsonl
+          python3 - <<'PYMAINTENANCECASES'
+          import json
+          from pathlib import Path
+          expected = {'migrations': ['TestOptionalEgressInstallerNoInheritRoleWindows/normal/none', 'TestOptionalEgressInstallerNoInheritRoleWindows/normal/registered_source_login', 'TestOptionalEgressInstallerNoInheritRoleWindows/audit/none', 'TestOptionalEgressInstallerNoInheritRoleWindows/audit/registered_source_login', 'TestOptionalEgressInstallerNoInheritRoleWindows', 'TestOptionalEgressProfileSealsAndAdmissionBoundaries', 'TestOptionalEgressInstallerTransactions'], 'agentsec-migrate': ['TestOptionalEgressConfirmationUsesActualBoundedAuthorityPath', 'TestOptionalEgressConfirmationUsesActualBoundedAuthorityPath/up-optional-egress-profile', 'TestOptionalEgressConfirmationUsesActualBoundedAuthorityPath/up-optional-egress-profile/accepted', 'TestOptionalEgressConfirmationUsesActualBoundedAuthorityPath/up-optional-egress-profile/catalog-refused', 'TestOptionalEgressConfirmationUsesActualBoundedAuthorityPath/up-optional-egress-profile/uncertain-commit', 'TestOptionalEgressConfirmationUsesActualBoundedAuthorityPath/up-optional-egress-profile/canceled', 'TestOptionalEgressConfirmationUsesActualBoundedAuthorityPath/up-optional-egress-audit-profile', 'TestOptionalEgressConfirmationUsesActualBoundedAuthorityPath/up-optional-egress-audit-profile/accepted', 'TestOptionalEgressConfirmationUsesActualBoundedAuthorityPath/up-optional-egress-audit-profile/catalog-refused', 'TestOptionalEgressConfirmationUsesActualBoundedAuthorityPath/up-optional-egress-audit-profile/uncertain-commit', 'TestOptionalEgressConfirmationUsesActualBoundedAuthorityPath/up-optional-egress-audit-profile/canceled']}
+          prefix='github.com/zasp-ai/zasp-sec/services/platform/'
+          events=[json.loads(line) for line in Path('optional-egress-operator-components.jsonl').read_text().splitlines() if line.strip()]
+          assert not any(e.get('Action') in ('skip','fail','build-fail') for e in events)
+          assert all(e.get('Package') in {prefix+p for p in expected} for e in events)
+          for package,names in expected.items():
+              rows=[e for e in events if e.get('Package')==prefix+package]
+              for action in ('run','pass'):
+                  actual=[e['Test'] for e in rows if e.get('Action')==action and e.get('Test')]
+                  assert sorted(actual)==sorted(names), (package,action)
+              assert sum(e.get('Action')=='pass' and not e.get('Test') for e in rows)==1
+          PYMAINTENANCECASES
+      - name: Keep consumed optional egress source unchanged
+        run: git diff --exit-code -- services/platform .github scripts
+
+  installer-binding-authority-components:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GOTOOLCHAIN: local
+      GOWORK: 'off'
+      GOFLAGS: '-mod=readonly'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version: 1.26.8
+          cache: false
+      - name: Check frozen installer binding source custody
+        run: |
+          python3 - <<'PYMAINTENANCE'
+          import hashlib,json
+          from pathlib import Path
+          for item in json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())['sources']:
+              raw=Path(item['path']).read_bytes()
+              assert len(raw)==item['bytes'] and hashlib.sha256(raw).hexdigest()==item['sha256'],item['path']
+          PYMAINTENANCE
+      - name: Require every registered installer binding and owner role component
+        timeout-minutes: 8
+        run: |
+          go test -C services/platform -race -p=1 -count=1 -timeout=3m -json -run '^Test(MaintenanceInstallerNoInheritRoleWindows|MaintenanceReferenceRoleWindowsAndRollback|OptionalEgressInstallerNoInheritRoleWindows|InstallerBindingRefusalUsesBoundedAuthorityBeforeOwnerDDL|EnvironmentClassBindingAdmissionExistingProfile)$' ./migrations > installer-binding-authority-components.jsonl
+          python3 - <<'PYMAINTENANCECASES'
+          import json
+          from pathlib import Path
+          expected = {'migrations': ['TestInstallerBindingRefusalUsesBoundedAuthorityBeforeOwnerDDL', 'TestInstallerBindingRefusalUsesBoundedAuthorityBeforeOwnerDDL/approval', 'TestInstallerBindingRefusalUsesBoundedAuthorityBeforeOwnerDDL/connector', 'TestInstallerBindingRefusalUsesBoundedAuthorityBeforeOwnerDDL/activation', 'TestInstallerBindingRefusalUsesBoundedAuthorityBeforeOwnerDDL/settlement', 'TestInstallerBindingRefusalUsesBoundedAuthorityBeforeOwnerDDL/optional-normal', 'TestInstallerBindingRefusalUsesBoundedAuthorityBeforeOwnerDDL/optional-audit', 'TestInstallerBindingRefusalUsesBoundedAuthorityBeforeOwnerDDL/class-normal', 'TestInstallerBindingRefusalUsesBoundedAuthorityBeforeOwnerDDL/class-audit', 'TestEnvironmentClassBindingAdmissionExistingProfile', 'TestEnvironmentClassBindingAdmissionExistingProfile/class-normal/none', 'TestEnvironmentClassBindingAdmissionExistingProfile/class-normal/registered_source_login', 'TestEnvironmentClassBindingAdmissionExistingProfile/class-audit/none', 'TestEnvironmentClassBindingAdmissionExistingProfile/class-audit/registered_source_login', 'TestMaintenanceInstallerNoInheritRoleWindows', 'TestMaintenanceInstallerNoInheritRoleWindows/approval/none', 'TestMaintenanceInstallerNoInheritRoleWindows/approval/registered_source_owner', 'TestMaintenanceInstallerNoInheritRoleWindows/connector/none', 'TestMaintenanceInstallerNoInheritRoleWindows/connector/registered_source_owner', 'TestMaintenanceInstallerNoInheritRoleWindows/activation/none', 'TestMaintenanceInstallerNoInheritRoleWindows/activation/registered_source_owner', 'TestMaintenanceInstallerNoInheritRoleWindows/settlement/none', 'TestMaintenanceInstallerNoInheritRoleWindows/settlement/registered_source_owner', 'TestMaintenanceReferenceRoleWindowsAndRollback', 'TestMaintenanceReferenceRoleWindowsAndRollback/none', 'TestMaintenanceReferenceRoleWindowsAndRollback/registered_source_owner', 'TestMaintenanceReferenceRoleWindowsAndRollback/parent-denied', 'TestMaintenanceReferenceRoleWindowsAndRollback/restore-denied', 'TestMaintenanceReferenceRoleWindowsAndRollback/restored-identity-drift', 'TestOptionalEgressInstallerNoInheritRoleWindows', 'TestOptionalEgressInstallerNoInheritRoleWindows/normal/none', 'TestOptionalEgressInstallerNoInheritRoleWindows/normal/registered_source_login', 'TestOptionalEgressInstallerNoInheritRoleWindows/audit/none', 'TestOptionalEgressInstallerNoInheritRoleWindows/audit/registered_source_login']}
+          prefix='github.com/zasp-ai/zasp-sec/services/platform/'
+          events=[json.loads(line) for line in Path('installer-binding-authority-components.jsonl').read_text().splitlines() if line.strip()]
+          assert not any(e.get('Action') in ('skip','fail','build-fail') for e in events)
+          assert all(e.get('Package') in {prefix+p for p in expected} for e in events)
+          for package,names in expected.items():
+              rows=[e for e in events if e.get('Package')==prefix+package]
+              for action in ('run','pass'):
+                  actual=[e['Test'] for e in rows if e.get('Action')==action and e.get('Test')]
+                  assert sorted(actual)==sorted(names), (package,action)
+              assert sum(e.get('Action')=='pass' and not e.get('Test') for e in rows)==1
+          PYMAINTENANCECASES
+      - name: Keep consumed installer binding source unchanged
+        run: git diff --exit-code -- services/platform .github scripts
+
+  cli-principal-preflight-components:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      GOTOOLCHAIN: local
+      GOWORK: 'off'
+      GOFLAGS: '-mod=readonly'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version: 1.26.8
+          cache: false
+      - name: Check frozen principal preflight source custody
+        run: |
+          python3 - <<'PYMAINTENANCE'
+          import hashlib,json
+          from pathlib import Path
+          for item in json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())['sources']:
+              raw=Path(item['path']).read_bytes()
+              assert len(raw)==item['bytes'] and hashlib.sha256(raw).hexdigest()==item['sha256'],item['path']
+          PYMAINTENANCE
+      - name: Require every principal preflight transaction control component
+        timeout-minutes: 8
+        run: |
+          go test -C services/platform -race -p=1 -count=1 -timeout=3m -json -run '^TestPrincipalPreflight' ./agentsec-migrate > cli-principal-preflight-components.jsonl
+          python3 - <<'PYMAINTENANCECASES'
+          import json
+          from pathlib import Path
+          expected = {'agentsec-migrate': ['TestPrincipalPreflightPreservesBindingInBoundedAuthorityTransaction', 'TestPrincipalPreflightPreservesBindingInBoundedAuthorityTransaction/accepted', 'TestPrincipalPreflightPreservesBindingInBoundedAuthorityTransaction/binding-denied', 'TestPrincipalPreflightPreservesBindingInBoundedAuthorityTransaction/wrong-session', 'TestPrincipalPreflightPreservesBindingInBoundedAuthorityTransaction/canceled', 'TestPrincipalPreflightPreservesBindingInBoundedAuthorityTransaction/begin-refused', 'TestPrincipalPreflightPreservesBindingInBoundedAuthorityTransaction/role-refused', 'TestPrincipalPreflightPreservesBindingInBoundedAuthorityTransaction/uncertain-commit', 'TestPrincipalPreflightPreservesBindingInBoundedAuthorityTransaction/nil-transaction', 'TestPrincipalPreflightRejectsUnknownNontransactionalAndTypedNilQueryers', 'TestPrincipalPreflightActualMaintenanceDispatchFollowsConfirmedCommit', 'TestPrincipalPreflightActualMaintenanceDispatchFollowsConfirmedCommit/accepted', 'TestPrincipalPreflightActualMaintenanceDispatchFollowsConfirmedCommit/binding-denied', 'TestPrincipalPreflightActualMaintenanceDispatchFollowsConfirmedCommit/uncertain-commit']}
+          prefix='github.com/zasp-ai/zasp-sec/services/platform/'
+          events=[json.loads(line) for line in Path('cli-principal-preflight-components.jsonl').read_text().splitlines() if line.strip()]
+          assert not any(e.get('Action') in ('skip','fail','build-fail') for e in events)
+          assert all(e.get('Package') in {prefix+p for p in expected} for e in events)
+          for package,names in expected.items():
+              rows=[e for e in events if e.get('Package')==prefix+package]
+              for action in ('run','pass'):
+                  actual=[e['Test'] for e in rows if e.get('Action')==action and e.get('Test')]
+                  assert sorted(actual)==sorted(names), (package,action)
+              assert sum(e.get('Action')=='pass' and not e.get('Test') for e in rows)==1
+          PYMAINTENANCECASES
+      - name: Retain existing profile and inner diagnostic consumer regressions
+        timeout-minutes: 8
+        run: |
+          go test -C services/platform -race -p=1 -count=1 -timeout=3m -json -run '^(TestAuthorizationAuditProfileCommands|TestIdentityProfileCommands|TestAuthorizationTemporalProfileCommand|TestAuthorizationWorkerProfileCommand|TestAuthorizationRuntimeWorkerSelectsExplicitAuditRecipe|TestAuthorizationRuntimeProfileInnerFailureDiagnostic|TestAuthorizationRuntimeProfileInnerSuccessOrder|TestMaintenanceProfileExplicitCommands|TestOptionalEgressExplicitMigrationRecipes|TestEnvironmentClassExplicitMigrationRecipes|TestRetentionOperatorRecipeAndClosedInputs)$' ./agentsec-migrate > principal-preflight-consumers.jsonl
+          python3 - <<'PYPRINCIPALCONSUMERS'
+          import json
+          from pathlib import Path
+          names=['TestAuthorizationAuditProfileCommands', 'TestIdentityProfileCommands', 'TestAuthorizationTemporalProfileCommand', 'TestAuthorizationWorkerProfileCommand', 'TestAuthorizationRuntimeWorkerSelectsExplicitAuditRecipe', 'TestAuthorizationRuntimeProfileInnerFailureDiagnostic', 'TestAuthorizationRuntimeProfileInnerSuccessOrder', 'TestMaintenanceProfileExplicitCommands', 'TestOptionalEgressExplicitMigrationRecipes', 'TestEnvironmentClassExplicitMigrationRecipes', 'TestRetentionOperatorRecipeAndClosedInputs']
+          package='github.com/zasp-ai/zasp-sec/services/platform/agentsec-migrate'
+          rows=[json.loads(line) for line in Path('principal-preflight-consumers.jsonl').read_text().splitlines() if line.strip()]
+          assert rows and all(e.get('Package')==package and e.get('Action') in ('start','run','output','pass') for e in rows)
+          assert all(not e.get('Test') or any(e['Test']==n or e['Test'].startswith(n+'/') for n in names) for e in rows)
+          for action in ('run','pass'):
+              tops=[e['Test'] for e in rows if e.get('Action')==action and e.get('Test') and '/' not in e['Test']]
+              assert sorted(tops)==sorted(names)
+              cases=[e['Test'] for e in rows if e.get('Action')==action and e.get('Test')]
+              assert len(cases)==len(set(cases))
+          assert sorted(e['Test'] for e in rows if e.get('Action')=='run' and e.get('Test'))==sorted(e['Test'] for e in rows if e.get('Action')=='pass' and e.get('Test'))
+          assert sum(e.get('Action')=='pass' and not e.get('Test') for e in rows)==1
+          PYPRINCIPALCONSUMERS
+      - name: Keep consumed principal preflight source unchanged
+        run: git diff --exit-code -- services/platform .github scripts
+
+  temporal-confirmation-components:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GOTOOLCHAIN: local
+      GOWORK: 'off'
+      GOFLAGS: '-mod=readonly'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version: 1.26.8
+          cache: false
+      - name: Check frozen Temporal confirmation source custody
+        run: |
+          python3 - <<'PYMAINTENANCE'
+          import hashlib,json
+          from pathlib import Path
+          for item in json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())['sources']:
+              raw=Path(item['path']).read_bytes()
+              assert len(raw)==item['bytes'] and hashlib.sha256(raw).hexdigest()==item['sha256'],item['path']
+          PYMAINTENANCE
+      - name: Require every Temporal confirmation and inner ordering component
+        timeout-minutes: 8
+        run: |
+          go test -C services/platform -race -p=1 -count=1 -timeout=3m -json -run '^Test(TemporalConfirmation|TemporalForwardReadiness)' ./agentsec-migrate > temporal-confirmation-components.jsonl
+          python3 - <<'PYMAINTENANCECASES'
+          import json
+          from pathlib import Path
+          expected = {'agentsec-migrate': ['TestTemporalConfirmationUsesActualBoundedAuthorityPath', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-domain', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-domain/accepted', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-domain/catalog-refused', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-domain/uncertain-commit', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-domain/canceled', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-domain/missing-closed-begin', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-executor', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-executor/accepted', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-executor/catalog-refused', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-executor/uncertain-commit', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-executor/canceled', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-executor/missing-closed-begin', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-workflow', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-workflow/accepted', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-workflow/catalog-refused', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-workflow/uncertain-commit', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-workflow/canceled', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-workflow/missing-closed-begin', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-compatibility', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-compatibility/accepted', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-compatibility/catalog-refused', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-compatibility/uncertain-commit', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-compatibility/canceled', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-compatibility/missing-closed-begin', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-legacy-tests', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-legacy-tests/accepted', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-legacy-tests/catalog-refused', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-legacy-tests/uncertain-commit', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-legacy-tests/canceled', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-legacy-tests/missing-closed-begin', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-discovery', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-discovery/accepted', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-discovery/catalog-refused', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-discovery/uncertain-commit', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-discovery/canceled', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-discovery/missing-closed-begin', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-admission', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-admission/accepted', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-admission/catalog-refused', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-admission/uncertain-commit', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-admission/canceled', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-admission/missing-closed-begin', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-test-executor', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-test-executor/accepted', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-test-executor/catalog-refused', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-test-executor/uncertain-commit', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-test-executor/canceled', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-test-executor/missing-closed-begin', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-test-selector', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-test-selector/accepted', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-test-selector/catalog-refused', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-test-selector/uncertain-commit', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-test-selector/canceled', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-test-selector/missing-closed-begin', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-human-admission', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-human-admission/accepted', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-human-admission/catalog-refused', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-human-admission/uncertain-commit', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-human-admission/canceled', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-human-admission/missing-closed-begin', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-automatic-sources', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-automatic-sources/accepted', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-automatic-sources/catalog-refused', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-automatic-sources/uncertain-commit', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-automatic-sources/canceled', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-automatic-sources/missing-closed-begin', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-finding-response', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-finding-response/accepted', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-finding-response/catalog-refused', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-finding-response/uncertain-commit', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-finding-response/canceled', 'TestTemporalConfirmationUsesActualBoundedAuthorityPath/up-temporal-finding-response/missing-closed-begin', 'TestTemporalConfirmationRetainsExcludedLegacyFallbacks', 'TestTemporalConfirmationRetainsExcludedLegacyFallbacks/up-temporal-outbox', 'TestTemporalConfirmationRetainsExcludedLegacyFallbacks/up-temporal-ownership', 'TestTemporalConfirmationActualInnerLoopCommitAndFailureOrder', 'TestTemporalConfirmationActualInnerLoopCommitAndFailureOrder/accepted', 'TestTemporalConfirmationActualInnerLoopCommitAndFailureOrder/domain-catalog', 'TestTemporalConfirmationActualInnerLoopCommitAndFailureOrder/test-executor-commit', 'TestTemporalConfirmationActualInnerLoopCommitAndFailureOrder/finding-response-catalog', 'TestTemporalForwardReadinessDoesNotBuildAncestorSQL', 'TestTemporalForwardReadinessSourceIdentities', 'TestTemporalForwardReadinessSourceIdentities/up-temporal-domain', 'TestTemporalForwardReadinessSourceIdentities/up-temporal-executor', 'TestTemporalForwardReadinessSourceIdentities/up-temporal-workflow', 'TestTemporalForwardReadinessSourceIdentities/up-temporal-compatibility', 'TestTemporalForwardReadinessSourceIdentities/up-temporal-legacy-tests', 'TestTemporalForwardReadinessSourceIdentities/up-temporal-discovery', 'TestTemporalForwardReadinessSourceIdentities/up-temporal-admission', 'TestTemporalForwardReadinessSourceIdentities/up-temporal-test-executor', 'TestTemporalForwardReadinessSourceIdentities/up-temporal-test-selector', 'TestTemporalForwardReadinessSourceIdentities/up-temporal-human-admission']}
+          prefix='github.com/zasp-ai/zasp-sec/services/platform/'
+          events=[json.loads(line) for line in Path('temporal-confirmation-components.jsonl').read_text().splitlines() if line.strip()]
+          assert events and all(e.get('Action') in ('start','run','output','pass') for e in events)
+          assert not any(e.get('Action') in ('skip','fail','build-fail') for e in events)
+          assert all(e.get('Package') in {prefix+p for p in expected} for e in events)
+          for package,names in expected.items():
+              rows=[e for e in events if e.get('Package')==prefix+package]
+              for action in ('run','pass'):
+                  actual=[e['Test'] for e in rows if e.get('Action')==action and e.get('Test')]
+                  assert sorted(actual)==sorted(names), (package,action)
+              assert sum(e.get('Action')=='pass' and not e.get('Test') for e in rows)==1
+          PYMAINTENANCECASES
+      - name: Keep consumed Temporal confirmation source unchanged
+        run: git diff --exit-code -- services/platform .github scripts
+
+  featureflag-server-cache-components:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GOTOOLCHAIN: local
+      GOWORK: 'off'
+      GOFLAGS: '-mod=readonly'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version: 1.26.8
+          cache: false
+      - name: Check frozen feature flag cache source custody
+        run: |
+          python3 - <<'PYMAINTENANCE'
+          import hashlib,json
+          from pathlib import Path
+          for item in json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())['sources']:
+              raw=Path(item['path']).read_bytes()
+              assert len(raw)==item['bytes'] and hashlib.sha256(raw).hexdigest()==item['sha256'],item['path']
+          PYMAINTENANCE
+      - name: Require all scoped cache, defaults, expiry and cancellation components
+        timeout-minutes: 8
+        run: |
+          go test -C services/platform -race -p=1 -count=1 -timeout=3m -json ./featureflags > featureflag-server-cache-components.jsonl
+          python3 - <<'PYCACHECASES'
+          import json
+          from pathlib import Path
+          expected=['TestEvaluatorAcceptsExactConfigurationLimits', 'TestEvaluatorAcceptsExactKeyGrammar', 'TestEvaluatorAcceptsExactKeyGrammar/a', 'TestEvaluatorAcceptsExactKeyGrammar/aaaaaaaaaaaaaaaaaaaaaaaa', 'TestEvaluatorAcceptsExactKeyGrammar/experiment_2', 'TestEvaluatorAcceptsExactKeyGrammar/launch-darkly', 'TestEvaluatorAcceptsExactKeyGrammar/ui.flag', 'TestEvaluatorDoesNotMislabelProviderValueEqualToDefault', 'TestEvaluatorDoesNotMislabelProviderValueEqualToDefault/disabled', 'TestEvaluatorDoesNotMislabelProviderValueEqualToDefault/enabled', 'TestEvaluatorFallsBackOnCancellationAndDeadline', 'TestEvaluatorFallsBackOnUnavailableOrMalformedDriverState', 'TestEvaluatorFallsBackOnUnavailableOrMalformedDriverState/driver_error_default=false', 'TestEvaluatorFallsBackOnUnavailableOrMalformedDriverState/driver_error_default=true', 'TestEvaluatorFallsBackOnUnavailableOrMalformedDriverState/driver_panic_default=false', 'TestEvaluatorFallsBackOnUnavailableOrMalformedDriverState/driver_panic_default=true', 'TestEvaluatorFallsBackOnUnavailableOrMalformedDriverState/empty_success_default=false', 'TestEvaluatorFallsBackOnUnavailableOrMalformedDriverState/empty_success_default=true', 'TestEvaluatorFallsBackOnUnavailableOrMalformedDriverState/environment_drift_default=false', 'TestEvaluatorFallsBackOnUnavailableOrMalformedDriverState/environment_drift_default=true', 'TestEvaluatorFallsBackOnUnavailableOrMalformedDriverState/key_drift_default=false', 'TestEvaluatorFallsBackOnUnavailableOrMalformedDriverState/key_drift_default=true', 'TestEvaluatorFallsBackOnUnavailableOrMalformedDriverState/miss_with_age_default=false', 'TestEvaluatorFallsBackOnUnavailableOrMalformedDriverState/miss_with_age_default=true', 'TestEvaluatorFallsBackOnUnavailableOrMalformedDriverState/negative_hit_age_default=false', 'TestEvaluatorFallsBackOnUnavailableOrMalformedDriverState/negative_hit_age_default=true', 'TestEvaluatorFallsBackOnUnavailableOrMalformedDriverState/organization_drift_default=false', 'TestEvaluatorFallsBackOnUnavailableOrMalformedDriverState/organization_drift_default=true', 'TestEvaluatorFallsBackOnUnavailableOrMalformedDriverState/over-age_hit_default=false', 'TestEvaluatorFallsBackOnUnavailableOrMalformedDriverState/over-age_hit_default=true', 'TestEvaluatorFallsBackOnUnavailableOrMalformedDriverState/workspace_drift_default=false', 'TestEvaluatorFallsBackOnUnavailableOrMalformedDriverState/workspace_drift_default=true', 'TestEvaluatorKeepsConcurrentDefaultsIsolated', 'TestEvaluatorRejectsInvalidConstruction', 'TestEvaluatorRejectsInvalidConstruction/cache_age_over_limit', 'TestEvaluatorRejectsInvalidConstruction/negative_cache_age', 'TestEvaluatorRejectsInvalidConstruction/negative_timeout', 'TestEvaluatorRejectsInvalidConstruction/nil_driver', 'TestEvaluatorRejectsInvalidConstruction/timeout_over_limit', 'TestEvaluatorRejectsInvalidConstruction/typed_nil_driver', 'TestEvaluatorRejectsInvalidConstruction/zero_maximum_cache_age', 'TestEvaluatorRejectsInvalidConstruction/zero_timeout', 'TestEvaluatorRejectsInvalidRequestBeforeIO', 'TestEvaluatorRejectsInvalidRequestBeforeIO/invalid_key_0', 'TestEvaluatorRejectsInvalidRequestBeforeIO/invalid_key_1', 'TestEvaluatorRejectsInvalidRequestBeforeIO/invalid_key_10', 'TestEvaluatorRejectsInvalidRequestBeforeIO/invalid_key_11', 'TestEvaluatorRejectsInvalidRequestBeforeIO/invalid_key_2', 'TestEvaluatorRejectsInvalidRequestBeforeIO/invalid_key_3', 'TestEvaluatorRejectsInvalidRequestBeforeIO/invalid_key_4', 'TestEvaluatorRejectsInvalidRequestBeforeIO/invalid_key_5', 'TestEvaluatorRejectsInvalidRequestBeforeIO/invalid_key_6', 'TestEvaluatorRejectsInvalidRequestBeforeIO/invalid_key_7', 'TestEvaluatorRejectsInvalidRequestBeforeIO/invalid_key_8', 'TestEvaluatorRejectsInvalidRequestBeforeIO/invalid_key_9', 'TestEvaluatorRejectsInvalidRequestBeforeIO/zero_scope', 'TestEvaluatorRejectsNilContextAndUnusableReceiver', 'TestEvaluatorRequiresExplicitCodeDefaultBeforeIO', 'TestEvaluatorRequiresExplicitCodeDefaultBeforeIO/missing', 'TestEvaluatorRequiresExplicitCodeDefaultBeforeIO/unknown', 'TestEvaluatorReturnsExactScopedProviderDecision', 'TestServerFlagCacheBackwardObservationInvalidatesPreviouslyAgedDecision', 'TestServerFlagCacheBoundedLRUEvictsOldestUntouchedDecision', 'TestServerFlagCacheConcurrentWarmHitsRemainScoped', 'TestServerFlagCacheExpiryRetainsProviderAgeAndRefusesStaleOutage', 'TestServerFlagCacheNeverCachesUnavailableDefaults', 'TestServerFlagCacheRechecksCancellationDuringLookupAndStore', 'TestServerFlagCacheRechecksCancellationDuringLookupAndStore/lookup', 'TestServerFlagCacheRechecksCancellationDuringLookupAndStore/store', 'TestServerFlagCacheRetainsProviderAge', 'TestServerFlagCacheReusesAuthoritativeDecisionAcrossCodeDefaults', 'TestServerFlagCacheSeparatesEveryTenantDimensionAndKey', 'TestServerFlagCacheValidatesCancellationAndDefaultsBeforeWarmHit']
+          package='github.com/zasp-ai/zasp-sec/services/platform/featureflags'
+          events=[json.loads(line) for line in Path('featureflag-server-cache-components.jsonl').read_text().splitlines() if line.strip()]
+          assert events and all(e.get('Action') in ('start','run','output','pass') for e in events)
+          assert all(e.get('Package')==package for e in events)
+          for action in ('run','pass'):
+              actual=[e['Test'] for e in events if e.get('Action')==action and e.get('Test')]
+              assert sorted(actual)==sorted(expected),action
+          assert sum(e.get('Action')=='pass' and not e.get('Test') for e in events)==1
+          PYCACHECASES
+      - name: Keep consumed server cache source unchanged
+        run: git diff --exit-code -- services/platform .github scripts
+
+  agent-owner-filter-components:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GOTOOLCHAIN: local
+      GOWORK: 'off'
+      GOFLAGS: '-mod=readonly'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version: 1.26.8
+          cache: false
+      - name: Check frozen owner filter source custody
+        run: |
+          python3 - <<'PYMAINTENANCE'
+          import hashlib,json
+          from pathlib import Path
+          for item in json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())['sources']:
+              raw=Path(item['path']).read_bytes()
+              assert len(raw)==item['bytes'] and hashlib.sha256(raw).hexdigest()==item['sha256'],item['path']
+          PYMAINTENANCE
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22.23.1'
+      - name: Require every owner-filter application boundary component
+        timeout-minutes: 8
+        run: |
+          go test -C services/platform -race -p=1 -count=1 -timeout=3m -json -run '^TestAgentOwner(Filter|Persisted)' ./migrations ./apiserver ./agentsec-api > agent-owner-filter-components.jsonl
+          python3 - <<'PYOWNERCASES'
+          import json
+          from pathlib import Path
+          expected={'migrations': ['TestAgentOwnerFilterInstallerClosedAdmission', 'TestAgentOwnerFilterInstallerClosedAdmission/normal-fresh', 'TestAgentOwnerFilterInstallerClosedAdmission/audit-fresh', 'TestAgentOwnerFilterInstallerClosedAdmission/normal-existing', 'TestAgentOwnerFilterInstallerClosedAdmission/audit-existing', 'TestAgentOwnerFilterInstallerClosedAdmission/parent-refused', 'TestAgentOwnerFilterInstallerClosedAdmission/catalog-refused', 'TestAgentOwnerFilterInstallerClosedAdmission/restore-refused'], 'apiserver': ['TestAgentOwnerFilterAuthorizationStatementBoundaries', 'TestAgentOwnerFilterAuthorizationStatementBoundaries/literal-unowned', 'TestAgentOwnerFilterAuthorizationStatementBoundaries/unicode-whitespace', 'TestAgentOwnerFilterAuthorizationStatementBoundaries/audit-compiled-pin', 'TestAgentOwnerFilterAuthorizationStatementBoundaries/foreign-org', 'TestAgentOwnerFilterAuthorizationStatementBoundaries/foreign-workspace', 'TestAgentOwnerFilterAuthorizationStatementBoundaries/foreign-environment', 'TestAgentOwnerFilterAuthorizationStatementBoundaries/wrong-purpose', 'TestAgentOwnerFilterAuthorizationStatementBoundaries/object-not-collection', 'TestAgentOwnerFilterAuthorizationStatementBoundaries/invalid-owner', 'TestAgentOwnerFilterAuthorizationStatementBoundaries/unknown-pin', 'TestAgentOwnerFilterAuthorizationStatementBoundaries/invalid-after', 'TestAgentOwnerFilterAuthorizationStatementBoundaries/over-limit', 'TestAgentOwnerFilterRepositorySelectedProfileAndRefusal', 'TestAgentOwnerFilterPresenceAndLiteralLabels', 'TestAgentOwnerFilterPresenceAndLiteralLabels/all', 'TestAgentOwnerFilterPresenceAndLiteralLabels/unowned', 'TestAgentOwnerFilterPresenceAndLiteralLabels/literal-spaces', 'TestAgentOwnerFilterPresenceAndLiteralLabels/whitespace-only', 'TestAgentOwnerFilterPresenceAndLiteralLabels/unicode-scalars', 'TestAgentOwnerFilterCursorBindsPresenceAndExactBytes', 'TestAgentOwnerFilterRefusesUnsupportedAndMalformedBeforeLegacyRead', 'TestAgentOwnerPersistedReadDomainDoesNotRelaxWriter'], 'agentsec-api': ['TestAgentOwnerFilterRuntimeRequiresExplicitCompiledProfile']}
+          prefix='github.com/zasp-ai/zasp-sec/services/platform/'
+          events=[json.loads(line) for line in Path('agent-owner-filter-components.jsonl').read_text().splitlines() if line.strip()]
+          assert events and all(e.get('Action') in ('start','run','output','pass') for e in events)
+          assert all(e.get('Package') in {prefix+p for p in expected} for e in events)
+          for package,names in expected.items():
+              rows=[e for e in events if e.get('Package')==prefix+package]
+              for action in ('run','pass'):
+                  actual=[e['Test'] for e in rows if e.get('Action')==action and e.get('Test')]
+                  assert sorted(actual)==sorted(names),(package,action)
+              assert sum(e.get('Action')=='pass' and not e.get('Test') for e in rows)==1
+          PYOWNERCASES
+      - name: Require owner query and API-only deployment contract components
+        run: node --test openapi/agents-owner-filter.test.mjs deploy/production/agent-owner-filter-profile.test.mjs
+      - name: Keep consumed owner filter source unchanged
+        run: git diff --exit-code -- services/platform .github scripts apps/web/api openapi deploy
+
+  system-health-probe-components:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GOTOOLCHAIN: local
+      GOWORK: 'off'
+      GOFLAGS: '-mod=readonly'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version: 1.26.8
+          cache: false
+      - name: Check frozen system health source custody
+        run: |
+          python3 - <<'PYHEALTHCUSTODY'
+          import hashlib,json
+          from pathlib import Path
+          for item in json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())['sources']:
+              raw=Path(item['path']).read_bytes()
+              assert len(raw)==item['bytes'] and hashlib.sha256(raw).hexdigest()==item['sha256'],item['path']
+          PYHEALTHCUSTODY
+      - name: Require actual health API integration and existing required optional aggregator
+        timeout-minutes: 8
+        run: |
+          go test -C services/platform -race -p=1 -count=1 -timeout=3m -json ./apiserver -run '^Test(SystemHealthProbeIntegration|ConfiguredButUnverifiedIdentityProviderCannotMakeSystemHealthy)' > system-health-api-components.jsonl
+          go test -C services/platform -race -p=1 -count=1 -timeout=3m -json ./admincontrol > system-health-aggregate-components.jsonl
+          python3 - <<'PYHEALTHCASES'
+          import json
+          from pathlib import Path
+          expected=['TestConfiguredButUnverifiedIdentityProviderCannotMakeSystemHealthy', 'TestSystemHealthProbeIntegrationRequiredStatesMatchActualComponents', 'TestSystemHealthProbeIntegrationRejectsInvalidAggregateAndMissingIdentity', 'TestSystemHealthProbeIntegrationRequiredStatesMatchActualComponents/healthy', 'TestSystemHealthProbeIntegrationRequiredStatesMatchActualComponents/required_database_failed', 'TestSystemHealthProbeIntegrationRequiredStatesMatchActualComponents/required_identity_failed', 'TestSystemHealthProbeIntegrationRequiredStatesMatchActualComponents/both_required_failed', 'TestSystemHealthProbeIntegrationRejectsInvalidAggregateAndMissingIdentity/invalid_version', 'TestSystemHealthProbeIntegrationRejectsInvalidAggregateAndMissingIdentity/canceled', 'TestSystemHealthProbeIntegrationRejectsInvalidAggregateAndMissingIdentity/missing_identity', 'TestSystemHealthProbeIntegrationRejectsInvalidAggregateAndMissingIdentity/unexpected_query']
+          rosters={'github.com/zasp-ai/zasp-sec/services/platform/apiserver':('system-health-api-components.jsonl',expected),'github.com/zasp-ai/zasp-sec/services/platform/admincontrol':('system-health-aggregate-components.jsonl',['TestRetentionExternalFlowsSystemHealthAndHTTP'])}
+          for package,(filename,names) in rosters.items():
+              events=[json.loads(line) for line in Path(filename).read_text().splitlines() if line.strip()]
+              assert events and all(e.get('Action') in ('start','run','output','pass') for e in events)
+              assert all(e.get('Package')==package for e in events)
+              for action in ('run','pass'):
+                  actual=[e['Test'] for e in events if e.get('Action')==action and e.get('Test')]
+                  assert sorted(actual)==sorted(names),action
+              assert sum(e.get('Action')=='pass' and not e.get('Test') for e in events)==1
+          PYHEALTHCASES
+      - name: Keep consumed health integration sources unchanged
+        run: git diff --exit-code -- services/platform .github scripts
+
+  diagnostics-cli-components:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GOTOOLCHAIN: local
+      GOWORK: 'off'
+      GOFLAGS: '-mod=readonly'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version: 1.26.8
+          cache: false
+      - name: Check frozen diagnostics CLI source custody
+        run: |
+          python3 - <<'PYMAINTENANCE'
+          import hashlib,json
+          from pathlib import Path
+          for item in json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())['sources']:
+              raw=Path(item['path']).read_bytes()
+              assert len(raw)==item['bytes'] and hashlib.sha256(raw).hexdigest()==item['sha256'],item['path']
+          PYMAINTENANCE
+      - name: Require full CLI diagnostics privacy and existing command components
+        timeout-minutes: 8
+        run: |
+          go test -C cmd/agentsecctl -race -p=1 -count=1 -timeout=3m -json . > diagnostics-cli-components.jsonl
+          python3 - <<'PYDIAGCASES'
+          import json
+          from pathlib import Path
+          expected=['TestAPILoadCancellationWaitsForActiveRequestsAndRetainsUnsentSamples', 'TestAPILoadEvaluateCommandMeasuresAndRetainsFailedGate', 'TestAPILoadEvaluatorRejectsUnboundedIncompleteOrAmbiguousEvidence', 'TestAPILoadEvaluatorRejectsUnboundedIncompleteOrAmbiguousEvidence/case_alias', 'TestAPILoadEvaluatorRejectsUnboundedIncompleteOrAmbiguousEvidence/duplicate', 'TestAPILoadEvaluatorRejectsUnboundedIncompleteOrAmbiguousEvidence/fake_success', 'TestAPILoadEvaluatorRejectsUnboundedIncompleteOrAmbiguousEvidence/missing', 'TestAPILoadEvaluatorRejectsUnboundedIncompleteOrAmbiguousEvidence/null', 'TestAPILoadEvaluatorRejectsUnboundedIncompleteOrAmbiguousEvidence/sample_duplicated', 'TestAPILoadEvaluatorRejectsUnboundedIncompleteOrAmbiguousEvidence/sample_omitted', 'TestAPILoadEvaluatorRejectsUnboundedIncompleteOrAmbiguousEvidence/short_run', 'TestAPILoadEvaluatorRejectsUnboundedIncompleteOrAmbiguousEvidence/too_long', 'TestAPILoadEvaluatorRejectsUnboundedIncompleteOrAmbiguousEvidence/trailing', 'TestAPILoadEvaluatorRejectsUnboundedIncompleteOrAmbiguousEvidence/unbound_profile', 'TestAPILoadEvaluatorRejectsUnboundedIncompleteOrAmbiguousEvidence/unbounded_concurrency', 'TestAPILoadEvaluatorRejectsUnboundedIncompleteOrAmbiguousEvidence/unbounded_rate', 'TestAPILoadEvaluatorRejectsUnboundedIncompleteOrAmbiguousEvidence/unknown', 'TestAPILoadEvaluatorRejectsUnboundedIncompleteOrAmbiguousEvidence/zero_latency', 'TestAPILoadHTTPFailuresAndClientCapacityCannotPass', 'TestAPILoadHTTPFailuresAndClientCapacityCannotPass/capacity', 'TestAPILoadHTTPFailuresAndClientCapacityCannotPass/html', 'TestAPILoadHTTPFailuresAndClientCapacityCannotPass/invalid_record', 'TestAPILoadHTTPFailuresAndClientCapacityCannotPass/oversize', 'TestAPILoadHTTPFailuresAndClientCapacityCannotPass/redirect', 'TestAPILoadHTTPFailuresAndClientCapacityCannotPass/timeout', 'TestAPILoadHTTPFailuresAndClientCapacityCannotPass/unauthorized', 'TestAPILoadHTTPFailuresAndClientCapacityCannotPass/unexpected2xx', 'TestAPILoadLintReturnsExecutableBoundsWithoutNetworkConfiguration', 'TestAPILoadMaximumWallClockIncludesDrain', 'TestAPILoadRejectsObservationCompletingAfterMeasurement', 'TestAPILoadRunCommandUsesRealTLSReadsAndCompleteBoundedSchedule', 'TestBackupManifestIsScopedVersionedAndReferenceOnly', 'TestBackupManifestRejectsNoncanonicalScopedReferences', 'TestBuildDiagnosticsBundleClonesBoundedAllowlistedDataAndRejectsSecrets', 'TestDecodeRecoveryManifestRejectsDuplicateAuthorityKeys', 'TestDecodeRecoveryManifestRejectsPayloadBeyondBound', 'TestDecodeRecoveryManifestRejectsUnknownTrailingAndMalformedData', 'TestDefaultBuildVersion', 'TestDeploymentProfilesPreserveImagesAndConstrainTopology', 'TestDiagnosticsCommandEmitsOnlyValidatedBundle', 'TestDiagnosticsRejectsSensitiveMapKeysBeforeAnyCommandOutput', 'TestDiagnosticsRejectsSensitiveMapKeysBeforeAnyCommandOutput/configuration', 'TestDiagnosticsRejectsSensitiveMapKeysBeforeAnyCommandOutput/configuration/AUTHORIZATION', 'TestDiagnosticsRejectsSensitiveMapKeysBeforeAnyCommandOutput/configuration/api_key', 'TestDiagnosticsRejectsSensitiveMapKeysBeforeAnyCommandOutput/configuration/password', 'TestDiagnosticsRejectsSensitiveMapKeysBeforeAnyCommandOutput/configuration/private_key', 'TestDiagnosticsRejectsSensitiveMapKeysBeforeAnyCommandOutput/configuration/secret', 'TestDiagnosticsRejectsSensitiveMapKeysBeforeAnyCommandOutput/configuration/vendor_token', 'TestDiagnosticsRejectsSensitiveMapKeysBeforeAnyCommandOutput/health', 'TestDiagnosticsRejectsSensitiveMapKeysBeforeAnyCommandOutput/health/AUTHORIZATION', 'TestDiagnosticsRejectsSensitiveMapKeysBeforeAnyCommandOutput/health/api_key', 'TestDiagnosticsRejectsSensitiveMapKeysBeforeAnyCommandOutput/health/password', 'TestDiagnosticsRejectsSensitiveMapKeysBeforeAnyCommandOutput/health/private_key', 'TestDiagnosticsRejectsSensitiveMapKeysBeforeAnyCommandOutput/health/secret', 'TestDiagnosticsRejectsSensitiveMapKeysBeforeAnyCommandOutput/health/vendor_token', 'TestDiagnosticsRejectsSensitiveMapKeysBeforeAnyCommandOutput/versions', 'TestDiagnosticsRejectsSensitiveMapKeysBeforeAnyCommandOutput/versions/AUTHORIZATION', 'TestDiagnosticsRejectsSensitiveMapKeysBeforeAnyCommandOutput/versions/api_key', 'TestDiagnosticsRejectsSensitiveMapKeysBeforeAnyCommandOutput/versions/password', 'TestDiagnosticsRejectsSensitiveMapKeysBeforeAnyCommandOutput/versions/private_key', 'TestDiagnosticsRejectsSensitiveMapKeysBeforeAnyCommandOutput/versions/secret', 'TestDiagnosticsRejectsSensitiveMapKeysBeforeAnyCommandOutput/versions/vendor_token', 'TestDiagnosticsSensitiveKeyGuardPreservesSafeBundleAndValueRefusals', 'TestDiagnosticsSensitiveKeyGuardPreservesSafeBundleAndValueRefusals/configuration', 'TestDiagnosticsSensitiveKeyGuardPreservesSafeBundleAndValueRefusals/health', 'TestDiagnosticsSensitiveKeyGuardPreservesSafeBundleAndValueRefusals/logs', 'TestDiagnosticsSensitiveKeyGuardPreservesSafeBundleAndValueRefusals/versions', 'TestEvaluateAndRunUpgrade', 'TestEvaluateOutagesRequiresEveryExactDegradedBehavior', 'TestEvaluateParityRequiresAllRealProviderSemanticsAndCleanup', 'TestEvaluatePreflightHandlesOptionalAndRequiredSensor', 'TestEvaluatePreflightSeparatesCoreFeatureAndSensorResults', 'TestGoldenAuditUsabilityAndPartnerValueGates', 'TestGoldenResultsRequireExactWorkflowAndProfileParity', 'TestGoldenStageRequiresDiscoverExposureAttackLabAndBlockedRetest', 'TestGraphEventAndSensorMeasurementsAreBounded', 'TestIsolationSuiteRequiresEveryBoundaryAndNoLeaks', 'TestLatencyAndBoundedAPILoadGates', 'TestLatencyGatesRejectSlowOrInvalidSamples', 'TestLegacyBareBackupRejectsWithoutReadingPayload', 'TestLivePreflightCommandKeepsOriginalUnknownAwareRoster', 'TestLivePreflightCommandKeepsOriginalUnknownAwareRoster/before-install', 'TestLivePreflightCommandKeepsOriginalUnknownAwareRoster/installed', 'TestLivePreflightRejectsInputAttestationAndUnsafeConfig', 'TestLivePreflightRejectsInputAttestationAndUnsafeConfig/duplicate_key', 'TestLivePreflightRejectsInputAttestationAndUnsafeConfig/invalid_mode', 'TestLivePreflightRejectsInputAttestationAndUnsafeConfig/public_config', 'TestLivePreflightRejectsInputAttestationAndUnsafeConfig/trailing_input', 'TestLivePreflightRejectsInputAttestationAndUnsafeConfig/unknown_observation', 'TestOriginalPreflightEvaluatorIsExplicitlyOffline', 'TestPolicyBypassAndAttackLabSafetyFailClosed', 'TestPreflightCommandsRetainBlockerReports', 'TestPreflightCommandsRetainBlockerReports/core_prerequisite', 'TestPreflightCommandsRetainBlockerReports/invalid_input_has_no_readiness_report', 'TestPreflightCommandsRetainBlockerReports/migration_blocker', 'TestPreflightCommandsRetainBlockerReports/missing_rollback', 'TestPreflightCommandsRetainBlockerReports/required_sensor', 'TestPreflightCommandsRetainBlockerReports/unwritable_report_remains_a_command_failure', 'TestQuotaFixtureBoundsNoisyOrganizationAndProtectsNeighbor', 'TestRecoveryClientRejectsBrowserOnlyReceiptOnBearerMutation', 'TestRecoveryClientRejectsCredentialPermissionsAndSymlinkedCA', 'TestRecoveryClientRejectsRedirectOversizeAndUnpinnedAuthorityWithoutLeaks', 'TestRecoveryClientUsesPinnedTLSAndExactPublicContracts', 'TestRecoveryCommandsParseExactGrammarAndRejectLegacyBareBackupWithoutReadingStdin', 'TestRecoveryResponseValidatorsAcceptExactPrestartDispatchExhaustion', 'TestRecoveryResponseValidatorsRejectImpossibleStateTuples', 'TestReleaseCommandsExposePreflightBackupRestoreAndUpgradeBoundaries', 'TestReleaseCommandsExposePreflightBackupRestoreAndUpgradeBoundaries/preflight', 'TestReleaseCommandsExposePreflightBackupRestoreAndUpgradeBoundaries/restore', 'TestReleaseCommandsExposePreflightBackupRestoreAndUpgradeBoundaries/upgrade-preflight', 'TestRunPrintsExactVersion', 'TestRunPrintsExactVersion/0.1.0-test.1', 'TestRunPrintsExactVersion/A_b+c.d-9', 'TestRunPrintsExactVersion/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'TestRunPrintsExactVersion/dev', 'TestRunRejectsInvalidArgumentsWithoutOutput', 'TestRunRejectsInvalidArgumentsWithoutOutput/extra', 'TestRunRejectsInvalidArgumentsWithoutOutput/missing', 'TestRunRejectsInvalidArgumentsWithoutOutput/unknown', 'TestRunRejectsInvalidVersionWithoutOutput', 'TestRunRejectsInvalidVersionWithoutOutput/#00', 'TestRunRejectsInvalidVersionWithoutOutput/-dev', 'TestRunRejectsInvalidVersionWithoutOutput/.1.0.0', 'TestRunRejectsInvalidVersionWithoutOutput/_dev', 'TestRunRejectsInvalidVersionWithoutOutput/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'TestRunRejectsInvalidVersionWithoutOutput/dev/path', 'TestRunRejectsInvalidVersionWithoutOutput/dev\\x00next', 'TestRunRejectsInvalidVersionWithoutOutput/dev_', 'TestRunRejectsInvalidVersionWithoutOutput/dev_build', 'TestRunRejectsInvalidVersionWithoutOutput/dev_next', 'TestRunRejectsInvalidVersionWithoutOutput/dev_next#01', 'TestRunRejectsInvalidVersionWithoutOutput/dévelop', 'TestRunRejectsNilWriter', 'TestRunRejectsShortWrite', 'TestRunRestoreRehearsalBoundsIndependentCleanupContext', 'TestRunRestoreRehearsalRejectsNoncanonicalEnvironmentsBeforeMutation', 'TestRunRestoreRehearsalRejectsNoncanonicalEnvironmentsBeforeMutation/source_uppercase', 'TestRunRestoreRehearsalRejectsNoncanonicalEnvironmentsBeforeMutation/target_dot', 'TestRunRestoreRehearsalRejectsNoncanonicalEnvironmentsBeforeMutation/target_path', 'TestRunRestoreRehearsalRejectsNoncanonicalEnvironmentsBeforeMutation/target_prefix', 'TestRunRestoreRehearsalRejectsNoncanonicalEnvironmentsBeforeMutation/target_uppercase', 'TestRunRestoreRehearsalRejectsUnsafeTargetsMismatchAndCleanupFailure', 'TestRunRestoreRehearsalTracksValidatesAndAlwaysCleans', 'TestRunReturnsWriterFailure', 'TestRunRollbackRehearsalBindsRecordedReleaseAndExactState', 'TestSBOMIsDeterministicAndRequiresImmutableImages', 'TestSaaSGoldenFixtureUsesScopedTestIdentityAndOwnedResources', 'TestSaaSOnboardingRequiresAllProductOwnedStages', 'TestSaaSRecoveryStagesAndReleaseGate', 'TestSecretLeakageGateRequiresEverySink', 'TestSigningAndVulnerabilityGatesRejectUnsafeRelease', 'TestSupplyChainHIPAAAndSOC2Boundaries', 'TestTenantIsolationAndSSRFGates', 'TestVulnerabilityExceptionExpiryIsExclusiveUTCMidnight', 'TestVulnerabilityExceptionExpiryIsExclusiveUTCMidnight/after', 'TestVulnerabilityExceptionExpiryIsExclusiveUTCMidnight/at', 'TestVulnerabilityExceptionExpiryIsExclusiveUTCMidnight/before', 'TestVulnerabilityExceptionExpiryIsExclusiveUTCMidnight/offset_after_same_instant', 'TestVulnerabilityExceptionExpiryIsExclusiveUTCMidnight/offset_at_same_instant', 'TestVulnerabilityExceptionExpiryIsExclusiveUTCMidnight/offset_before_same_instant', 'TestVulnerabilityExceptionPreservesSeverityPolicy', 'TestVulnerabilityExceptionPreservesSeverityPolicy/expired_critical_blocks_mixed_report', 'TestVulnerabilityExceptionPreservesSeverityPolicy/high', 'TestVulnerabilityExceptionPreservesSeverityPolicy/low', 'TestVulnerabilityExceptionPreservesSeverityPolicy/medium', 'TestVulnerabilityExceptionPublicWrapperRejectsExpiredApproval', 'TestVulnerabilityExceptionRejectsInvalidApprovalOrClock', 'TestVulnerabilityExceptionRejectsInvalidApprovalOrClock/invalid_calendar_date', 'TestVulnerabilityExceptionRejectsInvalidApprovalOrClock/malformed_owner', 'TestVulnerabilityExceptionRejectsInvalidApprovalOrClock/missing_expiry', 'TestVulnerabilityExceptionRejectsInvalidApprovalOrClock/missing_owner', 'TestVulnerabilityExceptionRejectsInvalidApprovalOrClock/noncanonical_date', 'TestVulnerabilityExceptionRejectsInvalidApprovalOrClock/timestamp_not_date', 'TestVulnerabilityExceptionRejectsInvalidApprovalOrClock/unapproved', 'TestVulnerabilityExceptionRejectsInvalidApprovalOrClock/zero_clock']
+          package='github.com/zasp-ai/zasp-sec/cmd/agentsecctl'
+          events=[json.loads(line) for line in Path('diagnostics-cli-components.jsonl').read_text().splitlines() if line.strip()]
+          assert events and all(e.get('Action') in ('start','run','pause','cont','output','pass') for e in events)
+          assert all(e.get('Package')==package for e in events)
+          for action in ('run','pass'):
+              actual=[e['Test'] for e in events if e.get('Action')==action and e.get('Test')]
+              assert sorted(actual)==sorted(expected),action
+          parallel={}
+          for action in ('pause','cont'):
+              actual=[e.get('Test') for e in events if e.get('Action')==action]
+              assert all(name in expected for name in actual)
+              assert len(actual)==len(set(actual)),action
+              parallel[action]=set(actual)
+          assert parallel['pause']==parallel['cont']
+          assert sum(e.get('Action')=='pass' and not e.get('Test') for e in events)==1
+          PYDIAGCASES
+      - name: Keep consumed CLI diagnostics source unchanged
+        run: git diff --exit-code -- cmd/agentsecctl services/platform .github scripts
+
+  authorization-confirmation-components:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GOTOOLCHAIN: local
+      GOWORK: 'off'
+      GOFLAGS: '-mod=readonly'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version: 1.26.8
+          cache: false
+      - name: Check frozen authorization confirmation source custody
+        run: |
+          python3 - <<'PYMAINTENANCE'
+          import hashlib,json
+          from pathlib import Path
+          for item in json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())['sources']:
+              raw=Path(item['path']).read_bytes()
+              assert len(raw)==item['bytes'] and hashlib.sha256(raw).hexdigest()==item['sha256'],item['path']
+          PYMAINTENANCE
+      - name: Require every authorization confirmation and inner ordering component
+        timeout-minutes: 8
+        run: |
+          go test -C services/platform -race -p=1 -count=1 -timeout=3m -json -run '^TestAuthorizationConfirmation' ./agentsec-migrate > authorization-confirmation-components.jsonl
+          python3 - <<'PYMAINTENANCECASES'
+          import json
+          from pathlib import Path
+          expected = {'agentsec-migrate': ['TestAuthorizationConfirmationUsesActualBoundedAuthorityPath', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-worker-profile', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-worker-profile/accepted', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-worker-profile/catalog-refused', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-worker-profile/uncertain-commit', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-worker-profile/canceled', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-worker-profile/missing-closed-begin', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-temporal-profile', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-temporal-profile/accepted', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-temporal-profile/catalog-refused', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-temporal-profile/uncertain-commit', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-temporal-profile/canceled', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-temporal-profile/missing-closed-begin', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-audit-profile', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-audit-profile/accepted', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-audit-profile/catalog-refused', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-audit-profile/uncertain-commit', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-audit-profile/canceled', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-audit-profile/missing-closed-begin', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-temporal-audit-profile', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-temporal-audit-profile/accepted', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-temporal-audit-profile/catalog-refused', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-temporal-audit-profile/uncertain-commit', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-temporal-audit-profile/canceled', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-temporal-audit-profile/missing-closed-begin', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-identity-profile', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-identity-profile/accepted', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-identity-profile/catalog-refused', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-identity-profile/uncertain-commit', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-identity-profile/canceled', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-identity-profile/missing-closed-begin', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-temporal-identity-profile', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-temporal-identity-profile/accepted', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-temporal-identity-profile/catalog-refused', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-temporal-identity-profile/uncertain-commit', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-temporal-identity-profile/canceled', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-temporal-identity-profile/missing-closed-begin', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-runtime-profile', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-runtime-profile/accepted', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-runtime-profile/catalog-refused', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-runtime-profile/uncertain-commit', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-runtime-profile/canceled', 'TestAuthorizationConfirmationUsesActualBoundedAuthorityPath/up-authorization-runtime-profile/missing-closed-begin', 'TestAuthorizationConfirmationActualInnerLoopCommitAndFailureOrder', 'TestAuthorizationConfirmationActualInnerLoopCommitAndFailureOrder/accepted', 'TestAuthorizationConfirmationActualInnerLoopCommitAndFailureOrder/identity-catalog', 'TestAuthorizationConfirmationActualInnerLoopCommitAndFailureOrder/identity-commit', 'TestAuthorizationConfirmationActualInnerLoopCommitAndFailureOrder/worker-catalog', 'TestAuthorizationConfirmationActualInnerLoopCommitAndFailureOrder/worker-commit']}
+          prefix='github.com/zasp-ai/zasp-sec/services/platform/'
+          events=[json.loads(line) for line in Path('authorization-confirmation-components.jsonl').read_text().splitlines() if line.strip()]
+          assert events and all(e.get('Action') in ('start','run','output','pass') for e in events)
+          assert not any(e.get('Action') in ('skip','fail','build-fail') for e in events)
+          assert all(e.get('Package') in {prefix+p for p in expected} for e in events)
+          for package,names in expected.items():
+              rows=[e for e in events if e.get('Package')==prefix+package]
+              for action in ('run','pass'):
+                  actual=[e['Test'] for e in rows if e.get('Action')==action and e.get('Test')]
+                  assert sorted(actual)==sorted(names), (package,action)
+              assert sum(e.get('Action')=='pass' and not e.get('Test') for e in rows)==1
+          PYMAINTENANCECASES
+      - name: Keep consumed authorization confirmation source unchanged
+        run: git diff --exit-code -- services/platform .github scripts
+
+  maintenance-operator-components:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GOTOOLCHAIN: local
+      GOWORK: 'off'
+      GOFLAGS: '-mod=readonly'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version: 1.26.8
+          cache: false
+      - name: Check frozen maintenance source custody
+        run: |
+          python3 - <<'PYMAINTENANCE'
+          import hashlib,json
+          from pathlib import Path
+          for item in json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())['sources']:
+              raw=Path(item['path']).read_bytes()
+              assert len(raw)==item['bytes'] and hashlib.sha256(raw).hexdigest()==item['sha256'],item['path']
+          PYMAINTENANCE
+      - name: Require every maintenance installer and actual CLI confirmation component
+        timeout-minutes: 8
+        run: |
+          go test -C services/platform -race -p=1 -count=1 -timeout=3m -json -run '^Test(Maintenance|ApprovalActivationInstallerTransactions|ApprovalSettlementAudit)' ./migrations ./agentsec-migrate > maintenance-operator-components.jsonl
+          python3 - <<'PYMAINTENANCECASES'
+          import json
+          from pathlib import Path
+          expected = {'migrations': ['TestMaintenanceInstallerNoInheritRoleWindows/approval/none', 'TestMaintenanceInstallerNoInheritRoleWindows/approval/registered_source_owner', 'TestMaintenanceInstallerNoInheritRoleWindows/connector/none', 'TestMaintenanceInstallerNoInheritRoleWindows/connector/registered_source_owner', 'TestMaintenanceInstallerNoInheritRoleWindows/activation/none', 'TestMaintenanceInstallerNoInheritRoleWindows/activation/registered_source_owner', 'TestMaintenanceInstallerNoInheritRoleWindows/settlement/none', 'TestMaintenanceInstallerNoInheritRoleWindows/settlement/registered_source_owner', 'TestMaintenanceInstallerNoInheritRoleWindows', 'TestMaintenanceReferenceRoleWindowsAndRollback/none', 'TestMaintenanceReferenceRoleWindowsAndRollback/registered_source_owner', 'TestMaintenanceReferenceRoleWindowsAndRollback/parent-denied', 'TestMaintenanceReferenceRoleWindowsAndRollback/restore-denied', 'TestMaintenanceReferenceRoleWindowsAndRollback/restored-identity-drift', 'TestMaintenanceReferenceRoleWindowsAndRollback', 'TestApprovalActivationInstallerTransactions/fresh', 'TestApprovalActivationInstallerTransactions/existing', 'TestApprovalActivationInstallerTransactions/catalog-refusal-1', 'TestApprovalActivationInstallerTransactions/catalog-refusal-3', 'TestApprovalActivationInstallerTransactions/catalog-refusal-4', 'TestApprovalActivationInstallerTransactions/catalog-refusal-5', 'TestApprovalActivationInstallerTransactions', 'TestApprovalSettlementAuditProfileBoundaries', 'TestApprovalSettlementAuditInstallerTransactions/fresh', 'TestApprovalSettlementAuditInstallerTransactions/existing', 'TestApprovalSettlementAuditInstallerTransactions/refused-catalog-1', 'TestApprovalSettlementAuditInstallerTransactions/refused-catalog-3', 'TestApprovalSettlementAuditInstallerTransactions/refused-catalog-4', 'TestApprovalSettlementAuditInstallerTransactions/refused-catalog-5', 'TestApprovalSettlementAuditInstallerTransactions'], 'agentsec-migrate': ['TestMaintenanceConfirmationUsesActualBoundedAuthorityPath', 'TestMaintenanceConfirmationUsesActualBoundedAuthorityPath/up-approval-maintenance-profile', 'TestMaintenanceConfirmationUsesActualBoundedAuthorityPath/up-approval-maintenance-profile/accepted', 'TestMaintenanceConfirmationUsesActualBoundedAuthorityPath/up-approval-maintenance-profile/catalog-refused', 'TestMaintenanceConfirmationUsesActualBoundedAuthorityPath/up-approval-maintenance-profile/uncertain-commit', 'TestMaintenanceConfirmationUsesActualBoundedAuthorityPath/up-approval-maintenance-profile/canceled', 'TestMaintenanceConfirmationUsesActualBoundedAuthorityPath/up-connector-maintenance-profile', 'TestMaintenanceConfirmationUsesActualBoundedAuthorityPath/up-connector-maintenance-profile/accepted', 'TestMaintenanceConfirmationUsesActualBoundedAuthorityPath/up-connector-maintenance-profile/catalog-refused', 'TestMaintenanceConfirmationUsesActualBoundedAuthorityPath/up-connector-maintenance-profile/uncertain-commit', 'TestMaintenanceConfirmationUsesActualBoundedAuthorityPath/up-connector-maintenance-profile/canceled', 'TestMaintenanceConfirmationUsesActualBoundedAuthorityPath/up-approval-activation-profile', 'TestMaintenanceConfirmationUsesActualBoundedAuthorityPath/up-approval-activation-profile/accepted', 'TestMaintenanceConfirmationUsesActualBoundedAuthorityPath/up-approval-activation-profile/catalog-refused', 'TestMaintenanceConfirmationUsesActualBoundedAuthorityPath/up-approval-activation-profile/uncertain-commit', 'TestMaintenanceConfirmationUsesActualBoundedAuthorityPath/up-approval-activation-profile/canceled', 'TestMaintenanceConfirmationUsesActualBoundedAuthorityPath/up-approval-settlement-audit-profile', 'TestMaintenanceConfirmationUsesActualBoundedAuthorityPath/up-approval-settlement-audit-profile/accepted', 'TestMaintenanceConfirmationUsesActualBoundedAuthorityPath/up-approval-settlement-audit-profile/catalog-refused', 'TestMaintenanceConfirmationUsesActualBoundedAuthorityPath/up-approval-settlement-audit-profile/uncertain-commit', 'TestMaintenanceConfirmationUsesActualBoundedAuthorityPath/up-approval-settlement-audit-profile/canceled', 'TestMaintenanceProfileExplicitCommands', 'TestMaintenanceProfileExplicitCommands/up-approval-maintenance-profile', 'TestMaintenanceProfileExplicitCommands/up-connector-maintenance-profile', 'TestMaintenanceProfileExplicitCommands/up-approval-activation-profile', 'TestMaintenanceProfileExplicitCommands/up-approval-settlement-audit-profile', 'TestMaintenanceProfilePostInstallCatalogOnly', 'TestMaintenanceProfilePostInstallCatalogOnly/up-approval-maintenance-profile', 'TestMaintenanceProfilePostInstallCatalogOnly/up-connector-maintenance-profile', 'TestMaintenanceProfilePostInstallCatalogOnly/up-approval-activation-profile', 'TestMaintenanceProfilePostInstallCatalogOnly/up-approval-settlement-audit-profile']}
+          prefix='github.com/zasp-ai/zasp-sec/services/platform/'
+          events=[json.loads(line) for line in Path('maintenance-operator-components.jsonl').read_text().splitlines() if line.strip()]
+          assert not any(e.get('Action') in ('skip','fail','build-fail') for e in events)
+          assert all(e.get('Package') in {prefix+p for p in expected} for e in events)
+          for package,names in expected.items():
+              rows=[e for e in events if e.get('Package')==prefix+package]
+              for action in ('run','pass'):
+                  actual=[e['Test'] for e in rows if e.get('Action')==action and e.get('Test')]
+                  assert sorted(actual)==sorted(names), (package,action)
+              assert sum(e.get('Action')=='pass' and not e.get('Test') for e in rows)==1
+          PYMAINTENANCECASES
+      - name: Keep consumed maintenance source unchanged
+        run: git diff --exit-code -- services/platform .github scripts
+
+  environment-class-components:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GOTOOLCHAIN: local
+      GOWORK: 'off'
+      GOFLAGS: '-mod=readonly'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: 1.26.8
+          cache: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22.23.1
+      - name: Verify environment classification source custody
+        run: |
+          python3 - <<'PYENVIRONMENTCLASS'
+          import hashlib, json
+          from pathlib import Path
+          for item in json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())['sources']:
+              raw = Path(item['path']).read_bytes()
+              assert len(raw) == item['bytes'] and hashlib.sha256(raw).hexdigest() == item['sha256'], item['path']
+          PYENVIRONMENTCLASS
+      - name: Require all application permission runtime and installer groups
+        timeout-minutes: 10
+        run: |
+          go test -C services/platform -race -p=1 -count=1 -timeout=3m -json -run '^(TestEnvironmentClassification(HTTPPreservesOptionalPresenceAndExactKeys|StatementsBindCurrentActorScopeAndProfile|RepositorySelectsOneClosedWriter)|TestEnvironmentClass(RuntimeRequiresExplicitCompiledProfile|ExplicitMigrationRecipes|ExplicitChecksumSelection|InstallerPreservesParentsAndTransactionalAdmission))$' ./apiserver ./agentsec-api ./agentsec-migrate ./migrations > environment-class-components.jsonl
+          python3 - <<'PYENVIRONMENTCLASSCASES'
+          import json
+          from pathlib import Path
+          prefix = 'github.com/zasp-ai/zasp-sec/services/platform/'
+          expected = {
+              'apiserver': {'TestEnvironmentClassificationHTTPPreservesOptionalPresenceAndExactKeys', 'TestEnvironmentClassificationStatementsBindCurrentActorScopeAndProfile', 'TestEnvironmentClassificationRepositorySelectsOneClosedWriter'},
+              'agentsec-api': {'TestEnvironmentClassRuntimeRequiresExplicitCompiledProfile'},
+              'agentsec-migrate': {'TestEnvironmentClassExplicitMigrationRecipes', 'TestEnvironmentClassExplicitChecksumSelection'},
+              'migrations': {'TestEnvironmentClassInstallerPreservesParentsAndTransactionalAdmission'},
+          }
+          events = [json.loads(line) for line in Path('environment-class-components.jsonl').read_text().splitlines() if line.strip()]
+          assert not any(e.get('Action') in ('skip', 'fail', 'build-fail') for e in events)
+          for package, names in expected.items():
+              rows = [e for e in events if e.get('Package') == prefix + package]
+              for action in ('run', 'pass'):
+                  actual = [e['Test'] for e in rows if e.get('Action') == action and e.get('Test') and '/' not in e['Test']]
+                  assert len(actual) == len(names) and set(actual) == names
+              assert sum(e.get('Action') == 'pass' and not e.get('Test') for e in rows) == 1
+          PYENVIRONMENTCLASSCASES
+      - name: API-only deployment option application controls
+        run: node --test deploy/production/environment-class-profile.test.mjs
+      - name: Keep consumed environment classification and module source unchanged
+        run: git diff --exit-code -- services/platform services/health deploy
+
+  connected-session-bootstrap:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GOTOOLCHAIN: local
+      GOWORK: 'off'
+      GOFLAGS: '-mod=readonly'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: 1.26.8
+          cache: false
+      - name: Verify session bootstrap source custody
+        run: |
+          python3 - <<'PYBOOTSTRAP'
+          import hashlib, json
+          from pathlib import Path
+          for item in json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())['sources']:
+              raw = Path(item['path']).read_bytes()
+              assert len(raw) == item['bytes'] and hashlib.sha256(raw).hexdigest() == item['sha256'], item['path']
+          PYBOOTSTRAP
+      - name: Require all composed resolver bootstrap application cases
+        timeout-minutes: 10
+        run: |
+          go test -C services/platform -race -p=1 -count=1 -timeout=2m -json -run '^TestPostLoginKnownCallbackResolverKeepsCurrentSnapshotBinding$' ./apiserver > session-bootstrap.jsonl
+          python3 - <<'PYBOOTSTRAPCASES'
+          import json
+          from pathlib import Path
+          parent = 'TestPostLoginKnownCallbackResolverKeepsCurrentSnapshotBinding'
+          modes = ['direct', 'known_wrapper', 'nil_wrapper', 'wrong_database', 'wrong_profile', 'nested_wrapper', 'unrecognized_resolver', 'missing_original']
+          expected = {parent, *(parent + '/' + mode for mode in modes)}
+          events = [json.loads(line) for line in Path('session-bootstrap.jsonl').read_text().splitlines() if line.strip()]
+          results = [e for e in events if e.get('Test') and e.get('Action') in ('pass', 'fail', 'skip')]
+          assert len(results) == 9 and {e['Test'] for e in results} == expected
+          assert all(e['Action'] == 'pass' for e in results)
+          assert any(e.get('Action') == 'pass' and not e.get('Test') for e in events)
+          PYBOOTSTRAPCASES
+      - name: Keep consumed bootstrap and module source unchanged
+        run: git diff --exit-code -- services/platform services/health
+
+  connected-sqs-permission-diagnostics:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GOTOOLCHAIN: local
+      GOWORK: 'off'
+      GOFLAGS: '-mod=readonly'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: 1.26.8
+          cache: false
+      - name: Verify selected SQS diagnostic source custody
+        run: |
+          python3 - <<'PYSQSPERMISSIONS'
+          import hashlib, json
+          from pathlib import Path
+          for item in json.loads(Path('.github/connector-native-compile-source-pins.json').read_text())['sources']:
+              raw = Path(item['path']).read_bytes()
+              assert len(raw) == item['bytes'] and hashlib.sha256(raw).hexdigest() == item['sha256'], item['path']
+          PYSQSPERMISSIONS
+      - name: Selected-workload SQS permission diagnostic application checks
+        timeout-minutes: 5
+        run: go test -C services/platform -race -p=1 -count=1 -timeout=2m -run '^TestSQS' ./preflight
+      - name: Keep consumed SQS diagnostic and module source unchanged
+        run: git diff --exit-code -- services/platform cmd/agentsecctl services/health
+
+  gateway-installation-components:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      GOTOOLCHAIN: local
+      GOWORK: 'off'
+      GOFLAGS: '-mod=readonly'
+      GOMAXPROCS: '2'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version: 1.26.8
+          cache: false
+      - name: Require exact toolchain and no ambient ACK activation
+        shell: bash
+        run: |
+          test "$(go version)" = 'go version go1.26.8 linux/amd64'
+          test -z "${ZASP_GATEWAY_INSTALLATION_ACK_ENABLED:-}"
+          test -z "${ZASP_GATEWAY_INSTALLATION_PROFILE_CHECKSUM:-}"
+      - name: Require every one of 105 exact gateway installation component results
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 0027
+          python3 - <<'PYGATEWAYINSTALLATION'
+          import json, os, subprocess, sys
+          from pathlib import Path
+          sys.path.insert(0, str(Path('scripts').resolve()))
+          from validate_agent_read_components import check_sources, load_events, validate_events
+          # Fixed source-reviewed full named roster, including every child and ancestor.
+          # Component success never substitutes for PostgreSQL/native/deployed acceptance.
+          expected = {'github.com/zasp-ai/zasp-sec/services/platform/gatewayinstallationwire': ['TestInstallationObservationRoundTrip',
+                                                                                     'TestInstallationObservationClosedSyntax',
+                                                                                     'TestInstallationObservationTimeAndIdentity',
+                                                                                     'TestInstallationReceiptRoundTripAndBinding',
+                                                                                     'TestInstallationReceiptCoalescedRank',
+                                                                                     'TestInstallationReceiptClosedSyntaxAndTimes'],
+           'github.com/zasp-ai/zasp-sec/services/platform/internal/cacheownership': ['TestCacheOwnershipExclusiveLifetime',
+                                                                                     'TestCacheOwnershipPathAndReplacementRefusal',
+                                                                                     'TestCacheOwnershipUnsafeExistingLock',
+                                                                                     'TestCacheOwnershipCrossProcess'],
+           'github.com/zasp-ai/zasp-sec/services/platform/migrations': ['TestGatewayInstallationInstallerClosedAdmission',
+                                                                        'TestGatewayInstallationInstallerClosedAdmission/normal-fresh',
+                                                                        'TestGatewayInstallationInstallerClosedAdmission/audit-fresh',
+                                                                        'TestGatewayInstallationInstallerClosedAdmission/normal-existing',
+                                                                        'TestGatewayInstallationInstallerClosedAdmission/audit-existing',
+                                                                        'TestGatewayInstallationInstallerClosedAdmission/normal-explicit-self-role',
+                                                                        'TestGatewayInstallationInstallerClosedAdmission/audit-explicit-self-role',
+                                                                        'TestGatewayInstallationInstallerClosedAdmission/source-operator-refused',
+                                                                        'TestGatewayInstallationInstallerClosedAdmission/parent-refused',
+                                                                        'TestGatewayInstallationInstallerClosedAdmission/runtime-parent-refused',
+                                                                        'TestGatewayInstallationInstallerClosedAdmission/normal-wrong-parent-variant',
+                                                                        'TestGatewayInstallationInstallerClosedAdmission/audit-wrong-parent-variant',
+                                                                        'TestGatewayInstallationInstallerClosedAdmission/hostile-default-acl',
+                                                                        'TestGatewayInstallationInstallerClosedAdmission/catalog-refused',
+                                                                        'TestGatewayInstallationInstallerClosedAdmission/restore-refused',
+                                                                        'TestGatewayInstallationCompilerIdentity',
+                                                                        'TestGatewayInstallationCompilerIdentity/normal',
+                                                                        'TestGatewayInstallationCompilerIdentity/audit'],
+           'github.com/zasp-ai/zasp-sec/services/platform/policy': ['TestGatewayInstallationCacheDurableOriginalObservationAndRestart',
+                                                                    'TestGatewayInstallationCacheCompareClearAndSupersession',
+                                                                    'TestGatewayInstallationCacheLegacyMemoryAndRotationNeverFabricate',
+                                                                    'TestGatewayInstallationCacheFailedWriteCannotEmitPending',
+                                                                    'TestGatewayInstallationCacheLegacyWritesPreserveCurrentWitness',
+                                                                    'TestGatewayInstallationCacheRejectsCorruptWitnessWithoutCredentialRelabel',
+                                                                    'TestGatewayInstallationCacheSelectedFileIsOneGeneration',
+                                                                    'TestGatewayPolicyDiskCacheWrites0600AndReverifiesOnRestore',
+                                                                    'TestGatewayPolicyCacheRejectsNoncanonicalDiskAndClockPanic',
+                                                                    'TestGatewayPolicyCacheNeverReactivatesExpiredPolicyAfterClockRollbackOrRestart'],
+           'github.com/zasp-ai/zasp-sec/services/platform/gatewaycontrol': ['TestInstallationSignedHandlerConnectedAdmission',
+                                                                            'TestInstallationSignedHandlerConnectedAdmission/recorded',
+                                                                            'TestInstallationSignedHandlerConnectedAdmission/off',
+                                                                            'TestInstallationSignedHandlerConnectedAdmission/catalog_failure',
+                                                                            'TestInstallationSignedHandlerConnectedAdmission/foreign_receipt',
+                                                                            'TestInstallationSignedHandlerConnectedAdmission/generation_mismatch',
+                                                                            'TestInstallationSignedHandlerConnectedAdmission/malformed',
+                                                                            'TestInstallationSignedHandlerConnectedAdmission/oversize',
+                                                                            'TestInstallationSignedHandlerConnectedAdmission/scope_injection',
+                                                                            'TestInstallationSignedHandlerConnectedAdmission/mutated_signature',
+                                                                            'TestInstallationSignedHandlerConnectedAdmission/wrong_media',
+                                                                            'TestInstallationSignedHandlerConnectedAdmission/query',
+                                                                            'TestInstallationSignedClientStrictReceipt',
+                                                                            'TestInstallationSignedClientStrictReceipt/recorded',
+                                                                            'TestInstallationSignedClientStrictReceipt/coalesced',
+                                                                            'TestInstallationSignedClientStrictReceipt/legacy_204',
+                                                                            'TestInstallationSignedClientStrictReceipt/foreign_scope',
+                                                                            'TestInstallationSignedClientStrictReceipt/wrong_generation',
+                                                                            'TestInstallationSignedClientStrictReceipt/wrong_digest',
+                                                                            'TestInstallationSignedClientStrictReceipt/bad_rank',
+                                                                            'TestInstallationSignedClientStrictReceipt/oversize',
+                                                                            'TestInstallationSignedClientStrictReceipt/duplicate',
+                                                                            'TestInstallationSignedClientStrictReceipt/missing_no_store',
+                                                                            'TestInstallationSignedClientStrictReceipt/wrong_media',
+                                                                            'TestInstallationTransactionRequiresConfirmedCommit',
+                                                                            'TestInstallationTransactionRequiresConfirmedCommit/committed',
+                                                                            'TestInstallationTransactionRequiresConfirmedCommit/confirmation_false',
+                                                                            'TestInstallationTransactionRequiresConfirmedCommit/unknown_commit',
+                                                                            'TestInstallationTransactionRequiresConfirmedCommit/malformed_receipt',
+                                                                            'TestInstallationTransactionRequiresConfirmedCommit/wrong_generation',
+                                                                            'TestInstallationRepositoryUsesOwnCompiledProfileWithoutLegacyReadiness'],
+           'github.com/zasp-ai/zasp-sec/services/platform/agentsec-migrate': ['TestGatewayInstallationMigrationDispatchAndConfirmation',
+                                                                              'TestGatewayInstallationMigrationDispatchAndConfirmation/up-gateway-installation-profile',
+                                                                              'TestGatewayInstallationMigrationDispatchAndConfirmation/up-gateway-installation-profile/dispatch',
+                                                                              'TestGatewayInstallationMigrationDispatchAndConfirmation/up-gateway-installation-profile/source-principal-refused',
+                                                                              'TestGatewayInstallationMigrationDispatchAndConfirmation/up-gateway-installation-profile/canonical61-refused',
+                                                                              'TestGatewayInstallationMigrationDispatchAndConfirmation/up-gateway-installation-profile/strict-arguments',
+                                                                              'TestGatewayInstallationMigrationDispatchAndConfirmation/up-gateway-installation-profile/confirm-accepted',
+                                                                              'TestGatewayInstallationMigrationDispatchAndConfirmation/up-gateway-installation-profile/confirm-catalog-refused',
+                                                                              'TestGatewayInstallationMigrationDispatchAndConfirmation/up-gateway-installation-profile/confirm-unknown-commit',
+                                                                              'TestGatewayInstallationMigrationDispatchAndConfirmation/up-gateway-installation-profile/confirm-canceled',
+                                                                              'TestGatewayInstallationMigrationDispatchAndConfirmation/up-gateway-installation-audit-profile',
+                                                                              'TestGatewayInstallationMigrationDispatchAndConfirmation/up-gateway-installation-audit-profile/dispatch',
+                                                                              'TestGatewayInstallationMigrationDispatchAndConfirmation/up-gateway-installation-audit-profile/source-principal-refused',
+                                                                              'TestGatewayInstallationMigrationDispatchAndConfirmation/up-gateway-installation-audit-profile/canonical61-refused',
+                                                                              'TestGatewayInstallationMigrationDispatchAndConfirmation/up-gateway-installation-audit-profile/strict-arguments',
+                                                                              'TestGatewayInstallationMigrationDispatchAndConfirmation/up-gateway-installation-audit-profile/confirm-accepted',
+                                                                              'TestGatewayInstallationMigrationDispatchAndConfirmation/up-gateway-installation-audit-profile/confirm-catalog-refused',
+                                                                              'TestGatewayInstallationMigrationDispatchAndConfirmation/up-gateway-installation-audit-profile/confirm-unknown-commit',
+                                                                              'TestGatewayInstallationMigrationDispatchAndConfirmation/up-gateway-installation-audit-profile/confirm-canceled',
+                                                                              'TestGatewayInstallationCLIInputsAndChecksums',
+                                                                              'TestGatewayInstallationCLIInputsAndChecksums/up-gateway-installation-profile',
+                                                                              'TestGatewayInstallationCLIInputsAndChecksums/up-gateway-installation-audit-profile'],
+           'github.com/zasp-ai/zasp-sec/services/gateway-control': ['TestGatewayInstallationConfigClosedActivation',
+                                                                    'TestGatewayInstallationConfigClosedActivation/legacy',
+                                                                    'TestGatewayInstallationConfigClosedActivation/disabled_empty',
+                                                                    'TestGatewayInstallationConfigClosedActivation/disabled_pin',
+                                                                    'TestGatewayInstallationConfigClosedActivation/invalid_flag',
+                                                                    'TestGatewayInstallationConfigClosedActivation/enabled_missing_pin',
+                                                                    'TestGatewayInstallationConfigClosedActivation/enabled_unknown_pin',
+                                                                    'TestGatewayInstallationProductionMountSurvivesReadinessCache',
+                                                                    'TestGatewayInstallationProductionConfigSelectsOnlyCompiledProfiles'],
+           'github.com/zasp-ai/zasp-sec/services/runtime-gateway': ['TestGatewayInstallationWorkerRetriesOriginalBodyAndPersistsConfirmation',
+                                                                    'TestGatewayInstallationWorkerUnknownOldResponseCannotClearNewer',
+                                                                    'TestGatewayInstallationWorkerCurrentAuthorityAndReceiptScope',
+                                                                    'TestGatewayInstallationWorkerCancellationJoinsBlockedDelivery',
+                                                                    'TestLoadProductionGatewayConfigRequiresExactAuthority']}
+          required = frozenset(['.github/workflows/connector-native-draft-compile.yml',
+           'deploy/production/gateway-installation-profile.mjs',
+           'deploy/production/gateway-installation-profile.test.mjs',
+           'deploy/production/release-contract.mjs',
+           'deploy/production/release-contract.test.mjs',
+           'deploy/staging/product/templates/_gateway-installation.tpl',
+           'deploy/staging/product/templates/edge.yaml',
+           'deploy/staging/product/templates/runtime.yaml',
+           'deploy/staging/product/templates/workloads.yaml',
+           'deploy/staging/product/values-customer-edge.yaml',
+           'deploy/staging/product/values.yaml',
+           'scripts/validate_agent_read_components.py',
+           'scripts/validate_agent_read_components_test.py',
+           'services/gateway-control/go.mod',
+           'services/gateway-control/go.sum',
+           'services/gateway-control/installation_test.go',
+           'services/gateway-control/production.go',
+           'services/gateway-control/production_runtime.go',
+           'services/gateway-control/production_server.go',
+           'services/gateway-control/production_test.go',
+           'services/platform/agentsec-migrate/forward_release_confirmation.go',
+           'services/platform/agentsec-migrate/gateway_installation_profile.go',
+           'services/platform/agentsec-migrate/gateway_installation_profile_test.go',
+           'services/platform/agentsec-migrate/main.go',
+           'services/platform/agentsec-migrate/maintenance_confirmation_role_test.go',
+           'services/platform/gatewaycontrol/client.go',
+           'services/platform/gatewaycontrol/contract.go',
+           'services/platform/gatewaycontrol/http.go',
+           'services/platform/gatewaycontrol/http_test.go',
+           'services/platform/gatewaycontrol/installation.go',
+           'services/platform/gatewaycontrol/installation_test.go',
+           'services/platform/gatewaycontrol/postgres.go',
+           'services/platform/gatewayinstallationwire/wire.go',
+           'services/platform/gatewayinstallationwire/wire_test.go',
+           'services/platform/go.mod',
+           'services/platform/go.sum',
+           'services/platform/internal/cacheownership/ownership.go',
+           'services/platform/internal/cacheownership/ownership_linux.go',
+           'services/platform/internal/cacheownership/ownership_other.go',
+           'services/platform/internal/cacheownership/ownership_test.go',
+           'services/platform/migrations/maintenance_operator_role.go',
+           'services/platform/migrations/migrations.go',
+           'services/platform/migrations/migrations_test.go',
+           'services/platform/migrations/production_gateway_installation_compiler_test.go',
+           'services/platform/migrations/production_gateway_installation_profile.go',
+           'services/platform/migrations/production_gateway_installation_profile_test.go',
+           'services/platform/migrations/sql/gateway_installation_profile.sql',
+           'services/platform/policy/gateway_cache.go',
+           'services/platform/policy/gateway_cache_test.go',
+           'services/platform/policy/gateway_installation.go',
+           'services/platform/policy/gateway_installation_test.go',
+           'services/platform/policy/policy.go',
+           'services/runtime-gateway/go.mod',
+           'services/runtime-gateway/go.sum',
+           'services/runtime-gateway/installation_ack.go',
+           'services/runtime-gateway/installation_ack_test.go',
+           'services/runtime-gateway/production.go',
+           'services/runtime-gateway/production_runtime.go',
+           'services/runtime-gateway/production_runtime_test.go',
+           'services/runtime-gateway/production_test.go',
+           'services/runtime-gateway/runtime.go',
+           'services/runtime-gateway/runtime_test.go'])
+          assert len(expected) == 8 and sum(map(len, expected.values())) == 105
+          assert all(len(names) == len(set(names)) and all("Postgres" not in n for n in names) for names in expected.values())
+          print(json.dumps(check_sources(Path.cwd(), '.github/connector-native-compile-source-pins.json', required), sort_keys=True))
+          modules = {
+            'services/platform': ['./gatewayinstallationwire','./internal/cacheownership','./migrations','./policy','./gatewaycontrol','./agentsec-migrate'],
+            'services/gateway-control': ['.'],
+            'services/runtime-gateway': ['.'],
+          }
+          status = 0
+          with Path('gateway-installation-components.jsonl').open('wb') as out, Path('gateway-installation-components.stderr').open('wb') as err:
+              for module, packages in modules.items():
+                  prefix = 'github.com/zasp-ai/zasp-sec/' + module
+                  selected = [n for package, names in expected.items() if package == prefix or package.startswith(prefix + '/') for n in names if '/' not in n]
+                  assert selected
+                  command = ['go','test','-C',module,'-race','-p=1','-count=1','-timeout=3m','-json','-run','^('+'|'.join(selected)+')$',*packages]
+                  result = subprocess.run(command, stdout=out, stderr=err, timeout=1200, check=False)
+                  if result.returncode != 0 and status == 0:
+                      status = result.returncode
+          print(json.dumps(validate_events(load_events('gateway-installation-components.jsonl'), status, expected), sort_keys=True))
+          PYGATEWAYINSTALLATION
+      - name: Require ten existing runtime policy evaluation groups and every observed child
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 0027
+          python3 - <<'PYRUNTIMEPOLICYEVALUATION'
+          import json, re, subprocess, sys
+          from pathlib import Path
+          sys.path.insert(0, str(Path('scripts').resolve()))
+          from validate_agent_read_components import check_sources, load_events, validate_events
+          # Existing production runtime groups only; compile setup failure is not behavior proof.
+          heads = ['TestGatewayRuntimeSyncsSignedPolicyAndEvaluatesWithoutControlPlaneCall', 'TestGatewayRuntimeBlocksOnlyTheSignedIsolatedSession', 'TestGatewayRuntimeBindsBlockedCapabilityEvidence', 'TestGatewayRuntimeAppliesDeterministicOfflineFailureMode', 'TestGatewayRuntimeRejectsRawOrUnboundEvaluationData', 'TestGatewayRuntimeReplaysDrainedEvaluationWithoutAllocatingAnotherFloor', 'TestGatewayRuntimePersistsAllowAndExpiredDecisionReplayReceipts', 'TestGatewayRuntimePersistsSessionBoundAllowAtExistingReplayFloor', 'TestGatewayProxyAcceptsCapabilityEvidenceOnlyForBlockingDecision', 'TestEvaluationRiskResolvedContributors']
+          required = frozenset(['.github/workflows/connector-native-draft-compile.yml', 'deploy/production/gateway-installation-profile.mjs', 'deploy/production/gateway-installation-profile.test.mjs', 'deploy/production/release-contract.mjs', 'deploy/production/release-contract.test.mjs', 'deploy/staging/product/templates/_gateway-installation.tpl', 'deploy/staging/product/templates/edge.yaml', 'deploy/staging/product/templates/runtime.yaml', 'deploy/staging/product/templates/workloads.yaml', 'deploy/staging/product/values-customer-edge.yaml', 'deploy/staging/product/values.yaml', 'scripts/validate_agent_read_components.py', 'scripts/validate_agent_read_components_test.py', 'services/gateway-control/go.mod', 'services/gateway-control/go.sum', 'services/gateway-control/installation_test.go', 'services/gateway-control/production.go', 'services/gateway-control/production_runtime.go', 'services/gateway-control/production_server.go', 'services/gateway-control/production_test.go', 'services/platform/agentsec-migrate/forward_release_confirmation.go', 'services/platform/agentsec-migrate/gateway_installation_profile.go', 'services/platform/agentsec-migrate/gateway_installation_profile_test.go', 'services/platform/agentsec-migrate/main.go', 'services/platform/agentsec-migrate/maintenance_confirmation_role_test.go', 'services/platform/gatewaycontrol/client.go', 'services/platform/gatewaycontrol/contract.go', 'services/platform/gatewaycontrol/http.go', 'services/platform/gatewaycontrol/http_test.go', 'services/platform/gatewaycontrol/installation.go', 'services/platform/gatewaycontrol/installation_test.go', 'services/platform/gatewaycontrol/postgres.go', 'services/platform/gatewayinstallationwire/wire.go', 'services/platform/gatewayinstallationwire/wire_test.go', 'services/platform/go.mod', 'services/platform/go.sum', 'services/platform/internal/cacheownership/ownership.go', 'services/platform/internal/cacheownership/ownership_linux.go', 'services/platform/internal/cacheownership/ownership_other.go', 'services/platform/internal/cacheownership/ownership_test.go', 'services/platform/migrations/maintenance_operator_role.go', 'services/platform/migrations/migrations.go', 'services/platform/migrations/migrations_test.go', 'services/platform/migrations/production_gateway_installation_compiler_test.go', 'services/platform/migrations/production_gateway_installation_profile.go', 'services/platform/migrations/production_gateway_installation_profile_test.go', 'services/platform/migrations/sql/gateway_installation_profile.sql', 'services/platform/policy/gateway_cache.go', 'services/platform/policy/gateway_cache_test.go', 'services/platform/policy/gateway_installation.go', 'services/platform/policy/gateway_installation_test.go', 'services/platform/policy/policy.go', 'services/runtime-gateway/evaluation_risk.go', 'services/runtime-gateway/evaluation_risk_test.go', 'services/runtime-gateway/go.mod', 'services/runtime-gateway/go.sum', 'services/runtime-gateway/installation_ack.go', 'services/runtime-gateway/installation_ack_test.go', 'services/runtime-gateway/production.go', 'services/runtime-gateway/production_runtime.go', 'services/runtime-gateway/production_runtime_test.go', 'services/runtime-gateway/production_test.go', 'services/runtime-gateway/proxy.go', 'services/runtime-gateway/proxy_test.go', 'services/runtime-gateway/runtime.go', 'services/runtime-gateway/runtime_policy_evaluation.go', 'services/runtime-gateway/runtime_test.go'])
+          package = 'github.com/zasp-ai/zasp-sec/services/runtime-gateway'
+          manifest = Path('.github/connector-native-compile-source-pins.json')
+          manifest_before = manifest.read_bytes()
+          assert len(heads) == 10 and len(set(heads)) == 10
+          print(json.dumps(check_sources(Path.cwd(), manifest, required), sort_keys=True))
+          try:
+              with Path('runtime-policy-evaluation-components.jsonl').open('wb') as out, Path('runtime-policy-evaluation-components.stderr').open('wb') as err:
+                  result = subprocess.run(['go', 'test', '-C', 'services/runtime-gateway', '-race', '-p=1', '-count=1', '-timeout=90s', '-json', '-run', '^(' + '|'.join(re.escape(name) for name in heads) + ')$', '.'], stdout=out, stderr=err, timeout=150, check=False)
+              Path('runtime-policy-evaluation-components.status.json').write_text(json.dumps({'go_exit_code': result.returncode, 'expected_heads': heads}, sort_keys=True) + '\n')
+              events = load_events('runtime-policy-evaluation-components.jsonl')
+              # Children may be data-driven; every observed child must belong to a fixed
+              # selected head and complete its own unique run/pass lifecycle below.
+              names = set(heads)
+              for event in events:
+                  if 'Test' in event:
+                      name = event['Test']
+                      assert isinstance(name, str) and name.split('/')[0] in heads, 'unexpected runtime head'
+                      names.add(name)
+              summary = validate_events(events, result.returncode, {package: sorted(names)})
+              print(json.dumps(summary, sort_keys=True))
+          finally:
+              assert manifest.read_bytes() == manifest_before, 'source custody manifest changed'
+              print(json.dumps(check_sources(Path.cwd(), manifest, required), sort_keys=True))
+          PYRUNTIMEPOLICYEVALUATION
+      - name: Preserve component-only execution evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: gateway-installation-component-evidence
+          path: |
+            gateway-installation-components.jsonl
+            gateway-installation-components.stderr
+            runtime-policy-evaluation-components.jsonl
+            runtime-policy-evaluation-components.stderr
+            runtime-policy-evaluation-components.status.json
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Confirm checks did not alter tracked source
+        if: always()
+        run: git diff --exit-code
+
+  gateway-bootstrap-components:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      GOTOOLCHAIN: local
+      GOWORK: 'off'
+      GOFLAGS: '-mod=readonly'
+      GOMAXPROCS: '2'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version: 1.26.8
+          cache: false
+      - name: Require exact toolchain and no ambient bootstrap activation
+        shell: bash
+        run: |
+          test "$(go version)" = 'go version go1.26.8 linux/amd64'
+          test -z "${ZASP_GATEWAY_ENROLLMENT_ENABLED:-}"
+          test -z "${ZASP_GATEWAY_ENROLLMENT_PROFILE_CHECKSUM:-}"
+          test -z "${ZASP_GATEWAY_BOOTSTRAP_PROFILE_CHECKSUM:-}"
+      - name: Require all 98 exact bootstrap component results and API compilation
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 0027
+          python3 - <<'PYGATEWAYBOOTSTRAP'
+          import json, os, re, subprocess, sys
+          from pathlib import Path
+          sys.path.insert(0, str(Path('scripts').resolve()))
+          from validate_agent_read_components import check_sources, load_events, validate_events
+          # Exact component roster; native PostgreSQL and deployed acceptance remain separate.
+          expected = {'github.com/zasp-ai/zasp-sec/services/platform/gatewayenrollmentwire': ['TestGatewayEnrollmentTokenClosedRoundTrip',
+                                                                                   'TestGatewayEnrollmentRequestExactIntent',
+                                                                                   'TestGatewayEnrollmentReceiptExactBinding',
+                                                                                   'TestGatewayEnrollmentWireBoundaryRefusals',
+                                                                                   'TestGatewayEnrollmentSubmittedKeyProof'],
+           'github.com/zasp-ai/zasp-sec/services/platform/gatewayenrollmentcustody': ['TestGatewayEnrollmentCustodyDurableReplay',
+                                                                                      'TestGatewayEnrollmentCustodyExclusiveConflict',
+                                                                                      'TestGatewayEnrollmentCustodyStageRecovery',
+                                                                                      'TestGatewayEnrollmentCustodyReceiptExport'],
+           'github.com/zasp-ai/zasp-sec/services/platform/migrations': ['TestGatewayBootstrapCompilerIdentity',
+                                                                        'TestGatewayBootstrapCompilerIdentity/normal',
+                                                                        'TestGatewayBootstrapCompilerIdentity/audit',
+                                                                        'TestGatewayBootstrapInstallerClosedAdmission',
+                                                                        'TestGatewayBootstrapInstallerClosedAdmission/normal-fresh',
+                                                                        'TestGatewayBootstrapInstallerClosedAdmission/audit-fresh',
+                                                                        'TestGatewayBootstrapInstallerClosedAdmission/normal-existing',
+                                                                        'TestGatewayBootstrapInstallerClosedAdmission/audit-existing',
+                                                                        'TestGatewayBootstrapInstallerClosedAdmission/normal-explicit-self-role',
+                                                                        'TestGatewayBootstrapInstallerClosedAdmission/audit-explicit-self-role',
+                                                                        'TestGatewayBootstrapInstallerClosedAdmission/source-operator-refused',
+                                                                        'TestGatewayBootstrapInstallerClosedAdmission/parent-refused',
+                                                                        'TestGatewayBootstrapInstallerClosedAdmission/runtime-parent-refused',
+                                                                        'TestGatewayBootstrapInstallerClosedAdmission/normal-wrong-parent-variant',
+                                                                        'TestGatewayBootstrapInstallerClosedAdmission/audit-wrong-parent-variant',
+                                                                        'TestGatewayBootstrapInstallerClosedAdmission/hostile-default-acl',
+                                                                        'TestGatewayBootstrapInstallerClosedAdmission/catalog-refused',
+                                                                        'TestGatewayBootstrapInstallerClosedAdmission/restore-refused'],
+           'github.com/zasp-ai/zasp-sec/cmd/agentsecctl': ['TestGatewayEnrollmentCommandConnectedTLSAndCredentialExport',
+                                                           'TestGatewayEnrollmentCommandUnknownRetryRetainsExactIntent',
+                                                           'TestGatewayEnrollmentCommandLocalStatusAndExpiredUnknown',
+                                                           'TestGatewayEnrollmentCommandRefusesUntrustedInputsAndReceipts',
+                                                           'TestGatewayEnrollmentCommandRefusesUntrustedInputsAndReceipts/cleartext_origin',
+                                                           'TestGatewayEnrollmentCommandRefusesUntrustedInputsAndReceipts/secret_flag',
+                                                           'TestGatewayEnrollmentCommandRefusesUntrustedInputsAndReceipts/duplicate_input',
+                                                           'TestGatewayEnrollmentCommandRefusesUntrustedInputsAndReceipts/oversized_input'],
+           'github.com/zasp-ai/zasp-sec/services/platform/apiserver': ['TestGatewayBootstrapConnectedOneTimeDelivery',
+                                                                       'TestGatewayBootstrapConnectedOneTimeDelivery/fresh_browser',
+                                                                       'TestGatewayBootstrapConnectedOneTimeDelivery/fresh_PAT',
+                                                                       'TestGatewayBootstrapConnectedOneTimeDelivery/metadata_replay',
+                                                                       'TestGatewayBootstrapConnectedOneTimeDelivery/unknown_transaction',
+                                                                       'TestGatewayBootstrapConnectedOneTimeDelivery/browser_without_fresh',
+                                                                       'TestGatewayBootstrapConnectedOneTimeDelivery/duplicate_body_member',
+                                                                       'TestGatewayBootstrapConnectedOneTimeDelivery/changed_expected_version',
+                                                                       'TestGatewayBootstrapCanonicalIntentExcludesMintedRandomness'],
+           'github.com/zasp-ai/zasp-sec/services/platform/gatewaycontrol': ['TestGatewayEnrollmentSignedHTTPAdmission',
+                                                                            'TestGatewayEnrollmentSignedHTTPAdmission/accepted',
+                                                                            'TestGatewayEnrollmentSignedHTTPAdmission/off',
+                                                                            'TestGatewayEnrollmentSignedHTTPAdmission/catalog_failure',
+                                                                            'TestGatewayEnrollmentSignedHTTPAdmission/wrong_scope_receipt',
+                                                                            'TestGatewayEnrollmentSignedHTTPAdmission/bad_proof',
+                                                                            'TestGatewayEnrollmentSignedHTTPAdmission/scope_header',
+                                                                            'TestGatewayEnrollmentSignedHTTPAdmission/malformed',
+                                                                            'TestGatewayEnrollmentSignedHTTPAdmission/oversize',
+                                                                            'TestGatewayEnrollmentSignedHTTPAdmission/duplicate_authorization',
+                                                                            'TestGatewayEnrollmentSignedHTTPAdmission/wrong_media',
+                                                                            'TestGatewayEnrollmentSignedHTTPAdmission/query',
+                                                                            'TestGatewayEnrollmentTransactionCurrentAuthorityBeforeCommit',
+                                                                            'TestGatewayEnrollmentTransactionCurrentAuthorityBeforeCommit/own_profile_pins',
+                                                                            'TestGatewayEnrollmentTransactionCurrentAuthorityBeforeCommit/committed',
+                                                                            'TestGatewayEnrollmentTransactionCurrentAuthorityBeforeCommit/exact_replay',
+                                                                            'TestGatewayEnrollmentTransactionCurrentAuthorityBeforeCommit/foreign_initial_scope',
+                                                                            'TestGatewayEnrollmentTransactionCurrentAuthorityBeforeCommit/changed_final_token',
+                                                                            'TestGatewayEnrollmentTransactionCurrentAuthorityBeforeCommit/wrong_current_key',
+                                                                            'TestGatewayEnrollmentTransactionCurrentAuthorityBeforeCommit/expired_after_wait',
+                                                                            'TestGatewayEnrollmentTransactionCurrentAuthorityBeforeCommit/unknown_commit',
+                                                                            'TestGatewayEnrollmentTransactionCurrentAuthorityBeforeCommit/bad_native_receipt',
+                                                                            'TestGatewayEnrollmentTransactionCurrentAuthorityBeforeCommit/token_expired_at_final_fence'],
+           'github.com/zasp-ai/zasp-sec/services/gateway-control': ['TestGatewayEnrollmentProductionClosedSelection',
+                                                                    'TestGatewayEnrollmentProductionClosedSelection/legacy',
+                                                                    'TestGatewayEnrollmentProductionClosedSelection/disabled_empty',
+                                                                    'TestGatewayEnrollmentProductionClosedSelection/disabled_pin',
+                                                                    'TestGatewayEnrollmentProductionClosedSelection/bad_flag',
+                                                                    'TestGatewayEnrollmentProductionClosedSelection/missing_pin',
+                                                                    'TestGatewayEnrollmentProductionClosedSelection/unknown_pin',
+                                                                    'TestGatewayEnrollmentProductionClosedSelection/normal_selected_mount',
+                                                                    'TestGatewayEnrollmentProductionClosedSelection/audit_selected_mount'],
+           'github.com/zasp-ai/zasp-sec/services/platform/agentsec-migrate': ['TestGatewayBootstrapMigrationDispatchAndConfirmation',
+                                                                              'TestGatewayBootstrapMigrationDispatchAndConfirmation/up-gateway-bootstrap-profile',
+                                                                              'TestGatewayBootstrapMigrationDispatchAndConfirmation/up-gateway-bootstrap-profile/dispatch',
+                                                                              'TestGatewayBootstrapMigrationDispatchAndConfirmation/up-gateway-bootstrap-profile/source-principal-refused',
+                                                                              'TestGatewayBootstrapMigrationDispatchAndConfirmation/up-gateway-bootstrap-profile/canonical61-refused',
+                                                                              'TestGatewayBootstrapMigrationDispatchAndConfirmation/up-gateway-bootstrap-profile/strict-arguments',
+                                                                              'TestGatewayBootstrapMigrationDispatchAndConfirmation/up-gateway-bootstrap-profile/confirm-accepted',
+                                                                              'TestGatewayBootstrapMigrationDispatchAndConfirmation/up-gateway-bootstrap-profile/confirm-catalog-refused',
+                                                                              'TestGatewayBootstrapMigrationDispatchAndConfirmation/up-gateway-bootstrap-profile/confirm-unknown-commit',
+                                                                              'TestGatewayBootstrapMigrationDispatchAndConfirmation/up-gateway-bootstrap-profile/confirm-canceled',
+                                                                              'TestGatewayBootstrapMigrationDispatchAndConfirmation/up-gateway-bootstrap-audit-profile',
+                                                                              'TestGatewayBootstrapMigrationDispatchAndConfirmation/up-gateway-bootstrap-audit-profile/dispatch',
+                                                                              'TestGatewayBootstrapMigrationDispatchAndConfirmation/up-gateway-bootstrap-audit-profile/source-principal-refused',
+                                                                              'TestGatewayBootstrapMigrationDispatchAndConfirmation/up-gateway-bootstrap-audit-profile/canonical61-refused',
+                                                                              'TestGatewayBootstrapMigrationDispatchAndConfirmation/up-gateway-bootstrap-audit-profile/strict-arguments',
+                                                                              'TestGatewayBootstrapMigrationDispatchAndConfirmation/up-gateway-bootstrap-audit-profile/confirm-accepted',
+                                                                              'TestGatewayBootstrapMigrationDispatchAndConfirmation/up-gateway-bootstrap-audit-profile/confirm-catalog-refused',
+                                                                              'TestGatewayBootstrapMigrationDispatchAndConfirmation/up-gateway-bootstrap-audit-profile/confirm-unknown-commit',
+                                                                              'TestGatewayBootstrapMigrationDispatchAndConfirmation/up-gateway-bootstrap-audit-profile/confirm-canceled',
+                                                                              'TestGatewayBootstrapCLIInputsAndChecksums',
+                                                                              'TestGatewayBootstrapCLIInputsAndChecksums/up-gateway-bootstrap-profile',
+                                                                              'TestGatewayBootstrapCLIInputsAndChecksums/up-gateway-bootstrap-audit-profile']}
+          required = frozenset(['.github/workflows/connector-native-draft-compile.yml',
+           'app/components/ZaspProductionApp.tsx',
+           'app/features/gateways/ProductionGatewayBootstrapView.test.tsx',
+           'app/features/gateways/ProductionGatewayBootstrapView.tsx',
+           'app/features/gateways/api.test.ts',
+           'app/features/gateways/api.ts',
+           'app/features/gateways/bootstrap-fixtures.ts',
+           'apps/web/api/client.ts',
+           'apps/web/api/gateway-bootstrap-decoders.ts',
+           'apps/web/api/generated.ts',
+           'cmd/agentsecctl/gateway_enrollment.go',
+           'cmd/agentsecctl/gateway_enrollment_test.go',
+           'cmd/agentsecctl/go.mod',
+           'cmd/agentsecctl/go.sum',
+           'cmd/agentsecctl/main.go',
+           'cmd/agentsecctl/recovery_client.go',
+           'cmd/agentsecctl/release.go',
+           'deploy/production/gateway-bootstrap-profile.mjs',
+           'deploy/production/gateway-bootstrap-profile.test.mjs',
+           'deploy/production/release-contract.mjs',
+           'deploy/staging/product/templates/_gateway-bootstrap.tpl',
+           'deploy/staging/product/templates/runtime.yaml',
+           'deploy/staging/product/templates/workloads.yaml',
+           'deploy/staging/product/values.yaml',
+           'openapi/openapi.yaml',
+           'package-lock.json',
+           'package.json',
+           'scripts/validate_agent_read_components.py',
+           'scripts/validate_agent_read_components_test.py',
+           'services/gateway-control/enrollment_test.go',
+           'services/gateway-control/go.mod',
+           'services/gateway-control/go.sum',
+           'services/gateway-control/production.go',
+           'services/gateway-control/production_runtime.go',
+           'services/platform/agentsec-api/gateway_bootstrap_runtime.go',
+           'services/platform/agentsec-api/production_runtime.go',
+           'services/platform/agentsec-api/runtime.go',
+           'services/platform/agentsec-migrate/forward_release_confirmation.go',
+           'services/platform/agentsec-migrate/gateway_bootstrap_profile.go',
+           'services/platform/agentsec-migrate/gateway_bootstrap_profile_test.go',
+           'services/platform/agentsec-migrate/main.go',
+           'services/platform/apiserver/authorization_openfga.go',
+           'services/platform/apiserver/authorization_post_login.go',
+           'services/platform/apiserver/authorization_statement.go',
+           'services/platform/apiserver/authorization_targets.go',
+           'services/platform/apiserver/authorization_transaction.go',
+           'services/platform/apiserver/composition.go',
+           'services/platform/apiserver/gateway_bootstrap.go',
+           'services/platform/apiserver/gateway_bootstrap_flow_test.go',
+           'services/platform/apiserver/gateway_bootstrap_repository.go',
+           'services/platform/apiserver/production.go',
+           'services/platform/apiserver/repository.go',
+           'services/platform/authorization/operations.json',
+           'services/platform/gatewaycontrol/client.go',
+           'services/platform/gatewaycontrol/contract.go',
+           'services/platform/gatewaycontrol/enrollment.go',
+           'services/platform/gatewaycontrol/enrollment_test.go',
+           'services/platform/gatewaycontrol/http.go',
+           'services/platform/gatewaycontrol/postgres.go',
+           'services/platform/gatewayenrollmentcustody/custody.go',
+           'services/platform/gatewayenrollmentcustody/custody_test.go',
+           'services/platform/gatewayenrollmentcustody/files_linux.go',
+           'services/platform/gatewayenrollmentcustody/files_other.go',
+           'services/platform/gatewayenrollmentcustody/publication.go',
+           'services/platform/gatewayenrollmentwire/wire.go',
+           'services/platform/gatewayenrollmentwire/wire_test.go',
+           'services/platform/go.mod',
+           'services/platform/go.sum',
+           'services/platform/internal/cacheownership/ownership.go',
+           'services/platform/internal/cacheownership/ownership_linux.go',
+           'services/platform/internal/cacheownership/ownership_other.go',
+           'services/platform/internal/cacheownership/ownership_test.go',
+           'services/platform/migrations/production_gateway_bootstrap_compiler_test.go',
+           'services/platform/migrations/production_gateway_bootstrap_profile.go',
+           'services/platform/migrations/production_gateway_bootstrap_profile_test.go',
+           'services/platform/migrations/sql/0015_runtime_data_plane.up.sql',
+           'services/platform/migrations/sql/0079_production_authorization_projection.up.sql',
+           'services/platform/migrations/sql/0080_authorization_worker_gateway_writers.sql',
+           'services/platform/migrations/sql/gateway_bootstrap_profile.sql'])
+          assert len(expected) == 8 and sum(map(len, expected.values())) == 98
+          assert all(len(names) == len(set(names)) and all('Postgres' not in n for n in names) for names in expected.values())
+          print(json.dumps(check_sources(Path.cwd(), '.github/connector-native-compile-source-pins.json', required), sort_keys=True))
+          modules = {'cmd/agentsecctl': ['.'],
+           'services/gateway-control': ['.'],
+           'services/platform': ['./gatewayenrollmentwire',
+                                 './gatewayenrollmentcustody',
+                                 './migrations',
+                                 './apiserver',
+                                 './gatewaycontrol',
+                                 './agentsec-migrate']}
+          status = 0
+          executions = []
+          with Path('gateway-bootstrap-components.jsonl').open('wb') as out, Path('gateway-bootstrap-components.stderr').open('wb') as err:
+              for module, packages in modules.items():
+                  prefix = 'github.com/zasp-ai/zasp-sec/' + module
+                  heads = [name for package, names in expected.items() if package == prefix or package.startswith(prefix + '/') for name in names if '/' not in name]
+                  assert heads
+                  command = ['go','test','-C',module,'-race','-p=1','-count=1','-timeout=3m','-json','-run','^('+'|'.join(map(re.escape, heads))+')$',*packages]
+                  result = subprocess.run(command, stdout=out, stderr=err, timeout=1200, check=False)
+                  executions.append({'module':module,'command':command,'exit_code':result.returncode,'classification':'component-behavior'})
+                  if result.returncode != 0 and status == 0:
+                      status = result.returncode
+          # The API service has new composition/configuration without a new test head.
+          # Keep its required compile-only result out of the 98-name behavior stream.
+          with Path('gateway-bootstrap-api-compile.jsonl').open('wb') as out, Path('gateway-bootstrap-api-compile.stderr').open('wb') as err:
+              command = ['go','test','-C','services/platform','-race','-p=1','-count=1','-timeout=3m','-json','-run','^$','./agentsec-api']
+              result = subprocess.run(command, stdout=out, stderr=err, timeout=1200, check=False)
+              executions.append({'module':'services/platform','command':command,'exit_code':result.returncode,'classification':'compile-only-no-behavior'})
+              if result.returncode != 0 and status == 0:
+                  status = result.returncode
+          Path('gateway-bootstrap-component-executions.json').write_text(json.dumps(executions, indent=2)+'\n')
+          assert len(executions) == 4 and all(item['exit_code'] == 0 for item in executions), 'required behavior or API compilation failed'
+          print(json.dumps(validate_events(load_events('gateway-bootstrap-components.jsonl'), status, expected), sort_keys=True))
+          PYGATEWAYBOOTSTRAP
+      - name: Preserve component and compile-only evidence with separate labels
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: gateway-bootstrap-component-evidence
+          path: |
+            gateway-bootstrap-components.jsonl
+            gateway-bootstrap-components.stderr
+            gateway-bootstrap-api-compile.jsonl
+            gateway-bootstrap-api-compile.stderr
+            gateway-bootstrap-component-executions.json
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Confirm checks did not alter tracked source
+        if: always()
+        run: git diff --exit-code
+
+  gateway-authority-recovery-components:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GOTOOLCHAIN: local
+      GOWORK: 'off'
+      GOFLAGS: '-mod=readonly'
+      GOMAXPROCS: '2'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version: 1.26.8
+          cache: false
+      - name: Require all nine retained-key recovery component results
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 0027
+          test "$(go version)" = 'go version go1.26.8 linux/amd64'
+          python3 - <<'PYGATEWAYAUTHORITYRECOVERY'
+          import json, re, subprocess, sys
+          from pathlib import Path
+          sys.path.insert(0, str(Path('scripts').resolve()))
+          from validate_agent_read_components import check_sources, load_events, validate_events
+          expected = {'github.com/zasp-ai/zasp-sec/services/platform/gatewayenrollmentwire': ['TestGatewayCurrentAuthorityClosedTupleAndFreshness',
+                                                                                   'TestGatewayCurrentAuthorityStrictOriginalThirteenFields',
+                                                                                   'TestGatewayCurrentAuthorityExactRetainedKeyGetProof'],
+           'github.com/zasp-ai/zasp-sec/services/platform/gatewayenrollmentcustody': ['TestGatewayAuthorityRecoveryLiveCapabilityPreservesUnknownEnrollment',
+                                                                                      'TestGatewayAuthorityRecoveryRestartHistoryIsNeverLive',
+                                                                                      'TestGatewayAuthorityRecoveryOrphansAliasesAndClosedHandles'],
+           'github.com/zasp-ai/zasp-sec/cmd/agentsecctl': ['TestGatewayAuthorityRecoveryCommandLostEnrollmentAndExpiredToken',
+                                                           'TestGatewayAuthorityRecoveryCommandFreshRetryPreservesHistory',
+                                                           'TestGatewayAuthorityRecoveryCommandRefusesInvalidEvidenceAndInputs']}
+          required = frozenset(['.github/workflows/connector-native-draft-compile.yml',
+           'cmd/agentsecctl/gateway_authority_recovery.go',
+           'cmd/agentsecctl/gateway_authority_recovery_test.go',
+           'cmd/agentsecctl/gateway_enrollment.go',
+           'cmd/agentsecctl/gateway_enrollment_test.go',
+           'cmd/agentsecctl/go.mod',
+           'cmd/agentsecctl/go.sum',
+           'cmd/agentsecctl/release.go',
+           'scripts/validate_agent_read_components.py',
+           'scripts/validate_agent_read_components_test.py',
+           'services/platform/gatewaycontrol/client.go',
+           'services/platform/gatewaycontrol/contract.go',
+           'services/platform/gatewaycontrol/http.go',
+           'services/platform/gatewaycontrol/postgres.go',
+           'services/platform/gatewayenrollmentcustody/custody.go',
+           'services/platform/gatewayenrollmentcustody/custody_test.go',
+           'services/platform/gatewayenrollmentcustody/files_linux.go',
+           'services/platform/gatewayenrollmentcustody/files_other.go',
+           'services/platform/gatewayenrollmentcustody/publication.go',
+           'services/platform/gatewayenrollmentcustody/recovery.go',
+           'services/platform/gatewayenrollmentcustody/recovery_test.go',
+           'services/platform/gatewayenrollmentwire/authority.go',
+           'services/platform/gatewayenrollmentwire/authority_test.go',
+           'services/platform/gatewayenrollmentwire/wire.go',
+           'services/platform/gatewayenrollmentwire/wire_test.go',
+           'services/platform/go.mod',
+           'services/platform/go.sum',
+           'services/platform/internal/cacheownership/ownership.go',
+           'services/platform/internal/cacheownership/ownership_linux.go',
+           'services/platform/internal/cacheownership/ownership_other.go',
+           'services/platform/internal/cacheownership/ownership_test.go',
+           'services/platform/migrations/sql/0015_runtime_data_plane.up.sql',
+           'services/platform/migrations/sql/0080_authorization_worker_gateway_writers.sql'])
+          assert len(expected) == 3 and sum(map(len, expected.values())) == 9
+          assert all(len(names) == len(set(names)) and all('/' not in n and 'Postgres' not in n for n in names) for names in expected.values())
+          print(json.dumps(check_sources(Path.cwd(), '.github/connector-native-compile-source-pins.json', required), sort_keys=True))
+          status = 0
+          modules = {'services/platform': ['./gatewayenrollmentwire', './gatewayenrollmentcustody'], 'cmd/agentsecctl': ['.']}
+          with Path('gateway-authority-recovery-components.jsonl').open('wb') as out, Path('gateway-authority-recovery-components.stderr').open('wb') as err:
+              for module, packages in modules.items():
+                  prefix = 'github.com/zasp-ai/zasp-sec/' + module
+                  heads = [n for package, names in expected.items() if package == prefix or package.startswith(prefix + '/') for n in names]
+                  assert heads
+                  command = ['go','test','-C',module,'-race','-p=1','-count=1','-timeout=3m','-json','-run','^('+'|'.join(map(re.escape, heads))+')$',*packages]
+                  result = subprocess.run(command, stdout=out, stderr=err, timeout=600, check=False)
+                  if result.returncode != 0 and status == 0:
+                      status = result.returncode
+          print(json.dumps(validate_events(load_events('gateway-authority-recovery-components.jsonl'), status, expected), sort_keys=True))
+          PYGATEWAYAUTHORITYRECOVERY
+      - name: Preserve component evidence without native or deployed promotion
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: gateway-authority-recovery-component-evidence
+          path: |
+            gateway-authority-recovery-components.jsonl
+            gateway-authority-recovery-components.stderr
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Confirm checks did not alter tracked source
+        if: always()
+        run: git diff --exit-code
+
+
+  agent-device-association-components:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      GOTOOLCHAIN: local
+      GOWORK: 'off'
+      GOFLAGS: '-mod=readonly'
+      GOMAXPROCS: '2'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version: 1.26.8
+          cache: false
+      - name: Require all 99 exact administrative association component results
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 0027
+          test "$(go version)" = 'go version go1.26.8 linux/amd64'
+          test -z "${ZASP_AGENT_DEVICE_ASSOCIATION_ENABLED:-}"
+          test -z "${ZASP_AGENT_DEVICE_ASSOCIATION_PROFILE_CHECKSUM:-}"
+          python3 - <<'PYAGENTDEVICEASSOCIATION'
+          import json, re, subprocess, sys
+          from pathlib import Path
+          sys.path.insert(0, str(Path('scripts').resolve()))
+          from validate_agent_read_components import check_sources, load_events, validate_events
+          # All original guards remain separate. Application components never prove native/deployed readiness.
+          expected = {'github.com/zasp-ai/zasp-sec/services/platform/gatewayassociationwire': ['TestAgentDeviceAssociationNativeByteKnownAnswer',
+                                                                                    'TestAgentDeviceAssociationClosedNestedContract',
+                                                                                    'TestAgentDeviceAssociationExistingDeviceProof'],
+           'github.com/zasp-ai/zasp-sec/services/platform/gatewayenrollmentcustody': ['TestAgentDeviceAssociationCustodyMultipleExactIntents',
+                                                                                      'TestAgentDeviceAssociationCustodyStageAndOrphanBoundaries',
+                                                                                      'TestAgentDeviceAssociationCustodyBothExportPathsReserveNamespace'],
+           'github.com/zasp-ai/zasp-sec/cmd/agentsecctl': ['TestGatewayAgentAssociationCommandConnectedTLSPhaseTwoOnly',
+                                                           'TestGatewayAgentAssociationCommandUnknownRetryAndIndependentHistory',
+                                                           'TestGatewayAgentAssociationCommandRefusesInvalidChallengeAndEvidence'],
+           'github.com/zasp-ai/zasp-sec/services/platform/migrations': ['TestAgentDeviceAssociationInstallerClosedAdmission',
+                                                                        'TestAgentDeviceAssociationInstallerClosedAdmission/normal-fresh',
+                                                                        'TestAgentDeviceAssociationInstallerClosedAdmission/audit-fresh',
+                                                                        'TestAgentDeviceAssociationInstallerClosedAdmission/normal-existing',
+                                                                        'TestAgentDeviceAssociationInstallerClosedAdmission/audit-existing',
+                                                                        'TestAgentDeviceAssociationInstallerClosedAdmission/normal-explicit-self-role',
+                                                                        'TestAgentDeviceAssociationInstallerClosedAdmission/audit-explicit-self-role',
+                                                                        'TestAgentDeviceAssociationInstallerClosedAdmission/source-operator-refused',
+                                                                        'TestAgentDeviceAssociationInstallerClosedAdmission/parent-refused',
+                                                                        'TestAgentDeviceAssociationInstallerClosedAdmission/runtime-parent-refused',
+                                                                        'TestAgentDeviceAssociationInstallerClosedAdmission/normal-wrong-parent-variant',
+                                                                        'TestAgentDeviceAssociationInstallerClosedAdmission/audit-wrong-parent-variant',
+                                                                        'TestAgentDeviceAssociationInstallerClosedAdmission/hostile-default-acl',
+                                                                        'TestAgentDeviceAssociationInstallerClosedAdmission/catalog-refused',
+                                                                        'TestAgentDeviceAssociationInstallerClosedAdmission/restore-refused'],
+           'github.com/zasp-ai/zasp-sec/services/platform/apiserver': ['TestAgentDeviceAssociationClosedOperationPermissionSurface',
+                                                                       'TestAgentDeviceAssociationClosedOperationPermissionSurface/createAgentDeviceIntent',
+                                                                       'TestAgentDeviceAssociationClosedOperationPermissionSurface/activateAgentDeviceAssociation',
+                                                                       'TestAgentDeviceAssociationClosedOperationPermissionSurface/revokeAgentDeviceAssociation',
+                                                                       'TestAgentDeviceAssociationClosedOperationPermissionSurface/listAgentDeviceAssociations',
+                                                                       'TestAgentDeviceAssociationHumanFlowAndUnknownCommit',
+                                                                       'TestAgentDeviceAssociationHumanFlowAndUnknownCommit/fresh_intent',
+                                                                       'TestAgentDeviceAssociationHumanFlowAndUnknownCommit/historical_intent',
+                                                                       'TestAgentDeviceAssociationHumanFlowAndUnknownCommit/PAT_refused',
+                                                                       'TestAgentDeviceAssociationHumanFlowAndUnknownCommit/browser_not_fresh',
+                                                                       'TestAgentDeviceAssociationHumanFlowAndUnknownCommit/unknown_commit',
+                                                                       'TestAgentDeviceAssociationHumanFlowAndUnknownCommit/closed_body_refused',
+                                                                       'TestAgentDeviceAssociationHumanFlowAndUnknownCommit/revoke_whole_pair',
+                                                                       'TestAgentDeviceAssociationOriginalTransactionConfirmation',
+                                                                       'TestAgentDeviceAssociationOriginalTransactionConfirmation/confirm_before_commit',
+                                                                       'TestAgentDeviceAssociationOriginalTransactionConfirmation/final_fence_refused',
+                                                                       'TestAgentDeviceAssociationOriginalTransactionConfirmation/unknown_commit',
+                                                                       'TestAgentDeviceAssociationOriginalTransactionConfirmation/wrong_Agent_refused',
+                                                                       'TestAgentDeviceAssociationOriginalTransactionConfirmation/PAT_refused'],
+           'github.com/zasp-ai/zasp-sec/services/platform/agentsec-migrate': ['TestAgentDeviceAssociationMigrationDispatchAndConfirmation',
+                                                                              'TestAgentDeviceAssociationMigrationDispatchAndConfirmation/up-agent-device-association-profile',
+                                                                              'TestAgentDeviceAssociationMigrationDispatchAndConfirmation/up-agent-device-association-profile/dispatch',
+                                                                              'TestAgentDeviceAssociationMigrationDispatchAndConfirmation/up-agent-device-association-profile/source-principal-refused',
+                                                                              'TestAgentDeviceAssociationMigrationDispatchAndConfirmation/up-agent-device-association-profile/canonical61-refused',
+                                                                              'TestAgentDeviceAssociationMigrationDispatchAndConfirmation/up-agent-device-association-profile/strict-arguments',
+                                                                              'TestAgentDeviceAssociationMigrationDispatchAndConfirmation/up-agent-device-association-profile/confirm-accepted',
+                                                                              'TestAgentDeviceAssociationMigrationDispatchAndConfirmation/up-agent-device-association-profile/confirm-catalog-refused',
+                                                                              'TestAgentDeviceAssociationMigrationDispatchAndConfirmation/up-agent-device-association-profile/confirm-unknown-commit',
+                                                                              'TestAgentDeviceAssociationMigrationDispatchAndConfirmation/up-agent-device-association-profile/confirm-canceled',
+                                                                              'TestAgentDeviceAssociationMigrationDispatchAndConfirmation/up-agent-device-association-audit-profile',
+                                                                              'TestAgentDeviceAssociationMigrationDispatchAndConfirmation/up-agent-device-association-audit-profile/dispatch',
+                                                                              'TestAgentDeviceAssociationMigrationDispatchAndConfirmation/up-agent-device-association-audit-profile/source-principal-refused',
+                                                                              'TestAgentDeviceAssociationMigrationDispatchAndConfirmation/up-agent-device-association-audit-profile/canonical61-refused',
+                                                                              'TestAgentDeviceAssociationMigrationDispatchAndConfirmation/up-agent-device-association-audit-profile/strict-arguments',
+                                                                              'TestAgentDeviceAssociationMigrationDispatchAndConfirmation/up-agent-device-association-audit-profile/confirm-accepted',
+                                                                              'TestAgentDeviceAssociationMigrationDispatchAndConfirmation/up-agent-device-association-audit-profile/confirm-catalog-refused',
+                                                                              'TestAgentDeviceAssociationMigrationDispatchAndConfirmation/up-agent-device-association-audit-profile/confirm-unknown-commit',
+                                                                              'TestAgentDeviceAssociationMigrationDispatchAndConfirmation/up-agent-device-association-audit-profile/confirm-canceled',
+                                                                              'TestAgentDeviceAssociationCLIInputsAndChecksums',
+                                                                              'TestAgentDeviceAssociationCLIInputsAndChecksums/up-agent-device-association-profile',
+                                                                              'TestAgentDeviceAssociationCLIInputsAndChecksums/up-agent-device-association-audit-profile'],
+           'github.com/zasp-ai/zasp-sec/services/platform/agentsec-api': ['TestAgentDeviceAssociationRuntimeProfileIsExplicitAndFailClosed'],
+           'github.com/zasp-ai/zasp-sec/services/platform/gatewaycontrol': ['TestAgentDeviceAssociationSignedAcceptRequiresCurrentDevice',
+                                                                            'TestAgentDeviceAssociationSignedAcceptRequiresCurrentDevice/accepted',
+                                                                            'TestAgentDeviceAssociationSignedAcceptRequiresCurrentDevice/off',
+                                                                            'TestAgentDeviceAssociationSignedAcceptRequiresCurrentDevice/catalog_failure',
+                                                                            'TestAgentDeviceAssociationSignedAcceptRequiresCurrentDevice/bad_signature',
+                                                                            'TestAgentDeviceAssociationSignedAcceptRequiresCurrentDevice/scope_header',
+                                                                            'TestAgentDeviceAssociationSignedAcceptRequiresCurrentDevice/malformed',
+                                                                            'TestAgentDeviceAssociationSignedAcceptRequiresCurrentDevice/oversize',
+                                                                            'TestAgentDeviceAssociationSignedAcceptRequiresCurrentDevice/wrong_receipt_generation',
+                                                                            'TestAgentDeviceAssociationSignedAcceptRequiresCurrentDevice/wrong_media',
+                                                                            'TestAgentDeviceAssociationSignedAcceptRequiresCurrentDevice/query',
+                                                                            'TestAgentDeviceAssociationSignedAcceptRequiresCurrentDevice/foreign_device',
+                                                                            'TestAgentDeviceAssociationSignedAcceptRequiresCurrentDevice/expired_authority',
+                                                                            'TestAgentDeviceAssociationSignedAcceptRequiresCurrentDevice/empty_query',
+                                                                            'TestAgentDeviceAssociationSamePoolConfirmBeforeCommit',
+                                                                            'TestAgentDeviceAssociationSamePoolConfirmBeforeCommit/strict_private_wrapper',
+                                                                            'TestAgentDeviceAssociationSamePoolConfirmBeforeCommit/own_profile_pins',
+                                                                            'TestAgentDeviceAssociationSamePoolConfirmBeforeCommit/accepted',
+                                                                            'TestAgentDeviceAssociationSamePoolConfirmBeforeCommit/replay',
+                                                                            'TestAgentDeviceAssociationSamePoolConfirmBeforeCommit/final_fence_false',
+                                                                            'TestAgentDeviceAssociationSamePoolConfirmBeforeCommit/unknown_commit',
+                                                                            'TestAgentDeviceAssociationSamePoolConfirmBeforeCommit/wrong_generation',
+                                                                            'TestAgentDeviceAssociationSamePoolConfirmBeforeCommit/missing_private_marker',
+                                                                            'TestAgentDeviceAssociationSamePoolConfirmBeforeCommit/historical_marker_mismatch'],
+           'github.com/zasp-ai/zasp-sec/services/gateway-control': ['TestAgentDeviceAssociationProductionClosedSelection',
+                                                                    'TestAgentDeviceAssociationProductionClosedSelection/normal_selected_mount',
+                                                                    'TestAgentDeviceAssociationProductionClosedSelection/audit_selected_mount',
+                                                                    'TestAgentDeviceAssociationProductionClosedSelection/legacy',
+                                                                    'TestAgentDeviceAssociationProductionClosedSelection/disabled_empty',
+                                                                    'TestAgentDeviceAssociationProductionClosedSelection/disabled_pin',
+                                                                    'TestAgentDeviceAssociationProductionClosedSelection/invalid_flag',
+                                                                    'TestAgentDeviceAssociationProductionClosedSelection/missing_pin',
+                                                                    'TestAgentDeviceAssociationProductionClosedSelection/unknown_pin']}
+          required = frozenset(['.github/workflows/connector-native-draft-compile.yml',
+           'app/components/ZaspProductionApp.tsx',
+           'app/features/agents/ProductionAgentSecurityView.tsx',
+           'app/features/agents/device-associations/AgentDeviceAssociationsPanel.test.tsx',
+           'app/features/agents/device-associations/AgentDeviceAssociationsPanel.tsx',
+           'app/features/agents/device-associations/api.test.ts',
+           'app/features/agents/device-associations/api.ts',
+           'app/features/agents/device-associations/fixtures.ts',
+           'app/quality/m2-closure-contract.test.ts',
+           'app/quality/m2-identity-governance-ui-batch-contract.test.ts',
+           'app/quality/ui-api-coverage-ci-contract.test.ts',
+           'app/quality/ui-api-map-contract.test.ts',
+           'apps/web/api/agent-device-association-decoders.ts',
+           'apps/web/api/client.ts',
+           'apps/web/api/generated.ts',
+           'cmd/agentsecctl/gateway_agent_association.go',
+           'cmd/agentsecctl/gateway_agent_association_test.go',
+           'cmd/agentsecctl/gateway_authority_recovery.go',
+           'cmd/agentsecctl/gateway_enrollment.go',
+           'cmd/agentsecctl/go.mod',
+           'cmd/agentsecctl/go.sum',
+           'cmd/agentsecctl/main.go',
+           'cmd/agentsecctl/release.go',
+           'deploy/production/agent-device-association-profile.mjs',
+           'deploy/production/agent-device-association-profile.test.mjs',
+           'deploy/production/release-contract.mjs',
+           'deploy/staging/product/templates/_agent-device-association.tpl',
+           'deploy/staging/product/templates/runtime.yaml',
+           'deploy/staging/product/templates/workloads.yaml',
+           'deploy/staging/product/values.yaml',
+           'docs/internal/agent-device-association-design-2026-10-17/contract-final.json',
+           'docs/product/ui-api-map.yaml',
+           'openapi/openapi.test.mjs',
+           'openapi/openapi.yaml',
+           'package-lock.json',
+           'package.json',
+           'scripts/check-ui-api-coverage.test.mjs',
+           'scripts/validate_agent_read_components.py',
+           'scripts/validate_agent_read_components_test.py',
+           'services/gateway-control/association_test.go',
+           'services/gateway-control/go.mod',
+           'services/gateway-control/go.sum',
+           'services/gateway-control/production.go',
+           'services/gateway-control/production_runtime.go',
+           'services/platform/agentsec-api/agent_device_association_runtime.go',
+           'services/platform/agentsec-api/agent_device_association_runtime_test.go',
+           'services/platform/agentsec-api/production_runtime.go',
+           'services/platform/agentsec-api/runtime.go',
+           'services/platform/agentsec-migrate/agent_device_association_profile.go',
+           'services/platform/agentsec-migrate/agent_device_association_profile_test.go',
+           'services/platform/agentsec-migrate/forward_release_confirmation.go',
+           'services/platform/agentsec-migrate/main.go',
+           'services/platform/apiserver/agent_device_association.go',
+           'services/platform/apiserver/agent_device_association_flow_test.go',
+           'services/platform/apiserver/agent_device_association_repository.go',
+           'services/platform/apiserver/agent_device_association_surface.go',
+           'services/platform/apiserver/agent_device_association_transaction_test.go',
+           'services/platform/apiserver/authorization_openfga.go',
+           'services/platform/apiserver/authorization_statement.go',
+           'services/platform/apiserver/authorization_targets.go',
+           'services/platform/apiserver/authorization_transaction.go',
+           'services/platform/apiserver/composition.go',
+           'services/platform/apiserver/composition_test.go',
+           'services/platform/apiserver/production.go',
+           'services/platform/apiserver/repository.go',
+           'services/platform/authorization/operations.json',
+           'services/platform/gatewayassociationwire/testdata/known-answer.json',
+           'services/platform/gatewayassociationwire/wire.go',
+           'services/platform/gatewayassociationwire/wire_test.go',
+           'services/platform/gatewaycontrol/association.go',
+           'services/platform/gatewaycontrol/association_test.go',
+           'services/platform/gatewaycontrol/client.go',
+           'services/platform/gatewaycontrol/contract.go',
+           'services/platform/gatewaycontrol/http.go',
+           'services/platform/gatewaycontrol/postgres.go',
+           'services/platform/gatewayenrollmentcustody/association.go',
+           'services/platform/gatewayenrollmentcustody/association_directory_linux.go',
+           'services/platform/gatewayenrollmentcustody/association_directory_other.go',
+           'services/platform/gatewayenrollmentcustody/association_export_parent.go',
+           'services/platform/gatewayenrollmentcustody/association_test.go',
+           'services/platform/gatewayenrollmentcustody/custody.go',
+           'services/platform/gatewayenrollmentcustody/custody_test.go',
+           'services/platform/gatewayenrollmentcustody/files_linux.go',
+           'services/platform/gatewayenrollmentcustody/files_other.go',
+           'services/platform/gatewayenrollmentcustody/publication.go',
+           'services/platform/gatewayenrollmentcustody/recovery.go',
+           'services/platform/gatewayenrollmentcustody/recovery_test.go',
+           'services/platform/gatewayenrollmentwire/authority.go',
+           'services/platform/gatewayenrollmentwire/authority_test.go',
+           'services/platform/gatewayenrollmentwire/wire.go',
+           'services/platform/gatewayenrollmentwire/wire_test.go',
+           'services/platform/go.mod',
+           'services/platform/go.sum',
+           'services/platform/internal/cacheownership/ownership.go',
+           'services/platform/internal/cacheownership/ownership_linux.go',
+           'services/platform/internal/cacheownership/ownership_other.go',
+           'services/platform/internal/cacheownership/ownership_test.go',
+           'services/platform/migrations/production_agent_device_association_profile.go',
+           'services/platform/migrations/production_agent_device_association_profile_test.go',
+           'services/platform/migrations/sql/0014_typed_inventory_cutover.up.sql',
+           'services/platform/migrations/sql/0015_runtime_data_plane.up.sql',
+           'services/platform/migrations/sql/0079_production_authorization_projection.up.sql',
+           'services/platform/migrations/sql/0080_authorization_worker_gateway_writers.sql',
+           'services/platform/migrations/sql/0080_production_authorization_enforcement.up.sql',
+           'services/platform/migrations/sql/agent_device_association_profile.sql'])
+          assert len(expected) == 9 and sum(map(len, expected.values())) == 99
+          assert all(len(names) == len(set(names)) and all('Postgres' not in name for name in names) for names in expected.values())
+          print(json.dumps(check_sources(Path.cwd(), '.github/connector-native-compile-source-pins.json', required), sort_keys=True))
+          modules = {'cmd/agentsecctl': ['.'],
+           'services/gateway-control': ['.'],
+           'services/platform': ['./gatewayassociationwire',
+                                 './gatewayenrollmentcustody',
+                                 './migrations',
+                                 './apiserver',
+                                 './agentsec-api',
+                                 './agentsec-migrate',
+                                 './gatewaycontrol']}
+          status = 0
+          executions = []
+          with Path('agent-device-association-components.jsonl').open('wb') as out, Path('agent-device-association-components.stderr').open('wb') as err:
+              for module, packages in modules.items():
+                  prefix = 'github.com/zasp-ai/zasp-sec/' + module
+                  heads = [name for package, names in expected.items() if package == prefix or package.startswith(prefix + '/') for name in names if '/' not in name]
+                  assert heads
+                  command = ['go','test','-C',module,'-race','-p=1','-count=1','-timeout=3m','-json','-run','^('+'|'.join(map(re.escape, heads))+')$',*packages]
+                  result = subprocess.run(command, stdout=out, stderr=err, timeout=1200, check=False)
+                  executions.append({'module':module,'command':command,'exit_code':result.returncode,'classification':'component-behavior'})
+                  if result.returncode != 0 and status == 0:
+                      status = result.returncode
+          Path('agent-device-association-component-executions.json').write_text(json.dumps(executions, indent=2)+'\n')
+          assert len(executions) == 3
+          print(json.dumps(validate_events(load_events('agent-device-association-components.jsonl'), status, expected), sort_keys=True))
+          PYAGENTDEVICEASSOCIATION
+      - name: Preserve component evidence without native or deployed promotion
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: agent-device-association-component-evidence
+          path: |
+            agent-device-association-components.jsonl
+            agent-device-association-components.stderr
+            agent-device-association-component-executions.json
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Confirm checks did not alter tracked source
+        if: always()
+        run: git diff --exit-code
+
+  legacy-device-association-components:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      GOTOOLCHAIN: local
+      GOWORK: 'off'
+      GOFLAGS: '-mod=readonly'
+      GOMAXPROCS: '2'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version: 1.26.8
+          cache: false
+      - name: Require all 18 exact existing-credential association component results
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 0027
+          test "$(go version)" = 'go version go1.26.8 linux/amd64'
+          python3 - <<'PYLEGACYDEVICEASSOCIATION'
+          import json, re, subprocess, sys
+          from pathlib import Path
+          sys.path.insert(0, str(Path('scripts').resolve()))
+          from validate_agent_read_components import check_sources, load_events, validate_events
+          # Exact heads: a broad TestLegacy selector also selects an unrelated old CLI test.
+          # Component success does not substitute for original native or deployed acceptance.
+          expected = {'github.com/zasp-ai/zasp-sec/services/platform/gatewayassociationwire': ['TestLegacyCurrentDeviceAuthorityExistingRequestABI',
+                                                                                    'TestLegacyCurrentDeviceAuthorityRejectsAliasAndBody',
+                                                                                    'TestLegacyCurrentDeviceAuthorityRetainedKeyProofRefusals'],
+           'github.com/zasp-ai/zasp-sec/services/platform/gatewayenrollmentcustody': ['TestLegacyDeviceAssociationReadonlyCurrentAuthority',
+                                                                                      'TestLegacyDeviceAssociationReadonlyCurrentAuthority/actual_three_fields_and_durable_intent',
+                                                                                      'TestLegacyDeviceAssociationReadonlyCurrentAuthority/no_offline_or_repeat_capability',
+                                                                                      'TestLegacyDeviceAssociationReadonlyCurrentAuthority/source_swap_invalidates_signing',
+                                                                                      'TestLegacyDeviceAssociationDurableRecovery',
+                                                                                      'TestLegacyDeviceAssociationDurableRecovery/exact_restart_and_immutable_receipt',
+                                                                                      'TestLegacyDeviceAssociationDurableRecovery/partial_intent_stage_refused',
+                                                                                      'TestLegacyDeviceAssociationDurableRecovery/orphan_namespace_refused',
+                                                                                      'TestLegacyDeviceAssociationSourceAndNamespaceBoundaries',
+                                                                                      'TestLegacyDeviceAssociationSourceAndNamespaceBoundaries/guard_and_key_consistency',
+                                                                                      'TestLegacyDeviceAssociationSourceAndNamespaceBoundaries/binding_rotation_refused',
+                                                                                      'TestLegacyDeviceAssociationSourceAndNamespaceBoundaries/cross_store_export_ancestors'],
+           'github.com/zasp-ai/zasp-sec/cmd/agentsecctl': ['TestGatewayLegacyAgentAssociationCommandConnectedCurrentAuthority',
+                                                           'TestGatewayLegacyAgentAssociationCommandUnknownRetryRequiresFreshAuthority',
+                                                           'TestGatewayLegacyAgentAssociationCommandRefusesTrustAndAuthorityFailures']}
+          required = frozenset(['.github/workflows/connector-native-draft-compile.yml',
+           'cmd/agentsecctl/gateway_agent_association.go',
+           'cmd/agentsecctl/gateway_agent_association_test.go',
+           'cmd/agentsecctl/gateway_authority_recovery.go',
+           'cmd/agentsecctl/gateway_authority_recovery_test.go',
+           'cmd/agentsecctl/gateway_enrollment.go',
+           'cmd/agentsecctl/gateway_enrollment_test.go',
+           'cmd/agentsecctl/gateway_legacy_agent_association.go',
+           'cmd/agentsecctl/gateway_legacy_agent_association_test.go',
+           'cmd/agentsecctl/go.mod',
+           'cmd/agentsecctl/go.sum',
+           'cmd/agentsecctl/main.go',
+           'cmd/agentsecctl/release.go',
+           'scripts/validate_agent_read_components.py',
+           'scripts/validate_agent_read_components_test.py',
+           'services/platform/gatewayassociationwire/current_device_authority.go',
+           'services/platform/gatewayassociationwire/current_device_authority_test.go',
+           'services/platform/gatewayassociationwire/testdata/known-answer.json',
+           'services/platform/gatewayassociationwire/wire.go',
+           'services/platform/gatewayassociationwire/wire_test.go',
+           'services/platform/gatewaycontrol/client.go',
+           'services/platform/gatewaycontrol/contract.go',
+           'services/platform/gatewaycontrol/http.go',
+           'services/platform/gatewaycontrol/postgres.go',
+           'services/platform/gatewayenrollmentcustody/association.go',
+           'services/platform/gatewayenrollmentcustody/association_directory_linux.go',
+           'services/platform/gatewayenrollmentcustody/association_directory_other.go',
+           'services/platform/gatewayenrollmentcustody/association_export_parent.go',
+           'services/platform/gatewayenrollmentcustody/association_test.go',
+           'services/platform/gatewayenrollmentcustody/custody.go',
+           'services/platform/gatewayenrollmentcustody/custody_test.go',
+           'services/platform/gatewayenrollmentcustody/files_linux.go',
+           'services/platform/gatewayenrollmentcustody/files_other.go',
+           'services/platform/gatewayenrollmentcustody/legacy_association.go',
+           'services/platform/gatewayenrollmentcustody/legacy_association_linux.go',
+           'services/platform/gatewayenrollmentcustody/legacy_association_other.go',
+           'services/platform/gatewayenrollmentcustody/legacy_association_test.go',
+           'services/platform/gatewayenrollmentcustody/publication.go',
+           'services/platform/gatewayenrollmentcustody/recovery.go',
+           'services/platform/gatewayenrollmentcustody/recovery_test.go',
+           'services/platform/gatewayenrollmentwire/authority.go',
+           'services/platform/gatewayenrollmentwire/authority_test.go',
+           'services/platform/gatewayenrollmentwire/wire.go',
+           'services/platform/gatewayenrollmentwire/wire_test.go',
+           'services/platform/go.mod',
+           'services/platform/go.sum',
+           'services/platform/internal/cacheownership/ownership.go',
+           'services/platform/internal/cacheownership/ownership_linux.go',
+           'services/platform/internal/cacheownership/ownership_other.go',
+           'services/platform/internal/cacheownership/ownership_test.go',
+           'services/platform/migrations/sql/0015_runtime_data_plane.up.sql',
+           'services/platform/migrations/sql/0080_authorization_worker_gateway_writers.sql',
+           'services/runtime-gateway/production.go'])
+          assert len(expected) == 3 and sum(map(len, expected.values())) == 18
+          assert all(len(names) == len(set(names)) and all('Postgres' not in n for n in names) for names in expected.values())
+          print(json.dumps(check_sources(Path.cwd(), '.github/connector-native-compile-source-pins.json', required), sort_keys=True))
+          modules = {'cmd/agentsecctl': ['.'],
+           'services/platform': ['./gatewayassociationwire', './gatewayenrollmentcustody']}
+          status = 0
+          executions = []
+          with Path('legacy-device-association-components.jsonl').open('wb') as out, Path('legacy-device-association-components.stderr').open('wb') as err:
+              for module, packages in modules.items():
+                  prefix = 'github.com/zasp-ai/zasp-sec/' + module
+                  heads = [name for package, names in expected.items() if package == prefix or package.startswith(prefix + '/') for name in names if '/' not in name]
+                  assert heads
+                  command = ['go','test','-C',module,'-race','-p=1','-count=1','-timeout=3m','-json','-run','^('+'|'.join(map(re.escape, heads))+')$',*packages]
+                  result = subprocess.run(command, stdout=out, stderr=err, timeout=900, check=False)
+                  executions.append({'module':module,'command':command,'exit_code':result.returncode,'classification':'component-behavior'})
+                  if result.returncode != 0 and status == 0:
+                      status = result.returncode
+          Path('legacy-device-association-component-executions.json').write_text(json.dumps(executions, indent=2)+'\n')
+          assert len(executions) == 2
+          print(json.dumps(validate_events(load_events('legacy-device-association-components.jsonl'), status, expected), sort_keys=True))
+          PYLEGACYDEVICEASSOCIATION
+      - name: Preserve component evidence without native or deployed promotion
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: legacy-device-association-component-evidence
+          path: |
+            legacy-device-association-components.jsonl
+            legacy-device-association-components.stderr
+            legacy-device-association-component-executions.json
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Confirm checks did not alter tracked source
+        if: always()
+        run: git diff --exit-code

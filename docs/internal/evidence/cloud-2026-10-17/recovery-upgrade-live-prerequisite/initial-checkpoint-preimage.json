@@ -1,0 +1,154 @@
+{
+  "observed_at": "2026-10-17T17:20:13.688374+00:00",
+  "continued_published_base": "315fd9c38d640185376ad0d525636883f6841221",
+  "classification": "ACTUAL_CLI_BACKUP_METADATA_OBSERVATION_COMPONENT_ONLY_ARTIFACT_UNVERIFIED",
+  "task_mapping": [
+    "M8-22d"
+  ],
+  "scope": "Replace upgrade command readiness from caller booleans/URI syntax with fixed authenticated GetBackup metadata binding; keep pure compatibility evaluator explicitly offline. Scope and all eight immutable expected manifest fields must match a succeeded backup. Required rollback artifact verification remains unavailable; top Ready is always false. No artifact URL fetch, worker credential borrowing, grants, migrations, recovery mutation or readiness override.",
+  "sources": [
+    {
+      "path": "cmd/agentsecctl/release.go",
+      "sha256": "d8f460f15198193f647f0e3e7358286cb838ea7abdc16046d9f74c9923c2d4ee",
+      "bytes": 18731
+    },
+    {
+      "path": "cmd/agentsecctl/upgrade_preflight.go",
+      "sha256": "c35b79a1623dea7022995b77418ee4a4468db18f2c8d9306fbce5d2a77430cfe",
+      "bytes": 7587
+    },
+    {
+      "path": "cmd/agentsecctl/upgrade_preflight_test.go",
+      "sha256": "8899d102b7bb4ff6ad7f9445f58eb29b7a2df2527ac12262fa7a7c1d717aaa19",
+      "bytes": 11014
+    },
+    {
+      "path": "cmd/agentsecctl/release_test.go",
+      "sha256": "f74dc5958fb4397cda7e5cdd1c687c85e4f0b794662342efc3dca0ac7f85f25d",
+      "bytes": 13661
+    },
+    {
+      "path": "cmd/agentsecctl/preflight_report_test.go",
+      "sha256": "d615832c9a31165a3e3d4cca563e9af11408da5d246c5f988decd5dbeee41195",
+      "bytes": 3873
+    },
+    {
+      "path": "cmd/agentsecctl/recovery_client.go",
+      "sha256": "bae28a722f29e15848b4460d6c1bf0af74a43ad1114e7605e324eb9ea1e2519d",
+      "bytes": 27246
+    },
+    {
+      "path": "cmd/agentsecctl/recovery_client_test.go",
+      "sha256": "d250639ebc02c2e31e7e5dc45f4c8ac28041dbd67287b141611bd23f3cadd49b",
+      "bytes": 16621
+    },
+    {
+      "path": "scripts/connector-acceptance-groups.test.mjs",
+      "sha256": "95cc47f69c079a082f5a5d3331e62b9033652377c83b553ed68c4a976a995318",
+      "bytes": 65226
+    },
+    {
+      "path": ".github/workflows/connector-native-draft-compile.yml",
+      "sha256": "9860223462defbd02997efc019468446b91fc900c0032640487ffdd2acb518b0",
+      "bytes": 100990
+    },
+    {
+      "path": "scripts/hosted-connected-connector-acceptance.mjs",
+      "sha256": "dec086db8189594c5dbbd42333fe53c61e2d29e1c27fb71c449a1a61eb720aa3",
+      "bytes": 115952
+    },
+    {
+      "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
+      "sha256": "d695c59212bcaedec2c8d2d0edbbd69472c97934f7d347360b4dc5883005636c",
+      "bytes": 112353
+    },
+    {
+      "path": ".github/connector-native-compile-source-pins.json",
+      "sha256": "22163fff1c429f31d3386599b150aefcdda2ae21550b6e1cc34af537fbf0d4dd",
+      "bytes": 186298
+    }
+  ],
+  "verification": {
+    "full_cli_race": {
+      "exit_code": 0,
+      "named_pass": 203,
+      "named_fail": 0,
+      "named_skip": 0
+    },
+    "source_custody_node": {
+      "exit_code": 0,
+      "pass": 20,
+      "fail": 0
+    },
+    "compiled_binary_smoke": {
+      "build_exit_code": 0,
+      "cases_pass": 3,
+      "expected_command_exit_code": 1
+    },
+    "independent_source_review": {
+      "path": "recovery-upgrade-independent-source-review.json",
+      "sha256": "5d88a1fee823fc3ca042a64f1ea2d2da35d7fcd28dee11ef457d1aa33f82664d",
+      "classification": "CLEAR_SOURCE_ONLY"
+    },
+    "initial_behavior": {
+      "pass": 5,
+      "fail": 3,
+      "qualification": "Includes parent failure; genuine actual-command behavioral failure before implementation."
+    },
+    "preserved_followup_failure": "First full CLI attempt had undefined json import, zero named execution. Exact initial source/log preserved; import-only correction then full203 passed.",
+    "late_tls_integration_cases": 19
+  },
+  "evidence": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/recovery-upgrade-live-prerequisite/source-evidence.json.gz",
+    "bytes": 74237,
+    "sha256": "d4c19736216fc38181088579d26e4d75bd04ea4652038dddb07e043bdab29ad9",
+    "members": 42
+  },
+  "source_custody": {
+    "prior_count": 636,
+    "current_count": 638,
+    "prior_paths_preserved": true,
+    "new_paths": [
+      "cmd/agentsecctl/upgrade_preflight.go",
+      "cmd/agentsecctl/upgrade_preflight_test.go"
+    ]
+  },
+  "ledger": {
+    "rows": 728,
+    "unique_ids": 728,
+    "historical_complete": 667,
+    "historical_blocked": 61,
+    "classes": {
+      "production-available": 509,
+      "component-only": 158,
+      "blocked/external": 61
+    },
+    "remaining_recorded": 219,
+    "only_evidence_append": "M8-22d",
+    "predecessor_sha256": "7636cd4fa3aa17d1132e6ac4bb2ed1170cbe05b3e2877fc467cb47b364ae1403",
+    "sha256": "b874ae6a436b3acba43a3b49fdd0678832aa254297d3c239bc35bc159749f79c",
+    "owners_unchanged": true,
+    "availability_promotions": 0,
+    "inventory": "docs/internal/cloud-goal-remaining-task-inventory-2026-10-17-upgrade-preflight-source-successor.json"
+  },
+  "hosted_status": {
+    "head": "315fd9c38d640185376ad0d525636883f6841221",
+    "counts": {
+      "queued": 35,
+      "in_progress": 10,
+      "success": 8,
+      "failure": 34
+    },
+    "logs_retrieved": false,
+    "merge_allowed": false
+  },
+  "remaining": [
+    "Immutable rollback artifact actual existence/integrity/signature and supported release compatibility.",
+    "Real current-authorized API backup reads with deployed credentials and scope/refusal acceptance.",
+    "Full recovery worker production orchestration and all original remaining requirements.",
+    "All 728 original requirements require fresh deployed end-to-end acceptance."
+  ],
+  "retired_obsolete_implementations": false,
+  "status_predecessor_sha256": "55d3f0b2df2f07f29fb925f31fe5cbe93877b31f5d22cd8f59092f6d36729e7b",
+  "ui": "No UI code changed. Prior full UI failure and deployment/native gates remain preserved in earlier checkpoints."
+}

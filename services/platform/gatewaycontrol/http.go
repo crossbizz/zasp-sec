@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	wire "github.com/zasp-ai/zasp-sec/services/platform/gatewayinstallationwire"
 	"github.com/zasp-ai/zasp-sec/services/platform/policy"
 )
 
@@ -30,17 +31,23 @@ const (
 var errHTTPControl = errors.New("gateway control unavailable")
 
 type HTTPHandlerConfig struct {
-	Repository       Repository
-	Clock            func() time.Time
-	OperationTimeout time.Duration
-	MaximumBodyBytes int64
+	AssociationRepository  AssociationRepository
+	Repository             Repository
+	EnrollmentRepository   EnrollmentRepository
+	InstallationRepository InstallationRepository
+	Clock                  func() time.Time
+	OperationTimeout       time.Duration
+	MaximumBodyBytes       int64
 }
 
 type httpHandler struct {
-	repository       Repository
-	clock            func() time.Time
-	timeout          time.Duration
-	maximumBodyBytes int64
+	associationRepository  AssociationRepository
+	enrollmentRepository   EnrollmentRepository
+	installationRepository InstallationRepository
+	repository             Repository
+	clock                  func() time.Time
+	timeout                time.Duration
+	maximumBodyBytes       int64
 }
 
 type authorityPayload struct {
@@ -63,7 +70,16 @@ func NewHTTPHandler(config HTTPHandlerConfig) (http.Handler, error) {
 	if config.Repository == nil || config.Clock == nil || config.OperationTimeout < 50*time.Millisecond || config.OperationTimeout > 10*time.Second || config.MaximumBodyBytes < 1024 || config.MaximumBodyBytes > 64*1024 {
 		return nil, errHTTPControl
 	}
-	return &httpHandler{repository: config.Repository, clock: config.Clock, timeout: config.OperationTimeout, maximumBodyBytes: config.MaximumBodyBytes}, nil
+	if config.AssociationRepository != nil && nilInstallationValue(config.AssociationRepository) {
+		return nil, errHTTPControl
+	}
+	if config.EnrollmentRepository != nil && nilInstallationValue(config.EnrollmentRepository) {
+		return nil, errHTTPControl
+	}
+	if config.InstallationRepository != nil && nilInstallationValue(config.InstallationRepository) {
+		return nil, errHTTPControl
+	}
+	return &httpHandler{associationRepository: config.AssociationRepository, enrollmentRepository: config.EnrollmentRepository, installationRepository: config.InstallationRepository, repository: config.Repository, clock: config.Clock, timeout: config.OperationTimeout, maximumBodyBytes: config.MaximumBodyBytes}, nil
 }
 
 func (handler *httpHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
@@ -77,6 +93,42 @@ func (handler *httpHandler) ServeHTTP(writer http.ResponseWriter, request *http.
 	readyCancel()
 	if readyErr != nil || readyContextErr != nil {
 		writeError(writer, http.StatusServiceUnavailable, "service_unavailable")
+		return
+	}
+	if request.URL.Path == AssociationAcceptPath {
+		handler.serveAssociationAccept(writer, request)
+		return
+	}
+	if request.URL.Path == EnrollmentPath {
+		handler.serveEnrollment(writer, request)
+		return
+	}
+	if request.URL.Path == InstallationPath {
+		if handler.installationRepository == nil || request.Method != http.MethodPost || request.URL.RawQuery != "" || len(request.Header.Values("Content-Type")) != 1 || request.Header.Get("Content-Type") != JSONMediaType {
+			writeError(writer, http.StatusNotFound, "not_found")
+			return
+		}
+		operation, cancel := context.WithTimeout(request.Context(), handler.timeout)
+		defer cancel()
+		if handler.installationRepository.InstallationReady(operation) != nil || operation.Err() != nil {
+			writeError(writer, http.StatusServiceUnavailable, "service_unavailable")
+			return
+		}
+		if request.Body == nil {
+			writeError(writer, http.StatusBadRequest, "invalid_request")
+			return
+		}
+		body, e := io.ReadAll(http.MaxBytesReader(writer, request.Body, wire.MaximumBytes))
+		if e != nil || len(body) == 0 {
+			writeError(writer, http.StatusBadRequest, "invalid_request")
+			return
+		}
+		authority, ok := handler.authenticate(request, body)
+		if !ok {
+			writeError(writer, http.StatusUnauthorized, "authentication_rejected")
+			return
+		}
+		handler.writeInstallation(operation, writer, body, authority)
 		return
 	}
 	body, ok := handler.readBody(writer, request)

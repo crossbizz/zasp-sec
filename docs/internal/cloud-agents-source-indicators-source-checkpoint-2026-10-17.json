@@ -1,0 +1,195 @@
+{
+  "observed_at": "2026-10-17T14:42:47.353718+00:00",
+  "continued_published_base": "c665e827cd155a5f0c32840987ef7b6a77851ab7",
+  "classification": "AGENTS_LAST_READ_SOURCE_INDICATORS_PARTIAL_COMPONENT_ONLY",
+  "task_mapping": [
+    "M4-50c"
+  ],
+  "scope": "Real Agents list and detail now render exact last-seen/observation/expiry times and winning/nonwinning source provenance already returned by the real API. Server source freshness is explicitly at last API read, not current health; nonwinning expiry does not inherit winner status. Existing blocked capability counts remain as recorded blocking evidence; policy and runtime sensor coverage explicitly unavailable without authoritative per-Agent bindings. No extra requests, fanout, client clock/timers, permission/config/schema/profile or ownership/pagination logic changes.",
+  "sources": [
+    {
+      "path": "app/features/agents/ProductionAgentSecurityView.tsx",
+      "bytes": 34420,
+      "sha256": "e540e2dc71b00c50d9435e191cb64e4158556909ea9fc3aec91d46e9d3632e17"
+    },
+    {
+      "path": "app/features/agents/ProductionAgentSecurityView.source-indicators.test.tsx",
+      "bytes": 6967,
+      "sha256": "5f6f64984377ca8ad33e229e60a8016d58946d9d8d0c65e37bf881c8d4c6306e"
+    },
+    {
+      "path": "docs/internal/implementation_production_availability_v1.5.tsv",
+      "bytes": 211267,
+      "sha256": "e0ffbd919dda942eb1bba0d94fdf70916dc78bc9cb9f400c1e0974bf07d65c14"
+    },
+    {
+      "path": "docs/internal/implementation_status_v1.5.md",
+      "bytes": 1341800,
+      "sha256": "dfddb86ed605c79ab48d7fdd4fabc91c84446a5c656b80ce3d63241d403b6f25"
+    }
+  ],
+  "support_sources": [
+    {
+      "path": "app/features/agents/ProductionAgentSecurityView.test.tsx",
+      "sha256": "8dc6cbbb1bb98d5dc7275788926c585b8182d5a15eadfb04a863aecfff3720e4"
+    },
+    {
+      "path": "app/features/agents/ProductionAgentSecurityView.pagination.test.tsx",
+      "sha256": "3e301cac9bfed67d65c2294fead90822961a1b6006388c191de787f4cbed764d"
+    },
+    {
+      "path": "app/features/agents/ProductionAgentSecurityView.owner-filter.test.tsx",
+      "sha256": "803671df365067dc5ff487017dfc051c2517c84485040c1ef176a98a911e5615"
+    },
+    {
+      "path": "app/components/ZaspProductionApp.tsx",
+      "sha256": "7e6370fe75060d7a85c8861170ef7f4aec34756fb4cf2cbd62d36aa41f323ba0"
+    },
+    {
+      "path": "app/components/ZaspProductionApp.test.tsx",
+      "sha256": "09ad9e744f6e38d409419f68cb1ec7e95efbf51b0785cc5ab6d5e06c965a7c50"
+    },
+    {
+      "path": "app/components/ZaspProductionApp.post-login.test.tsx",
+      "sha256": "1865f2bdf3016474536724ff4aa876473e9a0bf188de38c89d116f705a9c0762"
+    },
+    {
+      "path": "app/features/agents/ProductionAgentSecurityView.home.test.tsx",
+      "sha256": "3de6ee0e0b6d3264bc72c84c7e7096358fe40b41432f809c503cf1d0a1107e89"
+    },
+    {
+      "path": "app/quality/generated-api-client-runtime.test.ts",
+      "sha256": "3c437de28ef685454bd78666fa6464f7add4f03888e262b936d1090d64a03b37"
+    },
+    {
+      "path": "apps/web/api/decoders.ts",
+      "sha256": "c2147ef69575d8f24a91a1f84c6659739463848e8614c137cab420faa595aa78"
+    },
+    {
+      "path": "apps/web/api/generated.ts",
+      "sha256": "e98a400e6fc96b27f5e4eeb47c16058c4bced4231ac5773271406ccdec598513"
+    },
+    {
+      "path": "app/api/query.ts",
+      "sha256": "e4654da8885e370f2ccc1b1e3621aaa2455afb93bfa7e93a0f7edf3443403bd4"
+    },
+    {
+      "path": "app/api/APIProvider.tsx",
+      "sha256": "11f657c44a8601a19091f7f07c47e5f0896fd6143f6c928c47e4f110be6a4d2a"
+    },
+    {
+      "path": "apps/web/api/client.ts",
+      "bytes": 13996,
+      "sha256": "52dba8a8140b0fc9f424f20199e3bf9b6c9ab864b93aa43a29b9f17117c6cfd4"
+    },
+    {
+      "path": "apps/web/api/pagination.ts",
+      "bytes": 1497,
+      "sha256": "38f84576e5833033457353ce9098fee0cd1441f7d6c96095531ddb687f8ae4fe"
+    },
+    {
+      "path": "app/components/ui.tsx",
+      "bytes": 13427,
+      "sha256": "b8a45ac3f9f3878047b604f24b2a9806409972ef9deb5d532a626c2643365780"
+    },
+    {
+      "path": "apps/web/api/client.test.ts",
+      "bytes": 14645,
+      "sha256": "cfc2067bbe75e006d1c4fc697f8c4ad01af3378f5e1d59088b8b86d8e87cd29e"
+    },
+    {
+      "path": "apps/web/api/inventory-decoders.test.ts",
+      "bytes": 4231,
+      "sha256": "c9709b22b9051f088b9342b766bbcff8df7044e7b6ccc9652d7a6564ce875f25"
+    },
+    {
+      "path": "package.json",
+      "bytes": 17607,
+      "sha256": "0dd4697c7feb7a59a83be241ec4f71de74941400d16537fafceb80716eeb8198"
+    },
+    {
+      "path": "package-lock.json",
+      "bytes": 2227994,
+      "sha256": "0e8b7fa1332878386816dd73ba0118fb8dfc8a414b7912f90e95f2dda8bae51c"
+    },
+    {
+      "path": "vitest.config.ts",
+      "bytes": 382,
+      "sha256": "6a4f37961bb93ff47a746f99deca60363fc262f014fe8f6c5e80444d485404a7"
+    },
+    {
+      "path": "vitest.setup.ts",
+      "bytes": 723,
+      "sha256": "7ca9efb44b6835127eb27994ac582814c0a035898e6568f153f02ef13926d811"
+    }
+  ],
+  "support_qualification": "Final actual UI-only source/ledger freeze with bounded direct adapter/helper/test-runner support hashes. Not an entire transitive UI dependency manifest; no native/application authority changes.",
+  "verification": {
+    "initial_grouped_UI": {
+      "pass": 26,
+      "fail": 2,
+      "total": 28,
+      "files": 4,
+      "exit": 1,
+      "classification": "GENUINE_MISSING_INDICATOR_BEHAVIOR_RED"
+    },
+    "final_grouped_UI": {
+      "pass": 95,
+      "fail": 0,
+      "skip": 0,
+      "files": 8,
+      "exit": 0,
+      "qualification": "Actual strict-client and production-component tests with controlled fetch responses; not deployed API/provider E2E"
+    },
+    "typecheck_exit": 0,
+    "scoped_lint_exit": 0,
+    "build_exit": 0,
+    "integrated_Node_source_ledger_contracts": {
+      "pass": 71,
+      "fail": 0,
+      "skip": 0,
+      "exit": 0
+    },
+    "integrated_status_exit": 0,
+    "fresh_root_UI_typecheck_exit": 0,
+    "fresh_root_UI_build_exit": 0,
+    "native": "UNEXECUTED",
+    "deployed_Stytch_provider_browser_E2E": "UNVERIFIED"
+  },
+  "independent_source_review_sha256": "5b3dcfa6e5c4a94f24163bd5d47ba4bbafa61760a0c323e7aa07a227869ac72e",
+  "ledger": {
+    "rows": 728,
+    "unique_ids": 728,
+    "classes": {
+      "production-available": 514,
+      "component-only": 153,
+      "blocked/external": 61
+    },
+    "availability_promotions": 0,
+    "M4-50c": "component-only, partial source-indicator slice; full policy/sensor and deployed stale-state acceptance remain open",
+    "unchanged_other_rows": 727,
+    "prior_evidence_prefix_retained": true,
+    "predecessor_status_exact_suffix_retained": true,
+    "remaining_inventory_records": 214,
+    "remaining_inventory_unchanged": true,
+    "sha256": "e0ffbd919dda942eb1bba0d94fdf70916dc78bc9cb9f400c1e0974bf07d65c14"
+  },
+  "guards": {
+    "Go_native_source_pins": 548,
+    "manifest_sha256": "8ef673716268d0d2814ddeaa57bda4a997d0f90b3eb55c2df88b220a1ad8074f",
+    "all_previous_sources_and_history_byte_unchanged": true,
+    "existing_workflows_scripts_API_and_worker_sources_unchanged": true,
+    "UI_mandatory_gate": "Existing Runnable UI workflow executes complete Vitest include app/**/*.test.{ts,tsx} and apps/web/**/*.test.{ts,tsx} from exact checkout; new test matches include. No selector or guard change.",
+    "connected_native_groups": 21,
+    "connected_native_cases": 146,
+    "owned_PostgreSQL_joins": 32,
+    "approval_controls": 16
+  },
+  "archive": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/agents-source-indicators/source-evidence.json.gz",
+    "bytes": 936370,
+    "sha256": "d6f6d2db950d04ba3360a889b89b34c11b3b905fc07f11da09f3d8d4ee0232ac",
+    "members": 46
+  },
+  "remaining": "Full M4-50c requires authoritative per-Agent sensor/policy bindings/read contracts and deployed acceptance; original risk/capability/coverage filters and composed E2E remain open. All728 original requirements remain mandatory. No production promotion, guard bypass or unverified obsolete retirement; prior blocking count behavior retained under truthful label."
+}

@@ -1,0 +1,37 @@
+{
+  "classification": "RUNTIME_POLICY_RULE_EXTRACTION_SOURCE_REVIEWED_BEHAVIOR_BLOCKED",
+  "source_parent": "07c14b21d46fed868457c5f6172b33776239bd85",
+  "observed_at": "2026-10-17T22:46:08.378259+00:00",
+  "goal_mapping": "Reusable prerequisite for original Gateway enforcement requirements; strict native routing not activated and original task scope retained.",
+  "change": "Extract existing valid-cache rule evaluation into explicit-envelope helper used by actual runtime Evaluate. Existing caller validation, fallback, capability-block restriction, replay/floors, evidence queue, ACK and forwarding unchanged. No additional tests; hosted job reuses ten existing meaningful policy/evidence heads.",
+  "verification": {
+    "independent_product_source_review": "CLEAR af43a9bf452d2f9ac123f8ec96876c2daca431021287f6268d8460ae85ca0ea3",
+    "source_guards": "21 PASS",
+    "full_source_custody": "918 bindings match SHA256 and bytes; old917 order/history retained; one new helper. Runner executable code unchanged outside literal source maps.",
+    "ci_python_syntax_and_custody": "PASS actual final body syntax compile and actual check_sources; behavior body NOT EXECUTED locally",
+    "application_group": "SETUP_FAILED missing OPA1.17.0 and Badger4.9.1; selected10existing heads, executed0, no compilation success",
+    "hosted": "PENDING_UNOBSERVED",
+    "ui": "Actual parent UI build PASS; fresh typecheck and UI/API coverage PASS; no deployed browser/provider claim"
+  },
+  "evidence": {
+    "path": "docs/internal/cloud-runtime-policy-evaluation-evidence-2026-10-17.tar.gz",
+    "sha256": "70fa807f409a312fe5b2742f2bde454a7b9a786c8b1465b1063a1b5684e47dba",
+    "bytes": 303905,
+    "members": 21,
+    "status": "ALL_MEMBERS_BYTES_VERIFIED; payload SHA256+bytes in member manifest; checkpoint and subsequent publication review excluded"
+  },
+  "ledger": {
+    "total": 728,
+    "production_available_recorded": 509,
+    "component_only": 158,
+    "blocked_external": 61,
+    "nonproduction": 219,
+    "promotions": 0,
+    "all_require_fresh_deployed_acceptance": true
+  },
+  "launch_ready": false,
+  "merge_release_cleared": false,
+  "task_closed": false,
+  "obsolete_retired": false,
+  "remaining": "Strict authenticated proxy composition, native claim/Temporal ACK barrier and publication-lock catalog successor; usable dependencies and admitted native runtime; all original deployed Stytch/provider/Temporal/OpenFGA/browser requirements."
+}

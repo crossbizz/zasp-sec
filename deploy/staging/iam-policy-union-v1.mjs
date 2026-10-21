@@ -1454,7 +1454,105 @@ export function bindMockPlan(plan) {
   } else if (after.permissions_boundary !== null) fail(`unreviewed permissions boundary ${role}`);
   if (!unions.get(role).length) fail(`empty union ${role}`);
  }
- return { resources, get, unions };
+ const rawBucketRow = rows.find(r => r.address === 'aws_s3_bucket_policy.runtime_raw');
+ if (['policy', 'bucket'].some(field => flagged(rawBucketRow.change.after_unknown?.[field]) || flagged(rawBucketRow.change.after_sensitive?.[field]))) fail('unknown raw bucket policy');
+ if (rawBucketRow.change.after.bucket !== get('aws_s3_bucket.runtime_raw').id) fail('raw bucket policy attachment');
+ const rawBucket = bindRuntimeRawBucketPolicy(get('aws_s3_bucket_policy.runtime_raw').policy, get('aws_s3_bucket.runtime_raw').arn, get('aws_kms_key.runtime_raw').arn);
+ return { resources, get, unions, rawBucket };
+}
+
+// These are canonical ProductID-shaped paths, not tenant authorization. IAM ?
+// constrains width/separators; the SDK independently validates ID alphabets.
+export function runtimeReceiptRequests(bucket, key) {
+ const rows = [];
+ const ids = [1, 2, 3, 4].map(n => `pid_00000000-0000-4000-8000-${String(n).padStart(12, '0')}`);
+ const path = `organizations/${ids[0]}/workspaces/${ids[1]}/environments/${ids[2]}/artifacts/${ids[3]}`;
+ const headers = { 's3:x-amz-server-side-encryption': 'aws:kms', 's3:x-amz-server-side-encryption-aws-kms-key-id': key };
+ const add = (role, label, expected, action, resource, context = {}) => rows.push({ role, label: `runtime-receipt:${label}`, expected, request: { action, resource, context } });
+ const owners = ['index', 'correlation', 'projection', 'complete'].map(n => `aws_iam_role.runtime["${n}"]`);
+ for (const role of workloadRoles) {
+  const owner = owners.includes(role);
+  for (const action of ['s3:GetObject', 's3:GetObjectVersion', 's3:PutObject']) add(role, `role:${action}`, owner ? 'allowed' : 'denied', action, `${bucket}/${path}`, action === 's3:PutObject' ? headers : {});
+  add(role, 'no-delete', 'denied', 's3:DeleteObject', `${bucket}/${path}`);
+ }
+ for (const role of owners) {
+  const invalid = [path + '/extra', path.replace('/artifacts/', '/exports/'), path.replace('organizations/', 'foreign/'), path.replace('/workspaces/', '/workspace/'), path.replace('/environments/', '/environment/'), path.replace('/artifacts/', '/artifacts/evr_'), path.replace(ids[0], 'example'), path.replace(ids[1], ids[1].slice(0, -1)), path.replace(ids[2], ids[2] + '0'), path.replace(ids[3], ids[3].slice(0, -1)), path.replace(ids[3], ids[3] + '0')];
+  for (const [i, invalidPath] of invalid.entries()) for (const action of ['s3:GetObject', 's3:GetObjectVersion', 's3:PutObject']) add(role, `shape:${i}:${action}`, 'denied', action, `${bucket}/${invalidPath}`, action === 's3:PutObject' ? headers : {});
+  for (const action of ['s3:GetObject', 's3:GetObjectVersion', 's3:PutObject']) add(role, `foreign-bucket:${action}`, 'denied', action, `arn:aws:s3:::foreign/${path}`, action === 's3:PutObject' ? headers : {});
+  for (const target of [path, 'runtime/v15/example']) {
+   add(role, `write-no-context:${target}`, 'denied', 's3:PutObject', `${bucket}/${target}`);
+   for (const k of Object.keys(headers)) {
+    const missing = { ...headers }; delete missing[k];
+    add(role, `write-missing:${target}:${k}`, 'denied', 's3:PutObject', `${bucket}/${target}`, missing);
+    add(role, `write-wrong:${target}:${k}`, 'denied', 's3:PutObject', `${bucket}/${target}`, { ...headers, [k]: 'foreign-context' });
+   }
+  }
+ }
+ for (const name of ['ingest', 'archive', 'index', 'correlation', 'projection', 'complete']) {
+  const role = `aws_iam_role.runtime["${name}"]`;
+  for (const action of ['kms:Decrypt', 'kms:GenerateDataKey']) {
+   const allowed = name !== 'archive' || action === 'kms:Decrypt';
+   const context = { 'kms:ViaService': 's3.us-west-2.amazonaws.com', 'kms:EncryptionContext:aws:s3:arn': bucket };
+   add(role, `bucket-key:${action}`, allowed ? 'allowed' : 'denied', action, key, context);
+   add(role, `bucket-key-absent:${action}`, 'denied', action, key);
+   for (const k of Object.keys(context)) {
+    const missing = { ...context }; delete missing[k];
+    add(role, `bucket-key-missing:${action}:${k}`, 'denied', action, key, missing);
+    add(role, `bucket-key-wrong:${action}:${k}`, 'denied', action, key, { ...context, [k]: 'foreign-context' });
+   }
+   add(role, `bucket-key-foreign:${action}`, 'denied', action, 'arn:aws:kms:us-west-2:111111111111:key/foreign', context);
+  }
+ }
+ return rows;
+}
+
+// A closed raw-bucket resource policy is checked separately from the supported
+// identity-policy language. No Principal/Bool/negative operator is generalized.
+export function bindRuntimeRawBucketPolicy(text, bucket, key) {
+ let policy; try { policy = strictJSON(text); } catch { fail('raw bucket policy JSON'); }
+ const id = 'pid_????????-????-????-????-????????????';
+ const resources = [`${bucket}/runtime/v15/*`, `${bucket}/organizations/${id}/workspaces/${id}/environments/${id}/artifacts/${id}`];
+ const expected = { Version: '2012-10-17', Statement: [
+  { Sid: 'DenyInsecureTransport', Effect: 'Deny', Principal: '*', Action: 's3:*', Resource: [bucket, `${bucket}/*`], Condition: { Bool: { 'aws:SecureTransport': 'false' } } },
+  { Sid: 'DenyUnencryptedRuntimeWrites', Effect: 'Deny', Principal: '*', Action: 's3:PutObject', Resource: resources, Condition: { StringNotEquals: { 's3:x-amz-server-side-encryption': 'aws:kms' } } },
+  { Sid: 'DenyWrongRuntimeKey', Effect: 'Deny', Principal: '*', Action: 's3:PutObject', Resource: resources, Condition: { ArnNotEquals: { 's3:x-amz-server-side-encryption-aws-kms-key-id': key } } },
+ ] };
+ if (!same(policy, expected)) fail('raw bucket exact encryption/transport policy');
+ return { resources, key };
+}
+export function evaluateRuntimeRawUnion(policies, request, binding) {
+ const decision = evaluateUnion(policies, request);
+ if (request.action.toLowerCase() === 's3:putobject' && binding.resources.some(resource => glob(resource, request.resource)) && (request.context['s3:x-amz-server-side-encryption'] !== 'aws:kms' || request.context['s3:x-amz-server-side-encryption-aws-kms-key-id'] !== binding.key)) return 'denied';
+ return decision;
+}
+
+// Fixed retention HTTP capabilities are additive to the original raw-index
+// writer. IAM ? constrains path width; the SDK independently emits hash IDs.
+// This matrix deliberately does not claim IAM enforces hexadecimal characters.
+export function retentionIndexRequests(domain) {
+ const rows = [];
+ const add = (role, label, expected, action, path) => rows.push({ role: `aws_iam_role.${role}`, label, expected, request: { action, resource: `${domain}/${path}`, context: {} } });
+ const own = (label, expected, action, path) => add('runtime["index"]', label, expected, action, path);
+ for (const index of ['zasp-runtime-events-v1', 'zasp-runtime-sessions-v1', 'zasp-runtime-sessions-v2']) {
+  const raw = index === 'zasp-runtime-events-v1';
+  const id = (raw ? 'evt_' : '') + 'a'.repeat(64);
+  own(`retention:search:${index}`, 'allowed', 'es:ESHttpPost', `${index}/_search`);
+  for (const action of ['es:ESHttpGet', 'es:ESHttpDelete']) own(`retention:document:${index}:${action}`, 'allowed', action, `${index}/_doc/${id}`);
+  for (const invalid of ['_zasp_session_schema_v1', '_zasp_session_schema_v2', '_zasp_runtime_schema_v1', (raw ? 'evt_' : '') + 'a'.repeat(63), (raw ? 'evt_' : '') + 'a'.repeat(65), 'foreign_' + 'a'.repeat(64)]) own(`retention:no-other-document:${index}:${invalid}`, 'denied', 'es:ESHttpDelete', `${index}/_doc/${invalid}`);
+  for (const path of ['_search', '_mapping', '_bulk', '_delete_by_query', `_doc/${id}/extra`]) own(`retention:no-other-delete:${index}:${path}`, 'denied', 'es:ESHttpDelete', `${index}/${path}`);
+  own(`retention:no-patch:${index}`, 'denied', 'es:ESHttpPatch', `${index}/_doc/${id}`);
+  if (!raw) {
+   own(`retention:no-search-get:${index}`, 'denied', 'es:ESHttpGet', `${index}/_search`);
+   own(`retention:no-search-put:${index}`, 'denied', 'es:ESHttpPut', `${index}/_search`);
+   own(`retention:no-document-put:${index}`, 'denied', 'es:ESHttpPut', `${index}/_doc/${id}`);
+   own(`retention:no-search-subpath:${index}`, 'denied', 'es:ESHttpPost', `${index}/_search/extra`);
+  }
+  for (const fullRole of workloadRoles) if (fullRole !== 'aws_iam_role.runtime["index"]') add(fullRole.slice('aws_iam_role.'.length), `retention:no-other-role-delete:${index}`, 'denied', 'es:ESHttpDelete', `${index}/_doc/${id}`);
+ }
+ for (const index of ['zasp-inventory-v1', 'foreign-runtime-sessions-v2', 'zasp-runtime-sessions-v3']) for (const action of ['es:ESHttpPost', 'es:ESHttpGet', 'es:ESHttpDelete']) own(`retention:no-foreign-index:${index}:${action}`, 'denied', action, `${index}/${action === 'es:ESHttpPost' ? '_search' : '_doc/' + 'a'.repeat(64)}`);
+ // A granted local-domain path cannot authorize a different AWS domain.
+ rows.push({ role: 'aws_iam_role.runtime["index"]', label: 'retention:no-foreign-domain-delete', expected: 'denied', request: { action: 'es:ESHttpDelete', resource: `arn:aws:es:us-west-2:111111111111:domain/foreign/zasp-runtime-sessions-v2/_doc/${'a'.repeat(64)}`, context: {} } });
+ return rows;
 }
 
 // Normative workload requests originate in the original B04 product contracts, main.tf workload split,
@@ -1514,7 +1612,7 @@ function matrix(bound) {
  const objects = (r, b, path, writable, kms, contextPath = path) => {
   const target = `${bucket(b)}/${path}`;
   allow(r, `object-read:${b}`, 's3:GetObject', target);
-  add(r, `object-write:${b}`, writable ? 'allowed' : 'denied', 's3:PutObject', target);
+  add(r, `object-write:${b}`, writable ? 'allowed' : 'denied', 's3:PutObject', target, b === 'runtime_raw' ? { 's3:x-amz-server-side-encryption': 'aws:kms', 's3:x-amz-server-side-encryption-aws-kms-key-id': key(kms) } : {});
   deny(r, `foreign-prefix:${b}`, 's3:GetObject', `${bucket(b)}/foreign/file`);
   deny(r, `foreign-bucket:${b}`, 's3:GetObject', 'arn:aws:s3:::foreign/organizations/example/file');
   for (const action of ['kms:Decrypt', ...(writable ? ['kms:GenerateDataKey'] : [])]) contexts(r, `object-kms:${b}:${action}`, action, key(kms), { 'kms:ViaService': 's3.us-west-2.amazonaws.com', 'kms:EncryptionContext:aws:s3:arn': `${bucket(b)}/${contextPath}` });
@@ -1558,7 +1656,7 @@ function matrix(bound) {
   const marker = index.endsWith('v1') ? '_zasp_session_schema_v1' : '_zasp_session_schema_v2';
   for (const r of ['api_connectors', 'runtime["index"]', 'projection_search_init']) for (const path of ['_mapping', `_doc/${marker}`]) allow(r, 'session-schema-read', 'es:ESHttpGet', `${es}/${index}/${path}`);
   allow('api_connectors', 'session-search', 'es:ESHttpPost', `${es}/${index}/_search`);
-  deny('runtime["index"]', 'session-index-no-search', 'es:ESHttpPost', `${es}/${index}/_search`);
+  allow('runtime["index"]', 'session-index-retention-search', 'es:ESHttpPost', `${es}/${index}/_search`);
   for (const path of ['_bulk', '_mget', '_refresh']) {
    allow('runtime["index"]', 'session-index-ingest', 'es:ESHttpPost', `${es}/${index}/${path}`);
    deny('api_connectors', 'session-search-no-ingest', 'es:ESHttpPost', `${es}/${index}/${path}`);
@@ -1605,6 +1703,8 @@ function matrix(bound) {
   deny(r, 'secret-only:no-queue-consume', 'sqs:ReceiveMessage', queue('discovery-jobs'));
  }
  deny('attack_lab_runner_test', 'runner:no-secret', 'secretsmanager:GetSecretValue', productSecret('postgres-api-dsn'));
+ cases.push(...retentionIndexRequests(es));
+ cases.push(...runtimeReceiptRequests(bucket('runtime_raw'), key('runtime_raw')));
  return cases;
 }
 export function verifyMockPlan(plan) {
@@ -1612,7 +1712,7 @@ export function verifyMockPlan(plan) {
  const cases = matrix(bound);
  const failures = [];
  for (const row of cases) {
-  const actual = evaluateUnion(bound.unions.get(row.role), row.request);
+  const actual = evaluateRuntimeRawUnion(bound.unions.get(row.role), row.request, bound.rawBucket);
   if (actual !== row.expected) failures.push({ role: row.role, label: row.label, expected: row.expected, actual });
  }
  if (failures.length) fail(`decision matrix ${JSON.stringify(failures.slice(0, 12))}; total=${failures.length}`);

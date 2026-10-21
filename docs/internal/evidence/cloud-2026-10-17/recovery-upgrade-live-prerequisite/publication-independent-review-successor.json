@@ -1,0 +1,58 @@
+{
+  "decision": "CLEAR",
+  "classification": "INDEPENDENT_COMPONENT_PUBLICATION_SUCCESSOR_REVIEW_NOT_LAUNCH_ACCEPTANCE",
+  "checkpoint": {
+    "path": "/workspace/zasp-upgrade-preflight-live/docs/internal/cloud-recovery-upgrade-live-prerequisite-checkpoint-2026-10-17.json",
+    "sha256": "8ef55b941591511c371d9083a8835856d6cefd76f4736fa710b21c4bf8ce3fb2"
+  },
+  "archive": {
+    "path": "/workspace/zasp-upgrade-preflight-live/docs/internal/evidence/cloud-2026-10-17/recovery-upgrade-live-prerequisite/source-evidence-successor.json.gz",
+    "bytes": 74338,
+    "sha256": "2c6c4a4cc2d9229f0fd25f5b5cc67bb75a2e690651e71066c2adbb410fa4c71b",
+    "members": 41,
+    "all_utf8_bytes_hashes_and_originals_exact": true
+  },
+  "prior_hold": {
+    "path": "/tmp/node-coverage-retention-evidence-20261017/recovery-upgrade-publication-independent-review.json",
+    "sha256": "728f053f8a40c202a651bc6ac05d5b2441513a1134b7f6f101e721f5a3862f5e",
+    "immutable": true,
+    "resolved": "New41member successor excludes self-generated empty scratch receipt; initial42member archive and initial checkpoint preserved exact and truthfully qualified."
+  },
+  "verified": {
+    "product_review": "5d88a1fee823fc3ca042a64f1ea2d2da35d7fcd28dee11ef457d1aa33f82664d exact current product source pins",
+    "checkpoint_source_rows": 12,
+    "product_paths": 7,
+    "current_manifest": 638,
+    "prior_order_and_all_history_retained": 636,
+    "only_new_bindings": [
+      "cmd/agentsecctl/upgrade_preflight.go",
+      "cmd/agentsecctl/upgrade_preflight_test.go"
+    ],
+    "all_actual638_bytes_hashes": true,
+    "both_runner_literal_hash_maps": true,
+    "both_runner_bodies_exact_outside_pin_literals": true,
+    "compileworkflow_diff": "Only two636\u2192638 count assertions; existing guard/job bodies retained.",
+    "contracttest_diff": "Additive two required CLI source paths only; no old assertions removed.",
+    "native_groups_and_cases_unchanged": "27groups198names38PostgreSQLjoins16approval, controller/lifecycle workflow byteidentical",
+    "ledger": "All728 firstfivecolumns identical, evidenceprefixes retained, onlyM8-22d evidenceappend;509production158component61external, ownersfilebyteidentical",
+    "remaining_inventory": "All219 byOwner records exactly predecessor, currentledgerSHA bound",
+    "status": "Entire old statusbytes retained exact suffix",
+    "actual_trace_named_pass": 203,
+    "actual_trace_named_fail": 0,
+    "actual_trace_named_skip": 0,
+    "actual_Node_TAP": {
+      "pass": 20,
+      "fail": 0,
+      "skip": 0
+    },
+    "compiled_binary": "Root receipt three actual cases exit1 as expected; stdout/stderr archived exact. No provider proof.",
+    "initial_importfailure": "Preserved zero-named undefined-json compile failure and exact preimage before import-only correction; initial genuine command behavior RED separately retained."
+  },
+  "findings": [],
+  "limits": [
+    "No reviewer Go/Node/test/build/runtime/native/network/Git or source mutations; only filesystem/hash/JSON/gzip review.",
+    "Live GetBackup uses local TLS fixtures in component checks; real current API/authenticated deployment/provider acceptance remains unverified.",
+    "TopReady remains false while actual immutable rollback artifact observation unavailable. No caller boolean/URI alone establishes observed recovery readiness.",
+    "Worker production composition/global readiness, all original upgrade/rollback rehearsals, prior UI/hosted/security/release failures remain required; no promotion/activation/merge/release or obsolete retirement asserted."
+  ]
+}

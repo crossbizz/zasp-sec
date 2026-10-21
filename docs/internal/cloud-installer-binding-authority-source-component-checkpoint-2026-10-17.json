@@ -1,0 +1,201 @@
+{
+  "observed_at": "2026-10-17T11:40:30.143781+00:00",
+  "continued_published_base": "66bf5b6a7f996a76b7205ea3105f628496c86ffe",
+  "scope": "Canonical10 binding table is authority-owned FORCE RLS despite public namespace. Eight maintenance/optional-egress/class installer recipes now retain original publicversions/MEMBER/LOGIN-owner checks but read exact registered session binding+MEMBER+compiled private80 readiness inside existing fixed authority role window. Exact incoming effective identity/role GUC restored before original-owner DDL; approval/class check before any purpose-role or namespace DDL. Late parent checks retained. Canonical SQL, ACLs, checksums, runtime purposes and activation unchanged.",
+  "task_mapping": [
+    "M8-41",
+    "M7-22",
+    "M7-27",
+    "M2-14",
+    "M2-16",
+    "M2-46b"
+  ],
+  "sources": [
+    {
+      "path": ".github/connector-native-compile-source-pins.json",
+      "bytes": 142801,
+      "sha256": "cab6298089ec0ecf89594edaee36b1103cef1a68689efbf1c0b4f4ca2ad11cfb"
+    },
+    {
+      "path": ".github/workflows/connector-native-draft-compile.yml",
+      "bytes": 46586,
+      "sha256": "bab8f7fc5afa441b1973a806c78db3d045387d1a9fc2dc3392eb214555702240"
+    },
+    {
+      "path": "scripts/connector-acceptance-groups.test.mjs",
+      "bytes": 48465,
+      "sha256": "5a13d97c8c14c587c8a360317c23e0a4ba6fb60da14c42d5cb736d2d0b0145ad"
+    },
+    {
+      "path": "scripts/hosted-connected-connector-acceptance.mjs",
+      "bytes": 95084,
+      "sha256": "d8d421507a00018ba7f36d862f7a549476b9b6c4df606769d7429226a3a22e57"
+    },
+    {
+      "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
+      "bytes": 91485,
+      "sha256": "2e833995ebab3ed811f4070a35c89e1580141814b2e74592e2d82e7f5fac8f3e"
+    },
+    {
+      "path": "services/platform/apiserver/environment_class_postgres_test.go",
+      "bytes": 34958,
+      "sha256": "eff887f680f2c8120a28878a1ae1ff74dd8ef323c9556176d9b352aefb26734a"
+    },
+    {
+      "path": "services/platform/migrations/installer_binding_authority_test.go",
+      "bytes": 2495,
+      "sha256": "d1729206065e1792c07b263d3b410d1be2bf885a73a1b96d62ef808ad5bd85a4"
+    },
+    {
+      "path": "services/platform/migrations/maintenance_operator_role.go",
+      "bytes": 1773,
+      "sha256": "0dbd6184ce85995d7ff524419ad5d2db6b847ddc606dbd5c0243eafc1b6272bb"
+    },
+    {
+      "path": "services/platform/migrations/maintenance_operator_role_test.go",
+      "bytes": 6734,
+      "sha256": "c85bad201234d28b0d4896eb8da837331e299af97496dfef01889fced4461e85"
+    },
+    {
+      "path": "services/platform/migrations/production_approval_activation_profile.go",
+      "bytes": 4840,
+      "sha256": "103e8ac435fcaf7d643cab92d8de8cca8f4b22ce85b1da0c8c63b4603f5a0497"
+    },
+    {
+      "path": "services/platform/migrations/production_approval_maintenance_profile.go",
+      "bytes": 55417,
+      "sha256": "bcf428657fc48011fa95e4d2e01ff2082930b73936594e4a396348bc45d9bf79"
+    },
+    {
+      "path": "services/platform/migrations/production_approval_maintenance_successor.go",
+      "bytes": 2981,
+      "sha256": "d674e0a5ee89b1e6baafd73c0f54c9439dd0ccbb717a5376d499f7001dbbb032"
+    },
+    {
+      "path": "services/platform/migrations/production_approval_settlement_audit_profile.go",
+      "bytes": 4337,
+      "sha256": "9ee7f2081272eabc78b5cd8ad0ad2ddb02b710b703907dbb4197f2becdb736cd"
+    },
+    {
+      "path": "services/platform/migrations/production_connector_maintenance.go",
+      "bytes": 6044,
+      "sha256": "14525f68992b3e1d5583af48039a032c2d43a30681a8b69788b490915b3a3075"
+    },
+    {
+      "path": "services/platform/migrations/production_environment_class_profile.go",
+      "bytes": 7262,
+      "sha256": "048809b535c2a8e80fe7c40d80befee8175d240bac49b922ddf0bb4f877c40b8"
+    },
+    {
+      "path": "services/platform/migrations/production_environment_class_profile_test.go",
+      "bytes": 2571,
+      "sha256": "40e18dd507bceec261ab4708fda98f0aa5bd9f6ba3c8db50e0b2744b3b22230b"
+    },
+    {
+      "path": "services/platform/migrations/production_optional_egress_profile.go",
+      "bytes": 6629,
+      "sha256": "394eb122cffe6e6b32f4a74c56921075855995e25e8eea1a035026d8256fdb7c"
+    }
+  ],
+  "verification": {
+    "initial_RED": {
+      "exit": 1,
+      "named_fail": 31,
+      "named_pass": 3,
+      "named_skip": 0,
+      "classification": "GENUINE_GROUPED_APPLICATION_ROLE_DOUBLE_RED_models_canonical10_protected_binding_not_native"
+    },
+    "grouped_migrations": {
+      "command": "go test -C services/platform -race -p=1 -count=1 -json -run '^Test(Maintenance|OptionalEgress|InstallerBinding|EnvironmentClass(Installer|Binding)|ApprovalActivationInstallerTransactions|ApprovalSettlementAudit|ApprovalMaintenanceInstaller)' ./migrations",
+      "exit": 0,
+      "named_pass": 58,
+      "named_fail": 0,
+      "named_skip": 0,
+      "package_pass": 1,
+      "elapsed_seconds": 153.135
+    },
+    "source_ledger_deployment": {
+      "exit": 0,
+      "named_pass": 58,
+      "named_fail": 0,
+      "named_skip": 0
+    },
+    "unchanged_development_assembly_guards": {
+      "exit": 0,
+      "named_pass": 4,
+      "named_fail": 0,
+      "named_skip": 0,
+      "classification": "Actual existing guard execution, no inventory whitelisting or module activation"
+    },
+    "UI": {
+      "typecheck_exit": 0,
+      "build_exit": 0
+    },
+    "workflow_yaml_and_embedded_Python": "PARSE_PASS",
+    "native": "UNEXECUTED_all21groups146cases32ownedPGjoins_unchanged",
+    "CLI_API_compilation": "Not reattempted; prior missing OPA setup block persists; no CLI/API compiler pass or behavior claimed"
+  },
+  "independent_source_review": {
+    "product11": "CLEAR_NARROW_SOURCE_ONLY",
+    "product_receipt_sha256": "f8478f4a628b682708462f9dfa1cbb804f49acdd565f7f4ae3726dfd14522d43",
+    "fixture_and_intake17": "CLEAR_NARROW_SOURCE_ONLY",
+    "fixture_and_intake_receipt_sha256": "46627a7e071967a88853d461df2f07b1b4136386806b709cef32ad035d202ebe"
+  },
+  "source_bindings": {
+    "before": 478,
+    "after": 479,
+    "all_predecessor_paths_retained": true,
+    "all_exact": true
+  },
+  "acceptance": {
+    "connected_native": {
+      "groups": 21,
+      "named_cases": 146,
+      "owned_postgres_joins": 32,
+      "approval_controls": 16,
+      "rosters_unchanged": true,
+      "execution": "UNEXECUTED_FOR_THIS_SUCCESSOR"
+    },
+    "new_strict_hosted_component_job": {
+      "migrations_exact_named_cases": 34,
+      "requires_actual_run_pass_no_skip_fail_unknown_duplicate_missing_package_pass": true,
+      "execution": "PENDING_NEW_HEAD"
+    },
+    "fixture": "PostgreSQL16+ actual same-grantor membership ADMIN/SET preserved, INHERIT false, MEMBER/SET true and effective USAGE false; both protected reads require42501; exact role/GUC/membership identity+options and all other memberships restored. Source reviewed only."
+  },
+  "correction": {
+    "erroneous_inventory_design_receipt": "retracted-inventory-design-review.json",
+    "explicit_correction_receipt": "inventory-design-review-correction.json",
+    "unchanged_behavior": "ordered_current development module remains noninstallable and rejected by runtime namespace inventory; actual assembled worker namespaces are only worker/runtime",
+    "actual_existing_guard_cases_pass": 4
+  },
+  "ledger": {
+    "rows": 728,
+    "classes": {
+      "production-available": 523,
+      "component-only": 144,
+      "blocked/external": 61
+    },
+    "ledger_status": {
+      "Complete": 667,
+      "Blocked": 61
+    },
+    "promotions": 0,
+    "sha256": "c8437914fa2945ec6974e86f9438024cb1a8358f4cd1ff7889a4c6e6888ddfb7",
+    "evidence_append_only_ids": [
+      "M8-41",
+      "M7-22",
+      "M7-27",
+      "M2-14",
+      "M2-16",
+      "M2-46b"
+    ]
+  },
+  "archive": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/installer-binding-authority/component-evidence.json.gz",
+    "bytes": 375185,
+    "sha256": "be366483cb0ccdcfbfc09ef810e94b9168ce7021b5d4f45663d4d386b3a63817",
+    "members": 63
+  },
+  "remaining": "Actual CLI auditProfilePrincipal still directly reads protected binding; worker/Temporal role phases and nested composite private confirmations remain unresolved. All required exact-head compile/native/browser/release checks, real deployed Stytch/provider flows for all728requirements and equivalent obsolete retirement remain mandatory. No full CLI/composite installation, merge, task promotion or launch acceptance claimed."
+}

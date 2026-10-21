@@ -1,0 +1,26 @@
+{
+  "scope": "Read-only full callback checkpoint review; no compilation, integration execution, activation or runtime",
+  "checkpointSHA256": "d49e946942ae4cc9050828d0172cad388cd89a6994915a02723d0ad4fb9a0225",
+  "members": 22,
+  "hashMismatches": [],
+  "status": "BLOCKED_SELECTED_PRE_EFFECT_CAPABILITY_LOST",
+  "findings": [
+    {
+      "priority": "P1",
+      "path": "services/platform/agentsec-api/production_runtime.go + apiserver/connector_maintenance_callback_database.go",
+      "issue": "Selected adapter is wrapped in tracedJSONDatabase before ConnectorRepository. tracedJSONDatabase lacks PrepareConnectorOAuthCallback forwarding. Repository fallback returns nil, so actual selected handler skips native live secret/provider/cleanup gates. Explicit capability forwarding/failclosed selected binding required."
+    }
+  ],
+  "sourceObservations": [
+    "Consume uses real state/principal/session/native80 integration fence and authentic effect/task provenance; original public consume before leasing actual two effects",
+    "Lease token/expiry/session_user/context bound in protected callback row; org then sorted effects then receipt lock order",
+    "Forward secret/provider phases repeat original grant fence; captured exact-token settlement clears only owned leases under held locks before original public functions",
+    "Original handler assertion/order/provider and response logic retained apart inserted phase calls",
+    "Exact12arg OAuth completion and8arg resolve mapping match original repository including byte digest base64 JSON serialization"
+  ],
+  "held": [
+    "No measured activation writer",
+    "No callback domain end-to-end/typecheck/native recovery evidence",
+    "Original handler/provider behavior is not admitted while traced capability bypass persists"
+  ]
+}

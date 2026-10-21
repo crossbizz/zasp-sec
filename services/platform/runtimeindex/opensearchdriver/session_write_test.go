@@ -142,3 +142,39 @@ func TestSessionIndexWriteRejectsDriftMissingAndUnrefreshedDocuments(t *testing.
 		t.Fatal(err)
 	}
 }
+
+func TestRetentionSessionWriteSuppressesExpiredWithoutTrimmingReceipt(t *testing.T) {
+	binding, receipt, archive := sessionWriteFixture(t)
+	documents, err := sessionsearch.BuildDocuments(binding, receipt, archive)
+	if err != nil {
+		t.Fatal(err)
+	}
+	calls := 0
+	index := sessionIndexFixture(t, httpDoerFunc(func(*http.Request) (*http.Response, error) {
+		t.Fatal("expired receipt performed provider I/O")
+		return nil, nil
+	}))
+	index.retentionWrite = retentionWriteAuthorityFixture{retentionVisibilityFunc(func(_ context.Context, scope domain.Scope, ids []string) (map[string]bool, error) {
+		calls++
+		if scope != binding.Scope || len(ids) != 1 || ids[0] != documents[0].EventID {
+			t.Fatal("whole receipt event membership lost")
+		}
+		return map[string]bool{ids[0]: false}, nil
+	})}
+	out, err := index.Apply(context.Background(), binding, receipt, archive)
+	if err != nil || out.ReceiptDigest != binding.ReceiptDigest || len(out.DocumentIDs) != 1 || out.DocumentIDs[0] != documents[0].DocumentID || out.Retention == nil || len(out.Retention.SuppressedDocumentIDs) != 1 || len(out.Retention.WrittenDocumentIDs) != 0 || calls != 2 {
+		t.Fatal("suppression trimmed originalreceipt or falsely claimed writes", err)
+	}
+	changed := append([]byte(nil), archive...)
+	changed[0] = '!'
+	before := calls
+	if _, err := index.Apply(context.Background(), binding, receipt, changed); err == nil || calls != before {
+		t.Fatal("malformed originalarchive reached retention authority")
+	}
+}
+
+type retentionWriteAuthorityFixture struct{ retentionVisibilityFunc }
+
+func (retentionWriteAuthorityFixture) RecordRetainedWrite(context.Context, runtimeindex.RetainedWriteReceipt) error {
+	return nil
+}

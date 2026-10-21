@@ -1,9 +1,11 @@
 package featureflags
 
 import (
+	"container/list"
 	"context"
 	"errors"
 	"reflect"
+	"sync"
 	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
@@ -13,6 +15,7 @@ const (
 	maximumOperationTimeout = 30 * time.Second
 	maximumAllowedCacheAge  = 24 * time.Hour
 	maximumKeyBytes         = 127
+	maximumCacheEntries     = 1024
 )
 
 var (
@@ -76,13 +79,20 @@ type FeatureFlags interface {
 type Evaluator struct {
 	driver Driver
 	config Config
+	cache  *decisionCache
 }
 
 func New(driver Driver, config Config) (*Evaluator, error) {
-	if nilInterface(driver) || !validConfig(config) {
+	return newWithClock(driver, config, time.Now)
+}
+
+func newWithClock(driver Driver, config Config, now func() time.Time) (*Evaluator, error) {
+	if nilInterface(driver) || !validConfig(config) || now == nil {
 		return nil, ErrConfiguration
 	}
-	return &Evaluator{driver: driver, config: config}, nil
+	return &Evaluator{driver: driver, config: config, cache: &decisionCache{
+		now: now, entries: make(map[DriverRequest]*list.Element), order: list.New(),
+	}}, nil
 }
 
 func (evaluator *Evaluator) Evaluate(ctx context.Context, scope domain.Scope, request Request) (Decision, error) {
@@ -105,8 +115,26 @@ func (evaluator *Evaluator) Evaluate(ctx context.Context, scope domain.Scope, re
 		EnvironmentID:  scope.EnvironmentID().String(),
 		Key:            request.Key,
 	}
+	if evaluator.cache != nil {
+		if decision, ok := evaluator.cache.get(operationCtx, driverRequest, evaluator.config.MaximumCacheAge); ok {
+			if operationCtx.Err() != nil {
+				return fallback, nil
+			}
+			return decision, nil
+		}
+	}
+
+	if operationCtx.Err() != nil {
+		return fallback, nil
+	}
 	driverDecision, err := evaluateDriver(evaluator.driver, operationCtx, driverRequest)
 	if err != nil || operationCtx.Err() != nil || !validDriverDecision(driverRequest, driverDecision, evaluator.config.MaximumCacheAge) {
+		return fallback, nil
+	}
+	if evaluator.cache != nil {
+		evaluator.cache.put(operationCtx, driverRequest, driverDecision)
+	}
+	if operationCtx.Err() != nil {
 		return fallback, nil
 	}
 	return Decision{
@@ -187,4 +215,76 @@ func nilInterface(value any) bool {
 	default:
 		return false
 	}
+}
+
+// decisionCache keeps only validated flag values and their tenant identity. Its
+// clock is fixed at construction; the lock never spans a provider operation.
+type decisionCache struct {
+	mu           sync.Mutex
+	now          func() time.Time
+	lastObserved time.Time
+	observed     bool
+	entries      map[DriverRequest]*list.Element
+	order        *list.List
+}
+
+type cachedDecision struct {
+	key         DriverRequest
+	value       bool
+	providerAge time.Duration
+	insertedAt  time.Time
+}
+
+func (cache *decisionCache) observe() time.Time {
+	now := cache.now()
+	if cache.observed && now.Before(cache.lastObserved) {
+		clear(cache.entries)
+		cache.order.Init()
+	}
+	cache.lastObserved, cache.observed = now, true
+	return now
+}
+
+func (cache *decisionCache) get(ctx context.Context, key DriverRequest, maximumAge time.Duration) (Decision, bool) {
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+	now := cache.observe()
+	element, found := cache.entries[key]
+	if !found {
+		return Decision{}, false
+	}
+	entry := element.Value.(cachedDecision)
+	elapsed := now.Sub(entry.insertedAt)
+	// Compare before adding so even a saturating time difference cannot overflow.
+	if elapsed < 0 || entry.providerAge > maximumAge || elapsed > maximumAge-entry.providerAge {
+		delete(cache.entries, key)
+		cache.order.Remove(element)
+		return Decision{}, false
+	}
+	if ctx.Err() != nil {
+		return Decision{}, false
+	}
+	cache.order.MoveToFront(element)
+	return Decision{Value: entry.value, Cache: CacheMetadata{Hit: true, Age: entry.providerAge + elapsed}}, true
+}
+
+func (cache *decisionCache) put(ctx context.Context, key DriverRequest, decision DriverDecision) {
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+	now := cache.observe()
+	if ctx.Err() != nil {
+		return
+	}
+	entry := cachedDecision{key: key, value: decision.Value, providerAge: decision.CacheAge, insertedAt: now}
+	if element, found := cache.entries[key]; found {
+		element.Value = entry
+		cache.order.MoveToFront(element)
+		return
+	}
+	if len(cache.entries) == maximumCacheEntries {
+		oldest := cache.order.Back()
+		delete(cache.entries, oldest.Value.(cachedDecision).key)
+		cache.order.Remove(oldest)
+	}
+	cache.entries[key] = cache.order.PushFront(entry)
 }

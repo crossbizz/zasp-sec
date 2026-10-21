@@ -183,7 +183,7 @@ func TestCurrentReadinessPipelineStartsAllIndependentMetadata(t *testing.T) {
 	callback := authorizationRuntimeReadiness(func(context.Context) error { return nil }, func(ctx context.Context) error { observe(ctx); return nil }, core, agent, key, time.Second)
 	go func() { result <- callback(parent) }()
 	contexts := []context.Context{}
-	for len(contexts) < 3 {
+	for len(contexts) < 2 {
 		select {
 		case c := <-entered:
 			contexts = append(contexts, c)
@@ -192,10 +192,21 @@ func TestCurrentReadinessPipelineStartsAllIndependentMetadata(t *testing.T) {
 		}
 	}
 joined:
+	// Only the two live role-specific probes may run before admission.
+	select {
+	case <-entered:
+		t.Fatal("components ran before role-specific readiness admission")
+	default:
+	}
 	close(release)
 	err := <-result
+	select {
+	case c := <-entered:
+		contexts = append(contexts, c)
+	default:
+	}
 	if len(contexts) != 3 || err != nil {
-		t.Fatalf("metadata pipeline remained serial: entered=%d error=%v", len(contexts), err)
+		t.Fatalf("metadata admission or component join failed: entered=%d error=%v", len(contexts), err)
 	}
 	deadline, _ := contexts[0].Deadline()
 	for _, c := range contexts {

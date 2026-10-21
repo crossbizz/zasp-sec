@@ -339,6 +339,86 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/agents/{id}/device-association-intents": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Create a nonauthorizing Agent device challenge
+         * @description Administrative configuration only; no observed workload routing, installation, policy enforcement or Agent coverage claim. BrowserSession only: real fresh authentication, current exact Agent manage_identity, CSRF, same-origin Origin and expected scope. PAT writes denied. Version is explicit body; If-Match rejected. Device acceptance never delegates the original human authorization. Replay is historical metadata; refetch current list after mutation.
+         */
+        readonly post: operations["createAgentDeviceIntent"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/agents/{id}/device-associations": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * List administrative associations for one currently authorized Agent
+         * @description Administrative configuration only; no observed workload routing, installation, policy enforcement or Agent coverage claim. Current exact Agent view, browser or current PAT view ceiling. can_manage comes only from an independent current exact Agent manage_identity check for the same browser identity/revision. Challenge nonce is public and nonauthorizing; signed Device acceptance and separate fresh human approval are required.
+         */
+        readonly get: operations["listAgentDeviceAssociations"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/agents/{id}/device-associations/{associationId}/activate": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Approve an accepted association as its original human creator
+         * @description Administrative configuration only; no observed workload routing, installation, policy enforcement or Agent coverage claim. BrowserSession only: real fresh authentication, current exact Agent manage_identity, CSRF, same-origin Origin and expected scope. PAT writes denied. Version is explicit body; If-Match rejected. Device acceptance never delegates the original human authorization. Replay is historical metadata; refetch current list after mutation.
+         */
+        readonly post: operations["activateAgentDeviceAssociation"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/agents/{id}/device-associations/{associationId}/revoke": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Revoke the whole Agent device pair and all pending intents
+         * @description Administrative configuration only; no observed workload routing, installation, policy enforcement or Agent coverage claim. BrowserSession only: real fresh authentication, current exact Agent manage_identity, CSRF, same-origin Origin and expected scope. PAT writes denied. Version is explicit body; If-Match rejected. Device acceptance never delegates the original human authorization. Replay is historical metadata; refetch current list after mutation.
+         */
+        readonly post: operations["revokeAgentDeviceAssociation"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/agents/{id}/relationships": {
         readonly parameters: {
             readonly query?: never;
@@ -371,6 +451,26 @@ export type paths = {
         readonly get: operations["listAgentSessions"];
         readonly put?: never;
         readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/ai/explanations": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Explain the current version of an authorized finding
+         * @description Sends only a server-derived rule, severity and evidence count under an approved tenant policy. Model, backend, token and price limits are server-owned. The same idempotency key reads an existing request without repeating an uncertain provider effect. Explanation text is transient and is not retained for replay; deterministic finding guidance remains available.
+         */
+        readonly post: operations["createAIExplanation"];
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
@@ -865,6 +965,86 @@ export type paths = {
          * @description BrowserSession requests require the shared CSRF header and a same-origin Origin. ProductAPIToken requests omit the browser-only header at transport time. The destination comes only from the scope's active Generic Webhook integration.
          */
         readonly post: operations["createFindingTicket"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/gateways": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Create a scoped runtime gateway device
+         * @description Explicit current environment authorization. Gateway enrollment is separate from sensors and does not assert installation, Agent coverage or health. Browser mutations require fresh authentication, same-origin Origin, CSRF and expected scope; PATs omit browser fresh-auth headers. No query or If-Match. Exact replay returns metadata only. Unknown issue requires explicit read, deliberate enrollment revoke and a new attempt; enrollment revoke never revokes an existing credential.
+         */
+        readonly post: operations["createGatewayDevice"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/gateways/{id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Read current gateway device and latest enrollment metadata
+         * @description Explicit current environment authorization. Gateway enrollment is separate from sensors and does not assert installation, Agent coverage or health. Read requires current view authorization. Expired unconsumed tokens and unrevoked expired credentials retain original native issuance blockers.
+         */
+        readonly get: operations["getGatewayDevice"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/gateways/{id}/enrollments": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Issue and reveal a gateway enrollment bundle once
+         * @description Explicit current environment authorization. Gateway enrollment is separate from sensors and does not assert installation, Agent coverage or health. Browser mutations require fresh authentication, same-origin Origin, CSRF and expected scope; PATs omit browser fresh-auth headers. No query or If-Match. Exact replay returns metadata only. Unknown issue requires explicit read, deliberate enrollment revoke and a new attempt; enrollment revoke never revokes an existing credential.
+         */
+        readonly post: operations["issueGatewayEnrollment"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/gateways/{id}/enrollments/{enrollmentId}/revoke": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Revoke exactly one gateway enrollment token
+         * @description Explicit current environment authorization. Gateway enrollment is separate from sensors and does not assert installation, Agent coverage or health. Browser mutations require fresh authentication, same-origin Origin, CSRF and expected scope; PATs omit browser fresh-auth headers. No query or If-Match. Exact replay returns metadata only. Unknown issue requires explicit read, deliberate enrollment revoke and a new attempt; enrollment revoke never revokes an existing credential.
+         */
+        readonly post: operations["revokeGatewayEnrollment"];
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
@@ -2234,7 +2414,11 @@ export type paths = {
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
-        readonly patch?: never;
+        /**
+         * Change an optional destination under the current tenant policy
+         * @description Required identity and PostgreSQL dependencies cannot be disabled. Enabling an optional destination requires its installed adapter and a current approved server profile. Disable fences subsequent governed dispatches; already admitted requests may finish.
+         */
+        readonly patch: operations["updateExternalDataFlows"];
         readonly trace?: never;
     };
     readonly "/api/v1/system/components": {
@@ -2515,6 +2699,125 @@ export type paths = {
 export type webhooks = Record<string, never>;
 export type components = {
     schemas: {
+        readonly AcceptedNodeCoverageObservation: {
+            /** Format: date-time */
+            readonly expires_at: string;
+            readonly observation: components["schemas"]["NodeCoverageEnvelope"];
+            /** Format: date-time */
+            readonly received_at: string;
+            readonly request_digest: string;
+            readonly sequence: number;
+            /** Format: date-time */
+            readonly source_observed_at: string;
+        };
+        readonly AgentDeviceAcceptance: {
+            /** Format: date-time */
+            readonly accepted_at: string;
+            readonly credential: components["schemas"]["AgentDeviceCredential"];
+            /** Format: date-time */
+            readonly expires_at: string;
+            readonly request_sha256: string;
+        };
+        readonly AgentDeviceActivateInput: {
+            readonly challenge_id: components["schemas"]["ProductID"];
+            readonly challenge_sha256: string;
+            readonly expected_association_version: number;
+        };
+        readonly AgentDeviceAdmissionSnapshot: {
+            readonly content_sha256: string;
+            readonly evidence_id: components["schemas"]["ProductID"];
+            /** Format: date-time */
+            readonly fresh_until: string;
+            readonly generation: number;
+            /** Format: date-time */
+            readonly observed_at: string;
+            readonly snapshot_id: components["schemas"]["ProductID"];
+        };
+        readonly AgentDeviceAssociation: {
+            readonly activated_at: string | null;
+            readonly activated_by: components["schemas"]["ProductID"] | null;
+            readonly admission_snapshot: components["schemas"]["AgentDeviceAdmissionSnapshot"] | null;
+            readonly agent_id: components["schemas"]["ProductID"];
+            readonly association_id: components["schemas"]["ProductID"];
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly created_by: components["schemas"]["ProductID"];
+            readonly device_credential: components["schemas"]["AgentDeviceCredential"] | null;
+            readonly device_id: components["schemas"]["ProductID"];
+            readonly pending_intent: components["schemas"]["AgentDevicePendingIntent"] | null;
+            readonly revoked_at: string | null;
+            readonly source_identity: components["schemas"]["AgentDeviceSourceIdentity"] | null;
+            /** @enum {string} */
+            readonly state: "none" | "admitted" | "revoked" | "unavailable";
+            /** @enum {string} */
+            readonly unavailable_reason: "none" | "source_stale" | "source_removed" | "source_identity_changed" | "device_unavailable" | "credential_expired" | "credential_rotated" | "credential_revoked";
+            readonly version: number;
+        };
+        readonly AgentDeviceAssociationPage: {
+            readonly capabilities: {
+                readonly can_manage: boolean;
+            };
+            readonly items: readonly components["schemas"]["AgentDeviceAssociation"][];
+            readonly next_cursor: string | null;
+        };
+        readonly AgentDeviceChallengeEnvelope: {
+            readonly challenge_sha256: string;
+            readonly challenge_wire: string;
+            /** @constant */
+            readonly schema: "agent-device-challenge-envelope-v1";
+        };
+        readonly AgentDeviceCredential: {
+            readonly credential_generation: number;
+            readonly credential_id: components["schemas"]["ProductID"];
+            /** Format: date-time */
+            readonly expires_at: string;
+        };
+        readonly AgentDeviceIntentInput: {
+            readonly device_id: components["schemas"]["ProductID"];
+            readonly expected_association_version: number;
+            readonly ttl_seconds: number;
+        };
+        readonly AgentDeviceMutationReceipt: {
+            readonly association_id: components["schemas"]["ProductID"];
+            readonly challenge_id: components["schemas"]["ProductID"] | null;
+            /** @enum {string} */
+            readonly operation: "createAgentDeviceIntent" | "activateAgentDeviceAssociation" | "revokeAgentDeviceAssociation";
+            /** Format: date-time */
+            readonly recorded_at: string;
+            /** @enum {string} */
+            readonly recorded_state: "intent_created" | "activated" | "revoked";
+            readonly version: number;
+        };
+        readonly AgentDeviceMutationResult: {
+            readonly challenge: components["schemas"]["AgentDeviceChallengeEnvelope"] | null;
+            readonly receipt: components["schemas"]["AgentDeviceMutationReceipt"];
+            readonly replayed: boolean;
+        };
+        readonly AgentDevicePendingIntent: {
+            readonly acceptance: components["schemas"]["AgentDeviceAcceptance"] | null;
+            readonly challenge_id: components["schemas"]["ProductID"];
+            readonly challenge_sha256: string;
+            readonly challenge_wire: string;
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly created_by: components["schemas"]["ProductID"];
+            /** Format: date-time */
+            readonly expires_at: string;
+            /** @enum {string} */
+            readonly state: "pending_device" | "pending_human" | "expired" | "superseded";
+        };
+        readonly AgentDeviceRevokeInput: {
+            readonly expected_association_version: number;
+        };
+        readonly AgentDeviceSourceIdentity: {
+            readonly agent_id: components["schemas"]["ProductID"];
+            readonly identity_namespace: string;
+            readonly integration_id: components["schemas"]["ProductID"];
+            readonly provider: string;
+            readonly rule_version: number;
+            readonly source: string;
+            readonly source_native_id: string;
+        };
         readonly AgentMutation: {
             readonly agent: components["schemas"]["InventoryRecord"];
             readonly audit_id: components["schemas"]["ProductID"];
@@ -2535,25 +2838,27 @@ export type components = {
             readonly page_info: components["schemas"]["PageInfo"];
         };
         readonly AIExplanation: {
-            readonly explanation: string;
-            readonly model: string;
+            readonly explanation?: string;
+            readonly recommendation?: string;
+            readonly request_id: components["schemas"]["ProductID"];
             /** @constant */
-            readonly no_storage: true;
-            readonly provider: string;
-            readonly recommendation: string;
+            readonly result_retained: false;
+            readonly sent_fields: readonly [
+                "rule",
+                "severity",
+                "evidence_count"
+            ];
+            readonly source: {
+                readonly finding_id: components["schemas"]["ProductID"];
+                readonly finding_version: number;
+            };
+            /** @enum {string} */
+            readonly state: "reserved" | "started" | "complete" | "failed" | "unknown";
         };
         readonly AIExplanationInput: {
-            readonly cost_cents: number;
-            readonly fields: {
-                readonly [key: string]: string;
-            };
-            readonly model: string;
-            readonly provider: string;
-            /** @enum {string} */
-            readonly purpose: "finding_explanation";
-            /** @constant */
-            readonly require_no_storage: true;
-            readonly tokens: number;
+            readonly finding_id: components["schemas"]["ProductID"];
+            readonly finding_version: number;
+            readonly idempotency_key: string;
         };
         readonly APIToken: {
             readonly audit_correlation_id?: components["schemas"]["ProductID"];
@@ -3218,7 +3523,11 @@ export type components = {
             readonly version: number;
             readonly workspace_id: components["schemas"]["ProductID"];
         };
+        /** @enum {string} */
+        readonly EnvironmentClass: "development" | "test" | "staging" | "production";
         readonly EnvironmentCreateInput: {
+            /** @description Optional explicit classification. Omission creates development. Requires the current registered classification capability; names never determine class. */
+            readonly environment_class?: components["schemas"]["EnvironmentClass"];
             readonly name: string;
             readonly workspace_id: components["schemas"]["ProductID"];
         };
@@ -3236,6 +3545,11 @@ export type components = {
             readonly items: readonly components["schemas"]["Environment"][];
             readonly page_info: components["schemas"]["PageInfo"];
         };
+        readonly EnvironmentUpdateInput: {
+            /** @description Optional explicit classification. Omission preserves the stored class. Requires current registered classification capability and the original scope, version and fresh mutation authority. */
+            readonly environment_class?: components["schemas"]["EnvironmentClass"];
+            readonly name: string;
+        };
         readonly EvidenceRecord: {
             readonly asset_id: string;
             /** Format: date-time */
@@ -3246,15 +3560,32 @@ export type components = {
             readonly target?: components["schemas"]["ComplianceEvidenceTarget"];
         };
         readonly ExternalFlow: {
-            readonly categories: readonly ("identity_metadata" | "product_usage" | "redacted_summary" | "remote_telemetry")[];
+            readonly available?: boolean;
+            readonly categories: readonly ("identity_metadata" | "product_metadata" | "security_metadata" | "product_usage" | "redacted_summary" | "remote_telemetry")[];
             readonly enabled: boolean;
             /** @enum {string} */
-            readonly health: "healthy" | "degraded" | "disabled";
+            readonly health: "healthy" | "degraded" | "disabled" | "unknown";
             readonly id: string;
+            readonly name?: string;
             readonly required: boolean;
+            readonly version?: number;
+        };
+        readonly ExternalFlowMutation: {
+            readonly enabled: boolean;
+            /** @enum {string} */
+            readonly flow_id: "posthog" | "openrouter" | "remote-otlp";
+            readonly idempotency_key: string;
+            readonly version: number;
         };
         readonly ExternalFlowPage: {
             readonly items: readonly components["schemas"]["ExternalFlow"][];
+        };
+        readonly ExternalFlowUpdate: {
+            readonly enabled: boolean;
+            readonly expected_version: number;
+            /** @enum {string} */
+            readonly flow_id: "posthog" | "openrouter" | "remote-otlp";
+            readonly idempotency_key: string;
         };
         readonly Finding: {
             readonly acceptance_reason?: string;
@@ -3293,6 +3624,87 @@ export type components = {
         readonly FindingUpdateInput: {
             /** @enum {string} */
             readonly status: "open" | "under_review" | "resolved";
+        };
+        readonly GatewayCreateResult: {
+            readonly device: components["schemas"]["GatewayDevice"];
+            readonly replayed: boolean;
+        };
+        readonly GatewayDevice: {
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly id: components["schemas"]["ProductID"];
+            readonly name: string;
+            readonly replay_floor: number;
+            /** @enum {string} */
+            readonly state: "pending" | "active" | "revoked" | "deleted";
+            readonly version: number;
+        };
+        readonly GatewayDeviceInput: {
+            readonly name: string;
+        };
+        readonly GatewayDeviceStatus: {
+            readonly device: components["schemas"]["GatewayDevice"];
+            /** @enum {string} */
+            readonly issuance_state: "available" | "existing_enrollment" | "existing_credential" | "device_unavailable";
+            readonly latest_enrollment: components["schemas"]["GatewayEnrollment"] | null;
+            readonly next_credential_generation: number;
+        };
+        readonly GatewayEnrollment: {
+            /** @constant */
+            readonly audience: "runtime-gateway-enroll";
+            /** Format: date-time */
+            readonly consumed_at: string | null;
+            readonly device_id: components["schemas"]["ProductID"];
+            readonly device_version: number;
+            /** Format: date-time */
+            readonly expires_at: string;
+            readonly id: components["schemas"]["ProductID"];
+            /** Format: date-time */
+            readonly issued_at: string;
+            /** Format: date-time */
+            readonly revoked_at: string | null;
+            readonly token_generation: number;
+        };
+        readonly GatewayEnrollmentFreshIssue: {
+            readonly device: components["schemas"]["GatewayDevice"];
+            readonly enrollment: components["schemas"]["GatewayEnrollment"];
+            /** @constant */
+            readonly replayed: false;
+            readonly token_bundle: components["schemas"]["GatewayEnrollmentTokenBundle"];
+        };
+        readonly GatewayEnrollmentIssueInput: {
+            readonly expected_version: number;
+            readonly ttl_seconds: number;
+        };
+        readonly GatewayEnrollmentIssueResult: components["schemas"]["GatewayEnrollmentFreshIssue"] | components["schemas"]["GatewayEnrollmentReplayIssue"];
+        readonly GatewayEnrollmentReplayIssue: {
+            readonly device: components["schemas"]["GatewayDevice"];
+            readonly enrollment: components["schemas"]["GatewayEnrollment"];
+            /** @constant */
+            readonly replayed: true;
+        };
+        readonly GatewayEnrollmentRevokeInput: {
+            readonly expected_version: number;
+        };
+        readonly GatewayEnrollmentRevokeResult: {
+            readonly device: components["schemas"]["GatewayDevice"];
+            readonly enrollment: components["schemas"]["GatewayEnrollment"];
+            readonly replayed: boolean;
+        };
+        readonly GatewayEnrollmentTokenBundle: {
+            readonly credential_generation: number;
+            readonly device_id: components["schemas"]["ProductID"];
+            /** Format: date-time */
+            readonly enrollment_expires_at: string;
+            readonly enrollment_id: components["schemas"]["ProductID"];
+            readonly environment_id: components["schemas"]["ProductID"];
+            readonly locator: string;
+            readonly organization_id: components["schemas"]["ProductID"];
+            /** @constant */
+            readonly schema: "gateway-enrollment-token-v1";
+            readonly secret: string;
+            readonly token_generation: number;
+            readonly workspace_id: components["schemas"]["ProductID"];
         };
         readonly GroupMapping: {
             readonly audit_correlation_id?: components["schemas"]["ProductID"];
@@ -3590,6 +4002,102 @@ export type components = {
         };
         readonly NameInput: {
             readonly name: string;
+        };
+        readonly NodeCoverageEnvelope: {
+            readonly btf: boolean;
+            readonly capabilities: readonly ("file" | "network" | "process")[];
+            /** @constant */
+            readonly coverage_schema: "zasp-node-coverage-retained-v1";
+            readonly drops: number;
+            readonly event_rate: number;
+            /** Format: date-time */
+            readonly inventory_observed_at: string;
+            readonly kernel: string;
+            readonly reports: readonly components["schemas"]["NodeCoverageReport"][];
+            readonly selected_nodes: readonly {
+                /** Format: uuid */
+                readonly boot_id: string;
+                readonly node_name: string;
+                /** Format: uuid */
+                readonly node_uid: string;
+            }[];
+            readonly selection: components["schemas"]["NodeCoverageSelection"];
+            /** Format: uuid */
+            readonly sensor_daemonset_uid: string;
+            readonly sequence: number;
+            /** Format: date-time */
+            readonly source_observed_at: string;
+            /** Format: uuid */
+            readonly state_uid: string;
+            /** @enum {string} */
+            readonly status: "healthy" | "degraded";
+            readonly storage_epoch: number;
+            readonly target_digest: string;
+            /** Format: uuid */
+            readonly tetragon_daemonset_uid: string;
+            readonly ttl_seconds: number;
+        };
+        readonly NodeCoverageReport: {
+            /** Format: uuid */
+            readonly boot_id: string;
+            readonly btf: boolean;
+            readonly capabilities: readonly ("file" | "network" | "process")[];
+            /** Format: uuid */
+            readonly cluster_uid: string;
+            readonly drops: number;
+            readonly enrollment_binding: string;
+            readonly event_rate: number;
+            /** Format: uuid */
+            readonly generation_id: string;
+            /** Format: date-time */
+            readonly identity_observed_at: string;
+            readonly kernel: string;
+            /** Format: date-time */
+            readonly measured_at: string;
+            readonly node_name: string;
+            /** Format: uuid */
+            readonly node_uid: string;
+            readonly reporter_pod_name: string;
+            /** Format: uuid */
+            readonly reporter_pod_uid: string;
+            /** @constant */
+            readonly schema: "zasp-node-coverage-v2";
+            /** @enum {string} */
+            readonly source_profile: "tetragon-local-stream-v2" | "tetragon-local-stream-v3";
+            /** @enum {string} */
+            readonly status: "healthy" | "degraded";
+            readonly tetragon_pod_name: string;
+            /** Format: uuid */
+            readonly tetragon_pod_uid: string;
+        };
+        readonly NodeCoverageSelection: {
+            /** Format: uuid */
+            readonly cluster_uid: string;
+            readonly enrollment_binding: string;
+            readonly match_labels: {
+                readonly [key: string]: string;
+            };
+            readonly sensor: components["schemas"]["NodeCoverageTarget"];
+            /** @enum {string} */
+            readonly source_profile: "tetragon-local-stream-v2" | "tetragon-local-stream-v3";
+            readonly tetragon: components["schemas"]["NodeCoverageTarget"];
+        };
+        readonly NodeCoverageTarget: {
+            readonly container: string;
+            readonly image: string;
+            readonly name: string;
+            readonly namespace: string;
+            readonly release: string;
+            readonly release_namespace: string;
+            readonly service_account: string;
+        };
+        /** @description Retained authenticated sensor testimony at the last scoped database read. source_current is not live Kubernetes reobservation or Agent coverage. */
+        readonly NodeObservationRead: {
+            readonly receipt: components["schemas"]["AcceptedNodeCoverageObservation"] | null;
+            /** @constant */
+            readonly schema: "zasp-node-observation-read-v1";
+            /** @enum {string} */
+            readonly state: "unavailable" | "source_current" | "source_expired" | "source_superseded" | "enrollment_revoked";
         };
         readonly OAuthCompletionReceiptIntent: {
             readonly authorization_attempt_id: components["schemas"]["ProductID"];
@@ -4769,6 +5277,19 @@ export type components = {
         readonly SensorKind: "tetragon" | "otlp";
         /** @enum {string} */
         readonly SensorMode: "metadata_only" | "full";
+        readonly SensorNodeCoverage: {
+            readonly btf: boolean;
+            readonly capabilities: readonly string[];
+            readonly drops: number;
+            readonly event_rate: number;
+            readonly kernel: string;
+            readonly last_heartbeat: string | null;
+            readonly node_observation: components["schemas"]["NodeObservationRead"];
+            readonly sensor_id: components["schemas"]["ProductID"];
+            /** @enum {string} */
+            readonly status: "pending" | "healthy" | "degraded" | "offline" | "revoked";
+            readonly supported: boolean;
+        };
         readonly SensorPage: {
             readonly items: readonly components["schemas"]["Sensor"][];
             readonly page_info: components["schemas"]["PageInfo"];
@@ -5160,6 +5681,20 @@ export type components = {
     };
     pathItems: never;
 };
+export type AcceptedNodeCoverageObservation = components['schemas']['AcceptedNodeCoverageObservation'];
+export type AgentDeviceAcceptance = components['schemas']['AgentDeviceAcceptance'];
+export type AgentDeviceActivateInput = components['schemas']['AgentDeviceActivateInput'];
+export type AgentDeviceAdmissionSnapshot = components['schemas']['AgentDeviceAdmissionSnapshot'];
+export type AgentDeviceAssociation = components['schemas']['AgentDeviceAssociation'];
+export type AgentDeviceAssociationPage = components['schemas']['AgentDeviceAssociationPage'];
+export type AgentDeviceChallengeEnvelope = components['schemas']['AgentDeviceChallengeEnvelope'];
+export type AgentDeviceCredential = components['schemas']['AgentDeviceCredential'];
+export type AgentDeviceIntentInput = components['schemas']['AgentDeviceIntentInput'];
+export type AgentDeviceMutationReceipt = components['schemas']['AgentDeviceMutationReceipt'];
+export type AgentDeviceMutationResult = components['schemas']['AgentDeviceMutationResult'];
+export type AgentDevicePendingIntent = components['schemas']['AgentDevicePendingIntent'];
+export type AgentDeviceRevokeInput = components['schemas']['AgentDeviceRevokeInput'];
+export type AgentDeviceSourceIdentity = components['schemas']['AgentDeviceSourceIdentity'];
 export type AgentMutation = components['schemas']['AgentMutation'];
 export type AgentOwnershipInput = components['schemas']['AgentOwnershipInput'];
 export type AgentSession = components['schemas']['AgentSession'];
@@ -5240,12 +5775,16 @@ export type DeleteIntegrationScheduleReceiptIntent = components['schemas']['Dele
 export type DeleteIntegrationScheduleWorkflowMutationReceipt = components['schemas']['DeleteIntegrationScheduleWorkflowMutationReceipt'];
 export type EmptyInput = components['schemas']['EmptyInput'];
 export type Environment = components['schemas']['Environment'];
+export type EnvironmentClass = components['schemas']['EnvironmentClass'];
 export type EnvironmentCreateInput = components['schemas']['EnvironmentCreateInput'];
 export type EnvironmentMutation = components['schemas']['EnvironmentMutation'];
 export type EnvironmentPage = components['schemas']['EnvironmentPage'];
+export type EnvironmentUpdateInput = components['schemas']['EnvironmentUpdateInput'];
 export type EvidenceRecord = components['schemas']['EvidenceRecord'];
 export type ExternalFlow = components['schemas']['ExternalFlow'];
+export type ExternalFlowMutation = components['schemas']['ExternalFlowMutation'];
 export type ExternalFlowPage = components['schemas']['ExternalFlowPage'];
+export type ExternalFlowUpdate = components['schemas']['ExternalFlowUpdate'];
 export type Finding = components['schemas']['Finding'];
 export type FindingAcceptanceInput = components['schemas']['FindingAcceptanceInput'];
 export type FindingPage = components['schemas']['FindingPage'];
@@ -5253,6 +5792,18 @@ export type FindingSeverity = components['schemas']['FindingSeverity'];
 export type FindingStatus = components['schemas']['FindingStatus'];
 export type FindingTicket = components['schemas']['FindingTicket'];
 export type FindingUpdateInput = components['schemas']['FindingUpdateInput'];
+export type GatewayCreateResult = components['schemas']['GatewayCreateResult'];
+export type GatewayDevice = components['schemas']['GatewayDevice'];
+export type GatewayDeviceInput = components['schemas']['GatewayDeviceInput'];
+export type GatewayDeviceStatus = components['schemas']['GatewayDeviceStatus'];
+export type GatewayEnrollment = components['schemas']['GatewayEnrollment'];
+export type GatewayEnrollmentFreshIssue = components['schemas']['GatewayEnrollmentFreshIssue'];
+export type GatewayEnrollmentIssueInput = components['schemas']['GatewayEnrollmentIssueInput'];
+export type GatewayEnrollmentIssueResult = components['schemas']['GatewayEnrollmentIssueResult'];
+export type GatewayEnrollmentReplayIssue = components['schemas']['GatewayEnrollmentReplayIssue'];
+export type GatewayEnrollmentRevokeInput = components['schemas']['GatewayEnrollmentRevokeInput'];
+export type GatewayEnrollmentRevokeResult = components['schemas']['GatewayEnrollmentRevokeResult'];
+export type GatewayEnrollmentTokenBundle = components['schemas']['GatewayEnrollmentTokenBundle'];
 export type GroupMapping = components['schemas']['GroupMapping'];
 export type GroupMappingInput = components['schemas']['GroupMappingInput'];
 export type GroupMappingPage = components['schemas']['GroupMappingPage'];
@@ -5296,6 +5847,11 @@ export type KubernetesReferenceAuthorizationConfiguration = components['schemas'
 export type KubernetesReferenceAuthorizationReceiptIntent = components['schemas']['KubernetesReferenceAuthorizationReceiptIntent'];
 export type MemberRoleInput = components['schemas']['MemberRoleInput'];
 export type NameInput = components['schemas']['NameInput'];
+export type NodeCoverageEnvelope = components['schemas']['NodeCoverageEnvelope'];
+export type NodeCoverageReport = components['schemas']['NodeCoverageReport'];
+export type NodeCoverageSelection = components['schemas']['NodeCoverageSelection'];
+export type NodeCoverageTarget = components['schemas']['NodeCoverageTarget'];
+export type NodeObservationRead = components['schemas']['NodeObservationRead'];
 export type OAuthCompletionReceiptIntent = components['schemas']['OAuthCompletionReceiptIntent'];
 export type OAuthCompletionWorkflowMutationReceipt = components['schemas']['OAuthCompletionWorkflowMutationReceipt'];
 export type Organization = components['schemas']['Organization'];
@@ -5421,6 +5977,7 @@ export type SensorEnrollment = components['schemas']['SensorEnrollment'];
 export type SensorInput = components['schemas']['SensorInput'];
 export type SensorKind = components['schemas']['SensorKind'];
 export type SensorMode = components['schemas']['SensorMode'];
+export type SensorNodeCoverage = components['schemas']['SensorNodeCoverage'];
 export type SensorPage = components['schemas']['SensorPage'];
 export type SensorState = components['schemas']['SensorState'];
 export type SensorUpdateInput = components['schemas']['SensorUpdateInput'];
@@ -6075,8 +6632,16 @@ export interface operations {
             readonly query?: {
                 /** @description Opaque cursor returned by the preceding page. */
                 readonly cursor?: components["parameters"]["PageCursor"];
+                /** @description Fresh positive shell or code execution evidence under agent-exposure-v1; unknown is not a safety or coverage guarantee. Requires inventory.agents.exposure_filter. */
+                readonly execution?: "shell" | "code" | "shell_or_code" | "unknown";
+                /** @description Fresh positive sensitive or high-impact reach evidence under agent-exposure-v1; unknown is not a safety or coverage guarantee. Requires inventory.agents.exposure_filter. */
+                readonly impact?: "high" | "unknown";
                 /** @description Maximum number of records to return. */
                 readonly limit?: components["parameters"]["PageLimit"];
+                /** @description Omitted selects all owners; an empty value selects unowned Agents. A nonempty value matches the exact persisted owner label, including whitespace, without normalization. Requires the configured owner-filter capability. */
+                readonly owner?: string;
+                /** @description Highest recorded visible unresolved Finding severity; unknown means no independently authorized unresolved severity is recorded. Requires inventory.agents.exposure_filter. Combined selectors are conjoined before pagination. */
+                readonly risk?: "critical" | "high" | "medium" | "low" | "unknown";
             };
             readonly header?: never;
             readonly path?: never;
@@ -6191,6 +6756,185 @@ export interface operations {
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
+    readonly createAgentDeviceIntent: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
+                readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
+                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+                /** @description Explicit fresh-auth confirmation required for a sensitive approval or connector authorization mutation. */
+                readonly "X-Zasp-Fresh-Auth": components["parameters"]["FreshAuth"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["AgentDeviceIntentInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Confirmed mutation or immutable metadata replay. Refetch current state. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly Pragma?: "no-cache";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AgentDeviceMutationResult"];
+                };
+            };
+            /** @description New pending challenge confirmed. No active association is created. */
+            readonly 201: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly Pragma?: "no-cache";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AgentDeviceMutationResult"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listAgentDeviceAssociations: {
+        readonly parameters: {
+            readonly query?: {
+                readonly cursor?: string;
+                readonly limit?: number;
+            };
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Current scoped page. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly Pragma?: "no-cache";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AgentDeviceAssociationPage"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly activateAgentDeviceAssociation: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
+                readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
+                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+                /** @description Explicit fresh-auth confirmation required for a sensitive approval or connector authorization mutation. */
+                readonly "X-Zasp-Fresh-Auth": components["parameters"]["FreshAuth"];
+            };
+            readonly path: {
+                readonly associationId: components["schemas"]["ProductID"];
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["AgentDeviceActivateInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Confirmed mutation or immutable metadata replay. Refetch current state. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly Pragma?: "no-cache";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AgentDeviceMutationResult"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly revokeAgentDeviceAssociation: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
+                readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
+                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+                /** @description Explicit fresh-auth confirmation required for a sensitive approval or connector authorization mutation. */
+                readonly "X-Zasp-Fresh-Auth": components["parameters"]["FreshAuth"];
+            };
+            readonly path: {
+                readonly associationId: components["schemas"]["ProductID"];
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["AgentDeviceRevokeInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Confirmed mutation or immutable metadata replay. Refetch current state. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly Pragma?: "no-cache";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AgentDeviceMutationResult"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
     readonly getAgentRelationships: {
         readonly parameters: {
             readonly query?: {
@@ -6243,6 +6987,37 @@ export interface operations {
                 };
                 content: {
                     readonly "application/json": components["schemas"]["AgentSessionPage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly createAIExplanation: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["AIExplanationInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Current request state and any first-response explanation. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AIExplanation"];
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];
@@ -6968,7 +7743,7 @@ export interface operations {
         };
         readonly requestBody: {
             readonly content: {
-                readonly "application/json": components["schemas"]["NameInput"];
+                readonly "application/json": components["schemas"]["EnvironmentUpdateInput"];
             };
         };
         readonly responses: {
@@ -7143,6 +7918,190 @@ export interface operations {
             };
             readonly 401: components["responses"]["ProductErrorResponse"];
             readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly createGatewayDevice: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
+                readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
+                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+                /** @description Explicit fresh-auth confirmation required for a sensitive approval or connector authorization mutation. */
+                readonly "X-Zasp-Fresh-Auth": components["parameters"]["FreshAuth"];
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["GatewayDeviceInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Current or replayed metadata; no one-time secret on replay. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly Pragma?: "no-cache";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GatewayCreateResult"];
+                };
+            };
+            /** @description Fresh mutation. */
+            readonly 201: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly Pragma?: "no-cache";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GatewayCreateResult"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getGatewayDevice: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Current or replayed metadata; no one-time secret on replay. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly Pragma?: "no-cache";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GatewayDeviceStatus"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly issueGatewayEnrollment: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
+                readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
+                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+                /** @description Explicit fresh-auth confirmation required for a sensitive approval or connector authorization mutation. */
+                readonly "X-Zasp-Fresh-Auth": components["parameters"]["FreshAuth"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["GatewayEnrollmentIssueInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Current or replayed metadata; no one-time secret on replay. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly Pragma?: "no-cache";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GatewayEnrollmentReplayIssue"];
+                };
+            };
+            /** @description Fresh mutation. */
+            readonly 201: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly Pragma?: "no-cache";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GatewayEnrollmentFreshIssue"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly revokeGatewayEnrollment: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
+                readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
+                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+                /** @description Explicit fresh-auth confirmation required for a sensitive approval or connector authorization mutation. */
+                readonly "X-Zasp-Fresh-Auth": components["parameters"]["FreshAuth"];
+            };
+            readonly path: {
+                readonly enrollmentId: components["schemas"]["ProductID"];
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["GatewayEnrollmentRevokeInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Current or replayed metadata; no one-time secret on replay. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly Pragma?: "no-cache";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GatewayEnrollmentRevokeResult"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
@@ -9583,7 +10542,9 @@ export interface operations {
     readonly getSensorCoverage: {
         readonly parameters: {
             readonly query?: never;
-            readonly header?: never;
+            readonly header?: {
+                readonly "X-Zasp-Schema-Version"?: "sensor-coverage-node-observation-v2";
+            };
             readonly path: {
                 readonly id: components["schemas"]["ProductID"];
             };
@@ -9598,7 +10559,7 @@ export interface operations {
                     readonly [name: string]: unknown;
                 };
                 content: {
-                    readonly "application/json": components["schemas"]["SensorCoverage"];
+                    readonly "application/json": components["schemas"]["SensorCoverage"] | components["schemas"]["SensorNodeCoverage"];
                 };
             };
             readonly 400: components["responses"]["ProductErrorResponse"];
@@ -10032,6 +10993,39 @@ export interface operations {
                 };
                 content: {
                     readonly "application/json": components["schemas"]["ExternalFlowPage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly updateExternalDataFlows: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Explicit fresh-auth confirmation required for a sensitive approval or connector authorization mutation. */
+                readonly "X-Zasp-Fresh-Auth": components["parameters"]["FreshAuth"];
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["ExternalFlowUpdate"];
+            };
+        };
+        readonly responses: {
+            /** @description Durable policy mutation receipt. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ExternalFlowMutation"];
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];

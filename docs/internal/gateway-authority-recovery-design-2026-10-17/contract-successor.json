@@ -1,0 +1,46 @@
+{
+  "classification": "EXPLICIT_CURRENT_AUTHORITY_RECOVERY_CONTRACT_PENDING_INDEPENDENT_REVIEW",
+  "source_parent": "3693cd2fe0f04322065811af979f03cb60a9c3e4",
+  "scope": "CLI + stdlib gatewayenrollmentwire/custody only; reuse exact existing Authority GET/authentication. No server/profile/grant/enrollment mutation.",
+  "command": {
+    "syntax": "gateway recover --custody-file ABS --ca-bundle-file ABS [--timeout 1s..30s] [--credential-output ABS]",
+    "endpoint": "Read original endpoint from guarded custody; no endpoint override or token stdin. Same direct HTTPS/explicitCA/no redirects client.",
+    "steps": "Guard custody, create opaque in-process recovery handle, sign exact empty-body Authority GET with retained key and original device Authorization; require200/single application/json/no-store/bounded body/context. Parse+match13-field actual authority. Persist separate historical observation. Optional explicit credential output only through this same fresh recovery handle. Close handles/HTTP client on every path.",
+    "report": "Nonsecret original IDs, current_authority source, observed_at local wholeUTC, state current_authority_observed or credential_exported_from_current_authority; outcome confirmed only if original receipt actually exists, otherwise unknown. Never claim independently signed server response or enrollment proof."
+  },
+  "wire": {
+    "dto": "CurrentAuthority exact original13 fields; canonical nonzero product IDs, positive bounded deviceVersion/credentialGeneration, nonnegative int64 replayFloor, key format and Ed25519 RawURL32 pubkey, runtime-gateway audience, UTC microsecond expiry. closed duplicate/null/unknown/casealias/trailing/invalidUTF parser.",
+    "match": "Exact request scope/Device/credential/gen/key/algorithm/publickey/expiry; deviceVersion positive and replayFloor may advance. Actual local now after complete response; expiry future. No enrollmentID/tokenGen/issuedAt/requestDigest invented.",
+    "sign": "Fixed empty GET /internal/v1/runtime-gateway/authority, HTTPS original origin with no query/rawpath/fragment/userinfo; Authorization ZaspGatewayV1 <originalCredentialID>. Exact original context/method/host/path/credential/wholeUTC/bodySHA256 and Store.Sign callback; verify signature against retained request pubkey before setting headers. Existing POST enrollment signer unchanged.",
+    "signatures": [
+      "ParseCurrentAuthority(raw []byte) (CurrentAuthority,error)",
+      "MarshalCurrentAuthority(CurrentAuthority) ([]byte,error)",
+      "CurrentAuthorityMatchesRequest(CurrentAuthority,Request,time.Time) bool",
+      "SignAuthorityRequest(*http.Request,Request,func([]byte)([]byte,error),time.Time) error"
+    ]
+  },
+  "custody": {
+    "api": "Store.BeginRecovery() returns opaque *Recovery; Source() returns original endpoint and owned snapshot; Sign callback delegates guarded Store.Sign. Recovery.Observe(raw,sentAt,observedAt) validates and binds exact original request and durable historical artifact. Recovery.ExportCredential(path,now) requires same in-process successfully observed handle, single consumed export attempt, sent<=observed<=now<=observed+30s, expiry>now and valid custody/guard. Close invalidates capability. Saved artifact never creates a live handle or authorizes export.",
+    "artifact": "Deterministic .zasp-gateway-enrollment-<SHA256(basename)>.authority and same publicationStage. Canonical versioned object: schema gateway-current-authority-observation-v1, local_request_sha256, endpoint, request_sent_at, response_observed_at, authority_response_sha256, authority exact13DTO. First valid observation retained immutable; later live checks can differ deviceVersion/floor/localtimes but do not overwrite history. Request hash is local provenance only.",
+    "open": "Reject orphan authority/stage without bundle. Recover complete safe stage using existing primitive. Parse canonical artifact and validate exact originaltuple against historical observed time, sent<=observed<=sent+30s. Historical artifact cannot fabricate original receipt or set StateAccepted. Reserve authority/stage paths and inodealiases against all exports.",
+    "publication": "Existing deterministic exclusive stage/file+dirfsync/os.Root.Link nooverwrite/dirfsync/sameinode-stage cleanup/readback under same guard. Keep ExportCredential receipt-only, factor common private export implementation for recovery capability; no keygetter.",
+    "failure": "Keep original key/intent/receipt/history unchanged. Any refused live call/export leaves unknown. New live recovery required on restart/retry; immutable first history stays historical. Concurrent later revocation still enforced by original runtime.",
+    "signatures": [
+      "Store.BeginRecovery() (*Recovery,error)",
+      "Recovery.Source() (string,Snapshot,error)",
+      "Recovery.Sign([]byte) ([]byte,error)",
+      "Recovery.Observe(raw []byte,sentAt,observedAt time.Time) error",
+      "Recovery.ExportCredential(path string,now time.Time) error",
+      "Recovery.Close() error"
+    ],
+    "artifact_hash_definition": "authority_response_sha256 means SHA256 of MarshalCurrentAuthority(parsed valid13-field response), a canonical validated representation, not a claim to retain byte-identical HTTP response. Recompute against canonical authority on reopen; local_request_sha256 remains original exact RequestRaw.",
+    "capability_conditions": "Consumed export attempt is monotone even on failure; Observe cannot reset it. Recovery.Close and Store guard access synchronize. Observe can occur at most once per handle; Close always invalidates. Trusted concrete CLI live TLS+clock is application invariant, not malicious in-process isolation."
+  },
+  "grouped_checks": [
+    "wire strict actual13DTO and exact original signedGET ABI with wrongtuple/expiry/floor and malformed refusal",
+    "custody restart/historicalnotlive/capabilityconsumption/aliases/orphan/nooverwrite and originalreceiptbehavior",
+    "actual CLI TLS expiredtoken+lostresponse recovery, new live call on retry, strict revoked/wrongtuple/expired/context/cacheable/redirect refusal; actual full CLI regression"
+  ],
+  "claims": "Local components/source only; native original authority and real deployed flow remain required. No task closure/production promotion/launch clearance.",
+  "predecessor_sha256": "d79da904951b385f40fcee7a6bdf3ae85bb69cfc9e17886f79b8ed60a4c2cf04"
+}

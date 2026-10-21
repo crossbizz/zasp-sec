@@ -1,0 +1,274 @@
+{
+  "checkpoint": "cloud-approval-settlement-audit-2026-10-15",
+  "observed_at": "2026-10-15T01:52:44.636078+00:00",
+  "starting_sha": "4c165e75a82bb6ca1d3e4d104863bdb744e7af12",
+  "main_sha": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
+  "classification": "component-verified candidate; native and deployed flows pending",
+  "ledger": {
+    "original_rows": 728,
+    "production_available_recorded": 523,
+    "component_only": 144,
+    "blocked_external": 61,
+    "missing": 0,
+    "promotions": 0,
+    "interpretation": "Recorded categories are not current deployment proof; TSVs and original scope remain unchanged."
+  },
+  "contributes_to": [
+    "M1-28 production API/worker composition",
+    "M3-24 connector recovery and catalog stability",
+    "P7/P8 captured settlement and permission evidence",
+    "T15-deployment guarded prerequisite installation"
+  ],
+  "implementation": [
+    "Install a new sealed zasp_approval_settlement_v1 profile bound to compiled original authorization, approval and activation source checksums. Preserve original approval and now-pushed activation namespace SQL/installers byte-for-byte. Fresh installation/idempotency never blesses drift or upgrades an existing mismatched fingerprint.",
+    "Call unchanged native captured settlement, validate authentic resulting transition and stored scope/delegation, then insert fixed canonical audit evidence in the same transaction. Audit conflicts validate every identity/body/digest field; failures roll back original notification, reservation and terminal revision update. No raw payload, URL, secret reference, token or receipt material enters audit evidence.",
+    "Production API explicitly selects audited settlement with the existing activation pin. A private compiled audit pin and live restricted catalog readiness are additionally required. Complete/Fail alone route to the wrapper, without fallback or fresh FGA checks that would break narrow captured settlement after revocation.",
+    "Add a fourth explicit inactive installer command and owned-browser prerequisite step. Document required operator installation before starting the selected API release. No new environment pin, production activation hook or fleet proof is introduced.",
+    "Extend the genuine signed native finding flow with canonical delivered/retryable audit evidence and rollback-only wrong-pin, foreign-scope and terminal conflict controls. The conflict fixture never commits a false delivery; real durable unknown attempts are failed after revocation.",
+    "Fix undefined catalog aggregate tie ordering in the mutable connector candidate with ORDER BY k,i,d, retaining all rows and metadata. The diagnostic query retains the identical aggregate. Existing old sealed namespaces still refuse new source pins; no fingerprint refresh or automatic upgrade is added.",
+    "Add closed API child exit metadata tied to joined process closure, without raw error text or changing existing 16KiB parser/resource/startup/cleanup guards. Adapt three existing extracted-function VM fixtures to actual PostgreSQL/storage/service order and maintained cleanup races."
+  ],
+  "verification": {
+    "go": {
+      "path": "/tmp/approval-settlement-connected-final-application-20261015.jsonl",
+      "sha256": "aeb1566621c7add0af9d34e70de420df3177620b54d98823f2a6030bac81e345",
+      "bytes": 40911,
+      "availability": "current cloud workspace; no deployed evidence archive implied",
+      "status": 0,
+      "top_level_passes": 10,
+      "named_passes": 37,
+      "failed": 0,
+      "skipped": 0,
+      "scope": "Four application packages pass normal selected checks; apiserver separately passes compile-only with no native test selected. No local race/native acceptance claimed."
+    },
+    "node": {
+      "path": "/tmp/approval-settlement-browser-final-20261015.log",
+      "sha256": "1a8f97a28d5e05bf5714cbd345e250e9954e8390599c5f27da19dd685aa86a36",
+      "bytes": 67524,
+      "availability": "current cloud workspace; no deployed evidence archive implied",
+      "status": 0,
+      "passed": 321,
+      "failed": 0,
+      "skipped": 0,
+      "scope": "Eleven browser, ownership, diagnostic, trace and composition component files."
+    },
+    "ui": [
+      {
+        "check": "typecheck",
+        "log": {
+          "path": "/tmp/approval-settlement-ui-typecheck-20261015.log",
+          "sha256": "f48bd1876f5408ffc0d939a2b0d826961d6115e6598a272fea04d98ac0431816",
+          "bytes": 63,
+          "availability": "current cloud workspace; no deployed evidence archive implied"
+        },
+        "status": 0
+      },
+      {
+        "check": "build",
+        "log": {
+          "path": "/tmp/approval-settlement-ui-build-20261015.log",
+          "sha256": "c5bc5d33051aeee7b2e9f80f3cf9e86fc5b846b887fc24100c4b1ade185c185c",
+          "bytes": 1043,
+          "availability": "current cloud workspace; no deployed evidence archive implied"
+        },
+        "status": 0
+      }
+    ],
+    "reviews": [
+      {
+        "path": "/tmp/approval-settlement-audit-independent-review-20261015.json",
+        "sha256": "ccf38278cee441756c378a1fbc265f3b2b832ad61f9f92cfae2fa467959e4343",
+        "bytes": 3625,
+        "availability": "current cloud workspace; no deployed evidence archive implied"
+      },
+      {
+        "path": "/tmp/approval-settlement-runtime-independent-review-20261015.json",
+        "sha256": "82a88cba4e4c10cdbfc9beea5137c77bf98bf733c19c74be03d34d3c985562b5",
+        "bytes": 3094,
+        "availability": "current cloud workspace; no deployed evidence archive implied"
+      },
+      {
+        "path": "/tmp/approval-settlement-native-flow-independent-review-20261015.json",
+        "sha256": "378e37dfe5f8131d3e25b3ad398ff538be428af40229522f784eb58053ace7c8",
+        "bytes": 2518,
+        "availability": "current cloud workspace; no deployed evidence archive implied"
+      },
+      {
+        "path": "/tmp/connector-catalog-fingerprint-order-independent-review-20261015.json",
+        "sha256": "3213a36a2d6ca1491ce3bd5f10160b24b005273c3504f436f44f652cdf8448a1",
+        "bytes": 3823,
+        "availability": "current cloud workspace; no deployed evidence archive implied"
+      },
+      {
+        "path": "/tmp/browser-child-exit-metadata-independent-review-20261015.json",
+        "sha256": "aca2baee24f67dca64a99faec880bcdd651d3c4fed7c52c4f4569cd19de64681",
+        "bytes": 2941,
+        "availability": "current cloud workspace; no deployed evidence archive implied"
+      },
+      {
+        "path": "/tmp/approval-settlement-batch-publication-review-20261015.json",
+        "sha256": "0e72b49b8a9d97a8240c8ad45e65a435b694f1ccfa68045af32399082c9491e1",
+        "bytes": 6585,
+        "availability": "current cloud workspace; no deployed evidence archive implied"
+      }
+    ],
+    "limits": "Source review is not native acceptance. Grouped coverage was specified before implementation, but native behavioral RED was not executed locally. Initial compile, missing-tool and stale-VM failures are not application behavioral RED. One native terminal-revision rollback coverage gap was found and corrected in review; the original finding is retained."
+  },
+  "hosted_predecessor": {
+    "metadata": {
+      "path": "/tmp/pr60-4c165-audit-batch-predecessor-20261015.json",
+      "sha256": "159752a7b5b93a9cb7338a1fe301aaa3ce899ee0f8509e42066491e3f4329fca",
+      "bytes": 131113,
+      "availability": "current cloud workspace; no deployed evidence archive implied"
+    },
+    "helm_render_pass": {
+      "path": "/tmp/hosted-maintenance-helm-render-pass-4c165-20261015.json",
+      "sha256": "1b2806438b872b3ab4256ef807678925d65036ecfcec9d68c5712a292b346670",
+      "bytes": 779,
+      "availability": "current cloud workspace; no deployed evidence archive implied"
+    },
+    "observed": "4c165 compilation, original capture, authenticated enqueue and actual production Helm render/permission step pass. Browser passes prerequisites and reaches API startup, then child exits before readiness. Lifecycle/PKCE also reproduce 42501 catalog refusal. Other native groups were still in progress at the metadata snapshot. This does not verify the new candidate.",
+    "catalog_diagnosis": {
+      "path": "/tmp/catalog-registration-stability-diagnosis-20261015.json",
+      "sha256": "4c0aa36cb5bcb757a62ebfd2fa9e5e69d7171706e588a11edcdc585c2678c2c1",
+      "bytes": 3103,
+      "availability": "current cloud workspace; no deployed evidence archive implied"
+    },
+    "catalog_observation": "Registration changes true to false with 407 unchanged rows, four duplicate identity keys, zero added/removed/changed objects in nine kinds and stable GUCs. Full-content tie ordering addresses source-level undefined serialization; the four exact duplicate identities and successful hosted correction have not been observed."
+  },
+  "source_association": {
+    "manifest": ".github/connector-native-compile-source-pins.json",
+    "source_rows": 102,
+    "changed_sources": [
+      {
+        "path": "services/platform/agentsec-api/approval_settlement_runtime_selection_test.go",
+        "sha256": "c241cfeb1a0024787ca1b8d620fea2c17cb28eceeb9761db0f22a5d431980d42"
+      },
+      {
+        "path": "services/platform/approvalmaintenance/settlement_audit_executor_test.go",
+        "sha256": "42c4253f03f02398a4c47ee252cd3ee3500f0bf72ba1a45cfb9b5079d4794b8b"
+      },
+      {
+        "path": "services/platform/migrations/production_approval_settlement_audit_profile.go",
+        "sha256": "48cf793e911b7766da1de15b01ee741c6c6cb1e800654fcd5d495d156886f7d1"
+      },
+      {
+        "path": "services/platform/migrations/production_approval_settlement_audit_profile_test.go",
+        "sha256": "868232f1bce320c00d360d5b023628b22e385dcfe7345e83755d04a656569434"
+      },
+      {
+        "path": "services/platform/migrations/sql/approval_settlement_audit_profile.sql",
+        "sha256": "5d32526a3e1029c031193e689186b3892535f98e1a882e2a2f46d7f11f4361c2"
+      },
+      {
+        "path": ".github/workflows/connector-native-draft-compile.yml",
+        "sha256": "c042a42409b3463115e7ee1bbb56db10b7360a84d34df841c1a448ea79a3bbea"
+      },
+      {
+        "path": "docs/operations/maintenance-runtime-rollout.md",
+        "sha256": "c8f18aa4244a4dcd9a0aefe739864f155a402f85aeb5a6506907a95835771b82"
+      },
+      {
+        "path": "scripts/browser-command-failure.mjs",
+        "sha256": "9f8849dc015884c7ce2377ac6d28b5fe0994365030fe29dd36f251e1006fa614"
+      },
+      {
+        "path": "scripts/browser-command-failure.test.mjs",
+        "sha256": "5ad36b201f5e47117ca3d042d60f00fb1e5b4800cb687c1dc3c7708bb84b2b81"
+      },
+      {
+        "path": "scripts/cbc-startup-diagnostics.test.mjs",
+        "sha256": "faf360213c072d71176006f1b25c4ce4a15130f607124bfacfe279cd086e9813"
+      },
+      {
+        "path": "scripts/hosted-connected-connector-acceptance.mjs",
+        "sha256": "fe1ea3ec3c83e50400b505072ebb5bd9b2c308590b41f7d49164263182ad5194"
+      },
+      {
+        "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
+        "sha256": "c1825e08a7c35ed96d9ea6d93d5c84fed1c2619e812698616fbfc298030c5d34"
+      },
+      {
+        "path": "scripts/owned-maintenance-composition.mjs",
+        "sha256": "b1a9a6c68c0af3fe18db04c75eb9958820107b55406bfb5050794ebb2e88c710"
+      },
+      {
+        "path": "scripts/owned-maintenance-composition.test.mjs",
+        "sha256": "773246b45e54307e6d1d751e1730c0480c4a8d26b4dd8f812d5a242bf94a91fd"
+      },
+      {
+        "path": "scripts/production-combined-e2e.mjs",
+        "sha256": "1814f60e4d0f3a4710add099a7f684663dda4c0d040c66f9366d7c5e5dbf44a2"
+      },
+      {
+        "path": "scripts/production-combined-e2e.test.mjs",
+        "sha256": "d7051a73ff7d015d0c69b9ffe3501161e82e91e51e285a91f76c3f1f60dad31b"
+      },
+      {
+        "path": "services/platform/agentsec-api/approval_maintenance_runtime.go",
+        "sha256": "aaa1cfcfc997a9a6cee529f08b405083552669d8be79b2891205c7a80e267177"
+      },
+      {
+        "path": "services/platform/agentsec-migrate/main.go",
+        "sha256": "ed0705033dd88d12551eb2ee97fc674729f02c5fadb3f64742f845e9173124be"
+      },
+      {
+        "path": "services/platform/agentsec-migrate/maintenance_profile_commands_test.go",
+        "sha256": "8745c207020f6b8cf7992aed8a00e518f61869568a50f9bfcebb19f8e004ae22"
+      },
+      {
+        "path": "services/platform/apiserver/approval_activation_flow_test.go",
+        "sha256": "f2aaf0affdb8d81886a43b1850b3f106e54cc86bde382a6975631592f5a1509c"
+      },
+      {
+        "path": "services/platform/apiserver/connector_maintenance_catalog_diagnostic_test.go",
+        "sha256": "3a0a5a0dc9c6fa4d74cae94d06ddfd470473a2d07dd0d673d1d9c62359a3a426"
+      },
+      {
+        "path": "services/platform/approvalmaintenance/executor.go",
+        "sha256": "848fd46743bcacb6066156736dde8365fbcc18e4e5657312b0198669e617d86f"
+      },
+      {
+        "path": "services/platform/migrations/sql/connector_maintenance_profile.sql",
+        "sha256": "9b6d105e1f69f46719d001cd80c3e540a8fabbf00b364cf0281857575d2c5bf7"
+      }
+    ],
+    "roster": "Six required native groups / 29 named cases / ten owned PostgreSQL joins retained.",
+    "no_manifest_hash": "Manifest binds checkpoint hash, avoiding a cycle."
+  },
+  "guards": {
+    "runnable_ui_sha256": "fd98a81d520fbd8b80fb6d404b7a8a0d0e154268f0e3adb5073a47ee4c7d4d98",
+    "preserved": [
+      "original approval SQL/installers",
+      "pushed activation SQL/installer bytes",
+      "original provenance SQL/fixture",
+      "package-lock.json",
+      "complete Runnable UI workflow",
+      "native ownership, cleanup, source, deadline, authorization and security/release guards"
+    ],
+    "no_bypass": "No forced/admin merge, synthetic successful production proof, local cgroup override, credential output or failed-evidence rewrite."
+  },
+  "additional_limits": [
+    "Local full runner diagnostic group recorded 140 passes, one pg_config prerequisite failure before native SIGTERM execution and two intentional opt-in native skips. Those cases were not relaxed or forced through the native ownership guard. Final 321-pass group covers the relevant component cases, not those native shutdown flows.",
+    "Local Helm remains absent. Its actual hosted render success at preceding 4c165 is retained; no local render pass or deployed rollout is inferred.",
+    "Current runtime recheck spec437 is running/connected with current observations. Earlier configured role-specific identity/production-target gaps remain open; no secret values were printed.",
+    "Go cache capacity fell during compilation. Eight >2h cold generated task-owned build artifacts were evicted with an exact SHA/path receipt; no source, module cache, proof archive, logs or user state was removed.",
+    "Connector source checksum changes propagate through activation and the new audit source checksum. Existing installations of an earlier sealed candidate need a guarded exact-predecessor upgrade or a verified fresh rollout; this batch intentionally does neither automatically."
+  ],
+  "cache_eviction": {
+    "path": "/tmp/zasp-owned-cold-build-cache-eviction-2-20261015.json",
+    "sha256": "aaa30830c576fbc0d893daac0ab5e809492ab249c52f7b1e86269020e8b72f01",
+    "bytes": 2690,
+    "availability": "current cloud workspace; no deployed evidence archive implied"
+  },
+  "open_work": [
+    "Exact-commit hosted native activation, audited delivery/rollback/revocation and browser startup acceptance, including normal service cleanup.",
+    "All four genuine approval origin families and authentic overflow refusal; current new audited flow covers finding78 only.",
+    "Resolve remaining PKCE, callback and outer native acceptance failures after deterministic catalog correction; closed diagnostics do not count as fixes.",
+    "Implement verified production fleet credential/writer withdrawal and guarded old-candidate rollout; controlled loopback proof cannot authorize a fleet.",
+    "Resolve HIGH braces advisory with reviewed source/removal and implement fresh approved exact-input advisory evidence; release guard remains closed. The historical Nexus license issue is already fixed.",
+    "Bind the real authorized production target, role-specific DB/runtime principals, Stytch organization/session and provider integrations. Execute every required deployed flow, tenancy/revocation/budget/recovery/audit/operational acceptance and retire obsolete behavior only after equivalence.",
+    "All 728 original requirements and milestones remain authoritative; no component-only promotion or launch claim."
+  ],
+  "next": "Publish reviewed source and follow exact-commit hosted results. Continue complete approval families and remaining runtime/release work; merge only after required guards pass."
+}

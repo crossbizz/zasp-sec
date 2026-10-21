@@ -1,0 +1,79 @@
+{
+  "conclusion": "success",
+  "headSha": "d8899140ade1a6e8a7d08d610b17b2733b84b791",
+  "jobs": [
+    {
+      "completedAt": "2026-10-08T06:14:32Z",
+      "conclusion": "success",
+      "databaseId": 113175498582,
+      "name": "compile",
+      "startedAt": "2026-10-08T06:08:25Z",
+      "status": "completed",
+      "steps": [
+        {
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+          "number": 3,
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Check frozen source association and absence of activation configuration",
+          "number": 4,
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Compile nine affected packages without executing test binaries",
+          "number": 5,
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Existing connector handler and reconciler application regressions",
+          "number": 6,
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Existing whole approval source pin verification",
+          "number": 7,
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Post Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+          "number": 13,
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 14,
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 15,
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/crossbizz/zasp-sec/actions/runs/37735989116/job/113175498582"
+    }
+  ],
+  "status": "completed",
+  "url": "https://github.com/crossbizz/zasp-sec/actions/runs/37735989116"
+}

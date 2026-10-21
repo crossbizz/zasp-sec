@@ -1,0 +1,14 @@
+{
+  "predecessor_sha256": "ed72b90e93a38f98d63f66c2a492a40172d3f61f505318a6094ee8733d4afb0c",
+  "independent_review_sha256": "977aae5623e1b43573458c733e399062cfcd053a5188b5314d8641ff753e7378",
+  "closures": [
+    "Reuse same package-level durable primitives via separate Legacy types; original Store/enrollment formats untouched.",
+    "Native signature has no keyID header: wire validates keyID syntax only. BeginAssociation is full guarded local credentialID/keyID/public/algorithm/audience comparison BEFORE mutating POST. CLI owns actual fresh TLS GET provenance and shared overall context; Begin accepts a DTO and cannot attest transport provenance. No duplicate CLI keyloader/new getters.",
+    "First SignAuthorityRequest starts monotonic30s store lifetime, cannot renew. One Begin attempt, including failure, consumes; no offline retry in same store. Restart creates fresh invocation/GET. Source/Sign/Confirm also check freshness.",
+    "Original runtime3-file accepts whitespace/keyorder but strict exact keys/types/no duplicates and canonical RawURL/scalar/Ed25519 seed-public-half consistency. Exact source bytes retained/readback, never copied into evidence/state.",
+    "State descriptor firstAuthority is canonical parsed DTO history, not exact HTTP raw or signed server attestation. Stable binding comparison excludes mutable Authority version/replayfloor while preserving first observation.",
+    "Own old/new namespace prefixes denied on every candidate export ancestor, preserving existing inode checks and both normal/recovery behaviors. No malicious sameUID/privileged mount isolation claim.",
+    "Custody author found one initial test lifecycle error (attempting sameStore use after offlineBegin). Preserve actual11FAIL1PASS and initialsource, then test-only successor Close/reopen aligns with stricter alreadychosen rule before product release. No invented executed behaviorfinding."
+  ],
+  "execution": "Root wire3 actualRED then3PASS; CLI3 actualRED plus1existinglegacyPASS selected; initial custody11FAIL1PASS. All local component only."
+}

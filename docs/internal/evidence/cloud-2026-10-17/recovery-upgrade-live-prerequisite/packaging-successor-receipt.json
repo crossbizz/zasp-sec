@@ -1,0 +1,13 @@
+{
+  "checkpoint": "docs/internal/cloud-recovery-upgrade-live-prerequisite-checkpoint-2026-10-17.json",
+  "checkpoint_sha256": "8ef55b941591511c371d9083a8835856d6cefd76f4736fa710b21c4bf8ce3fb2",
+  "evidence": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/recovery-upgrade-live-prerequisite/source-evidence-successor.json.gz",
+    "bytes": 74338,
+    "sha256": "2c6c4a4cc2d9229f0fd25f5b5cc67bb75a2e690651e71066c2adbb410fa4c71b",
+    "members": 41
+  },
+  "preserved_initial_archive_sha256": "d4c19736216fc38181088579d26e4d75bd04ea4652038dddb07e043bdab29ad9",
+  "initial_checkpoint_preimage_sha256": "884eaf24e25a76b9dfa51d0d2be31db7cb92c71b31c5bb0976e6c04e3e78a80f",
+  "reason": "Remove self-generation empty receipt from exact-evidence archive without overwriting original."
+}

@@ -1,0 +1,111 @@
+{
+  "observed_at": "2026-10-17T07:31:13.086548+00:00",
+  "continued_published_base": "5109a987ffe6c88ef51ccbd82205b0837bfb5d76",
+  "scope": "Classify missing successful STS identity fields as malformed rather than role mismatch; enforce intended public fixture permissions despite umask and isolate credential-permission rejection from expiration. No identity acceptance, permissions, transport, readiness or original test requirement weakened.",
+  "sources": [
+    {
+      "path": "services/platform/preflight/runner.go",
+      "sha256": "e99199173526674f878d8353bdc9efd1d7eda5ddb246d88c75115a7b8be029e2",
+      "bytes": 10915
+    },
+    {
+      "path": "services/platform/preflight/failures.go",
+      "sha256": "f5fcaee92a7f9f72cb0a42a987b56bd1a7896cd328a2762258711fbb99aaf428",
+      "bytes": 3344
+    },
+    {
+      "path": "services/platform/preflight/config_contract_test.go",
+      "sha256": "b79f34c209a7b3da41555204adb758bd36754739f97b594ae3f76ec5976f5408",
+      "bytes": 4048
+    },
+    {
+      "path": "cmd/agentsecctl/preflight_live_contract_test.go",
+      "sha256": "e870771d23bce28eb9c20a4026169b4de113462f406a50d8e21aa0570c36dc89",
+      "bytes": 6803
+    }
+  ],
+  "prerequisites": "Four exact inherited AWS SDK archives were HTTP200 directly on allowed official proxy, without redirect; normal Go download verified committed h1 checksums. Earlier failed/pending snapshots retained. No denied OPA/scanner/log/artifact/annotation/native route retried.",
+  "verification": {
+    "genuine_SDK_behavior_RED": {
+      "pass": 18,
+      "fail_including_parent": 2
+    },
+    "genuine_CLI_fixture_RED_under_umask_0077": {
+      "pass": 146,
+      "fail_including_parent": 2
+    },
+    "final_SDK_config_race": {
+      "pass": 20,
+      "fail": 0,
+      "skip": 0
+    },
+    "full_CLI_race": {
+      "pass": 148,
+      "fail": 0,
+      "skip": 0
+    },
+    "actual_compiled_CLI": {
+      "binary_sha256": "915e303382c4b700d4631d19a49fb449b6e5776b469213d4a554bf33caa38143",
+      "cases": [
+        {
+          "mode": "before-install",
+          "exit": 1,
+          "checks": 8,
+          "ready": false,
+          "stdout_sha256": "a5ab44c03d131640ffd6fda704faa099d168f3d4ccfe0078b4795e1d0dfedccb",
+          "stderr_bytes": 0
+        },
+        {
+          "mode": "installed",
+          "exit": 1,
+          "checks": 8,
+          "ready": false,
+          "stdout_sha256": "97e2f6f272e5b2c102b2edfda539c29ca77a34734b07219923a9ea03f1469097",
+          "stderr_bytes": 0
+        }
+      ],
+      "qualification": "Actual compiled CLI with controlled absent private credential source. No provider requests, authenticated API or deployed E2E proof."
+    },
+    "source_ledger_checks_pass": 54,
+    "source_pins_verified": 361,
+    "fresh_UI_typecheck_exit": 0,
+    "fresh_UI_build_exit": 0,
+    "unchanged_UI_inputs": 380,
+    "lint_exit": 0,
+    "lint_scope_checks_pass": 11,
+    "hosted_new_fix": "pending exact new published head",
+    "native_execution": false,
+    "real_provider_calls": false,
+    "production_or_deployed_E2E": false
+  },
+  "prior_hosted_failure": {
+    "head": "a997648475816f58f90f8fecef5308109e43b7c3",
+    "run_id": 39012717319,
+    "job": "connected-preflight",
+    "step": 5,
+    "conclusion": "failure",
+    "qualification": "Metadata identifies SDK-check step failure and skipped CLI step, not inner failure details. Local actual regression found a defect in that command; no raw hosted error cause inferred."
+  },
+  "independent_source_review": {
+    "path": "/tmp/preflight-four-file-regression-fix-independent-source-review-20261017.json",
+    "bytes": 2737,
+    "sha256": "c1c39c0c506dae086a12f1041b8dffddbe8137dad4472dba4b14d6a6e51f6ee6"
+  },
+  "ledger": {
+    "rows": 728,
+    "unique_ids": 728,
+    "classes": {
+      "production-available": 523,
+      "component-only": 144,
+      "blocked/external": 61
+    },
+    "promotions": 0
+  },
+  "archive": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/preflight-sts-classification/component-evidence.json.gz",
+    "bytes": 57310,
+    "sha256": "69988bbf635a73b99ce1aa2a067efb8399214f4170d0aff53ec127ecc93f2367",
+    "members": 27
+  },
+  "remaining": "Current-head hosted/security/native/browser gates and all real tenant/provider/deployment acceptance remain required; no task promoted."
+}

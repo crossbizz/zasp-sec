@@ -198,10 +198,15 @@ func TestGatewayPolicyDiskCacheWrites0600AndReverifiesOnRestore(t *testing.T) {
 	if err != nil || info.Mode().Perm() != 0o600 {
 		t.Fatalf("mode=%v err=%v", info.Mode().Perm(), err)
 	}
+	if err := cache.Close(); err != nil {
+		t.Fatal(err)
+	}
 	restored, err := NewGatewayPolicyDiskCache(path, keys, binding, func() time.Time { return now })
 	if err != nil {
 		t.Fatal(err)
 	}
+	cache = restored
+	t.Cleanup(func() { cache.Close() })
 	current, state, err := restored.Current()
 	if err != nil || state != GatewayPolicyValid || current.Sequence != 1 {
 		t.Fatalf("restored=%+v state=%q err=%v", current, state, err)
@@ -222,6 +227,9 @@ func TestGatewayPolicyDiskCacheWrites0600AndReverifiesOnRestore(t *testing.T) {
 	}
 	bytes[len(bytes)/2] ^= 1
 	if err := os.WriteFile(path, bytes, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := cache.Close(); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := NewGatewayPolicyDiskCache(path, keys, binding, func() time.Time { return now }); err == nil {
@@ -253,6 +261,9 @@ func TestGatewayPolicyCacheRejectsNoncanonicalDiskAndClockPanic(t *testing.T) {
 	}
 	noncanonical := append([]byte(" "), raw...)
 	if err := os.WriteFile(path, noncanonical, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := cache.Close(); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := NewGatewayPolicyDiskCache(path, keys, binding, func() time.Time { return now }); err == nil {
@@ -304,6 +315,9 @@ func TestGatewayPolicyCacheNeverReactivatesExpiredPolicyAfterClockRollbackOrRest
 	clock = gatewayFixtureTime()
 	if _, state, err := cache.Current(); err != nil || state != GatewayPolicyExpiredClosed {
 		t.Fatalf("rollback reactivated policy: state=%q err=%v", state, err)
+	}
+	if err := cache.Close(); err != nil {
+		t.Fatal(err)
 	}
 	restored, err := NewGatewayPolicyDiskCache(path, keys, binding, func() time.Time { return clock })
 	if err != nil {

@@ -1,0 +1,26 @@
+{
+  "candidateMembersVerified": 29,
+  "checkpointSHA256": "380f26d8bc6fc136af456695ebf5da4a6fb3cc023f6af2d019588b329b25368e",
+  "declinedToJudge": [
+    "ActualOAuthapplication group success until hostedrun; callback/worker/cutover/fleet/deployed/provider acceptance remains open.",
+    "No rawartifact inspection orfullpipelinepass; no ledgerpromotion/release/full728 acceptance."
+  ],
+  "evidence": [
+    "Authentic UpProductionAuthorizationWorkerAuditProfile now executes after actual composed TemporalIdentity fixture and before original-state snapshot/approval maintenance. This is guarded audit+identity worker installer, not plain mode or manufactured registration. Operator/current61/temporal/audit/identity/fingerprint guards remain unchanged.",
+    "Existing original snapshot follows complete prerequisite composition, preserving meaningful approval/connector installation noninterference. Same2existing cases and assertions unchanged.",
+    "New380fcheckpoint29members, compilemanifest29pins and runner29candidate+9helperpins match exactsource lengths/hashes. Original case selector/expected1top+2subcases/packagePASS/noFAILSKIP unchanged.",
+    "Inherited PG/FGA officialtool holds, sample/libs, closedenv/prepostsource/moduleguards, resourcefloors/deadlines and normalPG/FGA cleanup unchanged. No activation flags/deploymentcredentials/newcases.",
+    "README explicitly retains prior missing-prerequisite finding, actual broaderworkflow failure/skippedlanes and rawartifact limitation, and says currentapplication executionpending."
+  ],
+  "files": {
+    ".github/connector-native-compile-source-pins.json": "1ae8a9bfea52616111dbda76af6c19bf338432dad0328dbe33e58dfc8dcd32b7",
+    ".github/workflows/connector-authenticated-enqueue.yml": "184ece0b7d60d43d017885e2e4726d186a6730af67a9c8226a3bbf6fa7a2447f",
+    "scripts/hosted-connector-authenticated-enqueue.mjs": "c84c2d4c77d4fcd905c7ac61d353d12e2111223e191dae06e9df81db06dff625",
+    "services/platform/apiserver/connector_maintenance_enqueue_postgres_test.go": "f5a1050afe876eca336321cd2d71ef62e2a37c8940c3c71755fc76b9441f8fd7"
+  },
+  "findings": [],
+  "format": "independent-corrected-authenticated-enqueue-source-review-v1",
+  "method": "Read-only corrected source/diff/guard/profileordering/sourcepin/checkpoint audit. No localtests/compiler/runtime/source/Gitwrites.",
+  "totalRunnerPinsVerified": 38,
+  "verdict": "Ready for normal commit/push of exact corrected source for actual hosted application verification. Previous missing worker predecessor P1 repaired. No actual OAuth/native/cutover/merge/deployment acceptance yet."
+}

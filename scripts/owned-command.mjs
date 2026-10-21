@@ -8,6 +8,8 @@ export function spawnOwnedCommand(executable, args, options = {}) {
   if (![graceMs, killMs].every((value) => Number.isSafeInteger(value) && value >= 1 && value <= 5000)) {
     throw new TypeError("invalid owned command shutdown bounds");
   }
+  if (Object.hasOwn(options,"keepStdinOpen") && typeof options.keepStdinOpen !== "boolean") throw new TypeError("invalid owned command input mode");
+  if (options.keepStdinOpen && Object.hasOwn(options,"input")) throw new TypeError("ambiguous owned command input mode");
   const boundedCapture = Object.hasOwn(options, "maxOutputBytes");
   const maxOutputBytes = options.maxOutputBytes;
   if (boundedCapture && (!Number.isSafeInteger(maxOutputBytes) || maxOutputBytes < 1 || maxOutputBytes > 16 * 1024 * 1024)) {
@@ -51,7 +53,7 @@ export function spawnOwnedCommand(executable, args, options = {}) {
   });
   // The owner awaits completion later, including during signal cleanup.
   void completed.catch(() => {});
-  if (options.input) child.stdin.end(options.input); else child.stdin.end();
+  if (!options.keepStdinOpen) { if (options.input) child.stdin.end(options.input); else child.stdin.end(); }
   const signal = (name) => {
     // Never signal historical completed commands, an ambient process group, or
     // a guessed PID. A detached POSIX child owns its group from creation.

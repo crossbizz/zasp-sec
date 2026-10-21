@@ -1,0 +1,47 @@
+{
+  "scope": "Independent read-only critical-path source audit; no implementation, tests, runtime or Git mutations",
+  "head": "f0b78fec3923d6d381f583a7dc4025a4064689d1",
+  "checkpoint": {
+    "path": "/tmp/connector-native-hosted-compile-draft/docs/internal/evidence/cloud-2026-10-08/connector-authenticated-enqueue-admission/SOURCE-MANIFEST.json",
+    "sha256": "380f26d8bc6fc136af456695ebf5da4a6fb3cc023f6af2d019588b329b25368e",
+    "members": 29,
+    "mismatches": []
+  },
+  "findings": [
+    {
+      "priority": "P1",
+      "file": "services/platform/apiserver/connector_reconciler.go",
+      "line": 416,
+      "title": "Admit a fresh cleanup attempt before requiring captured compensation on the pre-attempt intent-change branch",
+      "source_proof": [
+        "reconcileLease lines280/286 enters failAfterCleanup before normal prepare at288.",
+        "ClaimReconciliation creates an unattempted private reservation with empty captured proof.",
+        "failAfterCleanup line416 calls compensation; repository lines374-376 refuses empty captured proof.",
+        "Deferred finishPreparation can create only a secret_failure attempt, then next retry creates a fresh unattempted reservation; it does not perform the requested discard/fail transition."
+      ],
+      "impact": "For a genuine attributed authorize origin whose current workflow/scopes/request intent changed, existing original cleanup and terminal authorization_intent_changed behavior cannot complete in the selected native adapter. It retries until finite exhaustion/quarantine, without the intended provider discard. This is a source defect, not an assertion about a hosted failure.",
+      "required_fix": "Before an outbound discard for a newly reserved genuine origin, explicitly authorize and begin a fresh bounded provider cleanup attempt with current grantor AND service/task authority, updating the local lease attempt and retaining the native captured receipt. Existing already-attempted compensation must continue using only its exact captured proof. Do not admit originless work, fabricate receipts, bypass live checks or turn an unattempted cleanup into captured compensation."
+    }
+  ],
+  "observations": [
+    "Callback preparation is propagated through the traced database and selected adapter and fails closed when required capability is absent.",
+    "Native source/admission repeats catalog, role, immutable origin/effect and per-organization activation checks. Unknown legacy origins remain excluded.",
+    "Supplementary projection snapshot composes canonical79 and approval grants. The original session lock and Stage/Acknowledge CAS path is inherited, not replaced.",
+    "Controlled cutover observes one exact local PID and real old/new model-key outcomes, consumes a shared private one-use state, and repeats observations while holding original79 lock. NewDeployment intentionally refuses and no full fleet or restart-exclusion proof is supplied.",
+    "WorkerAudit installer requires the exact composed audit/identity/Temporal predecessors; no broad grants or source fingerprint changes are a justified prerequisite repair. This audit does not prove its complete assembly/native catalog closure."
+  ],
+  "required_meaningful_acceptance": [
+    "After the existing inactive OAuth group, exercise genuine attributed active callback consume/secret/provider/cleanup and worker reserve/live decisions/captured settlement in grouped original behavior.",
+    "Include the pre-attempt intent-change discard/fail branch, denial before an outbound effect, revocation after attempt with exact captured compensation, uncertain completion retry and finite attempt exhaustion.",
+    "Exercise controlled cutover followed by composed Reconcile/Project/Stage/FGA Replace/Acknowledge against actual permissions, including an intervening revision conflict and retry preserving tuple inventory; activation alone is insufficient.",
+    "Whole-deployment fleet retirement/restart exclusion remains a separate missing integration before production selection."
+  ],
+  "declined_to_judge": [
+    "Pending OAuth run success/failure or raw logs/artifacts",
+    "Unobserved WorkerAudit/native registration failure causes",
+    "Real provider outcomes",
+    "Complete fleet/restart exclusion",
+    "Deployed, release, ledger or full728 acceptance"
+  ],
+  "verdict": "Source-only critical-path blocker for complete active cleanup/lifecycle behavior; does not itself negate continuing the unchanged captured-INACTIVE hosted two-case verification. No normal production acceptance."
+}

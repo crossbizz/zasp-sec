@@ -1,0 +1,174 @@
+{
+  "checkpoint": "cloud-approval-future-overflow-2026-10-15",
+  "observed_at": "2026-10-15T02:37:49.372677+00:00",
+  "starting_sha": "c508b528e095a036c577bd056de8608a87f1cbca",
+  "main_sha": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
+  "classification": "Component verified; native fixture compilation passes; new native and deployed acceptance pending",
+  "ledger": {
+    "original_rows": 728,
+    "production_available_recorded": 523,
+    "component_only": 144,
+    "blocked_external": 61,
+    "missing": 0,
+    "promotions": 0,
+    "interpretation": "Original IDs/owners/categories unchanged. Historical availability is not current deployed proof."
+  },
+  "implementation": [
+    "Add genuine future Test74 and signed ordered-progress admission after the existing organization has completed measured combined activation and composed projection acknowledgement. Assert no prior notification/origin for that run, select the activated original worker with actual three profile pins, then invoke the original signed producer. Existing inactive admission paths and assertions remain default. This is the first fresh notification in an activated organization, not a claim of a second run.",
+    "Add authentic overflow refusal from 21 genuinely signed native captures across three public-created, validated, supervised definitions. Each retains the actual public concurrency limit of 10. Require native eligibility/delegation/historical-source evidence, actual writer join/credential withdrawal, activation refusal and unchanged durable state/consumed permit. No opaque task/origin/delegation is manufactured; connector state remains unchanged rather than a claim of rollback after a connector mutation.",
+    "Append three required native groups while retaining all previous nine: 12 groups, 35 named tests, 22 owned PostgreSQL joins. Exact roster/source/resource/deadline/cleanup guards remain enforced; missing, skipped or partial traces refuse.",
+    "Handle the source-backed retained-filesystem walk race with at most one full inventory restart for a strict descendant lstat/readdir ENOENT only. Pin every root identity/mode/owner/realpath across both attempts; retain the aggregate 100000-entry cap, allocation high-water mark and minimum observed free space. A complete successful walk is mandatory. Missing/replaced roots, permission failures, unsafe nodes and semantic guard failures never retry. No per-entry skip, timeout expansion or resource reserve reduction.",
+    "Add fixed lease/context/provider-bound failure observations in native connector fixtures. Require live parent and lease before and after negative calls: pending revision must return unavailable; applied revocation must return denied. Preserve actual captured recovery behavior, original test cases and product/SQL/lease/deadline code. Node diagnostics accept only seven fixed stages, four outcomes, booleans and eight observations; no raw error/payload/credential reflection.",
+    "Retain exact local logs, source associations, reviews, preceding hosted success/failure observations and original RED/intermediate failed allocation results in a small committed evidence bundle. Scan its uncompressed bytes before compression; no ignored historical archive is assumed present."
+  ],
+  "verification": {
+    "go": {
+      "status": 0,
+      "top_level_passes": 2,
+      "named_passes": 2,
+      "failed": 0,
+      "skipped": 0,
+      "log": "/tmp/approval-future-overflow-final-application-20261015.jsonl",
+      "scope": "Normal fixture-seam and closed-observation boundary checks plus complete apiserver fixture compilation. No new native test selected; no race/native acceptance inferred."
+    },
+    "node": {
+      "status": 0,
+      "top_level_cases": 97,
+      "named_passes": 111,
+      "failed": 0,
+      "skipped": 0,
+      "log": "/tmp/approval-future-runtime-final-20261015.log",
+      "scope": "Eight owned-runtime/cutover/composition/retained-resource/trace component files."
+    },
+    "ui": {
+      "lint": 0,
+      "typecheck": 0,
+      "build": 0
+    },
+    "ledger_valid": true,
+    "independent_reviews": [
+      "approval-activation-overflow-independent-review-20261015.json",
+      "approval-future-family-independent-review-20261015.json",
+      "retained-allocation-race-independent-review-20261015.json",
+      "connector-lease-observation-independent-review-20261015.json"
+    ],
+    "evidence": {
+      "path": "docs/internal/evidence/cloud-2026-10-15/approval-future-overflow/verified-batch-evidence.json.gz",
+      "sha256": "ae7d86e5831db149b5d89baf425c529472ce88d2c34f08726aec3ea39eb96be8",
+      "bytes": 33377,
+      "uncompressed_sha256": "e73e7c368e1a03e98327edff5182ca31ea1568ede513469f50a4036716e526f6",
+      "uncompressed_bytes": 354243,
+      "members": 31,
+      "availability": "Committed compressed JSON; each original member includes exact text, byte count and SHA256. Final publication review validates these independently."
+    },
+    "preceding_hosted": {
+      "sha": "c508b528e095a036c577bd056de8608a87f1cbca",
+      "genuine_test74_delivery": "Two official exact-head native success checks retained. Owned native acceptance is not deployed identity/provider proof.",
+      "other_passes": "Native compilation, capture and authenticated enqueue passed. One lifecycle and callback counterpart passed; no universal reliability claim.",
+      "failures_retained": "Browser failed retained sampled allocation-missing before API readiness; exact missing path/cause unknown. Finding failed before payload read, PKCE at preparation Begin; ordered progress failed and ordered planning exceeded whole-command budget. Approval group named cases passed but exact roster guard refused.",
+      "interpretation": "The full connected gate remains closed. This batch does not claim those failures fixed solely by component checks."
+    }
+  },
+  "source_association": {
+    "manifest_sources": 110,
+    "changed_sources": [
+      {
+        "path": ".github/workflows/connector-connected-lifecycle.yml",
+        "sha256": "fd5f4ca42d7e8be8e3933709edfbf4d3f5b093838cd26a0bf8bbaa753106d523",
+        "bytes": 4159
+      },
+      {
+        "path": ".github/workflows/connector-native-draft-compile.yml",
+        "sha256": "d57035ffc17701c30896ed68d21c28512afa6881bc55e3fe1bd5fa5935cc71a0",
+        "bytes": 11576
+      },
+      {
+        "path": "scripts/connector-acceptance-groups.mjs",
+        "sha256": "72ff74c1b3e27c1b006de34a8f602a1adcc152afd5abe196050965c1affccb40",
+        "bytes": 7190
+      },
+      {
+        "path": "scripts/connector-acceptance-groups.test.mjs",
+        "sha256": "507b9b18e4d952d3053fc6a7e300efc301ea9336e4ea0903ae83f20b6c029566",
+        "bytes": 5418
+      },
+      {
+        "path": "scripts/hosted-connected-connector-acceptance.mjs",
+        "sha256": "72be19764f13ee794ec67ede773ff165d8b0ec820504507ab57bf64b56d7b0a9",
+        "bytes": 44246
+      },
+      {
+        "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
+        "sha256": "68db49ab2f1a653f144483e6e07f7c7896b4c58e1b3afbc386cf31aef0921c82",
+        "bytes": 42138
+      },
+      {
+        "path": "scripts/owned-runtime-allocation-race.test.mjs",
+        "sha256": "edd353f7b016e4d4c9034294a6762a7f2c9397bfbc35c6ea7633c41ee428b71f",
+        "bytes": 5899
+      },
+      {
+        "path": "scripts/owned-runtime-lifetime.mjs",
+        "sha256": "c2e387619d07e3b99f013acd20ffb5d8f3ada4ab64dcf361d072fa6f23c9c9be",
+        "bytes": 13630
+      },
+      {
+        "path": "services/platform/apiserver/approval_activation_future_family_test.go",
+        "sha256": "baf589a10beee3b81ee430757a81adb06ab255be992f7cd75bb1896c3c265158",
+        "bytes": 8299
+      },
+      {
+        "path": "services/platform/apiserver/approval_activation_overflow_test.go",
+        "sha256": "63c357dfef18f21b121fe26b92d3de3d5b21214847d23ab90a3f1b1b99df1952",
+        "bytes": 11291
+      },
+      {
+        "path": "services/platform/apiserver/approval_maintenance_genuine_progress_postgres_test.go",
+        "sha256": "8549253bdb1d36a5c957735bffef03adaf7070cce650058e97b505667fc4119d",
+        "bytes": 10023
+      },
+      {
+        "path": "services/platform/apiserver/approval_maintenance_genuine_test74_postgres_test.go",
+        "sha256": "0c6a559cdbf4379eedcb6b5dc6896ba18facb858a347d6e212f7405f39f994fd",
+        "bytes": 38721
+      },
+      {
+        "path": "services/platform/apiserver/connector_maintenance_failure_observation_test.go",
+        "sha256": "38e59d1e256423bda47285786edcd4ecbb1f95fb32a85153559e9ce65aabb36f",
+        "bytes": 3960
+      },
+      {
+        "path": "services/platform/apiserver/connector_maintenance_lifecycle_postgres_test.go",
+        "sha256": "9707643f5de7feab9497f7c56b11942e3e579bd2b1950a1ea5ac6836baddcfa4",
+        "bytes": 21126
+      },
+      {
+        "path": "services/platform/apiserver/connector_maintenance_pkce_recovery_test.go",
+        "sha256": "db05051ac764c5a1d57dac9e8c3691660c284a2a6f5fb088b8cd10acef7c7f96",
+        "bytes": 20878
+      }
+    ],
+    "runner_literal_pins": {
+      "hosted-connected-connector-acceptance.mjs": 100,
+      "hosted-connector-authenticated-enqueue.mjs": 89,
+      "hosted-connector-nine.mjs": 12
+    }
+  },
+  "preserved": [
+    "All 728 original requirements and unchanged TSV/owner categories",
+    "Original approval/provenance SQL and immutable installers",
+    "Pushed activation and audited-settlement profile SQL/installers",
+    "Complete Runnable UI workflow",
+    "All original native cases, privacy/source/security/release/resource/cancellation/cleanup/tenant and timeout guards"
+  ],
+  "open_work": [
+    "Exact new-head hosted future/overflow/native/browser acceptance, normal service cleanup and independent cross-tenant family acceptance. Native authored fixtures are not a pass.",
+    "Identify and repair remaining finding payload, PKCE, ordered progress/planning, approval exact-roster and browser startup failures from finite evidence. Current c508 missing filesystem path and underlying readiness cause remain unknown.",
+    "Whole native command timing includes compilation; ordered planning also invokes two real go-run migration CLIs before admission. This is a source-backed timing risk, not proof of the timeout cause or permission to increase deadlines.",
+    "Verified production fleet writer/credential withdrawal, guarded old sealed-candidate upgrade or verified fresh rollout and retirement after equivalent behavior remain open; local loopback proof cannot authorize a fleet.",
+    "Fresh approved exact-input release advisory evidence and reviewed braces HIGH remediation remain required. Historical Nexus license issue is already fixed; release/security guards remain closed.",
+    "Fresh c508/spec443 audit: cloud running/connected with 51 generic variables ready, no outbound identities/capabilities; application name inventory remains 53 required, three supported Stytch aliases and 50 unbound ordinary settings/role-specific/provider bindings. Production target details are requested asynchronously; secrets must remain in cloud bindings.",
+    "Real deployed Stytch/provider journeys and all original tenancy, discovery/sync, budget, approval, recovery, audit, operational and milestone requirements remain mandatory. No launch or completion claim."
+  ],
+  "next": "Publish reviewed batch normally, follow exact-head hosted results and continue remaining work; merge only after required guards pass."
+}

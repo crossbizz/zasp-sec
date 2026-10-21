@@ -1,0 +1,113 @@
+{
+  "observed_at": "2026-10-17T03:40:57.037427+00:00",
+  "source_base": "e11e18d6d4e07a8742b392a8ef4d9a7b0b3fda2c",
+  "scope": "Bounded real GitHub metadata readiness and already-mounted API/client contracts",
+  "sources": [
+    {
+      "path": "services/platform/connectors/githubdiscovery/collection_api.go",
+      "sha256": "e8e1ebf0f76c4738c68861861cff6db410fe0da48dbd2075c63a021108cf182a",
+      "bytes": 38521,
+      "preimageSha256": "90f993b1a896199d50afa50312f942324ecda003c36d486a535add13df6a0e59"
+    },
+    {
+      "path": "services/platform/connectors/githubdiscovery/collection_api_test.go",
+      "sha256": "63fcf760516254d34e170609a32b9af6ecb8a589dfb7de099039fd5910f653ab",
+      "bytes": 27018,
+      "preimageSha256": "773348f6f36e263cc877fb182a7d3a1286e0a3818c1f5954e7a40582f012d93a"
+    },
+    {
+      "path": "openapi/openapi.yaml",
+      "preimagePath": "/tmp/openapi-mounted-contract-preimage-20261017-openapi.yaml",
+      "preimageSHA256": "fe4743d51a18fb2fd3aee936cde96cf071f616c2573e2dbe1a9b2ad2fd483f42",
+      "sha256": "bd5d4f6b94d96935c12001ee64caafc6cbd25d6e095d09d5b760de8144111d47",
+      "bytes": 372337
+    },
+    {
+      "path": "openapi/openapi.test.mjs",
+      "preimagePath": "/tmp/openapi-mounted-contract-preimage-20261017-openapi.test.mjs",
+      "preimageSHA256": "040ea53b1ab51871d51e9a95b4912e28c54961210d4932b5a5301c7b47911df7",
+      "sha256": "bdbc9e6ee6ed621be45532c22a09e536fe6c03bb0344cfcf17fb27e820ca21af",
+      "bytes": 77792
+    },
+    {
+      "path": "openapi/generated-client.test.mjs",
+      "preimagePath": "/tmp/openapi-mounted-contract-preimage-20261017-generated-client.test.mjs",
+      "preimageSHA256": "19e5cd8239f7c8e38222144b1a642e1e841e1cde71a08476c39367d120d659be",
+      "sha256": "eafbc1cc402ef3d145659da4052b87f7c52001611bde3dc02349d40cdcaba12f",
+      "bytes": 18468
+    },
+    {
+      "path": "apps/web/api/generated.ts",
+      "preimagePath": "/tmp/openapi-mounted-contract-preimage-20261017-generated.ts",
+      "preimageSHA256": "eb8bc50eb9ebb4ff91d49ad0ceda9066e506538ac010b6297cfeec732e0964e0",
+      "sha256": "6f959a20eb565eab3b86f735ae501f40d30ef84f08e8980829408aaa483e0111",
+      "bytes": 508302
+    }
+  ],
+  "verification": {
+    "github": {
+      "pass": 41,
+      "fail": 0,
+      "skip": 0,
+      "includes_private_captured_body_overlay": true,
+      "race": "Prior attempt exit1 with no events/output; cause unresolved, no race pass claimed",
+      "real_public_response_bytes": 165200,
+      "production_constructor_reachability": false,
+      "installation_tenant_authority": false
+    },
+    "openapi": {
+      "baseline_pass": 42,
+      "baseline_fail": 3,
+      "current_pass": 45,
+      "current_fail": 0,
+      "official_codegen_exit": 0,
+      "official_check_exit": 0,
+      "mounted_operations": 164,
+      "schema_and_generated_types_shape_unchanged": true,
+      "blanket_vendor_guard_retained": true
+    },
+    "ui": {
+      "typecheck_exit": 0,
+      "production_build_exit": 0,
+      "frozen_inputs": 376,
+      "receipt": "/tmp/combined-launch-batches-final-ui-20261017-receipt.json"
+    }
+  },
+  "independent_source_reviews": [
+    "/tmp/github-discovery-metadata-readiness-independent-review-20261017.json",
+    "/tmp/openapi-mounted-positive-contract-independent-review-20261017.json"
+  ],
+  "ledger": {
+    "rows": 728,
+    "unique_ids": 728,
+    "class_counts": {
+      "production-available": 523,
+      "component-only": 144,
+      "blocked/external": 61
+    },
+    "availability_promotions": 0,
+    "changed_evidence_ids": [
+      "M1-23",
+      "M1-36c",
+      "M3-19"
+    ],
+    "previous_sha256": "10498062072afdf01836553873fe5c754cecab6258484dae6735d69ec44b5c69",
+    "new_sha256": "dae197e92e87daa1cc4f2d6312ffcfaf2e1481699435625b7f066da7af30619f",
+    "immutable_fields_unchanged": true,
+    "existing_evidence_prefixes_preserved": true
+  },
+  "evidence": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/github-and-mounted-api/verified-component-batch.json.gz",
+    "sha256": "a01406810faa23a40d9d2030977682bc0dd0aabb2460f41d54c498807b03e66f",
+    "uncompressed_sha256": "f85c49ac860dc2ca846a5afbbdab0e4b74b09fae1f408665ad8e1ada081a0ca3",
+    "members": 56
+  },
+  "availability": "Component verification only; no deployed E2E or availability promotions",
+  "remaining_gates": [
+    "Hosted native retention installer and fresh authorization failures",
+    "Full hosted UI and IAM acceptance",
+    "Deployed Stytch organization/member/session and provider-installation tenant bindings",
+    "Unresolved security advisory release guard"
+  ],
+  "goal": "active; independent work continues"
+}

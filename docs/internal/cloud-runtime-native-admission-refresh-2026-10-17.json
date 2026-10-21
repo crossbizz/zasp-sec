@@ -1,0 +1,26 @@
+{
+  "observed_at": "2026-10-17T19:15:39.877422+00:00",
+  "source_parent": "2eb3035b63733b1a08f97257f3841d379d4a5627",
+  "trigger": "Cloud runtime transition made a fresh canonical resource observation relevant; no alternate native startup or resource override.",
+  "source": {
+    "path": "scripts/hosted-memory-observation.mjs",
+    "sha256": "70c2ae837d040be4756842e4016acbc4eebd6bae3d8c992aba2a80e2a097ba75"
+  },
+  "actual_observation": {
+    "phase": "canonical-memory-observer",
+    "status": "REFUSED",
+    "exit_code": 1,
+    "reason": "assert.ok(canonical(mount.root)&&canonical(mount.mount))"
+  },
+  "native_services_started": false,
+  "guard_modified": false,
+  "qualification": "Observed kernel cgroup mount metadata fails the existing canonical hierarchy boundary. This is an admission refusal, not evidence of a particular memory size or a PostgreSQL/OpenFGA test failure. No invented resource reserve, fallback path or native acceptance claimed.",
+  "pushed_candidate": "https://github.com/crossbizz/zasp-sec/pull/60",
+  "hosted_observation": {
+    "head": "2eb3035b63733b1a08f97257f3841d379d4a5627",
+    "check_runs": 93,
+    "in_progress": 20,
+    "queued": 73,
+    "qualification": "Metadata snapshot only; no successful candidate execution inferred."
+  }
+}

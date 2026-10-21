@@ -13,6 +13,7 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	platformpolicy "github.com/zasp-ai/zasp-sec/services/platform/policy"
 	"github.com/zasp-ai/zasp-sec/services/platform/policy/opensearchhistory"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimeindex"
 	runtimeopensearch "github.com/zasp-ai/zasp-sec/services/platform/runtimeindex/opensearchdriver"
 )
 
@@ -25,7 +26,14 @@ type productionPolicyHistory struct {
 }
 
 func newProductionPolicyHistory(config RuntimeConfig) (*productionPolicyHistory, error) {
+	return newProductionPolicyHistoryWithRetention(config, nil)
+}
+
+func newProductionPolicyHistoryWithRetention(config RuntimeConfig, visibility runtimeindex.EventVisibility) (*productionPolicyHistory, error) {
 	if !validRuntimeConfig(config) {
+		return nil, errRuntimeUnavailable
+	}
+	if (config.RetentionProfileChecksum != "") != (visibility != nil) {
 		return nil, errRuntimeUnavailable
 	}
 	transport := &http.Transport{
@@ -49,13 +57,25 @@ func newProductionPolicyHistory(config RuntimeConfig) (*productionPolicyHistory,
 		transport.CloseIdleConnections()
 		return nil, errRuntimeUnavailable
 	}
-	history, err := opensearchhistory.New(opensearchhistory.Config{Endpoint: config.PolicyHistoryEndpoint, Region: config.ConnectorAWSRegion, RequestTimeout: config.ProviderTimeout, MaximumResponseBytes: 8 << 20, AllowTestLoopback: allowTestLoopback}, credentials, v4.NewSigner(), schema, clock)
+	var history *opensearchhistory.Driver
+	historyConfig := opensearchhistory.Config{Endpoint: config.PolicyHistoryEndpoint, Region: config.ConnectorAWSRegion, RequestTimeout: config.ProviderTimeout, MaximumResponseBytes: 8 << 20, AllowTestLoopback: allowTestLoopback}
+	if visibility != nil {
+		history, err = opensearchhistory.NewWithEventVisibility(historyConfig, credentials, v4.NewSigner(), schema, clock, visibility)
+	} else {
+		history, err = opensearchhistory.New(historyConfig, credentials, v4.NewSigner(), schema, clock)
+	}
 	if err != nil {
 		schema.Close()
 		transport.CloseIdleConnections()
 		return nil, errRuntimeUnavailable
 	}
-	sessionSearch, err := runtimeopensearch.NewConfiguredSessionIndex(config.RuntimeSessionIndex, runtimeopensearch.Config{Endpoint: config.PolicyHistoryEndpoint, Region: config.ConnectorAWSRegion, RequestTimeout: config.ProviderTimeout, MaximumRequestBytes: 64 << 10, MaximumResponseBytes: 8 << 20, AllowTestLoopback: allowTestLoopback}, credentials, v4.NewSigner(), clock)
+	var sessionSearch *runtimeopensearch.SessionIndex
+	sessionConfig := runtimeopensearch.Config{Endpoint: config.PolicyHistoryEndpoint, Region: config.ConnectorAWSRegion, RequestTimeout: config.ProviderTimeout, MaximumRequestBytes: 64 << 10, MaximumResponseBytes: 8 << 20, AllowTestLoopback: allowTestLoopback}
+	if visibility != nil {
+		sessionSearch, err = runtimeopensearch.NewRetainedSessionIndex(config.RuntimeSessionIndex, sessionConfig, credentials, v4.NewSigner(), clock, visibility)
+	} else {
+		sessionSearch, err = runtimeopensearch.NewConfiguredSessionIndex(config.RuntimeSessionIndex, sessionConfig, credentials, v4.NewSigner(), clock)
+	}
 	if err != nil {
 		_ = history.Close()
 		schema.Close()

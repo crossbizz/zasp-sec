@@ -1,0 +1,93 @@
+{
+  "classification": "LINUX_SCOPED_SUBREAPER_LAUNCHER_DESIGN_ONLY_PENDING_REVIEW_NO_SOURCE_EDITS",
+  "source_pins": [
+    {
+      "path": "package.json",
+      "sha256": "0dd4697c7feb7a59a83be241ec4f71de74941400d16537fafceb80716eeb8198"
+    },
+    {
+      "path": "scripts/dependency-esbuild-regression.test.mjs",
+      "sha256": "e95dbf56f6b30313954ff6a4d3a5780a1a03026d81d83152148019717ec692d9"
+    },
+    {
+      "path": "scripts/fixtures/dependency-esbuild-regression-child.mjs",
+      "sha256": "2a456acd0302ea8563b4f22d7ddb7b5d5f207b96a67f1a5abd67605162971640"
+    },
+    {
+      "path": "scripts/dependency-parser-regression.test.mjs",
+      "sha256": "988e6e3fcf3ea32f6011f0ad305eeabaefbb37137a69eb01043683667c74e810"
+    },
+    {
+      "path": "scripts/fixtures/dependency-parser-regression-child.mjs",
+      "sha256": "a76954cf906509d53af93e2f341e728e0f7f31af1abf366e75fa685f2fb679d8"
+    },
+    {
+      "path": "scripts/owned-command.mjs",
+      "sha256": "50b5481d008546a713ac730cb933108be66b2f08226ced8bc47deaea14e95ec8"
+    },
+    {
+      "path": "scripts/npm-public-api-query/run-hosted.py",
+      "sha256": "b7d52602e87faab69f84a26f9f32ca8e9457c5d84f0569b101f18d09748b5d43"
+    },
+    {
+      "path": "scripts/production-advisory-owned-runner-v2.py",
+      "sha256": "9f1994a83a794fc7fa4eb3710416c953ab5a6a731f9a54540ab35f72f16cc493"
+    },
+    {
+      "path": ".github/workflows/runnable-ui.yml",
+      "sha256": "fd98a81d520fbd8b80fb6d404b7a8a0d0e154268f0e3adb5073a47ee4c7d4d98"
+    },
+    {
+      "path": "scripts/annotate-verify-failure.test.mjs",
+      "sha256": "52df88f6acd831f6e88361c19e5a45d7178e4baf3228815e68adb1e9988276fc"
+    }
+  ],
+  "observed_issue": "Rootactual dependency inventory valid then parser/esbuild9head run gave7PASS2FAIL transform/drizzle owned-process-group-survived exit. Rootps observed PID1-orphan esbuild zombies. Research didnotexecuteps/tests; rootlogs actualevidence separately. Existing Node fixture disposes context/stopsservice whereavailable and exits; guard probes entire owned fixturePGID up to20*25ms then fails. A dead native descendant not reaped by environmentPID1 remains in processgroup and correctly fails. Need kerneladopt+reap duringtests, not fakegroupabsence.",
+  "invariants": [
+    "Leave scripts/dependency-esbuild-regression.test.mjs and scripts/fixtures/dependency-esbuild-regression-child.mjs EXACT unchanged, including strictPGID0 checks,15s childlimit,20*25ms existingcleanupwait, semantic CORS/transform/drizzle checks.",
+    "Do not ignore Z processes, alterprocess.kill guard, expandtimers, skiptestheads, filterTAP, patchdependencycode or relabel failures.",
+    "Duringnormalrun launcher only REAPS actualexited child/adopted processes; it doesnot signal liveesbuild/native services to makeguardpass. Existingguard remains abletofail a real liveorphan leak.",
+    "No ambient/historical PID/group kill, no glob /proc scan+name matching, no PID1 intervention, no privileged/processnamespace/cgroup/native-service admission changes. New launcher process starts with no existingchildren; kernel adoption provesinvocation ancestry.",
+    "Actual Node exitcode and stdout/stderr remain visible; infrastructure or incompletecleanup never convertFAIL toPASS."
+  ],
+  "finite_entrypoint": {
+    "preferred_file": "scripts/run-dependency-regressions.py NEW Pythonstdlib-only Linuxsubreaper, purposefixed to the SAME two existing node --test testfiles. No generic shell command string or arbitraryDB/Go/native executor interface.",
+    "cli": "python3 scripts/run-dependency-regressions.py [--node ABSOLUTE_NODE_EXECUTABLE]; default resolves node via original PATH once to actual executable. Fixed argv node --test scripts/dependency-parser-regression.test.mjs scripts/dependency-esbuild-regression.test.mjs, cwd actual repositoryroot. No optionaltestnames/skip/pattern flags.",
+    "npm_change": "dependencies:check becomes node scripts/validate-dependencies.mjs && python3 scripts/run-dependency-regressions.py. The inventoryvalidatesfirst and fail-fast chain is preserved. npm test remains vitest run unchanged; npm run verify21-phase chain unchanged, still reaches dependencies:check first.",
+    "workflow_coverage": "Actual .github/workflows/runnable-ui.yml Verify runnable UI calls npm run verify through PIPESTATUS-preservingtee, so fixed package script automaticallycovershostedrun. No second directdependencytest invocation found in inspected workflows/scripts beyondpackage. Any user direct node --test... remains originalstrictbehavior withoutsubreaper; documentcanonical npm run dependencies:check. No broad workflow/oldcollector/evidencepins rewritten.",
+    "platform": "Linux selected reaper requires Python3 with ctypes,os.fork/execve,os.pidfd_open,signal.pidfd_send_signal,readable /proc/self/task/<tid>/children and procstat. Checkall beforelaunch. Linuxprctl denied/missingpidfd/procrefused => generic explicit infrastructurefailure125, no testexecution/no silentfallback. NonLinux portability should be frozen: recommend direct exec original Node test invocation on supportedPOSIXmacOS with explicit modeannotation, retaining identicalstrictchecks; Windows remainsunsupported by existingguard. If root selects Linuxonly, documentPython/Linux prerequisite ratherthanpretendportable."
+  },
+  "process_model": {
+    "subreaper": "Fresh dedicatedthreadless Python process obtains existing PR_GET_CHILD_SUBREAPER(37), sets PR_SET_CHILD_SUBREAPER(36)=1 through ctypes.CDLL(None,use_errno=True), readsback1 BEFORE spawning. This is currentprocess attribute, not hostPID1/globalreaper. Restore priorvalue onlyafter all ownedchildren reaped (processwouldexit anyway); restorefailure nonzero.",
+    "main_launch": "Use one authoritative wait implementation. Preferred os.fork+os.execve (no subprocess.Popen competing wait/poll). Flush inherited Pythonbuffers; create CLOEXEC handshakepipe, forkchild sets ownsession, waitsparentpermissionbeforeexec; parent opens childpidfd and snapshots PPID/currentUID/startticks before releasing. exec fixedNode argv withoutshell, inherit actualcwd/env/stdin/stdout/stderr. Childexecfailure exits127 withfixednonsecretmessage.",
+    "why_not_only_SID": "Existing Node test fixture detached:true creates new session/processgroup; esbuild descendant may live outside top NodeSID. Kernel subreaper adoption handles orphanedchildren even across setsid. Do NOT rely only topSID or broadsameUID processscan.",
+    "live_loop": "Install SIGCHLD no-op handler with nonblocking wakeup pipe/selector beforefork; single parent eventloop drains waitpid(-1,WNOHANG) immediatelyonSIGCHLD and on<=25ms boundedpoll. This reaps only directchildren kernelpermits, including actualadoptedorphans WHILE Node worker tests stillprobePGIDs. MainNode PIDstatus stored exactly via os.waitstatus_to_exitcode. No competePopenwait and no SIGCHLD SIG_IGN/autoreap losingstatus.",
+    "ownership": "A freshlauncher creates exactlyone child and no externalchildadoption outsideitsancestorchain. waitpid(-1) authority is kernel directchild/adopted relationship, not arbitrary PIDguess. Forcleanup enumerate only /proc/self/task/<mainTID>/children (not all /proc); open pidfd foractual directchild, recheck current PPID==launcherPID, currentUID/startticks before signaling. PIDFD preservesprocess identity; numeric PID reuse never sufficient. Once parentdies descendantsreparenttoownedsubreaper and are newlydiscoveredexactdirectchildren.",
+    "normal_finish": "Continue draining exits; do not claimgroupsabsent becauseZ ignored. If Nodeexit0 andowned livechild remains, markcleanupfault/nonzero before any terminationcleanup; killingit later cannotturnsuitePASS. Existing Nodegroupguards supply actualgroupabsence duringrun; launcher adds its own childrenempty+ECHILD join atfinish. All adoptedchildexitstatuses retainedcount/statusclass fordiagnostics; adoptednonzero not automaticallyoverrideNode semanticfail unless abnormalownedcleanup/leakcontract selects it.",
+    "no_historic_reap": "Already orphanedPID1 zombies from earliercommand are outsidelauncherchildren and cannot be reaped/killed/adopted. Do not touchthem; futureownedruns shouldfinishcleanly withoutnewPID1orphans."
+  },
+  "signal_timeout_lifecycle": {
+    "limits": "Keep existingtest15s/500ms windows unchanged. Launcher hardoverall90s proposed (oldworstcase serial45s esbuild+12s parser within90; not an extension to anyguard). Cleanup total5s with TERM1s then KILL2s plus finaljoin/verification boundedremaining; root may freeze tighterafteractualruntime, never increase guardwindows.",
+    "handlers": "SIGTERM/SIGINT handlers only recordrequested signal and wakeeventloop; do not throw throughcriticalfork/ownershipcapture. Aftermainpidfd established, forward exactsignal via pidfd to actualNodechild, then cleanup owned current direct/adopted descendants only. Repeatedcancel cannotbroadenkillauthority.",
+    "cleanup": "On timeout/cancel/internalexception ormainexitleak, freeze outcome!=success, pidfd-signal currentprovenchildren TERM; repeatedly reap/adopt and rediscoveractualchildren until grace; KILL only currentownedpidfds afterrecheck, then reap to ECHILD within5s. Childrenmayforkduringcleanup: capture onlykerneladopteddirectchildren, never signalsbyname/SIDalone. Ifkerneldeniespidfd/proc/signals orreapownershipambiguous, recordunknownnonzero and do notfall back tokillall/ambientgroup.",
+    "safety_limit": "Cannot guarantee cleanup if hostilechild escapes/reparents outside ancestry using external privilegedactors or launcher receives SIGKILL; documentrealLinuxprocessownershipthreatboundary. Trustedrepo/dependencychild abrupttermination/reparenting is covered bysubreaper, not malicioushostisolation.",
+    "exit_contract": "Normalcomplete cleanup: return exact Nodeexit0..255; Nodekilledsignal =>128+signal. timeout124; launch/setup/cleanupunknown125; usercancel128+requestedSignal afterjoinedcleanup. If Nodealreadyfailednonzero andcleanupalsofails, preserveactualNodecode plus fixedstderr cleanupdiagnostic (no fabricatedPASS). All TAPstdout/stderr passedthroughuntouched, no successJSON wrapping or failurefilter."
+  },
+  "secret_output": "Never print inheritedenvironment, rawargvbeyondknownfixedpaths, dependencyoutputcapture, credentials orprocessenviron. Fixedclass diagnostics only. Optional auditreceiptifneeded contains own mainpid/startticks/exit/reapedcount/cleanupcomplete/timeout/signal, sourcepins; pathmustexplicitnewfile/nooverwrite and isnotnecessaryfornpmnormalrun.",
+  "grouped_TDD": [
+    {
+      "group": "1 actual cleanup while suite runs",
+      "checks": "stdlib fixture launches child\u2192setsid grandchild exits then parenttestsprocessgroupkill0 becomesESRCH WHILEmainNode/fixture stillrunning. Assertactualwaitreaping, no liveprocesskill duringnormalrun. Includeactual unchanged nine existingNode parser/esbuildheads underlauncher; preserveinitial7PASS2FAIL logs and thenfreshreal result."
+    },
+    {
+      "group": "2 exit/status and strict guard retention",
+      "checks": "fixedrunnerpass/nonzero/signal/execfailure returnexactcode anduntouchedstdout/stderr; liveleakstillfails strictguard ratherthannormalmodekillmakingitPASS; originalesbuildtest+childSHAs remainidentical, no longerwaits/no skip/ignoreZ. Packagecanonical invocation passesactualsamefiles once."
+    },
+    {
+      "group": "3 bounded signal/timeout ownership",
+      "checks": "owned parent+detachedgrandchild +unrelatedsiblingfixture; TERM/timeout reapsONLYownedadoptedchildren usingpidfd/currentPPID identity, siblinguntouched. Kernelprctl/pidfd/proc refusal class failsclosed BEFORElaunch wherepossible; cleanupambiguitynonzero/noambientfallback. RootexecutesactualLinuxboundary; mocksproveonlylogic."
+    }
+  ],
+  "preconditions_and_evidence": "CurrentPython/kernelcapabilities unknown bythissourceagent; no processes/tests/prctl/pidfd/nativeexec started. Existing sourcepatterns production-advisory-owned-runner-v2.py and npm-public-api-query/run-hosted.py demonstrate priorstdlibsubreaper/pidfd ideas, but retainunchanged immutable historicalevidence/toolguards; do not reuse them as alternateexecutor. Rootrunsactualbaseline/RED/newlauncherchecks/finalunchanged nineheads and recordsrefusedprerequisites honestly.",
+  "next": "Independentdesign review\u2192rootrelease newtests/scaffolds and actualRED\u2192narrowlauncher/packageimplementation\u2192independentsource review\u2192actualLinuxreapingtests+unchangeddependencies:check9heads+normalnpmverify phase reach. No appDB/native resource/network/tool admission bypass or platformtaskpromotion."
+}

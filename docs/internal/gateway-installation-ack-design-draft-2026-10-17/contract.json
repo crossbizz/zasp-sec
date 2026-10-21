@@ -1,0 +1,109 @@
+{
+  "status": "AUTHORITATIVE_MERGED_DRAFT_REQUIRES_INDEPENDENT_REVIEW_BEFORE_PRODUCT_IMPLEMENTATION",
+  "created_at": "2026-10-17T18:51:29.812236+00:00",
+  "base": "e735ca7d812a94b7c01700c35ea082276ac42aed",
+  "provenance": "Fresh merged contract from published audit, current repository source and explicit retained protocol decisions. Prior /tmp design packets were lost on runtime restart; none are reproduced or claimed hash-identical.",
+  "scope": "Authenticated device-credential installation testimony only; never Node/fleet/Agent coverage, current enforcement attestation or global first installation. Existing identity, original security policy refresh, revocation, decisions, budgets and audit behavior preserved.",
+  "body": {
+    "schema": "gateway-policy-installation-v1",
+    "keys": [
+      "schema",
+      "credential_generation",
+      "contract_version",
+      "key_id",
+      "algorithm",
+      "audience",
+      "sequence",
+      "policy_version",
+      "issued_at",
+      "expires_at",
+      "failure_mode",
+      "payload_digest",
+      "signature",
+      "installed_observed_at"
+    ],
+    "max_bytes": 4096,
+    "types": "credential_generation/sequence/policy_version uint64 in Go but 1..MaxInt64; contract_version int=1; remaining signed scalars original bounded policy ABI, three timestamps canonical whole-second UTC. Exact14 keys, no null/duplicate/casealias/trailing data, invalid UTF8/UTF16/number alias refused. Payload64lowerhex, signature86canonicalRawURL/64decodedbytes; keyID original pattern; algorithm Ed25519,audience runtime-gateway-policy,failure_mode open|closed.",
+    "identity": "SHA256 exact frozen original raw body. No random ack_id, no cache instance/security identity, no Agent/Node IDs. Existing HTTP signature binds credential/method/host/path/query/clock/bodyhash."
+  },
+  "receipt": {
+    "schema": "gateway-policy-installation-receipt-v1",
+    "keys": [
+      "schema",
+      "request_sha256",
+      "organization_id",
+      "workspace_id",
+      "environment_id",
+      "device_id",
+      "credential_id",
+      "credential_generation",
+      "disposition",
+      "representative_sha256",
+      "representative_sequence",
+      "representative_installed_observed_at",
+      "representative_recorded_at"
+    ],
+    "max_bytes": 4096,
+    "types": "Scope/credential canonical product IDs, generation/representative_sequence positive uint64<=MaxInt64, hashes64lowerhex. Representative installed observation whole-second UTC; representative_recorded_at canonical UTC RFC3339Nano up to6 fractional digits (no trailing zeros).",
+    "recorded": "request hash exactly equals current retained representative; original representative recorded time stable on retained replay. Does not mean newly/first committed.",
+    "coalesced": "Exact request hash returned, representative strictly higher rank. Prior request historical commit outcome UNKNOWN; never claim never-committed. Representative recorded time belongs to retained row, never fresh confirmation time.",
+    "domain": "Exact authenticated org/work/env/device/credential_id/credential_generation; never cross-generation coalescing or relabeling."
+  },
+  "rank": [
+    "signed envelope sequence",
+    "immutable original installed_observed_at",
+    "raw body SHA256 lexicographic"
+  ],
+  "authority": "Derive scope/device/credential generation from original current authenticated credential. HTTP proof unchanged. SQL must reauthenticate under actual current80 gateway org/device serialization and clock_timestamp after waits/final confirmation. Match exact published PK sequence, credential_id and every signed scalar/digest/signature; no Go-JSON versus JSONB textual hash equality.",
+  "first_admission": "Current original credential valid and published expires_at>clock_timestamp after waits and final confirm; installed_observed_at >=issued_at-30s, <expires_at, <=server wallclock+30s. Retained exact same raw body may historical replay after policy expiry under current credentials. Unretained/coalesced request must be fresh even at confirm. Own recorded transaction marker differentiates new record from historical retained replay.",
+  "backend": {
+    "namespace": "zasp_gateway_installation_v1",
+    "latest_primary_key": [
+      "organization_id",
+      "workspace_id",
+      "environment_id",
+      "device_id",
+      "credential_id",
+      "credential_generation"
+    ],
+    "tables": "Own sealed registration and latest testimony per existing credential generation. Historical evicted receipts not inferred; generation rows do not create identity principals.",
+    "record_abi": "record_installation(credential_id text, body bytea) RETURNS jsonb",
+    "confirm_abi": "confirm_receipt(credential_id text, body bytea, expected_receipt jsonb) RETURNS boolean",
+    "transaction": "Actual same original gateway-control pool BeginTx(ReadCommitted), fixed record, strict typed receipt validation, exact expected receipt confirmation, successful COMMIT before typed200. Any ambiguous commit/rollback/context returns no success.",
+    "parents": "Exact currentNormal/Audit worker profiles, original source owner/operator and registered zasp_gateway_control only. Do not rewrite immutable SQL15/22/28/77/79/80, source fingerprints, parent grants, device decision replay floor or server applied_generation. Own namespace/function grants minimal explicit installer only. Reject unexpected/default ACL before sealing.",
+    "exports": [
+      "GatewayInstallationProfileChecksum",
+      "GatewayInstallationAuditProfileChecksum",
+      "IsGatewayInstallationProfileChecksum",
+      "Runner.UpProductionGatewayInstallationProfile",
+      "Runner.UpProductionGatewayInstallationAuditProfile"
+    ]
+  },
+  "transport": {
+    "path": "/internal/v1/runtime-gateway/installations",
+    "method": "POST",
+    "content_type": "application/json",
+    "success": "200 application/json Cache-Control:no-store exact bounded receipt",
+    "integration": "Optional new handler/repository capability defaultoff, actual existing signed gateway client and server handler. New profile/catalog/DB failures gate ACK route only; never original Repository.Ready/Authority/Policy/Decision or service health. HTTP Authority retains current generation/expiry via narrow adapter, without changing legacy decision-floor equality."
+  },
+  "custody": {
+    "atomicity": "Versioned same cache-file generation contains signed envelope, original immutable installation-observation body and latest pending state. Existing observedAt remains mutable antirollback highwater, never installation time. Capture immutable observation before actual durable write; emit only after fsync/rename/directory fsync and exact current readback. No memory-only or legacy no-metadata ACK, no load-now backfill.",
+    "coalescing": "New verified policy can atomically replace unknown older pending without claiming it never committed. Same current-source replay/reopen never restamps. Old responses clear only exact still-current pending request hash; unknown sends do not block future policy refresh/revocation/decision work.",
+    "worker": "Separate cancellation-aware joined ACK worker. ACK delivery/persistence failure changes telemetry only. Hold cache ownership until ACK worker joined/cache closed. Revalidate current credential generation and exact current cache source before send.",
+    "legacy": "v1 remains readable without fabricated installation metadata. Old decoder fails closed on selected v2 fields. Current legacy writes must preserve or explicitly supersede v2 witness, never silently erase/emit incompatible old witness. Rotation leaves old credential-bound witness unavailable; no new-credential relabel."
+  },
+  "ownership": {
+    "package": "services/platform/internal/cacheownership stdlib only",
+    "protocol": "Both current disk constructors/modes acquire common stable sibling lock under pinned actual parent os.Root BEFORE cache-file I/O and hold through Close. Linux nonblocking flock, bounded SHA256 logical-basename lockname, regular0600/currentUID/pre-open/post inode checks, no rename/truncate/delete/PID-steal. CurrentUID/permissions only lockfile, no new parent UID/mode/chmod/chown gate. Arbitrary EvidenceDir preserved.",
+    "limits": "Coordinates cooperating current binaries under existing trusted PVC. No malicious parent/sameUID/root/noncooperating old binary isolation claim. Actual gateway Deployment replicas1/Recreate/RWO, not sensor DaemonSet. !linux legacy behavior preserved without new guarantee; selected ACK explicitly refuses unsupported ownership. Linux contention/error never falls back."
+  },
+  "activation": "Explicit server enabled+profileChecksum and producer enabled defaultoff. Producer only actual runtime-gateway Deployment/container, not sensor/init/unrelated workers. Server only gateway-control consumer. No token/credential/identity/RBAC grants or public healthy/coverage UI shortcut.",
+  "grouped_acceptance": [
+    "Strict wire and receipt contract boundaries, rank/gen/scope and expiry behavior; real app lock acquisition/contention/release/inode cases.",
+    "Durable cache+pending atomic generation, no memory/legacy/backfill ACK, restart exact body/time, failed fsync/no ACK; unknown old response cannot clear newer pending.",
+    "Actual signed HTTP handler/client and same pool record-confirm-commit; current credential revoke/rotate/expiry after waits and scope denials.",
+    "CurrentNormal/Audit installer framing/seals/caller boundaries, current published tuple matching and independent original paths unchanged; native app fixtures remain separately guarded.",
+    "Deployment optional exact consumers/closed flags and regression UI typecheck/build; no test of Temporal/OpenFGA internals."
+  ],
+  "verification_limits": "Official OPA dependency and Helm unavailable in prior runtime; no retries/alternate source/mirror/stub or denied logs workaround. Native resource admission and deployed provider/Stytch acceptance unverified. Current restored runtime readiness must be checked honestly; source or component tests never production proof."
+}

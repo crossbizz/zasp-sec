@@ -6,10 +6,10 @@ import (
 	"encoding/json"
 	"errors"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
@@ -76,14 +76,15 @@ type gatewayControlPlane interface {
 }
 
 type gatewayRuntimeConfig struct {
-	Control              gatewayControlPlane
-	Cache                *policy.GatewayPolicyCache
-	Evidence             gatewayEvidenceStore
-	ExpectedAuthority    gatewayAuthority
-	CredentialID         string
-	BootstrapFailureMode string
-	MaximumPendingEvents int
-	Now                  func() time.Time
+	InstallationACKEnabled bool
+	Control                gatewayControlPlane
+	Cache                  *policy.GatewayPolicyCache
+	Evidence               gatewayEvidenceStore
+	ExpectedAuthority      gatewayAuthority
+	CredentialID           string
+	BootstrapFailureMode   string
+	MaximumPendingEvents   int
+	Now                    func() time.Time
 }
 
 type gatewayEvaluationRequest struct {
@@ -109,7 +110,9 @@ type gatewayQuarantineAcknowledgment struct {
 }
 
 type gatewayRuntime struct {
-	mu sync.Mutex
+	installationACKEnabled        bool
+	installationObservationErrors atomic.Uint64
+	mu                            sync.Mutex
 
 	control              gatewayControlPlane
 	cache                *policy.GatewayPolicyCache
@@ -142,18 +145,24 @@ func newGatewayRuntime(config gatewayRuntimeConfig) (*gatewayRuntime, error) {
 	if !validGatewayTime(now) {
 		return nil, errGatewayRuntime
 	}
+	if config.InstallationACKEnabled {
+		if _, ok := config.Control.(gatewayInstallationControl); !ok || !config.Cache.InstallationEnabled() {
+			return nil, errGatewayRuntime
+		}
+	}
 	runtime := &gatewayRuntime{
-		control:              config.Control,
-		cache:                config.Cache,
-		evidence:             config.Evidence,
-		credentialID:         config.CredentialID,
-		bootstrapFailureMode: config.BootstrapFailureMode,
-		maximumPendingEvents: config.MaximumPendingEvents,
-		now:                  config.Now,
-		evidenceHealthy:      true,
-		observedAt:           now,
-		pending:              make([]gatewayDecisionEvent, 0, config.MaximumPendingEvents),
-		receipts:             make([]gatewayEvaluationReceipt, 0, config.MaximumPendingEvents),
+		installationACKEnabled: config.InstallationACKEnabled,
+		control:                config.Control,
+		cache:                  config.Cache,
+		evidence:               config.Evidence,
+		credentialID:           config.CredentialID,
+		bootstrapFailureMode:   config.BootstrapFailureMode,
+		maximumPendingEvents:   config.MaximumPendingEvents,
+		now:                    config.Now,
+		evidenceHealthy:        true,
+		observedAt:             now,
+		pending:                make([]gatewayDecisionEvent, 0, config.MaximumPendingEvents),
+		receipts:               make([]gatewayEvaluationReceipt, 0, config.MaximumPendingEvents),
 	}
 	if config.Evidence == nil {
 		return runtime, nil
@@ -217,7 +226,23 @@ func (runtime *gatewayRuntime) SyncOnce(ctx context.Context) (resultErr error) {
 	if err := runtime.control.Ready(ctx); err != nil {
 		return errGatewayRuntime
 	}
-	authority, err := runtime.control.Authority(ctx, runtime.credentialID)
+	var authority gatewayAuthority
+	var generation uint64
+	var err error
+	if runtime.installationACKEnabled {
+		selected, ok := runtime.control.(gatewayInstallationControl)
+		if !ok {
+			return errGatewayRuntime
+		}
+		full, readErr := selected.InstallationAuthority(ctx, runtime.credentialID)
+		if readErr != nil || !validGatewayInstallationAuthority(full, gatewayInstallationLegacyAuthority(full), runtime.now()) {
+			return errGatewayRuntime
+		}
+		authority = gatewayInstallationLegacyAuthority(full)
+		generation = full.CredentialGeneration
+	} else {
+		authority, err = runtime.control.Authority(ctx, runtime.credentialID)
+	}
 	if err != nil || !validGatewayAuthority(authority, runtime.credentialID) {
 		return errGatewayRuntime
 	}
@@ -239,7 +264,19 @@ func (runtime *gatewayRuntime) SyncOnce(ctx context.Context) (resultErr error) {
 		return errGatewayRuntime
 	}
 	if envelope != nil {
-		if envelope.Audience != gatewayPolicyAudience || envelope.Sequence <= afterSequence || runtime.cache.Store(*envelope) != nil {
+		if envelope.Audience != gatewayPolicyAudience || envelope.Sequence <= afterSequence {
+			return errGatewayRuntime
+		}
+		if runtime.installationACKEnabled {
+			// Installation delivery and its telemetry never gate local enforcement.
+			// A fallback newer legacy Store explicitly supersedes any old witness.
+			if runtime.cache.StoreInstallation(*envelope, runtime.credentialID, generation) != nil {
+				runtime.installationObservationErrors.Add(1)
+				if runtime.cache.Store(*envelope) != nil {
+					return errGatewayRuntime
+				}
+			}
+		} else if runtime.cache.Store(*envelope) != nil {
 			return errGatewayRuntime
 		}
 	}
@@ -331,29 +368,10 @@ func (runtime *gatewayRuntime) Evaluate(ctx context.Context, request gatewayEval
 		result.PolicyVersion = envelope.PolicyVersion
 		result.CacheState = state
 	case state == policy.GatewayPolicyValid:
-		result.PolicyVersion = envelope.PolicyVersion
-		result.CacheState = state
-		trigger := gatewayTrigger(request.ActionKind)
-		for _, compiled := range envelope.Policies {
-			if compiled.Trigger != trigger {
-				continue
-			}
-			decision, err := policy.Evaluate(ctx, compiled, request.Attributes)
-			if err != nil {
-				return gatewayEvaluationResult{}, errGatewayRuntime
-			}
-			if !decision.Matched {
-				continue
-			}
-			result.MatchedPolicyIDs = append(result.MatchedPolicyIDs, compiled.ID)
-			matched = append(matched, compiled)
-			if decision.Action == policy.ActionBlock {
-				result.Decision = "block"
-			} else if result.Decision == "allow" {
-				result.Decision = "monitor"
-			}
+		result, matched, err = evaluateGatewayPolicyRules(ctx, request, envelope)
+		if err != nil {
+			return gatewayEvaluationResult{}, errGatewayRuntime
 		}
-		sort.Strings(result.MatchedPolicyIDs)
 	default:
 		return gatewayEvaluationResult{}, errGatewayRuntime
 	}
@@ -584,6 +602,11 @@ func (runtime *gatewayRuntime) Metrics() string {
 	metrics.WriteString("zasp_gateway_evidence_quarantined ")
 	metrics.WriteString(strconv.Itoa(len(runtime.quarantined)))
 	metrics.WriteByte('\n')
+	if runtime.installationACKEnabled {
+		metrics.WriteString("zasp_gateway_installation_ack_observation_errors_total ")
+		metrics.WriteString(strconv.FormatUint(runtime.installationObservationErrors.Load(), 10))
+		metrics.WriteByte('\n')
+	}
 	return metrics.String()
 }
 

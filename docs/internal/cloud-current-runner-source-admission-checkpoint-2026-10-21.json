@@ -1,0 +1,61 @@
+{
+  "classification": "CURRENT_SOURCE_ADMISSION_CORRECTED_NOT_NATIVE_OR_DEPLOYED_ACCEPTANCE",
+  "observed_at": "2026-10-21T17:44:17.775011+00:00",
+  "starting_SHA": "7562c06b6a4790f05689cb14d2d9a6e205032d8b",
+  "latest_fetched_main_SHA": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
+  "required_ancestor": "e13ccb95451b03107681ccb59b3fc6fe175a228f",
+  "required_ancestor_verified": true,
+  "problem_and_behavior": "Compiler optimization refreshed two current runner maps but missed original-nine provenance binding. Exact hosted f6d33589 check119200757186 refused source-admission on that file. Changed only its one64byte currenthash, preserving all original cases, helpers, deadlines and guards.",
+  "actual_verification": {
+    "actual_RED": "Hosted original-nine refused exact stale provenance source hash; publicannotation retained, no rawlog/artifact deniedroute retried.",
+    "current_admission": "Independent exhaustive149script scan:1824existing-path literal associations all match across3currentrunners (911+901+12); all926manifest hashes+sizes match; manifest bytes identical toHEAD. One runnerhash changed, every other runnerbyteidentical.",
+    "source_guards": "Existing21PASS0FAIL0SKIP",
+    "UI_typecheck": "npm run typecheck exit0",
+    "production_build": "npm run build exit0 complete5vinextstages/standaloneoutput",
+    "scoped_lint": "eslint changedrunner exit0",
+    "independent_review": {
+      "status": "PASS",
+      "sha256": "39df1673836741563d6261c87c2f8afcfa0e41a6a7ce366f4d238e0737c23e36",
+      "final_runner_SHA256": "416400513b93e0dc7752282ee51c987a5e7d57d90658ea0b8359304dccca6a60"
+    },
+    "native_and_deployed": "Not run locally; pending hosted rerun. No flow acceptance or production credit from source admission."
+  },
+  "publication_gate_resolution": "Cloudrevision advanced1311to1330; fresh sourceguards/typecheck/build passed before one normal configured-identity retry. Push succeeded through7562c06b and GitHubAPI confirmed remotehead. Previous authentication refusal and immutable record retained; no identity/token route change.",
+  "ledger": {
+    "total": 728,
+    "classes": {
+      "production-available": 509,
+      "component-only": 158,
+      "blocked/external": 61
+    },
+    "changed_evidence_rows": [
+      "M7-19",
+      "M8-08b"
+    ],
+    "all_other_fields_unchanged": true,
+    "tasks_closed": 0,
+    "promotions": 0,
+    "beforeSHA256": "f5bc4f102be6d711beebc9053378b78647bc4f56db9d190234b5c26d46511994",
+    "afterSHA256": "267fd53e5de1ce8853be3b69c8da274cc918a267745e273d198afcb0e0988b87"
+  },
+  "remaining_critical_path": {
+    "retention": "Corrected source-role fixture pushed through7562c06b; hosted native acceptance pending, no task closure.",
+    "approval": "Exact previous payload failure reaches shared4minute fixtureparent while60slease live. No permission defect or specific latencycause established; preserve deadlines/freshchecks.",
+    "PKCE": "Retry preparation has expired10slease; existingtracer was disabled after firstsuccessfulpreparation. Need enabled retry fixedtrace and initialleaseheadroom before safe remediation; production already supplies leaseboundedprovidercontext.",
+    "browser": "Approval-reconciler startupdeadline persists; exactready SQL/pool/cleanup timing unavailable; do not cache liveauthority or increasebudget without evidence.",
+    "release": "Latest oldhead387tests380pass6fail1skip; sanitized releasegate stage unavailable. No proven stale docs/imagecontract; officialHelm unavailable.",
+    "product": "Current signedwebhook execution/capturedsettlement and originalremainingrequirements plus realStytch/providerdeployedacceptance and verifiedobsolete retirement remain open."
+  },
+  "evidence": {
+    "path": "docs/internal/cloud-current-runner-source-admission-evidence-2026-10-21.tar.gz",
+    "sha256": "418581c45ebe9be4be0f3e35a2f7f1180ca61866d63a4cc73a71f2b42c3aa7da",
+    "bytes": 182074,
+    "members": 19,
+    "verification": "All archive memberbytes verified; manifestincluded; checkpointexcluded selfreference. OriginalRED/priorfailure retained."
+  },
+  "launch_ready": false,
+  "goal_complete": false,
+  "task_closed": false,
+  "availability_promoted": false,
+  "merge_release_cleared": false
+}

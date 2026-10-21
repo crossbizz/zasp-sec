@@ -65,9 +65,11 @@ var authorizationStatementRules = []authorizationStatementRule{
 	{`SELECT zasp_authorization80.risk_page('attack_path',$1,$2,$3,NULLIF($4,''),$5)`, []string{"listAttackPaths"}, 5, 0, 0, ""},
 	{`SELECT to_jsonb(zasp_authorization80.high_path_count($1,$2,$3))`, []string{"listAttackPaths"}, 3, 0, 0, ""},
 	{`SELECT zasp_authorization80.product_session_event_page($1,$2,$3,$4,$5,$6,$7)`, []string{"listSessionEvents"}, 7, 0, 4, "product_session"},
+	{postgresRetainedProductSessionEventPageSQL, []string{"listSessionEvents"}, 7, 0, 4, "product_session"},
 	{`SELECT zasp_authorization80.audit_page($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`, []string{"listAuditEvents"}, 12, 4, 0, ""},
 	{`SELECT zasp_authorization80.compliance_read($1,$2,$3,$4,$5,$6,$7,$8,$9)`, []string{"listComplianceControls", "listComplianceEvidence", "getComplianceEvidence"}, 9, 4, 0, ""},
 	{`SELECT zasp_authorization80.inventory_page($1,$2,$3,$4,NULLIF($5,''),$6)`, []string{"listAgents", "listTools", "listIdentities", "listRuntimes", "listAssets"}, 6, 0, 0, ""},
+	{postgresAgentOwnerPageSQL, []string{"listAgents"}, 7, 0, 0, ""},
 	{`SELECT zasp_authorization80.receipt_page($1,$2,$3,$4,$5)`, []string{"listWorkflowMutationReceipts"}, 5, 4, 0, ""},
 	{postgresRiskFindingGetSQL, []string{"getFinding"}, 4, 0, 4, "finding"},
 	{postgresRiskAttackPathGetSQL, []string{"getAttackPath"}, 4, 0, 4, "attack_path"},
@@ -75,6 +77,28 @@ var authorizationStatementRules = []authorizationStatementRule{
 }
 
 func authorizationStatementAllowed(g RequestAuthorization, q string, args []any) bool {
+	if q == associationCreateSQL || q == associationActivateSQL || q == associationRevokeSQL || q == associationPageSQL {
+		return agentDeviceAssociationStatementAllowed(g, q, args)
+	}
+	if q == gatewayBootstrapCreateSQL || q == gatewayBootstrapIssueSQL || q == gatewayBootstrapRevokeSQL || q == gatewayBootstrapGetSQL {
+		return gatewayBootstrapStatementAllowed(g, q, args)
+	}
+
+	if q == postgresSensorNodeCoverageSQL {
+		return sensorNodeCoverageStatementAllowed(g, q, args)
+	}
+	if handled, allowed := agentOwnershipWriteStatementAllowed(g, q, args); handled {
+		return allowed
+	}
+	if handled, allowed := agentExposureStatementAllowed(g, q, args); handled {
+		return allowed
+	}
+	if handled, allowed := agentReadStatementAllowed(g, q, args); handled {
+		return allowed
+	}
+	if handled, allowed := environmentClassStatementAllowed(g, q, args); handled {
+		return allowed
+	}
 	if handled, allowed := singleTestRecoveryStatementAllowed(g, q, args); handled {
 		return allowed
 	}
@@ -228,7 +252,7 @@ func authorizationStatementAllowed(g RequestAuthorization, q string, args []any)
 		return g.OperationID == "listEnvironments" && g.Collection && g.WorkspaceSelector != "" && len(args) == 5 && args[0] == g.Identity.Scope.OrganizationID().String() && args[1] == g.WorkspaceSelector && args[2] == g.Identity.PrincipalID.String()
 	case `SELECT to_jsonb(zasp_authorization80.session_source_readiness(50,$1,$2))`:
 		return slices.Contains([]string{"listSessions", "listSessionEvents", "getSessionEvent"}, g.OperationID) && len(args) == 2 && args[0] == migrations.ProductionRuntimeSandboxBinding().Checksum() && args[1] == migrations.ProductionRuntimeSandboxBindingSemanticFingerprint()
-	case `SELECT zasp_authorization80.product_session_event_page($1,$2,$3,$4,$5,$6,$7)`:
+	case `SELECT zasp_authorization80.product_session_event_page($1,$2,$3,$4,$5,$6,$7)`, postgresRetainedProductSessionEventPageSQL:
 		if len(args) != 7 {
 			return false
 		}
@@ -238,6 +262,8 @@ func authorizationStatementAllowed(g RequestAuthorization, q string, args []any)
 			return false
 		}
 		args = []any{args[1], args[2], args[3], args[0]}
+	case postgresAgentOwnerPageSQL:
+		return g.OperationID == "listAgents" && g.Collection && len(args) == 7 && args[0] == g.Identity.Scope.OrganizationID().String() && args[1] == g.Identity.Scope.WorkspaceID().String() && args[2] == g.Identity.Scope.EnvironmentID().String() && ownerFilterStatementArguments(args)
 	case `SELECT zasp_authorization80.inventory_page($1,$2,$3,$4,NULLIF($5,''),$6)`:
 		kind := map[string]string{"listAgents": "agent", "listTools": "tool", "listIdentities": "identity", "listRuntimes": "runtime", "listAssets": "asset"}[g.OperationID]
 		if len(args) != 6 || kind == "" || args[3] != kind {

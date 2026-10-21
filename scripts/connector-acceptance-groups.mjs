@@ -1,0 +1,302 @@
+import assert from 'node:assert/strict';
+
+const applicationPackage = 'github.com/zasp-ai/zasp-sec/services/platform/apiserver';
+function group(top, cases, postgresJoins) {
+  return Object.freeze({top, postgresJoins, subcases: cases.length,
+    names: Object.freeze([top, ...cases.map(name => `${top}/${name}`)])});
+}
+export const CONNECTOR_ACCEPTANCE_GROUPS = Object.freeze({
+  'approval-test74': group('TestApprovalActivationNativeTest74DeliveryFlow', [], 2),
+  'approval-ordered-planning': group('TestApprovalActivationNativeOrderedPlanningDeliveryFlow', [], 2),
+  'approval-ordered-progress': group('TestApprovalActivationNativeOrderedProgressDeliveryFlow', [
+    'provider-evidence-unchanged',
+    'provider-evidence-ordinary-field',
+    'provider-evidence-timestamp-instant',
+    'provider-canonical-row-leaf',
+  ], 2),
+  'approval-flow': group('TestApprovalActivationNativeFindingDeliveryFlow', [
+    'measured_combined_activation_and_complete_projection',
+    'native_signed_delivery_settles_exact_receipt',
+    'future_native_enqueue_inherits_organization_activation',
+    'permission_revocation_preserves_membership_and_prevents_send',
+    'captured_attempt_settles_after_permission_revocation_without_fresh_authority',
+  ], 2),
+  approval: group('TestApprovalActivationNativeCapturedOriginControls', [
+    'planning_proof_wrong_purpose',
+    'planning_proof_wrong_phase',
+    'planning_proof_wrong_principal',
+    'planning_proof_expired',
+    'planning_proof_non-null_request',
+    'planning_proof_wrong_canonical_digest',
+    'planning_proof_wrong_job_digest',
+    'planning_proof_other_task',
+    'planning_proof_changed_target',
+    'planning_proof_changed_revision',
+    'planning_proof_repeatable_read',
+    'planning_proof_serializable',
+    'planning_proof_state_repeatable_read',
+    'planning_proof_recovery_serializable',
+    'planning_proof_compensation_forward_call',
+    'planning_proof_canonical_formatting',
+    'catalog_privacy_and_inactive_registration',
+    'genuine_revoked_capture_stays_inactive',
+    'wrong_pins_roll_back_both_families',
+    'own_catalog_drift_fails_closed_and_rollback_restores',
+    'executor_cannot_invoke_operator_activation',
+  ], 1),
+  oauth: group('TestConnectorMaintenanceAuthenticatedOAuthEnqueuePostgres', [
+    'genuine_same_transaction_origin_and_immutable_enrichment',
+    'rollback_removes_every_enqueue_and_provenance_write',
+  ], 1),
+  lifecycle: group('TestConnectorMaintenanceNativeLifecyclePostgres', [
+    'genuine_enqueue_controlled_cutover_and_composed_projection',
+    'genuine_callback_consumption_captures_only_its_original_effects',
+    'reserve_without_attempt_and_deny_cross_scope_or_unowned_replay',
+    'revocation_blocks_forward_work_while_exact_captured_cleanup_settles',
+    'consumed_callback_revocation_retains_only_exact_rejection_cleanup',
+  ], 2),
+  pkce: group('TestConnectorMaintenancePKCERestartRecoveryPostgres', [
+    'live_preparation_failure_retries_before_captured_provider_admission_and_excludes_live_lease_adoption',
+    'restart_after_revocation_permits_only_exact_captured_deletion_without_settlement_on_failure',
+    'second_restart_preserves_original_lineage_and_settles_exact_cleanup_once',
+  ], 2),
+  callback: group('TestConnectorMaintenanceCallbackRestartRecoveryPostgres', [
+    'genuine_callback_consumption_survives_discarded_API_adapter',
+    'expired_revoked_callback_permits_exact_deletion_but_failure_never_settles',
+    'second_worker_restart_rotates_receipts_and_atomically_rejects_once',
+  ], 2),
+  'approval-overflow': group('TestApprovalActivationNativeAuthenticCaptureOverflow', [], 2),
+  'approval-future-test74': group('TestApprovalActivationNativeFutureTest74DeliveryFlow', [], 2),
+  'approval-future-progress': group('TestApprovalActivationNativeFutureOrderedProgressDeliveryFlow', [
+    'provider-evidence-unchanged',
+    'provider-evidence-ordinary-field',
+    'provider-evidence-timestamp-instant',
+    'provider-canonical-row-leaf',
+  ], 2),
+  'optional-egress-audit': group('TestOptionalEgressCurrentAuditNativePostgres', [
+    'compiled_audit_install_and_purpose_boundaries',
+    'required_catalog_and_durable_optional_switch',
+    'canonical_source_and_tenant_profile_isolation',
+    'concurrent_dispatch_mints_exactly_one_claim',
+    'captured_settlement_survives_revoke_and_read_denies',
+    'disable_and_pending_projection_deny_new_dispatch',
+    'mounted_expiry_converges_without_background_worker',
+    'operator_rotation_preserves_captured_binding_and_no_raw_storage',
+  ], 1),
+  'retention-audit': group('TestRetentionAuditProfileNativePostgres', [
+    'prepared_exact_recipe_and_noinherit_owner',
+    'registered_purposes_and_explicit_local_cutover',
+    'same_full_receipt_current_writers_before_expiry',
+    'immutable_origin_scope_switch_and_legacy_replay',
+    'audited_policy_expiry_and_idempotent_cycle',
+    'mixed_replay_preserves_whole_receipts_without_resurrection',
+    'real_api_visibility_unknown_and_foreign_scope_denied',
+    'independent_live_guard_drift_refuses_and_rolls_back',
+    'index_admission_ownership_epoch_and_captured_cleanup',
+    'future_journal_enrollment_dispatch_and_settlement',
+  ], 1),
+});
+// Keep the original acceptance roster immutable. These supplementary groups
+// require the new installed profiles and retain the same owned service guards.
+const environmentClassCases = Object.freeze([
+  'compiled_profile_and_current_capability',
+  'four_classes_create_atomically_without_collection_expansion',
+  'omission_preserves_legacy_create_and_update_semantics',
+  'class_change_invalidates_controls_and_other_resource_proofs',
+  'production_extended_refuses_and_departure_never_expands',
+  'hostile_class_bodies_have_zero_effects',
+  'attack_lab_future_effects_refuse_class_drift_and_production',
+  'revoked_session_and_stale_version_cannot_write',
+]);
+const environmentClassCatalogCases = Object.freeze([
+  'closed_private_privileges', 'nonpublic_inner_execute', 'helper_execute',
+  'table_read', 'column_read', 'schema_create', 'changed_body',
+  'unwanted_initial_acl_not_sealable',
+]);
+export const ENVIRONMENT_CLASS_ACCEPTANCE_GROUPS = Object.freeze({
+  'environment-class': group('TestEnvironmentClassificationMountedPostgres', environmentClassCases, 1),
+  'environment-class-audit': group('TestEnvironmentClassificationAuditMountedPostgres', environmentClassCases, 1),
+  'environment-class-catalog': group('TestEnvironmentClassProfileNativeCatalogControls',
+    ['normal', 'audit'].flatMap(variant => [variant, ...environmentClassCatalogCases.map(name => `${variant}/${name}`)]), 2),
+});
+const maintenanceOperatorCases = Object.freeze([
+  'restricted_original_login_private80_denied',
+  'approval_installs_as_original_owner_and_restores_role',
+  'connector_installs_as_original_owner_and_restores_role',
+  'activation_installs_as_original_owner_and_restores_role',
+  'settlement_installs_as_original_owner_and_restores_role',
+  'idempotent_install_preserves_explicit_incoming_role',
+  'rejected_parent_rolls_back_role_and_effects',
+  'immutable_parents_and_inactive_fk_owner_effects',
+]);
+export const MAINTENANCE_OPERATOR_ACCEPTANCE_GROUPS = Object.freeze({
+  'maintenance-operator': group('TestMaintenanceOperatorNoInheritPostgres', maintenanceOperatorCases, 1),
+  'maintenance-operator-audit': group('TestMaintenanceOperatorNoInheritAuditPostgres', maintenanceOperatorCases, 1),
+});
+const optionalEgressOperatorCases = Object.freeze([
+  'restricted_original_login_private80_denied',
+  'selected_recipe_installs_unconfigured_and_restores_role',
+  'idempotent_recipe_preserves_explicit_incoming_role',
+  'other_parent_recipe_refuses_without_effects',
+  'rejected_private_parent_rolls_back_role_and_effects',
+]);
+export const OPTIONAL_EGRESS_OPERATOR_ACCEPTANCE_GROUPS = Object.freeze({
+  'optional-egress-operator': group('TestOptionalEgressOperatorNoInheritPostgres', optionalEgressOperatorCases, 1),
+  'optional-egress-operator-audit': group('TestOptionalEgressOperatorNoInheritAuditPostgres', optionalEgressOperatorCases, 1),
+});
+const agentCurrentReadCases = Object.freeze([
+  'normal_selected_catalog_and_restricted_installer',
+  'mounted_five_request_current_drawer',
+  'real_projection_sessions_second_page_and_mixed_agent',
+  'exact_operation_parent_scope_and_expiry_refusal',
+  'cursor_stays_bound_to_current_parent_and_operation',
+  'catalog_body_acl_and_projection_drift_refused',
+  'current_membership_revocation_denies_all_drawer_reads',
+]);
+export const AGENT_CURRENT_READ_ACCEPTANCE_GROUPS = Object.freeze({
+  'agent-current-read': group('TestAgentCurrentReadNormalMountedPostgres', agentCurrentReadCases, 1),
+  'agent-current-read-audit': group('TestAgentCurrentReadAuditMountedPostgres', agentCurrentReadCases, 1),
+});
+const agentExposureFilterCases = Object.freeze([
+  "selected_profile_current_page_and_private_boundary",
+  "recorded_severity_status_and_real_finding_denial",
+  "literal_owner_conjunction_before_limit_and_cursor",
+  "winning_source_role_reference_and_cross_namespace_subject",
+  "same_rule_code_positives_and_unproved_unknown",
+  "fresh_high_impact_and_malformed_source_rules",
+  "private_classifier_own_body_acl_and_catalog_drift",
+  "complete_target_drift_bound_and_live_revocation"
+]);
+export const AGENT_EXPOSURE_FILTER_ACCEPTANCE_GROUPS = Object.freeze({
+  'agent-exposure-filter': group('TestAgentExposureFilterNormalMountedPostgres', agentExposureFilterCases, 1),
+  'agent-exposure-filter-audit': group('TestAgentExposureFilterAuditMountedPostgres', agentExposureFilterCases, 1),
+});
+const agentOwnershipWriteCases = Object.freeze([
+  "selected_profile_private_acl_and_browser_transport_guards",
+  "browser_patch_atomic_posture_revision_and_fresh_refetch",
+  "same_intent_replay_original_receipt_and_conflicting_intent_cas",
+  "actual_pat_permission_ceiling_fresh_auth_false_and_revocation",
+  "captured_scope_actor_read_profile_and_live_membership_refuse_replay",
+  "actual_key_and_entity_wait_expiry_refuse_before_receipt",
+  "two_actual_connections_cas_and_same_key_exactly_once",
+  "own_catalog_drift_parent_immutability_and_no_extra_effects"
+]);
+export const AGENT_OWNERSHIP_WRITE_ACCEPTANCE_GROUPS = Object.freeze({
+  'agent-ownership-write': group('TestAgentCurrentOwnershipWriteNormalPostgres', agentOwnershipWriteCases, 1),
+  'agent-ownership-write-audit': group('TestAgentCurrentOwnershipWriteAuditPostgres', agentOwnershipWriteCases, 1),
+});
+// Additive application acceptance only; these cases remain unexecuted until
+// the unchanged owned PostgreSQL/OpenFGA prerequisite guards admit execution.
+const sensorNodeCoverageCases = Object.freeze([
+  'accepted_original_observation_expired_replay_and_terminal_gap',
+  'stored_credentials_scope_and_rotated_sensor_authority',
+  'actual_transaction_token_wait_expires_before_final_clock_check',
+]);
+export const SENSOR_NODE_COVERAGE_ACCEPTANCE_GROUPS = Object.freeze({
+  'sensor-node-coverage': group('TestSensorNodeCoverageNormalPostgres', sensorNodeCoverageCases, 1),
+  'sensor-node-coverage-audit': group('TestSensorNodeCoverageAuditPostgres', sensorNodeCoverageCases, 1),
+});
+const acceptanceGroups = Object.freeze({...CONNECTOR_ACCEPTANCE_GROUPS, ...ENVIRONMENT_CLASS_ACCEPTANCE_GROUPS, ...MAINTENANCE_OPERATOR_ACCEPTANCE_GROUPS, ...OPTIONAL_EGRESS_OPERATOR_ACCEPTANCE_GROUPS, ...AGENT_CURRENT_READ_ACCEPTANCE_GROUPS, ...AGENT_EXPOSURE_FILTER_ACCEPTANCE_GROUPS, ...AGENT_OWNERSHIP_WRITE_ACCEPTANCE_GROUPS, ...SENSOR_NODE_COVERAGE_ACCEPTANCE_GROUPS});
+export function selectConnectorAcceptanceGroup(args) {
+  assert.ok(Array.isArray(args) && args.length === 1 &&
+    typeof args[0] === 'string' && Object.hasOwn(acceptanceGroups, args[0]),
+  'one fixed connector acceptance group is required');
+  return acceptanceGroups[args[0]];
+}
+// Only errors issued by the unchanged acceptance assertions carry diagnostics.
+const traceFailureStages = new WeakMap();
+const traceFailureEvents = new WeakMap();
+export function describeConnectorAcceptanceTraceFailure(error) {
+  return error !== null && (typeof error === 'object' || typeof error === 'function')
+    ? traceFailureStages.get(error) ?? 'unknown' : 'unknown';
+}
+export function describeConnectorAcceptanceTraceEvent(error) {
+  return error !== null && (typeof error === 'object' || typeof error === 'function')
+    ? traceFailureEvents.get(error) ?? null : null;
+}
+// This validates application test events, not Temporal or OpenFGA internals.
+export function validateConnectorAcceptanceTrace(rows, selected) {
+  let stage = 'selection';
+  try {
+    assert.ok(Object.values(acceptanceGroups).includes(selected));
+    stage = 'empty';
+    assert.ok(Array.isArray(rows) && rows.length > 0);
+    stage = 'events';
+    assert.ok(rows.every(row => row && row.Package === applicationPackage &&
+      ['start', 'run', 'output', 'pass'].includes(row.Action) &&
+      (row.Test === undefined || selected.names.includes(row.Test))), 'unexpected connector test event');
+    for (const action of ['run', 'pass']) {
+      stage = action === 'run' ? 'run-roster' : 'pass-roster';
+      assert.deepEqual(rows.filter(row => row.Action === action && row.Test).map(row => row.Test).sort(),
+        selected.names.slice().sort(), 'connector acceptance roster differs');
+    }
+    stage = 'package-pass';
+    assert.equal(rows.filter(row => row.Action === 'pass' && row.Test === undefined).length, 1);
+  } catch (error) {
+    if (stage === 'events') {
+      // Inspect only fixed shape/category after refusal; never retain payloads.
+      try {
+        const row = rows.find(row => !row || row.Package !== applicationPackage ||
+          !['start', 'run', 'output', 'pass'].includes(row.Action) ||
+          (row.Test !== undefined && !selected.names.includes(row.Test)));
+        stage = !row ? 'event-shape' : row.Package !== applicationPackage ? 'event-package' :
+          !['start', 'run', 'output', 'pass'].includes(row.Action) ? 'event-action' : 'event-case';
+        if (stage === 'event-case' && error !== null && (typeof error === 'object' || typeof error === 'function')) {
+          const test = row.Test;
+          const testShape = typeof test === 'string' ? (test === '' ? 'empty-string' : 'nonempty-string') : test === null ? 'null' : 'non-string';
+          const caseClass = typeof test !== 'string' ? 'non-string' :
+            Object.values(acceptanceGroups).some(group => group !== selected && group.names.includes(test)) ? 'other-fixed-group' :
+              test === 'TestApprovalActivationOldWriterProcess' ? 'source-known-owned-helper' : 'unrecognized';
+          const action = row.Action;
+          if (['start', 'run', 'output', 'pass'].includes(action)) traceFailureEvents.set(error, Object.freeze({action, testShape, caseClass}));
+        }
+      } catch { stage = 'events'; }
+    }
+    if (error !== null && (typeof error === 'object' || typeof error === 'function')) traceFailureStages.set(error, stage);
+    throw error;
+  }
+}
+
+// Diagnostic observations never decide acceptance and never reflect raw output.
+export function parseConnectorNativeObservation(output) {
+  if (typeof output !== 'string' || Buffer.byteLength(output) > 16384) return null;
+  const line = output.replace(/^[ \t]*[a-z_]+\.go:[0-9]{1,6}: /, '').replace(/\n$/, '');
+  let match = /^connector pkce budget initial_lease_ms=([0-9]{1,6}) initial_provider_ms=([0-9]{1,6}) lease_live=(true|false) provider_live=(true|false)$/.exec(line);
+  if (match) {
+    const [lease, provider] = match.slice(1,3).map(Number);
+    if (lease > 120000 || provider > lease || (match[3] === 'false' && match[4] === 'true')) return null;
+    return {kind: 'pkce-budget', value: {initialLeaseMS: lease, initialProviderMS: provider, leaseLive: match[3] === 'true', providerLive: match[4] === 'true'}};
+  }
+  match = /^connector pkce phase=(pool-acquire|tx-begin|set-role|source|revision|begin-attempt|commit|rollback) count=([0-9]{1,2}) elapsed_ms=([0-9]{1,6}) max_ms=([0-9]{1,6}) failed=(true|false) context_done=(true|false) deadline=(true|false) canceled=(true|false) SQLSTATE=(none|[0-9A-Z]{5}) capped=(true|false)$/.exec(line);
+  if (match) {
+    const [count, elapsed, maximum] = match.slice(2,5).map(Number);
+    if (count < 1 || count > 16 || elapsed > 120000 || maximum > elapsed) return null;
+    return {kind: 'pkce-phase', value: {phase: match[1], count, elapsedMS: elapsed, maxMS: maximum, failed: match[5] === 'true', contextDone: match[6] === 'true', deadline: match[7] === 'true', canceled: match[8] === 'true', sqlState: match[9], capped: match[10] === 'true'}};
+  }
+  match = /^connector cutover prepare stage=(invalid|live-before|model-read|live-after|deadline|unknown)$/.exec(line);
+  if (match) return {kind: 'cutover', stage: match[1]};
+  match = /^connector cutover activation stage=(invalid|permit|deadline|old-credential|writer-absence|new-model|sql-begin|sql-role|sql-lock|sql-baseline|sql-activation|sql-result|sql-commit|unknown)$/.exec(line);
+  if (match) return {kind: 'activation', stage: match[1]};
+  match = /^connector preparation stage=(release|begin|result|local-state|quarantine|unknown)$/.exec(line);
+  if (match) return {kind: 'preparation', stage: match[1]};
+  match = /^approval payload observation stage=payload-load outcome=(context-deadline|context-canceled|lease-margin|denied|unavailable|other-error|run-mismatch) parent_live=(true|false) lease_live=(true|false) provider_live=(true|false)$/.exec(line);
+  if(match) {
+    if(match[3]==='false'&&match[4]==='true')return null;
+    return {kind:'approval-payload',value:{stage:'payload-load',outcome:match[1],parentLive:match[2]==='true',leaseLive:match[3]==='true',providerLive:match[4]==='true'}};
+  }
+  match = /^connector lease observation stage=(preparation-finish|preparation-forward|captured-compensation|revocation-pending|revocation-applied|recovery-forward|unknown) outcome=(denied|unavailable|operation|other) parent_live=(true|false) lease_live=(true|false) provider_bound=(true|false) provider_live=(true|false)$/.exec(line);
+  if (match) {
+    if(match[5]==='false'&&match[6]==='true')return null;
+    return {kind:'lease',value:{stage:match[1],outcome:match[2],parentLive:match[3]==='true',leaseLive:match[4]==='true',providerBound:match[5]==='true',providerLive:match[6]==='true'}};
+  }
+  if (line === 'connector catalog diagnostic=unavailable') return {kind: 'catalog-summary', value: {observed: false}};
+  match = /^connector catalog diagnostic=observed before_rows=([0-9]{1,4}) after_rows=([0-9]{1,4}) before_duplicates=([0-9]{1,4}) after_duplicates=([0-9]{1,4}) before_registered=(true|false) after_registered=(true|false) before_guc_equal=(true|false) after_guc_equal=(true|false) owner_guc_stable=(true|false) api_guc_stable=(true|false)$/.exec(line);
+  if (match) {
+    const counts = match.slice(1,5).map(Number);
+    if (counts.some(value => value > 4096)) return null;
+    return {kind: 'catalog-summary', value: {observed: true, beforeRows: counts[0], afterRows: counts[1], beforeDuplicates: counts[2], afterDuplicates: counts[3], beforeRegistered: match[5] === 'true', afterRegistered: match[6] === 'true', beforeGUCEqual: match[7] === 'true', afterGUCEqual: match[8] === 'true', ownerGUCStable: match[9] === 'true', apiGUCStable: match[10] === 'true'}};
+  }
+  match = /^connector catalog kind=(namespace|table|view|column|constraint|index|policy|trigger|function) before=([0-9]{1,4}) after=([0-9]{1,4}) added=([0-9]{1,4}) removed=([0-9]{1,4}) changed=([0-9]{1,4})$/.exec(line);
+  if (!match || match.slice(2).some(value => Number(value) > 4096)) return null;
+  return {kind: 'catalog-object', value: {kind: match[1], before: Number(match[2]), after: Number(match[3]), added: Number(match[4]), removed: Number(match[5]), changed: Number(match[6])}};
+}

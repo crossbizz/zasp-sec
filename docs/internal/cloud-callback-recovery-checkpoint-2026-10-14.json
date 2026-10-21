@@ -1,0 +1,198 @@
+{
+  "schema": "zasp-callback-recovery-checkpoint-v1",
+  "date_utc": "2026-10-14",
+  "base": "e8bf07351e222b0bf8791647a054d2138814dc43",
+  "main": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
+  "scope": "Exact pre-provider callback crash compensation across API receipt, worker, private native SQL, settlement and audit. Inactive controlled cutover candidate; no deployed activation.",
+  "original_requirements": [
+    {
+      "id": "M3-24",
+      "contribution": "State/PKCE callback persistence and cleanup recovery; broader original Nango contract remains required."
+    },
+    {
+      "id": "M3-52a",
+      "contribution": "Additional connector restart/revocation application fixture; does not establish whole connector E2E or provider acceptance."
+    }
+  ],
+  "implementation": [
+    "Dedicated callback compensation HMAC purpose binds native authentic callback and both exact effects, original task provenance, tenant, reference, worker session and expired ownership.",
+    "Only consumed/secret/rejection_secret/secret_settled/rejection_secret_settled phases admit recovery; provider-phase outcomes remain unknown.",
+    "Whole response page is validated before any external effect. Exact idempotent Delete precedes atomic original PKCE completion and authorization rejection; a failed Delete never settles.",
+    "Worker restarts rotate expired captured ownership without incrementing a provider attempt or reconstructing browser authority.",
+    "Generic worker reservation excludes only these pre-provider captured callbacks. Original immutable SQL, forward authorization and production activation refusal remain intact."
+  ],
+  "application_checks": {
+    "scope": "isolated staged tree component application regressions; no native or deployment claim",
+    "tree": "09a2456637b7f9aaa78960c288dfff24f3f57151",
+    "application_top_count": 40,
+    "events": {
+      "run": 108,
+      "pass": 108,
+      "fail": 0,
+      "skip": 0
+    },
+    "package_pass": 1,
+    "log": "/tmp/zasp-callback-frozen-application-20261014.jsonl",
+    "sha256": "e10a994fca1f20dab39e0e39aed0c5d346e1741a6dca9c4cf254896768169fe1"
+  },
+  "grouped_tdd": {
+    "callback_worker": {
+      "scope": "Application dispatch and strict native-response decoding only; fake executor does not authenticate HMACs or prove native SQL, restart safety, real provider or deployed availability.",
+      "files": [
+        {
+          "path": "services/platform/apiserver/connector_maintenance_callback_recovery.go",
+          "sha256": "78ab4d746bf9d76d65f5113df17865fed91ba0ebdd7c55d4ba023612533d1b75"
+        },
+        {
+          "path": "services/platform/apiserver/connector_maintenance_callback_recovery_test.go",
+          "sha256": "18274be7f5b461c1fe3447db1b8d6761428f41955250313e8ed8ea346a1fe18f"
+        }
+      ],
+      "red": {
+        "path": "/tmp/zasp-callback-recovery-red-20261014.log",
+        "sha256": "7ef392663daaf48c7f9c1e892e9a4c7c88dcba2b5352cc1e0f9ddf6a9729d1bc",
+        "result": "behavior assertions failed against refusing worker skeleton"
+      },
+      "green": {
+        "path": "/tmp/zasp-callback-recovery-final-group-20261014.jsonl",
+        "sha256": "2f37e5fdf82a0e40f0129a1d2106073ca8394a5b3806fbac487a060dcc3bb53c",
+        "test_events": {
+          "run": 67,
+          "output": 134,
+          "pass": 67
+        },
+        "top_tests": [
+          "TestConnectorMaintenanceCallbackExecutionBoundaries",
+          "TestConnectorMaintenanceCallbackAdmissionReservesBeforeConsume",
+          "TestConnectorCallbackRecoveryApplicationBoundaries",
+          "TestConnectorMaintenanceRecoveryDecodeBoundaries"
+        ],
+        "exit_code": 0
+      },
+      "git_mutations": false
+    },
+    "cutover_stage": {
+      "scope": "Closed application-owned Prepare refusal diagnostics only. Existing guards, calls and order retained. No actual hosted cause or native acceptance claimed.",
+      "source_bindings": {
+        "services/platform/connectormaintenancecutover/coordinator.go": "e1c4da1ab45067c9181e14f9120d44edd4e911a6cd7f68ceb171a86ef0246465",
+        "services/platform/connectormaintenancecutover/coordinator_test.go": "77160f406d7637a2d4372511e2e319e874bcc46494bb4d492ba260dc01f15b3e",
+        "services/platform/apiserver/connector_maintenance_lifecycle_postgres_test.go": "62964237c0ff8e4f3ab3ace33b87c5af599c9e068655d2ee4895c475deb3a8fb",
+        "services/platform/apiserver/connector_maintenance_pkce_recovery_test.go": "c340f800aba6d297cfdcf976eda67406fe8cb08d10333927c93b33f6a9eabc94",
+        "services/platform/apiserver/connector_maintenance_callback_restart_postgres_test.go": "203a8a388ccfad5e5caaadab7c7c6b6b0045d32c5f5be57cfffddfbf9c0c8512"
+      },
+      "checks": {
+        "red": {
+          "path": "/tmp/zasp-cutover-stage-red-20261014.log",
+          "sha256": "f63c5b3924d3ac654c0c5d4d1da4f25e73c95ac33de1cf2a8b52a33af9afd4e1",
+          "result": "5 expected causal-stage assertions failed against unknown-only classifier"
+        },
+        "green": {
+          "path": "/tmp/zasp-cutover-stage-green-20261014.jsonl",
+          "sha256": "087ef80b3d29828d5aebaf9c063335417ad529d91fd60c836f5cadd76ed5bb29",
+          "test_events": {
+            "run": 8,
+            "output": 16,
+            "pass": 8
+          },
+          "exit_code": 0
+        }
+      },
+      "fixture_compile": "pending root combined application group",
+      "git_mutations": false
+    }
+  },
+  "additional_checks": {
+    "cutover_application": "1 top, 8 named run/pass events; zero failure/skip",
+    "whole_approval_source_pin": "1 top pass",
+    "node_group_and_privacy_controls": "4 pass, zero failure/skip",
+    "ui_typecheck": "pass",
+    "ui_production_build": "pass",
+    "consumer_compilation": "API, worker and connector executor empty-run compile checks pass on isolated staged sources after one retained ENOSPC link failure."
+  },
+  "review": {
+    "reviewer": "callback_batch_review_v2",
+    "result": "no-actionable-source-findings",
+    "review_artifact_sha256": "5392800ea0393e752bbd358f95d791645c0b5defcfe52edf808aef55fbe10619",
+    "index_tree": "09a2456637b7f9aaa78960c288dfff24f3f57151",
+    "staged_source_bindings": {
+      ".github/connector-native-compile-source-pins.json": "2a8c1fd3f8be1f904e40d048f5d159fce5c228faec9066cc48817812b7c47190",
+      ".github/workflows/connector-connected-lifecycle.yml": "e0c45604e4ccbc761476abe41180d538203cc0e2680effb742913165a2da8dbe",
+      ".github/workflows/connector-native-draft-compile.yml": "083a8b7c17479d3959597e139a217009aca7e6dfbc3ccce5580fec3c82c2d2c4",
+      "scripts/connector-acceptance-groups.mjs": "b288f9ecf529e14ee5c9b0b99fa8c70def4d54cdb02d45c1582787e2b95cdc40",
+      "scripts/connector-acceptance-groups.test.mjs": "10db1e5a1402db95be1da49c036cbc0b111e5f15b8e005be11c7d1b6f0f9dcba",
+      "scripts/hosted-connected-connector-acceptance.mjs": "4ee6a34d6352ab0d75bec01dda690fdbec2edee88709cc9f8ef0cd2170538835",
+      "scripts/hosted-connector-authenticated-enqueue.mjs": "65a12e93f7b891db7815b05b60e6ddb3ce33acf71e660a4661f7131f29cad670",
+      "services/platform/apiserver/connector_maintenance_callback_recovery.go": "78ab4d746bf9d76d65f5113df17865fed91ba0ebdd7c55d4ba023612533d1b75",
+      "services/platform/apiserver/connector_maintenance_callback_recovery_database.go": "a9330f0ece5e4349f9a3252a5b44f5409340130b125763dab6cefe49aaa89b6a",
+      "services/platform/apiserver/connector_maintenance_callback_recovery_test.go": "18274be7f5b461c1fe3447db1b8d6761428f41955250313e8ed8ea346a1fe18f",
+      "services/platform/apiserver/connector_maintenance_callback_restart_postgres_test.go": "203a8a388ccfad5e5caaadab7c7c6b6b0045d32c5f5be57cfffddfbf9c0c8512",
+      "services/platform/apiserver/connector_maintenance_catalog_diagnostic_test.go": "fb4add6de1bfad2e20311e5da0fb82f215eacb456ea588de8bbea2a890566868",
+      "services/platform/apiserver/connector_maintenance_enqueue_postgres_test.go": "76da1cc4969e8ad84f3f61410e2be98e6ecc48facf1e42ec10b82ab66d93628e",
+      "services/platform/apiserver/connector_maintenance_lifecycle_postgres_test.go": "62964237c0ff8e4f3ab3ace33b87c5af599c9e068655d2ee4895c475deb3a8fb",
+      "services/platform/apiserver/connector_maintenance_pkce_recovery_test.go": "c340f800aba6d297cfdcf976eda67406fe8cb08d10333927c93b33f6a9eabc94",
+      "services/platform/apiserver/connector_reconciler.go": "3170126141cde2be045e2a04727a1c9658a0100cfd610ea45ea3a7c5d359689d",
+      "services/platform/connectormaintenance/executor.go": "24ac12fb20e753ec433464e6220bc7aaf4127fb9e7e3803831553bb75e7a40f3",
+      "services/platform/connectormaintenancecutover/coordinator.go": "e1c4da1ab45067c9181e14f9120d44edd4e911a6cd7f68ceb171a86ef0246465",
+      "services/platform/connectormaintenancecutover/coordinator_test.go": "77160f406d7637a2d4372511e2e319e874bcc46494bb4d492ba260dc01f15b3e",
+      "services/platform/migrations/sql/connector_maintenance_profile.sql": "23ff42e7e492591ef76076523b6c9c19f25c6ada21aad38d104e3066b5ecf5e2"
+    },
+    "limitations": "Source review only; native SQL, HMAC/role behavior and deployed proof require actual acceptance."
+  },
+  "native_acceptance": {
+    "status": "pending, not passed",
+    "required_groups": [
+      "oauth",
+      "lifecycle",
+      "pkce",
+      "callback"
+    ],
+    "named_events": 17,
+    "owned_pg_joins": 7,
+    "guards": "Each complete group retains original Go10m/command650s/aggregate1500s/resource/source/process guards. Always aggregate requires every group success; no skipped/failing group may accept.",
+    "fixture": "Genuine signed consume, lost API permits, real callback/worker expiry, revocation, failed deletion, second restart, exact settlement, one audit event per terminal action and replay/scope denials. Secret backend remains a component stub."
+  },
+  "preserved_failures": {
+    "59ea2a72": "OAuth push pass/PR42501; connected PR42501; connected push cutover.Prepare refusal and650s deadline before final group.",
+    "e8bf0735": "OAuth exact reason oauth-fingerprint; both direct browsers services passed but metadata/components deadline.",
+    "diagnostics": "Owner-only read-only object hash comparisons emit bounded kinds/counts/booleans; immutable registration fingerprint is never rewritten. Closed Prepare stages retain ErrRefused text and errors.Is."
+  },
+  "remaining": [
+    "Real native acceptance for all four groups",
+    "Actual catalog mismatch and cutover refusal causes",
+    "Health-probe metadata deadline correction, verified separately",
+    "Provider-phase outcome reconciliation and post-completion provider cleanup",
+    "Fleet cutover/restart exclusion; NewDeployment remains refused",
+    "Real Stytch/provider deployment and every remaining original requirement"
+  ],
+  "ledger": {
+    "rows": 728,
+    "recorded_production_available": 523,
+    "component_only": 144,
+    "blocked_external": 61,
+    "missing": 0,
+    "promotions": 0
+  },
+  "runtime": {
+    "observed_revision": 301,
+    "required_api_names": 53,
+    "supported_aliases": 3,
+    "unbound": 50,
+    "private_tcp_grants": 0,
+    "outbound_deployment_identities": 0,
+    "production_target": "not established"
+  },
+  "verification_isolation": "Go application checks executed from isolated staged-tree archive to exclude concurrent health-probe implementation. UI sources unchanged by parallel Go work.",
+  "consumer_compile_evidence": {
+    "initial": {
+      "path": "/tmp/zasp-callback-frozen-consumer-compile-20261014.log",
+      "sha256": "f8b50c67d1d065161a1e7722e1962fc4725d39acb5e7ddcba2962523d85699e8",
+      "result": "worker linker refused: no space left on device; no source/native result established"
+    },
+    "retry": {
+      "path": "/tmp/zasp-callback-frozen-consumer-compile-retry-20261014.log",
+      "sha256": "5cff8f187f76c8d8746c2a9f86243427cbabef48ac9dee55f75e29913c56fc76",
+      "result": "all three compile scopes pass; warm object cache avoided initial compile/link scratch peak; no source changes or native guard waiver"
+    }
+  },
+  "publication_delta_after_review": "Only checkpoint/ledger documentation and manifest checkpoint SHA change after the reviewed executable index tree. All executable source bindings and tests remain as reviewed."
+}
