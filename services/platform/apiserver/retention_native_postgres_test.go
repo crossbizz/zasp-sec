@@ -35,13 +35,15 @@ func TestRetentionAuditProfileNativePostgres(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Minute)
 	defer cancel()
 	// Separate bootstrap permits a genuine NOSUPERUSER/NOBYPASSRLS/NOINHERIT
-	// registered source owner. The initdb superuser never runs an application call.
+	// registered source owner. PostgreSQL16+ records grant-time inheritance
+	// on each membership, so restrict it before the canonical authority grant.
+	// The initdb superuser never runs an application call.
 	bootstrap, err := pgx.Connect(ctx, startDisposablePostgresAs(t, "zasp_test"))
 	if err != nil {
 		t.Fatal("owned bootstrap refused")
 	}
 	defer bootstrap.Close(context.Background())
-	if _, err = bootstrap.Exec(ctx, `CREATE ROLE zasp_e2e LOGIN SUPERUSER`); err != nil {
+	if _, err = bootstrap.Exec(ctx, `CREATE ROLE zasp_e2e LOGIN SUPERUSER NOINHERIT`); err != nil {
 		t.Fatal("owned migration login refused")
 	}
 	cfg := bootstrap.Config().Copy()
@@ -257,7 +259,7 @@ func TestRetentionAuditProfileNativePostgres(t *testing.T) {
 			t.Fatal("owned migration role demotion refused")
 		}
 		var genuine bool
-		if err := owner.QueryRow(ctx, `SELECT session_user=current_user AND NOT rolsuper AND NOT rolbypassrls AND NOT rolinherit FROM pg_roles WHERE rolname=session_user`).Scan(&genuine); err != nil || !genuine {
+		if err := owner.QueryRow(ctx, `SELECT session_user=current_user AND NOT r.rolsuper AND NOT r.rolbypassrls AND NOT r.rolinherit AND pg_has_role(session_user,'zasp_discovery_authority','MEMBER') AND pg_has_role(session_user,'zasp_discovery_authority','SET') AND NOT pg_has_role(session_user,'zasp_discovery_authority','USAGE') AND (SELECT count(*)=1 AND coalesce(bool_and(m.admin_option AND NOT m.inherit_option AND m.set_option),false) FROM pg_auth_members m WHERE m.roleid='zasp_discovery_authority'::regrole AND m.member=r.oid) FROM pg_roles r WHERE r.rolname=session_user`).Scan(&genuine); err != nil || !genuine {
 			t.Fatal("genuine source owner required")
 		}
 		var ownerIdentity, publicCreate bool

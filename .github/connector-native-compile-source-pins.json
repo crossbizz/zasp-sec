@@ -390,14 +390,14 @@
     },
     {
       "path": "scripts/hosted-connected-connector-acceptance.mjs",
-      "sha256": "08300bf71e415e84823d0efcdc0c8eb9156c29bcb468ebca9185238ec8abe4d5",
+      "sha256": "f7a885664ecd03517a7b92a31089ca09dee7e939c2b79405c23d2b7d788aa08b",
       "bytes": 152049,
       "currentBasePreimageSHA256": "f248c6d9182ca08cb518cd54c620844c987f4ae723a38badb463c59e010db578",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
-      "sha256": "6c53aee3c24f3630240962f77cc0896710353457666a66fb53e95a4a131b5859",
+      "sha256": "ac469d7873d7923992835d610c7c7b6b698f017622139b3cfc1f8d8541bf2352",
       "bytes": 148565,
       "currentBasePreimageSHA256": "e66722e4daf5b1482c253d1f14b4c533c329fde202252c16f87ad3e0130e8524",
       "historicalPreimageSHA256": null
@@ -1699,8 +1699,8 @@
     },
     {
       "path": "services/platform/apiserver/retention_native_postgres_test.go",
-      "sha256": "13a43ba63e4b0b477483163785a92af0d13acb6cb3ec42fc7586945067a4ebaa",
-      "bytes": 46301,
+      "sha256": "45a1ef145e9e2640ff2726255e56ccfb307e008c923d43b38c35153788c90813",
+      "bytes": 46849,
       "currentBasePreimageSHA256": "598976d7d8f237df54475194016086de7e716490bb535fd7587f31b71e7eb31b",
       "historicalPreimageSHA256": null
     },
@@ -6534,5 +6534,7 @@
   "publisherFixturePrivateModeSourceAssociationBase": "0725e5937f6048d32a184de97347cc4f1d524880",
   "publisherFixturePrivateModePredecessorManifestSHA256": "8c865dbf54ec49dee32e80c355cc550cc2f05d1f5a2fbf24dca2087c2d58bd73",
   "startupAssemblySourceAssociationBase": "5e51264ce139c34a4d10c2558f377351c42f7107",
-  "startupAssemblyPredecessorManifestSHA256": "42be4d9782d90d09c5a4e65ced47f8aa3228978a796931f11baf6ae18bc56e01"
+  "startupAssemblyPredecessorManifestSHA256": "42be4d9782d90d09c5a4e65ced47f8aa3228978a796931f11baf6ae18bc56e01",
+  "retentionNoInheritFixtureSourceAssociationBase": "f6d335897a628eb4ec05e34878dfdda311db4ba4",
+  "retentionNoInheritFixturePredecessorManifestSHA256": "69ac8dda72479f3b4bc4c26f437d81bdee27bedf58017ec867961fb93ba8ba21"
 }

@@ -233,7 +233,7 @@ const pins = {
   "services/platform/agentsec-worker/retention_runtime_pipeline.go": "8f082cc91b4f3662bce15c6d329a3d0115b7fb2548c421724b4906d596caf473",
   "services/platform/agentsec-worker/retention_runtime_pipeline_test.go": "bcb23131853a42529fb8f2ebaddc4e8e249ef56ece08c35b5ca8837d28b006d7",
   "services/platform/agentsec-worker/retention_runtime_test.go": "9ca5fc072a064eca78b31f88c9ed1ba6ec51102d21e19332b74b89e53ee51f95",
-  "services/platform/apiserver/retention_native_postgres_test.go": "13a43ba63e4b0b477483163785a92af0d13acb6cb3ec42fc7586945067a4ebaa",
+  "services/platform/apiserver/retention_native_postgres_test.go": "45a1ef145e9e2640ff2726255e56ccfb307e008c923d43b38c35153788c90813",
   "services/platform/apiserver/retention_visibility_repository.go": "449c1f96279e09ccf2b991c8ac53b88f8d2036346c1bc7cbf62714a453fb1158",
   "services/platform/apiserver/retention_visibility_repository_test.go": "2bd71717380acb8aa44cebcac6f15c76a0f80d585e89f1fa3da69eb83ff6dc88",
   "services/platform/apiserver/runtime_session_retention_search.go": "8b00d55286c8094e324a1557739e02d1b77a51c465f73bb8779ed9768749588c",
