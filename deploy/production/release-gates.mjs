@@ -1,3 +1,4 @@
+import {releaseStageError} from "../../scripts/release-failure-stages.mjs";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFile, readdir } from "node:fs/promises";
@@ -47,6 +48,8 @@ export async function runReadOnlySynthetic({ origin, token, allowHTTPLoopback = 
 }
 
 export async function verifyReleaseSources() {
+  let failureStage = "sources-render";
+  try {
   // Evaluate the actual initializer/worker ordering in every supported phase.
   // A literal hook-weight string in the template doesn't prove rendered order.
   const renderedRollouts = [];
@@ -63,37 +66,45 @@ export async function verifyReleaseSources() {
     if (schemaJobs.length !== 1 || schemaJobs[0].metadata.name !== `agentsec-schema-v${schemaVersion}`) throw new Error("rendered rollout schema gate rejected");
     renderedRollouts.push({ schemaVersion, phase, schemaJob: schemaJobs[0].metadata.name });
   }
+  failureStage = "sources-images";
   const builds = await inspectContainerBuilds();
   if (builds.length !== 9 || builds.some((build) => !build.readOnlyCompatible || build.containsSecret)) throw new Error("container gate rejected");
 
+  failureStage = "sources-canary";
   const canary = await source("deploy/staging/product/templates/canary.yaml");
   const monitoring = await source("deploy/staging/product/templates/monitoring.yaml");
   if (!canary.includes("production-readonly-canary") || !canary.includes("/api/v1/home/summary") || !canary.includes("ZASP_CANARY_READ_TOKEN") || !monitoring.includes("ZaspAPIErrorBudgetBurn") || !monitoring.includes("> 0.01")) throw new Error("canary gate rejected");
 
+  failureStage = "sources-documentation";
   const requiredDocs = ["production-deployment.md", "backup-restore-rollback.md", "recovery-runbook.md", "observability-and-canaries.md", "authentication-and-support.md", "supported-workflows.md"];
   const docs = await Promise.all(requiredDocs.map((name) => source(`docs/operations/${name}`)));
   for (const phrase of ["schema v27", "Do not run `agentsec-migrate down`", "correlation ID", "must not ask", "not supported production workflows", "recovery hold", "cleanup_failed"]) {
     if (!docs.some((document) => document.includes(phrase))) throw new Error("documentation gate rejected");
   }
 
+  failureStage = "sources-npm-sbom";
   const { stdout } = await exec("npm", ["sbom", "--omit=dev", "--sbom-format", "spdx", "--json"], { cwd: root, encoding: "utf8", maxBuffer: 16 * 1024 * 1024 });
   const sbom = JSON.parse(stdout);
   if (sbom.spdxVersion !== "SPDX-2.3" || !Array.isArray(sbom.packages) || sbom.packages.length < 2) throw new Error("SBOM gate rejected");
   const allowed = new Set(["0BSD", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "ISC", "MIT", "MPL-2.0"]);
+  failureStage = "sources-npm-license";
   for (const entry of sbom.packages) {
     const license = entry.licenseConcluded ?? entry.licenseDeclared;
     if (entry.name === "zasp-agent-security-console" && license === "NOASSERTION") continue;
     if (!allowed.has(license)) throw new Error(`license gate rejected: ${entry.name}`);
   }
 
+  failureStage = "sources-go-sbom";
   const goSpdx = await goSourceSBOM();
   validateGoSpdxDocument(goSpdx);
   if (goSpdx.packages.length < 20) throw new Error("Go SBOM gate rejected");
+  failureStage = "sources-go-license";
   for (const entry of goSpdx.packages) {
     if (entry.licenseConcluded !== "NOASSERTION" && !allowed.has(entry.licenseConcluded)) throw new Error(`Go license gate rejected: ${entry.name}`);
     if (entry.licenseConcluded === "NOASSERTION" && !entry.name.startsWith("github.com/zasp-ai/zasp-sec/")) throw new Error(`Go license gate rejected: ${entry.name}`);
   }
 
+  failureStage = "sources-contracts";
   const sensitiveSources = await Promise.all([
     source(".dockerignore"), source("deploy/production/api.Dockerfile"), source("deploy/production/web.Dockerfile"), source("deploy/production/worker.Dockerfile"),
     source("deploy/production/event-ingest.Dockerfile"), source("deploy/production/gateway-control.Dockerfile"), source("deploy/production/runtime-gateway.Dockerfile"), source("deploy/production/sensor-agent.Dockerfile"),
@@ -128,15 +139,21 @@ export async function verifyReleaseSources() {
     "agentsec_ready", "zasp_worker_driver_ready", "zasp_worker_projection_backlog_age_seconds", "zasp_worker_lease_loss_total", "zasp_worker_exhaustion_total", "zasp_recovery_driver_ready", "zasp_recovery_queue_age_seconds", "zasp_recovery_hold_age_seconds", "zasp_recovery_exhaustion_total", "zasp_recovery_lease_loss_total", "zasp_recovery_cleanup_failure_total",
   ]) if (!monitoring.includes(contract)) throw new Error("worker monitoring gate rejected");
 
+  failureStage = "sources-gitleaks";
   await exec("gitleaks", ["git", "--no-banner", "--redact", "--log-opts=HEAD"], { cwd: root, encoding: "utf8", maxBuffer: 16 * 1024 * 1024 });
+  failureStage = "sources-ci";
   const workflow = await source(".github/workflows/runnable-ui.yml");
   if (!workflow.includes("fetch-depth: 0") || !workflow.includes("github.com/zricethezav/gitleaks/v8@v8.30.1") || !workflow.includes("npm run production:release:gate")) throw new Error("required CI gate rejected");
 
+  failureStage = "sources-image-definitions";
   const definitions = await Promise.all(["web", "api", "worker", "attack-lab-runner", "redteam-worker", "event-ingest", "gateway-control", "runtime-gateway", "sensor-agent"].map((name) => source(`deploy/production/${name}.Dockerfile`)));
   const imageReferences = new Set(definitions.flatMap((definition) => [...definition.matchAll(/^FROM\s+(\S+)/gm)].map((match) => match[1])));
   if (imageReferences.size !== 5 || [...imageReferences].some((reference) => !/@sha256:[0-9a-f]{64}$/.test(reference))) throw new Error("image definition gate rejected");
 
   return deepFreeze({ renderedRollouts, canary: true, documentation: true, imageDefinitions: builds.length, licensePolicy: true, trackedSecretScan: true, npmSpdxPackages: sbom.packages.length, goSpdxPackages: goSpdx.packages.length, goSpdx, requiredCI: true, task4Deployment: true, task6Deployment: true, recoveryDeployment: true, attackLabDeployment: true, privateDependencies: true });
+  } catch (error) {
+    throw releaseStageError(failureStage, error);
+  }
 }
 
 async function goSourceSBOM() {

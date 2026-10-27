@@ -1,0 +1,30 @@
+{
+  "schema": "independent-source-review-capture-correction-v1",
+  "status": "CLEAR",
+  "source": {
+    "path": ".github/workflows/gateway-pod-identity-components.yml",
+    "sha256": "103ecc7ffd1edf71e596d81f013d0c24d69b432e3426538d025f8f6e3444fe52",
+    "bytes": 3762
+  },
+  "preserved_receipts": [
+    {
+      "path": "/tmp/gateway-pod-identity-ci-review-20261017.json",
+      "sha256": "231536b05c43f8ad3ca174aa9f16709380d7db5b31e5777476bc1c6c6322fca3"
+    },
+    {
+      "path": "/tmp/gateway-pod-identity-ci-successor-review-20261017.json",
+      "sha256": "e8a21bd5b538ad664278fccba47133870ccdf6905eebf998f36300664086cb7a"
+    }
+  ],
+  "capture_correction": "The initial source-only read observed old validator missing package-wide lifecycle checks and parent corrected it before first JSON/source snapshot capture. Both prior receipts pin corrected workflow bytes, so initial HOLD is a finding against the earlier tool-visible read, NOT against their pinned bytes. The file called original-workflow-preimage also captured corrected bytes, so it is NOT a pre-correction snapshot. The successor exact_delta is empty for this reason. Prior artifacts are preserved rather than rewritten.",
+  "final_assessment": "Current pinned workflow source CLEAR: expected Package and known actions for every real JSON event; exact allowed five heads, each run/pass once; exact package start/pass once; no extra packages/tests, skip/fail/unknown actions accepted. Real Go subprocess output only, zero exit required, strict JSON/UTF8; full manifest hash/bytes before and after with all new Go/module/workflow required. Embedded Python parses. README explicit component-only with no native/deployed/production launch credit.",
+  "five_heads": [
+    "TestProjectedPodIdentityThirteenCallChain",
+    "TestProjectedPodIdentityAuthenticatedClaimsAndJSON",
+    "TestProjectedPodIdentityCurrentOwnershipAndDoubleRead",
+    "TestProjectedPodIdentityTransportBoundsAndDeadline",
+    "TestProjectedPodIdentitySecretReadinessAndLifecycle"
+  ],
+  "execution": "Source only; no Go/Node/tests/Git/network/native/deployed execution. Root final manifest custody and workflow execution pending. Old inherited workflow byte-preservation not independently provable without root preimages/Git; reviewer edited no product/workflow sources.",
+  "findings": []
+}

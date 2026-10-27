@@ -93,9 +93,52 @@ func buildProductionControlDependenciesWithFactory(ctx context.Context, config p
 	if err != nil || readiness.Ready(ctx) != nil {
 		return failRepository()
 	}
+	// Select the optional capability from the original repository BEFORE the
+	// readiness cache embeds only its legacy interface. Its own catalog readiness
+	// is evaluated solely on the installation route, never startup/global health.
+	var installation gatewaycontrol.InstallationRepository
+	if config.InstallationACKEnabled {
+		factory, ok := repository.(interface {
+			InstallationRepositoryForProfile(string) (gatewaycontrol.InstallationRepository, error)
+		})
+		if !ok {
+			return failRepository()
+		}
+		installation, err = factory.InstallationRepositoryForProfile(config.InstallationProfileChecksum)
+		if err != nil || invalidProductionValue(installation) {
+			return failRepository()
+		}
+	}
+	var enrollment gatewaycontrol.EnrollmentRepository
+	if config.EnrollmentEnabled {
+		factory, ok := repository.(interface {
+			EnrollmentRepositoryForProfile(string) (gatewaycontrol.EnrollmentRepository, error)
+		})
+		if !ok {
+			return failRepository()
+		}
+		enrollment, err = factory.EnrollmentRepositoryForProfile(config.EnrollmentProfileChecksum)
+		if err != nil || invalidProductionValue(enrollment) {
+			return failRepository()
+		}
+	}
+	// Select from the original pool before its legacy interface is cached.
+	var association gatewaycontrol.AssociationRepository
+	if config.AgentDeviceAssociationEnabled {
+		factory, ok := repository.(interface {
+			AssociationRepositoryForProfile(string) (gatewaycontrol.AssociationRepository, error)
+		})
+		if !ok {
+			return failRepository()
+		}
+		association, err = factory.AssociationRepositoryForProfile(config.AgentDeviceAssociationProfileChecksum)
+		if err != nil || invalidProductionValue(association) {
+			return failRepository()
+		}
+	}
 	cached := cachedControlRepository{Repository: repository, ready: readiness.Ready}
 	handler, err := gatewaycontrol.NewHTTPHandler(gatewaycontrol.HTTPHandlerConfig{
-		Repository: cached, Clock: clock, OperationTimeout: config.OperationTimeout, MaximumBodyBytes: config.MaximumBodyBytes,
+		Repository: cached, AssociationRepository: association, EnrollmentRepository: enrollment, InstallationRepository: installation, Clock: clock, OperationTimeout: config.OperationTimeout, MaximumBodyBytes: config.MaximumBodyBytes,
 	})
 	if err != nil {
 		return failRepository()

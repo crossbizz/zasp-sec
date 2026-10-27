@@ -1,0 +1,203 @@
+{
+  "observed_at": "2026-10-17T08:23:40.387646+00:00",
+  "continued_published_base": "9c02c32ce2515a6315984ea731ff663935d30edb",
+  "scope": "Connect original compiled38 IRSA+3 service-role inventory, exact EKS1.34 private endpoint/OIDC/IAM observations and same credential-exchange STS service-output proof. Read-only Kubernetes specification observations use same selected endpoint/CA/cluster authority. Final merge preserves actual failures and prevents partial inventory from becoming full readiness. No new workload grants or TokenReview; no JWT self-attestation or per-Runner mutable proof cache.",
+  "sources": [
+    {
+      "path": "services/platform/preflight/aws_authority.go",
+      "bytes": 11407,
+      "sha256": "f2160f9ed52637407ec90190d1443314d9c862f1c940efd7a9033fbe45bb02f4"
+    },
+    {
+      "path": "services/platform/preflight/aws_authority_catalog.go",
+      "bytes": 4835,
+      "sha256": "1ab08ade8e14f2d8e247bd5667a775f917d039bb98eb3bdea1b0690cedef61d3"
+    },
+    {
+      "path": "services/platform/preflight/aws_authority_config.go",
+      "bytes": 1723,
+      "sha256": "4cf79349b488b692af1912a298fa794f3981d33e1e8d9b233a4bad5ffc70feb2"
+    },
+    {
+      "path": "services/platform/preflight/aws_authority_policy.go",
+      "bytes": 2429,
+      "sha256": "ff6a4cdb8f156e4c8d9ab0f0eae215e69abcc8d97478471f292cd2ab18147344"
+    },
+    {
+      "path": "services/platform/preflight/aws_authority_test.go",
+      "bytes": 12267,
+      "sha256": "751a86d79f5afa777ac8d1b1b19ae729a0a5f1c3623a612a5b004229f270f8b6"
+    },
+    {
+      "path": "services/platform/preflight/aws_webidentity.go",
+      "bytes": 5718,
+      "sha256": "7a6c805b73c49b64cf5243cb59e4f7d74fce10535641f13498eb1ddcc5979233"
+    },
+    {
+      "path": "services/platform/preflight/aws_webidentity_test.go",
+      "bytes": 3594,
+      "sha256": "c383a2ab2e3e396c9cc7dce9498abed647e97251c9c8df971538a66dca476cd9"
+    },
+    {
+      "path": "services/platform/preflight/aws_kubernetes.go",
+      "bytes": 9158,
+      "sha256": "683a8314445ba07b9d67eaf26e2f52e8c71e80f12827cffd88b0be8cb098df8d"
+    },
+    {
+      "path": "services/platform/preflight/aws_kubernetes_test.go",
+      "bytes": 5902,
+      "sha256": "2bf8dfd9001cd5ea19728e67a38df128187be18a16363e78ae342e1f2c108e05"
+    },
+    {
+      "path": "services/platform/preflight/aws_integration.go",
+      "bytes": 2141,
+      "sha256": "4d7cfd50acd1c3ad597a8d97d213b313cbb25de803de2e23deff48425295773b"
+    },
+    {
+      "path": "services/platform/preflight/aws_integration_test.go",
+      "bytes": 5557,
+      "sha256": "65c530959741e5754ceb9e23d9d091d8c3ce7fb2ce22835dd47a526a702f2058"
+    },
+    {
+      "path": "services/platform/preflight/contract.go",
+      "bytes": 4811,
+      "sha256": "2fb6562f74cf96a91a2543ecab20299a096866a750c80114c44f0eb0eedd9cab"
+    },
+    {
+      "path": "services/platform/preflight/config.go",
+      "bytes": 6827,
+      "sha256": "631244f930031a2e988bf67006d8dbac241931829b1f1b90cf303be60e6e2d20"
+    },
+    {
+      "path": "services/platform/preflight/runner.go",
+      "bytes": 11569,
+      "sha256": "4e023766d2298f707faee01f201ff92dabba123a8aec4aed6992d80101ac6a72"
+    },
+    {
+      "path": "services/platform/preflight/credentials.go",
+      "bytes": 3884,
+      "sha256": "ebfc21b55848d42e3b843816aac327f172f27e613f8e3c1c82f8b5984e741ab2"
+    },
+    {
+      "path": "services/platform/go.mod",
+      "bytes": 4740,
+      "sha256": "865b28a2dcdfcfd455676709a399096190500a13337a294051047e69588238e1"
+    },
+    {
+      "path": "services/platform/go.sum",
+      "bytes": 27777,
+      "sha256": "4e030769478ca921923be45538ff8184f2d4850433b707de91bb128c51a85099"
+    },
+    {
+      "path": "cmd/agentsecctl/go.mod",
+      "bytes": 1737,
+      "sha256": "4c68dd671f9e67b06a8ca1c0eaedafaefdff965dfaa1122351ccc472831c809d"
+    },
+    {
+      "path": "cmd/agentsecctl/go.sum",
+      "bytes": 6261,
+      "sha256": "edb4a61d04d22f7bc129baab930234a27c53175082fa8110ca097304c4945d1b"
+    }
+  ],
+  "source_associations": [
+    {
+      "path": "scripts/connector-acceptance-groups.test.mjs",
+      "sha256": "a4b90a7e34bcf4164051e6e496ad4493e4dde50250087aa1dced720a6fd49667",
+      "bytes": 38469
+    },
+    {
+      "path": ".github/workflows/connector-native-draft-compile.yml",
+      "sha256": "9f715b7802b35a5bedf950f2c45aad61fd5dd99eb10a045b9c73f76c47693902",
+      "bytes": 20848
+    },
+    {
+      "path": "scripts/hosted-connected-connector-acceptance.mjs",
+      "sha256": "b0b8eb16a544f7e60f95cb99f186d14efa3d636dc42c6abc28f3670416d480e6",
+      "bytes": 85531
+    },
+    {
+      "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
+      "sha256": "52ba192f30f7f0fdaac265f0079d89cd3b5bec66b251abc25316cb04beb4b4f0",
+      "bytes": 81932
+    },
+    {
+      "path": ".github/connector-native-compile-source-pins.json",
+      "sha256": "5eccbebc3e0c6fa74c5426db9e52d74b0a3880a3be393acd5639696fbffd28f8",
+      "bytes": 123015
+    }
+  ],
+  "modules": "Exact EKS1.92.1 compatible with existing core SDK; genuine Go download verified h1; CLI metadata genuine offline go mod tidy exit0. No existing dependency version upgraded.",
+  "verification": {
+    "integrated-final-full-preflight-race": {
+      "pass": 104
+    },
+    "integrated-final-full-cli-race": {
+      "pass": 148
+    },
+    "actual_compiled_CLI": {
+      "binary_sha256": "bcf3c29df60f6114d4727101dfc1b5082fb6157d9467eb0e576c2d701837ad61",
+      "cases": [
+        {
+          "mode": "before-install",
+          "exit": 1,
+          "checks": 8,
+          "authority": {
+            "required_roles": 41,
+            "observed_roles": 0,
+            "required_trust": 38,
+            "observed_trust": 0,
+            "selected_service_account_exchange": false,
+            "selected_deployed_spec": false
+          },
+          "ready": false,
+          "stdout_sha256": "dc3df964888ac370a0ad9cdccfa36db38e8d22cff96dbb8434f4fec353ad3c94",
+          "stderr_bytes": 0
+        },
+        {
+          "mode": "installed",
+          "exit": 1,
+          "checks": 8,
+          "authority": {
+            "required_roles": 41,
+            "observed_roles": 0,
+            "required_trust": 38,
+            "observed_trust": 0,
+            "selected_service_account_exchange": false,
+            "selected_deployed_spec": false
+          },
+          "ready": false,
+          "stdout_sha256": "713aba033eb7e5a30c2d6940acf4af86a197a4e31bdc0e2d73801077f74efad7",
+          "stderr_bytes": 0
+        }
+      ],
+      "qualification": "Actual compiled CLI with explicit new AWS authority and controlled missing credentials/no Kubernetes. No provider calls, native database or deployed E2E proof. Real failure evidence is not replaced by inventory success."
+    },
+    "source_ledger_checks_pass": 54,
+    "source_pins_verified": 407,
+    "fresh_UI_typecheck_exit": 0,
+    "fresh_UI_build_exit": 0,
+    "lint_exit": 0,
+    "lint_scope_checks_pass": 11,
+    "hosted_new_batch": "pending exact published head",
+    "native_database_execution": false,
+    "real_provider_requests": false,
+    "production_or_deployed_E2E": false
+  },
+  "ledger": {
+    "rows": 728,
+    "unique_ids": 728,
+    "classes": {
+      "production-available": 523,
+      "component-only": 144,
+      "blocked/external": 61
+    },
+    "promotions": 0
+  },
+  "archive": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/aws-authority/component-evidence.json.gz",
+    "bytes": 89770,
+    "sha256": "8005f304688936b87c1b372252503ef82be65688ce78fd5d4d4f023ff8207b69",
+    "members": 64
+  },
+  "remaining": "Fargate, private network, OpenSearch, actual write/consume privileges, real tenant/provider bindings, fleet credential retirement and full deployed acceptance remain required. Pod specification does not prove token-PodUID ownership or revocation. Existing native/browser/security/release gates stay mandatory; no original task promoted."
+}

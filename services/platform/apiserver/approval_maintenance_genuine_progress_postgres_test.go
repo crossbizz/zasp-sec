@@ -65,8 +65,15 @@ func TestApprovalMaintenanceGenuineLateProgressEnqueueInactive(t *testing.T) {
 }
 
 func assertApprovalOriginOrdered68TestApproval(c ordered68TestFlowContext) ordered68ApprovedTestContext {
+	return assertApprovalOriginOrdered68TestApprovalWithState(c, "captured_inactive")
+}
+
+func assertApprovalOriginOrdered68TestApprovalWithState(c ordered68TestFlowContext, expectedCaptureState string) ordered68ApprovedTestContext {
 	t, ctx := c.t, c.ctx
 	t.Helper()
+	if !approvalActivationCaptureStateValid(expectedCaptureState) {
+		t.Fatal("invalid explicit progress capture state")
+	}
 	var identity struct {
 		Organization string `json:"organization_id"`
 		Workspace    string `json:"workspace_id"`
@@ -142,13 +149,10 @@ func assertApprovalOriginOrdered68TestApproval(c ordered68TestFlowContext) order
 		t.Fatal("applied Block did not produce pending Test approval")
 	}
 	var nativeCapture bool
-	if err := c.owner.QueryRow(ctx, `SELECT count(*)=1 AND bool_and(o.status='captured_inactive' AND o.family='ordered68_progress' AND o.delegation->>'purpose'='approval_notification_delivery' AND public.zasp_valid_product_id(o.delegation->>'task_id') AND o.delegation->>'grantor_id'=o.facts->>'grantor_id' AND o.delegation->>'principal_id'=o.facts->>'principal_id' AND o.payload_digest=n.payload_digest AND o.destination_url=n.destination_url AND o.secret_reference=n.secret_reference AND n.attempt=0 AND n.state='pending' AND jsonb_array_length(o.facts->'checks')=2) FROM zasp_approval_maintenance.origins o JOIN public.zasp_security_agent_approval_notifications n USING(organization_id,workspace_id,environment_id,delivery_id) WHERE o.run_id=$1 AND n.approval_id IN(SELECT approval_id FROM zasp_security_agent_approvals WHERE run_id=$1 AND step_id=$2)`, identity.Run, step).Scan(&nativeCapture); err != nil || !nativeCapture {
+	if err := c.owner.QueryRow(ctx, `SELECT count(*)=1 AND bool_and(o.status=$3 AND o.family='ordered68_progress' AND o.delegation->>'purpose'='approval_notification_delivery' AND public.zasp_valid_product_id(o.delegation->>'task_id') AND o.delegation->>'grantor_id'=o.facts->>'grantor_id' AND o.delegation->>'principal_id'=o.facts->>'principal_id' AND o.payload_digest=n.payload_digest AND o.destination_url=n.destination_url AND o.secret_reference=n.secret_reference AND n.attempt=0 AND n.state='pending' AND jsonb_array_length(o.facts->'checks')=2) FROM zasp_approval_maintenance.origins o JOIN public.zasp_security_agent_approval_notifications n USING(organization_id,workspace_id,environment_id,delivery_id) WHERE o.run_id=$1 AND n.approval_id IN(SELECT approval_id FROM zasp_security_agent_approvals WHERE run_id=$1 AND step_id=$2)`, identity.Run, step, expectedCaptureState).Scan(&nativeCapture); err != nil || !nativeCapture {
 		t.Fatal("genuine signed late progress failed inactive notification capture", err)
 	}
-	var projected bool
-	if err := c.owner.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM zasp_approval_maintenance.delivery_grants WHERE organization_id=$1)`, identity.Organization).Scan(&projected); err != nil || projected {
-		t.Fatal("inactive late progress issued delivery authority", err)
-	}
+	assertApprovalImmediateProjection(t, ctx, c.owner, identity.Organization, identity.Workspace, identity.Environment, identity.Run, expectedCaptureState == "active")
 	before := evidence()
 	c.reconcile()
 	if replay := invoke(); !bytes.Equal(first, replay) || !bytes.Equal(before, evidence()) {

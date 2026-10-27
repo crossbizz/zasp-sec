@@ -1,0 +1,1386 @@
+{
+  "format": "original-ledger-remaining-inventory-v7",
+  "observedAt": "2026-10-17T17:20:13.688374+00:00",
+  "sourceParent": "315fd9c38d640185376ad0d525636883f6841221",
+  "ledgerSHA256": "b874ae6a436b3acba43a3b49fdd0678832aa254297d3c239bc35bc159749f79c",
+  "total": 728,
+  "uniqueIDs": 728,
+  "historicalLedgerStatusCounts": {
+    "Complete": 667,
+    "Blocked": 61
+  },
+  "counts": {
+    "production-available": 509,
+    "component-only": 158,
+    "blocked/external": 61
+  },
+  "remainingRecordedNonProduction": 219,
+  "byOwner": {
+    "T11-identity-admin": [
+      {
+        "id": "M0-02",
+        "milestone": "M0",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M0-03",
+        "milestone": "M0",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M2-33",
+        "milestone": "M2",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M2-41",
+        "milestone": "M2",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M2-42",
+        "milestone": "M2",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M2-46b",
+        "milestone": "M2",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M2-47",
+        "milestone": "M2",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7-36",
+        "milestone": "M7",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      }
+    ],
+    "T04-discovery-worker": [
+      {
+        "id": "M0-06",
+        "milestone": "M0",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M0-07",
+        "milestone": "M0",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M0-08",
+        "milestone": "M0",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M0-10",
+        "milestone": "M0",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M1-01b",
+        "milestone": "M1",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M1-30a",
+        "milestone": "M1",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M1-30b",
+        "milestone": "M1",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M1-30c",
+        "milestone": "M1",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M1-30d",
+        "milestone": "M1",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M1-30",
+        "milestone": "M1",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M1-31",
+        "milestone": "M1",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M1-33",
+        "milestone": "M1",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M1-34",
+        "milestone": "M1",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M1-36e",
+        "milestone": "M1",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      }
+    ],
+    "EXT-live-aws": [
+      {
+        "id": "M0-09",
+        "milestone": "M0",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M3-14",
+        "milestone": "M3",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      }
+    ],
+    "T03-launch-connectors": [
+      {
+        "id": "M0-11",
+        "milestone": "M0",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M0-14a",
+        "milestone": "M0",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M0-14b",
+        "milestone": "M0",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M0-14c",
+        "milestone": "M0",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M0-14",
+        "milestone": "M0",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M0-15",
+        "milestone": "M0",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-41",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      }
+    ],
+    "T12-red-team": [
+      {
+        "id": "M0-16",
+        "milestone": "M0",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      }
+    ],
+    "EXT-live-fargate": [
+      {
+        "id": "M0-18",
+        "milestone": "M0",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M0-19",
+        "milestone": "M0",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      }
+    ],
+    "T14-data-workflows": [
+      {
+        "id": "M0-20",
+        "milestone": "M0",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M0-21",
+        "milestone": "M0",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M0-22",
+        "milestone": "M0",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7-08",
+        "milestone": "M7",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7-09",
+        "milestone": "M7",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7-10",
+        "milestone": "M7",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7-11",
+        "milestone": "M7",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7-12",
+        "milestone": "M7",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7-13",
+        "milestone": "M7",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7-14",
+        "milestone": "M7",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7-15a",
+        "milestone": "M7",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7-15b",
+        "milestone": "M7",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7-15d",
+        "milestone": "M7",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7-15",
+        "milestone": "M7",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7-19",
+        "milestone": "M7",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7-22",
+        "milestone": "M7",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7-22a",
+        "milestone": "M7",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7-23",
+        "milestone": "M7",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7-24",
+        "milestone": "M7",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7-25",
+        "milestone": "M7",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7-26a",
+        "milestone": "M7",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7-26b",
+        "milestone": "M7",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7-26c",
+        "milestone": "M7",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7-26",
+        "milestone": "M7",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7-27",
+        "milestone": "M7",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7-28",
+        "milestone": "M7",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7-29",
+        "milestone": "M7",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7-30",
+        "milestone": "M7",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7-39a",
+        "milestone": "M7",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7-39b",
+        "milestone": "M7",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7-39c",
+        "milestone": "M7",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7-39d",
+        "milestone": "M7",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7-39e",
+        "milestone": "M7",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7-39",
+        "milestone": "M7",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7-40d",
+        "milestone": "M7",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7-40e",
+        "milestone": "M7",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7-40",
+        "milestone": "M7",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-42a",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-42b",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-42c",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-42d",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-42e",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-42f",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-42",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      }
+    ],
+    "T07-security-agent-authority": [
+      {
+        "id": "M0-21a",
+        "milestone": "M0",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7A-49",
+        "milestone": "M7A",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      }
+    ],
+    "T10-product-ui": [
+      {
+        "id": "M1-01c",
+        "milestone": "M1",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M4-50a",
+        "milestone": "M4",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M4-50b1",
+        "milestone": "M4",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M4-50b2",
+        "milestone": "M4",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M4-50b3",
+        "milestone": "M4",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M4-50c",
+        "milestone": "M4",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M4-50",
+        "milestone": "M4",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7A-84",
+        "milestone": "M7A",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7A-86",
+        "milestone": "M7A",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7A-87",
+        "milestone": "M7A",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7A-88",
+        "milestone": "M7A",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7A-89",
+        "milestone": "M7A",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7A-90",
+        "milestone": "M7A",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      }
+    ],
+    "T15-deployment": [
+      {
+        "id": "M1A-01",
+        "milestone": "M1A",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M1A-02",
+        "milestone": "M1A",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M1A-03",
+        "milestone": "M1A",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M1A-04",
+        "milestone": "M1A",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M1A-05",
+        "milestone": "M1A",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M1A-06",
+        "milestone": "M1A",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-01a",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-01b",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-01c",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-01",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-02",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-03",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-04",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-05",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-06",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-07",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-47",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-56",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      }
+    ],
+    "EXT-cloud-deploy": [
+      {
+        "id": "M1A-07",
+        "milestone": "M1A",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M1A-08",
+        "milestone": "M1A",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M1A-09",
+        "milestone": "M1A",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M1A-10",
+        "milestone": "M1A",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-25",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-26",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-27",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-28",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-29",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-30",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-31",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-32",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-33",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-34",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-35",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-36b",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-36",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-37",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-38b",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-38",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-39",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-51a",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-51b",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-51c",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-51d",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-51e",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-51",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-58b",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-58",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-59b",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-59",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-60b",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-60",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-61a",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-61",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-63a",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-63b",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-63c",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-63d",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-63e",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-63",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-54",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      }
+    ],
+    "EXT-human-observation": [
+      {
+        "id": "M3-52",
+        "milestone": "M3",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-52a",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-52b",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-52c",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-52d",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-52",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-53",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-62a",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-62b",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-62c",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-62d",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-62e",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-62",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      }
+    ],
+    "T05-inventory-cutover": [
+      {
+        "id": "M4-04",
+        "milestone": "M4",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M4-06",
+        "milestone": "M4",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M4-07",
+        "milestone": "M4",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M4-08",
+        "milestone": "M4",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M4-05",
+        "milestone": "M4",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      }
+    ],
+    "T08-supervised-agent": [
+      {
+        "id": "M7A-16",
+        "milestone": "M7A",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7A-21",
+        "milestone": "M7A",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7A-22",
+        "milestone": "M7A",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7A-23",
+        "milestone": "M7A",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7A-24",
+        "milestone": "M7A",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7A-25",
+        "milestone": "M7A",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      }
+    ],
+    "T09-agent-actions": [
+      {
+        "id": "M7A-94",
+        "milestone": "M7A",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7A-95",
+        "milestone": "M7A",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7A-96",
+        "milestone": "M7A",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7A-100",
+        "milestone": "M7A",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M7A-101",
+        "milestone": "M7A",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      }
+    ],
+    "T16-recovery-ops": [
+      {
+        "id": "M8-16",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-17a",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-17b",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-17c",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-17d",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-17e",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-17",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-18",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-19",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-22a",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-22b",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-22c",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-22d",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-22",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-23a",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-23b",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-23c",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-23d",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-23",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-24",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-36a",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-36c",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-38a",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-38c",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-40a",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-40b",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-40c",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-40d",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-40",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-58a",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-59a1",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-59a2",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-59a3",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-59a",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      },
+      {
+        "id": "M8-60a",
+        "milestone": "M8",
+        "ledger_status": "Complete",
+        "classification": "component-only"
+      }
+    ],
+    "EXT-image-attestation": [
+      {
+        "id": "M8-45",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      },
+      {
+        "id": "M8-46",
+        "milestone": "M8",
+        "ledger_status": "Blocked",
+        "classification": "blocked/external"
+      }
+    ]
+  },
+  "predecessor": {
+    "path": "docs/internal/cloud-goal-remaining-task-inventory-2026-10-17-agent-read-source-audit-successor.json",
+    "sha256": "eb2ba7d11bb51962d75beaea5f6dcabf772efdd8eafcb63181a9245e26de1f89",
+    "records_retained": 218
+  },
+  "qualification": "Exact original728 ledger inventory; source audit downgradesM4-05 only. All original requirements remain; current source/component checks do not replace deployed acceptance. No availability promotion.",
+  "sourceOnlySuccessorNote": "All219 predecessor records retained unchanged. M4-05 source integration does not establish production availability or deployed acceptance.",
+  "predecessorInventory": {
+    "path": "docs/internal/cloud-goal-remaining-task-inventory-2026-10-17-agent-ownership-write-source-successor.json",
+    "sha256": "ca58d7a808e4cb18fa7fab467a2a291afbc850bb21493478217b059c3399c837"
+  },
+  "supportingContinuation": {
+    "task": "M8-22d",
+    "checkpoint": "docs/internal/cloud-recovery-upgrade-live-prerequisite-checkpoint-2026-10-17.json",
+    "classification": "component-only",
+    "promotions": 0,
+    "remainingRecordsUnchanged": true
+  }
+}

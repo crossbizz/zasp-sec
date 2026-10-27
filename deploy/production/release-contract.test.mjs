@@ -217,7 +217,7 @@ test("customer edge isolates lineage producer, consumer and layout initializatio
   assert.deepEqual(socket.hostPath, { path: "/var/run/tetragon", type: "DirectoryOrCreate" });
   assert.equal(pod.volumes.find(({ name }) => name === "state").hostPath.path, "/var/lib/zasp-sensor-lineage");
   assert.deepEqual(one(resources, "ClusterRole", "sensor-lineage-identity").rules, [
-    { apiGroups: [""], resources: ["nodes"], verbs: ["get"] },
+    { apiGroups: [""], resources: ["nodes"], verbs: ["get", "list"] },
     { apiGroups: [""], resources: ["namespaces"], resourceNames: ["kube-system"], verbs: ["get"] },
   ]);
 });
@@ -242,13 +242,21 @@ test("runtime session search bootstrap and worker IAM have separate fixed paths"
   assert.ok(init.includes("/zasp-runtime-sessions-v1/_doc/_zasp_session_schema_v1"));
   assert.doesNotMatch(init, /es:ESHttpPost|es:ESHttpDelete|_bulk|_mget|_refresh|_search"/);
   const sessionBlocks = [...block("runtime").matchAll(/each\.key == "index" \? jsonencode\(\{[\s\S]*?\}\) : null/g)].map(match=>match[0]).filter(value=>value.includes("zasp-runtime-sessions-v1"));
-  assert.equal(sessionBlocks.length, 2);
+  assert.equal(sessionBlocks.length, 4);
   const get = sessionBlocks.find(value=>value.includes('["es:ESHttpGet"]'));
   const post = sessionBlocks.find(value=>value.includes('["es:ESHttpPost"]'));
   assert.ok(get && post);
   for (const path of ["_mapping", "_doc/_zasp_session_schema_v1"]) assert.ok(get.includes(`/zasp-runtime-sessions-v1/${path}`));
   for (const path of ["_bulk", "_mget", "_refresh"]) assert.ok(post.includes(`/zasp-runtime-sessions-v1/${path}`));
-  for (const statement of sessionBlocks) assert.doesNotMatch(statement, /ESHttpPut|ESHttpDelete|sessions-v1\/\*|sessions-v1"/);
+  for (const statement of [get, post]) assert.doesNotMatch(statement, /ESHttpPut|ESHttpDelete|sessions-v1\/\*|sessions-v1"/);
+  const cleanup = sessionBlocks.find(value=>value.includes('["es:ESHttpGet", "es:ESHttpDelete"]'));
+  const search = sessionBlocks.find(value=>value.includes('["es:ESHttpPost"]') && value.includes('/zasp-runtime-sessions-v1/_search'));
+  assert.ok(cleanup && search);
+  for(const index of ["zasp-runtime-events-v1","zasp-runtime-sessions-v1","zasp-runtime-sessions-v2"]) {
+    assert.ok(search.includes(`/${index}/_search`));
+    assert.ok(cleanup.includes(`/${index}/_doc/${index.includes("events") ? "evt_" : ""}${"?".repeat(64)}`));
+  }
+  for(const statement of [cleanup, search]) assert.doesNotMatch(statement, /_delete_by_query|_zasp_.*schema|ESHttpPut|events-v1\/\*|sessions-v[12]\/\*/);
   const source = await readFile(new URL("../../services/platform/agentsec-worker/projection_init.go", import.meta.url), "utf8");
   assert.match(source, /initializeProductionSearchSchemas\(bounded, driver, raw, sessions\)/);
 });
@@ -1797,7 +1805,14 @@ test("terraform isolates connector mutation and reference authorization behind o
   const policyStart = terraform.indexOf('resource "aws_iam_role_policy" "api_connectors"');
   const policy = terraform.slice(policyStart, terraform.indexOf("\nresource ", policyStart + 1));
   const actions = [...policy.matchAll(/Action\s*=\s*\[([\s\S]*?)\]/g)].flatMap(([, list]) => [...list.matchAll(/"([^"]+)"/g)].map(([, action]) => action)).sort();
-  assert.deepEqual(actions, ["es:ESHttpGet", "es:ESHttpPost", "kms:Decrypt", "kms:Decrypt", "kms:GenerateDataKey", "secretsmanager:CreateSecret", "secretsmanager:DeleteSecret", "secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue", "secretsmanager:GetSecretValue", "secretsmanager:GetSecretValue", "secretsmanager:GetSecretValue", "sts:AssumeRole"].sort());
+  assert.deepEqual(actions, ["es:ESHttpGet", "es:ESHttpPost", "kms:Decrypt", "kms:Decrypt", "kms:Decrypt", "kms:GenerateDataKey", "secretsmanager:CreateSecret", "secretsmanager:DeleteSecret", "secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue", "secretsmanager:GetSecretValue", "secretsmanager:GetSecretValue", "secretsmanager:GetSecretValue", "secretsmanager:GetSecretValue", "sts:AssumeRole"].sort());
+  // The API's OpenRouter credential read is intentionally separate from
+  // connector mutations and is confined to the same exact secret namespace.
+  const openRouterSecretARN = String.raw`arn:\$\{local\.partition\}:secretsmanager:\$\{var\.region\}:\$\{var\.account_id\}:secret:\$\{local\.connector_secret_root\}/ai/openrouter/\*`;
+  const openRouterRead = new RegExp(String.raw`\{\s*Effect\s*=\s*"Allow"\s*Action\s*=\s*\["secretsmanager:GetSecretValue"\]\s*Resource\s*=\s*\["${openRouterSecretARN}"\]\s*\}`, "g");
+  assert.equal([...policy.matchAll(openRouterRead)].length, 1, "OpenRouter read must use only its configured credential namespace");
+  const openRouterDecrypt = new RegExp(String.raw`\{\s*Effect\s*=\s*"Allow"\s*Action\s*=\s*\["kms:Decrypt"\]\s*Resource\s*=\s*aws_kms_key\.connector_oauth\.arn\s*Condition\s*=\s*\{\s*StringEquals\s*=\s*\{\s*"kms:ViaService"\s*=\s*"secretsmanager\.\$\{var\.region\}\.amazonaws\.com"\s*\}\s*ArnLike\s*=\s*\{\s*"kms:EncryptionContext:SecretARN"\s*=\s*"${openRouterSecretARN}"\s*\}\s*\}\s*\}`, "g");
+  assert.equal([...policy.matchAll(openRouterDecrypt)].length, 1, "OpenRouter decrypt must use the connector key through Secrets Manager with the same secret context");
 	assert.match(policy, /Action\s*=\s*\["es:ESHttpGet"\][\s\S]*zasp-runtime-events-v1\/_mapping[\s\S]*zasp-runtime-events-v1\/_doc\/_zasp_schema_v1/);
 	assert.match(policy, /Action\s*=\s*\["es:ESHttpPost"\][\s\S]*zasp-runtime-events-v1\/_search/);
 	assert.doesNotMatch(policy, /es:ESHttp(?:Delete|Patch|Put)/);
@@ -2136,5 +2151,56 @@ test("API build dependency stage resolves its copied local health module", async
     assert.deepEqual(await Promise.all(["go.mod", "go.sum"].map((name) => readFile(path.join(workdir, name)))), before);
   } finally {
     await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("selected sensor inventory has shared pool, identity witness and exact read permissions", async () => {
+  const resources = await renderCustomerEdgeRelease(edgeRelease);
+  const sensor = one(resources, "DaemonSet", "sensor-agent");
+  const tetragon = one(resources, "DaemonSet", "zasp-tetragon");
+  assert.deepEqual(sensor.spec.template.spec.nodeSelector, edgeRelease.sensorNodeSelector);
+  assert.deepEqual(tetragon.spec.template.spec.nodeSelector, edgeRelease.sensorNodeSelector);
+  const containers = sensor.spec.template.spec.containers;
+  const consumer = containers.find(c => c.name === "sensor-agent"), producer = containers.find(c => c.name === "lineage-producer");
+  const config = JSON.parse(Object.fromEntries(consumer.env.filter(e => e.value !== undefined).map(e => [e.name,e.value])).ZASP_SENSOR_COVERAGE_CONFIG);
+  assert.equal(config.cluster_uid, edgeRelease.sensorClusterUID);
+  assert.equal(config.enrollment_binding, edgeRelease.sensorEnrollmentBinding);
+  assert.equal(config.sensor.name, "sensor-agent");
+  assert.equal(config.tetragon.name, "zasp-tetragon");
+  assert.equal(consumer.env.find(e => e.name === "ZASP_SENSOR_POD_UID").valueFrom.fieldRef.fieldPath, "metadata.uid");
+  assert.equal(producer.env.find(e => e.name === "ZASP_SENSOR_POD_UID").valueFrom.fieldRef.fieldPath, "metadata.uid");
+  assert.equal(consumer.volumeMounts.find(m => m.subPath === "observations").readOnly, true);
+  assert.notEqual(producer.volumeMounts.find(m => m.subPath === "observations").readOnly, true);
+  const role = one(resources, "Role", "sensor-agent");
+  const ds = role.rules.find(r => r.resources.includes("daemonsets"));
+  assert.deepEqual(ds.verbs, ["get"]);
+  assert.deepEqual(ds.resourceNames, ["sensor-agent", "zasp-tetragon"]);
+  const nodes = one(resources, "ClusterRole", "sensor-lineage-identity").rules.find(r => r.resources.includes("nodes"));
+  assert.deepEqual(nodes.verbs, ["get", "list"]);
+  for (const invalid of [{ ...edgeRelease, sensorClusterUID: "" }, { ...edgeRelease, sensorNodeSelector: {} }]) await assert.rejects(renderCustomerEdgeRelease(invalid), /edge release rejected/);
+});
+
+test("customer edge retained observation maps explicit enrollment constraint only to consumer", async () => {
+ const sensorID="pid_91000001-0000-4000-8000-000000000001";
+ for(const selected of [undefined,{enabled:false,sensorID:""},{enabled:true,sensorID}]){
+  const value=selected===undefined?edgeRelease:{...edgeRelease,sensorNodeCoverage:selected};
+  const resources=await renderCustomerEdgeRelease(value);
+  const pod=one(resources,"DaemonSet","sensor-agent").spec.template.spec;
+  for(const container of [...pod.containers,...pod.initContainers]){
+   const entries=(container.env??[]).filter(e=>e.name?.startsWith("ZASP_SENSOR_NODE_COVERAGE_")||e.name==="ZASP_SENSOR_ID");
+   assert.deepEqual(entries,selected?.enabled&&container.name==="sensor-agent"?[{name:"ZASP_SENSOR_NODE_COVERAGE_RETENTION_ENABLED",value:"true"},{name:"ZASP_SENSOR_ID",value:sensorID}]:[]);
+  }
+ }
+ for(const sensorNodeCoverage of [null,{}, {enabled:true,sensorID:""},{enabled:false,sensorID},{enabled:true,sensorID,extra:true}])await assert.rejects(renderCustomerEdgeRelease({...edgeRelease,sensorNodeCoverage}));
+});
+
+// This grouped boundary uses actual release entry points and refuses malformed
+// selection before Helm. Successful chart rendering remains a separate gate.
+test("gateway installation release entry points refuse malformed server and edge selection before rendering", async () => {
+  for (const gatewayInstallation of [null, {}, {enabled:'true',profileChecksum:''}, {enabled:false,profileChecksum:'a'.repeat(64)}, {enabled:true,profileChecksum:'a'.repeat(64)}]) {
+    await assert.rejects(renderRelease(release, {schemaVersion:49,gatewayInstallation}), /gateway installation deployment rejected/);
+  }
+  for (const gatewayInstallation of [null, {}, {enabled:'true'}, {enabled:true,profileChecksum:'a'.repeat(64)}]) {
+    await assert.rejects(renderCustomerEdgeRelease({...edgeRelease,gatewayInstallation}), /edge release rejected/);
   }
 });

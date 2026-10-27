@@ -21,8 +21,10 @@ export function validateDiscoveryScheduleReplayResources(resources, schema, phas
   if (exact("HorizontalPodAutoscaler") !== expected || exact("PodDisruptionBudget") !== expected || schedulerUnavailable !== expected) throw new Error("release rejected");
 }
 
-export function validateSessionSearchResources(resources, phase) {
+export function validateSessionSearchResources(resources, phase, retention) {
   const precise = ["precision-consumers", "precision-intake"].includes(phase);
+  const retentionEnabled = retention?.enabled === true;
+  if (retentionEnabled && (phase !== "precision-intake" || retention.indexStageVersion !== "runtime-index-v2" || retention.sessionIndex !== "zasp-runtime-sessions-v2" || !/^[a-f0-9]{64}$/.test(retention.profileChecksum))) throw new Error("release rejected");
   const fail = () => { throw new Error("release rejected"); };
   const one = (kind, name) => {
     const rows = resources.filter(r => r.kind === kind && r.metadata?.name === name);
@@ -47,8 +49,8 @@ export function validateSessionSearchResources(resources, phase) {
       if (container(one("Deployment", name)).env?.some(e => e.name === key)) fail();
     }
   }
-  for (const [name, version] of [["archive",precise ? 2 : 1], ["correlation",precise ? 4 : 2], ["projection",precise ? 3 : 1], ["complete",precise ? 3 : 1], ["index",1]]) expectEnv(one("Deployment", `agentsec-runtime-${name}`), "ZASP_RUNTIME_STAGE_VERSION", `runtime-${name}-v${version}`);
-  expectEnv(one("Deployment", "agentsec-runtime-index"), "ZASP_RUNTIME_SESSION_INDEX", "zasp-runtime-sessions-v1");
+  for (const [name, version] of [["archive",precise ? 2 : 1], ["correlation",precise ? 4 : 2], ["projection",precise ? 3 : 1], ["complete",precise ? 3 : 1], ["index",retentionEnabled ? 2 : 1]]) expectEnv(one("Deployment", `agentsec-runtime-${name}`), "ZASP_RUNTIME_STAGE_VERSION", `runtime-${name}-v${version}`);
+  expectEnv(one("Deployment", "agentsec-runtime-index"), "ZASP_RUNTIME_SESSION_INDEX", retentionEnabled ? "zasp-runtime-sessions-v2" : "zasp-runtime-sessions-v1");
   const v1init = one("Job", "agentsec-projection-search-init-v1");
   expectEnv(v1init, "ZASP_RUNTIME_SESSION_INDEX", "zasp-runtime-sessions-v1");
   for (const init of [v1init, one("Job", "agentsec-projection-graph-init-v1")]) {

@@ -1,0 +1,50 @@
+{
+  "status": "HOLD_FINITE_PROVIDER_DESIGN_BOUNDARIES_PENDING_OWNER_CONTRACT",
+  "reviewer": "/root/gateway_review",
+  "created_at": "2026-10-17T21:48:28.497331+00:00",
+  "contract": {
+    "path": "/tmp/authentic-agent-routing-proxy-contract-20261017.json",
+    "sha256": "231a8ed445fbd563e70b9aecf4f7d91e1c245ba58010007d357c72c4e63c00f3"
+  },
+  "source_pin_mismatches": [],
+  "scope": "Selected provider verifier design only; no product implementation reviewed. Separate wire owner draft not yet available at initial review.",
+  "findings": [
+    {
+      "id": "LIVE_AGENT_LABEL",
+      "priority": "P1",
+      "scope": "provider_phase.live_chain",
+      "source": "services/platform/connectors/kubernetesdiscovery/collection_api.go:727",
+      "problem": "Discovery creates kubernetes_agent only for Deployment metadata.labels[zasp.ai/entity-kind]=agent. Current provider chain contract compares UID/owner/SA/node/boot/delete facts but omits that live classification label. Removed Agent classification may therefore be accepted against still-fresh earlier inventory.",
+      "required": "Explicitly require the exact Agent label in both live Deployment reads and include it in security fact comparison; ensure live Deployment template serviceAccountName (default normalized only when absent) matches the reviewed Pod/SA as discovery uses the template for uses_identity. Label/SA change fails closed."
+    },
+    {
+      "id": "PROVIDER_JSON_COMPATIBILITY",
+      "priority": "P2",
+      "scope": "Kubernetes response parser exact DTO policy",
+      "problem": "Normal Kubernetes GET and TokenReview objects contain many legitimate extra metadata/spec/status fields. Closed object DTO rejection would reject real provider responses. Conversely default Go JSON case-folding, duplicate members and scalar null coercion can alias required security facts.",
+      "required": "Freeze bounded duplicate/invalidUTF/surrogate/case-alias-safe JSON extraction that allows irrelevant legitimate Kubernetes fields while requiring exact paths/types for selected security facts. Accept normal metadata managedFields/resourceVersion, Pod/Deployment spec/status, TokenReview spec/status/user extra; missing/null required facts reject. Omitted error or empty string is allowed, nonempty error rejects; irrelevant unknown fields do not become identity."
+    },
+    {
+      "id": "SA_UID_NATIVE_PROVENANCE",
+      "priority": "P1",
+      "scope": "Go_ABI.gatewayPolicyOnlyIdentity.PrincipalID/backend source mapping",
+      "source": "services/platform/connectors/kubernetesdiscovery/collection_api.go:423 and661",
+      "problem": "ServiceAccount normalized entity source_native_id/stable_fields use namespace/name and omit UID; same entity may be emitted from a RoleBinding reference. Equality to live reviewed SA UID cannot be claimed from that entity alone.",
+      "required": "Backend contract must require fresh authenticated actual ServiceAccount occurrence/UID evidence, such as current namespace contains edge whose source_native_id includes actual SA UID, with exact same integration/snapshot/typed bindings; or explicitly add immutable-compatible UID provenance. Never infer reviewed UID from a name-only reference. This does not require extra provider calls beyond frozen two SA reads."
+    }
+  ],
+  "finite_acceptance_contract": [
+    "Same protected exact token is sent only to server-configured HTTPS TokenReview endpoint with configured audience. Require authenticated true, no error, selected audience in status.audiences, exact serviceaccount username/UID, exactly one pod-name and pod-UID authenticated extra. Extra groups/attributes never product grants.",
+    "Decode projected JWT only after that same token succeeds TokenReview; accept actual Kubernetes nested kubernetes.io namespace/serviceaccount/pod claim shapes including ordinary extra claims. Require exact UID/name/sub binding and integer future exp; no unsigned fallback or claim-selected origin/integration/audience. TokenReview remains signature/authentication authority.",
+    "Exactly13 maximum calls: one TokenReview then two ordered six-object rounds. Exact returned apiVersion/kind/name/namespace, nondeletion, reviewed Pod UID, serviceAccount UID, single controller Pod to ReplicaSet to Deployment name/UID, Node name/UID/boot and kube-system UID must agree. ResourceVersion churn alone is not identity change. Fail closed on missing/unsupported Pod-bound extras.",
+    "Provider total child context<=5s and single overall request context<=30s, response/aggregate byte bounds and no cache/retry/redirect apply across all calls. After final reads compare actual token expiry and report observed UTCmicro/expiry=min(exp,observed+5s); caller must reject expired evidence before claim/forward. Two rounds are observation comparison, not atomic snapshot.",
+    "Reviewer credential must stay server-configured protected-file material, captured safely for bounded attempt; TLS explicit CA/hostname/CIDR actual-dial checks, no environmental proxy/redirect/downgrade or endpoint chosen from JWT. Both Pod and reviewer tokens remain opaque/redacted; Kubernetes TokenReview response may echo spec.token, so never retain/log raw responses or provider errors/transport errors containing credential context.",
+    "Pod-bound token proves a Kubernetes API-authenticated Pod identity under cluster issuer/RBAC trust; it does not prove container/process or possession by an unexfiltrated original process. Kubernetes principals able to create/modify Pods or mint tokens/impersonate ServiceAccounts may assert workload identity; ownerReferences and labels are cluster-authorized metadata, not hardware/provider detached attestation. No current task grant/delegation/approval/budget authority inferred."
+  ],
+  "implementation_workflow": "Root owns grouped meaningful RED and all execution; owner must freeze concrete Go/DTO/parser contract before product implementation and preserve separate source review. Do not test Kubernetes library internals or add per-small-field tests.",
+  "proof_limits": [
+    "Read-only source/JSON/hash review only; no product edits, Go/Node/test/build/Git/network/native execution.",
+    "Source pins checked against current repository; no deployed provider credentials/RBAC/API version support or live TokenReview interoperability established.",
+    "No launch/task/coverage/native authorization or full-policy publisher serialization approval."
+  ]
+}

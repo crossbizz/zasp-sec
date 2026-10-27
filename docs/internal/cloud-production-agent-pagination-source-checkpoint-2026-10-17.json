@@ -1,0 +1,114 @@
+{
+  "observed_at": "2026-10-17T13:18:24.637940+00:00",
+  "continued_published_base": "3108e78c423a2314f5b87a377aa2ef0703868f5a",
+  "classification": "REAL_API_CONNECTED_APPLICATION_COMPONENT_ONLY_NO_DEPLOYED_ACCEPTANCE",
+  "task_mapping": [
+    "M4-50a"
+  ],
+  "scope": "Replace whole-fleet aggregation on production Agents route with one bounded existing real API server-cursor page per request; Next, Previous, First, exact cursor retry, authority reset, scoped deep-link and retained unknown ownership intent fences. Existing aggregate helper retained for other consumers; no backend/API/SQL/role/profile/security guard change.",
+  "sources": [
+    {
+      "path": "app/features/agents/ProductionAgentSecurityView.tsx",
+      "bytes": 28341,
+      "sha256": "5c689d6ca9561606f163d9508d011d01ac739c01f9f381abb76839476fdc1fcc"
+    },
+    {
+      "path": "app/features/agents/ProductionAgentSecurityView.test.tsx",
+      "bytes": 13424,
+      "sha256": "8dc6cbbb1bb98d5dc7275788926c585b8182d5a15eadfb04a863aecfff3720e4"
+    },
+    {
+      "path": "app/features/agents/ProductionAgentSecurityView.pagination.test.tsx",
+      "bytes": 21581,
+      "sha256": "19d3e40f1064e9ed5296a54d5100764cfa522e9876fb561428e732ce6bfd7edf"
+    },
+    {
+      "path": "app/components/ZaspProductionApp.tsx",
+      "bytes": 21553,
+      "sha256": "54b1622f9a865d467ddec75fb4280edd9127c2691453b87cdbbf609b8c4d5e60"
+    },
+    {
+      "path": "app/components/ZaspProductionApp.post-login.test.tsx",
+      "bytes": 15572,
+      "sha256": "1865f2bdf3016474536724ff4aa876473e9a0bf188de38c89d116f705a9c0762"
+    },
+    {
+      "path": "docs/internal/implementation_production_availability_v1.5.tsv",
+      "bytes": 207520,
+      "sha256": "4b5b0e9579f6e8d74b04606c8fecc78b6fcb99dda3b00e1a25daf571d1904fa8"
+    },
+    {
+      "path": "docs/internal/implementation_status_v1.5.md",
+      "bytes": 1337457,
+      "sha256": "4fd85db65d16ae086df53d0b69f9538de40d5e5bc05338a87b4d56950e7ff1a2"
+    }
+  ],
+  "verification": {
+    "actual_final_application_checks": {
+      "pass": 73,
+      "fail": 0,
+      "skip": 0,
+      "files": 6,
+      "exit": 0
+    },
+    "integrated_source_ledger_deployment_guards": {
+      "pass": 65,
+      "fail": 0,
+      "skip": 0,
+      "exit": 0
+    },
+    "UI": {
+      "typecheck_exit": 0,
+      "lint_exit": 0,
+      "build_exit": 0
+    },
+    "native": "UNEXECUTED",
+    "real_Stytch_provider_deployed_E2E": "UNVERIFIED",
+    "earlier_failures": "All raw fixture errors, behavioral REDs, source HOLDs and successors preserved in archive; wrong selected StrictMode10PASS does not evaluate regression; corrected group actual1FAIL17PASS before v5."
+  },
+  "independent_review": {
+    "decision": "CLEAR_WITH_NONBLOCKING_NAVIGATION_FOLLOWUP",
+    "receipt_sha256": "5f69d978e49cb788236387ec5be39e18f76749bdb46f1f9606d2805115d8c6af",
+    "remaining_followup": "If an initial deep-link A is superseded while loading by row-open B, a subsequent confirmed B ownership save may reopen A. No pending intent or authority bypass; fix before M4 completion."
+  },
+  "ledger": {
+    "rows": 728,
+    "unique_ids": 728,
+    "classes": {
+      "production-available": 517,
+      "component-only": 150,
+      "blocked/external": 61
+    },
+    "historical_statuses": {
+      "Complete": 667,
+      "Blocked": 61
+    },
+    "availability_promotions": 0,
+    "sha256": "4b5b0e9579f6e8d74b04606c8fecc78b6fcb99dda3b00e1a25daf571d1904fa8",
+    "unchanged_other_rows": 727,
+    "M4-50a": "component-only",
+    "prior_evidence_prefix_retained": true,
+    "predecessor_status_exact_suffix_retained": true
+  },
+  "remaining_inventory": {
+    "records": 211,
+    "unchanged": true,
+    "qualification": "Does not exhaust all728 fresh deployed acceptance requirements."
+  },
+  "guards": {
+    "source_pins": 496,
+    "unchanged": true,
+    "connected_native_groups": 21,
+    "connected_native_cases": 146,
+    "owned_PostgreSQL_joins": 32,
+    "approval_controls": 16,
+    "all_retained": true
+  },
+  "archive": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/production-agent-pagination/source-evidence.json.gz",
+    "bytes": 1327354,
+    "sha256": "a843037bbb54b018caa77fdacb8bf1e8810a2e193ad597554c60253edd095532",
+    "members": 79
+  },
+  "remaining": "Owner/risk/environment/capability/enforcement filters and real coverage composition remain open. No production promotion, native acceptance, deployment, release bypass, merge or launch completion inferred."
+}

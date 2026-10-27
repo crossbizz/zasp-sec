@@ -79,6 +79,7 @@ type DriverBatch struct {
 }
 
 type DriverResult struct {
+	Retention     *WritePartition
 	BatchID       string
 	Generation    int64
 	InputDigest   [sha256.Size]byte
@@ -88,6 +89,7 @@ type DriverResult struct {
 }
 
 type ApplyResult struct {
+	Retention     *WritePartition
 	BatchID       domain.ProductID
 	Generation    int64
 	InputDigest   [sha256.Size]byte
@@ -156,7 +158,7 @@ func (store *Store) applyProfile(ctx context.Context, input Batch, precise bool)
 	if returned.BatchID != driverInput.BatchID || returned.Generation != driverInput.Generation || returned.InputDigest != driverInput.InputDigest || returned.ContentDigest != driverInput.ContentDigest || !equalStrings(returned.DocumentIDs, ids) {
 		return ApplyResult{}, ErrDrift
 	}
-	return ApplyResult{BatchID: input.BatchID, Generation: input.Generation, InputDigest: input.InputDigest, ContentDigest: driverInput.ContentDigest, DocumentIDs: append([]string(nil), ids...), Replayed: returned.Replayed}, nil
+	return ApplyResult{BatchID: input.BatchID, Generation: input.Generation, InputDigest: input.InputDigest, ContentDigest: driverInput.ContentDigest, DocumentIDs: append([]string(nil), ids...), Replayed: returned.Replayed, Retention: returned.Retention}, nil
 }
 
 func validBatch(input Batch, config Config) bool {

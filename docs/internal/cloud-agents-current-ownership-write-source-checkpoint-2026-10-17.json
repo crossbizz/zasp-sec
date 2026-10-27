@@ -1,0 +1,753 @@
+{
+  "observed_at": "2026-10-17T16:39:11.335752+00:00",
+  "continued_published_base": "ae1e1407e50b9284a1825966129bda769493258d",
+  "implementation_source_base": "10c55921b9916933b1147c77baf05bf6307296f9",
+  "classification": "CURRENT_AUTHORIZED_AGENT_OWNERSHIP_WRITE_SOURCE_INTEGRATION_DEFAULT_OFF_COMPONENT_ONLY",
+  "task_mapping": [
+    "M4-05"
+  ],
+  "scope": "Wire original updateAgent into additive five-function sealed Normal/Audit ownership profile with fixed13-argument wrapper. Preserve manage_workflows Browser/PAT purpose and FreshAuthfalse, canonical14 CAS/idempotent receipts/audit/posture/summary behavior. Outer80 fence holds79 and target locks; wrapper takes exact canonical advisory and active-entity locks, rechecks current authority after waits before canonical mutation/replay. Postwrite identity/context/catalog checks preserve legitimate finding-created79desired changes without revalidating the obsolete prewrite revision. Bind nine actual parent frames including security_ready. Explicit runtime/startup/periodic readiness, bounded migration confirmation and API-only default-off deployment. No new parent grants or legacy SQL admission.",
+  "sources": [
+    {
+      "path": ".github/agent-ownership-write-component-roster.json",
+      "bytes": 9738,
+      "sha256": "a73e8def2a7f42c7044545ef1e2bd7deab00cc8bfa7e43c5774c2b6ad49c1d13"
+    },
+    {
+      "path": ".github/connector-native-compile-source-pins.json",
+      "bytes": 185788,
+      "sha256": "6f8d6deb9f5b3bd88641ea1797f65c6172d0a53e06527afab28d4c260266eb11"
+    },
+    {
+      "path": ".github/workflows/agents-ownership-write-components.yml",
+      "bytes": 3881,
+      "sha256": "239156e1a57d120f518959e21caba4a33b5f69d277962288d26721db9e573943"
+    },
+    {
+      "path": ".github/workflows/connector-connected-lifecycle.yml",
+      "bytes": 4521,
+      "sha256": "216e0fe63cdbea4c00ea412ef94243ef7a7d1b4220b2163a31d448c36ecbcc29"
+    },
+    {
+      "path": ".github/workflows/connector-native-draft-compile.yml",
+      "bytes": 100990,
+      "sha256": "26f2867af00a9581e61e8694930f8f91debf7bfc8a581dc2ae6745c113173faa"
+    },
+    {
+      "path": "deploy/production/agent-ownership-write-profile.mjs",
+      "bytes": 2229,
+      "sha256": "cc2893abbef9d99625003007feb938f32e974631ec6c1dfab0433a72026541f0"
+    },
+    {
+      "path": "deploy/production/agent-ownership-write-profile.test.mjs",
+      "bytes": 2873,
+      "sha256": "1fc0750e27b3ae4caff97432f6a25cfb045e9505981855a339444e4451511831"
+    },
+    {
+      "path": "deploy/production/release-contract.mjs",
+      "bytes": 86764,
+      "sha256": "63d027c179f7ff101278d69dd433847c536f979b638625a712ed106ece63f6b5"
+    },
+    {
+      "path": "deploy/staging/product/templates/_agent-ownership-write.tpl",
+      "bytes": 1261,
+      "sha256": "20b58286c2e8892cf8c1e964fe7d7f7cfc0ac4a29053916e8ebc4d162854ba49"
+    },
+    {
+      "path": "deploy/staging/product/templates/workloads.yaml",
+      "bytes": 71108,
+      "sha256": "9895f27a5f6a48c89d7432968bf6942051eece31d09fc219936db456b458d672"
+    },
+    {
+      "path": "deploy/staging/product/values.yaml",
+      "bytes": 15948,
+      "sha256": "49736ebef5ba41078986da0bcdab50509afbd3608aacbde51e6c1d03b34ca5f8"
+    },
+    {
+      "path": "docs/internal/cloud-goal-remaining-task-inventory-2026-10-17-agent-ownership-write-source-successor.json",
+      "bytes": 34404,
+      "sha256": "ca58d7a808e4cb18fa7fab467a2a291afbc850bb21493478217b059c3399c837"
+    },
+    {
+      "path": "docs/internal/implementation_production_availability_v1.5.tsv",
+      "bytes": 215744,
+      "sha256": "7636cd4fa3aa17d1132e6ac4bb2ed1170cbe05b3e2877fc467cb47b364ae1403"
+    },
+    {
+      "path": "docs/internal/implementation_status_v1.5.md",
+      "bytes": 1344971,
+      "sha256": "55d3f0b2df2f07f29fb925f31fe5cbe93877b31f5d22cd8f59092f6d36729e7b"
+    },
+    {
+      "path": "scripts/connector-acceptance-groups.mjs",
+      "bytes": 18941,
+      "sha256": "db8e1e154de8b0fbf80e2d0801c8a4c43f88033da2d551273b6727a6982ce98b"
+    },
+    {
+      "path": "scripts/connector-acceptance-groups.test.mjs",
+      "bytes": 65137,
+      "sha256": "51629265b4526de1bb7abe08637ba575633ff714e4ef9d7b64a1db7f3b2053a3"
+    },
+    {
+      "path": "scripts/hosted-connected-connector-acceptance.mjs",
+      "bytes": 115727,
+      "sha256": "48bfcfeb7c4f161f812a32d9bf4a2a705c150df91cad0a8c4bc0aae79eb7bcf9"
+    },
+    {
+      "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
+      "bytes": 112128,
+      "sha256": "85e5027a2e30ff06531c993f892ff5f322075075f766b4e3c3f06d3d7fa1faec"
+    },
+    {
+      "path": "scripts/validate_agent_ownership_write_components.py",
+      "bytes": 4755,
+      "sha256": "45fb6aa632079c71213e53b2ee42d3d3948eff38a3ef65370781d197c585d8cb"
+    },
+    {
+      "path": "scripts/validate_agent_ownership_write_components_test.py",
+      "bytes": 3072,
+      "sha256": "ed72e597cb3292a35539a8990507dee98006afa636ba677c95aeaa101a850c97"
+    },
+    {
+      "path": "services/platform/agentsec-api/agent_ownership_write_runtime.go",
+      "bytes": 319,
+      "sha256": "9bfe0c620f7422a6668757ac4d28e4002a70bc0c3b0a2e9e08149ff7fd2ba752"
+    },
+    {
+      "path": "services/platform/agentsec-api/agent_ownership_write_runtime_test.go",
+      "bytes": 1272,
+      "sha256": "0f2bad1af6919d19a390d2783f56cf33e8978439e77a2740f43dc8138fa6e738"
+    },
+    {
+      "path": "services/platform/agentsec-api/production_runtime.go",
+      "bytes": 63702,
+      "sha256": "96f062e6b47056e14dbd3b38b88dab969391fdcc70f30fa7da0d146d09f4f97b"
+    },
+    {
+      "path": "services/platform/agentsec-api/runtime.go",
+      "bytes": 27231,
+      "sha256": "daafe07a32a361e9c4bdbc8e48e62a35fec1b543d0f627b65a119814bd68c7c4"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/agent_ownership_write_profile.go",
+      "bytes": 3461,
+      "sha256": "c400a5b68597c12e0344cabb5f9e1b5fc2491ffe825521871227257f2a06b844"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/agent_ownership_write_profile_test.go",
+      "bytes": 4282,
+      "sha256": "8b1b73a905a670bce29b31807ea36972dc5248259b74fdefd37c0ba0a618dfd7"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/forward_release_confirmation.go",
+      "bytes": 3845,
+      "sha256": "99207c5a1d6316ad5c304e05efc78f97e814eaaff8b56399b2014f1b2bb4ccd1"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/main.go",
+      "bytes": 83007,
+      "sha256": "181ae8901306f6206aad73c77f27df127f231ceecac8ca12a5dcb4239bfb5d1b"
+    },
+    {
+      "path": "services/platform/apiserver/agent_current_ownership_write.go",
+      "bytes": 4462,
+      "sha256": "0c398aee7ade9988b21833d42bd61ece571aef7156fbf736e46b59bf9b6fd6c9"
+    },
+    {
+      "path": "services/platform/apiserver/agent_current_ownership_write_postgres_test.go",
+      "bytes": 30557,
+      "sha256": "ce3e350a7c87cda23e5b5f6bf6cee9aaad0190f5ad3f0f6ba03722b94bcbbe37"
+    },
+    {
+      "path": "services/platform/apiserver/agent_current_ownership_write_test.go",
+      "bytes": 8447,
+      "sha256": "c1aff3628c6264b6972358112cae7d97051dd84f976663030e6a9f2e200cd9e9"
+    },
+    {
+      "path": "services/platform/apiserver/authorization_statement.go",
+      "bytes": 18417,
+      "sha256": "40ae08fef6d0790e5932465b805955dc1e11dde6819d31695b581e53eaac0be8"
+    },
+    {
+      "path": "services/platform/apiserver/inventory_repository.go",
+      "bytes": 28904,
+      "sha256": "af7d51686f5aadb8adaa0379459efc2c3f7ad97d1e5b1043b086c32b60a62fee"
+    },
+    {
+      "path": "services/platform/apiserver/production.go",
+      "bytes": 57769,
+      "sha256": "a34876ac09c23370a8884a74688d8f0ce38397968c79379d7019e044666d224f"
+    },
+    {
+      "path": "services/platform/apiserver/repository.go",
+      "bytes": 40598,
+      "sha256": "94952a90469ea7865b43152d786bd03a1b946301eaebf825b533adcbf3463ada"
+    },
+    {
+      "path": "services/platform/migrations/production_agent_ownership_write_compiler_test.go",
+      "bytes": 1128,
+      "sha256": "7479817afc1545686c9c8f68c436a33ec55ca4fb524b1db8b4764a2401c46891"
+    },
+    {
+      "path": "services/platform/migrations/production_agent_ownership_write_profile.go",
+      "bytes": 12662,
+      "sha256": "816800ffa54495467abeab0131a2524269068ce374c49cd82ac810e17e808933"
+    },
+    {
+      "path": "services/platform/migrations/production_agent_ownership_write_profile_test.go",
+      "bytes": 5513,
+      "sha256": "0e9e4615b40280e6762b584a5db0adea6fa273ee9cd38d183495fad1a78e331c"
+    },
+    {
+      "path": "services/platform/migrations/sql/agent_ownership_write_profile.sql",
+      "bytes": 22190,
+      "sha256": "74de88d317674b498f70347d458c5bb8bdd2a338c7dc25cd2531b636f885bb79"
+    }
+  ],
+  "support_sources": [
+    {
+      "path": ".github/agent-exposure-component-roster.json",
+      "bytes": 12804,
+      "sha256": "ca0fe0e1346633720150b0bf17839a4204d57040fe1aa23e692d6747b8eecf3b"
+    },
+    {
+      "path": "openapi/openapi.yaml",
+      "bytes": 374771,
+      "sha256": "a6881fdf58736cc5e2bfcdc0e96193dc4f5dbfb9eb9890c570012b6f4d438ceb"
+    },
+    {
+      "path": "scripts/validate_agent_exposure_components.py",
+      "bytes": 4578,
+      "sha256": "d79a116af7b42f6c08b035a8f7728d5f6612b174800f2481b11e135dd575d896"
+    },
+    {
+      "path": "scripts/validate_agent_read_components.py",
+      "bytes": 22239,
+      "sha256": "65b66896db61f2a27b419423d21605039d1de024d23ae82b2765ec0f98be2dfb"
+    },
+    {
+      "path": "services/platform/agentsec-api/runtime_test.go",
+      "bytes": 19705,
+      "sha256": "4fa68b41c0a4aa0941c0c1486ea6a18442968077b730144b84c4c19cb2ccda5b"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/main_test.go",
+      "bytes": 269160,
+      "sha256": "4bd8f91f3bfa0897d5d91ac64e9bc7f2a48fb5deea87c37f2641f4955fd81fa8"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/maintenance_confirmation_role_test.go",
+      "bytes": 3147,
+      "sha256": "efea4551621dbd95e91f08eb93fbeddd6a45c8ec6ebd36160b22881e41cfbccf"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/release_readiness_test.go",
+      "bytes": 5477,
+      "sha256": "fd588fe201d6af56cedf499bf5977c70e45f8e310e09dcb2c429b7459de4e7f8"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/retention_profile.go",
+      "bytes": 13038,
+      "sha256": "8b21374e7005295990b6ad4a40be2fbf9f3522e4c3167a26d593a9722c9d20c6"
+    },
+    {
+      "path": "services/platform/apiserver/agent_current_read_postgres_test.go",
+      "bytes": 42029,
+      "sha256": "b79935c06468a5b66fd0eb2c7d9fb764c0432e5dd737dd3a99f79d36c595037e"
+    },
+    {
+      "path": "services/platform/apiserver/agent_current_read_test.go",
+      "bytes": 8321,
+      "sha256": "1f740cf090d78094743d44c8481c15423583677e3d9329e111bc05bd49e81d20"
+    },
+    {
+      "path": "services/platform/apiserver/approval_maintenance_owned_fga_test.go",
+      "bytes": 7564,
+      "sha256": "e505c27d07bde5948d7ec4f4612ffc28ccb2b68f37bebc842e91cec0d5066647"
+    },
+    {
+      "path": "services/platform/apiserver/authorization_attestation_test.go",
+      "bytes": 415,
+      "sha256": "6945a14ea82af2d8a9f071cce012973a8f5b018c9217b365af61e046bca37e17"
+    },
+    {
+      "path": "services/platform/apiserver/authorization_enforcement_postgres_test.go",
+      "bytes": 21037,
+      "sha256": "43e63a05a4a43dc2b0f9537891f3ebbb667ff8571fda791d0d7208734a4e3884"
+    },
+    {
+      "path": "services/platform/apiserver/authorization_openfga.go",
+      "bytes": 10144,
+      "sha256": "337388060aeb627d5dc431af945af3c5ca0ee412c5fe8cb84b5f1b51b7761d30"
+    },
+    {
+      "path": "services/platform/apiserver/authorization_projection_fga_test.go",
+      "bytes": 3131,
+      "sha256": "38dd0f185d3b63390ae46208417fa56758a3764ef8fe0024b1b7190491f49782"
+    },
+    {
+      "path": "services/platform/apiserver/authorization_targets.go",
+      "bytes": 6055,
+      "sha256": "badfabbcff13b4f6f0e7b9bc354dd8f7cc9135d09d824980392bc962fc4fb2c9"
+    },
+    {
+      "path": "services/platform/apiserver/authorization_transaction.go",
+      "bytes": 4789,
+      "sha256": "95a188b5d23de72a69a9f82c8719bf1b040295642710c1e87e1c617be65a6471"
+    },
+    {
+      "path": "services/platform/apiserver/authorization_transaction_test.go",
+      "bytes": 3636,
+      "sha256": "10977390589610f645485439f0abfeb122dfffa6a6d3673706259adcb423a03a"
+    },
+    {
+      "path": "services/platform/apiserver/environment_class_postgres_test.go",
+      "bytes": 34958,
+      "sha256": "eff887f680f2c8120a28878a1ae1ff74dd8ef323c9556176d9b352aefb26734a"
+    },
+    {
+      "path": "services/platform/apiserver/inventory_handler.go",
+      "bytes": 11560,
+      "sha256": "fdd36bc26b6166f61d78e1ff124587a06e7c7e64922140b238698a1f708a0c41"
+    },
+    {
+      "path": "services/platform/apiserver/inventory_repository_test.go",
+      "bytes": 9084,
+      "sha256": "8bb13519e023aa503558f48ee529838d19430f7ef2ef6061c9a1a0624a58e97f"
+    },
+    {
+      "path": "services/platform/apiserver/middleware_test.go",
+      "bytes": 9538,
+      "sha256": "a2a1a979e9364056f2efdaf7f4d849f73ab4c977244376e85319741e5b39a220"
+    },
+    {
+      "path": "services/platform/apiserver/postgres_integration_test.go",
+      "bytes": 91435,
+      "sha256": "0d908c53cdea021e4c60adc412a04d631fd58c0b0544e7cce723884ea4002a42"
+    },
+    {
+      "path": "services/platform/apiserver/runtime_data_plane_postgres_test.go",
+      "bytes": 79414,
+      "sha256": "67be7e13317379c4f51c3a37db649d509141f02f496b7fe99826ce281007780d"
+    },
+    {
+      "path": "services/platform/apiserver/security_agent_temporal_automatic_sources_postgres_test.go",
+      "bytes": 15083,
+      "sha256": "d17e31da8e66cffd2eb15d13496a3f800438e1f6e23d880520b068451f6930ac"
+    },
+    {
+      "path": "services/platform/migrations/maintenance_operator_role.go",
+      "bytes": 1773,
+      "sha256": "0dbd6184ce85995d7ff524419ad5d2db6b847ddc606dbd5c0243eafc1b6272bb"
+    },
+    {
+      "path": "services/platform/migrations/migrations.go",
+      "bytes": 190892,
+      "sha256": "5774a44a1217948185cc5051aed3f3e69a7fa1e2006c3a0682df7b431df2e925"
+    },
+    {
+      "path": "services/platform/migrations/migrations_test.go",
+      "bytes": 64174,
+      "sha256": "396ef89e352ae3e32c48040b753870f5e3f72af257eececf07e0779d3f21492b"
+    },
+    {
+      "path": "services/platform/migrations/production_agent_owner_filter_profile.go",
+      "bytes": 11040,
+      "sha256": "aaa43569170599e6245dbe27cdcdb821171e3c1563d20788f4e8be525e89718a"
+    },
+    {
+      "path": "services/platform/migrations/production_agent_read_profile.go",
+      "bytes": 13659,
+      "sha256": "3ed1566979c5294c80a79ab84024c61bccde5f6b2449dcff02148422770ed482"
+    },
+    {
+      "path": "services/platform/migrations/production_authorization_enforcement.go",
+      "bytes": 7302,
+      "sha256": "3d23b8ad822363dcb512066a71bf5bf7a522be3ef7fedbf30ebd6832d5dedda1"
+    },
+    {
+      "path": "services/platform/migrations/production_authorization_temporal_profile.go",
+      "bytes": 7777,
+      "sha256": "200ef3c555982eebc01efdd5810e5260fd8f758ca54bf2d966a5dbd6d8380168"
+    },
+    {
+      "path": "services/platform/migrations/production_temporal_domain.go",
+      "bytes": 9007,
+      "sha256": "75f7a13446c377fc3d3551059badf44dd8448974db3c2a6f0daf0c52948531ba"
+    },
+    {
+      "path": "services/platform/migrations/sql/0010_production_discovery.up.sql",
+      "bytes": 134477,
+      "sha256": "b7bc32c642cb57988e4e6a0a89feed0ffe1d4396daa3f213c76a2f59b1b1154e"
+    },
+    {
+      "path": "services/platform/migrations/sql/0014_typed_inventory_cutover.up.sql",
+      "bytes": 187556,
+      "sha256": "06ed7d1310bee92bfd80c92698b91c18e3932a573793dcb32344a3fea56831b8"
+    },
+    {
+      "path": "services/platform/migrations/sql/0067_production_temporal_domain.up.sql",
+      "bytes": 9540,
+      "sha256": "ad853c7143a212cf4832e161d20964e44b0b3cff6e7496b75e40c86c95c6babb"
+    },
+    {
+      "path": "services/platform/migrations/sql/0079_production_authorization_projection.up.sql",
+      "bytes": 26450,
+      "sha256": "8b358e304b2eedaed7a4148f317f6d21d9c624ccc39105ca6199265ae661a987"
+    },
+    {
+      "path": "services/platform/migrations/sql/0080_production_authorization_enforcement.up.sql",
+      "bytes": 40560,
+      "sha256": "552b75399fed93e44a8c42f4c32e4658fb8d0aab9fdff8a043d5d8b187b0cd7b"
+    }
+  ],
+  "verification": {
+    "first_four_package_components": {
+      "results": [
+        {
+          "package": "apiserver",
+          "command": [
+            "go",
+            "test",
+            "-race",
+            "-json",
+            "-count=1",
+            "-run",
+            "^(TestAgentCurrentOwnershipWriteClosedPermissionAndTransaction|TestAgentCurrentOwnershipWriteActualHandlerSelectsPrivateProfile)$",
+            "./apiserver"
+          ],
+          "exit": 1,
+          "named_counts": {
+            "pass": 0,
+            "fail": 0,
+            "skip": 0
+          }
+        },
+        {
+          "package": "agentsec-api",
+          "command": [
+            "go",
+            "test",
+            "-race",
+            "-json",
+            "-count=1",
+            "-run",
+            "^(TestAgentCurrentOwnershipWriteRuntimeProfileIsExplicitAndFailClosed)$",
+            "./agentsec-api"
+          ],
+          "exit": 1,
+          "named_counts": {
+            "pass": 0,
+            "fail": 0,
+            "skip": 0
+          }
+        },
+        {
+          "package": "agentsec-migrate",
+          "command": [
+            "go",
+            "test",
+            "-race",
+            "-json",
+            "-count=1",
+            "-run",
+            "^(TestAgentCurrentOwnershipWriteMigrationRecipesAndBoundedConfirmation)$",
+            "./agentsec-migrate"
+          ],
+          "exit": 1,
+          "named_counts": {
+            "pass": 0,
+            "fail": 0,
+            "skip": 0
+          }
+        },
+        {
+          "package": "migrations",
+          "command": [
+            "go",
+            "test",
+            "-race",
+            "-json",
+            "-count=1",
+            "-run",
+            "^(TestAgentOwnershipWriteInstallerClosedAdmission|TestAgentOwnershipWriteCompilerIdentity)$",
+            "./migrations"
+          ],
+          "exit": 0,
+          "named_counts": {
+            "pass": 13,
+            "fail": 0,
+            "skip": 0
+          }
+        }
+      ],
+      "classification": "CONTROLLED_COMPONENTS_NOT_NATIVE_OR_PRODUCTION"
+    },
+    "final_frozen_four_package_components": {
+      "results": [
+        {
+          "package": "apiserver",
+          "command": [
+            "go",
+            "test",
+            "-race",
+            "-json",
+            "-count=1",
+            "-run",
+            "^(TestAgentCurrentOwnershipWriteClosedPermissionAndTransaction|TestAgentCurrentOwnershipWriteActualHandlerSelectsPrivateProfile)$",
+            "./apiserver"
+          ],
+          "exit": 1,
+          "named_counts": {
+            "pass": 0,
+            "fail": 0,
+            "skip": 0
+          }
+        },
+        {
+          "package": "agentsec-api",
+          "command": [
+            "go",
+            "test",
+            "-race",
+            "-json",
+            "-count=1",
+            "-run",
+            "^(TestAgentCurrentOwnershipWriteRuntimeProfileIsExplicitAndFailClosed)$",
+            "./agentsec-api"
+          ],
+          "exit": 1,
+          "named_counts": {
+            "pass": 0,
+            "fail": 0,
+            "skip": 0
+          }
+        },
+        {
+          "package": "agentsec-migrate",
+          "command": [
+            "go",
+            "test",
+            "-race",
+            "-json",
+            "-count=1",
+            "-run",
+            "^(TestAgentCurrentOwnershipWriteMigrationRecipesAndBoundedConfirmation)$",
+            "./agentsec-migrate"
+          ],
+          "exit": 1,
+          "named_counts": {
+            "pass": 0,
+            "fail": 0,
+            "skip": 0
+          }
+        },
+        {
+          "package": "migrations",
+          "command": [
+            "go",
+            "test",
+            "-race",
+            "-json",
+            "-count=1",
+            "-run",
+            "^(TestAgentOwnershipWriteInstallerClosedAdmission|TestAgentOwnershipWriteCompilerIdentity)$",
+            "./migrations"
+          ],
+          "exit": 0,
+          "named_counts": {
+            "pass": 13,
+            "fail": 0,
+            "skip": 0
+          }
+        }
+      ],
+      "classification": "ACTUAL_FINAL_FROZEN_COMPONENT_ATTEMPTS_NOT_NATIVE_OR_PRODUCTION"
+    },
+    "final_migration_components": {
+      "command": [
+        "go",
+        "test",
+        "-race",
+        "-json",
+        "-count=1",
+        "-run",
+        "^TestAgentOwnershipWrite(InstallerClosedAdmission|CompilerIdentity)$",
+        "./migrations"
+      ],
+      "exit": 0,
+      "named_counts": {
+        "pass": 13,
+        "fail": 0,
+        "skip": 0
+      },
+      "qualification": "Actual fake installer/pure compiler components; no SQL/native execution."
+    },
+    "fresh_UI": {
+      "results": [
+        {
+          "name": "typecheck",
+          "command": [
+            "npm",
+            "run",
+            "typecheck"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "build",
+          "command": [
+            "npm",
+            "run",
+            "build"
+          ],
+          "exit": 0
+        }
+      ],
+      "qualification": "Fresh runnable UI type/build; no new UI tests or native/deployed acceptance."
+    },
+    "final_Node": {
+      "command": [
+        "node",
+        "--test",
+        "scripts/connector-acceptance-groups.test.mjs",
+        "scripts/implementation-status-check.test.mjs",
+        "deploy/production/agent-ownership-write-profile.test.mjs",
+        "openapi/openapi.test.mjs"
+      ],
+      "exit": 0,
+      "qualification": "Initial combined Node group preserved:78pass1failedfile because new worktree lacked node_modules (ERR_MODULE_NOT_FOUND js-yaml); linked existing locked root dependencies, no installation/network/source/test relaxation."
+    },
+    "initial_guard_group": {
+      "results": [
+        {
+          "name": "Node-source-ledger-deployment-OpenAPI",
+          "command": [
+            "node",
+            "--test",
+            "scripts/connector-acceptance-groups.test.mjs",
+            "scripts/implementation-status-check.test.mjs",
+            "deploy/production/agent-ownership-write-profile.test.mjs",
+            "openapi/openapi.test.mjs"
+          ],
+          "exit": 1
+        },
+        {
+          "name": "status-check",
+          "command": [
+            "node",
+            "scripts/implementation-status-check.mjs"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "validator-unit-controls",
+          "command": [
+            "python3",
+            "-m",
+            "unittest",
+            "discover",
+            "-s",
+            "scripts",
+            "-p",
+            "validate_agent*components_test.py"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "ownership-component-source-custody",
+          "command": [
+            "python3",
+            "scripts/validate_agent_ownership_write_components.py",
+            "--check-sources",
+            ".github/connector-native-compile-source-pins.json"
+          ],
+          "exit": 0
+        },
+        {
+          "name": "old-component-source-custody",
+          "command": [
+            "python3",
+            "scripts/validate_agent_read_components.py",
+            "--check-sources",
+            ".github/connector-native-compile-source-pins.json"
+          ],
+          "exit": 0
+        }
+      ]
+    },
+    "actual_Node_contract_named_pass": 103,
+    "actual_validator_unit_groups": 8,
+    "actual_strict_partial_trace_refusals": 4,
+    "workflow_embedded_python_blocks": 33,
+    "initial_migration_named_fail": 10,
+    "initial_API": "Both attempts execute0 named cases due missing OPA, compiler/behavior UNKNOWN; root first wrong selector retained and corrected with exact frozen heads before product release.",
+    "native": "UNCOMPILED_UNEXECUTED",
+    "deployed_Stytch_provider_browser_E2E": "UNVERIFIED",
+    "qualifications": [
+      "Migration13 use fake installer and pure compiler, not SQL/PostgreSQL behavior.",
+      "Late compiler/runtime/CLI/deployment/native/validator coverage is not tests-first.",
+      "Initial Node78pass1failedfile due missing worktree js-yaml is retained; existing locked root dependencies linked, no network install or assertions weakened; successor103pass.",
+      "Prior broader UI2686pass1release-render failure remains open; fresh type/build here do not clear Helm/hosted/native gates."
+    ]
+  },
+  "independent_reviews": {
+    "API-first-concrete-independent-review.json": "cfb8847185231fde4001b444fc3c91614a095787f35cd6ad22f87b46da252716",
+    "migration-first-concrete-independent-review.json": "b27d90b9e296647a03347eb7505f36c21c1ee01dd4403c1f30e91ad87f818663",
+    "migration-security-ready-parent-independent-review.json": "52db19b2f5dca4425f011099d0cab9ecdcc2f313becd6279851577473eb798d1",
+    "native-first-concrete-independent-review.json": "e5fd7ac1794f5f5e988012d2f631ef5f5b7709be9fee893649b8bb6aa6a25ade",
+    "strict-component-gate-independent-review.json": "15f5aa7d8cb0be168ab97144bfc8f4b902ce1109dde3c80e6d4bca2d47494cba",
+    "strict-component-gate-independent-review-successor.json": "221aa7179aae470e684305c00908abebe70e0eda2e5261031d6724f9636ae3b7",
+    "final-source-association-ledger-independent-review.json": "8da533cd13cd647543e185337f60835ad87b1c3ee8255e915a38c4f8e9d4625c"
+  },
+  "ledger": {
+    "rows": 728,
+    "unique_ids": 728,
+    "classes": {
+      "production-available": 509,
+      "component-only": 158,
+      "blocked/external": 61
+    },
+    "historical_statuses": {
+      "Complete": 667,
+      "Blocked": 61
+    },
+    "evidence_only": [
+      "M4-05"
+    ],
+    "owner": "T05-inventory-cutover",
+    "owner_map_unchanged": true,
+    "availability_promotions": 0,
+    "negative_corrections": 0,
+    "other_rows_unchanged": 727,
+    "historical_status_section_retained": true,
+    "remaining_inventory_records": 219,
+    "all219_predecessor_records_retained_unchanged": true,
+    "sha256": "7636cd4fa3aa17d1132e6ac4bb2ed1170cbe05b3e2877fc467cb47b364ae1403"
+  },
+  "guards": {
+    "source_pins": 636,
+    "prior_paths_and_history_retained": 614,
+    "new_bindings": 22,
+    "new_bindings_include_existing_previously_unbound_helpers": true,
+    "connected_native_groups": 27,
+    "connected_native_cases": 198,
+    "owned_PostgreSQL_joins": 38,
+    "approval_controls": 16,
+    "old_groups_retained": 25,
+    "old_named_cases_retained": 180,
+    "old_PostgreSQL_joins_retained": 36,
+    "strict_new_component_named_required": 52,
+    "new_component_heads": 6,
+    "old_read_and_exposure_rosters76_each_retained": true,
+    "actual_new_component_named_pass": 13,
+    "native_actual_pass": 0
+  },
+  "archive": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/agents-current-ownership-write/source-evidence.json.gz",
+    "bytes": 2931797,
+    "sha256": "0b1d001c9769353c98c7aae56478a771c881a9b2eebfde84688d28dfcd335464",
+    "members": 208
+  },
+  "remaining": "Actual API/runtime/CLI compilation, all52 new component cases, full198 native application cases including mounted actual stored-credential PATCH/refetch/replay/revocation and real deployed Stytch/provider/browser verification remain required. M4-05 stays component-only. M4-50b3 requires retained NodeCoverage identities, current Agent placement and real policy acknowledgements; next finite retention design has an unresolved bounded durable pending-envelope choice, not an external-credentials-only issue. All728 original requirements and milestones active; no scope reduction, profile activation, guard bypass, production completion or obsolete retirement. Hosted predecessor failures, PR64 compliance-browser failure, local missing Helm/OPA and native memory-admission gate remain open."
+}

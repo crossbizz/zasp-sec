@@ -1,0 +1,159 @@
+{
+  "status": "SOURCE_RESEARCH_PROPOSED_CLI_CUSTODY_CONTRACT_NO_IMPLEMENTATION",
+  "created_at": "2026-10-17T19:17:12.339151+00:00",
+  "reviewer": "/root/gateway_wire_lock",
+  "sources": [
+    {
+      "path": "cmd/agentsecctl/main.go",
+      "bytes": 1654,
+      "sha256": "78e83d4b204997a3eacfadb6d7d4998db5b87d45be1b25eb482e48adb9d563ad"
+    },
+    {
+      "path": "cmd/agentsecctl/release.go",
+      "bytes": 18731,
+      "sha256": "d8f460f15198193f647f0e3e7358286cb838ea7abdc16046d9f74c9923c2d4ee"
+    },
+    {
+      "path": "cmd/agentsecctl/recovery_client.go",
+      "bytes": 27246,
+      "sha256": "bae28a722f29e15848b4460d6c1bf0af74a43ad1114e7605e324eb9ea1e2519d"
+    },
+    {
+      "path": "cmd/agentsecctl/upgrade_preflight.go",
+      "bytes": 7587,
+      "sha256": "c35b79a1623dea7022995b77418ee4a4468db18f2c8d9306fbce5d2a77430cfe"
+    },
+    {
+      "path": "cmd/agentsecctl/profiles.go",
+      "bytes": 18351,
+      "sha256": "253487fb0a467a737a5f1331f89a4bb686dc673a7fc12f8c142a3d279f2922d1"
+    },
+    {
+      "path": "cmd/agentsecctl/go.mod",
+      "bytes": 1869,
+      "sha256": "ebf97b7c55a47ac9263107eff6cdb0f7928f3610d66eba47c0cbdfc66737fab1"
+    },
+    {
+      "path": "services/runtime-gateway/production.go",
+      "bytes": 11266,
+      "sha256": "6ce7c2c72927ff16cc47dae63fa0eee728c5f4c7e14e217302a0680be65b8a36"
+    },
+    {
+      "path": "services/platform/gatewaycontrol/contract.go",
+      "bytes": 7008,
+      "sha256": "7811c187c21a1290ace9dd99cadf55afe708e72db51e36e9ee0b04e3dc70e67a"
+    },
+    {
+      "path": "services/platform/gatewaycontrol/http.go",
+      "bytes": 14043,
+      "sha256": "fe9a94769610272125a55bca13076b645b619cff629967b3d2623153e8c1148d"
+    },
+    {
+      "path": "services/platform/gatewaycontrol/postgres.go",
+      "bytes": 11605,
+      "sha256": "72d569fc199d85e196d990885e6e7b86e2423fe5a580df4b6ca60635b81e279f"
+    },
+    {
+      "path": "services/platform/internal/cacheownership/ownership.go",
+      "bytes": 1976,
+      "sha256": "b6a9d31b04ed8a523f56583afba6acda0b6f133445fed0cbefc84d0f71c1f27a"
+    },
+    {
+      "path": "services/platform/internal/cacheownership/ownership_linux.go",
+      "bytes": 1528,
+      "sha256": "eebb9489c7e111e9312bd0f363babee3271517c8e7e1833a0a802a7febdece99"
+    },
+    {
+      "path": "services/platform/migrations/sql/0015_runtime_data_plane.up.sql",
+      "bytes": 204144,
+      "sha256": "11c0b05a0a264ba9654c9646b18633c45469f495fa819b28b89e207aefc5ce9a"
+    },
+    {
+      "path": "services/platform/migrations/sql/0080_authorization_worker_gateway_writers.sql",
+      "bytes": 17859,
+      "sha256": "5ce0934637fddd422c5c01f3d8e7e44737ac106cd013fc97649955e710228901"
+    },
+    {
+      "path": "services/platform/sensor/token.go",
+      "bytes": 5049,
+      "sha256": "02a2d598e181fe068120ad6272332607f969e33f35c38b18ebabec67908f5b09"
+    }
+  ],
+  "actual_facts": [
+    "Actual CLI module cmd/agentsecctl. main runCommand dispatches non-version to runReleaseCommand; no enrollment command currently. Profiles ValidateDeploymentProfile(customer_edge) validates supplied values only, not actual enrollment.",
+    "No enrollment route or client exists in bounded gatewaycontrol/gateway-control source. Original15 enrollment SQL is admitted to original zasp_gateway_control, not old revoked zasp_runtime_gateway discovery enrollment path.",
+    "Original15 enroll input locator16/secret32/audience runtime-gateway-enroll +credentialID/generation/keyID/Ed25519/publickey32/expiry. Scoped token authentication derives scope/device/enrollmentID; request digest includes exact credential/key/generation/expiry. Same enrollment exact replay is supported, conflicting intent denied; requested expiry must still be future and within90days.",
+    "Original15 enroll return has id,device_id,credential_generation,key_id,algorithm,audience,issued_at,expires_at,replayed. It omits org/work/env/enrollmentID/public_key; cannot alone satisfy strict CLI scope and public-key binding. Original credential-authority function returns scope+publickey.",
+    "Current80 wraps enrollment token auth with organization serialization and wallclock token expiry after waits. Final adapter freshness/confirm semantics still need explicit source design; transaction_timestamp enrollment argument checks do not alone prove current final expiry.",
+    "Current runtime credential file is exact canonical three-field JSON credential_id,key_id,private_key; private key canonical RawURL64bytes. Extra intent/state fields cannot be added to this file because runtime decoder rejects unknown fields and noncanonical bytes.",
+    "CLI cannot import platform/internal/cacheownership directly due Go internal package boundary: cmd/agentsecctl is outside services/platform parent. Public policy-independent custody facade inside platform can import internal helper and expose only the new custody operations. No policy/gatewaycontrol import needed by CLI, preventing OPA import closure."
+  ],
+  "proposed_contract": {
+    "command": "agentsecctl gateway-enroll --endpoint HTTPS_ORIGIN --ca-bundle-file ABS --custody-file ABS --credential-output ABS --timeout DURATION < closed-input.json; all arguments nonsecret; no env lookup, token argv, private stdout/stderr or echoing transport errors.",
+    "input": "Closed bounded stdin object holding expected org/work/env/device/enrollmentID, explicit stable credentialID and expected credential generation, keyID and explicit whole-UTC expiry, plus enrollment_locator canonicalRawURL16 and enrollment_secret canonicalRawURL32. No new token string prefix is invented. Secret-ref alternative is a named existing private file path read with existing owned-file controls, not a new SDK/provider integration.",
+    "key_and_intent": "Generate Ed25519 exactly once from crypto/rand after all input/path validation, before HTTP. One immutable0600 bounded private custody bundle holds schema, exact request bytes, expected scoped identity, endpoint origin, enrollment locator digest, canonical private64/public32 pair, stable credentialID/gen/keyID/expiry. Store no enrollment secret; retry rereads it from stdin/explicit private source and matches locator digest. Never regenerate key/credentialID/expiry on existing state, timeout or ambiguous response. Validate ed25519.NewKeyFromSeed(seed)==private64/public before using existing custody.",
+    "ownership": "Public stdlib-only services/platform/gatewayenrollmentcustody facade can reuse platform/internal/cacheownership under pinned existing parent os.Root. Linux nonblocking stable sibling flock held from initial read/create through request/receipt persistence/export and close. Current UID regular0600 singlelink files, pre/open/post inode checks, no parent chmod/chown, no overwrite of differing existing bundle or runtime credential; unsupported platform selected custody refuses. Trusted parent/sameUID/cooperating binaries limits explicit.",
+    "durability": "For create-only immutable custody, write random sibling O_EXCL0600, fsync file, publish without replacing destination (Linux renameat2 RENAME_NOREPLACE or rooted hardlink+unlink proven supported), fsync directory, exact readback before first network request. A plain replacing Rename is insufficient for no-overwrite. If implementation avoids unavailable root-relative no-replace primitive, create O_EXCL destination directly with fsync and treat every partial/unknown file as terminal custody error; never send or replace it. A recoverable implementation should choose/freeze publication semantics explicitly before product.",
+    "receipt_and_export": "New fixed HTTP enrollment adapter must return a bounded closed wrapper combining same-transaction original authentication identity, original15 enrollment result, and credential-authority publickey/scope under original gateway role; successful COMMIT before HTTP200. CLI validates all expected scope/device/enrollment/credential/gen/key/algorithm/audience/publickey/expiry/request hash. After acceptance persist immutable receipt (separate create-only file or same-key atomic state successor design), then export exact runtime-compatible three-field credential JSON without overwrite; exact existing output replay may succeed after revalidation. Never print private key or enrollment token.",
+    "ambiguous": "Any timeout/cancel/COMMIT-unknown/truncated receipt/receipt-export failure retains original private custody and exact intent for retry. At credential/token expiry, revocation, conflicting receipt or changed expected input, fail closed and report unresolved state; do not mint replacement or infer never committed. Expired replay is not promised by original15.",
+    "report": "Only bounded nonsecret status enum and stable credentialID/expected scope if desired; no raw response, endpoint errors, secret paths, public/private key or request payload reflection. No launch/enforcement/coverage success claim."
+  },
+  "existing_reuse": [
+    {
+      "path": "cmd/agentsecctl/main.go",
+      "symbols": [
+        "runCommand"
+      ],
+      "use": "Preserve exit1/no secret exception printing; route new command in runReleaseCommand."
+    },
+    {
+      "path": "cmd/agentsecctl/release.go",
+      "symbols": [
+        "runReleaseCommand",
+        "uniqueReleaseJSON",
+        "decodeCommandInput",
+        "encodeJSON"
+      ],
+      "use": "Reuse dispatch and JSON writer; add smaller closed exact-key parser for secrets because decodeCommandInput returns raw errors and permits ordinary typed JSON case aliases."
+    },
+    {
+      "path": "cmd/agentsecctl/recovery_client.go",
+      "symbols": [
+        "readOwnedRecoveryFile",
+        "validOwnedRecoveryFile",
+        "validRecoveryCABundle",
+        "newRecoveryClientWithDial"
+      ],
+      "use": "Reuse owned private/CA file and TLS/HTTPS-origin/no-redirect/direct-dial pattern. Do not instantiate RecoveryClient requiring PAT or reuse Bearer PAT authentication."
+    },
+    {
+      "path": "services/platform/internal/cacheownership/ownership.go",
+      "symbols": [
+        "Acquire",
+        "Guard.Valid",
+        "Guard.Close",
+        "Supported"
+      ],
+      "use": "Reuse through a new public platform custody facade; do not copy policy cache or import gatewaycontrol/policy into CLI."
+    },
+    {
+      "path": "services/runtime-gateway/production.go",
+      "symbols": [
+        "gatewayCredentialFile",
+        "loadGatewayCredential"
+      ],
+      "use": "Exact output wire compatibility target only; package main cannot be imported."
+    }
+  ],
+  "grouped_acceptance": [
+    "Before-send custody durable/readback and key/public pair exact; invalidinput/unsafeexisting/ownercontention/partialfile/fsyncfailure zeroHTTP and no overwritten key.",
+    "Actual TLS enrollment request exact persisted body; lostresponse/restart samecredentialID/gen/key/expiry; changed input or foreign pubkey/scope/receipt refuses, keeps intent.",
+    "Accepted receipt persists then exact runtime-compatible credential export; conflict/outputfailure preserves accepted state and safe retry; no token/key leakage in output/errors/argv/env.",
+    "Current original enrollment sameTX commit/lateexpiry/revoke/rotation/currentprofile controls belong connected backend/native integration, not pure CLI fixture completion."
+  ],
+  "limits": [
+    "Read-only Python/cat/rg; no code/test/Go/Node/Git/network execution.",
+    "Contract proposal requires root merged design and independent review, not implementation authorization by this report.",
+    "No deployed enrollment/provider/current-secret reads or production proof."
+  ]
+}

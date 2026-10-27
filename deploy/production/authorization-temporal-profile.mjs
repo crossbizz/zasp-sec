@@ -1,3 +1,4 @@
+import { normalizeMaintenanceRuntime } from './maintenance-runtime-profile.mjs';
 // A named logical78/79/80 profile retains exactly61 canonical migration rows.
 // This validates deployment references, never live secret contents or readiness.
 export const authorizationTemporalProfileName = 'canonical61-temporal78-authorization79-80-worker-v1';
@@ -9,14 +10,15 @@ const keys = ['profile',...names,...secrets,...roles,'forwardKey','compensationK
 const dnsName = /^[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?$/;
 const login = /^[a-z][a-z0-9_]{2,62}$/;
 const ulid = /^[0-7][0-9A-HJKMNP-TV-Z]{25}$/;
-const queue = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
+// Match the API/worker name contract, including absolute end-of-string.
+const queue = /^[a-z][a-z0-9._-]{1,127}(?![\s\S])/;
 const reject = () => { throw new Error('authorization temporal profile rejected'); };
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const distinct = values => new Set(values).size === values.length;
 
 export function normalizeAuthorizationTemporalProfile(value, options, accountID) {
   if (value === undefined) return undefined;
-  if (!object(value) || Object.keys(value).length !== keys.length || keys.some(k => !(k in value)) || value.profile !== authorizationTemporalProfileName || options?.schemaVersion !== 61 || !/^[0-9]{12}$/.test(accountID) || accountID === '000000000000') reject();
+  if (!object(value) || Object.keys(value).length !== keys.length + (Object.hasOwn(value,'maintenance') ? 1 : 0) || keys.some(k => !(k in value)) || value.profile !== authorizationTemporalProfileName || options?.schemaVersion !== 61 || !/^[0-9]{12}$/.test(accountID) || accountID === '000000000000') reject();
   const runtime = options.runtimeServices;
   if (!object(runtime) || ['storeID','modelID','clientSecret','namespace','taskQueue','discoveryTaskQueue','timeout','temporalAddress','openfgaURL'].some(k => typeof runtime[k] !== 'string')) reject();
   // This named profile packages these exact Service and NetworkPolicy targets.
@@ -33,7 +35,9 @@ export function normalizeAuthorizationTemporalProfile(value, options, accountID)
   if (!distinct([...secrets.map(k => value[k]), ...configMaps.map(k => value[k]), value.forwardKey.secretName,value.compensationKey.secretName,runtime.clientSecret])) reject();
   const arn = new RegExp(`^arn:aws:iam::${accountID}:role/[A-Za-z0-9_+=,.@-]{1,64}$`);
   if (roles.some(k => !arn.test(value[k])) || !distinct(roles.map(k => value[k]))) reject();
-  return Object.freeze({...value,forwardKey:Object.freeze({...value.forwardKey}),compensationKey:Object.freeze({...value.compensationKey})});
+  if (Object.hasOwn(value,'maintenance') && value.maintenance === undefined) reject();
+  const maintenance=normalizeMaintenanceRuntime(value.maintenance,value,runtime);
+  return Object.freeze({...value,...(maintenance?{maintenance}:{}),forwardKey:Object.freeze({...value.forwardKey}),compensationKey:Object.freeze({...value.compensationKey})});
 }
 
 export function authorizationTemporalMigrationCommands(profile) {

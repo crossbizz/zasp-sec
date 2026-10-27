@@ -1,0 +1,99 @@
+name: Dependency process cleanup components
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-process-cleanup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+      NO_COLOR: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22.23.1
+          cache: npm
+      - name: Check complete frozen source custody before dependency setup
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(node --version)" = 'v22.23.1'
+          test "$(npm --version)" = '10.9.8'
+          python3 - <<'PYSOURCE'
+          from pathlib import Path
+          import os
+          verifier = Path(os.environ['RUNNER_TEMP']) / 'verify-dependency-custody.py'
+          verifier.write_text("import hashlib, json, os, sys\nfrom pathlib import Path, PurePosixPath\nmanifest = Path('.github/connector-native-compile-source-pins.json')\nraw = manifest.read_bytes()\nsource = json.loads(raw)\nrequired = set(['.github/workflows/dependency-process-cleanup-components.yml', 'apps/web/package.json', 'build/dependencies.lock.yaml', 'cmd/agentsecctl/go.mod', 'cmd/agentsecctl/go.sum', 'package-lock.json', 'package.json', 'scripts/dependency-esbuild-regression.test.mjs', 'scripts/dependency-parser-regression.test.mjs', 'scripts/fixtures/dependency-esbuild-regression-child.mjs', 'scripts/fixtures/dependency-parser-regression-child.mjs', 'scripts/run-dependency-regressions.py', 'scripts/run-dependency-regressions.test.py', 'scripts/validate-dependencies.mjs', 'scripts/validate-dependencies.test.mjs', 'services/event-ingest/go.mod', 'services/event-ingest/go.sum', 'services/gateway-control/go.mod', 'services/gateway-control/go.sum', 'services/gatewaypodidentity/go.mod', 'services/health/go.mod', 'services/platform/go.mod', 'services/platform/go.sum', 'services/runtime-gateway/go.mod', 'services/runtime-gateway/go.sum', 'services/sensor-agent/go.mod', 'services/sensor-agent/go.sum', 'workers/redteam-node/package.json', 'workers/security-python/build-requirements.lock', 'workers/security-python/cartography/pyproject.toml', 'workers/security-python/cartography/requirements.lock', 'workers/security-python/prowler/pyproject.toml', 'workers/security-python/prowler/requirements.lock', 'workers/security-python/pyproject.toml'])\nseen = set()\nassert isinstance(source['sources'], list) and source['sources'], 'empty source custody'\nfor item in source['sources']:\n    name = item['path']\n    assert isinstance(name, str) and name not in seen, 'duplicate source'\n    parts = PurePosixPath(name)\n    assert not parts.is_absolute() and '..' not in parts.parts and str(parts) == name\n    target = Path(name)\n    assert target.is_file() and not target.is_symlink(), name\n    data = target.read_bytes()\n    assert type(item['bytes']) is int and len(data) == item['bytes'], name\n    assert hashlib.sha256(data).hexdigest() == item['sha256'], name\n    seen.add(name)\nassert required <= seen, 'missing required custody: ' + repr(sorted(required - seen))\nsnapshot = Path(os.environ['RUNNER_TEMP']) / 'dependency-custody-manifest.json'\nif sys.argv[1] == 'before':\n    assert not snapshot.exists(), 'stale custody snapshot'\n    snapshot.write_bytes(raw)\nelse:\n    assert sys.argv[1] == 'after' and snapshot.read_bytes() == raw, 'custody manifest changed'\nprint('Complete dependency source custody verified:', len(seen))\n")
+          PYSOURCE
+          python3 "$RUNNER_TEMP/verify-dependency-custody.py" before
+      - name: Install the locked npm dependency graph
+        run: npm ci
+      - name: Execute all three actual Python process ownership groups
+        run: |
+          python3 - <<'PYUNIT'
+          import importlib.util, json, os, sys, unittest
+          from pathlib import Path
+          spec = importlib.util.spec_from_file_location('dependency_cleanup_components', 'scripts/run-dependency-regressions.test.py')
+          module = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(module)
+          suite = unittest.defaultTestLoader.loadTestsFromModule(module)
+          def flatten(group):
+              for item in group:
+                  if isinstance(item, unittest.TestSuite):
+                      yield from flatten(item)
+                  else:
+                      yield item.id()
+          expected = set(['dependency_cleanup_components.ScopedReaperTests.test_reaps_actual_orphan_while_node_test_runner_remains_active', 'dependency_cleanup_components.ScopedReaperTests.test_preserves_actual_exit_status_output_and_existing_strict_guards', 'dependency_cleanup_components.ScopedReaperTests.test_bounded_cancel_and_timeout_reap_only_owned_descendants'])
+          actual = list(flatten(suite))
+          assert len(actual) == 3 and len(set(actual)) == 3 and set(actual) == expected, actual
+          result = unittest.TextTestRunner(verbosity=2).run(suite)
+          record = {'expected_ids': sorted(expected), 'actual_ids': actual, 'testsRun': result.testsRun,
+                    'successful': result.wasSuccessful(), 'failures': len(result.failures),
+                    'errors': len(result.errors), 'skipped': len(result.skipped),
+                    'expectedFailures': len(result.expectedFailures), 'unexpectedSuccesses': len(result.unexpectedSuccesses)}
+          Path(os.environ['RUNNER_TEMP'], 'dependency-cleanup-unittest-result.json').write_text(json.dumps(record, indent=2) + '\n')
+          assert result.testsRun == 3 and result.wasSuccessful(), record
+          assert not (result.failures or result.errors or result.skipped or result.expectedFailures or result.unexpectedSuccesses), record
+          PYUNIT
+      - name: Execute full dependency inventory and all nine original Node regressions
+        run: |
+          python3 - <<'PYNODE'
+          import json, os, re, subprocess, sys
+          from pathlib import Path
+          # Capture the actual unchanged package gate; no synthesized TAP or selected test pattern.
+          result = subprocess.run(['npm', 'run', 'dependencies:check'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=180)
+          Path(os.environ['RUNNER_TEMP'], 'dependency-check.stdout').write_bytes(result.stdout)
+          Path(os.environ['RUNNER_TEMP'], 'dependency-check.stderr').write_bytes(result.stderr)
+          sys.stdout.buffer.write(result.stdout)
+          sys.stdout.buffer.flush()
+          sys.stderr.buffer.write(result.stderr)
+          sys.stderr.buffer.flush()
+          assert result.returncode == 0, ('actual dependencies:check failed', result.returncode)
+          output = result.stdout.decode('utf-8', errors='strict')
+          expected = set(["vinext's actual image parser preserves icns-valid dimensions", "vinext's actual image parser preserves jxl-valid dimensions", "vinext's actual image parser preserves heif-valid dimensions", "vinext's actual image parser rejects icns-zero-entry without hanging", "vinext's actual image parser rejects jxl-zero-partial without hanging", "vinext's actual image parser rejects heif-zero-ispe without hanging", "core-utils' actual esbuild serves the local fixture without allowing an unrelated origin to read it", "core-utils' actual async and sync TypeScript transforms preserve exported values", 'real drizzle-kit generation retains the nonempty D1 notes schema and defaults'])
+          subtests = re.findall(r'^# Subtest: (.+)$', output, flags=re.M)
+          passes = re.findall(r'^ok ([1-9][0-9]*) - (.+)$', output, flags=re.M)
+          assert len(subtests) == 9 and len(set(subtests)) == 9 and set(subtests) == expected, subtests
+          assert len(passes) == 9 and {int(i) for i, _ in passes} == set(range(1, 10)), passes
+          assert {name for _, name in passes} == expected, passes
+          assert not re.search(r'^not ok\b|^Bail out!|^(?:ok|not ok) [1-9][0-9]*[^\n]*#\s*(?:SKIP|TODO)\b', output, flags=re.M | re.I)
+          assert re.findall(r'^1\.\.([0-9]+)$', output, flags=re.M) == ['9']
+          for key, value in {'tests':9, 'suites':0, 'pass':9, 'fail':0, 'cancelled':0, 'skipped':0, 'todo':0}.items():
+              assert re.findall(r'^# ' + key + r' ([0-9]+)$', output, flags=re.M) == [str(value)], key
+          assert output.splitlines().count('Dependency lock valid') == 1, 'actual inventory did not validate'
+          print('Actual full dependency gate passed all nine original regression names')
+          PYNODE
+      - name: Recheck complete custody and unchanged source after execution
+        if: always()
+        run: python3 "$RUNNER_TEMP/verify-dependency-custody.py" after

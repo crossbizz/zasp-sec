@@ -91,14 +91,17 @@ func (c *approvalMaintenanceRuntimeCloser) Close() error {
 
 func newRuntimeApprovalMaintenance(ctx context.Context, c RuntimeConfig, a apiserver.RequestAuthorizer, secrets apiserver.FindingTicketSecretResolver, webhook apiserver.ApprovalNotificationWebhook, owner string) (*apiserver.AuthorizedApprovalNotificationReconciler, io.Closer, error) {
 	if ctx == nil || ctx.Err() != nil || !validApprovalMaintenanceRuntimeConfig(c) || c.ApprovalMaintenancePostgresDSN == "" {
+		observeRuntimeConstructorFailure(ctx, readinessApprovalConfig)
 		return nil, nil, errRuntimeUnavailable
 	}
 	authorizer, ok := a.(*apiserver.OpenFGAAuthorizer)
 	if !ok || authorizer == nil || authorizer.Checker == nil || authorizer.StoreID != c.RuntimeServices.StoreID || authorizer.ModelID != c.RuntimeServices.ModelID {
+		observeRuntimeConstructorFailure(ctx, readinessApprovalAuthorizer)
 		return nil, nil, errRuntimeUnavailable
 	}
 	seed, err := loadApprovalMaintenanceKey(c.ApprovalMaintenanceKeyFile)
 	if err != nil {
+		observeRuntimeConstructorFailure(ctx, readinessApprovalKey)
 		return nil, nil, errRuntimeUnavailable
 	}
 	defer clear(seed)
@@ -106,23 +109,33 @@ func newRuntimeApprovalMaintenance(ctx context.Context, c RuntimeConfig, a apise
 	defer cancel()
 	cfg, err := runtimepostgres.ParsePoolConfig(c.ApprovalMaintenancePostgresDSN)
 	if err != nil {
+		observeRuntimeConstructorFailure(bounded, readinessApprovalPool)
 		return nil, nil, errRuntimeUnavailable
 	}
 	cfg.MaxConns = 2
 	cfg.MinConns = 0
 	pool, err := pgxpool.NewWithConfig(bounded, cfg)
 	if err != nil {
+		observeRuntimeConstructorFailure(bounded, readinessApprovalPool)
 		return nil, nil, errRuntimeUnavailable
 	}
 	closer := &approvalMaintenanceRuntimeCloser{pool: pool}
-	executor, err := approvalmaintenance.NewExecutor(pool, authorizer.Checker, authorizer.StoreID, authorizer.ModelID, c.RuntimeServices.ApprovalMaintenanceProfileChecksum, seed)
+	executor, err := selectApprovalMaintenanceExecutor(c.RuntimeServices.ApprovalActivationProfileChecksum,
+		func() (*approvalmaintenance.Executor, error) {
+			return approvalmaintenance.NewConfiguredActivatedExecutor(pool, authorizer.Checker, authorizer.StoreID, authorizer.ModelID, c.RuntimeServices.ApprovalMaintenanceProfileChecksum, seed, c.RuntimeServices.ApprovalActivationProfileChecksum)
+		},
+		func() (*approvalmaintenance.Executor, error) {
+			return approvalmaintenance.NewExecutor(pool, authorizer.Checker, authorizer.StoreID, authorizer.ModelID, c.RuntimeServices.ApprovalMaintenanceProfileChecksum, seed)
+		})
 	if err != nil {
+		observeRuntimeConstructorFailure(bounded, readinessApprovalExecutor)
 		_ = closer.Close()
 		return nil, nil, errRuntimeUnavailable
 	}
 	closer.executor = executor
 	reconciler, err := apiserver.NewAuthorizedApprovalNotificationReconciler(bounded, apiserver.AuthorizedApprovalNotificationConfig{Native: executor, Secrets: secrets, Webhook: webhook, Owner: owner, LeaseSeconds: 30, Interval: time.Second, NewLeaseToken: newFindingTicketLeaseToken})
 	if err != nil {
+		observeRuntimeConstructorFailure(bounded, readinessApprovalReconciler)
 		_ = closer.Close()
 		return nil, nil, errRuntimeUnavailable
 	}
@@ -165,4 +178,24 @@ func approvalNotificationLifecycleReady(ctx context.Context, metadata func(conte
 		return errRuntimeUnavailable
 	}
 	return nil
+}
+
+// An explicitly selected additive profile cannot fall back after construction
+// or catalog refusal. The caller retains ownership of key and pool cleanup.
+func selectApprovalMaintenanceExecutor(activationPin string, activated, original func() (*approvalmaintenance.Executor, error)) (*approvalmaintenance.Executor, error) {
+	selected := original
+	if activationPin != "" {
+		selected = activated
+	}
+	if selected == nil {
+		return nil, errRuntimeUnavailable
+	}
+	executor, err := selected()
+	if err != nil {
+		return nil, err
+	}
+	if executor == nil {
+		return nil, errRuntimeUnavailable
+	}
+	return executor, nil
 }

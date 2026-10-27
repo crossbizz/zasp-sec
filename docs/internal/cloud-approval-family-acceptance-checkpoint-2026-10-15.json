@@ -1,0 +1,239 @@
+{
+  "checkpoint": "cloud-approval-family-acceptance-2026-10-15",
+  "observed_at": "2026-10-15T02:14:12.495403+00:00",
+  "starting_sha": "d233910b9467f002025738f4a7ad5de9d52373e0",
+  "main_sha": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
+  "classification": "Component verified and native fixtures compile; hosted native and deployed acceptance pending",
+  "ledger": {
+    "original_rows": 728,
+    "production_available_recorded": 523,
+    "component_only": 144,
+    "blocked_external": 61,
+    "missing": 0,
+    "promotions": 0,
+    "interpretation": "Historical categories do not establish current deployed readiness; original ledger and owner maps unchanged."
+  },
+  "implementation": [
+    "Add a shared real owned PostgreSQL/OpenFGA approval-family harness with measured combined writer/credential cutover and genuine canonical signed delivery and captured audit settlement. Preserve original producers and native authority; no inserted opaque tasks, origin delegations or successful provider receipts.",
+    "Exercise original Test74 takeover, ordered68 planning and signed ordered progress through opt-in consumers after genuine admission/accounting assertions. Ordered planning additionally admits a second real public trigger in the same activated organization. Test74/progress do not establish fresh future enqueue acceptance.",
+    "Exercise fresh permission revocation with membership retained, restore actual permission, then revoke it again after real owned HTTPS delivery but before captured Complete. Exact canonical settlement and no duplicate delivery assertions remain required.",
+    "Retain all six native acceptance groups and append three family groups. Require all nine groups, 32 named tests and 16 owned PostgreSQL joins; preserve deadlines, resource/custody/process/SQL guards and reject skips/partial rosters.",
+    "Fix two ambiguous test-query approval joins with explicit full organization/workspace/environment/approval/run ON constraints, retaining original canonical audit and terminal rollback assertions. The production settlement SQL already used qualified joins and is unchanged. This source-backed SQL ambiguity was not exposed as a hosted SQLSTATE.",
+    "Forward the existing readiness observer into the initial exact two authorization readiness queries under the same parent-bounded budget. Closed role/outcome evidence can diagnose startup; this does not claim to fix the underlying refusal.",
+    "Fix actual hosted lint failures by removing an unused catch binding and moving the joined-cleanup refusal after finally while retaining cancellation/join/error behavior. Full Runnable UI workflow and release/security guards remain unchanged."
+  ],
+  "verification": {
+    "go": {
+      "evidence": {
+        "path": "/tmp/approval-family-readiness-application-20261015.jsonl",
+        "sha256": "f10edadb6c05e4dd5fcb36802d9a1b1d26231d7922dd8865eea0c373ce1e852f",
+        "bytes": 18125,
+        "availability": "Current cloud workspace; not a transferred archive or deployed acceptance."
+      },
+      "status": 0,
+      "top_level_passes": 3,
+      "named_passes": 16,
+      "failed": 0,
+      "skipped": 0,
+      "scope": "Normal grouped readiness application checks pass; full apiserver fixtures compile with no native test selected. No local race or native pass inferred."
+    },
+    "node": [
+      {
+        "evidence": {
+          "path": "/tmp/status-resume-runtime-regressions-20261015.log",
+          "sha256": "0a131af5b832815a66b69bd01617190aad56bdb6a7203153733e805700ef7683",
+          "bytes": 11801,
+          "availability": "Current cloud workspace; not a transferred archive or deployed acceptance."
+        },
+        "passed": 55,
+        "failed": 0,
+        "skipped": 0,
+        "scope": "Existing owned runtime/cutover regression cases."
+      },
+      {
+        "evidence": {
+          "path": "/tmp/approval-family-roster-20261015.log",
+          "sha256": "bc0ee62ab652c136a9a41b6ff65110176af82f5a49d11ad05f96ceabb3365fa4",
+          "bytes": 987,
+          "availability": "Current cloud workspace; not a transferred archive or deployed acceptance."
+        },
+        "passed": 4,
+        "failed": 0,
+        "skipped": 0,
+        "scope": "Exact acceptance roster validation; not execution of the native groups."
+      }
+    ],
+    "ui": [
+      {
+        "check": "lint",
+        "evidence": {
+          "path": "/tmp/approval-family-ui-lint-20261015.log",
+          "sha256": "38a92ea91951077eb116dd001a1b1c173390310e6a22f162fe59ece72cc715d7",
+          "bytes": 2702,
+          "availability": "Current cloud workspace; not a transferred archive or deployed acceptance."
+        },
+        "status": 0
+      },
+      {
+        "check": "typecheck",
+        "evidence": {
+          "path": "/tmp/approval-family-ui-typecheck-20261015.log",
+          "sha256": "f48bd1876f5408ffc0d939a2b0d826961d6115e6598a272fea04d98ac0431816",
+          "bytes": 63,
+          "availability": "Current cloud workspace; not a transferred archive or deployed acceptance."
+        },
+        "status": 0
+      },
+      {
+        "check": "build",
+        "evidence": {
+          "path": "/tmp/approval-family-ui-build-20261015.log",
+          "sha256": "3305769a559416c201952eccb068ab0082eb16380a634f9897c114cec623cc75",
+          "bytes": 1698,
+          "availability": "Current cloud workspace; not a transferred archive or deployed acceptance."
+        },
+        "status": 0
+      }
+    ],
+    "ledger": {
+      "path": "/tmp/approval-family-ledger-20261015.log",
+      "sha256": "cb7fdd9a95e56ba9775dc8bc225b21b93b6661dcd9c648b4457b67c69f795c41",
+      "bytes": 237,
+      "availability": "Current cloud workspace; not a transferred archive or deployed acceptance."
+    },
+    "reviews": [
+      {
+        "path": "/tmp/approval-activation-family-independent-review-20261015.json",
+        "sha256": "11285acd7e679763b253cb5a4c710f8ffc96e853c9cd4ca6f1e03606226c77dd",
+        "bytes": 3673,
+        "availability": "Current cloud workspace; not a transferred archive or deployed acceptance."
+      },
+      {
+        "path": "/tmp/maintenance-runtime-lint-readiness-independent-review-20261015.json",
+        "sha256": "24e99beabec2e3e15fa28ebf98185d9f38b096a81a5b5dcba203b2ca1f8665c7",
+        "bytes": 2699,
+        "availability": "Current cloud workspace; not a transferred archive or deployed acceptance."
+      },
+      {
+        "path": "/tmp/approval-family-admission-implementation-20261015.json",
+        "sha256": "13dd62ca2116ff3e33811e90092cecab04c1098cbe3058ab6e2eed2ecc67419f",
+        "bytes": 1311,
+        "availability": "Current cloud workspace; not a transferred archive or deployed acceptance."
+      }
+    ],
+    "predecessor_hosted_failures": {
+      "path": "/tmp/pr60-d233-status-current-20261015.json",
+      "sha256": "e698f94870707548f227947df5443da90d7e79c829de8465cd8b1fbc1d67af99",
+      "bytes": 147362,
+      "availability": "Current cloud workspace; not a transferred archive or deployed acceptance."
+    },
+    "native_scope": "No new local PostgreSQL/OpenFGA native execution; cloud ownership guard still refuses hidden cgroup ancestry, without bypass. Exact next-commit hosted groups determine acceptance."
+  },
+  "source_association": {
+    "manifest_sources": 106,
+    "changed_sources": [
+      {
+        "path": ".github/workflows/connector-connected-lifecycle.yml",
+        "sha256": "944f22b261f7ee4669cd9fa8fa6ba409742046a440e49d9bc60167a0d19cd83f",
+        "bytes": 4088
+      },
+      {
+        "path": ".github/workflows/connector-native-draft-compile.yml",
+        "sha256": "88a134c09fa8fe3e15663e7461520ea998b15b36ba6a05b1750d3ed9a788db90",
+        "bytes": 11177
+      },
+      {
+        "path": "scripts/connector-acceptance-groups.mjs",
+        "sha256": "b610eaf412d67e28406960c2f6e2f458ebfb53c8b9168b203a890c6f32d39f9c",
+        "bytes": 6291
+      },
+      {
+        "path": "scripts/connector-acceptance-groups.test.mjs",
+        "sha256": "62f12a89735b152d0bd999e73a55ec279246c2fa50abed7221eecd2ca0391471",
+        "bytes": 4222
+      },
+      {
+        "path": "scripts/hosted-connected-connector-acceptance.mjs",
+        "sha256": "eb74b5f3aa61d1620767ea5c1d0df6656e8cd71447053dafbbc671bbe7737498",
+        "bytes": 43208
+      },
+      {
+        "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
+        "sha256": "ccac15b38943912e78e6d04e97c16cf16a931a7a978a1151fdd59aa19bdd1712",
+        "bytes": 41100
+      },
+      {
+        "path": "scripts/owned-maintenance-cutover.mjs",
+        "sha256": "38fc25e596f6770aa752b15d074d8c8bf778d443fc6a1bcf742c24ba85a76165",
+        "bytes": 5206
+      },
+      {
+        "path": "scripts/owned-runtime-services.mjs",
+        "sha256": "ab49dadf9362536861e19761f6f5380fd19e30282fe7e01df526ad59eb7915f9",
+        "bytes": 56800
+      },
+      {
+        "path": "services/platform/agentsec-api/authorization_runtime_readiness.go",
+        "sha256": "1be22a87267f5d86e94867afc5ed6ef3cbf829de91319b8171fc110eb46e0f5c",
+        "bytes": 5316
+      },
+      {
+        "path": "services/platform/agentsec-api/authorization_runtime_readiness_test.go",
+        "sha256": "f874e75c9984b428cd645fc194c41e0eb200559e133a989d0eb3ae25e45c99c5",
+        "bytes": 21313
+      },
+      {
+        "path": "services/platform/agentsec-api/production_runtime.go",
+        "sha256": "040ea8d733d5c22dc0e67279889605ad4fc68cb2e55131d2f546d0285e43dd2a",
+        "bytes": 54789
+      },
+      {
+        "path": "services/platform/apiserver/approval_activation_family_flow_test.go",
+        "sha256": "95272945e897f76c0d73b7722aa6fde436aff342b18e5109c2073206af709156",
+        "bytes": 10592
+      },
+      {
+        "path": "services/platform/apiserver/approval_activation_family_runtime_test.go",
+        "sha256": "a53c18a6796d8ed4e724e9c31ec2ce6c16d493400bc9b0c2824965d2a73dccbc",
+        "bytes": 13752
+      },
+      {
+        "path": "services/platform/apiserver/approval_activation_flow_test.go",
+        "sha256": "bb084df5346039a4b5dea8f08e834808f1ccb0b169ccd6b0ffdc35e7d62ba4ef",
+        "bytes": 33493
+      },
+      {
+        "path": "services/platform/apiserver/approval_activation_ordered_progress_test.go",
+        "sha256": "d4046a280bbe47b705f5851ac656a63c20fe46031c80b264fdd9678b36ec825a",
+        "bytes": 3849
+      },
+      {
+        "path": "services/platform/apiserver/approval_maintenance_genuine_test74_postgres_test.go",
+        "sha256": "e9b8a99b4d5fe0ed086c130b68551996613828f60646bfdec71ecf3e5b8007cc",
+        "bytes": 37119
+      }
+    ],
+    "runner_refresh": {
+      "path": "/tmp/approval-family-source-association-refresh-20261015.json",
+      "sha256": "7bb35e83eaed68b998d376bb08150bc1126ee65c2ae2d46890e0cdd4560ea13b",
+      "bytes": 1332,
+      "availability": "Current cloud workspace; not a transferred archive or deployed acceptance."
+    }
+  },
+  "preserved": [
+    "All 728 original tasks, owner mappings and categories",
+    "Original approval/provenance SQL and immutable predecessor installers",
+    "Pushed activation and audited-settlement profile bytes",
+    "Complete Runnable UI workflow",
+    "Original six native groups and all security, release, resource, deadline, source, tenant and cleanup guards"
+  ],
+  "open_work": [
+    "All nine exact-head hosted native groups and browser startup must pass; d233 predecessor still failed initial authorization readiness, PKCE/lifecycle, audit fixture queries and exact approval roster. Closed diagnostics are evidence, not fixes.",
+    "Fresh future Test74/progress enqueue, authentic overflow refusal respecting the public maximum concurrency of 10, and cross-tenant native family acceptance remain unverified.",
+    "PKCE/lifecycle live preparation and captured cleanup may exhaust authentic lease/context budgets; cause unproven. Retained diagnosis does not authorize raising timeouts, bypassing expiry or weakening denials.",
+    "Verified production fleet withdrawal, guarded sealed-candidate upgrade/rollout and obsolete-equivalence retirement remain open. Controlled loopback proof cannot authorize a fleet.",
+    "Fresh approved exact-input advisory evidence and a reviewed braces HIGH remediation remain required; release guard remains closed. Historical Nexus license issue is already fixed.",
+    "Prior prerequisite audit found 50 required bindings unbound. Real production target, Stytch session/organization, role-specific principals and provider integrations must be bound and every original deployed end-to-end requirement verified. No launch or completion claim."
+  ],
+  "next": "Publish reviewed batch normally and follow exact-head hosted results; merge only after required guards pass. Continue remaining software and external readiness work."
+}

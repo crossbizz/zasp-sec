@@ -1,0 +1,106 @@
+{
+  "observed_at": "2026-10-17T13:25:03.890595+00:00",
+  "continued_published_base": "f43a7aa70b7bd4a754cf9633be139d52d78516ac",
+  "classification": "APPLICATION_COMPONENT_SUCCESSOR_NO_DEPLOYED_ACCEPTANCE",
+  "task_mapping": [
+    "M4-50a"
+  ],
+  "scope": "Accepted row-open supersedes the unfinished initial detail intent. Cleanup retains deliberately superseded intent but clears incomplete genuine requests for StrictMode recovery. Prevents reopening initial A after a confirmed ownership save for explicitly selected B; existing pending/authority safeguards unchanged.",
+  "sources": [
+    {
+      "path": "app/features/agents/ProductionAgentSecurityView.tsx",
+      "bytes": 28576,
+      "sha256": "4cea345c68bad55937335840e9b736a4bbeee8829422e085bb7f68d1b4b7421e"
+    },
+    {
+      "path": "app/features/agents/ProductionAgentSecurityView.pagination.test.tsx",
+      "bytes": 23742,
+      "sha256": "3e301cac9bfed67d65c2294fead90822961a1b6006388c191de787f4cbed764d"
+    },
+    {
+      "path": "docs/internal/implementation_production_availability_v1.5.tsv",
+      "bytes": 207796,
+      "sha256": "b089b10928d7b63f6251c057f13f641e65a737e56c1d2745065b13545b616b54"
+    },
+    {
+      "path": "docs/internal/implementation_status_v1.5.md",
+      "bytes": 1337987,
+      "sha256": "b7ddd2228d0323fb70b94259ca3a52d856fc9ca2c6e8e2fff5875cfeda2e785c"
+    }
+  ],
+  "verification": {
+    "initial_actual_behavior_RED": {
+      "pass": 18,
+      "fail": 1,
+      "total": 19,
+      "exit": 1
+    },
+    "final_grouped_application_client": {
+      "pass": 74,
+      "fail": 0,
+      "skip": 0,
+      "files": 6,
+      "exit": 0
+    },
+    "UI": {
+      "typecheck_exit": 0,
+      "lint_exit": 0,
+      "build_exit": 0
+    },
+    "integrated_source_ledger_deployment": {
+      "pass": 65,
+      "fail": 0,
+      "skip": 0,
+      "exit": 0
+    },
+    "native": "UNEXECUTED",
+    "real_provider_deployed_E2E": "UNVERIFIED"
+  },
+  "independent_review": {
+    "decision": "CLEAR_SOURCE_SUCCESSOR",
+    "receipt_sha256": "c67766958f87a0dc134a03f3f1ccf9494f818503923fd1a04fd3c8573309308b",
+    "closed": "Previous checkpoint nonblocking old-link navigation issue closed at source/component level only."
+  },
+  "predecessor": {
+    "path": "docs/internal/cloud-production-agent-pagination-source-checkpoint-2026-10-17.json",
+    "sha256": "50ca09dceac19c7187ea8cca19a2618ed5715412a5a403f6fe189ea37a27c086",
+    "unchanged": true
+  },
+  "ledger": {
+    "rows": 728,
+    "unique_ids": 728,
+    "classes": {
+      "production-available": 517,
+      "component-only": 150,
+      "blocked/external": 61
+    },
+    "sha256": "b089b10928d7b63f6251c057f13f641e65a737e56c1d2745065b13545b616b54",
+    "historical_statuses": {
+      "Complete": 667,
+      "Blocked": 61
+    },
+    "availability_promotions": 0,
+    "M4-50a": "component-only",
+    "other_rows_unchanged": 727,
+    "prior_evidence_prefix_retained": true,
+    "predecessor_status_exact_suffix_retained": true,
+    "predecessor_status_sha256": "4fd85db65d16ae086df53d0b69f9538de40d5e5bc05338a87b4d56950e7ff1a2",
+    "remaining_inventory_records": 211,
+    "remaining_inventory_unchanged": true
+  },
+  "guards": {
+    "source_pins": 496,
+    "connected_native_groups": 21,
+    "connected_native_cases": 146,
+    "owned_PostgreSQL_joins": 32,
+    "approval_controls": 16,
+    "all_unchanged": true
+  },
+  "archive": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/agents-detail-supersession/source-evidence.json.gz",
+    "bytes": 556510,
+    "sha256": "712b3b230b05067beae55b888a8772dc2cfd14fd97af2170761bffdd04ff0c9c",
+    "members": 25
+  },
+  "remaining": "Original owner/risk/capability/enforcement/coverage requirements and all728 deployed acceptance still required. No production availability promotion, native/provider/launch pass, main merge or release guard bypass."
+}

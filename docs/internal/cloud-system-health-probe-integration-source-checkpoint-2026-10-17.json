@@ -1,0 +1,232 @@
+{
+  "observed_at": "2026-10-17T14:31:49.661250+00:00",
+  "continued_published_base": "c47a48d404073efcce4de1917c03a82555312503",
+  "classification": "REAL_HEALTH_API_SOURCE_INTEGRATION_WITH_THREE_NEGATIVE_AVAILABILITY_CORRECTIONS",
+  "task_mapping": [
+    "M7-29",
+    "M7-30",
+    "M7-31",
+    "M7-40d"
+  ],
+  "scope": "Wire existing correct required/optional aggregator into actual status/components endpoints over exactlyexisting request-local databaseReady and liveIdentity outcomes. Required identity failures no longer fabricate optional degradation. Same UTC observation time, scope, live-verifier, no extra I/O/cache/probes/authority or unobserved optional health. Aggregation context/version errors emit fixed unavailable. Components retain IDs/required flags/states with existing service deterministic sort.",
+  "sources": [
+    {
+      "path": ".github/connector-native-compile-source-pins.json",
+      "bytes": 161367,
+      "sha256": "8ef673716268d0d2814ddeaa57bda4a997d0f90b3eb55c2df88b220a1ad8074f"
+    },
+    {
+      "path": ".github/workflows/connector-native-draft-compile.yml",
+      "bytes": 100990,
+      "sha256": "0e46096467633adf94450a3cba33ce06c25059c239b42a12aedb644e6b5f749c"
+    },
+    {
+      "path": "docs/internal/implementation_production_availability_owners_v1.5.tsv",
+      "bytes": 20118,
+      "sha256": "b2d5b4b738c529198b5519bb242b458ba9a4e16e6e814852cb04e5277c643391"
+    },
+    {
+      "path": "docs/internal/implementation_production_availability_v1.5.tsv",
+      "bytes": 210773,
+      "sha256": "79de1dbbd907ad389e289eee02f286a6d8477721023ee2da4dc627fe06893a4c"
+    },
+    {
+      "path": "docs/internal/implementation_status_v1.5.md",
+      "bytes": 1341095,
+      "sha256": "97e6fbe8c3b46bcc70b838da2f9e476c75d6c506f21e137c4332640c0d265d9b"
+    },
+    {
+      "path": "scripts/connector-acceptance-groups.test.mjs",
+      "bytes": 52524,
+      "sha256": "5d9bebf7c99be73ffb10ec40f994ff39a1b9e583ee270aeaafaa62437cbf028e"
+    },
+    {
+      "path": "scripts/hosted-connected-connector-acceptance.mjs",
+      "bytes": 103835,
+      "sha256": "6a16b1cb3cbebac82ae261c4275bf8d777c4b83fbbb71b5a0b6e51846f30b503"
+    },
+    {
+      "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
+      "bytes": 100236,
+      "sha256": "b5b6d574bc9f2b3dcba8ee9a0bd807ffacbe18004037126c2753c57fee4e8101"
+    },
+    {
+      "path": "scripts/implementation-status-check.mjs",
+      "bytes": 17103,
+      "sha256": "ff28c14983333ce750d759566be26e61e2d34829804ec075258d09b6419a0974"
+    },
+    {
+      "path": "scripts/implementation-status-check.test.mjs",
+      "bytes": 27954,
+      "sha256": "87ab18192aefdcd8181c11b27cedea8a8618a9012df942544495784ea0f614f6"
+    },
+    {
+      "path": "services/platform/apiserver/administration_fix_round1_test.go",
+      "bytes": 6854,
+      "sha256": "a33e272f327ff4b893c1e3540c801677c223e31b0e32d5acffa7ac20fe040239"
+    },
+    {
+      "path": "services/platform/apiserver/production.go",
+      "bytes": 57474,
+      "sha256": "4db8cead48cee815edf3cffd7c1bebca892113de2172e94ce7b31ecf06d95bf1"
+    },
+    {
+      "path": "services/platform/apiserver/system_health_probe_integration_test.go",
+      "bytes": 6523,
+      "sha256": "1c4dc75253b7d54b5418ba60c26c34bd95e408b63e60b622feac4b54087635be"
+    },
+    {
+      "path": "docs/internal/cloud-goal-remaining-task-inventory-2026-10-17-health-source-audit-successor.json",
+      "bytes": 33321,
+      "sha256": "f401026ce5579d1160755423863f4a9681167136b43ff84b346e9483d9071933"
+    }
+  ],
+  "support_sources": [
+    {
+      "path": "services/platform/admincontrol/admincontrol.go",
+      "bytes": 7283,
+      "sha256": "863d38c15d9419dff2a4f4d9903a81d41d382107696a34edffe453b78b3cda7d"
+    },
+    {
+      "path": "services/platform/apiserver/repository.go",
+      "bytes": 40436,
+      "sha256": "b7391ca8e8aa05af07f18ee841afbfe282769984d97a6e801dc1b833b550739f"
+    },
+    {
+      "path": "services/platform/apiserver/middleware.go",
+      "bytes": 7510,
+      "sha256": "767d8631d688331e897ff78d22695ba7e20ec47905e77c2fc7ef6108fa27f7a2"
+    },
+    {
+      "path": "services/platform/apiserver/composition.go",
+      "bytes": 32391,
+      "sha256": "395e53a86fe27554008fa3c90be302a9f5f0ff3146c8b14bb1c9a60c5d752932"
+    },
+    {
+      "path": "services/platform/apiserver/authorization_targets.go",
+      "bytes": 6055,
+      "sha256": "badfabbcff13b4f6f0e7b9bc354dd8f7cc9135d09d824980392bc962fc4fb2c9"
+    },
+    {
+      "path": "openapi/openapi.yaml",
+      "bytes": 373718,
+      "sha256": "374acf7080ed7ca35096aa4141fdab2d895ea7f686224742bf65715689aa37e6"
+    },
+    {
+      "path": "services/platform/apiserver/middleware_test.go",
+      "bytes": 9538,
+      "sha256": "a2a1a979e9364056f2efdaf7f4d849f73ab4c977244376e85319741e5b39a220"
+    },
+    {
+      "path": "services/platform/admincontrol/admincontrol_test.go",
+      "bytes": 4340,
+      "sha256": "d9c165b8c3344f4baaab05124a12829dc7069365825c33924c460cf7b3a090d2"
+    },
+    {
+      "path": "services/platform/admincontrol/http.go",
+      "bytes": 2864,
+      "sha256": "9291924b68d4eafe250e848890e7eec7e69c10395f5496f0edd1a6cff61f32af"
+    },
+    {
+      "path": "services/platform/domain/ids.go",
+      "bytes": 4587,
+      "sha256": "2064d5c029400ddd5d2b667d2cd7138093a3d87219a34f2c2d9d95855c4f7c87"
+    },
+    {
+      "path": "services/platform/domain/scope.go",
+      "bytes": 1129,
+      "sha256": "78b563657623186c85bd7e40ae8539063537654109cb64aebec740e9114574e5"
+    }
+  ],
+  "verification": {
+    "original_full_admincontrol": {
+      "named_pass": 1,
+      "fail": 0,
+      "skip": 0,
+      "race": true,
+      "exit": 0
+    },
+    "API_group_before_and_after_product": {
+      "named_cases": 0,
+      "exit": 1,
+      "classification": "SETUP_BLOCKED_MISSING_OPA_COMPILER_AND_BEHAVIOR_UNKNOWN",
+      "not_behavior_RED": true
+    },
+    "ledger_guard_tests_first": {
+      "pass": 0,
+      "fail": 4,
+      "includes_parent": true,
+      "classification": "GENUINE_CLASSIFICATION_ASSERTION_RED"
+    },
+    "final_node_guards": {
+      "pass": 71,
+      "fail": 0,
+      "skip": 0
+    },
+    "final_ledger": "728valid514/153/61",
+    "fresh_UI_typecheck_exit": 0,
+    "fresh_UI_build_exit": 0,
+    "workflow": {
+      "embedded_python_AST_blocks": 33,
+      "required_named_API": 11,
+      "required_named_full_admincontrol": 1,
+      "complete12_validator_fixture": "SYNTHETIC_ONLY_NOT_APPLICATION_PASS",
+      "invalid_and_actual_blocked_refusals": 5
+    },
+    "native": "UNEXECUTED",
+    "deployed_provider_browser_E2E": "UNVERIFIED"
+  },
+  "independent_source_review_sha256": "64442120b871ad42bffcbc0304785cfa54b870b3f79145d2d6f8d8f1569717e1",
+  "independent_availability_audit_sha256": "ad0b05aad613b2ebf37f040600f3894c90239bc1afe1b020ef892956908f0972",
+  "ledger": {
+    "rows": 728,
+    "unique_ids": 728,
+    "classes": {
+      "production-available": 514,
+      "component-only": 153,
+      "blocked/external": 61
+    },
+    "historical_statuses": {
+      "Complete": 667,
+      "Blocked": 61
+    },
+    "negative_corrections": [
+      "M7-29",
+      "M7-30",
+      "M7-40d"
+    ],
+    "correction_owner": "T14-data-workflows",
+    "availability_promotions": 0,
+    "additional_evidence_only_row": "M7-31",
+    "other_rows_unchanged": 724,
+    "prior_evidence_prefixes_retained": true,
+    "historical_status_and_all_IDs_preserved": true,
+    "prior_dated_status_history_retained": true,
+    "current_summary_tables_corrected": true,
+    "remaining_inventory_records": 214,
+    "old_inventory_records_retained": 211,
+    "sha256": "79de1dbbd907ad389e289eee02f286a6d8477721023ee2da4dc627fe06893a4c"
+  },
+  "guards": {
+    "source_pins": 548,
+    "prior_paths_and_history_retained": 540,
+    "additional_bindings": 8,
+    "newly_bound_existing_files": 7,
+    "newly_created_bound_files": 1,
+    "concurrent_snapshot": "First roster report captured546; preserved with explicit immutable540-to548 successor, domain fixture dependencies added.",
+    "connected_native_groups": 21,
+    "connected_native_cases": 146,
+    "owned_PostgreSQL_joins": 32,
+    "approval_controls": 16,
+    "native_rosters_unchanged": true,
+    "new_hosted_required_names": 12,
+    "API_named_pass_actual": 0
+  },
+  "archive": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/system-health-probe-integration/source-evidence.json.gz",
+    "bytes": 1785743,
+    "sha256": "1c78e4b04f447ce017c7a50acd84d7eae8a25e1f956b510719bf0850dac55629",
+    "members": 73
+  },
+  "remaining": "Current API compiler/actual handler behavior, real required Stytch/PostgreSQL outages, actual optional provider/OTLP outage behavior, browser/provider/deployed end-to-end acceptance remain required. Direct-handler doubles are not mounted authorization acceptance. M7-31 historical availability is not fresh deployment proof. No obsolete equivalents retired without verification, no guard bypass; all728 original requirements remain active."
+}

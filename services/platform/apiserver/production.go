@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/zasp-ai/zasp-sec/services/platform/admincontrol"
 	"github.com/zasp-ai/zasp-sec/services/platform/authorization"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	"github.com/zasp-ai/zasp-sec/services/platform/orchestration"
@@ -146,6 +147,9 @@ func newProductionHandlers(repository, securityAgentRepository *PostgresReposito
 		if sensorErr != nil {
 			return Dependencies{}, nil, ErrRepositoryConfiguration
 		}
+		if repository.sensorNodeCoverageProfileChecksum != "" && sensorRepository.RequireSensorNodeCoverageProfile(repository.sensorNodeCoverageProfileChecksum) != nil {
+			return Dependencies{}, nil, ErrRepositoryConfiguration
+		}
 		sensorHandler, sensorErr := NewSensorPublicHTTPHandler(sensorRepository, cookie.WorkflowSigningKey)
 		if sensorErr != nil {
 			return Dependencies{}, nil, ErrRepositoryConfiguration
@@ -154,6 +158,28 @@ func newProductionHandlers(repository, securityAgentRepository *PostgresReposito
 		if sensorErr != nil {
 			return Dependencies{}, nil, ErrRepositoryConfiguration
 		}
+	}
+	if repository.agentDeviceAssociationProfileChecksum != "" {
+		associationRepository, associationErr := NewAgentDeviceAssociationRepository(repository.database, repository.agentDeviceAssociationProfileChecksum)
+		if associationErr != nil {
+			return Dependencies{}, nil, ErrRepositoryConfiguration
+		}
+		associationHandler, associationErr := NewAgentDeviceAssociationHTTPHandler(associationRepository, AgentDeviceAssociationHandlerConfig{SigningKey: cookie.WorkflowSigningKey, Clock: cookie.Clock, NewProductID: newWorkflowProductID, NewNonce: newAgentDeviceAssociationNonce})
+		if associationErr != nil {
+			return Dependencies{}, nil, associationErr
+		}
+		workflowSurface = &agentDeviceAssociationSurface{fallback: workflowSurface, associations: associationHandler}
+	}
+	if repository.gatewayBootstrapProfileChecksum != "" {
+		gatewayRepository, gatewayErr := NewGatewayBootstrapRepository(repository.database, repository.gatewayBootstrapProfileChecksum)
+		if gatewayErr != nil {
+			return Dependencies{}, nil, ErrRepositoryConfiguration
+		}
+		gatewayHandler, gatewayErr := NewGatewayBootstrapHTTPHandler(gatewayRepository)
+		if gatewayErr != nil {
+			return Dependencies{}, nil, gatewayErr
+		}
+		workflowSurface = &gatewayBootstrapSurface{fallback: workflowSurface, gateways: gatewayHandler}
 	}
 	if securityAgentSchema {
 		securityAgentDefinitions, securityAgentErr := newWorkflowHTTPHandler(securityAgentRepository, cookie.WorkflowSigningKey, cookie.Clock, workflowCapabilities)
@@ -219,6 +245,10 @@ func newProductionHandlers(repository, securityAgentRepository *PostgresReposito
 		if inventoryErr != nil {
 			return Dependencies{}, nil, ErrRepositoryConfiguration
 		}
+		inventoryRepository.agentOwnerProfileChecksum = repository.agentOwnerProfileChecksum
+		inventoryRepository.agentReadProfileChecksum = repository.agentReadProfileChecksum
+		inventoryRepository.agentOwnershipWriteProfileChecksum = repository.agentOwnershipWriteProfileChecksum
+		inventoryRepository.agentExposureFilterProfileChecksum = repository.agentExposureFilterProfileChecksum
 		inventoryHandler, inventoryErr := newInventoryHTTPHandler(inventoryRepository, cookie.WorkflowSigningKey)
 		if inventoryErr != nil {
 			return Dependencies{}, nil, ErrRepositoryConfiguration
@@ -684,7 +714,7 @@ func (handler *identityHTTPHandler) mutateAdministration(writer http.ResponseWri
 			mutation.InitialEnvironmentID, err = newWorkflowProductID()
 		}
 		mutation.Name, status = input.Name, http.StatusCreated
-	case "updateWorkspace", "updateEnvironment":
+	case "updateWorkspace":
 		var input struct {
 			Name string `json:"name"`
 		}
@@ -696,17 +726,25 @@ func (handler *identityHTTPHandler) mutateAdministration(writer http.ResponseWri
 			writeWorkflowMutationError(writer, request, errOrOperation(err))
 			return
 		}
-		if routed.OperationID == "updateEnvironment" && mutation.ID != identity.Scope.EnvironmentID().String() {
+		mutation.Name = input.Name
+	case "updateEnvironment":
+		mutation.ExpectedVersion, err = parseVersion(request.Header.Get("If-Match"))
+		var input environmentClassificationInput
+		if err == nil {
+			input, err = decodeEnvironmentClassification(request, false)
+		}
+		if err != nil || !validAdministrationProductID(mutation.ID) {
+			writeWorkflowMutationError(writer, request, errOrOperation(err))
+			return
+		}
+		if mutation.ID != identity.Scope.EnvironmentID().String() {
 			writeProductionError(writer, request, ErrRepositoryNotFound)
 			return
 		}
-		mutation.Name = input.Name
+		mutation.Name, mutation.EnvironmentClass, mutation.EnvironmentClassPresent = input.Name, input.Class, input.ClassPresent
 	case "createEnvironment":
-		var input struct {
-			WorkspaceID string `json:"workspace_id"`
-			Name        string `json:"name"`
-		}
-		if decodeProductionJSON(request, &input) != nil || !validAdministrationProductID(input.WorkspaceID) || !validAdministrationName(input.Name) {
+		input, decodeErr := decodeEnvironmentClassification(request, true)
+		if decodeErr != nil {
 			writeProductionError(writer, request, ErrRepositoryOperation)
 			return
 		}
@@ -716,6 +754,7 @@ func (handler *identityHTTPHandler) mutateAdministration(writer http.ResponseWri
 		}
 		mutation.ID, err = newWorkflowProductID()
 		mutation.WorkspaceID, mutation.Name, status = input.WorkspaceID, input.Name, http.StatusCreated
+		mutation.EnvironmentClass, mutation.EnvironmentClassPresent = input.Class, input.ClassPresent
 	case "updateMemberRole":
 		var input struct {
 			Role string `json:"role"`
@@ -1194,20 +1233,37 @@ func (handler *identityHTTPHandler) serveLocalAdministration(writer http.Respons
 			databaseHealthy = repository.Ready(request.Context()) == nil
 		}
 		providerHealthy := handler.providerLiveVerified(request.Context())
+		componentState := func(healthy bool) string {
+			if healthy {
+				return "healthy"
+			}
+			return "unavailable"
+		}
+		providerState := "degraded"
+		if providerHealthy {
+			providerState = "healthy"
+		}
+		// Both observed dependencies are required. Aggregate their actual
+		// observations through the shared service instead of treating a failed
+		// identity dependency as evidence of an optional exporter failure.
+		probes := admincontrol.NewSystemProbes(handler.version, []admincontrol.ComponentProbe{
+			{ID: "postgresql", Required: true, State: componentState(databaseHealthy), FreshAt: now},
+			{ID: "identity-provider", Required: true, State: providerState, FreshAt: now},
+		})
 		if routed.OperationID == "getSystemStatus" {
-			writeJSONValue(writer, request, http.StatusOK, map[string]any{"security_plane_healthy": databaseHealthy && providerHealthy, "optional_degraded": !providerHealthy, "fresh_at": now}, nil)
+			status, err := probes.Status(request.Context(), now)
+			if err != nil {
+				writeProductionError(writer, request, ErrRepositoryUnavailable)
+				return true
+			}
+			writeJSONValue(writer, request, http.StatusOK, status, nil)
 		} else {
-			componentState := func(healthy bool) string {
-				if healthy {
-					return "healthy"
-				}
-				return "unavailable"
+			components, err := probes.Components(request.Context(), now)
+			if err != nil {
+				writeProductionError(writer, request, ErrRepositoryUnavailable)
+				return true
 			}
-			providerState := "degraded"
-			if providerHealthy {
-				providerState = "healthy"
-			}
-			writeJSONValue(writer, request, http.StatusOK, map[string]any{"items": []any{map[string]any{"id": "postgresql", "required": true, "state": componentState(databaseHealthy), "fresh_at": now}, map[string]any{"id": "identity-provider", "required": true, "state": providerState, "fresh_at": now}}}, nil)
+			writeJSONValue(writer, request, http.StatusOK, map[string]any{"items": components}, nil)
 		}
 	case "getSystemVersion":
 		writeJSONValue(writer, request, http.StatusOK, map[string]string{"version": handler.version}, nil)
@@ -1328,6 +1384,9 @@ func writeProductionError(writer http.ResponseWriter, request *http.Request, err
 		}
 	}
 	status, code, message, retryable := http.StatusServiceUnavailable, "provider_unavailable", "Provider unavailable", true
+	if errors.Is(err, ErrAuthorizationDenied) {
+		status, code, message, retryable = http.StatusForbidden, "request_forbidden", "Request forbidden", false
+	}
 	if errors.Is(err, ErrRepositoryAuthentication) {
 		status, code, message, retryable = http.StatusUnauthorized, "authentication_required", "Authentication required", false
 	}

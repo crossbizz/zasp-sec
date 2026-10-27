@@ -81,6 +81,7 @@ spec:
           resources: { requests: { cpu: 100m, memory: 128Mi, ephemeral-storage: 64Mi }, limits: { cpu: "1", memory: 512Mi, ephemeral-storage: 256Mi } }
           securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
           env:
+            {{- include "zasp.sensorNodeCoverage.env" . | nindent 12 }}
             {{- if .Values.authorizationTemporal.profile }}
             - { name: ZASP_RUNTIME_DATABASE_PROFILE, value: "canonical61-temporal78-authorization79-80-runtime-v1" }
             {{- end }}
@@ -144,6 +145,9 @@ spec:
           resources: { requests: { cpu: 100m, memory: 128Mi, ephemeral-storage: 64Mi }, limits: { cpu: "1", memory: 512Mi, ephemeral-storage: 256Mi } }
           securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
           env:
+            {{- include "zasp.gatewayInstallation.env" . | nindent 12 }}
+            {{- include "zasp.gatewayBootstrap.enrollmentEnv" . | nindent 12 }}
+            {{- include "zasp.agentDeviceAssociation.controlEnv" . | nindent 12 }}
             - { name: ZASP_GATEWAY_CONTROL_MAX_BODY_BYTES, value: "65536" }
             - { name: ZASP_GATEWAY_CONTROL_OPERATION_TIMEOUT, value: "5s" }
             - { name: ZASP_GATEWAY_CONTROL_READINESS_TTL, value: "30s" }
@@ -170,6 +174,10 @@ spec:
 {{- $workers = append $workers $v2 }}
 {{- end }}
 {{- range $worker := $workers }}
+{{- if and $root.Values.retentionReferenceExpiry.enabled (eq $worker.kind "index") }}
+{{- $_ := set $worker "version" $root.Values.retentionReferenceExpiry.indexStageVersion }}
+{{- $_ := set $worker "sessionIndex" $root.Values.retentionReferenceExpiry.sessionIndex }}
+{{- end }}
 {{- if has $root.Values.runtime.sessionSearchPhase (list "precision-consumers" "precision-intake") }}
 {{- $version := index (dict "runtime-archive" "runtime-archive-v2" "runtime-correlation" "runtime-correlation-v4" "runtime-projection" "runtime-projection-v3" "runtime-complete" "runtime-complete-v3") $worker.mode }}
 {{- if $version }}{{- $_ := set $worker "version" $version }}{{- end }}
@@ -212,6 +220,12 @@ spec:
           securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
           env:
             - { name: ZASP_WORKER_MODE, value: {{ $worker.mode | quote }} }
+            {{- if has $worker.mode (list "runtime-coordinator" "runtime-complete" "runtime-index") }}
+            {{- include "zasp.retention.pin" $root | nindent 12 }}
+            {{- if and $root.Values.retentionReferenceExpiry.enabled (eq $worker.kind "index") }}
+            - { name: ZASP_RETENTION_JOURNAL_PROFILE_CHECKSUM, value: {{ $root.Values.retentionReferenceExpiry.journalProfileChecksum | quote }} }
+            {{- end }}
+            {{- end }}
             {{- if $root.Values.authorizationTemporal.profile }}
             - { name: ZASP_RUNTIME_DATABASE_PROFILE, value: "canonical61-temporal78-authorization79-80-runtime-v1" }
             {{- end }}

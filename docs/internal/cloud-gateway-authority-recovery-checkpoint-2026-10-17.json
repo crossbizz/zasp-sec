@@ -1,0 +1,100 @@
+{
+  "classification": "CONNECTED_CLI_SOURCE_AND_LOCAL_COMPONENT_VERIFIED_NATIVE_AND_DEPLOYED_UNVERIFIED",
+  "observed_at": "2026-10-17T20:13:37.821218+00:00",
+  "source_parent": "3693cd2fe0f04322065811af979f03cb60a9c3e4",
+  "task_mapping": [
+    "M4-50b3"
+  ],
+  "scope": "Explicit gateway recover authenticates existing fixed current Authority GET using original retained key and custody endpoint. Optional explicit export requires same fresh in-process capability. No server route/profile/role/grant, enrollment, replay-floor or UI change.",
+  "semantics": {
+    "original_enrollment": "UNKNOWN without real original receipt; neither TLS response nor saved authority observation fabricates enrollment receipt or StateAccepted. Actual receipt-backed confirmed state remains distinct.",
+    "authority": "Signed DEVICE request plus TLS-authenticated response, not independently signed server attestation. Strict13 actual fields match original exact scope/Device/credential/generation/key/publickey/expiry. Version/floor are mutable current facts.",
+    "custody": "First canonical observation retained immutable with local original request hash, endpoint, sent/observed times and canonical authority hash. Stage/fsync/nooverwrite publication and alias/orphan guards retained. Opaque handle requires new live check, one Observe, monotone single export attempt within30s; saved history never authorizes offline recovery export.",
+    "failure": "Retain original key/intent/history/receipt and any completed export on ambiguity; refuse revocation/rotation/expiry/wrongtuple/unsafe filesystem/context deadline. Post-publication deadline source finding corrected and original review HOLD retained.",
+    "old_behavior": "Existing receipt-only export contract retained. No token resurrection/rekey, inferred Agent association/coverage, task closure, availability promotion or obsolete retirement."
+  },
+  "verification": {
+    "actual_initial_behavioral_red": {
+      "wire": 3,
+      "custody": 3,
+      "cli": 3
+    },
+    "actual_first_connected_grouped_pass": 9,
+    "final_full_regressions": {
+      "cli": {
+        "named_pass": 214,
+        "race": true,
+        "new_subset": 3
+      },
+      "wire_and_custody": {
+        "named_pass": 15,
+        "race": true,
+        "new_subset": 6
+      },
+      "qualification": "Nine new grouped heads occur within full regressions; counts are not additive. Actual local application/TLS/filesystem components, not deployed acceptance."
+    },
+    "actual_exact_workflow_script": {
+      "named_pass": 9,
+      "packages": 3,
+      "modules": 2,
+      "strict_result_validator": "PASS",
+      "source_custody_bindings": 846,
+      "qualification": "Executed actual new CI Python body locally with exact Go1.26.8/offline cache. Not hosted/native/deployed verification."
+    },
+    "source_custody_guards": {
+      "named_pass": 21,
+      "bindings": 846
+    },
+    "ui": "UNCHANGED_FROM_3693CD2F_VERIFIED_TYPECHECK_LINT_BUILD_NO_NEW_UI_RUN_CLAIM",
+    "source_review": {
+      "design": "CLEAR_3b4d6437",
+      "successor_design": "CLEAR_5d425c0d",
+      "wire_custody": "CLEAR_610574bd",
+      "first_cli_ci": "PRESERVED_HOLD_795545c0_CONTEXT_DEADLINE_SOURCE_FINDING",
+      "successor_cli_ci": "CLEAR_6a0fdd25",
+      "publication": "CLEAR_5046edff"
+    },
+    "native": "UNVERIFIED_PREVIOUS_CANONICAL_RUNTIME_ADMISSION_REFUSED_NO_ALTERNATE_NATIVE_STARTUP",
+    "connected_api_compilation": "UNCHANGED_PREDECESSOR_OPA_BADGER_SETUP_BLOCKED_NO_NEW_ATTEMPT_OR_SUCCESS_CLAIM",
+    "deployed": "REAL_STYTCH_PROVIDER_TEMPORAL_OPENFGA_BROWSER_ALL_ORIGINAL_LAUNCH_ACCEPTANCE_UNVERIFIED"
+  },
+  "preservation": {
+    "original_test_and_scaffold_freezes": "RETAINED_WITH_ACTUAL_NINE_RED_OUTPUT",
+    "first_connected_and_context_correction": "RETAINED_SEPARATE_SOURCE_SUCCESSOR_NOT_FABRICATED_EXECUTED_RED",
+    "runners": "UNCHANGED_OUTSIDE_LITERAL_SOURCE_MAPS",
+    "prior_jobs": "UNCHANGED_EXCEPT_DECLARED840_TO846_COUNT",
+    "ledger_and_owners": "BYTE_UNCHANGED",
+    "all_remaining_records": "UNCHANGED_V11_ALL219"
+  },
+  "ledger": {
+    "rows": 728,
+    "unique_ids": 728,
+    "historical_complete": 667,
+    "historical_blocked": 61,
+    "production_available": 509,
+    "component_only": 158,
+    "blocked_external": 61,
+    "remaining_recorded": 219,
+    "sha256": "4d96bdb33fb636b7a86ef1d4f5de142735ab4936d2fff41dff019df833dd9f98",
+    "owners_sha256": "de630b490e4861aeadf52fff3b2ecf075884d7d8adbacfbbd06c4ceca27aa46b",
+    "inventory": "docs/internal/cloud-goal-remaining-task-inventory-2026-10-17-gateway-bootstrap-source-successor.json",
+    "all_original_deployed_acceptance_still_required": true
+  },
+  "evidence": {
+    "path": "docs/internal/cloud-gateway-authority-recovery-evidence-2026-10-17.tar.gz",
+    "status": "DURABLE_ARCHIVE_CREATED_ALL_MEMBER_HASHES_VERIFIED",
+    "sha256": "57dbe4e79eba863e9ae45f1ac8a6083a6c085d22816d09037f6faf688e0e9e05",
+    "bytes": 380591,
+    "members": 104,
+    "qualification": "Original failures, source successors, actual local output and independent review retained; no native/deployed or launch acceptance."
+  },
+  "next_critical_path": [
+    "Independently review and implement authentic three-phase Agent-to-Device association with fresh human authorization at final activation; source research preserved, no implementation claim.",
+    "Compose real placement, association, current installation/freshness/revocation and coverage/filter APIs/UI without inference.",
+    "Resolve admitted dependency/runtime/deployment prerequisites; pass all applicable hosted/security/release/native and real Stytch/provider/Temporal/OpenFGA/browser acceptance for every original requirement."
+  ],
+  "launch_ready": false,
+  "merge_release_cleared": false,
+  "task_closed": false,
+  "retired_obsolete": false
+}

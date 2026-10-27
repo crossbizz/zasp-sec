@@ -1,0 +1,9 @@
+**
+!services/
+!services/gatewaypodidentity/
+!services/gatewaypodidentity/go.mod
+!services/gatewaypodidentity/*.go
+!services/gatewaypodidentity/cmd/
+!services/gatewaypodidentity/cmd/gateway-reviewer-publisher/
+!services/gatewaypodidentity/cmd/gateway-reviewer-publisher/*.go
+**/*_test.go

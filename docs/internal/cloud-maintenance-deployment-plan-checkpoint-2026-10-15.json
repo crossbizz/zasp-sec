@@ -1,0 +1,102 @@
+{
+  "checkpoint": "cloud-maintenance-deployment-plan-2026-10-15",
+  "observed_at": "2026-10-15T03:33:11.348731+00:00",
+  "starting_sha": "fd17a0256f6028828dc6c89d6db4f9152d6457c2",
+  "main_sha": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
+  "classification": "Read-only planner, component application contract verified; real fleet authority and deployment unverified",
+  "ledger": {
+    "original_rows": 728,
+    "production_available_recorded": 523,
+    "component_only": 144,
+    "blocked_external": 61,
+    "missing": 0,
+    "promotions": 0
+  },
+  "task_crosswalk": [
+    {
+      "id": "M8-01",
+      "owner": "T15-deployment",
+      "contribution": "Production overlay rollout ordering and review resources supporting the existing deployment requirement; no cloud execution or completion claim."
+    },
+    {
+      "id": "M8-05",
+      "owner": "T15-deployment",
+      "contribution": "Explicit mandatory credential-holder, IAM/CI/secret-reader and policy enforcement gates; no actual least-privilege or installed-fence proof."
+    }
+  ],
+  "source_association": [
+    {
+      "path": "deploy/production/maintenance-deployment-cutover.mjs",
+      "sha256": "894e29e72318511dc9076859833b8a049806901f8c9694eb83a988dd41a6c39b",
+      "bytes": 11888
+    },
+    {
+      "path": "deploy/production/maintenance-deployment-cutover.test.mjs",
+      "sha256": "73b32890f33d60d236dc25c8337c4c930c9f656682fcdb87355fd61a36fa3986",
+      "bytes": 7083
+    },
+    {
+      "path": "package.json",
+      "sha256": "0dd4697c7feb7a59a83be241ec4f71de74941400d16537fafceb80716eeb8198",
+      "bytes": 17607
+    }
+  ],
+  "implementation": [
+    "Provide a read-only review plan with explicit unverified namespace/immutable release locator inputs, all13 mandatory prerequisites unverified, all verification/activation/availability flagsfalse and empty mutatingResources. Unknown fields, asserted proof and extra holders refuse; seven consumers are only the minimum baseline, not a complete census.",
+    "Fix11phases in order with predecessor links: review, inventory, applicationquiesce, continuousnormaldrain, new-onlyserverrotation, runtimefreeze, finalwithdrawal, combinedactivation, samecoordinatorfirstcomposedAck, clientrelease, deployedacceptance. All external old/new clients remain fenced through activation and firstAck.",
+    "Render separate standalone review-only VAP/Binding candidates only from a privately issued immutable plan. Fail/Deny falsevalidation and explicit namespace request conditions cover exact PodCREATE, ephemeralUPDATE, exec/attachCONNECT, workloadCREATE; finalfreeze separately adds scale/controller/route mutations. No selector-label assumption.",
+    "Explicitly retain RBAC/portforward/proxyGET/read/secret/cloudIAM/CI/offcluster/policytamper/watch/census/UID/normalexit/firstAck limitations. Rendered resources are not installed or a complete fence and cannot authorize any factory.",
+    "Register the new grouped contract cases in the existing production:release:test command, retaining every existing case and npm verify/RunnableUI invocation. No subprocess/network/deployment/SQL/chart/CLI integration or production constructor enabled. Existing NewDeployment refusal, controlled loopback scope, native source manifest/pins and all immutable evidence/TSV counts unchanged."
+  ],
+  "verification": {
+    "node": {
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "red_retained": true,
+      "scope": "Grouped application input/phase/authority/immutable-plan and admission-review contract cases, not Kubernetes/Temporal/OpenFGA internals or real enforcement."
+    },
+    "release_local_group": {
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0,
+      "status": 0
+    },
+    "broader_render_group": {
+      "passed": 30,
+      "failed": 5,
+      "skipped": 1,
+      "status": 1,
+      "interpretation": "Five render failures occur at original release-contract Helm invocation catch; actual helm version probe returns ENOENT. Results retained, not passed or suppressed. No chart-render proof inferred."
+    },
+    "ui": {
+      "lint": 0,
+      "typecheck": 0,
+      "build": 0
+    },
+    "ledger_valid": true,
+    "independent_source_review": "maintenance-deployment-readonly-renderer-independent-review-20261015.json",
+    "evidence": {
+      "path": "docs/internal/evidence/cloud-2026-10-15/maintenance-deployment-plan/verified-batch-evidence.json.gz",
+      "sha256": "7ab24791a9c4de964971ab111db832fb974540daaa0993df8a37555f3daf0667",
+      "bytes": 31214,
+      "uncompressed_sha256": "f3c2321825a342a421420f92671867a0d401ee0e07a29385f7e2d9f34597f5af",
+      "uncompressed_bytes": 199433,
+      "members": 24
+    }
+  },
+  "fresh_hosted_observations": {
+    "sha": "cbde3a11d0270f7cfc6d8bd02adcf60a9f15275e",
+    "scope": "Incomplete official exact-head Actions metadata and bounded annotations only; no raw logs/artifacts/deployed acceptance.",
+    "browser": "Coremetadata passed, securityagentmetadata deadline under unchanged shared5sbudget; authorizationreadiness failed. Constructor-specific failure is not established by this run.",
+    "lifecycle": "Pendingrevocation assertion passed after setup reorder, then appliedrevocation unavailable with parentlive=true/leaselive=false afterreconcile. Reorder is not a complete native fix.",
+    "pkce": "Preparation-forward unavailable with liveparent/expiredlease. No deadline/lease increase or securitydenial credit."
+  },
+  "remaining_gates": [
+    "Actual target/account/cluster and namespace UIDs, authenticated trust publisher/provenance, protected release results and purpose-scoped private credentials remain missing.",
+    "Private deployment state/census/transport/FGA/SQL protocol and actual trusted loader/operator integration remain unimplemented; nine-file plan and independent review are retained, not implementation proof.",
+    "Actual IAM/CI/secret-reader exclusion, continuous normalALLcontainer termination, enforced admission/RBAC/controller fences, perendpoint old401/newwholemodel, combinedactivation+firstsamecoordinatorAck and deployed acceptance remain unverified.",
+    "Helm binary is absent locally (version probe ENOENT); five broader chart-render failures and one skipped case retained. Real chart render must pass on a properly provisioned runner.",
+    "Native integration/browser failures, dependency security release gate and real Stytch/provider/milestone requirements remain open. No availability promotions."
+  ]
+}

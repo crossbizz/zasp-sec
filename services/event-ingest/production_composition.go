@@ -38,6 +38,13 @@ func composeProductionIngestDependencies(ctx context.Context, config productionI
 	if err != nil {
 		return productionIngestDependencies{}, errRuntimeUnavailable
 	}
+	if config.NodeCoverageRetention {
+		mounted, mountErr := mountNodeCoverageHeartbeat(router, cachedRepository, clock, config.OperationTimeout)
+		if mountErr != nil {
+			return productionIngestDependencies{}, errRuntimeUnavailable
+		}
+		router = mounted
+	}
 	constructor := runtimeevent.NewProductionIngestReconciler
 	if config.RuntimeSchema == "runtime-event-v2" || config.DatabaseProfile == migrations.AuthorizationRuntimeProfileName {
 		constructor = runtimeevent.NewPreciseProductionIngestReconciler

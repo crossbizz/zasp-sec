@@ -18,13 +18,19 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/zasp-ai/zasp-sec/services/platform/authorization"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 )
+
+type executorDatabase interface {
+	BeginTx(context.Context, pgx.TxOptions) (pgx.Tx, error)
+}
 
 // Executor is the restricted maintenance caller. It creates only signed
 // decisions from native-loaded facts and real revision-fenced authorization.
 // It cannot create native origins, projection tuples or delivery delegations.
 type Executor struct {
-	pool                           *pgxpool.Pool
+	settlementAuditPin             string
+	pool                           executorDatabase
 	checker                        authorization.Checker
 	store, model, profile, version string
 	key                            []byte
@@ -38,6 +44,57 @@ func NewExecutor(pool *pgxpool.Pool, checker authorization.Checker, store, model
 	// The revision fence validates actual exact store/model ULIDs. No fallback.
 	h := sha256.Sum256(key)
 	return &Executor{pool: pool, checker: checker, store: store, model: model, profile: profile, version: hex.EncodeToString(h[:]), key: append([]byte(nil), key...)}, nil
+}
+
+// NewConfiguredActivatedExecutor validates compiled profile selection without I/O.
+// Construction establishes no live authority. Callers must complete Ready before
+// publishing a runtime consumer; native operations retain their live guards.
+func NewConfiguredActivatedExecutor(pool *pgxpool.Pool, checker authorization.Checker, store, model, profile string, key []byte, activationPin string) (*Executor, error) {
+	e, err := NewExecutor(pool, checker, store, model, profile, key)
+	if err != nil {
+		return nil, err
+	}
+	if err = e.configureSettlementAudit(activationPin); err != nil {
+		e.Close()
+		return nil, err
+	}
+	return e, nil
+}
+
+// NewActivatedExecutor requires the explicit immutable activation selection and
+// the separately installed additive settlement-audit catalog. Its restricted
+// role never needs execution permission on the immutable activation namespace.
+func NewActivatedExecutor(ctx context.Context, pool *pgxpool.Pool, checker authorization.Checker, store, model, profile string, key []byte, activationPin string) (*Executor, error) {
+	e, err := NewExecutor(pool, checker, store, model, profile, key)
+	if err != nil {
+		return nil, err
+	}
+	if err = e.bindSettlementAudit(ctx, activationPin); err != nil {
+		e.Close()
+		return nil, err
+	}
+	return e, nil
+}
+
+func (e *Executor) bindSettlementAudit(ctx context.Context, activationPin string) error {
+	if ctx == nil || ctx.Err() != nil {
+		return ErrConfiguration
+	}
+	if err := e.configureSettlementAudit(activationPin); err != nil {
+		return err
+	}
+	return e.Ready(ctx)
+}
+
+// configureSettlementAudit binds compiled selection only, never live readiness.
+func (e *Executor) configureSettlementAudit(activationPin string) error {
+	expected, err := migrations.ApprovalActivationProfileChecksum()
+	auditPin, auditErr := migrations.ApprovalSettlementAuditProfileChecksum()
+	if e == nil || err != nil || auditErr != nil || activationPin != expected || e.profile != migrations.ApprovalMaintenanceProfileChecksum() {
+		return ErrConfiguration
+	}
+	e.settlementAuditPin = auditPin
+	return nil
 }
 
 var maintenanceULID = regexp.MustCompile(`^[0-7][0-9A-HJKMNP-TV-Z]{25}$`)
@@ -75,6 +132,13 @@ func (e *Executor) Ready(ctx context.Context) error {
 		err := tx.QueryRow(ctx, `SELECT zasp_approval_maintenance.caller_ready($1,$2)`, e.profile, e.version).Scan(&ok)
 		if err != nil || !ok {
 			return ErrUnavailable
+		}
+		if e.settlementAuditPin != "" {
+			// This definer catalog function also fences the immutable activation
+			// dependency internally; expanding its predecessor ACL would break it.
+			if err := tx.QueryRow(ctx, `SELECT zasp_approval_settlement_v1.catalog_ready($1)`, e.settlementAuditPin).Scan(&ok); err != nil || !ok {
+				return ErrUnavailable
+			}
 		}
 		return nil
 	})
@@ -138,6 +202,9 @@ func (e *Executor) Invoke(ctx context.Context, op Operation, q json.RawMessage, 
 		}
 		return e.query(ctx, `SELECT zasp_approval_maintenance.begin_attempt($1::jsonb,$2,$3::json)`, q, kind, json.RawMessage(proof))
 	case NativeComplete, NativeFail:
+		if e != nil && e.settlementAuditPin != "" {
+			return e.query(ctx, `SELECT zasp_approval_settlement_v1.settle($1::jsonb,$2::json,$3,$4)`, q, json.RawMessage(proof), op == NativeComplete, e.settlementAuditPin)
+		}
 		return e.query(ctx, `SELECT zasp_approval_maintenance.settle($1::jsonb,$2::json,$3)`, q, json.RawMessage(proof), op == NativeComplete)
 	case NativeBeforeSecrets, NativeBeforeDelivery, NativeBeforeSecretFailure:
 		return e.authorize(ctx, op, q)

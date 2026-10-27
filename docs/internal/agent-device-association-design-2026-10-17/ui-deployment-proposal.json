@@ -1,0 +1,241 @@
+{
+  "classification": "SOURCE_ONLY_UI_API_DEPLOYMENT_PROPOSAL_REQUIRES_ROOT_MERGE_INDEPENDENT_REVIEW_NO_PRODUCT_IMPLEMENTATION",
+  "created_at": "2026-10-17T20:20:18.278377+00:00",
+  "goal_scope": "Administrative Agent\u2194Device admission with current Device-key acceptance and original human fresh approval. No Agent routing, runtime observation, policy enforcement, installation, health or coverage claim.",
+  "source_pins": [
+    {
+      "path": "docs/internal/gateway-authority-recovery-design-2026-10-17/next-agent-device-association-research.json",
+      "bytes": 17317,
+      "sha256": "f2f8d78fba3985b1f7d95251d848d5e908c428d37261d8a8092d2883ab9b3fa7"
+    },
+    {
+      "path": "app/features/agents/ProductionAgentSecurityView.tsx",
+      "bytes": 40926,
+      "sha256": "d698c9bdc609e9ef1d84c9e6ecc643af0988ed576599e7d9bc556beedcb1721d"
+    },
+    {
+      "path": "app/components/ZaspProductionApp.tsx",
+      "bytes": 22002,
+      "sha256": "47c0a64257b2cf5df988cb1468b447563836fa086f9b5ab76891bc32dde2ed8a"
+    },
+    {
+      "path": "app/api/APIProvider.tsx",
+      "bytes": 7087,
+      "sha256": "11f657c44a8601a19091f7f07c47e5f0896fd6143f6c928c47e4f110be6a4d2a"
+    },
+    {
+      "path": "app/auth/SessionProvider.tsx",
+      "bytes": 16926,
+      "sha256": "60f70d56982bc5b9097bbdd554009c914a9372803035f1957fd9e446af613837"
+    },
+    {
+      "path": "app/features/gateways/ProductionGatewayBootstrapView.tsx",
+      "bytes": 11521,
+      "sha256": "ef2504d7bb872f9324280e9101c3483a958d2c35a37642696203720e470458cf"
+    },
+    {
+      "path": "app/features/gateways/api.ts",
+      "bytes": 2706,
+      "sha256": "7401e2c8dd0533cf2ffb89aaef96185b2af0e3df5af36e1ca17869947bb4b62d"
+    },
+    {
+      "path": "apps/web/api/client.ts",
+      "bytes": 14985,
+      "sha256": "46b8327fb8387283adaafd44bcf7a2c6448988b5578e78b418c9189418f1d244"
+    },
+    {
+      "path": "apps/web/api/gateway-bootstrap-decoders.ts",
+      "bytes": 6769,
+      "sha256": "2c32e877aaa891d591ac0150d4c58b094b80673c2d6ea51e4751dc084cba58eb"
+    },
+    {
+      "path": "services/platform/apiserver/router.go",
+      "bytes": 14952,
+      "sha256": "a41583602add3b02fed17aef9220e0cbb3fd02b62f1512a42809c7706ab25032"
+    },
+    {
+      "path": "services/platform/apiserver/authorization_targets.go",
+      "bytes": 6139,
+      "sha256": "9f7eeacb1607836815be0e6d2515c4c48bd5b38777429eb62e7aeeaa5b602804"
+    },
+    {
+      "path": "services/platform/apiserver/authorization_post_login.go",
+      "bytes": 10428,
+      "sha256": "195ae1c10df02e5ca3f96017ee9bdb8a6abd0a2682ee3ba7d0ba1167a0a2ec48"
+    },
+    {
+      "path": "services/platform/apiserver/authorization_transaction.go",
+      "bytes": 5036,
+      "sha256": "654e051e70e25fa1490e751412981bc4ede7020fcd9a6d4f96ee65e0d63b85fb"
+    },
+    {
+      "path": "deploy/production/gateway-bootstrap-profile.mjs",
+      "bytes": 2577,
+      "sha256": "15a5ad8273ff24a3604963764d4140e7feef32a380a3696e8747bb7941074778"
+    },
+    {
+      "path": "deploy/production/release-contract.mjs",
+      "bytes": 89263,
+      "sha256": "61c930613f7e02130c62c1bb4a25f1b00305da900f48ef3ef13ca7baaa52c6e9"
+    },
+    {
+      "path": "deploy/staging/product/templates/workloads.yaml",
+      "bytes": 71416,
+      "sha256": "45fcd9044c199de51de7c4c864fb79420e928b009db9184542af41aa339a15e2"
+    },
+    {
+      "path": "deploy/staging/product/templates/runtime.yaml",
+      "bytes": 29212,
+      "sha256": "d76077a74ad28566e21e75dbae1136076df81dc9a7b74364a678c4b986056549"
+    },
+    {
+      "path": "deploy/staging/product/templates/edge.yaml",
+      "bytes": 34227,
+      "sha256": "a1da5ca57f332644bbacaf367c94e3dde3479315bfb2bc64a653e4d7b082f7e3"
+    },
+    {
+      "path": "deploy/staging/product/values.yaml",
+      "bytes": 16632,
+      "sha256": "56c3b678800e939082e7d79d24a5eac3150225c65cbcf468baf5cff3c2b8aacb"
+    }
+  ],
+  "selected_policy": "Root selected BrowserSession-only new human writes. Preserve original updateAgent13/owner/team/tags API and its permission/fresh-auth semantics. No PAT writes, new Device FGA principal, inherited environment/org identity.manage inference, private-key/browser generation or identity changes.",
+  "public_operations": [
+    {
+      "id": "createAgentDeviceIntent",
+      "method": "POST",
+      "path": "/api/v1/agents/{id}/device-association-intents",
+      "body": "closed {device_id,expected_association_version,ttl_seconds}; canonicalv4/nonzero DeviceID, expectedpairversion0..safeInt, ttl60..300",
+      "permission": "CURRENT manage_identity on this exact Agent; browser-only actual fresh Stytch-backed session+CSRF/origin/expectedScope",
+      "result": "201 fresh or200 exactmetadata/challenge replay; new intent never activates or silently replaces existing admitted pair"
+    },
+    {
+      "id": "getAgentDeviceAssociations",
+      "method": "GET",
+      "path": "/api/v1/agents/{id}/device-associations",
+      "body": "NONE; bounded limit default20/max100 and opaque currentidentity/scope/Agent/revision/pin-bound cursor",
+      "permission": "CURRENT view on exact Agent, browser or existing PAT view ceiling",
+      "result": "Exact closed backend page DTO, one current pair item per association with separate pending_intent; capabilities.can_manage from current bound independent Agent manage_identity sidecar, browser-only; no inferred write authority from view proof"
+    },
+    {
+      "id": "activateAgentDeviceAssociation",
+      "method": "POST",
+      "path": "/api/v1/agents/{id}/device-associations/{associationId}/activate",
+      "body": "closed {challenge_id,challenge_sha256,expected_association_version}",
+      "permission": "NEW current same-originalcreator browser fresh exact Agent manage_identity, after Deviceacceptance; no use of old phase1 human proof",
+      "result": "200 exactownmetadata receipt; currentGET must be refreshed before showing current admitted configuration"
+    },
+    {
+      "id": "revokeAgentDeviceAssociation",
+      "method": "POST",
+      "path": "/api/v1/agents/{id}/device-associations/{associationId}/revoke",
+      "body": "closed {expected_association_version}",
+      "permission": "ANY CURRENT fresh authorized browser Agent operator; does not require originalcreator or Device key",
+      "result": "200 exact scoped ownreceipt; does not revoke Device credential or Agent ownership"
+    }
+  ],
+  "authorization_discovery": {
+    "backend_coordination": "Backend author confirmed additional CURRENT exact Agent manage_identity sidecar Check for GET. Bind SAME viewgrant scope/principal/credentialdigest/Agentversion/current79revision and ownGET finalprofile. PrivateGo metadata only: never new immutable80 attestation field or SQL writeauthority.",
+    "capabilities": "Top capabilities={can_manage:boolean}; true only selected ownprofile+current browser+exact Agent sidecar permission. PAT false. Sidecar false/error yields false and preserves valid view read. No environment/org/collection fallback.",
+    "ui": "Show facts to Agent-view readers. Show human controls only capability.can_manage; expired realFreshAuth offers reauthenticate. Activate additionally requires same current principal as pendingcreated_by and live accepted pendingchallenge; all such checks are UI affordance only. Every server write independently reauthenticates actual current browser/currentAgent permission and current profile."
+  },
+  "closed_DTO_proposal": {
+    "authority": "Final exact backend closed DTO/ABI governs; do not add undeclared properties or hand-edit generated client.",
+    "association_item_keys": [
+      "association_id",
+      "agent_id",
+      "device_id",
+      "version",
+      "state",
+      "unavailable_reason",
+      "source_identity",
+      "admission_snapshot",
+      "device_credential",
+      "created_by",
+      "activated_by",
+      "created_at",
+      "activated_at",
+      "revoked_at",
+      "pending_intent"
+    ],
+    "nullable": "Before first activation source_identity/admission_snapshot/device_credential/activated_by/activated_at are explicit null; revoked_at explicitnull until revoked. Pendingintent null or exact object; acceptance null until Deviceconfirmed. Never omit/null interchange or synthetic emptyobjects/epoch timestamps.",
+    "pending_intent": "Exact {challenge_id,challenge_wire,challenge_sha256,created_by,created_at,expires_at,state,acceptance}. Challenge wire is server-frozen NONAUTHORIZING publicnonce data; acceptance exact DevicecredentialID/generation/acceptance metadata, not human authority.",
+    "challenge_resume": "GET may expose exact stillpending public challenge to authorized Agent-view reader to recover reload or unknown intent response. Possessing nonce alone authorizes neither Deviceaccept nor humanactivate. UI retains canonical received challenge wire; no local hash/time/source regeneration. Non-creator may hand it to Device but cannot finalize activation.",
+    "strict_sdk": "Official OpenAPI generated4methods only, exactclosed DTO/nesting/enums/canonical domainv4/nozero-payload/UTF8/UTF16/integers/timestamps/nulls. Strict bounded raw duplicate/number-spelling checks for new4routes before parsing. Require no-store/no-cache headers and exact scope/Agent/device/association/challenge identities; reject foreignresponse. Reject unsafeJS integers rather than approximate nativeInt64."
+  },
+  "ui_mount": {
+    "seam": "Add separate Administrative device associations section in the ACTUAL Agent drawer inside ConnectedInventory, category===agent, selected currentInventoryDetail. Reuse getAgent currentread and original Agent/source identity; do not modify ownership editor or create Device aliases.",
+    "render_boundary": "Key child by principal/org/work/env/queryGeneration/sessionInvalidationGeneration/scopeStaleGeneration/selectedAgentID. Existing outer agentAuthority path/queryScopeKey/queryGeneration helps but include exact principal and selectedAgent. Keep core inventory/Agent drawer runnable if own feature missing or list denies/unavailable.",
+    "text": "Separate Current administrative association from Pending replacement. admitted is administrative admission, not current observed routing/coverage/health. source_stale/removed/identity_changed/device/credential unavailable reasons displayed explicitly; missing/503 profile never renders empty list or falsely unassociated.",
+    "pagination": "Explicit Next/Previous current-bound cursor page20; do not fetch unlimitedhistory or conflate pages/Agents. Every successful mutation resets/reloads page containing affected pair or refetchesfirstpage; retain exact confirmed association ID if read fails."
+  },
+  "ui_states": [
+    {
+      "state": "loading_current",
+      "behavior": "Fetch current perAgent page under selected authority. No stale write controls/challenge/acceptance from old Agent."
+    },
+    {
+      "state": "current_readable",
+      "behavior": "Show administrative rows+separatependingcandidate. can_manage false => read-only. View denial/unavailable => bounded retry; no fakeempty."
+    },
+    {
+      "state": "creating_intent",
+      "behavior": "Explicit intended DeviceID+bounded TTL, currentexpectedpairversion from row or0. Fresh browser+currentcan_manage. Capture original requestbody/idempotency in memory; no automatic retry."
+    },
+    {
+      "state": "intent_confirmed",
+      "behavior": "Retain associationID/challenge and knownconfirmed result; failed followupGET is read-only recovery for sameAgent/pair, never newcreate. Show publicchallenge with protectedstdin CLI instructions; no browserDevicecredential/privatekey."
+    },
+    {
+      "state": "intent_unknown",
+      "behavior": "Unknown POST may have committed. Manual samebody/sameidempotency Recoverintent is metadata/challenge replay only; GET currentperAgent status may recover. Do not remintnonce/newkey or claim failed effect. HTTP400 knownrejection releases editableform; ambiguous conflict/transport keepsoriginalintent."
+    },
+    {
+      "state": "pending_device",
+      "behavior": "Show waiting Device acceptance. User runs DeviceCLI with exactchallenge through protectedstdin using already existing localDevicecredential. Explicit Refresh metadata; no automatic humanactivate or devicekeyupload."
+    },
+    {
+      "state": "pending_human",
+      "behavior": "Show boundDevice credentialID/generation and acceptanceexpiry. Onlysameoriginalcreator+can_manage+fresh+livecurrent pendingcandidate has explicit Approve association. Reauthenticate with realSessionProvider when stale; freshheader alone is not auth."
+    },
+    {
+      "state": "activating_or_revoking",
+      "behavior": "Capture exactpairversion/challenge/hash/currentintent andnewmutationkey. Confirmed200 thenrefetchGET; ifGETfails retainconfirmedpairID and offerreadretry only. Unknown outcome GET+deliberatesameintent replay under newcurrentauth; never optimistic admitted/revoked/credentialrevoked claim."
+    },
+    {
+      "state": "expired_or_unavailable",
+      "behavior": "Server clock/state authoritative; localcountdown onlydisablesexpiredpending affordance. Explain exactreason; rotation neverrelabelsacceptance. Newintent deliberate withnewnonce/currentpairversion; existing admitted pair remains until explicitactivation/revoke perbackendcontract."
+    }
+  ],
+  "invalidation": {
+    "clear": "On principal/scope/query/session/selectedAgent change remountclear pendingmutations/challenge display/currentmetadata. Fresh/permission/sessionloss synchronously hides challenge/writeaffordances; clear React state and abortreads. No localStorage/sessionStorage/indexedDB/URL query persistence. Publicchallenge can be safely recovered via newly authorized GET rather than retained across invalidation.",
+    "late": "Mounted+authority-generation/currentgetters before every state update and before writes; render also binds data to captured key. Old API success may have committed but cannot populate newAgent/scope. DeviceCLI remains sole signing custodian.",
+    "fresh": "Use existing SessionProvider.isFreshAuthenticated/reauthenticate and actual API middleware current Stytch-backed authenticated_at. User manually approves phase3 after reauthentication; never reuse phase1 proof or autoexecuteafterlogin."
+  },
+  "device_handoff": {
+    "command_proposal": "agentsecctl gateway association accept --credential-file <existing protected path> with exact publicchallenge JSON on stdin; exact command spelling belongs CLI author contract. No challenge/credentialvalue in argv/URL, no privatekey in browser. ExistingCredentialID/generation/scope must match challenge expectations; currentnative authority server derives actualidentity.",
+    "labels": "Public challenge is nonauthorizing; acceptance is current Devicekey testimony; final admission requires originalhuman fresh approval again. Keep these separate from gateway enrollment/installation ACK and runtime coverage.",
+    "deployment": "No edge flags or new Device enrollment/credential identity needed. Existing runtimeGateway.credentialSecretName, policyKeysSecretName, proxyClientTokenSecretName and local credentialcustody remain unchanged."
+  },
+  "deployment_proposal": {
+    "release": "Optional options.agentDeviceAssociation={enabled:boolean,profileChecksum:string}; absent legacyunchanged, disabledpinempty, enabledcurrentcanonical61-temporal78-authorization79-80-worker-v1+runtimeServices.enabled+compiledNormal/Auditpin.",
+    "helm": "Typedowned JSON values agentDeviceAssociation.enabled=false/profileChecksum=\"\" default; validate exactclosedkeys/booltypes. Never --set-string false. No profileinstallation implied by selecting checksum.",
+    "api": "Only agentsec-api Deployment/container receives ZASP_AGENT_DEVICE_ASSOCIATION_PROFILE_CHECKSUM when enabled; emptypin disables isolatedownsurface.",
+    "control": "Only agentsec-gateway-control/gateway-control receives ZASP_AGENT_DEVICE_ASSOCIATION_ENABLED=true and ZASP_AGENT_DEVICE_ASSOCIATION_PROFILE_CHECKSUM samepin. Exact env spellings PROPOSED awaitingroot/backend/transport agreement.",
+    "guards": "Fixedresources exacttwo consumers; refuse unknown/duplicate/valueFrom/mismatchedpin/init/worker/sensor/edge leakage. Alwaysreject envFrom on actualAPI/controlconsumers evenOFF. Preserveeveryexisting feature/profileguard/native roster andsourcecustody. Ownmissingprofile/catalog fails onlynewroutes; originalglobalhealth/decision/policy/enrollment/installACK unchanged.",
+    "no_mutation": "No new PVC/storageclass/credentials/secretrefs/roles/RBAC/nativeparentgrants, operatordeploymentorpolicy changes. Bootstrap/installation profiles remain independent."
+  },
+  "grouped_acceptance_proposal": [
+    "One connected generatedclient4operation/strictDTO/rawbytes/scopeAgentbinding/groupedmutationreplay test cohort, not perfield tests.",
+    "One connected Agentdrawer create\u2192Devicepending\u2192sameauthorfreshApprove\u2192currentGET/revoke UIcohort; reuse originalAgentcontext/ownershipregression. Deviceacceptance fixture is browser component proof only.",
+    "Groupedreload/unknownintent/confirmedPOSTfailedGET/manualrecover/versionconflict and allauthinvalidations/latepromises/foreignprincipal; challenge never treated as authority orcoverage.",
+    "One deploymentdefaultoff/currentprofile/exacttwo consumers/hiddenenvFrom guard cohort. RootactualOpenAPIgeneration/typecheck/build; Helm/native/deployed gates remain explicit.",
+    "GuardedrealNormal/Audit currentAgentpermissions/revocation/credentialrotation/expiry/unknownCOMMIT +realStytchBrowser\u2192actualDeviceCLI\u2192samehumanfreshApprove mustpass beforeproduction launch or ledgerpromotion."
+  ],
+  "open_for_root_merge": [
+    "BackendclosingDTO exacttop keys/page_info/itemstate enums/nullability/source/admission snapshot child shapes and stablecreator fields must replace proposal before testsfreeze.",
+    "Revoking admittedpair withpendingreplacement needs exactbackendsemantics. UI must not invent cancelpending operation when bodyonlyexpected_association_version cannot distinguish cancel vsrevoke. Labelwholeassociation revocation until contract explicitlystatesotherwise.",
+    "Confirmfeatureflag names/checksumexports and exactclosedresponse/audit/idempotencymarkers/statuses withbackend+transport. No implementation beforeindependentreviewedclosedcontract."
+  ],
+  "no_execution_or_completion": "Research only. No product edits, tests, Go/Node/Git/network/native execution, grants or ledger/milestone promotions. Sourceproposal is not launch/deployed evidence."
+}

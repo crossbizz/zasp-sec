@@ -1,0 +1,49 @@
+{
+  "status": "HOLD_EXACT_PROTOCOL_VECTOR_TYPE_AND_FINAL_MERGE_CLOSURE",
+  "reviewer": "/root/gateway_review",
+  "created_at": "2026-10-17T20:29:42.678717+00:00",
+  "proposals": [
+    {
+      "path": "docs/internal/agent-device-association-design-2026-10-17/cli-wire-proposal-aligned.json",
+      "sha256": "b3889c0199340f6087123cdb442d83c419934908b1f084c1969f58d861257748"
+    },
+    {
+      "path": "docs/internal/agent-device-association-design-2026-10-17/custody-wire-proposal.json",
+      "sha256": "65e8c0b6c230ca017ab32a8b939c12574a968151745869523f00535417cdda96"
+    },
+    {
+      "path": "docs/internal/agent-device-association-design-2026-10-17/ui-deployment-proposal.json",
+      "sha256": "c09f4fe6c94e40defdda770f5d8b312990c3b86c5ab8268c94919d4b632e5097"
+    }
+  ],
+  "findings": [
+    {
+      "id": "P1_PROTOCOL_KNOWN_ANSWER_AND_TYPES",
+      "priority": "P2",
+      "required": "Before grouped scaffolds freeze one concrete deterministic nativeASCII12field challenge byte string with exact SHA256/canonicalRawURL, envelope3 and accept3 rawbody/requestSHA. Existing proposal requires knownanswer but noneprovided. Freeze exact exported Go Challenge/ChallengeEnvelope/DeviceBinding/Acceptance/DeviceCredential/AcceptResponse/AssociationSnapshot field names and types; selected method signatures alone stillleave crossauthor drift. No neednew wireformat or productpermission."
+    },
+    {
+      "id": "P2_MERGE_CANONICAL_OPERATION_NAMES",
+      "priority": "P2",
+      "required": "Final merged authoritative descriptor mustoverride retained UIproposal getAgentDeviceAssociations with backend listAgentDeviceAssociations and old gateway association accept/credential-file spelling with rootselected gateway accept-agent/custody-file. Include exact defaultoff flag/export spellings and finalDTOs; drafts mayremain immutablebut cannotbeimplementationsources afterrootmerge."
+    }
+  ],
+  "security_design_clear_in_principle": [
+    "NativeASCII exactstoredchallenge12; strict canonicalRawURL/envelope3/accept3 andresponse5/nested4/credential3, exact frozenouterrequest hash/keygeneration/expiry/currentboundresponse. OriginaldeviceHTTPcanonicalcontext andfresh timestamp perretry withoutchallenge/bodyrestamp.",
+    "Flat privatecurrentUID0700 perStore namespace under existing guard, childrootinode checks/fsync; exactselectedchallengeID+hash files/stages only, no historyscan/index/single-slot blocker/cleanup/deletion/overwrite/rekey. Orphannamespacewithoutbundle refuses.",
+    "Both normalreceipt-only andfreshRecoverycredentialexport helpers mustreject protectednamespace across every pinned exportparentancestorinode andtargetname, including directoryalias/bindalias; standardnlink checks retain sourcefilealias defense. No looseninggenericparentcontrols or addingglobalarchive scans.",
+    "Association opaquehandle lockorderAssociation\u2192Store, priorStoreClose lifecycle; deepcopiesSourcebytes/pointers, durablebeforeHTTP intent, strict immutablefirstreceipt. HistoricalReceipt never skipsfreshservercall or activatesphase3; ambiguous/superseded/expired/rotated invocation staysunknown. No associationcredentialexportcapability.",
+    "HumanUI actualAgentdrawer/currentperAgentview+independentcan_manage sidecar, realfreshsameauthorphase3, activepair separatependingreplacement, wholepairrevoke and honestunknownPOST/reload/refetch. No Devicekey/browser, storage, automaticactivate/revoke/reissue, Agentcoverage/health shortcut.",
+    "DeploymentexactAPI/controlconsumers defaultoff+compiledsamepin, envFrom rejected evenoff, no edge/sensor/worker/init/secret/RBAC/profileactivation or originalhealthchanges.",
+    "Freshcustody adapter is bounded batchonly. Existingdeployed3fieldcredential adapter remains REQUIREDseparatework; no fabricated oldenrollmentcustody, retirement orallDeviceadmissionclaim."
+  ],
+  "not_reapproved": [
+    "BackendrootTTL/expiry versus requestedTTL and new-versus-historicalreceipt-marker narrow successor stillpending; this protocolreview doesnotreplace firstbackendreview or preapproveunmergedchanges.",
+    "Finalrootmergedcontract needsindependentdelta review before productimplementation; finite knownanswer/type/nameclosure canbecompletedwithoutuserapproval."
+  ],
+  "proof_limits": [
+    "Design/sourceonly, no productedits/Go/Node/tests/build/Git/network/native execution.",
+    "No actualSQL/permission/custody/CLI/provider/browser/deployed/launchproof or originaltaskclosure/promotion.",
+    "Administrativeadmission+Devicepossession not observedrouting/enforcement/Agentcoverage; alloriginalrequirements preserved."
+  ]
+}

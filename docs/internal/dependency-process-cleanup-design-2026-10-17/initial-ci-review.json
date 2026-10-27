@@ -1,0 +1,43 @@
+{
+  "schema": "independent-dependency-process-cleanup-ci-source-review-v1",
+  "status": "CLEAR",
+  "source": {
+    "path": ".github/workflows/dependency-process-cleanup-components.yml",
+    "bytes": 8788,
+    "sha256": "1084ad8e0aa34cd69849e11a824df72da120561365b56261688c834a211e5d78"
+  },
+  "contract": {
+    "path": "/tmp/dependency-process-cleanup-ci-source-contract-20261017.json",
+    "sha256": "be49f08215393898eb59724aaf1764f0361497ec972e95fd81be44ef3091719e"
+  },
+  "checks": [
+    "New self-contained workflow pinned checkout/setup-node, read-only contents, no credential persistence. No inherited workflow edited by reviewer; root owns byte-preservation evidence.",
+    "Actual Python module imported and unittest-discovered; exact three IDs and no duplicates required before execution. Actual TextTestRunner result requires exactly3 runs, success and zero failure/error/skip/expectedFailure/unexpectedSuccess. No synthetic test results.",
+    "Actual full npm run dependencies:check executed with real status/streams and bounded timeout; unchanged package command performs validator then process-owning launcher. No selector or fabricated TAP.",
+    "Exact original nine Node subtest names/pass names and indices1..9, one plan9, exact tests/suites/pass/fail/cancelled/skipped/todo summaries and one inventory success line required. Failure/skip/TODO/bailout refused.",
+    "All34 required dependency source paths match author contract, including helper/test, old guards/fixtures, module+sum files and lock/manifests. Every custody entry checked bytes+SHA256; duplicate/pathescape/symlink leaf refused. No hardcoded total manifest count.",
+    "Entire custody manifest bytes snapshotted before npm setup and compared after; final always() recheck also runs on earlier failure. Failed verifier cannot turn job into success.",
+    "Three embedded Python blocks and generated custody verifier parsed as source without executing imports/processes/test suites."
+  ],
+  "required_custody_count": 34,
+  "custody_missing_at_review": [
+    ".github/workflows/dependency-process-cleanup-components.yml",
+    "apps/web/package.json",
+    "scripts/dependency-esbuild-regression.test.mjs",
+    "scripts/dependency-parser-regression.test.mjs",
+    "scripts/fixtures/dependency-esbuild-regression-child.mjs",
+    "scripts/fixtures/dependency-parser-regression-child.mjs",
+    "scripts/run-dependency-regressions.py",
+    "scripts/run-dependency-regressions.test.py",
+    "workers/redteam-node/package.json",
+    "workers/security-python/build-requirements.lock",
+    "workers/security-python/cartography/pyproject.toml",
+    "workers/security-python/cartography/requirements.lock",
+    "workers/security-python/prowler/pyproject.toml",
+    "workers/security-python/prowler/requirements.lock",
+    "workers/security-python/pyproject.toml"
+  ],
+  "publication_limit": "Root must finish source binding and execute exact workflow body on held functional source. Source CLEAR does not claim actual CI PASS.",
+  "execution": "No Go/Node/process/test/Git/network/native/deployed execution by reviewer; Python used only file I/O, hashes and source AST parsing. No launch or original-task completion credit.",
+  "findings": []
+}

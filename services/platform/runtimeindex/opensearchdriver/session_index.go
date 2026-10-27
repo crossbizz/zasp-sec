@@ -28,8 +28,10 @@ const (
 // SessionIndex shares the bounded SigV4 transport, not the immutable raw-event
 // index's mapping or write contract. Callers cannot select an index or raw DSL.
 type SessionIndex struct {
-	transport *Driver
-	sandboxV2 bool
+	transport      *Driver
+	sandboxV2      bool
+	retention      runtimeindex.EventVisibility
+	retentionWrite runtimeindex.RetainedWriteAuthority
 }
 
 func NewSessionIndex(config Config, credentials aws.CredentialsProvider, signer HTTPSigner, clock func() time.Time) (*SessionIndex, error) {
@@ -199,8 +201,9 @@ func (index *SessionIndex) exactMarker(ctx context.Context) (bool, error) {
 // still authenticate the current principal and hydrate canonical session facts.
 // After is the provider's validated composite continuation, not a public cursor.
 type SessionSearchPage struct {
-	InvestigationIDs []string
-	After            string
+	InvestigationIDs   []string
+	After              string
+	retentionWitnesses *sessionPageRetentionWitnesses
 }
 
 type sessionSearchResponseWire struct {
@@ -223,13 +226,8 @@ type sessionSearchResponseWire struct {
 	} `json:"hits"`
 	Aggregations *struct {
 		Sessions *struct {
-			After   map[string]string `json:"after_key,omitempty"`
-			Buckets []struct {
-				Key struct {
-					InvestigationID string `json:"investigation_id"`
-				} `json:"key"`
-				Count int64 `json:"doc_count"`
-			} `json:"buckets"`
+			After   map[string]string     `json:"after_key,omitempty"`
+			Buckets []sessionSearchBucket `json:"buckets"`
 		} `json:"sessions"`
 	} `json:"aggregations"`
 }
@@ -238,6 +236,12 @@ func (index *SessionIndex) Search(ctx context.Context, scope domain.Scope, filte
 	body, err := sessionsearch.BuildQuery(scope, filters, after, limit)
 	if err != nil {
 		return SessionSearchPage{}, runtimeindex.ErrRejected
+	}
+	if index != nil && index.retention != nil {
+		body, err = withSessionRetentionWitnesses(body)
+		if err != nil {
+			return SessionSearchPage{}, err
+		}
 	}
 	var allowed map[string]bool
 	if filters.AuthorizationRestricted {
@@ -285,6 +289,9 @@ func (index *SessionIndex) Search(ctx context.Context, scope domain.Scope, filte
 		if len(sessions.After) != 0 {
 			return SessionSearchPage{}, runtimeindex.ErrDrift
 		}
+		if index.retention != nil {
+			page.retentionWitnesses = index.retainPageWitnesses(scope, page, nil)
+		}
 		return page, nil
 	}
 	// The provider's after_key is authoritative for composite pagination and is
@@ -296,6 +303,13 @@ func (index *SessionIndex) Search(ctx context.Context, scope domain.Scope, filte
 		return SessionSearchPage{}, runtimeindex.ErrDrift
 	}
 	page.After = sessions.After["investigation_id"]
+	if index.retention != nil {
+		page.InvestigationIDs, err = index.retainedSessionCandidates(ctx, scope, sessions.Buckets)
+		if err != nil {
+			return SessionSearchPage{}, err
+		}
+		page.retentionWitnesses = index.retainPageWitnesses(scope, page, sessions.Buckets)
+	}
 	return page, nil
 }
 

@@ -1992,12 +1992,12 @@ test("PostgreSQL cleanup refuses subsequent startup before preparation dispatch"
 });
 
 
-test("current runtime startup arriving during cleanup is joined before file removal and cannot create a database", async () => {
+test("current runtime startup arriving during cleanup is joined before file removal and cannot allocate further work", async () => {
   const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
   const start = source.indexOf("async function prepareOwnedCurrentComplianceRuntime(");
   const end = source.indexOf("\nasync function exerciseComplianceBrowser(", start);
   const started = cleanupDeferred(), acquisition = cleanupDeferred(), closed = cleanupDeferred();
-  let removed = false, databases = 0, closes = 0;
+  let removed = false, databases = 0, databaseStops = 0, closes = 0;
   const environment = { ZASP_RUNTIME_SERVICES_ENABLED:"true", ZASP_RUNTIME_SERVICES_TIMEOUT:"5s", ZASP_ENVIRONMENT:"test",
     ZASP_TEMPORAL_ADDRESS:"127.0.0.1:17233", ZASP_TEMPORAL_NAMESPACE:"owned-test", ZASP_TEMPORAL_TASK_QUEUE:"owned-main", ZASP_TEMPORAL_DISCOVERY_TASK_QUEUE:"owned-discovery",
     ZASP_OPENFGA_URL:"http://127.0.0.1:18088", ZASP_OPENFGA_STORE_ID:"01ARZ3NDEKTSV4RRFFQ69G5FAV", ZASP_OPENFGA_MODEL_ID:"01ARZ3NDEKTSV4RRFFQ69G5FAW", ZASP_OPENFGA_TOKEN_FILE:"/tmp/owned-fixture-token" };
@@ -2010,8 +2010,11 @@ test("current runtime startup arriving during cleanup is joined before file remo
     mkdtemp:async()=>"/owned/state", randomBytes:()=>Buffer.alloc(8),
     startRetainedOwnedRuntimeLifetime:async()=>{ started.resolve(); return acquisition.promise; },
     complianceRuntimeBindings:value=>{ assert.equal(value,environment); return {environment:value}; },
+    postgresBin:"/owned/pg",closedOwnedAmbientEnvironment:()=>({}),
     reservePort:async()=>54321,
-    createOwnedBrowserPostgres:()=>{ databases++; throw new Error("late database allocation"); },
+    createOwnedBrowserPostgres:()=>{ databases++; return {start:async()=>{},stop:async()=>{databaseStops++;}}; },
+    provisionOwnedFGAStorage:async input=>{assert.equal(databases,1);assert.equal(input.port,54321);return {dsn:"controlled-private-storage-dsn"};},
+    provisionPostgresPrincipals:async()=>assert.fail("late principal provisioning"),
     cleanupController:{run:async()=>{}},
     rm:async()=>{ removed=true; },
   });
@@ -2029,7 +2032,8 @@ test("current runtime startup arriving during cleanup is joined before file remo
   const result = await boot;
   assert.equal(result.accepted,undefined);
   assert.match(result.error?.message??"",/current runtime startup after cleanup refused/);
-  assert.equal(databases,0,"late runtime startup created an unowned database");
+  assert.equal(databases,1,"late runtime startup allocated an additional database");
+  assert.equal(databaseStops,1,"the original owned database was not stopped exactly once");
   assert.equal(closes,1,"late acquired service was not closed exactly once");
   assert.equal(removed,true);
 });
@@ -2039,15 +2043,17 @@ test("current runtime startup arriving during cleanup is joined before file remo
   const start=source.indexOf("async function prepareOwnedCurrentComplianceRuntime("),end=source.indexOf("\nasync function exerciseComplianceBrowser(",start);
   const installing=cleanupDeferred(),installed=cleanupDeferred(),closed=cleanupDeferred();
   let removed=false,loops=0,closes=0;
-  const environment={};
+  const environment={ZASP_OPENFGA_TOKEN_FILE:"/owned/new.token"},withdrawOldCredential=async()=>{};
+  const builds=[];
   const flow=await postgresCleanupFlow({currentCompliancePreparation:undefined,complianceBrowserMode:true,compliancePhase:"services",
    process:{env:{ZASP_BROWSER_RUNTIME_ARCHIVE_ROOT:"/owned/archive",ZASP_BROWSER_RUNTIME_RAW_ROOT:"/owned/raw"}},
-   path,Buffer,AbortController,postgresBin:"/owned/pg",temporaryRoot:"/owned/tmp",platform:"/owned/platform",productHostname:"owned.test",
+   path,Buffer,AbortController,root:"/owned/repo",postgresBin:"/owned/pg",temporaryRoot:"/owned/tmp",platform:"/owned/platform",productHostname:"owned.test",
    withOwnedRuntimeStartupDiagnostics:async action=>action(),mkdtemp:async()=>"/owned/state",randomBytes:size=>Buffer.alloc(size),
-   startRetainedOwnedRuntimeLifetime:async()=>({environment,completed:closed.promise,close:async()=>{closes++;closed.resolve();}}),
+   startRetainedOwnedRuntimeLifetime:async input=>{assert.equal(input.openfgaPostgresDSN,"controlled-private-storage-dsn");return {environment,oldTokenFile:"/owned/old.token",newTokenFile:environment.ZASP_OPENFGA_TOKEN_FILE,withdrawOldCredential,completed:closed.promise,close:async()=>{closes++;closed.resolve();}};},
+   provisionOwnedFGAStorage:async()=>({dsn:"controlled-private-storage-dsn"}),
    complianceRuntimeBindings:()=>{},reservePort:async()=>15432,createOwnedBrowserPostgres:()=>({start:async()=>{},stop:async()=>{}}),
-   provisionPostgresPrincipals:async()=>{},command:async()=>({stdout:""}),closedOwnedAmbientEnvironment:()=>({}),seedPostgres:async()=>{},combinedAPIEnvironment:()=>({}),writeFile:async()=>{},
-   installOwnedCurrent80:async()=>{installing.resolve();await installed.promise;return {environment};},runOwnedProjectionLoop:()=>{loops++;return closed.promise;},cleanupController:{run:async()=>{}},rm:async()=>{removed=true;}});
+   provisionPostgresPrincipals:async()=>{},command:async(executable,args,options)=>{if(executable==="go"){const name=path.basename(args[2]);assert.ok(["zasp-authorization-reconcile","zasp-controlled-maintenance-cutover","zasp-maintenance-register"].includes(name));assert.deepEqual(Array.from(args),["build","-o",`/owned/tmp/${name}`,`./cmd/${name}`]);assert.equal(options.cwd,"/owned/platform");assert.equal(options.timeout,120000);builds.push(name);}return {stdout:""};},closedOwnedAmbientEnvironment:()=>({}),seedPostgres:async()=>{},combinedAPIEnvironment:()=>({}),writeFile:async()=>{},
+   installOwnedCurrent80:async input=>{assert.equal(input.maintenance.cutover,"/owned/tmp/zasp-controlled-maintenance-cutover");assert.equal(input.maintenance.register,"/owned/tmp/zasp-maintenance-register");assert.equal(input.maintenance.keyRoot,"/owned/state");assert.equal(input.maintenance.oldTokenFile,"/owned/old.token");assert.equal(input.maintenance.newTokenFile,environment.ZASP_OPENFGA_TOKEN_FILE);assert.equal(input.maintenance.withdrawOldCredential,withdrawOldCredential);assert.equal(input.maintenance.cwd,"/owned/repo");assert.deepEqual(builds,["zasp-authorization-reconcile","zasp-controlled-maintenance-cutover","zasp-maintenance-register"]);installing.resolve();await installed.promise;return {environment};},runOwnedProjectionLoop:()=>{loops++;return closed.promise;},cleanupController:{run:async()=>{}},rm:async()=>{removed=true;}});
   const prepare=runInNewContext(`(${source.slice(start,end)})`,flow.context);
   const boot=prepare({migrate:"/owned/migrate",migrationEnvironment:{},proxyPort:18089},"fixture").then(()=>({accepted:true}),error=>({error}));
   await installing.promise;const cleanup=flow.cleanupOwnedResources();

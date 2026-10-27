@@ -1,0 +1,23 @@
+{
+  "status": "SOURCE ASSEMBLY ONLY; UNCOMMITTED/UNPUSHED/UNCOMPILED",
+  "checkout": "/tmp/connector-native-hosted-compile-draft",
+  "base": "76ba3b53c1d4d892539da16a08db71172a49b5d2",
+  "checkpoint": "/tmp/connector-native-full-callback-checkpoint-oyargdft/SOURCE-MANIFEST.json",
+  "checkpointSHA256": "d49e946942ae4cc9050828d0172cad388cd89a6994915a02723d0ad4fb9a0225",
+  "currentBaseQualification": "19 preimages match exactly; three historical capture dependencies absent on76ba are explicit new-source additions, currentpreimage null, historicalpin separately retained",
+  "sourcePinsSHA256": "57800363106a69f09c8e2dea2aca7d3454ab28313240cdaf63ad3d301b46fd92",
+  "workflowSHA256": "55f306143570372d2ae13ee368c3eb704fc202203a9e6d958366e0411a90dc08",
+  "packages": [
+    "connectormaintenance",
+    "authorization",
+    "apiserver",
+    "agentsec-api",
+    "agentsec-worker",
+    "runtimeservices",
+    "migrations",
+    "cmd/zasp-authorization-reconcile"
+  ],
+  "scope": "Compile-only inactive hosted draft on PR57 Ubuntu24/Go26 runner; no local runtime or profile activation. Whole callback/native behavior remains source-review and grouped native test gated.",
+  "finalWorkflowSHA256": "a6f761e8137e2fbbfb85aef96cdc077927e5d845a77357f608b2461875b7266c",
+  "qualification": "Original workflowSHA256 describes predecessor before checkout persist-credentials:false. Final workflow reviewed independently; application behavior unverified."
+}

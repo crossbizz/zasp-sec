@@ -1,0 +1,47 @@
+{
+  "observed_at": "2026-10-17T09:15:23.276237+00:00",
+  "continued_published_base": "41b1df1c02fe3d4788881896d957bcb0f28b9845",
+  "scope": "Repair obsolete CLI module skeleton assertion to match reviewed live preflight integration, retaining web root ownership and no-I/O version entrypoint. Explicit module/Go version/direct platform requirement, exact local replacements and closed indirect dependency families bound to actual platform versions reject drift. No product behavior or release/security gate change.",
+  "sources": [
+    {
+      "path": "app/quality/web-cli-directories-contract.test.ts",
+      "bytes": 8108,
+      "sha256": "281be523a22ac8d6e311a13860189c9aaf05afb64bfc6c9f7b082ded39d34727"
+    }
+  ],
+  "verification": {
+    "full_UI_predecessor": {
+      "pass": 2647,
+      "fail": 2,
+      "files": 250,
+      "exit": 1
+    },
+    "repaired_focused_contract": {
+      "pass": 3,
+      "fail": 0,
+      "exit": 0
+    },
+    "source_ledger_pass": 54,
+    "UI_typecheck_exit": 0,
+    "UI_build_exit": 0,
+    "scoped_eslint_exit": 0,
+    "Nango_original_selected_child_exit": 1,
+    "Nango_render": "Helm absent; renderer maps errors to release rejected. Native render not accepted, assertion retained. Official Helm download previously denied; no retry/reroute/stub."
+  },
+  "ledger": {
+    "rows": 728,
+    "classes": {
+      "production-available": 523,
+      "component-only": 144,
+      "blocked/external": 61
+    },
+    "promotions": 0
+  },
+  "archive": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/web-cli-contract/component-evidence.json.gz",
+    "bytes": 8102,
+    "sha256": "0625b94a56f14b0eaa4a8157cffc13b955ed19c25c00bcada86ff0ccc5b71629",
+    "members": 13
+  },
+  "remaining": "Full npm verify/browser/native/provider/deployed acceptance remains mandatory. Focused contract PASS does not make the full UI verification pass."
+}

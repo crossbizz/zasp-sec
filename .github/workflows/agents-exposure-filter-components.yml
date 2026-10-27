@@ -1,0 +1,86 @@
+name: Agent exposure filter component contracts
+
+"on":
+  pull_request:
+    paths:
+      - 'services/platform/**'
+      - 'services/health/**'
+      - 'deploy/production/**'
+      - 'deploy/staging/**'
+      - 'openapi/**'
+      - '.github/connector-native-compile-source-pins.json'
+      - '.github/workflows/agents-exposure-filter-components.yml'
+      - 'scripts/validate_agent_exposure_components*.py'
+      - 'scripts/validate_agent_read_components.py'
+      - '.github/agent-exposure-component-roster.json'
+  push:
+    branches: [main]
+    paths:
+      - 'services/platform/**'
+      - 'services/health/**'
+      - 'deploy/production/**'
+      - 'deploy/staging/**'
+      - 'openapi/**'
+      - '.github/connector-native-compile-source-pins.json'
+      - '.github/workflows/agents-exposure-filter-components.yml'
+      - 'scripts/validate_agent_exposure_components*.py'
+      - 'scripts/validate_agent_read_components.py'
+      - '.github/agent-exposure-component-roster.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  agent-exposure-filter-components:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GOTOOLCHAIN: local
+      GOWORK: 'off'
+      GOFLAGS: '-mod=readonly'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version: 1.26.8
+          cache: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22.23.1
+      - name: Require exact toolchain and complete existing source custody
+        run: |
+          test "$(go version)" = 'go version go1.26.8 linux/amd64'
+          test -z "${ZASP_AGENT_EXPOSURE_FILTER_PROFILE_CHECKSUM:-}"
+          python3 scripts/validate_agent_exposure_components.py --check-sources .github/connector-native-compile-source-pins.json
+      - name: Check strict validator rejection controls
+        run: python3 -m unittest discover -s scripts -p 'validate_agent_exposure_components_test.py' -v
+      - name: Require API-only Agent read deployment contract
+        run: node --test deploy/production/agent-exposure-filter-profile.test.mjs
+      - name: Run all 76 exact application and installer component results
+        timeout-minutes: 12
+        shell: bash
+        run: |
+          set -euo pipefail
+          go_status=0
+          if go test -C services/platform -race -p=1 -count=1 -timeout=3m -json -run '^(TestAgentExposureFilterActualHandlerPreservesPresenceAndConjunction|TestAgentExposureFilterCursorBindsAllSelectorsProfileAndRevision|TestAgentExposureFilterMalformedAndUnavailableNeverUseLegacyPage|TestAgentExposureFilterExactPageStatementFencesCombinedPermissionContract|TestAgentExposureRiskResolverKeepsCompleteScopedMetadataAndClosedComposition|TestAgentExposureBootstrapUsesCurrentSnapshotAndInstalledReadiness|TestAgentExposureFilterRuntimeProfileIsExplicitAndFailClosed|TestAgentExposureFilterMigrationRecipesAndBoundedConfirmation|TestAgentExposureFilterInstallerClosedAdmission|TestAgentExposureFilterCompilerIdentity)$' ./apiserver ./agentsec-api ./agentsec-migrate ./migrations > agent-exposure-filter-components.jsonl 2> agent-exposure-filter-components.stderr; then
+            go_status=0
+          else
+            go_status=$?
+          fi
+          python3 scripts/validate_agent_exposure_components.py --go-exit-code "$go_status" agent-exposure-filter-components.jsonl
+      - name: Preserve component-only execution evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: agent-exposure-filter-component-evidence
+          path: |
+            agent-exposure-filter-components.jsonl
+            agent-exposure-filter-components.stderr
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Confirm checks did not alter source
+        if: always()
+        run: git diff --exit-code -- services/platform services/health .github scripts

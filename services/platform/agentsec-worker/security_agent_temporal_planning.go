@@ -285,7 +285,7 @@ func (p *productionSecurityAgentPlanner) runTemporalPlanningOwned(ctx context.Co
 				}
 				continue
 			}
-			providerRaw, sendErr := sendSecurityAgentOrdered(operationCtx, prepared, job.LookupRequest.CredentialDigest)
+			providerRaw, sendErr := sendSecurityAgentOrderedWithAdmission(operationCtx, prepared, job.LookupRequest.CredentialDigest, optionalTemporalPlannerAdmission(db, identity, optionalPlannerEgressProfile(p)))
 			if sendErr != nil {
 				done()
 				raw, err = recoverKnown(nil)

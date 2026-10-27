@@ -1,0 +1,72 @@
+{
+  "scope": "Read-only design/guard compatibility audit of proposed exact organizations(id) REFERENCES prerequisite; concrete helper implementation not yet reviewed",
+  "findings": [],
+  "sourceConclusion": "An exact column REFERENCES(id) grant to zasp_discovery_authority is a legitimate missing foreign-key installation privilege and is compatible with inspected canonical/current80 guard identities. No deeper SQL/tenant guard successor is required solely for this column ACL change, provided native pre/post original readiness and exact privilege/shape checks pass unchanged.",
+  "requiredAction": "Under already validated registered operator, verify public.zasp_organizations ordinary table, id exact text/non-null primary-key column and grant authority REFERENCES(id) only if effective column privilege absent. Then explicitly verify the original canonical/current80 ready checksum remains true. Preserve all original source fingerprints, registration rows, canonical definitions, triggers, RLS, grants to unrelated roles and DML privileges. Same transaction as authority installer; any failure rolls back.",
+  "guardEvidence": [
+    {
+      "file": "services/platform/migrations/sql/0079_production_authorization_projection.up.sql",
+      "lines": [
+        40,
+        44,
+        45,
+        49,
+        209
+      ],
+      "observation": "79 fingerprint relation/column facts are private79 namespace. Public trigger identity is included, but public organizations column ACL is not. Original public grant supplies SELECT only."
+    },
+    {
+      "file": "services/platform/migrations/sql/0080_production_authorization_enforcement.up.sql",
+      "lines": [
+        76,
+        79,
+        82,
+        84,
+        88,
+        90
+      ],
+      "observation": "80 fingerprint checks private80 and selected public risk/data-controls/hierarchy objects. Hierarchy set is workspaces,environments,authorized_scopes,core_payloads; excludes organizations. Runtime/data-controls attacl checks do not select organizations."
+    },
+    {
+      "file": "services/platform/migrations/sql/0072_production_temporal_discovery.up.sql",
+      "lines": [
+        869,
+        870,
+        872
+      ],
+      "observation": "Temporal72 domain selected table set excludes public organizations; private72 attacl checks also do not select it."
+    },
+    {
+      "file": "services/platform/migrations/sql/0061_production_security_agent_multistep.up.sql",
+      "lines": [
+        162
+      ],
+      "observation": "Canonical61 public column ACL fingerprint is limited to tables starting zasp_sa_multistep_; organizations excluded."
+    },
+    {
+      "file": "services/platform/migrations/sql/0080_authorization_audit_profile.sql",
+      "lines": [
+        87,
+        88
+      ],
+      "observation": "Audit ACL checks cover privateaudit namespace and admin_audit only; organizations excluded."
+    }
+  ],
+  "securityImpact": [
+    "REFERENCES(id) authorizes creation of a foreign key targeting this key column; it does not grant row SELECT/INSERT/UPDATE/DELETE or alter row-policy, sourceproof, credential ceiling or tenant permission checks.",
+    "Column ACL change does not alter function definitions, canonical source checksums, triggers, PK type or intended table-wide privileges.",
+    "Existing incompatible catalog/shape, inability to grant exact privilege, or original readiness false must refuse; do not regenerate fingerprints to bless candidate state."
+  ],
+  "integrationConstraints": [
+    "Invoke before SET LOCAL ROLE in both approval and connector installers using the same guarded operator transaction.",
+    "Keep absent-schema bootstrap under operator and all definitions/registration under authority.",
+    "Pin the changed helper and both installers in the successor closure.",
+    "Observe exact originalready before and after; actual hosted PG diagnosis remains separate."
+  ],
+  "declinedToJudge": [
+    "Exact native privilege state and PgError cause without next observed run",
+    "Concrete helper implementation before source exists",
+    "Native OAuth/active lifecycle/Reconcile/deployment acceptance"
+  ],
+  "verdict": "Proposed exact column REFERENCES prerequisite is source-compatible and appropriate for a narrowly pinned installer successor; normal push verdict awaits concrete diff review."
+}

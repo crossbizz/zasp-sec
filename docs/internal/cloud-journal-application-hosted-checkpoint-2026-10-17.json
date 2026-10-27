@@ -1,0 +1,59 @@
+{
+  "observed_at": "2026-10-17T07:12:57.131041+00:00",
+  "exact_hosted_head": "aea3b9d828bea76e1c24ec553783898728195fb7",
+  "run_id": 39011704182,
+  "job_id": 117335411237,
+  "metadata_source": "Official finite Actions job/step metadata only; no raw logs, artifacts or annotations accessed",
+  "job_conclusion": "success",
+  "workflow_source_sha256": "b9eccc6d9ae382b0d9acc206463804920586a753784a04fc1228bf5bb6dfbc54",
+  "exact_head_source_pins_verified": 345,
+  "successful_steps": [
+    {
+      "number": 5,
+      "name": "Compile nineteen affected packages without executing test binaries",
+      "conclusion": "success",
+      "started_at": "2026-10-17T07:01:29Z",
+      "completed_at": "2026-10-17T07:07:50Z"
+    },
+    {
+      "number": 6,
+      "name": "Atomic connector and retained writer journal application contracts",
+      "conclusion": "success",
+      "started_at": "2026-10-17T07:07:50Z",
+      "completed_at": "2026-10-17T07:08:11Z"
+    },
+    {
+      "number": 7,
+      "name": "Compiled source pin retains fresh connector authorization",
+      "conclusion": "success",
+      "started_at": "2026-10-17T07:08:11Z",
+      "completed_at": "2026-10-17T07:08:15Z"
+    },
+    {
+      "number": 8,
+      "name": "Existing connector handler and reconciler application regressions",
+      "conclusion": "success",
+      "started_at": "2026-10-17T07:08:15Z",
+      "completed_at": "2026-10-17T07:08:25Z"
+    }
+  ],
+  "application_gate_contract": {
+    "packages": 6,
+    "top_level_tests": 10,
+    "required_exact_named_cases": 86,
+    "semantics": "Frozen hosted collector requires exactly one RUN/PASS per case and package PASS, refuses skips/failures/missing/duplicate events. Job metadata success is evidence the enforced application gate passed, not a downloaded raw testcase report."
+  },
+  "qualification": "Actual hosted application/compilation success for exact aea head. New a997 preflight component is separately pending. This does not execute native SQL or prove timing, provider calls, browser acceptance, deployed flows or launch readiness. Original local setup failures/pending checkpoint snapshots remain immutable.",
+  "ledger": {
+    "rows": 728,
+    "production_available_historical": 523,
+    "component_only": 144,
+    "blocked_external": 61,
+    "promotions": 0
+  },
+  "archive": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/journal-hosted-application/allowed-job-metadata.json.gz",
+    "bytes": 1135,
+    "sha256": "296c5a3160411d0cbbffc84e3d299566db8cb15b4a57f5eb25839f9f2f8fc75f"
+  }
+}

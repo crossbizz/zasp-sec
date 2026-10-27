@@ -1,0 +1,211 @@
+{
+  "classification": "READ_ONLY_PROPOSED_CLOSED_CONTRACT_NOT_IMPLEMENTED_OR_VERIFIED",
+  "provenance": "Fresh current repository source inspection. No prior lost /tmp packet reconstructed, no Go/Node/Git/network/native execution.",
+  "source_pins": [
+    {
+      "path": "services/platform/migrations/sql/0010_production_discovery.up.sql",
+      "bytes": 134477,
+      "sha256": "b7bc32c642cb57988e4e6a0a89feed0ffe1d4396daa3f213c76a2f59b1b1154e"
+    },
+    {
+      "path": "services/platform/migrations/sql/0015_runtime_data_plane.up.sql",
+      "bytes": 204144,
+      "sha256": "11c0b05a0a264ba9654c9646b18633c45469f495fa819b28b89e207aefc5ce9a"
+    },
+    {
+      "path": "services/platform/migrations/sql/0080_authorization_worker_gateway_writers.sql",
+      "bytes": 17859,
+      "sha256": "5ce0934637fddd422c5c01f3d8e7e44737ac106cd013fc97649955e710228901"
+    },
+    {
+      "path": "services/platform/migrations/sql/0080_production_authorization_enforcement.up.sql",
+      "bytes": 40560,
+      "sha256": "552b75399fed93e44a8c42f4c32e4658fb8d0aab9fdff8a043d5d8b187b0cd7b"
+    },
+    {
+      "path": "services/platform/migrations/sql/0080_authorization_attestation.sql",
+      "bytes": 6378,
+      "sha256": "dc7ec2da824200c0a6e5ca08783630dee151ce13692f121747fe6c758e015e0a"
+    },
+    {
+      "path": "services/platform/migrations/sql/0080_authorization_sensors.sql",
+      "bytes": 9486,
+      "sha256": "94ebf61027143408e74f1b63188d7cfaffa67c0937a554f5e3187b1bf652fbe8"
+    },
+    {
+      "path": "services/platform/migrations/production_gateway_installation_profile.go",
+      "bytes": 13711,
+      "sha256": "f0f416ef5f5f8c04718cbe7d19511a864326b13ea8256568cc6ca73abe4bb47e"
+    },
+    {
+      "path": "services/platform/migrations/sql/gateway_installation_profile.sql",
+      "bytes": 31251,
+      "sha256": "48f043ce6b99907b341880b4085866faad2209192d82e7d194dfd58020cd3dee"
+    },
+    {
+      "path": "services/platform/apiserver/authorization_statement.go",
+      "bytes": 18517,
+      "sha256": "cb9e13eb9c3fbe95a916a986590e01318a4e01f28c7a4cc5c1cbde1fc59ae667"
+    },
+    {
+      "path": "services/platform/apiserver/discovery_repository.go",
+      "bytes": 83252,
+      "sha256": "4bd33f5b8e81b6dda0d6ea850b49740e4a6c0865cd712cb4d20adafc5f2b920c"
+    },
+    {
+      "path": "services/platform/apiserver/sensor_public_handler.go",
+      "bytes": 20334,
+      "sha256": "fb4d6bcbd2b16138a26cabb78492afa3c136de87756b207f927587444d213c85"
+    },
+    {
+      "path": "services/platform/apiserver/sensor_public_repository.go",
+      "bytes": 20616,
+      "sha256": "558be85a4fb344123d1f1f97f0fb998b6198f4ddccfa117792d13a5673f5e2f8"
+    },
+    {
+      "path": "services/platform/gatewaycontrol/contract.go",
+      "bytes": 7008,
+      "sha256": "7811c187c21a1290ace9dd99cadf55afe708e72db51e36e9ee0b04e3dc70e67a"
+    },
+    {
+      "path": "services/platform/gatewaycontrol/http.go",
+      "bytes": 14043,
+      "sha256": "fe9a94769610272125a55bca13076b645b619cff629967b3d2623153e8c1148d"
+    },
+    {
+      "path": "services/platform/gatewaycontrol/client.go",
+      "bytes": 9519,
+      "sha256": "ef0680440857f7847e29f37f822b6494791e82e3fcaee0edd6835c1aaf3daf6b"
+    },
+    {
+      "path": "openapi/openapi.yaml",
+      "bytes": 381905,
+      "sha256": "f8d747c7d7cd5e586196ca5f72f65175043b59988765710e4fb61dae25158257"
+    }
+  ],
+  "observed_real_calls": [
+    {
+      "signature": "public.zasp_discovery_create_gateway_device(text,text,text,text,text) RETURNS jsonb",
+      "role": "zasp_discovery_api",
+      "fact": "Existing Go DiscoveryRepository.CreateGatewayDevice calls exact5arg native10 function. Current80 worker wraps it with API organization locking. Native id+name exact replay returns existing device; mismatched sameID name conflicts. This is not a new FGA checked bootstrap route."
+    },
+    {
+      "signature": "public.zasp_runtime_issue_gateway_enrollment(text,text,text,text,text,bigint,bigint,bytea,bytea,bytea,timestamptz) RETURNS jsonb",
+      "role": "zasp_discovery_api",
+      "fact": "Original15 issuance: scope3,enrollment_id,device_id,token_generation,device_version,locator_digest32,salt32,token_hash32,expiry. Native10 legacy issuance lacks format_version1/locator/generation/device_version and is unsuitable. Current80 worker preserves original15 receipt and adds API orglock around device advisory and postwait clock_timestamp expiry. ExistingID exact native tuple replay returns replayed:true before fresh-generation checks; do not overwrite native receipt."
+    },
+    {
+      "signature": "public.zasp_runtime_authenticate_gateway_enrollment(bytea,bytea,text) RETURNS jsonb",
+      "role": "zasp_gateway_control",
+      "fact": "Original15 locator16/secret32/audience runtime-gateway-enroll. Current80 worker locks organization before device advisory, repeats readiness and rewrites token expiry check to clock_timestamp. Token row+device FOR UPDATE, native constant-time secret-hash comparison, rejects revoked/older-generation/nonpending-active device. Consumed token intentionally still authenticates for native exact enrollment replay."
+    },
+    {
+      "signature": "public.zasp_runtime_gateway_enroll(bytea,bytea,text,text,bigint,text,text,bytea,timestamptz) RETURNS jsonb",
+      "role": "zasp_gateway_control",
+      "fact": "Original15 authenticate then exact requested enrollment digest. Existing enrollment_token_id returns original credential only when same scope/enrollment/id/generation/keyID/algorithm/publickey/credential-expiry digest. Fresh issuance checks next credential generation, no unrevoked credential, consumes token, inserts credential and activates device. Native result has id/device/generation/keyID/algorithm/audience/issued/expiry/replayed but NOT org/work/env/publickey. Requested credential expiry initially uses transaction_timestamp, so wrapper must enforce real wallclock at final confirmation."
+    },
+    {
+      "signature": "public.zasp_runtime_gateway_credential_authority(text,text) RETURNS jsonb",
+      "role": "zasp_gateway_control",
+      "fact": "Use after enroll to bind result to original current actual scope/device/credential/key/publickey/generation plus clock expiry. Reject native replay if credential revoked/replaced/expired; do not relabel with latest credential."
+    },
+    {
+      "signature": "zasp_authorization80.require_read(text,text,text,text[],text,boolean,text) RETURNS void",
+      "fact": "Checks sealed context scope, closed operation list, permission and credential kind and actor. Does NOT itself check environment allowed target, noncollection, fresh_auth, operation body or native execute privilege. Add explicit checks."
+    }
+  ],
+  "proposed_namespace": "zasp_gateway_bootstrap_v1",
+  "proposed_exports": [
+    {
+      "signature": "caller_ready(purpose text,pin text) RETURNS boolean",
+      "grant": "Original registered API for public-api; original control for gateway-control. Exact own Normal/Audit profile pin, no global legacy readiness gate."
+    },
+    {
+      "signature": "create_device(o text,w text,e text,actor text,idempotency_key text,request_digest bytea,device_id text,device_name text) RETURNS jsonb",
+      "operation": "createGatewayDevice",
+      "permission": "manage_identity",
+      "grant": "zasp_discovery_api",
+      "contract": "Own scope+actor+operation+idempotency receipt. Native create exact same-ID/name receipt retained. Fresh new unrelated ID must not adopt existing device. Stable original metadata replay; no one-time secret."
+    },
+    {
+      "signature": "issue_enrollment(o text,w text,e text,actor text,idempotency_key text,request_digest bytea,device_id text,expected_device_version bigint,enrollment_id text,locator_digest bytea,salt bytea,token_hash bytea,expires_at timestamptz) RETURNS jsonb",
+      "operation": "issueGatewayEnrollment",
+      "permission": "manage_identity",
+      "grant": "zasp_discovery_api",
+      "contract": "Original org/device serialization; explicit native device row state pending|active and version CAS. Derive next token_generation under lock (never caller auth). Native15 token exact issuance+own receipt+metadata audit atomic. Existing unconsumed/unrevoked token including expired blocks fresh issue until explicit revoke. Replayed metadata never pretends to reproduce plaintext secret."
+    },
+    {
+      "signature": "revoke_enrollment(o text,w text,e text,actor text,idempotency_key text,request_digest bytea,device_id text,expected_device_version bigint,enrollment_id text) RETURNS jsonb",
+      "operation": "revokeGatewayEnrollment",
+      "permission": "manage_identity",
+      "grant": "zasp_discovery_api",
+      "contract": "Native15 revoke only exact device+token after version/current proof checks; own stable receipt + audit atomic. Revoking enrollment token does not revoke already minted credential; never imply it does."
+    },
+    {
+      "signature": "get_device(o text,w text,e text,device_id text) RETURNS jsonb",
+      "operation": "getGatewayDevice",
+      "permission": "view",
+      "grant": "zasp_discovery_api",
+      "contract": "Exact current environment allowed target+closed view operation. Metadata only: device state/version and bounded current/latest enrollment metadata necessary explicit revoke/reissue; no token secret, locator digest, salt/hash/publickey credential body leak."
+    },
+    {
+      "signature": "confirm_public(o text,w text,e text,actor text,operation text,idempotency_key text,request_digest bytea,expected_receipt jsonb) RETURNS boolean",
+      "grant": "zasp_discovery_api",
+      "contract": "Exact own closed operation list, same-TX current proof/identity/revision/current profile/receipt equality and appropriate token-expiry fence before confirmed COMMIT; no public arbitrary operation dispatch."
+    },
+    {
+      "signature": "enroll(locator bytea,secret bytea,credential_id text,credential_generation bigint,key_id text,algorithm text,public_key bytea,credential_expires_at timestamptz) RETURNS jsonb",
+      "grant": "zasp_gateway_control",
+      "contract": "Fixed runtime-gateway-enroll audience, original15 auth/enroll, derive original scope/enrollment identity, return bound original receipt plus current native authority scope/publickey. No supplied scope or privilege inference."
+    },
+    {
+      "signature": "confirm_credential(locator bytea,secret bytea,credential_id text,expected_receipt jsonb) RETURNS boolean",
+      "grant": "zasp_gateway_control",
+      "contract": "Same original control pool READ COMMITTED TX; repeat native token auth+current credential authority+clock expiry + exact scope/device/key/publickey/gen/receipt match before COMMIT. Existing consumed replay semantics retained."
+    }
+  ],
+  "public_admission_sequence": [
+    "Authenticate real Stytch browser/PAT; exact operations createGatewayDevice, issueGatewayEnrollment, revokeGatewayEnrollment use manage_identity on environment (o,w,e,kind environment,id=e); getGatewayDevice uses view on same exact environment. collection=false. Browser writes fresh+CSRF; PAT writes current explicit manage_identity ceiling/environment grant, no fresh header. No new FGA entity/relation.",
+    "Use existing current canonical80 attestation/executor. Closed exact query+arity per own function: create8, issue13, revoke9, get4, confirm8. Scope args1..3, actor arg4 for mutations and environment target arg3; get has device arg4 but environment remains proof target. Strict operation/body/path binding; native EXECUTE not authorization.",
+    "Own effective/NormalAudit/current80worker seals + original API principal. require_read(scope,exactoperation,permission,false,actor), explicit allowed(environment,e), collection=false, exactoperation, kind1=>fresh_auth for writes, kind2=>existing ceiling/current identity. Never grant organization identity.manage as substitute for env target.",
+    "Capture context and current79 revision; identity_fence before mutation. Acquire original current80 gateway_api_organization_lock(o), then same native device advisory. Revalidate own caller, proof, identity and revision after waits, then own receipt lock. Avoid any device-before-org reversal.",
+    "Idempotency own primary key scope3+actor+operation+idempotency_key, request_digest32. Compare canonical user intent (name/config), not newly generated random device/token material. Exact existing receipt returns original metadata only; changed intent conflicts. Original token cannot be reminted from a stored hash.",
+    "Device creation and token issuance are separate explicit product steps. Each step own native effect+receipt+audit is atomic. Do not claim both HTTP calls one transaction. Issue takes current device version CAS and derives next native token generation after locks. Explicit read/revoke/reissue makes lost one-time delivery recoverable without reminting an old secret.",
+    "Insert own FORCE-RLS receipt + deterministic zasp_admin_audit gateway.device.create / gateway.enrollment.issue / gateway.enrollment.revoke metadata-only audit once per new receipt; preserve native result/original stable receipt time. Final identity/revision/proof/profile/clock checks + strict metadata confirmation before COMMIT; ambiguous commit produces no plaintext success. Public metadata replay cannot redisclose token; read/revoke/new-key issue recovers."
+  ],
+  "catalog_and_grants": [
+    "Additive own sealed namespace owned by existing zasp_discovery_authority. Existing source-owner/operator creates namespace, bounded SET LOCAL ROLE definitions, exact incoming-role restore and confirmed commit; Normal/Audit compiled parent variants exact.",
+    "Own registration+mutations tables ENABLE/FORCE RLS, owner-only policy, no public/API/control table grants. Registration immutable, exact compiled own function/body/argname/config/owner/ACL and table/constraint/index/type/trigger manifests. Capture rawseal only after rejecting unexpected/default ACL. No new role or parent permission.",
+    "Pin current79/current80, selected80worker and original15 runtime registration/readiness and exact current native function frames. Current80 native create/issue/auth bodies are transformed: do not compare live body to unmodified native10/15 source hash. Use compiled worker projected/current predecessor contracts or current worker.catalog_ready exact pin. Original enroll and authority remain separate reviewed native bodies.",
+    "GRANT USAGE own namespace and own exact public API functions only to existing zasp_discovery_api; own exact enrollment/confirm funcs only zasp_gateway_control; no blanket grant on private helpers or parent functions. Existing original native grants remain unchanged and therefore wrapper does not claim to revoke old raw-SQL capabilities."
+  ],
+  "mandatory_gotchas": [
+    "One-time secret delivery: existing sensor withFreshCredential deliberately returns conflict on metadata replay, since hash cannot reproduce plaintext. Preserve that truth. Unknown COMMIT/HTTP-loss may leave a pending device/token without a token in customer possession. Launch-recoverable bootstrap needs explicit authenticated reissue/revoke+next-generation operation, or an independently reviewed existing-key encrypted delivery design; neither may be fabricated from native receipt. Do not mark retry flow complete from create-only happy path.",
+    "Reissue must be closed own manage_identity/environment operation, expected device version, org/device serialization, atomically revoke current enrollment then issue next exact native generation; preserve original exact token/enroll replay. No credential rotation shortcut, no revocation of unrelated credentials as implicit repair.",
+    "Gateway enroll request must be durably persisted with original credential_id, keypair/publickey, generation, keyID and EXACT chosen expiry before retry. Generating a new expiry/id/key on retry changes native enrollment digest and conflicts; do not coerce native replay.",
+    "An expired or revoked one-time token cannot authenticate even for old enrollment replay; consumed alone is not revocation. Returned credential receipt replay must still be checked against CURRENT credential authority and real clock, so revoked/rotated old credential never becomes usable.",
+    "Original native enroll initial requested expiry compares transaction timestamp and upper90days; final wallclock token+credential checks needed after waits/writes and in same-TX confirmation. Never mint credential whose expiry crossed while blocked.",
+    "Original native issue allows device state active but original enroll rejects existing unrevoked credential. Fresh create-only must not be advertised as arbitrary gateway credential rotation.",
+    "Native receipt omits full scope/publickey. HTTP/bootstrap response must bind actual derived scope/device/key/generation using current native authority and expected client publickey, not just result id or a fabricated response mapping.",
+    "Original native API EXECUTE grants stay, so own wrapper cannot honestly claim universal denial of direct native entrypoints. New application closed-operation permission enforcement is separately required and verified.",
+    "Fresh SQL parsing and installer fixtures are component checks; real registered API/control connections, proof replay/foreign target/revocation/PAT ceiling/expiry after lock, unknown commit and restart flows require current guarded native/deployed acceptance."
+  ],
+  "acceptance_groups": [
+    "Authenticated environment manage_identity route+exact statement proof and foreign scope/operation/target/PAT ceiling/session expiry denials",
+    "Atomic fresh device+native15 token+own receipt+audit with changed intent conflict and exact metadata replay, failed insertion rollback",
+    "Current original token15 authenticate/enroll+bound current credential, consumed exact replay and mismatched key/id/expiry refusal, revoke/rotate/expired wait denial",
+    "Actual durable client key/request restart reuse, one-time delivery failure and explicit recovery without secret fabrication",
+    "Normal/Audit own catalog/ACL/defaultACL/role restoration and original gateway paths unchanged"
+  ],
+  "unknowns": [
+    "Exact public HTTP paths and response DTOs must be merged with transport/UI lane; operation IDs, envtarget, permissions, SQL arities above selected for review.",
+    "Own latest enrollment read must be bounded and precisely choose metadata needed explicit recovery; no unrestricted credential/table enumeration.",
+    "No implementation, SQL execution, native or deployed proof in this document."
+  ],
+  "predecessor": {
+    "path": "docs/internal/gateway-bootstrap-design-draft-2026-10-17/backend-contract-proposal-initial.json",
+    "sha256": "60f152193e63c2690879dbd091ae7c8a758b837ca37f08a6240fc9295262bba7",
+    "status": "Initial fresh atomic create+issue proposal superseded by root explicit separate device/issue/read/revoke flow; no implementation or executed evidence."
+  },
+  "selected_public_policy": "Explicit environment target, no new gateway FGA entity. Writes permission manage_identity. Browser writes require current fresh_authenticated proof and confirmed fresh-auth header/CSRF as existing sensor pattern. PAT writes allowed only existing manage_identity PAT ceiling + current environment grant/membership, no browser fresh-auth header. Read permission view, current browser/PAT identity. Exact closed operation and noncollection required in own SQL; require_read browser_only=false plus explicit browser kind fresh_auth check."
+}

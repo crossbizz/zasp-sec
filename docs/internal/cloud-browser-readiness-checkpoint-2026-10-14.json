@@ -1,0 +1,324 @@
+{
+  "scope": "Closed browser readiness diagnostics and correction of candidate PL/pgSQL CASE syntax; no readiness weakening or launch proof",
+  "base": "13552bfeb8c2d6cc0fe17f76ddb7bd59a73f24be",
+  "main": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
+  "review": {
+    "assessment": [
+      "Exactly two SQL lines changed from base; only opening and closing parentheses were added around existing CASE expression",
+      "CASE branches, all lineage validation predicates, exception, lease rotation and compensation restrictions remain unchanged",
+      "Parenthesized CASE forms an explicit expression and avoids ambiguity with PL/pgSQL IF THEN scanning",
+      "Prior browser diagnostic assessment remains applicable to unchanged seven bound files"
+    ],
+    "base_commit": "13552bfeb8c2d6cc0fe17f76ddb7bd59a73f24be",
+    "bound_files": [
+      {
+        "path": "services/platform/agentsec-api/authorization_runtime_readiness.go",
+        "sha256": "9a3901f7d3ac21b22807b74c4c2f1a2a15da43a3e8f6236073ee8329f257f77e"
+      },
+      {
+        "path": "services/platform/agentsec-api/authorization_runtime_readiness_test.go",
+        "sha256": "ce2482c386799ad758b374d4e823a0e797cb907cf01daad2c449eb68fb3eb781"
+      },
+      {
+        "path": "services/platform/agentsec-api/compliance_browser_process_test.go",
+        "sha256": "7a8a66cb13308e02a30175c482226c6c49cd5487a10e194707a8fbf9b16f10e6"
+      },
+      {
+        "path": "services/platform/agentsec-api/production_runtime.go",
+        "sha256": "e051cec9987f311462d7f3d6b63a9ee07373a9b2e82e5bee9d320bc627605a34"
+      },
+      {
+        "path": "scripts/browser-command-failure.mjs",
+        "sha256": "0af8e330beaf024940732d50629b1c95252674b509d455fbd1f2808eaa40dc86"
+      },
+      {
+        "path": "scripts/browser-command-failure.test.mjs",
+        "sha256": "d080296bbc585802d4f531caa5e29ea0306d2b42243bb9e34a5e29f19659ef09"
+      },
+      {
+        "path": ".github/workflows/connected-browser-acceptance.yml",
+        "sha256": "d81c188709fa65aa1d604fd2c9e91521fa34d1d902946cfe243080011a3f5d9b"
+      },
+      {
+        "path": "services/platform/migrations/sql/connector_maintenance_profile.sql",
+        "sha256": "d3406f1dd7ec7e10763dd898e38f6b0b18ae9a3793a6c50d20d0c034ec9cd8c1"
+      }
+    ],
+    "checks_run_by_reviewer": [
+      "Read complete two-line SQL delta",
+      "Bound all prior reviewed diagnostic files and SQL source with SHA-256"
+    ],
+    "date_utc": "2026-10-14",
+    "delta_reviewed": "Parenthesize the existing CASE expression in recover_compensation lineage rejection IF: OR CASE ... END becomes OR (CASE ... END).",
+    "failure_evidence": {
+      "independently_verified_by_reviewer": false,
+      "prior_review_limitation": "Earlier source review did not execute native SQL and did not establish SQL parse acceptance",
+      "reported_by_parent": "Hosted native OAuth run at base 13552bfeb8c2d6cc0fe17f76ddb7bd59a73f24be failed native SQL definitions with SQLSTATE 42601 at generated position 64948, inner CASE THEN",
+      "retention_requirement": "Preserve original hosted failure and distinguish it from any later accepted parse or runtime result"
+    },
+    "findings": [],
+    "limitations": [
+      "No claim that native SQL parsing or acceptance now passes; actual native CI execution remains required",
+      "No deployed readiness, production task promotion or callback/provider/fleet recovery claim",
+      "Source and runner pin refreshes require separate validation"
+    ],
+    "prior_review": {
+      "all_prior_bound_files_unchanged": true,
+      "path": "/tmp/browser-readiness-independent-review-20261014.json",
+      "sha256": "74a069337b27efaba6efd08399e8f9d5fe50f6a73cd03497a0c7b4ee13082dc2"
+    },
+    "repository_mutations_by_reviewer": false,
+    "result": "bounded-source-review-pass-native-parse-acceptance-required",
+    "reviewer": "recovery_security_review",
+    "schema": "zasp-independent-source-review-v1",
+    "tests_run_by_reviewer": []
+  },
+  "prior_review": {
+    "assessment": [
+      "Production wrapper passes nil observer and preserves prior runtime input validation, readiness calls, query roles/key version, ordering, context budgets, cancellation, sibling joins and returned errors",
+      "Only owned compliance browser fixture supplies an observer; the production API readiness result remains authoritative",
+      "Observer consumes fixed typed phase/outcome values only; four phases by four outcomes yield at most sixteen deduplicated lines under a mutex",
+      "No SQL, dependency errors, credentials, URL, tenant identifiers or stack values are forwarded into the new marker",
+      "Node parser accepts only complete bounded unique exact allowlisted marker lines; malformed, partial, duplicate and over-budget observations refuse diagnostic emission",
+      "New read-only workflow retains pinned actions, exact prerequisite intake, owned runtime tool intake and existing actual compliance browser command with fifteen-minute budget",
+      "New lane performs UI typecheck and production build; omission of broad release verification is limited to this independent component diagnostic lane; existing full release guard remains byte-identical"
+    ],
+    "base_commit": "13552bfeb8c2d6cc0fe17f76ddb7bd59a73f24be",
+    "bound_files": [
+      {
+        "path": "services/platform/agentsec-api/authorization_runtime_readiness.go",
+        "sha256": "9a3901f7d3ac21b22807b74c4c2f1a2a15da43a3e8f6236073ee8329f257f77e"
+      },
+      {
+        "path": "services/platform/agentsec-api/authorization_runtime_readiness_test.go",
+        "sha256": "ce2482c386799ad758b374d4e823a0e797cb907cf01daad2c449eb68fb3eb781"
+      },
+      {
+        "path": "services/platform/agentsec-api/compliance_browser_process_test.go",
+        "sha256": "7a8a66cb13308e02a30175c482226c6c49cd5487a10e194707a8fbf9b16f10e6"
+      },
+      {
+        "path": "services/platform/agentsec-api/production_runtime.go",
+        "sha256": "e051cec9987f311462d7f3d6b63a9ee07373a9b2e82e5bee9d320bc627605a34"
+      },
+      {
+        "path": "scripts/browser-command-failure.mjs",
+        "sha256": "0af8e330beaf024940732d50629b1c95252674b509d455fbd1f2808eaa40dc86"
+      },
+      {
+        "path": "scripts/browser-command-failure.test.mjs",
+        "sha256": "d080296bbc585802d4f531caa5e29ea0306d2b42243bb9e34a5e29f19659ef09"
+      },
+      {
+        "path": ".github/workflows/connected-browser-acceptance.yml",
+        "sha256": "d81c188709fa65aa1d604fd2c9e91521fa34d1d902946cfe243080011a3f5d9b"
+      }
+    ],
+    "checks_run_by_reviewer": [
+      "Read complete working diff and relevant baseline implementation",
+      "Checked new observer call sites",
+      "Compared existing full Runnable UI workflow bytes with base",
+      "git diff --check passed"
+    ],
+    "date_utc": "2026-10-14",
+    "findings": [],
+    "limitations": [
+      "No claimed diagnosis or fix of the underlying Serve readiness failure",
+      "Synchronous fixture observer adds only bounded fixed output but remains an observer of existing checks, not a substitute for their result",
+      "No production, native activation, deployed readiness or provider integration acceptance claim",
+      "Workflow source/runner pin changes after this bound snapshot require separate validation"
+    ],
+    "repository_mutations_by_reviewer": false,
+    "result": "source-review-pass-execution-evidence-required",
+    "reviewer": "recovery_security_review",
+    "schema": "zasp-independent-source-review-v1",
+    "scope": [
+      "Bounded fixture readiness diagnostics and parser",
+      "Preservation of default nil-observer production behavior",
+      "Independent connected compliance browser component workflow"
+    ],
+    "tests_not_run": [
+      "Go readiness tests",
+      "Node parser and browser control group tests",
+      "UI typecheck and production build",
+      "Hosted connected browser acceptance"
+    ],
+    "tests_run_by_reviewer": [],
+    "unchanged_release_guard": {
+      "byte_identical_to_base": true,
+      "path": ".github/workflows/runnable-ui.yml",
+      "sha256": "fd98a81d520fbd8b80fb6d404b7a8a0d0e154268f0e3adb5073a47ee4c7d4d98"
+    }
+  },
+  "checks": {
+    "readiness_tops": 15,
+    "readiness_events": {
+      "run": 40,
+      "output": 80,
+      "pass": 40
+    },
+    "readiness_log_sha256": "2d75716fcdccbcfa5a0bde98081dab889df311fe3b3b35b0efd89a1fb97b4ac8",
+    "node_diagnostic_checks": 35,
+    "node_failures": 0,
+    "ui_typecheck": "PASS",
+    "ui_production_build": "PASS"
+  },
+  "retained_failures": {
+    "sql_sha": "13552bfeb8c2d6cc0fe17f76ddb7bd59a73f24be",
+    "sql_workflow_run": 38648139133,
+    "sql_job": 116140016287,
+    "sql_state": "42601",
+    "sql_position": 64948,
+    "sql_phase": "connector-profile/connector-definitions",
+    "sql_diagnosis": "Unparenthesized CASE in PL/pgSQL IF; corrected parentheses only; native acceptance pending",
+    "browser_sha": "344699dbb01a827aec5ea2c6bf270b4943552a5d",
+    "browser_workflow_run": 38645091765,
+    "browser_job": 116129852927,
+    "browser_phase": "api-ready",
+    "browser_reason": "deadline",
+    "observed_startup_phase": "serve",
+    "observed_active_class": "authorization-readiness",
+    "causal_limit": "A matching frame across all goroutines does not identify the failing readiness dependency",
+    "additional_browser_run": {
+      "run": 38645096838,
+      "job": 116129869156,
+      "phase": "compliance-current-profile",
+      "limit": "Failure occurred before API readiness; old browser failures are mixed by phase, no common cause asserted"
+    }
+  },
+  "source_bindings": {
+    "services/platform/agentsec-api/connector_callback_runtime.go": "69c0fe154628058709eaf886369e3aa92aee8a9526a1bebda091ad8147c6cd95",
+    "services/platform/agentsec-api/connector_maintenance_runtime.go": "ac74dd00dc05e34e72a06962ad8d7a8f13d18bf64c0fe6e46fdbd520f4b09bab",
+    "services/platform/agentsec-api/production_runtime.go": "e051cec9987f311462d7f3d6b63a9ee07373a9b2e82e5bee9d320bc627605a34",
+    "services/platform/agentsec-api/runtime.go": "bace8cadfe7ab3f982cfc779ebff5493590a9156bf4a2cbdf31e7be82d69e975",
+    "services/platform/agentsec-worker/authorization_worker_runtime.go": "97f81ea5b11ad283eb056fe6f0fa9aefbf43e5e5161c7ff3bcfe67772f1e80e7",
+    "services/platform/apiserver/connector_enqueue_provenance_postgres_test.go": "d6039cfa0d1673a5cf29e68e209b73c2cb6aeefd715e4d7805d3690b8ab0afde",
+    "services/platform/apiserver/connector_handler.go": "e8a28640de67507a0676a882cc627bc20910d4fc55c606b08c9bc6663de76eb0",
+    "services/platform/apiserver/connector_maintenance_callback_database.go": "68daa6030d5ad5e51dbcd95c5c7d3a77160dc74bafea1a986049b937bf787efc",
+    "services/platform/apiserver/connector_maintenance_callback_resolver.go": "995c5238f7e4fa4a58a5d35218234600beaec374f67bb36f5a363a77357c7585",
+    "services/platform/apiserver/connector_maintenance_enqueue_database.go": "df803820e44feadcbe41f4778cd50ee20edbfa1847fb82d0d9abcc39f3a962ac",
+    "services/platform/apiserver/connector_maintenance_enqueue_postgres_test.go": "b45386a9d6c6390b8e30b7a071801ecf8cd2a9bc5adb0398ca8ac9e9864e8b82",
+    "services/platform/apiserver/connector_maintenance_repository.go": "0726280a4aaac1ca023317609910210eded8ee4e613ddf5f7351430d975e880a",
+    "services/platform/apiserver/connector_reconciler.go": "a95c6b80c40a9ce9ceb2cfa153dc346d06464c194f55cc7caea99a635670a1c6",
+    "services/platform/authorization/connector_maintenance_projection.go": "e9189565c21f4d16c3f06c3cf89b35e57b1cef5e5bb51b1ff49da02349dcd7b8",
+    "services/platform/authorization/worker_current_maintenance.go": "77e382687cc15c54bd3065a10caeb607921c7ee89f3f6ad373c8d645c01d9246",
+    "services/platform/cmd/zasp-authorization-reconcile/main.go": "26c1d2d58289b3a2a5b5f58b55348f70f7ae3d48ef7d84b426613f79d506b27e",
+    "services/platform/connectormaintenance/authority.go": "378b2b151fe9978ca28a3c40d024c52bff7d3f0b83267839ef1dd61ee3946441",
+    "services/platform/connectormaintenance/executor.go": "b8297f04701e4c5229a05cbefeaea1427d328bddde9a39a4d03e8e1902de59de",
+    "services/platform/connectormaintenancecutover/coordinator.go": "c6558e7dfb24121b7f84def049d7aeeef971895580d87ca2af5d61ecaaeed7c5",
+    "services/platform/connectormaintenancecutover/fga.go": "0e80b78867c5b6bbc11e4a2a2bbb1ca3a43bbf43bd8e9fa921471914a98c924c",
+    "services/platform/connectormaintenancecutover/model.json": "329f49e1f2effecbe1a0e9caf6c89be939b1e36e034155d74977bfc82c73cc2c",
+    "services/platform/connectormaintenancecutover/process_linux.go": "6096f7c304818c7e6ebc31d3940bacf75932b9f2971c8c529316ebee92cede54",
+    "services/platform/connectormaintenancecutover/raw_model.go": "4fdad0c76ea36dfdc732bad76ff010d1e50ce34e4ed1e5ba1c44ff3c678714f2",
+    "services/platform/connectormaintenancecutover/sql.go": "11a839a8b0c73e9eb1e830e37ff070eb6824c31e87604b5103e92fc75b16a8c2",
+    "services/platform/migrations/production_connector_enqueue_provenance.go": "793b230a8572fbfbed2a4702e1513bfa90afac596a8d0707ae047bbdf8bacc36",
+    "services/platform/migrations/production_connector_maintenance.go": "18b0989e395e85f18a78f5f51aee06eb1f969fba79a66650754bfc3858d055cd",
+    "services/platform/migrations/sql/connector_enqueue_provenance.sql": "32b3f8cbe175b5256ff4542cdff044d6d060e0240d24632bf3d057f3553a5c13",
+    "services/platform/migrations/sql/connector_maintenance_profile.sql": "d3406f1dd7ec7e10763dd898e38f6b0b18ae9a3793a6c50d20d0c034ec9cd8c1",
+    "services/platform/runtimeservices/config.go": "3eff9566c27b6e7c5179a8968aacf0f05b0810baf1d69abac43cb19e21dc0f77",
+    "services/platform/migrations/production_approval_maintenance_profile.go": "2e98fa960c2e7b42b2a6a343b4ff47059c0d23fac83dbed887d2868f1b9c99f3",
+    "services/platform/migrations/production_approval_maintenance_successor.go": "6817964c5c0dfcabe7ea9f65caf5b7840f6d9e4d29a1ec39b00e1b03b0fa6eca",
+    "services/platform/migrations/production_approval_maintenance_profile_test.go": "5592e136c7578bac21bf698c675762b28b68b46a37b1d2ed7670e2d707150a6a",
+    "services/platform/apiserver/production.go": "ca69d1bf4f7d6d0a94c68529f117a55d6e786aba437b9c55a0ee42c9af117c3c",
+    "services/platform/apiserver/connector_maintenance_pkce_recovery_test.go": "23d3015ed536e347f23bd4ce318a7125390e2477a83bd0808595cbd5c29aa036",
+    "services/platform/apiserver/connector_maintenance_recovery_decode_test.go": "08ad69924af72241a35c146e371c2a2ec955a25a8af16cfee81537073335c8f1",
+    "services/platform/agentsec-api/authorization_runtime_readiness.go": "9a3901f7d3ac21b22807b74c4c2f1a2a15da43a3e8f6236073ee8329f257f77e",
+    "services/platform/agentsec-api/authorization_runtime_readiness_test.go": "ce2482c386799ad758b374d4e823a0e797cb907cf01daad2c449eb68fb3eb781"
+  },
+  "original_full_release_workflow_sha256": "fd98a81d520fbd8b80fb6d404b7a8a0d0e154268f0e3adb5073a47ee4c7d4d98",
+  "new_browser_lane": "Component diagnostic acceptance only; original full verification/release workflow retained byte-for-byte",
+  "native_restart_acceptance": "NOT VERIFIED: prior candidate refused before installation; successor hosted run required",
+  "ledger": {
+    "rows": 728,
+    "historical_production_available": 523,
+    "component_only": 144,
+    "blocked_external": 61,
+    "promotions": 0
+  },
+  "external_gate": "Production target/public URLs and 50 application bindings remain missing; no deployment authority or acceptance fabricated.",
+  "additional_review": {
+    "assessment": [
+      "Fixture claim and worker leases both increase from five to ten seconds, remaining inside unchanged production five-to-three-hundred-second admission range",
+      "Preparation failure deadline now derives from captured lease expiry minus 2100 milliseconds, matching production two-second finalization reserve plus hundred-millisecond lease safety margin",
+      "Original fifteen-second unknown-effect cooldown, twenty-two-second natural claim loop, ten-minute Go budget, command budget and native resource guards remain unchanged",
+      "Acceptance measures genuine preparation retries, restart compensation and exact purpose denials; it makes no minimum-lease performance claim",
+      "Closed runner diagnostic location regex adds only connector_maintenance_pkce_recovery_test.go with existing one-to-six-digit numeric line shape; original locations cap is sixteen and remains sixteen",
+      "SQL syntax correction remains parentheses-only and has not yet established native parse acceptance"
+    ],
+    "base_commit": "13552bfeb8c2d6cc0fe17f76ddb7bd59a73f24be",
+    "binding_note": "A path may appear in prior reviewed scope and this successor; these new fixture bindings supersede prior fixture hash only. Bound runner still contains prior fixture source pin and requires root refresh plus independent binding checks before push.",
+    "bound_files": [
+      {
+        "path": "services/platform/agentsec-api/authorization_runtime_readiness.go",
+        "sha256": "9a3901f7d3ac21b22807b74c4c2f1a2a15da43a3e8f6236073ee8329f257f77e"
+      },
+      {
+        "path": "services/platform/agentsec-api/authorization_runtime_readiness_test.go",
+        "sha256": "ce2482c386799ad758b374d4e823a0e797cb907cf01daad2c449eb68fb3eb781"
+      },
+      {
+        "path": "services/platform/agentsec-api/compliance_browser_process_test.go",
+        "sha256": "7a8a66cb13308e02a30175c482226c6c49cd5487a10e194707a8fbf9b16f10e6"
+      },
+      {
+        "path": "services/platform/agentsec-api/production_runtime.go",
+        "sha256": "e051cec9987f311462d7f3d6b63a9ee07373a9b2e82e5bee9d320bc627605a34"
+      },
+      {
+        "path": "scripts/browser-command-failure.mjs",
+        "sha256": "0af8e330beaf024940732d50629b1c95252674b509d455fbd1f2808eaa40dc86"
+      },
+      {
+        "path": "scripts/browser-command-failure.test.mjs",
+        "sha256": "d080296bbc585802d4f531caa5e29ea0306d2b42243bb9e34a5e29f19659ef09"
+      },
+      {
+        "path": ".github/workflows/connected-browser-acceptance.yml",
+        "sha256": "d81c188709fa65aa1d604fd2c9e91521fa34d1d902946cfe243080011a3f5d9b"
+      },
+      {
+        "path": "services/platform/migrations/sql/connector_maintenance_profile.sql",
+        "sha256": "d3406f1dd7ec7e10763dd898e38f6b0b18ae9a3793a6c50d20d0c034ec9cd8c1"
+      },
+      {
+        "path": "services/platform/apiserver/connector_maintenance_pkce_recovery_test.go",
+        "sha256": "23d3015ed536e347f23bd4ce318a7125390e2477a83bd0808595cbd5c29aa036"
+      },
+      {
+        "path": "scripts/hosted-connected-connector-acceptance.mjs",
+        "sha256": "b10f0934758460b0f3b6d1f90a32181cea2f8a7187f3e83f18b7a666bf8f70dc"
+      }
+    ],
+    "checks_run_by_reviewer": [
+      "Read complete fixture timing delta and runner delta",
+      "Bound new fixture and current runner source bytes"
+    ],
+    "date_utc": "2026-10-14",
+    "findings": [],
+    "limitations": [
+      "Runner source-pin refresh is pending in reviewed snapshot; final bind checks are required after refresh",
+      "No native recovery case execution success claimed; parent reports prior hosted failure occurred during SQL parse before those cases",
+      "Original hosted SQLSTATE42601 failure remains retained; this source review does not replace it",
+      "No production readiness, provider compensation, callback crash recovery or fleet restart acceptance claim"
+    ],
+    "prior_review": {
+      "path": "/tmp/browser-readiness-sql-syntax-independent-review-20261014.json",
+      "sha256": "c6127f0e884bd2b5c90e8f3bcca4a20eb24d3976ca0ddc3204bdccb6ffa07991"
+    },
+    "repository_mutations_by_reviewer": false,
+    "result": "bounded-source-review-pass-final-pin-refresh-and-native-acceptance-required",
+    "reviewer": "recovery_security_review",
+    "schema": "zasp-independent-source-review-v1",
+    "tests_run_by_reviewer": []
+  },
+  "fixture_timing": "10 s lease within original 5..300 s range; unchanged 15 s natural retry cooldown, 22 s claim poll, 10 m Go budget, 650 s owned command; preparation deadline uses lease expiry minus original 2.1 s finalization reserve; no runtime case failed or passed before this adjustment",
+  "runner_source_bindings_verified_after_review": true,
+  "runner_sha256": "7b05a6aea0460a741eefd1b716e579b2c82ad718ef5f5bcf49214b0dcdc64f04",
+  "repository_deployment_access": {
+    "environments_count": 0,
+    "actions_variables_inventory": "HTTP403 resource not accessible by integration",
+    "actions_secrets_inventory": "HTTP403 resource not accessible by integration",
+    "secret_values_read": false,
+    "limit": "403 does not establish absence of repository variables or secrets; production target cannot be inferred from inaccessible inventory"
+  }
+}
