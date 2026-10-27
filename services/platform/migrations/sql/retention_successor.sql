@@ -119,19 +119,25 @@ DO $successors$ DECLARE p record;d text;s text;n text;expected integer;helper te
   ELSIF p.signature='zasp_authorization80_worker.projected_domain()' THEN
    s:=zasp_retention_v1.replace_exact(s,'WHERE NOT t.tgisinternal','WHERE NOT t.tgisinternal AND NOT(t.tgrelid=''public.zasp_inventory_evidence''::regclass AND t.tgname=''zasp_000_retention_v1_inventory_evidence'')',1);
   END IF;
-  -- These are SQL bodies, never caller text or dynamic SQL. The bound parent
+  -- These are captured function bodies, never caller text. The bound parent
   -- source contains metadata reads; do not alter pg_proc ownership/ACL reads.
   s:=replace(s,'pg_get_functiondef(p.oid)','zasp_retention_v1.projected_definition(p.oid)');
   s:=replace(s,'pg_get_functiondef(procedure.oid)','zasp_retention_v1.projected_definition(procedure.oid)');
   s:=regexp_replace(s,'\mp[.]prosrc\M','zasp_retention_v1.projected_source(p.oid)','g');
-  s:=regexp_replace(btrim(s),';[[:space:]]*$','');
-  IF p.signature='zasp_authorization80_worker.catalog_ready()' THEN
-   -- Full original inline catalog expression is retained and recomputed.
-   s:='SELECT zasp_retention_v1.independent_seal(''-- retention checksum'') AND ('||s||')';
-  ELSIF p.signature IN('zasp_temporal68.predecessor_ready(text,text)','zasp_temporal68.ready(text,text)','zasp_temporal78.ready(text,text)') THEN
-   s:='SELECT zasp_retention_v1.independent_seal(''-- retention checksum'') AND ('||s||')';
+  IF p.signature='zasp_temporal68.predecessor_ready(text,text)' THEN
+   -- The captured predecessor is PL/pgSQL, including declarations and loops.
+   -- Retain that entire body and frame; a SELECT wrapper is not procedural SQL.
+   s:=zasp_retention_v1.replace_exact(s,chr(10)||' IF c IS DISTINCT FROM ',chr(10)||' IF zasp_retention_v1.independent_seal(''-- retention checksum'') IS NOT TRUE THEN RETURN false;END IF;'||chr(10)||' IF c IS DISTINCT FROM ',1);
   ELSE
-   s:='SELECT CASE WHEN zasp_retention_v1.independent_seal(''-- retention checksum'') THEN ('||s||') ELSE NULL END';
+   s:=regexp_replace(btrim(s),';[[:space:]]*$','');
+   IF p.signature='zasp_authorization80_worker.catalog_ready()' THEN
+    -- Full original inline catalog expression is retained and recomputed.
+    s:='SELECT zasp_retention_v1.independent_seal(''-- retention checksum'') AND ('||s||')';
+   ELSIF p.signature IN('zasp_temporal68.ready(text,text)','zasp_temporal78.ready(text,text)') THEN
+    s:='SELECT zasp_retention_v1.independent_seal(''-- retention checksum'') AND ('||s||')';
+   ELSE
+    s:='SELECT CASE WHEN zasp_retention_v1.independent_seal(''-- retention checksum'') THEN ('||s||') ELSE NULL END';
+   END IF;
   END IF;
   d:=zasp_retention_v1.replace_exact(p.definition,p.source,chr(10)||s||chr(10),1);
   INSERT INTO zasp_retention_v1.successors VALUES(p.signature,d);

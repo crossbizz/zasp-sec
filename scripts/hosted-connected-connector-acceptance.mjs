@@ -244,7 +244,7 @@ const pins = {
   "services/platform/migrations/sql/retention_index.sql": "f0f58105f9b1aba2965cc5cca9a603f647bb1e09ef41685a77650edc355aa250",
   "services/platform/migrations/sql/retention_partition.sql": "3edbcd31f2aa5b0dbf246f5fda5496a7ab9a0c21b8d4272ea3b1a461928a75bf",
   "services/platform/migrations/sql/retention_profile.sql": "3fa8e0e0d56eebcf98c1b93a2b548b911b9cbb0a44fabc79e25b93418cf5e987",
-  "services/platform/migrations/sql/retention_successor.sql": "d1cfad551006cb1768dff15cae27cd8547e1e10ada41ce78b0417cbd98add1b1",
+  "services/platform/migrations/sql/retention_successor.sql": "ad6543fbf3019a3e8401fc3d1bcd994da9b0a3299b8526b25cd42b51b2c685f9",
   "services/platform/orchestration/retention_activities.go": "1feae2d7592d9649cb215879900ede4828b07f4825dd9249d055d99e3ae96a11",
   "services/platform/orchestration/retention_schedule.go": "54ad05917914b59fe241bfc9933af60373b84116b851ed558ab35b1e61e510c1",
   "services/platform/orchestration/retention_schedule_test.go": "2122381d1f1eade714b21e0c29f19cbb1eac5395e7d6090f3225fcfeb3981e27",

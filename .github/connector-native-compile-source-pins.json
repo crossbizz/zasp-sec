@@ -390,14 +390,14 @@
     },
     {
       "path": "scripts/hosted-connected-connector-acceptance.mjs",
-      "sha256": "f7a885664ecd03517a7b92a31089ca09dee7e939c2b79405c23d2b7d788aa08b",
+      "sha256": "f43163b187c38029ba055f4a5a0bb7153232f130a83e77a710e78786bcb3504e",
       "bytes": 152049,
       "currentBasePreimageSHA256": "f248c6d9182ca08cb518cd54c620844c987f4ae723a38badb463c59e010db578",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
-      "sha256": "ac469d7873d7923992835d610c7c7b6b698f017622139b3cfc1f8d8541bf2352",
+      "sha256": "0496b22447373b2287af855ea34765f15957c4856b2845c32cc05d4fc6b8eef9",
       "bytes": 148565,
       "currentBasePreimageSHA256": "e66722e4daf5b1482c253d1f14b4c533c329fde202252c16f87ad3e0130e8524",
       "historicalPreimageSHA256": null
@@ -1776,8 +1776,8 @@
     },
     {
       "path": "services/platform/migrations/sql/retention_successor.sql",
-      "sha256": "d1cfad551006cb1768dff15cae27cd8547e1e10ada41ce78b0417cbd98add1b1",
-      "bytes": 18245,
+      "sha256": "ad6543fbf3019a3e8401fc3d1bcd994da9b0a3299b8526b25cd42b51b2c685f9",
+      "bytes": 18681,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -6536,5 +6536,7 @@
   "startupAssemblySourceAssociationBase": "5e51264ce139c34a4d10c2558f377351c42f7107",
   "startupAssemblyPredecessorManifestSHA256": "42be4d9782d90d09c5a4e65ced47f8aa3228978a796931f11baf6ae18bc56e01",
   "retentionNoInheritFixtureSourceAssociationBase": "f6d335897a628eb4ec05e34878dfdda311db4ba4",
-  "retentionNoInheritFixturePredecessorManifestSHA256": "69ac8dda72479f3b4bc4c26f437d81bdee27bedf58017ec867961fb93ba8ba21"
+  "retentionNoInheritFixturePredecessorManifestSHA256": "69ac8dda72479f3b4bc4c26f437d81bdee27bedf58017ec867961fb93ba8ba21",
+  "retentionProceduralSuccessorSourceAssociationBase": "45105a2f87a742e4de4c3bdecbcc92c4e98dffc6",
+  "retentionProceduralSuccessorPredecessorManifestSHA256": "dcf5fa2347a338cd9739be1646059943a71e0fb2a4c92dc2712ac6bcac79ec52"
 }
