@@ -390,15 +390,15 @@
     },
     {
       "path": "scripts/hosted-connected-connector-acceptance.mjs",
-      "sha256": "f43163b187c38029ba055f4a5a0bb7153232f130a83e77a710e78786bcb3504e",
-      "bytes": 152049,
+      "sha256": "738798b2d7074b800e891d5fc6ba4690b32b8f4145804b30d8b262c66d9a3eb2",
+      "bytes": 152157,
       "currentBasePreimageSHA256": "f248c6d9182ca08cb518cd54c620844c987f4ae723a38badb463c59e010db578",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
-      "sha256": "0496b22447373b2287af855ea34765f15957c4856b2845c32cc05d4fc6b8eef9",
-      "bytes": 148565,
+      "sha256": "a8749107851a8b1d375f391737d54e65769727880cf8fd1aedfbde538e4b5c42",
+      "bytes": 148673,
       "currentBasePreimageSHA256": "e66722e4daf5b1482c253d1f14b4c533c329fde202252c16f87ad3e0130e8524",
       "historicalPreimageSHA256": null
     },
@@ -1440,8 +1440,8 @@
     },
     {
       "path": "deploy/production/release-contract.mjs",
-      "sha256": "583d0123267baa68180b549f44d9458fd6b769a19456ed3dbc26d3a356ea0536",
-      "bytes": 89859,
+      "sha256": "7633f3609cc3ec6da40d3f1d5118085307f955e4edd61621a3b53e5501c4fba8",
+      "bytes": 91156,
       "currentBasePreimageSHA256": "cc162864456876d7194fd68af75c055b66409e4a2c1d2c69cb0597af89f9a973",
       "historicalPreimageSHA256": null
     },
@@ -5108,7 +5108,7 @@
     },
     {
       "path": ".github/workflows/connector-native-draft-compile.yml",
-      "sha256": "dd5dabdcf255e99d1c102d2fc84d1f8978aea6d3ce780140435c82afcc6743b2",
+      "sha256": "e3e0a70df703c0da99570e6f87b3d7739f61ccf117893f5a67d9523589e74c59",
       "bytes": 197473,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
@@ -6484,6 +6484,13 @@
       "bytes": 7030,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
+    },
+    {
+      "path": "scripts/release-failure-stages.mjs",
+      "sha256": "46ef77fcb416c0393cf3506ba6b8172ffbe420152415453551a0decdcb6d5c4f",
+      "bytes": 2080,
+      "currentBasePreimageSHA256": null,
+      "historicalPreimageSHA256": null
     }
   ],
   "predecessorCheckpointSHA256": "364ada857d54ce83d678e00eb3d61d55c6a036d22cc1f7ebc9170432079ece05",
@@ -6538,5 +6545,7 @@
   "retentionNoInheritFixtureSourceAssociationBase": "f6d335897a628eb4ec05e34878dfdda311db4ba4",
   "retentionNoInheritFixturePredecessorManifestSHA256": "69ac8dda72479f3b4bc4c26f437d81bdee27bedf58017ec867961fb93ba8ba21",
   "retentionProceduralSuccessorSourceAssociationBase": "45105a2f87a742e4de4c3bdecbcc92c4e98dffc6",
-  "retentionProceduralSuccessorPredecessorManifestSHA256": "dcf5fa2347a338cd9739be1646059943a71e0fb2a4c92dc2712ac6bcac79ec52"
+  "retentionProceduralSuccessorPredecessorManifestSHA256": "dcf5fa2347a338cd9739be1646059943a71e0fb2a4c92dc2712ac6bcac79ec52",
+  "releaseStageDiagnosticsSourceAssociationBase": "b87966da13c23dcc2d4e733e12756ed6d8366aa5",
+  "releaseStageDiagnosticsPredecessorManifestSHA256": "15fc8a674bd069d0fd2cd4238b07be1a732707261e979f2582239b65fe6913e7"
 }

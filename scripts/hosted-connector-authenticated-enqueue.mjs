@@ -183,7 +183,7 @@ const pins = {
   "services/platform/apiserver/approval_maintenance_genuine_enqueue_postgres_test.go": "376c63e3b498569d5287f0ebeeaa956de8e62ee25216a3ec8bb55b27a4ec2995",
   "services/platform/apiserver/authorization_worker_planning_proof_postgres_test.go": "05d5049ad6854c19eaede77eb60b4aa628d26710bdde8fdb56f7dd8de358c743",
   "deploy/production/authorization-temporal-resources.mjs": "ecc112b8fd0fad16830cc1c32d535776244382a11416158fc8d5aedd2c1a4401",
-  "deploy/production/release-contract.mjs": "583d0123267baa68180b549f44d9458fd6b769a19456ed3dbc26d3a356ea0536",
+  "deploy/production/release-contract.mjs": "7633f3609cc3ec6da40d3f1d5118085307f955e4edd61621a3b53e5501c4fba8",
   "deploy/production/release-contract.test.mjs": "532188082428540063829ab532186a6b82f9de7c9caca874ba471a7a6954474a",
   "deploy/production/session-search-rollout.mjs": "a1690c1d62442cc26290d391db3b77f6665dc7c7e3c06de5220ff8f469b16398",
   "deploy/staging/main.tf": "1f52871bb91b4f982f72196c421964ee12b0037678a51cae00e56bfdbbee5f4d",
@@ -733,7 +733,7 @@ const pins = {
   "services/platform/policy/gateway_cache_test.go": "d1a894f056788253b33801964cbeb171ad0cb67705d772526808ceed27aba786",
   "deploy/staging/product/templates/_gateway-installation.tpl": "9babf066a786a0c007206b99e579382caa9ac50d2eaa0803fb44b78d813fb655",
   "services/platform/gatewaycontrol/installation_test.go": "e57e80f019825d15997aeecaf7d4983a6143a8ccccc367b079e5abce01d328f7",
-  ".github/workflows/connector-native-draft-compile.yml": "dd5dabdcf255e99d1c102d2fc84d1f8978aea6d3ce780140435c82afcc6743b2",
+  ".github/workflows/connector-native-draft-compile.yml": "e3e0a70df703c0da99570e6f87b3d7739f61ccf117893f5a67d9523589e74c59",
   "services/gateway-control/production_test.go": "255476e93ec22d7f2c4ec1d51ce730e352f0246dc5b15608ab5778abb9bb2a29",
   "services/runtime-gateway/production.go": "6ce7c2c72927ff16cc47dae63fa0eee728c5f4c7e14e217302a0680be65b8a36",
   "services/gateway-control/go.mod": "77d4922e3192e996ca9a0975b0bcd2d4711b18844e62f7ae82923cfb60df6995",
@@ -902,7 +902,8 @@ const pins = {
   "services/gatewaypodidentity/publisher_test.go": "b9f5976495b53eca680feb1d5166fa31d818f5df0064512d994a2b1b02467a86",
   "deploy/production/gateway-reviewer-publisher.Dockerfile": "68be38973238b7062e1e1a16ec2a62ecdeaf01d042fb8b3286a2c487758f87d1",
   "deploy/production/gateway-reviewer-publisher.Dockerfile.dockerignore": "f0afa2635ed8eaa2b2675ce271d76003038bbfb61659d192d98b486abfeacd0f",
-  "services/platform/migrations/connector_approval_assembly_test.go": "1e73eeff76c53ab4417ebeb1fad5fbe9bbeba2ac82910e9559215ac6f3b26958"
+  "services/platform/migrations/connector_approval_assembly_test.go": "1e73eeff76c53ab4417ebeb1fad5fbe9bbeba2ac82910e9559215ac6f3b26958",
+  "scripts/release-failure-stages.mjs": "46ef77fcb416c0393cf3506ba6b8172ffbe420152415453551a0decdcb6d5c4f"
 };
 const top='TestConnectorMaintenanceAuthenticatedOAuthEnqueuePostgres';
 const cases=['genuine_same_transaction_origin_and_immutable_enrichment','rollback_removes_every_enqueue_and_provenance_write'];

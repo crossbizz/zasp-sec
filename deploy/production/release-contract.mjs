@@ -1,3 +1,4 @@
+import {releaseStageError, withReleaseStage} from "../../scripts/release-failure-stages.mjs";
 import {normalizeAgentDeviceAssociation,validateAgentDeviceAssociationResources} from "./agent-device-association-profile.mjs";
 import {normalizeGatewayBootstrap,validateGatewayBootstrapResources} from "./gateway-bootstrap-profile.mjs";
 import { normalizeGatewayInstallation, normalizeGatewayInstallationProducer, validateGatewayInstallationResources, validateGatewayInstallationProducerResources } from "./gateway-installation-profile.mjs";
@@ -88,6 +89,10 @@ export async function inspectContainerBuilds() {
 }
 
 export async function renderRelease(value, options = { schemaVersion: 49 }) {
+  return withReleaseStage("normal-configuration", () => renderConfiguredRelease(value, options));
+}
+
+async function renderConfiguredRelease(value, options) {
   if (!validRelease(value) || !options || Object.keys(options).some(key => !["schemaVersion", "sessionSearchPhase", "auditExports", "testReconciler", "complianceExports", "attackLabReconciler", "evidenceExportWorkflow", "discoveryScheduleReplayPhase", "runtimeServices", "authorizationTemporal", "optionalEgress", "retentionReferenceExpiry", "environmentClass", "agentOwnerFilter", "agentRead", "agentOwnershipWrite", "agentExposureFilter", "sensorNodeCoverage", "gatewayInstallation", "gatewayBootstrap", "agentDeviceAssociation"].includes(key))) throw new Error("release rejected");
   const platformAccountID = value.discovery.roleArn.match(/^arn:aws:iam::([0-9]{12}):role\//)[1];
   const authorizationTemporal = normalizeAuthorizationTemporalProfile(options.authorizationTemporal, options, platformAccountID);
@@ -396,6 +401,7 @@ export async function renderRelease(value, options = { schemaVersion: 49 }) {
   for (const [key, entry] of set) valueArgs.push("--set-string", `${key}=${entry.replaceAll("\\", "\\\\").replaceAll(",", "\\,")}`);
   let stdout;
   let exportValuesDirectory;
+  let failureStage = "normal-values";
   try {
     if (auditExports || testReconciler || complianceExports || attackLabReconciler || options.runtimeServices || optionalEgress || retention || environmentClass || agentOwnerFilter || agentRead || agentOwnershipWrite || agentExposureFilter || sensorNodeCoverage || gatewayInstallation || gatewayBootstrap || agentDeviceAssociation) {
       // A complete policy history can exceed the per-argument limit on Linux.
@@ -404,25 +410,31 @@ export async function renderRelease(value, options = { schemaVersion: 49 }) {
       await writeFile(exportValuesPath, JSON.stringify({ auditExports, testReconciler, complianceExports, attackLabReconciler, ...(authorizationTemporal ? { authorizationTemporal } : {}), ...(optionalEgress ? { optionalEgress } : {}), ...(retention ? { retentionReferenceExpiry: retention } : {}), ...(environmentClass ? { environmentClass } : {}), ...(agentOwnerFilter ? { agentOwnerFilter } : {}), ...(agentRead ? { agentRead } : {}), ...(sensorNodeCoverage ? { sensorNodeCoverage } : {}), ...(gatewayInstallation ? { gatewayInstallation } : {}), ...(gatewayBootstrap ? { gatewayBootstrap } : {}), ...(agentDeviceAssociation ? { agentDeviceAssociation } : {}), ...(agentOwnershipWrite ? { agentOwnershipWrite } : {}), ...(agentExposureFilter ? { agentExposureFilter } : {}), ...(runtimeServices ? { runtimeServices } : {}), ...(evidenceExportWorkflow ? { evidenceExportWorkflow: { enabled: true } } : {}) }), { mode: 0o600 });
       valueArgs.push("--values", exportValuesPath);
     }
+    failureStage = "normal-helm-lint";
     await exec("helm", ["lint", chart, "--namespace", "agentsec", ...valueArgs], { cwd: root, encoding: "utf8", maxBuffer: 4 * 1024 * 1024 });
+    failureStage = "normal-helm-template";
     ({ stdout } = await exec("helm", ["template", "zasp", chart, "--namespace", "agentsec", ...valueArgs], { cwd: root, encoding: "utf8", maxBuffer: 4 * 1024 * 1024 }));
-  } catch {
-    throw new Error("release rejected");
+  } catch (error) {
+    throw releaseStageError(failureStage, error);
   } finally {
-    if (exportValuesDirectory) await rm(exportValuesDirectory, { recursive: true, force: true });
+    if (exportValuesDirectory) await withReleaseStage("normal-cleanup", () => rm(exportValuesDirectory, { recursive: true, force: true }));
   }
   const resources = [];
   try {
     loadAll(stdout, (document) => { if (document) resources.push(document); }, { schema: JSON_SCHEMA });
-  } catch {
-    throw new Error("release rejected");
+  } catch (error) {
+    throw releaseStageError("normal-parse", error);
   }
-  if (resources.length < 20 || resources.some((resource) => !resource?.apiVersion || !resource?.kind || !resource?.metadata?.name)) throw new Error("release rejected");
-  validateRenderedRelease(resources, platformAccountID, schemaVersion, sessionSearchPhase, auditExports, testReconciler, complianceExports, attackLabReconciler, evidenceExportWorkflow, discoveryScheduleReplayPhase, authorizationTemporal, optionalEgress, value.securityAgentPlanner.egressCIDRs, retention, environmentClass, agentOwnerFilter, agentRead, agentExposureFilter, agentOwnershipWrite, sensorNodeCoverage, gatewayInstallation, gatewayBootstrap, agentDeviceAssociation);
+  if (resources.length < 20 || resources.some((resource) => !resource?.apiVersion || !resource?.kind || !resource?.metadata?.name)) throw releaseStageError("normal-resources");
+  await withReleaseStage("normal-validation", () => validateRenderedRelease(resources, platformAccountID, schemaVersion, sessionSearchPhase, auditExports, testReconciler, complianceExports, attackLabReconciler, evidenceExportWorkflow, discoveryScheduleReplayPhase, authorizationTemporal, optionalEgress, value.securityAgentPlanner.egressCIDRs, retention, environmentClass, agentOwnerFilter, agentRead, agentExposureFilter, agentOwnershipWrite, sensorNodeCoverage, gatewayInstallation, gatewayBootstrap, agentDeviceAssociation));
   return Object.freeze(resources);
 }
 
 export async function renderCustomerEdgeRelease(value, options = {}) {
+  return withReleaseStage("edge-configuration", () => renderConfiguredCustomerEdgeRelease(value, options));
+}
+
+async function renderConfiguredCustomerEdgeRelease(value, options) {
   if (!validCustomerEdgeRelease(value) || !options || typeof options !== "object" || Array.isArray(options) || Object.keys(options).some(key => key !== "sourceProfile") || options.sourceProfile !== undefined && !["tetragon-local-stream-v2", "tetragon-local-stream-v3"].includes(options.sourceProfile)) throw new Error("edge release rejected");
   const sourceProfile = options.sourceProfile ?? "tetragon-local-stream-v2";
   const nodeCoverage = normalizeSensorNodeCoverageProducer(value.sensorNodeCoverage);
@@ -456,10 +468,12 @@ export async function renderCustomerEdgeRelease(value, options = {}) {
   for (const [key, entry] of set) valueArgs.push("--set-string", `${key}=${entry.replaceAll("\\", "\\\\").replaceAll(",", "\\,")}`);
   let productOutput, tetragonOutput, coverageDirectory;
   const nodeSelector = structuredClone(value.sensorNodeSelector);
+  let failureStage = "edge-dependency";
   try {
     const tetragonChart = path.join(root, "deploy/staging/tetragon");
     const dependency = await readFile(path.join(tetragonChart, "charts/tetragon-1.7.0.tgz"));
     if (createHash("sha256").update(dependency).digest("hex") !== tetragonChartDigest) throw new Error("tetragon dependency rejected");
+    failureStage = "edge-values";
     coverageDirectory = await mkdtemp(path.join(tmpdir(), "zasp-sensor-coverage-values-"));
     const productCoveragePath = path.join(coverageDirectory,"product.json"), tetragonCoveragePath = path.join(coverageDirectory,"tetragon.json");
     await writeFile(productCoveragePath,JSON.stringify({runtimeGateway:{installationACKEnabled:gatewayInstallation?.enabled===true},sensorAgent:{nodeCoverageRetentionEnabled:nodeCoverage?.enabled===true,sensorID:nodeCoverage?.sensorID??"",coverage:{clusterUID:value.sensorClusterUID,matchLabels:nodeSelector,tetragonNamespace:"agentsec",tetragonName:"zasp-tetragon",tetragonRelease:"zasp-tetragon",tetragonServiceAccount:"zasp-tetragon"}}}),{mode:0o600});
@@ -467,37 +481,43 @@ export async function renderCustomerEdgeRelease(value, options = {}) {
     valueArgs.push("--values",productCoveragePath);
     const tetragonArgs=["--values",tetragonCoveragePath];
     const results = await Promise.all([
-      exec("helm", ["lint", chart, "--namespace", "agentsec", "--values", edgeValues, ...valueArgs], { cwd: root, encoding: "utf8", maxBuffer: 8 * 1024 * 1024 }),
-      exec("helm", ["template", "zasp", chart, "--namespace", "agentsec", "--values", edgeValues, ...valueArgs], { cwd: root, encoding: "utf8", maxBuffer: 8 * 1024 * 1024 }),
-      exec("helm", ["lint", tetragonChart, "--namespace", "agentsec", ...tetragonArgs], { cwd: root, encoding: "utf8", maxBuffer: 8 * 1024 * 1024 }),
-      exec("helm", ["template", "zasp-tetragon", tetragonChart, "--namespace", "agentsec", ...tetragonArgs], { cwd: root, encoding: "utf8", maxBuffer: 8 * 1024 * 1024 }),
+      withReleaseStage("edge-product-lint", () => exec("helm", ["lint", chart, "--namespace", "agentsec", "--values", edgeValues, ...valueArgs], { cwd: root, encoding: "utf8", maxBuffer: 8 * 1024 * 1024 })),
+      withReleaseStage("edge-product-template", () => exec("helm", ["template", "zasp", chart, "--namespace", "agentsec", "--values", edgeValues, ...valueArgs], { cwd: root, encoding: "utf8", maxBuffer: 8 * 1024 * 1024 })),
+      withReleaseStage("edge-tetragon-lint", () => exec("helm", ["lint", tetragonChart, "--namespace", "agentsec", ...tetragonArgs], { cwd: root, encoding: "utf8", maxBuffer: 8 * 1024 * 1024 })),
+      withReleaseStage("edge-tetragon-template", () => exec("helm", ["template", "zasp-tetragon", tetragonChart, "--namespace", "agentsec", ...tetragonArgs], { cwd: root, encoding: "utf8", maxBuffer: 8 * 1024 * 1024 })),
     ]);
     productOutput = results[1].stdout;
     tetragonOutput = results[3].stdout;
-  } catch {
-    throw new Error("edge release rejected");
+  } catch (error) {
+    throw releaseStageError(failureStage, error);
   } finally {
-    if (coverageDirectory) await rm(coverageDirectory,{recursive:true,force:true});
+    if (coverageDirectory) await withReleaseStage("edge-cleanup", () => rm(coverageDirectory,{recursive:true,force:true}));
   }
   const resources = [];
   try {
     loadAll(productOutput, (document) => { if (document) resources.push(document); }, { schema: JSON_SCHEMA });
     loadAll(tetragonOutput, (document) => { if (document) resources.push(document); }, { schema: JSON_SCHEMA });
-  } catch {
-    throw new Error("edge release rejected");
+  } catch (error) {
+    throw releaseStageError("edge-parse", error);
   }
-  validateSensorNodeCoverageProducerResources(resources,nodeCoverage);
-  validateGatewayInstallationProducerResources(resources,gatewayInstallation);
-  const deployments = resources.filter(({ kind }) => kind === "Deployment");
-  const daemonSets = resources.filter(({ kind }) => kind === "DaemonSet");
-  const accounts = resources.filter(({ kind }) => kind === "ServiceAccount");
-  if (resources.length < 20 || resources.some((resource) => !resource?.apiVersion || !resource?.kind || !resource?.metadata?.name) || deployments.length !== 1 || deployments[0].metadata.name !== "runtime-gateway" || daemonSets.length !== 2 || !daemonSets.some(({ metadata }) => metadata.name === "sensor-agent") || !daemonSets.some(({ metadata }) => metadata.name === "zasp-tetragon") || accounts.length !== 3 || !["runtime-gateway", "sensor-agent", "zasp-tetragon"].every((name) => accounts.some(({ metadata }) => metadata.name === name)) || accounts.some(({ metadata }) => metadata.annotations?.["eks.amazonaws.com/role-arn"] !== undefined)) throw new Error("edge release rejected");
-  const sensorDS=resources.find(r=>r.kind==="DaemonSet"&&r.metadata.name==="sensor-agent"), tetragonDS=resources.find(r=>r.kind==="DaemonSet"&&r.metadata.name==="zasp-tetragon");
+  await withReleaseStage("edge-coverage", () => validateSensorNodeCoverageProducerResources(resources,nodeCoverage));
+  await withReleaseStage("edge-installation", () => validateGatewayInstallationProducerResources(resources,gatewayInstallation));
+  await withReleaseStage("edge-resources", () => {
+    const deployments = resources.filter(({ kind }) => kind === "Deployment");
+    const daemonSets = resources.filter(({ kind }) => kind === "DaemonSet");
+    const accounts = resources.filter(({ kind }) => kind === "ServiceAccount");
+    if (resources.length < 20 || resources.some((resource) => !resource?.apiVersion || !resource?.kind || !resource?.metadata?.name) || deployments.length !== 1 || deployments[0].metadata.name !== "runtime-gateway" || daemonSets.length !== 2 || !daemonSets.some(({ metadata }) => metadata.name === "sensor-agent") || !daemonSets.some(({ metadata }) => metadata.name === "zasp-tetragon") || accounts.length !== 3 || !["runtime-gateway", "sensor-agent", "zasp-tetragon"].every((name) => accounts.some(({ metadata }) => metadata.name === name)) || accounts.some(({ metadata }) => metadata.annotations?.["eks.amazonaws.com/role-arn"] !== undefined)) throw releaseStageError("edge-resources");
+  });
   const normalize=v=>JSON.stringify(Object.fromEntries(Object.entries(v??{}).sort(([a],[b])=>a.localeCompare(b))));
-  if(normalize(sensorDS?.spec?.template?.spec?.nodeSelector)!==normalize(nodeSelector)||normalize(tetragonDS?.spec?.template?.spec?.nodeSelector)!==normalize(nodeSelector)) throw new Error("edge release rejected");
-  const role=resources.find(r=>r.kind==="Role"&&r.metadata.name==="sensor-agent");
-  const dsRule=role?.rules?.find(r=>r.apiGroups?.includes("apps")&&r.resources?.includes("daemonsets"));
-  if(!dsRule||JSON.stringify(dsRule.verbs)!==JSON.stringify(["get"])||normalize(dsRule.resourceNames)!==normalize(["sensor-agent","zasp-tetragon"])) throw new Error("edge release rejected");
+  await withReleaseStage("edge-placement", () => {
+    const sensorDS=resources.find(r=>r.kind==="DaemonSet"&&r.metadata.name==="sensor-agent"), tetragonDS=resources.find(r=>r.kind==="DaemonSet"&&r.metadata.name==="zasp-tetragon");
+    if(normalize(sensorDS?.spec?.template?.spec?.nodeSelector)!==normalize(nodeSelector)||normalize(tetragonDS?.spec?.template?.spec?.nodeSelector)!==normalize(nodeSelector)) throw releaseStageError("edge-placement");
+  });
+  await withReleaseStage("edge-rbac", () => {
+    const role=resources.find(r=>r.kind==="Role"&&r.metadata.name==="sensor-agent");
+    const dsRule=role?.rules?.find(r=>r.apiGroups?.includes("apps")&&r.resources?.includes("daemonsets"));
+    if(!dsRule||JSON.stringify(dsRule.verbs)!==JSON.stringify(["get"])||normalize(dsRule.resourceNames)!==normalize(["sensor-agent","zasp-tetragon"])) throw releaseStageError("edge-rbac");
+  });
   return Object.freeze(resources);
 }
 

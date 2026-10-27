@@ -1,3 +1,4 @@
+import {releaseStageForCode} from './release-failure-stages.mjs';
 import fs from 'node:fs';
 import {fileURLToPath} from 'node:url';
 const PHASES=Object.freeze(["dependencies:check","health:contract:test","openapi:test","openapi:lint","openapi:check","ui-api:test","ui-api:check","raw-fetch:test","saas:tenancy:test","graph:neo4j:test","db:tenant-rls:test","test","typecheck","lint","production:imports:test","production:imports:source","staging:gate:test","production:release:test","build","production:imports:compiled","implementation:status:check"]);
@@ -11,30 +12,36 @@ const READ_CHUNK_BYTES=64*1024;
 const MAX_LINE_BYTES=16*1024;
 const MAX_LINES=1000000;
 function annotationParser(){
- let phase=null,failed=[],summary=new Map(),invalidSummary=false;
+ let phase=null,failed=[],summary=new Map(),invalidSummary=false,releaseStages=[],failureBlock=false,diagnosticBlock=false;
  return {
   line(line){
-  if(line.length>4096){if(line.startsWith('> ')){phase=null;failed=[];summary=new Map();invalidSummary=false;}return;}
+  if(line.length>4096){if(line.startsWith('> ')){phase=null;failed=[];summary=new Map();invalidSummary=false;releaseStages=[];failureBlock=false;diagnosticBlock=false;}return;}
   if(/^> [^ \t]+@[^ \t]+ [^\r\n]+$/.test(line)){
    const match=/^> zasp-agent-security-console@0\.1\.0 ([a-z:.-]+)$/.exec(line);
-   phase=match&&PHASES.includes(match[1])?match[1]:null;failed=[];summary=new Map();invalidSummary=false;
+   phase=match&&PHASES.includes(match[1])?match[1]:null;failed=[];summary=new Map();invalidSummary=false;releaseStages=[];failureBlock=false;diagnosticBlock=false;
    return;
   }
   if(phase!=='production:release:test')return;
   const result=/^not ok (?:0|[1-9][0-9]{0,6}) - (.+)$/.exec(line)??/^✖ (.+) \((?:0|[1-9][0-9]{0,9})(?:\.[0-9]{1,9})?ms\)$/.exec(line);
   const name=result?.[result.length-1];
+  if(result){failureBlock=RELEASE_TEST_SET.has(name);diagnosticBlock=false;}
+  if(/^ {2,16}---$/.test(line)&&failureBlock)diagnosticBlock=true;
+  if(/^ {2,16}\.\.\.$/.test(line)||/^ok [0-9]+ - |^# Subtest:|^1\.\./.test(line)){failureBlock=false;diagnosticBlock=false;}
+  const stageCode=failureBlock&&diagnosticBlock?/^ {2,16}code: '(ZASP_RELEASE_STAGE_[A-Z_]+)'$/.exec(line):null;
+  const stage=stageCode?releaseStageForCode(stageCode[1]):undefined;
+  if(stage&&!releaseStages.includes(stage)&&releaseStages.length<4)releaseStages.push(stage);
   if(name&&RELEASE_TEST_SET.has(name)&&!failed.includes(name)&&failed.length<4)failed.push(RELEASE_TEST_NAMES.find(value=>value===name));
   const counter=/^(?:#|ℹ) (tests|pass|fail|cancelled|skipped|todo)(?: (.*))?$/.exec(line);
   if(counter){const key=counter[1],text=counter[2]??'';if(!/^(?:0|[1-9][0-9]{0,6})$/.test(text)||Number(text)>1000000||summary.has(key))invalidSummary=true;else summary.set(key,Number(text));}
   },
   oversizedLine(startsHeader){
-   if(startsHeader){phase=null;failed=[];summary=new Map();invalidSummary=false;}
+   if(startsHeader){phase=null;failed=[];summary=new Map();invalidSummary=false;releaseStages=[];failureBlock=false;diagnosticBlock=false;}
   },
   finish(){
  if(phase==='production:release:test'){
   const valid=!invalidSummary&&SUMMARY_KEYS.every(key=>summary.has(key))&&SUMMARY_KEYS.every(key=>summary.get(key)<=summary.get('tests'))&&summary.get('pass')+summary.get('fail')+summary.get('cancelled')<=summary.get('tests');
   const counters=valid?SUMMARY_KEYS.map(key=>key+'='+summary.get(key)).join(', '):'unavailable';
-  const annotation=`::error title=npm verify failed::npm run verify failed; latest observed phase: production:release:test. Observed failed tests: ${failed.length?failed.join('; '):'unavailable'}. Observed summary: ${counters}.`;
+  const annotation=`::error title=npm verify failed::npm run verify failed; latest observed phase: production:release:test. Observed failed tests: ${failed.length?failed.join('; '):'unavailable'}. Observed summary: ${counters}.${releaseStages.length?' Observed release stages: '+releaseStages.join(', ')+'.':''}`;
   return Buffer.byteLength(annotation)<=4096?annotation:'::error title=npm verify failed::npm run verify failed; latest observed phase: production:release:test. Observed failed tests: unavailable. Observed summary: unavailable.';
  }
  return phase===null?GENERIC:`::error title=npm verify failed::npm run verify failed; latest observed phase: ${phase}.`;
