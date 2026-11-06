@@ -48,8 +48,8 @@ describe("M2 identity governance and UI batch", () => {
       expect(openapi).toContain(`operationId: ${mounted}`);
       expect(map).toContain(`operation_id: ${mounted}\n        availability: api_available`);
     }
-    expect(map.match(/availability: planned/g)).toHaveLength(2);
-    expect(map.match(/availability: available/g)).toHaveLength(147);
+    expect(map.match(/availability: planned/g) ?? []).toHaveLength(0);
+    expect(map.match(/availability: available/g)).toHaveLength(157);
     expect(map.match(/availability: api_available/g)).toHaveLength(15);
     expect(readme).toContain("M2-01 through M2-50 and the M2-47 gate are Complete");
     expect(readme).toContain("M3-01 through M3-13 are Complete");

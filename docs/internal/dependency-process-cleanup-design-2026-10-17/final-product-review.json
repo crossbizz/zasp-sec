@@ -1,0 +1,44 @@
+{
+  "status": "CLEAR_FINITE_REAPER_SOURCE_SUCCESSOR_ONLY",
+  "reviewer": "/root/gateway_review",
+  "created_at": "2026-10-17T22:30:12.425582+00:00",
+  "freeze": {
+    "path": "/tmp/esbuild-scoped-reaper-evidence-20261017/status-precedence-source-successor.json",
+    "sha256": "a775bc8e2dde88d034fe84084028c6e6b4b78c2d5223470314d41a00e9103423"
+  },
+  "sources": [
+    {
+      "path": "scripts/run-dependency-regressions.py",
+      "sha256": "4836a9eb6c264a50375d9f172319e5e6930ea49416ca2f96a348d5fcb317fa4f"
+    },
+    {
+      "path": "scripts/run-dependency-regressions.test.py",
+      "sha256": "abbcdc7f87c42be893738f5392e9181c07753cb8e48c1e6a0ddb886a3db8208a"
+    },
+    {
+      "path": "package.json",
+      "sha256": "d5f171cfb0218ca78e01f3cf292516c14fc9dc76af6b78a066a700dd170aa08a"
+    },
+    {
+      "path": "scripts/dependency-esbuild-regression.test.mjs",
+      "sha256": "e95dbf56f6b30313954ff6a4d3a5780a1a03026d81d83152148019717ec692d9"
+    },
+    {
+      "path": "scripts/fixtures/dependency-esbuild-regression-child.mjs",
+      "sha256": "2a456acd0302ea8563b4f22d7ddb7b5d5f207b96a67f1a5abd67605162971640"
+    }
+  ],
+  "hash_mismatches": [],
+  "prior_review": {
+    "path": "/tmp/esbuild-scoped-reaper-evidence-20261017/independent-compatibility-source-review.json",
+    "sha256": "3fba65a813e75fd554348d9032a0542f039aade32926b5061f6789df2afda6a9",
+    "preserved": true
+  },
+  "closed_finding": "ACTUAL_NODE_STATUS_ON_CLEANUP_FAILURE",
+  "delta": "Existing incomplete-cleanup fixed diagnostic now followed by preserved known nonzero actual Node status (positive unchanged, negative signal mapped128+signal). Main0 or unknown with cleanup failure remains125; cannot produce success. No other ownership/signal/scan/deadline/handshake boundary changed; frozen three grouped tests and original Node guards untouched.",
+  "findings": [],
+  "limits": [
+    "Source and hash review only; no process/Go/Node/tests/prctl/pidfd/Git/network execution. Root reported prior compatibility grouped3PASS and full npm9PASS retained; source finding is not invented executed RED and final successor run separately root-owned.",
+    "Actual app/native/deployed/hosted launch verification and all728 requirements remain separate; no policy/release/guard bypass or availability/task promotion."
+  ]
+}

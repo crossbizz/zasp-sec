@@ -1,0 +1,57 @@
+{
+  "head": "344699dbb01a827aec5ea2c6bf270b4943552a5d",
+  "scope": "isolated exact-head git archive; component callback handler integration; not native or deployment acceptance",
+  "command": [
+    "go",
+    "test",
+    "-C",
+    "services/platform",
+    "-json",
+    "-race",
+    "-p=1",
+    "-count=1",
+    "-timeout=2m",
+    "-run",
+    "^TestConnectorMaintenanceCallbackExecutionBoundaries$",
+    "./apiserver"
+  ],
+  "goVersion": "1.26.8",
+  "exit": 1,
+  "cases": [
+    {
+      "name": "TestConnectorMaintenanceCallbackExecutionBoundaries/uncertain_forward_consumption_keeps_cleanup_pending",
+      "result": "pass"
+    },
+    {
+      "name": "TestConnectorMaintenanceCallbackExecutionBoundaries/completion_and_captured_cleanup",
+      "result": "pass"
+    },
+    {
+      "name": "TestConnectorMaintenanceCallbackExecutionBoundaries/revoked_before_secret_has_no_external_access",
+      "result": "fail"
+    },
+    {
+      "name": "TestConnectorMaintenanceCallbackExecutionBoundaries/revoked_before_provider_has_no_exchange",
+      "result": "fail"
+    },
+    {
+      "name": "TestConnectorMaintenanceCallbackExecutionBoundaries/changed_intent_uses_only_captured_rejection_cleanup",
+      "result": "pass"
+    },
+    {
+      "name": "TestConnectorMaintenanceCallbackExecutionBoundaries/unavailable_rejection_secret_keeps_cleanup_pending",
+      "result": "pass"
+    },
+    {
+      "name": "TestConnectorMaintenanceCallbackExecutionBoundaries/native_marker_without_hook_fails_closed",
+      "result": "pass"
+    },
+    {
+      "name": "TestConnectorMaintenanceCallbackExecutionBoundaries/rejection_receipt_refusal_has_no_secret_access",
+      "result": "fail"
+    }
+  ],
+  "failureClass": "authorization-denied is mapped to503 by writeProductionError rather than403; all side-effect assertions match",
+  "jsonl": "/tmp/zasp-344-boundary-diagnosis.jsonl",
+  "jsonlSHA256": "0975bf04830073ece8c9f706c12438e5b1fdaa398e65d0b9853afcc48cfc9b98"
+}

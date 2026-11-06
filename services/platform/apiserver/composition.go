@@ -89,6 +89,8 @@ var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"GET", "/api/v1/settings/data-controls", "getDataControls", "view_compliance", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"PATCH", "/api/v1/settings/data-controls", "updateDataControls", "manage_data_controls", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"GET", "/api/v1/settings/external-data-flows", "getExternalDataFlows", "view", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"PATCH", "/api/v1/settings/external-data-flows", "updateExternalDataFlows", "manage_data_controls", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"POST", "/api/v1/ai/explanations", "createAIExplanation", "view", []string{"BrowserSession"}}, riskDependency},
 	{OperationDefinition{"GET", "/api/v1/system/status", "getSystemStatus", "view", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"GET", "/api/v1/system/components", "listSystemComponents", "view", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"GET", "/api/v1/system/version", "getSystemVersion", "view", []string{"BrowserSession"}}, identityDependency},
@@ -108,6 +110,10 @@ var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"GET", "/api/v1/search", "globalSearch", "view", []string{"BrowserSession", "ProductAPIToken"}}, riskDependency},
 	{OperationDefinition{"GET", "/api/v1/agents", "listAgents", "view", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
 	{OperationDefinition{"GET", "/api/v1/agents/{id}", "getAgent", "view", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
+	{OperationDefinition{"POST", "/api/v1/agents/{id}/device-association-intents", "createAgentDeviceIntent", "manage_identity", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/agents/{id}/device-associations/{associationId}/activate", "activateAgentDeviceAssociation", "manage_identity", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/agents/{id}/device-associations/{associationId}/revoke", "revokeAgentDeviceAssociation", "manage_identity", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/agents/{id}/device-associations", "listAgentDeviceAssociations", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"PATCH", "/api/v1/agents/{id}", "updateAgent", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
 	{OperationDefinition{"GET", "/api/v1/agents/{id}/capabilities", "getAgentCapabilities", "view", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
 	{OperationDefinition{"GET", "/api/v1/agents/{id}/relationships", "getAgentRelationships", "view", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
@@ -120,6 +126,10 @@ var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"GET", "/api/v1/runtimes/{id}", "getRuntime", "view", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
 	{OperationDefinition{"GET", "/api/v1/assets/{id}", "getAsset", "view", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
 	{OperationDefinition{"GET", "/api/v1/sensors", "listSensors", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/gateways", "createGatewayDevice", "manage_identity", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/gateways/{id}", "getGatewayDevice", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/gateways/{id}/enrollments", "issueGatewayEnrollment", "manage_identity", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/gateways/{id}/enrollments/{enrollmentId}/revoke", "revokeGatewayEnrollment", "manage_identity", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"POST", "/api/v1/sensors", "createSensorEnrollment", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/sensors/{id}", "getSensor", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"PATCH", "/api/v1/sensors/{id}", "updateSensor", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
@@ -324,10 +334,10 @@ func newComposition(dependencies Dependencies, exports http.Handler, compliance 
 
 func requiresFreshAuthentication(operationID string) bool {
 	switch operationID {
-	case "createWorkspace", "updateWorkspace", "createEnvironment", "updateEnvironment",
+	case "createAgentDeviceIntent", "activateAgentDeviceAssociation", "revokeAgentDeviceAssociation", "createWorkspace", "updateWorkspace", "createEnvironment", "updateEnvironment",
 		"updateMemberRole", "updateGroupMappings", "createAPIToken", "rotateAPIToken", "revokeAPIToken", "revealAPIToken", "acknowledgeAPITokenRevealGrant",
 		"createSSOConnection", "deleteSSOConnection", "testSSOConnection", "createSCIMConnection", "deleteSCIMConnection",
-		"revokeSession", "updateDataControls", "authorizeIntegration", "authorizeIntegrationReference", "remediateIntegrationAuthorization", "createSensorEnrollment", "rotateSensorToken":
+		"createGatewayDevice", "issueGatewayEnrollment", "revokeGatewayEnrollment", "revokeSession", "updateDataControls", "updateExternalDataFlows", "authorizeIntegration", "authorizeIntegrationReference", "remediateIntegrationAuthorization", "createSensorEnrollment", "rotateSensorToken":
 		return true
 	case "activateSecurityAgent", "decideSecurityAgentApproval", "setSecurityAgentExecutionControl", "startRecoveryBackup", "startRecoveryRestore":
 		return true

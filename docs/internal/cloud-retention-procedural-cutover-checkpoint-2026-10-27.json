@@ -1,0 +1,72 @@
+{
+  "classification": "RETENTION_PROCEDURAL_SUCCESSOR_FIX_COMPONENT_VERIFIED_PENDING_NATIVE_DEPLOYED_ACCEPTANCE",
+  "observed_at": "2026-10-27T17:48:59.646918+00:00",
+  "starting_SHA": "45105a2f87a742e4de4c3bdecbcc92c4e98dffc6",
+  "latest_fetched_main_SHA": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
+  "required_ancestor": "e13ccb95451b03107681ccb59b3fc6fe175a228f",
+  "required_ancestor_verified": true,
+  "handoff_received": "Original728scope, approvedTemporal/OpenFGAplans retainingStytch, existingwork and singleauthoritativeledger preserved; no restartedprototype orscope reduction.",
+  "problem_and_behavior": "Nativeprepared/noinherit subtest passes afterpriorfix; activationfailsSQLSTATE42601. Generator incorrectlywraps actualPLpgSQL predecessor_ready body in scalarSELECT. Exactsignaturebranch nowpreserves proceduraldeclarations/loops/authoritychecks/return andsecurityframe, adding failclosedindependentseal ISNOTTRUE RETURNfalse beforeoriginalbody withoneexactanchor. Other16SQL scalarassignmentbytes unchanged; noimmutablecanonicalSQL, ABI, owner/ACL ordefaultactivation change.",
+  "task_mapping": {
+    "M7-19": "Retention activation compiler supportingfix; fullretention execution/recovery/settlement/native/deployedacceptance stillrequired."
+  },
+  "actual_verification": {
+    "hosted_baseline": "Exact45105a2f70checks36success34failure. Compileand original-nineSUCCESS. RetentionpreparedsubtestPASS, cutoverfails42601. Browserapproval-reconcilerdeadline persists, UIrelease387tests380pass6fail1skip. Publicannotations retained; no deniedrawlog/artifact route retried.",
+    "grouped_grammar": "Officialpglast8.7 actualAuditgraphtemplate reconstruction plusactualrecipeRHS: RED4PASS4FAIL(oldgeneratedPLpgSQL ParseErrornearSELECT), GREEN8PASS0FAIL0SKIP. Fullproceduralbodybytepreservationapartfromentryguard, securityframe, missing/duplicateanchorrefusal, unchanged3scalarassignments and17targetlanguageprovenance16SQL/1PLpgSQL. Initialandintermediateinventoryharnessfailures retained. ThisdoesnotexecuteSQLgeneratorinPostgreSQL or authenticate livepg_proc capture; finaldynamicbase67body notofflinecaptured.",
+    "existing_retention_regressions": "5existingheads22namedcases PASS0FAIL0SKIP underGo race; recipeidentity, installertransactionboundary, explicitDDLbootstrap andjournalclosure/refusal. Fakebackedinstallerchecks notnativeproof.",
+    "UI_typecheck": "npm run typecheck exit0",
+    "production_build": "npm run build exit0 complete5vinextstages andstandaloneoutput",
+    "source_guards": "Existing21PASS0FAIL0SKIP; scopedlint2changedrunners exit0. All926manifest entries and1824current scriptassociations match, originalpaths/order/preimagehistory preserved; only3boundhashrows refreshed.",
+    "independent_review": {
+      "result": "CLEAR",
+      "sha256": "1b623a06e663a970b15163d66fbdd07b869e92a4550b2b3c5020db18b53a4bc0",
+      "all4frozen_hashes_match": true
+    },
+    "not_run": "Fullverify, actualnativeSQL semantics/ACL/catalog/cutover/replay, PostgreSQL/OpenFGA/API/worker/browser/provider/deployedacceptance. No nativeflow orlaunch acceptance claimed."
+  },
+  "operational_boundary": "Supplementaryretentionrecipechecksum changes because sourcechanges. Existingdifferentpreparedprofile continuesrefusing exactmatch; noautomaticrepair, activation, sharedDBreset oroldimplementationretirement. Freshownednativefixture andoperator-reviewedproductioncutover remainrequired.",
+  "ledger": {
+    "total": 728,
+    "unique_IDs": 728,
+    "historical_statuses": {
+      "Complete": 667,
+      "Blocked": 61
+    },
+    "classes": {
+      "production-available": 509,
+      "component-only": 158,
+      "blocked/external": 61
+    },
+    "changed_evidence_rows": [
+      "M7-19"
+    ],
+    "all_other_fields_unchanged": true,
+    "tasks_closed": 0,
+    "promotions": 0,
+    "beforeSHA256": "267fd53e5de1ce8853be3b69c8da274cc918a267745e273d198afcb0e0988b87",
+    "afterSHA256": "888667102a6981b6a5c8cf3cf405b4799340ac2c9da11dfe385ea73e316b0f7e",
+    "ownersSHA256": "de630b490e4861aeadf52fff3b2ecf075884d7d8adbacfbbd06c4ceca27aa46b"
+  },
+  "runtime_access": "Currentcloudrevision1558 running/connected/enforced; noTCPgrants/VPN, managedsecretbindings/outboundidentities. PinnedGo1.26.8 Node22.23.1/npm10.9.8 available; OPAcacheabsent andHelmunavailable. Priorofficialdownload/nativeadmission refusalsnotretriedorbypassed; no freshdenial fabricated. Currentnames-onlyinventory ofprevious53requiredsettings:0direct,3supportedStytchaliases,50unbound; no credentialvalidity orproductionauthority inferred.",
+  "workflow": "Cloudruntime skillapplied. Superpowersunavailable; previouslyread officialupstreamgroupedTDD/reviewworkflow used. No Temporal/OpenFGA internaltests.",
+  "preparation_evidence": "Requestedpglast7.7 unavailablefromofficialindex; official8.7 installedsuccessfully andpinnedforgrammaronly. Previousscratchprerequisitefileabsent; exactrequirednames recoveredfromimmutableearlierevidence thenfreshnames-onlyinventory performed. Failuresnot countedpasses.",
+  "remaining_critical_path": [
+    "Hostednative retentionactivation/replay/privilegerevocation/settlement oncorrectedrecipe, then realdeployedacceptance.",
+    "BrowserapprovalReadySQL/pool/cleanup exactstage timings andPKCEretrytrace/initialleaseheadroom neededbeforeevidence-backedtimeoutfixes; no permissionweakeningorbudgetincrease.",
+    "Releasefixedstagecode/privacy-awareannotation needed toidentifyrealHelm/SBOM/license/secretgatefailure; no templatebug proven.",
+    "Implementcurrent signedresponsewebhook Temporal/native/OpenFGAexecutionandcapturedsettlement, registered sender/API/UIintegration andallotheroriginalrequirements; realStytch/providerE2E andverifiedobsolete retirement."
+  ],
+  "evidence": {
+    "path": "docs/internal/cloud-retention-procedural-cutover-evidence-2026-10-27.tar.gz",
+    "sha256": "45839cbd74f842737f242752c901e9f93715bdd4034ffc4ff00d90e269777278",
+    "bytes": 502575,
+    "members": 57,
+    "verification": "Allmemberbytes verified; payloadmanifestincluded; checkpointexcludedselfreference. OriginalREDandintermediatefailures retained."
+  },
+  "launch_ready": false,
+  "goal_complete": false,
+  "task_closed": false,
+  "availability_promoted": false,
+  "obsolete_retired": false,
+  "merge_release_cleared": false
+}

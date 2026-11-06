@@ -6,11 +6,14 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+	"github.com/zasp-ai/zasp-sec/services/platform/internal/testprocess"
 	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 )
 
@@ -357,9 +360,51 @@ func runOwnershipCLI(t *testing.T, ctx context.Context, owner *pgx.Conn) {
 	runTemporalMigrationCLI(t, ctx, owner, "up-temporal-ownership")
 }
 
+// Build preparation must not consume the application fixture's SQL lifetime.
+// A private executable is shared by this fixture's two real CLI operations;
+// no artifact survives into another test or bypasses a native prerequisite.
+func buildTemporalMigrationFixtureCLI(t *testing.T) string {
+	t.Helper()
+	for _, program := range []string{"initdb", "postgres", "pg_isready", "pg_ctl"} {
+		if _, err := exec.LookPath(program); err != nil {
+			t.Skip("local PostgreSQL binaries unavailable")
+		}
+	}
+	deadline := time.Now().Add(120 * time.Second)
+	if testDeadline, ok := t.Deadline(); ok && testDeadline.Before(deadline) {
+		deadline = testDeadline
+	}
+	ctx, cancel := context.WithDeadline(context.Background(), deadline)
+	defer cancel()
+	binary := filepath.Join(t.TempDir(), "agentsec-migrate")
+	// Run owns the compiler/linker process group, joins descendants, and caps
+	// merged build output at its original 1 MiB. Do not emit compiler output
+	// or add a product DSN to this preparation operation.
+	command := exec.Command("go", "build", "-o", binary, "../agentsec-migrate")
+	if _, err := testprocess.Run(ctx, command); err != nil {
+		t.Fatal("real migration CLI build preparation refused")
+	}
+	info, err := os.Lstat(binary)
+	if err != nil || !info.Mode().IsRegular() || info.Mode().Perm()&0111 == 0 {
+		t.Fatal("real migration CLI build artifact unavailable")
+	}
+	t.Log("built real migration CLI before native application fixture")
+	return binary
+}
+
+func runTemporalMigrationFixtureCLI(t *testing.T, ctx context.Context, owner *pgx.Conn, binary, operation string) {
+	t.Helper()
+	runTemporalMigrationCommand(t, ctx, owner, exec.CommandContext(ctx, binary, operation))
+}
+
 func runTemporalMigrationCLI(t *testing.T, ctx context.Context, owner *pgx.Conn, operation string) {
 	t.Helper()
 	command := exec.CommandContext(ctx, "go", "run", "../agentsec-migrate", operation)
+	runTemporalMigrationCommand(t, ctx, owner, command)
+}
+
+func runTemporalMigrationCommand(t *testing.T, ctx context.Context, owner *pgx.Conn, command *exec.Cmd) {
+	t.Helper()
 	command.Env = append(os.Environ(), "ZASP_POSTGRES_DSN="+owner.Config().ConnString(), "ZASP_MIGRATION_TIMEOUT=30s", "ZASP_MIGRATION_DB_PRINCIPAL="+owner.Config().User)
 	// Registration66 only checks the already-bound migration principal. Keep
 	// the real existing principal bindings in the command environment.

@@ -1,0 +1,61 @@
+{
+  "classification": "LAUNCH_STARTUP_CONTRACT_BATCH_COMPONENT_VERIFIED_NOT_DEPLOYED_ACCEPTANCE",
+  "observed_at": "2026-10-20T14:27:37.131749+00:00",
+  "starting_SHA": "1563e52df7c33f3c846d7a55a8c29b67d5fa8468",
+  "fetched_main_SHA": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
+  "required_ancestor": "e13ccb95451b03107681ccb59b3fc6fe175a228f",
+  "required_ancestor_verified": true,
+  "handoff_received": "Original728scope, approved Temporal/OpenFGA plans and authoritative ledger retained; no restarted prototype or scope reduction.",
+  "problem_and_behavior": "Deployment rendered namespace/queue names that both production API and worker refuse; validation now matches the unchanged lowercase2..128 runtime contract, including absolute end. Added local Stytch CI step had38steps while UI/browser contracts expected37; both contracts now validate that exact additive step while retaining all original guards and immutable34step hash.",
+  "task_mapping": {
+    "M8-08b": "API Helm profile startup-name prerequisite corrected; deployment acceptance remains separate.",
+    "M8-09a": "Worker Helm profile uses same unchanged runtime name boundary; deployment acceptance remains separate.",
+    "M7A-24": "Missing current webhook execution family recorded explicitly; no implementation/completion claim from reusable legacy components."
+  },
+  "actual_verification": {
+    "deployment_group": "RED3PASS1FAIL, GREEN4PASS0FAIL,18accepted42rejected name cases across3fields; no real services/Helm rendering.",
+    "UI_workflow_group": "Actual RED221FAIL105PASS, final326PASS0FAIL.",
+    "browser_prerequisite_group": "Actual RED278PASS2FAIL, intermediate280PASS1FAIL ReferenceError retained, final281PASS0FAIL0SKIP. No runtime browser acceptance executed.",
+    "typecheck": "PASS actual final npm run typecheck exit0; initial combined invocation also produced no errors but separate final exit receipt retained.",
+    "production_build": "PASS actual npm run build all5vinext stages with standalone output; no deployed UI/browser/API claim.",
+    "scoped_lint": "PASS actual4changedcodefiles.",
+    "source_custody": "925 existing bindings match exact bytes/hash; changed batch files are outside this finite native custody scope; no binding/runner/manifest modification.",
+    "ledger": "728unique IDs, exact owner mapping, all classifications/statuses unchanged; only3 current_evidence fields appended.",
+    "independent_review": "CLEAR0f77fb476b6efadbd1cf9641fc9d2b51b465758672595114eaf5c21af67cb98d; all4 frozen hashes verified before publication.",
+    "hosted_at_start": "Exact1563head compile117536050695 SUCCESS; publisher provider-components117536050456 SUCCESS. Returned100 checks45SUCCESS55FAILURE. UI/browser failures diagnosed from public annotations; native/authorization failures not inferred fixed.",
+    "full_verify_and_deployed": "NOTRUN for this batch; no full-suite or launch claim. Prior OPA/Helm/network/native admission prerequisites remain unresolved."
+  },
+  "workflow": "Superpowers unavailable in both skill catalogs; official upstream executing-plans/TDD/verification workflow read. User-authorized grouped scope, parallel independent owners and one combined source review used; original immutable evidence and failures retained.",
+  "ledger": {
+    "total": 728,
+    "historical_complete": 667,
+    "historical_blocked": 61,
+    "production_available_recorded": 509,
+    "component_only": 158,
+    "blocked_external": 61,
+    "recorded_nonproduction": 219,
+    "availability_promotions": 0,
+    "new_SHA256": "f2662b964de10891e063e26b6049ab34f7f22009493b6a8544e753e4871b2e6a",
+    "previous_SHA256": "4d96bdb33fb636b7a86ef1d4f5de142735ab4936d2fff41dff019df833dd9f98"
+  },
+  "next_substantial_batch": {
+    "id": "M7A-24",
+    "scope": "Configured response-webhook Temporal execution, current FGA/native forward and captured completion/settlement authority, dedicated sender, approval-origin integration, and scoped readback/UI. Preserve redacted signed bytes, destination/config/evidence bindings, budget/approval/current authority, restart/uncertain non-redelivery and NeedsHuman settlement.",
+    "source_gap": "Current worker80 operation families and temporalPlanningOwner have no webhook seam; legacy SQL59 acceptance requires worker63 lease/provider reservation. Do not enable readiness or borrow API/legacy authority.",
+    "prerequisites": "Supplementary current native contract/catalog validation, actual PostgreSQL/OpenFGA admission and separate registered sender authority; configured destination/secret-reader authority; then real provider/browser acceptance. No prototype substitute or new public operation assumed approved."
+  },
+  "access_gates": "Current supported cloud tool read-only,50requirednamesunbound after3supportedStytchaliases, noTCPgrants/VPN, native catalog/admission and real deployed resources unavailable; PRmetadata writes previously403 not retried via alternate route. Required hosted/security/release guards remain mandatory.",
+  "evidence": {
+    "path": "docs/internal/cloud-launch-startup-contracts-evidence-2026-10-20.tar.gz",
+    "sha256": "fe1df795a8a86662cd400d8029efbfe3b737f600a065e43eb1ec6adedc5093df",
+    "bytes": 183496,
+    "members": 31,
+    "verification": "All archive member bytes verified; payloadSHA256+bytes manifest included; checkpoint excluded to avoid self-reference."
+  },
+  "production_available": false,
+  "launch_ready": false,
+  "goal_complete": false,
+  "task_closed": false,
+  "obsolete_retired": false,
+  "merge_release_cleared": false
+}

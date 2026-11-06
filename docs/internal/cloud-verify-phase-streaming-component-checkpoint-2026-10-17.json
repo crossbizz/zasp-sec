@@ -1,0 +1,137 @@
+{
+  "observed_at": "2026-10-17T02:55:58.232474+00:00",
+  "base": "5ab3be6067573fa369f73e3836c99cc81aff46c8",
+  "scope": "Bounded npm verification phase diagnostics only",
+  "source_freeze": {
+    "kind": "Runnable UI verify annotation bounded streaming fix freeze",
+    "recorded_at": "2026-10-17T02:55:11.383461+00:00",
+    "base_sha": "5ab3be6067573fa369f73e3836c99cc81aff46c8",
+    "sources": [
+      {
+        "path": "scripts/annotate-verify-failure.mjs",
+        "sha256": "895be53fc3801a1a95485367dc5688f30dfb9183da37f567518ef65b90a9293b",
+        "bytes": 15248
+      },
+      {
+        "path": "scripts/annotate-verify-failure.test.mjs",
+        "sha256": "52df88f6acd831f6e88361c19e5a45d7178e4baf3228815e68adb1e9988276fc",
+        "bytes": 12811
+      }
+    ],
+    "preimage_directory": "/tmp/verify-phase-streaming-preimage-20261017",
+    "preimage_manifest_sha256": "a174777aae4fb7fe50dccb28c77bd2ddf4c9b5bf495feec072d3aae1a29c4a77",
+    "unchanged": [
+      {
+        "path": ".github/workflows/runnable-ui.yml",
+        "sha256": "fd98a81d520fbd8b80fb6d404b7a8a0d0e154268f0e3adb5073a47ee4c7d4d98",
+        "byte_identical_to_preimage": true
+      },
+      {
+        "path": "package.json",
+        "sha256": "0dd4697c7feb7a59a83be241ec4f71de74941400d16537fafceb80716eeb8198",
+        "byte_identical_to_preimage": true
+      }
+    ],
+    "source_backed_diagnosis": [
+      "CLI formerly read only final256KiB and removed first partial line; a known phase header followed by300KiB output was lost. Exact npm package header matches current name/version, so format mismatch is not needed to reproduce the gap.",
+      "Existing allowed hosted metadata contains helper generic npm run verify failed; phase unavailable, distinct from shell-fallback Verification failed. No restricted raw Actions logs/artifacts were read.",
+      "This proves a diagnostic gap and sufficient reproduction, not the actual failing UI phase or underlying npm verification failure cause."
+    ],
+    "implementation": [
+      "Same original Buffer API256KiB cap and closed21phase/release-test-name/counter grammar; shared parser changes no whitelist",
+      "CLI streams frombyte0 in64KiB chunks with16KiB line storage, original4096JSchar rule,64MiB total and1Mline caps; overlong lines never reinterpret chunk tails as headers",
+      "O_NOFOLLOW|O_NONBLOCK regular-file open; bigint fdidentity/size/mtimeNs/ctimeNs snapshot and exactbytecount/shortread checks; mutations/caps/nonregular/errors return generic without input/path/error output",
+      "Original workflow/npm verify chain, one invocation, fail-fast semantics, PIPESTATUS[0], diagnostic fallback and final exit status byte-identical"
+    ],
+    "verification": [
+      {
+        "prefix": "/tmp/verify-phase-streaming-red-20261017",
+        "normal_exit": 1,
+        "scope": "Grouped new CLI regression against old source; first case proves300KiB post-header phase loss"
+      },
+      {
+        "prefix": "/tmp/verify-phase-streaming-green-20261017",
+        "normal_exit": 1,
+        "scope": "First fullgroup10pass1fail; mutation preloader accidentally intercepted module-loader read before target snapshot, so control was ineffective. Preserved. Production parser unchanged afterward."
+      },
+      {
+        "prefix": "/tmp/verify-phase-streaming-green-v2-20261017",
+        "normal_exit": 0,
+        "tests": 11,
+        "passed": 11,
+        "failed": 0,
+        "skipped": 0,
+        "scope": "Full existing annotation suite inclactualworkflow/status contracts plusverbose/chunk/overlongline/cap/targetfdmutation/FIFO controls; preloader restricted actualtargetfd dev/ino"
+      }
+    ],
+    "evidence": [
+      {
+        "path": "/tmp/verify-phase-streaming-red-20261017.stdout",
+        "sha256": "d8ecc8e5b528e26f838ecc09dd9d87adb0b70346965103c64b91b2ea50be42ff",
+        "bytes": 1375
+      },
+      {
+        "path": "/tmp/verify-phase-streaming-red-20261017.stderr",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      },
+      {
+        "path": "/tmp/verify-phase-streaming-red-20261017.status",
+        "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+        "bytes": 2
+      },
+      {
+        "path": "/tmp/verify-phase-streaming-green-20261017.stdout",
+        "sha256": "86fefdd32de7a7fd433f3d517fa8d63efc46fbfc733cce3c759c008de15bfbce",
+        "bytes": 3690
+      },
+      {
+        "path": "/tmp/verify-phase-streaming-green-20261017.stderr",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      },
+      {
+        "path": "/tmp/verify-phase-streaming-green-20261017.status",
+        "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+        "bytes": 2
+      },
+      {
+        "path": "/tmp/verify-phase-streaming-green-v2-20261017.stdout",
+        "sha256": "7699990447067aa3e1656a1d563678c70980e081c9fcdd9cd7c28fc49a371a29",
+        "bytes": 2571
+      },
+      {
+        "path": "/tmp/verify-phase-streaming-green-v2-20261017.stderr",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      },
+      {
+        "path": "/tmp/verify-phase-streaming-green-v2-20261017.status",
+        "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+        "bytes": 2
+      }
+    ],
+    "claims": {
+      "underlying_ui_failure_diagnosed": false,
+      "full_verify_passed": false,
+      "production_launch_ready": false
+    },
+    "source_frozen": true
+  },
+  "review": {
+    "path": "/tmp/verify-phase-streaming-independent-source-review-20261017.json",
+    "sha256": "50abcba6d9d1f5ecf47b79a92f419721d0f5205897f046f41027a5640df3f664",
+    "result": "source/component CLEAR"
+  },
+  "archive": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/verify-phase-streaming/verified-component-batch.json.gz",
+    "sha256": "dcca7164971d3f63f757a7236a9a14717be0838f9af8906d2dad4235d746ff1c",
+    "bytes": 20596,
+    "uncompressed_sha256": "6c9fd4f49f9ff5d07d3c5cd13a85785cca01cfa22531f85157b7ecccf168b89a",
+    "uncompressed_bytes": 80933,
+    "members": 16
+  },
+  "ledger_promotions": 0,
+  "full_npm_verify_passed": false,
+  "deployed_or_launch_acceptance": false
+}

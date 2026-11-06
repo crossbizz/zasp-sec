@@ -1,0 +1,119 @@
+{
+  "observed_at": "2026-10-17T03:00:51.843643+00:00",
+  "base": "33df7ab5afd81809e0a71a43cad6181c1714e173",
+  "source_base": "5ab3be6067573fa369f73e3836c99cc81aff46c8",
+  "scope": "Capture exact immutable compiled main80 source checksum in connector constructors before claims; preserve all live SQL/FGA authorization and original deadlines",
+  "source_freeze": {
+    "observed_at": "2026-10-17T02:58:46.390573+00:00",
+    "source_base": "5ab3be6067573fa369f73e3836c99cc81aff46c8",
+    "compiler_sources": 321,
+    "original320_preserved": true,
+    "original_changed_only": [
+      "services/platform/connectormaintenance/authority.go",
+      "services/platform/connectormaintenance/executor.go"
+    ],
+    "runners": [
+      {
+        "path": "scripts/hosted-connected-connector-acceptance.mjs",
+        "before": 294,
+        "after": 295,
+        "sha256": "f248c6d9182ca08cb518cd54c620844c987f4ae723a38badb463c59e010db578"
+      },
+      {
+        "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
+        "before": 283,
+        "after": 284,
+        "sha256": "e66722e4daf5b1482c253d1f14b4c533c329fde202252c16f87ad3e0130e8524"
+      }
+    ],
+    "files": [
+      {
+        "path": "services/platform/connectormaintenance/authority.go",
+        "sha256": "6165e9fc541c82439e4cb5cad6f71c91d6507cd49d3b70e526ea57354db8898a",
+        "bytes": 10173
+      },
+      {
+        "path": "services/platform/connectormaintenance/executor.go",
+        "sha256": "8ed045a49c94dd100633e3837d0236f0124d6fcb5e88dc818fd107c30e01d598",
+        "bytes": 9348
+      },
+      {
+        "path": "services/platform/connectormaintenance/compiled_pin_freshness_test.go",
+        "sha256": "16fd332bc993cb575ecc60cf4d416b4b488afac8ad24a60acd88aa6839a1944d",
+        "bytes": 4973
+      },
+      {
+        "path": "scripts/hosted-connected-connector-acceptance.mjs",
+        "sha256": "f248c6d9182ca08cb518cd54c620844c987f4ae723a38badb463c59e010db578",
+        "bytes": 73491
+      },
+      {
+        "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
+        "sha256": "e66722e4daf5b1482c253d1f14b4c533c329fde202252c16f87ad3e0130e8524",
+        "bytes": 69977
+      },
+      {
+        "path": ".github/connector-native-compile-source-pins.json",
+        "sha256": "7b9d6967ad4cd1b7605fbdd18522b5d87002a4033a5a733d1bb521ebeccc7406",
+        "bytes": 99265
+      },
+      {
+        "path": ".github/workflows/connector-native-draft-compile.yml",
+        "sha256": "efe7b5568eff6e23143ca56d58a0a85955d0e4391e2f5dd5d19283c7d25d1049",
+        "bytes": 12497
+      }
+    ],
+    "predecessor_freeze_sha256": "80a38b8419813ea7a82a3badca89722c6f8739d4b001494b2bf9626c4a696c08",
+    "corrected_runner_manifest_sources": [
+      "scripts/hosted-connected-connector-acceptance.mjs",
+      "scripts/hosted-connector-authenticated-enqueue.mjs"
+    ],
+    "preceding_verification": "First workflow source check failed because runner files changed but their own compiler-manifest entries still had predecessor hashes. Original failed check and v1 freeze retained."
+  },
+  "verification": {
+    "application_named_pass": 8,
+    "application_fail": 0,
+    "application_skip": 0,
+    "node_source_guard_pass": 13,
+    "node_source_guard_fail": 0,
+    "workflow_compiler_source_custody_exit": 0,
+    "compiler_source_paths": 321,
+    "compile_target_packages_unchanged": 19,
+    "native_groups_unchanged": 14,
+    "native_named_cases_unchanged": 77,
+    "pg_joins_unchanged": 24,
+    "baseline_builder_allocated_bytes_for_five": 503430800,
+    "baseline_builder_elapsed_ns_for_five": 403798532,
+    "candidate_full_validFacts_ns_per_op": 857.6,
+    "candidate_alloc_bytes_per_op": 800,
+    "candidate_allocations_per_op": 15,
+    "workloads_not_comparable_as_authority_latency_ratio": true
+  },
+  "negative_evidence": [
+    "Wrong-working-directory no-test-files observation is not an application pass",
+    "First authored success fixture failed due to repeated scope IDs; actual failure preserved; fixture corrected to genuine distinct scope",
+    "Existing Node guard prefix named red returned0 and is not claimed RED; actual workflow inline pre-update returned1",
+    "First updated workflow source check returned1 because runner files own manifest hashes remained stale; original v1 freeze and failed output retained; v2 corrects these two associations",
+    "Exact5ab hosted native retention installer refusal and PKCE expired-lease retry remain open; downstream missing-schema does not establish installer root cause"
+  ],
+  "archive": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/connector-compiled-source-pin/verified-component-batch.json.gz",
+    "sha256": "1dd0dc195b4b9aaf39315c61b00255071fc412471550028b3806d25e0b2da91b",
+    "bytes": 20415,
+    "uncompressed_sha256": "c01fb6482c6ec45fdc3c35d7088f05ec8b0bcf4e267a3ed706fa5cfb111a2c71",
+    "uncompressed_bytes": 227976,
+    "members": 37
+  },
+  "claims": {
+    "hosted_pkce_deadline_fixed": false,
+    "native_retention_passed": false,
+    "full_npm_verify_passed": false,
+    "deployed_launch_acceptance": false,
+    "ledger_promotions": 0
+  },
+  "review": {
+    "path": "/tmp/pkce-compiled-pin-seven-source-independent-review-20261017.json",
+    "sha256": "2bd8df5b4dcdd594703f607b0d6f08e8536a380335195b7f00718a5232b2667b",
+    "result": "seven-source/component CLEAR"
+  }
+}

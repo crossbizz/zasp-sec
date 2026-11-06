@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"strings"
@@ -222,7 +223,20 @@ func TestReleaseCommandsExposePreflightBackupRestoreAndUpgradeBoundaries(t *test
 	} {
 		t.Run(name, func(t *testing.T) {
 			var output bytes.Buffer
-			if err := runCommand(&output, bytes.NewReader(fixture.input), fixture.arguments, "dev"); err != nil || output.Len() == 0 {
+			err := runCommand(&output, bytes.NewReader(fixture.input), fixture.arguments, "dev")
+			if name == "upgrade-preflight" {
+				if !errors.Is(err, errUpgradeRejected) || output.Len() == 0 {
+					t.Fatal("unobserved upgrade prerequisites lost blocker/report")
+				}
+				var report struct {
+					Ready bool `json:"ready"`
+				}
+				if json.Unmarshal(output.Bytes(), &report) != nil || report.Ready {
+					t.Fatal("offline URI/input claims became live upgrade readiness")
+				}
+				return
+			}
+			if err != nil || output.Len() == 0 {
 				t.Fatalf("runCommand() output=%q error=%v", output.String(), err)
 			}
 		})

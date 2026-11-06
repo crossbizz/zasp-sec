@@ -2,6 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import {EventEmitter} from 'node:events';
+import {PassThrough} from 'node:stream';
+import {spawn} from 'node:child_process';
 import {browserCommandFailureAnnotation} from './browser-command-failure.mjs';
 const src=fs.readFileSync(new URL('./production-combined-e2e.mjs',import.meta.url),'utf8');
 const start=src.indexOf('async function command(executable, args, options = {}) {');
@@ -10,14 +13,14 @@ assert.ok(start>0&&end>start);
 const commandSource=src.slice(start,end);
 const build=['build','-o','/owned/CANARY_SECRET','./agentsec-migrate'];
 function harness({deadline=false,status=0,signal=null}={}){
- const annotations=[],events=[],children=[],ownedCommands=new WeakMap();let settle;
+ const annotations=[],events=[],children=[],errors=[],ownedCommands=new WeakMap();let settle;
  const completed=deadline?new Promise(resolve=>{settle=resolve;}):Promise.resolve({status,signal,stdout:'CANARY_STDOUT',stderr:'CANARY_STDERR'});
  const child={};
- const owned={child,completed,stop:async()=>{events.push('stop');settle({status:null,signal:'SIGTERM',stdout:'',stderr:''});}};
+ const owned={child,completed,stop:async()=>{events.push('stop');settle?.({status:null,signal:'SIGTERM',stdout:'',stderr:''});}};
  const spawn=(executable,args,options)=>{events.push({executable,args,options});return owned;};
  const fakeSet=(cb,ms)=>{events.push({deadline:ms});if(deadline)queueMicrotask(cb);return 1;};
- const command=new Function('spawnOwnedCommand','auditBrowserEnvironment','children','ownedCommands','temporaryRoot','root','existingTestMountedMode','path','setTimeout','clearTimeout','browserCommandFailureAnnotation','console','const currentComplianceFailure=undefined,currentComplianceClosing=false,currentComplianceServices=undefined;'+commandSource+'\nreturn command;')(spawn,x=>x,children,ownedCommands,'/owned/tmp','/repo',false,path,fakeSet,()=>events.push('clear'),browserCommandFailureAnnotation,{error:x=>annotations.push(x)});
- return {command,annotations,events,children,ownedCommands,child};
+ const command=new Function('spawnOwnedCommand','auditBrowserEnvironment','children','ownedCommands','temporaryRoot','root','existingTestMountedMode','path','setTimeout','clearTimeout','browserCommandFailureAnnotation','console','Error','const currentComplianceFailure=undefined,currentComplianceClosing=false,currentComplianceServices=undefined;'+commandSource+'\nreturn command;')(spawn,x=>x,children,ownedCommands,'/owned/tmp','/repo',false,path,fakeSet,()=>events.push('clear'),browserCommandFailureAnnotation,{error:x=>annotations.push(x)},function(message){const error=Error(message);errors.push(error);return error;});
+ return {command,annotations,events,children,ownedCommands,child,errors};
 }
 test('fixed command classes never include arguments, paths or unknown failure text',()=>{
  for(const [args,label]of [[build,'go-migration-build'],[['test','-c','-o','CANARY','./agentsec-api'],'go-api-test-compile'],[['test','-c','-o','CANARY','./agentsec-worker'],'go-worker-test-compile']]){
@@ -35,6 +38,28 @@ test('actual command nonzero retains original error, explicit deadline and optio
 });
 test('actual command success and explicit nonreject remain unchanged without annotations',async()=>{
  for(const status of [0,9]){const h=harness({status});const r=await h.command('go',build,{reject:false});assert.equal(r.status,status);assert.deepEqual(h.annotations,[]);assert.ok(h.events.includes('clear'));}
+});
+
+test('trusted projection contexts expose only fixed command role and requested cancellation',async()=>{
+ for(const context of ['owned-projection-reconcile','owned-projection-revision'])for(const cancellationRequested of [false,true]){
+  const h=harness({status:37}),controller=new AbortController();if(cancellationRequested)controller.abort();
+  await assert.rejects(h.command('/CANARY_EXEC',['PRIVATE_SQL_CANARY'],{complianceDiagnostic:context,signal:controller.signal}),error=>{assert.equal(error,h.errors[0]);assert.equal(error.message,'CANARY_EXEC failed (37): CANARY_STDERR');return true;});
+  assert.deepEqual(h.annotations,[`::error title=Compliance browser command failed::Observed command class: ${context}; failure: nonzero-exit; cancellation-requested=${cancellationRequested}.`]);
+  assert.doesNotMatch(h.annotations.join(''),/CANARY|PRIVATE|SQL|STDERR/);assert.equal(h.events.includes('stop'),cancellationRequested);assert.ok(h.events.includes('clear'));
+ }
+ const h=harness({deadline:true});await assert.rejects(h.command('/CANARY_EXEC',[],{complianceDiagnostic:'owned-projection-reconcile'}),{message:'CANARY_EXEC exceeded its deadline'});
+ assert.deepEqual(h.annotations,['::error title=Compliance browser command failed::Observed command class: owned-projection-reconcile; failure: deadline; cancellation-requested=false.']);
+});
+
+test('malformed or throwing projection diagnostics retain original notices and command errors',async()=>{
+ const old=browserCommandFailureAnnotation('/CANARY_EXEC',['PRIVATE_SQL_CANARY'],'nonzero-exit');
+ const throwing={get context(){throw Error('PRIVATE_DIAGNOSTIC_CANARY');},cancellationRequested:false};
+ for(const diagnostic of [null,[],{},throwing,{context:'PRIVATE_CANARY',cancellationRequested:false},{context:'owned-projection-reconcile',cancellationRequested:'PRIVATE_CANARY'},{context:'owned-projection-reconcile',cancellationRequested:false,PRIVATE_CANARY:true},new Proxy({},{ownKeys(){throw Error('PRIVATE_CANARY');}})]){
+  assert.equal(browserCommandFailureAnnotation('/CANARY_EXEC',['PRIVATE_SQL_CANARY'],'nonzero-exit','PRIVATE_STDERR_CANARY',diagnostic),old);
+ }
+ const h=harness({status:37}),options={get complianceDiagnostic(){throw Error('PRIVATE_OPTION_CANARY');}};
+ await assert.rejects(h.command('go',build,options),error=>{assert.equal(error,h.errors[0]);assert.equal(error.message,'go failed (37): CANARY_STDERR');return true;});
+ assert.deepEqual(h.annotations,['::error title=Compliance browser command failed::Observed command class: go-migration-build; failure: nonzero-exit.']);
 });
 
 import * as phaseHelpers from './browser-command-failure.mjs';
@@ -79,4 +104,60 @@ test('actual handled migration branch annotates nonzero only without changing st
   if(status===0){assert.equal((await result).status,0);assert.equal(calls.length,1);assert.deepEqual(annotations,[]);}else{await assert.rejects(result,e=>e===made[0]&&e.message==='agentsec-migrate failed at installed releases CANARY_SCHEMA: CANARY_STDERR');assert.equal(calls.length,2);assert.deepEqual(calls[1].options,{reject:false});assert.deepEqual(annotations,mode&&!emitterFails?['::error title=Compliance browser schema bootstrap failed::Observed branch: up-to-48 migration returned nonzero.']:[]);}
   assert.deepEqual(calls[0],{executable:'/owned/migrate',args:['up-to-48'],options:{reject:false,env:{FIXTURE:'CANARY_ENV'}}});assert.doesNotMatch(annotations.join(''),/CANARY|SECRET|TENANT|owned/);
  }
+});
+
+
+test('readiness observations preserve only bounded unique closed fixture outcomes', async () => {
+ const { emitComplianceAPIReadinessObservations } = await import('./browser-command-failure.mjs');
+ const messages = [];
+ const valid = ['services:passed', 'core-metadata:deadline', 'security-agent-metadata:cancelled', 'components:refused'];
+ emitComplianceAPIReadinessObservations(valid.map(value => 'ZASP_COMPLIANCE_READINESS=' + value + '\n').join(''), value => messages.push(value));
+ assert.equal(messages.length, 1);
+ for (const value of valid) assert.ok(messages[0].includes(value));
+ const marker = 'ZASP_COMPLIANCE_READINESS=services:passed\n';
+ for (const output of [marker + marker, marker.trimEnd(), 'untrusted ' + marker, marker.replace('passed', 'unknown'), marker.replace('services', 'secret-value'), marker + 'ZASP_COMPLIANCE_READINESS=components:refused', 'x'.repeat(16_384) + marker, Array.from({length:17}, () => marker).join('')]) {
+  const refused = [];
+  emitComplianceAPIReadinessObservations(output, value => refused.push(value));
+  assert.deepEqual(refused, []);
+ }
+ assert.doesNotThrow(() => emitComplianceAPIReadinessObservations(marker, () => { throw new Error('untrusted emitter'); }));
+});
+
+function observedAPIChild(){const child=new EventEmitter();child.exitCode=null;child.signalCode=null;child.stdout=new PassThrough();child.stderr=new PassThrough();return child;}
+test('joined API exit metadata survives oversized poisoned markers without disclosing output',async()=>{
+ const child=observedAPIChild(),observe=phaseHelpers.observeComplianceAPIChild(child);
+ child.stderr.write('CANARY_DSN_SECRET\n'+'x'.repeat(17000)+'\nZASP_COMPLIANCE_API_FAILED_STAGE=serve\nZASP_COMPLIANCE_API_FAILED_STAGE=runtime-build\npanic: CANARY_PROVIDER_PAYLOAD\n');
+ child.exitCode=2;child.emit('exit',2,null);child.emit('close',2,null);
+ const observation=await observe(),messages=[];
+ phaseHelpers.emitComplianceAPIChildFailure('x'.repeat(16385),x=>messages.push(x),undefined,observation);
+ assert.deepEqual(messages,['::error title=Compliance API startup failed::Observed child stage: unavailable.','::error title=Compliance API child exit::Observed exit=2; signal=none; outputLimitExceeded=false; truncated=true; fatal=panic.']);
+ assert.doesNotMatch(messages.join(''),/CANARY|DSN|SECRET|PAYLOAD|PROVIDER/);
+});
+test('API metadata never waits for a live child and joins exited streams before observing',async()=>{
+ const child=observedAPIChild(),observe=phaseHelpers.observeComplianceAPIChild(child);
+ assert.equal(await observe(),undefined);
+ child.exitCode=1;child.emit('exit',1,null);
+ let settled=false;const pending=observe().then(value=>{settled=true;return value;});await new Promise(resolve=>setImmediate(resolve));assert.equal(settled,false);
+ child.stderr.write('--- FAIL: TestComplianceBrowserAPIProcess (1.00s)\nCANARY_SECRET\n');child.emit('close',1,null);
+ const observation=await pending,messages=[];phaseHelpers.emitComplianceAPIChildFailure('',x=>messages.push(x),undefined,observation);
+ assert.match(messages.at(-1),/exit=1; signal=none;.*fatal=testfail/);
+});
+test('fatal categories, signals and malformed receipts remain closed scalar observations',async()=>{
+ for(const [line,category] of [['panic: test timed out after 1m0s\n','testtimeout'],['fatal error: CANARY_FATAL\n','runtimefatal'],['panic: CANARY_PANIC\n','panic'],['FAIL\n','testfail'],['CANARY_UNKNOWN\n','unknown'],['x'.repeat(1025)+'panic: CANARY_SECRET\n','unknown']]){
+  const child=observedAPIChild(),observe=phaseHelpers.observeComplianceAPIChild(child);for(const part of [line.slice(0,3),line.slice(3)])child.stderr.write(part);child.signalCode='SIGKILL';child.emit('close',null,'SIGKILL');const observation=await observe(),messages=[];phaseHelpers.emitComplianceAPIChildFailure('',x=>messages.push(x),undefined,observation);assert.match(messages.at(-1),new RegExp('exit=unavailable; signal=SIGKILL;.*fatal='+category+'\\.$'));assert.doesNotMatch(messages.join(''),/CANARY/);
+ }
+ for(const observation of [{status:1,signal:'SIGCANARY',truncated:true,fatal:'panic'},null,{},Object.create(null)]){const messages=[];phaseHelpers.emitComplianceAPIChildFailure('',x=>messages.push(x),undefined,observation);assert.equal(messages.length,1);}
+});
+test('actual runner child hook binds closed process status while preserving the existing output tail',async()=>{
+ const declaration=parsed.statements.find(node=>ts.isFunctionDeclaration(node)&&node.name?.text==='startChild');assert.ok(declaration);
+ const children=[],start=new Function('spawn','root','auditBrowserEnvironment','children','currentComplianceFailure','currentComplianceClosing','currentComplianceServices','observeComplianceAPIChild',`return (${declaration.getText(parsed)});`)(spawn,process.cwd(),value=>value,children,false,false,undefined,phaseHelpers.observeComplianceAPIChild);
+ const child=start(process.execPath,['-e',`process.stderr.write('CANARY_SECRET\\n'+'x'.repeat(17000)+'\\npanic: CANARY_PAYLOAD\\n');process.exitCode=2;`],{env:process.env,observeComplianceFailure:true});
+ await new Promise(resolve=>child.once('exit',resolve));const observation=await child.failureObservation(),messages=[];
+ phaseHelpers.emitComplianceAPIChildFailure(child.output(),value=>messages.push(value),undefined,observation);
+ assert.equal(child.output().length,16384);assert.equal(children[0],child);assert.match(messages.at(-1),/exit=2; signal=none;.*truncated=true; fatal=panic/);assert.doesNotMatch(messages.join(''),/CANARY|SECRET|PAYLOAD/);
+});
+test('constructor observations accept only fixed failed lanes and preserve original byte and count caps',()=>{
+ const phases=['maintenance-owner','connector-config','connector-authorizer','connector-key','connector-pool','connector-executor','connector-authority','connector-repository','connector-reconciler','approval-config','approval-authorizer','approval-key','approval-pool','approval-executor','approval-reconciler'];
+ for(const phase of phases)for(const outcome of ['refused','deadline','cancelled']){const output=[],line=`ZASP_COMPLIANCE_READINESS=${phase}:${outcome}\n`;phaseHelpers.emitComplianceAPIReadinessObservations(line,x=>output.push(x));assert.equal(output.length,1);assert.ok(output[0].includes(phase+':'+outcome));assert.doesNotMatch(output[0],/CANARY/);}
+ for(const line of ['ZASP_COMPLIANCE_READINESS=connector-executor:passed\n','ZASP_COMPLIANCE_READINESS=approval-CANARY_SECRET:refused\n','ZASP_COMPLIANCE_READINESS=connector-executor:CANARY\n','ZASP_COMPLIANCE_READINESS=connector-executor:refused\n'.repeat(17),'x'.repeat(16385)+'ZASP_COMPLIANCE_READINESS=connector-executor:refused\n']){const output=[];phaseHelpers.emitComplianceAPIReadinessObservations(line,x=>output.push(x));assert.deepEqual(output,[]);}
 });

@@ -42,6 +42,11 @@ type PackageManifest = {
   scripts?: Record<string, string>;
 };
 
+const stytchRevocationStep = {
+  name: "Verify scoped Stytch revocation proof controls",
+  run: "node --test proofs/stytch-b2b-revocation.test.mjs",
+};
+
 const repositoryRoot = process.cwd();
 const iamUnionCommands = [
   "node --test deploy/staging/iam-policy-union-v1.test.mjs",
@@ -234,13 +239,15 @@ function assertRunnableUiWorkflow(
   expect(verificationJob["timeout-minutes"]).toBeUndefined();
 
   const verificationSteps = verificationJob.steps ?? [];
-  expect(verificationSteps).toHaveLength(37);
+  expect(verificationSteps).toHaveLength(38);
+  expect(verificationSteps[5]).toEqual(stytchRevocationStep);
   expect(verificationSteps.map((step) => step.uses ?? step.run)).toEqual([
     checkoutAction,
     setupNodeAction,
     setupGoAction,
     "npm install --global npm@10.9.8",
     "SHARP_IGNORE_GLOBAL_LIBVIPS=1 npm ci",
+    stytchRevocationStep.run,
     postgresFixtureCommand,
     "go install github.com/zricethezav/gitleaks/v8@v8.30.1",
     "npm run implementation:status:check",
@@ -308,6 +315,7 @@ function validWorkflow(): Workflow {
           { uses: setupGoAction, with: { "go-version": "1.26.8", cache: true, "cache-dependency-path": "services/platform/go.sum" } },
           { run: "npm install --global npm@10.9.8" },
           { run: "SHARP_IGNORE_GLOBAL_LIBVIPS=1 npm ci" },
+          structuredClone(stytchRevocationStep),
           { run: postgresFixtureCommand },
           { run: "go install github.com/zricethezav/gitleaks/v8@v8.30.1" },
           { run: "npm run implementation:status:check" },

@@ -1,0 +1,183 @@
+{
+  "observed_at": "2026-10-17T11:21:46.167581+00:00",
+  "continued_published_base": "9298fd9e18cd1304470cc252e96624d4ea76db4a",
+  "scope": "Fix existing optional-egress normal/Audit installers under legitimate NOINHERIT original owner. Split public identity/MEMBER/canonical admission from fixed private readiness role window, restore exact incoming role GUC/effective identity before source-owner schema CREATE, and wrap only two fixed optional installation CLI confirmations in existing ReadCommitted authority transaction. Canonical SQL, parent/profile checksums, ACLs, runtime purpose membership, enablement/activation behavior unchanged.",
+  "task_mapping": [
+    "M7-22",
+    "M7-27"
+  ],
+  "sources": [
+    {
+      "path": ".github/connector-native-compile-source-pins.json",
+      "bytes": 142521,
+      "sha256": "6106e78417b130c16fb9993ab3be6c393c2f88842788e047b7a570851043dfed"
+    },
+    {
+      "path": ".github/workflows/connector-connected-lifecycle.yml",
+      "bytes": 4382,
+      "sha256": "2e5adac7fd116a54721312719bcb9b0522222f1115e034d7178977a9817bab2d"
+    },
+    {
+      "path": ".github/workflows/connector-native-draft-compile.yml",
+      "bytes": 41620,
+      "sha256": "12ab2bab1e47ef985f69441abe2aac61578bf52517d99adbca6588a00be8ea02"
+    },
+    {
+      "path": "scripts/connector-acceptance-groups.mjs",
+      "bytes": 16449,
+      "sha256": "1d0ac8bd39cde881ee26949586ede1fb401692c51d1e0cd351bb34535bfafb07"
+    },
+    {
+      "path": "scripts/connector-acceptance-groups.test.mjs",
+      "bytes": 48395,
+      "sha256": "ec81f02e01c2482d6a04c891fdfe437ae5a18bbb1f2cd91e96cf25ed51e9c4d8"
+    },
+    {
+      "path": "scripts/hosted-connected-connector-acceptance.mjs",
+      "bytes": 94946,
+      "sha256": "30c2176deeee3f86aa540000522a851db4f2ad1c400e22c5210cdbef7fe2554e"
+    },
+    {
+      "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
+      "bytes": 91347,
+      "sha256": "a36206e8c561f3334a1c5c9871b018628bb77c2bfd7c4aa7177a078242416bfe"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/forward_release_confirmation.go",
+      "bytes": 1633,
+      "sha256": "dafa9ba00072fec7b6005ea74a7b5fee79400849773b37ab0b53a2790eeb9a65"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/optional_egress_confirmation_role_test.go",
+      "bytes": 2361,
+      "sha256": "6a441c1700513c3e9d566d7a95b57c4522a9d2e290cf00e57f77dbb7aaf57cbe"
+    },
+    {
+      "path": "services/platform/apiserver/optional_egress_operator_noinherit_postgres_test.go",
+      "bytes": 7743,
+      "sha256": "60247da61533c8e749c3303b7146afd992f3a2760990b1682570dea529bfce5c"
+    },
+    {
+      "path": "services/platform/migrations/optional_egress_operator_role_test.go",
+      "bytes": 1098,
+      "sha256": "0cbfba3b99c9fd7942a4bf00d013e81a61cc40dc5bae90b8ce5eb747ce9d09aa"
+    },
+    {
+      "path": "services/platform/migrations/production_optional_egress_profile.go",
+      "bytes": 6776,
+      "sha256": "5a96c57c85ab75f671db0db0992fef86cd5efc48d6147e305bc106e8e9522988"
+    },
+    {
+      "path": "services/platform/migrations/production_optional_egress_profile_test.go",
+      "bytes": 7091,
+      "sha256": "de0db47a4a2ef4710a0136a6d3fb208d7fc38fac97dedfc5dbd0ab417749b8bf"
+    }
+  ],
+  "verification": {
+    "initial_RED": {
+      "exit": 1,
+      "named_fail": 5,
+      "leaf_fail": 4,
+      "named_pass": 0,
+      "named_skip": 0,
+      "classification": "GENUINE_APPLICATION_ROLE_DOUBLE_RED_NOT_NATIVE"
+    },
+    "grouped_migrations": {
+      "command": "go test -C services/platform -race -p=1 -count=1 -json -run '^Test(OptionalEgress|Maintenance)' ./migrations",
+      "exit": 0,
+      "named_pass": 22,
+      "named_fail": 0,
+      "named_skip": 0,
+      "package_pass": 1,
+      "elapsed_seconds": 63.745
+    },
+    "CLI": {
+      "exit": 1,
+      "named_cases": 0,
+      "classification": "SETUP_BLOCKED_missing_OPA1.17.0_GOPROXYoff_no_compiler_acceptance"
+    },
+    "source_ledger_deployment": {
+      "exit": 0,
+      "named_pass": 58,
+      "named_fail": 0,
+      "named_skip": 0
+    },
+    "UI": {
+      "typecheck_exit": 0,
+      "build_exit": 0
+    },
+    "workflow_yaml_and_Python": "PARSE_PASS",
+    "native": "UNEXECUTED12named2ownedPGjoins",
+    "superseded_queued_runs": "8queuedofficialmetadata_no_superseded_samebranch_candidates_no_cancellation"
+  },
+  "independent_source_review": {
+    "product_native": "CLEAR_SOURCE_ONLY",
+    "product_native_receipt_sha256": "ceeea4e098d47d653ad01583302bbe6a9934b4cbab371197449dceaef5b56d39",
+    "final_intake": "CLEAR_SOURCE_ONLY",
+    "final_intake_receipt_sha256": "670d36b42f45f702f049d20b9ea16db151bbd75014ce8c6a801c8f77b10f23e8"
+  },
+  "source_bindings": {
+    "before": 475,
+    "after": 478,
+    "all_predecessor_paths_retained": true,
+    "all_exact": true
+  },
+  "acceptance": {
+    "original_connector": {
+      "groups": 14,
+      "named_cases": 79,
+      "owned_postgres_joins": 24,
+      "approval_controls": 16,
+      "unchanged": true
+    },
+    "environment_class": {
+      "groups": 3,
+      "named_cases": 37,
+      "owned_postgres_joins": 4,
+      "unchanged": true
+    },
+    "maintenance_operator": {
+      "groups": 2,
+      "named_cases": 18,
+      "owned_postgres_joins": 2,
+      "unchanged": true
+    },
+    "new_optional_egress_operator": {
+      "groups": 2,
+      "named_cases": 12,
+      "owned_postgres_joins": 2,
+      "execution": "UNEXECUTED"
+    },
+    "new_hosted_components": {
+      "migration_exact_named_cases": 7,
+      "CLI_exact_named_cases": 11,
+      "all_pass_no_skip_fail_unknown_missing_duplicate_package_required": true,
+      "execution": "PENDING_NEW_HEAD"
+    }
+  },
+  "ledger": {
+    "rows": 728,
+    "classes": {
+      "production-available": 523,
+      "component-only": 144,
+      "blocked/external": 61
+    },
+    "ledger_status": {
+      "Complete": 667,
+      "Blocked": 61
+    },
+    "promotions": 0,
+    "sha256": "1d1d74f18dada0e0b60f6600aa3c5b91db48d6c2557f3941a89e5cc3f76ac993",
+    "evidence_append_only_ids": [
+      "M7-22",
+      "M7-27"
+    ]
+  },
+  "archive": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/optional-egress-operator-role/component-evidence.json.gz",
+    "bytes": 319089,
+    "sha256": "559044788c2e518acdee611b8bcc88bc26be499ccd258fae91dc96bdc4978d29",
+    "members": 53
+  },
+  "remaining": "All original728requirement deployed acceptance, actual Stytch/provider flows, native/CLI/browser/compiler/release checks and equivalent obsolete retirement remain mandatory. Previous9298head has failures/pending checks from finite metadata; causes remain unknown. No merge or launch claim."
+}

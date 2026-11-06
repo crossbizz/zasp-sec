@@ -247,3 +247,26 @@ describe("production risk views", () => {
     expect(screen.queryByRole("dialog", { name: "Attack path detail" })).not.toBeInTheDocument();
   });
 });
+
+it("mounts optional explanation through the actual scoped client while canonical finding controls stay usable", async () => {
+  const requests: Request[] = [];
+  const client = createAPIClient({ fetch: async request => {
+    requests.push(request);
+    const intent = await request.clone().json() as { finding_id: string; finding_version: number };
+    return new Response(JSON.stringify({ request_id: "pid_20000001-0000-4000-8000-000000000099", state: "complete", result_retained: false, source: { finding_id: intent.finding_id, finding_version: intent.finding_version }, sent_fields: ["rule", "severity", "evidence_count"], explanation: "Compare the current evidence before acting." }), { headers: { "Content-Type": "application/json" } });
+  } });
+  render(<APIProvider client={client}><QueryScope><ProductionRiskView path="/violations" api={fixtureAPI()} canWrite activityScope={activityScope} /></QueryScope></APIProvider>);
+  await userEvent.click(await screen.findByRole("button", { name: `Open ${finding.title}` }));
+  expect(requests).toHaveLength(0);
+  await userEvent.click(await screen.findByRole("button", { name: "Generate explanation" }));
+  expect(await screen.findByText("Compare the current evidence before acting.")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Create ticket" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Mark under review" })).toBeEnabled();
+  expect(screen.getByRole("link", { name: "Review current evidence" })).toHaveAttribute("href", `#finding-evidence-${finding.id}`);
+  expect(document.getElementById(`finding-evidence-${finding.id}`)).toHaveTextContent("Evidence");
+  expect(new URL(requests[0].url).pathname).toBe("/api/v1/ai/explanations");
+  const intent = await requests[0].json();
+  expect(intent).toEqual({ finding_id: finding.id, finding_version: 1, idempotency_key: expect.any(String) });
+  expect(JSON.stringify(intent)).not.toContain(finding.title);
+  expect(JSON.stringify(intent)).not.toContain(finding.evidence_ids[0]);
+});

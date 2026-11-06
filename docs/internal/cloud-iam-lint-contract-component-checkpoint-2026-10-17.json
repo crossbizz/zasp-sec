@@ -1,0 +1,65 @@
+{
+  "observed_at": "2026-10-17T04:34:29.727143+00:00",
+  "source_base": "d35f38087015141a9608fd16cac96a356dbfadf9",
+  "scope": "Equivalent IAM workflow-whitespace regex formatting clears full local lint without changing acceptance semantics",
+  "sources": [
+    {
+      "path": "deploy/staging/iam-policy-union-v1.test.mjs",
+      "sha256": "e302692402c02c09e142a4a8672e9acc00730326524059b4f8335d12503fb24d",
+      "bytes": 19153
+    },
+    {
+      "path": "scripts/hosted-connected-connector-acceptance.mjs",
+      "sha256": "8548a278b53bf987e1ac69a15bd3f6fe43c22210bb69486beb7a207360a8eca6",
+      "bytes": 75538
+    },
+    {
+      "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
+      "sha256": "b6f73088708e2a75f2b4377c545e1568c81313bdb40d8e2793c54c9fec9b6636",
+      "bytes": 71980
+    },
+    {
+      "path": ".github/connector-native-compile-source-pins.json",
+      "sha256": "95ff38811360b979340547781ddc37162dfa9705b339521e20db79705beda7ab",
+      "bytes": 101777
+    }
+  ],
+  "validation": {
+    "existing_IAM_and_source_contracts_pass": 33,
+    "lint_scope_pass": 11,
+    "full_lint_exit": 0,
+    "fresh_typecheck_exit": 0,
+    "fresh_production_build_exit": 0,
+    "frozen_UI_inputs": 376,
+    "actual_328_source_workflow_guard_exit": 0,
+    "tests_added": 0,
+    "rules_or_guards_relaxed": 0
+  },
+  "actual_lint_RED": "/tmp/current-launch-lint-actual-red-20261017.receipt.json",
+  "independent_source_review": "/tmp/iam-regex-lint-four-source-independent-review-20261017.json",
+  "ledger": {
+    "rows": 728,
+    "unique_ids": 728,
+    "class_counts": {
+      "production-available": 523,
+      "component-only": 144,
+      "blocked/external": 61
+    },
+    "availability_promotions": 0,
+    "evidence_suffix_ids": [
+      "M7-26"
+    ],
+    "previous_sha256": "d223e4206511b441e3aa7290b22d1ec7ddd20b828a14d24238782ec38bd84d0f",
+    "new_sha256": "fbd1191ba02ecd804965cd447f1da024b4310b724b9f35ed106a8a4283afb7cb",
+    "original_fields_and_evidence_prefixes_preserved": true
+  },
+  "evidence": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/iam-lint-contract/verified-component-batch.json.gz",
+    "sha256": "f57faae3721925be75c44c9a0ed321911fb44d6405d3f4262f11964da1145780",
+    "uncompressed_sha256": "7d9a1a36a6093f2aa7124404167fa421b4e5c3a4a67daeab1cc929c043d97800",
+    "members": 22
+  },
+  "limits": "Local lint and component checks do not establish full current-head hosted verification, native/real-provider integration or deployed launch readiness. All previous failures and728 requirements retained.",
+  "availability_promotions": 0,
+  "goal": "active"
+}

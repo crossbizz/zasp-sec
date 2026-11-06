@@ -9,6 +9,15 @@ import (
 )
 
 func newProfiledProductionIngestRepository(database runtimeevent.ProductionIngestDatabase, config productionIngestConfig) (*runtimeevent.PostgresProductionIngestRepository, error) {
+	if config.NodeCoverageRetention {
+		if config.DatabaseProfile != migrations.AuthorizationRuntimeProfileName {
+			return nil, errRuntimeUnavailable
+		}
+		return runtimeevent.NewPostgresNodeCoverageIngestRepository(database, config.NodeCoverageProfileChecksum)
+	}
+	if config.NodeCoverageProfileChecksum != "" {
+		return nil, errRuntimeUnavailable
+	}
 	if config.DatabaseProfile == migrations.AuthorizationRuntimeProfileName {
 		return runtimeevent.NewPostgresCurrentRuntimeIngestRepository(database)
 	}

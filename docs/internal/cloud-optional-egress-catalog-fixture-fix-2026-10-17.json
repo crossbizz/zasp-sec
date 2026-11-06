@@ -1,0 +1,84 @@
+{
+  "checkpoint": "optional-egress-catalog-fixture-fix-2026-10-17",
+  "observedAt": "2026-10-17T01:30:06.447869+00:00",
+  "base": "b60a0094ba496b0c7b3e1815c705531f91d6e55a",
+  "status": "STRICT RESPONSE FIXTURE CORRECTED; FULL NATIVE GROUP AND DEPLOYED ACCEPTANCE PENDING",
+  "changes": [
+    "Add only the existing catalogue response name/available/health fields to the native fixture typed DTO.",
+    "Keep strict decoding and every native assertion, permission predicate, deadline and guard unchanged.",
+    "Refresh the fixture and runner associations against the intended published source, excluding all unpublished retention work."
+  ],
+  "sources": [
+    {
+      "path": "services/platform/apiserver/optional_egress_native_postgres_test.go",
+      "sha256": "e169e86f5c4f9eb092ce3dbc75256a84c2829f85a95424291ef49e1907ed9c17",
+      "bytes": 28865
+    },
+    {
+      "path": ".github/connector-native-compile-source-pins.json",
+      "sha256": "bfe0c8cab93f2f5cb2907b344196f3c803396db9c0268c37abb517fd08de28b8",
+      "bytes": 61960
+    },
+    {
+      "path": "scripts/hosted-connected-connector-acceptance.mjs",
+      "sha256": "86c1401e137ad23d8d19de091ac4b54138fd8e94b5b1194195f7257c45da1fec",
+      "bytes": 58432
+    },
+    {
+      "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
+      "sha256": "8435b37ba2b44a60250e009c0fc4023a6d93aac9e2dfbd4a44f9ac5760dfe072",
+      "bytes": 55050
+    }
+  ],
+  "verification": {
+    "actualPriorHostedNative": "9 named run, 1 pass, 8 fail: installation/purpose case passed; next catalogue case failed. No full native pass inferred.",
+    "isolatedGo": {
+      "base": "b60a0094 + exactly four source overlays",
+      "commandExit": 0,
+      "namedPass": 10,
+      "namedFail": 0,
+      "namedSkip": 1,
+      "skip": "owned native PostgreSQL/OpenFGA not configured locally; excluded from acceptance"
+    },
+    "isolatedNodeGuards": {
+      "exit": 0,
+      "pass": 11,
+      "sourceFiles": 205,
+      "compilerPins": 204,
+      "runnerPins": [
+        180,
+        169
+      ]
+    },
+    "freshUITypecheckExit": 0,
+    "freshUIBuildExit": 0,
+    "independentSourceReview": "SOURCE_CLEAR",
+    "stagedSourceAssociations": "all 204 compiler hashes and sizes checked against HEAD plus the four explicit source overlays"
+  },
+  "retainedFailures": [
+    "b60 exact-head hosted catalogue/native failure.",
+    "Initial Node guard run in shared workspace rejected unpublished retention source changes; exact independent publication snapshot then passed without guard relaxation."
+  ],
+  "evidence": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/governed-egress/catalog-response-fixture-fix.json.gz",
+    "sha256": "e3b71a94bcd2f84d4d7ea7c415ed48488ed73844667c270df27cfd4267df63f7",
+    "bytes": 37095,
+    "members": 20,
+    "uncompressedSHA256": "17e3e9201a672e0d6713b426c40af6515c7e74598f5c9f9f62c895cb34966185"
+  },
+  "ledger": {
+    "total": 728,
+    "historicalProductionAvailable": 523,
+    "componentOnly": 144,
+    "blockedExternal": 61,
+    "promotions": 0
+  },
+  "taskCrosswalk": [
+    "M7-26"
+  ],
+  "limits": [
+    "This corrects the test response contract; it establishes no new production availability.",
+    "Actual whole native group, browser/lifecycle/UI verification and deployed real Stytch/provider acceptance remain open.",
+    "Unpublished retention implementation and its broader component runs are excluded."
+  ]
+}

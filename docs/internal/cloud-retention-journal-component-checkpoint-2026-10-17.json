@@ -1,0 +1,370 @@
+{
+  "observed_at": "2026-10-17T06:29:10.978506+00:00",
+  "continued_published_base": "0e7739d5502a420605e9a2f33d1ef987f3d90d1a",
+  "fresh_main_sha": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
+  "required_ancestor": "e13ccb95451b03107681ccb59b3fc6fe175a228f",
+  "scope": "Connected future raw/session writer journal across actual SDK bulk send, private SQL capability, mandatory admission/settlement hooks, version-pinned terminal storage, original same-transaction settlement, exact commit-status recovery, CLI installation/enrollment and explicit worker/deployment opt-in.",
+  "sources": [
+    {
+      "path": ".github/connector-native-compile-source-pins.json",
+      "sha256": "d5fbe56b081ad2de4eb41d9721b03cdc74b93967cdea8f34975557288c834cc2",
+      "bytes": 106931
+    },
+    {
+      "path": ".github/workflows/connector-native-draft-compile.yml",
+      "sha256": "2e0732cf94a0768175c95cbad34ddfd27277fbb26af38c157d71006df829cf67",
+      "bytes": 12497
+    },
+    {
+      "path": "deploy/production/retention-profile.mjs",
+      "sha256": "18684ed4a25a948aa8b43dc9bd50883d724823ba3bfdf9839d5fb711531401aa",
+      "bytes": 9288
+    },
+    {
+      "path": "deploy/production/retention-profile.test.mjs",
+      "sha256": "cbf80f0c22c3ea34255dccc9b24928f4f29a270165ddfc3ad564c4f4b02cbb98",
+      "bytes": 5507
+    },
+    {
+      "path": "deploy/staging/product/templates/_retention.tpl",
+      "sha256": "245d49c14e5219fc04fbd29e93eb25873f8c3c2214738feb7852080a65c7c399",
+      "bytes": 1829
+    },
+    {
+      "path": "deploy/staging/product/templates/runtime.yaml",
+      "sha256": "0070766f03922cfee0ac6b86dafa28e604b6b783c09b257a055d26d5e98f917d",
+      "bytes": 28987
+    },
+    {
+      "path": "deploy/staging/product/values.yaml",
+      "sha256": "7ffc99d938da7673b0118676ed26aa507ef68268a9ff0b6eb1490f5e14e076a3",
+      "bytes": 15312
+    },
+    {
+      "path": "docs/internal/implementation_production_availability_v1.5.tsv",
+      "sha256": "a03c9bdc95eeacbddf15ee72c0dee288f6e0e77eb45ad4a0e008581cba169425",
+      "bytes": 184846
+    },
+    {
+      "path": "docs/internal/implementation_status_v1.5.md",
+      "sha256": "5d9e3bbf7281a030bdf2778951948b6176aaa85ceb74eb45faa1a5c16ce1097f",
+      "bytes": 1319523
+    },
+    {
+      "path": "scripts/connector-acceptance-groups.mjs",
+      "sha256": "ab1f58397774edfd228cda738ac27d0b5e9d3d47cd939c231f02fb319a0dea32",
+      "bytes": 13439
+    },
+    {
+      "path": "scripts/connector-acceptance-groups.test.mjs",
+      "sha256": "a973ce1c6c384dabac068f9d75c1258752cfdce240385efecfff51e7c441d491",
+      "bytes": 35420
+    },
+    {
+      "path": "scripts/hosted-connected-connector-acceptance.mjs",
+      "sha256": "375a5acec3bc11f6198a8d0e0d070bffef58df308ee40fe3928079926230e174",
+      "bytes": 78266
+    },
+    {
+      "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
+      "sha256": "aadb0206affd40fcdc2d2bbb8cc74a10e6891425602d57fcabc3ac928578f412",
+      "bytes": 74667
+    },
+    {
+      "path": "services/platform/agentsec-migrate/RETENTION.md",
+      "sha256": "07cda6dedd94e7bb3c659c43f50fab1d8069e75c632872cc6b2e86de7ca0abae",
+      "bytes": 9175
+    },
+    {
+      "path": "services/platform/agentsec-migrate/main.go",
+      "sha256": "82ee7fee761613c4782c60bc465fd6d227aef26a3f3726d3b841be1cf29e40c3",
+      "bytes": 76578
+    },
+    {
+      "path": "services/platform/agentsec-worker/runtime_config.go",
+      "sha256": "3e53bc8f44a0025b74b75f1e58136a516001d4fc42a516abf302cf702802e014",
+      "bytes": 54787
+    },
+    {
+      "path": "services/platform/agentsec-worker/runtime_index_production.go",
+      "sha256": "add3f7ea8229499d81cd8730cd6784e3382ec6045f3d95e659a729144e29b415",
+      "bytes": 8424
+    },
+    {
+      "path": "services/platform/apiserver/retention_native_postgres_test.go",
+      "sha256": "13a43ba63e4b0b477483163785a92af0d13acb6cb3ec42fc7586945067a4ebaa",
+      "bytes": 46301
+    },
+    {
+      "path": "services/platform/runtimeindex/opensearchdriver/driver.go",
+      "sha256": "36bfc71ca89d10ade212a334eced2b140d1ee4e8bec08af9e1fee42af8485a0d",
+      "bytes": 22647
+    },
+    {
+      "path": "services/platform/runtimeindex/opensearchdriver/session_write.go",
+      "sha256": "596b7172533dcc28b29731e8191067e0da9023ff643f371f14e54a6613da43d2",
+      "bytes": 9534
+    },
+    {
+      "path": "services/platform/runtimeindex/retained_write.go",
+      "sha256": "d4dc0a2fd43a708a481a15e16a8b172e792ab7e858e8b27f881d56af8b17d4c5",
+      "bytes": 5273
+    },
+    {
+      "path": "services/platform/migrations/sql/retention_journal.sql",
+      "sha256": "4ff3f655cc9805b1d390d77966a8ccaf26668b52d1e9139f5effcf5070ee812c",
+      "bytes": 45643
+    },
+    {
+      "path": "services/platform/migrations/production_retention_journal.go",
+      "sha256": "7128378d442b01b11d1623333fd7f8519b1357cfaa903d70807cb5fc92d96e62",
+      "bytes": 2912
+    },
+    {
+      "path": "services/platform/migrations/production_retention_journal_test.go",
+      "sha256": "2ba070f4ea8eac27fa098cb1707fd26ab6740262c532dda4217d82611295b075",
+      "bytes": 3200
+    },
+    {
+      "path": "services/platform/agentsec-migrate/retention_journal.go",
+      "sha256": "5a0fd8f1127bc30d80a968cf4c256a1617868e033cc6c79308236804ce47c588",
+      "bytes": 2852
+    },
+    {
+      "path": "services/platform/agentsec-migrate/retention_journal_test.go",
+      "sha256": "660330d7333e0f43a29d09f16ce904aca1cc374e8becf94bc0ffc91cda080eab",
+      "bytes": 1335
+    },
+    {
+      "path": "services/platform/apiserver/retention_journal_native_acceptance_test.go",
+      "sha256": "9e55476ab124abd12685c996bbaa01dd5b0c368b65ff0dc03a29ea7b7bc9e7b5",
+      "bytes": 18769
+    },
+    {
+      "path": "services/platform/runtimeindex/retained_journal.go",
+      "sha256": "a46ae72f57bce033790d3a833716dbf03f44bb7a63aef63765df0d9667d25348",
+      "bytes": 5270
+    },
+    {
+      "path": "services/platform/runtimeindex/retained_journal_test.go",
+      "sha256": "cde1a29871aa041064f264827e229e67881c870c34b6bb4989b48ebcf263fb29",
+      "bytes": 2581
+    },
+    {
+      "path": "services/platform/runtimeindex/opensearchdriver/retained_journal_flow_test.go",
+      "sha256": "a35fee1c8a1947269d7c190e2f8f66d9d088cc182843bf6c5710fbd02acc7a8d",
+      "bytes": 10476
+    },
+    {
+      "path": "services/platform/agentsec-worker/retention_writer_journal.go",
+      "sha256": "fbe6db05454e42b83d66497f1f78f8b859774a9c3a55af49e025c8df624218d5",
+      "bytes": 16909
+    },
+    {
+      "path": "services/platform/agentsec-worker/retention_writer_journal_test.go",
+      "sha256": "18b2f32357c8275614c0b13c41321f07b4c01fe4d7659ee2eb3eb289c78d71a3",
+      "bytes": 8890
+    },
+    {
+      "path": "services/platform/agentsec-worker/retention_writer_journal_recovery.go",
+      "sha256": "4e66d6f9c5d0e6631236934c3ecf6bf22a78a06aefef7347c57f2af66668c18e",
+      "bytes": 7457
+    },
+    {
+      "path": "services/platform/agentsec-worker/retention_writer_journal_recovery_test.go",
+      "sha256": "a738f18b992d2cdbf28e02754e1e284e5c2dc999c175eda0455eb486df5ada1a",
+      "bytes": 8502
+    }
+  ],
+  "compiled_library_checksums": {
+    "journal": "24ec32739553f9e529948a1da494c381dc774055c004ae39badead5ac0337330",
+    "parent": "d6e0fd6eab59bde77509c8e65abde277c44bec4b5eda3e3df90e3f24d9b4afe3",
+    "qualification": "Actual exported migrations library; full CLI compilation remains unverified"
+  },
+  "checksum_qualification": "Actual exported migrations library, not a passing full CLI build. Original retention parent remains unchanged; mismatched journal namespaces refuse.",
+  "validation": {
+    "observed_at": "2026-10-17T06:29:10.925973+00:00",
+    "SDK_final": {
+      "pass": 220,
+      "skip": 1
+    },
+    "SDK_packages": [
+      {
+        "package": "github.com/zasp-ai/zasp-sec/services/platform/runtimeindex",
+        "action": "pass"
+      },
+      {
+        "package": "github.com/zasp-ai/zasp-sec/services/platform/runtimeindex/opensearchdriver",
+        "action": "pass"
+      }
+    ],
+    "migration_journal_final": {
+      "pass": 2
+    },
+    "migration_packages": [
+      {
+        "package": "github.com/zasp-ai/zasp-sec/services/platform/migrations",
+        "action": "pass"
+      }
+    ],
+    "full_worker_CLI_API": {
+      "exit": 1,
+      "cases": 0,
+      "packages": [
+        {
+          "package": "github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker",
+          "action": "fail"
+        },
+        {
+          "package": "github.com/zasp-ai/zasp-sec/services/platform/agentsec-migrate",
+          "action": "fail"
+        },
+        {
+          "package": "github.com/zasp-ai/zasp-sec/services/platform/apiserver",
+          "action": "fail"
+        }
+      ],
+      "missing_offline_imports": [
+        "github.com/aws/aws-sdk-go-v2/service/ec2",
+        "github.com/aws/aws-sdk-go-v2/service/ec2/types",
+        "github.com/aws/aws-sdk-go-v2/service/iam",
+        "github.com/aws/aws-sdk-go-v2/service/iam/types",
+        "github.com/aws/aws-sdk-go-v2/service/kms",
+        "github.com/aws/aws-sdk-go-v2/service/kms/types",
+        "github.com/aws/aws-sdk-go-v2/service/opensearch",
+        "github.com/aws/aws-sdk-go-v2/service/secretsmanager",
+        "github.com/aws/aws-sdk-go-v2/service/sqs",
+        "github.com/aws/aws-sdk-go-v2/service/sqs/types",
+        "github.com/aws/aws-sdk-go-v2/service/sts",
+        "github.com/neo4j/neo4j-go-driver/v6/neo4j",
+        "github.com/neo4j/neo4j-go-driver/v6/neo4j/auth",
+        "github.com/neo4j/neo4j-go-driver/v6/neo4j/config",
+        "github.com/open-policy-agent/opa/v1/rego"
+      ],
+      "qualification": "GOPROXY=off. OPA download was previously denied; other uncached modules were not fetched and have no newly asserted network refusal."
+    },
+    "source_and_deployment_checks": {
+      "exit": 0,
+      "pass": 16
+    },
+    "exact_workflow_source_bindings": {
+      "exit": 0,
+      "count": 345
+    },
+    "ledger_runner": {
+      "exit": 0,
+      "pass": 52
+    },
+    "browser_prerequisite_units": {
+      "exit": 0,
+      "pass": 280,
+      "qualification": "Fixture/mocked command boundaries only; no actual PG/Docker/browser/provider execution"
+    },
+    "fresh_UI_typecheck_exit": 0,
+    "fresh_UI_build_exit": 0,
+    "lint_exit": 0,
+    "lint_scope_pass": 11,
+    "anonymous_compiled_UI_shell": {
+      "qualification": "Compiled anonymous UI shell only; not authenticated API or provider end-to-end proof.",
+      "port": 45205,
+      "status": 200,
+      "content_type": "text/html; charset=utf-8",
+      "bytes": 10803,
+      "sha256": "83a80cd087e3a0d61c2f1a080bcabb305fd5d949a6044a3520168109e1ba5887",
+      "pass": true,
+      "shutdown": {
+        "joined": true,
+        "exit": [
+          null,
+          "SIGTERM"
+        ]
+      },
+      "stdout_sha256": "0f970f6224641eb5f37ea97594a80bd526276ea49c4acd0585d40fbce900c98a",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "native_execution": false,
+    "production_E2E": false
+  },
+  "additional_baseline": "Pre-review journal worktree full migrations437PASS4SKIP; applies to predecessor source, not substituted for final revised native acceptance. Final revised bounded journal checks2PASS and integrated SDK220PASS1SKIP are separately retained.",
+  "tests_first": "Genuine initial SDK12-case behavioral RED and DB missing-implementation build RED retained. Recovery revision tests were authored but executed zero cases locally because full worker setup is blocked.",
+  "source_associations": {
+    "compiler_sources": 345,
+    "previous332_paths_retained": true,
+    "new_sources": 13,
+    "runner_primary_counts": [
+      319,
+      308
+    ],
+    "runner_helper_counts": [
+      11,
+      11
+    ]
+  },
+  "native_roster": {
+    "groups": 14,
+    "named_cases": 79,
+    "previous78_cases_retained": true,
+    "postgres_joins": 24,
+    "approval_controls": 16,
+    "original_retention_children": 9,
+    "additional_required_child": "future_journal_enrollment_dispatch_and_settlement",
+    "native_fixture_qualification": "Controlled local terminal artifacts test SQL authority; not genuine S3/provider custody. Native was not run in this cloud runtime."
+  },
+  "independent_source_reviews": [
+    {
+      "path": "/tmp/retention-journal-connected-final-independent-source-review-20261017.json",
+      "sha256": "60d1c702131912f04c45233af79b20bd816b8307b831c8e5a941dcf276181264"
+    },
+    {
+      "path": "/tmp/retention-journal-root-admission-associations-independent-review-20261017.json",
+      "sha256": "23bf2a14d127ea7d6d223271dc3cb0edaa7cb5f9e1769967bf58b2dc06bda454"
+    }
+  ],
+  "ledger": {
+    "rows": 728,
+    "unique_ids": 728,
+    "classes": {
+      "production-available": 523,
+      "component-only": 144,
+      "blocked/external": 61
+    },
+    "promotions": 0,
+    "evidence_only_ids": [
+      "M7-19",
+      "M7-26"
+    ],
+    "owners_unchanged": true
+  },
+  "task_crosswalk": [
+    {
+      "id": "M7-19",
+      "qualification": "Future writer custody component; deployed retention and historical unknown-writer reconciliation remain open."
+    },
+    {
+      "id": "M7-26",
+      "qualification": "Exact source and component evidence; full native/deployed acceptance remains required."
+    }
+  ],
+  "evidence_archive": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/retention-journal/component-evidence.json.gz",
+    "sha256": "cda1774c606e9109090ad9700cfc6e877d9a7f14d922efc6f93985fc1eb80534",
+    "bytes": 131248,
+    "members": 56
+  },
+  "boundaries": [
+    "Public execution IDs and artifacts never recover private authority. Process death losing private capability or uncaptured response remains conservatively unresolved.",
+    "Uncertain send claim never returns another HTTP permit. Exact captured settlement does not refresh forward authority or issue new provider traffic.",
+    "Exactly three finite parent function successors and two mandatory hooks; canonical parent SQL and existing registrations retained. Private raw seal is nonrecursive.",
+    "Future journal does not repair historical unknown writes, prove provider terminality, delete stored S3 versions or establish physical erasure.",
+    "Disabled deployments reject orphan journal configuration; retention-enabled raw/session index workers require exact explicit compiled journal pin.",
+    "No cloud enrollment, deployment, identity writes, provider calls, credential retirement or native startup executed in this batch."
+  ],
+  "open_gates": [
+    "Full worker/CLI/API application compilation and recovery behavior tests, missing dependencies.",
+    "Actual native SQL authorization, ACL, concurrency, historical replay and all original+new retention child cases.",
+    "Current hosted browser/lifecycle acceptance and complete security/release corpus; local scanner tool remains unavailable following prior denied installation.",
+    "Real scoped Stytch/provider identities, production target, OpenFGA model/store, Temporal bindings, fleet credential retirement and deployed E2E.",
+    "Historical unknown-writer reconciliation and physical storage erasure evidence."
+  ],
+  "publication": "Source-reviewed component for normal review-branch push only; no merge/release, production task promotion or completion claim."
+}

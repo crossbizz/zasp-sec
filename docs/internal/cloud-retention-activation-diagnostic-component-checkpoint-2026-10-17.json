@@ -1,0 +1,82 @@
+{
+  "observed_at": "2026-10-17T04:53:07.679119+00:00",
+  "source_base": "5ae84c89dfcbb0588e5d9fe66d3ba89cafd14f05",
+  "scope": "Native activation refusal classification and effective DDL privilege observation; no production permission change",
+  "sources": [
+    {
+      "path": ".github/connector-native-compile-source-pins.json",
+      "sha256": "18ca4da252014ed8f820f587a3ada629ba42934440258554be9619488195c39d",
+      "bytes": 101987
+    },
+    {
+      "path": "scripts/connector-acceptance-groups.test.mjs",
+      "sha256": "b361a644397faf3744a773e0d8778a76908c22c704ed9f98d0fe1e070fe841fa",
+      "bytes": 34261
+    },
+    {
+      "path": "scripts/hosted-connected-connector-acceptance.mjs",
+      "sha256": "751e03966c4a193a973ad5f5a41690a0ac38bcbabf15594b7fcd919e9912464d",
+      "bytes": 75910
+    },
+    {
+      "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
+      "sha256": "302c339f2072a3fc6a3facf580466d5a67e9756e1d3d8d74781adc230b82f52f",
+      "bytes": 72352
+    },
+    {
+      "path": "services/platform/apiserver/retention_native_postgres_test.go",
+      "sha256": "75ef110453ffa8b7d52d1649370a26e31d11b45c69aec0098cfeb48abeab3926",
+      "bytes": 41381
+    }
+  ],
+  "validation": {
+    "existing_classifier_grouped_RED": 1,
+    "existing_classifier_GREEN": 0,
+    "existing_source_contracts_pass": 14,
+    "full_lint_exit": 0,
+    "fresh_typecheck_exit": 0,
+    "fresh_production_build_exit": 0,
+    "frozen_UI_inputs": 376,
+    "actual_328_source_workflow_guard_exit": 0,
+    "native_runtime_executed": false,
+    "initial_GREEN_build_failure": "Actual linker no-space failure preserved; no tests passed on that attempt. Unchanged sources retried after owned cache reclamation.",
+    "production_SQL_or_permission_changes": 0,
+    "rules_or_guards_relaxed": 0
+  },
+  "independent_source_review": "/tmp/retention-activation-diagnostic-source-independent-review-20261017.json",
+  "ledger": {
+    "rows": 728,
+    "unique_ids": 728,
+    "class_counts": {
+      "production-available": 523,
+      "component-only": 144,
+      "blocked/external": 61
+    },
+    "availability_promotions": 0,
+    "evidence_suffix_ids": [
+      "M7-26"
+    ],
+    "previous_sha256": "fbd1191ba02ecd804965cd447f1da024b4310b724b9f35ed106a8a4283afb7cb",
+    "new_sha256": "1de88fbc9d4f4d099f0de0dde9e2a295ec786eb696ef9c1dcc157658eb05d21b",
+    "original_fields_and_evidence_prefixes_preserved": true
+  },
+  "evidence": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/retention-activation-diagnostic/verified-component-batch.json.gz",
+    "sha256": "0af246f9b38c49f93d52f975ca011ee7c1010cef1c511ec5a69871bbf52788c3",
+    "uncompressed_sha256": "d4ac43f6957f9fe29781ee483b859d23253b86bf4033275de8c164fd611ebbcb",
+    "members": 34
+  },
+  "predecessor_hosted": {
+    "head": "d35f38087015141a9608fd16cac96a356dbfadf9",
+    "retention": "Prepared recipe reached; actual activation42501 at native fixture317 remains unaccepted. Public schema CREATE is a candidate only.",
+    "PKCE": "7145ms initial provider budget; source checks4565ms and revision checks1500ms; begin-attempt deadline. No authorization bypass or deadline increase.",
+    "browser": "approval-reconciler deadline remains."
+  },
+  "limits": [
+    "No local/native PostgreSQL startup or product activation executed.",
+    "Local component checks do not establish current-head hosted native or deployed acceptance.",
+    "Helm missing; local staging remains30/31. Real Stytch/provider bindings, security and fleet cutover gates remain open."
+  ],
+  "availability_promotions": 0,
+  "goal": "active"
+}

@@ -212,6 +212,12 @@ func buildTemporalSecurityAgentRuntimeWithIO(ctx context.Context, cfg workerRunt
 	if err != nil {
 		return nil, errRuntimeUnavailable
 	}
+	if configureOptionalPlannerEgress(planner, cfg.OptionalEgressEnabled, cfg.OptionalEgressProfileChecksum) != nil {
+		if planner != nil {
+			_ = planner.Close()
+		}
+		return nil, errRuntimeUnavailable
+	}
 	seen := map[string]bool{}
 	for _, binding := range bindings {
 		key := binding.OrganizationID + "/" + binding.WorkspaceID + "/" + binding.EnvironmentID
@@ -349,6 +355,9 @@ func buildTemporalSecurityAgentRuntimeWithIO(ctx context.Context, cfg workerRunt
 		bounded, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
 		if p.workerForward != nil && (p.workerForward.Ready(bounded) != nil || p.workerCompensation.Ready(bounded) != nil) {
+			return errRuntimeUnavailable
+		}
+		if cfg.OptionalEgressEnabled && (p.workerForward == nil || p.workerForward.OptionalEgressReady(bounded, cfg.OptionalEgressProfileChecksum) != nil) {
 			return errRuntimeUnavailable
 		}
 		for i, db := range databases {

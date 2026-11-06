@@ -1,0 +1,27 @@
+{
+  "review": "independent final browser unit and native attribution publication review",
+  "files": {
+    "docs/internal/cloud-browser-unit-attribution-checkpoint-2026-10-15.json": "4e1be309ce5e8f4d85edfb4ae576eb46dfefa74455ed03d7965448094bbf7f5d",
+    "docs/internal/evidence/cloud-2026-10-15/browser-unit-attribution/verified-batch-evidence.json.gz": "dca6ca43dc0a9a342478bb3efc387682f984ed5d4e1d24f9453d3674135e7351",
+    ".github/connector-native-compile-source-pins.json": "1c042a0042aabf75531078178f24b3ac6a15e4a084d8683c7f2da2428d13b1e4",
+    "scripts/hosted-connected-connector-acceptance.mjs": "846ffedf969261ca95a7cd1489bea0b9339d82f72ccfa94f20b495e69ee0eee9",
+    "scripts/hosted-connector-authenticated-enqueue.mjs": "dddaebc97296a832f0c55f9918e66d46a176f18b8dd0ecc3b261ee0cc73123f8",
+    "docs/internal/implementation_status_v1.5.md": "a0ff7eeff6e06e93ef0774d08293c77e415d51c5a1270d4416749ba91af37b81"
+  },
+  "findings": [],
+  "conclusion": "No actionable publication finding. Evidence and source associations match exact frozen files; claims remain component/diagnostic only with no native/deployed promotion.",
+  "verified": [
+    "Archive gzip compressed/uncompressed bytes andSHA match checkpoint;24members each length/hash and fullbytes match preserved original localpath.",
+    "Checkpoint5source hashes/bytes exact. Compilemanifest113sources all currenthash/bytes exact and checkpointdigest correct.",
+    "Both hostedrunner literal source associations match currentfiles (101/90literal entries); genuine74 updated. Executor fixture has new checkpoint-source association only; absent from existing113manifest and runnerliterals, neither expanded.",
+    "Known originalapprovalSQL+bothinstallers and immutableRunnableUI hashes match prior reviewed pins. Productionbrowser script remains f5186230; no behavior change in publication batch.",
+    "Archived rootconfirmation/lint/ledger/fixturecompile statusreceipts all0; fixturecompile explicitly0selected/nativefalse. RED/green originalunitreceipt and sourcepreimages retained in archive.",
+    "Ledger counts728/523/144/61/zero promotions unchanged. Status/checkpoint distinguish exactunit261pass vs native hosted failures/strictouterrefusals and deployed blockers. No launchreadiness or causaldeadline claim."
+  ],
+  "limitations": [
+    "Read-only verification only; no tests/Go/Git/network by reviewer.",
+    "No blanket claim that every historical ignored archive was inspected; reviewed committedpublication archive and listed knownimmutable guards only.",
+    "Parentpublication scratchassert assumption failure is not a product/test failure; no source mutation happened before corrected exactliteral scope.",
+    "Root owns finalcombineddiff/gitleaks/UI/push; hostednative/browser and deployedproduction verification remain unresolved."
+  ]
+}

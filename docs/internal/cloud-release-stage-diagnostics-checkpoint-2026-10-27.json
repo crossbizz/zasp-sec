@@ -1,0 +1,99 @@
+{
+  "classification": "PRIVACY_SAFE_RELEASE_STAGE_DIAGNOSTICS_COMPONENT_VERIFIED_NOT_RELEASE_ACCEPTANCE",
+  "observed_at": "2026-10-27T18:09:08.156061+00:00",
+  "starting_SHA": "b87966da13c23dcc2d4e733e12756ed6d8366aa5",
+  "latest_fetched_main_SHA": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
+  "required_ancestor": "e13ccb95451b03107681ccb59b3fc6fe175a228f",
+  "scope": "Release failure observability only; preserve original728scope/TemporalOpenFGAdesign/Stytch, runtime/deployment/permission/identity controls and existing work.",
+  "problem_and_behavior": "Public hostedannotations exposed onlyfailedtestnames/summary whileactualrender/SBOM/license/scanner boundaryfailed. Plainshared34stagecatalog nowattaches fixedsafeError codes across normal/edgeconfiguration, actualHelmcommands, parse/guards/cleanup andmajor sourcegates. WeakSet preserves onlylocallyconstructed frozenerrors; untrustedcause/stdout/stderr/message/getters/pathmetadata discarded. Annotatoraccepts onlyanchoredallowlistedcodes withinrecognizedTAPfailurediagnosticblocks, bounded4uniquestages, resetsacrossphases andneverchanges failingverifierstatus.",
+  "task_mapping": {
+    "M8-47": "Supporting privacy-safe failurediagnosis; no scanner/license/releaseclearance or exception granted."
+  },
+  "actual_verification": {
+    "grouped_RED_GREEN": "Actualinitial2FAIL missingmodule, controlledprivacycases grouped; final15PASS0FAIL0SKIP including hostilecontrolledthrows, forgery/bounds/phase/TAPblockreset, actualNodeTAP\u2192annotationformat and originalshellfailurestatus. Initialmarker/inheritedNodecontext/lint/scopefailures retained, correctedbeforefreeze. No fakeHelm/provideracceptance.",
+    "exact_commands_and_guards": "Independentread-onlyreview verified byte-identical6rendererexec+3sourcegateexec expressions and existingguardpredicates/rolloutinputs/checks/maxBuffers/order/refusals. Normal/edgegenericmessages preserved; sourceaggregator unknownerrors intentionally sanitizedfixed release sources rejected.",
+    "typecheck_and_build": "npm run typecheck andproduction npm run build exit0, all5vinextstages/standaloneoutput",
+    "source_guards": "Existing21PASS0FAIL0SKIP; authored5files scopedlintPASS; all927manifestentries and1826scriptassociationsmatch; original926paths/order/preimagehistory retained; newdependencyfreehelper appended and2exactworkflowcountassertions926\u2192927, no guard/case removed.",
+    "independent_review": {
+      "result": "CLEAR",
+      "sha256": "cbd174570f50d19c26301a5271695c8e571fa0113add55595aaa5857542dc5c9",
+      "all9finalhashes_verified": true
+    },
+    "actual_Helm_SBOM_license_scanner_release": "NOTRUN orclaimedGREEN. OfficialHelmunavailable/priorrefusalnotbypassed; nextrealhostedrun mustexposeactualfixedstagecode andremainingproductfailure.",
+    "native_and_deployed": "NOTRUN orclaimed; real PostgreSQL/OpenFGA/Temporal/Stytch/provider/browserdeployedacceptance stillrequired."
+  },
+  "ledger": {
+    "total": 728,
+    "classes": {
+      "production-available": 509,
+      "component-only": 158,
+      "blocked/external": 61
+    },
+    "historical_statuses": {
+      "Complete": 667,
+      "Blocked": 61
+    },
+    "changed_evidence_rows": [
+      "M8-47"
+    ],
+    "all_other_fields_unchanged": true,
+    "tasks_closed": 0,
+    "promotions": 0,
+    "beforeSHA256": "888667102a6981b6a5c8cf3cf405b4799340ac2c9da11dfe385ea73e316b0f7e",
+    "afterSHA256": "f1eed87cd01c1bdb356ba16258c0bef94bb99dbbf52b2d91c5c74267c20d35f3"
+  },
+  "hosted_prior_batch": {
+    "selected": [
+      {
+        "conclusion": "success",
+        "id": 122365704783,
+        "name": "compile",
+        "status": "completed"
+      },
+      {
+        "conclusion": null,
+        "id": 122365703837,
+        "name": "connected-group (retention-audit)",
+        "status": "queued"
+      },
+      {
+        "conclusion": null,
+        "id": 122365702740,
+        "name": "Verify runnable UI",
+        "status": "in_progress"
+      },
+      {
+        "conclusion": null,
+        "id": 122365666088,
+        "name": "Verify runnable UI",
+        "status": "in_progress"
+      },
+      {
+        "conclusion": null,
+        "id": 122365665982,
+        "name": "connected-group (retention-audit)",
+        "status": "in_progress"
+      }
+    ],
+    "total": 99
+  },
+  "access_prerequisites": "Runtimepolicy and productsettings unchanged: noTCP/VPN/managedproductionidentitybindings, OPAcacheabsent/Helmunavailable; priorofficialdestination/nativeadmissionrefusals notbypassed. Currentproductnames-only inventory0direct/3Stytchaliases/50unbound, notcredentialvalidity. No configurationwriter available; no fabricatedprovider/deployedproof.",
+  "next_critical_path": [
+    "Require actualnative retentioncutover/recovery/privilegerevocation/settlement acceptance on b87966da correction.",
+    "Use fixedreleasephasecodes fromrealhostedrerun tocorrectactualrender/license/SBOM/scanner failure, preserveguards.",
+    "Obtain actualbrowserapprovalReadySQL/pool/cleanup timing andPKCEretrytrace/leaseheadroom before evidence-backed remediation.",
+    "Implementcurrent signedwebhookexecution/capturedsettlement plusallremainingoriginalrequirements, configure/admitrealStytch/provider/runtime deployments, verifyall728 end-to-end andretireobsoletecodeonlyafterequivalence."
+  ],
+  "evidence": {
+    "path": "docs/internal/cloud-release-stage-diagnostics-evidence-2026-10-27.tar.gz",
+    "sha256": "40ef132cd2214dec8c109fd54e0900e7ea5073d2ac68268a3305e3350a1cef3d",
+    "bytes": 574075,
+    "members": 59,
+    "verification": "Allmemberbytesverified; payloadmanifestincluded; checkpointexcludedselfreference; originalfailures/preimages retained."
+  },
+  "launch_ready": false,
+  "goal_complete": false,
+  "task_closed": false,
+  "availability_promoted": false,
+  "merge_release_cleared": false
+}

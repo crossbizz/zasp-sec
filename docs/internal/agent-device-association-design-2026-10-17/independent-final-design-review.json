@@ -1,0 +1,57 @@
+{
+  "status": "CLEAR_FINAL_FINITE_DESIGN_FOR_GROUPED_TDD_AND_IMPLEMENTATION_ONLY",
+  "reviewer": "/root/gateway_review",
+  "created_at": "2026-10-17T20:33:19.868262+00:00",
+  "contract": {
+    "path": "docs/internal/agent-device-association-design-2026-10-17/contract-final.json",
+    "sha256": "ba2d9cc1601ad7f07f1bf547f9f1d114a76c13593566f2883f5b1c35d32dec43"
+  },
+  "proposal_hash_mismatches": [],
+  "known_answer": {
+    "path": "docs/internal/agent-device-association-design-2026-10-17/known-answer.json",
+    "sha256": "e6940a4e915064cb18056ee057dfd3c7e629a14085d39c2dc16db96ccd42f4f0",
+    "static_protocol_consistency_checks": {
+      "raw_hex": true,
+      "raw_sha256": true,
+      "canonical_rawurl": true,
+      "exact12order": true,
+      "inner_bytes": true,
+      "envelope3": true,
+      "accept3": true,
+      "accept_sha256": true,
+      "nested5response": true,
+      "originalsource_pair_id": true
+    },
+    "qualification": "Static byte/hash/vector/source-algorithm inspection, not SQL/native execution or application acceptance."
+  },
+  "preserved_reviews": [
+    {
+      "path": "docs/internal/agent-device-association-design-2026-10-17/independent-design-review.json",
+      "sha256": "b9ebd5052087b2b1e3540b5839180c2c23379dd44af1b9f1cee928b69c8a2608"
+    },
+    {
+      "path": "docs/internal/agent-device-association-design-2026-10-17/independent-protocol-design-review.json",
+      "sha256": "77a65933577fe37d31017853ff401bda7d6639f96b8d1ee9da460388f5705fd3"
+    }
+  ],
+  "findings": [],
+  "closed_final_deltas": [
+    "RequestedTTL nowinteger arg12 in unchanged13arity, nativeauthoritativewhole-secondexpiry generated afterlocks. Explicit remainingTTL(ttl-1,ttl] handlesmicroseconds; no demand60fullremainingseconds afterwait and no restamp onreplay. Finalclock expiry fence afterallquerywaits.",
+    "NEWcurrentXIDeffect/receipt marker independentlyderived; HISTORICALdifferentTXcurrentauthority+exactoriginalmetadata replaysfalse/true, neverrequiresoldXIDcurrent or relabelsnew. Devicehistoricalreplay stillcurrentSAMEgen/livechallenge only; terminal/superseded states neverresurrected.",
+    "Human/readprivateDevicevalidation excludes originalgateway-control-session-only authorityfunction, uses ownprivate originalsource predicates/locks with explicitcredential_revoked reason andhighergen/expiry/device/source precedence. No borrowingcredentials orparentgrants.",
+    "NativeownUTCZmicrosecondmetadata builder and semanticnativeparenttimestamp handling avoid+00:00vsZfalseequivalence/hashclaims. PairID fixed originalcanonicalID withAgent||chr31||Device, knownanswer independentlyrecomputed fromoriginalsourcealgorithm.",
+    "ExactGo structs/fieldtypes/signatures/constants nowfrozen; listAgentDeviceAssociations andgateway accept-agent authoritative overretainedsupersededspelling. Concrete12rawhex/UTF8/hash/RawURL/envelope3/accept3+hash/nested5response vectors internallyconsistent.",
+    "NativeacceptedAt allowed<=clientnow+30s solvesfloor/microsecondclock differences; acceptedAt<expiry and expiry=min(challenge,credential)>actualnow remainstrict. Serverstillowns nativeexpiry/revocation authority.",
+    "PerStoreflat0700namespace, selectedchallengeimmutablefiles andnormal/recoveryexportancestorinode boundary frozen via pinnedproposals. Freshcustody adapteronly; legacydeployed3field credential support remainsrequirednextlane, noretirement/allDeviceclaim."
+  ],
+  "scope_conditions": [
+    "Previousbackendsecurity requirements browser-onlyfreshAgentmanage_identity/nondelegatingphase3/currentidentity/source/nativeDevice/revoke/versionCAS/real Agent-beforeDevice lockorder remainmandatory.",
+    "APIcapabilitiesidecar advisoryonly, boundviewidentity/credential/scope/Agentversion79revision, no SQLwriteauthority or80frameextension.",
+    "RootmustrecordactualgroupedRED whereexecutable andclassifyOPA/setupblocks0notRED. Implementation freezes require independentconnectedreview, then affectedchecks once; no Temporal/OpenFGAinternaltests."
+  ],
+  "proof_limits": [
+    "Design/sourceinspection only; no productedits/Go/Node/test/build/Git/network/native execution.",
+    "No actualpermissions/tenantisolation/SQLroles/locks/revocation/provider/browser/deployedproof; nativeNormalAudit/realStytchDeviceflows remainrequired.",
+    "No observedrouting/enforcement/Agentcoverage/originaltaskclosure/promotion/release/launchclearance; original728requirements preserved."
+  ]
+}

@@ -1,0 +1,425 @@
+{
+  "observed_at": "2026-10-17T13:56:39.973288+00:00",
+  "continued_published_base": "6ade39af1ac0544245095a7a44771e4f19f17ced",
+  "classification": "REAL_API_AND_UI_OWNER_SLICE_COMPONENT_ONLY_DISABLED_BY_DEFAULT",
+  "task_mapping": [
+    "M4-50b1"
+  ],
+  "scope": "Owner slice of original owner/environment/risk filters. Existing real scoped Agents API and UI preserve absent=all, presentempty=unowned, nonempty exact Unicode label. Filter before SQL limit with current scoped purpose/object authorization and exact filter-bound signed cursors. Additive private Normal/Audit profile, compiled immutable identities, explicit installer/pins, API-only defaultfalse deployment config and actual readiness capability. UI keeps drafts separate, resets pagination on apply/authority changes, locks unknown ownership intents, refetches after confirmed changes and hides/refuses active filtering after capability loss. No client postfilter, parent SQL/grant rewrite, invented risk semantics, worker flag or blanket NI expansion.",
+  "sources": [
+    {
+      "path": "services/platform/migrations/production_agent_owner_filter_profile.go",
+      "bytes": 11040,
+      "sha256": "aaa43569170599e6245dbe27cdcdb821171e3c1563d20788f4e8be525e89718a"
+    },
+    {
+      "path": "services/platform/migrations/sql/agent_owner_filter_profile.sql",
+      "bytes": 17611,
+      "sha256": "6ee809ba189c0559c02fbce977e958e21529e1a58bc4d71edbee125210f31bc5"
+    },
+    {
+      "path": "services/platform/migrations/production_agent_owner_filter_profile_test.go",
+      "bytes": 5044,
+      "sha256": "334d290c8aca07d3abca622276d1f533cafd0c59f8d841ee1a77c6b1394f776f"
+    },
+    {
+      "path": "services/platform/apiserver/agent_owner_filter.go",
+      "bytes": 7350,
+      "sha256": "968f73a8fc8d16e918c53576f64aa326e35635d2144b7bcf10cd6403244b5205"
+    },
+    {
+      "path": "services/platform/apiserver/agent_owner_filter_test.go",
+      "bytes": 5836,
+      "sha256": "8959bb0f4678372406e36d152a09d04a72acfbfbf8401c7ad079f3a216e8416b"
+    },
+    {
+      "path": "services/platform/apiserver/agent_owner_filter_authorization_test.go",
+      "bytes": 3228,
+      "sha256": "cc249a7fa544ddb437cd8bc5ad9ab4a1cf6c622affe31acfb237d0605bd8ce07"
+    },
+    {
+      "path": "services/platform/apiserver/agent_owner_filter_repository_test.go",
+      "bytes": 2926,
+      "sha256": "3b1a02e424f1ecc0d035e7b947112c0ffce531cd701fa2e3d01a5530f68f51d4"
+    },
+    {
+      "path": "services/platform/apiserver/inventory_handler.go",
+      "bytes": 11486,
+      "sha256": "9311f5cfadb1104db1996e4714063c65a2a862183f9f71289d953d98dd484a3a"
+    },
+    {
+      "path": "services/platform/apiserver/inventory_repository.go",
+      "bytes": 27668,
+      "sha256": "d7f8cba10659099df28884c7a2ad83922bf834c9d93a820e1fd70cb280c59fd4"
+    },
+    {
+      "path": "services/platform/apiserver/production.go",
+      "bytes": 56940,
+      "sha256": "326292e13a4a98ff8b3f504df4597be326a27cdc266f6383643ee3c38e3d9a0a"
+    },
+    {
+      "path": "services/platform/apiserver/repository.go",
+      "bytes": 40436,
+      "sha256": "b7391ca8e8aa05af07f18ee841afbfe282769984d97a6e801dc1b833b550739f"
+    },
+    {
+      "path": "services/platform/apiserver/authorization_statement.go",
+      "bytes": 18124,
+      "sha256": "6318139a55f442878f1e3b514d0ee4b657a28ad817de2cd1003d187eb04e394c"
+    },
+    {
+      "path": "services/platform/apiserver/authorization_openfga.go",
+      "bytes": 10061,
+      "sha256": "6487ab52735ed07cdb58fe31685ede87bda8d0c137dda6fc6e38cbbb72695e8e"
+    },
+    {
+      "path": "services/platform/apiserver/authorization_post_login.go",
+      "bytes": 9507,
+      "sha256": "5baddd7915a758e847a60e1c6aa739bd0b038eb4e0021c133219d145a70b687a"
+    },
+    {
+      "path": "services/platform/agentsec-api/runtime.go",
+      "bytes": 26638,
+      "sha256": "0d4f62d7e85c4df46a6d259cfc23b8fc7e3d8f914c917825d33bb43cb35fdbd2"
+    },
+    {
+      "path": "services/platform/agentsec-api/production_runtime.go",
+      "bytes": 59818,
+      "sha256": "90f659abf44a131ad57c8e13feedb86f370ac1bb8609e9b66d6fa5f88bce5033"
+    },
+    {
+      "path": "services/platform/agentsec-api/agent_owner_filter_runtime.go",
+      "bytes": 349,
+      "sha256": "fb089aa67dae1986c59439658d24dcb5ac1dfe1e35957a9a032e6ad7171c0128"
+    },
+    {
+      "path": "services/platform/agentsec-api/agent_owner_filter_runtime_test.go",
+      "bytes": 979,
+      "sha256": "18d39cb584cb8ec38ac57995fd469bbcc880b5bb121c44841af19e41f75d026e"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/agent_owner_filter_profile.go",
+      "bytes": 3371,
+      "sha256": "d2106b98c7971d0f41500725ebb934bc0f1418b42d2599c77577077ae618eb62"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/main.go",
+      "bytes": 79028,
+      "sha256": "75af7ea0951ed2fe8e5f14608a49977e50ca7c14f553c378d6a3cdea2fe43d03"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/forward_release_confirmation.go",
+      "bytes": 3052,
+      "sha256": "b039fb9389b82ee234ecdb05c0eef6a515dad99fefbba4c03dc617e1703238ac"
+    },
+    {
+      "path": "apps/web/api/decoders.ts",
+      "bytes": 133512,
+      "sha256": "c2147ef69575d8f24a91a1f84c6659739463848e8614c137cab420faa595aa78"
+    },
+    {
+      "path": "apps/web/api/agent-owner-read-domain.test.ts",
+      "bytes": 1261,
+      "sha256": "127143b2eaea8c4d8cf682ed73db6144c6848b0b48ae3fd92ee4fcb33d4d057c"
+    },
+    {
+      "path": "openapi/openapi.yaml",
+      "bytes": 373718,
+      "sha256": "374acf7080ed7ca35096aa4141fdab2d895ea7f686224742bf65715689aa37e6"
+    },
+    {
+      "path": "openapi/agents-owner-filter.test.mjs",
+      "bytes": 1215,
+      "sha256": "96c90ae233e9171b0da0d7affef0a1873ec1dac5eee3990b13345b0a0e5119cb"
+    },
+    {
+      "path": "deploy/staging/product/templates/_agent-owner-filter.tpl",
+      "bytes": 1146,
+      "sha256": "8454fb79c3c8a9d6d719fcb1259a7609c834ee49add1fcb3fb487c4239a5e87b"
+    },
+    {
+      "path": "deploy/staging/product/templates/workloads.yaml",
+      "bytes": 70738,
+      "sha256": "9aea5efefab33357e92a0c8bc6d9e38c23159d535b2531340bcd14feb07879e5"
+    },
+    {
+      "path": "deploy/staging/product/values.yaml",
+      "bytes": 15586,
+      "sha256": "54ff0849baeea91bfe76f0c8e6519f9b0f6ed4d309059784cc089887a05ffc99"
+    },
+    {
+      "path": "deploy/production/agent-owner-filter-profile.mjs",
+      "bytes": 2716,
+      "sha256": "758289d0eaa0a4bb119306d6cc16a38a2fd9c67f100bb0a7d8c5b60e7145a36f"
+    },
+    {
+      "path": "deploy/production/agent-owner-filter-profile.test.mjs",
+      "bytes": 3167,
+      "sha256": "a1639ed21cfef26ca5071039c1ea7ef5247fac26da4913479f78fb7c5c44eacd"
+    },
+    {
+      "path": "deploy/production/release-contract.mjs",
+      "bytes": 85120,
+      "sha256": "86d9cf812ffe8000278bd73878b649771b025b78da0c8e7773f5e72a08406acf"
+    },
+    {
+      "path": "apps/web/api/generated.ts",
+      "bytes": 509547,
+      "sha256": "e98a400e6fc96b27f5e4eeb47c16058c4bced4231ac5773271406ccdec598513"
+    },
+    {
+      "path": "app/features/agents/ProductionAgentSecurityView.tsx",
+      "bytes": 32466,
+      "sha256": "c61a39a3915def72142388779ecc7ab47b32cec5734530d4315eeb5de936e764"
+    },
+    {
+      "path": "app/features/agents/ProductionAgentSecurityView.owner-filter.test.tsx",
+      "bytes": 14125,
+      "sha256": "803671df365067dc5ff487017dfc051c2517c84485040c1ef176a98a911e5615"
+    },
+    {
+      "path": "app/components/ZaspProductionApp.tsx",
+      "bytes": 21631,
+      "sha256": "7e6370fe75060d7a85c8861170ef7f4aec34756fb4cf2cbd62d36aa41f323ba0"
+    },
+    {
+      "path": ".github/connector-native-compile-source-pins.json",
+      "bytes": 155008,
+      "sha256": "40e6a3680a202128fa4f35a7a0d9bf745f260a774178e7fc45c31e59ef1a90ad"
+    },
+    {
+      "path": ".github/workflows/connector-native-draft-compile.yml",
+      "bytes": 83373,
+      "sha256": "8b90d646a95f2d2204475652b2016106a7b700f9d9d38271d60eaeb18e8af2de"
+    },
+    {
+      "path": "scripts/connector-acceptance-groups.test.mjs",
+      "bytes": 51424,
+      "sha256": "e31216ab5e6078b2a07b25e3a6e4e090870ccb050a5c45799b4bf45353d49778"
+    },
+    {
+      "path": "scripts/hosted-connected-connector-acceptance.mjs",
+      "bytes": 101035,
+      "sha256": "143ced77371fdf468d9d9d2f1a8922abe74d3435a8f20497f52dc57d7c6ad219"
+    },
+    {
+      "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
+      "bytes": 97436,
+      "sha256": "7096e738041b4600bec1ac73f86ff0a496a2f28560d725ab184de34c7fae34fc"
+    },
+    {
+      "path": "docs/internal/implementation_production_availability_v1.5.tsv",
+      "bytes": 208763,
+      "sha256": "da6fb2dba130069e1764634261fe0eaea1a4dac39d033b30f2113a958b740f8a"
+    },
+    {
+      "path": "docs/internal/implementation_status_v1.5.md",
+      "bytes": 1339527,
+      "sha256": "d00c812a788f99b52c755d24e5d71be9ad9f57a643833a4232814f3d11f2a351"
+    }
+  ],
+  "support_sources": [
+    {
+      "path": "services/platform/apiserver/inventory_handler_test.go",
+      "bytes": 9311,
+      "sha256": "aa7d09ef7c6435e5ab96c96f47247b6905bc582ef63ce6226cb6d03073978b9c"
+    },
+    {
+      "path": "services/platform/apiserver/inventory_repository_test.go",
+      "bytes": 9084,
+      "sha256": "8bb13519e023aa503558f48ee529838d19430f7ef2ef6061c9a1a0624a58e97f"
+    },
+    {
+      "path": "services/platform/apiserver/middleware_test.go",
+      "bytes": 9538,
+      "sha256": "a2a1a979e9364056f2efdaf7f4d849f73ab4c977244376e85319741e5b39a220",
+      "symbols": [
+        "fixtureRequestIdentity"
+      ]
+    },
+    {
+      "path": "services/platform/apiserver/authorization_transaction_test.go",
+      "bytes": 3636,
+      "sha256": "10977390589610f645485439f0abfeb122dfffa6a6d3673706259adcb423a03a",
+      "symbols": [
+        "authorizationTxFixture",
+        "authorizationDriverFixture",
+        "authorizationRowFixture"
+      ]
+    },
+    {
+      "path": "services/platform/apiserver/authorization_attestation_test.go",
+      "bytes": 415,
+      "sha256": "6945a14ea82af2d8a9f071cce012973a8f5b018c9217b365af61e046bca37e17",
+      "symbols": [
+        "authorizationFixtureAttestor"
+      ]
+    },
+    {
+      "path": "services/platform/migrations/migrations_test.go",
+      "bytes": 64174,
+      "sha256": "396ef89e352ae3e32c48040b753870f5e3f72af257eececf07e0779d3f21492b"
+    },
+    {
+      "path": "services/platform/apiserver/authorization_statement_test.go",
+      "bytes": 10654,
+      "sha256": "4e95468d9382edaef0045383fbb95a9f1b77a4a41a28d7cb635e55aa0becfccc"
+    },
+    {
+      "path": "services/platform/apiserver/authorization_openfga_test.go",
+      "bytes": 13244,
+      "sha256": "f076fd353c7397e7024cb9e4387439e936473db297a4a1f9a5726df0296a70a2"
+    }
+  ],
+  "compiled_profiles": [
+    {
+      "bytes": 19421,
+      "name": "normal",
+      "pin": "45b7fbe04d00cfc4269fa9000d71b1e04522a323df065451d43db7736877886b",
+      "source_sha256": "7eb572e9226273b781e0cc579cf93a80d0c574a1647b44455bd7ec25f97b9fff"
+    },
+    {
+      "bytes": 19826,
+      "name": "audit",
+      "pin": "bcc0c15189054f03b32666697ed5df379849cf942e921740c64ebb966f9b7238",
+      "source_sha256": "331aa6b542320ecf8d91e3a2e4e280d4d4287df05de9e7a47052536da89a2df3"
+    }
+  ],
+  "verification": {
+    "qualification": "Actual component and compiler evidence only; full3package mandatory attempt exits1 for missingOPA, not32case success/native/provider acceptance",
+    "UI": {
+      "initial_tests_only": {
+        "pass": 19,
+        "fail": 6,
+        "total": 25,
+        "exit": 1
+      },
+      "final": {
+        "pass": 80,
+        "fail": 0,
+        "skip": 0,
+        "files": 7,
+        "exit": 0
+      },
+      "typecheck_exit": 0,
+      "lint_exit": 0,
+      "build_exit": 0
+    },
+    "root_integrated": {
+      "node_source_ledger_contracts": {
+        "pass": 67,
+        "fail": 0,
+        "skip": 0,
+        "exit": 0
+      },
+      "status_exit": 0,
+      "typecheck_exit": 0,
+      "build_exit": 0,
+      "official_openapi_check_exit": 0
+    },
+    "migration_installer": {
+      "named_pass": 8,
+      "named_fail": 0,
+      "named_skip": 0,
+      "race": true,
+      "exit": 0,
+      "qualification": "fake-backed installer component, not SQL/catalog execution"
+    },
+    "three_package_attempt": {
+      "exit": 1,
+      "migrations_named_pass": 8,
+      "API_named_cases": 0,
+      "runtime_named_cases": 0,
+      "classification": "API_RUNTIME_SETUP_BLOCKED_MISSING_OPA_COMPILER_UNKNOWN"
+    },
+    "migration_CLI_initial_compile_attempt": {
+      "exit": 1,
+      "named_cases": 0,
+      "classification": "SETUP_BLOCKED_MISSING_OPA_COMPILER_UNKNOWN"
+    },
+    "native": "UNEXECUTED",
+    "deployed_Stytch_provider_E2E": "UNVERIFIED"
+  },
+  "additional_verification": {
+    "official_generator": "Actual locked official OpenAPI generation/check passed; generated.ts was not manually edited. Two existing cleanup-recovery4XX warnings preserved.",
+    "initial_backend_tests_first": "Actual absent-installer8named failures; TS2FAIL1PASS; OpenAPI1FAIL. Initial Go wrong-CWD attempt preserved separately. API initial setup-blocked0cases, not behaviorRED.",
+    "late_authorization_repository_coverage": "Explicitly recorded as coverage successor after draft, not tests-first RED.",
+    "immutable_identity_compiler": "Actual first/cached Normal/Audit compiler exports byte-identical with getter agreement before intentional catalog closure; final catalog change has distinct new compiled pins above. No SQL execution.",
+    "strict_workflow": "YAML parse and29embeddedPython AST blocks pass. Source-derived32namedcase guard added; complete32 fixture is synthetic validator evidence only. Actual8installer-only evidence and6other invalid variants refused; all32 remain mandatory hosted checks, not passed locally.",
+    "custody_gap": "First518bindings omitted5actualNode/spec/template dependencies; retained HOLD, added5, final523source hashes verified. Earlier pre-association workflow hashes are preserved historical preimages; final freeze binds actual refreshed workflow."
+  },
+  "independent_review": {
+    "backend_receipt_sha256": "a2fe9b099fa87a3688897b134e63d3ee6697f297206e7d9e28ea7b1937c816cb",
+    "UI_receipt_sha256": "29208c0a52ad5efe35199d72d6964fbc699b7de0afac149993996ed3f6e09101",
+    "source_gate_receipt_sha256": "4037aaab70da0d7d591709440d549fc388cfd13b3c2630a9e71c4de0cb3daf2c",
+    "decision": "CLEAR_COMPONENT_SOURCE_AND_CUSTODY_ONLY"
+  },
+  "ledger": {
+    "rows": 728,
+    "unique_ids": 728,
+    "classes": {
+      "production-available": 517,
+      "component-only": 150,
+      "blocked/external": 61
+    },
+    "historical_statuses": {
+      "Complete": 667,
+      "Blocked": 61
+    },
+    "availability_promotions": 0,
+    "M4-50b1": "component-only; risk slice and fresh acceptance remain open",
+    "unchanged_other_rows": 727,
+    "prior_evidence_prefix_retained": true,
+    "predecessor_status_exact_suffix_retained": true,
+    "remaining_inventory_records": 211,
+    "remaining_inventory_unchanged": true,
+    "sha256": "da6fb2dba130069e1764634261fe0eaea1a4dac39d033b30f2113a958b740f8a"
+  },
+  "guards": {
+    "source_pins": 523,
+    "retained_prior_source_paths": 500,
+    "additional_bindings": 23,
+    "newly_bound_existing_files": [
+      "services/platform/apiserver/inventory_handler.go",
+      "services/platform/apiserver/inventory_repository.go",
+      "services/platform/apiserver/inventory_handler_test.go",
+      "services/platform/apiserver/inventory_repository_test.go",
+      "services/platform/apiserver/authorization_transaction_test.go",
+      "services/platform/migrations/migrations_test.go",
+      "services/platform/apiserver/authorization_statement_test.go",
+      "services/platform/apiserver/authorization_openfga_test.go",
+      "openapi/openapi.yaml"
+    ],
+    "newly_created_bound_files": [
+      "services/platform/migrations/production_agent_owner_filter_profile.go",
+      "services/platform/migrations/sql/agent_owner_filter_profile.sql",
+      "services/platform/migrations/production_agent_owner_filter_profile_test.go",
+      "services/platform/apiserver/agent_owner_filter.go",
+      "services/platform/apiserver/agent_owner_filter_test.go",
+      "services/platform/apiserver/agent_owner_filter_authorization_test.go",
+      "services/platform/apiserver/agent_owner_filter_repository_test.go",
+      "services/platform/agentsec-api/agent_owner_filter_runtime.go",
+      "services/platform/agentsec-api/agent_owner_filter_runtime_test.go",
+      "services/platform/agentsec-migrate/agent_owner_filter_profile.go",
+      "openapi/agents-owner-filter.test.mjs",
+      "deploy/production/agent-owner-filter-profile.test.mjs",
+      "deploy/production/agent-owner-filter-profile.mjs",
+      "deploy/staging/product/templates/_agent-owner-filter.tpl"
+    ],
+    "prior_history_fields_preserved": true,
+    "connected_native_groups": 21,
+    "connected_native_cases": 146,
+    "owned_PostgreSQL_joins": 32,
+    "approval_controls": 16,
+    "native_rosters_unchanged": true,
+    "new_component_job_required_names": 32,
+    "new_component_job_actual_API_runtime_named_pass": 0
+  },
+  "archive": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/agents-owner-filter/source-evidence.json.gz",
+    "bytes": 1245259,
+    "sha256": "52aa7a6247a95cab088693e6fb6a3e10d7c95eb92c74b91f139d9f83941f9524",
+    "members": 177
+  },
+  "remaining": "Before owner activation/production availability: real Normal/Audit PostgreSQL catalog/ACL/tenant negative-case acceptance, mounted API/runtime/migrationCLI compilation and flows, target configuration, Stytch/provider deployed acceptance. Original risk, capability, enforcement and coverage slices remain required. No obsolete equivalent retired without verification; all728 requirements remain in scope; no merge/release guard bypass or launch completion."
+}

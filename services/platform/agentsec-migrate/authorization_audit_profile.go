@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
+	"io"
 )
 
 func authorizationProfileCommand(command string) bool {
@@ -12,11 +13,13 @@ func (r *registeredReleaseMigrationRunner) auditProfilePrincipal(ctx context.Con
 	if r == nil || r.releaseMigrationRunner == nil || r.queryer == nil || ctx == nil || ctx.Err() != nil {
 		return errReleasePrincipalRegistration
 	}
-	var bound bool
-	if err := r.queryer.QueryRow(ctx, `SELECT session_user=$1 AND EXISTS(SELECT 1 FROM public.zasp_discovery_principal_bindings WHERE principal_name=$1 AND authority_role='zasp_discovery_authority')`, r.registration.migration).Scan(&bound); err != nil || !bound {
-		return errReleasePrincipalRegistration
-	}
-	return nil
+	return withRetentionOperatorTransaction(ctx, principalAuthorityTransactionBegin(r.queryer), func(c context.Context, q principalQueryer, _ io.Writer) error {
+		var bound bool
+		if err := q.QueryRow(c, `SELECT session_user=$1 AND EXISTS(SELECT 1 FROM public.zasp_discovery_principal_bindings WHERE principal_name=$1 AND authority_role='zasp_discovery_authority')`, r.registration.migration).Scan(&bound); err != nil || !bound {
+			return errReleasePrincipalRegistration
+		}
+		return nil
+	}, nil)
 }
 func (r *registeredReleaseMigrationRunner) UpProductionAuthorizationAuditProfile(ctx context.Context) error {
 	if err := r.auditProfilePrincipal(ctx); err != nil {

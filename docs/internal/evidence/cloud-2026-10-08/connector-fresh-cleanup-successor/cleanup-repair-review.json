@@ -1,0 +1,32 @@
+{
+  "scope": "Read-only independent review of cleanup successor working diff over f0b78fec; no tests, runtime, compilation or Git writes",
+  "base": "f0b78fec3923d6d381f583a7dc4025a4064689d1",
+  "observedHEAD": "f0b78fec3923d6d381f583a7dc4025a4064689d1",
+  "checkpointSHA256": "6887d37fc2b1972f93a3eca444e17c35b53e95a7b6441aa2a4571cb244026c1a",
+  "findings": [],
+  "resolvedFinding": {
+    "priority": "P1",
+    "previousReviewSHA256": "f5d59445412274156eb1092a790521da466b4e7d1c174ba5a84d9220b04954d0",
+    "file": "services/platform/apiserver/connector_reconciler.go",
+    "line": 417,
+    "disposition": "Resolved in source by prepareCompensation rather than requiring an absent captured receipt."
+  },
+  "verified": [
+    "prepareCompensation requires a live valid context and an exact private reservation/lease match. Unattempted work must be authorize; it invokes existing fresh grantor plus task/service authority and BeginProviderAttempt, retaining the actual native captured receipt and updating the passed lease.",
+    "failAfterCleanup resolves its actual provider first, then admits cleanup before any provider discard. Its local updated lease is used by discard failure quarantine and terminal Fail settlement.",
+    "Already captured work bypasses new forward authorization and still passes unchanged captured-only compensation; no new outward attempt is authorized by captured receipt alone.",
+    "Deferred finishPreparation receives the old outer lease value but its key excludes attempt. It observes captured state and returns without another begin/increment. Failed fresh authorization returns ErrAuthorizationDenied and existing deferred cleanup pauses/releases without consuming an attempt.",
+    "Lease expiry, cancellation, unknown origins, immutable intent/source mismatch, native catalog and attempt ceilings remain enforced by unchanged preparation/SQL. An ambiguous Begin does not release as unattempted.",
+    "Only two source members changed in the new29 checkpoint. All29 manifest bytes/hashes match; compile source29 pins and checkpoint match; runner29 candidate pins match.",
+    "Workflow selects exactly36 existing unique top-level test declarations:16 handler and20 reconciler. Both immutable test file hashes match; exact anchored selector, race mode, modreadonly and existing package cache retained. No test cases added.",
+    "Workflow requires exact1run/1pass/0fail/0skip per selected top-level and packagepass1, exit0; uses Go2m timeout, subprocess180s deadline, step5m, originaljob25m. Finite annotation includes only fixed test names/count/exit. Output-size checks occur after command completion.",
+    "Security ACLs, SQL source, private compensation classifier, authority construction, inactive configuration and deployment refusal remain unchanged. Evidence retains initial P1 and truthful pending status."
+  ],
+  "limitations": [
+    "The36 ordinary application regression tests do not select a native database-backed cleanup admission case and cannot by themselves validate this new native path.",
+    "Authenticated OAuth enqueue/rollback is a separate captured-INACTIVE group, not active callback/worker/cutover/Reconcile acceptance.",
+    "No assertion of pending predecessor OAuth hosted success, failure cause or raw artifact inspection.",
+    "No real provider, complete fleet/restart exclusion, production, release or ledger acceptance."
+  ],
+  "verdict": "Safe normal push for actual hosted compilation/application regression and captured-INACTIVE OAuth verification. Source P1 repaired; merge or active/native lifecycle acceptance not asserted."
+}

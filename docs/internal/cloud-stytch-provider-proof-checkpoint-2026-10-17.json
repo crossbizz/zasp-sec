@@ -1,0 +1,48 @@
+{
+  "classification": "REAL_STYTCH_TEST_PROVIDER_PROOF_PASSED_NOT_DEPLOYED_ACCEPTANCE",
+  "observed_at": "2026-10-17T23:20:45.896179+00:00",
+  "source_parent": "e949a44c5a7cbd07b42e60b94ae49fbd5fcc06dc",
+  "original_requirements": [
+    "M0-02 Stytch Test config: real disposable Test session step passed; repository secret-scan prerequisite still NOTRUN locally.",
+    "M0-03 Stytch JWT proof: eligible local SDK verification and forced remote authentication passed; expired/revoked tokens and deployed product flow remain separate."
+  ],
+  "change": "Document the actual portable Node22.23.1 --use-env-proxy invocation for the existing unmodified proof. No product/SDK source, identity, API/worker permissions, tenancy, runtimeguard or ledger changed.",
+  "runtime": "Current managed environment running/connected, enforcedallowedtest.stytch.com, project/secret variablesready; actualproviderrequests subsequentlypassed. Inheritedproxy and CA preserved; loopback/baseURL overrides confirmedabsent. No credentialvalues/rawJWT/providerresponses saved or printed.",
+  "actual_verification": {
+    "initial_attempt": "FAIL actual existing JWT proof with only global-fetch proxysetup: JWT validation failed. Immutablefailurelog retained.",
+    "complete_proxy_attempt": "PASS actual existingproof after both HTTPS and Undici paths usedsameinheritedproxy; temporarybootstrap was diagnostic only.",
+    "final_portable_invocation": [
+      "node",
+      "--use-env-proxy",
+      "proofs/stytch-b2b-jwt.mjs"
+    ],
+    "final_exit_code": 0,
+    "final_outcome": "PASS real configuredStytchTest organization/passwordsession creation, eligible localSDKJWT validation with deliberatelyinvalidremote secret, forcedremote max_token_age_seconds0 verification using configuredTestsecret, and own disposableorganizationdeletion.",
+    "exact_executed_sources": "Both proof files byte-identical to sourceparent, hashes/bytes and sourcecopies in archive. No fixtureprovider or SDKpatch.",
+    "secret_scan": "NOTRUN; local pinnedgitleaks unavailable; no scanner-clean claim or M0-02closure. Fixed-outputaudit confirms archivedlogs contain only fixedproofsummaries/runtimewarning, not credential values.",
+    "independent_review": "CLEAR component/provider scope only; 82626fd928537589cd8f9ef3d334cd35dfdd80c1ef8e7ed499470c0c0743ea1c",
+    "limits": "Forcedremoteauthentication uses sameunexpiredJWT/max_age0; no observedwallclockexpiry/revocation/OAuth/browserlogin/productAPI-worker/deployedtenantacceptance. Testproofdeletesitsownorg and doesnotbootstrapretainedproductorganization."
+  },
+  "evidence": {
+    "path": "docs/internal/cloud-stytch-provider-proof-evidence-2026-10-17.tar.gz",
+    "sha256": "90d6695f70a82b3e40a1458b1e42cb7b46d8fcaabdd39bf73277dc504f74ee72",
+    "bytes": 12433,
+    "members": 13,
+    "status": "ALL_MEMBER_BYTES_VERIFIED; payloadSHA256+bytesmanifestincluded; checkpointexcludedtoselfreferenceavoid; no rawproviderresponse/identity/JWT/credentials retained"
+  },
+  "ledger": {
+    "total": 728,
+    "production_available_recorded": 509,
+    "component_only": 158,
+    "blocked_external": 61,
+    "recorded_nonproduction": 219,
+    "promotions": 0,
+    "all_original_deployed_acceptance_still_required": true
+  },
+  "production_available": false,
+  "launch_ready": false,
+  "merge_release_cleared": false,
+  "task_closed": false,
+  "obsolete_retired": false,
+  "remaining": "Retainedtenantorganization/member/session productbootstrap, StytchOAuth/browser+revocation/expiry, all productAPI-worker authorization/Temporal/OpenFGA/provider deployment acceptance, unavailabledependencies/Helm/nativecatalog/runtimeadmission and security/releaseguards."
+}

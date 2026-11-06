@@ -698,7 +698,7 @@ func providerEntitySchema(provider collection.Provider, kind string) (providerEn
 		case "kubernetes_resource", "kubernetes_service_account":
 			return providerEntityDefinition{stable: requiredStringFields("api_group", "api_version", "cluster", "name", "namespace", "resource_kind"), attributes: namespaced}, true
 		case "kubernetes_agent":
-			return providerEntityDefinition{stable: requiredStringFields("api_group", "api_version", "cluster", "name", "namespace", "resource_kind", "service_account"), attributes: mergeInventorySchemas(namespaced, inventoryObjectSchema{"posture": kubernetesAgentPostureInventoryField(true), "red_team": kubernetesRedTeamInventoryField(false)})}, true
+			return providerEntityDefinition{stable: requiredStringFields("api_group", "api_version", "cluster", "name", "namespace", "resource_kind", "service_account"), attributes: mergeInventorySchemas(namespaced, inventoryObjectSchema{"posture": kubernetesAgentPostureInventoryField(true), "red_team": kubernetesRedTeamInventoryField(false), "placement": {kind: "kubernetes_agent_placement"}})}, true
 		case "kubernetes_workload":
 			return providerEntityDefinition{stable: requiredStringFields("api_group", "api_version", "cluster", "name", "namespace", "resource_kind", "service_account"), attributes: namespaced}, true
 		case "kubernetes_role":
@@ -852,6 +852,10 @@ func validInventoryObject(raw json.RawMessage, schema inventoryObjectSchema) boo
 			}
 		case "kubernetes_agent_posture":
 			if !validKubernetesAgentPosture(value) {
+				return false
+			}
+		case "kubernetes_agent_placement":
+			if !validKubernetesAgentPlacement(value) {
 				return false
 			}
 		case "kubernetes_red_team":

@@ -1,0 +1,58 @@
+{
+  "observed_at": "2026-10-17T12:17:08.816926+00:00",
+  "continued_base": "10ce27b3b1ff3061889b36eecf57e60a628cb7ab",
+  "classification": "CI_VALIDATOR_ROSTER_CORRECTION_NOT_APPLICATION_ACCEPTANCE",
+  "scope": "Retain unchanged maintenance Go selector; require ten already-selected existing CLI consumer names previously omitted. 30 migration+31CLI cases now mandatory. No guards/tests removed. Earlier roster review superseded, original receipts preserved.",
+  "sources": [
+    {
+      "path": ".github/workflows/connector-native-draft-compile.yml",
+      "bytes": 60895,
+      "sha256": "b1dc7b4c1f8e5b1709a6d64ba2f29c2af0a3c98ccf3a10e8f67753b4d27a46c1"
+    }
+  ],
+  "verification": {
+    "source_ledger_deployment": {
+      "pass": 58,
+      "fail": 0,
+      "skip": 0
+    },
+    "UI": {
+      "typecheck_exit": 0,
+      "build_exit": 0
+    },
+    "embedded_python_parse": 23,
+    "synthetic_validator_scenarios": 7,
+    "actual_Go_cases_run_for_this_change": 0,
+    "hosted_failure_cause": "UNKNOWN_PERMITTED_METADATA_ONLY",
+    "current_head_hosted_acceptance": "PENDING"
+  },
+  "ledger": {
+    "rows": 728,
+    "production_available_historical": 523,
+    "component_only": 144,
+    "blocked_external": 61,
+    "promotions": 0,
+    "unchanged": true
+  },
+  "source_bindings": {
+    "count": 493,
+    "unchanged": true
+  },
+  "native_acceptance": {
+    "groups": 21,
+    "cases": 146,
+    "owned_PostgreSQL_joins": 32,
+    "execution": "UNEXECUTED_FOR_SUCCESSOR",
+    "unchanged": true
+  },
+  "independent_source_audit": {
+    "sha256": "f226696eaddd9c1742a59cc46e48e1cf71b46eb5d1fbae548fda4b92162fab58"
+  },
+  "archive": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/maintenance-selected-roster/validator-evidence.json.gz",
+    "bytes": 23537,
+    "sha256": "e329844dbbee58c19c239fc04686c78985a36644ee8cc64da35c33ddcf4e1ca5",
+    "members": 9
+  },
+  "remaining": "All exact-head guards and real deployed acceptance mandatory. No new application behavior, compiler proof, task promotion, merge or launch claim."
+}

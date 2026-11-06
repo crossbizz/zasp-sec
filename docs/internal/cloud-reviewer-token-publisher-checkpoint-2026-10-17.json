@@ -1,0 +1,58 @@
+{
+  "classification": "CONTINUOUS_REVIEWER_TOKEN_PUBLISHER_COMPONENT_VERIFIED_NOT_ACTIVATED",
+  "observed_at": "2026-10-17T23:03:26.239904+00:00",
+  "source_parent": "cfdb32d9aa40fe9ef3c234eef0c7af0a4d4ad0e5",
+  "original_requirement_mapping": [
+    "M4-50b3 Gateway coverage prerequisites; all original composed enforcement/approval/budget requirements retained."
+  ],
+  "problem": "Kubernetes rotates projected reviewer credentials through symlinks, which the existing strict verifier correctly refuses as its final credential file. A one-time copy loses rotation.",
+  "change": "Continuous blocking publisher in existing stdlib module; tiny operator CLI with joined signal shutdown. Coherent confined projected-volume snapshots and advisory expiry, exclusive protected destination, exact admitted namespace recovery, atomic0600publication/file+directorysync/readback, exactownedwithdrawal on sourcefailure/expiry/cancel. Current verifier and five original groups unchanged. No RBAC grants or strict Gateway activation.",
+  "verification": {
+    "grouped_tdd": "Compiling failclosedstub actual3FAIL0PASS; firstfunctional actual8racePASS; selected3source-review findings fixed; final actual8racePASS with frozen3new/5originaltestheads.",
+    "exact_final_component_ci": "PASS actual full Python CI body: all8race groups, CLIcompiled, all923sourcehash/bytebindingsverifiedbefore+after",
+    "actual_cli_flow": "PASS real temporary projectedtokenrotation\u2192protectedcredential\u2192SIGTERMjoinedwithdrawal; synthetic localJWT, no Kubernetes authentication",
+    "source_guards": "21PASS",
+    "independent_source_review": "CLEAR 746b089723e15220cbf9308a93a4b4e3af2839f570f91f8d940a4756c743e688; initialHOLD bceed... and source/PASS preimage retained",
+    "review_successor": "EnforceactualROmountfor source setgid/sticky; fsync exactadoptedfile+directorybeforeunchangedreuse; fsync/recheck observedabsencebeforeconfirmwithdrawal. Source findings are not invented executedRED.",
+    "whole_platform_verify": "Still blocked OPA/Neo4j/Badger dependencies and unavailableHelm. Prior fullUI2703PASS2FAIL; commandcontract3PASS successor separately recorded; no inferred fullsuitePASS.",
+    "hosted_current_batch": "NOT YET OBSERVED",
+    "deployed": "UNVERIFIED: actual root/fsGroup/read-only projection+realrotation, reviewerRBAC, publisherprovisioning/Helmimage/runtimecomposition, strict nativecatalog/currentpermissions+TemporalACK barrier, realStytch/provider/browser flows."
+  },
+  "source_custody": {
+    "bindings": 923,
+    "previous": 918,
+    "new": 5,
+    "historical_order_and_metadata_preserved": true,
+    "original_verifier_and_five_test_heads": "BYTE_UNCHANGED",
+    "runners": "literalpinmaps only; executablelogicunchanged"
+  },
+  "ci_backlog": {
+    "current_head_preserved_during_cancellations": "cfdb32d9aa40fe9ef3c234eef0c7af0a4d4ad0e5",
+    "superseded_runs_cancel_requests_accepted": 39,
+    "readback_confirmed_cancelled": 33,
+    "readback_pending": 6,
+    "qualification": "Only alljobsqueued/unassignedrunner0/no steps atfinalprerequestread; runswithstarted/completedworkexcluded. Existingresultsretained; no currentheadguardbypass."
+  },
+  "evidence": {
+    "path": "docs/internal/cloud-reviewer-token-publisher-evidence-2026-10-17.tar.gz",
+    "sha256": "8a78c3e24d259b9e7f82897a1eaba17abec58c91f95efa7f68b177d2bd187135",
+    "bytes": 306736,
+    "members": 53,
+    "status": "ALL_MEMBER_BYTES_VERIFIED; SHA256+bytes manifest coverspayload; checkpoint and compiledbinaryexcluded, binaryhash retained in actualCLIreceipt"
+  },
+  "ledger": {
+    "total": 728,
+    "unique_ids": 728,
+    "production_available_recorded": 509,
+    "component_only": 158,
+    "blocked_external": 61,
+    "remaining_recorded_nonproduction": 219,
+    "promotions": 0,
+    "all_original_require_fresh_deployed_acceptance": true
+  },
+  "launch_ready": false,
+  "merge_release_cleared": false,
+  "task_closed": false,
+  "obsolete_retired": false,
+  "next": "Ship independently reviewed publisher batch; integrate protected directory/image/sidecar provisioning once release rendering available. Continue strict authenticated routing/nativepublication-lock catalog successor and every original deployed requirement."
+}

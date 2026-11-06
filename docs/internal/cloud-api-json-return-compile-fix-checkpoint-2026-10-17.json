@@ -1,0 +1,43 @@
+{
+  "classification": "API_JSON_RETURN_TYPE_SOURCE_REPAIR_REVIEWED_HOSTED_COMPILE_PENDING",
+  "observed_at": "2026-10-17T23:29:53.586483+00:00",
+  "source_parent": "ccbaa28ede1e07fac9d5dc47858ed337b2766c94",
+  "change": "Fix two invalid struct return values in json.RawMessage-returning ActivateCurrentTemporalTestDefinition error paths. Keep errors, capability predicates and successful forwarding unchanged.",
+  "trigger": "Actual hosted compile check117519061424 at27b5c93d annotations: incompatible return types at lines1007 and1013.",
+  "verification": {
+    "source_guards": "21 PASS actual final source",
+    "custody": "925 bindings verified; no new binding; only API and two literal runner pins refreshed",
+    "gofmt": "PASS empty diff",
+    "git_diff_check": "PASS",
+    "independent_review": {
+      "classification": "CLEAR_SOURCE_REVIEW_ONLY",
+      "reviewer": "/root/gateway_backend",
+      "before_sha256": "6ebadde201a3b2ac9a3888710017e9fed097fc0e06e93787231646439aaf4881",
+      "final_sha256": "c7f3bd59a3dff305450249f406cd0b8f16fdf161dea7f4e9ac1e7083ac670950",
+      "finding": "Exactly two invalid RuntimeDependencies{} return values changed to nil; errors and predicates remain fail closed; successful context/variadic argument forwarding unchanged. Frozen hashes match.",
+      "limits": "Independent source review; no compiler/test/native execution by reviewer; fresh compilation unverified."
+    },
+    "local_compile": "SETUP FAILED missing OPA1.17.0 with readonly GOPROXY=off; no compile or behavioral PASS",
+    "fresh_hosted_compile": "PENDING"
+  },
+  "evidence": {
+    "path": "docs/internal/cloud-api-json-return-compile-fix-evidence-2026-10-17.tar.gz",
+    "sha256": "dd07cb8a6edea33f19e97682cbaafc0add99ee716cc87767ae4ce0b5484c74df",
+    "bytes": 247111,
+    "members": 13,
+    "verification": "Every archived member byte-verified; payload SHA256/byte manifest included; checkpoint excluded to avoid self-reference."
+  },
+  "ledger": {
+    "total": 728,
+    "production_available_recorded": 509,
+    "component_only": 158,
+    "blocked_external": 61,
+    "promotions": 0
+  },
+  "production_available": false,
+  "launch_ready": false,
+  "merge_release_cleared": false,
+  "task_closed": false,
+  "obsolete_retired": false,
+  "remaining": "Fresh hosted compile and guarded checks; deployed Stytch/API-worker/Temporal/OpenFGA/provider acceptance; Neon TCP grants, native catalog/runtime admission, dependency/Helm availability. PR description writes denied403; no bypass."
+}

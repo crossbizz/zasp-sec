@@ -1,0 +1,33 @@
+{
+  "schema": "independent-dependency-process-cleanup-ci-parser-successor-source-review-v1",
+  "status": "CLEAR",
+  "source": {
+    "path": ".github/workflows/dependency-process-cleanup-components.yml",
+    "bytes": 8820,
+    "sha256": "638d547c4a022f32448d85559dd78e66b8dad56e046c33457948700c7070cff8"
+  },
+  "author_packet": {
+    "path": "/tmp/dependency-process-cleanup-ci-parser-successor-20261017.json",
+    "sha256": "7d1b87561a177bee995c412f8f6b57d8dfc0b9d9416b4ae326ef5c6c2b8de5c0"
+  },
+  "predecessor_source_sha256": "1084ad8e0aa34cd69849e11a824df72da120561365b56261688c834a211e5d78",
+  "original_review_preserved": "/tmp/dependency-process-cleanup-ci-review-20261017.json",
+  "delta": [
+    "--- \n",
+    "+++ \n",
+    "@@ -89,3 +89,3 @@\n",
+    "           assert {name for _, name in passes} == expected, passes",
+    "-          assert not re.search(r'^not ok\\b|^Bail out!|#\\s*(?:SKIP|TODO)\\b', output, flags=re.M | re.I)",
+    "+          assert not re.search(r'^not ok\\b|^Bail out!|^(?:ok|not ok) [1-9][0-9]*[^\\n]*#\\s*(?:SKIP|TODO)\\b', output, flags=re.M | re.I)",
+    "           assert re.findall(r'^1\\.\\.([0-9]+)$', output, flags=re.M) == ['9']"
+  ],
+  "checks": [
+    "Exact frozen successor bytes/hash and preimage hash matched; only one regex line changed.",
+    "SKIP/TODO directive rejection now requires a numbered TAP result line, so valid standalone summary # todo 0 is not confused with a directive. Case-insensitive not-ok/Bailout refusals remain.",
+    "Exact nine test names, unique pass indices, one plan9, complete summaries including skipped/todo/cancelled/fail zero, actual command exit status and inventory-success check remain byte-identical.",
+    "Three real Python groups and full source custody before/always-after checks unchanged.",
+    "Actual first CI parser failure evidence is retained in author packet; original source/review not rewritten or reclassified."
+  ],
+  "findings": [],
+  "verification": "Source-only inspection and file I/O/hash/diff only. No subprocess/test/Go/Node/Git/network execution. Root must refresh custody and run corrected exact workflow body; no actual pass claimed by review."
+}

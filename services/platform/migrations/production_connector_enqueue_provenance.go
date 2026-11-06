@@ -17,6 +17,24 @@ const ConnectorEnqueueProvenanceProfileName = "canonical61-authorization80-conne
 var connectorEnqueueProvenanceSQL string
 
 func connectorEnqueueProvenanceSource() (string, string, error) {
+	return connectorEnqueueProvenanceSourceWithEnforcement(newEnforcementChecksumAssembly())
+}
+
+// One source assembly may bind the same compiled enforcement identity through
+// several nested profiles. Reuse only that invocation's immutable checksum;
+// a new invocation rereads source and no live catalog or authority is retained.
+// Laziness preserves predecessor validation before enforcement compilation.
+func newEnforcementChecksumAssembly() func() string {
+	var checksum string
+	return func() string {
+		if checksum == "" {
+			checksum = ProductionAuthorizationEnforcement().Checksum()
+		}
+		return checksum
+	}
+}
+
+func connectorEnqueueProvenanceSourceWithEnforcement(enforcement func() string) (string, string, error) {
 	// prosrc preserves this unchanged original dollar-quoted function body.
 	// Refuse source drift instead of learning a trusted pin from a live database.
 	pattern := regexp.MustCompile(`(?s)CREATE FUNCTION "public"\."zasp_connector_stage_pkce_cleanup"\([^;]*?LANGUAGE plpgsql AS \$\$(.*?)\$\$;`)
@@ -25,7 +43,7 @@ func connectorEnqueueProvenanceSource() (string, string, error) {
 		return "", "", ErrInvalidState
 	}
 	predecessor := sha256.Sum256([]byte(matched[0][1]))
-	source := strings.NewReplacer("-- authorization80 checksum", ProductionAuthorizationEnforcement().Checksum(), "-- pkce predecessor source digest", hex.EncodeToString(predecessor[:])).Replace(connectorEnqueueProvenanceSQL)
+	source := strings.NewReplacer("-- authorization80 checksum", enforcement(), "-- pkce predecessor source digest", hex.EncodeToString(predecessor[:])).Replace(connectorEnqueueProvenanceSQL)
 	h := sha256.Sum256([]byte(source))
 	pin := hex.EncodeToString(h[:])
 	return strings.ReplaceAll(source, "-- connector provenance checksum", pin), pin, nil

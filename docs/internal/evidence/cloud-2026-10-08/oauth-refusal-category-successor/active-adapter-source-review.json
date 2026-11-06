@@ -1,0 +1,38 @@
+{
+  "scope": "Independent source-only enqueue/callback/freshcleanup audit at8d0f7f1fd3f66f7cc4e1c012c37105de8167c455; no source/tests/Git/runtime changes",
+  "findings": [],
+  "inspected": [
+    "services/platform/apiserver/connector_maintenance_callback_database.go",
+    "services/platform/apiserver/connector_maintenance_callback_resolver.go",
+    "services/platform/apiserver/connector_maintenance_enqueue_database.go",
+    "services/platform/apiserver/connector_maintenance_repository.go",
+    "services/platform/apiserver/connector_handler.go",
+    "services/platform/apiserver/connector_reconciler.go",
+    "services/platform/agentsec-api/production_runtime.go",
+    "services/platform/connectormaintenance/authority.go",
+    "services/platform/connectormaintenance/executor.go",
+    "services/platform/migrations/sql/connector_maintenance_profile.sql",
+    "services/platform/apiserver/authorization_targets_postgres.go"
+  ],
+  "observations": [
+    "Callbacktarget resolves exactorg/workspace/environment/principal/sessionID/digest/state pendingattempt and genuineauthorize task/effect provenance, then original currentresolver/FGA checks integration candidate. No tenant target or permission manufactured by resolver.",
+    "Selected adapter admits only exact compiledactivecatalog and registeredAPI/browsercallback context. consume_callback repeats originalsigned scope/credential/revision fence and liveintegrationpermission; deterministic effectlocks validate realowned origin before originalconsume. Capturedcallback permit is private, random32bytes, proofhash/principal/session/attempt bound and boundedby originalattempt/proof/max60s deadline.",
+    "Secret/provider preparation forwards through repository/tracedwrapper into nativecallback dispatcher. Nativephasegrammar requires consumed->secret->secret_settled->provider->completed->cleanup->settled. Beforeprovider requires completedPKCEcleanup and replays originalliveproof/fence. Capturedpostcompletioncleanup does not renewforwardauthority.",
+    "Settlementscope/argumentcounts/effectIDs/attemptIDs and actualsession/proof/token/lease/contextdigests rechecked in nativeSQL. Originalunleasedeffects receive onlyexactvalidatedcallbacklease temporarilyclearedunderlocks, then remainingauthentic effects rebound. Wrongtokens, expiredlease, unknownorigin, scope drift or invalidphase refuse.",
+    "CallbackGo privatepermit uses immutablegrantproofhash and validates attempt/effect/principal before preparations. Sameownedtransactiondriver commitsboundedvalidJSON; nooriginalQueryJSON fallback for required callbackcapability.",
+    "FreshprepareCompensation admits only exactprivatereservation of genuineunattemptedauthorizework through existing dualgrantor+service/task authority and nativeBeginProviderAttempt. Updatedattempt and actualcapturedreceipt retained before discard/terminalsettlement. Existingattemptedwork uses unchangedcapturedonlycompensation; nofreshpermission required for originalexactattemptcompensation.",
+    "Noadditionalconcretepermission/integration/tenant/side-effect defect established by thissourcepass. This does not demonstrate activecallback/worker behavior or provider success."
+  ],
+  "requiredMeaningfulAcceptance": [
+    "Nativeactive callback phases with realregisteredAPI+genuineenqueue, secret/provider access, successcleanup and durableproviderfailure recovery.",
+    "Nativefreshintent-change cleanup admission, deniedbeforeeffect, capturedcompensation afterrevocation, ambiguouscommit and originalfiniteattemptbudget.",
+    "Actualcontrolledcutover and composedReconcile/Stage/FGAReplace/Ack with revisionconflicts, plus separatelycompletefleet/restartretirement beforeproductionselection."
+  ],
+  "declinedToJudge": [
+    "PendinghostedOAutherrorcause/results",
+    "Rawlogs/artifacts",
+    "Nativeactivecallback/cleanup/lifecycle acceptance",
+    "Realprovider/fullfleet/restart/deployed/production/release/ledgerclearance"
+  ],
+  "verdict": "Noadditionalsourceblockeridentified. Continueboundednativeverification; sourceaudit does not authorize activeproduction ornormalPR60merge."
+}

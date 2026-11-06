@@ -358,6 +358,47 @@ func TestInstallationCollectionAPIReadinessUsesFixedEndpointOnce(t *testing.T) {
 	}
 }
 
+func TestInstallationCollectionAPIReadinessBoundsPublicMetadata(t *testing.T) {
+	t.Parallel()
+	// Public /meta includes growing action CIDR lists; false is a valid value.
+	large := `{"verifiable_password_authentication":false,"actions":[` + strings.Repeat(`"192.0.2.0/24",`, 12000) + `"2001:db8::/32"]}`
+	const limit = 1024 * 1024
+	prefix, suffix := `{"verifiable_password_authentication":false,"padding":"`, `"}`
+	boundary := prefix + strings.Repeat("x", limit-len(prefix)-len(suffix)) + suffix
+	for _, test := range []struct {
+		name     string
+		response installationHTTPResponse
+		accepted bool
+	}{
+		{"large CIDR metadata", installationHTTPResponse{status: http.StatusOK, body: large}, true},
+		{"exact metadata bound", installationHTTPResponse{status: http.StatusOK, body: boundary}, true},
+		{"over metadata bound", installationHTTPResponse{status: http.StatusOK, body: boundary + " "}, false},
+		{"missing boolean", installationHTTPResponse{status: http.StatusOK, body: `{}`}, false},
+		{"null boolean", installationHTTPResponse{status: http.StatusOK, body: `{"verifiable_password_authentication":null}`}, false},
+		{"wrong boolean type", installationHTTPResponse{status: http.StatusOK, body: `{"verifiable_password_authentication":"false"}`}, false},
+		{"malformed", installationHTTPResponse{status: http.StatusOK, body: `{`}, false},
+		{"trailing JSON", installationHTTPResponse{status: http.StatusOK, body: large + `{}`}, false},
+		{"denied without retry", installationHTTPResponse{status: http.StatusForbidden, body: large}, false},
+		{"rate limited without retry", installationHTTPResponse{status: http.StatusTooManyRequests, header: http.Header{"Retry-After": []string{"4"}}, body: large}, false},
+		{"redirect refused", installationHTTPResponse{status: http.StatusFound, header: http.Header{"Location": []string{"https://other.example/meta"}}, body: large}, false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			roundTripper := &installationRoundTripper{responses: []installationHTTPResponse{test.response}}
+			api, err := newInstallationCollectionAPI(roundTripper, time.Second)
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = api.CheckCollectionReadiness(context.Background())
+			if test.accepted && err != nil || !test.accepted && !errors.Is(err, ErrProvider) {
+				t.Fatalf("readiness accepted=%t error=%v", test.accepted, err)
+			}
+			if len(roundTripper.requests) != 1 || roundTripper.requests[0].Method != http.MethodGet || roundTripper.requests[0].URL.String() != "https://api.github.com/meta" || roundTripper.requests[0].Header.Get("Authorization") != "" {
+				t.Fatal("readiness changed fixed unauthenticated request or retried")
+			}
+		})
+	}
+}
+
 func mustGitHubCollectionPage(t *testing.T, page CollectionPage) CollectionPage {
 	t.Helper()
 	canonical, err := NewCollectionPage(page.Subject, page.Cursor, page.Complete, page.Entities, page.Relationships)

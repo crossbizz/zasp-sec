@@ -1,0 +1,39 @@
+{
+  "base": "a600ef62e4ad96f18648ad5ee8fcf1ed3b177a00",
+  "compatibility": "Supplementary SQL source/checksum/fingerprint honestly changes. Existing installer validates exact computed source and does not rewrite an existing older or mismatched maintenance catalog. Candidate remains inactive. No migration/retirement equivalence asserted.",
+  "documentation_assessment": "README explicitly preserves prior failures, unchanged60s proof lifetime and all guards, unmeasured cost/unproven cause, inactive successor and refusal of old catalogs.",
+  "evidence": {
+    "binding_mismatches": [],
+    "compile_sources_verified": 32,
+    "maintenance_sql_bytes": 109768,
+    "maintenance_sql_sha256": "784eea71792698d2c278197cb9defd7f66cb998a5f5870a53469ab33d7187ea3",
+    "manifest_sha256": "364ada857d54ce83d678e00eb3d61d55c6a036d22cc1f7ebc9170432079ece05",
+    "members_verified": 32,
+    "original_provenance_sql_sha256": "32b3f8cbe175b5256ff4542cdff044d6d060e0240d24632bf3d057f3553a5c13",
+    "runner_candidate_pins_verified": 32,
+    "tracked_diff_paths": [
+      ".github/connector-native-compile-source-pins.json",
+      "scripts/hosted-connector-authenticated-enqueue.mjs",
+      "services/platform/migrations/sql/connector_maintenance_profile.sql"
+    ]
+  },
+  "findings": [],
+  "limits": [
+    "Observed42501 root cause and effect of repeated readiness on60s TTL remain unproven; actual timings and successor outcomes pending.",
+    "No tests/compiler/runtime executed.",
+    "No raw artifact/log/receipt inspection;403 limitation preserved.",
+    "No native callback/cleanup/provider/fleet/restart/Reconcile/Stage/Ack, deployment, launch, release or full728 acceptance."
+  ],
+  "logic_equivalence": {
+    "assessment": "Only redundant direct authorization80.ready conjunct removed. Retained pinned provenance.catalog_matches already requires identical original80 checksum at connector_enqueue_provenance.sql46. Both original canonical/provenance source and checksum interpolation remain unchanged. No fence replaced by sealed context. Maintenance registration/fingerprint checks and all actual tenant/purpose/identity/source/witness checks retained.",
+    "file": "services/platform/migrations/sql/connector_maintenance_profile.sql",
+    "line": 99
+  },
+  "reviewed_documents": [
+    "docs/internal/evidence/cloud-2026-10-08/connector-readiness-evaluation-successor/README.md",
+    "docs/internal/evidence/cloud-2026-10-08/connector-readiness-evaluation-successor/SOURCE-MANIFEST.json"
+  ],
+  "schema": "finite-independent-code-review-v1",
+  "scope": "Exact uncommitted narrow supplementary readiness successor; read-only source and bindings review.",
+  "verdict": "SAFE_TO_PUSH_FOR_EXISTING_HOSTED_VERIFICATION_ONLY"
+}

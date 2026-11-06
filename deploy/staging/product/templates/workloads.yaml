@@ -1,3 +1,14 @@
+{{- include "zasp.agentDeviceAssociation.validate" . }}
+{{- include "zasp.gatewayBootstrap.validate" . }}
+{{- include "zasp.gatewayInstallation.validate" . }}
+{{- include "zasp.sensorNodeCoverage.validate" . }}
+{{- include "zasp.agentOwnershipWrite.validate" . }}
+{{- include "zasp.agentExposureFilter.validate" . }}
+{{- include "zasp.agentRead.validate" . }}
+{{- include "zasp.environmentClass.validate" . }}
+{{- include "zasp.agentOwnerFilter.validate" . }}
+{{- include "zasp.optionalEgress.validate" . }}
+{{- include "zasp.retention.validate" . }}
 {{- if ne .Values.profile "customer_edge" }}
 {{- $root := . -}}
 {{- $workloads := list
@@ -37,6 +48,10 @@ spec:
       topologySpreadConstraints:
         - { maxSkew: 1, topologyKey: topology.kubernetes.io/zone, whenUnsatisfiable: DoNotSchedule, labelSelector: { matchLabels: { app.kubernetes.io/name: {{ .name }} } } }
         - { maxSkew: 1, topologyKey: kubernetes.io/hostname, whenUnsatisfiable: ScheduleAnyway, labelSelector: { matchLabels: { app.kubernetes.io/name: {{ .name }} } } }
+      {{- if and (eq .name "agentsec-api") $root.Values.authorizationTemporal.maintenance }}
+      initContainers:
+        {{- include "zasp.maintenanceRuntime.init" $root | nindent 8 }}
+      {{- end }}
       containers:
         - name: {{ .name }}
           image: {{ required (printf "global.productImages.%s must be an immutable digest" .imageKey) (index $root.Values.global.productImages .imageKey) | quote }}
@@ -65,6 +80,19 @@ spec:
             - { name: ZASP_PUBLIC_ORIGIN, value: {{ required "global.publicOrigin is required" $root.Values.global.publicOrigin | quote }} }
             {{- if eq .name "agentsec-api" }}
             {{- include "zasp.runtimeServices.env" $root | nindent 12 }}
+            {{- include "zasp.maintenanceRuntime.pins" $root | nindent 12 }}
+            {{- include "zasp.maintenanceRuntime.apiEnv" $root | nindent 12 }}
+            {{- include "zasp.optionalEgress.env" $root | nindent 12 }}
+            {{- include "zasp.optionalEgress.apiEnv" $root | nindent 12 }}
+            {{- include "zasp.environmentClass.env" $root | nindent 12 }}
+            {{- include "zasp.agentOwnerFilter.env" $root | nindent 12 }}
+            {{- include "zasp.agentRead.env" $root | nindent 12 }}
+            {{- include "zasp.sensorNodeCoverage.env" $root | nindent 12 }}
+            {{- include "zasp.gatewayBootstrap.apiEnv" $root | nindent 12 }}
+            {{- include "zasp.agentDeviceAssociation.apiEnv" $root | nindent 12 }}
+            {{- include "zasp.agentOwnershipWrite.env" $root | nindent 12 }}
+            {{- include "zasp.agentExposureFilter.env" $root | nindent 12 }}
+            {{- include "zasp.retention.pin" $root | nindent 12 }}
             - { name: ZASP_PRODUCT_LISTEN_ADDRESS, value: ":8080" }
             - { name: ZASP_INTERNAL_LISTEN_ADDRESS, value: ":8081" }
             - { name: ZASP_COOKIE_SECURE, value: "true" }
@@ -138,6 +166,7 @@ spec:
               exec /app/agentsec-api
           volumeMounts:
             {{- include "zasp.runtimeServices.mount" $root | nindent 12 }}
+            {{- include "zasp.maintenanceRuntime.mount" $root | nindent 12 }}
             - { name: runtime-secrets, mountPath: /var/run/secrets/zasp, readOnly: true }
             - { name: connector-web-identity, mountPath: /var/run/secrets/eks.amazonaws.com/serviceaccount, readOnly: true }
             - { name: nango-service-key, mountPath: /var/run/secrets/zasp-nango, readOnly: true }
@@ -145,6 +174,7 @@ spec:
       {{- if eq .name "agentsec-api" }}
       volumes:
         {{- include "zasp.runtimeServices.volume" $root | nindent 8 }}
+        {{- include "zasp.maintenanceRuntime.volumes" $root | nindent 8 }}
         - name: runtime-secrets
           csi:
             driver: secrets-store.csi.k8s.io
@@ -289,9 +319,11 @@ spec:
           securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
           env:
             - { name: ZASP_WORKER_MODE, value: "security-agent" }
+            {{- include "zasp.optionalEgress.env" . | nindent 12 }}
             {{- if .Values.authorizationTemporal.profile }}
             - { name: ZASP_ENVIRONMENT, value: {{ .Values.global.environment | quote }} }
             {{- include "zasp.runtimeServices.env" . | nindent 12 }}
+            {{- include "zasp.maintenanceRuntime.pins" . | nindent 12 }}
             {{- include "zasp.workerKeys.env" . | nindent 12 }}
             - name: ZASP_TEMPORAL_EXECUTOR_POSTGRES_DSN
               valueFrom: { secretKeyRef: { name: {{ .Values.authorizationTemporal.executorDSNSecret | quote }}, key: postgres-dsn } }

@@ -103,7 +103,7 @@ export function decodeInventorySummary(value: unknown): InventorySummary {
   const required = ["id", "name", "kind", "owner", "team", "tags", "evidence_id", "confidence_basis_points", "first_seen", "last_seen", "observed_at", "fresh_until", "freshness_state", "version"];
   const record = exactRecord(value, required);
   productID(record.id); boundedString(record.name, 1, 256); enumValue(record.kind, ["asset", "agent", "tool", "identity", "runtime"]);
-  boundedString(record.owner, 0, 128); boundedString(record.team, 0, 128); stringArray(record.tags, 32, 64); productID(record.evidence_id); boundedInteger(record.confidence_basis_points, 1, 10000); positiveInteger(record.version);
+  agentOwnerReadLabel(record.owner); boundedString(record.team, 0, 128); stringArray(record.tags, 32, 64); productID(record.evidence_id); boundedInteger(record.confidence_basis_points, 1, 10000); positiveInteger(record.version);
   for (const key of ["first_seen", "last_seen", "observed_at", "fresh_until"] as const) dateTime(record[key]);
   if (Date.parse(record.last_seen as string) < Date.parse(record.first_seen as string) || Date.parse(record.fresh_until as string) <= Date.parse(record.observed_at as string)) fail();
   enumValue(record.freshness_state, ["fresh", "stale"]);
@@ -1269,3 +1269,13 @@ function optionalCursor(value: unknown): void { if (value === undefined) return;
 function stringRecord(value: unknown, maximum: number, minimum = 0, minimumValueLength = 0): void { if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).length < minimum || Object.keys(value).length > maximum || Object.entries(value).some(([key, item]) => key.length < 1 || key.length > 128 || typeof item !== "string" || item.length < minimumValueLength || item.length > 2048)) fail(); }
 function enumValue(value: unknown, allowed: readonly string[]): void { if (typeof value !== "string" || !allowed.includes(value)) fail(); }
 function fail(): never { throw new Error("schema mismatch"); }
+
+// Read persisted labels literally; write controls retain their canonical domain.
+function agentOwnerReadLabel(value: unknown): void {
+  if (typeof value !== "string" || new TextEncoder().encode(value).length > 512) fail();
+  let scalars = 0;
+  for (const scalar of value as string) {
+    const code = scalar.codePointAt(0)!;
+    if (++scalars > 128 || code < 0x20 || code === 0x7f || (code >= 0xd800 && code <= 0xdfff)) fail();
+  }
+}

@@ -1,0 +1,204 @@
+{
+  "observed_at": "2026-10-17T11:11:53.508102+00:00",
+  "continued_published_base": "676d2ea15c817890626cb7789a19256557982d1f",
+  "main_observed": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
+  "scope": "Fixed four existing maintenance installer/CLI NOINHERIT operator composition paths. Fixed authority-only readiness window captures/restores exact server role GUC and effective identity before original-owner namespace or REFERENCES operations. Shared helper protects both readiness reads. Four actual CLI confirmations use existing ReadCommitted bounded authority transaction. Canonical SQL, checksums, ACLs and activation behavior unchanged.",
+  "task_mapping": [
+    "M8-41"
+  ],
+  "sources": [
+    {
+      "path": ".github/connector-native-compile-source-pins.json",
+      "bytes": 141652,
+      "sha256": "d8a5f57bb449de7fd63fd311498113ba775e737a88a3ffc2ddef590b1ccc3010"
+    },
+    {
+      "path": ".github/workflows/connector-connected-lifecycle.yml",
+      "bytes": 4322,
+      "sha256": "18ed9beb9ba8e5f367cd659202cb2b3f9cd53d5c2ec1badd42aad1f05000601f"
+    },
+    {
+      "path": ".github/workflows/connector-native-draft-compile.yml",
+      "bytes": 37578,
+      "sha256": "0c381140d2c694983d68d192130d78dd72be22165de81c48100c47d8adc36338"
+    },
+    {
+      "path": "scripts/connector-acceptance-groups.mjs",
+      "bytes": 15754,
+      "sha256": "b82363c15c436677c429bb8d68c3889a5c94c6325241b34bdc94890e231185b4"
+    },
+    {
+      "path": "scripts/connector-acceptance-groups.test.mjs",
+      "bytes": 46196,
+      "sha256": "911babee2f0a65b5494e18a26e2717cc47dc9fdd0b9ecf38ec0378697d4061e7"
+    },
+    {
+      "path": "scripts/hosted-connected-connector-acceptance.mjs",
+      "bytes": 94503,
+      "sha256": "417f064f2fcb0532287526b6e5362d32e8ef12acde880cf701d7e41d81a125f7"
+    },
+    {
+      "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
+      "bytes": 90904,
+      "sha256": "9ef37c76ac78eddd2851f1d32fcfb2a17690774c478755e2bc03c47c94506bb4"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/forward_release_confirmation.go",
+      "bytes": 1372,
+      "sha256": "35e7b8a54517dd69ad251988fb67fe78e11670df40b892e840098faa90ccc039"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/main.go",
+      "bytes": 77696,
+      "sha256": "7b2fd908f091b06ea83b23e66d58dd688188741af8cb0abe8f8ccb423dbd7748"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/maintenance_confirmation_role_test.go",
+      "bytes": 3147,
+      "sha256": "efea4551621dbd95e91f08eb93fbeddd6a45c8ec6ebd36160b22881e41cfbccf"
+    },
+    {
+      "path": "services/platform/apiserver/maintenance_operator_noinherit_postgres_test.go",
+      "bytes": 11716,
+      "sha256": "6184ff4e860185928eba4676f65c26f3af9b005221e981eb8d43a4d22f28b62d"
+    },
+    {
+      "path": "services/platform/migrations/maintenance_operator_role.go",
+      "bytes": 1538,
+      "sha256": "6d3e84f0e562859447d0360ede57102f1530ee24bde2d7910da8f9760721b7b6"
+    },
+    {
+      "path": "services/platform/migrations/maintenance_operator_role_test.go",
+      "bytes": 6303,
+      "sha256": "73c1c2ba61c1a809d1a15353ba21caa2265c690f6bea0bedf56d0836aeaf25cf"
+    },
+    {
+      "path": "services/platform/migrations/production_approval_activation_profile.go",
+      "bytes": 4987,
+      "sha256": "59258627c773930e04ed0900d48f426c43b4eb7f02b01038bb95edec7f375655"
+    },
+    {
+      "path": "services/platform/migrations/production_approval_activation_profile_test.go",
+      "bytes": 3905,
+      "sha256": "addb1bd0b837d02da580feeb57b3d1e9fe4abca61f067060cee59e6963cc73ab"
+    },
+    {
+      "path": "services/platform/migrations/production_approval_maintenance_successor.go",
+      "bytes": 3128,
+      "sha256": "c85660359da7ceaacbfa79cd8e340d925a16e3a30f5079413d1df5c3157f2eff"
+    },
+    {
+      "path": "services/platform/migrations/production_approval_settlement_audit_profile.go",
+      "bytes": 4484,
+      "sha256": "fca2423fff6ff7ee69c1da77f071bb4763274231f9cd35892d25f2a826790db8"
+    },
+    {
+      "path": "services/platform/migrations/production_approval_settlement_audit_profile_test.go",
+      "bytes": 4176,
+      "sha256": "ef81acd66daa1c583282e503edbb2e6adaf0dcf71947578a9ca4820e2d75c48d"
+    },
+    {
+      "path": "services/platform/migrations/production_connector_maintenance.go",
+      "bytes": 6191,
+      "sha256": "24da5db8cb7299fd0109793cf76c47a3a17e241ed3ed0c31bacb9a8d54e34815"
+    }
+  ],
+  "verification": {
+    "migrations": {
+      "command": "go test -C services/platform -race -p=1 -count=1 -json -run '^Test(Maintenance|ApprovalActivationInstallerTransactions|ApprovalSettlementAudit)' ./migrations",
+      "exit": 0,
+      "named_pass": 30,
+      "named_fail": 0,
+      "named_skip": 0,
+      "package_pass": 1,
+      "elapsed_seconds": 36.089
+    },
+    "tests_first": {
+      "exit": 1,
+      "named_fail": 12,
+      "named_pass": 3,
+      "classification": "GENUINE_BEHAVIORAL_RED_role_aware_application_double_not_native"
+    },
+    "CLI": {
+      "exit": 1,
+      "named_cases": 0,
+      "classification": "SETUP_BLOCKED_missing_OPA1.17.0_GOPROXYoff_no_compilation_pass"
+    },
+    "UI": {
+      "typecheck_exit": 0,
+      "build_exit": 0
+    },
+    "source_ledger_deployment": {
+      "exit": 0,
+      "pass": 57,
+      "fail": 0,
+      "skip": 0
+    },
+    "workflow_yaml_and_embedded_python": "PARSE_PASS",
+    "native": "UNEXECUTED_18new_namedcases_2ownedPGjoins_no_local_service_start",
+    "published676_metadata": "compile_failure_at_compile_step_and_class_components_failure_cause_UNKNOWN_bootstrap_success"
+  },
+  "independent_source_review": {
+    "product": "CLEAR_SOURCE_ONLY",
+    "product_receipt_sha256": "a020df3d113aa6b50f722705f16c20db67bdd5b19e3497d664ad1a707a142c6e",
+    "native_and_intake": "CLEAR_SOURCE_ONLY",
+    "native_and_intake_receipt_sha256": "b8c34434cc422744228ec0eeb731fa4ab4dd0505c2a1b355583a565f76191545"
+  },
+  "source_bindings": {
+    "before": 470,
+    "after": 475,
+    "all_predecessor_paths_retained": true,
+    "all_exact": true
+  },
+  "acceptance": {
+    "original_connector": {
+      "groups": 14,
+      "named_cases": 79,
+      "owned_postgres_joins": 24,
+      "approval_controls": 16,
+      "unchanged": true
+    },
+    "environment_class": {
+      "groups": 3,
+      "named_cases": 37,
+      "owned_postgres_joins": 4,
+      "unchanged": true
+    },
+    "new_maintenance_operator": {
+      "groups": 2,
+      "named_cases": 18,
+      "owned_postgres_joins": 2,
+      "execution": "UNEXECUTED"
+    },
+    "new_hosted_component_job": {
+      "migrations_exact_named_cases": 30,
+      "CLI_exact_named_cases": 21,
+      "forbids_skip_fail_unknown_missing_duplicate": true,
+      "execution": "PENDING_NEW_HEAD"
+    }
+  },
+  "ledger": {
+    "rows": 728,
+    "classes": {
+      "production-available": 523,
+      "component-only": 144,
+      "blocked/external": 61
+    },
+    "ledger_status": {
+      "Complete": 667,
+      "Blocked": 61
+    },
+    "promotions": 0,
+    "sha256": "5984cdef8b092006e104debffbc91402f009bec954674420a426b2428950806a",
+    "evidence_append_only_ids": [
+      "M8-41"
+    ]
+  },
+  "archive": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/maintenance-operator-role/component-evidence.json.gz",
+    "bytes": 355700,
+    "sha256": "f853eff63d5de633fb4541397cef7be23ab6e2d2d80681f60394c2ebf0377637",
+    "members": 69
+  },
+  "remaining": "Native18, actual CLI compilation/confirmation, exact-head mandatory CI and release guards, all728 deployed requirement acceptance with real Stytch/provider integrations, and equivalent obsolete retirement remain required. Current CI failures have unknown causes from allowed metadata. No merge, production activation or launch-readiness claim."
+}

@@ -39,3 +39,9 @@ tetragon:
       enabled: true
   crds:
     installMethod: helm
+
+# Explicit selection supplied by the same protected customer-edge release input.
+coverageObserver:
+  enabled: false
+  namespace: ""
+  serviceAccount: ""

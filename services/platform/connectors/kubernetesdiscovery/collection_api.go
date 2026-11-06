@@ -40,16 +40,18 @@ var (
 )
 
 type KubernetesCollectionAPIConfig struct {
-	Endpoint    string
-	CABundlePEM []byte
-	Timeout     time.Duration
+	Endpoint      string
+	CABundlePEM   []byte
+	Timeout       time.Duration
+	NodePlacement bool
 }
 
 type KubernetesCollectionAPI struct {
-	endpoint string
-	host     string
-	client   *http.Client
-	timeout  time.Duration
+	nodePlacement bool
+	endpoint      string
+	host          string
+	client        *http.Client
+	timeout       time.Duration
 }
 
 var _ CollectionAPI = (*KubernetesCollectionAPI)(nil)
@@ -68,7 +70,11 @@ func NewKubernetesCollectionAPI(config KubernetesCollectionAPIConfig) (*Kubernet
 		Proxy: nil, DialContext: dialer.DialContext, ForceAttemptHTTP2: true, DisableKeepAlives: true,
 		TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12, RootCAs: roots, ServerName: parsed.Hostname()}, TLSHandshakeTimeout: config.Timeout, ResponseHeaderTimeout: config.Timeout, MaxResponseHeaderBytes: 64 * 1024,
 	}
-	return newKubernetesCollectionAPI(config.Endpoint, transport, config.Timeout)
+	api, err := newKubernetesCollectionAPI(config.Endpoint, transport, config.Timeout)
+	if err == nil {
+		api.nodePlacement = config.NodePlacement
+	}
+	return api, err
 }
 
 func newKubernetesCollectionAPI(endpoint string, roundTripper http.RoundTripper, timeout time.Duration) (*KubernetesCollectionAPI, error) {
@@ -80,6 +86,12 @@ func newKubernetesCollectionAPI(endpoint string, roundTripper http.RoundTripper,
 }
 
 func (api *KubernetesCollectionAPI) FetchCollectionPage(ctx context.Context, credential []byte, request CollectionPageRequest) (CollectionPage, error) {
+	if api != nil && api.nodePlacement && request.Cursor.Value != "" && request.Cursor.Value != "initial" {
+		if !strings.HasPrefix(request.Cursor.Value, "kubernetes-placement-v2:") {
+			return CollectionPage{}, ErrInvalid
+		}
+		request.Cursor.Value = strings.Replace(request.Cursor.Value, "kubernetes-placement-v2:", "kubernetes:", 1)
+	}
 	phase, continuation, lineagePage, includeCluster, ok := api.validPageRequest(request)
 	if ctx != nil && ctx.Err() != nil {
 		return CollectionPage{}, providercollection.ClassifyProviderError(ctx, ctx.Err())
@@ -119,6 +131,7 @@ func (api *KubernetesCollectionAPI) FetchCollectionPage(ctx context.Context, cre
 	bounded, cancel := context.WithTimeout(ctx, api.timeout)
 	defer cancel()
 	providerRequest = providerRequest.WithContext(bounded)
+	providerObservedAt := time.Now().UTC()
 	response, err := doKubernetesCollectionRequest(api.client, providerRequest)
 	if err != nil || bounded.Err() != nil || response == nil {
 		closeKubernetesResponse(response)
@@ -159,6 +172,15 @@ func (api *KubernetesCollectionAPI) FetchCollectionPage(ctx context.Context, cre
 	} else {
 		complete = true
 		next = nextKubernetesCompleteCursor(request.Cursor, request.Subject.ID)
+	}
+	if api.nodePlacement {
+		if phase == "deployments" {
+			entities, err = api.enrichAgentPlacements(bounded, credential, body, entities, request.RemainingBytes-int64(len(body)), providerObservedAt)
+			if err != nil {
+				return CollectionPage{}, err
+			}
+		}
+		next.Value = strings.Replace(next.Value, "kubernetes:", "kubernetes-placement-v2:", 1)
 	}
 	page, err := NewCollectionPage(request.Subject, next, complete, entities, relationships)
 	if err != nil || int64(len(page.Raw)) > request.RemainingBytes || bytes.Contains(page.Raw, credential) {

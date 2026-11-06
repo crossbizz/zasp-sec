@@ -35,6 +35,9 @@ type sensorAgentDependencies struct {
 	token            *tokenReader
 	transport        *http.Transport
 	metricsTransport *http.Transport
+	coverageReader   *sensoradapter.CoverageHTTPReader
+	coverageToken    *tokenReader
+	coverageWitness  *nodeWitnessFile
 }
 
 type clusterAuthorityAPI interface {
@@ -103,7 +106,7 @@ func buildSensorAgentDependencies(config sensorAgentConfig, injectedDo func(*htt
 		client := &http.Client{Transport: transport, Timeout: config.OperationTimeout, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 		do = client.Do
 	}
-	client, err := sensoradapter.NewProductionClient(sensoradapter.ProductionClientConfig{BaseURL: config.ControlPlaneURL, EnrollmentBinding: config.EnrollmentBinding, Token: reader.Read, Do: do, Now: time.Now})
+	client, err := sensoradapter.NewProductionClient(sensoradapter.ProductionClientConfig{SensorID: config.SensorID, NodeCoverageRetention: config.NodeCoverageRetention, BaseURL: config.ControlPlaneURL, EnrollmentBinding: config.EnrollmentBinding, Token: reader.Read, Do: do, Now: time.Now})
 	if err != nil {
 		if transport != nil {
 			transport.CloseIdleConnections()
@@ -166,7 +169,23 @@ func buildClusteredSensorAgentDependencies(config sensorAgentConfig, api cluster
 	if err != nil {
 		return fail()
 	}
-	coordinator, err := NewClusterCoordinator(ClusterCoordinatorConfig{Namespace: config.Namespace, PodName: config.PodName, NodeName: config.NodeName, LeaseDuration: config.LeaseDuration, ReportTTL: config.ReportTTL, Leases: api, Pods: api, Heartbeats: dependencies.heartbeats, Now: time.Now})
+	var coverageReader sensoradapter.NodeCoverageReader
+	var witness *nodeWitnessFile
+	if config.Coverage != nil {
+		coverageReader, witness, err = mountNodeCoverage(config, &dependencies)
+		if err != nil {
+			return fail()
+		}
+	}
+	var retained RetainedHeartbeatSink
+	if config.NodeCoverageRetention {
+		var ok bool
+		retained, ok = dependencies.heartbeats.(RetainedHeartbeatSink)
+		if !ok || nilClusterValue(retained) {
+			return fail()
+		}
+	}
+	coordinator, err := NewClusterCoordinator(ClusterCoordinatorConfig{SensorID: config.SensorID, NodeCoverageRetention: config.NodeCoverageRetention, RetainedHeartbeats: retained, Namespace: config.Namespace, PodName: config.PodName, NodeName: config.NodeName, Coverage: config.Coverage, CoverageReader: coverageReader, Witness: witness, LeaseDuration: config.LeaseDuration, ReportTTL: config.ReportTTL, Leases: api, Pods: api, Heartbeats: dependencies.heartbeats, Now: time.Now})
 	if err != nil {
 		return fail()
 	}
@@ -199,6 +218,15 @@ func (dependencies sensorAgentDependencies) Close() error {
 		processorErr = dependencies.Lineage.Close()
 	} else {
 		processorErr = dependencies.Processor.Close()
+	}
+	if dependencies.coverageReader != nil {
+		dependencies.coverageReader.Close()
+	}
+	if dependencies.coverageWitness != nil {
+		_ = dependencies.coverageWitness.Close()
+	}
+	if dependencies.coverageToken != nil {
+		_ = dependencies.coverageToken.Close()
 	}
 	tokenErr := dependencies.token.Close()
 	if processorErr != nil || tokenErr != nil {
@@ -286,7 +314,7 @@ func (processor *clusteredAgentProcessor) ProcessAvailable(ctx context.Context) 
 	result, streamErr := safeProcessAvailable(processor.stream, ctx)
 	report, probeErr := safeNodeReport(processor.probe, ctx, result)
 	if !validNodeReportWithoutAuthority(report) {
-		report = NodeReport{NodeName: processor.nodeName, Status: "degraded", Capabilities: []string{"process"}, Kernel: "unknown"}
+		report = NodeReport{NodeName: processor.nodeName, ObservedAt: time.Now().UTC(), Status: "degraded", Capabilities: []string{"process"}, Kernel: "unknown"}
 	}
 	if streamErr != nil || probeErr != nil {
 		report.Status = "degraded"

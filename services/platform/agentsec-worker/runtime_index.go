@@ -38,7 +38,7 @@ func (executor *runtimeIndexExecutor) ExecuteAuthorized(ctx context.Context, exe
 	}
 	selected := *executor
 	selected.config.ImplementationVersion = execution.lease.ImplementationVersion
-	return selected.execute(ctx, execution.currentLease(), &execution)
+	return selected.execute(context.WithValue(retentionAdmissionContext(ctx), retentionStageContextKey{}, execution), execution.currentLease(), &execution)
 }
 
 func (executor *runtimeIndexExecutor) SupportsRuntimeStageVersion(stage runtimeevent.RuntimeStage, configured, claimed string) bool {

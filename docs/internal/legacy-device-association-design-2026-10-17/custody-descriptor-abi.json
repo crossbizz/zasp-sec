@@ -1,0 +1,34 @@
+{
+  "stage": "closed author descriptor before product",
+  "api": {
+    "OpenLegacyDevice": "(credentialFile,endpoint,stateFile string)(*LegacyDeviceStore,error)",
+    "SignAuthorityRequest": "(*http.Request,time.Time)error",
+    "BeginAssociation": "(gatewayassociationwire.ChallengeEnvelope,gatewayenrollmentwire.CurrentAuthority,time.Time)(*LegacyAssociation,error)",
+    "association": "Source()(string,AssociationSnapshot,error); Sign([]byte)([]byte,error); Confirm(gatewayassociationwire.AcceptResponse,time.Time)error; Close()error"
+  },
+  "descriptor": {
+    "schema": "gateway-current-device-association-state-v1",
+    "ordered_keys": ["schema","identity_source","endpoint","credential_id","key_id","public_key","device_binding","first_authority","observed_at"],
+    "identity_source": "current_device_authority",
+    "device_binding_ordered_keys": ["organization_id","workspace_id","environment_id","device_id","credential_id","credential_generation","public_key","expires_at"],
+    "first_authority": "Existing exact13-field CurrentAuthority canonical DTO; observed_at actual completed GET caller now wholeUTCZ",
+    "stable_compare": "endpoint+credential/key/public tuple+all eight DeviceBinding fields; never DeviceVersion/ReplayFloor from first_authority; exact original descriptor bytes retained on retry",
+    "never": "privatekey/sourcefile path/sourcefile secret-derived hash/enrollmentRequest/enrollmentID/token/local_request_sha256"
+  },
+  "intent": {
+    "schema": "gateway-current-device-association-intent-v1",
+    "ordered_keys": ["schema","identity_source","endpoint","public_credential","device_binding","challenge","accept_request"],
+    "public_credential": ["credential_id","key_id","public_key"],
+    "identity_source": "current_device_authority",
+    "accept_request": "Exact original canonical BuildAcceptRequest json.RawMessage; challenge envelope exact3; no enrollment lineage"
+  },
+  "receipt": {
+    "schema": "gateway-current-device-association-receipt-v1",
+    "ordered_keys": ["schema","intent_sha256","response"],
+    "response": "Strict original associationwire AcceptResponse5; immutable earliest replay presentation; equivalent later replay differs only replayed"
+  },
+  "source": "Original3 fields any whitespace/key order but exactcase/types/no duplicates/no aliases/canonical RawURL64; original bytes retained; Ed25519 fullkey equals NewKeyFromSeed(key[:32]); readonly fd+parent pinned; safeInfo/nlink1 and exact inode/metadata/bytes rechecked before each capability use",
+  "time": "First SignAuthorityRequest starts real monotonic time.Now deadline<=30s; request contextdeadline required<=30s and retained; one signature+one Begin perstore even failures; Begin callerclock in [GETsignednow,GETsignednow+30s]; no renewal. Source/Sign/Confirm require context+monotonicdeadline+actualwallclock credential/challenge future; passednow additionally closed wholeUTC/fresh. DTO is not HTTP attestation: CLI realGET samecontext required. Saved history never authorizes offline",
+  "collision_preflight": "Before statewrites reject source/state samepath or samefile; state/guard/publicationstage/namespace paths; both protectednamespace prefixes in source/state ancestry; source safeInfo exact0600/nlink1; no sourcelock/sourcewrites. Namespace present without recoverable canonical descriptor rejected even empty. Normal/recovery exports add only both static prefix ancestorcheck and retain own inode boundary. No global scan or bindmount/sameUID securityclaim",
+  "namespace": ".zasp-gateway-device-associations-SHA256(statebasename),0700 pinned root; challengeID.hash.intent/.receipt via unchanged publication primitive"
+}

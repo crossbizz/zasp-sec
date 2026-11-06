@@ -1,0 +1,20 @@
+{
+  "checkpointSHA256": "09da4db7494262a96c5cbf8596a6433f3b6a7b8cb31fb6b3d6027cffe0bf8eba",
+  "evidence": [
+    "All29 source members exactly match repaired frozen checkpoint bytes/lengths, including six new cutover package members and43SQL lines.",
+    "Workflow change is only23\u219229 census and eight\u2192nine package compile list adding connectormaintenancecutover. Existing pinned tools/actions, contents:read, no persisted checkout credential, no activation env, modreadonly/race/p1 and go test-c without execution retained.",
+    "Original two repaired source findings remain fixed in adopted bytes. NewDeployment continues fail closed for absent fleet/restart observer.",
+    "Compile evidence cannot prove PostgreSQL/FGA/lifecycle behavior; prior required meaningful native groups remain mandatory."
+  ],
+  "files": {
+    ".github/connector-native-compile-source-pins.json": "c1992b91c3bce10069cbf23116f41d64725d040e7526634fdc498006eb519a24",
+    ".github/workflows/connector-native-draft-compile.yml": "202a0a8f5aef8d1e5b8dccc4578cb1134a5c69438f10e3251e55815a430e6953"
+  },
+  "findings": [],
+  "format": "independent-pr60-cutover-adoption-compile-source-review-v1",
+  "head": "0b1bd0405eb5f0269135b88d0f156a5a0bb5b6a0",
+  "membersVerified": 29,
+  "method": "Read-only source association/diff/hash review. No edits, runtime, tests or Git writes.",
+  "root": "/tmp/connector-native-hosted-compile-draft",
+  "verdict": "Ready to commit/push exact reviewed working bytes for hosted compile only. PR60 remains draft; no native/merge/deployment acceptance."
+}

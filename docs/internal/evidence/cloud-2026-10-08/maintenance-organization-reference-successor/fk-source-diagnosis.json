@@ -1,0 +1,45 @@
+{
+  "scope": "Read-only approval/connector foreign-key ACL diagnosis; no tests/runtime/Git edits",
+  "findings": [
+    {
+      "priority": "P1",
+      "file": "services/platform/migrations/production_approval_maintenance_profile.go",
+      "line": 14,
+      "decodedSQLLine": 270,
+      "title": "Close REFERENCES permission for public organizations before authority definitions",
+      "evidence": [
+        "Decoded approval SQL creates projection_activations.organization_id PRIMARY KEY REFERENCES public.zasp_organizations(id).",
+        "Canonical0007 creates public.zasp_organizations under the migration operator; inspected numbered source contains no transfer of its owner to zasp_discovery_authority.",
+        "Canonical0079 projection SQL line209 grants SELECT on organizations/workspaces/environments to authority, not REFERENCES. No numbered SQL REFERENCES grant found.",
+        "Authority-owned definitions therefore require an additional exact organizations(id) REFERENCES prerequisite; SELECT does not confer FOREIGN KEY creation rights."
+      ],
+      "relatedFile": "services/platform/migrations/sql/connector_maintenance_profile.sql",
+      "relatedLine": 716,
+      "relatedEvidence": "Connector projection_activations has the same public organizations foreign key and authority installation constraint.",
+      "remedyConstraint": "Observe exact native owner/column privileges and existing closed catalog association first. Any reviewed installer prerequisite must add only REFERENCES(id) on exactly public.zasp_organizations to exactly zasp_discovery_authority under registered operator, if required; no ALL, DML, public/API/worker grants. Refuse incompatible catalog instead of updating immutable fingerprints to accept arbitrary privilege changes. Explicitly version/pin dependency successor and prove predecessor readiness/noninterference."
+    }
+  ],
+  "unsupportedHypotheses": [
+    "Missing REFERENCES on public.zasp_security_agent_approval_notifications is not supported: canonical0030 line39 transfers that table to authority, so owner has REFERENCES.",
+    "No specific missing temporal namespace privilege found: reviewed private schemas/functions are authority-owned."
+  ],
+  "stageCorrection": {
+    "predecessorRun": 37734345943,
+    "head": "d8899140",
+    "correctFailureSetup": "test.go30 UpProductionApprovalMaintenanceProfile",
+    "currentRun": 37735989056,
+    "handling": "Retain prior inaccurate stage evidence and append correction; do not overwrite historical records or treat generic permission categories as statement-level diagnosis."
+  },
+  "safeDiagnosticRequirements": [
+    "Wrap migration Exec and Row.Scan before fixedDatabaseError erases PgError.",
+    "Report only fixed phase labels, valid5-character SQLSTATE and independently allowlisted schema/table names; emit absent/other for unknown object fields.",
+    "Never emit raw Message/Detail/Hint/Where/InternalQuery/SQL/args/credentials. Propagate original error unchanged; no classifier, admission, deadlines or cases modified.",
+    "Use actual next bounded observed run to identify precise statement/object; no artificial grants in diagnostic successor."
+  ],
+  "declinedToJudge": [
+    "Exact raw current/predecessor PG error cause",
+    "Approval or connector native installation success",
+    "Two-case OAuth, active lifecycle/cutover/Reconcile or production acceptance"
+  ],
+  "verdict": "Concrete organizations REFERENCES source prerequisite identified for both authority installers; requires narrowly reviewed closure repair, not broad permission relaxation. Safe bounded diagnostics justified before actual cause attribution."
+}

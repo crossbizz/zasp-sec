@@ -1,0 +1,65 @@
+{
+  "classification": "PUBLISHER_POSITIVE_FIXTURE_PRIVATE_MODE_REPAIR_LOCAL_CI_UMASK_GREEN_HOSTED_PENDING",
+  "observed_at": "2026-10-17T23:48:25.805141+00:00",
+  "source_parent": "0725e5937f6048d32a184de97347cc4f1d524880",
+  "requirement": "M4-50b3 supporting configuredprovider/publisher CIprecondition; no originalrequirementclosed.",
+  "actual_verification": {
+    "fixture_change": "Explicitly chmod required private destination0700; Go testinner TempDir requests0777 and therefore0755 underCI0022. No globalumask or productpermission change.",
+    "actual_RED": "Exact unchanged0725 CIbody under0022 failed firstobserved TestReviewerPublisherProjectedRotationAndConsumer with podidentitydenied; originalfailurelog retained.",
+    "actual_GREEN": "Exact finalCIbody under0022 PASS all original8raceheads, CLIbuild,925custodybefore/after; sameworkflowassertions/timeouts/permissions.",
+    "source_guards": "21 PASS",
+    "fresh_temporal_product_group": {
+      "top_heads_passed": [
+        "TestDiscoveryScheduleReconciliation",
+        "TestDiscoveryScheduleRefusesStaleForeignAndUnknownWrites",
+        "TestDiscoveryScheduleChangeDuringReconcileRequiresRedelivery",
+        "TestDiscoveryWorkflowCancellationRecordsTypedProductOutcome",
+        "TestStartMappingAndConflict",
+        "TestRelayBoundsWholeBatch",
+        "TestNotifyMappingAndValidation",
+        "TestRelayAcceptanceBeforeAckAndScope",
+        "TestRelayAdvancesBeforeDeadline",
+        "TestRelayAttemptFailurePreventsDispatch",
+        "TestSecurityAgentWorkflowVerifiedOrdering",
+        "TestSecurityAgentWorkflowSignalsAreHints",
+        "TestSecurityAgentWorkflowCleanupFailureRemainsFailure",
+        "TestSecurityAgentWorkflowLegacyVersionRetainsOrdering",
+        "TestSecurityAgentWorkflowRemainingBudgetReachesProductBoundary",
+        "TestSecurityAgentWorkflowLateAuthorityCannotStartEffects"
+      ],
+      "heads": 16,
+      "test_cases_including_subtests": 31,
+      "fails": 0,
+      "skips": 0,
+      "package_pass": true,
+      "scope": "Product orchestration/admission/approval/order/cancellation/discovery via officialSDK testenvironment; no serverinternals or realdeployedTemporal claim."
+    },
+    "fresh_fga_product_group": "SETUP FAILED missingOPA1.17.0 GOPROXYoff; five selectedheads, zeroexecuted. No authorizationPASS or networkfetch attempted.",
+    "hosted_qualification": "Olderhostedfailures genericexitonly; localCIumaskreproduction corrected. FreshhostedGREEN required, no assertion that allhostedfailurecauses resolved."
+  },
+  "independent_review": {
+    "status": "CLEAR source only",
+    "sha256": "396a49cf465ac800c526b199d4eaf9c5d63dd620a32ad2875731eca6d27d6b33"
+  },
+  "source_custody": "925boundpathsorder/historyretained; onlyfixturetest andtwo literalrunnerpins changed; originalproductbytesunchanged.",
+  "evidence": {
+    "path": "docs/internal/cloud-publisher-fixture-private-mode-evidence-2026-10-17.tar.gz",
+    "sha256": "cf6d29dd1ef129beacb7c40d17e267d0eeb35af57e57b591a1defc0452bcdd17",
+    "bytes": 241439,
+    "members": 18,
+    "verification": "All member bytes verified; payloadSHA256/byte manifest included; checkpoint excluded."
+  },
+  "ledger": {
+    "total": 728,
+    "production_available_recorded": 509,
+    "component_only": 158,
+    "blocked_external": 61,
+    "promotions": 0
+  },
+  "production_available": false,
+  "launch_ready": false,
+  "task_closed": false,
+  "obsolete_retired": false,
+  "merge_release_cleared": false,
+  "remaining": "FreshhostedGREEN for correctedfixture andcompile/UI/security/release guards; provider/K8s/defaultUIDdeployedwiring; originalnativecatalog/runtimeadmission/configuration/network and deployedStytch/Temporal/OpenFGA/provider end-to-end gates."
+}

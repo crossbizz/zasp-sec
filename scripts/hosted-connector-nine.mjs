@@ -14,7 +14,7 @@ const image = 'postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82
 const pins = {
  'services/platform/apiserver/connector_enqueue_provenance_postgres_test.go':'d6039cfa0d1673a5cf29e68e209b73c2cb6aeefd715e4d7805d3690b8ab0afde',
  'services/platform/migrations/sql/connector_enqueue_provenance.sql':'32b3f8cbe175b5256ff4542cdff044d6d060e0240d24632bf3d057f3553a5c13',
- 'services/platform/migrations/production_connector_enqueue_provenance.go':'793b230a8572fbfbed2a4702e1513bfa90afac596a8d0707ae047bbdf8bacc36',
+ 'services/platform/migrations/production_connector_enqueue_provenance.go':'26a5e65d0dcc04e93e3aa4b0c7de0deed5cc8afcca16eb0fed9dbdab0c2e3666',
 };
 const top='TestConnectorCapturedEnqueueOriginalAuthorizationPostgres';
 const cases=['authentic_capture_and_exact_replay','wrong_signed_purpose','wrong_selected_scope','modified_signed_envelope','existing_originless_effect_refused','later_transaction_failure_rolls_back_enqueue_and_origin','own_catalog_drift_refused','outbox_consumer_cannot_capture','required_inputs_concurrent_replay_and_savepoint_ownership'];
@@ -22,7 +22,7 @@ const helperPins={
  "docs/internal/evidence/cloud-2026-10-07/native-service-readiness/openfga/09-pg-non-glibc-libs-manifest.json": "96642e82997ffd2caf2893a5ecc0116ad2aef6e982df2d929f3efda4e04f3474",
  "services/platform/apiserver/authorization_integration_mutations_postgres_test.go": "5e4beb04b2409ad9b11b89c017ada5e2eccffd78a87bdd5692d40670f12a2ba0",
  "scripts/hosted-memory-observation.mjs": "70c2ae837d040be4756842e4016acbc4eebd6bae3d8c992aba2a80e2a097ba75",
- "scripts/owned-command.mjs": "044e151c9260b9356ac78e5cde6b59dbbdd7b934d66ad06732288346831ad47e",
+ "scripts/owned-command.mjs": "50b5481d008546a713ac730cb933108be66b2f08226ced8bc47deaea14e95ec8",
  "scripts/owned-fixed-fd-command.mjs": "15c38bd9d627124b7d81e5fe9b96dd3c4af8757b33f2204a9dce4b86e93e5693",
  "scripts/official-held-tools.mjs": "451dad7212561fc02e1f5b03280672c9d900a5ac644a665c022deafa9f72dfdd",
  "scripts/owned-listener.mjs": "3e5a4357fb53a412d0c38ab608c49543cf1bf74b2bb624022791a8bb6d1a43de",

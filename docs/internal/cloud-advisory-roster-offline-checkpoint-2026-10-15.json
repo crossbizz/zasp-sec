@@ -1,0 +1,65 @@
+{
+  "checkpoint": "cloud-advisory-roster-offline-2026-10-15",
+  "observedAt": "2026-10-15T04:41:39.193575+00:00",
+  "startingSHA": "e3141930eb1b732ff958ea45b153eb5cf87cc249",
+  "mainSHA": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
+  "classification": "Offline component verified; actual immutable intake and production release acceptance remain blocked",
+  "ledger": {
+    "original_rows": 728,
+    "production_available_recorded": 523,
+    "component_only": 144,
+    "blocked_external": 61,
+    "missing": 0,
+    "promotions": 0
+  },
+  "taskCrosswalk": [
+    {
+      "id": "M8-47",
+      "owner": "T15-deployment",
+      "contribution": "Bounded content-addressed advisory roster verification and exact reusable metadata manifest before full immutable corpus intake; no task completion or production availability promotion."
+    }
+  ],
+  "sources": [
+    {
+      "path": "scripts/npm-public-api-query/git_tree_roster_component.py",
+      "sha256": "5ed627de78c1bdc3977d8957d7954e3f41318275e4ae793d8bb28a666930cb0c",
+      "bytes": 20114
+    },
+    {
+      "path": "scripts/npm-public-api-query/git_tree_roster_component_test.py",
+      "sha256": "3fca7eb6f04c92521091e61b232d272c8b50adad47f69ce6a894c1420853e90e",
+      "bytes": 13048
+    },
+    {
+      "path": "docs/internal/2026-10-15-official-advisory-roster-capacity-component.md",
+      "sha256": "c1b9359ce475aa9e4a8f825dcf2dcb5e98de3323c1fba12c9a54e57d535f8579",
+      "bytes": 7593
+    }
+  ],
+  "verification": {
+    "groupedTests": 4,
+    "finalNormalExit": 0,
+    "reviewRedFailures": 2,
+    "independentReview": "official-advisory-roster-offline-component-independent-review-v2-20261015.json",
+    "evidence": {
+      "path": "docs/internal/evidence/cloud-2026-10-15/advisory-roster-offline/verified-batch-evidence.json.gz",
+      "sha256": "086d3b910261cf153e16e17b1af29c0042f2bce9a4b3bf1085c3c41a200c8a72",
+      "bytes": 42586,
+      "uncompressedSHA256": "407cca94f9eb559e113d5c9b14ed2e48200b077aaf5b5ca10a2067ef67389c76",
+      "members": 38
+    }
+  },
+  "implemented": [
+    "Verify bounded exact raw commit and Git tree hashes, canonical tree ordering, complete selected reviewed/unreviewed topology, reachable response roots, safe paths/modes and expanded traversal/evidence limits.",
+    "CLI consumes bounded pinned caller-owned captures and publishes create-only through early pinned parent directory descriptors; rejects output path substitution and global contradictory blob size declarations.",
+    "Retain API declared sizes as unauthenticated metadata; all official transport, blob content, full Git closure, npm/malware classification, commit signature, parent history and release acceptance fields remain false. Original owners, caps, source manifest, hosted 16-test census and production guard unchanged."
+  ],
+  "remaining": [
+    "Current retained captures lack raw commit and complete tree transcript; no actual corpus capacity measurement is claimed.",
+    "Actual admitted public intake, blob verification/classification, seven-root current Go MVS/stdlib, rendered built-image scans and final approved release bundle remain open.",
+    "Reviewed HIGH braces advisory persists, including bundled Vite and tsx implementation surfaces. A simple override cannot fix whole closure; reviewed source forks/rebuilds and compatibility/provenance/license verification remain software work."
+  ],
+  "actualUpstreamAcquisition": false,
+  "actualCorpusMeasurement": false,
+  "releaseAccepted": false
+}

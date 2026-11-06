@@ -17,8 +17,8 @@ import (
 	runtimeopensearch "github.com/zasp-ai/zasp-sec/services/platform/runtimeindex/opensearchdriver"
 )
 
-func newProductionRuntimeIndex(ctx context.Context, config workerRuntimeConfig) (*productionRuntimeStageDependencies, error) {
-	if ctx == nil || ctx.Err() != nil || !validRuntimeIndexAWSAuthority(config) {
+func newProductionRuntimeIndex(ctx context.Context, config workerRuntimeConfig, database recoveryJSONDatabase) (*productionRuntimeStageDependencies, error) {
+	if ctx == nil || ctx.Err() != nil || !validRuntimeIndexAWSAuthority(config) || config.RetentionProfileChecksum != "" && !workerUsesRetentionRuntimeProfile(config) {
 		return nil, errRuntimeUnavailable
 	}
 	requestTimeout := minDuration(config.LeaseDuration/3, 30*time.Second)
@@ -51,6 +51,13 @@ func newProductionRuntimeIndex(ctx context.Context, config workerRuntimeConfig) 
 		return nil, errRuntimeUnavailable
 	}
 	index, err := runtimeindex.New(driver, runtimeindex.Config{MaximumBatchBytes: 64 << 20, MaximumDocuments: 1000})
+	var retentionGate *retentionJournalIndexVisibility
+	if workerUsesRetentionRuntimeProfile(config) {
+		retentionGate, err = newRetentionJournalIndexVisibility(database, config.RetentionProfileChecksum, config.RetentionJournalProfileChecksum, receipts)
+		if err == nil {
+			index, err = runtimeindex.NewRetained(driver, runtimeindex.Config{MaximumBatchBytes: 64 << 20, MaximumDocuments: 1000}, retentionGate)
+		}
+	}
 	if err != nil {
 		driver.Close()
 		transport.CloseIdleConnections()
@@ -69,6 +76,15 @@ func newProductionRuntimeIndex(ctx context.Context, config workerRuntimeConfig) 
 		transport.CloseIdleConnections()
 		return nil, errRuntimeUnavailable
 	}
+	if retentionGate != nil {
+		sessionIndex.Close()
+		sessionIndex, err = runtimeopensearch.NewRetainedSessionWriteIndex(config.RuntimeSessionIndex, runtimeopensearch.Config{Endpoint: config.OpenSearchURL, Region: config.AWSRegion, RequestTimeout: requestTimeout, MaximumRequestBytes: 8 << 20, MaximumResponseBytes: 8 << 20}, credentials, v4.NewSigner(), func() time.Time { return time.Now().UTC() }, retentionGate)
+		if err != nil {
+			driver.Close()
+			transport.CloseIdleConnections()
+			return nil, errRuntimeUnavailable
+		}
+	}
 	sessions, err := newRuntimeSessionSearchExecutor(reader, receipts, sessionIndex)
 	if config.RuntimeStageVersion == "runtime-index-v2" {
 		sessions, err = newRuntimePreciseSessionSearchExecutor(reader, receipts, sessionIndex)
@@ -79,21 +95,75 @@ func newProductionRuntimeIndex(ctx context.Context, config workerRuntimeConfig) 
 		transport.CloseIdleConnections()
 		return nil, errRuntimeUnavailable
 	}
+	var cleanup *retentionCleanup
+	var cleanupOther *runtimeopensearch.SessionIndex
+	if retentionGate != nil {
+		v1, v2 := sessionIndex, sessionIndex
+		name := "zasp-runtime-sessions-v2"
+		if config.RuntimeSessionIndex == "zasp-runtime-sessions-v2" {
+			name = "zasp-runtime-sessions-v1"
+		}
+		cleanupOther, err = runtimeopensearch.NewConfiguredSessionIndex(name, runtimeopensearch.Config{Endpoint: config.OpenSearchURL, Region: config.AWSRegion, RequestTimeout: requestTimeout, MaximumRequestBytes: 8 << 20, MaximumResponseBytes: 8 << 20}, credentials, v4.NewSigner(), func() time.Time { return time.Now().UTC() })
+		if err == nil {
+			if name == "zasp-runtime-sessions-v1" {
+				v1 = cleanupOther
+			} else {
+				v2 = cleanupOther
+			}
+			cleanup, err = newRetentionCleanup(database, config.RetentionProfileChecksum, config.WorkerID, driver, v1, v2, requestTimeout, config.ShutdownTimeout)
+		}
+		if err != nil {
+			if cleanupOther != nil {
+				cleanupOther.Close()
+			}
+			sessionIndex.Close()
+			driver.Close()
+			transport.CloseIdleConnections()
+			return nil, errRuntimeUnavailable
+		}
+	}
 	artifacts := productionDiscoveryArtifactConfig{Bucket: config.EvidenceBucket, ExpectedBucketOwner: config.EvidenceOwner, KMSKeyARN: config.EvidenceKMSKeyARN, OperationTimeout: requestTimeout, MaximumBytes: 64 << 20}
 	ready := func(readyCtx context.Context) error {
 		if readyCtx == nil || readyCtx.Err() != nil {
 			return errRuntimeUnavailable
 		}
+		if retentionGate != nil && retentionGate.Ready(readyCtx) != nil {
+			return errRuntimeUnavailable
+		}
+
 		if _, err := credentials.Retrieve(readyCtx); err != nil || readyProductionDiscoveryRole(readyCtx, identityAPI, cloud, artifacts) != nil || readyProductionDiscoveryArtifactAuthority(readyCtx, s3API, kmsAPI, cloud, artifacts) != nil || driver.Ready(readyCtx) != nil {
 			return errRuntimeUnavailable
 		}
 		return nil
 	}
-	if err := ready(ctx); err != nil {
+	if err := func() error {
+		if cleanup != nil && cleanup.Ready(ctx) != nil {
+			return errRuntimeUnavailable
+		}
+		return ready(ctx)
+	}(); err != nil {
+		if cleanup != nil {
+			_ = cleanup.Close()
+		}
+		if cleanupOther != nil {
+			cleanupOther.Close()
+		}
 		sessionIndex.Close()
 		driver.Close()
 		transport.CloseIdleConnections()
 		return nil, errRuntimeUnavailable
 	}
-	return &productionRuntimeStageDependencies{Stage: runtimeevent.RuntimeStageIndex, Executor: executor, Sessions: sessions, SessionReady: sessionIndex.Ready, ready: ready, close: func() error { sessionIndex.Close(); driver.Close(); transport.CloseIdleConnections(); return nil }}, nil
+	var cleanupRuntime retentionIndexCleanupRuntime
+	if cleanup != nil {
+		cleanupRuntime = cleanup
+	}
+	return &productionRuntimeStageDependencies{retentionCleanup: cleanupRuntime, Stage: runtimeevent.RuntimeStageIndex, Executor: executor, Sessions: sessions, SessionReady: sessionIndex.Ready, ready: ready, close: func() error {
+		if cleanupOther != nil {
+			cleanupOther.Close()
+		}
+		sessionIndex.Close()
+		driver.Close()
+		transport.CloseIdleConnections()
+		return nil
+	}}, nil
 }

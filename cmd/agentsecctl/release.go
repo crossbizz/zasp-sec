@@ -277,6 +277,8 @@ type UpgradeReport struct {
 	Checks []PreflightCheck `json:"checks"`
 }
 
+// EvaluateUpgrade evaluates offline, caller-supplied compatibility inputs. It
+// does not observe backup or rollback artifact existence and is not live readiness.
 func EvaluateUpgrade(input UpgradeInput) (UpgradeReport, error) {
 	checks := []PreflightCheck{
 		check("version", compatibleVersion(input.CurrentVersion, input.TargetVersion), true, "upgrade only from the previous supported product version"),
@@ -416,21 +418,12 @@ func runReleaseCommand(output io.Writer, input io.Reader, arguments []string) er
 		return errInvalidArguments
 	}
 	switch arguments[0] {
+	case "gateway":
+		return runGatewayCommand(output, input, arguments)
 	case "api-load":
 		return runAPILoadCommand(output, input, arguments)
 	case "preflight":
-		if len(arguments) != 1 {
-			return errInvalidArguments
-		}
-		var value PreflightInput
-		if err := decodeCommandInput(input, &value); err != nil {
-			return errPreflightRejected
-		}
-		report, err := EvaluatePreflight(value)
-		if err != nil {
-			return err
-		}
-		return encodeJSON(output, report)
+		return runPreflightCommand(output, input, arguments)
 	case "backup":
 		if len(arguments) < 2 {
 			return errInvalidArguments
@@ -451,18 +444,7 @@ func runReleaseCommand(output io.Writer, input io.Reader, arguments []string) er
 		}
 		return encodeJSON(output, map[string]any{"accepted": true, "organization_id": manifest.OrganizationID, "target": arguments[2]})
 	case "upgrade-preflight":
-		if len(arguments) != 1 {
-			return errInvalidArguments
-		}
-		var value UpgradeInput
-		if err := decodeCommandInput(input, &value); err != nil {
-			return errUpgradeRejected
-		}
-		report, err := EvaluateUpgrade(value)
-		if err != nil {
-			return err
-		}
-		return encodeJSON(output, report)
+		return runLiveUpgradePreflight(context.Background(), output, input, arguments)
 	case "diagnostics":
 		if len(arguments) != 1 {
 			return errInvalidArguments

@@ -1,0 +1,44 @@
+{
+  "classification": "COMPONENT_CI_FAILURE_DIAGNOSTICS_LOCAL_BODY_PASS_HOSTED_FAILURE_UNRESOLVED",
+  "observed_at": "2026-10-17T23:43:22.862139+00:00",
+  "source_parent": "5f9a4edf26733268ecc9b6464481f21fb9b8efb5",
+  "trigger": "Actual e949a44c provider-components117529050171 failed configured-provider boundary; only genericexit1 publicannotation. Deniedrawlogroute notretried; exactcause unknown.",
+  "change": "Add fixedfailurephase and allowlistedtesthead annotation with originalexceptionhook and nonzeroexit preserved; no product/module change, no assertion/roster/command/race/timeout/permission changes.925custody originals retained; onlyworkflow and two literalrunnerpins refreshed.",
+  "verification": {
+    "exact_final_CI_body": "PASS eight original Go race groups, CLI build,925sourcecustody before/after",
+    "source_guards": "21 PASS",
+    "diagnostic_hook": "Actual extractedhook controlled AssertionError emits expectedfixedannotation and exit1; initialextractor accidentallyselectedlaterphase and failedexpectedphaseassertion, retained qualification; workflowunchanged",
+    "independent_review": "CLEAR abdf449a81184203587cbda29748a22327d18c1826526958af7f9431e107d3c7",
+    "hosted_failure": "UNRESOLVED; no inferredproductfix or hostedPASS"
+  },
+  "CI_backlog_operation": {
+    "scope": "Only four explicitly superseded own commitheads; all current5f9a4edf runs preserved; no started/assigned work cancelled. Immediate run+alljobs rechecked serially before each cancellation.",
+    "candidates": 69,
+    "initially_qualified": 68,
+    "cancel_requests_accepted": 65,
+    "changed_state_preserved": 3,
+    "readback_confirmed_cancelled": 59,
+    "readback_still_queued": 6,
+    "qualification": "Requests accepted are distinct from confirmedcancellations. All priorresults retained; requiredcurrentheadguards remainmandatory."
+  },
+  "evidence": {
+    "path": "docs/internal/cloud-publisher-ci-diagnostics-evidence-2026-10-17.tar.gz",
+    "sha256": "bee9be2b8bac1f1d1069b347f84cc69ece3ac72bbc79846a1c3ab0df3d9f14ab",
+    "bytes": 239616,
+    "members": 20,
+    "verification": "All member bytes verified, payloadSHA256/byte manifest included; checkpoint excluded."
+  },
+  "ledger": {
+    "total": 728,
+    "production_available_recorded": 509,
+    "component_only": 158,
+    "blocked_external": 61,
+    "promotions": 0
+  },
+  "production_available": false,
+  "launch_ready": false,
+  "task_closed": false,
+  "obsolete_retired": false,
+  "merge_release_cleared": false,
+  "remaining": "Newhosted publisher diagnostic/readback and fullcompile/UI/security/release checks; productionconfiguration/network/nativeadmission/catalog and deployedStytch/Temporal/OpenFGA/provider acceptance."
+}

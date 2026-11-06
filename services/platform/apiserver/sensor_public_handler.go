@@ -179,6 +179,29 @@ func (handler *sensorPublicHTTPHandler) coverage(writer http.ResponseWriter, req
 		writeProductionError(writer, request, ErrRepositoryOperation)
 		return
 	}
+	optedIn, valid := sensorNodeCoverageHeader(request)
+	if !valid {
+		writeProductionError(writer, request, ErrRepositoryOperation)
+		return
+	}
+	if optedIn {
+		capability, ok := handler.repository.(sensorNodeCoverageAuthority)
+		if !ok || nilInterface(capability) {
+			writeProductionError(writer, request, ErrRepositoryUnavailable)
+			return
+		}
+		value, err := capability.GetSensorNodeCoverage(request.Context(), identity.Scope, sensorID)
+		if err == nil {
+			raw, encodeErr := json.Marshal(value)
+			if encodeErr != nil {
+				err = ErrRepositoryUnavailable
+			} else if _, valid := decodeSensorNodeCoverage(raw, sensorID); !valid {
+				err = ErrRepositoryUnavailable
+			}
+		}
+		writeJSONValue(writer, request, http.StatusOK, value, err)
+		return
+	}
 	value, err := handler.repository.GetSensorCoverage(request.Context(), identity.Scope, sensorID)
 	writeJSONValue(writer, request, http.StatusOK, value, err)
 }

@@ -1,0 +1,72 @@
+{
+  "status": "SOURCE_ONLY_NEW_INDEPENDENT_CI_JOB_PENDING_ROOT_EXECUTION_AND_REVIEW",
+  "created_at": "2026-10-17T22:22:56.785916+00:00",
+  "owned_sources": [
+    {
+      "path": ".github/workflows/dependency-process-cleanup-components.yml",
+      "bytes": 8788,
+      "sha256": "1084ad8e0aa34cd69849e11a824df72da120561365b56261688c834a211e5d78",
+      "preimage": "ABSENT_NEW_FILE"
+    }
+  ],
+  "required_custody_paths": [
+    ".github/workflows/dependency-process-cleanup-components.yml",
+    "apps/web/package.json",
+    "build/dependencies.lock.yaml",
+    "cmd/agentsecctl/go.mod",
+    "cmd/agentsecctl/go.sum",
+    "package-lock.json",
+    "package.json",
+    "scripts/dependency-esbuild-regression.test.mjs",
+    "scripts/dependency-parser-regression.test.mjs",
+    "scripts/fixtures/dependency-esbuild-regression-child.mjs",
+    "scripts/fixtures/dependency-parser-regression-child.mjs",
+    "scripts/run-dependency-regressions.py",
+    "scripts/run-dependency-regressions.test.py",
+    "scripts/validate-dependencies.mjs",
+    "scripts/validate-dependencies.test.mjs",
+    "services/event-ingest/go.mod",
+    "services/event-ingest/go.sum",
+    "services/gateway-control/go.mod",
+    "services/gateway-control/go.sum",
+    "services/gatewaypodidentity/go.mod",
+    "services/health/go.mod",
+    "services/platform/go.mod",
+    "services/platform/go.sum",
+    "services/runtime-gateway/go.mod",
+    "services/runtime-gateway/go.sum",
+    "services/sensor-agent/go.mod",
+    "services/sensor-agent/go.sum",
+    "workers/redteam-node/package.json",
+    "workers/security-python/build-requirements.lock",
+    "workers/security-python/cartography/pyproject.toml",
+    "workers/security-python/cartography/requirements.lock",
+    "workers/security-python/prowler/pyproject.toml",
+    "workers/security-python/prowler/requirements.lock",
+    "workers/security-python/pyproject.toml"
+  ],
+  "python_expected_ids": [
+    "dependency_cleanup_components.ScopedReaperTests.test_reaps_actual_orphan_while_node_test_runner_remains_active",
+    "dependency_cleanup_components.ScopedReaperTests.test_preserves_actual_exit_status_output_and_existing_strict_guards",
+    "dependency_cleanup_components.ScopedReaperTests.test_bounded_cancel_and_timeout_reap_only_owned_descendants"
+  ],
+  "node_expected_names": [
+    "vinext's actual image parser preserves icns-valid dimensions",
+    "vinext's actual image parser preserves jxl-valid dimensions",
+    "vinext's actual image parser preserves heif-valid dimensions",
+    "vinext's actual image parser rejects icns-zero-entry without hanging",
+    "vinext's actual image parser rejects jxl-zero-partial without hanging",
+    "vinext's actual image parser rejects heif-zero-ispe without hanging",
+    "core-utils' actual esbuild serves the local fixture without allowing an unrelated origin to read it",
+    "core-utils' actual async and sync TypeScript transforms preserve exported values",
+    "real drizzle-kit generation retains the nonempty D1 notes schema and defaults"
+  ],
+  "source_contract": [
+    "No pre-existing workflow changed; no Go or provider/runtime dependency requested.",
+    "Full current custody manifest requires every record byte length and SHA before and after; no hardcoded binding count. Exact manifest bytes must be unchanged.",
+    "Actual locked npm ci then actual three Python test groups and whole npm run dependencies:check; no fixture-generated pass, skips or partial rosters.",
+    "Existing strict process-group Node tests and both child fixtures remain unchanged.",
+    "Root sole executor must update authoritative custody manifest to include required closure paths before CI can pass."
+  ],
+  "execution": "NOT_EXECUTED_BY_AUTHOR"
+}

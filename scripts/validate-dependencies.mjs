@@ -34,6 +34,14 @@ const internalModules = new Map([
   ["github.com/zasp-ai/zasp-sec/services/health", {
     target: "services/health/go.mod",
     replacement: "../health",
+    replacementOverrides: new Map([
+      ["cmd/agentsecctl/go.mod", "../../services/health"],
+    ]),
+    // Go replacements do not propagate from platform to its CLI consumer.
+    // This exact CLI replacement requires platform directly, not health.
+    transitiveReplacementParents: new Map([
+      ["cmd/agentsecctl/go.mod", "github.com/zasp-ai/zasp-sec/services/platform"],
+    ]),
     consumers: new Map([
       ["services/event-ingest/go.mod", false],
       ["services/gateway-control/go.mod", true],
@@ -45,7 +53,11 @@ const internalModules = new Map([
   ["github.com/zasp-ai/zasp-sec/services/platform", {
     target: "services/platform/go.mod",
     replacement: "../platform",
+    replacementOverrides: new Map([
+      ["cmd/agentsecctl/go.mod", "../../services/platform"],
+    ]),
     consumers: new Map([
+      ["cmd/agentsecctl/go.mod", false],
       ["services/event-ingest/go.mod", false],
       ["services/gateway-control/go.mod", false],
       ["services/runtime-gateway/go.mod", false],
@@ -70,6 +82,7 @@ const requiredManifests = [
   { ecosystem: "npm", path: "package.json" },
   { ecosystem: "go", path: "services/event-ingest/go.mod" },
   { ecosystem: "go", path: "services/gateway-control/go.mod" },
+  { ecosystem: "go", path: "services/gatewaypodidentity/go.mod" },
   { ecosystem: "go", path: "services/health/go.mod" },
   { ecosystem: "go", path: "services/platform/go.mod" },
   { ecosystem: "go", path: "services/runtime-gateway/go.mod" },
@@ -102,6 +115,7 @@ const pythonBuildLock = {
 const exactDependencyMetadata = new Map([
   ["github.com/aws/aws-sdk-go-v2", "v1.43.7"],
   ["github.com/aws/aws-sdk-go-v2/service/ec2", "v1.322.0"],
+  ["github.com/aws/aws-sdk-go-v2/service/eks", "v1.92.1"],
   ["github.com/aws/aws-sdk-go-v2/service/iam", "v1.59.2"],
   ["github.com/aws/aws-sdk-go-v2/service/kms", "v1.55.6"],
   ["github.com/aws/aws-sdk-go-v2/service/opensearch", "v1.75.6"],
@@ -339,8 +353,10 @@ function collectGoDependencies(path, text, files) {
     if (/^replace\b/.test(line)) {
       let matchedModule = "";
       for (const [name, authority] of internalModules) {
-        if (line === `replace ${name} => ${authority.replacement}`) {
-          assert(authority.consumers.has(path) && !internalReplacementsSeen.has(name));
+        const replacement = authority.replacementOverrides?.get(path) ?? authority.replacement;
+        if (line === `replace ${name} => ${replacement}`) {
+          assert((authority.consumers.has(path) || authority.transitiveReplacementParents?.has(path))
+            && !internalReplacementsSeen.has(name));
           matchedModule = name;
           break;
         }
@@ -388,8 +404,19 @@ function collectGoDependencies(path, text, files) {
   });
   for (const [name, authority] of internalModules) {
     const requirementSeen = internalRequirementsSeen.has(name);
-    assert(internalReplacementsSeen.has(name) === requirementSeen);
-    if (requirementSeen) {
+    const replacementSeen = internalReplacementsSeen.has(name);
+    const transitiveParent = authority.transitiveReplacementParents?.get(path);
+    if (transitiveParent !== undefined) {
+      // Only the registered CLI -> platform -> health closure may carry a
+      // replacement without a redundant health require. Platform's direct
+      // v0.0.0 requirement/replace has already passed the exact consumer checks.
+      assert(!requirementSeen && replacementSeen);
+      assert(internalRequirementsSeen.has(transitiveParent));
+      assert(internalReplacementsSeen.has(transitiveParent));
+    } else {
+      assert(replacementSeen === requirementSeen);
+    }
+    if (replacementSeen) {
       assert(typeof files[authority.target] === "string");
       assert(goModulePath(files[authority.target]) === name);
     }

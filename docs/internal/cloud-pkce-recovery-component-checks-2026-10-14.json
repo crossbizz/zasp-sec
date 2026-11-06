@@ -1,0 +1,31 @@
+{
+  "sources_count": 2867,
+  "source_map_pre_sha256": "8d11c98be70d5486deb716fe48b9276f9f538b332b523ead3906f3ebd386ca66",
+  "sources_unchanged": true,
+  "groups": [
+    {
+      "scope": "application",
+      "exit": 0,
+      "events": {
+        "run": 88,
+        "output": 176,
+        "pass": 88
+      },
+      "failures": [],
+      "skips": [],
+      "log_sha256": "57661257d7689477e83cc1535ea55c33d2aca28d510ab0544118c9ebda9e9e13"
+    },
+    {
+      "scope": "migrations",
+      "exit": 0,
+      "events": {
+        "run": 1,
+        "output": 2,
+        "pass": 1
+      },
+      "failures": [],
+      "skips": [],
+      "log_sha256": "5834ec3f949b047b166de9bba67a2276d3a96fa57755e0b1dd0c7679cc524ba0"
+    }
+  ]
+}

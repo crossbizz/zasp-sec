@@ -1,0 +1,98 @@
+{
+  "schema": "gateway-policy-publisher-serialization-design-v1",
+  "status": "Source-design candidate; finite exact catalog extraction gate remains, not approved implementation or runtime proof",
+  "namespace": "zasp_gateway_policy_publication_v1",
+  "writers": [
+    {
+      "signature": "public.zasp_runtime_gateway_put_policy_bundle(text,bigint,bigint,text,timestamp with time zone,timestamp with time zone,text,bytea,jsonb,bytea,bytea)",
+      "source": "0015_runtime_data_plane.up.sql:510",
+      "owner": "zasp_discovery_authority",
+      "expected_acl": "{zasp_discovery_authority=X/zasp_discovery_authority,zasp_gateway_control=X/zasp_discovery_authority}",
+      "role_check": "public.zasp_runtime_principal_ready('zasp_gateway_control')",
+      "injection": "Retain initial shape validation. Resolve credential scope read-only before any effect lock; obtain org79 FOR UPDATE before original gateway-policy advisory; rerun native credential authority after org wait, preserving all original scalar/policy validation and replay behavior. Final clock credential and policy expiry validation before return, including replay branch. Existing read-only authority call before org cannot be relied on after wait."
+    },
+    {
+      "signature": "public.zasp_policy_deployment_store(text,text,text,text,bigint,text,text,text,bigint,bigint,text,timestamp with time zone,timestamp with time zone,text,bytea,jsonb,bytea,bytea)",
+      "source": "0028_production_policy_deployment.up.sql:253",
+      "owner": "zasp_discovery_authority",
+      "expected_acl": "{zasp_discovery_authority=X/zasp_discovery_authority,zasp_policy_deployment_worker=X/zasp_discovery_authority}",
+      "role_check": "public.zasp_policy_deployment_principal_ready()",
+      "injection": "Closed original principal guard then org79 FOR UPDATE using explicit organization_value BEFORE work FOR UPDATE and all effect locks; retain every original native argument/lease/current credential/conflict check; final wallclock credential/lease/envelope checks after all waits. Do not substitute action-worker identity for policy-deployment worker."
+    }
+  ],
+  "acl_qualification": "Expected ACLs derived from checked-in explicit revoke/owner/grants. Exact effective pg_proc.proacl text and body hashes MUST be extracted for both Normal/Audit before installation; not fabricated as captured catalog facts.",
+  "preserved": "Original files/checksums/registration immutable. Save effective definitions + owner + ACL + config/prosecdef/provolatile and exact live-source SHA before any replacement. No modifications to parent predecessor tables or registrations; own predecessor table immutable. Existing function OIDs/signatures/owner/ACL unchanged.",
+  "own_manifest": {
+    "tables": [
+      "registration",
+      "predecessor_functions",
+      "replacement_manifest"
+    ],
+    "functions": [
+      "raw_seal() boolean",
+      "definition(value oid) text",
+      "organization_lock(o text,purpose text) void",
+      "projected_parent_fingerprint() text",
+      "projected_parent_catalog_ready() boolean",
+      "caller_ready(purpose text,pin text) boolean"
+    ],
+    "qualification": "Six core own functions plus a separately frozen finite clone/reader substitution roster after source graph extraction. Do not claim total function count before that roster exists. No table grants except owner; current migration authority execute installer; wrappers retain original role execution. raw_seal excludes registration payload from its own digest recursion but validates registration exact compiled checksums/seal and all schema/catalog objects with literal expected facts."
+  },
+  "projection_algorithm": [
+    "Build from fully compiled, pinned Normal/Audit source catalogs, not original15/28 historical bodies. Reject any initial parent readiness mismatch before capture.",
+    "Save two actual writer definitions and exact affected reader definitions in OWN namespace only. Expected replacement hashes are generated at compile time from exact source substitutions; install cannot bless arbitrary current bodies.",
+    "raw_seal validates actual replacement writer and reader definitions, signatures, original owners/ACLs, attributes, namespace objects and immutable snapshots against compiled literal manifest. It must not invoke any parent readiness, wrapper or definition reader, avoiding recursion.",
+    "definition(oid): only if raw_seal true and OID belongs to frozen exact replacement roster, return own saved effective predecessor definition; for all OTHER OIDs pg_get_functiondef unchanged. Preserve independent owner/ACL/attribute checks at every original fingerprint. Seal false => NULL/empty failclosed for normalized entries, never a permissive fallback.",
+    "15 gateway_projected15 current effective definition directly hashes put_policy_bundle through its ELSE pg_get_functiondef(procedure_value.oid). Replace only this exact read for writer15 via own definition helper; preserve its existing five original80 gateway substitutions.",
+    "28 ordered_projected28 current effective definition hashes public28 store through its ELSE pg_get_functiondef(procedure.oid). Replace exactly writer28 fallback via own definition helper; preserve existing temporary_source and target normalizations.",
+    "80 worker fingerprint and catalog_ready include actual changed private readers (and own fingerprint/catalog function definitions). Clone their entire effective recipes into own namespace and normalize ONLY frozen modified OIDs; preserve namespace/table/ACL/policy/trigger/registration/saved facts. Existing80 registrations stay unchanged. Replace public/private parent reader entry only with a sealed projection returning identical original fingerprint when actual successor passes raw_seal.",
+    "Normal/Audit inlined higher-readiness graphs embed worker fingerprint recipes and function bodies, so updating only parent fingerprint() is insufficient. Exact compiler must traverse the checked-in graph candidate records and direct pg_get_functiondef identity readers, produce a CLOSED substitution roster for each mode, normalize each changed OID via own saved effective definition, and update inline worker recipes likewise. No blanket schema-wide normalization or accepting new arbitrary definitions.",
+    "Freeze mode-specific exact substitutions: signature, predecessor hash, source pin, literal needle, occurrence count, replacement bytes/hash, original owner/ACL. Any absent/duplicate anchor or unexpected graph member fails compiler/installer before writes. This roster is review material and final prerequisite to product implementation."
+  ],
+  "finite_reader_candidates": {
+    "normal_graph": "parent-readiness-graph-candidates.json:82 records",
+    "audit_graph": "parent-readiness-graph-candidates.json:46 records",
+    "additional_direct_readers": [
+      "zasp_authorization80_worker.gateway_projected15()",
+      "zasp_authorization80_worker.ordered_projected28()",
+      "zasp_authorization80_worker.ordered_writer_definition(oid)",
+      "zasp_authorization80_worker.fingerprint()",
+      "public.zasp_runtime_data_plane_live_fingerprint()",
+      "public.zasp_sa_multistep_function_identity(oid)",
+      "public.zasp_security_agent_budgets_function_identity(oid)"
+    ],
+    "not_claimed": "These are finite candidates, not an invented complete affected roster. Actual compiler must distinguish calls/identity hashes/embedded copies and prove closure against the compiled catalog. Need parent executor extraction before design can honestly be final."
+  },
+  "lock_composition": {
+    "claim": "Own routing claim obtains org79 before source Agent/SA, Device, credential, association, published head/installation and own rows. With guarded15+28 and existing ordered paths, all publication for that organization is excluded until claim COMMIT. No extra gateway-policy advisory acquisition in routing claim needed; avoid inversion. Fresh head reread occurs AFTER org wait under READ COMMITTED.",
+    "retained22_24_v27": "80 ordered_writers exact predecessor table hashes; ordered_legacy_writer_organization at BEGIN before native effect/sequence locks. Claims acquire sorted organization cohort before selectors/effect locks.",
+    "retained68": "80 ordered68_policy_store first require_ordered68_policy (copied require_planning68), whose organization revision FOR UPDATE precedes ordered policy metadata and private ordered68_delivery_store native INSERT. Public68 ordinary signing store disallowed by operation contract. Captured cleanup also obtains organization lock; no new forward credential admission.",
+    "runtime_admission": "No policy publisher wrapper in this file; runtime put_source/admit/takeover organization locks are separate and cannot fill15/28 gap.",
+    "unacceptable": [
+      "Global policy table lock",
+      "Device row lock as fake bundle FK exclusion: actual FK is credential composite",
+      "head row lock as new INSERT exclusion",
+      "disabling retained publication paths",
+      "relabeling bounded observation as atomic current head"
+    ]
+  },
+  "verification_required": [
+    "Actual Normal/Audit parent pin/readiness and exact effective writer/reader catalog export",
+    "Compiler strict closed substitutions with baseline manifest preserving all source parents",
+    "Native same-org concurrent publish-versus-claim15/28/22/24/v27/68 and different-org progress; no tests of PG internals",
+    "Native tamper writer/reader/ACL/registration detects false parent/own readiness; no arbitrary projection",
+    "Native rollback/installer failure atomicity and idempotent exact reinstall",
+    "Routing integration remains separate after successor review; no atomic claim/e2e/ledger completion from compiler tests"
+  ],
+  "sa_uid_separate": "Name-addressed SA inventory identity can be synthesized; require current same-integration live SA Namespace contains edge source_native_id kubernetes:serviceaccount:<UID>:namespace:<ns>, current evidence/freshness, correct endpoints, namespace/name and Agent uses_identity. No UID invented from entity ID.",
+  "source_pins": {
+    "0015_runtime_data_plane.up.sql": "11c0b05a0a264ba9654c9646b18633c45469f495fa819b28b89e207aefc5ce9a",
+    "0028_production_policy_deployment.up.sql": "93ff35bb1d977eba322d42183e088e1bccd6be83f68d5fca3f70e0d00deba981",
+    "0080_authorization_worker_gateway_writers.sql": "5ce0934637fddd422c5c01f3d8e7e44737ac106cd013fc97649955e710228901",
+    "0080_authorization_worker_ordered_writers.sql": "146629e30258c7fb120c880d19f11a1c80c51e859c11bbd3460645018ba359b5",
+    "0080_authorization_worker_ordered_writer_catalog.sql": "b1482aa3eea946a599e9d0d43a97f1d3689dd65a6da8dd73965b061d6c6d2909",
+    "0080_authorization_worker_profile.sql": "785c03177c693ebdf0d00a259ae4bbebc90a27ce3c855f37306744561a1965c4",
+    "0080_authorization_worker_ordered_policy.sql": "a65a32c6892c9769b8170dc682c53484dacf18f5fe04c14ad9872f17ac0f0ae6",
+    "0080_authorization_worker_planning.sql": "189fe98490de3964d2c7be7e96b1e697d16ae03087c6134c1e3331689cf2a336"
+  }
+}

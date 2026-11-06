@@ -31,14 +31,14 @@ func TestLineageLayoutCreatesExactDirectoriesAndPreservesRestart(t *testing.T) {
 	if err := initializeLineageLayout(path, 65532); err != nil {
 		t.Fatal("initial layout", err)
 	}
-	for name, mode := range map[string]os.FileMode{"producer": 0750, "acks": 0750, "consumer": 0700} {
+	for name, mode := range map[string]os.FileMode{"producer": 0750, "observations": 0750, "acks": 0750, "consumer": 0700} {
 		info, err := os.Lstat(filepath.Join(path, name))
 		if err != nil || !info.IsDir() || info.Mode().Perm() != mode {
 			t.Fatal("incorrect layout", name, err)
 		}
 		stat, ok := info.Sys().(*syscall.Stat_t)
 		uid := uint32(65532)
-		if name == "producer" {
+		if name == "producer" || name == "observations" {
 			uid = 0
 		}
 		if !ok || stat.Uid != uid || stat.Gid != 65532 {

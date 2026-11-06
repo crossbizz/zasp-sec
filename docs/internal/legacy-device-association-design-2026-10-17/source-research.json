@@ -1,0 +1,235 @@
+{
+  "classification": "SOURCE_RESEARCH_ONLY_LEGACY_DEVICE_ASSOCIATION_ADAPTER_NOT_IMPLEMENTED_OR_REVIEW_CLEARED",
+  "source_pins": [
+    {
+      "path": "services/runtime-gateway/production.go",
+      "sha256": "6ce7c2c72927ff16cc47dae63fa0eee728c5f4c7e14e217302a0680be65b8a36",
+      "anchors": [
+        {
+          "symbol": "type gatewayCredentialFile struct",
+          "line": 135
+        },
+        {
+          "symbol": "func loadGatewayCredential",
+          "line": 141
+        }
+      ]
+    },
+    {
+      "path": "services/platform/gatewayenrollmentwire/authority.go",
+      "sha256": "6695b2bca8b1871c2063603f35fd2bee8e9149be52f8bbcfe47ffdb7d8cd7e30",
+      "anchors": [
+        {
+          "symbol": "type CurrentAuthority struct",
+          "line": 15
+        },
+        {
+          "symbol": "func ParseCurrentAuthority",
+          "line": 33
+        },
+        {
+          "symbol": "func CurrentAuthorityMatchesRequest",
+          "line": 57
+        },
+        {
+          "symbol": "func SignAuthorityRequest",
+          "line": 64
+        }
+      ]
+    },
+    {
+      "path": "services/platform/gatewayassociationwire/wire.go",
+      "sha256": "649c6c9806d8a835138a0113116d973f46e6801392046b7940b6e96ae5b4ffb8",
+      "anchors": [
+        {
+          "symbol": "type DeviceBinding struct",
+          "line": 29
+        },
+        {
+          "symbol": "func AcceptResponseMatches",
+          "line": 160
+        },
+        {
+          "symbol": "func SignAcceptRequest",
+          "line": 180
+        }
+      ]
+    },
+    {
+      "path": "services/platform/gatewayenrollmentcustody/association.go",
+      "sha256": "bb0b7f27c281bf1b6100deb48efa9ed50a3254d57a91cfe5b392d4fac663bce4",
+      "anchors": [
+        {
+          "symbol": "type associationIntent struct",
+          "line": 34
+        },
+        {
+          "symbol": "func (s *Store) BeginAssociation",
+          "line": 58
+        },
+        {
+          "symbol": "func (a *Association) Confirm",
+          "line": 156
+        }
+      ]
+    },
+    {
+      "path": "services/platform/gatewayenrollmentcustody/custody.go",
+      "sha256": "93a027e798199f7738ffb32ed34f9b1e8fce87b88bde3329b854fcd72e10c04f",
+      "anchors": [
+        {
+          "symbol": "func (s *Store) validLocked",
+          "line": 361
+        },
+        {
+          "symbol": "func decodeBundle",
+          "line": 390
+        }
+      ]
+    },
+    {
+      "path": "services/platform/gatewaycontrol/http.go",
+      "sha256": "104cf30ddb83cec5448a8197daa59e6281ee9611f686ed47ca4a4feffc67a6b8",
+      "anchors": [
+        {
+          "symbol": "func (handler *httpHandler) authenticate",
+          "line": 178
+        },
+        {
+          "symbol": "func canonicalRequest",
+          "line": 295
+        }
+      ]
+    },
+    {
+      "path": "services/platform/gatewaycontrol/postgres.go",
+      "sha256": "72d569fc199d85e196d990885e6e7b86e2423fe5a580df4b6ca60635b81e279f",
+      "anchors": [
+        {
+          "symbol": "func (repository *PostgresRepository) Authority",
+          "line": 108
+        }
+      ]
+    },
+    {
+      "path": "services/platform/internal/cacheownership/ownership.go",
+      "sha256": "b6a9d31b04ed8a523f56583afba6acda0b6f133445fed0cbefc84d0f71c1f27a",
+      "anchors": [
+        {
+          "symbol": "func Acquire",
+          "line": 29
+        },
+        {
+          "symbol": "func (g *Guard) Valid",
+          "line": 39
+        }
+      ]
+    },
+    {
+      "path": "cmd/agentsecctl/gateway_enrollment.go",
+      "sha256": "0d4e0cca7984fdcb2e68e92c9460d4ba7beffe8d3f847ce60bcc7eb74b9ca3b9",
+      "anchors": [
+        {
+          "symbol": "func parseGatewayCommand",
+          "line": 52
+        },
+        {
+          "symbol": "func newGatewayEnrollmentHTTPClient",
+          "line": 155
+        }
+      ]
+    },
+    {
+      "path": "cmd/agentsecctl/gateway_agent_association.go",
+      "sha256": "4afc233efd93f108b783dd558e9e67c2f9a2c3577296adbdc2a9cfdf4e48855d",
+      "anchors": [
+        {
+          "symbol": "func runGatewayAgentAssociationCommand",
+          "line": 44
+        }
+      ]
+    },
+    {
+      "path": "docs/internal/agent-device-association-design-2026-10-17/contract-final.json",
+      "sha256": "ba2d9cc1601ad7f07f1bf547f9f1d114a76c13593566f2883f5b1c35d32dec43",
+      "anchors": [
+        {
+          "symbol": "\"legacy_lane\"",
+          "line": 556
+        }
+      ]
+    }
+  ],
+  "original_requirement": "Existing deployed native Device credential3-field files must eventually support authenticated administrative Agent admission without requiring reconstructed enrollment custody. Fresh enrollment-custody support is one existing lane; this research does not close allDevice support, workload authenticity, coverage, deployment or original tasks.",
+  "observed": [
+    "Runtime current loader consumes EXACT canonical JSON3 credential_id/key_id/private_key,0600 regular bounded4096, pre/open descriptor inode check, canonical Ed25519 RawURL64. It imports gatewaycontrol/policy within runtime production; CLI must not import runtime main or gatewaycontrol (OPA transitive). File contains NO endpoint/scope/device/generation/expiry/enrollmentID or receipt.",
+    "Purestdlib ParseCurrentAuthority validates actual13-field closed DTO including allscope/device/currentgen/key/public/expiry. Existing SignAuthorityRequest and CurrentAuthorityMatchesRequest REQUIRE valid enrollment Request; those cannot honestly be called with fabricated Request fields for a legacycredential.",
+    "Current signed Authority GET uses existing ZaspGatewayV1 proof, exact context zasp-runtime-gateway-request-v1, fixed empty-body GET/host/path/credential/timestamp/emptySHA. Response TLS-authenticated, NOT separately server-signed enrollment attestation. Original native Authority checks actualcurrent credential/Device rather than legacyfile local fields.",
+    "Associationwire DeviceBinding is purposeappropriate scope/device/credential/gen/public/expiry, and fixed signed POST/strict response helpers already available without enrollment assumptions.",
+    "Current enrollmentcustody Store requires immutable original enrollment bundle/request/tokenmetadata; association intent stores local_request_sha256 of REAL enrollment RequestRaw. It cannot be reused by inventing dummy enrollmentID/nonce/tokenmetadata, even though it signs real protectedkey.",
+    "Common cacheownership guard creates stable writable sibling lock and applies cooperating-process protocol. Runtime credentials may be mounted read-only; a new legacy adapter must not assume source directory writable or chmod/rewrite file."
+  ],
+  "recommended_smallest_additive_flow": {
+    "grammar_existing": "Keep gateway accept-agent --custody-file ABS --ca-bundle-file ABS [--timeout DURATION] unchanged.",
+    "grammar_legacy_proposed": "gateway accept-agent --credential-file ABS --endpoint HTTPS_ORIGIN --association-state-file ABS --ca-bundle-file ABS [--timeout 1s..30s] < exact existing3-key nonauthorizing challenge envelope",
+    "exclusivity": "Exactly one existing --custody-file OR full legacy triple credential-file+endpoint+association-state-file. Reject mixedsource/incompleteflags/token/key/nonce/Agent overrides and credential-export flags before stdin/network. Explicit newendpoint is required only for legacy mode because sourcefile has none; challenge never supplies trusted origin.",
+    "step1": "Read strict original threefield credential via protected pinned readonly descriptor: absolute clean path, no symlinkcomponents, regular currentUID exact0600/nlink1/bounded4096, pre/open/post inode/path checks and canonicalclosedJSON. Validate private seed/public-half consistency and derive publickey locally; key never returned or copied into evidence. Retain descriptor and originalbytes in opaque redacted handle, clear memory onClose. This is read-only consumption of an existingoperator credential; do not claim newly established enrollment durability/provenance.",
+    "step2": "Open separately writable trusted state parent with own common cacheownership guard BEFORE any state I/O; reserve state/lock/artifact namespaces. Pin supplied HTTPSendpoint in state; use existing direct TLS explicitCA/no redirects/standardhostname or IP SAN client. Sourcefile may stay read-only, so do not create sibling locks in its directory. Source readback+sameinode/metadata must remain valid before each signing and before reporting; no claim to stop malicioussameUID/externalrotation.",
+    "step3": "Perform fresh fixed signed Authority GET with existing credentialID/keyID/derivedpublickey using narrow NEW stdlib signer accepting only those authentic localsigner facts, not fake enrollmentRequest. Parse real13 DTO; match credentialID/keyID/Ed25519/publickey/runtime-gateway audience and expiry after COMPLETED response. Match Authority org/work/env/device to actual decoded protectedchallenge; currentgeneration/version come only fromAuthority. No requested scopeheader or challenge metadata is authority.",
+    "step4": "Bind actualAuthority DeviceBinding to immutable local descriptor and original endpoint/publiccredential fingerprint; durable selected canonical accept intent must exist BEFORE mutatingPOST. Firststate records identity_source=current_device_authority and actualAuthority metadata/observedtime as historicalevidence. Never local_request_sha256/fakeEnrollmentRequest, originalreceipt or enrollmentconfirmed. Fresh retry repeats Authority GET before POST, exact existingbinding and originalbody/key/credential/gen required.",
+    "step5": "Use existing associationwire SignAcceptRequest and AcceptResponseMatches with actuallive DeviceBinding; one fixed POST through same HTTPSorigin. Server native currentproof/own transaction revalidates generation/scope/Agent/source/nonce/hash/expiry again after waits, so Authority\u2192POST race cannotborrow stalepermission. Strict5/nested4/3 response, fsyncimmutable receipt, recheck actual clock/context and response binding AFTER filesystem boundary, then SAME existing six-key phase2 report only. No activation/credentialexport/automatic enrollment/rekey.",
+    "retry": "Unknown POST preserves exact challenge/nativewire/rawouterbody/credentialID+generation and originalkey. Restart requires same state descriptor, source publicfingerprint and pinnedendpoint; make fresh Authority GET and live POST even if historicalreceipt. Changed currentgen/key/expiry/scope, expirednonce/credential, revokedsource, unsafe files or transport fail UNKNOWN and retain history. Do not overwrite oldbinding or silentlyadopt newcredential. Separate deliberatelyreviewed newstate/re-admission required onrotation.",
+    "phase3": "Still separate fresh sameoriginal human Agent-authorized Stytch browser finalization. Legacykey possession alone cannotactivate or authenticate actual Agent workload."
+  },
+  "custody_and_namespace": {
+    "preferred": "New gatewaydevicecredentialcustody (or similarly named) stdlib-only opaque signer+legacy association state, reusing reviewed root-relative publication primitive through explicit shared internal utility. Avoid copying large publication implementation or modifying immutable enrollment bundle format. Existing enrollmentcustody behavior and evidence remain unchanged.",
+    "state_descriptor": "Canonical versioned object actual identity_source=current_device_authority, originalendpoint, public credential tuple credentialID/keyID/publickey, actualscope/device/gen/expiry and firstAuthority observation. No privatekey/token/filecontentSHA derived fromsecret material/enrollmentRequest. Statefile/sourcefile path is not intrinsic Device identity; safe metadata path may be retained privately only if contract selects it.",
+    "namespace": "Flat perstate protected0700 directory; percanonicalChallengeID+hash immutable .intent and .receipt with same exclusive0600 stage/fsync/link/readback semantics. Selectedlookup only; independent Agent challenges coexist; no archive/indexscan/overwrite/cleanup. State descriptor and intent include current DeviceBinding but historicalAuthority observation never authorizes future network skip.",
+    "aliases": "Reject statefile/state-dir/stages/locks/sourcecredential sameinode or directory aliases; no writes under sourcecredentialpath. Newstore writes no credentialexport. Existing normal/recovery exports can target arbitrary writablepaths, so cross-store namespace reservation must be explicit: common pinExportParent rejects pinned legacy protected directory inode/ancestors, or a carefully reviewed common protectednamespace policy. Source0600 readback+nlink checks detect hardlinks; do not claim sameUID malicious isolation. Namespace compatibility is a designgate, not solved by name prefix alone.",
+    "read_only_source": "Runtimecredential volume may be readonly. State guardian belongs writable explicit state parent; originalsource descriptor validated on every use. No chmod/chown/move/newkey/credentialfile rewrite. Parallel readonly runtime continues existing behavior.",
+    "fresh_capability": "Only actual this-invocation Authority TLS result creates bound opaque acceptance handle; saved authority/receipt artifact cannot recreate liveassurance. Handle consumed/closed flags monotone, guard/key access synchronized and joined beforerelease. Deadline and expiries rechecked after fsync before sixkeysuccess.",
+    "open_choices": [
+      "Select public package/API and common publication refactor boundary; independent review before sourcechanges.",
+      "Specify guardedstate descriptor creation after first Authority GET vs preGET public-onlydescriptor. Either safe if no mutatingPOST precedes durable selected intent and unknownGET never fabricates Authority. Prefer afterGET actualidentity descriptor.",
+      "Define exact immutable descriptor binding to sourcepublictuple +endpoint and currentgen/expiry, without making original source pathname an authenticated Deviceidentity.",
+      "Resolve cross-store export protectednamespace alias reservation without globalhistoryscan/newruntimebehavior; do not omit this boundary just because legacy adapter has noexport."
+    ]
+  },
+  "alternatives": [
+    {
+      "option": "Create pseudo enrollmentcustody from legacy3file",
+      "decision": "Reject. Requires invented original Request/enrollmentID/tokenmetadata/requestdigest/receipt lineage, violates provenance and existingformat."
+    },
+    {
+      "option": "Import existing gatewaycontrol.HTTPClient intoCLI",
+      "decision": "Reject for this component. Introduces policy/OPA transitive dependencies; purestd13 parser+newnarrow signer is enough."
+    },
+    {
+      "option": "Direct signedPOST using challenge-provided scope with no Authority",
+      "decision": "Native server can reject wrongscope, but CLI lacks authenticatedgen/expiry/publicbinding for strict receiptmatching; choose fresh Authority step for coherent existingcredential adapter."
+    },
+    {
+      "option": "Separate explicit import-device command copying privatekey into new custody",
+      "decision": "Larger risk/scope and newsecretcopy lifecycle. Not necessary for minimal readonlysource adapter; keep as optional reviewed migration path only."
+    }
+  ],
+  "required_source_paths_proposed": [
+    "cmd/agentsecctl/gateway_enrollment.go: mutually exclusive legacy flags only on accept-agent; originalgrammar unchanged",
+    "cmd/agentsecctl/gateway_agent_association.go: purpose-specific sourceadapter orchestration with sharedfixedPOST/strictreport; preserve freshcustody branch",
+    "cmd/agentsecctl/gateway_agent_association_test.go or new legacy-focused grouped testfile: actual runCommand/TLS",
+    "services/platform/gatewaydevicecredentialcustody/*.go NEW: protected readonly existingkey +separate guarded explicit state +immutable association evidence",
+    "services/platform/gatewaydevicewire/*.go NEW or narrow additive gatewayassociationwire file: strict3 credential parsing and submittedkey fixed Authority GET signer with no fabricated enrollmentRequest",
+    "services/platform/gatewayenrollmentwire/authority.go: reuse ParseCurrentAuthority unchanged, optional semantic-neutral parser reexport only if contractbenefit justifies",
+    "services/platform/internal reviewed publication utility NEW/REFACTOR: exact unchanged durable primitive reused by bothstores under frozenold regression",
+    "services/platform/gatewayenrollmentcustody export path protections ONLY if selected common protectednamespace boundary requires it; no originalbundle/evidence rewrites",
+    "docs/operator launch instructions, CI finitegroup sourcebinding, immutable evidenceandhandoff; original ledger unavailableuntilrealverification"
+  ],
+  "bounded_grouped_regression": [
+    "ActualCLI TLS existingcanonical3file(readonlysource where environmentpermits)+Authority13 currentproof+strictsignedaccept+durableintent-beforePOST+phase2-onlyreport. Independently verify both GET/POST signatures against originalkey and originalsourcebytes unchanged; no fakeenrollmentartifact or key/stdout.",
+    "Unknowncommit lostPOST response\u2192restart same state/source\u2192fresh AuthorityGET+identical acceptbody/ID/gen/key with freshtimestamp; historicalreceipt still requires livecalls; multiAgent histories retained. Changedgen/key/expiry/scope/revoke/expirednonce refusals grouped.",
+    "Grouped trust boundaries strictfile/seedpubhalf, currentUID0600/nlink/symlink/descriptorreplacement, readonlysource support, mixedflag/endpoint/CA/downgrade/redirect/context/deadline/expiryafterfsync and nosecret/noexport behavior.",
+    "Grouped durable state orphans/partialstages/nooverwrite/namespace ancestor aliases/hardlinks across existing exports; preserved complete existing CLI enrollment/recovery/association regression. No Temporal/OpenFGA/native-library internals testing.",
+    "Root registered actual native current Device Normal/Audit acceptance and deployed actualGateway+Stytch browser/provider launch flow remain REQUIRED; fixtureTLS/componenttests do not promote productionavailability."
+  ],
+  "claims": "Read-only source research and this /tmp JSON write only. No repository edits, currentfreeze/evidence modifications, Go/Node/tests/native/Git/network execution, newgrant, fakeauthority, originaltask closure, or deployedproof."
+}

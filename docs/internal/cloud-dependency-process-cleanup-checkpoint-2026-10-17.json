@@ -1,0 +1,44 @@
+{
+  "classification": "DEPENDENCY_PROCESS_COMPONENT_LOCALLY_VERIFIED_FULL_PLATFORM_VERIFY_BLOCKED",
+  "observed_at": "2026-10-17T22:40:34.569855+00:00",
+  "source_parent": "27b5c93d5b6006216834233ae6ac66cf218bdb8f",
+  "change": "Fixed Linux dependency regression child ownership with a dedicated pidfd/subreaper launcher; original nine Node checks and both fixtures unchanged. Added three grouped lifecycle checks and independent CI with exact source custody. No application permission, provider or native admission guard changed.",
+  "design_qualification": "The optional child-list proc file is absent in this runtime. Reviewed successor permits bounded read-only numeric proc discovery only on ENOENT; signaling still requires verified current child ownership and pidfd identity. EACCES/EPERM do not enable fallback. Prior failures, design successors and HOLD reviews retained.",
+  "verification": {
+    "original_dependency_checks": "9 PASS, 0 FAIL, 0 SKIP",
+    "python_lifecycle_groups": "3 PASS, 0 FAIL",
+    "final_exact_ci_python_bodies": "PASS all five stages, 917 source bindings before and after; local locked npm ci step not rerun",
+    "source_guards": "21 PASS",
+    "independent_product_review": "CLEAR source successor; prior cleanup status precedence finding corrected",
+    "independent_ci_review": "CLEAR parser successor; initial valid todo-zero summary false rejection preserved",
+    "whole_npm_verify": "FAIL: dependency9 and Node health6 pass, services/health and platform/healthserver Go pass; API/worker SETUP_FAILED missing OPA1.17.0 and Neo4j6.2.0 with GOPROXY off; later phases NOT RUN",
+    "hosted_current_batch": "NOT YET OBSERVED",
+    "native_deployed_end_to_end": "UNVERIFIED",
+    "ui_build": "PASS actual npm run build with Node22.23.1; all five vinext stages complete; standalone output generated. Does not establish deployed API/provider/browser acceptance."
+  },
+  "evidence": {
+    "path": "docs/internal/cloud-dependency-process-cleanup-evidence-2026-10-17.tar.gz",
+    "sha256": "e44c9f4ac88d809c706fc3901bad179180af8ee20ad89327b7c91c89edbac1e3",
+    "bytes": 760922,
+    "members": 91,
+    "status": "ALL_MEMBER_BYTES_VERIFIED; manifest records SHA256 and bytes for every payload member; checkpoint excluded to avoid self-reference"
+  },
+  "ledger": {
+    "rows": 728,
+    "production_available_recorded": 509,
+    "component_only": 158,
+    "blocked_external": 61,
+    "recorded_nonproduction": 219,
+    "promotions": 0,
+    "deployed_acceptance_required_for_all": true
+  },
+  "access": {
+    "branch_push": "previous source pushes succeeded; this batch pending",
+    "pr_metadata_update": "HTTP403 Resource not accessible by personal access token; no alternate retry",
+    "merge": "NOT CLEARED"
+  },
+  "next": "Restore authorized dependency/native runtime prerequisites; implement strict authenticated Gateway routing and policy publication locking once real catalog evidence available; verify all original provider/Stytch/Temporal/OpenFGA/browser flows.",
+  "launch_ready": false,
+  "task_closed": false,
+  "obsolete_retired": false
+}

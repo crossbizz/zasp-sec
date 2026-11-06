@@ -1,3 +1,4 @@
+import { decodeSensorNodeCoverage, type SensorNodeCoverage } from "../../../apps/web/api/sensor-node-coverage";
 import type { APIClient } from "../../../apps/web/api/client";
 import { APITransportError, requireAPIData } from "../../../apps/web/api/client";
 import { decodeSensor, decodeSensorCoverage, decodeBoundSensorEnrollment, decodeSensorPage } from "../../../apps/web/api/decoders";
@@ -30,6 +31,9 @@ export function createSensorsAPI(client: APIClient) {
       const result = await client.GET("/api/v1/sensors/{id}", { params: { path: { id } }, signal });
       const value = requireNoStoreData(result, decodeSensor); if (value.id !== id) invalidResponse("Sensor detail returned a different resource");
       return versioned(result.response, value);
+    },
+    async getSensorNodeCoverage(id: string, signal?: AbortSignal): Promise<SensorNodeCoverage> {
+      return requireNoStoreData(await client.GET("/api/v1/sensors/{id}/coverage", { params: { path: { id }, header: { "X-Zasp-Schema-Version": "sensor-coverage-node-observation-v2" } }, signal }), (value) => decodeSensorNodeCoverage(value, id));
     },
     async getSensorCoverage(id: string, signal?: AbortSignal): Promise<SensorCoverage> {
       return requireNoStoreData(await client.GET("/api/v1/sensors/{id}/coverage", { params: { path: { id } }, signal }), (value) => decodeSensorCoverage(value, id));

@@ -70,12 +70,13 @@ func (caller *discoveryAWSCollectionIdentityCaller) CheckCollectionReadiness(ctx
 }
 
 type discoveryBearerCollectionAPI struct {
-	provider     collection.Provider
-	github       githubdiscovery.CollectionAPI
-	kubernetes   func(kubernetesdiscovery.PinnedCollectionAPIConfig) (kubernetesdiscovery.CollectionAPI, error)
-	okta         func(string, time.Duration) (idpdiscovery.CollectionAPI, error)
-	allowedCIDRs []string
-	timeout      time.Duration
+	provider      collection.Provider
+	github        githubdiscovery.CollectionAPI
+	kubernetes    func(kubernetesdiscovery.PinnedCollectionAPIConfig) (kubernetesdiscovery.CollectionAPI, error)
+	okta          func(string, time.Duration) (idpdiscovery.CollectionAPI, error)
+	allowedCIDRs  []string
+	timeout       time.Duration
+	nodePlacement bool
 }
 
 func newDiscoveryGitHubCollectionAPI(api githubdiscovery.CollectionAPI) githubdiscovery.CollectionAPI {
@@ -112,7 +113,7 @@ func (api *discoveryBearerCollectionAPI) FetchCollectionPage(ctx context.Context
 		delegate = api.github
 	case collection.ProviderKubernetes:
 		if api.kubernetes != nil && api.timeout >= 100*time.Millisecond && api.timeout <= 30*time.Second {
-			delegate, err = api.kubernetes(kubernetesdiscovery.PinnedCollectionAPIConfig{Endpoint: envelope.Endpoint, CABundlePEM: bytes.Clone(envelope.CABundlePEM), AllowedCIDRs: append([]string(nil), api.allowedCIDRs...), Timeout: api.timeout})
+			delegate, err = api.kubernetes(kubernetesdiscovery.PinnedCollectionAPIConfig{NodePlacement: api.nodePlacement, Endpoint: envelope.Endpoint, CABundlePEM: bytes.Clone(envelope.CABundlePEM), AllowedCIDRs: append([]string(nil), api.allowedCIDRs...), Timeout: api.timeout})
 		}
 	case collection.ProviderOkta:
 		if api.okta != nil && api.timeout >= 100*time.Millisecond && api.timeout <= 30*time.Second {
@@ -187,3 +188,7 @@ func nilDiscoveryClientDependency(value any) bool {
 
 var _ awsdiscovery.CollectionIdentityCaller = (*discoveryAWSCollectionIdentityCaller)(nil)
 var _ githubdiscovery.CollectionAPI = (*discoveryBearerCollectionAPI)(nil)
+
+func (api *discoveryBearerCollectionAPI) NodePlacementEnabled() bool {
+	return api != nil && api.provider == collection.ProviderKubernetes && api.nodePlacement
+}

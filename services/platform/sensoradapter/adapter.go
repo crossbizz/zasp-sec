@@ -542,7 +542,11 @@ func decodeClosed(payload []byte, target any) error {
 }
 
 type ProductionClientConfig struct {
-	BaseURL string
+	// NodeCoverageRetention explicitly enables the separate retained v2 method.
+	NodeCoverageRetention bool
+	// SensorID constrains terminal receipts to this enrolled sensor; it grants no authority.
+	SensorID string
+	BaseURL  string
 	// EnrollmentBinding is an explicit scoped enrollment constraint, not a token.
 	// Empty preserves the legacy transport but cannot prepare durable envelopes.
 	EnrollmentBinding string
@@ -552,11 +556,13 @@ type ProductionClientConfig struct {
 }
 
 type ProductionClient struct {
-	base       *url.URL
-	enrollment string
-	token      func() ([]byte, error)
-	do         func(*http.Request) (*http.Response, error)
-	now        func() time.Time
+	nodeCoverageRetention bool
+	sensorID              string
+	base                  *url.URL
+	enrollment            string
+	token                 func() ([]byte, error)
+	do                    func(*http.Request) (*http.Response, error)
+	now                   func() time.Time
 }
 
 func NewProductionClient(config ProductionClientConfig) (*ProductionClient, error) {
@@ -564,7 +570,13 @@ func NewProductionClient(config ProductionClientConfig) (*ProductionClient, erro
 	if err != nil || base.Scheme != "https" || base.Host == "" || base.User != nil || base.RawQuery != "" || base.Fragment != "" || base.Path != "" || config.Token == nil || config.Do == nil || config.Now == nil || config.EnrollmentBinding != "" && !enrollmentBindingPattern.MatchString(config.EnrollmentBinding) {
 		return nil, ErrClient
 	}
-	return &ProductionClient{base: base, enrollment: config.EnrollmentBinding, token: config.Token, do: config.Do, now: config.Now}, nil
+	if config.NodeCoverageRetention {
+		id, idErr := domain.ParseProductID(config.SensorID)
+		if idErr != nil || id.IsZero() || id.String() != config.SensorID || config.EnrollmentBinding == "" {
+			return nil, ErrClient
+		}
+	}
+	return &ProductionClient{nodeCoverageRetention: config.NodeCoverageRetention, sensorID: config.SensorID, base: base, enrollment: config.EnrollmentBinding, token: config.Token, do: config.Do, now: config.Now}, nil
 }
 
 func (client *ProductionClient) Heartbeat(ctx context.Context, report Heartbeat) error {

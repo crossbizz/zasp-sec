@@ -1,0 +1,201 @@
+{
+  "observed_at": "2026-10-17T18:17:57.731308+00:00",
+  "continued_published_base": "cfe2db741caeb7d763318fc833268e632e5efa80",
+  "classification": "ACTUAL_COLLECTOR_PARSER_COMPONENTS_WORKER_UNCOMPILED_PROVIDER_AND_AGENT_COVERAGE_UNVERIFIED",
+  "task_mapping": [
+    "M4-50b3"
+  ],
+  "scope": {
+    "version": "kubernetes_node_placement_v2 existing collector-version selection; no new flag/env key",
+    "cursor": "kubernetes-placement-v2: value; original generic cursor_v1 envelope. Both cross-recipe continuations refused.",
+    "mount": "factory exact selected version -> bearer NodePlacementEnabled capability and pinned config.NodePlacement -> actual API. NewCollectionClient refuses mismatch both directions. Empty existing config remains legacy.",
+    "snapshots": "Bulk complete RS and Pod namespace domains twice; shared by all selected Agents on page, unique Node reads twice, selected Deployment exact read between, kube-system Namespace twice. No unbounded per-Agent namespace rescan.",
+    "limits": "1000 rows per complete namespace list,500 page limit, finite8192 HTTP calls, shared remaining provider bytes and original single Fetch deadline,1000 tuples per Agent, original262144 bytes total Agent attributes. Overflow/cancel/401403/churn refuses, never truncates.",
+    "facts": "Actual Namespace UID, exact controller/RS/Pod ownership, Node UID/boot; observation time before original Deployment fetch, never restamped. Zero complete live Pod chains omit optional placement and preserve ordinary Agent metadata. No coverage flags, privileges, SQL changes."
+  },
+  "sources": [
+    {
+      "path": ".github/connector-native-compile-source-pins.json",
+      "sha256": "56944b0cc91b04d73c725ba2536e9dde85f586b77bd82158a824a87593fd6d17",
+      "bytes": 210745
+    },
+    {
+      "path": ".github/workflows/connector-native-draft-compile.yml",
+      "sha256": "94b005e8fdaab5007371c283ae088d84e052e303b6e69ad0ba2227342e979439",
+      "bytes": 100990
+    },
+    {
+      "path": "scripts/connector-acceptance-groups.test.mjs",
+      "sha256": "ecd6b3037567b319bc6cc569102a4357c0b60df8ff7f189afa5bbfd1ae36bf90",
+      "bytes": 72805
+    },
+    {
+      "path": "scripts/hosted-connected-connector-acceptance.mjs",
+      "sha256": "69d18b08e454c2e8c43b3c76ff68ea7f8707c11c1647eb023519869caad05a71",
+      "bytes": 127445
+    },
+    {
+      "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
+      "sha256": "1da2466a070dea8078732fa442e3afcb91453ad9cc5027fe8128d1e848835557",
+      "bytes": 123846
+    },
+    {
+      "path": "services/platform/agentsec-worker/discovery_clients.go",
+      "sha256": "c2cb43ae313ae499481de29502650125747c8b4b72642c9fe5e9d1e3e83c5f45",
+      "bytes": 8856
+    },
+    {
+      "path": "services/platform/agentsec-worker/discovery_composition.go",
+      "sha256": "facd4680cbf2b9d97a2c76e7563e9434864a14cd5f5ddd924dc65fb9ac404d91",
+      "bytes": 11377
+    },
+    {
+      "path": "services/platform/agentsec-worker/discovery_node_placement_test.go",
+      "sha256": "ec2a929e1ad3743cf1d65e3b735dee54768863c2e3c3ebae8f85d9bc3463efa9",
+      "bytes": 2109
+    },
+    {
+      "path": "services/platform/connectors/internal/providercollection/client.go",
+      "sha256": "a850173cd86aea7464c48e8982ff32c34eda2c25302a0cdd8c97bd4cf8e530e3",
+      "bytes": 72390
+    },
+    {
+      "path": "services/platform/connectors/internal/providercollection/node_placement.go",
+      "sha256": "a40fb68d067c6d6d84c4857dbec66be1da98c0c31d6470981a38aba5d324cba1",
+      "bytes": 2843
+    },
+    {
+      "path": "services/platform/connectors/internal/providercollection/node_placement_schema_test.go",
+      "sha256": "48cdee37c194500c1e06c479d3ad903565a97773915cb83fcdf875fb7a32716b",
+      "bytes": 2893
+    },
+    {
+      "path": "services/platform/connectors/kubernetesdiscovery/collection.go",
+      "sha256": "8e826becac8aaaeba2812e6ad0c17d2b99e8eb6649ee218c6717dba70776851a",
+      "bytes": 1622
+    },
+    {
+      "path": "services/platform/connectors/kubernetesdiscovery/collection_api.go",
+      "sha256": "c8f7d039b324d8426564de4456ce64f14635b9b3e6b8c4053592f487dd570a5d",
+      "bytes": 48746
+    },
+    {
+      "path": "services/platform/connectors/kubernetesdiscovery/node_placement.go",
+      "sha256": "320f728344c96e548c38d6149d7f7b535a816ede9e241f8323bfcf02e78fc7f4",
+      "bytes": 17195
+    },
+    {
+      "path": "services/platform/connectors/kubernetesdiscovery/node_placement_test.go",
+      "sha256": "4bbaab2ad12ea156ea01f56337c05a18791d4627792909c88a68365874c4029f",
+      "bytes": 11274
+    },
+    {
+      "path": "services/platform/connectors/kubernetesdiscovery/pinned_collection_api.go",
+      "sha256": "d8e5c14635ad00dfb11586156c120a02533b78b8f612b0ac5f0c23f23be3c4f9",
+      "bytes": 5804
+    }
+  ],
+  "verification": {
+    "collector_full_race": {
+      "exit_code": 0,
+      "named_pass": 58,
+      "named_fail": 0,
+      "named_skip": 0
+    },
+    "parser_full_race": {
+      "named_pass": 117,
+      "named_fail": 0,
+      "named_skip": 0,
+      "package_pass": true,
+      "qualification": "Parser package passed in initial combined command; that command exited1 because collector test helper collided with product type. Collector successor passed separately after test-only rename."
+    },
+    "worker_focused": {
+      "exit_code": 1,
+      "named_executed": 0,
+      "classification": "OPA_AND_NEO4J_DEPENDENCY_SETUP_BLOCKED_COMPILATION_AND_BEHAVIOR_UNKNOWN"
+    },
+    "new_grouped_cases": {
+      "declared_names": 19,
+      "collector_and_parser_executed_names": 18,
+      "worker_declared_unexecuted_names": 1
+    },
+    "root_helper_delta_review": {
+      "path": "helper-rename-root-independent-review.json",
+      "qualification": "Exact byte comparison; private test helper and calls renamed only. Product source unchanged."
+    },
+    "independent_source_review": {
+      "path": "first-concrete-independent-source-review.json",
+      "sha256": "7a5b44e3cede167f679d9d03fae03214b42313367fe06df37de8784b078652c3",
+      "classification": "CLEAR_SOURCE_ONLY"
+    },
+    "initial_grouped_red": {
+      "named_pass": 8,
+      "named_fail": 4,
+      "qualification": "Includes parents and baseline early rejections; negative baseline passes are not new deeper refusal evidence."
+    },
+    "preserved_compile_failure": "First concrete collector failed0 due private helper/type placementOwner redeclaration; exact source/build output retained. Only helper rename corrected; parser117 passed in that same command.",
+    "source_custody_node": {
+      "exit_code": 0,
+      "named_pass": 21
+    },
+    "prior_sensor_component_source_custody": {
+      "exit_code": 0,
+      "sources": 729
+    },
+    "supported_tools": "Go1.26.8 race/count1, bounded process test timeout; child-test-only umask0027.",
+    "execution_context": "Application tests against controlled provider TLS fixtures; no live Kubernetes provider, SQL/native or deployed acceptance."
+  },
+  "evidence": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/agent-node-placement/source-execution-evidence.json.gz",
+    "sha256": "cdb4b7c41626851e0794751cf2e05ab3e944a4cc0a46bfcfa7bf6f2e63bc782a",
+    "bytes": 54150,
+    "members": 27
+  },
+  "source_custody": {
+    "prior_count": 718,
+    "current_count": 729,
+    "all_prior_paths_history_preserved": true,
+    "new_binding_paths": [
+      "services/platform/connectors/kubernetesdiscovery/collection_api.go",
+      "services/platform/connectors/kubernetesdiscovery/pinned_collection_api.go",
+      "services/platform/connectors/kubernetesdiscovery/collection.go",
+      "services/platform/connectors/kubernetesdiscovery/node_placement.go",
+      "services/platform/connectors/kubernetesdiscovery/node_placement_test.go",
+      "services/platform/connectors/internal/providercollection/client.go",
+      "services/platform/connectors/internal/providercollection/node_placement.go",
+      "services/platform/connectors/internal/providercollection/node_placement_schema_test.go",
+      "services/platform/agentsec-worker/discovery_clients.go",
+      "services/platform/agentsec-worker/discovery_composition.go",
+      "services/platform/agentsec-worker/discovery_node_placement_test.go"
+    ]
+  },
+  "ledger": {
+    "rows": 728,
+    "unique_ids": 728,
+    "historical_complete": 667,
+    "historical_blocked": 61,
+    "classes": {
+      "production-available": 509,
+      "component-only": 158,
+      "blocked/external": 61
+    },
+    "remaining_recorded": 219,
+    "only_evidence_append": "M4-50b3",
+    "predecessor_sha256": "6ec4e7f3a90afb2d80ea0c1bb9c1f52e4547a3fc8dff702086374a9cee558db3",
+    "sha256": "6a73e657fda6c8b79dea9b73cde5a5bb664673d9cb3d551c30dbdd8ab65204e6",
+    "owners_unchanged": true,
+    "availability_promotions": 0,
+    "inventory": "docs/internal/cloud-goal-remaining-task-inventory-2026-10-17-agent-node-placement-source-successor.json"
+  },
+  "next_missing_seam": {
+    "source_audit": "docs/internal/cloud-agent-gateway-installation-ack-source-audit-2026-10-17.json",
+    "sha256": "813ad6970c2bf5a1c085abcbcd7f3018bd616243c25e47ee74624c48f58fb8e6",
+    "finding": "Actual gateway credentials and policy envelopes bind a scoped DeviceID. Durable cache.Store has no server installation acknowledgment. Decision Evaluation.AgentID is request attribution and applied_generation is publication, neither an authentic durable Agent-device installation association.",
+    "qualification": "A future device acknowledgment alone cannot prove per-Agent installation/coverage. No next-batch schema, grant, identity or runtime implementation is included here."
+  },
+  "native_and_deployed": "Original 29groups/206names/40PGjoins/16approvalcontrols unchanged; native admission, API dependencies, Helm rendering, real Stytch/provider/Temporal/OpenFGA runtime and all deployed acceptance gates remain open.",
+  "retired_obsolete_implementations": false,
+  "merge_release_cleared": false,
+  "ui_build_evidence": "Published sensor batch cfe2db74 carries the fresh typecheck/lint/build/15focused UI verification. This placement batch adds no UI source.",
+  "status_predecessor_sha256": "7c4997570e826e10b49b421a6b0ca0d2802d6e884cb9e22d50c94c798323715a"
+}

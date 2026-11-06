@@ -1,0 +1,35 @@
+{
+  "status": "CLEAR_FINITE_BACKEND_SECURITY_DESIGN_ONLY_CLI_CUSTODY_CONTRACT_SEPARATE",
+  "reviewer": "/root/gateway_review",
+  "created_at": "2026-10-17T20:22:50.105322+00:00",
+  "contract": {
+    "path": "docs/internal/agent-device-association-design-2026-10-17/contract.json",
+    "sha256": "157737017951379e64e0a00ad0ad4d6042e08c2d7a27e8689fe864a85d44e942"
+  },
+  "source_pin_count": 15,
+  "source_pin_mismatches": [],
+  "findings": [],
+  "reviewed": [
+    "New explicit exactAgent operations can use existing resource manage_identity/view model relations and dynamic current79/80 proof machinery without newDeviceFGAkind/principal or parentSQL/grant rewrite. Originalownership13arg ABI/updateAgent manage_workflows/FreshAuthfalse/PAT unchanged.",
+    "Humanwrites browserONLY actualrecentStytchsession/CSRF/origin/scope + currentmanage_identity exactAgent; SQL kind1/fresh/currentidentity/revision/allowed target checks independently required. Read Browser/PATview remainssingleAgent noncollection. Advisorycan_manage extraCheck bound sameactorcredentialscopeAgentversion79revision and ownprofile readiness, no SQLwritegrant or immutable80attestation extension.",
+    "Threephase intent\u2192currentDeviceacceptanceonly\u2192freshSAMEcreatoractivation is nondelegating. Phase1context notpreserved acrossTX; finalnewcurrentproof revalidates humanrights/source/Devicegeneration/nonce. Completedconfig doesnot grant historicalauthor futureaccess.",
+    "NativeASCII exactchallenge builder avoidsGoJSONBhash ambiguity; closedalphabet scalars validated beforeconcatenation. Exactrawstoredbytea/hash/nonce/intentbound, canonicalsourceidentitylengthprefixedUTF8 provenance. Snapshotrefresh same stableidentity mayrestore administrativeavailability; changedidentity neverautorebinds and noobservedrouting/coverage claim.",
+    "Explicitpair multiplicity manyAgent/manyDevice, deterministicpairID/CASversion0, onependingcandidate replacement withoutactivechange; exactoldreceipt metadata replay cannotresurrectcandidate. Activate incrementsversion/consumescandidate; wholepairrevoke invalidatesactiveANDpending, nohidden cancelonly.",
+    "Actualoriginalhumanorder79org\u2192identity\u2192AgentFORSHARE preserved, noAgentwrite/lockupgrade. Deviceaccept sameorg\u2192Agent identityFORSHARE beforeDevice advisory/row locks\u2192ownpair/challenge/acceptance. Fixedownoperation/strictreceipt/confirm/actualCOMMIT and finalwallclock afterwaits required. No deadlock/concurrencyproof inferred fromdesign.",
+    "OwnsealedNormalAudit namespace/tableconstraints/index/function/ACL/sourceframes, minimumoriginalAPI/controlpurposepin exports, defaultACL rejection and boundedoperatorrole restore. Exactpinlast13/12/10/7/10/3/4 primaryABIs closed. Featureavailability isolatedoriginalhealth; no originalregistry/frame/body rewrite.",
+    "ReadHMACcursor binds scopedAgent/actorcredential/version/revision/profile/limit andboundedexpiry; resultactiveconfiguration distinctpendingreplacement and unavailable reason. UI humanfreshfinalize/read/revoke and Deviceproof labels remainadministrativetestimony."
+  ],
+  "implementation_conditions": [
+    "PublicAPIregisteredlogin cannotcall original zasp_runtime_gateway_credential_authority directly tovalidateDevice: parentfunction requires registeredgateway-control session_user. Human/read ownprivate sourceowner helper mustvalidate requirednativeDevice/credential predicates under originallocks without borrowingcontrolcredentials or wideningrawtablegrants. Device/control path mayuse originalgrantedfunction.",
+    "Ownfinalfences mustinclude actualcredentialrevocation (notmerelyfutureexpiry/generation), highergeneration, Deviceactive/deleted states, sourcefreshness/originalbinding/provenanceambiguity andnonceacceptanceexpiry afterallpotentialwaits. Freeze explicit truthful unavailable-reason mapping for revokedcredential inimplementation.",
+    "OldrawSQLwriters maystillcause lockinversion/serialization failure; entireTXmustrollback and freshCheckrestart, no staleproof retry/bypass. Original79capture comments already acknowledge rowtrigger tuplelockordering.",
+    "Confirmhuman/device markers and expectedreceipts mustbind actualeffects under privatecreatedTX/acceptedTX; no caller/GUCboolean authority. Browser/sessionfreshness actualnative row afterwait, notheader alone.",
+    "FinalCLIchallengecustody/namespace/credentialfile proof protocol is outsidethisbackendsecurityclearance and mustclose beforefullconnectedimplementation; no unreviewed argumentwire drift."
+  ],
+  "proof_limits": [
+    "Design/sourcehashinspection only; no productedits/Go/Node/tests/build/Git/network/native execution.",
+    "Clears finitebackendsecurity design forgroupedacceptance/sourceimplementation after remainingwire/CLIclosure, not actualimplementation/native/deployed/launchacceptance.",
+    "No sourceidentityfromlabels/eventattribution, no AgentDeviceworkloadrouting/enforcement/coverage or originaltaskclosure/availabilitypromotion.",
+    "All728originalrequirements and realStytch/provider/nativecurrentpermission/tenantisolation/TemporalOpenFGA/browserlaunchflows remainrequired."
+  ]
+}

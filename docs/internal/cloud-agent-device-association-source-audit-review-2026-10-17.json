@@ -1,0 +1,61 @@
+{
+  "classification": "CLEAR_DOCS_ONLY_SOURCE_AUDIT_REVIEW_NO_PRODUCT_OR_DESIGN_CLEARANCE",
+  "reviewer": "/root/gateway_review",
+  "created_at": "2026-10-17T19:16:09.892928+00:00",
+  "audits": [
+    {
+      "path": "docs/internal/cloud-agent-device-association-source-audit-2026-10-17.json",
+      "sha256": "0a20dda161821a471a12e2562b0ee483966ce4cb4ebfced306dc8fd690a86c70",
+      "source_pin_count": 29,
+      "pin_mismatches": [],
+      "fact_anchor_mismatches": []
+    },
+    {
+      "path": "docs/internal/cloud-agent-device-association-source-audit-supplement-2026-10-17.json",
+      "sha256": "2488d31750152132b662347efe25e9599936858b45a6759916d6e02ac5ad24ee",
+      "source_pin_count": 35,
+      "pin_mismatches": [],
+      "fact_anchor_mismatches": []
+    }
+  ],
+  "original_preserved": true,
+  "supplement_predecessor_matches_original": true,
+  "findings": [],
+  "independently_confirmed_facts": [
+    "All29 original and35 supplemental source hashes and every factual anchor/one-based line match current source. Original audit remains byte-identical, supplement clearly separate.",
+    "Original Device table and native credentials are separate from typed Agent inventory. Installation receipts bind native Device credential generation, not Agent identity. Placement and caller-supplied evaluation Agent attribution do not establish an administrative association or observed routing.",
+    "Original Agent ownership body is exact owner/team/tags and its13arg SQL/Go gate is singleAgent updateAgent/manage_workflows; no hidden association mutation is admitted by existing ABI.",
+    "Registry has164 operations and no gateway-named operation. Native authorization80 source registry has no Device target. Native SQL EXECUTE and registered API login are not a current human permission substitute.",
+    "Bounded current production Go search under services/cmd excluding tests and migrations found no native runtime issue/enroll/authenticate gateway SQL callsite. Legacy EnrollGateway invokes zasp_discovery_gateway_enroll instead. Current SQL primitives and CLI/deployment shape validation are distinguished from connected fresh-customer bootstrap.",
+    "Current transaction-bound authorization80 context cannot delegate human authority between phases. Proposed pending\u2192Device acceptance\u2192fresh human confirm is clearly a candidate, with current-request versus recent-browser-step-up risk choice unresolved. Bearer acceptance by router freshness helper is correctly distinguished from recent browser authentication."
+  ],
+  "operation_registry": {
+    "count": 164,
+    "gateway_named": [],
+    "updateAgent": [
+      {
+        "ID": "updateAgent",
+        "Method": "PATCH",
+        "Path": "/api/v1/agents/{id}",
+        "Permission": "manage_workflows",
+        "Relation": "manage_workflows",
+        "Surface": "core",
+        "Security": [
+          "BrowserSession",
+          "ProductAPIToken"
+        ],
+        "FreshAuth": false
+      }
+    ]
+  },
+  "proposal_boundary": [
+    "Supplement explicitly presents new operation/manage_identity and versioned updateAgent/manage_workflows as unadmitted alternatives. Neither is claimed existing Device management authority or permission to mutate original sealed profile/grants.",
+    "Future bootstrap/association must define exact permission/targets, nonce/custody, multiplicity, replacement/revoke and deadlock-safe original lock order before implementation.",
+    "Administrative consent and Device possession are configuration testimony; authenticated workload routing and original Agent coverage requirements remain separate and open."
+  ],
+  "publication_limits": [
+    "Docs-only source research publication cleared. No microtask/milestone completion, production class change, obsolete retirement, actual connected runtime bootstrap or Agent coverage proof.",
+    "Bounded search is not exhaustive deployed inspection. No reviewer Git/Go/Node/test/build/network/native execution.",
+    "Current native Normal/Audit/source callers, permissions/revocation, Stytch/provider/bootstrap/browser acceptance remain required and unverified."
+  ]
+}

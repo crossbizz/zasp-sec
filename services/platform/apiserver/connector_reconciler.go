@@ -35,6 +35,7 @@ type ConnectorReconcilerConfig struct {
 }
 
 type ConnectorReconciler struct {
+	native       *NativeConnectorRepository
 	repository   ConnectorReconciliationRepository
 	workflows    connectorWorkflowReader
 	registry     *ConnectorProviderRegistry
@@ -53,6 +54,23 @@ func NewConnectorReconciler(config ConnectorReconcilerConfig) (*ConnectorReconci
 		return nil, ErrRepositoryConfiguration
 	}
 	return &ConnectorReconciler{repository: config.Repository, workflows: config.Workflows, registry: config.Registry, secrets: config.Secrets, owner: config.Owner, leaseSeconds: config.LeaseSeconds, limit: config.Limit, interval: config.Interval, slots: make(chan struct{}, config.Limit)}, nil
+}
+
+// NewAuthorizedConnectorReconciler accepts only a fully registered native
+// repository. It preserves the legacy constructor and all original provider,
+// lease, completion, cleanup, audit and final-attempt handling.
+func NewAuthorizedConnectorReconciler(ctx context.Context, native *NativeConnectorRepository, config ConnectorReconcilerConfig) (*ConnectorReconciler, error) {
+	if !validNativeConnectorRepository(native, ctx) || native.executor.Ready(ctx) != nil {
+		return nil, ErrRepositoryConfiguration
+	}
+	config.Repository = native
+	config.Workflows = native
+	reconciler, err := NewConnectorReconciler(config)
+	if err != nil {
+		return nil, err
+	}
+	reconciler.native = native
+	return reconciler, nil
 }
 
 func (reconciler *ConnectorReconciler) Ready() bool {
@@ -107,6 +125,11 @@ func (reconciler *ConnectorReconciler) dispatchAvailable(ctx context.Context) (b
 	if available < 1 {
 		return true, nil
 	}
+	if reconciler.native != nil {
+		if _, err := runConnectorCallbackRecovery(ctx, reconciler.native, reconciler.secrets, reconciler.owner, reconciler.leaseSeconds, min(available, 10)); err != nil {
+			return false, err
+		}
+	}
 	leases, err := reconciler.repository.ClaimReconciliation(ctx, reconciler.owner, reconciler.leaseSeconds, available)
 	if err != nil {
 		return false, err
@@ -150,6 +173,11 @@ func (reconciler *ConnectorReconciler) reconcileBatch(ctx context.Context) (bool
 	if _, err := reconciler.repository.RecoverExpiredFinalAttempts(ctx, reconciler.owner, reconciler.leaseSeconds, reconciler.limit); err != nil {
 		return false, err
 	}
+	if reconciler.native != nil {
+		if _, err := runConnectorCallbackRecovery(ctx, reconciler.native, reconciler.secrets, reconciler.owner, reconciler.leaseSeconds, min(reconciler.limit, 10)); err != nil {
+			return false, err
+		}
+	}
 	leases, err := reconciler.repository.ClaimReconciliation(ctx, reconciler.owner, reconciler.leaseSeconds, reconciler.limit)
 	if err != nil {
 		return false, err
@@ -179,7 +207,16 @@ func runConnectorReconciliationBatch(ctx context.Context, leases []ConnectorEffe
 	return result
 }
 
-func (reconciler *ConnectorReconciler) reconcileLease(ctx context.Context, lease ConnectorEffectLease) error {
+func (reconciler *ConnectorReconciler) reconcileLease(ctx context.Context, lease ConnectorEffectLease) (result error) {
+	var providerDeadline time.Time
+	if reconciler.native != nil {
+		ctx = reconciler.native.withLease(ctx, lease)
+		defer func() {
+			if err := reconciler.native.finishPreparation(ctx, lease, result, providerDeadline); err != nil {
+				result = errors.Join(result, err)
+			}
+		}()
+	}
 	now := time.Now()
 	finalizationDeadline := lease.LeaseExpiresAt.Add(-100 * time.Millisecond)
 	if !finalizationDeadline.After(now) {
@@ -189,7 +226,7 @@ func (reconciler *ConnectorReconciler) reconcileLease(ctx context.Context, lease
 	if available := finalizationDeadline.Sub(now); providerReserve >= available {
 		providerReserve = available / 3
 	}
-	providerDeadline := finalizationDeadline.Add(-providerReserve)
+	providerDeadline = finalizationDeadline.Add(-providerReserve)
 	if !providerDeadline.After(now) {
 		return reconciler.quarantineExpiredFinalAttempt(ctx, lease)
 	}
@@ -198,6 +235,11 @@ func (reconciler *ConnectorReconciler) reconcileLease(ctx context.Context, lease
 	finalizationContext, finalize := context.WithDeadline(context.WithoutCancel(ctx), finalizationDeadline)
 	defer finalize()
 	if lease.Operation == "pkce_cleanup" {
+		if reconciler.native != nil {
+			if err := reconciler.native.preparePKCECleanup(providerContext, &lease); err != nil {
+				return err
+			}
+		}
 		if err := reconciler.secrets.Delete(providerContext, lease.ConnectionReference); err != nil {
 			if lease.Attempt >= 100 {
 				_, quarantineErr := reconciler.repository.QuarantineConnectorReconciliation(finalizationContext, lease, "pkce_cleanup_ambiguous")
@@ -226,6 +268,11 @@ func (reconciler *ConnectorReconciler) reconcileLease(ctx context.Context, lease
 		if err != nil || !valid || !ready || definition.AuthorityProvider != lease.Provider || providerErr != nil {
 			return reconciler.quarantineFinalAttempt(finalizationContext, lease, "provider_cleanup_ambiguous", ErrRepositoryUnavailable)
 		}
+		if reconciler.native != nil {
+			if err := reconciler.native.prepare(providerContext, &lease, false); err != nil {
+				return err
+			}
+		}
 		if err := provider.Discard(providerContext, lease.ID, false); err != nil {
 			if lease.Attempt >= 100 {
 				_, quarantineErr := reconciler.repository.QuarantineConnectorReconciliation(finalizationContext, lease, "provider_cleanup_ambiguous")
@@ -247,6 +294,11 @@ func (reconciler *ConnectorReconciler) reconcileLease(ctx context.Context, lease
 	provider, providerErr := connectorOAuthProvider(definition, configuration)
 	if decodeErr != nil || subtle.ConstantTimeCompare(actual, expected[:]) != 1 || providerErr != nil {
 		return reconciler.failAfterCleanup(providerContext, finalizationContext, lease, provider, "authorization_intent_changed")
+	}
+	if reconciler.native != nil {
+		if err := reconciler.native.prepare(providerContext, &lease, false); err != nil {
+			return err
+		}
 	}
 	grant := ConnectorOAuthGrant{}
 	recoverErr := error(nil)
@@ -280,6 +332,11 @@ func (reconciler *ConnectorReconciler) reconcileLease(ctx context.Context, lease
 		// leased row until expiry so the database recovery authority can inspect
 		// whether it is still provider_effect_started or already cleanup_pending.
 		return err
+	}
+	if reconciler.native != nil {
+		if err := reconciler.native.compensation(providerContext, lease); err != nil {
+			return err
+		}
 	}
 	if err := provider.Discard(providerContext, lease.ID, false); err != nil {
 		return reconciler.quarantineFinalAttempt(finalizationContext, lease, "provider_cleanup_ambiguous", err)
@@ -322,6 +379,11 @@ func (reconciler *ConnectorReconciler) reconcileRevocation(providerContext, fina
 		}
 		return ErrRepositoryUnavailable
 	}
+	if reconciler.native != nil {
+		if err := reconciler.native.prepare(providerContext, &lease, false); err != nil {
+			return err
+		}
+	}
 	revokeErr := error(nil)
 	if revoker, ok := provider.(ConnectorAuthorizationRevoker); ok {
 		revokeErr = revoker.RevokeAuthorization(providerContext, ConnectorAuthorizationRevocation{
@@ -360,6 +422,11 @@ func (reconciler *ConnectorReconciler) failAfterCleanup(providerContext, finaliz
 	}
 	if providerKey == "" && reconciler.registry != nil {
 		providerKey = reconciler.registry.authorityToKey[lease.Provider]
+	}
+	if reconciler.native != nil {
+		if err := reconciler.native.prepareCompensation(providerContext, &lease); err != nil {
+			return err
+		}
 	}
 	discardErr := error(nil)
 	if discarder, ok := provider.(ConnectorAuthorizationDiscarder); ok {

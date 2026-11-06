@@ -1,0 +1,409 @@
+{
+  "classification": "SOURCE_AUDIT_SUPPLEMENT_AND_UNRESOLVED_FINITE_DESIGN_CHOICES_ONLY",
+  "created_at": "2026-10-17T19:11:48.731134+00:00",
+  "workspace": "/workspace/zasp-node-coverage-retention",
+  "verdict": "NO_AUTHENTIC_PERSISTENT_AGENT_DEVICE_ASSOCIATION_FOUND_IN_BOUNDED_CURRENT_SOURCE",
+  "task_scope": {
+    "original_task": "M4-50b3",
+    "unchanged_requirement": "Runtime-sensor and policy-coverage filter state generates the exact bounded product query.",
+    "supporting_followup": "M4-50c/M4-51e current stale-aware Agent policy coverage",
+    "availability_change": false,
+    "completion_claim": false
+  },
+  "source_pins": [
+    {
+      "path": "docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md",
+      "bytes": 241337,
+      "sha256": "2eea10a4f38be2bd76f4c1e734a2dae3d47e340fc36be42946d0762786afb102"
+    },
+    {
+      "path": "docs/internal/implementation_production_availability_v1.5.tsv",
+      "bytes": 217927,
+      "sha256": "803f78423b2a711fd1c9c936e44b79ca45879426ab633baf9ca08896c8430973"
+    },
+    {
+      "path": "docs/internal/cloud-agent-node-placement-checkpoint-2026-10-17.json",
+      "bytes": 10151,
+      "sha256": "de7ec67cb6a5ee37ab5d8c8cc913bc1479954fde35f26f1933173d7109407a61"
+    },
+    {
+      "path": "docs/internal/cloud-agent-gateway-installation-ack-source-audit-2026-10-17.json",
+      "bytes": 11976,
+      "sha256": "813ad6970c2bf5a1c085abcbcd7f3018bd616243c25e47ee74624c48f58fb8e6"
+    },
+    {
+      "path": "services/platform/migrations/sql/0010_production_discovery.up.sql",
+      "bytes": 134477,
+      "sha256": "b7bc32c642cb57988e4e6a0a89feed0ffe1d4396daa3f213c76a2f59b1b1154e"
+    },
+    {
+      "path": "services/platform/migrations/sql/0014_typed_inventory_cutover.up.sql",
+      "bytes": 187556,
+      "sha256": "06ed7d1310bee92bfd80c92698b91c18e3932a573793dcb32344a3fea56831b8"
+    },
+    {
+      "path": "services/platform/migrations/sql/0080_production_authorization_enforcement.up.sql",
+      "bytes": 40560,
+      "sha256": "552b75399fed93e44a8c42f4c32e4658fb8d0aab9fdff8a043d5d8b187b0cd7b"
+    },
+    {
+      "path": "services/platform/migrations/sql/0080_authorization_worker_gateway_writers.sql",
+      "bytes": 17859,
+      "sha256": "5ce0934637fddd422c5c01f3d8e7e44737ac106cd013fc97649955e710228901"
+    },
+    {
+      "path": "services/platform/migrations/sql/0080_authorization_worker_runtime_sources.sql",
+      "bytes": 29965,
+      "sha256": "95c10133077487fa8d2a21af8d05a76eb86b383bca35038de786f90e13eea994"
+    },
+    {
+      "path": "services/platform/migrations/sql/agent_ownership_write_profile.sql",
+      "bytes": 22190,
+      "sha256": "74de88d317674b498f70347d458c5bb8bdd2a338c7dc25cd2531b636f885bb79"
+    },
+    {
+      "path": "services/platform/migrations/sql/agent_read_profile.sql",
+      "bytes": 27314,
+      "sha256": "e4f65a0ccc1aae2e95871f71263af90a0c7c85025ab61dcdf9216db83429da0f"
+    },
+    {
+      "path": "services/platform/migrations/sql/gateway_installation_profile.sql",
+      "bytes": 31251,
+      "sha256": "48f043ce6b99907b341880b4085866faad2209192d82e7d194dfd58020cd3dee"
+    },
+    {
+      "path": "services/platform/apiserver/discovery_repository.go",
+      "bytes": 83252,
+      "sha256": "4bd33f5b8e81b6dda0d6ea850b49740e4a6c0865cd712cb4d20adafc5f2b920c"
+    },
+    {
+      "path": "services/platform/apiserver/discovery_public_handler.go",
+      "bytes": 17330,
+      "sha256": "970d692f6b2484c386f82d4bfdae9a51da486d7abb0ccc0faab698e9b51b81d0"
+    },
+    {
+      "path": "services/platform/apiserver/agent_current_ownership_write.go",
+      "bytes": 4462,
+      "sha256": "0c398aee7ade9988b21833d42bd61ece571aef7156fbf736e46b59bf9b6fd6c9"
+    },
+    {
+      "path": "services/platform/apiserver/authorization_targets.go",
+      "bytes": 6055,
+      "sha256": "badfabbcff13b4f6f0e7b9bc354dd8f7cc9135d09d824980392bc962fc4fb2c9"
+    },
+    {
+      "path": "services/platform/authorization/model.fga",
+      "bytes": 4582,
+      "sha256": "677aff1f026c6a82d15af212efad93152ffb2c3f7cb21ce19acb6241a8aa3966"
+    },
+    {
+      "path": "services/platform/authorization/operations.json",
+      "bytes": 34418,
+      "sha256": "335f51b588ebdb8f13e8d99272782fd34124e9538a5bdaaa71348c8e6f7c23ba"
+    },
+    {
+      "path": "services/platform/authorization/mapping.go",
+      "bytes": 6383,
+      "sha256": "a3acf50352d4a0df5ed96092f8ae299512828365bc6f46f471001fc36323d884"
+    },
+    {
+      "path": "services/platform/gatewaycontrol/contract.go",
+      "bytes": 7008,
+      "sha256": "7811c187c21a1290ace9dd99cadf55afe708e72db51e36e9ee0b04e3dc70e67a"
+    },
+    {
+      "path": "services/platform/gatewaycontrol/evaluation.go",
+      "bytes": 4275,
+      "sha256": "21bb5089e32aff7c1dbd63c52d018878d0d5b3ee5d4cdcb9b8c8762749a86852"
+    },
+    {
+      "path": "services/platform/gatewaycontrol/installation.go",
+      "bytes": 8094,
+      "sha256": "547711f85b5b85cca3ad7b41dfc423a1be2c2b050e0ac082c1f6204e96661a9d"
+    },
+    {
+      "path": "services/platform/connectors/kubernetesdiscovery/node_placement.go",
+      "bytes": 17195,
+      "sha256": "320f728344c96e548c38d6149d7f7b535a816ede9e241f8323bfcf02e78fc7f4"
+    },
+    {
+      "path": "services/platform/connectors/internal/providercollection/node_placement.go",
+      "bytes": 2843,
+      "sha256": "a40fb68d067c6d6d84c4857dbec66be1da98c0c31d6470981a38aba5d324cba1"
+    },
+    {
+      "path": "services/platform/connectors/internal/providercollection/client.go",
+      "bytes": 72390,
+      "sha256": "a850173cd86aea7464c48e8982ff32c34eda2c25302a0cdd8c97bd4cf8e530e3"
+    },
+    {
+      "path": "services/platform/connectors/collection/contract.go",
+      "bytes": 45445,
+      "sha256": "a96a49b70e0abc659f6713e5fccb5d6681726d7f4abf90d00f4922a530a9d540"
+    },
+    {
+      "path": "services/platform/runtimecorrelation/correlator.go",
+      "bytes": 5210,
+      "sha256": "cb231788fc8d78abd65786e49ac4cda5c6eb7d6cda37e6de1d462e540f86196a"
+    },
+    {
+      "path": "services/runtime-gateway/evaluation_risk.go",
+      "bytes": 2066,
+      "sha256": "a6be1dab3a15ac7d724348e6dd8fe1e9a404f3270f91cc8cdf851ffd6e9d1d32"
+    },
+    {
+      "path": "openapi/openapi.yaml",
+      "bytes": 381905,
+      "sha256": "f8d747c7d7cd5e586196ca5f72f65175043b59988765710e4fb61dae25158257"
+    },
+    {
+      "path": "services/platform/migrations/sql/0015_runtime_data_plane.up.sql",
+      "bytes": 204144,
+      "sha256": "11c0b05a0a264ba9654c9646b18633c45469f495fa819b28b89e207aefc5ce9a"
+    },
+    {
+      "path": "cmd/agentsecctl/profiles.go",
+      "bytes": 18351,
+      "sha256": "253487fb0a467a737a5f1331f89a4bb686dc673a7fc12f8c142a3d279f2922d1"
+    },
+    {
+      "path": "services/gateway-control/main.go",
+      "bytes": 1623,
+      "sha256": "cf7c58e607862895321aabba7eaf03dc123147325a7f46792304b13a556c2d66"
+    },
+    {
+      "path": "services/platform/apiserver/authorization_credentials.go",
+      "bytes": 2388,
+      "sha256": "9ba4ccd0af780d700f6c6a72e7b1b3f17a05fbe21bc9429650d4a5a7fa80e2bf"
+    },
+    {
+      "path": "services/platform/apiserver/router.go",
+      "bytes": 14952,
+      "sha256": "a41583602add3b02fed17aef9220e0cbb3fd02b62f1512a42809c7706ab25032"
+    },
+    {
+      "path": "services/platform/apiserver/repository.go",
+      "bytes": 40641,
+      "sha256": "5ce2ac8bf37b166fc0c1f0896c31e296e27417b51c0a158654c388cb7dde61a7"
+    }
+  ],
+  "facts": [
+    {
+      "source": "services/platform/migrations/sql/0010_production_discovery.up.sql",
+      "line": 162,
+      "anchor": "CREATE TABLE \"public\".\"zasp_inventory_entities\"",
+      "finding": "Scoped canonical inventory identities and source observations exist. Gateway devices are a separate table; inventory relationships require both endpoints to be inventory entities, so a Device ID cannot be inserted as an inventory relationship endpoint without inventing an inventory identity."
+    },
+    {
+      "source": "services/platform/migrations/sql/0010_production_discovery.up.sql",
+      "line": 291,
+      "anchor": "CREATE TABLE \"public\".\"zasp_gateway_devices\"",
+      "finding": "Original Device is scoped ID/name/state/version/replay floor; it has no Agent foreign key. Current credentials bind the same scoped Device via original credential/enrollment foreign keys. No Agent admission is implied."
+    },
+    {
+      "source": "services/platform/migrations/sql/0010_production_discovery.up.sql",
+      "line": 7,
+      "anchor": "CREATE FUNCTION \"public\".\"zasp_discovery_canonical_id\"",
+      "finding": "Canonical inventory identity hashes the original scope/entity-kind/source-native identity. Association must retain that identity rather than create an Agent from Device ID, display name, address, or enrollment."
+    },
+    {
+      "source": "services/platform/apiserver/discovery_repository.go",
+      "line": 492,
+      "anchor": "type GatewayDeviceCreate struct",
+      "finding": "Existing repository Device create takes ID and name only; enrollment issue takes Device ID and original token material. Neither input includes an Agent. Bounded production Go callsite search found their interface/definitions but no connected public handler invocation."
+    },
+    {
+      "source": "services/platform/apiserver/discovery_public_handler.go",
+      "line": 83,
+      "anchor": "case \"syncIntegration\"",
+      "finding": "Discovery public handler dispatches existing sync/schedule/freshness/setup operations. It does not provide an Agent-to-Device admission or gateway-device management operation."
+    },
+    {
+      "source": "services/platform/apiserver/authorization_targets.go",
+      "line": 13,
+      "anchor": "func authorizationTargetPolicy",
+      "finding": "Closed operation-target inventory includes typed Agent and selected environment control operations; unknown operations may not borrow environment permission. No gateway-device target mode is declared."
+    },
+    {
+      "source": "services/platform/migrations/sql/0080_production_authorization_enforcement.up.sql",
+      "line": 113,
+      "anchor": "WHEN 'agent' THEN",
+      "finding": "Current authorization80 source registry resolves active typed Agents from inventory. It has no gateway-device source kind. Device must remain native credential/device authority unless a separately reviewed new target contract is implemented."
+    },
+    {
+      "source": "services/platform/migrations/sql/0080_authorization_worker_gateway_writers.sql",
+      "line": 32,
+      "anchor": "-- Device management has a distinct registered API login.",
+      "finding": "Current gateway_api_organization_lock checks original registered discovery API login and organization serialization. Its comment explicitly excludes replacing HTTP/OpenFGA checks. Native SQL EXECUTE privilege is not sufficient user authority for a new association operation."
+    },
+    {
+      "source": "services/platform/apiserver/agent_current_ownership_write.go",
+      "line": 42,
+      "anchor": "func agentOwnershipWriteStatementAllowed",
+      "finding": "Current updateAgent statement gate binds exact current human credential, manage_workflows ceiling, one actual Agent target, closed owner/team/tags input, and selected profile pin. It does not authorize an association by writing a tag, owner string, or arbitrary attribute."
+    },
+    {
+      "source": "services/platform/migrations/sql/agent_ownership_write_profile.sql",
+      "line": 93,
+      "anchor": "CREATE FUNCTION zasp_agent_ownership_write_v1.require_api",
+      "finding": "Current ownership profile demonstrates existing proof/revision/identity fences under the original source/API authority. Its exact updateAgent operation and single-target ABI cannot be repurposed for Device association."
+    },
+    {
+      "source": "services/platform/authorization/model.fga",
+      "line": 15,
+      "anchor": "define manage_identity:",
+      "finding": "Existing OpenFGA identity/workflow/view relations and human organization/environment roles can support an explicitly reviewed new operation without inventing principals. Existing relations do not themselves authorize an unregistered operation or prove physical routing."
+    },
+    {
+      "source": "services/platform/connectors/kubernetesdiscovery/node_placement.go",
+      "line": 22,
+      "anchor": "const NodePlacementCollectorVersion",
+      "finding": "Explicit placement-v2 uses authenticated provider collection, double-checked Kubernetes identity/owner facts, original Agent identity and optional observed cluster/controller/Pod/Node UID/boot attributes. These fields contain no gateway Device credential or Agent-to-Device admission."
+    },
+    {
+      "source": "services/platform/connectors/internal/providercollection/node_placement.go",
+      "line": 10,
+      "anchor": "// KubernetesAgentPlacement is evidence",
+      "finding": "Placement schema explicitly grants no runtime health, policy coverage or Kubernetes access. A shared node or namespace cannot bind a gateway to every colocated Agent."
+    },
+    {
+      "source": "services/runtime-gateway/evaluation_risk.go",
+      "line": 11,
+      "anchor": "action, agent, session := request.Attributes",
+      "finding": "Gateway EvaluationEvidence.AgentID is taken from action request attributes. This is event attribution, not a two-sided administrative or workload identity association."
+    },
+    {
+      "source": "services/platform/migrations/sql/0080_authorization_worker_runtime_sources.sql",
+      "line": 25,
+      "anchor": "CREATE FUNCTION zasp_authorization80_worker.runtime_source",
+      "finding": "Existing worker runtime ancestry validates current active fresh Agent, correlated session/event evidence and current Device credentials, retaining run-scoped source metadata. Its Agent ID originates from evaluation/session attribution; this cannot establish a persistent installation association or be promoted to one."
+    },
+    {
+      "source": "services/platform/runtimecorrelation/correlator.go",
+      "line": 29,
+      "anchor": "type Result struct",
+      "finding": "Runtime correlator results retain event/session/Agent and optional sandbox/sensor provenance, not an authenticated Device-to-Agent association credential."
+    },
+    {
+      "source": "services/platform/migrations/sql/gateway_installation_profile.sql",
+      "line": 10,
+      "anchor": "CREATE TABLE zasp_gateway_installation_v1.latest",
+      "finding": "New installation testimony is keyed by native scope/Device/credential/generation. It intentionally has no Agent field. Joining it to an Agent requires a separate admitted association and current provenance checks; matching environment alone is insufficient."
+    },
+    {
+      "source": "services/platform/migrations/sql/0015_runtime_data_plane.up.sql",
+      "line": 417,
+      "anchor": "CREATE FUNCTION public.zasp_runtime_issue_gateway_enrollment",
+      "finding": "Current native runtime15 SQL has versioned gateway enrollment issue/authenticate/enroll and exact original source/API/gateway caller grants. Bounded production Go search found no callsites for these exact current SQL functions in cmd/services. Legacy DiscoveryRepository.EnrollGateway uses zasp_discovery_gateway_enroll instead and cannot stand in for a connected current15 bootstrap flow."
+    },
+    {
+      "source": "cmd/agentsecctl/profiles.go",
+      "line": 76,
+      "anchor": "RuntimeGateway      bool",
+      "finding": "CLI profile validation recognizes a runtime gateway install shape. Bounded production command source search found no current Device creation/token issuance/native gateway enrollment command. Validation is not enrollment or admission."
+    }
+  ],
+  "bounded_search": {
+    "roots": [
+      "services/platform/apiserver",
+      "services/platform/migrations/sql",
+      "services/platform/authorization",
+      "services/platform/connectors",
+      "services/platform/runtimecorrelation",
+      "services/runtime-gateway",
+      "services/gateway-control",
+      "openapi/openapi.yaml",
+      "cmd/agentsecctl",
+      "services/gateway-control"
+    ],
+    "queries": [
+      "CreateGatewayDevice|IssueGatewayEnrollment|TransitionGatewayDevice (production .go files excluding tests)",
+      "agent.*device|device.*agent|gateway_device_id|gateway_credential_id",
+      "gateway in operation registry, authorization targets and OpenAPI",
+      "placement|source_native_id|owner|attributes|fresh_until",
+      "zasp_runtime_issue_gateway_enrollment|zasp_runtime_gateway_enroll|authenticate_gateway_enrollment in production Go sources",
+      "gateway in production cmd/agentsecctl source"
+    ],
+    "operation_registry_count": 164,
+    "gateway_named_registry_operations": [],
+    "qualification": "Bounded source findings, not exhaustive deployed catalog/provider inspection. No Git/network/Go/Node/native/test execution performed by audit author."
+  },
+  "evidence_and_unknown": {
+    "established_source_primitives": [
+      "Original stable typed scoped Agent identity plus admitted provider snapshot/source/evidence provenance.",
+      "Original native Device credential and exact current credential generation/expiry/revocation checks.",
+      "Original Stytch-backed human identity/current membership/PAT limits and current OpenFGA request proof, source revision and identity fences.",
+      "Original organization-before-device/source-row serialization and separate Normal/Audit source owners/API/gateway callers.",
+      "New device-bound installation testimony and retained original pending bytes; component/source review does not imply native/deployed acceptance."
+    ],
+    "not_established": [
+      "Persistent Agent-to-Device relation or admitted association writer.",
+      "Public authorized Device management/enrollment selection flow or Device resource target kind.",
+      "Two-sided Agent workload possession and Device routing identity.",
+      "Current Agent policy coverage, all Agent instances routing through that Device, or full Agent fleet enforcement.",
+      "Any deployed provider, Stytch browser, native SQL/OpenFGA, real cache installation or association acceptance."
+    ]
+  },
+  "recommended_next_connected_design": {
+    "status": "PROPOSED_THREE_PHASE_FLOW_WITH_PERMISSION_AND_STEP_UP_CONTRACT_UNRESOLVED_NO_IMPLEMENTATION",
+    "product_flow": "Explicit administrative admission of an existing typed Agent to an existing active native Device and exact current credential generation, plus native Device acceptance. Label as admitted association; expose provenance/freshness/revocation. This is configuration testimony, not observed routing or enforcement.",
+    "identity": "Reuse original scoped Agent ID and selected admitted source-native identity and original native Device ID/credential/generation. Do not create an identity kind, FGA principal, provider credential, inventory Device alias or auto-grant.",
+    "permission_boundary": "Keep two alternatives distinct: (A) NEW closed operation using existing manage_identity on Agent/environment, requiring explicit new operation/multi-target proof admission; (B) explicit versioned updateAgent actions with original manage_workflows on the single Agent, current original human identity/PAT ceilings and separately signed native Device consent. Neither alternative is admitted or implemented by this audit. Do not infer public Device management authority, widen legacy owner/team/tags input, add a Device source kind or alter global updateAgent FreshAuth=false. Root/independent finite design must select exact authority and risk semantics before product changes.",
+    "two_sided_admission_candidate": [
+      "Phase1: a new current Agent-authorized operation (versioned updateAgent candidate or explicitly admitted new operation) creates a bounded expiring idempotent challenge for the existing scoped Agent/source identity, operator-intended existing Device ID, exact nonce/intent digest, author and audit provenance. Supplied Device ID is an expectation, not identity authority or permission to enumerate/manage Devices. No active association is created.",
+      "Phase2: the intentional operator uses the already enrolled Device current local credential to sign the exact challenge acceptance via existing native HTTP proof. Native server derives actual scope/Device/credential/generation/expiry from current authority, verifies exact intended Device/challenge/nonce and persists pending acceptance. Device alone cannot activate an Agent association.",
+      "Phase3: a separate new current Agent-authorized confirmation under the selected finite contract revalidates original human identity/membership/PAT ceilings/current OpenFGA permission and exact Agent/source, verifies original author/intent/nonce and current same-generation Device acceptance/expiry after waits, and activates only after confirmed commit. A phase1 authorization80 context is transaction-bound and cannot delegate human authority across phases; original human revocation prevents phase3."
+    ],
+    "persistence": "If an additive profile is required, one finite application profile for the connected admission/acceptance/finalize/read/revoke flow, not a profile per phase. Reuse original registered discovery source authority and exact original API/native gateway callers with minimal reviewed function grants, FORCE RLS/seals and existing lock ordering. Existing exact ownership-write profile is not widened or reused for arbitrary association SQL. No immutable source/profile/grant rewrite.",
+    "source_freshness": "Bind the immutable scoped source-native Agent identity and provenance source, record exact admission snapshot/evidence. Current reads must revalidate active/fresh source identity. Freeze whether subsequent same-identity last-good snapshots retain the association rather than invalidating every normal sync; changed UID/source identity never auto-rebinds. Annotation owner/team/tag changes do not authenticate routing.",
+    "revocation": "Explicit association revoke/CAS and source removal/tombstone/freshness loss, Device revoke/delete, credential expiry/rotation and wrong scope must make association unavailable. Old generation cannot silently transfer. Current user permission/session revocation denies new intent/finalization/read immediately via original current authorization. Decide separately whether completed administrative configuration persists after its historical author loses permissions; it must never grant that author ongoing access.",
+    "multiplicity": "Freeze many-Agent-per-Device and multi-Device-per-Agent semantics explicitly. No inferred exclusive, all-instance or fleet claim. Every selected source/device/generation relation needs bounded independent evidence.",
+    "read_ui": "One connected Agent-detail operator flow: current API creates challenge, explicit existing Device credential signs acceptance, browser/operator confirms under a new current Agent request, actual typed read shows admitted/pending/revoked/source-stale/device-unavailable/credential-rotated evidence, and authorized revoke works. No Device key or enrollment secret enters the browser or arbitrary public proof body; no covered/healthy filter is emitted.",
+    "scope_limit": "Administrative admission plus Device possession does not prove that the Agent workload actually uses that Device. Actual routing/workload identity proof remains a separate required design if the original coverage requirement depends on observed enforcement. No local event attribute, IP, namespace, pod colocation, mutable annotation or policy GET can substitute.",
+    "human_freshness_source_research": {
+      "existing_operation": "updateAgent registry currently FreshAuth=false and supports BrowserSession/ProductAPIToken under manage_workflows. Its current ownership SQL require_api explicitly expects fresh_auth=false in the transaction proof.",
+      "existing_identity": "Current browser authentication independently loads FreshAuthenticated and FreshAuthExpiresAt from actual session authenticated_at within five minutes, current session revocation/expiry, active membership and effective scope. PAT authentication supplies owning human and current permission ceiling; it does not have recent browser authentication.",
+      "existing_router": "Router freshAuthenticated accepts a bearer token or a recent browser session when an operation requires fresh auth. Therefore setting a global fresh flag alone does not imply browser-only step-up.",
+      "existing_sql": "authorization80 identity_fence checks actual current credential/session/membership; its five-minute authenticated_at check is conditional on request proof fresh_auth. A phase1 context cannot remain a transferable human authorization because current SQL context and grant seals are transaction-bound.",
+      "unresolved": "Choose explicitly between new current request revalidation and mandatory recent browser/Stytch authentication for association intent/finalize. If step-up is required on a selected version of updateAgent, both handler and SQL/native current-credential checks and request-proof admission must agree without globally changing the legacy operation or pretending PAT is a fresh browser session. This is a real security contract choice, not a completed check."
+    }
+  },
+  "grouped_acceptance_before_implementation": [
+    "Define all current human/Device/source/permission boundaries together; actual failing grouped application cases before connected implementation where dependencies permit, with setup failures classified honestly.",
+    "Actual browser/API intent to native signed Device acceptance to current-authorized finalize/read; exact original Agent/source and Device credential identities, durable restart/idempotency and audit evidence.",
+    "Cross-tenant/wrong Agent/source/device/generation, expired/replayed challenge, revoked human/session/permission/PAT ceiling and post-lock expiry/revocation must refuse without side effects.",
+    "Discovery same-identity refresh versus source UID replacement, removed/stale Agent, Device revocation/rotation and association CAS/revoke behavior.",
+    "Original policy cache refresh, signatures/failure modes, decision floor, approvals/budgets, current authorization and UI typecheck/build remain intact. Native and deployed real-provider/Stytch acceptance stay separately required."
+  ],
+  "prerequisites_before_product": [
+    "Select and independently review the exact operation/permission/target, recent-auth versus current-request semantics, nonce/receipt and original source/API/native caller boundaries. No new Device permission or broader legacy operation contract is inferred.",
+    "Native caller/source owner/parent checks and exact additive profile ABI before writes.",
+    "Concrete Agent source identity and multiplicity/replacement semantics, association lifecycle and bounded challenge/receipt/custody contract.",
+    "Independent design/source review and root-owned actual component/native/deployed execution."
+  ],
+  "limits": [
+    "Only this durable JSON audit file was written for this task; current producer product sources remain held.",
+    "Audit does not mark any original microtask or milestone complete, promote availability, retire obsolete behavior or claim production evidence.",
+    "No implementation, tests, build, Go, Node, Git, network or native execution by audit author.",
+    "Original M8-57c rendering-secret-reference requirement and historical availability classes are unchanged. The newly documented current Device-bootstrap gap is a real fresh-launch prerequisite supporting M4, not an automatic demotion of unrelated original rows."
+  ],
+  "format_version": 2,
+  "predecessor": {
+    "sha256": "0a20dda161821a471a12e2562b0ee483966ce4cb4ebfced306dc8fd690a86c70",
+    "preserved_preimage": "docs/internal/cloud-agent-device-association-source-audit-2026-10-17.json",
+    "reason": "Preserve original audit byte-identical. Supplemental native-bootstrap/source research and three-phase recommendation, with permission/step-up contract alternatives still unresolved and unadmitted."
+  },
+  "real_bootstrap_dependency": {
+    "state": "CURRENT_NATIVE_SQL_PRIMITIVES_EXIST_CONNECTED_PRODUCT_BOOTSTRAP_NOT_FOUND",
+    "missing": "For a fresh customer, current authorized Device creation, one-time gateway enrollment issuance/revocation, current native enrollment consumption and secure local runtime-gateway credential-file custody are not connected in production Go/API/CLI/UI by the audited sources.",
+    "do_not_substitute": [
+      "Legacy discovery enrollment repository methods.",
+      "Preinserted fixture credential rows.",
+      "Manually inferred Device IDs or provider annotations.",
+      "Existing agentsecctl profile validation or deployment secret references."
+    ],
+    "smallest_launch_useful_dependency_batch": "Close current gateway bootstrap/enrollment/custody as one product flow using actual original runtime15/45/80 device/token/credential primitives and current human authorization plus exact native enrollment proof. API/OpenAPI/CLI or UI issuance and local-only key generation/0600 custody must connect through real APIs. Existing Device enrollment audience/identity remain unchanged; no direct SQL customer instructions, borrowed operator grants or server-generated/exposed Device private key.",
+    "ordering": "Association design/source preparation may proceed independently. Actual association acceptance needs a real enrolled Device; restricting a first association implementation to already-enrolled Devices must remain explicit and cannot satisfy fresh-customer launch. Root may group bootstrap and association if the finite contract remains reviewable; neither should be disguised as a permission that already exists.",
+    "not_implemented_in_this_audit": true
+  }
+}

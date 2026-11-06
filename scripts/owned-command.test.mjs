@@ -69,3 +69,8 @@ for (const mode of ["parent-waits", "parent-exits"]) {
     }
   });
 }
+
+test("owned interactive command retains stdin until owner explicitly closes it", async () => {
+  const owned = spawnOwnedCommand(process.execPath,["-e","process.stdin.resume();process.stdin.on('end',()=>process.stdout.write('eof'))"],{keepStdinOpen:true,maxOutputBytes:128});
+  try {assert.equal(owned.child.stdin.writableEnded,false);await delay(20);assert.equal(owned.child.exitCode,null);owned.child.stdin.end();const result=await owned.completed;assert.equal(result.status,0);assert.equal(result.stdout,"eof");}finally{await owned.stop();}
+});

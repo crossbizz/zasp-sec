@@ -1,0 +1,86 @@
+[
+  {
+    "path": ".github",
+    "blob_href": "https://github.com/crossbizz/zasp-sec/blob/c48917379dc6b9aeb5423ae50f27936065021784/.github",
+    "start_line": 1621,
+    "start_column": null,
+    "end_line": 1621,
+    "end_column": null,
+    "annotation_level": "failure",
+    "title": "",
+    "message": "Process completed with exit code 1.",
+    "raw_details": ""
+  },
+  {
+    "path": ".github",
+    "blob_href": "https://github.com/crossbizz/zasp-sec/blob/c48917379dc6b9aeb5423ae50f27936065021784/.github",
+    "start_line": 1620,
+    "start_column": null,
+    "end_line": 1620,
+    "end_column": null,
+    "annotation_level": "failure",
+    "title": "",
+    "message": "Compliance browser runtime acceptance failed (exit 1)",
+    "raw_details": ""
+  },
+  {
+    "path": ".github",
+    "blob_href": "https://github.com/crossbizz/zasp-sec/blob/c48917379dc6b9aeb5423ae50f27936065021784/.github",
+    "start_line": 1533,
+    "start_column": null,
+    "end_line": 1533,
+    "end_column": null,
+    "annotation_level": "failure",
+    "title": "Compliance browser command failed",
+    "message": "Observed command class: other-command; failure: nonzero-exit.",
+    "raw_details": ""
+  },
+  {
+    "path": ".github",
+    "blob_href": "https://github.com/crossbizz/zasp-sec/blob/c48917379dc6b9aeb5423ae50f27936065021784/.github",
+    "start_line": 1531,
+    "start_column": null,
+    "end_line": 1531,
+    "end_column": null,
+    "annotation_level": "failure",
+    "title": "Compliance browser phase failed",
+    "message": "Observed phase: api-ready.",
+    "raw_details": ""
+  },
+  {
+    "path": ".github",
+    "blob_href": "https://github.com/crossbizz/zasp-sec/blob/c48917379dc6b9aeb5423ae50f27936065021784/.github",
+    "start_line": 1530,
+    "start_column": null,
+    "end_line": 1530,
+    "end_column": null,
+    "annotation_level": "failure",
+    "title": "Compliance API readiness failed",
+    "message": "Observed readiness reason: deadline.",
+    "raw_details": ""
+  },
+  {
+    "path": ".github",
+    "blob_href": "https://github.com/crossbizz/zasp-sec/blob/c48917379dc6b9aeb5423ae50f27936065021784/.github",
+    "start_line": 1529,
+    "start_column": null,
+    "end_line": 1529,
+    "end_column": null,
+    "annotation_level": "failure",
+    "title": "Compliance API startup failed",
+    "message": "Observed child stage: unavailable.",
+    "raw_details": ""
+  },
+  {
+    "path": ".github",
+    "blob_href": "https://github.com/crossbizz/zasp-sec/blob/c48917379dc6b9aeb5423ae50f27936065021784/.github",
+    "start_line": 174,
+    "start_column": null,
+    "end_line": 174,
+    "end_column": null,
+    "annotation_level": "notice",
+    "title": "",
+    "message": "Current profile inner diagnostics: all-tests-pass; tops=2; subtests=28.",
+    "raw_details": ""
+  }
+]

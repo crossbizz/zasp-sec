@@ -1,18 +1,114 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
+	"github.com/zasp-ai/zasp-sec/services/platform/authorization"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimeservices"
 )
+
+type constructorDiagnosticChecker struct{ t *testing.T }
+
+func (c constructorDiagnosticChecker) Check(context.Context, authorization.CheckRequest) (authorization.Decision, error) {
+	c.t.Fatal("diagnostic attempted a provider check")
+	return authorization.Decision{}, nil
+}
+
+func TestMaintenanceConstructorDiagnosticsPreserveFailureIdentity(t *testing.T) {
+	c := fixtureRuntimeConfig()
+	c.RuntimeServices = runtimeservices.Config{Enabled: true, Environment: "development", TemporalAddress: "127.0.0.1:7233", Namespace: "zasp-dev", TaskQueue: "zasp-agent", DiscoveryTaskQueue: "zasp-discovery", FGAURL: "http://127.0.0.1:8088", StoreID: "01ARZ3NDEKTSV4RRFFQ69G5FAV", ModelID: "01ARZ3NDEKTSV4RRFFQ69G5FAW", FGATokenFile: "/owned/test-fga-token", Timeout: time.Second, ApprovalMaintenanceProfileChecksum: strings.Repeat("a", 64), ConnectorMaintenanceProfileChecksum: strings.Repeat("b", 64)}
+	c.ConnectorMaintenanceKeyFile = t.TempDir() + "/CANARY_CONNECTOR_SEED"
+	c.ApprovalMaintenanceKeyFile = t.TempDir() + "/CANARY_APPROVAL_SEED"
+	c.ConnectorMaintenancePostgresDSN = "postgres://zasp_connector_native@db.internal:5432/zasp?sslmode=require"
+	c.ApprovalMaintenancePostgresDSN = "postgres://zasp_approval_native@db.internal:5432/zasp?sslmode=require"
+	authorizer := &apiserver.OpenFGAAuthorizer{Checker: constructorDiagnosticChecker{t}, StoreID: c.RuntimeServices.StoreID, ModelID: c.RuntimeServices.ModelID}
+	if !validConnectorMaintenanceRuntimeConfig(c) || !validApprovalMaintenanceRuntimeConfig(c) {
+		t.Fatal("closed diagnostic fixture refused")
+	}
+	for _, observed := range []bool{false, true} {
+		var output bytes.Buffer
+		ctx := context.Background()
+		if observed {
+			ctx = withRuntimeConstructorObserver(ctx, newComplianceReadinessObserver(&output))
+		}
+		_, ready, closer, err := newRuntimeConnectorMaintenance(ctx, c, authorizer, apiserver.ConnectorReconcilerConfig{})
+		if err != errRuntimeUnavailable || ready != nil || closer != nil {
+			t.Fatal("connector original refusal identity or resources changed")
+		}
+		_, approvalCloser, err := newRuntimeApprovalMaintenance(ctx, c, authorizer, nil, nil, "fixed-owner")
+		if err != errRuntimeUnavailable || approvalCloser != nil {
+			t.Fatal("approval original refusal identity or resources changed")
+		}
+		if !observed {
+			if output.Len() != 0 {
+				t.Fatal("unselected observation emitted")
+			}
+			continue
+		}
+		if output.String() != "ZASP_COMPLIANCE_READINESS=connector-key:refused\nZASP_COMPLIANCE_READINESS=approval-key:refused\n" {
+			t.Fatal("failed key lanes were not closed exact observations")
+		}
+		if strings.Contains(output.String(), "CANARY") {
+			t.Fatal("diagnostic reflected private input")
+		}
+	}
+}
+
+func TestMaintenanceConstructorOutcomeAndEmissionBounds(t *testing.T) {
+	for phase := readinessMaintenanceOwner; phase <= readinessApprovalReconciler; phase++ {
+		var output bytes.Buffer
+		observer := newComplianceReadinessObserver(&output)
+		observer(phase, readinessPassed)
+		if output.Len() != 0 {
+			t.Fatal("constructor manufactured successful readiness")
+		}
+		for _, outcome := range []readinessOutcome{readinessRefused, readinessDeadline, readinessCancelled} {
+			observer(phase, outcome)
+			observer(phase, outcome)
+		}
+		if strings.Count(output.String(), "\n") != 3 {
+			t.Fatal("fixed failed constructor outcomes missing or duplicated")
+		}
+	}
+	for _, outcome := range []string{"deadline", "cancelled"} {
+		var output bytes.Buffer
+		ctx := withRuntimeConstructorObserver(context.Background(), newComplianceReadinessObserver(&output))
+		var cancel context.CancelFunc
+		if outcome == "deadline" {
+			ctx, cancel = context.WithDeadline(ctx, time.Now().Add(-time.Second))
+		} else {
+			ctx, cancel = context.WithCancel(ctx)
+			cancel()
+		}
+		observeRuntimeConstructorFailure(ctx, readinessConnectorExecutor)
+		cancel()
+		if output.String() != "ZASP_COMPLIANCE_READINESS=connector-executor:"+outcome+"\n" {
+			t.Fatal("actual failure context outcome hidden")
+		}
+	}
+	var output bytes.Buffer
+	observer := newComplianceReadinessObserver(&output)
+	for phase := readinessServices; phase <= readinessApprovalReconciler; phase++ {
+		for outcome := readinessPassed; outcome <= readinessCancelled; outcome++ {
+			observer(phase, outcome)
+		}
+	}
+	if strings.Count(output.String(), "\n") != 16 {
+		t.Fatal("existing total emission cap widened")
+	}
+}
 
 // Startup must derive readiness from the runtime parent, after connection and
 // metadata preparation, rather than reuse the spent connection deadline.
@@ -33,13 +129,111 @@ func TestStartupAuthorizationUsesIndependentParentBudget(t *testing.T) {
 		}
 		found = true
 		parent, ok := call.Args[0].(*ast.Ident)
-		if name.Name != "checkAuthorizationRuntimeReadyWithinTimeout" || !ok || parent.Name != "ctx" || len(call.Args) != 5 {
+		if name.Name != "checkAuthorizationRuntimeReadyWithinTimeout" || !ok || parent.Name != "ctx" || len(call.Args) != 6 {
 			t.Error("startup readiness reuses the connection budget instead of the runtime parent")
+		}
+		if len(call.Args) == 6 {
+			observer, ok := call.Args[5].(*ast.Ident)
+			if !ok || observer.Name != "readinessDiagnostic" {
+				t.Error("startup readiness drops the existing fixed diagnostic observer")
+			}
 		}
 		return true
 	})
 	if !found {
 		t.Fatal("startup readiness gate missing")
+	}
+}
+
+func TestInitialAuthorizationReadinessForwardsOnlyExistingRoleOutcomes(t *testing.T) {
+	for _, name := range []string{"healthy", "core refused", "agent refused", "deadline", "canceled parent"} {
+		t.Run(name, func(t *testing.T) {
+			key := strings.Repeat("a", 64)
+			contexts := make(chan context.Context, 2)
+			entered := make(chan struct{}, 2)
+			bothEntered := make(chan struct{})
+			var release sync.Once
+			probe := func(ctx context.Context) {
+				contexts <- ctx
+				entered <- struct{}{}
+				if len(entered) == 2 {
+					release.Do(func() { close(bothEntered) })
+				}
+				select {
+				case <-bothEntered:
+				case <-ctx.Done():
+				}
+				if name == "deadline" {
+					<-ctx.Done()
+				}
+			}
+			coreDriver := &runtimeAuthorizationProbeDriver{t: t, role: "zasp_discovery_api", key: key, fail: name == "core refused", observe: probe}
+			agentDriver := &runtimeAuthorizationProbeDriver{t: t, role: "zasp_security_agent_api", key: key, fail: name == "agent refused", observe: probe}
+			core, _ := apiserver.NewPostgresJSONDatabase(coreDriver)
+			agent, _ := apiserver.NewPostgresJSONDatabase(agentDriver)
+			defer core.Close()
+			defer agent.Close()
+			if core.RequireCurrentAuthorization() != nil || agent.RequireCurrentAuthorization() != nil {
+				t.Fatal("enforcing fixture refused")
+			}
+			parent, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			if name == "canceled parent" {
+				cancel()
+			}
+			var mu sync.Mutex
+			observed := map[readinessPhase]readinessOutcome{}
+			observer := func(phase readinessPhase, outcome readinessOutcome) {
+				mu.Lock()
+				defer mu.Unlock()
+				if _, exists := observed[phase]; exists {
+					t.Error("duplicate role observation")
+				}
+				observed[phase] = outcome
+			}
+			timeout := time.Second
+			if name == "deadline" {
+				timeout = 100 * time.Millisecond
+			}
+			err := checkAuthorizationRuntimeReadyWithinTimeout(parent, core, agent, key, timeout, observer)
+			if (err == nil) != (name == "healthy") {
+				t.Fatal("initial admission outcome changed")
+			}
+			if name == "canceled parent" {
+				if coreDriver.calls != 0 || agentDriver.calls != 0 || len(observed) != 0 {
+					t.Fatal("canceled startup queried or manufactured observations")
+				}
+				return
+			}
+			if coreDriver.calls != 1 || agentDriver.calls != 1 || len(observed) != 2 {
+				t.Fatal("shadow query or missing original role observation")
+			}
+			first, second := <-contexts, <-contexts
+			if first != second {
+				t.Fatal("original probes no longer share one budget")
+			}
+			if _, ok := first.Deadline(); !ok || first.Err() == nil {
+				t.Fatal("bounded probe context was not joined and canceled")
+			}
+			for _, phase := range []readinessPhase{readinessCoreMetadata, readinessSecurityAgentMetadata} {
+				outcome, ok := observed[phase]
+				if !ok {
+					t.Fatal("role observation missing")
+				}
+				if name == "healthy" && outcome != readinessPassed {
+					t.Fatal("healthy observation changed")
+				}
+				if name == "deadline" && outcome != readinessDeadline {
+					t.Fatal("deadline was hidden")
+				}
+			}
+			if name == "core refused" && observed[readinessCoreMetadata] != readinessRefused {
+				t.Fatal("core refusal was hidden")
+			}
+			if name == "agent refused" && observed[readinessSecurityAgentMetadata] != readinessRefused {
+				t.Fatal("agent refusal was hidden")
+			}
+		})
 	}
 }
 
@@ -378,4 +572,104 @@ func TestAuthorizationProbeRefusalCancelsAndJoinsSibling(t *testing.T) {
 	if coreDriver.calls != 1 || agentDriver.calls != 1 {
 		t.Fatalf("probe calls core=%d agent=%d", coreDriver.calls, agentDriver.calls)
 	}
+}
+
+func TestOwnedReadinessDiagnosticPreservesGateAndClosedOutput(t *testing.T) {
+	t.Run("existing probes and success outcomes", func(t *testing.T) {
+		key := strings.Repeat("a", 64)
+		cd := &runtimeAuthorizationProbeDriver{t: t, role: "zasp_discovery_api", key: key}
+		ad := &runtimeAuthorizationProbeDriver{t: t, role: "zasp_security_agent_api", key: key}
+		core, _ := apiserver.NewPostgresJSONDatabase(cd)
+		agent, _ := apiserver.NewPostgresJSONDatabase(ad)
+		defer core.Close()
+		defer agent.Close()
+		if core.RequireCurrentAuthorization() != nil || agent.RequireCurrentAuthorization() != nil {
+			t.Fatal("fixture admission")
+		}
+		var output bytes.Buffer
+		observer := newComplianceReadinessObserver(&output)
+		services, components := 0, 0
+		cb := authorizationRuntimeReadinessWithDiagnostic(func(context.Context) error { services++; return nil }, func(context.Context) error { components++; return nil }, core, agent, key, time.Second, observer)
+		if cb(context.Background()) != nil || services != 1 || components != 1 || cd.calls != 1 || ad.calls != 1 {
+			t.Fatal("diagnostic changed readiness work")
+		}
+		lines := strings.Split(strings.TrimSpace(output.String()), "\n")
+		if len(lines) != 4 {
+			t.Fatalf("wanted four observations, got %d", len(lines))
+		}
+		for _, phase := range []string{"services", "core-metadata", "security-agent-metadata", "components"} {
+			if !strings.Contains(output.String(), "ZASP_COMPLIANCE_READINESS="+phase+":passed\n") {
+				t.Fatal("phase observation missing")
+			}
+		}
+	})
+	t.Run("service refusal retains original error and short circuit", func(t *testing.T) {
+		sentinel := errors.New("CANARY_SECRET_URL_SQL")
+		var output bytes.Buffer
+		cb := authorizationRuntimeReadinessWithDiagnostic(func(context.Context) error { return sentinel }, func(context.Context) error { t.Fatal("unexpected component probe"); return nil }, nil, nil, "", time.Second, newComplianceReadinessObserver(&output))
+		if cb(context.Background()) != sentinel || output.String() != "ZASP_COMPLIANCE_READINESS=services:refused\n" {
+			t.Fatal("refusal changed or exposed input")
+		}
+	})
+	t.Run("deadline and cancellation are closed outcomes", func(t *testing.T) {
+		for _, expired := range []bool{false, true} {
+			var ctx context.Context
+			var cancel context.CancelFunc
+			want := readinessCancelled
+			if expired {
+				ctx, cancel = context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+				want = readinessDeadline
+			} else {
+				ctx, cancel = context.WithCancel(context.Background())
+				cancel()
+			}
+			defer cancel()
+			sentinel := errors.New("CANARY_SECRET_URL_SQL")
+			calls := 0
+			err := observeReadiness(ctx, readinessCoreMetadata, func(phase readinessPhase, outcome readinessOutcome) {
+				calls++
+				if phase != readinessCoreMetadata || outcome != want {
+					t.Error("wrong closed outcome")
+				}
+			}, func(got context.Context) error {
+				if got != ctx {
+					t.Error("changed context")
+				}
+				return sentinel
+			})
+			if err != sentinel || calls != 1 {
+				t.Fatal("changed error or observation count")
+			}
+		}
+	})
+	t.Run("bounded concurrent deduplication and invalid enum refusal", func(t *testing.T) {
+		var output bytes.Buffer
+		observer := newComplianceReadinessObserver(&output)
+		var workers sync.WaitGroup
+		for range 8 {
+			workers.Add(1)
+			go func() {
+				defer workers.Done()
+				for phase := readinessServices; phase <= readinessComponents; phase++ {
+					for outcome := readinessPassed; outcome <= readinessCancelled; outcome++ {
+						observer(phase, outcome)
+					}
+				}
+			}()
+		}
+		workers.Wait()
+		observer(readinessPhase(255), readinessPassed)
+		observer(readinessServices, readinessOutcome(255))
+		if strings.Count(output.String(), "\n") != 16 || len(output.Bytes()) >= 16384 {
+			t.Fatal("unbounded or duplicated diagnostic")
+		}
+		for _, phase := range []string{"services", "core-metadata", "security-agent-metadata", "components"} {
+			for _, outcome := range []string{"passed", "refused", "deadline", "cancelled"} {
+				line := fmt.Sprintf("ZASP_COMPLIANCE_READINESS=%s:%s\n", phase, outcome)
+				if strings.Count(output.String(), line) != 1 {
+					t.Fatal("unexpected output contract")
+				}
+			}
+		}
+	})
 }

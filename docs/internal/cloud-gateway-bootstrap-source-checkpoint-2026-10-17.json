@@ -1,0 +1,210 @@
+{
+  "observed_at": "2026-10-17T19:48:29.693292+00:00",
+  "continued_published_base_short": "c1406c61",
+  "classification": "CONNECTED_SOURCE_COMPONENT_CANDIDATE_NATIVE_AND_DEPLOYED_UNVERIFIED",
+  "task_mapping": [
+    "M4-50b3"
+  ],
+  "scope": {
+    "public_flow": "Current-authorized environment-target createGatewayDevice/getGatewayDevice/issueGatewayEnrollment/revokeGatewayEnrollment API and production Runtime gateways UI. Manage_identity/current membership/FGA and fresh browser/CSRF or existing PAT ceiling; view for reads. No new Device FGA identity/relation or organization fallback.",
+    "profile": "Own sealed zasp_gateway_bootstrap_v1 Normal/Audit17-function2-table profile, explicit compiled pin and default-off configuration. Public receipt and final same-TX authority/token generation/material hash markers bind issue freshness. Minimal own grants; immutable original parents, registered principals and native helpers retained.",
+    "secret_delivery": "Only a newly minted same-transaction token with confirmed commit can produce the protected one-time11-field bundle. Metadata replay does not redeliver secret. Bundle input is stdin; no locator/secret/private key in URL/argv/logs/audit/database receipt or UI storage. Browser memory custody clears on scope/session/fresh-auth changes.",
+    "enrollment_transport": "Optional bootstrap route verifies the submitted Ed25519 key proof and original token bearer before original same-pool native15 enrollment. Final own profile fence reauthenticates native token/current credential and checks both expiries after all query waits; successful commit is required for200. Ambiguous commit produces no ACK.",
+    "local_custody": "Linux common ownership plus deterministic exclusive stage/link/fsync/no-overwrite publication retains one original key and exact request through retry/restart. Bound receipt is durable before runtime credential export. Partial/unsafe/conflicting state remains unresolved without mutation or network.",
+    "activation": "Default off, exact compiled Normal/Audit pin, explicit API and gateway-control consumers. Existing runtime credential secret consumers, identities, grants and global readiness retained."
+  },
+  "verification": {
+    "full_cli": {
+      "named_pass": 211,
+      "new_grouped_subset": 8,
+      "race": true,
+      "qualification": "Actual full local CLI package regression; local controlled HTTP/custody evidence, not deployed enrollment"
+    },
+    "shared_wire": {
+      "named_pass": 5,
+      "race": true
+    },
+    "custody": {
+      "named_pass": 4,
+      "race": true,
+      "qualification": "Successor after preserved initial compile/import failure; local application filesystem controls only"
+    },
+    "migration_components": {
+      "named_pass": 18,
+      "race": true,
+      "qualification": "Compiler/fake installer components, not native SQL/ACL/RLS/transaction proof"
+    },
+    "deployment_contract": {
+      "named_pass": 3,
+      "qualification": "Node contract controls only, not Helm-rendered or deployed workloads"
+    },
+    "ui": {
+      "gateway_and_changed_quality_named_pass": 22,
+      "existing_sdk_transport_named_pass": 21,
+      "gateway_subset": 7,
+      "typecheck": "PASS",
+      "openapi_generation": "PASS_OFFICIAL_GENERATOR",
+      "openapi_contract_named_pass": 46,
+      "ui_api_coverage_guard_named_pass": 10,
+      "ui_api_map": {
+        "public": 168,
+        "connected_ui": 153,
+        "api_only": 15,
+        "old164_records_preserved": true
+      },
+      "scoped_lint": "PASS",
+      "production_build": "PASS",
+      "qualification": "Actual local components/contracts. Gateway7 occurs within latest22 and earlier28; counts are not additive. ExistingSDK21 source unchanged and prior actual run passed. No deployed browser/provider proof.",
+      "openapi_lint": "PASS",
+      "openapi_generated_check": "PASS"
+    },
+    "offline_compiled_sql": {
+      "tool": "pglast7.7 PostgreSQL17.4 parser",
+      "normal": {
+        "sql_grammar_entries": 38,
+        "plpgsql_grammar_entries": 18,
+        "pass": true
+      },
+      "audit": {
+        "sql_grammar_entries": 38,
+        "plpgsql_grammar_entries": 18,
+        "pass": true
+      },
+      "qualification": "Actual compiled source grammar only; no catalog/roles/grants/RLS/FGA/locks/transactions/native execution"
+    },
+    "connected_application_attempts": {
+      "receipts": [
+        "api-control-cli-final-receipt.json",
+        "gateway-control-final-receipt.json"
+      ],
+      "each_exit_code": 1,
+      "each_named_executed": 0,
+      "classification": "OPA_AND_WHERE_APPLICABLE_BADGER_DEPENDENCY_SETUP_BLOCKED_COMPILATION_AND_BEHAVIOR_UNKNOWN",
+      "qualification": "Zero named setup-blocked cases are not behavioral RED or successful compilation."
+    },
+    "source_reviews": {
+      "transport_final_fence": "CLEAR_SOURCE_ONLY root-reported7d981",
+      "connected_source": "CLEAR_SOURCE_ONLY",
+      "latest_ui_aggregate_23_source": "CLEAR_SOURCE_ONLY_613a019c",
+      "combined_publication": "CLEAR_SOURCE_ONLY_92e4fbaa",
+      "qualification": "Source review does not establish deployed/native behavior.",
+      "component_gate_and_late_composition_guard": "CLEAR_SOURCE_ONLY_c747d342"
+    },
+    "native": "ADMISSION_REFUSED_CGROUP_NO_NATIVE_STARTUP_OR_ACCEPTANCE",
+    "deployed": "REAL_STYTCH_PROVIDER_TEMPORAL_OPENFGA_BROWSER_AND_ALL_ORIGINAL_LAUNCH_FLOWS_UNVERIFIED",
+    "preserved_failures_and_holds": [
+      "Initial unused-import/compilation failures",
+      "Canonical IP origin refusal and corrected successor",
+      "Unknown create result handling review hold/successor",
+      "Product ID source review findings, successor refusals and late test-fixture controls; no fabricated executed failure claim",
+      "Original164 roster-count failure and corrected source inventory",
+      "Scoped lint failure and corrected successor",
+      "Original final-token-expiry source HOLD and bounded own native fence correction",
+      "Original design/permission/custody review HOLDs and successor reviews",
+      "Missing package manifest/originalnative15 source custody rejected at837; explicit three-boundary successor840 preserved"
+    ],
+    "preservation_qualification": "Retain original source snapshots, failing output and review receipts alongside successors. None are rewritten as passes or used as production credit.",
+    "source_custody": {
+      "bindings": 840,
+      "guard_named_pass": 21,
+      "gate_required_sources": 79,
+      "new_gate_required_named_results": 98,
+      "new_gate_packages": 8,
+      "new_gate_modules": 3,
+      "new_gate_api_compile_only": "REQUIRED_SEPARATELY_NOT_BEHAVIOR",
+      "qualification": "98 is a required future actual roster. Synthetic strict validator acceptance/refusals are guard verification only, not98passingproduct tests. Original native roster29groups/206names/40ownedPGjoins/16approvalcontrols retained."
+    },
+    "api_source_diagnostic": "One definite unused JSON import was found in sourceAST diagnostics and removed; AST/import checks do not establish API typechecking or compilation.",
+    "review_receipt_members": [
+      "backend-transport-wire-custody-cli-final-independent-source-review.json",
+      "ui-deploy-final-aggregate-independent-review.json",
+      "component-gate-composition-independent-source-review.json",
+      "final-publication-independent-review.json"
+    ],
+    "hosted_parent_checks": {
+      "sha": "c1406c61121f0d781ccc213f42e3f7e01105e122",
+      "completed": 62,
+      "failure": 48,
+      "success": 14,
+      "failure_cause": "UNKNOWN_LOG_ACCESS_UNAVAILABLE",
+      "qualification": "Metadata only; no guard bypass or merge clearance"
+    }
+  },
+  "evidence": {
+    "path": "docs/internal/cloud-gateway-bootstrap-evidence-2026-10-17.tar.gz",
+    "publication_status": "DURABLE_ARCHIVE_CREATED_ALL_MEMBER_HASHES_VERIFIED",
+    "intended_receipt_members": [
+      "transport-tests.json",
+      "transport-first-connected-source.json",
+      "transport-first-independent-source-review.json",
+      "transport-final-fence-source-successor.json",
+      "backend-transport-wire-custody-cli-final-independent-source-review.json",
+      "wire-custody-first-red-receipt.json",
+      "wire-custody-first-connected-receipt.json",
+      "custody-origin-successor-receipt.json",
+      "backend-first-red-receipt.json",
+      "backend-first-connected-receipt.json",
+      "cli-first-red-receipt.json",
+      "cli-first-connected-receipt.json",
+      "cli-connected-successor-receipt.json",
+      "cli-full-connected-receipt.json",
+      "deployment-first-red-receipt.json",
+      "deployment-first-connected-receipt.json",
+      "ui-first-red-receipt.json",
+      "ui-first-connected-receipt.json",
+      "ui-final-receipt.json",
+      "compiled-sql-grammar.json",
+      "api-control-cli-final-receipt.json",
+      "gateway-control-final-receipt.json"
+    ],
+    "qualification": "All original and successor members retained and checked against archive member manifest. Source/component evidence only; no compilation/native/deployed promotion.",
+    "sha256": "22027c96d0efeea8058ac7fc3cc3569c9870d4a871cb6513044b038b99c3617f",
+    "bytes": 974554,
+    "member_count": 329
+  },
+  "ledger": {
+    "rows": 728,
+    "unique_ids": 728,
+    "historical_complete": 667,
+    "historical_blocked": 61,
+    "classes": {
+      "production-available": 509,
+      "component-only": 158,
+      "blocked/external": 61
+    },
+    "remaining_recorded": 219,
+    "only_evidence_append": "M4-50b3",
+    "predecessor_sha256": "803f78423b2a711fd1c9c936e44b79ca45879426ab633baf9ca08896c8430973",
+    "sha256": "4d96bdb33fb636b7a86ef1d4f5de142735ab4936d2fff41dff019df833dd9f98",
+    "owners_unchanged": true,
+    "owners_sha256": "de630b490e4861aeadf52fff3b2ecf075884d7d8adbacfbbd06c4ceca27aa46b",
+    "inventory": "docs/internal/cloud-goal-remaining-task-inventory-2026-10-17-gateway-bootstrap-source-successor.json",
+    "all219_v10_records_retained": true,
+    "availability_promotions": 0,
+    "task_closed": false
+  },
+  "remaining_critical_path": [
+    {
+      "flow": "Post-token-expiry ambiguous enrollment recovery",
+      "required": "Implement and verify explicit current signed Authority recovery using the preserved key, with distinct evidence and honest unknown original enrollment outcome. Do not resurrect the token, regenerate identity or fabricate an enrollment receipt."
+    },
+    {
+      "flow": "Authentic Agent-to-Device association",
+      "required": "Implement authenticated current-scoped Agent-to-Device association with original identity/provenance, permission revocation and denial. Device enrollment/installation testimony and request attribution do not establish that relationship."
+    },
+    {
+      "flow": "Real composed coverage/filter behavior",
+      "required": "Join authentic Agent placement, Device association and current policy-installation/freshness/revocation facts through real APIs/UI filters; no inferred healthy/coverage shortcut."
+    },
+    {
+      "flow": "Launch guards and real end-to-end acceptance",
+      "required": "Resolve admitted dependency/runtime/deployment prerequisites and all required hosted/security/release guards. Verify native Normal/Audit authorization/tenant isolation, fresh/replayed secret delivery, expiry/revocation after waits, unknown commit/restart/recovery, audit, approvals and budgets; then pass deployed browser/provider flows with real Stytch and Temporal/OpenFGA."
+    }
+  ],
+  "retired_obsolete_implementations": false,
+  "merge_release_cleared": false,
+  "launch_ready": false,
+  "all_original_requirements_still_required": true,
+  "status_predecessor_sha256": "d7e786115908fc56a7c34163f50cf59e4a88e6c8140d7cd6dc1535ef2af3eb91",
+  "continued_published_base": "c1406c61121f0d781ccc213f42e3f7e01105e122"
+}

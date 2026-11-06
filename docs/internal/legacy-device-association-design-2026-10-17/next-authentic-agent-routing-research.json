@@ -1,0 +1,374 @@
+{
+  "classification": "AUTHENTIC_AGENT_ROUTING_SOURCE_RESEARCH_ONLY_NO_IMPLEMENTATION_OR_PRODUCTION_CLAIM",
+  "source_pins": [
+    {
+      "path": "services/runtime-gateway/proxy.go",
+      "sha256": "9ccb065b54d4f8314f192cee25a39620a9c92596b46797c161cd2bee8e3695ee",
+      "anchors": [
+        {
+          "symbol": "func (handler *gatewayProxyHandler) ServeHTTP",
+          "line": 81
+        },
+        {
+          "symbol": "func (handler *gatewayProxyHandler) evaluation",
+          "line": 244
+        },
+        {
+          "symbol": "func gatewayProxyRequestHeaders",
+          "line": 352
+        }
+      ]
+    },
+    {
+      "path": "services/runtime-gateway/runtime.go",
+      "sha256": "7c75246c62d66554630d8131a5dccc3d1fe948284fd79e90a01107e0733fa6e5",
+      "anchors": [
+        {
+          "symbol": "func (runtime *gatewayRuntime) Evaluate",
+          "line": 330
+        }
+      ]
+    },
+    {
+      "path": "services/runtime-gateway/evaluation_risk.go",
+      "sha256": "a6be1dab3a15ac7d724348e6dd8fe1e9a404f3270f91cc8cdf851ffd6e9d1d32",
+      "anchors": [
+        {
+          "symbol": "func resolvedGatewayEvaluation",
+          "line": 10
+        }
+      ]
+    },
+    {
+      "path": "services/runtime-gateway/production_proxy.go",
+      "sha256": "b1e6081dfe896343f9e287cf3825aad821b9053ae27dbf46676937d1da4816aa",
+      "anchors": [
+        {
+          "symbol": "func newProductionGatewayProxy",
+          "line": 31
+        }
+      ]
+    },
+    {
+      "path": "services/runtime-gateway/production.go",
+      "sha256": "6ce7c2c72927ff16cc47dae63fa0eee728c5f4c7e14e217302a0680be65b8a36",
+      "anchors": [
+        {
+          "symbol": "ProxyClientTokenFile",
+          "line": 43
+        }
+      ]
+    },
+    {
+      "path": "services/platform/gatewaycontrol/association.go",
+      "sha256": "21f66b09326d9e1492f67ab55f9fc6dd2752ca3aafbd1559620a23c0d629baf4",
+      "anchors": [
+        {
+          "symbol": "func (handler *httpHandler) serveAssociationAccept",
+          "line": 210
+        }
+      ]
+    },
+    {
+      "path": "services/platform/migrations/sql/agent_device_association_profile.sql",
+      "sha256": "e542faa66034d66eab08aa54dfa5542749634bba4d571f7f878e3eac8bb35f14",
+      "anchors": [
+        {
+          "symbol": "CREATE FUNCTION zasp_agent_device_association_v1.source_facts",
+          "line": 137
+        },
+        {
+          "symbol": "CREATE FUNCTION zasp_agent_device_association_v1.device_facts",
+          "line": 153
+        },
+        {
+          "symbol": "CREATE FUNCTION zasp_agent_device_association_v1.activate",
+          "line": 201
+        }
+      ]
+    },
+    {
+      "path": "services/platform/gatewaycontrol/http.go",
+      "sha256": "104cf30ddb83cec5448a8197daa59e6281ee9611f686ed47ca4a4feffc67a6b8",
+      "anchors": [
+        {
+          "symbol": "func (handler *httpHandler) authenticate",
+          "line": 178
+        }
+      ]
+    },
+    {
+      "path": "services/platform/authorization/checker.go",
+      "sha256": "259b50987810aaa14457edb9912fe73ffb96cb03b4bf74dcf37dc8679c561c55",
+      "anchors": [
+        {
+          "symbol": "type CheckRequest struct",
+          "line": 16
+        }
+      ]
+    },
+    {
+      "path": "services/platform/authorization/mapping.go",
+      "sha256": "a3acf50352d4a0df5ed96092f8ae299512828365bc6f46f471001fc36323d884",
+      "anchors": [
+        {
+          "symbol": "func Map",
+          "line": 23
+        },
+        {
+          "symbol": "func DelegationGrant",
+          "line": 122
+        }
+      ]
+    },
+    {
+      "path": "services/platform/connectors/kubernetesdiscovery/collection_api.go",
+      "sha256": "c8f7d039b324d8426564de4456ce64f14635b9b3e6b8c4053592f487dd570a5d",
+      "anchors": [
+        {
+          "symbol": "workload_service_account",
+          "line": 760
+        }
+      ]
+    },
+    {
+      "path": "services/platform/connectors/kubernetesdiscovery/node_placement.go",
+      "sha256": "320f728344c96e548c38d6149d7f7b535a816ede9e241f8323bfcf02e78fc7f4",
+      "anchors": [
+        {
+          "symbol": "NodePlacementCollectorVersion",
+          "line": 22
+        },
+        {
+          "symbol": "facts.Placements = append",
+          "line": 359
+        }
+      ]
+    },
+    {
+      "path": "services/platform/connectors/internal/providercollection/node_placement.go",
+      "sha256": "a40fb68d067c6d6d84c4857dbec66be1da98c0c31d6470981a38aba5d324cba1",
+      "anchors": [
+        {
+          "symbol": "type KubernetesAgentPlacement struct",
+          "line": 12
+        }
+      ]
+    },
+    {
+      "path": "services/platform/connectors/collection/contract.go",
+      "sha256": "a96a49b70e0abc659f6713e5fccb5d6681726d7f4abf90d00f4922a530a9d540",
+      "anchors": [
+        {
+          "symbol": "type normalizedEntity struct",
+          "line": 266
+        }
+      ]
+    },
+    {
+      "path": "services/platform/agentsec-worker/discovery_production.go",
+      "sha256": "c5420b55827296f948ae56a49cacba609e6fe974e7b55681e9fad3ab09ad9ae9",
+      "anchors": [
+        {
+          "symbol": "type jobBoundDiscoveryCollector",
+          "line": 118
+        }
+      ]
+    },
+    {
+      "path": "services/sensor-agent/lineage_socket_linux.go",
+      "sha256": "c78f7cccaa90fae40285a250e51f74eef80e004992800c1e3927d03436e931c7",
+      "anchors": [
+        {
+          "symbol": "func lineageSocketPeerUID",
+          "line": 21
+        }
+      ]
+    },
+    {
+      "path": "services/sensor-agent/lineage_socket.go",
+      "sha256": "768fed06aebd4344a26601e0117ad080101db00de442491a5eee5e4cb86b0802",
+      "anchors": [
+        {
+          "symbol": "uid, err := lineageSocketPeerUID",
+          "line": 133
+        }
+      ]
+    },
+    {
+      "path": "services/sensor-agent/lineage_identity.go",
+      "sha256": "95ed5d06cc09a97fc0bef4143365e45c9754b32d666937e89efa8258083282d8",
+      "anchors": [
+        {
+          "symbol": "type lineageHostIdentity struct",
+          "line": 155
+        },
+        {
+          "symbol": "func resolveLineageIdentity",
+          "line": 162
+        }
+      ]
+    },
+    {
+      "path": "services/sensor-agent/lineage_daemon.go",
+      "sha256": "d7fd65077ba5949c971794aad3626123081dda234d2491c2a0c59f2a2afe77e8",
+      "anchors": [
+        {
+          "symbol": "Only the root producer role",
+          "line": 105
+        }
+      ]
+    },
+    {
+      "path": "services/platform/runtimeevent/production_ingest.go",
+      "sha256": "87ea54a5eb967beb284e766999e18ecd5f5e23704a3d41e4a8404039f301e1d9",
+      "anchors": [
+        {
+          "symbol": "type IngestAuthority struct",
+          "line": 41
+        },
+        {
+          "symbol": "safeProductionAuthenticate",
+          "line": 205
+        }
+      ]
+    },
+    {
+      "path": "services/platform/runtimeevent/production_candidate_repository.go",
+      "sha256": "43f26337eb7f4b12601e12d6926ae0ffebcb788efbb48ca9040d9f68d3a8e48f",
+      "anchors": [
+        {
+          "symbol": "type CandidateObservation",
+          "line": 59
+        }
+      ]
+    },
+    {
+      "path": "services/platform/runtimecorrelation/precise_correlator.go",
+      "sha256": "56092177e3f1360c1f2637c9e8387397dc8d07710a67b319f029a160eb8d613d",
+      "anchors": [
+        {
+          "symbol": "func CorrelatePreciseFrozen",
+          "line": 14
+        },
+        {
+          "symbol": "func preciseQualifiedObservationMatch",
+          "line": 61
+        }
+      ]
+    },
+    {
+      "path": "services/platform/runtimelineage/precise_observation.go",
+      "sha256": "218fa0c4f347aa7167e477d27d4832db9f149dded28bd09078f84f00353df3eb",
+      "anchors": [
+        {
+          "symbol": "func ",
+          "line": 18
+        }
+      ]
+    },
+    {
+      "path": "docs/internal/agent-device-association-design-2026-10-17/contract-final.json",
+      "sha256": "ba2d9cc1601ad7f07f1bf547f9f1d114a76c13593566f2883f5b1c35d32dec43",
+      "anchors": [
+        {
+          "symbol": "\"scope\"",
+          "line": 84
+        },
+        {
+          "symbol": "\"legacy_lane\"",
+          "line": 556
+        }
+      ]
+    }
+  ],
+  "current_facts": [
+    {
+      "id": "F1",
+      "evidence": "runtime-gateway proxy authorizes X-Zasp-Gateway-Token against configured shared client token, then reads X-Zasp-Principal-ID/X-Zasp-Agent-ID/X-Zasp-Session-ID and capability Agent/Target fields from callerheaders. Syntax validation and policy normalization do not authenticate perAgent identity. Device signing later proves gateway credential, not originalcaller Agent.",
+      "source": "services/runtime-gateway/proxy.go ServeHTTP/evaluation"
+    },
+    {
+      "id": "F2",
+      "evidence": "Gateway policy Evaluate enforces signed cached policies, bootstrap open/closed modes, bounded replay/durable decision path. Requestdigest binds provided attributes, but neither current Deviceassociation nor workload-provider proof is looked up in the inspected runtimegateway path. Source search for association in its non-test Go files found none. Existing Evaluation.AgentID is attribution input, not workloadproof.",
+      "source": "services/runtime-gateway/runtime.go Evaluate +evaluation_risk.go"
+    },
+    {
+      "id": "F3",
+      "evidence": "Administrative association binds current typed Agent stable source identity/admission snapshot to current native Device credentialID+generation under three phases. It explicitly grants no observed routing/coverage. A Device may host multipleAgents and an Agent multipleDevices; active pair alone cannot identify a request.",
+      "source": "agent_device_association_profile.sql source_facts/device_facts/activate and frozen contract"
+    },
+    {
+      "id": "F4",
+      "evidence": "Kubernetes provider collection supplies real identity envelope and uses_identity service-account relationship; selected nodeplacement collector independently reads bounded ownerchain/Pods/Nodes and stores ReplicaSetUID/PodUID/NodeUID/BootID tuples. Placement comment explicitly grants no runtime health/policy coverage/Kubernetes access.",
+      "source": "kubernetesdiscovery collection_api.go/node_placement.go +providercollection/node_placement.go"
+    },
+    {
+      "id": "F5",
+      "evidence": "Sensor trusted local Tetragon stream checks Unix peer UID against expected socket owner via SO_PEERCRED. This code returns UID only; it authenticates the producer stream peer, NOT each runtimegateway workload connection PID/Agent. Boot identity compares actual host boot_id with copied Kubernetes NodeUID/boot and kube-system namespaceUID before/after observations; comment explicitly denies atomic snapshot/tenant authority/host attestation.",
+      "source": "sensor-agent lineage_socket_linux.go,lineage_socket.go,lineage_identity.go"
+    },
+    {
+      "id": "F6",
+      "evidence": "Precise correlation joins archived observed cluster/node/boot/pod/container/time against admitted frozen candidates. Unique result is Strong, not attestation; ambiguous matches Probable, missing Unattributed. This is valuable occurrence evidence, not proof that a specific HTTP request originated from an Agent process.",
+      "source": "runtimecorrelation/precise_correlator.go"
+    },
+    {
+      "id": "F7",
+      "evidence": "Event ingestion authenticates Sensor token to scope/SensorID/current tokenGeneration; payload Agent/session fields and candidate joins remain distinct evidence. Authenticated Sensor does not automatically make every payload AgentID a separately authenticated workload principal.",
+      "source": "runtimeevent/production_ingest.go IngestAuthority/Authenticate path"
+    },
+    {
+      "id": "F8",
+      "evidence": "authorization.Map supports agent/service subject syntax only with taskID; DelegationGrant emits independently revocable task/target/permission-bound tuples and explicitly requires P6 desiredstate plus P7 current grantor/policy/approval/budget checks. These encoders are NOT workload credential issuance/authentication. No actual Agent-specific workload credential verifier/issuer on inspected gateway path was found; absence is bounded to inspected paths/searches, not whole-repository proof.",
+      "source": "authorization/checker.go,mapping.go"
+    }
+  ],
+  "proof_chain_required": [
+    "Current authenticated provider/inventory stable Agent source identity (scope+integration+provider/source/namespace/nativeID/rule) with present/fresh source evidence; no displayname/IP/tag join.",
+    "Authenticated per-request workload principal or local peer process proof, with immutable occurrence identity tied to the Agent source/instance; caller AgentID never selects identity.",
+    "Current administrative Agent\u2194Device pair, exact Device credentialID/generation and sourceidentity; no association or currentgen => no strictroute authorization.",
+    "Explicit current per-task permission/delegation/resource constraints, approvals and budget reservation/settlement from original authorities, separate from manage_identity administrative admission.",
+    "Actual signed policy version installed at that Device, policy applicability to authenticatedAgent/source and current decision; no installationACK alone => no perAgentcoverage.",
+    "Exact request target/method/body digest+nonce/session/task bound to derivedidentity, decision and fixed configured upstream; deny forwarding if proof/audit/budget boundary fails according to selected existing failuremode without silently broadening open behavior.",
+    "Durable original decision and actual upstream outcome/unknown, signed Device evidence and authenticatedworkload provenance retained with native tenant fences; replay cannot renew stale auth or repeat paid/actioneffects.",
+    "UI coverage is intersection of fresh source/instance placement, liveadmission/currentDevice, observed authenticatedrequest, verified installed applicablepolicy, actualenforceddecision and acknowledged evidence. Perrequest enforcement proof does not establish allreplica/fleet coverage."
+  ],
+  "smallest_coherent_next_batch_proposal": {
+    "choice": "One explicitly selected Kubernetes authenticated-workload routing profile through the existing fixed gateway proxy; preserve old sharedtoken route as compatibility with unverified attribution. NEW source must derive AgentID server-side and never silently label old headers authenticated. No global replacement/retirement until behavior-equivalent supported lanes verified.",
+    "credential_option_A": "Provider-attested Pod-bound shortlived service-account token with gateway-specific audience, verified by actual pinned cluster TokenReview plus current Pod UID and controller ownership chain from integration. Require namespace/SA UID, bound Pod UID, live Pod and exact Deployment/ReplicaSet UID+ClusterUID match to current Agent stable source/placement. Token alone proves possession of a Pod-bound credential, not hardware/physical origin; theft within trustboundary remains possible. Device association remains required separately.",
+    "option_A_new_dependencies": "No TokenReview implementation or permission was found in inspected existing provider/sensor/gateway code. Existing discovery probe capabilities get/list/watch do not authorize create tokenreviews. Need explicitly configured restricted provider verifier identity/RBAC, correct audience-bound projected token mounting, current cluster CA/endpoint/issuer binding, actual provider response validation and freshness/revocation contract. Do NOT infer permission or reuse integrationsecret without purposebinding. Offline JWT/JWKS alone requires reviewed issuer trust/rotation and still livePod deletion/current identity checks; do not assume immediate revocation.",
+    "credential_option_B": "Linux local Unix workload ingress with actual perconnection SO_PEERCRED PID+UID/GID (existing sensor UID-only helper is insufficient), pinned/proven current PID starttime/cgroup/container identity and current trusted runtime/CRI\u2192PodUID ownerchain. Bind local connection/request nonce/body to exact current process incarnation/NodeUID/BootID. Requires new trustworthy hostprocess/CRI authority and namespace/PIDreuse checks. SameUID or Pod colocation alone insufficient; privilegedsamehost/kernel actors remain trusted, no hardware attestation claim.",
+    "option_selection": "A is likely smallest portable launched Kubernetes credential flow if provider TokenReview/RBAC exists; B supplies stronger local occurrence association but requires larger deployment/hostproof surface. Root must independently review actual available provider permissions/trust assumptions before selecting. Neither is claimed implemented. Other AWS/VM/GitHub/Okta Agent source kinds remain original followup requirements, not demoted.",
+    "common_core": "NEW narrow optional gateway-control authorization route on actual signed currentDevice pool: consumes authenticatedworkload attestation/reference from selected trusted verifier, derives exact current Agent source+instance, validates current pair/gen/source, taskdelegation/approval/budget/policy version and returns narrowly scoped request-bound admission. Exact native registered Normal/Audit ownprofile, expiry/nonce/revocation/confirmedcommit, no caller header/boolean authority or persisted old auth80 context.",
+    "gateway_changes": "Add unexported authenticatedWorkloadIdentity result object produced only by configured verifier, map to policyActionContext principal/Agent/session/task, reject contradictory X-Zasp-* identity claims in strictmode or ignorethem completely with explicit contract. Request replay key binds auth source+credentialgeneration+Pod/process incarnation+actualbodyhash. Keep fixed upstream DNS/CIDR/TLS constraints and strip workloadcredentials from upstream/response/audit.",
+    "evidence_changes": "Add separately versioned workload-authentication provenance and requestauthorization proof to own decision/audit ABI. Preserve legacy evaluation evidence as unverified claim; no backfill/relabel. ActualDecision ACK must be confirmed same transaction/currentnativegeneration; postcommitunknown remains unknown. SenderUID/boot placement retained as contextual node evidence, not rebranded perrequest signature.",
+    "coverage_changes": "Wire one authenticatedrequest through policydecision+real upstream effect/evidence to precise perAgent UI observation with explicit TTL/instance/conditions. Aggregate coverage remains bounded currentinstance inventory intersection; disappearing/replaced Pod, changed source, Devicecredential rotation/revoke, stale verifier or policy expiry immediately removes currentassurance, historical evidence retained."
+  },
+  "other_options_and_limits": [
+    "Explicit operator-issued perAgent key would prove authorizedholder/key possession and can stop arbitraryAgentID spoofing if purposebound, but absent provider/localworkload binding it is NOT observed workload identity. Treat as separate weakly scoped identity lane, never coverage shortcut.",
+    "Existing agent/service FGA syntax is not an enrollment endpoint or API auth principal. New delegatedcredential issuance needs exact grantor/task/resource/expiry/policy/approval/budget boundaries; no newpermission inferred from Agent\u2194Device manage_identity.",
+    "Correlating OTLP AgentID with same PodUID or Sensor senderUID is occurrence/probabilistic corroboration only; no retroactive authenticity or request-byte binding.",
+    "No hardware enclave/TPM/SPIFFE deployed identity or mTLS workload certificate infrastructure observed in inspected paths; do not design as existing prerequisites satisfied. They can be future explicitly verified options, not assumed guarantees."
+  ],
+  "entrypoints_proposed": [
+    "services/runtime-gateway/proxy.go: authenticated ingress/verifier and derived evaluation identity before Evaluate; fixed upstream forwarding retained",
+    "services/runtime-gateway/runtime.go,evaluation_risk.go: request-bound authenticatedidentity/evidence/replay and activepair/policyapplicability composition; legacycontract intact",
+    "services/runtime-gateway/production.go,production_runtime.go,production_proxy.go: selected strict verifier config/client/providertrust/readiness and lifecycle",
+    "services/platform/gatewaycontrol NEW workload authorization interface/route/samepool ABI +ownnative profile; actual current Device authority reused",
+    "services/platform/migrations/sql/agent_device_association_profile.sql additive own reader/currentfence or NEWcomposedprofile: livepair/source/currentgen access without parent rewrite",
+    "services/platform/connectors/kubernetesdiscovery and sourceidentity/placement APIs: authoritative livePod ownerchain+instance identity; selected collector remains automatic sync source",
+    "NEW pure verifier package for actual TokenReview/provider client OR Linux perconnection peerprocess path; no fakefixtures as nativeproof",
+    "services/platform/authorization taskdelegation/P6/P7 and original approvals/budgets: explicitly compose current authority; no modelgrant shortcut",
+    "services/platform/runtimeevent,runtimecorrelation,runtimeprojection/index and actual Agent page: separately authenticated request evidence vs existing confidence metrics",
+    "deployment templates/operator docs/provider credential/RBAC and immutable CI/native+realflow evidence; do not promote ledger from source/component tests"
+  ],
+  "bounded_grouped_acceptance": [
+    "Actual selected verifier\u2192derivedAgent\u2192currentDevicepair/gen\u2192applicablepolicy\u2192fixedTLSupstream\u2192durabledecision/evidence flow, deliberately conflicting callerAgentID ignored/refused.",
+    "Grouped wrongscope/Agent/source/PodUID/Nodeboot/PIDreuse/tokenaudience/keygeneration/revoke/expiry/approval/budget/oldcontext refusals and unknowncommit/retry; no forwarding/coverage on missing proof.",
+    "Automatic discovery source sync and instance replacement restore ONLY current sameidentity placement, never reuse stale workloadcredential or oldactivegen; exactmultiAgent/perDevice ambiguityfailclosed.",
+    "Actual provider/Kubernetes verifier+originalStytch human admission+native Normal/Audit+real upstream launch path; lineage native resource gate must stayhonest. Component mocks exercise logic boundaries, not provider/hostproof.",
+    "Preserve oldproxy/enrollment/association/recovery/automaticdiscovery/security/functionality regressions; retire obsolete flows only after equivalent actualsupportedproof and migration verified."
+  ],
+  "research_limits": "Source-only bounded searches/reads plus this /tmp JSON write. No repo/currentbatch/evidence edits, Go/Node/tests/native/network/Git, newgrant, fabricated credential/attestation/provider permission, originaltask closure or reducedscope. Exact original728 ledger and remainingexternal/deployed acceptance are unchanged."
+}

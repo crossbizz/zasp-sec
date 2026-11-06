@@ -1,0 +1,165 @@
+{
+  "observed_at": "2026-10-17T07:09:38.442265+00:00",
+  "continued_published_base": "aea3b9d828bea76e1c24ec553783898728195fb7",
+  "fresh_main_sha": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
+  "required_ancestor": "e13ccb95451b03107681ccb59b3fc6fe175a228f",
+  "scope": "Bounded connected preflight A: actual SDK read probes, shared worker metadata predicates, explicit credentials, original8sections/fullunknownroster, exact operation redacted failure details, explicitly labeled offline compatibility. All original requirements retained.",
+  "sources": [
+    {
+      "path": "cmd/agentsecctl/go.mod",
+      "bytes": 1316,
+      "sha256": "6d5122f515105e69fa0b769e083bc7fdf6a792dfadc4239a37b6483f6a3f9688"
+    },
+    {
+      "path": "cmd/agentsecctl/go.sum",
+      "bytes": 3193,
+      "sha256": "19de766843e2410e35dca9ed4a563e8ac72b66a131fa7938f701d079cc418aff"
+    },
+    {
+      "path": "cmd/agentsecctl/preflight_live.go",
+      "bytes": 2199,
+      "sha256": "035ca8ed41d9c739cf3ce5ca21e6deda9068bcfcf9d4af5cb705cc299c4d8474"
+    },
+    {
+      "path": "cmd/agentsecctl/preflight_live_contract_test.go",
+      "bytes": 6626,
+      "sha256": "54e3e19289f439056d8de8760d0bf6181eb591a05a50539d5ce0801e067c54f4"
+    },
+    {
+      "path": "cmd/agentsecctl/release.go",
+      "bytes": 18807,
+      "sha256": "21af11955e700a655efbbf45fdc9732ec8ddc24c6e33bd16421dd488ddf77f1b"
+    },
+    {
+      "path": "services/platform/agentsec-worker/discovery_dependencies.go",
+      "bytes": 12087,
+      "sha256": "e9d1b0ad9a59dce01fba6084e37c6b93e14622239dec628fbfed557b46c71df3"
+    },
+    {
+      "path": "services/platform/cloudreadiness/aws.go",
+      "bytes": 2305,
+      "sha256": "ec2f446982306fdb94d39f335d28b3821282e5fe4ec8d2d47ebef6b99453b399"
+    },
+    {
+      "path": "services/platform/preflight/aws_contract_test.go",
+      "bytes": 9321,
+      "sha256": "e205663ee2b2c7c1069c2c44ab16802b40c8df95d0e1a3abc3c93f16caf440f8"
+    },
+    {
+      "path": "services/platform/preflight/config.go",
+      "bytes": 6390,
+      "sha256": "4aeba33a62a7aafee1b50caadd2101f1c0bf204f215ca7250cbba1070d582229"
+    },
+    {
+      "path": "services/platform/preflight/config_contract_test.go",
+      "bytes": 3872,
+      "sha256": "ef7e114168516955252a09a99d38683a80e6325924e743c33a11f753c40a0ab7"
+    },
+    {
+      "path": "services/platform/preflight/contract.go",
+      "bytes": 3613,
+      "sha256": "38bd06c94f6b348dae50e91efd35b457fa6b16b48cfb2fbff5f9bcdd4b6cef56"
+    },
+    {
+      "path": "services/platform/preflight/credentials.go",
+      "bytes": 4592,
+      "sha256": "ab2971f2bc5e654523d85ae285393081d37f0f296c429a4e4add7a2cecbf4c9a"
+    },
+    {
+      "path": "services/platform/preflight/failures.go",
+      "bytes": 3182,
+      "sha256": "a51398a557401c5a12cd790481fbe2afba79782490ea2d9eb5c10c95fe7ff01f"
+    },
+    {
+      "path": "services/platform/preflight/report.go",
+      "bytes": 2808,
+      "sha256": "d8e69a39382179c3f1c71cc1c4548f15a81b85fd6352addd7de4c3072f823d4f"
+    },
+    {
+      "path": "services/platform/preflight/runner.go",
+      "bytes": 10600,
+      "sha256": "51e30a2e299ceffb86283cb2ec3d9562c613c5c2e0b66820e8d6e4e5810d698d"
+    },
+    {
+      "path": "services/platform/preflight/transport.go",
+      "bytes": 1839,
+      "sha256": "20365db0991b2302ccdc16e1066f2506113dbb9cb6b6ae6803e2349bd9f05d94"
+    }
+  ],
+  "validation": {
+    "genuine_command_RED": {
+      "fail": 4,
+      "pass": 6
+    },
+    "genuine_original_scaffold_SDK_RED": {
+      "fail": 6,
+      "pass": 0
+    },
+    "successor_evidence_class_and_failure_details_RED_attempt": "SETUP_BLOCKED, zero cases; missing four pinned SDK modules with GOPROXY=off",
+    "successor_CLI_readonly_compile": "SETUP_BLOCKED, zero cases; same four modules; not compiled or GREEN",
+    "module_graph": "go mod tidy -e exit0 WITH missing import errors: not successful tidy. Metadata supplemented only exact inherited versions/verbatim platform checksums. No fake modules or guessed sums.",
+    "source_ledger_checks_pass": 54,
+    "source_pins_verified": 361,
+    "gofmt_parse_exit": 0,
+    "fresh_UI_typecheck_exit": 0,
+    "fresh_UI_build_exit": 0,
+    "lint_exit": 0,
+    "lint_scope_checks_pass": 11,
+    "anonymous_UI_HTML": {
+      "scope": "Anonymous built UI HTML only; no authenticated API, Stytch/provider or deployed E2E claim",
+      "status": 200,
+      "bytes": 10799,
+      "html": true,
+      "sha256": "8253863d8162c9e7c115ff4175b3addb428f84db43ee0eda3e56494613c19d93",
+      "child_joined": true
+    },
+    "hosted_connected_preflight_job": "added; current batch not yet pushed/executed",
+    "native_execution": false,
+    "real_provider_requests": false,
+    "production_or_deployed_E2E": false
+  },
+  "independent_source_review": {
+    "path": "/tmp/agentsecctl-preflight-live-final-independent-source-review-20261017.json",
+    "bytes": 6229,
+    "sha256": "7c451f88393a856487a7ee2b863045daa7586ff2555b4ace51dd5cd5c383574e"
+  },
+  "independent_integration_review": {
+    "path": "/tmp/preflight-live-evidence-20261017/connected-preflight-integration-independent-review.json",
+    "bytes": 1986,
+    "sha256": "5766bad69e5a20099977aa56a9e3987e66da78224f242e97952fc6d45769a10d"
+  },
+  "ledger": {
+    "rows": 728,
+    "unique_ids": 728,
+    "classes": {
+      "production-available": 523,
+      "component-only": 144,
+      "blocked/external": 61
+    },
+    "promotions": 0,
+    "evidence_only_ids": [
+      "M8-16",
+      "M8-17",
+      "M8-17a",
+      "M8-17b",
+      "M8-17c",
+      "M8-17d",
+      "M8-17e",
+      "M8-18",
+      "M8-19"
+    ],
+    "owners_unchanged": true
+  },
+  "evidence_archive": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/connected-preflight/component-evidence.json.gz",
+    "bytes": 40948,
+    "sha256": "7d511bf2aa2f87b421edd2686710d6897902e7756aaca53f7081c6e477decc2d",
+    "members": 36
+  },
+  "remaining_gates": [
+    "Actual readonly Go build and grouped SDK/CLI GREEN on hosted exacthead",
+    "Original IRSA trust/binding, OpenSearch/EKS/private network, Neon, real nonrenewing Stytch, selected EC2 sensor probes and permissions",
+    "Approved tenant/provider bindings, all native lifecycle/browser/approval gates and deployed end-to-end real Stytch/provider flows",
+    "Existing production/security/release gates; no merge/release bypass"
+  ]
+}

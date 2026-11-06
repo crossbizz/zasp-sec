@@ -26,6 +26,7 @@ const (
 var gatewayCredentialKeyIDPattern = regexp.MustCompile(`^[a-z][a-z0-9_-]{7,63}$`)
 
 type productionGatewayConfig struct {
+	InstallationACKEnabled bool
 	ControlPlaneURL        string
 	OrganizationID         string
 	WorkspaceID            string
@@ -58,7 +59,12 @@ func loadProductionGatewayConfig(getenv func(string) string) (productionGatewayC
 	operationTimeout, operationErr := time.ParseDuration(getenv("ZASP_GATEWAY_OPERATION_TIMEOUT"))
 	syncInterval, syncErr := time.ParseDuration(getenv("ZASP_GATEWAY_SYNC_INTERVAL"))
 	shutdownTimeout, shutdownErr := time.ParseDuration(getenv("ZASP_GATEWAY_SHUTDOWN_TIMEOUT"))
+	installationFlag := getenv("ZASP_GATEWAY_INSTALLATION_ACK_ENABLED")
+	if installationFlag != "" && installationFlag != "false" && installationFlag != "true" {
+		return productionGatewayConfig{}, errRuntimeUnavailable
+	}
 	config := productionGatewayConfig{
+		InstallationACKEnabled: installationFlag == "true",
 		ControlPlaneURL:        getenv("ZASP_GATEWAY_CONTROL_BASE_URL"),
 		OrganizationID:         getenv("ZASP_GATEWAY_ORGANIZATION_ID"),
 		WorkspaceID:            getenv("ZASP_GATEWAY_WORKSPACE_ID"),

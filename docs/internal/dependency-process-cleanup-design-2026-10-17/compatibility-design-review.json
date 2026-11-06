@@ -1,0 +1,28 @@
+{
+  "status": "CLEAR_FINITE_ENOENT_ONLY_PROC_DISCOVERY_COMPATIBILITY_DESIGN",
+  "reviewer": "/root/gateway_review",
+  "created_at": "2026-10-17T22:27:03.755434+00:00",
+  "prior_design_review": {
+    "path": "/tmp/esbuild-scoped-reaper-design-review-20261017.json",
+    "sha256": "001e45ce5de2da5957c72a086a32174b842b5e9c03bb67a9fa6c15eba97ee3e2",
+    "preserved": true
+  },
+  "root_actual_precondition": "Root reports optional children files both absent with ENOENT, not EACCES/EPERM; self PID/TID identity matches, prctl and own pidfd probes pass. Reviewer did not execute probes or infer this from source.",
+  "explicit_supersession": "Original no-host-proc-scan implementation choice is narrowly superseded by read-only bounded numeric /proc metadata discovery ONLY when optional own children field is genuinely absent. Ownership/signal authority and all original strict cleanup guards remain unchanged.",
+  "finite_contract": [
+    "Try selected own task children field normally. Only FileNotFoundError/ENOENT for that optional field permits compatibility path; EACCES/EPERM or malformed/oversized data stays explicit infrastructure failure. Do not catch broad OSError as absent.",
+    "Enumerate only canonical numeric entries directly under /proc, with hard65536 entry ceiling and per stat/status read<=16KiB. Finish complete bounded enumeration or fail; do not return a truncated candidate list. Check existing monotonic cleanup/operation deadline during iteration so repeated scans cannot silently extend bounded timeout.",
+    "Read only stat/status/directory ownership metadata needed for PPID/startticks/UID. Establish PPID first and skip clearly unrelated entries. Never inspect cmdline/environ/comm strings or derive identity from names, SID/PGID or sameUID alone. No output of ambient process metadata.",
+    "ENOENT/ESRCH during candidate lookup is an ordinary exit race: skip that entry and repeat within existing bounded cleanup; do not infer all children empty. Denied or ambiguous prospective own/sameUID candidates fail closed. Inaccessible metadata is never proof of no owned children.",
+    "Only actual kernel PPID==launcherPID and matching expected UID become candidates. _pin_child must still capture before/after PPID/startticks/UID around pidfd open, and _signal_child must revalidate current owned identity before pidfd signal. Numeric discovery alone confers no signal authority.",
+    "Normal run only waitpid reaps actual exited direct/adopted children, no live-child signals to make tests pass. On cancellation/timeout/main-exit leak, nonsuccess is fixed before bounded owned-child termination; no ambient/historical signals, killall, namespace/cgroup/global PID1 intervention or guessed numeric fallback.",
+    "Success still requires main status capture, complete direct-child discovery and waitpid ECHILD. Unreadable/hidden/unjoinable actual child cannot produce success merely because scan omitted it; WNOHANG0 is not ECHILD. Keep actual Node failure nonzero, original9 strict checks,500ms guard and15s child limit untouched.",
+    "Compatibility covers actual invocation lineage including detached setsid adoptees; it does not adopt historical PID1 zombies or claim malicious privileged-host isolation. No app DB/native admission or external executor bypass."
+  ],
+  "findings": [],
+  "grouped_verification": "Existing three meaningful process ownership groups plus unchanged9 Node checks should exercise actual ENOENT fallback discovery/cleanup on this runtime. Preserve first3FAIL/npm125 and optional-field absence evidence. Capability/mocks/source findings are not invented behavioral RED or native app proof.",
+  "limits": [
+    "Source/design review only; no implementation edits/process/syscall/Go/Node/test/Git/network execution. Root owns actual evidence and will freeze successor source for independent implementation review.",
+    "No launch/deployed/availability/task or original requirement closure."
+  ]
+}

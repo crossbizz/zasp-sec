@@ -1,0 +1,72 @@
+{
+  "observed_at": "2026-10-17T10:32:15.015461+00:00",
+  "continued_published_base": "ebfa58ae1f079ad467f4cb2d9165cde0a147a552",
+  "scope": "Existing connector-maintenance runtime wraps the Postgres resolver, but preparePostLogin accepted only the direct concrete type, making authenticated bootstrap unavailable in that composed configuration. A private closed helper admits only direct Postgres or the own callback decorator with the exact direct original, same database and current compiled profile pin. All target resolution and FGA checks retain the selected resolver. Unknown, nested, missing, wrong-database or wrong-profile compositions refuse before snapshot/FGA. No environment-class capability or backend implementation is included.",
+  "task_mapping": [
+    "M2-06"
+  ],
+  "sources": [
+    {
+      "path": "services/platform/apiserver/authorization_post_login.go",
+      "bytes": 8716,
+      "sha256": "0aa0d6f7a9f435b56e50524dba22ac286b3c45371373cdd07e33fd6a0a5e0596"
+    },
+    {
+      "path": "services/platform/apiserver/authorization_post_login_resolver.go",
+      "bytes": 1044,
+      "sha256": "58ea1982b092d29464a703315f1d76a425e2469b4ef2aa1e4d6a52d04fa1b97e"
+    },
+    {
+      "path": "services/platform/apiserver/authorization_post_login_callback_resolver_test.go",
+      "bytes": 3138,
+      "sha256": "6025c6df5fe188e1f3f2188816c2043a253b83392cdc67ed3f7a534f470591b3"
+    }
+  ],
+  "verification": {
+    "independent_source_review": "CLEAR_SOURCE_ONLY",
+    "baseline_API_attempt": {
+      "exit": 1,
+      "named_cases": 0,
+      "classification": "SETUP_BLOCKED: unavailable cached OPA1.17.0; GOPROXYoff; not behavioral RED"
+    },
+    "final_API_attempt": {
+      "exit": 1,
+      "named_cases": 0,
+      "classification": "same dependency setup block; no test pass or compiler acceptance claimed"
+    },
+    "source_ledger_cases_pass": 54,
+    "UI_typecheck_exit": 0,
+    "UI_build_exit": 0,
+    "workflow_yaml_parse_exit": 0,
+    "embedded_Python_parse": "both programs valid",
+    "source_bindings": {
+      "before": 447,
+      "after": 449,
+      "all_exact": true,
+      "predecessor_paths_retained": true
+    },
+    "hosted_addition": {
+      "job": "connected-session-bootstrap",
+      "required_named_cases": 9,
+      "requires_all_pass_no_skip": true,
+      "status": "pending for new head"
+    },
+    "original_native_roster": "14 groups,79 named cases,24 PostgreSQL joins,16 approval controls unchanged"
+  },
+  "ledger": {
+    "rows": 728,
+    "classes": {
+      "production-available": 523,
+      "component-only": 144,
+      "blocked/external": 61
+    },
+    "promotions": 0
+  },
+  "archive": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/callback-bootstrap/component-evidence.json.gz",
+    "bytes": 7147,
+    "sha256": "2a99a1ba92b515474f1a2ea5c3e069922406c9b21fe74c6f79d30e0c607ff1de",
+    "members": 14
+  },
+  "remaining": "New exact-head hosted component execution, all original native/browser/release gates, and real deployed Stytch/provider session flows remain mandatory. Source review and UI/source checks do not prove API/native/deployed success. No merge, activation or launch claim."
+}

@@ -1,0 +1,64 @@
+{
+  "status": "CLEAR_FINITE_COMPONENT_PUBLICATION_SOURCE_ONLY",
+  "reviewer": "/root/gateway_review",
+  "created_at": "2026-10-17T22:11:43.930858+00:00",
+  "source_parent": "c1a06e304260f36c8fabafa81951fef91463928c",
+  "checkpoint": {
+    "path": "docs/internal/cloud-gateway-pod-identity-checkpoint-2026-10-17.json",
+    "sha256_at_review": "7c59a77b3a266d1ac16f1232460656319b0eadef57ce6ae6404611d65746bcb2",
+    "permitted_finalization": "Root adds this review document and checkpoint review status/hash only. Source and archive remain immutable."
+  },
+  "archive": {
+    "path": "docs/internal/cloud-gateway-pod-identity-evidence-2026-10-17.tar.gz",
+    "sha256": "65234e70c5dcd989d8cb180ef1ee9cbef16af6fb53254dfed10d7468aab6e716",
+    "bytes": 855769,
+    "members": 128,
+    "declared_other_members": 127,
+    "all_member_hashes_and_bytes_match": true,
+    "current_source_members": 31,
+    "all_archived_current_source_exact": true,
+    "qualification": "Final checkpoint and later publication review explicitly outside archive manifest, no self-referential custody claim."
+  },
+  "source_custody": {
+    "bindings": 902,
+    "all_current_hashes_and_bytes_match": true,
+    "original890_path_order_retained": true,
+    "original_history_fields_retained": true,
+    "prior_jobs_unchanged_except_two890_to902_counts": true,
+    "runner_bodies_unchanged_outside_literal_maps": {
+      "scripts/hosted-connected-connector-acceptance.mjs": true,
+      "scripts/hosted-connector-authenticated-enqueue.mjs": true
+    }
+  },
+  "finite_source_deltas": [
+    "Final TLS negative fixture uses separately generated independent Ed25519 CA while holding endpoint/hostname/IP/CIDR/server certificate identical to positive case. This tests actual trust rejection rather than prior unrelated hostname/CIDR refusal. Only existing test ca branch/imports changed after final product source CLEAR. No new RED claim.",
+    "Product Go hashes match final reviewed credential/source corrections; standalone component is not mounted into production proxy. README explicitly states Gateway testimony, non-atomic observations, expiry, protected final file/operator-trusted parent and rotating publisher prerequisite.",
+    "New pinned workflow requires exact5 heads/package start-pass/zero exit/race, checks full902 sources before and after and includes all module Go source. Prior hosted/native rosters preserved; independent CI capture discrepancy is disclosed rather than replaced.",
+    "Three dependency files implement reviewed existing local replacement closure and EKS1.92.1 metadata inventory corrections with exact new stdlib module manifest, no new external dependency. Current three hashes match EKS successor review. Existing cleanup guards retained; no bypass of failing full dependencies command."
+  ],
+  "ledger": {
+    "rows": 728,
+    "unique_ids": 728,
+    "recorded_production_available": 509,
+    "component_only": 158,
+    "blocked_external": 61,
+    "remaining_recorded": 219,
+    "all219_inventory_records_match": true,
+    "ledger_hash_matches_checkpoint": true,
+    "owners_hash_matches_checkpoint": true,
+    "inventory_sha256": "9b0397972554b5da7fe5c7b6f5ff8e441e3c15ed021023c0ab7382d8c907e252",
+    "promotions": 0
+  },
+  "honest_qualifiers": [
+    "Root reported actual initial5FAIL0PASS, successor5PASS race and exact final5GROUPS/902 custody; findings added late are explicitly not fabricated original RED. Reviewer does not claim to rerun these.",
+    "Dependency guard94PASS distinct from full dependencies command7PASS2FAIL; checkpoint accurately preserves overall FAILED cleanup/owned-process findings and avoids causal attribution of observed PID1 zombies to particular heads without evidence.",
+    "Current local readiness51ready/0secrets/0identities/0capabilities is metadata, not usable credentials or Kubernetes/RBAC readiness. No new fullUI/build, native admission, deployed provider/Stytch/Temporal/FGA/browser acceptance or production routing claim.",
+    "ServiceAccount native UID provenance, publisher serialization, exact current installed policy/pure evaluation, original event writer acknowledgement and one-use dispatch remain next integration work. Pod token proves configured-cluster Pod identity under RBAC trust, not container/process, product permission or full coverage.",
+    "All728 original requirements and219 recorded remaining tasks remain subject to fresh deployed acceptance; launch_ready/merge_release_cleared/task_closed/obsolete_retired remain false."
+  ],
+  "findings": [],
+  "limits": [
+    "Independent read-only source/JSON/hash/archive/member/ledger comparisons; no reviewer Go/Node/test/build/Git/network/provider/native execution. Execution results remain root-owned preserved receipts.",
+    "CLEAR permits honest component/source publication subject to original security/release guards. It does not approve release/launch, bypass, ledger task closure or deployed availability."
+  ]
+}

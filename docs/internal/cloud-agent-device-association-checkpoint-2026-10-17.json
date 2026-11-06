@@ -1,0 +1,132 @@
+{
+  "classification": "ADDITIVE_AGENT_DEVICE_ASSOCIATION_SOURCE_AND_PARTIAL_LOCAL_COMPONENTS_NATIVE_AND_DEPLOYED_UNVERIFIED",
+  "observed_at": "2026-10-17T21:05:16.380028+00:00",
+  "source_parent": "a05532e8b76c10db5cd01d0375131cb8f95ec441",
+  "origin_main": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
+  "required_ancestor": "e13ccb95451b03107681ccb59b3fc6fe175a228f",
+  "required_ancestor_confirmed": true,
+  "original_continuation_start": "e735ca7d812a94b7c01700c35ea082276ac42aed",
+  "task_mapping": [
+    "M4-50b3"
+  ],
+  "scope": "Default-off additive Normal/Audit administrative Agent-Device association profile, current-authorized public API/real UI, retained-custody signed Device accept CLI and original-pool control API. Three phases: recent browser human intent, current Device proof, same original human fresh authorization at activation. This is configured association, not observed workload routing, enforcement or Agent coverage.",
+  "contract": "docs/internal/agent-device-association-design-2026-10-17/contract-final-cli-wording-successor.json",
+  "semantics": {
+    "authorization": "Stytch browser freshness, CSRF/origin and exact Agent manage_identity writes; browser/PAT current view reads. Advisory can_manage is an independent exact-Agent current permission sidecar, never write proof; PAT false. No new FGA kinds/roles/grants in original profiles.",
+    "database": "Own zasp_agent_device_association_v1 namespace with 5 FORCE RLS tables,23 fixed functions,9 indexes,3 immutable triggers. Native source/Device/current permission/nonce/expiry/version facts and transaction NEW/HISTORICAL distinction rechecked at final same-transaction confirm before successful COMMIT. Human pairs support multiple Devices; original source identity provenance retained. Native SQL business execution remains unverified.",
+    "custody": "Immutable per-challenge intent/receipt in owner-pinned0700 namespace, original raw request hash, original endpoint/key, fresh POST even after saved receipt; acceptance remains pending human. Both credential exports protect entire namespace/ancestors. Original enrollment and recovery contracts retained.",
+    "ui": "Real APIs only;172 public operations,157UI/15API-only. Cursor progress and permission/session freshness guarded; unknown mutation requires current read and deliberate action. Public challenge contains no private key.",
+    "compatibility": "Original728 IDs/statuses, original168 API map records, Stytch,tenancy,Temporal/OpenFGA,discovery,approvals,budgets,audit and all prior gates retained. No original profile/grant changes or obsolete retirement."
+  },
+  "verification": {
+    "grouped_initial_red": {
+      "wire_and_custody": 6,
+      "cli": 3,
+      "migrations": 15,
+      "ui": {
+        "failed": 6,
+        "passed": 1
+      },
+      "deployment": 3,
+      "api_control_migrate": "ZERO_NAMED_OPA_SETUP_BLOCKED_NOT_BEHAVIORAL_RED"
+    },
+    "full_local_race_regressions": {
+      "cli_named_pass": 217,
+      "association_wire_and_all_custody_named_pass": 13,
+      "qualification": "New9 pure heads overlap these full regressions; not additive. Existing enrollment-wire package unchanged and not part of this new full13 result."
+    },
+    "latest_exact_ci_body": {
+      "expected_named": 99,
+      "expected_packages": 9,
+      "expected_modules": 3,
+      "actual_named_pass": 24,
+      "actual_named_fail": 0,
+      "missing_required_names": 75,
+      "strict_gate": "FAILED_EXPECTED_DEPENDENCY_SETUP_REFUSAL_NOT_A_COMPLETE_PASS",
+      "passed_packages": {
+        "cli": 3,
+        "association_wire": 3,
+        "custody": 3,
+        "migrations": 15
+      },
+      "unverified": "API/control/runtime/migrate/service-control packages OPA1.17 setup-blocked; no compiler success for those packages. Historical Badger cache gap remains separate.",
+      "receipt": "root-exact-component-gate-summary-successor.json"
+    },
+    "ui": {
+      "regressions_before_clock_correction": 75,
+      "affected_after_clock_correction": 7,
+      "changed_quality_contracts": 15,
+      "openapi": 46,
+      "ui_api_coverage_tests": 10,
+      "official_generate_check_lint": "PASS",
+      "final_typecheck_scoped_lint_production_build": "PASS",
+      "coverage": "172 public /157 UI /15 API-only",
+      "qualification": "Local source/component/build only, no real browser/API/provider/deployed flow."
+    },
+    "source_custody": {
+      "bindings": 882,
+      "prior_bindings_retained": 846,
+      "guards_pass": 21,
+      "runners": "UNCHANGED_OUTSIDE_LITERAL_MAPS",
+      "prior_jobs": "BYTE_UNCHANGED_EXCEPT846_TO882_COUNT"
+    },
+    "sql_grammar": {
+      "normal_and_audit": "PASS",
+      "sql_entries_each": 65,
+      "plpgsql_entries_each": 24,
+      "qualification": "Actual compiled final SQL offline grammar only; no business SQL/catalog/permissions/RLS/locks/native/deployed execution proof."
+    },
+    "independent_source_reviews": "CLEAR_FINAL_DESIGN_WIRE_CUSTODY_CLI_TRANSPORT_UI_RUNTIME_HANDLER_BACKEND_PROFILE_API_CI; preserved all original HOLDs and bounded corrections",
+    "hosted_parent": {
+      "sha": "a05532e8b76c10db5cd01d0375131cb8f95ec441",
+      "completed": 97,
+      "success": 14,
+      "failure": 83,
+      "causes": "UNKNOWN_LOG_ACCESS_PRIOR403_NO_BYPASS"
+    },
+    "native": "UNVERIFIED_CANONICAL_RUNTIME_ADMISSION_PREVIOUSLY_REFUSED_NO_ALTERNATE_STARTUP",
+    "deployed": "REAL_STYTCH_PROVIDER_TEMPORAL_OPENFGA_BROWSER_ALL_ORIGINAL_ACCEPTANCE_UNVERIFIED",
+    "publication_review": {
+      "status": "CLEAR_SOURCE_ONLY",
+      "sha256": "ea87c11fe15bc618719324480ef267ad955d12ec0376a6ee6d23984356f0cd8b"
+    }
+  },
+  "preservation": {
+    "original_failures_and_scaffolds": "RETAINED",
+    "source_HOLDs_and_all_successors": "RETAINED_NOT_FABRICATED_EXECUTED_RED",
+    "ledger_and_owners": "BYTE_UNCHANGED",
+    "all219_records": "UNCHANGED_V11",
+    "prior_evidence_archives": "UNCHANGED"
+  },
+  "ledger": {
+    "rows": 728,
+    "unique_ids": 728,
+    "historical_complete": 667,
+    "historical_blocked": 61,
+    "production_available": 509,
+    "component_only": 158,
+    "blocked_external": 61,
+    "remaining_recorded": 219,
+    "sha256": "4d96bdb33fb636b7a86ef1d4f5de142735ab4936d2fff41dff019df833dd9f98",
+    "owners_sha256": "de630b490e4861aeadf52fff3b2ecf075884d7d8adbacfbbd06c4ceca27aa46b",
+    "inventory": "docs/internal/cloud-goal-remaining-task-inventory-2026-10-17-gateway-bootstrap-source-successor.json",
+    "all_original_deployed_acceptance_still_required": true
+  },
+  "evidence": {
+    "path": "docs/internal/cloud-agent-device-association-evidence-2026-10-17.tar.gz",
+    "status": "DURABLE_ARCHIVE_CREATED_ALL_MEMBER_HASHES_VERIFIED",
+    "sha256": "cd8abd4dd8e3179acf522eff0e7d35e10c6d1f149120f1784c1c78263558d71d",
+    "bytes": 2876373,
+    "members": 589,
+    "qualification": "Original scaffolds/failures/source successors, exact actual output and independent reviews retained. No native/deployed or launch acceptance."
+  },
+  "next_critical_path": [
+    "Implement legacy standalone3-field Device credential adapter without retiring existing paths.",
+    "Compose authentic observed workload placement/routing with administrative association and current installation/freshness/revocation/coverage/filter APIs and UI without inference.",
+    "Resolve admitted dependency/runtime/deployment prerequisites and all applicable hosted/security/release/native and real Stytch/provider/Temporal/OpenFGA/browser acceptance for every original requirement."
+  ],
+  "launch_ready": false,
+  "merge_release_cleared": false,
+  "task_closed": false,
+  "retired_obsolete": false
+}

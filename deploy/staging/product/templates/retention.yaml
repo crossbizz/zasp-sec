@@ -1,0 +1,74 @@
+{{- include "zasp.retention.validate" . }}
+{{- if and (ne .Values.profile "customer_edge") .Values.retentionReferenceExpiry.enabled }}
+apiVersion: v1
+kind: ServiceAccount
+metadata: { name: zasp-retention-reference-expiry, labels: { app.kubernetes.io/part-of: zasp } }
+automountServiceAccountToken: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: agentsec-retention-reference-expiry, labels: { app.kubernetes.io/name: agentsec-retention-reference-expiry, app.kubernetes.io/part-of: zasp } }
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  progressDeadlineSeconds: 600
+  strategy: { type: RollingUpdate, rollingUpdate: { maxSurge: 1, maxUnavailable: 0 } }
+  selector: { matchLabels: { app.kubernetes.io/name: agentsec-retention-reference-expiry } }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: agentsec-retention-reference-expiry, app.kubernetes.io/part-of: zasp }
+      annotations: { zasp.io/schema-version: {{ .Values.schema.expectedVersion | quote }} }
+    spec:
+      serviceAccountName: zasp-retention-reference-expiry
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 40
+      securityContext: { runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532, fsGroup: 65532, seccompProfile: { type: RuntimeDefault } }
+      containers:
+        - name: retention-reference-expiry
+          image: {{ required "immutable worker image required" .Values.global.productImages.agentsecWorker | quote }}
+          imagePullPolicy: IfNotPresent
+          command: ["/app/agentsec-worker"]
+          ports: [{ name: internal, containerPort: 8081, protocol: TCP }]
+          startupProbe: { httpGet: { path: /healthz, port: 8081 }, failureThreshold: 30, periodSeconds: 2, timeoutSeconds: 1 }
+          readinessProbe: { httpGet: { path: /readyz, port: 8081 }, failureThreshold: 3, periodSeconds: 5, timeoutSeconds: 2 }
+          livenessProbe: { httpGet: { path: /healthz, port: 8081 }, failureThreshold: 3, periodSeconds: 10, timeoutSeconds: 2 }
+          resources: { requests: { cpu: 100m, memory: 128Mi, ephemeral-storage: 64Mi }, limits: { cpu: "1", memory: 512Mi, ephemeral-storage: 256Mi } }
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: [ALL] }, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
+          env:
+            - { name: ZASP_ENVIRONMENT, value: {{ .Values.global.environment | quote }} }
+            - { name: ZASP_WORKER_MODE, value: retention-reference-expiry }
+            - { name: ZASP_DATABASE_AUTHORITY, value: zasp_temporal_executor }
+            - { name: ZASP_WORKER_ID, valueFrom: { fieldRef: { apiVersion: v1, fieldPath: metadata.name } } }
+            - { name: ZASP_POLL_INTERVAL, value: "5s" }
+            - { name: ZASP_LEASE_DURATION, value: "60s" }
+            - { name: ZASP_SHUTDOWN_TIMEOUT, value: "20s" }
+            - { name: ZASP_BATCH_SIZE, value: "1" }
+            - { name: ZASP_RETENTION_TASK_QUEUE, value: {{ .Values.retentionReferenceExpiry.taskQueue | quote }} }
+            - name: ZASP_POSTGRES_DSN
+              valueFrom: { secretKeyRef: { name: {{ .Values.authorizationTemporal.executorDSNSecret | quote }}, key: postgres-dsn } }
+            {{- include "zasp.retention.pin" . | nindent 12 }}
+            {{- include "zasp.runtimeServices.env" . | nindent 12 }}
+          volumeMounts:
+            {{- include "zasp.runtimeServices.mount" . | nindent 12 }}
+      volumes:
+        {{- include "zasp.runtimeServices.volume" . | nindent 8 }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: retention-reference-expiry-egress }
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-retention-reference-expiry } }
+  policyTypes: [Egress]
+  egress:
+    - to: [{ ipBlock: { cidr: {{ required "network.postgresCIDR required" .Values.network.postgresCIDR | quote }} } }]
+      ports: [{ protocol: TCP, port: 5432 }]
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: zasp-runtime } }
+          podSelector: { matchLabels: { app.kubernetes.io/name: temporal } }
+      ports: [{ protocol: TCP, port: 7233 }]
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: zasp-runtime } }
+          podSelector: { matchLabels: { app.kubernetes.io/name: openfga } }
+      ports: [{ protocol: TCP, port: 8080 }]
+{{- end }}

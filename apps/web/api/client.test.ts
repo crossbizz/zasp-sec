@@ -88,7 +88,7 @@ describe("generated API client", () => {
 		expectTypeOf<"/api/v1/findings">().toMatchTypeOf<PublicPath>();
 		expectTypeOf<"/api/v1/attack-paths/{id}/break-options">().toMatchTypeOf<PublicPath>();
 		expectTypeOf<"/api/v1/findings/{id}/ticket">().toMatchTypeOf<PublicPath>();
-		expectTypeOf<Extract<PublicPath, "/api/v1/ai/explanations">>().toEqualTypeOf<never>();
+		expectTypeOf<Extract<PublicPath, "/api/v1/ai/explanations">>().toEqualTypeOf<"/api/v1/ai/explanations">();
     expectTypeOf(error.code).toEqualTypeOf<string>();
 
     expect(assertProductErrorIsReadonly).toBeTypeOf("function");

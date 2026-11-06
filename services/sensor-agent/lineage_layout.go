@@ -155,14 +155,14 @@ func lineageLayoutPartial(info os.FileInfo, entry lineageLayoutEntry) bool {
 }
 
 func scanLineageLayout(root *os.Root, consumerUID uint32) ([]lineageLayoutEntry, error) {
-	entries := []lineageLayoutEntry{{name: "producer", uid: 0, gid: consumerUID, mode: 0750}, {name: "acks", uid: consumerUID, gid: consumerUID, mode: 0750}, {name: "consumer", uid: consumerUID, gid: consumerUID, mode: 0700}}
+	entries := []lineageLayoutEntry{{name: "producer", uid: 0, gid: consumerUID, mode: 0750}, {name: "observations", uid: 0, gid: consumerUID, mode: 0750}, {name: "acks", uid: consumerUID, gid: consumerUID, mode: 0750}, {name: "consumer", uid: consumerUID, gid: consumerUID, mode: 0700}}
 	file, err := root.Open(".")
 	if err != nil {
 		return nil, errSensorRuntime
 	}
-	names, err := file.Readdirnames(5)
+	names, err := file.Readdirnames(6)
 	file.Close()
-	if err != nil && err != io.EOF || len(names) > 4 {
+	if err != nil && err != io.EOF || len(names) > 5 {
 		return nil, errSensorRuntime
 	}
 	for _, name := range names {

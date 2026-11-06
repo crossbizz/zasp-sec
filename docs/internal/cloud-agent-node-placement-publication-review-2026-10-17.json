@@ -1,0 +1,57 @@
+{
+  "decision": "CLEAR_SOURCE_COMPONENT_PUBLICATION_ONLY",
+  "checkpoint": {
+    "path": "docs/internal/cloud-agent-node-placement-checkpoint-2026-10-17.json",
+    "sha256": "de7ec67cb6a5ee37ab5d8c8cc913bc1479954fde35f26f1933173d7109407a61"
+  },
+  "archive": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/agent-node-placement/source-execution-evidence.json.gz",
+    "sha256": "cdb4b7c41626851e0794751cf2e05ab3e944a4cc0a46bfcfa7bf6f2e63bc782a",
+    "bytes": 54150,
+    "members": 27
+  },
+  "verified": {
+    "archive_members_exact_original_bytes": 27,
+    "checkpoint_current_sources": 16,
+    "audit_current_source_pins": 11,
+    "predecessor_exports_exact": 10,
+    "manifest_all_current_hashes": 729,
+    "preserved_prior_paths_order_and_history": 718,
+    "new_bindings": 11,
+    "runner_maps_actual_and_bodies_unchanged": {
+      "scripts/hosted-connected-connector-acceptance.mjs": [
+        703,
+        11
+      ],
+      "scripts/hosted-connector-authenticated-enqueue.mjs": [
+        692,
+        11
+      ]
+    },
+    "native_groups_source_unchanged": "29 groups / 206 names / 40 PostgreSQL joins / 16 approval controls",
+    "group_contract_delta": "Only eleven additive required source paths; no existing assertion removed or changed.",
+    "compile_workflow_delta": "Only both source count assertions 718 to 729.",
+    "ledger": "728 rows; 509 production-available / 158 component-only / 61 blocked/external; first five columns unchanged for every row, prior evidence prefixes preserved; only M4-50b3 evidence appended.",
+    "owners": "Exact predecessor bytes unchanged",
+    "inventory": "All 219 original byOwner records unchanged; current ledger hash bound",
+    "status": "Complete published predecessor retained as exact byte suffix"
+  },
+  "execution_claim_review": {
+    "collector": "58 named PASS, race, exit 0 after private test-helper collision rename",
+    "parser": "117 named PASS and package PASS inside original combined exit 1; collector collision failure explicitly retained",
+    "worker": "0 named cases, OPA/Neo4j setup blocked; compiler and behavior unknown",
+    "initial": "4 FAIL / 8 PASS retained; parent and baseline-control qualification explicit",
+    "source_custody": "Root 21 checks and prior component 135-path custody reported; no reviewer application execution"
+  },
+  "limits": [
+    "No Go, Node, tests, builds, native processes, Git or network executed by reviewer.",
+    "Source/component publication only; real provider, current authorization/native, API dependencies, Helm, Stytch and deployed end-to-end acceptance remain open.",
+    "No availability promotion, retirement, merge, release or launch clearance.",
+    "Source-only device installation audit distinguishes device testimony from an authentic Agent-device association and coverage; no next-batch implementation is approved by this packet."
+  ],
+  "inputs": {
+    "published_predecessor_receipt": "/tmp/agent-node-placement-published-predecessor-20261017/receipt.json",
+    "published_predecessor_receipt_sha256": "bcdc17f86163da551681e695fc22932a747a352eb17ba53b190b69834cfc6be1",
+    "prior_source_review_sha256": "7a5b44e3cede167f679d9d03fae03214b42313367fe06df37de8784b078652c3"
+  }
+}

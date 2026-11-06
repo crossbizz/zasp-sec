@@ -1,0 +1,122 @@
+{
+  "classification": "SOURCE_CONTRACT_PROPOSAL_ONLY_NOT_IMPLEMENTED_OR_REVIEW_CLEARED",
+  "source_pins": [
+    {
+      "path": "docs/internal/gateway-authority-recovery-design-2026-10-17/next-agent-device-association-research.json",
+      "sha256": "f2f8d78fba3985b1f7d95251d848d5e908c428d37261d8a8092d2883ab9b3fa7"
+    },
+    {
+      "path": "services/platform/gatewayenrollmentcustody/custody.go",
+      "sha256": "36e4b14e5df3ea6c4799d6f2ea9f263eac2546d2161a4fb46c30b7103331eabb"
+    },
+    {
+      "path": "services/platform/gatewayenrollmentcustody/recovery.go",
+      "sha256": "950f023d341634d81af8afa7604f0fff628333f53c5940e433434ababf880ce6"
+    },
+    {
+      "path": "services/platform/gatewayenrollmentcustody/publication.go",
+      "sha256": "1c3884caa4a68cc3a8dcecd1309437238c6406a7c14205ff71d45331231d54ac"
+    },
+    {
+      "path": "services/platform/gatewayenrollmentwire/authority.go",
+      "sha256": "6695b2bca8b1871c2063603f35fd2bee8e9149be52f8bbcfe47ffdb7d8cd7e30"
+    },
+    {
+      "path": "services/platform/gatewaycontrol/http.go",
+      "sha256": "7e398a58006662cb15f64073bc894c75f9229a6057e71c681b7a122ba8ef11a1"
+    },
+    {
+      "path": "cmd/agentsecctl/gateway_enrollment.go",
+      "sha256": "604bc8a6455d26f8e850d1d795e053b0f300c39f071834594a086e0ceb6245e6"
+    },
+    {
+      "path": "cmd/agentsecctl/gateway_authority_recovery.go",
+      "sha256": "3bcab50e45da468c4ee7e999b47118a7b35720b152c336fe06d1e0cab00bed70"
+    }
+  ],
+  "backend_contract_status": "docs/internal/agent-device-association-design-2026-10-17/contract.json absent at research time. Exact schemas/canonical hash framing below follow existing finite research proposal and require shared backend/wire freeze before implementation.",
+  "scope": "Explicit Device possession/administrative acceptance phase2 only. Fresh same-author Agent manage_identity/browser confirmation phase3 remains separate. Never workload authenticity, activation, enforcement or observed Agent coverage.",
+  "command": {
+    "syntax": "gateway accept-agent --custody-file ABS --ca-bundle-file ABS [--timeout 1s..30s] < protected13-field challenge JSON",
+    "flags": "Reuse strict absolute path/closed canonical duration grammar, default10s timeout; forbid endpoint/key/credential/enrollment-token/agent/nonce overrides and positional args. No credential-output flag or implicit activation.",
+    "input": "Bounded maximum4096 exact13-key challenge from stdin; duplicate/null/unknown/casealias/trailing/invalidUTF/surrogate rejection. Non-authorizing challenge still excluded from logs/errors/raw stdout and treated as protected local material. No enrollment token consumed or reused.",
+    "origin": "Original guarded enrollment custody endpoint only; same direct HTTPS explicit CA hostname verification, no proxy, no redirects, no HTTP fallback. LiteralIP allowed only matching certificate IP SAN.",
+    "flow": "Open original custody -> obtain owned original endpoint/request -> strict parse and local scope/device/hash/time checks -> durably retain canonical challenge+exact acceptance bytes before HTTP -> sign fixed POST from protected Store.Sign -> single bounded HTTP request -> strict9-key matching receipt and complete-response time/context checks -> durably retain receipt -> context check -> nonsecret report. Close/join handles then store guard. No key getter.",
+    "output": "Only challenge_id, association_id, agent_id, device_id, original credential_id/generation, state device_acceptance_recorded or device_acceptance_unknown, association_activation pending_human, outcome confirmed only for actual matching persisted phase2 receipt; explicitly does not confirm activation or original enrollment receipt. No nonce/raw challenge/body/signature/private key/token/source evidence dump.",
+    "unknown": "HTTP failure/context failure/invalid response/publication ambiguity returns generic error with device_acceptance_unknown. Retain original intent/key/challenge/body unchanged. No automatic new challenge or key/credential generation replacement."
+  },
+  "wire_proposal": {
+    "package": "services/platform/gatewayassociationwire pure standard library; no gatewaycontrol/policy/OPA dependency or widening original enrollment/authority signers.",
+    "challenge_keys": [
+      "schema",
+      "challenge_id",
+      "association_id",
+      "organization_id",
+      "workspace_id",
+      "environment_id",
+      "agent_id",
+      "agent_source_digest",
+      "device_id",
+      "expected_association_version",
+      "nonce",
+      "expires_at",
+      "challenge_sha256"
+    ],
+    "challenge_schema": "agent-device-intent-v1 as existing research; final backend freeze mandatory.",
+    "challenge_hash": "SHA256 canonical first12 members excluding challenge_sha256 in EXACT listed order, UTF8 compact encoding, canonical lowercase IDs/digests and wholeUTC expiry, integer decimal noexponent. Explicit ordered struct/manual shared canonical encoder; never map iteration, GoJSONB textual equivalence or arbitrary re-marshalling. Must freeze cross-language known-answer vector before TDD.",
+    "challenge_validation": "Canonical nonzero product IDs; SHA256 lowercase hex64 source/hash; version0..MaxInt64; nonce canonical RawURL32 bytes; expiry wholeUTC and future at send/after full response. Local expiry upperbound alone cannot establish original300s TTL because DTO lacks created_at; server enforces native issuance lifetime. Do not invent client original issue time.",
+    "accept_keys": [
+      "schema",
+      "challenge_id",
+      "agent_id",
+      "agent_source_digest",
+      "device_id",
+      "expected_association_version",
+      "nonce",
+      "challenge_sha256"
+    ],
+    "accept_schema": "Unresolved exact schema literal; propose agent-device-acceptance-v1 and freeze with backend. Canonical body built once from validated original challenge, not interactive mutable fields. Exact saved raw body SHA signed/retried.",
+    "path": "POST /internal/v1/runtime-gateway/agent-device-associations/accept with emptyquery and exact path; original zasp-runtime-gateway-request-v1 method/host/target/credential/timestamp/rawBodySHA256 signing ABI, Authorization ZaspGatewayV1 <retained credentialID>; verify resulting signature against original request publickey before setting proof headers. Fresh timestamp/signature each retry, identical body/key/credentialID.",
+    "receipt_keys": [
+      "schema",
+      "challenge_id",
+      "challenge_sha256",
+      "association_id",
+      "device_id",
+      "credential_id",
+      "credential_generation",
+      "accepted_at",
+      "acceptance_expires_at"
+    ],
+    "receipt_match": "Exact original challenge ID/hash/association/device and retained credentialID/generation; strict schema literal frozen by backend; canonicalUTC<=6fraction accepted_at<=observedAt and expiry=min(original challenge expiry, original credential expiry). Future expiry at complete response and sentAt<=observedAt; do not require accepted_at>=retry sentAt because stable original replay may be earlier. No invented Agent key possession or human authorization.",
+    "response": "200, single exact application/json and no-store, bounded4096, context live after read and after receipt persistence; strict duplicate/null/unknown/alias/trailing/UTF parser. Server exact confirmed same-transaction receipt required; error statuses never translated into proof.",
+    "suggested_api": [
+      "ParseChallenge/MarshalChallenge/ChallengeDigest",
+      "BuildAcceptance(Challenge) and Marshal/ParseAcceptance",
+      "ParseAcceptanceReceipt/MarshalAcceptanceReceipt",
+      "AcceptanceReceiptMatches(receipt,challenge,originalCredential,observedAt)",
+      "SignAcceptanceRequest(req,exactRawBody,originalEnrollmentRequest,sign,now)"
+    ]
+  },
+  "custody_proposal": {
+    "choice": "Add bounded acceptance custody support inside existing guarded gatewayenrollmentcustody, sharing durable publication and existing namespace/export alias checks. New standalone stdlib wire package remains independent. Separate package writing under same key owner without updating exports would miss reserved path/inode checks and is not enough.",
+    "source_helper": "Minimal current read access can use BeginRecovery.Source then Close and Store.Sign, with NO Observe/Export and NO currentAuthority claim. Prefer neutral Store.DeviceSource endpoint+ownedSnapshot accessor only if independently frozen; not required just for naming. Enrollment state may be pending or accepted; local stored credential must still be future. Current native server decides actual revocation/generation.",
+    "identity": "One immutable intent artifact per canonical challenge_id + fixed original credentialID/generation, containing schema/original enrollment request digest/original endpoint/validated canonical challenge/exact acceptanceRaw/acceptanceSHA256. Separate receipt artifact bound to this full intent; original enrollment bundle/receipt/authority artifacts untouched.",
+    "namespace": "Proposed controlled subdirectory .zasp-gateway-enrollment-<basenameSHA>.agent-acceptances with hash-only canonical challenge entries and controlled intent/receipt/stages. Directory creation/ownership/mode/symlink/root-relative publication recovery and bounds must be specified before implementation. Simpler flat names possible only if Open/export enumerate safely and reserve both future names and existing artifacts; do not silently leave wildcard alias gaps.",
+    "durability": "Existing exclusive0600 stage -> fsync file+dir -> os.Root.Link nooverwrite -> dirfsync -> only verified sameinode stage cleanup -> dirfsync -> exactreadback, held original guard. On restart reject orphan receipts or malformed/relabelled intent. Recover only own exactsafe stage. Never overwrite/delete history to make retry succeed.",
+    "retry": "Same challenge stdin after unknown must produce identical stored canonical body and use same retained key+credentialID+generation with fresh signature timestamp. Any changed challenge or binding under same challengeID conflicts. Exact stored receipt returns historical phase2 result without inventing live availability; expiry/revocation/phase3 status require server/current reads. If expired unknown challenge: stop unknown, operator obtains fresh human phase1 intent; do not alter old bytes or retry expirednonce.",
+    "open_questions": [
+      "Bounded artifact multiplicity/retention: support manyAgentsperDevice without unbounded directory scans or dropping evidence. Explicit maximum and rollover policy required.",
+      "Whether repeat command with saved matching receipt returns historical accepted receipt without HTTP or performs fresh signed idempotent server read; choose explicit report semantics. Prefer live replay while unexpired, historical only marked historical.",
+      "Final custody typed APIs and namespace shape must be frozen jointly; do not add accidental offline current-authority capability.",
+      "Alias protection must cover stages/lock/subdirectory/receipt plus hardlinks across parents and all existing receipt/recovery credential exports."
+    ]
+  },
+  "server_dependencies": "Actual signed device auth + current samepool own transaction must bind exactscope/device/current credentialID+generation+expiry, original challenge/nonce/hash/source identity/currentAgent, and final DBclock. Device acceptance never activates. Human phase3 requires NEW fresh current same-author browser Agent authorization; no reuse of human phase1 context or inferred grants.",
+  "grouped_tests": [
+    "Pure wire canonical cross-language hash knownanswer, strict13/8/9 DTO and fixed signedPOST exactbody binding plus wrongscope/hash/nonce/expired refusals.",
+    "Custody intent durable before HTTP, exact unknown retry across restart, immutable receipt/original evidence, controlled namespace/aliases/orphans and multiAgent bounded retention.",
+    "ActualCLI TLS phase2 success/unknown exactretry/expired and mismatched refusal; output cannot claim active association or Agentcoverage and no secrets; existing enroll/recover/export regression."
+  ],
+  "no_execution_or_completion": "Only read-only source research and this /tmp proposal write. No application edits, tests, Go/Node/native/network/Git execution, permission grants, ledger promotions or milestone completion."
+}

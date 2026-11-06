@@ -16,10 +16,11 @@ import (
 // DNS answer must remain inside an operator-supplied CIDR before a connection
 // is made; TLS continues to authenticate the original endpoint hostname.
 type PinnedCollectionAPIConfig struct {
-	Endpoint     string
-	CABundlePEM  []byte
-	AllowedCIDRs []string
-	Timeout      time.Duration
+	Endpoint      string
+	CABundlePEM   []byte
+	AllowedCIDRs  []string
+	Timeout       time.Duration
+	NodePlacement bool
 }
 
 type pinnedCollectionResolver interface {
@@ -103,7 +104,11 @@ func newPinnedKubernetesCollectionAPI(config PinnedCollectionAPIConfig, resolver
 		}
 		return connection, nil
 	}
-	return newKubernetesCollectionAPI(config.Endpoint, transport, config.Timeout)
+	api, err := newKubernetesCollectionAPI(config.Endpoint, transport, config.Timeout)
+	if err == nil {
+		api.nodePlacement = config.NodePlacement
+	}
+	return api, err
 }
 
 func parsePinnedCollectionCIDRs(values []string) ([]*net.IPNet, bool) {

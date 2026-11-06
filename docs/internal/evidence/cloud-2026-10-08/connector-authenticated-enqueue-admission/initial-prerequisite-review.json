@@ -1,0 +1,76 @@
+{
+  "baseHEAD": "2f61d215f9073003c1ae1d90b16457fd485ec1f0",
+  "bindingsVerified": {
+    "docs/internal/evidence/cloud-2026-10-07/native-service-readiness/openfga/09-pg-non-glibc-libs-manifest.json": "96642e82997ffd2caf2893a5ecc0116ad2aef6e982df2d929f3efda4e04f3474",
+    "scripts/hosted-memory-observation.mjs": "70c2ae837d040be4756842e4016acbc4eebd6bae3d8c992aba2a80e2a097ba75",
+    "scripts/official-held-tools.mjs": "451dad7212561fc02e1f5b03280672c9d900a5ac644a665c022deafa9f72dfdd",
+    "scripts/owned-command.mjs": "044e151c9260b9356ac78e5cde6b59dbbdd7b934d66ad06732288346831ad47e",
+    "scripts/owned-fixed-fd-command.mjs": "15c38bd9d627124b7d81e5fe9b96dd3c4af8757b33f2204a9dce4b86e93e5693",
+    "scripts/owned-listener.mjs": "3e5a4357fb53a412d0c38ab608c49543cf1bf74b2bb624022791a8bb6d1a43de",
+    "services/platform/agentsec-api/connector_callback_runtime.go": "3ccd362a22ef406753915e3e100b360f4281ba95785b798881a1eba8d15e7b80",
+    "services/platform/agentsec-api/connector_maintenance_runtime.go": "ac74dd00dc05e34e72a06962ad8d7a8f13d18bf64c0fe6e46fdbd520f4b09bab",
+    "services/platform/agentsec-api/production_runtime.go": "4a5e18ecfa79e445ac0a6c1241b471762b449288cff29858f6553a599c1bee94",
+    "services/platform/agentsec-api/runtime.go": "bace8cadfe7ab3f982cfc779ebff5493590a9156bf4a2cbdf31e7be82d69e975",
+    "services/platform/agentsec-worker/authorization_worker_runtime.go": "97f81ea5b11ad283eb056fe6f0fa9aefbf43e5e5161c7ff3bcfe67772f1e80e7",
+    "services/platform/apiserver/approval_maintenance_owned_fga_test.go": "e505c27d07bde5948d7ec4f4612ffc28ccb2b68f37bebc842e91cec0d5066647",
+    "services/platform/apiserver/authorization_integration_mutations_postgres_test.go": "5e4beb04b2409ad9b11b89c017ada5e2eccffd78a87bdd5692d40670f12a2ba0",
+    "services/platform/apiserver/connector_enqueue_provenance_postgres_test.go": "d6039cfa0d1673a5cf29e68e209b73c2cb6aeefd715e4d7805d3690b8ab0afde",
+    "services/platform/apiserver/connector_handler.go": "0b4d920daf35a72e11ff194de8a705ec3b54c1b6b4ef782bffa660909cff1224",
+    "services/platform/apiserver/connector_maintenance_callback_database.go": "bf9b56569921688a612b99d498448b2add21985eecb94281810abcd0e871ad01",
+    "services/platform/apiserver/connector_maintenance_callback_resolver.go": "995c5238f7e4fa4a58a5d35218234600beaec374f67bb36f5a363a77357c7585",
+    "services/platform/apiserver/connector_maintenance_enqueue_database.go": "81bebc71801cd1b6c2530241cfb8c26f402faa76baaf68383ef572f63d549b51",
+    "services/platform/apiserver/connector_maintenance_enqueue_postgres_test.go": "565ae565e80a15e0834ff17696cc9313e55609932f16fbb46a7bb237b9149c14",
+    "services/platform/apiserver/connector_maintenance_repository.go": "48ac59befe7c9afb3d3aaf877250ddb3ac6ac0c9c24e873ff0ee8cc1a7855ac9",
+    "services/platform/apiserver/connector_reconciler.go": "697643e887c7df0efa24608abd0055aa7442c315dd6373efa0b733efa2f7ee68",
+    "services/platform/apiserver/postgres_integration_test.go": "0d908c53cdea021e4c60adc412a04d631fd58c0b0544e7cce723884ea4002a42",
+    "services/platform/authorization/connector_maintenance_projection.go": "e9189565c21f4d16c3f06c3cf89b35e57b1cef5e5bb51b1ff49da02349dcd7b8",
+    "services/platform/authorization/worker_current_maintenance.go": "77e382687cc15c54bd3065a10caeb607921c7ee89f3f6ad373c8d645c01d9246",
+    "services/platform/cmd/zasp-authorization-reconcile/main.go": "26c1d2d58289b3a2a5b5f58b55348f70f7ae3d48ef7d84b426613f79d506b27e",
+    "services/platform/connectormaintenance/authority.go": "378b2b151fe9978ca28a3c40d024c52bff7d3f0b83267839ef1dd61ee3946441",
+    "services/platform/connectormaintenance/executor.go": "35e5eb12fef7a5f7178750c8d1a0bd2c6e3bcfb961c4b34b31de103c32cb8d9a",
+    "services/platform/connectormaintenancecutover/coordinator.go": "c6558e7dfb24121b7f84def049d7aeeef971895580d87ca2af5d61ecaaeed7c5",
+    "services/platform/connectormaintenancecutover/fga.go": "0e80b78867c5b6bbc11e4a2a2bbb1ca3a43bbf43bd8e9fa921471914a98c924c",
+    "services/platform/connectormaintenancecutover/model.json": "329f49e1f2effecbe1a0e9caf6c89be939b1e36e034155d74977bfc82c73cc2c",
+    "services/platform/connectormaintenancecutover/process_linux.go": "6096f7c304818c7e6ebc31d3940bacf75932b9f2971c8c529316ebee92cede54",
+    "services/platform/connectormaintenancecutover/raw_model.go": "4fdad0c76ea36dfdc732bad76ff010d1e50ce34e4ed1e5ba1c44ff3c678714f2",
+    "services/platform/connectormaintenancecutover/sql.go": "11a839a8b0c73e9eb1e830e37ff070eb6824c31e87604b5103e92fc75b16a8c2",
+    "services/platform/migrations/production_connector_enqueue_provenance.go": "793b230a8572fbfbed2a4702e1513bfa90afac596a8d0707ae047bbdf8bacc36",
+    "services/platform/migrations/production_connector_maintenance.go": "34c99aec57ae60cd9ec0350f24e5d18bd853d97c95181e010afed233644681d8",
+    "services/platform/migrations/sql/connector_enqueue_provenance.sql": "32b3f8cbe175b5256ff4542cdff044d6d060e0240d24632bf3d057f3553a5c13",
+    "services/platform/migrations/sql/connector_maintenance_profile.sql": "1ee0fcca602f658fadee4727ed69787891be928aca2fe9e0f5a8ce141799bf3d",
+    "services/platform/runtimeservices/config.go": "3eff9566c27b6e7c5179a8968aacf0f05b0810baf1d69abac43cb19e21dc0f77"
+  },
+  "correction": "Initial source review JSON nofinding draft missed worker prerequisite; amended before final review delivery.",
+  "evidence": [
+    "Selector exactanchored TestConnectorMaintenanceAuthenticatedOAuthEnqueuePostgres with2existing sanitized subcase names. ExactRUN/PASS census expects1top+2subcases, onepackagePASS, rejectsanyFAIL/SKIP.",
+    "All29candidate and9inherited helper hashes match readbytes. Source manifestbase32ea/preimages correctly rebound; no candidate source bytes changed.",
+    "Runner differs from reviewed originalnine onlysourcepins/selector/expected2census/labels; heldPG18.3/sample/library, officialheldFGA, sourceprepost/lockedmodules, closedenv/floors/1500sdeadline/650scommand/10mGo andownedcleanup preserved.",
+    "Existing fixture installs real TemporalIdentity/audit and registeredAPI/nativebrowser/PAT before signed current browser admission; real originalscope/FGA context, operatorapproval/connector install, authenticsame-transaction origins and immutableinactive enrichment verified. No fake tasks/grants/activationrecords seeded.",
+    "Rollback subcase requires actualnative23505 competingattempt and untouched originalOAuth/business/provenance state. Applicationtest remainsunchanged.",
+    "Prior ninepackagecompile actualSUCCESS37732273963/job113163864831 independently verified; newapplicationgroup notrun. Compile-only status remains checkpoint scope, not acceptance of proposed futuregroup.",
+    "Workflow read-only token scope, nonpersistedcheckout, exacttools/actions and boundedDocker prerequisite mirror original runner; no production secrets/flags supplied. TestEnv only ownedfixtures."
+  ],
+  "files": {
+    ".github/connector-native-compile-source-pins.json": "1280a81e6367d57caf8e8fcdf7596b3c5fd3d3b7b9f2c2a76f089e36088a6e7f",
+    ".github/workflows/connector-authenticated-enqueue.yml": "184ece0b7d60d43d017885e2e4726d186a6730af67a9c8226a3bbf6fa7a2447f",
+    "scripts/hosted-connector-authenticated-enqueue.mjs": "cdc209a8ab965f5fd631b32fa56fef575ba5c4c06ac5a2258b0a58e016c1fb83"
+  },
+  "findings": [
+    {
+      "body": "Test setup calls UpProductionApprovalMaintenanceProfile requiring zasp_authorization80_worker.registration and catalog_ready, but newIntegrationClientFixture(composed=true) installs only TemporalIdentity and no worker profile. TemporalIdentity installer does not create worker namespace. The group will fail missing namespace before two cases. Complete actual worker-audit predecessor after TemporalIdentity and before approval/connector install, preserving exact native guarded composition; do not relax installer guard.",
+      "file": "services/platform/apiserver/connector_maintenance_enqueue_postgres_test.go",
+      "line": 25,
+      "severity": "P1",
+      "title": "Approval maintenance installer has no installed worker-profile predecessor"
+    }
+  ],
+  "format": "independent-authenticated-enqueue-hosted-runner-source-review-v1",
+  "limitations": [
+    "ActualnewauthenticOAuthgroup/installer/runtime behavior unverified; no rawlogs or currenttestexecution claim.",
+    "Cutover activation, genuine oldwriterReconcile/readback/Ack/retirement, fullOAuthlifecycle/consumer/deployment gates remain separately unaccepted.",
+    "No merge/production/release/full728 orledgerpromotion."
+  ],
+  "method": "Read-only exactdiff/fixture/installer/inheritedsource/pin/preimage audit pluspriorcompileGitHubmetadata. No new tests, compiler/localruntime, source/Git writes oragents.",
+  "requiredFix": "Use UpProductionAuthorizationWorkerAuditProfile after TemporalIdentity is installed and before UpProductionApprovalMaintenanceProfile, with real operator and guarded source. Plain worker profile is not correct current audit/identity composition. Place original-state snapshot after required worker composition so supplementary connector install noninterference remains meaningful. Update affected fixture/test frozen source descriptors and rerun exact group; no dummy worker registration or grants.",
+  "verdict": "Runner is safe to push for bounded truthful hosted execution, but application acceptance is blocked by missing worker-profile fixture composition. Repair prerequisite before intending OAuth group success."
+}

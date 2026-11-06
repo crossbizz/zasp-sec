@@ -1,0 +1,141 @@
+{
+  "decision": "CLEAR",
+  "classification": "INDEPENDENT_SOURCE_COMPONENT_PUBLICATION_REVIEW_NO_NATIVE_DEPLOYED_LAUNCH_ACCEPTANCE",
+  "checkpoint": {
+    "path": "/workspace/zasp-node-coverage-retention/docs/internal/cloud-sensor-node-observation-pipeline-checkpoint-2026-10-17.json",
+    "sha256": "e95da3d4268325474d5b3346a1b9575503ef899f8b864b1029214da109308119"
+  },
+  "archive": {
+    "path": "/workspace/zasp-node-coverage-retention/docs/internal/evidence/cloud-2026-10-17/sensor-node-observation-pipeline/source-execution-evidence.json.gz",
+    "bytes": 1326098,
+    "sha256": "33565e0e4cab710451a7787aa50612b134741ccdc1b3ee3bd7ec65f33d9a0659",
+    "members": 370,
+    "all_declared_bytes_sha256_UTF8_roundtrip": true,
+    "all_original_byte_matches_including_CR": true,
+    "mapping": {
+      "pipeline": "/tmp/node-coverage-retention-evidence-20261017",
+      "public-api": "/tmp/node-coverage-public-api-evidence-20261017",
+      "http-client": "/tmp/node-coverage-heartbeat-http-client-evidence-20261017"
+    },
+    "empty_self_generation_receipt": "None; all370 compare exactly actual originals."
+  },
+  "sources": {
+    "checkpoint_exact_current_rows": 144,
+    "all_actual_hashes_bytes_match": true,
+    "current_manifest": 718,
+    "prior_published_custody_baseline": "Reviewed638source upgrade-preflight predecessor in /workspace/zasp-upgrade-preflight-live; root base481 source metadata supplied, no reviewerGit execution.",
+    "prior_order_paths_all_history_retained": 638,
+    "new_paths_exactly": 80,
+    "all718_current_hashes_and_sizes_match": true,
+    "all_relative_paths_no_scratch": true,
+    "connected_pin_maps": [
+      692,
+      11
+    ],
+    "enqueue_pin_maps": [
+      681,
+      11
+    ],
+    "both_runner_bodies_identical_outside_pin_maps": true
+  },
+  "guards": {
+    "native_old_groups_names_joins": [
+      27,
+      198,
+      38
+    ],
+    "native_current_groups_names_joins": [
+      29,
+      206,
+      40
+    ],
+    "approval_controls_unchanged": 16,
+    "controller_diff": "Only separate frozen2groups/source-derived3children union; alloldgroups/cases preserved.",
+    "lifecycle_workflow_diff": "Onlyappend2matrixentries, aggregateall/deadline/process/resource guards unchanged.",
+    "component": {
+      "required_source_closure": 135,
+      "names": 152,
+      "heads": 28,
+      "packages": 10,
+      "modules": 3,
+      "native_excluded": true,
+      "selectors": "Closed exactanchored source-head selectors across3modules, no nativeheads; actualexit savednonzero and fullstrictvalidator required.",
+      "source_custody_synthetic_results_qualification": "Root21Node+6syntheticguard controls and718custodyexit0 are guard-only, not application/native proof."
+    }
+  },
+  "ledger": {
+    "rows": 728,
+    "classes": {
+      "production-available": 509,
+      "component-only": 158,
+      "blocked/external": 61
+    },
+    "historical_statuses": {
+      "Complete": 667,
+      "Blocked": 61
+    },
+    "all_first5_columns_identical_to_reviewed_published_predecessor": true,
+    "all_current_evidence_prefixes_retained": true,
+    "only_evidence_append": "M4-50b3",
+    "other727rows_identical": true,
+    "owners_file_byteidentical": true,
+    "inventory_records": 219,
+    "all219byOwner_records_exact_predecessor": true,
+    "inventory_current_ledger_sha_bound": true,
+    "entire_old_status_exact_suffix": true,
+    "promotions": 0
+  },
+  "execution_evidence_recounted": {
+    "sensor_agent": {
+      "pass": 871,
+      "skip": 22,
+      "fail": 0
+    },
+    "wire_sensor_client": {
+      "pass": 497,
+      "fail": 0,
+      "skip": 0
+    },
+    "event_ingest": {
+      "pass": 107,
+      "fail": 0,
+      "skip": 0
+    },
+    "runtimeevent": {
+      "pass": 444,
+      "fail": 0,
+      "skip": 0
+    },
+    "migration_compiler_model": {
+      "pass": 18,
+      "fail": 0,
+      "skip": 0
+    },
+    "api_runtime_cli": {
+      "named": 0,
+      "qualification": "OPA dependency setup-blocked; compilation and behaviorunknown, neitherRED norPASS."
+    },
+    "UI": "Root15focused UI/46OpenAPI/2deploymentguards and typecheck/lint/build/generator0 receipts/logs exact archived; no broaderfullUI/native pass inferred.",
+    "native": {
+      "new_cases_executed": 0,
+      "all206_required": "Uncompiled/unexecuted, originalmemoryguard+OPA prerequisite not bypassed."
+    },
+    "Helm": "Actualrenderexit1/Helm absent preserved, no renderpass/stub/download retry claimed."
+  },
+  "preserved_negative_evidence": [
+    "InitialgenuinebehaviorRED/compilerprerequisites/0OPA/API+deployment+SQL+nativeHOLDs and exactpreimages retained.",
+    "Originalpublished315 andcandidate directory-mode396failures retained; child-test-only umask0027 supplies intended0750 permissions without productguard/filemode/UID relaxation.",
+    "Typecheckfirstfailures/importfixturesourcecorrections and missingHelmrenderfailure retained; no immutable archivedfailure rewritten."
+  ],
+  "documentation_precision": {
+    "draft_checkpoint_preserved_sha256": "efb5d15c9b866edcc20968d49978bb64bec17d9250c8a9096e567088981d77bc",
+    "final_scope": "Clarifies no parentgrants/deployedidentity/providerchanges while additive ownnamespaceACL source awaitsinstallation/native acceptance; archive370 unchanged."
+  },
+  "findings": [],
+  "limits": [
+    "Read-only source/filesystem/Python JSON/gzip/hash review; no Go/Node/test/build/Helm/runtime/native/Git/network execution or productwrites byreviewer.",
+    "CLEAR permits source/component publication only; missing SQL/native execution, currentAPI/runtimeCLI compilation, realHelmrender, production installation/Stytch/provider/deployedE2E and applicablehosted/release/security gates remain.",
+    "Selectednode observation testimony is not actualAgentplacement/policyACK/coverage/filter success. Nextplacementworktree excluded; no wholeM4-50b3/all728completion, activation, retirement, mergeorlaunchclaim.",
+    "Allcomponentcounts reflect their actual limitedfixture/module scope; no fixtures substitute externalintegration evidence."
+  ]
+}

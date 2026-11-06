@@ -1,0 +1,114 @@
+{
+  "observed_at": "2026-10-17T05:12:11.921922+00:00",
+  "source_base": "504377e421bfd16e7d8dc66d2fc8711afeacd63e",
+  "scope": "Repair original runtime receipt object-path and Bucket Key KMS permission mismatches without adding deletion or unrelated-role access",
+  "sources": [
+    {
+      "path": ".github/connector-native-compile-source-pins.json",
+      "sha256": "e0a2eec0f448f124d6e952a59377693f7f7aef4c003d2c45831243c342d581b2",
+      "bytes": 102197
+    },
+    {
+      "path": "deploy/staging/iam-policy-union-v1.mjs",
+      "sha256": "c12dc17df268cd21f324b9d577b4c05fa7b1684c604ec27af4c03f20d35e7b34",
+      "bytes": 95052
+    },
+    {
+      "path": "deploy/staging/iam-policy-union-v1.test.mjs",
+      "sha256": "03eb62c4369eeae2684ebda1fde793e3dc77cf7157332b10b01043d37fb7393f",
+      "bytes": 28747
+    },
+    {
+      "path": "deploy/staging/main.tf",
+      "sha256": "1f52871bb91b4f982f72196c421964ee12b0037678a51cae00e56bfdbbee5f4d",
+      "bytes": 102649
+    },
+    {
+      "path": "scripts/hosted-connected-connector-acceptance.mjs",
+      "sha256": "fbede9b33f5228305d0e6989243fea4cb79c3cb3a43c3583bb55c08a7da3cd8f",
+      "bytes": 75910
+    },
+    {
+      "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
+      "sha256": "611074599d770d4eb9c277ee5a9f29f0591dc14df077e4283d56936210a682e7",
+      "bytes": 72352
+    }
+  ],
+  "task_crosswalk": [
+    {
+      "id": "M1A-06",
+      "contribution": "Minimum original runtime IRSA S3/KMS authority; source/evaluator component proof only."
+    },
+    {
+      "id": "M3-43c",
+      "contribution": "Actual existing index receipt publisher and session predecessor reader path, production code unchanged; deployed proof not supplied."
+    },
+    {
+      "id": "M3-43d",
+      "contribution": "Actual correlation receipt publisher; projection/complete predecessor readers share same typed store."
+    },
+    {
+      "id": "M7-26",
+      "contribution": "Full-source guards, offline formatting, actual permission RED/GREEN and fresh UI publication verification."
+    }
+  ],
+  "validation": {
+    "actual_original_required_permissions_denied": 5,
+    "actual_current_required_permissions_and_old_control_allowed": 6,
+    "existing_IAM_checks_pass": 22,
+    "existing_source_guard_checks_pass": 14,
+    "full_lint_exit": 0,
+    "lint_scope_pass": 11,
+    "fresh_typecheck_exit": 0,
+    "fresh_production_build_exit": 0,
+    "frozen_UI_inputs": 391,
+    "offline_Terraform_fmt_exit": 0,
+    "actual_328_source_workflow_guard_exit": 0,
+    "new_fixed_matrix_requests": 420,
+    "expected_full_mock_plan_cases": 3279,
+    "new_mock_plan_mutation_controls": 9,
+    "genuine_local_mock_plan_executed": false,
+    "AWS_or_native_or_deployed_acceptance": false
+  },
+  "independent_permission_review": "/tmp/runtime-receipt-iam-three-source-independent-review-20261017.json",
+  "ledger": {
+    "rows": 728,
+    "unique_ids": 728,
+    "class_counts": {
+      "production-available": 523,
+      "component-only": 144,
+      "blocked/external": 61
+    },
+    "availability_promotions": 0,
+    "evidence_suffix_ids": [
+      "M1A-06",
+      "M7-26"
+    ],
+    "previous_sha256": "1de88fbc9d4f4d099f0de0dde9e2a295ec786eb696ef9c1dcc157658eb05d21b",
+    "new_sha256": "3786fe6abe35a08955e8d471b1825a265205aca48fddb498432e7098c68a262f",
+    "owners_sha256": "b32873f73e38097f167f3075fbdacb216836c89a858cf47f3107a113cd41c125",
+    "original_fields_and_evidence_prefixes_preserved": true
+  },
+  "evidence": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/runtime-receipt-iam/verified-component-batch.json.gz",
+    "sha256": "81f8b33170d52dad084ca8e7b7003c931a9ab6c16db5ded94e8682f44afbcdac",
+    "uncompressed_sha256": "8f9af6c030205ff06bab98d6fbb5913f1e18bb53f9ff22d339b37c143c7ec37b",
+    "members": 51
+  },
+  "preserved": [
+    "Four existing raw receipt producer/readers only; no new S3 delete/list/bucket or unrelated-role receipt permissions.",
+    "Existing runtime/v15 rights, role action sets, raw key and ViaService restrictions retained.",
+    "Encryption-deny coverage includes both old and new namespaces; actual bucket attachment and exact closed resource policy verified by source checks.",
+    "Generic IAM evaluator/validator language, original resource/role/policy rosters and predecessor controls retained.",
+    "IAM wildcard width is not hexadecimal validation or per-tenant IAM authorization; original typed/SQL application scope remains required.",
+    "No original Go/SQL/identity/OpenFGA/Temporal/lease/deadline or cleanup behavior changed."
+  ],
+  "limits": [
+    "Actual provider-rendered locked mock-plan3279 decisions and its plan-only controls require current-head hosted verification.",
+    "No AWS apply or real receipt Put/Get has run here.",
+    "Native retention activation42501, PKCE/readiness/browser, real Stytch/provider binding, security/fleet and deployed end-to-end gates remain open.",
+    "Future durable dispatch journal requires its separate closed SQL seal/epoch and complete artifact permission integration; none claimed implemented by this batch."
+  ],
+  "availability_promotions": 0,
+  "goal": "active"
+}

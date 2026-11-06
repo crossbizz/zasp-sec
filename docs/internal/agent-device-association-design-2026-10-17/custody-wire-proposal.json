@@ -1,0 +1,99 @@
+{
+  "status": "FINITE_CUSTODY_WIRE_CONTRACT_PROPOSAL_ONLY_REQUIRES_INDEPENDENT_REVIEW_NO_IMPLEMENTATION",
+  "source_pins": [
+    {
+      "path": "docs/internal/agent-device-association-design-2026-10-17/contract.json",
+      "bytes": 27918,
+      "sha256": "157737017951379e64e0a00ad0ad4d6042e08c2d7a27e8689fe864a85d44e942"
+    },
+    {
+      "path": "services/platform/gatewayenrollmentcustody/custody.go",
+      "bytes": 14288,
+      "sha256": "36e4b14e5df3ea6c4799d6f2ea9f263eac2546d2161a4fb46c30b7103331eabb"
+    },
+    {
+      "path": "services/platform/gatewayenrollmentcustody/publication.go",
+      "bytes": 6797,
+      "sha256": "1c3884caa4a68cc3a8dcecd1309437238c6406a7c14205ff71d45331231d54ac"
+    },
+    {
+      "path": "services/platform/gatewayenrollmentcustody/recovery.go",
+      "bytes": 6697,
+      "sha256": "950f023d341634d81af8afa7604f0fff628333f53c5940e433434ababf880ce6"
+    },
+    {
+      "path": "services/platform/internal/cacheownership/ownership.go",
+      "bytes": 1976,
+      "sha256": "b6a9d31b04ed8a523f56583afba6acda0b6f133445fed0cbefc84d0f71c1f27a"
+    },
+    {
+      "path": "services/platform/gatewayenrollmentwire/wire.go",
+      "bytes": 16534,
+      "sha256": "66ce78613f09003541c3273101b7700453f6b9d3c6722a55d3ded899690a7af7"
+    },
+    {
+      "path": "services/platform/gatewayenrollmentwire/authority.go",
+      "bytes": 5537,
+      "sha256": "6695b2bca8b1871c2063603f35fd2bee8e9149be52f8bbcfe47ffdb7d8cd7e30"
+    }
+  ],
+  "scope": "Administrative Device possession phase2 only. Fresh original human phase3 remains separate. Reuse enrolled custody identity/key; no credential creation, new enrollment, policy coverage, active binding or current-authority inference.",
+  "authoritative_wire": "Native backend contract inner12 in exactorder, envelope3 and accept3 authoritative; old CLI13/8/9 proposals are superseded. Never regenerate nonce, challengeID, associationID, expiry or raw innerbytes.",
+  "namespace": {
+    "directory": ".zasp-gateway-associations-<SHA256 UTF8 custodybasename>, direct sibling of original custody bundle, FLAT and currentUID directory exact0700. Original Store common cacheownership guard + Store.mu owns all directory operations. No separate perpair lock/identity/index/archive scan.",
+    "pin_and_create": "Store.Open pins/checks directory if present using parent Lstat -> OpenRoot -> child.Stat(.) -> parent Lstat inode equality, directory no symlink,currentUID exact0700. With no original bundle ANY directory or matching unsafe entry is orphan and refused, even empty. BeginAssociation creates only after bundle+strict challenge+scope/currenttimes validated; Mkdir0700 exclusive or verifyexisting, fsync child directory and original parent. Errors retain directory; no chmod/chown/replacement/delete.",
+    "filenames": "<canonicalChallengeID>.<challenge_sha256>.intent and same prefix .receipt; challengeID canonical productID and hash lowerhex64, no user paths. Existing publicationStage(finalbasename) deterministic .zasp-publish-<SHA256finalbasename>.prepare resides INSIDE pinned association directory. Multiple independent pair/challenge histories coexist indefinitely; no single immutable slot.",
+    "lookup": "Only exact stdin challengeID+SHA or opaque in-process handle selects files. Store.Open validates namespace root only, never scans all historical files/indexes. On BeginAssociation validate/recover exactly selected intent and receipt stages through existing primitive. Unknown unrelated historical files remain untouched and confer no authority."
+  },
+  "artifacts": {
+    "intent": "Exact canonical object {schema:\"gateway-agent-device-acceptance-intent-v1\",local_request_sha256,endpoint,credential_id,credential_generation,challenge,accept_request}. local_request_sha256 hashes original exact enrollment RequestRaw; endpoint and credential fields equal guarded original custody. challenge is backend exact3-field envelope retaining CanonicalRawURL original12-field ASCII wire/hash. accept_request is json.RawMessage of exact frozen canonical3-field signed POST body. No key/token/clock restamping, no fresh authority claim. Bound caller tuple comes from original enrollment intent, not private material copied into association file.",
+    "receipt": "Exact canonical object {schema:\"gateway-agent-device-acceptance-receipt-v1\",intent_sha256,response}. intent_sha256=SHA256 exact canonical intentartifact bytes; response exact native5-field device_accept_response with complete nested acceptance4+credential3 from backendcontract. accepted_at/expiry/request_sha and originalcredentialID/gen match actual frozen accept_request and challenge; receipt expiry=min(challenge expiry,current originalcredential expiry), never renewed. Response replayed presentation may differ; compare every immutable field with replayed=false when revalidating later response and retain first immutable response unchanged.",
+    "publication": "UNCHANGED single exclusive Root.Link primitive inside pinned namespace: deterministic0600exclusive stage -> file+dirfsync -> rooted Link nooverwrite -> dirfsync -> remove ONLY same-inode exact2link stage -> dirfsync -> exact finalreadback. Regular/currentUID/exact0600 and expected1/2links checks on everyfile; no overwrite/Rename/truncate fallback. No secret-key-bearing mutation introduced."
+  },
+  "crash_transitions": [
+    "No namespace: legitimate bundle remains ordinary enrollment custody. Namespace creation error/unknown retained; no signing/HTTP until exact selected intent durable.",
+    "Namespace exists, selectedfiles absent: validate original challenge/current sendtime and prepare exact deterministic intent. New future Agent/pair challenge uses different filename; no oldhistory overwrites.",
+    "Valid intent stage only or exact same-inode2link stage+final: recover SAME bytes through existingpublication; never reconstruct new innerwire or alternate credential/expiry. Partial/malformed/different-inode/mismatchedselectedstage refuses and preserves all paths.",
+    "Durable intent only: acceptance UNKNOWN. Close/restart with identical protected envelope finds and signs exact saved outer rawbody; fresh signed transport timestamp permitted, frozen challenge/body/identity unchanged. Challenge or credential expiry blocks NEWsend; no new challenge or replacementkey. Original ambiguity remains unknown.",
+    "Receipt stage only/linkedpair: validate against selected immutable intent and retained original credential, then finish same publication. Durable receipt is historical phase2 evidence only. Explicit accept command should still obtain required fresh real API result before reporting current device acceptance; localreceipt never authorizes phase3 or bypasses server expiry/revoke/supersession.",
+    "Durable matching receipt: later valid replay may differ only replayed presentation; preserve originalreceipt, no clock extension. Conflicting response/digest/gen, superseded/expired server refusal or unknownCOMMIT never overwritten as success. All history retained; no automatic cleanup/reissue/activation."
+  ],
+  "credential_export_alias_boundary": {
+    "applies": "Both original receipt-only Store.ExportCredential and Recovery.ExportCredential share private export helper; BOTH must reserve whole association namespace.",
+    "direct_and_nested": "Before/while pinning export parent, walk existing absolute components with existing no-symlink inode checks, compare EACH pinned ancestor directory inode to pinned protected association-directory inode. Any sameinode ancestor (direct, nested or filesystem directory alias/bind alias) refuses. Also reject target equal namespace entry or its reserved name in actual custody parent, even if namespace absent. A new private pinExportParent helper may return ancestor facts; do not weaken generic pinParent or mutate parent ownership.",
+    "files": "Existing common readRecoverable/publish regular0600/currentUID/exactnlink1/2 checks prevent hardlink aliases from source association artifacts into normalexport/staging: an external hardlink makes unexpected linkcount. Add no global inode/archive scan. Sourcebundle/receipt/authority explicit inode alias guards remain. Recovery exports identical runtimeconfig only through its live capability; association acceptance confers no credential-export capability.",
+    "invalidation": "If pinned namespace is replaced/unlinked or changes owner/mode, Store operation fails. Retain original files; no adoption, chmod/chown, subtree removal or automatic repair. Directory validation does not imply every unselected historical record was inspected."
+  },
+  "public_API_proposal": {
+    "wire_package": "services/platform/gatewayassociationwire, standard library only; no gatewaycontrol/policy/OPA import. Shared structs/validators must reuse backend frozen DTO names and exact twelve-key known-answer vector. Existing enrollment/authority signers remain unchanged.",
+    "wire_functions": [
+      "ParseChallengeEnvelope([]byte)(ChallengeEnvelope,error) [strict3+decoded canonical12 exactbytes/hash]",
+      "ParseChallenge([]byte)(Challenge,error) [strict12 exactorder/compactASCII verification]",
+      "BuildAcceptRequest(ChallengeEnvelope)([]byte,error) [exact3keys schema=agent-device-accept-v1,challenge_wire,challenge_sha256; generatedonce then retained]",
+      "ParseAcceptResponse([]byte)(AcceptResponse,error) [strict native5/nested4/nested3]",
+      "AcceptResponseMatches(AcceptResponse,[]byte,DeviceBinding,time.Time)bool",
+      "SignAcceptRequest(*http.Request,[]byte,DeviceBinding,func([]byte)([]byte,error),time.Time)error [existingcanonicalPOSTcontext/fixedacceptpath/ZaspGatewayV1, submittedkeyselfverify]"
+    ],
+    "wire_types": "Challenge exact12; ChallengeEnvelope exact3; AcceptResponse exact5,nested Acceptance4/DeviceCredential3. DeviceBinding carries original org/work/env/device/credentialID/gen/publickey/expiry from protected custody; private key never exposed. Exact final names may be aligned jointly before scaffolds, never after baseline silently.",
+    "custody_functions": [
+      "Store.BeginAssociation(envelope associationwire.ChallengeEnvelope,now time.Time)(*Association,error) [validates originalscope/device+freshchallenge/credential, recovers selected originalfiles, durably prepares exactintent before returning]",
+      "Association.Source()(string,AssociationSnapshot,error) [guarded original endpoint +owned original exact frozenrawPOST/body/challenge/binding; no currentauthority inference]",
+      "Association.Sign([]byte)([]byte,error) [delegates guarded retained Store.Sign; private key notreturned]",
+      "Association.Confirm(response associationwire.AcceptResponse,now time.Time)error [strict localtuple/digest/fresh receipt checks thenimmutablepublish]",
+      "Association.Close()error [invalidates opaque handle; Store guard held until Store.Close]"
+    ],
+    "snapshot": "AssociationSnapshot{Challenge Challenge,Envelope ChallengeEnvelope,RequestRaw []byte,Binding DeviceBinding,Receipt *AcceptResponse}; every byte slice/pointer deep-copied. Receipt optionalhistorical only, never skip fresh server validation. No new Source API depends on Recovery.Begin/Observe or fabricates authority observation.",
+    "lock_order": "Association.mu -> Store.mu, Store.Close onlyStore.mu; no reverse acquisition. All namespace pin/create/lookup/publication under original held Store guard. File IO capability selected challenge only; no one-slot blocker."
+  },
+  "legacy_credential_gate": "First batch uses existing original guarded enrollment custody only. Existing runtime three-field deployed credential files have no original enrollment RequestRaw/endpoint custody metadata. Do not pretend they are supported by this adapter or create fake enrollmentreceipt. A separately reviewed legacy-file authenticated read-only identity/endpoint adapter remains explicit follow-up requirement, preserving existing runtime format and requiring actual fresh native identity check; no sourceclosed claim.",
+  "grouped_acceptance": [
+    "Native12byte known-answer+envelope3/accept3 roundtrip exacthash/signature; actual5/nested4/3 response strictbind/freshness/currentgeneration and no activeassociationclaim.",
+    "Durable exactintent before real POST; unknown/lostresponse/restart identicalbytes/currentkey; multipleAgent/challenges independent history; complete stages recover/partial retained/refuse; immutable receipt replay.",
+    "Namespace orphan/unsafe directory/replacedinode/nestedexport/diralias/filehardlink refusal across both normal andRecovery export; originalreceipt/authority behavior unchanged."
+  ],
+  "limits": [
+    "Readonly source/Python only; no productcode/tests/Go/Node/Git/network/native execution.",
+    "Designproposal requires root merged successor and independent review before implementation.",
+    "No global archive/index scan, deletinghistory, grant changes, Agent associationactivation, enforcement or originalmicrotask promotion."
+  ]
+}

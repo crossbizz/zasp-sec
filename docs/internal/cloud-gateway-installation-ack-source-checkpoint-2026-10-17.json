@@ -1,0 +1,198 @@
+{
+  "observed_at": "2026-10-17T19:05:18.982807+00:00",
+  "continued_published_base": "e735ca7d812a94b7c01700c35ea082276ac42aed",
+  "classification": "CONNECTED_SOURCE_REVIEW_CLEAR_COMPONENT_EXECUTION_PARTIAL_NATIVE_AND_DEPLOYED_UNVERIFIED",
+  "task_mapping": [
+    "M4-50b3"
+  ],
+  "scope": {
+    "testimony": "Authenticated existing Device/credential-generation installation testimony only. No new identity or grant; no Agent/Node coverage, current enforcement attestation or first-ever installation claim.",
+    "transport": "Actual optional signed HTTP client/handler POST /internal/v1/runtime-gateway/installations, original exact4096-byte-bounded body and strict bound receipt, current authority, isolated own readiness. Existing Authority/Policy/Decision/global readiness preserved.",
+    "database": "Additive sealed Normal/Audit profile, current registered gateway-control principal, same original pool and shared record-confirm-successful-COMMIT helper. Unknown commit produces no ACK. Immutable parents/grants/decision replay floor unchanged.",
+    "custody": "Original immutable observation and pending body retained in the same durable cache generation; delivery follows durable write/readback. Separate cancellation-aware joined sender; unknown older outcomes cannot clear newer pending or block policy refresh. Cooperative current-binary common sibling cache ownership only, no malicious same-UID/root isolation claim.",
+    "activation": "Explicit producer and server flags off by default; server additionally requires a compiled profile checksum. Exact runtime-gateway and gateway-control consumers only."
+  },
+  "verification": {
+    "wire_and_cache_ownership": {
+      "named_pass": 10,
+      "race": true,
+      "scope": "Actual local application components only"
+    },
+    "migration_compiler_installer_components": {
+      "named_pass": 18,
+      "race": true,
+      "scope": "Actual local components; no native database semantics"
+    },
+    "migration_cli": {
+      "named_executed": 0,
+      "classification": "OPA_SETUP_BLOCKED_COMPILATION_AND_BEHAVIOR_UNKNOWN"
+    },
+    "deployment_contract": {
+      "grouped_pass": 4,
+      "late_actual_entry_pass": 1,
+      "qualification": "Node contract checks, not Helm rendering or deployed Kubernetes"
+    },
+    "ui": {
+      "typecheck": "PASS",
+      "production_build": "PASS",
+      "qualification": "Runnable local UI build; not browser/provider acceptance"
+    },
+    "compiled_sql_grammar": {
+      "tool": "pglast7.7 PostgreSQL17.4 parser",
+      "normal": {
+        "sql_entries": 27,
+        "plpgsql_entries": 10,
+        "pass": true
+      },
+      "audit": {
+        "sql_entries": 27,
+        "plpgsql_entries": 10,
+        "pass": true
+      },
+      "qualification": "Offline actual compiled SQL and PL/pgSQL grammar only; no database/catalog/ACL/RLS/locking/transaction execution"
+    },
+    "connected_api_policy_runtime": {
+      "named_executed": 0,
+      "classification": "OPA_AND_BADGER_DEPENDENCY_SETUP_BLOCKED_COMPILATION_AND_BEHAVIOR_UNKNOWN"
+    },
+    "review_status": "Final independent45source/799custody/ledger219-preservation publication source review CLEAR. Actual connected compilation/native/deployed limits remain.",
+    "preservation": "Original failing/red/setup-blocked receipts and first source snapshots retained; no component evidence substitutes for native or deployed proof.",
+    "independent_source_reviews": [
+      {
+        "archive_member": "backend-transport-producer-connected-independent-source-review.json",
+        "sha256": "a868fd53b55a051091c72fe5f5748b49fba742fcddf157d4eea02c2a4a192b60",
+        "classification": "CLEAR_SOURCE_ONLY"
+      },
+      {
+        "archive_member": "deployment-producer-ownership-independent-source-review.json",
+        "sha256": "70be88c356f66e347fed2429ee667a911da7100f0ec94a506a04d7cf38c0606f",
+        "classification": "CLEAR_SOURCE_ONLY"
+      },
+      {
+        "archive_member": "component-gate-independent-source-review.json",
+        "sha256": "67a089431b39dcce61b05cda70e3f604ca9e48bb8361e846bb6e503917af42dc",
+        "classification": "SOURCE_LOGIC_CLEAR_REQUIRED_POLICY_SOURCE_NOW_BOUND"
+      },
+      {
+        "archive_member": "final-source-publication-independent-review.json",
+        "sha256": "d53129f04209b9cee0238c46e6637eb8c9d24576f5b4ef8e20c8c8a3e96f2feb",
+        "classification": "CLEAR_SOURCE_ONLY_ARCHIVE_METADATA_SUCCESSOR_ALLOWED"
+      }
+    ],
+    "connected_final_attempts": [
+      {
+        "archive_member": "connected-platform-final-receipt.json",
+        "exit_code": 1,
+        "named_executed": 0,
+        "classification": "OPA_AND_WHERE_APPLICABLE_BADGER_SETUP_BLOCKED_COMPILATION_AND_BEHAVIOR_UNKNOWN"
+      },
+      {
+        "archive_member": "connected-control-final-receipt.json",
+        "exit_code": 1,
+        "named_executed": 0,
+        "classification": "OPA_AND_WHERE_APPLICABLE_BADGER_SETUP_BLOCKED_COMPILATION_AND_BEHAVIOR_UNKNOWN"
+      },
+      {
+        "archive_member": "connected-producer-final-receipt.json",
+        "exit_code": 1,
+        "named_executed": 0,
+        "classification": "OPA_AND_WHERE_APPLICABLE_BADGER_SETUP_BLOCKED_COMPILATION_AND_BEHAVIOR_UNKNOWN"
+      }
+    ],
+    "source_custody": {
+      "bindings": 799,
+      "actual_guard_named_pass": 21,
+      "runner_bodies": "Unchanged outside literal pin maps",
+      "ledger_and_owners": "One M4-50b3 evidence append only; owners unchanged; all219 exact inventory records retained"
+    },
+    "connected_component_gate": {
+      "packages": 8,
+      "modules": 3,
+      "required_named_results": 105,
+      "heads": 36,
+      "classification": "SOURCE_REVIEW_CLEAR_SYNTHETIC_VALIDATOR_CHECKED_ACTUAL_CONNECTED_EXECUTION_BLOCKED",
+      "qualification": "105 is required future actual roster; it is not a passing product test count. Synthetic strict lifecycle/refusal checks only."
+    }
+  },
+  "evidence": {
+    "path": "docs/internal/cloud-gateway-installation-ack-evidence-2026-10-17.tar.gz",
+    "publication_status": "DURABLE_ARCHIVE_CREATED_AND_HASHED",
+    "intended_receipt_members": [
+      "first-grouped-red-receipt.json",
+      "wire-lock-concrete-first-receipt.json",
+      "backend-cli-connected-first-receipt.json",
+      "compiled-sql-grammar.json",
+      "deployment-first-red-receipt.json",
+      "deployment-connected-first.stdout",
+      "deployment-actual-entry-boundary.stdout",
+      "ui-typecheck-receipt.json",
+      "ui-build-receipt.json",
+      "connected-platform-final-receipt.json",
+      "connected-control-final-receipt.json",
+      "connected-producer-final-receipt.json",
+      "transport-tests.json",
+      "transport-first-connected-source.json",
+      "producer-first-connected-source.json",
+      "producer-invariant-source-successor.json",
+      "backend-first-connected-source-freeze.json",
+      "deployment-first-connected-source-freeze.json",
+      "backend-transport-producer-connected-independent-source-review.json",
+      "deployment-producer-ownership-independent-source-review.json"
+    ],
+    "qualification": "Archive retains actual current failures, setup blockers, source freezes/reviews and component receipts. It contains no native or deployed acceptance claim; lost prior /tmp drafts are not reconstructed as immutable evidence.",
+    "sha256": "f2ee58714721da7c020c9ce14feb1a4b8cfde6eea9a1c6229b3b4dbbc7940183",
+    "bytes": 515728
+  },
+  "ledger": {
+    "rows": 728,
+    "unique_ids": 728,
+    "historical_complete": 667,
+    "historical_blocked": 61,
+    "classes": {
+      "production-available": 509,
+      "component-only": 158,
+      "blocked/external": 61
+    },
+    "remaining_recorded": 219,
+    "only_evidence_append": "M4-50b3",
+    "predecessor_sha256": "6a73e657fda6c8b79dea9b73cde5a5bb664673d9cb3d551c30dbdd8ab65204e6",
+    "sha256": "803f78423b2a711fd1c9c936e44b79ca45879426ab633baf9ca08896c8430973",
+    "owners_unchanged": true,
+    "owners_sha256": "de630b490e4861aeadf52fff3b2ecf075884d7d8adbacfbbd06c4ceca27aa46b",
+    "availability_promotions": 0,
+    "inventory": "docs/internal/cloud-goal-remaining-task-inventory-2026-10-17-gateway-installation-ack-source-successor.json",
+    "all219_predecessor_records_retained": true
+  },
+  "remaining_critical_path": [
+    {
+      "flow": "Authentic Agent-to-Device association",
+      "required": "Define and implement authenticated authoritative Agent-to-Device association with scope/current authority/revocation and provenance. Existing Device installation receipt and request Evaluation.AgentID attribution do not establish that association."
+    },
+    {
+      "flow": "Composed Agent coverage and filters",
+      "required": "Join authentic Agent placement and authentic Device installation testimony using current scoped source facts, policy publication/expiry/revocation and freshness; implement real API/filter/UI behavior without inferred healthy/covered shortcuts."
+    },
+    {
+      "flow": "Native and deployed acceptance",
+      "required": "Restore admitted dependencies/resources, install actual Normal/Audit profiles and run current credential revoke/rotate/expiry-after-wait, cross-tenant denial, restart/unknown-commit/recovery, audit and approved native application acceptance. Then verify complete flows through real Stytch, providers, Temporal/OpenFGA and browser with launch guards passing."
+    }
+  ],
+  "external_prerequisites": [
+    "Official OPA and Badger dependency availability for actual connected package compilation; no substitute/stub proof",
+    "Helm rendering and admitted native PostgreSQL/OpenFGA execution",
+    "Real deployment bindings, Stytch/provider identities and credentialed acceptance; no fabricated credential/evidence transfer"
+  ],
+  "native_and_deployed": "Existing mandatory native and security/release controls remain required. No native/deployed proof or new production availability is claimed.",
+  "retired_obsolete_implementations": false,
+  "merge_release_cleared": false,
+  "launch_ready": false,
+  "status_predecessor_sha256": "e502a918a9dc6a333e3c6c48731c03823569f85ae704dc8fc0a0f3f930f8783c",
+  "hosted_status": {
+    "scope": "PR60 prebatch metadata; not this candidate execution",
+    "checks": 94,
+    "failure": 81,
+    "success": 13,
+    "qualification": "Failed hosted release/security checks remain open; no bypass or merge clearance."
+  },
+  "runtime_access_provenance": "See runtime-access-provenance.json in evidence archive. Prior /tmp drafts were lost on runtime transition; current durable contract is fresh and is not a fabricated hash-identical copy."
+}

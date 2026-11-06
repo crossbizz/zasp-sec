@@ -1,0 +1,512 @@
+{
+  "observed_at": "2026-10-17T14:01:24.309939+00:00",
+  "qualification": "Permitted check-run metadata only. Reports strict cache component gate SUCCESS on exact6ade source; raw hosted logs/artifacts unavailable, no case-level hosted log evidence fabricated. Other failed/pending checks retained in metadata. No PostHog, production consumer, deployed or launch acceptance.",
+  "head": "6ade39af1ac0544245095a7a44771e4f19f17ced",
+  "source_checkpoint": "docs/internal/cloud-featureflag-server-cache-source-checkpoint-2026-10-17.json",
+  "source_checkpoint_sha256": "e80e8ebbacf47618f082c8ca3c82640284b70ad178ae04006b0d43431f3811fa",
+  "required_case_count_from_immutable_workflow_source": 73,
+  "check": {
+    "id": 117410733474,
+    "name": "featureflag-server-cache-components",
+    "status": "completed",
+    "conclusion": "success",
+    "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037695704/job/117410733474"
+  },
+  "metadata_sha256": "b044f9e9eedc00d74c690065fb6e1da779ee015fe52d424648283f18726109d2",
+  "metadata": {
+    "head": "6ade39af1ac0544245095a7a44771e4f19f17ced",
+    "total_count": 69,
+    "checks": [
+      {
+        "id": 117410734365,
+        "name": "verify-component",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037695733/job/117410734365"
+      },
+      {
+        "id": 117410733951,
+        "name": "connected-group (environment-class)",
+        "status": "queued",
+        "conclusion": null,
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037695740/job/117410733951"
+      },
+      {
+        "id": 117410733908,
+        "name": "connected-group (approval-test74)",
+        "status": "queued",
+        "conclusion": null,
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037695740/job/117410733908"
+      },
+      {
+        "id": 117410733893,
+        "name": "connected-group (optional-egress-operator-audit)",
+        "status": "queued",
+        "conclusion": null,
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037695740/job/117410733893"
+      },
+      {
+        "id": 117410733876,
+        "name": "connected-group (oauth)",
+        "status": "queued",
+        "conclusion": null,
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037695740/job/117410733876"
+      },
+      {
+        "id": 117410733864,
+        "name": "connected-group (optional-egress-audit)",
+        "status": "queued",
+        "conclusion": null,
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037695740/job/117410733864"
+      },
+      {
+        "id": 117410733860,
+        "name": "connected-group (callback)",
+        "status": "queued",
+        "conclusion": null,
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037695740/job/117410733860"
+      },
+      {
+        "id": 117410733859,
+        "name": "connected-group (retention-audit)",
+        "status": "queued",
+        "conclusion": null,
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037695740/job/117410733859"
+      },
+      {
+        "id": 117410733858,
+        "name": "connected-group (maintenance-operator-audit)",
+        "status": "queued",
+        "conclusion": null,
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037695740/job/117410733858"
+      },
+      {
+        "id": 117410733853,
+        "name": "connected-group (maintenance-operator)",
+        "status": "queued",
+        "conclusion": null,
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037695740/job/117410733853"
+      },
+      {
+        "id": 117410733851,
+        "name": "connected-group (approval-overflow)",
+        "status": "queued",
+        "conclusion": null,
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037695740/job/117410733851"
+      },
+      {
+        "id": 117410733835,
+        "name": "connected-group (optional-egress-operator)",
+        "status": "queued",
+        "conclusion": null,
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037695740/job/117410733835"
+      },
+      {
+        "id": 117410733829,
+        "name": "connected-group (approval-future-progress)",
+        "status": "queued",
+        "conclusion": null,
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037695740/job/117410733829"
+      },
+      {
+        "id": 117410733825,
+        "name": "connected-group (environment-class-catalog)",
+        "status": "queued",
+        "conclusion": null,
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037695740/job/117410733825"
+      },
+      {
+        "id": 117410733820,
+        "name": "connected-group (lifecycle)",
+        "status": "queued",
+        "conclusion": null,
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037695740/job/117410733820"
+      },
+      {
+        "id": 117410733813,
+        "name": "connected-group (pkce)",
+        "status": "queued",
+        "conclusion": null,
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037695740/job/117410733813"
+      },
+      {
+        "id": 117410733812,
+        "name": "connected-group (approval-ordered-planning)",
+        "status": "queued",
+        "conclusion": null,
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037695740/job/117410733812"
+      },
+      {
+        "id": 117410733802,
+        "name": "connected-group (approval-ordered-progress)",
+        "status": "queued",
+        "conclusion": null,
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037695740/job/117410733802"
+      },
+      {
+        "id": 117410733769,
+        "name": "connected-group (environment-class-audit)",
+        "status": "queued",
+        "conclusion": null,
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037695740/job/117410733769"
+      },
+      {
+        "id": 117410733744,
+        "name": "connected-group (approval-future-test74)",
+        "status": "queued",
+        "conclusion": null,
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037695740/job/117410733744"
+      },
+      {
+        "id": 117410733743,
+        "name": "connected-group (approval-flow)",
+        "status": "queued",
+        "conclusion": null,
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037695740/job/117410733743"
+      },
+      {
+        "id": 117410733646,
+        "name": "connected-group (approval)",
+        "status": "queued",
+        "conclusion": null,
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037695740/job/117410733646"
+      },
+      {
+        "id": 117410733617,
+        "name": "public-query",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037695794/job/117410733617"
+      },
+      {
+        "id": 117410733574,
+        "name": "environment-class-components",
+        "status": "in_progress",
+        "conclusion": null,
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037695704/job/117410733574"
+      },
+      {
+        "id": 117410733487,
+        "name": "installer-binding-authority-components",
+        "status": "in_progress",
+        "conclusion": null,
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037695704/job/117410733487"
+      },
+      {
+        "id": 117410733474,
+        "name": "featureflag-server-cache-components",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037695704/job/117410733474"
+      },
+      {
+        "id": 117410733473,
+        "name": "cli-principal-preflight-components",
+        "status": "in_progress",
+        "conclusion": null,
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037695704/job/117410733473"
+      },
+      {
+        "id": 117410733463,
+        "name": "authenticated-enqueue",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037695758/job/117410733463"
+      },
+      {
+        "id": 117410733452,
+        "name": "connected-session-bootstrap",
+        "status": "in_progress",
+        "conclusion": null,
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037695704/job/117410733452"
+      },
+      {
+        "id": 117410733444,
+        "name": "Locked Terraform mock-plan and complete IAM unions",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037695716/job/117410733444"
+      },
+      {
+        "id": 117410733436,
+        "name": "selected-node-observation",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037695704/job/117410733436"
+      },
+      {
+        "id": 117410733423,
+        "name": "authorization-confirmation-components",
+        "status": "in_progress",
+        "conclusion": null,
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037695704/job/117410733423"
+      },
+      {
+        "id": 117410733404,
+        "name": "connected-sqs-permission-diagnostics",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037695704/job/117410733404"
+      },
+      {
+        "id": 117410733395,
+        "name": "compile",
+        "status": "in_progress",
+        "conclusion": null,
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037695704/job/117410733395"
+      },
+      {
+        "id": 117410733388,
+        "name": "optional-egress-operator-components",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037695704/job/117410733388"
+      },
+      {
+        "id": 117410733384,
+        "name": "maintenance-operator-components",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037695704/job/117410733384"
+      },
+      {
+        "id": 117410733382,
+        "name": "connected-fargate-configuration",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037695704/job/117410733382"
+      },
+      {
+        "id": 117410733368,
+        "name": "temporal-confirmation-components",
+        "status": "completed",
+        "conclusion": "failure",
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037695704/job/117410733368"
+      },
+      {
+        "id": 117410733333,
+        "name": "Owned compliance browser component acceptance",
+        "status": "completed",
+        "conclusion": "failure",
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037695742/job/117410733333"
+      },
+      {
+        "id": 117410733329,
+        "name": "installer-components",
+        "status": "completed",
+        "conclusion": "failure",
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037695728/job/117410733329"
+      },
+      {
+        "id": 117410733312,
+        "name": "connected-preflight",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037695704/job/117410733312"
+      },
+      {
+        "id": 117410733307,
+        "name": "Verify runnable UI",
+        "status": "completed",
+        "conclusion": "failure",
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037695701/job/117410733307"
+      },
+      {
+        "id": 117410733254,
+        "name": "connected-opensearch",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037695704/job/117410733254"
+      },
+      {
+        "id": 117410733237,
+        "name": "original-nine",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037695718/job/117410733237"
+      },
+      {
+        "id": 117410723913,
+        "name": "connected-group (lifecycle)",
+        "status": "queued",
+        "conclusion": null,
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037692331/job/117410723913"
+      },
+      {
+        "id": 117410723911,
+        "name": "connected-group (retention-audit)",
+        "status": "queued",
+        "conclusion": null,
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037692331/job/117410723911"
+      },
+      {
+        "id": 117410723901,
+        "name": "connected-group (approval-flow)",
+        "status": "queued",
+        "conclusion": null,
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037692331/job/117410723901"
+      },
+      {
+        "id": 117410723897,
+        "name": "connected-group (approval-ordered-planning)",
+        "status": "queued",
+        "conclusion": null,
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037692331/job/117410723897"
+      },
+      {
+        "id": 117410723877,
+        "name": "connected-group (approval-ordered-progress)",
+        "status": "queued",
+        "conclusion": null,
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037692331/job/117410723877"
+      },
+      {
+        "id": 117410723876,
+        "name": "connected-group (optional-egress-operator-audit)",
+        "status": "in_progress",
+        "conclusion": null,
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037692331/job/117410723876"
+      },
+      {
+        "id": 117410723874,
+        "name": "connected-group (approval-future-progress)",
+        "status": "queued",
+        "conclusion": null,
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037692331/job/117410723874"
+      },
+      {
+        "id": 117410723854,
+        "name": "connected-group (environment-class-catalog)",
+        "status": "in_progress",
+        "conclusion": null,
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037692331/job/117410723854"
+      },
+      {
+        "id": 117410723812,
+        "name": "connected-group (maintenance-operator-audit)",
+        "status": "in_progress",
+        "conclusion": null,
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037692331/job/117410723812"
+      },
+      {
+        "id": 117410723802,
+        "name": "connected-group (pkce)",
+        "status": "queued",
+        "conclusion": null,
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037692331/job/117410723802"
+      },
+      {
+        "id": 117410723795,
+        "name": "connected-group (approval)",
+        "status": "in_progress",
+        "conclusion": null,
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037692331/job/117410723795"
+      },
+      {
+        "id": 117410723793,
+        "name": "connected-group (optional-egress-operator)",
+        "status": "in_progress",
+        "conclusion": null,
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037692331/job/117410723793"
+      },
+      {
+        "id": 117410723784,
+        "name": "connected-group (optional-egress-audit)",
+        "status": "in_progress",
+        "conclusion": null,
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037692331/job/117410723784"
+      },
+      {
+        "id": 117410723782,
+        "name": "connected-group (callback)",
+        "status": "in_progress",
+        "conclusion": null,
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037692331/job/117410723782"
+      },
+      {
+        "id": 117410723778,
+        "name": "connected-group (approval-future-test74)",
+        "status": "in_progress",
+        "conclusion": null,
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037692331/job/117410723778"
+      },
+      {
+        "id": 117410723751,
+        "name": "connected-group (approval-overflow)",
+        "status": "completed",
+        "conclusion": "failure",
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037692331/job/117410723751"
+      },
+      {
+        "id": 117410723743,
+        "name": "connected-group (environment-class-audit)",
+        "status": "completed",
+        "conclusion": "failure",
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037692331/job/117410723743"
+      },
+      {
+        "id": 117410723728,
+        "name": "connected-group (approval-test74)",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037692331/job/117410723728"
+      },
+      {
+        "id": 117410723727,
+        "name": "connected-group (maintenance-operator)",
+        "status": "in_progress",
+        "conclusion": null,
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037692331/job/117410723727"
+      },
+      {
+        "id": 117410723721,
+        "name": "connected-group (environment-class)",
+        "status": "completed",
+        "conclusion": "failure",
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037692331/job/117410723721"
+      },
+      {
+        "id": 117410723719,
+        "name": "connected-group (oauth)",
+        "status": "queued",
+        "conclusion": null,
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037692331/job/117410723719"
+      },
+      {
+        "id": 117410723381,
+        "name": "Owned compliance browser component acceptance",
+        "status": "completed",
+        "conclusion": "failure",
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037692247/job/117410723381"
+      },
+      {
+        "id": 117410723246,
+        "name": "authenticated-enqueue",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037692242/job/117410723246"
+      },
+      {
+        "id": 117410723196,
+        "name": "Verify runnable UI",
+        "status": "completed",
+        "conclusion": "failure",
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037692231/job/117410723196"
+      },
+      {
+        "id": 117410723164,
+        "name": "original-nine",
+        "status": "completed",
+        "conclusion": "success",
+        "html_url": "https://github.com/crossbizz/zasp-sec/actions/runs/39037692249/job/117410723164"
+      }
+    ]
+  },
+  "availability_promotions": 0,
+  "M7-24": "component-only",
+  "ledger_classes": {
+    "production-available": 517,
+    "component-only": 150,
+    "blocked/external": 61
+  }
+}

@@ -1,0 +1,143 @@
+{
+  "observed_at": "2026-10-17T03:51:31.167363+00:00",
+  "source_base": "3ec429f68b73a00908b1d6b8845d3887e9760ee9",
+  "scope": "Exact current UI/API coverage contracts and independently reached hosted retention IAM acceptance",
+  "sources": [
+    {
+      "path": "scripts/check-ui-api-coverage.test.mjs",
+      "sha256": "3ea1a0b2d8433e053cc6326bb571c7976119a03bacd154d315d99f12d63d3c87",
+      "bytes": 8523,
+      "preimagePath": "/tmp/ui-api-coverage-contract-preimage-20261017.mjs",
+      "preimageSHA256": "4a8b8c63e077ddebb1143869716317cf7b9ddef1729f529bb5e4b948329820b5",
+      "caseNames": [
+        "current API and planned map passes honestly",
+        "all current public operations resolve and deliberate removal fails",
+        "unmapped public operations fail while unmapped internal operations pass",
+        "planned, available, and internal lifecycle mismatches fail",
+        "API-available operations require OpenAPI but do not claim a wired UI",
+        "OpenAPI operation extraction rejects missing, duplicate, and unclassified operations",
+        "strict YAML parsing rejects representation and map-schema ambiguity",
+        "fixed file boundary accepts regular UTF-8 and rejects symlink, oversize, and invalid UTF-8",
+        "CLI emits only fixed success or rejection lines",
+        "package command is wired into root verification"
+      ],
+      "caseCount": 10
+    },
+    {
+      "path": "app/quality/ui-api-map-contract.test.ts",
+      "sha256": "5fd0031b152bb210e90bffb6a517c80708bd0aae8c57051ec799df8bcf76e6fc",
+      "bytes": 33136,
+      "preimagePath": "/tmp/ui-api-map-contract-preimage-20261017.ts",
+      "preimageSHA256": "7043e138c3f2f3d8f2abca671970b1b2dbf4e45ba3dbb311e93b479cb19c15f0",
+      "caseNames": [
+        "binds the source task to the strict planned-map design",
+        "completes only M1-25 after M1-24 and preserves the blockers",
+        "accepts only the exact seventeen-screen, 164-action mixed-lifecycle map",
+        "rejects hostile YAML and semantic seed mutations",
+        "resolves every mapped operation when all references are defined",
+        "documents the planned seed without claiming current API coverage"
+      ],
+      "caseCount": 6
+    },
+    {
+      "path": "app/quality/ui-api-coverage-ci-contract.test.ts",
+      "preimagePath": "/tmp/ui-api-final-quality-preimage-20261017-ui-api-coverage-ci-contract.test.ts",
+      "preimageSHA256": "86ee1d414c5ae28035c049bedc2971890812ba0ba9e7d5c5571077a1e738a7a0",
+      "sha256": "d20a25fc3dd538630e2c3151a24c9a697863729054df1613aec9fd93398e3156",
+      "bytes": 5786,
+      "cases": [
+        "binds the source task to the closed coverage design and plan",
+        "completes only M1-26 after M1-25 and preserves the blockers",
+        "records the deliberately hidden provider and job forward references",
+        "documents the exact local coverage commands and honest current result"
+      ],
+      "caseNames": [
+        "binds the source task to the closed coverage design and plan",
+        "completes only M1-26 after M1-25 and preserves the blockers",
+        "records the deliberately hidden provider and job forward references",
+        "documents the exact local coverage commands and honest current result"
+      ],
+      "caseCount": 4
+    },
+    {
+      "path": "app/quality/m2-closure-contract.test.ts",
+      "preimagePath": "/tmp/ui-api-final-quality-preimage-20261017-m2-closure-contract.test.ts",
+      "preimageSHA256": "a0cc0668c492e8cf3cec63f27008c6727701c81ff67825e203e5a4822c4d0043",
+      "sha256": "5d95092fe25d01dd5d1af0185b4f8dca9b78b8b12ddb1db5f3723ddc47eef822",
+      "bytes": 3782,
+      "cases": [
+        "moves all fifteen remaining M2 tasks to Complete in one reviewed batch",
+        "binds the final product UI to the generated API and records the M2 gate PASS"
+      ],
+      "caseNames": [
+        "moves all fifteen remaining M2 tasks to Complete in one reviewed batch",
+        "binds the final product UI to the generated API and records the M2 gate PASS"
+      ],
+      "caseCount": 2
+    },
+    {
+      "path": "app/quality/m2-identity-governance-ui-batch-contract.test.ts",
+      "preimagePath": "/tmp/ui-api-final-quality-preimage-20261017-m2-identity-governance-ui-batch-contract.test.ts",
+      "preimageSHA256": "06282aa6290eeb8b7fc56c66cd3d221bc0da824c966a4c88d17b243da19f10b4",
+      "sha256": "288143b6f274cc1e7f59baead222b40c2cf31de378e27c4c75025243b311181e",
+      "bytes": 4898,
+      "cases": [
+        "moves exactly twenty related source tasks to Complete",
+        "binds mounted governance operations and keeps export UI availability separate",
+        "ships the durable Identity route over the shared generated API client"
+      ],
+      "caseNames": [
+        "moves exactly twenty related source tasks to Complete",
+        "binds mounted governance operations and keeps export UI availability separate",
+        "ships the durable Identity route over the shared generated API client"
+      ],
+      "caseCount": 3
+    }
+  ],
+  "component_validation": {
+    "node_coverage_pass": 10,
+    "quality_coverage_pass": 15,
+    "all_original_coverage_cases": 25,
+    "raw_fetch_pass": 3,
+    "coverage_check_exit": 0,
+    "fresh_ui_typecheck_exit": 0,
+    "fresh_ui_build_exit": 0,
+    "frozen_ui_inputs": 376,
+    "full_ui_suite": "timeout240s with preimage failures; explicitly NOT PASS; targeted green does not override this"
+  },
+  "hosted_iam": {
+    "head": "3ec429f68b73a00908b1d6b8845d3887e9760ee9",
+    "run_id": 38999850072,
+    "conclusion": "success",
+    "job": "Locked Terraform mock-plan and complete IAM unions",
+    "official_step_metadata": "/tmp/pr60-3ec429f6-retention-iam-official-jobs-20261017.json",
+    "qualification": "Hosted locked mock-plan/union acceptance; no production apply, cloud role or deployed cleanup proof"
+  },
+  "independent_source_review": "/tmp/ui-api-five-source-coverage-contract-independent-review-20261017.json",
+  "ledger": {
+    "rows": 728,
+    "unique_ids": 728,
+    "class_counts": {
+      "production-available": 523,
+      "component-only": 144,
+      "blocked/external": 61
+    },
+    "availability_promotions": 0,
+    "evidence_suffix_ids": [
+      "M1-25",
+      "M1-26",
+      "M7-26"
+    ],
+    "previous_sha256": "dae197e92e87daa1cc4f2d6312ffcfaf2e1481699435625b7f066da7af30619f",
+    "new_sha256": "fbe98f64ef4aba7857148d4ab97f0b683e31f8950f3b09688886590cc5a592eb",
+    "immutable_fields_and_existing_evidence_preserved": true
+  },
+  "evidence": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/ui-coverage-and-hosted-iam/verified-component-batch.json.gz",
+    "sha256": "1d7e41b1075136bfb8d1cd3dd112bcffa129766bc9695480c6e950f698fd0941",
+    "uncompressed_sha256": "8021705756bca56b43cb5a70fe9c894f82ffa1d1d1b5ce72fbd41b820d164fa7",
+    "members": 55
+  },
+  "production_availability_promotions": 0,
+  "goal": "active; native, full UI, deployment/security and real provider E2E gates remain open"
+}

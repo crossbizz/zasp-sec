@@ -1,0 +1,98 @@
+{
+  "classification": "KUBERNETES_POD_IDENTITY_COMPONENT_VERIFIED_PRODUCTION_ROUTING_NOT_YET_INTEGRATED",
+  "observed_at": "2026-10-17T22:09:55.349485+00:00",
+  "source_parent": "c1a06e304260f36c8fabafa81951fef91463928c",
+  "origin_main": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
+  "required_ancestor": "e13ccb95451b03107681ccb59b3fc6fe175a228f",
+  "required_ancestor_confirmed": true,
+  "task_mapping": [
+    "M4-50b3"
+  ],
+  "scope": "Standalone stdlib Kubernetes projected-Pod identity verifier; strict dependency inventory corrections for existing CLI local replacements and existing platform EKS SDK. No production proxy activation, permission grant, native profile install, availability promotion or obsolete-path retirement.",
+  "semantics": {
+    "provider": "Actual configured TLS TokenReview authenticates same opaque token before JWT metadata checks; explicit issuer/audience/SA/Pod UID, Running Pod and live SA/ReplicaSet/Deployment/Node/kube-system observations twice. Deployment Agent label and template SA required. Selected profile uses13 max calls within one5s context, no retries/redirects/positive cache.",
+    "trust": "Configured CA+origin+CIDRs, every DNS answer constrained before pinned dial, reviewer protected0600 currentUID singlelink file reloaded per verification. Both FD/path postread metadata checked. Unsupported platforms fail closed. Direct projected mount needs conforming rotating publisher; no provider readiness inferred from local Ready.",
+    "output": "Observed facts plus exact request-binding digest are Gateway testimony, not signed Kubernetes attestation or process/container identity. Sequential reads are not atomic across provider/DB. Result expires by token expiry or5s after last observation.",
+    "authorization": "No product Stytch/OpenFGA/taskprincipal authority inferred from SA identity. Native current SA UID provenance, Agent association, exact installed policy, compatible publisher serialization and one-use durable dispatch remain mandatory integration work.",
+    "preserved": "Original production proxy/config/profile/role/grants, UI/API behavior,728ledger/owners/219remaining records and original native acceptance rosters unchanged."
+  },
+  "verification": {
+    "actual_initial_red": "5FAIL0PASS frozen failclosed scaffold; New refused before most negative case bodies, no guard-behavior credit",
+    "actual_first_functional": "5PASS0FAIL race",
+    "actual_hardening_successor": "5PASS0FAIL race",
+    "actual_final_exact_ci": "PASS_LOCAL5GROUPS_RACE_902SOURCE_BINDINGS; finalTLS fixture uses independent wrong CA, same endpoint/CIDRs",
+    "source_guards": "21PASS",
+    "dependency_guard_tests": "94PASS0FAIL after actual93PASS1FAIL priorinventory snapshot",
+    "dependency_inventory": "14MANIFESTS43DIRECT_EXTERNAL_RECORDS valid actual repository check. Existing CLI exact local/transitive closure and existing EKS v1.92.1 metadata corrected; no new external software dependency.",
+    "full_dependencies_command": "FAILED:inventory valid;7PASS2FAIL of9 legacy parser/esbuild checks. Transform/drizzle owned process groups survived child exit. PID1 esbuild zombies observed; exact failed-head group attribution not logged. Guards unchanged.",
+    "late_corrections": "TokenReview audience array typing, serializable exp/marshal failure, strict CA PEM prefix, both FD/path file metadata, zeroVerifier Close safety. Existing groups extended; prior failures/HOLDs/preimages retained, no invented executed RED for late cases.",
+    "independent_reviews": "Provider design/product source, CI/README, CLI replacement guard and EKS metadata source CLEAR. Final publication review pending. Initial review capture races disclosed in retained receipts.",
+    "source_custody": "902bindings retain original890 order/history; prior jobs unchanged except2 count literals890to902; runner code unchanged outside literal source maps.",
+    "ui": "No UI source changes; no fresh full UI/build success claimed. Latest c1 hostedUI annotation dependencies:check failure; source-gate corrections verified locally, whole local dependency gate still fails cleanup.",
+    "native_and_deployed": "UNVERIFIED:previous canonical native admission refused; no alternate startup, denied dependency-route bypass, realStytch/provider/Temporal/FGA/browser claim or promotion.",
+    "fresh_hosted_c1_compile": "FAILED: check117512905591 actual annotations report agentsec-api interface-typed database.Close/profile readiness and authorizer profile readiness methods undefined. Previous fixture-field error absent from this annotation set; full build still failed. Minimal production composition correction is next batch; no compiler success inferred.",
+    "publication_review": {
+      "status": "CLEAR_SOURCE_ONLY",
+      "receipts": [
+        {
+          "path": "docs/internal/gateway-pod-identity-design-2026-10-17/publication-review.json",
+          "sha256": "085734ffb2f1560dfed0d87dc2dbbfce6583f039e3d5d1126c4c6a6ae77d193d"
+        },
+        {
+          "path": "docs/internal/gateway-pod-identity-design-2026-10-17/publication-metadata-addendum.json",
+          "sha256": "5c7a65f7b491438045a568a3602556feb1dae14761672093a24c3da4845988fd"
+        }
+      ],
+      "qualification": "Final checkpoint review references/status only added after review. Source/archive unchanged. Reviews checked in separately, outside the archive."
+    }
+  },
+  "runtime_readiness": {
+    "phase": "running",
+    "current": true,
+    "connectivity": "connected",
+    "network": "restricted/enforced",
+    "ready_runtime_variables": 51,
+    "managed_secrets": 0,
+    "outbound_identities": 0,
+    "capabilities": 0,
+    "qualification": "Previously observed safe readiness metadata this turn. Ready state is not usable-credential/provider authorization evidence; no secret values exposed."
+  },
+  "workflow": {
+    "cloud_runtime_skill": "Read when temporarily available this turn; later catalog reports unavailable. Networking constraints retained.",
+    "superpowers": "Unavailable; official upstream grouped specification/scaffoldRED/implementation/independent review workflow followed. No Temporal/OpenFGA/provider internals tested."
+  },
+  "ledger": {
+    "rows": 728,
+    "unique_ids": 728,
+    "historical_complete": 667,
+    "historical_blocked": 61,
+    "production_available_recorded": 509,
+    "component_only": 158,
+    "blocked_external": 61,
+    "remaining_recorded_nonproduction": 219,
+    "availability_promotions": 0,
+    "sha256": "4d96bdb33fb636b7a86ef1d4f5de142735ab4936d2fff41dff019df833dd9f98",
+    "owners_sha256": "de630b490e4861aeadf52fff3b2ecf075884d7d8adbacfbbd06c4ceca27aa46b",
+    "inventory": "docs/internal/cloud-goal-remaining-task-inventory-2026-10-17-gateway-bootstrap-source-successor.json",
+    "fresh_deployed_acceptance_required_for_all_728": true
+  },
+  "evidence": {
+    "path": "docs/internal/cloud-gateway-pod-identity-evidence-2026-10-17.tar.gz",
+    "status": "CREATED_EVERY_MEMBER_BYTE_AND_HASH_VERIFIED",
+    "sha256": "65234e70c5dcd989d8cb180ef1ee9cbef16af6fb53254dfed10d7468aab6e716",
+    "bytes": 855769,
+    "members": 128,
+    "qualification": "Actual scaffolds, failures, source successors, strict CI output, reviews and source snapshots. Final checkpoint and publication review are separately checked in. No native/deployed acceptance."
+  },
+  "next_critical_path": [
+    "Correct fresh hosted agentsec-api production composition compile errors while preserving concrete pool close and failclosed profile readiness.",
+    "Repair scoped esbuild/drizzle process ownership/reaping while retaining cleanup guards; obtain fresh hosted checks.",
+    "Close exact Normal/Audit effective publisher catalog/projection manifest, then guard original15 and28 writers with compatible org79 serialization; no nullable denial bypass.",
+    "Integrate verifier with native current SA UID inventory provenance, Agent/Device association, installed exactpolicy/pure evaluation, Temporal77 actualACK and one-use dispatch before forwarding; no historical redispatch.",
+    "Verify real provider RBAC/reviewer rotation, native production API/worker profiles, real Stytch/OpenFGA/Temporal/provider/browser flows and every original728requirement; retire obsolete paths after equivalent deployed proof."
+  ],
+  "launch_ready": false,
+  "merge_release_cleared": false,
+  "task_closed": false,
+  "obsolete_retired": false
+}

@@ -30,6 +30,17 @@ import (
 type auditExportStorageFactory func(RuntimeConfig) ([]apiserver.AuditExportStorageConfiguration, *http.Transport, error)
 type complianceStorageFactory func(RuntimeConfig) (complianceStorageResources, error)
 
+// runtimeProfileReadinessDatabase is required only when a selected profile uses
+// its native readiness check. Generic database fixtures keep the narrow API.
+type runtimeProfileReadinessDatabase interface {
+	AgentExposureFilterProfileReady(context.Context, string) (bool, error)
+	AgentOwnershipWriteProfileReady(context.Context, string) (bool, error)
+	SensorNodeCoverageProfileReady(context.Context, string) (bool, error)
+	AgentReadProfileReady(context.Context, string) (bool, error)
+	AgentOwnerFilterProfileReady(context.Context, string) (bool, error)
+	EnvironmentClassProfileReady(context.Context, string) (bool, error)
+}
+
 func buildRuntimeDependencies(ctx context.Context, config RuntimeConfig) (RuntimeDependencies, error) {
 	return buildRuntimeDependenciesWithAuditExportStorage(ctx, config, newAuditExportStorageClients)
 }
@@ -48,6 +59,10 @@ func buildRuntimeDependenciesWithReadinessTransport(ctx context.Context, config 
 }
 
 func buildRuntimeDependenciesWithReadinessTransportDiagnostic(ctx context.Context, config RuntimeConfig, factory auditExportStorageFactory, complianceFactory complianceStorageFactory, readinessTransport http.RoundTripper) (RuntimeDependencies, error) {
+	return buildRuntimeDependenciesWithReadinessObserver(ctx, config, factory, complianceFactory, readinessTransport, nil)
+}
+
+func buildRuntimeDependenciesWithReadinessObserver(ctx context.Context, config RuntimeConfig, factory auditExportStorageFactory, complianceFactory complianceStorageFactory, readinessTransport http.RoundTripper, readinessDiagnostic readinessObserver) (RuntimeDependencies, error) {
 	if ctx == nil || ctx.Err() != nil || factory == nil || complianceFactory == nil || !validRuntimeConfig(config) || !config.RuntimeServices.Enabled {
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("runtime-inputs", errRuntimeUnavailable)
 	}
@@ -80,7 +95,7 @@ func buildRuntimeDependenciesWithReadinessTransportDiagnostic(ctx context.Contex
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("current-authorization", errRuntimeUnavailable)
 	}
 	checker, checkerErr := authorization.NewOpenFGA(services.FGA, config.RuntimeServices)
-	revisions, revisionErr := authorization.NewCurrentProjectionRepository(ctx, pool, config.RuntimeServices.ApprovalMaintenanceProfileChecksum)
+	revisions, revisionErr := authorization.NewCurrentMaintenanceProjectionRepository(ctx, pool, config.RuntimeServices.ApprovalMaintenanceProfileChecksum, config.RuntimeServices.ConnectorMaintenanceProfileChecksum)
 	resolver, resolverErr := apiserver.NewPostgresAuthorizationResolverWithSecurityAgent(database, securityAgentDatabase)
 	attestationKey, attestationErr := authorization.NewAttestationKey([]byte(config.WorkflowSigningKey))
 	if checkerErr != nil || revisionErr != nil || resolverErr != nil || attestationErr != nil {
@@ -88,12 +103,117 @@ func buildRuntimeDependenciesWithReadinessTransportDiagnostic(ctx context.Contex
 		_ = database.Close()
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("authorization-components", errRuntimeUnavailable)
 	}
-	if err := checkAuthorizationRuntimeReadyWithinTimeout(ctx, database, securityAgentDatabase, attestationKey.Version(), config.ProviderTimeout); err != nil {
+	if err := checkAuthorizationRuntimeReadyWithinTimeout(ctx, database, securityAgentDatabase, attestationKey.Version(), config.ProviderTimeout, readinessDiagnostic); err != nil {
 		_ = securityAgentDatabase.Close()
 		_ = database.Close()
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("authorization-readiness", errRuntimeUnavailable)
 	}
-	authorizer := &apiserver.OpenFGAAuthorizer{Reader: revisions, Checker: checker, Resolver: resolver, StoreID: config.RuntimeServices.StoreID, ModelID: config.RuntimeServices.ModelID, AttestationKey: attestationKey}
+	var selectedResolver apiserver.AuthorizationTargetResolver = resolver
+	if config.RuntimeServices.ConnectorMaintenanceProfileChecksum != "" {
+		callbackResolver, callbackErr := apiserver.NewConnectorMaintenanceCallbackResolver(resolver, database, config.RuntimeServices.ConnectorMaintenanceProfileChecksum)
+		if callbackErr != nil || callbackResolver == nil || ctx.Err() != nil {
+			_ = securityAgentDatabase.Close()
+			_ = database.Close()
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("authorization-components", errRuntimeUnavailable)
+		}
+		selectedResolver = callbackResolver
+	}
+	if config.AgentExposureFilterProfileChecksum != "" {
+		decorated, err := apiserver.NewAgentExposureFilterResolver(selectedResolver, database, config.AgentExposureFilterProfileChecksum)
+		if err != nil {
+			_ = securityAgentDatabase.Close()
+			_ = database.Close()
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("agent-exposure-filter-profile", errRuntimeUnavailable)
+		}
+		selectedResolver = decorated
+	}
+	authorizer := &apiserver.OpenFGAAuthorizer{Reader: revisions, Checker: checker, Resolver: selectedResolver, StoreID: config.RuntimeServices.StoreID, ModelID: config.RuntimeServices.ModelID, AttestationKey: attestationKey}
+
+	// Optional profile readiness gates only its feature operations.
+	if config.AgentDeviceAssociationProfileChecksum != "" {
+		authorizer.AgentDeviceAssociationReady = func(ctx context.Context) (bool, error) {
+			probe, cancel := context.WithTimeout(ctx, 5*time.Second)
+			defer cancel()
+			return database.AgentDeviceAssociationProfileReady(probe, config.AgentDeviceAssociationProfileChecksum)
+		}
+	}
+	if config.GatewayBootstrapProfileChecksum != "" {
+		authorizer.GatewayBootstrapReady = func(ctx context.Context) (bool, error) {
+			probe, cancel := context.WithTimeout(ctx, 5*time.Second)
+			defer cancel()
+			return database.GatewayBootstrapProfileReady(probe, config.GatewayBootstrapProfileChecksum)
+		}
+	}
+
+	if config.AgentExposureFilterProfileChecksum != "" {
+		bounded, cancel := context.WithTimeout(ctx, config.ProviderTimeout)
+		ready, readyErr := database.AgentExposureFilterProfileReady(bounded, config.AgentExposureFilterProfileChecksum)
+		cancel()
+		if readyErr != nil || !ready {
+			_ = database.Close()
+			_ = securityAgentDatabase.Close()
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("agent-exposure-filter-profile", errRuntimeUnavailable)
+		}
+		authorizer.AgentExposureFilterReady = func(ctx context.Context) (bool, error) {
+			return database.AgentExposureFilterProfileReady(ctx, config.AgentExposureFilterProfileChecksum)
+		}
+	}
+	if config.AgentOwnershipWriteProfileChecksum != "" {
+		bounded, cancel := context.WithTimeout(ctx, config.ProviderTimeout)
+		ready, readyErr := database.AgentOwnershipWriteProfileReady(bounded, config.AgentOwnershipWriteProfileChecksum)
+		cancel()
+		if readyErr != nil || !ready {
+			_ = database.Close()
+			_ = securityAgentDatabase.Close()
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("agent-ownership-write-profile", errRuntimeUnavailable)
+		}
+	}
+	if config.SensorNodeCoverageRetentionEnabled {
+		bounded, cancel := context.WithTimeout(ctx, config.ProviderTimeout)
+		ready, readyErr := database.SensorNodeCoverageProfileReady(bounded, config.SensorNodeCoverageProfileChecksum)
+		cancel()
+		if readyErr != nil || !ready {
+			_ = database.Close()
+			_ = securityAgentDatabase.Close()
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("sensor-node-coverage-profile", errRuntimeUnavailable)
+		}
+	}
+	if config.AgentReadProfileChecksum != "" {
+		bounded, cancel := context.WithTimeout(ctx, config.ProviderTimeout)
+		ready, readyErr := database.AgentReadProfileReady(bounded, config.AgentReadProfileChecksum)
+		cancel()
+		if readyErr != nil || !ready {
+			_ = database.Close()
+			_ = securityAgentDatabase.Close()
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("agent-read-profile", errRuntimeUnavailable)
+		}
+	}
+	if config.AgentOwnerFilterEnabled {
+		bounded, cancel := context.WithTimeout(ctx, 5*time.Second)
+		ready, readyErr := database.AgentOwnerFilterProfileReady(bounded, config.AgentOwnerFilterProfileChecksum)
+		cancel()
+		if readyErr != nil || !ready {
+			_ = database.Close()
+			_ = securityAgentDatabase.Close()
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("agent-owner-filter-profile", errRuntimeUnavailable)
+		}
+		authorizer.AgentOwnerFilterReady = func(ctx context.Context) (bool, error) {
+			return database.AgentOwnerFilterProfileReady(ctx, config.AgentOwnerFilterProfileChecksum)
+		}
+	}
+	if config.EnvironmentClassEnabled {
+		bounded, cancel := context.WithTimeout(ctx, config.ProviderTimeout)
+		ready, readyErr := database.EnvironmentClassProfileReady(bounded, config.EnvironmentClassProfileChecksum)
+		cancel()
+		if readyErr != nil || !ready {
+			_ = securityAgentDatabase.Close()
+			_ = database.Close()
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("environment-class-profile", errRuntimeUnavailable)
+		}
+		authorizer.EnvironmentClassReady = func(ctx context.Context) (bool, error) {
+			return database.EnvironmentClassProfileReady(ctx, config.EnvironmentClassProfileChecksum)
+		}
+	}
 	authenticator, err := apiserver.NewStytchOAuthAuthenticator(config.StytchBaseURL, config.StytchProjectID, config.StytchSecret, config.ProviderTimeout, func() time.Time { return time.Now().UTC().Truncate(time.Millisecond) })
 	if err != nil {
 		_ = securityAgentDatabase.Close()
@@ -121,7 +241,7 @@ func buildRuntimeDependenciesWithReadinessTransportDiagnostic(ctx context.Contex
 		_ = database.Close()
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("temporal-observer", errRuntimeUnavailable)
 	}
-	dependencies, err := composeRuntimeDependenciesWithRecoveryDiagnostic(ctx, config, database, securityAgentDatabase, provider, factory, complianceFactory, os.Stdout, readinessTransport, observer, authorizer)
+	dependencies, err := composeRuntimeDependenciesWithRecoveryDiagnostic(withRuntimeConstructorObserver(ctx, readinessDiagnostic), config, database, securityAgentDatabase, provider, factory, complianceFactory, os.Stdout, readinessTransport, observer, authorizer)
 	if err != nil {
 		_ = securityAgentDatabase.Close()
 		_ = database.Close()
@@ -130,7 +250,7 @@ func buildRuntimeDependenciesWithReadinessTransportDiagnostic(ctx context.Contex
 	dependencies.Closers = append(dependencies.Closers, securityAgentDatabase, database)
 	if services != nil {
 		previous := dependencies.ReadinessCheck
-		dependencies.ReadinessCheck = authorizationRuntimeReadiness(services.Ready, previous, database, securityAgentDatabase, attestationKey.Version(), config.RuntimeServices.Timeout)
+		dependencies.ReadinessCheck = authorizationRuntimeReadinessWithDiagnostic(services.Ready, previous, database, securityAgentDatabase, attestationKey.Version(), config.RuntimeServices.Timeout, readinessDiagnostic)
 		dependencies.Closers = append(dependencies.Closers, services)
 	}
 	keepServices = true
@@ -222,6 +342,50 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 	if config.EvidenceExportWorkflow == "enabled" && (config.ComplianceExports == nil || invalidRuntimeValue(securityAgentDatabase)) {
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("composition-authorization", errRuntimeUnavailable)
 	}
+	var retentionVisibility *apiserver.RetentionEventVisibility
+	if config.RetentionProfileChecksum != "" {
+		base, ok := database.(*apiserver.PostgresJSONDatabase)
+		if !ok || base == nil {
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("retention-authorization", errRuntimeUnavailable)
+		}
+		var retentionErr error
+		retentionVisibility, retentionErr = apiserver.NewRetentionEventVisibility(base, config.RetentionProfileChecksum)
+		probe, cancel := context.WithTimeout(ctx, config.ProviderTimeout)
+		if retentionErr == nil {
+			retentionErr = retentionVisibility.Ready(probe)
+		}
+		cancel()
+		if retentionErr != nil {
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("retention-authorization", errRuntimeUnavailable)
+		}
+	}
+	// Selection follows the original current-authorization admission. The
+	// adapter preserves all other database capabilities and grants no purpose
+	// to a bare runtime context. Selected native capture never falls back.
+	if config.RuntimeServices.ConnectorMaintenanceProfileChecksum != "" {
+		base, ok := database.(*apiserver.PostgresJSONDatabase)
+		if !ok || base == nil {
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("composition-authorization", errRuntimeUnavailable)
+		}
+		probe, cancel := context.WithTimeout(ctx, config.ProviderTimeout)
+		selected, selectionErr := apiserver.NewConnectorMaintenanceEnqueueDatabase(probe, base, config.RuntimeServices.ConnectorMaintenanceProfileChecksum)
+		live := probe.Err() == nil && ctx.Err() == nil
+		cancel()
+		if selectionErr != nil || selected == nil || !live {
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("composition-authorization", errRuntimeUnavailable)
+		}
+		database = selected
+	}
+	var profileDatabase runtimeProfileReadinessDatabase
+	if config.AgentExposureFilterProfileChecksum != "" || config.AgentOwnershipWriteProfileChecksum != "" ||
+		config.SensorNodeCoverageRetentionEnabled || config.AgentReadProfileChecksum != "" ||
+		config.AgentOwnerFilterEnabled || config.EnvironmentClassEnabled {
+		var ok bool
+		profileDatabase, ok = database.(runtimeProfileReadinessDatabase)
+		if !ok || invalidRuntimeValue(profileDatabase) {
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("composition-profile-readiness", errRuntimeUnavailable)
+		}
+	}
 	metrics := newOperationalMetrics()
 	exporter := newStructuredSpanExporter(output)
 	tracedDatabase := &tracedJSONDatabase{next: database, metrics: metrics, exporter: exporter}
@@ -244,7 +408,13 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 		}
 	}
 	tracedProvider := &tracedCallbackProvider{next: provider, metrics: metrics, exporter: exporter}
-	policyHistory, err := newProductionPolicyHistory(config)
+	var policyHistory *productionPolicyHistory
+	var err error
+	if retentionVisibility != nil {
+		policyHistory, err = newProductionPolicyHistoryWithRetention(config, retentionVisibility)
+	} else {
+		policyHistory, err = newProductionPolicyHistory(config)
+	}
 	if err != nil {
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("policy-history", errRuntimeUnavailable)
 	}
@@ -254,9 +424,47 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 			_ = policyHistory.Close()
 		}
 	}()
-	repository, err := apiserver.NewPostgresRepositoryWithRuntimeSessionSearchIndex(tracedDatabase, policyHistory.sessionSearch, config.RuntimeSessionIndex)
+	var sessionSearch apiserver.RuntimeSessionSearchIndex = policyHistory.sessionSearch
+	if retentionVisibility != nil {
+		sessionSearch, err = apiserver.NewRetentionRuntimeSessionSearchIndex(sessionSearch)
+		if err != nil {
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("retention-search", errRuntimeUnavailable)
+		}
+	}
+	repository, err := apiserver.NewPostgresRepositoryWithRuntimeSessionSearchIndex(tracedDatabase, sessionSearch, config.RuntimeSessionIndex)
 	if err != nil {
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("core-repositories", errRuntimeUnavailable)
+	}
+	if retentionVisibility != nil && repository.RequireRetentionProfile(config.RetentionProfileChecksum) != nil {
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("retention-repositories", errRuntimeUnavailable)
+	}
+	if config.AgentExposureFilterProfileChecksum != "" && repository.RequireAgentExposureFilterProfile(config.AgentExposureFilterProfileChecksum) != nil {
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("agent-exposure-filter-profile", errRuntimeUnavailable)
+	}
+	if config.AgentOwnershipWriteProfileChecksum != "" && repository.RequireAgentOwnershipWriteProfile(config.AgentOwnershipWriteProfileChecksum) != nil {
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("agent-ownership-write-profile", errRuntimeUnavailable)
+	}
+	if config.AgentDeviceAssociationProfileChecksum != "" {
+		if repository.RequireAgentDeviceAssociationProfile(config.AgentDeviceAssociationProfileChecksum) != nil {
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("agent-device-association-configuration", errRuntimeUnavailable)
+		}
+	}
+	if config.GatewayBootstrapProfileChecksum != "" {
+		if repository.RequireGatewayBootstrapProfile(config.GatewayBootstrapProfileChecksum) != nil {
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("gateway-bootstrap-configuration", errRuntimeUnavailable)
+		}
+	}
+	if config.SensorNodeCoverageRetentionEnabled && repository.RequireSensorNodeCoverageProfile(config.SensorNodeCoverageProfileChecksum) != nil {
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("sensor-node-coverage-profile", errRuntimeUnavailable)
+	}
+	if config.AgentReadProfileChecksum != "" && repository.RequireAgentReadProfile(config.AgentReadProfileChecksum) != nil {
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("agent-read-profile", errRuntimeUnavailable)
+	}
+	if config.AgentOwnerFilterEnabled && repository.RequireAgentOwnerFilterProfile(config.AgentOwnerFilterProfileChecksum) != nil {
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("agent-owner-filter-profile", errRuntimeUnavailable)
+	}
+	if config.EnvironmentClassEnabled && repository.RequireEnvironmentClassProfile(config.EnvironmentClassProfileChecksum) != nil {
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("environment-class-repositories", errRuntimeUnavailable)
 	}
 	connectorRepository, err := apiserver.NewConnectorRepository(tracedDatabase)
 	if err != nil {
@@ -450,9 +658,21 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 	}
 	workerOwner, err := newConnectorWorkerOwner(os.Getenv("HOSTNAME"), rand.Reader)
 	if err != nil {
+		observeRuntimeConstructorFailure(ctx, readinessMaintenanceOwner)
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("connector-lifecycle", errRuntimeUnavailable)
 	}
-	connectorReconciler, err := apiserver.NewConnectorReconciler(apiserver.ConnectorReconcilerConfig{Repository: connectorRepository, Workflows: repository, Registry: connectorRegistry, Secrets: secretStore, Owner: workerOwner, LeaseSeconds: 30, Limit: 25, Interval: time.Second})
+	connectorConfig := apiserver.ConnectorReconcilerConfig{Repository: connectorRepository, Workflows: repository, Registry: connectorRegistry, Secrets: secretStore, Owner: workerOwner, LeaseSeconds: 30, Limit: 25, Interval: time.Second}
+	connectorReconciler, connectorNativeReady, connectorCloser, err := selectConnectorLifecycle(config,
+		func() (*apiserver.ConnectorReconciler, func(context.Context) error, io.Closer, error) {
+			return newRuntimeConnectorMaintenance(ctx, config, authorizer, connectorConfig)
+		},
+		func() (*apiserver.ConnectorReconciler, func(context.Context) error, io.Closer, error) {
+			r, e := apiserver.NewConnectorReconciler(connectorConfig)
+			return r, func(context.Context) error { return nil }, nil, e
+		})
+	if connectorCloser != nil {
+		connectorResources = append(connectorResources, connectorCloser)
+	}
 	if err != nil {
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("connector-lifecycle", errRuntimeUnavailable)
 	}
@@ -515,6 +735,17 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 	}
 	var composition http.Handler
 	handlers.Authorizer = authorizer
+	optionalEgress, optionalCloser, optionalErr := newRuntimeOptionalEgress(ctx, config, securityAgentDatabase, authorizer, secretsDriver)
+	if optionalErr != nil {
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("optional-egress", errRuntimeUnavailable)
+	}
+	if optionalCloser != nil {
+		connectorResources = append(connectorResources, optionalCloser)
+	}
+	handlers, err = apiserver.WithOptionalEgressSurfaces(handlers, optionalEgress)
+	if err != nil {
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("optional-egress", errRuntimeUnavailable)
+	}
 	if agentExports != nil {
 		composition, err = apiserver.NewCompositionWithSecurityAgentExports(handlers, auditExports, compliance, agentExports)
 	} else if compliance != nil {
@@ -569,7 +800,67 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 	keepConnectorResources = true
 	return RuntimeDependencies{ProductHandler: edge, Metrics: metrics, LifecycleWorker: func(ctx context.Context) error { return runLifecycleWorkers(ctx, lifecycleWorkers...) }, ReadinessCheck: func(ctx context.Context) error {
 		if currentRequired(database) && currentRequired(securityAgentDatabase) {
-			checks := []func(context.Context) error{repository.Ready, connectorRepository.Ready, referenceRepository.Ready, policyHandler.Ready, tracedProvider.Ready}
+			checks := []func(context.Context) error{connectorNativeReady, repository.Ready, connectorRepository.Ready, referenceRepository.Ready, policyHandler.Ready, tracedProvider.Ready}
+			if config.AgentExposureFilterProfileChecksum != "" {
+				checks = append(checks, func(probe context.Context) error {
+					ready, err := profileDatabase.AgentExposureFilterProfileReady(probe, config.AgentExposureFilterProfileChecksum)
+					if err != nil || !ready {
+						return errRuntimeUnavailable
+					}
+					return nil
+				})
+			}
+			if config.AgentOwnershipWriteProfileChecksum != "" {
+				checks = append(checks, func(probe context.Context) error {
+					ready, err := profileDatabase.AgentOwnershipWriteProfileReady(probe, config.AgentOwnershipWriteProfileChecksum)
+					if err != nil || !ready {
+						return errRuntimeUnavailable
+					}
+					return nil
+				})
+			}
+			if config.SensorNodeCoverageRetentionEnabled {
+				checks = append(checks, func(probe context.Context) error {
+					ready, err := profileDatabase.SensorNodeCoverageProfileReady(probe, config.SensorNodeCoverageProfileChecksum)
+					if err != nil || !ready {
+						return errRuntimeUnavailable
+					}
+					return nil
+				})
+			}
+			if config.AgentReadProfileChecksum != "" {
+				checks = append(checks, func(probe context.Context) error {
+					ready, err := profileDatabase.AgentReadProfileReady(probe, config.AgentReadProfileChecksum)
+					if err != nil || !ready {
+						return errRuntimeUnavailable
+					}
+					return nil
+				})
+			}
+			if config.AgentOwnerFilterEnabled {
+				checks = append(checks, func(probe context.Context) error {
+					ready, e := profileDatabase.AgentOwnerFilterProfileReady(probe, config.AgentOwnerFilterProfileChecksum)
+					if e != nil || !ready {
+						return errRuntimeUnavailable
+					}
+					return nil
+				})
+			}
+			if config.EnvironmentClassEnabled {
+				checks = append(checks, func(probe context.Context) error {
+					ready, err := profileDatabase.EnvironmentClassProfileReady(probe, config.EnvironmentClassProfileChecksum)
+					if err != nil || !ready {
+						return errRuntimeUnavailable
+					}
+					return nil
+				})
+			}
+			if retentionVisibility != nil {
+				checks = append(checks, retentionVisibility.Ready)
+			}
+			if optionalEgress != nil {
+				checks = append(checks, optionalEgress.Repository.Ready)
+			}
 			if agentExports != nil {
 				checks = append(checks, agentExports.Ready)
 			}
@@ -593,6 +884,11 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 			return currentComponentReadiness(ctx, connectorReconciler.Ready, checks...)
 		}
 
+		if optionalEgress != nil {
+			if err := optionalEgress.Repository.Ready(ctx); err != nil {
+				return errRuntimeUnavailable
+			}
+		}
 		if agentExports != nil {
 			if err := agentExports.Ready(ctx); err != nil {
 				return errRuntimeUnavailable
@@ -633,7 +929,7 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 		if err := tracedProvider.Ready(ctx); err != nil {
 			return errRuntimeUnavailable
 		}
-		if !connectorReconciler.Ready() {
+		if connectorNativeReady(ctx) != nil || !connectorReconciler.Ready() {
 			return errRuntimeUnavailable
 		}
 		return nil
@@ -685,6 +981,15 @@ func (database *tracedJSONDatabase) NativeIdentityDatabase() *apiserver.Postgres
 	if database == nil {
 		return nil
 	}
+	if bridge, ok := database.next.(interface {
+		NativeIdentityDatabase() *apiserver.PostgresJSONDatabase
+	}); ok {
+		native := bridge.NativeIdentityDatabase()
+		if native == nil || !native.CurrentAuthorizationRequired() {
+			return nil
+		}
+		return native
+	}
 	native, ok := database.next.(*apiserver.PostgresJSONDatabase)
 	if !ok || !native.CurrentAuthorizationRequired() {
 		return nil
@@ -699,13 +1004,13 @@ func (database *tracedJSONDatabase) CurrentAuthorizationRequired() bool {
 
 func (database *tracedJSONDatabase) ActivateCurrentTemporalTestDefinition(ctx context.Context, args ...any) (json.RawMessage, error) {
 	if database == nil || invalidRuntimeValue(database.next) {
-		return nil, apiserver.ErrRepositoryUnavailable
+		return nil, markRuntimeDependencyFailure("agent-owner-filter-profile", errRuntimeUnavailable)
 	}
 	current, ok := database.next.(interface {
 		ActivateCurrentTemporalTestDefinition(context.Context, ...any) (json.RawMessage, error)
 	})
 	if !ok {
-		return nil, apiserver.ErrRepositoryUnavailable
+		return nil, markRuntimeDependencyFailure("agent-owner-filter-profile", errRuntimeUnavailable)
 	}
 	return current.ActivateCurrentTemporalTestDefinition(ctx, args...)
 }

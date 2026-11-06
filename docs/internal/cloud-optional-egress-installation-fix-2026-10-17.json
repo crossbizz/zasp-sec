@@ -1,0 +1,89 @@
+{
+  "checkpoint": "optional-egress-installation-offline-cli-fix-2026-10-17",
+  "observedAt": "2026-10-17T01:02:15.240253+00:00",
+  "base": "9b565fa7b6b412d00d2f7ae7a7272f06968a5a7b",
+  "originMain": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
+  "status": "SOURCE AND COMPONENT VERIFIED; HOSTED NATIVE INSTALLATION AND DEPLOYED ACCEPTANCE PENDING",
+  "changes": [
+    "Group the existing CASE expression in the PLpgSQL registration guard; all permission predicates unchanged.",
+    "Dispatch the existing public offline checksum operation before configuration setup; all other commands retain their original guards.",
+    "Refresh exact source associations; 204 compiler entries and 180/169 runner entries; strict 68-event/13-group/23-PostgreSQL-join roster unchanged."
+  ],
+  "sources": [
+    {
+      "path": "services/platform/migrations/sql/optional_egress_profile.sql",
+      "sha256": "887f93fc0d986ee649cd9fb48d5016142a89e539c1df0f5b3c7aedd2d5865b31",
+      "bytes": 54837
+    },
+    {
+      "path": "services/platform/agentsec-migrate/main.go",
+      "sha256": "19c0b192ab81b04c6ff0487fb93c7b6fa566a39a1cd82dcf5f8c44bfd3807426",
+      "bytes": 72738
+    },
+    {
+      "path": ".github/connector-native-compile-source-pins.json",
+      "sha256": "bf0bf245fcd912655670325ca0ce085d3e4b881f699bb55c60a438b02bdd128d",
+      "bytes": 61960
+    },
+    {
+      "path": "scripts/hosted-connected-connector-acceptance.mjs",
+      "sha256": "528f36459555a46b4afb1e75c8d77a6044e5bdbaef2305b388b21da6f3244936",
+      "bytes": 58432
+    },
+    {
+      "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
+      "sha256": "705051059683e6be0543f8bb27f42668ea70df060e72666ee044ae2d1773a0ea",
+      "bytes": 55050
+    }
+  ],
+  "verification": {
+    "parserBefore": "18/19 PLpgSQL bodies; register_principal syntax fails",
+    "parserAfter": "19/19 PLpgSQL bodies, 10 SQL bodies, 1 DO and outer SQL parse",
+    "parserScope": "pglast7.7/libpg_query syntax only; not PostgreSQL execution",
+    "actualOfflineCLI": "RED exit1 before; GREEN exit0 after; only public normal/audit checksums emitted",
+    "groupedGo": {
+      "exit": 0,
+      "namedPass": 14,
+      "namedFail": 0,
+      "namedSkip": 1,
+      "skip": "Native PostgreSQL test requires the owned OpenFGA/native runtime; not counted as acceptance."
+    },
+    "nodeGuardTests": {
+      "exit": 0,
+      "pass": 11
+    },
+    "freshUITypecheckExit": 0,
+    "freshUIBuildExit": 0,
+    "independentReview": "SOURCE_CLEAR"
+  },
+  "retainedFailures": [
+    "Original 9b hosted native installation failure and downstream cases.",
+    "Initial isolated checkout setup failure; then absent local health module caused a package setup failure. Final corrected checkout grouped command passed.",
+    "Actual offline CLI configuration rejection before correction."
+  ],
+  "evidence": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/governed-egress/installation-offline-cli-fix.json.gz",
+    "sha256": "da5cd30111ee7c0571dc88cac32f163bb4be3f3dfa5dda542e94d7a20ec3cb77",
+    "bytes": 96831,
+    "members": 37,
+    "uncompressedSHA256": "a4926b807e50ab4133b44ff9758b239634e0eaafc51ebd4a54bc6b2c2aaff37e"
+  },
+  "ledger": {
+    "total": 728,
+    "productionAvailableHistorical": 523,
+    "componentOnly": 144,
+    "blockedExternal": 61,
+    "promotions": 0
+  },
+  "taskCrosswalk": [
+    "M7-26a",
+    "M7-26b",
+    "M7-26c",
+    "M7-26"
+  ],
+  "limits": [
+    "No native installation/permission acceptance or real Stytch/provider/deployed proof inferred.",
+    "Previous immutable evidence remains unchanged.",
+    "Unpublished retention implementation is excluded."
+  ]
+}

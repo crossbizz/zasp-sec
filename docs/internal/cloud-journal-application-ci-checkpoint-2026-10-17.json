@@ -1,0 +1,187 @@
+{
+  "observed_at": "2026-10-17T06:53:29.428224+00:00",
+  "continued_published_base": "85b3c1c1c13f9b3dd27ddba4044240698d1178da",
+  "fresh_main_sha": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
+  "scope": "Require actual atomic connector and retained writer journal application contracts in existing hosted draft compilation lane, with fixed six-package/ten-top/86-named roster and unchanged source/activation/native/release guards.",
+  "sources": [
+    {
+      "path": ".github/workflows/connector-native-draft-compile.yml",
+      "sha256": "b9eccc6d9ae382b0d9acc206463804920586a753784a04fc1228bf5bb6dfbc54",
+      "bytes": 17574
+    },
+    {
+      "path": "docs/internal/implementation_production_availability_v1.5.tsv",
+      "sha256": "d3cd350c15bee065508df0d5f495a31cc1a57f635f07c37c47cb80403c171e10",
+      "bytes": 185986
+    },
+    {
+      "path": "docs/internal/implementation_status_v1.5.md",
+      "sha256": "b0f1926ac79bd3fb573bfdbdc1453cf59770ec398b63f011b88d289c12353f90",
+      "bytes": 1320566
+    }
+  ],
+  "new_hosted_group": {
+    "packages": 6,
+    "tops": 10,
+    "children": 76,
+    "named_cases": 86,
+    "local_actual_names_corresponding_to_existing_SDK_migration_evidence": 32,
+    "not_locally_executed_names": 54,
+    "new_hosted_execution": "pending",
+    "refusals": [
+      "missing or duplicate run/pass",
+      "skip or fail action",
+      "foreign package/test",
+      "nonzero Go exit",
+      "missing or duplicate package pass",
+      "changed consumed source pins"
+    ]
+  },
+  "existing_hosted_evidence": {
+    "qualification": "Allowed official run/job/step metadata only; no logs/artifacts/annotations fetched and no new86application pass inferred",
+    "run_id": 39010213545,
+    "head_sha": "373653ed75247a0828df9477f43d76e3468ccb6b",
+    "conclusion": "success",
+    "steps": [
+      {
+        "name": "Set up job",
+        "conclusion": "success"
+      },
+      {
+        "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "conclusion": "success"
+      },
+      {
+        "name": "Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+        "conclusion": "success"
+      },
+      {
+        "name": "Check frozen source association and absence of activation configuration",
+        "conclusion": "success"
+      },
+      {
+        "name": "Compile nineteen affected packages without executing test binaries",
+        "conclusion": "success"
+      },
+      {
+        "name": "Compiled source pin retains fresh connector authorization",
+        "conclusion": "success"
+      },
+      {
+        "name": "Existing connector handler and reconciler application regressions",
+        "conclusion": "success"
+      },
+      {
+        "name": "Current authorization health probe integration group",
+        "conclusion": "success"
+      },
+      {
+        "name": "Controlled cutover model and writer application group",
+        "conclusion": "success"
+      },
+      {
+        "name": "Guarded inactive maintenance profile commands",
+        "conclusion": "success"
+      },
+      {
+        "name": "Connected maintenance installer and operator application group",
+        "conclusion": "success"
+      },
+      {
+        "name": "Temporal worker activated configuration and signing boundaries",
+        "conclusion": "success"
+      },
+      {
+        "name": "Audited captured settlement and runtime selection boundaries",
+        "conclusion": "success"
+      },
+      {
+        "name": "Existing whole approval source pin verification",
+        "conclusion": "success"
+      },
+      {
+        "name": "Post Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+        "conclusion": "success"
+      },
+      {
+        "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "conclusion": "success"
+      },
+      {
+        "name": "Complete job",
+        "conclusion": "success"
+      }
+    ],
+    "original_metadata_sha256": "1ebef353ea84adc11116262b6d7348e8d8f76b30327479b87071f4859b7ed3fb"
+  },
+  "validation": {
+    "exact_collector_body_fixture_controls_pass": 12,
+    "fixture_qualification": "Collector logic only, not application behavior or native/provider evidence; incomplete actual SDK capture is correctly refused.",
+    "existing_source_contracts_pass": 14,
+    "unchanged_source_pins_verified": 345,
+    "ledger_runner_checks_pass": 52,
+    "fresh_UI_typecheck_exit": 0,
+    "fresh_UI_build_exit": 0,
+    "lint_exit": 0,
+    "lint_scope_checks_pass": 11,
+    "unchanged_UI_inputs_verified": 380,
+    "native_or_production_E2E": false
+  },
+  "preserved": {
+    "original_steps": true,
+    "job_timeout_minutes": 25,
+    "new_step_timeout_minutes": 5,
+    "Go_per_package_timeout_minutes": 2,
+    "Python_parent_timeout_seconds": 180,
+    "native_groups": 14,
+    "native_named_cases": 79,
+    "postgres_joins": 24,
+    "approval_controls": 16,
+    "manifest_runner_bytes_unchanged": true,
+    "new_source_paths": 0
+  },
+  "resource_limits": "Python timeout kills and waits for Go parent, not an independently verified complete descendant process group. Output files are disk-backed and byte limits are checked after completion, not streaming hard caps. Per-test, step and job deadlines remain; no full process-tree join or streaming-limit proof is claimed.",
+  "source_binding": "345 consumed application/helper pins are verified before and after tests. Workflow is bound to reviewed Git head, not self-pinned in that manifest. No manifest/runner byte changes were required.",
+  "independent_source_review": {
+    "path": "/tmp/journal-application-ci-source-independent-review-v1-20261017.json",
+    "sha256": "97e303edc462b75efee8cb15e3db685538567421c9a8d21d0321df3ee9188963",
+    "decision": "Source CLEAR with explicit parent-only timeout and post-exit output-limit qualifications."
+  },
+  "ledger": {
+    "rows": 728,
+    "unique_ids": 728,
+    "classes": {
+      "production-available": 523,
+      "component-only": 144,
+      "blocked/external": 61
+    },
+    "promotions": 0,
+    "evidence_only_ids": [
+      "M3-24",
+      "M7-19"
+    ],
+    "owners_unchanged": true
+  },
+  "task_crosswalk": [
+    {
+      "id": "M3-24",
+      "qualification": "Hosted atomic-observation application verification gate; actual native deadline/provider acceptance remains required."
+    },
+    {
+      "id": "M7-19",
+      "qualification": "Hosted writer-journal application verification gate; actual SQL/provider/historical/deployed custody remains required."
+    }
+  ],
+  "evidence_archive": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/journal-application-ci/component-evidence.json.gz",
+    "sha256": "e60da8a1b8f1a942277a6d95ebd367e6f0c17f2ae43fc8aab915065eb5ee840d",
+    "bytes": 33161,
+    "members": 19
+  },
+  "open_gates": [
+    "New86-case hosted application result, all original native/browser and real provider acceptance.",
+    "Public advisory query acquisition failure and complete dependency/image security/release clearance.",
+    "Bound production Stytch/tenant/provider/Temporal/OpenFGA/fleet journeys and all original728 requirement verification."
+  ],
+  "publication": "Normal reviewed branch push only. No merge/release/native acceptance or production task promotion."
+}

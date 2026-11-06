@@ -1,0 +1,131 @@
+{
+  "scope": "Controlled connector cutover readback compatibility and explicit inactive maintenance installation; component verification only",
+  "observedAt": "2026-10-15T00:07:03.909901+00:00",
+  "startingSHA": "b06616819f979c4a71db9a1b0a0254b3302da297",
+  "fetchedMain": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
+  "requiredAncestor": "e13ccb95451b03107681ccb59b3fc6fe175a228f",
+  "requiredAncestorPresent": true,
+  "handoffPreserved": true,
+  "ledger": {
+    "rows": 728,
+    "recordedProductionAvailable": 523,
+    "componentOnly": 144,
+    "blockedExternal": 61,
+    "missing": 0,
+    "promotions": 0,
+    "freshDeployedAcceptance": false
+  },
+  "requirementContribution": [
+    "M3-24: controlled connector OAuth cutover and original callback/recovery acceptance prerequisite",
+    "M1-28: secure native worker installation prerequisite for composed API readiness"
+  ],
+  "implementation": {
+    "cutoverReadback": "Reuse the existing owned-runtime exact312 descriptor-reviewed path/value defaults only when absent from pinned complete product source. Validate entire normalized model then pass that canonical response to SDK; retain typed equality, identity, order, conditions, unknown-field/duplicate/size/depth guards and real credential-withdrawal checks.",
+    "installation": "Explicit version61 registered-operator CLI commands delegate unchanged guarded approval and connector installers and verify catalogs. No activation, principal/key issuance, runtime-chain mutation or readiness bypass.",
+    "sharedModelSHA256": "329f49e1f2effecbe1a0e9caf6c89be939b1e36e034155d74977bfc82c73cc2c",
+    "reviewedDefaults": 312
+  },
+  "sources": {
+    "services/platform/connectormaintenancecutover/fga.go": "d3b9b4bea7f707e802c11e62c3e331477a3ff23a5f8d2049125155fd9e2bcb46",
+    "services/platform/connectormaintenancecutover/raw_model.go": "4a5732177b025ec3e7306dd1186c2c358d59a3b7df235e53e12f34384ecc6d3e",
+    "services/platform/connectormaintenancecutover/readback_defaults.json": "d4c42d89fa77b89513e732b6d5bdd206c808111096307d38784cc6f1ba639835",
+    "services/platform/connectormaintenancecutover/readback_test.go": "e4970d8ef25f042e9948abb5cbb0557c32988a50bd80b3bcddd6c8f74a8da23a",
+    "services/platform/agentsec-migrate/main.go": "9c9fa6e67255abe494515fc16d0f9bed934278dfcf5fbccf4720161550de0776",
+    "services/platform/agentsec-migrate/maintenance_profile_commands_test.go": "93f17c2f7ee39082666201505d04b363c36ccf615a0b2f56aa2385348ad73512"
+  },
+  "localChecks": {
+    "modelRED": {
+      "path": "/tmp/zasp-cutover-readback-red-corrected-20261015.jsonl",
+      "sha256": "eedd74fd48384e3f107a704cc7bbf8881aed3bcd0b3925c18888906766a23440",
+      "topLevelGroups": 2,
+      "namedEvents": {
+        "run": 10,
+        "pass": 7,
+        "fail": 3,
+        "skip": 0
+      },
+      "packagePass": 0
+    },
+    "modelFinal": {
+      "path": "/tmp/zasp-cutover-readback-final-20261015.jsonl",
+      "sha256": "b5e398f7506cb7026389c50e2e621d9989453d8b0b9789540af921bc9b2ecc3b",
+      "topLevelGroups": 4,
+      "namedEvents": {
+        "run": 19,
+        "pass": 19,
+        "fail": 0,
+        "skip": 0
+      },
+      "packagePass": 1
+    },
+    "modelRace": {
+      "path": "/tmp/zasp-cutover-readback-race-20261015.jsonl",
+      "sha256": "00b09fbfefc6fc7e7e350b44f918b622967dc709d615309f55565ff35ce0a30e",
+      "topLevelGroups": 4,
+      "namedEvents": {
+        "run": 19,
+        "pass": 19,
+        "fail": 0,
+        "skip": 0
+      },
+      "packagePass": 1
+    },
+    "installerRED": {
+      "path": "/tmp/maintenance-profile-cli-red-20261014.jsonl",
+      "sha256": "b0916dccca49841db02957ef94ab053debbcf2c10d3dc0a7f200395dea676331",
+      "topLevelGroups": 2,
+      "namedEvents": {
+        "run": 6,
+        "pass": 0,
+        "fail": 6,
+        "skip": 0
+      },
+      "packagePass": 0
+    },
+    "installerFinal": {
+      "path": "/tmp/maintenance-profile-cli-green-20261014.jsonl",
+      "sha256": "b5e4bfccbb24b9c2ae925c7a0faea1bd374f72b769a6c061cc62617a98bc8d13",
+      "topLevelGroups": 5,
+      "namedEvents": {
+        "run": 9,
+        "pass": 9,
+        "fail": 0,
+        "skip": 0
+      },
+      "packagePass": 1
+    },
+    "typecheck": {
+      "passed": true,
+      "sha256": "f48bd1876f5408ffc0d939a2b0d826961d6115e6598a272fea04d98ac0431816"
+    },
+    "build": {
+      "passed": true,
+      "sha256": "a2896f1cca930b74d9c24fcf4151058aea36a6da682045f653f62088d5406915"
+    }
+  },
+  "reviews": {
+    "/tmp/cutover-readback-independent-review-20261015.json": "c9abbdc5bb1726411197d521496e1c418288919881bde8a8f6e0fc567dbcb70c",
+    "/tmp/maintenance-profile-cli-independent-review-20261015.json": "ead41676418ed8e673445e224d7ca84065636a14102e08ab12839d1271c33aa9"
+  },
+  "precedingHostedObservation": {
+    "head": "b06616819f979c4a71db9a1b0a0254b3302da297",
+    "metadataSHA256": "18d0d47cb55b79f0fcea3d8f8a927eca103c1cde282614c91a2d6e2446517111",
+    "readOnlyOfficialMetadata": true,
+    "authenticatedOAuth": "push and PR all3 named cases passed",
+    "capture": "push and PR native capture passed",
+    "compile": "45 application groups passed",
+    "lifecycleRecovery": "model-read refusal; separate push lifecycle authenticated admission SQLSTATE42501 also observed and unresolved",
+    "browser": "failed; push sampled allocation-missing may be primary state churn or cleanup masking earlier failure. Exact filesystem cause unproven.",
+    "scope": "These results precede this fix and do not verify it."
+  },
+  "limitations": [
+    "Initial attempted RED used repository root without Go module; corrected module-scoped behavioral RED above is the valid evidence.",
+    "Native local guard refuses hidden cgroup ancestry; it remains unchanged. Hosted current-source PostgreSQL/OpenFGA integration remains pending.",
+    "Installer operator ACL, native install/replay and prerequisite ordering require real native verification; no general NOINHERIT operator compatibility is claimed.",
+    "Browser still lacks connected dual-worker activation and persistent OpenFGA withdrawal; no ready flag or permission check is bypassed.",
+    "Production target/identity and role-specific runtime bindings remain missing; no fresh deployed Stytch/provider end-to-end acceptance.",
+    "Original approval SQL/installers, original provenance SQL/fixture, historical evidence and production/release/security guards remain unchanged."
+  ],
+  "productionAccepted": false,
+  "deployed": false
+}

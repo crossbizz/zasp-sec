@@ -25,7 +25,7 @@ type workerPlanningTransactionSource interface {
 // These independently authenticated fixture proofs exercise the installed SQL
 // consumer, not only the Go operation classifier. Every attempt rolls back.
 func assertWorkerPlanningProofBindings(t *testing.T, ctx context.Context, f findingResponseFixture, forward *authorization.WorkerExecutor, compensationPool *pgxpool.Pool, key, compensationKey *authorization.WorkerKey, request, otherRequest json.RawMessage) {
-	t.Helper()
+	// Preserve the post-control invariant's own source location on failure.
 	var identity map[string]any
 	if err := json.Unmarshal(request, &identity); err != nil {
 		t.Fatal(err)

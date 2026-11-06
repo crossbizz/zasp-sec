@@ -1,0 +1,42 @@
+{
+  "classification": "FRESH_UI_BASELINE_FAILURES_PRESERVED_COMMAND_CONTRACT_CORRECTED",
+  "source_parent": "234a1fb06767e54bcb145e02b97998fc77ad4d59",
+  "actual_full_ui_baseline": {
+    "exit_code": 1,
+    "files": 260,
+    "files_passed": 258,
+    "files_failed": 2,
+    "checks": 2705,
+    "passed": 2703,
+    "failed": 2,
+    "duration_seconds": 123.12,
+    "failures": [
+      "Dependency wiring assertion expected obsolete direct Node command after reviewed process launcher change.",
+      "Nango release render returned release rejected; Helm not available in PATH; original render guard retained."
+    ]
+  },
+  "correction": "Update existing same-head command contract to exact validator-first reviewed Python launcher and fixed original two Node test files/closed CLI. All original verify/workflow assertions retained. No product source or nine Node guards changed; no new test heads.",
+  "affected_verification": {
+    "actual_vitest": "3 PASS in existing dependency-lock contract suite",
+    "review": "Root source review confirms no production or permission changes and original verify/workflow assertions retained",
+    "full_suite_after_correction": "NOT RERUN; prior2703PASS and affected3PASS are separate observations, no inferred full PASS",
+    "helm_render": "FAIL retained; no alternate Helm download or fixture substitution"
+  },
+  "evidence": {
+    "path": "docs/internal/cloud-ui-baseline-contract-evidence-2026-10-17.tar.gz",
+    "sha256": "01b617f9385bf1ba7d9eda905354c9f1df0515c541bc6e7def4d89b56277f071",
+    "bytes": 4986,
+    "members": 6,
+    "status": "ALL_MEMBER_BYTES_VERIFIED; SHA256+bytes manifest included"
+  },
+  "ledger": {
+    "total": 728,
+    "production_available_recorded": 509,
+    "component_only": 158,
+    "blocked_external": 61,
+    "promotions": 0
+  },
+  "launch_ready": false,
+  "merge_release_cleared": false,
+  "task_closed": false
+}

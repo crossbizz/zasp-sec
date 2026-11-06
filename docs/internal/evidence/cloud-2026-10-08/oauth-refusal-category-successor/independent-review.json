@@ -1,0 +1,21 @@
+{
+  "scope": "Independent read-only exact-message diagnostic delta review over8d0f7f1fd3f66f7cc4e1c012c37105de8167c455; no tests/runtime/source/Git edits",
+  "findings": [],
+  "verified": [
+    "Producer only compares PgError.Message to exactfixedknownSQLmessages and selects a fixedreasonlabel orunknown. No rawMessage/error/SQL/args/Detail/Hint/InternalQuery/Where/secrets emitted.",
+    "Additionalfirstcase diagnostic executes onlyon originalQueryRowScanerror; error propagation and firstcasefailure unchanged. Closed5phase/9statement/valid5characterSQLSTATE/targetallowlist/position<=2000000 semantics retained.",
+    "Runnerregex preciselycontains allproducerreasonlabels (unknown,attestation,fence,scope,oauth-catalog,oauth-source,cleanup-source,oauth-expired,task-purpose,task-source,task-witness); adds onlyfixedfirstattemptphase, retains max16records and originalnumericbound.",
+    "Exact23505expectation, rollback/no-write assertions, bothcase selectors, authorization/scoperequirements, originalprooflifetimes/deadlines/floors/outputcaps/cleanup/toolpins unchanged. No newcase/skip/fallback/classifier.",
+    "All32manifestmemberbytes/hash, compile32pins/checkpoint, runner32candidatepins match2a6d535f070a7f1ce07a4252570ec1b9d713e59caf784c438a2199c000e2207d.",
+    "Actual42501outcomes do not yet identifycause; newreasonmetadata will narrow the originalnative refusal without changingproductionsemantics."
+  ],
+  "checkpointSHA256": "2a6d535f070a7f1ce07a4252570ec1b9d713e59caf784c438a2199c000e2207d",
+  "checkpointPath": "/tmp/connector-native-hosted-compile-draft/docs/internal/evidence/cloud-2026-10-08/oauth-refusal-category-successor/SOURCE-MANIFEST.json",
+  "pinMismatches": [],
+  "declinedToJudge": [
+    "Exactactual42501cause before newreasonmetadata",
+    "Rawartifacts/logs",
+    "Nativegroup, activecallback/cleanup/worker/Reconcile/cutover ordeploymentacceptance"
+  ],
+  "verdict": "Safe normalpush for boundedactualhostedverification; no source findings oracceptanceinference."
+}

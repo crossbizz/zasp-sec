@@ -1,5 +1,6 @@
 profile: customer_edge
 runtimeGateway:
+  installationACKEnabled: false
   enabled: true
   controlPlaneURL: ""
   organizationID: ""
@@ -16,11 +17,20 @@ runtimeGateway:
     maximumBytes: 67108864
     storageClassName: ""
 sensorAgent:
+  nodeCoverageRetentionEnabled: false
+  sensorID: ""
   enabled: true
   sourceProfile: tetragon-local-stream-v2
   enrollmentBinding: ""
   tokenSecretName: ""
   stateHostPath: /var/lib/zasp-sensor-lineage
+  coverage:
+    clusterUID: ""
+    matchLabels: {}
+    tetragonNamespace: ""
+    tetragonName: ""
+    tetragonRelease: ""
+    tetragonServiceAccount: ""
 network:
   controlPlaneCIDRs: []
   kubernetesAPICIDRs: []

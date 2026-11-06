@@ -1,0 +1,82 @@
+{
+  "status": "CLEAR_FOR_GROUPED_IMPLEMENTATION_ONLY",
+  "reviewer": "/root/gateway_review",
+  "created_at": "2026-10-17T18:54:14.753499+00:00",
+  "base_declared_by_contract": "e735ca7d812a94b7c01700c35ea082276ac42aed",
+  "scope": "Independent merged design and existing connected production source review; no new product implementation accepted by this receipt.",
+  "sources": [
+    {
+      "path": "docs/internal/gateway-installation-ack-design-draft-2026-10-17/contract.json",
+      "sha256": "a36d2cfe4985b7fe0d0a4cb2ab7cb5bf1aaf3523bf40f366833d244da0594eef",
+      "bytes": 10079
+    },
+    {
+      "path": "services/platform/gatewaycontrol/contract.go",
+      "sha256": "7811c187c21a1290ace9dd99cadf55afe708e72db51e36e9ee0b04e3dc70e67a",
+      "bytes": 7008
+    },
+    {
+      "path": "services/platform/gatewaycontrol/http.go",
+      "sha256": "94f45cd6b6765c37d6b3c4fee59888269a7ea9abb0f2860896e90c481de4946a",
+      "bytes": 12559
+    },
+    {
+      "path": "services/platform/gatewaycontrol/postgres.go",
+      "sha256": "72d569fc199d85e196d990885e6e7b86e2423fe5a580df4b6ca60635b81e279f",
+      "bytes": 11605
+    },
+    {
+      "path": "services/platform/policy/gateway_cache.go",
+      "sha256": "78d330883ef8e811b4a3d3b2f76dc18bb660934e304d5daa45cf3470f1f1fe21",
+      "bytes": 24993
+    },
+    {
+      "path": "services/runtime-gateway/runtime.go",
+      "sha256": "a0cd1562d784d57c92240a7cbf7bd791c41b9cc38d1d7b20fdc65cd32c16620b",
+      "bytes": 36190
+    },
+    {
+      "path": "services/runtime-gateway/production_runtime.go",
+      "sha256": "f6e7ea26f3abf58b818071361c99113bf50d245792f7f56624a7b9d3eecf5c91",
+      "bytes": 9638
+    },
+    {
+      "path": "services/gateway-control/production_runtime.go",
+      "sha256": "feebc63cb384d4c2170ab0589ac0bb2bc1db3c8c8946825df0744207efe77c09",
+      "bytes": 5074
+    },
+    {
+      "path": "services/platform/migrations/sql/0028_production_policy_deployment.up.sql",
+      "sha256": "93ff35bb1d977eba322d42183e088e1bccd6be83f68d5fca3f70e0d00deba981",
+      "bytes": 59594
+    },
+    {
+      "path": "services/platform/migrations/sql/0080_authorization_worker_gateway_writers.sql",
+      "sha256": "5ce0934637fddd422c5c01f3d8e7e44737ac106cd013fc97649955e710228901",
+      "bytes": 17859
+    }
+  ],
+  "holds": [],
+  "required_acceptance_groups": [
+    "Closed exact fourteen-key body and thirteen-key receipt; canonical bounded scalars/timestamps, duplicate/null/alias rejection; exact authenticated scope/credential generation; rank and recorded/coalesced semantics including original retained recorded time.",
+    "Common current-binary disk ownership acquired before ALL constructor cache I/O, both legacy and opted-in modes; stable inode and nonblocking contention, lifecycle release; trusted parent limitation and unsupported-platform refusal for ACK only.",
+    "Atomic v2 envelope/original witness/pending write, file and directory durability plus exact readback before eligible ACK; no in-memory/legacy/load-time backfill; immutable same-source witness across replay/restart/Current highwater rewrites; newer source supersedes uncertain pending without false noncommit claims.",
+    "Optional current-generation/expiry authority seam preserves original decision authority equality; old witness never relabeled on credential rotation; independent joined ACK worker cannot block policy refresh/revocation/decisions or clear newer pending from stale responses.",
+    "Actual signed HTTP/client and current shared pool fixed record/typed receipt/exact confirm/COMMIT ordering. Revoke/rotate/wallclock expiry after organization/device/table waits; unknown commit has no typed success. Own profile failures affect ACK route only, preserving original readiness/health/security operations.",
+    "Own namespace exact current normal/audit source/operator seals and registered gateway role, closed ACL/default-ACL refusal and minimal explicit grants; immutable original migrations and device replay/applied-generation semantics preserved.",
+    "Opt-in deployment/release flags confined to actual runtime-gateway producer and gateway-control server consumers; legacy defaults unchanged, no new principals/grants/coverage shortcuts. Grouped affected regression plus UI typecheck/build before publication."
+  ],
+  "source_findings": [
+    "Existing gatewayHTTPControl.Authority projects out generation/expiry; optional ACK authority capability is needed rather than broad legacy authority-equality changes.",
+    "Existing disk constructor and Current/Store rewrite mutable observedAt. New witness must survive each current writer and remain independent of antirollback highwater.",
+    "Existing gateway-control cachedControlRepository embeds only original Repository interface; selected new capability must be forwarded explicitly instead of silently disappearing behind the readiness wrapper.",
+    "Existing authorization80 gateway lock orders organization before device serialization, with registered role and wallclock credential check. New own record/confirm functions must share current actual writer order and recheck after later waits.",
+    "Pinned actual parent os.Root is existing path defense; neither parent owner-private mode nor hostile-parent isolation is asserted by the merged ownership design."
+  ],
+  "proof_limits": [
+    "Source/design review only; no Go/Node/test/network/native execution by reviewer.",
+    "No SQL parse, native PostgreSQL/OpenFGA application fixture or deployed Stytch/provider/browser acceptance evidence.",
+    "No product completion, ledger promotion, native admission or launch clearance.",
+    "Current authors must freeze implementation for independent source review after grouped actual root acceptance; this design receipt does not approve future code."
+  ]
+}

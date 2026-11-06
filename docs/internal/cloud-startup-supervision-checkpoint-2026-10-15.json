@@ -1,0 +1,94 @@
+{
+  "scope": "Owned runtime startup-failure supervision; component verification only",
+  "observedAt": "2026-10-15T00:12:04.393573+00:00",
+  "startingSHA": "ba34c9357c9426e2f6bf35aa72ad396205659205",
+  "fetchedMain": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
+  "originalRows": 728,
+  "availability": {
+    "recordedProductionAvailable": 523,
+    "componentOnly": 144,
+    "blockedExternal": 61,
+    "missing": 0,
+    "promotions": 0
+  },
+  "requirementContribution": "M1-28 composed service readiness acceptance prerequisite; no original requirement marked newly complete",
+  "problem": "On startup failure the inner owner removed its service state while the outer resource sampler could still be traversing it. A secondary ENOENT could conceal the original failure. Legitimate runtime file churn remains a separate unproven possible cause of the hosted allocation-missing result.",
+  "implementation": [
+    "Optional private composition callback validated before resource allocation; on failed startup, await outer sampler stop/join before inner state cleanup.",
+    "Both outer lifetimes synchronously stop rescheduling and join the active sampler; callback never calls outer close.",
+    "Failed sampler join marks cleanup incomplete, still joins child operations/services and held tools, and retains service state. Successful startup and normal shutdown remain unchanged.",
+    "Add bounded2minute hosted ownership/cleanup application group before browser migration compilation. Full Runnable UI workflow, resource floors/budget/entry caps, filesystem ownership/link/socket checks, process custody and release/security guards remain unchanged."
+  ],
+  "sources": {
+    "scripts/owned-runtime-services.mjs": "7906ed149074dd85fffb020923922d03afd05a1569815195427b87334cd20664",
+    "scripts/owned-runtime-lifetime.mjs": "af27349febcdef3cf62f4f20cb8cfd0d6943ac876c079bf3d3e9fcd4929dd944",
+    "scripts/owned-runtime-services.test.mjs": "b13faafd983c586ac695780089e166a80cc7eed508b0f0dde39b68e1d268a479",
+    "scripts/startup-observer-lifetime.test.mjs": "3f5c84cdf2afda976b99a3a42abe75a431e18ef236e246363ac27b5d1c7c1493",
+    ".github/workflows/connected-browser-acceptance.yml": "314a4af20340dffef4081e95b0c1c6a4790d3966267c2a19a0f1d61d5bdff729"
+  },
+  "checks": {
+    "serviceRED": {
+      "path": "/tmp/zasp-startup-observer-red-20261015.log",
+      "sha256": "76285e5dde4d3ed693121b690c6187f6165c63a1e42c460b14f2519a949d3833",
+      "tests": 4,
+      "pass": 1,
+      "fail": 3,
+      "skipped": 0,
+      "cancelled": 0
+    },
+    "lifetimeRED": {
+      "path": "/tmp/zasp-startup-lifetime-red-20261015.log",
+      "sha256": "3165378a99f21b60ab4b1c2e48f624a2a67b1128f02cba5277a6300122d20796",
+      "tests": 2,
+      "pass": 0,
+      "fail": 2,
+      "skipped": 0,
+      "cancelled": 0
+    },
+    "groupedGREEN": {
+      "path": "/tmp/zasp-startup-supervision-green-20261015.log",
+      "sha256": "826cedd16fb5271ce1a360d7190dc92313a6bc32fb3845dcc4f2e0055b7fbb7c",
+      "tests": 62,
+      "pass": 62,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0
+    },
+    "adjacentGREEN": {
+      "path": "/tmp/zasp-startup-supervision-adjacent-20261015.log",
+      "sha256": "f6cc718bf14aafa44559b9b6863960d06f466313d812f7d4ffd0e0ed839f50fc",
+      "tests": 24,
+      "pass": 24,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0
+    },
+    "uiTypecheck": {
+      "passed": true,
+      "sha256": "f48bd1876f5408ffc0d939a2b0d826961d6115e6598a272fea04d98ac0431816"
+    },
+    "uiBuild": {
+      "passed": true,
+      "sha256": "adbec149fd2e79e3fff3a8e2a72323e5fb6e721af8d753d7d0b1bdc03d6be675"
+    }
+  },
+  "independentReview": {
+    "path": "/tmp/zasp-startup-supervision-independent-review-20261015.json",
+    "sha256": "8733067d4e7824ac9699b760f76c2ce77ab8bfef7be7d8bea5fc9afa76d24910",
+    "findings": 0
+  },
+  "precedingHeadHosted": {
+    "head": "ba34c9357c9426e2f6bf35aa72ad396205659205",
+    "metadataSHA256": "f4af682382fbf15464dc7ef3e5f1fe23b1f0693e284290ac4327f8c1cf01d055",
+    "state": "all requested runs still in progress at this snapshot; no current native or browser success claimed"
+  },
+  "limitations": [
+    "The concrete ordering defect is locally reproduced and repaired; exact hosted ENOENT origin remains unproven.",
+    "No descendant ENOENT is ignored or retried. Actual state churn and all resource violations still refuse.",
+    "Current-head hosted browser acceptance remains pending.",
+    "Secure dual-worker activation and persistent official OpenFGA credential cutover still require implementation in the browser composition.",
+    "Real deployed Stytch/provider flows, deployment target/identity and role-specific prerequisites remain open."
+  ],
+  "productionAccepted": false,
+  "deployed": false
+}

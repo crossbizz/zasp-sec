@@ -1,0 +1,49 @@
+{
+  "scope": "Independent read-only review of corrected approval installer successor over4a61fa4f; no tests/runtime/compiler execution/Git writes",
+  "head": "4a61fa4f69d4814094eee494bc012421ba111927",
+  "findings": [],
+  "resolvedFindings": [
+    "Original missing explicit authority role transition repaired: public operator/version validation, restricted role shape/provisioning and exact absent namespace bootstrap occur as operator; then authority selection precedes private WorkerAudit/Temporal checks, unchanged definitions, registration and final catalog, all one transaction.",
+    "Initial bad compiler missing-anchor panic resolved by removing replacement entirely. Previous malformed-newline diagnosis explicitly withdrawn in README and correcting review retained."
+  ],
+  "immutableAssociation": {
+    "originalBodySHA256": "e894ab1c8045a23e4055ced58a89af8a795b26ebf8f4518c83caa89de53a269b",
+    "bodyEqualsCommittedPredecessor": true,
+    "originalNewlineByteSequence": [
+      69,
+      39,
+      92,
+      110,
+      39
+    ],
+    "successorChange": "Only explicit -- canonical61-authorization80-approval-maintenance-v3 comment prefix after strict original body SHA validation; no SQL newline or other body transformation.",
+    "uncookedV3Checksum": "b38fead9d05f602713f5ec299b0662571599c3ba2eda8851ac2f42885288bf91",
+    "checkpointSHA256": "847967da1a1cc7e62b1c8901e38ed96b3915fc6c93accb8cb02df48a16d83b30",
+    "checkpointMembers": 32,
+    "compileSourceMembers": 32,
+    "runnerCandidateSourceMembers": 32,
+    "allMeasuredSourceBytesAndHashesMatch": true
+  },
+  "verified": [
+    "Namespace helper permits exactly1fixed schemaDDL, comments/blank-only prelude and nonempty definitions. No arbitrary schema/function or operator-supplied source accepted.",
+    "Original embedded SQL remains byte-identical to committed predecessor. Compiler has no replacement anchor or escape edits. Complete source is hashed before checksum placeholder binding; existing whole-source pin test updated for this source association.",
+    "Present namespaces execute no definitions or registration rewrite, and any v2 checksum/catalog mismatch refuses. No existing v2 deployment migration/retirement equivalence claimed.",
+    "No broad privileges, canonical changes, readiness weakening, activation, new application cases or deadline extensions. Original25mjob preserved; selected existing whole-source check is anchored with race/p1/count1/2m test/5mstep.",
+    "Evidence includes initial proposal source/manifest and correcting review; README truthfully states originalnewline was correct and native successor outcomes pending."
+  ],
+  "freshHostedMetadata": {
+    "run": 37735214225,
+    "headSHA": "4a61fa4f69d4814094eee494bc012421ba111927",
+    "workflow": ".github/workflows/connector-native-draft-compile.yml",
+    "status": "completed",
+    "conclusion": "success",
+    "scope": "Predecessor cleanup compile/application workflow only, not current uncommitted approval successor acceptance."
+  },
+  "declinedToJudge": [
+    "Uninspected raw predecessor SQL error cause",
+    "Native OAuth/rollback successor application acceptance",
+    "Active callback/worker/cutover/Reconcile Stage Ack lifecycle",
+    "Real provider/full fleet/restart/deployed/production/release/ledger acceptance"
+  ],
+  "verdict": "Safe normal push for actual hosted OAuth and existing grouped application/source checks. No normal merge, native lifecycle or deployment acceptance asserted."
+}

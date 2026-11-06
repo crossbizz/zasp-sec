@@ -727,7 +727,88 @@ describe("production workflow concurrency contract", () => {
         if (operation?.operationId) operations.set(operation.operationId, { path, method, operation });
       }
     }
-    assert.equal(operations.size, 162);
+    // Preserve every original operation, then admit only the four explicit
+    // gateway bootstrap additions. Count equality alone could hide replacement.
+    const originalOperationIDs = `
+      startSession bootstrapSession completeSessionCallback signOutSession listSessionScopes
+      switchSessionScope getOrganization listWorkspaces createWorkspace getWorkspace updateWorkspace
+      listEnvironments createEnvironment getEnvironment updateEnvironment getCurrentPrincipal listMembers
+      updateMemberRole listGroupMappings updateGroupMappings listBuiltInRoles listSSOConnections
+      createSSOConnection deleteSSOConnection testSSOConnection listSCIMConnections createSCIMConnection
+      deleteSCIMConnection listAPITokens createAPIToken revokeAPIToken rotateAPIToken listAPITokenRevealGrants
+      revealAPIToken acknowledgeAPITokenRevealGrant listAuditEvents createAuditExport getAuditExport
+      listIntegrationCatalog listWorkflowMutationReceipts acknowledgeWorkflowMutationReceipt listSensors
+      createSensorEnrollment getSensor updateSensor deleteSensor rotateSensorToken getSensorCoverage
+      listIntegrations createIntegration completeIntegrationOAuthCallback getIntegration updateIntegration
+      deleteIntegration syncIntegration listIntegrationSyncs getIntegrationSync getIntegrationSchedule
+      putIntegrationSchedule deleteIntegrationSchedule getIntegrationFreshness getIntegrationSetupStatus
+      testIntegrationWebhook getIntegrationWebhookStatus authorizeIntegration authorizeIntegrationReference
+      remediateIntegrationAuthorization listAgents getAgent updateAgent getAgentCapabilities
+      getAgentRelationships listAgentSessions listTools getTool listIdentities getIdentity listRuntimes
+      getRuntime getAsset listFindings getFinding updateFinding acceptFindingRisk createFindingTicket
+      listAttackPaths getAttackPath getAttackPathBreakOptions globalSearch listPolicies createPolicy getPolicy
+      updatePolicy deletePolicy rolloutPolicy simulatePolicy listPolicyDecisions disablePolicy
+      listSecurityAgentTemplates listSecurityActions listSecurityAgents createSecurityAgent getSecurityAgent
+      updateSecurityAgent deleteSecurityAgent getSecurityAgentActivation activateSecurityAgent
+      getSecurityAgentExecutionControls setSecurityAgentExecutionControl simulateSecurityAgent
+      runSecurityAgent listSecurityAgentRuns getSecurityAgentRun getSecurityAgentAuditEvent
+      listSecurityAgentRunActivity listSecurityAgentActivityRuns getSecurityAgentExport
+      createSecurityAgentExportDownloadGrant downloadSecurityAgentExport cancelSecurityAgentRun
+      getSingleTestCleanupRecovery requestSingleTestCleanupRecovery listSecurityAgentApprovals
+      getSecurityAgentApproval decideSecurityAgentApproval getHomeSummary listSessions getSession
+      revokeSession listSessionEvents getSessionEvent listComplianceControls listComplianceEvidence
+      getComplianceEvidence createComplianceExport getComplianceExport createComplianceDownloadGrant
+      downloadComplianceExport getDataControls updateDataControls getExternalDataFlows updateExternalDataFlows
+      createAIExplanation getSystemStatus listSystemComponents getSystemVersion startRecoveryBackup
+      getRecoveryBackup startRecoveryRestore getRecoveryRestore listTests createTest getTest updateTest
+      runTest listTestRuns getTestRun cancelTestRun preflightAttackLabRun listAttackLabRuns createAttackLabRun
+      getAttackLabRun cancelAttackLabRun rerunAttackLabRun
+    `.trim().split(/\s+/);
+    const gatewayBootstrapOperations = {
+      "createGatewayDevice": {
+        "path": "/api/v1/gateways",
+        "method": "post"
+      },
+      "getGatewayDevice": {
+        "path": "/api/v1/gateways/{id}",
+        "method": "get"
+      },
+      "issueGatewayEnrollment": {
+        "path": "/api/v1/gateways/{id}/enrollments",
+        "method": "post"
+      },
+      "revokeGatewayEnrollment": {
+        "path": "/api/v1/gateways/{id}/enrollments/{enrollmentId}/revoke",
+        "method": "post"
+      }
+    };
+    const agentDeviceAssociationOperations = {
+      "createAgentDeviceIntent": {
+        "path": "/api/v1/agents/{id}/device-association-intents",
+        "method": "post"
+      },
+      "listAgentDeviceAssociations": {
+        "path": "/api/v1/agents/{id}/device-associations",
+        "method": "get"
+      },
+      "activateAgentDeviceAssociation": {
+        "path": "/api/v1/agents/{id}/device-associations/{associationId}/activate",
+        "method": "post"
+      },
+      "revokeAgentDeviceAssociation": {
+        "path": "/api/v1/agents/{id}/device-associations/{associationId}/revoke",
+        "method": "post"
+      }
+    };
+    assert.equal(originalOperationIDs.length, 164);
+    assert.equal(new Set(originalOperationIDs).size, 164);
+    assert.deepEqual([...operations.keys()].sort(), [...originalOperationIDs, ...Object.keys(gatewayBootstrapOperations), ...Object.keys(agentDeviceAssociationOperations)].sort());
+    for (const [id, expected] of Object.entries({...gatewayBootstrapOperations, ...agentDeviceAssociationOperations})) {
+      const actual = operations.get(id);
+      assert.equal(actual.path, expected.path, id);
+      assert.equal(actual.method, expected.method, id);
+    }
+
     for (const operationId of ["getSingleTestCleanupRecovery", "requestSingleTestCleanupRecovery"]) {
       assert.ok(operations.has(operationId), operationId);
     }
@@ -744,7 +825,46 @@ describe("production workflow concurrency contract", () => {
       assert.ok(operations.has(operationId), operationId);
     }
     for (const operationId of ["simulatePolicy", "listPolicyDecisions"]) assert.ok(operations.has(operationId), operationId);
-    assert.equal(operations.has("createAIExplanation"), false, "createAIExplanation");
+    for (const [id, path, method, input, output, parameters] of [
+      ["createAIExplanation", "/api/v1/ai/explanations", "post", "AIExplanationInput", "AIExplanation", ["CSRFToken", "IdempotencyKey"]],
+      ["updateExternalDataFlows", "/api/v1/settings/external-data-flows", "patch", "ExternalFlowUpdate", "ExternalFlowMutation", ["CSRFToken", "FreshAuth", "IdempotencyKey"]],
+    ]) {
+      const mounted = operations.get(id);
+      assert.ok(mounted, id);
+      assert.equal(mounted.path, path);
+      assert.equal(mounted.method, method);
+      assert.deepEqual(mounted.operation.security, [{ BrowserSession: [], BrowserExpectedScope: [] }]);
+      assert.deepEqual(mounted.operation.parameters, parameters.map(name => ({ $ref: `#/components/parameters/${name}` })));
+      assert.deepEqual(mounted.operation.requestBody, { required: true, content: { "application/json": { schema: { $ref: `#/components/schemas/${input}` } } } });
+      assert.deepEqual(Object.keys(mounted.operation.responses).sort(), ["200", "401", "default"]);
+      assert.deepEqual(mounted.operation.responses["200"].content, { "application/json": { schema: { $ref: `#/components/schemas/${output}` } } });
+    }
+    const intentKey = { type: "string", minLength: 16, maxLength: 128, pattern: "^[A-Za-z0-9][A-Za-z0-9_.:-]{15,127}$" };
+    const findingVersion = { type: "integer", minimum: 1, maximum: 1000000 };
+    assert.deepEqual(document.components.schemas.AIExplanationInput, {
+      type: "object", additionalProperties: false, required: ["finding_id", "finding_version", "idempotency_key"],
+      properties: { finding_id: { $ref: "#/components/schemas/ProductID" }, finding_version: findingVersion, idempotency_key: intentKey },
+    });
+    assert.deepEqual(document.components.schemas.ExternalFlowUpdate, {
+      type: "object", additionalProperties: false, required: ["flow_id", "enabled", "expected_version", "idempotency_key"],
+      properties: {
+        flow_id: { type: "string", enum: ["posthog", "openrouter", "remote-otlp"] }, enabled: { type: "boolean" },
+        expected_version: { type: "integer", minimum: 1, maximum: 100000000000000 }, idempotency_key: intentKey,
+      },
+    });
+    const explanation = document.components.schemas.AIExplanation;
+    assert.equal(explanation.additionalProperties, false);
+    assert.deepEqual(explanation.required, ["request_id", "state", "result_retained", "source", "sent_fields"]);
+    assert.deepEqual(explanation.properties.result_retained, { const: false });
+    assert.deepEqual(explanation.properties.source, {
+      type: "object", additionalProperties: false, required: ["finding_id", "finding_version"],
+      properties: { finding_id: { $ref: "#/components/schemas/ProductID" }, finding_version: findingVersion },
+    });
+    assert.deepEqual(explanation.properties.sent_fields, {
+      type: "array", minItems: 3, maxItems: 3, prefixItems: [{ const: "rule" }, { const: "severity" }, { const: "evidence_count" }], items: false,
+    });
+    assert.deepEqual(Object.keys(explanation.properties).sort(), ["explanation", "recommendation", "request_id", "result_retained", "sent_fields", "source", "state"]);
+    for (const field of ["explanation", "recommendation"]) assert.deepEqual(explanation.properties[field], { type: "string", minLength: 1, maxLength: 2048 });
 
     const simulatePolicy = operations.get("simulatePolicy").operation;
     assert.equal(operations.get("simulatePolicy").method, "post");
@@ -1108,10 +1228,30 @@ describe("production workflow concurrency contract", () => {
 
   it("publishes typed discovery inventory pages, details, evidence, and freshness", () => {
     for (const path of ["/api/v1/agents", "/api/v1/tools", "/api/v1/identities", "/api/v1/runtimes", "/api/v1/agents/{id}/capabilities", "/api/v1/agents/{id}/relationships", "/api/v1/agents/{id}/sessions"]) {
-      assert.deepEqual(document.paths[path].get.parameters, [
+      const parameters = document.paths[path].get.parameters;
+      const pagination = [
         { $ref: "#/components/parameters/PageCursor" },
         { $ref: "#/components/parameters/PageLimit" },
-      ]);
+      ];
+      if (path !== "/api/v1/agents") {
+        assert.deepEqual(parameters, pagination);
+        continue;
+      }
+      assert.deepEqual(parameters.slice(0, 2), pagination);
+      const selectors = parameters.slice(2);
+      assert.deepEqual(selectors.map(value => value.name), ["owner", "risk", "execution", "impact"]);
+      for (const selector of selectors) {
+        assert.equal(selector.in, "query");
+        assert.equal(selector.required, false);
+        assert.equal(selector.schema.type, "string");
+      }
+      assert.equal(selectors[0].allowEmptyValue, true);
+      assert.equal(selectors[0].schema.maxLength, 128);
+      assert.equal(selectors[0].schema.pattern, "^[^\\x00-\\x1F\\x7F]*$");
+      assert.deepEqual(selectors[1].schema.enum, ["critical", "high", "medium", "low", "unknown"]);
+      assert.match(selectors[1].description, /recorded visible unresolved/i);
+      assert.deepEqual(selectors[2].schema.enum, ["shell", "code", "shell_or_code", "unknown"]);
+      assert.deepEqual(selectors[3].schema.enum, ["high", "unknown"]);
     }
     for (const name of ["InventoryPage", "CapabilityPage", "RelationshipPage", "AgentSessionPage"]) {
       const page = document.components.schemas[name];

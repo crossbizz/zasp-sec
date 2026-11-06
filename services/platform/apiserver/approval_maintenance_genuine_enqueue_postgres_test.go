@@ -39,7 +39,7 @@ func TestApprovalMaintenanceGenuineFindingEnqueueInactive(t *testing.T) {
 }
 
 func assertApprovalOriginFindingPlanning(t *testing.T, ctx context.Context, f findingResponseFixture, original, revoked string, revokedRef json.RawMessage, complete string, completeRef json.RawMessage, cleanupOnly bool) {
-	t.Helper()
+	// Retain the actual failing native operation in bounded source diagnostics.
 	client, config := newApprovalMaintenanceOwnedFGA(t)
 	checker, err := authorization.NewOpenFGA(client, config)
 	if err != nil {
@@ -144,7 +144,7 @@ func assertApprovalOriginFindingPlanning(t *testing.T, ctx context.Context, f fi
 		t.Fatal(err)
 	}
 	reconcile := func() {
-		t.Helper()
+		t.Log("approval planning phase=projection")
 		r, err := authorization.Reconcile(ctx, projection, writer, f.o, config.StoreID, config.ModelID)
 		if err != nil || !r.Applied {
 			t.Fatal("planning machine projection", err)
@@ -183,7 +183,31 @@ func assertApprovalOriginFindingPlanning(t *testing.T, ctx context.Context, f fi
 		assertWorkerPlanningProofBindings(t, ctx, f, forward, cleanupPool, key, compensationKey, request(complete, "load", nil), request(revoked, "load", nil))
 	}
 	call := func(executor *authorization.WorkerExecutor, run, op string, payload any) map[string]any {
-		t.Helper()
+		// Operation names are fixture constants; never log requests or decisions.
+		switch op {
+		case "state":
+			t.Log("approval planning phase=state")
+		case "load":
+			t.Log("approval planning phase=load")
+		case "prepare":
+			t.Log("approval planning phase=prepare")
+		case "start":
+			t.Log("approval planning phase=start")
+		case "result":
+			t.Log("approval planning phase=result")
+		case "settle":
+			t.Log("approval planning phase=settle")
+		case "artifacts":
+			t.Log("approval planning phase=artifacts")
+		case "admit":
+			t.Log("approval planning phase=admit")
+		case "reconcile":
+			t.Log("approval planning phase=reconcile")
+		case "recovery":
+			t.Log("approval planning phase=recovery")
+		default:
+			t.Fatal("unknown native planning diagnostic phase")
+		}
 		d, err := executor.Authorize(ctx, authorization.WorkerOperation("finding.planning."+op), request(run, op, payload))
 		if err != nil {
 			t.Fatal("authorize planning", op, err)

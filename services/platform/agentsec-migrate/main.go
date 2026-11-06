@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/signal"
@@ -192,6 +193,130 @@ type releaseMigrationRunner interface {
 }
 
 func main() {
+	arguments := os.Args[1:]
+	if len(arguments) > 0 && arguments[0] == "retention-journal-profile-checksum" {
+		if len(arguments) != 1 || writeRetentionJournalChecksum(os.Stdout) != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+		return
+	}
+	if len(arguments) > 0 && arguments[0] == "retention-profile-checksum" {
+		if len(arguments) != 1 {
+			log.Fatal("release migration configuration rejected")
+		}
+		if err := writeRetentionChecksum(os.Stdout); err != nil {
+			log.Fatal("release migration output failed")
+		}
+		return
+	}
+	if len(arguments) > 0 && arguments[0] == "optional-egress-profile-checksums" {
+		if len(arguments) != 1 {
+			log.Fatal("release migration configuration rejected")
+		}
+		if err := writeOptionalEgressChecksums(os.Stdout); err != nil {
+			log.Fatal("release migration output failed")
+		}
+		return
+	}
+	if len(arguments) > 0 && arguments[0] == "agent-exposure-filter-profile-checksums" {
+		if len(arguments) != 1 || writeAgentExposureFilterChecksums(os.Stdout) != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+		return
+	}
+	if len(arguments) > 0 && agentExposureFilterProfileCommand(arguments[0]) {
+		if validateAgentExposureFilterCommand(arguments, os.Getenv) != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+	}
+	if len(arguments) > 0 && arguments[0] == "agent-device-association-profile-checksums" {
+		if len(arguments) != 1 || writeAgentDeviceAssociationChecksums(os.Stdout) != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+		return
+	}
+	if len(arguments) > 0 && agentDeviceAssociationProfileCommand(arguments[0]) {
+		if validateAgentDeviceAssociationCommand(arguments, os.Getenv) != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+	}
+	if len(arguments) > 0 && arguments[0] == "gateway-bootstrap-profile-checksums" {
+		if len(arguments) != 1 || writeGatewayBootstrapChecksums(os.Stdout) != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+		return
+	}
+	if len(arguments) > 0 && gatewayBootstrapProfileCommand(arguments[0]) {
+		if validateGatewayBootstrapCommand(arguments, os.Getenv) != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+	}
+	if len(arguments) > 0 && arguments[0] == "gateway-installation-profile-checksums" {
+		if len(arguments) != 1 || writeGatewayInstallationChecksums(os.Stdout) != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+		return
+	}
+	if len(arguments) > 0 && gatewayInstallationProfileCommand(arguments[0]) {
+		if validateGatewayInstallationCommand(arguments, os.Getenv) != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+	}
+	if len(arguments) > 0 && arguments[0] == "sensor-node-coverage-profile-checksums" {
+		if len(arguments) != 1 || writeSensorNodeCoverageChecksums(os.Stdout) != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+		return
+	}
+	if len(arguments) > 0 && sensorNodeCoverageProfileCommand(arguments[0]) {
+		if validateSensorNodeCoverageCommand(arguments, os.Getenv) != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+	}
+	if len(arguments) > 0 && arguments[0] == "agent-ownership-write-profile-checksums" {
+		if len(arguments) != 1 || writeAgentOwnershipWriteChecksums(os.Stdout) != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+		return
+	}
+	if len(arguments) > 0 && agentOwnershipWriteProfileCommand(arguments[0]) {
+		if validateAgentOwnershipWriteCommand(arguments, os.Getenv) != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+	}
+	if len(arguments) > 0 && arguments[0] == "agent-read-profile-checksums" {
+		if len(arguments) != 1 || writeAgentReadChecksums(os.Stdout) != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+		return
+	}
+	if len(arguments) > 0 && agentReadProfileCommand(arguments[0]) {
+		if validateAgentReadCommand(arguments, os.Getenv) != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+	}
+	if len(arguments) > 0 && arguments[0] == "agent-owner-filter-profile-checksums" {
+		if len(arguments) != 1 || writeAgentOwnerFilterChecksums(os.Stdout) != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+		return
+	}
+	if len(arguments) > 0 && agentOwnerFilterProfileCommand(arguments[0]) {
+		if validateAgentOwnerFilterCommand(arguments, os.Getenv) != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+	}
+	if len(arguments) > 0 && arguments[0] == "environment-class-profile-checksums" {
+		if len(arguments) != 1 || writeEnvironmentClassChecksums(os.Stdout) != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+		return
+	}
+	if len(arguments) > 0 && environmentClassProfileCommand(arguments[0]) {
+		if validateEnvironmentClassCommand(arguments, os.Getenv) != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+	}
 	signalCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 	timeout, err := loadMigrationTimeout(os.Getenv)
@@ -200,7 +325,35 @@ func main() {
 	}
 	ctx, cancel := context.WithTimeout(signalCtx, timeout)
 	defer cancel()
-	arguments := os.Args[1:]
+	var journalInput *retentionJournalInput
+	if len(arguments) > 0 && retentionJournalCommand(arguments[0]) {
+		journalInput, err = loadRetentionJournalCommand(arguments, os.Getenv)
+		if err != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+	}
+	var retentionDDLBootstrap *migrations.RetentionDDLBootstrapRequest
+	if len(arguments) > 0 && arguments[0] == retentionDDLBootstrapCommand {
+		request, loadErr := loadRetentionDDLBootstrap(arguments, os.Getenv)
+		if loadErr != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+		retentionDDLBootstrap = &request
+	}
+	var retentionRegistration *retentionOperatorInput
+	if len(arguments) > 0 && retentionOperatorCommand(arguments[0]) {
+		retentionRegistration, err = loadRetentionOperator(arguments, os.Getenv)
+		if err != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+	}
+	var optionalEgressRegistration *optionalEgressOperatorInput
+	if len(arguments) > 0 && optionalEgressOperatorCommand(arguments[0]) {
+		optionalEgressRegistration, err = loadOptionalEgressOperator(arguments, os.Getenv)
+		if err != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+	}
 	var verifierKey *authorization.AttestationKey
 	var verifierPrincipal string
 	var identityRegistration *identityVerifierRegistration
@@ -296,7 +449,7 @@ func main() {
 		}
 	}
 	if isForwardMigration(arguments) {
-		if authorizationProfileCommand(arguments[0]) {
+		if agentDeviceAssociationProfileCommand(arguments[0]) || gatewayBootstrapProfileCommand(arguments[0]) || gatewayInstallationProfileCommand(arguments[0]) || sensorNodeCoverageProfileCommand(arguments[0]) || authorizationProfileCommand(arguments[0]) || maintenanceProfileCommand(arguments[0]) || optionalEgressProfileCommand(arguments[0]) || retentionProfileCommand(arguments[0]) || environmentClassProfileCommand(arguments[0]) || agentOwnerFilterProfileCommand(arguments[0]) || agentReadProfileCommand(arguments[0]) || agentOwnershipWriteProfileCommand(arguments[0]) || agentExposureFilterProfileCommand(arguments[0]) {
 			registration.migration = os.Getenv(migrationPrincipalEnvironment)
 			if !databasePrincipalPattern.MatchString(registration.migration) {
 				err = errInvalidMigrationCommand
@@ -342,7 +495,34 @@ func main() {
 		}
 		return
 	}
-	if temporalRegistration != nil {
+	if journalInput != nil {
+		if journalInput.command == "up-retention-writer-journal" {
+			var identityReady bool
+			if connection.QueryRow(ctx, `SELECT session_user=$1 AND current_user=session_user`, journalInput.principal).Scan(&identityReady) != nil || !identityReady {
+				log.Fatal("release principal registration rejected")
+			}
+			err = runner.UpProductionRetentionJournalProfile(ctx)
+		}
+		if err == nil {
+			err = withRetentionOperatorTransaction(ctx, func(c context.Context) (retentionOperatorTransaction, error) {
+				return connection.BeginTx(c, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
+			}, func(c context.Context, q principalQueryer, _ io.Writer) error {
+				return runRetentionJournalOperator(c, q, journalInput)
+			}, nil)
+		}
+	} else if retentionDDLBootstrap != nil {
+		err = runRetentionDDLBootstrap(ctx, runner, *retentionDDLBootstrap, os.Stdout)
+	} else if retentionRegistration != nil {
+		defer clear(retentionRegistration.body)
+		err = withRetentionOperatorTransaction(ctx, func(c context.Context) (retentionOperatorTransaction, error) {
+			return connection.BeginTx(c, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
+		}, func(c context.Context, q principalQueryer, w io.Writer) error {
+			return runRetentionOperator(c, q, retentionRegistration, w)
+		}, os.Stdout)
+	} else if optionalEgressRegistration != nil {
+		defer clear(optionalEgressRegistration.body)
+		err = runOptionalEgressOperator(ctx, connection, optionalEgressRegistration)
+	} else if temporalRegistration != nil {
 		err = registerTemporalPrincipals(ctx, connection, temporalRegistration)
 	} else if workerRegistration != nil {
 		err = registerWorkerVerifier(ctx, connection, workerRegistration)
@@ -366,6 +546,9 @@ func main() {
 		err = runReleaseMigration(ctx, &registeredReleaseMigrationRunner{releaseMigrationRunner: runner, queryer: connection, registration: registration}, arguments)
 	}
 	if err != nil {
+		if errors.Is(err, migrations.ErrRetentionPublicDDLPrerequisite) {
+			log.Fatal("retention public DDL requires explicit schema-owner provisioning")
+		}
 		if marker := authorizationRuntimeProfileFailureMarker(err); marker != "" {
 			if _, writeErr := fmt.Fprint(os.Stderr, marker); writeErr != nil {
 				log.Fatal("release migration output failed")
@@ -375,7 +558,12 @@ func main() {
 		log.Fatal("release migration failed")
 	}
 	if isForwardMigration(arguments) {
-		if err := registerForwardRelease(ctx, connection, registration, arguments); err != nil {
+		confirmRelease := func() error {
+			return confirmForwardRelease(ctx, connection, func(c context.Context) (retentionOperatorTransaction, error) {
+				return connection.BeginTx(c, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
+			}, registration, arguments)
+		}
+		if err := confirmRelease(); err != nil {
 			log.Fatal("release principal registration or readiness failed")
 		}
 	}
@@ -397,6 +585,76 @@ func registerAuthorizationVerifier(ctx context.Context, queryer principalQueryer
 func registerForwardRelease(ctx context.Context, queryer principalQueryer, registration discoveryPrincipalRegistration, arguments []string) error {
 	if !isForwardMigration(arguments) {
 		return errInvalidMigrationCommand
+	}
+	if agentExposureFilterProfileCommand(arguments[0]) {
+		return agentExposureFilterPostInstall(ctx, queryer, registration.migration, arguments[0])
+	}
+	if agentDeviceAssociationProfileCommand(arguments[0]) {
+		return agentDeviceAssociationPostInstall(ctx, queryer, registration.migration, arguments[0])
+	}
+	if gatewayBootstrapProfileCommand(arguments[0]) {
+		return gatewayBootstrapPostInstall(ctx, queryer, registration.migration, arguments[0])
+	}
+	if gatewayInstallationProfileCommand(arguments[0]) {
+		return gatewayInstallationPostInstall(ctx, queryer, registration.migration, arguments[0])
+	}
+	if sensorNodeCoverageProfileCommand(arguments[0]) {
+		return sensorNodeCoveragePostInstall(ctx, queryer, registration.migration, arguments[0])
+	}
+	if agentOwnershipWriteProfileCommand(arguments[0]) {
+		return agentOwnershipWritePostInstall(ctx, queryer, registration.migration, arguments[0])
+	}
+	if agentReadProfileCommand(arguments[0]) {
+		return agentReadPostInstall(ctx, queryer, registration.migration, arguments[0])
+	}
+	if agentOwnerFilterProfileCommand(arguments[0]) {
+		return agentOwnerFilterPostInstall(ctx, queryer, registration.migration, arguments[0])
+	}
+	if environmentClassProfileCommand(arguments[0]) {
+		return environmentClassPostInstall(ctx, queryer, registration.migration, arguments[0])
+	}
+	if retentionProfileCommand(arguments[0]) {
+		return retentionPostInstall(ctx, queryer, registration.migration)
+	}
+	if optionalEgressProfileCommand(arguments[0]) {
+		return optionalEgressPostInstall(ctx, queryer, registration.migration, arguments[0])
+	}
+	if maintenanceProfileCommand(arguments[0]) {
+		if ctx == nil || ctx.Err() != nil || queryer == nil {
+			return errReleasePrincipalRegistration
+		}
+		statement := `SELECT session_user=$1 AND zasp_approval_maintenance.catalog_ready() AND EXISTS(SELECT 1 FROM zasp_approval_maintenance.registration WHERE singleton AND checksum=$2)`
+		pin := migrations.ApprovalMaintenanceProfileChecksum()
+		if arguments[0] == "up-connector-maintenance-profile" {
+			var err error
+			pin, err = migrations.ConnectorMaintenanceProfileChecksum()
+			if err != nil {
+				return errReleasePrincipalRegistration
+			}
+			statement = `SELECT session_user=$1 AND zasp_connector_maintenance.catalog_ready($2)`
+		}
+		if arguments[0] == "up-approval-activation-profile" {
+			var err error
+			pin, err = migrations.ApprovalActivationProfileChecksum()
+			if err != nil {
+				return errReleasePrincipalRegistration
+			}
+			statement = `SELECT session_user=$1 AND zasp_approval_activation_v1.catalog_ready($2)`
+		}
+		if arguments[0] == "up-approval-settlement-audit-profile" {
+			var err error
+			pin, err = migrations.ApprovalSettlementAuditProfileChecksum()
+			if err != nil {
+				return errReleasePrincipalRegistration
+			}
+			statement = `SELECT session_user=$1 AND zasp_approval_settlement_v1.catalog_ready($2)`
+		}
+
+		var ready bool
+		if err := queryer.QueryRow(ctx, statement, registration.migration, pin).Scan(&ready); err != nil || !ready {
+			return errReleasePrincipalRegistration
+		}
+		return nil
 	}
 	if arguments[0] == "up-authorization-identity-profile" || arguments[0] == "up-authorization-temporal-identity-profile" {
 		var ready bool
@@ -705,7 +963,91 @@ func (r *registeredReleaseMigrationRunner) UpProductionTemporalSingleRecovery(ct
 	return extension.UpProductionTemporalSingleRecovery(ctx)
 }
 
+func maintenanceProfileCommand(command string) bool {
+	return command == "up-approval-maintenance-profile" || command == "up-connector-maintenance-profile" || command == "up-approval-activation-profile" || command == "up-approval-settlement-audit-profile"
+}
+
+func (r *registeredReleaseMigrationRunner) UpProductionApprovalMaintenanceProfile(ctx context.Context) error {
+	if err := r.auditProfilePrincipal(ctx); err != nil {
+		return err
+	}
+	extension, ok := r.releaseMigrationRunner.(interface{ UpProductionApprovalMaintenanceProfile(context.Context) error })
+	if !ok {
+		return migrations.ErrInvalidState
+	}
+	return extension.UpProductionApprovalMaintenanceProfile(ctx)
+}
+
+func (r *registeredReleaseMigrationRunner) UpProductionConnectorMaintenance(ctx context.Context) error {
+	if err := r.auditProfilePrincipal(ctx); err != nil {
+		return err
+	}
+	extension, ok := r.releaseMigrationRunner.(interface{ UpProductionConnectorMaintenance(context.Context) error })
+	if !ok {
+		return migrations.ErrInvalidState
+	}
+	return extension.UpProductionConnectorMaintenance(ctx)
+}
+
+func (r *registeredReleaseMigrationRunner) UpProductionApprovalActivationProfile(ctx context.Context) error {
+	if err := r.auditProfilePrincipal(ctx); err != nil {
+		return err
+	}
+	extension, ok := r.releaseMigrationRunner.(interface{ UpProductionApprovalActivationProfile(context.Context) error })
+	if !ok {
+		return migrations.ErrInvalidState
+	}
+	return extension.UpProductionApprovalActivationProfile(ctx)
+}
+
+func (r *registeredReleaseMigrationRunner) UpProductionApprovalSettlementAuditProfile(ctx context.Context) error {
+	if err := r.auditProfilePrincipal(ctx); err != nil {
+		return err
+	}
+	extension, ok := r.releaseMigrationRunner.(interface{ UpProductionApprovalSettlementAuditProfile(context.Context) error })
+	if !ok {
+		return migrations.ErrInvalidState
+	}
+	return extension.UpProductionApprovalSettlementAuditProfile(ctx)
+}
+
 func isForwardMigration(arguments []string) bool {
+	if len(arguments) == 1 && agentDeviceAssociationProfileCommand(arguments[0]) {
+		return true
+	}
+	if len(arguments) == 1 && gatewayBootstrapProfileCommand(arguments[0]) {
+		return true
+	}
+	if len(arguments) == 1 && gatewayInstallationProfileCommand(arguments[0]) {
+		return true
+	}
+	if len(arguments) == 1 && sensorNodeCoverageProfileCommand(arguments[0]) {
+		return true
+	}
+	if len(arguments) == 1 && agentExposureFilterProfileCommand(arguments[0]) {
+		return true
+	}
+	if len(arguments) == 1 && agentOwnershipWriteProfileCommand(arguments[0]) {
+		return true
+	}
+	if len(arguments) == 1 && agentReadProfileCommand(arguments[0]) {
+		return true
+	}
+	if len(arguments) == 1 && agentOwnerFilterProfileCommand(arguments[0]) {
+		return true
+	}
+	if len(arguments) == 1 && environmentClassProfileCommand(arguments[0]) {
+		return true
+	}
+	if len(arguments) == 1 && retentionProfileCommand(arguments[0]) {
+		return true
+	}
+	if len(arguments) == 1 && optionalEgressProfileCommand(arguments[0]) {
+		return true
+	}
+	if len(arguments) == 1 && maintenanceProfileCommand(arguments[0]) {
+		return true
+	}
 	if len(arguments) == 1 && arguments[0] == "up-temporal-single-recovery" {
 		return true
 	}
@@ -754,6 +1096,232 @@ func runReleaseMigration(ctx context.Context, runner releaseMigrationRunner, arg
 		return err
 	}
 	switch arguments[0] {
+	case "up-agent-exposure-filter-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		e, ok := runner.(interface{ UpProductionAgentExposureFilterProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return e.UpProductionAgentExposureFilterProfile(ctx)
+	case "up-agent-exposure-filter-audit-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		e, ok := runner.(interface{ UpProductionAgentExposureFilterAuditProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return e.UpProductionAgentExposureFilterAuditProfile(ctx)
+	case "up-agent-device-association-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		e, ok := runner.(interface{ UpProductionAgentDeviceAssociationProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return e.UpProductionAgentDeviceAssociationProfile(ctx)
+	case "up-agent-device-association-audit-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		e, ok := runner.(interface{ UpProductionAgentDeviceAssociationAuditProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return e.UpProductionAgentDeviceAssociationAuditProfile(ctx)
+	case "up-gateway-bootstrap-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		e, ok := runner.(interface{ UpProductionGatewayBootstrapProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return e.UpProductionGatewayBootstrapProfile(ctx)
+	case "up-gateway-bootstrap-audit-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		e, ok := runner.(interface{ UpProductionGatewayBootstrapAuditProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return e.UpProductionGatewayBootstrapAuditProfile(ctx)
+	case "up-gateway-installation-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		e, ok := runner.(interface{ UpProductionGatewayInstallationProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return e.UpProductionGatewayInstallationProfile(ctx)
+	case "up-gateway-installation-audit-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		e, ok := runner.(interface{ UpProductionGatewayInstallationAuditProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return e.UpProductionGatewayInstallationAuditProfile(ctx)
+	case "up-sensor-node-coverage-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		e, ok := runner.(interface{ UpProductionSensorNodeCoverageProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return e.UpProductionSensorNodeCoverageProfile(ctx)
+	case "up-sensor-node-coverage-audit-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		e, ok := runner.(interface{ UpProductionSensorNodeCoverageAuditProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return e.UpProductionSensorNodeCoverageAuditProfile(ctx)
+	case "up-agent-ownership-write-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		e, ok := runner.(interface{ UpProductionAgentOwnershipWriteProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return e.UpProductionAgentOwnershipWriteProfile(ctx)
+	case "up-agent-ownership-write-audit-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		e, ok := runner.(interface{ UpProductionAgentOwnershipWriteAuditProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return e.UpProductionAgentOwnershipWriteAuditProfile(ctx)
+	case "up-agent-read-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		e, ok := runner.(interface{ UpProductionAgentReadProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return e.UpProductionAgentReadProfile(ctx)
+	case "up-agent-read-audit-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		e, ok := runner.(interface{ UpProductionAgentReadAuditProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return e.UpProductionAgentReadAuditProfile(ctx)
+	case "up-agent-owner-filter-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		e, ok := runner.(interface{ UpProductionAgentOwnerFilterProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return e.UpProductionAgentOwnerFilterProfile(ctx)
+	case "up-agent-owner-filter-audit-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		e, ok := runner.(interface{ UpProductionAgentOwnerFilterAuditProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return e.UpProductionAgentOwnerFilterAuditProfile(ctx)
+	case "up-environment-class-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		extension, ok := runner.(interface{ UpProductionEnvironmentClassProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return extension.UpProductionEnvironmentClassProfile(ctx)
+	case "up-environment-class-audit-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		extension, ok := runner.(interface{ UpProductionEnvironmentClassAuditProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return extension.UpProductionEnvironmentClassAuditProfile(ctx)
+	case "up-retention-audit-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		extension, ok := runner.(interface{ UpProductionRetentionAuditProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return extension.UpProductionRetentionAuditProfile(ctx)
+	case "up-optional-egress-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		extension, ok := runner.(interface{ UpProductionOptionalEgressProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return extension.UpProductionOptionalEgressProfile(ctx)
+	case "up-optional-egress-audit-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		extension, ok := runner.(interface{ UpProductionOptionalEgressAuditProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return extension.UpProductionOptionalEgressAuditProfile(ctx)
+	case "up-approval-settlement-audit-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		extension, ok := runner.(interface{ UpProductionApprovalSettlementAuditProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return extension.UpProductionApprovalSettlementAuditProfile(ctx)
+
+	case "up-approval-activation-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		extension, ok := runner.(interface{ UpProductionApprovalActivationProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return extension.UpProductionApprovalActivationProfile(ctx)
+	case "up-approval-maintenance-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		extension, ok := runner.(interface{ UpProductionApprovalMaintenanceProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return extension.UpProductionApprovalMaintenanceProfile(ctx)
+	case "up-connector-maintenance-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		extension, ok := runner.(interface{ UpProductionConnectorMaintenance(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return extension.UpProductionConnectorMaintenance(ctx)
 	case "up-temporal-single-recovery":
 		if version != 61 {
 			return migrations.ErrInvalidState

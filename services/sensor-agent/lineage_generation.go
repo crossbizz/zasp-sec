@@ -24,6 +24,7 @@ type lineageGeneration struct {
 	api          lineageIdentityAPI
 	boot         *hostBootReader
 	pumpStarted  atomic.Bool
+	coverage     *nodeWitnessFile
 }
 
 // The production owner supplies its held lineageSpool. This narrow publication

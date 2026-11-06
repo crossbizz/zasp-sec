@@ -1,0 +1,129 @@
+{
+  "checkpoint": "cloud-closed-diagnostics-2026-10-15",
+  "observedAt": "2026-10-15T05:30:36.637642+00:00",
+  "startingSHA": "4e282b01f6d72b0a7f2bf877553e42268fa30ada",
+  "mainSHA": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
+  "classification": "Closed diagnostics component verified; source candidates rejected; hosted and deployed acceptance unresolved",
+  "ledger": {
+    "original_rows": 728,
+    "production_available_recorded": 523,
+    "component_only": 144,
+    "blocked_external": 61,
+    "missing": 0,
+    "promotions": 0
+  },
+  "taskCrosswalk": [
+    {
+      "id": "M7A-90c",
+      "owner": "T10-product-ui",
+      "contribution": "Trusted fixed projector command attribution while preserving original browser command arity and execution behavior."
+    },
+    {
+      "id": "M8-41",
+      "owner": "T03-launch-connectors",
+      "contribution": "Original strict native event refusal exposes closed offending-row categories, never raw names/output; original assertions and rosters retained."
+    },
+    {
+      "id": "M8-47",
+      "owner": "T15-deployment",
+      "contribution": "Two actual upstream source-build alternatives rejected for real consumer regressions; original dependencies retained and security/release guard held."
+    }
+  ],
+  "sources": [
+    {
+      "path": "scripts/connector-acceptance-groups.mjs",
+      "bytes": 10027,
+      "sha256": "1327003c353b4bd157b66c11bad9da30701c50e568e773028c62deafd74083be"
+    },
+    {
+      "path": "scripts/connector-acceptance-groups.test.mjs",
+      "bytes": 11807,
+      "sha256": "0e78e56c953ad0df6ceecdc026acfc29165252ce4f56825703a06489addf7df2"
+    },
+    {
+      "path": "scripts/browser-command-failure.mjs",
+      "bytes": 14980,
+      "sha256": "04cac4762fed7431263b7b01fdd9a562efcb57125da453d3e49c842f3eb03407"
+    },
+    {
+      "path": "scripts/browser-command-failure.test.mjs",
+      "bytes": 18958,
+      "sha256": "9058178b89b07a810e50c8b098800c4072879a95a9ac7a686d6ce40032735f29"
+    },
+    {
+      "path": "scripts/owned-current80-composition.mjs",
+      "bytes": 8354,
+      "sha256": "c18e89ca390ebb51894c933e68f3b73a1bc5fb28a220f6c59fb30824ac756bbf"
+    },
+    {
+      "path": "scripts/owned-current80-composition.test.mjs",
+      "bytes": 7119,
+      "sha256": "357ca60050fe8dda811689cfdbde0f28defcc6aa5478c45a0fee001692991cc9"
+    },
+    {
+      "path": "scripts/production-combined-e2e.mjs",
+      "bytes": 678861,
+      "sha256": "cbb91bf5a8b52017e6bdad334dd473fbb3a36105216734f6b1de5795e66cf676"
+    },
+    {
+      "path": "scripts/hosted-connected-connector-acceptance.mjs",
+      "bytes": 45632,
+      "sha256": "e5a4cba1f29ce3ce7a9dff62d2ed155a85e38ee23781407cdfa245d5f67678fa"
+    },
+    {
+      "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
+      "bytes": 42287,
+      "sha256": "079b58a416769c061524ff5e62390cfe91f611a8a65a7fab1c3785f629dfa61d"
+    }
+  ],
+  "implemented": [
+    "Separate issued-error-only fixed action/testShape/caseClass from the existing strict trace refusal stage. All 12 groups/35 names/22 PostgreSQL joins and acceptance assertions remain unchanged. Inner selected-count PASS never overrides outer event refusal.",
+    "Attach exactly two literal operation labels to original full projection reconciliation/revision commands; original arguments, deadlines, errors, stop/join, loop and readiness are unchanged. Notice shows cancellation-request state, not a causal conclusion. Malformed metadata falls back to old notices. Ordinary/profile calls retain original 3/4 argument arity."
+  ],
+  "verification": {
+    "rootGroupedNode": {
+      "normalExit": 0,
+      "passes": 285,
+      "failures": 0,
+      "skipped": 0
+    },
+    "lintNormalExit": 0,
+    "ledgerNormalExit": 0,
+    "goExecution": "No Go source changes or Go execution in this batch. Earlier fixture compile is not native execution.",
+    "uiBuild": "Previously verified frontend build/typecheck reused because frontend/dependency/build inputs remain unchanged; it does not verify backend or deployment.",
+    "independentReviews": [
+      "acceptance-event-case-discriminator-implementation-independent-review-20261015.json",
+      "browser-command-attribution-independent-implementation-review-v1-20261015.json"
+    ],
+    "evidence": {
+      "path": "docs/internal/evidence/cloud-2026-10-15/closed-diagnostics/verified-batch-evidence.json.gz",
+      "sha256": "421e1706b93dbcfdbce50b400030766f8a24d8faa4dafeab966104bb6a8ad3f7",
+      "bytes": 276413,
+      "uncompressedSHA256": "e1b97091a4c0c57d1c49218add80285f06d1441f4d703a126b4e02ec811fec2f",
+      "members": 80
+    }
+  },
+  "precedingHosted": {
+    "head": "4e282b01f6d72b0a7f2bf877553e42268fa30ada",
+    "snapshot": "pr60-4e282-monitor-2-20261015.json",
+    "browser": "Push advanced to browser-startup phase with other-command/nonzero-exit; this does not identify Chrome because concurrent projection uses generic command(). PR core/security metadata both pass; API then refuses approval-reconciler deadline.",
+    "native": "Future Test74 now confirms nil-error immediate delivery-grant mismatch at538 in both runs; repeat planning prepare, overflow/finding/lifecycle and strict event-case failures remain. New setup-go codeload failures are infrastructure, not product test failures.",
+    "scope": "Official finite exact-head job/check metadata and bounded annotations only; restricted logs/artifacts not fetched."
+  },
+  "rejectedSourceCandidates": {
+    "dynamicImport": "Actual TypeScript CJS/ESM source builds pass; consumer group2PASS2FAIL and actual extensionless import changes file to directory index. Candidate not selected.",
+    "nextEslint": "All source modules and declarations build; consumer group2PASS2FAIL. Actual symlink root loses no-html-link-for-pages diagnostic. Candidate not selected.",
+    "bracesRemediation": "Official advisory still affects <=3.0.3 with no first patched version. Reviewed iterative-fork plan remains unimplemented: automatic review stopped reproduction/implementation subtask for possible cybersecurity risk. Both baseline/candidate retain original35files byte-for-byte. No verified security reproduction/remediation receipt.",
+    "release": "Original selected dependency graph unchanged; upstream identity/advisory and release denial retained. No rename, suppression or invented patched version."
+  },
+  "remaining": [
+    "Actual grant-view predicate diagnosis, native/browser/UI acceptance and strict event-case causes remain open.",
+    "Production target, trust/roles, Stytch/provider journeys and deployment evidence remain missing.",
+    "Helm binary remains absent; exact existing source/checksum and restoration recipe verified, no build admission/execution yet.",
+    "All728original requirements remain in scope;205 recorded nonproduction rows, no promotions."
+  ],
+  "runnableUIWorkflowSHA256": "fd98a81d520fbd8b80fb6d404b7a8a0d0e154268f0e3adb5073a47ee4c7d4d98",
+  "nativeAccepted": false,
+  "deployedAccepted": false,
+  "launchReady": false
+}

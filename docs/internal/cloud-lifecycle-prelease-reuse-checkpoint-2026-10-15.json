@@ -1,0 +1,81 @@
+{
+  "checkpoint": "cloud-lifecycle-prelease-reuse-2026-10-15",
+  "observed_at": "2026-10-15T03:44:15.880705+00:00",
+  "starting_sha": "2e7b1c5d28775077b1155de577d1da1155f72029",
+  "main_sha": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
+  "classification": "Source reviewed and API fixture compiled; native/deployed acceptance pending",
+  "ledger": {
+    "original_rows": 728,
+    "production_available_recorded": 523,
+    "component_only": 144,
+    "blocked_external": 61,
+    "missing": 0,
+    "promotions": 0
+  },
+  "task_crosswalk": [
+    {
+      "id": "M3-24",
+      "owner": "T03-launch-connectors",
+      "contribution": "Connector state/PKCE and revocation lifecycle verification support; no fresh provider or native pass claimed."
+    }
+  ],
+  "source_association": {
+    "manifest_sources": 113,
+    "changed_sources": [
+      {
+        "path": "services/platform/apiserver/connector_maintenance_lifecycle_postgres_test.go",
+        "sha256": "345c365921cdc9281ec767e00fd3e934f31fa4badb393f4a6b6e5793bd544e2d",
+        "bytes": 21289
+      },
+      {
+        "path": "scripts/hosted-connected-connector-acceptance.mjs",
+        "sha256": "e3670ea3c469f55fc6d1278b4312ce973a9788dee28de468e1c63384877f753c",
+        "bytes": 45401
+      },
+      {
+        "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
+        "sha256": "6e7f7fc312b119c2783634558410b6b3cf81c4bc1e61b7ccae5036b163ed1815",
+        "bytes": 42287
+      }
+    ]
+  },
+  "implementation": [
+    "Reuse the lifecycle fixture projection repository constructed before claiming the cleanup lease. Remove only its redundant shadow constructor during revocation. Same worker pool and compiled approval/connector pins; no authorization result or snapshot cached.",
+    "Every Reconcile still obtains the original organization lock and fresh guarded composed Snapshot before Stage, FGA delivery and Ack with original revision CAS. All five cases, both pending/applied live-denial assertions, compensation checks and30second lease unchanged.",
+    "This removes four source-visible constructor metadata queries while holding the lease; no elapsed improvement or complete native fix inferred.",
+    "Refresh only native source hash literals/manifest. Production runtime/SQL/pins/rosters/deadlines/ownership/resource/release guards and ledger categories unchanged."
+  ],
+  "verification": {
+    "api_fixture_compile": {
+      "status": 0,
+      "selected_tests": 0,
+      "scope": "Complete API fixture compile only; no native case selected or pass inferred."
+    },
+    "ui": {
+      "lint": 0,
+      "typecheck": 0,
+      "build": 0,
+      "reused_from_prior_batch": true,
+      "reason": "UI lint/typecheck/build results reused from preceding planner batch; this fixture-only change leaves all UI runtime/typed/lockfile and lint/typecheck/build command inputs unchanged. Hosted runner changes are hash literals only. No new UI tests written or rerun."
+    },
+    "ledger_valid": true,
+    "independent_source_review": "lifecycle-prelease-projection-reuse-independent-review-20261015.json",
+    "evidence": {
+      "path": "docs/internal/evidence/cloud-2026-10-15/lifecycle-prelease-reuse/verified-batch-evidence.json.gz",
+      "sha256": "ea2f73daa83dedd5ed1650e4f5ba85a546d3b002f3ea968569f4b23dc85ad322",
+      "bytes": 19659,
+      "uncompressed_sha256": "7b6db7691f9400c1190e79f353e3d8c06d4a71b884504a3b08add8349893a6e6",
+      "uncompressed_bytes": 150627,
+      "members": 17
+    }
+  },
+  "rejected_optimizations": [
+    "Keep independent80 readiness check: required allow-valued production_ready tamper case would bypass defenses if it were removed.",
+    "Do not implement proposedSQL-onlyidleprojectionpoll: independent review found skipped CLI also omits fresh authenticated Temporal namespace/OpenFGA model probes; equivalence is not established. Existing projection loop remains unchanged."
+  ],
+  "remaining_gates": [
+    "Fresh guarded hosted lifecycle acceptance must pass; PKCE/finding/future/overflow/progress/strict-roster/browser readiness/resource failures remain.",
+    "Source shows concurrent redundant projection work and repeated metadata paths but no measured server/query/FGA timings or established root cause; no caches, deadline increases or permissions bypass.",
+    "Actual production target/trust/private-role bindings/fleet activation, dependency security release gate and real deployed Stytch/provider/milestone flows remain unverified."
+  ]
+}

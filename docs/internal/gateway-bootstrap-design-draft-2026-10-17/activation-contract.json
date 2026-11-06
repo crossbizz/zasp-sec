@@ -1,0 +1,32 @@
+{
+  "contract_successor_sha256": "6dd56b12049d8f01eecb47a01b3d2063b440ca1b9e18af5fe44a465c1653239c",
+  "gateway_control": {
+    "enabled": "ZASP_GATEWAY_ENROLLMENT_ENABLED",
+    "profile_checksum": "ZASP_GATEWAY_ENROLLMENT_PROFILE_CHECKSUM",
+    "default": false,
+    "selection": "true requires exact own Normal/Audit checksum; owncaller_ready gateway-control ACK/enrollment capability only, no global readiness poisoning"
+  },
+  "public_api": {
+    "profile_checksum": "ZASP_GATEWAY_BOOTSTRAP_PROFILE_CHECKSUM",
+    "default": "empty disabled",
+    "capability": "gateways.manage from exact environment manage_identity and actual selected own profile, no collection/org fallback"
+  },
+  "deployment": {
+    "options_gatewayBootstrap": "{enabled:false,profileChecksum:empty} bydefault; authorizationTemporal required when selected",
+    "consumers": "API profilechecksum onlyagentsec-api; enabled+checksum onlygateway-control; no producer flag or key/source/RBAC/storage change"
+  },
+  "migrations": {
+    "normal_command": "up-gateway-bootstrap-profile",
+    "audit_command": "up-gateway-bootstrap-audit-profile",
+    "exports": [
+      "GatewayBootstrapProfileChecksum",
+      "GatewayBootstrapAuditProfileChecksum",
+      "IsGatewayBootstrapProfileChecksum"
+    ],
+    "runner": [
+      "UpProductionGatewayBootstrapProfile",
+      "UpProductionGatewayBootstrapAuditProfile"
+    ]
+  },
+  "qualification": "Concrete configuration names under cleared default-off design, not implementation/acceptance."
+}

@@ -324,7 +324,7 @@ func newProductionReconciliationLeaseToken() (string, error) {
 
 type productionJSONDatabase struct {
 	mu     sync.RWMutex
-	pool   *pgxpool.Pool
+	pool   productionNodeCoveragePool
 	closed bool
 }
 

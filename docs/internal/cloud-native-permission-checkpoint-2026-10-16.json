@@ -1,0 +1,121 @@
+{
+  "checkpoint": "cloud-native-permission-2026-10-16",
+  "observedAt": "2026-10-16T19:26:53.542764+00:00",
+  "startingSHA": "5808fb58e7a2063543fd2e8bc3b8ba9dc0f470d9",
+  "mainSHA": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
+  "classification": "Permission acceptance harness component verified; unchanged hosted native gates pending; not launch accepted",
+  "ledger": {
+    "original_rows": 728,
+    "production_available_recorded": 523,
+    "component_only": 144,
+    "blocked_external": 61,
+    "missing": 0,
+    "promotions": 0
+  },
+  "taskCrosswalk": [
+    {
+      "id": "M7A-90c",
+      "owner": "T10-product-ui",
+      "contribution": "Immediate notification grant acceptance through registered production snapshot; historical classification is not fresh deployed proof."
+    },
+    {
+      "id": "M8-41",
+      "owner": "T03-launch-connectors",
+      "contribution": "Native approval permission harness retains bootstrap view denial, exact scoped grants and original subsequent lifecycle assertions."
+    },
+    {
+      "id": "M8-47",
+      "owner": "T15-deployment",
+      "contribution": "Genuine advisory raw commit/root acquired; complete corpus, malware, Go/image and release evidence remain unresolved."
+    }
+  ],
+  "sources": [
+    {
+      "path": "services/platform/apiserver/approval_projection_visibility_test.go",
+      "sha256": "b8f964ffe558539a52e1fca5c97cac4f7add6e366b18a88f0e6682e72def526b",
+      "bytes": 8954
+    },
+    {
+      "path": "services/platform/apiserver/approval_maintenance_genuine_test74_postgres_test.go",
+      "sha256": "77293329f990aafb033e634603742afd0578dd0fec7d3c42127ce35cd77d1075",
+      "bytes": 38514
+    },
+    {
+      "path": "services/platform/apiserver/approval_maintenance_genuine_progress_postgres_test.go",
+      "sha256": "a25253c3d04a09e0a0186e6c989c8b787fad2df5103e2c592b6d3c67c37e0321",
+      "bytes": 9861
+    },
+    {
+      "path": "scripts/hosted-connected-connector-acceptance.mjs",
+      "sha256": "bf49504009a6e98af28806708afac5f9887061a08349c39ae6030d4845d8f6ff",
+      "bytes": 45772
+    },
+    {
+      "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
+      "sha256": "93256010f9515123781d284179809d68fd5de34b4516068730d59583a482b606",
+      "bytes": 42427
+    },
+    {
+      "path": ".github/workflows/connector-native-draft-compile.yml",
+      "sha256": "2bfac6917ceb74b187933ec421117a5a53dd4f2bd1eb46f0629206fc27d63829",
+      "bytes": 11963
+    }
+  ],
+  "implemented": [
+    "Replaces two immediate bootstrap grant expectations in place before reconciliation with a shared production-interface observation. Direct bootstrap view denial remains required under the fixed view-owner/FORCE-RLS permission context.",
+    "Registered outbox principal uses original compiled-pin current repository and WithOrganization/Snapshot. Exact single-origin scope, task, principal, resources and permissions are checked; missing, duplicate, extra or foreign same-task grants refuse; inactive grants remain absent.",
+    "Desired/applied/generation/store/model revisions remain equal before/snapshot/after. Snapshot retains normal last_attempt_at bookkeeping. No Stage/Acknowledge/FGA writes, production SQL, authority, lease or deadline changes.",
+    "Source association closure includes the helper in both existing full-package runners, 114 manifest sources, and the existing application regression roster increased from49 to50. Original35 native tests/12groups/22 PostgreSQL joins and all acceptance/release guards remain."
+  ],
+  "verification": {
+    "focusedComparator": "Normal exit0, one top-level group PASS, no skip; entire original API test package compiled. This does not execute PostgreSQL/native flows.",
+    "freshUITypecheckNormalExit": 0,
+    "freshProductionUIBuildNormalExit": 0,
+    "lintNormalExit": 0,
+    "independentSourceReview": "native-approval-projection-implementation-independent-review-20261016.json",
+    "sourceAssociations": "approval-projection-final-associations-20261016.json",
+    "nativeLocal": "Unchanged ownership preflight refuses hidden-ancestor cgroup mount root /..; no bypass or substitute database. Candidate native execution unverified.",
+    "evidence": {
+      "path": "docs/internal/evidence/cloud-2026-10-16/native-permission/verified-batch-evidence.json.gz",
+      "sha256": "7d632f997660a7bca67d82153e76adbecd08a03d587656a062dc1ad837b3caec",
+      "bytes": 56032,
+      "uncompressedSHA256": "c9174bb719d95cc2ade741e818bb8a4707c9731e49350fc5500949c057b7512c",
+      "members": 29
+    }
+  },
+  "precedingHosted": {
+    "head": "5808fb58e7a2063543fd2e8bc3b8ba9dc0f470d9",
+    "jobs": 36,
+    "snapshot": "pr60-5808-exacthead-metadata-20261016.json",
+    "acceptedComponents": "OAuth/callback/genuineTest74 both events; capture/authenticated PR and ordered planning push. Component acceptance is not deployed proof.",
+    "unresolved": "Future Test74 immediate grant mismatch; other future progress/finding/overflow failures; ordered planning PR timeout; strict event-case refusals despite inner Go PASS. Browser passes core/security metadata then approval-reconciler readiness deadline. Setup-go/codeload failures occurred before tests in other jobs.",
+    "scope": "Finite official metadata and bounded annotations only; no restricted raw logs/artifacts accessed."
+  },
+  "runtime": {
+    "spec": 588,
+    "observationsCurrent": true,
+    "connectivity": "connected",
+    "phase": "running",
+    "network": "enforced",
+    "genericVariablesReady": 51,
+    "outboundIdentities": 0,
+    "limits": "Ready generic variables do not establish product-role authorization;53 required API names have3 supported aliases and50 unbound settings/roles/target/provider bindings, not50 missing secrets."
+  },
+  "releasePrerequisite": {
+    "commit": "ca34ac6b8cf6c7eea26ee11fab0bfdb3977d9d93",
+    "root": "28ada59b9df34eac6ddc09a92eb8c04869b48f72",
+    "rawCommitBytes": 430,
+    "result": "Actual raw Git content hash and existing commit_root verifier agree; shallow blobless repository is raw-object transport only, never accepted as the original full nonpromisor producer input. No complete corpus or malware acceptance."
+  },
+  "remaining": [
+    "Unchanged hosted native whole-flow gates and real connected browser readiness must pass; source semantics are not confirmation of the prior failure root cause.",
+    "Actual deployment account/region/cluster/namespace/hostname, publisher trust, production database/Temporal/FGA roles and real Stytch/provider resources remain unbound.",
+    "Fleet cutover needs complete credential-holder and normal termination evidence, old/new FGA route proof, and common coordinator/release-publisher authority; Kubernetes pod census alone is insufficient.",
+    "Discovery production seams exist, but real deployed discovery/posture/risk/automatic-response/browser journey remains unverified.",
+    "Complete advisory/malware/Go/image/SBOM clearance remains unresolved. Helm source build is blocked at the official missing compression module download; no alternate route or guard relaxation.",
+    "All728 original tasks retained,205 recorded nonproduction rows and no promotions. Historical523 classifications are not fresh deployed acceptance."
+  ],
+  "nativeAccepted": false,
+  "deployedAccepted": false,
+  "launchReady": false
+}

@@ -1,0 +1,62 @@
+[
+  {
+    "path": ".github",
+    "blob_href": "https://github.com/crossbizz/zasp-sec/blob/f0b78fec3923d6d381f583a7dc4025a4064689d1/.github",
+    "start_line": 12,
+    "start_column": null,
+    "end_line": 12,
+    "end_column": null,
+    "annotation_level": "failure",
+    "title": "",
+    "message": "Process completed with exit code 1.",
+    "raw_details": ""
+  },
+  {
+    "path": ".github",
+    "blob_href": "https://github.com/crossbizz/zasp-sec/blob/f0b78fec3923d6d381f583a7dc4025a4064689d1/.github",
+    "start_line": 11,
+    "start_column": null,
+    "end_line": 11,
+    "end_column": null,
+    "annotation_level": "failure",
+    "title": "Connector authenticated enqueue integration",
+    "message": "phase=authenticated-oauth-enqueue; class=ERR_ASSERTION; resource=not-refused; resourceClass=none; workspaceBytes=89103474688; scratchBytes=89103474688; memoryHeadroomBytes=15507230720; binding=all-pins-matched. Authenticated enqueue integration refused; no deployment readiness established.",
+    "raw_details": ""
+  },
+  {
+    "path": ".github",
+    "blob_href": "https://github.com/crossbizz/zasp-sec/blob/f0b78fec3923d6d381f583a7dc4025a4064689d1/.github",
+    "start_line": 9,
+    "start_column": null,
+    "end_line": 9,
+    "end_column": null,
+    "annotation_level": "notice",
+    "title": "Connector native command outcome",
+    "message": "status=1; timed=false; signal=none; cap=false; namedRUN=1; namedPASS=0; namedFAIL=1; namedSKIP=0; failedCases=TestConnectorMaintenanceAuthenticatedOAuthEnqueuePostgres; sourceLocations=connector_maintenance_enqueue_postgres_test.go:17,connector_maintenance_enqueue_postgres_test.go:33,postgres_integration_test.go:1409; postgresCategories=filesystem-permission-refused; fixtureStages=postgres-start,postgres-connect,canonical-install,canonical-cutover,data-plane-roles,data-plane-principals,current-authorization-modules,execution-roles,execution-principals,temporal-authorization-modules,current-authorization-replay,verifier-registration,fixture-data,projection-pool,owned-fga-model,tuple-writer,fga-checker,projection-configure,projection-reconcile,registered-api-connect,registered-api-role,database-current-authority,browser-authentication,token-authentication,authorization-resolver,connector-registry,reference-registry,workflow-handler,router; SQLSTATE=; canonicalVersions=; fixtureErrorCategory=none; JSONMalformed=false. No deployment readiness established.",
+    "raw_details": ""
+  },
+  {
+    "path": ".github",
+    "blob_href": "https://github.com/crossbizz/zasp-sec/blob/f0b78fec3923d6d381f583a7dc4025a4064689d1/.github",
+    "start_line": 8,
+    "start_column": null,
+    "end_line": 8,
+    "end_column": null,
+    "annotation_level": "notice",
+    "title": "Owned PostgreSQL prerequisite",
+    "message": "phase=owned-initdb-tool-smoke; status=0; timed=false; signal=none; cap=false; categories=. Tool compatibility only; no product test or deployment acceptance.",
+    "raw_details": ""
+  },
+  {
+    "path": ".github",
+    "blob_href": "https://github.com/crossbizz/zasp-sec/blob/f0b78fec3923d6d381f583a7dc4025a4064689d1/.github",
+    "start_line": 7,
+    "start_column": null,
+    "end_line": 7,
+    "end_column": null,
+    "annotation_level": "notice",
+    "title": "Owned PostgreSQL prerequisite",
+    "message": "phase=owned-raw-postgres-version-probe; status=0; timed=false; signal=none; cap=false; categories=. Tool compatibility only; no product test or deployment acceptance.",
+    "raw_details": ""
+  }
+]

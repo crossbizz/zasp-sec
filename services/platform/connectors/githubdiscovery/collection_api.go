@@ -27,6 +27,7 @@ const (
 	githubCollectionEndpoint     = "https://api.github.com"
 	githubMaximumPageItems       = 100
 	githubMaximumResponseBytes   = int64(8 * 1024 * 1024)
+	githubMaximumMetadataBytes   = int64(1024 * 1024)
 	githubMinimumCollectionBytes = int64(4096)
 )
 
@@ -276,7 +277,7 @@ func (api *InstallationCollectionAPI) CheckCollectionReadiness(ctx context.Conte
 		return ErrProvider
 	}
 	defer response.Body.Close()
-	body, ok := readInstallationBody(response.Body, 64*1024)
+	body, ok := readInstallationBody(response.Body, githubMaximumMetadataBytes)
 	var metadata struct {
 		VerifiablePasswordAuthentication *bool `json:"verifiable_password_authentication"`
 	}

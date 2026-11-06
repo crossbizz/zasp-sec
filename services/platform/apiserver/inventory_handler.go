@@ -50,6 +50,12 @@ func (handler *inventoryHTTPHandler) serveAuthorizedHTTP(writer http.ResponseWri
 	}
 	switch routed.OperationID {
 	case "listAgents":
+		if handler.agentExposurePage(writer, request, identity) {
+			return
+		}
+		if handler.agentOwnerPage(writer, request, identity) {
+			return
+		}
 		handler.inventoryPage(writer, request, identity, routed, InventoryKindAgent)
 	case "listTools":
 		handler.inventoryPage(writer, request, identity, routed, InventoryKindTool)

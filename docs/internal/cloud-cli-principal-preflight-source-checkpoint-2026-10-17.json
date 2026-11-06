@@ -1,0 +1,219 @@
+{
+  "observed_at": "2026-10-17T11:54:52.450821+00:00",
+  "continued_published_base": "9fa46929015956ba94028986c65270c26328b0ec",
+  "classification": "SOURCE_ONLY_GO_EXECUTION_SETUP_BLOCKED",
+  "scope": "Actual CLI auditProfilePrincipal retains byte-identical configured-session+registered-binding SQL and original parameter. It uses existing bounded LOCALauthority transaction and same actual nonnil pgx.Conn BeginTx(ReadCommitted), confirmed commit before installer dispatch. Unknown/nontransactional/generic/typednil queryers reject before protected QueryRow. Private recorder capability implementations exist solely in explicit_test.go adapters and preserve original recorder assertions. No SQL, ACL, checksum or activation changes.",
+  "task_mapping": [
+    "M8-41",
+    "M7-22",
+    "M7-27",
+    "M2-14",
+    "M2-16",
+    "M2-46b"
+  ],
+  "sources": [
+    {
+      "path": ".github/connector-native-compile-source-pins.json",
+      "bytes": 145680,
+      "sha256": "ee924de8b7d83f3f6b02b430053103069e52c3f7895e42bb5ffb69ae4cdf8d6f"
+    },
+    {
+      "path": ".github/workflows/connector-native-draft-compile.yml",
+      "bytes": 52531,
+      "sha256": "7ecb4865cf83a2df32f19501aa6c3e39dbd32fe1d719adaaea7e6fdec08e5171"
+    },
+    {
+      "path": "scripts/connector-acceptance-groups.test.mjs",
+      "bytes": 49244,
+      "sha256": "4cc3efd54586199d50a2854f2ea2c48598c69bd3ca90cd723f79836aca96e754"
+    },
+    {
+      "path": "scripts/hosted-connected-connector-acceptance.mjs",
+      "bytes": 96543,
+      "sha256": "6f5d8779d6665bdbbd8f8579e27089594401e8c23882d1124c999193e0cd112e"
+    },
+    {
+      "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
+      "bytes": 92944,
+      "sha256": "49ea0fc845055fd1fa352e585cf26ddc4359ea5353673a95096aa889c5e11d23"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/authorization_audit_profile.go",
+      "bytes": 2061,
+      "sha256": "03e569ad7e9e24c23c75d06af9d2edf1f5812d6a5dd804dd538efde3356b6b52"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/principal_authority_transaction.go",
+      "bytes": 1140,
+      "sha256": "e34533f7705790ad6855280b905e78f593c4dc7c8d6bf229f47039ce72e5d388"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/principal_preflight_authority_test.go",
+      "bytes": 7944,
+      "sha256": "45d81ea2ebc6e291545756dbb8b2cd2a09b5f88c11e7518735f365dcce85694e"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/principal_preflight_recorders_test.go",
+      "bytes": 1500,
+      "sha256": "8f401a5d111182fd1f9fca35ade88c1765c2d104a35cc42243af0a2a6d2c404f"
+    }
+  ],
+  "product_and_retained_consumer_sources": [
+    {
+      "path": "services/platform/agentsec-migrate/principal_authority_transaction.go",
+      "bytes": 1140,
+      "sha256": "e34533f7705790ad6855280b905e78f593c4dc7c8d6bf229f47039ce72e5d388"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/authorization_audit_profile.go",
+      "bytes": 2061,
+      "sha256": "03e569ad7e9e24c23c75d06af9d2edf1f5812d6a5dd804dd538efde3356b6b52"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/principal_preflight_authority_test.go",
+      "bytes": 7944,
+      "sha256": "45d81ea2ebc6e291545756dbb8b2cd2a09b5f88c11e7518735f365dcce85694e"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/principal_preflight_recorders_test.go",
+      "bytes": 1500,
+      "sha256": "8f401a5d111182fd1f9fca35ade88c1765c2d104a35cc42243af0a2a6d2c404f"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/authorization_audit_profile_test.go",
+      "bytes": 1234,
+      "sha256": "4fbccd1d6779b43a7ab8b9316aeeeec7b1d4cfd5698920cd4bcaa8aaad7c75b3"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/authorization_runtime_profile_inner_diagnostic_test.go",
+      "bytes": 7065,
+      "sha256": "8108ac45747d66422273cde94783ca20c1f85c6fc072fc2d313fbf634c77ecf3"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/authorization_runtime_worker_profile_test.go",
+      "bytes": 2427,
+      "sha256": "bb43ed5704075c66bd4b43ae675fae15424bf8488e7191eb5381e0df76934713"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/authorization_temporal_profile_test.go",
+      "bytes": 1416,
+      "sha256": "605557d5b6e61661b730b33408d0f5c0ed4fa85ebdfa54a7fa594123b879e335"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/authorization_worker_profile_test.go",
+      "bytes": 2727,
+      "sha256": "ae0b022b39c2d63196767766dc61a155c374cdab1250823bf414db2224a363a4"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/environment_class_profile_test.go",
+      "bytes": 4040,
+      "sha256": "e130c7932e6f0007b42e2877fc9461f755972d8a797840f29ec7cf6103c276e7"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/identity_profile_test.go",
+      "bytes": 1239,
+      "sha256": "10d781fab61207b446f9ab7f9b22567dd33022800efbee4eb2062b26f6cab289"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/maintenance_profile_commands_test.go",
+      "bytes": 5103,
+      "sha256": "8745c207020f6b8cf7992aed8a00e518f61869568a50f9bfcebb19f8e004ae22"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/optional_egress_profile_test.go",
+      "bytes": 9109,
+      "sha256": "811f477dbce598a8f4d16ef81e92cea7145244aca605f9a64090b0eafaa3ecec"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/retention_profile_test.go",
+      "bytes": 9385,
+      "sha256": "057e0b9f29c8d53983677911ac03531712147e4c4b773759061264a6eff0e511"
+    }
+  ],
+  "verification": {
+    "initial_CLI_attempt": {
+      "exit": 1,
+      "named_cases": 0,
+      "classification": "SETUP_BLOCKED_missing_OPA1.17.0_GOPROXYoff_NOT_BEHAVIORAL_RED_NOT_COMPILER_PASS"
+    },
+    "final_CLI_attempt": {
+      "exit": 1,
+      "named_cases": 0,
+      "classification": "SAME_SETUP_BLOCK_NOT_TEST_PASS_NOT_COMPILER_PASS"
+    },
+    "source_ledger_deployment": {
+      "exit": 0,
+      "named_pass": 58,
+      "named_fail": 0,
+      "named_skip": 0
+    },
+    "UI": {
+      "typecheck_exit": 0,
+      "build_exit": 0
+    },
+    "workflow_yaml_and_embedded_Python": "PARSE_PASS",
+    "native": "UNEXECUTED_FOR_THIS_SUCCESSOR;existing21connectedgroups146names32ownedPGjoins remain mandatory"
+  },
+  "independent_source_review": {
+    "product4": "CLEAR_SOURCE_ONLY",
+    "product_receipt_sha256": "d5b568b6140146c951e8c7697e130bb6f30af987fc16e2a11efbd9bbd460972a",
+    "source9_consumer14_intake": "CLEAR_SOURCE_ONLY",
+    "intake_receipt_sha256": "20323de6e2fbb4aecbcde4d5b7faefdc2e4bc44f8f4b768879ee333c548122e7"
+  },
+  "source_bindings": {
+    "before": 479,
+    "after": 489,
+    "all_predecessor_paths_retained": true,
+    "all_exact": true,
+    "newly_created_Go_files": 3,
+    "previously_unmapped_existing_files": 7
+  },
+  "acceptance": {
+    "connected_native": {
+      "groups": 21,
+      "named_cases": 146,
+      "owned_postgres_joins": 32,
+      "approval_controls": 16,
+      "rosters_unchanged": true,
+      "execution": "UNEXECUTED_FOR_SUCCESSOR"
+    },
+    "new_strict_hosted_component_job": {
+      "new_exact_named_cases": 14,
+      "retained_consumer_top_level_groups": 11,
+      "requires_all_named_pass_no_missing_duplicate_skip_fail_unknown_package_pass": true,
+      "execution": "PENDING_NEW_HEAD"
+    },
+    "actual_local_Go_cases_run": 0,
+    "actual_local_Go_cases_pass": 0,
+    "compiler_acceptance": false
+  },
+  "ledger": {
+    "rows": 728,
+    "classes": {
+      "production-available": 523,
+      "component-only": 144,
+      "blocked/external": 61
+    },
+    "ledger_status": {
+      "Complete": 667,
+      "Blocked": 61
+    },
+    "promotions": 0,
+    "sha256": "0d2d0f626c37bd259b967d0108b3b7b7747d6218b1e4426446a9c0019a71b083",
+    "evidence_append_only_ids": [
+      "M8-41",
+      "M7-22",
+      "M7-27",
+      "M2-14",
+      "M2-16",
+      "M2-46b"
+    ]
+  },
+  "archive": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/cli-principal-preflight/source-evidence.json.gz",
+    "bytes": 318715,
+    "sha256": "05f25434e5a56fb877818fd5db4220f5827a0fb9200f3dea5e063afd344aeb3d",
+    "members": 58
+  },
+  "remaining": "Seven final/internal authorization confirmations and Worker/Temporal owner phases remain unresolved. Required exact-head compilation/native/browser/release checks, actual deployed real Stytch/provider flows for all728requirements and equivalent obsolete retirement remain mandatory. This source change has no executed Go behavioral acceptance and does not establish full CLI/composite installation, merge, task promotion or launch readiness."
+}

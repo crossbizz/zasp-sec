@@ -319,3 +319,21 @@ test("uses strict product schemas and the shared stable error response", async (
   assert.equal(environmentList.parameters.find((parameter) => parameter.name === "workspace_id")?.required, true);
   assert.match(environmentList.summary, /authorized/i);
 });
+
+test("Environment class onboarding preserves optional compatibility and dedicated mutation authority",async()=>{
+ const document=load(await readFile(resolve(root,"openapi/openapi.yaml"),"utf8"),{schema:JSON_SCHEMA});
+ const create=await auditExportValidator("EnvironmentCreateInput");
+ const base={workspace_id:auditExportID(3),name:"Neutral display name"};
+ assert.equal(create(base),true);
+ for(const environment_class of ["development","test","staging","production"]){assert.equal(create({...base,environment_class}),true,JSON.stringify(create.errors))}
+ for(const environment_class of [null,"Production","preview",false,""]){assert.equal(create({...base,environment_class}),false)}
+ const update=await auditExportValidator("EnvironmentUpdateInput");
+ assert.equal(update({name:"Production"}),true);
+ for(const environment_class of ["development","test","staging","production"]){assert.equal(update({name:"Neutral",environment_class}),true)}
+ for(const value of [{name:"Neutral",environment_class:null},{name:"Neutral",environment_class:"preview"},{environment_class:"production"},{name:"Neutral",collection_mode:"extended"}]){assert.equal(update(value),false)}
+ const name=await auditExportValidator("NameInput");assert.equal(name({name:"Workspace",environment_class:"production"}),false);
+ const operation=document.paths["/api/v1/environments/{id}"].patch;
+ assert.equal(operation.requestBody.content["application/json"].schema.$ref,"#/components/schemas/EnvironmentUpdateInput");
+ assert.deepEqual(operation.security,[{BrowserSession:[],BrowserExpectedScope:[]}]);
+ assert.ok(operation.parameters.some(p=>p.$ref==="#/components/parameters/CSRFToken"));assert.ok(operation.parameters.some(p=>p.$ref==="#/components/parameters/ResourceVersion"));
+});

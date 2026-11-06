@@ -38,7 +38,15 @@ func TestLoadProductionGatewayConfigRequiresExactAuthority(t *testing.T) {
 	if err != nil || config.ControlPlaneURL != "https://gateway-control.zasp.example" || config.ProxyUpstreamURL != "https://tools.customer.example/v1/actions" || len(config.ProxyAllowedCIDRs) != 1 || config.ProxyAllowedCIDRs[0] != "203.0.113.0/24" || config.ProxyClientTokenFile != filepath.Join(directory, "proxy-token") || config.MaximumRequestBytes != 16*1024 || config.MaximumPendingEvents != 256 || config.EvidenceMaximumBytes != 8<<30 || config.EvidenceStoreDirectory != filepath.Join(directory, "evidence") || config.SyncInterval != 30*time.Second {
 		t.Fatalf("config=%#v err=%v", config, err)
 	}
+	for _, flag := range []string{"true", "false", ""} {
+		values["ZASP_GATEWAY_INSTALLATION_ACK_ENABLED"] = flag
+		selected, err := loadProductionGatewayConfig(func(key string) string { return values[key] })
+		if err != nil || selected.InstallationACKEnabled != (flag == "true") {
+			t.Fatalf("installation flag %q: %v", flag, err)
+		}
+	}
 	for key, replacement := range map[string]string{
+		"ZASP_GATEWAY_INSTALLATION_ACK_ENABLED": "TRUE",
 		"ZASP_GATEWAY_CONTROL_BASE_URL":         "http://gateway-control.zasp.example",
 		"ZASP_GATEWAY_CREDENTIAL_ID":            "credential",
 		"ZASP_GATEWAY_PRIVATE_KEY_FILE":         "credential.json",

@@ -1,0 +1,151 @@
+{
+  "observed_at": "2026-10-17T06:21:25.101444+00:00",
+  "continued_published_base": "de2a76dcb30739d92846234e45a44e9f9c171dba",
+  "fresh_main_sha": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
+  "required_ancestor": "e13ccb95451b03107681ccb59b3fc6fe175a228f",
+  "scope": "Two committed atomic facts/revision observations bracket both original live OpenFGA checks; full post-lock SQL guard and original lease/source error categories retained. Supplementary compiled recipe changes; existing mismatched registration refuses. No canonical parent rewrite, source authority cache or deadline expansion.",
+  "sources": [
+    {
+      "path": ".github/connector-native-compile-source-pins.json",
+      "sha256": "a1eee3bbc2acc7927cfff85361a8075dc5c7c37be5449a745974e3ce3c9c9596",
+      "bytes": 103300
+    },
+    {
+      "path": ".github/workflows/connector-native-draft-compile.yml",
+      "sha256": "57481bdf847207cfde370401c5b1025f43c2b326a0a06041c3503318f0d8ed4f",
+      "bytes": 12497
+    },
+    {
+      "path": "docs/internal/implementation_production_availability_v1.5.tsv",
+      "sha256": "f9123ae21f7f3ae5a52cc49da3e03d0bab006a7fe4c8137a62f9e099e177f61a",
+      "bytes": 184108
+    },
+    {
+      "path": "docs/internal/implementation_status_v1.5.md",
+      "sha256": "13d86d2c079991fb1a2a8d95e1b71af0c343cdd0693fba73f70ce2ed5113b514",
+      "bytes": 1318810
+    },
+    {
+      "path": "scripts/connector-acceptance-groups.test.mjs",
+      "sha256": "5d709f8c867f5f40d1356eeb7cccc06e0ee4667230ef431d8905161d36b91757",
+      "bytes": 34523
+    },
+    {
+      "path": "scripts/hosted-connected-connector-acceptance.mjs",
+      "sha256": "a7ea0de1798a433b8fa0d3487cc5eeae67fb318904833edc88993c2226000c69",
+      "bytes": 76444
+    },
+    {
+      "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
+      "sha256": "b44ef05ce703208d59ebd53ae7ac5d6cdf3c742bc35a576aa64e393157af598d",
+      "bytes": 72886
+    },
+    {
+      "path": "services/platform/apiserver/connector_maintenance_pkce_observation_test.go",
+      "sha256": "385cc795b49fd47976368d703df945b60a6a796d3d8cc09f17aa548e9951992f",
+      "bytes": 9948
+    },
+    {
+      "path": "services/platform/connectormaintenance/authority.go",
+      "sha256": "ec9ad919066e01d8f2652b6cd1da3a490811b086b6cf0293f42a06cfb88c0bcd",
+      "bytes": 10030
+    },
+    {
+      "path": "services/platform/connectormaintenance/compiled_pin_freshness_test.go",
+      "sha256": "f9cb23efad7e5fae20fa3d86087789c7670b18a0c0901c2504798280ecceb352",
+      "bytes": 5272
+    },
+    {
+      "path": "services/platform/connectormaintenance/executor.go",
+      "sha256": "114bc22d636e58737f2e57a606a1142249519506a92d6d853a4a7bc5695593c3",
+      "bytes": 11150
+    },
+    {
+      "path": "services/platform/migrations/sql/connector_maintenance_profile.sql",
+      "sha256": "c8bc65ef78a11ebdaea73b06cbf9a1ed7c6fadd4d541ce10725c0e903be182ba",
+      "bytes": 156809
+    },
+    {
+      "path": "services/platform/connectormaintenance/atomic_observation_test.go",
+      "sha256": "96a1475aed073fb8091b8f0044a09fc06b14288aa73cb8521f3da3fa85856ecd",
+      "bytes": 7210
+    }
+  ],
+  "validation": {
+    "final_migrations": {
+      "pass": 435,
+      "skip": 4
+    },
+    "source_contracts_pass": 14,
+    "workflow_exact_source_bindings_pass": 332,
+    "runner_primary_counts": [
+      306,
+      295
+    ],
+    "runner_helper_counts": [
+      11,
+      11
+    ],
+    "native_roster_preserved": {
+      "groups": 14,
+      "named_cases": 78,
+      "postgres_joins": 24,
+      "approval_controls": 16
+    },
+    "ledger_runner_checks_pass": 52,
+    "isolated_observer_checks_pass": 4,
+    "isolated_observer_qualification": "command-line-arguments compilation of observer file only; not API package or native application compilation",
+    "tests_first": "Attempted before product implementation; setup blocked by missing OPA. No genuine behavioral RED.",
+    "final_application_group": "SETUP FAILED: missing OPA v1.17.0 with GOPROXY=off; zero application test cases executed; denied module download not retried",
+    "fresh_UI_typecheck_exit": 0,
+    "fresh_UI_build_exit": 0,
+    "lint_exit": 0,
+    "lint_scope_checks_pass": 11,
+    "tracked_UI_inputs_unchanged": 380,
+    "anonymous_compiled_UI_shell_status": 200,
+    "anonymous_UI_qualification": "Anonymous page only; not authenticated API/provider E2E",
+    "local_scanner": "Unavailable: prior tool installation dependency redirect403, not retried; unchanged hosted guards required.",
+    "native_execution": false,
+    "measured_latency_improvement": false,
+    "production_or_real_provider_acceptance": false
+  },
+  "ledger": {
+    "rows": 728,
+    "unique_ids": 728,
+    "classes": {
+      "production-available": 523,
+      "component-only": 144,
+      "blocked/external": 61
+    },
+    "promotions": 0,
+    "evidence_only_ids": [
+      "M3-24"
+    ],
+    "owners_file_unchanged": true
+  },
+  "task_crosswalk": [
+    {
+      "id": "M3-24",
+      "qualification": "OAuth/PKCE authority observation component; original production classification retained as historical evidence, current native/deployed flow unverified."
+    }
+  ],
+  "independent_source_review": {
+    "path": "/tmp/pkce-atomic-observation-implementation-independent-review-v2-20261017.json",
+    "sha256": "8d16f62ba7dbe9486b72ddbb8d4955b00dde304d4d05f8c854368ba5e369e4ba",
+    "decision": "Source CLEAR; application compilation, actual SQL concurrency/classification/deadline and deployment remain required."
+  },
+  "evidence_archive": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/pkce-atomic-observation/component-evidence.json.gz",
+    "sha256": "e06aaf3376af5592c0bca13e3f7747f434d03044283830c1c28bd97db71902f4",
+    "bytes": 100621,
+    "members": 37
+  },
+  "open_gates": [
+    "Current hosted browser/lifecycle failures; finite job metadata identifies steps only; denied logs/artifacts/annotations not fetched.",
+    "Actual native lock-wait/revocation/catalog-drift/error-category/equality and unchanged-deadline PKCE acceptance.",
+    "Full application/CLI/worker compilation and security/release checks.",
+    "Bound production target, tenant/session identity, OpenFGA model/store, Temporal and provider integrations, fleet cutover and real deployed end-to-end journeys.",
+    "Future journal and historical unknown-writer reconciliation remain incomplete; not part of this independent batch."
+  ],
+  "publication": "Normal review-branch push only after independent final index review; no merge/release/launch claim."
+}

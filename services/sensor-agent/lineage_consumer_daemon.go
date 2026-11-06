@@ -76,6 +76,9 @@ func buildLineageConsumerDependencies(config sensorAgentConfig, controlPlaneDo, 
 	}
 	protected = append(protected, extraProtected...)
 	paths := []string{config.SpoolDirectory, config.AckDirectory, config.StateDirectory, filepath.Dir(config.TokenFile), filepath.Dir(config.KernelFile), filepath.Dir(config.BTFFile)}
+	if config.Coverage != nil {
+		paths = append(paths, config.ObservationDirectory)
+	}
 	for _, input := range extraProtected {
 		if input.Parent == nil {
 			return sensorAgentDependencies{}, errSensorRuntime
@@ -110,7 +113,7 @@ func buildLineageConsumerDependencies(config sensorAgentConfig, controlPlaneDo, 
 		client := &http.Client{Transport: dependencies.transport, Timeout: config.OperationTimeout, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 		controlPlaneDo = client.Do
 	}
-	lineage.client, err = sensoradapter.NewProductionClient(sensoradapter.ProductionClientConfig{BaseURL: config.ControlPlaneURL, EnrollmentBinding: config.EnrollmentBinding, Token: func() ([]byte, error) { return readLineageToken(token, uint32(os.Geteuid())) }, Do: controlPlaneDo, Now: time.Now})
+	lineage.client, err = sensoradapter.NewProductionClient(sensoradapter.ProductionClientConfig{SensorID: config.SensorID, NodeCoverageRetention: config.NodeCoverageRetention, BaseURL: config.ControlPlaneURL, EnrollmentBinding: config.EnrollmentBinding, Token: func() ([]byte, error) { return readLineageToken(token, uint32(os.Geteuid())) }, Do: controlPlaneDo, Now: time.Now})
 	if err != nil {
 		return sensorAgentDependencies{}, errSensorRuntime
 	}

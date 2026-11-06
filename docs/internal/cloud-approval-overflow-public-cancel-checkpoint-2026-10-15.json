@@ -1,0 +1,77 @@
+{
+  "checkpoint": "cloud-approval-overflow-public-cancel-2026-10-15",
+  "observed_at": "2026-10-15T03:24:36.770856+00:00",
+  "starting_sha": "cbde3a11d0270f7cfc6d8bd02adcf60a9f15275e",
+  "main_sha": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
+  "classification": "Source reviewed and compile verified; native/deployed acceptance pending; no original requirement completed by fixtures",
+  "ledger": {
+    "original_rows": 728,
+    "production_available_recorded": 523,
+    "component_only": 144,
+    "blocked_external": 61,
+    "missing": 0,
+    "promotions": 0
+  },
+  "task_crosswalk": [
+    {
+      "id": "M7A-90c",
+      "owner": "T10-product-ui",
+      "contribution": "Original signed approval notification overflow acceptance support; no availability promotion."
+    }
+  ],
+  "source_association": {
+    "manifest_sources": 113,
+    "changed_sources": [
+      {
+        "path": "services/platform/apiserver/approval_activation_overflow_test.go",
+        "sha256": "16b8a4826129804e73d6292eaa3778068ff7946f96ae303b7bd4070da28c6eea",
+        "bytes": 16543
+      },
+      {
+        "path": "scripts/hosted-connected-connector-acceptance.mjs",
+        "sha256": "e1ef02a38394b0337764a1d8db5aeac72c1e6f99ddca6b2c2dd63adf3e45f02c",
+        "bytes": 45401
+      },
+      {
+        "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
+        "sha256": "61bd444aef3c0959320388c9554a4fbfabaa137636098abf6c3c0a1e71950f85",
+        "bytes": 42287
+      }
+    ]
+  },
+  "implementation": [
+    "Produce all 21 genuine signed native captures across the existing three publicly created/validated/supervised definitions, retaining concurrency10. Existing organization quota counts active runs across definitions; this was a source-backed fixture flaw, not a proven explanation of every hosted failure.",
+    "After each genuine capture invoke the original tenant-scoped public cancellation API with actual run version and fresh original idempotency/audit/correlation/receipt IDs. No direct terminal-state or origin/task/delegation writes.",
+    "Verify exact original cancelled version/receipt/audit/digests, completed and cleared lease, actual settled provider30tokens/30000nanocredits, no unresolved debt/effects/step reservations, whole origin+notification JSON unchanged and still eligible/pending attempt0. Reconcile original projection before next admission.",
+    "Retain all21 native eligible captures, unchanged definition/grant/concurrency checks, measured writer/key withdrawal, exact SQL activation refusal, atomic durable snapshot and consumed permit refusal. These are durable eligible captured notifications, not21 simultaneous live pending approval runs.",
+    "Refresh existing source hashes only. Native roster, timeouts, ownership/security/resource/release guards and immutable SQL/installers/TSV classifications remain unchanged."
+  ],
+  "verification": {
+    "api_fixture_compile": {
+      "status": 0,
+      "selected_tests": 0,
+      "scope": "Complete API fixture compile; go test -run ^$ executes no native or component test. No native pass inferred."
+    },
+    "ui": {
+      "lint": 0,
+      "typecheck": 0,
+      "build": 0
+    },
+    "ledger_valid": true,
+    "independent_plan_review": "approval-overflow-quota-plan-independent-review-20261015.json",
+    "independent_implementation_review": "approval-overflow-cancellation-implementation-review-20261015.json",
+    "evidence": {
+      "path": "docs/internal/evidence/cloud-2026-10-15/approval-overflow-public-cancel/verified-batch-evidence.json.gz",
+      "sha256": "840383194860003125820d03f6e9925d055a3dddaca6972f2b086504134e8903",
+      "bytes": 9091,
+      "uncompressed_sha256": "cf97d329639f8c585692625860343974edacbdc2c31a337e2ed7f960ba55a2a5",
+      "uncompressed_bytes": 61308,
+      "members": 15
+    }
+  },
+  "remaining_gates": [
+    "Unchanged hosted overflow native group must pass; local execution unavailable through the existing ownership guard.",
+    "Other finding/lease/progress/future/strict-roster/browser runtime failures remain open; no assertion relaxation or deadline increase.",
+    "Production target/trust/role bindings, real authenticated fleet cutover, dependency security release gate and real deployed Stytch/provider end-to-end and milestone acceptance remain unresolved."
+  ]
+}

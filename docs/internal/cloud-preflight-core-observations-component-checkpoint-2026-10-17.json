@@ -1,0 +1,203 @@
+{
+  "observed_at": "2026-10-17T08:05:41.995280+00:00",
+  "continued_published_base": "f18af8224ac9f810c1a8e45129db595d5f6c9e57",
+  "scope": "Connect independent read-only compiled PostgreSQL profile observations and GET-only Stytch organization/member-session observations to the actual CLI runner before AWS credential early returns. No new provider privilege, identity mutation, native catalog execution or production promotion.",
+  "sources": [
+    {
+      "path": "services/platform/preflight/dependency_config.go",
+      "bytes": 2215,
+      "sha256": "053b2439e2b865c6d62a912a64bf32158e389a47c1a243950ac1f1154be7eb1f"
+    },
+    {
+      "path": "services/platform/preflight/dependency_runner.go",
+      "bytes": 2555,
+      "sha256": "62aa109d2feee90334b9eebcdb264b25426d81616feb3645d688cd2cae0bbd1b"
+    },
+    {
+      "path": "services/platform/preflight/stytch.go",
+      "bytes": 9124,
+      "sha256": "e2c9c43dfa09156cdf73500e24f4feb7d9888964586a110df98d49afdf3677df"
+    },
+    {
+      "path": "services/platform/preflight/stytch_test.go",
+      "bytes": 5795,
+      "sha256": "26f49939e618c12e50e6ff071f1aa16044975be2b8cf7965be260d2567545731"
+    },
+    {
+      "path": "services/platform/preflight/postgres.go",
+      "bytes": 10387,
+      "sha256": "ab0498c49a99dd4a1adfa401cd9d0f94380e499d3eeb6dc0ec924a0dd35ebde2"
+    },
+    {
+      "path": "services/platform/preflight/postgres_test.go",
+      "bytes": 2470,
+      "sha256": "eb57d5351e6feb6309f3b1328e9914ab8d19b2048ad81aaf09ee3729ff12c88d"
+    },
+    {
+      "path": "services/platform/preflight/postgres_flow_test.go",
+      "bytes": 5409,
+      "sha256": "1e2edf4ef094777d3bb04d3962c2725325065a72d237537d0aa71e7c72c8f15b"
+    },
+    {
+      "path": "services/platform/migrations/preflight_observation.go",
+      "bytes": 3557,
+      "sha256": "f75935583c37ecaeea27cc84b7bef7c37ec352fbfc0c3483f3cb2b69661ffe00"
+    },
+    {
+      "path": "services/platform/migrations/preflight_observation_test.go",
+      "bytes": 2293,
+      "sha256": "1e230130fdb837fd1a574f258d6b5e2f3ebcd7559c1af779cf03ae4f62dd8f36"
+    },
+    {
+      "path": "services/platform/preflight/contract.go",
+      "bytes": 3723,
+      "sha256": "8338c5c11835e8485fa2f2eb7acf213bb7042072d67d769f4caf1be9a07d030c"
+    },
+    {
+      "path": "services/platform/preflight/config.go",
+      "bytes": 6487,
+      "sha256": "3c185cfc9c11a44bb1c896620b1641bf6ecebcaa97c3adf784544ed57b4e5a05"
+    },
+    {
+      "path": "services/platform/preflight/runner.go",
+      "bytes": 11170,
+      "sha256": "41cf87bf093f1c0b87c45c8ec1f58846792a71b3e538828be2256a5444f27b03"
+    },
+    {
+      "path": "services/platform/preflight/connected_core_test.go",
+      "bytes": 1987,
+      "sha256": "ee0e0016946b3e69e13bc018bf85d771ebdd5f41779769238dcc3c0bc76aa13b"
+    },
+    {
+      "path": "cmd/agentsecctl/go.mod",
+      "bytes": 1613,
+      "sha256": "d60b140ec5981344c4c462680018cbc921033fb6e64a29e50d0a803d2649daac"
+    },
+    {
+      "path": "cmd/agentsecctl/go.sum",
+      "bytes": 5706,
+      "sha256": "532eeaecd32ae5fd2bcb5c717bb67c9779f532b901aa7bb16ad060e5c26dd539"
+    }
+  ],
+  "source_associations": [
+    {
+      "path": "scripts/connector-acceptance-groups.test.mjs",
+      "sha256": "6bab6a296f7898133e5487d399340a5276692d88a53ed1cce494521739fe0da0",
+      "bytes": 36662
+    },
+    {
+      "path": ".github/workflows/connector-native-draft-compile.yml",
+      "sha256": "d195ae434c4f62683b99de82fb8e1085773bef82e42c578c7efe4036219e173a",
+      "bytes": 19328
+    },
+    {
+      "path": "scripts/hosted-connected-connector-acceptance.mjs",
+      "sha256": "8ad8ed841e05b8f3933c00d10759d043a52e1ec77dbb4199454e4bb9c97520cc",
+      "bytes": 81276
+    },
+    {
+      "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
+      "sha256": "f49c0ba89b136903f02311d5a3ace681d8f9961cd3c7339cbabdf5679b984e41",
+      "bytes": 77677
+    },
+    {
+      "path": ".github/connector-native-compile-source-pins.json",
+      "sha256": "0e65da966c51694aa4a052c10d7f2f577aff2700041fb51665357945d2e05605",
+      "bytes": 113637
+    }
+  ],
+  "verification": {
+    "integrated-preflight-race": {
+      "cases": {
+        "pass": 54
+      },
+      "skipped": []
+    },
+    "integrated-migrations-race": {
+      "cases": {
+        "pass": 446,
+        "skip": 4
+      },
+      "skipped": [
+        "TestWorkerRegistrationReferenceAssemblyEmitter",
+        "TestExportWorkerCompiledRelease",
+        "TestOrdered69RetirementPLParser",
+        "TestSingleTestRecoveryRevisionFencePostgres"
+      ]
+    },
+    "integrated-cli-race": {
+      "cases": {
+        "pass": 148
+      },
+      "skipped": []
+    },
+    "actual_compiled_CLI": {
+      "binary_sha256": "67778e5e6ad40d99c319b04d75767a3f871734662de98b56d387d8f55e90d253",
+      "cases": [
+        {
+          "mode": "before-install",
+          "exit": 1,
+          "checks": 8,
+          "stytch": "credentials_unavailable",
+          "neon": "credentials_unavailable",
+          "stdout_sha256": "d8a28b5b78b740ffecc3a9914daf59e2d43cc951937c3673de3c2bc0a339d732",
+          "stderr_bytes": 0
+        },
+        {
+          "mode": "installed",
+          "exit": 1,
+          "checks": 8,
+          "stytch": "credentials_unavailable",
+          "neon": "credentials_unavailable",
+          "stdout_sha256": "646281d8524df710ae29aa2cdbbee3decfa63e424a48cb7ddbe2d37ae040f94f",
+          "stderr_bytes": 0
+        }
+      ],
+      "qualification": "Actual compiled CLI accepts intended new provider config and reports controlled missing credentials. No provider requests, native database or deployed E2E proof."
+    },
+    "source_ledger_checks_pass": 54,
+    "source_pins_verified": 371,
+    "fresh_UI_typecheck_exit": 0,
+    "fresh_UI_build_exit": 0,
+    "lint_exit": 0,
+    "lint_scope_checks_pass": 11,
+    "hosted_new_batch": "pending exact published head",
+    "native_database_execution": false,
+    "real_provider_requests": false,
+    "production_or_deployed_E2E": false
+  },
+  "reviews": [
+    {
+      "path": "/tmp/preflight-neon-stytch-b1-independent-design-review-20261017.json",
+      "bytes": 9039,
+      "sha256": "ce8a501a70c513d8bc850c7feee9d293dd2d402da9386df9bf54566f6deab36b"
+    },
+    {
+      "path": "/tmp/preflight-core-b1-helper-final-independent-source-review-20261017.json",
+      "bytes": 4145,
+      "sha256": "554bcc745bc0638f44f85d6bfa7905f2292a0179dad671466b4bbaafa3e77336"
+    },
+    {
+      "path": "/tmp/preflight-core-b1-connected-final-independent-source-review-20261017.json",
+      "bytes": 4741,
+      "sha256": "0e9e57f63a0ab84273221373c551b7b5f96ab5bff4de90845e2cfa8c28729444"
+    }
+  ],
+  "ledger": {
+    "rows": 728,
+    "unique_ids": 728,
+    "classes": {
+      "production-available": 523,
+      "component-only": 144,
+      "blocked/external": 61
+    },
+    "promotions": 0
+  },
+  "archive": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/preflight-core-observations/component-evidence.json.gz",
+    "bytes": 71494,
+    "sha256": "fc36af08133bb7b71c1359c06399abda9dde2dc866ae490235745cbe0bdcccde",
+    "members": 41
+  },
+  "remaining": "Real tenant/provider bindings, native database/Temporal/OpenFGA acceptance, current-head browser/security/release gates and deployed end-to-end flows remain required. Existing 523 production classifications are historical, not fresh launch proof."
+}

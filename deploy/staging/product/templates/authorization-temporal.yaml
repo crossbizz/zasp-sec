@@ -36,6 +36,7 @@ spec:
               env:
                 - { name: ZASP_ENVIRONMENT, value: {{ .Values.global.environment | quote }} }
                 {{- include "zasp.runtimeServices.env" . | nindent 16 }}
+                {{- include "zasp.maintenanceRuntime.pins" . | nindent 16 }}
                 - name: ZASP_POSTGRES_DSN
                   valueFrom: { secretKeyRef: { name: {{ .Values.authorizationTemporal.projectorDSNSecret | quote }}, key: postgres-dsn } }
               securityContext: { runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532, allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: [ALL] } }

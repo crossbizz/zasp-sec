@@ -1,0 +1,49 @@
+{
+  "schema": "zasp-native-refusal-checkpoint-v1",
+  "date_utc": "2026-10-14",
+  "base": "874b02da4b14ff3c66ea8362de7cd47d4951f9a6",
+  "observed_head": "59ea2a7221a6d8b7e1136a0a1f3d9d32ada196e8",
+  "observations": {
+    "compilation": "pass",
+    "original_native_capture": "both pass",
+    "authenticated_enqueue_push": "pass, three named run/pass events",
+    "authenticated_enqueue_pr": "fail, three named failures with SQLSTATE42501 reason oauth-catalog before fencing",
+    "direct_browser": "both refuse offline diagnostic stderr with zero observed events; setup corrected separately",
+    "connected_lifecycle": "pending at checkpoint"
+  },
+  "change": "Preserve the authoritative catalog and principal checks; split only closed refusal labels and classify failed catalog into registration/fingerprint/provenance, catching diagnostic exceptions as original refusal. Never admit on failed diagnostics.",
+  "source_bindings": {
+    "services/platform/migrations/sql/connector_maintenance_profile.sql": "965a8799758225d1afcd903eb0cf3d3902d55d0a7faff1c93e99ac949caa587d",
+    "services/platform/apiserver/connector_maintenance_enqueue_postgres_test.go": "036597f5431971369f2a3cd0e56d143e2104d34999cecece1abac2365990348f"
+  },
+  "review": {
+    "reviewer": "browser_setup_review",
+    "result": "no-actionable-source-findings",
+    "permissions": "unchanged",
+    "sqlstate": "42501 unchanged",
+    "diagnostic_caps": "unchanged",
+    "limits": "source review only; native cause and stable acceptance not established"
+  },
+  "checks": {
+    "runner_syntax": "pass both",
+    "strict_offline_inner_observer_local": "all-tests-pass, two tops and 28 subtests",
+    "observer_tests": "26 pass, zero fail/skip",
+    "ui_typecheck": "pass",
+    "ui_build": "pass",
+    "diff_check": "pass"
+  },
+  "ledger": {
+    "rows": 728,
+    "recorded_production_available": 523,
+    "component_only": 144,
+    "blocked_external": 61,
+    "missing": 0,
+    "promotions": 0
+  },
+  "limits": [
+    "No stable native or browser acceptance claim",
+    "No production deployment or provider proof",
+    "No immutable fingerprint/reference refresh",
+    "Callback implementation under development separately, excluded from this checkpoint"
+  ]
+}

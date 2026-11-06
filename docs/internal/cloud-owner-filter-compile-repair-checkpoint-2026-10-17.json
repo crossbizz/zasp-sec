@@ -1,0 +1,130 @@
+{
+  "classification": "OWNERSHIP_FIXTURE_COMPILE_ERROR_CORRECTED_SOURCE_VERIFIED_HOSTED_PENDING",
+  "observed_at": "2026-10-17T21:49:01.170911+00:00",
+  "source_parent": "3eb7b88f641821a1bc8271ede2eddd0144547f06",
+  "hosted_evidence": {
+    "source_parent": "3eb7b88f641821a1bc8271ede2eddd0144547f06",
+    "observed_at": "2026-10-17T21:47:57.431388+00:00",
+    "hosted_compile_check_id": 117509055013,
+    "hosted_ui_check_id": 117509055104,
+    "actual_annotations_observed": [
+      "f.repository.agentOwnerFilterProfileChecksum undefined (type *PostgresRepository has no field or method agentOwnerFilterProfileChecksum)",
+      "inventory.agentOwnerFilterProfileChecksum undefined (type *PostgresInventoryRepository has no field or method agentOwnerFilterProfileChecksum)"
+    ],
+    "source_preimage_sha256": "ce3e350a7c87cda23e5b5f6bf6cee9aaad0190f5ad3f0f6ba03722b94bcbbe37",
+    "qualification": "Exact annotation messages observed through GitHub API in this turn; not full logs or proof of all hosted failure causes."
+  },
+  "change": {
+    "classification": "MINIMAL_TEST_FIXTURE_FIELD_TYPO_CORRECTION_SOURCE_VERIFIED_EXECUTION_PENDING",
+    "observed_at": "2026-10-17T21:47:54.341581+00:00",
+    "path": "services/platform/apiserver/agent_current_ownership_write_postgres_test.go",
+    "line": 95,
+    "before_sha256": "ce3e350a7c87cda23e5b5f6bf6cee9aaad0190f5ad3f0f6ba03722b94bcbbe37",
+    "after_sha256": "1e029236425a963b085a5fec157fdbcf10edec03960d952fb1ae13ba6c28bf3d",
+    "preimage": "/tmp/owner-filter-compile-fix-20261017-source-preimage.go",
+    "change": {
+      "before": "inventory.agentOwnerFilterProfileChecksum = f.repository.agentOwnerFilterProfileChecksum",
+      "after": "inventory.agentOwnerProfileChecksum = f.repository.agentOwnerProfileChecksum",
+      "changed_lines": 1,
+      "other_bytes_unchanged": true
+    },
+    "cause": "Native ownership fixture referred to nonexistent agentOwnerFilterProfileChecksum on both InventoryRepository and PostgresRepository. Both actual fields are agentOwnerProfileChecksum; RequireAgentOwnerFilterProfile stores the validated Normal/Audit owner pin there. Exact production composition copies that field unchanged.",
+    "semantics": "Fixture already selects ownerPin using the correct Normal/Audit installer and Require method. This correction copies that exact validated production field; no fake pin, feature behavior, permission, guard, test expectation or native prerequisite changed.",
+    "source_pins": [
+      {
+        "path": "services/platform/apiserver/inventory_repository.go",
+        "sha256": "af7d51686f5aadb8adaa0379459efc2c3f7ad97d1e5b1043b086c32b60a62fee",
+        "anchor": "agentOwnerProfileChecksum",
+        "line": 219
+      },
+      {
+        "path": "services/platform/apiserver/repository.go",
+        "sha256": "1e751dc7f9918746d8f1bfd69bbc9b787e078bdbc1b758f891fa973c6db46e16",
+        "anchor": "agentOwnerProfileChecksum",
+        "line": 91
+      },
+      {
+        "path": "services/platform/apiserver/agent_owner_filter.go",
+        "sha256": "968f73a8fc8d16e918c53576f64aa326e35635d2144b7bcf10cd6403244b5205",
+        "anchor": "r.agentOwnerProfileChecksum = pin",
+        "line": 174
+      },
+      {
+        "path": "services/platform/apiserver/production.go",
+        "sha256": "d59ee3987e8858c46c9a0d7c3a9d5f0e50ad84439418290ce1be72196f9a2194",
+        "anchor": "inventoryRepository.agentOwnerProfileChecksum = repository.agentOwnerProfileChecksum",
+        "line": 248
+      }
+    ],
+    "verification": "Read-only source/byte comparison and one-line edit only. No Go/test/build/Git/network execution by author. Root must run available compiler/regression checks; OPA/setup/native gates remain separate. No new redundant test for field typo."
+  },
+  "verification": {
+    "independent_root_source_review": "Exact one-line substitution; real Require method/struct fields and production copy inspected. No product/permission/test-expectation change.",
+    "source_guards": "21PASS actual Node test execution",
+    "source_custody": "890 current hashes/bytes match; original order/history retained; runners unchanged outside literal source maps",
+    "actual_apiserver_compile": "SETUP_FAILED: unavailable OPA v1.17.0 with GOPROXY=off; zero behavior/compiler-success credit",
+    "hosted_after_fix": "PENDING_PUSH_AND_FRESH_RUN",
+    "native_deployed": "UNVERIFIED_UNCHANGED"
+  },
+  "ledger": {
+    "total": 728,
+    "production_available_recorded": 509,
+    "component_only": 158,
+    "blocked_external": 61,
+    "remaining_recorded_nonproduction": 219,
+    "promoted": 0
+  },
+  "evidence_local": "/tmp/owner-filter-compile-fix-evidence-20261017",
+  "evidence_files": [
+    {
+      "path": "actual-apiserver-compile.json",
+      "sha256": "03a8c0d77600bd86109a85331d4f5d3dc936bbd7c46f5a1c174597c0f918f371",
+      "bytes": 256
+    },
+    {
+      "path": "actual-apiserver-compile.log",
+      "sha256": "bfc85fc4f0fb15bb0677a6408de77d8ab2b52f9aa98bd35f8e7a949cb82896b4",
+      "bytes": 257
+    },
+    {
+      "path": "author-source-review.json",
+      "sha256": "82120e821a8685bc4b8440700fead97a532987498ca7e6c5a4857d89091806c1",
+      "bytes": 2633
+    },
+    {
+      "path": "hosted-connected-connector-acceptance.mjs.preimage",
+      "sha256": "b5e176eca37fbc156a6f8d0f77a1c43d013b949d8aafb794df5b958b90a5159b",
+      "bytes": 147754
+    },
+    {
+      "path": "hosted-connector-authenticated-enqueue.mjs.preimage",
+      "sha256": "eb16a241e091581c9aaf1bfa4b0817e51bafd397699971857ea02843274ae750",
+      "bytes": 144270
+    },
+    {
+      "path": "observed-hosted-regression.json",
+      "sha256": "49e0eadcbacf3506b0bf5a38250541cc6d445fa75e07f69e9740f12bb421bbf9",
+      "bytes": 772
+    },
+    {
+      "path": "ownership-test-preimage.go",
+      "sha256": "ce3e350a7c87cda23e5b5f6bf6cee9aaad0190f5ad3f0f6ba03722b94bcbbe37",
+      "bytes": 30557
+    },
+    {
+      "path": "source-custody.json",
+      "sha256": "a1f4903255b6601d3a05caba298de23b905cba20c6c24de2f4b969c377f8991c",
+      "bytes": 991
+    },
+    {
+      "path": "source-guards.tap",
+      "sha256": "f3f6e22bea8f6723813dc7a39ed43fcf7197b689a08e049be6c1c412e0cc224f",
+      "bytes": 5092
+    },
+    {
+      "path": "source-manifest-preimage.json",
+      "sha256": "478ce0fe022bb9967af8c619099223df306f5b9842e7543d5bd3ba7d2b3f0d7b",
+      "bytes": 255027
+    }
+  ]
+}

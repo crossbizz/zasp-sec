@@ -1,0 +1,256 @@
+{
+  "classification": "EDGE_RENDER_AND_RETENTION_SCOPE_CANDIDATE_COMPONENT_CHECKED_NOT_NATIVE_OR_DEPLOYED_ACCEPTANCE",
+  "observed_at": "2026-11-06T21:12:18.870272+00:00",
+  "starting_SHA": "5e4619eb46aaf5647d7c45201c79811f1a24098c",
+  "latest_main_SHA": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
+  "required_ancestor": "e13ccb95451b03107681ccb59b3fc6fe175a228f",
+  "required_ancestor_verified": true,
+  "handoff": "ContinuedpreservedPR60source after restoringfreshworkspacefromorigin. No original728requirementremoved, prototype restart, ignoredcache/evidence assumption orscope reduction. NoAGENTS/writingstylefilepresent. Cloudruntimeskillread; Superpowersunavailable, upstreamgroupedworkflow retained.",
+  "problem_and_behavior": {
+    "edge": "Realhostededge-product-template fails. Chartreferences absentglobal.dependencyImages.tetragon; declaredglobal.images.tetragon exactlymatchespinnedwrapperdigest. Correctedonevaluepath; actualsource19globalpaths nowallresolve. No role/digest/guard change; notHelmrenderGREEN.",
+    "retention": "Hostedprepare/cutoverpass, replayfails42501becausefixture rawsessionUPDATE runsasdemotedNOINHERITsource withoutprivatebindingtableauthority. Useactualrepo.SwitchScopeA\u2192B\u2192A withcredential/principal/CSRFchecks andpreauthorizedB, thenownedprovider\u2192nativeissue\u2192Authenticate freshsessionbeforepolicy mutation. No rawauthenticated_atfabrication, broadgrant, triggerbypass, productionSQL orprivilegechanges. OwnedHTTPprovider isnotrealStytchproof.",
+    "availability": "Sixcustomeredgeproductionclasses reliedonoldb0caf99render, contradictedbycurrentrealtemplatefailure. Exact6negativecorrections tocomponentonly, originalhistoricalComplete/evidence/owners preserved, strongerclassguardspreventfalsepromotion/missingrows."
+  },
+  "actual_verification": {
+    "observed_branch_start": "5e4619eb46aaf5647d7c45201c79811f1a24098c",
+    "main": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
+    "typecheck": "PASS npm run typecheck actual exit0",
+    "build": "PASS npm run build actual5vinextstages exit0 standaloneoutput",
+    "status_tests": "RED1FAIL tofinal58PASS0FAIL0SKIP; intermediate55PASS3FAIL oldcountfixtures corrected, all original affectedchecks retained",
+    "source_guards": "21PASS0FAIL0SKIP",
+    "scoped_lint": "PASS4changedJSfiles actualexit0",
+    "api_native": "NOTVERIFIED offlinecompilerrefusedmissingmodulecache, no namedcases executed",
+    "real_Helm": "NOTRUN officialHelmprerequisiteunavailable, source19imagekeyreferenceinventoryonly",
+    "secret_scanner": "NOTRUN after exactversiontoolsourcebuildHTTP403 officialmoduleredirect; nofindings/clearanceorignorechanges",
+    "independent_review_SHA256": "2b66655140520e2e54f50c761e861f38ab734dcb009fa809754fde34034d76d7",
+    "component_only_by_owner": {
+      "T11-identity-admin": 8,
+      "T04-discovery-worker": 14,
+      "T03-launch-connectors": 7,
+      "T12-red-team": 1,
+      "T14-data-workflows": 44,
+      "T07-security-agent-authority": 2,
+      "T10-product-ui": 13,
+      "T15-deployment": 24,
+      "T05-inventory-cutover": 5,
+      "T08-supervised-agent": 6,
+      "T09-agent-actions": 5,
+      "T16-recovery-ops": 35
+    },
+    "blocked_external_by_owner": {
+      "EXT-live-aws": 2,
+      "EXT-live-fargate": 2,
+      "EXT-cloud-deploy": 42,
+      "EXT-human-observation": 13,
+      "EXT-image-attestation": 2
+    }
+  },
+  "ledger": {
+    "total": 728,
+    "classes": {
+      "production-available": 503,
+      "component-only": 164,
+      "blocked/external": 61
+    },
+    "negative_correction_IDs": [
+      "M8-10",
+      "M8-14",
+      "M8-57a",
+      "M8-57b",
+      "M8-57c",
+      "M8-57"
+    ],
+    "tasks_closed": 0,
+    "promotions": 0,
+    "historical_statuses_owners_and_all_other_rows_preserved": true,
+    "beforeSHA256": "f1eed87cd01c1bdb356ba16258c0bef94bb99dbbf52b2d91c5c74267c20d35f3",
+    "afterSHA256": "43d7a3ea94bcd6d119738773a1784b8ac3000cc67e13b692b4a9c1f702b5c9a1",
+    "blocked_owners": {
+      "EXT-live-aws": 2,
+      "EXT-live-fargate": 2,
+      "EXT-cloud-deploy": 42,
+      "EXT-human-observation": 13,
+      "EXT-image-attestation": 2
+    },
+    "component_owners": {
+      "T11-identity-admin": 8,
+      "T04-discovery-worker": 14,
+      "T03-launch-connectors": 7,
+      "T12-red-team": 1,
+      "T14-data-workflows": 44,
+      "T07-security-agent-authority": 2,
+      "T10-product-ui": 13,
+      "T15-deployment": 24,
+      "T05-inventory-cutover": 5,
+      "T08-supervised-agent": 6,
+      "T09-agent-actions": 5,
+      "T16-recovery-ops": 35
+    }
+  },
+  "source_custody": {
+    "bindings": 927,
+    "all_hashes_bytes_match": true,
+    "paths_order_preimage_fields_preserved": true,
+    "all_current_script_associations_match": true,
+    "current_script_associations": 1826,
+    "changed": [
+      {
+        "path": "scripts/hosted-connected-connector-acceptance.mjs",
+        "beforeSHA256": "738798b2d7074b800e891d5fc6ba4690b32b8f4145804b30d8b262c66d9a3eb2",
+        "afterSHA256": "e6730701eaf0d20cd133aa056a5a6a8a1ae9c0458a7393de5c1d68453ad5a055"
+      },
+      {
+        "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
+        "beforeSHA256": "a8749107851a8b1d375f391737d54e65769727880cf8fd1aedfbde538e4b5c42",
+        "afterSHA256": "c69dc2d3cfa6b9c853df95a199d7313883ed75af1ba113aae803eeb641f53c45"
+      },
+      {
+        "path": "services/platform/apiserver/retention_native_postgres_test.go",
+        "beforeSHA256": "45a1ef145e9e2640ff2726255e56ccfb307e008c923d43b38c35153788c90813",
+        "afterSHA256": "0234092cf3754f28ee2edf3017a457686c929669980850b1b12d98abfbfdeb7f"
+      },
+      {
+        "path": "deploy/staging/product/templates/edge.yaml",
+        "beforeSHA256": "a1da5ca57f332644bbacaf367c94e3dde3479315bfb2bc64a653e4d7b082f7e3",
+        "afterSHA256": "7b4c544255b849f78babcce432d52c18be7080dca14d505c68c040e3d9560dc8"
+      },
+      {
+        "path": "scripts/implementation-status-check.mjs",
+        "beforeSHA256": "6159102e6502b20b60488f93d29ada941a7f5389ef1f870b6776a7a79afa67f2",
+        "afterSHA256": "f49386fddec3a2b360ff5f6ff970ccde15d4587bfb087aa44c7fa1cc4e7c22ac"
+      },
+      {
+        "path": "scripts/implementation-status-check.test.mjs",
+        "beforeSHA256": "9793411c1e1e5582a8fb214a44d3e0e5538bdea1dd3e73de03ff0eccb0ad5a2d",
+        "afterSHA256": "246d0a59d452534a65a69af3194ac17eb4d99a05e0a0080903d0dab104092944"
+      }
+    ]
+  },
+  "runtime_access": {
+    "revision": "1559",
+    "observations_current": true,
+    "phase": "running/connected",
+    "policy": "enforcedrestrictedHTTP; noTCPgrants/VPN/managedproductionidentitybindings",
+    "tools": "RestoredofficialNode22.23.1/npm10.9.8andGo1.26.8 fromchecksumverifiedofficialarchives; freshlockednpmciPASS. Priorworktree/toolcachewasabsent, nottreatedastransferred.",
+    "product_prerequisite_names": {
+      "scope": "NAME PRESENCE ONLY; required-name set from prior immutable evidence, no values/validity or live provider authority inferred",
+      "required_count": 53,
+      "direct_present": [],
+      "supported_aliases": {
+        "ZASP_STYTCH_PROJECT_ID": "STYTCH_PROJECT_ID",
+        "ZASP_STYTCH_SECRET": "STYTCH_SECRET",
+        "ZASP_STYTCH_PUBLIC_TOKEN": "STYTCH_PUBLIC_TOKEN"
+      },
+      "unbound_names": [
+        "ZASP_ENVIRONMENT",
+        "ZASP_DEPLOYMENT_MODE",
+        "ZASP_PRODUCT_LISTEN_ADDRESS",
+        "ZASP_INTERNAL_LISTEN_ADDRESS",
+        "ZASP_PUBLIC_ORIGIN",
+        "ZASP_COOKIE_SECURE",
+        "ZASP_TRUSTED_PROXY_CIDRS",
+        "ZASP_REQUEST_RATE_PER_SECOND",
+        "ZASP_REQUEST_BURST",
+        "ZASP_PROVIDER_TIMEOUT",
+        "ZASP_REQUEST_TIMEOUT",
+        "ZASP_SHUTDOWN_TIMEOUT",
+        "ZASP_READINESS_INTERVAL",
+        "ZASP_READINESS_MAX_INTERVAL",
+        "ZASP_DISCOVERY_PARSER_VERSION",
+        "ZASP_DISCOVERY_TOOL_VERSION",
+        "ZASP_POSTGRES_DSN",
+        "ZASP_SECURITY_AGENT_POSTGRES_DSN",
+        "ZASP_STYTCH_BASE_URL",
+        "ZASP_STYTCH_AUTHORIZE_URL",
+        "ZASP_STYTCH_WEBHOOK_SECRET",
+        "ZASP_STYTCH_ORGANIZATION_ID",
+        "ZASP_WORKFLOW_SIGNING_KEY",
+        "ZASP_TOKEN_REVEAL_KEY",
+        "ZASP_CONNECTOR_AWS_REGION",
+        "ZASP_CONNECTOR_ROLE_ARN",
+        "ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE",
+        "ZASP_CONNECTOR_KMS_KEY_ARN",
+        "ZASP_CONNECTOR_SECRET_PREFIX",
+        "ZASP_POLICY_HISTORY_ENDPOINT",
+        "ZASP_POLICY_HISTORY_INDEX",
+        "ZASP_AWS_CUSTOMER_ROLE_PREFIXES",
+        "ZASP_AWS_CUSTOMER_ROLE_ARNS",
+        "ZASP_FINDING_TICKET_EGRESS_CIDRS",
+        "ZASP_GITHUB_CLIENT_ID",
+        "ZASP_GITHUB_CLIENT_SECRET_REFERENCE",
+        "ZASP_GITHUB_APP_ID",
+        "ZASP_GITHUB_PRIVATE_KEY_REFERENCE",
+        "ZASP_OKTA_CLIENT_ID",
+        "ZASP_OKTA_CLIENT_SECRET_REFERENCE",
+        "ZASP_RUNTIME_SERVICES_ENABLED",
+        "ZASP_RUNTIME_SERVICES_TIMEOUT",
+        "ZASP_TEMPORAL_ADDRESS",
+        "ZASP_TEMPORAL_NAMESPACE",
+        "ZASP_TEMPORAL_TASK_QUEUE",
+        "ZASP_TEMPORAL_DISCOVERY_TASK_QUEUE",
+        "ZASP_OPENFGA_URL",
+        "ZASP_OPENFGA_STORE_ID",
+        "ZASP_OPENFGA_MODEL_ID",
+        "ZASP_OPENFGA_TOKEN_FILE"
+      ],
+      "oic_manifest_configured": false
+    },
+    "external_verification_gates": {
+      "scanner_install": "FAILED, HTTP403 from official Go module redirect destination storage.googleapis.com",
+      "affected_modules": [
+        "github.com/klauspost/compress@v1.17.11",
+        "github.com/pierrec/lz4/v4@v4.1.21",
+        "github.com/minio/minlz@v1.0.0"
+      ],
+      "raw_log_excluded_from_repository_evidence": true,
+      "no_alternate_route_or_guard_bypass": true,
+      "actual_secret_findings": "Unknown; scanner could not be built here, hosted sources-gitleaks failure alone does not prove its exact cause",
+      "api_compile": "NOT VERIFIED: offline compile refused missing module cache with GOPROXY=off; no API/native runtime tests run"
+    },
+    "configuration_tools": "Onlycloudstatus/diagnosticreadtoolsavailable; no supportedpolicy/secretbindingwriter. No directroute/alternateendpoint/security/releaseguard bypass attempted."
+  },
+  "remaining_tasks": {
+    "recorded_outside_production_available": 225,
+    "component_only_by_owner": {
+      "T11-identity-admin": 8,
+      "T04-discovery-worker": 14,
+      "T03-launch-connectors": 7,
+      "T12-red-team": 1,
+      "T14-data-workflows": 44,
+      "T07-security-agent-authority": 2,
+      "T10-product-ui": 13,
+      "T15-deployment": 24,
+      "T05-inventory-cutover": 5,
+      "T08-supervised-agent": 6,
+      "T09-agent-actions": 5,
+      "T16-recovery-ops": 35
+    },
+    "blocked_external_by_owner": {
+      "EXT-live-aws": 2,
+      "EXT-live-fargate": 2,
+      "EXT-cloud-deploy": 42,
+      "EXT-human-observation": 13,
+      "EXT-image-attestation": 2
+    },
+    "why": "Componentgroupsincludeincompleteimplementationandunverifiedrealintegration/deployedflows. ExternalgatesneedrealAWS/Fargatetargets, deploymentresources/network/identityconfiguration, imageattestation,andactualusability/design-partnerobservations. Permissionsalonecannotmanufacturetheseinputs. All503recordedproductioncategoriesalsoneedfreshfinaldeployedacceptance.",
+    "critical_path": [
+      "RequireactualcurrentHelmrenderandnativePostgreSQL/OpenFGAscope/replay/retentionacceptance oncandidate.",
+      "Diagnoseactualredactedgitleaksfindingsoncefullscanneravailable; sources-gitleaksfailurealone doesnotidentifyfindingorcommandcause. Preserveallscannerguards.",
+      "Resolvebrowserapproval-reconcilerdeadline fromactualSQL/pool/cleanup timing; keepfreshchecks/deadlinesuntilrootcauseproven.",
+      "Finishcurrent signedwebhookexecution/capturedsettlement, API/worker/permission/UIintegrationandotheroriginalrequirements; deployrealStytch/providerflows andretireobsoleteonlyafterverifiedequivalence."
+    ]
+  },
+  "evidence": {
+    "path": "docs/internal/cloud-launch-edge-replay-evidence-2026-11-06.tar.gz",
+    "sha256": "5358d00f00a13f94077165a62f4eca82bf22bd0a5dad57c147f4ed94b2fe39e8",
+    "bytes": 1582353,
+    "members": 58,
+    "verification": "Allmemberbytesverified; manifestincluded/checkpointexcludedselfreference. Rawscannerinstall URLs withdownloadqueries excluded; sanitizedfailurelogretained. OriginalRED/intermediatecountfixturefailures preserved."
+  },
+  "launch_ready": false,
+  "goal_complete": false,
+  "tasks_closed": 0,
+  "availability_promotions": 0,
+  "obsolete_retired": false,
+  "merge_release_cleared": false
+}

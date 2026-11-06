@@ -1,0 +1,394 @@
+{
+  "observed_at": "2026-10-17T09:32:04.254882+00:00",
+  "continued_published_base": "9817cf12385840378489064170b277857b32a2d8",
+  "scope": "Connected read-only Fargate/private topology preflight under the same explicitly selected verified inspector identity: official exact EKS profile/addon, IAM existing runner DenyAll and execution trust, one shared bounded Kubernetes authority for exact prerequisites, and EC2 ownership/VPC/subnet/route-main-fallback/prefix/endpoint/security-group joins. Private per-run credential capture survives inspector checks and is released at Run end. Disabled feature performs no Fargate reads. Closed per-operation individual-target failures contain no raw provider messages. Earlier observed Namespace survives later refusal; never-invoked local credential failures remain unknown.",
+  "sources": [
+    {
+      "path": "services/platform/preflight/attack_lab.go",
+      "bytes": 4828,
+      "sha256": "458c5fbbdc9a8351431513ddb074ca365f65ae609052f043020ae568a0f9736b"
+    },
+    {
+      "path": "services/platform/preflight/attack_lab_config.go",
+      "bytes": 1874,
+      "sha256": "8cf17d0f700bb05cf096d526afe6ad66feb07812fdc5c94b846b024d7060246c"
+    },
+    {
+      "path": "services/platform/preflight/attack_lab_identity.go",
+      "bytes": 7634,
+      "sha256": "f6eb8de36d3b700374f63fce573c637cbe265a8a92e1e22562810f7f03a5f6b3"
+    },
+    {
+      "path": "services/platform/preflight/attack_lab_identity_test.go",
+      "bytes": 7252,
+      "sha256": "33896087377d550d6002d24756dd9cdb835763108a9bf2700df36de3d6ade2c8"
+    },
+    {
+      "path": "services/platform/preflight/attack_lab_integration.go",
+      "bytes": 4651,
+      "sha256": "45fad83db37e8bd3eb6eca75dffaae3a338ea1bbfc9751ffda156b02014432b2"
+    },
+    {
+      "path": "services/platform/preflight/attack_lab_integration_test.go",
+      "bytes": 5521,
+      "sha256": "524c0721a7692531d9752af05c7a66b9e4f76d898227bbf5c460a31e5cd89520"
+    },
+    {
+      "path": "services/platform/preflight/attack_lab_kubernetes.go",
+      "bytes": 8269,
+      "sha256": "a7da708c2e9db51f61c02251620a79fa83a2d29cbb34eaf239355aa604f410a3"
+    },
+    {
+      "path": "services/platform/preflight/attack_lab_kubernetes_test.go",
+      "bytes": 6272,
+      "sha256": "5358696df3ce8042002c100bdc66058abbb4adcf7613d39478ec37bbe91388c4"
+    },
+    {
+      "path": "services/platform/preflight/attack_lab_network.go",
+      "bytes": 2001,
+      "sha256": "3783f7c215002aada177aa81ed7492e38030b6ea5811ecbe6fc9e2555ff7ec93"
+    },
+    {
+      "path": "services/platform/preflight/attack_lab_network_test.go",
+      "bytes": 2672,
+      "sha256": "7f861b6197f2b291a505b964c18b9d40f8f5831095bd9a303a637c2d7e69f3c1"
+    },
+    {
+      "path": "services/platform/preflight/attack_lab_test.go",
+      "bytes": 6897,
+      "sha256": "ccb59ea4911fe79f5065daea3e9c2821d3a6c70c6630986c7f97ae5b26ab6e14"
+    },
+    {
+      "path": "services/platform/preflight/attack_lab_topology.go",
+      "bytes": 6585,
+      "sha256": "cf2af8c0a4502debe3a90e375ba8b337a3f6e17d966fe895bdecf27d6355206e"
+    },
+    {
+      "path": "services/platform/preflight/attack_lab_topology_predicates.go",
+      "bytes": 12247,
+      "sha256": "eede5a4c9f5d126396499f44cfb0f7e32b085f8321ad70da5272a605f9163f0b"
+    },
+    {
+      "path": "services/platform/preflight/attack_lab_topology_test.go",
+      "bytes": 11860,
+      "sha256": "96b230c9a7202c37616fbb85f7a156561627b3bf95cc8d0f55522873fc82a546"
+    },
+    {
+      "path": "services/platform/preflight/attack_lab_validation.go",
+      "bytes": 3656,
+      "sha256": "43c2f92e6d7cc5e0c63c175fd1502e590ed43e94738313eee7eee7b111b85b42"
+    },
+    {
+      "path": "services/platform/preflight/aws_inspection_capture.go",
+      "bytes": 853,
+      "sha256": "e2ad0171509803dab726b151ced966186c477bff91c7630873d44b1e0faf9405"
+    },
+    {
+      "path": "services/platform/preflight/aws_authority.go",
+      "bytes": 11585,
+      "sha256": "d2cddc6993299b25cf991067a488e5d1ea0de6e84e69f1b71dfba5a7fe361ca9"
+    },
+    {
+      "path": "services/platform/preflight/aws_authority_config.go",
+      "bytes": 2030,
+      "sha256": "2432b8b787b1a83d6a2e58c14248205c1e52d25d7364855f406961d3f5dd6f35"
+    },
+    {
+      "path": "services/platform/preflight/aws_kubernetes.go",
+      "bytes": 9388,
+      "sha256": "de4d98d121c789f40200c31db643078abf302dde4deb022bc51c65ff43519dc9"
+    },
+    {
+      "path": "services/platform/preflight/config.go",
+      "bytes": 6929,
+      "sha256": "4e6f80c4489d7d840a102ebcbeb9d68335d8b25c2fee531d60639b2dc8233e97"
+    },
+    {
+      "path": "services/platform/preflight/contract.go",
+      "bytes": 5174,
+      "sha256": "f949c0e365f5862f7f6776cc84ee8ae0d730c836cc58e71147dfd35905481759"
+    },
+    {
+      "path": "services/platform/preflight/runner.go",
+      "bytes": 12361,
+      "sha256": "17a8331d8ad3f1e6188bfb8f02f8462d52d6592e71c69cd5980069f8fde3b939"
+    },
+    {
+      "path": "services/platform/cloudreadiness/attack_lab.go",
+      "bytes": 7023,
+      "sha256": "e0f7914e8157405c9a8adef5e52f9b6d99fb32c5a63b20e05a6e7d1ee9be97d3"
+    },
+    {
+      "path": "services/platform/cloudreadiness/attack_lab_test.go",
+      "bytes": 4969,
+      "sha256": "c08172d0af15da1a96cf1dbb62b8e19563fef4aa51f2f7a8bef853ee8be32e92"
+    },
+    {
+      "path": "services/platform/agentsec-worker/attack_lab_kubernetes_api.go",
+      "bytes": 47601,
+      "sha256": "21c5a5d1aa686e62e1ad057f881c74715939ed8c4ffea07609a34c744b7ab1b4"
+    },
+    {
+      "path": "services/platform/preflight/attack_lab_failures.go",
+      "bytes": 3535,
+      "sha256": "7f30b4d666b7d5ff709d952e056ab03cca0224a10e28dffbc71e1223d545cb02"
+    },
+    {
+      "path": "services/platform/preflight/attack_lab_mounted_recipe_test.go",
+      "bytes": 12748,
+      "sha256": "c4709e51167e00b415f4447b3506f2cd5c77c965ec2e5bc36efd7d9f6a8deb55"
+    },
+    {
+      "path": "cmd/agentsecctl/go.mod",
+      "bytes": 1869,
+      "sha256": "ebf97b7c55a47ac9263107eff6cdb0f7928f3610d66eba47c0cbdfc66737fab1"
+    },
+    {
+      "path": "cmd/agentsecctl/go.sum",
+      "bytes": 6679,
+      "sha256": "ba9715433e35f6e74f03fb8cb57c043d6f6a0ef39a8be25f27687d7580f0a58e"
+    }
+  ],
+  "source_associations": [
+    {
+      "path": "scripts/connector-acceptance-groups.test.mjs",
+      "sha256": "fff7b939e32c01abff67579488730d1ed1cba098063884683331f611e8005eeb",
+      "bytes": 40528
+    },
+    {
+      "path": ".github/workflows/connector-native-draft-compile.yml",
+      "sha256": "5ae4e8a5b8f89171c9a073bf8a3b2402b1826f89b9c2b068c67906550e711d24",
+      "bytes": 24016
+    },
+    {
+      "path": "scripts/hosted-connected-connector-acceptance.mjs",
+      "sha256": "c41dc2804e51ba86716e54ae805fbcb75ae34aeb281ce13a731375f8fefd080d",
+      "bytes": 89902
+    },
+    {
+      "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
+      "sha256": "52d5c698e68a500422b351de1bbe445e73324bb377fc079e3a131359dda7272d",
+      "bytes": 86303
+    },
+    {
+      "path": ".github/connector-native-compile-source-pins.json",
+      "sha256": "2dc58a78cf122552c94b4b86de5f24c61a6e0b2dfeb2d345f6379b0053c0304c",
+      "bytes": 132218
+    }
+  ],
+  "module_qualification": "Actual provider/network/canary/cleanup, original worker-package regression and deployed acceptance remain separate. Final source v2 corrects only mounted test credential-loss phase arming; old failed traces retained.",
+  "verification": {
+    "integrated-final-connected-full-race-v2": {
+      "pass": 494,
+      "fail": 0,
+      "skip": 1,
+      "packages": [
+        "github.com/zasp-ai/zasp-sec/services/platform/cloudreadiness",
+        "github.com/zasp-ai/zasp-sec/services/platform/inventorysearch/opensearchdriver",
+        "github.com/zasp-ai/zasp-sec/services/platform/preflight",
+        "github.com/zasp-ai/zasp-sec/services/platform/runtimeindex/opensearchdriver"
+      ],
+      "skipped_cases": [
+        {
+          "package": "github.com/zasp-ai/zasp-sec/services/platform/runtimeindex/opensearchdriver",
+          "test": "TestSandboxSessionIndexLocalOpenSearch"
+        }
+      ],
+      "jsonl": {
+        "path": "/tmp/preflight-fargate-network-evidence-20261017/integrated-final-connected-full-race-v2.jsonl",
+        "bytes": 548018,
+        "sha256": "7746c640fe82c63acb0cb3a348e8694734268113c72ae105277f0150e80ef5ed"
+      },
+      "stderr": {
+        "path": "/tmp/preflight-fargate-network-evidence-20261017/integrated-final-connected-full-race-v2.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    "integrated-final-full-cli-race": {
+      "pass": 148,
+      "fail": 0,
+      "skip": 0,
+      "packages": [
+        "github.com/zasp-ai/zasp-sec/cmd/agentsecctl"
+      ],
+      "skipped_cases": [],
+      "jsonl": {
+        "path": "/tmp/preflight-fargate-network-evidence-20261017/integrated-final-full-cli-race.jsonl",
+        "bytes": 158858,
+        "sha256": "c1ab1a19031ee568985a3d41b9cfebadcff9a34ff4551fe1e227dceef0537da0"
+      },
+      "stderr": {
+        "path": "/tmp/preflight-fargate-network-evidence-20261017/integrated-final-full-cli-race.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    "source_ledger_checks": {
+      "tests": 54,
+      "pass": 54,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0
+    },
+    "lint_scope_checks": {
+      "tests": 11,
+      "pass": 11,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0
+    },
+    "original_worker_local_setup_block": {
+      "status": "SETUPBLOCKED",
+      "behavior_cases": 0,
+      "jsonl": {
+        "path": "/tmp/preflight-fargate-network-evidence-20261017/shared-reader-and-original-worker-group.jsonl",
+        "bytes": 17116,
+        "sha256": "a947a71e8ce32b4c0fec22c3ce1b42113de5dce039abaa0ef1ad5146858883e2"
+      },
+      "stderr": {
+        "path": "/tmp/preflight-fargate-network-evidence-20261017/shared-reader-and-original-worker-group.stderr",
+        "bytes": 116,
+        "sha256": "5a3d0527bc85aeef901851b162e905709b1701779c1b54c41660f3a2ef5f5d7c"
+      },
+      "reason": "Offline OPA/Neo4j source unavailable; prior OPA access denial not retried. This local trace itself records GOPROXY=off refusal, not a fresh HTTP403."
+    },
+    "actual_compiled_CLI": {
+      "binary_sha256": "72f9c510072f6a93a97f1d0add752221480f64cc9955f672b22f865449651023",
+      "cases": [
+        {
+          "mode": "before-install",
+          "exit": 1,
+          "checks": 8,
+          "ready": false,
+          "attack_lab_configuration": {
+            "profile": {
+              "name": "fargate_profile",
+              "status": "unobserved",
+              "kind": "unobserved",
+              "code": "attack_lab_authority_or_configuration_required",
+              "target_digest": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+              "identity_kind": "none"
+            },
+            "namespace": {
+              "name": "attack_lab_namespace",
+              "status": "unobserved",
+              "kind": "unobserved",
+              "code": "attack_lab_authority_or_configuration_required",
+              "target_digest": "b4045602da85afa7b9ce96d758f55104113f9161a3a4a9f0c3236f5cbee6cac1",
+              "identity_kind": "none"
+            },
+            "runner_identity": {
+              "name": "runner_identity",
+              "status": "unobserved",
+              "kind": "unobserved",
+              "code": "attack_lab_authority_or_configuration_required",
+              "target_digest": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+              "identity_kind": "none"
+            },
+            "security_group_policies": {
+              "name": "security_group_policies",
+              "status": "unobserved",
+              "kind": "unobserved",
+              "code": "attack_lab_authority_or_configuration_required",
+              "target_digest": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+              "identity_kind": "none"
+            },
+            "topology_metadata": {
+              "name": "topology_metadata",
+              "status": "unobserved",
+              "kind": "unobserved",
+              "code": "attack_lab_authority_or_configuration_required",
+              "target_digest": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+              "identity_kind": "none"
+            },
+            "network_enforcement": "unobserved",
+            "canary_and_cleanup": "unobserved"
+          },
+          "stdout_sha256": "4267cb1d513ba485280af6583bbab641e04d269dc78759baacee354eb386da6d",
+          "stderr_bytes": 0
+        },
+        {
+          "mode": "installed",
+          "exit": 1,
+          "checks": 8,
+          "ready": false,
+          "attack_lab_configuration": {
+            "profile": {
+              "name": "fargate_profile",
+              "status": "unobserved",
+              "kind": "unobserved",
+              "code": "attack_lab_authority_or_configuration_required",
+              "target_digest": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+              "identity_kind": "none"
+            },
+            "namespace": {
+              "name": "attack_lab_namespace",
+              "status": "unobserved",
+              "kind": "unobserved",
+              "code": "attack_lab_authority_or_configuration_required",
+              "target_digest": "b4045602da85afa7b9ce96d758f55104113f9161a3a4a9f0c3236f5cbee6cac1",
+              "identity_kind": "none"
+            },
+            "runner_identity": {
+              "name": "runner_identity",
+              "status": "unobserved",
+              "kind": "unobserved",
+              "code": "attack_lab_authority_or_configuration_required",
+              "target_digest": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+              "identity_kind": "none"
+            },
+            "security_group_policies": {
+              "name": "security_group_policies",
+              "status": "unobserved",
+              "kind": "unobserved",
+              "code": "attack_lab_authority_or_configuration_required",
+              "target_digest": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+              "identity_kind": "none"
+            },
+            "topology_metadata": {
+              "name": "topology_metadata",
+              "status": "unobserved",
+              "kind": "unobserved",
+              "code": "attack_lab_authority_or_configuration_required",
+              "target_digest": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+              "identity_kind": "none"
+            },
+            "network_enforcement": "unobserved",
+            "canary_and_cleanup": "unobserved"
+          },
+          "stdout_sha256": "90c3e8864ff573686d0dc2b75c8ffae1d8527ae8ea02a6f6d20105bc56523949",
+          "stderr_bytes": 0
+        }
+      ],
+      "qualification": "Actual compiled CLI with controlled missing local credentials. Five Fargate configuration observations remain unknown without fabricated API failures/time. No provider/native/deployed proof or private credentials included."
+    },
+    "source_pins_verified": 441,
+    "fresh_UI_typecheck_exit": 0,
+    "fresh_UI_build_exit": 0,
+    "lint_exit": 0,
+    "exit_receipt_qualification": "Root confirmed these actual command exits; original text logs retained byte-for-byte.",
+    "hosted_new_batch": "pending exact published head",
+    "original_worker_Ready_regression": "SETUPBLOCKED locally before behavior: offline OPA 1.17.0 known-denied source and Neo4j cache miss; no retry/bypass; additive hosted exact-head two-control job pending",
+    "native_database_execution": false,
+    "real_provider_requests": false,
+    "production_or_deployed_E2E": false
+  },
+  "ledger": {
+    "rows": 728,
+    "unique_ids": 728,
+    "classes": {
+      "production-available": 523,
+      "component-only": 144,
+      "blocked/external": 61
+    },
+    "promotions": 0
+  },
+  "archive": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/fargate-network-preflight/component-evidence.json.gz",
+    "bytes": 209736,
+    "sha256": "e8a6559899a067de2900660669466a4f4ecefd42b32a7bcfc35ef5a2215479ae",
+    "members": 110
+  },
+  "remaining": "Metadata does not prove real private network enforcement, actual Fargate workload execution, image pull, isolated proxy-only egress, deliberate DenyAll enforcement, tenant target canary or cleanup. Those original requirements remain mandatory. Existing worker Ready regression remains locally setupblocked and requires the additive exact-head hosted two-control job. All original real Stytch/provider/tenant integrations, native/security/browser/release guards, historical writer resolution and full deployed acceptance remain required; no original task promoted."
+}

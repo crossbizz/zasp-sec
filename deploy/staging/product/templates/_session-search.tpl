@@ -1,4 +1,5 @@
 {{- define "zasp.sessionSearch.validate" -}}
+{{- include "zasp.maintenanceRuntime.validate" . -}}
 {{- $phase := .Values.runtime.sessionSearchPhase -}}
 {{- $schema := toString .Values.schema.expectedVersion -}}
 {{- if .Values.authorizationTemporal.profile -}}

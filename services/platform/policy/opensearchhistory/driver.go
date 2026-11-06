@@ -21,6 +21,8 @@ import (
 	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	platformpolicy "github.com/zasp-ai/zasp-sec/services/platform/policy"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimeindex"
+	"reflect"
 )
 
 var ErrHistory = errors.New("policy history unavailable")
@@ -61,6 +63,7 @@ type Driver struct {
 	readiness   SchemaReadiness
 	clock       func() time.Time
 	transport   *http.Transport
+	retention   runtimeindex.EventVisibility
 }
 
 func New(config Config, credentials aws.CredentialsProvider, signer Signer, readiness SchemaReadiness, clock func() time.Time) (*Driver, error) {
@@ -71,6 +74,28 @@ func New(config Config, credentials aws.CredentialsProvider, signer Signer, read
 	transport := &http.Transport{Proxy: nil, DialContext: (&net.Dialer{Timeout: 3 * time.Second, KeepAlive: 30 * time.Second}).DialContext, ForceAttemptHTTP2: true, TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12, ServerName: endpoint.Hostname()}, TLSHandshakeTimeout: 5 * time.Second, ResponseHeaderTimeout: config.RequestTimeout, MaxResponseHeaderBytes: 1 << 20}
 	client := &http.Client{Transport: transport, Timeout: config.RequestTimeout, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	return &Driver{config: config, endpoint: endpoint, credentials: credentials, signer: signer, client: client, readiness: readiness, clock: clock, transport: transport}, nil
+}
+
+// NewWithEventVisibility binds the original authenticated request's current
+// scoped visibility authority. A retention-enabled deployment must supply this
+// adapter explicitly; a nil adapter cannot silently select legacy behavior.
+func NewWithEventVisibility(config Config, credentials aws.CredentialsProvider, signer Signer, readiness SchemaReadiness, clock func() time.Time, visibility runtimeindex.EventVisibility) (*Driver, error) {
+	if visibility == nil {
+		return nil, ErrHistory
+	}
+	value := reflect.ValueOf(visibility)
+	switch value.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+		if value.IsNil() {
+			return nil, ErrHistory
+		}
+	}
+	driver, err := New(config, credentials, signer, readiness, clock)
+	if err != nil {
+		return nil, err
+	}
+	driver.retention = visibility
+	return driver, nil
 }
 
 func newWithClient(config Config, credentials aws.CredentialsProvider, signer Signer, client HTTPDoer, readiness SchemaReadiness, clock func() time.Time) (*Driver, error) {
@@ -154,6 +179,9 @@ type historyStoredDocument struct {
 func (driver *Driver) SearchPolicyActions(ctx context.Context, scope domain.Scope, trigger string, limit int) ([]platformpolicy.ActionContext, error) {
 	if driver == nil || ctx == nil || ctx.Err() != nil || scope.Validate() != nil || !historyTrigger(trigger) || limit < 1 || limit > 100 {
 		return nil, ErrHistory
+	}
+	if driver.retention != nil {
+		return driver.searchRetainedPolicyActions(ctx, scope, trigger, limit)
 	}
 	body, err := historyQuery(scope, trigger, limit)
 	if err != nil {

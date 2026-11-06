@@ -99,14 +99,16 @@ type securityAgentPlannerConfig struct {
 }
 
 type productionSecurityAgentPlanner struct {
-	mu            sync.RWMutex
-	endpoint      string
-	model         string
-	token         []byte
-	maximumTokens int
-	policyVersion string
-	client        *http.Client
-	closed        bool
+	mu                    sync.RWMutex
+	optionalEgressEnabled bool
+	optionalEgressProfile string
+	endpoint              string
+	model                 string
+	token                 []byte
+	maximumTokens         int
+	policyVersion         string
+	client                *http.Client
+	closed                bool
 }
 
 func newProductionSecurityAgentPlanner(config workerRuntimeConfig) (*productionSecurityAgentPlanner, error) {
@@ -272,6 +274,12 @@ func (prepared *productionSecurityAgentPreparedPlan) send(ctx context.Context, t
 			result.OutputDigest = ""
 		}
 	}()
+	// Retained raw/legacy planners have no typed current Temporal proof. In
+	// the enabled mode they cannot bypass the shared optional policy switch.
+	if admitOptionalPlannerEgress(ctx, prepared.planner, nil) != nil {
+		result.Failure = securityAgentPlannerUnavailable
+		return result
+	}
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, prepared.identity.Endpoint, strings.NewReader(prepared.body))
 	if err != nil {
 		result.Failure = securityAgentPlannerUnavailable

@@ -1,0 +1,63 @@
+{
+  "status": "CLOSED_SINGLE_PRIMITIVE_DESIGN_SUCCESSOR_NO_IMPLEMENTATION",
+  "parent_contract": "docs/internal/gateway-bootstrap-design-draft-2026-10-17/contract.json",
+  "primitive": "Linux ONLY pinned os.Root.Link staging->destination, never Rename or truncating existing files. Existing common cacheownership.Acquire on custody logical basename held through all operations/Close. Go1.26 stdlib os/root.go235 exposes Root.Link; os/root_openat.go277 implements root-relative linkat without replacement. Filesystem lack of hardlink/fsync support is a refusal, never a fallback.",
+  "layout": {
+    "bundle": "Explicit custody absolute path. Immutable canonical0600 file contains schema, endpoint origin, canonical token metadata WITHOUT locator/secret (locatorSHA256 only), credentialTTLSeconds, generated credentialID/keyID, Ed25519 private64/public32, EXACT raw enrollment Request bytes. Key+request one file, no two-file atomicity gap.",
+    "receipt": "Same pinned parent, derived .zasp-gateway-enrollment-<SHA256(custody_basename)>.receipt. Immutable canonical0600 strict receipt bound to original request; no secret. A current signed authority observation, if supported, is separate .authority artifact with distinct schema and cannot substitute enrollment receipt.",
+    "staging": "Each final artifact has a deterministic sibling .zasp-publish-<SHA256(logical_final_basename)>.prepare; no arbitrary glob scan/cleanup, randomstage or deleting unrelated files. Both stage/final share same pinned parent.",
+    "export": "Explicit absolute runtime credential destination with separately pinned actual parent and common cacheownership guard for that basename held during publication. Exact existing canonical JSON {credential_id,key_id,private_key}. Refuse export path equal/alias custody,receipt,authority,stage or lock artifacts. Different lock acquisition order must be fixed: custody first, export second; no inverse caller APIs."
+  },
+  "publish_protocol": [
+    "Under held valid guard, inspect stage/final with Lstat: no symlink, currentUID, regular, exact0600, bounded expected bytes. Existing files never opened WRONLY/TRUNC or chmod/chown. Refuse unexpected inode/linkcount or mismatched existing content.",
+    "If neither exists, create deterministic stage O_WRONLY|O_CREATE|O_EXCL|O_NOFOLLOW0600, require descriptor regular0600/currentUID/nlink1 and same current pathname. Write complete canonical bytes, file.Sync, check write/close errors; root.Open(\".\").Sync persists stage directory entry. A partial/unknown stage is retained, not removed or overwritten.",
+    "Validate stage exact bytes+canonical schema+private/public/request consistency via bounded rooted FD/path checks; Root.Link(stage,final) exclusive. If final already exists, inspect as recovery below, never overwrite. After link verify both names reference same originally validated inode, now exactly2links.",
+    "Sync parent directory after link. Remove ONLY validated same-inode deterministic stage (never final), then Sync parent directory again. Final must now regular0600/currentUID/nlink1, exact byte readback; check Guard.Valid. Only after all success may HTTP occur or export be reported durable.",
+    "On ANY failure preserve key-bearing paths; close FDs/guards normally; report unresolved generic error, never send before durable initial bundle. Do not remove stage on write/link/sync/close failure. Retrying reestablishes durability of valid exact existing state; errors never mean never-committed."
+  ],
+  "recovery_states": {
+    "ABSENT": "Neither custody bundle nor stage exists. Create new one only after full source/token/config validation and sole-owner lock. Generate ID/key/expiry once inside this branch.",
+    "PREPARED_ONLY": "Stage exists, final absent. Validate complete original bundle. If valid, fsync existing stage+directory and finish same Root.Link publication; do not generate new key/ID/expiry. Partial/malformed/foreign/unsafe stage => UNRESOLVED_CUSTODY; no deletion or network.",
+    "LINKED_BOTH": "Stage+final same inode, both exact expected bytes, nlink2. Resync file+directory, remove only owned stage, resync directory/readback; continue original state. Different inode/content or unexpected links => UNRESOLVED_CUSTODY; retain both.",
+    "PENDING": "Durable valid bundle final only/nlink1, no receipt. Existing source bundle+endpoint+TTL/tokenlocator digest must match original; original raw request/key/expiry reused regardless current Now. Network/commit ambiguity remains PENDING; no key/intent replacement.",
+    "ACCEPTED": "Durable strict matching enrollment receipt final. Replayed boolean can differ on later exact network retry; compare all immutable fields and retain first durable receipt unchanged. Do not pretend replayed=false means first-ever commit. No further enrollment call required for export.",
+    "EXPORTED": "ACCEPTED plus exact runtime credential output durable. Repeated export only validates identical canonical bytes+ownership and resyncs; differing existing output is conflict, no overwrite. Receipt/export stage recovery uses exactly same exclusive-link protocol.",
+    "UNRESOLVED": "Unsafe, malformed, partial, inconsistent file or expired/revoked token with unknown enrollment result. Preserve key/material. No automatic repair, delete, rollback, identity regeneration or secret reissue. Explicit status may separately verify current signed authority and store distinct .authority evidence; never label it original enrollment receipt."
+  },
+  "wire_export_API": {
+    "package": "services/platform/gatewayenrollmentwire; stdlib only; shared by CLI and server without policy/OPA imports.",
+    "constants": "TokenSchema gateway-enrollment-token-v1; RequestSchema gateway-enrollment-request-v1; ReceiptSchema gateway-enrollment-receipt-v1; MaximumBytes4096.",
+    "types": "TokenBundle exact merged11fields (IDs5,token_generation,credential_generation,enrollment_expires_at,locator,secret,schema); Request exact transport13fields; Receipt exact transport17fields. uint64 positive<=MaxInt64 generations; time.Time UTC; publickey/locator/secret canonicalRawURL wire strings. Secret-bearing TokenBundle implements fmt.Formatter/String/GoString redaction; no claimed string memory zeroization.",
+    "functions": [
+      "ParseTokenBundle([]byte)(TokenBundle,error)",
+      "MarshalTokenBundle(TokenBundle)([]byte,error) [explicit fresh secret delivery only]",
+      "ParseRequest([]byte)(Request,error)",
+      "MarshalRequest(Request)([]byte,error)",
+      "ParseReceipt([]byte)(Receipt,error)",
+      "MarshalReceipt(Receipt)([]byte,error)",
+      "Digest([]byte)string [SHA256 exact original bytes]",
+      "RequestMatchesBundle(Request,TokenBundle)bool [scope/enrollment/token+credential generations; no privilege granting]",
+      "ReceiptMatches(Receipt,Request,requestSHA256 string)bool [all original constraints/publickey/expiry and audience exact, canonical issued time; no replayed first-commit claim]"
+    ]
+  },
+  "custody_export_API": {
+    "package": "services/platform/gatewayenrollmentcustody; stdlib+gatewayenrollmentwire+internal/cacheownership only; all secret IO/signing private implementation.",
+    "functions": [
+      "Supported()bool",
+      "Open(custodyPath string)(*Store,error) [pins actual parent and acquires common guard before artifact IO]",
+      "(*Store).Prepare(bundle wire.TokenBundle,endpoint string,credentialTTL time.Duration,now time.Time)(Snapshot,error) [generates key/credentialID/keyID/expiry only ABSENT; preserves original snapshot otherwise]",
+      "(*Store).Snapshot()(Snapshot,error) [exact original raw request copy+public metadata+state, no private key/token]",
+      "(*Store).Sign(message []byte)([]byte,error) [uses retained Ed25519 key; no network and no private-key getter]",
+      "(*Store).Accept(receipt wire.Receipt)error [strict bind+durable immutable receipt; no overwrite]",
+      "(*Store).ExportCredential(outputPath string)error [requires bound receipt or separately explicit accepted current-authority operation, chosen before implementation; same exclusive-link publication]",
+      "(*Store).Close()error [idempotent closes guard after operations]"
+    ],
+    "snapshot": "State enum +RequestRaw []byte owned copy; Request wire.Request; no private material. Prepare compares original endpoint/TTL and token metadata/digest on retry, not recomputed current expiry. Initial expiry wholeUTC Now+boundedTTL<=90days; generation from authoritative protected bundle.",
+    "scope_choice": "First connected implementation export requires durable bound enrollment receipt ONLY. Current-authority status/export path is later explicit extension; no permissive alternate in this first API."
+  },
+  "limits": [
+    "Source-only closure; no implementation/tests/network/Git/Go/Node execution.",
+    "Hardlink publish semantics apply cooperating current binaries on existing trusted same-filesystem Linux directory; malicious parent/sameUID/old binaries not isolated.",
+    "No ordinary Rename, forcedoverwrite, chmod/chown, secret stdout or simulated filesystem success fallback."
+  ]
+}

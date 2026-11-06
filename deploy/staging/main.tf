@@ -183,9 +183,11 @@ locals {
   }
   bucket_name             = "zasp-product-data-${md5(var.account_id)}"
   runtime_raw_bucket_name = "zasp-runtime-raw-${md5(var.account_id)}"
-  red_team_bucket_name    = "zasp-red-team-evidence-${md5(var.account_id)}"
-  attack_lab_bucket_name  = "zasp-attack-lab-evidence-${md5(var.account_id)}"
-  partition               = startswith(var.region, "cn-") ? "aws-cn" : startswith(var.region, "us-gov-") ? "aws-us-gov" : "aws"
+  # Fixed ProductID widths and separators; the artifact driver validates IDs.
+  runtime_receipt_object_path = "organizations/pid_????????-????-????-????-????????????/workspaces/pid_????????-????-????-????-????????????/environments/pid_????????-????-????-????-????????????/artifacts/pid_????????-????-????-????-????????????"
+  red_team_bucket_name        = "zasp-red-team-evidence-${md5(var.account_id)}"
+  attack_lab_bucket_name      = "zasp-attack-lab-evidence-${md5(var.account_id)}"
+  partition                   = startswith(var.region, "cn-") ? "aws-cn" : startswith(var.region, "us-gov-") ? "aws-us-gov" : "aws"
 }
 
 resource "aws_vpc" "staging" {
@@ -620,7 +622,7 @@ resource "aws_s3_bucket_policy" "runtime_raw" {
         Effect    = "Deny"
         Principal = "*"
         Action    = "s3:PutObject"
-        Resource  = "${aws_s3_bucket.runtime_raw.arn}/runtime/v15/*"
+        Resource  = ["${aws_s3_bucket.runtime_raw.arn}/runtime/v15/*", "${aws_s3_bucket.runtime_raw.arn}/${local.runtime_receipt_object_path}"]
         Condition = { StringNotEquals = { "s3:x-amz-server-side-encryption" = "aws:kms" } }
       },
       {
@@ -628,7 +630,7 @@ resource "aws_s3_bucket_policy" "runtime_raw" {
         Effect    = "Deny"
         Principal = "*"
         Action    = "s3:PutObject"
-        Resource  = "${aws_s3_bucket.runtime_raw.arn}/runtime/v15/*"
+        Resource  = ["${aws_s3_bucket.runtime_raw.arn}/runtime/v15/*", "${aws_s3_bucket.runtime_raw.arn}/${local.runtime_receipt_object_path}"]
         Condition = { ArnNotEquals = { "s3:x-amz-server-side-encryption-aws-kms-key-id" = aws_kms_key.runtime_raw.arn } }
       },
     ]
@@ -911,13 +913,19 @@ resource "aws_iam_role_policy" "runtime" {
         Action   = compact(["s3:GetObject", "s3:GetObjectVersion", each.key == "archive" ? null : "s3:PutObject"])
         Resource = "${aws_s3_bucket.runtime_raw.arn}/runtime/v15/*"
       }) : null,
+      contains(["index", "correlation", "projection", "complete"], each.key) ? jsonencode({
+        Sid      = "RuntimeArtifactReceipts"
+        Effect   = "Allow"
+        Action   = ["s3:GetObject", "s3:GetObjectVersion", "s3:PutObject"]
+        Resource = "${aws_s3_bucket.runtime_raw.arn}/${local.runtime_receipt_object_path}"
+      }) : null,
       contains(["ingest", "archive", "index", "correlation", "projection", "complete"], each.key) ? jsonencode({
         Effect   = "Allow"
         Action   = compact(["kms:Decrypt", each.key == "archive" ? null : "kms:GenerateDataKey"])
         Resource = aws_kms_key.runtime_raw.arn
         Condition = {
           StringEquals = { "kms:ViaService" = "s3.${var.region}.amazonaws.com" }
-          StringLike   = { "kms:EncryptionContext:aws:s3:arn" = "${aws_s3_bucket.runtime_raw.arn}/*" }
+          StringLike   = { "kms:EncryptionContext:aws:s3:arn" = [aws_s3_bucket.runtime_raw.arn, "${aws_s3_bucket.runtime_raw.arn}/*"] }
         }
       }) : null,
       contains(["ingest", "archive", "index", "correlation", "projection", "complete"], each.key) ? jsonencode({
@@ -950,6 +958,26 @@ resource "aws_iam_role_policy" "runtime" {
           "${aws_opensearch_domain.events.arn}/zasp-runtime-sessions-v2/_bulk",
           "${aws_opensearch_domain.events.arn}/zasp-runtime-sessions-v2/_mget",
           "${aws_opensearch_domain.events.arn}/zasp-runtime-sessions-v2/_refresh",
+        ]
+      }) : null,
+      # Retention cleanup remains confined to actual event documents in the
+      # three compiled indexes. The schema markers never match these IDs.
+      each.key == "index" ? jsonencode({
+        Effect = "Allow"
+        Action = ["es:ESHttpPost"]
+        Resource = [
+          "${aws_opensearch_domain.events.arn}/zasp-runtime-events-v1/_search",
+          "${aws_opensearch_domain.events.arn}/zasp-runtime-sessions-v1/_search",
+          "${aws_opensearch_domain.events.arn}/zasp-runtime-sessions-v2/_search",
+        ]
+      }) : null,
+      each.key == "index" ? jsonencode({
+        Effect = "Allow"
+        Action = ["es:ESHttpGet", "es:ESHttpDelete"]
+        Resource = [
+          "${aws_opensearch_domain.events.arn}/zasp-runtime-events-v1/_doc/evt_????????????????????????????????????????????????????????????????",
+          "${aws_opensearch_domain.events.arn}/zasp-runtime-sessions-v1/_doc/????????????????????????????????????????????????????????????????",
+          "${aws_opensearch_domain.events.arn}/zasp-runtime-sessions-v2/_doc/????????????????????????????????????????????????????????????????",
         ]
       }) : null,
       contains(["correlation", "projection"], each.key) ? jsonencode({
@@ -1059,6 +1087,22 @@ resource "aws_iam_role_policy" "api_connectors" {
         Effect   = "Allow"
         Action   = ["secretsmanager:GetSecretValue"]
         Resource = ["arn:${local.partition}:secretsmanager:${var.region}:${var.account_id}:secret:${local.connector_secret_root}/webhook/*"]
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["secretsmanager:GetSecretValue"]
+        Resource = ["arn:${local.partition}:secretsmanager:${var.region}:${var.account_id}:secret:${local.connector_secret_root}/ai/openrouter/*"]
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt"]
+        Resource = aws_kms_key.connector_oauth.arn
+        Condition = {
+          StringEquals = { "kms:ViaService" = "secretsmanager.${var.region}.amazonaws.com" }
+          ArnLike = {
+            "kms:EncryptionContext:SecretARN" = "arn:${local.partition}:secretsmanager:${var.region}:${var.account_id}:secret:${local.connector_secret_root}/ai/openrouter/*"
+          }
+        }
       },
       {
         Effect = "Allow"

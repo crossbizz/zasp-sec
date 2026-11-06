@@ -1,0 +1,198 @@
+{
+  "status": "INACTIVE V2 COMPATIBLE INSTALLER AND BOUNDED ROLLBACK DIAGNOSTIC; APPLICATION ACCEPTANCE PENDING",
+  "predecessorSHA256": "bb3fed30094170f8073b56d62c21298277685bbe3b3dce45200f47a1364b939e",
+  "members": [
+    {
+      "path": "services/platform/agentsec-api/connector_callback_runtime.go",
+      "bytes": 1248,
+      "sha256": "3ccd362a22ef406753915e3e100b360f4281ba95785b798881a1eba8d15e7b80",
+      "predecessorSHA256": "3ccd362a22ef406753915e3e100b360f4281ba95785b798881a1eba8d15e7b80"
+    },
+    {
+      "path": "services/platform/agentsec-api/connector_maintenance_runtime.go",
+      "bytes": 5379,
+      "sha256": "ac74dd00dc05e34e72a06962ad8d7a8f13d18bf64c0fe6e46fdbd520f4b09bab",
+      "predecessorSHA256": "ac74dd00dc05e34e72a06962ad8d7a8f13d18bf64c0fe6e46fdbd520f4b09bab"
+    },
+    {
+      "path": "services/platform/agentsec-api/production_runtime.go",
+      "bytes": 54329,
+      "sha256": "4a5e18ecfa79e445ac0a6c1241b471762b449288cff29858f6553a599c1bee94",
+      "predecessorSHA256": "4a5e18ecfa79e445ac0a6c1241b471762b449288cff29858f6553a599c1bee94"
+    },
+    {
+      "path": "services/platform/agentsec-api/runtime.go",
+      "bytes": 24656,
+      "sha256": "bace8cadfe7ab3f982cfc779ebff5493590a9156bf4a2cbdf31e7be82d69e975",
+      "predecessorSHA256": "bace8cadfe7ab3f982cfc779ebff5493590a9156bf4a2cbdf31e7be82d69e975"
+    },
+    {
+      "path": "services/platform/agentsec-worker/authorization_worker_runtime.go",
+      "bytes": 5249,
+      "sha256": "97f81ea5b11ad283eb056fe6f0fa9aefbf43e5e5161c7ff3bcfe67772f1e80e7",
+      "predecessorSHA256": "97f81ea5b11ad283eb056fe6f0fa9aefbf43e5e5161c7ff3bcfe67772f1e80e7"
+    },
+    {
+      "path": "services/platform/apiserver/connector_enqueue_provenance_postgres_test.go",
+      "bytes": 17593,
+      "sha256": "d6039cfa0d1673a5cf29e68e209b73c2cb6aeefd715e4d7805d3690b8ab0afde",
+      "predecessorSHA256": "d6039cfa0d1673a5cf29e68e209b73c2cb6aeefd715e4d7805d3690b8ab0afde"
+    },
+    {
+      "path": "services/platform/apiserver/connector_handler.go",
+      "bytes": 28945,
+      "sha256": "0b4d920daf35a72e11ff194de8a705ec3b54c1b6b4ef782bffa660909cff1224",
+      "predecessorSHA256": "0b4d920daf35a72e11ff194de8a705ec3b54c1b6b4ef782bffa660909cff1224"
+    },
+    {
+      "path": "services/platform/apiserver/connector_maintenance_callback_database.go",
+      "bytes": 8062,
+      "sha256": "bf9b56569921688a612b99d498448b2add21985eecb94281810abcd0e871ad01",
+      "predecessorSHA256": "bf9b56569921688a612b99d498448b2add21985eecb94281810abcd0e871ad01"
+    },
+    {
+      "path": "services/platform/apiserver/connector_maintenance_callback_resolver.go",
+      "bytes": 3231,
+      "sha256": "995c5238f7e4fa4a58a5d35218234600beaec374f67bb36f5a363a77357c7585",
+      "predecessorSHA256": "995c5238f7e4fa4a58a5d35218234600beaec374f67bb36f5a363a77357c7585"
+    },
+    {
+      "path": "services/platform/apiserver/connector_maintenance_enqueue_database.go",
+      "bytes": 6419,
+      "sha256": "81bebc71801cd1b6c2530241cfb8c26f402faa76baaf68383ef572f63d549b51",
+      "predecessorSHA256": "81bebc71801cd1b6c2530241cfb8c26f402faa76baaf68383ef572f63d549b51"
+    },
+    {
+      "path": "services/platform/apiserver/connector_maintenance_enqueue_postgres_test.go",
+      "bytes": 12147,
+      "sha256": "9292bcbd09afdd11d3b5dc8e607ec1df3ebbd5d67804e66eee03f3348e2d1755",
+      "predecessorSHA256": "4a976967f681660c6da1bf31da1dbebe3a3cc8d894e94a52ccf602a866fca015"
+    },
+    {
+      "path": "services/platform/apiserver/connector_maintenance_repository.go",
+      "bytes": 20898,
+      "sha256": "25ee499093e082be2d8c0538b2e1c1fada426691270ea0a2094add29abbb698e",
+      "predecessorSHA256": "25ee499093e082be2d8c0538b2e1c1fada426691270ea0a2094add29abbb698e"
+    },
+    {
+      "path": "services/platform/apiserver/connector_reconciler.go",
+      "bytes": 19520,
+      "sha256": "496c40136548c87412eccdadbde38b41fe9c26be044113512b7537b2e35f86e6",
+      "predecessorSHA256": "496c40136548c87412eccdadbde38b41fe9c26be044113512b7537b2e35f86e6"
+    },
+    {
+      "path": "services/platform/authorization/connector_maintenance_projection.go",
+      "bytes": 3497,
+      "sha256": "e9189565c21f4d16c3f06c3cf89b35e57b1cef5e5bb51b1ff49da02349dcd7b8",
+      "predecessorSHA256": "e9189565c21f4d16c3f06c3cf89b35e57b1cef5e5bb51b1ff49da02349dcd7b8"
+    },
+    {
+      "path": "services/platform/authorization/worker_current_maintenance.go",
+      "bytes": 894,
+      "sha256": "77e382687cc15c54bd3065a10caeb607921c7ee89f3f6ad373c8d645c01d9246",
+      "predecessorSHA256": "77e382687cc15c54bd3065a10caeb607921c7ee89f3f6ad373c8d645c01d9246"
+    },
+    {
+      "path": "services/platform/cmd/zasp-authorization-reconcile/main.go",
+      "bytes": 4773,
+      "sha256": "26c1d2d58289b3a2a5b5f58b55348f70f7ae3d48ef7d84b426613f79d506b27e",
+      "predecessorSHA256": "26c1d2d58289b3a2a5b5f58b55348f70f7ae3d48ef7d84b426613f79d506b27e"
+    },
+    {
+      "path": "services/platform/connectormaintenance/authority.go",
+      "bytes": 10047,
+      "sha256": "378b2b151fe9978ca28a3c40d024c52bff7d3f0b83267839ef1dd61ee3946441",
+      "predecessorSHA256": "378b2b151fe9978ca28a3c40d024c52bff7d3f0b83267839ef1dd61ee3946441"
+    },
+    {
+      "path": "services/platform/connectormaintenance/executor.go",
+      "bytes": 8144,
+      "sha256": "35e5eb12fef7a5f7178750c8d1a0bd2c6e3bcfb961c4b34b31de103c32cb8d9a",
+      "predecessorSHA256": "35e5eb12fef7a5f7178750c8d1a0bd2c6e3bcfb961c4b34b31de103c32cb8d9a"
+    },
+    {
+      "path": "services/platform/connectormaintenancecutover/coordinator.go",
+      "bytes": 3220,
+      "sha256": "c6558e7dfb24121b7f84def049d7aeeef971895580d87ca2af5d61ecaaeed7c5",
+      "predecessorSHA256": "c6558e7dfb24121b7f84def049d7aeeef971895580d87ca2af5d61ecaaeed7c5"
+    },
+    {
+      "path": "services/platform/connectormaintenancecutover/fga.go",
+      "bytes": 5569,
+      "sha256": "0e80b78867c5b6bbc11e4a2a2bbb1ca3a43bbf43bd8e9fa921471914a98c924c",
+      "predecessorSHA256": "0e80b78867c5b6bbc11e4a2a2bbb1ca3a43bbf43bd8e9fa921471914a98c924c"
+    },
+    {
+      "path": "services/platform/connectormaintenancecutover/model.json",
+      "bytes": 33888,
+      "sha256": "329f49e1f2effecbe1a0e9caf6c89be939b1e36e034155d74977bfc82c73cc2c",
+      "predecessorSHA256": "329f49e1f2effecbe1a0e9caf6c89be939b1e36e034155d74977bfc82c73cc2c"
+    },
+    {
+      "path": "services/platform/connectormaintenancecutover/process_linux.go",
+      "bytes": 3191,
+      "sha256": "6096f7c304818c7e6ebc31d3940bacf75932b9f2971c8c529316ebee92cede54",
+      "predecessorSHA256": "6096f7c304818c7e6ebc31d3940bacf75932b9f2971c8c529316ebee92cede54"
+    },
+    {
+      "path": "services/platform/connectormaintenancecutover/raw_model.go",
+      "bytes": 2069,
+      "sha256": "4fdad0c76ea36dfdc732bad76ff010d1e50ce34e4ed1e5ba1c44ff3c678714f2",
+      "predecessorSHA256": "4fdad0c76ea36dfdc732bad76ff010d1e50ce34e4ed1e5ba1c44ff3c678714f2"
+    },
+    {
+      "path": "services/platform/connectormaintenancecutover/sql.go",
+      "bytes": 5350,
+      "sha256": "11a839a8b0c73e9eb1e830e37ff070eb6824c31e87604b5103e92fc75b16a8c2",
+      "predecessorSHA256": "11a839a8b0c73e9eb1e830e37ff070eb6824c31e87604b5103e92fc75b16a8c2"
+    },
+    {
+      "path": "services/platform/migrations/production_connector_enqueue_provenance.go",
+      "bytes": 4521,
+      "sha256": "793b230a8572fbfbed2a4702e1513bfa90afac596a8d0707ae047bbdf8bacc36",
+      "predecessorSHA256": "793b230a8572fbfbed2a4702e1513bfa90afac596a8d0707ae047bbdf8bacc36"
+    },
+    {
+      "path": "services/platform/migrations/production_connector_maintenance.go",
+      "bytes": 6185,
+      "sha256": "18b0989e395e85f18a78f5f51aee06eb1f969fba79a66650754bfc3858d055cd",
+      "predecessorSHA256": "18b0989e395e85f18a78f5f51aee06eb1f969fba79a66650754bfc3858d055cd"
+    },
+    {
+      "path": "services/platform/migrations/sql/connector_enqueue_provenance.sql",
+      "bytes": 12222,
+      "sha256": "32b3f8cbe175b5256ff4542cdff044d6d060e0240d24632bf3d057f3553a5c13",
+      "predecessorSHA256": "32b3f8cbe175b5256ff4542cdff044d6d060e0240d24632bf3d057f3553a5c13"
+    },
+    {
+      "path": "services/platform/migrations/sql/connector_maintenance_profile.sql",
+      "bytes": 109670,
+      "sha256": "1ee0fcca602f658fadee4727ed69787891be928aca2fe9e0f5a8ce141799bf3d",
+      "predecessorSHA256": "1ee0fcca602f658fadee4727ed69787891be928aca2fe9e0f5a8ce141799bf3d"
+    },
+    {
+      "path": "services/platform/runtimeservices/config.go",
+      "bytes": 4978,
+      "sha256": "3eff9566c27b6e7c5179a8968aacf0f05b0810baf1d69abac43cb19e21dc0f77",
+      "predecessorSHA256": "3eff9566c27b6e7c5179a8968aacf0f05b0810baf1d69abac43cb19e21dc0f77"
+    },
+    {
+      "path": "services/platform/migrations/production_approval_maintenance_profile.go",
+      "bytes": 55474,
+      "sha256": "2e98fa960c2e7b42b2a6a343b4ff47059c0d23fac83dbed887d2868f1b9c99f3",
+      "predecessorSHA256": "2e98fa960c2e7b42b2a6a343b4ff47059c0d23fac83dbed887d2868f1b9c99f3"
+    },
+    {
+      "path": "services/platform/migrations/production_approval_maintenance_successor.go",
+      "bytes": 3122,
+      "sha256": "6817964c5c0dfcabe7ea9f65caf5b7840f6d9e4d29a1ec39b00e1b03b0fa6eca",
+      "predecessorSHA256": "6817964c5c0dfcabe7ea9f65caf5b7840f6d9e4d29a1ec39b00e1b03b0fa6eca"
+    },
+    {
+      "path": "services/platform/migrations/production_approval_maintenance_profile_test.go",
+      "bytes": 794,
+      "sha256": "5592e136c7578bac21bf698c675762b28b68b46a37b1d2ed7670e2d707150a6a",
+      "predecessorSHA256": "5592e136c7578bac21bf698c675762b28b68b46a37b1d2ed7670e2d707150a6a"
+    }
+  ]
+}

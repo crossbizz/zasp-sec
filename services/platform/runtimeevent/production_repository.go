@@ -43,8 +43,9 @@ type ProductionIngestDatabase interface {
 }
 
 type PostgresProductionIngestRepository struct {
-	database  ProductionIngestDatabase
-	precision bool
+	database     ProductionIngestDatabase
+	precision    bool
+	nodeCoverage *productionNodeCoverageBinding
 }
 
 func NewPostgresProductionIngestRepository(database ProductionIngestDatabase) (*PostgresProductionIngestRepository, error) {
@@ -55,6 +56,11 @@ func NewPostgresProductionIngestRepository(database ProductionIngestDatabase) (*
 }
 
 func (repository *PostgresProductionIngestRepository) Ready(ctx context.Context) error {
+	if repository != nil && repository.nodeCoverage != nil {
+		if repository.ReadyNodeCoverage(ctx) != nil {
+			return ErrProductionIngestUnavailable
+		}
+	}
 	if !validProductionRepository(repository, ctx) {
 		return ErrProductionIngestUnavailable
 	}

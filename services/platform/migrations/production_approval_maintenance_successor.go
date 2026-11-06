@@ -51,7 +51,10 @@ func ensureMaintenanceOrganizationReference(ctx context.Context, tx Transaction)
 		}
 		return nil
 	}
-	if err := check(`SELECT zasp_authorization80.ready($1) AND EXISTS(SELECT 1 FROM public.zasp_discovery_principal_bindings WHERE principal_name=session_user AND authority_role='zasp_discovery_authority') AND pg_has_role(session_user,'zasp_discovery_authority','MEMBER')`, ProductionAuthorizationEnforcement().Checksum()); err != nil {
+	if err := check(`SELECT pg_has_role(session_user,'zasp_discovery_authority','MEMBER')`); err != nil {
+		return err
+	}
+	if err := requireMaintenanceAuthorizationReady(ctx, tx); err != nil {
 		return err
 	}
 	if err := check(`SELECT EXISTS(SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace JOIN pg_attribute a ON a.attrelid=c.oid JOIN pg_constraint k ON k.conrelid=c.oid WHERE n.nspname='public' AND c.relname='zasp_organizations' AND c.relkind='r' AND a.attname='id' AND NOT a.attisdropped AND a.attnotnull AND a.atttypid='text'::regtype AND k.contype='p' AND k.conkey=ARRAY[a.attnum])`); err != nil {
@@ -66,5 +69,8 @@ func ensureMaintenanceOrganizationReference(ctx context.Context, tx Transaction)
 			return fixedDatabaseError(ctx, err)
 		}
 	}
-	return check(`SELECT has_column_privilege('zasp_discovery_authority','public.zasp_organizations','id','REFERENCES') AND zasp_authorization80.ready($1)`, ProductionAuthorizationEnforcement().Checksum())
+	if err := check(`SELECT has_column_privilege('zasp_discovery_authority','public.zasp_organizations','id','REFERENCES')`); err != nil {
+		return err
+	}
+	return requireMaintenanceAuthorizationReady(ctx, tx)
 }

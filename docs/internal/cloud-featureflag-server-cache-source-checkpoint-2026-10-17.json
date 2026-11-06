@@ -1,0 +1,150 @@
+{
+  "observed_at": "2026-10-17T13:40:48.883777+00:00",
+  "continued_published_base": "245e59fbe8d3e45e56210736e176e9eb593d7da8",
+  "classification": "ORIGINAL_REQUIREMENT_IMPLEMENTATION_COMPONENT_ONLY",
+  "task_mapping": [
+    "M7-24"
+  ],
+  "scope": "Implement actual per-Evaluator bounded1024-entry server cache for exact organization/workspace/environment/flag key. Reuse only validated provider decisions under provider age plus local elapsed maximum age; discard backward-clock cache state, honor cancellation and explicit request defaults, never cache errors/defaults or serve expired values on outage. Provider I/O occurs outside cache lock. No new keys, consumers, public configuration, authority or egress.",
+  "sources": [
+    {
+      "path": "services/platform/featureflags/featureflags.go",
+      "bytes": 7796,
+      "sha256": "93a085e25e5d90c20d8c9310933604e1978c5312b443bd1dcda8d24822779518"
+    },
+    {
+      "path": "services/platform/featureflags/server_cache_test.go",
+      "bytes": 7047,
+      "sha256": "61daf2dbdb52c28bcf6546e06c52875e3ebb20d4997c38576f511fab05604155"
+    },
+    {
+      "path": "services/platform/featureflags/server_cache_clock_test.go",
+      "bytes": 5643,
+      "sha256": "6398dd9ff20eaf271507d5306890095a59efb351a166435b80e83cfb31cfea37"
+    },
+    {
+      "path": ".github/connector-native-compile-source-pins.json",
+      "bytes": 148756,
+      "sha256": "b7fdc89e2a9edb24278e56690a4f69802c0a0d59f2485f6ad56663747f630dca"
+    },
+    {
+      "path": ".github/workflows/connector-native-draft-compile.yml",
+      "bytes": 78624,
+      "sha256": "3d89584328d70a1d960d3f13860cf3558d9c35115d164abcf569585215497c02"
+    },
+    {
+      "path": "scripts/connector-acceptance-groups.test.mjs",
+      "bytes": 50010,
+      "sha256": "dab05a96c632f1e0045618da8bebcced5a9e588e19ab0498af1b2adec62f9277"
+    },
+    {
+      "path": "scripts/hosted-connected-connector-acceptance.mjs",
+      "bytes": 98057,
+      "sha256": "f65f98f7e15b8c9bc23d1ea3a997cfeae0c49f1b444c1735f0f40464b87c79a9"
+    },
+    {
+      "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
+      "bytes": 94458,
+      "sha256": "e1d00ee08b534ea63ef78dec368a2a96f17bbbbc7eebb51a99f6dfd468a08252"
+    },
+    {
+      "path": "docs/internal/implementation_production_availability_v1.5.tsv",
+      "bytes": 208212,
+      "sha256": "4358953cce2ddbcb3ce5542d4b2eb553e6f634cd7875f62af5326d110c716b04"
+    },
+    {
+      "path": "docs/internal/implementation_status_v1.5.md",
+      "bytes": 1338641,
+      "sha256": "398c4d077b286737acbdb967c44b88e36537d82e159673278e2c6bc4b0b0af6a"
+    }
+  ],
+  "verification": {
+    "original_package_baseline": {
+      "named_pass": 61,
+      "named_fail": 0,
+      "named_skip": 0,
+      "race": true,
+      "exit": 0
+    },
+    "initial_actual_behavior_RED": {
+      "named_pass": 1,
+      "named_fail": 5,
+      "total": 6,
+      "exit": 1
+    },
+    "final_full_package": {
+      "named_pass": 73,
+      "named_fail": 0,
+      "named_skip": 0,
+      "race": true,
+      "exit": 0
+    },
+    "integrated_source_ledger_deployment": {
+      "pass": 65,
+      "fail": 0,
+      "skip": 0,
+      "exit": 0
+    },
+    "UI": {
+      "fresh_typecheck_exit": 0,
+      "fresh_build_exit": 0
+    },
+    "workflow": "YAML parsed;27embeddedPython blocks AST-parsed; actual73case log accepted plus6synthetic invalid-evidence cases refused. Synthetic validator cases are not additional application/native cases. Hosted execution pending.",
+    "real_PostHog": "UNVERIFIED",
+    "production_consumer": "ABSENT_SOURCE_AUDIT",
+    "native_deployed": "UNVERIFIED"
+  },
+  "independent_review": {
+    "decision": "CLEAR_COMPONENT_CACHE_SOURCE_ONLY",
+    "receipt_sha256": "a8754d108a0f5388ad23198b1befc76a304efc8f9817c4223beb82f72713642b",
+    "second_review_sha256": "801fe78fda1f39a1ff9995356ec2df7f4dc40b147015ccd713cefb89578a3f2c"
+  },
+  "ledger": {
+    "rows": 728,
+    "unique_ids": 728,
+    "classes": {
+      "production-available": 517,
+      "component-only": 150,
+      "blocked/external": 61
+    },
+    "historical_statuses": {
+      "Complete": 667,
+      "Blocked": 61
+    },
+    "availability_promotions": 0,
+    "M7-24": "component-only",
+    "unchanged_other_rows": 727,
+    "prior_evidence_prefix_retained": true,
+    "predecessor_status_exact_suffix_retained": true,
+    "remaining_inventory_records": 211,
+    "remaining_inventory_unchanged": true,
+    "sha256": "4358953cce2ddbcb3ce5542d4b2eb553e6f634cd7875f62af5326d110c716b04"
+  },
+  "guards": {
+    "source_pins": 500,
+    "retained_prior_source_paths": 496,
+    "additional_bindings": 4,
+    "newly_bound_existing_files": [
+      "services/platform/featureflags/featureflags.go",
+      "services/platform/featureflags/featureflags_test.go"
+    ],
+    "new_test_files": [
+      "services/platform/featureflags/server_cache_test.go",
+      "services/platform/featureflags/server_cache_clock_test.go"
+    ],
+    "prior_source_history_fields_preserved": true,
+    "connected_native_groups": 21,
+    "connected_native_cases": 146,
+    "owned_PostgreSQL_joins": 32,
+    "approval_controls": 16,
+    "native_rosters_unchanged": true,
+    "strict_new_component_job_named_cases": 73
+  },
+  "archive": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/featureflag-server-cache/source-evidence.json.gz",
+    "bytes": 666231,
+    "sha256": "0c8761c50638857217f122cda60106bb768b573aa650f0400c0a7d5ae6703802",
+    "members": 35
+  },
+  "remaining": "Real PostHog integration and production mounting/acceptance remain required for M7-24. No original task availability promotion or launch completion inferred; all728 requirements remain in scope."
+}

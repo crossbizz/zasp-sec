@@ -1,0 +1,120 @@
+{
+  "observed_at": "2026-10-17T12:50:13.733647+00:00",
+  "continued_published_base": "6db6c4828ef3a7337f3b375dc5ab75c69aff8728",
+  "classification": "NEGATIVE_SOURCE_AVAILABILITY_CORRECTION_NO_APPLICATION_OR_DEPLOYMENT_ACCEPTANCE",
+  "scope": "Six original Agents requirements have incomplete production source behavior or missing fresh deployed acceptance. Correct only their production_class and owner, retain all728 original IDs, historical Complete/Blocked states and exact evidence prefixes. Strict per-task guards reject future false promotion even with balanced milestone counts. Entire predecessor status retained as exact suffix; current summaries precede it.",
+  "task_mapping": [
+    "M4-50a",
+    "M4-50b1",
+    "M4-50b2",
+    "M4-50b3",
+    "M4-50c",
+    "M4-50"
+  ],
+  "sources": [
+    {
+      "path": "scripts/implementation-status-check.mjs",
+      "bytes": 17075,
+      "sha256": "8a9ed95314ad85e32a914589630f054091d20cedcc075e921f631c42aae0cb0d"
+    },
+    {
+      "path": "scripts/implementation-status-check.test.mjs",
+      "bytes": 26242,
+      "sha256": "c9d56eb02f2a92bfc813e7ee21bbde7404c3e87d0435656d4993cf3a3a013da5"
+    },
+    {
+      "path": "docs/internal/implementation_production_availability_v1.5.tsv",
+      "bytes": 207115,
+      "sha256": "05f809ba6b34dd1b27a9132221335d7ecd104a9f4864fc59b7dfd39fa28a51cd"
+    },
+    {
+      "path": "docs/internal/implementation_production_availability_owners_v1.5.tsv",
+      "bytes": 20136,
+      "sha256": "0f951d62df9fe79b26eea427fbf60293ad0e554ee8c63e1be4520ce69e802f87"
+    },
+    {
+      "path": "docs/internal/implementation_status_v1.5.md",
+      "bytes": 1336722,
+      "sha256": "e706a7d41af0e4dc6ac5b0a75c9dc7bdb596cfeba25d81be2daa5587716b0a46"
+    },
+    {
+      "path": "docs/internal/cloud-goal-remaining-task-inventory-2026-10-17-agents-source-audit-successor.json",
+      "bytes": 33437,
+      "sha256": "418cb676092297e94d4587ec9ec00f87abd2e9a5c97c4c40baa3e14e253000ea"
+    }
+  ],
+  "verification": {
+    "initial_integrated_guard": {
+      "pass": 40,
+      "fail": 7,
+      "classification": "ACTUAL_NEGATIVE_CORRECTION_REQUIREMENT_RED"
+    },
+    "first_correction_attempt": {
+      "pass": 45,
+      "fail": 2,
+      "classification": "STALE_EXISTING_EXPECTED_COUNT_FIXTURES_RETAINED_NOT_PASSED"
+    },
+    "final_guard": {
+      "pass": 47,
+      "fail": 0,
+      "skip": 0
+    },
+    "integrated_source_ledger_deployment": {
+      "pass": 65,
+      "fail": 0,
+      "skip": 0
+    },
+    "UI": {
+      "typecheck_exit": 0,
+      "build_exit": 0
+    },
+    "native": "UNEXECUTED_FOR_SUCCESSOR",
+    "production": "UNVERIFIED"
+  },
+  "ledger": {
+    "rows": 728,
+    "classes": {
+      "production-available": 517,
+      "component-only": 150,
+      "blocked/external": 61
+    },
+    "historical_statuses": {
+      "Complete": 667,
+      "Blocked": 61
+    },
+    "sha256": "05f809ba6b34dd1b27a9132221335d7ecd104a9f4864fc59b7dfd39fa28a51cd",
+    "other_rows_byte_values_unchanged": 722,
+    "availability_promotions": 0,
+    "availability_downgrades": 6,
+    "owner_for_corrected_rows": "T10-product-ui"
+  },
+  "remaining_inventory": {
+    "path": "docs/internal/cloud-goal-remaining-task-inventory-2026-10-17-agents-source-audit-successor.json",
+    "sha256": "418cb676092297e94d4587ec9ec00f87abd2e9a5c97c4c40baa3e14e253000ea",
+    "records": 211,
+    "predecessor_records_retained": 205,
+    "new_original_records": 6,
+    "qualification": "These211 do not exhaust fresh deployed acceptance requirements; all728 remain required."
+  },
+  "guards": {
+    "source_pins": 496,
+    "unchanged": true,
+    "connected_native_groups": 21,
+    "connected_native_cases": 146,
+    "owned_PostgreSQL_joins": 32,
+    "approval_controls": 16,
+    "all_retained": true
+  },
+  "independent_review": {
+    "decision": "CLEAR_NEGATIVE_CORRECTION_ONLY",
+    "source_receipt_sha256": "15d45c3be1ca39d1f47efb888cc666ed7859506f5659df1ad151d56b6acd4438",
+    "design_receipt_sha256": "ccd29bd5fa8dfa4cd5799ff9b576fb674a28f78caa9acb52469068f1908ca333"
+  },
+  "archive": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/agents-availability-source-audit/source-evidence.json.gz",
+    "bytes": 1003852,
+    "sha256": "9f103d6f2a5085f6e500e1617255d629ed613d9e491854b473974c7ac2aa1eb4",
+    "members": 26
+  },
+  "remaining": "Agents pagination implementation is in progress separately; filter/coverage/composed original requirements remain open. No application behavior, native/provider/deployed completion, release guard bypass, immutable evidence rewrite or launch acceptance inferred."
+}

@@ -34,6 +34,34 @@ for(const failure of ['temporal','store','model','invalid-store','invalid-model'
  assert.deepEqual(h.calls.slice(-3),['join-openfga','join-temporal','remove']);
 });
 test('cleanup failure joins remaining children and retains state',async()=>{const h=harness('cleanup-openfga');const value=await startOwnedRuntimeServices(h.config,h.adapters);await assert.rejects(value.close(),/^Error: owned runtime cleanup incomplete$/);assert.ok(h.calls.includes('join-temporal'));assert.ok(!h.calls.includes('remove'));});
+test('startup failure joins the allocation observer before service state removal',async()=>{
+ const h=harness('store');let entered,release;
+ const reached=new Promise(resolve=>{entered=resolve;}),joined=new Promise(resolve=>{release=resolve;});
+ const running=startOwnedRuntimeServices(h.config,h.adapters,undefined,async()=>{h.calls.push('observer-stop');entered();await joined;h.calls.push('observer-joined');});
+ void running.catch(()=>{});
+ try {
+  const first=await Promise.race([reached.then(()=>'observer'),running.then(()=>'success',()=>'startup-failure')]);
+  assert.equal(first,'observer');assert.ok(!h.calls.includes('remove'));
+  release();await assert.rejects(running,/owned runtime fixture unavailable/);
+  assert.ok(h.calls.indexOf('observer-joined')<h.calls.indexOf('join-openfga'));
+  assert.equal(h.calls.at(-1),'remove');
+ } finally {release();await running.catch(()=>{});}
+});
+test('failed allocation observer join retains state while joining every service',async()=>{
+ const h=harness('store');
+ await assert.rejects(startOwnedRuntimeServices(h.config,h.adapters,undefined,async()=>{throw Error('private observer failure');}),/owned runtime cleanup incomplete/);
+ assert.ok(h.calls.includes('join-openfga'));assert.ok(h.calls.includes('join-temporal'));assert.ok(!h.calls.includes('remove'));
+});
+test('successful startup and normal close do not invoke startup failure observer',async()=>{
+ const h=harness();let calls=0;
+ const owner=await startOwnedRuntimeServices(h.config,h.adapters,undefined,async()=>{calls++;});
+ await owner.close();assert.equal(calls,0);assert.equal(h.calls.filter(v=>v==='remove').length,1);
+});
+test('invalid startup failure observer refuses before allocation or tool access',async()=>{
+ const h=harness();let owner;
+ try{await assert.rejects(async()=>{owner=await startOwnedRuntimeServices(h.config,h.adapters,undefined,{});});assert.equal(h.calls.length,0);}
+ finally{await owner?.close();}
+});
 for(const field of ['run','tools'])test('missing '+field+' refuses before any launch',async()=>{const h=harness();delete h.config[field];await assert.rejects(startOwnedRuntimeServices(h.config,h.adapters));assert.equal(h.calls.length,0);});
 test('ambient authority options refused before launch',async()=>{const h=harness();h.config.ready=true;await assert.rejects(startOwnedRuntimeServices(h.config,h.adapters));assert.equal(h.calls.length,0);});
 
@@ -87,7 +115,7 @@ function actualServiceClosures(){const source=readFileSync(new URL('./owned-runt
 function actualDefaultCommand(owner){const {Cleanup,command}=actualServiceClosures();const actionError=Error('owned action refusal');return {Cleanup,actionError,command:new Function('spawnHeldTool','fail','CleanupIncomplete',`return (${command});`)(async()=>owner,()=>{throw actionError;},Cleanup)};}
 test('actual finite service command preserves original rejection and cleanup refusal precedence',async()=>{const original=Error('owned original failure');for(const operationFailure of [false,true])for(const cleanupFailure of [false,true]){const owner={completed:operationFailure?Promise.reject(original):Promise.resolve({status:0,signal:null,stdout:'{"value":1}'}),stop:async()=>{if(cleanupFailure)throw Error('owned stop failure');}};const value=actualDefaultCommand(owner),pending=value.command({},[],{signal:new AbortController().signal});if(cleanupFailure)await assert.rejects(pending,e=>e instanceof value.Cleanup);else if(operationFailure)await assert.rejects(pending,e=>e===original);else assert.deepEqual(await pending,{value:1});}const value=actualDefaultCommand({completed:Promise.reject(undefined),stop:async()=>{}});await value.command({},[],{signal:new AbortController().signal}).then(()=>assert.fail('undefined rejection must not become success'),error=>assert.equal(error,undefined));});
 test('actual finite service command cancellation awaits delayed cleanup even after producer completion',async()=>{let finish,stopStarted;const entered=new Promise(r=>stopStarted=r),owner={completed:Promise.resolve({status:0,signal:null,stdout:'{}'}),stop:()=>{stopStarted();return new Promise((_,reject)=>finish=()=>reject(Error('owned join refused')));}};const value=actualDefaultCommand(owner),controller=new AbortController();let settled=false;const pending=value.command({},[],{signal:controller.signal}).catch(e=>{settled=true;return e;});controller.abort();await entered;await new Promise(r=>setImmediate(r));assert.equal(settled,false);finish();assert.ok((await pending)instanceof value.Cleanup);});
-test('actual service guard preserves operation identity and sticky cleanup class while deleting operation records',async()=>{const {Cleanup,guard}=actualServiceClosures();for(const kind of ['success','error','cleanup','undefined','sticky']){const original=kind==='cleanup'?new Cleanup():Error('owned action');const actual=new Function('fail','CleanupIncomplete','sticky',`let exited=false,aborted=false,incompleteOperation=sticky;const owners=[],operations=new Set();const guard=${guard};return {guard,state:()=>({incompleteOperation,operations:operations.size})};`)(()=>{throw Error('owner unavailable');},Cleanup,kind==='sticky');const pending=actual.guard(()=>(kind==='success'||kind==='sticky')?Promise.resolve(42):Promise.reject(kind==='undefined'?undefined:original));if(kind==='success')assert.equal(await pending,42);else await pending.then(()=>assert.fail('refusal must remain rejected'),error=>(kind==='cleanup'||kind==='sticky')?assert.ok(error instanceof Cleanup):assert.equal(error,kind==='undefined'?undefined:original));assert.equal(actual.state().operations,0);assert.equal(actual.state().incompleteOperation,kind==='cleanup'||kind==='sticky');}});
+test('actual service guard preserves operation identity and sticky cleanup class while deleting operation records',async()=>{const {Cleanup,guard}=actualServiceClosures();for(const kind of ['success','error','cleanup','undefined','sticky']){const original=kind==='cleanup'?new Cleanup():Error('owned action');const actual=new Function('fail','CleanupIncomplete','sticky',`let exited=false,aborted=false,closePromise,incompleteOperation=sticky;const completed=new Promise(()=>{}),owners=[],operations=new Set();const guard=${guard};return {guard,state:()=>({incompleteOperation,operations:operations.size})};`)(()=>{throw Error('owner unavailable');},Cleanup,kind==='sticky');const pending=actual.guard(()=>(kind==='success'||kind==='sticky')?Promise.resolve(42):Promise.reject(kind==='undefined'?undefined:original));if(kind==='success')assert.equal(await pending,42);else await pending.then(()=>assert.fail('refusal must remain rejected'),error=>(kind==='cleanup'||kind==='sticky')?assert.ok(error instanceof Cleanup):assert.equal(error,kind==='undefined'?undefined:original));assert.equal(actual.state().operations,0);assert.equal(actual.state().incompleteOperation,kind==='cleanup'||kind==='sticky');}});
 
 
 test('owned OpenFGA reserves a distinct declared nonzero gRPC port',async()=>{const h=harness(),owner=await startOwnedRuntimeServices(h.config,h.adapters);await owner.close();const launch=h.calls.find(v=>Array.isArray(v)&&v[0]==='start'&&v[1]==='openfga');assert.equal(launch[3].env.OPENFGA_GRPC_ADDR,'127.0.0.1:32103');assert.equal(launch[3].env.OPENFGA_HTTP_ADDR,'127.0.0.1:32102');assert.equal(launch[3].env.OPENFGA_AUTHN_METHOD,'preshared');assert.deepEqual(h.calls.slice(-3),['join-openfga','join-temporal','remove']);});

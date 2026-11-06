@@ -1,0 +1,49 @@
+{
+  "classification": "REAL_STYTCH_TEST_REVOCATION_PROVIDER_PROOF_PASS_NOT_DEPLOYED_ACCEPTANCE",
+  "observed_at": "2026-10-17T23:38:13.601265+00:00",
+  "source_parent": "dfec8c9d921d27ee28b3b0861027aa8ccbafd8e1",
+  "original_requirement": "M0-03 retained Stytch identity/session proof; partial provider gate, not original task closure.",
+  "change": "Add bounded session-only revocation proof using existing ownTestorganization lifecycle and SDK, grouped local refusal controls in existingCI, and operator command. No product authorization/identity behavior, original helpers, credential aliases, runtimeguard or ledger changes.",
+  "actual_verification": {
+    "actual_provider_exit_code": 0,
+    "provider_outcome": "PASS Testsession scoped remote authentication, exactsession revocation, actual typed404 session_not_found forcedremote rejection, ownedorganizationdeletion",
+    "command": [
+      "node",
+      "--use-env-proxy",
+      "proofs/stytch-b2b-revocation.mjs"
+    ],
+    "grouped_controls": "1 head PASS; initialstub1head FAIL retained; validsequence and denialcases including network/500/unconfirmedrevoke/wrongscope/notrealSDKerror/continuedacceptance",
+    "original_proof_regression": "49 PASS actual Vitest",
+    "syntax": "Both new Node files --check PASS; git diff --check PASS; workflow parsed by existing js-yaml PASS; initial yaml-package parser unavailable before using installedjs-yaml",
+    "custody": "925 current original bound files PASS; no manifest/runner change or newbinding",
+    "workflow_change": "Only local synthetic Node group afterlockedinstall; all originalsteps and permissions byteunchanged",
+    "original_helpers": "Byteidentical GitHEAD",
+    "secret_scan": "NOTRUN pinned scanner unavailable; no secret-scanPASS or promotion",
+    "output_audit": "Actualproviderlog has only fixedsummary and inheritedproxy experimentalwarning; no JWT/identity/providerresponse/credentialvalues saved."
+  },
+  "independent_review": {
+    "status": "CLEAR source only",
+    "initial_review_sha256": "0655b71c9ea51b04f71abeabb94811c9faa5f6ea0bb9dac8bcfef0fc875a7677",
+    "final_review_sha256": "547a9aa1a9f40924fba86a6498d83b68e4160a556ed093a88a55cc070f314915"
+  },
+  "evidence": {
+    "path": "docs/internal/cloud-stytch-revocation-evidence-2026-10-17.tar.gz",
+    "sha256": "e4cd2ed39dd3cd5f032e79076948140a9816e6badceb2cc4c247166657df36f4",
+    "bytes": 18245,
+    "members": 13,
+    "verification": "All member bytes verified; payload SHA256/byte manifest included; checkpoint excluded."
+  },
+  "ledger": {
+    "total": 728,
+    "production_available_recorded": 509,
+    "component_only": 158,
+    "blocked_external": 61,
+    "promotions": 0
+  },
+  "production_available": false,
+  "launch_ready": false,
+  "task_closed": false,
+  "obsolete_retired": false,
+  "merge_release_cleared": false,
+  "remaining": "Wall-clockJWT expiry, retainedtenant/productbootstrap, actualdeployedbrowser/API logout/worker identity and tenant authorization; full Temporal/OpenFGA/provider end-to-end acceptance; currenthosted guards, nativecatalog/admission and runtimeconfiguration/access gaps."
+}

@@ -34,3 +34,23 @@ test('named profile addresses match the packaged private service and network con
     assert.throws(()=>normalizeAuthorizationTemporalProfile(profile(),o,'123456789012'),/profile rejected/);
   }
 });
+
+
+test('renderer refuses runtime service names that API and workers cannot start', () => {
+  const fields = ['namespace', 'taskQueue', 'discoveryTaskQueue'];
+  const accepted = ['ab', 'a0', 'a.b', 'a_b', 'a-b', `a${'0'.repeat(127)}`];
+  const rejected = ['', 'a', 'Ab', '1a', 'aB', '_a', '.a', '-a', 'a b',
+    `a${'0'.repeat(128)}`, 'ab\n', 'ab\r', 'ab\u2028', 'ab\u2029'];
+  for (const field of fields) {
+    for (const value of accepted) {
+      const o = options();
+      o.runtimeServices[field] = value;
+      assert.doesNotThrow(() => normalizeAuthorizationTemporalProfile(profile(), o, '123456789012'), `${field}: ${JSON.stringify(value)}`);
+    }
+    for (const value of rejected) {
+      const o = options();
+      o.runtimeServices[field] = value;
+      assert.throws(() => normalizeAuthorizationTemporalProfile(profile(), o, '123456789012'), /profile rejected/, `${field}: ${JSON.stringify(value)}`);
+    }
+  }
+});

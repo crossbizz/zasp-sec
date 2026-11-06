@@ -57,18 +57,25 @@ type RequestAuthorization struct {
 	// EnvironmentView is a separate current Check, never inferred from a
 	// collection's allowed resource keys. It controls scope-wide metadata only.
 	EnvironmentView bool
-	attestation     []byte
-	decisionDigest  [32]byte
+	// Private UI sidecar, excluded from immutable parent authorization proof.
+	AssociationCanManage bool
+	attestation          []byte
+	decisionDigest       [32]byte
 }
 type RequestAuthorizer interface {
 	Authorize(context.Context, RequestIdentity, CredentialBinding, RoutedOperation) (RequestAuthorization, error)
 }
 type OpenFGAAuthorizer struct {
-	Reader           authorization.RevisionReader
-	Checker          authorization.Checker
-	Resolver         AuthorizationTargetResolver
-	StoreID, ModelID string
-	AttestationKey   *authorization.AttestationKey
+	GatewayBootstrapReady       func(context.Context) (bool, error)
+	AgentDeviceAssociationReady func(context.Context) (bool, error)
+	Reader                      authorization.RevisionReader
+	Checker                     authorization.Checker
+	Resolver                    AuthorizationTargetResolver
+	StoreID, ModelID            string
+	AttestationKey              *authorization.AttestationKey
+	EnvironmentClassReady       func(context.Context) (bool, error)
+	AgentOwnerFilterReady       func(context.Context) (bool, error)
+	AgentExposureFilterReady    func(context.Context) (bool, error)
 }
 
 func (a *OpenFGAAuthorizer) Authorize(ctx context.Context, identity RequestIdentity, credential CredentialBinding, route RoutedOperation) (RequestAuthorization, error) {
@@ -81,6 +88,19 @@ func (a *OpenFGAAuthorizer) Authorize(ctx context.Context, identity RequestIdent
 	}
 	if policy.Relation == "" {
 		return RequestAuthorization{OperationID: route.OperationID, Credential: credential, Identity: identity}, nil
+	}
+	associationFeature := isAgentDeviceAssociationOperation(route.OperationID)
+	if associationFeature {
+		if a.AgentDeviceAssociationReady == nil {
+			return RequestAuthorization{}, ErrAuthorizationDenied
+		}
+		ready, e := a.AgentDeviceAssociationReady(ctx)
+		if e != nil || !ready {
+			return RequestAuthorization{}, ErrAuthorizationDenied
+		}
+		if route.OperationID != "listAgentDeviceAssociations" && (credential.Kind != CredentialBrowserSession || !identity.FreshAuthenticated) {
+			return RequestAuthorization{}, ErrAuthorizationDenied
+		}
 	}
 	permissions := currentRequiredPermissions(route.OperationID, policy.Permission)
 	for _, permission := range permissions {
@@ -168,6 +188,13 @@ func (a *OpenFGAAuthorizer) Authorize(ctx context.Context, identity RequestIdent
 		grant.EnvironmentView = checked.Decision.Allowed
 		if grant.EnvironmentView {
 			grant.Targets = append(grant.Targets, environment)
+		}
+	}
+	if route.OperationID == "listAgentDeviceAssociations" && credential.Kind == CredentialBrowserSession && !grant.Collection && len(grant.Targets) == 1 && len(grant.Allowed) == 1 && grant.Targets[0] == grant.Allowed[0] {
+		target := grant.Targets[0]
+		if target.Kind == "agent" && target.Scope == identity.Scope && target.ID == route.PathParameters["id"] {
+			checked, e := authorization.CheckRevision(ctx, a.Reader, a.Checker, authorization.CheckRequest{PrincipalKind: "user", PrincipalID: identity.PrincipalID.String(), OrganizationID: target.Scope.OrganizationID().String(), WorkspaceID: target.Scope.WorkspaceID().String(), EnvironmentID: target.Scope.EnvironmentID().String(), ResourceType: "agent", ResourceID: target.ID, Permission: "manage_identity"}, a.StoreID, a.ModelID)
+			grant.AssociationCanManage = e == nil && checked.Revision == grant.Revision && checked.Decision.Allowed
 		}
 	}
 	current, err := a.Reader.Revision(ctx, identity.Scope.OrganizationID().String())

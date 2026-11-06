@@ -440,6 +440,10 @@ func validOrderedPlanningReceiptBinding(raw json.RawMessage, scope domain.Scope,
 // There is no provider idempotency guarantee. Never retry this operation after
 // an error, crash, partial response or lost acknowledgement.
 func sendSecurityAgentOrdered(ctx context.Context, prepared *securityAgentOrderedPreparedPlan, credential string) (raw []byte, err error) {
+	return sendSecurityAgentOrderedWithAdmission(ctx, prepared, credential, nil)
+}
+
+func sendSecurityAgentOrderedWithAdmission(ctx context.Context, prepared *securityAgentOrderedPreparedPlan, credential string, admission optionalPlannerDispatchAdmission) (raw []byte, err error) {
 	defer func() {
 		if recover() != nil {
 			raw = nil
@@ -469,6 +473,9 @@ func sendSecurityAgentOrdered(ctx context.Context, prepared *securityAgentOrdere
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Accept", "application/json")
 	request.Header.Set("X-Zasp-Data-Policy", prepared.identity.PolicyVersion)
+	if err := admitOptionalPlannerEgress(ctx, p, admission); err != nil {
+		return nil, err
+	}
 	response, err := prepared.client.Do(request)
 	if err != nil || response == nil {
 		return nil, errWorkerExecution

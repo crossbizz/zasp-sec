@@ -1,0 +1,25 @@
+{
+  "classification": "SELECTED_FINITE_CONTRACT_DELTA_FOR_INDEPENDENT_REVIEW",
+  "primary_issue_abi": "UNCHANGED issue_enrollment14args pinLAST",
+  "unselected_alternative": "Separate-TX preflight plus expected_token_generation15arg issue was discussed but explicitly superseded before implementation; no15arg issue exists.",
+  "preflight": {
+    "signature": "prepare_issue(o text,w text,e text,actor text,idempotency_key text,request_digest bytea,device_id text,expected_version bigint,pin text) RETURNS jsonb",
+    "arity": 9,
+    "purpose": "issueGatewayEnrollment only; original public-api profile/current sealed environment manage_identity proof; pinLAST",
+    "result_keys": [
+      "device_version",
+      "token_generation",
+      "credential_generation",
+      "replayed"
+    ],
+    "transaction": "Called ONLY inside actual authorizedQueryJSON original ReadCommitted/fenced proof TX BEFORE fixed14arg issue. Original organization/device locks held through native insert/final confirm/COMMIT. Exact prior own receipt returns original metadata generation/version; otherwise authoritative nextgeneration with device versionCAS/current state.",
+    "hash": "Secret only private Go context for duration synchronousrepo call. Go domainSHA256 original zasp-gateway-enrollment-token-hash-v1 +NUL+audience+NUL+enrollmentID+NUL+bigEndianInt64generation+salt32+secret32. Never raw secret SQLargs; final tokenhash replaces originalplaceholder, then exact statement proof revalidated. Finalissue rederives samegeneration under heldlocks."
+  },
+  "control_fence": {
+    "signature": "enrollment_final_fence(locator bytea,secret bytea,credential_id text,expected_receipt jsonb,pin text) RETURNS boolean",
+    "purpose": "gateway-control exactcompiledprofile; EXECUTE onlyoriginal zasp_gateway_control",
+    "behavior": "Repeat original native15 tokenauth plus currentcredentialauthority; full17key receipt fields boundactualscope/device/enrollment/currentgeneration/key/publickey/audience/issued/expiry; actualtoken consumed+notrevoked andcredential enrollment_token_id equality. Final DBclock checks BOTH tokenexpiry andcredentialexpiry after all potentialblocking queries, thenCOMMIT. No parent alteration/newtablegrants.",
+    "hash_limit": "expected request_sha256 validatedformat only bySQL; original transport strictwire binds actual rawrequesthash. SQL5args cannot independently recompute missing originalrawrequest."
+  },
+  "scope": "No newauthorizationrelation/role. Own profile has registration/mutations FORCE RLS plus17fixedfunctions including helperstamp andpreflight/controlfence. Profileunavailability hides/denies additivefeature only; originalhealth/othercalls continue. No native/realE2E proof."
+}

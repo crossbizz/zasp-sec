@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/zasp-ai/zasp-sec/services/platform/cloudreadiness"
 	"io"
 	"mime"
 	"net"
@@ -320,18 +321,15 @@ func (api *productionAttackLabKubernetesAPI) Ready(ctx context.Context) error {
 		{path: "/api/v1/namespaces/zasp-attack-lab/configmaps/agentsec-attack-lab-proxy-ca", out: &attackLabKubernetesConfigMap{}},
 		{path: "/apis/vpcresources.k8s.aws/v1beta1/namespaces/zasp-attack-lab/securitygrouppolicies/agentsec-attack-lab-egress", out: &attackLabKubernetesSecurityGroupPolicy{}},
 	}
-	for _, check := range checks {
+	documents := make([][]byte, len(checks))
+	for index, check := range checks {
 		body, status, err := api.do(ctx, http.MethodGet, check.path, nil)
 		if err != nil || status != http.StatusOK || !decodeAttackLabKubernetesJSON(body, check.out) {
 			return errRuntimeUnavailable
 		}
+		documents[index] = body
 	}
-	version := checks[0].out.(*attackLabKubernetesVersion)
-	namespace := checks[1].out.(*attackLabKubernetesNamespace)
-	serviceAccount := checks[2].out.(*attackLabKubernetesServiceAccount)
-	configMap := checks[3].out.(*attackLabKubernetesConfigMap)
-	securityGroupPolicy := checks[4].out.(*attackLabKubernetesSecurityGroupPolicy)
-	if version.Major != "1" || !regexp.MustCompile(`^[0-9]{1,3}[+]?$`).MatchString(version.Minor) || namespace.APIVersion != "v1" || namespace.Kind != "Namespace" || namespace.Metadata.Name != "zasp-attack-lab" || !attackLabKubernetesUIDPattern.MatchString(namespace.Metadata.UID) || !reflect.DeepEqual(namespace.Metadata.Labels, map[string]string{"kubernetes.io/metadata.name": "zasp-attack-lab", "zasp.io/execution": "attack-lab"}) || namespace.Status.Phase != "Active" || serviceAccount.APIVersion != "v1" || serviceAccount.Kind != "ServiceAccount" || serviceAccount.Metadata.Name != "agentsec-attack-lab-runner" || serviceAccount.Metadata.Namespace != "zasp-attack-lab" || !attackLabKubernetesUIDPattern.MatchString(serviceAccount.Metadata.UID) || !reflect.DeepEqual(serviceAccount.Metadata.Labels, map[string]string{"zasp.io/execution": "attack-lab"}) || !attackLabTestRolePattern.MatchString(api.runnerTestRoleARN) || !reflect.DeepEqual(serviceAccount.Metadata.Annotations, map[string]string{"eks.amazonaws.com/role-arn": api.runnerTestRoleARN}) || serviceAccount.AutomountServiceAccountToken == nil || *serviceAccount.AutomountServiceAccountToken || len(serviceAccount.Secrets) != 0 || len(serviceAccount.ImagePullSecrets) != 0 || configMap.APIVersion != "v1" || configMap.Kind != "ConfigMap" || configMap.Metadata.Name != "agentsec-attack-lab-proxy-ca" || configMap.Metadata.Namespace != "zasp-attack-lab" || !attackLabKubernetesUIDPattern.MatchString(configMap.Metadata.UID) || len(configMap.Data) != 1 || !validDiscoveryCABundle([]byte(configMap.Data["proxy-ca.crt"])) || securityGroupPolicy.APIVersion != "vpcresources.k8s.aws/v1beta1" || securityGroupPolicy.Kind != "SecurityGroupPolicy" || securityGroupPolicy.Metadata.Name != "agentsec-attack-lab-egress" || securityGroupPolicy.Metadata.Namespace != "zasp-attack-lab" || !attackLabKubernetesUIDPattern.MatchString(securityGroupPolicy.Metadata.UID) || len(securityGroupPolicy.Metadata.Annotations) != 0 || !reflect.DeepEqual(securityGroupPolicy.Spec.PodSelector.MatchLabels, map[string]string{"zasp.io/execution": "attack-lab"}) || len(securityGroupPolicy.Spec.PodSelector.MatchExpressions) != 0 || !reflect.DeepEqual(securityGroupPolicy.Spec.SecurityGroups.GroupIDs, []string{api.securityGroupID}) {
+	if !cloudreadiness.AttackLabKubernetesPrerequisites(cloudreadiness.AttackLabKubernetesDocuments{Version: documents[0], Namespace: documents[1], ServiceAccount: documents[2], ProxyCA: documents[3], SecurityGroupPolicy: documents[4]}, api.securityGroupID, api.runnerTestRoleARN) {
 		return errRuntimeUnavailable
 	}
 	return nil

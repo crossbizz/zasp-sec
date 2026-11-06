@@ -2,6 +2,8 @@ package main
 
 import (
 	"errors"
+	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
+	"github.com/zasp-ai/zasp-sec/services/platform/orchestration"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeservices"
 	"net"
 	"net/url"
@@ -15,6 +17,8 @@ import (
 )
 
 type workerMode string
+
+const workerModeRetentionReferenceExpiry workerMode = "retention-reference-expiry"
 
 const (
 	workerModeComplianceExport     workerMode = "compliance-export"
@@ -55,6 +59,9 @@ var (
 )
 
 type workerRuntimeConfig struct {
+	RetentionTaskQueue               string
+	RetentionProfileChecksum         string
+	RetentionJournalProfileChecksum  string
 	RuntimeServices                  runtimeservices.Config
 	RuntimeDatabaseProfile           string
 	TemporalExecutorDSN              string
@@ -160,6 +167,8 @@ type workerRuntimeConfig struct {
 	SecurityAgentPlannerTimeout      time.Duration
 	SecurityAgentPlannerTokens       int
 	SecurityAgentPlannerPolicy       string
+	OptionalEgressEnabled            bool
+	OptionalEgressProfileChecksum    string
 	TestReconcilerRoleARN            string
 	TestReconcilerTokenFile          string
 	AttackLabReconcilerRoleARN       string
@@ -210,6 +219,10 @@ func loadWorkerRuntimeConfig(getenv func(string) string) (workerRuntimeConfig, e
 	if servicesErr != nil {
 		return workerRuntimeConfig{}, errWorkerConfiguration
 	}
+	optionalEgressEnabled, optionalEgressErr := optionalPlannerEgressFlag(getenv("ZASP_OPTIONAL_EGRESS_ENABLED"))
+	if optionalEgressErr != nil {
+		return workerRuntimeConfig{}, errWorkerConfiguration
+	}
 	poll, pollErr := time.ParseDuration(getenv("ZASP_POLL_INTERVAL"))
 	lease, leaseErr := time.ParseDuration(getenv("ZASP_LEASE_DURATION"))
 	shutdown, shutdownErr := time.ParseDuration(getenv("ZASP_SHUTDOWN_TIMEOUT"))
@@ -221,9 +234,12 @@ func loadWorkerRuntimeConfig(getenv func(string) string) (workerRuntimeConfig, e
 	plannerTokens, plannerTokensErr := strconv.Atoi(getenv("ZASP_SECURITY_AGENT_PLANNER_MAX_TOKENS"))
 	batch, batchErr := strconv.Atoi(getenv("ZASP_BATCH_SIZE"))
 	config := workerRuntimeConfig{
-		RuntimeServices:            services,
-		RuntimeDatabaseProfile:     getenv("ZASP_RUNTIME_DATABASE_PROFILE"),
-		WorkerAuthorizationKeyFile: getenv("ZASP_AUTHORIZATION_WORKER_KEY_FILE"), CompensationAuthorizationKeyFile: getenv("ZASP_AUTHORIZATION_COMPENSATION_KEY_FILE"),
+		RuntimeServices:    services,
+		RetentionTaskQueue: getenv("ZASP_RETENTION_TASK_QUEUE"), RetentionProfileChecksum: getenv("ZASP_RETENTION_PROFILE_CHECKSUM"), RetentionJournalProfileChecksum: getenv("ZASP_RETENTION_JOURNAL_PROFILE_CHECKSUM"),
+		OptionalEgressEnabled:         optionalEgressEnabled,
+		OptionalEgressProfileChecksum: getenv("ZASP_OPTIONAL_EGRESS_PROFILE_CHECKSUM"),
+		RuntimeDatabaseProfile:        getenv("ZASP_RUNTIME_DATABASE_PROFILE"),
+		WorkerAuthorizationKeyFile:    getenv("ZASP_AUTHORIZATION_WORKER_KEY_FILE"), CompensationAuthorizationKeyFile: getenv("ZASP_AUTHORIZATION_COMPENSATION_KEY_FILE"),
 		Mode: workerMode(getenv("ZASP_WORKER_MODE")), PostgresDSN: getenv("ZASP_POSTGRES_DSN"),
 		TemporalExecutorDSN: getenv("ZASP_TEMPORAL_EXECUTOR_POSTGRES_DSN"), TemporalCompensationDSN: getenv("ZASP_TEMPORAL_COMPENSATION_POSTGRES_DSN"), TemporalPricingBindingsFile: getenv("ZASP_TEMPORAL_PRICING_BINDINGS_FILE"),
 		TestReconcilerRoleARN: getenv("ZASP_TEST_RECONCILER_ROLE_ARN"), TestReconcilerTokenFile: getenv("ZASP_TEST_RECONCILER_WEB_IDENTITY_TOKEN_FILE"),
@@ -280,6 +296,15 @@ func parseWorkerCIDRs(value string) []string {
 }
 
 func validWorkerRuntimeConfig(config workerRuntimeConfig) bool {
+	if !validRetentionRuntimeConfiguration(config) {
+		return false
+	}
+	if !validOptionalPlannerEgressProfile(config.OptionalEgressEnabled, config.OptionalEgressProfileChecksum) {
+		return false
+	}
+	if config.OptionalEgressEnabled && config.Mode == workerModeSecurityAgent && !config.RuntimeServices.Enabled {
+		return false
+	}
 	if !validWorkerRuntimeDatabaseProfile(config) {
 		return false
 	}
@@ -322,7 +347,8 @@ func validWorkerRuntimeConfig(config workerRuntimeConfig) bool {
 		return false
 	}
 	wantAuthority := map[workerMode]string{
-		workerModeComplianceExport: "zasp_compliance_worker", workerModeComplianceCleanup: "zasp_compliance_cleanup",
+		workerModeRetentionReferenceExpiry: "zasp_temporal_executor",
+		workerModeComplianceExport:         "zasp_compliance_worker", workerModeComplianceCleanup: "zasp_compliance_cleanup",
 		workerModeAuditExport: "zasp_audit_export_worker", workerModeAuditExportOutbox: "zasp_audit_export_outbox",
 		workerModeOutbox: "zasp_outbox_worker", workerModeRuntimeOutbox: "zasp_outbox_worker", workerModeRedTeamOutbox: "zasp_red_team_outbox_worker", workerModeAttackLabOutbox: "zasp_attack_lab_outbox_worker", workerModeAttackLabController: "zasp_attack_lab_controller", workerModeRedTeam: "zasp_red_team_worker", workerModeDiscovery: "zasp_discovery_worker", workerModeScheduler: "zasp_discovery_scheduler",
 		workerModeRuntimeCoordinator: "zasp_runtime_coordinator",
@@ -364,6 +390,8 @@ func validModeDependencies(config workerRuntimeConfig) bool {
 		return false
 	}
 	switch config.Mode {
+	case workerModeRetentionReferenceExpiry:
+		return validRetentionRuntimeConfiguration(config)
 	case workerModeComplianceExport, workerModeComplianceCleanup:
 		return validComplianceExportConfiguration(config)
 	case workerModeTestReconciler:
@@ -645,4 +673,26 @@ func projectionKind(mode workerMode) string {
 	default:
 		return ""
 	}
+}
+
+// A retention worker is an explicit new composition; its profile cannot fall
+// back to either legacy worker or current runtime profile readiness.
+func validRetentionRuntimeConfiguration(c workerRuntimeConfig) bool {
+	if c.RetentionJournalProfileChecksum != "" && (c.Mode != workerModeRuntimeIndex || !workerUsesRetentionRuntimeProfile(c) || !migrations.IsRetentionJournalProfileChecksum(c.RetentionJournalProfileChecksum)) {
+		return false
+	}
+	if c.Mode == workerModeRuntimeIndex && c.RetentionProfileChecksum != "" && !migrations.IsRetentionJournalProfileChecksum(c.RetentionJournalProfileChecksum) {
+		return false
+	}
+
+	if c.Mode != workerModeRetentionReferenceExpiry {
+		return c.RetentionTaskQueue == "" && (c.RetentionProfileChecksum == "" || workerUsesRetentionRuntimeProfile(c))
+	}
+	if !c.RuntimeServices.Enabled || !migrations.IsRetentionProfileChecksum(c.RetentionProfileChecksum) || c.RuntimeDatabaseProfile != "" || c.RetentionTaskQueue == c.RuntimeServices.TaskQueue || c.RetentionTaskQueue == c.RuntimeServices.DiscoveryTaskQueue {
+		return false
+	}
+	if _, err := orchestration.RetentionScheduleOptions(c.RetentionTaskQueue); err != nil {
+		return false
+	}
+	return c.BatchSize == 1 && !c.OptionalEgressEnabled && c.OptionalEgressProfileChecksum == "" && c.TemporalExecutorDSN == "" && c.TemporalCompensationDSN == "" && c.WorkerAuthorizationKeyFile == "" && c.CompensationAuthorizationKeyFile == "" && c.DiscoveryQueueURL == "" && c.RuntimeQueueURL == "" && c.RedTeamQueueURL == "" && c.AttackLabQueueURL == "" && c.RecoveryQueueURL == "" && c.OutboxRoleARN == "" && c.DiscoveryRoleARN == "" && c.ProjectionRoleARN == "" && c.RuntimeRoleARN == "" && c.RuntimeStageRoleARN == "" && c.RedTeamRoleARN == "" && c.AttackLabRoleARN == "" && c.RecoveryRoleARN == ""
 }

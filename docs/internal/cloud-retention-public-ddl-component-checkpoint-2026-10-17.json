@@ -1,0 +1,168 @@
+{
+  "observed_at": "2026-10-17T05:40:58.474538+00:00",
+  "continued_published_base": "c5be8a4c85e9b9a2dc216480e062f7b180159173",
+  "fresh_main_sha": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
+  "required_ancestor": "e13ccb95451b03107681ccb59b3fc6fe175a228f",
+  "runtime_recovery": "Managed runtime spec632 replaced the old workspace; published Git history/evidence restored, old ignored /tmp archives/caches not transferred. No original failure receipt is reconstructed as raw evidence.",
+  "scope": "Explicit schema-owner bootstrap of fixed public CREATE capability for existing trusted NOLOGIN migration authority; no new worker rights, parent rewrites, automatic credential fallback or runtime seal dependency on mutable DDL capability.",
+  "sources": [
+    {
+      "path": ".github/connector-native-compile-source-pins.json",
+      "sha256": "a4f43cdef2fa3f8b9fb1eb9ef1d9a5233e66ee4bb0963b1bb6205dc7215179d8",
+      "bytes": 103018
+    },
+    {
+      "path": ".github/workflows/connector-native-draft-compile.yml",
+      "sha256": "bdaaf699794e94d2f1a897572e3924c9a3820567b296295986b3e2c8b9e9e478",
+      "bytes": 12497
+    },
+    {
+      "path": "scripts/connector-acceptance-groups.test.mjs",
+      "sha256": "13c35b6d39989329daf9b7f6c0e70db9d6b356ebc33089bf219b2f75e30e9409",
+      "bytes": 34452
+    },
+    {
+      "path": "scripts/hosted-connected-connector-acceptance.mjs",
+      "sha256": "8d7576a5b9c03cf635238184db6e11bfc34a609449dcd9365f10db3fb3b0497d",
+      "bytes": 76305
+    },
+    {
+      "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
+      "sha256": "16974668fa3242cbcb763beebd42f072127c309c324334edff7a987e9ee1e4cb",
+      "bytes": 72747
+    },
+    {
+      "path": "services/platform/agentsec-migrate/RETENTION.md",
+      "sha256": "c52498dc8e42803e966dc3e2aa19ab08d20247d810c08d16fddfc83339adfbad",
+      "bytes": 6945
+    },
+    {
+      "path": "services/platform/agentsec-migrate/main.go",
+      "sha256": "b1af6d24ef3ca61b7e5ac8733de908f98d215825a30cb1fd292a5402c53d9104",
+      "bytes": 75332
+    },
+    {
+      "path": "services/platform/agentsec-migrate/retention_ddl_test.go",
+      "sha256": "df255689eff0e91d779e2d5d75d07603c7ad8fcad07a15c2787cb30bdc5ff27f",
+      "bytes": 2264
+    },
+    {
+      "path": "services/platform/agentsec-migrate/retention_profile.go",
+      "sha256": "8b21374e7005295990b6ad4a40be2fbf9f3522e4c3167a26d593a9722c9d20c6",
+      "bytes": 13038
+    },
+    {
+      "path": "services/platform/apiserver/retention_native_postgres_test.go",
+      "sha256": "30b336de04217018d1c24865dc802df886aeda5478a30866be0e41dd90e912a7",
+      "bytes": 46115
+    },
+    {
+      "path": "services/platform/migrations/production_retention_ddl.go",
+      "sha256": "c78dcd1e75260b186aeb56defa93c2548427f77b9756038bb406288e53a9932b",
+      "bytes": 6102
+    },
+    {
+      "path": "services/platform/migrations/production_retention_ddl_test.go",
+      "sha256": "8fec9ba85c2e198c2e6a91ea3b910923d5073da5e47ec604a29262429a204265",
+      "bytes": 5088
+    },
+    {
+      "path": "services/platform/migrations/production_retention_profile.go",
+      "sha256": "984bbc0e39af2cc69fd2fcfb1583c7bce60ce2690cd81f7ec2cd2cd1b1a8d3e6",
+      "bytes": 6112
+    },
+    {
+      "path": "services/platform/migrations/production_retention_profile_test.go",
+      "sha256": "8cc41f621e5e66bc736151c2d6d75f17cf9bb972a815389acbe44894a4b64d6c",
+      "bytes": 3991
+    },
+    {
+      "path": "services/platform/migrations/sql/retention_profile.sql",
+      "sha256": "3fa8e0e0d56eebcf98c1b93a2b548b911b9cbb0a44fabc79e25b93418cf5e987",
+      "bytes": 44544
+    }
+  ],
+  "compiled_retention_library_checksum": "d6e0fd6eab59bde77509c8e65abde277c44bec4b5eda3e3df90e3f24d9b4afe3",
+  "checksum_qualification": "Actual exported migrations library checksum; full CLI build is blocked, not passed. Existing installed mismatched registrations still refuse and are never repaired silently.",
+  "validation": {
+    "genuine_migration_RED": "missing helper/request/receipt compile failure; original output preserved",
+    "migration_checks_pass": 20,
+    "CLI_package_setup": "FAILED: OPA v1.17.0 module redirect Forbidden",
+    "API_compile": "not retried because it requires the same denied dependency",
+    "native_execution": false,
+    "local_secret_scan": "BLOCKED: pinned scanner install dependency redirect Forbidden; no bypass or local pass",
+    "source_contracts_pass": 14,
+    "actual_workflow_source_bindings_pass": 331,
+    "runner_primary_source_counts": [
+      305,
+      294
+    ],
+    "runner_helper_source_counts": [
+      11,
+      11
+    ],
+    "original_native_groups": 14,
+    "original_native_named_cases": 78,
+    "original_postgres_joins": 24,
+    "original_approval_proof_controls": 16,
+    "retention_original_child_cases_preserved": 9,
+    "full_lint_exit": 0,
+    "lint_scope_checks_pass": 11,
+    "fresh_UI_typecheck_exit": 0,
+    "fresh_UI_build_exit": 0,
+    "tracked_UI_inputs_frozen_unchanged": 380,
+    "production_deployment_or_real_provider_acceptance": false
+  },
+  "independent_source_review": {
+    "path": "/tmp/retention-ddl-evidence/application-permission-independent-source-review-v2.json",
+    "sha256": "3a9181baf65f5c5150081cee149c05aeea2b199f20ccc33fc412bdb2121c88d6",
+    "decision": "Source CLEAR; ordinary branch publication with honest missing prerequisites accepted; merge/release remain gated."
+  },
+  "task_crosswalk": [
+    {
+      "id": "M7-19",
+      "qualification": "Retention migration capability component; historical writer reconciliation remains incomplete."
+    },
+    {
+      "id": "M7-26",
+      "qualification": "Exact source bindings, component checks, UI and independent review; native/deployed proof pending."
+    }
+  ],
+  "ledger": {
+    "rows": 728,
+    "unique_ids": 728,
+    "classes": {
+      "production-available": 523,
+      "component-only": 144,
+      "blocked/external": 61
+    },
+    "promotions": 0,
+    "changed_evidence_only": [
+      "M7-19",
+      "M7-26"
+    ],
+    "owner_mapping_changed": false
+  },
+  "exact_predecessor_hosted_IAM": {
+    "head": "c5be8a4c85e9b9a2dc216480e062f7b180159173",
+    "push_run": 39005515244,
+    "PR_run": 39005518922,
+    "job_and_required_steps": "SUCCESS on both events",
+    "qualification": "Official bounded job metadata only, no logs/artifacts or numeric case-count output collected; no production apply."
+  },
+  "evidence": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/retention-public-ddl/verified-component-batch.json.gz",
+    "sha256": "ade56ea80f346e7eabb09d86f3ba9f714f0bdf8f5890e69212741554060ef6c5",
+    "members": 48,
+    "uncompressed_bytes": 693806,
+    "compressed_bytes": 136424,
+    "redactions": "Signed public module-download query strings only. Original bytes/hashes retained locally; published failure text remains. See publication-redaction-custody.json."
+  },
+  "merge_and_launch_gates": [
+    "Current-head hosted CLI/API/native retention and browser/full UI acceptance",
+    "Enforced secret/dependency/image/SBOM security and release checks",
+    "Genuine schema-owner provisioning, approved production target, scoped Stytch/provider/FGA/Temporal and tenant bindings",
+    "Historical writer reconciliation, fleet cutover and deployed real-provider end-to-end proof"
+  ],
+  "goal": "ACTIVE; all728 original requirements preserved, no task availability promotions and no completion claim."
+}

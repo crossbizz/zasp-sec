@@ -1,0 +1,134 @@
+{
+  "checkpoint": "cloud-initial-browser-bootstrap-2026-10-15",
+  "observedAt": "2026-10-15T04:41:39.943221+00:00",
+  "startingSHA": "e3141930eb1b732ff958ea45b153eb5cf87cc249",
+  "mainSHA": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
+  "classification": "Owned initial bootstrap and bounded failure attribution component verified; hosted and deployed gates unresolved",
+  "ledger": {
+    "original_rows": 728,
+    "production_available_recorded": 523,
+    "component_only": 144,
+    "blocked_external": 61,
+    "missing": 0,
+    "promotions": 0
+  },
+  "taskCrosswalk": [
+    {
+      "id": "M7A-90c",
+      "owner": "T10-product-ui",
+      "contribution": "Preserve original signed approval and authorization API startup acceptance, fixed native failure attribution and owned projection sequencing; no current deployed proof or ledger promotion."
+    },
+    {
+      "id": "M8-41",
+      "owner": "T03-launch-connectors",
+      "contribution": "Existing native fixture compilation and safe source attribution; actual native failures remain open."
+    }
+  ],
+  "sources": [
+    {
+      "path": "scripts/production-combined-e2e.mjs",
+      "sha256": "f5186230a3a3bf3d7e162612daf5f2a4dfc7dc55aa23d599b8436ac343c26a5a",
+      "bytes": 678304
+    },
+    {
+      "path": "scripts/compliance-bootstrap-barrier.test.mjs",
+      "sha256": "c18dadd06b017f641507e2da858b4e00da79014033d3b51c1b8348321292b7e6",
+      "bytes": 11129
+    },
+    {
+      "path": "scripts/browser-provisioning-subphase.test.mjs",
+      "sha256": "71dea6c7f01d85a821bc1d4280e4987557634556da5ae58632d17e229ab2736a",
+      "bytes": 9257
+    },
+    {
+      "path": "scripts/compliance-current-runtime.test.mjs",
+      "sha256": "01e2e5aae260d6ffe199cfee20dfcd371fe2c1191fab7ce15051fa50832417b9",
+      "bytes": 14356
+    },
+    {
+      "path": "services/platform/apiserver/approval_activation_family_runtime_test.go",
+      "sha256": "fff68ca1b09942be107df4b1b5345277aa9d0a96a7a2325ff76684289c46e12a",
+      "bytes": 13740
+    },
+    {
+      "path": "services/platform/apiserver/approval_activation_flow_test.go",
+      "sha256": "80caab8829ae1e4eae077562437f36b75341dd83cb9b98765b608308f78a0c5a",
+      "bytes": 33570
+    },
+    {
+      "path": "services/platform/apiserver/approval_maintenance_genuine_test74_postgres_test.go",
+      "sha256": "c83c002c70fa5d9fbad0a136c7995d347b2d8f6cff6b4165b141c371d11d3abe",
+      "bytes": 38709
+    },
+    {
+      "path": "scripts/hosted-connected-connector-acceptance.mjs",
+      "sha256": "1623c580b727ae8ed9b00b9721a7773d3b363d7d0432023631c4967825fb5ba3",
+      "bytes": 45401
+    },
+    {
+      "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
+      "sha256": "3ea8c43090ed5487e22599a341ff594e6b0605e5f1294690cf901a6a69cf465f",
+      "bytes": 42287
+    }
+  ],
+  "sourceManifestCount": 113,
+  "implemented": [
+    "Preserve actual installation/cutover/full projection Ack. Track initial identity/policy listener startup, final authentic projection refresh and original API readiness before launching unchanged full periodic projection loop, before browser traffic/mutations.",
+    "Late unpublished listeners close and join their exact callbacks under original two-second bound; failure remains on tracked preparation and cleanup retains state. Abort fences prevent late loop publication. API child stops before joining preparation.",
+    "All initial five-second independent/catalog metadata, actual Temporal/OpenFGA probes, later API restarts, full periodic passes, tenant/RLS/key/delegation/proof/lease checks and immutable SQL remain unchanged. Removes a source-proven concurrent producer at initial admission; timing benefit remains unverified.",
+    "Remove exactly three top-level testing.Helper markers from fixture orchestrators. Existing fixed filename/line-only annotations expose useful inner operation lines. Assertions, nested helpers, names, phases, proofs, captures, deadlines and test rosters unchanged. No new tests for this reversible attribution-only change."
+  ],
+  "verification": {
+    "nodeStartupAndRuntime": {
+      "normalExit": 0,
+      "passes": 88,
+      "failures": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    "nodeExistingCleanup": {
+      "normalExit": 0,
+      "passes": 4,
+      "failures": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    "fullApiFixtureCompilation": {
+      "normalExit": 0,
+      "selectedTests": 0,
+      "nativeExecution": false
+    },
+    "lintNormalExit": 0,
+    "ledgerNormalExit": 0,
+    "uiTypecheckAndBuild": {
+      "reused": true,
+      "reason": "Frontend sources, imported type/build configuration, dependency manifests and frontend build/typecheck commands unchanged. Current backend/test-harness scope is not verified by these frontend receipts."
+    },
+    "authorOriginalExitStatus": "Earlier shell wrappers ended with tail; original Node status was not retained. All TAPs including failures/cancellations remain original; additional ROOT runs capture normal exit0 without replacing them.",
+    "independentImplementationReview": "initial-browser-bootstrap-barrier-implementation-independent-review-20261015.json",
+    "attributionReview": "approval-attribution-diagnostic-source-review-20261015.json",
+    "evidence": {
+      "path": "docs/internal/evidence/cloud-2026-10-15/initial-browser-bootstrap/verified-batch-evidence.json.gz",
+      "sha256": "eaab1196adc4cea1a9ac7c42841abfd29d7f564d83b339f09fc3489b795c2c7a",
+      "bytes": 204735,
+      "uncompressedSHA256": "d65b1f0b49e225660ef27deeca0db3e16b342d34eb63ad03941e8f1c88ed13e1",
+      "members": 41
+    }
+  },
+  "precedingHosted": {
+    "head": "e3141930eb1b732ff958ea45b153eb5cf87cc249",
+    "snapshot": "pr60-e314-monitor-3-20261015.json",
+    "successes": "Native compile, capture, authenticated enqueue, navigation; push callback/oauth/genuine Test74 and PR OAuth.",
+    "failures": "Both browser runs: core metadata passed/security-agent metadata deadline under original shared five seconds. PKCE first preparation finish: native begin refused, parent and lease live, provider deadline expired. Lifecycle applied-revocation: lease expired. Future74/future-progress/overflow/finding/ordered-progress failed; ordered planning timed out. Other native/UI checks still running at bounded final snapshot.",
+    "scope": "Official finite exact-head check/job metadata and bounded annotations only; no restricted logs/artifacts or deployed evidence."
+  },
+  "remaining": [
+    "Current-head native/browser/UI/security guards must pass before merge; no merge or production claim from local components.",
+    "Production target/trust/roles/provider bindings, actual fleet protocol/activation and real deployed Stytch/provider journeys remain incomplete.",
+    "Dependency security gate and every original requirement remain in scope;205 ledger rows remain component-only/external and historical production classification is not fresh deployment proof."
+  ],
+  "runnableUIWorkflowSHA256": "fd98a81d520fbd8b80fb6d404b7a8a0d0e154268f0e3adb5073a47ee4c7d4d98",
+  "nativeAccepted": false,
+  "deployedAccepted": false,
+  "launchReady": false
+}

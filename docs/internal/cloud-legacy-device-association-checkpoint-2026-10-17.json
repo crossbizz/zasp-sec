@@ -1,0 +1,129 @@
+{
+  "classification": "LEGACY_EXISTING_DEVICE_ASSOCIATION_SOURCE_AND_LOCAL_COMPONENT_VERIFIED_NATIVE_AND_DEPLOYED_UNVERIFIED",
+  "observed_at": "2026-10-17T21:27:41.024073+00:00",
+  "source_parent": "3c27c968886b411fdcb51956976cf1aa180d691b",
+  "origin_main": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
+  "required_ancestor": "e13ccb95451b03107681ccb59b3fc6fe175a228f",
+  "required_ancestor_confirmed": true,
+  "task_mapping": [
+    "M4-50b3"
+  ],
+  "scope": "Existing real runtime3-field Device credential files now support gateway accept-agent through a fresh signed current-Authority GET, separately durable state and the existing signed acceptance POST. Existing enrollment custody remains an alternative, no fabricated enrollment lineage.",
+  "semantics": {
+    "identity": "Actual existing credential_id/key_id/private_key read-only,0600 owner regular/nlink1, original inode/metadata/bytes pinned and rechecked. Canonical decoded scalars/full Ed25519 consistency, raw member names exact but whitespace/order allowed. Current13 DTO from real CLI TLS GET compared with local fulltuple and protected challenge before POST. Signature keyID is local syntax only, not an invented native signed field.",
+    "transport": "Same explicit HTTPS origin/CA, no redirects/proxy, one operation context<=30s covers GET through durable acceptance and final clock check. BeginAssociation accepts DTO and cannot attest HTTP provenance: concrete CLI fresh TLS GET is that boundary. Native acceptance remains authoritative.",
+    "state": "Separate common guarded writable public descriptor and0700 per-state artifact namespace; original credential directory gets no writes. First parsed Authority DTO is immutable historical observation, not exact HTTP bytes or server-signed attestation. Stable binding excludes mutable DeviceVersion/ReplayFloor. Per-challenge original body/intent/receipt retained, fresh GET and POST even when receipt exists. Changed binding is refused. No privatekey/filepath/secret-derived hash/enrollmentRequest copied into state.",
+    "capability": "One signature/one Begin attempt, failures consumed, monotonic30s/context deadline never renewed; source/current expiry and challenge checked after filesystem waits before report. Close joins protected operations and clears key/raw. Required metadata guards fail closed on unsupported platforms.",
+    "namespace": "Both old/new protected namespace prefixes denied at every candidate normal/recovery export ancestor; prior own-namespace inode comparisons retained. Generic pinParent/publication/cacheownership bodies unchanged. No global scan or malicious sameUID/privileged mount isolation claim.",
+    "result": "Existing six-key device_accepted_pending_human /confirmed_device_acceptance only; no activation/export/enrollment confirmation, observed workload routing or Agent coverage. Original human final fresh Stytch/OpenFGA authorization remains required.",
+    "ui_and_api": "No UI/server/profile/role/grant change in this batch;172 public/157UI/15API-only unchanged from source parent. Operator guide describes both credential modes."
+  },
+  "verification": {
+    "initial_actual": {
+      "wire": "3FAIL",
+      "custody": "11FAIL1PASS12named; then corrected lifecycle scaffold repeated11FAIL1PASS",
+      "cli": "3newFAIL plus1 existing selected legacyPASS",
+      "qualification": "Initial error-only scaffolds and all original outputs retained; negative stub passes are not guard proof."
+    },
+    "first_connected": {
+      "wire": "3PASS",
+      "custody": "12PASS",
+      "cli": "2FAIL2PASS; old static20:00 fixture expired at realexecutor wallclock. Product correctly enforced expiry."
+    },
+    "corrections": {
+      "custody_lifecycle_test": "Close/reopen after offlineBegin consumes capability; originalsource/output retained before product.",
+      "custody_parser": "Independent P2 escaped member-name lexeme alias fixed; one late case in existing group; original HOLD/preimages retained, no invented executed RED.",
+      "cli_fixture_clock": "Only new tests switch to actual UTC now; all original tests/product expiry unchanged. First failure outputs retained, no productbug claim."
+    },
+    "corrected_connected": {
+      "custody_named_pass": 12,
+      "cli_named_pass": 4,
+      "qualification": "CLI4 includes one existing broad-selector legacy head; exact new CI selects3 new heads."
+    },
+    "full_local_race_regressions": {
+      "cli_named_pass": 220,
+      "association_wire_named_pass": 6,
+      "all_custody_named_pass": 22,
+      "qualification": "New18 results are included; counts overlap previous batches and are not additive production credit."
+    },
+    "exact_new_ci_python_body": {
+      "status": "PASS_LOCAL",
+      "named_pass": 18,
+      "heads": 9,
+      "packages": 3,
+      "modules": 2,
+      "required_source_paths": 53,
+      "qualification": "Actual exact hosted job Python body executed locally. Not hosted/native/deployed acceptance."
+    },
+    "source_custody": {
+      "bindings": 890,
+      "prior_bindings_retained": 882,
+      "guards_named_pass": 21,
+      "current_hashes_bytes": "MATCH",
+      "prior_jobs": "BYTE_UNCHANGED_EXCEPT882_TO890_COUNT",
+      "runners": "UNCHANGED_OUTSIDE_LITERAL_SOURCE_MAPS",
+      "original_primitive_authority_parser_tests": "BYTE_UNCHANGED"
+    },
+    "independent_source_reviews": "CLEAR_DESIGN_WIRE_CLI_CUSTODY_CORRECTION_CLOCK_GUIDE_CI_AND_PUBLICATION",
+    "ui": "BYTE_UNCHANGED_FROM_3C27_VERIFIED_BUILD_TYPECHECK_LINT_NO_NEW_RUN_CLAIM",
+    "api_control_runtime_migrate": "UNCHANGED_SOURCE_PARENT_API99_GATE_PARTIAL24PASS75MISSING_OPA_SETUP_NO_NEW_COMPILER_OR_BEHAVIOR_CLAIM",
+    "native": "UNVERIFIED_PREVIOUS_CANONICAL_RUNTIME_ADMISSION_REFUSED_NO_ALTERNATE_STARTUP",
+    "deployed": "REAL_STYTCH_PROVIDER_TEMPORAL_OPENFGA_BROWSER_ALL_ORIGINAL_ACCEPTANCE_UNVERIFIED",
+    "hosted": "PUBLISHED3C27_METADATA_SNAPSHOT97CHECKS_ONLY20COMPLETED_18FAIL2SUCCESS_77UNFINISHED_NO_FINAL_CAUSE_INFERENCE_FRESH_EXACT_HEAD_CHECKS_REQUIRED",
+    "publication_review": {
+      "status": "CLEAR_SOURCE_ONLY",
+      "sha256": "7ba593a1785fb33beb60713ccb9909a64cbb7a7da024c45fc6d483a2a1fcf052"
+    }
+  },
+  "runtime_readiness": {
+    "phase": "running",
+    "observations_current": true,
+    "connectivity": "connected",
+    "network": "restricted/enforced",
+    "runtime_variables": 51,
+    "variable_states_ready": 51,
+    "managed_secrets": 0,
+    "outbound_identities": 0,
+    "capabilities": 0,
+    "qualification": "Readiness metadata only, no secret values exposed. Ready states do not prove usable external credentials or native/deployed success."
+  },
+  "preservation": {
+    "all728rows_and_owners": "BYTE_UNCHANGED",
+    "all219remaining_records": "UNCHANGED_V11",
+    "old_evidence_archives": "UNCHANGED",
+    "original_scaffolds_failures_and_successors": "RETAINED",
+    "availability_promotions": 0,
+    "obsolete_retirements": 0
+  },
+  "ledger": {
+    "rows": 728,
+    "unique_ids": 728,
+    "historical_complete": 667,
+    "historical_blocked": 61,
+    "production_available": 509,
+    "component_only": 158,
+    "blocked_external": 61,
+    "remaining_recorded": 219,
+    "sha256": "4d96bdb33fb636b7a86ef1d4f5de142735ab4936d2fff41dff019df833dd9f98",
+    "owners_sha256": "de630b490e4861aeadf52fff3b2ecf075884d7d8adbacfbbd06c4ceca27aa46b",
+    "inventory": "docs/internal/cloud-goal-remaining-task-inventory-2026-10-17-gateway-bootstrap-source-successor.json",
+    "all_original_deployed_acceptance_still_required": true
+  },
+  "evidence": {
+    "path": "docs/internal/cloud-legacy-device-association-evidence-2026-10-17.tar.gz",
+    "status": "DURABLE_ARCHIVE_CREATED_ALL_MEMBER_HASHES_VERIFIED",
+    "sha256": "0b006fe657698cd946f0d3598c873e8d316858f77d309ec13cabb7efcf96b98a",
+    "bytes": 1114796,
+    "members": 273,
+    "qualification": "Original scaffolds/failures/HOLDs/source successors, exact output and independent reviews retained. No native/deployed or launch acceptance."
+  },
+  "next_critical_path": [
+    "Implement authentic workload request identity and observed Agent routing; shared gateway token plus caller-supplied Agent header and administrative association are not Agent-origin proof. Preserve discovered source/placement provenance and compose live association,current credentials/installation/freshness/revocation,task permission,approvals,budgets,policy,audit and coverage/filter semantics without inference.",
+    "Use exact source research in legacy-device-association-design-2026-10-17/next-authentic-agent-routing-research.json; provider-backed Kubernetes identity or verified local process proof requires real provider/RBAC/runtime verification, not fixture promotion.",
+    "Resolve admitted dependency/runtime/deployment prerequisites and every applicable hosted/security/release/native and real Stytch/provider/Temporal/OpenFGA/browser acceptance for all728 original requirements; retire obsolete behavior only after equivalent deployed verification."
+  ],
+  "launch_ready": false,
+  "merge_release_cleared": false,
+  "task_closed": false,
+  "retired_obsolete": false
+}

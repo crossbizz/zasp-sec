@@ -157,6 +157,8 @@ export const customerEdgeReleaseFixture = Object.freeze({
   proxyUpstreamURL: "https://tools.customer.example/v1/actions",
   sensorTokenSecretName: "zasp-sensor-token",
   sensorEnrollmentBinding: "a".repeat(64),
+  sensorClusterUID: "12345678-1234-4234-8234-123456789abc",
+  sensorNodeSelector: Object.freeze({ "eks.amazonaws.com/nodegroup": "selected-sensors" }),
   storageClassName: "gp3-encrypted",
   controlPlaneCIDRs: Object.freeze(["10.80.0.0/28"]),
   proxyAllowedCIDRs: Object.freeze(["203.0.113.0/28"]),

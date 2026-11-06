@@ -1,0 +1,219 @@
+{
+  "schema_version": 1,
+  "observed_at_utc": "2026-10-14T21:39:58.461479+00:00",
+  "snapshot_sha": "dd1f6c502a405e7247bc5757b188b62dce08cc5a",
+  "scope": "Read-only prerequisites; no production mutation, no task promotion, no deployed acceptance",
+  "runtime": {
+    "spec_revision": "295",
+    "observed_spec_revision": "295",
+    "observations_current": true,
+    "network_policy_state": "enforced",
+    "capabilities": [],
+    "outbound_identities": [],
+    "tcp_domains": [],
+    "tcp_ip_ranges": [],
+    "vpn_configured": false,
+    "runtime_variable_state": "configured variables ready; does not establish application configuration or API authority"
+  },
+  "name_inventory": {
+    "required": 53,
+    "direct_present": [],
+    "supported_aliases_present": {
+      "ZASP_STYTCH_PROJECT_ID": "STYTCH_PROJECT_ID",
+      "ZASP_STYTCH_SECRET": "STYTCH_SECRET",
+      "ZASP_STYTCH_PUBLIC_TOKEN": "STYTCH_PUBLIC_TOKEN"
+    },
+    "unbound": [
+      "ZASP_ENVIRONMENT",
+      "ZASP_DEPLOYMENT_MODE",
+      "ZASP_PRODUCT_LISTEN_ADDRESS",
+      "ZASP_INTERNAL_LISTEN_ADDRESS",
+      "ZASP_PUBLIC_ORIGIN",
+      "ZASP_COOKIE_SECURE",
+      "ZASP_TRUSTED_PROXY_CIDRS",
+      "ZASP_REQUEST_RATE_PER_SECOND",
+      "ZASP_REQUEST_BURST",
+      "ZASP_PROVIDER_TIMEOUT",
+      "ZASP_REQUEST_TIMEOUT",
+      "ZASP_SHUTDOWN_TIMEOUT",
+      "ZASP_READINESS_INTERVAL",
+      "ZASP_READINESS_MAX_INTERVAL",
+      "ZASP_DISCOVERY_PARSER_VERSION",
+      "ZASP_DISCOVERY_TOOL_VERSION",
+      "ZASP_POSTGRES_DSN",
+      "ZASP_SECURITY_AGENT_POSTGRES_DSN",
+      "ZASP_STYTCH_BASE_URL",
+      "ZASP_STYTCH_AUTHORIZE_URL",
+      "ZASP_STYTCH_WEBHOOK_SECRET",
+      "ZASP_STYTCH_ORGANIZATION_ID",
+      "ZASP_WORKFLOW_SIGNING_KEY",
+      "ZASP_TOKEN_REVEAL_KEY",
+      "ZASP_CONNECTOR_AWS_REGION",
+      "ZASP_CONNECTOR_ROLE_ARN",
+      "ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE",
+      "ZASP_CONNECTOR_KMS_KEY_ARN",
+      "ZASP_CONNECTOR_SECRET_PREFIX",
+      "ZASP_POLICY_HISTORY_ENDPOINT",
+      "ZASP_POLICY_HISTORY_INDEX",
+      "ZASP_AWS_CUSTOMER_ROLE_PREFIXES",
+      "ZASP_AWS_CUSTOMER_ROLE_ARNS",
+      "ZASP_FINDING_TICKET_EGRESS_CIDRS",
+      "ZASP_GITHUB_CLIENT_ID",
+      "ZASP_GITHUB_CLIENT_SECRET_REFERENCE",
+      "ZASP_GITHUB_APP_ID",
+      "ZASP_GITHUB_PRIVATE_KEY_REFERENCE",
+      "ZASP_OKTA_CLIENT_ID",
+      "ZASP_OKTA_CLIENT_SECRET_REFERENCE",
+      "ZASP_RUNTIME_SERVICES_ENABLED",
+      "ZASP_RUNTIME_SERVICES_TIMEOUT",
+      "ZASP_TEMPORAL_ADDRESS",
+      "ZASP_TEMPORAL_NAMESPACE",
+      "ZASP_TEMPORAL_TASK_QUEUE",
+      "ZASP_TEMPORAL_DISCOVERY_TASK_QUEUE",
+      "ZASP_OPENFGA_URL",
+      "ZASP_OPENFGA_STORE_ID",
+      "ZASP_OPENFGA_MODEL_ID",
+      "ZASP_OPENFGA_TOKEN_FILE"
+    ],
+    "value_validation": false
+  },
+  "read_only_probes": [
+    {
+      "variable": "DATABASE_URL",
+      "present": true,
+      "target_class": "remote",
+      "port": 5432,
+      "dns_error_class": "gaierror"
+    },
+    {
+      "variable": "REDIS_URL",
+      "present": true,
+      "target_class": "loopback",
+      "port": 6379,
+      "connection_error_class": "ConnectionRefusedError"
+    },
+    {
+      "variable": "TEMPORAL_ADDRESS",
+      "present": true,
+      "target_class": "loopback",
+      "port": 7233,
+      "connection_error_class": "ConnectionRefusedError"
+    },
+    {
+      "variable": "API_BASE_URL",
+      "present": true,
+      "target_class": "loopback",
+      "port": 4000,
+      "connection_error_class": "ConnectionRefusedError"
+    },
+    {
+      "variable": "APP_BASE_URL",
+      "present": true,
+      "target_class": "loopback",
+      "port": 3000,
+      "connection_error_class": "ConnectionRefusedError"
+    },
+    {
+      "variable": "AWS_ENDPOINT_URL",
+      "present": true,
+      "target_class": "loopback",
+      "port": 4566,
+      "connection_error_class": "ConnectionRefusedError"
+    },
+    {
+      "provider": "stytch",
+      "mode": "test",
+      "operation": "POST /v1/b2b/organizations/search with limit=1; read-only search",
+      "http_status": 200,
+      "json_response": true,
+      "authorization_scope_proven": "TEST organization search only",
+      "organization_ids_or_credentials_recorded": false,
+      "production_login_or_session_proven": false
+    }
+  ],
+  "prerequisites": [
+    {
+      "id": "network-database",
+      "prerequisite_class": "external-configuration",
+      "needed": "Resolve Neon database DNS and grant exact database TCP destination through supported configuration or approved VPN. Preserve verify-full TLS and enforced proxy policy."
+    },
+    {
+      "id": "product-database-authority",
+      "prerequisite_class": "operator-setup-after-software-acceptance",
+      "needed": "Provision current product schema and distinct registered API, security-agent worker and native maintenance principals in same database authority; register identity/model/revisions. Generic DATABASE_URL is not automatically mapped."
+    },
+    {
+      "id": "native-runtime-services",
+      "prerequisite_class": "operator-setup-and-software-cutover",
+      "needed": "Deploy pinned Temporal OSS/OpenFGA, separate persistent databases, CA/mTLS, namespace and distinct queues. Publish/read back product store/model; mount token/client certificates. Generic TEMPORAL_ADDRESS does not supply ZASP runtime configuration."
+    },
+    {
+      "id": "stytch-live",
+      "prerequisite_class": "external-configuration-and-real-acceptance",
+      "needed": "Configure LIVE Stytch B2B project/org/member, public authorize/callback URLs and webhook signing authority. Complete retained product org/session mapping, webhook delivery, membership revocation and two-tenant denial. TEST search is insufficient."
+    },
+    {
+      "id": "connector-authority",
+      "prerequisite_class": "external-configuration-and-real-acceptance",
+      "needed": "Provide AWS region/IRSA role token mount/KMS key/OAuth secret prefix, registered customer roles, GitHub App/OAuth and Okta secret references; bounded real connect/discover/sync/revoke receipts. Loopback emulator/generic keys are insufficient."
+    },
+    {
+      "id": "deployment-target",
+      "prerequisite_class": "external-configuration",
+      "needed": "Supply intended AWS account/region/EKS namespace and permitted deployment identity, private dependencies, public TLS/DNS/proxy origin, provider egress, secrets and observability storage. No outbound identity or capability currently configured."
+    },
+    {
+      "id": "operational-release",
+      "prerequisite_class": "software-and-external-acceptance",
+      "needed": "Clear dependency/license/image/SBOM/advisory gates; build artifacts; verify native worker/callback/cutover before activation. Observe backups/restore, alerts, capacity, restart/recovery, approval/budget/audit and deployed browser flows."
+    }
+  ],
+  "independent_software_work_continues": [
+    "Finish active native callback, execution, compensation and settlement preserving revocation/tenant boundaries.",
+    "Verify fleet/restart cutover before retiring original workers; configuration is not equivalence evidence.",
+    "Resolve API/browser readiness failure using grouped checks; preserve readiness guards.",
+    "Complete remaining API/UI/security/discovery/environment classification gaps; do not label software gaps external-only."
+  ],
+  "source_evidence": [
+    {
+      "path": "docs/operations/cloud-launch-configuration.md",
+      "sha256": "67c4c6333c54514c846c547930e2963054be72bb0d75a6753d51d42f1ec7e2df"
+    },
+    {
+      "path": "docs/operations/temporal-openfga.md",
+      "sha256": "94f59fd9cd965213d96956615bc18f632e906684920f9352103997ce96abcf24"
+    },
+    {
+      "path": "docs/internal/cloud-main-continuation-2026-10-01.md",
+      "sha256": "c9f9285a9e558d978f6b4b639c66f2bb284d6bc4b878f043b48a89130b185f17"
+    },
+    {
+      "path": "docs/internal/2026-09-22-temporal-openfga-design.md",
+      "sha256": "56e20bebaa422314817805d47454be5e2244ea7693b23c0293e5eef2e7a9236f"
+    },
+    {
+      "path": "docs/internal/2026-09-22-temporal-openfga-execution-plan.md",
+      "sha256": "b0884bcb8d0e552550af6f215810086051f57332eb0fa7e131ae9e23f32caacf"
+    },
+    {
+      "path": "scripts/api-config-prerequisites.mjs",
+      "sha256": "ee20cc6b780886563aad6e771bd8e901037e1afca922f39a111695566c04d098"
+    },
+    {
+      "path": "deploy/staging/temporal-openfga.values.yaml",
+      "sha256": "c461b720c160c169f6af882958d90e48a0c9c91bba0c31523e323f1f926b1c34"
+    },
+    {
+      "path": "deploy/production/release-gates.mjs",
+      "sha256": "ed6ad198da62f463524cc374c0ff6f00774f7b4538dec2987ae2de6a29898b58"
+    },
+    {
+      "path": "services/platform/agentsec-api/runtime.go",
+      "sha256": "bace8cadfe7ab3f982cfc779ebff5493590a9156bf4a2cbdf31e7be82d69e975"
+    },
+    {
+      "path": "services/platform/runtimeservices/config.go",
+      "sha256": "3eff9566c27b6e7c5179a8968aacf0f05b0810baf1d69abac43cb19e21dc0f77"
+    }
+  ]
+}

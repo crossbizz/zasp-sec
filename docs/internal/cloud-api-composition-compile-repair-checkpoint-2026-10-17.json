@@ -1,0 +1,46 @@
+{
+  "classification": "API_COMPOSITION_COMPILE_BLOCKERS_SOURCE_CORRECTED_INDEPENDENTLY_REVIEWED_HOSTED_COMPILE_PENDING",
+  "observed_at": "2026-10-17T22:19:28.778877+00:00",
+  "source_parent": "ea4c011dc484089b0df01e40515ad2d3c19fc3de",
+  "source_path": "services/platform/agentsec-api/production_runtime.go",
+  "source_sha256": "6ebadde201a3b2ac9a3888710017e9fed097fc0e06e93787231646439aaf4881",
+  "actual_trigger": "Hostedc1 compile117512905591 reports undefined JSONDatabase.Close/readiness selectors and RequestAuthorizer feature callbacks. Root observed actual API annotations; previous fixture blocker was corrected separately.",
+  "change": "Only production_runtime.go logic changes. Attach two5s own-profile callbacks at actual concrete PG/OpenFGA construction. Outer production builder retains all pool error cleanup and successClosers; remove five invalid duplicate generic cleanup pairs. Assert private six-method readiness capability after connector adapter selection only for corresponding selected profiles; missing/typednil fails closed. Six existing conditional probes, pins, contexts, current authorization and repository checks remain. No public interface/fake expansion.",
+  "verification": {
+    "gofmt_syntax": "PASS actual final source formatting/parser",
+    "source_guards": "21PASS",
+    "source_custody": "902hash/byte bindings match; original order/history unchanged; only APIcode and two runner literal pins updated. Workflows/guard logic unchanged.",
+    "independent_review": {
+      "status": "CLEAR_SOURCE_ONLY",
+      "path": "docs/internal/cloud-api-composition-compile-repair-review-2026-10-17.json",
+      "sha256": "a58aefcce31988d67cf4d04fb1e5259603ee108461bf2614a1f81bc1f75d8099",
+      "initial_hold": "Six generic readiness selectors caught and fixed; initial source/HOLD preserved."
+    },
+    "actual_initial_fix_compilation": "SETUP_FAILED unavailableOPA v1.17.0 withGOPROXYoff;0executedbehavior/compiledsuccess. Final source has unchanged imports, no repeat refused dependency fetch.",
+    "final_application_compilation": "UNVERIFIED_FRESH_HOSTED_REQUIRED",
+    "native_and_deployed": "UNVERIFIED_NO_PROMOTION",
+    "tests": "No new redundant behavior tests for selector/ownership correction. Existing tests untouched; actual compiler failure, source correction and independent permissions/lifecycle review retained."
+  },
+  "evidence": {
+    "path": "docs/internal/cloud-api-composition-compile-repair-evidence-2026-10-17.tar.gz",
+    "sha256": "fe6dc46706c310ae35668a264db420a9a4056e328f4848dda5e0505f9bfa8401",
+    "bytes": 372668,
+    "members": 24,
+    "status": "ALL_MEMBER_BYTES_AND_HASHES_VERIFIED"
+  },
+  "ledger": {
+    "rows": 728,
+    "unique_ids": 728,
+    "production_available_recorded": 509,
+    "component_only": 158,
+    "blocked_external": 61,
+    "remaining_recorded_nonproduction": 219,
+    "promotions": 0,
+    "all_original_deployed_acceptance_still_required": true
+  },
+  "remaining": "Scoped process reaper next preserves strict dependency checks. Native authenticated routing/publication locking, provider credentials/rotation, all original requirements and real deployed Stytch/Temporal/OpenFGA/provider/browser acceptance remain.",
+  "launch_ready": false,
+  "merge_release_cleared": false,
+  "task_closed": false,
+  "obsolete_retired": false
+}

@@ -1,0 +1,42 @@
+{
+  "classification": "ROOT_SELECTED_EXACT_SCOPED_REAPER_CONTRACT_TESTS_ONLY",
+  "platform": {
+    "linux": "mandatoryPR_GET/SETsubreaper+pidfd+proc ownership, refusal125 nofallback",
+    "darwin": "directexec SAMEoriginaltwoNodefiles, nofakeLinuxreapingclaim",
+    "other": "unsupported125"
+  },
+  "entrypoint": "purposefixed optional --node ABS only, SAMEtwooriginalnode --testfiles; noarbitraryCLIargv",
+  "internal_test_seam": "_run_owned(argv,timeout_seconds=90) private application processmanager seam, rootactualprocessfixtures only; productionmain alwaysfixedNodeargv",
+  "frozen_originals": {
+    "scripts/dependency-esbuild-regression.test.mjs": "e95dbf56f6b30313954ff6a4d3a5780a1a03026d81d83152148019717ec692d9",
+    "scripts/fixtures/dependency-esbuild-regression-child.mjs": "2a456acd0302ea8563b4f22d7ddb7b5d5f207b96a67f1a5abd67605162971640"
+  },
+  "lifecycle": [
+    "freshthreadlesssubreaper beforefork",
+    "childhandshakeEOF/setup/cancelbeforepidfd => childfixednonzeroWITHOUTexec,parentreaps",
+    "singlewaitpidowner reapsactualadoptedexitsWHILEtestsrun",
+    "NOsignalslivechildrennormalrun; mainexitleak125 beforecleanup",
+    "cleanup signals only currentkernelchildren+pidfd/PPID/startUIDproof; noambient/historicPID1",
+    "exactactualNodeexit/stdout/stderr; timeout124,setup/cleanup125,cancel128+sig; unjoinableneverzero"
+  ],
+  "tests": {
+    "heads": [
+      "test_reaps_actual_orphan_while_node_test_runner_remains_active",
+      "test_preserves_actual_exit_status_output_and_existing_strict_guards",
+      "test_bounded_cancel_and_timeout_reap_only_owned_descendants"
+    ],
+    "qualification": "Newsourceonly actualprocessfixtures notexecutedbyauthor; parentrootsoleexecutor. Immutable9Nodeheads/fixture retained. Childfixtures here applicationprocessownership boundaries, notkernelinternals."
+  },
+  "files": [
+    {
+      "path": "scripts/run-dependency-regressions.py",
+      "sha256": "c6f2fc322ffc29cf31617fb03d8248be61d59580a3a4e46ca2dd217fb0292f6a"
+    },
+    {
+      "path": "scripts/run-dependency-regressions.test.py",
+      "sha256": "abbcdc7f87c42be893738f5392e9181c07753cb8e48c1e6a0ddb886a3db8208a"
+    }
+  ],
+  "package_status": "UNCHANGEDuntilrootactualRED/productrelease",
+  "source_status": "launcherfailclosedstub125 only, notfunctional; no authorprocess/test/prctl/Node/Go/Git/network execution"
+}

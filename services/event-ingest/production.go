@@ -25,20 +25,22 @@ var (
 )
 
 type productionIngestConfig struct {
-	RuntimeSchema          string
-	DatabaseProfile        string
-	DatabaseURL            string
-	Region                 string
-	RoleARN                string
-	TokenFile              string
-	Bucket                 string
-	ExpectedBucketOwner    string
-	KMSKeyARN              string
-	MaximumBytes           int64
-	OperationTimeout       time.Duration
-	ShutdownTimeout        time.Duration
-	ReconcilerID           string
-	ReconciliationInterval time.Duration
+	RuntimeSchema               string
+	DatabaseProfile             string
+	NodeCoverageRetention       bool
+	NodeCoverageProfileChecksum string
+	DatabaseURL                 string
+	Region                      string
+	RoleARN                     string
+	TokenFile                   string
+	Bucket                      string
+	ExpectedBucketOwner         string
+	KMSKeyARN                   string
+	MaximumBytes                int64
+	OperationTimeout            time.Duration
+	ShutdownTimeout             time.Duration
+	ReconcilerID                string
+	ReconciliationInterval      time.Duration
 }
 
 type productionIngestRepository interface {
@@ -82,25 +84,31 @@ func loadProductionIngestConfig(getenv func(string) string) (productionIngestCon
 	if getenv == nil {
 		return productionIngestConfig{}, errRuntimeUnavailable
 	}
+	retentionEnabled := getenv("ZASP_SENSOR_NODE_COVERAGE_RETENTION_ENABLED")
+	if retentionEnabled != "" && retentionEnabled != "false" && retentionEnabled != "true" {
+		return productionIngestConfig{}, errRuntimeUnavailable
+	}
 	maximumBytes, maximumBytesErr := strconv.ParseInt(getenv("ZASP_EVENT_INGEST_MAX_BYTES"), 10, 64)
 	operationTimeout, operationTimeoutErr := time.ParseDuration(getenv("ZASP_EVENT_INGEST_OPERATION_TIMEOUT"))
 	shutdownTimeout, shutdownTimeoutErr := time.ParseDuration(getenv("ZASP_EVENT_INGEST_SHUTDOWN_TIMEOUT"))
 	reconciliationInterval, reconciliationIntervalErr := time.ParseDuration(getenv("ZASP_EVENT_INGEST_RECONCILIATION_INTERVAL"))
 	config := productionIngestConfig{
-		RuntimeSchema:          getenv("ZASP_RUNTIME_INGEST_SCHEMA"),
-		DatabaseProfile:        getenv("ZASP_RUNTIME_DATABASE_PROFILE"),
-		DatabaseURL:            getenv("ZASP_DATABASE_URL"),
-		Region:                 getenv("ZASP_AWS_REGION"),
-		RoleARN:                getenv("ZASP_EVENT_INGEST_ROLE_ARN"),
-		TokenFile:              getenv("ZASP_EVENT_INGEST_WEB_IDENTITY_TOKEN_FILE"),
-		Bucket:                 getenv("ZASP_RUNTIME_RAW_BUCKET"),
-		ExpectedBucketOwner:    getenv("ZASP_RUNTIME_RAW_BUCKET_OWNER"),
-		KMSKeyARN:              getenv("ZASP_RUNTIME_RAW_KMS_KEY_ARN"),
-		MaximumBytes:           maximumBytes,
-		OperationTimeout:       operationTimeout,
-		ShutdownTimeout:        shutdownTimeout,
-		ReconcilerID:           getenv("ZASP_EVENT_INGEST_RECONCILER_ID"),
-		ReconciliationInterval: reconciliationInterval,
+		RuntimeSchema:               getenv("ZASP_RUNTIME_INGEST_SCHEMA"),
+		DatabaseProfile:             getenv("ZASP_RUNTIME_DATABASE_PROFILE"),
+		NodeCoverageRetention:       retentionEnabled == "true",
+		NodeCoverageProfileChecksum: getenv("ZASP_SENSOR_NODE_COVERAGE_PROFILE_CHECKSUM"),
+		DatabaseURL:                 getenv("ZASP_DATABASE_URL"),
+		Region:                      getenv("ZASP_AWS_REGION"),
+		RoleARN:                     getenv("ZASP_EVENT_INGEST_ROLE_ARN"),
+		TokenFile:                   getenv("ZASP_EVENT_INGEST_WEB_IDENTITY_TOKEN_FILE"),
+		Bucket:                      getenv("ZASP_RUNTIME_RAW_BUCKET"),
+		ExpectedBucketOwner:         getenv("ZASP_RUNTIME_RAW_BUCKET_OWNER"),
+		KMSKeyARN:                   getenv("ZASP_RUNTIME_RAW_KMS_KEY_ARN"),
+		MaximumBytes:                maximumBytes,
+		OperationTimeout:            operationTimeout,
+		ShutdownTimeout:             shutdownTimeout,
+		ReconcilerID:                getenv("ZASP_EVENT_INGEST_RECONCILER_ID"),
+		ReconciliationInterval:      reconciliationInterval,
 	}
 	if maximumBytesErr != nil || operationTimeoutErr != nil || shutdownTimeoutErr != nil || reconciliationIntervalErr != nil || !validProductionIngestConfig(config) {
 		return productionIngestConfig{}, errRuntimeUnavailable
@@ -112,7 +120,8 @@ func validProductionIngestConfig(config productionIngestConfig) bool {
 	database, databaseErr := url.Parse(config.DatabaseURL)
 	role := productionRolePattern.FindStringSubmatch(config.RoleARN)
 	kms := productionKMSPattern.FindStringSubmatch(config.KMSKeyARN)
-	return (config.DatabaseProfile == "" || config.DatabaseProfile == migrations.AuthorizationRuntimeProfileName) && (config.RuntimeSchema == "" || config.RuntimeSchema == "runtime-event-v1" || config.RuntimeSchema == "runtime-event-v2") && databaseErr == nil && database.String() == config.DatabaseURL && (database.Scheme == "postgres" || database.Scheme == "postgresql") && database.User != nil && database.Hostname() != "" && database.Path != "" && database.Fragment == "" && database.RawQuery == "sslmode=verify-full" &&
+	retentionOK := !config.NodeCoverageRetention && config.NodeCoverageProfileChecksum == "" || config.NodeCoverageRetention && config.DatabaseProfile == migrations.AuthorizationRuntimeProfileName && migrations.IsSensorNodeCoverageProfileChecksum(config.NodeCoverageProfileChecksum)
+	return retentionOK && (config.DatabaseProfile == "" || config.DatabaseProfile == migrations.AuthorizationRuntimeProfileName) && (config.RuntimeSchema == "" || config.RuntimeSchema == "runtime-event-v1" || config.RuntimeSchema == "runtime-event-v2") && databaseErr == nil && database.String() == config.DatabaseURL && (database.Scheme == "postgres" || database.Scheme == "postgresql") && database.User != nil && database.Hostname() != "" && database.Path != "" && database.Fragment == "" && database.RawQuery == "sslmode=verify-full" &&
 		productionRegionPattern.MatchString(config.Region) && len(role) == 2 && len(kms) == 3 && role[1] == config.ExpectedBucketOwner && kms[1] == config.Region && kms[2] == config.ExpectedBucketOwner &&
 		config.TokenFile == projectedServiceAccountTokenPath && productionBucketPattern.MatchString(config.Bucket) && productionAccountPattern.MatchString(config.ExpectedBucketOwner) &&
 		config.MaximumBytes >= 1<<20 && config.MaximumBytes <= 64<<20 && config.OperationTimeout >= time.Second && config.OperationTimeout <= 30*time.Second && config.ShutdownTimeout >= config.OperationTimeout && config.ShutdownTimeout <= time.Minute &&

@@ -1,0 +1,40 @@
+{
+  "schema": "independent-dependency-registration-source-review-v1",
+  "status": "CLEAR",
+  "reviewer": "gateway_transport",
+  "author_freeze": {
+    "path": "/tmp/pod-identity-dependency-registration-20261017.json",
+    "sha256": "4dc13456ca3481470e3077b837e479758f5c4992099a52d3dd6c232266349240"
+  },
+  "sources": [
+    {
+      "path": "scripts/validate-dependencies.mjs",
+      "bytes": 25243,
+      "sha256": "abc9203ef8f6a4f78f51b799a107e8a8d4a5b773ee017f76999fb56548766bb7",
+      "preimage_sha256": "79c95ee4700f945fc340fe2e971d1b01a08c3a2225c50fad89dfd855566cd17a"
+    },
+    {
+      "path": "build/dependencies.lock.yaml",
+      "bytes": 9658,
+      "sha256": "8d546fdd521ae87d540d207185ac3edc5df2ffb8c6a1290f2ac2376ebbacd56c",
+      "preimage_sha256": "b895807704b3cc1e2291aadd2e6f37af991948d232f27b85dfe90ca470ce751a"
+    },
+    {
+      "path": "scripts/validate-dependencies.test.mjs",
+      "bytes": 33419,
+      "sha256": "9c449016133a4bf8347abec83d666c113f4d6d54ec4edfcc30aef50199ce9c4b",
+      "preimage_sha256": "720682c78dd7b82812d5e189aaae068327358fe54f1b2f58fc01c649d761ebb7"
+    }
+  ],
+  "checks": [
+    "All three current source hashes and byte sizes match frozen author packet.",
+    "Exact required manifest roster and lock order gain only stdlib provider module, preserving strict exact-length/order/unknown-manifest checks. Module has no external requirement; external dependency YAML suffix is byte-identical to preimage.",
+    "CLI platform authority is exact consumer cmd/agentsecctl/go.mod, direct=false-indirect requirement v0.0.0, and exact ../../services/platform replacement. Target actual module identity still checked.",
+    "Health replacement-only exception is registered only for CLI, requires present validated platform requirement AND replacement; any CLI direct/indirect health requirement fails existing consumer validation. Exact ../../services/health target and actual target module identity checked.",
+    "All prior service defaults ../health and ../platform, exact per-consumer indirectness, duplicate internal requirement/replacement refusal, non-exception require/replace equivalence and unknown/remote replacement denial retained. No generic unused-replace or foreign-consumer bypass added.",
+    "New connected negative cohort tests missing parent/health replacement, wrong paths/version/directness, invented health requirement; old refusal tests retained. Top-level test-head roster unchanged.",
+    "Parser/manifest discovery/license/third-party review policy unchanged outside narrow collectGo internal closure and manifest registration."
+  ],
+  "limitations": "Source-only review. No Node/Go/test/Git/network/native/deployed execution; parent owns full dependency guard and publication. No production-availability or original-task completion credit.",
+  "findings": []
+}

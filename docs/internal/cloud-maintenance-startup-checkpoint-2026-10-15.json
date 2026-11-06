@@ -1,0 +1,138 @@
+{
+  "checkpoint": "cloud-maintenance-startup-2026-10-15",
+  "observed_at": "2026-10-15T03:16:46.696048+00:00",
+  "starting_sha": "16858343b3f220ed4714f6dd989dfbc899fbc781",
+  "main_sha": "8cbd813493947d8e26289b381d90d1a5bf2bffe3",
+  "classification": "Component verified; native and deployed failures remain; no availability promotions",
+  "ledger": {
+    "original_rows": 728,
+    "production_available_recorded": 523,
+    "component_only": 144,
+    "blocked_external": 61,
+    "missing": 0,
+    "promotions": 0
+  },
+  "implementation": [
+    "Reuse existing private readiness observer to distinguish fixed owner/connector/approval constructor failure stages and actual context outcomes. Preserve exact original error identity, constructor signatures, queries, five-second deadlines and cleanup; no extra probes. Fixed closed labels only, deduplicated and bounded to sixteen lines; no raw errors or private input.",
+    "Move read-only lifecycle callback adapter and catalog setup before claiming a cleanup lease. Genuine authorization and callback consumption remain after Begin, reconstructed repository remains after claim, all five cases/assertions and thirty-second lifecycle lease unchanged.",
+    "Append only fixed public original producer filenames to the bounded source-location diagnostic roster. Preserve exact acceptance predicates and all twelve groups/thirty-five named cases.",
+    "Preserve 113 current source associations and immutable existing evidence; commit original RED and GREEN grouped checks and actual incomplete hosted snapshot."
+  ],
+  "task_crosswalk": [
+    {
+      "id": "M7A-90c",
+      "owner": "T10-product-ui",
+      "contribution": "Native webhook delivery and connected API startup verification support; no deployed availability claim."
+    }
+  ],
+  "verification": {
+    "go_constructor": {
+      "top_level_passes": 10,
+      "named_passes": 19,
+      "failed": 0,
+      "skipped": 0,
+      "status": 0
+    },
+    "api_fixture_compile": {
+      "status": 0,
+      "scope": "Normal failure boundary tests only; native cases not selected. Complete API fixture compilation; no native acceptance inferred.",
+      "named_passes": 1
+    },
+    "node": {
+      "passed": 41,
+      "failed": 0,
+      "skipped": 0,
+      "red_retained": true
+    },
+    "ui": {
+      "lint": 0,
+      "typecheck": 0,
+      "build": 0
+    },
+    "ledger_valid": true,
+    "independent_reviews": [
+      "/tmp/maintenance-constructor-diagnostic-independent-review-20261015.json",
+      "/tmp/lifecycle-readonly-setup-reorder-independent-review-20261015.json"
+    ],
+    "evidence": {
+      "path": "docs/internal/evidence/cloud-2026-10-15/maintenance-startup/verified-batch-evidence.json.gz",
+      "sha256": "873ec3718e7ffcdd52622257af2ec3a88f5e8f72ffd6b2a46e4d71a5e5497109",
+      "bytes": 19266,
+      "uncompressed_sha256": "a773dee032fedcbc8db53b6b52deca02652387ec6e232505e29337c2e32b3304",
+      "uncompressed_bytes": 206466,
+      "members": 21
+    }
+  },
+  "source_association": {
+    "manifest_sources": 113,
+    "changed_sources": [
+      {
+        "path": ".github/workflows/connector-native-draft-compile.yml",
+        "sha256": "41b2ce4844535ab94d45ce17cfd754a21e7dc788c0ab4714e803401187c12d8b",
+        "bytes": 11777
+      },
+      {
+        "path": "scripts/browser-command-failure.mjs",
+        "sha256": "576a9878ea365c2e9d988a325d9b063eedf8f1980d5015f08ce7c17e9168e751",
+        "bytes": 14239
+      },
+      {
+        "path": "scripts/browser-command-failure.test.mjs",
+        "sha256": "0abdd6bf9a4d17cc8d88771a2a62329e1642bb531589e30e9122fc599b4f41ae",
+        "bytes": 16290
+      },
+      {
+        "path": "scripts/hosted-connected-connector-acceptance.mjs",
+        "sha256": "13dc3700b225608b57157c04719f8fe742732be2e52d76e46e2a49269fe5c832",
+        "bytes": 45401
+      },
+      {
+        "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
+        "sha256": "9053935be2e8375104e8187a91ead79fe5a86cf736678455179d771401e6ae59",
+        "bytes": 42287
+      },
+      {
+        "path": "services/platform/agentsec-api/approval_maintenance_runtime.go",
+        "sha256": "a235067f39d719f9c81fc170b18d366ecb86ce5326de5d275c0065db178d2ac9",
+        "bytes": 8317
+      },
+      {
+        "path": "services/platform/agentsec-api/authorization_runtime_readiness.go",
+        "sha256": "7999316f721e079c16656412eb594e460ca154f6f78a5cee5a1d894bf000ae21",
+        "bytes": 6466
+      },
+      {
+        "path": "services/platform/agentsec-api/authorization_runtime_readiness_test.go",
+        "sha256": "d5900ebdd4e1a9663dceddd61b08e18b24ad540b385b1b1357122e797984e417",
+        "bytes": 25763
+      },
+      {
+        "path": "services/platform/agentsec-api/compliance_browser_process_test.go",
+        "sha256": "ce30c1b24c754ee92be7cbc8c3fb82182b5416609b87aa0763aa7edf805e7aef",
+        "bytes": 8889
+      },
+      {
+        "path": "services/platform/agentsec-api/connector_maintenance_runtime.go",
+        "sha256": "8f7207d81d37dcceb02dcfd55975eefe407cebca06eaf7b99a6bd9eb555d5dc3",
+        "bytes": 5995
+      },
+      {
+        "path": "services/platform/agentsec-api/production_runtime.go",
+        "sha256": "715b0185a3c8237f814203bd9056baa416fee76ea732c26f6b7b4216ccc48a3a",
+        "bytes": 54909
+      },
+      {
+        "path": "services/platform/apiserver/connector_maintenance_lifecycle_postgres_test.go",
+        "sha256": "7455a18298448d561d46b4d77f31cb52e22ff7780fbe020fa2ccf2cc759833fd",
+        "bytes": 21337
+      }
+    ]
+  },
+  "remaining_gates": [
+    "Exact-head native lifecycle/PKCE/finding/future/overflow/progress and strict roster acceptance; component checks are not equivalent.",
+    "Actual browser startup failed after both initial metadata checks; another run refused allocation-missing. Constructor stage remains unknown until hosted observation.",
+    "Fresh managed cloud spec447 running/connected and 51 generic ready bindings; no outbound identities/capabilities. Earlier production audit still has 50 required unbound application settings/roles/target/provider names; not 50 missing secrets.",
+    "Real authenticated production fleet census, enforced exclusion of every writer through activation plus first composed acknowledgement, trusted release proof and production target/access remain unresolved.",
+    "Dependency advisory/release gate, deployed Stytch/provider journeys, tenant/RLS/discovery/budgets/audit/recovery/operations and remaining original milestones require real acceptance."
+  ]
+}

@@ -1,0 +1,85 @@
+{
+  "observed_at": "2026-10-17T10:08:41.957533+00:00",
+  "continued_published_base": "5f7e111c165e44ef7f1e4e73dcfb2b319aef28df",
+  "scope": "M2-46b environment-class frontend and generated API contract. Optional canonical four-class create/update requests; authenticated fresh capability-gated controls; omitted fields retain name-only compatibility; authoritative returned class/version and uncertainty handling preserved. No backend capability emitted yet.",
+  "sources": [
+    {
+      "path": "app/features/identity/ScopeOnboardingView.tsx",
+      "bytes": 16646,
+      "sha256": "3ec4a24ba38c3ac98f440794264c1a0ef87a84ef735a819e77b89b0b98976d62"
+    },
+    {
+      "path": "app/features/identity/ScopeOnboardingView.test.tsx",
+      "bytes": 11156,
+      "sha256": "8ced40a2819cbca6782131e5e76b17ab70ef0b96608f7f247200efdeb5619e2d"
+    },
+    {
+      "path": "app/quality/generated-api-client-runtime.test.ts",
+      "bytes": 2949,
+      "sha256": "3c437de28ef685454bd78666fa6464f7add4f03888e262b936d1090d64a03b37"
+    },
+    {
+      "path": "openapi/identity-admin.test.mjs",
+      "bytes": 28124,
+      "sha256": "1f467cc6e202b0e61e8f2d884a00e52f2ee701d3ad2862c4492af3033d58d474"
+    },
+    {
+      "path": "openapi/openapi.yaml",
+      "bytes": 373263,
+      "sha256": "a0242ec542d5d98f54b6d69bcbf9910dc25de382775a538c58680d0fbfe71408"
+    },
+    {
+      "path": "apps/web/api/generated.ts",
+      "bytes": 509251,
+      "sha256": "f3ba47c789bb33092a335cf5be6df5032e9c8c08cd4b5a5d4ad7973d62320a96"
+    }
+  ],
+  "verification": {
+    "initial_frontend_red": {
+      "pass": 5,
+      "fail": 5
+    },
+    "initial_OpenAPI_red": {
+      "pass": 11,
+      "fail": 1
+    },
+    "frontend_final": {
+      "pass": 10,
+      "fail": 0
+    },
+    "OpenAPI_identity": {
+      "pass": 12,
+      "fail": 0
+    },
+    "OpenAPI_full": {
+      "pass": 46,
+      "fail": 0
+    },
+    "official_generate_exit": 0,
+    "generated_client_check_exit": 0,
+    "typecheck_exit": 0,
+    "production_build_exit": 0,
+    "OpenAPI_lint_exit": 0,
+    "OpenAPI_lint_warnings": 2,
+    "eslint_exit": 0,
+    "eslint_guard_cases_pass": 11,
+    "source_ledger_cases_pass": 54,
+    "independent_source_review": "CLEAR; source-only"
+  },
+  "ledger": {
+    "rows": 728,
+    "classes": {
+      "production-available": 523,
+      "component-only": 144,
+      "blocked/external": 61
+    },
+    "promotions": 0
+  },
+  "archive": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/environment-class-frontend/component-evidence.json.gz",
+    "bytes": 15217,
+    "sha256": "dc9675c79aa34bbb34f569be8378bb52aee9f34e80cb1573d40409f6ac305280",
+    "members": 20
+  },
+  "remaining": "Backend presence-aware API validation, atomic Environment/data-controls persistence, sealed profile installer and authorization/revision invalidation are a separate in-progress batch. Mandatory real normal/Audit native installs, current hosted whole flows and deployed Stytch/provider acceptance remain unverified. Controls remain hidden on current production capability response; this component does not complete M2-46b or authorize activation/launch."
+}

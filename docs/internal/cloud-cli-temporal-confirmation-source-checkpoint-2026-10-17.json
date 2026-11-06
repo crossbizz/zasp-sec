@@ -1,0 +1,188 @@
+{
+  "observed_at": "2026-10-17T12:26:50.950608+00:00",
+  "continued_published_base": "f661695f383b32ab3d73038e957c16ef9b0b5c70",
+  "classification": "SOURCE_ONLY_GO_EXECUTION_SETUP_BLOCKED",
+  "scope": "Exact twelve Temporal67-78 confirmation commands use existing bounded authority transaction; same actual connection ReadCommitted closed factory. SQL/args/checksum/fingerprint/cost guards and all other branches unchanged. Actual runtime fixture successor requires all14 authority confirmations, preserves original diagnostic/identity/worker assertions and predecessor bytes. No canonicalSQL/ACL/activation or installation-DDL changes.",
+  "supporting_prerequisite_task_mapping": [
+    "M8-22b",
+    "M8-23b",
+    "M8-52a"
+  ],
+  "task_mapping_qualification": "Installer support only; not requirement acceptance or promotion.",
+  "sources": [
+    {
+      "path": "services/platform/agentsec-migrate/forward_release_confirmation.go",
+      "bytes": 2787,
+      "sha256": "1f609c41e77eb6e4a00729b74e80a9328441dc1fa49382aa2114604914a44980"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/authorization_confirmation_inner_loop_test.go",
+      "bytes": 7370,
+      "sha256": "68c6455a6610952ff54da04da3d50fbcda7db643a5c7e391e057965bbb74a5e8"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/temporal_confirmation_role_test.go",
+      "bytes": 7403,
+      "sha256": "e491bfba764e928dbe67d509fc736855d9382844072e77f290a71f60da51cfaa"
+    },
+    {
+      "path": ".github/connector-native-compile-source-pins.json",
+      "bytes": 147686,
+      "sha256": "ddb930cd074d3dbb5c88b751f8958bd1aa05f2b603bb1525db0c0f6bb7bac52b"
+    },
+    {
+      "path": ".github/workflows/connector-native-draft-compile.yml",
+      "bytes": 71647,
+      "sha256": "ee16fa135869449a41c5c86ee7c156f27ccc91f1a199d15c024bc84e1e696490"
+    },
+    {
+      "path": "scripts/connector-acceptance-groups.test.mjs",
+      "bytes": 49781,
+      "sha256": "dc4ced4101040740580c2d7aadffa434f4b0f1b1134250c28ee6c73075736071"
+    },
+    {
+      "path": "scripts/hosted-connected-connector-acceptance.mjs",
+      "bytes": 97556,
+      "sha256": "7beb2026652b5c6adb61af7fca75f505723a80c3640bb794e2d11cfc790c2bc4"
+    },
+    {
+      "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
+      "bytes": 93957,
+      "sha256": "0e42c814aae5f2a4949a02f23ff554e76fc27157463884d56305c87372161320"
+    }
+  ],
+  "product_and_retained_consumer_sources": [
+    {
+      "path": "services/platform/agentsec-migrate/forward_release_confirmation.go",
+      "bytes": 2787,
+      "sha256": "1f609c41e77eb6e4a00729b74e80a9328441dc1fa49382aa2114604914a44980"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/authorization_confirmation_inner_loop_test.go",
+      "bytes": 7370,
+      "sha256": "68c6455a6610952ff54da04da3d50fbcda7db643a5c7e391e057965bbb74a5e8"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/temporal_confirmation_role_test.go",
+      "bytes": 7403,
+      "sha256": "e491bfba764e928dbe67d509fc736855d9382844072e77f290a71f60da51cfaa"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/main.go",
+      "bytes": 77696,
+      "sha256": "7b2fd908f091b06ea83b23e66d58dd688188741af8cb0abe8f8ccb423dbd7748"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/authorization_runtime_profile.go",
+      "bytes": 5888,
+      "sha256": "11d147ebb2bebe0dcc67d43dc6b991cae6b1afb3789740b53aa0d5056a046ee1"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/principal_authority_transaction.go",
+      "bytes": 1140,
+      "sha256": "e34533f7705790ad6855280b905e78f593c4dc7c8d6bf229f47039ce72e5d388"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/retention_profile.go",
+      "bytes": 13038,
+      "sha256": "8b21374e7005295990b6ad4a40be2fbf9f3522e4c3167a26d593a9722c9d20c6"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/authorization_runtime_profile_inner_diagnostic_test.go",
+      "bytes": 7065,
+      "sha256": "8108ac45747d66422273cde94783ca20c1f85c6fc072fc2d313fbf634c77ecf3"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/temporal_forward_readiness_cost_test.go",
+      "bytes": 4072,
+      "sha256": "8bbfe47cde47e294755ec38187bea72c98d36b95c162fc674bc787bcede391f4"
+    },
+    {
+      "path": "services/platform/migrations/temporal_source_checksums.go",
+      "bytes": 1672,
+      "sha256": "1318b4a31393294667a521384c9ddfb3fc875d8f4493364e6f284cae80abae7d"
+    }
+  ],
+  "verification": {
+    "initial_CLI_attempt": {
+      "exit": 1,
+      "named_cases": 0,
+      "classification": "OPA_SETUP_BLOCKED_NOT_BEHAVIORAL_RED_NOT_COMPILER_PASS"
+    },
+    "final_CLI_attempt": {
+      "exit": 1,
+      "named_cases": 0,
+      "classification": "OPA_SETUP_BLOCKED_NOT_BEHAVIORAL_PASS_NOT_COMPILER_PASS"
+    },
+    "source_ledger_deployment": {
+      "exit": 0,
+      "named_pass": 58,
+      "named_fail": 0,
+      "named_skip": 0
+    },
+    "UI": {
+      "typecheck_exit": 0,
+      "build_exit": 0
+    },
+    "workflow_yaml_and_embedded_Python": "PARSE_PASS_25_BLOCKS",
+    "native": "UNEXECUTED_FOR_SUCCESSOR"
+  },
+  "independent_source_review": {
+    "product3_receipt_sha256": "452312d613bd28eec3fd4c57b26c89403bd7f20da06e4ad28f1015a62122f6fc",
+    "intake8_support10_receipt_sha256": "9070ae5fed9714198c703320984107369360a9298b9d8c54554f16a8ab6c4908",
+    "decision": "CLEAR_SOURCE_ONLY"
+  },
+  "source_bindings": {
+    "before": 493,
+    "after": 496,
+    "all_predecessor_paths_retained": true,
+    "all_exact": true,
+    "newly_created_Go_files": 1,
+    "previously_unmapped_existing_files": 2
+  },
+  "acceptance": {
+    "connected_native": {
+      "groups": 21,
+      "named_cases": 146,
+      "owned_postgres_joins": 32,
+      "approval_controls": 16,
+      "rosters_unchanged": true,
+      "execution": "UNEXECUTED_FOR_SUCCESSOR"
+    },
+    "new_strict_hosted_component_job": {
+      "new_exact_named_cases": 93,
+      "execution": "PENDING_NEW_HEAD",
+      "requires_exact_run_pass_rosters_no_missing_duplicate_skip_fail_unknown": true
+    },
+    "prior49authorization_job": "RETAINED_UNCHANGED_ALL14_ROLE_FIXTURE_STRENGTHENED",
+    "actual_local_Go_cases_run": 0,
+    "actual_local_Go_cases_pass": 0,
+    "compiler_acceptance": false
+  },
+  "ledger": {
+    "rows": 728,
+    "classes": {
+      "production-available": 523,
+      "component-only": 144,
+      "blocked/external": 61
+    },
+    "ledger_status": {
+      "Complete": 667,
+      "Blocked": 61
+    },
+    "promotions": 0,
+    "sha256": "67bcd2a1bc911b83c5a0f2c8914e59ba48481b3471821bc31e76b6ca4e22d856",
+    "evidence_append_only_ids": [
+      "M8-22b",
+      "M8-23b",
+      "M8-52a"
+    ]
+  },
+  "archive": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/cli-temporal-confirmation/source-evidence.json.gz",
+    "bytes": 221578,
+    "sha256": "187abad25993241cff5b15cb726614a84aef78e40417d7370f040759ac82d8c2",
+    "members": 40
+  },
+  "remaining": "Worker/Temporal installer DDL permission phases and other command families remain unresolved. Required exact-head compiler/native/browser/release checks, actual real deployed Stytch/provider flows for all728requirements and equivalent obsolete retirement remain mandatory. Source correction does not establish CLI compiler/native/deployed acceptance, task completion, merge or launch readiness."
+}

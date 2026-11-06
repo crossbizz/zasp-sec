@@ -24,6 +24,7 @@ const manifests = [
   { ecosystem: "npm", path: "package.json" },
   { ecosystem: "go", path: "services/event-ingest/go.mod" },
   { ecosystem: "go", path: "services/gateway-control/go.mod" },
+  { ecosystem: "go", path: "services/gatewaypodidentity/go.mod" },
   { ecosystem: "go", path: "services/health/go.mod" },
   { ecosystem: "go", path: "services/platform/go.mod" },
   { ecosystem: "go", path: "services/runtime-gateway/go.mod" },
@@ -69,6 +70,7 @@ const npmDependencies = [
 const awsDependencies = [
   ["github.com/aws/aws-sdk-go-v2", "v1.43.7"],
   ["github.com/aws/aws-sdk-go-v2/service/ec2", "v1.322.0"],
+  ["github.com/aws/aws-sdk-go-v2/service/eks", "v1.92.1"],
   ["github.com/aws/aws-sdk-go-v2/service/iam", "v1.59.2"],
   ["github.com/aws/aws-sdk-go-v2/service/kms", "v1.55.6"],
   ["github.com/aws/aws-sdk-go-v2/service/opensearch", "v1.75.6"],
@@ -295,6 +297,7 @@ function filesFixture() {
       "replace github.com/zasp-ai/zasp-sec/services/platform => ../platform",
       "",
     ].join("\n"),
+    "services/gatewaypodidentity/go.mod": "module github.com/zasp-ai/zasp-sec/services/gatewaypodidentity\n\ngo 1.26.0\n",
     "services/health/go.mod": "module github.com/zasp-ai/zasp-sec/services/health\n\ngo 1.25.0\n",
     "services/platform/go.mod": [
       "module github.com/zasp-ai/zasp-sec/services/platform",
@@ -344,7 +347,18 @@ function filesFixture() {
       "replace github.com/zasp-ai/zasp-sec/services/platform => ../platform",
       "",
     ].join("\n"),
-    "cmd/agentsecctl/go.mod": "module example/agentsecctl\n\ngo 1.25.0\n",
+    "cmd/agentsecctl/go.mod": [
+      "module github.com/zasp-ai/zasp-sec/cmd/agentsecctl",
+      "",
+      "go 1.26.0",
+      "",
+      "require github.com/zasp-ai/zasp-sec/services/platform v0.0.0",
+      "",
+      "replace github.com/zasp-ai/zasp-sec/services/platform => ../../services/platform",
+      "",
+      "replace github.com/zasp-ai/zasp-sec/services/health => ../../services/health",
+      "",
+    ].join("\n"),
   };
 }
 
@@ -353,7 +367,7 @@ function validate(lock = lockFixture(), files = filesFixture()) {
 }
 
 test("accepts the exact reviewed product runtime inventory", () => {
-  assert.deepEqual(validate(), { manifests: 13, dependencies: 35 });
+  assert.deepEqual(validate(), { manifests: 14, dependencies: 36 });
 });
 
 test("binds exact hash-locked isolated Cartography and Prowler runtimes", async (t) => {
@@ -420,10 +434,10 @@ test("rejects coherent unreviewed syscall versions and manifest-only drift", asy
 test("accepts the reviewed repository dependency inventory", async () => {
   const root = fileURLToPath(new URL("../", import.meta.url));
   const result = await validateRepository(root);
-  assert.deepEqual(result, { manifests: 13, dependencies: 42 });
+  assert.deepEqual(result, { manifests: 14, dependencies: 43 });
 });
 
-test("binds the exact ten AWS SDK product dependencies", async (t) => {
+test("binds the exact eleven AWS SDK product dependencies", async (t) => {
   assert.deepEqual(
     lockFixture().dependencies.filter(
       ({ manifest, name }) => manifest === "services/platform/go.mod" && (name.startsWith("github.com/aws/aws-sdk-go-v2") || name === "github.com/aws/smithy-go"),
@@ -536,9 +550,14 @@ test("requires exact schema keys and sorted unique inventory", async (t) => {
     assert.throws(() => validate(lock));
   });
   await t.test("new product manifest", () => {
-    const files = filesFixture();
-    files["workers/new-runtime/package.json"] = JSON.stringify({ dependencies: { unreviewed: "1.0.0" } });
-    assert.throws(() => validate(lockFixture(), files));
+    for (const [path, source] of [
+      ["workers/new-runtime/package.json", JSON.stringify({ dependencies: { unreviewed: "1.0.0" } })],
+      ["services/unregistered-pod-reader/go.mod", "module example/unregistered-pod-reader\n\ngo 1.26.0\n"],
+    ]) {
+      const files = filesFixture();
+      files[path] = source;
+      assert.throws(() => validate(lockFixture(), files));
+    }
   });
 });
 
@@ -567,7 +586,7 @@ test("accepts a package lock at four MiB and rejects one byte over its own bound
   const bound = 4 * 1024 * 1024;
   files["package-lock.json"] = content + " ".repeat(bound - Buffer.byteLength(content));
   assert.equal(Buffer.byteLength(files["package-lock.json"]), bound);
-  assert.deepEqual(validate(lockFixture(), files), { manifests: 13, dependencies: 35 });
+  assert.deepEqual(validate(lockFixture(), files), { manifests: 14, dependencies: 36 });
   files["package-lock.json"] += " ";
   assert.throws(() => validate(lockFixture(), files), /dependency lock invalid/);
 });
@@ -668,11 +687,27 @@ test("tracks direct Go and Python requirements while ignoring development and in
   );
   lock.dependencies.sort((left, right) => `${left.manifest}:${left.name}`.localeCompare(`${right.manifest}:${right.name}`));
 
-  assert.deepEqual(validate(lock, files), { manifests: 13, dependencies: 37 });
+  assert.deepEqual(validate(lock, files), { manifests: 14, dependencies: 38 });
 });
 
 test("accepts only exact repository-owned module requirements and replacements outside the third-party lock", async (t) => {
-  assert.deepEqual(validate(lockFixture(), filesFixture()), { manifests: 13, dependencies: 35 });
+  assert.deepEqual(validate(lockFixture(), filesFixture()), { manifests: 14, dependencies: 36 });
+
+  // One connected CLI closure cohort inside the existing guard head: exact
+  // per-consumer paths, current direct platform and transitive-only health.
+  for (const [label, mutate] of [
+    ["CLI missing platform requirement", source => source.replace("require github.com/zasp-ai/zasp-sec/services/platform v0.0.0\n", "")],
+    ["CLI missing transitive health replacement", source => source.replace("replace github.com/zasp-ai/zasp-sec/services/health => ../../services/health\n", "")],
+    ["CLI wrong platform path", source => source.replace("=> ../../services/platform", "=> ../platform")],
+    ["CLI wrong health path", source => source.replace("=> ../../services/health", "=> ../health")],
+    ["CLI platform wrong version", source => source.replace("platform v0.0.0", "platform v0.0.1")],
+    ["CLI platform must be direct", source => source.replace("platform v0.0.0", "platform v0.0.0 // indirect")],
+    ["CLI cannot invent direct health requirement", source => source + "require github.com/zasp-ai/zasp-sec/services/health v0.0.0\n"],
+  ]) {
+    const files = filesFixture();
+    files["cmd/agentsecctl/go.mod"] = mutate(files["cmd/agentsecctl/go.mod"]);
+    assert.throws(() => validate(lockFixture(), files), undefined, label);
+  }
 
   for (const [name, mutate] of [
     ["missing health replacement", (files) => {

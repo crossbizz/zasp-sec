@@ -499,5 +499,76 @@ evidenceExportWorkflow:
   enabled: false
 runtimeServices:
   enabled: false
+retentionReferenceExpiry:
+  # Deploy consumers only after an exact prepared Audit profile and approved
+  # cutover. This never installs or activates SQL or withdraws credentials.
+  enabled: false
+  profileChecksum: ""
+  # Prepared current journal recipe; consumer rollout does not install SQL.
+  journalProfileChecksum: ""
+  taskQueue: ""
+  # Explicit precise executor and physical index selection; no implicit cutover.
+  indexStageVersion: ""
+  sessionIndex: ""
+optionalEgress:
+  # Opt in only after the selected supplementary recipe and every planner
+  # principal are registered. This setting does not install or activate SQL.
+  enabled: false
+  profileChecksum: ""
+  # Existing namespace-local Secret; postgres-dsn is a dedicated registered
+  # captured-settlement login. It is exposed only to the API, never planners.
+  settlementDSNSecret: ""
 authorizationTemporal:
   profile: ""
+  # Omit until supplementary catalogs, principals and real fleet cutover are verified.
+  # This optional object selects registered runtime consumers; it never activates.
+
+environmentClass:
+  # API consumer opt-in after exact supplementary profile native admission.
+  enabled: false
+  profileChecksum: ""
+
+agentOwnerFilter:
+  # API consumer only after exact supplementary native admission; never installs.
+  enabled: false
+  profileChecksum: ""
+
+agentRead:
+  # API consumer only after supplementary profile native admission; empty stays off.
+  profileChecksum: ""
+
+# API consumer only; installation and native profile acceptance are separate.
+agentExposureFilter:
+  profileChecksum: ""
+
+# API-only current ownership writer; separate profile installation required.
+agentOwnershipWrite:
+  profileChecksum: ""
+
+# Opted-in API read and event-ingest write. Exact installed compiled pin required.
+sensorNodeCoverage:
+  enabled: false
+  profileChecksum: ""
+
+# Explicit customer-edge producer constraint only; no implicit enrollment.
+sensorAgent:
+  nodeCoverageRetentionEnabled: false
+  sensorID: ""
+
+# Optional gateway-control installation testimony; profile installation is separate.
+gatewayInstallation:
+  enabled: false
+  profileChecksum: ""
+# Customer-edge producer only; typed default remains off.
+runtimeGateway:
+  installationACKEnabled: false
+
+# Device bootstrap API and native enrollment transport only; install profile separately.
+gatewayBootstrap:
+  enabled: false
+  profileChecksum: ""
+
+# Administrative Agent/Device admission only; original runtime identities unchanged.
+agentDeviceAssociation:
+  enabled: false
+  profileChecksum: ""

@@ -1,0 +1,151 @@
+name: Connected compliance browser acceptance
+
+# Owned component acceptance only; the complete Runnable UI release guard remains required.
+"on":
+  push:
+    paths:
+      - 'deploy/**'
+      - '.github/workflows/connected-browser-acceptance.yml'
+      - '.github/workflows/runnable-ui.yml'
+      - 'app/**'
+      - 'apps/**'
+      - 'public/**'
+      - 'services/**'
+      - 'scripts/**'
+      - 'proofs/**'
+      - 'cmd/**'
+      - 'workers/**'
+      - 'openapi/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig.json'
+      - 'vite.config.ts'
+      - 'postcss.config.mjs'
+  pull_request:
+    paths:
+      - 'deploy/**'
+      - '.github/workflows/connected-browser-acceptance.yml'
+      - '.github/workflows/runnable-ui.yml'
+      - 'app/**'
+      - 'apps/**'
+      - 'public/**'
+      - 'services/**'
+      - 'scripts/**'
+      - 'proofs/**'
+      - 'cmd/**'
+      - 'workers/**'
+      - 'openapi/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig.json'
+      - 'vite.config.ts'
+      - 'postcss.config.mjs'
+
+permissions:
+  contents: read
+
+jobs:
+  browser:
+    name: Owned compliance browser component acceptance
+    runs-on: ubuntu-24.04
+    env:
+      GOTOOLCHAIN: local
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.23.1
+          cache: npm
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: 1.26.8
+          cache: true
+          cache-dependency-path: services/platform/go.sum
+      - name: Pin npm
+        run: npm install --global npm@10.9.8
+      - name: Install locked dependencies
+        run: SHARP_IGNORE_GLOBAL_LIBVIPS=1 npm ci
+      - name: Install PostgreSQL 18 reference fixture tools
+        run: |
+          fixture_pg_dir=$(mktemp -d "${RUNNER_TEMP}/zasp-pgdg.XXXXXX")
+          curl --fail --location --retry 3 --max-time 60 --output "$fixture_pg_dir/pgdg.asc" https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          printf '%s  %s\n' 0144068502a1eddd2a0280ede10ef607d1ec592ce819940991203941564e8e76 "$fixture_pg_dir/pgdg.asc" | sha256sum --check -
+          sudo install -m 0644 "$fixture_pg_dir/pgdg.asc" /usr/share/keyrings/zasp-ci-pgdg.asc
+          printf '%s\n' 'deb [arch=amd64 signed-by=/usr/share/keyrings/zasp-ci-pgdg.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main' | sudo tee /etc/apt/sources.list.d/zasp-ci-pgdg.list > /dev/null
+          sudo apt-get update
+          sudo env DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends postgresql-18 postgresql-client-18
+          fixture_pg_bin=/usr/lib/postgresql/18/bin
+          for fixture_tool in initdb postgres pg_isready pg_ctl pg_config; do
+            test -x "$fixture_pg_bin/$fixture_tool"
+          done
+          case "$("$fixture_pg_bin/postgres" --version)" in
+            "postgres (PostgreSQL) 18."*) ;;
+            *) exit 1 ;;
+          esac
+          "$fixture_pg_bin/postgres" --version
+          printf '%s\n' "$fixture_pg_bin" >> "$GITHUB_PATH"
+      - name: Prime platform full-MVS metadata for offline release contracts
+        timeout-minutes: 5
+        run: GOENV=off GOWORK=off GOFLAGS= GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org go list -C services/platform -mod=readonly -m all >/dev/null
+      - name: Typecheck and build production UI
+        run: |
+          npm run typecheck
+          npm run build
+      - name: Verify runtime ownership and startup cleanup ordering
+        timeout-minutes: 2
+        run: node --test scripts/startup-observer-lifetime.test.mjs scripts/owned-runtime-services.test.mjs scripts/owned-runtime-lifetime.test.mjs scripts/retained-allocation-diagnostics.test.mjs scripts/retained-runtime-lifetime.test.mjs scripts/owned-runtime-persistent.test.mjs scripts/owned-maintenance-cutover.test.mjs scripts/owned-maintenance-composition.test.mjs scripts/owned-fga-storage.test.mjs scripts/compliance-current-runtime.test.mjs scripts/owned-command.test.mjs
+      - name: Verify production maintenance profile rendering and permissions
+        timeout-minutes: 3
+        run: |
+          command -v helm
+          helm version --short
+          node --test deploy/production/authorization-temporal-profile.test.mjs deploy/production/authorization-temporal-render.test.mjs deploy/production/maintenance-runtime-render.test.mjs
+      - name: Prime native migration and diagnostic test compilation cache
+        timeout-minutes: 5
+        run: |
+          umask 077
+          task_migration_dir=$(mktemp -d "${RUNNER_TEMP}/zasp-migration-cache.XXXXXX")
+          trap 'rm -rf -- "$task_migration_dir"' EXIT
+          cd services/platform
+          GOENV=off GOWORK=off GOFLAGS= GOPRIVATE= GONOPROXY= GONOSUMDB= GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org go build -mod=readonly -o "$task_migration_dir/agentsec-migrate" ./agentsec-migrate
+          # The next observer intentionally forbids downloads. Test imports are
+          # broader than the migration command's production import graph.
+          GOENV=off GOWORK=off GOFLAGS= GOPRIVATE= GONOPROXY= GONOSUMDB= GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org CGO_ENABLED=0 go test -c -mod=readonly -o "$task_migration_dir/agentsec-migrate.test" ./agentsec-migrate
+      - name: Verify current runtime profile inner diagnostic tests
+        timeout-minutes: 5
+        run: |
+          node --test scripts/observe-current-profile-inner-diagnostics.test.mjs
+          node scripts/observe-current-profile-inner-diagnostics.mjs
+      - name: Provision isolated compliance browser prerequisites
+        timeout-minutes: 10
+        run: |
+          # This populates the exact cache entry consumed with --pull=never.
+          compliance_postgres_image=postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba
+          docker pull "$compliance_postgres_image"
+          docker image inspect "$compliance_postgres_image" --format '{{json .RepoDigests}}' | node --input-type=module -e 'import assert from "node:assert/strict"; import { readFileSync } from "node:fs"; assert.ok(JSON.parse(readFileSync(0,"utf8")).includes(process.argv[1]), "pinned browser PostgreSQL digest absent");' "$compliance_postgres_image"
+          node --input-type=module <<'NODE'
+          import { execFileSync } from "node:child_process";
+          import { appendFileSync } from "node:fs";
+          import { selectBrowserExecutable } from "./scripts/browser-prerequisites.mjs";
+          const chrome = selectBrowserExecutable();
+          console.log(`Hosted compliance browser: ${chrome}`);
+          console.log(execFileSync(chrome, ["--version"], { encoding: "utf8", timeout: 5000, killSignal: "SIGKILL" }).trim());
+          appendFileSync(process.env.GITHUB_ENV, `ZASP_COMBINED_E2E_CHROME=${chrome}\n`);
+          NODE
+      - name: Provision pinned owned authorization runtime tools
+        timeout-minutes: 5
+        run: |
+          node scripts/hosted-runtime-tool-intake.mjs
+      - name: Verify current compliance browser acceptance
+        timeout-minutes: 15
+        env:
+          ZASP_COMBINED_E2E_COMPLIANCE: "true"
+        run: |
+          node --test scripts/browser-prerequisites.test.mjs scripts/browser-e2e-helpers.test.mjs scripts/owned-browser-postgres.test.mjs scripts/compliance-browser-bytes.test.mjs || { status=$?; printf '::error::Compliance browser unit prerequisites failed (exit %s)\n' "$status"; exit "$status"; }
+          node scripts/production-combined-e2e.mjs || { status=$?; printf '::error::Compliance browser runtime acceptance failed (exit %s)\n' "$status"; exit "$status"; }

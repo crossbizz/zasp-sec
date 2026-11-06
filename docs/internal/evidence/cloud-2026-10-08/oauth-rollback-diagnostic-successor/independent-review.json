@@ -1,0 +1,23 @@
+{
+  "scope": "Independent read-only directOAuthrollback diagnostic source review over eb1e815, including previously reviewed concrete v2compatibility; no tests/runtime/compiler/Git mutations",
+  "base": "eb1e815e7f4921e2fc93ac8bf437316b36e5c0eb",
+  "findings": [],
+  "verified": [
+    "Direct competingattempt QueryRow/Scan result is stored unchanged, reported through existing bounded PgError helper, then exact originalerrors.As PgError/nativeCode23505 assertion stillmandatory. Fatalmessage corrected to describe missing expectedrefusal rather than implying niladmission.",
+    "Nilerror emits only fixedadmitted label; nonPgError emits only fixednon-postgres-error label. Rawerror/Message/Detail/Hint/InternalQuery/SQL/args/provider/secrets are not emitted. Helper emits only closedphase/class/allowlistedtarget/valid5characterSQLSTATE/position0..2000000.",
+    "Only fourthfixedphase oauth-competing-attempt and fixedstatementclass oauth-admission added. Existingproducer/parser caps preserved: atmost16 diagnostics, originaldeadline/output/resource/source/ownedcleanup bounds unchanged.",
+    "Two originalcase names and caseflow, actualAPItransaction, realfreshproof, competingattemptargs, expected23505, rollback and complete no-write/stateassertions remain intact. No cases skipped/newtinytests or fabricated refusal.",
+    "Originalv2name/body/e894checksum and cookedSQL identicalorigin/main; previously reviewed guardedoperatorbootstrap/exactREFERENCES(id)/authorityselection/catalog/current80readiness/atomicrollback untouched.",
+    "All32manifest bytes/hash and compile32pins/checkpoint andrunner32candidatepins matche87ab98e9b0117a186901e462981bb074adb0fdf8eb7c2d186de69bd337370b0.",
+    "Evidence honestly reports predecessor authenticenrichmentpass/rollbackassertionfail, no setupPgErrordiagnostics, rawlogs/artifacts unavailable and no successoracceptance. Priorproposals/results preserved."
+  ],
+  "checkpointSHA256": "e87ab98e9b0117a186901e462981bb074adb0fdf8eb7c2d186de69bd337370b0",
+  "pinMismatches": [],
+  "declinedToJudge": [
+    "Actual directAPIerror cause before nextboundedobservedrun",
+    "Rawpredecessorlogs/artifacts",
+    "Nativegroup successor acceptance",
+    "Activecleanup/callback/worker/cutover/ReconcileStageAck/fullfleet/restart/deployedprovider/production/release/ledgeracceptance"
+  ],
+  "verdict": "Safe normalpush for actualhostedverification. Diagnostic-onlydirectAPIchange plus preservedv2compatibility reviewed; no native/deploymentacceptanceasserted."
+}

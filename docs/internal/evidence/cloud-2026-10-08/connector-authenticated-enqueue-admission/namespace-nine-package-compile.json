@@ -1,0 +1,67 @@
+{
+  "conclusion": "success",
+  "headSha": "8e58d33a72501c80cbcaef3da98f53e5bd6d7267",
+  "jobs": [
+    {
+      "completedAt": "2026-10-08T05:31:07Z",
+      "conclusion": "success",
+      "databaseId": 113163864831,
+      "name": "compile",
+      "startedAt": "2026-10-08T05:25:13Z",
+      "status": "completed",
+      "steps": [
+        {
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+          "number": 3,
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Check frozen source association and absence of activation configuration",
+          "number": 4,
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Compile nine affected packages without executing test binaries",
+          "number": 5,
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Post Run actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16",
+          "number": 9,
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 10,
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 11,
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/crossbizz/zasp-sec/actions/runs/37732273963/job/113163864831"
+    }
+  ],
+  "status": "completed",
+  "url": "https://github.com/crossbizz/zasp-sec/actions/runs/37732273963"
+}

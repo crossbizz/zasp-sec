@@ -25,5 +25,9 @@ type CollectionClientConfig struct {
 }
 
 func NewCollectionClient(api CollectionAPI, artifacts CollectionArtifactAuthority, config CollectionClientConfig) (collection.ProviderClient, error) {
+	selected, capable := api.(interface{ NodePlacementEnabled() bool })
+	if config.CollectorVersion == NodePlacementCollectorVersion && (!capable || !selected.NodePlacementEnabled()) || capable && selected.NodePlacementEnabled() && config.CollectorVersion != NodePlacementCollectorVersion {
+		return nil, ErrInvalid
+	}
 	return providercollection.New(providercollection.Config{Provider: collection.ProviderKubernetes, API: api, Artifacts: artifacts, CollectorVersion: config.CollectorVersion, ParserVersion: config.ParserVersion, ToolVersion: config.ToolVersion, Clock: config.Clock})
 }

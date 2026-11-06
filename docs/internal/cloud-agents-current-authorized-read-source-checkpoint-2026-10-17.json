@@ -1,0 +1,762 @@
+{
+  "observed_at": "2026-10-17T15:26:01.780946+00:00",
+  "continued_published_base": "2fac6cabc4a2445d77f73009fda0633be125d401",
+  "classification": "CURRENT_AUTHORIZED_AGENT_DRAWER_SOURCE_INTEGRATION_DEFAULT_OFF_COMPONENT_ONLY",
+  "task_mapping": [
+    "M4-04",
+    "M4-06",
+    "M4-07",
+    "M4-08"
+  ],
+  "scope": "Restore exact current-agent view proofs for detail/capabilities/relationships/sessions via sealed additive Normal/Audit profile. Reuse unchanged canonical detail/capability/relationship functions; replace historical constant-empty Agent sessions with scoped real summaries attributed by same-scope projected agent events before keyset limit. Independent authorization on every child operation, parent/operation-bound signed cursors, current membership/fence checks, exact selected profile and startup/periodic readiness. Existing full session-content authorization retained. No automatic profile installation or activation.",
+  "sources": [
+    {
+      "path": ".github/connector-native-compile-source-pins.json",
+      "bytes": 171568,
+      "sha256": "b25d45561425ba7519aa83b8a840bce69579c7754a6916d55ade2b8bdc448b08"
+    },
+    {
+      "path": ".github/workflows/agents-current-read-components.yml",
+      "bytes": 3573,
+      "sha256": "f157c93fe7f059912ea2bf0a992c2b902c4e84dd4dd6b9e3e3ecc5d6266f8ffe"
+    },
+    {
+      "path": ".github/workflows/connector-connected-lifecycle.yml",
+      "bytes": 4430,
+      "sha256": "2f392663bcc13ffcd8801798e9d514fe60f35eab808f9eca52ef0eff927a2cae"
+    },
+    {
+      "path": ".github/workflows/connector-native-draft-compile.yml",
+      "bytes": 100990,
+      "sha256": "b8271d34032f710c89992361431c258e4f639e079522517bfd63e1370bddc9ff"
+    },
+    {
+      "path": "deploy/production/agent-read-profile.mjs",
+      "bytes": 2165,
+      "sha256": "ded100161c84e771e32c69668f6fb76d087fae419ee7d7ad49a2e585468766c9"
+    },
+    {
+      "path": "deploy/production/agent-read-profile.test.mjs",
+      "bytes": 2680,
+      "sha256": "9b455daef60258ea997917616776d55e134c652033f0393f51185a333d8ea20e"
+    },
+    {
+      "path": "deploy/production/release-contract.mjs",
+      "bytes": 85554,
+      "sha256": "193b7255d3ed21ac06d4b349c3711ddf3f90922ef20d223eeaf3c3c3e3f012ce"
+    },
+    {
+      "path": "deploy/staging/product/templates/_agent-read.tpl",
+      "bytes": 1145,
+      "sha256": "934ec2abddcd7b15322dfcf3655a7cc81982bed92ccfe2777c486824b3962bc1"
+    },
+    {
+      "path": "deploy/staging/product/templates/workloads.yaml",
+      "bytes": 70848,
+      "sha256": "70a5b63f7ec9aca2611efc2a7cbc74d53ed578862b6f8c7cf0af173bc31508e5"
+    },
+    {
+      "path": "deploy/staging/product/values.yaml",
+      "bytes": 15705,
+      "sha256": "186763271b87e52f6778de1ea95c5e1133d52ce2d8efb687b4646c0fbc131a38"
+    },
+    {
+      "path": "docs/internal/cloud-goal-remaining-task-inventory-2026-10-17-agent-read-source-audit-successor.json",
+      "bytes": 33977,
+      "sha256": "eb2ba7d11bb51962d75beaea5f6dcabf772efdd8eafcb63181a9245e26de1f89"
+    },
+    {
+      "path": "docs/internal/implementation_production_availability_owners_v1.5.tsv",
+      "bytes": 20106,
+      "sha256": "de630b490e4861aeadf52fff3b2ecf075884d7d8adbacfbbd06c4ceca27aa46b"
+    },
+    {
+      "path": "docs/internal/implementation_production_availability_v1.5.tsv",
+      "bytes": 213071,
+      "sha256": "8d5f1a7af0088d0af7396f6d216eba35915e8c55ca432f336c6c4f669e243a82"
+    },
+    {
+      "path": "docs/internal/implementation_status_v1.5.md",
+      "bytes": 1342738,
+      "sha256": "2ef37ff36d7be727ddc9c357a771e80eaef3843d2fad6619b17a9b3937b1db61"
+    },
+    {
+      "path": "scripts/connector-acceptance-groups.mjs",
+      "bytes": 17193,
+      "sha256": "692fff944c81a3716b7514ea3c59fd2f269991e93781201066b24d0249c5cff7"
+    },
+    {
+      "path": "scripts/connector-acceptance-groups.test.mjs",
+      "bytes": 57075,
+      "sha256": "9da5b674a240f8d707d2c7f7f94a74f2dd379b3743d6540214d5b5dd76946a23"
+    },
+    {
+      "path": "scripts/hosted-connected-connector-acceptance.mjs",
+      "bytes": 108765,
+      "sha256": "3b5c2f7ce44aab06a46db557a1772870999f1474ce845d8fc6323a3a142a51a5"
+    },
+    {
+      "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
+      "bytes": 105166,
+      "sha256": "e11c4082db206e9daa7abc5972a928bf5221d6e264a7e83e2a8407adc8a0116f"
+    },
+    {
+      "path": "scripts/implementation-status-check.mjs",
+      "bytes": 17140,
+      "sha256": "9909bfad15f284d92be3ac4e8294ce7a1e98a72f5460f0e6ccc301134759a0c3"
+    },
+    {
+      "path": "scripts/implementation-status-check.test.mjs",
+      "bytes": 29667,
+      "sha256": "b2aacaf893c2f969efd1140b0520699363e1f55c90226eaa25c0961129311235"
+    },
+    {
+      "path": "scripts/validate_agent_read_components.py",
+      "bytes": 22080,
+      "sha256": "1e8c43ec1dc00905bd14c98ad39d30e6df1bd71b30cd6f3ea4055e85cd7f3c0f"
+    },
+    {
+      "path": "scripts/validate_agent_read_components_test.py",
+      "bytes": 6210,
+      "sha256": "2cfbc1dd8ae1acd5ef770814dedf1da1eab08448380c2afa44fa8ff2aa2075c1"
+    },
+    {
+      "path": "services/platform/agentsec-api/agent_read_runtime.go",
+      "bytes": 279,
+      "sha256": "d69636474147f3c950068fc48b35bf5fdfa8847ad541465c21e6c3318690f796"
+    },
+    {
+      "path": "services/platform/agentsec-api/agent_read_runtime_test.go",
+      "bytes": 1127,
+      "sha256": "2066e118366d6464cb14d8a3c0740553b93d38567a2e8ef1220026e4ee587fd7"
+    },
+    {
+      "path": "services/platform/agentsec-api/production_runtime.go",
+      "bytes": 60836,
+      "sha256": "9bf0b6c39702a18c56562742c7d5521d0fd5999c4bfc99a8556f050dcdc9c975"
+    },
+    {
+      "path": "services/platform/agentsec-api/runtime.go",
+      "bytes": 26790,
+      "sha256": "88e324633f016cea59de87269afdd29846dce08c791e848e5aac26307270a5fa"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/AGENT_READ.md",
+      "bytes": 2081,
+      "sha256": "a65084a288da87bb5016c5909f8c57ca3fe5d7d05f2336cf3c5ac10d62741155"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/agent_read_profile.go",
+      "bytes": 3155,
+      "sha256": "727481f07b4279321f9efbba2d747c2a7c4c9fc99d17f0f035bbcab412713af8"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/agent_read_profile_test.go",
+      "bytes": 4077,
+      "sha256": "d7fa1b25f0f5673ec37f2c8cb74b2fb14fe06de30892ecfea8714f58567f98e1"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/forward_release_confirmation.go",
+      "bytes": 3303,
+      "sha256": "38c839844600f10277dda0c53e3248d00858da2a592cf83bb6832ae69bb2d5c7"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/main.go",
+      "bytes": 80259,
+      "sha256": "f490363f3f0af17481f62b26bc661b01af7b815fd153d4f9c4850a16db7e5a25"
+    },
+    {
+      "path": "services/platform/apiserver/agent_current_read.go",
+      "bytes": 4119,
+      "sha256": "bd8164d3deead6140ff7e3095f2dea306e9b13c83601e068aaaf8f738c416cae"
+    },
+    {
+      "path": "services/platform/apiserver/agent_current_read_handler_test.go",
+      "bytes": 2053,
+      "sha256": "1e87f273e76446e79401fd09d21a25b3c77e24fc197e81951709a0be368a7b8c"
+    },
+    {
+      "path": "services/platform/apiserver/agent_current_read_postgres_test.go",
+      "bytes": 42029,
+      "sha256": "b79935c06468a5b66fd0eb2c7d9fb764c0432e5dd737dd3a99f79d36c595037e"
+    },
+    {
+      "path": "services/platform/apiserver/agent_current_read_test.go",
+      "bytes": 8321,
+      "sha256": "1f740cf090d78094743d44c8481c15423583677e3d9329e111bc05bd49e81d20"
+    },
+    {
+      "path": "services/platform/apiserver/authorization_statement.go",
+      "bytes": 18217,
+      "sha256": "e6bd9e5051025ecfbbd2c09ed4b410d59824ef4c53d038cc3b913f8f3191dfc7"
+    },
+    {
+      "path": "services/platform/apiserver/inventory_repository.go",
+      "bytes": 28670,
+      "sha256": "917217ce63563f9d10bb54161bc0d12f75096e8cccdb26e9e7c2d86019bf8ec0"
+    },
+    {
+      "path": "services/platform/apiserver/production.go",
+      "bytes": 57559,
+      "sha256": "e36c9386333bed2cbe29f07fc515c02e0fbe5d75d87526a51d712060f6be1e9e"
+    },
+    {
+      "path": "services/platform/apiserver/repository.go",
+      "bytes": 40476,
+      "sha256": "cefcd24b686a2cbfd05f96817c5bcb1b74d22754e4ba785a3cb821bd11702856"
+    },
+    {
+      "path": "services/platform/migrations/production_agent_read_compiler_test.go",
+      "bytes": 957,
+      "sha256": "fc22b43870e1f5df5ae488bc9b73a3138232c1777da827f07251347e926e0bfd"
+    },
+    {
+      "path": "services/platform/migrations/production_agent_read_profile.go",
+      "bytes": 13659,
+      "sha256": "3ed1566979c5294c80a79ab84024c61bccde5f6b2449dcff02148422770ed482"
+    },
+    {
+      "path": "services/platform/migrations/production_agent_read_profile_test.go",
+      "bytes": 5218,
+      "sha256": "7bb1b6b5d9bf001f586ff379ae7056e527b60937f50a07c45b4a54dbec59670f"
+    },
+    {
+      "path": "services/platform/migrations/sql/agent_read_profile.sql",
+      "bytes": 27314,
+      "sha256": "e4f65a0ccc1aae2e95871f71263af90a0c7c85025ab61dcdf9216db83429da0f"
+    }
+  ],
+  "support_sources": [
+    {
+      "path": ".github/workflows/agents-current-read-components.yml",
+      "bytes": 3573,
+      "sha256": "f157c93fe7f059912ea2bf0a992c2b902c4e84dd4dd6b9e3e3ecc5d6266f8ffe"
+    },
+    {
+      "path": ".github/workflows/connector-connected-lifecycle.yml",
+      "bytes": 4430,
+      "sha256": "2f392663bcc13ffcd8801798e9d514fe60f35eab808f9eca52ef0eff927a2cae"
+    },
+    {
+      "path": "deploy/production/agent-read-profile.mjs",
+      "bytes": 2165,
+      "sha256": "ded100161c84e771e32c69668f6fb76d087fae419ee7d7ad49a2e585468766c9"
+    },
+    {
+      "path": "deploy/production/agent-read-profile.test.mjs",
+      "bytes": 2680,
+      "sha256": "9b455daef60258ea997917616776d55e134c652033f0393f51185a333d8ea20e"
+    },
+    {
+      "path": "deploy/production/release-contract.mjs",
+      "bytes": 85554,
+      "sha256": "193b7255d3ed21ac06d4b349c3711ddf3f90922ef20d223eeaf3c3c3e3f012ce"
+    },
+    {
+      "path": "deploy/staging/product/templates/_agent-read.tpl",
+      "bytes": 1145,
+      "sha256": "934ec2abddcd7b15322dfcf3655a7cc81982bed92ccfe2777c486824b3962bc1"
+    },
+    {
+      "path": "deploy/staging/product/templates/workloads.yaml",
+      "bytes": 70848,
+      "sha256": "70a5b63f7ec9aca2611efc2a7cbc74d53ed578862b6f8c7cf0af173bc31508e5"
+    },
+    {
+      "path": "deploy/staging/product/values.yaml",
+      "bytes": 15705,
+      "sha256": "186763271b87e52f6778de1ea95c5e1133d52ce2d8efb687b4646c0fbc131a38"
+    },
+    {
+      "path": "openapi/openapi.yaml",
+      "bytes": 373718,
+      "sha256": "374acf7080ed7ca35096aa4141fdab2d895ea7f686224742bf65715689aa37e6"
+    },
+    {
+      "path": "scripts/connector-acceptance-groups.mjs",
+      "bytes": 17193,
+      "sha256": "692fff944c81a3716b7514ea3c59fd2f269991e93781201066b24d0249c5cff7"
+    },
+    {
+      "path": "scripts/connector-acceptance-groups.test.mjs",
+      "bytes": 57075,
+      "sha256": "9da5b674a240f8d707d2c7f7f94a74f2dd379b3743d6540214d5b5dd76946a23"
+    },
+    {
+      "path": "scripts/implementation-status-check.mjs",
+      "bytes": 17140,
+      "sha256": "9909bfad15f284d92be3ac4e8294ce7a1e98a72f5460f0e6ccc301134759a0c3"
+    },
+    {
+      "path": "scripts/implementation-status-check.test.mjs",
+      "bytes": 29667,
+      "sha256": "b2aacaf893c2f969efd1140b0520699363e1f55c90226eaa25c0961129311235"
+    },
+    {
+      "path": "scripts/validate_agent_read_components.py",
+      "bytes": 22080,
+      "sha256": "1e8c43ec1dc00905bd14c98ad39d30e6df1bd71b30cd6f3ea4055e85cd7f3c0f"
+    },
+    {
+      "path": "scripts/validate_agent_read_components_test.py",
+      "bytes": 6210,
+      "sha256": "2cfbc1dd8ae1acd5ef770814dedf1da1eab08448380c2afa44fa8ff2aa2075c1"
+    },
+    {
+      "path": "services/platform/agentsec-api/agent_read_runtime.go",
+      "bytes": 279,
+      "sha256": "d69636474147f3c950068fc48b35bf5fdfa8847ad541465c21e6c3318690f796"
+    },
+    {
+      "path": "services/platform/agentsec-api/agent_read_runtime_test.go",
+      "bytes": 1127,
+      "sha256": "2066e118366d6464cb14d8a3c0740553b93d38567a2e8ef1220026e4ee587fd7"
+    },
+    {
+      "path": "services/platform/agentsec-api/production_runtime.go",
+      "bytes": 60836,
+      "sha256": "9bf0b6c39702a18c56562742c7d5521d0fd5999c4bfc99a8556f050dcdc9c975"
+    },
+    {
+      "path": "services/platform/agentsec-api/runtime.go",
+      "bytes": 26790,
+      "sha256": "88e324633f016cea59de87269afdd29846dce08c791e848e5aac26307270a5fa"
+    },
+    {
+      "path": "services/platform/agentsec-api/runtime_test.go",
+      "bytes": 19705,
+      "sha256": "4fa68b41c0a4aa0941c0c1486ea6a18442968077b730144b84c4c19cb2ccda5b"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/AGENT_READ.md",
+      "bytes": 2081,
+      "sha256": "a65084a288da87bb5016c5909f8c57ca3fe5d7d05f2336cf3c5ac10d62741155"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/agent_read_profile.go",
+      "bytes": 3155,
+      "sha256": "727481f07b4279321f9efbba2d747c2a7c4c9fc99d17f0f035bbcab412713af8"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/agent_read_profile_test.go",
+      "bytes": 4077,
+      "sha256": "d7fa1b25f0f5673ec37f2c8cb74b2fb14fe06de30892ecfea8714f58567f98e1"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/forward_release_confirmation.go",
+      "bytes": 3303,
+      "sha256": "38c839844600f10277dda0c53e3248d00858da2a592cf83bb6832ae69bb2d5c7"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/main.go",
+      "bytes": 80259,
+      "sha256": "f490363f3f0af17481f62b26bc661b01af7b815fd153d4f9c4850a16db7e5a25"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/main_test.go",
+      "bytes": 269160,
+      "sha256": "4bd8f91f3bfa0897d5d91ac64e9bc7f2a48fb5deea87c37f2641f4955fd81fa8"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/maintenance_confirmation_role_test.go",
+      "bytes": 3147,
+      "sha256": "efea4551621dbd95e91f08eb93fbeddd6a45c8ec6ebd36160b22881e41cfbccf"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/release_readiness_test.go",
+      "bytes": 5477,
+      "sha256": "fd588fe201d6af56cedf499bf5977c70e45f8e310e09dcb2c429b7459de4e7f8"
+    },
+    {
+      "path": "services/platform/agentsec-migrate/retention_profile.go",
+      "bytes": 13038,
+      "sha256": "8b21374e7005295990b6ad4a40be2fbf9f3522e4c3167a26d593a9722c9d20c6"
+    },
+    {
+      "path": "services/platform/apiserver/agent_current_read.go",
+      "bytes": 4119,
+      "sha256": "bd8164d3deead6140ff7e3095f2dea306e9b13c83601e068aaaf8f738c416cae"
+    },
+    {
+      "path": "services/platform/apiserver/agent_current_read_handler_test.go",
+      "bytes": 2053,
+      "sha256": "1e87f273e76446e79401fd09d21a25b3c77e24fc197e81951709a0be368a7b8c"
+    },
+    {
+      "path": "services/platform/apiserver/agent_current_read_postgres_test.go",
+      "bytes": 42029,
+      "sha256": "b79935c06468a5b66fd0eb2c7d9fb764c0432e5dd737dd3a99f79d36c595037e"
+    },
+    {
+      "path": "services/platform/apiserver/agent_current_read_test.go",
+      "bytes": 8321,
+      "sha256": "1f740cf090d78094743d44c8481c15423583677e3d9329e111bc05bd49e81d20"
+    },
+    {
+      "path": "services/platform/apiserver/authorization_attestation_test.go",
+      "bytes": 415,
+      "sha256": "6945a14ea82af2d8a9f071cce012973a8f5b018c9217b365af61e046bca37e17"
+    },
+    {
+      "path": "services/platform/apiserver/authorization_projection_fga_test.go",
+      "bytes": 3131,
+      "sha256": "38dd0f185d3b63390ae46208417fa56758a3764ef8fe0024b1b7190491f49782"
+    },
+    {
+      "path": "services/platform/apiserver/authorization_projection_postgres_test.go",
+      "bytes": 13408,
+      "sha256": "67e771b79700453d5fb778bbe2f2314c834a67cd4a00e1b3f6780d82c5041cc4"
+    },
+    {
+      "path": "services/platform/apiserver/authorization_statement.go",
+      "bytes": 18217,
+      "sha256": "e6bd9e5051025ecfbbd2c09ed4b410d59824ef4c53d038cc3b913f8f3191dfc7"
+    },
+    {
+      "path": "services/platform/apiserver/authorization_targets.go",
+      "bytes": 6055,
+      "sha256": "badfabbcff13b4f6f0e7b9bc354dd8f7cc9135d09d824980392bc962fc4fb2c9"
+    },
+    {
+      "path": "services/platform/apiserver/authorization_transaction.go",
+      "bytes": 4789,
+      "sha256": "95a188b5d23de72a69a9f82c8719bf1b040295642710c1e87e1c617be65a6471"
+    },
+    {
+      "path": "services/platform/apiserver/authorization_transaction_test.go",
+      "bytes": 3636,
+      "sha256": "10977390589610f645485439f0abfeb122dfffa6a6d3673706259adcb423a03a"
+    },
+    {
+      "path": "services/platform/apiserver/authorization_worker_runtime_postgres_test.go",
+      "bytes": 26629,
+      "sha256": "09ee60d6b048c129624a51b4352c55a8d042e7439012a426d669a7cdc353f824"
+    },
+    {
+      "path": "services/platform/apiserver/discovery_fix_round1_postgres_test.go",
+      "bytes": 51875,
+      "sha256": "ee53d09c61a8651063b950a99f3865ca9fdcbd7de8884e23dc03cc46b5017211"
+    },
+    {
+      "path": "services/platform/apiserver/environment_class_postgres_test.go",
+      "bytes": 34958,
+      "sha256": "eff887f680f2c8120a28878a1ae1ff74dd8ef323c9556176d9b352aefb26734a"
+    },
+    {
+      "path": "services/platform/apiserver/inventory_cutover_postgres_test.go",
+      "bytes": 69153,
+      "sha256": "d6c483494897220a3923becea99fb76f18fa7f67b6d69f7c7eb2adb4dd97f01e"
+    },
+    {
+      "path": "services/platform/apiserver/inventory_repository.go",
+      "bytes": 28670,
+      "sha256": "917217ce63563f9d10bb54161bc0d12f75096e8cccdb26e9e7c2d86019bf8ec0"
+    },
+    {
+      "path": "services/platform/apiserver/inventory_repository_test.go",
+      "bytes": 9084,
+      "sha256": "8bb13519e023aa503558f48ee529838d19430f7ef2ef6061c9a1a0624a58e97f"
+    },
+    {
+      "path": "services/platform/apiserver/middleware_test.go",
+      "bytes": 9538,
+      "sha256": "a2a1a979e9364056f2efdaf7f4d849f73ab4c977244376e85319741e5b39a220"
+    },
+    {
+      "path": "services/platform/apiserver/postgres_database.go",
+      "bytes": 30576,
+      "sha256": "48c9214c8d9bb4d0e7c4a2a73b58b8e3499f2d7fec2defca65c70e43213e598c"
+    },
+    {
+      "path": "services/platform/apiserver/postgres_integration_test.go",
+      "bytes": 91435,
+      "sha256": "0d908c53cdea021e4c60adc412a04d631fd58c0b0544e7cce723884ea4002a42"
+    },
+    {
+      "path": "services/platform/apiserver/production.go",
+      "bytes": 57559,
+      "sha256": "e36c9386333bed2cbe29f07fc515c02e0fbe5d75d87526a51d712060f6be1e9e"
+    },
+    {
+      "path": "services/platform/apiserver/repository.go",
+      "bytes": 40476,
+      "sha256": "cefcd24b686a2cbfd05f96817c5bcb1b74d22754e4ba785a3cb821bd11702856"
+    },
+    {
+      "path": "services/platform/apiserver/runtime_data_plane_postgres_test.go",
+      "bytes": 79414,
+      "sha256": "67be7e13317379c4f51c3a37db649d509141f02f496b7fe99826ce281007780d"
+    },
+    {
+      "path": "services/platform/apiserver/runtime_sessions_postgres_test.go",
+      "bytes": 22174,
+      "sha256": "359a5aa7338fda86269ff527467453c0d46769784578302c6e89140f4848b418"
+    },
+    {
+      "path": "services/platform/apiserver/security_agent_multistep_admission_repository_postgres_test.go",
+      "bytes": 32070,
+      "sha256": "979d0f972e35e3040bc6aff05076e03fbf45752299a26daed3dbe68b539027fa"
+    },
+    {
+      "path": "services/platform/apiserver/security_agent_temporal_automatic_sources_postgres_test.go",
+      "bytes": 15083,
+      "sha256": "d17e31da8e66cffd2eb15d13496a3f800438e1f6e23d880520b068451f6930ac"
+    },
+    {
+      "path": "services/platform/migrations/migrations_test.go",
+      "bytes": 64174,
+      "sha256": "396ef89e352ae3e32c48040b753870f5e3f72af257eececf07e0779d3f21492b"
+    },
+    {
+      "path": "services/platform/migrations/production_agent_read_compiler_test.go",
+      "bytes": 957,
+      "sha256": "fc22b43870e1f5df5ae488bc9b73a3138232c1777da827f07251347e926e0bfd"
+    },
+    {
+      "path": "services/platform/migrations/production_agent_read_profile.go",
+      "bytes": 13659,
+      "sha256": "3ed1566979c5294c80a79ab84024c61bccde5f6b2449dcff02148422770ed482"
+    },
+    {
+      "path": "services/platform/migrations/production_agent_read_profile_test.go",
+      "bytes": 5218,
+      "sha256": "7bb1b6b5d9bf001f586ff379ae7056e527b60937f50a07c45b4a54dbec59670f"
+    },
+    {
+      "path": "services/platform/migrations/sql/0041_production_runtime_session_reads.up.sql",
+      "bytes": 22985,
+      "sha256": "928766aa21af5b73dbe2a6f28a5b04d86a37a86a7634ebced9a3ac38b86b1279"
+    },
+    {
+      "path": "services/platform/migrations/sql/0061_production_security_agent_multistep.promote.sql",
+      "bytes": 14555,
+      "sha256": "85a550d3719c842f243cb6d15575b4d8e23234412bd9ff269d3d53caf945740d"
+    },
+    {
+      "path": "services/platform/migrations/sql/0067_production_temporal_domain.base.sql",
+      "bytes": 3652,
+      "sha256": "c8ba6d4d54a2541f45a01685da50e4808e33fefba7e909dbc380edce26b8b75c"
+    },
+    {
+      "path": "services/platform/migrations/sql/0067_production_temporal_domain.up.sql",
+      "bytes": 9540,
+      "sha256": "ad853c7143a212cf4832e161d20964e44b0b3cff6e7496b75e40c86c95c6babb"
+    },
+    {
+      "path": "services/platform/migrations/sql/0068_production_temporal_executor.up.sql",
+      "bytes": 35991,
+      "sha256": "7156a0dbd73c9dcfdb8ae0d81aa92da8a62abb49adb5f77eb6652807148de2cf"
+    },
+    {
+      "path": "services/platform/migrations/sql/0080_authorization_temporal_profile.sql",
+      "bytes": 12711,
+      "sha256": "c649b9e9bc434e14a8366d28bf85c2c1441ddfa143b6055ecb4421069f8a9e74"
+    },
+    {
+      "path": "services/platform/migrations/sql/0080_production_authorization_enforcement.up.sql",
+      "bytes": 40560,
+      "sha256": "552b75399fed93e44a8c42f4c32e4658fb8d0aab9fdff8a043d5d8b187b0cd7b"
+    },
+    {
+      "path": "services/platform/migrations/sql/agent_read_profile.sql",
+      "bytes": 27314,
+      "sha256": "e4f65a0ccc1aae2e95871f71263af90a0c7c85025ab61dcdf9216db83429da0f"
+    }
+  ],
+  "verification": {
+    "components": {
+      "native_executed": false,
+      "results": [
+        {
+          "package": "./apiserver",
+          "exit_code": 1,
+          "seconds": 0.19,
+          "named_pass": 0,
+          "named_fail": 0,
+          "named_skip": 0,
+          "stdout": "final-component-apiserver.jsonl",
+          "stderr": "final-component-apiserver.stderr"
+        },
+        {
+          "package": "./agentsec-api",
+          "exit_code": 1,
+          "seconds": 0.1,
+          "named_pass": 0,
+          "named_fail": 0,
+          "named_skip": 0,
+          "stdout": "final-component-agentsec-api.jsonl",
+          "stderr": "final-component-agentsec-api.stderr"
+        },
+        {
+          "package": "./agentsec-migrate",
+          "exit_code": 1,
+          "seconds": 0.08,
+          "named_pass": 0,
+          "named_fail": 0,
+          "named_skip": 0,
+          "stdout": "final-component-agentsec-migrate.jsonl",
+          "stderr": "final-component-agentsec-migrate.stderr"
+        },
+        {
+          "package": "./migrations",
+          "exit_code": 0,
+          "seconds": 17.29,
+          "named_pass": 13,
+          "named_fail": 0,
+          "named_skip": 0,
+          "stdout": "final-component-migrations.jsonl",
+          "stderr": "final-component-migrations.stderr"
+        }
+      ]
+    },
+    "UI": [
+      {
+        "group": "fresh-UI-typecheck",
+        "exit": 0,
+        "log": "fresh-UI-typecheck.log"
+      },
+      {
+        "group": "fresh-UI-build",
+        "exit": 0,
+        "log": "fresh-UI-build.log"
+      }
+    ],
+    "guards": {
+      "results": [
+        {
+          "group": "final-source-ledger-deployment-contracts",
+          "command": [
+            "node",
+            "--test",
+            "scripts/connector-acceptance-groups.test.mjs",
+            "scripts/implementation-status-check.test.mjs",
+            "deploy/production/agent-read-profile.test.mjs"
+          ],
+          "exit": 0,
+          "stdout": "final-source-ledger-deployment-contracts.log",
+          "stderr": "final-source-ledger-deployment-contracts.stderr"
+        },
+        {
+          "group": "final-ledger-status",
+          "command": [
+            "node",
+            "scripts/implementation-status-check.mjs"
+          ],
+          "exit": 0,
+          "stdout": "final-ledger-status.log",
+          "stderr": "final-ledger-status.stderr"
+        },
+        {
+          "group": "final-component-validator-controls",
+          "command": [
+            "python3",
+            "-m",
+            "unittest",
+            "discover",
+            "-s",
+            "scripts",
+            "-p",
+            "validate_agent_read_components_test.py",
+            "-v"
+          ],
+          "exit": 0,
+          "stdout": "final-component-validator-controls.log",
+          "stderr": "final-component-validator-controls.stderr"
+        },
+        {
+          "group": "final-component-source-custody",
+          "command": [
+            "python3",
+            "scripts/validate_agent_read_components.py",
+            "--check-sources",
+            ".github/connector-native-compile-source-pins.json"
+          ],
+          "exit": 0,
+          "stdout": "final-component-source-custody.log",
+          "stderr": "final-component-source-custody.stderr"
+        }
+      ],
+      "qualification": "Source/ledger/deployment contract and synthetic validator controls only; no native/deployed acceptance",
+      "actual_Node_contract_named_pass": 75,
+      "actual_validator_unit_tests": 4,
+      "actual_partial_or_setup_strict_refusals": 2,
+      "workflow_YAML_valid": true,
+      "workflow_embedded_Python_AST_blocks": 33,
+      "JavaScript_parse_exit_codes": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "actual_Node_contract_named_pass": 75,
+    "actual_validator_unit_tests": 4,
+    "actual_strict_partial_refusals": 2,
+    "workflow_embedded_python_blocks": 33,
+    "initial_migration_corrected_named_fail": 10,
+    "initial_migration_harness_compile_error_preserved": true,
+    "API_initial_and_final": "0 named cases; missing OPA setup block; compiler/behavior UNKNOWN, not behavior RED",
+    "native": "UNEXECUTED",
+    "deployed_Stytch_provider_E2E": "UNVERIFIED",
+    "late_tests": "Compiler identity, handler/CLI/deployment/native/gate checks added after initial product draft; no tests-first claim for these"
+  },
+  "independent_reviews": {
+    "API-first-concrete-independent-review.json": "a190949dd8fd378196432cfd124f155bcb34fca7705d4e88c9180503608c7511",
+    "migration-first-concrete-independent-review.json": "0e3dbe08a0ccec1676189d0b5b7da8ba05e74568ab8ef834e2db51e95167753e",
+    "native-positive-independent-source-review.json": "f84b79c9de7bc210c0bc7a8cf7e041a92445316111925a16788873d35de2e0e6",
+    "integrated-product-ledger-independent-review.json": "7aa1b0d7ca2490aa310a5604e402b3bd468bf7402edd717d8e13a43de28df248",
+    "native-gate-independent-source-review.json": "60babfe9faf9f2f0b78679a418e7668dd172a85be302582f1d97355836fd277f",
+    "component-gate-independent-source-review.json": "199e236e15ce728d4cd05c10e71268d1f25ac61a56342ab5a53016e25ed68a66",
+    "final-source-association-independent-review.json": "84b48f2c5384a09e42cf5d63f84eabacec498dd0d7eb4ee32a00a1e70694adc3"
+  },
+  "ledger": {
+    "rows": 728,
+    "unique_ids": 728,
+    "classes": {
+      "production-available": 510,
+      "component-only": 157,
+      "blocked/external": 61
+    },
+    "historical_statuses": {
+      "Complete": 667,
+      "Blocked": 61
+    },
+    "negative_corrections": [
+      "M4-04",
+      "M4-06",
+      "M4-07",
+      "M4-08"
+    ],
+    "correction_owner": "T05-inventory-cutover",
+    "availability_promotions": 0,
+    "other_rows_unchanged": 724,
+    "prior_evidence_prefixes_retained": true,
+    "historical_status_section_retained": true,
+    "current_summary_tables_corrected": true,
+    "remaining_inventory_records": 218,
+    "old_inventory_records_retained": 214,
+    "sha256": "8d5f1a7af0088d0af7396f6d216eba35915e8c55ca432f336c6c4f669e243a82"
+  },
+  "guards": {
+    "source_pins": 585,
+    "prior_paths_and_history_retained": 548,
+    "new_bindings": 37,
+    "connected_native_groups": 23,
+    "connected_native_cases": 162,
+    "owned_PostgreSQL_joins": 34,
+    "approval_controls": 16,
+    "old_groups_retained": 21,
+    "old_named_cases_retained": 146,
+    "old_PostgreSQL_joins_retained": 32,
+    "strict_component_named_required": 76,
+    "actual_component_named_pass": 13,
+    "native_actual_pass": 0
+  },
+  "archive": {
+    "path": "docs/internal/evidence/cloud-2026-10-17/agents-current-authorized-read/source-evidence.json.gz",
+    "bytes": 1903850,
+    "sha256": "0f84171478ee77ebfb817d1dd2c66a907806bf750342418969da6afd126bcc51",
+    "members": 194
+  },
+  "remaining": "Actual API/runtime/migrationCLI compilation and all76 component cases, Normal/Audit162-case native roster, liveSQL/RLS/currentFGA/router behavior and real deployed Stytch/provider/browser verification remain required. Original risk/capability/coverage filters and all728 requirements remain active. No fixture-derived promotion, guard bypass, production cutover or unverified obsolete retirement. PR64 hosted compliance-browser gate failed; local246 prerequisite unit checks do not establish hosted cause or replace it."
+}

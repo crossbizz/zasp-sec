@@ -1,0 +1,38 @@
+{
+  "scope": "Independent read-only approval installer prerequisite diagnosis; no tests/runtime/Git mutations",
+  "observedHEAD": "4a61fa4f69d4814094eee494bc012421ba111927",
+  "fileSHA256": "ea0e6dbc81cfbb979bd35dee7bc4d5a51e4134cf0ce7704d1dceb8c16800e7ad",
+  "decodedEmbeddedSQLSHA256": "e894ab1c8045a23e4055ced58a89af8a795b26ebf8f4518c83caa89de53a269b",
+  "findings": [
+    {
+      "priority": "P1",
+      "file": "services/platform/migrations/production_approval_maintenance_profile.go",
+      "line": 45,
+      "title": "Close the role transition for private predecessor checks, native definitions and registration",
+      "evidence": "Public installer admission at40 requires registered operator membership, not inherited privileges/current_user authority. There is no SET LOCAL ROLE. Private worker predecessor reads at45, native definitions at66, post-seal registration at69 and final catalog at73 execute under caller current_user. A correctly registered non-inheriting operator can create the namespace but cannot use authority-only schema/tables/functions or continue sealing objects after owner transfer. Membership is sufficient for explicit SET ROLE, not for implicitly using privileges.",
+      "fix": "Keep original public operator/version admission and exact restricted-role creation/shape checks as operator. Split exactly one fixed CREATE SCHEMA zasp_approval_maintenance AUTHORIZATION zasp_discovery_authority; require comments/blank-only prelude. Create only the absent exact namespace with the operator database CREATE privilege. Then SET LOCAL ROLE zasp_discovery_authority before private WorkerAudit/Temporal predecessor checks, unchanged definitions, registration and final catalog. All in one existing transaction so failure rolls back namespace and role creation. Alternatively authority preflight then RESET ROLE for fixed bootstrap and switch back. Existing namespace must receive only authority catalog validation, no rewrite. No broad grants/inheritance changes or authority database CREATE."
+    },
+    {
+      "priority": "P1",
+      "file": "services/platform/migrations/production_approval_maintenance_profile.go",
+      "line": 14,
+      "decodedSQLLine": 306,
+      "title": "Explicitly version the malformed composed snapshot newline escape",
+      "decodedLine": "   WHEN 2 THEN needle:='BEGIN';replacement:='BEGIN'||E'\\n'||' IF zasp_approval_maintenance.catalog_ready() IS NOT TRUE OR pin IS DISTINCT FROM ''-- approval maintenance checksum'' THEN RAISE EXCEPTION USING ERRCODE=''42501'',MESSAGE=''approval snapshot profile rejected'';END IF;';",
+      "evidence": "The decoded Go SQL string contains two literal backslash bytes inside PostgreSQL escape string E followed by quote, backslash, backslash, n, quote. PostgreSQL evaluates that escape string to literal backslash+n, not a newline. The generated replacement inserts BEGIN followed by those literal characters before IF, which is not valid PL/pgSQL body syntax. This source defect survives a role-only installer repair.",
+      "fix": "Do not silently modify embedded immutable SQL/checksum or canonical predecessor fingerprints. If fixing, issue a separately explicit reviewed approval source/checksum successor with only the intended newline serialization correction and rebind downstream exact profile pins. Role-only repair cannot claim installation readiness while this independent source issue remains."
+    }
+  ],
+  "minimalPermissionSuccessorConstraints": [
+    "Keep canonical61/current-authority/WorkerAudit/Temporal predecessor gates exact and mandatory.",
+    "Provision restricted NOLOGIN NOINHERIT role only under registered operator; refuse unsafe existing role, preserve session_user during SET LOCAL ROLE.",
+    "Retain inactive registration and exact closed owner/ACL/RLS/fingerprint semantics; no activation or credentials issued.",
+    "Original29 checkpoint excludes this dependency: expand dependency/source closure and exact source length/hash pins in compile and hosted runner association for any installer successor. Preserve old29 checkpoint and actual predecessor failure evidence."
+  ],
+  "actualEvidenceLimits": [
+    "Parent reports predecessor OAuth run37734345943/job113170395887 reached testline33 after shared29stages and WorkerAudit then failed before two cases.",
+    "Generic filesystem-permission-refused annotation matches permission-denied text and cannot identify an exact SQL statement.",
+    "Raw SQL/logs uninspected; neither source finding is asserted to be the actual hosted error cause."
+  ],
+  "verdict": "Role closure repair is necessary for the admitted operator contract; role-only successor does not remove the additional malformed dynamic snapshot source blocker. No native installation, OAuth, production or release acceptance."
+}
