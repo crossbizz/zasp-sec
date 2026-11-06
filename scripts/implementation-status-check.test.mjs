@@ -353,7 +353,7 @@ test("rejects audited production-class count drift", async () => {
     async (ledgerPath) => {
       await assert.rejects(
         () => validateLedger({ ledgerPath, sourcePlanPath }),
-        /production-available count is 508; expected 509/,
+        /production-available count is 502; expected 503/,
       );
     },
   );
@@ -452,9 +452,7 @@ test("rejects demotion of audited shipped identity administration tasks", async 
 
 test("rejects demotion of audited shipped deployment tasks", async () => {
   for (const id of [
-    "M8-09a", "M8-09b", "M8-09c", "M8-09", "M8-10", "M8-11", "M8-14",
-    "M8-12", "M8-13", "M8-57a", "M8-57b", "M8-57c", "M8-57",
-  ]) {
+    "M8-09a", "M8-09b", "M8-09c", "M8-09", "M8-11", "M8-12", "M8-13", ]) {
     await withLedger(
       (ledger) => ledger.replace(
         new RegExp(`(M8\\t${id}\\tComplete\\t)production-available`),
@@ -577,7 +575,7 @@ test("rejects a published availability summary that drifts from the audited ledg
   await withLedgerAndStatus(
     (ledger) => ledger,
     (status) => {
-      const expected = "| Production-available | 509 |";
+      const expected = "| Production-available | 503 |";
       assert.ok(status.includes(expected), "summary-drift fixture must match the current total");
       return status.replace(expected, "| Production-available | 496 |");
     },
@@ -662,4 +660,18 @@ test("Original Agent API contracts cannot gain production credit from rejected c
       await assert.rejects(validateLedger({ ledgerPath: altered }), new RegExp(`production class production-available does not match audited component-only for ${id}`));
     } finally { await rm(directory, { recursive: true, force: true }); }
   });
+});
+
+test("customer-edge composition retains component status until current render and deployed acceptance", async () => {
+  const ledger = await readFile(canonicalLedgerPath, "utf8");
+  for (const id of ["M8-10", "M8-14", "M8-57a", "M8-57b", "M8-57c", "M8-57"]) {
+    const row = ledger.trimEnd().split("\n").map(line => line.split("\t")).find(columns => columns[1] === id);
+    assert.equal(row?.[3], "component-only", `${id} requires the supported customer-edge render`);
+    await withLedger(value => value.replace(`M8\t${id}\tComplete\tcomponent-only\t`, `M8\t${id}\tComplete\tproduction-available\t`), async ledgerPath => {
+      await assert.rejects(() => validateLedger({ ledgerPath, sourcePlanPath }), new RegExp(`production class production-available does not match audited component-only for ${id}`));
+    });
+    await withLedger(value => value.replace(`M8\t${id}\tComplete\tcomponent-only\t`, `M8\t${id}\tComplete\tmissing\t`), async ledgerPath => {
+      await assert.rejects(() => validateLedger({ ledgerPath, sourcePlanPath }), new RegExp(`production class missing does not match audited component-only for ${id}`));
+    });
+  }
 });

@@ -7,6 +7,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
@@ -63,7 +66,36 @@ func TestRetentionAuditProfileNativePostgres(t *testing.T) {
 	}
 	exec(`CREATE ROLE retention_executor LOGIN;CREATE ROLE retention_compensation LOGIN;SELECT zasp_temporal68.register_principals('retention_executor','retention_compensation')`)
 	exec(`CREATE ROLE retention_coordinator LOGIN;CREATE ROLE retention_archive LOGIN;CREATE ROLE retention_index LOGIN;CREATE ROLE retention_correlation LOGIN;CREATE ROLE retention_projection LOGIN;CREATE ROLE retention_gateway LOGIN;SELECT zasp_runtime_register_principals(session_user,'retention_coordinator','retention_archive','retention_index','retention_correlation','retention_projection','retention_gateway')`)
-	deployment := authorization.IdentityDeployment{PublicOrigin: "https://console.example", ProviderBaseURL: "https://test.stytch.com", ProjectID: "project-test-retention-native", ConfiguredOrganization: "organization-retention-native", Mode: "saas"}
+	// The later freshness-required policy mutation uses the actual verified
+	// provider/native issue path. This owned server is not deployed Stytch proof.
+	providerServer := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		response.Header().Set("Content-Type", "application/json")
+		project, secret, ok := request.BasicAuth()
+		var input map[string]any
+		if !ok || project != "project-test-retention-native" || secret != "secret-fixture-only" || json.NewDecoder(request.Body).Decode(&input) != nil {
+			response.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		switch request.URL.Path {
+		case "/v1/b2b/oauth/authenticate":
+			if input["oauth_token"] != "retention-reauth" {
+				response.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			_ = json.NewEncoder(response).Encode(map[string]any{"status_code": 200, "session_jwt": "header.retention.signature"})
+		case "/v1/b2b/sessions/authenticate":
+			if input["session_jwt"] != "header.retention.signature" {
+				response.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			now := time.Now().UTC().Truncate(time.Second)
+			_ = json.NewEncoder(response).Encode(map[string]any{"status_code": 200, "member_session": map[string]any{"member_session_id": "member-session-retention-native", "member_id": "member-retention-native", "organization_id": "organization-retention-native", "started_at": now.Format(time.RFC3339), "last_accessed_at": now.Format(time.RFC3339), "expires_at": now.Add(time.Hour).Format(time.RFC3339)}, "member": map[string]any{"member_id": "member-retention-native", "organization_id": "organization-retention-native"}})
+		default:
+			response.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	t.Cleanup(providerServer.Close)
+	deployment := authorization.IdentityDeployment{PublicOrigin: "https://console.example", ProviderBaseURL: providerServer.URL, ProjectID: "project-test-retention-native", ConfiguredOrganization: "organization-retention-native", Mode: "saas"}
 	audience, err := deployment.Audience()
 	if err != nil {
 		t.Fatal(err)
@@ -97,12 +129,21 @@ func TestRetentionAuditProfileNativePostgres(t *testing.T) {
 	scope := identity.Scope
 	o, w, e, actor := scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), identity.PrincipalID.String()
 	const otherEnv = "pid_98000001-0000-4000-8000-000000000001"
+	otherEnvironment, err := domain.ParseProductID(otherEnv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	otherScope, err := domain.NewScope(scope.OrganizationID(), scope.WorkspaceID(), otherEnvironment)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sessionToken := "retention-native-session-credential-v1"
 	exec(`INSERT INTO zasp_organizations(id,name,domain) VALUES($1,'Retention native','retention.invalid')`, o)
 	exec(`INSERT INTO zasp_workspaces(organization_id,id,name) VALUES($1,$2,'Retention')`, o, w)
 	exec(`INSERT INTO zasp_environments(organization_id,workspace_id,id,name,environment_class) VALUES($1,$2,$3,'A','production'),($1,$2,$4,'B','production')`, o, w, e, otherEnv)
 	exec(`INSERT INTO zasp_identity_memberships(principal_id,organization_id,organization_reference,member_reference,role,active) VALUES($1,$2,'organization-retention-native','member-retention-native','organization_admin',true)`, actor, o)
-	exec(`INSERT INTO zasp_authorized_scopes(principal_id,organization_id,workspace_id,environment_id,label,permissions,is_default) VALUES($1,$2,$3,$4,'A','[]',true)`, actor, o, w, e)
-	exec(`INSERT INTO zasp_product_sessions(token_digest,session_id,principal_id,organization_id,workspace_id,environment_id,permissions,csrf_token,authenticated_at,expires_at) VALUES(digest('retention-native-session','sha256'),'session-retention-native',$1,$2,$3,$4,'[]',repeat('x',32),clock_timestamp(),clock_timestamp()+interval '1 hour')`, actor, o, w, e)
+	exec(`INSERT INTO zasp_authorized_scopes(principal_id,organization_id,workspace_id,environment_id,label,permissions,is_default) VALUES($1,$2,$3,$4,'A','[]',true),($1,$2,$3,$5,'B','[]',false)`, actor, o, w, e, otherEnv)
+	exec(`INSERT INTO zasp_product_sessions(token_digest,session_id,principal_id,organization_id,workspace_id,environment_id,permissions,csrf_token,authenticated_at,expires_at) VALUES(digest($5,'sha256'),'session-retention-native',$1,$2,$3,$4,'[]',repeat('x',32),clock_timestamp(),clock_timestamp()+interval '1 hour')`, actor, o, w, e, sessionToken)
 	exec(`INSERT INTO zasp_session_events(organization_id,session_id,id,class,label,evidence_id,source,confidence,at) VALUES($1,'session-retention-native','legacy-originless','tool','protected legacy','legacy-evidence','product','exact',clock_timestamp()-interval '3 days')`, o)
 	exec(`INSERT INTO zasp_data_controls(organization_id,workspace_id,environment_id,environment_class,collection_mode,retention_days,deletion_enabled,migration_seeded) VALUES($1,$2,$3,'production','metadata_only',30,true,false),($1,$2,$4,'production','metadata_only',1,true,false)`, o, w, e, otherEnv)
 	type projectionCase struct {
@@ -146,9 +187,54 @@ func TestRetentionAuditProfileNativePostgres(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	identity, err = repo.Authenticate(ctx, Credential{Kind: CredentialBrowserSession, Value: "retention-native-session"})
+	identity, err = repo.Authenticate(ctx, Credential{Kind: CredentialBrowserSession, Value: sessionToken})
 	if err != nil {
 		t.Fatal("native browser authentication refused")
+	}
+	auth, err := NewStytchOAuthAuthenticator(providerServer.URL, deployment.ProjectID, "secret-fixture-only", time.Second, func() time.Time { return time.Now().UTC().Truncate(time.Millisecond) })
+	if err != nil {
+		t.Fatal(err)
+	}
+	provider, err := NewRepositoryIdentityProviderWithStart(auth, repo, repo, providerServer.URL+"/v1/b2b/public/oauth/google/start", "public-token-fixture", deployment.ConfiguredOrganization, deployment.PublicOrigin+"/auth/callback")
+	if err != nil || provider.RequireNativeIdentity(seed, deployment) != nil {
+		t.Fatal("owned native identity provider refused")
+	}
+	switchScope := func(t *testing.T, target domain.Scope) {
+		t.Helper()
+		previous := identity
+		updated, err := repo.SwitchScope(ctx, previous, sessionToken, target)
+		if err != nil || updated.Scope != target || updated.PrincipalID != previous.PrincipalID || updated.CSRFToken != previous.CSRFToken || updated.CredentialKind != CredentialBrowserSession || updated.credentialBinding.ID != previous.credentialBinding.ID || updated.credentialBinding.Digest != previous.credentialBinding.Digest || len(updated.Permissions) != 0 {
+			t.Fatal("checked retention session scope switch refused")
+		}
+		identity = updated
+	}
+	reauthenticate := func(t *testing.T) {
+		t.Helper()
+		target, err := provider.Start(ctx, "/discovery/assets")
+		if err != nil {
+			t.Fatal("owned native reauthentication start refused")
+		}
+		start, parseErr := url.Parse(target)
+		if parseErr != nil {
+			t.Fatal("owned native identity start malformed")
+		}
+		callback, parseErr := url.Parse(start.Query().Get("login_redirect_url"))
+		if parseErr != nil {
+			t.Fatal("owned native identity callback malformed")
+		}
+		grant, err := provider.Complete(ctx, "retention-reauth", callback.Query().Get("state"))
+		if err != nil {
+			t.Fatal("owned verified reauthentication refused")
+		}
+		freshToken, err := repo.CreateSession(ctx, grant)
+		if err != nil {
+			t.Fatal("owned native fresh session issue refused")
+		}
+		fresh, err := repo.Authenticate(ctx, Credential{Kind: CredentialBrowserSession, Value: freshToken})
+		if err != nil || len(freshToken) < 32 || freshToken == sessionToken || fresh.Scope != scope || fresh.PrincipalID != identity.PrincipalID || fresh.credentialBinding.ID == identity.credentialBinding.ID || !fresh.FreshAuthenticated || !fresh.FreshAuthExpiresAt.After(time.Now()) || len(fresh.Permissions) != 0 {
+			t.Fatal("owned native fresh session authentication refused")
+		}
+		identity, sessionToken = fresh, freshToken
 	}
 	poolCfg, err := pgxpool.ParseConfig(cfg.ConnString())
 	if err != nil {
@@ -421,7 +507,7 @@ func TestRetentionAuditProfileNativePostgres(t *testing.T) {
 	})
 	t.Run("immutable_origin_scope_switch_and_legacy_replay", func(t *testing.T) {
 		exec(`INSERT INTO zasp_session_events(organization_id,session_id,id,class,label,evidence_id,source,confidence,at) VALUES($1,'session-retention-native','bound-in-A','tool','A origin','origin-evidence','product','exact',clock_timestamp()-interval '2 days')`, o)
-		exec(`UPDATE zasp_product_sessions SET environment_id=$1 WHERE session_id='session-retention-native'`, otherEnv)
+		switchScope(t, otherScope)
 		_, err := owner.Exec(ctx, `INSERT INTO zasp_session_events(organization_id,session_id,id,class,label,evidence_id,source,confidence,at) VALUES($1,'session-retention-native','legacy-originless','tool','protected legacy','legacy-evidence','product','exact',clock_timestamp()-interval '3 days') ON CONFLICT DO NOTHING`, o)
 		if err == nil {
 			t.Fatal("legacy replay adopted mutable origin")
@@ -437,13 +523,14 @@ func TestRetentionAuditProfileNativePostgres(t *testing.T) {
 		if countOp(`SELECT count(*) FROM zasp_retention_v1.event_origins WHERE event_id='bound-in-A' AND environment_id=$1`, e) != 1 || countOp(`SELECT count(*) FROM zasp_retention_v1.tombstones WHERE class='product_session_event' AND source_id='bound-in-A'`) != 0 {
 			t.Fatal("B policy expired A origin")
 		}
-		exec(`UPDATE zasp_product_sessions SET environment_id=$1,authenticated_at=clock_timestamp() WHERE session_id='session-retention-native'`, e)
-		identity, err = repo.Authenticate(ctx, Credential{Kind: CredentialBrowserSession, Value: "retention-native-session"})
+		switchScope(t, scope)
+		identity, err = repo.Authenticate(ctx, Credential{Kind: CredentialBrowserSession, Value: sessionToken})
 		if err != nil {
 			t.Fatal("restored source session refused")
 		}
 	})
 	t.Run("audited_policy_expiry_and_idempotent_cycle", func(t *testing.T) {
+		reauthenticate(t)
 		reconcile()
 		mutation := administrationMutation{Operation: "updateDataControls", CollectionMode: "metadata_only", RetentionDays: 1, DeletionEnabled: true, ExpectedVersion: 1, EnvironmentClass: "production", AuditID: automaticSourceID(99901)}
 		if _, err := repo.MutateAdministration(checked("updateDataControls", nil), identity, mutation); err != nil {

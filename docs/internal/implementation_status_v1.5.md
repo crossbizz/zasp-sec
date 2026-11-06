@@ -1,3 +1,5 @@
+Current availability correction (2026-11-06): all 728 original requirements remain required. M8-10, M8-14, M8-57a/b/c and M8-57 are component-only because the current supported customer-edge Helm template fails; a source reference correction is not render or deployed acceptance. Current totals are 503 recorded production-available, 164 component-only and 61 blocked/external, with 225 outside recorded production availability. Historical Complete statuses, owners and prior evidence below are retained; dated older totals are historical. Retention replay and the release secret-scanner gate remain open. See `cloud-launch-edge-replay-checkpoint-2026-11-06.json`.
+
 Gateway bootstrap supporting candidate (2026-10-17): connected source adds current-authorized Runtime gateway Device management and one-time enrollment delivery, an isolated default-off Normal/Audit profile, original-pool enrollment confirmation, protected-stdin CLI and durable original key/request/receipt custody. Actual full CLI211, wire5, custody4 and migration18 local race cases, deployment3 controls, final gateway/changed-quality22 and retained SDK21 cases, OpenAPI46 and UI/API coverage10 pass. Typecheck, scoped lint, official generation and production build pass; independent source review is clear. Both compiled profiles pass offline SQL/PLpgSQL grammar only; API/control/installer compilation is dependency-blocked with zero cases, native admission was refused, and real deployed Stytch/provider acceptance remains unverified. Post-expiry authority recovery, authentic Agent-to-Device binding and composed coverage/filter behavior remain required. All728 tasks, 509/158/61 classes and219 remaining records remain unchanged; no task closure, obsolete retirement or launch claim. See `cloud-gateway-bootstrap-source-checkpoint-2026-10-17.json`.
 
 2026-10-17 current-authority recovery supporting batch: explicit retained-key live Authority GET and optional same-call export implemented; original enrollment remains unknown without its actual receipt. Full CLI 214 and shared 15 local race cases pass, including nine grouped recovery heads; exact new CI script validates nine actual local results and 21 source guards pass over 846 bindings. No server permission/profile/UI changes. All 728 rows, 509/158/61 classifications and 219 remaining records are unchanged; native/deployed real integrations and launch remain unverified. Evidence: `cloud-gateway-authority-recovery-checkpoint-2026-10-17.json`.
@@ -43,8 +45,8 @@ Current ownership-write source continuation (2026-10-17): the M4-05 repair now h
 
 | Production class | Count |
 | --- | ---: |
-| Production-available | 509 |
-| Component-only | 158 |
+| Production-available | 503 |
+| Component-only | 164 |
 | Blocked/external | 61 |
 | Missing | 0 |
 
@@ -62,8 +64,8 @@ Current ownership-write source continuation (2026-10-17): the M4-05 repair now h
 | M6 | 36 | 36 | 0 | 0 | 0 |
 | M7 | 62 | 27 | 35 | 0 | 0 |
 | M7A | 113 | 95 | 18 | 0 | 0 |
-| M8 | 141 | 34 | 55 | 52 | 0 |
-| **Total** | **728** | **509** | **158** | **61** | **0** |
+| M8 | 141 | 28 | 61 | 52 | 0 |
+| **Total** | **728** | **503** | **164** | **61** | **0** |
 
 ## Agents source availability correction evidence
 

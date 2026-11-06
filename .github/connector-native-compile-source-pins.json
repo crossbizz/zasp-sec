@@ -390,14 +390,14 @@
     },
     {
       "path": "scripts/hosted-connected-connector-acceptance.mjs",
-      "sha256": "738798b2d7074b800e891d5fc6ba4690b32b8f4145804b30d8b262c66d9a3eb2",
+      "sha256": "e6730701eaf0d20cd133aa056a5a6a8a1ae9c0458a7393de5c1d68453ad5a055",
       "bytes": 152157,
       "currentBasePreimageSHA256": "f248c6d9182ca08cb518cd54c620844c987f4ae723a38badb463c59e010db578",
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/hosted-connector-authenticated-enqueue.mjs",
-      "sha256": "a8749107851a8b1d375f391737d54e65769727880cf8fd1aedfbde538e4b5c42",
+      "sha256": "c69dc2d3cfa6b9c853df95a199d7313883ed75af1ba113aae803eeb641f53c45",
       "bytes": 148673,
       "currentBasePreimageSHA256": "e66722e4daf5b1482c253d1f14b4c533c329fde202252c16f87ad3e0130e8524",
       "historicalPreimageSHA256": null
@@ -1699,8 +1699,8 @@
     },
     {
       "path": "services/platform/apiserver/retention_native_postgres_test.go",
-      "sha256": "45a1ef145e9e2640ff2726255e56ccfb307e008c923d43b38c35153788c90813",
-      "bytes": 46849,
+      "sha256": "0234092cf3754f28ee2edf3017a457686c929669980850b1b12d98abfbfdeb7f",
+      "bytes": 51228,
       "currentBasePreimageSHA256": "598976d7d8f237df54475194016086de7e716490bb535fd7587f31b71e7eb31b",
       "historicalPreimageSHA256": null
     },
@@ -2714,8 +2714,8 @@
     },
     {
       "path": "deploy/staging/product/templates/edge.yaml",
-      "sha256": "a1da5ca57f332644bbacaf367c94e3dde3479315bfb2bc64a653e4d7b082f7e3",
-      "bytes": 34227,
+      "sha256": "7b4c544255b849f78babcce432d52c18be7080dca14d505c68c040e3d9560dc8",
+      "bytes": 34217,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -3869,15 +3869,15 @@
     },
     {
       "path": "scripts/implementation-status-check.mjs",
-      "sha256": "6159102e6502b20b60488f93d29ada941a7f5389ef1f870b6776a7a79afa67f2",
-      "bytes": 17140,
+      "sha256": "f49386fddec3a2b360ff5f6ff970ccde15d4587bfb087aa44c7fa1cc4e7c22ac",
+      "bytes": 17138,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
     {
       "path": "scripts/implementation-status-check.test.mjs",
-      "sha256": "9793411c1e1e5582a8fb214a44d3e0e5538bdea1dd3e73de03ff0eccb0ad5a2d",
-      "bytes": 29675,
+      "sha256": "246d0a59d452534a65a69af3194ac17eb4d99a05e0a0080903d0dab104092944",
+      "bytes": 30757,
       "currentBasePreimageSHA256": null,
       "historicalPreimageSHA256": null
     },
@@ -6547,5 +6547,7 @@
   "retentionProceduralSuccessorSourceAssociationBase": "45105a2f87a742e4de4c3bdecbcc92c4e98dffc6",
   "retentionProceduralSuccessorPredecessorManifestSHA256": "dcf5fa2347a338cd9739be1646059943a71e0fb2a4c92dc2712ac6bcac79ec52",
   "releaseStageDiagnosticsSourceAssociationBase": "b87966da13c23dcc2d4e733e12756ed6d8366aa5",
-  "releaseStageDiagnosticsPredecessorManifestSHA256": "15fc8a674bd069d0fd2cd4238b07be1a732707261e979f2582239b65fe6913e7"
+  "releaseStageDiagnosticsPredecessorManifestSHA256": "15fc8a674bd069d0fd2cd4238b07be1a732707261e979f2582239b65fe6913e7",
+  "edgeScopeReplaySourceAssociationBase": "5e4619eb46aaf5647d7c45201c79811f1a24098c",
+  "edgeScopeReplayPredecessorManifestSHA256": "d67c846ed0a839acd711ffd374d569e06d0439d28911ed367f8d0518f986af94"
 }
