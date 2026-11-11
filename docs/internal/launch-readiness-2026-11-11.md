@@ -56,7 +56,22 @@ A non-superuser who creates a role already holds its ADMIN option, granted by th
 
 There is no operator-side workaround. Having a separate role create `zasp_discovery_authority` and grant it to the operator was tried; the operator's self-grant is refused the same way.
 
-The fix is a guarded grant in release 10. That changes checksummed migration bytes, and the release-10 checksum is pinned in three generated ordered-current artifacts, so it needs its own batch with the artifact generators. The Neon database (`zasp`, PostgreSQL 18.6, `C.UTF-8`) is empty today, so no applied history is rewritten. Whether later releases have further superuser assumptions is unknown until release 10 passes.
+Confirmed on Neon itself, on a disposable branch that was deleted afterwards: `CREATE ROLE` as `neondb_owner` leaves an ADMIN-only membership granted by `cloud_admin`, and the same self-grant is refused with the same error.
+
+**A guarded grant in release 10 is not enough.** Follow-up work on 2026-11-11 found that the schema's security model assumes a superuser installer throughout:
+
+- PostgreSQL 16 and later give a non-superuser creator a membership in every role it creates. The creator cannot revoke it (`permission denied to revoke privileges granted by role`).
+- The schema's own readiness predicates reject any membership outside a short list of exact shapes. `zasp_discovery_security_ready` in release 10 is the first; 70 predicate sites in 23 migration files inspect `pg_auth_members`. The automatic creator memberships fail them, at install time and at every runtime readiness check.
+- Transferring ownership to the authority roles needs the operator to hold a `SET` membership in them, which is another membership the predicates reject. 144 migration files transfer ownership.
+
+One operator-side arrangement was found that gets past release 10 with no migration change: create `zasp_discovery_authority` through a delegate role, so the release-10 grant has a different grantor, and grant the authority role `CREATE` on `public`. The install then runs releases 10 to 12 and stops at release 13, where the security predicate is false because of the delegate's membership. Every variant tried leaves at least one membership the predicates reject, and none can be removed without superuser.
+
+So the fix is one of two things, and it is a decision:
+
+1. **Rework the existing chain.** Change the membership predicates to accept the creator's automatic membership and the operator's `SET` membership, and guard the grants. That touches about 23 checksummed releases; their checksums are embedded in later releases and in the generated ordered-current artifacts, so the whole pinned chain is regenerated.
+2. **Replace the chain with one baseline.** No database has ever had this schema installed (Neon `zasp` is empty), so the 80-release history protects nothing. Generate one reviewed baseline from a superuser install, write its role provisioning and predicates for a non-superuser owner, and retire the historical releases and their pins. The Temporal/OpenFGA plan's retirement packet already anticipates retiring them.
+
+The worker gate (blocker 2) lives in the same pinned chain, so the choice decides how that is fixed as well.
 
 ### 2. Background workers refuse to start on the current schema profile
 
