@@ -65,6 +65,8 @@ That returns `401 authentication_required`. `GET /api/v1/session/start?return_to
 deploy/local/real-stack/stack.sh down
 ```
 
+The product database uses `trust` authentication and listens on loopback only: any local process can connect as its superuser. It is a disposable database for one developer machine.
+
 Stops the containers and keeps their data. State lives in `$ZASP_REAL_STACK_STATE`, by default `~/.local/state/zasp-real-stack`.
 
 ## Two things that fail without a clear message

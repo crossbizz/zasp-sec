@@ -143,6 +143,24 @@ func TestProvisionCarriesAPinnedOrganizationAndReportsStoreConflicts(t *testing.
 	}
 }
 
+// A deployment bound to one provider Organization refuses a request that
+// resolves to another before any invitation is sent.
+func TestProvisionRefusesAnOrganizationOtherThanTheDeploymentsBeforeInviting(t *testing.T) {
+	driver, store := acmeDriver(), &fakeStore{}
+	request := acmeRequest
+	request.ExpectedOrganizationReference = "organization-test-bound"
+	if _, err := newTestProvisioner(t, driver, store).Provision(context.Background(), request); !errors.Is(err, ErrConflict) {
+		t.Fatalf("provision error = %v", err)
+	}
+	if want := []string{"organization:Acme Security:acme.example"}; !reflect.DeepEqual(driver.calls, want) || len(store.records) != 0 {
+		t.Fatalf("provider calls %v, records %v", driver.calls, store.records)
+	}
+	request.ExpectedOrganizationReference = "organization-test-acme"
+	if _, err := newTestProvisioner(t, acmeDriver(), &fakeStore{}).Provision(context.Background(), request); err != nil {
+		t.Fatalf("matching organization refused: %v", err)
+	}
+}
+
 func TestDefaultEnvironmentsAreProductionStagingAndDevelopment(t *testing.T) {
 	want := []DefaultEnvironment{{"Production", "production"}, {"Staging", "staging"}, {"Development", "development"}}
 	if !reflect.DeepEqual(DefaultEnvironments, want) {

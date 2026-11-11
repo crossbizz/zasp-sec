@@ -76,6 +76,10 @@ type Request struct {
 	// deployments must set it to their configured Organization; SaaS
 	// deployments leave it empty and receive a generated ID.
 	OrganizationID string
+	// ExpectedOrganizationReference is the provider Organization the
+	// deployment is already bound to, if any. A request that resolves to a
+	// different one is refused before any invitation is sent.
+	ExpectedOrganizationReference string
 }
 
 // Records is what the Store persists. Every reference comes from the provider
@@ -90,9 +94,10 @@ type Records struct {
 
 // Environment is one provisioned Environment.
 type Environment struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	Class string `json:"environment_class"`
+	ID          string `json:"id"`
+	WorkspaceID string `json:"workspace_id"`
+	Name        string `json:"name"`
+	Class       string `json:"environment_class"`
 }
 
 // Result reports the provisioned records. It carries identifiers only.
@@ -141,6 +146,9 @@ func (provisioner *Provisioner) Provision(ctx context.Context, request Request) 
 			return Result{}, ErrInvalid
 		}
 		return Result{}, ErrProvider
+	}
+	if request.ExpectedOrganizationReference != "" && organization.Reference != request.ExpectedOrganizationReference {
+		return Result{}, ErrConflict
 	}
 	invitation, err := provisioner.directory.InviteAdmin(ctx, organization.Reference, request.AdminEmail)
 	if err != nil {

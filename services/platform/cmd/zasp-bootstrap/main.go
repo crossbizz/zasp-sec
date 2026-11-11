@@ -65,7 +65,7 @@ func parseOptions(arguments []string) (options, error) {
 	flags.StringVar(&parsed.name, "organization-name", "", "customer Organization name")
 	flags.StringVar(&parsed.domain, "domain", "", "customer email domain, lower case")
 	flags.StringVar(&parsed.adminEmail, "admin-email", "", "designated first Organization Admin email, lower case")
-	flags.StringVar(&parsed.organizationID, "organization-id", "", "product Organization ID to pin; required for single-tenant deployments")
+	flags.StringVar(&parsed.organizationID, "organization-id", "", "the configured product Organization ID; single-tenant deployments only")
 	flags.DurationVar(&parsed.timeout, "timeout", time.Minute, "total deadline (5s..5m)")
 	if err := flags.Parse(arguments); err != nil || flags.NArg() != 0 || parsed.name == "" || parsed.domain == "" || parsed.adminEmail == "" ||
 		parsed.timeout < 5*time.Second || parsed.timeout > 5*time.Minute {
@@ -94,11 +94,17 @@ func run(arguments []string, getenv func(string) string, output io.Writer) error
 			return refusal{stage: stageConfiguration}
 		}
 		parsed.organizationID = pinned
-	} else if pinned != "" {
+	} else if pinned != "" || parsed.organizationID != "" {
+		// SaaS Organizations receive generated IDs; none is pinned.
 		return refusal{stage: stageConfiguration}
 	}
-	directory, err := apiserver.NewStytchDirectory(getenv("ZASP_STYTCH_BASE_URL"), getenv("ZASP_STYTCH_PROJECT_ID"), getenv("ZASP_STYTCH_SECRET"), origin+"/auth/callback", 20*time.Second, func() time.Time { return time.Now().UTC().Truncate(time.Millisecond) })
-	if err != nil {
+	directoryConfig := apiserver.StytchDirectoryConfig{
+		BaseURL: getenv("ZASP_STYTCH_BASE_URL"), ProjectID: getenv("ZASP_STYTCH_PROJECT_ID"), Secret: getenv("ZASP_STYTCH_SECRET"),
+		InviteRedirectURL: origin + "/auth/callback", Timeout: 20 * time.Second,
+		Now: func() time.Time { return time.Now().UTC().Truncate(time.Millisecond) },
+	}
+	// Refuse a malformed provider configuration before touching the database.
+	if _, err := apiserver.NewStytchDirectory(directoryConfig); err != nil {
 		return refusal{stage: stageConfiguration}
 	}
 	signalCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -114,11 +120,34 @@ func run(arguments []string, getenv func(string) string, output io.Writer) error
 	if err != nil {
 		return refusal{stage: stageDatabase}
 	}
+	// A single-tenant deployment serves one provider Organization. Once the
+	// product Organization or the deployment configuration names it, this
+	// command resolves only that one and never creates another.
+	expected := ""
+	if mode == "single_tenant" {
+		configured := getenv("ZASP_STYTCH_ORGANIZATION_ID")
+		bound, err := store.BoundProviderOrganization(ctx, parsed.organizationID)
+		switch {
+		case errors.Is(err, bootstrap.ErrConflict), err == nil && bound != "" && configured != "" && bound != configured:
+			return refusal{stage: stageConflict}
+		case err != nil:
+			return refusal{stage: stageDatabase}
+		}
+		expected = bound
+		if expected == "" {
+			expected = configured
+		}
+	}
+	directoryConfig.ExpectedOrganization = expected
+	directory, err := apiserver.NewStytchDirectory(directoryConfig)
+	if err != nil {
+		return refusal{stage: stageConfiguration}
+	}
 	provisioner, err := bootstrap.NewProvisioner(directory, store)
 	if err != nil {
 		return refusal{stage: stageConfiguration}
 	}
-	result, err := provisioner.Provision(ctx, bootstrap.Request{Name: parsed.name, Domain: parsed.domain, AdminEmail: parsed.adminEmail, OrganizationID: parsed.organizationID})
+	result, err := provisioner.Provision(ctx, bootstrap.Request{Name: parsed.name, Domain: parsed.domain, AdminEmail: parsed.adminEmail, OrganizationID: parsed.organizationID, ExpectedOrganizationReference: expected})
 	if err != nil {
 		return refusal{stage: provisionStage(err)}
 	}

@@ -116,18 +116,23 @@ start_database() {
 generate_keys() {
   mkdir -p "$SECRETS"
   chmod 700 "$STATE" "$SECRETS"
+  # keys.env is written last and atomically, so an interrupted or failed
+  # generation is repeated in full instead of leaving a partial key set.
   if [ ! -f "$SECRETS/keys.env" ]; then
     (
       umask 077
-      {
-        echo "ZASP_WORKFLOW_SIGNING_KEY=$(openssl rand -hex 32)"
-        echo "ZASP_TOKEN_REVEAL_KEY=$(openssl rand 32 | basenc --base64url | tr -d '=\n')"
-        echo "ZASP_STYTCH_WEBHOOK_SECRET=whsec_$(openssl rand -base64 32 | tr -d '\n')"
-      } > "$SECRETS/keys.env"
+      set -o pipefail
+      rm -f "$SECRETS/forward.seed" "$SECRETS/compensation.seed" "$SECRETS/openfga.token" "$SECRETS/keys.env.partial"
+      signing="$(openssl rand -hex 32)"
+      reveal="$(openssl rand 32 | basenc --base64url | tr -d '=\n')"
+      webhook="$(openssl rand -base64 32 | tr -d '\n')"
+      [ "${#signing}" -eq 64 ] && [ "${#reveal}" -eq 43 ] && [ "${#webhook}" -eq 44 ] || fail "key generation failed"
       openssl rand 64 > "$SECRETS/forward.seed"
       openssl rand 64 > "$SECRETS/compensation.seed"
       printf '%s' "$FGA_TOKEN" > "$SECRETS/openfga.token"
       chmod 0400 "$SECRETS/forward.seed" "$SECRETS/compensation.seed" "$SECRETS/openfga.token"
+      printf 'ZASP_WORKFLOW_SIGNING_KEY=%s\nZASP_TOKEN_REVEAL_KEY=%s\nZASP_STYTCH_WEBHOOK_SECRET=whsec_%s\n' "$signing" "$reveal" "$webhook" > "$SECRETS/keys.env.partial"
+      mv "$SECRETS/keys.env.partial" "$SECRETS/keys.env"
     )
   fi
 }
@@ -171,11 +176,13 @@ cmd_bootstrap() {
   organization="$(sed -E 's/.*"organization_id":"([^"]+)".*/\1/' <<<"$result")"
   # Product-started sign-in is bound to one provider Organization. The first
   # bootstrapped Organization becomes that binding for this stack.
+  # The binding is recorded only after both verifiers are registered, so a
+  # failed registration is retried on the next run.
   if [ ! -f "$STATE/organization.env" ]; then
-    printf 'ZASP_STYTCH_ORGANIZATION_ID=%s\n' "$reference" > "$STATE/organization.env"
     export ZASP_STYTCH_ORGANIZATION_ID="$reference"
     migrate register-identity-session-verifier
     migrate register-identity-webhook-verifier
+    printf 'ZASP_STYTCH_ORGANIZATION_ID=%s\n' "$reference" > "$STATE/organization.env"
   fi
   # One projector pass applies the new Organization's permissions.
   ZASP_POSTGRES_DSN="$(dsn zasp_local_outbox)" "$BIN/zasp-authorization-reconcile" -mode reconcile -organization "$organization" -limit 1 -timeout 1m >/dev/null || fail "permission projection was not applied"

@@ -32,7 +32,7 @@ All on one machine: PostgreSQL 18.3, the pinned Temporal 1.32.0 and OpenFGA 1.21
 
 `deploy/local/real-stack/stack.sh` reproduces all of this from a clean machine in about two minutes.
 
-One Organization was left in the Stytch TEST project for the next acceptance run: slug `zasp-bootstrap-acceptance-example`, with one active member, `first-admin@zasp-bootstrap-acceptance.example`. Bootstrapping that name, domain and address resolves both without sending email. A second Organization created by hand during the bring-up was deleted.
+One Organization was left in the Stytch TEST project for the next acceptance run: slug `zasp-bootstrap-acceptance.example`, stamped by the bootstrap, with one active member, `first-admin@zasp-bootstrap-acceptance.example`. Bootstrapping that name, domain and address resolves both without sending email. Every other Organization created during the bring-up was deleted.
 
 ## Launch blockers found in this batch
 
@@ -94,8 +94,8 @@ Nothing below can be done from the project API credentials or from this session.
 
 ## Verification for this batch
 
-- `services/platform/bootstrap`: 11 tests, 6 of them against the real installed schema on PostgreSQL 18.3.
-- `services/platform/apiserver`: 13 new tests for the provider directory, token exchange and session callback. Removing the token-type check makes the suite fail.
+- `services/platform/bootstrap`: 14 tests, 8 of them against the real installed schema on PostgreSQL 18.3.
+- `services/platform/apiserver`: 14 new tests for the provider directory, token exchange and session callback. Removing the token-type check makes the suite fail.
 - `services/platform/cmd/zasp-bootstrap`: 4 tests. `services/platform/agentsec-api`: package passes, with one new startup-refusal test.
 - UI: 6 callback tests; typecheck passes.
 - `npm run implementation:status:check` and its 40 tests pass.
@@ -110,6 +110,17 @@ Main is therefore not green in this environment. The failures were not all analy
 - `deploy/production/release-contract.test.mjs` (31 of 46) and the Nango quality contract that shells out to it, because Helm is not installed here.
 
 The UI suite: 2,628 of 2,630 tests pass, one is skipped, and the one failure is that Nango contract. Typecheck, lint, the production build and both production import checks pass.
+
+## Independent review
+
+A separate reviewer read the identity change and found no authentication bypass, no cross-tenant path and no stateless OAuth completion. It judged the invitation path equal to the existing OAuth path on login CSRF, because the existing state was never bound to the browser. That is a weakness of both paths and is not fixed here.
+
+Fixed from the review, each with a test: the bootstrap now stamps the Stytch Organizations it creates and refuses any it did not create; a single-tenant deployment bound to a Stytch Organization never creates or resolves another, and a mismatch is refused before an invitation is sent; default Workspaces and Environments are created only with the Organization, so a rerun after a rename creates nothing; the slug is the domain itself, so `foo-bar.com` and `foo.bar.com` no longer collide; `-organization-id` is refused in SaaS mode; an Organization already bound to another authorization store is not silently rebound; the provisioning transaction fixes its isolation level; and the invitation page exchanges the token only after a click.
+
+Left open from the review:
+
+- The stateless exchange accepts any Stytch email link for a member, not only an invitation, because Stytch redeems both the same way. Limiting it to a recorded pending invitation needs a schema change. Until then the control is a Stytch setting: frontend SDK disabled, or allowed authentication methods restricted per Organization.
+- The bootstrap cannot re-send an expired invitation. Stytch's resend behaviour could not be checked while Stytch refuses to send email for this account.
 
 ## Next batch, in dependency order
 

@@ -63,13 +63,20 @@ func TestBootstrapRefusesInconsistentDeploymentConfiguration(t *testing.T) {
 		"saas with pinned organization": func(values map[string]string) {
 			values["ZASP_ORGANIZATION_ID"] = "pid_10000001-0000-4000-8000-000000000001"
 		},
+		"saas with organization flag": func(values map[string]string) {
+			values["flag-organization-id"] = "pid_10000001-0000-4000-8000-000000000001"
+		},
 		"single tenant without pin": func(values map[string]string) { values["ZASP_DEPLOYMENT_MODE"] = "single_tenant" },
 		"no provider secret":        func(values map[string]string) { delete(values, "ZASP_STYTCH_SECRET") },
 	} {
 		t.Run(name, func(t *testing.T) {
 			values := validEnvironment()
 			change(values)
-			if stage := refusedStage(t, validArguments, values); stage != stageConfiguration {
+			arguments := validArguments
+			if id := values["flag-organization-id"]; id != "" {
+				arguments = append(append([]string{}, validArguments...), "-organization-id", id)
+			}
+			if stage := refusedStage(t, arguments, values); stage != stageConfiguration {
 				t.Fatalf("stage = %s", stage)
 			}
 		})

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { APIClient } from "../../apps/web/api/client";
@@ -27,7 +27,12 @@ describe("browser sign-in flow", () => {
     const replace = vi.fn();
     const POST = vi.fn(async () => ({ data: { return_to: "/" }, error: undefined, response: new Response(null, { status: 200 }) }));
     render(<CallbackCompletion suppliedClient={{ POST } as unknown as APIClient} replaceLocation={replace} />);
+    // Opening the link does not spend the single-use token; a person must accept.
+    const accept = await screen.findByRole("button", { name: "Accept invitation" });
+    expect(POST).not.toHaveBeenCalled();
+    fireEvent.click(accept);
     await waitFor(() => expect(POST).toHaveBeenCalledWith("/api/v1/session/callback", { body: { provider_token: "invitation-token", provider_token_type: "multi_tenant_magic_links" } }));
+    expect(POST).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
   });
 

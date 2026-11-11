@@ -171,6 +171,9 @@ type stytchSessionDriver struct {
 	// inviteRedirectURL is where an invited member lands after following the
 	// provider invitation. Only the operator bootstrap directory sets it.
 	inviteRedirectURL string
+	// expectedOrganization, when set, is the only provider Organization the
+	// bootstrap directory may resolve.
+	expectedOrganization string
 }
 
 func (driver *stytchSessionDriver) AuthenticateJWT(ctx context.Context, jwt string) (platformidentity.DriverSession, error) {

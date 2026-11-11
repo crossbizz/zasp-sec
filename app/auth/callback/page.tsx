@@ -26,6 +26,10 @@ export function callbackBody(providerToken: string, state: string, tokenType: st
 export function CallbackCompletion({ suppliedClient, replaceLocation = replaceBrowserLocation }: { suppliedClient?: APIClient; replaceLocation?: (path: string) => void }) {
   const [client] = useState(() => suppliedClient ?? createAPIClient());
   const [failure, setFailure] = useState<{ message: string; correlation?: string } | null>(null);
+  // An invitation token is single-use and arrives by email. Mail scanners
+  // open links and run scripts, so it is exchanged only after a person clicks.
+  const [accepted, setAccepted] = useState(false);
+  const [invitation, setInvitation] = useState(false);
   useEffect(() => {
     let active = true;
     const complete = async () => {
@@ -35,6 +39,10 @@ export function CallbackCompletion({ suppliedClient, replaceLocation = replaceBr
       const body = callbackBody(providerToken, state, query.get("stytch_token_type"));
       if (!body) {
         setFailure({ message: "The sign-in callback is invalid or expired." });
+        return;
+      }
+      if (body.state === undefined && !accepted) {
+        setInvitation(true);
         return;
       }
       try {
@@ -48,8 +56,9 @@ export function CallbackCompletion({ suppliedClient, replaceLocation = replaceBr
     };
     void complete();
     return () => { active = false; };
-  }, [client, replaceLocation]);
+  }, [client, replaceLocation, accepted]);
   if (failure) return <main className="page"><h1>Sign-in failed</h1><p role="alert">{failure.message}</p>{failure.correlation && <p>Correlation: <code>{failure.correlation}</code></p>}</main>;
+  if (invitation && !accepted) return <main className="page"><h1>Accept your invitation</h1><p>Continue to create your secure session.</p><button type="button" onClick={() => setAccepted(true)}>Accept invitation</button></main>;
   return <main className="page"><h1>Completing sign-in</h1><p role="status">Creating your secure session…</p></main>;
 }
 

@@ -56,6 +56,7 @@ func (fake *fakeStytchDirectory) handler(t *testing.T) http.Handler {
 			for _, value := range body["email_allowed_domains"].([]any) {
 				created.AllowedDomains = append(created.AllowedDomains, value.(string))
 			}
+			created.TrustedMetadata, _ = body["trusted_metadata"].(map[string]any)
 			fake.organizations = append(fake.organizations, created)
 			response["organization"] = created
 		case "/v1/b2b/organizations/members/search":
@@ -117,7 +118,7 @@ func TestStytchDirectoryCreatesOrganizationOnceAndResolvesItAfterwards(t *testin
 	creation := fake.requests[len(fake.requests)-1]
 	// Nobody may join by holding an address in the allowed domain: the
 	// Organization is invitation-only from its first moment.
-	want := map[string]any{"organization_name": "Acme Security", "organization_slug": "acme-example", "email_allowed_domains": []any{"acme.example"}, "email_invites": "ALL_ALLOWED", "email_jit_provisioning": "NOT_ALLOWED"}
+	want := map[string]any{"organization_name": "Acme Security", "organization_slug": "acme.example", "email_allowed_domains": []any{"acme.example"}, "email_invites": "ALL_ALLOWED", "email_jit_provisioning": "NOT_ALLOWED", "trusted_metadata": map[string]any{"zasp_bootstrap": "v1"}}
 	if creation.Path != "/v1/b2b/organizations" || !reflect.DeepEqual(creation.Body, want) {
 		t.Fatalf("creation request = %#v", creation)
 	}
@@ -132,11 +133,15 @@ func TestStytchDirectoryCreatesOrganizationOnceAndResolvesItAfterwards(t *testin
 }
 
 func TestStytchDirectoryRefusesAnExistingOrganizationThatDoesNotMatch(t *testing.T) {
+	stamp := map[string]any{"zasp_bootstrap": "v1"}
 	for name, existing := range map[string]stytchOrganization{
-		"different name":     {Reference: "organization-test-existing", Name: "Someone Else", Slug: "acme-example", AllowedDomains: []string{"acme.example"}},
-		"domain not allowed": {Reference: "organization-test-existing", Name: "Acme Security", Slug: "acme-example", AllowedDomains: []string{"other.example"}},
-		"different slug":     {Reference: "organization-test-existing", Name: "Acme Security", Slug: "acme", AllowedDomains: []string{"acme.example"}},
-		"invalid reference":  {Reference: "not-an-organization", Name: "Acme Security", Slug: "acme-example", AllowedDomains: []string{"acme.example"}},
+		"different name":     {Reference: "organization-test-existing", Name: "Someone Else", Slug: "acme.example", AllowedDomains: []string{"acme.example"}, TrustedMetadata: stamp},
+		"domain not allowed": {Reference: "organization-test-existing", Name: "Acme Security", Slug: "acme.example", AllowedDomains: []string{"other.example"}, TrustedMetadata: stamp},
+		"different slug":     {Reference: "organization-test-existing", Name: "Acme Security", Slug: "acme", AllowedDomains: []string{"acme.example"}, TrustedMetadata: stamp},
+		"invalid reference":  {Reference: "not-an-organization", Name: "Acme Security", Slug: "acme.example", AllowedDomains: []string{"acme.example"}, TrustedMetadata: stamp},
+		// Created by something other than this bootstrap in the same project.
+		"not created by bootstrap": {Reference: "organization-test-existing", Name: "Acme Security", Slug: "acme.example", AllowedDomains: []string{"acme.example"}},
+		"foreign stamp":            {Reference: "organization-test-existing", Name: "Acme Security", Slug: "acme.example", AllowedDomains: []string{"acme.example"}, TrustedMetadata: map[string]any{"zasp_bootstrap": "v0"}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			fake := &fakeStytchDirectory{organizations: []stytchOrganization{existing}}
@@ -149,6 +154,44 @@ func TestStytchDirectoryRefusesAnExistingOrganizationThatDoesNotMatch(t *testing
 				t.Fatalf("provider calls = %v", got)
 			}
 		})
+	}
+}
+
+// A deployment already bound to a provider Organization resolves only that
+// one. A request for another domain must not create a second Organization.
+func TestStytchDirectoryBoundToAnOrganizationNeverCreatesOrResolvesAnother(t *testing.T) {
+	stamp := map[string]any{"zasp_bootstrap": "v1"}
+	bound := stytchOrganization{Reference: "organization-test-bound", Name: "Acme Security", Slug: "acme.example", AllowedDomains: []string{"acme.example"}, TrustedMetadata: stamp}
+
+	fake := &fakeStytchDirectory{organizations: []stytchOrganization{bound}}
+	driver := directoryFor(t, newTestStytchDirectory(t, fake))
+	driver.expectedOrganization = "organization-test-bound"
+	if resolved, err := driver.EnsureOrganization(context.Background(), "Acme Security", "acme.example"); err != nil || resolved.Reference != "organization-test-bound" {
+		t.Fatalf("bound organization = (%#v, %v)", resolved, err)
+	}
+
+	for name, existing := range map[string][]stytchOrganization{
+		"other domain has no organization":      nil,
+		"domain resolves a different reference": {{Reference: "organization-test-other", Name: "Acme Security", Slug: "acme.example", AllowedDomains: []string{"acme.example"}, TrustedMetadata: stamp}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			fake := &fakeStytchDirectory{organizations: existing}
+			driver := directoryFor(t, newTestStytchDirectory(t, fake))
+			driver.expectedOrganization = "organization-test-bound"
+			if _, err := driver.EnsureOrganization(context.Background(), "Acme Security", "acme.example"); err == nil {
+				t.Fatal("a second provider organization was accepted")
+			}
+			if got := fake.paths(); !reflect.DeepEqual(got, []string{"/v1/b2b/organizations/search"}) {
+				t.Fatalf("provider calls = %v", got)
+			}
+		})
+	}
+}
+
+// Two domains that differ only in dots and dashes are different customers.
+func TestStytchOrganizationSlugIsTheDomainItself(t *testing.T) {
+	if a, b := stytchOrganizationSlug("foo-bar.com"), stytchOrganizationSlug("foo.bar.com"); a == b || a != "foo-bar.com" {
+		t.Fatalf("slugs = %q, %q", a, b)
 	}
 }
 
@@ -210,13 +253,21 @@ func TestStytchDirectoryRefusesAnInvitationForAnotherOrganizationOrAddress(t *te
 }
 
 func TestStytchDirectoryRequiresTheDeploymentCallbackAsInviteRedirect(t *testing.T) {
-	if adapter, err := NewStytchDirectory("https://test.stytch.com", "project-test-directory", "secret-test-directory", "https://app.zasp.test/auth/callback", 5*time.Second, directoryTestClock); err != nil || adapter == nil {
+	config := StytchDirectoryConfig{BaseURL: "https://test.stytch.com", ProjectID: "project-test-directory", Secret: "secret-test-directory", InviteRedirectURL: "https://app.zasp.test/auth/callback", Timeout: 5 * time.Second, Now: directoryTestClock}
+	if adapter, err := NewStytchDirectory(config); err != nil || adapter == nil {
 		t.Fatalf("deployment callback refused: %v", err)
 	}
 	for _, redirect := range []string{"", "http://app.zasp.test/auth/callback", "https://app.zasp.test/other", "https://app.zasp.test/auth/callback?next=/", "https://user@app.zasp.test/auth/callback"} {
-		if _, err := NewStytchDirectory("https://test.stytch.com", "project-test-directory", "secret-test-directory", redirect, 5*time.Second, directoryTestClock); err == nil {
+		refused := config
+		refused.InviteRedirectURL = redirect
+		if _, err := NewStytchDirectory(refused); err == nil {
 			t.Fatalf("invite redirect %q accepted", redirect)
 		}
+	}
+	malformed := config
+	malformed.ExpectedOrganization = "acme"
+	if _, err := NewStytchDirectory(malformed); err == nil {
+		t.Fatal("malformed expected organization accepted")
 	}
 }
 

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
-	"strings"
 	"time"
 
 	platformidentity "github.com/zasp-ai/zasp-sec/services/platform/identity"
@@ -58,18 +57,36 @@ var stytchTokenExchanges = map[string]stytchTokenExchange{
 	ProviderTokenTypeMagicLink: {path: "/v1/b2b/magic_links/authenticate", field: "magic_links_token"},
 }
 
+// StytchDirectoryConfig configures the provider adapter used by the operator
+// bootstrap.
+type StytchDirectoryConfig struct {
+	BaseURL   string
+	ProjectID string
+	Secret    string
+	// InviteRedirectURL is the product callback of the deployment the invited
+	// administrator will sign in to.
+	InviteRedirectURL string
+	// ExpectedOrganization is the provider Organization this deployment is
+	// already bound to, if any. When set, the directory resolves only that
+	// Organization and never creates another.
+	ExpectedOrganization string
+	Timeout              time.Duration
+	Now                  func() time.Time
+}
+
 // NewStytchDirectory builds the provider adapter used by the operator
-// bootstrap. inviteRedirectURL must be the product callback of the deployment
-// the invited administrator will sign in to.
-func NewStytchDirectory(baseURL, project, secret, inviteRedirectURL string, timeout time.Duration, now func() time.Time) (*platformidentity.Adapter, error) {
-	parsed, err := url.Parse(baseURL)
-	redirect, redirectErr := url.Parse(inviteRedirectURL)
-	if err != nil || !validProviderBaseURL(parsed) || !boundedSecret(project) || !boundedSecret(secret) || timeout <= 0 || timeout > 30*time.Second || now == nil ||
-		redirectErr != nil || redirect.Scheme != "https" || redirect.Host == "" || redirect.User != nil || redirect.Path != "/auth/callback" || redirect.RawQuery != "" || redirect.Fragment != "" {
+// bootstrap.
+func NewStytchDirectory(config StytchDirectoryConfig) (*platformidentity.Adapter, error) {
+	parsed, err := url.Parse(config.BaseURL)
+	redirect, redirectErr := url.Parse(config.InviteRedirectURL)
+	if err != nil || !validProviderBaseURL(parsed) || !boundedSecret(config.ProjectID) || !boundedSecret(config.Secret) || config.Timeout <= 0 || config.Timeout > 30*time.Second || config.Now == nil ||
+		redirectErr != nil || redirect.Scheme != "https" || redirect.Host == "" || redirect.User != nil || redirect.Path != "/auth/callback" || redirect.RawQuery != "" || redirect.Fragment != "" ||
+		config.ExpectedOrganization != "" && !validExactStytchReference(config.ExpectedOrganization, "organization-") {
 		return nil, ErrRepositoryConfiguration
 	}
-	client := &http.Client{Timeout: timeout, CheckRedirect: func(*http.Request, []*http.Request) error { return errors.New("identity redirect rejected") }}
-	adapter, err := platformidentity.NewAdapter(&stytchSessionDriver{baseURL: parsed, client: client, project: project, secret: secret, inviteRedirectURL: redirect.String()}, now)
+	client := &http.Client{Timeout: config.Timeout, CheckRedirect: func(*http.Request, []*http.Request) error { return errors.New("identity redirect rejected") }}
+	driver := &stytchSessionDriver{baseURL: parsed, client: client, project: config.ProjectID, secret: config.Secret, inviteRedirectURL: redirect.String(), expectedOrganization: config.ExpectedOrganization}
+	adapter, err := platformidentity.NewAdapter(driver, config.Now)
 	if err != nil {
 		return nil, ErrRepositoryConfiguration
 	}
@@ -77,10 +94,25 @@ func NewStytchDirectory(baseURL, project, secret, inviteRedirectURL string, time
 }
 
 type stytchOrganization struct {
-	Reference      string   `json:"organization_id"`
-	Name           string   `json:"organization_name"`
-	Slug           string   `json:"organization_slug"`
-	AllowedDomains []string `json:"email_allowed_domains"`
+	Reference       string         `json:"organization_id"`
+	Name            string         `json:"organization_name"`
+	Slug            string         `json:"organization_slug"`
+	AllowedDomains  []string       `json:"email_allowed_domains"`
+	TrustedMetadata map[string]any `json:"trusted_metadata"`
+}
+
+// The bootstrap stamps every provider Organization it creates. Only the
+// project secret can write trusted metadata, so the stamp tells a later run
+// that the Organization was created by this product and not by another tool
+// or a self-service flow in the same provider project.
+const (
+	stytchBootstrapMetadataKey   = "zasp_bootstrap"
+	stytchBootstrapMetadataValue = "v1"
+)
+
+func (organization stytchOrganization) bootstrapped() bool {
+	value, ok := organization.TrustedMetadata[stytchBootstrapMetadataKey].(string)
+	return ok && value == stytchBootstrapMetadataValue
 }
 
 type stytchMember struct {
@@ -100,10 +132,11 @@ type stytchSearchOperand struct {
 	Value []string `json:"filter_value"`
 }
 
-// stytchOrganizationSlug derives the one provider slug for a customer domain,
-// so repeated bootstraps of the same domain resolve the same Organization.
+// stytchOrganizationSlug is the one provider slug for a customer domain, so
+// repeated bootstraps of the same domain resolve the same Organization. The
+// domain is used unchanged: two different domains never share a slug.
 func stytchOrganizationSlug(domainName string) string {
-	return strings.ReplaceAll(domainName, ".", "-")
+	return domainName
 }
 
 func (organization stytchOrganization) driverOrganization(domainName string) (platformidentity.DriverOrganization, error) {
@@ -125,9 +158,10 @@ func (*stytchSessionDriver) GetOrganization(context.Context, string) (platformid
 }
 
 // EnsureOrganization resolves the provider Organization for a customer domain
-// or creates it. An existing Organization with the derived slug must carry the
-// requested name and allow the requested domain; a mismatch is refused rather
-// than adopted or rewritten.
+// or creates it. An existing Organization with that slug must have been
+// created by this bootstrap, carry the requested name and allow the requested
+// domain; a mismatch is refused rather than adopted or rewritten. A deployment
+// already bound to a provider Organization resolves only that one.
 func (driver *stytchSessionDriver) EnsureOrganization(ctx context.Context, name, domainName string) (platformidentity.DriverOrganization, error) {
 	if !validStytchName(name) || domainName == "" || len(domainName) > 253 {
 		return platformidentity.DriverOrganization{}, platformidentity.ErrProvider
@@ -143,10 +177,17 @@ func (driver *stytchSessionDriver) EnsureOrganization(ctx context.Context, name,
 	}
 	if len(found.Organizations) == 1 {
 		existing := found.Organizations[0]
-		if existing.Slug != slug || existing.Name != name {
+		if existing.Slug != slug || existing.Name != name || !existing.bootstrapped() ||
+			driver.expectedOrganization != "" && existing.Reference != driver.expectedOrganization {
 			return platformidentity.DriverOrganization{}, platformidentity.ErrProvider
 		}
 		return existing.driverOrganization(domainName)
+	}
+	if driver.expectedOrganization != "" {
+		// The deployment's Organization exists under another domain. Creating
+		// a second one here would bind the product to an Organization its
+		// sign-in does not serve.
+		return platformidentity.DriverOrganization{}, platformidentity.ErrProvider
 	}
 	var created struct {
 		StatusCode   int                `json:"status_code"`
@@ -157,8 +198,9 @@ func (driver *stytchSessionDriver) EnsureOrganization(ctx context.Context, name,
 	body := map[string]any{
 		"organization_name": name, "organization_slug": slug, "email_allowed_domains": []string{domainName},
 		"email_invites": "ALL_ALLOWED", "email_jit_provisioning": "NOT_ALLOWED",
+		"trusted_metadata": map[string]string{stytchBootstrapMetadataKey: stytchBootstrapMetadataValue},
 	}
-	if err := driver.doJSON(ctx, http.MethodPost, "/v1/b2b/organizations", body, &created); err != nil || created.StatusCode != http.StatusOK || created.Organization.Slug != slug || created.Organization.Name != name {
+	if err := driver.doJSON(ctx, http.MethodPost, "/v1/b2b/organizations", body, &created); err != nil || created.StatusCode != http.StatusOK || created.Organization.Slug != slug || created.Organization.Name != name || !created.Organization.bootstrapped() {
 		return platformidentity.DriverOrganization{}, platformidentity.ErrProvider
 	}
 	return created.Organization.driverOrganization(domainName)

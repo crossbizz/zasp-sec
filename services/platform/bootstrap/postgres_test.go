@@ -203,6 +203,54 @@ func TestPostgresStoreAddsASecondAdministratorToTheSameOrganization(t *testing.T
 	}
 }
 
+// After a customer renames its defaults, a later run grants the administrator
+// what exists and recreates nothing.
+func TestPostgresStoreNeverRecreatesDefaultsACustomerRenamed(t *testing.T) {
+	pool := bootstrapTestPool(t)
+	records := uniqueRecords(t)
+	first, err := provisionForTest(t, pool, records)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, statement := range []string{
+		`UPDATE zasp_workspaces SET name='Platform' WHERE organization_id=$1`,
+		`UPDATE zasp_environments SET name='Prod EU' WHERE organization_id=$1 AND name='Production'`,
+	} {
+		if _, err := pool.Exec(context.Background(), statement, first.OrganizationID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	other := records
+	other.MemberReference += "-second"
+	second, err := provisionForTest(t, pool, other)
+	if err != nil || second.WorkspaceID != first.WorkspaceID || len(second.Environments) != 3 || second.Environments[0].Name != "Prod EU" || second.Environments[0].ID != first.Environments[0].ID {
+		t.Fatalf("second administrator = (%#v, %v)", second, err)
+	}
+	if workspaces, environments := count(t, pool, `SELECT count(*) FROM zasp_workspaces WHERE organization_id=$1`, first.OrganizationID), count(t, pool, `SELECT count(*) FROM zasp_environments WHERE organization_id=$1`, first.OrganizationID); workspaces != 1 || environments != 3 {
+		t.Fatalf("workspaces = %d, environments = %d", workspaces, environments)
+	}
+	// The renamed production Environment is still the new administrator's default scope.
+	if got := count(t, pool, `SELECT count(*) FROM zasp_authorized_scopes WHERE principal_id=$1 AND environment_id=$2 AND is_default`, second.PrincipalID, first.Environments[0].ID); got != 1 {
+		t.Fatalf("default scope on renamed production = %d", got)
+	}
+}
+
+func TestPostgresStoreReportsTheProviderOrganizationAProductOrganizationIsBoundTo(t *testing.T) {
+	pool := bootstrapTestPool(t)
+	records := uniqueRecords(t)
+	result, err := provisionForTest(t, pool, records)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store, _ := NewPostgresStore(pool)
+	if bound, err := store.BoundProviderOrganization(context.Background(), result.OrganizationID); err != nil || bound != records.OrganizationReference {
+		t.Fatalf("bound = (%q, %v)", bound, err)
+	}
+	if bound, err := store.BoundProviderOrganization(context.Background(), "pid_10000001-0000-4000-8000-0000000000bb"); err != nil || bound != "" {
+		t.Fatalf("unbound = (%q, %v)", bound, err)
+	}
+}
+
 func TestPostgresStoreRefusesRecordsThatDisagreeAndWritesNothing(t *testing.T) {
 	pool := bootstrapTestPool(t)
 	records := uniqueRecords(t)
@@ -283,5 +331,12 @@ func TestPostgresStoreRecordsAPendingPermissionProjectionAndBindsItOnce(t *testi
 	}
 	if again, _, _, _, _ := read(); again != bound {
 		t.Fatalf("repeated binding forced a replay: desired %d -> %d", bound, again)
+	}
+	// Moving the Organization to another store is refused and changes nothing.
+	if err := store.BindAuthorization(context.Background(), result.OrganizationID, "01HZX0B00TSTRAPTESTST0RE02", modelULID); !errors.Is(err, ErrConflict) {
+		t.Fatalf("rebinding to another store = %v", err)
+	}
+	if again, _, storeID, _, _ := read(); again != bound || storeID != storeULID {
+		t.Fatalf("refused rebinding changed the projection: desired %d store %q", again, storeID)
 	}
 }
