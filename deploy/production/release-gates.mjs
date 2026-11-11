@@ -142,7 +142,7 @@ export async function verifyReleaseSources() {
 async function goSourceSBOM() {
   const template = "{{with .Module}}{{.Path}}\t{{.Version}}\t{{.Dir}}{{end}}";
   const modulesToList = [
-    { cwd: path.join(root, "services/platform"), packages: ["./agentsec-api", "./agentsec-migrate", "./agentsec-worker", "./red-team-adapter", "./cmd/zasp-healthcheck"] },
+    { cwd: path.join(root, "services/platform"), packages: ["./agentsec-api", "./agentsec-migrate", "./agentsec-worker", "./red-team-adapter", "./cmd/zasp-bootstrap", "./cmd/zasp-healthcheck"] },
     { cwd: path.join(root, "services/event-ingest"), packages: ["."] },
     { cwd: path.join(root, "services/gateway-control"), packages: ["."] },
     { cwd: path.join(root, "services/runtime-gateway"), packages: ["."] },

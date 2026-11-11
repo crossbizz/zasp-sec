@@ -46,11 +46,15 @@ func (authenticator *StytchOAuthAuthenticator) Authenticate(ctx context.Context,
 	if authenticator == nil || authenticator.client == nil || authenticator.adapter == nil || ctx == nil || ctx.Err() != nil || token == "" || len(token) > 4096 || strings.TrimSpace(token) != token {
 		return platformidentity.ExternalPrincipal{}, ErrRepositoryAuthentication
 	}
-	requestBody, err := json.Marshal(map[string]any{"oauth_token": token, "session_duration_minutes": 60})
+	exchange, ok := stytchTokenExchanges[ProviderTokenTypeFromContext(ctx)]
+	if !ok {
+		return platformidentity.ExternalPrincipal{}, ErrRepositoryAuthentication
+	}
+	requestBody, err := json.Marshal(map[string]any{exchange.field: token, "session_duration_minutes": 60})
 	if err != nil {
 		return platformidentity.ExternalPrincipal{}, ErrRepositoryAuthentication
 	}
-	request, err := authenticator.request(ctx, "/v1/b2b/oauth/authenticate", requestBody)
+	request, err := authenticator.request(ctx, exchange.path, requestBody)
 	if err != nil {
 		return platformidentity.ExternalPrincipal{}, ErrRepositoryAuthentication
 	}
@@ -164,6 +168,9 @@ type stytchSessionDriver struct {
 	client  *http.Client
 	project string
 	secret  string
+	// inviteRedirectURL is where an invited member lands after following the
+	// provider invitation. Only the operator bootstrap directory sets it.
+	inviteRedirectURL string
 }
 
 func (driver *stytchSessionDriver) AuthenticateJWT(ctx context.Context, jwt string) (platformidentity.DriverSession, error) {
@@ -228,15 +235,6 @@ func (driver *stytchSessionDriver) AuthenticateJWT(ctx context.Context, jwt stri
 
 func (*stytchSessionDriver) RevalidateSession(context.Context, string) (platformidentity.DriverSession, error) {
 	return platformidentity.DriverSession{}, platformidentity.ErrProvider
-}
-func (*stytchSessionDriver) GetOrganization(context.Context, string) (platformidentity.DriverOrganization, error) {
-	return platformidentity.DriverOrganization{}, platformidentity.ErrProvider
-}
-func (*stytchSessionDriver) EnsureOrganization(context.Context, string, string) (platformidentity.DriverOrganization, error) {
-	return platformidentity.DriverOrganization{}, platformidentity.ErrProvider
-}
-func (*stytchSessionDriver) InviteAdmin(context.Context, string, string) (platformidentity.DriverInvitation, error) {
-	return platformidentity.DriverInvitation{}, platformidentity.ErrProvider
 }
 func (driver *stytchSessionDriver) ListSSOConnections(ctx context.Context, organization string) ([]platformidentity.DriverSSOConnection, error) {
 	if !validExactStytchReference(organization, "organization-") {

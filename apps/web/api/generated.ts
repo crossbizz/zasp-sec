@@ -4806,9 +4806,15 @@ export type components = {
             readonly principal: components["schemas"]["Principal"];
             readonly workspace_id: components["schemas"]["ProductID"];
         };
+        /** @description Completes a sign-in redirect from the identity provider. A product-started sign-in always returns the state issued by startSession. Only an identity provider invitation, which the product did not start, may omit state; the server then issues its own single-use state for the exchange. */
         readonly SessionCallbackInput: {
             readonly provider_token: string;
-            readonly state: string;
+            /**
+             * @description Identity provider redirect token type. Omitted means oauth; state may be omitted only with multi_tenant_magic_links.
+             * @enum {string}
+             */
+            readonly provider_token_type?: "oauth" | "multi_tenant_magic_links";
+            readonly state?: string;
         };
         readonly SessionCallbackResult: {
             readonly return_to: string;

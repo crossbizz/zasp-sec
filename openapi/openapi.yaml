@@ -3627,10 +3627,19 @@ components:
     SessionCallbackInput:
       type: object
       additionalProperties: false
-      required: [provider_token, state]
+      description: >-
+        Completes a sign-in redirect from the identity provider. A product-started
+        sign-in always returns the state issued by startSession. Only an identity
+        provider invitation, which the product did not start, may omit state; the
+        server then issues its own single-use state for the exchange.
+      required: [provider_token]
       properties:
         provider_token: { type: string, minLength: 1, maxLength: 4096 }
         state: { type: string, minLength: 32, maxLength: 512 }
+        provider_token_type:
+          type: string
+          enum: [oauth, multi_tenant_magic_links]
+          description: Identity provider redirect token type. Omitted means oauth; state may be omitted only with multi_tenant_magic_links.
     SessionCallbackResult:
       type: object
       additionalProperties: false

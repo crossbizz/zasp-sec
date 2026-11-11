@@ -1,5 +1,38 @@
 # Agent Security Platform Implementation Status
 
+## Real-dependency bring-up and first-Organization bootstrap, November 11, 2026
+
+The production binaries were run against real dependencies for the first time:
+PostgreSQL 18.3 with the current schema profile, the pinned Temporal 1.32.0 and
+OpenFGA 1.21.0, and the Stytch TEST project. The unmodified `agentsec-api`
+starts, refuses unauthenticated requests and redirects sign-in to Stytch.
+`deploy/local/real-stack/stack.sh` reproduces it. This is local component
+evidence, not a deployment.
+
+The run showed that no production code could create an Organization or a
+membership, so nobody could ever sign in to a fresh deployment. M2-07a, M2-07b,
+M2-07c and M2-07d were recorded production-available on "audited shipped
+composition"; they are now component-only. The new operator command
+`zasp-bootstrap` creates the Stytch and product Organization, invites the first
+administrator, and writes the default Workspace, Environments, membership and
+scopes; the session callback accepts the invitation token. Organization
+creation and the product records are verified against the real provider and a
+real installed schema. Invitation delivery and first sign-in are not: Stytch
+refuses the email until billing is verified and refuses the redirect until the
+URL is registered.
+
+Two blockers stop any production install and need no external input to fix.
+The schema does not install on Neon: a non-superuser owner fails at release 10
+on a self-grant of ADMIN OPTION. And the Security Agent, discovery and
+scheduler workers refuse to start on the current schema profile, because
+`zasp_authorization80_worker.runtime_ready()` is defined to be false.
+
+Counts are now 519 production-available, 148 component-only and 61
+blocked/external across all 728 IDs. No row was promoted. Blockers, exact
+external prerequisites, verification and the next batch are in
+[the readiness report](launch-readiness-2026-11-11.md); the 209 rows outside
+production-available are in [the remaining list](launch-remaining-tasks-2026-11-11.tsv).
+
 ## Inactive approval maintenance integration, October 7, 2026
 
 The guarded native executor/adapter, supplementary installer, original opaque
@@ -13286,8 +13319,8 @@ matrix below the audit basis is the readiness measure.
 
 | Production class | Count |
 | --- | ---: |
-| Production-available | 523 |
-| Component-only | 144 |
+| Production-available | 519 |
+| Component-only | 148 |
 | Blocked/external | 61 |
 | Missing | 0 |
 
@@ -13494,7 +13527,7 @@ gates. M7-07's actual worker-backed mixed-evidence acceptance and PR47 main CI
 | M0 | 27 | 7 | 17 | 3 | 0 |
 | M1 | 68 | 57 | 11 | 0 | 0 |
 | M1A | 10 | 0 | 6 | 4 | 0 |
-| M2 | 72 | 67 | 5 | 0 | 0 |
+| M2 | 72 | 63 | 9 | 0 | 0 |
 | M3 | 75 | 73 | 0 | 2 | 0 |
 | M4 | 82 | 82 | 0 | 0 | 0 |
 | M5 | 42 | 42 | 0 | 0 | 0 |
@@ -13502,7 +13535,7 @@ gates. M7-07's actual worker-backed mixed-evidence acceptance and PR47 main CI
 | M7 | 62 | 30 | 32 | 0 | 0 |
 | M7A | 113 | 95 | 18 | 0 | 0 |
 | M8 | 141 | 34 | 55 | 52 | 0 |
-| **Total** | **728** | **523** | **144** | **61** | **0** |
+| **Total** | **728** | **519** | **148** | **61** | **0** |
 
 ## Prerequisite work
 

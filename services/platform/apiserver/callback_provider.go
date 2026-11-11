@@ -100,6 +100,25 @@ func NewRepositoryIdentityProvider(authenticator ExternalIdentityAuthenticator, 
 	return &RepositoryIdentityProvider{authenticator: authenticator, resolver: resolver}, nil
 }
 
+// CompleteInvitation accepts a provider invitation token. It issues the same
+// single-use login state a product-started sign-in uses and then runs the
+// unchanged completion, so membership, attempt and session checks all apply.
+func (provider *RepositoryIdentityProvider) CompleteInvitation(ctx context.Context, token string) (SessionGrant, error) {
+	if provider == nil || nilInterface(provider.states) || ctx == nil || ctx.Err() != nil || token == "" || len(token) > 4096 {
+		return SessionGrant{}, ErrRepositoryAuthentication
+	}
+	if provider.identityIssuer != nil {
+		if _, err := provider.identityIssuer.ready(ctx); err != nil {
+			return SessionGrant{}, ErrRepositoryAuthentication
+		}
+	}
+	state, err := provider.states.BeginIdentity(ctx, "/")
+	if err != nil || len(state) < 32 || len(state) > 512 {
+		return SessionGrant{}, ErrRepositoryAuthentication
+	}
+	return provider.Complete(WithProviderTokenType(ctx, ProviderTokenTypeMagicLink), token, state)
+}
+
 func (provider *RepositoryIdentityProvider) Complete(ctx context.Context, code, state string) (SessionGrant, error) {
 	if provider == nil || ctx == nil || ctx.Err() != nil || code == "" || len(code) > 4096 || len(state) < 32 || len(state) > 512 {
 		return SessionGrant{}, ErrRepositoryAuthentication

@@ -79,7 +79,7 @@ These fixture tests do not establish provider or deployment readiness. The docum
 
 An authenticated Stytch TEST organization search on 2026-10-06 returned HTTP/API success and zero organizations. This establishes read-only TEST authentication at that observation only. It does not establish a product organization, member, OAuth callback, session, SSO or tenant authorization.
 
-[The disposable Stytch password-session proof](../../proofs/stytch-b2b-test-session.mjs) performs provider mutations and deletes its owned organization in cleanup. Run it only within explicitly authorized disposable scope. Its CLI cannot furnish a retained organization for product API launch. There is no standalone product bootstrap CLI supplied by this guide.
+[The disposable Stytch password-session proof](../../proofs/stytch-b2b-test-session.mjs) performs provider mutations and deletes its owned organization in cleanup. Run it only within explicitly authorized disposable scope. Its CLI cannot furnish a retained organization for product API launch. Use `zasp-bootstrap` for that: it creates the first Organization and invites its first administrator. See [the bootstrap guide](first-organization-bootstrap.md).
 
 Complete the real organization/session bootstrap, database principal/schema/identity registration, native model/namespace authority, public TLS/proxy configuration and external connector/policy resources before reporting full launch. Record actual outcomes and normal cleanup separately from configuration presence. Hosted promotion additionally requires the immutable release and infrastructure gates in [production-deployment.md](production-deployment.md); this guide supplies no deployment acceptance or guard waiver.
 

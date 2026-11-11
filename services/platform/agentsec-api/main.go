@@ -33,15 +33,37 @@ func main() {
 	defer stop()
 	config, err := loadRuntimeConfigFromEnvironment(os.LookupEnv)
 	if err != nil {
+		reportStartupRefusal(os.Stderr, "configuration")
 		os.Exit(1)
 	}
-	dependencies, err := buildRuntimeDependencies(ctx, config)
+	dependencies, err := buildRuntimeDependenciesStaged(ctx, config)
 	if err != nil {
+		reportStartupRefusal(os.Stderr, startupDependencyStage(err))
 		os.Exit(1)
 	}
 	if err := serveRuntime(ctx, os.Stdout, buildVersion, config, dependencies, net.Listen); err != nil {
+		reportStartupRefusal(os.Stderr, "serve")
 		os.Exit(1)
 	}
+}
+
+// startupDependencyStage names the dependency construction stage that refused
+// startup. The value always comes from the closed roster in
+// runtimeDependencyFailurePhase, so it never carries configuration values,
+// credentials or provider error text.
+func startupDependencyStage(err error) string {
+	return "dependency:" + runtimeDependencyFailurePhase(err)
+}
+
+// reportStartupRefusal tells the operator which fixed stage refused startup.
+// Without it a refused process exits with status 1 and no output, which makes
+// a wrong database collation, an unreachable dependency and a missing
+// registration indistinguishable.
+func reportStartupRefusal(output io.Writer, stage string) {
+	if output == nil {
+		return
+	}
+	_, _ = io.WriteString(output, "agentsec-api startup refused: stage="+stage+"\n")
 }
 
 func serveProcess(ctx context.Context, output io.Writer, version string, listen func(string, string) (net.Listener, error)) (result error) {

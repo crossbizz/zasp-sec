@@ -34,6 +34,13 @@ func buildRuntimeDependencies(ctx context.Context, config RuntimeConfig) (Runtim
 	return buildRuntimeDependenciesWithAuditExportStorage(ctx, config, newAuditExportStorageClients)
 }
 
+// buildRuntimeDependenciesStaged builds the same dependencies as
+// buildRuntimeDependencies and keeps the refusing construction stage on the
+// returned error, so the process can tell its operator where startup stopped.
+func buildRuntimeDependenciesStaged(ctx context.Context, config RuntimeConfig) (RuntimeDependencies, error) {
+	return buildRuntimeDependenciesWithReadinessTransportDiagnostic(ctx, config, newAuditExportStorageClients, newComplianceStorageResources, nil)
+}
+
 func buildRuntimeDependenciesWithAuditExportStorage(ctx context.Context, config RuntimeConfig, factory auditExportStorageFactory) (RuntimeDependencies, error) {
 	return buildRuntimeDependenciesWithStorage(ctx, config, factory, newComplianceStorageResources)
 }
@@ -837,6 +844,16 @@ func (provider *tracedCallbackProvider) Complete(ctx context.Context, code, stat
 	ctx, end := startOperationalSpan(ctx, provider.exporter, "identity.complete", "client", map[string]string{"server.address": "stytch", "rpc.method": "complete"})
 	defer func() { provider.metrics.observeDependency("provider", err); end(err) }()
 	return provider.next.Complete(ctx, code, state)
+}
+
+func (provider *tracedCallbackProvider) CompleteInvitation(ctx context.Context, token string) (grant apiserver.SessionGrant, err error) {
+	accepter, ok := provider.next.(apiserver.InvitationProvider)
+	if !ok {
+		return apiserver.SessionGrant{}, errRuntimeUnavailable
+	}
+	ctx, end := startOperationalSpan(ctx, provider.exporter, "identity.invitation", "client", map[string]string{"server.address": "stytch", "rpc.method": "invitation"})
+	defer func() { provider.metrics.observeDependency("provider", err); end(err) }()
+	return accepter.CompleteInvitation(ctx, token)
 }
 
 func (provider *tracedCallbackProvider) Ready(ctx context.Context) (err error) {

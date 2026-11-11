@@ -321,3 +321,21 @@ func (w errorWriter) Write([]byte) (int, error) {
 func (panicWriter) Write([]byte) (int, error) {
 	panic("sensitive writer panic")
 }
+
+func TestStartupRefusalNamesOnlyAClosedStage(t *testing.T) {
+	var output bytes.Buffer
+	reportStartupRefusal(&output, "configuration")
+	reportStartupRefusal(&output, startupDependencyStage(markRuntimeDependencyFailure("core-postgres", errRuntimeUnavailable)))
+	// An error that never passed through a known construction stage, or that
+	// names an unknown one, must not put its own text in front of the operator.
+	reportStartupRefusal(&output, startupDependencyStage(errors.New("postgres://user:secret@host/db refused")))
+	reportStartupRefusal(&output, startupDependencyStage(markRuntimeDependencyFailure("postgres://user:secret@host/db", errRuntimeUnavailable)))
+	reportStartupRefusal(nil, "configuration")
+	want := "agentsec-api startup refused: stage=configuration\n" +
+		"agentsec-api startup refused: stage=dependency:core-postgres\n" +
+		"agentsec-api startup refused: stage=dependency:unavailable\n" +
+		"agentsec-api startup refused: stage=dependency:unavailable\n"
+	if output.String() != want {
+		t.Fatalf("startup refusals = %q", output.String())
+	}
+}

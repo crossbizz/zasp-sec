@@ -7,6 +7,22 @@ import { decodeSessionCallbackResult } from "../../../apps/web/api/decoders";
 
 const replaceBrowserLocation = (path: string) => window.location.replace(path);
 
+type CallbackBody = { provider_token: string; state?: string; provider_token_type?: "oauth" | "multi_tenant_magic_links" };
+
+// An invitation link is started by the identity provider, so it is the only
+// redirect that arrives without the state this product issues at sign-in start.
+// Every other redirect must carry that state.
+export function callbackBody(providerToken: string, state: string, tokenType: string | null): CallbackBody | null {
+  if (!providerToken) return null;
+  const validState = state.length >= 32 && state.length <= 512;
+  if (tokenType === "multi_tenant_magic_links") {
+    if (state === "") return { provider_token: providerToken, provider_token_type: tokenType };
+    return validState ? { provider_token: providerToken, state, provider_token_type: tokenType } : null;
+  }
+  if (tokenType !== null && tokenType !== "oauth") return null;
+  return validState ? { provider_token: providerToken, state } : null;
+}
+
 export function CallbackCompletion({ suppliedClient, replaceLocation = replaceBrowserLocation }: { suppliedClient?: APIClient; replaceLocation?: (path: string) => void }) {
   const [client] = useState(() => suppliedClient ?? createAPIClient());
   const [failure, setFailure] = useState<{ message: string; correlation?: string } | null>(null);
@@ -16,12 +32,13 @@ export function CallbackCompletion({ suppliedClient, replaceLocation = replaceBr
       const query = new URLSearchParams(window.location.search);
       const providerToken = query.get("token") ?? "";
       const state = query.get("state") ?? "";
-      if (!providerToken || state.length < 32 || state.length > 512) {
+      const body = callbackBody(providerToken, state, query.get("stytch_token_type"));
+      if (!body) {
         setFailure({ message: "The sign-in callback is invalid or expired." });
         return;
       }
       try {
-        const result = await client.POST("/api/v1/session/callback", { body: { provider_token: providerToken, state } });
+        const result = await client.POST("/api/v1/session/callback", { body });
         const completed = requireAPIData(result, decodeSessionCallbackResult);
         if (active) replaceLocation(completed.return_to);
       } catch (error) {

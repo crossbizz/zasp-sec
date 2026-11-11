@@ -33,6 +33,14 @@ type CallbackProvider interface {
 type IdentityLiveVerifier interface {
 	VerifyIdentityProvider(context.Context) error
 }
+
+// InvitationProvider completes a provider-initiated invitation. The provider
+// issues its own single-use state for the exchange, so the caller supplies
+// only the invitation token.
+type InvitationProvider interface {
+	CompleteInvitation(context.Context, string) (SessionGrant, error)
+}
+
 type CallbackProviderFunc func(context.Context, string, string) (SessionGrant, error)
 
 func (function CallbackProviderFunc) Complete(ctx context.Context, code, state string) (SessionGrant, error) {
@@ -328,12 +336,34 @@ func (handler *sessionHTTPHandler) ServeHTTP(writer http.ResponseWriter, request
 		var input struct {
 			ProviderToken string `json:"provider_token"`
 			State         string `json:"state"`
+			TokenType     string `json:"provider_token_type"`
 		}
-		if decodeProductionJSON(request, &input) != nil || input.ProviderToken == "" || len(input.ProviderToken) > 4096 || len(input.State) < 32 || len(input.State) > 512 {
+		if decodeProductionJSON(request, &input) != nil || input.ProviderToken == "" || len(input.ProviderToken) > 4096 {
 			writeProductionError(writer, request, ErrRepositoryOperation)
 			return
 		}
-		grant, err := handler.provider.Complete(request.Context(), input.ProviderToken, input.State)
+		if input.TokenType == "" {
+			input.TokenType = ProviderTokenTypeOAuth
+		}
+		// A provider invitation is not started by this product, so it is the
+		// only exchange that may arrive without a product-issued state.
+		invitation := input.TokenType == ProviderTokenTypeMagicLink && input.State == ""
+		if !ValidProviderTokenType(input.TokenType) || !invitation && (len(input.State) < 32 || len(input.State) > 512) {
+			writeProductionError(writer, request, ErrRepositoryOperation)
+			return
+		}
+		var grant SessionGrant
+		var err error
+		if invitation {
+			accepter, ok := handler.provider.(InvitationProvider)
+			if !ok || nilInterface(accepter) {
+				writeProductionError(writer, request, ErrRepositoryAuthentication)
+				return
+			}
+			grant, err = accepter.CompleteInvitation(request.Context(), input.ProviderToken)
+		} else {
+			grant, err = handler.provider.Complete(WithProviderTokenType(request.Context(), input.TokenType), input.ProviderToken, input.State)
+		}
 		if err != nil || handler.deploymentMode == "single_tenant" && grant.Scope.OrganizationID() != handler.organizationID {
 			writeProductionError(writer, request, ErrRepositoryAuthentication)
 			return

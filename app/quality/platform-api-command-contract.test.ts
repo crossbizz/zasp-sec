@@ -84,7 +84,10 @@ describe("M1-01d platform API command repository contract", () => {
     expect(command).toContain("len(version) > 64");
 		expect(command).toContain("loadRuntimeConfigFromEnvironment(os.LookupEnv)");
 		expect(command).not.toContain("loadRuntimeConfig(os.Getenv)");
-		expect(command).toContain("buildRuntimeDependencies(ctx, config)");
+		// The staged builder is the production builder with the refusing stage
+		// retained, so a refused start can name it to the operator.
+		expect(command).toContain("buildRuntimeDependenciesStaged(ctx, config)");
+		expect(command).toContain('io.WriteString(output, "agentsec-api startup refused: stage="+stage+"\\n")');
 		expect(command).toContain("serveRuntime(ctx, os.Stdout, buildVersion, config, dependencies, net.Listen)");
     expect(command).not.toContain('"net/http"');
     expect(command).not.toContain('"flag"');
