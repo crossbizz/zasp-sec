@@ -35,7 +35,22 @@ PG_SUPERUSER="postgres"
 PG_DATABASE="zasp"
 
 fail() { echo "real-stack: $*" >&2; exit 1; }
-dsn() { echo "postgres://$1@127.0.0.1:$PG_PORT/$PG_DATABASE?sslmode=disable"; }
+# An external PostgreSQL (for example a Neon development branch) replaces the
+# local container when ZASP_REAL_STACK_DATABASE_HOST is set. The baseline must
+# be installable or installed there, every zasp_svc_* login must share the
+# password in ZASP_REAL_STACK_DATABASE_PASSWORD_FILE, and
+# ZASP_REAL_STACK_OPERATOR_DSN_FILE must hold the zasp_operator DSN. Never
+# point this at a production database: the stack writes development data.
+EXTERNAL_HOST="${ZASP_REAL_STACK_DATABASE_HOST:-}"
+dsn() {
+  if [ -z "$EXTERNAL_HOST" ]; then
+    echo "postgres://$1@127.0.0.1:$PG_PORT/$PG_DATABASE?sslmode=disable"
+  elif [ "$1" = "$OPERATOR" ]; then
+    cat "${ZASP_REAL_STACK_OPERATOR_DSN_FILE:?set ZASP_REAL_STACK_OPERATOR_DSN_FILE}"
+  else
+    echo "postgres://$1:$(cat "${ZASP_REAL_STACK_DATABASE_PASSWORD_FILE:?set ZASP_REAL_STACK_DATABASE_PASSWORD_FILE}")@$EXTERNAL_HOST/$PG_DATABASE?sslmode=require"
+  fi
+}
 
 ROLES=(
   ZASP_DISCOVERY_API_DB_PRINCIPAL=zasp_svc_api
@@ -107,6 +122,7 @@ build_binaries() {
 }
 
 start_database() {
+  [ -z "$EXTERNAL_HOST" ] || return 0
   if docker inspect "$PG_CONTAINER" >/dev/null 2>&1; then
     docker start "$PG_CONTAINER" >/dev/null
   else
@@ -214,10 +230,11 @@ cmd_up() {
   publish_model
   init_search
   STYTCH_PROJECT_ID="${STYTCH_PROJECT_ID:-project-unset}" STYTCH_SECRET="${STYTCH_SECRET:-secret-unset}" STYTCH_PUBLIC_TOKEN="${STYTCH_PUBLIC_TOKEN:-public-token-unset}" load_environment
-  if [ "$(psql -X -Atc "select to_regnamespace('zasp_baseline') is not null" "$(dsn "$OPERATOR")")" != "t" ]; then
+  # verify-baseline succeeds only on an installed, intact baseline.
+  if ! ZASP_POSTGRES_DSN="$(dsn "$OPERATOR")" "$BIN/agentsec-migrate" verify-baseline >/dev/null 2>&1; then
     migrate install-baseline
+    migrate verify-baseline >/dev/null
   fi
-  migrate verify-baseline >/dev/null
   export ZASP_AUTHORIZATION_WORKER_KEY_FILE="$SECRETS/forward.seed" ZASP_AUTHORIZATION_COMPENSATION_KEY_FILE="$SECRETS/compensation.seed"
   for command in register-authorization-verifier register-worker-authorization-verifier register-compensation-authorization-verifier register-approval-maintenance-verifier; do
     migrate "$command"

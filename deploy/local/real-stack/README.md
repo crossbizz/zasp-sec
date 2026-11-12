@@ -107,3 +107,18 @@ Stops the containers and keeps their data. State lives in `$ZASP_REAL_STACK_STAT
 | Real connector discovery | LocalStack answers the AWS calls, but there is no customer AWS account, Neo4j or third-party provider behind them. |
 | Worker modes other than `scheduler` and `discovery` | Their database startup checks pass on the baseline. Each also needs queues, keys and endpoints the script does not create yet, and the Security Agent worker needs an OpenRouter API token. |
 | A discovery run | The discovery worker runs, but no connector is connected: connecting one needs a signed-in user, and the provider secrets here are placeholders. |
+
+## Using an external PostgreSQL (for example a Neon development branch)
+
+Set these before any `stack.sh` command to use a managed database instead of the local container:
+
+| Setting | Value |
+| --- | --- |
+| `ZASP_REAL_STACK_DATABASE_HOST` | The database host. The database must be named `zasp`. |
+| `ZASP_REAL_STACK_OPERATOR_DSN_FILE` | A file holding the `zasp_operator` DSN. |
+| `ZASP_REAL_STACK_DATABASE_PASSWORD_FILE` | A file holding the one password set on every `zasp_svc_*` login of that database. |
+| `ZASP_POSTGRES_TRANSPORT=websocket` | Only where port 5432 is not reachable. See [baseline-schema-install.md](../../../docs/operations/baseline-schema-install.md). |
+
+Use a separate state directory (`ZASP_REAL_STACK_STATE`) for each database: the stack registers its own verification keys there. Never point the stack at a production database. It writes development data: LocalStack resource names and a local OpenFGA store.
+
+On 2026-11-12 `up` and the scheduler worker ran this way against a development branch of the Neon project, over the WebSocket transport. `bootstrap` and the API were not run there: the identity provider was not reachable from that environment at the time.
