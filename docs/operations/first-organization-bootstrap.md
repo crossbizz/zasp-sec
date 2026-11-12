@@ -25,7 +25,7 @@ Run it as the migration operator, after the schema and verifier registrations ar
 
 | Setting | Meaning |
 | --- | --- |
-| `ZASP_POSTGRES_DSN` | Migration operator DSN. On Neon the operator needs `BYPASSRLS`, because `zasp_data_controls` forces row security. |
+| `ZASP_POSTGRES_DSN` | Operator DSN: the `zasp_operator` role that [installed the schema](baseline-schema-install.md). It needs `BYPASSRLS`, because `zasp_data_controls` forces row security. |
 | `ZASP_PUBLIC_ORIGIN` | The deployment's HTTPS origin. The invitation returns to its `/auth/callback`. |
 | `ZASP_DEPLOYMENT_MODE` | `saas` or `single_tenant`. |
 | `ZASP_ORGANIZATION_ID` | Required in `single_tenant` mode and empty in `saas` mode, exactly as for the API. |

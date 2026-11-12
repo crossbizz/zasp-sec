@@ -1,5 +1,42 @@
 # Agent Security Platform Implementation Status
 
+## Baseline schema, worker gate and LocalStack development mode, November 12, 2026
+
+The schema now installs without a PostgreSQL superuser. `agentsec-migrate
+install-baseline` installs one generated baseline in a single transaction as a
+non-superuser operator, which is what managed PostgreSQL provides. The baseline
+is generated from the historical chain and checked against it on every
+regeneration: 143 readiness predicates and about 13,700 structural facts agree
+with the superuser installation. The chain's layered self-verification is
+replaced by one catalog seal, `zasp_baseline.intact()`; any change to a product
+function, table, policy, privilege, role or membership turns readiness false
+and cannot be re-sealed. See `docs/operations/baseline-schema-install.md`.
+
+The worker startup gate is open in the baseline. The Security Agent, discovery
+and scheduler worker logins pass their database startup check, and every
+runtime worker login passes runtime-profile readiness. No worker process has
+been run against the baseline yet.
+
+The production binaries run against LocalStack and a local OpenSearch node when
+`ZASP_LOCAL_CLOUD_ENDPOINT` is set and `ZASP_ENVIRONMENT` is `development` or
+`test`. Any other environment refuses to start with that setting.
+`deploy/local/real-stack/stack.sh` uses all three: baseline install as a
+non-superuser, LocalStack, and the real Stytch TEST project.
+
+M1-10 (Neon schema baseline) was recorded production-available; it is now
+component-only. The chain could never install on Neon, and the baseline has not
+yet been installed on the Neon project because this environment has no TCP path
+to it.
+
+API readiness still fails, at approval notifications. With the current
+authorization model the API may deliver them only through the
+approval-maintenance profile, which ships inactive and has no installer. That
+is the next batch.
+
+Counts are now 518 production-available, 149 component-only and 61
+blocked/external across all 728 IDs. No row was promoted. Details are in
+[the readiness update](launch-readiness-2026-11-12.md).
+
 ## Real-dependency bring-up and first-Organization bootstrap, November 11, 2026
 
 The production binaries were run against real dependencies for the first time:
@@ -27,7 +64,7 @@ on a self-grant of ADMIN OPTION. And the Security Agent, discovery and
 scheduler workers refuse to start on the current schema profile, because
 `zasp_authorization80_worker.runtime_ready()` is defined to be false.
 
-Counts are now 519 production-available, 148 component-only and 61
+Counts on that date were 519 production-available, 148 component-only and 61
 blocked/external across all 728 IDs. No row was promoted. Blockers, exact
 external prerequisites, verification and the next batch are in
 [the readiness report](launch-readiness-2026-11-11.md); the 209 rows outside
@@ -13319,8 +13356,8 @@ matrix below the audit basis is the readiness measure.
 
 | Production class | Count |
 | --- | ---: |
-| Production-available | 519 |
-| Component-only | 148 |
+| Production-available | 518 |
+| Component-only | 149 |
 | Blocked/external | 61 |
 | Missing | 0 |
 
@@ -13525,7 +13562,7 @@ gates. M7-07's actual worker-backed mixed-evidence acceptance and PR47 main CI
 | Milestone | Total | Production-available | Component-only | Blocked/external | Missing |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | M0 | 27 | 7 | 17 | 3 | 0 |
-| M1 | 68 | 57 | 11 | 0 | 0 |
+| M1 | 68 | 56 | 12 | 0 | 0 |
 | M1A | 10 | 0 | 6 | 4 | 0 |
 | M2 | 72 | 63 | 9 | 0 | 0 |
 | M3 | 75 | 73 | 0 | 2 | 0 |
@@ -13535,7 +13572,7 @@ gates. M7-07's actual worker-backed mixed-evidence acceptance and PR47 main CI
 | M7 | 62 | 30 | 32 | 0 | 0 |
 | M7A | 113 | 95 | 18 | 0 | 0 |
 | M8 | 141 | 34 | 55 | 52 | 0 |
-| **Total** | **728** | **519** | **148** | **61** | **0** |
+| **Total** | **728** | **518** | **149** | **61** | **0** |
 
 ## Prerequisite work
 

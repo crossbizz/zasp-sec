@@ -2,14 +2,14 @@
 
 `stack.sh` runs the unmodified product API binary on one machine against real dependencies:
 
-- PostgreSQL 18.3 with the current schema profile installed by `agentsec-migrate`
+- PostgreSQL 18.3 with the baseline schema installed by `agentsec-migrate install-baseline`, as a non-superuser operator, the way managed PostgreSQL requires
 - the pinned Temporal 1.32.0 and OpenFGA 1.21.0 servers from `../temporal-openfga.compose.yaml`
 - the product authorization model published to that OpenFGA
 - a real Stytch B2B project, through its API credentials
 - LocalStack 4.7.0 standing in for AWS STS, IAM, Secrets Manager, KMS, S3 and SQS
 - a single-node OpenSearch 3.8.0 standing in for the managed search domain
 
-It exists because every other harness in this repository replaces Stytch with a loopback fake and seeds memberships with hand-written SQL. This one uses the operator commands a deployment uses: `agentsec-migrate`, `zasp-bootstrap` and `zasp-authorization-reconcile`.
+It exists because every other harness in this repository replaces Stytch with a loopback fake and seeds memberships with hand-written SQL. This one uses the operator commands a deployment uses: `agentsec-migrate`, `zasp-bootstrap` and `zasp-authorization-reconcile`. See [the baseline installation guide](../../../docs/operations/baseline-schema-install.md).
 
 It is local component evidence. It does not prove a deployment. AWS is emulated, so nothing here proves IAM policy, KMS key policy or network behavior in a real account.
 
@@ -53,7 +53,7 @@ sudo chown "$USER" /var/run/secrets/eks.amazonaws.com/serviceaccount
 deploy/local/real-stack/stack.sh up
 ```
 
-Starts Temporal, OpenFGA, LocalStack, OpenSearch and the product database, runs the production search-schema job (`projection-search-init`) against the local search node, creates the 30 least-privilege database logins, installs the schema, registers the worker and authorization verifiers, and publishes the authorization model. A clean run takes about 95 seconds.
+Starts Temporal, OpenFGA, LocalStack, OpenSearch and the product database, runs the production search-schema job (`projection-search-init`) against the local search node, creates the `zasp_operator` role (no superuser) and its database, installs the baseline schema with its 30 least-privilege service logins, registers the worker and authorization verifiers, and publishes the authorization model. With the images present, a clean run takes about 15 seconds.
 
 ```bash
 deploy/local/real-stack/stack.sh bootstrap "Acme Security" acme.example admin@acme.example
@@ -80,13 +80,13 @@ That returns `401 authentication_required`. `GET /api/v1/session/start?return_to
 deploy/local/real-stack/stack.sh down
 ```
 
-The product database uses `trust` authentication and listens on loopback only: any local process can connect as its superuser. It is a disposable database for one developer machine.
+The product database listens on `127.0.0.1:55434`, uses `trust` authentication and accepts loopback connections only: any local process can connect as any role, including the cluster superuser `postgres`. It is a disposable database for one developer machine.
 
 Stops the containers and keeps their data. State lives in `$ZASP_REAL_STACK_STATE`, by default `~/.local/state/zasp-real-stack`.
 
 ## Two things that fail without a clear message
 
-- **Database collation.** The migration compares catalog fingerprints that are sorted with the database's default collation. The database must use `C` or `C.UTF-8` collation. With any other locale, `agentsec-migrate` stops at release 13 with `release migration failed` and PostgreSQL logs no error. `stack.sh` creates the database with `--no-locale` and checks it.
+- **Schema installation.** A refused installation prints `baseline refused: stage=<stage>` with a reason, for example `reason=the database collation must be C or C.UTF-8`. `stack.sh` creates the database with `C` collation.
 - **API startup.** A refused start now prints `agentsec-api startup refused: stage=<stage>` on stderr, for example `stage=configuration` or `stage=dependency:connector-providers`.
 - **API readiness.** When `/readyz` returns 503 the API logs one line naming the first check that refused, for example `{"event":"readiness_refused","service":"agentsec-api","check":"approval-notifications"}`. The name comes from a fixed list and carries no configuration value.
 
@@ -94,7 +94,7 @@ Stops the containers and keeps their data. State lives in `$ZASP_REAL_STACK_STAT
 
 | Not available | Why |
 | --- | --- |
-| `/readyz` returns 503 | On the current schema profile readiness stops at `approval-notifications`: `zasp_production_approval_notification_readiness` is false and the approval-maintenance profile it needs has no installer. The checks before it (repositories, policy history, identity provider, exports) pass against LocalStack and the local search node. The product listener still serves requests. |
+| `/readyz` returns 503 | Readiness stops at `approval-notifications`. With the current authorization model the API may only deliver approval notifications through the approval-maintenance profile, and that profile is not installed or activated yet. Every check before it (repositories, policy history, identity provider, exports) passes against LocalStack and the local search node. The product listener still serves requests. |
 | Completing a browser sign-in | Stytch must have this origin's redirect URLs registered, and a person must complete OAuth or follow the invitation email. Both are outside the project API. |
 | Real connector discovery | LocalStack answers the AWS calls, but there is no customer AWS account, Neo4j or third-party provider behind them. |
-| Background workers | On a database with the current schema profile, the Security Agent, discovery and scheduler worker modes refuse to start: `zasp_authorization80_worker.runtime_ready()` is defined as `... AND false`. |
+| Background workers | The script does not start them yet. Their database startup checks pass on the baseline: the worker gate and the runtime-profile readiness return true for every worker login. Each mode also needs queues, keys and endpoints that the script does not create. |

@@ -201,6 +201,12 @@ func main() {
 	ctx, cancel := context.WithTimeout(signalCtx, timeout)
 	defer cancel()
 	arguments := os.Args[1:]
+	if baselineCommand(arguments) {
+		status := runBaselineCommand(ctx, arguments, os.Getenv, os.Stdout, os.Stderr)
+		cancel()
+		stop()
+		os.Exit(status)
+	}
 	var verifierKey *authorization.AttestationKey
 	var verifierPrincipal string
 	var identityRegistration *identityVerifierRegistration

@@ -41,7 +41,7 @@ M1	M1-06	Complete	production-available	PROD-current-composition	audited shipped 
 M1	M1-07	Complete	production-available	PROD-current-composition	audited shipped composition: config loader
 M1	M1-08	Complete	production-available	PROD-current-composition	audited shipped composition: external client policy
 M1	M1-09	Complete	production-available	PROD-current-composition	audited shipped composition: idempotency helper
-M1	M1-10	Complete	production-available	PROD-current-composition	audited shipped composition: Neon schema baseline
+M1	M1-10	Complete	component-only	T15-deployment	2026-11-12 audit: the earlier production-available classification was wrong. The historical migration chain needs a PostgreSQL superuser and could never install on Neon (confirmed on a disposable Neon branch on 2026-11-11). A baseline artifact generated from the chain now installs in one transaction as a non-superuser operator (agentsec-migrate install-baseline; docs/operations/baseline-schema-install.md) and is verified on PostgreSQL 18.3 against the superuser installation (143 readiness predicates and 13,700 structural facts agree). It has not been installed on the Neon project: that needs a TCP path to Neon.
 M1	M1-11	Complete	production-available	T02-discovery-authority	production PostgreSQL session-user authority, bounded claims/leases, UTC outputs, and actual-login compatibility proof at 48d9768
 M1	M1-12	Complete	production-available	T04-discovery-worker	production evidence: S3 artifact interface; verified by Task 4 source/deploy review and focused race/release gates
 M1	M1-13	Complete	production-available	T04-discovery-worker	production evidence: SQS queue interface; verified by Task 4 source/deploy review and focused race/release gates
