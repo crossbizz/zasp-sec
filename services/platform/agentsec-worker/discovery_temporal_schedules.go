@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimepostgres"
 	"strings"
 	"sync"
 	"time"
@@ -35,7 +36,7 @@ func (s *temporalDiscoveryScheduleSource) withConnection(ctx context.Context, fn
 	}
 	bounded, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
-	conn, err := pgx.Connect(bounded, s.dsn)
+	conn, err := runtimepostgres.Connect(bounded, s.dsn)
 	if err != nil {
 		return errWorkerExecution
 	}

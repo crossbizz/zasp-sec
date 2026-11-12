@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimepostgres"
 	"log"
 	"os"
 	"os/signal"
@@ -333,7 +334,7 @@ func main() {
 	if dsn == "" {
 		log.Fatal("release migration configuration rejected")
 	}
-	connection, err := pgx.Connect(ctx, dsn)
+	connection, err := runtimepostgres.Connect(ctx, dsn)
 	if err != nil {
 		log.Fatal("release migration database unavailable")
 	}

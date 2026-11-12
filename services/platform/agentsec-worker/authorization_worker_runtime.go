@@ -42,6 +42,22 @@ func workerStartupProfileReady(ctx context.Context, pool workerProfileQuery, con
 	return workerLegacyProductionProfileReady(ctx, pool)
 }
 
+// workerStartupGate runs the startup profile check for a worker's main pool.
+// The Security Agent worker's own database role was never a grantee of the
+// current authorization profile's startup gate: its authorized work runs on
+// the Temporal executor connection, which is. When that connection is
+// configured the gate is therefore evaluated there. The gate is still
+// mandatory, and it is evaluated again when the Temporal runtime is built.
+func workerStartupGate(ctx context.Context, pool workerProfileQuery, config workerRuntimeConfig) error {
+	if config.Mode == workerModeSecurityAgent && config.TemporalExecutorDSN != "" {
+		if ctx == nil || ctx.Err() != nil || !validWorkerRuntimeDatabaseProfile(config) {
+			return errRuntimeUnavailable
+		}
+		return temporalWorkerProductionProfileReady(ctx, config.TemporalExecutorDSN)
+	}
+	return workerStartupProfileReady(ctx, pool, config)
+}
+
 func workerLegacyProductionProfileReady(ctx context.Context, pool workerProfileQuery) error {
 	if ctx == nil || nilWorkerDependency(pool) {
 		return errRuntimeUnavailable

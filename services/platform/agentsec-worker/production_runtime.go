@@ -61,6 +61,7 @@ func buildWorkerRuntimeWithIO(ctx context.Context, config workerRuntimeConfig, e
 	}
 	connectCtx, cancel := context.WithTimeout(ctx, minDuration(config.LeaseDuration/2, 5*time.Second))
 	defer cancel()
+	enterStartupStage("database-connect")
 	poolConfig, err := runtimepostgres.ParsePoolConfig(config.PostgresDSN)
 	if err != nil {
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
@@ -75,7 +76,8 @@ func buildWorkerRuntimeWithIO(ctx context.Context, config workerRuntimeConfig, e
 		pool.Close()
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
-	if workerStartupProfileReady(connectCtx, pool, config) != nil {
+	enterStartupStage("database-startup-profile")
+	if workerStartupGate(connectCtx, pool, config) != nil {
 		pool.Close()
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
@@ -85,6 +87,7 @@ func buildWorkerRuntimeWithIO(ctx context.Context, config workerRuntimeConfig, e
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
 	if config.Mode == workerModeSecurityAgent {
+		enterStartupStage("security-agent-selector-requires-runtime-services")
 		installed, err := database.SecurityAgentTestSelectorAvailable(connectCtx)
 		if err != nil || installed && !config.RuntimeServices.Enabled {
 			database.Close()
@@ -101,12 +104,14 @@ func buildWorkerRuntimeWithIO(ctx context.Context, config workerRuntimeConfig, e
 			return buildTemporalDiscoveryRuntime(ctx, config, database, external)
 		}
 	}
+	enterStartupStage("compose:" + string(config.Mode))
 	dependencies, err := composeWorkerRuntimeWithIO(connectCtx, config, database, external)
 	if err != nil {
 		_ = database.Close()
 		return workerRuntimeDependencies{}, err
 	}
 	dependencies.Close = closeWorkerRuntimeDatabase(config.Mode, dependencies.Close, database.Close)
+	enterStartupStage("runtime-services")
 	services, err := runtimeservices.Connect(ctx, config.RuntimeServices)
 	if err != nil {
 		_ = dependencies.Close()

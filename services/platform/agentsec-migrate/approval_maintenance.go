@@ -4,12 +4,12 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimepostgres"
 	"io"
 	"os"
 	"path/filepath"
 	"syscall"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 )
 
@@ -58,7 +58,7 @@ func runApprovalMaintenanceCommand(ctx context.Context, arguments []string, gete
 		}
 		defer clear(key)
 	}
-	connection, err := pgx.Connect(ctx, dsn)
+	connection, err := runtimepostgres.Connect(ctx, dsn)
 	if err != nil {
 		return refuse("database")
 	}

@@ -13,6 +13,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimepostgres"
 	"io"
 	"os"
 	"os/signal"
@@ -20,7 +21,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/jackc/pgx/v5"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
 	"github.com/zasp-ai/zasp-sec/services/platform/bootstrap"
@@ -111,7 +111,7 @@ func run(arguments []string, getenv func(string) string, output io.Writer) error
 	defer stop()
 	ctx, cancel := context.WithTimeout(signalCtx, parsed.timeout)
 	defer cancel()
-	connection, err := pgx.Connect(ctx, dsn)
+	connection, err := runtimepostgres.Connect(ctx, dsn)
 	if err != nil {
 		return refusal{stage: stageDatabase}
 	}

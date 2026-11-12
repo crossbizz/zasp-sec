@@ -10,6 +10,9 @@ func ParsePoolConfig(dsn string) (*pgxpool.Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := applyTransport(&config.ConnConfig.Config); err != nil {
+		return nil, err
+	}
 	if config.ConnConfig.RuntimeParams == nil {
 		config.ConnConfig.RuntimeParams = make(map[string]string)
 	}

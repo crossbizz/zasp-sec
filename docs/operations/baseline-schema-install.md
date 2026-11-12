@@ -49,6 +49,12 @@ Afterwards the operator holds one membership, in `zasp_discovery_authority`, whi
 
 The service logins already hold their database bindings. `register-temporal-executor-principals` is not needed on a baseline installation.
 
+## Connecting where only HTTPS egress is allowed
+
+Set `ZASP_POSTGRES_TRANSPORT=websocket` on `agentsec-migrate`, `zasp-bootstrap`, the API and the workers to carry the PostgreSQL protocol inside a TLS WebSocket on port 443 of the DSN's host (path `/v2`) instead of TCP port 5432. Neon serves this endpoint. Sessions, transactions and authentication are unchanged; the server certificate is always verified against the DSN's host, and the standard `HTTPS_PROXY` setting is honoured. The DSN must name a DNS host and use `sslmode=require` or stricter. Unset, or `tcp`, is the default and is what a normal deployment uses.
+
+With this setting `install-baseline` and `verify-baseline` work from an HTTPS-only network, so the script form below is needed only where WebSockets are blocked too.
+
 ## Installing over an HTTPS SQL endpoint
 
 Where port 5432 is not reachable but the provider offers an HTTPS SQL endpoint (Neon does), print the installation as single statements and send them as one transaction:
@@ -124,6 +130,6 @@ It needs Docker, Go and `psql`, and takes about five minutes. It stops if a rewr
 
 ## Not covered
 
-- **Installing from the deployment network.** The production Neon project was installed over Neon's HTTPS SQL endpoint (below), not with `install-baseline` over a PostgreSQL connection. Both run the same statements.
+- **Installing with `install-baseline` on production.** The production Neon project was installed over Neon's HTTPS SQL endpoint (above), not with `install-baseline`. Both run the same statements, and `verify-baseline` has since confirmed that installation over the WebSocket transport.
 - **Upgrading an existing chain-installed database.** The baseline installs into an empty database only. No production database exists yet, so there is nothing to upgrade.
 - **Removing the historical chain.** It stays in the repository as the generator's input.

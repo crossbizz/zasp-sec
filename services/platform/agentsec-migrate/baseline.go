@@ -4,10 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimepostgres"
 	"io"
 	"strings"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 	"github.com/zasp-ai/zasp-sec/services/platform/migrations/baseline"
@@ -58,7 +58,7 @@ func runBaselineCommand(ctx context.Context, arguments []string, getenv func(str
 		_, _ = io.WriteString(stderr, "baseline refused: stage=configuration\n")
 		return 1
 	}
-	conn, err := pgx.Connect(ctx, dsn)
+	conn, err := runtimepostgres.Connect(ctx, dsn)
 	if err != nil {
 		_, _ = io.WriteString(stderr, "baseline refused: stage=database\n")
 		return 1
