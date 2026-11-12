@@ -280,8 +280,10 @@ const (
 	projectionInstalledSQL = `SELECT to_regprocedure('zasp_authorization79.configure(text,text,text,boolean)') IS NOT NULL`
 	// The operator owns the projection tables. The projection's own reader
 	// function is reserved for registered runtime principals and refuses it.
-	projectionBindingSQL   = `SELECT COALESCE(store_id, ''), COALESCE(model_id, '') FROM zasp_authorization79.organizations WHERE organization_id = $1`
-	projectionConfigureSQL = `SELECT zasp_authorization79.configure($1, $2, $3, false)`
+	projectionBindingSQL         = `SELECT COALESCE(store_id, ''), COALESCE(model_id, '') FROM zasp_authorization79.organizations WHERE organization_id = $1`
+	projectionConfigureSQL       = `SELECT zasp_authorization79.configure($1, $2, $3, false)`
+	approvalDeliveryAvailableSQL = `SELECT to_regprocedure('zasp_approval_maintenance.activate_projection(text)') IS NOT NULL`
+	approvalDeliveryActivateSQL  = `SELECT zasp_approval_maintenance.activate_projection($1)`
 )
 
 // BindAuthorization binds the Organization's permission projection to the
@@ -302,7 +304,7 @@ func (store *PostgresStore) BindAuthorization(ctx context.Context, organization,
 		return ErrStore
 	}
 	if err == nil && boundStore == storeID && boundModel == modelID {
-		return nil
+		return store.activateApprovalDelivery(ctx, organization)
 	}
 	if err == nil && (boundStore != "" || boundModel != "") {
 		// Moving an Organization to another store or model resets its applied
@@ -311,6 +313,26 @@ func (store *PostgresStore) BindAuthorization(ctx context.Context, organization,
 	}
 	var configured []byte
 	if err := store.database.QueryRow(ctx, projectionConfigureSQL, organization, storeID, modelID).Scan(&configured); err != nil {
+		return ErrStore
+	}
+	return store.activateApprovalDelivery(ctx, organization)
+}
+
+// activateApprovalDelivery lets the Organization's approval notifications be
+// delivered. On a baseline installation delivery is bound to the
+// Organization's authorization store and model, so it is activated with the
+// binding. Activation is idempotent. An installation without the activation
+// function (the historical chain) has no delivery to activate.
+func (store *PostgresStore) activateApprovalDelivery(ctx context.Context, organization string) error {
+	var available bool
+	if err := store.database.QueryRow(ctx, approvalDeliveryAvailableSQL).Scan(&available); err != nil {
+		return ErrStore
+	}
+	if !available {
+		return nil
+	}
+	var activated bool
+	if err := store.database.QueryRow(ctx, approvalDeliveryActivateSQL, organization).Scan(&activated); err != nil || !activated {
 		return ErrStore
 	}
 	return nil

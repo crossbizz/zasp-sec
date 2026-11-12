@@ -63,6 +63,7 @@ func (reconciler *ConnectorReconciler) Run(ctx context.Context) error {
 	if reconciler == nil || ctx == nil {
 		return ErrRepositoryConfiguration
 	}
+	ctx = withConnectorMaintenance(ctx)
 	delay := time.Duration(0)
 	for {
 		if delay > 0 {
@@ -147,6 +148,7 @@ func (reconciler *ConnectorReconciler) reconcileBatch(ctx context.Context) (bool
 	if reconciler == nil || ctx == nil || ctx.Err() != nil {
 		return false, ErrRepositoryOperation
 	}
+	ctx = withConnectorMaintenance(ctx)
 	if _, err := reconciler.repository.RecoverExpiredFinalAttempts(ctx, reconciler.owner, reconciler.leaseSeconds, reconciler.limit); err != nil {
 		return false, err
 	}

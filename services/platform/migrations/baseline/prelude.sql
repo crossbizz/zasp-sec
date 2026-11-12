@@ -28,7 +28,11 @@ CREATE VIEW zasp_baseline.role_memberships AS
 -- belong to the cluster superuser and change with extension upgrades.
 --
 -- One row, written once by seal(). `content` is a digest of every definition,
--- owner and privilege in the product schemas and of the product roles.
+-- owner and privilege in the product schemas and of the product roles:
+-- functions (body, arguments and defaults, strictness, volatility, cost,
+-- security, settings), relations, columns, constraints, indexes, triggers,
+-- rewrite rules, policies, sequences, types, default privileges, roles and
+-- memberships.
 -- `marker` is a cheap digest of the same catalog rows' versions; it lets
 -- intact() answer without hashing every function body.
 CREATE TABLE zasp_baseline.seal (
@@ -48,11 +52,12 @@ LANGUAGE sql STABLE SET search_path = pg_catalog AS $$
     UNION ALL
     SELECT concat_ws('|', 'function', p.oid::regprocedure::text, p.proowner::regrole::text, (SELECT string_agg(i::text, ',' ORDER BY i::text) FROM unnest(COALESCE(p.proacl, acldefault('f', p.proowner))) AS i),
                      p.prosecdef, p.provolatile, p.proleakproof, p.proconfig::text, l.lanname,
-                     pg_get_function_result(p.oid), p.prosrc)
+                     p.prokind, p.proisstrict, p.proretset, p.proparallel, p.procost, p.prorows,
+                     pg_get_function_arguments(p.oid), pg_get_function_result(p.oid), p.prosrc)
       FROM pg_proc p JOIN pg_language l ON l.oid = p.prolang WHERE p.pronamespace IN (SELECT oid FROM scope) AND NOT EXISTS (SELECT 1 FROM pg_depend x WHERE x.classid = 'pg_proc'::regclass AND x.objid = p.oid AND x.deptype = 'e')
     UNION ALL
     SELECT concat_ws('|', 'relation', c.oid::regclass::text, c.relkind, c.relowner::regrole::text, (SELECT string_agg(i::text, ',' ORDER BY i::text) FROM unnest(COALESCE(c.relacl, acldefault(CASE c.relkind WHEN 'S' THEN 's' ELSE 'r' END::"char", c.relowner))) AS i),
-                     c.relrowsecurity, c.relforcerowsecurity, c.reloptions::text,
+                     c.relrowsecurity, c.relforcerowsecurity, c.relpersistence, c.reloptions::text,
                      CASE WHEN c.relkind IN ('v', 'm') THEN pg_get_viewdef(c.oid) END,
                      CASE WHEN c.relkind = 'i' THEN pg_get_indexdef(c.oid) END)
       FROM pg_class c WHERE c.relnamespace IN (SELECT oid FROM scope)
@@ -70,6 +75,12 @@ LANGUAGE sql STABLE SET search_path = pg_catalog AS $$
     SELECT concat_ws('|', 'trigger', t.tgrelid::regclass::text, t.tgname, t.tgenabled, pg_get_triggerdef(t.oid))
       FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid
       WHERE c.relnamespace IN (SELECT oid FROM scope) AND NOT t.tgisinternal
+    UNION ALL
+    SELECT concat_ws('|', 'rule', w.ev_class::regclass::text, w.rulename, w.ev_type, w.ev_enabled, w.is_instead, pg_get_ruledef(w.oid))
+      FROM pg_rewrite w JOIN pg_class c ON c.oid = w.ev_class WHERE c.relnamespace IN (SELECT oid FROM scope)
+    UNION ALL
+    SELECT concat_ws('|', 'sequence', q.seqrelid::regclass::text, format_type(q.seqtypid, NULL), q.seqstart, q.seqincrement, q.seqmax, q.seqmin, q.seqcache, q.seqcycle)
+      FROM pg_sequence q JOIN pg_class c ON c.oid = q.seqrelid WHERE c.relnamespace IN (SELECT oid FROM scope)
     UNION ALL
     SELECT concat_ws('|', 'policy', p.polrelid::regclass::text, p.polname, p.polcmd, p.polpermissive,
                      p.polroles::regrole[]::text, pg_get_expr(p.polqual, p.polrelid), pg_get_expr(p.polwithcheck, p.polrelid))
@@ -116,6 +127,8 @@ LANGUAGE sql STABLE SET search_path = pg_catalog AS $$
     SELECT 't' || t.oid || '.' || t.xmin::text FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid WHERE c.relnamespace IN (SELECT oid FROM scope)
     UNION ALL
     SELECT 'p' || p.oid || '.' || p.xmin::text FROM pg_policy p JOIN pg_class c ON c.oid = p.polrelid WHERE c.relnamespace IN (SELECT oid FROM scope)
+    UNION ALL
+    SELECT 'q' || q.seqrelid || '.' || q.xmin::text FROM pg_sequence q JOIN pg_class c ON c.oid = q.seqrelid WHERE c.relnamespace IN (SELECT oid FROM scope)
     UNION ALL
     SELECT 'w' || w.oid || '.' || w.xmin::text FROM pg_rewrite w JOIN pg_class c ON c.oid = w.ev_class WHERE c.relnamespace IN (SELECT oid FROM scope)
     UNION ALL

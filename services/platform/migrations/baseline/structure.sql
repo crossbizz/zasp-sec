@@ -19,7 +19,8 @@ WITH scope(oid) AS MATERIALIZED (
   SELECT concat_ws('|', 'schema', n.nspname, n.nspowner::regrole::text, (SELECT string_agg(i::text, ',' ORDER BY i::text) FROM unnest(COALESCE(n.nspacl, acldefault('n', n.nspowner))) AS i)) FROM pg_namespace n WHERE n.oid IN (SELECT oid FROM scope)
   UNION ALL
   SELECT concat_ws('|', 'function', p.oid::regprocedure::text, p.proowner::regrole::text, (SELECT string_agg(i::text, ',' ORDER BY i::text) FROM unnest(COALESCE(p.proacl, acldefault('f', p.proowner))) AS i), p.prosecdef, p.provolatile,
-                   p.proleakproof, p.proconfig::text, pg_get_function_result(p.oid))
+                   p.proleakproof, p.proconfig::text, p.prokind, p.proisstrict, p.proretset, p.proparallel,
+                   translate(pg_get_function_arguments(p.oid), '()', ''), pg_get_function_result(p.oid))
     FROM pg_proc p JOIN pg_language l ON l.oid = p.prolang WHERE p.pronamespace IN (SELECT oid FROM scope) AND NOT EXISTS (SELECT 1 FROM pg_depend x WHERE x.classid = 'pg_proc'::regclass AND x.objid = p.oid AND x.deptype = 'e')
   UNION ALL
   SELECT concat_ws('|', 'relation', c.oid::regclass::text, c.relkind, c.relowner::regrole::text, (SELECT string_agg(i::text, ',' ORDER BY i::text) FROM unnest(COALESCE(c.relacl, acldefault(CASE c.relkind WHEN 'S' THEN 's' ELSE 'r' END::"char", c.relowner))) AS i), c.relrowsecurity,
@@ -38,6 +39,12 @@ WITH scope(oid) AS MATERIALIZED (
   UNION ALL
   SELECT concat_ws('|', 'trigger', t.tgrelid::regclass::text, t.tgname, t.tgenabled, pg_get_triggerdef(t.oid))
     FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid WHERE c.relnamespace IN (SELECT oid FROM scope) AND NOT t.tgisinternal
+  UNION ALL
+  SELECT concat_ws('|', 'rule', w.ev_class::regclass::text, w.rulename, w.ev_type, w.ev_enabled, w.is_instead)
+    FROM pg_rewrite w JOIN pg_class c ON c.oid = w.ev_class WHERE c.relnamespace IN (SELECT oid FROM scope)
+  UNION ALL
+  SELECT concat_ws('|', 'sequence', q.seqrelid::regclass::text, format_type(q.seqtypid, NULL), q.seqstart, q.seqincrement, q.seqmax, q.seqmin, q.seqcache, q.seqcycle)
+    FROM pg_sequence q JOIN pg_class c ON c.oid = q.seqrelid WHERE c.relnamespace IN (SELECT oid FROM scope)
   UNION ALL
   SELECT concat_ws('|', 'policy', p.polrelid::regclass::text, p.polname, p.polcmd, p.polpermissive, p.polroles::regrole[]::text,
                    translate(regexp_replace(pg_get_expr(p.polqual, p.polrelid), '\s+', ' ', 'g'), '()', ''), translate(regexp_replace(pg_get_expr(p.polwithcheck, p.polrelid), '\s+', ' ', 'g'), '()', ''))

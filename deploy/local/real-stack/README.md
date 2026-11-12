@@ -53,7 +53,7 @@ sudo chown "$USER" /var/run/secrets/eks.amazonaws.com/serviceaccount
 deploy/local/real-stack/stack.sh up
 ```
 
-Starts Temporal, OpenFGA, LocalStack, OpenSearch and the product database, runs the production search-schema job (`projection-search-init`) against the local search node, creates the `zasp_operator` role (no superuser) and its database, installs the baseline schema with its 30 least-privilege service logins, registers the worker and authorization verifiers, and publishes the authorization model. With the images present, a clean run takes about 15 seconds.
+Starts Temporal, OpenFGA, LocalStack, OpenSearch and the product database, runs the production search-schema job (`projection-search-init`) against the local search node, creates the `zasp_operator` role (no superuser) and its database, installs the baseline schema with its 31 least-privilege service logins, registers the worker, authorization and approval-delivery verifiers, and publishes the authorization model. With the images present, a clean run takes about 15 seconds.
 
 ```bash
 deploy/local/real-stack/stack.sh bootstrap "Acme Security" acme.example admin@acme.example
@@ -74,7 +74,13 @@ curl -i http://127.0.0.1:4000/api/v1/session/bootstrap \
   -H 'X-Forwarded-For: 198.51.100.7'
 ```
 
-That returns `401 authentication_required`. `GET /api/v1/session/start?return_to=/` returns a `302` to the Stytch OAuth start.
+That returns `401 authentication_required`. `GET /api/v1/session/start?return_to=/` returns a `302` to the Stytch OAuth start. `curl http://127.0.0.1:4081/readyz` returns `200 {"status":"ready"}` about 20 seconds after start.
+
+```bash
+deploy/local/real-stack/stack.sh worker scheduler
+```
+
+Runs the discovery scheduler worker in the foreground. It polls its schedules and its health listener (`127.0.0.1:8081/readyz`) reports ready. It is the only worker mode the script starts so far.
 
 ```bash
 deploy/local/real-stack/stack.sh down
@@ -94,7 +100,6 @@ Stops the containers and keeps their data. State lives in `$ZASP_REAL_STACK_STAT
 
 | Not available | Why |
 | --- | --- |
-| `/readyz` returns 503 | Readiness stops at `approval-notifications`. With the current authorization model the API may only deliver approval notifications through the approval-maintenance profile, and that profile is not installed or activated yet. Every check before it (repositories, policy history, identity provider, exports) passes against LocalStack and the local search node. The product listener still serves requests. |
 | Completing a browser sign-in | Stytch must have this origin's redirect URLs registered, and a person must complete OAuth or follow the invitation email. Both are outside the project API. |
 | Real connector discovery | LocalStack answers the AWS calls, but there is no customer AWS account, Neo4j or third-party provider behind them. |
-| Background workers | The script does not start them yet. Their database startup checks pass on the baseline: the worker gate and the runtime-profile readiness return true for every worker login. Each mode also needs queues, keys and endpoints that the script does not create. |
+| Background workers other than the scheduler | Their database startup checks pass on the baseline: the worker gate and the runtime-profile readiness return true for every worker login. Each mode also needs queues, keys and endpoints the script does not create, and the Security Agent worker needs an OpenRouter API token. |

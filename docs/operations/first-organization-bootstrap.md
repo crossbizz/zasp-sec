@@ -11,7 +11,7 @@ Given a customer name, email domain and the first administrator's email address,
 1. Resolves the Stytch Organization for the domain, or creates it. The Organization slug is the domain itself. A new Organization allows invitations only (nobody joins by holding an address in the domain) and is stamped in its trusted metadata as created by this command. An existing Organization is used only if it carries that stamp, the requested name and the requested domain; anything else is refused, never adopted.
 2. Resolves the Stytch member for the administrator's address, or sends a Stytch invitation. No password is created. The invitation link returns the administrator to `<public origin>/auth/callback`.
 3. In one database transaction, writes the product Organization, a `Default` Workspace, `Production`, `Staging` and `Development` Environments with metadata-only data controls, the administrator's `organization_admin` membership, and that administrator's scopes in all three Environments. `Production` is the default scope.
-4. Binds the Organization's permission projection to the deployment's authorization store and model, when both are configured. The projector then applies the permissions; until it has, the administrator sees "Authorization pending".
+4. Binds the Organization's permission projection to the deployment's authorization store and model, when both are configured, and activates approval-notification delivery for the Organization against that store and model. The projector then applies the permissions; until it has, the administrator sees "Authorization pending".
 
 It prints one JSON object with the product and provider identifiers. It prints no credential.
 
@@ -56,7 +56,7 @@ A refusal prints one line, `bootstrap refused: stage=<stage>`, and exits with st
 | `identity-provider` | Stytch refused, or returned an Organization or member that does not match the request. See the provider prerequisites below. |
 | `existing-records` | Product records already exist and disagree with the request. Nothing was written. Examples: the membership was deactivated or its role changed, the provider Organization is already linked to a different product Organization, or the pinned ID belongs to another Organization. |
 | `product-records` | The product records could not be written. |
-| `authorization-binding` | The permission projection is not installed, refused the store and model, or the Organization is already bound to a different store or model. |
+| `authorization-binding` | The permission projection is not installed, refused the store and model, the Organization is already bound to a different store or model, or approval-notification delivery could not be activated for it. |
 
 The command never reactivates, moves or promotes an existing membership. Those are identity administration decisions.
 

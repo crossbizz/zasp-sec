@@ -469,7 +469,7 @@ func (database *PostgresJSONDatabase) QueryJSON(ctx context.Context, statement s
 	if grant, ok := requestAuthorizationFromContext(ctx); ok {
 		return database.authorizedQueryJSON(ctx, grant, statement, arguments...)
 	}
-	if database.currentAuthorization && !authorizationIdentityStatement(statement) {
+	if database.currentAuthorization && !authorizationIdentityStatement(statement) && !connectorMaintenanceStatement(ctx, statement) {
 		return nil, ErrAuthorizationDenied
 	}
 	var payload []byte

@@ -138,6 +138,69 @@ func TestInstallOnNonSuperuserDatabase(t *testing.T) {
 	if err := conn.QueryRow(ctx, `SELECT zasp_authorization80_worker.runtime_ready()`).Scan(&open); err != nil || !open {
 		t.Fatalf("worker gate: open=%v err=%v", open, err)
 	}
+	// Approval-notification delivery is installed and active, and activating
+	// an Organization requires it to be bound to an authorization store first.
+	var delivery bool
+	if err := conn.QueryRow(ctx, `SELECT zasp_approval_maintenance.ready() AND NOT zasp_approval_maintenance.projection_active('pid_00000000-0000-4000-8000-000000000001')`).Scan(&delivery); err != nil || !delivery {
+		t.Fatalf("approval delivery: ready=%v err=%v", delivery, err)
+	}
+	if _, err := conn.Exec(ctx, `SELECT zasp_approval_maintenance.activate_projection('pid_00000000-0000-4000-8000-000000000001')`); err == nil {
+		t.Fatal("an unbound Organization was activated for approval delivery")
+	}
+	if _, err := conn.Exec(ctx, `SELECT zasp_approval_maintenance.activate_projection('not an id')`); err == nil {
+		t.Fatal("a malformed Organization ID was activated for approval delivery")
+	}
+	var activations int
+	if err := conn.QueryRow(ctx, `SELECT count(*) FROM zasp_approval_maintenance.projection_activations`).Scan(&activations); err != nil || activations != 0 {
+		t.Fatalf("activations=%d err=%v", activations, err)
+	}
+	// Each kind of owner-level change breaks the seal. Every probe runs in a
+	// transaction that is rolled back, so the next one starts from the sealed
+	// catalog.
+	for name, change := range map[string]string{
+		"rewrite rule":      `CREATE RULE zasp_test_swallow AS ON INSERT TO zasp_baseline.seal DO INSTEAD NOTHING`,
+		"strictness":        `ALTER FUNCTION zasp_baseline.intact() STRICT`,
+		"cost":              `ALTER FUNCTION zasp_baseline.intact() COST 5000`,
+		"security":          `ALTER FUNCTION zasp_baseline.intact() SECURITY INVOKER`,
+		"function setting":  `ALTER FUNCTION zasp_baseline.intact() SET search_path = public`,
+		"function grant":    `GRANT EXECUTE ON FUNCTION zasp_baseline.accept(text) TO PUBLIC`,
+		"table grant":       `GRANT SELECT ON zasp_baseline.seal TO PUBLIC`,
+		"column grant":      `GRANT UPDATE (marker) ON zasp_baseline.seal TO PUBLIC`,
+		"row security":      `ALTER TABLE zasp_baseline.seal DISABLE ROW LEVEL SECURITY`,
+		"new function":      `CREATE FUNCTION zasp_baseline.zasp_test_extra() RETURNS boolean LANGUAGE sql AS 'SELECT true'`,
+		"new table":         `CREATE TABLE zasp_baseline.zasp_test_extra (id integer)`,
+		"trigger":           `CREATE TRIGGER zasp_test_extra BEFORE INSERT ON zasp_baseline.seal FOR EACH ROW EXECUTE FUNCTION pg_catalog.suppress_redundant_updates_trigger()`,
+		"view definition":   `CREATE OR REPLACE VIEW zasp_baseline.role_memberships AS SELECT m.oid, m.roleid, m.member, m.grantor, m.admin_option, m.inherit_option, m.set_option FROM pg_catalog.pg_auth_members m WHERE false`,
+		"schema grant":      `GRANT CREATE ON SCHEMA zasp_baseline TO PUBLIC`,
+		"role membership":   `GRANT zasp_discovery_api TO zasp_svc_outbox`,
+		"argument defaults": `CREATE OR REPLACE FUNCTION zasp_baseline.seal(artifact_value text DEFAULT 'x') RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog AS 'BEGIN RETURN true; END'`,
+	} {
+		tx, err := conn.Begin(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		// Memberships are granted by the operator; everything else by the owner.
+		if name != "role membership" {
+			if _, err := tx.Exec(ctx, `SET LOCAL ROLE `+Authority); err != nil {
+				t.Fatalf("%s: %v", name, err)
+			}
+		}
+		if _, err := tx.Exec(ctx, change); err != nil {
+			t.Fatalf("%s: change refused: %v", name, err)
+		}
+		var stillIntact bool
+		if err := tx.QueryRow(ctx, `SELECT zasp_baseline.intact()`).Scan(&stillIntact); err != nil {
+			// A change that breaks intact() itself is detected as well.
+			stillIntact = false
+		}
+		_ = tx.Rollback(ctx)
+		if stillIntact {
+			t.Fatalf("%s: a changed catalog reported intact", name)
+		}
+	}
+	if err := conn.QueryRow(ctx, `SELECT zasp_baseline.intact()`).Scan(&delivery); err != nil || !delivery {
+		t.Fatalf("catalog is not intact after rolled-back probes: %v %v", delivery, err)
+	}
 	// A second installation is refused before anything is written.
 	var staged *StageError
 	if err := Install(ctx, conn); !errors.As(err, &staged) || staged.Stage != StagePreconditions {

@@ -20,6 +20,9 @@ PG_IMAGE="${ZASP_BASELINE_PG_IMAGE:-public.ecr.aws/docker/library/postgres:18.3}
 CONTAINER="${ZASP_BASELINE_CONTAINER:-zasp-baseline-generator}"
 PORT="${ZASP_BASELINE_PORT:-55460}"
 OPERATOR=zasp_operator
+# The approval-notification delivery login. Unlike the other service logins it
+# does not inherit: it acts only through SET LOCAL ROLE inside owned calls.
+APPROVAL_LOGIN=zasp_svc_approval_maintenance
 REFERENCE_PORT="$PORT"
 REPLAY_PORT="$((PORT + 1))"
 ACTIVE_PORT="$REFERENCE_PORT"
@@ -105,7 +108,7 @@ predicates() {
 for artifact in baseline.sql.gz roles.sql baseline.sha256; do [ -f "$HERE/$artifact" ] || : > "$HERE/$artifact"; done
 go build -C "$PLATFORM" -o "$WORK/agentsec-migrate" ./agentsec-migrate
 
-if [ -n "${ZASP_BASELINE_KEEP:-}" ] && [ "$(psql -X -Atc "select count(*) from zasp_schema_versions" "$(url postgres reference)" 2>/dev/null)" = "61" ] && [ -s "$WORK/reference.sql" ]; then
+if [ -n "${ZASP_BASELINE_KEEP:-}" ] && [ "$(psql -X -Atc "select count(*) from zasp_schema_versions" "$(url postgres reference)" 2>/dev/null)" = "61" ]; then
   echo "baseline: reusing the kept superuser installation"
 else
   echo "baseline: installing the historical chain as a superuser"
@@ -121,9 +124,31 @@ else
     "$WORK/agentsec-migrate" up-authorization-runtime-profile || fail "historical chain refused"
     "$WORK/agentsec-migrate" register-temporal-executor-principals || fail "executor principal registration refused"
   )
-  docker exec "$CONTAINER-reference" pg_dumpall -U postgres --roles-only --no-role-passwords > "$WORK/roles.raw"
-  docker exec "$CONTAINER-reference" pg_dump -U postgres -d reference --inserts --rows-per-insert=200 > "$WORK/reference.sql"
 fi
+
+# Approval-notification delivery. The chain ships the approval-maintenance
+# profile inactive and without an installer. The baseline installs it, binds
+# its dedicated login and activates it (activation.sql).
+if [ "$(psql -X -Atc "select to_regprocedure('zasp_approval_maintenance.activate_projection(text)') is not null" "$(url postgres reference)")" != "t" ]; then
+  echo "baseline: installing and activating approval-notification delivery"
+  [ "$(psql -X -Atc "select to_regnamespace('zasp_approval_maintenance') is null" "$(url postgres reference)")" = "t" ] || fail "a partial approval-maintenance installation exists; remove the kept containers"
+  sql "$(url "$OPERATOR" reference)" -c "CREATE ROLE $APPROVAL_LOGIN LOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS"
+  ZASP_MIGRATION_TIMEOUT=20m ZASP_POSTGRES_DSN="$(url "$OPERATOR" reference)" "$WORK/agentsec-migrate" up-approval-maintenance-profile || fail "approval-maintenance profile refused"
+  {
+    echo "BEGIN;"
+    echo "GRANT zasp_approval_maintenance_worker TO $APPROVAL_LOGIN;"
+    echo "SELECT zasp_approval_maintenance.register_principal('$APPROVAL_LOGIN');"
+    echo "SET LOCAL ROLE zasp_discovery_authority;"
+    cat "$HERE/activation.sql"
+    # The profile records its own catalog fingerprint; activation changed the catalog.
+    echo "UPDATE zasp_approval_maintenance.registration SET fingerprint=zasp_approval_maintenance.fingerprint() WHERE singleton;"
+    echo "COMMIT;"
+  } > "$WORK/activation-run.sql"
+  sql "$(url "$OPERATOR" reference)" -f "$WORK/activation-run.sql" >/dev/null
+  [ "$(psql -X -Atc "select zasp_approval_maintenance.ready()" "$(url postgres reference)")" = "t" ] || fail "approval-maintenance profile is not ready after activation"
+fi
+docker exec "$CONTAINER-reference" pg_dumpall -U postgres --roles-only --no-role-passwords > "$WORK/roles.raw"
+docker exec "$CONTAINER-reference" pg_dump -U postgres -d reference --inserts --rows-per-insert=200 > "$WORK/reference.sql"
 predicates reference > "$WORK/reference.predicates"
 # The reference structure is compared after the same membership rewrite the
 # dump receives, because views and policies print the relation name.

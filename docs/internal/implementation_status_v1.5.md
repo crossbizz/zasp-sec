@@ -6,7 +6,7 @@ The schema now installs without a PostgreSQL superuser. `agentsec-migrate
 install-baseline` installs one generated baseline in a single transaction as a
 non-superuser operator, which is what managed PostgreSQL provides. The baseline
 is generated from the historical chain and checked against it on every
-regeneration: 143 readiness predicates and about 13,700 structural facts agree
+regeneration: 147 readiness predicates and about 13,900 structural facts agree
 with the superuser installation. The chain's layered self-verification is
 replaced by one catalog seal, `zasp_baseline.intact()`; any change to a product
 function, table, policy, privilege, role or membership turns readiness false
@@ -14,8 +14,9 @@ and cannot be re-sealed. See `docs/operations/baseline-schema-install.md`.
 
 The worker startup gate is open in the baseline. The Security Agent, discovery
 and scheduler worker logins pass their database startup check, and every
-runtime worker login passes runtime-profile readiness. No worker process has
-been run against the baseline yet.
+runtime worker login passes runtime-profile readiness. The scheduler worker
+was started on the baseline, polls its schedules and reports ready. No other
+worker mode has been run yet.
 
 The production binaries run against LocalStack and a local OpenSearch node when
 `ZASP_LOCAL_CLOUD_ENDPOINT` is set and `ZASP_ENVIRONMENT` is `development` or
@@ -28,10 +29,15 @@ component-only. The chain could never install on Neon, and the baseline has not
 yet been installed on the Neon project because this environment has no TCP path
 to it.
 
-API readiness still fails, at approval notifications. With the current
-authorization model the API may deliver them only through the
-approval-maintenance profile, which ships inactive and has no installer. That
-is the next batch.
+The API now reports ready: `/readyz` returns 200 on the baseline with LocalStack
+and the Stytch TEST project. It never could before. Under the current
+authorization model the API refuses background statements that carry no request
+authorization, which stopped two loops. Approval-notification delivery had an
+inactive, uninstalled replacement profile; the baseline installs and activates
+it and `zasp-bootstrap` activates each Organization. The connector reconciler
+had no replacement; its lease-bound statements are now classified explicitly as
+system maintenance. That classification is a security-model decision recorded
+for review. No approval notification has been delivered end to end yet.
 
 Counts are now 518 production-available, 149 component-only and 61
 blocked/external across all 728 IDs. No row was promoted. Details are in

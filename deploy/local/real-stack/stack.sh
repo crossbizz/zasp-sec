@@ -95,6 +95,10 @@ load_environment() {
   export ZASP_TEMPORAL_ADDRESS=127.0.0.1:7233 ZASP_TEMPORAL_NAMESPACE=zasp-dev
   export ZASP_TEMPORAL_TASK_QUEUE=zasp-security-agent ZASP_TEMPORAL_DISCOVERY_TASK_QUEUE=zasp-discovery
   export ZASP_OPENFGA_URL="$FGA_URL" ZASP_OPENFGA_TOKEN_FILE="$SECRETS/openfga.token"
+  # Approval notifications are delivered through the approval-maintenance
+  # profile. Every process that reads permissions names the profile it expects.
+  ZASP_APPROVAL_MAINTENANCE_PROFILE_CHECKSUM="$("$BIN/agentsec-migrate" approval-maintenance-checksum)" || fail "agentsec-migrate is not built"
+  export ZASP_APPROVAL_MAINTENANCE_PROFILE_CHECKSUM ZASP_APPROVAL_MAINTENANCE_KEY_FILE="$SECRETS/approval-delivery.key"
 }
 
 build_binaries() {
@@ -147,6 +151,10 @@ generate_keys() {
       printf 'ZASP_WORKFLOW_SIGNING_KEY=%s\nZASP_TOKEN_REVEAL_KEY=%s\nZASP_STYTCH_WEBHOOK_SECRET=whsec_%s\n' "$signing" "$reveal" "$webhook" > "$SECRETS/keys.env.partial"
       mv "$SECRETS/keys.env.partial" "$SECRETS/keys.env"
     )
+  fi
+  # The approval-notification delivery key: 32 bytes, readable by its owner only.
+  if [ ! -f "$SECRETS/approval-delivery.key" ]; then
+    (umask 077; openssl rand 32 > "$SECRETS/approval-delivery.key.partial" && chmod 0400 "$SECRETS/approval-delivery.key.partial" && mv "$SECRETS/approval-delivery.key.partial" "$SECRETS/approval-delivery.key") || fail "key generation failed"
   fi
 }
 
@@ -211,7 +219,7 @@ cmd_up() {
   fi
   migrate verify-baseline >/dev/null
   export ZASP_AUTHORIZATION_WORKER_KEY_FILE="$SECRETS/forward.seed" ZASP_AUTHORIZATION_COMPENSATION_KEY_FILE="$SECRETS/compensation.seed"
-  for command in register-authorization-verifier register-worker-authorization-verifier register-compensation-authorization-verifier; do
+  for command in register-authorization-verifier register-worker-authorization-verifier register-compensation-authorization-verifier register-approval-maintenance-verifier; do
     migrate "$command"
   done
   echo "real-stack: schema installed; next: $0 bootstrap <organization name> <domain> <admin email>"
@@ -251,6 +259,7 @@ cmd_api() {
   export ZASP_PROVIDER_TIMEOUT=10s ZASP_REQUEST_TIMEOUT=15s ZASP_SHUTDOWN_TIMEOUT=5s ZASP_READINESS_INTERVAL=1s ZASP_READINESS_MAX_INTERVAL=10s
   export ZASP_DISCOVERY_PARSER_VERSION=inventory-parser-2026.08.20 ZASP_DISCOVERY_TOOL_VERSION=collector-tool-2026.08.20
   export ZASP_POSTGRES_DSN="$(dsn zasp_svc_api)" ZASP_SECURITY_AGENT_POSTGRES_DSN="$(dsn zasp_svc_security_agent_api)"
+  export ZASP_APPROVAL_MAINTENANCE_POSTGRES_DSN="$(dsn zasp_svc_approval_maintenance)"
   export ZASP_STYTCH_AUTHORIZE_URL="$ZASP_STYTCH_BASE_URL/v1/b2b/public/oauth/${ZASP_REAL_STACK_OAUTH_PROVIDER:-google}/start"
   export ZASP_CONNECTOR_AWS_REGION=us-east-1 ZASP_CONNECTOR_ROLE_ARN=arn:aws:iam::000000000000:role/zasp-real-stack-api-connectors
   export ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE=/var/run/secrets/eks.amazonaws.com/serviceaccount/token
@@ -266,6 +275,22 @@ cmd_api() {
   exec "$BIN/agentsec-api"
 }
 
+# Starts one worker mode in the foreground. Only modes whose dependencies this
+# stack provides are listed; the others need queues, keys or endpoints it does
+# not create yet.
+cmd_worker() {
+  [ "$#" -eq 1 ] || fail "usage: $0 worker {scheduler}"
+  load_environment
+  export ZASP_WORKER_MODE="$1" ZASP_WORKER_ID="real-stack-$1" ZASP_AWS_REGION=us-east-1
+  export ZASP_POLL_INTERVAL=1s ZASP_LEASE_DURATION=30s ZASP_SHUTDOWN_TIMEOUT=5s ZASP_BATCH_SIZE=10 ZASP_PROVIDER_TIMEOUT=10s
+  export ZASP_DISCOVERY_PARSER_VERSION=inventory-parser-2026.08.20 ZASP_DISCOVERY_TOOL_VERSION=collector-tool-2026.08.20
+  case "$1" in
+    scheduler) export ZASP_POSTGRES_DSN="$(dsn zasp_svc_scheduler)" ZASP_DATABASE_AUTHORITY=zasp_discovery_scheduler ;;
+    *) fail "worker mode '$1' is not available on this stack yet" ;;
+  esac
+  exec "$BIN/agentsec-worker"
+}
+
 cmd_down() {
   docker stop "$PG_CONTAINER" zasp-real-stack-localstack zasp-real-stack-opensearch >/dev/null 2>&1 || true
   docker compose -f "$COMPOSE" stop
@@ -276,6 +301,7 @@ case "${1:-}" in
   up) shift; cmd_up "$@" ;;
   bootstrap) shift; cmd_bootstrap "$@" ;;
   api) shift; cmd_api "$@" ;;
+  worker) shift; cmd_worker "$@" ;;
   down) shift; cmd_down "$@" ;;
-  *) fail "usage: $0 {up|bootstrap <organization name> <domain> <admin email>|api|down}" ;;
+  *) fail "usage: $0 {up|bootstrap <organization name> <domain> <admin email>|api|worker <mode>|down}" ;;
 esac

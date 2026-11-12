@@ -33,7 +33,7 @@ On success it prints `{"artifact":"<sha256>","installed":true}`. It takes a few 
 
 The installer:
 
-1. Creates the product roles: the non-login authority roles and the 30 service logins (`zasp_svc_api`, `zasp_svc_outbox`, and so on). Service logins are created without passwords and with no privilege beyond membership in their own authority role.
+1. Creates the product roles: the non-login authority roles and the 31 service logins (`zasp_svc_api`, `zasp_svc_outbox`, and so on). Service logins are created without passwords and with no privilege beyond membership in their own authority role.
 2. Creates every schema, table, function, policy and reference row as the operator.
 3. Hands each object to its owning role. For this step only, the operator becomes a member of each owning role and each owning role may create in each schema. Both are removed again before the transaction ends.
 4. Seals the catalog (see below) and checks that authorization readiness passes.
@@ -43,8 +43,9 @@ Afterwards the operator holds one membership, in `zasp_discovery_authority`, whi
 ### After installing
 
 1. Set a password on each service login, as the operator: `ALTER ROLE zasp_svc_api PASSWORD '...';`. `SELECT rolname FROM pg_roles WHERE rolname LIKE 'zasp_svc_%'` lists them.
-2. Register the deployment's verification keys. These are the same commands as before and are run as the operator with `ZASP_MIGRATION_DB_PRINCIPAL=zasp_operator`: `register-authorization-verifier`, `register-worker-authorization-verifier`, `register-compensation-authorization-verifier`, then, once the first Organization exists, `register-identity-session-verifier` and `register-identity-webhook-verifier`.
-3. Create the first Organization: see [First Organization bootstrap](first-organization-bootstrap.md).
+2. Register the deployment's verification keys, as the operator with `ZASP_MIGRATION_DB_PRINCIPAL=zasp_operator`: `register-authorization-verifier`, `register-worker-authorization-verifier`, `register-compensation-authorization-verifier` and `register-approval-maintenance-verifier`, then, once the first Organization exists, `register-identity-session-verifier` and `register-identity-webhook-verifier`.
+3. Configure approval-notification delivery on the API, the workers and the permission projector: see the approval-maintenance bundle in [Cloud launch configuration](cloud-launch-configuration.md). The API does not report ready without it.
+4. Create the first Organization: see [First Organization bootstrap](first-organization-bootstrap.md).
 
 The service logins already hold their database bindings. `register-temporal-executor-principals` is not needed on a baseline installation.
 
@@ -87,19 +88,21 @@ A later, reviewed schema change must end by calling `zasp_baseline.accept('<arti
 
 ## What changed relative to the historical chain
 
-The baseline is generated from the chain, so it is the same schema. `services/platform/migrations/baseline/generate.sh` checks that on every regeneration: 143 readiness predicates return the same value on both, and about 13,700 structural facts (every schema, table, column, constraint, index, trigger, policy, function signature, owner, privilege, role and membership) are identical.
+The baseline is generated from the chain, so it is the same schema. `services/platform/migrations/baseline/generate.sh` checks that on every regeneration: 147 readiness predicates return the same value on both, and about 13,900 structural facts (every schema, table, column, constraint, index, trigger, policy, function signature, owner, privilege, role and membership) are identical.
 
-Three things differ on purpose:
+Four things differ on purpose:
 
 - **Integrity checks.** Function bodies that hashed other functions or compared fingerprint constants call `zasp_baseline.intact()` instead (`rules.sql`).
 - **Role memberships** are read through `zasp_baseline.role_memberships`, which hides the administrative membership PostgreSQL gives a non-superuser that creates a role.
 - **The worker startup gate is open.** The chain shipped `zasp_authorization80_worker.runtime_ready()` as `... AND false`. In the baseline it follows catalog integrity. The Security Agent, discovery and scheduler worker modes pass their database startup check; before, they could not start on any database.
 
+- **Approval-notification delivery is installed and active.** The chain shipped the approval-maintenance profile as an inactive candidate with no installer, so no approval notification was ever delivered and the API never reported ready. The baseline installs it, binds its dedicated login (`zasp_svc_approval_maintenance`), marks it active and adds `zasp_approval_maintenance.activate_projection`, which `zasp-bootstrap` calls for each Organization (`activation.sql`). The profile's own origin, delegation, reservation and settlement code is unchanged.
+
 Service login names are fixed (`zasp_svc_*`). Set the `ZASP_*_DB_PRINCIPAL` settings to those names.
 
 ## Regenerating the artifact
 
-`baseline.sql.gz`, `roles.sql` and `baseline.sha256` in `services/platform/migrations/baseline/` are generated. After changing the chain, `prelude.sql` or `rules.sql`, run:
+`baseline.sql.gz`, `roles.sql` and `baseline.sha256` in `services/platform/migrations/baseline/` are generated. After changing the chain, `prelude.sql`, `rules.sql` or `activation.sql`, run:
 
 ```bash
 services/platform/migrations/baseline/generate.sh

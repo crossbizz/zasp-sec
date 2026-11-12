@@ -194,19 +194,34 @@ type releaseMigrationRunner interface {
 func main() {
 	signalCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+	arguments := os.Args[1:]
+	// The baseline and approval-maintenance commands need only the operator
+	// DSN. ZASP_MIGRATION_TIMEOUT bounds them when set; otherwise ten minutes.
+	if approvalMaintenanceCommand(arguments) || baselineCommand(arguments) {
+		bound, timeoutErr := loadMigrationTimeout(os.Getenv)
+		if timeoutErr != nil {
+			if os.Getenv(migrationTimeoutEnvironment) != "" {
+				log.Fatal("release migration configuration rejected")
+			}
+			bound = 10 * time.Minute
+		}
+		commandCtx, cancelCommand := context.WithTimeout(signalCtx, bound)
+		var status int
+		if approvalMaintenanceCommand(arguments) {
+			status = runApprovalMaintenanceCommand(commandCtx, arguments, os.Getenv, os.Stdout, os.Stderr)
+		} else {
+			status = runBaselineCommand(commandCtx, arguments, os.Getenv, os.Stdout, os.Stderr)
+		}
+		cancelCommand()
+		stop()
+		os.Exit(status)
+	}
 	timeout, err := loadMigrationTimeout(os.Getenv)
 	if err != nil {
 		log.Fatal("release migration configuration rejected")
 	}
 	ctx, cancel := context.WithTimeout(signalCtx, timeout)
 	defer cancel()
-	arguments := os.Args[1:]
-	if baselineCommand(arguments) {
-		status := runBaselineCommand(ctx, arguments, os.Getenv, os.Stdout, os.Stderr)
-		cancel()
-		stop()
-		os.Exit(status)
-	}
 	var verifierKey *authorization.AttestationKey
 	var verifierPrincipal string
 	var identityRegistration *identityVerifierRegistration
