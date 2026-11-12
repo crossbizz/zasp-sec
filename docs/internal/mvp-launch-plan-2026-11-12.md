@@ -14,15 +14,15 @@ A step is done when it has run through the product's own binaries against real d
 
 | # | Step (PRD) | State on 2026-11-12 | Next action |
 | --- | --- | --- | --- |
-| 0 | Install and operate | Schema installed on production Neon and on the local stack without superuser. API reports ready. Scheduler and discovery workers start. | Deploy manifests still use the old login names and lack the install job and approval-delivery settings. Update them. |
-| 1 | First-Admin bootstrap (§6.1) | `zasp-bootstrap` creates the Organization, Workspace, Environments, admin membership and scopes against real Stytch. | Done for the operator side. |
+| 0 | Install and operate | Schema installed on production Neon and on the local stack without superuser. The API reports ready and the scheduler worker starts against a Neon development branch (`zasp-dev`), reached over the WebSocket transport on port 443. Discovery worker starts on the local database. | Deploy manifests still use the old login names and lack the install job and approval-delivery settings. Update them. |
+| 1 | First-Admin bootstrap (§6.1) | `zasp-bootstrap` creates the Organization, Workspace, Environments, admin membership and scopes against real Stytch, on the local database and on the Neon development branch. The Stytch invitation call was refused for a made-up address; the member was created directly instead. Whether Stytch delivers an invitation to a real address is unproven. | Invite one real address and confirm delivery. |
 | 2 | Sign-in and corporate SSO (§6.1, §14.2) | Sign-in start redirects to Stytch. Stytch redirect URLs and Google OAuth are now configured. No sign-in has been completed. Only bootstrapped admins of one Organization can sign in; SSO tokens are not exchanged; invited members get no membership. | Complete one browser sign-in. Then member onboarding, Organization selection in SaaS mode, SSO token exchange, SCIM. |
 | 3 | Connect launch systems (§6.2–6.3) | API connector readiness passes against LocalStack. No connector has been connected through the product. | After sign-in: connect AWS (LocalStack) through the UI and API. |
 | 4 | Discover (§7) | Discovery worker runs and consumes its queue. No discovery run has been driven. | Drive one discovery run end to end; confirm inventory appears. |
 | 5 | Inventory, capability, findings, attack path (§8) | Built and component-tested. Projection workers (risk, graph, search) not started here; graph needs Neo4j. | Start projection workers; decide the local graph store. |
 | 6 | Red team and Attack Lab (§9) | Built and component-tested. Workers not started here. Attack Lab needs EKS Fargate, which LocalStack does not emulate. | Red team on the local stack; Attack Lab needs real AWS. |
 | 7 | Runtime policy: Monitor and Block (§10) | Built and component-tested. Runtime pipeline workers pass their database readiness; not started here. | Start the runtime pipeline; ingest one event; enforce one policy. |
-| 8 | Security Agent plan, authorization, action or approval (§11) | Worker gate open. An OpenRouter key is now available. Worker not started. Approval-notification delivery is activated but no notification has been delivered. | Start the Security Agent worker; drive one run that raises an approval; deliver the notification. |
+| 8 | Security Agent plan, authorization, action or approval (§11) | Worker gate open. An OpenRouter key is available. The worker's own database role was never granted the startup gate (fixed: the gate is evaluated on the executor connection). The worker still does not start: it requires a file listing a pricing binding for every Organization, a gateway signing key and the red-team runner. A static per-Organization file cannot serve a multi-tenant deployment. Approval-notification delivery is activated but no notification has been delivered. | Read pricing bindings from the database instead of a file; then start the worker, drive one run that raises an approval, deliver the notification. Its planner client ignores the HTTPS proxy on purpose, so planning calls need direct egress. |
 | 9 | Containment, temporary-control expiry, re-test (§11.8–11.9) | Built and component-tested. | Covered by the run in step 8. |
 | 10 | Session investigation and audit export (§12) | Built and component-tested; export readiness passes against LocalStack. | Verify after steps 4–8 produce real data. |
 
@@ -42,7 +42,7 @@ A step is done when it has run through the product's own binaries against real d
 | Need | For |
 | --- | --- |
 | A Google account sign-in in a browser, on a machine that resolves the stack's origin | Step 2. An automated run cannot complete Google OAuth. |
-| A deployment target that reaches Neon over TCP (a server or cluster) | Running the API and workers against the production database. |
+| A deployment target (a server or cluster) | Running the API and workers against the production database. From HTTPS-only networks `ZASP_POSTGRES_TRANSPORT=websocket` reaches Neon; development runs use the `zasp-dev` branch, never production. |
 | A real AWS account | Attack Lab on Fargate; real IAM, KMS and network behaviour. |
 | A decision on the connector-reconciliation authority model | See the 2026-11-12 readiness update. |
 
