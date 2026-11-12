@@ -49,6 +49,18 @@ Afterwards the operator holds one membership, in `zasp_discovery_authority`, whi
 
 The service logins already hold their database bindings. `register-temporal-executor-principals` is not needed on a baseline installation.
 
+## Installing over an HTTPS SQL endpoint
+
+Where port 5432 is not reachable but the provider offers an HTTPS SQL endpoint (Neon does), print the installation as single statements and send them as one transaction:
+
+```bash
+ZASP_BASELINE_EXISTING_ROLES=zasp_operator /app/agentsec-migrate baseline-script > script.json
+```
+
+`script.json` is a JSON array of about 12,000 statements. Send them in order, in one transaction on one session, as `zasp_operator` (for Neon: one `POST https://<endpoint host>/sql` with `{"queries":[{"query":...,"params":[]},...]}`). The last statement seals the catalog and raises an error unless it is intact and ready, which rolls everything back. `ZASP_BASELINE_EXISTING_ROLES` lists product roles the cluster already has, so they are not created twice. Check the preconditions yourself first: this form cannot.
+
+The production Neon project was installed this way on 2026-11-12 in 7 seconds.
+
 ## Refusals
 
 A refusal prints one line and exits with status 1:
@@ -112,6 +124,6 @@ It needs Docker, Go and `psql`, and takes about five minutes. It stops if a rewr
 
 ## Not covered
 
-- **A run against Neon itself.** The installer is verified on PostgreSQL 18 with an operator that has exactly the privileges a managed provider grants (no superuser). Neon accepts only TLS connections on port 5432, which the build environment could not reach, so the first installation on the Neon project is still to be done.
+- **Installing from the deployment network.** The production Neon project was installed over Neon's HTTPS SQL endpoint (below), not with `install-baseline` over a PostgreSQL connection. Both run the same statements.
 - **Upgrading an existing chain-installed database.** The baseline installs into an empty database only. No production database exists yet, so there is nothing to upgrade.
 - **Removing the historical chain.** It stays in the repository as the generator's input.

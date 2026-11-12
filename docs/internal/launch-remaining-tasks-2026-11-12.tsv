@@ -21,7 +21,6 @@ M0	M0-21a	component-only	T07-security-agent-authority
 M0	M0-22	component-only	T14-data-workflows
 M1	M1-01b	component-only	T04-discovery-worker
 M1	M1-01c	component-only	T10-product-ui
-M1	M1-10	component-only	T15-deployment
 M1	M1-30a	component-only	T04-discovery-worker
 M1	M1-30b	component-only	T04-discovery-worker
 M1	M1-30c	component-only	T04-discovery-worker

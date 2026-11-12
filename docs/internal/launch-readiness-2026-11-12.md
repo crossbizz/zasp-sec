@@ -4,7 +4,7 @@ Launch is not accepted. Three blockers are fixed since [the 2026-11-11 report](l
 
 ## Ledger
 
-728 rows: **518 production-available, 149 component-only, 61 blocked/external**. One row moved from production-available to component-only (M1-10, Neon schema baseline). No row was promoted. The [remaining list](launch-remaining-tasks-2026-11-12.tsv) holds all 210 rows outside production-available.
+728 rows: **519 production-available, 148 component-only, 61 blocked/external**. M1-10 (Neon schema baseline) was demoted when the chain proved uninstallable on Neon, and restored once the baseline was installed on the production Neon project. The [remaining list](launch-remaining-tasks-2026-11-12.tsv) holds all 209 rows outside production-available.
 
 ## What changed
 
@@ -27,7 +27,7 @@ The baseline is generated from the historical chain by `services/platform/migrat
 
 Two predicates differ from the superuser installation on purpose: the worker gate (below), and `zasp_temporal67.base_ready`, a layer-67 check that layer 68 superseded and nothing reads.
 
-**Not done:** the install has not been run on the Neon project. This environment has no TCP path to Neon. The installer was verified with the same privilege shape Neon grants.
+**Installed on the production Neon project** (PostgreSQL 18.6, database `zasp`, owner `zasp_operator`): one transaction of 12,099 statements over Neon's HTTPS SQL endpoint, 7 seconds. There the seal is intact, authorization readiness, the worker gate and approval delivery return true, and the operator holds only its `zasp_discovery_authority` membership. No Organization exists there yet and no service has connected to it: this environment has no TCP path to Neon.
 
 **Also changed:** service login names are fixed (`zasp_svc_*`) and the operator role must be named `zasp_operator`, because the baseline stores principal bindings and grantors.
 
@@ -92,7 +92,7 @@ A separate reviewer read the integrity schema, the installer, the temporary-gran
 
 | Prerequisite | Needed for |
 | --- | --- |
-| TCP path to the Neon project, and a `zasp_operator` role created there | First install on Neon |
+| A deployment network with a TCP path to Neon | Running the API and workers against the production database |
 | Stytch: redirect URLs registered, billing verified, an OAuth provider enabled | Invitation delivery and browser sign-in |
 | A real AWS account with the deployment roles, KMS keys, queues and buckets | Anything beyond LocalStack emulation |
 | An OpenRouter API token | Starting the Security Agent worker, in development or production: its planner endpoint and model are fixed |
@@ -103,4 +103,4 @@ A separate reviewer read the integrity schema, the installer, the temporary-gran
 1. **Finish the workers on the local stack.** Let workers run side by side (a development-only health port setting), create the remaining modes' queues, keys and endpoints in LocalStack, and drive one discovery run and one Security Agent run that raises an approval, so an approval notification is delivered end to end. Browser sign-in (Stytch dashboard settings) is needed to connect a connector through the product.
 2. **Decide the connector-reconciliation authority model** (classification as shipped, or delegation with a permission re-check).
 3. **Member onboarding and sign-in beyond the first administrator**: membership creation for invited members, Organization selection at sign-in in SaaS mode, SSO token exchange.
-4. **Install on Neon** as soon as a TCP path exists.
+4. **Deploy against Neon**: service login passwords, verifier registration and first Organization on the production database, from a network that reaches it.

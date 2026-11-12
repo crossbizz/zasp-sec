@@ -20,14 +20,14 @@ const allowedProductionClasses = new Set([
   "missing",
 ]);
 const expectedClassCounts = new Map([
-  ["production-available", 518],
-  ["component-only", 149],
+  ["production-available", 519],
+  ["component-only", 148],
   ["blocked/external", 61],
   ["missing", 0],
 ]);
 const expectedMilestoneClassCounts = new Map([
   ["M0", new Map([["production-available", 7], ["component-only", 17], ["blocked/external", 3], ["missing", 0]])],
-  ["M1", new Map([["production-available", 56], ["component-only", 12], ["blocked/external", 0], ["missing", 0]])],
+  ["M1", new Map([["production-available", 57], ["component-only", 11], ["blocked/external", 0], ["missing", 0]])],
   ["M1A", new Map([["production-available", 0], ["component-only", 6], ["blocked/external", 4], ["missing", 0]])],
   ["M2", new Map([["production-available", 63], ["component-only", 9], ["blocked/external", 0], ["missing", 0]])],
   ["M3", new Map([["production-available", 73], ["component-only", 0], ["blocked/external", 2], ["missing", 0]])],

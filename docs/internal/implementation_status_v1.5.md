@@ -25,10 +25,11 @@ The production binaries run against LocalStack and a local OpenSearch node when
 `deploy/local/real-stack/stack.sh` uses all three: baseline install as a
 non-superuser, LocalStack, and the real Stytch TEST project.
 
-M1-10 (Neon schema baseline) was recorded production-available; it is now
-component-only. The chain could never install on Neon, and the baseline has not
-yet been installed on the Neon project because this environment has no TCP path
-to it.
+The baseline is installed on the production Neon project: sealed, intact, with
+authorization readiness, the worker gate and approval delivery all true. It was
+installed in one transaction over Neon's HTTPS SQL endpoint, because this
+environment has no TCP path to Neon (`agentsec-migrate baseline-script`).
+M1-10 (Neon schema baseline) is production-available on that evidence.
 
 The API now reports ready: `/readyz` returns 200 on the baseline with LocalStack
 and the Stytch TEST project. It never could before. Under the current
@@ -40,7 +41,7 @@ had no replacement; its lease-bound statements are now classified explicitly as
 system maintenance. That classification is a security-model decision recorded
 for review. No approval notification has been delivered end to end yet.
 
-Counts are now 518 production-available, 149 component-only and 61
+Counts are now 519 production-available, 148 component-only and 61
 blocked/external across all 728 IDs. No row was promoted. Details are in
 [the readiness update](launch-readiness-2026-11-12.md).
 
@@ -13363,8 +13364,8 @@ matrix below the audit basis is the readiness measure.
 
 | Production class | Count |
 | --- | ---: |
-| Production-available | 518 |
-| Component-only | 149 |
+| Production-available | 519 |
+| Component-only | 148 |
 | Blocked/external | 61 |
 | Missing | 0 |
 
@@ -13569,7 +13570,7 @@ gates. M7-07's actual worker-backed mixed-evidence acceptance and PR47 main CI
 | Milestone | Total | Production-available | Component-only | Blocked/external | Missing |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | M0 | 27 | 7 | 17 | 3 | 0 |
-| M1 | 68 | 56 | 12 | 0 | 0 |
+| M1 | 68 | 57 | 11 | 0 | 0 |
 | M1A | 10 | 0 | 6 | 4 | 0 |
 | M2 | 72 | 63 | 9 | 0 | 0 |
 | M3 | 75 | 73 | 0 | 2 | 0 |
@@ -13579,7 +13580,7 @@ gates. M7-07's actual worker-backed mixed-evidence acceptance and PR47 main CI
 | M7 | 62 | 30 | 32 | 0 | 0 |
 | M7A | 113 | 95 | 18 | 0 | 0 |
 | M8 | 141 | 34 | 55 | 52 | 0 |
-| **Total** | **728** | **518** | **149** | **61** | **0** |
+| **Total** | **728** | **519** | **148** | **61** | **0** |
 
 ## Prerequisite work
 

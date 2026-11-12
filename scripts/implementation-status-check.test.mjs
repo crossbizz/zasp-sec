@@ -353,7 +353,7 @@ test("rejects audited production-class count drift", async () => {
     async (ledgerPath) => {
       await assert.rejects(
         () => validateLedger({ ledgerPath, sourcePlanPath }),
-        /production-available count is 517; expected 518/,
+        /production-available count is 518; expected 519/,
       );
     },
   );
@@ -385,7 +385,7 @@ test("rejects a cross-milestone class swap that preserves global totals", async 
     async (ledgerPath) => {
       await assert.rejects(
         () => validateLedger({ ledgerPath, sourcePlanPath }),
-        /M1 production-available count is 57; expected 56/,
+        /M1 production-available count is 58; expected 57/,
       );
     },
   );
@@ -560,7 +560,7 @@ test("rejects a published milestone matrix that drifts from the audited map", as
   await withLedgerAndStatus(
     (ledger) => ledger,
     (status) => {
-      const expected = "| M1 | 68 | 56 | 12 | 0 | 0 |";
+      const expected = "| M1 | 68 | 57 | 11 | 0 | 0 |";
       assert.ok(status.includes(expected), "matrix-drift fixture must match the current M1 row");
       return status.replace(expected, "| M1 | 68 | 58 | 10 | 0 | 0 |");
     },
@@ -577,7 +577,7 @@ test("rejects a published availability summary that drifts from the audited ledg
   await withLedgerAndStatus(
     (ledger) => ledger,
     (status) => {
-      const expected = "| Production-available | 518 |";
+      const expected = "| Production-available | 519 |";
       assert.ok(status.includes(expected), "summary-drift fixture must match the current total");
       return status.replace(expected, "| Production-available | 496 |");
     },

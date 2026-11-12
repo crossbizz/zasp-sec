@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -14,7 +15,34 @@ import (
 
 // baselineCommand reports whether the arguments select a baseline command.
 func baselineCommand(arguments []string) bool {
-	return len(arguments) == 1 && (arguments[0] == "install-baseline" || arguments[0] == "verify-baseline")
+	return len(arguments) == 1 && (arguments[0] == "install-baseline" || arguments[0] == "verify-baseline" || arguments[0] == "baseline-script")
+}
+
+// writeBaselineScript prints the installation as a JSON array of single SQL
+// statements, for a transport that cannot carry a multi-statement script (an
+// HTTPS SQL endpoint). The caller runs them in order in one transaction as
+// the operator. ZASP_BASELINE_EXISTING_ROLES lists, comma-separated, the
+// product roles the cluster already has. It needs no database.
+func writeBaselineScript(getenv func(string) string, stdout, stderr io.Writer) int {
+	var existing []string
+	for _, role := range strings.Split(getenv("ZASP_BASELINE_EXISTING_ROLES"), ",") {
+		if role = strings.TrimSpace(role); role != "" {
+			if !databasePrincipalPattern.MatchString(role) {
+				_, _ = io.WriteString(stderr, "baseline refused: stage=configuration\n")
+				return 1
+			}
+			existing = append(existing, role)
+		}
+	}
+	statements, err := baseline.Script(existing, "zasp_authorization80.ready('"+migrations.ProductionAuthorizationEnforcement().Checksum()+"')")
+	if err != nil {
+		_, _ = io.WriteString(stderr, "baseline refused: stage=artifact\n")
+		return 1
+	}
+	if json.NewEncoder(stdout).Encode(statements) != nil {
+		return 1
+	}
+	return 0
 }
 
 // runBaselineCommand installs or verifies the baseline schema. It returns the
@@ -22,6 +50,9 @@ func baselineCommand(arguments []string) bool {
 // the SQLSTATE and message: installation runs DDL only, so the message holds
 // object names and never a credential.
 func runBaselineCommand(ctx context.Context, arguments []string, getenv func(string) string, stdout, stderr io.Writer) int {
+	if arguments[0] == "baseline-script" {
+		return writeBaselineScript(getenv, stdout, stderr)
+	}
 	dsn := getenv(postgresDSNEnvironment)
 	if dsn == "" {
 		_, _ = io.WriteString(stderr, "baseline refused: stage=configuration\n")
