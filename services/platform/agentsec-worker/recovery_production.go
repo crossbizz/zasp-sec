@@ -17,6 +17,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+	"github.com/zasp-ai/zasp-sec/services/platform/localcloud"
 )
 
 type productionRecoveryDependencies struct {
@@ -38,10 +39,11 @@ func newProductionRecoveryDependencies(ctx context.Context, config workerRuntime
 	transport := &http.Transport{Proxy: nil, DialContext: (&net.Dialer{Timeout: timeout, KeepAlive: 30 * time.Second}).DialContext, ForceAttemptHTTP2: true, TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12}, TLSHandshakeTimeout: timeout, ResponseHeaderTimeout: timeout, MaxResponseHeaderBytes: 1 << 20}
 	httpClient := &http.Client{Transport: transport, Timeout: timeout, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	base := aws.Config{Region: config.AWSRegion, HTTPClient: httpClient, Credentials: aws.AnonymousCredentials{}, Retryer: func() aws.Retryer { return aws.NopRetryer{} }}
+	localcloud.Current().Apply(&base)
 	provider := &outboxWebIdentityProvider{client: sts.NewFromConfig(base), roleARN: config.RecoveryRoleARN, tokenFile: config.RecoveryTokenFile, timeout: timeout, session: "zasp-recovery-worker"}
 	credentials := aws.NewCredentialsCache(provider)
 	base.Credentials = credentials
-	s3Client := s3.NewFromConfig(base)
+	s3Client := s3.NewFromConfig(base, localcloud.Current().S3)
 	kmsClient := kms.NewFromConfig(base)
 	queueClient := sqs.NewFromConfig(base)
 	queue, err := newProductionDiscoveryQueue(queueClient, productionDiscoveryQueueConfig{Region: config.AWSRegion, QueueURL: config.RecoveryQueueURL, OperationTimeout: timeout, Visibility: config.LeaseDuration, ShutdownTimeout: config.ShutdownTimeout, ExpectedQueueName: "agentsec-recovery-" + config.RecoveryOperationKind + "-jobs", MaximumReceiveCount: 100})

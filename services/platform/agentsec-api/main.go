@@ -11,6 +11,7 @@ import (
 	"syscall"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/healthserver"
+	"github.com/zasp-ai/zasp-sec/services/platform/localcloud"
 )
 
 const healthListenAddress = ":8081"
@@ -31,6 +32,10 @@ func main() {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	if localcloud.Require() != nil {
+		reportStartupRefusal(os.Stderr, "local-cloud")
+		os.Exit(1)
+	}
 	config, err := loadRuntimeConfigFromEnvironment(os.LookupEnv)
 	if err != nil {
 		reportStartupRefusal(os.Stderr, "configuration")

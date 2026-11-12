@@ -11,6 +11,7 @@ import (
 	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+	"github.com/zasp-ai/zasp-sec/services/platform/localcloud"
 	platformpolicy "github.com/zasp-ai/zasp-sec/services/platform/policy"
 	"github.com/zasp-ai/zasp-sec/services/platform/policy/opensearchhistory"
 	runtimeopensearch "github.com/zasp-ai/zasp-sec/services/platform/runtimeindex/opensearchdriver"
@@ -34,6 +35,7 @@ func newProductionPolicyHistory(config RuntimeConfig) (*productionPolicyHistory,
 	}
 	client := &http.Client{Transport: transport, Timeout: config.ProviderTimeout, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	base := aws.Config{Region: config.ConnectorAWSRegion, HTTPClient: client, Credentials: aws.AnonymousCredentials{}, Retryer: func() aws.Retryer { return aws.NopRetryer{} }}
+	localcloud.Current().Apply(&base)
 	var credentials aws.CredentialsProvider
 	if config.Environment == "test" {
 		credentials = aws.CredentialsProviderFunc(func(context.Context) (aws.Credentials, error) {

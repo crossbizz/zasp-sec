@@ -22,6 +22,7 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/awsdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/kubernetesdiscovery"
+	"github.com/zasp-ai/zasp-sec/services/platform/localcloud"
 )
 
 var (
@@ -382,6 +383,7 @@ func newReferenceAWSClient(config RuntimeConfig) (*awsReferenceIdentityClient, *
 	transport := &http.Transport{Proxy: nil, DialContext: (&net.Dialer{Timeout: 3 * time.Second}).DialContext, ForceAttemptHTTP2: true, TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12}, TLSHandshakeTimeout: 3 * time.Second, ResponseHeaderTimeout: config.ProviderTimeout, MaxResponseHeaderBytes: 1 << 20}
 	httpClient := &http.Client{Transport: transport, Timeout: config.ProviderTimeout, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	base := aws.Config{Region: config.ConnectorAWSRegion, HTTPClient: httpClient, Credentials: aws.AnonymousCredentials{}, Retryer: func() aws.Retryer { return aws.NopRetryer{} }}
+	localcloud.Current().Apply(&base)
 	webSTS := sts.NewFromConfig(base)
 	base.Credentials = aws.NewCredentialsCache(&connectorWebIdentityProvider{client: webSTS, roleARN: config.ConnectorRoleARN, tokenFile: config.ConnectorTokenFile, timeout: config.ProviderTimeout})
 	assume := sts.NewFromConfig(base)

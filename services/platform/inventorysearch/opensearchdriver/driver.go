@@ -41,6 +41,9 @@ type Config struct {
 	RequestTimeout       time.Duration
 	MaximumRequestBytes  int
 	MaximumResponseBytes int
+	// AllowTestLoopback accepts a plaintext loopback endpoint instead of an
+	// AWS domain. Only a development or test deployment sets it.
+	AllowTestLoopback bool
 }
 
 type HTTPSigner interface {
@@ -98,6 +101,16 @@ func newWithClient(config Config, credentials aws.CredentialsProvider, signer HT
 func validateConfig(config Config, credentials aws.CredentialsProvider, signer HTTPSigner, clock func() time.Time) (*url.URL, error) {
 	if nilInterface(credentials) || nilInterface(signer) || clock == nil || !regionPattern.MatchString(config.Region) || config.RequestTimeout < time.Second || config.RequestTimeout > maximumConfiguredTimeout || config.RequestTimeout%time.Second != 0 || config.MaximumRequestBytes < 1 || config.MaximumRequestBytes > maximumConfiguredRequest || config.MaximumResponseBytes < 1 || config.MaximumResponseBytes > maximumConfiguredResponse {
 		return nil, inventorysearch.ErrConfiguration
+	}
+	if config.AllowTestLoopback {
+		local, err := url.Parse(config.Endpoint)
+		if err != nil || local.String() != config.Endpoint || local.Scheme != "http" || local.User != nil || local.Port() == "" || local.Path != "" || local.RawQuery != "" || local.Fragment != "" {
+			return nil, inventorysearch.ErrConfiguration
+		}
+		if address := net.ParseIP(local.Hostname()); address == nil || !address.IsLoopback() {
+			return nil, inventorysearch.ErrConfiguration
+		}
+		return local, nil
 	}
 	endpoint, err := url.Parse(config.Endpoint)
 	if err != nil || endpoint.String() != config.Endpoint || endpoint.Scheme != "https" || endpoint.User != nil || endpoint.Port() != "" || endpoint.Path != "" || endpoint.RawPath != "" || endpoint.RawQuery != "" || endpoint.ForceQuery || endpoint.Fragment != "" || endpoint.Opaque != "" {

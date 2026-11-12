@@ -7,6 +7,7 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
 	"github.com/zasp-ai/zasp-sec/services/platform/awsclient"
 	platformconfig "github.com/zasp-ai/zasp-sec/services/platform/config"
+	"github.com/zasp-ai/zasp-sec/services/platform/localcloud"
 	"net"
 	"net/http"
 	"regexp"
@@ -73,6 +74,7 @@ func newComplianceStorageResources(c RuntimeConfig) (complianceStorageResources,
 	transport := &http.Transport{Proxy: nil, DialContext: (&net.Dialer{Timeout: 3 * time.Second}).DialContext, ForceAttemptHTTP2: true, TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12}, TLSHandshakeTimeout: 3 * time.Second, ResponseHeaderTimeout: c.ProviderTimeout, MaxResponseHeaderBytes: 1 << 20}
 	client := &http.Client{Transport: transport, Timeout: c.ProviderTimeout, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	base := aws.Config{Region: region.String(), HTTPClient: client, Credentials: aws.AnonymousCredentials{}, Retryer: func() aws.Retryer { return aws.NopRetryer{} }}
+	localcloud.Current().Apply(&base)
 	provider := &connectorWebIdentityProvider{client: sts.NewFromConfig(base), roleARN: p.ReaderRoleARN, tokenFile: p.TokenFile, timeout: c.ProviderTimeout, sessionName: "zasp-api-compliance-read"}
 	clients, err := awsclient.New(awsclient.Options{Mode: awsclient.ModeProduction, Region: region, Credentials: aws.NewCredentialsCache(provider), HTTPClient: client})
 	if err != nil {

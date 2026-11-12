@@ -22,6 +22,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/zasp-ai/zasp-sec/services/platform/jobqueue"
 	"github.com/zasp-ai/zasp-sec/services/platform/jobqueue/sqsdriver"
+	"github.com/zasp-ai/zasp-sec/services/platform/localcloud"
 )
 
 var outboxWebTokenPattern = regexp.MustCompile(`^[A-Za-z0-9._~-]+$`)
@@ -144,6 +145,7 @@ func newProductionOutboxIO(config workerRuntimeConfig) (outboxDependencyIO, erro
 	transport := &http.Transport{Proxy: nil, DialContext: (&net.Dialer{Timeout: 3 * time.Second, KeepAlive: 30 * time.Second}).DialContext, ForceAttemptHTTP2: true, TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12}, TLSHandshakeTimeout: 3 * time.Second, ResponseHeaderTimeout: minDuration(config.LeaseDuration/3, 30*time.Second), MaxResponseHeaderBytes: 1 << 20}
 	client := &http.Client{Transport: transport, Timeout: minDuration(config.LeaseDuration/3, 30*time.Second), CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	base := aws.Config{Region: config.AWSRegion, HTTPClient: client, Credentials: aws.AnonymousCredentials{}, Retryer: func() aws.Retryer { return aws.NopRetryer{} }}
+	localcloud.Current().Apply(&base)
 	session := "zasp-outbox-worker"
 	if config.Mode == workerModeRuntimeOutbox {
 		session = "zasp-runtime-outbox-worker"

@@ -18,6 +18,7 @@ import (
 	secretstypes "github.com/aws/aws-sdk-go-v2/service/secretsmanager/types"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
+	"github.com/zasp-ai/zasp-sec/services/platform/localcloud"
 )
 
 var webIdentityTokenPattern = regexp.MustCompile(`^[A-Za-z0-9._~-]+$`)
@@ -148,6 +149,7 @@ func newConnectorSecretsClient(config RuntimeConfig) (*secretsmanager.Client, *h
 	}
 	client := &http.Client{Transport: transport, Timeout: config.ProviderTimeout, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	base := aws.Config{Region: config.ConnectorAWSRegion, HTTPClient: client, Credentials: aws.AnonymousCredentials{}, Retryer: func() aws.Retryer { return aws.NopRetryer{} }}
+	localcloud.Current().Apply(&base)
 	stsClient := sts.NewFromConfig(base)
 	credentials := aws.NewCredentialsCache(&connectorWebIdentityProvider{client: stsClient, roleARN: config.ConnectorRoleARN, tokenFile: config.ConnectorTokenFile, timeout: config.ProviderTimeout})
 	base.Credentials = credentials

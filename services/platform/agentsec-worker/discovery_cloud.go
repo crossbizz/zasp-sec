@@ -22,6 +22,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/collection"
+	"github.com/zasp-ai/zasp-sec/services/platform/localcloud"
 )
 
 var (
@@ -147,10 +148,11 @@ func newProductionDiscoveryCloudAuthority(config productionDiscoveryCloudConfig)
 	transport := &http.Transport{Proxy: nil, DialContext: (&net.Dialer{Timeout: config.Timeout, KeepAlive: 30 * time.Second}).DialContext, ForceAttemptHTTP2: true, TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12}, TLSHandshakeTimeout: config.Timeout, ResponseHeaderTimeout: config.Timeout, MaxResponseHeaderBytes: 1 << 20}
 	httpClient := &http.Client{Transport: collection.EffectTransport{Next: transport}, Timeout: config.Timeout, CheckRedirect: rejectDiscoveryProviderRedirect}
 	base := aws.Config{Region: config.Region, HTTPClient: httpClient, Credentials: aws.AnonymousCredentials{}, Retryer: func() aws.Retryer { return aws.NopRetryer{} }}
+	localcloud.Current().Apply(&base)
 	webIdentity := &discoveryWebIdentityProvider{client: sts.NewFromConfig(base), roleARN: config.RoleARN, tokenFile: config.TokenFile, timeout: config.Timeout, clock: config.Clock, session: config.Session}
 	credentials := aws.NewCredentialsCache(webIdentity)
 	base.Credentials = credentials
-	return &productionDiscoveryCloudAuthority{base: base, credentials: credentials, secrets: secretsmanager.NewFromConfig(base), assumeRole: sts.NewFromConfig(base), s3: s3.NewFromConfig(base), sqs: sqs.NewFromConfig(base), kms: kms.NewFromConfig(base), transport: transport, clock: config.Clock}, nil
+	return &productionDiscoveryCloudAuthority{base: base, credentials: credentials, secrets: secretsmanager.NewFromConfig(base), assumeRole: sts.NewFromConfig(base), s3: s3.NewFromConfig(base, localcloud.Current().S3), sqs: sqs.NewFromConfig(base), kms: kms.NewFromConfig(base), transport: transport, clock: config.Clock}, nil
 }
 
 func (authority *productionDiscoveryCloudAuthority) NewCallerIdentity(region string, credentials aws.Credentials) (discoveryCallerIdentityAPI, error) {

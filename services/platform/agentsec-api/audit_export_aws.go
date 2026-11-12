@@ -12,6 +12,7 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
 	"github.com/zasp-ai/zasp-sec/services/platform/awsclient"
 	platformconfig "github.com/zasp-ai/zasp-sec/services/platform/config"
+	"github.com/zasp-ai/zasp-sec/services/platform/localcloud"
 )
 
 type auditExportStorageResources struct {
@@ -50,6 +51,7 @@ func newAuditExportStorageResources(config RuntimeConfig) (auditExportStorageRes
 	providers := make([]*connectorWebIdentityProvider, 0, len(regions))
 	for index, region := range regions {
 		base := aws.Config{Region: region.String(), HTTPClient: httpClient, Credentials: aws.AnonymousCredentials{}, Retryer: func() aws.Retryer { return aws.NopRetryer{} }}
+		localcloud.Current().Apply(&base)
 		provider := &connectorWebIdentityProvider{client: sts.NewFromConfig(base), roleARN: config.AuditExports.ReaderRoleARN, tokenFile: config.AuditExports.TokenFile, timeout: config.ProviderTimeout, sessionName: "zasp-api-audit-read"}
 		credentials := aws.NewCredentialsCache(provider)
 		clients, err := awsclient.New(awsclient.Options{Mode: awsclient.ModeProduction, Region: region, Credentials: credentials, HTTPClient: httpClient})

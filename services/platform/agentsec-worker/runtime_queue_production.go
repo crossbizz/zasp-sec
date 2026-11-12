@@ -19,6 +19,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/zasp-ai/zasp-sec/services/platform/jobqueue"
 	"github.com/zasp-ai/zasp-sec/services/platform/jobqueue/sqsdriver"
+	"github.com/zasp-ai/zasp-sec/services/platform/localcloud"
 )
 
 type runtimeQueueAPI interface {
@@ -45,6 +46,7 @@ func newProductionRuntimeQueue(ctx context.Context, config workerRuntimeConfig) 
 	transport := &http.Transport{Proxy: nil, DialContext: (&net.Dialer{Timeout: 3 * time.Second, KeepAlive: 30 * time.Second}).DialContext, ForceAttemptHTTP2: true, TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12}, TLSHandshakeTimeout: 3 * time.Second, ResponseHeaderTimeout: minDuration(config.LeaseDuration/3, 30*time.Second), MaxResponseHeaderBytes: 1 << 20}
 	httpClient := &http.Client{Transport: transport, Timeout: minDuration(config.LeaseDuration/3, 30*time.Second), CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	base := aws.Config{Region: config.AWSRegion, HTTPClient: httpClient, Credentials: aws.AnonymousCredentials{}, Retryer: func() aws.Retryer { return aws.NopRetryer{} }}
+	localcloud.Current().Apply(&base)
 	provider := &outboxWebIdentityProvider{client: sts.NewFromConfig(base), roleARN: config.RuntimeRoleARN, tokenFile: config.RuntimeTokenFile, timeout: minDuration(config.LeaseDuration/3, 30*time.Second), session: "zasp-runtime-coordinator"}
 	credentials := aws.NewCredentialsCache(provider)
 	if _, err := credentials.Retrieve(ctx); err != nil {

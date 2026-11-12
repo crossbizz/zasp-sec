@@ -16,6 +16,13 @@ COMPOSE="$ROOT/deploy/local/temporal-openfga.compose.yaml"
 PG_IMAGE="${ZASP_REAL_STACK_PG_IMAGE:-public.ecr.aws/docker/library/postgres:18.3@sha256:7e32e9833a6fb1c92c32552794cb6ed569d51b445a54907d35fc112ef39684db}"
 PG_CONTAINER="zasp-real-stack-db"
 PG_PORT="${ZASP_REAL_STACK_PG_PORT:-55432}"
+# LocalStack stands in for AWS and a single OpenSearch node for the search
+# domain. Both are development-only; production refuses the local endpoint.
+LOCALSTACK_IMAGE="${ZASP_REAL_STACK_LOCALSTACK_IMAGE:-public.ecr.aws/localstack/localstack:4.7.0}"
+OPENSEARCH_IMAGE="${ZASP_REAL_STACK_OPENSEARCH_IMAGE:-public.ecr.aws/opensearchproject/opensearch:3.8.0}"
+LOCAL_CLOUD="http://127.0.0.1:4566"
+SEARCH_URL="http://127.0.0.1:4092"
+TOKEN_FILE=/var/run/secrets/eks.amazonaws.com/serviceaccount/token
 FGA_URL="http://127.0.0.1:8088"
 FGA_TOKEN="${ZASP_LOCAL_OPENFGA_TOKEN:-local-openfga-smoke-only}"
 # The public origin must be HTTPS and must not be localhost or an IP address:
@@ -80,6 +87,7 @@ load_environment() {
   export ZASP_STYTCH_BASE_URL="${ZASP_STYTCH_BASE_URL:-https://test.stytch.com}"
   export ZASP_STYTCH_PROJECT_ID="$STYTCH_PROJECT_ID" ZASP_STYTCH_SECRET="$STYTCH_SECRET" ZASP_STYTCH_PUBLIC_TOKEN="$STYTCH_PUBLIC_TOKEN"
   export ZASP_RUNTIME_SERVICES_ENABLED=true ZASP_ENVIRONMENT=test ZASP_RUNTIME_SERVICES_TIMEOUT=10s
+  export ZASP_LOCAL_CLOUD_ENDPOINT="$LOCAL_CLOUD"
   export ZASP_TEMPORAL_ADDRESS=127.0.0.1:7233 ZASP_TEMPORAL_NAMESPACE=zasp-dev
   export ZASP_TEMPORAL_TASK_QUEUE=zasp-security-agent ZASP_TEMPORAL_DISCOVERY_TASK_QUEUE=zasp-discovery
   export ZASP_OPENFGA_URL="$FGA_URL" ZASP_OPENFGA_TOKEN_FILE="$SECRETS/openfga.token"
@@ -87,7 +95,7 @@ load_environment() {
 
 build_binaries() {
   mkdir -p "$BIN"
-  go build -C "$ROOT/services/platform" -o "$BIN/" ./agentsec-api ./agentsec-migrate ./cmd/zasp-bootstrap ./cmd/zasp-authorization-reconcile
+  go build -C "$ROOT/services/platform" -o "$BIN/" ./agentsec-api ./agentsec-worker ./agentsec-migrate ./cmd/zasp-bootstrap ./cmd/zasp-authorization-reconcile
 }
 
 start_database() {
@@ -146,15 +154,52 @@ publish_model() {
   printf 'ZASP_OPENFGA_STORE_ID=%s\nZASP_OPENFGA_MODEL_ID=%s\n' "$store" "$model" > "$STATE/fga.env"
 }
 
+start_local_cloud() {
+  docker inspect zasp-real-stack-localstack >/dev/null 2>&1 && docker start zasp-real-stack-localstack >/dev/null ||
+    docker run -d --name zasp-real-stack-localstack -p 127.0.0.1:4566:4566 -e SERVICES=sts,iam,secretsmanager,kms,s3,sqs "$LOCALSTACK_IMAGE" >/dev/null
+  # Disk watermarks are disabled: a nearly full developer disk otherwise
+  # blocks index creation with no useful error.
+  docker inspect zasp-real-stack-opensearch >/dev/null 2>&1 && docker start zasp-real-stack-opensearch >/dev/null ||
+    docker run -d --name zasp-real-stack-opensearch -p 127.0.0.1:4092:9200 -e discovery.type=single-node -e DISABLE_SECURITY_PLUGIN=true \
+      -e DISABLE_INSTALL_DEMO_CONFIG=true -e cluster.routing.allocation.disk.threshold_enabled=false \
+      -e OPENSEARCH_JAVA_OPTS="-Xms512m -Xmx512m" "$OPENSEARCH_IMAGE" >/dev/null
+  for _ in $(seq 1 90); do
+    if curl -fsS -m 3 "$LOCAL_CLOUD/_localstack/health" 2>/dev/null | grep -q '"sts"' && curl -fsS -m 3 "$SEARCH_URL/_cluster/health" >/dev/null 2>&1; then return 0; fi
+    sleep 2
+  done
+  fail "LocalStack or OpenSearch did not start"
+}
+
+# The workload identity token is read from a fixed path and must look like a
+# token. LocalStack accepts any; this one is not a credential.
+write_identity_token() {
+  [ -s "$TOKEN_FILE" ] && [ "$(wc -c < "$TOKEN_FILE")" -ge 64 ] && return 0
+  mkdir -p "$(dirname "$TOKEN_FILE")" 2>/dev/null || fail "create $TOKEN_FILE (needs root) with at least 64 token characters"
+  printf '%s.%s.%s' "$(printf '{"alg":"none","typ":"JWT"}' | basenc --base64url | tr -d '=\n')" \
+    "$(printf '{"iss":"zasp-real-stack","sub":"system:serviceaccount:zasp:local","aud":"sts.amazonaws.com"}' | basenc --base64url | tr -d '=\n')" \
+    "bG9jYWwtZGV2ZWxvcG1lbnQtb25seQ" > "$TOKEN_FILE" || fail "write $TOKEN_FILE"
+}
+
+# Runs the production search-schema job against the local search node.
+init_search() {
+  env -i PATH="$PATH" ZASP_WORKER_MODE=projection-search-init ZASP_ENVIRONMENT=test ZASP_LOCAL_CLOUD_ENDPOINT="$LOCAL_CLOUD" \
+    ZASP_AWS_REGION=us-east-1 ZASP_PROJECTION_INIT_ROLE_ARN=arn:aws:iam::000000000000:role/zasp-real-stack-projection-init \
+    ZASP_PROJECTION_INIT_WEB_IDENTITY_TOKEN_FILE="$TOKEN_FILE" ZASP_PROJECTION_INIT_TIMEOUT=30s \
+    ZASP_OPENSEARCH_ENDPOINT="$SEARCH_URL" ZASP_OPENSEARCH_INDEX=zasp-inventory-v1 "$BIN/agentsec-worker" || fail "search schema initialization refused"
+}
+
 migrate() { ZASP_POSTGRES_DSN="$(dsn "$OPERATOR")" "$BIN/agentsec-migrate" "$1" || fail "agentsec-migrate $1 refused"; }
 
 cmd_up() {
   mkdir -p "$STATE"
   docker compose -f "$COMPOSE" up -d
+  start_local_cloud
+  write_identity_token
   start_database
   generate_keys
   build_binaries
   publish_model
+  init_search
   STYTCH_PROJECT_ID="${STYTCH_PROJECT_ID:-project-unset}" STYTCH_SECRET="${STYTCH_SECRET:-secret-unset}" STYTCH_PUBLIC_TOKEN="${STYTCH_PUBLIC_TOKEN:-public-token-unset}" load_environment
   if [ "$(psql -X -Atc "select to_regnamespace('zasp_authorization80_worker') is not null" "$(dsn "$OPERATOR")")" != "t" ]; then
     migrate up-authorization-runtime-profile
@@ -193,9 +238,7 @@ cmd_api() {
   require_provider
   load_environment
   [ -n "${ZASP_STYTCH_ORGANIZATION_ID:-}" ] || fail "run '$0 bootstrap' first"
-  # The connector credential path is fixed by the API. This stack has no AWS
-  # account, so connector, policy-history and export readiness stay unavailable.
-  [ -f /var/run/secrets/eks.amazonaws.com/serviceaccount/token ] || fail "create /var/run/secrets/eks.amazonaws.com/serviceaccount/token (any non-empty file) first"
+  [ -s "$TOKEN_FILE" ] || fail "run '$0 up' first"
   export HOSTNAME=agentsec-api-real-stack
   export ZASP_PRODUCT_LISTEN_ADDRESS=127.0.0.1:4000 ZASP_INTERNAL_LISTEN_ADDRESS=127.0.0.1:4081
   export ZASP_TRUSTED_PROXY_CIDRS=127.0.0.0/8 ZASP_REQUEST_RATE_PER_SECOND=1000 ZASP_REQUEST_BURST=2000 ZASP_COOKIE_SECURE=true
@@ -207,7 +250,7 @@ cmd_api() {
   export ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE=/var/run/secrets/eks.amazonaws.com/serviceaccount/token
   export ZASP_CONNECTOR_KMS_KEY_ARN=arn:aws:kms:us-east-1:000000000000:key/11111111-1111-1111-1111-111111111111
   export ZASP_CONNECTOR_SECRET_PREFIX=zasp-real-stack/connectors/oauth
-  export ZASP_POLICY_HISTORY_ENDPOINT=http://127.0.0.1:4092 ZASP_POLICY_HISTORY_INDEX=zasp-runtime-events-v1
+  export ZASP_POLICY_HISTORY_ENDPOINT="$SEARCH_URL" ZASP_POLICY_HISTORY_INDEX=zasp-runtime-events-v1
   export ZASP_AWS_CUSTOMER_ROLE_PREFIXES='["arn:aws:iam::123456789012:role/zasp-reference/"]'
   export ZASP_AWS_CUSTOMER_ROLE_ARNS='["arn:aws:iam::123456789012:role/zasp-reference/real-stack"]'
   export ZASP_KUBERNETES_EGRESS_CIDRS=203.0.113.0/24 ZASP_FINDING_TICKET_EGRESS_CIDRS=192.0.2.64/28
@@ -218,7 +261,7 @@ cmd_api() {
 }
 
 cmd_down() {
-  docker stop "$PG_CONTAINER" >/dev/null 2>&1 || true
+  docker stop "$PG_CONTAINER" zasp-real-stack-localstack zasp-real-stack-opensearch >/dev/null 2>&1 || true
   docker compose -f "$COMPOSE" stop
   echo "real-stack: stopped; data is kept. Remove '$PG_CONTAINER' and '$STATE' to start over."
 }

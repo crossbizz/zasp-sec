@@ -574,30 +574,42 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 		stores = append(stores, StoreDependency{Name: "aws-s3-audit-exports", Durable: true})
 	}
 	keepConnectorResources = true
+	readiness := newReadinessDiagnostic(output)
 	return RuntimeDependencies{ProductHandler: edge, Metrics: metrics, LifecycleWorker: func(ctx context.Context) error { return runLifecycleWorkers(ctx, lifecycleWorkers...) }, ReadinessCheck: func(ctx context.Context) error {
 		if currentRequired(database) && currentRequired(securityAgentDatabase) {
-			checks := []func(context.Context) error{repository.Ready, connectorRepository.Ready, referenceRepository.Ready, policyHandler.Ready, tracedProvider.Ready}
+			named := readiness.named
+			checks := []func(context.Context) error{named("product-repository", repository.Ready), named("connector-repository", connectorRepository.Ready), named("reference-repository", referenceRepository.Ready), named("policy-history", policyHandler.Ready), named("identity-provider", tracedProvider.Ready)}
 			if agentExports != nil {
-				checks = append(checks, agentExports.Ready)
+				checks = append(checks, named("security-agent-exports", agentExports.Ready))
 			}
 			if compliance != nil {
-				checks = append(checks, compliance.Ready)
+				checks = append(checks, named("compliance-exports", compliance.Ready))
 			}
 			if auditExports != nil {
-				checks = append(checks, auditExports.Ready)
+				checks = append(checks, named("audit-exports", auditExports.Ready))
 			}
 			if securityAgentRepository != nil {
-				checks = append(checks, securityAgentRepository.Ready)
+				checks = append(checks, named("security-agent-repository", securityAgentRepository.Ready))
 			}
 			if approvalNotificationRepository != nil {
-				checks = append(checks, func(probe context.Context) error {
+				checks = append(checks, named("approval-notifications", func(probe context.Context) error {
 					if err := approvalNotificationLifecycleReady(probe, approvalNotificationRepository.ReadyApprovalNotifications, approvalNotificationReconciler); err != nil {
 						return errRuntimeUnavailable
 					}
 					return nil
-				})
+				}))
 			}
-			return currentComponentReadiness(ctx, connectorReconciler.Ready, checks...)
+			err := currentComponentReadiness(ctx, func() bool {
+				if connectorReconciler.Ready() {
+					return true
+				}
+				readiness.report("connector-reconciler")
+				return false
+			}, checks...)
+			if err == nil {
+				readiness.ready()
+			}
+			return err
 		}
 
 		if agentExports != nil {

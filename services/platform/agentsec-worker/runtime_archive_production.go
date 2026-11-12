@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/kms"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
+	"github.com/zasp-ai/zasp-sec/services/platform/localcloud"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeevent"
 )
 
@@ -33,6 +34,7 @@ func newProductionRuntimeArchive(ctx context.Context, config workerRuntimeConfig
 	transport := &http.Transport{Proxy: nil, DialContext: (&net.Dialer{Timeout: 3 * time.Second, KeepAlive: 30 * time.Second}).DialContext, ForceAttemptHTTP2: true, TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12}, TLSHandshakeTimeout: 3 * time.Second, ResponseHeaderTimeout: minDuration(config.LeaseDuration/3, 30*time.Second), MaxResponseHeaderBytes: 1 << 20}
 	httpClient := &http.Client{Transport: transport, Timeout: minDuration(config.LeaseDuration/3, 30*time.Second), CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	base := aws.Config{Region: config.AWSRegion, HTTPClient: httpClient, Credentials: aws.AnonymousCredentials{}, Retryer: func() aws.Retryer { return aws.NopRetryer{} }}
+	localcloud.Current().Apply(&base)
 	provider := &outboxWebIdentityProvider{client: sts.NewFromConfig(base), roleARN: config.RuntimeStageRoleARN, tokenFile: config.RuntimeStageTokenFile, timeout: minDuration(config.LeaseDuration/3, 30*time.Second), session: "zasp-runtime-archive-worker"}
 	credentials := aws.NewCredentialsCache(provider)
 	if _, err := credentials.Retrieve(ctx); err != nil {
@@ -40,7 +42,7 @@ func newProductionRuntimeArchive(ctx context.Context, config workerRuntimeConfig
 		return nil, errRuntimeUnavailable
 	}
 	base.Credentials = credentials
-	s3API := s3.NewFromConfig(base)
+	s3API := s3.NewFromConfig(base, localcloud.Current().S3)
 	kmsAPI := kms.NewFromConfig(base)
 	identityAPI := sts.NewFromConfig(base)
 	executor, err := newRuntimeArchiveExecutor(runtimeArchiveExecutorConfig{API: s3API, Bucket: config.EvidenceBucket, ExpectedOwner: config.EvidenceOwner, KMSKeyARN: config.EvidenceKMSKeyARN, MaximumBytes: 64 << 20})

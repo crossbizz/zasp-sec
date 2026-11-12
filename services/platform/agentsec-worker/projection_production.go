@@ -24,6 +24,7 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/graphstore/neo4jstore"
 	"github.com/zasp-ai/zasp-sec/services/platform/inventorysearch"
 	"github.com/zasp-ai/zasp-sec/services/platform/inventorysearch/opensearchdriver"
+	"github.com/zasp-ai/zasp-sec/services/platform/localcloud"
 )
 
 var (
@@ -159,7 +160,7 @@ func newProductionSearchProjection(ctx context.Context, config workerRuntimeConf
 		return productionProjectionProjector{}, errRuntimeUnavailable
 	}
 	requestTimeout := minDuration(time.Duration(config.LeaseDuration)/3, 30*time.Second)
-	driver, err := opensearchdriver.New(opensearchdriver.Config{
+	driver, err := opensearchdriver.New(opensearchdriver.Config{AllowTestLoopback: localcloud.Current().AllowsEndpoint(config.OpenSearchURL),
 		Endpoint: config.OpenSearchURL, Region: config.AWSRegion, RequestTimeout: requestTimeout, MaximumRequestBytes: 8 << 20, MaximumResponseBytes: 8 << 20,
 	}, authority.credentials, v4.NewSigner(), func() time.Time { return time.Now().UTC() })
 	if err != nil {
@@ -261,6 +262,7 @@ func newProjectionAWSAuthority(config workerRuntimeConfig) (projectionAWSAuthori
 	}
 	client := &http.Client{Transport: transport, Timeout: minDuration(config.LeaseDuration/3, 30*time.Second), CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	base := aws.Config{Region: config.AWSRegion, HTTPClient: client, Credentials: aws.AnonymousCredentials{}, Retryer: func() aws.Retryer { return aws.NopRetryer{} }}
+	localcloud.Current().Apply(&base)
 	provider := &projectionWebIdentityProvider{client: sts.NewFromConfig(base), roleARN: config.ProjectionRoleARN, tokenFile: config.ProjectionTokenFile, timeout: minDuration(config.LeaseDuration/3, 30*time.Second)}
 	credentials := aws.NewCredentialsCache(provider)
 	base.Credentials = credentials

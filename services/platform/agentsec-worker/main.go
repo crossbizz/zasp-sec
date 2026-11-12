@@ -11,6 +11,7 @@ import (
 	"syscall"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/healthserver"
+	"github.com/zasp-ai/zasp-sec/services/platform/localcloud"
 )
 
 const healthListenAddress = ":8081"
@@ -25,6 +26,10 @@ var (
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	if localcloud.Require() != nil {
+		_, _ = io.WriteString(os.Stderr, "agentsec-worker startup refused: stage=local-cloud\n")
+		os.Exit(1)
+	}
 	mode := workerMode(os.Getenv("ZASP_WORKER_MODE"))
 	if recoveryJobModeEnabled(mode) {
 		if runProductionRecoveryJob(ctx, os.Getenv, "/dev/termination-log") != nil {

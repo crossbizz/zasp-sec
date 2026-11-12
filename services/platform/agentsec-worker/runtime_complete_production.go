@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/kms"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
+	"github.com/zasp-ai/zasp-sec/services/platform/localcloud"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeevent"
 )
 
@@ -22,6 +23,7 @@ func newProductionRuntimeComplete(ctx context.Context, config workerRuntimeConfi
 	transport := &http.Transport{Proxy: nil, DialContext: (&net.Dialer{Timeout: 3 * time.Second, KeepAlive: 30 * time.Second}).DialContext, ForceAttemptHTTP2: true, TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12}, TLSHandshakeTimeout: 3 * time.Second, ResponseHeaderTimeout: requestTimeout, MaxResponseHeaderBytes: 1 << 20}
 	httpClient := &http.Client{Transport: transport, Timeout: requestTimeout, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	base := aws.Config{Region: config.AWSRegion, HTTPClient: httpClient, Credentials: aws.AnonymousCredentials{}, Retryer: func() aws.Retryer { return aws.NopRetryer{} }}
+	localcloud.Current().Apply(&base)
 	provider := &outboxWebIdentityProvider{client: sts.NewFromConfig(base), roleARN: config.RuntimeStageRoleARN, tokenFile: config.RuntimeStageTokenFile, timeout: requestTimeout, session: "zasp-runtime-complete-worker"}
 	credentials := aws.NewCredentialsCache(provider)
 	if _, err := credentials.Retrieve(ctx); err != nil {
@@ -29,7 +31,7 @@ func newProductionRuntimeComplete(ctx context.Context, config workerRuntimeConfi
 		return nil, errRuntimeUnavailable
 	}
 	base.Credentials = credentials
-	s3API := s3.NewFromConfig(base)
+	s3API := s3.NewFromConfig(base, localcloud.Current().S3)
 	kmsAPI := kms.NewFromConfig(base)
 	identityAPI := sts.NewFromConfig(base)
 	receipts, err := newProductionDiscoveryArtifactAuthority(s3API, productionDiscoveryArtifactConfig{Bucket: config.EvidenceBucket, ExpectedBucketOwner: config.EvidenceOwner, KMSKeyARN: config.EvidenceKMSKeyARN, OperationTimeout: requestTimeout, MaximumBytes: 64 << 20})

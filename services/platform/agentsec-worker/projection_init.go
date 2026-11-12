@@ -7,6 +7,7 @@ import (
 	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/zasp-ai/zasp-sec/services/platform/graphstore/neo4jstore"
 	"github.com/zasp-ai/zasp-sec/services/platform/inventorysearch/opensearchdriver"
+	"github.com/zasp-ai/zasp-sec/services/platform/localcloud"
 	runtimeopensearch "github.com/zasp-ai/zasp-sec/services/platform/runtimeindex/opensearchdriver"
 )
 
@@ -25,14 +26,14 @@ func runProductionProjectionInit(ctx context.Context, config workerRuntimeConfig
 		return errRuntimeUnavailable
 	}
 	if config.Mode == workerModeProjectionSearchInit {
-		driver, createErr := opensearchdriver.New(opensearchdriver.Config{
+		driver, createErr := opensearchdriver.New(opensearchdriver.Config{AllowTestLoopback: localcloud.Current().AllowsEndpoint(config.OpenSearchURL),
 			Endpoint: config.OpenSearchURL, Region: config.AWSRegion, RequestTimeout: minDuration(config.LeaseDuration/3, 10*time.Second), MaximumRequestBytes: 8 << 20, MaximumResponseBytes: 8 << 20,
 		}, authority.credentials, v4.NewSigner(), func() time.Time { return time.Now().UTC() })
 		if createErr != nil {
 			return errRuntimeUnavailable
 		}
 		defer driver.Close()
-		runtimeConfig := runtimeopensearch.Config{Endpoint: config.OpenSearchURL, Region: config.AWSRegion, RequestTimeout: minDuration(config.LeaseDuration/3, 10*time.Second), MaximumRequestBytes: 8 << 20, MaximumResponseBytes: 8 << 20}
+		runtimeConfig := runtimeopensearch.Config{AllowTestLoopback: localcloud.Current().AllowsEndpoint(config.OpenSearchURL), Endpoint: config.OpenSearchURL, Region: config.AWSRegion, RequestTimeout: minDuration(config.LeaseDuration/3, 10*time.Second), MaximumRequestBytes: 8 << 20, MaximumResponseBytes: 8 << 20}
 		raw, err := runtimeopensearch.New(runtimeConfig, authority.credentials, v4.NewSigner(), func() time.Time { return time.Now().UTC() })
 		if err != nil {
 			return errRuntimeUnavailable

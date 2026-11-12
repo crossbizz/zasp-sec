@@ -130,7 +130,9 @@ func TestAttackLabBrowserWorkerProcess(t *testing.T) {
 	}
 	defer outbox.Close()
 	cc, err := loadWorkerRuntimeConfig(mapLookup(validAttackLabControllerRuntimeEnvironment()))
-	if err != nil { t.Fatal(err) }
+	if err != nil {
+		t.Fatal(err)
+	}
 	cc.BatchSize = 1
 	cc.LeaseDuration = 30 * time.Second
 	controller, err := composeAttackLabWorkerRuntime(cc, database("zasp_e2e_attack_lab_controller"), &productionAttackLabDependencies{Queue: queue, Provider: provider, Evidence: writer, ready: provider.Ready, close: func() error { return nil }})

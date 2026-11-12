@@ -13,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/zasp-ai/zasp-sec/services/platform/artifactstore"
 	"github.com/zasp-ai/zasp-sec/services/platform/artifactstore/s3driver"
+	"github.com/zasp-ai/zasp-sec/services/platform/localcloud"
 )
 
 type complianceExportProductionClients struct {
@@ -32,10 +33,11 @@ func newComplianceExportProductionClients(config workerRuntimeConfig) (*complian
 	transport := &http.Transport{Proxy: nil, DialContext: (&net.Dialer{Timeout: 3 * time.Second, KeepAlive: 30 * time.Second}).DialContext, ForceAttemptHTTP2: true, TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12}, TLSHandshakeTimeout: 3 * time.Second, ResponseHeaderTimeout: config.ProviderTimeout, MaxResponseHeaderBytes: 1 << 20}
 	httpClient := &http.Client{Transport: transport, Timeout: config.ProviderTimeout, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	base := aws.Config{Region: config.AWSRegion, HTTPClient: httpClient, Credentials: aws.AnonymousCredentials{}, Retryer: func() aws.Retryer { return aws.NopRetryer{} }}
+	localcloud.Current().Apply(&base)
 	credentials := newAuditExportCredentialCache(&outboxWebIdentityProvider{client: sts.NewFromConfig(base), roleARN: p.RoleARN, tokenFile: p.TokenFile, timeout: config.ProviderTimeout, session: "zasp-" + string(config.Mode)})
 	base.Credentials = credentials
 	result := &complianceExportProductionClients{credentials: credentials, identity: sts.NewFromConfig(base), transport: transport}
-	provider := s3.NewFromConfig(base)
+	provider := s3.NewFromConfig(base, localcloud.Current().S3)
 	if config.Mode == workerModeComplianceExport {
 		result.writer = provider
 	} else {

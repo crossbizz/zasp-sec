@@ -15,6 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
+	"github.com/zasp-ai/zasp-sec/services/platform/localcloud"
 )
 
 var (
@@ -94,6 +95,7 @@ func NewProductionCloudAuthority(config CloudConfig) (*CloudAuthority, error) {
 	transport := &http.Transport{Proxy: nil, DialContext: (&net.Dialer{Timeout: config.Timeout, KeepAlive: 30 * time.Second}).DialContext, ForceAttemptHTTP2: true, TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12}, TLSHandshakeTimeout: config.Timeout, ResponseHeaderTimeout: config.Timeout, MaxResponseHeaderBytes: 64 << 10}
 	httpClient := &http.Client{Transport: transport, Timeout: config.Timeout, CheckRedirect: func(*http.Request, []*http.Request) error { return ErrAdapter }}
 	base := aws.Config{Region: config.Region, HTTPClient: httpClient, Credentials: aws.AnonymousCredentials{}, Retryer: func() aws.Retryer { return aws.NopRetryer{} }}
+	localcloud.Current().Apply(&base)
 	credentials := aws.NewCredentialsCache(&webIdentityProvider{client: sts.NewFromConfig(base), roleARN: config.RoleARN, sessionName: config.RoleSessionName, tokenFile: config.WebIdentityTokenFile, timeout: config.Timeout, clock: config.Clock})
 	base.Credentials = credentials
 	resolver, err := NewSecretsCredentialResolver(secretsmanager.NewFromConfig(base), config.SecretPrefix, config.Timeout)

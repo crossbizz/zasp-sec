@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/zasp-ai/zasp-sec/services/platform/localcloud"
 	runtimeopensearch "github.com/zasp-ai/zasp-sec/services/platform/runtimeindex/opensearchdriver"
 )
 
@@ -610,6 +611,11 @@ func validProjectionAWSAuthority(config workerRuntimeConfig) bool {
 }
 
 func validOpenSearchEndpoint(value, region string) bool {
+	// A development or test deployment with a local cloud endpoint may name a
+	// local search node; production never reaches this branch.
+	if localcloud.Current().AllowsEndpoint(value) {
+		return true
+	}
 	parsed, err := url.Parse(value)
 	if err != nil || parsed.String() != value || parsed.Scheme != "https" || parsed.User != nil || parsed.Port() != "" || parsed.Path != "" || parsed.RawPath != "" || parsed.RawQuery != "" || parsed.ForceQuery || parsed.Fragment != "" || parsed.Opaque != "" {
 		return false

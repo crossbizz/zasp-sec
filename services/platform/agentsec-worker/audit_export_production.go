@@ -27,6 +27,7 @@ import (
 	platformconfig "github.com/zasp-ai/zasp-sec/services/platform/config"
 	"github.com/zasp-ai/zasp-sec/services/platform/jobqueue"
 	"github.com/zasp-ai/zasp-sec/services/platform/jobqueue/sqsdriver"
+	"github.com/zasp-ai/zasp-sec/services/platform/localcloud"
 	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 )
 
@@ -294,6 +295,7 @@ func newAuditExportProductionClients(config workerRuntimeConfig) (*auditExportPr
 	client := &http.Client{Transport: transport, Timeout: config.ProviderTimeout, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	role, session := auditExportProductionRole(config)
 	base := aws.Config{Region: region.String(), HTTPClient: client, Credentials: aws.AnonymousCredentials{}, Retryer: func() aws.Retryer { return aws.NopRetryer{} }}
+	localcloud.Current().Apply(&base)
 	credentials := newAuditExportCredentialCache(&outboxWebIdentityProvider{client: sts.NewFromConfig(base), roleARN: role, tokenFile: config.AuditExports.TokenFile, timeout: config.ProviderTimeout, session: session})
 	base.Credentials = credentials
 	result := &auditExportProductionClients{credentials: credentials, queue: sqs.NewFromConfig(base), identity: sts.NewFromConfig(base), artifacts: make(map[string]s3driver.API, len(config.AuditExports.Policies)), transport: transport}
