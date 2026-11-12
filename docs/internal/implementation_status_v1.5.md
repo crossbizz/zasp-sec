@@ -14,9 +14,10 @@ and cannot be re-sealed. See `docs/operations/baseline-schema-install.md`.
 
 The worker startup gate is open in the baseline. The Security Agent, discovery
 and scheduler worker logins pass their database startup check, and every
-runtime worker login passes runtime-profile readiness. The scheduler worker
-was started on the baseline, polls its schedules and reports ready. No other
-worker mode has been run yet.
+runtime worker login passes runtime-profile readiness. The scheduler and
+discovery workers were started on the baseline and report ready; discovery
+runs against LocalStack. No other worker mode has been run, and no discovery
+or Security Agent run has been driven.
 
 The production binaries run against LocalStack and a local OpenSearch node when
 `ZASP_LOCAL_CLOUD_ENDPOINT` is set and `ZASP_ENVIRONMENT` is `development` or

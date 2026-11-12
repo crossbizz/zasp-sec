@@ -108,17 +108,21 @@ func buildTemporalDiscoveryRuntime(ctx context.Context, cfg workerRuntimeConfig,
 		db.Close()
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
+	enterStartupStage("configuration")
 	if !validWorkerRuntimeConfig(cfg) || !cfg.RuntimeServices.Enabled {
 		return fail()
 	}
+	enterStartupStage("database-gate")
 	// Full-family refusal precedes FGA/Temporal credentials or provider setup.
 	if temporalWorkerProductionProfileReady(ctx, cfg.PostgresDSN) != nil {
 		return fail()
 	}
+	enterStartupStage("temporal-openfga")
 	services, err := runtimeservices.Connect(ctx, cfg.RuntimeServices)
 	if err != nil || services == nil {
 		return fail()
 	}
+	enterStartupStage("mode-dependencies")
 	var closeProviders func() error = func() error { return nil }
 	closeAuthorization := func() {}
 	failed := func() (workerRuntimeDependencies, error) {
@@ -152,24 +156,32 @@ func buildTemporalDiscoveryRuntime(ctx context.Context, cfg workerRuntimeConfig,
 		if !ok {
 			return failed()
 		}
+		enterStartupStage("discovery-product")
 		product, err := newTemporalDiscoveryProduct(db, factory)
 		if err != nil {
 			return failed()
 		}
+		enterStartupStage("discovery-authorization-checker")
 		checker, err := authorization.NewOpenFGA(services.FGA, cfg.RuntimeServices)
 		if err != nil {
 			return failed()
 		}
+		enterStartupStage("discovery-authorization-keys")
 		closeAuthorization, err = bindDiscoveryWorkerAuthorization(ctx, cfg, checker, product)
 		if err != nil {
 			return failed()
 		}
 		readyProduct = func(ctx context.Context) error {
-			if product.Ready(ctx) != nil || dependencies.Ready(ctx) != nil {
+			if product.Ready(ctx) != nil {
+				enterStartupStage("discovery-readiness-database")
+				return errRuntimeUnavailable
+			}
+			if dependencies.Ready(ctx) != nil {
 				return errRuntimeUnavailable
 			}
 			return nil
 		}
+		enterStartupStage("discovery-readiness")
 		if readyProduct(ctx) != nil {
 			return failed()
 		}
@@ -177,10 +189,12 @@ func buildTemporalDiscoveryRuntime(ctx context.Context, cfg workerRuntimeConfig,
 		if err != nil {
 			return failed()
 		}
+		enterStartupStage("discovery-queue-consumer")
 		consumer, err := newTemporalDiscoveryStartProcessor(db, dependencies.Queue, starter, cfg.BatchSize)
 		if err != nil {
 			return failed()
 		}
+		enterStartupStage("discovery-execution-repository")
 		retained, err := apiserver.NewDiscoveryExecutionRepository(db, apiserver.DiscoveryExecutionAuthorityWorker)
 		if err != nil {
 			return failed()
@@ -197,6 +211,7 @@ func buildTemporalDiscoveryRuntime(ctx context.Context, cfg workerRuntimeConfig,
 		for name, handler := range map[string]any{"AdmitDiscoveryScheduled": activities.AdmitDiscoveryScheduled, "CollectDiscoveryPage": activities.CollectDiscoveryPage, "ApplyDiscoverySnapshot": activities.ApplyDiscoverySnapshot, "FinishDiscovery": activities.FinishDiscovery, "ReconcileDiscoveryOutcome": activities.ReconcileDiscoveryOutcome} {
 			sdkWorker.RegisterActivityWithOptions(handler, activity.RegisterOptions{Name: name})
 		}
+		enterStartupStage("temporal-worker-start")
 		if sdkWorker.Start() != nil {
 			return failed()
 		}

@@ -1,6 +1,6 @@
 # Launch readiness update, 2026-11-12
 
-Launch is not accepted. Three blockers are fixed since [the 2026-11-11 report](launch-readiness-2026-11-11.md): the schema installs without a superuser, the worker startup gate is open, and the API reports ready. `/readyz` returns 200 for the first time, on a non-superuser baseline install with LocalStack and the real Stytch TEST project. One worker mode (the scheduler) has run; the others have not. Nothing here was run in a deployment.
+Launch is not accepted. Three blockers are fixed since [the 2026-11-11 report](launch-readiness-2026-11-11.md): the schema installs without a superuser, the worker startup gate is open, and the API reports ready. `/readyz` returns 200 for the first time, on a non-superuser baseline install with LocalStack and the real Stytch TEST project. Two worker modes (scheduler and discovery) start and report ready; the others have not been run and no run has been driven through them. Nothing here was run in a deployment.
 
 ## Ledger
 
@@ -40,9 +40,16 @@ Two predicates differ from the superuser installation on purpose: the worker gat
 | `zasp_authorization80_worker.runtime_ready()` | temporal executor, temporal compensation, discovery, scheduler | true |
 | `zasp_authorization80_runtime.ready(checksum, authority)` | coordinator, archive, index, correlation, runtime projection, outbox | true |
 
-The discovery scheduler worker was then started on the baseline (`stack.sh worker scheduler`). It runs, polls its schedules through `zasp_temporal72.pending_schedules`, and its `/readyz` returns 200. Before, it refused at startup on every database.
+Two worker modes were then started on the baseline, one at a time:
 
-**Not done:** no other worker mode has been started. Each needs queues, keys and endpoints that the local stack does not create yet, and the Security Agent worker needs an OpenRouter API token. No discovery run or Security Agent run has been driven.
+| Worker | Result |
+| --- | --- |
+| `scheduler` | Runs, polls its schedules through `zasp_temporal72.pending_schedules`, `/readyz` 200 |
+| `discovery` | Passes the database gate, connects to Temporal and OpenFGA, loads its authorization keys, passes its cloud readiness probe against LocalStack (role, evidence bucket, KMS key, provider secrets, queue redrive policy), starts its Temporal worker, `/readyz` 200 |
+
+Before, both refused at startup on every database. A refused worker start now names its stage (`agentsec-worker startup refused: stage=dependencies:<step>`), which is how the discovery worker's five missing resources were found.
+
+**Not done:** no other worker mode has been started. Each needs queues, keys and endpoints that the local stack does not create yet, and the Security Agent worker needs an OpenRouter API token. No discovery run or Security Agent run has been driven: that needs a connected connector, which needs a signed-in user. Workers share one fixed health port, so the local stack runs one at a time.
 
 ### 3. Development mode against LocalStack
 
@@ -93,7 +100,7 @@ A separate reviewer read the integrity schema, the installer, the temporary-gran
 
 ## Next batch, in dependency order
 
-1. **Run the workers on the local stack.** Create their queues, keys and endpoints in LocalStack, start the Security Agent, discovery, scheduler and runtime workers, and drive one discovery run and one Security Agent run that raises an approval, so an approval notification is delivered end to end.
+1. **Finish the workers on the local stack.** Let workers run side by side (a development-only health port setting), create the remaining modes' queues, keys and endpoints in LocalStack, and drive one discovery run and one Security Agent run that raises an approval, so an approval notification is delivered end to end. Browser sign-in (Stytch dashboard settings) is needed to connect a connector through the product.
 2. **Decide the connector-reconciliation authority model** (classification as shipped, or delegation with a permission re-check).
 3. **Member onboarding and sign-in beyond the first administrator**: membership creation for invited members, Organization selection at sign-in in SaaS mode, SSO token exchange.
 4. **Install on Neon** as soon as a TCP path exists.

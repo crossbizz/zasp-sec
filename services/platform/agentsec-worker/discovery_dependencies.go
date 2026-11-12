@@ -120,9 +120,11 @@ func newProductionDiscoveryDependencies(config productionDiscoveryDependencyConf
 }
 
 func newProductionDiscoveryDependenciesWithIO(config productionDiscoveryDependencyConfig, create func(productionDiscoveryDependencyConfig) (discoveryDependencyIO, error)) (*productionDiscoveryDependencies, error) {
+	enterStartupStage("discovery-authority")
 	if !validProductionDiscoveryDependencyAuthority(config) || create == nil {
 		return nil, errRuntimeUnavailable
 	}
+	enterStartupStage("discovery-cloud-clients")
 	cloud, err := create(config)
 	if err != nil {
 		return nil, errRuntimeUnavailable
@@ -140,24 +142,29 @@ func newProductionDiscoveryDependenciesWithIO(config productionDiscoveryDependen
 		_ = cloud.Close()
 		return nil, errRuntimeUnavailable
 	}
+	enterStartupStage("discovery-secrets")
 	secrets, err := newDiscoverySecretsManagerReader(cloud.Secrets, config.Cloud.SecretRoot, config.Cloud.Timeout)
 	if err != nil {
 		return fail()
 	}
+	enterStartupStage("discovery-provider-http")
 	providerHTTP, providerTransport, err := newDiscoveryProviderHTTPClient(config.ProviderTimeout)
 	if err != nil {
 		return fail()
 	}
+	enterStartupStage("discovery-github")
 	github, err := newProductionDiscoveryGitHubTokenClient(providerHTTP, config.Cloud.Clock)
 	if err != nil {
 		providerTransport.CloseIdleConnections()
 		return fail()
 	}
+	enterStartupStage("discovery-okta")
 	okta, err := newProductionDiscoveryOktaTokenClient(providerHTTP, config.Cloud.Clock)
 	if err != nil {
 		providerTransport.CloseIdleConnections()
 		return fail()
 	}
+	enterStartupStage("discovery-credentials")
 	credentials, err := newProductionDiscoveryCredentialResolver(productionDiscoveryCredentialConfig{
 		Secrets: secrets, AssumeRole: cloud.AssumeRole, GitHub: github, Okta: okta,
 		GitHubAppID: config.GitHubAppID, GitHubPrivateKeyReference: config.GitHubPrivateKeyReference,
@@ -167,26 +174,31 @@ func newProductionDiscoveryDependenciesWithIO(config productionDiscoveryDependen
 		providerTransport.CloseIdleConnections()
 		return fail()
 	}
+	enterStartupStage("discovery-aws-inventory")
 	inventory, err := newDiscoveryAWSCollectionInventoryCaller(cloud.Inventory, config.Cloud.Clock)
 	if err != nil {
 		providerTransport.CloseIdleConnections()
 		return fail()
 	}
+	enterStartupStage("discovery-artifacts")
 	artifacts, err := newProductionDiscoveryArtifactAuthority(cloud.S3, config.Artifacts)
 	if err != nil {
 		providerTransport.CloseIdleConnections()
 		return fail()
 	}
+	enterStartupStage("discovery-artifact-cache")
 	artifactCache, err = newDiscoveryArtifactCache(artifacts, config.Artifacts, 1024, 64<<20)
 	if err != nil {
 		providerTransport.CloseIdleConnections()
 		return fail()
 	}
+	enterStartupStage("discovery-queue")
 	queue, err = newProductionDiscoveryQueue(cloud.Queue, productionDiscoveryQueueConfig{Region: config.Cloud.Region, QueueURL: config.QueueURL, OperationTimeout: config.QueueOperationTimeout, Visibility: config.LeaseDuration, ShutdownTimeout: config.ShutdownTimeout})
 	if err != nil {
 		providerTransport.CloseIdleConnections()
 		return fail()
 	}
+	enterStartupStage("discovery-collectors")
 	factory, err := newProductionLiveDiscoveryCollectorFactory(productionDiscoveryClientConfig{
 		Artifacts: artifactCache, Credentials: credentials, AWSInventory: inventory, AWSSecurity: cloud.Security,
 		AWSCollectorVersion: config.AWSCollectorVersion, KubernetesCollectorVersion: config.KubernetesCollectorVersion,
@@ -202,7 +214,12 @@ func newProductionDiscoveryDependenciesWithIO(config productionDiscoveryDependen
 	}
 	dependencies := &productionDiscoveryDependencies{Factory: factory, Queue: queue.Queue}
 	dependencies.ready = func(ctx context.Context) error {
-		if readyProductionDiscoveryDependencies(ctx, cloud, secrets, config) != nil || queue.Ready(ctx) != nil {
+		if readyProductionDiscoveryDependencies(ctx, cloud, secrets, config) != nil {
+			enterStartupStage("discovery-readiness-cloud")
+			return errRuntimeUnavailable
+		}
+		if queue.Ready(ctx) != nil {
+			enterStartupStage("discovery-readiness-queue")
 			return errRuntimeUnavailable
 		}
 		return nil

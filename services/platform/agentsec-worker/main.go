@@ -44,15 +44,20 @@ func main() {
 		}
 		return
 	}
+	// A refused start names its stage from this fixed list. The stage never
+	// carries a setting, credential or provider error.
 	config, err := loadWorkerRuntimeConfig(os.Getenv)
 	if err != nil {
+		_, _ = io.WriteString(os.Stderr, "agentsec-worker startup refused: stage=configuration\n")
 		os.Exit(1)
 	}
 	dependencies, err := buildWorkerRuntime(ctx, config)
 	if err != nil {
+		_, _ = io.WriteString(os.Stderr, "agentsec-worker startup refused: stage=dependencies:"+currentStartupStage()+"\n")
 		os.Exit(1)
 	}
 	if err := serveWorkerRuntime(ctx, os.Stdout, buildVersion, config, dependencies, net.Listen); err != nil {
+		_, _ = io.WriteString(os.Stderr, "agentsec-worker startup refused: stage=serve\n")
 		os.Exit(1)
 	}
 }

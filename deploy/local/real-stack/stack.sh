@@ -275,17 +275,65 @@ cmd_api() {
   exec "$BIN/agentsec-api"
 }
 
+# Creates the AWS resources the workers address, in LocalStack. Idempotent.
+# The account is LocalStack's fixed 000000000000.
+provision_local_cloud() {
+  local aws="docker exec zasp-real-stack-localstack awslocal --region us-east-1"
+  # The discovery queue must redrive to its dead-letter queue after five receives.
+  $aws sqs create-queue --queue-name agentsec-discovery-jobs-dlq >/dev/null || fail "discovery dead-letter queue was not created"
+  $aws sqs create-queue --queue-name agentsec-discovery-jobs >/dev/null || fail "discovery queue was not created"
+  $aws sqs set-queue-attributes --queue-url http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/agentsec-discovery-jobs \
+    --attributes '{"RedrivePolicy":"{\"deadLetterTargetArn\":\"arn:aws:sqs:us-east-1:000000000000:agentsec-discovery-jobs-dlq\",\"maxReceiveCount\":\"5\"}"}' || fail "discovery queue redrive policy was not set"
+  $aws s3api head-bucket --bucket zasp-real-stack-evidence >/dev/null 2>&1 || $aws s3api create-bucket --bucket zasp-real-stack-evidence >/dev/null || fail "evidence bucket was not created"
+  if [ ! -f "$STATE/cloud.env" ]; then
+    local key
+    key="$($aws kms create-key --description zasp-real-stack-evidence --query KeyMetadata.KeyId --output text)" || fail "evidence key was not created"
+    [[ "$key" =~ ^[0-9a-f-]{36}$ ]] || fail "evidence key was not created"
+    printf 'ZASP_EVIDENCE_KMS_KEY_ARN=arn:aws:kms:us-east-1:000000000000:key/%s\n' "$key" > "$STATE/cloud.env"
+  fi
+  local key_arn
+  key_arn="$(sed -nE 's/^ZASP_EVIDENCE_KMS_KEY_ARN=//p' "$STATE/cloud.env")"
+  # The discovery worker's readiness probe requires a versioned evidence
+  # bucket whose default encryption is this customer-managed key.
+  $aws s3api put-bucket-versioning --bucket zasp-real-stack-evidence --versioning-configuration Status=Enabled || fail "evidence bucket versioning was not set"
+  $aws s3api put-bucket-encryption --bucket zasp-real-stack-evidence --server-side-encryption-configuration \
+    "{\"Rules\":[{\"ApplyServerSideEncryptionByDefault\":{\"SSEAlgorithm\":\"aws:kms\",\"KMSMasterKeyID\":\"$key_arn\"},\"BucketKeyEnabled\":true}]}" || fail "evidence bucket encryption was not set"
+  # Provider credentials the worker must be able to resolve. These values are
+  # placeholders: no GitHub App or Okta application stands behind them.
+  local name
+  for name in zasp-real-stack/discovery/github/app-private-key zasp-real-stack/discovery/okta/client-secret; do
+    $aws secretsmanager describe-secret --secret-id "$name" >/dev/null 2>&1 ||
+      $aws secretsmanager create-secret --name "$name" --secret-string "real-stack-placeholder-not-a-credential" >/dev/null || fail "placeholder secret $name was not created"
+  done
+}
+
 # Starts one worker mode in the foreground. Only modes whose dependencies this
 # stack provides are listed; the others need queues, keys or endpoints it does
 # not create yet.
 cmd_worker() {
-  [ "$#" -eq 1 ] || fail "usage: $0 worker {scheduler}"
+  [ "$#" -eq 1 ] || fail "usage: $0 worker {scheduler|discovery}"
   load_environment
   export ZASP_WORKER_MODE="$1" ZASP_WORKER_ID="real-stack-$1" ZASP_AWS_REGION=us-east-1
   export ZASP_POLL_INTERVAL=1s ZASP_LEASE_DURATION=30s ZASP_SHUTDOWN_TIMEOUT=5s ZASP_BATCH_SIZE=10 ZASP_PROVIDER_TIMEOUT=10s
   export ZASP_DISCOVERY_PARSER_VERSION=inventory-parser-2026.08.20 ZASP_DISCOVERY_TOOL_VERSION=collector-tool-2026.08.20
   case "$1" in
     scheduler) export ZASP_POSTGRES_DSN="$(dsn zasp_svc_scheduler)" ZASP_DATABASE_AUTHORITY=zasp_discovery_scheduler ;;
+    discovery)
+      provision_local_cloud
+      set -a; . "$STATE/cloud.env"; set +a
+      export ZASP_POSTGRES_DSN="$(dsn zasp_svc_discovery)" ZASP_DATABASE_AUTHORITY=zasp_discovery_worker
+      export ZASP_TEMPORAL_EXECUTOR_POSTGRES_DSN="$(dsn zasp_svc_temporal_executor)" ZASP_TEMPORAL_COMPENSATION_POSTGRES_DSN="$(dsn zasp_svc_temporal_compensation)"
+      export ZASP_AUTHORIZATION_WORKER_KEY_FILE="$SECRETS/forward.seed" ZASP_AUTHORIZATION_COMPENSATION_KEY_FILE="$SECRETS/compensation.seed"
+      export ZASP_DISCOVERY_QUEUE_URL=https://sqs.us-east-1.amazonaws.com/000000000000/agentsec-discovery-jobs
+      export ZASP_DISCOVERY_ROLE_ARN=arn:aws:iam::000000000000:role/zasp-real-stack-discovery
+      export ZASP_DISCOVERY_WEB_IDENTITY_TOKEN_FILE="$TOKEN_FILE" ZASP_DISCOVERY_SECRET_PREFIX=zasp-real-stack/discovery
+      export ZASP_EVIDENCE_BUCKET=zasp-real-stack-evidence ZASP_EVIDENCE_BUCKET_OWNER=000000000000
+      export ZASP_DISCOVERY_AWS_COLLECTOR_VERSION=aws-collector-2026.08.20 ZASP_DISCOVERY_KUBERNETES_COLLECTOR_VERSION=kubernetes-collector-2026.08.20
+      export ZASP_DISCOVERY_GITHUB_COLLECTOR_VERSION=github-collector-2026.08.20 ZASP_DISCOVERY_OKTA_COLLECTOR_VERSION=okta-collector-2026.08.20
+      export ZASP_KUBERNETES_EGRESS_CIDRS=203.0.113.0/24 ZASP_DISCOVERY_READINESS_TIMEOUT=5s
+      export ZASP_GITHUB_APP_ID=123456 ZASP_GITHUB_PRIVATE_KEY_REFERENCE=ref:github/app-private-key
+      export ZASP_OKTA_CLIENT_ID=0oa1234567890abcdef ZASP_OKTA_CLIENT_SECRET_REFERENCE=ref:okta/client-secret
+      ;;
     *) fail "worker mode '$1' is not available on this stack yet" ;;
   esac
   exec "$BIN/agentsec-worker"

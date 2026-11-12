@@ -78,9 +78,12 @@ That returns `401 authentication_required`. `GET /api/v1/session/start?return_to
 
 ```bash
 deploy/local/real-stack/stack.sh worker scheduler
+deploy/local/real-stack/stack.sh worker discovery
 ```
 
-Runs the discovery scheduler worker in the foreground. It polls its schedules and its health listener (`127.0.0.1:8081/readyz`) reports ready. It is the only worker mode the script starts so far.
+Runs one worker mode in the foreground. `scheduler` polls its schedules. `discovery` first creates what it addresses in LocalStack (the job queue with its dead-letter queue, a versioned KMS-encrypted evidence bucket, placeholder provider secrets), then connects to Temporal and OpenFGA and consumes the queue. Both report ready on `127.0.0.1:8081/readyz`.
+
+Every worker uses the same health port, so run one at a time. A refused start prints `agentsec-worker startup refused: stage=<stage>`, for example `stage=dependencies:discovery-readiness-queue`.
 
 ```bash
 deploy/local/real-stack/stack.sh down
@@ -102,4 +105,5 @@ Stops the containers and keeps their data. State lives in `$ZASP_REAL_STACK_STAT
 | --- | --- |
 | Completing a browser sign-in | Stytch must have this origin's redirect URLs registered, and a person must complete OAuth or follow the invitation email. Both are outside the project API. |
 | Real connector discovery | LocalStack answers the AWS calls, but there is no customer AWS account, Neo4j or third-party provider behind them. |
-| Background workers other than the scheduler | Their database startup checks pass on the baseline: the worker gate and the runtime-profile readiness return true for every worker login. Each mode also needs queues, keys and endpoints the script does not create, and the Security Agent worker needs an OpenRouter API token. |
+| Worker modes other than `scheduler` and `discovery` | Their database startup checks pass on the baseline. Each also needs queues, keys and endpoints the script does not create yet, and the Security Agent worker needs an OpenRouter API token. |
+| A discovery run | The discovery worker runs, but no connector is connected: connecting one needs a signed-in user, and the provider secrets here are placeholders. |
