@@ -182,9 +182,11 @@ func buildTemporalSecurityAgentRuntime(ctx context.Context, cfg workerRuntimeCon
 	return buildTemporalSecurityAgentRuntimeWithIO(ctx, cfg, c, nil, productionWorkerIO())
 }
 func buildTemporalSecurityAgentRuntimeWithIO(ctx context.Context, cfg workerRuntimeConfig, c client.Client, fgaClient *fga.OpenFgaClient, external workerExternalIO) (*temporalSecurityAgentRuntime, error) {
+	enterStartupStage("security-agent-configuration")
 	if ctx == nil || c == nil || cfg.TemporalExecutorDSN == "" || cfg.TemporalCompensationDSN == "" || cfg.TemporalExecutorDSN == cfg.TemporalCompensationDSN || cfg.TemporalExecutorDSN == cfg.PostgresDSN || cfg.TemporalCompensationDSN == cfg.PostgresDSN || !filepath.IsAbs(cfg.TemporalPricingBindingsFile) {
 		return nil, errRuntimeUnavailable
 	}
+	enterStartupStage("security-agent-database-gate")
 	if temporalWorkerProductionProfileReady(ctx, cfg.TemporalExecutorDSN) != nil {
 		return nil, errRuntimeUnavailable
 	}
@@ -204,10 +206,12 @@ func buildTemporalSecurityAgentRuntimeWithIO(ctx context.Context, cfg workerRunt
 		}
 		return cfg.GatewaySigningKeyID, key, keys, nil
 	}
+	enterStartupStage("security-agent-pricing-bindings")
 	bindings, err := loadTemporalPricingBindings(cfg.TemporalPricingBindingsFile)
 	if err != nil {
 		return nil, errRuntimeUnavailable
 	}
+	enterStartupStage("security-agent-planner")
 	planner, err := external.planner(cfg)
 	if err != nil {
 		return nil, errRuntimeUnavailable
@@ -221,6 +225,7 @@ func buildTemporalSecurityAgentRuntimeWithIO(ctx context.Context, cfg workerRunt
 		}
 		seen[key] = true
 	}
+	enterStartupStage("security-agent-execution-clients")
 	execution, err := external.temporal(cfg)
 	if err != nil {
 		planner.Close()
@@ -244,6 +249,7 @@ func buildTemporalSecurityAgentRuntimeWithIO(ctx context.Context, cfg workerRunt
 	if execution.ready == nil || execution.store == nil || !release61TestRunnerAvailable(execution.runner) {
 		return fail()
 	}
+	enterStartupStage("security-agent-databases")
 	for _, dsn := range []string{cfg.TemporalExecutorDSN, cfg.TemporalCompensationDSN} {
 		pc, err := runtimepostgres.ParsePoolConfig(dsn)
 		if err != nil {
