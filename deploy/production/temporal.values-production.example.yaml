@@ -1,0 +1,23 @@
+# Production overrides for the pinned Temporal chart (1.7.0), applied after
+# deploy/staging/temporal.values.yaml:
+#
+#   helm upgrade --install temporal temporal-1.7.0.tgz --namespace zasp-runtime \
+#     -f deploy/staging/temporal.values.yaml -f temporal.values-production.yaml
+#
+# The staging file names staging database hosts and the namespace zasp-staging.
+# Replace both REPLACE hosts with the database host (the Terraform output
+# runtime_services_rds.address, or another PostgreSQL host). Not installed on
+# any cluster. See docs/operations/production-aws-runbook.md, step 6.
+server:
+  config:
+    persistence:
+      datastores:
+        default:
+          sql:
+            connectAddr: REPLACE-database-host:5432
+        visibility:
+          sql:
+            connectAddr: REPLACE-database-host:5432
+    namespaces:
+      # Must equal runtimeServices.namespace in the product values.
+      namespace: [{ name: zasp-production, retention: 3d }]

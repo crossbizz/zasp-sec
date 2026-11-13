@@ -118,7 +118,7 @@ The profile renders the CronJob `zasp-authorization-projector`. Every minute it 
 | Running the rendered job against PostgreSQL | Not done. The same command sequence runs in [the local real stack](../../deploy/local/real-stack/README.md) outside Kubernetes. |
 | The approval-maintenance key and DSN wiring in a running API pod | Not done |
 | `postgres.transport: websocket` | Rendered only. The release contract does not accept this option yet. |
-| Terraform in `deploy/staging` | Unchanged and not checked against the baseline. It takes the login names from `database_principals` and `temporal_database_principals`, which must be given the baseline names, and it creates no approval-maintenance key or DSN Secret. |
+| Terraform in `deploy/staging` | Checked statically on 2026-11-13, not applied. `schema_install = "baseline"` (the default) fixes the login names to `zasp_operator` and `zasp_svc_*`, and the named profile adds Secrets Manager entries for the approval-maintenance key and DSN. The `helm_values` output carries the chart values Terraform determines. See [the AWS runbook](production-aws-runbook.md). |
 
 ### Historical chain phases
 

@@ -5,7 +5,7 @@ variable "authorization_temporal_enabled" {
 }
 
 variable "temporal_database_principals" {
-  description = "Dedicated login names encoded in operator-provisioned DSNs; no credential values."
+  description = "Historical migration chain only: dedicated login names encoded in operator-provisioned DSNs; no credential values. Ignored on the baseline schema (zasp_svc_temporal_executor, zasp_svc_temporal_compensation)."
   type        = object({ executor = string, compensation = string })
   default     = { executor = "zasp_temporal_executor_runtime", compensation = "zasp_temporal_compensation_runtime" }
   validation {
@@ -16,10 +16,17 @@ variable "temporal_database_principals" {
 
 locals {
   temporal_authorities = var.authorization_temporal_enabled ? {
-    "postgres-temporal-executor-dsn"        = { purpose = "worker-forward", principal = var.temporal_database_principals.executor }
-    "postgres-temporal-compensation-dsn"    = { purpose = "captured-compensation", principal = var.temporal_database_principals.compensation }
+    "postgres-temporal-executor-dsn"        = { purpose = "worker-forward", principal = local.temporal_database_principals.executor }
+    "postgres-temporal-compensation-dsn"    = { purpose = "captured-compensation", principal = local.temporal_database_principals.compensation }
     "authorization-worker-forward-key"      = { purpose = "worker-forward", principal = "" }
     "authorization-worker-compensation-key" = { purpose = "captured-compensation", principal = "" }
+  } : {}
+  # The baseline schema installs approval-notification delivery active. The API
+  # needs its dedicated login's DSN and the 32-byte delivery key; the chart reads
+  # both from Kubernetes Secrets (approvalMaintenance.dsnSecret, .key.secretName).
+  approval_maintenance_authorities = var.authorization_temporal_enabled && local.baseline_schema ? {
+    "postgres-approval-maintenance-dsn" = { purpose = "approval-forward", principal = local.baseline_approval_maintenance_principal }
+    "approval-maintenance-key"          = { purpose = "approval-forward", principal = "" }
   } : {}
   temporal_worker_mount_secrets = ["postgres-security-agent-worker-dsn", "openrouter-security-agent-api-key", "gateway-policy-signing-private-key", "red-team-adapter-token", "red-team-adapter-tls-certificate"]
   temporal_roles = var.authorization_temporal_enabled ? {
@@ -31,7 +38,7 @@ locals {
 # The operator writes values and synchronizes purpose-specific Kubernetes secrets.
 # Terraform records their purpose and database identity, never their bytes.
 resource "aws_secretsmanager_secret" "authorization_temporal" {
-  for_each                = local.temporal_authorities
+  for_each                = merge(local.temporal_authorities, local.approval_maintenance_authorities)
   name                    = "${var.cluster_name}/${each.key}"
   kms_key_id              = aws_kms_key.staging.arn
   recovery_window_in_days = 30
@@ -98,12 +105,14 @@ output "authorization_temporal_deployment_metadata" {
     workerRoleArn         = aws_iam_role.authorization_temporal["worker"].arn
     projectorRoleArn      = aws_iam_role.authorization_temporal["projector"].arn
     adapterRoleArn        = aws_iam_role.red_team["adapter"].arn
-    executorPrincipal     = var.temporal_database_principals.executor
-    compensationPrincipal = var.temporal_database_principals.compensation
-    projectorPrincipal    = var.database_principals.outbox_worker
-    adapterPrincipal      = var.database_principals.red_team_adapter
-    authoritySecrets      = { for name, secret in aws_secretsmanager_secret.authorization_temporal : name => secret.arn }
-    projectorDSN          = aws_secretsmanager_secret.product["postgres-outbox-worker-dsn"].arn
-    adapterDSN            = aws_secretsmanager_secret.product["postgres-red-team-adapter-dsn"].arn
+    executorPrincipal     = local.temporal_database_principals.executor
+    compensationPrincipal = local.temporal_database_principals.compensation
+    projectorPrincipal    = local.database_principals.outbox_worker
+    adapterPrincipal      = local.database_principals.red_team_adapter
+    # Null on the historical chain, which has no approval-maintenance login.
+    approvalMaintenancePrincipal = local.baseline_schema ? local.baseline_approval_maintenance_principal : null
+    authoritySecrets             = { for name, secret in aws_secretsmanager_secret.authorization_temporal : name => secret.arn }
+    projectorDSN                 = aws_secretsmanager_secret.product["postgres-outbox-worker-dsn"].arn
+    adapterDSN                   = aws_secretsmanager_secret.product["postgres-red-team-adapter-dsn"].arn
   } : null
 }

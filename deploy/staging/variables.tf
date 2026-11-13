@@ -95,7 +95,7 @@ variable "environment" {
 }
 
 variable "database_principals" {
-  description = "Stable PostgreSQL login names provisioned outside Terraform; credentials may rotate, identities must not."
+  description = "Historical migration chain only (schema_install = chain): stable PostgreSQL login names provisioned outside Terraform. Ignored on the baseline schema, whose names are fixed (zasp_operator, zasp_svc_*)."
   type = object({
     migration                    = string
     api                          = string

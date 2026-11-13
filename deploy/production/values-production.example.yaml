@@ -1,0 +1,152 @@
+# Operator values for the hosted chart (deploy/staging/product) on the baseline
+# schema. Use it after the values Terraform derives:
+#
+#   terraform -chdir=deploy/staging output -json helm_values > values-terraform.json
+#   helm upgrade --install zasp deploy/staging/product --namespace agentsec \
+#     -f values-terraform.json -f values-production.yaml
+#
+# values-terraform.json supplies every role ARN, queue URL, bucket, KMS key,
+# OpenSearch endpoint, Secrets Manager object name and connector setting.
+# This file supplies what Terraform cannot know. It holds names and addresses
+# only, never a secret value.
+#
+# Every "" and [] marked REQUIRED must be replaced; the chart refuses to render
+# most of them empty. Copy the file outside the repository before editing.
+# Not installed on any cluster. See docs/operations/production-aws-runbook.md.
+
+global:
+  environment: production
+  deploymentMode: saas          # Decision D2. single_tenant is unproven.
+  multiTenant: true
+  customerRecovery: false
+  privateEndpointOnly: true
+  organizationID: ""            # Empty in saas mode.
+  publicOrigin: ""              # REQUIRED: https://<ingress.host>, exactly.
+  productImages:                # REQUIRED: ECR references pinned by digest (runbook step 5).
+    web: ""                     # <account>.dkr.ecr.<region>.amazonaws.com/zasp/web@sha256:...
+    agentsecApi: ""
+    agentsecWorker: ""
+    attackLabRunner: ""
+    redTeamWorker: ""
+    eventIngest: ""
+    gatewayControl: ""
+    runtimeGateway: ""
+    sensorAgent: ""
+
+ingress:
+  enabled: true
+  className: nginx              # The chart's annotations are ingress-nginx annotations.
+  host: ""                      # REQUIRED: the public host name, for example app.example.com.
+  tlsSecretName: zasp-product-tls   # Kubernetes TLS Secret in namespace agentsec (runbook step 4).
+
+secrets:
+  providerClassName: zasp-production-secrets   # Name of the SecretProviderClass the chart creates for the API.
+
+schema:
+  install: baseline
+  expectedVersion: 61
+  # false for the first install. true once zasp-bootstrap has created the first
+  # Organization and its reference is stored as the stytch-organization-id secret.
+  registerIdentityVerifiers: false
+runtime:
+  sessionSearchPhase: precision-intake
+rollout:
+  discoveryScheduleReplayPhase: active
+
+postgres:
+  # "" uses PostgreSQL on port 5432. "websocket" uses port 443 of the DSN host;
+  # event ingest and gateway control do not support it, and the release
+  # contract does not accept it yet.
+  transport: ""
+
+approvalMaintenance:
+  profileChecksum: ""           # REQUIRED: output of `agentsec-migrate approval-maintenance-checksum` from this release's API image.
+  dsnSecret: zasp-approval-maintenance-dsn        # Kubernetes Secret, key postgres-dsn (runbook step 9).
+  key:
+    secretName: zasp-approval-maintenance-key     # Kubernetes Secret, key seed, exactly 32 raw bytes (runbook step 7).
+
+authorizationTemporal:
+  profile: canonical61-temporal78-authorization79-80-worker-v1
+  # Kubernetes Secrets the operator creates in namespace agentsec, key postgres-dsn.
+  executorDSNSecret: zasp-temporal-executor
+  compensationDSNSecret: zasp-temporal-compensation
+  adapterDSNSecret: zasp-authorization-adapter
+  # Created by the chart through the secrets store driver. Do not create it by hand.
+  projectorDSNSecret: zasp-authorization-projector
+  # Kubernetes Secrets the operator creates, key seed.
+  forwardKey: { purpose: worker-forward, secretName: zasp-worker-forward-key, key: seed }
+  compensationKey: { purpose: captured-compensation, secretName: zasp-worker-compensation-key, key: seed }
+  # ConfigMaps the operator creates: bindings.json and policy-keys.json.
+  pricingBindingsConfigMap: zasp-temporal-pricing
+  gatewayPolicyKeysConfigMap: zasp-gateway-policy-verifiers
+
+gatewayPolicy:
+  signingKeyID: gateway-key-01  # Must be the key_id in policy-keys.json.
+
+runtimeServices:
+  enabled: true
+  timeout: 5s
+  # The named profile packages these two addresses; the release contract accepts no other.
+  temporalAddress: temporal-frontend.zasp-runtime.svc.cluster.local:7233
+  openfgaURL: https://openfga.zasp-runtime.svc.cluster.local:8080
+  namespace: zasp-production    # Temporal namespace; must exist (deploy/production/temporal.values-production.example.yaml).
+  taskQueue: zasp-security-agent
+  discoveryTaskQueue: zasp-discovery
+  storeID: ""                   # REQUIRED: OpenFGA store ULID (runbook step 6).
+  modelID: ""                   # REQUIRED: OpenFGA authorization model ULID (runbook step 6).
+  clientSecret: zasp-runtime-services-client   # Kubernetes Secret with the Temporal client certificate and OpenFGA token.
+
+nango:
+  storageSecretName: nango-storage   # Kubernetes Secret: database-url, encryption-key, service-key.
+  databaseEgressCIDRs: []       # REQUIRED: addresses of the Nango database.
+  providerEgressCIDRs: []       # REQUIRED: GitHub and Okta API addresses.
+
+telemetry:
+  backend: none
+  endpoint: ""
+  authSecretName: ""
+
+monitoring:
+  enabled: true                 # Needs the Prometheus Operator CRDs (ServiceMonitor, PrometheusRule) and namespace monitoring.
+  namespace: monitoring
+
+recovery:
+  canaryEnabled: false
+  neonProjectID: ""             # REQUIRED: Neon project ID.
+  neonBranchID: ""              # REQUIRED: Neon branch ID of the production database.
+  kubernetesEndpoint: https://kubernetes.default.svc
+  runnerImage: ""               # REQUIRED: the agentsec-worker ECR reference, pinned by digest.
+  runnerServiceAccount: agentsec-recovery-runner
+  neonEgressCIDRs: []           # REQUIRED: Neon API addresses.
+
+redTeam:
+  runnerTimeout: 10m
+  targetAllowedCIDRs: []        # REQUIRED: public addresses red-team targets may be reached on.
+
+attackLab:
+  operationTimeout: 10s
+  proxyRequestTimeout: 10s
+  proxyShutdownTimeout: 15s
+  proxyCABundleBase64: ""       # REQUIRED: base64 of the PEM CA that issued the Attack Lab proxy certificate.
+
+# NetworkPolicy destinations. Native NetworkPolicy is a CIDR allow-list, not a
+# name-based firewall. These are enforced only when the cluster enforces
+# NetworkPolicy (Terraform variable vpc_cni_network_policy_enabled, decision
+# D6). They must still be syntactically valid when it does not.
+network:
+  ingressNamespace: ingress-nginx
+  postgresCIDR: ""              # REQUIRED: one CIDR containing the product database addresses.
+  stytchCIDR: ""                # REQUIRED: one CIDR containing the Stytch API addresses.
+  canaryCIDR: ""                # REQUIRED: one CIDR the read-only canary reaches the public origin on.
+  securityAgentPlannerEgressCIDRs: []   # REQUIRED: OpenRouter API addresses.
+  outboxEgressCIDRs: []         # REQUIRED: private addresses of the SQS and STS VPC endpoints.
+  runtimeEgressCIDRs: []        # REQUIRED: private addresses of the AWS VPC endpoints the runtime pipeline uses.
+  recoveryEgressCIDRs: []       # REQUIRED
+  recoveryKubernetesAPICIDRs: []   # REQUIRED: the Kubernetes API service address, for example 172.20.0.1/32.
+  redTeamEgressCIDRs: []        # REQUIRED
+  attackLabEgressCIDRs: []      # REQUIRED
+  attackLabKubernetesAPICIDRs: []  # REQUIRED
+  connectorEgressCIDRs:
+    aws: []                     # REQUIRED: addresses of the STS and Secrets Manager VPC endpoints.
+    github: []                  # REQUIRED
+    okta: []                    # REQUIRED

@@ -25,7 +25,9 @@ locals {
       last  = sum([for index, octet in split(".", cidrhost(cidr, -1)) : tonumber(octet) * pow(256, 3 - index)])
     }
   }
-  database_principals = {
+  # The historical chain takes its login names from var.database_principals.
+  # The baseline schema fixes them (production.tf), so they are not configurable.
+  declared_database_principals = {
     migration                    = var.database_principals.migration
     api                          = var.database_principals.api
     security_agent_api           = var.database_principals.security_agent_api
@@ -56,6 +58,7 @@ locals {
     runtime_projection           = var.database_principals.runtime_projection
     gateway_control              = var.database_principals.gateway_control
   }
+  database_principals = local.baseline_schema ? local.baseline_database_principals : local.declared_database_principals
   postgres_secret_principals = {
     postgres-api-dsn                          = local.database_principals.api
     postgres-security-agent-api-dsn           = local.database_principals.security_agent_api
@@ -339,10 +342,10 @@ resource "aws_eks_addon" "vpc_cni" {
   addon_version               = var.vpc_cni_addon_version
   resolve_conflicts_on_create = "OVERWRITE"
   resolve_conflicts_on_update = "OVERWRITE"
-  configuration_values = jsonencode({ env = {
+  configuration_values = jsonencode(merge({ env = {
     ENABLE_POD_ENI                    = "true"
     POD_SECURITY_GROUP_ENFORCING_MODE = "strict"
-  } })
+  } }, var.vpc_cni_network_policy_enabled ? { enableNetworkPolicy = "true" } : {}))
   depends_on = [aws_iam_role_policy_attachment.eks_nodes]
 }
 
@@ -819,6 +822,8 @@ resource "aws_opensearch_domain" "events" {
     subnet_ids         = aws_subnet.private[*].id
     security_group_ids = [aws_security_group.opensearch.id]
   }
+  # A VPC domain needs the OpenSearch service-linked role (production.tf).
+  depends_on = [aws_iam_service_linked_role.opensearch]
 }
 
 data "tls_certificate" "eks" {
