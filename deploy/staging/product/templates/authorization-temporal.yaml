@@ -35,6 +35,7 @@ spec:
               args: ["--mode", "reconcile", "--limit", "20", "--timeout", "2m"]
               env:
                 - { name: ZASP_ENVIRONMENT, value: {{ .Values.global.environment | quote }} }
+                {{- include "zasp.postgres.transportEnv" $ | nindent 16 }}
                 {{- include "zasp.runtimeServices.env" . | nindent 16 }}
                 - name: ZASP_POSTGRES_DSN
                   valueFrom: { secretKeyRef: { name: {{ .Values.authorizationTemporal.projectorDSNSecret | quote }}, key: postgres-dsn } }

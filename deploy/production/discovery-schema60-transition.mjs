@@ -23,6 +23,8 @@ function helmArgs(options, schema, phase) {
     "--namespace", options.namespace,
     "--atomic", "--wait", "--timeout", "15m",
     ...options.values.flatMap(value => ["-f", value]),
+    // Schema 59 and 60 exist only on the historical migration chain.
+    "--set-string", "schema.install=chain",
     "--set-string", `schema.expectedVersion=${schema}`,
     "--set-string", `rollout.discoveryScheduleReplayPhase=${phase}`,
   ];

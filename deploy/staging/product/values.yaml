@@ -320,38 +320,68 @@ runtime:
 rollout:
   discoveryScheduleReplayPhase: steady
 schema:
+  # baseline: the schema job runs agentsec-migrate verify-baseline, and
+  # install-baseline when the database holds no baseline, as zasp_operator.
+  # It needs no PostgreSQL superuser and requires authorizationTemporal.profile
+  # with schema.expectedVersion 61. See docs/operations/baseline-schema-install.md.
+  # chain: the historical migration chain (up-to-<expectedVersion> and the
+  # release-specific registrations). It needs a superuser and cannot run on
+  # managed PostgreSQL.
+  install: baseline
   expectedVersion: 49
   migrationTimeout: 10m
+  # Baseline only. Set true once the first Organization exists (zasp-bootstrap)
+  # and its provider reference is stored as the Stytch organization secret: the
+  # schema job then also registers the identity session and webhook verifiers.
+  registerIdentityVerifiers: false
+# Approval-notification delivery. Required on the baseline schema, where the
+# approval-maintenance profile is installed and active.
+approvalMaintenance:
+  # Output of `agentsec-migrate approval-maintenance-checksum` for this release.
+  profileChecksum: ""
+  # Existing Kubernetes Secret whose key postgres-dsn holds the DSN of the
+  # zasp_svc_approval_maintenance login, on the same host, database and
+  # parameters as the Security Agent API DSN.
+  dsnSecret: ""
+  # Existing Kubernetes Secret whose key seed holds exactly 32 raw bytes.
+  key:
+    secretName: ""
+postgres:
+  # Empty or tcp: PostgreSQL on the DSN's port. websocket: PostgreSQL inside
+  # TLS on port 443 of the DSN's host, for networks that allow only HTTPS egress.
+  transport: ""
+# The baseline schema creates these service logins under fixed names. The
+# installing role must be named zasp_operator.
 databasePrincipals:
-  migration: ""
-  api: ""
-  securityAgentAPI: ""
-  securityAgentWorker: ""
-  securityAgentActionWorker: ""
-  policyDeploymentWorker: ""
-  discoveryWorker: ""
-  runtimeIngest: ""
-  runtimeWorker: ""
-  outboxWorker: ""
-  recoveryOutboxWorker: ""
-  recoveryWorker: ""
-  redTeamOutboxWorker: ""
-  redTeamWorker: ""
-  redTeamAdapter: ""
-  attackLabController: ""
-  attackLabOutbox: ""
-  attackLabProxy: ""
-  runtimeGateway: ""
-  discoveryScheduler: ""
-  projectionRisk: ""
-  projectionGraph: ""
-  projectionSearch: ""
-  runtimeCoordinator: ""
-  runtimeArchive: ""
-  runtimeIndex: ""
-  runtimeCorrelation: ""
-  runtimeProjection: ""
-  gatewayControl: ""
+  migration: zasp_operator
+  api: zasp_svc_api
+  securityAgentAPI: zasp_svc_security_agent_api
+  securityAgentWorker: zasp_svc_security_agent_worker
+  securityAgentActionWorker: zasp_svc_security_agent_action
+  policyDeploymentWorker: zasp_svc_policy_deployment
+  discoveryWorker: zasp_svc_discovery
+  runtimeIngest: zasp_svc_ingest
+  runtimeWorker: zasp_svc_runtime
+  outboxWorker: zasp_svc_outbox
+  recoveryOutboxWorker: zasp_svc_recovery_outbox
+  recoveryWorker: zasp_svc_recovery
+  redTeamOutboxWorker: zasp_svc_red_team_outbox
+  redTeamWorker: zasp_svc_red_team_worker
+  redTeamAdapter: zasp_svc_red_team_adapter
+  attackLabController: zasp_svc_attack_lab_controller
+  attackLabOutbox: zasp_svc_attack_lab_outbox
+  attackLabProxy: zasp_svc_attack_lab_proxy
+  runtimeGateway: zasp_svc_gateway
+  discoveryScheduler: zasp_svc_scheduler
+  projectionRisk: zasp_svc_projection_risk
+  projectionGraph: zasp_svc_projection_graph
+  projectionSearch: zasp_svc_projection_search
+  runtimeCoordinator: zasp_svc_coordinator
+  runtimeArchive: zasp_svc_archive
+  runtimeIndex: zasp_svc_index
+  runtimeCorrelation: zasp_svc_correlation
+  runtimeProjection: zasp_svc_runtime_projection
+  gatewayControl: zasp_svc_gateway_control
 serviceAccounts:
   web: agentsec-web
   api:
@@ -501,3 +531,8 @@ runtimeServices:
   enabled: false
 authorizationTemporal:
   profile: ""
+  # Fixed baseline logins. The permission projector uses the outbox login.
+  executorPrincipal: zasp_svc_temporal_executor
+  compensationPrincipal: zasp_svc_temporal_compensation
+  projectorPrincipal: zasp_svc_outbox
+  adapterPrincipal: zasp_svc_red_team_adapter

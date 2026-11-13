@@ -49,6 +49,10 @@ Afterwards the operator holds one membership, in `zasp_discovery_authority`, whi
 
 The service logins already hold their database bindings. `register-temporal-executor-principals` is not needed on a baseline installation.
 
+### With the Helm chart
+
+The hosted chart's schema job runs `verify-baseline`, `install-baseline` when that fails, and the four registrations of step 2, as `zasp_operator`. With `schema.registerIdentityVerifiers: true` it also runs the two identity registrations. It does not set passwords or create the first Organization. [Production deployment](production-deployment.md#schema-installation) lists the values, the Secrets to create first, and what has and has not been checked.
+
 ## Connecting where only HTTPS egress is allowed
 
 Set `ZASP_POSTGRES_TRANSPORT=websocket` on `agentsec-migrate`, `zasp-bootstrap`, the API and the workers to carry the PostgreSQL protocol inside a TLS WebSocket on port 443 of the DSN's host (path `/v2`) instead of TCP port 5432. Neon serves this endpoint. Sessions, transactions and authentication are unchanged; the server certificate is always verified against the DSN's host, and the standard `HTTPS_PROXY` setting is honoured. The DSN must name a DNS host and use `sslmode=require` or stricter. Unset, or `tcp`, is the default and is what a normal deployment uses.

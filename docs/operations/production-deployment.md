@@ -28,6 +28,102 @@ The required CI gate scans all tracked Git history with the pinned Gitleaks vers
 
 Create secret values only in the approved secret manager. Helm values contain object names and credential references, never values. Every PostgreSQL principal has its own DSN object and service account. Discovery receives only its queue, evidence bucket/KMS key, connector references, and explicit web identity. Risk is DB-only. Graph and search use separate runtime and schema-init authorities. Task 6 adds a distinct runtime-events queue/DLQ, versioned runtime-raw bucket and KMS key, runtime OpenSearch index, and a non-union role for ingest, gateway control, outbox, coordinator, archive, index, correlation, projection, and completion. Web and the recurring canary receive no cloud identity, and application containers disable ambient service-account tokens. Configure exact TLS host, certificate secret, trusted ingress CIDRs, fixed provider/dependency CIDRs, immutable implementation versions, and immutable product image digests. `global.publicOrigin` must equal `https://<ingress.host>` exactly. Before rendering a release, copy Terraform's exact `s3_cidr_snapshot` output into the release `awsS3CIDRs` field. Native Kubernetes NetworkPolicy cannot reference the AWS-managed S3 prefix list, so these regional public destination CIDRs are required even though the S3 gateway endpoint keeps the traffic on the AWS network. Recreate and review the snapshot after AWS changes the endpoint ranges; never replace it with `0.0.0.0/0` or a manually aggregated supernet.
 
+### Schema installation
+
+The hosted chart's schema job has two forms, selected by `schema.install`.
+
+| `schema.install` | What the job runs | Database role |
+| --- | --- | --- |
+| `baseline` (default) | `verify-baseline`; if that fails, `install-baseline` and `verify-baseline` again; then the verifier registrations | `zasp_operator`, not a superuser |
+| `chain` | The historical migration chain: `up-to-<schema.expectedVersion>` and the release-specific registrations described below | A PostgreSQL superuser |
+
+Use `baseline` for every new installation. It is the only form that works on managed PostgreSQL. [Installing the product schema](baseline-schema-install.md) describes the installer, its requirements and its refusals. `chain` is kept for the historical rollout phases in the table below and is never selected unless a release sets it.
+
+#### What the baseline job does
+
+The job is the `pre-install,pre-upgrade` hook `agentsec-schema-v<schema.expectedVersion>`. It runs these commands in order and stops at the first failure:
+
+1. `agentsec-migrate verify-baseline`. It succeeds only when the database holds this release's baseline, sealed and unchanged.
+2. Only if step 1 failed: `agentsec-migrate install-baseline`, then `verify-baseline` again. On an empty database this installs the schema in one transaction. On a database that holds anything else, including a baseline installed from a different release artifact, `install-baseline` refuses and the job fails without changing the database. The chart has no in-place upgrade between baseline artifacts.
+3. `register-authorization-verifier`, `register-worker-authorization-verifier`, `register-compensation-authorization-verifier` and `register-approval-maintenance-verifier`. They run on every install and upgrade.
+4. Only when `schema.registerIdentityVerifiers` is `true`: `register-identity-session-verifier` and `register-identity-webhook-verifier`.
+
+The job does not run `register-temporal-executor-principals` or any `up-` command: the baseline already binds its service logins. The audit-export, compliance-export, Attack Lab reconciler and test reconciler workloads are limited by the chart to schema 58 and earlier, so their registration commands are never part of a baseline job.
+
+#### Before the first install
+
+1. Create the `zasp_operator` role and the empty database as [the installer requires](baseline-schema-install.md#requirements). Store the operator DSN as the Secrets Manager object named by `secrets.migrationPostgresDSNObjectName`. The DSN's user must be `zasp_operator`; the chart refuses any other `databasePrincipals.migration`.
+2. Create these Kubernetes Secrets in the release namespace. The job is a pre-install hook, so they must exist before `helm upgrade --install`:
+
+   | Secret | Key | Content |
+   | --- | --- | --- |
+   | `authorizationTemporal.forwardKey.secretName` | `seed` | Worker authorization key |
+   | `authorizationTemporal.compensationKey.secretName` | `seed` | Compensation authorization key |
+   | `approvalMaintenance.key.secretName` | `seed` | Approval-notification delivery key: exactly 32 raw bytes |
+
+3. Set the release values:
+
+   | Value | Setting |
+   | --- | --- |
+   | `schema.install` | `baseline` (the default) |
+   | `schema.expectedVersion` | `61` |
+   | `runtime.sessionSearchPhase`, `rollout.discoveryScheduleReplayPhase` | `precision-intake`, `active` |
+   | `authorizationTemporal.profile` and its Secrets, ConfigMaps and roles | The named current profile. The baseline requires it: it supplies runtime services, the worker keys and the permission projector. |
+   | `runtimeServices.*` | As in [the Temporal and OpenFGA guide](temporal-openfga.md) |
+   | `approvalMaintenance.profileChecksum` | Output of `agentsec-migrate approval-maintenance-checksum` from this release's API image |
+   | `approvalMaintenance.dsnSecret` | Name of a Kubernetes Secret created in step 5 below |
+   | `schema.registerIdentityVerifiers` | `false` until the first Organization exists |
+
+   `databasePrincipals.*` and the four `authorizationTemporal.*Principal` values default to the fixed baseline names (`zasp_operator` and `zasp_svc_*`). Leave them unset.
+
+The chart refuses to render a baseline release that lacks the profile, the operator name, the checksum or either approval-maintenance Secret name.
+
+#### After the first install
+
+The first `helm upgrade --install` runs the schema job before any workload starts. The workloads cannot become ready yet, because the service logins have no passwords and no Organization exists. Run it without `--atomic` and `--wait` this once, or expect the wait to time out, then complete these steps:
+
+4. As the operator, set a password on each `zasp_svc_*` login and store each DSN where the chart reads it: the `secrets.*PostgresDSNObjectName` objects, and the Kubernetes Secrets named by `authorizationTemporal.executorDSNSecret`, `compensationDSNSecret` and `adapterDSNSecret` (key `postgres-dsn`).
+5. Create the Kubernetes Secret named by `approvalMaintenance.dsnSecret` with key `postgres-dsn`. It holds the DSN of `zasp_svc_approval_maintenance`, with the same host, database and parameters as the Security Agent API DSN. The API refuses a DSN that differs in any of those or that reuses another login.
+6. Create the first Organization with [`zasp-bootstrap`](first-organization-bootstrap.md), using the operator DSN. Store the provider Organization reference it prints as the Secrets Manager object named by `secrets.stytchOrganizationIDObjectName`.
+7. Set `schema.registerIdentityVerifiers: true` and run `helm upgrade` again. The schema job then registers the identity session and webhook verifiers. Keep the value `true` afterwards: registration with unchanged inputs changes nothing.
+
+The chart does not run `zasp-bootstrap` and does not set login passwords.
+
+Alternatively, install the schema yourself before the first Helm install, as [the installer guide](baseline-schema-install.md#install) describes, then do steps 4 to 6 and install the chart once with `schema.registerIdentityVerifiers: true`. The job then finds the baseline installed, verifies it and runs the registrations. The production Neon project was installed outside the chart in this way.
+
+Neither sequence has been run end to end against a cluster.
+
+#### Settings the chart supplies on the baseline
+
+| Setting | Workloads |
+| --- | --- |
+| `ZASP_APPROVAL_MAINTENANCE_PROFILE_CHECKSUM` | Every workload that connects to Temporal and OpenFGA: the API, the discovery scheduler and worker, the Security Agent worker, the Red Team worker and adapter, and the permission projector. A process without runtime services refuses this setting, so the other workers do not receive it. |
+| `ZASP_APPROVAL_MAINTENANCE_POSTGRES_DSN` | The API only |
+| `ZASP_APPROVAL_MAINTENANCE_KEY_FILE` | The API and the schema job. An init container copies the key into memory as a 0400 file owned by the process user, because the API and the registration command refuse the symbolic link a Secret volume serves. |
+| `ZASP_POSTGRES_TRANSPORT` | Set from `postgres.transport` (empty by default) on the schema job, the API, every `agentsec-worker` Deployment except the export and reconciler workloads that exist only up to schema 58, the Red Team adapter, the Attack Lab proxy and the permission projector |
+
+`postgres.transport: websocket` also adds the NetworkPolicy `postgres-websocket-egress`, which lets every pod labelled `app.kubernetes.io/part-of: zasp` reach `network.postgresCIDR` on TCP 443. Event ingest and gateway control do not support this transport and keep using port 5432, so a network that blocks 5432 cannot run them. Set the transport at the first install: a NetworkPolicy added by an upgrade is applied after that upgrade's schema job has run.
+
+#### The permission projector
+
+The profile renders the CronJob `zasp-authorization-projector`. Every minute it runs `zasp-authorization-reconcile --mode reconcile --limit 20 --timeout 2m` with the outbox login, and overlapping runs are forbidden. This is what applies a permission change to OpenFGA: a newly added administrator shows "Authorization pending" until the next pass, normally within about a minute. The chart has no other projector and none runs without the profile.
+
+#### What has been checked
+
+| Check | Result |
+| --- | --- |
+| `helm lint` and `helm template` of a baseline release through `renderRelease`, with Helm 3.16.4 | Rendered and accepted by the release contract on 2026-11-13, with and without `schema.registerIdentityVerifiers` |
+| The job's shell control flow, against a stand-in for `agentsec-migrate` | Empty, installed, changed-database and failed-registration cases behave as described above |
+| Applying a baseline release to a cluster | Not done |
+| Running the rendered job against PostgreSQL | Not done. The same command sequence runs in [the local real stack](../../deploy/local/real-stack/README.md) outside Kubernetes. |
+| The approval-maintenance key and DSN wiring in a running API pod | Not done |
+| `postgres.transport: websocket` | Rendered only. The release contract does not accept this option yet. |
+| Terraform in `deploy/staging` | Unchanged and not checked against the baseline. It takes the login names from `database_principals` and `temporal_database_principals`, which must be given the baseline names, and it creates no approval-maintenance key or DSN Secret. |
+
+### Historical chain phases
+
+The rest of this section, up to the Helm commands, describes `schema.install: chain`. The release renderer selects it for every schema below 61.
+
 The release renderer accepts these exact `schema.expectedVersion` and `runtime.sessionSearchPhase` pairs. Its default remains schema 49 compatibility; schema 51 is explicit, not a default upgrade.
 
 | Schema | Session search phase | Runtime selection |
@@ -71,7 +167,7 @@ Complete and verify the schema-50 query cutover before entering either schema-51
 
 Before V2 intake or source activation, require zero old coordinator replicas, ready/current consumers, verified provider checkpoints and explicit source configuration. A manifest or selector value does not establish those conditions or authorize the transition. The [precision rollout evidence](../internal/2026-09-11-precision-rollout-evidence.md) records this boundary and rollback refusals: retained V2 authority or pending, retryable or leased OTLP `3/2/2` work can prevent schema-51 rollback. The CLI exposes no schema-51 down command; preserve incompatible retained work and follow the [rollback runbook](backup-restore-rollback.md).
 
-`agentsec-migrate up-to-48`, `up-to-49`, `up-to-50` and `up-to-51` select the exact guarded migration target and register release principals. Plain `up` still stops at 49. The chart uses `up-to-<schema.expectedVersion>`; schema installation alone does not authorize a query cutover or producer activation. The [cutover design](../internal/2026-09-11-sandbox-query-cutover-design.md) requires verified release provenance and receipt/provider/consumer checks. Its tested adapters do not yet provide a trusted live entry point.
+`agentsec-migrate up-to-48`, `up-to-49`, `up-to-50` and `up-to-51` select the exact guarded migration target and register release principals. Plain `up` still stops at 49. With `schema.install: chain` the chart uses `up-to-<schema.expectedVersion>`; schema installation alone does not authorize a query cutover or producer activation. The [cutover design](../internal/2026-09-11-sandbox-query-cutover-design.md) requires verified release provenance and receipt/provider/consumer checks. Its tested adapters do not yet provide a trusted live entry point.
 
 The corresponding process selectors are closed values: `ZASP_RUNTIME_SESSION_INDEX` is `zasp-runtime-sessions-v1` or `zasp-runtime-sessions-v2`; `ZASP_RUNTIME_INGEST_SCHEMA` and coordinator/runtime-outbox `ZASP_RUNTIME_DELIVERY_SCHEMA` accept `runtime-event-v1` or `runtime-event-v2`. Empty process values retain v1 behavior. Use the reviewed phase manifest to keep these selections paired; arbitrary mixed selections are rejected.
 
@@ -202,7 +298,7 @@ The vendored Tetragon dependency archive must hash to `4935787067939cacfe779366e
 
 Before promotion, require `zasp-tetragon` and `sensor-agent` desired/ready counts to match, both tracing policies present, every `zasp-sensor-node-*` Lease fresh, exactly one unexpired `zasp-sensor-heartbeat-leader`, and the SaaS sensor detail to advance without drop growth. Test leader-pod deletion and node-log rotation. `ZaspSensorAgentNotReady` and `ZaspEdgeDaemonSetUnavailable` must stay clear.
 
-The hosted pre-install/pre-upgrade lifecycle is serialized. The migration service account (-30), secret-provider class (-20), and bounded migration Job (-10) establish the selected exact schema first. Neo4j and v1 OpenSearch init authorities run at -7; phases with target v2 add its separate OpenSearch init Job at -6. They install exact constraints, mappings, and immutable markers before Helm rolls discovery, Red Team, Attack Lab, recovery, projection, gateway-control, ingest, and runtime pipeline Deployments. This hook ordering supports a fresh install without pre-existing Kubernetes Secrets, but it requires the Secrets Store CSI driver/provider, exact IRSA trusts, VPC CNI strict pod-network enforcement, and reachable private dependency CIDRs. A failed hook or readiness check blocks promotion. Do not bypass, reorder, or reuse an init identity for a runtime worker.
+The hosted pre-install/pre-upgrade lifecycle is serialized. The migration service account (-30), secret-provider class (-20), and bounded migration Job (-10) establish the selected exact schema first. Neo4j and v1 OpenSearch init authorities run at -7; phases with target v2 add its separate OpenSearch init Job at -6. They install exact constraints, mappings, and immutable markers before Helm rolls discovery, Red Team, Attack Lab, recovery, projection, gateway-control, ingest, and runtime pipeline Deployments. On the historical chain without the named profile, this hook ordering supports a fresh install without pre-existing Kubernetes Secrets. A baseline install needs the three key Secrets listed under [Schema installation](#schema-installation) first. Both require the Secrets Store CSI driver/provider, exact IRSA trusts, VPC CNI strict pod-network enforcement, and reachable private dependency CIDRs. A failed hook or readiness check blocks promotion. Do not bypass, reorder, or reuse an init identity for a runtime worker.
 
 ## Verify and promote
 

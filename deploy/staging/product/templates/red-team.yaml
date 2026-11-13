@@ -107,6 +107,7 @@ spec:
           securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: {{ $worker.uid }}, runAsGroup: {{ $worker.uid }} }
           env:
             - { name: ZASP_WORKER_MODE, value: {{ $worker.mode | quote }} }
+            {{- include "zasp.postgres.transportEnv" $ | nindent 12 }}
             {{- if and $root.Values.authorizationTemporal.profile (eq $worker.mode "red-team") }}
             - { name: ZASP_ENVIRONMENT, value: {{ $root.Values.global.environment | quote }} }
             {{- include "zasp.runtimeServices.env" $root | nindent 12 }}
@@ -209,6 +210,7 @@ spec:
           securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 1000, runAsGroup: 1000 }
           env:
             - { name: ZASP_DATABASE_AUTHORITY, value: "zasp_red_team_adapter" }
+            {{- include "zasp.postgres.transportEnv" $ | nindent 12 }}
             {{- if .Values.authorizationTemporal.profile }}
             - { name: ZASP_ENVIRONMENT, value: {{ .Values.global.environment | quote }} }
             {{- include "zasp.runtimeServices.env" . | nindent 12 }}

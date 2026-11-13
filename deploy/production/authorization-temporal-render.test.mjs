@@ -13,8 +13,8 @@ const config = () => ({
   schemaVersion: 61,
   authorizationTemporal: {
     profile: 'canonical61-temporal78-authorization79-80-worker-v1',
-    executorPrincipal: 'temporal_executor_login', compensationPrincipal: 'temporal_compensation_login',
-    projectorPrincipal: 'outbox_login', adapterPrincipal: 'red_team_adapter_login',
+    executorPrincipal: 'zasp_svc_temporal_executor', compensationPrincipal: 'zasp_svc_temporal_compensation',
+    projectorPrincipal: 'zasp_svc_outbox', adapterPrincipal: 'zasp_svc_red_team_adapter',
     executorDSNSecret: 'zasp-temporal-executor', compensationDSNSecret: 'zasp-temporal-compensation',
     projectorDSNSecret: 'zasp-authorization-projector', adapterDSNSecret: 'zasp-authorization-adapter',
     forwardKey: { purpose: 'worker-forward', secretName: 'zasp-worker-forward-key', key: 'seed' },
@@ -24,6 +24,9 @@ const config = () => ({
     workerRoleArn: 'arn:aws:iam::123456789012:role/zasp-production-temporal-worker',
     projectorRoleArn: 'arn:aws:iam::123456789012:role/zasp-production-authorization-projector',
     adapterRoleArn: 'arn:aws:iam::123456789012:role/zasp-production-red-team-adapter',
+    approvalMaintenanceChecksum: 'a'.repeat(64), approvalMaintenanceDSNSecret: 'zasp-approval-maintenance-dsn',
+    approvalMaintenanceKey: { purpose: 'approval-forward', secretName: 'zasp-approval-maintenance-key', key: 'seed' },
+    registerIdentityVerifiers: false,
   },
   runtimeServices: { enabled: true, timeout: '5s', temporalAddress: 'temporal-frontend.zasp-runtime.svc.cluster.local:7233', namespace: 'zasp-staging', taskQueue: 'zasp-security-agent', discoveryTaskQueue: 'zasp-discovery', openfgaURL: 'https://openfga.zasp-runtime.svc.cluster.local:8080', storeID: '01ARZ3NDEKTSV4RRFFQ69G5FAV', modelID: '01ARZ3NDEKTSV4RRFFQ69G5FAW', clientSecret: 'zasp-runtime-services-client' },
 });
@@ -82,9 +85,19 @@ test('current profile renders the real pollers, registered authorities and bound
   assert.equal(pod(projector).containers[0].readinessProbe, undefined);
   assert.equal(one(rows, 'ServiceAccount', 'zasp-authorization-projector').metadata.annotations['eks.amazonaws.com/role-arn'], config().authorizationTemporal.projectorRoleArn);
   const migration = one(rows, 'Job', 'agentsec-schema-v61');
-  assert.equal(env(migration).ZASP_RED_TEAM_ADAPTER_DB_PRINCIPAL, 'red_team_adapter_login');
-  assert.equal(env(migration).ZASP_OUTBOX_WORKER_DB_PRINCIPAL, 'outbox_login');
-  assert.match(pod(migration).containers[0].args[0], /up-authorization-runtime-profile.*register-temporal-executor-principals.*register-authorization-verifier.*register-worker-authorization-verifier.*register-compensation-authorization-verifier/);
+  assert.equal(env(migration).ZASP_RED_TEAM_ADAPTER_DB_PRINCIPAL, 'zasp_svc_red_team_adapter');
+  assert.equal(env(migration).ZASP_OUTBOX_WORKER_DB_PRINCIPAL, 'zasp_svc_outbox');
+  assert.match(pod(migration).containers[0].args[0], /if ! \/app\/agentsec-migrate verify-baseline; then \/app\/agentsec-migrate install-baseline; \/app\/agentsec-migrate verify-baseline; fi; .*register-authorization-verifier.*register-worker-authorization-verifier.*register-compensation-authorization-verifier.*register-approval-maintenance-verifier$/);
+  assert.doesNotMatch(pod(migration).containers[0].args[0], /up-authorization-runtime-profile|register-temporal-executor-principals|register-identity/);
+  assert.equal(env(migration).ZASP_MIGRATION_DB_PRINCIPAL, 'zasp_operator');
+  assert.equal(env(migration).ZASP_APPROVAL_MAINTENANCE_KEY_FILE, '/var/run/zasp-approval-maintenance/delivery.key');
+  const api = one(rows, 'Deployment', 'agentsec-api');
+  assert.equal(env(api).ZASP_APPROVAL_MAINTENANCE_PROFILE_CHECKSUM, 'a'.repeat(64));
+  assert.equal(env(api).ZASP_APPROVAL_MAINTENANCE_KEY_FILE, '/var/run/zasp-approval-maintenance/delivery.key');
+  assert.equal(env(api).ZASP_APPROVAL_MAINTENANCE_POSTGRES_DSN.secretKeyRef.name, 'zasp-approval-maintenance-dsn');
+  assert.equal(env(projector).ZASP_APPROVAL_MAINTENANCE_PROFILE_CHECKSUM, 'a'.repeat(64));
+  assert.equal(env(worker).ZASP_APPROVAL_MAINTENANCE_PROFILE_CHECKSUM, 'a'.repeat(64));
+  assert.deepEqual(load(one(rows, 'SecretProviderClass', 'zasp-production-migration-secrets').spec.parameters.objects).map(o=>o.objectAlias), ['postgres-dsn', 'workflow-signing-key']);
   assert.deepEqual(load(one(rows, 'SecretProviderClass', 'zasp-temporal-provider-files').spec.parameters.objects).map(o=>o.objectName), ['zasp-production/gateway-policy-signing-private-key', 'zasp-production/red-team-adapter-token', 'zasp-production/red-team-adapter-tls-certificate']);
   assert.equal(load(one(rows, 'SecretProviderClass', 'zasp-authorization-projector').spec.parameters.objects)[0].objectName, 'zasp-production/postgres-outbox-worker-dsn');
 });

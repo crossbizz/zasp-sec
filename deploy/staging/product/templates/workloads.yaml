@@ -34,6 +34,10 @@ spec:
         runAsGroup: 65532
         fsGroup: 65532
         seccompProfile: { type: RuntimeDefault }
+      {{- if and (eq .name "agentsec-api") (include "zasp.schema.baseline" $root) }}
+      initContainers:
+        {{- include "zasp.approvalMaintenance.keyInit" (dict "image" $root.Values.global.productImages.agentsecApi "uid" 65532) | nindent 8 }}
+      {{- end }}
       topologySpreadConstraints:
         - { maxSkew: 1, topologyKey: topology.kubernetes.io/zone, whenUnsatisfiable: DoNotSchedule, labelSelector: { matchLabels: { app.kubernetes.io/name: {{ .name }} } } }
         - { maxSkew: 1, topologyKey: kubernetes.io/hostname, whenUnsatisfiable: ScheduleAnyway, labelSelector: { matchLabels: { app.kubernetes.io/name: {{ .name }} } } }
@@ -65,6 +69,10 @@ spec:
             - { name: ZASP_PUBLIC_ORIGIN, value: {{ required "global.publicOrigin is required" $root.Values.global.publicOrigin | quote }} }
             {{- if eq .name "agentsec-api" }}
             {{- include "zasp.runtimeServices.env" $root | nindent 12 }}
+            {{- include "zasp.postgres.transportEnv" $root | nindent 12 }}
+            {{- if include "zasp.schema.baseline" $root }}
+            {{- include "zasp.approvalMaintenance.apiEnv" $root | nindent 12 }}
+            {{- end }}
             - { name: ZASP_PRODUCT_LISTEN_ADDRESS, value: ":8080" }
             - { name: ZASP_INTERNAL_LISTEN_ADDRESS, value: ":8081" }
             - { name: ZASP_COOKIE_SECURE, value: "true" }
@@ -138,6 +146,9 @@ spec:
               exec /app/agentsec-api
           volumeMounts:
             {{- include "zasp.runtimeServices.mount" $root | nindent 12 }}
+            {{- if include "zasp.schema.baseline" $root }}
+            {{- include "zasp.approvalMaintenance.keyMount" $root | nindent 12 }}
+            {{- end }}
             - { name: runtime-secrets, mountPath: /var/run/secrets/zasp, readOnly: true }
             - { name: connector-web-identity, mountPath: /var/run/secrets/eks.amazonaws.com/serviceaccount, readOnly: true }
             - { name: nango-service-key, mountPath: /var/run/secrets/zasp-nango, readOnly: true }
@@ -145,6 +156,9 @@ spec:
       {{- if eq .name "agentsec-api" }}
       volumes:
         {{- include "zasp.runtimeServices.volume" $root | nindent 8 }}
+        {{- if include "zasp.schema.baseline" $root }}
+        {{- include "zasp.approvalMaintenance.keyVolumes" $root | nindent 8 }}
+        {{- end }}
         - name: runtime-secrets
           csi:
             driver: secrets-store.csi.k8s.io
@@ -204,6 +218,7 @@ spec:
           securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
           env:
             - { name: ZASP_WORKER_MODE, value: "scheduler" }
+            {{- include "zasp.postgres.transportEnv" $ | nindent 12 }}
             - { name: ZASP_ENVIRONMENT, value: {{ .Values.global.environment | quote }} }
             {{- include "zasp.runtimeServices.env" . | nindent 12 }}
             - { name: ZASP_DATABASE_AUTHORITY, value: "zasp_discovery_scheduler" }
@@ -289,6 +304,7 @@ spec:
           securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
           env:
             - { name: ZASP_WORKER_MODE, value: "security-agent" }
+            {{- include "zasp.postgres.transportEnv" $ | nindent 12 }}
             {{- if .Values.authorizationTemporal.profile }}
             - { name: ZASP_ENVIRONMENT, value: {{ .Values.global.environment | quote }} }
             {{- include "zasp.runtimeServices.env" . | nindent 12 }}
@@ -398,6 +414,7 @@ spec:
           securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
           env:
             - { name: ZASP_WORKER_MODE, value: "security-agent-action" }
+            {{- include "zasp.postgres.transportEnv" $ | nindent 12 }}
             - { name: ZASP_DATABASE_AUTHORITY, value: "zasp_security_agent_action_worker" }
             - name: ZASP_WORKER_ID
               valueFrom: { fieldRef: { apiVersion: v1, fieldPath: metadata.name } }
@@ -451,6 +468,7 @@ spec:
           securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
           env:
             - { name: ZASP_WORKER_MODE, value: "policy-deployment" }
+            {{- include "zasp.postgres.transportEnv" $ | nindent 12 }}
             - { name: ZASP_DATABASE_AUTHORITY, value: "zasp_policy_deployment_worker" }
             - name: ZASP_WORKER_ID
               valueFrom: { fieldRef: { apiVersion: v1, fieldPath: metadata.name } }
@@ -504,6 +522,7 @@ spec:
           securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
           env:
             - { name: ZASP_WORKER_MODE, value: "discovery" }
+            {{- include "zasp.postgres.transportEnv" $ | nindent 12 }}
             {{- if .Values.authorizationTemporal.profile }}
             - { name: ZASP_ENVIRONMENT, value: {{ .Values.global.environment | quote }} }
             {{- include "zasp.runtimeServices.env" . | nindent 12 }}
@@ -593,6 +612,7 @@ spec:
           securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
           env:
             - { name: ZASP_WORKER_MODE, value: "projection-risk" }
+            {{- include "zasp.postgres.transportEnv" $ | nindent 12 }}
             - { name: ZASP_DATABASE_AUTHORITY, value: "zasp_projection_risk_worker" }
             - name: ZASP_WORKER_ID
               valueFrom: { fieldRef: { apiVersion: v1, fieldPath: metadata.name } }
@@ -644,6 +664,7 @@ spec:
           securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
           env:
             - { name: ZASP_WORKER_MODE, value: "projection-graph" }
+            {{- include "zasp.postgres.transportEnv" $ | nindent 12 }}
             - { name: ZASP_DATABASE_AUTHORITY, value: "zasp_projection_graph_worker" }
             - name: ZASP_WORKER_ID
               valueFrom: { fieldRef: { apiVersion: v1, fieldPath: metadata.name } }
@@ -712,6 +733,7 @@ spec:
           securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
           env:
             - { name: ZASP_WORKER_MODE, value: "projection-search" }
+            {{- include "zasp.postgres.transportEnv" $ | nindent 12 }}
             - { name: ZASP_DATABASE_AUTHORITY, value: "zasp_projection_search_worker" }
             - name: ZASP_WORKER_ID
               valueFrom: { fieldRef: { apiVersion: v1, fieldPath: metadata.name } }
@@ -775,6 +797,7 @@ spec:
           securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
           env:
             - { name: ZASP_WORKER_MODE, value: "outbox" }
+            {{- include "zasp.postgres.transportEnv" $ | nindent 12 }}
             - { name: ZASP_DATABASE_AUTHORITY, value: "zasp_outbox_worker" }
             - name: ZASP_WORKER_ID
               valueFrom: { fieldRef: { apiVersion: v1, fieldPath: metadata.name } }
@@ -845,6 +868,7 @@ spec:
           securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
           env:
             - { name: ZASP_WORKER_MODE, value: {{ $workload.mode | quote }} }
+            {{- include "zasp.postgres.transportEnv" $ | nindent 12 }}
             - { name: ZASP_DATABASE_AUTHORITY, value: {{ ternary "zasp_recovery_outbox_worker" "zasp_recovery_worker" (eq $workload.mode "recovery-outbox") | quote }} }
             - name: ZASP_WORKER_ID
               valueFrom: { fieldRef: { apiVersion: v1, fieldPath: metadata.name } }

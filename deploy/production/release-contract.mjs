@@ -14,7 +14,7 @@ import { validateAttackLabWorkflowReadiness } from "./attack-lab-workflow-readin
 import { normalizeEvidenceExportWorkflow, validateExportWorkflowReadiness } from "./export-workflow-readiness.mjs";
 import { normalizeTestReconciler, validateTestReconcilerResources } from "./test-reconciler-rollout.mjs";
 import { normalizeComplianceExports, validateComplianceExportResources, validateComplianceExportCollisions, complianceExportMigrationCommand } from "./compliance-export-rollout.mjs";
-import { normalizeAuthorizationTemporalProfile, authorizationTemporalMigrationCommands } from "./authorization-temporal-profile.mjs";
+import { normalizeAuthorizationTemporalProfile, authorizationTemporalMigrationShell, authorizationTemporalChartValues } from "./authorization-temporal-profile.mjs";
 import { validateAuthorizationTemporalResources } from "./authorization-temporal-resources.mjs";
 
 const exec = promisify(execFile);
@@ -98,6 +98,9 @@ export async function renderRelease(value, options = { schemaVersion: 49 }) {
   validateAttackLabReconcilerCollisions(value, attackLabReconciler, auditExports, testReconciler, complianceExports);
   const set = [
     ["schema.expectedVersion", String(schemaVersion)],
+    // The named current profile is installed from the baseline schema. Every
+    // earlier release is a historical migration-chain rollout.
+    ["schema.install", authorizationTemporal ? "baseline" : "chain"],
     ["runtime.sessionSearchPhase", sessionSearchPhase],
     ["rollout.discoveryScheduleReplayPhase", discoveryScheduleReplayPhase ?? "steady"],
     ["global.publicOrigin", `https://${value.host}`],
@@ -357,6 +360,9 @@ export async function renderRelease(value, options = { schemaVersion: 49 }) {
     ...value.telemetry.egressCIDRs.map((cidr, index) => [`telemetry.egressCIDRs[${index}]`, cidr]),
     ...imageNames.map((name) => [`global.productImages.${name}`, value.images[name]]),
   ];
+  // The baseline schema fixes the operator and service login names; the chart
+  // defaults carry them, so the historical names are not sent.
+  if (authorizationTemporal) for (let index = set.length - 1; index >= 0; index--) if (set[index][0].startsWith("databasePrincipals.")) set.splice(index, 1);
   if (authorizationTemporal) set.push(
     ["serviceAccounts.securityAgent.roleArn", authorizationTemporal.workerRoleArn],
     ["serviceAccounts.redTeamAdapter.roleArn", authorizationTemporal.adapterRoleArn],
@@ -379,7 +385,7 @@ export async function renderRelease(value, options = { schemaVersion: 49 }) {
       // A complete policy history can exceed the per-argument limit on Linux.
       exportValuesDirectory = await mkdtemp(path.join(tmpdir(), "zasp-audit-export-values-"));
       const exportValuesPath = path.join(exportValuesDirectory, "values.json");
-      await writeFile(exportValuesPath, JSON.stringify({ auditExports, testReconciler, complianceExports, attackLabReconciler, ...(authorizationTemporal ? { authorizationTemporal } : {}), ...(runtimeServices ? { runtimeServices } : {}), ...(evidenceExportWorkflow ? { evidenceExportWorkflow: { enabled: true } } : {}) }), { mode: 0o600 });
+      await writeFile(exportValuesPath, JSON.stringify({ auditExports, testReconciler, complianceExports, attackLabReconciler, ...(authorizationTemporal ? { authorizationTemporal, ...authorizationTemporalChartValues(authorizationTemporal) } : {}), ...(runtimeServices ? { runtimeServices } : {}), ...(evidenceExportWorkflow ? { evidenceExportWorkflow: { enabled: true } } : {}) }), { mode: 0o600 });
       valueArgs.push("--values", exportValuesPath);
     }
     await exec("helm", ["lint", chart, "--namespace", "agentsec", ...valueArgs], { cwd: root, encoding: "utf8", maxBuffer: 4 * 1024 * 1024 });
@@ -726,10 +732,6 @@ export function validateRenderedRelease(resources, platformAccountID, schemaVers
   if (cronJobs.length !== cronJobIdentities.size || cronJobs.some((resource) => cronJobIdentities.get(resource.metadata?.name) !== resource.spec?.jobTemplate?.spec?.template?.spec?.serviceAccountName)) throw new Error("release rejected");
   validateAuthorizationTemporalResources(resources, authorizationTemporal, platformAccountID);
   return Object.freeze({ deployments: deployments.size, identities: accounts.size, platformAccountID });
-}
-
-function authorizationTemporalMigrationShell(profile) {
-  return 'export ZASP_POSTGRES_DSN="$(cat /var/run/secrets/zasp-migration/postgres-dsn)"; export ZASP_WORKFLOW_SIGNING_KEY="$(cat /var/run/secrets/zasp-migration/workflow-signing-key)"; export ZASP_STYTCH_PROJECT_ID="$(cat /var/run/secrets/zasp-migration/stytch-project-id)"; export ZASP_STYTCH_ORGANIZATION_ID="$(cat /var/run/secrets/zasp-migration/stytch-organization-id)"; ' + authorizationTemporalMigrationCommands(profile).map(command => `/app/agentsec-migrate ${command}`).join('; ');
 }
 
 function validCABundle(value) {

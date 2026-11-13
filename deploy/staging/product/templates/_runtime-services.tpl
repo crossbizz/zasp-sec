@@ -14,6 +14,9 @@
 - { name: ZASP_TEMPORAL_TLS_KEY_FILE, value: /var/run/secrets/runtime-services/temporal-client.key }
 - { name: ZASP_OPENFGA_TLS_CA_FILE, value: /var/run/secrets/runtime-services/openfga-ca.crt }
 - { name: ZASP_OPENFGA_TOKEN_FILE, value: /var/run/secrets/runtime-services/openfga-token }
+{{- if eq (toString .Values.schema.install) "baseline" }}
+- { name: ZASP_APPROVAL_MAINTENANCE_PROFILE_CHECKSUM, value: {{ .Values.approvalMaintenance.profileChecksum | quote }} }
+{{- end }}
 {{- end }}
 {{- end }}
 {{- define "zasp.runtimeServices.mount" -}}

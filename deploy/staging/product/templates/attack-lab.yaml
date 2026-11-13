@@ -203,6 +203,7 @@ spec:
           env:
             - { name: ZASP_POSTGRES_DSN, valueFrom: { secretKeyRef: { name: zasp-attack-lab-outbox-secrets, key: ZASP_POSTGRES_DSN } } }
             - { name: ZASP_WORKER_MODE, value: attack-lab-outbox }
+            {{- include "zasp.postgres.transportEnv" $ | nindent 12 }}
             - { name: ZASP_DATABASE_AUTHORITY, value: zasp_attack_lab_outbox_worker }
             - { name: ZASP_WORKER_ID, valueFrom: { fieldRef: { apiVersion: v1, fieldPath: metadata.name } } }
             - { name: ZASP_POLL_INTERVAL, value: 1s }
@@ -261,6 +262,7 @@ spec:
           env:
             - { name: ZASP_POSTGRES_DSN, valueFrom: { secretKeyRef: { name: zasp-attack-lab-controller-secrets, key: ZASP_POSTGRES_DSN } } }
             - { name: ZASP_WORKER_MODE, value: attack-lab-controller }
+            {{- include "zasp.postgres.transportEnv" $ | nindent 12 }}
             - { name: ZASP_DATABASE_AUTHORITY, value: zasp_attack_lab_controller }
             - { name: ZASP_WORKER_ID, valueFrom: { fieldRef: { apiVersion: v1, fieldPath: metadata.name } } }
             - { name: ZASP_POLL_INTERVAL, value: 1s }
@@ -347,6 +349,7 @@ spec:
           env:
             - { name: ZASP_DATABASE_URL, valueFrom: { secretKeyRef: { name: zasp-attack-lab-proxy-secrets, key: ZASP_DATABASE_URL } } }
             - { name: ZASP_DATABASE_AUTHORITY, value: zasp_attack_lab_proxy }
+            {{- include "zasp.postgres.transportEnv" $ | nindent 12 }}
             - { name: ZASP_AWS_REGION, value: {{ .Values.attackLab.awsRegion | quote }} }
             - { name: ZASP_ATTACK_LAB_ALLOWED_TARGET_CIDRS, value: {{ join "," .Values.attackLab.targetAllowedCIDRs | quote }} }
             - { name: ZASP_ATTACK_LAB_EGRESS_SIGNING_KEY_FILE, value: /var/run/secrets/zasp-attack-lab/egress-signing-key }

@@ -27,6 +27,8 @@ export function validateAuthorizationTemporalResources(resources, profile, accou
   for (const name of consumers) {
     const r = one(name === 'zasp-authorization-projector' ? 'CronJob' : 'Deployment', name);
     expect(r, 'ZASP_RUNTIME_SERVICES_ENABLED', 'true');
+    // Every process that reads permissions names the active approval-maintenance profile.
+    expect(r, 'ZASP_APPROVAL_MAINTENANCE_PROFILE_CHECKSUM', profile.approvalMaintenanceChecksum);
     for (const suffix of Object.values(fields)) expect(r,key(suffix),entry(api,key(suffix)).value);
     const volume=pod(r).volumes?.find(v=>v.name==='runtime-services'), mount=container(r).volumeMounts?.find(v=>v.name==='runtime-services');
     if (volume?.secret?.secretName !== runtime.clientSecret || mount?.mountPath !== '/var/run/secrets/runtime-services' || mount.readOnly !== true) fail();
@@ -56,7 +58,7 @@ export function validateAuthorizationTemporalResources(resources, profile, accou
   if (container(adapter).env.some(e=>e.name==='ZASP_TEMPORAL_EXECUTOR_POSTGRES_DSN') || !same(container(adapter).args,['exec /app/red-team-adapter'])) fail();
   for (const [r,uid] of [[worker,65532],[adapter,1000],[migration,65532]]) {
     const p=pod(r), c=container(r), init=p.initContainers?.filter(c=>c.name==='materialize-worker-keys');
-    if (p.initContainers?.length !== (r === migration ? 1 : r === worker ? 3 : 2)) fail();
+    if (p.initContainers?.length !== (r === worker ? 3 : 2)) fail();
     expect(r,'ZASP_AUTHORIZATION_WORKER_KEY_FILE','/var/run/zasp-authority/forward.seed');
     expect(r,'ZASP_AUTHORIZATION_COMPENSATION_KEY_FILE','/var/run/zasp-authority/compensation.seed');
     const script='umask 077; cp /forward/seed /keys/forward.seed; cp /compensation/seed /keys/compensation.seed; chmod 0400 /keys/forward.seed /keys/compensation.seed';
@@ -70,6 +72,27 @@ export function validateAuthorizationTemporalResources(resources, profile, accou
     const mount=c.volumeMounts?.filter(v=>v.name==='worker-keys');
     if (mount?.length !== 1 || mount[0].readOnly !== true || mount[0].mountPath !== '/var/run/zasp-authority') fail();
   }
+  // The API signs approval notifications and the schema job registers the same
+  // key. Both read a 32-byte, owner-only copy; no other workload may hold it.
+  const approvalScript='umask 077; cp /approval-maintenance-source/seed /approval-maintenance/delivery.key; chmod 0400 /approval-maintenance/delivery.key';
+  for (const r of [api,migration]) {
+    const p=pod(r), c=container(r), init=p.initContainers?.filter(c=>c.name==='materialize-approval-maintenance-key');
+    if (r === api && p.initContainers?.length !== 1) fail();
+    expect(r,'ZASP_APPROVAL_MAINTENANCE_KEY_FILE','/var/run/zasp-approval-maintenance/delivery.key');
+    if (init?.length !== 1 || init[0].image !== c.image || !same(init[0].command,['/bin/sh','-ec']) || !same(init[0].args,[approvalScript]) || init[0].securityContext?.runAsUser !== 65532 || init[0].securityContext?.runAsGroup !== 65532 || init[0].securityContext?.runAsNonRoot !== true || init[0].securityContext?.allowPrivilegeEscalation !== false || init[0].securityContext?.readOnlyRootFilesystem !== true || !same(init[0].securityContext?.capabilities,{drop:['ALL']})) fail();
+    if (!same(init[0].volumeMounts,[{name:'approval-maintenance-key-source',mountPath:'/approval-maintenance-source',readOnly:true},{name:'approval-maintenance-key',mountPath:'/approval-maintenance'}])) fail();
+    if (!same(p.volumes?.find(v=>v.name==='approval-maintenance-key-source')?.secret,{secretName:profile.approvalMaintenanceKey.secretName,defaultMode:288,items:[{key:'seed',path:'seed'}]}) || !same(p.volumes?.find(v=>v.name==='approval-maintenance-key')?.emptyDir,{medium:'Memory',sizeLimit:'64Ki'})) fail();
+    if (!same(c.volumeMounts?.filter(v=>v.name==='approval-maintenance-key'),[{name:'approval-maintenance-key',mountPath:'/var/run/zasp-approval-maintenance',readOnly:true}]) || c.volumeMounts?.some(v=>v.name==='approval-maintenance-key-source')) fail();
+  }
+  secret(api,'ZASP_APPROVAL_MAINTENANCE_POSTGRES_DSN',profile.approvalMaintenanceDSNSecret);
+  const approvalSecrets=[profile.approvalMaintenanceKey.secretName,profile.approvalMaintenanceDSNSecret];
+  for (const r of resources.filter(r=>['Deployment','Job','CronJob'].includes(r.kind))) {
+    const p=pod(r), holder = r === api || r === migration;
+    if (r !== api && p?.containers?.some(c=>c.env?.some(e=>e.name==='ZASP_APPROVAL_MAINTENANCE_POSTGRES_DSN' || e.valueFrom?.secretKeyRef?.name===profile.approvalMaintenanceDSNSecret))) fail();
+    if (!holder && (p?.volumes?.some(v=>approvalSecrets.includes(v.secret?.secretName)) || p?.containers?.some(c=>c.env?.some(e=>e.name==='ZASP_APPROVAL_MAINTENANCE_KEY_FILE')))) fail();
+  }
+  expect(migration,'ZASP_MIGRATION_DB_PRINCIPAL','zasp_operator');
+  expect(migration,'ZASP_DISCOVERY_API_DB_PRINCIPAL','zasp_svc_api');
   expect(migration,'ZASP_TEMPORAL_EXECUTOR_DB_PRINCIPAL',profile.executorPrincipal);
   expect(migration,'ZASP_TEMPORAL_COMPENSATION_DB_PRINCIPAL',profile.compensationPrincipal);
   expect(migration,'ZASP_OUTBOX_WORKER_DB_PRINCIPAL',profile.projectorPrincipal);
