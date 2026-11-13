@@ -2,6 +2,7 @@
 # Runs the product API against real dependencies on one machine: PostgreSQL 18,
 # the pinned Temporal and OpenFGA servers, and a real Stytch project.
 # See README.md in this directory for what this does and does not establish.
+# Written for bash 3.2 (the macOS system bash) as well as current bash.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -10,6 +11,17 @@ STATE="${ZASP_REAL_STACK_STATE:-${XDG_STATE_HOME:-$HOME/.local/state}/zasp-real-
 BIN="$STATE/bin"
 SECRETS="$STATE/secrets"
 COMPOSE="$ROOT/deploy/local/temporal-openfga.compose.yaml"
+# Background processes started by 'start': one pid file and one log each.
+RUN="$STATE/run"
+LOGS="$STATE/logs"
+TLS="$STATE/tls"
+# Optional: the Stytch credentials, kept in a file instead of the shell.
+if [ -f "$STATE/provider.env" ]; then
+  set -a
+  # shellcheck disable=SC1091
+  . "$STATE/provider.env"
+  set +a
+fi
 
 # PostgreSQL 18 is the reference major (the production Neon project runs 18).
 # The digest is the ECR Public mirror of the official image.
@@ -37,11 +49,34 @@ FGA_TOKEN="${ZASP_LOCAL_OPENFGA_TOKEN:-local-openfga-smoke-only}"
 PUBLIC_ORIGIN="${ZASP_REAL_STACK_ORIGIN:-https://zasp.local-stack.test:8443}"
 # The operator is not a superuser, exactly as on managed PostgreSQL. The
 # cluster superuser is used only to create that role and its database.
+# The TLS front listens on the origin's port; the web application behind it
+# on a loopback port of its own.
+ORIGIN_AUTHORITY="${PUBLIC_ORIGIN#https://}"
+ORIGIN_HOST="${ORIGIN_AUTHORITY%%:*}"
+case "$ORIGIN_AUTHORITY" in
+  *:*) ORIGIN_PORT="${ORIGIN_AUTHORITY##*:}" ;;
+  *) ORIGIN_PORT=443 ;;
+esac
+WEB_PORT="${ZASP_REAL_STACK_WEB_PORT:-3100}"
 OPERATOR="zasp_operator"
 PG_SUPERUSER="postgres"
 PG_DATABASE="zasp"
 
 fail() { echo "real-stack: $*" >&2; exit 1; }
+# URL-safe base64 without padding. (basenc is GNU-only; openssl is everywhere.)
+b64url() { openssl base64 -A | tr '+/' '-_' | tr -d '=\n'; }
+# psql from this machine when it is installed, otherwise the one inside the
+# product database container.
+run_psql() {
+  if command -v psql >/dev/null 2>&1; then
+    psql "$@"
+    return
+  fi
+  [ -z "$EXTERNAL_HOST" ] || fail "psql is required for an external database"
+  local arguments=() argument
+  for argument in "$@"; do arguments+=("${argument/@127.0.0.1:$PG_PORT\//@127.0.0.1:5432/}"); done
+  docker exec -i "$PG_CONTAINER" psql "${arguments[@]}"
+}
 # An external PostgreSQL (for example a Neon development branch) replaces the
 # local container when ZASP_REAL_STACK_DATABASE_HOST is set. The baseline must
 # be installable or installed there, every zasp_svc_* login must share the
@@ -140,17 +175,17 @@ start_database() {
   fi
   local super="postgres://$PG_SUPERUSER@127.0.0.1:$PG_PORT/postgres?sslmode=disable"
   for _ in $(seq 1 120); do
-    if psql -X -Atc 'select 1' "$super" >/dev/null 2>&1; then break; fi
+    if run_psql -X -Atc 'select 1' "$super" >/dev/null 2>&1; then break; fi
     sleep 0.5
   done
-  psql -X -Atc 'select 1' "$super" >/dev/null || fail "product database did not start"
-  if [ "$(psql -X -Atc "select count(*) from pg_roles where rolname='$OPERATOR'" "$super")" != "1" ]; then
-    psql -X -q -v ON_ERROR_STOP=1 "$super" -c "CREATE ROLE $OPERATOR LOGIN CREATEROLE BYPASSRLS"
+  run_psql -X -Atc 'select 1' "$super" >/dev/null || fail "product database did not start"
+  if [ "$(run_psql -X -Atc "select count(*) from pg_roles where rolname='$OPERATOR'" "$super")" != "1" ]; then
+    run_psql -X -q -v ON_ERROR_STOP=1 "$super" -c "CREATE ROLE $OPERATOR LOGIN CREATEROLE BYPASSRLS"
   fi
-  if [ "$(psql -X -Atc "select count(*) from pg_database where datname='$PG_DATABASE'" "$super")" != "1" ]; then
-    psql -X -q -v ON_ERROR_STOP=1 "$super" -c "CREATE DATABASE $PG_DATABASE OWNER $OPERATOR TEMPLATE template0 LC_COLLATE 'C' LC_CTYPE 'C'"
+  if [ "$(run_psql -X -Atc "select count(*) from pg_database where datname='$PG_DATABASE'" "$super")" != "1" ]; then
+    run_psql -X -q -v ON_ERROR_STOP=1 "$super" -c "CREATE DATABASE $PG_DATABASE OWNER $OPERATOR TEMPLATE template0 LC_COLLATE 'C' LC_CTYPE 'C'"
   fi
-  [ "$(psql -X -Atc "select datcollate from pg_database where datname=current_database()" "$(dsn "$OPERATOR")")" = "C" ] || fail "product database collation is not C"
+  [ "$(run_psql -X -Atc "select datcollate from pg_database where datname=current_database()" "$(dsn "$OPERATOR")")" = "C" ] || fail "product database collation is not C"
 }
 
 generate_keys() {
@@ -164,7 +199,7 @@ generate_keys() {
       set -o pipefail
       rm -f "$SECRETS/forward.seed" "$SECRETS/compensation.seed" "$SECRETS/openfga.token" "$SECRETS/keys.env.partial"
       signing="$(openssl rand -hex 32)"
-      reveal="$(openssl rand 32 | basenc --base64url | tr -d '=\n')"
+      reveal="$(openssl rand 32 | b64url)"
       webhook="$(openssl rand -base64 32 | tr -d '\n')"
       [ "${#signing}" -eq 64 ] && [ "${#reveal}" -eq 43 ] && [ "${#webhook}" -eq 44 ] || fail "key generation failed"
       openssl rand 64 > "$SECRETS/forward.seed"
@@ -221,8 +256,8 @@ start_local_cloud() {
 write_identity_token() {
   [ -s "$TOKEN_FILE" ] && [ "$(wc -c < "$TOKEN_FILE")" -ge 64 ] && return 0
   mkdir -p "$(dirname "$TOKEN_FILE")" 2>/dev/null || fail "create $TOKEN_FILE (needs root) with at least 64 token characters"
-  printf '%s.%s.%s' "$(printf '{"alg":"none","typ":"JWT"}' | basenc --base64url | tr -d '=\n')" \
-    "$(printf '{"iss":"zasp-real-stack","sub":"system:serviceaccount:zasp:local","aud":"sts.amazonaws.com"}' | basenc --base64url | tr -d '=\n')" \
+  printf '%s.%s.%s' "$(printf '{"alg":"none","typ":"JWT"}' | b64url)" \
+    "$(printf '{"iss":"zasp-real-stack","sub":"system:serviceaccount:zasp:local","aud":"sts.amazonaws.com"}' | b64url)" \
     "bG9jYWwtZGV2ZWxvcG1lbnQtb25seQ" > "$TOKEN_FILE" || fail "write $TOKEN_FILE"
 }
 
@@ -257,6 +292,8 @@ cmd_up() {
   for command in register-authorization-verifier register-worker-authorization-verifier register-compensation-authorization-verifier register-approval-maintenance-verifier; do
     migrate "$command"
   done
+  # 'start' repeats 'up' until one has completed.
+  : > "$STATE/up.done"
   echo "real-stack: schema installed; next: $0 bootstrap <organization name> <domain> <admin email>"
 }
 
@@ -486,7 +523,299 @@ cmd_security_workers() {
   echo "real-stack: security analyzers installed in $root"
 }
 
+# Creates the certificate the TLS front serves: a certificate authority that
+# may only vouch for this one host name, and a server certificate from it. The
+# authority's key is deleted once the server certificate is signed, so trusting
+# ca.crt on this machine cannot be used to impersonate any other site.
+ensure_certificate() {
+  mkdir -p "$TLS"
+  chmod 700 "$TLS"
+  if [ -f "$TLS/ca.crt" ] && [ -f "$TLS/server.crt" ] && [ -f "$TLS/server.key" ] &&
+    openssl x509 -in "$TLS/server.crt" -noout -checkend 86400 >/dev/null 2>&1 &&
+    openssl x509 -in "$TLS/server.crt" -noout -text 2>/dev/null | grep -q "DNS:$ORIGIN_HOST"; then
+    return 0
+  fi
+  (
+    umask 077
+    cd "$TLS" || exit 1
+    rm -f ca.crt ca.key ca.srl server.crt server.key server.csr leaf.crt openssl.cnf
+    printf '%s\n' '[req]' 'distinguished_name = dn' 'prompt = no' '[dn]' 'CN = unused' \
+      '[ca]' 'basicConstraints = critical, CA:TRUE, pathlen:0' 'keyUsage = critical, keyCertSign' 'subjectKeyIdentifier = hash' \
+      "nameConstraints = critical, permitted;DNS:$ORIGIN_HOST" \
+      '[leaf]' 'basicConstraints = critical, CA:FALSE' 'keyUsage = critical, digitalSignature, keyEncipherment' \
+      'extendedKeyUsage = serverAuth' "subjectAltName = DNS:$ORIGIN_HOST" > openssl.cnf
+    # 825 days is the longest validity Apple platforms accept for a server certificate.
+    openssl req -x509 -newkey rsa:2048 -nodes -sha256 -days 825 -keyout ca.key -out ca.crt \
+      -subj "/CN=Zasp local stack development CA for $ORIGIN_HOST" -config openssl.cnf -extensions ca >/dev/null 2>&1 &&
+      openssl req -new -newkey rsa:2048 -nodes -keyout server.key -out server.csr -subj "/CN=$ORIGIN_HOST" -config openssl.cnf >/dev/null 2>&1 &&
+      openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -sha256 -days 825 \
+        -extfile openssl.cnf -extensions leaf -out leaf.crt >/dev/null 2>&1 &&
+      cat leaf.crt ca.crt > server.crt
+    status=$?
+    rm -f ca.key ca.srl server.csr leaf.crt openssl.cnf
+    [ "$status" -eq 0 ] || { rm -f ca.crt server.crt server.key; exit 1; }
+  ) || fail "the TLS certificate was not created (openssl is required)"
+  echo "real-stack: created a TLS certificate for $ORIGIN_HOST; to trust it in the browser, trust $TLS/ca.crt (see docs/operations/local-self-test.md)"
+}
+
+# The browser must reach the stack under its public host name: the session
+# cookie and the sign-in redirect are bound to it. This script never edits
+# system files; it prints the line to add.
+hosts_mapped() {
+  grep -Eq "^[[:space:]]*127\.0\.0\.1[[:space:]]+([^#]*[[:space:]])?$ORIGIN_HOST([[:space:]]|#|\$)" /etc/hosts 2>/dev/null
+}
+hosts_hint() {
+  echo "real-stack: $ORIGIN_HOST is not mapped to this machine. Run once:"
+  echo "  echo '127.0.0.1 $ORIGIN_HOST' | sudo tee -a /etc/hosts"
+}
+
+# Builds the web application when it has not been built or its sources changed.
+build_web() {
+  command -v node >/dev/null 2>&1 || fail "Node.js is required for the web application (see package.json for the version)"
+  [ -d "$ROOT/node_modules" ] || fail "install the web dependencies first: (cd '$ROOT' && npm ci)"
+  local stamp="$ROOT/dist/server/BUILD_ID"
+  if [ -f "$ROOT/dist/standalone/server.js" ] && [ -f "$stamp" ] &&
+    [ -z "$(find "$ROOT/app" "$ROOT/apps" "$ROOT/public" "$ROOT/worker" "$ROOT/package-lock.json" "$ROOT/vite.config.ts" "$ROOT/next.config.ts" -type f -newer "$stamp" 2>/dev/null | head -n 1)" ]; then
+    return 0
+  fi
+  echo "real-stack: building the web application (about a minute)"
+  (cd "$ROOT" && npm run build) || fail "the web application was not built"
+  WEB_REBUILT=1
+  [ -f "$ROOT/dist/standalone/server.js" ] || fail "the web application build produced no dist/standalone/server.js"
+}
+
+# Serves the web application over HTTPS on the public origin and forwards /api
+# to the product API with the headers the production ingress sends. Foreground.
+cmd_ui() {
+  ensure_certificate
+  build_web
+  hosts_mapped || hosts_hint >&2
+  export ZASP_FRONT_ORIGIN="$PUBLIC_ORIGIN" ZASP_FRONT_API=http://127.0.0.1:4000
+  export ZASP_FRONT_WEB_DIR="$ROOT/dist/standalone" ZASP_FRONT_WEB_PORT="$WEB_PORT"
+  export ZASP_FRONT_CERT="$TLS/server.crt" ZASP_FRONT_KEY="$TLS/server.key"
+  exec node "$HERE/front.mjs"
+}
+
+# Applies pending permission changes every few seconds, in the foreground. A
+# new Organization, member or resource answers 'authorization_unavailable'
+# until a pass has run. In production a CronJob runs the same command with the
+# same arguments once a minute.
+cmd_project() {
+  [ "$#" -eq 0 ] || fail "usage: $0 project"
+  require_provider
+  load_environment
+  local interval="${ZASP_REAL_STACK_PROJECT_INTERVAL:-5}" reconcile_dsn
+  reconcile_dsn="$(dsn zasp_svc_outbox)"
+  trap 'exit 0' INT TERM
+  echo "real-stack: applying permission changes every ${interval}s"
+  while :; do
+    ZASP_POSTGRES_DSN="$reconcile_dsn" "$BIN/zasp-authorization-reconcile" -mode reconcile -limit 20 -timeout 1m ||
+      echo "real-stack: $(date '+%H:%M:%S') a permission pass failed; it is repeated" >&2
+    sleep "$interval"
+  done
+}
+
+# The background processes of 'start', in start order.
+PROCESSES="api worker-scheduler worker-discovery worker-outbox projector ui"
+
+# The HTTP status of a local address, or 000 when nothing answers. A proxy
+# configured for outbound traffic must not be asked for a loopback address.
+http_status() {
+  local code
+  code="$(curl -s --noproxy '*' -m 5 -o /dev/null -w '%{http_code}' "$@" 2>/dev/null)" || true
+  echo "${code:-000}"
+}
+
+# The status a process reports about itself: 200 when ready, 000 when nothing
+# answers. The projector has no listener; it is ready while it runs.
+process_status() {
+  case "$1" in
+    api) http_status http://127.0.0.1:4081/readyz ;;
+    worker-scheduler) http_status http://127.0.0.1:8081/readyz ;;
+    worker-discovery) http_status http://127.0.0.1:8082/readyz ;;
+    worker-outbox) http_status http://127.0.0.1:8083/readyz ;;
+    ui) http_status --cacert "$TLS/ca.crt" --resolve "$ORIGIN_HOST:$ORIGIN_PORT:127.0.0.1" "$PUBLIC_ORIGIN/sign-in" ;;
+    projector) if process_alive projector; then echo 200; else echo 000; fi ;;
+  esac
+}
+
+process_pid() { cat "$RUN/$1.pid" 2>/dev/null || true; }
+
+# True when the recorded process still runs. The command is checked as well: a
+# pid left in a file from before a reboot may belong to something else by now.
+process_alive() {
+  local pid
+  pid="$(process_pid "$1")"
+  [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null &&
+    ps -p "$pid" -o command= 2>/dev/null | grep -Eq 'real-stack/(stack\.sh|front\.mjs)|agentsec-(api|worker)'
+}
+
+# Starts one process in the background unless it already runs. Arguments: the
+# process name, then the stack.sh command that runs it in the foreground.
+launch() {
+  local name="$1"
+  shift
+  if process_alive "$name"; then
+    echo "real-stack: $name is already running"
+    return 0
+  fi
+  if [ "$(process_status "$name")" != "000" ]; then
+    echo "real-stack: $name is already answering; it was not started by 'start' and is left alone"
+    return 0
+  fi
+  mkdir -p "$RUN" "$LOGS"
+  nohup "$HERE/stack.sh" "$@" >> "$LOGS/$name.log" 2>&1 < /dev/null &
+  echo "$!" > "$RUN/$name.pid"
+  echo "real-stack: started $name (log: $LOGS/$name.log)"
+}
+
+# Waits until a process reports ready. Arguments: name, seconds.
+wait_ready() {
+  local name="$1" remaining="$2"
+  while [ "$remaining" -gt 0 ]; do
+    [ "$(process_status "$name")" = "200" ] && return 0
+    if [ -f "$RUN/$name.pid" ] && ! process_alive "$name"; then
+      echo "real-stack: $name stopped. Last lines of $LOGS/$name.log:" >&2
+      tail -n 5 "$LOGS/$name.log" >&2 || true
+      return 1
+    fi
+    sleep 2
+    remaining=$((remaining - 2))
+  done
+  echo "real-stack: $name is not ready yet; see $LOGS/$name.log" >&2
+  return 1
+}
+
+# True when 'up' has to run: it never completed, or a dependency is not running.
+needs_up() {
+  [ -f "$STATE/up.done" ] && [ -f "$SECRETS/keys.env" ] && [ -f "$STATE/fga.env" ] && [ -s "$TOKEN_FILE" ] &&
+    [ -x "$BIN/agentsec-api" ] && [ -x "$BIN/agentsec-worker" ] && [ -x "$BIN/zasp-authorization-reconcile" ] || return 0
+  local name
+  for name in $(dependency_names); do
+    dependency_running "$name" || return 0
+  done
+  return 1
+}
+
+dependency_names() {
+  [ -n "$EXTERNAL_HOST" ] || echo postgres
+  echo localstack opensearch temporal openfga
+}
+
+dependency_running() {
+  case "$1" in
+    postgres) [ "$(docker inspect --format '{{.State.Running}}' "$PG_CONTAINER" 2>/dev/null)" = "true" ] ;;
+    localstack) curl -fsS -m 3 "$LOCAL_CLOUD/_localstack/health" 2>/dev/null | grep -q '"sts"' ;;
+    opensearch) [ "$(http_status "$SEARCH_URL/_cluster/health")" = "200" ] ;;
+    temporal) (exec 3<>/dev/tcp/127.0.0.1/7233) 2>/dev/null ;;
+    openfga) [ "$(http_status "$FGA_URL/healthz")" = "200" ] ;;
+  esac
+}
+
+# Starts everything in the background: the dependencies and the schema when
+# they are not up, the API, the three workers, the permission projector and
+# the web application behind its TLS front. Safe to repeat.
+cmd_start() {
+  [ "$#" -eq 0 ] || fail "usage: $0 start"
+  require_provider
+  command -v node >/dev/null 2>&1 || fail "Node.js is required for the web application (see package.json for the version)"
+  [ -d "$ROOT/node_modules" ] || fail "install the web dependencies first: (cd '$ROOT' && npm ci)"
+  # In a subshell: 'up' exports operator settings the processes must not inherit.
+  if needs_up; then (cmd_up); fi
+  if [ ! -f "$STATE/organization.env" ]; then
+    echo "real-stack: no Organization yet. Create the first one, then run '$0 start' again:"
+    echo "  $0 bootstrap <organization name> <domain> <admin email>"
+    return 0
+  fi
+  # Created here once so the API and the workers do not create it concurrently.
+  docker exec zasp-real-stack-localstack awslocal --region us-east-1 iam get-role --role-name "$CUSTOMER_ROLE_NAME" >/dev/null 2>&1 || provision_local_cloud
+  ensure_certificate
+  WEB_REBUILT=0
+  build_web
+  # A running web application still serves the build it started with.
+  [ "$WEB_REBUILT" -eq 0 ] || stop_process ui
+  [ -x /opt/zasp/security/cartography/bin/security-worker ] && [ -x /opt/zasp/security/prowler/bin/security-worker ] ||
+    echo "real-stack: the security analyzers are not installed; an AWS sync will fail until '$0 security-workers' has run" >&2
+  launch api api
+  launch worker-scheduler worker scheduler
+  launch worker-discovery worker discovery
+  launch worker-outbox worker outbox
+  launch projector project
+  launch ui ui
+  local failed=0
+  wait_ready api 120 || failed=1
+  wait_ready worker-scheduler 120 || failed=1
+  wait_ready worker-discovery 180 || failed=1
+  wait_ready worker-outbox 180 || failed=1
+  wait_ready projector 4 || failed=1
+  wait_ready ui 90 || failed=1
+  cmd_status
+  hosts_mapped || hosts_hint
+  if [ "$failed" -eq 0 ]; then
+    echo "real-stack: open $PUBLIC_ORIGIN/"
+  else
+    echo "real-stack: not everything is ready; see the logs in $LOGS" >&2
+    return 1
+  fi
+}
+
+# One line per dependency and per process.
+cmd_status() {
+  local name pid state ready
+  for name in $(dependency_names); do
+    if dependency_running "$name"; then state="running"; else state="stopped"; fi
+    printf '%-18s %s\n' "$name" "$state"
+  done
+  for name in $PROCESSES; do
+    pid="$(process_pid "$name")"
+    ready="$(process_status "$name")"
+    if process_alive "$name"; then
+      state="running (pid $pid)"
+    elif [ "$ready" != "000" ]; then
+      state="running (not started by 'start')"
+    else
+      state="stopped"
+    fi
+    if [ "$state" = "stopped" ]; then
+      printf '%-18s %s\n' "$name" "$state"
+    elif [ "$ready" = "200" ]; then
+      printf '%-18s %s, ready\n' "$name" "$state"
+    else
+      printf '%-18s %s, not ready\n' "$name" "$state"
+    fi
+  done
+  if hosts_mapped; then state="present"; else state="missing"; fi
+  printf '%-18s %s\n' "hosts entry" "$state"
+  if [ -x /opt/zasp/security/cartography/bin/security-worker ] && [ -x /opt/zasp/security/prowler/bin/security-worker ]; then state="installed"; else state="not installed"; fi
+  printf '%-18s %s\n' "security analyzers" "$state"
+}
+
+# Stops one process 'start' started, if it runs, and forgets its pid.
+stop_process() {
+  local name="$1" pid waited=0
+  pid="$(process_pid "$name")"
+  if process_alive "$name"; then
+    kill "$pid" 2>/dev/null || true
+    while kill -0 "$pid" 2>/dev/null && [ "$waited" -lt 10 ]; do
+      sleep 1
+      waited=$((waited + 1))
+    done
+    kill -0 "$pid" 2>/dev/null && kill -9 "$pid" 2>/dev/null || true
+    echo "real-stack: stopped $name"
+  fi
+  rm -f "$RUN/$name.pid"
+}
+
+# Stops the processes 'start' started. The containers keep running; 'down'
+# stops those too.
+cmd_stop() {
+  local name reversed=""
+  for name in $PROCESSES; do reversed="$name $reversed"; done
+  for name in $reversed; do stop_process "$name"; done
+}
+
 cmd_down() {
+  cmd_stop
   docker stop "$PG_CONTAINER" zasp-real-stack-localstack zasp-real-stack-opensearch >/dev/null 2>&1 || true
   docker compose -f "$COMPOSE" stop
   echo "real-stack: stopped; data is kept. Remove '$PG_CONTAINER' and '$STATE' to start over."
@@ -498,6 +827,11 @@ case "${1:-}" in
   api) shift; cmd_api "$@" ;;
   worker) shift; cmd_worker "$@" ;;
   security-workers) shift; cmd_security_workers "$@" ;;
+  ui) shift; cmd_ui "$@" ;;
+  project) shift; cmd_project "$@" ;;
+  start) shift; cmd_start "$@" ;;
+  status) shift; cmd_status "$@" ;;
+  stop) shift; cmd_stop "$@" ;;
   down) shift; cmd_down "$@" ;;
-  *) fail "usage: $0 {up|bootstrap <organization name> <domain> <admin email>|api|worker <mode>|security-workers|down}" ;;
+  *) fail "usage: $0 {start|status|stop|up|bootstrap <organization name> <domain> <admin email>|api|worker <mode>|ui|project|security-workers|down}" ;;
 esac

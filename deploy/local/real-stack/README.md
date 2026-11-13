@@ -40,11 +40,13 @@ Nothing is skipped: role assumption with the external ID, the caller identity ch
 
 ## Requirements
 
-Docker, Go (the toolchain in `services/platform/go.mod`), `psql`, `curl` and `openssl`. Stytch credentials in the environment:
+Docker, Go (the toolchain in `services/platform/go.mod`), `curl` and `openssl`. The web application needs Node.js (the version in `package.json`) and `npm ci`. `psql` is used when installed; otherwise the script runs the one inside the database container. The script is written for bash 3.2, the macOS system bash, as well as current bash; it has not been run on macOS. Stytch credentials in the environment:
 
 ```bash
 export STYTCH_PROJECT_ID=... STYTCH_SECRET=... STYTCH_PUBLIC_TOKEN=...
 ```
+
+The same three lines without `export` can be kept in `$ZASP_REAL_STACK_STATE/provider.env` instead; every command reads that file.
 
 The public origin defaults to `https://zasp.local-stack.test:8443`. It must be HTTPS and must not be `localhost`, `*.localhost`, `*.local` or an IP address, because the connector OAuth callbacks refuse those hosts. Map it to loopback:
 
@@ -58,6 +60,38 @@ The API and workers read their workload identity token from a fixed path, `/var/
 sudo mkdir -p /var/run/secrets/eks.amazonaws.com/serviceaccount
 sudo chown "$USER" /var/run/secrets/eks.amazonaws.com/serviceaccount
 ```
+
+## Everything at once
+
+A tester's walk-through is in [docs/operations/local-self-test.md](../../../docs/operations/local-self-test.md).
+
+```bash
+deploy/local/real-stack/stack.sh start    # everything, in the background
+deploy/local/real-stack/stack.sh status   # one line per dependency and process
+deploy/local/real-stack/stack.sh stop     # stops the processes 'start' started
+```
+
+`start` runs `up` when it has not completed or a dependency is not running, then starts the API, the three workers, the permission projector and the web application behind its TLS front. Each runs the foreground command described below, with its pid in `$ZASP_REAL_STACK_STATE/run/` and its output in `$ZASP_REAL_STACK_STATE/logs/`. It is safe to repeat: a process that already runs, or whose port already answers, is left alone. Before the first `bootstrap` it stops after `up` and prints the `bootstrap` command. It rebuilds the web application when its sources are newer than the last build; it does not rebuild the Go binaries (`up` does).
+
+## The web application and its TLS front
+
+```bash
+deploy/local/real-stack/stack.sh ui
+```
+
+Runs `front.mjs` in the foreground: an HTTPS listener on the public origin's port, on loopback. It starts the built web application (`dist/standalone/server.js`, the file the production web image runs) on `127.0.0.1:3100` and forwards everything to it except `/api`, which goes to the API on `127.0.0.1:4000`. Whatever the browser sent as `Host`, `Forwarded` or `X-Forwarded-*` is dropped and replaced with the public origin's values, which is what the API requires of its ingress. A request for any other host name gets `421` and a note naming the right address.
+
+The certificate is created on first use in `$ZASP_REAL_STACK_STATE/tls/`: a certificate authority (`ca.crt`) whose name constraint permits only the stack's host name, and a server certificate valid for 825 days. The authority's private key is deleted once the server certificate is signed. Trust `ca.crt` in the browser or accept the warning.
+
+The script checks `/etc/hosts` for the host name and prints the line to add. It never edits system files.
+
+## The permission projector
+
+```bash
+deploy/local/real-stack/stack.sh project
+```
+
+Runs `zasp-authorization-reconcile -mode reconcile -limit 20` every 5 seconds (`ZASP_REAL_STACK_PROJECT_INTERVAL`), the command the production CronJob runs once a minute. Without it a new member or resource answers `authorization_unavailable` until someone runs a pass.
 
 ## Use
 
@@ -104,7 +138,7 @@ Runs one worker mode in the foreground. The three can run at the same time. `sch
 
 A refused start prints `agentsec-worker startup refused: stage=<stage>`, for example `stage=dependencies:discovery-readiness-queue`.
 
-On 2026-11-13 `outbox` refused to start on the installed baseline with `stage=dependencies:database-startup-profile`: its database role `zasp_outbox_worker` may not call `zasp_authorization80_worker.runtime_ready()`, which the startup check requires. Until the baseline grants that, a requested sync stays `queued`.
+On 2026-11-13 `outbox` refused to start on the installed baseline with `stage=dependencies:database-startup-profile`: its database role `zasp_outbox_worker` may not call `zasp_authorization80_worker.runtime_ready()`, which the startup check requires. Until the baseline grants that, a requested sync stays `queued`. Later the same day `outbox` started and reported ready on the same machine, after other work on the baseline; the cause was not re-examined here.
 
 ## The emulated AWS account
 
@@ -132,7 +166,7 @@ deploy/local/real-stack/stack.sh down
 
 The product database listens on `127.0.0.1:55434`, uses `trust` authentication and accepts loopback connections only: any local process can connect as any role, including the cluster superuser `postgres`. It is a disposable database for one developer machine.
 
-Stops the containers and keeps their data. State lives in `$ZASP_REAL_STACK_STATE`, by default `~/.local/state/zasp-real-stack`.
+Stops the processes `start` started, then the containers, and keeps their data. State lives in `$ZASP_REAL_STACK_STATE`, by default `~/.local/state/zasp-real-stack`.
 
 ## Two things that fail without a clear message
 
@@ -144,7 +178,7 @@ Stops the containers and keeps their data. State lives in `$ZASP_REAL_STACK_STAT
 
 | Not available | Why |
 | --- | --- |
-| Completing a browser sign-in | Stytch must have this origin's redirect URLs registered, and a person must complete OAuth or follow the invitation email. Both are outside the project API. |
+| Completing a sign-in without a person | Stytch must have this origin's redirect URLs registered, and a person must complete OAuth or follow the invitation email in a browser, through `stack.sh ui`. On 2026-11-13 a headless browser reached the Google sign-in page through this front; nobody has completed a sign-in through it yet. |
 | Discovery of a real account | LocalStack answers the AWS calls for one emulated account with a small fixture. There is no Neo4j or third-party provider, and the GitHub and Okta secrets are placeholders. |
 | Proving IAM | LocalStack accepts any external ID and never denies an action. |
 | Worker modes other than `scheduler`, `outbox` and `discovery` | Each needs queues, keys and endpoints the script does not create yet, and the Security Agent worker needs an OpenRouter API token. |
