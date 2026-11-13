@@ -7,7 +7,6 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	"net/url"
 	"slices"
-	"sync"
 )
 
 const postgresAuthorizationResolveSQL = `SELECT zasp_authorization80.resolve($1,$2,$3,$4,NULLIF($5,''),NULLIF($6,''))`
@@ -76,53 +75,59 @@ func (r *PostgresAuthorizationResolver) ResolveAuthorization(ctx context.Context
 	if r.securityAgentDatabase == nil {
 		return resolveAuthorizationDatabase(ctx, r.database, identity, route, policy, id)
 	}
-	switch policy.Kind {
-	case "security_agent", "security_agent_run", "security_agent_approval", "security_agent_audit":
-		return resolveAuthorizationDatabase(ctx, r.securityAgentDatabase, identity, route, policy, id)
-	case "*", "workflow_receipt", "audit_event", "audit_export", "compliance_export", "compliance_evidence", "compliance_control":
-		// Stored parents and mixed collections can include Temporal-owned runs.
-		// Neither database's partial visibility is a complete candidate set.
-		result := AuthorizationTargets{Collection: policy.Mode == "collection", Complete: true, Targets: []AuthorizationTarget{}}
-		seen := make(map[[2]string]AuthorizationTarget)
-		// Both candidate sets are always required, so read them concurrently:
-		// a parent resolution is the slowest step of these requests. Each read
-		// holds only its own database's lock, and either failure refuses all.
-		databases := [2]*PostgresJSONDatabase{r.database, r.securityAgentDatabase}
-		var parts [2]AuthorizationTargets
-		var failures [2]error
-		var readers sync.WaitGroup
-		for n, database := range databases {
-			readers.Add(1)
-			go func() {
-				defer readers.Done()
-				parts[n], failures[n] = resolveAuthorizationDatabase(ctx, database, identity, route, policy, id)
-			}()
+	// A proof names only targets that the database executing its fenced
+	// statement resolved itself. zasp_authorization80.fence re-reads every
+	// target on the executing session; a target only the other database can
+	// see (a Temporal-owned Security Agent run on the product database, whose
+	// row security hides it) fails that re-read and refuses the whole request.
+	if securityAgentAuthorization(ctx) {
+		// The statement runs on the Security Agent database. Its mixed
+		// collection is the Security Agent's own: runs and approvals.
+		if policy.Kind != "*" {
+			return resolveAuthorizationDatabase(ctx, r.securityAgentDatabase, identity, route, policy, id)
 		}
-		readers.Wait()
-		for n := range databases {
-			part, err := parts[n], failures[n]
+		result := AuthorizationTargets{Collection: policy.Mode == "collection", Complete: true, Targets: []AuthorizationTarget{}}
+		for _, kind := range []string{"security_agent_run", "security_agent_approval"} {
+			part, err := resolveAuthorizationDatabase(ctx, r.securityAgentDatabase, identity, route, authorizationOperationTarget{Mode: policy.Mode, Kind: kind, Parameter: policy.Parameter}, id)
 			if err != nil {
 				return AuthorizationTargets{}, err
 			}
-			for _, target := range part.Targets {
-				key := [2]string{target.Kind, target.ID}
-				if previous, exists := seen[key]; exists {
-					if previous != target {
-						return AuthorizationTargets{}, authorization.ErrUnavailable
-					}
-					continue
-				}
-				if len(result.Targets) == 10000 {
-					return AuthorizationTargets{}, authorization.ErrUnavailable
-				}
-				seen[key] = target
-				result.Targets = append(result.Targets, target)
+			if len(result.Targets)+len(part.Targets) > 10000 {
+				return AuthorizationTargets{}, authorization.ErrUnavailable
 			}
+			result.Targets = append(result.Targets, part.Targets...)
 		}
 		return result, nil
+	}
+	switch policy.Kind {
+	case "security_agent", "security_agent_run", "security_agent_approval", "security_agent_audit":
+		return resolveAuthorizationDatabase(ctx, r.securityAgentDatabase, identity, route, policy, id)
 	default:
+		// The product database executes every other statement, including the
+		// mixed collections (home, search) and the stored-parent collections
+		// (audit events, receipts, compliance, exports). Objects only the
+		// Security Agent database can read are not candidates there: the
+		// statement could not read them either.
 		return resolveAuthorizationDatabase(ctx, r.database, identity, route, policy, id)
 	}
+}
+
+type authorizationSecurityAgentDatabaseKey struct{}
+
+// withSecurityAgentAuthorization marks a context whose authorization is for a
+// statement that the Security Agent database executes on behalf of an
+// operation the product database otherwise serves (the Security Agent counts
+// of the home summary). Every target of that proof is resolved there.
+func withSecurityAgentAuthorization(ctx context.Context) context.Context {
+	if ctx == nil {
+		return nil
+	}
+	return context.WithValue(ctx, authorizationSecurityAgentDatabaseKey{}, true)
+}
+
+func securityAgentAuthorization(ctx context.Context) bool {
+	selected, _ := ctx.Value(authorizationSecurityAgentDatabaseKey{}).(bool)
+	return selected
 }
 
 // Each query owns only its connection's read lock. A mixed collection never

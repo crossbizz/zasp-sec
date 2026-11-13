@@ -55,7 +55,7 @@ func TestSecurityAgentWriteStatementContracts(t *testing.T) {
 		{"activate", currentSecurityAgentActivateSQL, "activateSecurityAgent", func() []any {
 			return []any{o, w, e, agent, p, key, int64(3), "supervised", i.FreshAuthExpiresAt, audit, correlation, receipt}
 		}, object, agent, 0, 4, true, 3},
-		{"run", currentSecurityAgentRunSQL, "runSecurityAgent", func() []any { return []any{o, w, e, agent, p, admission(nil)} }, object, agent, 0, 4, false, 3},
+		{"run", currentSecurityAgentRunSQL, "runSecurityAgent", func() []any { return []any{o, w, e, agent, p, admission(nil), "trigger-attestation"} }, object, agent, 0, 4, false, 3},
 		{"control", currentSecurityAgentSetExecutionControlSQL, "setSecurityAgentExecutionControl", func() []any {
 			return []any{o, w, e, p, key, "action", "update_finding_response", true, int64(0), i.FreshAuthExpiresAt, audit, correlation, receipt}
 		}, environment, "", 0, 3, true, -1},
@@ -166,12 +166,35 @@ func TestSecurityAgentWriteStatementContracts(t *testing.T) {
 		"half a source":        func(q map[string]any) { delete(q, "trigger_source") },
 		"zero version":         func(q map[string]any) { q["definition_version"] = 0 },
 	} {
-		if authorizationStatementAllowed(base, currentSecurityAgentRunSQL, []any{o, w, e, agent, p, admission(mutate)}) {
+		if authorizationStatementAllowed(base, currentSecurityAgentRunSQL, []any{o, w, e, agent, p, admission(mutate), "trigger-attestation"}) {
 			t.Fatalf("run admission admitted %s", name)
 		}
 	}
-	if !authorizationStatementAllowed(base, currentSecurityAgentRunSQL, []any{o, w, e, agent, p, admission(func(q map[string]any) { delete(q, "trigger_source"); delete(q, "trigger_version") })}) {
+	if !authorizationStatementAllowed(base, currentSecurityAgentRunSQL, []any{o, w, e, agent, p, admission(func(q map[string]any) { delete(q, "trigger_source"); delete(q, "trigger_version") }), "trigger-attestation"}) {
 		t.Fatal("run admission without a trigger source was refused")
+	}
+	// A finding or attack path trigger must travel with the attestation of the
+	// decision for that object; a session trigger must carry none.
+	session := func(q map[string]any) { q["trigger_kind"] = "session" }
+	attackPath := func(q map[string]any) { q["trigger_kind"] = "attack_path" }
+	for name, args := range map[string][]any{
+		"finding without attestation":      {o, w, e, agent, p, admission(nil), nil},
+		"finding with empty attestation":   {o, w, e, agent, p, admission(nil), ""},
+		"finding with untyped attestation": {o, w, e, agent, p, admission(nil), []byte("trigger-attestation")},
+		"attack path without attestation":  {o, w, e, agent, p, admission(attackPath), nil},
+		"session with attestation":         {o, w, e, agent, p, admission(session), "trigger-attestation"},
+	} {
+		if authorizationStatementAllowed(base, currentSecurityAgentRunSQL, args) {
+			t.Fatalf("run admitted %s", name)
+		}
+	}
+	for name, args := range map[string][]any{
+		"attack path with attestation": {o, w, e, agent, p, admission(attackPath), "trigger-attestation"},
+		"session without attestation":  {o, w, e, agent, p, admission(session), nil},
+	} {
+		if !authorizationStatementAllowed(base, currentSecurityAgentRunSQL, args) {
+			t.Fatalf("run refused %s", name)
+		}
 	}
 
 	create := RequestAuthorization{OperationID: "createSecurityAgent", Identity: i, Allowed: []AuthorizationTarget{environment}}

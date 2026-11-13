@@ -48,7 +48,7 @@ func (d *workerDiscoveryDatabase) query(ctx context.Context, phase string, start
 	default:
 		return nil, authorization.ErrInvalid
 	}
-	run := func(executor *authorization.WorkerExecutor, phase string) (json.RawMessage, error) {
+	once := func(executor *authorization.WorkerExecutor, phase string) (json.RawMessage, error) {
 		q["operation"] = phase
 		raw, err := json.Marshal(q)
 		if err != nil {
@@ -59,6 +59,16 @@ func (d *workerDiscoveryDatabase) query(ctx context.Context, phase string, start
 			return nil, err
 		}
 		return executor.Execute(ctx, decision)
+	}
+	// Every phase decides again while the Organization's permission
+	// projection is moving (see retryDiscoveryAuthorization). Each phase is
+	// one statement that either commits or is refused before it changes
+	// anything, and each is idempotent in the product schema, so deciding
+	// again repeats nothing. Without it a permission change anywhere in the
+	// Organization at the wrong moment ends the run: an apply is attempted
+	// once, and a page whose receipt could not be recorded is unknown.
+	run := func(executor *authorization.WorkerExecutor, phase string) (json.RawMessage, error) {
+		return retryDiscoveryAuthorization(ctx, discoveryGuardRetryBudget, discoveryGuardRetryInterval, func() (json.RawMessage, error) { return once(executor, phase) })
 	}
 	if phase == "prepare_page" || phase == "prepare_apply" {
 		replay := "replay_page"
@@ -85,9 +95,6 @@ func (d *workerDiscoveryDatabase) query(ctx context.Context, phase string, start
 		if receipt.Value != nil {
 			return nil, authorization.ErrInvalid
 		}
-	}
-	if phase == "guard_page" {
-		return retryDiscoveryAuthorization(ctx, discoveryGuardRetryBudget, discoveryGuardRetryInterval, func() (json.RawMessage, error) { return run(executor, phase) })
 	}
 	return run(executor, phase)
 }

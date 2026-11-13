@@ -649,6 +649,28 @@ cmd_worker() {
       export ZASP_RED_TEAM_TARGET_TOKEN_FILE="$SECRETS/red-team-adapter.token" ZASP_RED_TEAM_TARGET_CA_FILE="$SECRETS/red-team-adapter-ca.pem"
       [ -z "${ZASP_REAL_STACK_PRICING_BINDINGS:-}" ] || export ZASP_TEMPORAL_PRICING_BINDINGS_FILE="$ZASP_REAL_STACK_PRICING_BINDINGS"
       ;;
+    # The three projection workers turn a completed discovery snapshot into
+    # the graph, the search index, and the findings and attack paths.
+    projection-graph)
+      provision_local_cloud
+      export ZASP_LOCAL_HEALTH_PORT=8091
+      export ZASP_POSTGRES_DSN="$(dsn zasp_svc_projection_graph)" ZASP_DATABASE_AUTHORITY=zasp_projection_graph_worker
+      export ZASP_PROJECTION_ROLE_ARN=arn:aws:iam::000000000000:role/zasp-real-stack-projection-graph ZASP_PROJECTION_WEB_IDENTITY_TOKEN_FILE="$TOKEN_FILE"
+      export ZASP_PROJECTION_SECRET_PREFIX="$PROJECTION_SECRET_PREFIX" ZASP_NEO4J_URI="$NEO4J_URI" ZASP_NEO4J_CREDENTIAL_REFERENCE=ref:neo4j/auth/graph-worker
+      export ZASP_NEO4J_EXPECTED_PRINCIPAL="$NEO4J_WORKER_USER" ZASP_NEO4J_EXPECTED_ROLE="$NEO4J_WORKER_ROLE"
+      # Trusted for the graph connection only, and only in development mode.
+      export ZASP_LOCAL_NEO4J_CA_FILE="$TLS/neo4j/ca.crt"
+      ;;
+    projection-search)
+      export ZASP_LOCAL_HEALTH_PORT=8092
+      export ZASP_POSTGRES_DSN="$(dsn zasp_svc_projection_search)" ZASP_DATABASE_AUTHORITY=zasp_projection_search_worker
+      export ZASP_PROJECTION_ROLE_ARN=arn:aws:iam::000000000000:role/zasp-real-stack-projection-search ZASP_PROJECTION_WEB_IDENTITY_TOKEN_FILE="$TOKEN_FILE"
+      export ZASP_OPENSEARCH_ENDPOINT="$SEARCH_URL" ZASP_OPENSEARCH_INDEX=zasp-inventory-v1
+      ;;
+    projection-risk)
+      export ZASP_LOCAL_HEALTH_PORT=8093
+      export ZASP_POSTGRES_DSN="$(dsn zasp_svc_projection_risk)" ZASP_DATABASE_AUTHORITY=zasp_projection_risk_worker
+      ;;
     *) fail "worker mode '$1' is not available on this stack yet" ;;
   esac
   exec "$BIN/agentsec-worker"

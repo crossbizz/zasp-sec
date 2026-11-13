@@ -158,7 +158,7 @@ func (router *operationRouter) ServeHTTP(writer http.ResponseWriter, request *ht
 					}
 					return
 				}
-				request = request.WithContext(context.WithValue(request.Context(), requestAuthorizationContextKey{}, grant))
+				request = request.WithContext(context.WithValue(context.WithValue(request.Context(), requestAuthorizationContextKey{}, grant), requestAuthorizerContextKey{}, router.authorizer))
 			} else if operation.permission != "" && !requestHasPermission(request, operation.permission) {
 				writeRouterError(writer, request, http.StatusForbidden, "request_forbidden", "Request forbidden")
 				return

@@ -34,6 +34,7 @@ var authorizationStatementRules = []authorizationStatementRule{
 	{`SELECT zasp_authorization80.get_data_controls($1,$2,$3)`, []string{"getDataControls"}, 3, 0, 3, "environment"},
 	{`SELECT zasp_authorization80.update_data_controls($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`, []string{"updateDataControls"}, 10, 10, 3, "environment"},
 	{`SELECT zasp_authorization80.home_summary($1,$2,$3)`, []string{"getHomeSummary"}, 3, 0, 0, ""},
+	{currentSecurityAgentHomeSummarySQL, []string{"getHomeSummary"}, 3, 0, 0, ""},
 	{`SELECT zasp_authorization80.workflow_page($1,$2,$3,$4,NULLIF($5,''),$6)`, []string{"listPolicies", "listIntegrations", "listSecurityAgents"}, 6, 0, 0, ""},
 	{`SELECT zasp_authorization80.sensor_page($1,$2,$3,NULLIF($4,''),$5)`, []string{"listSensors"}, 5, 0, 0, ""},
 	{`SELECT zasp_authorization80.sensor_detail($1,$2,$3,$4)`, []string{"getSensor"}, 4, 0, 4, "sensor"},

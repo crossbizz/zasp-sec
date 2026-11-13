@@ -6,6 +6,8 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/authorization"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	"slices"
+	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -63,6 +65,17 @@ type RequestAuthorization struct {
 type RequestAuthorizer interface {
 	Authorize(context.Context, RequestIdentity, CredentialBinding, RoutedOperation) (RequestAuthorization, error)
 }
+
+// authorizationCheckConcurrency bounds the concurrent decision readers of one
+// large collection. Smaller collections and single objects are checked in
+// order by the request's own goroutine.
+const authorizationCheckConcurrency = 8
+
+type authorizationTargetCheck struct {
+	decisions []authorization.CheckedDecision
+	err       error
+}
+
 type OpenFGAAuthorizer struct {
 	Reader           authorization.RevisionReader
 	Checker          authorization.Checker
@@ -109,17 +122,72 @@ func (a *OpenFGAAuthorizer) Authorize(ctx context.Context, identity RequestIdent
 			return RequestAuthorization{}, err
 		}
 	}
-	for _, target := range targets.Targets {
+	// Every target is checked for every required permission against one
+	// projection revision. A large collection (home, search, audit) is
+	// checked by a bounded number of concurrent readers; the decisions are
+	// then read in target order, so the grant and its allowed set are exactly
+	// those of checking one target after another, and a failure of any
+	// target refuses the request.
+	checks := make([]authorizationTargetCheck, len(targets.Targets))
+	checkTarget := func(n int) {
+		target := targets.Targets[n]
 		if target.Scope.Validate() != nil || target.Scope.OrganizationID() != identity.Scope.OrganizationID() {
-			return RequestAuthorization{}, authorization.ErrInvalid
+			checks[n].err = authorization.ErrInvalid
+			return
 		}
-		allowed := true
 		for _, permission := range permissions {
 			request := authorization.CheckRequest{PrincipalKind: "user", PrincipalID: identity.PrincipalID.String(), OrganizationID: target.Scope.OrganizationID().String(), WorkspaceID: target.Scope.WorkspaceID().String(), EnvironmentID: target.Scope.EnvironmentID().String(), ResourceType: target.Kind, ResourceID: target.ID, Permission: permission}
 			checked, err := authorization.CheckRevision(ctx, a.Reader, a.Checker, request, a.StoreID, a.ModelID)
 			if err != nil {
-				return RequestAuthorization{}, err
+				checks[n].err = err
+				return
 			}
+			checks[n].decisions = append(checks[n].decisions, checked)
+		}
+	}
+	concurrent := targets.Collection && len(targets.Targets) > authorizationCheckConcurrency
+	if concurrent {
+		var next atomic.Int64
+		var failed atomic.Bool
+		var readers sync.WaitGroup
+		for range authorizationCheckConcurrency {
+			readers.Add(1)
+			go func() {
+				defer readers.Done()
+				for {
+					n := int(next.Add(1)) - 1
+					if n >= len(checks) || failed.Load() {
+						return
+					}
+					checkTarget(n)
+					if checks[n].err != nil {
+						failed.Store(true)
+					}
+				}
+			}()
+		}
+		readers.Wait()
+		// Readers stop at the first failure, so a target may be unchecked
+		// only when some target failed: the request is refused before any
+		// decision is used.
+		for n := range checks {
+			if checks[n].err != nil {
+				return RequestAuthorization{}, checks[n].err
+			}
+		}
+	}
+	for n, target := range targets.Targets {
+		if !concurrent {
+			checkTarget(n)
+			if checks[n].err != nil {
+				return RequestAuthorization{}, checks[n].err
+			}
+		}
+		if len(checks[n].decisions) != len(permissions) {
+			return RequestAuthorization{}, authorization.ErrUnavailable
+		}
+		allowed := true
+		for _, checked := range checks[n].decisions {
 			if grant.Revision.OrganizationID != "" && grant.Revision != checked.Revision {
 				return RequestAuthorization{}, authorization.ErrConflict
 			}

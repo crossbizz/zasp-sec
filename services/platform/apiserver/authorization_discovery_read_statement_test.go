@@ -22,6 +22,7 @@ func TestDiscoveryReadStatementContracts(t *testing.T) {
 		{`SELECT zasp_temporal72.sync_history($1,$2,$3,$4,$5,$6,$7)`, "listIntegrationSyncs", []any{o, w, e, integrationID, before, before, 25}, integration},
 		{`SELECT zasp_temporal72.schedule_detail($1,$2,$3,$4)`, "getIntegrationSchedule", []any{o, w, e, integrationID}, integration},
 		{`SELECT zasp_temporal72.last_good_freshness($1,$2,$3,$4)`, "getIntegrationFreshness", []any{o, w, e, integrationID}, integration},
+		{`SELECT zasp_authorization80.integration_setup_status($1,$2,$3,$4)`, "getIntegrationSetupStatus", []any{o, w, e, integrationID}, integration},
 	}
 	for _, c := range contracts {
 		t.Run(c.operation, func(t *testing.T) {

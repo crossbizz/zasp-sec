@@ -923,3 +923,810 @@ ALTER FUNCTION zasp_authorization80.parent_targets_inner(text,text,text,text,tex
 ALTER FUNCTION zasp_authorization80.parent_allowed_inner(text,text,text,text,text,text) OWNER TO zasp_discovery_authority;
 REVOKE ALL ON FUNCTION zasp_authorization80.parent_targets_inner(text,text,text,text,text,text) FROM PUBLIC,zasp_discovery_api,zasp_security_agent_api,zasp_outbox_worker,zasp_security_agent_worker;
 REVOKE ALL ON FUNCTION zasp_authorization80.parent_allowed_inner(text,text,text,text,text,text) FROM PUBLIC,zasp_discovery_api,zasp_security_agent_api,zasp_outbox_worker,zasp_security_agent_worker;
+
+-- ---------------------------------------------------------------------------
+-- Discovery follow-ups
+--
+-- M. Integration setup status (GET /integrations/{id}/setup-status).
+--
+-- The chain's reader, public.zasp_execution_integration_setup_status, admits
+-- a call only when zasp_production_integration_setup_readiness holds: the
+-- recorded identity of releases 34 to 55 at exactly that catalog. On the
+-- baseline those historical predicates are false for ever, so the route
+-- answered 'provider unavailable'. That reader is left as it is (it keeps
+-- refusing). This function states the same computation under the current
+-- authorization model:
+--   * SECURITY DEFINER, owned by zasp_discovery_authority, fixed search_path,
+--     executable only by zasp_discovery_api;
+--   * the session must be the bound API principal;
+--   * it returns data only inside a fenced transaction whose attested proof
+--     names this organization, workspace and environment, the operation
+--     getIntegrationSetupStatus and the permission 'view' (read_request);
+--   * the proof must be for one object, and that object, the integration in
+--     the path, must be the integration asked for;
+--   * the integration must be among the objects the decision allows.
+-- The payload is the chain reader's, field for field.
+CREATE OR REPLACE FUNCTION zasp_authorization80.integration_setup_status(o text,w text,e text,i text) RETURNS jsonb
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $integration_setup_status$
+DECLARE p jsonb:=zasp_authorization80.context();integration_row public.zasp_integrations%ROWTYPE;connection_row public.zasp_integration_connections%ROWTYPE;subject_row public.zasp_discovery_connection_subjects%ROWTYPE;credential_row public.zasp_connector_credentials%ROWTYPE;authorization_state text:='pending';scope_kind_value text:='none';scope_label_value text;repository_selection_value text;permissions_value jsonb:='[]'::jsonb;sensor_count_value integer:=0;healthy_count_value integer:=0;missing_count_value integer:=0;unsupported_count_value integer:=0;coverage_state text:='not_applicable';coverage_reason text:='not_applicable';updated_value timestamptz;
+BEGIN
+ IF p IS NULL OR NOT COALESCE(public.zasp_valid_product_id(i),false)
+  OR NOT COALESCE(public.zasp_discovery_principal_ready('zasp_discovery_api')
+   AND zasp_authorization80.read_request(o,w,e,ARRAY['getIntegrationSetupStatus'],'view')
+   AND p->'collection'='false'::jsonb
+   AND p#>>'{path_parameters,id}'=i
+   AND zasp_authorization80.allowed(o,w,e,'integration',i),false)
+ THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current read purpose required';END IF;
+ SELECT * INTO integration_row FROM public.zasp_integrations integration WHERE (integration.organization_id,integration.workspace_id,integration.environment_id,integration.id)=(o,w,e,i) AND integration.kind IN('aws','kubernetes','github','okta') AND integration.state<>'deleted';
+ IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='integration setup status missing';END IF;
+ updated_value:=integration_row.updated_at;
+ IF (SELECT count(*) FROM public.zasp_integration_connections connection WHERE (connection.organization_id,connection.workspace_id,connection.environment_id,connection.integration_id,connection.provider,connection.state)=(o,w,e,i,integration_row.kind,'verified'))=1 THEN
+  SELECT * INTO STRICT connection_row FROM public.zasp_integration_connections connection WHERE (connection.organization_id,connection.workspace_id,connection.environment_id,connection.integration_id,connection.provider,connection.state)=(o,w,e,i,integration_row.kind,'verified');
+  SELECT * INTO subject_row FROM public.zasp_discovery_connection_subjects subject WHERE (subject.organization_id,subject.workspace_id,subject.environment_id,subject.integration_id,subject.connection_id,subject.provider,subject.connection_version,subject.configuration_digest)=(o,w,e,i,connection_row.id,integration_row.kind,connection_row.version,digest(convert_to(integration_row.configuration::text,'UTF8'),'sha256'));
+  IF FOUND THEN
+   updated_value:=greatest(updated_value,connection_row.updated_at,subject_row.verified_at);
+   IF integration_row.kind IN('aws','kubernetes') THEN
+    authorization_state:='verified';scope_kind_value:=subject_row.subject_kind;scope_label_value:=subject_row.subject_id;
+   ELSIF (SELECT count(*) FROM public.zasp_connector_credentials credential WHERE (credential.organization_id,credential.workspace_id,credential.environment_id,credential.integration_id,credential.provider,credential.status,credential.credential_reference)=(o,w,e,i,integration_row.kind,'active',connection_row.connection_reference))=1 THEN
+    SELECT * INTO STRICT credential_row FROM public.zasp_connector_credentials credential WHERE (credential.organization_id,credential.workspace_id,credential.environment_id,credential.integration_id,credential.provider,credential.status,credential.credential_reference)=(o,w,e,i,integration_row.kind,'active',connection_row.connection_reference);
+    updated_value:=greatest(updated_value,credential_row.updated_at);
+    IF integration_row.kind='github' AND subject_row.subject_kind='github_installation' AND credential_row.metadata->>'installation_id'=subject_row.subject_id AND credential_row.metadata->>'account_type'='Organization' AND credential_row.metadata->>'account_login'~'^[A-Za-z0-9]([A-Za-z0-9-]{0,37}[A-Za-z0-9])?$' AND credential_row.metadata->>'repository_selection' IN('all','selected') AND credential_row.metadata->'permissions'='{"actions":"read","contents":"read","metadata":"read"}'::jsonb THEN
+     authorization_state:='verified';scope_kind_value:='github_organization';scope_label_value:=credential_row.metadata->>'account_login';repository_selection_value:=credential_row.metadata->>'repository_selection';permissions_value:='["actions:read","contents:read","metadata:read"]'::jsonb;
+    ELSIF integration_row.kind='okta' AND subject_row.subject_kind='okta_tenant' AND credential_row.metadata->>'tenant'=subject_row.subject_id AND credential_row.metadata->'scopes'='["offline_access","okta.apps.read","okta.groups.read","okta.users.read"]'::jsonb THEN
+     authorization_state:='verified';scope_kind_value:='okta_tenant';scope_label_value:=subject_row.subject_id;permissions_value:=credential_row.metadata->'scopes';
+    ELSE authorization_state:='degraded';END IF;
+   ELSE authorization_state:='degraded';END IF;
+  END IF;
+ END IF;
+ IF integration_row.kind='kubernetes' THEN
+  SELECT count(*),count(*) FILTER(WHERE sensor.state='active' AND heartbeat.status='healthy' AND heartbeat.observed_at>=transaction_timestamp()-interval '5 minutes' AND COALESCE((heartbeat.metadata->>'btf')::boolean,false)),count(*) FILTER(WHERE heartbeat.sensor_id IS NULL OR heartbeat.observed_at<transaction_timestamp()-interval '5 minutes'),count(*) FILTER(WHERE heartbeat.observed_at>=transaction_timestamp()-interval '5 minutes' AND NOT COALESCE((heartbeat.metadata->>'btf')::boolean,false)),greatest(updated_value,COALESCE(max(sensor.updated_at),updated_value),COALESCE(max(heartbeat.observed_at),updated_value)) INTO sensor_count_value,healthy_count_value,missing_count_value,unsupported_count_value,updated_value
+  FROM public.zasp_sensors sensor LEFT JOIN public.zasp_sensor_heartbeats heartbeat ON (heartbeat.organization_id,heartbeat.workspace_id,heartbeat.environment_id,heartbeat.sensor_id)=(sensor.organization_id,sensor.workspace_id,sensor.environment_id,sensor.id)
+  WHERE (sensor.organization_id,sensor.workspace_id,sensor.environment_id,sensor.kind)=(o,w,e,'tetragon') AND sensor.state NOT IN('revoked','deleted');
+  IF sensor_count_value=0 THEN coverage_state:='not_enrolled';coverage_reason:='not_enrolled';
+  ELSIF missing_count_value>0 THEN coverage_state:='awaiting_heartbeat';coverage_reason:='missing_gateway';
+  ELSIF unsupported_count_value>0 THEN coverage_state:='degraded';coverage_reason:='unsupported_kernel';
+  ELSIF healthy_count_value=sensor_count_value THEN coverage_state:='healthy';coverage_reason:='verified';
+  ELSE coverage_state:='degraded';coverage_reason:='degraded';END IF;
+ END IF;
+ RETURN jsonb_build_object('integration_id',i,'connector_key',integration_row.kind,'authorization',jsonb_build_object('state',authorization_state,'scope_kind',scope_kind_value,'scope_label',scope_label_value,'repository_selection',repository_selection_value,'permissions',permissions_value),'runtime_coverage',jsonb_build_object('state',coverage_state,'reason',coverage_reason,'sensor_count',sensor_count_value,'healthy_sensor_count',healthy_count_value),'updated_at',to_char(updated_value AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'));
+END $integration_setup_status$;
+ALTER FUNCTION zasp_authorization80.integration_setup_status(text,text,text,text) OWNER TO zasp_discovery_authority;
+REVOKE ALL ON FUNCTION zasp_authorization80.integration_setup_status(text,text,text,text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION zasp_authorization80.integration_setup_status(text,text,text,text) TO zasp_discovery_api;
+
+-- N. Release of abandoned discovery runs.
+--
+-- A Temporal discovery run owns its integration (zasp_temporal72.active_owners)
+-- from its first page until its snapshot is committed. Ownership is what stops
+-- two runs collecting one integration and is decided from durable evidence
+-- only. A run whose evidence stopped moving kept it for ever:
+--   * a worker killed inside a page leaves a page effect without a result; the
+--     workflow settles the run as outcome_unknown, which is an owning state;
+--   * an apply that failed leaves an apply effect without a result;
+--   * a workflow that itself failed (its settlement refused, for instance
+--     while the catalog was being re-sealed) leaves the run admitted,
+--     collecting or partial and its sync queued or running.
+-- Every later sync of that integration then waited in five-second retries and
+-- nothing released it.
+--
+-- zasp_temporal72.release_abandoned ends such a run. It runs inside
+-- prepare_page, the authorized statement every run executes before it may
+-- collect, under the advisory lock that already serializes one integration
+-- and provider; no new worker operation, grant or principal exists. For each
+-- other run of the same integration that still owns it, or whose sync is
+-- still queued or running, it takes the run row FOR UPDATE SKIP LOCKED (every
+-- statement that advances a run holds that lock, so a run something is
+-- working on right now is skipped) and releases it only when all of this
+-- holds:
+--   * nothing is committed: no apply effect has a result and the snapshot of
+--     the run's generation is not committed. commit_apply writes the
+--     snapshot, the apply result and the state 'succeeded' in one local
+--     transaction under the same row lock, so an apply either happened
+--     entirely, and the run is never released, or did not happen at all;
+--   * the evidence has been quiet for a fixed time, measured on the database
+--     clock from the newest of admission, page preparation, page receipt,
+--     apply preparation, capacity wait and retry-not-before:
+--       - 10 minutes for a run inside a page or an apply (collecting,
+--         applying) or already ended (outcome_unknown, or a terminal page
+--         outcome that was never settled). One Activity attempt is bounded
+--         by its five-minute start-to-close timeout and only the attempt
+--         that prepared the effect performs I/O for it; a later attempt
+--         replays the stored receipt;
+--       - 35 minutes for a run between Activities (partial, retryable,
+--         complete) and for a run that never prepared a page although its
+--         start was published (admitted). The workflow bounds every Activity
+--         by a 30-minute schedule-to-close timeout and its settlement by one
+--         minute, and sleeps only for retry delays that are persisted here,
+--         so a live workflow cannot leave these states untouched that long
+--         unless no discovery worker ran at all.
+-- A release is one transaction:
+--   * the release is recorded (zasp_temporal72.releases, immutable) and
+--     active_owners no longer lists a released run, so guard_page_effect
+--     refuses any further provider request of that run ('discovery effect
+--     ownership rejected') and its capacity is free;
+--   * every page effect without a result receives the receipt
+--     'outcome_unknown' (what prepare_page already answers for it), so a late
+--     record_page for it is refused as 'discovery receipt immutable';
+--   * the run state becomes outcome_unknown when a page or apply effect was
+--     unresolved, otherwise incomplete (a terminal page outcome is kept).
+--     None of these is a state from which prepare_page, guard_page_effect,
+--     prepare_apply or commit_apply proceed, and settle writes only such
+--     states, so a released run can never collect or apply again;
+--   * a sync that is still queued or running is failed with last_error
+--     'discovery abandoned' and the public code outcome_unknown or partial
+--     (the public code list is closed; the distinct reason is the release
+--     row and the last_error text).
+-- The generation reservation stays as evidence; the next run reserves a
+-- higher generation.
+CREATE TABLE IF NOT EXISTS zasp_temporal72.releases(
+ organization_id text NOT NULL,workspace_id text NOT NULL,environment_id text NOT NULL,job_id text NOT NULL,
+ sync_id text NOT NULL,integration_id text NOT NULL,provider text NOT NULL,
+ prior_state text NOT NULL,
+ reason text NOT NULL CHECK(reason IN('page_unresolved','apply_unresolved','ended_unsettled','idle','never_started')),
+ uncertain boolean NOT NULL,
+ quiet_since timestamptz NOT NULL,
+ released_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+ released_by_job_id text NOT NULL CHECK(public.zasp_valid_product_id(released_by_job_id)),
+ PRIMARY KEY(organization_id,workspace_id,environment_id,job_id),
+ FOREIGN KEY(organization_id,workspace_id,environment_id,job_id) REFERENCES zasp_temporal72.runs(organization_id,workspace_id,environment_id,job_id),
+ CHECK(released_at>quiet_since AND released_by_job_id<>job_id)
+);
+ALTER TABLE zasp_temporal72.releases OWNER TO zasp_discovery_authority;
+REVOKE ALL ON TABLE zasp_temporal72.releases FROM PUBLIC;
+ALTER TABLE zasp_temporal72.releases ENABLE ROW LEVEL SECURITY;
+ALTER TABLE zasp_temporal72.releases FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS authority ON zasp_temporal72.releases;
+CREATE POLICY authority ON zasp_temporal72.releases USING(CURRENT_USER='zasp_discovery_authority'::name) WITH CHECK(CURRENT_USER='zasp_discovery_authority'::name);
+DROP TRIGGER IF EXISTS immutable ON zasp_temporal72.releases;
+CREATE TRIGGER immutable BEFORE DELETE OR UPDATE OR TRUNCATE ON zasp_temporal72.releases FOR EACH STATEMENT EXECUTE FUNCTION zasp_temporal67.immutable();
+
+CREATE OR REPLACE FUNCTION zasp_temporal72.release_abandoned(o text,w text,e text,i text,provider_value text,j text) RETURNS integer
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $release_abandoned$
+DECLARE x zasp_temporal72.runs%ROWTYPE;quiet timestamptz;bound interval;reason_value text;page_open boolean;page_unknown boolean;apply_open boolean;uncertain_value boolean;receipt text;released integer:=0;
+BEGIN
+ IF NOT COALESCE(public.zasp_valid_product_id(o) AND public.zasp_valid_product_id(w) AND public.zasp_valid_product_id(e) AND public.zasp_valid_product_id(i) AND public.zasp_valid_product_id(j) AND provider_value IN('aws','kubernetes','github','okta'),false)
+  OR current_setting('transaction_isolation')<>'read committed'
+ THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='discovery release rejected';END IF;
+ FOR x IN SELECT r.* FROM zasp_temporal72.runs r
+  WHERE(r.organization_id,r.workspace_id,r.environment_id,r.integration_id,r.provider)=(o,w,e,i,provider_value) AND r.job_id<>j AND r.state<>'succeeded'
+  AND NOT EXISTS(SELECT 1 FROM zasp_temporal72.releases d WHERE(d.organization_id,d.workspace_id,d.environment_id,d.job_id)=(r.organization_id,r.workspace_id,r.environment_id,r.job_id))
+  AND(EXISTS(SELECT 1 FROM public.zasp_discovery_syncs s WHERE(s.organization_id,s.workspace_id,s.environment_id,s.id)=(r.organization_id,r.workspace_id,r.environment_id,r.sync_id) AND s.state IN('queued','running'))
+   OR r.job_id IN(SELECT owner.job_id FROM zasp_temporal72.active_owners(o) owner WHERE(owner.workspace_id,owner.environment_id,owner.integration_id,owner.provider,owner.ownership)=(w,e,i,provider_value,'temporal')))
+  ORDER BY r.admitted_at,r.job_id FOR UPDATE OF r SKIP LOCKED
+ LOOP
+  -- Decided again under the row lock.
+  IF EXISTS(SELECT 1 FROM zasp_temporal72.apply_effects a WHERE(a.organization_id,a.workspace_id,a.environment_id,a.job_id)=(o,w,e,x.job_id) AND a.result IS NOT NULL)
+   OR zasp_temporal72.snapshot_committed(o,w,e,x.sync_id)
+   OR EXISTS(SELECT 1 FROM zasp_temporal72.releases d WHERE(d.organization_id,d.workspace_id,d.environment_id,d.job_id)=(o,w,e,x.job_id)) THEN CONTINUE;END IF;
+  SELECT COALESCE(bool_or(p.result IS NULL),false),COALESCE(bool_or(p.result->>'outcome'='outcome_unknown'),false),greatest(max(p.prepared_at),max(p.recorded_at))
+  INTO page_open,page_unknown,quiet FROM zasp_temporal72.page_effects p WHERE(p.organization_id,p.workspace_id,p.environment_id,p.job_id)=(o,w,e,x.job_id);
+  SELECT EXISTS(SELECT 1 FROM zasp_temporal72.apply_effects a WHERE(a.organization_id,a.workspace_id,a.environment_id,a.job_id)=(o,w,e,x.job_id)) INTO apply_open;
+  quiet:=greatest(x.admitted_at,x.retry_not_before,quiet,
+   (SELECT max(a.prepared_at) FROM zasp_temporal72.apply_effects a WHERE(a.organization_id,a.workspace_id,a.environment_id,a.job_id)=(o,w,e,x.job_id)),
+   (SELECT max(q.not_before) FROM zasp_temporal72.page_waits q WHERE(q.organization_id,q.workspace_id,q.environment_id,q.job_id)=(o,w,e,x.job_id)));
+  IF x.state='admitted' THEN
+   -- Never started: only once its start was published, so a start that is
+   -- still waiting in the outbox is not taken for an abandoned run.
+   IF NOT EXISTS(SELECT 1 FROM public.zasp_discovery_outbox b WHERE(b.organization_id,b.workspace_id,b.environment_id,b.id)=(o,w,e,x.outbox_id) AND b.state='published') THEN CONTINUE;END IF;
+   quiet:=greatest(quiet,(SELECT b.published_at FROM public.zasp_discovery_outbox b WHERE(b.organization_id,b.workspace_id,b.environment_id,b.id)=(o,w,e,x.outbox_id)));
+   bound:=interval '35 minutes';reason_value:='never_started';
+  ELSIF x.state IN('partial','retryable','complete') AND NOT page_open AND NOT apply_open THEN bound:=interval '35 minutes';reason_value:='idle';
+  ELSIF apply_open THEN bound:=interval '10 minutes';reason_value:='apply_unresolved';
+  ELSIF page_open OR page_unknown OR x.state='collecting' THEN bound:=interval '10 minutes';reason_value:='page_unresolved';
+  ELSE bound:=interval '10 minutes';reason_value:='ended_unsettled';END IF;
+  IF quiet IS NULL OR clock_timestamp()<quiet+bound THEN CONTINUE;END IF;
+  uncertain_value:=page_open OR page_unknown OR apply_open;
+  INSERT INTO zasp_temporal72.releases(organization_id,workspace_id,environment_id,job_id,sync_id,integration_id,provider,prior_state,reason,uncertain,quiet_since,released_by_job_id)
+  VALUES(o,w,e,x.job_id,x.sync_id,x.integration_id,x.provider,x.state,reason_value,uncertain_value,quiet,j);
+  receipt:=encode(digest(convert_to(jsonb_build_object('kind','discovery72-release','organization_id',o,'workspace_id',w,'environment_id',e,'job_id',x.job_id,'released_by_job_id',j,'quiet_since',quiet)::text,'UTF8'),'sha256'),'hex');
+  UPDATE zasp_temporal72.page_effects p SET result=jsonb_build_object('outcome','outcome_unknown','checkpoint_version',x.checkpoint_version,'receipt_digest',receipt,'retry_after_seconds',0),record_digest=receipt,recorded_at=clock_timestamp()
+  WHERE(p.organization_id,p.workspace_id,p.environment_id,p.job_id)=(o,w,e,x.job_id) AND p.result IS NULL;
+  UPDATE zasp_temporal72.runs r SET state=CASE WHEN uncertain_value THEN 'outcome_unknown' WHEN x.state IN('incomplete','denied','revoked','malformed','terminal','cancelled') THEN x.state ELSE 'incomplete' END,retry_not_before=NULL
+  WHERE(r.organization_id,r.workspace_id,r.environment_id,r.job_id)=(o,w,e,x.job_id);
+  UPDATE public.zasp_discovery_syncs s SET state='failed',completed_at=COALESCE(s.completed_at,clock_timestamp()),last_error='discovery abandoned',last_error_code=CASE WHEN uncertain_value THEN 'outcome_unknown' ELSE 'partial' END
+  WHERE(s.organization_id,s.workspace_id,s.environment_id,s.id)=(o,w,e,x.sync_id) AND s.state IN('queued','running');
+  released:=released+1;
+ END LOOP;
+ IF released>0 THEN PERFORM public.zasp_execution_bump_freshness(o,w,e,i);END IF;
+ RETURN released;
+END $release_abandoned$;
+ALTER FUNCTION zasp_temporal72.release_abandoned(text,text,text,text,text,text) OWNER TO zasp_discovery_authority;
+REVOKE ALL ON FUNCTION zasp_temporal72.release_abandoned(text,text,text,text,text,text) FROM PUBLIC;
+
+-- active_owners stops listing a released run, and prepare_page releases the
+-- abandoned runs of its own integration before it asks for capacity. Both are
+-- the installed bodies with one insertion each; the predecessor shape is
+-- checked, and a body that already carries the insertion is left alone.
+DO $release_wiring$
+DECLARE d text;
+ owner_needle text:=$n$ WHERE r.organization_id=o AND EXISTS(SELECT 1 FROM public.zasp_discovery_generation_reservations g$n$;
+ owner_insert text:=$n$ WHERE r.organization_id=o AND NOT EXISTS(SELECT 1 FROM zasp_temporal72.releases released WHERE(released.organization_id,released.workspace_id,released.environment_id,released.job_id)=(r.organization_id,r.workspace_id,r.environment_id,r.job_id)) AND EXISTS(SELECT 1 FROM public.zasp_discovery_generation_reservations g$n$;
+ page_needle text:=$n$ PERFORM pg_advisory_xact_lock(hashtextextended(concat_ws(chr(31),o,w,e,i,r.provider),0));$n$;
+ page_insert text:=$n$ PERFORM zasp_temporal72.release_abandoned(o,w,e,i,r.provider,j);$n$;
+BEGIN
+ SELECT pg_get_functiondef('zasp_temporal72.active_owners(text)'::regprocedure) INTO STRICT d;
+ IF position('zasp_temporal72.releases' in d)=0 THEN
+  IF (length(d)-length(replace(d,owner_needle,'')))/length(owner_needle)<>1 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='discovery owner predecessor changed';END IF;
+  EXECUTE replace(d,owner_needle,owner_insert);
+ END IF;
+ SELECT pg_get_functiondef('zasp_temporal72.prepare_page(text,text,text,text,text,text,timestamptz,bigint,text)'::regprocedure) INTO STRICT d;
+ IF position('zasp_temporal72.release_abandoned(' in d)=0 THEN
+  IF (length(d)-length(replace(d,page_needle,'')))/length(page_needle)<>1 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='discovery page predecessor changed';END IF;
+  EXECUTE replace(d,page_needle,page_needle||E'\n'||page_insert);
+ END IF;
+END $release_wiring$;
+
+-- ---------------------------------------------------------------------------
+-- Authorization hardening
+--
+-- Under the current authorization model the sealed request proof
+-- (zasp_authorization80.fence) is meant to be the only way an API process
+-- reaches tenant data: its database logins should be able to do nothing
+-- useful without one. The authorized functions above are that way. The
+-- historical objects underneath them were still directly usable by the API
+-- roles (zasp_discovery_api, zasp_security_agent_api) on their own authority:
+-- legacy writers with a caller-asserted actor, legacy readers, and plain table
+-- privileges. A compromised API process could use them with no checked
+-- request. Sections X1 to X9 close that, in this order of preference:
+--   * revoke the direct grant, where its only callers are the authorized
+--     functions (SECURITY DEFINER, owned by zasp_discovery_authority, so they
+--     run with their owner's rights) or nothing;
+--   * where a historical role-shape check requires the grant itself (revoking
+--     it turns that release's readiness false), keep the grant and make the
+--     object refuse an API session that carries no sealed proof;
+--   * keep the grant where a statement the API sends before or outside a
+--     checked request needs it; each of those is named.
+--
+-- X1. Direct grants on historical functions.
+--
+-- zasp_authorization80.direct_guard is the refusal used by the kept objects.
+-- A session whose login is bound to an API role must be inside a fenced
+-- transaction (zasp_authorization80.context() is the sealed proof of this
+-- session and transaction), and the scope and the actor the caller names must
+-- be the proof's. Every other session (workers, the operator) is unaffected: their
+-- roles and their own checks are unchanged. The context seal binds the login
+-- and the transaction, so the proof cannot be replayed or lent.
+CREATE OR REPLACE FUNCTION zasp_authorization80.direct_guard(o text DEFAULT NULL,w text DEFAULT NULL,e text DEFAULT NULL,actor text DEFAULT NULL) RETURNS boolean
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $direct_guard$
+DECLARE p jsonb;
+BEGIN
+ IF NOT EXISTS(SELECT 1 FROM pg_auth_members m JOIN pg_roles l ON l.oid=m.member JOIN pg_roles g ON g.oid=m.roleid
+  WHERE l.rolname=session_user AND g.rolname IN('zasp_discovery_api','zasp_security_agent_api')) THEN RETURN true;END IF;
+ p:=zasp_authorization80.context();
+ IF p IS NULL OR(o IS NOT NULL AND p->>'organization_id' IS DISTINCT FROM o) OR(w IS NOT NULL AND p->>'workspace_id' IS DISTINCT FROM w) OR(e IS NOT NULL AND p->>'environment_id' IS DISTINCT FROM e)
+  OR(actor IS NOT NULL AND p->>'principal_id' IS DISTINCT FROM actor)
+ THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='checked request required';END IF;
+ RETURN true;
+END $direct_guard$;
+ALTER FUNCTION zasp_authorization80.direct_guard(text,text,text,text) OWNER TO zasp_discovery_authority;
+REVOKE ALL ON FUNCTION zasp_authorization80.direct_guard(text,text,text,text) FROM PUBLIC;
+
+-- Revoked: every direct EXECUTE grant of the two API roles on a function
+-- outside the authorized schemas, except
+--   * readiness predicates (boolean, named ..._ready or ..._readiness): the
+--     API asks them at startup and on its periodic readiness probe, before any
+--     request exists (apiserver/postgres_database.go, authorization_readiness.go
+--     and the capability probes); they return one boolean about the catalog;
+--   * the statements listed in `kept`, each with its caller;
+--   * the grants a historical role-shape check requires (`pinned`): these
+--     functions are guarded in section X3 instead.
+-- The list is computed so that a function added to a historical schema later
+-- is not reachable by default.
+DO $legacy_function_grants$
+DECLARE f record;
+ kept CONSTANT text[]:=ARRAY[
+  -- Projection revision read by the authorizer before every Check, and its
+  -- re-validation (authorization/projection_postgres.go). No tenant content.
+  'zasp_authorization79.revision(text)','zasp_authorization79.revalidate(text,bigint,bigint,text,text)',
+  -- Approval-notification profile state read at startup
+  -- (authorization/approval_maintenance_projection.go).
+  'zasp_approval_maintenance.projection_profile_state()',
+  -- Connector reconciliation, a background loop with no request
+  -- (apiserver/connector_maintenance_authorization.go). Each statement is
+  -- bound in SQL to the lease the reconciler itself claimed.
+  'zasp_connector_recover_final_attempts(text,integer,integer)','zasp_connector_claim_reconciliation(text,integer,integer)',
+  'zasp_connector_complete_reconciliation(text,text,text,text,text,text,text,text,text,text,text,text,jsonb,bytea)',
+  'zasp_connector_fail_reconciliation(text,text,text,text,text,text,text)','zasp_connector_complete_revocation(text,text,text,text,text,text)',
+  'zasp_connector_complete_pkce_cleanup(text,text,text,text,text,text)',
+  'zasp_connector_quarantine_reconciliation(text,text,text,text,text,text,text)',
+  -- Discovery statements the API sends inside a fenced transaction
+  -- (apiserver/authorization_discovery_statement.go). The three writes bind
+  -- the proof themselves; the four reads are bound in section X3.
+  'zasp_temporal72.public_request_sync(text,text,text,text,text,text,bigint,text,text,text,bytea,text,text,text,text,text)',
+  'zasp_temporal72.public_put_schedule(text,text,text,text,text,text,bigint,integer,text,text,text,text)',
+  'zasp_temporal72.public_delete_schedule(text,text,text,text,text,text,bigint,text,text,text)',
+  'zasp_temporal72.sync_detail(text,text,text,text,text)','zasp_temporal72.sync_history(text,text,text,text,timestamp with time zone,text,integer)',
+  'zasp_temporal72.schedule_detail(text,text,text,text)','zasp_temporal72.last_good_freshness(text,text,text,text)',
+  -- Single finding and attack path reads inside a fenced transaction
+  -- (apiserver/authorization_statement.go). SECURITY INVOKER: they read the
+  -- risk tables as the API role, whose only row policy is the proof's.
+  'zasp_risk_finding_get(text,text,text,text)','zasp_risk_attack_path_get(text,text,text,text)','zasp_risk_break_options_get(text,text,text,text)',
+  'zasp_risk_attack_path_valid(zasp_risk_attack_paths)','zasp_risk_finding_visible(zasp_risk_findings)',
+  -- Ordered Security Agent release: the deployment readiness question at
+  -- startup and the approval decision inside a fenced transaction
+  -- (apiserver/security_agent_ordered_production.go,
+  -- authorization_ordered_approval_statement.go). Guarded in section X3.
+  'zasp_ordered_public62.api(text,text,jsonb)'];
+ pinned CONSTANT text[]:=ARRAY[
+  'zasp_attack_lab_cancel_run','zasp_attack_lab_create_run','zasp_attack_lab_preflight','zasp_red_team_cancel_run','zasp_red_team_run_test',
+  'zasp_security_agent_approval_detail_v22','zasp_security_agent_approval_page_v22','zasp_security_agent_cancel_run','zasp_security_agent_claim_approval_notification',
+  'zasp_security_agent_decide_approval_v22','zasp_security_agent_decide_approval_v23','zasp_security_agent_decide_approval_v24',
+  'zasp_security_agent_execution_control_detail','zasp_security_agent_mutate_execution_control',
+  'zasp_security_agent_run_detail_v22','zasp_security_agent_run_detail_v23','zasp_security_agent_run_detail_v24','zasp_security_agent_run_v24',
+  'zasp_execution_integration_setup_status','zasp_identity_admin_ack_secret','zasp_identity_admin_complete_mutation','zasp_identity_admin_connection_page',
+  'zasp_identity_admin_effective_scopes','zasp_identity_admin_mark_unknown','zasp_identity_admin_provider_organization','zasp_identity_admin_reconcile_deprovision',
+  'zasp_identity_admin_reserve_mutation','zasp_identity_admin_resolve_session','zasp_identity_admin_reveal_secret',
+  'zasp_integration_webhook_test_complete','zasp_integration_webhook_test_reserve','zasp_integration_webhook_test_status','zasp_inventory_home_summary',
+  'zasp_policy_list_runtime_decisions','zasp_recovery_create_backup','zasp_recovery_create_restore','zasp_runtime_issue_gateway_enrollment',
+  'zasp_runtime_public_create_sensor','zasp_runtime_public_delete_sensor','zasp_runtime_public_rotate_sensor','zasp_runtime_public_sensor_coverage',
+  'zasp_runtime_public_sensor_detail','zasp_runtime_public_sensor_page','zasp_runtime_public_sensor_token_authority','zasp_runtime_public_update_sensor',
+  'zasp_runtime_sandbox_query_hydrate','zasp_runtime_sandbox_query_status','zasp_runtime_sandbox_session_event_get','zasp_runtime_sandbox_session_event_page'];
+BEGIN
+ FOR f IN SELECT p.oid::regprocedure AS signature,g.rolname AS grantee
+  FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace CROSS JOIN LATERAL aclexplode(p.proacl) a JOIN pg_roles g ON g.oid=a.grantee
+  WHERE a.privilege_type='EXECUTE' AND g.rolname IN('zasp_discovery_api','zasp_security_agent_api')
+   AND(n.nspname='public' OR n.nspname LIKE 'zasp\_%') AND n.nspname NOT LIKE 'zasp\_authorization80%' AND n.nspname<>'zasp_baseline'
+   AND NOT(p.prorettype='boolean'::regtype AND p.proname~'(ready|readiness)(_v[0-9]+)?$')
+   AND NOT(p.oid::regprocedure::text=ANY(kept)) AND NOT(n.nspname='public' AND p.proname=ANY(pinned))
+  ORDER BY 1,2 LOOP
+  EXECUTE format('REVOKE EXECUTE ON FUNCTION %s FROM %I',f.signature,f.grantee);
+ END LOOP;
+END $legacy_function_grants$;
+-- The pairing form of the sensor creation shares its name with a function a
+-- role-shape check requires, but no check requires this form itself.
+REVOKE EXECUTE ON FUNCTION public.zasp_runtime_public_create_sensor(text,text,text,text,text,text,text,text,text,bytea,text,bigint,bytea,bytea,bytea,timestamp with time zone,text) FROM zasp_discovery_api;
+
+-- public.zasp_core_read (SECURITY DEFINER) was executable by PUBLIC: every
+-- database login could read the inventory of any Organization it named. Its
+-- only callers are the inventory backfill and equivalence procedures, which
+-- run as zasp_discovery_authority.
+REVOKE EXECUTE ON FUNCTION public.zasp_core_read(text,text,text,text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.zasp_core_read(text,text,text,text) TO zasp_discovery_authority;
+
+-- ---------------------------------------------------------------------------
+-- X2. Direct table privileges of the API role.
+--
+-- zasp_discovery_api held INSERT, UPDATE, DELETE (and mostly SELECT) on 30
+-- product tables. No statement of the API uses them under the current model:
+-- every read and write goes through an authorized function that runs as
+-- zasp_discovery_authority. With them a session with no proof could rename or
+-- delete every Organization, delete workflow records, audit, receipts and
+-- idempotency rows, and read sessions (CSRF tokens, token digests), API
+-- tokens, memberships, scopes and audit.
+--
+-- Kept:
+--   * SELECT on the seven risk tables. The single finding and attack path
+--     reads are SECURITY INVOKER (section X1). Row security is forced on these
+--     tables and the API role's only policy is zasp_authorization80
+--     .risk_read_allowed, which requires the proof and its allowed target.
+--   * SELECT on zasp_product_sessions and zasp_identity_memberships until
+--     section X6 replaces the direct session lookup.
+--   * INSERT on zasp_admin_audit and zasp_workflow_audit: some thirty
+--     historical role-shape checks require exactly this privilege. Both tables
+--     refuse the insert of an API session in a statement trigger (below).
+REVOKE ALL ON TABLE public.zasp_organizations,public.zasp_workspaces,public.zasp_environments,public.zasp_authorized_scopes,public.zasp_core_payloads,
+ public.zasp_group_mappings,public.zasp_identity_states,public.zasp_product_api_tokens,public.zasp_api_token_reveal_grants,public.zasp_session_events,
+ public.zasp_admin_idempotency,public.zasp_compliance_controls,public.zasp_compliance_evidence,public.zasp_data_controls,
+ public.zasp_schema_metadata,public.zasp_schema_versions,public.zasp_workflow_idempotency,public.zasp_workflow_receipts,public.zasp_workflow_records
+ FROM zasp_discovery_api;
+REVOKE INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER ON TABLE public.zasp_product_sessions,public.zasp_identity_memberships,
+ public.zasp_risk_findings,public.zasp_risk_finding_evidence,public.zasp_risk_finding_factors,public.zasp_risk_attack_paths,
+ public.zasp_risk_attack_path_nodes,public.zasp_risk_attack_path_evidence,public.zasp_risk_break_options
+ FROM zasp_discovery_api;
+
+-- The audit tables. The audit export release recorded the privileges of
+-- zasp_admin_audit and zasp_workflow_audit when it was installed and compares
+-- the live privileges with that record (zasp_audit_export_source_acl_ready,
+-- zasp_audit_export_workflow_acl_ready). The record includes SELECT, UPDATE
+-- and DELETE for the API role, which nothing uses: audit is read through
+-- zasp_authorization80.audit_page and written by the authorized functions.
+-- Those three privileges are revoked and the record is restated to the
+-- privileges the release now has, in one statement, so the comparison keeps
+-- its meaning (the live privileges are the accepted ones). The record's
+-- immutability trigger is suspended for that statement only.
+DO $audit_table_privileges$
+BEGIN
+ REVOKE SELECT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER ON TABLE public.zasp_admin_audit,public.zasp_workflow_audit FROM zasp_discovery_api;
+ ALTER TABLE public.zasp_audit_export_source_acl DISABLE TRIGGER zasp_audit_export_immutable_source_acl;
+ UPDATE public.zasp_audit_export_source_acl s SET
+  before_state=jsonb_set(s.before_state,'{grants}',(SELECT jsonb_agg(g ORDER BY g->>'grantor',g->>'grantee',g->>'privilege',(g->>'grantable')::boolean)
+   FROM jsonb_array_elements(s.before_state->'grants') g WHERE NOT(g->>'grantee'='zasp_discovery_api' AND g->>'privilege' IN('SELECT','UPDATE','DELETE')))),
+  workflow_state=public.zasp_audit_export_workflow_acl_snapshot();
+ UPDATE public.zasp_audit_export_source_acl s SET after_state=public.zasp_audit_export_source_acl_expected(s.before_state);
+ ALTER TABLE public.zasp_audit_export_source_acl ENABLE TRIGGER zasp_audit_export_immutable_source_acl;
+ IF NOT public.zasp_audit_export_source_acl_ready() OR NOT public.zasp_audit_export_workflow_acl_ready() THEN
+  RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='audit source privilege record rejected';
+ END IF;
+END $audit_table_privileges$;
+
+-- zasp_workflow_audit had no write guard. Only its owner and the authorized
+-- functions (running as zasp_discovery_authority) write it.
+CREATE OR REPLACE FUNCTION zasp_authorization80.direct_write_guard() RETURNS trigger
+LANGUAGE plpgsql SET search_path=pg_catalog,public AS $direct_write_guard$
+BEGIN
+ IF TG_NARGS<>1 OR TG_LEVEL<>'STATEMENT' OR TG_WHEN<>'BEFORE' OR TG_RELID<>'public.zasp_workflow_audit'::regclass THEN
+  RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='direct writer contract rejected';
+ END IF;
+ IF current_user IN(TG_ARGV[0],'zasp_discovery_authority') THEN RETURN NULL;END IF;
+ RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='checked audit writer required';
+END $direct_write_guard$;
+ALTER FUNCTION zasp_authorization80.direct_write_guard() OWNER TO zasp_discovery_authority;
+REVOKE ALL ON FUNCTION zasp_authorization80.direct_write_guard() FROM PUBLIC;
+DO $workflow_audit_guard$
+DECLARE owner_name text;
+BEGIN
+ SELECT r.rolname INTO STRICT owner_name FROM pg_class c JOIN pg_roles r ON r.oid=c.relowner WHERE c.oid='public.zasp_workflow_audit'::regclass;
+ DROP TRIGGER IF EXISTS zasp_authorization80_direct_write_guard ON public.zasp_workflow_audit;
+ EXECUTE format('CREATE TRIGGER zasp_authorization80_direct_write_guard BEFORE INSERT OR UPDATE OR DELETE OR TRUNCATE ON public.zasp_workflow_audit FOR EACH STATEMENT EXECUTE FUNCTION zasp_authorization80.direct_write_guard(%L)',owner_name);
+END $workflow_audit_guard$;
+
+-- The identity and audit write guards refused an API session only through an
+-- incidental error: their first test reads zasp_discovery_principal_bindings,
+-- which the API role cannot read, and PostgreSQL checks that privilege before
+-- it evaluates the rest of the condition. Both guards admit exactly two
+-- users (the registered owner and zasp_discovery_authority); every other user
+-- is now refused by name before anything is read.
+DO $write_guards$
+DECLARE target record;d text;refusal text;
+BEGIN
+ FOR target IN SELECT * FROM(VALUES
+  ('zasp_authorization80_audit.write_guard()','checked audit writer required'),
+  ('zasp_authorization80_identity.write_guard()','checked identity writer required')) v(signature,message) LOOP
+  d:=pg_get_functiondef(target.signature::regprocedure);
+  refusal:=format(' IF current_user NOT IN(TG_ARGV[0],''zasp_discovery_authority'') THEN RAISE EXCEPTION USING ERRCODE=''42501'',MESSAGE=%L;END IF; -- direct_guard',target.message);
+  IF position('-- direct_guard' in d)>0 THEN CONTINUE;END IF;
+  IF d!~'\nBEGIN\s' THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='write guard predecessor changed';END IF;
+  EXECUTE regexp_replace(d,'\nBEGIN(\s)',E'\nBEGIN\n'||replace(refusal,'\','\\')||'\1');
+ END LOOP;
+END $write_guards$;
+
+-- ---------------------------------------------------------------------------
+-- X3. Historical functions whose direct grant a role-shape check requires.
+--
+-- Each function below must stay executable by its API role: a historical
+-- release's security check names the grant, and every later release's
+-- readiness includes that check. The authorized functions call them with
+-- their owner's rights, inside the fenced transaction. A direct call from an
+-- API session is therefore admitted only inside a fenced transaction, for the
+-- proof's own Organization, Workspace, Environment and principal: the first
+-- statement of each function is zasp_authorization80.direct_guard. The
+-- function's own checks (release, principal, actor role, versions) follow
+-- unchanged. Worker and operator sessions are not affected.
+--
+-- Not guarded, on purpose:
+--   * zasp_identity_admin_effective_scopes: zasp_authorization80.fence itself
+--     calls it before the proof is sealed, and so do the sign-in functions of
+--     zasp_authorization80_identity. It returns the scopes and permissions of
+--     one named principal.
+--   * zasp_identity_admin_resolve_session and
+--     zasp_identity_admin_reconcile_deprovision: the sign-in callback and the
+--     verified deprovision webhook reach them through
+--     zasp_authorization80_identity before any proof exists. A direct call
+--     writes nothing: the identity write guard requires the permit only those
+--     functions issue.
+--   * zasp_connector_claim_reconciliation: connector maintenance (section X1).
+DO $direct_guards$
+DECLARE target record;d text;tag text;
+BEGIN
+ FOR target IN SELECT v.signature::regprocedure AS procedure,v.guard,l.lanname FROM(VALUES
+  ('zasp_attack_lab_cancel_run(text,text,text,text,text,text,bigint,text)','zasp_authorization80.direct_guard(organization_value,workspace_value,environment_value,actor_value)'),
+  ('zasp_attack_lab_create_run(text,text,text,text,text,text,text,bytea,text)','zasp_authorization80.direct_guard(organization_value,workspace_value,environment_value,actor_value)'),
+  ('zasp_attack_lab_preflight(text,text,text,text)','zasp_authorization80.direct_guard(organization_value,workspace_value,environment_value)'),
+  ('zasp_execution_integration_setup_status(text,text,text,text,text,text)','zasp_authorization80.direct_guard(organization_value,workspace_value,environment_value)'),
+  ('zasp_identity_admin_ack_secret(text,text,text)','zasp_authorization80.direct_guard(organization_value,NULL,NULL,principal_value)'),
+  ('zasp_identity_admin_complete_mutation(text,text,text,text,text,bytea,jsonb,text,bytea,bytea,bytea,timestamp with time zone)','zasp_authorization80.direct_guard(organization_value,NULL,NULL,principal_value)'),
+  ('zasp_identity_admin_connection_page(text,text,text,text,integer)','zasp_authorization80.direct_guard(organization_value,NULL,NULL,principal_value)'),
+  ('zasp_identity_admin_mark_unknown(text,text,text,text,text,bytea)','zasp_authorization80.direct_guard(organization_value,NULL,NULL,principal_value)'),
+  ('zasp_identity_admin_provider_organization(text,text)','zasp_authorization80.direct_guard(organization_value,NULL,NULL,principal_value)'),
+  ('zasp_identity_admin_reserve_mutation(text,text,text,text,text,bytea,jsonb,text,text,text,bytea,integer)','zasp_authorization80.direct_guard(organization_value,NULL,NULL,principal_value)'),
+  ('zasp_identity_admin_reveal_secret(text,text,text)','zasp_authorization80.direct_guard(organization_value,NULL,NULL,principal_value)'),
+  ('zasp_integration_webhook_test_complete(text,text,text,text,text,text,boolean)','zasp_authorization80.direct_guard(organization_value,workspace_value,environment_value)'),
+  ('zasp_integration_webhook_test_reserve(text,text,text,text,text,bigint,text,text,text,text,text,integer)','zasp_authorization80.direct_guard(organization_value,workspace_value,environment_value,principal_value)'),
+  ('zasp_integration_webhook_test_status(text,text,text,text)','zasp_authorization80.direct_guard(organization_value,workspace_value,environment_value)'),
+  ('zasp_inventory_home_summary(text,text,text)','zasp_authorization80.direct_guard(organization_value,workspace_value,environment_value)'),
+  ('zasp_policy_list_runtime_decisions(text,text,text,text,integer)','zasp_authorization80.direct_guard(organization_value,workspace_value,environment_value)'),
+  ('zasp_recovery_create_backup(text,text,text,text,text,text,text,integer,text,text,bytea)','zasp_authorization80.direct_guard(organization_value,workspace_value,environment_value,actor_value)'),
+  ('zasp_recovery_create_restore(text,text,text,text,text,text,text,text,text,text,bytea,jsonb,bytea)','zasp_authorization80.direct_guard(organization_value,workspace_value,environment_value,actor_value)'),
+  ('zasp_red_team_cancel_run(text,text,text,text,text,text,bigint,text)','zasp_authorization80.direct_guard(organization_value,workspace_value,environment_value,actor_value)'),
+  ('zasp_red_team_run_test(text,text,text,text,text,text,bigint,text,text)','zasp_authorization80.direct_guard(organization_value,workspace_value,environment_value,actor_value)'),
+  ('zasp_runtime_issue_gateway_enrollment(text,text,text,text,text,bigint,bigint,bytea,bytea,bytea,timestamp with time zone)','zasp_authorization80.direct_guard(organization_value,workspace_value,environment_value)'),
+  ('zasp_runtime_public_create_sensor(text,text,text,text,text,text,text,text,text,bytea,text,bigint,bytea,bytea,bytea,timestamp with time zone)','zasp_authorization80.direct_guard(organization_value,workspace_value,environment_value,principal_value)'),
+  ('zasp_runtime_public_delete_sensor(text,text,text,text,text,bigint,text,bytea)','zasp_authorization80.direct_guard(organization_value,workspace_value,environment_value,principal_value)'),
+  ('zasp_runtime_public_rotate_sensor(text,text,text,text,text,bigint,text,bytea,text,bigint,bytea,bytea,bytea,timestamp with time zone)','zasp_authorization80.direct_guard(organization_value,workspace_value,environment_value,principal_value)'),
+  ('zasp_runtime_public_sensor_coverage(text,text,text,text)','zasp_authorization80.direct_guard(organization_value,workspace_value,environment_value)'),
+  ('zasp_runtime_public_sensor_detail(text,text,text,text)','zasp_authorization80.direct_guard(organization_value,workspace_value,environment_value)'),
+  ('zasp_runtime_public_sensor_page(text,text,text,text,integer)','zasp_authorization80.direct_guard(organization_value,workspace_value,environment_value)'),
+  ('zasp_runtime_public_sensor_token_authority(text,text,text,text)','zasp_authorization80.direct_guard(organization_value,workspace_value,environment_value)'),
+  ('zasp_runtime_public_update_sensor(text,text,text,text,text,bigint,text,text,text,bytea)','zasp_authorization80.direct_guard(organization_value,workspace_value,environment_value,principal_value)'),
+  ('zasp_runtime_sandbox_query_hydrate(text,text,text,text,text[])','zasp_authorization80.direct_guard(organization_value,workspace_value,environment_value,principal_value)'),
+  ('zasp_runtime_sandbox_query_status(text,text,text,text)','zasp_authorization80.direct_guard(organization_value,workspace_value,environment_value,principal_value)'),
+  ('zasp_runtime_sandbox_session_event_get(text,text,text,text,text,text)','zasp_authorization80.direct_guard(organization_value,workspace_value,environment_value,principal_value)'),
+  ('zasp_runtime_sandbox_session_event_page(text,text,text,text,text,timestamp with time zone,text,integer)','zasp_authorization80.direct_guard(organization_value,workspace_value,environment_value,principal_value)'),
+  ('zasp_security_agent_approval_detail_v22(text,text,text,text)','zasp_authorization80.direct_guard(organization_value,workspace_value,environment_value)'),
+  ('zasp_security_agent_approval_page_v22(text,text,text,text,text,timestamp with time zone,text,integer)','zasp_authorization80.direct_guard(organization_value,workspace_value,environment_value)'),
+  ('zasp_security_agent_cancel_run(text,text,text,text,text,text,bigint,text,text,text)','zasp_authorization80.direct_guard(organization_value,workspace_value,environment_value)'),
+  ('zasp_security_agent_claim_approval_notification(text,text,integer)','zasp_authorization80.direct_guard()'),
+  ('zasp_security_agent_decide_approval_v22(text,text,text,text,text,text,bigint,text,timestamp with time zone,text,text,text)','zasp_authorization80.direct_guard(organization_value,workspace_value,environment_value)'),
+  ('zasp_security_agent_decide_approval_v23(text,text,text,text,text,text,bigint,text,timestamp with time zone,text,text,text)','zasp_authorization80.direct_guard(organization_value,workspace_value,environment_value)'),
+  ('zasp_security_agent_decide_approval_v24(text,text,text,text,text,text,bigint,text,timestamp with time zone,text,text,text)','zasp_authorization80.direct_guard(organization_value,workspace_value,environment_value)'),
+  ('zasp_security_agent_execution_control_detail(text,text,text)','zasp_authorization80.direct_guard(organization_value,workspace_value,environment_value)'),
+  ('zasp_security_agent_mutate_execution_control(text,text,text,text,text,text,text,boolean,bigint,timestamp with time zone,text,text,text)','zasp_authorization80.direct_guard(organization_value,workspace_value,environment_value,actor_value)'),
+  ('zasp_security_agent_run_detail_v22(text,text,text,text)','zasp_authorization80.direct_guard(organization_value,workspace_value,environment_value)'),
+  ('zasp_security_agent_run_detail_v23(text,text,text,text)','zasp_authorization80.direct_guard(organization_value,workspace_value,environment_value)'),
+  ('zasp_security_agent_run_detail_v24(text,text,text,text)','zasp_authorization80.direct_guard(organization_value,workspace_value,environment_value)'),
+  ('zasp_security_agent_run_v24(text,text,text,text,text,text,bigint,text,text,text,text,text,text)','zasp_authorization80.direct_guard(organization_value,workspace_value,environment_value)')
+ ) v(signature,guard) JOIN pg_proc p ON p.oid=v.signature::regprocedure JOIN pg_language l ON l.oid=p.prolang LOOP
+  d:=pg_get_functiondef(target.procedure);
+  IF position('zasp_authorization80.direct_guard(' in d)>0 THEN CONTINUE;END IF;
+  IF target.lanname='plpgsql' THEN
+   IF d!~'\nBEGIN\s' THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='guarded function predecessor changed: '||target.procedure::text;END IF;
+   EXECUTE regexp_replace(d,'\nBEGIN(\s)',E'\nBEGIN\n PERFORM '||target.guard||E';\\1');
+  ELSIF target.lanname='sql' THEN
+   tag:=(regexp_match(d,'\nAS (\$[A-Za-z_]*\$)'))[1];
+   IF tag IS NULL THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='guarded function predecessor changed: '||target.procedure::text;END IF;
+   EXECUTE replace(d,E'\nAS '||tag,E'\nAS '||tag||E'\n  SELECT '||target.guard||';');
+  ELSE RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='guarded function language rejected: '||target.procedure::text;
+  END IF;
+ END LOOP;
+END $direct_guards$;
+
+-- The ordered Security Agent release (zasp_ordered_public62.api) authorizes
+-- by the actor's stored role only, except for an approval decision, which
+-- binds the proof itself. An API session may ask the deployment readiness
+-- question with no proof (startup); every other operation needs the proof of
+-- the scope and actor the request names.
+DO $ordered_guard$
+DECLARE d text;
+BEGIN
+ d:=pg_get_functiondef('zasp_ordered_public62.api(text,text,jsonb)'::regprocedure);
+ IF position('zasp_authorization80.direct_guard(' in d)>0 THEN RETURN;END IF;
+ IF d!~'\nBEGIN\s' THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='ordered public predecessor changed';END IF;
+ EXECUTE regexp_replace(d,'\nBEGIN(\s)',E'\nBEGIN\n IF q->>''operation'' IS DISTINCT FROM ''deployment_ready'' THEN PERFORM zasp_authorization80.direct_guard(q->>''organization_id'',q->>''workspace_id'',q->>''environment_id'',q->>''actor_id'');END IF;\\1');
+END $ordered_guard$;
+
+-- The four discovery reads the API sends inside a fenced transaction checked
+-- only that the session was the API principal: with no proof they returned
+-- the sync, history, schedule or freshness of any integration the caller
+-- named. Each is now bound to its own operation with the permission 'view',
+-- to the proof's scope and to an allowed target: the sync for one sync, the
+-- integration for the rest (the same rule the API applies before it sends the
+-- statement, apiserver/authorization_discovery_statement.go).
+CREATE OR REPLACE FUNCTION zasp_authorization80.direct_read_guard(o text,w text,e text,operation_value text,kind_value text,target_value text) RETURNS boolean
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $direct_read_guard$
+BEGIN
+ IF NOT EXISTS(SELECT 1 FROM pg_auth_members m JOIN pg_roles l ON l.oid=m.member JOIN pg_roles g ON g.oid=m.roleid
+  WHERE l.rolname=session_user AND g.rolname IN('zasp_discovery_api','zasp_security_agent_api')) THEN RETURN true;END IF;
+ IF NOT COALESCE(zasp_authorization80.read_request(o,w,e,ARRAY[operation_value],'view')
+  AND zasp_authorization80.context()->'collection'='false'::jsonb
+  AND zasp_authorization80.allowed(o,w,e,kind_value,target_value),false)
+ THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current read purpose required';END IF;
+ RETURN true;
+END $direct_read_guard$;
+ALTER FUNCTION zasp_authorization80.direct_read_guard(text,text,text,text,text,text) OWNER TO zasp_discovery_authority;
+REVOKE ALL ON FUNCTION zasp_authorization80.direct_read_guard(text,text,text,text,text,text) FROM PUBLIC;
+DO $discovery_read_guards$
+DECLARE target record;d text;
+BEGIN
+ FOR target IN SELECT * FROM(VALUES
+  ('zasp_temporal72.sync_detail(text,text,text,text,text)','zasp_authorization80.direct_read_guard(o,w,e,''getIntegrationSync'',''discovery_sync'',s)'),
+  ('zasp_temporal72.sync_history(text,text,text,text,timestamp with time zone,text,integer)','zasp_authorization80.direct_read_guard(o,w,e,''listIntegrationSyncs'',''integration'',i)'),
+  ('zasp_temporal72.schedule_detail(text,text,text,text)','zasp_authorization80.direct_read_guard(o,w,e,''getIntegrationSchedule'',''integration'',i)'),
+  ('zasp_temporal72.last_good_freshness(text,text,text,text)','zasp_authorization80.direct_read_guard(o,w,e,''getIntegrationFreshness'',''integration'',i)')
+ ) v(signature,guard) LOOP
+  d:=pg_get_functiondef(target.signature::regprocedure);
+  IF position('zasp_authorization80.direct_read_guard(' in d)>0 THEN CONTINUE;END IF;
+  IF d!~'\nBEGIN\s' THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='discovery read predecessor changed';END IF;
+  EXECUTE regexp_replace(d,'\nBEGIN(\s)',E'\nBEGIN\n PERFORM '||target.guard||E';\\1');
+ END LOOP;
+END $discovery_read_guards$;
+
+-- ---------------------------------------------------------------------------
+-- X4. Inventory rule catalog digest.
+--
+-- Section G reclassified AWS IAM roles as identities (rule version 2). The
+-- typed inventory release pins the digest of the rule catalog in a CHECK
+-- constraint, in its cutover rows, in zasp_schema_metadata and in two function
+-- bodies; all still named the catalog before that change. They now name the
+-- catalog the rules table and the compiled catalog
+-- (inventoryprojection.RuleCatalogDigest) both hold.
+DO $rule_catalog_digest$
+DECLARE previous CONSTANT text:='44820a38e96d80318165fc2333fd851cd932d2704d380a1199d569d1d0778f30';
+ current_value CONSTANT text:='9397691244ac0b8befd2790fed3ca2e71f2114eba44001cc3d5634f86b6044ed';
+ f regprocedure;d text;
+BEGIN
+ IF NOT EXISTS(SELECT 1 FROM public.zasp_inventory_identity_rules WHERE(provider,source_kind,product_kind,rule_version)=('aws','aws_role','identity',2)) THEN
+  RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='inventory rule catalog predecessor changed';
+ END IF;
+ ALTER TABLE public.zasp_inventory_cutover_state DROP CONSTRAINT IF EXISTS zasp_inventory_cutover_state_rule_catalog_digest_check;
+ UPDATE public.zasp_inventory_cutover_state SET rule_catalog_digest=current_value WHERE rule_catalog_digest=previous;
+ EXECUTE format('ALTER TABLE public.zasp_inventory_cutover_state ADD CONSTRAINT zasp_inventory_cutover_state_rule_catalog_digest_check CHECK(rule_catalog_digest=%L)',current_value);
+ UPDATE public.zasp_schema_metadata SET value=current_value WHERE key='typed_inventory_rule_catalog_digest' AND value=previous;
+ FOREACH f IN ARRAY ARRAY['public.zasp_inventory_advance_scope(text,text,text,text,bytea,bytea)'::regprocedure,'public.zasp_inventory_readiness(text,text)'::regprocedure] LOOP
+  d:=pg_get_functiondef(f);
+  IF position(previous in d)>0 THEN EXECUTE replace(d,previous,current_value);END IF;
+ END LOOP;
+END $rule_catalog_digest$;
+
+-- ---------------------------------------------------------------------------
+-- X5. Security Agent counts of the home summary.
+--
+-- zasp_authorization80.home_summary runs on the product database, whose row
+-- security hides Temporal-owned Security Agent runs from it. The API resolved
+-- the candidate targets of a home or search request on both databases and
+-- attested their union; fence() re-reads every target on the executing
+-- session, could not see those runs, and refused the request ('authorization
+-- target version changed') as soon as one existed. A proof now names only
+-- targets its own database resolved. The run and approval counts are served
+-- here, on the Security Agent database, under a second proof of the same
+-- operation whose targets that database resolved.
+CREATE OR REPLACE FUNCTION zasp_authorization80.security_agent_home_summary(o text,w text,e text) RETURNS jsonb
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $security_agent_home_summary$
+DECLARE pending_value bigint;oldest_value bigint;needs_human_value bigint;failed_value bigint;inconclusive_value bigint;contained_value bigint;remediated_value bigint;
+BEGIN
+ PERFORM zasp_authorization80.require_read(o,w,e,ARRAY['getHomeSummary'],'view');
+ IF NOT COALESCE(public.zasp_security_agent_principal_ready('zasp_security_agent_api'),false) THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='authorization security agent principal rejected';END IF;
+ SELECT count(*),COALESCE(floor(extract(epoch FROM transaction_timestamp()-min(a.created_at)))::bigint,0) INTO pending_value,oldest_value
+  FROM public.zasp_security_agent_approvals a
+  WHERE(a.organization_id,a.workspace_id,a.environment_id,a.state)=(o,w,e,'pending') AND zasp_authorization80.allowed(o,w,e,'security_agent_approval',a.approval_id);
+ SELECT count(*) FILTER(WHERE r.state='needs_human'),count(*) FILTER(WHERE r.state='failed'),count(*) FILTER(WHERE r.state='inconclusive'),
+  count(*) FILTER(WHERE r.state='contained' AND r.updated_at>=transaction_timestamp()-interval '24 hours'),count(*) FILTER(WHERE r.state='remediated' AND r.updated_at>=transaction_timestamp()-interval '24 hours')
+  INTO needs_human_value,failed_value,inconclusive_value,contained_value,remediated_value
+  FROM public.zasp_security_agent_runs r
+  WHERE(r.organization_id,r.workspace_id,r.environment_id)=(o,w,e) AND zasp_authorization80.allowed(o,w,e,'security_agent_run',r.run_id);
+ RETURN jsonb_build_object('pending_approvals',pending_value,'oldest_approval_age_seconds',GREATEST(oldest_value,0),'needs_human_runs',needs_human_value,'failed_runs',failed_value,
+  'inconclusive_runs',inconclusive_value,'recent_contained',contained_value,'recent_remediated',remediated_value);
+END $security_agent_home_summary$;
+ALTER FUNCTION zasp_authorization80.security_agent_home_summary(text,text,text) OWNER TO zasp_discovery_authority;
+REVOKE ALL ON FUNCTION zasp_authorization80.security_agent_home_summary(text,text,text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION zasp_authorization80.security_agent_home_summary(text,text,text) TO zasp_security_agent_api;
+
+-- ---------------------------------------------------------------------------
+-- X6. Browser session lookup.
+--
+-- A browser request is authenticated before any proof exists. The API did
+-- that with a direct query over zasp_product_sessions and
+-- zasp_identity_memberships, which required SELECT on both tables: a session
+-- of the API role could read every session's CSRF token and token digest and
+-- every membership. The lookup is now this function: it takes the presented
+-- session token and returns that one live session, exactly the fields the
+-- query returned. The table privileges are revoked.
+CREATE OR REPLACE FUNCTION zasp_authorization80_identity.authenticate_session(token_value text) RETURNS jsonb
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $authenticate_session$
+ SELECT jsonb_build_object('credential_id',s.session_id,'principal_id',s.principal_id,'organization_id',s.organization_id,'workspace_id',s.workspace_id,'environment_id',s.environment_id,
+  'permissions','[]'::jsonb,'csrf_token',s.csrf_token,'fresh_authenticated',s.authenticated_at>clock_timestamp()-interval '5 minutes','fresh_auth_expires_at',s.authenticated_at+interval '5 minutes')
+ FROM public.zasp_product_sessions s JOIN public.zasp_identity_memberships m ON(m.principal_id,m.organization_id)=(s.principal_id,s.organization_id) AND m.active
+ WHERE s.token_digest=public.digest(token_value,'sha256') AND s.revoked_at IS NULL AND s.expires_at>clock_timestamp()
+  AND EXISTS(SELECT 1 FROM public.zasp_identity_admin_effective_scopes(s.principal_id,s.organization_id) x WHERE(x.workspace_id,x.environment_id)=(s.workspace_id,s.environment_id))
+$authenticate_session$;
+ALTER FUNCTION zasp_authorization80_identity.authenticate_session(text) OWNER TO zasp_discovery_authority;
+REVOKE ALL ON FUNCTION zasp_authorization80_identity.authenticate_session(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION zasp_authorization80_identity.authenticate_session(text) TO zasp_discovery_api;
+REVOKE ALL ON TABLE public.zasp_product_sessions,public.zasp_identity_memberships FROM zasp_discovery_api;
+
+-- ---------------------------------------------------------------------------
+-- X7. The one-time SCIM bearer secret is revealed once.
+--
+-- zasp_authorization80.identity_provider_reveal_secret (section J) returned
+-- the secret of any unexpired grant of the caller for as long as the grant
+-- lived (ten minutes), as often as it was asked, and did not require the
+-- grant to belong to a completed creation. The API never acknowledged a
+-- grant. The reveal now
+--   * locks the grant and requires the mutation that created it: a completed
+--     createSCIMConnection of this Organization and administrator whose
+--     recorded response names exactly this grant;
+--   * acknowledges the grant in the same statement, which removes the
+--     ciphertext: a second reveal finds nothing.
+CREATE OR REPLACE FUNCTION zasp_authorization80.identity_provider_reveal_secret(o text,w text,e text,actor text,grant_value text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $identity_provider_reveal_secret$
+DECLARE p jsonb;result jsonb;
+BEGIN
+ IF NOT COALESCE(public.zasp_valid_product_id(grant_value),false) THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='identity administration input rejected';END IF;
+ p:=zasp_authorization80.identity_provider_request(o,w,e,actor,'createSCIMConnection');
+ PERFORM 1 FROM public.zasp_identity_secret_reveal_grants g
+  WHERE(g.organization_id,g.principal_id,g.grant_id)=(o,actor,grant_value) AND g.acknowledged_at IS NULL AND g.expires_at>clock_timestamp()
+   AND EXISTS(SELECT 1 FROM public.zasp_identity_provider_mutations m WHERE(m.organization_id,m.principal_id,m.mutation_id)=(g.organization_id,g.principal_id,g.mutation_id)
+    AND m.operation='createSCIMConnection' AND m.state='completed' AND m.response->>'secret_grant_id'=g.grant_id AND m.response->>'mutation_id'=g.mutation_id)
+  FOR UPDATE OF g;
+ IF NOT FOUND THEN RETURN NULL;END IF;
+ result:=public.zasp_identity_admin_reveal_secret(o,actor,grant_value);
+ IF result IS NULL THEN RETURN NULL;END IF;
+ PERFORM public.zasp_identity_admin_ack_secret(o,actor,grant_value);
+ IF p IS DISTINCT FROM zasp_authorization80.context() THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='identity administration proof expired';END IF;
+ RETURN result;
+END $identity_provider_reveal_secret$;
+ALTER FUNCTION zasp_authorization80.identity_provider_reveal_secret(text,text,text,text,text) OWNER TO zasp_discovery_authority;
+REVOKE ALL ON FUNCTION zasp_authorization80.identity_provider_reveal_secret(text,text,text,text,text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION zasp_authorization80.identity_provider_reveal_secret(text,text,text,text,text) TO zasp_discovery_api;
+
+-- ---------------------------------------------------------------------------
+-- X8. Planner pricing approval.
+--
+-- zasp_sa_multistep_prior.pricing_admin writes the administrator's pricing
+-- approval. It took the actor and the time of fresh authentication from its
+-- caller and was executable by the API role directly (revoked in section X1),
+-- so a session with no proof could approve, replace or disable the pricing of
+-- any Environment in an administrator's name. This function is its authorized
+-- form: a browser session with fresh authentication, the operation
+-- setSecurityAgentPlannerPricing with manage_identity on the current
+-- Environment, a non-collection request of this actor. The scope and actor of
+-- the request must be the proof's, and the time of fresh authentication is
+-- read from the verified session, never from the request.
+CREATE OR REPLACE FUNCTION zasp_authorization80.security_agent_pricing_admin(o text,w text,e text,actor text,q jsonb) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $security_agent_pricing_admin$
+DECLARE p jsonb:=zasp_authorization80.context();fresh timestamptz;result jsonb;
+BEGIN
+ IF current_setting('transaction_isolation')<>'read committed' THEN RAISE EXCEPTION USING ERRCODE='25001',MESSAGE='authorization pricing write requires read committed';END IF;
+ IF p IS NULL OR actor IS NULL OR NOT COALESCE(public.zasp_discovery_principal_ready('zasp_discovery_api')
+  AND zasp_authorization80.read_request(o,w,e,ARRAY['setSecurityAgentPlannerPricing'],'manage_identity',true,actor)
+  AND p->'collection'='false'::jsonb AND p->'fresh_auth'='true'::jsonb
+  AND zasp_authorization80.allowed(o,w,e,'environment',e),false)
+ THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current pricing authorization required';END IF;
+ PERFORM zasp_authorization80.identity_fence(p);
+ IF q IS NULL OR jsonb_typeof(q)<>'object' OR octet_length(q::text)>8192 OR q ? 'fresh_auth_at'
+  OR(q->>'organization_id',q->>'workspace_id',q->>'environment_id',q->>'actor_id') IS DISTINCT FROM(o,w,e,actor)
+ THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='authorization pricing request rejected';END IF;
+ SELECT s.authenticated_at INTO fresh FROM public.zasp_product_sessions s
+  WHERE s.session_id=p->>'credential_id' AND s.token_digest=decode(p->>'credential_digest','hex') AND s.principal_id=actor AND s.revoked_at IS NULL;
+ IF fresh IS NULL OR fresh<=clock_timestamp()-interval '5 minutes' THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current pricing authorization required';END IF;
+ result:=zasp_sa_multistep_prior.pricing_admin('033bf2ffa9d4a60121d4f20436ff7de36d1421b62f849254a09048caf75998e6','6b6a74cba9ee791d8b23c08df2f3d08949a339e23460694bc0e2d2d3f25c8e92',
+  q||jsonb_build_object('fresh_auth_at',to_char(fresh AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"')));
+ IF result IS NULL OR p IS DISTINCT FROM zasp_authorization80.context() THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='current pricing proof expired';END IF;
+ PERFORM zasp_authorization80.identity_fence(p);
+ RETURN result;
+END $security_agent_pricing_admin$;
+ALTER FUNCTION zasp_authorization80.security_agent_pricing_admin(text,text,text,text,jsonb) OWNER TO zasp_discovery_authority;
+REVOKE ALL ON FUNCTION zasp_authorization80.security_agent_pricing_admin(text,text,text,text,jsonb) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION zasp_authorization80.security_agent_pricing_admin(text,text,text,text,jsonb) TO zasp_discovery_api;
+
+-- The worker's pricing binding (section I) is unchanged. It returns the pins
+-- of any scope the worker names; restricting it to a scope with an unfinished
+-- run is not possible from that function: row security on
+-- zasp_security_agent_runs shows a Temporal-owned run only to the session of
+-- the principal that owns it, so the worker's session (and this function,
+-- which runs for it) sees no run of a scope it is about to plan for. The pins
+-- are references, never a credential or an approval, and pricing_lookup
+-- verifies them against the current approval.
+
+-- ---------------------------------------------------------------------------
+-- X9. A run is started only on a trigger its requester may read.
+--
+-- zasp_authorization80.security_agent_run (section H) binds the request to
+-- the Security Agent definition. The triggering finding or attack path is
+-- named in the request body, so the proof of the definition says nothing
+-- about it: a principal allowed to run the agent could start a run on a
+-- finding it is not allowed to see. The API now makes a second decision for
+-- the trigger (getFinding or getAttackPath, permission 'view', the trigger as
+-- the object) and passes its attestation. This function verifies that
+-- attestation with the same key as fence(), requires it to be the decision of
+-- the same principal, credential, scope and projection revision as the
+-- request's own proof, for exactly this trigger, with the trigger among its
+-- allowed targets, and only then starts the run. The six-argument form stays
+-- as the body it calls; the API role can no longer execute it directly.
+CREATE OR REPLACE FUNCTION zasp_authorization80.security_agent_run(o text,w text,e text,d text,actor text,q jsonb,trigger_proof text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $security_agent_run_trigger$
+DECLARE p jsonb:=zasp_authorization80.context();t jsonb;kind_value text;operation_value text;
+BEGIN
+ kind_value:=q->>'trigger_kind';
+ operation_value:=CASE kind_value WHEN 'finding' THEN 'getFinding' WHEN 'attack_path' THEN 'getAttackPath' END;
+ IF operation_value IS NULL THEN
+  IF trigger_proof IS NOT NULL THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='authorization security agent run rejected';END IF;
+ ELSE
+  IF p IS NULL OR trigger_proof IS NULL OR NOT COALESCE(public.zasp_valid_product_id(q->>'trigger_id'),false)
+  THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current security agent trigger authorization required';END IF;
+  t:=zasp_authorization80.verify_attestation(trigger_proof);
+  IF NOT COALESCE(t->>'operation_id'=operation_value AND t->>'permission'='view' AND t->'collection'='false'::jsonb
+   AND(t->>'organization_id',t->>'workspace_id',t->>'environment_id',t->>'principal_id')=(o,w,e,actor)
+   AND(t->>'organization_id',t->>'workspace_id',t->>'environment_id',t->>'principal_id',t->>'credential_kind',t->>'credential_id',t->>'credential_digest')
+    =(p->>'organization_id',p->>'workspace_id',p->>'environment_id',p->>'principal_id',p->>'credential_kind',p->>'credential_id',p->>'credential_digest')
+   AND t->'revision'=p->'revision' AND t->>'key_version'=p->>'key_version'
+   AND t#>>'{path_parameters,id}'=q->>'trigger_id'
+   AND EXISTS(SELECT 1 FROM jsonb_array_elements(t->'allowed') x
+    WHERE(x->>'organization_id',x->>'workspace_id',x->>'environment_id',x->>'kind',COALESCE(NULLIF(x->>'source_id',''),x->>'id'))=(o,w,e,kind_value,q->>'trigger_id')),false)
+  THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current security agent trigger authorization required';END IF;
+ END IF;
+ RETURN zasp_authorization80.security_agent_run(o,w,e,d,actor,q);
+END $security_agent_run_trigger$;
+ALTER FUNCTION zasp_authorization80.security_agent_run(text,text,text,text,text,jsonb,text) OWNER TO zasp_discovery_authority;
+REVOKE ALL ON FUNCTION zasp_authorization80.security_agent_run(text,text,text,text,text,jsonb,text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION zasp_authorization80.security_agent_run(text,text,text,text,text,jsonb,text) TO zasp_security_agent_api;
+REVOKE EXECUTE ON FUNCTION zasp_authorization80.security_agent_run(text,text,text,text,text,jsonb) FROM zasp_security_agent_api;

@@ -53,7 +53,25 @@ func (repository *PostgresRepository) runSecurityAgentCurrent(ctx context.Contex
 	if err != nil {
 		return SecurityAgentRunResult{}, ErrRepositoryOperation
 	}
-	envelope, err := repository.database.QueryJSON(ctx, currentSecurityAgentRunSQL, o, w, e, input.DefinitionID, actor, json.RawMessage(admission))
+	// The definition is the object of the request's proof. The trigger is
+	// named in the body, so it is authorized by a second decision whose
+	// attestation the statement verifies.
+	var triggerProof any
+	_, checked := requestAuthorizationFromContext(ctx)
+	// Without a checked request nothing is attested; the database then
+	// refuses the statement itself (it carries no proof).
+	if operation := securityAgentRunTriggerOperation(input.TriggerKind); operation != "" && checked {
+		grant, grantErr := secondaryRequestAuthorization(ctx, identity, RoutedOperation{OperationID: operation, PathParameters: map[string]string{"id": input.TriggerID}})
+		if grantErr != nil {
+			return SecurityAgentRunResult{}, secondaryAuthorizationError(grantErr)
+		}
+		proof, proofErr := authorizationProofJSON(grant)
+		if proofErr != nil {
+			return SecurityAgentRunResult{}, ErrRepositoryAuthorization
+		}
+		triggerProof = string(proof)
+	}
+	envelope, err := repository.database.QueryJSON(ctx, currentSecurityAgentRunSQL, o, w, e, input.DefinitionID, actor, json.RawMessage(admission), triggerProof)
 	if err != nil {
 		return SecurityAgentRunResult{}, discoveryProviderError(err)
 	}

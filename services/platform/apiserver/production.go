@@ -231,6 +231,9 @@ func newProductionHandlers(repository, securityAgentRepository *PostgresReposito
 		if inventoryErr != nil {
 			return Dependencies{}, nil, ErrRepositoryConfiguration
 		}
+		if securityAgentRepository != nil && securityAgentRepository.currentAuthorization {
+			inventoryHandler.securityAgentHome = &securityAgentHomeReader{database: securityAgentRepository.database}
+		}
 		inventorySurface = inventoryHandler
 	}
 	risk, err := newRiskHTTPHandler(repository, cookie.WorkflowSigningKey, cookie.Clock, cookie.FindingTickets)

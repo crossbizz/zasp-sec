@@ -24,7 +24,6 @@ type identityAdministrationStore interface {
 	markIdentityProviderMutationUnknown(context.Context, RequestIdentity, identityProviderMutation) error
 	completeIdentityProviderMutation(context.Context, RequestIdentity, identityProviderCompletion) (json.RawMessage, error)
 	revealIdentityProviderSecret(context.Context, RequestIdentity, string) (json.RawMessage, error)
-	acknowledgeIdentityProviderSecret(context.Context, RequestIdentity, string) error
 }
 
 type identityAdministrationCoordinatorConfig struct {

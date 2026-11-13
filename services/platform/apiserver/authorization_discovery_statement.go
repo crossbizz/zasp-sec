@@ -27,8 +27,8 @@ func discovery72StatementAllowed(g RequestAuthorization, q string, args []any) (
 	return true, authorizationNativeTargetAllowed(g, "integration", g.PathParameters["id"])
 }
 
-// The integration read routes: one sync, the sync history, the schedule and
-// the freshness of one integration. Each statement is bound
+// The integration read routes: one sync, the sync history, the schedule, the
+// freshness and the setup status of one integration. Each statement is bound
 // to its operation, to the caller's scope and to the integration in the path;
 // the integration (for one sync, the sync) must be among the objects the
 // decision allows.
@@ -44,6 +44,8 @@ func discovery72ReadStatementAllowed(g RequestAuthorization, q string, args []an
 		operation, count = "getIntegrationSchedule", 4
 	case `SELECT zasp_temporal72.last_good_freshness($1,$2,$3,$4)`:
 		operation, count = "getIntegrationFreshness", 4
+	case `SELECT zasp_authorization80.integration_setup_status($1,$2,$3,$4)`:
+		operation, count = "getIntegrationSetupStatus", 4
 	default:
 		return false, false
 	}

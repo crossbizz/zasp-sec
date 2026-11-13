@@ -35,7 +35,7 @@ func TestSecurityAgentCurrentWritesUseAuthorizedStatements(t *testing.T) {
 			return AuthorizationTargets{Complete: true, Collection: true, Targets: []AuthorizationTarget{}}, nil
 		}
 		id := identity.Scope.EnvironmentID().String()
-		if policy.Kind == "security_agent" {
+		if policy.Kind == "security_agent" || policy.Kind == "finding" {
 			id = route.PathParameters["id"]
 		}
 		return AuthorizationTargets{Complete: true, Targets: []AuthorizationTarget{{Scope: identity.Scope, Kind: policy.Kind, ID: id, Version: 3}}}, nil
@@ -105,7 +105,8 @@ func TestSecurityAgentCurrentWritesUseAuthorizedStatements(t *testing.T) {
 					t.Fatal(err)
 				}
 				repository := &PostgresRepository{database: database, schema: ProductionRecoverySchemaVersion, securityAgentExecution: true}
-				return tx, driver, tc.call(context.WithValue(context.Background(), requestAuthorizationContextKey{}, grant), repository)
+				ctx := context.WithValue(context.WithValue(context.Background(), requestAuthorizationContextKey{}, grant), requestAuthorizerContextKey{}, RequestAuthorizer(authorizer))
+				return tx, driver, tc.call(ctx, repository)
 			}
 			tx, driver, err := exercise(tc.operation)
 			if err != nil {

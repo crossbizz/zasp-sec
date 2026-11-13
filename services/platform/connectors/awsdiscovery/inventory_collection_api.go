@@ -91,8 +91,26 @@ func (api *InventoryCollectionAPI) FetchCollectionPage(ctx context.Context, cred
 	}
 	bounded, cancel := context.WithTimeout(ctx, api.timeout)
 	defer cancel()
+	phase, cursorDigest, ok := inventoryRequestPhase(request)
+	if !ok {
+		return CollectionPage{}, ErrInvalid
+	}
+	// A later page is bound by its cursor to the inventory the first page
+	// read. A caller that kept that inventory hands it back after verifying
+	// this page's credential; otherwise the account is read again. Either
+	// way the inventory passes the same checks below.
+	resumer, resumable := api.caller.(CollectionInventoryResumer)
+	resumable = resumable && !nilInventoryDependency(resumer)
+	var inventory CollectionInventory
+	var err error
+	resumed := false
 	borrowed := bytes.Clone(credential)
-	inventory, err := callCollectionInventory(api.caller, bounded, borrowed)
+	if resumable && request.Page > 1 {
+		inventory, resumed, err = callResumeInventory(resumer, bounded, borrowed, api.inventoryBinding(request.Subject, cursorDigest))
+	}
+	if err == nil && !resumed {
+		inventory, err = callCollectionInventory(api.caller, bounded, borrowed)
+	}
 	clear(borrowed)
 	if err != nil || bounded.Err() != nil {
 		return CollectionPage{}, providercollection.ClassifyProviderError(bounded, err)
@@ -101,9 +119,11 @@ func (api *InventoryCollectionAPI) FetchCollectionPage(ctx context.Context, cred
 		return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
 	}
 	digest := collectionInventoryDigest(inventory)
-	phase, cursorDigest, ok := inventoryRequestPhase(request)
-	if !ok || request.Page > 1 && cursorDigest != digest {
+	if request.Page > 1 && cursorDigest != digest {
 		return CollectionPage{}, ErrInvalid
+	}
+	if resumable && !resumed {
+		callRetainInventory(resumer, api.inventoryBinding(request.Subject, digest), inventory)
 	}
 	var page CollectionPage
 	switch phase {

@@ -696,3 +696,47 @@ func captureDriverStage(t *testing.T, snapshot Snapshot) DriverStage {
 	}
 	return captured
 }
+
+// Every stable field a product collector emits for a kind is searchable for
+// that kind; the lists below are the collectors' own (connectors/*). A
+// snapshot carrying any other field is still refused.
+func TestStoreAcceptsTheStableFieldsCollectorsEmit(t *testing.T) {
+	t.Parallel()
+	emitted := map[string][]string{
+		"aws_account": {"account_id"}, "aws_role": {"account_id", "arn", "name"}, "aws_policy": {"account_id", "arn", "name", "policy_type"},
+		"aws_service": {"account_id", "name", "service"}, "aws_resource": {"account_id", "arn", "name", "region", "resource_type"},
+		"kubernetes_cluster": {"cluster", "name"}, "kubernetes_namespace": {"cluster", "namespace", "name"},
+		"kubernetes_service_account":      {"api_group", "api_version", "cluster", "name", "namespace", "resource_kind"},
+		"kubernetes_role":                 {"api_group", "api_version", "cluster", "name", "namespace", "resource_kind", "scope"},
+		"kubernetes_cluster_role":         {"api_group", "api_version", "cluster", "name", "resource_kind", "scope"},
+		"kubernetes_role_binding":         {"api_group", "api_version", "cluster", "name", "namespace", "resource_kind", "role", "scope"},
+		"kubernetes_cluster_role_binding": {"api_group", "api_version", "cluster", "name", "resource_kind", "role", "scope"},
+		"kubernetes_workload":             {"api_group", "api_version", "cluster", "name", "namespace", "resource_kind", "service_account"},
+		"kubernetes_agent":                {"api_group", "api_version", "cluster", "name", "namespace", "resource_kind", "service_account"},
+		"okta_tenant":                     {"tenant", "name"}, "okta_user": {"tenant", "object_type", "name"}, "okta_group": {"tenant", "object_type", "name"},
+		"okta_service_principal": {"tenant", "object_type", "name"}, "okta_application": {"tenant", "object_type", "name"},
+		"okta_role":           {"tenant", "object_type", "name", "role", "scope"},
+		"github_installation": {"installation_id", "owner"}, "github_app": {"installation_id", "name", "owner"}, "github_organization": {"installation_id", "name", "owner"},
+		"github_permission": {"installation_id", "name", "owner", "permission", "repository", "scope"},
+		"github_repository": {"installation_id", "owner", "repository", "visibility", "name"},
+		"github_workflow":   {"installation_id", "name", "owner", "repository", "workflow"}, "github_environment": {"installation_id", "name", "owner", "repository"},
+	}
+	for kind, names := range emitted {
+		attributes := make([]Attribute, len(names))
+		for index, name := range names {
+			attributes[index] = Attribute{Name: name, Value: "value"}
+		}
+		if _, _, ok := normalizedAttributes(kind, attributes, 65_536); !ok {
+			t.Errorf("kind %q: emitted stable fields %v refused", kind, names)
+		}
+		if _, _, ok := normalizedAttributes(kind, append(attributes, Attribute{Name: "not_reviewed", Value: "value"}), 65_536); ok {
+			t.Errorf("kind %q: a field outside the list was accepted", kind)
+		}
+		if _, _, ok := normalizedAttributes(kind, append(attributes, Attribute{Name: "api_token", Value: "value"}), 65_536); ok {
+			t.Errorf("kind %q: a secret-named field was accepted", kind)
+		}
+	}
+	if _, _, ok := normalizedAttributes("aws_unknown_kind", nil, 65_536); ok {
+		t.Error("a kind outside the list was accepted")
+	}
+}

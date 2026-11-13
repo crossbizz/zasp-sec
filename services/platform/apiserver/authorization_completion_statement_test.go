@@ -468,7 +468,7 @@ func TestIdentityProviderWriteStatementContracts(t *testing.T) {
 		t.Fatal("a reservation for a connection other than the path connection was admitted")
 	}
 	legacy := RequestAuthorization{OperationID: "createSSOConnection", Identity: i, Allowed: []AuthorizationTarget{target}}
-	for _, statement := range []string{postgresIdentityReserveMutationSQL, postgresIdentityMarkUnknownSQL, postgresIdentityCompleteMutationSQL, postgresIdentityRevealSecretSQL, postgresIdentityAcknowledgeSecretSQL} {
+	for _, statement := range []string{postgresIdentityReserveMutationSQL, postgresIdentityMarkUnknownSQL, postgresIdentityCompleteMutationSQL, postgresIdentityRevealSecretSQL, `SELECT zasp_identity_admin_ack_secret($1,$2,$3)`} {
 		if authorizationStatementAllowed(legacy, statement, []any{o, p, "createSSOConnection", key, mutation, owner}) {
 			t.Fatalf("historical statement admitted: %s", statement)
 		}

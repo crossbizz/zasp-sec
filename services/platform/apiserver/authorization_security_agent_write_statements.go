@@ -17,7 +17,7 @@ const (
 	currentSecurityAgentDefinitionReplaySQL    = `SELECT zasp_authorization80.security_agent_definition_replay($1,$2,$3,$4,$5,$6,$7::jsonb)`
 	currentSecurityAgentDefinitionMutateSQL    = `SELECT zasp_authorization80.security_agent_definition_mutate($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11::jsonb,$12,$13,$14)`
 	currentSecurityAgentActivateSQL            = `SELECT zasp_authorization80.security_agent_activate($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`
-	currentSecurityAgentRunSQL                 = `SELECT zasp_authorization80.security_agent_run($1,$2,$3,$4,$5,$6::jsonb)`
+	currentSecurityAgentRunSQL                 = `SELECT zasp_authorization80.security_agent_run($1,$2,$3,$4,$5,$6::jsonb,$7)`
 	currentSecurityAgentSetExecutionControlSQL = `SELECT zasp_authorization80.security_agent_set_execution_control($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`
 )
 
@@ -160,7 +160,7 @@ func securityAgentWriteStatementAllowed(g RequestAuthorization, q string, args [
 		}
 		return true, len(ids) == 3 && object(values[0])
 	case currentSecurityAgentRunSQL:
-		if len(args) != 6 || g.OperationID != "runSecurityAgent" || !scope(0) {
+		if len(args) != 7 || g.OperationID != "runSecurityAgent" || !scope(0) {
 			return true, false
 		}
 		values, ok := securityAgentWriteStrings(args, 3, 4)
@@ -172,6 +172,17 @@ func securityAgentWriteStatementAllowed(g RequestAuthorization, q string, args [
 		decoder := json.NewDecoder(bytes.NewReader(raw))
 		decoder.DisallowUnknownFields()
 		if decoder.Decode(&admission) != nil || decoder.More() {
+			return true, false
+		}
+		// A finding or attack path trigger travels with the attestation of a
+		// second decision for that object; any other trigger carries none.
+		// SQL verifies the attestation itself.
+		triggerProof, attested := args[6].(string)
+		if securityAgentRunTriggerOperation(admission.TriggerKind) != "" {
+			if !attested || triggerProof == "" || len(triggerProof) > 12*1024*1024 {
+				return true, false
+			}
+		} else if args[6] != nil {
 			return true, false
 		}
 		return true, admission.OrganizationID == o && admission.WorkspaceID == w && admission.EnvironmentID == e && admission.ActorID == actor && admission.DefinitionID == values[0] &&
@@ -202,4 +213,18 @@ func securityAgentWriteStatementAllowed(g RequestAuthorization, q string, args [
 		return true, len(ids) == 3 && environment()
 	}
 	return true, false
+}
+
+// securityAgentRunTriggerOperation names the read operation whose decision a
+// run's trigger needs: the requester must be allowed to view the finding or
+// the attack path the run is started on. A session trigger has none.
+func securityAgentRunTriggerOperation(kind string) string {
+	switch kind {
+	case "finding":
+		return "getFinding"
+	case "attack_path":
+		return "getAttackPath"
+	default:
+		return ""
+	}
 }

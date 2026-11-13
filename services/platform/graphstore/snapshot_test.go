@@ -326,3 +326,35 @@ func driverSnapshotEdgeIDs(edges []DriverSnapshotEdge) []string {
 	}
 	return ids
 }
+
+// The neutral kinds the inventory projector derives from provider kinds
+// (aws_role becomes role) are accepted; a kind that names a provider is not.
+func TestStoreSnapshotAcceptsNeutralInventoryKindsAndRefusesProviderKinds(t *testing.T) {
+	t.Parallel()
+
+	for _, kind := range []string{"account", "role", "policy", "service", "resource", "instance", "repository", "workflow", "installation", "kubernetes_service_account", "okta_user"} {
+		snapshot := fixtureCompleteSnapshot(t, 7, "7")
+		snapshot.Projection.Nodes = append([]Node(nil), snapshot.Projection.Nodes...)
+		snapshot.Projection.Nodes[0].Kind = kind
+		driver := &snapshotFunctionDriver{Driver: noCallDriver()}
+		driver.replace = func(_ context.Context, input DriverSnapshotProjection) (DriverSnapshotReplaced, error) {
+			return durableSnapshotAcknowledgement(input, false, 0, 0), nil
+		}
+		if _, err := mustGraphStore(t, driver).ApplySnapshot(context.Background(), snapshot); err != nil {
+			t.Fatalf("ApplySnapshot(kind %q) error = %v", kind, err)
+		}
+	}
+	for _, kind := range []string{"aws_role", "aws_account", "github_repository", "cartography_node", "neo4j_label"} {
+		snapshot := fixtureCompleteSnapshot(t, 7, "7")
+		snapshot.Projection.Nodes = append([]Node(nil), snapshot.Projection.Nodes...)
+		snapshot.Projection.Nodes[0].Kind = kind
+		driver := &snapshotFunctionDriver{Driver: noCallDriver()}
+		driver.replace = func(context.Context, DriverSnapshotProjection) (DriverSnapshotReplaced, error) {
+			t.Fatalf("driver called for kind %q", kind)
+			return DriverSnapshotReplaced{}, nil
+		}
+		if _, err := mustGraphStore(t, driver).ApplySnapshot(context.Background(), snapshot); !errors.Is(err, ErrSnapshotInput) {
+			t.Fatalf("ApplySnapshot(kind %q) error = %v", kind, err)
+		}
+	}
+}

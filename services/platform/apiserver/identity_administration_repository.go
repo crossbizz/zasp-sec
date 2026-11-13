@@ -16,7 +16,6 @@ const (
 	postgresIdentityCompleteMutationSQL     = `SELECT zasp_identity_admin_complete_mutation($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10,$11,$12)`
 	postgresIdentityConnectionPageSQL       = `SELECT zasp_identity_admin_connection_page($1,$2,$3,NULLIF($4,''),$5)`
 	postgresIdentityRevealSecretSQL         = `SELECT zasp_identity_admin_reveal_secret($1,$2,$3)`
-	postgresIdentityAcknowledgeSecretSQL    = `SELECT zasp_identity_admin_ack_secret($1,$2,$3)`
 	postgresIdentityReconcileWebhookSQL     = `SELECT zasp_identity_admin_reconcile_deprovision($1,$2,$3,$4,$5,$6)`
 )
 
@@ -148,6 +147,10 @@ func (repository *PostgresRepository) completeIdentityProviderMutation(ctx conte
 	return payload, nil
 }
 
+// revealIdentityProviderSecret returns the one-time SCIM secret of a grant to
+// the administrator whose completed creation produced it. Under current
+// authorization the reveal acknowledges the grant in the same statement
+// (zasp_authorization80.identity_provider_reveal_secret), so it succeeds once.
 func (repository *PostgresRepository) revealIdentityProviderSecret(ctx context.Context, identity RequestIdentity, grantID string) (json.RawMessage, error) {
 	if repository == nil || !isIdentityAdministrationSchema(repository.schema) || nilInterface(repository.database) || ctx == nil || ctx.Err() != nil || !validRequestIdentity(identity, true) || !validProductID(grantID) {
 		return nil, ErrRepositoryOperation
@@ -158,14 +161,6 @@ func (repository *PostgresRepository) revealIdentityProviderSecret(ctx context.C
 		return nil, ErrRepositoryNotFound
 	}
 	return payload, nil
-}
-
-func (repository *PostgresRepository) acknowledgeIdentityProviderSecret(ctx context.Context, identity RequestIdentity, grantID string) error {
-	if repository == nil || !isIdentityAdministrationSchema(repository.schema) || nilInterface(repository.database) || ctx == nil || ctx.Err() != nil || !validRequestIdentity(identity, true) || !validProductID(grantID) {
-		return ErrRepositoryOperation
-	}
-	_, err := repository.database.QueryJSON(ctx, postgresIdentityAcknowledgeSecretSQL, identity.Scope.OrganizationID().String(), identity.PrincipalID.String(), grantID)
-	return discoveryProviderError(err)
 }
 
 func validIdentityProviderMutation(mutation identityProviderMutation) bool {

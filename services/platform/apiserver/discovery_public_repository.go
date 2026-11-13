@@ -8,18 +8,23 @@ import (
 	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
-	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 )
 
 const (
-	postgresExecutionPublicSyncDetailSQL             = `SELECT zasp_execution_sync_detail($1,$2,$3,$4,$5)`
-	postgresExecutionPublicSyncHistorySQL            = `SELECT zasp_execution_sync_history($1,$2,$3,$4,$5,$6,$7)`
-	postgresExecutionPublicScheduleDetailSQL         = `SELECT zasp_execution_schedule_detail($1,$2,$3,$4)`
-	postgresExecutionPublicFreshnessSQL              = `SELECT zasp_execution_last_good_freshness($1,$2,$3,$4)`
+	postgresExecutionPublicSyncDetailSQL     = `SELECT zasp_execution_sync_detail($1,$2,$3,$4,$5)`
+	postgresExecutionPublicSyncHistorySQL    = `SELECT zasp_execution_sync_history($1,$2,$3,$4,$5,$6,$7)`
+	postgresExecutionPublicScheduleDetailSQL = `SELECT zasp_execution_schedule_detail($1,$2,$3,$4)`
+	postgresExecutionPublicFreshnessSQL      = `SELECT zasp_execution_last_good_freshness($1,$2,$3,$4)`
+	// The chain's reader. It admits a call only at the historical catalog of
+	// releases 34 to 55 and refuses on the baseline; the product reads through
+	// the authorized function below. Kept for the historical-chain test.
 	postgresExecutionPublicIntegrationSetupStatusSQL = `SELECT zasp_execution_integration_setup_status($1,$2,$3,$4,$5,$6)`
-	postgresExecutionPublicRequestSyncSQL            = `SELECT zasp_execution_public_request_sync($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`
-	postgresExecutionPublicPutScheduleSQL            = `SELECT zasp_execution_public_put_schedule($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`
-	postgresExecutionPublicDeleteScheduleSQL         = `SELECT zasp_execution_public_delete_schedule($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
+	// Authorized under the current model: the function itself checks the
+	// request's proof, operation, permission, scope, path object and target.
+	postgresAuthorizedIntegrationSetupStatusSQL = `SELECT zasp_authorization80.integration_setup_status($1,$2,$3,$4)`
+	postgresExecutionPublicRequestSyncSQL       = `SELECT zasp_execution_public_request_sync($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`
+	postgresExecutionPublicPutScheduleSQL       = `SELECT zasp_execution_public_put_schedule($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`
+	postgresExecutionPublicDeleteScheduleSQL    = `SELECT zasp_execution_public_delete_schedule($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
 )
 
 var publicIntegrationSyncFields = []string{"id", "integration_id", "trigger_kind", "status", "attempt", "requested_at", "started_at", "completed_at", "discovered_count", "changed_count", "removed_count", "snapshot_id", "last_error_code", "retry_at"}
@@ -369,8 +374,7 @@ func (repository *DiscoveryRepository) GetIntegrationSetupStatus(ctx context.Con
 	if !validDiscoveryPublicRepository(repository, ctx) || scope.Validate() != nil || !validProductID(integrationID) {
 		return IntegrationSetupStatus{}, ErrRepositoryOperation
 	}
-	metadata := migrations.ProductionIntegrationSetup()
-	payload, err := repository.database.QueryJSON(ctx, postgresExecutionPublicIntegrationSetupStatusSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), integrationID, metadata.Checksum(), migrations.ProductionIntegrationSetupSemanticFingerprint())
+	payload, err := repository.database.QueryJSON(ctx, postgresAuthorizedIntegrationSetupStatusSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), integrationID)
 	if err != nil {
 		return IntegrationSetupStatus{}, discoveryProviderError(err)
 	}

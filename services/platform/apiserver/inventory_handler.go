@@ -14,6 +14,9 @@ import (
 type inventoryHTTPHandler struct {
 	repository InventoryRepository
 	signingKey []byte
+	// securityAgentHome is set where a separate Security Agent database
+	// serves the run and approval counts of the home summary.
+	securityAgentHome *securityAgentHomeReader
 }
 
 type inventoryCursorPayload struct {
@@ -188,7 +191,24 @@ func (handler *inventoryHTTPHandler) home(writer http.ResponseWriter, request *h
 		writeProductionError(writer, request, ErrRepositoryOperation)
 		return
 	}
+	// The two halves of the summary are independent statements on two
+	// databases, each under its own proof: read them at the same time.
+	var counts securityAgentHomeCounts
+	var found bool
+	var countsErr error
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		counts, found, countsErr = handler.securityAgentHome.counts(request.Context(), identity)
+	}()
 	summary, err := handler.repository.GetHomeSummary(request.Context(), identity.Scope)
+	<-done
+	if err == nil {
+		err = countsErr
+	}
+	if err == nil && found {
+		summary, err = mergeSecurityAgentHomeCounts(summary, counts)
+	}
 	writeJSONValue(writer, request, http.StatusOK, summary, err)
 }
 

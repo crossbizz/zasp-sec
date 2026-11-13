@@ -128,7 +128,11 @@ func (projector *graphProjectionProjector) Apply(ctx context.Context, candidate 
 	nodes := make([]graphstore.Node, len(entities))
 	known := make(map[domain.ProductID]struct{}, len(entities))
 	for index, entity := range entities {
-		nodes[index] = graphstore.Node{Scope: candidate.Scope, NodeID: entity.ID, Kind: entity.Kind}
+		kind, neutral := graphProjectionKind(entity.Kind)
+		if !neutral {
+			return projectionDriverResult{}, errWorkerExecution
+		}
+		nodes[index] = graphstore.Node{Scope: candidate.Scope, NodeID: entity.ID, Kind: kind}
 		known[entity.ID] = struct{}{}
 	}
 	edges := make([]graphstore.Edge, len(relationships))
@@ -139,7 +143,11 @@ func (projector *graphProjectionProjector) Apply(ctx context.Context, candidate 
 		if _, exists := known[relationship.ToEntityID]; !exists {
 			return projectionDriverResult{}, errWorkerExecution
 		}
-		edges[index] = graphstore.Edge{Scope: candidate.Scope, EdgeID: relationship.ID, Kind: relationship.Kind, SourceID: relationship.FromEntityID, TargetID: relationship.ToEntityID}
+		kind, neutral := graphProjectionKind(relationship.Kind)
+		if !neutral {
+			return projectionDriverResult{}, errWorkerExecution
+		}
+		edges[index] = graphstore.Edge{Scope: candidate.Scope, EdgeID: relationship.ID, Kind: kind, SourceID: relationship.FromEntityID, TargetID: relationship.ToEntityID}
 	}
 	result, err := projector.store.ApplySnapshot(ctx, graphstore.CompleteSnapshot{
 		Scope: candidate.Scope, IntegrationID: integrationID, Source: candidate.Source, SnapshotID: snapshotID, Generation: candidate.Generation,
@@ -152,6 +160,37 @@ func (projector *graphProjectionProjector) Apply(ctx context.Context, candidate 
 		return projectionDriverResult{}, errWorkerExecution
 	}
 	return projectionDriverResult{Receipt: "neo4j:snapshot:" + candidate.SnapshotID + ":" + resultDigestHex(result.ContentDigest), Digest: result.ContentDigest}, nil
+}
+
+// graphProjectionProviderPrefixes are the collector kind prefixes the graph
+// store refuses: its vocabulary is provider-neutral (graphstore.validKind and
+// neo4jstore.validAdapterKind reject any kind with one of these as a token).
+// The collectors name their kinds after the provider (aws_role,
+// github_repository), so the projector, which is the one place that knows both
+// vocabularies, drops the prefix: aws_role becomes role, aws_policy policy,
+// aws_account account, aws_resource resource, github_repository repository.
+// The provider is not lost: the snapshot the nodes belong to is bound to its
+// integration and source. Kubernetes and Okta kinds carry no refused token and
+// pass through unchanged, as does every relationship kind in use.
+var graphProjectionProviderPrefixes = []string{"aws_", "github_"}
+
+func graphProjectionKind(kind string) (string, bool) {
+	for _, prefix := range graphProjectionProviderPrefixes {
+		if strings.HasPrefix(kind, prefix) {
+			kind = strings.TrimPrefix(kind, prefix)
+			break
+		}
+	}
+	if kind == "" || len(kind) > 63 {
+		return "", false
+	}
+	for _, part := range strings.Split(kind, "_") {
+		switch part {
+		case "", "aws", "github", "cartography", "neo4j":
+			return "", false
+		}
+	}
+	return kind, true
 }
 
 type projectionEntity struct {

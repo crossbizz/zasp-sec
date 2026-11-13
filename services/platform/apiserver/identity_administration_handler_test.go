@@ -64,10 +64,6 @@ func (*identityAdministrationStoreStub) revealIdentityProviderSecret(context.Con
 	return nil, ErrRepositoryNotFound
 }
 
-func (*identityAdministrationStoreStub) acknowledgeIdentityProviderSecret(context.Context, RequestIdentity, string) error {
-	return nil
-}
-
 type identityAdministrationDriver struct {
 	callbackIdentityDriver
 	organization  string

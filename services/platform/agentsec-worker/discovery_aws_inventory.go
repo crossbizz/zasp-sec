@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"net/url"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -48,8 +50,9 @@ type discoveryAWSInventoryFactory struct {
 }
 
 type discoveryAWSCollectionInventoryCaller struct {
-	factory discoveryAWSInventoryFactory
-	clock   func() time.Time
+	factory  discoveryAWSInventoryFactory
+	clock    func() time.Time
+	retained *discoveryAWSInventoryRetention
 }
 
 type discoveryAWSNativeRole struct {
@@ -76,31 +79,44 @@ func newDiscoveryAWSCollectionInventoryCaller(factory discoveryAWSInventoryFacto
 	if now.IsZero() || now.Location() != time.UTC {
 		return nil, errRuntimeUnavailable
 	}
-	return &discoveryAWSCollectionInventoryCaller{factory: factory, clock: clock}, nil
+	return &discoveryAWSCollectionInventoryCaller{factory: factory, clock: clock, retained: newDiscoveryAWSInventoryRetention(clock)}, nil
+}
+
+// verifiedIdentity decodes the page's credential and asks the provider who it
+// is. Every page does this with its own credential, whether it then reads the
+// account or resumes the inventory an earlier page of the run read. The
+// caller clears the returned credentials.
+func (caller *discoveryAWSCollectionInventoryCaller) verifiedIdentity(ctx context.Context, credential []byte) (awsdiscovery.Identity, aws.Credentials, string, time.Time, error) {
+	envelope, err := decodeDiscoveryCredentialEnvelope(credential)
+	if err != nil || envelope.Provider != collection.ProviderAWS || !envelope.ExpiresAt.After(caller.clock()) {
+		envelope.Destroy()
+		return awsdiscovery.Identity{}, aws.Credentials{}, "", time.Time{}, discoveryCredentialFailure(ctx, collection.FailureRetryable)
+	}
+	defer envelope.Destroy()
+	credentials := aws.Credentials{AccessKeyID: string(envelope.AccessKeyID), SecretAccessKey: string(envelope.SecretAccessKey), SessionToken: string(envelope.SessionToken), CanExpire: true, Expires: envelope.ExpiresAt, Source: "zasp-discovery-assume-role"}
+	identityAPI, err := caller.factory.Identity(envelope.Region, credentials)
+	if err != nil || nilDiscoveryClientDependency(identityAPI) {
+		clearAWSCredentials(&credentials)
+		return awsdiscovery.Identity{}, aws.Credentials{}, "", time.Time{}, awsdiscovery.ErrDenied
+	}
+	identityOutput, err := identityAPI.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{}, func(options *sts.Options) { options.Retryer = aws.NopRetryer{} })
+	if err != nil || ctx.Err() != nil || identityOutput == nil || aws.ToString(identityOutput.Account) != envelope.SubjectID || !strings.HasPrefix(aws.ToString(identityOutput.Arn), "arn:aws:sts::"+envelope.SubjectID+":assumed-role/") {
+		clearAWSCredentials(&credentials)
+		return awsdiscovery.Identity{}, aws.Credentials{}, "", time.Time{}, awsdiscovery.ErrDenied
+	}
+	return awsdiscovery.Identity{AccountID: aws.ToString(identityOutput.Account), PrincipalARN: aws.ToString(identityOutput.Arn)}, credentials, envelope.Region, envelope.ExpiresAt, nil
 }
 
 func (caller *discoveryAWSCollectionInventoryCaller) GetCollectionInventory(ctx context.Context, credential []byte) (awsdiscovery.CollectionInventory, error) {
 	if caller == nil || ctx == nil || ctx.Err() != nil || caller.clock == nil {
 		return awsdiscovery.CollectionInventory{}, awsdiscovery.ErrDenied
 	}
-	envelope, err := decodeDiscoveryCredentialEnvelope(credential)
-	if err != nil || envelope.Provider != collection.ProviderAWS || !envelope.ExpiresAt.After(caller.clock()) {
-		envelope.Destroy()
-		return awsdiscovery.CollectionInventory{}, discoveryCredentialFailure(ctx, collection.FailureRetryable)
+	identity, credentials, region, expiresAt, err := caller.verifiedIdentity(ctx, credential)
+	if err != nil {
+		return awsdiscovery.CollectionInventory{}, err
 	}
-	defer envelope.Destroy()
-	credentials := aws.Credentials{AccessKeyID: string(envelope.AccessKeyID), SecretAccessKey: string(envelope.SecretAccessKey), SessionToken: string(envelope.SessionToken), CanExpire: true, Expires: envelope.ExpiresAt, Source: "zasp-discovery-assume-role"}
 	defer clearAWSCredentials(&credentials)
-	identityAPI, err := caller.factory.Identity(envelope.Region, credentials)
-	if err != nil || nilDiscoveryClientDependency(identityAPI) {
-		return awsdiscovery.CollectionInventory{}, awsdiscovery.ErrDenied
-	}
-	identityOutput, err := identityAPI.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{}, func(options *sts.Options) { options.Retryer = aws.NopRetryer{} })
-	if err != nil || ctx.Err() != nil || identityOutput == nil || aws.ToString(identityOutput.Account) != envelope.SubjectID || !strings.HasPrefix(aws.ToString(identityOutput.Arn), "arn:aws:sts::"+envelope.SubjectID+":assumed-role/") {
-		return awsdiscovery.CollectionInventory{}, awsdiscovery.ErrDenied
-	}
-	identity := awsdiscovery.Identity{AccountID: aws.ToString(identityOutput.Account), PrincipalARN: aws.ToString(identityOutput.Arn)}
-	iamAPI, err := caller.factory.IAM(envelope.Region, credentials)
+	iamAPI, err := caller.factory.IAM(region, credentials)
 	if err != nil || nilDiscoveryClientDependency(iamAPI) {
 		return awsdiscovery.CollectionInventory{}, awsdiscovery.ErrDenied
 	}
@@ -108,7 +124,7 @@ func (caller *discoveryAWSCollectionInventoryCaller) GetCollectionInventory(ctx 
 	if err != nil {
 		return awsdiscovery.CollectionInventory{}, err
 	}
-	ec2API, err := caller.factory.EC2(envelope.Region, credentials)
+	ec2API, err := caller.factory.EC2(region, credentials)
 	if err != nil || nilDiscoveryClientDependency(ec2API) {
 		return awsdiscovery.CollectionInventory{}, awsdiscovery.ErrDenied
 	}
@@ -120,7 +136,39 @@ func (caller *discoveryAWSCollectionInventoryCaller) GetCollectionInventory(ctx 
 	if err != nil {
 		return awsdiscovery.CollectionInventory{}, awsdiscovery.ErrDenied
 	}
-	return awsdiscovery.CollectionInventory{Identity: identity, CredentialExpiresAt: envelope.ExpiresAt, CartographySource: cartography, CartographyDigest: sha256.Sum256(cartography), ProwlerSource: prowler, ProwlerDigest: sha256.Sum256(prowler)}, nil
+	return awsdiscovery.CollectionInventory{Identity: identity, CredentialExpiresAt: expiresAt, CartographySource: cartography, CartographyDigest: sha256.Sum256(cartography), ProwlerSource: prowler, ProwlerDigest: sha256.Sum256(prowler)}, nil
+}
+
+// ResumeCollectionInventory hands a later page of a run the inventory an
+// earlier page of the same run read, when this process still holds it. The
+// page's own credential is verified against the provider first, exactly as a
+// full read verifies it, and the identity and expiry returned are that
+// credential's. Roles, policies, regions and instances are not read again:
+// the page would refuse them unless they were identical to what is held.
+func (caller *discoveryAWSCollectionInventoryCaller) ResumeCollectionInventory(ctx context.Context, credential []byte, binding awsdiscovery.InventoryBinding) (awsdiscovery.CollectionInventory, bool, error) {
+	if caller == nil || ctx == nil || ctx.Err() != nil || caller.clock == nil {
+		return awsdiscovery.CollectionInventory{}, false, awsdiscovery.ErrDenied
+	}
+	held, found := caller.retained.find(binding)
+	if !found {
+		return awsdiscovery.CollectionInventory{}, false, nil
+	}
+	identity, credentials, _, expiresAt, err := caller.verifiedIdentity(ctx, credential)
+	if err != nil {
+		return awsdiscovery.CollectionInventory{}, false, err
+	}
+	clearAWSCredentials(&credentials)
+	if identity.AccountID != held.accountID || identity.AccountID != binding.Subject.ID {
+		return awsdiscovery.CollectionInventory{}, false, awsdiscovery.ErrDenied
+	}
+	return awsdiscovery.CollectionInventory{Identity: identity, CredentialExpiresAt: expiresAt, CartographySource: bytes.Clone(held.cartography), CartographyDigest: sha256.Sum256(held.cartography), ProwlerSource: bytes.Clone(held.prowler), ProwlerDigest: sha256.Sum256(held.prowler)}, true, nil
+}
+
+func (caller *discoveryAWSCollectionInventoryCaller) RetainCollectionInventory(binding awsdiscovery.InventoryBinding, inventory awsdiscovery.CollectionInventory) {
+	if caller == nil {
+		return
+	}
+	caller.retained.keep(binding, inventory)
 }
 
 func (caller *discoveryAWSCollectionInventoryCaller) CheckCollectionReadiness(ctx context.Context) error {
@@ -138,13 +186,18 @@ func collectDiscoveryAWSRoles(ctx context.Context, api discoveryAWSIAMAPI, accou
 		if err != nil || ctx.Err() != nil || output == nil || len(roles)+len(output.Roles) > maximumAWSInventoryItems {
 			return nil, awsdiscovery.ErrDenied
 		}
-		for _, role := range output.Roles {
-			native, err := collectDiscoveryAWSRole(ctx, api, accountID, role)
-			if err != nil {
-				return nil, err
-			}
-			roles = append(roles, native)
+		// Each role's policies are independent read-only requests. They run
+		// a few at a time; every one of them still passes its own
+		// authorization check at the transport.
+		page := make([]discoveryAWSNativeRole, len(output.Roles))
+		if err := discoveryAWSEach(ctx, len(output.Roles), func(bounded context.Context, index int) error {
+			native, err := collectDiscoveryAWSRole(bounded, api, accountID, output.Roles[index])
+			page[index] = native
+			return err
+		}); err != nil {
+			return nil, err
 		}
+		roles = append(roles, page...)
 		if !output.IsTruncated {
 			break
 		}
@@ -240,41 +293,120 @@ func collectDiscoveryAWSInstances(ctx context.Context, factory func(string, aws.
 		return nil, awsdiscovery.ErrDenied
 	}
 	sort.Strings(regions)
+	// One region's instances are independent of another's: the regions are
+	// read a few at a time, each request with its own authorization check.
+	regional := make([][]discoveryAWSNativeInstance, len(regions))
+	if err := discoveryAWSEach(ctx, len(regions), func(bounded context.Context, index int) error {
+		found, err := collectDiscoveryAWSRegionInstances(bounded, factory, credentials, accountID, regions[index])
+		regional[index] = found
+		return err
+	}); err != nil {
+		return nil, err
+	}
 	instances := make([]discoveryAWSNativeInstance, 0)
-	for _, region := range regions {
-		api, err := factory(region, credentials)
-		if err != nil || nilDiscoveryClientDependency(api) {
+	for _, found := range regional {
+		if len(instances)+len(found) > maximumAWSInventoryItems {
 			return nil, awsdiscovery.ErrDenied
 		}
-		var token *string
-		for {
-			output, err := api.DescribeInstances(ctx, &ec2.DescribeInstancesInput{NextToken: token, MaxResults: aws.Int32(1000)}, func(options *ec2.Options) { options.Retryer = aws.NopRetryer{} })
-			if err != nil || output == nil {
-				return nil, awsdiscovery.ErrDenied
-			}
-			for _, reservation := range output.Reservations {
-				for _, instance := range reservation.Instances {
-					if len(instances) >= maximumAWSInventoryItems {
-						return nil, awsdiscovery.ErrDenied
-					}
-					native, err := discoveryAWSInstance(accountID, region, instance)
-					if err != nil {
-						return nil, err
-					}
-					instances = append(instances, native)
-				}
-			}
-			if output.NextToken == nil {
-				break
-			}
-			if output.NextToken == token || strings.TrimSpace(aws.ToString(output.NextToken)) == "" {
-				return nil, awsdiscovery.ErrDenied
-			}
-			token = output.NextToken
-		}
+		instances = append(instances, found...)
 	}
 	sort.Slice(instances, func(i, j int) bool { return instances[i].ARN < instances[j].ARN })
 	return instances, nil
+}
+
+func collectDiscoveryAWSRegionInstances(ctx context.Context, factory func(string, aws.Credentials) (discoveryAWSEC2API, error), credentials aws.Credentials, accountID, region string) ([]discoveryAWSNativeInstance, error) {
+	api, err := factory(region, credentials)
+	if err != nil || nilDiscoveryClientDependency(api) {
+		return nil, awsdiscovery.ErrDenied
+	}
+	instances := make([]discoveryAWSNativeInstance, 0)
+	var token *string
+	for {
+		output, err := api.DescribeInstances(ctx, &ec2.DescribeInstancesInput{NextToken: token, MaxResults: aws.Int32(1000)}, func(options *ec2.Options) { options.Retryer = aws.NopRetryer{} })
+		if err != nil || output == nil {
+			return nil, awsdiscovery.ErrDenied
+		}
+		for _, reservation := range output.Reservations {
+			for _, instance := range reservation.Instances {
+				if len(instances) >= maximumAWSInventoryItems {
+					return nil, awsdiscovery.ErrDenied
+				}
+				native, err := discoveryAWSInstance(accountID, region, instance)
+				if err != nil {
+					return nil, err
+				}
+				instances = append(instances, native)
+			}
+		}
+		if output.NextToken == nil {
+			return instances, nil
+		}
+		if output.NextToken == token || strings.TrimSpace(aws.ToString(output.NextToken)) == "" {
+			return nil, awsdiscovery.ErrDenied
+		}
+		token = output.NextToken
+	}
+}
+
+// discoveryAWSInventoryReadConcurrency is how many independent read-only
+// provider requests of one inventory read are in flight together.
+const discoveryAWSInventoryReadConcurrency = 4
+
+// discoveryAWSEach runs work for every index, a few at a time, and returns
+// the first failure after cancelling the rest. Nothing it runs is exempt
+// from a check: each request goes through the same transport as a request
+// made in sequence.
+func discoveryAWSEach(ctx context.Context, count int, work func(context.Context, int) error) error {
+	if ctx == nil || count < 0 || work == nil {
+		return awsdiscovery.ErrDenied
+	}
+	if count == 0 {
+		return nil
+	}
+	bounded, cancel := context.WithCancel(ctx)
+	defer cancel()
+	var (
+		group   sync.WaitGroup
+		once    sync.Once
+		failure error
+	)
+	indexes := make(chan int)
+	for worker := 0; worker < min(count, discoveryAWSInventoryReadConcurrency); worker++ {
+		group.Add(1)
+		go func() {
+			defer group.Done()
+			for index := range indexes {
+				err := func() (err error) {
+					defer func() {
+						if recover() != nil {
+							err = awsdiscovery.ErrDenied
+						}
+					}()
+					return work(bounded, index)
+				}()
+				if err != nil {
+					once.Do(func() {
+						failure = err
+						cancel()
+					})
+				}
+			}
+		}()
+	}
+dispatch:
+	for index := 0; index < count; index++ {
+		select {
+		case indexes <- index:
+		case <-bounded.Done():
+			break dispatch
+		}
+	}
+	close(indexes)
+	group.Wait()
+	if failure == nil && ctx.Err() != nil {
+		return awsdiscovery.ErrDenied
+	}
+	return failure
 }
 
 func discoveryAWSInstance(accountID, region string, instance ec2types.Instance) (discoveryAWSNativeInstance, error) {
@@ -323,3 +455,4 @@ func marshalDiscoveryAWSSecuritySources(accountID string, roles []discoveryAWSNa
 }
 
 var _ awsdiscovery.CollectionInventoryCaller = (*discoveryAWSCollectionInventoryCaller)(nil)
+var _ awsdiscovery.CollectionInventoryResumer = (*discoveryAWSCollectionInventoryCaller)(nil)
