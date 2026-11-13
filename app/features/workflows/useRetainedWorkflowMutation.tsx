@@ -319,10 +319,10 @@ function WorkflowRecoveryPanel({ store, scopeKey }: { store: WorkflowMutationSto
   useSyncExternalStore(store.subscribe, store.getRevision, store.getRevision);
   const recovery = store.snapshot(scopeKey).recovery;
   if (!recovery) return null;
-  if (recovery.status === "loading") return <section aria-label="Mutation recovery"><p role="status">Checking committed operations before enabling changes…</p></section>;
-  if (recovery.status === "error") return <section aria-label="Mutation recovery"><p role="alert">{recovery.error}</p><Button onClick={() => void store.reconcile(scopeKey)}>Retry committed-operation recovery</Button></section>;
+  if (recovery.status === "loading") return <section aria-label="Mutation recovery" className="mutation-recovery"><p role="status">Checking committed operations before enabling changes…</p></section>;
+  if (recovery.status === "error") return <section aria-label="Mutation recovery" className="mutation-recovery"><p role="alert">{recovery.error}</p><Button onClick={() => void store.reconcile(scopeKey)}>Retry committed-operation recovery</Button></section>;
   if (recovery.receipts.length === 0) return null;
-  return <section aria-label="Mutation recovery"><h2>Recover committed operations</h2><p>These changes committed before their browser responses were acknowledged. Review the frozen request and authoritative result before making another change.</p>{recovery.receipts.map((receipt) => {
+  return <section aria-label="Mutation recovery" className="mutation-recovery"><h2>Recover committed operations</h2><p>These changes committed before their browser responses were acknowledged. Review the frozen request and authoritative result before making another change.</p>{recovery.receipts.map((receipt) => {
     const summary = workflowReceiptSummary(receipt);
     return <article key={receipt.id}>
       <h3>{operationLabel(receipt.operation)}</h3>

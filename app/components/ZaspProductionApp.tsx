@@ -159,13 +159,13 @@ function ProductionAppContent() {
     const allowed = productionRoutes.some((route) => route.path === window.location.pathname && hasProductionCapability(session, route.capability));
     if (!allowed) { window.history.replaceState({}, "", "/"); queueMicrotask(() => setLocation("/")); }
   }, [session]);
-  if (session.status === "loading") return <main className="page"><h1>Loading Zasp</h1><p role="status">Loading authenticated session…</p></main>;
-  if (session.status === "unauthenticated") return <main className="page"><h1>Sign in to Zasp</h1><Button onClick={() => session.signIn(location)}>Sign in</Button></main>;
-  if (session.status === "forbidden") return <main className="page"><h1>Scope unavailable</h1><p role="alert">Authorization rejected</p></main>;
-  if (session.status === "error") return <main className="page"><h1>{session.authorizationStatus === "pending" ? "Authorization pending" : "Session unavailable"}</h1>{session.authorizationStatus === "pending" && <p role="status">Current access is being applied. Retry to load your permissions.</p>}{session.scopeSwitch.status === "error" ? <><p role="alert">{session.scopeSwitch.error?.message ?? "Scope reconciliation failed"}</p><Button onClick={() => void session.scopeSwitch.retry()}>Retry scope reconciliation</Button></> : <Button onClick={() => void session.retry()}>Retry</Button>}</main>;
+  if (session.status === "loading") return <main className="page auth-page"><h1>Loading Zasp</h1><p role="status">Loading authenticated session…</p></main>;
+  if (session.status === "unauthenticated") return <main className="page auth-page"><h1>Sign in to Zasp</h1><Button onClick={() => session.signIn(location)}>Sign in</Button></main>;
+  if (session.status === "forbidden") return <main className="page auth-page"><h1>Scope unavailable</h1><p role="alert">Authorization rejected</p></main>;
+  if (session.status === "error") return <main className="page auth-page"><h1>{session.authorizationStatus === "pending" ? "Authorization pending" : "Session unavailable"}</h1>{session.authorizationStatus === "pending" && <p role="status">Current access is being applied. Retry to load your permissions.</p>}{session.scopeSwitch.status === "error" ? <><p role="alert">{session.scopeSwitch.error?.message ?? "Scope reconciliation failed"}</p><Button onClick={() => void session.scopeSwitch.retry()}>Retry scope reconciliation</Button></> : <Button onClick={() => void session.retry()}>Retry</Button>}</main>;
   if (session.status !== "authenticated") return null;
   const routes = productionRoutes.filter((route) => hasProductionCapability(session, route.capability));
-  if (routes.length === 0) return <main className="page"><h1>No product capabilities</h1><p>Your account has no enabled product routes in this scope.</p><ProductionScopeSelector /><ProductionSignOutControl /></main>;
+  if (routes.length === 0) return <main className="page auth-page"><h1>No product capabilities</h1><p>Your account has no enabled product routes in this scope.</p><ProductionScopeSelector /><ProductionSignOutControl /></main>;
   const visiblePath = routes.some((route) => route.path === path) ? path : routes[0].path;
   const navigate = (nextLocation: string) => { const nextPath = nextLocation.split(/[?#]/, 1)[0]; if (!routes.some((route) => route.path === nextPath)) return; window.history.pushState({}, "", nextLocation); setLocation(nextLocation); };
   const workflowScopeKey = `${session.principal.id}/${session.organizationID}/${session.workspaceID}/${session.environmentID}`;

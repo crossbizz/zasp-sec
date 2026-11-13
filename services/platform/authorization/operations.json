@@ -117,6 +117,7 @@
   {"ID":"listSecurityActions","Method":"GET","Path":"/api/v1/security-actions","Permission":"view","Relation":"view","Surface":"core","Security":["BrowserSession","ProductAPIToken"],"FreshAuth":false},
   {"ID":"getSecurityAgentExecutionControls","Method":"GET","Path":"/api/v1/security-agent-execution-controls","Permission":"manage_identity","Relation":"manage_identity","Surface":"core","Security":["BrowserSession"],"FreshAuth":false},
   {"ID":"setSecurityAgentExecutionControl","Method":"PUT","Path":"/api/v1/security-agent-execution-controls","Permission":"manage_identity","Relation":"manage_identity","Surface":"core","Security":["BrowserSession"],"FreshAuth":true},
+  {"ID":"setSecurityAgentPlannerPricing","Method":"PUT","Path":"/api/v1/security-agent-planner-pricing","Permission":"manage_identity","Relation":"manage_identity","Surface":"core","Security":["BrowserSession"],"FreshAuth":true},
   {"ID":"listSecurityAgents","Method":"GET","Path":"/api/v1/security-agents","Permission":"view","Relation":"view","Surface":"core","Security":["BrowserSession","ProductAPIToken"],"FreshAuth":false},
   {"ID":"createSecurityAgent","Method":"POST","Path":"/api/v1/security-agents","Permission":"manage_workflows","Relation":"manage_workflows","Surface":"core","Security":["BrowserSession","ProductAPIToken"],"FreshAuth":false},
   {"ID":"getSecurityAgent","Method":"GET","Path":"/api/v1/security-agents/{id}","Permission":"view","Relation":"view","Surface":"core","Security":["BrowserSession","ProductAPIToken"],"FreshAuth":false},

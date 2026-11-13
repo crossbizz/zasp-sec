@@ -176,6 +176,16 @@ func newProductionHandlers(repository, securityAgentRepository *PostgresReposito
 		if securityAgentErr != nil {
 			return Dependencies{}, nil, ErrRepositoryConfiguration
 		}
+		// The planner pricing approval is written by the product API's own
+		// database role, not the Security Agent API's.
+		pricingHandler, pricingErr := NewSecurityAgentPricingHTTPHandler(repository, cookie.Clock)
+		if pricingErr != nil {
+			return Dependencies{}, nil, ErrRepositoryConfiguration
+		}
+		workflowSurface, pricingErr = NewSecurityAgentPricingWorkflowSurface(workflowSurface, pricingHandler)
+		if pricingErr != nil {
+			return Dependencies{}, nil, ErrRepositoryConfiguration
+		}
 		if cookie.SingleTestRecoveryReady != nil {
 			installed, err := cookie.SingleTestRecoveryReady(context.Background())
 			if err != nil {

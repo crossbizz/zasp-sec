@@ -161,6 +161,7 @@ var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"GET", "/api/v1/security-actions", "listSecurityActions", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/security-agent-execution-controls", "getSecurityAgentExecutionControls", "manage_identity", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"PUT", "/api/v1/security-agent-execution-controls", "setSecurityAgentExecutionControl", "manage_identity", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"PUT", "/api/v1/security-agent-planner-pricing", "setSecurityAgentPlannerPricing", "manage_identity", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/security-agents", "listSecurityAgents", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"POST", "/api/v1/security-agents", "createSecurityAgent", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/security-agents/{id}", "getSecurityAgent", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
@@ -334,7 +335,7 @@ func requiresFreshAuthentication(operationID string) bool {
 		"createSSOConnection", "deleteSSOConnection", "testSSOConnection", "createSCIMConnection", "deleteSCIMConnection",
 		"revokeSession", "updateDataControls", "authorizeIntegration", "authorizeIntegrationReference", "remediateIntegrationAuthorization", "createSensorEnrollment", "rotateSensorToken":
 		return true
-	case "activateSecurityAgent", "decideSecurityAgentApproval", "setSecurityAgentExecutionControl", "startRecoveryBackup", "startRecoveryRestore":
+	case "activateSecurityAgent", "decideSecurityAgentApproval", "setSecurityAgentExecutionControl", "setSecurityAgentPlannerPricing", "startRecoveryBackup", "startRecoveryRestore":
 		return true
 	default:
 		return false

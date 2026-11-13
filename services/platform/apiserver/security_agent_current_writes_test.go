@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -151,9 +152,29 @@ func TestSecurityAgentCurrentRunRejectsForeignResults(t *testing.T) {
 	request := SecurityAgentRunRequest{DefinitionID: agent, IdempotencyKey: "idempotency-key-0001", ExpectedVersion: 3, RunID: run, TriggerKind: "manual", AuditID: audit, CorrelationID: correlation, ReceiptID: receipt}
 	database := &completionJSONFixture{}
 	repository := &PostgresRepository{database: database, securityAgentExecution: true}
-	if _, err := repository.runSecurityAgentCurrent(context.Background(), i, request); err != ErrRepositoryUnavailable || len(database.statements) != 0 {
-		t.Fatalf("manual trigger err=%v statements=%v", err, database.statements)
+	// A run with no trigger is the manual trigger: its own single statement,
+	// whose result must answer the request.
+	manual := `{"id":"` + run + `","agent_id":"` + agent + `","state":"queued","evidence_ids":[],"manual_trigger":{"kind":"manual","intent_digest":"sha256:` + strings.Repeat("a", 64) + `","version":1},"definition_version":3,"version":1,"audit_id":"` + audit + `","correlation_id":"` + correlation + `","receipt_id":"` + receipt + `","replayed":false}`
+	database.payload = manual
+	if result, err := repository.runSecurityAgentCurrent(context.Background(), i, request); err != nil || result.ID != run || result.ManualTrigger == nil || !slices.Equal(database.statements, []string{currentSecurityAgentManualRunSQL}) {
+		t.Fatalf("manual trigger result=%+v err=%v statements=%v", result, err, database.statements)
 	}
+	for name, payload := range map[string]string{
+		"another run":      strings.Replace(manual, run, trigger, 1),
+		"a finding result": `{"id":"` + run + `","agent_id":"` + agent + `","state":"queued","evidence_ids":["` + trigger + `"],"definition_version":3,"version":1,"audit_id":"` + audit + `","correlation_id":"` + correlation + `","receipt_id":"` + receipt + `","replayed":false}`,
+		"an envelope":      `{"family":"legacy","result":` + manual + `}`,
+	} {
+		database.payload = payload
+		if _, err := repository.runSecurityAgentCurrent(context.Background(), i, request); err != ErrRepositoryUnavailable {
+			t.Fatalf("manual trigger with %s: err=%v", name, err)
+		}
+	}
+	withTrigger := request
+	withTrigger.TriggerID = trigger
+	if _, err := repository.runSecurityAgentCurrent(context.Background(), i, withTrigger); err != ErrRepositoryOperation {
+		t.Fatalf("manual trigger that names a trigger: err=%v", err)
+	}
+	database.statements = nil
 	request.TriggerKind, request.TriggerID = "finding", trigger
 	for name, payload := range map[string]string{
 		"another run":    `{"family":"finding","result":{"id":"` + trigger + `","agent_id":"` + agent + `","state":"queued","evidence_ids":["` + trigger + `"],"definition_version":3,"version":1,"audit_id":"` + audit + `","correlation_id":"` + correlation + `","receipt_id":"` + receipt + `","replayed":false}}`,
@@ -201,7 +222,11 @@ func TestSecurityAgentCheckedRequestsBypassFamilyProbes(t *testing.T) {
 		want      string
 	}{
 		{"runSecurityAgent", true, "legacy"}, {"activateSecurityAgent", true, "legacy"}, {"getSecurityAgentActivation", true, "legacy"},
+		{"getSecurityAgentRun", true, "legacy"}, {"cancelSecurityAgentRun", true, "legacy"}, {"getSecurityAgentApproval", true, "legacy"}, {"simulateSecurityAgent", true, "legacy"},
+		// The ordered release decides its own approvals under the proof, so a
+		// decision still asks it first.
 		{"decideSecurityAgentApproval", true, "next"}, {"listSecurityAgentRuns", true, "next"}, {"activateSecurityAgent", false, "next"}, {"getSecurityAgentActivation", false, "next"},
+		{"getSecurityAgentRun", false, "next"}, {"cancelSecurityAgentRun", false, "next"}, {"getSecurityAgentApproval", false, "next"},
 	} {
 		served := ""
 		handler := &securityAgentHumanHTTPHandler{

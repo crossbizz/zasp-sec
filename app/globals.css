@@ -649,3 +649,45 @@ button:disabled { cursor: default; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+/* Signed-out, sign-in callback and session-state pages: one centred card. */
+.auth-page { width: min(420px, calc(100% - 32px)); margin: 14vh auto 40px; padding: 30px 28px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+.auth-page::before { content: "Zasp"; display: block; margin-bottom: 18px; font-size: 24px; font-weight: 800; letter-spacing: -.6px; color: var(--brand); }
+.auth-page h1 { margin: 0; font-size: 22px; line-height: 1.25; letter-spacing: -.4px; }
+.auth-page p { margin: 10px 0 0; color: var(--muted); line-height: 1.5; overflow-wrap: anywhere; }
+.auth-page p[role="alert"] { color: var(--critical); }
+.auth-page code { font-family: var(--font-geist-mono), ui-monospace, monospace; font-size: 12px; color: var(--ink); }
+.auth-page select { width: 100%; min-height: 38px; margin-top: 16px; padding: 0 10px; border: 1px solid var(--border-strong); border-radius: 7px; background: white; }
+.auth-page > a, .auth-page > button { width: 100%; min-height: 42px; margin-top: 20px; display: flex; align-items: center; justify-content: center; padding: 8px 13px; border: 1px solid var(--brand); border-radius: 7px; color: white; background: var(--brand); font-weight: 650; text-decoration: none; box-shadow: 0 3px 8px rgba(109,40,217,.2); }
+.auth-page > a:hover, .auth-page > button:hover:not(:disabled) { background: #5c20c1; }
+.auth-page > button:disabled { opacity: .6; }
+.auth-page > button + button { margin-top: 10px; color: #3f424a; background: white; border-color: var(--border-strong); box-shadow: none; }
+.auth-page > button + button:hover:not(:disabled) { background: var(--surface-2); }
+
+/* Committed-operation recovery is rendered before the application shell. */
+.mutation-recovery { margin: calc(var(--topbar) + 28px) 28px 0 calc(var(--sidebar) + 28px); padding: 16px 18px; background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius); box-shadow: var(--shadow); overflow-wrap: anywhere; }
+.mutation-recovery + .app-shell { min-height: 0; }
+.mutation-recovery + .app-shell .main-content { padding-top: 28px; }
+.mutation-recovery h2 { margin: 0 0 6px; font-size: 16px; }
+.mutation-recovery h3 { margin: 0 0 8px; font-size: 14px; }
+.mutation-recovery h4 { margin: 10px 0 4px; font-size: 11px; font-weight: 650; letter-spacing: .4px; text-transform: uppercase; color: var(--muted); }
+.mutation-recovery p { margin: 6px 0; color: var(--muted); line-height: 1.45; }
+.mutation-recovery article { margin-top: 12px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); }
+.mutation-recovery dl { display: grid; grid-template-columns: minmax(120px, max-content) minmax(0, 1fr); gap: 3px 14px; margin: 0; }
+.mutation-recovery dl > div { display: contents; }
+.mutation-recovery dt { color: var(--muted); }
+.mutation-recovery dd { margin: 0; }
+@media (max-width: 760px) { .mutation-recovery { margin: calc(var(--topbar) + 20px) 14px 0; } .mutation-recovery + .app-shell .main-content { padding-top: 20px; } }
+
+/* The production overview renders its review summary as navigation buttons. */
+.review-summary > button { min-height: 66px; display: flex; flex-direction: column; align-items: flex-start; gap: 5px; padding: 12px; border: 0; background: white; color: var(--ink); text-align: left; }
+.review-summary > button:hover { background: var(--brand-50); }
+.card > .review-summary { margin: 16px; }
+
+/* Production views place plain content directly inside cards; give it the card gutter.
+   Blocks that manage their own edges (lists, tables, grids, empty states) are left alone. */
+.production-app .card > :where(:not(.card__header, .connection-list, .connector-grid, .table-scroll, .data-table, table, .empty-state, .loading-state, .review-summary)) { margin-left: 16px; margin-right: 16px; }
+.production-app .card > .card__header + :where(:not(.connection-list, .connector-grid, .table-scroll, .data-table, table, .empty-state, .loading-state, .review-summary)) { margin-top: 14px; }
+.production-app .card > :where(:not(.card__header, .connection-list, .connector-grid, .table-scroll, .data-table, table, .empty-state, .loading-state, .review-summary)):last-child { margin-bottom: 16px; }
+.production-app .card > .connection-list:not(:first-child) { margin-top: 14px; }
+.production-app .page > .card + .card, .production-app .page > .card + .identity-grid, .production-app .page > .identity-grid + .card { margin-top: 16px; }

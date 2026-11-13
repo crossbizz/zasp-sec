@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 )
 
 func TestSecurityAgentActionRepositoryUsesExactV27RecoveryReadiness(t *testing.T) {
@@ -21,7 +23,7 @@ func TestSecurityAgentActionRepositoryUsesExactV27RecoveryReadiness(t *testing.T
 	if claims, err := repository.ClaimTemporaryPolicyEffects(context.Background(), "security-agent-action-1", "lease-token-000000000001", 60, 10); err != nil || len(claims) != 0 {
 		t.Fatalf("claims=%#v err=%v", claims, err)
 	}
-	if len(database.statements) != 2 || database.statements[0] != postgresSecurityAgentActionReadyV27SQL || database.statements[1] != postgresSecurityAgentActionClaimV24SQL {
+	if len(database.statements) != 3 || database.statements[0] != currentSecurityAgentActionReadySQL || database.statements[1] != postgresSecurityAgentActionReadyV27SQL || database.statements[2] != postgresSecurityAgentActionClaimV24SQL {
 		t.Fatalf("statements=%#v", database.statements)
 	}
 }
@@ -100,7 +102,7 @@ func TestSecurityAgentActionRepositoryClaimsExactV24SessionIsolation(t *testing.
 	if err != nil || len(claims) != 1 || claims[0].ActionKey != "isolate_session" || claims[0].SessionID != sessionID || claims[0].Targets[0].DeviceID != deviceID {
 		t.Fatalf("claims=%#v err=%v", claims, err)
 	}
-	if len(database.statements) != 3 || database.statements[0] != postgresSecurityAgentActionReadyV27SQL || database.statements[1] != postgresSecurityAgentActionReadyV24SQL || database.statements[2] != postgresSecurityAgentActionClaimV24SQL {
+	if len(database.statements) != 4 || database.statements[0] != currentSecurityAgentActionReadySQL || database.statements[1] != postgresSecurityAgentActionReadyV27SQL || database.statements[2] != postgresSecurityAgentActionReadyV24SQL || database.statements[3] != postgresSecurityAgentActionClaimV24SQL {
 		t.Fatalf("statements=%#v", database.statements)
 	}
 }
@@ -115,7 +117,7 @@ func TestSecurityAgentActionRepositoryRejectsCrossTenantAndDriftedEnvelopeBefore
 	if err := repository.StoreTemporaryPolicyTarget(context.Background(), claim, "security-agent-action-1", "lease-token-000000000001", TemporaryPolicyTargetEnvelope{}); err != ErrRepositoryOperation {
 		t.Fatalf("store err=%v", err)
 	}
-	if len(database.statements) != 4 || database.statements[0] != postgresSecurityAgentActionReadyV27SQL || database.statements[1] != postgresSecurityAgentActionReadyV24SQL || database.statements[2] != postgresSecurityAgentActionReadyV23SQL || database.statements[3] != postgresSecurityAgentActionReadySQL {
+	if len(database.statements) != 5 || database.statements[0] != currentSecurityAgentActionReadySQL || database.statements[1] != postgresSecurityAgentActionReadyV27SQL || database.statements[2] != postgresSecurityAgentActionReadyV24SQL || database.statements[3] != postgresSecurityAgentActionReadyV23SQL || database.statements[4] != postgresSecurityAgentActionReadySQL {
 		t.Fatalf("unexpected database statements=%#v", database.statements)
 	}
 }
@@ -150,7 +152,7 @@ func TestSecurityAgentActionRepositoryReconcilesConnectorRevocationsOnlyOnV23(t 
 	if reconciled, err := repository.ReconcileConnectorRevocations(context.Background(), "security-agent-action-1", 10); err != nil || reconciled != 2 {
 		t.Fatalf("reconciled=%d err=%v", reconciled, err)
 	}
-	if len(database.statements) != 4 || database.statements[0] != postgresSecurityAgentActionReadyV27SQL || database.statements[1] != postgresSecurityAgentActionReadyV24SQL || database.statements[2] != postgresSecurityAgentActionReadyV23SQL || database.statements[3] != postgresSecurityAgentActionReconcileSQL {
+	if len(database.statements) != 5 || database.statements[0] != currentSecurityAgentActionReadySQL || database.statements[1] != postgresSecurityAgentActionReadyV27SQL || database.statements[2] != postgresSecurityAgentActionReadyV24SQL || database.statements[3] != postgresSecurityAgentActionReadyV23SQL || database.statements[4] != postgresSecurityAgentActionReconcileSQL {
 		t.Fatalf("statements=%#v", database.statements)
 	}
 }
@@ -166,7 +168,46 @@ func TestSecurityAgentActionRepositoryTreatsConnectorReconciliationAsUnavailable
 	if reconciled, err := repository.ReconcileConnectorRevocations(context.Background(), "security-agent-action-1", 10); err != nil || reconciled != 0 {
 		t.Fatalf("reconciled=%d err=%v", reconciled, err)
 	}
-	if len(database.statements) != 4 || database.statements[0] != postgresSecurityAgentActionReadyV27SQL || database.statements[1] != postgresSecurityAgentActionReadyV24SQL || database.statements[2] != postgresSecurityAgentActionReadyV23SQL || database.statements[3] != postgresSecurityAgentActionReadySQL {
+	if len(database.statements) != 5 || database.statements[0] != currentSecurityAgentActionReadySQL || database.statements[1] != postgresSecurityAgentActionReadyV27SQL || database.statements[2] != postgresSecurityAgentActionReadyV24SQL || database.statements[3] != postgresSecurityAgentActionReadyV23SQL || database.statements[4] != postgresSecurityAgentActionReadySQL {
 		t.Fatalf("statements=%#v", database.statements)
+	}
+}
+
+// On the current catalog the action worker asks the current readiness
+// question first and, when it answers, no historical release probe at all.
+// That question includes the catalog integrity check, so the per-release
+// budget pin is not asked either. A refusal falls back to the historical
+// questions, which keep their own pins.
+func TestSecurityAgentActionRepositoryPrefersCurrentCatalogReadiness(t *testing.T) {
+	database := &securityAgentRepositoryDatabase{responses: map[string]json.RawMessage{
+		currentSecurityAgentActionReadySQL:     json.RawMessage(`{"release":true,"principal":true}`),
+		postgresSecurityAgentActionClaimV24SQL: json.RawMessage(`{"items":[]}`),
+	}}
+	repository, err := NewSecurityAgentActionRepository(database)
+	if err != nil || !repository.current || !repository.sessionIsolation || repository.reconcileSQL != postgresSecurityAgentActionReconcileSQL {
+		t.Fatalf("repository=%#v err=%v", repository, err)
+	}
+	if err := repository.Ready(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repository.ClaimTemporaryPolicyEffects(context.Background(), "security-agent-action-1", "lease-token-000000000001", 60, 10); err != nil {
+		t.Fatal(err)
+	}
+	for _, statement := range database.statements {
+		if statement != currentSecurityAgentActionReadySQL && statement != postgresSecurityAgentActionClaimV24SQL {
+			t.Fatalf("historical statement used on the current catalog: %s", statement)
+		}
+	}
+	if len(database.arguments) == 0 || len(database.arguments[0]) != 2 || database.arguments[0][0] != migrations.ProductionRecovery().Checksum() || database.arguments[0][1] != migrations.ProductionRecoverySemanticFingerprint() {
+		t.Fatalf("readiness pins=%v", database.arguments)
+	}
+	for name, answer := range map[string]string{"release": `{"release":false,"principal":true}`, "principal": `{"release":true,"principal":false}`, "shape": `{"release":true}`} {
+		refused := &securityAgentRepositoryDatabase{responses: map[string]json.RawMessage{currentSecurityAgentActionReadySQL: json.RawMessage(answer)}}
+		if repository, err := NewSecurityAgentActionRepository(refused); err == nil {
+			t.Fatalf("%s refusal accepted: %#v", name, repository)
+		}
+		if len(refused.statements) != 5 || refused.statements[1] != postgresSecurityAgentActionReadyV27SQL {
+			t.Fatalf("%s refusal did not fall back to the historical questions: %v", name, refused.statements)
+		}
 	}
 }

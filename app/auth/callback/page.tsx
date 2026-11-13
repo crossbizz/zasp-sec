@@ -57,9 +57,9 @@ export function CallbackCompletion({ suppliedClient, replaceLocation = replaceBr
     void complete();
     return () => { active = false; };
   }, [client, replaceLocation, accepted]);
-  if (failure) return <main className="page"><h1>Sign-in failed</h1><p role="alert">{failure.message}</p>{failure.correlation && <p>Correlation: <code>{failure.correlation}</code></p>}</main>;
-  if (invitation && !accepted) return <main className="page"><h1>Accept your invitation</h1><p>Continue to create your secure session.</p><button type="button" onClick={() => setAccepted(true)}>Accept invitation</button></main>;
-  return <main className="page"><h1>Completing sign-in</h1><p role="status">Creating your secure session…</p></main>;
+  if (failure) return <main className="page auth-page"><h1>Sign-in failed</h1><p role="alert">{failure.message}</p>{failure.correlation && <p>Correlation: <code>{failure.correlation}</code></p>}</main>;
+  if (invitation && !accepted) return <main className="page auth-page"><h1>Accept your invitation</h1><p>Continue to create your secure session.</p><button type="button" onClick={() => setAccepted(true)}>Accept invitation</button></main>;
+  return <main className="page auth-page"><h1>Completing sign-in</h1><p role="status">Creating your secure session…</p></main>;
 }
 
 export default function CallbackPage() {

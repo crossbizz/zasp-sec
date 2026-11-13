@@ -58,7 +58,9 @@ func (*p7CurrentRuntimeDatabase) CurrentAuthorizationSourceReady(context.Context
 	return true, nil
 }
 func (d *p7CurrentRuntimeDatabase) QueryJSON(ctx context.Context, q string, a ...any) (json.RawMessage, error) {
-	if strings.HasPrefix(q, "SELECT jsonb_build_object('credential_id',s.session_id") {
+	// The browser session lookup is the identity function of the current
+	// catalog (completion.sql, section X6).
+	if q == "SELECT zasp_authorization80_identity.authenticate_session($1)" {
 		return json.Marshal(map[string]any{"credential_id": "owned-session", "principal_id": "pid_10000004-0000-4000-8000-000000000004", "organization_id": "pid_10000001-0000-4000-8000-000000000001", "workspace_id": "pid_10000002-0000-4000-8000-000000000002", "environment_id": "pid_10000003-0000-4000-8000-000000000003", "permissions": []string{}, "csrf_token": strings.Repeat("c", 32), "fresh_authenticated": true})
 	}
 	return d.JSONDatabase.QueryJSON(ctx, q, a...)

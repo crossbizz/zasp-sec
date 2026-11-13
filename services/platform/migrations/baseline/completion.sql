@@ -1730,3 +1730,325 @@ ALTER FUNCTION zasp_authorization80.security_agent_run(text,text,text,text,text,
 REVOKE ALL ON FUNCTION zasp_authorization80.security_agent_run(text,text,text,text,text,jsonb,text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION zasp_authorization80.security_agent_run(text,text,text,text,text,jsonb,text) TO zasp_security_agent_api;
 REVOKE EXECUTE ON FUNCTION zasp_authorization80.security_agent_run(text,text,text,text,text,jsonb) FROM zasp_security_agent_api;
+
+-- ---------------------------------------------------------------------------
+-- Y1. Security Agent action worker readiness.
+--
+-- The action worker (temporary policy, session isolation and connector
+-- revocation effects) asks at startup, and before every batch, whether its
+-- release is installed: zasp_recovery_execution_readiness for release 27.
+-- That function follows the historical chain release by release up to a
+-- 60-release pin (the same pin section B describes), so on the 61-release
+-- baseline it is false for ever and the worker refused to start on any
+-- database. Its statements themselves (claim, heartbeat, store, read, finish,
+-- reconcile) already run under the current worker authorization.
+--
+-- This function states the same capability for the current catalog: the
+-- release row and its recorded identity, the role shape the action releases
+-- require, and the current worker release, whose readiness includes the
+-- catalog integrity check (zasp_baseline.intact()). The principal answer is
+-- the chain's own. It returns two booleans about the catalog and the calling
+-- login and reads no tenant data. Only the action worker's role may ask.
+CREATE OR REPLACE FUNCTION zasp_authorization80_worker.security_agent_action_ready(c text,f text) RETURNS jsonb
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $security_agent_action_ready$
+ SELECT jsonb_build_object('release',COALESCE(c='08f72ed9fc5bf2ef979cea65672aa26d6a8e60f096c050aa5ea1a6ba0586f6b7' AND f='12487d82d24fd4de68fc595e57306a085cc237218597c039f90477ce1ba7f364'
+  AND EXISTS(SELECT 1 FROM public.zasp_schema_versions WHERE version=27 AND name='production_recovery' AND checksum=c)
+  AND EXISTS(SELECT 1 FROM public.zasp_schema_metadata WHERE key='production_recovery_fingerprint' AND value=f)
+  AND public.zasp_security_agent_temporary_policy_security_ready() AND public.zasp_security_agent_connector_revocation_security_ready()
+  AND public.zasp_security_agent_session_isolation_security_ready() AND public.zasp_recovery_execution_security_ready()
+  AND zasp_authorization80_worker.runtime_ready(),false),
+  'principal',COALESCE(public.zasp_security_agent_action_principal_ready(),false))
+$security_agent_action_ready$;
+ALTER FUNCTION zasp_authorization80_worker.security_agent_action_ready(text,text) OWNER TO zasp_discovery_authority;
+REVOKE ALL ON FUNCTION zasp_authorization80_worker.security_agent_action_ready(text,text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION zasp_authorization80_worker.security_agent_action_ready(text,text) TO zasp_security_agent_action_worker;
+
+-- ---------------------------------------------------------------------------
+-- Y2. Lock order of the single-test start consumer.
+--
+-- Every admission of a Security Agent run locks the Organization's
+-- authorization row (zasp_authorization79.organizations, FOR UPDATE) and then
+-- takes the Organization's budget-admission advisory lock:
+-- zasp_temporal78.admit_occurrence (behind zasp_temporal77.dispatch_page and
+-- catchup_definition) and zasp_temporal74.takeover both do. The start
+-- consumer zasp_temporal74.pending() took the advisory lock first (without
+-- waiting) and then called takeover, which waits for the row. With an
+-- automatic admission of the same Organization in flight the two waited for
+-- each other, and PostgreSQL ended one of them as a deadlock about once a
+-- minute; the consumer swallows that error only for some states, so starts and
+-- admissions were retried at random.
+--
+-- The consumer now takes the Organization row first, without waiting (SKIP
+-- LOCKED), then the advisory lock as before, and only then touches the
+-- delivery row. It never waits for either lock and takes them in the order
+-- every admission does: when an admission holds the row, the candidate is
+-- left for the next poll, exactly as when the advisory lock is busy. takeover
+-- then finds both locks already held by its own transaction.
+DO $pending_lock_order$
+DECLARE d text;
+ needle text:=$n$  IF NOT pg_try_advisory_xact_lock(hashtextextended('security-agent-budget-admission:'||candidate.organization_id,0)) THEN CONTINUE;END IF;$n$;
+ added text:=$n$  PERFORM 1 FROM zasp_authorization79.organizations WHERE organization_id=candidate.organization_id FOR UPDATE SKIP LOCKED;
+  IF NOT FOUND THEN CONTINUE;END IF;$n$;
+BEGIN
+ SELECT pg_get_functiondef('zasp_temporal74.pending()'::regprocedure) INTO STRICT d;
+ IF position('FOR UPDATE SKIP LOCKED' in d)=0 THEN
+  IF (length(d)-length(replace(d,needle,'')))/length(needle)<>1 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='single-test start consumer predecessor changed';END IF;
+  EXECUTE replace(d,needle,added||E'\n'||needle);
+ END IF;
+END $pending_lock_order$;
+
+-- ---------------------------------------------------------------------------
+-- Y3. Security Agent runs and approvals: detail, cancellation, decision,
+-- simulation and the manual trigger.
+--
+-- Section H moved the definition writes, activation and the triggered run to
+-- one authorized statement each. The remaining Security Agent routes still
+-- chose the family with several statements, none of which is an authorized
+-- function, and since sections X1 and X3 their historical statements are no
+-- longer reachable without a proof, so the API refused all of them:
+--   GET  /security-agent-runs/{id}               getSecurityAgentRun
+--   POST /security-agent-runs/{id}/cancel        cancelSecurityAgentRun
+--   GET  /security-agent-approvals/{id}          getSecurityAgentApproval
+--   POST /security-agent-approvals/{id}/decision decideSecurityAgentApproval
+--   POST /security-agents/{id}/simulate          simulateSecurityAgent
+--   POST /security-agents/{id}/runs without a trigger (the manual trigger)
+-- Each function below is one statement. It binds the request to the attested
+-- proof and then calls the chain's own reader or writer for the family that
+-- owns the object, in the order the API used (ordered release 61, finding
+-- response zasp_temporal78, single existing test zasp_temporal74, then the
+-- retained functions through zasp_temporal66). Every check those functions
+-- already had stays: release, principal, actor permission, optimistic
+-- version, idempotent replay, audit and receipt. The result names the family
+-- so the API decodes that family's shape.
+--
+-- security_agent_object_request is the shared admission. It returns the proof
+-- only when the fenced transaction carries exactly this operation with the
+-- permission the operation's policy names, for this Organization, Workspace,
+-- Environment and actor, as a non-collection request, with a browser session
+-- and fresh authentication where the policy requires them, for the object
+-- named in the request path, and when that object is among the allowed
+-- targets. It then re-verifies the credential and membership under row locks.
+CREATE OR REPLACE FUNCTION zasp_authorization80.security_agent_object_request(o text,w text,e text,actor text,op text,i text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $security_agent_object_request$
+DECLARE p jsonb:=zasp_authorization80.context();permission_value text;browser boolean:=false;fresh boolean:=false;kind text;
+BEGIN
+ IF NOT COALESCE(public.zasp_security_agent_principal_ready('zasp_security_agent_api'),false) THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='authorization security agent principal rejected';END IF;
+ CASE op
+  WHEN 'getSecurityAgentRun' THEN permission_value:='view';kind:='security_agent_run';
+  WHEN 'cancelSecurityAgentRun' THEN permission_value:='manage_workflows';kind:='security_agent_run';
+  WHEN 'getSecurityAgentApproval' THEN permission_value:='view';kind:='security_agent_approval';
+  WHEN 'decideSecurityAgentApproval' THEN permission_value:='manage_workflows';kind:='security_agent_approval';browser:=true;fresh:=true;
+  WHEN 'simulateSecurityAgent' THEN permission_value:='manage_workflows';kind:='security_agent';
+  ELSE RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current security agent authorization required';
+ END CASE;
+ IF p IS NULL OR actor IS NULL OR i IS NULL OR NOT COALESCE(public.zasp_valid_product_id(i),false)
+  OR NOT COALESCE(zasp_authorization80.read_request(o,w,e,ARRAY[op],permission_value,browser,actor)
+   AND p->'collection'='false'::jsonb
+   AND(NOT fresh OR p->'fresh_auth'='true'::jsonb)
+   AND p#>>'{path_parameters,id}'=i
+   AND zasp_authorization80.allowed(o,w,e,kind,i),false)
+ THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current security agent authorization required';END IF;
+ PERFORM zasp_authorization80.identity_fence(p);
+ RETURN p;
+END $security_agent_object_request$;
+
+-- GET /security-agent-runs/{id}.
+CREATE OR REPLACE FUNCTION zasp_authorization80.security_agent_run_detail(o text,w text,e text,r text,actor text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $security_agent_run_detail$
+DECLARE p jsonb;result jsonb;family text;
+ c CONSTANT text:='e4dfae0a990718c2c6b7518b07d7c146cfb9025656378d423c8d96188bcf1b96';f CONSTANT text:='07e774a28105095c73275ad959c765a3fddda9ee9aa81e81cd3828222e40aad3';
+BEGIN
+ p:=zasp_authorization80.security_agent_object_request(o,w,e,actor,'getSecurityAgentRun',r);
+ IF zasp_ordered_public62.classify(o,w,e,'run',r)='ordered_release61' THEN
+  -- The ordered release serves its resources to a browser session only.
+  IF p->>'credential_kind'<>'1' THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='authorization security agent ordered credential rejected';END IF;
+  result:=zasp_ordered_public62.api(c,f,jsonb_build_object('organization_id',o,'workspace_id',w,'environment_id',e,'actor_id',actor,'operation','resource_run','run_id',r));
+  family:='ordered';
+ ELSE
+  result:=zasp_temporal78.run_context(o,w,e,r);family:='finding';
+  IF result IS NULL THEN
+   SELECT value INTO result FROM zasp_temporal66.run_context(o,w,e,r,'6e2fbdef64421286476be12a02188d7936e81db3126764bf2ab55e099fcb12cb','422b211febdd6e2b37882dc3f5961a79ca5c58f3f87f1642f7babf1224fbe94a') rows(value);
+   family:='legacy';
+  END IF;
+ END IF;
+ IF result IS NULL THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='security agent run missing';END IF;
+ IF p IS DISTINCT FROM zasp_authorization80.context() THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='current security agent proof expired';END IF;
+ RETURN jsonb_build_object('family',family,'result',result);
+END $security_agent_run_detail$;
+
+-- POST /security-agent-runs/{id}/cancel. The ordered result carries the
+-- resource read before the cancellation and the retained mutation result.
+CREATE OR REPLACE FUNCTION zasp_authorization80.security_agent_cancel_run(o text,w text,e text,r text,actor text,k text,v bigint,audit_value text,correlation_value text,receipt_value text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $security_agent_cancel_run$
+DECLARE p jsonb;result jsonb;family text;scope_value jsonb;
+ c CONSTANT text:='e4dfae0a990718c2c6b7518b07d7c146cfb9025656378d423c8d96188bcf1b96';f CONSTANT text:='07e774a28105095c73275ad959c765a3fddda9ee9aa81e81cd3828222e40aad3';
+BEGIN
+ IF current_setting('transaction_isolation')<>'read committed' THEN RAISE EXCEPTION USING ERRCODE='25001',MESSAGE='authorization security agent write requires read committed';END IF;
+ IF NOT COALESCE(public.zasp_valid_product_id(r) AND public.zasp_valid_product_id(audit_value) AND public.zasp_valid_product_id(correlation_value) AND public.zasp_valid_product_id(receipt_value)
+  AND length(k) BETWEEN 16 AND 128 AND k~'^[A-Za-z0-9][A-Za-z0-9._:-]*$' AND v BETWEEN 1 AND 1000000,false)
+ THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='authorization security agent cancellation rejected';END IF;
+ p:=zasp_authorization80.security_agent_object_request(o,w,e,actor,'cancelSecurityAgentRun',r);
+ IF zasp_ordered_public62.classify(o,w,e,'run',r)='ordered_release61' THEN
+  IF p->>'credential_kind'<>'1' OR v>999999 THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='authorization security agent ordered credential rejected';END IF;
+  scope_value:=jsonb_build_object('organization_id',o,'workspace_id',w,'environment_id',e,'actor_id',actor);
+  result:=jsonb_build_object('resource',zasp_ordered_public62.api(c,f,scope_value||jsonb_build_object('operation','resource_run','run_id',r)));
+  result:=result||jsonb_build_object('mutation',zasp_ordered_public62.api(c,f,scope_value||jsonb_build_object('operation','cancel','run_id',r,'run_version',v,'idempotency_key',k)));
+  family:='ordered';
+ ELSE
+  result:=zasp_temporal74.cancel(o,w,e,r,actor,k,v,audit_value,correlation_value,receipt_value);family:='test';
+  IF result IS NULL OR result='null'::jsonb THEN
+   result:=zasp_temporal66.cancel_parent(o,w,e,r,actor,k,v,audit_value,correlation_value,receipt_value,'6e2fbdef64421286476be12a02188d7936e81db3126764bf2ab55e099fcb12cb','422b211febdd6e2b37882dc3f5961a79ca5c58f3f87f1642f7babf1224fbe94a');
+   family:='legacy';
+  END IF;
+ END IF;
+ IF result IS NULL OR jsonb_typeof(result) IS DISTINCT FROM 'object' THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='security agent cancellation unavailable';END IF;
+ PERFORM zasp_authorization80.security_agent_write_settled(p);
+ RETURN jsonb_build_object('family',family,'result',result);
+END $security_agent_cancel_run$;
+
+-- GET /security-agent-approvals/{id}. The ordered release answers with the
+-- approval's run resource; the other families with the approval envelope of
+-- the newest actor-bound reader that owns it.
+CREATE OR REPLACE FUNCTION zasp_authorization80.security_agent_approval(o text,w text,e text,a text,actor text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $security_agent_approval$
+DECLARE p jsonb;result jsonb;family text;
+ c CONSTANT text:='e4dfae0a990718c2c6b7518b07d7c146cfb9025656378d423c8d96188bcf1b96';f CONSTANT text:='07e774a28105095c73275ad959c765a3fddda9ee9aa81e81cd3828222e40aad3';
+BEGIN
+ p:=zasp_authorization80.security_agent_object_request(o,w,e,actor,'getSecurityAgentApproval',a);
+ IF zasp_ordered_public62.classify(o,w,e,'approval',a)='ordered_release61' THEN
+  IF p->>'credential_kind'<>'1' THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='authorization security agent ordered credential rejected';END IF;
+  result:=zasp_ordered_public62.api(c,f,jsonb_build_object('organization_id',o,'workspace_id',w,'environment_id',e,'actor_id',actor,'operation','resource_approval','approval_id',a));
+  family:='ordered';
+ ELSE
+  result:=zasp_temporal78.approval(o,w,e,a,actor);family:='finding';
+  IF result IS NULL THEN result:=zasp_temporal74.approval(o,w,e,a,actor);family:='legacy';END IF;
+ END IF;
+ IF result IS NULL THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='approval not found';END IF;
+ IF p IS DISTINCT FROM zasp_authorization80.context() THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='current security agent proof expired';END IF;
+ RETURN jsonb_build_object('family',family,'result',result);
+END $security_agent_approval$;
+
+-- POST /security-agent-approvals/{id}/decision for every family but the
+-- ordered release, whose decision already binds the proof itself
+-- (zasp_ordered_public62.api 'decide_resource' through
+-- zasp_authorization80_worker.require_ordered62_approval); an ordered approval
+-- is refused here. Browser session, fresh authentication. The time of fresh
+-- authentication the request names must be the verified session's.
+--
+-- An approval no Temporal release owns is decided as the chain's
+-- existing-tests release decides it (the same statements, without that
+-- release's 60-release readiness pin, which the baseline can never satisfy).
+-- Attack Lab and evidence-export approvals have no ready release here and
+-- are refused.
+CREATE OR REPLACE FUNCTION zasp_authorization80.security_agent_decide_approval(o text,w text,e text,a text,actor text,k text,v bigint,decision_value text,fresh_value timestamptz,audit_value text,correlation_value text,receipt_value text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $security_agent_decide_approval$
+DECLARE p jsonb;result jsonb;family text;authenticated timestamptz;action_value text;
+BEGIN
+ IF current_setting('transaction_isolation')<>'read committed' THEN RAISE EXCEPTION USING ERRCODE='25001',MESSAGE='authorization security agent write requires read committed';END IF;
+ IF NOT COALESCE(public.zasp_valid_product_id(a) AND public.zasp_valid_product_id(audit_value) AND public.zasp_valid_product_id(correlation_value) AND public.zasp_valid_product_id(receipt_value)
+  AND length(k) BETWEEN 16 AND 128 AND k~'^[A-Za-z0-9][A-Za-z0-9._:-]*$' AND v BETWEEN 1 AND 1000000
+  AND decision_value IN('approved','rejected','cancelled') AND fresh_value IS NOT NULL,false)
+ THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='authorization security agent decision rejected';END IF;
+ p:=zasp_authorization80.security_agent_object_request(o,w,e,actor,'decideSecurityAgentApproval',a);
+ SELECT s.authenticated_at INTO authenticated FROM public.zasp_product_sessions s
+  WHERE s.session_id=p->>'credential_id' AND s.token_digest=decode(p->>'credential_digest','hex') AND s.principal_id=actor AND s.revoked_at IS NULL;
+ IF authenticated IS NULL OR authenticated<=clock_timestamp()-interval '5 minutes' OR fresh_value IS DISTINCT FROM authenticated
+ THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current security agent authorization required';END IF;
+ IF zasp_ordered_public62.classify(o,w,e,'approval',a)='ordered_release61' THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='authorization security agent decision family rejected';END IF;
+ result:=zasp_temporal78.decide_approval(o,w,e,a,actor,k,v,decision_value,fresh_value,audit_value,correlation_value,receipt_value);family:='finding';
+ IF result IS NULL OR result='null'::jsonb THEN
+  result:=zasp_temporal74.decide_approval(o,w,e,a,actor,k,v,decision_value,fresh_value,audit_value,correlation_value,receipt_value);family:='test';
+ END IF;
+ IF result IS NULL OR result='null'::jsonb THEN
+  family:='legacy';
+  SELECT s.action_key INTO action_value FROM public.zasp_security_agent_approvals x
+   JOIN public.zasp_security_agent_steps s USING(organization_id,workspace_id,environment_id,run_id,step_id)
+   WHERE(x.organization_id,x.workspace_id,x.environment_id,x.approval_id)=(o,w,e,a);
+  IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='approval not found';END IF;
+  IF action_value IN('start_attack_lab','create_evidence_export') THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='security agent approval release unavailable';END IF;
+  IF action_value NOT IN('run_test','rerun_test','send_response_webhook') THEN
+   result:=public.zasp_security_agent_decide_approval_v24(o,w,e,a,actor,k,v,decision_value,fresh_value,audit_value,correlation_value,receipt_value);
+  ELSE
+   result:=public.zasp_security_agent_decide_approval(o,w,e,a,actor,k,v,decision_value,fresh_value,audit_value,correlation_value,receipt_value);
+   IF result->>'replayed' IS DISTINCT FROM 'true' THEN
+    IF action_value='send_response_webhook' AND decision_value='approved' THEN PERFORM public.zasp_sa_webhook_approved(o,w,e,a);END IF;
+    result:=result||public.zasp_production_security_agent_existing_tests_approval_value(o,w,e,a);
+    UPDATE public.zasp_security_agent_request_receipts SET response=result
+     WHERE(organization_id,workspace_id,environment_id,principal_id,operation,idempotency_key,resource_id,receipt_id)=(o,w,e,actor,'decideSecurityAgentApproval',k,a,receipt_value);
+    IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='security agent approval receipt unavailable';END IF;
+   END IF;
+  END IF;
+ END IF;
+ IF result IS NULL OR jsonb_typeof(result) IS DISTINCT FROM 'object' THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='security agent decision unavailable';END IF;
+ PERFORM zasp_authorization80.security_agent_write_settled(p);
+ RETURN jsonb_build_object('family',family,'result',result);
+END $security_agent_decide_approval$;
+
+-- POST /security-agents/{id}/simulate: a stored plan with no effects. The
+-- writer is the chain's newest simulation core with the table locks and the
+-- expiry re-check of its release wrapper; that wrapper itself pins a
+-- 60-release catalog. The capability is the single-test release
+-- (zasp_temporal74), the same question the API asks before it offers it.
+--
+-- The evidence a simulation names must exist in the Environment of the proof
+-- (the core refuses anything else); the proof is for the Security Agent, so a
+-- requester learns no more about an evidence identifier than that it exists
+-- in an Environment it may manage workflows in.
+CREATE OR REPLACE FUNCTION zasp_authorization80.security_agent_simulate(o text,w text,e text,d text,actor text,k text,v bigint,run_value text,goal_value text,evidence_value jsonb,expires_value timestamptz,audit_value text,correlation_value text,receipt_value text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $security_agent_simulate$
+DECLARE p jsonb;result jsonb;
+BEGIN
+ IF current_setting('transaction_isolation')<>'read committed' THEN RAISE EXCEPTION USING ERRCODE='25001',MESSAGE='authorization security agent write requires read committed';END IF;
+ IF NOT COALESCE(public.zasp_valid_product_id(d) AND public.zasp_valid_product_id(run_value) AND public.zasp_valid_product_id(audit_value) AND public.zasp_valid_product_id(correlation_value) AND public.zasp_valid_product_id(receipt_value)
+  AND length(k) BETWEEN 16 AND 128 AND k~'^[A-Za-z0-9][A-Za-z0-9._:-]*$' AND v BETWEEN 1 AND 1000000
+  AND jsonb_typeof(evidence_value)='array' AND octet_length(evidence_value::text)<=8192 AND expires_value>clock_timestamp(),false)
+ THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='authorization security agent simulation rejected';END IF;
+ p:=zasp_authorization80.security_agent_object_request(o,w,e,actor,'simulateSecurityAgent',d);
+ IF NOT COALESCE(zasp_temporal74.api_ready('6ecde7cb0053af3378f47aef84ecbe99ca31d9cdced9fbe6d0dc64ee7e01b39e','0be1a2bfe93c30928eb03eae744993df6ec6c4db692b909aed9b7c486de6aca5'),false)
+ THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='security agent simulation release unavailable';END IF;
+ IF zasp_authorization80.security_agent_export_family(o,w,e,d,NULL) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='security agent export definitions unavailable';END IF;
+ LOCK TABLE public.zasp_workflow_records,public.zasp_security_agent_definitions,public.zasp_security_agent_definition_versions IN ROW EXCLUSIVE MODE;
+ result:=public.zasp_production_security_agent_existing_tests_simulate_core(o,w,e,d,actor,k,v,run_value,goal_value,evidence_value,expires_value,audit_value,correlation_value,receipt_value);
+ IF result IS NULL OR expires_value<=clock_timestamp() THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='security agent simulation authority expired';END IF;
+ PERFORM zasp_authorization80.security_agent_write_settled(p);
+ RETURN result;
+END $security_agent_simulate$;
+
+-- POST /security-agents/{id}/runs with no trigger: the manual trigger. The
+-- admission is the Temporal ownership release's (zasp_temporal66.manual_run),
+-- which decides whether the definition may be started by hand at all. A
+-- finding-response definition has no manual trigger.
+CREATE OR REPLACE FUNCTION zasp_authorization80.security_agent_manual_run(o text,w text,e text,d text,actor text,k text,v bigint,run_value text,audit_value text,correlation_value text,receipt_value text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $security_agent_manual_run$
+DECLARE p jsonb;result jsonb;
+BEGIN
+ IF current_setting('transaction_isolation')<>'read committed' THEN RAISE EXCEPTION USING ERRCODE='25001',MESSAGE='authorization security agent write requires read committed';END IF;
+ IF NOT COALESCE(public.zasp_valid_product_id(d) AND public.zasp_valid_product_id(run_value) AND public.zasp_valid_product_id(audit_value) AND public.zasp_valid_product_id(correlation_value) AND public.zasp_valid_product_id(receipt_value)
+  AND length(k) BETWEEN 16 AND 128 AND k~'^[A-Za-z0-9][A-Za-z0-9._:-]*$' AND v BETWEEN 1 AND 1000000,false)
+ THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='authorization security agent run rejected';END IF;
+ p:=zasp_authorization80.security_agent_write_request(o,w,e,actor,'runSecurityAgent',d);
+ IF zasp_authorization80.security_agent_export_family(o,w,e,d,NULL) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='security agent export definitions unavailable';END IF;
+ IF COALESCE(zasp_temporal78.family(o,w,e,d,actor),false) THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='authorization security agent run family rejected';END IF;
+ result:=zasp_temporal66.manual_run(o,w,e,d,actor,k,v,run_value,audit_value,correlation_value,receipt_value,'6e2fbdef64421286476be12a02188d7936e81db3126764bf2ab55e099fcb12cb','422b211febdd6e2b37882dc3f5961a79ca5c58f3f87f1642f7babf1224fbe94a');
+ IF result IS NULL OR jsonb_typeof(result) IS DISTINCT FROM 'object' THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='security agent manual admission unavailable';END IF;
+ PERFORM zasp_authorization80.security_agent_write_settled(p);
+ RETURN result;
+END $security_agent_manual_run$;
+
+DO $security_agent_object_privileges$
+DECLARE f record;
+BEGIN
+ FOR f IN SELECT * FROM(VALUES
+  ('zasp_authorization80.security_agent_object_request(text,text,text,text,text,text)',NULL),
+  ('zasp_authorization80.security_agent_run_detail(text,text,text,text,text)','zasp_security_agent_api'),
+  ('zasp_authorization80.security_agent_cancel_run(text,text,text,text,text,text,bigint,text,text,text)','zasp_security_agent_api'),
+  ('zasp_authorization80.security_agent_approval(text,text,text,text,text)','zasp_security_agent_api'),
+  ('zasp_authorization80.security_agent_decide_approval(text,text,text,text,text,text,bigint,text,timestamptz,text,text,text)','zasp_security_agent_api'),
+  ('zasp_authorization80.security_agent_simulate(text,text,text,text,text,text,bigint,text,text,jsonb,timestamptz,text,text,text)','zasp_security_agent_api'),
+  ('zasp_authorization80.security_agent_manual_run(text,text,text,text,text,text,bigint,text,text,text,text)','zasp_security_agent_api')
+ ) v(signature,grantees) LOOP
+  EXECUTE format('ALTER FUNCTION %s OWNER TO zasp_discovery_authority',f.signature::regprocedure);
+  EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC',f.signature::regprocedure);
+  IF f.grantees IS NOT NULL THEN EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO %s',f.signature::regprocedure,f.grantees);END IF;
+ END LOOP;
+END $security_agent_object_privileges$;

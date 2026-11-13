@@ -409,6 +409,18 @@ func (a *SecurityAgentOrderedResourceAuthority) resource(ctx context.Context, id
 	if err != nil {
 		return v, zero, err
 	}
+	run := ""
+	if op == "resource_run" {
+		run = value
+	}
+	return orderedResourceFromRaw(raw, id, run)
+}
+
+// orderedResourceFromRaw decodes and verifies one ordered run resource. A
+// non-empty run is the run the resource must describe.
+func orderedResourceFromRaw(raw json.RawMessage, id RequestIdentity, run string) (orderedResourceWire, SecurityAgentOrderedRunResource, error) {
+	var v orderedResourceWire
+	var zero SecurityAgentOrderedRunResource
 	if len(raw) > 16384 || public62Decode(raw, &v) != nil {
 		return orderedResourceWire{}, zero, ErrRepositoryUnavailable
 	}
@@ -416,7 +428,7 @@ func (a *SecurityAgentOrderedResourceAuthority) resource(ctx context.Context, id
 	if !ok {
 		return orderedResourceWire{}, zero, ErrRepositoryUnavailable
 	}
-	if op == "resource_run" && v.Ordered.RunID != value {
+	if run != "" && v.Ordered.RunID != run {
 		return orderedResourceWire{}, zero, ErrRepositoryUnavailable
 	}
 	return v, result, nil

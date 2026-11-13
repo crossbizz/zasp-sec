@@ -35,7 +35,8 @@ func securityAgentFamilyResult(envelope json.RawMessage) (string, json.RawMessag
 }
 
 // runSecurityAgentCurrent starts a run under current authorization with one
-// authorized statement. A manual trigger has no authorized admission.
+// authorized statement. A run with no trigger is the manual trigger, which
+// has its own statement.
 func (repository *PostgresRepository) runSecurityAgentCurrent(ctx context.Context, identity RequestIdentity, input SecurityAgentRunRequest) (SecurityAgentRunResult, error) {
 	if repository == nil || !repository.securityAgentExecution || nilInterface(repository.database) || ctx == nil || !validRequestIdentity(identity, false) || !stringIn(string(identity.CredentialKind), string(CredentialBrowserSession), string(CredentialBearerToken)) ||
 		!validProductID(input.DefinitionID) || !validPublicIdempotency(input.IdempotencyKey) || input.ExpectedVersion < 1 || input.ExpectedVersion > 1000000 || !validProductID(input.RunID) || !stringIn(input.TriggerKind, "finding", "session", "attack_path", "manual") ||
@@ -43,7 +44,7 @@ func (repository *PostgresRepository) runSecurityAgentCurrent(ctx context.Contex
 		return SecurityAgentRunResult{}, ErrRepositoryOperation
 	}
 	if input.TriggerKind == "manual" {
-		return SecurityAgentRunResult{}, ErrRepositoryUnavailable
+		return repository.runSecurityAgentManualCurrent(ctx, identity, input)
 	}
 	if !validProductID(input.TriggerID) || input.TriggerVersion != nil && (*input.TriggerVersion < 1 || !validSecurityAgentText(*input.TriggerSource, 128)) {
 		return SecurityAgentRunResult{}, ErrRepositoryOperation

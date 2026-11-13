@@ -576,7 +576,7 @@ provision_customer_account() {
 # stack provides are listed; the others need queues, keys or endpoints it does
 # not create yet.
 cmd_worker() {
-  [ "$#" -eq 1 ] || fail "usage: $0 worker {scheduler|outbox|discovery|security-agent|projection-graph|projection-search|projection-risk}"
+  [ "$#" -eq 1 ] || fail "usage: $0 worker {scheduler|outbox|discovery|security-agent|security-agent-action|projection-graph|projection-search|projection-risk}"
   load_environment
   export ZASP_WORKER_MODE="$1" ZASP_WORKER_ID="real-stack-$1" ZASP_AWS_REGION=us-east-1
   export ZASP_POLL_INTERVAL=1s ZASP_LEASE_DURATION=30s ZASP_SHUTDOWN_TIMEOUT=5s ZASP_BATCH_SIZE=10 ZASP_PROVIDER_TIMEOUT=10s
@@ -649,6 +649,15 @@ cmd_worker() {
       export ZASP_RED_TEAM_TARGET_TOKEN_FILE="$SECRETS/red-team-adapter.token" ZASP_RED_TEAM_TARGET_CA_FILE="$SECRETS/red-team-adapter-ca.pem"
       [ -z "${ZASP_REAL_STACK_PRICING_BINDINGS:-}" ] || export ZASP_TEMPORAL_PRICING_BINDINGS_FILE="$ZASP_REAL_STACK_PRICING_BINDINGS"
       ;;
+    security-agent-action)
+      # Executes the effects of temporary-policy, session-isolation and
+      # connector-revocation actions and signs the policy envelopes the
+      # gateway verifies. It needs only the database and the signing key.
+      provision_security_agent_secrets
+      export ZASP_LOCAL_HEALTH_PORT=8085
+      export ZASP_POSTGRES_DSN="$(dsn zasp_svc_security_agent_action)" ZASP_DATABASE_AUTHORITY=zasp_security_agent_action_worker
+      export ZASP_GATEWAY_SIGNING_KEY_ID=real-stack-gateway ZASP_GATEWAY_SIGNING_PRIVATE_KEY_FILE=/var/run/secrets/zasp-security-agent-action/gateway-signing-private-key
+      ;;
     # The three projection workers turn a completed discovery snapshot into
     # the graph, the search index, and the findings and attack paths.
     projection-graph)
@@ -719,8 +728,11 @@ provision_security_agent_secrets() {
   install -d -m 0700 /var/run/secrets/zasp-security-agent /var/run/secrets/zasp-security-agent-action /var/run/zasp-policy-verifier ||
     fail "create /var/run/secrets/zasp-security-agent, /var/run/secrets/zasp-security-agent-action and /var/run/zasp-policy-verifier (needs root)"
   # Replace, never rewrite in place: the files are read-only.
-  rm -f /var/run/secrets/zasp-security-agent/openrouter-api-token /var/run/secrets/zasp-security-agent-action/gateway-signing-private-key /var/run/zasp-policy-verifier/policy-keys.json
+  # The planner token is replaced only when a new one is given: the action
+  # worker starts without it and must not remove the planner's.
+  rm -f /var/run/secrets/zasp-security-agent-action/gateway-signing-private-key /var/run/zasp-policy-verifier/policy-keys.json
   if [ -n "${OPENROUTER_API_KEY:-}" ]; then
+    rm -f /var/run/secrets/zasp-security-agent/openrouter-api-token
     (umask 077; printf '%s' "$OPENROUTER_API_KEY" > /var/run/secrets/zasp-security-agent/openrouter-api-token) || fail "planner token was not written"
     # The worker requires the mode a Kubernetes secret mount has (0444); the
     # directory above keeps other users out.
@@ -851,7 +863,7 @@ cmd_project() {
 }
 
 # The background processes of 'start', in start order.
-PROCESSES="api worker-scheduler worker-discovery worker-outbox worker-projection-graph worker-projection-search worker-projection-risk projector ui"
+PROCESSES="api worker-scheduler worker-discovery worker-outbox worker-projection-graph worker-projection-search worker-projection-risk worker-security-agent-action projector ui"
 
 # The HTTP status of a local address, or 000 when nothing answers. A proxy
 # configured for outbound traffic must not be asked for a loopback address.
@@ -872,6 +884,7 @@ process_status() {
     worker-projection-graph) http_status http://127.0.0.1:8091/readyz ;;
     worker-projection-search) http_status http://127.0.0.1:8092/readyz ;;
     worker-projection-risk) http_status http://127.0.0.1:8093/readyz ;;
+    worker-security-agent-action) http_status http://127.0.0.1:8085/readyz ;;
     ui) http_status --cacert "$TLS/ca.crt" --resolve "$ORIGIN_HOST:$ORIGIN_PORT:127.0.0.1" "$PUBLIC_ORIGIN/sign-in" ;;
     projector) if process_alive projector; then echo 200; else echo 000; fi ;;
   esac
@@ -982,6 +995,9 @@ cmd_start() {
   launch worker-projection-graph worker projection-graph
   launch worker-projection-search worker projection-search
   launch worker-projection-risk worker projection-risk
+  # The planning worker ('$0 worker security-agent') needs OPENROUTER_API_KEY
+  # and is started by hand; the action worker needs nothing but the database.
+  launch worker-security-agent-action worker security-agent-action
   launch projector project
   launch ui ui
   local failed=0
@@ -992,6 +1008,7 @@ cmd_start() {
   wait_ready worker-projection-graph 120 || failed=1
   wait_ready worker-projection-search 120 || failed=1
   wait_ready worker-projection-risk 120 || failed=1
+  wait_ready worker-security-agent-action 120 || failed=1
   wait_ready projector 4 || failed=1
   wait_ready ui 90 || failed=1
   cmd_status

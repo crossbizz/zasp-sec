@@ -136,6 +136,8 @@ type SecurityAgentRunResult struct {
 	CorrelationID     string                      `json:"correlation_id"`
 	ReceiptID         string                      `json:"receipt_id"`
 	Replayed          bool                        `json:"replayed"`
+	// Ordered is set only for a run of the ordered release.
+	Ordered *SecurityAgentOrderedCancellation `json:"ordered,omitempty"`
 }
 
 type SecurityAgentRun struct {
@@ -201,6 +203,8 @@ type SecurityAgentApproval struct {
 	Reversible      bool                          `json:"reversible"`
 	TTLSeconds      int                           `json:"ttl_seconds"`
 	EvidenceSummary []string                      `json:"evidence_summary"`
+	// ordered marks an approval the ordered release projected and verified.
+	ordered bool
 }
 
 type SecurityAgentRunDetail struct {
@@ -214,6 +218,9 @@ type SecurityAgentRunDetail struct {
 	Approvals        []SecurityAgentApproval      `json:"approvals"`
 	Execution        []SecurityAgentExecutionStep `json:"execution"`
 	Verification     string                       `json:"verification"`
+	// Ordered is set only for a run of the ordered release, whose projection
+	// is verified by that release's own rules.
+	Ordered *SecurityAgentOrderedDetail `json:"ordered,omitempty"`
 }
 
 type SecurityAgentApprovalPageRequest struct {
@@ -549,7 +556,7 @@ func (handler *securityAgentPublicHTTPHandler) getRun(writer http.ResponseWriter
 		writeProductionError(writer, request, err)
 		return
 	}
-	if !validSecurityAgentRunDetail(result, runID) {
+	if result.Ordered != nil && result.Run.ID != runID || result.Ordered == nil && !validSecurityAgentRunDetail(result, runID) {
 		writeProductionError(writer, request, ErrRepositoryUnavailable)
 		return
 	}
@@ -587,7 +594,9 @@ func (handler *securityAgentPublicHTTPHandler) cancelRun(writer http.ResponseWri
 		return
 	}
 	read := SecurityAgentRun{ManualTrigger: result.ManualTrigger, ID: result.ID, AgentID: result.AgentID, State: result.State, EvidenceIDs: result.EvidenceIDs, DefinitionVersion: result.DefinitionVersion, Version: result.Version}
-	if result.ID != runID || result.State != "cancelled" || result.Version != expectedVersion+1 || !validSecurityAgentRun(read) || !validProductID(result.AuditID) || !validProductID(result.ReceiptID) {
+	// An ordered cancellation before admission may leave the run for a human.
+	cancelled := result.State == "cancelled" || result.Ordered != nil && result.State == "needs_human"
+	if result.ID != runID || !cancelled || result.Version != expectedVersion+1 || !validSecurityAgentRun(read) || !validProductID(result.AuditID) || !validProductID(result.ReceiptID) {
 		writeProductionError(writer, request, ErrRepositoryUnavailable)
 		return
 	}
@@ -595,6 +604,13 @@ func (handler *securityAgentPublicHTTPHandler) cancelRun(writer http.ResponseWri
 	writer.Header().Set("X-Audit-ID", result.AuditID)
 	if identity.CredentialKind == CredentialBrowserSession {
 		writer.Header().Set("X-Mutation-Receipt-ID", result.ReceiptID)
+	}
+	if result.Ordered != nil {
+		writeJSONValue(writer, request, http.StatusOK, struct {
+			SecurityAgentRun
+			Ordered *SecurityAgentOrderedCancellation `json:"ordered"`
+		}{read, result.Ordered}, nil)
+		return
 	}
 	writeJSONValue(writer, request, http.StatusOK, read, nil)
 }
@@ -658,7 +674,7 @@ func (handler *securityAgentPublicHTTPHandler) getApproval(writer http.ResponseW
 		writeProductionError(writer, request, err)
 		return
 	}
-	if result.ID != approvalID || !validSecurityAgentApproval(result) {
+	if result.ID != approvalID || !result.ordered && !validSecurityAgentApproval(result) {
 		writeProductionError(writer, request, ErrRepositoryUnavailable)
 		return
 	}

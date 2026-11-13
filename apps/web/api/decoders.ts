@@ -294,7 +294,8 @@ export function decodeIntegrationSync(value: unknown): IntegrationSync {
   }
   if (record.status === "running" && (started === null || completed !== null || record.snapshot_id !== null || record.last_error_code !== null || retry !== null)) fail();
   if (record.status === "succeeded" && (started === null || completed === null || record.snapshot_id === null || record.last_error_code !== null || retry !== null)) fail();
-  if ((record.status === "failed" || record.status === "cancelled") && (started === null || completed === null || record.last_error_code === null || record.snapshot_id !== null)) fail();
+  // A sync can fail or be cancelled while still queued (for example when its reservation is released), so it may never have started.
+  if ((record.status === "failed" || record.status === "cancelled") && (completed === null || record.last_error_code === null || record.snapshot_id !== null)) fail();
   if (record.status === "cancelled" && (record.last_error_code !== "cancelled" || retry !== null)) fail();
   return value as IntegrationSync;
 }

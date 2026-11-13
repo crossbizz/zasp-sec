@@ -149,6 +149,7 @@ describe("production discovery response decoders", () => {
   it.each([
     ["initial queue", { ...sync, status: "queued", attempt: 0, started_at: null, completed_at: null, discovered_count: 0, changed_count: 0, removed_count: 0, snapshot_id: null, last_error_code: null, retry_at: null }],
     ["retry queue", { ...sync, status: "queued", attempt: 2, completed_at: null, snapshot_id: null, last_error_code: "rate_limited", retry_at: "2026-08-19T00:00:03Z" }],
+    ["failure before any attempt started", { ...sync, status: "failed", attempt: 0, started_at: null, discovered_count: 0, changed_count: 0, removed_count: 0, snapshot_id: null, last_error_code: "partial" }],
   ])("accepts the canonical %s sync tuple", (_name, value) => {
     expect(decodeIntegrationSync(value)).toEqual(value);
   });

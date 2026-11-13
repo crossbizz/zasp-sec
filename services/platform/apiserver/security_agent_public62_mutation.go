@@ -2,6 +2,7 @@ package apiserver
 
 import (
 	"context"
+	"encoding/json"
 	"strconv"
 	"time"
 )
@@ -108,7 +109,7 @@ func (r *SecurityAgentPublicRepository) Decide(ctx context.Context, id RequestId
 // Cancel does not require or manufacture fresh browser authentication. The
 // facade adapts its required transition timestamp from the database clock.
 func (r *SecurityAgentPublicRepository) Cancel(ctx context.Context, id RequestIdentity, q SecurityAgentPublicCancellation) (SecurityAgentPublicCancellationResult, error) {
-	var zero, v SecurityAgentPublicCancellationResult
+	var zero SecurityAgentPublicCancellationResult
 	if !r.valid(ctx, id) || !public62ID(q.RunID) || !public62MutationVersion(q.RunVersion) || !securityAgentPublicIdempotency.MatchString(q.IdempotencyKey) {
 		return zero, ErrRepositoryOperation
 	}
@@ -116,6 +117,13 @@ func (r *SecurityAgentPublicRepository) Cancel(ctx context.Context, id RequestId
 	if err != nil {
 		return zero, err
 	}
+	return public62CancellationResult(raw, id, q)
+}
+
+// public62CancellationResult validates the retained cancellation result of
+// the ordered release against the request it answers.
+func public62CancellationResult(raw json.RawMessage, id RequestIdentity, q SecurityAgentPublicCancellation) (SecurityAgentPublicCancellationResult, error) {
+	var zero, v SecurityAgentPublicCancellationResult
 	if len(raw) > 4096 || public62Decode(raw, &v) != nil || v.ContractVersion != 62 || v.OrganizationID != id.Scope.OrganizationID().String() || v.WorkspaceID != id.Scope.WorkspaceID().String() || v.EnvironmentID != id.Scope.EnvironmentID().String() || v.RunID != q.RunID || v.RunVersion != q.RunVersion+1 || v.Outcome != "cancelled-request" || !public62MutationIdentity(id, "cancel", q.IdempotencyKey, v.AuditID, v.ReceiptID) {
 		return zero, ErrRepositoryUnavailable
 	}

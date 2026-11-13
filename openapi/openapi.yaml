@@ -2138,6 +2138,27 @@ paths:
         '403': { $ref: '#/components/responses/ProductErrorResponse' }
         '409': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/security-agent-planner-pricing:
+    put:
+      operationId: setSecurityAgentPlannerPricing
+      summary: Approve, replace or disable the planner pricing of the current Environment
+      description: The planner is called only under an administrator-approved provider account and price ceiling. The approval names a credential by reference and digest, never by value. The time of fresh authentication is taken from the verified browser session.
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ControlVersion'
+        - $ref: '#/components/parameters/FreshAuth'
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentPlannerPricingInput' } } } }
+      responses:
+        '200': { description: Durable planner pricing approval., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' } }, content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentPlannerPricing' } } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/security-agents/{id}/simulate:
     parameters:
       - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
@@ -3901,6 +3922,45 @@ components:
         correlation_id: { $ref: '#/components/schemas/ProductID' }
         receipt_id: { $ref: '#/components/schemas/ProductID' }
         replayed: { type: boolean }
+    SecurityAgentPlannerPricingPolicy:
+      type: object
+      additionalProperties: false
+      required: [provider, model, account_profile, cost_unit, maximum_tokens, maximum_cost_nano_credits, request_policy_version, request_token_limit, credential_reference, credential_digest, effective_at, expires_at]
+      properties:
+        provider: { type: string, const: openrouter }
+        model: { type: string, minLength: 1, maxLength: 128, pattern: '^[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*$' }
+        account_profile: { type: string, pattern: '^[A-Za-z0-9_.-]{1,128}$' }
+        cost_unit: { type: string, const: openrouter_credit }
+        maximum_tokens: { type: integer, minimum: 1, maximum: 12000 }
+        maximum_cost_nano_credits: { type: integer, format: int64, minimum: 1, maximum: 1000000000000 }
+        request_policy_version: { type: string, pattern: '^[A-Za-z0-9_.-]{1,63}$' }
+        request_token_limit: { type: integer, minimum: 1, maximum: 4096 }
+        credential_reference: { type: string, description: 'A reference below secret_ref_planner/{organization}/{workspace}/{environment}/ of the current scope. Never a credential.', pattern: '^secret_ref_planner/[A-Za-z0-9_/-]{1,220}$' }
+        credential_digest: { type: string, pattern: '^sha256:[a-f0-9]{64}$' }
+        effective_at: { type: string, description: 'UTC instant with exactly six fractional digits.', pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{6}Z$' }
+        expires_at: { type: string, description: 'UTC instant with exactly six fractional digits, at most 720 hours after effective_at.', pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{6}Z$' }
+    SecurityAgentPlannerPricingInput:
+      type: object
+      additionalProperties: false
+      required: [environment_id, operation, expected_account_version, policy]
+      properties:
+        environment_id: { $ref: '#/components/schemas/ProductID' }
+        operation: { type: string, enum: [create, version, disable] }
+        expected_account_version: { type: integer, minimum: 0, maximum: 1000000 }
+        policy: { $ref: '#/components/schemas/SecurityAgentPlannerPricingPolicy' }
+    SecurityAgentPlannerPricing:
+      type: object
+      additionalProperties: false
+      required: [policy_id, version, policy_digest, account_id, account_version, disabled, policy, mutation_id]
+      properties:
+        policy_id: { $ref: '#/components/schemas/ProductID' }
+        version: { type: integer, minimum: 1, maximum: 1000000 }
+        policy_digest: { type: string, pattern: '^sha256:[a-f0-9]{64}$' }
+        account_id: { $ref: '#/components/schemas/ProductID' }
+        account_version: { type: integer, minimum: 1, maximum: 1000000 }
+        disabled: { type: boolean }
+        policy: { $ref: '#/components/schemas/SecurityAgentPlannerPricingPolicy' }
+        mutation_id: { $ref: '#/components/schemas/ProductID' }
     SecurityAgentActivationState:
       type: object
       additionalProperties: false

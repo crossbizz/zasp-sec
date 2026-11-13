@@ -32,7 +32,7 @@ export const decodeConnectionTest = (value: unknown) => decoded<ConnectionTest>(
 
 export function decodeAPIToken(value: unknown): ApiToken {
   return decoded<ApiToken>(value, ["id", "name", "principal_id", "workspace_id", "environment_id", "permissions", "created_at", "expires_at", "last_used_at", "revoked_at", "version"], (record) => {
-    id(record.id); text(record.name, 128); id(record.principal_id); id(record.workspace_id); id(record.environment_id); strings(record.permissions, 10); date(record.created_at); date(record.expires_at); nullableDate(record.last_used_at); nullableDate(record.revoked_at); version(record.version);
+    id(record.id); text(record.name, 128); id(record.principal_id); id(record.workspace_id); id(record.environment_id); strings(record.permissions, 32); date(record.created_at); date(record.expires_at); nullableDate(record.last_used_at); nullableDate(record.revoked_at); version(record.version);
   }, ["audit_correlation_id"]);
 }
 export const decodeAPITokenRevealGrant = (value: unknown) => decoded<ApiTokenRevealGrant>(value, ["grant_id", "expires_at", "token"], (record) => { id(record.grant_id); date(record.expires_at); decodeAPIToken(record.token); });

@@ -324,6 +324,9 @@ func (repository *PostgresRepository) SimulateSecurityAgent(ctx context.Context,
 	if err != nil {
 		return SecurityAgentSimulationResult{}, ErrRepositoryOperation
 	}
+	if _, checked := requestAuthorizationFromContext(ctx); checked {
+		return repository.simulateSecurityAgentCurrent(ctx, identity, input, json.RawMessage(evidence))
+	}
 	statement := postgresSecurityAgentSimulateSQL
 	args := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), input.DefinitionID, identity.PrincipalID.String(), input.IdempotencyKey, input.ExpectedVersion, input.RunID, input.Goal, json.RawMessage(evidence), input.ExpiresAt, input.AuditID, input.CorrelationID, input.ReceiptID}
 	versioned, releaseErr := repository.SecurityAgentExistingTestDefinitionsAvailable(ctx)
@@ -545,6 +548,9 @@ func (repository *PostgresRepository) GetSecurityAgentRun(ctx context.Context, i
 	if repository == nil || !repository.securityAgentExecution || nilInterface(repository.database) || ctx == nil || !validRequestIdentity(identity, false) || !stringIn(string(identity.CredentialKind), string(CredentialBrowserSession), string(CredentialBearerToken)) || !validProductID(runID) {
 		return SecurityAgentRunDetail{}, ErrRepositoryOperation
 	}
+	if _, checked := requestAuthorizationFromContext(ctx); checked {
+		return repository.getSecurityAgentRunCurrent(ctx, identity, runID)
+	}
 	if payload, handled, err := queryTemporalFindingResponse(ctx, repository.database, `SELECT zasp_temporal78.run_context($1,$2,$3,$4)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), runID); err != nil {
 		return SecurityAgentRunDetail{}, discoveryProviderError(err)
 	} else if handled {
@@ -612,6 +618,9 @@ func decodeSecurityAgentStoredRunDetail(payload json.RawMessage, runID string) (
 func (repository *PostgresRepository) CancelSecurityAgentRun(ctx context.Context, identity RequestIdentity, input SecurityAgentCancelRequest) (SecurityAgentRunResult, error) {
 	if repository == nil || !repository.securityAgentExecution || nilInterface(repository.database) || ctx == nil || !validRequestIdentity(identity, false) || !stringIn(string(identity.CredentialKind), string(CredentialBrowserSession), string(CredentialBearerToken)) || !validProductID(input.RunID) || !validPublicIdempotency(input.IdempotencyKey) || input.ExpectedVersion < 1 || input.ExpectedVersion > 1000000 || !validProductID(input.AuditID) || !validProductID(input.CorrelationID) || !validProductID(input.ReceiptID) {
 		return SecurityAgentRunResult{}, ErrRepositoryOperation
+	}
+	if _, checked := requestAuthorizationFromContext(ctx); checked {
+		return repository.cancelSecurityAgentRunCurrent(ctx, identity, input)
 	}
 	statement := postgresSecurityAgentCancelRunSQL
 	args := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), input.RunID, identity.PrincipalID.String(), input.IdempotencyKey, input.ExpectedVersion, input.AuditID, input.CorrelationID, input.ReceiptID}
@@ -750,6 +759,9 @@ func (repository *PostgresRepository) ListSecurityAgentApprovals(ctx context.Con
 func (repository *PostgresRepository) GetSecurityAgentApproval(ctx context.Context, identity RequestIdentity, approvalID string) (SecurityAgentApproval, error) {
 	if repository == nil || !repository.securityAgentExecution || nilInterface(repository.database) || ctx == nil || !validRequestIdentity(identity, false) || !stringIn(string(identity.CredentialKind), string(CredentialBrowserSession), string(CredentialBearerToken)) || !validProductID(approvalID) {
 		return SecurityAgentApproval{}, ErrRepositoryOperation
+	}
+	if _, checked := requestAuthorizationFromContext(ctx); checked {
+		return repository.getSecurityAgentApprovalCurrent(ctx, identity, approvalID)
 	}
 	statement := postgresSecurityAgentApprovalDetailSQL
 	versioned, contextErr := repository.SecurityAgentExistingTestDefinitionsAvailable(ctx)
@@ -912,6 +924,9 @@ func validSecurityAgentRunDetail(value SecurityAgentRunDetail, runID string) boo
 func (repository *PostgresRepository) DecideSecurityAgentApproval(ctx context.Context, identity RequestIdentity, input SecurityAgentApprovalDecisionRequest) (SecurityAgentApprovalResult, error) {
 	if repository == nil || !repository.securityAgentExecution || nilInterface(repository.database) || ctx == nil || !validRequestIdentity(identity, false) || identity.CredentialKind != CredentialBrowserSession || !identity.FreshAuthenticated || identity.FreshAuthExpiresAt.IsZero() || identity.FreshAuthExpiresAt.Location() != time.UTC || !validProductID(input.ApprovalID) || !validPublicIdempotency(input.IdempotencyKey) || input.ExpectedVersion < 1 || input.ExpectedVersion > 1000000 || !stringIn(input.Decision, "approved", "rejected", "cancelled") || input.FreshAuthAt.IsZero() || input.FreshAuthAt.Location() != time.UTC || !validProductID(input.AuditID) || !validProductID(input.CorrelationID) || !validProductID(input.ReceiptID) {
 		return SecurityAgentApprovalResult{}, ErrRepositoryOperation
+	}
+	if _, checked := requestAuthorizationFromContext(ctx); checked {
+		return repository.decideSecurityAgentApprovalCurrent(ctx, identity, input)
 	}
 	statement := postgresSecurityAgentDecideApprovalSQL
 	versioned, releaseErr := repository.SecurityAgentExistingTestDefinitionsAvailable(ctx)

@@ -74,7 +74,7 @@ deploy/local/real-stack/stack.sh status   # one line per dependency and process
 deploy/local/real-stack/stack.sh stop     # stops the processes 'start' started
 ```
 
-`start` runs `up` when it has not completed or a dependency is not running, then starts the API, the six workers (scheduler, discovery, outbox and the three projection workers), the permission projector and the web application behind its TLS front. Each runs the foreground command described below, with its pid in `$ZASP_REAL_STACK_STATE/run/` and its output in `$ZASP_REAL_STACK_STATE/logs/`. It is safe to repeat: a process that already runs, or whose port already answers, is left alone. Before the first `bootstrap` it stops after `up` and prints the `bootstrap` command. It rebuilds the web application when its sources are newer than the last build; it does not rebuild the Go binaries (`up` does).
+`start` runs `up` when it has not completed or a dependency is not running, then starts the API, seven workers (scheduler, discovery, outbox, the three projection workers and the Security Agent action worker), the permission projector and the web application behind its TLS front. Each runs the foreground command described below, with its pid in `$ZASP_REAL_STACK_STATE/run/` and its output in `$ZASP_REAL_STACK_STATE/logs/`. It is safe to repeat: a process that already runs, or whose port already answers, is left alone. Before the first `bootstrap` it stops after `up` and prints the `bootstrap` command. It rebuilds the web application when its sources are newer than the last build; it does not rebuild the Go binaries (`up` does).
 
 ## The web application and its TLS front
 
@@ -94,7 +94,7 @@ The script checks `/etc/hosts` for the host name and prints the line to add. It 
 deploy/local/real-stack/stack.sh project
 ```
 
-Runs `zasp-authorization-reconcile -mode reconcile -limit 20` every 5 seconds (`ZASP_REAL_STACK_PROJECT_INTERVAL`), the command the production CronJob runs once a minute. Without it a new member or resource answers `authorization_unavailable` until someone runs a pass.
+Runs `zasp-authorization-reconcile -mode reconcile -limit 20` every 5 seconds (`ZASP_REAL_STACK_PROJECT_INTERVAL`), the command the production CronJob runs once a minute. Without it a new member, session or resource answers `authorization_pending` or `authorization_unavailable` until someone runs a pass, so it must keep running while the product is used. On 2026-11-13 a new browser session answered `authorization_pending` for a few seconds until the next pass.
 
 ## Use
 
@@ -149,12 +149,21 @@ deploy/local/real-stack/stack.sh worker projection-risk     # health on 127.0.0.
 
 The three projection workers; see [The projection workers](#the-projection-workers).
 
-A requested sync passes through all three: the API writes the sync and an outbox row, `outbox` publishes it, `discovery` starts the Temporal workflow and collects four pages, then applies the snapshot. On this machine a sync of the emulated account takes four to seven minutes, because every provider request of a page is authorized on its own (about half a second each, more under load).
+```bash
+OPENROUTER_API_KEY=... deploy/local/real-stack/stack.sh worker security-agent   # health on 127.0.0.1:8084
+deploy/local/real-stack/stack.sh worker security-agent-action                   # health on 127.0.0.1:8085
+```
+
+The two Security Agent workers. `security-agent` plans and executes runs through Temporal; it needs an OpenRouter API token (written only to the fixed path the worker reads) and direct egress to `openrouter.ai`, and it is started by hand. `security-agent-action` executes temporary-policy, session-isolation and connector-revocation effects and signs the policy envelopes; it needs only the database and the gateway signing key the script generates, and `start` launches it.
+
+A planner request the provider rejects (for example HTTP 402 when the OpenRouter account has no credits) ends the run within seconds in state `needs_human` with `budget_stop_reason` `budget_usage_unknown`: the request was sent and the provider reported no usage. `GET /api/v1/security-agent-runs/{id}` with `X-Zasp-Budget-Details: v1` shows it. A planner request needs the Environment's pricing approval first (`PUT /api/v1/security-agent-planner-pricing`, a browser session with fresh authentication and `manage_identity`). Without one the planning step is refused before anything is sent and the run stays `queued`, so approve pricing before activating an agent.
+
+A requested sync passes through all three: the API writes the sync and an outbox row, `outbox` publishes it, `discovery` starts the Temporal workflow and collects four pages, then applies the snapshot. On 2026-11-13 a sync of the emulated account requested from the browser took 97 seconds on this machine; every provider request of a page is authorized on its own.
 
 Three things end a run early here that a quiet deployment does not see:
 
 - **A worker configured with another collector version.** The installed schema hands every run the collector version `collector_v1`; `stack.sh` sets the worker to the same value.
-- **Stopping the discovery worker during a page.** The page is recorded as `outcome_unknown`, the sync fails, and the integration stays reserved for that run: every later sync waits in `queued` with `last_error_code` `retryable`. Nothing in the product releases it. On this disposable database the reservation row of the failed sync can be deleted from `zasp_discovery_generation_reservations` by the superuser.
+- **Stopping the discovery worker during a page.** The page is recorded as `outcome_unknown`, the sync fails, and the integration stays reserved for that run: a later sync waits in `queued` with `last_error_code` `retryable`. Once the abandoned run has been quiet for ten minutes, the next sync that reaches its first page releases it (`zasp_temporal72.release_abandoned` in `completion.sql`). The release was not exercised in the browser run of 2026-11-13.
 - **Changing the schema or restarting the API during a run.** The per-request authorization is refused while the baseline seal is open, and the run ends as `revoked`.
 
 ## The projection workers
@@ -167,7 +176,7 @@ A discovery run that completes stores a snapshot and queues three rows in `zasp_
 | `projection-search` | entities | OpenSearch index `zasp-inventory-v1`: one document per entity and one snapshot marker | the search node on `127.0.0.1:4092`, the role `...:role/zasp-real-stack-projection-search`, the index the search-schema job creates |
 | `projection-risk` | entities, relationships and evidence | PostgreSQL: `zasp_discovery_risk_projection_current` and `_items`, then findings (`zasp_risk_findings` with their evidence, factors and break options) and attack paths (`zasp_risk_attack_paths` with their nodes and evidence) | the product database only |
 
-The API reads none of this from Neo4j or from the inventory index. `GET /api/v1/search`, `/findings`, `/attack-paths` and `/agents/{id}/relationships` answer from PostgreSQL, so of the three only the risk projection changes what those routes return. The graph and the search index are written and can be inspected directly.
+The API reads none of this from Neo4j or from the inventory index. `GET /api/v1/search`, `/findings`, `/attack-paths` and `/agents/{id}/relationships` answer from PostgreSQL, so of the three only the risk projection changes what those routes return. The graph and the search index are written and can be inspected directly. `GET /api/v1/integrations/{id}/freshness`, and the integration dialog in the web application, report the state of all three.
 
 `up` starts Neo4j in the container `zasp-real-stack-neo4j` (image `ZASP_REAL_STACK_NEO4J_IMAGE`, by default `public.ecr.aws/docker/library/neo4j:5.26-community`) on `127.0.0.1:7687`. Bolt refuses plaintext; the HTTP interface and usage reporting are off. The certificate is created in `$ZASP_REAL_STACK_STATE/tls/neo4j/`: an authority (`ca.crt`) whose name constraint permits only `localhost`, and a server certificate from it. The authority's private key is deleted once the certificate is signed. The files in that directory are world-readable because the container reads them as another user; the directory above it is private to the user running the script.
 
@@ -188,9 +197,7 @@ curl -s http://127.0.0.1:4092/zasp-inventory-v1/_count
 psql "postgres://postgres@127.0.0.1:55434/zasp?sslmode=disable" -c 'select kind, state, attempt, last_error from zasp_projection_work'
 ```
 
-Verified on 2026-11-13 on Linux: the three workers start and report ready against these dependencies, and `projection-graph-init` creates the constraints over verified TLS. A synthetic snapshot applied through the production graph store reached Neo4j (create, replay, and replacement by a later generation), and one applied through the production search store reached the index; both were removed afterwards. No discovery run had completed at that time, so the workers have not yet been seen projecting a discovered snapshot, and nothing here shows findings or attack paths produced from one.
-
-One failure is expected when that happens. The graph store refuses any node or relationship kind that contains the word `aws`, `github`, `cartography` or `neo4j`, and the AWS collector names its entities `aws_account`, `aws_role`, `aws_policy` and `aws_instance`. The graph worker passes those kinds on unchanged, so the `graph` row of an AWS snapshot is expected to fail while `search` and `risk` succeed. The store's refusal of such a kind was observed directly; the worker's failure on a real snapshot was not.
+Verified on 2026-11-13 on Linux: the three workers start and report ready against these dependencies, and `projection-graph-init` creates the constraints over verified TLS. A sync of the emulated account requested from the web application completed at 22:29:27 UTC, and the three projections of its snapshot were recorded as `current` by 22:29:31. Afterwards Neo4j held 13 `ZaspInventoryGraphNode` nodes (kinds `account` 1, `role` 4, `policy` 6, `service` 1, `resource` 1) and 21 `ZASP_INVENTORY_GRAPH_EDGE` relationships, and the index `zasp-inventory-v1` held 15 documents. `zasp_projection_work` also holds earlier rows in state `failed` with `projection_rejected` for all three kinds, from syncs earlier that day.
 
 ## The emulated AWS account
 
@@ -210,9 +217,9 @@ Create the integration with this configuration:
 
 A collection of this account yields 13 entities (the account, 4 roles, 6 policies, the EC2 service and the instance), 21 relationships and 5 posture results, 2 of them failing: administrator access on `agent-orchestrator` and IMDSv1 on the instance. The collector reads IAM roles with their attached managed policies and EC2 instances in every enabled region. It reads nothing else, and no Bedrock resource.
 
-Posture results become findings only through the `projection-risk` worker: after a run with that worker running, `GET /api/v1/findings` lists the two failing checks. On 2026-11-13 the graph and search projections refused the AWS snapshot (`graph snapshot input rejected`, `inventory search input rejected`), so the integration's freshness reports them as `degraded`.
+Posture results become findings only through the `projection-risk` worker: after a run with that worker running, `GET /api/v1/findings` lists the two failing checks, and the Findings page shows them as "Discovered AWS control iam_role_administratoraccess_policy" and "Discovered AWS control ec2_instance_imdsv2_enabled". After the sync of 2026-11-13 22:27 UTC the integration's freshness reported the risk, graph and search projections as `current`.
 
-The product classifies an IAM role as an identity and every other AWS entity as an asset. After a run, `GET /api/v1/identities` lists the four roles. `/agents`, `/tools` and `/runtimes` are fed by the Kubernetes, Okta and GitHub connectors; an AWS run adds nothing to them.
+The product classifies an IAM role as an identity and every other AWS entity as an asset. After a run, `GET /api/v1/identities` and the Identities page list the four roles (`customer-read` and the three under `/agents/`). `/agents`, `/tools` and `/runtimes` are fed by the Kubernetes, Okta and GitHub connectors; an AWS run adds nothing to them.
 
 ```bash
 deploy/local/real-stack/stack.sh down
@@ -232,10 +239,10 @@ Stops the processes `start` started, then the containers, and keeps their data. 
 
 | Not available | Why |
 | --- | --- |
-| Completing a sign-in without a person | Stytch must have this origin's redirect URLs registered, and a person must complete OAuth or follow the invitation email in a browser, through `stack.sh ui`. On 2026-11-13 a headless browser reached the Google sign-in page through this front; nobody has completed a sign-in through it yet. |
+| Completing a sign-in without a person | Stytch must have this origin's redirect URLs registered, and a person must complete OAuth or follow the invitation email in a browser, through `stack.sh ui`. On 2026-11-13 a headless browser reached the Google sign-in page through this front; nobody has completed a sign-in through it yet. The signed-in pages were walked the same day with a session issued in the local database as a test fixture; see [the tester's guide](../../../docs/operations/local-self-test.md) for what they showed and what failed. |
 | Discovery of a real account | LocalStack answers the AWS calls for one emulated account with a small fixture. There is no third-party provider, and the GitHub and Okta secrets are placeholders. |
 | Proving IAM | LocalStack accepts any external ID and never denies an action. |
-| Worker modes other than `scheduler`, `outbox`, `discovery` and the three projection modes | Each needs queues, keys and endpoints the script does not create yet, and the Security Agent worker needs an OpenRouter API token. |
+| Worker modes other than `scheduler`, `outbox`, `discovery`, the three projection modes and the two Security Agent modes | Each needs queues, keys and endpoints the script does not create yet. |
 | Connecting an integration without a person | `POST /api/v1/integrations/{id}/reference-authorization` accepts only a browser session that authenticated minutes ago. |
 
 ## Using an external PostgreSQL (for example a Neon development branch)

@@ -12,6 +12,11 @@ import (
 )
 
 const (
+	// The action releases' readiness for the current catalog
+	// (migrations/baseline/completion.sql, section Y1). The historical
+	// questions below follow the chain to a 60-release pin that the
+	// 61-release baseline can never satisfy.
+	currentSecurityAgentActionReadySQL         = `SELECT zasp_authorization80_worker.security_agent_action_ready($1,$2)`
 	postgresSecurityAgentActionReadyV27SQL     = `SELECT jsonb_build_object('release',zasp_recovery_execution_readiness($1,$2),'principal',zasp_security_agent_action_principal_ready())`
 	postgresSecurityAgentActionReadyV24SQL     = `SELECT jsonb_build_object('release',zasp_security_agent_session_isolation_readiness($1,$2),'principal',zasp_security_agent_action_principal_ready())`
 	postgresSecurityAgentActionReadyV23SQL     = `SELECT jsonb_build_object('release',zasp_security_agent_connector_revocation_readiness($1,$2),'principal',zasp_security_agent_action_principal_ready())`
@@ -96,6 +101,10 @@ type SecurityAgentActionRepository struct {
 	claimSQL, heartbeatSQL, storeSQL, readSQL, finishSQL string
 	sessionIsolation                                     bool
 	temporaryPolicyModes                                 bool
+	// current marks the configuration whose readiness question is the
+	// current catalog's own. That question includes the catalog integrity
+	// check, so the per-release application pins are not asked again.
+	current bool
 }
 
 func NewSecurityAgentActionRepository(database JSONDatabase) (*SecurityAgentActionRepository, error) {
@@ -105,6 +114,7 @@ func NewSecurityAgentActionRepository(database JSONDatabase) (*SecurityAgentActi
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	configurations := []SecurityAgentActionRepository{
+		{database: database, current: true, readySQL: currentSecurityAgentActionReadySQL, checksum: migrations.ProductionRecovery().Checksum(), fingerprint: migrations.ProductionRecoverySemanticFingerprint(), reconcileSQL: postgresSecurityAgentActionReconcileSQL, claimSQL: postgresSecurityAgentActionClaimV24SQL, heartbeatSQL: postgresSecurityAgentActionHeartbeatV24SQL, storeSQL: postgresSecurityAgentActionStoreV24SQL, readSQL: postgresSecurityAgentActionReadV24SQL, finishSQL: postgresSecurityAgentActionFinishV24SQL, sessionIsolation: true},
 		{database: database, readySQL: postgresSecurityAgentActionReadyV27SQL, checksum: migrations.ProductionRecovery().Checksum(), fingerprint: migrations.ProductionRecoverySemanticFingerprint(), reconcileSQL: postgresSecurityAgentActionReconcileSQL, claimSQL: postgresSecurityAgentActionClaimV24SQL, heartbeatSQL: postgresSecurityAgentActionHeartbeatV24SQL, storeSQL: postgresSecurityAgentActionStoreV24SQL, readSQL: postgresSecurityAgentActionReadV24SQL, finishSQL: postgresSecurityAgentActionFinishV24SQL, sessionIsolation: true},
 		{database: database, readySQL: postgresSecurityAgentActionReadyV24SQL, checksum: migrations.ProductionSecurityAgentSessionIsolation().Checksum(), fingerprint: migrations.ProductionSecurityAgentSessionIsolationSemanticFingerprint(), reconcileSQL: postgresSecurityAgentActionReconcileSQL, claimSQL: postgresSecurityAgentActionClaimV24SQL, heartbeatSQL: postgresSecurityAgentActionHeartbeatV24SQL, storeSQL: postgresSecurityAgentActionStoreV24SQL, readSQL: postgresSecurityAgentActionReadV24SQL, finishSQL: postgresSecurityAgentActionFinishV24SQL, sessionIsolation: true},
 		{database: database, readySQL: postgresSecurityAgentActionReadyV23SQL, checksum: migrations.ProductionSecurityAgentConnectorRevocation().Checksum(), fingerprint: migrations.ProductionSecurityAgentConnectorRevocationSemanticFingerprint(), reconcileSQL: postgresSecurityAgentActionReconcileSQL, claimSQL: postgresSecurityAgentActionClaimSQL, heartbeatSQL: postgresSecurityAgentActionHeartbeatSQL, storeSQL: postgresSecurityAgentActionStoreSQL, readSQL: postgresSecurityAgentActionReadSQL, finishSQL: postgresSecurityAgentActionFinishSQL},
@@ -122,7 +132,7 @@ func (repository *SecurityAgentActionRepository) Ready(ctx context.Context) erro
 	if repository == nil || nilInterface(repository.database) || ctx == nil || ctx.Err() != nil {
 		return ErrRepositoryUnavailable
 	}
-	if authority, ok := repository.database.(interface{ VerifySecurityAgentBudgetRelease(context.Context) error }); ok {
+	if authority, ok := repository.database.(interface{ VerifySecurityAgentBudgetRelease(context.Context) error }); ok && !repository.current {
 		if err := authority.VerifySecurityAgentBudgetRelease(ctx); err != nil {
 			return ErrRepositoryUnavailable
 		}

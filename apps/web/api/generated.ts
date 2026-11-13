@@ -1657,6 +1657,26 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/security-agent-planner-pricing": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        /**
+         * Approve, replace or disable the planner pricing of the current Environment
+         * @description The planner is called only under an administrator-approved provider account and price ceiling. The approval names a credential by reference and digest, never by value. The time of fresh authentication is taken from the verified browser session.
+         */
+        readonly put: operations["setSecurityAgentPlannerPricing"];
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/security-agent-runs": {
         readonly parameters: {
             readonly query?: never;
@@ -4501,6 +4521,43 @@ export type components = {
             readonly items: readonly components["schemas"]["SecurityAgentDefinition"][];
             readonly page_info: components["schemas"]["PageInfo"];
         };
+        readonly SecurityAgentPlannerPricing: {
+            readonly account_id: components["schemas"]["ProductID"];
+            readonly account_version: number;
+            readonly disabled: boolean;
+            readonly mutation_id: components["schemas"]["ProductID"];
+            readonly policy: components["schemas"]["SecurityAgentPlannerPricingPolicy"];
+            readonly policy_digest: string;
+            readonly policy_id: components["schemas"]["ProductID"];
+            readonly version: number;
+        };
+        readonly SecurityAgentPlannerPricingInput: {
+            readonly environment_id: components["schemas"]["ProductID"];
+            readonly expected_account_version: number;
+            /** @enum {string} */
+            readonly operation: "create" | "version" | "disable";
+            readonly policy: components["schemas"]["SecurityAgentPlannerPricingPolicy"];
+        };
+        readonly SecurityAgentPlannerPricingPolicy: {
+            readonly account_profile: string;
+            /** @constant */
+            readonly cost_unit: "openrouter_credit";
+            readonly credential_digest: string;
+            /** @description A reference below secret_ref_planner/{organization}/{workspace}/{environment}/ of the current scope. Never a credential. */
+            readonly credential_reference: string;
+            /** @description UTC instant with exactly six fractional digits. */
+            readonly effective_at: string;
+            /** @description UTC instant with exactly six fractional digits, at most 720 hours after effective_at. */
+            readonly expires_at: string;
+            /** Format: int64 */
+            readonly maximum_cost_nano_credits: number;
+            readonly maximum_tokens: number;
+            readonly model: string;
+            /** @constant */
+            readonly provider: "openrouter";
+            readonly request_policy_version: string;
+            readonly request_token_limit: number;
+        };
         readonly SecurityAgentPlanStep: {
             readonly action: string;
             /** @enum {string} */
@@ -5402,6 +5459,9 @@ export type SecurityAgentOrderedReceipt = components['schemas']['SecurityAgentOr
 export type SecurityAgentOrderedStep = components['schemas']['SecurityAgentOrderedStep'];
 export type SecurityAgentOrderedTriggerInput = components['schemas']['SecurityAgentOrderedTriggerInput'];
 export type SecurityAgentPage = components['schemas']['SecurityAgentPage'];
+export type SecurityAgentPlannerPricing = components['schemas']['SecurityAgentPlannerPricing'];
+export type SecurityAgentPlannerPricingInput = components['schemas']['SecurityAgentPlannerPricingInput'];
+export type SecurityAgentPlannerPricingPolicy = components['schemas']['SecurityAgentPlannerPricingPolicy'];
 export type SecurityAgentPlanStep = components['schemas']['SecurityAgentPlanStep'];
 export type SecurityAgentPlanSummary = components['schemas']['SecurityAgentPlanSummary'];
 export type SecurityAgentRationale = components['schemas']['SecurityAgentRationale'];
@@ -8748,6 +8808,46 @@ export interface operations {
                 };
                 content: {
                     readonly "application/json": components["schemas"]["SecurityAgentExecutionControlResult"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly setSecurityAgentPlannerPricing: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current execution-control version, including quoted zero before the first tenant override. */
+                readonly "If-Match": components["parameters"]["ControlVersion"];
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Explicit fresh-auth confirmation required for a sensitive approval or connector authorization mutation. */
+                readonly "X-Zasp-Fresh-Auth": components["parameters"]["FreshAuth"];
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["SecurityAgentPlannerPricingInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Durable planner pricing approval. */
+            readonly 200: {
+                headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SecurityAgentPlannerPricing"];
                 };
             };
             readonly 400: components["responses"]["ProductErrorResponse"];
