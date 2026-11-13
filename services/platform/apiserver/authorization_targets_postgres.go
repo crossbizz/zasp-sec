@@ -7,6 +7,7 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	"net/url"
 	"slices"
+	"sync"
 )
 
 const postgresAuthorizationResolveSQL = `SELECT zasp_authorization80.resolve($1,$2,$3,$4,NULLIF($5,''),NULLIF($6,''))`
@@ -83,8 +84,23 @@ func (r *PostgresAuthorizationResolver) ResolveAuthorization(ctx context.Context
 		// Neither database's partial visibility is a complete candidate set.
 		result := AuthorizationTargets{Collection: policy.Mode == "collection", Complete: true, Targets: []AuthorizationTarget{}}
 		seen := make(map[[2]string]AuthorizationTarget)
-		for _, database := range []*PostgresJSONDatabase{r.database, r.securityAgentDatabase} {
-			part, err := resolveAuthorizationDatabase(ctx, database, identity, route, policy, id)
+		// Both candidate sets are always required, so read them concurrently:
+		// a parent resolution is the slowest step of these requests. Each read
+		// holds only its own database's lock, and either failure refuses all.
+		databases := [2]*PostgresJSONDatabase{r.database, r.securityAgentDatabase}
+		var parts [2]AuthorizationTargets
+		var failures [2]error
+		var readers sync.WaitGroup
+		for n, database := range databases {
+			readers.Add(1)
+			go func() {
+				defer readers.Done()
+				parts[n], failures[n] = resolveAuthorizationDatabase(ctx, database, identity, route, policy, id)
+			}()
+		}
+		readers.Wait()
+		for n := range databases {
+			part, err := parts[n], failures[n]
 			if err != nil {
 				return AuthorizationTargets{}, err
 			}

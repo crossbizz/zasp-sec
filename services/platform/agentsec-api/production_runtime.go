@@ -362,6 +362,14 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 			}
 		}
 	}
+	// Without export storage the checked compliance reads still have an
+	// authorized source. A source that is not ready keeps the routes refused.
+	var complianceReads apiserver.ComplianceProductionHandler
+	if config.ComplianceExports == nil && tracedDatabase.CurrentAuthorizationRequired() {
+		if reads, readErr := apiserver.NewComplianceReadHandler(ctx, tracedDatabase, []byte(config.WorkflowSigningKey)); readErr == nil {
+			complianceReads = reads
+		}
+	}
 	var auditPublicPages *apiserver.AuditPublicPageRepository
 	if config.AuditExports != nil {
 		entries, transport, exportErr := factory(config)
@@ -526,6 +534,8 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 		composition, err = apiserver.NewCompositionWithSecurityAgentExports(handlers, auditExports, compliance, agentExports)
 	} else if compliance != nil {
 		composition, err = apiserver.NewCompositionWithCompliance(handlers, auditExports, compliance)
+	} else if complianceReads != nil {
+		composition, err = apiserver.NewCompositionWithCompliance(handlers, auditExports, complianceReads)
 	} else if auditExports != nil {
 		composition, err = apiserver.NewCompositionWithAuditExports(handlers, auditExports)
 	} else {

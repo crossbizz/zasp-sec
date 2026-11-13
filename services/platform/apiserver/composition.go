@@ -299,7 +299,12 @@ func newComposition(dependencies Dependencies, exports http.Handler, compliance 
 	}
 	seenOperations := make(map[string]bool, len(operations))
 	if complianceHandler != nil {
+		_, readsOnly := complianceHandler.(*complianceReadSurface)
 		for _, definition := range complianceOperations {
+			// A storage-free surface never registers an export route.
+			if readsOnly && !complianceReadOperation(definition.OperationID) {
+				continue
+			}
 			operations = append(operations, Operation{Method: definition.Method, Pattern: definition.Pattern, OperationID: definition.OperationID, Permission: "view_compliance", Security: []CredentialKind{CredentialBrowserSession}, RequireCSRF: definition.Method == http.MethodPost, RequireFreshAuth: definition.OperationID == "createComplianceExport", Handler: complianceHandler})
 		}
 	}

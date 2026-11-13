@@ -240,7 +240,21 @@ func authorizationStatementAllowed(g RequestAuthorization, q string, args []any)
 		args = []any{args[1], args[2], args[3], args[0]}
 	case `SELECT zasp_authorization80.inventory_page($1,$2,$3,$4,NULLIF($5,''),$6)`:
 		kind := map[string]string{"listAgents": "agent", "listTools": "tool", "listIdentities": "identity", "listRuntimes": "runtime", "listAssets": "asset"}[g.OperationID]
-		if len(args) != 6 || kind == "" || args[3] != kind {
+		if len(args) != 6 || !g.Collection || kind == "" {
+			return false
+		}
+		// The repository binds its typed InventoryKind. An interface comparison
+		// against an untyped string never matches, so compare the string value.
+		switch actual := args[3].(type) {
+		case InventoryKind:
+			if string(actual) != kind {
+				return false
+			}
+		case string:
+			if actual != kind {
+				return false
+			}
+		default:
 			return false
 		}
 	case `SELECT zasp_authorization80.audit_page($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`:
