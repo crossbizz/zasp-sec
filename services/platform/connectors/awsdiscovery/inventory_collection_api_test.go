@@ -40,7 +40,7 @@ func (analyzer *recordingSecurityAnalyzer) Collect(_ context.Context, request Co
 	analyzer.credential = append(analyzer.credential, bytes.Clone(credential))
 	analyzer.expiresAt = append(analyzer.expiresAt, request.CredentialExpiresAt)
 	analyzer.remainingEntities = append(analyzer.remainingEntities, request.RemainingEntities)
-	result := json.RawMessage(`{"findings":[{"check_id":"iam_role_administratoraccess_policy","resource_arn":"arn:aws:iam::123456789012:role/read","resource_id":"read","region":"global","severity":"high","status":"FAIL"}],"version":"5.39.1"}`)
+	result := json.RawMessage(`{"findings":[{"check_id":"iam_role_administratoraccess_policy","region":"global","resource_arn":"arn:aws:iam::123456789012:role/read","resource_id":"read","severity":"high","status":"FAIL"}],"version":"5.39.1"}`)
 	if request.Mode == SecurityModeCartographyAWS {
 		result = json.RawMessage(`{"policies":[{"arn":"arn:aws:iam::123456789012:policy/read","name":"read","principal_arns":["arn:aws:iam::123456789012:role/read"]}],"roles":[{"arn":"arn:aws:iam::123456789012:role/read","name":"read","trusted_role_arns":[]}],"version":"0.139.1"}`)
 	}

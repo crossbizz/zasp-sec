@@ -30,6 +30,12 @@ func (d *PostgresJSONDatabase) SecurityAgentExportsAvailable(ctx context.Context
 		return false, ErrRepositoryUnavailable
 	}
 	var installed, ready bool
+	if d.currentAuthorization {
+		if err := d.driver.QueryRow(ctx, currentSecurityAgentExportReadySQL, migrations.ProductionSecurityAgentExports().Checksum(), migrations.SecurityAgentExportsFingerprint()).Scan(&ready); err != nil || !ready || ctx.Err() != nil {
+			return false, ErrRepositoryUnavailable
+		}
+		return true, nil
+	}
 	if err := d.driver.QueryRow(ctx, `SELECT to_regprocedure('public.zasp_sa_export_readiness(text,text)') IS NOT NULL`).Scan(&installed); err != nil || ctx.Err() != nil {
 		return false, ErrRepositoryUnavailable
 	}

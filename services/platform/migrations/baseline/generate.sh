@@ -147,9 +147,29 @@ if [ "$(psql -X -Atc "select to_regprocedure('zasp_approval_maintenance.activate
   sql "$(url "$OPERATOR" reference)" -f "$WORK/activation-run.sql" >/dev/null
   [ "$(psql -X -Atc "select zasp_approval_maintenance.ready()" "$(url postgres reference)")" = "t" ] || fail "approval-maintenance profile is not ready after activation"
 fi
+# Product completion (completion.sql): the authorized read surfaces the chain
+# never moved onto the current authorization model, and the inventory cutover
+# of new Environments. It adds objects to schemas whose historical layers hash
+# their own catalog, so those historical self-checks stop passing on the
+# superuser installation the moment it is applied. The readiness predicates of
+# the superuser installation are therefore recorded first, on the catalog the
+# historical checks describe. The baseline replaces those checks with the
+# integrity check (rules.sql), and the comparison below still requires every
+# predicate of the finished baseline to agree with this record.
+if [ "$(psql -X -Atc "select to_regprocedure('zasp_authorization80.test_release_ready(text,text)') is not null" "$(url postgres reference)")" != "t" ]; then
+  predicates reference > "$WORK/reference.predicates"
+  echo "baseline: applying the product completion"
+  { echo "BEGIN;"; cat "$HERE/completion.sql"; echo "COMMIT;"; } > "$WORK/completion-run.sql"
+  sql "$(url postgres reference)" -f "$WORK/completion-run.sql" >/dev/null
+else
+  # A kept installation already carries the completion. It is re-applied (the
+  # file is re-runnable) and the predicates recorded before it are reused.
+  [ -s "$WORK/reference.predicates" ] || fail "the kept installation has the completion but no recorded predicates; remove the kept containers"
+  { echo "BEGIN;"; cat "$HERE/completion.sql"; echo "COMMIT;"; } > "$WORK/completion-run.sql"
+  sql "$(url postgres reference)" -f "$WORK/completion-run.sql" >/dev/null
+fi
 docker exec "$CONTAINER-reference" pg_dumpall -U postgres --roles-only --no-role-passwords > "$WORK/roles.raw"
 docker exec "$CONTAINER-reference" pg_dump -U postgres -d reference --inserts --rows-per-insert=200 > "$WORK/reference.sql"
-predicates reference > "$WORK/reference.predicates"
 # The reference structure is compared after the same membership rewrite the
 # dump receives, because views and policies print the relation name.
 psql -X -At -v ON_ERROR_STOP=1 -v memberships=pg_auth_members -f "$HERE/structure.sql" "$(url postgres reference)" \

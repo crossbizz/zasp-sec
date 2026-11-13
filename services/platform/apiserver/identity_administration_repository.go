@@ -75,7 +75,11 @@ func (repository *PostgresRepository) identityProviderOrganization(ctx context.C
 	if repository == nil || !isIdentityAdministrationSchema(repository.schema) || nilInterface(repository.database) || ctx == nil || ctx.Err() != nil || !validRequestIdentity(identity, true) || identity.CredentialKind != CredentialBrowserSession {
 		return "", ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresIdentityProviderOrganizationSQL, identity.Scope.OrganizationID().String(), identity.PrincipalID.String())
+	statement, arguments := postgresIdentityProviderOrganizationSQL, []any{identity.Scope.OrganizationID().String(), identity.PrincipalID.String()}
+	if _, current := requestAuthorizationFromContext(ctx); current {
+		statement, arguments = currentIdentityProviderOrganizationSQL, []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String()}
+	}
+	payload, err := repository.database.QueryJSON(ctx, statement, arguments...)
 	if err != nil {
 		return "", discoveryProviderError(err)
 	}

@@ -20,6 +20,7 @@ import (
 
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/collection"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+	"github.com/zasp-ai/zasp-sec/services/platform/localcloud"
 )
 
 const (
@@ -77,6 +78,9 @@ type SecurityRunner struct {
 	process securityProcess
 	timeout time.Duration
 	clock   func() time.Time
+	// localEnvironment is empty unless the process talks to a local cloud
+	// emulator. See securityLocalEnvironment.
+	localEnvironment []string
 }
 
 type securityProcess interface {
@@ -161,17 +165,43 @@ type prowlerSecurityResult struct {
 	Version  string                   `json:"version"`
 }
 
+// Fields are declared in the order of their JSON names. The analyzer writes
+// canonical JSON (sorted keys) and a result is accepted only when it encodes
+// back to the same bytes, so a different order here rejects every finding.
 type prowlerSecurityFinding struct {
 	CheckID     string `json:"check_id"`
+	Region      string `json:"region"`
 	ResourceARN string `json:"resource_arn"`
 	ResourceID  string `json:"resource_id"`
-	Region      string `json:"region"`
 	Severity    string `json:"severity"`
 	Status      string `json:"status"`
 }
 
 func NewSecurityRunner(timeout time.Duration) (*SecurityRunner, error) {
-	return newSecurityRunner(&execSecurityProcess{}, timeout, time.Now)
+	runner, err := newSecurityRunner(&execSecurityProcess{}, timeout, time.Now)
+	if err != nil {
+		return nil, err
+	}
+	runner.localEnvironment = securityLocalEnvironment(localcloud.Current(), os.Getenv)
+	return runner, nil
+}
+
+// securityLocalEnvironment is what the posture analyzer additionally receives
+// when this process talks to a local cloud emulator. The analyzer re-attests
+// the customer credential against STS before it reports anything; credentials
+// an emulator issued are unknown to AWS, so that one call must go to the
+// emulator too. The analyzer applies the same rule as localcloud.Load and
+// refuses the endpoint outside a development or test environment. With the
+// emulator disabled, which production always is, nothing is added and the
+// analyzer calls the regional AWS STS endpoint.
+func securityLocalEnvironment(settings localcloud.Settings, getenv func(string) string) []string {
+	if !settings.Enabled() || getenv == nil {
+		return nil
+	}
+	return []string{
+		localcloud.EndpointVariable + "=" + settings.Endpoint(),
+		localcloud.EnvironmentVariable + "=" + getenv(localcloud.EnvironmentVariable),
+	}
 }
 
 func newSecurityRunnerForTest(process securityProcess, timeout time.Duration, clock func() time.Time) *SecurityRunner {
@@ -232,6 +262,9 @@ func (runner *SecurityRunner) Collect(ctx context.Context, request CollectionSec
 	}
 	defer clear(input)
 	defer clear(encodedCredential)
+	if request.Mode == SecurityModeProwlerAWS {
+		spec.Environment = append(spec.Environment, runner.localEnvironment...)
+	}
 	bounded, cancel := context.WithTimeout(ctx, runner.timeout)
 	defer cancel()
 	if err := collection.CheckEffectBoundary(bounded); err != nil {

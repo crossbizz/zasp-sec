@@ -148,7 +148,7 @@ func (repository *PostgresRepository) ListRedTeamDefinitions(ctx context.Context
 	if !validRedTeamRepositoryRequest(repository, ctx, identity) || input.Limit < 1 || input.Limit > 100 || input.After != "" && !validProductID(input.After) {
 		return RedTeamDefinitionPage{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresRedTeamListDefinitionsSQL, redTeamScopeArguments(identity, input.After, input.Limit)...)
+	payload, err := repository.database.QueryJSON(ctx, authorizationReadStatement(ctx, postgresRedTeamListDefinitionsSQL, currentTestPageSQL), redTeamScopeArguments(identity, input.After, input.Limit)...)
 	if err != nil {
 		return RedTeamDefinitionPage{}, discoveryProviderError(err)
 	}
@@ -235,7 +235,7 @@ func (repository *PostgresRepository) ListRedTeamRuns(ctx context.Context, ident
 	if !input.BeforeCreatedAt.IsZero() {
 		before = input.BeforeCreatedAt
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresRedTeamListRunsSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), before, input.BeforeID, input.Limit)
+	payload, err := repository.database.QueryJSON(ctx, authorizationReadStatement(ctx, postgresRedTeamListRunsSQL, currentTestRunPageSQL), identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), before, input.BeforeID, input.Limit)
 	if err != nil {
 		return RedTeamRunPage{}, discoveryProviderError(err)
 	}

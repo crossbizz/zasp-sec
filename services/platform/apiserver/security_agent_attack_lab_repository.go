@@ -72,6 +72,15 @@ func (database *PostgresJSONDatabase) SecurityAgentAttackLabAvailable(ctx contex
 		return false, ErrRepositoryUnavailable
 	}
 	var installed, ready bool
+	if database.currentAuthorization {
+		// Fixed metadata query, like authorizationMetadataQuery: it grants no
+		// product access. An unready current catalog is unavailable, never
+		// "not installed", so nothing falls back to a historical reader.
+		if err := database.driver.QueryRow(ctx, currentSecurityAgentAttackLabReadySQL, migrations.ProductionSecurityAgentAttackLab().Checksum(), migrations.SecurityAgentAttackLabFingerprint()).Scan(&ready); err != nil || !ready || ctx.Err() != nil {
+			return false, ErrRepositoryUnavailable
+		}
+		return true, nil
+	}
 	if err := database.driver.QueryRow(ctx, `SELECT to_regprocedure('public.zasp_sa_attack_lab_readiness(text,text)') IS NOT NULL`).Scan(&installed); err != nil {
 		return false, ErrRepositoryUnavailable
 	}

@@ -37,7 +37,11 @@ func (database *PostgresJSONDatabase) CurrentAuthorizationSourceReady(ctx contex
 			return true, ErrRepositoryUnavailable
 		}
 		if installed {
-			if err := database.driver.QueryRow(ctx, `SELECT zasp_temporal74.api_ready($1,$2)`, migrations.TemporalTestExecutorChecksum(), migrations.TemporalTestExecutorFingerprint()).Scan(&ready); err != nil || !ready {
+			// zasp_temporal74.api_ready is executable by, and true for, the
+			// Security Agent API role only. The product API role serves this
+			// source, so it asks the same release validity through the
+			// function that names either API role (completion.sql).
+			if err := database.driver.QueryRow(ctx, currentTestReleaseReadySQL, migrations.TemporalTestExecutorChecksum(), migrations.TemporalTestExecutorFingerprint()).Scan(&ready); err != nil || !ready {
 				return true, ErrRepositoryUnavailable
 			}
 		}

@@ -37,6 +37,14 @@ type discoveryAWSInventoryFactory struct {
 	Identity discoveryCallerIdentityFactory
 	IAM      func(string, aws.Credentials) (discoveryAWSIAMAPI, error)
 	EC2      func(string, aws.Credentials) (discoveryAWSEC2API, error)
+	// LocalEmulator is true only when the process talks to a local cloud
+	// emulator (localcloud, development and test environments). AWS lists
+	// only the enabled regions of the account's own partition when asked
+	// for them. An emulator also lists regions the account has not opted
+	// into and regions of the China and GovCloud partitions, and answers
+	// for the latter with the us-east-1 instances. Both are skipped for an
+	// emulator. Everywhere else a region that is not enabled is refused.
+	LocalEmulator bool
 }
 
 type discoveryAWSCollectionInventoryCaller struct {
@@ -104,7 +112,7 @@ func (caller *discoveryAWSCollectionInventoryCaller) GetCollectionInventory(ctx 
 	if err != nil || nilDiscoveryClientDependency(ec2API) {
 		return awsdiscovery.CollectionInventory{}, awsdiscovery.ErrDenied
 	}
-	instances, err := collectDiscoveryAWSInstances(ctx, caller.factory.EC2, ec2API, credentials, identity.AccountID)
+	instances, err := collectDiscoveryAWSInstances(ctx, caller.factory.EC2, ec2API, credentials, identity.AccountID, caller.factory.LocalEmulator)
 	if err != nil {
 		return awsdiscovery.CollectionInventory{}, err
 	}
@@ -212,7 +220,7 @@ func collectDiscoveryAWSPolicy(ctx context.Context, api discoveryAWSIAMAPI, arn,
 	}
 }
 
-func collectDiscoveryAWSInstances(ctx context.Context, factory func(string, aws.Credentials) (discoveryAWSEC2API, error), primary discoveryAWSEC2API, credentials aws.Credentials, accountID string) ([]discoveryAWSNativeInstance, error) {
+func collectDiscoveryAWSInstances(ctx context.Context, factory func(string, aws.Credentials) (discoveryAWSEC2API, error), primary discoveryAWSEC2API, credentials aws.Credentials, accountID string, localEmulator bool) ([]discoveryAWSNativeInstance, error) {
 	regionsOutput, err := primary.DescribeRegions(ctx, &ec2.DescribeRegionsInput{AllRegions: aws.Bool(false)}, func(options *ec2.Options) { options.Retryer = aws.NopRetryer{} })
 	if err != nil || regionsOutput == nil || len(regionsOutput.Regions) < 1 || len(regionsOutput.Regions) > 64 {
 		return nil, awsdiscovery.ErrDenied
@@ -220,10 +228,16 @@ func collectDiscoveryAWSInstances(ctx context.Context, factory func(string, aws.
 	regions := make([]string, 0, len(regionsOutput.Regions))
 	for _, region := range regionsOutput.Regions {
 		name, status := aws.ToString(region.RegionName), aws.ToString(region.OptInStatus)
+		if localEmulator && discoveryRegionPattern.MatchString(name) && (status == "not-opted-in" || strings.HasPrefix(name, "cn-") || strings.HasPrefix(name, "us-gov-")) {
+			continue
+		}
 		if !discoveryRegionPattern.MatchString(name) || status != "opt-in-not-required" && status != "opted-in" {
 			return nil, awsdiscovery.ErrDenied
 		}
 		regions = append(regions, name)
+	}
+	if len(regions) < 1 {
+		return nil, awsdiscovery.ErrDenied
 	}
 	sort.Strings(regions)
 	instances := make([]discoveryAWSNativeInstance, 0)

@@ -112,7 +112,7 @@ A later, reviewed schema change must end by calling `zasp_baseline.accept('<arti
 
 The baseline is generated from the chain, so it is the same schema. `services/platform/migrations/baseline/generate.sh` checks that on every regeneration: 147 readiness predicates return the same value on both, and about 13,900 structural facts (every schema, table, column, constraint, index, trigger, policy, function signature, owner, privilege, role and membership) are identical.
 
-Four things differ on purpose:
+Five things differ on purpose:
 
 - **Integrity checks.** Function bodies that hashed other functions or compared fingerprint constants call `zasp_baseline.intact()` instead (`rules.sql`).
 - **Role memberships** are read through `zasp_baseline.role_memberships`, which hides the administrative membership PostgreSQL gives a non-superuser that creates a role.
@@ -120,11 +120,13 @@ Four things differ on purpose:
 
 - **Approval-notification delivery is installed and active.** The chain shipped the approval-maintenance profile as an inactive candidate with no installer, so no approval notification was ever delivered and the API never reported ready. The baseline installs it, binds its dedicated login (`zasp_svc_approval_maintenance`), marks it active and adds `zasp_approval_maintenance.activate_projection`, which `zasp-bootstrap` calls for each Organization (`activation.sql`). The profile's own origin, delegation, reservation and settlement code is unchanged.
 
+- **The product completion is applied** (`completion.sql`). The chain moved about half of the product onto the current authorization model. The baseline adds the authorized reads the rest needs (Security Agent definitions, execution controls, runs and approvals; tests, test runs and Attack Lab runs; the Organization, members, group mappings and the identity-provider organization lookup), capability readiness that is valid on the 61-release catalog, the inventory cutover of every new Environment, and one readiness check per candidate resolution instead of one per nested kind. These objects change catalogs the historical layers hash, so `generate.sh` records the superuser installation's readiness predicates before applying the file and compares the finished baseline with that record. The structural comparison includes the new objects.
+
 Service login names are fixed (`zasp_svc_*`). Set the `ZASP_*_DB_PRINCIPAL` settings to those names.
 
 ## Regenerating the artifact
 
-`baseline.sql.gz`, `roles.sql` and `baseline.sha256` in `services/platform/migrations/baseline/` are generated. After changing the chain, `prelude.sql`, `rules.sql` or `activation.sql`, run:
+`baseline.sql.gz`, `roles.sql` and `baseline.sha256` in `services/platform/migrations/baseline/` are generated. After changing the chain, `prelude.sql`, `rules.sql`, `activation.sql` or `completion.sql`, run:
 
 ```bash
 services/platform/migrations/baseline/generate.sh

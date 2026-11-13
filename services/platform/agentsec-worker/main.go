@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"reflect"
+	"regexp"
 	"syscall"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/healthserver"
@@ -15,6 +16,31 @@ import (
 )
 
 const healthListenAddress = ":8081"
+
+// localHealthPortVariable moves the health listener to a loopback port, so a
+// developer can run several worker modes on one machine. It is read only
+// when the local cloud emulator is enabled, which localcloud permits only in
+// a development or test environment. Everywhere else the listener is the
+// fixed healthListenAddress and this setting has no effect.
+const localHealthPortVariable = "ZASP_LOCAL_HEALTH_PORT"
+
+var localHealthPortPattern = regexp.MustCompile(`^[1-9][0-9]{3,4}$`)
+
+func healthListener(local localcloud.Settings, getenv func(string) string, listen func(string, string) (net.Listener, error)) func(string, string) (net.Listener, error) {
+	if !local.Enabled() || getenv == nil || listen == nil {
+		return listen
+	}
+	port := getenv(localHealthPortVariable)
+	if !localHealthPortPattern.MatchString(port) {
+		return listen
+	}
+	return func(network, address string) (net.Listener, error) {
+		if address != healthListenAddress {
+			return listen(network, address)
+		}
+		return listen(network, net.JoinHostPort("127.0.0.1", port))
+	}
+}
 
 var (
 	buildVersion           = "dev"
@@ -56,7 +82,7 @@ func main() {
 		_, _ = io.WriteString(os.Stderr, "agentsec-worker startup refused: stage=dependencies:"+currentStartupStage()+"\n")
 		os.Exit(1)
 	}
-	if err := serveWorkerRuntime(ctx, os.Stdout, buildVersion, config, dependencies, net.Listen); err != nil {
+	if err := serveWorkerRuntime(ctx, os.Stdout, buildVersion, config, dependencies, healthListener(localcloud.Current(), os.Getenv, net.Listen)); err != nil {
 		_, _ = io.WriteString(os.Stderr, "agentsec-worker startup refused: stage=serve\n")
 		os.Exit(1)
 	}

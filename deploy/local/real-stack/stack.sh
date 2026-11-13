@@ -20,7 +20,14 @@ PG_PORT="${ZASP_REAL_STACK_PG_PORT:-55434}"
 # domain. Both are development-only; production refuses the local endpoint.
 LOCALSTACK_IMAGE="${ZASP_REAL_STACK_LOCALSTACK_IMAGE:-public.ecr.aws/localstack/localstack:4.7.0}"
 OPENSEARCH_IMAGE="${ZASP_REAL_STACK_OPENSEARCH_IMAGE:-public.ecr.aws/opensearchproject/opensearch:3.8.0}"
+LOCALSTACK_SERVICES="sts,iam,secretsmanager,kms,s3,sqs,ec2"
 LOCAL_CLOUD="http://127.0.0.1:4566"
+# The emulated customer AWS account an AWS integration connects to. The role
+# must sit under a path: the API only assumes roles below an allowed prefix.
+CUSTOMER_ROLE_PATH="/zasp-reference/"
+CUSTOMER_ROLE_NAME="customer-read"
+CUSTOMER_ROLE_ARN="arn:aws:iam::000000000000:role/zasp-reference/customer-read"
+CUSTOMER_EXTERNAL_ID_NAME="localstack-dev-0001"
 SEARCH_URL="http://127.0.0.1:4092"
 TOKEN_FILE=/var/run/secrets/eks.amazonaws.com/serviceaccount/token
 FGA_URL="http://127.0.0.1:8088"
@@ -184,8 +191,18 @@ publish_model() {
 }
 
 start_local_cloud() {
+  # EC2 is needed by the AWS collector (regions and instances). The collector's
+  # posture step only accepts access keys shaped like AWS ones (ASIA/AKIA), so
+  # LocalStack must issue those instead of its own LSIA/LKIA prefixes. A
+  # container created with other settings is replaced: LocalStack keeps no
+  # state across restarts here, so nothing is lost.
+  local settings="SERVICES=$LOCALSTACK_SERVICES PARITY_AWS_ACCESS_KEY_ID=1"
+  if docker inspect zasp-real-stack-localstack >/dev/null 2>&1 &&
+    [ "$(docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' zasp-real-stack-localstack | grep -E '^(SERVICES|PARITY_AWS_ACCESS_KEY_ID)=' | sort -r | tr '\n' ' ' | sed 's/ $//')" != "$settings" ]; then
+    docker rm -f zasp-real-stack-localstack >/dev/null
+  fi
   docker inspect zasp-real-stack-localstack >/dev/null 2>&1 && docker start zasp-real-stack-localstack >/dev/null ||
-    docker run -d --name zasp-real-stack-localstack -p 127.0.0.1:4566:4566 -e SERVICES=sts,iam,secretsmanager,kms,s3,sqs "$LOCALSTACK_IMAGE" >/dev/null
+    docker run -d --name zasp-real-stack-localstack -p 127.0.0.1:4566:4566 -e SERVICES="$LOCALSTACK_SERVICES" -e PARITY_AWS_ACCESS_KEY_ID=1 "$LOCALSTACK_IMAGE" >/dev/null
   # Disk watermarks are disabled: a nearly full developer disk otherwise
   # blocks index creation with no useful error.
   docker inspect zasp-real-stack-opensearch >/dev/null 2>&1 && docker start zasp-real-stack-opensearch >/dev/null ||
@@ -229,6 +246,7 @@ cmd_up() {
   build_binaries
   publish_model
   init_search
+  provision_local_cloud
   STYTCH_PROJECT_ID="${STYTCH_PROJECT_ID:-project-unset}" STYTCH_SECRET="${STYTCH_SECRET:-secret-unset}" STYTCH_PUBLIC_TOKEN="${STYTCH_PUBLIC_TOKEN:-public-token-unset}" load_environment
   # verify-baseline succeeds only on an installed, intact baseline.
   if ! ZASP_POSTGRES_DSN="$(dsn "$OPERATOR")" "$BIN/agentsec-migrate" verify-baseline >/dev/null 2>&1; then
@@ -270,6 +288,9 @@ cmd_api() {
   load_environment
   [ -n "${ZASP_STYTCH_ORGANIZATION_ID:-}" ] || fail "run '$0 bootstrap' first"
   [ -s "$TOKEN_FILE" ] || fail "run '$0 up' first"
+  # Reference authorization reads the customer role and its external ID. They
+  # are gone after a LocalStack restart; one lookup decides whether to recreate.
+  docker exec zasp-real-stack-localstack awslocal --region us-east-1 iam get-role --role-name "$CUSTOMER_ROLE_NAME" >/dev/null 2>&1 || provision_local_cloud
   export HOSTNAME=agentsec-api-real-stack
   export ZASP_PRODUCT_LISTEN_ADDRESS=127.0.0.1:4000 ZASP_INTERNAL_LISTEN_ADDRESS=127.0.0.1:4081
   export ZASP_TRUSTED_PROXY_CIDRS=127.0.0.0/8 ZASP_REQUEST_RATE_PER_SECOND=1000 ZASP_REQUEST_BURST=2000 ZASP_COOKIE_SECURE=true
@@ -283,8 +304,12 @@ cmd_api() {
   export ZASP_CONNECTOR_KMS_KEY_ARN=arn:aws:kms:us-east-1:000000000000:key/11111111-1111-1111-1111-111111111111
   export ZASP_CONNECTOR_SECRET_PREFIX=zasp-real-stack/connectors/oauth
   export ZASP_POLICY_HISTORY_ENDPOINT="$SEARCH_URL" ZASP_POLICY_HISTORY_INDEX=zasp-runtime-events-v1
-  export ZASP_AWS_CUSTOMER_ROLE_PREFIXES='["arn:aws:iam::123456789012:role/zasp-reference/"]'
-  export ZASP_AWS_CUSTOMER_ROLE_ARNS='["arn:aws:iam::123456789012:role/zasp-reference/real-stack"]'
+  # The customer role the AWS integration may assume: the LocalStack role that
+  # provision_local_cloud creates. The external ID it needs is the secret
+  # zasp-real-stack/connectors/aws/external-id/<name> (the prefix above without
+  # its /oauth suffix), referenced as ref:aws/external-id/<name>.
+  export ZASP_AWS_CUSTOMER_ROLE_PREFIXES='["arn:aws:iam::000000000000:role/zasp-reference/"]'
+  export ZASP_AWS_CUSTOMER_ROLE_ARNS="[\"$CUSTOMER_ROLE_ARN\"]"
   export ZASP_KUBERNETES_EGRESS_CIDRS=203.0.113.0/24 ZASP_FINDING_TICKET_EGRESS_CIDRS=192.0.2.64/28
   export ZASP_GITHUB_CLIENT_ID=Iv1.1234567890abcdef ZASP_GITHUB_CLIENT_SECRET_REFERENCE=ref:github/client-secret
   export ZASP_GITHUB_APP_ID=123456 ZASP_GITHUB_PRIVATE_KEY_REFERENCE=ref:github/app-private-key
@@ -292,8 +317,9 @@ cmd_api() {
   exec "$BIN/agentsec-api"
 }
 
-# Creates the AWS resources the workers address, in LocalStack. Idempotent.
-# The account is LocalStack's fixed 000000000000.
+# Creates the AWS resources the API and the workers address, in LocalStack.
+# Idempotent, and repeated in full after a LocalStack restart (LocalStack keeps
+# no state). The account is LocalStack's fixed 000000000000.
 provision_local_cloud() {
   local aws="docker exec zasp-real-stack-localstack awslocal --region us-east-1"
   # The discovery queue must redrive to its dead-letter queue after five receives.
@@ -302,14 +328,16 @@ provision_local_cloud() {
   $aws sqs set-queue-attributes --queue-url http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/agentsec-discovery-jobs \
     --attributes '{"RedrivePolicy":"{\"deadLetterTargetArn\":\"arn:aws:sqs:us-east-1:000000000000:agentsec-discovery-jobs-dlq\",\"maxReceiveCount\":\"5\"}"}' || fail "discovery queue redrive policy was not set"
   $aws s3api head-bucket --bucket zasp-real-stack-evidence >/dev/null 2>&1 || $aws s3api create-bucket --bucket zasp-real-stack-evidence >/dev/null || fail "evidence bucket was not created"
-  if [ ! -f "$STATE/cloud.env" ]; then
+  # The recorded key is gone after a LocalStack restart; a new one replaces it.
+  local key_arn=""
+  [ ! -f "$STATE/cloud.env" ] || key_arn="$(sed -nE 's/^ZASP_EVIDENCE_KMS_KEY_ARN=//p' "$STATE/cloud.env")"
+  if [ -z "$key_arn" ] || ! $aws kms describe-key --key-id "$key_arn" >/dev/null 2>&1; then
     local key
     key="$($aws kms create-key --description zasp-real-stack-evidence --query KeyMetadata.KeyId --output text)" || fail "evidence key was not created"
     [[ "$key" =~ ^[0-9a-f-]{36}$ ]] || fail "evidence key was not created"
-    printf 'ZASP_EVIDENCE_KMS_KEY_ARN=arn:aws:kms:us-east-1:000000000000:key/%s\n' "$key" > "$STATE/cloud.env"
+    key_arn="arn:aws:kms:us-east-1:000000000000:key/$key"
+    printf 'ZASP_EVIDENCE_KMS_KEY_ARN=%s\n' "$key_arn" > "$STATE/cloud.env"
   fi
-  local key_arn
-  key_arn="$(sed -nE 's/^ZASP_EVIDENCE_KMS_KEY_ARN=//p' "$STATE/cloud.env")"
   # The discovery worker's readiness probe requires a versioned evidence
   # bucket whose default encryption is this customer-managed key.
   $aws s3api put-bucket-versioning --bucket zasp-real-stack-evidence --versioning-configuration Status=Enabled || fail "evidence bucket versioning was not set"
@@ -322,21 +350,95 @@ provision_local_cloud() {
     $aws secretsmanager describe-secret --secret-id "$name" >/dev/null 2>&1 ||
       $aws secretsmanager create-secret --name "$name" --secret-string "real-stack-placeholder-not-a-credential" >/dev/null || fail "placeholder secret $name was not created"
   done
+  provision_customer_account
+}
+
+# Creates one IAM role unless it exists. Arguments: path, name, trust policy.
+ensure_role() {
+  $aws iam get-role --role-name "$2" >/dev/null 2>&1 ||
+    $aws iam create-role --path "$1" --role-name "$2" --assume-role-policy-document "$3" >/dev/null || fail "role $2 was not created"
+}
+
+# Creates one customer-managed policy unless it exists and attaches it to a
+# role. Arguments: policy name, policy document, role name.
+ensure_attached_policy() {
+  local arn="arn:aws:iam::000000000000:policy/$1"
+  $aws iam get-policy --policy-arn "$arn" >/dev/null 2>&1 ||
+    $aws iam create-policy --policy-name "$1" --policy-document "$2" >/dev/null || fail "policy $1 was not created"
+  $aws iam attach-role-policy --role-name "$3" --policy-arn "$arn" || fail "policy $1 was not attached to $3"
+}
+
+# The emulated customer side of an AWS integration: the read-only role the
+# product assumes with an external ID, that external ID as the secret both the
+# API and the discovery worker resolve from ref:aws/external-id/<name>, and a
+# small fixture for a discovery run to find. LocalStack does not enforce IAM,
+# so the trust and permission policies document intent; they are not tested.
+provision_customer_account() {
+  local aws="docker exec zasp-real-stack-localstack awslocal --region us-east-1"
+  if [ ! -f "$SECRETS/aws-external-id" ]; then
+    (umask 077; openssl rand -hex 24 > "$SECRETS/aws-external-id.partial" && mv "$SECRETS/aws-external-id.partial" "$SECRETS/aws-external-id") || fail "external ID was not generated"
+  fi
+  local external_id name
+  external_id="$(tr -d '\n' < "$SECRETS/aws-external-id")"
+  [ "${#external_id}" -eq 48 ] || fail "external ID is malformed"
+  # The API reads below its connector prefix, the worker below its own.
+  for name in "zasp-real-stack/connectors/aws/external-id/$CUSTOMER_EXTERNAL_ID_NAME" "zasp-real-stack/discovery/aws/external-id/$CUSTOMER_EXTERNAL_ID_NAME"; do
+    if $aws secretsmanager describe-secret --secret-id "$name" >/dev/null 2>&1; then
+      $aws secretsmanager put-secret-value --secret-id "$name" --secret-string "$external_id" >/dev/null || fail "external ID secret $name was not updated"
+    else
+      $aws secretsmanager create-secret --name "$name" --secret-string "$external_id" >/dev/null || fail "external ID secret $name was not created"
+    fi
+  done
+  ensure_role "$CUSTOMER_ROLE_PATH" "$CUSTOMER_ROLE_NAME" "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"AWS\":[\"arn:aws:iam::000000000000:role/zasp-real-stack-api-connectors\",\"arn:aws:iam::000000000000:role/zasp-real-stack-discovery\"]},\"Action\":\"sts:AssumeRole\",\"Condition\":{\"StringEquals\":{\"sts:ExternalId\":\"$external_id\"}}}]}"
+  ensure_attached_policy zasp-customer-read-inventory '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["iam:ListRoles","iam:ListAttachedRolePolicies","iam:GetPolicy","iam:GetPolicyVersion","ec2:DescribeRegions","ec2:DescribeInstances"],"Resource":"*"}]}' "$CUSTOMER_ROLE_NAME"
+
+  # Fixture: three roles an agent workload would run under, with the policies
+  # that give them model, tool and data access, one role trusting another, one
+  # role with administrator access, and one instance that still allows IMDSv1.
+  ensure_role /agents/ agent-orchestrator '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"bedrock.amazonaws.com"},"Action":"sts:AssumeRole"}]}'
+  ensure_role /agents/ support-copilot-runtime '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"ecs-tasks.amazonaws.com"},"Action":"sts:AssumeRole"}]}'
+  ensure_role /agents/ claims-triage-agent '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"lambda.amazonaws.com"},"Action":"sts:AssumeRole"},{"Effect":"Allow","Principal":{"AWS":"arn:aws:iam::000000000000:role/agents/agent-orchestrator"},"Action":"sts:AssumeRole"}]}'
+  ensure_attached_policy agent-orchestrator-delegate '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"sts:AssumeRole","Resource":"arn:aws:iam::000000000000:role/agents/claims-triage-agent"},{"Effect":"Allow","Action":["bedrock:InvokeAgent","bedrock:InvokeModel"],"Resource":"*"}]}' agent-orchestrator
+  # The AWS-managed AdministratorAccess policy: the posture analyzer reports it.
+  $aws iam attach-role-policy --role-name agent-orchestrator --policy-arn arn:aws:iam::aws:policy/AdministratorAccess || fail "AdministratorAccess was not attached to agent-orchestrator"
+  ensure_attached_policy support-copilot-model-invoke '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["bedrock:InvokeModel","bedrock:InvokeModelWithResponseStream"],"Resource":"arn:aws:bedrock:us-east-1::foundation-model/*"}]}' support-copilot-runtime
+  ensure_attached_policy support-copilot-knowledge-read '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["s3:GetObject","s3:ListBucket"],"Resource":["arn:aws:s3:::support-knowledge-base","arn:aws:s3:::support-knowledge-base/*"]}]}' support-copilot-runtime
+  ensure_attached_policy claims-triage-tools '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["dynamodb:GetItem","dynamodb:Query","sqs:SendMessage","secretsmanager:GetSecretValue"],"Resource":"*"}]}' claims-triage-agent
+  if [ "$($aws ec2 describe-instances --filters Name=tag:zasp-fixture,Values=agent-host Name=instance-state-name,Values=pending,running --query 'length(Reservations)' --output text)" = "0" ]; then
+    local image
+    image="$($aws ec2 describe-images --query 'Images[0].ImageId' --output text)" || fail "fixture image was not found"
+    $aws ec2 run-instances --image-id "$image" --instance-type t3.micro --count 1 --metadata-options HttpTokens=optional,HttpEndpoint=enabled \
+      --tag-specifications 'ResourceType=instance,Tags=[{Key=zasp-fixture,Value=agent-host},{Key=Name,Value=support-copilot-host}]' >/dev/null || fail "fixture instance was not created"
+  fi
 }
 
 # Starts one worker mode in the foreground. Only modes whose dependencies this
 # stack provides are listed; the others need queues, keys or endpoints it does
 # not create yet.
 cmd_worker() {
-  [ "$#" -eq 1 ] || fail "usage: $0 worker {scheduler|discovery}"
+  [ "$#" -eq 1 ] || fail "usage: $0 worker {scheduler|outbox|discovery}"
   load_environment
   export ZASP_WORKER_MODE="$1" ZASP_WORKER_ID="real-stack-$1" ZASP_AWS_REGION=us-east-1
   export ZASP_POLL_INTERVAL=1s ZASP_LEASE_DURATION=30s ZASP_SHUTDOWN_TIMEOUT=5s ZASP_BATCH_SIZE=10 ZASP_PROVIDER_TIMEOUT=10s
   export ZASP_DISCOVERY_PARSER_VERSION=inventory-parser-2026.08.20 ZASP_DISCOVERY_TOOL_VERSION=collector-tool-2026.08.20
   case "$1" in
     scheduler) export ZASP_POSTGRES_DSN="$(dsn zasp_svc_scheduler)" ZASP_DATABASE_AUTHORITY=zasp_discovery_scheduler ;;
+    outbox)
+      # Publishes queued discovery jobs (for example a sync a user requested)
+      # to the discovery queue. Each mode gets its own health port so the
+      # three can run together; the worker honours this only in development
+      # mode (see README.md).
+      provision_local_cloud
+      export ZASP_LOCAL_HEALTH_PORT=8083
+      export ZASP_POSTGRES_DSN="$(dsn zasp_svc_outbox)" ZASP_DATABASE_AUTHORITY=zasp_outbox_worker
+      export ZASP_DISCOVERY_QUEUE_URL=https://sqs.us-east-1.amazonaws.com/000000000000/agentsec-discovery-jobs
+      export ZASP_OUTBOX_ROLE_ARN=arn:aws:iam::000000000000:role/zasp-real-stack-outbox ZASP_OUTBOX_WEB_IDENTITY_TOKEN_FILE="$TOKEN_FILE"
+      ;;
     discovery)
       provision_local_cloud
+      [ -x /opt/zasp/security/cartography/bin/security-worker ] && [ -x /opt/zasp/security/prowler/bin/security-worker ] ||
+        echo "real-stack: the AWS collector needs the security analyzers; run '$0 security-workers' (an AWS discovery run fails without them)" >&2
+      export ZASP_LOCAL_HEALTH_PORT=8082
       set -a; . "$STATE/cloud.env"; set +a
       export ZASP_POSTGRES_DSN="$(dsn zasp_svc_discovery)" ZASP_DATABASE_AUTHORITY=zasp_discovery_worker
       export ZASP_TEMPORAL_EXECUTOR_POSTGRES_DSN="$(dsn zasp_svc_temporal_executor)" ZASP_TEMPORAL_COMPENSATION_POSTGRES_DSN="$(dsn zasp_svc_temporal_compensation)"
@@ -356,6 +458,34 @@ cmd_worker() {
   exec "$BIN/agentsec-worker"
 }
 
+# Installs the two Python analyzers the AWS collector runs as subprocesses,
+# at the fixed paths the worker executes, from the same hash-pinned lock files
+# the worker image is built from (deploy/production/worker.Dockerfile).
+cmd_security_workers() {
+  local source="$ROOT/workers/security-python" root=/opt/zasp/security python="${ZASP_REAL_STACK_PYTHON:-python3.13}" name
+  command -v "$python" >/dev/null || fail "Python 3.13 is required (set ZASP_REAL_STACK_PYTHON)"
+  "$python" -c 'import sys; sys.exit(sys.version_info[:2] != (3, 13))' || fail "Python 3.13 is required (set ZASP_REAL_STACK_PYTHON)"
+  mkdir -p "$root" 2>/dev/null || fail "create $root (needs root) and make it writable by this user"
+  for name in cartography prowler; do
+    # The pinned third-party packages are installed once (about 2 GB each).
+    # The analyzer itself is reinstalled every time, so it follows the source.
+    if ! { [ -x "$root/$name/bin/security-worker" ] && "$root/$name/bin/security-worker" health >/dev/null 2>&1; }; then
+      rm -rf "${root:?}/$name"
+      "$python" -m venv "$root/$name" || fail "$name environment was not created"
+      PIP_DISABLE_PIP_VERSION_CHECK=1 PIP_NO_CACHE_DIR=1 "$root/$name/bin/pip" install -q --require-hashes --no-deps -r "$source/build-requirements.lock" || fail "$name build requirements were not installed"
+      PIP_DISABLE_PIP_VERSION_CHECK=1 PIP_NO_CACHE_DIR=1 "$root/$name/bin/pip" install -q --require-hashes --no-build-isolation --no-deps -r "$source/$name/requirements.lock" || fail "$name requirements were not installed"
+    fi
+    # pip builds in the directory it is given; a copy keeps the repository clean.
+    local staged
+    staged="$(mktemp -d)" || fail "$name analyzer was not staged"
+    cp -R "$source/pyproject.toml" "$source/security_worker" "$staged/" || fail "$name analyzer was not staged"
+    PIP_DISABLE_PIP_VERSION_CHECK=1 PIP_NO_CACHE_DIR=1 "$root/$name/bin/pip" install -q --force-reinstall --no-build-isolation --no-deps "$staged" || { rm -rf "$staged"; fail "$name analyzer was not installed"; }
+    rm -rf "$staged"
+    "$root/$name/bin/security-worker" health >/dev/null || fail "$name analyzer is not healthy"
+  done
+  echo "real-stack: security analyzers installed in $root"
+}
+
 cmd_down() {
   docker stop "$PG_CONTAINER" zasp-real-stack-localstack zasp-real-stack-opensearch >/dev/null 2>&1 || true
   docker compose -f "$COMPOSE" stop
@@ -367,6 +497,7 @@ case "${1:-}" in
   bootstrap) shift; cmd_bootstrap "$@" ;;
   api) shift; cmd_api "$@" ;;
   worker) shift; cmd_worker "$@" ;;
+  security-workers) shift; cmd_security_workers "$@" ;;
   down) shift; cmd_down "$@" ;;
-  *) fail "usage: $0 {up|bootstrap <organization name> <domain> <admin email>|api|worker <mode>|down}" ;;
+  *) fail "usage: $0 {up|bootstrap <organization name> <domain> <admin email>|api|worker <mode>|security-workers|down}" ;;
 esac

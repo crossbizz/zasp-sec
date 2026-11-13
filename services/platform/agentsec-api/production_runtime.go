@@ -389,6 +389,14 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 		if exportErr != nil {
 			return RuntimeDependencies{}, markRuntimeDependencyFailure("audit-export", errRuntimeUnavailable)
 		}
+	} else if tracedDatabase.CurrentAuthorizationRequired() {
+		// Without export storage the checked audit page still has its
+		// authorized source (zasp_authorization80.audit_page); only exports
+		// need storage. A source that is not ready keeps the route on the
+		// administration read, which the current model refuses.
+		if pages, pageErr := apiserver.NewAuditPublicPageRepository(ctx, tracedDatabase); pageErr == nil {
+			auditPublicPages = pages
+		}
 	}
 	providerSecrets := &connectorProviderSecrets{driver: secretsDriver, root: strings.TrimSuffix(config.ConnectorSecretPrefix, "/oauth"), kmsKey: config.ConnectorKMSKeyARN}
 	githubAdapter, err := githubdiscovery.NewAdapter(githubdiscovery.Config{ClientID: config.GitHubClientID, ClientSecretReference: config.GitHubSecretReference, CallbackURL: config.PublicOrigin + "/api/v1/integrations/oauth/callback"}, &githubExchangeClient{http: providerHTTP, secrets: providerSecrets, appID: config.GitHubAppID, privateKeyReference: config.GitHubPrivateKeyReference}, config.ProviderTimeout)

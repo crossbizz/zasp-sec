@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import base64
 import json
+import os
+import sys
 import unittest
+from types import ModuleType, SimpleNamespace
+from unittest import mock
 
 from security_worker import prowler_aws
 
@@ -221,6 +225,137 @@ class ProwlerScanTests(unittest.TestCase):
                 request["authority"] = {**request["authority"], key: 0}
                 with self.assertRaises(prowler_aws.CollectionError):
                     prowler_aws.scan(request, FakeProwlerAPI())
+
+
+class StsEndpointTests(unittest.TestCase):
+    def test_production_and_unset_environments_use_the_regional_aws_endpoint(self) -> None:
+        for environ in (
+            {},
+            {"ZASP_ENVIRONMENT": "production"},
+            {"ZASP_ENVIRONMENT": "development"},
+            {"ZASP_ENVIRONMENT": "production", "ZASP_LOCAL_CLOUD_ENDPOINT": ""},
+        ):
+            with self.subTest(environ=environ):
+                self.assertEqual(
+                    prowler_aws.sts_endpoint(environ),
+                    "https://sts.us-east-1.amazonaws.com",
+                )
+
+    def test_local_endpoint_is_refused_outside_development_and_test(self) -> None:
+        for environment in ("production", "staging", "", "Development", "prod"):
+            with self.subTest(environment=environment):
+                environ = {"ZASP_LOCAL_CLOUD_ENDPOINT": "http://127.0.0.1:4566"}
+                if environment:
+                    environ["ZASP_ENVIRONMENT"] = environment
+                with self.assertRaises(prowler_aws.CollectionError) as raised:
+                    prowler_aws.sts_endpoint(environ)
+                self.assertEqual(raised.exception.code, "denied")
+
+    def test_local_endpoint_must_be_plaintext_loopback_or_private_with_port(self) -> None:
+        for environment in ("development", "test"):
+            for endpoint in ("http://127.0.0.1:4566", "http://10.1.2.3:4566", "http://[::1]:4566"):
+                with self.subTest(environment=environment, endpoint=endpoint):
+                    self.assertEqual(
+                        prowler_aws.sts_endpoint(
+                            {"ZASP_ENVIRONMENT": environment, "ZASP_LOCAL_CLOUD_ENDPOINT": endpoint}
+                        ),
+                        endpoint,
+                    )
+        for endpoint in (
+            "https://127.0.0.1:4566",
+            "http://127.0.0.1",
+            "http://localhost:4566",
+            "http://8.8.8.8:4566",
+            "http://sts.us-east-1.amazonaws.com:80",
+            "http://user@127.0.0.1:4566",
+            "http://127.0.0.1:4566/",
+            "http://127.0.0.1:4566?x=1",
+            "http://127.0.0.1:4566#x",
+            "http://127.0.0.1:port",
+            "127.0.0.1:4566",
+        ):
+            with self.subTest(endpoint=endpoint):
+                with self.assertRaises(prowler_aws.CollectionError) as raised:
+                    prowler_aws.sts_endpoint(
+                        {"ZASP_ENVIRONMENT": "development", "ZASP_LOCAL_CLOUD_ENDPOINT": endpoint}
+                    )
+                self.assertEqual(raised.exception.code, "denied")
+
+
+class ReattestEndpointTests(unittest.TestCase):
+    def reattest(self, environ: dict[str, str]) -> dict[str, object]:
+        seen: dict[str, object] = {}
+
+        class Session:
+            def __init__(self, **_: object) -> None:
+                pass
+
+            def client(self, service: str, **options: object) -> object:
+                seen.update(options, service=service)
+                return SimpleNamespace(get_caller_identity=lambda: {"Account": ACCOUNT_ID})
+
+        boto3 = ModuleType("boto3")
+        boto3.session = SimpleNamespace(Session=Session)
+        botocore = ModuleType("botocore")
+        config = ModuleType("botocore.config")
+        config.Config = lambda **options: options
+        credential = prowler_aws._decode_credential(encoded_credential(), "2026-08-20T00:15:00Z")
+        modules = {"boto3": boto3, "botocore": botocore, "botocore.config": config}
+        with mock.patch.dict(sys.modules, modules), mock.patch.dict(os.environ, environ, clear=True):
+            prowler_aws.RuntimeProwlerAPI().reattest(credential, ACCOUNT_ID)
+        return seen
+
+    def test_production_reattests_against_aws_over_tls(self) -> None:
+        for environ in ({}, {"ZASP_ENVIRONMENT": "production"}):
+            with self.subTest(environ=environ):
+                seen = self.reattest(environ)
+                self.assertEqual(seen["service"], "sts")
+                self.assertEqual(seen["endpoint_url"], "https://sts.us-east-1.amazonaws.com")
+                self.assertIs(seen["use_ssl"], True)
+                self.assertIs(seen["verify"], True)
+
+    def test_production_refuses_a_local_endpoint_before_any_call(self) -> None:
+        with self.assertRaises(prowler_aws.CollectionError) as raised:
+            self.reattest(
+                {"ZASP_ENVIRONMENT": "production", "ZASP_LOCAL_CLOUD_ENDPOINT": "http://127.0.0.1:4566"}
+            )
+        self.assertEqual(raised.exception.code, "denied")
+
+    def test_development_reattests_against_the_local_emulator(self) -> None:
+        seen = self.reattest(
+            {"ZASP_ENVIRONMENT": "development", "ZASP_LOCAL_CLOUD_ENDPOINT": "http://127.0.0.1:4566"}
+        )
+        self.assertEqual(seen["endpoint_url"], "http://127.0.0.1:4566")
+        self.assertIs(seen["use_ssl"], False)
+
+
+class RuntimeRoleTests(unittest.TestCase):
+    def test_role_is_reported_by_name_like_the_prowler_role_model(self) -> None:
+        role = prowler_aws.RuntimeRole(
+            arn=ROLE_ARN,
+            name="admin",
+            region="global",
+            tags=(),
+            attached_policies=(),
+            is_service_role=False,
+            assume_role_policy={},
+        )
+        # Prowler's AWS report takes the resource id, then its name.
+        self.assertEqual(getattr(role, "id", None) or getattr(role, "name", None), "admin")
+
+    def test_real_prowler_checks_report_ids_the_worker_accepts(self) -> None:
+        try:
+            api = prowler_aws.load_runtime_api()
+        except prowler_aws.CollectionError:
+            self.skipTest("Prowler is not installed in this environment")
+        source = request_document()["source"]
+        reported = 0
+        for check_id in CHECKS:
+            for report in api.execute(check_id, source):
+                finding = prowler_aws._finding(check_id, report, source)
+                self.assertEqual(finding["check_id"], check_id)
+                reported += 1
+        self.assertGreater(reported, 0)
 
 
 if __name__ == "__main__":

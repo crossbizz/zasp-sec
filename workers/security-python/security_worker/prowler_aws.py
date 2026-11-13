@@ -3,9 +3,13 @@ from __future__ import annotations
 import base64
 import importlib
 import importlib.metadata
+import ipaddress
 import json
+import os
 import re
 import sys
+import urllib.parse
+from collections.abc import Mapping
 from dataclasses import dataclass
 from types import ModuleType, SimpleNamespace
 
@@ -45,6 +49,11 @@ _SECRET_KEY = re.compile(r"[A-Za-z0-9/+=]{40}\Z")
 _SESSION_TOKEN = re.compile(r"[A-Za-z0-9/+=_-]{32,4096}\Z")
 
 
+STS_ENDPOINT = "https://sts.us-east-1.amazonaws.com"
+_LOCAL_CLOUD_ENDPOINT = "ZASP_LOCAL_CLOUD_ENDPOINT"
+_ENVIRONMENT = "ZASP_ENVIRONMENT"
+
+
 class CollectionError(ValueError):
     def __init__(self, code: str = "malformed") -> None:
         super().__init__("collection unavailable")
@@ -68,9 +77,12 @@ class Credential:
         self.session_token.clear()
 
 
+# Mirrors Prowler's own IAM role model, which has a name and no id. Prowler
+# reports the resource id as the object's id when it has one and its name
+# otherwise; a role is identified by its name, and both this worker and the
+# platform validate the reported id against the role name.
 @dataclass(frozen=True)
 class RuntimeRole:
-    id: str
     arn: str
     name: str
     region: str
@@ -78,6 +90,41 @@ class RuntimeRole:
     attached_policies: tuple[dict[str, str], ...]
     is_service_role: bool
     assume_role_policy: dict[str, object]
+
+
+def sts_endpoint(environ: Mapping[str, str]) -> str:
+    """Returns the STS endpoint the credential is re-attested against.
+
+    It is the regional AWS endpoint unless the worker passed a local cloud
+    emulator endpoint. That setting follows the rule of the platform's
+    localcloud package: it is honoured only in a development or test
+    environment and only for a plaintext loopback or private address with an
+    explicit port. Anywhere else a set endpoint is refused, never ignored.
+    """
+    local = environ.get(_LOCAL_CLOUD_ENDPOINT, "")
+    if local == "":
+        return STS_ENDPOINT
+    if environ.get(_ENVIRONMENT, "") not in ("development", "test"):
+        raise CollectionError("denied")
+    try:
+        parsed = urllib.parse.urlsplit(local)
+        port = parsed.port
+        address = ipaddress.ip_address(parsed.hostname or "")
+    except ValueError as exc:
+        raise CollectionError("denied") from exc
+    if (
+        parsed.scheme != "http"
+        or port is None
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.path != ""
+        or parsed.query != ""
+        or parsed.fragment != ""
+        or urllib.parse.urlunsplit(parsed) != local
+        or not (address.is_loopback or address.is_private)
+    ):
+        raise CollectionError("denied")
+    return local
 
 
 @dataclass(frozen=True)
@@ -95,6 +142,7 @@ class RuntimeProwlerAPI:
     version = EXPECTED_VERSION
 
     def reattest(self, credential: Credential, account_id: str) -> None:
+        endpoint = sts_endpoint(os.environ)
         try:
             boto3 = importlib.import_module("boto3")
             config_type = getattr(importlib.import_module("botocore.config"), "Config")
@@ -106,8 +154,8 @@ class RuntimeProwlerAPI:
             )
             sts = session.client(
                 "sts",
-                endpoint_url="https://sts.us-east-1.amazonaws.com",
-                use_ssl=True,
+                endpoint_url=endpoint,
+                use_ssl=endpoint.startswith("https://"),
                 verify=True,
                 config=config_type(
                     connect_timeout=5,
@@ -153,7 +201,6 @@ class RuntimeProwlerAPI:
         if check_id.startswith("iam_"):
             roles = tuple(
                 RuntimeRole(
-                    id=role["RoleId"],
                     arn=role["Arn"],
                     name=role["RoleName"],
                     region="global",

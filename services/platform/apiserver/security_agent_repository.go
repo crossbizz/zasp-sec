@@ -61,6 +61,9 @@ func (repository *PostgresRepository) GetSecurityAgentExecutionControls(ctx cont
 	if repository == nil || !stringIn(repository.schema, SecurityAgentControlsSchemaVersion, SecurityAgentAutonomousSchemaVersion, SecurityAgentTemporaryPolicySchemaVersion, SecurityAgentConnectorRevocationSchemaVersion, SecurityAgentSessionIsolationSchemaVersion, RedTeamExecutionSchemaVersion, AttackLabExecutionSchemaVersion, ProductionRecoverySchemaVersion) || !repository.securityAgentExecution || nilInterface(repository.database) || ctx == nil || !validRequestIdentity(identity, false) || identity.CredentialKind != CredentialBrowserSession {
 		return SecurityAgentExecutionControls{}, ErrRepositoryOperation
 	}
+	if _, current := requestAuthorizationFromContext(ctx); current {
+		return repository.currentSecurityAgentExecutionControls(ctx, identity)
+	}
 	versioned, releaseErr := repository.SecurityAgentExistingTestDefinitionsAvailable(ctx)
 	if releaseErr != nil {
 		return SecurityAgentExecutionControls{}, ErrRepositoryUnavailable
@@ -469,7 +472,7 @@ func (repository *PostgresRepository) ListSecurityAgentRuns(ctx context.Context,
 	if !input.BeforeCreatedAt.IsZero() {
 		before = input.BeforeCreatedAt
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresSecurityAgentRunPageSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), input.DefinitionID, input.State, before, input.BeforeID, input.Limit)
+	payload, err := repository.database.QueryJSON(ctx, authorizationReadStatement(ctx, postgresSecurityAgentRunPageSQL, currentSecurityAgentRunPageSQL), identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), input.DefinitionID, input.State, before, input.BeforeID, input.Limit)
 	if err != nil {
 		return SecurityAgentRunPage{}, discoveryProviderError(err)
 	}
@@ -622,6 +625,15 @@ func (repository *PostgresRepository) ListSecurityAgentApprovals(ctx context.Con
 	var before any
 	if !input.BeforeCreatedAt.IsZero() {
 		before = input.BeforeCreatedAt
+	}
+	if _, current := requestAuthorizationFromContext(ctx); current {
+		// The authorized page wraps the newest actor-bound reader of the one
+		// installed catalog, so no per-release statement is selected here.
+		payload, err := repository.database.QueryJSON(ctx, currentSecurityAgentApprovalPageSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), input.State, input.RunID, before, input.BeforeID, input.Limit, identity.PrincipalID.String())
+		if err != nil {
+			return SecurityAgentApprovalPage{}, discoveryProviderError(err)
+		}
+		return decodeApprovalContextPage(payload, input)
 	}
 	statement := postgresSecurityAgentApprovalPageSQL
 	versioned, contextErr := repository.SecurityAgentExistingTestDefinitionsAvailable(ctx)
@@ -959,4 +971,19 @@ func (repository *PostgresRepository) readySecurityAgentAuthority(ctx context.Co
 		return ErrRepositoryUnavailable
 	}
 	return nil
+}
+
+// currentSecurityAgentExecutionControls reads the controls through the
+// authorized function of the current catalog. That catalog carries every
+// action release, so the page always holds the eight action switches.
+func (repository *PostgresRepository) currentSecurityAgentExecutionControls(ctx context.Context, identity RequestIdentity) (SecurityAgentExecutionControls, error) {
+	payload, err := repository.database.QueryJSON(ctx, currentSecurityAgentExecutionControlsSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String())
+	if err != nil {
+		return SecurityAgentExecutionControls{}, discoveryProviderError(err)
+	}
+	var result SecurityAgentExecutionControls
+	if !exactJSONFields(payload, "actions", "environment", "global") || decodeStrictDiscovery(payload, &result) != nil || !validSecurityAgentExecutionControls(result) || len(result.Actions) != 8 {
+		return SecurityAgentExecutionControls{}, ErrRepositoryUnavailable
+	}
+	return result, nil
 }

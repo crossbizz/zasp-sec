@@ -77,6 +77,9 @@ func (repository *PostgresRepository) ReadAdministration(ctx context.Context, id
 	}
 	switch operation {
 	case "getOrganization":
+		if _, current := requestAuthorizationFromContext(ctx); current {
+			return repository.database.QueryJSON(ctx, currentOrganizationSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String())
+		}
 		return repository.database.QueryJSON(ctx, postgresGetOrganizationSQL, identity.Scope.OrganizationID().String())
 	case "listWorkspaces":
 		statement := postgresListWorkspacesSQL
@@ -101,8 +104,14 @@ func (repository *PostgresRepository) ReadAdministration(ctx context.Context, id
 	case "getEnvironment":
 		return repository.database.QueryJSON(ctx, postgresGetEnvironmentSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), parameters["id"], identity.Scope.EnvironmentID().String())
 	case "listMembers":
+		if _, current := requestAuthorizationFromContext(ctx); current {
+			return repository.database.QueryJSON(ctx, currentMemberPageSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), parameters["after_id"], adminLimit(parameters)+1)
+		}
 		return repository.database.QueryJSON(ctx, postgresListMembersSQL, identity.Scope.OrganizationID().String(), parameters["after_id"], adminLimit(parameters)+1)
 	case "listGroupMappings":
+		if _, current := requestAuthorizationFromContext(ctx); current {
+			return repository.database.QueryJSON(ctx, currentGroupMappingPageSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), parameters["after_id"], adminLimit(parameters)+1)
+		}
 		return repository.database.QueryJSON(ctx, postgresListGroupMappingsSQL, identity.Scope.OrganizationID().String(), parameters["after_id"], adminLimit(parameters)+1)
 	case "listAPITokens":
 		return repository.database.QueryJSON(ctx, authorizationReadStatement(ctx, postgresListAPITokensSQL, currentPATPageSQL), identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), parameters["after_id"], adminLimit(parameters)+1)

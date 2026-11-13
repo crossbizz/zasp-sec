@@ -159,7 +159,7 @@ func (repository *PostgresRepository) ListAttackLabRuns(ctx context.Context, ide
 	if !input.BeforeCreatedAt.IsZero() {
 		before = input.BeforeCreatedAt
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresAttackLabListRunsSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), before, input.BeforeID, input.Limit)
+	payload, err := repository.database.QueryJSON(ctx, authorizationReadStatement(ctx, postgresAttackLabListRunsSQL, currentAttackLabRunPageSQL), identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), before, input.BeforeID, input.Limit)
 	if err != nil {
 		return AttackLabRunPage{}, discoveryProviderError(err)
 	}

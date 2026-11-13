@@ -71,6 +71,15 @@ func (r *PostgresRepository) ListWorkflowPageForIdentity(ctx context.Context, id
 	if !validRequestIdentity(identity, false) || !validWorkflowKind(kind) || limit < 1 || limit > 100 || after != "" && !validWorkflowID(kind, after) {
 		return WorkflowListPage{}, ErrRepositoryOperation
 	}
+	if _, current := requestAuthorizationFromContext(ctx); current && kind == "security_agent" && r != nil && r.securityAgentExecution && !nilInterface(r.database) {
+		// One catalog, one reader: the current model has no per-release
+		// definition page to choose between.
+		payload, err := r.database.QueryJSON(ctx, currentSecurityAgentPageSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), after, limit)
+		if err != nil {
+			return WorkflowListPage{}, discoveryProviderError(err)
+		}
+		return decodeWorkflowListPage(payload, kind, limit)
+	}
 	installed, err := r.SecurityAgentExportDefinitionsAvailable(ctx)
 	if err != nil {
 		return WorkflowListPage{}, err

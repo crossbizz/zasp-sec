@@ -7,6 +7,7 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/artifactstore/s3driver"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/awsdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/kubernetesdiscovery"
+	"github.com/zasp-ai/zasp-sec/services/platform/localcloud"
 )
 
 // The seam contains external IO only. Product SQL, credentials and collection
@@ -50,5 +51,5 @@ func newProductionDiscoveryIO(config productionDiscoveryDependencyConfig) (disco
 	if err != nil {
 		return fail()
 	}
-	return discoveryDependencyIO{Credentials: cloud.credentials, Secrets: cloud.secrets, AssumeRole: cloud.assumeRole, S3: cloud.s3, KMS: cloud.kms, Queue: cloud.sqs, Inventory: discoveryAWSInventoryFactory{Identity: cloud.NewCallerIdentity, IAM: cloud.NewIAM, EC2: cloud.NewEC2}, Security: security, Close: cloud.Close}, nil
+	return discoveryDependencyIO{Credentials: cloud.credentials, Secrets: cloud.secrets, AssumeRole: cloud.assumeRole, S3: cloud.s3, KMS: cloud.kms, Queue: cloud.sqs, Inventory: discoveryAWSInventoryFactory{Identity: cloud.NewCallerIdentity, IAM: cloud.NewIAM, EC2: cloud.NewEC2, LocalEmulator: localcloud.Current().Enabled()}, Security: security, Close: cloud.Close}, nil
 }
