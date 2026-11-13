@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/authorization"
 	"github.com/zasp-ai/zasp-sec/services/platform/orchestration"
@@ -84,7 +86,47 @@ func (d *workerDiscoveryDatabase) query(ctx context.Context, phase string, start
 			return nil, authorization.ErrInvalid
 		}
 	}
+	if phase == "guard_page" {
+		return retryDiscoveryAuthorization(ctx, discoveryGuardRetryBudget, discoveryGuardRetryInterval, func() (json.RawMessage, error) { return run(executor, phase) })
+	}
 	return run(executor, phase)
+}
+
+const (
+	discoveryGuardRetryBudget   = 15 * time.Second
+	discoveryGuardRetryInterval = 250 * time.Millisecond
+)
+
+// retryDiscoveryAuthorization repeats one authorized call while the
+// Organization's permission projection is moving. ErrPending means a change
+// is not applied yet; ErrConflict means the revision changed between the
+// check and its use. Both say "decide again", not "denied": every attempt
+// runs the complete check against the current revision, and nothing is
+// executed under a stale decision. Any other error, and a denial, returns at
+// once. Without this a provider request that coincides with any permission
+// change in the Organization, including the one that creating the sync itself
+// causes, ends the whole discovery run as revoked.
+func retryDiscoveryAuthorization(ctx context.Context, budget, interval time.Duration, call func() (json.RawMessage, error)) (json.RawMessage, error) {
+	if ctx == nil || call == nil || budget <= 0 || interval <= 0 {
+		return nil, authorization.ErrInvalid
+	}
+	deadline := time.Now().Add(budget)
+	for {
+		raw, err := call()
+		if err == nil || !errors.Is(err, authorization.ErrPending) && !errors.Is(err, authorization.ErrConflict) {
+			return raw, err
+		}
+		if !time.Now().Add(interval).Before(deadline) {
+			return nil, err
+		}
+		timer := time.NewTimer(interval)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return nil, err
+		case <-timer.C:
+		}
+	}
 }
 
 func (p *temporalDiscoveryProduct) queryDiscovery(ctx context.Context, phase string, start orchestration.DiscoveryStart, extra map[string]any, sql string, destination any, args ...any) error {

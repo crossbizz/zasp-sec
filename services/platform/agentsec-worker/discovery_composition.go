@@ -103,7 +103,7 @@ func (factory *productionLiveDiscoveryCollectorFactory) BuildProductDiscoveryCol
 }
 
 func (factory *productionLiveDiscoveryCollectorFactory) collectionFactoryForAuthority(authority awsdiscovery.CollectionInventoryAuthority) (collection.CollectorFactory, error) {
-	awsAPI, err := awsdiscovery.NewInventoryCollectionAPI(factory.config.AWSInventory, factory.config.AWSSecurity, authority, factory.config.ProviderTimeout)
+	awsAPI, err := awsdiscovery.NewInventoryCollectionAPI(factory.config.AWSInventory, factory.config.AWSSecurity, authority, discoveryAWSInventoryPageTimeout)
 	if err != nil {
 		return nil, errRuntimeUnavailable
 	}
@@ -195,3 +195,10 @@ func validDiscoveryCIDRs(values []string) bool {
 }
 
 var _ discoveryCollectorFactory = (*productionLiveDiscoveryCollectorFactory)(nil)
+
+// discoveryAWSInventoryPageTimeout is the time one AWS inventory page may
+// take. The provider timeout bounds a single request; a page makes one
+// request per role, per attached policy and per region, each individually
+// authorized, and cannot fit in a single request's budget. The value stays
+// below the five minutes the workflow gives the page activity.
+const discoveryAWSInventoryPageTimeout = 4 * time.Minute

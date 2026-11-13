@@ -155,7 +155,7 @@ func (repository *PostgresRepository) GetWorkflow(ctx context.Context, scope dom
 		if kind != "security_agent" {
 			return WorkflowValue{}, ErrRepositoryOperation
 		}
-		statement = postgresSecurityAgentDefinitionValueSQL
+		statement = authorizationReadStatement(ctx, postgresSecurityAgentDefinitionValueSQL, currentSecurityAgentDefinitionValueSQL)
 		arguments = []any{scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), id}
 	}
 	payload, err := repository.database.QueryJSON(ctx, statement, arguments...)
@@ -180,8 +180,16 @@ func (repository *PostgresRepository) MutateWorkflow(ctx context.Context, identi
 	if repository == nil || nilInterface(repository.database) || ctx == nil || !validRequestIdentity(identity, false) || !validWorkflowMutation(mutation) || !validMutationReceiptIdentity(identity, mutation.ReceiptID) {
 		return WorkflowMutationResult{}, ErrRepositoryOperation
 	}
+	_, currentSecurityAgent := requestAuthorizationFromContext(ctx)
+	currentSecurityAgent = currentSecurityAgent && repository.securityAgentExecution
 	if mutation.Kind == "security_agent" && mutation.Action != "delete" {
-		if err := requireAutomaticDefinitionBody(ctx, repository.database, mutation.Body); err != nil {
+		// Under current authorization the automatic-sources release is checked
+		// by the authorized writer itself, inside the fenced transaction.
+		database := repository.database
+		if currentSecurityAgent {
+			database = nil
+		}
+		if err := requireAutomaticDefinitionBody(ctx, database, mutation.Body); err != nil {
 			return WorkflowMutationResult{}, err
 		}
 	}
@@ -194,7 +202,15 @@ func (repository *PostgresRepository) MutateWorkflow(ctx context.Context, identi
 		identity.PrincipalID.String(), mutation.Operation, mutation.IdempotencyKey, mutation.ExpectedVersion, mutation.Intent, mutation.Body, mutation.AuditID, mutation.CorrelationID,
 		mutation.ReceiptID,
 	}
-	if repository.securityAgentExecution {
+	if currentSecurityAgent {
+		// One authorized statement: PostgreSQL binds the proof and selects the
+		// definition family's writer.
+		if mutation.Kind != "security_agent" {
+			return WorkflowMutationResult{}, ErrRepositoryOperation
+		}
+		query = currentSecurityAgentDefinitionMutateSQL
+		arguments = []any{mutation.Action, mutation.ID, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), mutation.Operation, mutation.IdempotencyKey, mutation.ExpectedVersion, mutation.Intent, mutation.Body, mutation.AuditID, mutation.CorrelationID, mutation.ReceiptID}
+	} else if repository.securityAgentExecution {
 		if mutation.Kind != "security_agent" {
 			return WorkflowMutationResult{}, ErrRepositoryOperation
 		}
@@ -533,7 +549,16 @@ func (repository *PostgresRepository) ReplayWorkflow(ctx context.Context, identi
 	}
 	var payload json.RawMessage
 	var handled bool
-	if repository.securityAgentExecution {
+	_, currentSecurityAgent := requestAuthorizationFromContext(ctx)
+	currentSecurityAgent = currentSecurityAgent && repository.securityAgentExecution
+	if currentSecurityAgent {
+		var err error
+		if payload, err = repository.database.QueryJSON(ctx, currentSecurityAgentDefinitionReplaySQL, arguments...); err != nil {
+			return WorkflowMutationResult{}, false, err
+		}
+		handled = true
+	}
+	if repository.securityAgentExecution && !currentSecurityAgent {
 		var findingErr error
 		payload, handled, findingErr = queryTemporalFindingResponse(ctx, repository.database, `SELECT zasp_temporal78.configuration_replay($1,$2,$3,$4,$5,$6,$7::jsonb)`, arguments...)
 		if findingErr != nil {

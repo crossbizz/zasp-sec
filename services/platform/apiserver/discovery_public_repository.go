@@ -344,6 +344,9 @@ func (repository *DiscoveryRepository) GetIntegrationFreshness(ctx context.Conte
 	if !validExactFreshnessPayload(payload) || decodeStrictDiscovery(payload, &result) != nil {
 		return IntegrationFreshness{}, ErrRepositoryUnavailable
 	}
+	normalizeCurrentProjectionStatus(&result.Projections.Risk)
+	normalizeCurrentProjectionStatus(&result.Projections.Graph)
+	normalizeCurrentProjectionStatus(&result.Projections.Search)
 	remaining := result
 	remaining.LatestSync = nil
 	if !validPublicIntegrationFreshness(remaining, integrationID) || result.LatestSync != nil && !repository.validSync(*result.LatestSync, integrationID, result.LatestSync.ID) {
@@ -538,6 +541,19 @@ func canonicalizePublicIntegrationSchedule(value *IntegrationSchedule) {
 	value.CreatedAt = value.CreatedAt.UTC()
 	value.UpdatedAt = value.UpdatedAt.UTC()
 	canonicalizeTimePointer(&value.NextRunAt)
+}
+
+// The freshness function reports every succeeded projection with the error
+// code outcome_unknown, because it decides the code from the work row alone.
+// That code is meant for a projection that succeeded but is not the current
+// one (state degraded, no completion time). When the same function reports
+// the state current it has already matched the projection cursor to the
+// snapshot, so the projection has no error. Without this, freshness is
+// refused for every integration from its first successful projection on.
+func normalizeCurrentProjectionStatus(value *IntegrationProjectionStatus) {
+	if value != nil && value.State == "current" && value.SnapshotID != nil && value.CompletedAt != nil && value.LastErrorCode != nil && *value.LastErrorCode == "outcome_unknown" {
+		value.LastErrorCode = nil
+	}
 }
 
 func canonicalizeProjectionStatus(value *IntegrationProjectionStatus) {

@@ -122,7 +122,7 @@ func TestTemporalOwnedWorkflow(t *testing.T) {
 	}
 	executor, compensation, relayDB := openDB("temporal_executor_test_login"), openDB("temporal_compensation_test_login"), openDB("security_agent_v33_worker_login")
 	defer relayDB.Close()
-	p := &temporalSecurityAgentProduct{executor: executor, compensation: compensation, planner: planner, runner: runner, store: store, bindings: []securityAgentMultistepPricingBinding{binding}, signing: func() (string, ed25519.PrivateKey, policy.GatewayPolicyKeys, error) {
+	p := &temporalSecurityAgentProduct{executor: executor, compensation: compensation, planner: planner, runner: runner, store: store, bindings: staticSecurityAgentPricingBindings{binding}, signing: func() (string, ed25519.PrivateKey, policy.GatewayPolicyKeys, error) {
 		return "p3c-current-key", private, keys, nil
 	}, workerID: "p3c-local-worker"}
 	cancelStage := os.Getenv("ZASP_P3C_RAW_CANCEL")

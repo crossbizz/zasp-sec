@@ -2,6 +2,7 @@ package apiserver
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"slices"
 	"testing"
@@ -372,5 +373,104 @@ func TestCompletionAuditSourceReadinessUsesTestReleaseFunction(t *testing.T) {
 	_ = database.RequireCurrentAuthorization()
 	if current, err = database.CurrentAuthorizationSourceReady(context.Background(), 52, "c", "f"); !current || !errors.Is(err, ErrRepositoryUnavailable) {
 		t.Fatalf("unready source: current=%v err=%v", current, err)
+	}
+}
+
+// The connection writes are admitted only for the request's own operation,
+// scope and principal, from a browser session with fresh authentication, with
+// the Organization's identity as the checked target; a delete or a test must
+// reserve the connection named by the request path.
+func TestIdentityProviderWriteStatementContracts(t *testing.T) {
+	i := fixtureRequestIdentity(t)
+	o, w, e, p := i.Scope.OrganizationID().String(), i.Scope.WorkspaceID().String(), i.Scope.EnvironmentID().String(), i.PrincipalID.String()
+	target := AuthorizationTarget{Scope: i.Scope, Kind: "organization_identity", ID: o}
+	const key, mutation, audit, correlation, receipt = "identity-key-00000001", "pid_40000001-0000-4000-8000-000000000001", "pid_40000002-0000-4000-8000-000000000002", "pid_40000003-0000-4000-8000-000000000003", "pid_40000004-0000-4000-8000-000000000004"
+	owner := make([]byte, 32)
+	digest := make([]byte, 32)
+	create := json.RawMessage(`{"display_name":"Corp","protocol":"saml","identity_provider":"okta"}`)
+	named := json.RawMessage(`{"reference":"saml-connection-test-abc123"}`)
+	var expires any
+	type contract struct {
+		name, query, operation, path string
+		args                         func() []any
+	}
+	contracts := []contract{
+		{"reserve create", currentIdentityProviderReserveSQL, "createSSOConnection", "", func() []any {
+			return []any{o, w, e, p, "createSSOConnection", key, mutation, digest, create, audit, correlation, receipt, owner, 30}
+		}},
+		{"reserve delete", currentIdentityProviderReserveSQL, "deleteSSOConnection", "saml-connection-test-abc123", func() []any {
+			return []any{o, w, e, p, "deleteSSOConnection", key, mutation, digest, named, audit, correlation, receipt, owner, 30}
+		}},
+		{"mark unknown", currentIdentityProviderMarkUnknownSQL, "createSCIMConnection", "", func() []any {
+			return []any{o, w, e, p, "createSCIMConnection", key, mutation, owner}
+		}},
+		{"complete", currentIdentityProviderCompleteSQL, "testSSOConnection", "saml-connection-test-abc123", func() []any {
+			return []any{o, w, e, p, "testSSOConnection", key, mutation, owner, json.RawMessage(`{}`), nil, nil, nil, nil, expires}
+		}},
+		{"reveal", currentIdentityProviderRevealSQL, "createSCIMConnection", "", func() []any { return []any{o, w, e, p, mutation} }},
+	}
+	for _, c := range contracts {
+		t.Run(c.name, func(t *testing.T) {
+			grant := func() RequestAuthorization {
+				g := RequestAuthorization{OperationID: c.operation, Identity: i, Allowed: []AuthorizationTarget{target}}
+				if c.path != "" {
+					g.PathParameters = map[string]string{"id": c.path}
+				}
+				return g
+			}
+			if !authorizationStatementAllowed(grant(), c.query, c.args()) {
+				t.Fatal("own contract was refused")
+			}
+			for _, operation := range []string{"listSSOConnections", "createSSOConnection", "deleteSSOConnection", "testSSOConnection", "createSCIMConnection", "deleteSCIMConnection", "updateMemberRole"} {
+				if operation == c.operation {
+					continue
+				}
+				g := grant()
+				g.OperationID = operation
+				if authorizationStatementAllowed(g, c.query, c.args()) {
+					t.Fatalf("operation %s borrowed the statement", operation)
+				}
+			}
+			for n, name := range []string{"organization", "workspace", "environment", "principal"} {
+				args := c.args()
+				args[n] = mutation
+				if authorizationStatementAllowed(grant(), c.query, args) {
+					t.Fatalf("another %s was admitted", name)
+				}
+			}
+			g := grant()
+			g.Identity.CredentialKind = CredentialBearerToken
+			if authorizationStatementAllowed(g, c.query, c.args()) {
+				t.Fatal("an API token was admitted")
+			}
+			g = grant()
+			g.Identity.FreshAuthenticated = false
+			if authorizationStatementAllowed(g, c.query, c.args()) {
+				t.Fatal("admitted without fresh authentication")
+			}
+			g = grant()
+			g.Collection = true
+			if authorizationStatementAllowed(g, c.query, c.args()) {
+				t.Fatal("a collection request was admitted")
+			}
+			g = grant()
+			g.Allowed[0].Kind = "environment"
+			if authorizationStatementAllowed(g, c.query, c.args()) {
+				t.Fatal("admitted without the Organization identity target")
+			}
+			if authorizationStatementAllowed(grant(), c.query, append(c.args(), "extra")) {
+				t.Fatal("argument count was not bound")
+			}
+		})
+	}
+	other := RequestAuthorization{OperationID: "deleteSSOConnection", Identity: i, Allowed: []AuthorizationTarget{target}, PathParameters: map[string]string{"id": "saml-connection-test-zzz999"}}
+	if authorizationStatementAllowed(other, currentIdentityProviderReserveSQL, []any{o, w, e, p, "deleteSSOConnection", key, mutation, digest, named, audit, correlation, receipt, owner, 30}) {
+		t.Fatal("a reservation for a connection other than the path connection was admitted")
+	}
+	legacy := RequestAuthorization{OperationID: "createSSOConnection", Identity: i, Allowed: []AuthorizationTarget{target}}
+	for _, statement := range []string{postgresIdentityReserveMutationSQL, postgresIdentityMarkUnknownSQL, postgresIdentityCompleteMutationSQL, postgresIdentityRevealSecretSQL, postgresIdentityAcknowledgeSecretSQL} {
+		if authorizationStatementAllowed(legacy, statement, []any{o, p, "createSSOConnection", key, mutation, owner}) {
+			t.Fatalf("historical statement admitted: %s", statement)
+		}
 	}
 }

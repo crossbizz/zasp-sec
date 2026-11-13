@@ -26,7 +26,7 @@ type temporalSecurityAgentProduct struct {
 	planner                           *productionSecurityAgentPlanner
 	runner                            *productionRedTeamRunner
 	store                             artifactstore.ArtifactStore
-	bindings                          []securityAgentMultistepPricingBinding
+	bindings                          securityAgentPricingBindings
 	signing                           func() (string, ed25519.PrivateKey, policy.GatewayPolicyKeys, error)
 	orderedPolicyKeyID                string
 	orderedPolicyKeys                 policy.GatewayPolicyKeys
@@ -214,11 +214,13 @@ func (p *temporalSecurityAgentProduct) Plan(ctx context.Context, q orchestration
 	if phase != "planning" {
 		return nil
 	}
-	for _, selection := range p.bindings {
-		if selection.OrganizationID == q.Ref.OrganizationID && selection.WorkspaceID == q.Ref.WorkspaceID && selection.EnvironmentID == q.Ref.EnvironmentID {
-			_, err := p.planner.RunTemporalPlanning(ctx, p.executor, p.store, selection, q.Ref.RunID, q.DefinitionVersion)
-			return err
-		}
+	selection, found, err := p.pricingBinding(ctx, q)
+	if err != nil {
+		return err
+	}
+	if found {
+		_, err := p.planner.RunTemporalPlanning(ctx, p.executor, p.store, selection, q.Ref.RunID, q.DefinitionVersion)
+		return err
 	}
 	return orchestration.ErrInvalid
 }

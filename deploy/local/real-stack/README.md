@@ -8,6 +8,7 @@
 - a real Stytch B2B project, through its API credentials
 - LocalStack 4.7.0 standing in for AWS STS, IAM, Secrets Manager, KMS, S3, SQS and EC2, including one emulated customer account for an AWS integration to connect to
 - a single-node OpenSearch 3.8.0 standing in for the managed search domain
+- Neo4j 5.26 Community standing in for the managed graph database, serving Bolt over TLS only
 
 It exists because every other harness in this repository replaces Stytch with a loopback fake and seeds memberships with hand-written SQL. This one uses the operator commands a deployment uses: `agentsec-migrate`, `zasp-bootstrap` and `zasp-authorization-reconcile`. See [the baseline installation guide](../../../docs/operations/baseline-schema-install.md).
 
@@ -35,6 +36,8 @@ Everything below is active only when the local cloud endpoint is accepted, that 
 | Regions the AWS collector reads instances from | Every region AWS lists as enabled. A region that is not enabled in the answer refuses the whole collection. | Regions listed as `not-opted-in`, and `cn-*` and `us-gov-*` regions, are skipped. | LocalStack lists regions that a real account never sees, and answers for China and GovCloud regions with the `us-east-1` instances. |
 | Where the posture analyzer (Prowler) re-attests the customer credential | `https://sts.us-east-1.amazonaws.com`, over TLS | The local cloud endpoint. The analyzer applies the same rule itself and refuses a local endpoint in any other environment. | Credentials that LocalStack issued are unknown to AWS. The check is the same; only the host differs. |
 | Worker health port | `:8081` | `127.0.0.1:$ZASP_LOCAL_HEALTH_PORT` when that is set to a port number | Several worker modes run on one machine. |
+| Certificate authorities the graph worker trusts for Neo4j | The system trust store | Only the authorities in the PEM file `ZASP_LOCAL_NEO4J_CA_FILE` names, when it is set. Certificate and host name verification stay on, and the `neo4j+s` scheme stays required. A named file that cannot be read refuses the start. | The local Neo4j serves a certificate from an authority created on this machine. |
+| What the graph worker verifies about its Neo4j user | The user name, that its roles are exactly `PUBLIC` and the expected role, that the role holds exactly four privileges, and the five owned constraints | Against a server that reports the Community edition: the user name, that no password change is pending, and the five owned constraints. Any other edition gets the production check. | Community has no roles and cannot list privileges (`CREATE ROLE` and `SHOW USER ... PRIVILEGES` answer "Unsupported administration command"). Only Neo4j Enterprise can satisfy the production check. |
 
 Nothing is skipped: role assumption with the external ID, the caller identity check, the allow-list of customer roles and both analyzers run as they do in production. LocalStack does not enforce IAM, so it accepts any external ID and never denies an action. A connection that succeeds here says nothing about the trust policy or the permissions of a real customer role.
 
@@ -71,7 +74,7 @@ deploy/local/real-stack/stack.sh status   # one line per dependency and process
 deploy/local/real-stack/stack.sh stop     # stops the processes 'start' started
 ```
 
-`start` runs `up` when it has not completed or a dependency is not running, then starts the API, the three workers, the permission projector and the web application behind its TLS front. Each runs the foreground command described below, with its pid in `$ZASP_REAL_STACK_STATE/run/` and its output in `$ZASP_REAL_STACK_STATE/logs/`. It is safe to repeat: a process that already runs, or whose port already answers, is left alone. Before the first `bootstrap` it stops after `up` and prints the `bootstrap` command. It rebuilds the web application when its sources are newer than the last build; it does not rebuild the Go binaries (`up` does).
+`start` runs `up` when it has not completed or a dependency is not running, then starts the API, the six workers (scheduler, discovery, outbox and the three projection workers), the permission projector and the web application behind its TLS front. Each runs the foreground command described below, with its pid in `$ZASP_REAL_STACK_STATE/run/` and its output in `$ZASP_REAL_STACK_STATE/logs/`. It is safe to repeat: a process that already runs, or whose port already answers, is left alone. Before the first `bootstrap` it stops after `up` and prints the `bootstrap` command. It rebuilds the web application when its sources are newer than the last build; it does not rebuild the Go binaries (`up` does).
 
 ## The web application and its TLS front
 
@@ -99,7 +102,7 @@ Runs `zasp-authorization-reconcile -mode reconcile -limit 20` every 5 seconds (`
 deploy/local/real-stack/stack.sh up
 ```
 
-Starts Temporal, OpenFGA, LocalStack, OpenSearch and the product database, runs the production search-schema job (`projection-search-init`) against the local search node, creates the AWS resources described under [The emulated AWS account](#the-emulated-aws-account), creates the `zasp_operator` role (no superuser) and its database, installs the baseline schema with its 31 least-privilege service logins, registers the worker, authorization and approval-delivery verifiers, and publishes the authorization model. With the images present, a clean run took about 15 seconds before it created the AWS resources; creating them adds about 30 seconds.
+Starts Temporal, OpenFGA, LocalStack, OpenSearch, Neo4j and the product database, runs the production search-schema job (`projection-search-init`) against the local search node and the production graph-schema job (`projection-graph-init`) against the local Neo4j, creates the AWS resources described under [The emulated AWS account](#the-emulated-aws-account), creates the `zasp_operator` role (no superuser) and its database, installs the baseline schema with its 31 least-privilege service logins, registers the worker, authorization and approval-delivery verifiers, and publishes the authorization model. With the images present, a clean run took about 15 seconds before it created the AWS resources; creating them adds about 30 seconds.
 
 ```bash
 deploy/local/real-stack/stack.sh bootstrap "Acme Security" acme.example admin@acme.example
@@ -138,7 +141,56 @@ Runs one worker mode in the foreground. The three can run at the same time. `sch
 
 A refused start prints `agentsec-worker startup refused: stage=<stage>`, for example `stage=dependencies:discovery-readiness-queue`.
 
-On 2026-11-13 `outbox` refused to start on the installed baseline with `stage=dependencies:database-startup-profile`: its database role `zasp_outbox_worker` may not call `zasp_authorization80_worker.runtime_ready()`, which the startup check requires. Until the baseline grants that, a requested sync stays `queued`. Later the same day `outbox` started and reported ready on the same machine, after other work on the baseline; the cause was not re-examined here.
+```bash
+deploy/local/real-stack/stack.sh worker projection-graph    # health on 127.0.0.1:8091
+deploy/local/real-stack/stack.sh worker projection-search   # health on 127.0.0.1:8092
+deploy/local/real-stack/stack.sh worker projection-risk     # health on 127.0.0.1:8093
+```
+
+The three projection workers; see [The projection workers](#the-projection-workers).
+
+A requested sync passes through all three: the API writes the sync and an outbox row, `outbox` publishes it, `discovery` starts the Temporal workflow and collects four pages, then applies the snapshot. On this machine a sync of the emulated account takes four to seven minutes, because every provider request of a page is authorized on its own (about half a second each, more under load).
+
+Three things end a run early here that a quiet deployment does not see:
+
+- **A worker configured with another collector version.** The installed schema hands every run the collector version `collector_v1`; `stack.sh` sets the worker to the same value.
+- **Stopping the discovery worker during a page.** The page is recorded as `outcome_unknown`, the sync fails, and the integration stays reserved for that run: every later sync waits in `queued` with `last_error_code` `retryable`. Nothing in the product releases it. On this disposable database the reservation row of the failed sync can be deleted from `zasp_discovery_generation_reservations` by the superuser.
+- **Changing the schema or restarting the API during a run.** The per-request authorization is refused while the baseline seal is open, and the run ends as `revoked`.
+
+## The projection workers
+
+A discovery run that completes stores a snapshot and queues three rows in `zasp_projection_work`, one each of kind `graph`, `search` and `risk` (`zasp_discovery_apply_snapshot` does both). There is no queue in between: each projection worker polls that table through `zasp_execution_claim_projection_work`, reads the snapshot's entities, relationships and evidence page by page, applies them, and records a receipt in `zasp_discovery_projection_receipts`.
+
+| Worker | Reads | Writes | Needs |
+| --- | --- | --- | --- |
+| `projection-graph` | entities and relationships | Neo4j: one `ZaspInventoryGraphNode` per entity, one `ZASP_INVENTORY_GRAPH_EDGE` per relationship and one `ZaspGraphProjection` marker per integration | Neo4j at `neo4j+s://localhost:7687`, the secret `zasp-real-stack/projection/neo4j/auth/graph-worker`, the role `arn:aws:iam::000000000000:role/zasp-real-stack-projection-graph`, the five constraints the graph-schema job creates |
+| `projection-search` | entities | OpenSearch index `zasp-inventory-v1`: one document per entity and one snapshot marker | the search node on `127.0.0.1:4092`, the role `...:role/zasp-real-stack-projection-search`, the index the search-schema job creates |
+| `projection-risk` | entities, relationships and evidence | PostgreSQL: `zasp_discovery_risk_projection_current` and `_items`, then findings (`zasp_risk_findings` with their evidence, factors and break options) and attack paths (`zasp_risk_attack_paths` with their nodes and evidence) | the product database only |
+
+The API reads none of this from Neo4j or from the inventory index. `GET /api/v1/search`, `/findings`, `/attack-paths` and `/agents/{id}/relationships` answer from PostgreSQL, so of the three only the risk projection changes what those routes return. The graph and the search index are written and can be inspected directly.
+
+`up` starts Neo4j in the container `zasp-real-stack-neo4j` (image `ZASP_REAL_STACK_NEO4J_IMAGE`, by default `public.ecr.aws/docker/library/neo4j:5.26-community`) on `127.0.0.1:7687`. Bolt refuses plaintext; the HTTP interface and usage reporting are off. The certificate is created in `$ZASP_REAL_STACK_STATE/tls/neo4j/`: an authority (`ca.crt`) whose name constraint permits only `localhost`, and a server certificate from it. The authority's private key is deleted once the certificate is signed. The files in that directory are world-readable because the container reads them as another user; the directory above it is private to the user running the script.
+
+`up` also creates the Neo4j user `zasp_graph_worker` and stores two credentials in LocalStack Secrets Manager, in the JSON form the workers read (`{"scheme":"basic","principal":...,"credentials":...}`): `zasp-real-stack/projection/neo4j/auth/graph-schema` (the administrator, used once by the graph-schema job) and `zasp-real-stack/projection/neo4j/auth/graph-worker`. Both passwords are generated into `$ZASP_REAL_STACK_STATE/secrets/`. The administrator password takes effect only when the container is first created: after deleting the state directory, remove the container as well.
+
+The graph worker is told to expect the role `zasp_graph_writer`. Community has no roles, so nothing creates it and the worker's role and privilege check is replaced as described under [What behaves differently in development mode](#what-behaves-differently-in-development-mode). On Community every user can do everything, including changing the schema, so this stack proves nothing about the worker's least-privilege role. To run the production check locally, run Neo4j Enterprise (it needs a license or its evaluation terms accepted, which this script does not do), create the role with the four privileges listed in `expectedWorkerPrivilegeCommands` (`services/platform/graphstore/neo4jstore/adapter.go`) and grant it to the user. That has not been tried.
+
+To look at the result:
+
+```bash
+# Graph: nodes and relationships by kind.
+NEO4J_USERNAME=neo4j NEO4J_PASSWORD="$(cat ~/.local/state/zasp-real-stack/secrets/neo4j-admin.password)" \
+  docker exec -e NEO4J_USERNAME -e NEO4J_PASSWORD zasp-real-stack-neo4j cypher-shell -a neo4j+ssc://localhost:7687 \
+  "MATCH (n:ZaspInventoryGraphNode) RETURN n.kind, count(*); MATCH ()-[r:ZASP_INVENTORY_GRAPH_EDGE]->() RETURN r.kind, count(*);"
+# Search index: number of documents (one is the schema marker).
+curl -s http://127.0.0.1:4092/zasp-inventory-v1/_count
+# Work queue: one row per snapshot and kind.
+psql "postgres://postgres@127.0.0.1:55434/zasp?sslmode=disable" -c 'select kind, state, attempt, last_error from zasp_projection_work'
+```
+
+Verified on 2026-11-13 on Linux: the three workers start and report ready against these dependencies, and `projection-graph-init` creates the constraints over verified TLS. A synthetic snapshot applied through the production graph store reached Neo4j (create, replay, and replacement by a later generation), and one applied through the production search store reached the index; both were removed afterwards. No discovery run had completed at that time, so the workers have not yet been seen projecting a discovered snapshot, and nothing here shows findings or attack paths produced from one.
+
+One failure is expected when that happens. The graph store refuses any node or relationship kind that contains the word `aws`, `github`, `cartography` or `neo4j`, and the AWS collector names its entities `aws_account`, `aws_role`, `aws_policy` and `aws_instance`. The graph worker passes those kinds on unchanged, so the `graph` row of an AWS snapshot is expected to fail while `search` and `risk` succeed. The store's refusal of such a kind was observed directly; the worker's failure on a real snapshot was not.
 
 ## The emulated AWS account
 
@@ -158,7 +210,9 @@ Create the integration with this configuration:
 
 A collection of this account yields 13 entities (the account, 4 roles, 6 policies, the EC2 service and the instance), 21 relationships and 5 posture results, 2 of them failing: administrator access on `agent-orchestrator` and IMDSv1 on the instance. The collector reads IAM roles with their attached managed policies and EC2 instances in every enabled region. It reads nothing else, and no Bedrock resource.
 
-The product classifies every AWS entity as an asset. An AWS run therefore adds nothing to `GET /api/v1/agents`, `/identities`, `/tools` or `/runtimes`; those lists are fed by the Kubernetes, Okta and GitHub connectors.
+Posture results become findings only through the `projection-risk` worker: after a run with that worker running, `GET /api/v1/findings` lists the two failing checks. On 2026-11-13 the graph and search projections refused the AWS snapshot (`graph snapshot input rejected`, `inventory search input rejected`), so the integration's freshness reports them as `degraded`.
+
+The product classifies an IAM role as an identity and every other AWS entity as an asset. After a run, `GET /api/v1/identities` lists the four roles. `/agents`, `/tools` and `/runtimes` are fed by the Kubernetes, Okta and GitHub connectors; an AWS run adds nothing to them.
 
 ```bash
 deploy/local/real-stack/stack.sh down
@@ -179,9 +233,9 @@ Stops the processes `start` started, then the containers, and keeps their data. 
 | Not available | Why |
 | --- | --- |
 | Completing a sign-in without a person | Stytch must have this origin's redirect URLs registered, and a person must complete OAuth or follow the invitation email in a browser, through `stack.sh ui`. On 2026-11-13 a headless browser reached the Google sign-in page through this front; nobody has completed a sign-in through it yet. |
-| Discovery of a real account | LocalStack answers the AWS calls for one emulated account with a small fixture. There is no Neo4j or third-party provider, and the GitHub and Okta secrets are placeholders. |
+| Discovery of a real account | LocalStack answers the AWS calls for one emulated account with a small fixture. There is no third-party provider, and the GitHub and Okta secrets are placeholders. |
 | Proving IAM | LocalStack accepts any external ID and never denies an action. |
-| Worker modes other than `scheduler`, `outbox` and `discovery` | Each needs queues, keys and endpoints the script does not create yet, and the Security Agent worker needs an OpenRouter API token. |
+| Worker modes other than `scheduler`, `outbox`, `discovery` and the three projection modes | Each needs queues, keys and endpoints the script does not create yet, and the Security Agent worker needs an OpenRouter API token. |
 | Connecting an integration without a person | `POST /api/v1/integrations/{id}/reference-authorization` accepts only a browser session that authenticated minutes ago. |
 
 ## Using an external PostgreSQL (for example a Neon development branch)

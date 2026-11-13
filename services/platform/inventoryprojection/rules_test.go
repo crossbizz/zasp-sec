@@ -12,7 +12,7 @@ func TestRuleCatalogBindsExactProviderKindsToProductAuthority(t *testing.T) {
 		{Provider: "aws", SourceKind: "aws_account", Namespace: "aws_account", ProductKind: KindAsset, Version: 1, Priority: 100, ConfidenceBasisPoints: 9000, Freshness: 24 * time.Hour},
 		{Provider: "aws", SourceKind: "aws_policy", Namespace: "aws_policy", ProductKind: KindAsset, Version: 1, Priority: 100, ConfidenceBasisPoints: 9000, Freshness: 24 * time.Hour},
 		{Provider: "aws", SourceKind: "aws_resource", Namespace: "aws_resource", ProductKind: KindAsset, Version: 1, Priority: 100, ConfidenceBasisPoints: 9000, Freshness: 24 * time.Hour},
-		{Provider: "aws", SourceKind: "aws_role", Namespace: "aws_role", ProductKind: KindAsset, Version: 1, Priority: 100, ConfidenceBasisPoints: 9000, Freshness: 24 * time.Hour},
+		{Provider: "aws", SourceKind: "aws_role", Namespace: "aws_role", ProductKind: KindIdentity, Version: 2, Priority: 100, ConfidenceBasisPoints: 9000, Freshness: 24 * time.Hour},
 		{Provider: "aws", SourceKind: "aws_service", Namespace: "aws_service", ProductKind: KindAsset, Version: 1, Priority: 100, ConfidenceBasisPoints: 9000, Freshness: 24 * time.Hour},
 		{Provider: "github", SourceKind: "github_app", Namespace: "github_app", ProductKind: KindTool, Version: 1, Priority: 120, ConfidenceBasisPoints: 9000, Freshness: 24 * time.Hour},
 		{Provider: "github", SourceKind: "github_environment", Namespace: "github_environment", ProductKind: KindAsset, Version: 1, Priority: 120, ConfidenceBasisPoints: 9000, Freshness: 24 * time.Hour},
@@ -46,7 +46,7 @@ func TestRuleCatalogBindsExactProviderKindsToProductAuthority(t *testing.T) {
 		t.Fatalf("catalog = %#v, want %#v", actual, expected)
 	}
 	digest := RuleCatalogDigest()
-	if got := hex.EncodeToString(digest[:]); got != "44820a38e96d80318165fc2333fd851cd932d2704d380a1199d569d1d0778f30" {
+	if got := hex.EncodeToString(digest[:]); got != "9397691244ac0b8befd2790fed3ca2e71f2114eba44001cc3d5634f86b6044ed" {
 		t.Fatalf("catalog digest = %s", got)
 	}
 

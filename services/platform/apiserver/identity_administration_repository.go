@@ -95,8 +95,9 @@ func (repository *PostgresRepository) reserveIdentityProviderMutation(ctx contex
 		return identityMutationReservation{}, nil, ErrRepositoryOperation
 	}
 	digest := sha256.Sum256(mutation.Intent)
-	payload, err := repository.database.QueryJSON(ctx, postgresIdentityReserveMutationSQL,
-		identity.Scope.OrganizationID().String(), identity.PrincipalID.String(), mutation.Operation, mutation.IdempotencyKey, mutation.MutationID, digest[:], mutation.Intent, mutation.AuditID, mutation.CorrelationID, mutation.ReceiptID, mutation.OwnerToken, mutation.LeaseSeconds)
+	statement, scope := identityProviderStatement(ctx, identity, postgresIdentityReserveMutationSQL, currentIdentityProviderReserveSQL)
+	payload, err := repository.database.QueryJSON(ctx, statement, append(scope,
+		identity.PrincipalID.String(), mutation.Operation, mutation.IdempotencyKey, mutation.MutationID, digest[:], mutation.Intent, mutation.AuditID, mutation.CorrelationID, mutation.ReceiptID, mutation.OwnerToken, mutation.LeaseSeconds)...)
 	if err != nil {
 		return identityMutationReservation{}, nil, discoveryProviderError(err)
 	}
@@ -117,7 +118,8 @@ func (repository *PostgresRepository) markIdentityProviderMutationUnknown(ctx co
 	if repository == nil || !isIdentityAdministrationSchema(repository.schema) || nilInterface(repository.database) || ctx == nil || ctx.Err() != nil || !validRequestIdentity(identity, true) || !validIdentityProviderMutation(mutation) {
 		return ErrRepositoryOperation
 	}
-	_, err := repository.database.QueryJSON(ctx, postgresIdentityMarkUnknownSQL, identity.Scope.OrganizationID().String(), identity.PrincipalID.String(), mutation.Operation, mutation.IdempotencyKey, mutation.MutationID, mutation.OwnerToken)
+	statement, scope := identityProviderStatement(ctx, identity, postgresIdentityMarkUnknownSQL, currentIdentityProviderMarkUnknownSQL)
+	_, err := repository.database.QueryJSON(ctx, statement, append(scope, identity.PrincipalID.String(), mutation.Operation, mutation.IdempotencyKey, mutation.MutationID, mutation.OwnerToken)...)
 	return discoveryProviderError(err)
 }
 
@@ -133,9 +135,10 @@ func (repository *PostgresRepository) completeIdentityProviderMutation(ctx conte
 		}
 		grant, expires = completion.GrantID, completion.GrantExpiresAt
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresIdentityCompleteMutationSQL,
-		identity.Scope.OrganizationID().String(), identity.PrincipalID.String(), completion.Operation, completion.IdempotencyKey, completion.MutationID, completion.OwnerToken, completion.Connection,
-		grant, nullableIdentityBytes(completion.Ciphertext), nullableIdentityBytes(completion.Nonce), nullableIdentityBytes(completion.AuthenticationTag), expires)
+	statement, scope := identityProviderStatement(ctx, identity, postgresIdentityCompleteMutationSQL, currentIdentityProviderCompleteSQL)
+	payload, err := repository.database.QueryJSON(ctx, statement, append(scope,
+		identity.PrincipalID.String(), completion.Operation, completion.IdempotencyKey, completion.MutationID, completion.OwnerToken, completion.Connection,
+		grant, nullableIdentityBytes(completion.Ciphertext), nullableIdentityBytes(completion.Nonce), nullableIdentityBytes(completion.AuthenticationTag), expires)...)
 	if err != nil {
 		return nil, discoveryProviderError(err)
 	}
@@ -149,7 +152,8 @@ func (repository *PostgresRepository) revealIdentityProviderSecret(ctx context.C
 	if repository == nil || !isIdentityAdministrationSchema(repository.schema) || nilInterface(repository.database) || ctx == nil || ctx.Err() != nil || !validRequestIdentity(identity, true) || !validProductID(grantID) {
 		return nil, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresIdentityRevealSecretSQL, identity.Scope.OrganizationID().String(), identity.PrincipalID.String(), grantID)
+	statement, scope := identityProviderStatement(ctx, identity, postgresIdentityRevealSecretSQL, currentIdentityProviderRevealSQL)
+	payload, err := repository.database.QueryJSON(ctx, statement, append(scope, identity.PrincipalID.String(), grantID)...)
 	if err != nil || !json.Valid(payload) || string(payload) == "null" {
 		return nil, ErrRepositoryNotFound
 	}
@@ -180,4 +184,14 @@ func nullableIdentityBytes(value []byte) any {
 		return nil
 	}
 	return value
+}
+
+// identityProviderStatement selects the authorized statement of a connection
+// write under a checked request, with the full scope the proof is compared
+// with, and the historical statement (Organization only) otherwise.
+func identityProviderStatement(ctx context.Context, identity RequestIdentity, legacy, current string) (string, []any) {
+	if _, checked := requestAuthorizationFromContext(ctx); checked {
+		return current, []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String()}
+	}
+	return legacy, []any{identity.Scope.OrganizationID().String()}
 }

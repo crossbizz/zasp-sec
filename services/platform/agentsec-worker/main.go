@@ -65,7 +65,12 @@ func main() {
 	}
 	if mode == workerModeProjectionSearchInit || mode == workerModeProjectionGraphInit {
 		config, err := loadProjectionInitConfig(os.Getenv)
-		if err != nil || runProductionProjectionInit(ctx, config) != nil {
+		if err != nil {
+			_, _ = io.WriteString(os.Stderr, "agentsec-worker startup refused: stage=configuration\n")
+			os.Exit(1)
+		}
+		if runProductionProjectionInit(ctx, config) != nil {
+			_, _ = io.WriteString(os.Stderr, "agentsec-worker startup refused: stage=dependencies:"+currentStartupStage()+"\n")
 			os.Exit(1)
 		}
 		return

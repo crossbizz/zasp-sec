@@ -69,8 +69,14 @@ type prowlerInventoryInstance struct {
 	State        string `json:"State"`
 }
 
+// MaximumInventoryPageTimeout bounds one inventory page. A page is not one
+// provider request: it reads every role with its policies and every enabled
+// region, and then runs an analyzer. Each of those requests has its own
+// transport timeout and its own authorization check.
+const MaximumInventoryPageTimeout = 5 * time.Minute
+
 func NewInventoryCollectionAPI(caller CollectionInventoryCaller, analyzer CollectionSecurityAnalyzer, authority CollectionInventoryAuthority, timeout time.Duration) (*InventoryCollectionAPI, error) {
-	if nilInventoryDependency(caller) || nilInventoryDependency(analyzer) || !validCollectionInventoryAuthority(authority) || timeout < 100*time.Millisecond || timeout > 30*time.Second {
+	if nilInventoryDependency(caller) || nilInventoryDependency(analyzer) || !validCollectionInventoryAuthority(authority) || timeout < 100*time.Millisecond || timeout > MaximumInventoryPageTimeout {
 		return nil, ErrInvalid
 	}
 	return &InventoryCollectionAPI{caller: caller, analyzer: analyzer, authority: authority, timeout: timeout}, nil

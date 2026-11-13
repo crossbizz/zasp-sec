@@ -90,6 +90,8 @@ func (provider *projectionWebIdentityProvider) Retrieve(ctx context.Context) (aw
 type projectionNeo4jAuthenticationResolver struct {
 	client projectionSecretsAPI
 	prefix string
+	// resolved, when set, is called once the credential has been read.
+	resolved func()
 }
 
 func (resolver *projectionNeo4jAuthenticationResolver) ResolveNeo4jAuthentication(ctx context.Context, reference string) (auth.TokenManager, error) {
@@ -104,6 +106,9 @@ func (resolver *projectionNeo4jAuthenticationResolver) ResolveNeo4jAuthenticatio
 	initial, err := resolver.readBasicToken(ctx, identifier)
 	if err != nil {
 		return nil, errRuntimeUnavailable
+	}
+	if resolver.resolved != nil {
+		resolver.resolved()
 	}
 	var lock sync.Mutex
 	first := true
@@ -155,10 +160,12 @@ type productionProjectionProjector struct {
 }
 
 func newProductionSearchProjection(ctx context.Context, config workerRuntimeConfig) (productionProjectionProjector, error) {
+	enterStartupStage("projection-aws-authority")
 	authority, err := newProjectionAWSAuthority(config)
 	if err != nil {
 		return productionProjectionProjector{}, errRuntimeUnavailable
 	}
+	enterStartupStage("projection-search-driver")
 	requestTimeout := minDuration(time.Duration(config.LeaseDuration)/3, 30*time.Second)
 	driver, err := opensearchdriver.New(opensearchdriver.Config{AllowTestLoopback: localcloud.Current().AllowsEndpoint(config.OpenSearchURL),
 		Endpoint: config.OpenSearchURL, Region: config.AWSRegion, RequestTimeout: requestTimeout, MaximumRequestBytes: 8 << 20, MaximumResponseBytes: 8 << 20,
@@ -188,6 +195,15 @@ func newProductionSearchProjection(ctx context.Context, config workerRuntimeConf
 		}
 		return nil
 	}
+	// The readiness the worker repeats checks both at once; at startup they
+	// are entered one by one so a refusal names the missing one.
+	enterStartupStage("projection-caller-identity")
+	if verifyProjectionCallerIdentity(ctx, authority.identity, config.ProjectionRoleARN) != nil {
+		driver.Close()
+		authority.transport.CloseIdleConnections()
+		return productionProjectionProjector{}, errRuntimeUnavailable
+	}
+	enterStartupStage("projection-search-index")
 	if err := ready(ctx); err != nil {
 		driver.Close()
 		authority.transport.CloseIdleConnections()
@@ -197,19 +213,41 @@ func newProductionSearchProjection(ctx context.Context, config workerRuntimeConf
 }
 
 func newProductionGraphProjection(ctx context.Context, config workerRuntimeConfig) (productionProjectionProjector, error) {
+	return newProductionGraphProjectionWithDevelopment(ctx, config, func() (projectionGraphDevelopment, error) {
+		return loadProjectionGraphDevelopment(localcloud.Current(), os.Getenv, os.ReadFile)
+	})
+}
+
+func newProductionGraphProjectionWithDevelopment(ctx context.Context, config workerRuntimeConfig, loadDevelopment func() (projectionGraphDevelopment, error)) (productionProjectionProjector, error) {
+	enterStartupStage("projection-graph-local-trust")
+	development, err := loadDevelopment()
+	if err != nil {
+		return productionProjectionProjector{}, errRuntimeUnavailable
+	}
+	enterStartupStage("projection-aws-authority")
 	authority, err := newProjectionAWSAuthority(config)
 	if err != nil {
 		return productionProjectionProjector{}, errRuntimeUnavailable
 	}
-	resolver := &projectionNeo4jAuthenticationResolver{client: authority.secrets, prefix: config.ProjectionSecretPrefix}
+	enterStartupStage("projection-caller-identity")
+	if verifyProjectionCallerIdentity(ctx, authority.identity, config.ProjectionRoleARN) != nil {
+		authority.transport.CloseIdleConnections()
+		return productionProjectionProjector{}, errRuntimeUnavailable
+	}
+	// NewProduction resolves the credential and then connects; the resolver
+	// advances the stage once the credential has been read.
+	enterStartupStage("projection-graph-credential")
+	resolver := &projectionNeo4jAuthenticationResolver{client: authority.secrets, prefix: config.ProjectionSecretPrefix, resolved: func() { enterStartupStage("projection-graph-connect") }}
 	adapter, err := neo4jstore.NewProduction(ctx, neo4jstore.ProductionConfig{
 		Endpoint: config.Neo4jURI, AuthenticationReference: config.Neo4jCredential, ReadinessTimeout: minDuration(config.LeaseDuration/3, 30*time.Second),
 		ExpectedPrincipal: config.Neo4jExpectedPrincipal, ExpectedRole: config.Neo4jExpectedRole,
+		DevelopmentRootCAs: development.RootCAs, DevelopmentCommunityEdition: development.CommunityEdition,
 	}, resolver)
 	if err != nil {
 		authority.transport.CloseIdleConnections()
 		return productionProjectionProjector{}, errRuntimeUnavailable
 	}
+	enterStartupStage("projection-graph-store")
 	store, err := graphstore.New(adapter, graphstore.Config{OperationTimeout: minDuration(config.LeaseDuration/2, 30*time.Second), MaximumNodes: 1_000, MaximumEdges: 2_000, MaximumDepth: 8})
 	if err != nil {
 		closeCtx, cancel := context.WithTimeout(ctx, time.Second)
@@ -232,6 +270,7 @@ func newProductionGraphProjection(ctx context.Context, config workerRuntimeConfi
 		}
 		return nil
 	}
+	enterStartupStage("projection-graph-readiness")
 	if err := ready(ctx); err != nil {
 		closeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), time.Second)
 		_ = adapter.Close(closeCtx)

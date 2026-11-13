@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"os"
 	"time"
 
 	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
@@ -17,15 +18,18 @@ func runProductionProjectionInit(ctx context.Context, config workerRuntimeConfig
 	}
 	bounded, cancel := context.WithTimeout(ctx, config.LeaseDuration)
 	defer cancel()
+	enterStartupStage("projection-aws-authority")
 	authority, err := newProjectionAWSAuthority(config)
 	if err != nil {
 		return errRuntimeUnavailable
 	}
 	defer authority.transport.CloseIdleConnections()
+	enterStartupStage("projection-caller-identity")
 	if verifyProjectionCallerIdentity(bounded, authority.identity, config.ProjectionRoleARN) != nil {
 		return errRuntimeUnavailable
 	}
 	if config.Mode == workerModeProjectionSearchInit {
+		enterStartupStage("projection-search-schema")
 		driver, createErr := opensearchdriver.New(opensearchdriver.Config{AllowTestLoopback: localcloud.Current().AllowsEndpoint(config.OpenSearchURL),
 			Endpoint: config.OpenSearchURL, Region: config.AWSRegion, RequestTimeout: minDuration(config.LeaseDuration/3, 10*time.Second), MaximumRequestBytes: 8 << 20, MaximumResponseBytes: 8 << 20,
 		}, authority.credentials, v4.NewSigner(), func() time.Time { return time.Now().UTC() })
@@ -46,13 +50,23 @@ func runProductionProjectionInit(ctx context.Context, config workerRuntimeConfig
 		defer sessions.Close()
 		return initializeProductionSearchSchemas(bounded, driver, raw, sessions)
 	}
-	resolver := &projectionNeo4jAuthenticationResolver{client: authority.secrets, prefix: config.ProjectionSecretPrefix}
+	enterStartupStage("projection-graph-local-trust")
+	development, err := loadProjectionGraphDevelopment(localcloud.Current(), os.Getenv, os.ReadFile)
+	if err != nil {
+		return errRuntimeUnavailable
+	}
+	enterStartupStage("projection-graph-credential")
+	resolver := &projectionNeo4jAuthenticationResolver{client: authority.secrets, prefix: config.ProjectionSecretPrefix, resolved: func() { enterStartupStage("projection-graph-connect") }}
+	// The schema credential names no expected principal or role, so the
+	// Community allowance has nothing to relax here; only the trust store applies.
 	adapter, err := neo4jstore.NewProduction(bounded, neo4jstore.ProductionConfig{
 		Endpoint: config.Neo4jURI, AuthenticationReference: config.Neo4jCredential, ReadinessTimeout: minDuration(config.LeaseDuration/3, 10*time.Second),
+		DevelopmentRootCAs: development.RootCAs,
 	}, resolver)
 	if err != nil {
 		return errRuntimeUnavailable
 	}
+	enterStartupStage("projection-graph-schema")
 	operationErr := adapter.EnsureSchema(bounded)
 	if operationErr == nil {
 		operationErr = adapter.Ready(bounded)

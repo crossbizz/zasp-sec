@@ -29,7 +29,7 @@ func requireAutomaticDefinitionBody(ctx context.Context, db JSONDatabase, body j
 			}
 		}
 	}
-	if _, configured := fields["trigger_rules"]; !configured {
+	if _, configured := fields["trigger_rules"]; !configured || nilInterface(db) {
 		return nil
 	}
 	var present, ready bool

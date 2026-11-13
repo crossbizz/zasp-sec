@@ -138,3 +138,21 @@ func TestSecurityResultAcceptsCanonicalPostureFindings(t *testing.T) {
 		t.Fatal("non-canonical posture findings were accepted")
 	}
 }
+
+func TestInventoryCollectionAPIPageTimeoutBounds(t *testing.T) {
+	t.Parallel()
+	build := func(timeout time.Duration) error {
+		_, err := NewInventoryCollectionAPI(&recordingAWSInventoryCaller{snapshot: awsInventoryFixture()}, &recordingSecurityAnalyzer{}, awsInventoryAuthority(t, "pid_51000001-0000-4000-8000-000000000001"), timeout)
+		return err
+	}
+	for _, timeout := range []time.Duration{100 * time.Millisecond, 30 * time.Second, 4 * time.Minute, MaximumInventoryPageTimeout} {
+		if err := build(timeout); err != nil {
+			t.Fatalf("page timeout %s refused: %v", timeout, err)
+		}
+	}
+	for _, timeout := range []time.Duration{0, 99 * time.Millisecond, MaximumInventoryPageTimeout + time.Nanosecond, time.Hour} {
+		if err := build(timeout); err == nil {
+			t.Fatalf("page timeout %s accepted", timeout)
+		}
+	}
+}

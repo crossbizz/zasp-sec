@@ -52,6 +52,10 @@ func (r *PostgresRepository) GetWorkflowForIdentity(ctx context.Context, identit
 	if !validRequestIdentity(identity, false) || !validWorkflowID(kind, id) {
 		return WorkflowValue{}, ErrRepositoryOperation
 	}
+	if _, current := requestAuthorizationFromContext(ctx); current && kind == "security_agent" && r != nil && r.securityAgentExecution {
+		// One authorized reader serves every family under the current model.
+		return r.GetWorkflow(ctx, identity.Scope, kind, id)
+	}
 	installed, err := r.SecurityAgentExportDefinitionsAvailable(ctx)
 	if err != nil {
 		return WorkflowValue{}, err

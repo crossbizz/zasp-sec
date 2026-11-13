@@ -70,24 +70,26 @@ func (p *temporalFindingResponseProduct) Plan(ctx context.Context, q orchestrati
 	if state.Phase != "planning" {
 		return nil
 	}
-	for _, selection := range p.shared.bindings {
-		if selection.OrganizationID == q.Ref.OrganizationID && selection.WorkspaceID == q.Ref.WorkspaceID && selection.EnvironmentID == q.Ref.EnvironmentID {
-			db := p.shared.executor
-			if p.shared.workerForward != nil {
-				request, encodeErr := json.Marshal(temporalStartFields(q))
-				if encodeErr != nil {
-					return orchestration.ErrInvalid
-				}
-				if err := p.shared.workerForward.PrepareFinding(ctx, request); err != nil {
-					return temporalProductError(ctx, err)
-				}
-				db = &workerFindingPlanningDatabase{base: db, forward: p.shared.workerForward, compensation: p.shared.workerCompensation, start: q}
-			}
-			_, err := p.shared.planner.RunFindingResponsePlanning(ctx, db, p.shared.store, selection, q.Ref.RunID, q.DefinitionVersion)
+	selection, found, err := p.shared.pricingBinding(ctx, q)
+	if err != nil {
+		return temporalProductError(ctx, err)
+	}
+	if !found {
+		return orchestration.ErrInvalid
+	}
+	db := p.shared.executor
+	if p.shared.workerForward != nil {
+		request, encodeErr := json.Marshal(temporalStartFields(q))
+		if encodeErr != nil {
+			return orchestration.ErrInvalid
+		}
+		if err := p.shared.workerForward.PrepareFinding(ctx, request); err != nil {
 			return temporalProductError(ctx, err)
 		}
+		db = &workerFindingPlanningDatabase{base: db, forward: p.shared.workerForward, compensation: p.shared.workerCompensation, start: q}
 	}
-	return orchestration.ErrInvalid
+	_, err = p.shared.planner.RunFindingResponsePlanning(ctx, db, p.shared.store, selection, q.Ref.RunID, q.DefinitionVersion)
+	return temporalProductError(ctx, err)
 }
 
 func (p *temporalFindingResponseProduct) Apply(ctx context.Context, q orchestration.StartRequest) error {

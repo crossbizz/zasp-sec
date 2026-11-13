@@ -244,7 +244,7 @@ func (coordinator *identityAdministrationCoordinator) executeProviderMutation(ct
 		if state == "provider_unknown" {
 			matches, err := coordinator.matchSSO(ctx, organization, intent)
 			if err != nil || len(matches) > 1 {
-				coordinator.releaseUnknown(identity, mutation)
+				coordinator.releaseUnknown(ctx, identity, mutation)
 				return identityAdministrationResult{}, ErrRepositoryUnavailable
 			}
 			if len(matches) == 1 {
@@ -255,7 +255,7 @@ func (coordinator *identityAdministrationCoordinator) executeProviderMutation(ct
 			} else {
 				created, createErr := coordinator.provider.CreateSSO(ctx, organization, platformidentity.SSOConfig{DisplayName: intent.DisplayName, Protocol: intent.Protocol, IdentityProvider: intent.IdentityProvider})
 				if createErr != nil {
-					coordinator.releaseUnknown(identity, mutation)
+					coordinator.releaseUnknown(ctx, identity, mutation)
 					return identityAdministrationResult{}, ErrRepositoryUnavailable
 				}
 				connection, err = internalSSOConnection(created)
@@ -263,7 +263,7 @@ func (coordinator *identityAdministrationCoordinator) executeProviderMutation(ct
 		} else {
 			matches, listErr := coordinator.matchSSO(ctx, organization, intent)
 			if listErr != nil {
-				coordinator.releaseUnknown(identity, mutation)
+				coordinator.releaseUnknown(ctx, identity, mutation)
 				return identityAdministrationResult{}, ErrRepositoryUnavailable
 			}
 			if len(matches) != 0 {
@@ -271,7 +271,7 @@ func (coordinator *identityAdministrationCoordinator) executeProviderMutation(ct
 			}
 			created, err := coordinator.provider.CreateSSO(ctx, organization, platformidentity.SSOConfig{DisplayName: intent.DisplayName, Protocol: intent.Protocol, IdentityProvider: intent.IdentityProvider})
 			if err != nil {
-				coordinator.releaseUnknown(identity, mutation)
+				coordinator.releaseUnknown(ctx, identity, mutation)
 				return identityAdministrationResult{}, ErrRepositoryUnavailable
 			}
 			connection, err = internalSSOConnection(created)
@@ -283,7 +283,7 @@ func (coordinator *identityAdministrationCoordinator) executeProviderMutation(ct
 		if state == "provider_unknown" {
 			values, err := coordinator.provider.ListSSO(ctx, organization)
 			if err != nil {
-				coordinator.releaseUnknown(identity, mutation)
+				coordinator.releaseUnknown(ctx, identity, mutation)
 				return identityAdministrationResult{}, ErrRepositoryUnavailable
 			}
 			present := false
@@ -291,22 +291,22 @@ func (coordinator *identityAdministrationCoordinator) executeProviderMutation(ct
 				present = present || value.Reference() == intent.Reference
 			}
 			if present && coordinator.provider.DeleteSSO(ctx, organization, intent.Reference) != nil {
-				coordinator.releaseUnknown(identity, mutation)
+				coordinator.releaseUnknown(ctx, identity, mutation)
 				return identityAdministrationResult{}, ErrRepositoryUnavailable
 			}
 		} else if coordinator.provider.DeleteSSO(ctx, organization, intent.Reference) != nil {
-			coordinator.releaseUnknown(identity, mutation)
+			coordinator.releaseUnknown(ctx, identity, mutation)
 			return identityAdministrationResult{}, ErrRepositoryUnavailable
 		}
 		connection, _ = json.Marshal(map[string]any{"reference": intent.Reference, "kind": "sso", "deleted": true})
 	case "testSSOConnection":
 		if coordinator.provider.TestSSO(ctx, organization, intent.Reference) != nil {
-			coordinator.releaseUnknown(identity, mutation)
+			coordinator.releaseUnknown(ctx, identity, mutation)
 			return identityAdministrationResult{}, ErrRepositoryUnavailable
 		}
 		values, err := coordinator.provider.ListSSO(ctx, organization)
 		if err != nil {
-			coordinator.releaseUnknown(identity, mutation)
+			coordinator.releaseUnknown(ctx, identity, mutation)
 			return identityAdministrationResult{}, ErrRepositoryUnavailable
 		}
 		for _, value := range values {
@@ -315,13 +315,13 @@ func (coordinator *identityAdministrationCoordinator) executeProviderMutation(ct
 			}
 		}
 		if len(connection) == 0 {
-			coordinator.releaseUnknown(identity, mutation)
+			coordinator.releaseUnknown(ctx, identity, mutation)
 			return identityAdministrationResult{}, ErrRepositoryUnavailable
 		}
 	case "createSCIMConnection":
 		matches, listErr := coordinator.matchSCIM(ctx, organization, intent)
 		if listErr != nil || len(matches) > 1 {
-			coordinator.releaseUnknown(identity, mutation)
+			coordinator.releaseUnknown(ctx, identity, mutation)
 			return identityAdministrationResult{}, ErrRepositoryUnavailable
 		}
 		if state != "provider_unknown" && len(matches) != 0 {
@@ -329,13 +329,13 @@ func (coordinator *identityAdministrationCoordinator) executeProviderMutation(ct
 		}
 		if state == "provider_unknown" && len(matches) == 1 {
 			if coordinator.provider.DeleteSCIM(ctx, organization, matches[0].Reference()) != nil {
-				coordinator.releaseUnknown(identity, mutation)
+				coordinator.releaseUnknown(ctx, identity, mutation)
 				return identityAdministrationResult{}, ErrRepositoryUnavailable
 			}
 		}
 		credential, err := coordinator.provider.CreateSCIM(ctx, organization, platformidentity.SCIMConfig{DisplayName: intent.DisplayName, IdentityProvider: intent.IdentityProvider})
 		if err != nil {
-			coordinator.releaseUnknown(identity, mutation)
+			coordinator.releaseUnknown(ctx, identity, mutation)
 			return identityAdministrationResult{}, ErrRepositoryUnavailable
 		}
 		connection, err = internalSCIMConnection(credential.Connection)
@@ -347,7 +347,7 @@ func (coordinator *identityAdministrationCoordinator) executeProviderMutation(ct
 		if state == "provider_unknown" {
 			values, err := coordinator.provider.ListSCIM(ctx, organization)
 			if err != nil {
-				coordinator.releaseUnknown(identity, mutation)
+				coordinator.releaseUnknown(ctx, identity, mutation)
 				return identityAdministrationResult{}, ErrRepositoryUnavailable
 			}
 			present := false
@@ -355,11 +355,11 @@ func (coordinator *identityAdministrationCoordinator) executeProviderMutation(ct
 				present = present || value.Reference() == intent.Reference
 			}
 			if present && coordinator.provider.DeleteSCIM(ctx, organization, intent.Reference) != nil {
-				coordinator.releaseUnknown(identity, mutation)
+				coordinator.releaseUnknown(ctx, identity, mutation)
 				return identityAdministrationResult{}, ErrRepositoryUnavailable
 			}
 		} else if coordinator.provider.DeleteSCIM(ctx, organization, intent.Reference) != nil {
-			coordinator.releaseUnknown(identity, mutation)
+			coordinator.releaseUnknown(ctx, identity, mutation)
 			return identityAdministrationResult{}, ErrRepositoryUnavailable
 		}
 		connection, _ = json.Marshal(map[string]any{"reference": intent.Reference, "kind": "scim", "deleted": true})
@@ -370,20 +370,20 @@ func (coordinator *identityAdministrationCoordinator) executeProviderMutation(ct
 	if rawSecret != "" {
 		grantID, err := coordinator.newProductID()
 		if err != nil || !validProductID(grantID) {
-			coordinator.releaseUnknown(identity, mutation)
+			coordinator.releaseUnknown(ctx, identity, mutation)
 			return identityAdministrationResult{}, ErrRepositoryUnavailable
 		}
 		completion.GrantID = grantID
 		completion.GrantExpiresAt = coordinator.now().UTC().Add(identityAdministrationSecretLifetime).Truncate(time.Second)
 		completion.Ciphertext, completion.Nonce, completion.AuthenticationTag, err = encryptIdentityAdministrationSecret(coordinator.revealKey, identity, mutation.MutationID, grantID, completion.GrantExpiresAt, rawSecret)
 		if err != nil {
-			coordinator.releaseUnknown(identity, mutation)
+			coordinator.releaseUnknown(ctx, identity, mutation)
 			return identityAdministrationResult{}, err
 		}
 	}
 	payload, err := coordinator.store.completeIdentityProviderMutation(ctx, identity, completion)
 	if err != nil {
-		coordinator.releaseUnknown(identity, mutation)
+		coordinator.releaseUnknown(ctx, identity, mutation)
 		return identityAdministrationResult{}, err
 	}
 	return coordinator.publicCompletion(ctx, identity, mutation.Operation, payload, 0, "", false, nil, mutation.MutationID, rawSecret)
@@ -460,8 +460,16 @@ func (coordinator *identityAdministrationCoordinator) matchSCIM(ctx context.Cont
 	return matches, nil
 }
 
-func (coordinator *identityAdministrationCoordinator) releaseUnknown(identity RequestIdentity, mutation identityProviderMutation) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+func (coordinator *identityAdministrationCoordinator) releaseUnknown(request context.Context, identity RequestIdentity, mutation identityProviderMutation) {
+	// The request may already be cancelled; the release still belongs to its
+	// checked authorization, without which no statement is admitted.
+	parent := context.Background()
+	if request != nil {
+		if grant, checked := requestAuthorizationFromContext(request); checked {
+			parent = context.WithValue(parent, requestAuthorizationContextKey{}, grant)
+		}
+	}
+	ctx, cancel := context.WithTimeout(parent, 2*time.Second)
 	defer cancel()
 	_ = coordinator.store.markIdentityProviderMutationUnknown(ctx, identity, mutation)
 }

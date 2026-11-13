@@ -80,6 +80,14 @@ type temporalHumanFamilyResolver interface {
 
 func (h *securityAgentHumanHTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	route, ok := RoutedOperationFromRequest(r)
+	// Under current authorization the family is selected by one authorized
+	// statement inside PostgreSQL. The classification probes below and in the
+	// ordered handler are not authorized statements, so these operations go
+	// straight to the handler that sends that statement.
+	if _, checked := requestAuthorizationFromContext(r.Context()); ok && checked && stringIn(route.OperationID, "runSecurityAgent", "activateSecurityAgent", "getSecurityAgentActivation") {
+		h.legacy.ServeHTTP(w, r)
+		return
+	}
 	if ok && route.OperationID == "runSecurityAgent" {
 		id, present := IdentityFromRequest(r)
 		if !present || !validProductID(route.PathParameters["id"]) {

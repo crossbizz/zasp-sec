@@ -168,5 +168,40 @@ class ProtocolTests(unittest.TestCase):
         return struct.pack(">I", len(body)) + body
 
 
+class ExecutionIdentityTests(unittest.TestCase):
+    def authority(self, **changes: object) -> dict[str, object]:
+        value = dict(AUTHORITY)
+        for key, change in changes.items():
+            if change is None:
+                value.pop(key, None)
+            else:
+                value[key] = change
+        return value
+
+    def test_accepts_an_attempt_or_a_recorded_effect(self) -> None:
+        for attempt in (1, 2, 100):
+            self.assertEqual(protocol._authority(self.authority(attempt=attempt))["attempt"], attempt)
+        effect = self.authority(attempt=0, effect_id="a" * 64)
+        self.assertEqual(protocol._authority(effect), effect)
+
+    def test_rejects_every_other_identity(self) -> None:
+        for changes in (
+            {"attempt": 0},
+            {"attempt": 101},
+            {"attempt": True},
+            {"attempt": None},
+            {"attempt": 1, "effect_id": "a" * 64},
+            {"attempt": 0, "effect_id": ""},
+            {"attempt": 0, "effect_id": "A" * 64},
+            {"attempt": 0, "effect_id": "a" * 63},
+            {"attempt": 0, "effect_id": 7},
+            {"attempt": 0.0, "effect_id": "a" * 64},
+            {"attempt": 0, "effect_id": "a" * 64, "extra": 1},
+        ):
+            with self.subTest(changes=changes):
+                with self.assertRaises(protocol.ProtocolError):
+                    protocol._authority(self.authority(**changes))
+
+
 if __name__ == "__main__":
     unittest.main()

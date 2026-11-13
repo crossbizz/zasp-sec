@@ -176,7 +176,7 @@ func assertWorkerTest74ProductPlanning(t *testing.T, ctx context.Context, dsn st
 	if err != nil {
 		t.Fatal(err)
 	}
-	product.bindings = []securityAgentMultistepPricingBinding{selection}
+	product.bindings = staticSecurityAgentPricingBindings{selection}
 	timezone.diagnose(ctx, owner, product, "before_plan", calls.Load(), fault.Load())
 	for {
 		err = product.SingleTestProduct().Plan(ctx, start)

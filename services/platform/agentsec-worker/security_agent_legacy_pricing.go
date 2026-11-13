@@ -16,7 +16,7 @@ import (
 type installedLegacyPricedPlanner struct {
 	planner  *productionSecurityAgentPlanner
 	database multisteppricing.Database
-	bindings []securityAgentMultistepPricingBinding
+	bindings securityAgentPricingBindings
 }
 
 func (p *installedLegacyPricedPlanner) Close() error { return p.planner.Close() }
@@ -26,19 +26,16 @@ func (p *installedLegacyPricedPlanner) Prepare(ctx context.Context, value securi
 		return nil, err
 	}
 	result := &installedLegacyPricedPlan{prepared: prepared.(*productionSecurityAgentPreparedPlan), database: p.database}
-	found := false
-	for _, b := range p.bindings {
-		if b.OrganizationID == value.OrganizationID && b.WorkspaceID == value.WorkspaceID && b.EnvironmentID == value.EnvironmentID {
-			if found {
-				return result, nil
-			}
-			result.selection = b
-			found = true
-		}
-	}
-	if !found {
+	if p.bindings == nil {
 		return result, nil
 	}
+	// A scope without a usable binding, or one whose binding cannot be
+	// resolved now, has no approved bound: the plan stays unpriced.
+	selection, found, resolveErr := p.bindings.binding(ctx, value.OrganizationID, value.WorkspaceID, value.EnvironmentID)
+	if resolveErr != nil || !found {
+		return result, nil
+	}
+	result.selection = selection
 	bound, credential, err := result.lookup(ctx)
 	if err == nil {
 		result.approved = bound

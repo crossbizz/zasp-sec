@@ -201,8 +201,30 @@ func decodeProjectionCandidate(candidate projectionCandidate, wantKind string) (
 			DisplayName    string                     `json:"display_name"`
 			StableFields   map[string]json.RawMessage `json:"stable_fields"`
 			Attributes     map[string]json.RawMessage `json:"attributes"`
+			// A snapshot applied through the typed inventory carries the
+			// identity rule it was classified with. The projections read the
+			// six fields above; the typed fields are accepted, as one complete
+			// set, and not interpreted here.
+			IdentityNamespace       *string `json:"identity_namespace"`
+			IdentityRuleVersion     *int    `json:"identity_rule_version"`
+			IdentityPriority        *int    `json:"identity_priority"`
+			ProductKind             *string `json:"product_kind"`
+			ConfidenceBasisPoints   *int    `json:"confidence_basis_points"`
+			ObservedAt              *string `json:"observed_at"`
+			FreshUntil              *string `json:"fresh_until"`
+			EvidenceID              *string `json:"evidence_id"`
+			SourceProjectionVersion *int    `json:"source_projection_version"`
 		}
 		if !decodeStrictProjection(raw, &value) || value.StableFields == nil || value.Attributes == nil || value.Kind == "" || value.SourceNativeID == "" || value.DisplayName == "" {
+			return nil, nil, false
+		}
+		typed := 0
+		for _, present := range []bool{value.IdentityNamespace != nil, value.IdentityRuleVersion != nil, value.IdentityPriority != nil, value.ProductKind != nil, value.ConfidenceBasisPoints != nil, value.ObservedAt != nil, value.FreshUntil != nil, value.EvidenceID != nil, value.SourceProjectionVersion != nil} {
+			if present {
+				typed++
+			}
+		}
+		if typed != 0 && typed != 9 {
 			return nil, nil, false
 		}
 		id, err := domain.ParseProductID(value.ID)

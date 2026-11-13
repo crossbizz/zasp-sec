@@ -12,12 +12,14 @@ Verified on 2026-11-13 in a Linux sandbox, with headless Chromium:
 - `/auth/callback` with an invalid token shows "Sign-in failed" with a correlation ID. An invitation-shaped link shows "Accept your invitation" first.
 - An API call through the TLS front with an API token returns 200 (`GET /api/v1/agents`).
 - The script parses and its `status` and `stop` commands run under bash 3.2, the macOS system bash.
+- The three projection workers (graph, search, risk) start and report ready against a local Neo4j, the local search node and the database. They were started by hand with the commands `start` uses; `start` launching them itself, and `up` creating the Neo4j container on a clean machine, were not exercised as whole commands (the functions `up` calls for Neo4j were each run).
 
 Not verified:
 
 - Anything on macOS. The first `start` on a clean machine (it runs `up`) was not run through the new command either; `up` on its own has been run many times on Linux.
 - A completed sign-in in a browser through this front. A sign-in was completed once through the API by following the invitation email. Nobody has yet completed Google sign-in, and nobody has seen a signed-in page of the web application against this API.
 - Every step under [Golden path](#golden-path) after sign-in, in the browser. The parts verified by other means are named there.
+- The projection workers turning a discovered snapshot into a graph, search documents, findings and attack paths. No sync had completed when they were brought up; only synthetic snapshots were written to Neo4j and to the search index, and removed again.
 - Trusting the generated certificate authority in a browser. The sandbox run ignored certificate errors.
 
 Expect to find problems after sign-in. Please note the page, what you clicked and the correlation ID shown.
@@ -26,7 +28,7 @@ Expect to find problems after sign-in. Please note the page, what you clicked an
 
 | Tool | Version | Notes |
 | --- | --- | --- |
-| Docker Desktop | current | Eight containers run (PostgreSQL, LocalStack, OpenSearch, Temporal, OpenFGA and their three databases). 6 GB of memory for Docker is an estimate, not a measurement. |
+| Docker Desktop | current | Nine containers run (PostgreSQL, LocalStack, OpenSearch, Neo4j, Temporal, OpenFGA and their three databases). Neo4j is given a 512 MB heap. 6 GB of memory for Docker is an estimate, not a measurement. |
 | Go | 1.26 (`services/platform/go.mod`) | An older Go downloads the 1.26 toolchain by itself on first build. |
 | Node.js and npm | Node 22.23.1, npm 10.9.8 (`package.json`) | Any Node 22 release worked in the sandbox (22.23.4). |
 | `curl`, `openssl` | any | Both ship with macOS. |
@@ -125,7 +127,7 @@ The labels below are taken from the source and from the API's connector catalog.
    Then **Save integration**. Verified through the API: an integration with exactly these values is accepted and waits in `pending_authorization`.
 2. **Review access** authorizes the connection: the product assumes the role in LocalStack and checks the account. The API accepts this step only from a browser session that signed in a few minutes ago; sign in again if it is refused. Verified by a component test against LocalStack, not through the API or the browser.
 3. **Sync inventory now**, then watch **Sync history**. A sync needs the security analyzers (`stack.sh security-workers`). Verified by a component test: the collector reads the emulated account and yields 13 entities, 21 relationships and 5 posture results, 2 of them failing. A sync requested through the product has not yet been seen to complete.
-4. **Looking at the result.** The product files everything it reads from AWS as an *asset*. The Agents, Tools, Identities and Runtimes pages list only what the Kubernetes, Okta and GitHub connectors report, so they stay empty after an AWS sync. There is no page that lists assets. Whether the posture results appear under Findings is not verified.
+4. **Looking at the result.** The product files everything it reads from AWS as an *asset*. The Agents, Tools, Identities and Runtimes pages list only what the Kubernetes, Okta and GitHub connectors report, so they stay empty after an AWS sync. There is no page that lists assets. Findings and attack paths are produced by the risk projection worker (`status` shows `worker-projection-risk`) from a completed sync; whether the posture results appear under Findings is not verified.
 
 The emulated account is described in `deploy/local/real-stack/README.md`.
 
@@ -137,7 +139,8 @@ The emulated account is described in `deploy/local/real-stack/README.md`.
 - **Sign-in and callback pages are plain text** without layout. They work; they are not styled.
 - **Signed out, a deep link such as `/connectors` shows the sign-in page at `/`.** Whether you return to the deep link after sign-in is not verified.
 - **AWS is emulated.** LocalStack accepts any external ID and never denies an action. A successful connection says nothing about a real role's trust policy or permissions.
-- **Not running on this stack:** the Security Agent worker, red team and Attack Lab workers, the runtime pipeline, and the risk, graph and search projections. Pages for those features open against an API that has no worker behind it.
+- **Not running on this stack:** the Security Agent worker, red team and Attack Lab workers, and the runtime pipeline. Pages for those features open against an API that has no worker behind it.
+- **The graph of an AWS sync is expected to fail.** The graph worker runs, but the graph store refuses kinds that contain the word `aws`, and every AWS entity kind does. Search and risk are not affected. See "The projection workers" in `deploy/local/real-stack/README.md`. The API reads neither the graph nor the search index: search, findings, attack paths and relationships in the product come from PostgreSQL.
 - **Kubernetes, GitHub and Okta connectors** have placeholder credentials and cannot connect.
 - **Stytch** refuses invitations outside the Stytch account's own email domain until billing is verified. SSO, SCIM, member onboarding and choosing between several Organizations are not exercised.
 - **One Organization per stack.** Sign-in is bound to the first Organization that `bootstrap` creates.
@@ -152,5 +155,6 @@ The emulated account is described in `deploy/local/real-stack/README.md`.
 | `startup refused: stage=...` in a log | The process names the stage that refused. `stage=dependencies:...` usually means a container is not running: run `stack.sh up`. |
 | The browser cannot find the site | The `/etc/hosts` line is missing. `status` shows `hosts entry missing`. |
 | `ui` stops at once | Port 8443 or 3100 is in use. |
+| `worker-projection-graph` refuses with `stage=dependencies:projection-graph-connect` | Neo4j is not running, or port 7687 is taken by another Neo4j: run `stack.sh up`. `projection-graph-credential` means the LocalStack secret is gone (LocalStack keeps nothing across a restart); starting the worker again recreates it. |
 | Sign-in returns to "Sign-in failed" | Read the correlation ID's line in `logs/api.log`. |
 | `create /var/run/secrets/... (needs root)` | Prerequisite step 2 was not done, or the Mac was restarted since. |

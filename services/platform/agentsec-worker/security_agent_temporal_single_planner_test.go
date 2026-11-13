@@ -200,7 +200,7 @@ func TestTemporalSingleTestPlannerPostgres(t *testing.T) {
 	}
 	defer comp.Close(ctx)
 	compDB := &release61WorkerPG{orderedPricingWorkerPG: orderedPricingWorkerPG{conn: comp}, t: t}
-	product := &temporalSecurityAgentProduct{executor: db, compensation: compDB, planner: planner, runner: runner, store: store, bindings: []securityAgentMultistepPricingBinding{selection}}
+	product := &temporalSecurityAgentProduct{executor: db, compensation: compDB, planner: planner, runner: runner, store: store, bindings: staticSecurityAgentPricingBindings{selection}}
 	factory, ok := any(product).(interface {
 		SingleTestProduct() orchestration.SingleTestProduct
 	})

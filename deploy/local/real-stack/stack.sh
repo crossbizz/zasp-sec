@@ -41,6 +41,17 @@ CUSTOMER_ROLE_NAME="customer-read"
 CUSTOMER_ROLE_ARN="arn:aws:iam::000000000000:role/zasp-reference/customer-read"
 CUSTOMER_EXTERNAL_ID_NAME="localstack-dev-0001"
 SEARCH_URL="http://127.0.0.1:4092"
+# The graph database is Neo4j Community, serving Bolt over TLS only, on the
+# scheme and port the graph worker requires. Its certificate comes from a
+# local authority the worker trusts in development mode only. Development-only.
+NEO4J_IMAGE="${ZASP_REAL_STACK_NEO4J_IMAGE:-public.ecr.aws/docker/library/neo4j:5.26-community}"
+NEO4J_CONTAINER="zasp-real-stack-neo4j"
+NEO4J_URI="neo4j+s://localhost:7687"
+NEO4J_WORKER_USER="zasp_graph_worker"
+# The role name the worker is told to expect. Community has no roles, so this
+# only satisfies the setting; see README.md.
+NEO4J_WORKER_ROLE="zasp_graph_writer"
+PROJECTION_SECRET_PREFIX="zasp-real-stack/projection"
 TOKEN_FILE=/var/run/secrets/eks.amazonaws.com/serviceaccount/token
 FGA_URL="http://127.0.0.1:8088"
 FGA_TOKEN="${ZASP_LOCAL_OPENFGA_TOKEN:-local-openfga-smoke-only}"
@@ -269,6 +280,99 @@ init_search() {
     ZASP_OPENSEARCH_ENDPOINT="$SEARCH_URL" ZASP_OPENSEARCH_INDEX=zasp-inventory-v1 "$BIN/agentsec-worker" || fail "search schema initialization refused"
 }
 
+# The passwords of the graph database administrator and of the graph worker.
+ensure_graph_passwords() {
+  local name
+  for name in neo4j-admin neo4j-worker; do
+    [ -f "$SECRETS/$name.password" ] && continue
+    (umask 077; openssl rand -hex 24 > "$SECRETS/$name.password.partial" && mv "$SECRETS/$name.password.partial" "$SECRETS/$name.password") || fail "graph database password was not generated"
+  done
+}
+
+# Creates the certificate the graph database serves on Bolt: an authority that
+# may only vouch for 'localhost', and a server certificate from it. As for the
+# browser certificate, the authority's key is deleted once it has signed. The
+# directory is mounted into the container, whose user is not this one, so the
+# files are world-readable inside the private $TLS directory.
+ensure_graph_certificate() {
+  local directory="$TLS/neo4j"
+  if [ -f "$directory/ca.crt" ] && [ -f "$directory/public.crt" ] && [ -f "$directory/private.key" ] &&
+    openssl x509 -in "$directory/public.crt" -noout -checkend 86400 >/dev/null 2>&1; then
+    return 0
+  fi
+  mkdir -p "$TLS"
+  chmod 700 "$TLS"
+  mkdir -p "$directory"
+  (
+    umask 077
+    cd "$directory" || exit 1
+    rm -f ca.crt ca.key ca.srl public.crt private.key server.csr openssl.cnf
+    printf '%s\n' '[req]' 'distinguished_name = dn' 'prompt = no' '[dn]' 'CN = unused' \
+      '[ca]' 'basicConstraints = critical, CA:TRUE, pathlen:0' 'keyUsage = critical, keyCertSign' 'subjectKeyIdentifier = hash' \
+      'nameConstraints = critical, permitted;DNS:localhost' \
+      '[leaf]' 'basicConstraints = critical, CA:FALSE' 'keyUsage = critical, digitalSignature, keyEncipherment' \
+      'extendedKeyUsage = serverAuth' 'subjectAltName = DNS:localhost' > openssl.cnf
+    openssl req -x509 -newkey rsa:2048 -nodes -sha256 -days 825 -keyout ca.key -out ca.crt \
+      -subj "/CN=Zasp local stack development CA for the graph database" -config openssl.cnf -extensions ca >/dev/null 2>&1 &&
+      openssl req -new -newkey rsa:2048 -nodes -keyout private.key -out server.csr -subj "/CN=localhost" -config openssl.cnf >/dev/null 2>&1 &&
+      openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -sha256 -days 825 \
+        -extfile openssl.cnf -extensions leaf -out public.crt >/dev/null 2>&1
+    status=$?
+    rm -f ca.key ca.srl server.csr openssl.cnf
+    [ "$status" -eq 0 ] || { rm -f ca.crt public.crt private.key; exit 1; }
+    chmod 644 ca.crt public.crt private.key
+  ) || fail "the graph database certificate was not created (openssl is required)"
+  chmod 755 "$directory"
+  # A running database still serves the certificate it started with.
+  GRAPH_CERTIFICATE_CREATED=1
+}
+
+# Runs Cypher from standard input as the graph database administrator. The
+# password reaches the container through the environment, not the command line.
+graph_shell() {
+  NEO4J_USERNAME=neo4j NEO4J_PASSWORD="$(tr -d '\n' < "$SECRETS/neo4j-admin.password")" \
+    docker exec -i -e NEO4J_USERNAME -e NEO4J_PASSWORD "$NEO4J_CONTAINER" cypher-shell -a neo4j+ssc://localhost:7687 -d system --format plain
+}
+
+# Starts the graph database and creates the user the graph worker signs in as.
+start_graph_database() {
+  ensure_graph_passwords
+  GRAPH_CERTIFICATE_CREATED=0
+  ensure_graph_certificate
+  if docker inspect "$NEO4J_CONTAINER" >/dev/null 2>&1; then
+    if [ "$GRAPH_CERTIFICATE_CREATED" -eq 1 ]; then docker restart "$NEO4J_CONTAINER" >/dev/null; else docker start "$NEO4J_CONTAINER" >/dev/null; fi
+  else
+    # The administrator password only takes effect on the first start. The
+    # HTTP interface and usage reporting are off; Bolt refuses plaintext.
+    NEO4J_AUTH="neo4j/$(tr -d '\n' < "$SECRETS/neo4j-admin.password")" docker run -d --name "$NEO4J_CONTAINER" -p 127.0.0.1:7687:7687 -e NEO4J_AUTH \
+      -e NEO4J_server_http_enabled=false -e NEO4J_dbms_usage__report_enabled=false -e NEO4J_server_bolt_tls__level=REQUIRED \
+      -e NEO4J_dbms_ssl_policy_bolt_enabled=true -e NEO4J_dbms_ssl_policy_bolt_base__directory=/ssl/bolt \
+      -e NEO4J_dbms_ssl_policy_bolt_private__key=private.key -e NEO4J_dbms_ssl_policy_bolt_public__certificate=public.crt \
+      -e NEO4J_dbms_ssl_policy_bolt_client__auth=NONE \
+      -e NEO4J_server_memory_heap_initial__size=256m -e NEO4J_server_memory_heap_max__size=512m -e NEO4J_server_memory_pagecache_size=128m \
+      -v "$TLS/neo4j:/ssl/bolt:ro" "$NEO4J_IMAGE" >/dev/null
+  fi
+  local ready=0
+  for _ in $(seq 1 90); do
+    if echo 'SHOW CURRENT USER;' | graph_shell >/dev/null 2>&1; then ready=1; break; fi
+    sleep 2
+  done
+  [ "$ready" -eq 1 ] || fail "the graph database did not start, or does not accept the stored administrator password (remove the container '$NEO4J_CONTAINER' to recreate it)"
+  # The password is hexadecimal, so it needs no escaping.
+  printf 'CREATE OR REPLACE USER %s SET PLAINTEXT PASSWORD "%s" SET PASSWORD CHANGE NOT REQUIRED;\n' "$NEO4J_WORKER_USER" "$(tr -d '\n' < "$SECRETS/neo4j-worker.password")" |
+    graph_shell >/dev/null || fail "the graph worker user was not created"
+}
+
+# Runs the production graph-schema job against the local graph database, as
+# the administrator: the worker itself never creates constraints.
+init_graph() {
+  env -i PATH="$PATH" ZASP_WORKER_MODE=projection-graph-init ZASP_ENVIRONMENT=test ZASP_LOCAL_CLOUD_ENDPOINT="$LOCAL_CLOUD" \
+    ZASP_AWS_REGION=us-east-1 ZASP_PROJECTION_INIT_ROLE_ARN=arn:aws:iam::000000000000:role/zasp-real-stack-projection-init \
+    ZASP_PROJECTION_INIT_WEB_IDENTITY_TOKEN_FILE="$TOKEN_FILE" ZASP_PROJECTION_INIT_TIMEOUT=30s \
+    ZASP_PROJECTION_SECRET_PREFIX="$PROJECTION_SECRET_PREFIX" ZASP_NEO4J_URI="$NEO4J_URI" ZASP_NEO4J_SCHEMA_CREDENTIAL_REFERENCE=ref:neo4j/auth/graph-schema \
+    ZASP_LOCAL_NEO4J_CA_FILE="$TLS/neo4j/ca.crt" "$BIN/agentsec-worker" || fail "graph schema initialization refused"
+}
+
 migrate() { ZASP_POSTGRES_DSN="$(dsn "$OPERATOR")" "$BIN/agentsec-migrate" "$1" || fail "agentsec-migrate $1 refused"; }
 
 cmd_up() {
@@ -278,10 +382,12 @@ cmd_up() {
   write_identity_token
   start_database
   generate_keys
+  start_graph_database
   build_binaries
   publish_model
   init_search
   provision_local_cloud
+  init_graph
   STYTCH_PROJECT_ID="${STYTCH_PROJECT_ID:-project-unset}" STYTCH_SECRET="${STYTCH_SECRET:-secret-unset}" STYTCH_PUBLIC_TOKEN="${STYTCH_PUBLIC_TOKEN:-public-token-unset}" load_environment
   # verify-baseline succeeds only on an installed, intact baseline.
   if ! ZASP_POSTGRES_DSN="$(dsn "$OPERATOR")" "$BIN/agentsec-migrate" verify-baseline >/dev/null 2>&1; then
@@ -387,7 +493,24 @@ provision_local_cloud() {
     $aws secretsmanager describe-secret --secret-id "$name" >/dev/null 2>&1 ||
       $aws secretsmanager create-secret --name "$name" --secret-string "real-stack-placeholder-not-a-credential" >/dev/null || fail "placeholder secret $name was not created"
   done
+  # The two graph database credentials, in the form the workers read: the
+  # administrator for the one-shot schema job, the worker user for the worker.
+  ensure_graph_passwords
+  ensure_graph_secret graph-schema neo4j neo4j-admin
+  ensure_graph_secret graph-worker "$NEO4J_WORKER_USER" neo4j-worker
   provision_customer_account
+}
+
+# Stores one graph database credential as the secret a worker resolves from
+# ref:neo4j/auth/<identifier>. Arguments: identifier, principal, password file.
+ensure_graph_secret() {
+  local name="$PROJECTION_SECRET_PREFIX/neo4j/auth/$1" value
+  value="{\"scheme\":\"basic\",\"principal\":\"$2\",\"credentials\":\"$(tr -d '\n' < "$SECRETS/$3.password")\"}"
+  if $aws secretsmanager describe-secret --secret-id "$name" >/dev/null 2>&1; then
+    $aws secretsmanager put-secret-value --secret-id "$name" --secret-string "$value" >/dev/null || fail "graph database secret $name was not updated"
+  else
+    $aws secretsmanager create-secret --name "$name" --secret-string "$value" >/dev/null || fail "graph database secret $name was not created"
+  fi
 }
 
 # Creates one IAM role unless it exists. Arguments: path, name, trust policy.
@@ -453,7 +576,7 @@ provision_customer_account() {
 # stack provides are listed; the others need queues, keys or endpoints it does
 # not create yet.
 cmd_worker() {
-  [ "$#" -eq 1 ] || fail "usage: $0 worker {scheduler|outbox|discovery}"
+  [ "$#" -eq 1 ] || fail "usage: $0 worker {scheduler|outbox|discovery|security-agent|projection-graph|projection-search|projection-risk}"
   load_environment
   export ZASP_WORKER_MODE="$1" ZASP_WORKER_ID="real-stack-$1" ZASP_AWS_REGION=us-east-1
   export ZASP_POLL_INTERVAL=1s ZASP_LEASE_DURATION=30s ZASP_SHUTDOWN_TIMEOUT=5s ZASP_BATCH_SIZE=10 ZASP_PROVIDER_TIMEOUT=10s
@@ -484,15 +607,105 @@ cmd_worker() {
       export ZASP_DISCOVERY_ROLE_ARN=arn:aws:iam::000000000000:role/zasp-real-stack-discovery
       export ZASP_DISCOVERY_WEB_IDENTITY_TOKEN_FILE="$TOKEN_FILE" ZASP_DISCOVERY_SECRET_PREFIX=zasp-real-stack/discovery
       export ZASP_EVIDENCE_BUCKET=zasp-real-stack-evidence ZASP_EVIDENCE_BUCKET_OWNER=000000000000
-      export ZASP_DISCOVERY_AWS_COLLECTOR_VERSION=aws-collector-2026.08.20 ZASP_DISCOVERY_KUBERNETES_COLLECTOR_VERSION=kubernetes-collector-2026.08.20
-      export ZASP_DISCOVERY_GITHUB_COLLECTOR_VERSION=github-collector-2026.08.20 ZASP_DISCOVERY_OKTA_COLLECTOR_VERSION=okta-collector-2026.08.20
+      # The installed schema hands every discovery run the collector version
+      # 'collector_v1' (zasp_temporal72.prepare_page). A worker configured with
+      # any other value refuses to build its collector and the run fails.
+      export ZASP_DISCOVERY_AWS_COLLECTOR_VERSION=collector_v1 ZASP_DISCOVERY_KUBERNETES_COLLECTOR_VERSION=collector_v1
+      export ZASP_DISCOVERY_GITHUB_COLLECTOR_VERSION=collector_v1 ZASP_DISCOVERY_OKTA_COLLECTOR_VERSION=collector_v1
       export ZASP_KUBERNETES_EGRESS_CIDRS=203.0.113.0/24 ZASP_DISCOVERY_READINESS_TIMEOUT=5s
       export ZASP_GITHUB_APP_ID=123456 ZASP_GITHUB_PRIVATE_KEY_REFERENCE=ref:github/app-private-key
       export ZASP_OKTA_CLIENT_ID=0oa1234567890abcdef ZASP_OKTA_CLIENT_SECRET_REFERENCE=ref:okta/client-secret
       ;;
+    security-agent)
+      # Plans and executes Security Agent runs. The planner endpoint, model
+      # and token path are fixed by the worker; the token comes from
+      # OPENROUTER_API_KEY and is written only to that path. The pricing
+      # approval of each Environment is read from the database when a planner
+      # request is priced; ZASP_REAL_STACK_PRICING_BINDINGS may name an
+      # override file. The planner client does not use a proxy, so planning
+      # needs direct egress to openrouter.ai.
+      [ -n "${OPENROUTER_API_KEY:-}" ] || fail "set OPENROUTER_API_KEY to start the Security Agent worker"
+      provision_local_cloud
+      provision_security_agent_secrets
+      configure_test_selector
+      set -a; . "$STATE/cloud.env"; set +a
+      export ZASP_LOCAL_HEALTH_PORT=8084
+      export ZASP_POSTGRES_DSN="$(dsn zasp_svc_security_agent_worker)" ZASP_DATABASE_AUTHORITY=zasp_security_agent_worker
+      export ZASP_TEMPORAL_EXECUTOR_POSTGRES_DSN="$(dsn zasp_svc_temporal_executor)" ZASP_TEMPORAL_COMPENSATION_POSTGRES_DSN="$(dsn zasp_svc_temporal_compensation)"
+      export ZASP_AUTHORIZATION_WORKER_KEY_FILE="$SECRETS/forward.seed" ZASP_AUTHORIZATION_COMPENSATION_KEY_FILE="$SECRETS/compensation.seed"
+      export ZASP_SECURITY_AGENT_PLANNER_ENDPOINT=https://openrouter.ai/api/v1/chat/completions ZASP_SECURITY_AGENT_PLANNER_MODEL=openai/gpt-5-mini
+      export ZASP_SECURITY_AGENT_PLANNER_TOKEN_FILE=/var/run/secrets/zasp-security-agent/openrouter-api-token
+      export ZASP_SECURITY_AGENT_PLANNER_TIMEOUT=20s ZASP_SECURITY_AGENT_PLANNER_MAX_TOKENS=2048 ZASP_SECURITY_AGENT_PLANNER_POLICY_VERSION=security-agent-planner-v1
+      export ZASP_GATEWAY_SIGNING_KEY_ID=real-stack-gateway ZASP_GATEWAY_SIGNING_PRIVATE_KEY_FILE=/var/run/secrets/zasp-security-agent-action/gateway-signing-private-key
+      export ZASP_GATEWAY_POLICY_KEYS_FILE=/var/run/zasp-policy-verifier/policy-keys.json
+      export ZASP_EVIDENCE_BUCKET=zasp-real-stack-evidence ZASP_EVIDENCE_BUCKET_OWNER=000000000000
+      export ZASP_RED_TEAM_ROLE_ARN=arn:aws:iam::000000000000:role/zasp-real-stack-discovery ZASP_RED_TEAM_WEB_IDENTITY_TOKEN_FILE="$TOKEN_FILE"
+      # The existing-test runner (Node and promptfoo at fixed paths) and its
+      # in-cluster adapter are not part of this stack. The worker requires
+      # their configuration to start; a run that reaches a test step fails
+      # there. The image reference only has to name a digest.
+      export ZASP_RED_TEAM_RUNNER_IMAGE="zasp/agentsec-red-team-runner@sha256:$(printf 'real-stack-no-runner' | sha256sum | cut -d' ' -f1)"
+      export ZASP_RED_TEAM_RUNNER_TIMEOUT=5m ZASP_RED_TEAM_TARGET_ENDPOINT=https://agentsec-red-team-adapter.zasp.svc.cluster.local/v1/evaluate
+      export ZASP_RED_TEAM_TARGET_TOKEN_FILE="$SECRETS/red-team-adapter.token" ZASP_RED_TEAM_TARGET_CA_FILE="$SECRETS/red-team-adapter-ca.pem"
+      [ -z "${ZASP_REAL_STACK_PRICING_BINDINGS:-}" ] || export ZASP_TEMPORAL_PRICING_BINDINGS_FILE="$ZASP_REAL_STACK_PRICING_BINDINGS"
+      ;;
     *) fail "worker mode '$1' is not available on this stack yet" ;;
   esac
   exec "$BIN/agentsec-worker"
+}
+
+# The Security Agent worker reconciles the schedules of automatic agents from
+# the test-selector configuration, an operator setting no other step installs.
+# Without a first revision the worker refuses to start. An existing
+# configuration is left as it is.
+configure_test_selector() {
+  local revision
+  revision="$(psql -X -Atc "SET ROLE zasp_discovery_authority; SELECT count(*) FROM zasp_temporal75.configuration" "$(dsn "$OPERATOR")" | tail -1)" || fail "test-selector configuration was not read"
+  [ "$revision" = "0" ] || return 0
+  ZASP_POSTGRES_DSN="$(dsn "$OPERATOR")" ZASP_MIGRATION_TIMEOUT=60s ZASP_TEST_SELECTOR_CONFIGURATION='{"revision":1,"cadence_seconds":300,"enabled":true}' \
+    "$BIN/agentsec-migrate" configure-temporal-test-selector || fail "test-selector configuration was refused"
+}
+
+# Writes the secrets the Security Agent workers read at fixed paths, with the
+# modes a Kubernetes secret mount has. The gateway signing key and the red-team
+# adapter credentials are generated once and kept in the stack's state.
+provision_security_agent_secrets() {
+  local key="$SECRETS/gateway-signing.key" public
+  if [ ! -f "$key" ] || [ ! -f "$SECRETS/gateway-policy-keys.json" ]; then
+    (
+      umask 077
+      openssl genpkey -algorithm ed25519 -outform DER -out "$SECRETS/gateway-signing.der" || exit 1
+      public="$(openssl pkey -inform DER -in "$SECRETS/gateway-signing.der" -pubout -outform DER | tail -c 32 | base64 -w0 | tr '+/' '-_' | tr -d '=')" || exit 1
+      # The worker's private key file is the 64-byte Ed25519 key (seed, then
+      # public key) in unpadded base64url: 86 characters, no newline.
+      { tail -c 32 "$SECRETS/gateway-signing.der"; openssl pkey -inform DER -in "$SECRETS/gateway-signing.der" -pubout -outform DER | tail -c 32; } | base64 -w0 | tr '+/' '-_' | tr -d '=' > "$key.partial" || exit 1
+      printf '{"keys":[{"key_id":"real-stack-gateway","public_key":"%s"}]}' "$public" > "$SECRETS/gateway-policy-keys.json.partial" || exit 1
+      rm -f "$SECRETS/gateway-signing.der"
+      mv "$SECRETS/gateway-policy-keys.json.partial" "$SECRETS/gateway-policy-keys.json" && mv "$key.partial" "$key"
+    ) || fail "gateway signing key was not generated"
+  fi
+  if [ ! -f "$SECRETS/red-team-adapter.token" ] || [ ! -f "$SECRETS/red-team-adapter-ca.pem" ]; then
+    (
+      umask 077
+      openssl rand -hex 32 | tr -d '\n' > "$SECRETS/red-team-adapter.token.partial" || exit 1
+      openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes -keyout /dev/null -days 365 -subj "/CN=real-stack red-team adapter (not deployed)" \
+        -out "$SECRETS/red-team-adapter-ca.pem.partial" 2>/dev/null || exit 1
+      chmod 0400 "$SECRETS/red-team-adapter.token.partial" "$SECRETS/red-team-adapter-ca.pem.partial"
+      mv "$SECRETS/red-team-adapter-ca.pem.partial" "$SECRETS/red-team-adapter-ca.pem" && mv "$SECRETS/red-team-adapter.token.partial" "$SECRETS/red-team-adapter.token"
+    ) || fail "red-team adapter credentials were not generated"
+  fi
+  install -d -m 0700 /var/run/secrets/zasp-security-agent /var/run/secrets/zasp-security-agent-action /var/run/zasp-policy-verifier ||
+    fail "create /var/run/secrets/zasp-security-agent, /var/run/secrets/zasp-security-agent-action and /var/run/zasp-policy-verifier (needs root)"
+  # Replace, never rewrite in place: the files are read-only.
+  rm -f /var/run/secrets/zasp-security-agent/openrouter-api-token /var/run/secrets/zasp-security-agent-action/gateway-signing-private-key /var/run/zasp-policy-verifier/policy-keys.json
+  if [ -n "${OPENROUTER_API_KEY:-}" ]; then
+    (umask 077; printf '%s' "$OPENROUTER_API_KEY" > /var/run/secrets/zasp-security-agent/openrouter-api-token) || fail "planner token was not written"
+    # The worker requires the mode a Kubernetes secret mount has (0444); the
+    # directory above keeps other users out.
+    chmod 0444 /var/run/secrets/zasp-security-agent/openrouter-api-token
+  fi
+  install -m 0400 "$key" /var/run/secrets/zasp-security-agent-action/gateway-signing-private-key || fail "gateway signing key was not installed"
+  install -m 0400 "$SECRETS/gateway-policy-keys.json" /var/run/zasp-policy-verifier/policy-keys.json || fail "gateway policy keys were not installed"
 }
 
 # Installs the two Python analyzers the AWS collector runs as subprocesses,
@@ -616,7 +829,7 @@ cmd_project() {
 }
 
 # The background processes of 'start', in start order.
-PROCESSES="api worker-scheduler worker-discovery worker-outbox projector ui"
+PROCESSES="api worker-scheduler worker-discovery worker-outbox worker-projection-graph worker-projection-search worker-projection-risk projector ui"
 
 # The HTTP status of a local address, or 000 when nothing answers. A proxy
 # configured for outbound traffic must not be asked for a loopback address.
@@ -634,6 +847,9 @@ process_status() {
     worker-scheduler) http_status http://127.0.0.1:8081/readyz ;;
     worker-discovery) http_status http://127.0.0.1:8082/readyz ;;
     worker-outbox) http_status http://127.0.0.1:8083/readyz ;;
+    worker-projection-graph) http_status http://127.0.0.1:8091/readyz ;;
+    worker-projection-search) http_status http://127.0.0.1:8092/readyz ;;
+    worker-projection-risk) http_status http://127.0.0.1:8093/readyz ;;
     ui) http_status --cacert "$TLS/ca.crt" --resolve "$ORIGIN_HOST:$ORIGIN_PORT:127.0.0.1" "$PUBLIC_ORIGIN/sign-in" ;;
     projector) if process_alive projector; then echo 200; else echo 000; fi ;;
   esac
@@ -699,7 +915,7 @@ needs_up() {
 
 dependency_names() {
   [ -n "$EXTERNAL_HOST" ] || echo postgres
-  echo localstack opensearch temporal openfga
+  echo localstack opensearch neo4j temporal openfga
 }
 
 dependency_running() {
@@ -707,13 +923,14 @@ dependency_running() {
     postgres) [ "$(docker inspect --format '{{.State.Running}}' "$PG_CONTAINER" 2>/dev/null)" = "true" ] ;;
     localstack) curl -fsS -m 3 "$LOCAL_CLOUD/_localstack/health" 2>/dev/null | grep -q '"sts"' ;;
     opensearch) [ "$(http_status "$SEARCH_URL/_cluster/health")" = "200" ] ;;
+    neo4j) [ "$(docker inspect --format '{{.State.Running}}' "$NEO4J_CONTAINER" 2>/dev/null)" = "true" ] && (exec 3<>/dev/tcp/127.0.0.1/7687) 2>/dev/null ;;
     temporal) (exec 3<>/dev/tcp/127.0.0.1/7233) 2>/dev/null ;;
     openfga) [ "$(http_status "$FGA_URL/healthz")" = "200" ] ;;
   esac
 }
 
 # Starts everything in the background: the dependencies and the schema when
-# they are not up, the API, the three workers, the permission projector and
+# they are not up, the API, the six workers, the permission projector and
 # the web application behind its TLS front. Safe to repeat.
 cmd_start() {
   [ "$#" -eq 0 ] || fail "usage: $0 start"
@@ -740,6 +957,9 @@ cmd_start() {
   launch worker-scheduler worker scheduler
   launch worker-discovery worker discovery
   launch worker-outbox worker outbox
+  launch worker-projection-graph worker projection-graph
+  launch worker-projection-search worker projection-search
+  launch worker-projection-risk worker projection-risk
   launch projector project
   launch ui ui
   local failed=0
@@ -747,6 +967,9 @@ cmd_start() {
   wait_ready worker-scheduler 120 || failed=1
   wait_ready worker-discovery 180 || failed=1
   wait_ready worker-outbox 180 || failed=1
+  wait_ready worker-projection-graph 120 || failed=1
+  wait_ready worker-projection-search 120 || failed=1
+  wait_ready worker-projection-risk 120 || failed=1
   wait_ready projector 4 || failed=1
   wait_ready ui 90 || failed=1
   cmd_status
@@ -764,7 +987,7 @@ cmd_status() {
   local name pid state ready
   for name in $(dependency_names); do
     if dependency_running "$name"; then state="running"; else state="stopped"; fi
-    printf '%-18s %s\n' "$name" "$state"
+    printf '%-26s %s\n' "$name" "$state"
   done
   for name in $PROCESSES; do
     pid="$(process_pid "$name")"
@@ -777,17 +1000,17 @@ cmd_status() {
       state="stopped"
     fi
     if [ "$state" = "stopped" ]; then
-      printf '%-18s %s\n' "$name" "$state"
+      printf '%-26s %s\n' "$name" "$state"
     elif [ "$ready" = "200" ]; then
-      printf '%-18s %s, ready\n' "$name" "$state"
+      printf '%-26s %s, ready\n' "$name" "$state"
     else
-      printf '%-18s %s, not ready\n' "$name" "$state"
+      printf '%-26s %s, not ready\n' "$name" "$state"
     fi
   done
   if hosts_mapped; then state="present"; else state="missing"; fi
-  printf '%-18s %s\n' "hosts entry" "$state"
+  printf '%-26s %s\n' "hosts entry" "$state"
   if [ -x /opt/zasp/security/cartography/bin/security-worker ] && [ -x /opt/zasp/security/prowler/bin/security-worker ]; then state="installed"; else state="not installed"; fi
-  printf '%-18s %s\n' "security analyzers" "$state"
+  printf '%-26s %s\n' "security analyzers" "$state"
 }
 
 # Stops one process 'start' started, if it runs, and forgets its pid.
@@ -816,7 +1039,7 @@ cmd_stop() {
 
 cmd_down() {
   cmd_stop
-  docker stop "$PG_CONTAINER" zasp-real-stack-localstack zasp-real-stack-opensearch >/dev/null 2>&1 || true
+  docker stop "$PG_CONTAINER" zasp-real-stack-localstack zasp-real-stack-opensearch "$NEO4J_CONTAINER" >/dev/null 2>&1 || true
   docker compose -f "$COMPOSE" stop
   echo "real-stack: stopped; data is kept. Remove '$PG_CONTAINER' and '$STATE' to start over."
 }

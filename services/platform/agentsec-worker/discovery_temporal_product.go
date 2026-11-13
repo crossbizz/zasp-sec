@@ -158,7 +158,7 @@ func (p *temporalDiscoveryProduct) CollectDiscoveryPage(ctx context.Context, q o
 		outcome, collectErr = callBoundCollectionCollector(collector, ctx, request)
 		collector.Destroy()
 	}
-	details := map[string]any{"outcome": "outcome_unknown"}
+	details := map[string]any{"outcome": unclassifiedDiscoveryPageOutcome(buildErr)}
 	if collectErr == nil {
 		switch value := outcome.(type) {
 		case collection.CompleteResult:
@@ -274,3 +274,18 @@ func (p *temporalDiscoveryProduct) ReconcileDiscoveryOutcome(ctx context.Context
 }
 
 var _ orchestration.DiscoveryProduct = (*temporalDiscoveryProduct)(nil)
+
+// unclassifiedDiscoveryPageOutcome is the outcome of a page whose error carries
+// no collection failure code. Building a collector makes no provider request:
+// it validates the run's versions and input and binds the credential resolver.
+// A page that failed there is known not to have touched the provider, so it
+// ends the run as terminal. Reporting it as outcome_unknown would keep the
+// integration reserved for a run that can never be resolved. Once a collector
+// exists, an unclassified error may follow a provider request and stays
+// outcome_unknown.
+func unclassifiedDiscoveryPageOutcome(buildErr error) string {
+	if buildErr != nil {
+		return "terminal"
+	}
+	return "outcome_unknown"
+}

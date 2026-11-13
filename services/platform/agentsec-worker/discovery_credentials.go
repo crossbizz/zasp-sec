@@ -556,8 +556,11 @@ func validAWSDiscoveryMaterial(accessKey, secretKey, token []byte, expiresAt, no
 	return validExpiration && len(accessKey) >= 16 && len(accessKey) <= 128 && len(secretKey) >= 32 && len(secretKey) <= 128 && len(token) >= 16 && len(token) <= 4096 && validDiscoveryOpaqueSecret(accessKey, 16, 128) && validDiscoveryOpaqueSecret(secretKey, 32, 128) && validDiscoveryOpaqueSecret(token, 16, 4096)
 }
 
+// The expiry is cut to the whole second below the provider's value. AWS reports
+// whole seconds; an emulator reports fractions, and the security analyzers
+// accept only whole-second expiries. Cutting never extends a credential.
 func providerDiscoveryCredentialExpiry(now, provider time.Time) time.Time {
-	expiresAt := provider.UTC().Add(-30 * time.Second)
+	expiresAt := provider.UTC().Truncate(time.Second).Add(-30 * time.Second)
 	if !expiresAt.After(now) {
 		return time.Time{}
 	}

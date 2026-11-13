@@ -183,7 +183,7 @@ func buildTemporalSecurityAgentRuntime(ctx context.Context, cfg workerRuntimeCon
 }
 func buildTemporalSecurityAgentRuntimeWithIO(ctx context.Context, cfg workerRuntimeConfig, c client.Client, fgaClient *fga.OpenFgaClient, external workerExternalIO) (*temporalSecurityAgentRuntime, error) {
 	enterStartupStage("security-agent-configuration")
-	if ctx == nil || c == nil || cfg.TemporalExecutorDSN == "" || cfg.TemporalCompensationDSN == "" || cfg.TemporalExecutorDSN == cfg.TemporalCompensationDSN || cfg.TemporalExecutorDSN == cfg.PostgresDSN || cfg.TemporalCompensationDSN == cfg.PostgresDSN || !filepath.IsAbs(cfg.TemporalPricingBindingsFile) {
+	if ctx == nil || c == nil || cfg.TemporalExecutorDSN == "" || cfg.TemporalCompensationDSN == "" || cfg.TemporalExecutorDSN == cfg.TemporalCompensationDSN || cfg.TemporalExecutorDSN == cfg.PostgresDSN || cfg.TemporalCompensationDSN == cfg.PostgresDSN || cfg.TemporalPricingBindingsFile != "" && !filepath.IsAbs(cfg.TemporalPricingBindingsFile) {
 		return nil, errRuntimeUnavailable
 	}
 	enterStartupStage("security-agent-database-gate")
@@ -206,24 +206,21 @@ func buildTemporalSecurityAgentRuntimeWithIO(ctx context.Context, cfg workerRunt
 		}
 		return cfg.GatewaySigningKeyID, key, keys, nil
 	}
-	enterStartupStage("security-agent-pricing-bindings")
-	bindings, err := loadTemporalPricingBindings(cfg.TemporalPricingBindingsFile)
-	if err != nil {
-		return nil, errRuntimeUnavailable
-	}
 	enterStartupStage("security-agent-planner")
 	planner, err := external.planner(cfg)
 	if err != nil {
 		return nil, errRuntimeUnavailable
 	}
-	seen := map[string]bool{}
-	for _, binding := range bindings {
-		key := binding.OrganizationID + "/" + binding.WorkspaceID + "/" + binding.EnvironmentID
-		if seen[key] || !release61PlannerAvailable(planner, binding) {
+	// The mounted override, when present, is loaded and verified here. Without
+	// it the binding of a scope is read from the approved pricing policy in the
+	// database when a planner request is priced (see below).
+	enterStartupStage("security-agent-pricing-bindings")
+	var bindings securityAgentPricingBindings
+	if cfg.TemporalPricingBindingsFile != "" {
+		if bindings, err = securityAgentPricingBindingsFor(cfg, nil, planner); err != nil {
 			planner.Close()
 			return nil, errRuntimeUnavailable
 		}
-		seen[key] = true
 	}
 	enterStartupStage("security-agent-execution-clients")
 	execution, err := external.temporal(cfg)
@@ -274,6 +271,29 @@ func buildTemporalSecurityAgentRuntimeWithIO(ctx context.Context, cfg workerRunt
 		pools = append(pools, pool)
 		databaseClosers = append(databaseClosers, db.Close)
 	}
+	if bindings == nil {
+		enterStartupStage("security-agent-pricing-database")
+		// Pricing approvals are readable on the worker's own database role, not
+		// on the executor's: a small dedicated pool on the worker DSN.
+		pc, err := runtimepostgres.ParsePoolConfig(cfg.PostgresDSN)
+		if err != nil {
+			return fail()
+		}
+		pc.MaxConns = 2
+		pool, err := pgxpool.NewWithConfig(ctx, pc)
+		if err != nil {
+			return fail()
+		}
+		pricing, err := apiserver.NewPostgresJSONDatabase(&workerPostgresDriver{pool: pool})
+		if err != nil {
+			pool.Close()
+			return fail()
+		}
+		databaseClosers = append(databaseClosers, pricing.Close)
+		if bindings, err = securityAgentPricingBindingsFor(cfg, pricing, planner); err != nil {
+			return fail()
+		}
+	}
 	p := &temporalSecurityAgentProduct{executor: databases[0], compensation: databases[1], planner: planner, runner: execution.runner, store: execution.store, bindings: bindings, signing: signing, workerID: cfg.WorkerID}
 	var workerChecker authorization.Checker
 	if fgaClient != nil {
@@ -283,9 +303,11 @@ func buildTemporalSecurityAgentRuntimeWithIO(ctx context.Context, cfg workerRunt
 		}
 		workerChecker = checker
 	}
+	enterStartupStage("security-agent-worker-authorization")
 	if bindTemporalWorkerAuthorization(ctx, cfg, workerChecker, p, pools) != nil {
 		return fail()
 	}
+	enterStartupStage("security-agent-policy-signing")
 	var signingReady func() error
 	if p.workerForward != nil {
 		ordered, err := newWorkerOrderedPolicySigning(cfg)
@@ -320,6 +342,7 @@ func buildTemporalSecurityAgentRuntimeWithIO(ctx context.Context, cfg workerRunt
 		}
 		p.singleTestDiagnostic = observer.singleTest
 	}
+	enterStartupStage("security-agent-release-capabilities")
 	p.singleTestEnabled, err = singleTestRuntimeAvailable(ctx, databases[0], false)
 	if err != nil {
 		return fail()
@@ -336,6 +359,7 @@ func buildTemporalSecurityAgentRuntimeWithIO(ctx context.Context, cfg workerRunt
 	if err != nil || p.automaticSourcesEnabled != p.testSelectorEnabled {
 		return fail()
 	}
+	enterStartupStage("security-agent-test-selector")
 	var selector *temporalTestSelectorProcessor
 	if p.testSelectorEnabled {
 		if !p.singleTestEnabled {
@@ -385,6 +409,7 @@ func buildTemporalSecurityAgentRuntimeWithIO(ctx context.Context, cfg workerRunt
 		}
 		return nil
 	}
+	enterStartupStage("security-agent-temporal-worker")
 	runtime, err := newTemporalSecurityAgentWorker(c, cfg.RuntimeServices.TaskQueue, p, ready, closeClients, cfg.ShutdownTimeout, cfg.BatchSize)
 	if err != nil {
 		return fail()

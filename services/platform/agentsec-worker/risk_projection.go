@@ -33,6 +33,7 @@ func newRiskProjectionProjector(store riskprojection.Store) (*riskProjectionProj
 }
 
 func newProductionRiskProjection(authority riskProjectionAuthority) (productionProjectionProjector, error) {
+	enterStartupStage("projection-risk-store")
 	if authority == nil {
 		return productionProjectionProjector{}, errRuntimeUnavailable
 	}

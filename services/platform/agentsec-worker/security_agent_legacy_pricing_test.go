@@ -33,12 +33,12 @@ func TestInstalledLegacyPricingBindsCurrentPreparedRequest(t *testing.T) {
 				db.response = json.RawMessage(`{}`)
 			}
 			failureDB := &legacyPricingFailureDB{pricingBoundDatabase: db, failed: mode == "lookup_error"}
-			priced := &installedLegacyPricedPlanner{planner: planner, database: failureDB, bindings: []securityAgentMultistepPricingBinding{binding}}
+			priced := &installedLegacyPricedPlanner{planner: planner, database: failureDB, bindings: staticSecurityAgentPricingBindings{binding}}
 			if mode == "missing" {
 				priced.bindings = nil
 			}
 			if mode == "ambiguous" {
-				priced.bindings = append(priced.bindings, binding)
+				priced.bindings = staticSecurityAgentPricingBindings{binding, binding}
 			}
 			prepared, err := priced.Prepare(ctx, value)
 			if err != nil {

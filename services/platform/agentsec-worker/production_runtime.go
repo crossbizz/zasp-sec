@@ -384,29 +384,23 @@ func composeWorkerRuntimeWithIO(ctx context.Context, config workerRuntimeConfig,
 			return workerRuntimeDependencies{}, errRuntimeUnavailable
 		}
 		var planner securityAgentPlanner = basePlanner
-		if config.TemporalPricingBindingsFile != "" {
-			if probe, ok := database.(interface {
-				SecurityAgentCompatibilityAvailable(context.Context) (bool, error)
-			}); ok {
-				installed, err := probe.SecurityAgentCompatibilityAvailable(ctx)
+		if probe, ok := database.(interface {
+			SecurityAgentCompatibilityAvailable(context.Context) (bool, error)
+		}); ok {
+			installed, err := probe.SecurityAgentCompatibilityAvailable(ctx)
+			if err != nil {
+				basePlanner.Close()
+				return workerRuntimeDependencies{}, errRuntimeUnavailable
+			}
+			if installed {
+				// The pricing binding of a scope comes from the approved policy
+				// in the database at use time, or from the mounted override.
+				bindings, err := securityAgentPricingBindingsFor(config, database, basePlanner)
 				if err != nil {
 					basePlanner.Close()
 					return workerRuntimeDependencies{}, errRuntimeUnavailable
 				}
-				if installed {
-					bindings, err := loadTemporalPricingBindings(config.TemporalPricingBindingsFile)
-					if err != nil {
-						basePlanner.Close()
-						return workerRuntimeDependencies{}, errRuntimeUnavailable
-					}
-					for _, binding := range bindings {
-						if !release61PlannerAvailable(basePlanner, binding) {
-							basePlanner.Close()
-							return workerRuntimeDependencies{}, errRuntimeUnavailable
-						}
-					}
-					planner = &installedLegacyPricedPlanner{planner: basePlanner, database: database, bindings: bindings}
-				}
+				planner = &installedLegacyPricedPlanner{planner: basePlanner, database: database, bindings: bindings}
 			}
 		}
 		dependencies, err := composeSecurityAgentWorkerRuntime(config, database, planner)
@@ -473,6 +467,7 @@ func composeWorkerRuntimeWithIO(ctx context.Context, config workerRuntimeConfig,
 		}
 		return dependencies, nil
 	case workerModeProjectionRisk:
+		enterStartupStage("projection-risk-authority")
 		repository, err := apiserver.NewDiscoveryExecutionRepository(database, apiserver.DiscoveryExecutionAuthorityProjectionRisk)
 		if err != nil {
 			return workerRuntimeDependencies{}, errRuntimeUnavailable
@@ -877,6 +872,7 @@ func workerReadinessCacheTTL(time.Duration) time.Duration {
 }
 
 func composeProjectionWorkerRuntime(config workerRuntimeConfig, database apiserver.JSONDatabase, projector productionProjectionProjector) (workerRuntimeDependencies, error) {
+	enterStartupStage("projection-work-authority")
 	if !stringInWorker(config.ProjectionKind, "risk", "graph", "search") || projector.projectionProjector == nil || projector.ready == nil || projector.close == nil {
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}

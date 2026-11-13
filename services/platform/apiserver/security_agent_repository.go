@@ -98,6 +98,9 @@ func (repository *PostgresRepository) GetSecurityAgentExecutionControls(ctx cont
 }
 
 func (repository *PostgresRepository) SetSecurityAgentExecutionControl(ctx context.Context, identity RequestIdentity, input SecurityAgentExecutionControlMutation) (SecurityAgentExecutionControlResult, error) {
+	if _, checked := requestAuthorizationFromContext(ctx); checked {
+		return repository.setSecurityAgentExecutionControlCurrent(ctx, identity, input)
+	}
 	versioned, releaseErr := repository.SecurityAgentExistingTestDefinitionsAvailable(ctx)
 	if releaseErr != nil {
 		return SecurityAgentExecutionControlResult{}, ErrRepositoryUnavailable
@@ -191,7 +194,19 @@ func (repository *PostgresRepository) GetSecurityAgentActivation(ctx context.Con
 		return SecurityAgentActivationState{}, ErrRepositoryOperation
 	}
 	statement, args := postgresSecurityAgentDefinitionActivationSQL, []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), definitionID}
-	payload, handled, findingErr := queryTemporalFindingResponse(ctx, repository.database, `SELECT zasp_temporal78.definition($1,$2,$3,$4,$5)`, append(args, identity.PrincipalID.String())...)
+	var payload json.RawMessage
+	var handled bool
+	var findingErr error
+	if _, checked := requestAuthorizationFromContext(ctx); checked {
+		// One authorized statement reads the activation of any family.
+		payload, findingErr = repository.database.QueryJSON(ctx, currentSecurityAgentActivationSQL, append(args, identity.PrincipalID.String())...)
+		if findingErr != nil {
+			return SecurityAgentActivationState{}, discoveryProviderError(findingErr)
+		}
+		handled = true
+	} else {
+		payload, handled, findingErr = queryTemporalFindingResponse(ctx, repository.database, `SELECT zasp_temporal78.definition($1,$2,$3,$4,$5)`, append(args, identity.PrincipalID.String())...)
+	}
 	if findingErr != nil {
 		return SecurityAgentActivationState{}, findingErr
 	}
@@ -341,7 +356,21 @@ func (repository *PostgresRepository) ActivateSecurityAgent(ctx context.Context,
 	}
 	var payload json.RawMessage
 	var handled bool
-	if currentAuthorizationRequired(repository.database) {
+	ordered := false
+	if _, checked := requestAuthorizationFromContext(ctx); checked {
+		// One authorized statement: PostgreSQL binds the proof, selects the
+		// definition family and names it in the result.
+		envelope, err := repository.database.QueryJSON(ctx, currentSecurityAgentActivateSQL, args...)
+		if err != nil {
+			return SecurityAgentActivationResult{}, discoveryProviderError(err)
+		}
+		var family string
+		if family, payload, err = securityAgentFamilyResult(envelope); err != nil {
+			return SecurityAgentActivationResult{}, err
+		}
+		ordered = family == "ordered"
+		handled = true
+	} else if currentAuthorizationRequired(repository.database) {
 		current, ok := repository.database.(interface {
 			ActivateCurrentTemporalTestDefinition(context.Context, ...any) (json.RawMessage, error)
 		})
@@ -400,6 +429,14 @@ func (repository *PostgresRepository) ActivateSecurityAgent(ctx context.Context,
 		}
 	}
 	var result SecurityAgentActivationResult
+	if ordered {
+		// The ordered family derives its audit and receipt identities from the
+		// actor and the idempotency key; they are not the request's fresh IDs.
+		if !exactJSONFields(payload, "activation", "audit_id", "correlation_id", "enabled", "id", "receipt_id", "replayed", "version") || decodeStrictDiscovery(payload, &result) != nil || result.ID != input.DefinitionID || result.Activation != "supervised" || input.TargetActivation != "supervised" || !result.Enabled || result.Version != input.ExpectedVersion+1 || result.CorrelationID != result.AuditID || !public62MutationIdentity(identity, "activate_resource", input.IdempotencyKey, result.AuditID, result.ReceiptID) {
+			return SecurityAgentActivationResult{}, ErrRepositoryUnavailable
+		}
+		return result, nil
+	}
 	if !exactJSONFields(payload, "activation", "audit_id", "correlation_id", "enabled", "id", "receipt_id", "replayed", "version") || decodeStrictDiscovery(payload, &result) != nil || result.ID != input.DefinitionID || result.Activation != input.TargetActivation || result.Enabled != (input.TargetActivation == "supervised" || input.TargetActivation == "autonomous") || result.Version != input.ExpectedVersion+1 || !validProductID(result.AuditID) || !validProductID(result.CorrelationID) || !validProductID(result.ReceiptID) || !result.Replayed && (result.AuditID != input.AuditID || result.CorrelationID != input.CorrelationID || result.ReceiptID != input.ReceiptID) {
 		return SecurityAgentActivationResult{}, ErrRepositoryUnavailable
 	}
@@ -407,6 +444,11 @@ func (repository *PostgresRepository) ActivateSecurityAgent(ctx context.Context,
 }
 
 func (repository *PostgresRepository) RunSecurityAgent(ctx context.Context, identity RequestIdentity, input SecurityAgentRunRequest) (SecurityAgentRunResult, error) {
+	if ctx != nil {
+		if _, checked := requestAuthorizationFromContext(ctx); checked {
+			return repository.runSecurityAgentCurrent(ctx, identity, input)
+		}
+	}
 	if input.TriggerKind == "manual" {
 		if input.TriggerVersion != nil || input.TriggerSource != nil {
 			return SecurityAgentRunResult{}, ErrRepositoryOperation

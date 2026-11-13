@@ -154,7 +154,21 @@ def _read_exact(stream: BinaryIO, size: int) -> bytes:
 def _authority(value: object) -> dict[str, object]:
     if type(value) is not dict:
         raise ProtocolError("invalid protocol")
-    _exact_keys(value, _AUTHORITY_KEYS)
+    # A run is identified either by its attempt number (1 to 100) or, when the
+    # platform runs it as a recorded effect, by attempt 0 and that effect's
+    # identifier. The platform accepts exactly these two forms.
+    effect = "effect_id" in value
+    _exact_keys(value, _AUTHORITY_KEYS | {"effect_id"} if effect else _AUTHORITY_KEYS)
+    if type(value["attempt"]) is not int or (
+        (
+            value["attempt"] != 0
+            or type(value["effect_id"]) is not str
+            or _DIGEST.fullmatch(value["effect_id"]) is None
+        )
+        if effect
+        else not 1 <= value["attempt"] <= 100
+    ):
+        raise ProtocolError("invalid protocol")
     product_ids = (
         "organization_id",
         "workspace_id",
@@ -169,9 +183,7 @@ def _authority(value: object) -> dict[str, object]:
     ):
         raise ProtocolError("invalid protocol")
     if (
-        type(value["attempt"]) is not int
-        or not 1 <= value["attempt"] <= 100
-        or type(value["cursor_lineage"]) is not int
+        type(value["cursor_lineage"]) is not int
         or not 1 <= value["cursor_lineage"] <= 1_000_000
         or value["subject_kind"] != "aws_account"
         or type(value["subject_id"]) is not str

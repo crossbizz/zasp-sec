@@ -3,6 +3,7 @@ package neo4jstore
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"net/url"
 	"reflect"
@@ -40,6 +41,8 @@ const (
 	showOwnedConstraintsQuery           = "SHOW CONSTRAINTS YIELD name, type, entityType, labelsOrTypes, properties, ownedIndex WHERE name STARTS WITH $prefix RETURN name, type, entityType, labelsOrTypes, properties, ownedIndex ORDER BY name"
 	showCurrentUserQuery                = "SHOW CURRENT USER YIELD user, roles, passwordChangeRequired, suspended RETURN user, roles, passwordChangeRequired, suspended"
 	showUserPrivilegesQuery             = "SHOW USER $principal PRIVILEGES AS COMMANDS YIELD command RETURN command ORDER BY command"
+	showServerEditionQuery              = "CALL dbms.components() YIELD name, edition WHERE name = 'Neo4j Kernel' RETURN edition"
+	communityEdition                    = "community"
 )
 
 var (
@@ -58,6 +61,7 @@ var (
 	productionAuthReferencePattern     = regexp.MustCompile(`^ref:neo4j/auth/[a-z0-9][a-z0-9_./:-]{7,487}$`)
 	productionPrincipalPattern         = regexp.MustCompile(`^[a-z][a-z0-9_-]{2,63}$`)
 	currentUserResultKeys              = []string{"user", "roles", "passwordChangeRequired", "suspended"}
+	serverEditionResultKeys            = []string{"edition"}
 	privilegeCommandResultKeys         = []string{"command"}
 )
 
@@ -107,8 +111,10 @@ type Adapter struct {
 	ownedDriver       neo4j.Driver
 	expectedPrincipal string
 	expectedRole      string
-	closeOnce         sync.Once
-	closeErr          error
+	// developmentCommunityEdition is set only from ProductionConfig; see there.
+	developmentCommunityEdition bool
+	closeOnce                   sync.Once
+	closeErr                    error
 }
 
 // ProductionConfig identifies one verified-TLS Neo4j endpoint and an opaque
@@ -119,6 +125,19 @@ type ProductionConfig struct {
 	ReadinessTimeout        time.Duration
 	ExpectedPrincipal       string
 	ExpectedRole            string
+	// DevelopmentRootCAs, when set, is the trust store for the Bolt TLS
+	// connection instead of the system one. Certificate and host name
+	// verification stay on. Only a development deployment whose graph database
+	// serves a certificate from a local authority sets it; production leaves
+	// it nil.
+	DevelopmentRootCAs *x509.CertPool
+	// DevelopmentCommunityEdition lets readiness accept a Neo4j Community
+	// server. Community has no roles and cannot list privileges, so the exact
+	// role and privilege checks cannot be answered there; the principal, the
+	// password state and the owned constraints are still verified. A server
+	// that reports any other edition gets the full check. Only a development
+	// deployment sets it; production leaves it false.
+	DevelopmentCommunityEdition bool
 }
 
 // AuthenticationResolver is the only production authority that may turn the
@@ -156,7 +175,7 @@ func newProductionAdapter(ctx context.Context, production ProductionConfig, reso
 	if err != nil || !authenticatedTokenManager(readyCtx, manager) {
 		return nil, ErrConfiguration
 	}
-	driver, err := newProductionDriver(factory, production.Endpoint, manager)
+	driver, err := newProductionDriver(factory, production.Endpoint, manager, production.DevelopmentRootCAs)
 	if err != nil || nilInterface(driver) || !encryptedDriver(driver) {
 		closeProductionDriver(readyCtx, driver)
 		return nil, ErrConfiguration
@@ -172,6 +191,7 @@ func newProductionAdapter(ctx context.Context, production ProductionConfig, reso
 	}
 	adapter.ownedDriver = driver
 	adapter.expectedPrincipal, adapter.expectedRole = production.ExpectedPrincipal, production.ExpectedRole
+	adapter.developmentCommunityEdition = production.DevelopmentCommunityEdition
 	return adapter, nil
 }
 
@@ -234,7 +254,7 @@ func authenticatedTokenManager(ctx context.Context, manager auth.TokenManager) (
 	}
 }
 
-func newProductionDriver(factory productionDriverFactory, endpoint string, manager auth.TokenManager) (driver neo4j.Driver, err error) {
+func newProductionDriver(factory productionDriverFactory, endpoint string, manager auth.TokenManager, roots *x509.CertPool) (driver neo4j.Driver, err error) {
 	defer func() {
 		if recover() != nil {
 			driver = nil
@@ -242,7 +262,8 @@ func newProductionDriver(factory productionDriverFactory, endpoint string, manag
 		}
 	}()
 	return factory.New(endpoint, manager, func(driverConfig *config.Config) {
-		driverConfig.TlsConfig = &tls.Config{MinVersion: tls.VersionTLS12}
+		// A nil RootCAs is the system trust store.
+		driverConfig.TlsConfig = &tls.Config{MinVersion: tls.VersionTLS12, RootCAs: roots}
 	})
 }
 
@@ -317,7 +338,7 @@ func (adapter *Adapter) Ready(ctx context.Context) error {
 	if adapter == nil || nilInterface(adapter.provider) || adapter.database != databaseName || ctx == nil || ctx.Err() != nil {
 		return ErrSchema
 	}
-	return verifyReadinessWithProvider(ctx, adapter.provider, adapter.database, adapter.expectedPrincipal, adapter.expectedRole)
+	return verifyReadinessWithProvider(ctx, adapter.provider, adapter.database, adapter.expectedPrincipal, adapter.expectedRole, adapter.developmentCommunityEdition)
 }
 
 // EnsureSchema executes the exact five-constraint DDL contract. Production
@@ -382,15 +403,42 @@ func verifySchemaWithProvider(ctx context.Context, provider sessionProvider, dat
 	})
 }
 
-func verifyReadinessWithProvider(ctx context.Context, provider sessionProvider, database, principal, role string) error {
+func verifyReadinessWithProvider(ctx context.Context, provider sessionProvider, database, principal, role string, developmentCommunityEdition bool) error {
 	if principal == "" && role == "" {
 		return verifySchemaWithProvider(ctx, provider, database)
 	}
 	if ctx == nil || ctx.Err() != nil || nilInterface(provider) || database != databaseName || !productionPrincipalPattern.MatchString(principal) || !productionPrincipalPattern.MatchString(role) {
 		return ErrSchema
 	}
-	return executeTransaction(ctx, provider, sessionConfig{Database: database, Access: accessRead}, ErrSchema, func(tx graphTransaction) error {
+	read := sessionConfig{Database: database, Access: accessRead}
+	// Neo4j refuses a transaction that mixes administration commands (the user
+	// and privilege listings) with any other query, so the identity and the
+	// constraints are verified in transactions of their own.
+	community := false
+	if developmentCommunityEdition {
+		if err := executeTransaction(ctx, provider, read, ErrSchema, func(tx graphTransaction) error {
+			edition, err := tx.Run(ctx, showServerEditionQuery, map[string]any{})
+			if err != nil {
+				return ErrSchema
+			}
+			name, ok := serverEdition(ctx, edition)
+			if !ok {
+				return ErrSchema
+			}
+			community = name == communityEdition
+			return nil
+		}); err != nil {
+			return ErrSchema
+		}
+	}
+	if err := executeTransaction(ctx, provider, read, ErrSchema, func(tx graphTransaction) error {
 		current, err := tx.Run(ctx, showCurrentUserQuery, map[string]any{})
+		if community {
+			if err != nil || !validCommunityUser(ctx, current, principal) {
+				return ErrSchema
+			}
+			return nil
+		}
 		if err != nil || !validCurrentUser(ctx, current, principal, role) {
 			return ErrSchema
 		}
@@ -398,12 +446,11 @@ func verifyReadinessWithProvider(ctx context.Context, provider sessionProvider, 
 		if err != nil || !validWorkerPrivileges(ctx, privileges, role) {
 			return ErrSchema
 		}
-		constraints, err := tx.Run(ctx, showOwnedConstraintsQuery, map[string]any{"prefix": constraintPrefix})
-		if err != nil || !validConstraintResult(ctx, constraints) {
-			return ErrSchema
-		}
 		return nil
-	})
+	}); err != nil {
+		return ErrSchema
+	}
+	return verifySchemaWithProvider(ctx, provider, database)
 }
 
 func validCurrentUser(ctx context.Context, result graphResult, principal, role string) bool {
@@ -418,6 +465,39 @@ func validCurrentUser(ctx context.Context, result graphResult, principal, role s
 	roles, rolesOK := exactStringList(record.Values[1])
 	slices.Sort(roles)
 	valid := slices.Equal(record.Keys, currentUserResultKeys) && len(record.Values) == 4 && record.Values[0] == principal && rolesOK && slices.Equal(roles, []string{"PUBLIC", role}) && record.Values[2] == false && record.Values[3] == false
+	return valid && !result.Next(ctx) && result.Err() == nil && result.Consume(ctx) == nil
+}
+
+// serverEdition reads the single edition row of showServerEditionQuery.
+func serverEdition(ctx context.Context, result graphResult) (string, bool) {
+	if nilInterface(result) {
+		return "", false
+	}
+	keys, err := result.Keys()
+	if err != nil || !slices.Equal(keys, serverEditionResultKeys) || !result.Next(ctx) {
+		return "", false
+	}
+	record := result.Record()
+	if !slices.Equal(record.Keys, serverEditionResultKeys) || len(record.Values) != 1 {
+		return "", false
+	}
+	edition, ok := record.Values[0].(string)
+	return edition, ok && edition != "" && !result.Next(ctx) && result.Err() == nil && result.Consume(ctx) == nil
+}
+
+// validCommunityUser is the current-user check a Community server can answer:
+// the exact principal, no pending password change, and no role or suspension
+// state at all (Community reports both as null).
+func validCommunityUser(ctx context.Context, result graphResult, principal string) bool {
+	if nilInterface(result) {
+		return false
+	}
+	keys, err := result.Keys()
+	if err != nil || !slices.Equal(keys, currentUserResultKeys) || !result.Next(ctx) {
+		return false
+	}
+	record := result.Record()
+	valid := slices.Equal(record.Keys, currentUserResultKeys) && len(record.Values) == 4 && record.Values[0] == principal && record.Values[1] == nil && record.Values[2] == false && record.Values[3] == nil
 	return valid && !result.Next(ctx) && result.Err() == nil && result.Consume(ctx) == nil
 }
 
