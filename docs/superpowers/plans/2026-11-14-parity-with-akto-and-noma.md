@@ -163,7 +163,19 @@ Built, tested against fakes, pushed:
 
 How the checks reach the Findings page: the AWS collector emits them on the posture page as discovery findings on the agent entity (the channel Prowler findings use), so there was no schema change. Their stored title is generic ("Discovered AWS control ..."); the web application shows the proper title and guidance by rule.
 
-What the next pass should start with: B1, because the connector breadth and the MCP inventory both wait on it, and it is the one item that needs the baseline rebuilt.
+## Second implementation pass (2026-11-14)
+
+Six workstreams were built in parallel, merged, and the baseline rebuilt once. `tasks/todo.md` has the per-task state. In short:
+
+| Workstream | What exists now | Limits |
+| --- | --- | --- |
+| Connectors (B1 to B5) | Provider `saas`; one collector over the Nango proxy; eight platform definitions; per-tenant hosts; sign-in from the Integrations page for four platforms | Every provider API shape is from memory. Nothing ran against a real provider or a real Nango. Whether Nango honours the base URL override header is unverified. |
+| Red team (F1 to F3) | 1,080 probes in nine categories, three of them agentic; a run executes a sample; schedules by cadence or on target change; standalone runs execute on the installed baseline | No real Promptfoo process ran with the new configuration. The probes are written for this product, not imported. |
+| Compliance and inventory (A2, A3, A6, H4) | Six AI frameworks on the compliance page and in exports; agent identities; activity state; evidence pack on demand and retained | Object store faked in tests. The retained pack omits Temporal-owned Security Agent runs. |
+| Enforcement (E1, E2, H3) | Two provider remediation actions through a separate remediation role; remediation offered on the finding; guardrail decision API with its own token permission; Guardrails page | Nothing ran against real AWS. The LiteLLM example was not run. Helm and Terraform were edited as text. |
+| MCP and cloud (D1 to D4, G2, A5, A7, C2c, C3, H2) | MCP servers, tools, registry and posture; skills; used against granted; attack paths through agents; attribution to ECS, Lambda and EKS clusters; Azure OpenAI and AI Foundry accounts | Agentforce moderation, Foundry agents and Kubernetes MCP links are open: no usable API or source is known. |
+
+What remains is proof, not construction: I1, H1, I2 and F4 need real accounts; I3 and I4 are not engineering tasks; C4, D5 and E3 are on request and D5 and E3 are not agentless.
 
 ## Risks
 

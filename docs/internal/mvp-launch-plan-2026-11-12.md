@@ -74,6 +74,8 @@ Decisions recorded there:
 
 This changes "Not in the MVP" below in one respect: Azure through the existing Microsoft connection, and Garak probe packs, move into this follow-on plan. They are still not in the MVP.
 
+- **State (2026-11-14, second pass):** every build task of the parity plan is implemented and merged, tested against fakes and on PostgreSQL. None of it has run against a real provider, AWS account or Nango. The remaining work is the proof steps (golden path, a complete Security Agent run, real-provider runs) and the database reinstall from the new baseline.
+
 ## What needs a person or an external system
 
 | Need | For |
