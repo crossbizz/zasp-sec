@@ -538,6 +538,16 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 	}
 	cookie := apiserver.CookiePolicy{Secure: config.CookieSecure, WorkflowSigningKey: []byte(config.WorkflowSigningKey), TokenRevealKey: config.TokenRevealKey, Clock: func() time.Time { return time.Now().UTC().Truncate(time.Second) }, BuildVersion: buildVersion, DeploymentMode: config.DeploymentMode, OrganizationID: config.OrganizationID, DiscoveryParserVersion: config.DiscoveryParserVersion, DiscoveryToolVersion: config.DiscoveryToolVersion, ConnectorCapabilities: apiserver.CombinedConnectorCapabilities{OAuth: connectorRegistry, Reference: referenceRegistry}, FindingTickets: ticketService, IntegrationWebhookTests: webhookTestService}
 	cookie.SecurityAgentOrderedHTTPEnabled = config.SecurityAgentOrderedHTTPEnabled
+	if config.HostedGatewayEnabled {
+		// The traffic routes of the hosted gateway. Its outbound requests go
+		// to public addresses only, over their own transport.
+		gateway, gatewayErr := apiserver.NewHostedGateway(apiserver.HostedGatewayConfig{Timeout: config.HostedGatewayTimeout})
+		if gatewayErr != nil {
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("production-handlers", errRuntimeUnavailable)
+		}
+		cookie.HostedGateway = gateway
+		connectorResources = append(connectorResources, transportCloser{transport: gateway.Client.Transport.(*http.Transport)})
+	}
 	cookie.AuditPublicPages = auditPublicPages
 	if verifier, ok := securityAgentDatabase.(interface {
 		SingleTestRecoveryAvailable(context.Context) (bool, error)
@@ -589,6 +599,7 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 	}
 	product, err := apiserver.NewProductMiddleware(apiserver.ProductSecurity{
 		PublicOrigin: config.PublicOrigin, MaximumBodyBytes: 16 * 1024, Authenticate: authenticate, GenerateCorrelationID: generateCorrelationID,
+		GatewayMaximumBodyBytes: hostedGatewayBodyLimit(config),
 	}, composition)
 	if err != nil {
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("product-middleware", errRuntimeUnavailable)
@@ -608,7 +619,7 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 	if err != nil {
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("public-surface", errRuntimeUnavailable)
 	}
-	operational, err := newOperationalMiddleware(output, metrics, newRequestLimiter(config.RequestRatePerSecond, config.RequestBurst, 10000, time.Now), config.RequestTimeout, exporter, publicSurface)
+	operational, err := newGatewayOperationalMiddleware(output, metrics, newRequestLimiter(config.RequestRatePerSecond, config.RequestBurst, 10000, time.Now), config.RequestTimeout, config.HostedGatewayTimeout, exporter, publicSurface)
 	if err != nil {
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("operational-middleware", errRuntimeUnavailable)
 	}
@@ -710,6 +721,15 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 		}
 		return nil
 	}, Stores: stores, Closers: connectorResources}, nil
+}
+
+// hostedGatewayBodyLimit is the body limit of the hosted gateway's traffic
+// routes, or zero where the deployment does not serve them.
+func hostedGatewayBodyLimit(config RuntimeConfig) int64 {
+	if config.HostedGatewayEnabled {
+		return hostedGatewayMaximumBody
+	}
+	return 0
 }
 
 func mountPublicSurface(product, stytchWebhook http.Handler) (http.Handler, error) {

@@ -47,10 +47,14 @@ type RequestIdentity struct {
 type Authenticator func(context.Context, Credential) (RequestIdentity, error)
 
 type ProductSecurity struct {
-	PublicOrigin          string
-	MaximumBodyBytes      int64
-	Authenticate          Authenticator
-	GenerateCorrelationID func() string
+	PublicOrigin     string
+	MaximumBodyBytes int64
+	// GatewayMaximumBodyBytes, when positive, is the limit of a request of
+	// the hosted gateway's traffic routes (a prompt with its conversation,
+	// a tool call). Zero leaves them at MaximumBodyBytes.
+	GatewayMaximumBodyBytes int64
+	Authenticate            Authenticator
+	GenerateCorrelationID   func() string
 }
 
 type identityContextKey struct{}
@@ -84,7 +88,11 @@ func NewProductMiddleware(security ProductSecurity, next http.Handler) (http.Han
 			}
 		}()
 
-		if err := validateBody(request, security.MaximumBodyBytes); err != nil {
+		maximumBody := security.MaximumBodyBytes
+		if security.GatewayMaximumBodyBytes > maximumBody && request.URL != nil && HostedGatewayTrafficPath(request.URL.Path) {
+			maximumBody = security.GatewayMaximumBodyBytes
+		}
+		if err := validateBody(request, maximumBody); err != nil {
 			if errors.Is(err, errUnsupportedMediaType) {
 				writeProductError(writer, http.StatusUnsupportedMediaType, "unsupported_media_type", "Content type rejected", correlationID)
 			} else {
@@ -180,7 +188,7 @@ func validPermissions(values []string) bool {
 	for _, value := range values {
 		switch value {
 		case "view", "manage_findings", "manage_workflows", "manage_identity", "manage_api_tokens", "view_audit", "investigate_sessions", "revoke_sessions", "view_compliance", "manage_data_controls", "run_tests":
-		case PermissionDecideGuardrails:
+		case PermissionDecideGuardrails, PermissionUseGateway:
 		default:
 			return false
 		}
