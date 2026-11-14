@@ -89,7 +89,7 @@ export function APIAccessView({ api: suppliedAPI, client }: { api?: APIAccessAPI
   const [name, setName] = useState("");
   // What the new token may do. A gateway that only asks for guardrail
   // decisions gets a token that can read nothing.
-  const [tokenUse, setTokenUse] = useState<"view" | "decide_guardrails">("view");
+  const [tokenUse, setTokenUse] = useState<"view" | "decide_guardrails" | "use_gateway">("view");
   const pendingMutation = useRef<PendingMutation | null>(null);
   const createTokenButton = useRef<HTMLButtonElement>(null);
   const [unresolvedMutation, setUnresolvedMutation] = useState<PendingMutation | null>(null);
@@ -153,8 +153,9 @@ export function APIAccessView({ api: suppliedAPI, client }: { api?: APIAccessAPI
       {grants.length === 0 ? <EmptyState title="No pending credentials" description="Unacknowledged token credentials after create or rotate appear here across reloads." /> : <ul className="identity-list">{grants.map((grant) => <li key={grant.grantId}><span><strong>{grant.operation === "createAPIToken" ? "Created token" : "Rotated token"}</strong><small>expires {grant.expiresAt}</small></span><Button disabled={!fresh || revealed !== null} onClick={() => void reveal(grant)}>Reveal token</Button></li>)}</ul>}
     </Card>
     <Card title={<h2>Create API token</h2>}><div className="identity-form-grid"><Field disabled={!fresh || recoveryLocked || activeScope === null} label="Token name" value={name} onChange={(event) => setName(event.target.value)} />
-      <Select disabled={!fresh || recoveryLocked || activeScope === null} label="Token use" value={tokenUse} onChange={(event) => setTokenUse(event.target.value === "decide_guardrails" ? "decide_guardrails" : "view")}><option value="view">Read the Environment (view)</option><option value="decide_guardrails">Guardrail decisions only (decide_guardrails)</option></Select></div>
+      <Select disabled={!fresh || recoveryLocked || activeScope === null} label="Token use" value={tokenUse} onChange={(event) => setTokenUse(event.target.value === "decide_guardrails" ? "decide_guardrails" : event.target.value === "use_gateway" ? "use_gateway" : "view")}><option value="view">Read the Environment (view)</option><option value="decide_guardrails">Guardrail decisions only (decide_guardrails)</option><option value="use_gateway">Hosted gateway only (use_gateway)</option></Select></div>
       {tokenUse === "decide_guardrails" && <p>This token can call the guardrail decision API and nothing else: it cannot read inventory, findings or settings.</p>}
+      {tokenUse === "use_gateway" && <p>This token can send an agent&apos;s MCP and model traffic through the hosted gateway and nothing else: it cannot read inventory, findings, settings or the gateway&apos;s activity.</p>}
       {activeScope && <p>New credentials use the authenticated active scope <code>{activeScope.workspaceId}/{activeScope.environmentId}</code>.</p>}
       <Button ref={createTokenButton} variant="primary" disabled={!fresh || activeScope === null || revealed !== null || grants.length > 0 || unresolvedMutation?.kind === "rotate"} onClick={() => void (async () => {
         setError(null); setNotice(null); if (!name.trim()) { setError("Enter a token name"); return; } if (!api || !activeScope) { setError("An authenticated active scope is required"); return; }

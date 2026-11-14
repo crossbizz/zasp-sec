@@ -103,6 +103,18 @@ describe("API Access product surface", () => {
     await waitFor(() => expect(createToken).toHaveBeenCalledWith(expect.objectContaining({ name: "LiteLLM gateway", permissions: ["decide_guardrails"] }), expect.stringMatching(/^admin_/)));
   });
 
+  it("creates a token for the hosted gateway only when that use is chosen", async () => {
+    const user = userEvent.setup();
+    const createToken = vi.fn(fixtureAPI().createToken);
+    renderAuthenticated(fixtureAPI({ createToken }));
+    await screen.findByText("CI scanner");
+    await user.type(screen.getByLabelText("Token name"), "Support agent gateway");
+    await user.selectOptions(screen.getByLabelText("Token use"), "use_gateway");
+    expect(screen.getByText(/through the hosted gateway and nothing else/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Create API token" }));
+    await waitFor(() => expect(createToken).toHaveBeenCalledWith(expect.objectContaining({ name: "Support agent gateway", permissions: ["use_gateway"] }), expect.stringMatching(/^admin_/)));
+  });
+
   it("recovers a pending reveal grant after reload and reports copy failure without exposing the secret elsewhere", async () => {
     const user = userEvent.setup();
     const grant = { grantId: "pid_grant", tokenId: "pid_token", operation: "createAPIToken" as const, expiresAt: "2026-08-19T00:05:00.000Z" };
