@@ -135,8 +135,16 @@ func (a *OpenFGAAuthorizer) Authorize(ctx context.Context, identity RequestIdent
 			checks[n].err = authorization.ErrInvalid
 			return
 		}
+		requests := make([]authorization.CheckRequest, 0, len(permissions))
 		for _, permission := range permissions {
-			request := authorization.CheckRequest{PrincipalKind: "user", PrincipalID: identity.PrincipalID.String(), OrganizationID: target.Scope.OrganizationID().String(), WorkspaceID: target.Scope.WorkspaceID().String(), EnvironmentID: target.Scope.EnvironmentID().String(), ResourceType: target.Kind, ResourceID: target.ID, Permission: permission}
+			requests = append(requests, authorization.CheckRequest{PrincipalKind: "user", PrincipalID: identity.PrincipalID.String(), OrganizationID: target.Scope.OrganizationID().String(), WorkspaceID: target.Scope.WorkspaceID().String(), EnvironmentID: target.Scope.EnvironmentID().String(), ResourceType: target.Kind, ResourceID: target.ID, Permission: permission})
+		}
+		if len(requests) > 1 {
+			// The permissions of one target share one pair of revision reads.
+			checks[n].decisions, checks[n].err = authorization.CheckRevisionAll(ctx, a.Reader, a.Checker, requests, a.StoreID, a.ModelID)
+			return
+		}
+		for _, request := range requests {
 			checked, err := authorization.CheckRevision(ctx, a.Reader, a.Checker, request, a.StoreID, a.ModelID)
 			if err != nil {
 				checks[n].err = err

@@ -39,7 +39,7 @@ func (repository *PolicyDecisionRepository) ListPolicyDecisions(ctx context.Cont
 	if repository == nil || nilPolicyDecisionValue(repository.database) || ctx == nil || ctx.Err() != nil || scope.Validate() != nil || !policyIDPattern.MatchString(policyID) || limit < 1 || limit > 100 {
 		return nil, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresListPolicyDecisionsSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), policyID, limit)
+	payload, err := repository.database.QueryJSON(ctx, authorizationReadStatement(ctx, postgresListPolicyDecisionsSQL, currentPolicyDecisionsSQL), scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), policyID, limit)
 	if err != nil || ctx.Err() != nil {
 		return nil, ErrRepositoryUnavailable
 	}
@@ -51,7 +51,8 @@ func (repository *PolicyDecisionRepository) ListPolicyDecisions(ctx context.Cont
 	if decoder.Decode(&page) != nil || decoder.Decode(&struct{}{}) != io.EOF || page.Items == nil || len(page.Items) > limit || !validPolicyDecisions(page.Items, scope, policyID) {
 		return nil, ErrRepositoryUnavailable
 	}
-	return append([]platformpolicy.RuntimeDecision(nil), page.Items...), nil
+	// An empty page is an empty array in the response, never null.
+	return append([]platformpolicy.RuntimeDecision{}, page.Items...), nil
 }
 
 func nilPolicyDecisionValue(value any) bool {

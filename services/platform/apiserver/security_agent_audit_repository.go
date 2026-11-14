@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
-	"slices"
 	"strings"
 	"time"
 )
@@ -35,7 +34,7 @@ func (repository *PostgresRepository) GetSecurityAgentAuditEvent(ctx context.Con
 	if !validRequestIdentity(identity, true) || identity.CredentialKind != CredentialBrowserSession {
 		return fail, ErrRepositoryAuthentication
 	}
-	if !slices.Contains(identity.Permissions, "view_audit") {
+	if !currentRequestHasPermission(ctx, identity, "view_audit") {
 		return fail, ErrAuditExportForbidden
 	}
 	if !validProductID(auditID) || len(sessionDigest) != sha256.Size || bytes.Equal(sessionDigest, make([]byte, sha256.Size)) {
@@ -43,6 +42,17 @@ func (repository *PostgresRepository) GetSecurityAgentAuditEvent(ctx context.Con
 	}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
+	if _, checked := requestAuthorizationFromContext(ctx); checked {
+		// Under current authorization the record is one authorized statement.
+		raw, err := repository.database.QueryJSON(ctx, currentSecurityAgentAuditEventSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), auditID, identity.PrincipalID.String())
+		if err := ctx.Err(); err != nil {
+			return fail, err
+		}
+		if err != nil {
+			return fail, discoveryProviderError(err)
+		}
+		return decodeSecurityAgentAuditEvent(raw, identity, auditID)
+	}
 	available, err := repository.approvalContextAvailable(ctx)
 	if err := ctx.Err(); err != nil {
 		return fail, err

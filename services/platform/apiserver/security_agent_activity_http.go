@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"net/http"
-	"slices"
 )
 
 type securityAgentActivityAuthority interface {
@@ -32,7 +31,7 @@ func (handler *securityAgentPublicHTTPHandler) listActivityRuns(writer http.Resp
 		writeAuditExportHTTPError(writer, request, ErrRepositoryOperation)
 		return
 	}
-	if !slices.Contains(identity.Permissions, "view") || kind == "session" && !slices.Contains(identity.Permissions, "investigate_sessions") || kind == "audit" && !slices.Contains(identity.Permissions, "view_audit") {
+	if !securityAgentActivityPermitted(request.Context(), identity, kind) {
 		writeAuditExportHTTPError(writer, request, ErrAuditExportForbidden)
 		return
 	}

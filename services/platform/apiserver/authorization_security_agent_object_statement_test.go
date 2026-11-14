@@ -32,11 +32,14 @@ func TestSecurityAgentObjectStatementContracts(t *testing.T) {
 			return []any{o, w, e, object, p, key, int64(1), "approved", authenticated, audit, correlation, receipt}
 		}, true, []int{9, 10, 11}},
 		{"simulate", currentSecurityAgentSimulateSQL, "simulateSecurityAgent", "security_agent", func() []any {
-			return []any{o, w, e, object, p, key, int64(3), run, "Check the plan", json.RawMessage(`["` + evidence + `"]`), expires, audit, correlation, receipt}
+			return []any{o, w, e, object, p, key, int64(3), run, "Check the plan", json.RawMessage(`["` + evidence + `"]`), expires, audit, correlation, receipt, "attested evidence decision"}
 		}, false, []int{7, 11, 12, 13}},
+		{"close", currentSecurityAgentCloseRunSQL, "closeSecurityAgentRun", "security_agent_run", func() []any {
+			return []any{o, w, e, object, p, key, int64(3), "usage_unknown_accepted", nil, audit, correlation, receipt}
+		}, false, []int{9, 10, 11}},
 		{"manual run", currentSecurityAgentManualRunSQL, "runSecurityAgent", "security_agent", func() []any { return []any{o, w, e, object, p, key, int64(3), run, audit, correlation, receipt} }, false, []int{7, 8, 9, 10}},
 	}
-	operations := []string{"getSecurityAgentRun", "cancelSecurityAgentRun", "getSecurityAgentApproval", "decideSecurityAgentApproval", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "listSecurityAgentApprovals", "getSecurityAgent", "activateSecurityAgent", "setSecurityAgentPlannerPricing"}
+	operations := []string{"getSecurityAgentRun", "cancelSecurityAgentRun", "closeSecurityAgentRun", "getSecurityAgentApproval", "decideSecurityAgentApproval", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "listSecurityAgentApprovals", "getSecurityAgent", "activateSecurityAgent", "setSecurityAgentPlannerPricing"}
 	for _, c := range contracts {
 		t.Run(c.name, func(t *testing.T) {
 			grant := func() RequestAuthorization {
@@ -147,7 +150,7 @@ func TestSecurityAgentObjectStatementContracts(t *testing.T) {
 		}
 	}
 	simulate := func(mutate func([]any)) []any {
-		args := []any{o, w, e, object, p, key, int64(3), run, "Check the plan", json.RawMessage(`["` + evidence + `"]`), expires, audit, correlation, receipt}
+		args := []any{o, w, e, object, p, key, int64(3), run, "Check the plan", json.RawMessage(`["` + evidence + `"]`), expires, audit, correlation, receipt, "attested evidence decision"}
 		mutate(args)
 		return args
 	}
@@ -160,9 +163,35 @@ func TestSecurityAgentObjectStatementContracts(t *testing.T) {
 		"an empty goal":        simulate(func(a []any) { a[8] = "" }),
 		"no expiry":            simulate(func(a []any) { a[10] = time.Time{} }),
 		"a local expiry":       simulate(func(a []any) { a[10] = expires.In(time.FixedZone("x", 3600)) }),
+		"no evidence decision": simulate(func(a []any) { a[14] = nil }),
+		"an empty decision":    simulate(func(a []any) { a[14] = "" }),
+		"a decision as bytes":  simulate(func(a []any) { a[14] = []byte("attested evidence decision") }),
 	} {
 		if authorizationStatementAllowed(agent, currentSecurityAgentSimulateSQL, args) {
 			t.Fatalf("simulation with %s was admitted", name)
+		}
+	}
+	closeRun := func(mutate func([]any)) []any {
+		args := []any{o, w, e, object, p, key, int64(3), "no_action_required", "Reviewed by the on-call engineer", audit, correlation, receipt}
+		mutate(args)
+		return args
+	}
+	closing := RequestAuthorization{OperationID: "closeSecurityAgentRun", Identity: i, Allowed: []AuthorizationTarget{{Scope: i.Scope, Kind: "security_agent_run", ID: object, Version: 3}}, PathParameters: map[string]string{"id": object}}
+	if !authorizationStatementAllowed(closing, currentSecurityAgentCloseRunSQL, closeRun(func([]any) {})) {
+		t.Fatal("a closure with a note was refused")
+	}
+	for name, args := range map[string][]any{
+		"an unknown reason":         closeRun(func(a []any) { a[7] = "because" }),
+		"a reason of another type":  closeRun(func(a []any) { a[7] = true }),
+		"an empty note":             closeRun(func(a []any) { a[8] = "" }),
+		"a padded note":             closeRun(func(a []any) { a[8] = " padded " }),
+		"a note with a line break":  closeRun(func(a []any) { a[8] = "line\nbreak" }),
+		"a note that is too long":   closeRun(func(a []any) { a[8] = string(make([]byte, 501)) }),
+		"a note of another type":    closeRun(func(a []any) { a[8] = 7 }),
+		"a cancellation's argument": closeRun(func(a []any) { a[7] = audit }),
+	} {
+		if authorizationStatementAllowed(closing, currentSecurityAgentCloseRunSQL, args) {
+			t.Fatalf("closure with %s was admitted", name)
 		}
 	}
 	if handled, _ := securityAgentObjectStatementAllowed(agent, `SELECT zasp_authorization80.security_agent_page($1,$2,$3,NULLIF($4,''),$5)`, nil); handled {

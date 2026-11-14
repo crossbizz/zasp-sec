@@ -176,6 +176,19 @@ func (s *FindingResponseStarter) Cancel(ctx context.Context, q StartRequest) err
 	defer cancel()
 	id, _ := FindingResponseWorkflowID(q.Ref)
 	if err := canceller.CancelWorkflow(bounded, id, ""); err != nil || bounded.Err() != nil {
+		// The control was committed against an accepted start. A workflow
+		// the server records as closed has nothing left to cancel: the
+		// control is delivered, and the product state it committed stands.
+		// A workflow the server does not know stays undelivered.
+		var missing *serviceerror.NotFound
+		if errors.As(err, &missing) && bounded.Err() == nil {
+			description, describeErr := s.client.DescribeWorkflowExecution(bounded, id, "")
+			status := description.GetWorkflowExecutionInfo().GetStatus()
+			if describeErr == nil && bounded.Err() == nil && description.GetWorkflowExecutionInfo().GetExecution().GetWorkflowId() == id &&
+				status != enumspb.WORKFLOW_EXECUTION_STATUS_UNSPECIFIED && status != enumspb.WORKFLOW_EXECUTION_STATUS_RUNNING {
+				return nil
+			}
+		}
 		return ErrUnavailable
 	}
 	return nil

@@ -1775,6 +1775,28 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/security-agent-runs/{id}/close": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Close one Security Agent run that needs a human
+         * @description Records that a human reviewed a run in the needs_human state and closed it. Requires manage_workflows on the run. The run keeps its state, version and recorded stop reason; the closure is an immutable record and an audit event. A closed run no longer holds its agent's capacity for a planner request whose usage is still unknown, and that usage stays recorded as unknown, never as zero. A run with an unknown planner outcome can be closed only with the reason usage_unknown_accepted; a run without one only with one of the other reasons. A run with an unfinished effect, cleanup or temporary control cannot be closed. An exact replay returns the first answer; any other request for a closed run conflicts.
+         */
+        readonly post: operations["closeSecurityAgentRun"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/security-agent-runs/{id}/steps/{stepId}/export": {
         readonly parameters: {
             readonly query?: never;
@@ -3680,7 +3702,7 @@ export type components = {
             readonly next_cursor: null;
         };
         /** @enum {string} */
-        readonly Permission: "view" | "manage_identity" | "manage_findings" | "manage_workflows" | "manage_api_tokens" | "view_audit" | "investigate_sessions" | "revoke_sessions" | "view_compliance" | "manage_data_controls";
+        readonly Permission: "view" | "manage_identity" | "manage_findings" | "manage_workflows" | "manage_api_tokens" | "view_audit" | "investigate_sessions" | "revoke_sessions" | "view_compliance" | "manage_data_controls" | "run_tests";
         readonly Policy: {
             /** @enum {string} */
             readonly action: "monitor" | "block";
@@ -4626,6 +4648,33 @@ export type components = {
             readonly state: components["schemas"]["SecurityAgentRunState"];
             readonly version: number;
         } & unknown;
+        readonly SecurityAgentRunClosed: {
+            readonly agent_id: components["schemas"]["ProductID"];
+            readonly closure: components["schemas"]["SecurityAgentRunClosure"];
+            readonly definition_version: number;
+            readonly id: components["schemas"]["ProductID"];
+            /** @constant */
+            readonly state: "needs_human";
+            readonly version: number;
+        };
+        /**
+         * @description usage_unknown_accepted is required, and only accepted, for a run whose planner request has an unknown outcome; it acknowledges that the usage stays unknown.
+         * @enum {string}
+         */
+        readonly SecurityAgentRunCloseReason: "no_action_required" | "resolved_outside_product" | "usage_unknown_accepted";
+        readonly SecurityAgentRunCloseRequest: {
+            /** @description Optional single-line justification kept with the closure and its audit event. */
+            readonly note?: string;
+            readonly reason: components["schemas"]["SecurityAgentRunCloseReason"];
+        };
+        /** @description Record of a human closing a run that needed a human. The run keeps its state. */
+        readonly SecurityAgentRunClosure: {
+            /** Format: date-time */
+            readonly closed_at: string;
+            readonly closed_by: components["schemas"]["ProductID"];
+            readonly note?: string;
+            readonly reason: components["schemas"]["SecurityAgentRunCloseReason"];
+        };
         readonly SecurityAgentRunContext: {
             /**
              * @description Persisted non-executing Attack Lab stop. Only present on an unplanned Needs human run.
@@ -4646,12 +4695,15 @@ export type components = {
              * @enum {string}
              */
             readonly budget_stop_reason?: "budget_deadline_exceeded" | "budget_steps_exceeded" | "budget_tokens_exceeded" | "budget_cost_exceeded" | "budget_usage_unknown";
+            readonly closure?: components["schemas"]["SecurityAgentRunClosure"];
             readonly evidence_ids: readonly components["schemas"]["ProductID"][];
             readonly execution: readonly components["schemas"]["SecurityAgentExecutionStep"][];
             readonly ordered?: components["schemas"]["SecurityAgentOrderedDetail"];
             readonly plan: components["schemas"]["SecurityAgentPlanSummary"] | null;
             readonly run: components["schemas"]["SecurityAgentRun"];
             readonly run_context?: components["schemas"]["SecurityAgentRunContext"];
+            /** @description Recorded code of why the run stopped, for example planner_not_sent (no planner request left the product), planner_provider_rejected (the provider refused the request before any generation; nothing was charged), planner_rejected or budget_usage_unknown. A code, never provider text. Omitted when none is recorded, when not requested, or on older servers. */
+            readonly stop_reason?: string;
             /** @enum {string} */
             readonly verification: "not_started" | "pending" | "verified" | "failed" | "inconclusive";
         } & unknown;
@@ -5500,6 +5552,10 @@ export type SecurityAgentPlanStep = components['schemas']['SecurityAgentPlanStep
 export type SecurityAgentPlanSummary = components['schemas']['SecurityAgentPlanSummary'];
 export type SecurityAgentRationale = components['schemas']['SecurityAgentRationale'];
 export type SecurityAgentRun = components['schemas']['SecurityAgentRun'];
+export type SecurityAgentRunClosed = components['schemas']['SecurityAgentRunClosed'];
+export type SecurityAgentRunCloseReason = components['schemas']['SecurityAgentRunCloseReason'];
+export type SecurityAgentRunCloseRequest = components['schemas']['SecurityAgentRunCloseRequest'];
+export type SecurityAgentRunClosure = components['schemas']['SecurityAgentRunClosure'];
 export type SecurityAgentRunContext = components['schemas']['SecurityAgentRunContext'];
 export type SecurityAgentRunDetail = components['schemas']['SecurityAgentRunDetail'];
 export type SecurityAgentRunPage = components['schemas']['SecurityAgentRunPage'];
@@ -8931,6 +8987,8 @@ export interface operations {
                 readonly "X-Zasp-Budget-Details"?: string;
                 /** @description Request optional trigger and redacted AI rationale with exactly one v1 value. Omitted, duplicate or unsupported values preserve the legacy shape. Older servers may omit run_context. */
                 readonly "X-Zasp-Run-Context"?: string;
+                /** @description Request the optional stop_reason and closure with exactly one v1 value. Omitted, duplicate or unsupported values preserve the legacy shape. Older servers may omit both. Independent of the other negotiations. */
+                readonly "X-Zasp-Run-Lifecycle"?: string;
             };
             readonly path: {
                 readonly id: components["schemas"]["ProductID"];
@@ -9105,6 +9163,50 @@ export interface operations {
                     readonly "application/json": components["schemas"]["SingleTestCleanupRecovery"];
                 };
             };
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly closeSecurityAgentRun: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current durable resource version. */
+                readonly "If-Match": components["parameters"]["ResourceVersion"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
+                readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
+                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["SecurityAgentRunCloseRequest"];
+            };
+        };
+        readonly responses: {
+            /** @description The closure of the run. The ETag is the unchanged run version. */
+            readonly 200: {
+                headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
+                    readonly "X-Mutation-Receipt-ID": components["headers"]["WorkflowMutationReceiptID"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SecurityAgentRunClosed"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };

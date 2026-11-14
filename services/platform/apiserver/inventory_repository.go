@@ -291,7 +291,7 @@ func (repository *PostgresInventoryRepository) GetInventory(ctx context.Context,
 	if repository == nil || nilInterface(repository.database) || ctx == nil || ctx.Err() != nil || scope.Validate() != nil || id.IsZero() || !validInventoryKind(kind) {
 		return InventoryDetail{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresInventoryDetailSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), id.String(), kind)
+	payload, err := repository.database.QueryJSON(ctx, authorizationReadStatement(ctx, postgresInventoryDetailSQL, currentInventoryDetailSQL), scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), id.String(), kind)
 	if err != nil {
 		return InventoryDetail{}, inventoryProviderError(err)
 	}
@@ -306,7 +306,11 @@ func (repository *PostgresInventoryRepository) ListAgentCapabilitiesPage(ctx con
 	if !validInventorySubresourceCall(repository, ctx, scope, id, after, limit) {
 		return CapabilityPage{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresInventoryCapabilitiesSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), id.String(), after, limit)
+	statement, arguments := postgresInventoryCapabilitiesSQL, []any{scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), id.String(), after, limit}
+	if _, checked := requestAuthorizationFromContext(ctx); checked {
+		statement, arguments = currentInventoryAgentPageSQL, []any{scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), id.String(), "capabilities", after, limit}
+	}
+	payload, err := repository.database.QueryJSON(ctx, statement, arguments...)
 	if err != nil {
 		return CapabilityPage{}, inventoryProviderError(err)
 	}
@@ -336,7 +340,11 @@ func (repository *PostgresInventoryRepository) ListAgentRelationshipsPage(ctx co
 	if !validInventorySubresourceCall(repository, ctx, scope, id, after, limit) {
 		return RelationshipPage{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresInventoryRelationshipsSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), id.String(), after, limit)
+	statement, arguments := postgresInventoryRelationshipsSQL, []any{scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), id.String(), after, limit}
+	if _, checked := requestAuthorizationFromContext(ctx); checked {
+		statement, arguments = currentInventoryAgentPageSQL, []any{scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), id.String(), "relationships", after, limit}
+	}
+	payload, err := repository.database.QueryJSON(ctx, statement, arguments...)
 	if err != nil {
 		return RelationshipPage{}, inventoryProviderError(err)
 	}
@@ -365,7 +373,11 @@ func (repository *PostgresInventoryRepository) ListAgentSessionsPage(ctx context
 	if !validInventorySubresourceCall(repository, ctx, scope, id, after, limit) {
 		return SessionPage{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresInventorySessionsSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), id.String(), after, limit)
+	statement, arguments := postgresInventorySessionsSQL, []any{scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), id.String(), after, limit}
+	if _, checked := requestAuthorizationFromContext(ctx); checked {
+		statement, arguments = currentInventoryAgentPageSQL, []any{scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), id.String(), "sessions", after, limit}
+	}
+	payload, err := repository.database.QueryJSON(ctx, statement, arguments...)
 	if err != nil {
 		return SessionPage{}, inventoryProviderError(err)
 	}
@@ -417,7 +429,7 @@ func (repository *PostgresInventoryRepository) UpdateAgentOwnership(ctx context.
 	if err != nil {
 		return AgentMutationResult{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresInventoryUpdateAgentSQL,
+	payload, err := repository.database.QueryJSON(ctx, authorizationReadStatement(ctx, postgresInventoryUpdateAgentSQL, currentInventoryUpdateAgentSQL),
 		identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), id.String(), idempotencyKey, expectedVersion, input.Owner, input.Team, json.RawMessage(tags), auditID, correlationID,
 	)
 	if err != nil {

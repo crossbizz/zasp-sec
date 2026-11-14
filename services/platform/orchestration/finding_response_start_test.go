@@ -106,6 +106,30 @@ func TestFindingResponseStarterExactMapping(t *testing.T) {
 	c.err = serviceerror.NewNotFound("unknown")
 	require.ErrorIs(t, s.Wake(context.Background(), q), ErrUnavailable)
 	require.ErrorIs(t, s.Cancel(context.Background(), q), ErrUnavailable)
+	// A cancellation of a workflow the server records as closed is delivered:
+	// nothing is left to cancel. A running or unknown workflow is not.
+	c.options.ID = want
+	described := func(status enumspb.WorkflowExecutionStatus, id string) {
+		c.descriptions = map[string]*workflowservice.DescribeWorkflowExecutionResponse{"": {WorkflowExecutionInfo: &workflowpb.WorkflowExecutionInfo{Execution: &commonpb.WorkflowExecution{WorkflowId: id}, Status: status}}}
+	}
+	for _, status := range []enumspb.WorkflowExecutionStatus{enumspb.WORKFLOW_EXECUTION_STATUS_FAILED, enumspb.WORKFLOW_EXECUTION_STATUS_COMPLETED, enumspb.WORKFLOW_EXECUTION_STATUS_CANCELED, enumspb.WORKFLOW_EXECUTION_STATUS_TERMINATED, enumspb.WORKFLOW_EXECUTION_STATUS_TIMED_OUT} {
+		described(status, want)
+		require.NoError(t, s.Cancel(context.Background(), q), status.String())
+	}
+	described(enumspb.WORKFLOW_EXECUTION_STATUS_RUNNING, want)
+	require.ErrorIs(t, s.Cancel(context.Background(), q), ErrUnavailable)
+	described(enumspb.WORKFLOW_EXECUTION_STATUS_FAILED, want+"/other")
+	require.ErrorIs(t, s.Cancel(context.Background(), q), ErrUnavailable)
+	c.descriptions = nil
+	require.ErrorIs(t, s.Cancel(context.Background(), q), ErrUnavailable)
+	c.describeErr = serviceerror.NewNotFound("unknown")
+	described(enumspb.WORKFLOW_EXECUTION_STATUS_FAILED, want)
+	require.ErrorIs(t, s.Cancel(context.Background(), q), ErrUnavailable)
+	c.describeErr = nil
+	c.err = serviceerror.NewUnavailable("down")
+	require.ErrorIs(t, s.Cancel(context.Background(), q), ErrUnavailable)
+	require.ErrorIs(t, s.Wake(context.Background(), q), ErrUnavailable, "a wake to a closed workflow is never delivered")
+	c.options, c.descriptions = client.StartWorkflowOptions{}, nil
 	for _, queue := range []string{"", " finding", strings.Repeat("q", 256)} {
 		_, err = NewFindingResponseStarter(c, queue, time.Second)
 		require.ErrorIs(t, err, ErrInvalid)

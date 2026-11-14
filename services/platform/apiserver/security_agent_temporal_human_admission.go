@@ -84,7 +84,7 @@ func (h *securityAgentHumanHTTPHandler) ServeHTTP(w http.ResponseWriter, r *http
 	// statement inside PostgreSQL. The classification probes below and in the
 	// ordered handler are not authorized statements, so these operations go
 	// straight to the handler that sends that statement.
-	if _, checked := requestAuthorizationFromContext(r.Context()); ok && checked && stringIn(route.OperationID, "runSecurityAgent", "activateSecurityAgent", "getSecurityAgentActivation", "getSecurityAgentRun", "cancelSecurityAgentRun", "getSecurityAgentApproval", "simulateSecurityAgent") {
+	if _, checked := requestAuthorizationFromContext(r.Context()); ok && checked && stringIn(route.OperationID, "runSecurityAgent", "activateSecurityAgent", "getSecurityAgentActivation", "getSecurityAgentRun", "cancelSecurityAgentRun", "closeSecurityAgentRun", "getSecurityAgentApproval", "simulateSecurityAgent") {
 		h.legacy.ServeHTTP(w, r)
 		return
 	}

@@ -2358,3 +2358,1261 @@ BEGIN
   IF f.grantees IS NOT NULL THEN EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO %s',f.signature::regprocedure,f.grantees);END IF;
  END LOOP;
 END $security_agent_object_privileges$;
+
+-- ---------------------------------------------------------------------------
+-- W1. A Security Agent run is an authorization object from admission.
+--
+-- The permission projector reads its objects from zasp_authorization79.resources.
+-- Row security hides a run that a Temporal release owns from every session but
+-- the Security Agent API and the Temporal executors, so the projector saw such
+-- a run only through the worker's own state tables
+-- (zasp_authorization80_worker.run_state, test_state, ordered_state), whose
+-- rows a worker writes when it first prepares the run. Until then the run had
+-- no object in the permission store: its detail and its cancellation were
+-- refused (403) and it was absent from the list, for every principal. A run
+-- whose worker never prepared it (the planner was unavailable, the workflow
+-- failed) stayed invisible for ever while it held its agent's capacity.
+--
+-- The owner tables are written by the admission itself, in the transaction
+-- that inserts the run, and are immutable. The view now also lists every run
+-- an owner table names. It adds rows only; the object, its kind and its scope
+-- are the run's own.
+DO $owned_run_resources$
+DECLARE d text;
+BEGIN
+ SELECT pg_get_viewdef('zasp_authorization79.resources'::regclass) INTO STRICT d;
+ IF position('zasp_temporal78.run_owners' in d)=0 THEN
+  EXECUTE 'CREATE OR REPLACE VIEW zasp_authorization79.resources AS '||regexp_replace(d,';\s*$','')||$v$
+UNION
+ SELECT x.organization_id,x.workspace_id,x.environment_id,'security_agent_run'::text AS kind,x.run_id AS id FROM zasp_temporal78.run_owners x
+UNION
+ SELECT x.organization_id,x.workspace_id,x.environment_id,'security_agent_run'::text AS kind,x.run_id AS id FROM zasp_temporal74.run_owners x
+UNION
+ SELECT x.organization_id,x.workspace_id,x.environment_id,'security_agent_run'::text AS kind,x.run_id AS id FROM zasp_temporal66.run_owners x WHERE x.execution_owner='temporal'$v$;
+ END IF;
+END $owned_run_resources$;
+
+-- ---------------------------------------------------------------------------
+-- W2. A planner request the provider refused is a definite failure.
+--
+-- Planning records the send before the request leaves ('started'). Every
+-- outcome but a captured response was then reconciled as unknown usage
+-- (budget_usage_unknown): the reservation stays open, the run needs a human,
+-- and its agent's capacity stays held. That is right when the outcome is
+-- unknown. It is wrong when the provider answered that it refused the request
+-- before any generation.
+--
+-- The provider contract (OpenRouter, "Errors and debugging") returns a request
+-- error as an HTTP status equal to error.code, and reports an error that
+-- occurs during generation with HTTP 200. 401 (invalid credentials), 402
+-- (insufficient credits) and 429 (rate limited) are request errors raised
+-- before a model is called: nothing was generated and nothing is charged.
+-- 403 covers moderation and guardrail blocks, which can follow prompt
+-- processing by the upstream provider, and 408/502/503 can follow a dispatch;
+-- those stay unknown.
+--
+-- The worker reports such an answer as the reconciliation payload
+-- {"rejected":{"status":N,"raw":"<provider body>"}}. It is accepted only for a
+-- started job with no response, for one of the three statuses, when the body
+-- is the provider's error envelope with the same code and carries no
+-- response identifier, choice or usage. The reservation is then released (no
+-- usage), the run ends needs_human with the reason planner_provider_rejected,
+-- and the evidence (status, code, digest of the body; never its text) is an
+-- audit record the terminal proof requires. Nothing else about reconciliation
+-- changes: any other payload, state or status is treated exactly as before.
+CREATE OR REPLACE FUNCTION zasp_authorization80.security_agent_provider_rejection(payload jsonb) RETURNS jsonb
+LANGUAGE plpgsql IMMUTABLE SET search_path=pg_catalog,public AS $security_agent_provider_rejection$
+DECLARE q jsonb;body_value jsonb;raw_value text;
+BEGIN
+ IF jsonb_typeof(payload) IS DISTINCT FROM 'object' OR NOT(payload ? 'rejected') OR payload-'rejected'<>'{}'::jsonb THEN RETURN NULL;END IF;
+ q:=payload->'rejected';
+ IF jsonb_typeof(q) IS DISTINCT FROM 'object' OR q-ARRAY['status','raw']<>'{}'::jsonb OR jsonb_typeof(q->'status') IS DISTINCT FROM 'number' OR jsonb_typeof(q->'raw') IS DISTINCT FROM 'string'
+  OR q->>'status' NOT IN('401','402','429') THEN RETURN NULL;END IF;
+ raw_value:=q->>'raw';
+ IF octet_length(raw_value) NOT BETWEEN 2 AND 16384 OR NOT zasp_authorization80.unique_json(raw_value::json) THEN RETURN NULL;END IF;
+ body_value:=raw_value::jsonb;
+ IF jsonb_typeof(body_value) IS DISTINCT FROM 'object' OR jsonb_typeof(body_value->'error') IS DISTINCT FROM 'object' OR jsonb_typeof(body_value->'error'->'code') IS DISTINCT FROM 'number'
+  OR body_value->'error'->>'code' IS DISTINCT FROM q->>'status' OR body_value ?| ARRAY['id','choices','usage'] THEN RETURN NULL;END IF;
+ RETURN jsonb_build_object('status',(q->>'status')::integer,'code',(body_value->'error'->>'code')::integer,'body_digest','sha256:'||encode(public.digest(convert_to(raw_value,'UTF8'),'sha256'),'hex'));
+EXCEPTION WHEN OTHERS THEN RETURN NULL;
+END $security_agent_provider_rejection$;
+
+CREATE OR REPLACE FUNCTION zasp_authorization80.security_agent_record_provider_rejection(o text,w text,e text,r text,reservation_value text,request_value text,payload jsonb) RETURNS void
+LANGUAGE plpgsql SET search_path=pg_catalog,public AS $security_agent_record_provider_rejection$
+DECLARE evidence jsonb:=zasp_authorization80.security_agent_provider_rejection(payload);body_value jsonb;audit_value text;
+BEGIN
+ IF evidence IS NULL OR reservation_value IS NULL OR request_value IS NULL THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='executor provider rejection evidence rejected';END IF;
+ body_value:=evidence||jsonb_build_object('run_id',r,'reservation_id',reservation_value,'request_digest',request_value);
+ audit_value:=public.zasp_discovery_canonical_id(o,w,e,'security_agent_temporal_planning_provider_rejected',r);
+ INSERT INTO public.zasp_security_agent_audit(organization_id,workspace_id,environment_id,audit_id,correlation_id,run_id,actor_id,event_kind,event_digest,body)
+  VALUES(o,w,e,audit_value,audit_value,r,session_user,'temporal_planning_provider_rejected',public.digest(convert_to(body_value::text,'UTF8'),'sha256'),body_value);
+END $security_agent_record_provider_rejection$;
+
+CREATE OR REPLACE FUNCTION zasp_authorization80.security_agent_provider_rejection_valid(o text,w text,e text,r text,reservation_value text,request_value text) RETURNS boolean
+LANGUAGE sql STABLE SET search_path=pg_catalog,public AS $security_agent_provider_rejection_valid$
+ SELECT COALESCE((SELECT a.audit_id=public.zasp_discovery_canonical_id(o,w,e,'security_agent_temporal_planning_provider_rejected',r) AND a.correlation_id=a.audit_id
+   AND a.event_digest=public.digest(convert_to(a.body::text,'UTF8'),'sha256')
+   AND a.body-ARRAY['status','code','body_digest']=jsonb_build_object('run_id',r,'reservation_id',reservation_value,'request_digest',request_value)
+   AND a.body->>'status' IN('401','402','429') AND a.body->'code'=a.body->'status' AND a.body->>'body_digest'~'^sha256:[a-f0-9]{64}$'
+  FROM public.zasp_security_agent_audit a WHERE(a.organization_id,a.workspace_id,a.environment_id,a.run_id,a.event_kind)=(o,w,e,r,'temporal_planning_provider_rejected')),false)
+$security_agent_provider_rejection_valid$;
+
+DO $security_agent_provider_rejection_privileges$
+DECLARE f text;
+BEGIN
+ FOREACH f IN ARRAY ARRAY['zasp_authorization80.security_agent_provider_rejection(jsonb)','zasp_authorization80.security_agent_record_provider_rejection(text,text,text,text,text,text,jsonb)','zasp_authorization80.security_agent_provider_rejection_valid(text,text,text,text,text,text)'] LOOP
+  EXECUTE format('ALTER FUNCTION %s OWNER TO zasp_discovery_authority',f::regprocedure);
+  EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC',f::regprocedure);
+ END LOOP;
+END $security_agent_provider_rejection_privileges$;
+
+-- The single-test and the finding-response releases reconcile with the same
+-- statements. Each is changed in three places, found by their exact text; a
+-- predecessor that no longer contains them stops the installation.
+DO $planner_provider_rejection$
+DECLARE s text;d text;needle text;added text;
+ payload_needle CONSTANT text:=$n$OR NOT(zasp_sa_multistep_prior.closed(q->'payload',ARRAY[]::text[]) OR $n$;
+ branch_needle CONSTANT text:=$n$ IF q->'payload'<>'{}'::jsonb THEN
+  IF j.state='started' THEN$n$;
+ branch_added CONSTANT text:=$n$ IF zasp_authorization80.security_agent_provider_rejection(q->'payload') IS NOT NULL THEN
+  IF j.state<>'started' OR j.raw_result IS NOT NULL OR p.run_id IS NULL OR p.settled_at IS NOT NULL OR p.released_at IS NOT NULL THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='executor provider rejection evidence rejected';END IF;
+  UPDATE SCHEMA.provider_reservations SET released_at=clock_timestamp() WHERE (organization_id,workspace_id,environment_id,run_id,attempt)=(o,w,e,r,1);
+  PERFORM zasp_authorization80.security_agent_record_provider_rejection(o,w,e,r,j.reservation_id,j.request_digest,q->'payload');
+  PERFORM SCHEMA.planning_terminal(o,w,e,r,'planner_provider_rejected');
+  IF NOT SCHEMA.planning_terminal_valid(o,w,e,r) OR NOT SCHEMA.current_ready() THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='executor provider rejection terminal rejected';END IF;
+  SELECT * INTO j FROM SCHEMA.planning_jobs WHERE (organization_id,workspace_id,environment_id,run_id)=(o,w,e,r);
+  RETURN to_jsonb(j);
+ END IF;
+$n$;
+ valid_needle CONSTANT text:=$n$AND CASE WHEN a.body->>'reason'='planner_not_sent' THEN $n$;
+ valid_added CONSTANT text:=$n$AND CASE WHEN a.body->>'reason'='planner_provider_rejected' THEN a.body->>'dispatch_state'='started' AND j.lookup_request IS NOT NULL AND j.raw_result IS NULL AND j.result_value IS NULL AND j.provider_digest IS NULL AND j.output_body IS NULL AND j.output_digest IS NULL
+   AND p.released_at IS NOT NULL AND p.settled_at IS NULL AND p.output_digest IS NULL AND p.total_tokens IS NULL AND p.cost_nano_credits IS NULL AND zasp_authorization80.security_agent_provider_rejection_valid(o,w,e,r,j.reservation_id,j.request_digest)
+  WHEN a.body->>'reason'='planner_not_sent' THEN $n$;
+BEGIN
+ FOREACH s IN ARRAY ARRAY['zasp_temporal74','zasp_temporal78'] LOOP
+  SELECT pg_get_functiondef((s||'.recover_plan(jsonb)')::regprocedure) INTO STRICT d;
+  IF position('security_agent_provider_rejection' in d)=0 THEN
+   IF (length(d)-length(replace(d,payload_needle,'')))/length(payload_needle)<>1 OR (length(d)-length(replace(d,branch_needle,'')))/length(branch_needle)<>1 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='planning recovery predecessor changed';END IF;
+   d:=replace(d,payload_needle,payload_needle||$n$zasp_authorization80.security_agent_provider_rejection(q->'payload') IS NOT NULL OR $n$);
+   d:=replace(d,branch_needle,replace(branch_added,'SCHEMA',s)||branch_needle);
+   EXECUTE d;
+  END IF;
+  SELECT pg_get_functiondef((s||'.planning_terminal_valid(text,text,text,text)')::regprocedure) INTO STRICT d;
+  IF position('planner_provider_rejected' in d)=0 THEN
+   IF (length(d)-length(replace(d,valid_needle,'')))/length(valid_needle)<>1 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='planning terminal predecessor changed';END IF;
+   EXECUTE replace(d,valid_needle,valid_added);
+  END IF;
+ END LOOP;
+END $planner_provider_rejection$;
+
+-- ---------------------------------------------------------------------------
+-- W3. A human closes a run that needs a human.
+--
+-- A run that ends needs_human is terminal for the product but could keep its
+-- agent's capacity for ever: zasp_temporal73.unresolved counts a provider
+-- reservation whose outcome is unknown, and nothing but a late provider
+-- report settles one. There was no product action for the human the state
+-- asks for; cancellation refuses a terminal run.
+--
+-- POST /security-agent-runs/{id}/close (closeSecurityAgentRun, permission
+-- manage_workflows on the run) records that a human reviewed the run and
+-- closed it. The closure is an immutable row and an audit record that name
+-- the actor, the reason and every provider reservation that was still
+-- unknown at that moment, with its reserved maximum. Nothing is rewritten:
+-- the run keeps its state and its reason, the reservation stays unsettled
+-- and unreleased (its usage is still unknown, never zero), and the budget
+-- stop stays. What changes is the answer to "does this run still hold
+-- capacity": for a closed run only effects, cleanups and controls count;
+-- an unknown provider reservation no longer does. A run with any such
+-- unfinished effect cannot be closed. A run with an unknown reservation can
+-- be closed only with the reason that says so (usage_unknown_accepted).
+--
+-- The finding-response workflow of such a run observes 'pending' while the
+-- run is unresolved and 'terminal' as soon as it is not, so it ends on its
+-- next observation after the closure.
+CREATE TABLE IF NOT EXISTS zasp_authorization80.security_agent_run_closures(
+ organization_id text NOT NULL,workspace_id text NOT NULL,environment_id text NOT NULL,run_id text NOT NULL,
+ actor_id text NOT NULL CHECK(public.zasp_valid_product_id(actor_id)),
+ idempotency_key text NOT NULL CHECK(length(idempotency_key) BETWEEN 16 AND 128 AND idempotency_key~'^[A-Za-z0-9][A-Za-z0-9._:-]*$'),
+ expected_version bigint NOT NULL CHECK(expected_version BETWEEN 1 AND 1000000),
+ reason text NOT NULL CHECK(reason IN('no_action_required','resolved_outside_product','usage_unknown_accepted')),
+ note text CHECK(note IS NULL OR length(note) BETWEEN 1 AND 500),
+ prior_reason text,
+ outstanding jsonb NOT NULL CHECK(jsonb_typeof(outstanding)='array'),
+ audit_id text NOT NULL CHECK(public.zasp_valid_product_id(audit_id)),
+ correlation_id text NOT NULL CHECK(public.zasp_valid_product_id(correlation_id)),
+ receipt_id text NOT NULL CHECK(public.zasp_valid_product_id(receipt_id)),
+ response jsonb NOT NULL CHECK(jsonb_typeof(response)='object'),
+ closed_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+ PRIMARY KEY(organization_id,workspace_id,environment_id,run_id),
+ UNIQUE(organization_id,workspace_id,environment_id,actor_id,idempotency_key),
+ FOREIGN KEY(organization_id,workspace_id,environment_id,run_id) REFERENCES public.zasp_security_agent_runs(organization_id,workspace_id,environment_id,run_id),
+ CHECK((reason='usage_unknown_accepted')=(jsonb_array_length(outstanding)>0))
+);
+ALTER TABLE zasp_authorization80.security_agent_run_closures OWNER TO zasp_discovery_authority;
+REVOKE ALL ON TABLE zasp_authorization80.security_agent_run_closures FROM PUBLIC;
+ALTER TABLE zasp_authorization80.security_agent_run_closures ENABLE ROW LEVEL SECURITY;
+ALTER TABLE zasp_authorization80.security_agent_run_closures FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS authority ON zasp_authorization80.security_agent_run_closures;
+CREATE POLICY authority ON zasp_authorization80.security_agent_run_closures USING(CURRENT_USER='zasp_discovery_authority'::name) WITH CHECK(CURRENT_USER='zasp_discovery_authority'::name);
+DROP TRIGGER IF EXISTS immutable ON zasp_authorization80.security_agent_run_closures;
+CREATE TRIGGER immutable BEFORE DELETE OR UPDATE OR TRUNCATE ON zasp_authorization80.security_agent_run_closures FOR EACH STATEMENT EXECUTE FUNCTION zasp_temporal67.immutable();
+
+CREATE OR REPLACE FUNCTION zasp_authorization80.security_agent_run_closed(o text,w text,e text,r text) RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $security_agent_run_closed$
+ SELECT EXISTS(SELECT 1 FROM zasp_authorization80.security_agent_run_closures x WHERE(x.organization_id,x.workspace_id,x.environment_id,x.run_id)=(o,w,e,r))
+$security_agent_run_closed$;
+
+-- What a closure never discharges: the conditions of
+-- zasp_temporal78.predecessor73_unresolved other than a provider reservation.
+CREATE OR REPLACE FUNCTION zasp_authorization80.security_agent_run_open_effects(o text,w text,e text,r text) RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $security_agent_run_open_effects$
+ SELECT EXISTS(SELECT 1 FROM zasp_temporal68.effects x WHERE (x.organization_id,x.workspace_id,x.environment_id,x.run_id)=(o,w,e,r) AND (x.state IN('started','unknown','cleanup_pending') OR x.action_key='create_temporary_policy' AND x.state='verified'))
+ OR EXISTS(SELECT 1 FROM zasp_temporal68.cleanups x WHERE (x.organization_id,x.workspace_id,x.environment_id,x.run_id)=(o,w,e,r) AND x.state<>'cleaned')
+ OR EXISTS(SELECT 1 FROM public.zasp_security_agent_effects x WHERE (x.organization_id,x.workspace_id,x.environment_id,x.run_id)=(o,w,e,r) AND x.state IN('leased','unknown_outcome','cleanup_pending','cleanup_failed'))
+ OR EXISTS(SELECT 1 FROM public.zasp_security_agent_controls x WHERE (x.organization_id,x.workspace_id,x.environment_id,x.run_id)=(o,w,e,r) AND x.state<>'disabled')
+ OR EXISTS(SELECT 1 FROM public.zasp_sa_attack_lab_links x WHERE (x.organization_id,x.workspace_id,x.environment_id,x.run_id)=(o,w,e,r) AND x.settled_at IS NULL)
+ OR EXISTS(SELECT 1 FROM public.zasp_sa_export_links x WHERE (x.organization_id,x.workspace_id,x.environment_id,x.run_id)=(o,w,e,r) AND x.settled_at IS NULL)
+ OR EXISTS(SELECT 1 FROM public.zasp_security_agent_test_links x WHERE (x.organization_id,x.workspace_id,x.environment_id,x.run_id)=(o,w,e,r) AND (x.reconcile_state<>'settled' OR EXISTS(SELECT 1 FROM public.zasp_security_agent_test_invocations j WHERE (j.organization_id,j.workspace_id,j.environment_id,j.test_run_id,j.state)=(o,w,e,x.test_run_id,'started'))))
+ OR EXISTS(SELECT 1 FROM public.zasp_security_agent_webhook_deliveries x WHERE (x.organization_id,x.workspace_id,x.environment_id,x.run_id)=(o,w,e,r) AND (x.settlement_state<>'settled' OR x.state IN('dispatching','uncertain')))
+$security_agent_run_open_effects$;
+
+-- The provider reservations of a run whose outcome is unknown.
+CREATE OR REPLACE FUNCTION zasp_authorization80.security_agent_run_unknown_reservations(o text,w text,e text,r text) RETURNS jsonb
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $security_agent_run_unknown_reservations$
+ SELECT COALESCE(jsonb_agg(jsonb_build_object('release',x.release,'reservation_id',x.reservation_id,'model',x.model,'cost_unit',x.cost_unit,'maximum_tokens',x.maximum_tokens,'maximum_cost_nano_credits',x.maximum_cost_nano_credits,
+  'reserved_at',to_char(x.reserved_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"')) ORDER BY x.release,x.reservation_id),'[]'::jsonb)
+ FROM(
+  SELECT 'temporal78' release,reservation_id,model,cost_unit,maximum_tokens,maximum_cost_nano_credits,reserved_at FROM zasp_temporal78.provider_reservations WHERE(organization_id,workspace_id,environment_id,run_id)=(o,w,e,r) AND settled_at IS NULL AND released_at IS NULL
+  UNION ALL SELECT 'temporal74',reservation_id,model,cost_unit,maximum_tokens,maximum_cost_nano_credits,reserved_at FROM zasp_temporal74.provider_reservations WHERE(organization_id,workspace_id,environment_id,run_id)=(o,w,e,r) AND settled_at IS NULL AND released_at IS NULL
+  UNION ALL SELECT 'temporal68',reservation_id,model,cost_unit,maximum_tokens,maximum_cost_nano_credits,reserved_at FROM zasp_temporal68.provider_reservations WHERE(organization_id,workspace_id,environment_id,run_id)=(o,w,e,r) AND settled_at IS NULL AND released_at IS NULL
+  UNION ALL SELECT 'retained',reservation_id,model,cost_unit,maximum_tokens,maximum_cost_nano_credits,reserved_at FROM public.zasp_security_agent_provider_reservations WHERE(organization_id,workspace_id,environment_id,run_id)=(o,w,e,r) AND settled_at IS NULL
+ ) x
+$security_agent_run_unknown_reservations$;
+
+-- zasp_temporal73.unresolved keeps its answer for every run that is not
+-- closed. For a closed run it answers only for unfinished effects.
+CREATE OR REPLACE FUNCTION zasp_temporal73.unresolved(o text,w text,e text,r text) RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $unresolved$
+ SELECT CASE WHEN zasp_authorization80.security_agent_run_closed(o,w,e,r) THEN zasp_authorization80.security_agent_run_open_effects(o,w,e,r)
+ ELSE zasp_temporal78.predecessor73_unresolved(o,w,e,r) OR EXISTS(SELECT 1 FROM zasp_temporal78.provider_reservations x WHERE(x.organization_id,x.workspace_id,x.environment_id,x.run_id)=(o,w,e,r) AND x.settled_at IS NULL AND x.released_at IS NULL) END
+$unresolved$;
+
+-- The shared admission of section Y3 with the operations this section and
+-- section W4 add. Its checks are unchanged. An audit record is authorized
+-- through the run it belongs to.
+CREATE OR REPLACE FUNCTION zasp_authorization80.security_agent_object_request(o text,w text,e text,actor text,op text,i text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $security_agent_object_request$
+DECLARE p jsonb:=zasp_authorization80.context();permission_value text;browser boolean:=false;fresh boolean:=false;kind text;
+BEGIN
+ IF NOT COALESCE(public.zasp_security_agent_principal_ready('zasp_security_agent_api'),false) THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='authorization security agent principal rejected';END IF;
+ CASE op
+  WHEN 'getSecurityAgentRun' THEN permission_value:='view';kind:='security_agent_run';
+  WHEN 'cancelSecurityAgentRun','closeSecurityAgentRun' THEN permission_value:='manage_workflows';kind:='security_agent_run';
+  WHEN 'getSecurityAgentApproval' THEN permission_value:='view';kind:='security_agent_approval';
+  WHEN 'decideSecurityAgentApproval' THEN permission_value:='manage_workflows';kind:='security_agent_approval';browser:=true;fresh:=true;
+  WHEN 'simulateSecurityAgent' THEN permission_value:='manage_workflows';kind:='security_agent';
+  WHEN 'listSecurityAgentRunActivity','getSecurityAgentExport','createSecurityAgentExportDownloadGrant','downloadSecurityAgentExport' THEN permission_value:='view';kind:='security_agent_run';browser:=true;
+  WHEN 'getSecurityAgentAuditEvent' THEN permission_value:='view_audit';kind:='security_agent_audit';browser:=true;
+  ELSE RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current security agent authorization required';
+ END CASE;
+ IF p IS NULL OR actor IS NULL OR i IS NULL OR NOT COALESCE(public.zasp_valid_product_id(i),false)
+  OR NOT COALESCE(zasp_authorization80.read_request(o,w,e,ARRAY[op],permission_value,browser,actor)
+   AND p->'collection'='false'::jsonb
+   AND(NOT fresh OR p->'fresh_auth'='true'::jsonb)
+   AND p#>>'{path_parameters,id}'=i
+   AND CASE kind WHEN 'security_agent_audit' THEN zasp_authorization80.parent_allowed(o,w,e,kind,i,NULL) ELSE zasp_authorization80.allowed(o,w,e,kind,i) END,false)
+ THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current security agent authorization required';END IF;
+ PERFORM zasp_authorization80.identity_fence(p);
+ RETURN p;
+END $security_agent_object_request$;
+
+CREATE OR REPLACE FUNCTION zasp_authorization80.security_agent_close_run(o text,w text,e text,r text,actor text,k text,v bigint,reason_value text,note_value text,audit_value text,correlation_value text,receipt_value text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $security_agent_close_run$
+DECLARE p jsonb;rr public.zasp_security_agent_runs%ROWTYPE;c zasp_authorization80.security_agent_run_closures%ROWTYPE;outstanding_value jsonb;closure_value jsonb;response_value jsonb;body_value jsonb;now_value timestamptz;
+BEGIN
+ IF current_setting('transaction_isolation')<>'read committed' THEN RAISE EXCEPTION USING ERRCODE='25001',MESSAGE='authorization security agent write requires read committed';END IF;
+ IF NOT COALESCE(public.zasp_valid_product_id(r) AND public.zasp_valid_product_id(audit_value) AND public.zasp_valid_product_id(correlation_value) AND public.zasp_valid_product_id(receipt_value)
+  AND audit_value<>receipt_value AND length(k) BETWEEN 16 AND 128 AND k~'^[A-Za-z0-9][A-Za-z0-9._:-]*$' AND v BETWEEN 1 AND 1000000
+  AND reason_value IN('no_action_required','resolved_outside_product','usage_unknown_accepted')
+  AND(note_value IS NULL OR length(note_value) BETWEEN 1 AND 500 AND btrim(note_value)=note_value AND note_value!~'[[:cntrl:]]'),false)
+ THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='authorization security agent closure rejected';END IF;
+ p:=zasp_authorization80.security_agent_object_request(o,w,e,actor,'closeSecurityAgentRun',r);
+ PERFORM pg_advisory_xact_lock(hashtextextended('security-agent-budget-admission:'||o,0));
+ SELECT * INTO rr FROM public.zasp_security_agent_runs WHERE(organization_id,workspace_id,environment_id,run_id)=(o,w,e,r) FOR UPDATE;
+ IF NOT FOUND OR rr.state='simulated' THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='security agent run missing';END IF;
+ SELECT * INTO c FROM zasp_authorization80.security_agent_run_closures WHERE(organization_id,workspace_id,environment_id,run_id)=(o,w,e,r);
+ IF FOUND THEN
+  -- The same request again is answered with the first answer.
+  IF(c.actor_id,c.idempotency_key,c.expected_version,c.reason) IS DISTINCT FROM(actor,k,v,reason_value) OR c.note IS DISTINCT FROM note_value THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='security agent run already closed';END IF;
+  PERFORM zasp_authorization80.security_agent_write_settled(p);
+  RETURN c.response||jsonb_build_object('replayed',true);
+ END IF;
+ IF EXISTS(SELECT 1 FROM zasp_authorization80.security_agent_run_closures WHERE(organization_id,workspace_id,environment_id,actor_id,idempotency_key)=(o,w,e,actor,k)) THEN RAISE EXCEPTION USING ERRCODE='23505',MESSAGE='security agent closure replay conflict';END IF;
+ IF rr.state<>'needs_human' OR rr.version<>v OR rr.completed_at IS NULL OR rr.lease_owner IS NOT NULL OR rr.lease_token IS NOT NULL OR rr.lease_expires_at IS NOT NULL THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='security agent closure conflict';END IF;
+ IF zasp_authorization80.security_agent_run_open_effects(o,w,e,r) THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='security agent closure refused: unfinished effects';END IF;
+ outstanding_value:=zasp_authorization80.security_agent_run_unknown_reservations(o,w,e,r);
+ IF(jsonb_array_length(outstanding_value)>0) IS DISTINCT FROM(reason_value='usage_unknown_accepted') THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='authorization security agent closure reason rejected';END IF;
+ now_value:=clock_timestamp();
+ closure_value:=jsonb_strip_nulls(jsonb_build_object('closed_at',to_char(now_value AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),'closed_by',actor,'reason',reason_value,'note',note_value));
+ response_value:=jsonb_build_object('id',r,'agent_id',rr.definition_id,'state',rr.state,'definition_version',rr.definition_version,'version',rr.version,'closure',closure_value,
+  'audit_id',audit_value,'correlation_id',correlation_value,'receipt_id',receipt_value,'replayed',false);
+ INSERT INTO zasp_authorization80.security_agent_run_closures(organization_id,workspace_id,environment_id,run_id,actor_id,idempotency_key,expected_version,reason,note,prior_reason,outstanding,audit_id,correlation_id,receipt_id,response,closed_at)
+  VALUES(o,w,e,r,actor,k,v,reason_value,note_value,rr.last_error_code,outstanding_value,audit_value,correlation_value,receipt_value,response_value,now_value);
+ body_value:=jsonb_strip_nulls(jsonb_build_object('run_id',r,'state',rr.state,'prior_reason',rr.last_error_code,'version',rr.version,'reason',reason_value,'note',note_value))||jsonb_build_object('unknown_provider_reservations',outstanding_value);
+ INSERT INTO public.zasp_security_agent_audit(organization_id,workspace_id,environment_id,audit_id,correlation_id,run_id,actor_id,event_kind,event_digest,body)
+  VALUES(o,w,e,audit_value,correlation_value,r,actor,'run_closed',public.digest(convert_to(body_value::text,'UTF8'),'sha256'),body_value);
+ -- The closure must have released the run: nothing unfinished remains.
+ IF zasp_temporal73.unresolved(o,w,e,r) THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='security agent closure refused: unfinished effects';END IF;
+ PERFORM zasp_authorization80.security_agent_write_settled(p);
+ RETURN response_value;
+END $security_agent_close_run$;
+
+-- GET /security-agent-runs/{id} (section Y3) with the run's lifecycle: the
+-- recorded reason it stopped (a closed code, never provider text) and its
+-- closure, when there is one.
+CREATE OR REPLACE FUNCTION zasp_authorization80.security_agent_run_lifecycle(o text,w text,e text,r text) RETURNS jsonb
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $security_agent_run_lifecycle$
+ SELECT jsonb_strip_nulls(jsonb_build_object(
+  'stop_reason',(SELECT CASE WHEN x.last_error_code~'^[a-z][a-z0-9_]{0,63}$' THEN x.last_error_code END FROM public.zasp_security_agent_runs x WHERE(x.organization_id,x.workspace_id,x.environment_id,x.run_id)=(o,w,e,r)),
+  'closure',(SELECT jsonb_strip_nulls(jsonb_build_object('closed_at',to_char(c.closed_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),'closed_by',c.actor_id,'reason',c.reason,'note',c.note))
+   FROM zasp_authorization80.security_agent_run_closures c WHERE(c.organization_id,c.workspace_id,c.environment_id,c.run_id)=(o,w,e,r))))
+$security_agent_run_lifecycle$;
+
+CREATE OR REPLACE FUNCTION zasp_authorization80.security_agent_run_detail(o text,w text,e text,r text,actor text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $security_agent_run_detail$
+DECLARE p jsonb;result jsonb;family text;
+ c CONSTANT text:='e4dfae0a990718c2c6b7518b07d7c146cfb9025656378d423c8d96188bcf1b96';f CONSTANT text:='07e774a28105095c73275ad959c765a3fddda9ee9aa81e81cd3828222e40aad3';
+BEGIN
+ p:=zasp_authorization80.security_agent_object_request(o,w,e,actor,'getSecurityAgentRun',r);
+ IF zasp_ordered_public62.classify(o,w,e,'run',r)='ordered_release61' THEN
+  -- The ordered release serves its resources to a browser session only.
+  IF p->>'credential_kind'<>'1' THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='authorization security agent ordered credential rejected';END IF;
+  result:=zasp_ordered_public62.api(c,f,jsonb_build_object('organization_id',o,'workspace_id',w,'environment_id',e,'actor_id',actor,'operation','resource_run','run_id',r));
+  family:='ordered';
+ ELSE
+  result:=zasp_temporal78.run_context(o,w,e,r);family:='finding';
+  IF result IS NULL THEN
+   SELECT value INTO result FROM zasp_temporal66.run_context(o,w,e,r,'6e2fbdef64421286476be12a02188d7936e81db3126764bf2ab55e099fcb12cb','422b211febdd6e2b37882dc3f5961a79ca5c58f3f87f1642f7babf1224fbe94a') rows(value);
+   family:='legacy';
+  END IF;
+ END IF;
+ IF result IS NULL THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='security agent run missing';END IF;
+ IF p IS DISTINCT FROM zasp_authorization80.context() THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='current security agent proof expired';END IF;
+ RETURN jsonb_build_object('family',family,'result',result,'lifecycle',zasp_authorization80.security_agent_run_lifecycle(o,w,e,r));
+END $security_agent_run_detail$;
+
+-- The home summary (section X5) counts a run as needing a human until a human
+-- has closed it.
+CREATE OR REPLACE FUNCTION zasp_authorization80.security_agent_home_summary(o text,w text,e text) RETURNS jsonb
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $security_agent_home_summary$
+DECLARE pending_value bigint;oldest_value bigint;needs_human_value bigint;failed_value bigint;inconclusive_value bigint;contained_value bigint;remediated_value bigint;
+BEGIN
+ PERFORM zasp_authorization80.require_read(o,w,e,ARRAY['getHomeSummary'],'view');
+ IF NOT COALESCE(public.zasp_security_agent_principal_ready('zasp_security_agent_api'),false) THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='authorization security agent principal rejected';END IF;
+ SELECT count(*),COALESCE(floor(extract(epoch FROM transaction_timestamp()-min(a.created_at)))::bigint,0) INTO pending_value,oldest_value
+  FROM public.zasp_security_agent_approvals a
+  WHERE(a.organization_id,a.workspace_id,a.environment_id,a.state)=(o,w,e,'pending') AND zasp_authorization80.allowed(o,w,e,'security_agent_approval',a.approval_id);
+ SELECT count(*) FILTER(WHERE r.state='needs_human' AND NOT zasp_authorization80.security_agent_run_closed(o,w,e,r.run_id)),count(*) FILTER(WHERE r.state='failed'),count(*) FILTER(WHERE r.state='inconclusive'),
+  count(*) FILTER(WHERE r.state='contained' AND r.updated_at>=transaction_timestamp()-interval '24 hours'),count(*) FILTER(WHERE r.state='remediated' AND r.updated_at>=transaction_timestamp()-interval '24 hours')
+  INTO needs_human_value,failed_value,inconclusive_value,contained_value,remediated_value
+  FROM public.zasp_security_agent_runs r
+  WHERE(r.organization_id,r.workspace_id,r.environment_id)=(o,w,e) AND zasp_authorization80.allowed(o,w,e,'security_agent_run',r.run_id);
+ RETURN jsonb_build_object('pending_approvals',pending_value,'oldest_approval_age_seconds',GREATEST(oldest_value,0),'needs_human_runs',needs_human_value,'failed_runs',failed_value,
+  'inconclusive_runs',inconclusive_value,'recent_contained',contained_value,'recent_remediated',remediated_value);
+END $security_agent_home_summary$;
+
+DO $security_agent_closure_privileges$
+DECLARE f record;
+BEGIN
+ FOR f IN SELECT * FROM(VALUES
+  ('zasp_authorization80.security_agent_run_closed(text,text,text,text)',NULL),
+  ('zasp_authorization80.security_agent_run_open_effects(text,text,text,text)',NULL),
+  ('zasp_authorization80.security_agent_run_unknown_reservations(text,text,text,text)',NULL),
+  ('zasp_authorization80.security_agent_run_lifecycle(text,text,text,text)',NULL),
+  ('zasp_authorization80.security_agent_close_run(text,text,text,text,text,text,bigint,text,text,text,text,text)','zasp_security_agent_api')
+ ) v(signature,grantees) LOOP
+  EXECUTE format('ALTER FUNCTION %s OWNER TO zasp_discovery_authority',f.signature::regprocedure);
+  EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC',f.signature::regprocedure);
+  IF f.grantees IS NOT NULL THEN EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO %s',f.signature::regprocedure,f.grantees);END IF;
+ END LOOP;
+END $security_agent_closure_privileges$;
+
+-- ---------------------------------------------------------------------------
+-- W4. Security Agent activity, audit record and export reads.
+--
+-- These six operations still sent the chain's readers directly:
+--   GET  /security-agent-runs/{id}/activity/{kind}       listSecurityAgentRunActivity
+--   GET  /security-agent-activity/{kind}/{id}/runs       listSecurityAgentActivityRuns
+--   GET  /security-agent-audit-events/{id}               getSecurityAgentAuditEvent
+--   GET  /security-agent-runs/{id}/steps/{stepId}/export                  getSecurityAgentExport
+--   POST /security-agent-runs/{id}/steps/{stepId}/export/download-grants  createSecurityAgentExportDownloadGrant
+--   POST /security-agent-runs/{id}/steps/{stepId}/export/download         downloadSecurityAgentExport
+-- None of those readers is an authorized function, and the activity and audit
+-- readers also ask for a readiness that pins a 60-release catalog, so the API
+-- refused every one of these requests.
+--
+-- Each function below is one statement bound to the attested proof: a browser
+-- session, the operation, permission 'view' ('view_audit' for the audit
+-- record) for this scope and actor, a non-collection request for the object
+-- in the request path, with that object among the allowed targets. A session
+-- or audit activity kind additionally requires investigate_sessions or
+-- view_audit of the actor in this Environment, as before. The run context is
+-- read with the readers the run detail uses (section Y3). The related-runs
+-- page names runs, which the proof of the activity record says nothing
+-- about, so it requires a second decision (listSecurityAgentRuns) and returns
+-- only runs that decision allows.
+--
+-- The export readers are the chain's own (zasp_sa_export_get and
+-- zasp_sa_export_grant), reached only when the export capability is ready
+-- for the current catalog (section H); otherwise the request is unavailable.
+CREATE OR REPLACE FUNCTION zasp_authorization80.security_agent_second_decision(p jsonb,proof text,operation_value text,collection_value boolean) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $security_agent_second_decision$
+DECLARE t jsonb;
+BEGIN
+ IF p IS NULL OR proof IS NULL OR operation_value IS NULL OR collection_value IS NULL THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current security agent second authorization required';END IF;
+ t:=zasp_authorization80.verify_attestation(proof);
+ IF NOT COALESCE(t->>'operation_id'=operation_value AND t->>'permission'='view' AND t->'collection'=to_jsonb(collection_value)
+  AND(t->>'organization_id',t->>'workspace_id',t->>'environment_id',t->>'principal_id',t->>'credential_kind',t->>'credential_id',t->>'credential_digest')
+   =(p->>'organization_id',p->>'workspace_id',p->>'environment_id',p->>'principal_id',p->>'credential_kind',p->>'credential_id',p->>'credential_digest')
+  AND t->'revision'=p->'revision' AND t->>'key_version'=p->>'key_version' AND jsonb_typeof(t->'allowed')='array',false)
+ THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current security agent second authorization required';END IF;
+ RETURN t;
+END $security_agent_second_decision$;
+
+CREATE OR REPLACE FUNCTION zasp_authorization80.security_agent_attested_allowed(t jsonb,o text,w text,e text,k text,i text) RETURNS boolean
+LANGUAGE sql IMMUTABLE SET search_path=pg_catalog,public AS $security_agent_attested_allowed$
+ SELECT EXISTS(SELECT 1 FROM jsonb_array_elements(COALESCE(t->'allowed','[]'::jsonb)) x WHERE(x->>'organization_id',x->>'workspace_id',x->>'environment_id',x->>'kind',COALESCE(NULLIF(x->>'source_id',''),x->>'id'))=(o,w,e,k,i))
+$security_agent_attested_allowed$;
+
+CREATE OR REPLACE FUNCTION zasp_authorization80.security_agent_activity_permission(o text,w text,e text,actor text,kind_value text) RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $security_agent_activity_permission$
+DECLARE permission_value text;
+BEGIN
+ permission_value:=CASE kind_value WHEN 'session' THEN 'investigate_sessions' WHEN 'audit' THEN 'view_audit' WHEN 'finding' THEN 'view' WHEN 'attack_path' THEN 'view' END;
+ PERFORM 1 FROM public.zasp_identity_memberships WHERE(organization_id,principal_id,active)=(o,actor,true) FOR SHARE;
+ IF NOT FOUND OR permission_value IS NULL OR NOT EXISTS(SELECT 1 FROM public.zasp_identity_admin_effective_scopes(actor,o) scope
+  WHERE(scope.organization_id,scope.workspace_id,scope.environment_id)=(o,w,e) AND scope.permissions ? 'view' AND scope.permissions ? permission_value)
+ THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current security agent authorization required';END IF;
+END $security_agent_activity_permission$;
+
+CREATE OR REPLACE FUNCTION zasp_authorization80.security_agent_run_envelope(o text,w text,e text,r text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $security_agent_run_envelope$
+DECLARE result jsonb;
+BEGIN
+ IF zasp_ordered_public62.classify(o,w,e,'run',r)='ordered_release61' THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='security agent activity context unavailable';END IF;
+ result:=zasp_temporal78.run_context(o,w,e,r);
+ IF result IS NULL THEN
+  SELECT value INTO result FROM zasp_temporal66.run_context(o,w,e,r,'6e2fbdef64421286476be12a02188d7936e81db3126764bf2ab55e099fcb12cb','422b211febdd6e2b37882dc3f5961a79ca5c58f3f87f1642f7babf1224fbe94a') rows(value);
+ END IF;
+ IF result IS NULL THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='security agent activity context unavailable';END IF;
+ RETURN result;
+END $security_agent_run_envelope$;
+
+-- GET /security-agent-runs/{id}/activity/{kind}.
+CREATE OR REPLACE FUNCTION zasp_authorization80.security_agent_run_activity(o text,w text,e text,r text,actor text,kind_value text,after_id_value text,limit_value integer) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $security_agent_run_activity$
+DECLARE p jsonb;envelope jsonb;ids_value jsonb:='[]'::jsonb;audit_value text;last_id text;count_value integer:=0;more_value boolean:=false;
+BEGIN
+ IF NOT COALESCE(public.zasp_valid_product_id(r) AND kind_value IN('finding','attack_path','session','audit') AND limit_value BETWEEN 1 AND 100
+  AND(after_id_value IS NULL OR public.zasp_valid_product_id(after_id_value)),false)
+ THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='authorization security agent activity rejected';END IF;
+ p:=zasp_authorization80.security_agent_object_request(o,w,e,actor,'listSecurityAgentRunActivity',r);
+ IF p#>>'{path_parameters,kind}' IS DISTINCT FROM kind_value THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current security agent authorization required';END IF;
+ PERFORM zasp_authorization80.security_agent_activity_permission(o,w,e,actor,kind_value);
+ IF NOT EXISTS(SELECT 1 FROM public.zasp_security_agent_runs run WHERE(run.organization_id,run.workspace_id,run.environment_id,run.run_id)=(o,w,e,r) AND run.state<>'simulated')
+ THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='security agent run missing';END IF;
+ envelope:=zasp_authorization80.security_agent_run_envelope(o,w,e,r);
+ IF kind_value='audit' THEN
+  FOR audit_value IN SELECT audit.audit_id FROM public.zasp_security_agent_audit audit
+   WHERE(audit.organization_id,audit.workspace_id,audit.environment_id,audit.run_id)=(o,w,e,r) AND(after_id_value IS NULL OR audit.audit_id>after_id_value)
+   ORDER BY audit.audit_id LIMIT limit_value+1
+  LOOP
+   IF NOT COALESCE(public.zasp_valid_product_id(audit_value),false) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='security agent activity audit target unavailable';END IF;
+   count_value:=count_value+1;
+   IF count_value>limit_value THEN more_value:=true;EXIT;END IF;
+   ids_value:=ids_value||jsonb_build_array(audit_value);last_id:=audit_value;
+  END LOOP;
+ END IF;
+ IF p IS DISTINCT FROM zasp_authorization80.context() THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='current security agent proof expired';END IF;
+ RETURN jsonb_build_object('context',envelope,'audit_ids',ids_value,'next_audit_id',CASE WHEN more_value THEN last_id ELSE NULL END);
+END $security_agent_run_activity$;
+
+-- GET /security-agent-activity/{kind}/{id}/runs. The selection, the order,
+-- the cursor and the coverage rule are the chain's reader's.
+CREATE OR REPLACE FUNCTION zasp_authorization80.security_agent_activity_runs(org_value text,workspace_value text,environment_value text,principal_value text,kind_value text,entity_value text,before_created_value timestamptz,before_id_value text,limit_value integer,runs_proof text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $security_agent_activity_runs$
+DECLARE p jsonb:=zasp_authorization80.context();t jsonb;audit_run_value text;candidate record;envelope jsonb;items_value jsonb:='[]'::jsonb;last_created timestamptz;last_id text;count_value integer:=0;more_value boolean:=false;partial_value boolean:=false;
+BEGIN
+ IF NOT COALESCE(public.zasp_security_agent_principal_ready('zasp_security_agent_api'),false) THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='authorization security agent principal rejected';END IF;
+ IF NOT COALESCE(kind_value IN('finding','attack_path','session','audit'),false) THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='security agent relation page rejected';END IF;
+ IF p IS NULL OR principal_value IS NULL OR NOT COALESCE(public.zasp_valid_product_id(entity_value),false)
+  OR NOT COALESCE(zasp_authorization80.read_request(org_value,workspace_value,environment_value,ARRAY['listSecurityAgentActivityRuns'],'view',true,principal_value)
+   AND p->'collection'='false'::jsonb AND p#>>'{path_parameters,id}'=entity_value AND p#>>'{path_parameters,kind}'=kind_value
+   AND CASE kind_value WHEN 'audit' THEN zasp_authorization80.parent_allowed(org_value,workspace_value,environment_value,'security_agent_audit',entity_value,NULL)
+    ELSE zasp_authorization80.allowed(org_value,workspace_value,environment_value,kind_value,entity_value) END,false)
+ THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current security agent authorization required';END IF;
+ PERFORM zasp_authorization80.identity_fence(p);
+ PERFORM zasp_authorization80.security_agent_activity_permission(org_value,workspace_value,environment_value,principal_value,kind_value);
+ t:=zasp_authorization80.security_agent_second_decision(p,runs_proof,'listSecurityAgentRuns',true);
+ IF kind_value='audit' THEN
+  SELECT audit.run_id INTO audit_run_value FROM public.zasp_security_agent_audit audit
+   WHERE(audit.organization_id,audit.workspace_id,audit.environment_id,audit.audit_id)=(org_value,workspace_value,environment_value,entity_value);
+ END IF;
+ IF NOT COALESCE(public.zasp_valid_product_id(entity_value) AND limit_value BETWEEN 1 AND 100,false)
+  OR (before_created_value IS NULL)<>(before_id_value IS NULL)
+  OR (before_id_value IS NOT NULL AND NOT COALESCE(public.zasp_valid_product_id(before_id_value) AND isfinite(before_created_value),false)) THEN
+  RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='security agent relation page rejected';
+ END IF;
+ IF kind_value<>'audit' THEN
+  SELECT EXISTS(SELECT 1 FROM public.zasp_security_agent_runs run
+   LEFT JOIN public.zasp_security_agent_trigger_receipts receipt USING(organization_id,workspace_id,environment_id,run_id)
+   LEFT JOIN public.zasp_security_agent_plans plan USING(organization_id,workspace_id,environment_id,run_id)
+   WHERE (run.organization_id,run.workspace_id,run.environment_id)=(org_value,workspace_value,environment_value) AND run.state<>'simulated'
+    AND (receipt.run_id IS NULL
+     OR (plan.run_id IS NULL AND (run.plan_hash IS NOT NULL OR EXISTS(SELECT 1 FROM public.zasp_security_agent_steps execution
+      WHERE (execution.organization_id,execution.workspace_id,execution.environment_id,execution.run_id)=(run.organization_id,run.workspace_id,run.environment_id,run.run_id))))
+     OR plan.run_id IS NOT NULL AND (
+     plan.plan_hash IS DISTINCT FROM run.plan_hash
+     OR plan.plan_hash IS DISTINCT FROM digest(convert_to(plan.plan::text,'UTF8'),'sha256')
+     OR (plan.definition_id,plan.definition_version) IS DISTINCT FROM (run.definition_id,run.definition_version)
+     OR jsonb_typeof(plan.plan->'steps') IS DISTINCT FROM 'array'
+     OR CASE WHEN jsonb_typeof(plan.plan->'steps')='array' THEN jsonb_array_length(plan.plan->'steps') ELSE NULL END
+      IS DISTINCT FROM (SELECT count(*) FROM public.zasp_security_agent_steps execution
+       WHERE (execution.organization_id,execution.workspace_id,execution.environment_id,execution.run_id)=(run.organization_id,run.workspace_id,run.environment_id,run.run_id))
+     OR EXISTS(SELECT 1 FROM public.zasp_security_agent_steps execution
+      WHERE (execution.organization_id,execution.workspace_id,execution.environment_id,execution.run_id)=(run.organization_id,run.workspace_id,run.environment_id,run.run_id)
+       AND ((plan.plan->'steps'->execution.step_index)->>'step_id' IS DISTINCT FROM execution.step_id
+        OR (plan.plan->'steps'->execution.step_index)->'index' IS DISTINCT FROM to_jsonb(execution.step_index)
+        OR (plan.plan->'steps'->execution.step_index)->>'action' IS DISTINCT FROM execution.action_key
+        OR digest(convert_to((plan.plan->'steps'->execution.step_index)::text,'UTF8'),'sha256') IS DISTINCT FROM execution.input_digest))
+     OR EXISTS(SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(plan.plan->'steps')='array' THEN plan.plan->'steps' ELSE '[]'::jsonb END) step(value)
+      WHERE jsonb_typeof(step.value) IS DISTINCT FROM 'object'
+       OR NOT COALESCE(step.value->>'action' IN('update_finding_response','create_temporary_policy','isolate_session','revoke_integration_connection'),false)
+       OR (kind_value='finding' AND step.value->>'action'='update_finding_response'
+        AND NOT COALESCE(jsonb_typeof(step.value->'target_id')='string' AND public.zasp_valid_product_id(step.value->>'target_id'),false))
+       OR (kind_value='session' AND step.value->>'action'='isolate_session'
+        AND NOT COALESCE(jsonb_typeof(step.value->'target_id')='string' AND public.zasp_valid_product_id(step.value->>'target_id')
+         AND jsonb_typeof(step.value->'session_id')='string' AND step.value->>'session_id'=step.value->>'target_id',false)))))
+    )
+  INTO partial_value;
+ END IF;
+ FOR candidate IN
+  WITH ids AS (
+   SELECT receipt.run_id FROM public.zasp_security_agent_trigger_receipts receipt
+   WHERE (receipt.organization_id,receipt.workspace_id,receipt.environment_id,receipt.trigger_id)=(org_value,workspace_value,environment_value,entity_value)
+    AND receipt.trigger_kind=CASE kind_value WHEN 'finding' THEN 'finding' WHEN 'attack_path' THEN 'attack_path' WHEN 'session' THEN 'runtime_decision' ELSE NULL END
+   UNION
+   SELECT plan.run_id FROM public.zasp_security_agent_plans plan
+   WHERE (plan.organization_id,plan.workspace_id,plan.environment_id)=(org_value,workspace_value,environment_value)
+    AND kind_value='finding' AND plan.plan @> jsonb_build_object('steps',jsonb_build_array(jsonb_build_object('action','update_finding_response','target_id',entity_value)))
+   UNION
+   SELECT plan.run_id FROM public.zasp_security_agent_plans plan
+   WHERE (plan.organization_id,plan.workspace_id,plan.environment_id)=(org_value,workspace_value,environment_value)
+    AND kind_value='session' AND plan.plan @> jsonb_build_object('steps',jsonb_build_array(jsonb_build_object('action','isolate_session','target_id',entity_value)))
+   UNION
+   SELECT audit.run_id FROM public.zasp_security_agent_audit audit
+   WHERE kind_value='audit' AND (audit.organization_id,audit.workspace_id,audit.environment_id,audit.audit_id)=(org_value,workspace_value,environment_value,entity_value)
+  )
+  SELECT run.run_id,run.created_at FROM ids JOIN public.zasp_security_agent_runs run USING(run_id)
+  WHERE (run.organization_id,run.workspace_id,run.environment_id)=(org_value,workspace_value,environment_value) AND run.state<>'simulated'
+   AND zasp_authorization80.security_agent_attested_allowed(t,org_value,workspace_value,environment_value,'security_agent_run',run.run_id)
+   AND (before_created_value IS NULL OR (run.created_at,run.run_id)<(before_created_value,before_id_value))
+  ORDER BY run.created_at DESC,run.run_id DESC LIMIT limit_value+1
+ LOOP
+  count_value:=count_value+1;
+  IF count_value>limit_value THEN more_value:=true;EXIT;END IF;
+  envelope:=zasp_authorization80.security_agent_run_envelope(org_value,workspace_value,environment_value,candidate.run_id);
+  items_value:=items_value||jsonb_build_array(envelope);last_created:=candidate.created_at;last_id:=candidate.run_id;
+ END LOOP;
+ IF p IS DISTINCT FROM zasp_authorization80.context() THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='current security agent proof expired';END IF;
+ RETURN jsonb_build_object('audit_run_id',audit_run_value,'items',items_value,'coverage',CASE WHEN partial_value THEN 'partial' ELSE 'complete' END,
+  'next_created_at',CASE WHEN more_value THEN to_char(last_created AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') ELSE NULL END,
+  'next_id',CASE WHEN more_value THEN last_id ELSE NULL END);
+END $security_agent_activity_runs$;
+
+-- GET /security-agent-audit-events/{id}. The record is returned without its
+-- private body, as before.
+CREATE OR REPLACE FUNCTION zasp_authorization80.security_agent_audit_event(o text,w text,e text,a text,actor text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $security_agent_audit_event$
+DECLARE p jsonb;audit_row public.zasp_security_agent_audit%ROWTYPE;
+BEGIN
+ p:=zasp_authorization80.security_agent_object_request(o,w,e,actor,'getSecurityAgentAuditEvent',a);
+ SELECT audit.* INTO audit_row FROM public.zasp_security_agent_audit audit
+  JOIN public.zasp_security_agent_runs run ON(run.organization_id,run.workspace_id,run.environment_id,run.run_id)=(audit.organization_id,audit.workspace_id,audit.environment_id,audit.run_id)
+  WHERE(audit.organization_id,audit.workspace_id,audit.environment_id,audit.audit_id)=(o,w,e,a) AND run.state<>'simulated';
+ IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='security agent audit record missing';END IF;
+ IF NOT COALESCE(public.zasp_valid_product_id(audit_row.run_id) AND public.zasp_valid_product_id(audit_row.correlation_id)
+  AND octet_length(audit_row.actor_id) BETWEEN 1 AND 128 AND audit_row.actor_id!~'[[:cntrl:]]'
+  AND octet_length(audit_row.event_kind) BETWEEN 1 AND 128 AND audit_row.event_kind!~'[[:cntrl:]]' AND isfinite(audit_row.created_at),false)
+ THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='security agent audit record unavailable';END IF;
+ IF p IS DISTINCT FROM zasp_authorization80.context() THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='current security agent proof expired';END IF;
+ RETURN jsonb_build_object('id',audit_row.audit_id,'run_id',audit_row.run_id,'organization_id',audit_row.organization_id,'workspace_id',audit_row.workspace_id,'environment_id',audit_row.environment_id,
+  'actor_reference',audit_row.actor_id,'event_kind',audit_row.event_kind,'correlation_id',audit_row.correlation_id,
+  'occurred_at',to_char(audit_row.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'));
+END $security_agent_audit_event$;
+
+-- The export capability for the current catalog, or 'unavailable' (never a
+-- refusal that reads as missing permission).
+CREATE OR REPLACE FUNCTION zasp_authorization80.security_agent_export_available(expected_checksum text,expected_fingerprint text) RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $security_agent_export_available$
+DECLARE ready boolean:=false;
+BEGIN
+ BEGIN
+  ready:=COALESCE(zasp_authorization80.security_agent_export_ready(expected_checksum,expected_fingerprint),false);
+ EXCEPTION WHEN OTHERS THEN ready:=false;END;
+ IF NOT ready THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='security agent export release unavailable';END IF;
+END $security_agent_export_available$;
+
+-- The export status and the export grant. The session the request names must
+-- be the session of the proof.
+CREATE OR REPLACE FUNCTION zasp_authorization80.security_agent_export_get(o text,w text,e text,r text,s text,actor text,session_value bytea,csrf_value text,expected_checksum text,expected_fingerprint text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $security_agent_export_get$
+DECLARE p jsonb;result jsonb;
+BEGIN
+ p:=zasp_authorization80.security_agent_object_request(o,w,e,actor,'getSecurityAgentExport',r);
+ IF NOT COALESCE(public.zasp_valid_product_id(s) AND p#>>'{path_parameters,stepId}'=s AND p->>'credential_digest'=encode(session_value,'hex'),false) THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current security agent authorization required';END IF;
+ PERFORM zasp_authorization80.security_agent_export_available(expected_checksum,expected_fingerprint);
+ result:=public.zasp_sa_export_get(o,w,e,r,s,actor,session_value,csrf_value,expected_checksum,expected_fingerprint);
+ IF p IS DISTINCT FROM zasp_authorization80.context() THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='current security agent proof expired';END IF;
+ RETURN result;
+END $security_agent_export_get$;
+
+CREATE OR REPLACE FUNCTION zasp_authorization80.security_agent_export_grant(o text,w text,e text,r text,s text,actor text,session_value bytea,csrf_value text,token_value text,format_value text,operation_value text,expected_checksum text,expected_fingerprint text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $security_agent_export_grant$
+DECLARE p jsonb:=zasp_authorization80.context();op text;result jsonb;
+BEGIN
+ IF current_setting('transaction_isolation')<>'read committed' THEN RAISE EXCEPTION USING ERRCODE='25001',MESSAGE='authorization security agent write requires read committed';END IF;
+ op:=CASE WHEN operation_value='issue' THEN 'createSecurityAgentExportDownloadGrant' WHEN operation_value IN('read','consume','integrity_failure') THEN 'downloadSecurityAgentExport' END;
+ IF op IS NULL OR p->>'operation_id' IS DISTINCT FROM op THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current security agent authorization required';END IF;
+ p:=zasp_authorization80.security_agent_object_request(o,w,e,actor,op,r);
+ IF NOT COALESCE(public.zasp_valid_product_id(s) AND p#>>'{path_parameters,stepId}'=s AND p->>'credential_digest'=encode(session_value,'hex'),false) THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current security agent authorization required';END IF;
+ PERFORM zasp_authorization80.security_agent_export_available(expected_checksum,expected_fingerprint);
+ result:=public.zasp_sa_export_grant(o,w,e,r,s,actor,session_value,csrf_value,token_value,format_value,operation_value,expected_checksum,expected_fingerprint);
+ PERFORM zasp_authorization80.security_agent_write_settled(p);
+ RETURN result;
+END $security_agent_export_grant$;
+
+DO $security_agent_activity_privileges$
+DECLARE f record;
+BEGIN
+ FOR f IN SELECT * FROM(VALUES
+  ('zasp_authorization80.security_agent_second_decision(jsonb,text,text,boolean)',NULL),
+  ('zasp_authorization80.security_agent_attested_allowed(jsonb,text,text,text,text,text)',NULL),
+  ('zasp_authorization80.security_agent_activity_permission(text,text,text,text,text)',NULL),
+  ('zasp_authorization80.security_agent_run_envelope(text,text,text,text)',NULL),
+  ('zasp_authorization80.security_agent_export_available(text,text)',NULL),
+  ('zasp_authorization80.security_agent_run_activity(text,text,text,text,text,text,text,integer)','zasp_security_agent_api'),
+  ('zasp_authorization80.security_agent_activity_runs(text,text,text,text,text,text,timestamptz,text,integer,text)','zasp_security_agent_api'),
+  ('zasp_authorization80.security_agent_audit_event(text,text,text,text,text)','zasp_security_agent_api'),
+  ('zasp_authorization80.security_agent_export_get(text,text,text,text,text,text,bytea,text,text,text)','zasp_security_agent_api'),
+  ('zasp_authorization80.security_agent_export_grant(text,text,text,text,text,text,bytea,text,text,text,text,text,text)','zasp_security_agent_api')
+ ) v(signature,grantees) LOOP
+  EXECUTE format('ALTER FUNCTION %s OWNER TO zasp_discovery_authority',f.signature::regprocedure);
+  EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC',f.signature::regprocedure);
+  IF f.grantees IS NOT NULL THEN EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO %s',f.signature::regprocedure,f.grantees);END IF;
+ END LOOP;
+END $security_agent_activity_privileges$;
+
+-- ---------------------------------------------------------------------------
+-- W5. A simulation is stored only for evidence its requester may read.
+--
+-- zasp_authorization80.security_agent_simulate (section Y3) binds the request
+-- to the Security Agent definition. The evidence is named in the request
+-- body, so the proof of the definition says nothing about it: a principal
+-- allowed to manage the agent could store a plan over, and so confirm the
+-- existence of, a finding, attack path or inventory object it may not see.
+-- The API now makes a second decision for the evidence: the mixed collection
+-- of the Environment (globalSearch, permission 'view'), whose attestation
+-- lists every object the requester may read. This function verifies that
+-- attestation with the same key as fence(), requires it to be the decision
+-- of the same principal, credential, scope and projection revision as the
+-- request's own proof, and requires every evidence identifier to be an
+-- allowed finding, attack path or inventory object, or an inventory evidence
+-- record whose finding or inventory object is allowed. Only then does it
+-- store the simulation. The fourteen-argument form stays as the body it
+-- calls; the API role can no longer execute it directly.
+CREATE OR REPLACE FUNCTION zasp_authorization80.security_agent_simulate(o text,w text,e text,d text,actor text,k text,v bigint,run_value text,goal_value text,evidence_value jsonb,expires_value timestamptz,audit_value text,correlation_value text,receipt_value text,evidence_proof text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $security_agent_simulate_evidence$
+DECLARE p jsonb:=zasp_authorization80.context();t jsonb;item text;kinds CONSTANT text[]:=ARRAY['finding','attack_path','agent','tool','identity','runtime','asset'];
+BEGIN
+ IF p IS NULL OR evidence_proof IS NULL OR jsonb_typeof(evidence_value) IS DISTINCT FROM 'array' OR jsonb_array_length(evidence_value) NOT BETWEEN 1 AND 100
+  OR EXISTS(SELECT 1 FROM jsonb_array_elements(evidence_value) x WHERE jsonb_typeof(x) IS DISTINCT FROM 'string')
+ THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current security agent evidence authorization required';END IF;
+ t:=zasp_authorization80.security_agent_second_decision(p,evidence_proof,'globalSearch',true);
+ IF(t->>'organization_id',t->>'workspace_id',t->>'environment_id',t->>'principal_id') IS DISTINCT FROM(o,w,e,actor) THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current security agent evidence authorization required';END IF;
+ FOR item IN SELECT jsonb_array_elements_text(evidence_value) LOOP
+  IF NOT COALESCE(public.zasp_valid_product_id(item) AND(
+    EXISTS(SELECT 1 FROM unnest(kinds) kind WHERE zasp_authorization80.security_agent_attested_allowed(t,o,w,e,kind,item))
+    OR EXISTS(SELECT 1 FROM public.zasp_inventory_evidence x WHERE(x.organization_id,x.workspace_id,x.environment_id,x.id)=(o,w,e,item)
+     AND(x.finding_id IS NOT NULL AND zasp_authorization80.security_agent_attested_allowed(t,o,w,e,'finding',x.finding_id)
+      OR x.entity_id IS NOT NULL AND EXISTS(SELECT 1 FROM unnest(kinds) kind WHERE kind NOT IN('finding','attack_path') AND zasp_authorization80.security_agent_attested_allowed(t,o,w,e,kind,x.entity_id))))),false)
+  THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current security agent evidence authorization required';END IF;
+ END LOOP;
+ RETURN zasp_authorization80.security_agent_simulate(o,w,e,d,actor,k,v,run_value,goal_value,evidence_value,expires_value,audit_value,correlation_value,receipt_value);
+END $security_agent_simulate_evidence$;
+ALTER FUNCTION zasp_authorization80.security_agent_simulate(text,text,text,text,text,text,bigint,text,text,jsonb,timestamptz,text,text,text,text) OWNER TO zasp_discovery_authority;
+REVOKE ALL ON FUNCTION zasp_authorization80.security_agent_simulate(text,text,text,text,text,text,bigint,text,text,jsonb,timestamptz,text,text,text,text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION zasp_authorization80.security_agent_simulate(text,text,text,text,text,text,bigint,text,text,jsonb,timestamptz,text,text,text,text) TO zasp_security_agent_api;
+REVOKE EXECUTE ON FUNCTION zasp_authorization80.security_agent_simulate(text,text,text,text,text,text,bigint,text,text,jsonb,timestamptz,text,text,text) FROM zasp_security_agent_api;
+
+-- ---------------------------------------------------------------------------
+-- W6. A closure and the single-test release's own debts.
+--
+-- zasp_temporal74.unresolved, which the Organization-wide planning capacity
+-- uses (zasp_temporal74.capacity), adds the single-test release's own
+-- provider reservation, effects and invocations to zasp_temporal73.unresolved.
+-- A closure (section W3) discharges an unknown provider reservation of that
+-- release like any other, and never an effect or an invocation that has
+-- started: those are part of what a closure refuses.
+CREATE OR REPLACE FUNCTION zasp_authorization80.security_agent_run_open_effects(o text,w text,e text,r text) RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $security_agent_run_open_effects$
+ SELECT EXISTS(SELECT 1 FROM zasp_temporal68.effects x WHERE (x.organization_id,x.workspace_id,x.environment_id,x.run_id)=(o,w,e,r) AND (x.state IN('started','unknown','cleanup_pending') OR x.action_key='create_temporary_policy' AND x.state='verified'))
+ OR EXISTS(SELECT 1 FROM zasp_temporal68.cleanups x WHERE (x.organization_id,x.workspace_id,x.environment_id,x.run_id)=(o,w,e,r) AND x.state<>'cleaned')
+ OR EXISTS(SELECT 1 FROM public.zasp_security_agent_effects x WHERE (x.organization_id,x.workspace_id,x.environment_id,x.run_id)=(o,w,e,r) AND x.state IN('leased','unknown_outcome','cleanup_pending','cleanup_failed'))
+ OR EXISTS(SELECT 1 FROM public.zasp_security_agent_controls x WHERE (x.organization_id,x.workspace_id,x.environment_id,x.run_id)=(o,w,e,r) AND x.state<>'disabled')
+ OR EXISTS(SELECT 1 FROM public.zasp_sa_attack_lab_links x WHERE (x.organization_id,x.workspace_id,x.environment_id,x.run_id)=(o,w,e,r) AND x.settled_at IS NULL)
+ OR EXISTS(SELECT 1 FROM public.zasp_sa_export_links x WHERE (x.organization_id,x.workspace_id,x.environment_id,x.run_id)=(o,w,e,r) AND x.settled_at IS NULL)
+ OR EXISTS(SELECT 1 FROM public.zasp_security_agent_test_links x WHERE (x.organization_id,x.workspace_id,x.environment_id,x.run_id)=(o,w,e,r) AND (x.reconcile_state<>'settled' OR EXISTS(SELECT 1 FROM public.zasp_security_agent_test_invocations j WHERE (j.organization_id,j.workspace_id,j.environment_id,j.test_run_id,j.state)=(o,w,e,x.test_run_id,'started'))))
+ OR EXISTS(SELECT 1 FROM public.zasp_security_agent_webhook_deliveries x WHERE (x.organization_id,x.workspace_id,x.environment_id,x.run_id)=(o,w,e,r) AND (x.settlement_state<>'settled' OR x.state IN('dispatching','uncertain')))
+ OR EXISTS(SELECT 1 FROM zasp_temporal74.effects x WHERE (x.organization_id,x.workspace_id,x.environment_id,x.run_id)=(o,w,e,r) AND x.state IN('started','unknown'))
+ OR EXISTS(SELECT 1 FROM zasp_temporal74.invocations x JOIN zasp_temporal74.run_owners a USING(organization_id,workspace_id,environment_id,test_run_id) WHERE (a.organization_id,a.workspace_id,a.environment_id,a.run_id,x.state)=(o,w,e,r,'started'))
+$security_agent_run_open_effects$;
+
+CREATE OR REPLACE FUNCTION zasp_temporal74.unresolved(o text,w text,e text,r text) RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $unresolved$
+ SELECT CASE WHEN zasp_authorization80.security_agent_run_closed(o,w,e,r) THEN zasp_authorization80.security_agent_run_open_effects(o,w,e,r)
+ ELSE zasp_temporal73.unresolved(o,w,e,r)
+ OR EXISTS(SELECT 1 FROM zasp_temporal74.provider_reservations x WHERE (x.organization_id,x.workspace_id,x.environment_id,x.run_id)=(o,w,e,r) AND x.settled_at IS NULL AND x.released_at IS NULL)
+ OR EXISTS(SELECT 1 FROM zasp_temporal74.effects x WHERE (x.organization_id,x.workspace_id,x.environment_id,x.run_id)=(o,w,e,r) AND x.state IN('started','unknown'))
+ OR EXISTS(SELECT 1 FROM zasp_temporal74.invocations x JOIN zasp_temporal74.run_owners a USING(organization_id,workspace_id,environment_id,test_run_id) WHERE (a.organization_id,a.workspace_id,a.environment_id,a.run_id,x.state)=(o,w,e,r,'started')) END
+$unresolved$;
+
+-- ---------------------------------------------------------------------------
+-- Z0. Shared admission of the product routes moved in sections Z2 to Z7.
+--
+-- A browser pass over the signed-in product found routes whose statements
+-- were still the chain's direct functions. Sections X1 to X3 closed those
+-- direct paths, and the API's statement allowlist never named them, so each
+-- route answered 'provider unavailable'. Every function in the Z sections is
+-- one statement of one route under the current model, in the manner of
+-- sections H, M and Y3:
+--   * SECURITY DEFINER, owned by zasp_discovery_authority, fixed search_path,
+--     executable only by zasp_discovery_api;
+--   * the session must be the bound API principal;
+--   * it works only inside a fenced transaction whose attested proof names
+--     exactly this operation with the permission the operation's policy
+--     names, for this Organization, Workspace and Environment (and actor,
+--     where the statement has one), as a non-collection request, with a
+--     browser session and fresh authentication where the policy requires
+--     them, for the object in the request path, and only when that object
+--     (for creations, the Environment) is among the allowed targets;
+--   * a write re-verifies the credential and the membership under row locks
+--     before it writes and requires the same unexpired proof when it returns.
+-- product_request is that admission; product_settled is the closing check.
+--
+-- Existing function bodies the Z sections change, each keeping its rules:
+-- parent_targets and parent_targets_inner (Z1: the parent of a receipt),
+-- receipt_page and compliance_read (Z8: resolver readiness once per
+-- statement). Everything else is a new function.
+CREATE OR REPLACE FUNCTION zasp_authorization80.product_request(o text,w text,e text,actor text,op text,permission_value text,kind text,target text,path_bound boolean,browser boolean,fresh boolean,write_value boolean) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $product_request$
+DECLARE p jsonb:=zasp_authorization80.context();
+BEGIN
+ IF p IS NULL OR op IS NULL OR permission_value IS NULL OR kind IS NULL OR target IS NULL OR path_bound IS NULL OR browser IS NULL OR fresh IS NULL OR write_value IS NULL
+  OR(write_value AND actor IS NULL)
+  OR NOT COALESCE(public.zasp_discovery_principal_ready('zasp_discovery_api')
+   AND zasp_authorization80.read_request(o,w,e,ARRAY[op],permission_value,browser,actor)
+   AND p->'collection'='false'::jsonb
+   AND(NOT fresh OR p->'fresh_auth'='true'::jsonb)
+   AND(NOT path_bound OR p#>>'{path_parameters,id}'=target)
+   AND zasp_authorization80.allowed(o,w,e,kind,target),false)
+ THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';END IF;
+ IF write_value THEN PERFORM zasp_authorization80.identity_fence(p);END IF;
+ RETURN p;
+END $product_request$;
+
+CREATE OR REPLACE FUNCTION zasp_authorization80.product_settled(p jsonb) RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $product_settled$
+BEGIN
+ IF p IS NULL OR p IS DISTINCT FROM zasp_authorization80.context() OR NOT COALESCE(public.zasp_discovery_principal_ready('zasp_discovery_api'),false)
+ THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='current product proof expired';END IF;
+ PERFORM zasp_authorization80.identity_fence(p);
+END $product_settled$;
+ALTER FUNCTION zasp_authorization80.product_request(text,text,text,text,text,text,text,text,boolean,boolean,boolean,boolean) OWNER TO zasp_discovery_authority;
+ALTER FUNCTION zasp_authorization80.product_settled(jsonb) OWNER TO zasp_discovery_authority;
+REVOKE ALL ON FUNCTION zasp_authorization80.product_request(text,text,text,text,text,text,text,text,boolean,boolean,boolean,boolean) FROM PUBLIC;
+REVOKE ALL ON FUNCTION zasp_authorization80.product_settled(jsonb) FROM PUBLIC;
+
+-- ---------------------------------------------------------------------------
+-- Z1. A receipt's parent object, for every operation that writes a receipt.
+--
+-- GET /workflow-mutation-receipts shows a principal its own unacknowledged
+-- receipts, each only while its parent object passes the request's check
+-- (receipt_page -> parent_allowed -> parent_targets). parent_targets took the
+-- receipt's resource_kind as the authorization kind. That holds for six of
+-- the nine receipt kinds. The discovery writer
+-- (zasp_execution_record_public_mutation) records 'integration_sync' for
+-- syncIntegration and 'integration_schedule' for putIntegrationSchedule and
+-- deleteIntegrationSchedule; neither is an authorization kind, so resolution
+-- raised 'authorization resource identity unavailable' and one such receipt
+-- failed every receipt page of its principal until it expired (seven days).
+--
+-- The receipt kinds and their parents:
+--   policy                  createPolicy updatePolicy rolloutPolicy
+--                           disablePolicy deletePolicy          -> policy
+--   integration             createIntegration updateIntegration
+--                           deleteIntegration completeIntegrationOAuth
+--                           remediateIntegrationAuthorization
+--                           completeIntegrationReferenceAuthorization
+--                                                               -> integration
+--   integration_sync        syncIntegration (resource_id is the sync)
+--                                                               -> discovery_sync
+--   integration_schedule    putIntegrationSchedule deleteIntegrationSchedule
+--                           (resource_id is the integration)    -> integration
+--   security_agent          createSecurityAgent updateSecurityAgent
+--                           deleteSecurityAgent                 -> security_agent
+--   security_agent_run, security_agent_approval, sensor, finding -> themselves
+-- A delete leaves no live parent. Its receipt belongs to the principal that
+-- deleted the object and says only that the delete happened, so, like the
+-- administration audit events of a deleted sensor, it is shown under the
+-- Environment's own check. Nothing else falls back to the Environment: a
+-- receipt whose live parent the request may not view stays hidden.
+DO $receipt_parents$
+DECLARE d text;name text;callee text;
+ old_line text:=$o$  parent_kind:=row_value->>'resource_kind';parent_id:=row_value->>'resource_id';$o$;
+ new_line text:=$n$  parent_kind:=CASE row_value->>'resource_kind' WHEN 'integration_sync' THEN 'discovery_sync' WHEN 'integration_schedule' THEN 'integration' ELSE row_value->>'resource_kind' END;parent_id:=row_value->>'resource_id';
+  IF row_value->>'operation' IN('deletePolicy','deleteIntegration','deleteSecurityAgent','deleteSensor') THEN
+   IF jsonb_array_length(zasp_authorization80.@callee@(o,w,e,parent_kind,parent_id))=0 THEN parent_kind:='environment';parent_id:=e;END IF;
+  END IF;$n$;
+BEGIN
+ FOR name,callee IN VALUES('parent_targets','resolve'),('parent_targets_inner','resolve_inner') LOOP
+  SELECT pg_get_functiondef(('zasp_authorization80.'||name||'(text,text,text,text,text,text)')::regprocedure) INTO STRICT d;
+  CONTINUE WHEN position('''integration_sync'' THEN ''discovery_sync''' IN d)>0;
+  IF (length(d)-length(replace(d,old_line,'')))/length(old_line)<>1 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='authorization receipt parent predecessor changed';END IF;
+  EXECUTE replace(d,old_line,replace(new_line,'@callee@',callee));
+ END LOOP;
+END $receipt_parents$;
+
+-- ---------------------------------------------------------------------------
+-- Z2. POST /workflow-mutation-receipts/{id}/acknowledge.
+--
+-- The chain's zasp_workflow_receipt_acknowledge updates the receipt table
+-- directly as the caller. The API role holds no such privilege any more
+-- (section X2) and the statement was never on the allowlist. A receipt is
+-- acknowledged by the browser session of the principal it belongs to, as the
+-- object of the request path, while its parent passes the request's check
+-- (the rule receipt_page shows it by).
+CREATE OR REPLACE FUNCTION zasp_authorization80.receipt_acknowledge(o text,w text,e text,actor text,r text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $receipt_acknowledge$
+DECLARE p jsonb:=zasp_authorization80.context();
+BEGIN
+ IF p IS NULL OR actor IS NULL OR NOT COALESCE(public.zasp_valid_product_id(r),false)
+  OR NOT COALESCE(public.zasp_discovery_principal_ready('zasp_discovery_api')
+   AND zasp_authorization80.read_request(o,w,e,ARRAY['acknowledgeWorkflowMutationReceipt'],'view',true,actor)
+   AND p->'collection'='false'::jsonb
+   AND p#>>'{path_parameters,id}'=r
+   AND zasp_authorization80.parent_allowed(o,w,e,'workflow_receipt',r),false)
+ THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';END IF;
+ PERFORM zasp_authorization80.identity_fence(p);
+ UPDATE public.zasp_workflow_receipts receipt SET acknowledged_at=COALESCE(receipt.acknowledged_at,transaction_timestamp())
+ WHERE(receipt.organization_id,receipt.workspace_id,receipt.environment_id,receipt.principal_id,receipt.receipt_id)=(o,w,e,actor,r) AND receipt.expires_at>transaction_timestamp();
+ IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='workflow receipt missing';END IF;
+ PERFORM zasp_authorization80.product_settled(p);
+ RETURN jsonb_build_object('acknowledged',true);
+END $receipt_acknowledge$;
+ALTER FUNCTION zasp_authorization80.receipt_acknowledge(text,text,text,text,text) OWNER TO zasp_discovery_authority;
+REVOKE ALL ON FUNCTION zasp_authorization80.receipt_acknowledge(text,text,text,text,text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION zasp_authorization80.receipt_acknowledge(text,text,text,text,text) TO zasp_discovery_api;
+
+-- ---------------------------------------------------------------------------
+-- Z3. Policies: create, read, update, delete, rollout (Monitor, Block) and
+-- disable, the decisions of a policy, and the policy a simulation reads.
+--
+-- The policy list was authorized (workflow_page); every other policy route
+-- used the chain's zasp_workflow_replay, zasp_workflow_get and
+-- zasp_workflow_mutate. zasp_workflow_mutate additionally pins a 60-release
+-- catalog and can never pass on the baseline. The writer below is the one the
+-- authorized integration writes already use
+-- (zasp_authorization80.integration_receipt_mutate over zasp_workflow_mutate_v3):
+-- it keeps the chain's own rules for a policy (created as draft; an update
+-- keeps the rollout; draft -> monitor -> enforced; monitor or enforced ->
+-- disabled; optimistic version; idempotent replay; audit row; receipt).
+--
+-- workflow_operation names, per operation, the permission, the checked
+-- object and the writer's action. It is the single list of operations these
+-- functions accept; integration deletion (section Z5) is on it too.
+CREATE OR REPLACE FUNCTION zasp_authorization80.workflow_operation(op text) RETURNS jsonb
+LANGUAGE sql IMMUTABLE SET search_path=pg_catalog,public AS $workflow_operation$
+ SELECT CASE op
+  WHEN 'createPolicy' THEN '{"permission":"manage_workflows","kind":"policy","target":"environment","action":"create"}'::jsonb
+  WHEN 'updatePolicy' THEN '{"permission":"manage_workflows","kind":"policy","target":"policy","action":"update"}'::jsonb
+  WHEN 'rolloutPolicy' THEN '{"permission":"manage_workflows","kind":"policy","target":"policy","action":"update"}'::jsonb
+  WHEN 'disablePolicy' THEN '{"permission":"manage_workflows","kind":"policy","target":"policy","action":"update"}'::jsonb
+  WHEN 'deletePolicy' THEN '{"permission":"manage_workflows","kind":"policy","target":"policy","action":"delete"}'::jsonb
+  WHEN 'deleteIntegration' THEN '{"permission":"manage_workflows","kind":"integration","target":"integration","action":"delete"}'::jsonb
+  ELSE NULL END
+$workflow_operation$;
+
+-- The stored policy: GET /policies/{id}, and the value a rollout, a disable,
+-- a simulation and the decision list start from.
+CREATE OR REPLACE FUNCTION zasp_authorization80.policy_value(o text,w text,e text,i text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $policy_value$
+DECLARE p jsonb:=zasp_authorization80.context();op text;result jsonb;
+BEGIN
+ op:=p->>'operation_id';
+ IF op IS NULL OR op NOT IN('getPolicy','listPolicyDecisions','rolloutPolicy','disablePolicy','simulatePolicy') OR i IS NULL OR i!~'^policy-[a-z0-9][a-z0-9-]{0,120}$'
+ THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';END IF;
+ p:=zasp_authorization80.product_request(o,w,e,NULL,op,CASE WHEN op IN('getPolicy','listPolicyDecisions') THEN 'view' ELSE 'manage_workflows' END,'policy',i,true,false,false,false);
+ SELECT jsonb_build_object('body',r.body,'version',r.version,'secret_generation',r.secret_generation) INTO result FROM public.zasp_workflow_records r
+ WHERE(r.organization_id,r.workspace_id,r.environment_id,r.kind,r.id)=(o,w,e,'policy',i) AND r.deleted_at IS NULL;
+ IF result IS NULL THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='workflow record missing';END IF;
+ RETURN result;
+END $policy_value$;
+
+-- Idempotent replay of a policy write or an integration deletion (the API
+-- asks before it writes). The body is the chain's zasp_workflow_replay.
+CREATE OR REPLACE FUNCTION zasp_authorization80.workflow_replay(o text,w text,e text,actor text,operation_value text,k text,intent_value jsonb) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $workflow_replay$
+DECLARE p jsonb;rule jsonb:=zasp_authorization80.workflow_operation(operation_value);target text;prior_digest bytea;prior_response jsonb;
+BEGIN
+ IF rule IS NULL OR k IS NULL OR k!~'^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$' OR jsonb_typeof(intent_value) IS DISTINCT FROM 'object' OR octet_length(intent_value::text)>65536
+ THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='invalid workflow replay';END IF;
+ target:=CASE rule->>'target' WHEN 'environment' THEN e ELSE intent_value->>'resource_id' END;
+ p:=zasp_authorization80.product_request(o,w,e,actor,operation_value,rule->>'permission',rule->>'target',target,rule->>'target'<>'environment',false,false,true);
+ PERFORM pg_advisory_xact_lock(hashtextextended(concat_ws(chr(31),o,w,e,actor,operation_value,k),0));
+ SELECT x.request_digest,x.response INTO prior_digest,prior_response FROM public.zasp_workflow_idempotency x
+ WHERE(x.organization_id,x.workspace_id,x.environment_id,x.principal_id,x.operation,x.idempotency_key)=(o,w,e,actor,operation_value,k);
+ IF NOT FOUND THEN RETURN jsonb_build_object('found',false);END IF;
+ IF prior_digest<>public.digest(convert_to(intent_value::text,'UTF8'),'sha256') THEN RAISE EXCEPTION USING ERRCODE='23505',MESSAGE='idempotency conflict';END IF;
+ RETURN jsonb_build_object('found',true,'result',prior_response||jsonb_build_object('replayed',true));
+END $workflow_replay$;
+
+-- POST /policies, PATCH and DELETE /policies/{id}, POST
+-- /policies/{id}/rollout and /disable. Argument order is the chain's.
+CREATE OR REPLACE FUNCTION zasp_authorization80.policy_mutate(action_value text,kind_value text,id_value text,o text,w text,e text,actor text,operation_value text,k text,expected_version bigint,intent_value jsonb,body_value jsonb,audit_value text,correlation_value text,receipt_value text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $policy_mutate$
+DECLARE p jsonb;rule jsonb:=zasp_authorization80.workflow_operation(operation_value);result jsonb;
+BEGIN
+ IF rule IS NULL OR rule->>'kind'<>'policy' THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';END IF;
+ PERFORM zasp_authorization80.integration_current_ready();
+ p:=zasp_authorization80.product_request(o,w,e,actor,operation_value,rule->>'permission',rule->>'target',CASE rule->>'target' WHEN 'environment' THEN e ELSE id_value END,rule->>'target'<>'environment',false,false,true);
+ IF NOT COALESCE(kind_value='policy' AND action_value=rule->>'action' AND id_value~'^policy-[a-z0-9][a-z0-9-]{0,120}$'
+  AND k~'^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$'
+  AND public.zasp_valid_product_id(audit_value) AND public.zasp_valid_product_id(correlation_value)
+  AND((p->>'credential_kind'='1' AND public.zasp_valid_product_id(receipt_value)) OR(p->>'credential_kind'='2' AND receipt_value=''))
+  AND jsonb_typeof(intent_value)='object' AND jsonb_typeof(body_value)='object' AND octet_length(intent_value::text)<=65536 AND octet_length(body_value::text)<=65536
+  AND intent_value->'expected_version'=to_jsonb(expected_version)
+  AND intent_value->>'resource_id'=CASE action_value WHEN 'create' THEN '' ELSE id_value END
+  AND((action_value='create' AND expected_version=0 AND body_value->>'id'=id_value) OR(action_value='update' AND expected_version>0 AND body_value->>'id'=id_value) OR(action_value='delete' AND expected_version>0 AND body_value='{}'::jsonb)),false)
+ THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='policy mutation request rejected';END IF;
+ result:=zasp_authorization80.integration_receipt_mutate(action_value,kind_value,id_value,o,w,e,actor,operation_value,k,expected_version,intent_value,body_value,audit_value,correlation_value,receipt_value);
+ PERFORM zasp_authorization80.product_settled(p);
+ RETURN result;
+END $policy_mutate$;
+
+-- GET /policies/{id}/decisions. The reader is the chain's.
+CREATE OR REPLACE FUNCTION zasp_authorization80.policy_decisions(o text,w text,e text,i text,n integer) RETURNS jsonb
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $policy_decisions$
+BEGIN
+ IF i IS NULL OR i!~'^policy-[a-z0-9][a-z0-9-]{0,120}$' OR n IS NULL OR n NOT BETWEEN 1 AND 100 THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='invalid policy decision list';END IF;
+ PERFORM zasp_authorization80.product_request(o,w,e,NULL,'listPolicyDecisions','view','policy',i,true,false,false,false);
+ RETURN public.zasp_policy_list_runtime_decisions(o,w,e,i,n);
+END $policy_decisions$;
+
+DO $policy_grants$
+DECLARE f text;
+BEGIN
+ FOREACH f IN ARRAY ARRAY['workflow_operation(text)','policy_value(text,text,text,text)','workflow_replay(text,text,text,text,text,text,jsonb)','policy_mutate(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)','policy_decisions(text,text,text,text,integer)'] LOOP
+  EXECUTE format('ALTER FUNCTION zasp_authorization80.%s OWNER TO zasp_discovery_authority',f);
+  EXECUTE format('REVOKE ALL ON FUNCTION zasp_authorization80.%s FROM PUBLIC',f);
+  IF f<>'workflow_operation(text)' THEN EXECUTE format('GRANT EXECUTE ON FUNCTION zasp_authorization80.%s TO zasp_discovery_api',f);END IF;
+ END LOOP;
+END $policy_grants$;
+
+-- ---------------------------------------------------------------------------
+-- Z4. Inventory detail: GET /agents/{id}, /tools/{id}, /identities/{id},
+-- /runtimes/{id} and /assets/{id}, the capabilities, relationships and
+-- sessions of an agent, and PATCH /agents/{id}.
+--
+-- The inventory lists were authorized (inventory_page); the object routes
+-- still used the chain's zasp_inventory_* functions. Each function below is
+-- the proof check and then the chain's own reader or writer, unchanged.
+CREATE OR REPLACE FUNCTION zasp_authorization80.inventory_detail(o text,w text,e text,i text,k text) RETURNS jsonb
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $inventory_detail$
+DECLARE op text:=CASE k WHEN 'agent' THEN 'getAgent' WHEN 'tool' THEN 'getTool' WHEN 'identity' THEN 'getIdentity' WHEN 'runtime' THEN 'getRuntime' WHEN 'asset' THEN 'getAsset' END;
+BEGIN
+ IF op IS NULL OR NOT COALESCE(public.zasp_valid_product_id(i),false) THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';END IF;
+ PERFORM zasp_authorization80.product_request(o,w,e,NULL,op,'view',k,i,true,false,false,false);
+ RETURN public.zasp_inventory_detail(o,w,e,i,k);
+END $inventory_detail$;
+
+CREATE OR REPLACE FUNCTION zasp_authorization80.inventory_agent_page(o text,w text,e text,i text,section text,after_value text,n integer) RETURNS jsonb
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $inventory_agent_page$
+DECLARE op text:=CASE section WHEN 'capabilities' THEN 'getAgentCapabilities' WHEN 'relationships' THEN 'getAgentRelationships' WHEN 'sessions' THEN 'listAgentSessions' END;
+BEGIN
+ IF op IS NULL OR NOT COALESCE(public.zasp_valid_product_id(i),false) THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';END IF;
+ PERFORM zasp_authorization80.product_request(o,w,e,NULL,op,'view','agent',i,true,false,false,false);
+ RETURN CASE section
+  WHEN 'capabilities' THEN public.zasp_inventory_agent_capabilities_page(o,w,e,i,after_value,n)
+  WHEN 'relationships' THEN public.zasp_inventory_agent_relationships_page(o,w,e,i,after_value,n)
+  ELSE public.zasp_inventory_agent_sessions_page(o,w,e,i,after_value,n) END;
+END $inventory_agent_page$;
+
+CREATE OR REPLACE FUNCTION zasp_authorization80.inventory_update_agent(o text,w text,e text,actor text,i text,k text,expected_version bigint,owner_value text,team_value text,tags_value jsonb,audit_value text,correlation_value text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $inventory_update_agent$
+DECLARE p jsonb;result jsonb;
+BEGIN
+ IF NOT COALESCE(public.zasp_valid_product_id(i),false) THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';END IF;
+ p:=zasp_authorization80.product_request(o,w,e,actor,'updateAgent','manage_workflows','agent',i,true,false,false,true);
+ result:=public.zasp_inventory_update_agent(o,w,e,actor,i,k,expected_version,owner_value,team_value,tags_value,audit_value,correlation_value);
+ PERFORM zasp_authorization80.product_settled(p);
+ RETURN result;
+END $inventory_update_agent$;
+
+DO $inventory_grants$
+DECLARE f text;
+BEGIN
+ FOREACH f IN ARRAY ARRAY['inventory_detail(text,text,text,text,text)','inventory_agent_page(text,text,text,text,text,text,integer)','inventory_update_agent(text,text,text,text,text,text,bigint,text,text,jsonb,text,text)'] LOOP
+  EXECUTE format('ALTER FUNCTION zasp_authorization80.%s OWNER TO zasp_discovery_authority',f);
+  EXECUTE format('REVOKE ALL ON FUNCTION zasp_authorization80.%s FROM PUBLIC',f);
+  EXECUTE format('GRANT EXECUTE ON FUNCTION zasp_authorization80.%s TO zasp_discovery_api',f);
+ END LOOP;
+END $inventory_grants$;
+
+-- ---------------------------------------------------------------------------
+-- Z5. DELETE /integrations/{id}, GET /integrations/{id}/delivery-status and
+-- POST /integrations/{id}/test-delivery.
+--
+-- Integration create and update were authorized (integration_mutate); the
+-- deletion still used zasp_workflow_replay and zasp_connector_workflow_mutate.
+-- The writer is the authorized family's own
+-- (zasp_authorization80.integration_connector_mutate): an integration with a
+-- verified connection or an active credential moves to 'revoking' and its
+-- revocation is requested; any other is deleted. The replay is section Z3's.
+--
+-- The API and the receipt page accept two results of a deletion: the
+-- integration in 'revoking', or exactly {"id","status":"deleted"} (what the
+-- chain records when a revocation completes). The chain's writer returns the
+-- integration's last body for an immediate deletion, which is neither, so
+-- the request answered 503 after it had committed and the receipt made every
+-- later receipt page of its principal fail. An immediate deletion therefore
+-- records and returns the deleted form: in the response, in the stored
+-- idempotent response and in the receipt.
+CREATE OR REPLACE FUNCTION zasp_authorization80.integration_delete(action_value text,kind_value text,id_value text,o text,w text,e text,actor text,operation_value text,k text,expected_version bigint,intent_value jsonb,body_value jsonb,audit_value text,correlation_value text,receipt_value text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $integration_delete$
+DECLARE p jsonb;result jsonb;deleted_body jsonb:=jsonb_build_object('id',id_value,'status','deleted');
+BEGIN
+ PERFORM zasp_authorization80.integration_current_ready();
+ IF operation_value IS DISTINCT FROM 'deleteIntegration' OR NOT COALESCE(public.zasp_valid_product_id(id_value),false) THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';END IF;
+ p:=zasp_authorization80.product_request(o,w,e,actor,'deleteIntegration','manage_workflows','integration',id_value,true,false,false,true);
+ IF NOT COALESCE(kind_value='integration' AND action_value='delete' AND expected_version>0
+  AND k~'^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$'
+  AND public.zasp_valid_product_id(audit_value) AND public.zasp_valid_product_id(correlation_value)
+  AND((p->>'credential_kind'='1' AND public.zasp_valid_product_id(receipt_value)) OR(p->>'credential_kind'='2' AND receipt_value=''))
+  AND jsonb_typeof(intent_value)='object' AND octet_length(intent_value::text)<=65536
+  AND intent_value->'expected_version'=to_jsonb(expected_version) AND intent_value->>'resource_id'=id_value
+  AND body_value='{}'::jsonb,false)
+ THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='integration mutation request rejected';END IF;
+ result:=zasp_authorization80.integration_connector_mutate('delete','integration',id_value,o,w,e,actor,'deleteIntegration',k,expected_version,intent_value,body_value,audit_value,correlation_value,receipt_value);
+ IF result#>>'{body,status}' IS DISTINCT FROM 'revoking' AND result->'body' IS DISTINCT FROM deleted_body THEN
+  IF NOT EXISTS(SELECT 1 FROM public.zasp_integrations x WHERE(x.organization_id,x.workspace_id,x.environment_id,x.id)=(o,w,e,id_value) AND x.state='deleted')
+  THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='integration mutation accounting changed';END IF;
+  result:=jsonb_set(result,'{body}',deleted_body);
+  UPDATE public.zasp_workflow_idempotency x SET response=jsonb_set(x.response,'{body}',deleted_body)
+  WHERE(x.organization_id,x.workspace_id,x.environment_id,x.principal_id,x.operation,x.idempotency_key)=(o,w,e,actor,'deleteIntegration',k);
+  IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='integration mutation accounting changed';END IF;
+  UPDATE public.zasp_workflow_receipts r SET result=deleted_body
+  WHERE(r.organization_id,r.workspace_id,r.environment_id,r.principal_id,r.operation,r.idempotency_key)=(o,w,e,actor,'deleteIntegration',k);
+ END IF;
+ PERFORM zasp_authorization80.product_settled(p);
+ RETURN result;
+END $integration_delete$;
+
+CREATE OR REPLACE FUNCTION zasp_authorization80.integration_webhook_status(o text,w text,e text,i text) RETURNS jsonb
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $integration_webhook_status$
+BEGIN
+ IF NOT COALESCE(public.zasp_valid_product_id(i),false) THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';END IF;
+ PERFORM zasp_authorization80.product_request(o,w,e,NULL,'getIntegrationWebhookStatus','view','integration',i,true,false,false,false);
+ RETURN public.zasp_integration_webhook_test_status(o,w,e,i);
+END $integration_webhook_status$;
+
+-- POST /integrations/{id}/test-delivery: the reservation and the completion
+-- of one test delivery. Both are the chain's functions behind the proof
+-- check; the completion must name a delivery of the integration in the path
+-- that the same principal reserved.
+CREATE OR REPLACE FUNCTION zasp_authorization80.integration_webhook_test_reserve(o text,w text,e text,actor text,i text,expected_version bigint,k text,audit_value text,correlation_value text,delivery_value text,token_value text,lease_seconds integer) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $integration_webhook_test_reserve$
+DECLARE p jsonb;result jsonb;
+BEGIN
+ IF NOT COALESCE(public.zasp_valid_product_id(i),false) THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';END IF;
+ p:=zasp_authorization80.product_request(o,w,e,actor,'testIntegrationWebhook','manage_workflows','integration',i,true,false,false,true);
+ result:=public.zasp_integration_webhook_test_reserve(o,w,e,actor,i,expected_version,k,audit_value,correlation_value,delivery_value,token_value,lease_seconds);
+ PERFORM zasp_authorization80.product_settled(p);
+ RETURN result;
+END $integration_webhook_test_reserve$;
+
+CREATE OR REPLACE FUNCTION zasp_authorization80.integration_webhook_test_complete(o text,w text,e text,delivery_value text,token_value text,digest_value text,succeeded_value boolean) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $integration_webhook_test_complete$
+DECLARE p jsonb:=zasp_authorization80.context();i text;result jsonb;
+BEGIN
+ i:=p#>>'{path_parameters,id}';
+ IF i IS NULL OR NOT COALESCE(public.zasp_valid_product_id(i) AND public.zasp_valid_product_id(delivery_value),false) THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';END IF;
+ p:=zasp_authorization80.product_request(o,w,e,p->>'principal_id','testIntegrationWebhook','manage_workflows','integration',i,true,false,false,true);
+ IF NOT EXISTS(SELECT 1 FROM public.zasp_integration_webhook_tests t WHERE(t.organization_id,t.workspace_id,t.environment_id,t.integration_id,t.principal_id,t.delivery_id)=(o,w,e,i,p->>'principal_id',delivery_value))
+ THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';END IF;
+ result:=public.zasp_integration_webhook_test_complete(o,w,e,delivery_value,token_value,digest_value,succeeded_value);
+ PERFORM zasp_authorization80.product_settled(p);
+ RETURN result;
+END $integration_webhook_test_complete$;
+
+DO $integration_grants$
+DECLARE f text;
+BEGIN
+ FOREACH f IN ARRAY ARRAY['integration_delete(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)','integration_webhook_status(text,text,text,text)','integration_webhook_test_reserve(text,text,text,text,text,bigint,text,text,text,text,text,integer)','integration_webhook_test_complete(text,text,text,text,text,text,boolean)'] LOOP
+  EXECUTE format('ALTER FUNCTION zasp_authorization80.%s OWNER TO zasp_discovery_authority',f);
+  EXECUTE format('REVOKE ALL ON FUNCTION zasp_authorization80.%s FROM PUBLIC',f);
+  EXECUTE format('GRANT EXECUTE ON FUNCTION zasp_authorization80.%s TO zasp_discovery_api',f);
+ END LOOP;
+END $integration_grants$;
+
+-- ---------------------------------------------------------------------------
+-- Z6. The Workspace and the Environment of a path: GET and PATCH
+-- /workspaces/{id} and /environments/{id}.
+--
+-- The lists and the creations were authorized (hierarchy_page,
+-- create_workspace, create_environment); the two reads and the two renames
+-- were still statements over the tables. As before, a session reads and
+-- renames only the Workspace and the Environment it is signed in to, and a
+-- rename additionally needs the principal's own direct scope row (the rule
+-- require_hierarchy_create applies to creations). The renames are owned by
+-- zasp_operator, like the creations: the hierarchy and audit write guards
+-- admit only the tables' owner.
+CREATE OR REPLACE FUNCTION zasp_authorization80.hierarchy_value(o text,w text,e text,kind_value text,i text) RETURNS jsonb
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $hierarchy_value$
+DECLARE p jsonb;op text:=CASE kind_value WHEN 'workspace' THEN 'getWorkspace' WHEN 'environment' THEN 'getEnvironment' END;result jsonb;
+BEGIN
+ IF op IS NULL OR NOT COALESCE(public.zasp_valid_product_id(i),false) THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';END IF;
+ p:=zasp_authorization80.product_request(o,w,e,NULL,op,'view',kind_value,i,true,true,false,false);
+ IF i IS DISTINCT FROM (CASE kind_value WHEN 'workspace' THEN w ELSE e END)
+  OR NOT EXISTS(SELECT 1 FROM public.zasp_identity_admin_effective_scopes(p->>'principal_id',o) s WHERE(s.workspace_id,s.environment_id)=(w,e))
+ THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='hierarchy object missing';END IF;
+ IF kind_value='workspace' THEN
+  SELECT jsonb_build_object('id',x.id,'organization_id',x.organization_id,'name',x.name,'version',x.version) INTO result FROM public.zasp_workspaces x WHERE(x.organization_id,x.id)=(o,i);
+ ELSE
+  SELECT jsonb_build_object('id',x.id,'organization_id',x.organization_id,'workspace_id',x.workspace_id,'name',x.name,'environment_class',x.environment_class,'version',x.version) INTO result FROM public.zasp_environments x WHERE(x.organization_id,x.workspace_id,x.id)=(o,w,i);
+ END IF;
+ IF result IS NULL THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='hierarchy object missing';END IF;
+ RETURN result;
+END $hierarchy_value$;
+
+CREATE OR REPLACE FUNCTION zasp_authorization80.hierarchy_rename(o text,w text,e text,actor text,kind_value text,i text,name_value text,version_value bigint,audit_value text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $hierarchy_rename$
+DECLARE p jsonb;op text:=CASE kind_value WHEN 'workspace' THEN 'updateWorkspace' WHEN 'environment' THEN 'updateEnvironment' END;result jsonb;
+BEGIN
+ IF op IS NULL OR NOT COALESCE(public.zasp_valid_product_id(i),false) THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';END IF;
+ p:=zasp_authorization80.product_request(o,w,e,actor,op,'manage_identity',kind_value,i,true,true,true,true);
+ IF NOT COALESCE(public.zasp_valid_product_id(audit_value) AND version_value>0 AND length(name_value) BETWEEN 1 AND 256,false)
+ THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='invalid hierarchy rename';END IF;
+ IF i IS DISTINCT FROM (CASE kind_value WHEN 'workspace' THEN w ELSE e END) OR NOT EXISTS(SELECT 1 FROM public.zasp_authorized_scopes s
+  JOIN public.zasp_identity_memberships m ON(m.organization_id,m.principal_id)=(s.organization_id,s.principal_id) AND m.active
+  WHERE(s.organization_id,s.workspace_id,s.environment_id,s.principal_id)=(o,w,e,actor))
+ THEN RETURN jsonb_build_object('_mutation_state','not_found');END IF;
+ IF kind_value='workspace' THEN
+  WITH updated AS (
+   UPDATE public.zasp_workspaces x SET name=name_value,version=x.version+1 WHERE(x.organization_id,x.id)=(o,i) AND x.version=version_value RETURNING x.*
+  ),audited AS (
+   INSERT INTO public.zasp_admin_audit(organization_id,workspace_id,environment_id,id,actor_id,action,target_id,outcome,metadata)
+   SELECT o,w,e,audit_value,actor,'workspace.update',i,'succeeded','{}'::jsonb FROM updated
+  ) SELECT jsonb_build_object('id',id,'organization_id',organization_id,'name',name,'version',version,'audit_correlation_id',audit_value) INTO result FROM updated;
+  IF result IS NULL THEN result:=jsonb_build_object('_mutation_state',CASE WHEN EXISTS(SELECT 1 FROM public.zasp_workspaces x WHERE(x.organization_id,x.id)=(o,i)) THEN 'conflict' ELSE 'not_found' END);END IF;
+ ELSE
+  WITH updated AS (
+   UPDATE public.zasp_environments x SET name=name_value,version=x.version+1 WHERE(x.organization_id,x.workspace_id,x.id)=(o,w,i) AND x.version=version_value RETURNING x.*
+  ),audited AS (
+   INSERT INTO public.zasp_admin_audit(organization_id,workspace_id,environment_id,id,actor_id,action,target_id,outcome,metadata)
+   SELECT o,w,e,audit_value,actor,'environment.update',i,'succeeded','{}'::jsonb FROM updated
+  ) SELECT jsonb_build_object('id',id,'organization_id',organization_id,'workspace_id',workspace_id,'name',name,'environment_class',environment_class,'version',version,'audit_correlation_id',audit_value) INTO result FROM updated;
+  IF result IS NULL THEN result:=jsonb_build_object('_mutation_state',CASE WHEN EXISTS(SELECT 1 FROM public.zasp_environments x WHERE(x.organization_id,x.workspace_id,x.id)=(o,w,i)) THEN 'conflict' ELSE 'not_found' END);END IF;
+ END IF;
+ PERFORM zasp_authorization80.product_settled(p);
+ RETURN result;
+END $hierarchy_rename$;
+ALTER FUNCTION zasp_authorization80.hierarchy_value(text,text,text,text,text) OWNER TO zasp_discovery_authority;
+ALTER FUNCTION zasp_authorization80.hierarchy_rename(text,text,text,text,text,text,text,bigint,text) OWNER TO zasp_operator;
+REVOKE ALL ON FUNCTION zasp_authorization80.hierarchy_value(text,text,text,text,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION zasp_authorization80.hierarchy_rename(text,text,text,text,text,text,text,bigint,text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION zasp_authorization80.hierarchy_value(text,text,text,text,text) TO zasp_discovery_api;
+GRANT EXECUTE ON FUNCTION zasp_authorization80.hierarchy_rename(text,text,text,text,text,text,text,bigint,text) TO zasp_discovery_api;
+
+-- ---------------------------------------------------------------------------
+-- Z7. PATCH /findings/{id} and POST /findings/{id}/accept-risk.
+--
+-- The finding reads were authorized (risk_page and the finding detail); the
+-- status change still called the chain's writer directly. The writer is the
+-- chain's current one (zasp_temporal77.risk_mutate), unchanged: readiness,
+-- visibility, optimistic version, idempotent replay, audit row and receipt.
+CREATE OR REPLACE FUNCTION zasp_authorization80.finding_mutate(operation_value text,i text,o text,w text,e text,actor text,k text,expected_version bigint,status_value text,reason_value text,audit_value text,correlation_value text,receipt_value text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $finding_mutate$
+DECLARE p jsonb;result jsonb;
+BEGIN
+ IF operation_value IS NULL OR operation_value NOT IN('updateFinding','acceptFindingRisk') OR NOT COALESCE(public.zasp_valid_product_id(i),false)
+ THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';END IF;
+ p:=zasp_authorization80.product_request(o,w,e,actor,operation_value,'manage_findings','finding',i,true,false,false,true);
+ IF NOT COALESCE(public.zasp_valid_product_id(audit_value) AND public.zasp_valid_product_id(correlation_value)
+  AND((p->>'credential_kind'='1' AND public.zasp_valid_product_id(receipt_value)) OR(p->>'credential_kind'='2' AND receipt_value IS NULL)),false)
+ THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='invalid risk mutation';END IF;
+ result:=zasp_temporal77.risk_mutate(operation_value,i,o,w,e,actor,k,expected_version,status_value,reason_value,audit_value,correlation_value,receipt_value);
+ PERFORM zasp_authorization80.product_settled(p);
+ RETURN result;
+END $finding_mutate$;
+ALTER FUNCTION zasp_authorization80.finding_mutate(text,text,text,text,text,text,text,bigint,text,text,text,text,text) OWNER TO zasp_discovery_authority;
+REVOKE ALL ON FUNCTION zasp_authorization80.finding_mutate(text,text,text,text,text,text,text,bigint,text,text,text,text,text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION zasp_authorization80.finding_mutate(text,text,text,text,text,text,text,bigint,text,text,text,text,text) TO zasp_discovery_api;
+
+-- ---------------------------------------------------------------------------
+-- Z8. The receipt page and the compliance reads check resolver readiness
+-- once per statement.
+--
+-- Section L found that parent_allowed costs one resolver readiness check
+-- (reader() and ready(), about 170 ms) per row, and moved the audit page to
+-- one check before its first event and one after its last. The same per-row
+-- cost remained in two places:
+--   * receipt_page: one check per unacknowledged receipt of the principal;
+--   * compliance_read: one check per compliance source of the Environment,
+--     on every call. GET /compliance/controls reads the controls and then
+--     the evidence of each control, so a page of ten controls ran the check
+--     several hundred times and never answered inside the server's deadline.
+-- Both keep every rule and use parent_allowed_inner between a readiness check
+-- before the first row and one after the last (section L's brackets).
+-- receipt_page performs no check when the principal has no receipt to show.
+CREATE OR REPLACE FUNCTION zasp_authorization80.receipt_page(o text,w text,e text,p text,n integer) RETURNS jsonb
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $receipt_page$
+DECLARE page_value jsonb;
+BEGIN
+ PERFORM zasp_authorization80.require_read(o,w,e,ARRAY['listWorkflowMutationReceipts'],'view',true,p);
+ IF n NOT BETWEEN 1 AND 50 THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='invalid workflow receipt list';END IF;
+ IF NOT EXISTS(SELECT 1 FROM public.zasp_workflow_receipts r WHERE(r.organization_id,r.workspace_id,r.environment_id,r.principal_id)=(o,w,e,p) AND r.acknowledged_at IS NULL AND r.expires_at>transaction_timestamp())
+ THEN RETURN jsonb_build_object('items','[]'::jsonb);END IF;
+ IF NOT zasp_authorization79.reader() OR NOT zasp_authorization80.ready('d7fbda32a2b3b9ea0ffbd4f7c7a7967a9d4fba2f6573f49e8386e9586a18a1fd') THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='authorization resolver rejected';END IF;
+ -- Expired receipt cleanup is not a side effect of a user-authorized read.
+ SELECT jsonb_build_object('items',COALESCE(jsonb_agg(item ORDER BY created_at DESC,receipt_id),'[]'::jsonb)) INTO page_value FROM(
+ SELECT receipt_id,created_at,jsonb_build_object('id',receipt_id,'operation',operation,'idempotency_key',idempotency_key,'intent',intent,'result',result,'resource_kind',resource_kind,'resource_id',resource_id,'resource_version',resource_version,'audit_id',audit_id,'correlation_id',correlation_id,'created_at',created_at,'expires_at',expires_at) item
+ FROM public.zasp_workflow_receipts r WHERE(r.organization_id,r.workspace_id,r.environment_id,r.principal_id)=(o,w,e,p) AND acknowledged_at IS NULL AND expires_at>transaction_timestamp() AND zasp_authorization80.parent_allowed_inner(o,w,e,'workflow_receipt',receipt_id) ORDER BY created_at DESC,receipt_id LIMIT n) visible;
+ IF NOT zasp_authorization79.reader() OR NOT zasp_authorization80.ready('d7fbda32a2b3b9ea0ffbd4f7c7a7967a9d4fba2f6573f49e8386e9586a18a1fd') THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='authorization resolver rejected';END IF;
+ RETURN page_value;
+END $receipt_page$;
+
+DO $compliance_read_once$
+DECLARE d text;
+ guard text:=$g$ IF NOT zasp_authorization79.reader() OR NOT zasp_authorization80.ready('d7fbda32a2b3b9ea0ffbd4f7c7a7967a9d4fba2f6573f49e8386e9586a18a1fd') THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='authorization resolver rejected';END IF;$g$;
+ scan text:=$s$ -- Materialize every eligible row once in this statement.$s$;
+ after_scan text:=$r$ IF NOT (result_value->>'valid')::boolean THEN$r$;
+ visible text:=$v$zasp_authorization80.parent_allowed(org_value,workspace_value,environment_value,'compliance_evidence',s.source_id,s.source_kind)$v$;
+BEGIN
+ SELECT pg_get_functiondef('zasp_authorization80.compliance_read(text,text,text,text,bytea,text,jsonb,text,text)'::regprocedure) INTO STRICT d;
+ IF position('zasp_authorization80.parent_allowed_inner(' IN d)>0 THEN RETURN;END IF;
+ IF (length(d)-length(replace(d,visible,'')))/length(visible)<>1 OR (length(d)-length(replace(d,scan,'')))/length(scan)<>1 OR (length(d)-length(replace(d,after_scan,'')))/length(after_scan)<>1
+ THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='authorization compliance read predecessor changed';END IF;
+ EXECUTE replace(replace(replace(d,visible,replace(visible,'parent_allowed(','parent_allowed_inner(')),scan,guard||E'\n'||scan),after_scan,guard||E'\n'||after_scan);
+END $compliance_read_once$;

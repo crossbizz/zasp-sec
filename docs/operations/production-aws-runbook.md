@@ -96,14 +96,18 @@ As Neon's administrative role, on a direct connection, with SQL (roles created t
 
 ```sql
 CREATE ROLE zasp_operator LOGIN CREATEROLE BYPASSRLS PASSWORD '<generated>';
+GRANT zasp_operator TO CURRENT_USER WITH SET TRUE, INHERIT FALSE;
 CREATE DATABASE zasp OWNER zasp_operator TEMPLATE template0 LC_COLLATE 'C' LC_CTYPE 'C';
+REVOKE zasp_operator FROM CURRENT_USER;
 ```
+
+Neon's administrative role is not a superuser. Without the `GRANT`, `CREATE DATABASE` fails with `must be able to SET ROLE "zasp_operator"`; the `REVOKE` removes that grant again.
 
 The operator DSN is `postgres://zasp_operator:<password>@<direct host>/zasp?sslmode=require`.
 
 Verify: `psql "$OPERATOR_DSN" -Atc "select current_user, datcollate from pg_database where datname = current_database()"` prints `zasp_operator|C`.
 
-The baseline guide records that the production Neon project already had the schema installed on 2026-11-12. If so, skip the two statements. The chart's schema job then verifies that installation; it accepts it only if it came from the same baseline artifact as the release you deploy (`"current":true` in step 8). A database installed from an older artifact cannot be upgraded in place: use a new empty database.
+The baseline guide records that the production Neon project already had the schema installed on 2026-11-12. If so, skip the statements. The chart's schema job then verifies that installation; it accepts it only if it came from the same baseline artifact as the release you deploy (`"current":true` in step 8). A database installed from an older artifact cannot be upgraded in place: drop it and create it again as [Reinstalling over an earlier artifact](baseline-schema-install.md#reinstalling-over-an-earlier-artifact) describes. That procedure was run on a Neon development branch on 2026-11-14, not on the production project.
 
 ### 2. Create the AWS resources
 
@@ -503,8 +507,8 @@ An observation counts for seven days after it was last seen. Detection takes eff
 | --- | --- |
 | A Helm upgrade made things worse | `helm -n agentsec rollback zasp <revision>`. The schema job is an install and upgrade hook and does not run on rollback; the database is not touched. |
 | The schema job refused | Nothing was changed: `install-baseline` is one transaction. Fix the cause and repeat. |
-| The schema must be removed | Drop and recreate the empty database, or restore a Neon branch from before the install. There is no down-migration, and a sealed catalog cannot be altered and re-sealed. |
-| A release with a different baseline artifact | Not supported in place. It needs a reviewed schema change ending in `zasp_baseline.accept`. |
+| The schema must be removed | Drop and recreate the empty database ([the steps](baseline-schema-install.md#reinstalling-over-an-earlier-artifact)), or restore a Neon branch from before the install. There is no down-migration, and a sealed catalog cannot be altered and re-sealed. |
+| A release with a different baseline artifact | Not supported in place. Either replace the database as in the row above, which discards its data, or make a reviewed schema change ending in `zasp_baseline.accept`. |
 | Terraform change went wrong | `terraform plan` against the previous variables and apply. Secrets Manager entries are deleted with a 30-day recovery window, KMS keys with a 30-day window; recreating an entry of the same name inside the window fails until it is restored or force-deleted. S3 buckets with objects, the RDS instance (deletion protection) and the OpenSearch domain do not delete cleanly. |
 | A leaked or wrong service password | Repeat step 9 for that login and restart its workload. |
 
@@ -558,6 +562,13 @@ Product, as measured on 2026-11-12 and 2026-11-13 against a Neon development bra
 - No discovery run, connector connection, projection, runtime event, policy enforcement, Red Team run or approval notification has been driven end to end.
 - Product-started sign-in is bound to one Stytch Organization (`stytch-organization-id`).
 - The PRD §21 release gates (tenant-isolation test on the deployed system, disaster-recovery rehearsal, single-tenant install, performance targets, SBOM and signing) are open.
+
+On 2026-11-14 the same development branch was reinstalled from this release's artifact ([the steps](baseline-schema-install.md#reinstalling-over-an-earlier-artifact)) and the product was run against it from the [local stack](../../deploy/local/real-stack/README.md), over the WebSocket transport, with LocalStack standing in for AWS. This supersedes the second and fourth items above for that setup; it is still not a cluster and not real AWS.
+
+- The API reported ready 14 seconds after start; the scheduler, outbox and discovery workers after 4, 26 and 43 seconds, the last two including the creation of their LocalStack resources.
+- With an API token, the home summary, integrations, identities, findings, policies, Security Agents, agents, tools, runtimes, Security Agent runs, tests and search routes answered `200`. The home summary took 3.3 seconds; the others 0.9 to 1.9 seconds.
+- An AWS integration was created, connected and synchronized once: the run took 2 minutes 51 seconds and stored 13 entities. The risk projection worker then produced the two expected findings. For a few seconds after the snapshot was applied, three routes answered `503 authorization_unavailable` until the permission projector had run.
+- The session used to connect the integration and to create the API token was issued in the database as a test fixture. No person signed in.
 
 ## Static checks that were run
 

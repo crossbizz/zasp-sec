@@ -2264,6 +2264,11 @@ paths:
           required: false
           description: Request optional persisted action details with exactly one v1 value. Omitted, duplicate or unsupported values preserve the legacy shape. Older servers may omit action_details. Independent of budget and run-context negotiation.
           schema: { type: string }
+        - name: X-Zasp-Run-Lifecycle
+          in: header
+          required: false
+          description: Request the optional stop_reason and closure with exactly one v1 value. Omitted, duplicate or unsupported values preserve the legacy shape. Older servers may omit both. Independent of the other negotiations.
+          schema: { type: string }
       security:
         - BrowserSession: []
           BrowserExpectedScope: []
@@ -2413,6 +2418,39 @@ paths:
             X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }
             X-Mutation-Receipt-ID: { $ref: '#/components/headers/WorkflowMutationReceiptID' }
           content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentCancellation' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/security-agent-runs/{id}/close:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    post:
+      operationId: closeSecurityAgentRun
+      summary: Close one Security Agent run that needs a human
+      description: Records that a human reviewed a run in the needs_human state and closed it. Requires manage_workflows on the run. The run keeps its state, version and recorded stop reason; the closure is an immutable record and an audit event. A closed run no longer holds its agent's capacity for a planner request whose usage is still unknown, and that usage stays recorded as unknown, never as zero. A run with an unknown planner outcome can be closed only with the reason usage_unknown_accepted; a run without one only with one of the other reasons. A run with an unfinished effect, cleanup or temporary control cannot be closed. An exact replay returns the first answer; any other request for a closed run conflicts.
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+        - ProductAPIToken: []
+      parameters:
+        - $ref: '#/components/parameters/BrowserMutationCSRFToken'
+        - $ref: '#/components/parameters/BrowserMutationOrigin'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ResourceVersion'
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentRunCloseRequest' } } }
+      responses:
+        '200':
+          description: The closure of the run. The ETag is the unchanged run version.
+          headers:
+            ETag: { $ref: '#/components/headers/WorkflowETag' }
+            X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }
+            X-Mutation-Receipt-ID: { $ref: '#/components/headers/WorkflowMutationReceiptID' }
+          content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentRunClosed' } } }
         '400': { $ref: '#/components/responses/ProductErrorResponse' }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         '403': { $ref: '#/components/responses/ProductErrorResponse' }
@@ -4039,6 +4077,38 @@ components:
         trigger_id: { $ref: '#/components/schemas/ProductID' }
         trigger_version: { type: integer, minimum: 1, maximum: 1000000 }
         trigger_source: { type: string, minLength: 1, maxLength: 128, pattern: '^(?!\p{White_Space})(?!.*\p{White_Space}$)[^\x00-\x1F\x7F-\x9F]+$', description: At most 128 UTF-8 bytes; no control characters or leading/trailing Unicode whitespace. }
+    SecurityAgentRunCloseReason:
+      type: string
+      enum: [no_action_required, resolved_outside_product, usage_unknown_accepted]
+      description: usage_unknown_accepted is required, and only accepted, for a run whose planner request has an unknown outcome; it acknowledges that the usage stays unknown.
+    SecurityAgentRunCloseRequest:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties:
+        reason: { $ref: '#/components/schemas/SecurityAgentRunCloseReason' }
+        note: { type: string, minLength: 1, maxLength: 500, description: Optional single-line justification kept with the closure and its audit event. }
+    SecurityAgentRunClosure:
+      description: Record of a human closing a run that needed a human. The run keeps its state.
+      type: object
+      additionalProperties: false
+      required: [closed_at, closed_by, reason]
+      properties:
+        closed_at: { type: string, format: date-time }
+        closed_by: { $ref: '#/components/schemas/ProductID' }
+        reason: { $ref: '#/components/schemas/SecurityAgentRunCloseReason' }
+        note: { type: string, minLength: 1, maxLength: 500 }
+    SecurityAgentRunClosed:
+      type: object
+      additionalProperties: false
+      required: [id, agent_id, state, definition_version, version, closure]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        agent_id: { $ref: '#/components/schemas/ProductID' }
+        state: { type: string, const: needs_human }
+        definition_version: { type: integer, minimum: 1 }
+        version: { type: integer, minimum: 1 }
+        closure: { $ref: '#/components/schemas/SecurityAgentRunClosure' }
     SecurityAgentCancellation:
       description: Cancellation response only. Ordered cancellation can conservatively require human intervention and cleanup without asserting an effect outcome.
       type: object
@@ -4565,6 +4635,11 @@ components:
           type: string
           enum: [budget_deadline_exceeded, budget_steps_exceeded, budget_tokens_exceeded, budget_cost_exceeded, budget_usage_unknown]
           description: Durable reason preventing further budgeted execution. Omitted when no budget stop is recorded or on older servers. Existing effects may still need cleanup; changing a definition does not reset this run's limits. No provider error text is included.
+        stop_reason:
+          type: string
+          pattern: '^[a-z][a-z0-9_]{0,63}$'
+          description: Recorded code of why the run stopped, for example planner_not_sent (no planner request left the product), planner_provider_rejected (the provider refused the request before any generation; nothing was charged), planner_rejected or budget_usage_unknown. A code, never provider text. Omitted when none is recorded, when not requested, or on older servers.
+        closure: { $ref: '#/components/schemas/SecurityAgentRunClosure' }
         ordered: { $ref: '#/components/schemas/SecurityAgentOrderedDetail' }
         run: { $ref: '#/components/schemas/SecurityAgentRun' }
         evidence_ids: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/ProductID' } }
@@ -5234,6 +5309,7 @@ components:
         - revoke_sessions
         - view_compliance
         - manage_data_controls
+        - run_tests
     BuiltInRole:
       type: object
       additionalProperties: false
@@ -5577,7 +5653,7 @@ components:
         permissions:
           type: array
           minItems: 1
-          maxItems: 10
+          maxItems: 11
           uniqueItems: true
           items:
             $ref: '#/components/schemas/Permission'
@@ -5604,7 +5680,7 @@ components:
         permissions:
           type: array
           minItems: 1
-          maxItems: 10
+          maxItems: 11
           uniqueItems: true
           items:
             $ref: '#/components/schemas/Permission'

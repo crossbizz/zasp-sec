@@ -189,7 +189,7 @@ const expectedMap: MapDocument = {
         { id: "create_policy", operation_id: "createPolicy", availability: "available" },
         { id: "view_policy", operation_id: "getPolicy", availability: "available" },
         { id: "update_policy", operation_id: "updatePolicy", availability: "available" },
-        { id: "delete_policy", operation_id: "deletePolicy", availability: "api_available" },
+        { id: "delete_policy", operation_id: "deletePolicy", availability: "available" },
         { id: "simulate_policy", operation_id: "simulatePolicy", availability: "available" },
         { id: "rollout_policy", operation_id: "rolloutPolicy", availability: "available" },
         { id: "disable_policy", operation_id: "disablePolicy", availability: "available" },
@@ -241,6 +241,8 @@ const expectedMap: MapDocument = {
         { id: "list_security_agent_activity_runs", operation_id: "listSecurityAgentActivityRuns", availability: "api_available" },
         { id: "list_security_agent_run_activity", operation_id: "listSecurityAgentRunActivity", availability: "api_available" },
         { id: "cancel_security_agent_run", operation_id: "cancelSecurityAgentRun", availability: "available" },
+        { id: "close_security_agent_run", operation_id: "closeSecurityAgentRun", availability: "available" },
+        { id: "set_security_agent_planner_pricing", operation_id: "setSecurityAgentPlannerPricing", availability: "api_available" },
         { id: "view_single_test_cleanup_recovery", operation_id: "getSingleTestCleanupRecovery", availability: "api_available" },
         { id: "request_single_test_cleanup_recovery", operation_id: "requestSingleTestCleanupRecovery", availability: "api_available" },
         { id: "view_security_agent_approvals", operation_id: "listSecurityAgentApprovals", availability: "available" },
@@ -405,7 +407,7 @@ describe("M1-25 UI API map seed", () => {
     expect(blocked.map(([task]) => task)).toEqual(["M1A-10", "M1A-09", "M1A-08", "M1A-07", "M3-52", "M3-14", "M8-54", "M8-63", "M8-63e", "M8-63d", "M8-63c", "M8-63b", "M8-63a", "M8-62", "M8-62e", "M8-62d", "M8-62c", "M8-62b", "M8-62a", "M8-61", "M8-61a", "M8-60", "M8-60b", "M8-59", "M8-59b", "M8-58", "M8-58b", "M8-53", "M8-52", "M8-52d", "M8-52c", "M8-52b", "M8-52a", "M8-51", "M8-51e", "M8-51d", "M8-51c", "M8-51b", "M8-51a", "M8-46", "M8-45", "M8-39", "M8-38", "M8-38b", "M8-37", "M8-36", "M8-36b", "M8-35", "M8-34", "M8-33", "M8-32", "M8-31", "M8-30", "M8-29", "M8-28", "M8-27", "M8-26", "M8-25", "M0-09", "M0-18", "M0-19"]);
   });
 
-  it("accepts only the exact seventeen-screen, 164-action mixed-lifecycle map", async () => {
+  it("accepts only the exact seventeen-screen, 166-action mixed-lifecycle map", async () => {
     const source = await readFile(resolve(repositoryRoot, "docs/product/ui-api-map.yaml"), "utf8").catch(() => "");
 
     expect(parseStrictMap(source)).toEqual(expectedMap);
@@ -585,6 +587,8 @@ describe("M1-25 UI API map seed", () => {
       "listSecurityAgentActivityRuns",
       "listSecurityAgentRunActivity",
       "cancelSecurityAgentRun",
+      "closeSecurityAgentRun",
+      "setSecurityAgentPlannerPricing",
       "getSingleTestCleanupRecovery",
       "requestSingleTestCleanupRecovery",
       "listSecurityAgentApprovals",

@@ -54,7 +54,7 @@ func TestSecurityAgentCurrentObjectsUseAuthorizedStatements(t *testing.T) {
 		operation, statement, object, payload string
 		call                                  func(context.Context, *PostgresRepository) error
 	}{
-		{"getSecurityAgentRun", currentSecurityAgentRunDetailSQL, runContextTestRunID, `{"family":"finding","result":` + runDetail + `}`, func(ctx context.Context, r *PostgresRepository) error {
+		{"getSecurityAgentRun", currentSecurityAgentRunDetailSQL, runContextTestRunID, `{"family":"finding","result":` + runDetail + `,"lifecycle":{}}`, func(ctx context.Context, r *PostgresRepository) error {
 			detail, err := r.GetSecurityAgentRun(ctx, i, runContextTestRunID)
 			if err == nil && (detail.Run.ID != runContextTestRunID || detail.Ordered != nil || detail.BudgetStopReason != "budget_usage_unknown") {
 				t.Fatalf("run detail=%+v", detail)
@@ -139,20 +139,38 @@ func TestSecurityAgentCurrentObjectsRejectForeignResults(t *testing.T) {
 	repository := &PostgresRepository{database: database, securityAgentExecution: true}
 	runDetail := string(runContextEnvelopeFixture(t, nil))
 	for name, payload := range map[string]string{
-		"unknown family": `{"family":"other","result":` + runDetail + `}`,
-		"test family":    `{"family":"test","result":` + runDetail + `}`,
-		"no envelope":    runDetail,
-		"extra field":    `{"family":"finding","result":` + runDetail + `,"extra":1}`,
-		"null result":    `{"family":"finding","result":null}`,
+		"unknown family":     `{"family":"other","result":` + runDetail + `,"lifecycle":{}}`,
+		"test family":        `{"family":"test","result":` + runDetail + `,"lifecycle":{}}`,
+		"no envelope":        runDetail,
+		"no lifecycle":       `{"family":"finding","result":` + runDetail + `}`,
+		"null lifecycle":     `{"family":"finding","result":` + runDetail + `,"lifecycle":null}`,
+		"extra field":        `{"family":"finding","result":` + runDetail + `,"lifecycle":{},"extra":1}`,
+		"null result":        `{"family":"finding","result":null,"lifecycle":{}}`,
+		"provider text":      `{"family":"finding","result":` + runDetail + `,"lifecycle":{"stop_reason":"Insufficient credits."}}`,
+		"unknown lifecycle":  `{"family":"finding","result":` + runDetail + `,"lifecycle":{"other":1}}`,
+		"closure by no one":  `{"family":"finding","result":` + runDetail + `,"lifecycle":{"closure":{"closed_at":"2026-11-13T23:53:11.454205Z","closed_by":"x","reason":"no_action_required"}}}`,
+		"unknown reason":     `{"family":"finding","result":` + runDetail + `,"lifecycle":{"closure":{"closed_at":"2026-11-13T23:53:11.454205Z","closed_by":"` + other + `","reason":"because"}}}`,
+		"closure extra":      `{"family":"finding","result":` + runDetail + `,"lifecycle":{"closure":{"closed_at":"2026-11-13T23:53:11.454205Z","closed_by":"` + other + `","reason":"no_action_required","extra":1}}}`,
+		"closure local time": `{"family":"finding","result":` + runDetail + `,"lifecycle":{"closure":{"closed_at":"2026-11-13T23:53:11+01:00","closed_by":"` + other + `","reason":"no_action_required"}}}`,
 	} {
 		database.payload = payload
 		if _, err := repository.getSecurityAgentRunCurrent(context.Background(), i, runContextTestRunID); err != ErrRepositoryUnavailable {
 			t.Fatalf("run detail with %s: err=%v", name, err)
 		}
 	}
-	database.payload = `{"family":"legacy","result":` + runDetail + `}`
+	database.payload = `{"family":"legacy","result":` + runDetail + `,"lifecycle":{}}`
 	if _, err := repository.getSecurityAgentRunCurrent(context.Background(), i, other); err != ErrRepositoryUnavailable {
 		t.Fatalf("detail of another run: err=%v", err)
+	}
+	// The lifecycle is carried onto the detail: the recorded stop reason and
+	// the closure, neither invented when absent.
+	if detail, err := repository.getSecurityAgentRunCurrent(context.Background(), i, runContextTestRunID); err != nil || detail.StopReason != "" || detail.Closure != nil {
+		t.Fatalf("detail without a lifecycle: %+v err=%v", detail, err)
+	}
+	database.payload = `{"family":"finding","result":` + runDetail + `,"lifecycle":{"stop_reason":"planner_provider_rejected","closure":{"closed_at":"2026-11-13T23:53:11.454205Z","closed_by":"` + other + `","reason":"no_action_required","note":"Reviewed"}}}`
+	if detail, err := repository.getSecurityAgentRunCurrent(context.Background(), i, runContextTestRunID); err != nil || detail.StopReason != "planner_provider_rejected" || detail.Closure == nil ||
+		*detail.Closure != (SecurityAgentRunClosure{ClosedAt: "2026-11-13T23:53:11.454205Z", ClosedBy: other, Reason: "no_action_required", Note: "Reviewed"}) {
+		t.Fatalf("detail with a lifecycle: %+v err=%v", detail, err)
 	}
 	cancel := SecurityAgentCancelRequest{RunID: runContextTestRunID, IdempotencyKey: "idempotency-key-0001", ExpectedVersion: 3, AuditID: audit, CorrelationID: correlation, ReceiptID: receipt}
 	result := func(run, state string, version int, auditID string) string {
@@ -179,7 +197,7 @@ func TestSecurityAgentCurrentObjectsRejectForeignResults(t *testing.T) {
 	if _, err := repository.decideSecurityAgentApprovalCurrent(context.Background(), i, decision); err != ErrRepositoryOperation || len(database.statements) != 0 {
 		t.Fatalf("decision with a time that is not the session's: err=%v statements=%v", err, database.statements)
 	}
-	database.payload = `{"family":"ordered","result":{}}`
+	database.payload = `{"family":"ordered","result":{},"lifecycle":{}}`
 	i.FreshAuthExpiresAt = decision.FreshAuthAt.Add(securityAgentFreshAuthenticationTTL)
 	if _, err := repository.decideSecurityAgentApprovalCurrent(context.Background(), i, decision); err != ErrRepositoryUnavailable {
 		t.Fatalf("ordered decision envelope: err=%v", err)
@@ -189,7 +207,7 @@ func TestSecurityAgentCurrentObjectsRejectForeignResults(t *testing.T) {
 	id := orderedPublicIdentity()
 	ordered := &PostgresRepository{database: database, securityAgentExecution: true}
 	resource, _ := json.Marshal(orderedResourceFixture(id, public62Definition, true))
-	database.payload = `{"family":"ordered","result":` + string(resource) + `}`
+	database.payload = `{"family":"ordered","result":` + string(resource) + `,"lifecycle":{}}`
 	detail, err := ordered.getSecurityAgentRunCurrent(context.Background(), id, public62Definition)
 	if err != nil || detail.Ordered == nil || detail.Ordered.ContractVersion != 62 || len(detail.Ordered.Steps) != 2 || detail.Run.ID != public62Definition || len(detail.Approvals) != 1 {
 		t.Fatalf("ordered detail=%+v err=%v", detail, err)
@@ -206,6 +224,7 @@ func TestSecurityAgentCurrentObjectsRejectForeignResults(t *testing.T) {
 	if _, err := ordered.getSecurityAgentRunCurrent(context.Background(), token, public62Definition); err != ErrRepositoryOperation {
 		t.Fatalf("ordered detail for an API token: err=%v", err)
 	}
+	database.payload = `{"family":"ordered","result":` + string(resource) + `}`
 	approval, err := ordered.getSecurityAgentApprovalCurrent(context.Background(), id, detail.Approvals[0].ID)
 	if err != nil || !approval.ordered || approval.ID != detail.Approvals[0].ID {
 		t.Fatalf("ordered approval=%+v err=%v", approval, err)

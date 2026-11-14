@@ -151,6 +151,10 @@ func (repository *PostgresRepository) GetWorkflow(ctx context.Context, scope dom
 		statement = postgresCurrentReferenceValueSQL
 		arguments = []any{scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), id}
 	}
+	if _, checked := requestAuthorizationFromContext(ctx); checked && kind == "policy" {
+		statement = currentPolicyValueSQL
+		arguments = []any{scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), id}
+	}
 	if repository.securityAgentExecution {
 		if kind != "security_agent" {
 			return WorkflowValue{}, ErrRepositoryOperation
@@ -263,6 +267,14 @@ func (repository *PostgresRepository) MutateWorkflow(ctx context.Context, identi
 	if grant, checked := requestAuthorizationFromContext(ctx); checked && mutation.Kind == "integration" && (grant.OperationID == "createIntegration" || grant.OperationID == "updateIntegration") {
 		query = postgresCurrentIntegrationMutateSQL
 	}
+	if _, checked := requestAuthorizationFromContext(ctx); checked && !repository.securityAgentExecution {
+		// Policies and integration deletion: one authorized writer each.
+		if mutation.Kind == "policy" {
+			query = currentPolicyMutateSQL
+		} else if mutation.Kind == "integration" && mutation.Operation == "deleteIntegration" {
+			query = currentIntegrationDeleteSQL
+		}
+	}
 	if !handled {
 		var err error
 		payload, err = repository.database.QueryJSON(ctx, query, arguments...)
@@ -349,7 +361,7 @@ func (repository *PostgresRepository) AcknowledgeWorkflowMutationReceipt(ctx con
 	if _, err := domain.ParseProductID(receiptID); err != nil {
 		return ErrRepositoryNotFound
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresWorkflowReceiptAcknowledgeSQL,
+	payload, err := repository.database.QueryJSON(ctx, authorizationReadStatement(ctx, postgresWorkflowReceiptAcknowledgeSQL, currentReceiptAcknowledgeSQL),
 		identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), receiptID,
 	)
 	if err != nil {
@@ -546,6 +558,9 @@ func (repository *PostgresRepository) ReplayWorkflow(ctx context.Context, identi
 	arguments := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), operation, idempotencyKey, intent}
 	if _, checked := requestAuthorizationFromContext(ctx); checked && stringIn(operation, "createIntegration", "updateIntegration") {
 		statement = `SELECT zasp_authorization80.integration_replay($1,$2,$3,$4,$5,$6,$7::jsonb)`
+	}
+	if _, checked := requestAuthorizationFromContext(ctx); checked && productWorkflowOperations[operation].kind != "" {
+		statement = currentWorkflowReplaySQL
 	}
 	var payload json.RawMessage
 	var handled bool

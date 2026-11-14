@@ -33,7 +33,11 @@ func (r *SecurityAgentExportsRepository) Get(ctx context.Context, identity Reque
 	if r == nil || nilInterface(r.database) || ctx == nil || ctx.Err() != nil || !validRequestIdentity(identity, true) || identity.CredentialKind != CredentialBrowserSession || len(digest) != sha256.Size || bytes.Equal(digest, make([]byte, sha256.Size)) || !validProductID(run) || !validProductID(step) {
 		return result, ErrRepositoryOperation
 	}
-	raw, err := r.database.QueryJSON(ctx, `SELECT public.zasp_sa_export_get($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), run, step, identity.PrincipalID.String(), bytes.Clone(digest), identity.CSRFToken, migrations.ProductionSecurityAgentExports().Checksum(), migrations.SecurityAgentExportsFingerprint())
+	statement := `SELECT public.zasp_sa_export_get($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
+	if _, checked := requestAuthorizationFromContext(ctx); checked {
+		statement = currentSecurityAgentExportGetSQL
+	}
+	raw, err := r.database.QueryJSON(ctx, statement, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), run, step, identity.PrincipalID.String(), bytes.Clone(digest), identity.CSRFToken, migrations.ProductionSecurityAgentExports().Checksum(), migrations.SecurityAgentExportsFingerprint())
 	if ctx.Err() != nil {
 		return result, ctx.Err()
 	}

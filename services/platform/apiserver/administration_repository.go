@@ -93,6 +93,9 @@ func (repository *PostgresRepository) ReadAdministration(ctx context.Context, id
 		if isIdentityAdministrationSchema(repository.schema) {
 			statement = postgresGetWorkspaceV19SQL
 		}
+		if _, checked := requestAuthorizationFromContext(ctx); checked {
+			return repository.database.QueryJSON(ctx, currentHierarchyValueSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), "workspace", parameters["id"])
+		}
 		return repository.database.QueryJSON(ctx, statement, identity.Scope.OrganizationID().String(), parameters["id"], identity.PrincipalID.String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String())
 	case "listEnvironments":
 		statement := postgresListEnvironmentsSQL
@@ -102,6 +105,9 @@ func (repository *PostgresRepository) ReadAdministration(ctx context.Context, id
 		statement = authorizationReadStatement(ctx, statement, `SELECT zasp_authorization80.hierarchy_page('environment',$1,$2,$3,$4,$5)`)
 		return repository.database.QueryJSON(ctx, statement, identity.Scope.OrganizationID().String(), parameters["workspace_id"], identity.PrincipalID.String(), parameters["after_id"], adminLimit(parameters)+1)
 	case "getEnvironment":
+		if _, checked := requestAuthorizationFromContext(ctx); checked {
+			return repository.database.QueryJSON(ctx, currentHierarchyValueSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), "environment", parameters["id"])
+		}
 		return repository.database.QueryJSON(ctx, postgresGetEnvironmentSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), parameters["id"], identity.Scope.EnvironmentID().String())
 	case "listMembers":
 		if _, current := requestAuthorizationFromContext(ctx); current {
@@ -190,6 +196,9 @@ func (repository *PostgresRepository) MutateAdministration(ctx context.Context, 
 		}
 		return repository.database.QueryJSON(ctx, postgresCreateWorkspaceSQL, mutation.ID, organization, mutation.Name, workspace, environment, mutation.AuditID, actor, mutation.InitialEnvironmentID, permissions)
 	case "updateWorkspace":
+		if _, checked := requestAuthorizationFromContext(ctx); checked {
+			return repository.preconditionedAdministrationMutation(ctx, currentHierarchyRenameSQL, organization, workspace, environment, actor, "workspace", mutation.ID, mutation.Name, mutation.ExpectedVersion, mutation.AuditID)
+		}
 		return repository.preconditionedAdministrationMutation(ctx, postgresUpdateWorkspaceSQL, organization, mutation.ID, mutation.Name, mutation.ExpectedVersion, workspace, environment, mutation.AuditID, actor)
 	case "createEnvironment":
 		if mutation.WorkspaceID != workspace {
@@ -206,6 +215,9 @@ func (repository *PostgresRepository) MutateAdministration(ctx context.Context, 
 	case "updateEnvironment":
 		if mutation.ID != environment {
 			return nil, ErrRepositoryNotFound
+		}
+		if _, checked := requestAuthorizationFromContext(ctx); checked {
+			return repository.preconditionedAdministrationMutation(ctx, currentHierarchyRenameSQL, organization, workspace, environment, actor, "environment", mutation.ID, mutation.Name, mutation.ExpectedVersion, mutation.AuditID)
 		}
 		return repository.preconditionedAdministrationMutation(ctx, postgresUpdateEnvironmentSQL, organization, workspace, mutation.ID, environment, mutation.Name, mutation.ExpectedVersion, mutation.AuditID, actor)
 	case "updateMemberRole":

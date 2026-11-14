@@ -162,6 +162,26 @@ func (p *productionSecurityAgentPlanner) runTemporalPlanningOwned(ctx context.Co
 		}
 		return readAt(recoveryCtx)
 	}
+	recoverRejected := func(rejection *plannerProviderRejection) (json.RawMessage, error) {
+		// Detached and bounded like recoverKnown: it can only reconcile the
+		// retained started intent with the provider's refusal.
+		recoveryCtx, finish := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+		defer finish()
+		if recovery, ok := db.(capturedPlanningRejection); ok {
+			encoded, _ := json.Marshal(identity)
+			if err := recovery.RecoverRejectedPlanning(recoveryCtx, encoded, rejection); err != nil {
+				return nil, err
+			}
+			return json.RawMessage(`{"outcome":"needs_human"}`), nil
+		}
+		if _, captured := db.(capturedPlanningRecovery); captured {
+			return nil, errWorkerExecution
+		}
+		if _, err := call(recoveryCtx, "reconcile", rejection.payload()); err != nil {
+			return nil, err
+		}
+		return readAt(recoveryCtx)
+	}
 	for n := 0; n < 8; n++ {
 		if _, captured := db.(capturedPlanningRecovery); captured && bytes.Equal(bytes.TrimSpace(raw), []byte(`{"outcome":"needs_human"}`)) {
 			return bytes.Clone(raw), nil
@@ -288,6 +308,15 @@ func (p *productionSecurityAgentPlanner) runTemporalPlanningOwned(ctx context.Co
 			providerRaw, sendErr := sendSecurityAgentOrdered(operationCtx, prepared, job.LookupRequest.CredentialDigest)
 			if sendErr != nil {
 				done()
+				// A definite refusal releases the reservation with zero
+				// usage. If that reconciliation is itself refused, the intent
+				// is reconciled as an unknown outcome, as before.
+				if rejection := plannerRejectionFrom(sendErr); rejection != nil && owner != temporalPlanningOrdered {
+					if rejected, rejectErr := recoverRejected(rejection); rejectErr == nil {
+						raw = rejected
+						continue
+					}
+				}
 				raw, err = recoverKnown(nil)
 				if err != nil {
 					return nil, err

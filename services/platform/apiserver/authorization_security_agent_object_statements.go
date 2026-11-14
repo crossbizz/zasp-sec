@@ -16,8 +16,10 @@ const (
 	currentSecurityAgentCancelRunSQL      = `SELECT zasp_authorization80.security_agent_cancel_run($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
 	currentSecurityAgentApprovalSQL       = `SELECT zasp_authorization80.security_agent_approval($1,$2,$3,$4,$5)`
 	currentSecurityAgentDecideApprovalSQL = `SELECT zasp_authorization80.security_agent_decide_approval($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`
-	currentSecurityAgentSimulateSQL       = `SELECT zasp_authorization80.security_agent_simulate($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,$12,$13,$14)`
+	currentSecurityAgentSimulateSQL       = `SELECT zasp_authorization80.security_agent_simulate($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,$12,$13,$14,$15)`
 	currentSecurityAgentManualRunSQL      = `SELECT zasp_authorization80.security_agent_manual_run($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`
+	// Section W3: a human closes a run that needs a human.
+	currentSecurityAgentCloseRunSQL = `SELECT zasp_authorization80.security_agent_close_run($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`
 )
 
 // securityAgentObjectStatementAllowed admits the Security Agent run and
@@ -27,6 +29,9 @@ const (
 // object and the allowed target are compared with the checked request here;
 // PostgreSQL compares them again with the attested proof.
 func securityAgentObjectStatementAllowed(g RequestAuthorization, q string, args []any) (handled, allowed bool) {
+	if handled, allowed := securityAgentActivityStatementAllowed(g, q, args); handled {
+		return handled, allowed
+	}
 	type rule struct {
 		operation string
 		arguments int
@@ -37,7 +42,8 @@ func securityAgentObjectStatementAllowed(g RequestAuthorization, q string, args 
 		currentSecurityAgentCancelRunSQL:      {"cancelSecurityAgentRun", 10, "security_agent_run"},
 		currentSecurityAgentApprovalSQL:       {"getSecurityAgentApproval", 5, "security_agent_approval"},
 		currentSecurityAgentDecideApprovalSQL: {"decideSecurityAgentApproval", 12, "security_agent_approval"},
-		currentSecurityAgentSimulateSQL:       {"simulateSecurityAgent", 14, "security_agent"},
+		currentSecurityAgentSimulateSQL:       {"simulateSecurityAgent", 15, "security_agent"},
+		currentSecurityAgentCloseRunSQL:       {"closeSecurityAgentRun", 12, "security_agent_run"},
 		currentSecurityAgentManualRunSQL:      {"runSecurityAgent", 11, "security_agent"},
 	}[q]
 	if !ok {
@@ -91,8 +97,17 @@ func securityAgentObjectStatementAllowed(g RequestAuthorization, q string, args 
 		evidence, evidenceOK := args[9].(json.RawMessage)
 		expires, expiresOK := args[10].(time.Time)
 		var ids []string
+		// The evidence is authorized by a second decision whose attestation
+		// the statement verifies; a request without one is refused there.
+		proof, proofOK := args[14].(string)
 		return true, mutation(5, 6, 1000000) && ok && validSecurityAgentText(goal[0], 1024) && evidenceOK && len(evidence) <= 8192 && json.Unmarshal(evidence, &ids) == nil &&
-			len(ids) >= 1 && len(ids) <= 100 && validUniqueProductIDs(ids) && expiresOK && !expires.IsZero() && expires.Location() == time.UTC && distinct(7, 11, 12, 13)
+			len(ids) >= 1 && len(ids) <= 100 && validUniqueProductIDs(ids) && expiresOK && !expires.IsZero() && expires.Location() == time.UTC && distinct(7, 11, 12, 13) &&
+			proofOK && len(proof) >= 2 && len(proof) <= 4*1024*1024
+	case currentSecurityAgentCloseRunSQL:
+		// The reason is a closed code; the note is optional free text.
+		reason, ok := securityAgentWriteStrings(args, 7)
+		note, noteOK := args[8].(string)
+		return true, mutation(5, 6, 1000000) && ok && validSecurityAgentCloseReason(reason[0]) && (args[8] == nil || noteOK && validSecurityAgentCloseNote(note)) && distinct(9, 10, 11)
 	case currentSecurityAgentManualRunSQL:
 		return true, mutation(5, 6, 1000000) && distinct(7, 8, 9, 10)
 	}

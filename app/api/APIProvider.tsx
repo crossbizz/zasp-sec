@@ -25,6 +25,10 @@ type APIContextValue = {
   clearQueryCache(): void;
 };
 
+// About fourteen seconds in total. The projection lag observed after a change
+// on a loaded single machine was six to ten seconds.
+const AUTHORIZATION_RETRY_DELAYS_MS = [400, 800, 1500, 2500, 4000, 5000] as const;
+
 const APIContext = createContext<APIContextValue | null>(null);
 
 class CSRFVault {
@@ -76,8 +80,14 @@ export function APIProvider({ children, client: suppliedClient }: { children: Re
 	const [scopeStaleGeneration] = useState(() => new GenerationVault());
 	const [freshAuthRequired, setFreshAuthRequired] = useState(0);
   const [exportBoundary] = useState(() => new ExportRequestBoundary());
+  // Number of requests waiting for the authorization projection to catch up
+  // after a change. The client repeats them; the page shows a short notice
+  // instead of an error.
+  const [authorizationSettling, setAuthorizationSettling] = useState(0);
   const [{ client, auditExports }] = useState(() => {
     const options: APIClientOptions = {
+    authorizationRetryDelaysMs: AUTHORIZATION_RETRY_DELAYS_MS,
+    onAuthorizationSettling: (settling) => setAuthorizationSettling((current) => Math.max(0, current + (settling ? 1 : -1))),
     getCSRFToken: () => csrfToken.get() ?? undefined,
 	getExpectedScope: () => requestScope.get() ?? undefined,
     onSessionExpired: () => {
@@ -161,7 +171,10 @@ export function APIProvider({ children, client: suppliedClient }: { children: Re
     suspendQueryCache,
     clearQueryCache,
 	  }), [client, auditExports, revisions, queryEpoch, sessionExpiry, getSessionInvalidationGeneration, scopeStale, getScopeStaleGeneration, freshAuthRequired, markFreshAuthenticated, invalidate, setCSRFToken, setRequestScope, setQueryScope, suspendQueryCache, clearQueryCache]);
-  return <APIContext.Provider value={value}>{children}</APIContext.Provider>;
+  return <APIContext.Provider value={value}>
+    {authorizationSettling > 0 && <p role="status" className="authorization-settling">Applying recent changes… This takes a few seconds.</p>}
+    {children}
+  </APIContext.Provider>;
 }
 
 export function useAPI(): APIContextValue {

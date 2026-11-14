@@ -64,6 +64,14 @@ export type APIClientOptions = Omit<ClientOptions, "baseUrl" | "credentials" | "
   onSessionExpired?: () => void;
 	onScopeStale?: () => void;
 	onFreshAuthRequired?: () => void;
+  // After a change the authorization projection needs a few seconds. While it
+  // catches up the API answers 503 authorization_unavailable or 409
+  // authorization_changed / authorization_pending. With delays configured the
+  // client repeats such a request (reads always, changes only when they carry
+  // an Idempotency-Key) and reports the waiting state. A read answered with
+  // 409 operation_conflict is repeated the same way. Empty disables it.
+  authorizationRetryDelaysMs?: readonly number[];
+  onAuthorizationSettling?: (settling: boolean) => void;
 };
 
 export function createAPIClient(options: APIClientOptions = {}) {
@@ -78,17 +86,20 @@ export function createAPIClient(options: APIClientOptions = {}) {
     onSessionExpired = () => undefined,
 	onScopeStale = () => undefined,
 	onFreshAuthRequired = () => undefined,
+    authorizationRetryDelaysMs = [],
+    onAuthorizationSettling = () => undefined,
     ...clientOptions
   } = options;
   const attachmentMaximumBytes = Math.min(options.maximumResponseBytes ?? MAXIMUM_COMPLIANCE_ATTACHMENT_BYTES, MAXIMUM_COMPLIANCE_ATTACHMENT_BYTES);
-  if (!validRelativeBaseURL(baseUrl) || typeof configuredFetch !== "function" || !validBound(timeoutMs) || !validBound(maximumResponseBytes)) {
+  if (!validRelativeBaseURL(baseUrl) || typeof configuredFetch !== "function" || !validBound(timeoutMs) || !validBound(maximumResponseBytes)
+    || !Array.isArray(authorizationRetryDelaysMs) || authorizationRetryDelaysMs.length > 10 || authorizationRetryDelaysMs.some((delay) => !Number.isSafeInteger(delay) || delay < 0 || delay > 30_000)) {
     throw new APITransportError("invalid_configuration", "Invalid API client configuration");
   }
   // Client Components also render on the server. This non-routable placeholder
   // prevents server rendering from performing I/O while browser instances bind
   // to the actual same-origin location below.
   const origin = globalThis.location?.origin && globalThis.location.origin !== "null" ? globalThis.location.origin : "http://same-origin.invalid";
-  const transport = async (request: Request): Promise<Response> => {
+  const send = async (request: Request): Promise<Response> => {
     const correlationID = generateCorrelationID();
     if (!PRODUCT_ID.test(correlationID)) {
       throw new APITransportError("invalid_configuration", "Invalid correlation ID");
@@ -132,6 +143,22 @@ export function createAPIClient(options: APIClientOptions = {}) {
       globalThis.clearTimeout(timer);
     }
   };
+  const transport = async (request: Request): Promise<Response> => {
+    if (authorizationRetryDelaysMs.length === 0 || !authorizationRetryAllowed(request)) return send(request);
+    let settling = false;
+    try {
+      for (let attempt = 0; ; attempt++) {
+        const delay = authorizationRetryDelaysMs[attempt];
+        // The last attempt consumes the request itself; earlier ones a copy.
+        const response = await send(delay === undefined ? request : request.clone() as Request);
+        if (delay === undefined || !(await authorizationSettlingResponse(response)) && !(await readConflictResponse(request, response))) return response;
+        if (!settling) { settling = true; onAuthorizationSettling(true); }
+        await abortableDelay(delay, request.signal);
+      }
+    } finally {
+      if (settling) onAuthorizationSettling(false);
+    }
+  };
   return createClient<paths>({
     ...clientOptions,
     baseUrl: `${origin}${baseUrl}`,
@@ -159,6 +186,42 @@ function validBound(value: number): boolean {
 
 function defaultCorrelationID(): string {
   return `pid_${globalThis.crypto.randomUUID()}`;
+}
+
+// Session routes report these states to the session provider, which has its
+// own waiting screen; they are never repeated here.
+function authorizationRetryAllowed(request: Request): boolean {
+  if (/^\/api\/v1\/session(?:\/|$)/.test(new URL(request.url).pathname)) return false;
+  return !isMutation(request.method) || request.headers.has("Idempotency-Key");
+}
+
+async function authorizationSettlingResponse(response: Response): Promise<boolean> {
+  if (response.status !== 503 && response.status !== 409) return false;
+  try {
+    const value: unknown = await response.clone().json();
+    if (!isProductError(value) || !value.retryable) return false;
+    return response.status === 503 ? value.code === "authorization_unavailable" : value.code === "authorization_changed" || value.code === "authorization_pending";
+  } catch { return false; }
+}
+
+// A read that collided with a concurrent change answers 409 operation_conflict
+// (marked not retryable because the same answer is final for a change). A read
+// has no effect, so it is repeated like the authorization lag above.
+async function readConflictResponse(request: Request, response: Response): Promise<boolean> {
+  if (isMutation(request.method) || response.status !== 409) return false;
+  try {
+    const value: unknown = await response.clone().json();
+    return isProductError(value) && value.code === "operation_conflict";
+  } catch { return false; }
+}
+
+function abortableDelay(milliseconds: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) { reject(signal.reason); return; }
+    const stop = () => { globalThis.clearTimeout(timer); reject(signal.reason); };
+    const timer = globalThis.setTimeout(() => { signal.removeEventListener("abort", stop); resolve(); }, milliseconds);
+    signal.addEventListener("abort", stop, { once: true });
+  });
 }
 
 function isMutation(method: string): boolean {

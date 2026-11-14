@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
 	"github.com/zasp-ai/zasp-sec/services/platform/authorization"
@@ -229,9 +231,60 @@ func (d *workerFindingPlanningDatabase) QueryJSON(ctx context.Context, statement
 	default:
 		return nil, authorization.ErrInvalid
 	}
-	decision, err := d.forward.Authorize(ctx, authorization.WorkerOperation(prefix+phase), raw)
-	if err != nil {
-		return nil, err
+	// A pending projection or a revision that moved between the check and its
+	// use says "decide again": the statement did not run. Every admission and
+	// every state change of a run moves the Organization's revision, including
+	// this run's own, so a planning step regularly meets one. Each attempt is
+	// a complete check against the current revision. A denial, any other
+	// error, and a conflict that the statement raised while the revision
+	// stood still (a refusal of the step itself) return at once.
+	deadline := time.Now().Add(workerPlanningAuthorizationBudget)
+	for {
+		before, beforeErr := d.forward.Revision(ctx, q.OrganizationID)
+		result, err := func() (json.RawMessage, error) {
+			decision, err := d.forward.Authorize(ctx, authorization.WorkerOperation(prefix+phase), raw)
+			if err != nil {
+				return nil, err
+			}
+			result, err := d.forward.Execute(ctx, decision)
+			if errors.Is(err, authorization.ErrConflict) {
+				after, afterErr := d.forward.Revision(ctx, q.OrganizationID)
+				if beforeErr != nil || afterErr != nil || before == after {
+					return nil, workerPlanningRefusal{err}
+				}
+			}
+			return result, err
+		}()
+		var refusal workerPlanningRefusal
+		if errors.As(err, &refusal) {
+			return nil, refusal.error
+		}
+		if err == nil || !errors.Is(err, authorization.ErrPending) && !errors.Is(err, authorization.ErrConflict) || !time.Now().Add(workerPlanningAuthorizationInterval).Before(deadline) {
+			return result, err
+		}
+		timer := time.NewTimer(workerPlanningAuthorizationInterval)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return nil, err
+		case <-timer.C:
+		}
 	}
-	return d.forward.Execute(ctx, decision)
+}
+
+// workerPlanningRefusal marks a conflict that is not a moved revision, so it
+// is not decided again.
+type workerPlanningRefusal struct{ error }
+
+// The bound of the authorization retries of one planning step. It is far
+// below the planning activity's own time limit.
+const (
+	workerPlanningAuthorizationBudget   = 45 * time.Second
+	workerPlanningAuthorizationInterval = 2 * time.Second
+)
+
+// retryWorkerAuthorization applies the same rule to a step with no result.
+func retryWorkerAuthorization(ctx context.Context, call func() error) error {
+	_, err := retryDiscoveryAuthorization(ctx, workerPlanningAuthorizationBudget, workerPlanningAuthorizationInterval, func() (json.RawMessage, error) { return nil, call() })
+	return err
 }
