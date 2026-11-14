@@ -104,8 +104,9 @@ func TestRuntimeEgressObservationMakesAnInferredAgentInAFullCollection(t *testin
 	if !complete.Snapshot().TypedObservations() {
 		t.Fatal("snapshot is not typed")
 	}
-	// Only the Deployment page has workloads, so only it looked.
-	if len(transport.egressRequests) != 1 || transport.egressRequests[0].URL.Query().Get("labelSelector") != "zasp.ai/egress-observations=v1" || transport.egressRequests[0].Header.Get("Authorization") != "Bearer "+string(credential) {
+	// The first page probes whether the observations can be read; after
+	// that only the Deployment page has workloads, so only it looked.
+	if len(transport.egressRequests) != 2 || transport.egressRequests[0].URL.Query().Get("limit") != "1" || transport.egressRequests[1].URL.Query().Get("labelSelector") != "zasp.ai/egress-observations=v1" || transport.egressRequests[1].Header.Get("Authorization") != "Bearer "+string(credential) {
 		t.Fatalf("observation requests = %d", len(transport.egressRequests))
 	}
 	kinds := map[string]string{}
@@ -158,6 +159,29 @@ func TestRuntimeEgressLookupNeverFailsAWorkloadPage(t *testing.T) {
 		page, err := api.FetchCollectionPage(context.Background(), []byte("kubernetes-bearer-secret-value"), CollectionPageRequest{Provider: collection.ProviderKubernetes, Subject: subject, Cursor: nextKubernetesPageCursor(subject, "deployments", 7, "start"), Page: 7, RemainingItems: 3, RemainingRelationships: 64, RemainingBytes: 1 << 20})
 		if err != nil || len(page.Entities) != 1 || len(transport.egressRequests) != 1 {
 			t.Errorf("%s: page = %d entities, %d lookups, err %v", name, len(page.Entities), len(transport.egressRequests), err)
+		}
+	}
+}
+
+// The cluster record says whether the runtime observations could be read,
+// which is what the integration's coverage list reports.
+func TestClusterRecordsWhetherRuntimeObservationsCanBeRead(t *testing.T) {
+	for name, test := range map[string]struct {
+		response *kubernetesHTTPResponse
+		want     string
+	}{
+		"forbidden":    {nil, `"attributes":{"runtime_observations":"access_denied"}`},
+		"readable":     {&kubernetesHTTPResponse{status: http.StatusOK, body: `{"apiVersion":"v1","kind":"ConfigMapList","metadata":{},"items":[]}`}, `"attributes":{"runtime_observations":"collected"}`},
+		"server error": {&kubernetesHTTPResponse{status: http.StatusInternalServerError, body: `{}`}, `"attributes":{}`},
+	} {
+		transport := &kubernetesRoundTripper{egress: test.response, responses: []kubernetesHTTPResponse{{status: http.StatusOK, body: `{"apiVersion":"v1","kind":"NamespaceList","metadata":{"continue":""},"items":[{"apiVersion":"v1","kind":"Namespace","metadata":{"uid":"11111111-1111-4111-8111-111111111111","name":"default"}}]}`}}}
+		api, err := newKubernetesCollectionAPI("https://cluster.example", transport, time.Second)
+		if err != nil {
+			t.Fatal(err)
+		}
+		page, err := api.FetchCollectionPage(context.Background(), []byte("kubernetes-bearer-secret-value"), CollectionPageRequest{Provider: collection.ProviderKubernetes, Subject: collection.SubjectBinding{Kind: "kubernetes_cluster", ID: "cluster.example/prod"}, Page: 1, RemainingItems: 5, RemainingRelationships: 64, RemainingBytes: 1 << 20})
+		if err != nil || !strings.Contains(string(page.Raw), `"kind":"kubernetes_cluster"`) || !strings.Contains(string(page.Raw), test.want) {
+			t.Errorf("%s: err %v, page %s", name, err, page.Raw)
 		}
 	}
 }

@@ -38,8 +38,12 @@ Plan and detail: `docs/superpowers/plans/2026-11-14-automatic-agent-discovery.md
 - [x] Agents page explains a runtime signal in "How it was found"
 - [x] Runbook step 15, plan updated
 - [x] Checks: the Go packages this pass touches pass (sensor agent has one failure that predates it, `TestLineageSocketLinuxPeerUIDMismatch`); web suite fails the same 2 tests as before; the four deploy gate files fail the same 32 tests as before. The full platform Go suite was not rerun: nothing outside `agentsignals`, the Kubernetes collector and one worker test changed
-- [ ] Run it on one real cluster and measure what the egress signal adds and what it gets wrong (needs a cluster)
-- [ ] Say on the integration detail when the collector may not read the observations (follow-up)
+- [x] Integration detail says when the collector may not read the observations (cluster entity records it; coverage gap `runtime-observations`; real-PostgreSQL test)
+- [x] Measurement kit for the first cluster: `deploy/local/egress-discovery/smoke.yaml` and `report.sh --check-smoke` (run against a stand-in `kubectl` only)
+- [x] Baseline artifact rebuilt for the coverage gap change (147 readiness predicates and 13,998 structural facts agree; the baseline package tests pass on PostgreSQL 18.3)
+- [ ] Run it on one real cluster with the kit and measure what the egress signal adds and what it gets wrong (needs a cluster)
+
+Decided not to build now: ClickHouse, Hubble, Pixie. Deferred until a cluster is available: a narrow TLS probe for tool-level visibility. Deferred until a customer asks: Okta grants (needs re-authorization), other platforms.
 
 ## Not buildable here
 - [ ] Run each collector against a real AWS account, cluster, GitHub organization, Okta tenant, Entra tenant and Salesforce org; measure false positives and misses per signal class (needs those systems)

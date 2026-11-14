@@ -1819,14 +1819,17 @@ END $inventory_posture_dismissal$;
 -- gains the member coverage_gaps: one {service,name,status} per service of
 -- this integration whose current present observation is access_denied or
 -- unavailable, at most 16, ordered by service. It is [] for an integration
--- with no such observation, so for every provider other than AWS. The chain's
--- reader (public.zasp_execution_last_good_freshness) is left as it is.
+-- with no such observation. A Kubernetes integration has one possible gap,
+-- service runtime-observations: its cluster record says the discovery
+-- credential may not list ConfigMaps, so what the node sensor saw the
+-- workloads call at run time is not counted. The chain's reader
+-- (public.zasp_execution_last_good_freshness) is left as it is.
 DO $integration_coverage_gaps$
 DECLARE target CONSTANT regprocedure:='zasp_temporal72.last_good_freshness(text,text,text,text)'::regprocedure;
  anchor CONSTANT text:=E'\n RETURN b;';
  gaps CONSTANT text:=$gaps$
  b:=b||jsonb_build_object('coverage_gaps',COALESCE((SELECT jsonb_agg(jsonb_build_object('service',gap.service,'name',gap.name,'status',gap.status) ORDER BY gap.service) FROM(
-  SELECT DISTINCT ON(observation.stable_fields->>'service') observation.stable_fields->>'service' service,COALESCE(NULLIF(observation.stable_fields->>'name',''),observation.display_name) name,observation.attributes->>'status' status
+  (SELECT DISTINCT ON(observation.stable_fields->>'service') observation.stable_fields->>'service' service,COALESCE(NULLIF(observation.stable_fields->>'name',''),observation.display_name) name,observation.attributes->>'status' status
   FROM public.zasp_inventory_source_observations observation
   WHERE (observation.organization_id,observation.workspace_id,observation.environment_id,observation.integration_id)=(o,w,e,i)
    AND observation.provider='aws' AND observation.source_kind='aws_service' AND observation.source_state='present'
@@ -1834,7 +1837,14 @@ DECLARE target CONSTANT regprocedure:='zasp_temporal72.last_good_freshness(text,
    AND observation.stable_fields->>'service' ~ '^[a-z][a-z0-9-]{0,63}$'
    AND length(COALESCE(NULLIF(observation.stable_fields->>'name',''),observation.display_name)) BETWEEN 1 AND 128
   ORDER BY observation.stable_fields->>'service',observation.last_seen_at DESC,observation.source
-  LIMIT 16) gap),'[]'::jsonb));$gaps$;
+  LIMIT 15)
+  UNION ALL
+  (SELECT 'runtime-observations','Runtime agent discovery','access_denied'
+  FROM public.zasp_inventory_source_observations observation
+  WHERE (observation.organization_id,observation.workspace_id,observation.environment_id,observation.integration_id)=(o,w,e,i)
+   AND observation.provider='kubernetes' AND observation.source_kind='kubernetes_cluster' AND observation.source_state='present'
+   AND observation.attributes->>'runtime_observations'='access_denied'
+  LIMIT 1)) gap),'[]'::jsonb));$gaps$;
  d text:=pg_get_functiondef(target);
 BEGIN
  IF position(gaps in d)=0 THEN

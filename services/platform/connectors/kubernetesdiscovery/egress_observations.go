@@ -35,6 +35,65 @@ func kubernetesWorkloadPhase(phase string) bool {
 	return false
 }
 
+type kubernetesEgressConfigMapList struct {
+	APIVersion string `json:"apiVersion"`
+	Kind       string `json:"kind"`
+	Metadata   struct {
+		Continue string `json:"continue"`
+	} `json:"metadata"`
+	Items []struct {
+		Data map[string]string `json:"data"`
+	} `json:"items"`
+}
+
+// listKubernetesEgressConfigMaps reads one page of the labelled ConfigMaps
+// and returns the HTTP status (0 when there was no usable answer).
+func (api *KubernetesCollectionAPI) listKubernetesEgressConfigMaps(ctx context.Context, credential []byte, limit int, continuation string) (kubernetesEgressConfigMapList, int) {
+	query := url.Values{}
+	query.Set("labelSelector", agentsignals.EgressObservationsLabel+"="+agentsignals.EgressObservationsLabelValue)
+	query.Set("limit", strconv.Itoa(limit))
+	if continuation != "" {
+		query.Set("continue", continuation)
+	}
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, api.endpoint+"/api/v1/configmaps?"+query.Encode(), nil)
+	if err != nil {
+		return kubernetesEgressConfigMapList{}, 0
+	}
+	request.Close = true
+	request.Header.Set("Accept", "application/json")
+	request.Header.Set("Authorization", "Bearer "+string(credential))
+	response, err := doKubernetesCollectionRequest(api.client, request)
+	if err != nil || response == nil {
+		closeKubernetesResponse(response)
+		return kubernetesEgressConfigMapList{}, 0
+	}
+	body, ok := readKubernetesCollectionBody(response.Body, kubernetesEgressResponseBytes)
+	response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return kubernetesEgressConfigMapList{}, response.StatusCode
+	}
+	var list kubernetesEgressConfigMapList
+	if !ok || !decodeKubernetesCollectionResponse(body, &list) || list.APIVersion != "v1" || list.Kind != "ConfigMapList" {
+		return kubernetesEgressConfigMapList{}, 0
+	}
+	return list, http.StatusOK
+}
+
+// kubernetesRuntimeObservationStatus is recorded on the cluster entity so
+// the integration can say when the runtime signal is not counted:
+// "collected" when the credential may list the ConfigMaps (whether or not
+// the sensor role is installed), "access_denied" when it may not, and ""
+// when the answer was anything else.
+func (api *KubernetesCollectionAPI) kubernetesRuntimeObservationStatus(ctx context.Context, credential []byte) string {
+	switch _, status := api.listKubernetesEgressConfigMaps(ctx, credential, 1, ""); status {
+	case http.StatusOK:
+		return "collected"
+	case http.StatusUnauthorized, http.StatusForbidden:
+		return "access_denied"
+	}
+	return ""
+}
+
 // fetchKubernetesEgressObservations never fails a collection. A cluster
 // without the sensor role has no such ConfigMaps; a credential that may not
 // list ConfigMaps gets 403. In both cases, and on any malformed or oversized
@@ -46,37 +105,8 @@ func (api *KubernetesCollectionAPI) fetchKubernetesEgressObservations(ctx contex
 	merged := map[kubernetesEgressKey]map[string]bool{}
 	continuation := ""
 	for range kubernetesEgressListPages {
-		query := url.Values{}
-		query.Set("labelSelector", agentsignals.EgressObservationsLabel+"="+agentsignals.EgressObservationsLabelValue)
-		query.Set("limit", strconv.Itoa(kubernetesEgressListLimit))
-		if continuation != "" {
-			query.Set("continue", continuation)
-		}
-		request, err := http.NewRequestWithContext(ctx, http.MethodGet, api.endpoint+"/api/v1/configmaps?"+query.Encode(), nil)
-		if err != nil {
-			break
-		}
-		request.Close = true
-		request.Header.Set("Accept", "application/json")
-		request.Header.Set("Authorization", "Bearer "+string(credential))
-		response, err := doKubernetesCollectionRequest(api.client, request)
-		if err != nil || response == nil {
-			closeKubernetesResponse(response)
-			break
-		}
-		body, ok := readKubernetesCollectionBody(response.Body, kubernetesEgressResponseBytes)
-		response.Body.Close()
-		var list struct {
-			APIVersion string `json:"apiVersion"`
-			Kind       string `json:"kind"`
-			Metadata   struct {
-				Continue string `json:"continue"`
-			} `json:"metadata"`
-			Items []struct {
-				Data map[string]string `json:"data"`
-			} `json:"items"`
-		}
-		if response.StatusCode != http.StatusOK || !ok || !decodeKubernetesCollectionResponse(body, &list) || list.APIVersion != "v1" || list.Kind != "ConfigMapList" {
+		list, status := api.listKubernetesEgressConfigMaps(ctx, credential, kubernetesEgressListLimit, continuation)
+		if status != http.StatusOK {
 			break
 		}
 		for _, item := range list.Items {

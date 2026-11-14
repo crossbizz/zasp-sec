@@ -146,7 +146,11 @@ func (api *KubernetesCollectionAPI) FetchCollectionPage(ctx context.Context, cre
 	if kubernetesWorkloadPhase(phase) && len(payload.Items) > 0 {
 		egress = api.fetchKubernetesEgressObservations(bounded, credential)
 	}
-	entities, relationships, ok := normalizeKubernetesCollectionPage(request.Subject, phase, includeCluster, payload, egress)
+	runtimeObservations := ""
+	if includeCluster {
+		runtimeObservations = api.kubernetesRuntimeObservationStatus(bounded, credential)
+	}
+	entities, relationships, ok := normalizeKubernetesCollectionPage(request.Subject, phase, includeCluster, payload, egress, runtimeObservations)
 	if !ok {
 		return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
 	}
@@ -321,7 +325,7 @@ type kubernetesAgentPosture struct {
 	CredentialActive       bool   `json:"credential_active"`
 }
 
-func normalizeKubernetesCollectionPage(subject collection.SubjectBinding, phase string, includeCluster bool, payload kubernetesCollectionList, egress kubernetesEgressObservations) ([]json.RawMessage, []json.RawMessage, bool) {
+func normalizeKubernetesCollectionPage(subject collection.SubjectBinding, phase string, includeCluster bool, payload kubernetesCollectionList, egress kubernetesEgressObservations, runtimeObservations string) ([]json.RawMessage, []json.RawMessage, bool) {
 	expectedAPIVersion, expectedKind, ok := kubernetesCollectionPhaseType(phase)
 	if !ok || payload.APIVersion != expectedAPIVersion || payload.Kind != expectedKind {
 		return nil, nil, false
@@ -338,7 +342,13 @@ func normalizeKubernetesCollectionPage(subject collection.SubjectBinding, phase 
 			Cluster string `json:"cluster"`
 			Name    string `json:"name"`
 		}{subject.ID, parts[1]})
-		entity, err := marshalKubernetesEntity(clusterEntityID, "kubernetes_cluster", "kubernetes:cluster:"+subject.ID, subject.ID, stable, json.RawMessage(`{}`))
+		clusterAttributes := json.RawMessage(`{}`)
+		if runtimeObservations != "" {
+			clusterAttributes, _ = json.Marshal(struct {
+				RuntimeObservations string `json:"runtime_observations"`
+			}{runtimeObservations})
+		}
+		entity, err := marshalKubernetesEntity(clusterEntityID, "kubernetes_cluster", "kubernetes:cluster:"+subject.ID, subject.ID, stable, clusterAttributes)
 		if err != nil {
 			return nil, nil, false
 		}

@@ -170,7 +170,13 @@ Files: `services/platform/agentsignals/egress.go` (catalog, document, validation
 - Inbound third-party agents calling the customer's APIs are not covered; that is an API gateway integration.
 - A SaaS agent's internal sub-agents cannot be seen from the network, as the reference design says.
 - Detection waits for the next Kubernetes sync.
-- A missing ConfigMap permission is silent: the integration detail does not yet say the runtime signal is unavailable.
+
+### Follow-up (same day): the two open items that could be built
+
+- **A missing ConfigMap permission is now shown.** The first page of a Kubernetes collection probes whether the credential may list the sensor's ConfigMaps and records `runtime_observations` (`collected` or `access_denied`) on the cluster entity. The freshness read reports `access_denied` as the coverage gap `runtime-observations`, and the integration detail says what to grant. It cannot tell whether the sensor role is installed: a readable, empty list looks the same either way. This changed `completion.sql` section X5b, so the baseline artifact was rebuilt.
+- **A measurement kit for the first real cluster.** `deploy/local/egress-discovery/smoke.yaml` (one workload that calls a model API, one control) and `report.sh` (what every node published, totals per token, and a pass or fail for the smoke pair). The script was run against a stand-in `kubectl`, not a cluster.
+
+Left as they are, by decision: ClickHouse, Hubble and Pixie; a TLS probe for tool-level visibility (needs a cluster to try); Okta grants (existing connections would have to re-authorize); other platforms as customers ask.
 
 ## Next, in order
 

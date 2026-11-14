@@ -793,6 +793,7 @@ const coverageGapActions: Readonly<Record<string, readonly string[]>> = {
 
 // Why agents of one AI service are missing, and what to do about it.
 function coverageGapText(gap: IntegrationFreshness["coverage_gaps"][number]): string {
+  if (gap.service === "runtime-observations") return `${gap.name}: the discovery credential may not list ConfigMaps, so what the node sensor saw workloads call at run time is not counted. Allow list on configmaps for the discovery identity.`;
   if (gap.status === "unavailable") return `${gap.name}: not offered in this account's regions.`;
   const actions = Object.hasOwn(coverageGapActions, gap.service) ? coverageGapActions[gap.service] : [];
   return actions.length > 0 ? `${gap.name}: permission missing. Add ${actions.join(", ")} to the read role.` : `${gap.name}: permission missing. Add this service's list and read actions to the read role.`;

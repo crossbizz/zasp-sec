@@ -700,7 +700,9 @@ func providerEntitySchema(provider collection.Provider, kind string) (providerEn
 		clusterScoped := mergeInventorySchemas(inventoryObjectSchema{"namespaced": boolInventoryField(true, false)}, state)
 		switch kind {
 		case "kubernetes_cluster":
-			return providerEntityDefinition{stable: requiredStringFields("cluster", "name"), attributes: state}, true
+			// runtime_observations says whether the collector could read
+			// the node sensor's egress observations in this cluster.
+			return providerEntityDefinition{stable: requiredStringFields("cluster", "name"), attributes: mergeInventorySchemas(state, inventoryObjectSchema{"runtime_observations": enumInventoryField(false, "access_denied", "collected")})}, true
 		case "kubernetes_namespace":
 			return providerEntityDefinition{stable: requiredStringFields("cluster", "name", "namespace"), attributes: state}, true
 		case "kubernetes_resource", "kubernetes_service_account":

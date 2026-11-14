@@ -6199,7 +6199,7 @@ components:
       additionalProperties: false
       required: [service, name, status]
       properties:
-        service: { type: string, pattern: '^[a-z][a-z0-9-]{0,63}$', description: 'The provider service, for example bedrock-agent, bedrock-agentcore or lambda.' }
+        service: { type: string, pattern: '^[a-z][a-z0-9-]{0,63}$', description: 'The provider service, for example bedrock-agent, bedrock-agentcore or lambda. A Kubernetes integration reports runtime-observations when its discovery credential may not list the node sensor ConfigMaps.' }
         name: { type: string, minLength: 1, maxLength: 128 }
         status: { type: string, enum: [access_denied, unavailable], description: 'access_denied when the read role lacks a permission the service needs; unavailable when the service is not offered in the regions of the account.' }
     IntegrationSetupAuthorization:

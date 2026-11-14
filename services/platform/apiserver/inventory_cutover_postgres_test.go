@@ -1278,6 +1278,9 @@ func TestInventoryIntegrationFreshnessPostgresReportsAWSCoverageGaps(t *testing.
 		{6, awsIntegration, "aws", "aws", "aws_service", "removed", "aws:comprehend", "Amazon Comprehend", `{"account_id":"123456789012","name":"Amazon Comprehend","service":"comprehend"}`, `{"status":"access_denied"}`},
 		{7, awsIntegration, "aws", "aws", "aws_role", "present", "arn:aws:iam::123456789012:role/reader", "reader", `{"service":"iam"}`, `{"status":"access_denied"}`},
 		{8, otherIntegration, "kubernetes", "kubernetes", "aws_service", "present", "aws:lambda", "AWS Lambda", `{"name":"AWS Lambda","service":"lambda"}`, `{"status":"access_denied"}`},
+		// The cluster of the Kubernetes integration: its discovery credential
+		// may not list the node sensor's ConfigMaps.
+		{9, otherIntegration, "kubernetes", "kubernetes", "kubernetes_cluster", "present", "kubernetes:cluster:prod.example/a", "prod.example/a", `{"cluster":"prod.example/a","name":"a"}`, `{"runtime_observations":"access_denied"}`},
 	} {
 		entityID := fmt.Sprintf("pid_81%06x-0000-4000-8000-%012x", item.ordinal, item.ordinal)
 		evidenceID := fmt.Sprintf("pid_91%06x-0000-4000-8000-%012x", item.ordinal, item.ordinal)
@@ -1346,8 +1349,15 @@ VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,$11,$12,$13,$14,$15,$16::jsonb,
 		t.Fatalf("freshness = %#v / %v", freshness, err)
 	}
 	other, err := temporal.GetIntegrationFreshness(ctx, scope, otherIntegration)
-	if err != nil || other.CoverageGaps == nil || len(other.CoverageGaps) != 0 {
-		t.Fatalf("freshness of another provider's integration = %#v / %v", other, err)
+	if err != nil || !reflect.DeepEqual(other.CoverageGaps, []IntegrationCoverageGap{{Service: "runtime-observations", Name: "Runtime agent discovery", Status: "access_denied"}}) {
+		t.Fatalf("freshness of the Kubernetes integration = %#v / %v", other, err)
+	}
+	// Once the credential may list ConfigMaps the cluster says collected.
+	if _, err := connection.Exec(ctx, `UPDATE zasp_inventory_source_observations SET attributes='{"runtime_observations":"collected"}'::jsonb WHERE (organization_id,workspace_id,environment_id,integration_id,source_kind)=($1,$2,$3,$4,'kubernetes_cluster')`, organizationID, workspaceID, environmentID, otherIntegration); err != nil {
+		t.Fatal(err)
+	}
+	if other, err = temporal.GetIntegrationFreshness(ctx, scope, otherIntegration); err != nil || other.CoverageGaps == nil || len(other.CoverageGaps) != 0 {
+		t.Fatalf("freshness after the permission was granted = %#v / %v", other, err)
 	}
 	// Once the role is fixed and the service collected, the gap is gone.
 	if _, err := connection.Exec(ctx, `UPDATE zasp_inventory_source_observations SET attributes='{"status":"collected"}'::jsonb WHERE (organization_id,workspace_id,environment_id,integration_id,source_native_id)=($1,$2,$3,$4,'aws:lambda')`, organizationID, workspaceID, environmentID, awsIntegration); err != nil {

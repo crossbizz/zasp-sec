@@ -428,7 +428,7 @@ func TestKubernetesCollectionAPICoalescesRepeatedPrincipalsAndAcceptsEmptyBindin
 	if !decodeKubernetesCollectionResponse([]byte(body), &payload) {
 		t.Fatal("fixture did not decode")
 	}
-	entities, _, ok := normalizeKubernetesCollectionPage(subject, "rolebindings", false, payload, nil)
+	entities, _, ok := normalizeKubernetesCollectionPage(subject, "rolebindings", false, payload, nil, "")
 	if !ok {
 		t.Fatal("normalizeKubernetesCollectionPage rejected valid repeated and empty bindings")
 	}

@@ -469,7 +469,23 @@ rules:
 
 bound to the discovery identity. The collector lists ConfigMaps across namespaces with the label selector; Kubernetes cannot limit a list to a label, so this grants reading all ConfigMaps. Without it discovery still completes and judges workloads on their pod templates alone.
 
-Verify: `kubectl -n <namespace> logs ds/sensor-egress` prints `egress-discovery published workloads=<n> ...` after a workload has called a model API; after the next Kubernetes sync the workload is on the Agents page as unmanaged, and "How it was found" lists `egress:<token>`.
+When the permission is missing, the integration's detail says so under "Agent discovery coverage" ("Runtime agent discovery: the discovery credential may not list ConfigMaps..."). The line disappears after the first sync with the permission in place. It does not tell whether the sensor role is installed, only whether its output could be read.
+
+Check it on the cluster with the two workloads in `deploy/local/egress-discovery/`:
+
+```bash
+kubectl apply -f deploy/local/egress-discovery/smoke.yaml
+```
+
+Wait for one publish interval, then:
+
+```bash
+deploy/local/egress-discovery/report.sh --check-smoke
+```
+
+`egress-smoke` calls `api.anthropic.com` without a credential once a minute and must be recorded under `anthropic`; `egress-control` calls `example.com` and must not be recorded. The script passes only when both hold. Without the flag it prints every recorded workload and totals per token, which is the list to compare against the workloads you know call a model (misses) and those you know do not (false positives). It needs `kubectl` and `jq` and reads ConfigMaps only. Remove the workloads with `kubectl delete -f deploy/local/egress-discovery/smoke.yaml`. The image tag in `smoke.yaml` is not pinned by digest.
+
+Also: `kubectl -n <namespace> logs ds/sensor-egress` prints `egress-discovery published workloads=<n> ...` after a workload has called a model API; after the next Kubernetes sync the workload is on the Agents page as unmanaged, and "How it was found" lists `egress:<token>`.
 
 What it does not see:
 

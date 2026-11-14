@@ -3395,7 +3395,7 @@ export type components = {
         };
         readonly IntegrationCoverageGap: {
             readonly name: string;
-            /** @description The provider service, for example bedrock-agent, bedrock-agentcore or lambda. */
+            /** @description The provider service, for example bedrock-agent, bedrock-agentcore or lambda. A Kubernetes integration reports runtime-observations when its discovery credential may not list the node sensor ConfigMaps. */
             readonly service: string;
             /**
              * @description access_denied when the read role lacks a permission the service needs; unavailable when the service is not offered in the regions of the account.

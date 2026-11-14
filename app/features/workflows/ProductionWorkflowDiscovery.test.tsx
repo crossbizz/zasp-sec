@@ -235,6 +235,7 @@ describe("production integration discovery workflows", () => {
       { service: "bedrock-agentcore", name: "Amazon Bedrock AgentCore", status: "access_denied" },
       { service: "comprehend", name: "Amazon Comprehend", status: "access_denied" },
       { service: "lambda", name: "AWS Lambda", status: "access_denied" },
+      { service: "runtime-observations", name: "Runtime agent discovery", status: "access_denied" },
       { service: "sagemaker", name: "Amazon SageMaker", status: "unavailable" },
     ] };
     renderSurface(discoveryClient({ catalog: awsManifest, integration: aws, freshness: gapped }));
@@ -248,6 +249,7 @@ describe("production integration discovery workflows", () => {
       "Amazon Bedrock AgentCore: permission missing. Add bedrock-agentcore:ListAgentRuntimes, bedrock-agentcore:GetAgentRuntime, bedrock-agentcore:ListGateways to the read role.",
       "Amazon Comprehend: permission missing. Add this service's list and read actions to the read role.",
       "AWS Lambda: permission missing. Add lambda:ListFunctions to the read role.",
+      "Runtime agent discovery: the discovery credential may not list ConfigMaps, so what the node sensor saw workloads call at run time is not counted. Allow list on configmaps for the discovery identity.",
       "Amazon SageMaker: not offered in this account's regions.",
     ]);
   });
