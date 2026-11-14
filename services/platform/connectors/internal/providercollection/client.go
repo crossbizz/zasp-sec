@@ -816,9 +816,20 @@ func providerEntitySchema(provider collection.Provider, kind string) (providerEn
 	case collection.ProviderSalesforce:
 		switch kind {
 		case "salesforce_org":
-			return providerEntityDefinition{stable: requiredStringFields("name", "org"), attributes: inventoryObjectSchema{}}, true
+			// The org's Einstein Trust Layer switches, each present when the
+			// connection could read it.
+			return providerEntityDefinition{stable: requiredStringFields("name", "org"), attributes: inventoryObjectSchema{"trust_input_toxicity_detection": enumInventoryField(false, "disabled", "enabled"), "trust_prompt_injection_detection": enumInventoryField(false, "disabled", "enabled"), "trust_pii_masking": enumInventoryField(false, "disabled", "enabled")}}, true
 		case "salesforce_agent":
-			return providerEntityDefinition{stable: requiredStringFields("name", "object_type", "org"), attributes: mergeInventorySchemas(inventoryObjectSchema{"status": stringInventoryField(true), "state": stringInventoryField(false), "agent_type": stringInventoryField(false)}, discoveredAgentAttributes())}, true
+			// run_as_user is the id of the user the agent runs as and
+			// permission_sets the comma-separated names of that user's
+			// permission sets; tools says whether its topics and actions were
+			// listed; content_moderation is the org's guardrail level.
+			return providerEntityDefinition{stable: requiredStringFields("name", "object_type", "org"), attributes: mergeInventorySchemas(inventoryObjectSchema{"status": stringInventoryField(true), "state": stringInventoryField(false), "agent_type": stringInventoryField(false),
+				"run_as_user": stringInventoryField(false), "permission_sets": stringInventoryField(false), "tools": enumInventoryField(false, "listed", "not_listed", "partial"), "content_moderation": enumInventoryField(false, "high", "low", "medium")}, discoveredAgentAttributes())}, true
+		case "salesforce_agent_tool":
+			// A topic (object_type agent_topic) or an action (agent_action) of
+			// an Agentforce agent. target_type is what an action invokes.
+			return providerEntityDefinition{stable: requiredStringFields("name", "object_type", "org"), attributes: inventoryObjectSchema{"status": stringInventoryField(true), "state": stringInventoryField(false), "target_type": stringInventoryField(false), "confirmation_required": boolInventoryField(false)}}, true
 		}
 	case collection.ProviderSaaS:
 		// One provider for every SaaS platform read through the Nango proxy.
@@ -907,7 +918,7 @@ func validProviderRelationshipEndpointKinds(provider collection.Provider, raw js
 			"okta_tenant|contains|okta_ai_application", "okta_group|assigned_to|okta_ai_application", "okta_service_principal|assigned_to|okta_ai_application", "okta_user|assigned_to|okta_ai_application",
 		),
 		collection.ProviderMicrosoft:  tokenSet("microsoft_tenant|contains|microsoft_agent_identity", "microsoft_tenant|contains|microsoft_ai_application", "microsoft_tenant|contains|microsoft_copilot_agent", "microsoft_tenant|contains|microsoft_ai_resource", "microsoft_tenant|contains|microsoft_ai_deployment"),
-		collection.ProviderSalesforce: tokenSet("salesforce_org|contains|salesforce_agent"),
+		collection.ProviderSalesforce: tokenSet("salesforce_org|contains|salesforce_agent", "salesforce_agent|contains|salesforce_agent_tool", "salesforce_agent_tool|contains|salesforce_agent_tool"),
 		collection.ProviderSaaS:       tokenSet("saas_tenant|contains|saas_agent", "saas_tenant|contains|saas_ai_application", "saas_tenant|contains|saas_mcp_server"),
 	}
 	return allowed[provider][key]

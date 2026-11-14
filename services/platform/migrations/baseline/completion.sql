@@ -6861,3 +6861,97 @@ END $guardrail_decide_permission$;
 ALTER FUNCTION zasp_authorization80.guardrail_decide(text,text,text,text,jsonb) OWNER TO zasp_discovery_authority;
 REVOKE ALL ON FUNCTION zasp_authorization80.guardrail_decide(text,text,text,text,jsonb) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION zasp_authorization80.guardrail_decide(text,text,text,text,jsonb) TO zasp_discovery_api;
+
+-- ---------------------------------------------------------------------------
+-- WS7 (provider reads the plan listed as "no known API": Agentforce topics
+-- and actions, Azure AI Foundry agents, OpenAI assistants, GitLab Duo agents,
+-- Rovo agents, Kubernetes MCP links).
+--
+-- WS7a. Inventory rule. One kind joins the catalog:
+--   salesforce_agent_tool   a topic or an action of an Agentforce agent
+--                           (Tooling API objects GenAiPluginDefinition and
+--                           GenAiFunctionDefinition), a tool of that agent.
+-- Every other new read uses a kind the catalog already holds (a Foundry
+-- agent is a microsoft_copilot_agent, an OpenAI assistant, a Duo agent and a
+-- Rovo agent are each a saas_agent, and a Kubernetes MCP link is a
+-- relationship). The catalog is then 57 rows and its digest the one the
+-- compiled catalog (inventoryprojection.RuleCatalogDigest) holds. As in the
+-- sections before it, a later section that adds rules pins its own digest,
+-- and this section then has nothing left to do when the file runs again.
+DO $ws7_rule_catalog$
+DECLARE earlier CONSTANT text[]:=ARRAY['44820a38e96d80318165fc2333fd851cd932d2704d380a1199d569d1d0778f30','9397691244ac0b8befd2790fed3ca2e71f2114eba44001cc3d5634f86b6044ed','f67df9589cf0d41f4b2a98a5161353100e2ff3ed61cfc188c1447d2dd14c4192','2af0dce065caff0c7093dfecede207658bf1973cfcc53911bfae7faef33b1809','7121768829bd73b339a34812762ec5acb449497439e0650d6c6fb7a85bf5678b','cb8d8d45c753ad53654b44bbc1a6c4ed70fba671049b03047b26d1c12bad8169'];
+ current_value CONSTANT text:='23c473feff7a5fe2086ab4a283e2cf460b0d38c8b0657d73f3fccd9bab02963a';
+ previous text;f regprocedure;d text;
+BEGIN
+ IF (SELECT count(*) FROM public.zasp_inventory_identity_rules)>57
+  AND NOT COALESCE((SELECT value FROM public.zasp_schema_metadata WHERE key='typed_inventory_rule_catalog_digest')=ANY(earlier||current_value),false) THEN
+  RETURN;
+ END IF;
+ INSERT INTO public.zasp_inventory_identity_rules(provider,source_kind,identity_namespace,product_kind,rule_version,priority,confidence_basis_points,freshness_seconds) VALUES
+  ('salesforce','salesforce_agent_tool','salesforce_agent_tool','tool',1,140,9500,86400)
+ ON CONFLICT(provider,source_kind) DO NOTHING;
+ IF (SELECT count(*) FROM public.zasp_inventory_identity_rules)<>57
+  OR (SELECT count(*) FROM public.zasp_inventory_identity_rules WHERE rule_version=1 AND source_kind=identity_namespace
+      AND (provider,source_kind,product_kind,priority,confidence_basis_points,freshness_seconds)=('salesforce','salesforce_agent_tool','tool',140,9500,86400))<>1 THEN
+  RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='ws7 inventory rule catalog predecessor changed';
+ END IF;
+ ALTER TABLE public.zasp_inventory_cutover_state DROP CONSTRAINT IF EXISTS zasp_inventory_cutover_state_rule_catalog_digest_check;
+ UPDATE public.zasp_inventory_cutover_state SET rule_catalog_digest=current_value WHERE rule_catalog_digest=ANY(earlier);
+ EXECUTE format('ALTER TABLE public.zasp_inventory_cutover_state ADD CONSTRAINT zasp_inventory_cutover_state_rule_catalog_digest_check CHECK(rule_catalog_digest=%L)',current_value);
+ UPDATE public.zasp_schema_metadata SET value=current_value WHERE key='typed_inventory_rule_catalog_digest' AND value=ANY(earlier);
+ FOREACH f IN ARRAY ARRAY['public.zasp_inventory_advance_scope(text,text,text,text,bytea,bytea)'::regprocedure,'public.zasp_inventory_readiness(text,text)'::regprocedure] LOOP
+  FOREACH previous IN ARRAY earlier LOOP
+   d:=pg_get_functiondef(f);
+   IF position(previous in d)>0 THEN EXECUTE replace(d,previous,current_value);END IF;
+  END LOOP;
+ END LOOP;
+END $ws7_rule_catalog$;
+
+-- WS7b. Coverage gaps of the new reads.
+--
+-- Three of the new reads need a permission beyond the one a connection
+-- already has, and go without when it is missing. The integration's
+-- freshness (section "integration_coverage_gaps") says so, in the shape and
+-- with the status it already has (access_denied):
+--   mcp-links            a Kubernetes credential that may not list Services:
+--                        no agent is related to an MCP server of the cluster
+--                        (cluster attribute mcp_links = services_denied);
+--   mcp-link-configmaps  one that may list Services and not ConfigMaps: an
+--                        agent is related only by what its arguments and
+--                        environment values name (configmaps_denied);
+--   foundry-agents       a Microsoft application without the role that may
+--                        list the agents of an Azure AI Foundry project
+--                        (account attribute agents = access_denied).
+-- An integration reads one provider, so its list stays within sixteen gaps.
+DO $ws7_coverage_gaps$
+DECLARE target CONSTANT regprocedure:='zasp_temporal72.last_good_freshness(text,text,text,text)'::regprocedure;
+ anchor CONSTANT text:=$anchor$LIMIT 1)) gap),'[]'::jsonb));$anchor$;
+ gaps CONSTANT text:=$gaps$LIMIT 1)
+  UNION ALL
+  (SELECT 'mcp-links','MCP server links','access_denied'
+  FROM public.zasp_inventory_source_observations observation
+  WHERE (observation.organization_id,observation.workspace_id,observation.environment_id,observation.integration_id)=(o,w,e,i)
+   AND observation.provider='kubernetes' AND observation.source_kind='kubernetes_cluster' AND observation.source_state='present'
+   AND observation.attributes->>'mcp_links'='services_denied'
+  LIMIT 1)
+  UNION ALL
+  (SELECT 'mcp-link-configmaps','MCP server links from ConfigMaps','access_denied'
+  FROM public.zasp_inventory_source_observations observation
+  WHERE (observation.organization_id,observation.workspace_id,observation.environment_id,observation.integration_id)=(o,w,e,i)
+   AND observation.provider='kubernetes' AND observation.source_kind='kubernetes_cluster' AND observation.source_state='present'
+   AND observation.attributes->>'mcp_links'='configmaps_denied'
+  LIMIT 1)
+  UNION ALL
+  (SELECT 'foundry-agents','Azure AI Foundry agents','access_denied'
+  FROM public.zasp_inventory_source_observations observation
+  WHERE (observation.organization_id,observation.workspace_id,observation.environment_id,observation.integration_id)=(o,w,e,i)
+   AND observation.provider='microsoft' AND observation.source_kind='microsoft_ai_resource' AND observation.source_state='present'
+   AND observation.attributes->>'agents'='access_denied'
+  LIMIT 1)) gap),'[]'::jsonb));$gaps$;
+ d text:=pg_get_functiondef(target);
+BEGIN
+ IF position(gaps in d)=0 THEN
+  IF position('mcp-links' in d)>0 OR position('coverage_gaps' in d)=0 OR length(d)-length(replace(d,anchor,''))<>length(anchor) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='integration coverage gap predecessor changed';END IF;
+  EXECUTE replace(d,anchor,gaps);
+ END IF;
+END $ws7_coverage_gaps$;
