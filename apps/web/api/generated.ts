@@ -982,7 +982,7 @@ export type paths = {
         readonly put?: never;
         /**
          * Create a message through the hosted model proxy
-         * @description The messages format through the proxy: point the SDK's base URL at <origin>/api/v1/gateway/llm, send an API token that has the use_gateway permission as the bearer token, and the provider's own key in x-api-key or in X-Zasp-Upstream-Authorization. anthropic-version and anthropic-beta are forwarded. The messages, tool results among them, and the answer's text and tool inputs go through the guardrail detectors; thinking blocks are passed unchanged.
+         * @description The messages format through the proxy: point the SDK's base URL at <origin>/api/v1/gateway/llm, send an API token that has the use_gateway permission as the bearer token, and the provider's own key in X-Zasp-Upstream-Authorization (a plain HTTP client may send it in x-api-key instead). anthropic-version and anthropic-beta are forwarded. The messages, tool results among them, and the answer's text and tool inputs go through the guardrail detectors; thinking blocks are passed unchanged.
          */
         readonly post: operations["createGatewayMessage"];
         readonly delete?: never;

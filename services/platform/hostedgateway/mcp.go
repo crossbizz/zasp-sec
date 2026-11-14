@@ -222,8 +222,20 @@ func rpcError(code int, message string) json.RawMessage {
 	return encodeJSON(map[string]any{"code": code, "message": message})
 }
 
-func toolRefusal(message string) json.RawMessage {
-	return encodeJSON(map[string]any{"content": []any{map[string]any{"type": "text", "text": message}}, "isError": true})
+// toolRefusal is the result of a tool call the gateway refuses: a failed
+// tool call, which the model is shown. A result of the 2026-07-28 revision
+// says what kind of result it is, and a client of that revision requires it.
+//
+// DOCUMENTED: the MCP Python SDK 2.3.0 (mcp_types): "resultType" tags a
+// result as "complete" or "input_required" in the 2026-07-28 revision. A
+// client of the SDK in that revision refused the gateway's result without
+// it; TestRealMCPClientAndServerThroughTheGateway runs that client.
+func toolRefusal(message string, modern bool) json.RawMessage {
+	result := map[string]any{"content": []any{map[string]any{"type": "text", "text": message}}, "isError": true}
+	if modern {
+		result["resultType"] = "complete"
+	}
+	return encodeJSON(result)
 }
 
 func contains(values []string, value string) bool {
@@ -276,6 +288,9 @@ type mcpExchange struct {
 	id       json.RawMessage
 	toolName string
 	agentID  string
+	// modern says the request is of the 2026-07-28 revision or later: it
+	// carries the Mcp-Method header that revision requires.
+	modern   bool
 	request  *Inspection
 	response *Inspection
 	tools    []ToolSeen
@@ -354,7 +369,7 @@ func (exchange *mcpExchange) rewriteResponse(message *rpcMessage) {
 	switch {
 	case inspection.Blocked() && exchange.method == "tools/call":
 		// The model is shown a failed tool call, as for any tool error.
-		message.Result = toolRefusal(refusalText(inspection.Verdict().Reason))
+		message.Result = toolRefusal(refusalText(inspection.Verdict().Reason), exchange.modern)
 	case inspection.Blocked():
 		message.Result, message.Error = nil, rpcError(rpcRefused, refusalText(inspection.Verdict().Reason))
 	case inspection.Redacted():
@@ -422,7 +437,7 @@ func (gateway *Gateway) ServeMCP(writer http.ResponseWriter, request *http.Reque
 		writeRPC(writer, http.StatusTooManyRequests, rpcMessage{ID: message.ID, Error: rpcError(rpcRefused, "The gateway's rate limit for this token is exceeded.")})
 		return
 	}
-	exchange := &mcpExchange{session: session, method: message.Method, id: message.ID, agentID: recordable(request.Header.Get(HeaderAgentID)),
+	exchange := &mcpExchange{session: session, method: message.Method, id: message.ID, agentID: recordable(request.Header.Get(HeaderAgentID)), modern: request.Header.Get("Mcp-Method") != "",
 		request: NewInspection(session.Guardrail, guardrail.DirectionOutput), response: NewInspection(session.Guardrail, guardrail.DirectionInput)}
 	exchange.request.Observe(body)
 	defer gateway.lateMCP(ctx, caller, serverID, exchange)
@@ -486,7 +501,7 @@ func (gateway *Gateway) ServeMCP(writer http.ResponseWriter, request *http.Reque
 			if !gateway.recordNow(ctx, writer, caller, serverID, exchange) {
 				return
 			}
-			writeRPC(writer, http.StatusOK, rpcMessage{ID: message.ID, Result: toolRefusal(refusalText(verdict.Reason))})
+			writeRPC(writer, http.StatusOK, rpcMessage{ID: message.ID, Result: toolRefusal(refusalText(verdict.Reason), exchange.modern)})
 			return
 		}
 	}

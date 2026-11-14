@@ -132,7 +132,7 @@ default_headers = {"X-Zasp-Upstream-Authorization": "Bearer <provider key>"}
 # Messages format
 base_url   = "${base}/api/v1/gateway/llm"
 auth_token = "<platform token>"   # sent as Authorization: Bearer
-api_key    = "<provider key>"     # sent as x-api-key`}</pre>
+default_headers = {"X-Zasp-Upstream-Authorization": "Bearer <provider key>"}`}</pre>
     <p>The gateway applies the guardrail rules to prompts, tool arguments, tool results and answers, streamed answers included, and records each decision without any text. Limits, latency and what is not covered are in <code>docs/operations/hosted-gateway.md</code>.</p>
   </Card>;
 }

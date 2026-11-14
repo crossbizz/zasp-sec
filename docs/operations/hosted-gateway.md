@@ -117,7 +117,7 @@ client = OpenAI(
 )
 ```
 
-Models, messages format. The Zasp token is the bearer token and the provider's key stays where the SDK puts it (`x-api-key`):
+Models, messages format. The Zasp token is the SDK's bearer token (`auth_token`) and the provider's key is a default header. The SDK takes either `auth_token` or `api_key`, not both, so the provider's key cannot stay in `api_key`:
 
 ```python
 from anthropic import Anthropic
@@ -125,19 +125,18 @@ from anthropic import Anthropic
 client = Anthropic(
     base_url="https://<your Zasp address>/api/v1/gateway/llm",
     auth_token="<Zasp token>",
-    api_key="<provider key>",
-    default_headers={"X-Zasp-Agent-Id": "<agent id>"},
+    default_headers={"X-Zasp-Upstream-Authorization": "Bearer <provider key>", "X-Zasp-Agent-Id": "<agent id>"},
 )
 ```
 
-**These three snippets were not run against the real clients.** They follow the documented configuration of each client; the gateway was tested with plain HTTP clients against local stand-ins for an MCP server and for the providers (see [What was verified](#what-was-verified)).
+The two SDK configurations were run as written, with openai 3.51.0 and anthropic 2.8.0, against a local stand-in for the provider: complete and streamed answers, the Responses stream, a refused prompt (the SDK raises its `BadRequestError` with code `guardrail_blocked`) and a stream the gateway cuts (the SDK raises). The MCP gateway was run between the client and the server of the official MCP Python SDK 2.3.0, with the same two headers. The JSON form of an agent's MCP configuration above depends on the agent product and was not tried with one. See [What was verified](#what-was-verified).
 
 Headers the gateway reads:
 
 | Header | Meaning |
 | --- | --- |
 | `Authorization: Bearer <Zasp token>` | Authenticates the agent to the gateway. Never forwarded. |
-| `X-Zasp-Upstream-Authorization` | The upstream's own credential. For an MCP server its value is sent as the upstream's `Authorization`. For a provider it is the API key (with or without `Bearer `), sent in the provider's own key header. For the messages route the key may instead be in `x-api-key`. |
+| `X-Zasp-Upstream-Authorization` | The upstream's own credential. For an MCP server its value is sent as the upstream's `Authorization`. For a provider it is the API key (with or without `Bearer `), sent in the provider's own key header. A plain HTTP client of the messages route may send the key in `x-api-key` instead. |
 | `X-Zasp-Upstream-Provider` | The provider of the catalog: `openai` (default for chat completions and responses), `anthropic` (default and only one for messages), `azure_openai`. |
 | `X-Zasp-Upstream-Host` | For `azure_openai` only: `<resource>.openai.azure.com`. Any other host is refused. |
 | `X-Zasp-Agent-Id` | Recorded with each decision. When it is the agent's identifier in the inventory, the agent's gateway traffic counts as its activity. |
@@ -199,7 +198,7 @@ MCP, Streamable HTTP as specified in the 2025-11-25 revision, read from the spec
 - `MCP-Session-Id` and `MCP-Protocol-Version` are passed in both directions; the end of a session (`DELETE`) is forwarded; an upstream `404` (ended session) and `400` reach the agent as such;
 - the request headers of the 2026-07-28 revision (`Mcp-Method`, `Mcp-Name`, `Mcp-Param-*`) are forwarded. If redaction changes the arguments of a call that carries `Mcp-Param-*` headers, the call is blocked instead, because the upstream refuses a request whose headers and body disagree.
 
-Not covered: the `GET` stream (answered `405`, which the transport allows), so messages a server starts outside a request, such as `tools/list_changed`, are not delivered; stream resumption with `Last-Event-ID` across connections; stdio servers (they are local processes, not remote ones); and the deprecated HTTP+SSE transport of 2024-11-05.
+Not covered: the `GET` stream (answered `405`, which the transport allows), so messages a server starts outside a request, such as `tools/list_changed`, are not delivered; stream resumption with `Last-Event-ID` across connections; a long-lived stream of the 2026-07-28 revision (`subscriptions/listen`) beyond the gateway's timeout, after which the client must ask again; stdio servers (they are local processes, not remote ones); and the deprecated HTTP+SSE transport of 2024-11-05.
 
 Models: the three request and answer formats, complete and streamed. Inspected in answers: text and tool-call arguments. Not inspected: images and audio, refusal and reasoning text, and the results of tools a provider runs on its own side.
 
@@ -234,7 +233,9 @@ The gateway reads the policy on every request, so a policy change, a registry de
 ## What was verified
 
 - The engine: unit tests and end-to-end tests over real HTTP against a local MCP server and a local model provider (`services/platform/hostedgateway`).
+- A real MCP client and a real MCP server through the gateway: the client and the server of the official MCP Python SDK 2.3.0, with the initialize handshake (answers as JSON and as a stream) and in the 2026-07-28 revision (`TestRealMCPClientAndServerThroughTheGateway`). This run found that a result of the 2026-07-28 revision must say `resultType`, which the gateway's refusals now do.
+- The providers' own SDKs through the model proxy: openai 3.51.0 and anthropic 2.8.0, against a local stand-in for the provider (`TestRealModelSDKsThroughTheProxy`; it needs a Python with both packages, named in `ZASP_GATEWAY_SDK_PYTHON`, and is skipped without one). This run found that the Anthropic SDK does not take a bearer token and an API key together.
 - The database section: on PostgreSQL 18 with the baseline installed, and the whole path (a token created with `use_gateway`, requests authorized and executed as the API's database login, decisions read back) on an installed baseline (`services/platform/apiserver/hosted_gateway*_postgres_test.go`).
 - The chart and Terraform: read as text. They were not rendered or applied.
 
-Not verified: a real MCP client, the OpenAI or Anthropic SDKs, a real provider, a real remote MCP server, and the gateway behind the ingress of a running cluster.
+Not verified: a real model provider, a remote MCP server on the internet, an agent product's own MCP client (the SDK's client is what many are built on, not all), other languages' SDKs, and the gateway behind the ingress of a running cluster. In the tests with the real client and SDKs the gateway's engine was served directly; the API's authentication, authorization and database path in front of it is what the installed-baseline test covers, with plain HTTP requests.

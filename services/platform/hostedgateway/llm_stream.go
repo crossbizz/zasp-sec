@@ -20,8 +20,10 @@ import (
 // UNVERIFIED: response.function_call_arguments.delta (delta) and .done
 // (arguments) are in that specification for the Realtime API; that the
 // Responses stream uses the same two names and members is from memory.
-// UNVERIFIED: an {"error":{...}} object as a data line of a chat completion
-// stream is what OpenAI's SDKs raise an error for, from memory.
+// An {"error":{...}} object as a data line of a chat completion stream is
+// raised as an error by the openai Python SDK (3.51.0), and the Messages
+// error event by the anthropic Python SDK (2.8.0): both are run in
+// TestRealModelSDKsThroughTheProxy.
 //
 // DOCUMENTED: https://platform.claude.com/docs/en/build-with-claude/streaming.
 // A Messages stream is named events: content_block_delta with index and a
