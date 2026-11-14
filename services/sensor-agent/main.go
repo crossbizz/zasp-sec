@@ -42,6 +42,11 @@ func main() {
 			os.Exit(1)
 		}
 		return
+	} else if role == "egress-discovery" {
+		if serveEgressDiscovery(ctx, os.Stdout, buildVersion, os.Getenv, net.Listen) != nil {
+			os.Exit(1)
+		}
+		return
 	} else if role != "" && role != "legacy-consumer" && role != "lineage-consumer" {
 		os.Exit(1)
 	}
