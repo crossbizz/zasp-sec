@@ -1,0 +1,116 @@
+{
+  "key": "aws-production",
+  "provider": "aws",
+  "name": "Demo: AWS production account",
+  "subject": "111122223333",
+  "description": "Bedrock agents with and without guardrails, AgentCore runtimes and gateways with MCP targets, agents inferred from Lambda configuration, CloudTrail and network logs, over-privileged and unused roles.",
+  "configuration": {
+    "external_id_reference": "ref:aws/external-id/demo-northwind-production",
+    "region": "us-east-1",
+    "role_arn": "arn:aws:iam::111122223333:role/zasp-discovery"
+  },
+  "aws": {
+    "roles": [
+      {"name": "bedrock-order-support"},
+      {"name": "bedrock-warehouse-planner"},
+      {"name": "bedrock-returns-triage"},
+      {"name": "bedrock-field-service"},
+      {"name": "finance-close-admin", "administrator_access": true},
+      {"name": "legacy-pricing-bot"},
+      {"name": "agentcore-fleet-telemetry"},
+      {"name": "agentcore-procurement"},
+      {"name": "lambda-invoice-summarizer", "confused_deputy": true},
+      {"name": "lambda-shipping-notifier"},
+      {"name": "ec2-quality-inspection"},
+      {"name": "ecs-dispatch-optimizer"}
+    ],
+    "activity": [
+      {"role": "bedrock-order-support", "hours_ago": 1},
+      {"role": "bedrock-warehouse-planner", "hours_ago": 3},
+      {"role": "bedrock-field-service", "hours_ago": 30},
+      {"role": "bedrock-returns-triage", "hours_ago": 620},
+      {"role": "finance-close-admin", "hours_ago": 9},
+      {"role": "agentcore-fleet-telemetry", "hours_ago": 2},
+      {"role": "agentcore-procurement", "hours_ago": 50},
+      {"role": "data-science-notebooks", "hours_ago": 5},
+      {"role": "lambda-invoice-summarizer", "hours_ago": 4}
+    ],
+    "agents": {
+      "account_id": "111122223333",
+      "bedrock_agents": [
+        {"agent_id": "ORDSUP7K2M", "arn": "arn:aws:bedrock:us-east-1:111122223333:agent/ORDSUP7K2M", "model": "anthropic.claude-sonnet-4-20250514-v1:0", "name": "order-support-assistant", "region": "us-east-1", "role_arn": "arn:aws:iam::111122223333:role/bedrock-order-support", "status": "PREPARED"},
+        {"agent_id": "WHPLAN4T9Q", "arn": "arn:aws:bedrock:us-east-1:111122223333:agent/WHPLAN4T9Q", "model": "anthropic.claude-sonnet-4-20250514-v1:0", "name": "warehouse-routing-planner", "region": "us-east-1", "role_arn": "arn:aws:iam::111122223333:role/bedrock-warehouse-planner", "status": "PREPARED"},
+        {"agent_id": "RETTRI8B3X", "arn": "arn:aws:bedrock:us-east-1:111122223333:agent/RETTRI8B3X", "model": "amazon.nova-pro-v1:0", "name": "returns-triage-agent", "region": "us-east-1", "role_arn": "arn:aws:iam::111122223333:role/bedrock-returns-triage", "status": "PREPARED"},
+        {"agent_id": "FINCLS2H6D", "arn": "arn:aws:bedrock:us-east-1:111122223333:agent/FINCLS2H6D", "model": "anthropic.claude-sonnet-4-20250514-v1:0", "name": "finance-close-assistant", "region": "us-east-1", "role_arn": "arn:aws:iam::111122223333:role/finance-close-admin", "status": "PREPARED"},
+        {"agent_id": "LEGPRC5N1V", "arn": "arn:aws:bedrock:us-west-2:111122223333:agent/LEGPRC5N1V", "model": "amazon.titan-text-premier-v1:0", "name": "legacy-pricing-bot", "region": "us-west-2", "role_arn": "arn:aws:iam::111122223333:role/legacy-pricing-bot", "status": "NOT_PREPARED"},
+        {"agent_id": "FLDSVC9W4J", "arn": "arn:aws:bedrock:us-west-2:111122223333:agent/FLDSVC9W4J", "model": "anthropic.claude-haiku-4-5-20251001-v1:0", "name": "field-service-copilot", "region": "us-west-2", "role_arn": "arn:aws:iam::111122223333:role/bedrock-field-service", "status": "PREPARED"}
+      ],
+      "runtimes": [
+        {"arn": "arn:aws:bedrock-agentcore:us-east-1:111122223333:runtime/fleet_telemetry_analyst-Qm4Xz81LpA", "name": "fleet-telemetry-analyst", "region": "us-east-1", "role_arn": "arn:aws:iam::111122223333:role/agentcore-fleet-telemetry", "runtime_id": "fleet_telemetry_analyst-Qm4Xz81LpA", "status": "READY"},
+        {"arn": "arn:aws:bedrock-agentcore:us-east-1:111122223333:runtime/procurement_negotiator-Jk7Ty20RsB", "name": "procurement-negotiator", "region": "us-east-1", "role_arn": "arn:aws:iam::111122223333:role/agentcore-procurement", "runtime_id": "procurement_negotiator-Jk7Ty20RsB", "status": "READY"}
+      ],
+      "gateways": [
+        {"arn": "arn:aws:bedrock-agentcore:us-east-1:111122223333:gateway/operations-tools-x7k2m9p4q1", "authorizer": "NONE", "endpoint_host": "operations-tools-x7k2m9p4q1.gateway.bedrock-agentcore.us-east-1.amazonaws.com", "gateway_id": "operations-tools-x7k2m9p4q1", "name": "operations-tools", "region": "us-east-1", "status": "READY",
+          "targets": [
+            {"name": "warehouse-sql", "target_id": "WHSQL00001", "tools": ["list_tables", "run_query"]},
+            {"name": "ticketing", "target_id": "TICKET0002", "tools": ["create_ticket", "list_tickets"]},
+            {"name": "carrier-rates", "remote_host": "mcp.carrier-rates.example.com", "target_id": "CARRIER003", "tools": ["get_rate"]}
+          ]},
+        {"arn": "arn:aws:bedrock-agentcore:us-east-1:111122223333:gateway/partner-tools-b3n8v5c2z6", "authorizer": "CUSTOM_JWT", "endpoint_host": "partner-tools-b3n8v5c2z6.gateway.bedrock-agentcore.us-east-1.amazonaws.com", "gateway_id": "partner-tools-b3n8v5c2z6", "name": "partner-tools", "region": "us-east-1", "status": "READY",
+          "targets": [
+            {"name": "supplier-catalog", "target_id": "SUPPLIER01", "tools": ["get_supplier", "search_catalog"]}
+          ]}
+      ],
+      "lambda_functions": [
+        {"arn": "arn:aws:lambda:us-east-1:111122223333:function:invoice-summarizer", "name": "invoice-summarizer", "region": "us-east-1", "role_arn": "arn:aws:iam::111122223333:role/lambda-invoice-summarizer", "signals": ["env:openai", "env:langchain"], "state": "Active"},
+        {"arn": "arn:aws:lambda:us-east-1:111122223333:function:shipping-notifier-agent", "name": "shipping-notifier-agent", "region": "us-east-1", "role_arn": "arn:aws:iam::111122223333:role/lambda-shipping-notifier", "signals": ["env:anthropic", "env:mcp"], "state": "Active"}
+      ],
+      "inferred_workloads": [
+        {"arn": "arn:aws:iam::111122223333:role/data-science-notebooks", "name": "data-science-notebooks", "region": "us-east-1", "resource_type": "iam_role", "role_arn": "arn:aws:iam::111122223333:role/data-science-notebooks", "signals": ["invoke:bedrock_model"]},
+        {"arn": "arn:aws:ec2:us-east-1:111122223333:instance/i-0a1b2c3d4e5f67890", "name": "quality-inspection-vision", "region": "us-east-1", "resource_type": "ec2_instance", "role_arn": "arn:aws:iam::111122223333:role/ec2-quality-inspection", "signals": ["egress:openai", "egress:langchain"]},
+        {"arn": "arn:aws:ecs:us-east-1:111122223333:service/northwind-prod/dispatch-optimizer", "name": "dispatch-optimizer", "region": "us-east-1", "resource_type": "ecs_service", "role_arn": "arn:aws:iam::111122223333:role/ecs-dispatch-optimizer", "signals": ["egress:anthropic"]}
+      ],
+      "mcp_servers": [
+        {"host": "mcp.carrier-rates.example.com", "region": "us-east-1", "source": "gateway_target"},
+        {"host": "mcp.issue-tracker.example.com", "region": "us-east-1", "source": "egress"},
+        {"host": "mcp.unvetted-plugins.example.net", "region": "us-east-1", "source": "egress"}
+      ],
+      "uses": [
+        {"agent": "arn:aws:bedrock:us-east-1:111122223333:agent/ORDSUP7K2M", "server": "arn:aws:bedrock-agentcore:us-east-1:111122223333:gateway/operations-tools-x7k2m9p4q1"},
+        {"agent": "arn:aws:bedrock:us-east-1:111122223333:agent/WHPLAN4T9Q", "server": "arn:aws:bedrock-agentcore:us-east-1:111122223333:gateway/operations-tools-x7k2m9p4q1"},
+        {"agent": "arn:aws:bedrock-agentcore:us-east-1:111122223333:runtime/fleet_telemetry_analyst-Qm4Xz81LpA", "server": "arn:aws:bedrock-agentcore:us-east-1:111122223333:gateway/partner-tools-b3n8v5c2z6"},
+        {"agent": "arn:aws:bedrock-agentcore:us-east-1:111122223333:runtime/procurement_negotiator-Jk7Ty20RsB", "server": "arn:aws:bedrock-agentcore:us-east-1:111122223333:gateway/partner-tools-b3n8v5c2z6"},
+        {"agent": "arn:aws:lambda:us-east-1:111122223333:function:invoice-summarizer", "server": "us-east-1/mcp.issue-tracker.example.com"},
+        {"agent": "arn:aws:ecs:us-east-1:111122223333:service/northwind-prod/dispatch-optimizer", "server": "us-east-1/mcp.unvetted-plugins.example.net"}
+      ],
+      "data_access": [
+        {"access": "write", "arn": "arn:aws:dynamodb:::*", "role_arn": "arn:aws:iam::111122223333:role/bedrock-warehouse-planner", "scope": "service", "service": "dynamodb"},
+        {"access": "read", "arn": "arn:aws:s3:::northwind-order-exports", "role_arn": "arn:aws:iam::111122223333:role/bedrock-order-support", "scope": "resource", "service": "s3"},
+        {"access": "write", "arn": "arn:aws:s3:::northwind-finance-ledgers", "role_arn": "arn:aws:iam::111122223333:role/finance-close-admin", "scope": "resource", "service": "s3"},
+        {"access": "read", "arn": "arn:aws:s3:::northwind-fleet-telemetry", "role_arn": "arn:aws:iam::111122223333:role/agentcore-fleet-telemetry", "scope": "resource", "service": "s3"},
+        {"access": "read", "arn": "arn:aws:secretsmanager:::*", "role_arn": "arn:aws:iam::111122223333:role/lambda-invoice-summarizer", "scope": "service", "service": "secretsmanager"},
+        {"access": "write", "arn": "arn:aws:s3:::northwind-dispatch-plans", "role_arn": "arn:aws:iam::111122223333:role/ecs-dispatch-optimizer", "scope": "resource", "service": "s3"}
+      ],
+      "role_usage": [
+        {"granted": ["bedrock:InvokeAgent", "bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"], "role_arn": "arn:aws:iam::111122223333:role/bedrock-returns-triage", "unused": ["bedrock:InvokeAgent", "bedrock:InvokeModelWithResponseStream"], "used": ["bedrock:InvokeModel"]},
+        {"granted": ["bedrock:InvokeModel"], "role_arn": "arn:aws:iam::111122223333:role/bedrock-order-support", "unused": [], "used": ["bedrock:InvokeModel"]}
+      ],
+      "checks": [
+        {"arn": "arn:aws:bedrock:us-east-1:111122223333:agent/WHPLAN4T9Q", "check": "agent_guardrail_missing"},
+        {"arn": "arn:aws:bedrock:us-east-1:111122223333:agent/RETTRI8B3X", "check": "agent_guardrail_missing"},
+        {"arn": "arn:aws:bedrock:us-east-1:111122223333:agent/RETTRI8B3X", "check": "agent_role_unused_ai_permissions"},
+        {"arn": "arn:aws:bedrock:us-east-1:111122223333:agent/FINCLS2H6D", "check": "agent_role_administrator_access"},
+        {"arn": "arn:aws:bedrock:us-west-2:111122223333:agent/LEGPRC5N1V", "check": "agent_role_unused_90_days"},
+        {"arn": "arn:aws:dynamodb:::*", "check": "agent_data_service_wide_access"}
+      ],
+      "services": [
+        {"service": "bedrock-agent", "status": "collected"},
+        {"service": "bedrock-agentcore", "status": "collected"},
+        {"service": "lambda", "status": "collected"},
+        {"service": "cloudtrail", "status": "collected"},
+        {"service": "resolver-query-logs", "status": "collected"},
+        {"service": "vpc-flow-logs", "status": "unavailable"}
+      ]
+    }
+  }
+}

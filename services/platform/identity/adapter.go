@@ -112,6 +112,42 @@ func (adapter *Adapter) InviteAdmin(ctx context.Context, organizationReference, 
 	return invitation, nil
 }
 
+// MemberFinder is an optional capability of a driver: it looks a member up
+// by address without inviting anybody.
+type MemberFinder interface {
+	FindMember(context.Context, string, string) (DriverInvitation, bool, error)
+}
+
+// FindMember returns the provider member with this address in the
+// Organization, and false when there is none. It never sends an invitation:
+// a caller that must not create a member uses it instead of InviteAdmin.
+func (adapter *Adapter) FindMember(ctx context.Context, organizationReference, email string) (invitation ExternalInvitation, found bool, err error) {
+	if adapter == nil || !validContext(ctx) || !validReference(organizationReference, "organization-") || !validEmail(email) {
+		return ExternalInvitation{}, false, ErrInvalidRecord
+	}
+	finder, supported := adapter.driver.(MemberFinder)
+	if !supported || nilInterface(finder) {
+		return ExternalInvitation{}, false, ErrProvider
+	}
+	defer func() {
+		if recover() != nil {
+			invitation, found, err = ExternalInvitation{}, false, ErrProvider
+		}
+	}()
+	raw, found, err := finder.FindMember(ctx, organizationReference, email)
+	if err != nil {
+		return ExternalInvitation{}, false, ErrProvider
+	}
+	if !found {
+		return ExternalInvitation{}, false, nil
+	}
+	invitation, err = newExternalInvitation(raw)
+	if err != nil || invitation.organizationReference != organizationReference || invitation.email != email {
+		return ExternalInvitation{}, false, ErrInvalidRecord
+	}
+	return invitation, true, nil
+}
+
 func (adapter *Adapter) ListSSOConnections(ctx context.Context, organizationReference string) ([]DriverSSOConnection, error) {
 	if adapter == nil || !validContext(ctx) || !validReference(organizationReference, "organization-") {
 		return nil, ErrInvalidRecord

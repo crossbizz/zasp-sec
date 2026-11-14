@@ -24,6 +24,10 @@ type Queryer interface {
 type PostgresStore struct {
 	database Queryer
 	newID    func() (string, error)
+	// workspace and environments are what a new Organization is created
+	// with: the product defaults unless NewPostgresStoreWithLayout set them.
+	workspaceName     string
+	environmentLayout []DefaultEnvironment
 }
 
 // NewPostgresStore binds the store to an operator connection.
@@ -31,7 +35,34 @@ func NewPostgresStore(database Queryer) (*PostgresStore, error) {
 	if database == nil {
 		return nil, ErrInvalid
 	}
-	return &PostgresStore{database: database, newID: newProductID}, nil
+	return &PostgresStore{database: database, newID: newProductID, workspaceName: DefaultWorkspaceName, environmentLayout: DefaultEnvironments}, nil
+}
+
+// NewPostgresStoreWithLayout binds a store that creates a new Organization
+// with one named Workspace and the given Environments instead of the product
+// defaults. Everything else is NewPostgresStore: the same statements, the
+// same conflicts, the same administrator. The demo seeder uses it to create
+// its dedicated Organization with one clearly named Environment.
+func NewPostgresStoreWithLayout(database Queryer, workspace string, environments []DefaultEnvironment) (*PostgresStore, error) {
+	store, err := NewPostgresStore(database)
+	if err != nil {
+		return nil, err
+	}
+	if workspace == "" || len(workspace) > 128 || len(environments) == 0 {
+		return nil, ErrInvalid
+	}
+	for _, environment := range environments {
+		switch environment.Class {
+		case "production", "staging", "development", "test":
+		default:
+			return nil, ErrInvalid
+		}
+		if environment.Name == "" || len(environment.Name) > 128 {
+			return nil, ErrInvalid
+		}
+	}
+	store.workspaceName, store.environmentLayout = workspace, append([]DefaultEnvironment(nil), environments...)
+	return store, nil
 }
 
 func newProductID() (string, error) {
@@ -172,7 +203,7 @@ func (store *PostgresStore) organization(ctx context.Context, transaction pgx.Tx
 
 func (store *PostgresStore) workspace(ctx context.Context, transaction pgx.Tx, organization string) (string, error) {
 	var id string
-	err := transaction.QueryRow(ctx, findWorkspaceSQL, organization, DefaultWorkspaceName).Scan(&id)
+	err := transaction.QueryRow(ctx, findWorkspaceSQL, organization, store.workspaceName).Scan(&id)
 	if err == nil {
 		return id, nil
 	}
@@ -182,15 +213,15 @@ func (store *PostgresStore) workspace(ctx context.Context, transaction pgx.Tx, o
 	if id, err = store.newID(); err != nil {
 		return "", ErrStore
 	}
-	if _, err := transaction.Exec(ctx, insertWorkspaceSQL, id, organization, DefaultWorkspaceName); err != nil {
+	if _, err := transaction.Exec(ctx, insertWorkspaceSQL, id, organization, store.workspaceName); err != nil {
 		return "", ErrStore
 	}
 	return id, nil
 }
 
 func (store *PostgresStore) environments(ctx context.Context, transaction pgx.Tx, organization, workspace string) ([]Environment, error) {
-	environments := make([]Environment, 0, len(DefaultEnvironments))
-	for _, wanted := range DefaultEnvironments {
+	environments := make([]Environment, 0, len(store.environmentLayout))
+	for _, wanted := range store.environmentLayout {
 		environment := Environment{WorkspaceID: workspace, Name: wanted.Name, Class: wanted.Class}
 		err := transaction.QueryRow(ctx, findEnvironmentSQL, organization, workspace, wanted.Name).Scan(&environment.ID, &environment.Class)
 		switch {

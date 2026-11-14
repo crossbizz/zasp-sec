@@ -236,6 +236,27 @@ func (driver *stytchSessionDriver) InviteAdmin(ctx context.Context, organization
 	return invited.Member.driverInvitation(organization, email)
 }
 
+// FindMember returns the provider member with this address, and false when
+// the Organization has none. It sends nothing.
+func (driver *stytchSessionDriver) FindMember(ctx context.Context, organization, email string) (platformidentity.DriverInvitation, bool, error) {
+	if driver == nil || !validExactStytchReference(organization, "organization-") || email == "" || len(email) > 254 {
+		return platformidentity.DriverInvitation{}, false, platformidentity.ErrProvider
+	}
+	var found struct {
+		StatusCode int            `json:"status_code"`
+		Members    []stytchMember `json:"members"`
+	}
+	search := map[string]any{"organization_ids": []string{organization}, "limit": 2, "query": stytchSearchQuery{Operator: "AND", Operands: []stytchSearchOperand{{Name: "member_emails", Value: []string{email}}}}}
+	if err := driver.doJSON(ctx, http.MethodPost, "/v1/b2b/organizations/members/search", search, &found); err != nil || found.StatusCode != http.StatusOK || len(found.Members) > 1 {
+		return platformidentity.DriverInvitation{}, false, platformidentity.ErrProvider
+	}
+	if len(found.Members) == 0 {
+		return platformidentity.DriverInvitation{}, false, nil
+	}
+	invitation, err := found.Members[0].driverInvitation(organization, email)
+	return invitation, err == nil, err
+}
+
 func (member stytchMember) driverInvitation(organization, email string) (platformidentity.DriverInvitation, error) {
 	if !validExactStytchReference(member.Reference, "member-") || member.OrganizationReference != organization || member.Email != email ||
 		member.Status != "active" && member.Status != "invited" && member.Status != "pending" {
