@@ -68,3 +68,28 @@ func TestEveryPostureRuleAndAgentCheckIsMapped(t *testing.T) {
 		t.Fatal("references are not ordered by framework")
 	}
 }
+
+func TestControlByKeyReturnsTheCatalogControl(t *testing.T) {
+	for key, want := range map[string]Reference{
+		"LLM01": {OWASPLLM, "LLM01", "Prompt Injection"},
+		// The key is the short form; the control keeps the framework's own spelling.
+		"T0051": {MITREATLAS, "AML.T0051", "LLM Prompt Injection"},
+		"ASI02": {OWASPAgentic, "ASI02", "Tool Misuse and Exploitation"},
+	} {
+		if got, ok := ControlByKey(key); !ok || got != want {
+			t.Errorf("ControlByKey(%q) = %+v, %v; want %+v", key, got, ok, want)
+		}
+	}
+	for _, key := range []string{"", "llm01", "AML.T0051", "LLM99", " LLM01"} {
+		if got, ok := ControlByKey(key); ok || got != (Reference{}) {
+			t.Errorf("ControlByKey(%q) = %+v, %v; want no control", key, got, ok)
+		}
+	}
+	// Every catalog control is reachable by its key and names a known framework.
+	for key, reference := range controls {
+		got, ok := ControlByKey(key)
+		if !ok || got != reference || !IsFramework(got.Framework) || FrameworkName(got.Framework) == "" {
+			t.Errorf("ControlByKey(%q) = %+v, %v", key, got, ok)
+		}
+	}
+}

@@ -72,6 +72,112 @@ describe("finding remediation", () => {
     expect(alert.textContent).toContain("never used to make changes");
   });
 
+  it.each([
+    ["remediation_already_requested", "already has a remediation run"],
+    ["remediation_target_unsupported", "not on an agent this action can change"],
+    ["remediation_integration_unavailable", "not described by an active AWS integration"],
+    ["remediation_rule_mismatch", "action does not answer this finding"],
+    ["something_else", "The remediation was not requested"],
+  ])("explains the refusal %s in product language", async (code, text) => {
+    // A transport error carries the code at the top level, a product error under product.
+    const refused = code === "remediation_rule_mismatch" ? Object.assign(new Error("refused"), { code }) : Object.assign(new Error("refused"), { status: 409, product: { code } });
+    const remediation = api({ startRemediation: vi.fn(async () => { throw refused; }) });
+    render(<FindingRemediation finding={finding("agent_role_administrator_access")} api={remediation} disabled={false} onNavigate={() => undefined} />);
+    fireEvent.click(await screen.findByRole("button", { name: /Request approval/ }));
+    expect((await screen.findByRole("alert")).textContent).toContain(text);
+    // The form stays usable so the person can retry after fixing the cause.
+    expect((screen.getByRole("button", { name: /Request approval/ }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("explains a refusal that is not an object", async () => {
+    const remediation = api({ startRemediation: vi.fn(async () => { throw null; }) });
+    render(<FindingRemediation finding={finding("agent_role_administrator_access")} api={remediation} disabled={false} onNavigate={() => undefined} />);
+    fireEvent.click(await screen.findByRole("button", { name: /Request approval/ }));
+    expect((await screen.findByRole("alert")).textContent).toContain("The remediation was not requested");
+  });
+
+  it("says Security Agents are unavailable when they cannot be listed", async () => {
+    render(<FindingRemediation finding={finding("agent_guardrail_missing")} api={api({ listRemediationAgents: vi.fn(async () => { throw new Error("forbidden"); }) })} disabled={false} onNavigate={() => undefined} />);
+    expect(await screen.findByText("Security Agents are not available to you in this scope.")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Request approval/ })).toBeNull();
+  });
+
+  it("shows loading until the agents arrive and asks the API for the finding's action", async () => {
+    let resolve: (value: readonly RemediationAgent[]) => void = () => undefined;
+    const list = vi.fn(() => new Promise<readonly RemediationAgent[]>((done) => { resolve = done; }));
+    render(<FindingRemediation finding={finding("agent_role_administrator_access")} api={api({ listRemediationAgents: list })} disabled={false} onNavigate={() => undefined} />);
+    expect(screen.getByText("Loading Security Agents…")).toBeTruthy();
+    expect(list).toHaveBeenCalledWith("detach_role_administrator_policy", expect.any(AbortSignal));
+    resolve([agent]);
+    expect(await screen.findByRole("button", { name: /Request approval/ })).toBeTruthy();
+  });
+
+  it("ignores an agent list that arrives after the view was removed", async () => {
+    let resolve: (value: readonly RemediationAgent[]) => void = () => undefined;
+    let signal: AbortSignal | undefined;
+    const list = vi.fn((_action: string, given?: AbortSignal) => { signal = given; return new Promise<readonly RemediationAgent[]>((done) => { resolve = done; }); });
+    const { unmount } = render(<FindingRemediation finding={finding("agent_guardrail_missing")} api={api({ listRemediationAgents: list })} disabled={false} onNavigate={() => undefined} />);
+    unmount();
+    expect(signal?.aborted).toBe(true);
+    resolve([agent]);
+    await Promise.resolve();
+  });
+
+  it("lets the person choose among several agents and starts the run on the chosen one", async () => {
+    const second: RemediationAgent = { ...agent, id: "pid_20000002-0000-4000-8000-000000000002", name: "Second remediation", version: 9 };
+    const remediation = api({ listRemediationAgents: vi.fn(async () => [agent, second]) });
+    render(<FindingRemediation finding={finding("agent_role_administrator_access")} api={remediation} disabled={false} onNavigate={() => undefined} />);
+    const select = await screen.findByLabelText("Security Agent");
+    expect(select).toHaveValue(agent.id);
+    fireEvent.change(select, { target: { value: second.id } });
+    fireEvent.click(screen.getByRole("button", { name: /Request approval/ }));
+    await waitFor(() => expect(remediation.startRemediation).toHaveBeenCalledWith(second, findingID, expect.objectContaining({ action: "detach_role_administrator_policy" })));
+  });
+
+  it("offers no agent choice when only one agent can run the action", async () => {
+    render(<FindingRemediation finding={finding("agent_role_administrator_access")} api={api()} disabled={false} onNavigate={() => undefined} />);
+    await screen.findByRole("button", { name: /Request approval/ });
+    expect(screen.queryByLabelText("Security Agent")).toBeNull();
+  });
+
+  it("disables every control when the view is disabled", async () => {
+    const remediation = api();
+    render(<FindingRemediation finding={finding("agent_role_administrator_access")} api={remediation} disabled onNavigate={() => undefined} />);
+    const button = (await screen.findByRole("button", { name: /Request approval/ })) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    expect((screen.getByLabelText("Policy ARN to detach") as HTMLInputElement).disabled).toBe(true);
+    fireEvent.click(button);
+    expect(remediation.startRemediation).not.toHaveBeenCalled();
+  });
+
+  it("refuses a policy that is not an IAM policy ARN and trims what is sent", async () => {
+    const remediation = api();
+    render(<FindingRemediation finding={finding("agent_role_administrator_access")} api={remediation} disabled={false} onNavigate={() => undefined} />);
+    const button = (await screen.findByRole("button", { name: /Request approval/ })) as HTMLButtonElement;
+    const field = screen.getByLabelText("Policy ARN to detach");
+    fireEvent.change(field, { target: { value: "" } });
+    expect(button.disabled).toBe(true);
+    fireEvent.change(field, { target: { value: "  arn:aws:iam::aws:policy/AdministratorAccess  " } });
+    expect(button.disabled).toBe(false);
+    fireEvent.click(button);
+    await waitFor(() => expect(remediation.startRemediation).toHaveBeenCalledWith(agent, findingID, { action: "detach_role_administrator_policy", parameters: { policy_arn: "arn:aws:iam::aws:policy/AdministratorAccess" } }));
+  });
+
+  it("opens Security Agents from the started run", async () => {
+    const navigate = vi.fn();
+    render(<FindingRemediation finding={finding("agent_role_administrator_access")} api={api()} disabled={false} onNavigate={navigate} />);
+    fireEvent.click(await screen.findByRole("button", { name: /Request approval/ }));
+    expect((await screen.findByRole("status")).textContent).toContain("pid_50000001-0000-4000-8000-000000000001");
+    fireEvent.click(screen.getByRole("button", { name: "Open Security Agents" }));
+    expect(navigate).toHaveBeenCalledWith("/security-agents");
+  });
+
+  it("does not list agents for a finding without a remediation", () => {
+    const remediation = api();
+    render(<FindingRemediation finding={finding("agent_guardrail_missing", "resolved")} api={remediation} disabled={false} onNavigate={() => undefined} />);
+    expect(remediation.listRemediationAgents).not.toHaveBeenCalled();
+  });
+
   it("renders nothing for a finding without a remediation", () => {
     const { container } = render(<FindingRemediation finding={finding("ownerless_agent")} api={api()} disabled={false} onNavigate={() => undefined} />);
     expect(container.textContent).toBe("");
