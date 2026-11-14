@@ -1,6 +1,6 @@
 import type { APIClient } from "../../../apps/web/api/client";
 import { APITransportError, requireAPIData } from "../../../apps/web/api/client";
-import { decodeAttackPath, decodeAttackPathPage, decodeBreakOptionPage, decodeFinding, decodeFindingPage } from "../../../apps/web/api/decoders";
+import { decodeAttackPath, decodeAttackPathPage, decodeBreakOptionPage, decodeFinding, decodeFindingPage, decodeInventoryDetail } from "../../../apps/web/api/decoders";
 import type { AttackPath, BreakOption, Finding, FindingTicket } from "../../../apps/web/api/generated";
 import { loadAllCursorPages } from "../../../apps/web/api/pagination";
 
@@ -23,7 +23,12 @@ export type ProductionRiskAPI = Readonly<{
   listAttackPaths(signal?: AbortSignal): Promise<readonly AttackPath[]>;
   getAttackPath(id: string, signal?: AbortSignal): Promise<AttackPath>;
   getAttackPathBreakOptions(path: AttackPath, signal?: AbortSignal): Promise<readonly BreakOption[]>;
+  // The name and kind of the inventory objects on a path (agent, MCP server,
+  // tool, identity, data store). A node the caller may not read is absent.
+  describePathNodes?(ids: readonly string[], signal?: AbortSignal): Promise<Readonly<Record<string, PathNode>>>;
 }>;
+
+export type PathNode = Readonly<{ name: string; kind: "agent" | "tool" | "identity" | "runtime" | "asset"; sourceKind: string }>;
 
 export function createProductionRiskAPI(client: APIClient, credentialKind: CredentialKind = "browser"): ProductionRiskAPI {
   return {
@@ -56,6 +61,20 @@ export function createProductionRiskAPI(client: APIClient, credentialKind: Crede
     },
     async getAttackPathBreakOptions(path, signal) {
       return requireAPIData(await client.GET("/api/v1/attack-paths/{id}/break-options", { params: { path: { id: path.id } }, signal }), (value) => decodeBreakOptionPage(value, path)).items;
+    },
+    // An inventory id does not say its kind, so each node is asked for as an
+    // agent, a tool, an identity, a runtime and an asset until one answers.
+    async describePathNodes(ids, signal) {
+      const nodes: Record<string, PathNode> = {};
+      await Promise.all(ids.slice(0, 8).filter((id) => productID.test(id)).map(async (id) => {
+        for (const path of ["/api/v1/agents/{id}", "/api/v1/tools/{id}", "/api/v1/identities/{id}", "/api/v1/runtimes/{id}", "/api/v1/assets/{id}"] as const) {
+          try {
+            const detail = requireAPIData(await client.GET(path, { params: { path: { id } }, signal }), decodeInventoryDetail);
+            if (detail.summary.id === id) { nodes[id] = { name: detail.summary.name, kind: detail.summary.kind, sourceKind: detail.summary.source_kind }; return; }
+          } catch { if (signal?.aborted) return; }
+        }
+      }));
+      return nodes;
     },
   };
 }
