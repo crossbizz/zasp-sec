@@ -42,6 +42,14 @@ describe("AI frameworks on the compliance contract", () => {
   });
 });
 
+describe("retained agent evidence pack on the export request", () => {
+  const validate = compile("ComplianceExportInput");
+  it("names a framework and control, or one agent alone", () => {
+    for (const accepted of [{}, { framework: "eu_ai_act" }, { framework: "nist_ai_rmf_1_0", control_id: "GOVERN 1.6" }, { agent_id: agent }]) assert.equal(validate(accepted), true, JSON.stringify(accepted));
+    for (const refused of [{ agent_id: "agent" }, { agent_id: agent, framework: "hipaa" }, { agent_id: agent, control_id: "ASI03" }, { agent: agent }]) assert.equal(validate(refused), false, JSON.stringify(refused));
+  });
+});
+
 describe("agent activity on the inventory summary", () => {
   const validate = compile("InventorySummary");
   it("requires both members and accepts a null time", () => {

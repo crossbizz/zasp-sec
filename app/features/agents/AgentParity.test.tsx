@@ -207,3 +207,48 @@ describe("agent evidence pack", () => {
     expect(() => decodeAgentEvidencePackResponse(value, ids.inactive)).toThrow();
   });
 });
+
+describe("retained agent evidence pack", () => {
+  const job = { id: ids.run, status: "pending", formats: ["json", "csv", "human"], created_at: "2026-11-14T09:00:00Z", expires_at: "2026-11-15T09:00:00Z", failure_code: null, mapping_revision: "product-evidence-v1" } as const;
+  function retainedAPI(overrides: Partial<ProductionAgentSecurityAPI> = {}) {
+    return api({ getAgentEvidencePack: async () => { throw new Error("unused"); }, requestRetainedEvidencePack: async () => job, getRetainedEvidencePack: async () => ({ ...job, status: "completed" }), downloadRetainedEvidencePack: async () => new Blob(["# pack"], { type: "text/plain" }), ...overrides });
+  }
+
+  it("requests the export, follows it and downloads the stored pack", async () => {
+    const user = userEvent.setup();
+    const names: string[] = [];
+    Object.assign(URL, { createObjectURL: vi.fn(() => "blob:retained"), revokeObjectURL: vi.fn() });
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) { names.push(this.download); });
+    const request = vi.fn(async () => job);
+    const download = vi.fn(async () => new Blob(["# pack"], { type: "text/plain" }));
+    view(retainedAPI({ requestRetainedEvidencePack: request, downloadRetainedEvidencePack: download }));
+    await user.click(await screen.findByRole("button", { name: "Open Active agent" }));
+    await user.click(await screen.findByRole("button", { name: "Request retained evidence pack" }));
+    expect(request).toHaveBeenCalledWith(ids.active, expect.stringMatching(/^evidence-pack-/));
+    expect(await screen.findByText(/queued for the export worker/)).toBeVisible();
+    // Nothing to download until the worker has stored it.
+    expect(screen.queryByRole("button", { name: "Download retained JSON" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Refresh retained pack status" }));
+    await user.click(await screen.findByRole("button", { name: "Download retained Markdown" }));
+    expect(await screen.findByText("Retained evidence pack handed to your browser.")).toBeVisible();
+    expect(download).toHaveBeenCalledWith(ids.run, "human");
+    expect(names).toEqual(["agent-evidence-Active-agent-retained.md"]);
+  });
+
+  it("explains a refused request and reuses its key on retry", async () => {
+    const user = userEvent.setup();
+    const keys: string[] = [];
+    const { APIProductError } = await import("../../../apps/web/api/client");
+    const refuse = (code: string, status: number) => new APIProductError(status, { code, message: "refused", correlation_id: ids.account, retryable: false });
+    let attempt = 0;
+    view(retainedAPI({ requestRetainedEvidencePack: async (_id, key) => { keys.push(key); attempt += 1; if (attempt === 1) throw refuse("fresh_auth_required", 403); if (attempt === 2) throw refuse("forbidden", 403); return job; } }));
+    await user.click(await screen.findByRole("button", { name: "Open Active agent" }));
+    await user.click(await screen.findByRole("button", { name: "Request retained evidence pack" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Sign in again, then request the retained pack");
+    await user.click(screen.getByRole("button", { name: "Request retained evidence pack" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("A retained pack needs the compliance, audit and view permissions.");
+    await user.click(screen.getByRole("button", { name: "Request retained evidence pack" }));
+    expect(await screen.findByText(/queued for the export worker/)).toBeVisible();
+    expect(new Set(keys).size).toBe(1);
+  });
+});

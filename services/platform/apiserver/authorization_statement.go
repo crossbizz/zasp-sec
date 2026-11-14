@@ -19,6 +19,13 @@ type authorizationStatementRule struct {
 // Closed application contracts, not a SQL parser or another permission engine.
 // Unknown queries refuse until their product boundary has been implemented.
 var authorizationStatementRules = []authorizationStatementRule{
+	// Compliance export jobs (completion.sql, section WS3-C1). The object of
+	// an export is the Environment it belongs to; the statement's own checks
+	// (session digest, release identity, the export of the path) are in
+	// complianceExportStatementAllowed.
+	{postgresComplianceExportCreateSQL, []string{"createComplianceExport"}, 9, 4, 3, "environment"},
+	{postgresComplianceExportGetSQL, []string{"getComplianceExport"}, 8, 4, 3, "environment"},
+	{postgresComplianceExportGrantSQL, []string{"createComplianceDownloadGrant", "downloadComplianceExport"}, 11, 4, 3, "environment"},
 	// Red team tests and runs (completion.sql, section WS2f): each statement is
 	// admitted for its own operation, scope, actor and authorized object only.
 	{postgresRedTeamCreateDefinitionSQL, []string{"createTest"}, 12, 4, 3, "environment"},
@@ -115,6 +122,9 @@ func authorizationStatementAllowed(g RequestAuthorization, q string, args []any)
 	}
 	if handled, allowed := productStatementAllowed(g, q, args); handled {
 		return allowed
+	}
+	if !complianceExportStatementAllowed(g, q, args) {
+		return false
 	}
 	// Normalize only these fixed positional contracts. The original statement
 	// and argument array are passed unchanged to PostgreSQL after validation.
@@ -366,4 +376,34 @@ func authorizationNativeTargetAllowed(g RequestAuthorization, kind, value string
 		}
 	}
 	return false
+}
+
+// complianceExportStatementAllowed checks what the rule table cannot say
+// about the three compliance export statements: a browser session whose
+// digest is the statement's, the compiled release identity, fresh
+// authentication for a new export, the export of the request path, and the
+// grant action of the operation. Every other statement passes.
+func complianceExportStatementAllowed(g RequestAuthorization, q string, args []any) bool {
+	switch q {
+	case postgresComplianceExportCreateSQL, postgresComplianceExportGetSQL, postgresComplianceExportGrantSQL:
+	default:
+		return true
+	}
+	if g.Identity.CredentialKind != CredentialBrowserSession || len(args) < 8 || !authorizationDigestArgument(g, args[4]) || args[len(args)-2] != migrations.ProductionCompliance().Checksum() || args[len(args)-1] != migrations.ComplianceFingerprint() {
+		return false
+	}
+	switch q {
+	case postgresComplianceExportCreateSQL:
+		return len(args) == 9 && g.Identity.FreshAuthenticated
+	case postgresComplianceExportGetSQL:
+		return len(args) == 8 && args[5] == g.PathParameters["id"] && g.PathParameters["id"] != ""
+	}
+	action, ok := args[8].(string)
+	if !ok || len(args) != 11 || args[5] != g.PathParameters["id"] || g.PathParameters["id"] == "" {
+		return false
+	}
+	if g.OperationID == "createComplianceDownloadGrant" {
+		return action == "issue"
+	}
+	return stringIn(action, "read", "consume", "integrity_failure")
 }

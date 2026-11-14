@@ -4822,3 +4822,184 @@ BEGIN
  REVOKE ALL ON FUNCTION zasp_authorization80.inventory_agent_page(text,text,text,text,text,text,integer) FROM PUBLIC;
  GRANT EXECUTE ON FUNCTION zasp_authorization80.inventory_agent_page(text,text,text,text,text,text,integer) TO zasp_discovery_api;
 END $inventory_relationship_ends$;
+
+-- ---------------------------------------------------------------------------
+-- WS3-C1. Compliance export jobs on the installed baseline.
+--
+-- The export jobs (POST /compliance/exports, its status, download grants and
+-- the worker that captures, renders, stores and expires a package) could not
+-- run on a baseline installation, for three reasons:
+--
+--   * zasp_compliance_readiness, which every job function asks first, pins a
+--     60-release catalog (and the Attack Lab release pin behind it). The
+--     baseline has 61 releases, so it was false for ever. On the baseline the
+--     question the pins asked reduces to the catalog integrity check, which
+--     zasp_authorization80.source_ready(56,...) already answers for the
+--     compliance reads: the compliance release row and its recorded identity,
+--     the audit and compliance role shapes, and the current authorization
+--     release (zasp_baseline.intact()). Readiness keeps the two compiled
+--     constants the caller must present and asks that. It is still false for
+--     a wrong identity, a missing release row, a changed role shape or a
+--     catalog that is no longer the sealed one.
+--   * the API role could not execute the request functions (create, get,
+--     grant). They get the treatment of section X3: their first statement is
+--     the checked-request guard (the request's own Organization, Workspace,
+--     Environment and principal), and the API role may execute them. Their own
+--     checks (the session, the membership, the three permissions, fresh
+--     authentication, quotas, idempotency) follow unchanged.
+--   * no login was bound to the worker roles. The chain registered them with
+--     a migration command that accepts releases 56 to 58 only. The two fixed
+--     service logins zasp_svc_compliance_worker and zasp_svc_compliance_cleanup
+--     are created here when absent (no password; a deployment sets one, as for
+--     every other service login) and bound exactly as
+--     zasp_compliance_register_workers binds them, so the binding is part of
+--     the sealed catalog. A different login already bound to a role is left
+--     as it is.
+--
+-- A database without the authorized schema or the baseline integrity schema
+-- (a historical chain) is left as it is. Re-run: nothing changes.
+DO $ws3_compliance_export_baseline$
+DECLARE d text;constants text[];f record;guarded text;binding record;
+BEGIN
+ IF to_regprocedure('zasp_authorization80.source_ready(integer,text,text)') IS NULL OR to_regprocedure('zasp_authorization80.direct_guard(text,text,text,text)') IS NULL OR to_regprocedure('zasp_baseline.intact()') IS NULL THEN RETURN;END IF;
+ -- Readiness.
+ d:=pg_get_functiondef('public.zasp_compliance_readiness(text,text)'::regprocedure);
+ IF position('zasp_authorization80.source_ready(56,' in d)=0 THEN
+  constants:=regexp_match(d,$r$expected_checksum = '([a-f0-9]{64})'\s+AND expected_fingerprint = '([a-f0-9]{64})'$r$);
+  IF constants IS NULL OR position('count(*)=60' in d)=0 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='compliance readiness predecessor changed';END IF;
+  EXECUTE format($f$CREATE OR REPLACE FUNCTION public.zasp_compliance_readiness(expected_checksum text,expected_fingerprint text) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO pg_catalog,public AS $readiness$
+ SELECT COALESCE(expected_checksum = %L AND expected_fingerprint = %L AND zasp_authorization80.source_ready(56,expected_checksum,expected_fingerprint),false)
+$readiness$$f$,constants[1],constants[2]);
+ END IF;
+ -- The request functions.
+ FOR f IN SELECT * FROM(VALUES
+  ('public.zasp_compliance_export_create(text,text,text,text,bytea,text,jsonb,text,text)'),
+  ('public.zasp_compliance_export_get(text,text,text,text,bytea,text,text,text)'),
+  ('public.zasp_compliance_export_grant(text,text,text,text,bytea,text,text,text,text,text,text)')
+ ) v(signature) LOOP
+  d:=pg_get_functiondef(f.signature::regprocedure);
+  IF position('zasp_authorization80.direct_guard' in d)=0 THEN
+   guarded:=regexp_replace(d,'\mBEGIN\M','BEGIN PERFORM zasp_authorization80.direct_guard(org_value,workspace_value,environment_value,principal_value);');
+   IF guarded=d OR position('org_value' in d)=0 OR position('principal_value' in d)=0 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='compliance export api predecessor changed';END IF;
+   EXECUTE guarded;
+  END IF;
+  EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO zasp_discovery_api',f.signature);
+ END LOOP;
+ -- The worker logins and their bindings.
+ FOR binding IN SELECT * FROM(VALUES('zasp_svc_compliance_worker','zasp_compliance_worker'),('zasp_svc_compliance_cleanup','zasp_compliance_cleanup')) v(login,authority) LOOP
+  IF EXISTS(SELECT 1 FROM public.zasp_compliance_worker_bindings b WHERE b.authority_role=binding.authority) THEN CONTINUE;END IF;
+  IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname=binding.login) THEN
+   EXECUTE format('CREATE ROLE %I LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS',binding.login);
+  END IF;
+  EXECUTE format('GRANT %I TO %I WITH INHERIT TRUE, SET FALSE',binding.authority,binding.login);
+  INSERT INTO public.zasp_compliance_worker_bindings VALUES(binding.login,binding.authority);
+ END LOOP;
+ IF NOT public.zasp_compliance_worker_security_ready() THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='compliance worker security rejected';END IF;
+END $ws3_compliance_export_baseline$;
+
+-- ---------------------------------------------------------------------------
+-- WS3-C2. The evidence pack of one agent as a retained export.
+--
+-- GET /agents/{id}/evidence-pack composes a pack on request and stores
+-- nothing. An auditor's pack must also be something that was requested,
+-- retained and can be downloaded again: the compliance export job already
+-- does that (a requester with fresh authentication and the three compliance
+-- permissions, quotas, an immutable snapshot, a stored package with a
+-- receipt, download grants, expiry and deletion with an audit record).
+--
+-- An export request may now name one agent ({"agent_id": ...}) instead of a
+-- framework and control. The job is the same job; only what it captures
+-- differs: its snapshot has no controls and one more member,
+-- agent_evidence_pack, built by zasp_compliance_agent_evidence_pack in the
+-- capture's single statement:
+--   agent                the inventory detail (how the agent was found, its
+--                        signals, activity, sources and evidence records)
+--   findings             the findings on the agent with the framework
+--                        controls their rule is evidence for (at most 200)
+--   security_agent_runs  the Security Agent runs whose trigger is one of
+--                        those findings, with their steps and approvals (at
+--                        most 50). Its status is always "partial": the export
+--                        worker's login sees the runs the row security of
+--                        zasp_security_agent_runs shows it, which excludes
+--                        runs owned by the Temporal executor. The
+--                        synchronous pack reads those through the API.
+--   red_team_tests       the red team definitions whose target is the agent
+--   red_team_runs        the runs of those definitions (at most 200 each)
+-- A section that reaches its bound has status "truncated".
+--
+-- As for every compliance export, the requester's session, membership and
+-- permissions are checked at request time and again around the capture; the
+-- capture is not filtered per object.
+--
+-- Re-run: a function that already knows agent_id is left alone; any other
+-- shape than the predecessor's is refused.
+DO $ws3_agent_evidence_pack_export$
+DECLARE target record;d text;step record;
+BEGIN
+ CREATE OR REPLACE FUNCTION public.zasp_compliance_agent_evidence_pack(org_value text,workspace_value text,environment_value text,agent_value text) RETURNS jsonb
+ LANGUAGE sql STABLE SET search_path TO pg_catalog,public AS $agent_evidence_pack$
+  WITH findings AS MATERIALIZED (
+   SELECT f.* FROM public.zasp_risk_findings f
+   WHERE (f.organization_id,f.workspace_id,f.environment_id,f.agent_id)=(org_value,workspace_value,environment_value,agent_value)
+   ORDER BY f.id COLLATE "C" LIMIT 201),
+  runs AS MATERIALIZED (
+   SELECT r.* FROM public.zasp_security_agent_runs r
+   WHERE (r.organization_id,r.workspace_id,r.environment_id)=(org_value,workspace_value,environment_value) AND r.trigger_id IN(SELECT id FROM findings)
+   ORDER BY r.run_id COLLATE "C" LIMIT 51),
+  tests AS MATERIALIZED (
+   SELECT t.* FROM public.zasp_red_team_definitions t
+   WHERE (t.organization_id,t.workspace_id,t.environment_id,t.target_id)=(org_value,workspace_value,environment_value,agent_value)
+   ORDER BY t.definition_id COLLATE "C" LIMIT 201),
+  test_runs AS MATERIALIZED (
+   SELECT r.* FROM public.zasp_red_team_runs r
+   WHERE (r.organization_id,r.workspace_id,r.environment_id)=(org_value,workspace_value,environment_value) AND r.definition_id IN(SELECT definition_id FROM tests)
+   ORDER BY r.run_id COLLATE "C" LIMIT 201)
+  SELECT jsonb_build_object(
+   'schema_version','agent-evidence-pack-v1',
+   'agent',public.zasp_inventory_detail(org_value,workspace_value,environment_value,agent_value,'agent'),
+   'findings',jsonb_build_object('status',CASE WHEN (SELECT count(*) FROM findings)>200 THEN 'truncated' ELSE 'complete' END,'items',COALESCE((SELECT jsonb_agg(listed.item ORDER BY listed.id COLLATE "C") FROM (
+     SELECT f.id,jsonb_build_object('id',f.id,'source',f.source,'rule',COALESCE(f.rule,''),'title',f.title,'severity',f.severity,'status',f.status,'version',f.version,
+      'created_at',to_char(f.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),'updated_at',to_char(f.updated_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+      'frameworks',COALESCE((SELECT jsonb_agg(jsonb_build_object('framework',m.framework,'control',m.control_id,'title',c.label) ORDER BY m.framework COLLATE "C",m.control_id COLLATE "C")
+       FROM public.zasp_compliance_ai_rule_controls() m JOIN public.zasp_compliance_ai_controls() c ON (c.framework,c.control_id)=(m.framework,m.control_id) WHERE m.rule=f.rule),'[]'::jsonb)) item
+     FROM findings f ORDER BY f.id COLLATE "C" LIMIT 200) listed),'[]'::jsonb)),
+   'security_agent_runs',jsonb_build_object('status','partial','items',COALESCE((SELECT jsonb_agg(listed.item ORDER BY listed.run_id COLLATE "C") FROM (
+     SELECT r.run_id,jsonb_build_object('id',r.run_id,'security_agent_id',r.definition_id,'definition_version',r.definition_version,'finding_id',r.trigger_id,'state',r.state,'requested_by',r.requested_by,
+      'created_at',to_char(r.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),'updated_at',to_char(r.updated_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+      'steps',COALESCE((SELECT jsonb_agg(jsonb_build_object('index',s.step_index,'action',s.action_key,'authorization',s.authorization_result,'state',s.state) ORDER BY s.step_index)
+       FROM public.zasp_security_agent_steps s WHERE (s.organization_id,s.workspace_id,s.environment_id,s.run_id)=(r.organization_id,r.workspace_id,r.environment_id,r.run_id)),'[]'::jsonb),
+      'approvals',COALESCE((SELECT jsonb_agg(jsonb_build_object('id',a.approval_id,'step_id',a.step_id,'state',a.state,'requester_id',a.requester_id,'approver_id',COALESCE(a.approver_id,''),
+        'decided_at',COALESCE(to_char(a.decided_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),''),'expires_at',to_char(a.expires_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"')) ORDER BY a.approval_id COLLATE "C")
+       FROM public.zasp_security_agent_approvals a WHERE (a.organization_id,a.workspace_id,a.environment_id,a.run_id)=(r.organization_id,r.workspace_id,r.environment_id,r.run_id)),'[]'::jsonb)) item
+     FROM runs r ORDER BY r.run_id COLLATE "C" LIMIT 50) listed),'[]'::jsonb)),
+   'red_team_tests',jsonb_build_object('status',CASE WHEN (SELECT count(*) FROM tests)>200 THEN 'truncated' ELSE 'complete' END,'items',COALESCE((SELECT jsonb_agg(listed.item ORDER BY listed.definition_id COLLATE "C") FROM (
+     SELECT t.definition_id,jsonb_build_object('id',t.definition_id,'version',t.version,'name',t.name,'target_kind',t.target_kind,'categories',t.categories,'enabled',t.enabled) item
+     FROM tests t ORDER BY t.definition_id COLLATE "C" LIMIT 200) listed),'[]'::jsonb)),
+   'red_team_runs',jsonb_build_object('status',CASE WHEN (SELECT count(*) FROM tests)>200 OR (SELECT count(*) FROM test_runs)>200 THEN 'truncated' ELSE 'complete' END,'items',COALESCE((SELECT jsonb_agg(listed.item ORDER BY listed.run_id COLLATE "C") FROM (
+     SELECT r.run_id,jsonb_build_object('id',r.run_id,'definition_id',r.definition_id,'definition_version',r.definition_version,'status',r.state,'verdict',COALESCE(r.verdict,''),'attempt',r.attempt,
+      'queued_at',to_char(r.queued_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),'completed_at',COALESCE(to_char(r.completed_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),'')) item
+     FROM test_runs r ORDER BY r.run_id COLLATE "C" LIMIT 200) listed),'[]'::jsonb)))
+ $agent_evidence_pack$;
+ ALTER FUNCTION public.zasp_compliance_agent_evidence_pack(text,text,text,text) OWNER TO zasp_discovery_authority;
+ REVOKE ALL ON FUNCTION public.zasp_compliance_agent_evidence_pack(text,text,text,text) FROM PUBLIC;
+
+ FOR target IN SELECT * FROM (VALUES
+  ('public.zasp_compliance_export_create(text,text,text,text,bytea,text,jsonb,text,text)'),
+  ('public.zasp_compliance_export_capture(text,text,text,text,text,text,bigint,jsonb,text,text)')) listed(signature)
+  WHERE to_regprocedure(signature) IS NOT NULL LOOP
+  d:=pg_get_functiondef(target.signature::regprocedure);
+  IF position('agent_id' in d)>0 THEN CONTINUE;END IF;
+  FOR step IN SELECT * FROM (VALUES
+   ('create',$a$k NOT IN('framework','control_id'))$a$,
+    $b$k NOT IN('framework','control_id','agent_id')) OR request_value ? 'agent_id' AND (jsonb_typeof(request_value->'agent_id')<>'string' OR NOT COALESCE(public.zasp_valid_product_id(request_value->>'agent_id'),false) OR request_value ?| ARRAY['framework','control_id'] OR NOT EXISTS(SELECT 1 FROM public.zasp_inventory_entities v WHERE (v.organization_id,v.workspace_id,v.environment_id,v.id,v.state,v.product_kind)=(org_value,workspace_value,environment_value,request_value->>'agent_id','active','agent')))$b$),
+   ('capture',$a$(NOT j.request?'control_id' OR m.control_id=j.request->>'control_id') LIMIT 501$a$,
+    $b$(NOT j.request?'control_id' OR m.control_id=j.request->>'control_id') AND NOT j.request?'agent_id' LIMIT 501$b$),
+   ('capture',$a$FROM mappings m),'[]'::jsonb)) body,$a$,
+    $b$FROM mappings m),'[]'::jsonb))||CASE WHEN j.request?'agent_id' THEN jsonb_build_object('agent_evidence_pack',public.zasp_compliance_agent_evidence_pack(org_value,workspace_value,environment_value,j.request->>'agent_id')) ELSE '{}'::jsonb END body,$b$)
+  ) listed(function_name,anchor,patched) WHERE position('zasp_compliance_export_'||function_name||'(' in target.signature)>0 LOOP
+   IF length(d)-length(replace(d,step.anchor,''))<>length(step.anchor) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='compliance export predecessor changed';END IF;
+   d:=replace(d,step.anchor,step.patched);
+  END LOOP;
+  EXECUTE d;
+ END LOOP;
+END $ws3_agent_evidence_pack_export$;

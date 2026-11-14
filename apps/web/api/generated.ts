@@ -3267,7 +3267,9 @@ export type components = {
             readonly status: "pending" | "completed" | "failed";
         };
         readonly ComplianceExportID: components["schemas"]["ProductID"];
+        /** @description What the export captures - the controls of a framework (or one control; every control when both are omitted), or, with agent_id alone, the evidence pack of one agent. An agent export retains how the agent was found, its findings with framework references, the Security Agent runs on those findings that the export worker can read (runs owned by the Temporal executor are not included; the synchronous evidence pack reads them) and the red team definitions and runs that target it. Its JSON format is the pack, its CSV format lists every record and its readable format is the Markdown rendering. */
         readonly ComplianceExportInput: {
+            readonly agent_id?: components["schemas"]["ProductID"];
             readonly control_id?: components["schemas"]["ComplianceControlID"];
             readonly framework?: components["schemas"]["ComplianceFrameworkID"];
         };

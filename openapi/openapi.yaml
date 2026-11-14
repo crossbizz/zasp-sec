@@ -5047,7 +5047,15 @@ components:
         environment_id: { $ref: '#/components/schemas/ProductID' }
     ComplianceControlPage: { type: object, additionalProperties: false, required: [items, page_info], properties: { items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/ComplianceControl' } }, page_info: { $ref: '#/components/schemas/CompliancePageInfo' } } }
     ComplianceEvidencePage: { type: object, additionalProperties: false, required: [items, page_info], properties: { items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/ComplianceEvidence' } }, page_info: { $ref: '#/components/schemas/CompliancePageInfo' } } }
-    ComplianceExportInput: { type: object, additionalProperties: false, properties: { framework: { $ref: '#/components/schemas/ComplianceFrameworkID' }, control_id: { $ref: '#/components/schemas/ComplianceControlID' } } }
+    ComplianceExportInput:
+      type: object
+      description: What the export captures - the controls of a framework (or one control; every control when both are omitted), or, with agent_id alone, the evidence pack of one agent. An agent export retains how the agent was found, its findings with framework references, the Security Agent runs on those findings that the export worker can read (runs owned by the Temporal executor are not included; the synchronous evidence pack reads them) and the red team definitions and runs that target it. Its JSON format is the pack, its CSV format lists every record and its readable format is the Markdown rendering.
+      additionalProperties: false
+      properties:
+        framework: { $ref: '#/components/schemas/ComplianceFrameworkID' }
+        control_id: { $ref: '#/components/schemas/ComplianceControlID' }
+        agent_id: { $ref: '#/components/schemas/ProductID' }
+      not: { required: [agent_id], anyOf: [{ required: [framework] }, { required: [control_id] }] }
     ComplianceExport:
       type: object
       additionalProperties: false
