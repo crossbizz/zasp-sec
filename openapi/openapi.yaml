@@ -7063,9 +7063,28 @@ components:
     AgentAccess:
       type: object
       additionalProperties: false
-      required: [agent_id, ai_actions, mcp_servers, data_stores, skills]
+      required: [agent_id, ai_actions, mcp_servers, data_stores, skills, tools, tool_kinds]
       properties:
         agent_id: { $ref: '#/components/schemas/ProductID' }
+        tools:
+          type: array
+          maxItems: 64
+          description: The topics and actions the agent's platform lists for it, topics first. Empty for an agent of a platform that lists none.
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, name, kind, target, confirmation]
+            properties:
+              id: { $ref: '#/components/schemas/ProductID' }
+              name: { type: string, minLength: 1, maxLength: 256 }
+              kind: { type: string, enum: [topic, action] }
+              target: { oneOf: [{ type: 'null' }, { type: string, pattern: '^[A-Za-z][A-Za-z0-9_]{0,63}$' }], description: 'What an action invokes, for example flow or apex. Null for a topic and where the platform did not state it.' }
+              confirmation: { oneOf: [{ type: 'null' }, { type: boolean }], description: 'Whether an action asks for confirmation before it runs. Null for a topic and where the platform did not state it.' }
+        tool_kinds:
+          type: array
+          maxItems: 16
+          description: The kinds of tool the agent's platform states for it, for example code_interpreter, file_search or mcp, in order. Empty where the platform states none.
+          items: { type: string, pattern: '^[a-z0-9][a-z0-9_.-]{0,63}$' }
         ai_actions:
           oneOf:
             - { type: 'null' }

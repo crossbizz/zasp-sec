@@ -86,7 +86,7 @@ export function decodeMCPRegistryPage(value: unknown): MCPRegistryPage {
 
 // What an agent may use, exactly as GET /agents/{id}/access answers it.
 export function decodeAgentAccess(value: unknown, expectedAgentID?: string): AgentAccess {
-  const record = exact(value, ["agent_id", "ai_actions", "mcp_servers", "data_stores", "skills"]);
+  const record = exact(value, ["agent_id", "ai_actions", "mcp_servers", "data_stores", "skills", "tools", "tool_kinds"]);
   id(record.agent_id); if (expectedAgentID !== undefined && record.agent_id !== expectedAgentID) fail();
   if (record.ai_actions !== null) {
     const actions = exact(record.ai_actions, ["window_days", "granted", "used", "unused"]);
@@ -98,5 +98,17 @@ export function decodeAgentAccess(value: unknown, expectedAgentID?: string): Age
   for (const item of list(record.mcp_servers, 64)) { const server = exact(item, ["id", "name", "identity", "approval"]); id(server.id); text(server.name, 1, 256); identity(server.identity); one(server.approval, MCP_APPROVALS); }
   for (const item of list(record.data_stores, 64)) { const store = exact(item, ["id", "name", "service", "access", "scope"]); id(store.id); text(store.name, 1, 256); if (typeof store.service !== "string" || !/^[a-z][a-z0-9-]{1,31}$/.test(store.service)) fail(); one(store.access, ["read", "write"]); one(store.scope, ["resource", "service"]); }
   for (const item of list(record.skills, 64)) { const skill = exact(item, ["id", "path", "kind"]); id(skill.id); text(skill.path, 1, 512); one(skill.kind, ["skill", "agent_instructions", "editor_rules"]); }
+  for (const item of list(record.tools, 64)) {
+    const tool = exact(item, ["id", "name", "kind", "target", "confirmation"]);
+    id(tool.id); text(tool.name, 1, 256); one(tool.kind, ["topic", "action"]);
+    if (tool.target !== null && (typeof tool.target !== "string" || !/^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(tool.target))) fail();
+    if (tool.confirmation !== null && typeof tool.confirmation !== "boolean") fail();
+    if (tool.kind === "topic" && (tool.target !== null || tool.confirmation !== null)) fail();
+  }
+  let priorKind = "";
+  for (const kind of list(record.tool_kinds, 16)) {
+    if (typeof kind !== "string" || !/^[a-z0-9][a-z0-9_.-]{0,63}$/.test(kind) || priorKind !== "" && kind <= priorKind) fail();
+    priorKind = kind;
+  }
   return value as AgentAccess;
 }

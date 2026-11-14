@@ -214,7 +214,10 @@ func (api *SalesforceCollectionAPI) fetchOrganization(ctx context.Context, token
 	}{request.Subject.ID, organization.Name})
 	// The org's Einstein Trust Layer switches, when the connection may read
 	// them (agentforce.go). Unknown switches are simply not recorded.
-	trust := api.fetchSalesforceTrustSettings(ctx, token, instanceURL)
+	trust, err := api.fetchSalesforceTrustSettings(ctx, token, instanceURL)
+	if err != nil {
+		return nil, collection.Cursor{}, err
+	}
 	switches := map[string]string{}
 	for name, value := range map[string]*bool{"trust_input_toxicity_detection": trust.inputToxicity, "trust_prompt_injection_detection": trust.promptInjection, "trust_pii_masking": trust.piiMasking} {
 		if value != nil && *value {

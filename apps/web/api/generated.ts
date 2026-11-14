@@ -2792,6 +2792,19 @@ export type components = {
                 readonly kind: "skill" | "agent_instructions" | "editor_rules";
                 readonly path: string;
             }[];
+            /** @description The kinds of tool the agent's platform states for it, for example code_interpreter, file_search or mcp, in order. Empty where the platform states none. */
+            readonly tool_kinds: readonly string[];
+            /** @description The topics and actions the agent's platform lists for it, topics first. Empty for an agent of a platform that lists none. */
+            readonly tools: readonly {
+                /** @description Whether an action asks for confirmation before it runs. Null for a topic and where the platform did not state it. */
+                readonly confirmation: null | boolean;
+                readonly id: components["schemas"]["ProductID"];
+                /** @enum {string} */
+                readonly kind: "topic" | "action";
+                readonly name: string;
+                /** @description What an action invokes, for example flow or apex. Null for a topic and where the platform did not state it. */
+                readonly target: null | string;
+            }[];
         };
         readonly AgentEvidencePack: {
             readonly agent: components["schemas"]["InventoryDetail"];
