@@ -799,10 +799,17 @@ func providerEntitySchema(provider collection.Provider, kind string) (providerEn
 		case "microsoft_copilot_agent":
 			// content_moderation is the agent's generative AI moderation level,
 			// present when its configuration states one.
-			return providerEntityDefinition{stable: requiredStringFields("environment", "name", "object_type", "tenant"), attributes: mergeInventorySchemas(directory, discoveredAgentAttributes(), inventoryObjectSchema{"content_moderation": enumInventoryField(false, "high", "low", "medium")})}, true
+			// The same kind holds an Azure AI Foundry agent (object_type
+			// foundry_agent; environment is its project endpoint): agent_type
+			// is its kind, model the deployment it names and rai_policy the
+			// content filter policy that applies to it.
+			return providerEntityDefinition{stable: requiredStringFields("environment", "name", "object_type", "tenant"), attributes: mergeInventorySchemas(directory, discoveredAgentAttributes(), optionalStringFields("agent_type", "model", "rai_policy"), inventoryObjectSchema{"content_moderation": enumInventoryField(false, "high", "low", "medium")})}, true
 		case "microsoft_ai_resource":
 			// An Azure OpenAI or Azure AI Foundry account of a subscription.
-			return providerEntityDefinition{stable: requiredStringFields("name", "object_type", "region", "subscription", "tenant"), attributes: mergeInventorySchemas(directory, optionalStringFields("endpoint_host"), inventoryObjectSchema{"resource_kind": enumInventoryField(true, "azure_ai_foundry", "azure_openai"), "deployments": enumInventoryField(true, "listed", "not_listed"), "local_auth_disabled": boolInventoryField(false), "public_network_access": enumInventoryField(false, "disabled", "enabled")})}, true
+			return providerEntityDefinition{stable: requiredStringFields("name", "object_type", "region", "subscription", "tenant"), attributes: mergeInventorySchemas(directory, optionalStringFields("endpoint_host"), inventoryObjectSchema{"resource_kind": enumInventoryField(true, "azure_ai_foundry", "azure_openai"), "deployments": enumInventoryField(true, "listed", "not_listed"),
+				// agents: whether the agents of an AI Foundry account's
+				// projects could be listed; absent when they were not asked for.
+				"agents": enumInventoryField(false, "access_denied", "listed", "not_listed", "partial"), "local_auth_disabled": boolInventoryField(false), "public_network_access": enumInventoryField(false, "disabled", "enabled")})}, true
 		case "microsoft_ai_deployment":
 			return providerEntityDefinition{stable: requiredStringFields("name", "object_type", "resource", "subscription", "tenant"), attributes: mergeInventorySchemas(directory, optionalStringFields("model", "model_version"))}, true
 		}
