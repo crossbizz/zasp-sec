@@ -4189,6 +4189,8 @@ ALTER FUNCTION public.zasp_security_agent_provider_remediation_run(text,text,tex
 REVOKE ALL ON FUNCTION public.zasp_security_agent_provider_remediation_run(text,text,text,text,text,text,bigint,text,text,text,jsonb,text,text,text,text) FROM PUBLIC;
 ALTER FUNCTION public.zasp_security_agent_provider_remediation_catalog(text) OWNER TO zasp_discovery_authority;
 ALTER FUNCTION public.zasp_security_agent_provider_remediation_parameters_valid(text,jsonb,text,text) OWNER TO zasp_discovery_authority;
+REVOKE ALL ON FUNCTION public.zasp_security_agent_provider_remediation_catalog(text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.zasp_security_agent_provider_remediation_parameters_valid(text,jsonb,text,text) FROM PUBLIC;
 
 -- POST /security-agents/{id}/runs with a remediation. One statement: the
 -- request's own proof is for the Security Agent (runSecurityAgent,

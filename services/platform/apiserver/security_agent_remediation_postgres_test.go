@@ -257,6 +257,23 @@ func TestSecurityAgentProviderRemediationSectionPostgres(t *testing.T) {
 	database := startRemediationDatabase(t)
 	database.seed()
 
+	t.Run("the sections grant nothing to PUBLIC and own what they add", func(t *testing.T) {
+		const added = `(p.proname LIKE '%provider_remediation%' OR p.proname LIKE 'guardrail%' OR p.proname LIKE 'integration_remediation%' OR p.proname LIKE 'integration_set_remediation%' OR p.proname='security_agent_remediation_run')`
+		if count := database.text(`SELECT count(*)::text FROM pg_proc p WHERE ` + added); count != "20" {
+			t.Fatalf("functions of sections V6 and V7=%s", count)
+		}
+		if open := database.text(`SELECT string_agg(p.oid::regprocedure::text,', ') FROM pg_proc p WHERE ` + added + ` AND (has_function_privilege('public',p.oid,'execute') OR pg_get_userbyid(p.proowner)<>'zasp_discovery_authority')`); open != "" {
+			t.Fatalf("functions executable by PUBLIC or with another owner: %s", open)
+		}
+		if loose := database.text(`SELECT string_agg(c.relname,', ') FROM pg_class c WHERE c.relname IN('zasp_integration_remediation_roles','zasp_security_agent_provider_remediations','zasp_guardrail_policies','zasp_guardrail_decisions')
+ AND (NOT c.relrowsecurity OR NOT c.relforcerowsecurity OR pg_get_userbyid(c.relowner)<>'zasp_discovery_authority' OR has_table_privilege('public',c.oid,'select'))`); loose != "" {
+			t.Fatalf("tables without forced row security, with another owner or readable by PUBLIC: %s", loose)
+		}
+		if tables := database.text(`SELECT count(*)::text FROM pg_class c WHERE c.relkind='r' AND c.relname IN('zasp_integration_remediation_roles','zasp_security_agent_provider_remediations','zasp_guardrail_policies','zasp_guardrail_decisions')`); tables != "4" {
+			t.Fatalf("tables=%s", tables)
+		}
+	})
+
 	t.Run("execution controls accept the new actions and the old ones", func(t *testing.T) {
 		if _, err := database.setControl("*", 0, "control-environment-0001", "01"); err != nil {
 			t.Fatalf("environment switch: %v", err)
