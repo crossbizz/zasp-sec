@@ -80,7 +80,7 @@ func (integration Integration) HasEarlier() bool {
 		return false
 	}
 	for _, route := range integration.HTTP.Routes {
-		if route.Earlier != nil {
+		if route.Earlier != nil || route.EarlierItems != nil {
 			return true
 		}
 	}

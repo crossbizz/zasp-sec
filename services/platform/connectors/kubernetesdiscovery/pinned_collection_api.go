@@ -169,3 +169,12 @@ func pinnedCollectionCertPool(value []byte) (*x509.CertPool, bool) {
 	}
 	return pool, certificates >= 1 && certificates <= 32
 }
+
+// NewKubernetesCollectionAPIWithTransport builds the collector over a
+// transport the caller supplies. The endpoint checks, the paging and the
+// normalization are the collector's own; only the network is the caller's.
+// It exists for callers that answer the collector in process (the demo
+// dataset): a deployment uses NewPinnedKubernetesCollectionAPI.
+func NewKubernetesCollectionAPIWithTransport(endpoint string, transport http.RoundTripper, timeout time.Duration) (*KubernetesCollectionAPI, error) {
+	return newKubernetesCollectionAPI(endpoint, transport, timeout)
+}

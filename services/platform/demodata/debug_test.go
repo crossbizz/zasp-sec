@@ -42,6 +42,10 @@ type testEntity struct {
 // dataset: change a fixture, run it, read what the product would show.
 func TestPrintCollection(t *testing.T) {
 	only := os.Getenv("DEMO_PRINT")
+	if os.Getenv("DEMO_TRACE") != "" {
+		trace = func(line string) { t.Log(line) }
+		defer func() { trace = nil }()
+	}
 	if only == "" {
 		t.Skip("set DEMO_PRINT to a fixture key, or to all")
 	}

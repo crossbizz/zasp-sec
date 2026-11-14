@@ -1,0 +1,80 @@
+{
+  "key": "github-organization",
+  "provider": "github",
+  "name": "Demo: GitHub organization northwind-robotics",
+  "subject": "71000042",
+  "description": "Repositories that are agent projects: MCP server configuration with an unpinned stdio package and a remote server without authentication, tools the agent may call without asking, skills with scripts and skills no code owner reviews.",
+  "configuration": {
+    "installation_id": "71000042",
+    "organization": "northwind-robotics"
+  },
+  "http": {
+    "routes": [
+      {"host": "api.github.com", "path": "/installation", "body": {"id": 71000042, "app_id": 880021, "app_slug": "zasp-security", "permissions": {"actions": "read", "contents": "read", "metadata": "read"}, "account": {"id": 5100042, "login": "northwind-robotics", "type": "Organization"}}},
+      {"host": "api.github.com", "path": "/installation/repositories", "paging": "github", "items_key": "repositories", "items": [
+        {"id": 910001, "name": "support-agent", "full_name": "northwind-robotics/support-agent", "private": true, "archived": false, "default_branch": "main", "permissions": {"admin": false, "maintain": false, "pull": true, "push": false, "triage": false}, "owner": {"login": "northwind-robotics"}},
+        {"id": 910002, "name": "pricing-optimizer", "full_name": "northwind-robotics/pricing-optimizer", "private": true, "archived": false, "default_branch": "main", "permissions": {"admin": false, "maintain": false, "pull": true, "push": false, "triage": false}, "owner": {"login": "northwind-robotics"}},
+        {"id": 910003, "name": "warehouse-copilot", "full_name": "northwind-robotics/warehouse-copilot", "private": true, "archived": false, "default_branch": "main", "permissions": {"admin": false, "maintain": false, "pull": true, "push": false, "triage": false}, "owner": {"login": "northwind-robotics"}},
+        {"id": 910004, "name": "web-storefront", "full_name": "northwind-robotics/web-storefront", "private": true, "archived": false, "default_branch": "main", "permissions": {"admin": false, "maintain": false, "pull": true, "push": false, "triage": false}, "owner": {"login": "northwind-robotics"}}
+      ]},
+
+      {"host": "api.github.com", "path": "/repos/northwind-robotics/support-agent/git/trees/main", "body": {"sha": "1111111111111111111111111111111111111111", "truncated": false, "tree": [
+        {"path": "README.md", "mode": "100644", "type": "blob", "sha": "0000000000000000000000000000000000000001", "size": 940},
+        {"path": ".mcp.json", "mode": "100644", "type": "blob", "sha": "0000000000000000000000000000000000000002", "size": 620},
+        {"path": "package.json", "mode": "100644", "type": "blob", "sha": "0000000000000000000000000000000000000003", "size": 310},
+        {"path": ".claude", "mode": "040000", "type": "tree", "sha": "0000000000000000000000000000000000000004"},
+        {"path": ".claude/settings.json", "mode": "100644", "type": "blob", "sha": "0000000000000000000000000000000000000005", "size": 180},
+        {"path": ".claude/skills/refund-playbook/SKILL.md", "mode": "100644", "type": "blob", "sha": "0000000000000000000000000000000000000006", "size": 1400},
+        {"path": ".claude/skills/refund-playbook/issue-refund.sh", "mode": "100755", "type": "blob", "sha": "0000000000000000000000000000000000000007", "size": 520},
+        {"path": ".claude/skills/tone-guide/SKILL.md", "mode": "100644", "type": "blob", "sha": "0000000000000000000000000000000000000008", "size": 800},
+        {"path": "AGENTS.md", "mode": "100644", "type": "blob", "sha": "0000000000000000000000000000000000000009", "size": 600},
+        {"path": ".github/CODEOWNERS", "mode": "100644", "type": "blob", "sha": "000000000000000000000000000000000000000a", "size": 90}
+      ]}},
+      {"host": "api.github.com", "path": "/repos/northwind-robotics/support-agent/contents/.mcp.json", "file": "{\n  \"mcpServers\": {\n    \"tracker\": {\"command\": \"npx\", \"args\": [\"-y\", \"@northwind/tracker-mcp\"], \"autoApprove\": [\"list_issues\"]},\n    \"shell\": {\"command\": \"uvx\", \"args\": [\"mcp-shell==1.2.0\"]},\n    \"docs\": {\"type\": \"http\", \"url\": \"https://mcp.docs.northwind-robotics.example.com/v1\", \"headers\": {\"Authorization\": \"Bearer ${DOCS_MCP_AUTH}\"}},\n    \"partner-catalog\": {\"url\": \"https://tools.partner-catalog.example.net/sse\"}\n  }\n}\n"},
+      {"host": "api.github.com", "path": "/repos/northwind-robotics/support-agent/contents/package.json", "file": "{\n  \"name\": \"support-agent\",\n  \"private\": true,\n  \"dependencies\": {\n    \"@anthropic-ai/claude-agent-sdk\": \"0.1.30\",\n    \"@modelcontextprotocol/sdk\": \"1.20.0\"\n  }\n}\n"},
+      {"host": "api.github.com", "path": "/repos/northwind-robotics/support-agent/contents/.claude/settings.json", "file": "{\n  \"permissions\": {\n    \"allow\": [\"mcp__tracker__create_issue\", \"mcp__shell__run_command\", \"mcp__docs__search_docs\"]\n  }\n}\n"},
+      {"host": "api.github.com", "path": "/repos/northwind-robotics/support-agent/contents/.github/CODEOWNERS", "file": "# Review rules\n/.claude/skills/refund-playbook/ @northwind-robotics/support-platform\n/src/ @northwind-robotics/support-platform\n"},
+      {"host": "api.github.com", "path": "/repos/northwind-robotics/support-agent/actions/workflows", "paging": "github", "items_key": "workflows", "items": [
+        {"id": 920001, "name": "Build and deploy", "path": ".github/workflows/deploy.yml", "state": "active"}
+      ]},
+      {"host": "api.github.com", "path": "/repos/northwind-robotics/support-agent/environments", "paging": "github", "items_key": "environments", "items": [
+        {"id": 930001, "name": "production"}
+      ]},
+
+      {"host": "api.github.com", "path": "/repos/northwind-robotics/pricing-optimizer/git/trees/main", "body": {"sha": "2222222222222222222222222222222222222222", "truncated": false, "tree": [
+        {"path": "README.md", "mode": "100644", "type": "blob", "sha": "0000000000000000000000000000000000000011", "size": 700},
+        {"path": "requirements.txt", "mode": "100644", "type": "blob", "sha": "0000000000000000000000000000000000000012", "size": 120},
+        {"path": "langgraph.json", "mode": "100644", "type": "blob", "sha": "0000000000000000000000000000000000000013", "size": 200},
+        {"path": ".claude/skills/reprice/SKILL.md", "mode": "100644", "type": "blob", "sha": "0000000000000000000000000000000000000014", "size": 900},
+        {"path": ".claude/skills/reprice/apply_prices.py", "mode": "100755", "type": "blob", "sha": "0000000000000000000000000000000000000015", "size": 1500}
+      ]}},
+      {"host": "api.github.com", "path": "/repos/northwind-robotics/pricing-optimizer/contents/requirements.txt", "file": "langgraph==0.2.60\nlangchain==0.3.14\nopenai==1.59.0\n"},
+      {"host": "api.github.com", "path": "/repos/northwind-robotics/pricing-optimizer/actions/workflows", "paging": "github", "items_key": "workflows", "items": []},
+      {"host": "api.github.com", "path": "/repos/northwind-robotics/pricing-optimizer/environments", "paging": "github", "items_key": "environments", "items": []},
+
+      {"host": "api.github.com", "path": "/repos/northwind-robotics/warehouse-copilot/git/trees/main", "body": {"sha": "3333333333333333333333333333333333333333", "truncated": false, "tree": [
+        {"path": "README.md", "mode": "100644", "type": "blob", "sha": "0000000000000000000000000000000000000021", "size": 500},
+        {"path": "pyproject.toml", "mode": "100644", "type": "blob", "sha": "0000000000000000000000000000000000000022", "size": 260},
+        {"path": ".cursor/mcp.json", "mode": "100644", "type": "blob", "sha": "0000000000000000000000000000000000000023", "size": 240},
+        {"path": ".github/CODEOWNERS", "mode": "100644", "type": "blob", "sha": "0000000000000000000000000000000000000024", "size": 40}
+      ]}},
+      {"host": "api.github.com", "path": "/repos/northwind-robotics/warehouse-copilot/contents/pyproject.toml", "file": "[project]\nname = \"warehouse-copilot\"\nversion = \"0.4.0\"\ndependencies = [\n  \"strands-agents>=1.0\",\n  \"mcp>=1.2\",\n]\n"},
+      {"host": "api.github.com", "path": "/repos/northwind-robotics/warehouse-copilot/contents/.cursor/mcp.json", "file": "{\n  \"mcpServers\": {\n    \"inventory-db\": {\"command\": \"uvx\", \"args\": [\"northwind-inventory-mcp\"]},\n    \"carrier-rates\": {\"type\": \"http\", \"url\": \"https://mcp.carrier-rates.example.com/mcp\", \"headers\": {\"Authorization\": \"Bearer ${CARRIER_MCP_AUTH}\"}}\n  }\n}\n"},
+      {"host": "api.github.com", "path": "/repos/northwind-robotics/warehouse-copilot/contents/.github/CODEOWNERS", "file": "* @northwind-robotics/warehouse-systems\n"},
+      {"host": "api.github.com", "path": "/repos/northwind-robotics/warehouse-copilot/actions/workflows", "paging": "github", "items_key": "workflows", "items": []},
+      {"host": "api.github.com", "path": "/repos/northwind-robotics/warehouse-copilot/environments", "paging": "github", "items_key": "environments", "items": []},
+
+      {"host": "api.github.com", "path": "/repos/northwind-robotics/web-storefront/git/trees/main", "body": {"sha": "4444444444444444444444444444444444444444", "truncated": false, "tree": [
+        {"path": "README.md", "mode": "100644", "type": "blob", "sha": "0000000000000000000000000000000000000031", "size": 400},
+        {"path": "package.json", "mode": "100644", "type": "blob", "sha": "0000000000000000000000000000000000000032", "size": 200}
+      ]}},
+      {"host": "api.github.com", "path": "/repos/northwind-robotics/web-storefront/contents/package.json", "file": "{\n  \"name\": \"web-storefront\",\n  \"private\": true,\n  \"dependencies\": {\n    \"next\": \"15.1.0\",\n    \"react\": \"19.0.0\"\n  }\n}\n"},
+      {"host": "api.github.com", "path": "/repos/northwind-robotics/web-storefront/actions/workflows", "paging": "github", "items_key": "workflows", "items": [
+        {"id": 920004, "name": "Continuous integration", "path": ".github/workflows/ci.yml", "state": "active"}
+      ]},
+      {"host": "api.github.com", "path": "/repos/northwind-robotics/web-storefront/environments", "paging": "github", "items_key": "environments", "items": [
+        {"id": 930004, "name": "production"}
+      ]}
+    ]
+  }
+}

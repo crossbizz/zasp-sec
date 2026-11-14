@@ -1,0 +1,42 @@
+{
+  "key": "salesforce-org",
+  "provider": "salesforce",
+  "name": "Demo: Salesforce org (Agentforce)",
+  "subject": "00D8a000001NwRbEAK",
+  "description": "Agentforce agents with their topics and actions, one of which runs as a user who may view all data, and a legacy bot with no active version.",
+  "configuration": {
+    "instance_url": "https://northwind-robotics.my.salesforce.com",
+    "org_id": "00D8a000001NwRbEAK"
+  },
+  "http": {
+    "endpoint": "https://northwind-robotics.my.salesforce.com",
+    "routes": [
+      {"host": "northwind-robotics.my.salesforce.com", "path": "/services/data/v62.0/query", "query_contains": {"q": "FROM Organization"}, "body": {"totalSize": 1, "done": true, "records": [
+        {"attributes": {"type": "Organization", "url": "/services/data/v62.0/sobjects/Organization/00D8a000001NwRbEAK"}, "Id": "00D8a000001NwRbEAK", "Name": "Northwind Robotics"}
+      ]}},
+      {"host": "northwind-robotics.my.salesforce.com", "path": "/services/data/v62.0/query", "query_contains": {"q": "FROM BotDefinition"}, "body": {"totalSize": 4, "done": true, "records": [
+        {"attributes": {"type": "BotDefinition", "url": "/services/data/v62.0/sobjects/BotDefinition/0Xx8a0000004N1ACAU"}, "Id": "0Xx8a0000004N1ACAU", "DeveloperName": "Service_Agent", "MasterLabel": "Customer service agent", "Type": "Bot", "AgentType": "EinsteinServiceAgent", "BotUserId": "0058a00000Nw001AAB", "BotVersions": {"totalSize": 1, "done": true, "records": [{"attributes": {"type": "BotVersion", "url": "/services/data/v62.0/sobjects/BotVersion/0X98a0000004V1AAAU"}, "Id": "0X98a0000004V1AAAU", "DeveloperName": "v3"}]}},
+        {"attributes": {"type": "BotDefinition", "url": "/services/data/v62.0/sobjects/BotDefinition/0Xx8a0000004N1BCAU"}, "Id": "0Xx8a0000004N1BCAU", "DeveloperName": "Sales_Development_Agent", "MasterLabel": "Sales development agent", "Type": "Bot", "AgentType": "EinsteinSDR", "BotUserId": "0058a00000Nw002AAB", "BotVersions": {"totalSize": 1, "done": true, "records": [{"attributes": {"type": "BotVersion", "url": "/services/data/v62.0/sobjects/BotVersion/0X98a0000004V1BAAU"}, "Id": "0X98a0000004V1BAAU", "DeveloperName": "v1"}]}},
+        {"attributes": {"type": "BotDefinition", "url": "/services/data/v62.0/sobjects/BotDefinition/0Xx8a0000004N1CCAU"}, "Id": "0Xx8a0000004N1CCAU", "DeveloperName": "Warranty_Claims_Agent", "MasterLabel": "Warranty claims agent", "Type": "Bot", "AgentType": "EinsteinServiceAgent", "BotUserId": "0058a00000Nw003AAB", "BotVersions": {"totalSize": 1, "done": true, "records": [{"attributes": {"type": "BotVersion", "url": "/services/data/v62.0/sobjects/BotVersion/0X98a0000004V1CAAU"}, "Id": "0X98a0000004V1CAAU", "DeveloperName": "v2"}]}},
+        {"attributes": {"type": "BotDefinition", "url": "/services/data/v62.0/sobjects/BotDefinition/0Xx8a0000004N1DCAU"}, "Id": "0Xx8a0000004N1DCAU", "DeveloperName": "Legacy_FAQ_Bot", "MasterLabel": "Legacy FAQ bot", "Type": "Bot", "AgentType": null, "BotUserId": null, "BotVersions": null}
+      ]}},
+      {"host": "northwind-robotics.my.salesforce.com", "path": "/services/data/v62.0/query", "query_contains": {"q": "FROM PermissionSetAssignment"}, "body": {"totalSize": 3, "done": true, "records": [
+        {"attributes": {"type": "PermissionSetAssignment"}, "AssigneeId": "0058a00000Nw001AAB", "PermissionSet": {"attributes": {"type": "PermissionSet"}, "Name": "Agentforce_Service_Agent_User", "IsOwnedByProfile": false, "PermissionsModifyAllData": false, "PermissionsViewAllData": false}},
+        {"attributes": {"type": "PermissionSetAssignment"}, "AssigneeId": "0058a00000Nw002AAB", "PermissionSet": {"attributes": {"type": "PermissionSet"}, "Name": "Sales_Operations_View_All", "IsOwnedByProfile": false, "PermissionsModifyAllData": false, "PermissionsViewAllData": true}},
+        {"attributes": {"type": "PermissionSetAssignment"}, "AssigneeId": "0058a00000Nw003AAB", "PermissionSet": {"attributes": {"type": "PermissionSet"}, "Name": "Warranty_Claims_Agent_User", "IsOwnedByProfile": false, "PermissionsModifyAllData": false, "PermissionsViewAllData": false}}
+      ]}},
+      {"host": "northwind-robotics.my.salesforce.com", "path": "/services/data/v62.0/tooling/query", "query_contains": {"q": "%\\_v3'"}, "body": {"totalSize": 1, "done": true, "records": [
+        {"attributes": {"type": "GenAiPlannerDefinition"}, "Id": "16j8a0000004P1AAAU", "DeveloperName": "Service_Agent_v3", "PlannerType": "AiCopilot__ReAct"}
+      ]}},
+      {"host": "northwind-robotics.my.salesforce.com", "path": "/services/data/v62.0/tooling/query", "query_contains": {"q": "FROM GenAiPluginDefinition WHERE PlannerId = '16j8a0000004P1AAAU'"}, "body": {"totalSize": 2, "done": true, "records": [
+        {"attributes": {"type": "GenAiPluginDefinition"}, "Id": "1798a0000004T1AAAU", "DeveloperName": "Order_Inquiries", "MasterLabel": "Order inquiries", "PluginType": "Topic"},
+        {"attributes": {"type": "GenAiPluginDefinition"}, "Id": "1798a0000004T1BAAU", "DeveloperName": "Returns_And_Refunds", "MasterLabel": "Returns and refunds", "PluginType": "Topic"}
+      ]}},
+      {"host": "northwind-robotics.my.salesforce.com", "path": "/services/data/v62.0/tooling/query", "query_contains": {"q": "FROM GenAiFunctionDefinition"}, "body": {"totalSize": 3, "done": true, "records": [
+        {"attributes": {"type": "GenAiFunctionDefinition"}, "Id": "1738a0000004F1AAAU", "DeveloperName": "Look_Up_Order", "MasterLabel": "Look up order", "InvocationTargetType": "flow", "IsConfirmationRequired": false, "PluginId": "1798a0000004T1AAAU"},
+        {"attributes": {"type": "GenAiFunctionDefinition"}, "Id": "1738a0000004F1BAAU", "DeveloperName": "Issue_Refund", "MasterLabel": "Issue refund", "InvocationTargetType": "apex", "IsConfirmationRequired": false, "PluginId": "1798a0000004T1BAAU"},
+        {"attributes": {"type": "GenAiFunctionDefinition"}, "Id": "1738a0000004F1CAAU", "DeveloperName": "Create_Return_Label", "MasterLabel": "Create return label", "InvocationTargetType": "flow", "IsConfirmationRequired": true, "PluginId": "1798a0000004T1BAAU"}
+      ]}}
+    ]
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "key": "microsoft-tenant",
+  "provider": "microsoft",
+  "name": "Demo: Microsoft 365 and Azure tenant",
+  "subject": "8b2f1c0e-5d4a-4b7c-9e61-0a3f7d2c4e15",
+  "description": "Copilot Studio agents, one of them with the lowest content moderation and one open to unauthenticated users, Entra agent identities, and Azure AI Foundry agents with their model deployments and content filters.",
+  "configuration": {
+    "tenant_id": "8b2f1c0e-5d4a-4b7c-9e61-0a3f7d2c4e15",
+    "dataverse_url": "https://northwindrobotics.crm.dynamics.com"
+  },
+  "http": {
+    "endpoint": "https://northwindrobotics.crm.dynamics.com",
+    "azure": true,
+    "routes": [
+      {"host": "graph.microsoft.com", "path": "/v1.0/organization", "body": {"value": [{"id": "8b2f1c0e-5d4a-4b7c-9e61-0a3f7d2c4e15", "displayName": "Northwind Robotics"}]}},
+      {"host": "graph.microsoft.com", "path": "/v1.0/servicePrincipals/microsoft.graph.agentIdentity", "body": {"value": [
+        {"@odata.type": "#microsoft.graph.agentIdentity", "id": "a1a1a1a1-0000-4000-8000-000000000101", "appId": "b1b1b1b1-0000-4000-8000-000000000101", "displayName": "Invoice matching agent", "accountEnabled": true},
+        {"@odata.type": "#microsoft.graph.agentIdentity", "id": "a1a1a1a1-0000-4000-8000-000000000102", "appId": "b1b1b1b1-0000-4000-8000-000000000102", "displayName": "Meeting notes agent", "accountEnabled": true},
+        {"@odata.type": "#microsoft.graph.agentIdentity", "id": "a1a1a1a1-0000-4000-8000-000000000103", "appId": "b1b1b1b1-0000-4000-8000-000000000103", "displayName": "Retired travel booking agent", "accountEnabled": false}
+      ]}},
+      {"host": "graph.microsoft.com", "path": "/v1.0/servicePrincipals", "body": {"value": []}},
+      {"host": "northwindrobotics.crm.dynamics.com", "path": "/api/data/v9.2/bots", "body": {"value": [
+        {"botid": "c2c2c2c2-0000-4000-8000-000000000201", "name": "HR policy helper", "statecode": 0, "authenticationmode": 2, "configuration": "{\"aISettings\":{\"contentModeration\":\"High\"}}"},
+        {"botid": "c2c2c2c2-0000-4000-8000-000000000202", "name": "Dealer portal assistant", "statecode": 0, "authenticationmode": 1, "configuration": "{\"aISettings\":{\"contentModeration\":\"Low\"}}"},
+        {"botid": "c2c2c2c2-0000-4000-8000-000000000203", "name": "IT service desk copilot", "statecode": 0, "authenticationmode": 2, "configuration": "{\"aISettings\":{\"contentModeration\":\"Medium\"}}"},
+        {"botid": "c2c2c2c2-0000-4000-8000-000000000204", "name": "Onboarding pilot (unpublished)", "statecode": 1, "authenticationmode": 2}
+      ]}},
+      {"host": "management.azure.com", "path": "/subscriptions", "body": {"value": [
+        {"id": "/subscriptions/d3d3d3d3-0000-4000-8000-000000000301", "subscriptionId": "d3d3d3d3-0000-4000-8000-000000000301", "displayName": "Northwind production", "state": "Enabled"}
+      ]}},
+      {"host": "management.azure.com", "path": "/subscriptions/d3d3d3d3-0000-4000-8000-000000000301/providers/Microsoft.CognitiveServices/accounts", "body": {"value": [
+        {"id": "/subscriptions/d3d3d3d3-0000-4000-8000-000000000301/resourceGroups/ai/providers/Microsoft.CognitiveServices/accounts/northwind-foundry", "name": "northwind-foundry", "type": "Microsoft.CognitiveServices/accounts", "kind": "AIServices", "location": "eastus", "properties": {"provisioningState": "Succeeded", "endpoint": "https://northwind-foundry.cognitiveservices.azure.com/", "publicNetworkAccess": "Enabled", "disableLocalAuth": false, "customSubDomainName": "northwind-foundry"}}
+      ]}},
+      {"host": "management.azure.com", "path": "/subscriptions/d3d3d3d3-0000-4000-8000-000000000301/resourceGroups/ai/providers/Microsoft.CognitiveServices/accounts/northwind-foundry/deployments", "body": {"value": [
+        {"id": "deployment-gpt-4o", "name": "gpt-4o", "properties": {"model": {"format": "OpenAI", "name": "gpt-4o", "version": "2024-08-06"}, "provisioningState": "Succeeded", "raiPolicyName": "annotate-only"}},
+        {"id": "deployment-gpt-4o-mini", "name": "gpt-4o-mini", "properties": {"model": {"format": "OpenAI", "name": "gpt-4o-mini", "version": "1"}, "provisioningState": "Succeeded", "raiPolicyName": "Microsoft.DefaultV2"}}
+      ]}},
+      {"host": "management.azure.com", "path": "/subscriptions/d3d3d3d3-0000-4000-8000-000000000301/resourceGroups/ai/providers/Microsoft.CognitiveServices/accounts/northwind-foundry/projects", "body": {"value": [
+        {"id": "/subscriptions/d3d3d3d3-0000-4000-8000-000000000301/resourceGroups/ai/providers/Microsoft.CognitiveServices/accounts/northwind-foundry/projects/logistics", "name": "northwind-foundry/logistics", "properties": {"provisioningState": "Succeeded", "displayName": "Logistics", "endpoints": {"AI Foundry API": "https://northwind-foundry.services.ai.azure.com/api/projects/logistics"}}}
+      ]}},
+      {"host": "management.azure.com", "path": "/subscriptions/d3d3d3d3-0000-4000-8000-000000000301/resourceGroups/ai/providers/Microsoft.CognitiveServices/accounts/northwind-foundry/raiPolicies", "body": {"value": [
+        {"name": "Microsoft.DefaultV2", "properties": {"mode": "Blocking", "contentFilters": [{"name": "Hate", "enabled": true, "blocking": true, "severityThreshold": "Medium", "source": "Prompt"}, {"name": "Violence", "enabled": true, "blocking": true, "severityThreshold": "Medium", "source": "Completion"}]}},
+        {"name": "annotate-only", "properties": {"contentFilters": [{"name": "Hate", "enabled": true, "blocking": false, "severityThreshold": "Medium", "source": "Prompt"}]}}
+      ]}},
+      {"host": "northwind-foundry.services.ai.azure.com", "path": "/api/projects/logistics/agents", "body": {"object": "list", "has_more": false, "data": [
+        {"object": "agent", "id": "freight-quote-agent", "name": "freight-quote-agent", "state": "enabled", "versions": {"latest": {"object": "agent.version", "id": "freight-quote-agent:4", "name": "freight-quote-agent", "version": "4", "status": "active", "definition": {"kind": "prompt", "model": "gpt-4o", "tools": [{"type": "code_interpreter"}, {"type": "mcp", "server_url": "https://mcp.carrier-rates.example.com/mcp"}]}}}},
+        {"object": "agent", "id": "customs-document-agent", "name": "customs-document-agent", "state": "enabled", "versions": {"latest": {"object": "agent.version", "id": "customs-document-agent:2", "name": "customs-document-agent", "version": "2", "status": "active", "definition": {"kind": "prompt", "model": "gpt-4o-mini", "tools": [{"type": "file_search"}]}}}}
+      ]}}
+    ]
+  }
+}

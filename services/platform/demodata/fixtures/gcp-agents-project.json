@@ -1,0 +1,63 @@
+{
+  "key": "gcp-agents-project",
+  "provider": "gcp",
+  "name": "Demo: Google Cloud project northwind-agents-prod",
+  "subject": "projects/northwind-agents-prod",
+  "description": "A Vertex AI Agent Engine agent, a Conversational Agent with tools, Cloud Run services inferred to be agents, a Cloud Run MCP server, a service account with the Owner role and a project where Model Armor screens nothing.",
+  "configuration": {
+    "scope": "projects/northwind-agents-prod",
+    "service_account": "zasp-reader@northwind-agents-prod.iam.gserviceaccount.com"
+  },
+  "http": {
+    "routes": [
+      {"host": "cloudresourcemanager.googleapis.com", "path": "/v3/projects/northwind-agents-prod", "body": {"name": "projects/424242424242", "projectId": "northwind-agents-prod", "parent": "organizations/515151515151", "state": "ACTIVE", "displayName": "Northwind agents production"}},
+      {"host": "iam.googleapis.com", "path": "/v1/projects/northwind-agents-prod/serviceAccounts", "body": {"accounts": [
+        {"email": "agent-runner@northwind-agents-prod.iam.gserviceaccount.com"},
+        {"email": "424242424242-compute@developer.gserviceaccount.com"},
+        {"email": "report-builder@northwind-agents-prod.iam.gserviceaccount.com"},
+        {"email": "storefront-web@northwind-agents-prod.iam.gserviceaccount.com"}
+      ]}},
+      {"host": "cloudresourcemanager.googleapis.com", "method": "POST", "path": "/v3/projects/northwind-agents-prod:getIamPolicy", "body": {"version": 3, "bindings": [
+        {"role": "roles/owner", "members": ["serviceAccount:agent-runner@northwind-agents-prod.iam.gserviceaccount.com"]},
+        {"role": "roles/editor", "members": ["serviceAccount:424242424242-compute@developer.gserviceaccount.com"]},
+        {"role": "roles/aiplatform.user", "members": ["serviceAccount:agent-runner@northwind-agents-prod.iam.gserviceaccount.com", "serviceAccount:report-builder@northwind-agents-prod.iam.gserviceaccount.com"]},
+        {"role": "roles/storage.objectViewer", "members": ["serviceAccount:report-builder@northwind-agents-prod.iam.gserviceaccount.com"]}
+      ]}},
+      {"host": "aiplatform.googleapis.com", "path": "/v1/projects/northwind-agents-prod/locations", "body": {"locations": [{"locationId": "us-central1"}, {"locationId": "global"}]}},
+      {"host": "us-central1-aiplatform.googleapis.com", "path": "/v1/projects/northwind-agents-prod/locations/us-central1/reasoningEngines", "body": {"reasoningEngines": [
+        {"name": "projects/424242424242/locations/us-central1/reasoningEngines/8101", "displayName": "Supplier onboarding agent", "spec": {"agentFramework": "google-adk", "serviceAccount": "agent-runner@northwind-agents-prod.iam.gserviceaccount.com", "identityType": "SERVICE_ACCOUNT"}},
+        {"name": "projects/424242424242/locations/us-central1/reasoningEngines/8102", "displayName": "Demand forecast explainer", "spec": {"agentFramework": "langgraph", "serviceAccount": "report-builder@northwind-agents-prod.iam.gserviceaccount.com", "identityType": "SERVICE_ACCOUNT"}}
+      ]}},
+      {"host": "us-central1-aiplatform.googleapis.com", "path": "/v1/projects/northwind-agents-prod/locations/us-central1/endpoints", "body": {}},
+      {"host": "dialogflow.googleapis.com", "path": "/v3/projects/northwind-agents-prod/locations", "body": {"locations": [{"locationId": "global"}]}},
+      {"host": "dialogflow.googleapis.com", "path": "/v3/projects/northwind-agents-prod/locations/global/agents", "body": {"agents": [
+        {"name": "projects/northwind-agents-prod/locations/global/agents/7c1d2e3f-0000-4000-8000-000000000101", "displayName": "Order status assistant"}
+      ]}},
+      {"host": "dialogflow.googleapis.com", "path": "/v3/projects/northwind-agents-prod/locations/global/agents/7c1d2e3f-0000-4000-8000-000000000101/tools", "body": {"tools": [
+        {"name": "projects/northwind-agents-prod/locations/global/agents/7c1d2e3f-0000-4000-8000-000000000101/tools/t-1", "displayName": "lookup order"},
+        {"name": "projects/northwind-agents-prod/locations/global/agents/7c1d2e3f-0000-4000-8000-000000000101/tools/t-2", "displayName": "cancel order"},
+        {"name": "projects/northwind-agents-prod/locations/global/agents/7c1d2e3f-0000-4000-8000-000000000101/tools/t-3", "displayName": "run_shell"}
+      ]}},
+      {"host": "discoveryengine.googleapis.com", "path": "/v1alpha/projects/northwind-agents-prod/locations/global/collections/default_collection/engines", "body": {"engines": [
+        {"name": "projects/424242424242/locations/global/collections/default_collection/engines/northwind-workspace", "displayName": "Northwind workspace"}
+      ]}},
+      {"host": "discoveryengine.googleapis.com", "path": "/v1alpha/projects/northwind-agents-prod/locations/global/collections/default_collection/engines/northwind-workspace/assistants/default_assistant/agents", "body": {"agents": [
+        {"name": "projects/424242424242/locations/global/collections/default_collection/engines/northwind-workspace/assistants/default_assistant/agents/9101", "displayName": "Expense report helper", "state": "ENABLED"}
+      ]}},
+      {"host": "run.googleapis.com", "path": "/v1/projects/northwind-agents-prod/locations", "body": {"locations": [{"locationId": "us-central1"}]}},
+      {"host": "run.googleapis.com", "path": "/v2/projects/northwind-agents-prod/locations/us-central1/services", "body": {"services": [
+        {"name": "projects/northwind-agents-prod/locations/us-central1/services/returns-chatbot", "ingress": "INGRESS_TRAFFIC_ALL", "invokerIamDisabled": true, "template": {"serviceAccount": "agent-runner@northwind-agents-prod.iam.gserviceaccount.com", "containers": [{"image": "us-docker.pkg.dev/northwind-agents-prod/apps/returns-chatbot:14", "env": [{"name": "ANTHROPIC_API_KEY"}]}]}},
+        {"name": "projects/northwind-agents-prod/locations/us-central1/services/catalog-mcp", "functionalType": "FUNCTIONAL_TYPE_MCP_SERVER", "uri": "https://catalog-mcp-nw4242-uc.a.run.app", "ingress": "INGRESS_TRAFFIC_ALL", "invokerIamDisabled": true, "template": {"containers": [{"image": "us-docker.pkg.dev/northwind-agents-prod/apps/catalog-mcp:3"}]}},
+        {"name": "projects/northwind-agents-prod/locations/us-central1/services/storefront-web", "template": {"serviceAccount": "storefront-web@northwind-agents-prod.iam.gserviceaccount.com", "containers": [{"image": "us-docker.pkg.dev/northwind-agents-prod/apps/storefront-web:88", "env": [{"name": "PORT"}]}]}}
+      ]}},
+      {"host": "cloudfunctions.googleapis.com", "path": "/v2/projects/northwind-agents-prod/locations/-/functions", "body": {"functions": []}},
+      {"host": "modelarmor.googleapis.com", "path": "/v1/projects/northwind-agents-prod/locations/global/floorSetting", "body": {"name": "projects/northwind-agents-prod/locations/global/floorSetting", "enableFloorSettingEnforcement": false}},
+      {"host": "modelarmor.us-central1.rep.googleapis.com", "path": "/v1/projects/northwind-agents-prod/locations/us-central1/templates", "body": {}},
+      {"host": "logging.googleapis.com", "method": "POST", "path": "/v2/entries:list", "body": {"entries": [
+        {"timestamp": "{{hours_ago:3}}", "protoPayload": {"serviceName": "aiplatform.googleapis.com", "methodName": "google.cloud.aiplatform.v1.PredictionService.GenerateContent", "resourceName": "projects/424242424242/locations/us-central1/publishers/google/models/gemini", "authenticationInfo": {"principalEmail": "agent-runner@northwind-agents-prod.iam.gserviceaccount.com"}}},
+        {"timestamp": "{{hours_ago:5}}", "protoPayload": {"serviceName": "aiplatform.googleapis.com", "methodName": "google.cloud.aiplatform.v1.ReasoningEngineExecutionService.QueryReasoningEngine", "resourceName": "projects/424242424242/locations/us-central1/reasoningEngines/8101", "authenticationInfo": {"principalEmail": "agent-runner@northwind-agents-prod.iam.gserviceaccount.com"}}},
+        {"timestamp": "{{hours_ago:8}}", "protoPayload": {"serviceName": "aiplatform.googleapis.com", "methodName": "google.cloud.aiplatform.v1.PredictionService.GenerateContent", "resourceName": "projects/424242424242/locations/us-central1/publishers/google/models/gemini", "authenticationInfo": {"principalEmail": "424242424242-compute@developer.gserviceaccount.com"}}}
+      ]}}
+    ]
+  }
+}
