@@ -287,7 +287,11 @@ func loadWorkerRuntimeConfig(getenv func(string) string) (workerRuntimeConfig, e
 		RuntimeStageRoleARN: getenv("ZASP_RUNTIME_STAGE_ROLE_ARN"), RuntimeStageTokenFile: getenv("ZASP_RUNTIME_STAGE_WEB_IDENTITY_TOKEN_FILE"), RuntimeStageVersion: getenv("ZASP_RUNTIME_STAGE_VERSION"),
 	}
 	config.ProjectionKind = projectionKind(config.Mode)
-	config.GatewayDecisionRetentionDays = defaultGatewayDecisionRetentionDays
+	// Only the scheduler keeps the gateway's records; the dedicated worker
+	// modes compare their configuration exactly and must not gain a value.
+	if config.Mode == workerModeScheduler {
+		config.GatewayDecisionRetentionDays = defaultGatewayDecisionRetentionDays
+	}
 	if retention := getenv("ZASP_GATEWAY_DECISION_RETENTION_DAYS"); retention != "" {
 		days, err := strconv.Atoi(retention)
 		if err != nil || strconv.Itoa(days) != retention || days < 1 || days > 3650 || config.Mode != workerModeScheduler {
