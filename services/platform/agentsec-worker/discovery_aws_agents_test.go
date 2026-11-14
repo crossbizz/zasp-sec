@@ -489,11 +489,11 @@ func TestAWSInventoryReportsDeniedAndUnavailableAIServicesAndStillCompletes(t *t
 			present: []string{"agent/AGENT12345"},
 			missing: []string{"runtime/researcher-AbCdEfGhIj", "gateway/tools-abcdefghij"},
 		},
-		"AgentCore not in one region, collected in the other": {
+		"AgentCore not in one region, collected in the other: the account has it": {
 			change: func(regions map[string]*discoveryAgentRegionStub) {
 				regions["us-east-1"].listRuntimesErr = unavailable
 			},
-			want:    statuses{collected, absent, collected},
+			want:    statuses{collected, collected, collected},
 			present: []string{"runtime/researcher-AbCdEfGhIj", "gateway/tools-abcdefghij"},
 		},
 		"runtimes listed, gateways refused": {
