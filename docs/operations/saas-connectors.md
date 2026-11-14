@@ -197,8 +197,75 @@ Sign-in needs completion.sql section `ws6_saas_sign_in` in the database. An
 API whose database does not have it starts without sign-in and still offers
 the reference form.
 
-Not done by a sign-in: deleting the integration does not delete the Nango
-connection the sign-in created. Delete it in Nango.
+The browser returns to `/connectors`, the route of the Integrations page.
+(Until this was corrected the API returned it to `/integrations`, which is
+not a route of the web application: the application rewrote the address to
+the home page and the sign-in was lost.)
+
+### Deleting the connection a sign-in created
+
+A connection that a sign-in created is deleted from Nango when the product
+stops using it:
+
+- when the integration is deleted, every connection its sign-ins created is
+  deleted, whether or not it was ever stored in the integration;
+- when the integration is given another connection (a second sign-in, or a
+  reference typed in), every connection its sign-ins created except the one
+  it now names is deleted.
+
+A connection the product did not create is never deleted: a reference a
+person pasted names a connection made in Nango, and the product holds no
+record that it created it. Delete those in Nango.
+
+How it works, and what to expect:
+
+1. The transaction that deletes the integration or changes its connection
+   also writes one row per connection to `zasp_saas_connection_releases`
+   (a trigger on the integration's record, completion.sql section
+   `ws10_saas_connection_release`). The row holds the connection's reference,
+   never a token. A stopped API cannot separate the deletion from the row.
+2. A worker in the API server claims rows under a 60 second lease, every 15
+   seconds, and deletes the connection through the Nango connection client.
+   The client asks Nango for the connection of this integration's end user
+   only, so a connection that belongs to another end user is refused, and a
+   connection that is already gone counts as deleted.
+3. If the API stops after the claim, the lease expires and the row is claimed
+   again. If Nango refuses or cannot be reached, the row records
+   `nango_unavailable` and is tried again after 30 seconds, then 1, 2, 4, 8,
+   16, 32 minutes, then every hour: fifty attempts in all, about two days.
+   After the fiftieth the row is `failed`.
+4. A connection that another live saas integration of the same Environment
+   still names when its turn comes is kept (`retained`). It has its turn
+   again when an integration that names it is deleted or given another
+   connection.
+
+To see what is waiting or failed, as the database owner:
+
+```sql
+SELECT organization_id, environment_id, integration_id, platform, connection_reference,
+       reason, status, attempt, last_error_code, available_at, finished_at
+FROM zasp_saas_connection_releases
+WHERE status IN ('pending', 'failed', 'retained')
+ORDER BY created_at;
+```
+
+Delete a `failed` connection in Nango by hand. `last_error_code`
+is `nango_unavailable` (Nango refused, could not be reached, or holds the
+connection for another end user), `platform_unavailable` (this deployment no
+longer serves the platform's sign-in) or `attempts_exhausted` (the last
+attempt ended without an outcome).
+
+The worker runs only where sign-in does (the saas collector version, Nango
+and a public HTTPS origin are configured) and the database has the release
+section. Elsewhere nothing is listed or deleted.
+
+Deleting an authorized saas integration first revokes it: the integration
+shows `revoking` until the API's connector reconciler has finished, a few
+seconds to a minute later, and its connections are listed at that moment.
+(Before this was corrected that reconciler took the revocation of a saas,
+Microsoft or Salesforce integration for an OAuth revocation, found no
+provider for it, and left the integration `revoking` until it was
+quarantined.)
 
 ## Limits
 

@@ -7156,3 +7156,171 @@ BEGIN
  -- refused and the effect stayed open until it was quarantined.
  GRANT EXECUTE ON FUNCTION public.zasp_connector_complete_cleanup(text,text,text,text,text,text) TO zasp_discovery_api;
 END $ws10_connector_oauth$;
+
+-- ---------------------------------------------------------------------------
+-- WS10b. The Nango connection a sign-in created ends with its integration
+-- (workstream WS10).
+--
+-- Section WS6 lets a person sign in to a SaaS platform from the product; Nango
+-- creates a connection and the integration names it. Deleting the integration,
+-- or giving it another connection, left that connection (and the provider
+-- token Nango keeps for it) in Nango for ever.
+--
+--   * zasp_saas_connection_releases is the list of Nango connections to
+--     delete. It holds the reference of a connection, never a token.
+--   * A row is written by a trigger on the integration's record, in the
+--     transaction that deletes the integration or changes the connection it
+--     names, so no crash can separate the two. Only connections that a
+--     completed sign-in of that integration created are listed
+--     (zasp_saas_sign_in_attempts); a reference a person pasted is never
+--     listed, because that connection was made outside the product.
+--     On deletion every connection the integration's sign-ins created is
+--     listed; on a change, every one but the connection now named.
+--   * The API server's release worker claims rows under a lease, deletes the
+--     connection at Nango and records the outcome. A worker that stops after
+--     the claim loses its lease and the row is claimed again; a refused or
+--     failed deletion is retried with a growing delay, fifty times in all
+--     (about two days), and then marked failed for a person to remove.
+--   * A connection that a live saas integration of the same Environment still
+--     names when its turn comes is kept (status retained), and has its turn
+--     again when an integration that names it is deleted or names another.
+--
+-- The functions take no principal and no tenant choice of the caller beyond
+-- the row's own key: like connector reconciliation they are system
+-- maintenance, bound to the lease the worker claimed. The section is
+-- re-runnable.
+DO $ws10_saas_connection_release$
+DECLARE owner_value text;
+BEGIN
+ SELECT pg_get_userbyid(relowner) INTO STRICT owner_value FROM pg_class WHERE oid='public.zasp_saas_sign_in_attempts'::regclass;
+
+ CREATE TABLE IF NOT EXISTS public.zasp_saas_connection_releases(
+  organization_id text NOT NULL,workspace_id text NOT NULL,environment_id text NOT NULL,connection_reference text NOT NULL,
+  integration_id text NOT NULL,platform text NOT NULL,reason text NOT NULL,status text NOT NULL DEFAULT 'pending',
+  attempt integer NOT NULL DEFAULT 0,available_at timestamptz NOT NULL DEFAULT transaction_timestamp(),
+  lease_owner text,lease_token text,lease_expires_at timestamptz,last_error_code text,
+  created_at timestamptz NOT NULL DEFAULT transaction_timestamp(),updated_at timestamptz NOT NULL DEFAULT transaction_timestamp(),finished_at timestamptz,
+  PRIMARY KEY(organization_id,workspace_id,environment_id,connection_reference),
+  CONSTRAINT zasp_saas_connection_releases_id_check CHECK(public.zasp_valid_product_id(organization_id) AND public.zasp_valid_product_id(workspace_id) AND public.zasp_valid_product_id(environment_id) AND public.zasp_valid_product_id(integration_id)),
+  CONSTRAINT zasp_saas_connection_releases_reference_check CHECK(connection_reference ~ '^ref:nango/connection/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' AND platform ~ '^[a-z][a-z0-9_]{1,31}$'),
+  CONSTRAINT zasp_saas_connection_releases_reason_check CHECK(reason IN('integration_deleted','reference_replaced')),
+  CONSTRAINT zasp_saas_connection_releases_status_check CHECK(status IN('pending','released','retained','failed') AND (status='pending')=(finished_at IS NULL)),
+  CONSTRAINT zasp_saas_connection_releases_attempt_check CHECK(attempt BETWEEN 0 AND 50),
+  CONSTRAINT zasp_saas_connection_releases_lease_check CHECK((lease_owner IS NULL)=(lease_token IS NULL) AND (lease_owner IS NULL)=(lease_expires_at IS NULL) AND (status='pending' OR lease_owner IS NULL)),
+  CONSTRAINT zasp_saas_connection_releases_error_check CHECK(last_error_code IS NULL OR last_error_code ~ '^[a-z][a-z0-9_]{1,63}$'));
+ CREATE INDEX IF NOT EXISTS zasp_saas_connection_releases_due ON public.zasp_saas_connection_releases(available_at) WHERE status='pending';
+ EXECUTE format('ALTER TABLE public.zasp_saas_connection_releases OWNER TO %I',owner_value);
+ ALTER TABLE public.zasp_saas_connection_releases ENABLE ROW LEVEL SECURITY;
+ REVOKE ALL ON TABLE public.zasp_saas_connection_releases FROM PUBLIC;
+
+ -- Lists the connections to delete when a saas integration is deleted or
+ -- names another connection. kept is the connection the integration names
+ -- after the change; nothing is kept when the integration is deleted. A
+ -- connection that was retained before is listed again.
+ CREATE OR REPLACE FUNCTION public.zasp_saas_connection_release_capture() RETURNS trigger
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $capture$
+ DECLARE kept text;reason_value text;
+ BEGIN
+  IF OLD.kind<>'integration' OR OLD.body->>'connector_key' IS DISTINCT FROM 'saas' THEN RETURN NULL;END IF;
+  IF TG_OP='DELETE' THEN
+   IF OLD.deleted_at IS NOT NULL THEN RETURN NULL;END IF;
+   reason_value:='integration_deleted';
+  ELSIF NEW.deleted_at IS NOT NULL AND OLD.deleted_at IS NULL THEN
+   reason_value:='integration_deleted';
+  ELSIF NEW.deleted_at IS NULL AND NEW.body#>>'{configuration,connection_reference}' IS DISTINCT FROM OLD.body#>>'{configuration,connection_reference}' THEN
+   kept:=NEW.body#>>'{configuration,connection_reference}';
+   reason_value:='reference_replaced';
+  ELSE
+   RETURN NULL;
+  END IF;
+  -- A connection that was kept because this integration named it has its
+  -- turn again; the claim keeps it once more if another integration names it.
+  UPDATE zasp_saas_connection_releases x SET status='pending',attempt=0,available_at=transaction_timestamp(),last_error_code=NULL,finished_at=NULL,updated_at=transaction_timestamp()
+   WHERE (x.organization_id,x.workspace_id,x.environment_id,x.connection_reference)=(OLD.organization_id,OLD.workspace_id,OLD.environment_id,OLD.body#>>'{configuration,connection_reference}')
+    AND x.status='retained' AND x.connection_reference IS DISTINCT FROM kept;
+  INSERT INTO zasp_saas_connection_releases(organization_id,workspace_id,environment_id,connection_reference,integration_id,platform,reason)
+  SELECT DISTINCT ON(a.connection_reference) a.organization_id,a.workspace_id,a.environment_id,a.connection_reference,a.integration_id,a.platform,reason_value
+   FROM zasp_saas_sign_in_attempts a
+   WHERE (a.organization_id,a.workspace_id,a.environment_id,a.integration_id)=(OLD.organization_id,OLD.workspace_id,OLD.environment_id,OLD.id)
+    AND a.status='completed' AND a.connection_reference IS DISTINCT FROM kept
+   ORDER BY a.connection_reference,a.finished_at DESC
+  ON CONFLICT(organization_id,workspace_id,environment_id,connection_reference) DO UPDATE
+   SET status='pending',reason=EXCLUDED.reason,integration_id=EXCLUDED.integration_id,platform=EXCLUDED.platform,attempt=0,available_at=transaction_timestamp(),last_error_code=NULL,finished_at=NULL,updated_at=transaction_timestamp()
+   WHERE zasp_saas_connection_releases.status='retained';
+  RETURN NULL;
+ END $capture$;
+ EXECUTE format('ALTER FUNCTION public.zasp_saas_connection_release_capture() OWNER TO %I',owner_value);
+ REVOKE ALL ON FUNCTION public.zasp_saas_connection_release_capture() FROM PUBLIC;
+ DROP TRIGGER IF EXISTS zasp_saas_connection_release_capture ON public.zasp_workflow_records;
+ CREATE TRIGGER zasp_saas_connection_release_capture AFTER UPDATE OR DELETE ON public.zasp_workflow_records
+  FOR EACH ROW WHEN (OLD.kind='integration') EXECUTE FUNCTION public.zasp_saas_connection_release_capture();
+
+ -- Claims connections whose turn has come. A lease that expired without an
+ -- outcome (the worker stopped) is claimed again.
+ CREATE OR REPLACE FUNCTION public.zasp_saas_connection_release_claim(owner_value text,lease_seconds integer,limit_value integer) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $claim$
+ DECLARE result jsonb;
+ BEGIN
+  IF NOT COALESCE(length(owner_value) BETWEEN 3 AND 128 AND lease_seconds BETWEEN 5 AND 300 AND limit_value BETWEEN 1 AND 100,false) THEN
+   RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='invalid saas connection release claim';
+  END IF;
+  -- The last attempt ended without an outcome.
+  UPDATE zasp_saas_connection_releases x SET status='failed',last_error_code='attempts_exhausted',lease_owner=NULL,lease_token=NULL,lease_expires_at=NULL,finished_at=transaction_timestamp(),updated_at=transaction_timestamp()
+   WHERE x.status='pending' AND x.attempt>=50 AND x.lease_expires_at<=transaction_timestamp();
+  -- A connection an integration still names is kept.
+  UPDATE zasp_saas_connection_releases x SET status='retained',lease_owner=NULL,lease_token=NULL,lease_expires_at=NULL,finished_at=transaction_timestamp(),updated_at=transaction_timestamp()
+   WHERE x.status='pending' AND x.available_at<=transaction_timestamp() AND (x.lease_expires_at IS NULL OR x.lease_expires_at<=transaction_timestamp())
+    AND EXISTS(SELECT 1 FROM zasp_workflow_records r WHERE (r.organization_id,r.workspace_id,r.environment_id,r.kind)=(x.organization_id,x.workspace_id,x.environment_id,'integration')
+     AND r.deleted_at IS NULL AND r.body->>'connector_key'='saas' AND r.body#>>'{configuration,connection_reference}'=x.connection_reference);
+  WITH due AS (
+   SELECT x.organization_id,x.workspace_id,x.environment_id,x.connection_reference FROM zasp_saas_connection_releases x
+    WHERE x.status='pending' AND x.attempt<50 AND x.available_at<=transaction_timestamp() AND (x.lease_expires_at IS NULL OR x.lease_expires_at<=transaction_timestamp())
+    ORDER BY x.available_at,x.connection_reference FOR UPDATE SKIP LOCKED LIMIT limit_value),
+  claimed AS (
+   UPDATE zasp_saas_connection_releases x SET attempt=x.attempt+1,lease_owner=owner_value,lease_token=encode(gen_random_bytes(32),'hex'),
+    lease_expires_at=transaction_timestamp()+make_interval(secs=>lease_seconds),updated_at=transaction_timestamp()
+    FROM due WHERE (x.organization_id,x.workspace_id,x.environment_id,x.connection_reference)=(due.organization_id,due.workspace_id,due.environment_id,due.connection_reference)
+    RETURNING x.*)
+  SELECT jsonb_build_object('items',COALESCE(jsonb_agg(jsonb_build_object('organization_id',organization_id,'workspace_id',workspace_id,'environment_id',environment_id,
+   'connection_reference',connection_reference,'integration_id',integration_id,'platform',platform,'reason',reason,'attempt',attempt,
+   'lease_owner',lease_owner,'lease_token',lease_token,'lease_expires_at',lease_expires_at) ORDER BY available_at,connection_reference),'[]'::jsonb)) INTO result FROM claimed;
+  RETURN result;
+ END $claim$;
+
+ -- Records the outcome of a claimed deletion for the holder of its lease:
+ -- released, or to be tried again after a delay that doubles from thirty
+ -- seconds to one hour. The fiftieth failure is final.
+ CREATE OR REPLACE FUNCTION public.zasp_saas_connection_release_finish(organization_value text,workspace_value text,environment_value text,reference_value text,owner_value text,token_value text,released_value boolean,error_value text) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $finish$
+ DECLARE row_value zasp_saas_connection_releases%ROWTYPE;
+ BEGIN
+  IF released_value IS NULL OR released_value AND COALESCE(error_value,'')<>'' OR NOT released_value AND NOT COALESCE(error_value ~ '^[a-z][a-z0-9_]{1,63}$',false) THEN
+   RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='invalid saas connection release outcome';
+  END IF;
+  SELECT * INTO row_value FROM zasp_saas_connection_releases x
+   WHERE (x.organization_id,x.workspace_id,x.environment_id,x.connection_reference)=(organization_value,workspace_value,environment_value,reference_value) FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='saas connection release unavailable';END IF;
+  IF row_value.status<>'pending' OR row_value.lease_owner IS DISTINCT FROM owner_value OR row_value.lease_token IS DISTINCT FROM token_value OR row_value.lease_expires_at IS NULL OR row_value.lease_expires_at<=transaction_timestamp() THEN
+   RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='saas connection release lease unavailable';
+  END IF;
+  IF released_value THEN
+   UPDATE zasp_saas_connection_releases x SET status='released',last_error_code=NULL,lease_owner=NULL,lease_token=NULL,lease_expires_at=NULL,finished_at=transaction_timestamp(),updated_at=transaction_timestamp()
+    WHERE (x.organization_id,x.workspace_id,x.environment_id,x.connection_reference)=(organization_value,workspace_value,environment_value,reference_value) RETURNING * INTO row_value;
+  ELSIF row_value.attempt>=50 THEN
+   UPDATE zasp_saas_connection_releases x SET status='failed',last_error_code=error_value,lease_owner=NULL,lease_token=NULL,lease_expires_at=NULL,finished_at=transaction_timestamp(),updated_at=transaction_timestamp()
+    WHERE (x.organization_id,x.workspace_id,x.environment_id,x.connection_reference)=(organization_value,workspace_value,environment_value,reference_value) RETURNING * INTO row_value;
+  ELSE
+   UPDATE zasp_saas_connection_releases x SET last_error_code=error_value,lease_owner=NULL,lease_token=NULL,lease_expires_at=NULL,
+    available_at=transaction_timestamp()+LEAST(interval '1 hour',interval '30 seconds'*power(2,LEAST(row_value.attempt,8)-1)),updated_at=transaction_timestamp()
+    WHERE (x.organization_id,x.workspace_id,x.environment_id,x.connection_reference)=(organization_value,workspace_value,environment_value,reference_value) RETURNING * INTO row_value;
+  END IF;
+  RETURN jsonb_build_object('status',row_value.status,'attempt',row_value.attempt,'available_at',row_value.available_at);
+ END $finish$;
+
+ EXECUTE format('ALTER FUNCTION public.zasp_saas_connection_release_claim(text,integer,integer) OWNER TO %I',owner_value);
+ EXECUTE format('ALTER FUNCTION public.zasp_saas_connection_release_finish(text,text,text,text,text,text,boolean,text) OWNER TO %I',owner_value);
+ REVOKE ALL ON FUNCTION public.zasp_saas_connection_release_claim(text,integer,integer) FROM PUBLIC;
+ REVOKE ALL ON FUNCTION public.zasp_saas_connection_release_finish(text,text,text,text,text,text,boolean,text) FROM PUBLIC;
+ GRANT EXECUTE ON FUNCTION public.zasp_saas_connection_release_claim(text,integer,integer) TO zasp_discovery_api;
+ GRANT EXECUTE ON FUNCTION public.zasp_saas_connection_release_finish(text,text,text,text,text,text,boolean,text) TO zasp_discovery_api;
+END $ws10_saas_connection_release$;
