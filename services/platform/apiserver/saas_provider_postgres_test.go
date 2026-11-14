@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	saasProviderConfiguration = `{"connection_reference":"ref:nango/connection/11111111-1111-4111-8111-111111111111","platform":"databricks","tenant_id":"1234567890123456"}`
-	saasProviderSubject       = "databricks/1234567890123456"
+	saasProviderConfiguration = `{"connection_reference":"ref:nango/connection/11111111-1111-4111-8111-111111111111","platform":"databricks","tenant_id":"adb-1234567890123456.7.azuredatabricks.net"}`
+	saasProviderSubject       = "databricks/adb-1234567890123456.7.azuredatabricks.net"
 )
 
 // installedBaselineConnection installs the released baseline artifact in a
@@ -166,10 +166,10 @@ func TestSaaSProviderSectionOnTheInstalledBaselinePostgres(t *testing.T) {
 		saasProviderConfiguration: true,
 		`{"connection_reference":"ref:nango/connection/11111111-1111-4111-8111-111111111111","platform":"slack","tenant_id":"T024BE7LD"}`:                         true,
 		`{"connection_reference":"ref:nango/connection/11111111-1111-4111-8111-111111111111","platform":"databricks"}`:                                            false,
-		`{"connection_reference":"ref:nango/connection/11111111-1111-4111-8111-111111111111","platform":"Databricks","tenant_id":"1234567890123456"}`:             false,
+		`{"connection_reference":"ref:nango/connection/11111111-1111-4111-8111-111111111111","platform":"Databricks","tenant_id":"adb-1234567890123456.7.azuredatabricks.net"}`:             false,
 		`{"connection_reference":"ref:nango/connection/11111111-1111-4111-8111-111111111111","platform":"databricks","tenant_id":"../1"}`:                         false,
-		`{"connection_reference":"ref:kubernetes/connection/customer-0001","platform":"databricks","tenant_id":"1234567890123456"}`:                               false,
-		`{"connection_reference":"ref:nango/service-key-0001","platform":"databricks","tenant_id":"1234567890123456"}`:                                            false,
+		`{"connection_reference":"ref:kubernetes/connection/customer-0001","platform":"databricks","tenant_id":"adb-1234567890123456.7.azuredatabricks.net"}`:                               false,
+		`{"connection_reference":"ref:nango/service-key-0001","platform":"databricks","tenant_id":"adb-1234567890123456.7.azuredatabricks.net"}`:                                            false,
 		`{"connection_reference":"ref:nango/connection/11111111-1111-4111-8111-111111111111","platform":"databricks","tenant_id":1234567890123456}`:               false,
 		`{"connection_reference":"ref:nango/connection/11111111-1111-4111-8111-111111111111","platform":"databricks","tenant_id":"1","access_token":"dapi-0001"}`: false,
 	} {
@@ -240,7 +240,7 @@ func TestSaaSProviderSectionOnTheInstalledBaselinePostgres(t *testing.T) {
  {"name":"support-agent","id":"0a1b2c3d4e5f","state":{"ready":"READY"},"task":"agent/v1/responses","config":{"served_entities":[{"entity_name":"main.agents.support_agent"}]}},
  {"name":"gpt-4o-proxy","id":"1b2c3d4e5f60","state":{"ready":"READY"},"task":"llm/v1/chat","config":{"served_entities":[{"external_model":{"provider":"openai","name":"gpt-4o"}}]}}]}`),
 	})
-	collected := saastest.Collect(t, standIn, registry, platform, "1234567890123456")
+	collected := saastest.Collect(t, standIn, registry, platform, "adb-1234567890123456.7.azuredatabricks.net")
 	candidate := collected.Result.Snapshot()
 	manifest := collected.Result.Manifest().Descriptor()
 	checksum := manifest.Checksum()
@@ -288,13 +288,13 @@ func TestSaaSProviderSectionOnTheInstalledBaselinePostgres(t *testing.T) {
 		if err := inventory.Scan(&sourceKind, &productKind, &name, &confidence, &provider, &platformField, &tenant, &method); err != nil {
 			t.Fatal(err)
 		}
-		if provider != "saas" || platformField != "databricks" || tenant != "1234567890123456" {
+		if provider != "saas" || platformField != "databricks" || tenant != "adb-1234567890123456.7.azuredatabricks.net" {
 			t.Fatalf("%s is not bound to the saas tenant: %s %s %s", sourceKind, provider, platformField, tenant)
 		}
 		got = append(got, strings.Join([]string{sourceKind, productKind, name, method}, "|")+"|"+itoa(confidence))
 	}
 	inventory.Close()
-	want := []string{"saas_agent|agent|support-agent|provider_api|9500", "saas_ai_application|agent|gpt-4o-proxy|inferred|7000", "saas_tenant|asset|Databricks workspace 1234567890123456||9500"}
+	want := []string{"saas_agent|agent|support-agent|provider_api|9500", "saas_ai_application|agent|gpt-4o-proxy|inferred|7000", "saas_tenant|asset|Databricks workspace adb-1234567890123456.7.azuredatabricks.net||9500"}
 	if strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Fatalf("inventory\n got %v\nwant %v", got, want)
 	}
