@@ -106,6 +106,21 @@ func (database *PostgresJSONDatabase) authorizationMetadataQuery(ctx context.Con
 		if len(arguments) != 1 || arguments[0] != DiscoveryDatabaseAuthorityAPI {
 			return nil, true, ErrAuthorizationDenied
 		}
+	case postgresSaaSSignInReadySQL:
+		// Asked once at startup, before any request: one boolean about the
+		// catalog (whether completion.sql section ws6_saas_sign_in is
+		// installed). It names no tenant and reads no table.
+		if len(arguments) != 0 {
+			return nil, true, ErrAuthorizationDenied
+		}
+		var installed bool
+		if err := database.driver.QueryRow(ctx, `SELECT to_regprocedure('zasp_authorization80.saas_sign_in_finish(text,text,text,text,text,text,text)') IS NOT NULL`).Scan(&installed); err != nil {
+			return nil, true, ErrRepositoryUnavailable
+		}
+		if installed {
+			return json.RawMessage(`true`), true, nil
+		}
+		return json.RawMessage(`false`), true, nil
 	default:
 		return nil, false, nil
 	}

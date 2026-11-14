@@ -59,6 +59,10 @@ type Call struct {
 	Query url.Values
 	// Key is the Provider-Config-Key header: the platform's Nango key.
 	Key string
+	// Host is the host the request was pinned to (the Base-Url-Override
+	// header, without its scheme): the tenant's host for a platform with a
+	// per-tenant host, "" for a platform with one fixed host.
+	Host string
 }
 
 // Nango is a stand-in Nango server: it accepts exactly the proxy requests
@@ -125,7 +129,12 @@ func (standIn *Nango) serve(writer http.ResponseWriter, request *http.Request) {
 			earlier++
 		}
 	}
-	standIn.calls = append(standIn.calls, Call{Path: path, Query: request.URL.Query(), Key: request.Header.Get("Provider-Config-Key")})
+	override := request.Header.Get("Base-Url-Override")
+	host, hasScheme := strings.CutPrefix(override, "https://")
+	if override != "" && (!hasScheme || strings.ContainsAny(host, "/:@?#")) {
+		standIn.t.Errorf("stand-in Nango received a host override that is not https://<host>: %q", override)
+	}
+	standIn.calls = append(standIn.calls, Call{Path: path, Query: request.URL.Query(), Key: request.Header.Get("Provider-Config-Key"), Host: host})
 	route := standIn.routes[path]
 	standIn.mu.Unlock()
 	if route == nil {

@@ -18,8 +18,8 @@ import (
 
 const (
 	testSaaSConnection = saastest.ConnectionReference
-	testSaaSSubject    = "databricks/1234567890123456"
-	testSaaSConfig     = `{"connection_reference":"` + saastest.ConnectionReference + `","platform":"databricks","tenant_id":"1234567890123456"}`
+	testSaaSSubject    = "databricks/adb-1234567890123456.7.azuredatabricks.net"
+	testSaaSConfig     = `{"connection_reference":"` + saastest.ConnectionReference + `","platform":"databricks","tenant_id":"adb-1234567890123456.7.azuredatabricks.net"}`
 )
 
 func saasPlatformCredentialInput(scope domain.Scope, configuration string, now time.Time) apiserver.ExecutionJobInput {
@@ -64,9 +64,9 @@ func TestSaaSCredentialIsTheNangoConnectionReference(t *testing.T) {
 		"another platform than the job's":        replace(`"databricks"`, `"slack"`),
 		"another connection than the job's":      replace("11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222"),
 		"a reference that is not a connection":   replace(testSaaSConnection, "ref:nango/service-key-0001"),
-		"a token where the reference belongs":    replace(testSaaSConnection, "dapi" + "0123456789abcdef0123456789abcdef"),
+		"a token where the reference belongs":    replace(testSaaSConnection, "dapi"+"0123456789abcdef0123456789abcdef"),
 		"a member the configuration cannot hold": replace(`"platform"`, `"access_token":"dapi","platform"`),
-		"members out of canonical order":         `{"platform":"databricks","connection_reference":"` + testSaaSConnection + `","tenant_id":"1234567890123456"}`,
+		"members out of canonical order":         `{"platform":"databricks","connection_reference":"` + testSaaSConnection + `","tenant_id":"adb-1234567890123456.7.azuredatabricks.net"}`,
 	} {
 		_, err := resolver.ResolveDiscoveryCredential(context.Background(), saasCredentialRequest(t, scope, saasPlatformCredentialInput(scope, configuration, now)))
 		var failure *collection.Failure
@@ -186,7 +186,7 @@ func TestSaaSProviderIsRegisteredAndCollectsThroughTheNangoProxy(t *testing.T) {
 	// An envelope of another tenant than the page asks for is refused before
 	// any request.
 	other := request
-	other.Subject.ID = "databricks/9999999999999999"
+	other.Subject.ID = "databricks/adb-9999999999999999.7.azuredatabricks.net"
 	if _, err := bound.FetchCollectionPage(context.Background(), envelope, other); err == nil || len(standIn.Calls()) != 1 {
 		t.Fatalf("another tenant: %v after %d calls", err, len(standIn.Calls()))
 	}

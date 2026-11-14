@@ -13,7 +13,13 @@ import (
 // All returns the definition of every platform the product knows.
 func All() []saasdiscovery.Platform {
 	return []saasdiscovery.Platform{
+		Anthropic(),
+		Atlassian(),
 		Databricks(),
+		GitLab(),
+		GoogleWorkspace(),
+		OpenAI(),
+		ServiceNow(),
 		Slack(),
 	}
 }

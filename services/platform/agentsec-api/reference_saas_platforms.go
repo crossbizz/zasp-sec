@@ -37,7 +37,7 @@ func (probe *saasReferenceProbe) ProbeReferenceAuthorization(ctx context.Context
 	if !known || !platform.ValidTenant(config.TenantID) {
 		return apiserver.ReferenceAuthorizationSubject{}, errRuntimeUnavailable
 	}
-	tenant, err := saasdiscovery.LookupTenant(ctx, probe.proxy, platform, config.ConnectionReference, probe.clock())
+	tenant, err := saasdiscovery.LookupTenant(ctx, probe.proxy, platform, config.ConnectionReference, config.TenantID, probe.clock())
 	// A connection of another tenant is refused: the integration would
 	// otherwise inventory a tenant its configuration does not name.
 	if err != nil || tenant.ID != config.TenantID {

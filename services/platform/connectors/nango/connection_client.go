@@ -31,11 +31,20 @@ type RevocationBinding struct {
 	OrganizationID, WorkspaceID, EnvironmentID, IntegrationID string
 }
 
+// Provider is the name of the Nango provider template the integration was
+// made from. Where it is set, a connection of another template is refused.
+// It is empty for an integration whose template name the caller does not
+// know (the saas platforms); the connection is then bound by its integration
+// key, its end user and its organization only.
 type OAuthStartRequest struct {
 	NangoBaseURL, ServiceSecretReference, Environment string
 	ConnectorKey, Provider, AuthorizationHost         string
 	AuthorizationPath, CallbackURL                    string
 	Binding                                           ConnectionBinding
+	// ConnectionParams are the values the integration needs to build the
+	// provider's addresses (a subdomain). They are sent to Nango as
+	// params[<name>] of the connect request.
+	ConnectionParams map[string]string
 }
 
 type OAuthAuthorization struct {
@@ -127,6 +136,12 @@ func (client *ProductionConnectionClient) StartOAuth(ctx context.Context, reques
 		return OAuthAuthorization{}, ErrConnection
 	}
 	connectQuery := url.Values{"connect_session_token": []string{response.Data.Token}}
+	// UNVERIFIED against a running Nango: the params[<name>] form of the
+	// connection configuration is written from memory of the Nango connect
+	// endpoint.
+	for name, value := range request.ConnectionParams {
+		connectQuery.Set("params["+name+"]", value)
+	}
 	connectURL := request.NangoBaseURL + "/oauth/connect/" + url.PathEscape(request.ConnectorKey) + "?" + connectQuery.Encode()
 	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodGet, connectURL, nil)
 	if err != nil {
@@ -375,7 +390,7 @@ type nangoPublicConnection struct {
 func validNangoConnection(value nangoPublicConnection, request OAuthCompleteRequest, organizationID, endUserID string) bool {
 	created, err := time.Parse(time.RFC3339Nano, value.Created)
 	return err == nil && created.Location() == time.UTC && value.ID > 0 && connectionReferencePattern.MatchString("ref:nango/connection/"+value.ConnectionID) &&
-		value.ProviderConfigKey == request.ConnectorKey && value.Provider == request.Provider && len(value.Errors) == 0 && string(value.Metadata) == "null" &&
+		value.ProviderConfigKey == request.ConnectorKey && (request.Provider == "" || value.Provider == request.Provider) && len(value.Errors) == 0 && string(value.Metadata) == "null" &&
 		value.EndUser.ID == endUserID && value.EndUser.DisplayName == nil && value.EndUser.Email == nil && len(value.EndUser.Tags) == 1 && value.EndUser.Tags["origin"] == "nango_dashboard" &&
 		value.EndUser.Organization.ID == organizationID && value.EndUser.Organization.DisplayName == nil && len(value.Tags) == 3 && value.Tags["end_user_id"] == endUserID && value.Tags["organization_id"] == organizationID && value.Tags["origin"] == "nango_dashboard"
 }
@@ -384,14 +399,28 @@ func validNangoRevocationConnection(value nangoPublicConnection, request Connect
 	created, err := time.Parse(time.RFC3339Nano, value.Created)
 	organizationID := nangoRevocationOrganizationID(request.Binding)
 	return err == nil && created.Location() == time.UTC && value.ID > 0 && value.ConnectionID == connectionID &&
-		value.ProviderConfigKey == request.ConnectorKey && value.Provider == request.Provider && len(value.Errors) == 0 && string(value.Metadata) == "null" &&
+		value.ProviderConfigKey == request.ConnectorKey && (request.Provider == "" || value.Provider == request.Provider) && len(value.Errors) == 0 && string(value.Metadata) == "null" &&
 		strings.HasPrefix(value.EndUser.ID, "user_") && len(value.EndUser.ID) == len("user_")+16 && value.EndUser.DisplayName == nil && value.EndUser.Email == nil &&
 		len(value.EndUser.Tags) == 1 && value.EndUser.Tags["origin"] == "nango_dashboard" && value.EndUser.Organization.ID == organizationID && value.EndUser.Organization.DisplayName == nil &&
 		len(value.Tags) == 3 && value.Tags["end_user_id"] == value.EndUser.ID && value.Tags["organization_id"] == organizationID && value.Tags["origin"] == "nango_dashboard"
 }
 
 func validOAuthStartRequest(value OAuthStartRequest) bool {
-	return validNangoAuthority(value.NangoBaseURL, value.ServiceSecretReference, value.Environment, value.ConnectorKey, value.Provider, value.Binding) && validAuthorizationHost(value.AuthorizationHost) && validAuthorizationPath(value.AuthorizationPath) && validPublicCallbackURL(value.CallbackURL)
+	return validNangoAuthority(value.NangoBaseURL, value.ServiceSecretReference, value.Environment, value.ConnectorKey, value.Provider, value.Binding) && validAuthorizationHost(value.AuthorizationHost) && validAuthorizationPath(value.AuthorizationPath) && validPublicCallbackURL(value.CallbackURL) && validConnectionParams(value.ConnectionParams)
+}
+
+var connectionParamNamePattern = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_]{0,63}$`)
+
+func validConnectionParams(values map[string]string) bool {
+	if len(values) > 4 {
+		return false
+	}
+	for name, value := range values {
+		if !connectionParamNamePattern.MatchString(name) || !validQueryValue(value) || len(value) > 255 {
+			return false
+		}
+	}
+	return true
 }
 
 func validOAuthCompleteRequest(value OAuthCompleteRequest) bool {
@@ -403,12 +432,12 @@ func validOAuthRecoveryRequest(value OAuthCompleteRequest) bool {
 }
 
 func validNangoAuthority(baseURL, reference, environment, connectorKey, provider string, binding ConnectionBinding) bool {
-	return validBaseURL(baseURL) && referencePattern.MatchString(reference) && environmentPattern.MatchString(environment) && keyPattern.MatchString(connectorKey) && keyPattern.MatchString(provider) && validConnectionBinding(binding)
+	return validBaseURL(baseURL) && referencePattern.MatchString(reference) && environmentPattern.MatchString(environment) && keyPattern.MatchString(connectorKey) && (provider == "" || keyPattern.MatchString(provider)) && validConnectionBinding(binding)
 }
 
 func validNangoRevocationAuthority(value ConnectionRevocationRequest) bool {
 	return validBaseURL(value.NangoBaseURL) && referencePattern.MatchString(value.ServiceSecretReference) && environmentPattern.MatchString(value.Environment) &&
-		keyPattern.MatchString(value.ConnectorKey) && keyPattern.MatchString(value.Provider) && value.Provider == value.ConnectorKey && validRevocationBinding(value.Binding)
+		keyPattern.MatchString(value.ConnectorKey) && (value.Provider == "" || value.Provider == value.ConnectorKey) && validRevocationBinding(value.Binding)
 }
 
 func validConnectionBinding(value ConnectionBinding) bool {

@@ -12,7 +12,7 @@ import (
 
 // The response shapes are the ones databricks.go documents as unverified.
 const (
-	databricksWorkspace = "1234567890123456"
+	databricksHost      = "adb-1234567890123456.7.azuredatabricks.net"
 	databricksTenant    = `{"metastore_id":"11111111-2222-3333-4444-555555555555","workspace_id":1234567890123456,"default_catalog_name":"main"}`
 	databricksEndpoints = `{"endpoints":[
  {"name":"support-agent","id":"0a1b2c3d4e5f","creator":"owner@example.com","state":{"ready":"READY","config_update":"NOT_UPDATING"},"task":"agent/v1/responses",
@@ -37,7 +37,7 @@ func TestDatabricksWorkspaceIsCollectedToATypedSnapshot(t *testing.T) {
 		"/api/2.1/unity-catalog/current-metastore-assignment": saastest.Static(databricksTenant),
 		"/api/2.0/serving-endpoints":                          saastest.Static(databricksEndpoints),
 	})
-	snapshot := saastest.Collect(t, standIn, registry, platform, databricksWorkspace)
+	snapshot := saastest.Collect(t, standIn, registry, platform, databricksHost)
 
 	if agents, applications := snapshot.Kind("saas_agent"), snapshot.Kind("saas_ai_application"); len(agents) != 1 || len(applications) != 3 || len(snapshot.Kind("saas_tenant")) != 1 {
 		t.Fatalf("agents=%d applications=%d: %s", len(agents), len(applications), snapshot.Raw)
@@ -63,11 +63,12 @@ func TestDatabricksWorkspaceIsCollectedToATypedSnapshot(t *testing.T) {
 	if classic.Attributes["model"] != "main.ml.churn" || classic.Attributes["agent_type"] != nil || !reflect.DeepEqual(classic.Attributes["discovery"].(map[string]any)["signals"], []any{"surface:model_serving"}) {
 		t.Fatalf("classic model endpoint = %+v", classic)
 	}
-	if tenant := snapshot.Kind("saas_tenant")[0]; tenant.DisplayName != "Databricks workspace "+databricksWorkspace {
+	if tenant := snapshot.Kind("saas_tenant")[0]; tenant.DisplayName != "Databricks workspace "+databricksHost {
 		t.Fatalf("tenant = %+v", tenant)
 	}
 	// Two provider requests, both reads inside the platform's rules.
-	if calls := standIn.Calls(); len(calls) != 2 || calls[0].Key != "databricks" || len(calls[1].Query) != 0 {
+	// Both went to the workspace's own host.
+	if calls := standIn.Calls(); len(calls) != 2 || calls[0].Key != "databricks" || len(calls[1].Query) != 0 || calls[0].Host != databricksHost || calls[1].Host != databricksHost {
 		t.Fatalf("calls = %+v", calls)
 	}
 }
@@ -84,7 +85,7 @@ func TestDatabricksWorkspaceWithoutEndpointsOrOfAnotherIDIsHandled(t *testing.T)
 		"/api/2.1/unity-catalog/current-metastore-assignment": saastest.Static(databricksTenant),
 		"/api/2.0/serving-endpoints":                          saastest.Static(`{}`),
 	})
-	if snapshot := saastest.Collect(t, empty, registry, platform, databricksWorkspace); len(snapshot.Entities) != 1 {
+	if snapshot := saastest.Collect(t, empty, registry, platform, databricksHost); len(snapshot.Entities) != 1 {
 		t.Fatalf("entities = %d", len(snapshot.Entities))
 	}
 	// The connection reaches another workspace than the integration names.
@@ -95,10 +96,27 @@ func TestDatabricksWorkspaceWithoutEndpointsOrOfAnotherIDIsHandled(t *testing.T)
 			return saastest.Response{Body: `{}`}
 		},
 	})
-	_, err = saastest.Run(t, other, registry, platform, "9999999999999999")
+	// The host names workspace 9999999999999999; the API answers for
+	// 1234567890123456.
+	_, err = saastest.Run(t, other, registry, platform, "adb-9999999999999999.7.azuredatabricks.net")
 	var failure *collection.Failure
 	if !errors.As(err, &failure) || failure.Code() != collection.FailureDenied {
 		t.Fatalf("another workspace: %v", err)
+	}
+	// An AWS workspace host carries no workspace id: the answer of the
+	// workspace's own host is the confirmation.
+	aws := saastest.NewNango(t, registry, map[string]saastest.Route{
+		"/api/2.1/unity-catalog/current-metastore-assignment": saastest.Static(databricksTenant),
+		"/api/2.0/serving-endpoints":                          saastest.Static(`{}`),
+	})
+	if snapshot := saastest.Collect(t, aws, registry, platform, "dbc-a1b2c3d4-e5f6.cloud.databricks.com"); len(snapshot.Entities) != 1 || aws.Calls()[0].Host != "dbc-a1b2c3d4-e5f6.cloud.databricks.com" {
+		t.Fatalf("AWS workspace: %+v", aws.Calls())
+	}
+	// Only a Databricks address is a workspace.
+	for _, host := range []string{"1234567890123456", "databricks.example.com", "adb-1234567890123456.7.azuredatabricks.net.attacker.net", "cloud.databricks.com", "169.254.169.254", "accounts.cloud.databricks.com.internal"} {
+		if platform.ValidTenant(host) {
+			t.Fatalf("workspace host %q accepted", host)
+		}
 	}
 }
 

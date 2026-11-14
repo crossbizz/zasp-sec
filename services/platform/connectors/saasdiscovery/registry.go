@@ -64,14 +64,21 @@ func (registry *Registry) NangoEntries() []nango.Entry {
 	for _, platform := range platforms {
 		entry := platform.Nango
 		entry.Rules = append([]nango.Rule(nil), entry.Rules...)
+		entry.HostSuffixes = append([]string(nil), entry.HostSuffixes...)
 		entries = append(entries, entry)
 	}
 	return entries
 }
 
-// ValidTenant reports whether tenantID has the platform's tenant grammar.
+// ValidTenant reports whether tenantID has the platform's tenant grammar
+// and, for a platform with a per-tenant host, whether the tenant's host is
+// one the platform allows.
 func (platform Platform) ValidTenant(tenantID string) bool {
-	return ValidTenantID(tenantID) && platform.TenantPattern != nil && platform.TenantPattern.MatchString(tenantID)
+	if !ValidTenantID(tenantID) || platform.TenantPattern == nil || !platform.TenantPattern.MatchString(tenantID) {
+		return false
+	}
+	_, allowed := platform.TenantHost(tenantID)
+	return allowed
 }
 
 // SubjectID is the saas_tenant subject id of a tenant of the platform.

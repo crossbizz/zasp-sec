@@ -5854,3 +5854,219 @@ BEGIN
   EXECUTE d;
  END LOOP;
 END $ws3_agent_evidence_pack_export$;
+-- WS6 (plan task B5). Sign-in to a SaaS platform from the product.
+--
+-- Until this section a saas integration could only name a Nango connection
+-- that someone had created in Nango (configuration connection_reference,
+-- platform, tenant_id). With it a person signs in to the platform from the
+-- Integrations page: Nango runs the OAuth exchange and keeps the token, and
+-- the product learns the reference of the connection Nango created.
+--
+--   * A saas integration may be created before its connection exists, with
+--     the configuration platform and tenant_id only. It cannot be authorized
+--     in that form: reference authorization still requires the reference
+--     (zasp_reference_authorization_configuration_valid is unchanged).
+--   * zasp_saas_sign_in_attempts holds one row per sign-in a person started.
+--     It stores the SHA-256 of the provider's state value and of the browser
+--     session cookie, never the values, and no token.
+--   * zasp_authorization80.saas_sign_in_integration, _start, _consume and
+--     _finish are the API. An API session reaches them only inside the fenced
+--     transaction of a checked request, for the proof's own scope and
+--     principal (direct_guard), and only for the operation each belongs to:
+--     authorizeIntegration on the integration of the request path for the
+--     first two, completeIntegrationOAuthCallback for the last two.
+--   * A sign-in ends in the reference of a Nango connection and changes
+--     nothing else. The integration is given the reference by an ordinary
+--     updateIntegration and is then authorized by reference, with the fresh
+--     authentication and the tenant check that authorization already has.
+--
+-- The edit of integration_setup_valid adds a statement before its CASE and
+-- leaves the text section X3c wrote in place, so X3c stays a no-op when the
+-- file runs again. The section is re-runnable: the table and the functions
+-- are created if absent or replaced, and the edit is skipped when present.
+DO $ws6_saas_sign_in$
+DECLARE owner_value text;d text;
+ platform CONSTANT text:='^[a-z][a-z0-9_]{1,31}$';
+ tenant CONSTANT text:='^[A-Za-z0-9][A-Za-z0-9._-]{0,94}$';
+ setup_anchor CONSTANT text:=E' CASE k\n WHEN ''github'' THEN';
+ setup_marker CONSTANT text:=$v$IF k='saas' AND keys=ARRAY['platform','tenant_id'] THEN$v$;
+ setup CONSTANT regprocedure:='zasp_authorization80.integration_setup_valid(text,jsonb)'::regprocedure;
+BEGIN
+ SELECT pg_get_userbyid(proowner) INTO STRICT owner_value FROM pg_proc WHERE oid=setup;
+ d:=pg_get_functiondef(setup);
+ IF position(setup_marker in d)=0 THEN
+  IF length(d)-length(replace(d,setup_anchor,''))<>length(setup_anchor) OR position($v$WHEN 'saas' THEN RETURN keys=ARRAY['connection_reference','platform','tenant_id']$v$ in d)=0 THEN
+   RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='saas sign-in setup predecessor changed';
+  END IF;
+  EXECUTE replace(d,setup_anchor,format($v$ -- A saas integration that waits for its sign-in names no connection yet.
+ IF k='saas' AND keys=ARRAY['platform','tenant_id'] THEN
+  RETURN c->>'platform'~%1$L AND c->>'tenant_id'~%2$L AND position('..' in c->>'tenant_id')=0;
+ END IF;
+$v$,platform,tenant)||setup_anchor);
+ END IF;
+
+ CREATE TABLE IF NOT EXISTS public.zasp_saas_sign_in_attempts(
+  organization_id text NOT NULL,workspace_id text NOT NULL,environment_id text NOT NULL,id text NOT NULL,
+  integration_id text NOT NULL,integration_version bigint NOT NULL,platform text NOT NULL,tenant_id text NOT NULL,principal_id text NOT NULL,
+  session_digest bytea NOT NULL,state_hash bytea NOT NULL,status text NOT NULL DEFAULT 'pending',
+  connection_reference text,failure_code text,expires_at timestamptz NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT transaction_timestamp(),consumed_at timestamptz,finished_at timestamptz,
+  PRIMARY KEY(organization_id,workspace_id,environment_id,id),
+  CONSTRAINT zasp_saas_sign_in_attempts_state_key UNIQUE(state_hash),
+  CONSTRAINT zasp_saas_sign_in_attempts_id_check CHECK(public.zasp_valid_product_id(organization_id) AND public.zasp_valid_product_id(workspace_id) AND public.zasp_valid_product_id(environment_id)
+   AND public.zasp_valid_product_id(id) AND public.zasp_valid_product_id(integration_id) AND public.zasp_valid_product_id(principal_id)),
+  CONSTRAINT zasp_saas_sign_in_attempts_digest_check CHECK(octet_length(session_digest)=32 AND octet_length(state_hash)=32),
+  CONSTRAINT zasp_saas_sign_in_attempts_tenant_check CHECK(platform ~ '^[a-z][a-z0-9_]{1,31}$' AND tenant_id ~ '^[A-Za-z0-9][A-Za-z0-9._-]{0,94}$' AND position('..' in tenant_id)=0),
+  CONSTRAINT zasp_saas_sign_in_attempts_version_check CHECK(integration_version>0),
+  CONSTRAINT zasp_saas_sign_in_attempts_status_check CHECK(status IN('pending','consumed','completed','failed','superseded')),
+  CONSTRAINT zasp_saas_sign_in_attempts_expiry_check CHECK(expires_at>created_at AND expires_at<=created_at+interval '10 minutes'),
+  -- A completed sign-in holds the reference of a Nango connection and
+  -- nothing else does; a failed one holds a stable code.
+  CONSTRAINT zasp_saas_sign_in_attempts_outcome_check CHECK(
+   (status='completed')=(connection_reference IS NOT NULL) AND (status='failed')=(failure_code IS NOT NULL)
+   AND (connection_reference IS NULL OR connection_reference ~ '^ref:nango/connection/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$')
+   AND (failure_code IS NULL OR failure_code ~ '^[a-z][a-z0-9_]{1,63}$')
+   AND (status IN('consumed','completed','failed'))=(consumed_at IS NOT NULL) AND (status IN('completed','failed'))=(finished_at IS NOT NULL)));
+ CREATE INDEX IF NOT EXISTS zasp_saas_sign_in_attempts_integration ON public.zasp_saas_sign_in_attempts(organization_id,workspace_id,environment_id,integration_id) WHERE status='pending';
+ EXECUTE format('ALTER TABLE public.zasp_saas_sign_in_attempts OWNER TO %I',owner_value);
+ ALTER TABLE public.zasp_saas_sign_in_attempts ENABLE ROW LEVEL SECURITY;
+ REVOKE ALL ON TABLE public.zasp_saas_sign_in_attempts FROM PUBLIC;
+
+ -- The request each function belongs to. direct_guard admits an API session
+ -- only inside a fenced transaction of the proof's scope and principal; the
+ -- operation, and the integration of the request path, are checked here.
+ -- Sessions that are not bound to an API role (the owner, a worker) have no
+ -- proof and are not affected, as with every guarded function.
+ CREATE OR REPLACE FUNCTION zasp_authorization80.saas_sign_in_guard(organization_value text,workspace_value text,environment_value text,actor_value text,operation_value text,integration_value text) RETURNS void
+ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path TO pg_catalog, public AS $guard$
+ DECLARE p jsonb;
+ BEGIN
+  IF NOT COALESCE(zasp_valid_product_id(organization_value) AND zasp_valid_product_id(workspace_value) AND zasp_valid_product_id(environment_value) AND zasp_valid_product_id(actor_value)
+   AND (integration_value IS NULL OR zasp_valid_product_id(integration_value)),false) THEN
+   RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='invalid saas sign-in request';
+  END IF;
+  PERFORM zasp_authorization80.direct_guard(organization_value,workspace_value,environment_value,actor_value);
+  p:=zasp_authorization80.context();
+  IF p IS NOT NULL AND (p->>'operation_id' IS DISTINCT FROM operation_value OR (integration_value IS NOT NULL AND p#>>'{path_parameters,id}' IS DISTINCT FROM integration_value)) THEN
+   RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='saas sign-in authorization denied';
+  END IF;
+ END $guard$;
+
+ -- The saas integration a sign-in is asked for: its platform, tenant and
+ -- version. found is false for an integration that is not a saas integration
+ -- waiting for its sign-in; the caller then serves the request another way.
+ CREATE OR REPLACE FUNCTION zasp_authorization80.saas_sign_in_integration(organization_value text,workspace_value text,environment_value text,actor_value text,integration_value text) RETURNS jsonb
+ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path TO pg_catalog, public AS $integration$
+ DECLARE workflow_row zasp_workflow_records%ROWTYPE;c jsonb;
+ BEGIN
+  PERFORM zasp_authorization80.saas_sign_in_guard(organization_value,workspace_value,environment_value,actor_value,'authorizeIntegration',integration_value);
+  SELECT * INTO workflow_row FROM zasp_workflow_records r WHERE (r.organization_id,r.workspace_id,r.environment_id,r.kind,r.id)=(organization_value,workspace_value,environment_value,'integration',integration_value) AND r.deleted_at IS NULL;
+  c:=workflow_row.body->'configuration';
+  IF NOT FOUND OR workflow_row.body->>'connector_key' IS DISTINCT FROM 'saas' OR NOT COALESCE((SELECT array_agg(key ORDER BY key) FROM jsonb_object_keys(c) key)=ARRAY['platform','tenant_id']::text[],false)
+   OR NOT COALESCE(zasp_authorization80.integration_setup_valid('saas',c),false) THEN
+   RETURN jsonb_build_object('found',false);
+  END IF;
+  RETURN jsonb_build_object('found',true,'platform',c->>'platform','tenant_id',c->>'tenant_id','version',workflow_row.version,'status',workflow_row.body->>'status');
+ END $integration$;
+
+ -- Records a sign-in the person started. The integration must still be the
+ -- one the caller read: a saas integration without a connection, at the same
+ -- version, not yet authorized. An earlier sign-in of the same integration
+ -- that nobody finished is superseded, so one integration has one open
+ -- sign-in at most.
+ CREATE OR REPLACE FUNCTION zasp_authorization80.saas_sign_in_start(organization_value text,workspace_value text,environment_value text,actor_value text,integration_value text,attempt_value text,session_value bytea,state_value bytea,expires_value timestamptz,version_value bigint) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $start$
+ DECLARE workflow_row zasp_workflow_records%ROWTYPE;c jsonb;row_value zasp_saas_sign_in_attempts%ROWTYPE;
+ BEGIN
+  PERFORM zasp_authorization80.saas_sign_in_guard(organization_value,workspace_value,environment_value,actor_value,'authorizeIntegration',integration_value);
+  IF NOT COALESCE(zasp_valid_product_id(attempt_value) AND octet_length(session_value)=32 AND octet_length(state_value)=32
+   AND expires_value>transaction_timestamp() AND expires_value<=transaction_timestamp()+interval '10 minutes' AND version_value>0,false) THEN
+   RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='invalid saas sign-in attempt';
+  END IF;
+  SELECT * INTO workflow_row FROM zasp_workflow_records r WHERE (r.organization_id,r.workspace_id,r.environment_id,r.kind,r.id)=(organization_value,workspace_value,environment_value,'integration',integration_value) AND r.deleted_at IS NULL FOR UPDATE;
+  c:=workflow_row.body->'configuration';
+  IF NOT FOUND OR workflow_row.body->>'connector_key' IS DISTINCT FROM 'saas' OR NOT COALESCE((SELECT array_agg(key ORDER BY key) FROM jsonb_object_keys(c) key)=ARRAY['platform','tenant_id']::text[],false)
+   OR NOT COALESCE(zasp_authorization80.integration_setup_valid('saas',c),false) THEN
+   RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='saas sign-in integration unavailable';
+  END IF;
+  IF workflow_row.version<>version_value OR NOT COALESCE(workflow_row.body->>'status' IN('configured','pending_authorization'),false) THEN
+   RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='saas sign-in integration changed';
+  END IF;
+  UPDATE zasp_saas_sign_in_attempts a SET status='superseded'
+   WHERE (a.organization_id,a.workspace_id,a.environment_id,a.integration_id)=(organization_value,workspace_value,environment_value,integration_value) AND a.status='pending' AND a.id<>attempt_value;
+  INSERT INTO zasp_saas_sign_in_attempts(organization_id,workspace_id,environment_id,id,integration_id,integration_version,platform,tenant_id,principal_id,session_digest,state_hash,expires_at)
+   VALUES(organization_value,workspace_value,environment_value,attempt_value,integration_value,version_value,c->>'platform',c->>'tenant_id',actor_value,session_value,state_value,expires_value)
+   RETURNING * INTO row_value;
+  RETURN jsonb_build_object('id',row_value.id,'integration_id',row_value.integration_id,'expires_at',row_value.expires_at);
+ EXCEPTION WHEN unique_violation THEN
+  -- The same attempt or the same state twice: a sign-in is started once.
+  RAISE EXCEPTION USING ERRCODE='23505',MESSAGE='saas sign-in attempt conflict';
+ END $start$;
+
+ -- Takes the sign-in the provider returned the browser for. found is false
+ -- when the state belongs to no saas sign-in of this scope; the caller then
+ -- serves the callback another way. A sign-in is taken once, by the person
+ -- and the browser session that started it, before it expires. A state that
+ -- is presented by anyone else, late or a second time ends the sign-in.
+ CREATE OR REPLACE FUNCTION zasp_authorization80.saas_sign_in_consume(organization_value text,workspace_value text,environment_value text,actor_value text,state_value bytea,session_value bytea) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $consume$
+ DECLARE row_value zasp_saas_sign_in_attempts%ROWTYPE;
+ BEGIN
+  PERFORM zasp_authorization80.saas_sign_in_guard(organization_value,workspace_value,environment_value,actor_value,'completeIntegrationOAuthCallback',NULL);
+  IF NOT COALESCE(octet_length(state_value)=32 AND octet_length(session_value)=32,false) THEN
+   RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='invalid saas sign-in callback';
+  END IF;
+  SELECT * INTO row_value FROM zasp_saas_sign_in_attempts a WHERE (a.organization_id,a.workspace_id,a.environment_id,a.state_hash)=(organization_value,workspace_value,environment_value,state_value) FOR UPDATE;
+  IF NOT FOUND THEN RETURN jsonb_build_object('found',false);END IF;
+  IF row_value.status<>'pending' OR row_value.expires_at<=transaction_timestamp() OR row_value.principal_id<>actor_value OR row_value.session_digest<>session_value THEN
+   IF row_value.status='pending' THEN
+    UPDATE zasp_saas_sign_in_attempts a SET status='failed',failure_code=CASE WHEN row_value.expires_at<=transaction_timestamp() THEN 'expired' ELSE 'session_mismatch' END,consumed_at=transaction_timestamp(),finished_at=transaction_timestamp()
+     WHERE (a.organization_id,a.workspace_id,a.environment_id,a.id)=(organization_value,workspace_value,environment_value,row_value.id);
+   END IF;
+   RETURN jsonb_build_object('found',true,'accepted',false,'id',row_value.id,'integration_id',row_value.integration_id);
+  END IF;
+  UPDATE zasp_saas_sign_in_attempts a SET status='consumed',consumed_at=transaction_timestamp()
+   WHERE (a.organization_id,a.workspace_id,a.environment_id,a.id)=(organization_value,workspace_value,environment_value,row_value.id) RETURNING * INTO row_value;
+  RETURN jsonb_build_object('found',true,'accepted',true,'id',row_value.id,'integration_id',row_value.integration_id,'platform',row_value.platform,'tenant_id',row_value.tenant_id);
+ END $consume$;
+
+ -- Ends a taken sign-in: completed with the reference of the Nango
+ -- connection, or failed with a stable code. A sign-in ends once.
+ CREATE OR REPLACE FUNCTION zasp_authorization80.saas_sign_in_finish(organization_value text,workspace_value text,environment_value text,actor_value text,attempt_value text,outcome_value text,reference_value text) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $finish$
+ DECLARE row_value zasp_saas_sign_in_attempts%ROWTYPE;
+ BEGIN
+  PERFORM zasp_authorization80.saas_sign_in_guard(organization_value,workspace_value,environment_value,actor_value,'completeIntegrationOAuthCallback',NULL);
+  IF NOT COALESCE(zasp_valid_product_id(attempt_value) AND (outcome_value='completed' AND reference_value ~ '^ref:nango/connection/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+   OR outcome_value<>'completed' AND outcome_value ~ '^[a-z][a-z0-9_]{1,63}$' AND reference_value=''),false) THEN
+   RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='invalid saas sign-in outcome';
+  END IF;
+  SELECT * INTO row_value FROM zasp_saas_sign_in_attempts a WHERE (a.organization_id,a.workspace_id,a.environment_id,a.id)=(organization_value,workspace_value,environment_value,attempt_value) FOR UPDATE;
+  IF NOT FOUND OR row_value.status<>'consumed' OR row_value.principal_id<>actor_value THEN
+   RAISE EXCEPTION USING ERRCODE='23505',MESSAGE='saas sign-in outcome conflict';
+  END IF;
+  IF outcome_value='completed' THEN
+   UPDATE zasp_saas_sign_in_attempts a SET status='completed',connection_reference=reference_value,finished_at=transaction_timestamp()
+    WHERE (a.organization_id,a.workspace_id,a.environment_id,a.id)=(organization_value,workspace_value,environment_value,attempt_value) RETURNING * INTO row_value;
+  ELSE
+   UPDATE zasp_saas_sign_in_attempts a SET status='failed',failure_code=outcome_value,finished_at=transaction_timestamp()
+    WHERE (a.organization_id,a.workspace_id,a.environment_id,a.id)=(organization_value,workspace_value,environment_value,attempt_value) RETURNING * INTO row_value;
+  END IF;
+  RETURN jsonb_build_object('id',row_value.id,'integration_id',row_value.integration_id,'status',row_value.status);
+ END $finish$;
+
+ EXECUTE format('ALTER FUNCTION zasp_authorization80.saas_sign_in_guard(text,text,text,text,text,text) OWNER TO %I',owner_value);
+ EXECUTE format('ALTER FUNCTION zasp_authorization80.saas_sign_in_integration(text,text,text,text,text) OWNER TO %I',owner_value);
+ EXECUTE format('ALTER FUNCTION zasp_authorization80.saas_sign_in_start(text,text,text,text,text,text,bytea,bytea,timestamptz,bigint) OWNER TO %I',owner_value);
+ EXECUTE format('ALTER FUNCTION zasp_authorization80.saas_sign_in_consume(text,text,text,text,bytea,bytea) OWNER TO %I',owner_value);
+ EXECUTE format('ALTER FUNCTION zasp_authorization80.saas_sign_in_finish(text,text,text,text,text,text,text) OWNER TO %I',owner_value);
+ REVOKE ALL ON FUNCTION zasp_authorization80.saas_sign_in_guard(text,text,text,text,text,text) FROM PUBLIC;
+ REVOKE ALL ON FUNCTION zasp_authorization80.saas_sign_in_integration(text,text,text,text,text) FROM PUBLIC;
+ REVOKE ALL ON FUNCTION zasp_authorization80.saas_sign_in_start(text,text,text,text,text,text,bytea,bytea,timestamptz,bigint) FROM PUBLIC;
+ REVOKE ALL ON FUNCTION zasp_authorization80.saas_sign_in_consume(text,text,text,text,bytea,bytea) FROM PUBLIC;
+ REVOKE ALL ON FUNCTION zasp_authorization80.saas_sign_in_finish(text,text,text,text,text,text,text) FROM PUBLIC;
+ GRANT EXECUTE ON FUNCTION zasp_authorization80.saas_sign_in_integration(text,text,text,text,text) TO zasp_discovery_api;
+ GRANT EXECUTE ON FUNCTION zasp_authorization80.saas_sign_in_start(text,text,text,text,text,text,bytea,bytea,timestamptz,bigint) TO zasp_discovery_api;
+ GRANT EXECUTE ON FUNCTION zasp_authorization80.saas_sign_in_consume(text,text,text,text,bytea,bytea) TO zasp_discovery_api;
+ GRANT EXECUTE ON FUNCTION zasp_authorization80.saas_sign_in_finish(text,text,text,text,text,text,text) TO zasp_discovery_api;
+END $ws6_saas_sign_in$;

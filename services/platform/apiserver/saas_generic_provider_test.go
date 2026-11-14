@@ -16,8 +16,8 @@ import (
 
 const (
 	saasGenericConnection    = "ref:nango/connection/11111111-1111-4111-8111-111111111111"
-	saasGenericConfiguration = `{"connection_reference":"ref:nango/connection/11111111-1111-4111-8111-111111111111","platform":"databricks","tenant_id":"1234567890123456"}`
-	saasGenericSubject       = "databricks/1234567890123456"
+	saasGenericConfiguration = `{"connection_reference":"ref:nango/connection/11111111-1111-4111-8111-111111111111","platform":"databricks","tenant_id":"adb-1234567890123456.7.azuredatabricks.net"}`
+	saasGenericSubject       = "databricks/adb-1234567890123456.7.azuredatabricks.net"
 )
 
 func TestReferenceConfigurationOfTheSaaSProviderIsExact(t *testing.T) {
@@ -27,7 +27,7 @@ func TestReferenceConfigurationOfTheSaaSProviderIsExact(t *testing.T) {
 	}
 	// Members in any order are accepted and written back sorted, the form
 	// the worker compares byte for byte.
-	reordered := `{"tenant_id":"1234567890123456","platform":"databricks","connection_reference":"` + saasGenericConnection + `"}`
+	reordered := `{"tenant_id":"adb-1234567890123456.7.azuredatabricks.net","platform":"databricks","connection_reference":"` + saasGenericConnection + `"}`
 	if canonical, _, valid := parseReferenceAuthorizationConfiguration("saas", json.RawMessage(reordered)); !valid || string(canonical) != saasGenericConfiguration {
 		t.Fatalf("reordered saas configuration = %s, %t", canonical, valid)
 	}
@@ -38,17 +38,17 @@ func TestReferenceConfigurationOfTheSaaSProviderIsExact(t *testing.T) {
 	for name, configuration := range map[string]string{
 		"a platform in upper case":             replace(`"databricks"`, `"Databricks"`),
 		"a platform with a path":               replace(`"databricks"`, `"data/bricks"`),
-		"a tenant with a path":                 replace("1234567890123456", "12/34"),
-		"a tenant with a parent reference":     replace("1234567890123456", "a..b"),
-		"an empty tenant":                      replace("1234567890123456", ""),
-		"a tenant longer than a scope label":   replace("1234567890123456", strings.Repeat("a", 96)),
+		"a tenant with a path":                 replace("adb-1234567890123456.7.azuredatabricks.net", "12/34"),
+		"a tenant with a parent reference":     replace("adb-1234567890123456.7.azuredatabricks.net", "a..b"),
+		"an empty tenant":                      replace("adb-1234567890123456.7.azuredatabricks.net", ""),
+		"a tenant longer than a scope label":   replace("adb-1234567890123456.7.azuredatabricks.net", strings.Repeat("a", 96)),
 		"a reference of another provider":      replace("ref:nango/connection/", "ref:kubernetes/connection/"),
 		"the Nango service key":                replace(saasGenericConnection, "ref:nango/service-key-0001"),
 		"a connection id that is not a UUID":   replace("11111111-1111-4111-8111-111111111111", "customer-0001"),
-		"a token instead of a reference":       replace(saasGenericConnection, "dapi" + "0123456789abcdef0123456789abcdef"),
-		"a missing platform":                   `{"connection_reference":"` + saasGenericConnection + `","tenant_id":"1234567890123456"}`,
+		"a token instead of a reference":       replace(saasGenericConnection, "dapi"+"0123456789abcdef0123456789abcdef"),
+		"a missing platform":                   `{"connection_reference":"` + saasGenericConnection + `","tenant_id":"adb-1234567890123456.7.azuredatabricks.net"}`,
 		"an unknown member":                    replace(`"platform"`, `"access_token":"value","platform"`),
-		"a number where the tenant id belongs": replace(`"1234567890123456"`, `1234567890123456`),
+		"a number where the tenant id belongs": replace(`"adb-1234567890123456.7.azuredatabricks.net"`, `1234567890123456`),
 	} {
 		if canonical, reference, valid := parseReferenceAuthorizationConfiguration("saas", json.RawMessage(configuration)); valid || canonical != nil || reference != "" {
 			t.Fatalf("%s: accepted as %s", name, canonical)
@@ -80,19 +80,19 @@ func TestSaaSIsAReferenceAuthorizedDiscoveryProviderWithATenantSubject(t *testin
 		}
 	}
 	for subject, want := range map[ReferenceAuthorizationSubject]bool{
-		{Kind: "saas_tenant", ID: saasGenericSubject}:                      true,
-		{Kind: "saas_tenant", ID: "slack/T024BE7LD"}:                       true,
-		{Kind: "saas_tenant", ID: "slack"}:                                 false,
-		{Kind: "saas_tenant", ID: "Slack/T024BE7LD"}:                       false,
-		{Kind: "saas_tenant", ID: "slack/T024/BE7LD"}:                      false,
-		{Kind: "saas_tenant", ID: "slack/T0..LD"}:                          false,
-		{Kind: "saas_tenant", ID: "slack/" + strings.Repeat("a", 96)}:      false,
-		{Kind: "salesforce_org", ID: saasSalesforceOrganization}:           false,
-		{Kind: "okta_tenant", ID: saasGenericSubject}:                      false,
-		{Kind: "saas_tenant", ID: "databricks/1234567890123456\n"}:         false,
-		{Kind: "saas_tenant", ID: "databricks/1234567890123456 "}:          false,
-		{Kind: "saas_tenant", ID: ""}:                                      false,
-		{Kind: "saas_tenant", ID: "databricks/" + strings.Repeat("9", 95)}: true,
+		{Kind: "saas_tenant", ID: saasGenericSubject}:                                        true,
+		{Kind: "saas_tenant", ID: "slack/T024BE7LD"}:                                         true,
+		{Kind: "saas_tenant", ID: "slack"}:                                                   false,
+		{Kind: "saas_tenant", ID: "Slack/T024BE7LD"}:                                         false,
+		{Kind: "saas_tenant", ID: "slack/T024/BE7LD"}:                                        false,
+		{Kind: "saas_tenant", ID: "slack/T0..LD"}:                                            false,
+		{Kind: "saas_tenant", ID: "slack/" + strings.Repeat("a", 96)}:                        false,
+		{Kind: "salesforce_org", ID: saasSalesforceOrganization}:                             false,
+		{Kind: "okta_tenant", ID: saasGenericSubject}:                                        false,
+		{Kind: "saas_tenant", ID: "databricks/adb-1234567890123456.7.azuredatabricks.net\n"}: false,
+		{Kind: "saas_tenant", ID: "databricks/adb-1234567890123456.7.azuredatabricks.net "}:  false,
+		{Kind: "saas_tenant", ID: ""}:                                                        false,
+		{Kind: "saas_tenant", ID: "databricks/" + strings.Repeat("9", 95)}:                   true,
 	} {
 		if validReferenceAuthorizationSubject("saas", subject) != want {
 			t.Fatalf("saas subject %#v valid = %t", subject, !want)
@@ -133,7 +133,7 @@ func TestConnectorCatalogListsTheRegisteredSaaSPlatforms(t *testing.T) {
 	if err != nil {
 		t.Fatalf("catalog with the saas platforms refused: %v", err)
 	}
-	entries, err := catalog.Search(platformintegration.CatalogFilter{Category: "saas", AuthMode: "nango_connection"})
+	entries, err := catalog.Search(platformintegration.CatalogFilter{Category: "saas"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -148,13 +148,21 @@ func TestConnectorCatalogListsTheRegisteredSaaSPlatforms(t *testing.T) {
 	}
 	for index, platform := range platforms.Platforms() {
 		entry := entries[index]
+		// A platform with a sign-in asks for the tenant only; a platform
+		// without one also asks for the Nango connection.
+		signIn := platform.SignIn != nil
+		wantMode, wantFields := "nango_connection", 2
+		if signIn {
+			wantMode, wantFields = "nango_sign_in", 1
+		}
 		if entry.Key != "saas-"+platform.Token || entry.Platform != platform.Token || entry.Provider != platform.DisplayName || entry.Description != platform.Description || entry.AccessGuidance != platform.AccessGuidance ||
-			len(entry.SetupSchema) != 2 || entry.SetupSchema[0].Key != "tenant_id" || entry.SetupSchema[0].Label != platform.TenantLabel || !entry.SetupSchema[0].Required || entry.SetupSchema[1].Key != "connection_reference" || entry.SetupSchema[1].Type != "connection_reference" {
+			entry.AuthMode != wantMode || len(entry.SetupSchema) != wantFields || entry.SetupSchema[0].Key != "tenant_id" || entry.SetupSchema[0].Label != platform.TenantLabel || !entry.SetupSchema[0].Required ||
+			!signIn && (entry.SetupSchema[1].Key != "connection_reference" || entry.SetupSchema[1].Type != "connection_reference" || !entry.SetupSchema[1].Required) {
 			t.Fatalf("catalog entry of %s = %#v", platform.Token, entry)
 		}
 		// The integration of an entry is created with the connector key
 		// "saas" and the entry's platform in its configuration.
-		tenant := map[string]string{"databricks": "1234567890123456", "slack": "T024BE7LD"}[platform.Token]
+		tenant := map[string]string{"databricks": "adb-1234567890123456.7.azuredatabricks.net", "slack": "T024BE7LD", "servicenow": "acme", "gitlab": "4242"}[platform.Token]
 		if tenant == "" {
 			continue
 		}
@@ -162,17 +170,23 @@ func TestConnectorCatalogListsTheRegisteredSaaSPlatforms(t *testing.T) {
 		if err := catalog.ValidateSetup("saas", configuration); err != nil {
 			t.Fatalf("%s setup refused: %v", platform.Token, err)
 		}
+		// Only a platform with a sign-in may be set up before its connection
+		// exists.
+		waiting := map[string]string{"platform": platform.Token, "tenant_id": tenant}
+		if err := catalog.ValidateSetup("saas", waiting); (err == nil) != signIn {
+			t.Fatalf("%s setup without a connection: %v, sign-in declared: %t", platform.Token, err, signIn)
+		}
 		// The entry key is not a connector key.
 		if err := catalog.ValidateSetup(entry.Key, configuration); err == nil {
 			t.Fatalf("%s accepted as a connector key", entry.Key)
 		}
 	}
 	for name, configuration := range map[string]map[string]string{
-		"an unregistered platform":          {"platform": "servicenow", "tenant_id": "dev12345", "connection_reference": saasGenericConnection},
+		"an unregistered platform":          {"platform": "zendesk", "tenant_id": "dev12345", "connection_reference": saasGenericConnection},
 		"a tenant of another platform":      {"platform": "databricks", "tenant_id": "T024BE7LD", "connection_reference": saasGenericConnection},
-		"no platform":                       {"tenant_id": "1234567890123456", "connection_reference": saasGenericConnection},
-		"a reference that is no connection": {"platform": "databricks", "tenant_id": "1234567890123456", "connection_reference": "ref:nango/service-key-0001"},
-		"a further member":                  {"platform": "databricks", "tenant_id": "1234567890123456", "connection_reference": saasGenericConnection, "workspace_url": "https://example.cloud.databricks.com"},
+		"no platform":                       {"tenant_id": "adb-1234567890123456.7.azuredatabricks.net", "connection_reference": saasGenericConnection},
+		"a reference that is no connection": {"platform": "databricks", "tenant_id": "adb-1234567890123456.7.azuredatabricks.net", "connection_reference": "ref:nango/service-key-0001"},
+		"a further member":                  {"platform": "databricks", "tenant_id": "adb-1234567890123456.7.azuredatabricks.net", "connection_reference": saasGenericConnection, "workspace_url": "https://example.cloud.databricks.com"},
 	} {
 		if err := catalog.ValidateSetup("saas", configuration); err == nil {
 			t.Fatalf("%s: setup accepted", name)

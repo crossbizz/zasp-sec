@@ -16,7 +16,7 @@ import (
 
 const (
 	saasProbeConnection    = "ref:nango/connection/11111111-1111-4111-8111-111111111111"
-	saasProbeConfiguration = `{"connection_reference":"ref:nango/connection/11111111-1111-4111-8111-111111111111","platform":"databricks","tenant_id":"1234567890123456"}`
+	saasProbeConfiguration = `{"connection_reference":"ref:nango/connection/11111111-1111-4111-8111-111111111111","platform":"databricks","tenant_id":"adb-1234567890123456.7.azuredatabricks.net"}`
 )
 
 // saasProbeProxy stands in for the Nango proxy adapter.
@@ -32,6 +32,10 @@ func (proxy *saasProbeProxy) ProxyWithQuery(_ context.Context, connectorKey, con
 		return nango.ProxyResponse{}, proxy.err
 	}
 	return nango.ProxyResponse{StatusCode: http.StatusOK, Body: []byte(proxy.body)}, nil
+}
+
+func (proxy *saasProbeProxy) ProxyToHost(ctx context.Context, connectorKey, connectionReference, host, method, path string, query url.Values, body []byte) (nango.ProxyResponse, error) {
+	return proxy.ProxyWithQuery(ctx, connectorKey, connectionReference, method, "//"+host+path, query, body)
 }
 
 func newSaaSProbe(t *testing.T, proxy *saasProbeProxy) *saasReferenceProbe {
@@ -51,12 +55,13 @@ func TestSaaSReferenceProbeBindsTheConnectionToItsTenant(t *testing.T) {
 	proxy := &saasProbeProxy{body: `{"metastore_id":"m","workspace_id":1234567890123456}`}
 	probe := newSaaSProbe(t, proxy)
 	subject, err := probe.ProbeReferenceAuthorization(context.Background(), saasProbeTarget(saasProbeConfiguration))
-	if err != nil || subject != (apiserver.ReferenceAuthorizationSubject{Kind: "saas_tenant", ID: "databricks/1234567890123456"}) {
+	if err != nil || subject != (apiserver.ReferenceAuthorizationSubject{Kind: "saas_tenant", ID: "databricks/adb-1234567890123456.7.azuredatabricks.net"}) {
 		t.Fatalf("subject = %#v, %v", subject, err)
 	}
-	// One read, of the platform's tenant lookup, with the platform's Nango
-	// key and the connection reference. No token is involved.
-	if len(proxy.calls) != 1 || proxy.calls[0] != "databricks "+saasProbeConnection+" GET /api/2.1/unity-catalog/current-metastore-assignment?" {
+	// One read, of the platform's tenant lookup, sent to the workspace's own
+	// host with the platform's Nango key and the connection reference. No
+	// token is involved.
+	if len(proxy.calls) != 1 || proxy.calls[0] != "databricks "+saasProbeConnection+" GET //adb-1234567890123456.7.azuredatabricks.net/api/2.1/unity-catalog/current-metastore-assignment?" {
 		t.Fatalf("calls = %v", proxy.calls)
 	}
 
@@ -78,11 +83,11 @@ func TestSaaSReferenceProbeRefusesAnotherTenantAndUnknownPlatforms(t *testing.T)
 		"the platform names no tenant":             {saasProbeConfiguration, `{"metastore_id":"m"}`, nil, 1},
 		"the provider refuses the connection":      {saasProbeConfiguration, "", &nango.StatusError{StatusCode: http.StatusForbidden}, 1},
 		"Nango is unreachable":                     {saasProbeConfiguration, "", nango.ErrProxy, 1},
-		"an unregistered platform":                 {`{"connection_reference":"` + saasProbeConnection + `","platform":"servicenow","tenant_id":"dev12345"}`, `{}`, nil, 0},
+		"an unregistered platform":                 {`{"connection_reference":"` + saasProbeConnection + `","platform":"zendesk","tenant_id":"dev12345"}`, `{}`, nil, 0},
 		"a tenant id of another grammar":           {`{"connection_reference":"` + saasProbeConnection + `","platform":"databricks","tenant_id":"T024BE7LD"}`, `{}`, nil, 0},
-		"another connection than the target's":     {`{"connection_reference":"ref:nango/connection/22222222-2222-4222-8222-222222222222","platform":"databricks","tenant_id":"1234567890123456"}`, `{}`, nil, 0},
-		"a reference that is not a connection":     {`{"connection_reference":"ref:nango/service-key-0001","platform":"databricks","tenant_id":"1234567890123456"}`, `{}`, nil, 0},
-		"an unknown member":                        {`{"connection_reference":"` + saasProbeConnection + `","platform":"databricks","tenant_id":"1234567890123456","access_token":"dapi"}`, `{}`, nil, 0},
+		"another connection than the target's":     {`{"connection_reference":"ref:nango/connection/22222222-2222-4222-8222-222222222222","platform":"databricks","tenant_id":"adb-1234567890123456.7.azuredatabricks.net"}`, `{}`, nil, 0},
+		"a reference that is not a connection":     {`{"connection_reference":"ref:nango/service-key-0001","platform":"databricks","tenant_id":"adb-1234567890123456.7.azuredatabricks.net"}`, `{}`, nil, 0},
+		"an unknown member":                        {`{"connection_reference":"` + saasProbeConnection + `","platform":"databricks","tenant_id":"adb-1234567890123456.7.azuredatabricks.net","access_token":"dapi"}`, `{}`, nil, 0},
 	} {
 		proxy := &saasProbeProxy{body: test.body, err: test.err}
 		subject, err := newSaaSProbe(t, proxy).ProbeReferenceAuthorization(context.Background(), saasProbeTarget(test.configuration))
