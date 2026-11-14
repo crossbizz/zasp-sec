@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"regexp"
 	"sort"
@@ -208,16 +209,20 @@ type SecurityAgentApproval struct {
 }
 
 type SecurityAgentRunDetail struct {
-	ActionDetails    []SecurityAgentActionDetail  `json:"action_details,omitempty"`
-	RunContext       *SecurityAgentRunContext     `json:"run_context,omitempty"`
-	BudgetStopReason string                       `json:"budget_stop_reason,omitempty"`
-	Run              SecurityAgentRun             `json:"run"`
-	EvidenceIDs      []string                     `json:"evidence_ids"`
-	Plan             *SecurityAgentPlanSummary    `json:"plan"`
-	Authorization    string                       `json:"authorization"`
-	Approvals        []SecurityAgentApproval      `json:"approvals"`
-	Execution        []SecurityAgentExecutionStep `json:"execution"`
-	Verification     string                       `json:"verification"`
+	ActionDetails    []SecurityAgentActionDetail `json:"action_details,omitempty"`
+	RunContext       *SecurityAgentRunContext    `json:"run_context,omitempty"`
+	BudgetStopReason string                      `json:"budget_stop_reason,omitempty"`
+	// StopReason is the recorded code of why the run stopped; Closure is set
+	// once a human closed a run that needed one. Neither carries provider text.
+	StopReason    string                       `json:"stop_reason,omitempty"`
+	Closure       *SecurityAgentRunClosure     `json:"closure,omitempty"`
+	Run           SecurityAgentRun             `json:"run"`
+	EvidenceIDs   []string                     `json:"evidence_ids"`
+	Plan          *SecurityAgentPlanSummary    `json:"plan"`
+	Authorization string                       `json:"authorization"`
+	Approvals     []SecurityAgentApproval      `json:"approvals"`
+	Execution     []SecurityAgentExecutionStep `json:"execution"`
+	Verification  string                       `json:"verification"`
 	// Ordered is set only for a run of the ordered release, whose projection
 	// is verified by that release's own rules.
 	Ordered *SecurityAgentOrderedDetail `json:"ordered,omitempty"`
@@ -337,7 +342,7 @@ func (handler *securityAgentPublicHTTPHandler) ServeHTTP(writer http.ResponseWri
 		writeProductionError(writer, request, ErrRepositoryAuthentication)
 		return
 	}
-	if !stringIn(routed.OperationID, "listSecurityAgentRunActivity", "listSecurityAgentActivityRuns", "getSecurityAgentAuditEvent", "getSecurityAgentExecutionControls", "setSecurityAgentExecutionControl", "getSecurityAgentActivation", "activateSecurityAgent", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval") {
+	if !stringIn(routed.OperationID, "listSecurityAgentRunActivity", "listSecurityAgentActivityRuns", "getSecurityAgentAuditEvent", "getSecurityAgentExecutionControls", "setSecurityAgentExecutionControl", "getSecurityAgentActivation", "activateSecurityAgent", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "closeSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval") {
 		handler.definitions.ServeHTTP(writer, request)
 		return
 	}
@@ -366,6 +371,8 @@ func (handler *securityAgentPublicHTTPHandler) ServeHTTP(writer http.ResponseWri
 		handler.getRun(writer, request, routed)
 	case "cancelSecurityAgentRun":
 		handler.cancelRun(writer, request, routed)
+	case "closeSecurityAgentRun":
+		handler.closeRun(writer, request, routed)
 	case "listSecurityAgentApprovals":
 		handler.listApprovals(writer, request, routed)
 	case "getSecurityAgentApproval":
@@ -570,6 +577,9 @@ func (handler *securityAgentPublicHTTPHandler) getRun(writer http.ResponseWriter
 	if versions := request.Header.Values("X-Zasp-Action-Details"); len(versions) != 1 || versions[0] != "v1" {
 		result.ActionDetails = nil
 	}
+	if versions := request.Header.Values("X-Zasp-Run-Lifecycle"); len(versions) != 1 || versions[0] != "v1" {
+		result.StopReason, result.Closure = "", nil
+	}
 	writeJSONValue(writer, request, http.StatusOK, result, nil)
 }
 
@@ -613,6 +623,70 @@ func (handler *securityAgentPublicHTTPHandler) cancelRun(writer http.ResponseWri
 		return
 	}
 	writeJSONValue(writer, request, http.StatusOK, read, nil)
+}
+
+// closeRun records that a human closed a run that needs a human. The run
+// keeps its state and version; the answer names the closure.
+func (handler *securityAgentPublicHTTPHandler) closeRun(writer http.ResponseWriter, request *http.Request, routed RoutedOperation) {
+	writer.Header().Set("Cache-Control", "no-store")
+	identity, ok := IdentityFromRequest(request)
+	idempotencyKey, expectedVersion, headersOK := discoveryMutationHeaders(request, false)
+	runID := routed.PathParameters["id"]
+	closer, supported := handler.repository.(interface {
+		CloseSecurityAgentRun(context.Context, RequestIdentity, SecurityAgentRunCloseRequest) (SecurityAgentRunCloseResult, error)
+	})
+	if !ok || request.Method != http.MethodPost || request.URL.RawQuery != "" || !stringIn(string(identity.CredentialKind), string(CredentialBrowserSession), string(CredentialBearerToken)) || !headersOK || !validProductID(runID) {
+		writeProductionError(writer, request, ErrRepositoryOperation)
+		return
+	}
+	if !supported {
+		writeProductionError(writer, request, ErrRepositoryUnavailable)
+		return
+	}
+	var body struct {
+		Reason string  `json:"reason"`
+		Note   *string `json:"note"`
+	}
+	raw, err := io.ReadAll(io.LimitReader(request.Body, 4097))
+	if err != nil || len(raw) > 4096 || !exactJSONFields(raw, "reason") && !exactJSONFields(raw, "reason", "note") || decodeStrictDiscovery(raw, &body) != nil || !validSecurityAgentCloseReason(body.Reason) || body.Note != nil && !validSecurityAgentCloseNote(*body.Note) {
+		writeProductionError(writer, request, ErrRepositoryOperation)
+		return
+	}
+	ids, valid := handler.newDistinctIDs(2, correlationIDFromContext(request.Context()))
+	if !valid {
+		writeProductionError(writer, request, ErrRepositoryUnavailable)
+		return
+	}
+	input := SecurityAgentRunCloseRequest{RunID: runID, IdempotencyKey: idempotencyKey, ExpectedVersion: expectedVersion, Reason: body.Reason, AuditID: ids[0], CorrelationID: correlationIDFromContext(request.Context()), ReceiptID: ids[1]}
+	if body.Note != nil {
+		input.Note = *body.Note
+	}
+	result, err := closer.CloseSecurityAgentRun(request.Context(), identity, input)
+	if err != nil {
+		if errors.Is(err, ErrRepositoryAuthorization) {
+			writeProductionStatusError(writer, request, http.StatusForbidden, "authorization_rejected", "Authorization rejected", false)
+			return
+		}
+		writeProductionError(writer, request, err)
+		return
+	}
+	if result.ID != runID || result.State != "needs_human" || result.Version != expectedVersion || !validSecurityAgentRunClosure(result.Closure) || !validProductID(result.AuditID) || !validProductID(result.ReceiptID) {
+		writeProductionError(writer, request, ErrRepositoryUnavailable)
+		return
+	}
+	writer.Header().Set("ETag", `"`+strconv.FormatInt(result.Version, 10)+`"`)
+	writer.Header().Set("X-Audit-ID", result.AuditID)
+	if identity.CredentialKind == CredentialBrowserSession {
+		writer.Header().Set("X-Mutation-Receipt-ID", result.ReceiptID)
+	}
+	writeJSONValue(writer, request, http.StatusOK, struct {
+		ID                string                  `json:"id"`
+		AgentID           string                  `json:"agent_id"`
+		State             string                  `json:"state"`
+		DefinitionVersion int64                   `json:"definition_version"`
+		Version           int64                   `json:"version"`
+		Closure           SecurityAgentRunClosure `json:"closure"`
+	}{result.ID, result.AgentID, result.State, result.DefinitionVersion, result.Version, result.Closure}, nil)
 }
 
 func (handler *securityAgentPublicHTTPHandler) listApprovals(writer http.ResponseWriter, request *http.Request, _ RoutedOperation) {
@@ -877,6 +951,11 @@ func (handler *securityAgentPublicHTTPHandler) simulate(writer http.ResponseWrit
 	expiresAt := handler.config.Clock().UTC().Add(15 * time.Minute).Truncate(time.Microsecond)
 	result, err := handler.repository.SimulateSecurityAgent(request.Context(), identity, SecurityAgentSimulationRequest{DefinitionID: definitionID, IdempotencyKey: idempotencyKey, ExpectedVersion: expectedVersion, RunID: ids[0], Goal: input.Goal, EvidenceIDs: evidenceIDs, ExpiresAt: expiresAt, AuditID: ids[1], CorrelationID: correlationID, ReceiptID: ids[2]})
 	if err != nil {
+		if errors.Is(err, ErrRepositoryAuthorization) {
+			// The evidence named in the body is not readable by the requester.
+			writeProductionStatusError(writer, request, http.StatusForbidden, "authorization_rejected", "Authorization rejected", false)
+			return
+		}
 		writeProductionError(writer, request, err)
 		return
 	}

@@ -177,6 +177,7 @@ var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"GET", "/api/v1/security-agent-activity/{kind}/{id}/runs", "listSecurityAgentActivityRuns", "view", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/security-agent-runs/{id}/activity/{kind}", "listSecurityAgentRunActivity", "view", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"POST", "/api/v1/security-agent-runs/{id}/cancel", "cancelSecurityAgentRun", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/security-agent-runs/{id}/close", "closeSecurityAgentRun", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"POST", "/api/v1/security-agent-runs/{id}/cleanup-recovery", "requestSingleTestCleanupRecovery", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/security-agent-runs/{id}/cleanup-recovery", "getSingleTestCleanupRecovery", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/security-agent-approvals", "listSecurityAgentApprovals", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},

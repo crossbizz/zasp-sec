@@ -86,7 +86,7 @@ func (repository *PostgresRepository) ReserveIntegrationWebhookTest(ctx context.
 	if repository == nil || nilInterface(repository.database) || ctx == nil || ctx.Err() != nil || !validIntegrationWebhookTestCommand(command) || !validProductID(deliveryID) || !findingTicketLeaseTokenPattern.MatchString(leaseToken) || leaseSeconds < 5 || leaseSeconds > 30 {
 		return IntegrationWebhookTestReservation{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresIntegrationWebhookTestReserveSQL,
+	payload, err := repository.database.QueryJSON(ctx, authorizationReadStatement(ctx, postgresIntegrationWebhookTestReserveSQL, currentIntegrationWebhookReserveSQL),
 		command.Identity.Scope.OrganizationID().String(), command.Identity.Scope.WorkspaceID().String(), command.Identity.Scope.EnvironmentID().String(), command.Identity.PrincipalID.String(), command.IntegrationID, command.ExpectedVersion, command.IdempotencyKey, command.AuditID, command.CorrelationID, deliveryID, leaseToken, leaseSeconds,
 	)
 	if err != nil {
@@ -132,7 +132,7 @@ func (repository *PostgresRepository) CompleteIntegrationWebhookTest(ctx context
 	if repository == nil || nilInterface(repository.database) || ctx == nil || ctx.Err() != nil || scope.Validate() != nil || !validProductID(deliveryID) || !findingTicketLeaseTokenPattern.MatchString(leaseToken) || !findingTicketDigestPattern.MatchString(payloadDigest) {
 		return IntegrationWebhookTestStatus{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresIntegrationWebhookTestCompleteSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), deliveryID, leaseToken, payloadDigest, succeeded)
+	payload, err := repository.database.QueryJSON(ctx, authorizationReadStatement(ctx, postgresIntegrationWebhookTestCompleteSQL, currentIntegrationWebhookCompleteSQL), scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), deliveryID, leaseToken, payloadDigest, succeeded)
 	if err != nil {
 		return IntegrationWebhookTestStatus{}, riskProviderError(err)
 	}
@@ -147,7 +147,7 @@ func (repository *PostgresRepository) GetIntegrationWebhookTestStatus(ctx contex
 	if repository == nil || nilInterface(repository.database) || ctx == nil || ctx.Err() != nil || scope.Validate() != nil || !validProductID(integrationID) {
 		return IntegrationWebhookTestStatus{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresIntegrationWebhookTestStatusSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), integrationID)
+	payload, err := repository.database.QueryJSON(ctx, authorizationReadStatement(ctx, postgresIntegrationWebhookTestStatusSQL, currentIntegrationWebhookStatusSQL), scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), integrationID)
 	if err != nil {
 		return IntegrationWebhookTestStatus{}, riskProviderError(err)
 	}

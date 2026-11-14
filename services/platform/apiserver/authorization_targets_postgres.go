@@ -58,6 +58,10 @@ func (r *PostgresAuthorizationResolver) ResolveAuthorization(ctx context.Context
 		switch route.PathParameters["kind"] {
 		case "finding", "attack_path", "agent", "tool", "identity", "runtime", "asset":
 			policy.Kind = route.PathParameters["kind"]
+		case "session", "audit":
+			// A session is decided as the kind of session its identifier
+			// names; an audit record through the run it belongs to.
+			policy.Kind, _ = securityAgentActivityTargetKind(route.PathParameters["kind"], id)
 		default:
 			return AuthorizationTargets{}, authorization.ErrInvalid
 		}
@@ -80,6 +84,11 @@ func (r *PostgresAuthorizationResolver) ResolveAuthorization(ctx context.Context
 	// target on the executing session; a target only the other database can
 	// see (a Temporal-owned Security Agent run on the product database, whose
 	// row security hides it) fails that re-read and refuses the whole request.
+	if route.OperationID == "listSecurityAgentActivityRuns" {
+		// The related-runs statement runs on the Security Agent database,
+		// whatever kind of record the request names.
+		return resolveAuthorizationDatabase(ctx, r.securityAgentDatabase, identity, route, policy, id)
+	}
 	if securityAgentAuthorization(ctx) {
 		// The statement runs on the Security Agent database. Its mixed
 		// collection is the Security Agent's own: runs and approvals.

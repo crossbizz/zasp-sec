@@ -75,7 +75,10 @@ func (p *temporalFindingResponseProduct) Plan(ctx context.Context, q orchestrati
 		return temporalProductError(ctx, err)
 	}
 	if !found {
-		return orchestration.ErrInvalid
+		// No pricing approval is bound to this scope: the planner cannot be
+		// asked. The run ends with a recorded reason instead of staying
+		// queued behind a failed workflow.
+		return temporalProductError(ctx, p.planUnavailable(ctx, q))
 	}
 	db := p.shared.executor
 	if p.shared.workerForward != nil {
@@ -83,7 +86,7 @@ func (p *temporalFindingResponseProduct) Plan(ctx context.Context, q orchestrati
 		if encodeErr != nil {
 			return orchestration.ErrInvalid
 		}
-		if err := p.shared.workerForward.PrepareFinding(ctx, request); err != nil {
+		if err := retryWorkerAuthorization(ctx, func() error { return p.shared.workerForward.PrepareFinding(ctx, request) }); err != nil {
 			return temporalProductError(ctx, err)
 		}
 		db = &workerFindingPlanningDatabase{base: db, forward: p.shared.workerForward, compensation: p.shared.workerCompensation, start: q}

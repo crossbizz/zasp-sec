@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
-	"slices"
 	"strings"
 	"time"
 )
@@ -36,7 +35,7 @@ func (repository *PostgresRepository) ListSecurityAgentActivityRuns(ctx context.
 	if !validRequestIdentity(identity, true) || identity.CredentialKind != CredentialBrowserSession {
 		return fail, ErrRepositoryAuthentication
 	}
-	if !slices.Contains(identity.Permissions, "view") || request.Kind == "session" && !slices.Contains(identity.Permissions, "investigate_sessions") || request.Kind == "audit" && !slices.Contains(identity.Permissions, "view_audit") {
+	if !securityAgentActivityPermitted(ctx, identity, request.Kind) {
 		return fail, ErrAuditExportForbidden
 	}
 	if !stringIn(request.Kind, "finding", "attack_path", "session", "audit") || !validProductID(request.EntityID) || request.Limit < 1 || request.Limit > 100 || len(sessionDigest) != sha256.Size || bytes.Equal(sessionDigest, make([]byte, sha256.Size)) || request.BeforeCreatedAt.IsZero() != (request.BeforeID == "") {
@@ -47,6 +46,9 @@ func (repository *PostgresRepository) ListSecurityAgentActivityRuns(ctx context.
 	}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
+	if _, checked := requestAuthorizationFromContext(ctx); checked {
+		return repository.listSecurityAgentActivityRunsCurrent(ctx, identity, request)
+	}
 	available, err := repository.approvalContextAvailable(ctx)
 	if err := ctx.Err(); err != nil {
 		return fail, err
@@ -155,4 +157,53 @@ func securityAgentActivityAssociation(detail SecurityAgentRunDetail, kind, entit
 		}
 	}
 	return false
+}
+
+// listSecurityAgentActivityRunsCurrent reads the runs related to one activity
+// record under current authorization with one authorized statement. The
+// record is the object of the request's proof. The page names runs, so a
+// second decision (the run collection) is made and its attestation passed;
+// the statement returns only runs that decision allows.
+func (repository *PostgresRepository) listSecurityAgentActivityRunsCurrent(ctx context.Context, identity RequestIdentity, request SecurityAgentActivityRunRequest) (SecurityAgentActivityRunPage, error) {
+	fail := SecurityAgentActivityRunPage{}
+	grant, err := secondaryRequestAuthorization(ctx, identity, RoutedOperation{OperationID: "listSecurityAgentRuns"})
+	if err != nil {
+		return fail, secondaryAuthorizationError(err)
+	}
+	proof, err := authorizationProofJSON(grant)
+	if err != nil {
+		return fail, ErrRepositoryAuthorization
+	}
+	var beforeTime, beforeID any
+	if request.BeforeID != "" {
+		beforeTime, beforeID = request.BeforeCreatedAt, request.BeforeID
+	}
+	raw, err := repository.database.QueryJSON(ctx, currentSecurityAgentActivityRunsSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), request.Kind, request.EntityID, beforeTime, beforeID, request.Limit, string(proof))
+	if err := ctx.Err(); err != nil {
+		return fail, err
+	}
+	if err != nil {
+		return fail, discoveryProviderError(err)
+	}
+	// The statement names the run of an audit record itself; the remaining
+	// page has the retained shape.
+	var fields map[string]json.RawMessage
+	var auditRunID *string
+	if !exactJSONFields(raw, "audit_run_id", "coverage", "items", "next_created_at", "next_id") || json.Unmarshal(raw, &fields) != nil || json.Unmarshal(fields["audit_run_id"], &auditRunID) != nil {
+		return fail, ErrRepositoryUnavailable
+	}
+	delete(fields, "audit_run_id")
+	page, err := json.Marshal(fields)
+	if err != nil || request.Kind != "audit" && auditRunID != nil {
+		return fail, ErrRepositoryUnavailable
+	}
+	runID := ""
+	if auditRunID != nil {
+		runID = *auditRunID
+	}
+	if request.Kind == "audit" && runID == "" {
+		// The audit record does not exist (or is not visible): no related run.
+		return fail, ErrRepositoryNotFound
+	}
+	return decodeSecurityAgentActivityRuns(page, request, runID)
 }

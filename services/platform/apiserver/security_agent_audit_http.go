@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"net/http"
-	"slices"
 )
 
 type securityAgentAuditAuthority interface {
@@ -26,7 +25,7 @@ func (handler *securityAgentPublicHTTPHandler) getAuditEvent(writer http.Respons
 		writeAuditExportHTTPError(writer, request, ErrRepositoryAuthentication)
 		return
 	}
-	if !slices.Contains(identity.Permissions, "view_audit") {
+	if !currentRequestHasPermission(request.Context(), identity, "view_audit") {
 		writeAuditExportHTTPError(writer, request, ErrAuditExportForbidden)
 		return
 	}

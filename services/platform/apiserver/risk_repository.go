@@ -416,6 +416,9 @@ func (repository *PostgresRepository) MutateRiskFinding(ctx context.Context, ide
 			statement = `SELECT zasp_temporal77.risk_mutate($1, $2, $3, $4, $5, $6, $7, $8, NULLIF($9, ''), NULLIF($10, ''), $11, $12, NULLIF($13, ''))`
 		}
 	}
+	if _, checked := requestAuthorizationFromContext(ctx); checked {
+		statement = currentFindingMutateSQL
+	}
 	payload, err := repository.database.QueryJSON(ctx, statement,
 		mutation.Operation, mutation.FindingID,
 		identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(),

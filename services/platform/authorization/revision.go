@@ -59,6 +59,51 @@ func CheckRevision(ctx context.Context, reader RevisionReader, checker Checker, 
 	return CheckedDecision{Decision: decision, Revision: revision, Request: request}, nil
 }
 
+// CheckRevisionAll checks several permissions of one resource between one
+// pair of revision reads. The requests must name the same Organization.
+// Every decision is made while the projection is at the revision read before
+// the first check: a revision only advances, so reading the same revision
+// after the last check proves it for each of them. The result is what
+// CheckRevision returns for each request in turn, at two revision reads in
+// place of two per request.
+func CheckRevisionAll(ctx context.Context, reader RevisionReader, checker Checker, requests []CheckRequest, storeID, modelID string) ([]CheckedDecision, error) {
+	if ctx == nil || reader == nil || checker == nil || len(requests) == 0 {
+		return nil, ErrInvalid
+	}
+	organization := requests[0].OrganizationID
+	for _, request := range requests {
+		if _, err := Map(request); err != nil || request.OrganizationID != organization {
+			return nil, ErrInvalid
+		}
+	}
+	revision, err := reader.Revision(ctx, organization)
+	if err != nil {
+		return nil, ErrUnavailable
+	}
+	if revision.validate() != nil || revision.OrganizationID != organization || revision.StoreID != storeID || revision.ModelID != modelID || revision.Desired != revision.Applied {
+		return nil, ErrPending
+	}
+	checked := make([]CheckedDecision, 0, len(requests))
+	for _, request := range requests {
+		decision, err := checker.Check(ctx, request)
+		if err != nil {
+			return nil, err
+		}
+		if decision.ModelID != revision.ModelID {
+			return nil, ErrConflict
+		}
+		checked = append(checked, CheckedDecision{Decision: decision, Revision: revision, Request: request})
+	}
+	current, err := reader.Revision(ctx, organization)
+	if err != nil {
+		return nil, ErrUnavailable
+	}
+	if current != revision {
+		return nil, ErrConflict
+	}
+	return checked, nil
+}
+
 var projectionULID = regexp.MustCompile(`^[0-7][0-9A-HJKMNP-TV-Z]{25}$`)
 
 func (r Revision) validate() error {

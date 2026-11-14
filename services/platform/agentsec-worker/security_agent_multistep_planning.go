@@ -475,6 +475,14 @@ func sendSecurityAgentOrdered(ctx context.Context, prepared *securityAgentOrdere
 	}
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
+		// A request error the provider raises before any generation is a
+		// definite refusal; every other answer leaves the outcome unknown.
+		body, readErr := io.ReadAll(io.LimitReader(response.Body, securityAgentPlannerRejectionLimit+1))
+		if readErr == nil && ctx.Err() == nil {
+			if rejection := classifyPlannerProviderRejection(response.StatusCode, body); rejection != nil {
+				return nil, rejection
+			}
+		}
 		return nil, errWorkerExecution
 	}
 	raw, err = io.ReadAll(io.LimitReader(response.Body, securityAgentPlannerResponseLimit+1))

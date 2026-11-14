@@ -273,15 +273,14 @@ func (h *complianceHTTPHandler) get(w http.ResponseWriter, r *http.Request, iden
 				writeComplianceError(w, r, err)
 				return
 			}
+			evidence, err := complianceControlEvidence(r.Context(), h.source, identity, digest, page.Items)
+			if err != nil {
+				writeComplianceError(w, r, err)
+				return
+			}
 			values := make([]any, 0, len(page.Items))
-			for _, c := range page.Items {
-				evidence, err := h.source.ListEvidence(r.Context(), identity, digest, ComplianceListOptions{Framework: c.Framework, ControlID: c.ControlID, Limit: 100})
-				if err != nil {
-					writeComplianceError(w, r, err)
-					return
-				}
-				control := compliancePublicControl(c, evidence.Items)
-				values = append(values, control)
+			for n, c := range page.Items {
+				values = append(values, compliancePublicControl(c, evidence[n]))
 			}
 			writeJSONValue(w, r, 200, h.publicPage(r, values, page.NextCursor), nil)
 			return
@@ -427,4 +426,64 @@ func writeComplianceError(w http.ResponseWriter, r *http.Request, err error) {
 	default:
 		writeProductionError(w, r, err)
 	}
+}
+
+// complianceControlEvidencePages bounds the evidence pages one page of
+// controls reads in a batch (a hundred sources each).
+const complianceControlEvidencePages = 10
+
+type complianceEvidenceLister interface {
+	ListEvidence(context.Context, RequestIdentity, []byte, ComplianceListOptions) (ComplianceEvidencePage, error)
+}
+
+// complianceControlEvidence returns the evidence of each control of a page,
+// in control order. The evidence of a control is the Environment's sources
+// of the control's one required source family, in source order, at most a
+// hundred: what ListEvidence returns for that control. A page of controls
+// used to ask that once per control, and each read re-collects every source
+// of the Environment, so a full page exceeded the server's response
+// deadline. The sources are now read once, in source order, and divided by
+// family. An Environment with more sources than the batch bound is read one
+// control at a time as before.
+func complianceControlEvidence(ctx context.Context, source complianceEvidenceLister, identity RequestIdentity, digest []byte, controls []ComplianceControl) ([][]ComplianceEvidence, error) {
+	evidence := make([][]ComplianceEvidence, len(controls))
+	if len(controls) == 0 {
+		return evidence, nil
+	}
+	for _, control := range controls {
+		if len(control.RequiredSources) != 1 {
+			return nil, ErrRepositoryUnavailable
+		}
+	}
+	families := map[string][]ComplianceEvidence{}
+	options := ComplianceListOptions{Limit: 100}
+	complete := false
+	for range complianceControlEvidencePages {
+		page, err := source.ListEvidence(ctx, identity, digest, options)
+		if err != nil {
+			return nil, err
+		}
+		for _, item := range page.Items {
+			if len(families[item.Source]) < 100 {
+				families[item.Source] = append(families[item.Source], item)
+			}
+		}
+		if len(page.NextCursor) == 0 || bytes.Equal(page.NextCursor, []byte("null")) {
+			complete = true
+			break
+		}
+		options.Cursor = page.NextCursor
+	}
+	for n, control := range controls {
+		if complete {
+			evidence[n] = families[control.RequiredSources[0]]
+			continue
+		}
+		page, err := source.ListEvidence(ctx, identity, digest, ComplianceListOptions{Framework: control.Framework, ControlID: control.ControlID, Limit: 100})
+		if err != nil {
+			return nil, err
+		}
+		evidence[n] = page.Items
+	}
+	return evidence, nil
 }

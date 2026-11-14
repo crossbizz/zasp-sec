@@ -1167,7 +1167,7 @@ func TestAdministrationKeysetsAndExactScopePreconditionsWithHostilePostgresData(
 	if status != http.StatusOK || len(first.Items) != 100 || !first.PageInfo.HasMore || first.PageInfo.NextCursor == nil {
 		t.Fatalf("first administration page = %d items=%d body=%s", status, len(first.Items), body)
 	}
-	seen := make(map[string]struct{}, 153)
+	seen := make(map[string]struct{}, 154)
 	for _, item := range first.Items {
 		seen[item.ID] = struct{}{}
 	}
@@ -1213,8 +1213,8 @@ func TestAdministrationKeysetsAndExactScopePreconditionsWithHostilePostgresData(
 		}
 		cursor = *page.PageInfo.NextCursor
 	}
-	if len(seen) != 153 || requests != 2 {
-		t.Fatalf("authorized administration traversal = %d unique rows/%d requests, want 153/2", len(seen), requests)
+	if len(seen) != 154 || requests != 2 {
+		t.Fatalf("authorized administration traversal = %d unique rows/%d requests, want 154/2", len(seen), requests)
 	}
 	if _, exists := seen["pid_00000000-0000-4000-8000-000000000000"]; exists {
 		t.Fatal("key inserted behind the cursor leaked into the continuation")

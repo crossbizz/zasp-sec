@@ -103,6 +103,9 @@ func authorizationStatementAllowed(g RequestAuthorization, q string, args []any)
 	if handled, allowed := securityAgentPricingStatementAllowed(g, q, args); handled {
 		return allowed
 	}
+	if handled, allowed := productStatementAllowed(g, q, args); handled {
+		return allowed
+	}
 	// Normalize only these fixed positional contracts. The original statement
 	// and argument array are passed unchanged to PostgreSQL after validation.
 	switch q {

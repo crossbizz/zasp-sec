@@ -23,7 +23,7 @@ func (surface *securityAgentWorkflowSurface) ServeHTTP(writer http.ResponseWrite
 	switch routed.OperationID {
 	case "listSecurityAgentTemplates", "listSecurityActions", "getSecurityAgentAuditEvent", "listSecurityAgentActivityRuns", "listSecurityAgentRunActivity":
 		surface.securityAgent.ServeHTTP(writer, request)
-	case "listSecurityAgents", "createSecurityAgent", "getSecurityAgent", "updateSecurityAgent", "deleteSecurityAgent", "getSecurityAgentExecutionControls", "setSecurityAgentExecutionControl", "getSecurityAgentActivation", "activateSecurityAgent", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval":
+	case "listSecurityAgents", "createSecurityAgent", "getSecurityAgent", "updateSecurityAgent", "deleteSecurityAgent", "getSecurityAgentExecutionControls", "setSecurityAgentExecutionControl", "getSecurityAgentActivation", "activateSecurityAgent", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "closeSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval":
 		surface.securityAgent.ServeHTTP(writer, request)
 	default:
 		surface.workflow.ServeHTTP(writer, request)

@@ -3,6 +3,11 @@ package apiserver
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"regexp"
+	"time"
+
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 // SecurityAgentOrderedDetail is the ordered release's extension of a run
@@ -32,6 +37,101 @@ func securityAgentObjectEnvelope(envelope json.RawMessage, families ...string) (
 	return wire.Family, wire.Result, nil
 }
 
+// SecurityAgentRunClosure is the record of a human closing a run that needed
+// a human: who, when and why. The run keeps its state.
+type SecurityAgentRunClosure struct {
+	ClosedAt string `json:"closed_at"`
+	ClosedBy string `json:"closed_by"`
+	Reason   string `json:"reason"`
+	Note     string `json:"note,omitempty"`
+}
+
+// SecurityAgentRunCloseRequest closes one run that needs a human.
+type SecurityAgentRunCloseRequest struct {
+	RunID           string
+	IdempotencyKey  string
+	ExpectedVersion int64
+	Reason          string
+	Note            string
+	AuditID         string
+	CorrelationID   string
+	ReceiptID       string
+}
+
+// SecurityAgentRunCloseResult is the stored answer of a closure.
+type SecurityAgentRunCloseResult struct {
+	ID                string                  `json:"id"`
+	AgentID           string                  `json:"agent_id"`
+	State             string                  `json:"state"`
+	DefinitionVersion int64                   `json:"definition_version"`
+	Version           int64                   `json:"version"`
+	Closure           SecurityAgentRunClosure `json:"closure"`
+	AuditID           string                  `json:"audit_id"`
+	CorrelationID     string                  `json:"correlation_id"`
+	ReceiptID         string                  `json:"receipt_id"`
+	Replayed          bool                    `json:"replayed"`
+}
+
+func validSecurityAgentCloseReason(reason string) bool {
+	return stringIn(reason, "no_action_required", "resolved_outside_product", "usage_unknown_accepted")
+}
+
+func validSecurityAgentCloseNote(note string) bool {
+	return validSecurityAgentText(note, 500)
+}
+
+var securityAgentStopReasonPattern = regexp.MustCompile(`^[a-z][a-z0-9_]{0,63}$`)
+
+func validSecurityAgentRunClosure(closure SecurityAgentRunClosure) bool {
+	stamp, err := time.Parse("2006-01-02T15:04:05.000000Z", closure.ClosedAt)
+	return err == nil && !stamp.IsZero() && validProductID(closure.ClosedBy) && validSecurityAgentCloseReason(closure.Reason) && (closure.Note == "" || validSecurityAgentCloseNote(closure.Note))
+}
+
+// securityAgentRunLifecycle reads the lifecycle a run detail carries beside
+// its family result: the recorded reason the run stopped (a closed code) and
+// its closure. Both are optional.
+func securityAgentRunLifecycle(envelope json.RawMessage) (string, *SecurityAgentRunClosure, error) {
+	var outer struct {
+		Lifecycle json.RawMessage `json:"lifecycle"`
+	}
+	if json.Unmarshal(envelope, &outer) != nil || !validJSONObjectBody(outer.Lifecycle) {
+		return "", nil, ErrRepositoryUnavailable
+	}
+	var fields map[string]json.RawMessage
+	var wire struct {
+		StopReason string                   `json:"stop_reason"`
+		Closure    *SecurityAgentRunClosure `json:"closure"`
+	}
+	if json.Unmarshal(outer.Lifecycle, &fields) != nil || decodeStrictDiscovery(outer.Lifecycle, &wire) != nil {
+		return "", nil, ErrRepositoryUnavailable
+	}
+	if _, present := fields["stop_reason"]; present && !securityAgentStopReasonPattern.MatchString(wire.StopReason) {
+		return "", nil, ErrRepositoryUnavailable
+	}
+	if _, present := fields["closure"]; present != (wire.Closure != nil) || wire.Closure != nil && (!validSecurityAgentRunClosure(*wire.Closure) || !exactJSONFields(fields["closure"], "closed_at", "closed_by", "reason") && !exactJSONFields(fields["closure"], "closed_at", "closed_by", "reason", "note")) {
+		return "", nil, ErrRepositoryUnavailable
+	}
+	return wire.StopReason, wire.Closure, nil
+}
+
+// securityAgentRunDetailEnvelope opens the envelope of the authorized run
+// detail: the family, its result and the lifecycle.
+func securityAgentRunDetailEnvelope(envelope json.RawMessage) (string, json.RawMessage, string, *SecurityAgentRunClosure, error) {
+	var wire struct {
+		Family    string          `json:"family"`
+		Result    json.RawMessage `json:"result"`
+		Lifecycle json.RawMessage `json:"lifecycle"`
+	}
+	if !exactJSONFields(envelope, "family", "result", "lifecycle") || decodeStrictDiscovery(envelope, &wire) != nil || !stringIn(wire.Family, "ordered", "finding", "legacy") || !validJSONObjectBody(wire.Result) {
+		return "", nil, "", nil, ErrRepositoryUnavailable
+	}
+	reason, closure, err := securityAgentRunLifecycle(envelope)
+	if err != nil {
+		return "", nil, "", nil, err
+	}
+	return wire.Family, wire.Result, reason, closure, nil
+}
+
 func (repository *PostgresRepository) securityAgentScopeArguments(identity RequestIdentity, object string) []any {
 	return []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), object, identity.PrincipalID.String()}
 }
@@ -43,12 +143,17 @@ func (repository *PostgresRepository) getSecurityAgentRunCurrent(ctx context.Con
 	if err != nil {
 		return SecurityAgentRunDetail{}, discoveryProviderError(err)
 	}
-	family, payload, err := securityAgentObjectEnvelope(envelope, "ordered", "finding", "legacy")
+	family, payload, reason, closure, err := securityAgentRunDetailEnvelope(envelope)
 	if err != nil {
 		return SecurityAgentRunDetail{}, err
 	}
 	if family != "ordered" {
-		return decodeSecurityAgentRunContextEnvelope(payload, runID)
+		detail, err := decodeSecurityAgentRunContextEnvelope(payload, runID)
+		if err != nil {
+			return SecurityAgentRunDetail{}, err
+		}
+		detail.StopReason, detail.Closure = reason, closure
+		return detail, nil
 	}
 	if identity.CredentialKind != CredentialBrowserSession {
 		return SecurityAgentRunDetail{}, ErrRepositoryOperation
@@ -59,7 +164,51 @@ func (repository *PostgresRepository) getSecurityAgentRunCurrent(ctx context.Con
 	}
 	detail := resource.Detail
 	detail.Ordered = &SecurityAgentOrderedDetail{ContractVersion: 62, Steps: append([]SecurityAgentPublicStep{}, resource.Steps...)}
+	detail.StopReason, detail.Closure = reason, closure
 	return detail, nil
+}
+
+// CloseSecurityAgentRun records that a human reviewed a run that needs a
+// human and closed it, with one authorized statement. The run keeps its
+// state; it stops holding its agent's capacity for a provider outcome that
+// is still unknown.
+func (repository *PostgresRepository) CloseSecurityAgentRun(ctx context.Context, identity RequestIdentity, input SecurityAgentRunCloseRequest) (SecurityAgentRunCloseResult, error) {
+	if repository == nil || !repository.securityAgentExecution || nilInterface(repository.database) || ctx == nil || !validRequestIdentity(identity, false) || !stringIn(string(identity.CredentialKind), string(CredentialBrowserSession), string(CredentialBearerToken)) ||
+		!validProductID(input.RunID) || !validPublicIdempotency(input.IdempotencyKey) || input.ExpectedVersion < 1 || input.ExpectedVersion > 1000000 || !validSecurityAgentCloseReason(input.Reason) || input.Note != "" && !validSecurityAgentCloseNote(input.Note) ||
+		!validProductID(input.AuditID) || !validProductID(input.CorrelationID) || !validProductID(input.ReceiptID) || input.AuditID == input.CorrelationID || input.AuditID == input.ReceiptID || input.CorrelationID == input.ReceiptID {
+		return SecurityAgentRunCloseResult{}, ErrRepositoryOperation
+	}
+	// Only a request with a current proof can close a run: the statement is
+	// refused by the database without one.
+	if _, checked := requestAuthorizationFromContext(ctx); !checked {
+		return SecurityAgentRunCloseResult{}, ErrRepositoryAuthorization
+	}
+	var note any
+	if input.Note != "" {
+		note = input.Note
+	}
+	arguments := append(repository.securityAgentScopeArguments(identity, input.RunID), input.IdempotencyKey, input.ExpectedVersion, input.Reason, note, input.AuditID, input.CorrelationID, input.ReceiptID)
+	payload, err := repository.database.QueryJSON(ctx, currentSecurityAgentCloseRunSQL, arguments...)
+	if err != nil {
+		return SecurityAgentRunCloseResult{}, discoveryProviderError(err)
+	}
+	return decodeSecurityAgentRunCloseResult(payload, identity, input)
+}
+
+func decodeSecurityAgentRunCloseResult(payload json.RawMessage, identity RequestIdentity, input SecurityAgentRunCloseRequest) (SecurityAgentRunCloseResult, error) {
+	var result SecurityAgentRunCloseResult
+	var fields map[string]json.RawMessage
+	if !exactJSONFields(payload, "agent_id", "audit_id", "closure", "correlation_id", "definition_version", "id", "receipt_id", "replayed", "state", "version") || json.Unmarshal(payload, &fields) != nil || decodeStrictDiscovery(payload, &result) != nil ||
+		!exactJSONFields(fields["closure"], "closed_at", "closed_by", "reason") && !exactJSONFields(fields["closure"], "closed_at", "closed_by", "reason", "note") {
+		return SecurityAgentRunCloseResult{}, ErrRepositoryUnavailable
+	}
+	if result.ID != input.RunID || !validProductID(result.AgentID) || result.State != "needs_human" || result.DefinitionVersion < 1 || result.DefinitionVersion > 1000000 || result.Version != input.ExpectedVersion ||
+		!validSecurityAgentRunClosure(result.Closure) || result.Closure.ClosedBy != identity.PrincipalID.String() || result.Closure.Reason != input.Reason || result.Closure.Note != input.Note ||
+		!validProductID(result.AuditID) || !validProductID(result.CorrelationID) || !validProductID(result.ReceiptID) ||
+		!result.Replayed && (result.AuditID != input.AuditID || result.CorrelationID != input.CorrelationID || result.ReceiptID != input.ReceiptID) {
+		return SecurityAgentRunCloseResult{}, ErrRepositoryUnavailable
+	}
+	return result, nil
 }
 
 // cancelSecurityAgentRunCurrent cancels one run under current authorization
@@ -171,12 +320,47 @@ func (repository *PostgresRepository) decideSecurityAgentApprovalCurrent(ctx con
 	return result, nil
 }
 
+// securityAgentStatementRefused reports whether an authorized statement
+// raised exactly this refusal (insufficient privilege, with this message).
+func securityAgentStatementRefused(err error, message string) bool {
+	var provider *pgconn.PgError
+	return errors.As(err, &provider) && provider.Code == "42501" && provider.Message == message
+}
+
+// securityAgentEvidenceOperation is the operation of the second decision a
+// simulation makes for its evidence: the mixed collection of the Environment
+// with permission 'view'.
+const securityAgentEvidenceOperation = "globalSearch"
+
 // simulateSecurityAgentCurrent stores one simulation under current
 // authorization with one authorized statement.
 func (repository *PostgresRepository) simulateSecurityAgentCurrent(ctx context.Context, identity RequestIdentity, input SecurityAgentSimulationRequest, evidence json.RawMessage) (SecurityAgentSimulationResult, error) {
-	arguments := append(repository.securityAgentScopeArguments(identity, input.DefinitionID), input.IdempotencyKey, input.ExpectedVersion, input.RunID, input.Goal, evidence, input.ExpiresAt, input.AuditID, input.CorrelationID, input.ReceiptID)
+	// The definition is the object of the request's proof. The evidence is
+	// named in the body, so it is authorized by a second decision: the mixed
+	// collection of the Environment, whose attestation lists every object
+	// the requester may read. The statement verifies that attestation and
+	// refuses evidence it does not allow. Without a checked request nothing
+	// is attested and the database refuses the statement itself.
+	var evidenceProof any
+	if _, checked := requestAuthorizationFromContext(ctx); checked {
+		grant, grantErr := secondaryRequestAuthorization(ctx, identity, RoutedOperation{OperationID: securityAgentEvidenceOperation})
+		if grantErr != nil {
+			return SecurityAgentSimulationResult{}, secondaryAuthorizationError(grantErr)
+		}
+		proof, proofErr := authorizationProofJSON(grant)
+		if proofErr != nil {
+			return SecurityAgentSimulationResult{}, ErrRepositoryAuthorization
+		}
+		evidenceProof = string(proof)
+	}
+	arguments := append(repository.securityAgentScopeArguments(identity, input.DefinitionID), input.IdempotencyKey, input.ExpectedVersion, input.RunID, input.Goal, evidence, input.ExpiresAt, input.AuditID, input.CorrelationID, input.ReceiptID, evidenceProof)
 	payload, err := repository.database.QueryJSON(ctx, currentSecurityAgentSimulateSQL, arguments...)
 	if err != nil {
+		// The statement refuses evidence the second decision does not allow.
+		// That is a denial of this request, not an unavailable provider.
+		if securityAgentStatementRefused(err, "current security agent evidence authorization required") {
+			return SecurityAgentSimulationResult{}, ErrRepositoryAuthorization
+		}
 		return SecurityAgentSimulationResult{}, discoveryProviderError(err)
 	}
 	var result SecurityAgentSimulationResult
