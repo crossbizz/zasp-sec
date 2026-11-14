@@ -81,6 +81,19 @@ var rules = map[string][]string{
 	"agent_guardrail_missing":         {"LLM01", "LLM02", "LLM05", "T0051", "MEASURE-2.7", "A.6.2.6", "ART-9", "ART-15"},
 	"agent_role_unused_90_days":       {"ASI03", "T0055", "MANAGE-2.4", "GOVERN-1.6"},
 	"agent_role_administrator_access": {"LLM06", "ASI03", "MEASURE-2.7", "ART-15"},
+	// The role's policies grant model actions the audit log shows unused, or
+	// reach every resource of a data service: excessive permission.
+	"agent_role_unused_ai_permissions": {"LLM06", "ASI03", "MEASURE-2.7", "MANAGE-2.4", "ART-15"},
+	"agent_data_service_wide_access":   {"LLM06", "LLM02", "ASI03", "T0057", "MEASURE-2.7", "ART-15"},
+
+	// MCP servers: an unreviewed or blocked server is a supply chain and tool
+	// risk; one without authentication or from an unpinned package can be
+	// replaced or impersonated; a tool that runs code is code execution.
+	"mcp_server_unapproved":       {"ASI04", "ASI02", "LLM03", "T0053", "GOVERN-1.6", "A.9.2", "ART-9"},
+	"mcp_server_blocked":          {"ASI04", "ASI02", "LLM03", "T0053", "MANAGE-2.4", "A.9.2", "ART-9"},
+	"mcp_server_no_auth":          {"ASI04", "ASI03", "LLM03", "T0053", "MEASURE-2.7", "ART-15"},
+	"mcp_server_unpinned_package": {"ASI04", "LLM03", "T0053", "MEASURE-2.7", "ART-15"},
+	"mcp_execute_tool_production": {"ASI05", "ASI02", "LLM06", "T0053", "MEASURE-2.7", "ART-14", "ART-15"},
 
 	"iam_role_administratoraccess_policy":               {"ASI03", "LLM06", "MEASURE-2.7"},
 	"iam_role_cross_service_confused_deputy_prevention": {"ASI03", "MEASURE-2.7"},

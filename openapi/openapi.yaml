@@ -1644,6 +1644,22 @@ paths:
         '200': { description: Agent session records., content: { application/json: { schema: { $ref: '#/components/schemas/AgentSessionPage' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/agents/{id}/access:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: getAgentAccess
+      summary: Get what one authorized Agent may use
+      description: >-
+        The model and agent actions the policies of the Agent's role grant against the ones the audit log showed in use, the MCP
+        servers it uses with the registry's decision for each, the data stores the identities it runs as reach, and the skills and
+        instruction files of its repository (path and kind only). ai_actions is null when the role's audit log was not read.
+      responses:
+        '200': { description: Agent access., content: { application/json: { schema: { $ref: '#/components/schemas/AgentAccess' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/tools:
     get:
       operationId: listTools
@@ -6632,6 +6648,59 @@ components:
       properties:
         items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/InventorySummary' } }
         page_info: { $ref: '#/components/schemas/PageInfo' }
+    AgentAccess:
+      type: object
+      additionalProperties: false
+      required: [agent_id, ai_actions, mcp_servers, data_stores, skills]
+      properties:
+        agent_id: { $ref: '#/components/schemas/ProductID' }
+        ai_actions:
+          oneOf:
+            - { type: 'null' }
+            - type: object
+              additionalProperties: false
+              required: [window_days, granted, used, unused]
+              properties:
+                window_days: { type: integer, minimum: 1, maximum: 90 }
+                granted: { type: array, minItems: 1, maxItems: 32, items: { type: string, pattern: '^[a-z][a-z0-9-]{1,31}:[A-Za-z]{1,64}$' } }
+                used: { type: array, maxItems: 32, items: { type: string, pattern: '^[a-z][a-z0-9-]{1,31}:[A-Za-z]{1,64}$' } }
+                unused: { type: array, maxItems: 32, items: { type: string, pattern: '^[a-z][a-z0-9-]{1,31}:[A-Za-z]{1,64}$' }, description: 'Granted actions the audit log can show and did not. An action it cannot show is never listed.' }
+        mcp_servers:
+          type: array
+          maxItems: 64
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, name, identity, approval]
+            properties:
+              id: { $ref: '#/components/schemas/ProductID' }
+              name: { type: string, minLength: 1, maxLength: 256 }
+              identity: { type: string, minLength: 3, maxLength: 512 }
+              approval: { type: string, enum: [approved, unapproved, blocked] }
+        data_stores:
+          type: array
+          maxItems: 64
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, name, service, access, scope]
+            properties:
+              id: { $ref: '#/components/schemas/ProductID' }
+              name: { type: string, minLength: 1, maxLength: 256 }
+              service: { type: string, pattern: '^[a-z][a-z0-9-]{1,31}$' }
+              access: { type: string, enum: [read, write] }
+              scope: { type: string, enum: [resource, service], description: 'service means every resource of the data service.' }
+        skills:
+          type: array
+          maxItems: 64
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, path, kind]
+            properties:
+              id: { $ref: '#/components/schemas/ProductID' }
+              path: { type: string, minLength: 1, maxLength: 512 }
+              kind: { type: string, enum: [skill, agent_instructions, editor_rules] }
     MCPTool:
       type: object
       additionalProperties: false

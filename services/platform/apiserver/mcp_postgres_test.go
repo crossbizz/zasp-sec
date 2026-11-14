@@ -182,7 +182,7 @@ func TestMCPSectionsOnTheInstalledBaselinePostgres(t *testing.T) {
 	}
 	// Everything the WS5 sections build on, then the sections, then all of
 	// it again: the tail of the file runs twice without a change.
-	sections := []string{"saas_providers", "rule_catalog_digest", "inventory_posture_dismissal", "saas_generic_provider", "saas_rule_catalog", "ws5_rule_catalog", "ws5_mcp_registry", "ws5_mcp_posture"}
+	sections := []string{"saas_providers", "rule_catalog_digest", "inventory_posture_dismissal", "saas_generic_provider", "saas_rule_catalog", "ws5_rule_catalog", "ws5_mcp_registry", "ws5_mcp_posture", "ws5_agent_access"}
 	for _, tag := range sections {
 		applyCompletionBlock(t, ctx, connection, tag)
 	}
@@ -318,6 +318,49 @@ func TestMCPSectionsOnTheInstalledBaselinePostgres(t *testing.T) {
 	if _, err := connection.Exec(ctx, `INSERT INTO zasp_inventory_relationships SELECT (jsonb_populate_record(relationship,jsonb_build_object('id',$6::text,'to_entity_id',$7::text,'source_native_id','bot|depends_on|tracker'))).* FROM zasp_inventory_relationships relationship WHERE (organization_id,workspace_id,environment_id,from_entity_id,to_entity_id,kind)=($1,$2,$3,$4,$5,'depends_on')`,
 		organizationID, workspaceID, environmentID, botID, remoteID, stdioEdgeID, stdioID); err != nil {
 		t.Fatal(err)
+	}
+
+	// A skill of the function's repository, as the GitHub collector leaves it.
+	const skillID, skillEdgeID = "pid_7b0000a3-0000-4000-8000-0000000000a3", "pid_7b0000a4-0000-4000-8000-0000000000a4"
+	for _, statement := range []string{
+		`INSERT INTO zasp_inventory_entities SELECT (jsonb_populate_record(entity,jsonb_build_object('id',$5::text,'kind','asset','product_kind','asset','display_name','.claude/skills/release','stable_fields',jsonb_build_object('installation_id',9001,'name','.claude/skills/release','owner','acme','repository','alpha'),'winning_attributes',jsonb_build_object('skill_kind','skill'),'winning_source_native_id','github:repository:101:agent_skill:.claude/skills/release'))).* FROM zasp_inventory_entities entity WHERE (organization_id,workspace_id,environment_id,id)=($1,$2,$3,$4)`,
+		`INSERT INTO zasp_inventory_source_observations SELECT (jsonb_populate_record(observation,jsonb_build_object('entity_id',$5::text,'source_native_id','github:repository:101:agent_skill:.claude/skills/release','source_kind','github_agent_skill','identity_namespace','github_agent_skill','product_kind','asset','display_name','.claude/skills/release','attributes',jsonb_build_object('skill_kind','skill')))).* FROM zasp_inventory_source_observations observation WHERE (organization_id,workspace_id,environment_id,entity_id)=($1,$2,$3,$4)`,
+	} {
+		if _, err := connection.Exec(ctx, statement, organizationID, workspaceID, environmentID, remoteID, skillID); err != nil {
+			t.Fatalf("%s: %v", statement[:60], err)
+		}
+	}
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_inventory_relationships SELECT (jsonb_populate_record(relationship,jsonb_build_object('id',$6::text,'from_entity_id',$7::text,'to_entity_id',$8::text,'source_native_id','bot|contains|skill'))).* FROM zasp_inventory_relationships relationship WHERE (organization_id,workspace_id,environment_id,from_entity_id,to_entity_id,kind)=($1,$2,$3,$4,$5,'contains')`,
+		organizationID, workspaceID, environmentID, gatewayID, toolID, skillEdgeID, botID, skillID); err != nil {
+		t.Fatal(err)
+	}
+
+	// What an agent may use: used against granted, its MCP servers, the data
+	// stores its role reaches, and the skills of its repository.
+	access := func(id string) string {
+		t.Helper()
+		var payload []byte
+		if err := connection.QueryRow(ctx, `SELECT zasp_mcp_agent_access_json($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, id).Scan(&payload); err != nil || payload == nil {
+			t.Fatalf("access of %s: %v", id, err)
+		}
+		var decoded AgentAccess
+		if err := decodeStrictInventory(payload, &decoded); err != nil || !validAgentAccess(decoded, id) {
+			t.Fatalf("access of %s is not the API's shape: %s (%v)", id, payload, err)
+		}
+		canonical, _ := json.Marshal(decoded)
+		return string(canonical)
+	}
+	if got, want := access(agentID), `{"agent_id":"`+agentID+`","ai_actions":{"window_days":7,"granted":["bedrock:InvokeModel","bedrock:InvokeModelWithResponseStream"],"used":["bedrock:InvokeModel"],"unused":["bedrock:InvokeModelWithResponseStream"]},`+
+		`"mcp_servers":[{"id":"`+gatewayID+`","name":"tools","identity":"host:gw-1.gateway.bedrock-agentcore.us-west-2.amazonaws.com","approval":"unapproved"}],`+
+		`"data_stores":[{"id":"`+storeID+`","name":"All DynamoDB tables","service":"dynamodb","access":"write","scope":"service"},{"id":"`+entityID["arn:aws:s3:::reports"]+`","name":"reports","service":"s3","access":"read","scope":"resource"}],"skills":[]}`; got != want {
+		t.Fatalf("agent access\n got %s\nwant %s", got, want)
+	}
+	if got := access(botID); !strings.Contains(got, `"skills":[{"id":"`+skillID+`","path":".claude/skills/release","kind":"skill"}]`) || !strings.Contains(got, `"name":"mcp.linear.example"`) || !strings.Contains(got, `"name":"tracker"`) {
+		t.Fatalf("function access = %s", got)
+	}
+	var missing []byte
+	if err := connection.QueryRow(ctx, `SELECT zasp_mcp_agent_access_json($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, roleID).Scan(&missing); err != nil || missing != nil {
+		t.Fatalf("access of something that is not an agent = %s, %v", missing, err)
 	}
 
 	// The MCP servers as the API lists them.
@@ -531,6 +574,7 @@ func TestMCPSectionsOnTheInstalledBaselinePostgres(t *testing.T) {
 	for statement, arguments := range map[string][]any{
 		postgresMCPServerPageSQL:   {organizationID, workspaceID, environmentID, "", 50},
 		postgresMCPRegistryPageSQL: {organizationID, workspaceID, environmentID},
+		postgresAgentAccessSQL:     {organizationID, workspaceID, environmentID, agentID},
 		postgresMCPRegistryPutSQL:  {organizationID, workspaceID, environmentID, identity.PrincipalID.String(), "host:mcp.linear.example", "approved", "", int64(0), "pid_7b0000d1-0000-4000-8000-0000000000d1", "pid_7b0000d2-0000-4000-8000-0000000000d2"},
 	} {
 		if _, err := connection.Exec(ctx, statement, arguments...); err == nil || !strings.Contains(err.Error(), "42501") && !strings.Contains(err.Error(), "authorization") && !strings.Contains(err.Error(), "read purpose") {
@@ -538,8 +582,8 @@ func TestMCPSectionsOnTheInstalledBaselinePostgres(t *testing.T) {
 		}
 	}
 	var grants int
-	if err := connection.QueryRow(ctx, `SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='zasp_authorization80' AND p.proname IN('mcp_server_page','mcp_registry_page','mcp_registry_put') AND p.prosecdef
- AND pg_get_userbyid(p.proowner)='zasp_discovery_authority' AND has_function_privilege('zasp_discovery_api',p.oid,'EXECUTE') AND NOT has_function_privilege('public',p.oid,'EXECUTE')`).Scan(&grants); err != nil || grants != 3 {
+	if err := connection.QueryRow(ctx, `SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='zasp_authorization80' AND p.proname IN('mcp_server_page','mcp_registry_page','mcp_registry_put','agent_access') AND p.prosecdef
+ AND pg_get_userbyid(p.proowner)='zasp_discovery_authority' AND has_function_privilege('zasp_discovery_api',p.oid,'EXECUTE') AND NOT has_function_privilege('public',p.oid,'EXECUTE')`).Scan(&grants); err != nil || grants != 4 {
 		t.Fatalf("authorized MCP statements = %d, %v", grants, err)
 	}
 	var direct int

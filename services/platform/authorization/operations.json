@@ -68,6 +68,7 @@
   {"ID":"getAgentCapabilities","Method":"GET","Path":"/api/v1/agents/{id}/capabilities","Permission":"view","Relation":"view","Surface":"core","Security":["BrowserSession","ProductAPIToken"],"FreshAuth":false},
   {"ID":"getAgentRelationships","Method":"GET","Path":"/api/v1/agents/{id}/relationships","Permission":"view","Relation":"view","Surface":"core","Security":["BrowserSession","ProductAPIToken"],"FreshAuth":false},
   {"ID":"listAgentSessions","Method":"GET","Path":"/api/v1/agents/{id}/sessions","Permission":"view","Relation":"view","Surface":"core","Security":["BrowserSession","ProductAPIToken"],"FreshAuth":false},
+  {"ID":"getAgentAccess","Method":"GET","Path":"/api/v1/agents/{id}/access","Permission":"view","Relation":"view","Surface":"core","Security":["BrowserSession","ProductAPIToken"],"FreshAuth":false},
   {"ID":"listTools","Method":"GET","Path":"/api/v1/tools","Permission":"view","Relation":"view","Surface":"core","Security":["BrowserSession","ProductAPIToken"],"FreshAuth":false},
   {"ID":"listMCPServers","Method":"GET","Path":"/api/v1/mcp-servers","Permission":"view","Relation":"view","Surface":"core","Security":["BrowserSession","ProductAPIToken"],"FreshAuth":false},
   {"ID":"listMCPRegistry","Method":"GET","Path":"/api/v1/mcp-registry","Permission":"view","Relation":"view","Surface":"core","Security":["BrowserSession","ProductAPIToken"],"FreshAuth":false},

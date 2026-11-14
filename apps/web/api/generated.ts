@@ -320,6 +320,28 @@ export type paths = {
         readonly patch: operations["updateAgent"];
         readonly trace?: never;
     };
+    readonly "/api/v1/agents/{id}/access": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        /**
+         * Get what one authorized Agent may use
+         * @description The model and agent actions the policies of the Agent's role grant against the ones the audit log showed in use, the MCP servers it uses with the registry's decision for each, the data stores the identities it runs as reach, and the skills and instruction files of its repository (path and kind only). ai_actions is null when the role's audit log was not read.
+         */
+        readonly get: operations["getAgentAccess"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/agents/{id}/capabilities": {
         readonly parameters: {
             readonly query?: never;
@@ -2644,6 +2666,41 @@ export type paths = {
 export type webhooks = Record<string, never>;
 export type components = {
     schemas: {
+        readonly AgentAccess: {
+            readonly agent_id: components["schemas"]["ProductID"];
+            readonly ai_actions: null | {
+                readonly granted: readonly string[];
+                /** @description Granted actions the audit log can show and did not. An action it cannot show is never listed. */
+                readonly unused: readonly string[];
+                readonly used: readonly string[];
+                readonly window_days: number;
+            };
+            readonly data_stores: readonly {
+                /** @enum {string} */
+                readonly access: "read" | "write";
+                readonly id: components["schemas"]["ProductID"];
+                readonly name: string;
+                /**
+                 * @description service means every resource of the data service.
+                 * @enum {string}
+                 */
+                readonly scope: "resource" | "service";
+                readonly service: string;
+            }[];
+            readonly mcp_servers: readonly {
+                /** @enum {string} */
+                readonly approval: "approved" | "unapproved" | "blocked";
+                readonly id: components["schemas"]["ProductID"];
+                readonly identity: string;
+                readonly name: string;
+            }[];
+            readonly skills: readonly {
+                readonly id: components["schemas"]["ProductID"];
+                /** @enum {string} */
+                readonly kind: "skill" | "agent_instructions" | "editor_rules";
+                readonly path: string;
+            }[];
+        };
         readonly AgentMutation: {
             readonly agent: components["schemas"]["InventoryRecord"];
             readonly audit_id: components["schemas"]["ProductID"];
@@ -5537,6 +5594,7 @@ export type components = {
     };
     pathItems: never;
 };
+export type AgentAccess = components['schemas']['AgentAccess'];
 export type AgentMutation = components['schemas']['AgentMutation'];
 export type AgentOwnershipInput = components['schemas']['AgentOwnershipInput'];
 export type AgentSession = components['schemas']['AgentSession'];
@@ -6560,6 +6618,32 @@ export interface operations {
             readonly 403: components["responses"]["ProductErrorResponse"];
             readonly 404: components["responses"]["ProductErrorResponse"];
             readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getAgentAccess: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Agent access. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AgentAccess"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };

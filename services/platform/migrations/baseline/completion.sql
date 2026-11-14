@@ -4816,3 +4816,72 @@ BEGIN
  END IF;
  EXECUTE replace(replace(replace(d,with_anchor,with_patched),rule_anchor,rule_anchor||rules),return_anchor,paths||return_anchor);
 END $ws5_mcp_posture$;
+-- WS5d. What an agent may use: GET /agents/{id}/access.
+--
+-- The agent page showed what an agent is and who owns it, not what it may
+-- do. zasp_mcp_agent_access_json returns, for one active agent:
+--   ai_actions   the model and agent actions the policies of its role grant,
+--                the ones the audit log showed in use in the last seven days
+--                and the granted ones it can show and did not (used against
+--                granted); null for an agent whose role's audit log was not
+--                read. The AWS collector records the three lists on the
+--                agent (ai_actions_granted, ai_actions_used,
+--                ai_actions_unused);
+--   mcp_servers  the MCP servers it uses, each with the registry's decision;
+--   data_stores  the data stores the identities it runs as reach;
+--   skills       the skills and instruction files of its repository (path
+--                and kind; their contents are never read).
+-- Each list holds at most 64 entries. zasp_authorization80.agent_access is
+-- the API's statement: the proof check of an Agent object route, then the
+-- reader.
+DO $ws5_agent_access$
+DECLARE owner_value text;
+BEGIN
+ SELECT pg_get_userbyid(proowner) INTO STRICT owner_value FROM pg_proc WHERE oid='public.zasp_inventory_refresh_posture_findings(text,text,text)'::regprocedure;
+
+ CREATE OR REPLACE FUNCTION public.zasp_mcp_agent_access_json(organization_value text,workspace_value text,environment_value text,agent_value text) RETURNS jsonb
+ LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO pg_catalog, public AS $agent_access$
+  SELECT jsonb_build_object('agent_id',agent.id,
+   'ai_actions',CASE WHEN COALESCE(agent.winning_attributes->>'ai_actions_granted','')<>'' THEN jsonb_build_object('window_days',7,
+     'granted',to_jsonb(string_to_array(agent.winning_attributes->>'ai_actions_granted',',')),
+     'used',to_jsonb(COALESCE(string_to_array(NULLIF(agent.winning_attributes->>'ai_actions_used',''),','),ARRAY[]::text[])),
+     'unused',to_jsonb(COALESCE(string_to_array(NULLIF(agent.winning_attributes->>'ai_actions_unused',''),','),ARRAY[]::text[]))) END,
+   'mcp_servers',COALESCE((SELECT jsonb_agg(jsonb_build_object('id',listed.entity_id,'name',listed.name,'identity',listed.identity,'approval',listed.approval) ORDER BY listed.position) FROM(
+     SELECT server.entity_id,server.name,server.identity,server.approval,row_number() OVER(ORDER BY server.name,server.entity_id) position
+     FROM zasp_mcp_agent_servers(organization_value,workspace_value,environment_value) used JOIN zasp_mcp_servers(organization_value,workspace_value,environment_value) server ON server.entity_id=used.server_id
+     WHERE used.agent_id=agent.id) listed WHERE listed.position<=64),'[]'::jsonb),
+   'data_stores',COALESCE((SELECT jsonb_agg(jsonb_build_object('id',listed.id,'name',listed.display_name,'service',listed.service,'access',listed.access,'scope',listed.scope) ORDER BY listed.position) FROM(
+     SELECT store.id,store.display_name,store.stable_fields->>'service' service,store.winning_attributes->>'access' access,store.winning_attributes->>'scope' scope,row_number() OVER(ORDER BY store.display_name,store.id) position
+     FROM(SELECT DISTINCT data_edge.to_entity_id FROM zasp_inventory_relationships identity_edge
+       JOIN zasp_inventory_relationships data_edge ON (data_edge.organization_id,data_edge.workspace_id,data_edge.environment_id,data_edge.from_entity_id,data_edge.state,data_edge.kind)=(identity_edge.organization_id,identity_edge.workspace_id,identity_edge.environment_id,identity_edge.to_entity_id,'present','depends_on')
+       WHERE (identity_edge.organization_id,identity_edge.workspace_id,identity_edge.environment_id,identity_edge.from_entity_id,identity_edge.state,identity_edge.kind)=(organization_value,workspace_value,environment_value,agent.id,'present','uses_identity')) reached
+     JOIN zasp_inventory_entities store ON (store.organization_id,store.workspace_id,store.environment_id,store.id,store.state)=(organization_value,workspace_value,environment_value,reached.to_entity_id,'active')
+     WHERE store.winning_attributes->>'access' IN('read','write') AND store.winning_attributes->>'scope' IN('resource','service') AND COALESCE(store.stable_fields->>'service','')<>'') listed WHERE listed.position<=64),'[]'::jsonb),
+   'skills',COALESCE((SELECT jsonb_agg(jsonb_build_object('id',listed.id,'path',listed.display_name,'kind',listed.kind) ORDER BY listed.position) FROM(
+     SELECT skill.id,skill.display_name,skill.winning_attributes->>'skill_kind' kind,row_number() OVER(ORDER BY skill.display_name,skill.id) position
+     FROM zasp_inventory_relationships relationship
+     JOIN zasp_inventory_entities skill ON (skill.organization_id,skill.workspace_id,skill.environment_id,skill.id,skill.state)=(organization_value,workspace_value,environment_value,relationship.to_entity_id,'active')
+     WHERE (relationship.organization_id,relationship.workspace_id,relationship.environment_id,relationship.from_entity_id,relationship.state,relationship.kind)=(organization_value,workspace_value,environment_value,agent.id,'present','contains')
+      AND skill.winning_attributes->>'skill_kind' IN('skill','agent_instructions','editor_rules')) listed WHERE listed.position<=64),'[]'::jsonb))
+  FROM zasp_inventory_entities agent
+  WHERE (agent.organization_id,agent.workspace_id,agent.environment_id,agent.id,agent.state,agent.product_kind)=(organization_value,workspace_value,environment_value,agent_value,'active','agent')
+ $agent_access$;
+ EXECUTE format('ALTER FUNCTION public.zasp_mcp_agent_access_json(text,text,text,text) OWNER TO %I',owner_value);
+ REVOKE ALL ON FUNCTION public.zasp_mcp_agent_access_json(text,text,text,text) FROM PUBLIC;
+
+ IF to_regprocedure('zasp_authorization80.product_request(text,text,text,text,text,text,text,text,boolean,boolean,boolean,boolean)') IS NULL THEN RETURN;END IF;
+
+ CREATE OR REPLACE FUNCTION zasp_authorization80.agent_access(o text,w text,e text,i text) RETURNS jsonb
+ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $agent_access_statement$
+ DECLARE result jsonb;
+ BEGIN
+  IF NOT COALESCE(public.zasp_valid_product_id(i),false) THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';END IF;
+  PERFORM zasp_authorization80.product_request(o,w,e,NULL,'getAgentAccess','view','agent',i,true,false,false,false);
+  result:=public.zasp_mcp_agent_access_json(o,w,e,i);
+  IF result IS NULL THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='typed agent missing';END IF;
+  RETURN result;
+ END $agent_access_statement$;
+ ALTER FUNCTION zasp_authorization80.agent_access(text,text,text,text) OWNER TO zasp_discovery_authority;
+ REVOKE ALL ON FUNCTION zasp_authorization80.agent_access(text,text,text,text) FROM PUBLIC;
+ GRANT EXECUTE ON FUNCTION zasp_authorization80.agent_access(text,text,text,text) TO zasp_discovery_api;
+END $ws5_agent_access$;

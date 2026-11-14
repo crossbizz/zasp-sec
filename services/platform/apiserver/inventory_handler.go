@@ -76,6 +76,8 @@ func (handler *inventoryHTTPHandler) serveAuthorizedHTTP(writer http.ResponseWri
 		handler.agentSubresourcePage(writer, request, identity, routed)
 	case "getHomeSummary":
 		handler.home(writer, request, identity)
+	case "getAgentAccess":
+		handler.agentAccess(writer, request, identity, routed)
 	case "listMCPServers":
 		handler.mcpServerPage(writer, request, identity, routed)
 	case "listMCPRegistry":
