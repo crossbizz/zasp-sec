@@ -1857,6 +1857,11 @@ DECLARE target CONSTANT regprocedure:='zasp_temporal72.last_good_freshness(text,
   LIMIT 1)) gap),'[]'::jsonb));$gaps$;
  d text:=pg_get_functiondef(target);
 BEGIN
+ -- A later section (WS7b) extends the list this section wrote with further
+ -- gaps, inside the statement, so the text above is then no longer in the
+ -- function as it stands here. When the file runs again that later version
+ -- is in place and this section has nothing left to do.
+ IF position($later$'mcp-links'$later$ in d)>0 THEN RETURN;END IF;
  IF position(gaps in d)=0 THEN
   IF position('coverage_gaps' in d)>0 OR length(d)-length(replace(d,anchor,''))<>length(anchor) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='integration freshness predecessor changed';END IF;
   EXECUTE replace(d,anchor,gaps||anchor);

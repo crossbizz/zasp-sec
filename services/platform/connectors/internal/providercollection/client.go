@@ -976,7 +976,7 @@ func validProviderRelationshipEndpointKinds(provider collection.Provider, raw js
 		collection.ProviderGCP: tokenSet(
 			"gcp_scope|contains|gcp_project", "gcp_scope|contains|gcp_service",
 			"gcp_project|contains|gcp_agent_engine", "gcp_project|contains|gcp_conversational_agent", "gcp_project|contains|gcp_gemini_enterprise_agent", "gcp_project|contains|gcp_inferred_agent",
-			"gcp_project|contains|gcp_model_endpoint", "gcp_project|contains|gcp_service_account", "gcp_model_endpoint|contains|gcp_deployed_model",
+			"gcp_project|contains|gcp_model_endpoint", "gcp_scope|contains|gcp_service_account", "gcp_model_endpoint|contains|gcp_deployed_model",
 			"gcp_project|contains|gcp_mcp_server", "gcp_conversational_agent|contains|gcp_agent_tool",
 			"gcp_agent_engine|uses_identity|gcp_service_account", "gcp_inferred_agent|uses_identity|gcp_service_account", "gcp_deployed_model|uses_identity|gcp_service_account",
 		),
