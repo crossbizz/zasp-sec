@@ -4580,7 +4580,7 @@ components:
             guardrail_identifier: { $ref: '#/components/schemas/BedrockGuardrailIdentifier' }
             guardrail_version: { $ref: '#/components/schemas/BedrockGuardrailVersion' }
         - type: object
-          description: detach_role_administrator_policy. The target is the Bedrock agent whose execution role the policy is detached from.
+          description: detach_role_administrator_policy. The target is the discovered agent (a Bedrock agent, an AgentCore runtime or an inferred agent) from whose role the policy is detached. The policy is detached only when its document allows every action on every resource.
           additionalProperties: false
           required: [target_id, integration_id, policy_arn]
           properties:
