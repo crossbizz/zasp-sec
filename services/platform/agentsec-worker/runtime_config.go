@@ -129,57 +129,53 @@ type workerRuntimeConfig struct {
 	SaaSCollectorVersion string
 	// GCPCollectorVersion is ZASP_DISCOVERY_GCP_COLLECTOR_VERSION: it serves
 	// Google Cloud. Unset, the provider is not offered.
-	GCPCollectorVersion         string
-	NangoBaseURL                string
-	NangoServiceSecretReference string
-	NangoEnvironment            string
-	KubernetesEgressCIDRs       []string
-	GitHubAppID                 string
-	GitHubPrivateKeyReference   string
-	OktaClientID                string
-	OktaClientSecretReference   string
-	ProviderTimeout             time.Duration
-	DiscoveryReadinessTimeout   time.Duration
-	OpenSearchURL               string
-	OpenSearchIndex             string
-	RuntimeSessionIndex         string
-	Neo4jURI                    string
-	Neo4jCredential             string
-	Neo4jExpectedPrincipal      string
-	Neo4jExpectedRole           string
-	ProjectionRoleARN           string
-	ProjectionTokenFile         string
-	ProjectionSecretPrefix      string
-	OutboxRoleARN               string
-	OutboxTokenFile             string
-	RedTeamRoleARN              string
-	RedTeamTokenFile            string
-	RedTeamTargetEndpoint       string
-	RedTeamTargetTokenFile      string
-	RedTeamTargetCAFile         string
-	RedTeamRunnerTimeout        time.Duration
-	RedTeamRunnerImage          string
-	AttackLabRoleARN            string
-	AttackLabTokenFile          string
-	AttackLabNamespace          string
-	AttackLabRunnerService      string
-	AttackLabRunnerTestRoleARN  string
-	AttackLabRunnerImage        string
-	AttackLabSecurityGroup      string
-	AttackLabKubernetesURL      string
-	AttackLabKubernetesToken    string
-	AttackLabKubernetesCA       string
-	AttackLabProxyEndpoint      string
-	AttackLabProxyCAFile        string
-	AttackLabSigningKeyFile     string
-	AttackLabOperationTimeout   time.Duration
-	GatewaySigningKeyID         string
-	GatewaySigningPrivateFile   string
-	GatewayPolicyKeysFile       string
-	// GatewayDecisionRetentionDays is how long the scheduler keeps the
-	// hosted gateway's decision records (ZASP_GATEWAY_DECISION_RETENTION_DAYS,
-	// 90 when it is not set).
-	GatewayDecisionRetentionDays int
+	GCPCollectorVersion          string
+	NangoBaseURL                 string
+	NangoServiceSecretReference  string
+	NangoEnvironment             string
+	KubernetesEgressCIDRs        []string
+	GitHubAppID                  string
+	GitHubPrivateKeyReference    string
+	OktaClientID                 string
+	OktaClientSecretReference    string
+	ProviderTimeout              time.Duration
+	DiscoveryReadinessTimeout    time.Duration
+	OpenSearchURL                string
+	OpenSearchIndex              string
+	RuntimeSessionIndex          string
+	Neo4jURI                     string
+	Neo4jCredential              string
+	Neo4jExpectedPrincipal       string
+	Neo4jExpectedRole            string
+	ProjectionRoleARN            string
+	ProjectionTokenFile          string
+	ProjectionSecretPrefix       string
+	OutboxRoleARN                string
+	OutboxTokenFile              string
+	RedTeamRoleARN               string
+	RedTeamTokenFile             string
+	RedTeamTargetEndpoint        string
+	RedTeamTargetTokenFile       string
+	RedTeamTargetCAFile          string
+	RedTeamRunnerTimeout         time.Duration
+	RedTeamRunnerImage           string
+	AttackLabRoleARN             string
+	AttackLabTokenFile           string
+	AttackLabNamespace           string
+	AttackLabRunnerService       string
+	AttackLabRunnerTestRoleARN   string
+	AttackLabRunnerImage         string
+	AttackLabSecurityGroup       string
+	AttackLabKubernetesURL       string
+	AttackLabKubernetesToken     string
+	AttackLabKubernetesCA        string
+	AttackLabProxyEndpoint       string
+	AttackLabProxyCAFile         string
+	AttackLabSigningKeyFile      string
+	AttackLabOperationTimeout    time.Duration
+	GatewaySigningKeyID          string
+	GatewaySigningPrivateFile    string
+	GatewayPolicyKeysFile        string
 	SecurityAgentPlannerEndpoint string
 	SecurityAgentPlannerModel    string
 	SecurityAgentPlannerToken    string
@@ -190,6 +186,11 @@ type workerRuntimeConfig struct {
 	TestReconcilerTokenFile      string
 	AttackLabReconcilerRoleARN   string
 	AttackLabReconcilerTokenFile string
+
+	// GatewayDecisionRetentionDays is how long the scheduler keeps the
+	// hosted gateway's decision records (ZASP_GATEWAY_DECISION_RETENTION_DAYS,
+	// 90 when it is not set).
+	GatewayDecisionRetentionDays int
 }
 
 func validRuntimeSessionIndexSelection(config workerRuntimeConfig) bool {

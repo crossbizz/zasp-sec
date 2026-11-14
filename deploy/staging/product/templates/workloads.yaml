@@ -247,6 +247,7 @@ spec:
             - { name: ZASP_SHUTDOWN_TIMEOUT, value: "15s" }
             - { name: ZASP_DISCOVERY_PARSER_VERSION, value: {{ required "discovery.parserVersion is required" .Values.discovery.parserVersion | quote }} }
             - { name: ZASP_DISCOVERY_TOOL_VERSION, value: {{ required "discovery.toolVersion is required" .Values.discovery.toolVersion | quote }} }
+            - { name: ZASP_GATEWAY_DECISION_RETENTION_DAYS, value: {{ int (required "hostedGateway.decisionRetentionDays is required" .Values.hostedGateway.decisionRetentionDays) | quote }} }
           volumeMounts:
             - { name: scheduler-secrets, mountPath: /var/run/secrets/zasp-scheduler, readOnly: true }
             {{- include "zasp.runtimeServices.mount" . | nindent 12 }}

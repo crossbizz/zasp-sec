@@ -67,7 +67,7 @@ func TestHostedGatewaySectionPostgres(t *testing.T) {
 		columns := func(table string) string {
 			return database.text(`SELECT string_agg(column_name||':'||data_type,',' ORDER BY ordinal_position) FROM information_schema.columns WHERE table_schema='public' AND table_name=$1`, table)
 		}
-		if got := columns("zasp_gateway_decisions"); got != "organization_id:text,workspace_id:text,environment_id:text,id:text,principal_id:text,surface:text,operation:text,direction:text,decision:text,reason:text,rules:jsonb,bytes:bigint,content_digest:bytea,server_id:text,tool_name:text,provider:text,model:text,agent_id:text,guardrail_version:bigint,policy_version:bigint,created_at:timestamp with time zone" {
+		if got := columns("zasp_gateway_decisions"); got != "organization_id:text,workspace_id:text,environment_id:text,id:text,principal_id:text,surface:text,operation:text,direction:text,decision:text,reason:text,rules:jsonb,bytes:bigint,content_digest:bytea,server_id:text,tool_name:text,provider:text,model:text,agent_id:text,guardrail_version:bigint,policy_version:bigint,created_at:timestamp with time zone,session_pending:boolean" {
 			t.Fatalf("decision columns=%s", got)
 		}
 		if got := columns("zasp_mcp_gateway_servers"); got != "organization_id:text,workspace_id:text,environment_id:text,id:text,name:text,upstream_url:text,upstream_host:text,enabled:boolean,allowed_tools:ARRAY,denied_tools:ARRAY,version:bigint,created_by:text,created_at:timestamp with time zone,updated_by:text,updated_at:timestamp with time zone" {
@@ -404,6 +404,179 @@ VALUES($1,$2,$3,'pid_74000000-0000-4000-8000-000000000003',$4,'aws','pid_a000000
 		}
 		if got := database.text(`SELECT (SELECT count(*) FROM zasp_mcp_gateway_tools WHERE server_id=$1)::text||' '||(SELECT count(*) FROM zasp_gateway_decisions WHERE server_id=$1)::text`, server); got != "0 2" {
 			t.Fatalf("tools and records after removal=%s", got)
+		}
+	})
+
+	t.Run("the rate of a token is one bucket in the database", func(t *testing.T) {
+		const first, second = "pid_74000000-0000-4000-8000-000000000001", "pid_74000000-0000-4000-8000-000000000002"
+		take := func(token string, n int) bool {
+			t.Helper()
+			value, err := query(`SELECT to_jsonb(zasp_authorization80.gateway_rate_take($1,$2,$3,$4,$5))`, o, w, e, token, n)
+			if err != nil {
+				t.Fatalf("take: %v", err)
+			}
+			return string(value) == "true"
+		}
+		// A new bucket holds a minute of the rate: three requests, not four.
+		for index := 0; index < 3; index++ {
+			if !take(first, 3) {
+				t.Fatalf("request %d of 3 a minute was refused", index+1)
+			}
+		}
+		if take(first, 3) || take(first, 3) {
+			t.Fatal("a fourth request within the minute was admitted")
+		}
+		// Another token has its own bucket, and so has the same token in
+		// another Environment.
+		if !take(second, 3) {
+			t.Fatal("another token was refused")
+		}
+		// Twenty seconds refill one request of three a minute, an hour no
+		// more than the minute the bucket holds.
+		database.exec(`UPDATE zasp_gateway_rate_buckets SET updated_at=clock_timestamp()-interval '20 seconds' WHERE token_id=$1`, first)
+		if !take(first, 3) || take(first, 3) {
+			t.Fatal("twenty seconds did not refill exactly one request")
+		}
+		database.exec(`UPDATE zasp_gateway_rate_buckets SET updated_at=clock_timestamp()-interval '1 hour' WHERE token_id=$1`, first)
+		admitted := 0
+		for index := 0; index < 6; index++ {
+			if take(first, 3) {
+				admitted++
+			}
+		}
+		if admitted != 3 {
+			t.Fatalf("an idle hour admitted %d requests of 3 a minute", admitted)
+		}
+		// A refused request costs nothing: the bucket is as the last
+		// admitted one left it.
+		if left := database.text(`SELECT round(tokens::numeric,1)::text FROM zasp_gateway_rate_buckets WHERE token_id=$1`, first); left != "0.0" {
+			t.Fatalf("tokens left=%s", left)
+		}
+		// A rate the policy cannot hold admits nothing, and the API login
+		// cannot take from a bucket itself.
+		if take(first, 0) || take(first, 100001) || take("", 3) {
+			t.Fatal("a take outside the policy's range was admitted")
+		}
+		if result, err := database.as("zasp_svc_api", `SELECT to_jsonb(zasp_authorization80.gateway_rate_take($1,$2,$3,$4,3))`, o, w, e, first); err == nil || !strings.HasPrefix(state(err), "42501 permission denied") {
+			t.Fatalf("the API login took from a bucket: result=%s state=%q", result, state(err))
+		}
+		if got := database.text(`SELECT pg_get_userbyid(c.relowner)||':'||c.relrowsecurity||':'||c.relforcerowsecurity||':'||(SELECT count(*) FROM information_schema.role_table_grants g WHERE g.table_name=c.relname AND g.grantee NOT IN('zasp_discovery_authority','zasp_operator','postgres'))
+FROM pg_class c WHERE c.relnamespace='public'::regnamespace AND c.relname='zasp_gateway_rate_buckets'`); got != "zasp_discovery_authority:true:true:0" {
+			t.Fatalf("rate bucket table=%s", got)
+		}
+	})
+
+	t.Run("the scheduler's pass: sessions, retention, idle buckets", func(t *testing.T) {
+		const scheduler = "zasp_svc_scheduler"
+		const stranger = "pid_75000000-0000-4000-8000-000000000001"
+		type pass struct{ Examined, Projected, Deleted, Buckets int }
+		maintain := func(days, limit int) pass {
+			t.Helper()
+			value, err := database.as(scheduler, `SELECT zasp_gateway_maintain($1,$2)`, days, limit)
+			var done pass
+			if err != nil || json.Unmarshal(value, &done) != nil {
+				t.Fatalf("maintain(%d,%d)=%s err=%v", days, limit, value, err)
+			}
+			return done
+		}
+		// Only the scheduler runs it, and only within its bounds.
+		for _, login := range []string{"zasp_svc_api", remediationWorker} {
+			if result, err := database.as(login, `SELECT zasp_gateway_maintain(90,10)`); err == nil || !strings.HasPrefix(state(err), "42501 ") {
+				t.Fatalf("%s ran the pass: result=%s state=%q", login, result, state(err))
+			}
+		}
+		for _, arguments := range [][]any{{0, 10}, {3651, 10}, {90, 0}, {90, 101}, {nil, 10}} {
+			if result, err := database.as(scheduler, `SELECT zasp_gateway_maintain($1,$2)`, arguments...); err == nil || state(err) != "42501 gateway maintenance authority denied" {
+				t.Fatalf("maintain%v: result=%s state=%q", arguments, result, state(err))
+			}
+		}
+		// Besides the agent's tool call recorded above: a model request of
+		// the agent that was blocked, and a request that names an agent
+		// the inventory does not hold.
+		agent := `"` + remediationAgentEntity + `"`
+		blocked := `{"id":"` + id(601) + `","surface":"llm","operation":"chat.completions","direction":"request","decision":"block","reason":"guardrail","rules":[{"id":"injection.instruction_override","category":"prompt_injection","mode":"block","count":1}],"bytes":90,"content_digest":"` + digest + `","tool_name":null,"provider":"openai","model":"gpt-test","agent_id":` + agent + `}`
+		unknown := `{"id":"` + id(602) + `","surface":"llm","operation":"messages","direction":"request","decision":"allow","reason":"none","rules":[],"bytes":90,"content_digest":"` + digest + `","tool_name":null,"provider":"anthropic","model":"claude-test","agent_id":"` + stranger + `"}`
+		named := `{"id":"` + id(603) + `","surface":"llm","operation":"messages","direction":"request","decision":"allow","reason":"none","rules":[],"bytes":90,"content_digest":"` + digest + `","tool_name":null,"provider":"anthropic","model":"claude-test","agent_id":"support-agent"}`
+		if value, err := record(nil, batch(blocked+","+unknown+","+named, "")); err != nil || !strings.Contains(string(value), `"recorded": 3`) {
+			t.Fatalf("recorded=%s err=%v", value, err)
+		}
+		// A decision waits for the pass when it names an agent the way the
+		// inventory does, and not otherwise.
+		if pending := database.text(`SELECT string_agg(right(id,3),',' ORDER BY id) FROM zasp_gateway_decisions WHERE session_pending`); pending != "310,311,601,602" {
+			t.Fatalf("pending=%s", pending)
+		}
+		if done := maintain(90, 10); done != (pass{Examined: 4, Projected: 3}) {
+			t.Fatalf("first pass=%+v", done)
+		}
+		// One session of the agent for the day, with one event for each
+		// decision: the tool call, the redacted result and the blocked
+		// model request. Each names the decision record as its evidence.
+		events := database.text(`SELECT string_agg(right(evidence_id,3)||' '||event_class||'/'||action||' '||confidence||' '||source||' ['||title||']',E'\n' ORDER BY evidence_id) FROM zasp_runtime_session_events WHERE(organization_id,workspace_id,environment_id,agent_id)=($1,$2,$3,$4)`, o, w, e, remediationAgentEntity)
+		if want := "310 tool/invoke strong gateway [Gateway: MCP tool call lookup_customer]\n" +
+			"311 policy/allow strong gateway [Gateway redacted MCP tools/call lookup_customer (response): guardrail]\n" +
+			"601 policy/block strong gateway [Gateway blocked openai chat.completions gpt-test (request): guardrail]"; events != want {
+			t.Fatalf("events:\n%s\nwant:\n%s", events, want)
+		}
+		if got := database.text(`SELECT count(*)::text||' '||count(DISTINCT session_id)::text||' '||bool_and(event_time=(SELECT d.created_at FROM zasp_gateway_decisions d WHERE d.id=event.evidence_id))::text FROM zasp_runtime_session_events event WHERE source='gateway'`); got != "3 1 true" {
+			t.Fatalf("gateway events, sessions, times=%s", got)
+		}
+		if summary := database.text(`SELECT s.event_count::text||' '||s.strong_count::text||' '||s.exact_count::text||' '||(s.minimum_agent_id=$4)::text||' '||(s.maximum_agent_id=$4)::text FROM zasp_runtime_session_summaries s
+WHERE(s.organization_id,s.workspace_id,s.environment_id)=($1,$2,$3) AND s.id=(SELECT DISTINCT session_id FROM zasp_runtime_session_events WHERE source='gateway')`, o, w, e, remediationAgentEntity); summary != "3 3 0 true true" {
+			t.Fatalf("session summary=%s", summary)
+		}
+		// The session is the agent's runtime activity too.
+		if activity := database.text(`SELECT zasp_inventory_agent_activity($1,$2,$3,$4,'agent','{}'::jsonb,NULL)->>'activity_state'`, o, w, e, remediationAgentEntity); activity != "active" {
+			t.Fatalf("activity=%s", activity)
+		}
+		// Nothing waits, and a second pass writes nothing twice.
+		if done := maintain(90, 10); done != (pass{}) {
+			t.Fatalf("second pass=%+v", done)
+		}
+		// The gateway states tool calls and its own decisions, nothing a
+		// sensor states, and a sensor's sources are as they were.
+		for name, statement := range map[string]string{
+			"a credential use":  `INSERT INTO zasp_runtime_session_events(organization_id,workspace_id,environment_id,event_id,session_id,agent_id,confidence,source,event_class,action,title,evidence_id,event_time) VALUES($1,$2,$3,$4,$4,$5,'strong','gateway','credential','use','x',$4,now())`,
+			"a monitor":         `INSERT INTO zasp_runtime_session_events(organization_id,workspace_id,environment_id,event_id,session_id,agent_id,confidence,source,event_class,action,title,evidence_id,event_time) VALUES($1,$2,$3,$4,$4,$5,'strong','gateway','policy','monitor','x',$4,now())`,
+			"a process":         `INSERT INTO zasp_runtime_session_events(organization_id,workspace_id,environment_id,event_id,session_id,agent_id,confidence,source,event_class,action,title,evidence_id,event_time) VALUES($1,$2,$3,$4,$4,$5,'strong','gateway','process','exec','x',$4,now())`,
+			"an unknown source": `INSERT INTO zasp_runtime_session_events(organization_id,workspace_id,environment_id,event_id,session_id,agent_id,confidence,source,event_class,action,title,evidence_id,event_time) VALUES($1,$2,$3,$4,$4,$5,'strong','proxy','tool','invoke','x',$4,now())`,
+			"a sensor's file":   `INSERT INTO zasp_runtime_session_events(organization_id,workspace_id,environment_id,event_id,session_id,agent_id,confidence,source,event_class,action,title,evidence_id,event_time) VALUES($1,$2,$3,$4,$4,$5,'strong','otlp','file','read','x',$4,now())`,
+		} {
+			if _, err := database.conn.Exec(database.ctx, statement, o, w, e, id(650), remediationAgentEntity); err == nil || !strings.HasPrefix(state(err), "23514 ") {
+				t.Fatalf("%s was accepted as a session event: %q", name, state(err))
+			}
+		}
+		// Retention: a decision older than the days the pass is given is
+		// deleted; its session event stays.
+		database.exec(`UPDATE zasp_gateway_decisions SET created_at=clock_timestamp()-interval '91 days' WHERE id=$1`, id(310))
+		database.exec(`UPDATE zasp_gateway_decisions SET created_at=clock_timestamp()-interval '89 days' WHERE id=$1`, id(311))
+		if done := maintain(90, 10); done != (pass{Deleted: 1}) {
+			t.Fatalf("retention pass=%+v", done)
+		}
+		if left := database.text(`SELECT string_agg(right(id,3),',' ORDER BY id) FROM zasp_gateway_decisions`); left != "311,320,601,602,603" {
+			t.Fatalf("decisions left=%s", left)
+		}
+		if done := maintain(30, 10); done != (pass{Deleted: 1}) {
+			t.Fatalf("shorter retention pass=%+v", done)
+		}
+		if got := database.text(`SELECT count(*)::text FROM zasp_runtime_session_events WHERE source='gateway'`); got != "3" {
+			t.Fatalf("session events after retention=%s", got)
+		}
+		// A decision that was never considered for the sessions is deleted
+		// all the same once it is old enough.
+		if value, err := record(nil, batch(strings.Replace(blocked, id(601), id(604), 1), "")); err != nil {
+			t.Fatalf("recorded=%s err=%v", value, err)
+		}
+		database.exec(`UPDATE zasp_gateway_decisions SET created_at=clock_timestamp()-interval '2 days' WHERE id=$1`, id(604))
+		if done := maintain(1, 10); done != (pass{Examined: 1, Projected: 1, Deleted: 1}) {
+			t.Fatalf("pass over an old pending decision=%+v", done)
+		}
+		// A rate bucket nothing used for a day is forgotten.
+		database.exec(`UPDATE zasp_gateway_rate_buckets SET updated_at=clock_timestamp()-interval '25 hours' WHERE token_id='pid_74000000-0000-4000-8000-000000000002'`)
+		if done := maintain(90, 10); done != (pass{Buckets: 1}) {
+			t.Fatalf("bucket pass=%+v", done)
+		}
+		if left := database.text(`SELECT count(*)::text FROM zasp_gateway_rate_buckets`); left != "1" {
+			t.Fatalf("buckets left=%s", left)
 		}
 	})
 

@@ -507,9 +507,10 @@ output "helm_values" {
     # Off unless var.hosted_gateway.enabled: the API then serves the hosted
     # gateway's traffic routes and may reach these addresses on port 443.
     hostedGateway = {
-      enabled        = var.hosted_gateway.enabled
-      timeoutSeconds = var.hosted_gateway.timeout_seconds
-      egressCIDRs    = var.hosted_gateway.egress_cidrs
+      enabled               = var.hosted_gateway.enabled
+      timeoutSeconds        = var.hosted_gateway.timeout_seconds
+      egressCIDRs           = var.hosted_gateway.egress_cidrs
+      decisionRetentionDays = var.hosted_gateway.decision_retention_days
     }
     projectionRisk = { roleArn = aws_iam_role.projection_risk.arn }
     projectionGraph = {

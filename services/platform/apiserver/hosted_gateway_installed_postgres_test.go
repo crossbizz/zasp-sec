@@ -13,6 +13,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -24,6 +25,7 @@ import (
 
 	"github.com/zasp-ai/zasp-sec/services/platform/authorization"
 	"github.com/zasp-ai/zasp-sec/services/platform/hostedgateway"
+	"github.com/zasp-ai/zasp-sec/services/platform/hostedgateway/gatewaytest"
 )
 
 // TestHostedGatewayOnInstalledBaselinePostgres needs
@@ -165,7 +167,12 @@ func TestHostedGatewayOnInstalledBaselinePostgres(t *testing.T) {
 		t.Fatalf("audit=%q", audit)
 	}
 
+	// The agent the requests name is one of the Environment's inventory.
 	agentID := baseline.id()
+	baseline.seed(func() {
+		baseline.exec(`INSERT INTO zasp_inventory_entities(organization_id,workspace_id,environment_id,id,kind,display_name,stable_fields,first_seen_at,last_seen_at,product_kind)
+VALUES($1,$2,$3,$4,'agent','support-agent',jsonb_build_object('name','support-agent'),now(),now(),'agent')`, baseline.o, baseline.w, baseline.e, agentID)
+	})
 	call := func(principal installedPrincipal, body string) (*httptest.ResponseRecorder, error) {
 		t.Helper()
 		checked, err := baseline.checked(principal, RoutedOperation{OperationID: "callMCPGateway", PathParameters: map[string]string{"id": serverID}})
@@ -400,12 +407,147 @@ FROM zasp_gateway_decisions WHERE(organization_id,workspace_id,environment_id,se
 		t.Fatalf("late records=%s", written)
 	}
 
+	// The rate of a token is one limit for every replica. Two replicas, each
+	// with its own gateway and so its own in-process limiter, serve one
+	// token under a policy of three requests a minute: the fourth request
+	// is refused whichever replica it reaches, because the database counts.
+	rateToken := token("Rate limited agent", `["use_gateway"]`)
+	baseline.exec(`UPDATE zasp_gateway_policies SET requests_per_minute=3 WHERE(organization_id,workspace_id,environment_id)=($1,$2,$3)`, baseline.o, baseline.w, baseline.e)
+	second, err := NewHostedGateway(HostedGatewayConfig{Timeout: 30 * time.Second, Providers: gateway.Providers})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second.Client = gateway.Client
+	replicas := []*hostedGatewayHandler{handler, {database: baseline.database("zasp_svc_api"), newProductID: func() (string, error) { return baseline.id(), nil }, gateway: second}}
+	chat := func(principal installedPrincipal, replica *hostedGatewayHandler) *httptest.ResponseRecorder {
+		t.Helper()
+		checked, err := baseline.checked(principal, chatRoute)
+		if err != nil {
+			t.Fatal(err)
+		}
+		request := httptest.NewRequest(http.MethodPost, "/api/v1/gateway/llm/v1/chat/completions", strings.NewReader(`{"model":"gpt-test","messages":[{"role":"user","content":"Hello."}]}`)).WithContext(context.WithValue(checked, correlationContextKey{}, baseline.id()))
+		request.Header.Set("Content-Type", "application/json")
+		request.Header.Set(hostedgateway.HeaderUpstreamAuthorization, "Bearer provider-key-of-the-test")
+		recorder := httptest.NewRecorder()
+		replica.ServeHTTP(recorder, request, chatRoute)
+		return recorder
+	}
+	mu.Lock()
+	before = len(upstreamCalls)
+	mu.Unlock()
+	var statuses []string
+	for index := 0; index < 5; index++ {
+		statuses = append(statuses, strconv.Itoa(chat(rateToken, replicas[index%2]).Code))
+	}
+	mu.Lock()
+	after = len(upstreamCalls)
+	mu.Unlock()
+	if strings.Join(statuses, ",") != "200,200,200,429,429" || after-before != 3 {
+		t.Fatalf("five requests of one token over two replicas at three a minute: %v, %d forwarded", statuses, after-before)
+	}
+	// Another token of the same Environment has its own rate, and the
+	// refused requests cost the first token nothing.
+	if other := chat(agentToken, replicas[1]); other.Code != http.StatusOK {
+		t.Fatalf("another token under the same policy: %d %s", other.Code, other.Body.String())
+	}
+	if buckets := baseline.text(`SELECT count(*)::text||' '||(SELECT round(b.tokens::numeric)::text FROM zasp_gateway_rate_buckets b WHERE(b.organization_id,b.workspace_id,b.environment_id,b.token_id)=($1,$2,$3,$4)) FROM zasp_gateway_rate_buckets WHERE(organization_id,workspace_id,environment_id)=($1,$2,$3)`,
+		baseline.o, baseline.w, baseline.e, rateToken.binding.ID); buckets != "2 0" {
+		t.Fatalf("rate buckets=%q", buckets)
+	}
+	// The gateway token cannot take from a bucket or run the scheduler's
+	// pass with its proof.
+	for name, statement := range map[string]string{"a take": `SELECT to_jsonb(zasp_authorization80.gateway_rate_take($1,$2,$3,$4,3))`, "the scheduler's pass": `SELECT zasp_gateway_maintain(90,10)`} {
+		arguments := []any{baseline.o, baseline.w, baseline.e, rateToken.binding.ID}
+		if name != "a take" {
+			arguments = nil
+		}
+		if raw, err := baseline.fenced("zasp_svc_api", agentToken, chatRoute, statement, arguments...); err == nil {
+			t.Fatalf("with the gateway token's proof the database served %s: %s", name, raw)
+		}
+	}
+	baseline.exec(`UPDATE zasp_gateway_policies SET requests_per_minute=600 WHERE(organization_id,workspace_id,environment_id)=($1,$2,$3)`, baseline.o, baseline.w, baseline.e)
+
+	// The scheduler's pass, on the scheduler's login: the decisions made
+	// for the agent become one runtime session of the agent, which a member
+	// who investigates sessions reads through the product's own statements.
+	scheduler := baseline.login("zasp_svc_scheduler")
+	var maintained struct{ Examined, Projected, Deleted, Buckets int }
+	var maintenance []byte
+	if err := scheduler.QueryRow(ctx, `SELECT zasp_gateway_maintain(90,100)`).Scan(&maintenance); err != nil || json.Unmarshal(maintenance, &maintained) != nil {
+		t.Fatalf("the scheduler's pass: %s %v", maintenance, err)
+	}
+	decided := baseline.text(`SELECT count(*)::text FROM zasp_gateway_decisions WHERE(organization_id,workspace_id,environment_id,agent_id)=($1,$2,$3,$4)`, baseline.o, baseline.w, baseline.e, agentID)
+	sessionEvents := baseline.text(`SELECT count(*)::text||' '||count(DISTINCT session_id)::text||' '||count(*) FILTER(WHERE event_class='tool' AND action='invoke')::text||' '||count(*) FILTER(WHERE action='block')::text||' '||bool_and(source='gateway' AND confidence='strong')::text
+FROM zasp_runtime_session_events WHERE(organization_id,workspace_id,environment_id,agent_id)=($1,$2,$3,$4)`, baseline.o, baseline.w, baseline.e, agentID)
+	if maintained.Projected < 6 || maintained.Projected > maintained.Examined || !strings.HasPrefix(sessionEvents, decided+" 1 ") || !strings.HasSuffix(sessionEvents, " true") {
+		t.Fatalf("pass=%+v decisions of the agent=%s session events=%q", maintained, decided, sessionEvents)
+	}
+	sessionID := baseline.text(`SELECT DISTINCT session_id FROM zasp_runtime_session_events WHERE(organization_id,workspace_id,environment_id,agent_id)=($1,$2,$3,$4)`, baseline.o, baseline.w, baseline.e, agentID)
+	member := administrator.identity.PrincipalID.String()
+	// The list of runtime sessions is authorized with its query, as the
+	// router does it.
+	sessionsRoute := RoutedOperation{OperationID: "listSessions", PathParameters: map[string]string{}}
+	sessionsGrant, err := baseline.authorizer.Authorize(context.WithValue(ctx, authorizationQueryContextKey{}, url.Values{"kind": {"runtime"}}), administrator.identity, administrator.binding, sessionsRoute)
+	if err != nil {
+		t.Fatalf("authorize listSessions: %v", err)
+	}
+	sessionsCtx := context.WithValue(context.WithValue(context.WithValue(ctx, identityContextKey{}, administrator.identity), routedOperationContextKey{}, sessionsRoute), requestAuthorizationContextKey{}, sessionsGrant)
+	sessions, err := baseline.product.QueryJSON(sessionsCtx, `SELECT zasp_authorization80.runtime_session_page($1,$2,$3,$4,$5,$6,$7,$8,$9)`, baseline.o, baseline.w, baseline.e, member, "", 50, agentID, nil, nil)
+	if err != nil || !strings.Contains(string(sessions), `"id": "`+sessionID+`"`) || !strings.Contains(string(sessions), agentID) {
+		t.Fatalf("the agent's sessions: %s %v", sessions, err)
+	}
+	eventsCtx, err := baseline.checked(administrator, RoutedOperation{OperationID: "listSessionEvents", PathParameters: map[string]string{"id": sessionID}})
+	if err != nil {
+		t.Fatalf("authorize listSessionEvents: %v", err)
+	}
+	timeline, err := baseline.product.QueryJSON(eventsCtx, `SELECT zasp_authorization80.runtime_session_event_page($1,$2,$3,$4,$5,$6,$7,$8)`, baseline.o, baseline.w, baseline.e, member, sessionID, nil, "", 100)
+	var timelinePage struct {
+		Items []struct {
+			ID, Class, Action, Label, Source, Confidence string
+			AgentID                                      string `json:"agent_id"`
+			EvidenceID                                   string `json:"evidence_id"`
+		} `json:"items"`
+	}
+	if err != nil || json.Unmarshal(timeline, &timelinePage) != nil || strconv.Itoa(len(timelinePage.Items)) != decided {
+		t.Fatalf("the session's events: %s %v", timeline, err)
+	}
+	labels := map[string]bool{}
+	for _, event := range timelinePage.Items {
+		labels[event.Class+"/"+event.Action+" "+event.Label] = true
+		if event.Source != "gateway" || event.Confidence != "strong" || event.AgentID != agentID ||
+			baseline.text(`SELECT count(*)::text FROM zasp_gateway_decisions WHERE(organization_id,workspace_id,environment_id,id,agent_id)=($1,$2,$3,$4,$5)`, baseline.o, baseline.w, baseline.e, event.EvidenceID, agentID) != "1" {
+			t.Fatalf("session event: %+v", event)
+		}
+	}
+	for _, want := range []string{
+		"tool/invoke Gateway: MCP tool call lookup_customer (arguments redacted)",
+		"policy/allow Gateway redacted MCP tools/call lookup_customer (response): guardrail",
+		"policy/block Gateway blocked MCP tools/call run_shell (request): tool_risk_denied",
+		"policy/block Gateway blocked MCP tools/call (request): server_blocked",
+		"policy/allow Gateway redacted openai chat.completions gpt-test (request): guardrail",
+	} {
+		if !labels[want] {
+			t.Fatalf("the session has no event %q: %v", want, labels)
+		}
+	}
+	// Nothing of a prompt, an argument or a result is in a session event.
+	if leaked := baseline.text(`SELECT count(*)::text FROM zasp_runtime_session_events v WHERE(v.organization_id,v.workspace_id,v.environment_id,v.agent_id)=($1,$2,$3,$4) AND(to_jsonb(v)::text ILIKE '%private.person%' OR to_jsonb(v)::text LIKE '%4111%' OR to_jsonb(v)::text LIKE '%078-05%' OR to_jsonb(v)::text ILIKE '%jane.customer%')`, baseline.o, baseline.w, baseline.e, agentID); leaked != "0" {
+		t.Fatal("a session event holds text of a request")
+	}
+	// A second pass has nothing to write.
+	if err := scheduler.QueryRow(ctx, `SELECT zasp_gateway_maintain(90,100)`).Scan(&maintenance); err != nil || json.Unmarshal(maintenance, &maintained) != nil || maintained.Projected != 0 {
+		t.Fatalf("a second pass: %s %v", maintenance, err)
+	}
+
 	// A real MCP client through the whole path: the client of the official
 	// MCP Python SDK presents the token over HTTP; the token is authenticated
 	// against PostgreSQL, the request authorized and each statement fenced,
 	// and the gateway forwards to the SDK's own server. Skipped where
 	// python3 with the mcp package, or the scripts, are not at hand.
 	realMCPClientThroughTheInstalledGateway(t, baseline, repository, surface, gateway, administrator, rawTokens["Support agent gateway"])
+
+	// The providers' own SDKs through the whole path, the same way.
+	realModelSDKsThroughTheInstalledGateway(t, baseline, repository, surface, gateway, rawTokens["Support agent gateway"])
 
 	// The administrator removes the server; its records stay.
 	removed := baseline.serve(surface, administrator, "deleteMCPGatewayServer", http.MethodDelete, serverPath, map[string]string{"id": serverID}, "", mutation(1, "gateway-server-remove"))
@@ -572,6 +714,124 @@ func realMCPClientThroughTheInstalledGateway(t *testing.T, baseline *installedBa
 		t.Fatalf("tools of the real server=%s", tools)
 	}
 	t.Log("real MCP client: the MCP Python SDK's client and server ran through the installed gateway in both modes")
+}
+
+// realModelSDKsThroughTheInstalledGateway runs the openai and anthropic
+// Python SDKs against the gateway with the raw API token: the token is
+// authenticated against PostgreSQL, each request is authorized, and the
+// handler's two statements run fenced as the API login. The provider is the
+// local stand-in of the gatewaytest package, so this says nothing about a
+// real provider. Skipped where no Python with both SDKs is at hand
+// (ZASP_GATEWAY_SDK_PYTHON names one).
+func realModelSDKsThroughTheInstalledGateway(t *testing.T, baseline *installedBaseline, repository *PostgresRepository, surface http.Handler, gateway *hostedgateway.Gateway, rawToken string) {
+	t.Helper()
+	python := os.Getenv("ZASP_GATEWAY_SDK_PYTHON")
+	if python == "" {
+		python = "python3"
+	}
+	script, _ := filepath.Abs(filepath.Join("..", "hostedgateway", "testdata", "llm_sdk_client.py"))
+	if _, statErr := os.Stat(script); statErr != nil {
+		t.Logf("real model SDKs: skipped, %s is not at hand", script)
+		return
+	}
+	if out, importErr := exec.Command(python, "-I", "-c", "import openai, anthropic").CombinedOutput(); importErr != nil {
+		t.Logf("real model SDKs: skipped, no Python with the openai and anthropic packages: %s", strings.TrimSpace(string(out)))
+		return
+	}
+	const providerKey = "provider-key-of-the-sdk-run"
+	provider := gatewaytest.NewProvider(providerKey)
+	defer provider.Server.Close()
+	// The providers are named by their public https addresses, as in a
+	// deployment; the test's transport takes requests for them to the
+	// stand-in.
+	previousClient, previousProviders := gateway.Client, gateway.Providers
+	defer func() { gateway.Client, gateway.Providers = previousClient, previousProviders }()
+	standIn := provider.Server.Client().Transport
+	gateway.Client = &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		if request.URL.Host != "api.openai.com" && request.URL.Host != "api.anthropic.com" {
+			return nil, fmt.Errorf("the gateway called %s", request.URL.Host)
+		}
+		local := request.Clone(request.Context())
+		local.URL.Host, local.Host = provider.Server.Listener.Addr().String(), provider.Server.Listener.Addr().String()
+		return standIn.RoundTrip(local)
+	}), CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	gateway.Providers = hostedgateway.DefaultProviders()
+
+	operations := map[string]string{"/api/v1/gateway/llm/v1/chat/completions": "createGatewayChatCompletion", "/api/v1/gateway/llm/v1/responses": "createGatewayResponse", "/api/v1/gateway/llm/v1/messages": "createGatewayMessage"}
+	var serial sync.Mutex
+	front := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		authorization := request.Header.Get("Authorization")
+		operation := operations[request.URL.Path]
+		if !strings.HasPrefix(authorization, "Bearer ") || operation == "" || request.Method != http.MethodPost {
+			writer.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		serial.Lock()
+		defer serial.Unlock()
+		identity, err := repository.Authenticate(baseline.ctx, Credential{Kind: CredentialBearerToken, Value: strings.TrimPrefix(authorization, "Bearer ")})
+		if err != nil {
+			writer.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		identity.CredentialKind = CredentialBearerToken
+		checked, err := baseline.checked(installedPrincipal{identity: identity, binding: identity.credentialBinding}, RoutedOperation{OperationID: operation, PathParameters: map[string]string{}})
+		if err != nil {
+			writer.WriteHeader(http.StatusForbidden)
+			return
+		}
+		body, _ := io.ReadAll(request.Body)
+		// The request keeps the client's context: a stream ends when the
+		// SDK goes away.
+		forwarded := request.Clone(gatewayCheckedContext(request.Context(), checked))
+		forwarded.Body = io.NopCloser(bytes.NewReader(body))
+		surface.ServeHTTP(writer, forwarded)
+	}))
+	defer front.Close()
+
+	ctx, cancel := context.WithTimeout(baseline.ctx, 2*time.Minute)
+	defer cancel()
+	client := exec.CommandContext(ctx, python, "-I", script, front.URL, rawToken, providerKey)
+	client.Dir, client.Env = t.TempDir(), gatewayLocalProcessEnvironment()
+	var clientErrors strings.Builder
+	client.Stderr = &clientErrors
+	out, err := client.Output()
+	if err != nil {
+		t.Fatalf("the SDK client failed: %v\n%s", err, clientErrors.String())
+	}
+	versions, problems := provider.CheckSDKRun(out, rawToken)
+	for _, problem := range problems {
+		t.Error(problem)
+	}
+	// A wrong token gets nothing from the gateway, and the provider is not
+	// called for it.
+	calls := provider.Requests()
+	refused := exec.CommandContext(ctx, python, "-I", script, front.URL, "zasp_pat_"+strings.Repeat("0", 43), providerKey)
+	refused.Dir, refused.Env = t.TempDir(), gatewayLocalProcessEnvironment()
+	if out, err := refused.Output(); err != nil || !strings.Contains(string(out), "AuthenticationError") || strings.Contains(string(out), "REDACTED") || provider.Requests() != calls {
+		t.Fatalf("an SDK with a wrong token: %s %v, %d provider requests", out, err, provider.Requests()-calls)
+	}
+	// What the run left in the database: decisions of the three APIs for
+	// the agent the SDKs named, the blocked ones among them, and no text.
+	rows := baseline.text(`SELECT string_agg(operation||':'||n::text||':'||blocked::text,',' ORDER BY operation) FROM(SELECT operation,count(*) n,count(*) FILTER(WHERE decision='block') blocked FROM zasp_gateway_decisions
+WHERE(organization_id,workspace_id,environment_id,agent_id)=($1,$2,$3,'real-sdk') AND surface='llm' GROUP BY operation) x`, baseline.o, baseline.w, baseline.e)
+	if rows != "chat.completions:7:2,messages:6:1,responses:4:0" {
+		t.Errorf("decisions of the SDK run=%q", rows)
+	}
+	if leaked := baseline.text(`SELECT count(*)::text FROM zasp_gateway_decisions d WHERE(d.organization_id,d.workspace_id,d.environment_id,d.agent_id)=($1,$2,$3,'real-sdk') AND(to_jsonb(d)::text ILIKE '%jane.doe%' OR to_jsonb(d)::text ILIKE '%owner@example%' OR to_jsonb(d)::text ILIKE '%'||$4||'%' OR to_jsonb(d)::text ILIKE '%system prompt%')`,
+		baseline.o, baseline.w, baseline.e, providerKey); leaked != "0" {
+		t.Error("a decision record of the SDK run holds text of a prompt, an answer or the provider's key")
+	}
+	t.Logf("real model SDKs: %s ran through the installed gateway", versions)
+}
+
+// gatewayCheckedContext is the checked request's context with the lifetime
+// of the client's connection instead of the test's.
+func gatewayCheckedContext(connection, checked context.Context) context.Context {
+	ctx := connection
+	for _, key := range []any{identityContextKey{}, routedOperationContextKey{}, requestAuthorizationContextKey{}, requestAuthorizerContextKey{}} {
+		ctx = context.WithValue(ctx, key, checked.Value(key))
+	}
+	return ctx
 }
 
 type roundTripFunc func(*http.Request) (*http.Response, error)

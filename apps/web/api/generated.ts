@@ -4,6 +4,30 @@
  */
 
 export type paths = {
+    readonly "/api/v1/admin/api-token-policy": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Get how long an API token of the Environment may live
+         * @description The lifetime of a token is chosen when it is created. A token that holds nothing but decide_guardrails and use_gateway (either or both) may live 365 days; every other token 90 days. max_lifetime_days is the limit the Environment's administrators set for both (365 lowers nothing); the two effective limits are what a new token may ask for. Version 0 means no limit was saved.
+         */
+        readonly get: operations["getAPITokenPolicy"];
+        /**
+         * Lower or restore the longest lifetime of the Environment's API tokens
+         * @description Requires fresh authentication. If-Match names the current version ("0" when no limit was saved); a stale version is refused with 409, which also makes a repeated request safe. The limit applies to tokens created afterwards: existing tokens keep their expiry and can be revoked. The change is audited.
+         */
+        readonly put: operations["putAPITokenPolicy"];
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/admin/api-token-reveal-grants": {
         readonly parameters: {
             readonly query?: never;
@@ -69,7 +93,10 @@ export type paths = {
         /** List scoped product API tokens */
         readonly get: operations["listAPITokens"];
         readonly put?: never;
-        /** Create a scoped product API token */
+        /**
+         * Create a scoped product API token
+         * @description expires_at is the caller's choice. Without it the token lives 24 hours. It must lie within the lifetime the token's permissions and the Environment allow (getAPITokenPolicy): 365 days for a token that holds nothing but decide_guardrails and use_gateway (either or both), 90 days for any other, or the Environment's lower limit. A longer expiry is refused with 400. A rotation keeps the expiry of the token it replaces.
+         */
         readonly post: operations["createAPIToken"];
         readonly delete?: never;
         readonly options?: never;
@@ -3117,8 +3144,11 @@ export type components = {
         };
         readonly APITokenInput: {
             readonly environment_id: components["schemas"]["ProductID"];
-            /** Format: date-time */
-            readonly expires_at: string;
+            /**
+             * Format: date-time
+             * @description When the token stops working. Absent means 24 hours from now. See createAPIToken for the longest lifetime.
+             */
+            readonly expires_at?: string;
             readonly name: string;
             readonly permissions: readonly components["schemas"]["Permission"][];
             readonly workspace_id: components["schemas"]["ProductID"];
@@ -3126,6 +3156,21 @@ export type components = {
         readonly APITokenPage: {
             readonly items: readonly components["schemas"]["APIToken"][];
             readonly page_info: components["schemas"]["PageInfo"];
+        };
+        /** @description How long an API token of the Environment may live. max_lifetime_days is the limit the Environment's administrators set (365 while version is 0, which lowers nothing). decision_token_max_lifetime_days is the longest lifetime of a new token that holds nothing but decide_guardrails and use_gateway (either or both), token_max_lifetime_days of any other new token; default_lifetime_days is the lifetime of a token created without an expiry. */
+        readonly APITokenPolicy: {
+            readonly decision_token_max_lifetime_days: number;
+            /** @constant */
+            readonly default_lifetime_days: 1;
+            readonly environment_id: components["schemas"]["ProductID"];
+            readonly max_lifetime_days: number;
+            readonly token_max_lifetime_days: number;
+            readonly updated_at: null | string;
+            readonly version: number;
+        };
+        readonly APITokenPolicyInput: {
+            /** @description The longest lifetime, in days, of a token created in this Environment from now on. 365 lowers nothing. */
+            readonly max_lifetime_days: number;
         };
         readonly APITokenRevealedCredential: {
             /** Format: date-time */
@@ -6229,6 +6274,8 @@ export type AiExplanationInput = components['schemas']['AIExplanationInput'];
 export type ApiToken = components['schemas']['APIToken'];
 export type ApiTokenInput = components['schemas']['APITokenInput'];
 export type ApiTokenPage = components['schemas']['APITokenPage'];
+export type ApiTokenPolicy = components['schemas']['APITokenPolicy'];
+export type ApiTokenPolicyInput = components['schemas']['APITokenPolicyInput'];
 export type ApiTokenRevealedCredential = components['schemas']['APITokenRevealedCredential'];
 export type ApiTokenRevealGrant = components['schemas']['APITokenRevealGrant'];
 export type ApiTokenRevealGrantPage = components['schemas']['APITokenRevealGrantPage'];
@@ -6604,6 +6651,73 @@ export type HeaderWorkflowETag = components['headers']['WorkflowETag'];
 export type HeaderWorkflowMutationReceiptId = components['headers']['WorkflowMutationReceiptID'];
 export type $defs = Record<string, never>;
 export interface operations {
+    readonly getAPITokenPolicy: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description The API token lifetime setting. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["APITokenPolicy"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly putAPITokenPolicy: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current schedule version, or quoted zero when creating the singleton schedule. */
+                readonly "If-Match": components["parameters"]["ScheduleVersion"];
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["APITokenPolicyInput"];
+            };
+        };
+        readonly responses: {
+            /** @description The API token lifetime setting after the change. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["APITokenPolicy"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
     readonly listAPITokenRevealGrants: {
         readonly parameters: {
             readonly query?: {

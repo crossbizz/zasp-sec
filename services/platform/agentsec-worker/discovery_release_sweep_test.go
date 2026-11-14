@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"os"
 	"testing"
 	"time"
 )
@@ -159,5 +160,35 @@ func TestGatewayDecisionRetentionSetting(t *testing.T) {
 	}
 	if _, err := load("attack-lab-outbox", "30"); err == nil {
 		t.Fatal("another mode took the scheduler's setting")
+	}
+}
+
+// The scheduler's own source runs the gateway's pass on the scheduler's
+// login against a database that holds completion.sql section WS9. It needs
+// ZASP_GATEWAY_SCHEDULER_DSN, the DSN of that login on an installed
+// baseline with the section applied (TestHostedGatewayOnInstalledBaselinePostgres
+// of the apiserver package applies it).
+func TestGatewayMaintenanceInstalledScheduleSource(t *testing.T) {
+	dsn := os.Getenv("ZASP_GATEWAY_SCHEDULER_DSN")
+	if dsn == "" {
+		t.Skip("requires an installed baseline with section WS9 and the scheduler's login")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	source, err := newTemporalDiscoveryScheduleSource(ctx, dsn, 5*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	done, err := source.maintainGateway(ctx, 90, 25)
+	if err != nil || done.Projected > done.Examined {
+		t.Fatalf("pass=%+v err=%v", done, err)
+	}
+	// What the database refuses is a failure of the pass, not an empty one.
+	if _, err := source.maintainGateway(ctx, 0, 25); !errors.Is(err, errWorkerExecution) {
+		t.Fatalf("a retention of no days: %v", err)
+	}
+	p := &temporalDiscoveryScheduleProcessor{source: source, limit: 25, gatewayRetentionDays: 30}
+	if err := p.maintainDue(ctx); err != nil || p.lastMaintain.IsZero() {
+		t.Fatalf("the processor's pass: %v", err)
 	}
 }

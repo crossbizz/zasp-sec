@@ -348,13 +348,18 @@ variable "security_agent_remediation" {
 }
 
 variable "hosted_gateway" {
-  description = "Optional, off by default. Serves the hosted gateway from the API: the MCP gateway and the model proxy an agent reaches by changing a URL, with nothing installed at the customer (docs/operations/hosted-gateway.md). egress_cidrs are the addresses the API pods may reach on port 443 for it: the model providers and the customers' remote MCP servers, usually 0.0.0.0/0, from which the chart carves out the non-public ranges. timeout_seconds bounds one exchange, a stream included."
+  description = "Optional, off by default. Serves the hosted gateway from the API: the MCP gateway and the model proxy an agent reaches by changing a URL, with nothing installed at the customer (docs/operations/hosted-gateway.md). egress_cidrs are the addresses the API pods may reach on port 443 for it: the model providers and the customers' remote MCP servers, usually 0.0.0.0/0, from which the chart carves out the non-public ranges. timeout_seconds bounds one exchange, a stream included. decision_retention_days is how long the gateway's decision records are kept before the scheduler deletes them."
   type = object({
-    enabled         = optional(bool, false)
-    timeout_seconds = optional(number, 300)
-    egress_cidrs    = optional(list(string), [])
+    enabled                 = optional(bool, false)
+    timeout_seconds         = optional(number, 300)
+    egress_cidrs            = optional(list(string), [])
+    decision_retention_days = optional(number, 90)
   })
   default = {}
+  validation {
+    condition     = var.hosted_gateway.decision_retention_days >= 1 && var.hosted_gateway.decision_retention_days <= 3650 && floor(var.hosted_gateway.decision_retention_days) == var.hosted_gateway.decision_retention_days
+    error_message = "hosted_gateway.decision_retention_days is a whole number of days from 1 to 3650."
+  }
   validation {
     condition     = var.hosted_gateway.enabled == (length(var.hosted_gateway.egress_cidrs) > 0) && length(var.hosted_gateway.egress_cidrs) <= 64
     error_message = "hosted_gateway names one to 64 egress CIDRs when it is enabled and none when it is not."

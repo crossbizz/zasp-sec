@@ -66,7 +66,7 @@ func TestGCPProviderSectionOnTheInstalledBaselinePostgres(t *testing.T) {
 	t.Logf("released baseline serves gcp: %t (%d identity rules)", gcpBefore, rules)
 	released := definitions()
 	// The sections this one builds on are no-ops on that predecessor.
-	predecessors := []string{"saas_providers", "rule_catalog_digest", "saas_generic_provider", "saas_rule_catalog", "ws5_rule_catalog", "ws7_rule_catalog", "ws7_coverage_gaps"}
+	predecessors := []string{"saas_providers", "rule_catalog_digest", "integration_coverage_gaps", "saas_generic_provider", "saas_rule_catalog", "ws5_rule_catalog", "ws7_rule_catalog", "ws7_coverage_gaps"}
 	for _, tag := range predecessors {
 		applyCompletionBlock(t, ctx, connection, tag)
 	}

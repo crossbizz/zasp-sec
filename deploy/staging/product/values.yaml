@@ -231,9 +231,15 @@ securityAgentRemediation:
 #                   gateway itself also refuses to connect to any address
 #                   that is not public, whatever a name resolves to; this
 #                   list is the network's copy of that rule.
+#   decisionRetentionDays  how long the gateway's decision records are kept
+#                   (1 to 3650). The discovery scheduler deletes older ones;
+#                   it is told this number whether or not the gateway is
+#                   enabled, so records outlive a gateway that was turned
+#                   off by no more than this.
 hostedGateway:
   enabled: false
   timeoutSeconds: 300
+  decisionRetentionDays: 90
   egressCIDRs: []
   egressExceptCIDRs: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 100.64.0.0/10, 169.254.0.0/16, 127.0.0.0/8]
 discovery:

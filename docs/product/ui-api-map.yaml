@@ -135,6 +135,12 @@ screens:
       - id: revoke_api_token
         operation_id: revokeAPIToken
         availability: available
+      - id: view_api_token_policy
+        operation_id: getAPITokenPolicy
+        availability: available
+      - id: set_api_token_policy
+        operation_id: putAPITokenPolicy
+        availability: available
       - id: view_audit_events
         operation_id: listAuditEvents
         availability: available

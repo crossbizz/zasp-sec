@@ -282,7 +282,7 @@ func newProductionHandlers(repository, securityAgentRepository *PostgresReposito
 	}
 	return Dependencies{
 		Session:   session,
-		Identity:  &identityHTTPHandler{repository: repository, administration: repository, provider: provider, identityAdministration: identityAdministration, auditPublicPages: cookie.AuditPublicPages, signingKey: append([]byte(nil), cookie.WorkflowSigningKey...), tokenRevealKey: append([]byte(nil), cookie.TokenRevealKey...), now: cookie.Clock, version: version},
+		Identity:  &identityHTTPHandler{repository: repository, administration: repository, provider: provider, identityAdministration: identityAdministration, tokenPolicy: &apiTokenPolicyHTTPHandler{database: repository.database, newProductID: newWorkflowProductID}, auditPublicPages: cookie.AuditPublicPages, signingKey: append([]byte(nil), cookie.WorkflowSigningKey...), tokenRevealKey: append([]byte(nil), cookie.TokenRevealKey...), now: cookie.Clock, version: version},
 		Inventory: inventorySurface,
 		Risk:      risk,
 		Workflow:  workflowSurface,
@@ -530,11 +530,13 @@ type identityHTTPHandler struct {
 	administration         administrationRepository
 	provider               CallbackProvider
 	identityAdministration *identityAdministrationCoordinator
-	auditPublicPages       *AuditPublicPageRepository
-	signingKey             []byte
-	tokenRevealKey         []byte
-	now                    func() time.Time
-	version                string
+	// tokenPolicy serves the API token lifetime setting of an Environment.
+	tokenPolicy      *apiTokenPolicyHTTPHandler
+	auditPublicPages *AuditPublicPageRepository
+	signingKey       []byte
+	tokenRevealKey   []byte
+	now              func() time.Time
+	version          string
 }
 
 func (handler *identityHTTPHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
@@ -581,6 +583,14 @@ type administrationCursor struct {
 func (handler *identityHTTPHandler) serveAdministration(writer http.ResponseWriter, request *http.Request, identity RequestIdentity, routed RoutedOperation) {
 	if routed.OperationID == "listAuditEvents" && handler.auditPublicPages != nil {
 		handler.serveAuditPublicPage(writer, request, identity)
+		return
+	}
+	if stringIn(routed.OperationID, "getAPITokenPolicy", "putAPITokenPolicy") {
+		if handler.tokenPolicy == nil {
+			writeProductionError(writer, request, ErrRepositoryNotFound)
+			return
+		}
+		handler.tokenPolicy.ServeHTTP(writer, request, routed.OperationID)
 		return
 	}
 	if request.Method != http.MethodGet {
@@ -806,7 +816,9 @@ func (handler *identityHTTPHandler) mutateAdministration(writer http.ResponseWri
 			ExpiresAt     string   `json:"expires_at"`
 		}
 		err = decodeProductionJSON(request, &input)
-		mutation.ExpiresAt, err = parseAdministrationExpiry(input.ExpiresAt, handler.now(), err)
+		// The expiry is the caller's choice within the lifetime its
+		// permissions allow; without one the token lives 24 hours.
+		mutation.ExpiresAt, mutation.DefaultExpiry, err = parseAPITokenExpiry(input.ExpiresAt, input.Permissions, handler.now(), err)
 		mutation.IdempotencyKey = request.Header.Get("Idempotency-Key")
 		if err != nil || !validAdministrationName(input.Name) || !validAdministrationProductID(input.WorkspaceID) || !validAdministrationProductID(input.EnvironmentID) || !validPermissions(input.Permissions) || len(input.Permissions) == 0 || !validAdministrationIdempotencyKey(mutation.IdempotencyKey) {
 			writeProductionError(writer, request, ErrRepositoryOperation)
@@ -977,15 +989,24 @@ func validAdministrationIdempotencyKey(value string) bool {
 	return len(value) >= 16 && len(value) <= 128 && workflowKeyPattern.MatchString(value)
 }
 
-func parseAdministrationExpiry(value string, now time.Time, previous error) (time.Time, error) {
+// parseAPITokenExpiry returns the expiry of a new token. An absent value is
+// the default lifetime (defaulted is then true). A value must lie in the
+// future and within the fixed lifetime of the token's permissions; the
+// Environment's own, possibly lower, limit is enforced by PostgreSQL.
+func parseAPITokenExpiry(value string, permissions []string, now time.Time, previous error) (expires time.Time, defaulted bool, err error) {
 	if previous != nil {
-		return time.Time{}, previous
+		return time.Time{}, false, previous
 	}
-	expires, err := time.Parse(time.RFC3339Nano, value)
-	if err != nil || !expires.After(now) || expires.After(now.Add(365*24*time.Hour)) {
-		return time.Time{}, ErrRepositoryOperation
+	if value == "" {
+		return now.Add(APITokenDefaultLifetime).UTC(), true, nil
 	}
-	return expires.UTC(), nil
+	expires, err = time.Parse(time.RFC3339Nano, value)
+	// Five minutes are allowed for a caller whose clock runs ahead, as in
+	// the database's own check.
+	if err != nil || !expires.After(now) || expires.After(now.Add(time.Duration(apiTokenLifetimeCeilingDays(permissions))*24*time.Hour+apiTokenExpiryTolerance)) {
+		return time.Time{}, false, ErrRepositoryOperation
+	}
+	return expires.UTC(), false, nil
 }
 
 func newAdministrationToken(previous error) (string, error) {

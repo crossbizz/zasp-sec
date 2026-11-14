@@ -529,6 +529,15 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 	lifecycleWorkers := []func(context.Context) error{connectorReconciler.Run, func(ctx context.Context) error {
 		return runReconciliationMaintenance(ctx, connectorRepository, metrics)
 	}}
+	// Nango connections that a sign-in created are deleted when their saas
+	// integration is deleted or connected again.
+	saasConnectionReleaser, err := newProductionSaaSConnectionReleaser(ctx, saasSignIn, tracedDatabase, workerOwner)
+	if err != nil {
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("connector-lifecycle", errRuntimeUnavailable)
+	}
+	if saasConnectionReleaser != nil {
+		lifecycleWorkers = append(lifecycleWorkers, saasConnectionReleaser.Run)
+	}
 	var approvalNotificationReconciler approvalNotificationLifecycle
 	if approvalNotificationRepository != nil {
 		var closer io.Closer

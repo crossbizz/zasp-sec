@@ -13,7 +13,7 @@ const gate = "{{- if .Values.hostedGateway.enabled }}";
 test("the hosted gateway is disabled by default in every values file", async () => {
   const values = load(await read("./product/values.yaml"));
   assert.deepEqual(values.hostedGateway, {
-    enabled: false, timeoutSeconds: 300, egressCIDRs: [],
+    enabled: false, timeoutSeconds: 300, decisionRetentionDays: 90, egressCIDRs: [],
     egressExceptCIDRs: ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "100.64.0.0/10", "169.254.0.0/16", "127.0.0.0/8"],
   });
   for (const name of ["./product/values-saas.yaml", "./product/values-single-tenant.yaml", "./product/values-customer-edge.yaml", "../production/values-production.example.yaml"]) {
@@ -37,6 +37,21 @@ test("only the API is told to host the gateway, and only inside the gate", async
   assert.ok(api.indexOf("ZASP_REQUEST_TIMEOUT") < api.indexOf("ZASP_HOSTED_GATEWAY_ENABLED"));
   // No upstream credential is configured anywhere: the gateway holds none.
   assert.doesNotMatch(workloads, /HOSTED_GATEWAY[A-Z_]*(KEY|SECRET|TOKEN|CREDENTIAL)/);
+});
+
+test("the scheduler is told how long gateway decisions are kept, and nothing else is", async () => {
+  const workloads = await read("./product/templates/workloads.yaml");
+  assert.equal(count(workloads, "ZASP_GATEWAY_DECISION_RETENTION_DAYS"), 1);
+  const scheduler = workloads.slice(workloads.indexOf("name: agentsec-discovery-scheduler"));
+  const environment = scheduler.slice(scheduler.indexOf('- { name: ZASP_WORKER_MODE, value: "scheduler" }'), scheduler.indexOf("volumeMounts:"));
+  assert.match(environment, /- \{ name: ZASP_GATEWAY_DECISION_RETENTION_DAYS, value: \{\{ int \(required "hostedGateway\.decisionRetentionDays is required" \.Values\.hostedGateway\.decisionRetentionDays\) \| quote \}\} \}\n/);
+  // The scheduler is not told to host the gateway and gets no address of it.
+  assert.doesNotMatch(environment, /HOSTED_GATEWAY/);
+  const terraform = await read("./production.tf");
+  assert.match(terraform, /decisionRetentionDays = var\.hosted_gateway\.decision_retention_days\n/);
+  const variables = await read("./variables.tf");
+  assert.match(variables, /decision_retention_days = optional\(number, 90\)/);
+  assert.match(variables, /var\.hosted_gateway\.decision_retention_days >= 1 && var\.hosted_gateway\.decision_retention_days <= 3650 && floor\(var\.hosted_gateway\.decision_retention_days\) == var\.hosted_gateway\.decision_retention_days/);
 });
 
 test("the gateway's egress exists only inside the gate, on port 443, without the non-public ranges", async () => {
@@ -83,11 +98,11 @@ test("the gateway's ingress exists only inside the gate and covers only its two 
 
 test("Terraform passes the gateway's setting to the chart and adds no resource for it", async () => {
   const [production, variables, ...others] = await Promise.all(["./production.tf", "./variables.tf", "./main.tf", "./outputs.tf", "./security_agent_remediation.tf"].map(read));
-  assert.match(production, /hostedGateway = \{\n\s+enabled\s+= var\.hosted_gateway\.enabled\n\s+timeoutSeconds = var\.hosted_gateway\.timeout_seconds\n\s+egressCIDRs\s+= var\.hosted_gateway\.egress_cidrs\n\s+\}/);
-  assert.equal(count(production, "hosted_gateway"), 4);
+  assert.match(production, /hostedGateway = \{\n\s+enabled\s+= var\.hosted_gateway\.enabled\n\s+timeoutSeconds\s+= var\.hosted_gateway\.timeout_seconds\n\s+egressCIDRs\s+= var\.hosted_gateway\.egress_cidrs\n\s+decisionRetentionDays = var\.hosted_gateway\.decision_retention_days\n\s+\}/);
+  assert.equal(count(production, "hosted_gateway"), 5);
   const variable = variables.slice(variables.indexOf('variable "hosted_gateway" {'), variables.indexOf('variable "discovery_optional_providers" {'));
   assert.match(variable, /enabled\s+= optional\(bool, false\)/);
-  assert.match(variable, /timeout_seconds = optional\(number, 300\)/);
+  assert.match(variable, /timeout_seconds\s+= optional\(number, 300\)/);
   assert.match(variable, /egress_cidrs\s+= optional\(list\(string\), \[\]\)/);
   assert.match(variable, /default = \{\}/);
   // Enabled exactly when egress is named.

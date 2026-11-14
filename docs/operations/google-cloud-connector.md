@@ -54,9 +54,17 @@ one strong signal, or weak signals of two different kinds.
 A service account that the audit log shows invoking a model, and that runs
 nothing listed, is itself listed as an inferred agent.
 
-A workload that runs as a service account of another project is related to
-that identity when the other project lies in the scope and lists the
-account; that project's page emits the identity.
+The collection makes two passes over the projects. The first emits every
+service account of every project; the second emits the projects and what
+runs in them. A workload is related to the service account it runs as, in
+its own project or in another project of the scope, when the first pass
+emitted that account. A relationship to an identity that is not in the
+snapshot would fail the whole collection, so the collector relates only
+what it knows was emitted. Two cases leave a workload without the
+relationship (its `service_account` attribute is still recorded): the
+account belongs to a project outside the scope or beyond the 2,000 project
+bound, or the discovery worker restarted between the two passes. The next
+sync relates it.
 
 ### MCP servers and tools
 

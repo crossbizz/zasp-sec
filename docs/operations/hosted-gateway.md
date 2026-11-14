@@ -29,7 +29,7 @@ Two alternatives exist for those who want them. Neither is required, and neither
 - `tools/list` answers are filtered: tools on the server's deny list, tools outside a non-empty allow list, tools of a risk class the policy denies, and tools whose description matches a guardrail rule in block mode (an instruction planted in a description) are removed. The tool's risk class comes from the words of its name (`run_shell` is execute, `create_issue` is write).
 - `tools/call` is refused for a tool the policy does not allow. Its arguments and its result go through the guardrail detectors: a match of a blocking rule stops the call or replaces the result, a match of a redacting rule is replaced by `[REDACTED:<rule>]`. A blocked call or result is answered as a failed tool call (`isError: true`), so the model sees a tool error and can continue. Tool results are the indirect prompt injection path, and this is where it is closed.
 - Results of `resources/read` and `prompts/get`, the server's `instructions`, and messages the server sends during a request (progress, logging) are inspected the same way.
-- Each API token is rate limited.
+- Each API token is rate limited. The limit is one limit for the token however many API replicas serve it.
 
 **Model proxy** (`POST /api/v1/gateway/llm/v1/chat/completions`, `/responses`, `/messages`).
 
@@ -50,6 +50,7 @@ hostedGateway:
   enabled: true
   timeoutSeconds: 300          # one exchange, a stream included
   egressCIDRs: ["0.0.0.0/0"]   # where the API pods may go on port 443 for the gateway
+  decisionRetentionDays: 90    # how long decision records are kept
 ```
 
 With Terraform: `hosted_gateway = { enabled = true, egress_cidrs = ["0.0.0.0/0"] }`.
@@ -68,7 +69,7 @@ Administration, API Access, token use **Hosted gateway only**. Or over the API: 
 
 `use_gateway` is a permission of API tokens only. No role holds it. A token created with it alone can send traffic through the gateway and can read nothing: not the inventory, not findings, not the policy, not the gateway's own activity. The person who creates the token must be able to view the Environment; if they lose that access, the token stops working. Use one token per agent or per runtime, so that the rate limit and a revocation are scoped.
 
-A gateway token is long-lived by nature. Create it with the expiry your rotation practice needs, and rotate it from the same page.
+A gateway token is long-lived by nature. A token that holds `use_gateway` and nothing else, or `use_gateway` with `decide_guardrails`, reads nothing, so it may live up to 365 days, like a token of `decide_guardrails` alone; the API Access page offers "1 year" for it. With any other permission beside it the token may live 90 days. The Environment's own limit (API Access, **Longest token lifetime**) lowers both. Choose the expiry your rotation practice needs, and rotate the token from the same page; a rotation keeps the expiry.
 
 ### 2. Register an MCP server (for MCP)
 
@@ -171,9 +172,20 @@ One record per inspected direction of an exchange: the decision (`allow`, `redac
 
 A decision is recorded before a non-streamed answer is returned; if it cannot be recorded the gateway answers `503` and returns nothing. A streamed answer is recorded when the stream ends; if that record fails the stream has already been delivered, and the failure is counted.
 
-Records are read under Guardrails, **Gateway activity**, or `GET /api/v1/gateway/activity` (filters: `surface`, `decision`, `server_id`, `agent_id`). There is no retention job for these records yet: they stay until removed.
+Records are read under Guardrails, **Gateway activity**, or `GET /api/v1/gateway/activity` (filters: `surface`, `decision`, `server_id`, `agent_id`).
 
-The tools a server lists through the gateway (name and risk class; never a description or schema) are kept with the gateway server. Where the inventory holds a discovered MCP server of the same host, those tools join its tool list and its posture findings. An agent named in `X-Zasp-Agent-Id` by its inventory identifier shows the time of its newest gateway decision as its last activity. Gateway traffic is not written into the runtime sessions (those are the sensor's events).
+**Retention.** Decision records are kept 90 days. The discovery scheduler deletes older ones in its pass over the gateway's records, once a minute, at most a few thousand rows a pass (it runs again at once while there is more). The number of days is `hostedGateway.decisionRetentionDays` in the chart (`hosted_gateway.decision_retention_days` with Terraform), which sets `ZASP_GATEWAY_DECISION_RETENTION_DAYS` on the scheduler: a whole number from 1 to 3650. It is one number for the deployment, not a setting of an Environment. The scheduler must be running for anything to be deleted.
+
+The tools a server lists through the gateway (name and risk class; never a description or schema) are kept with the gateway server. Where the inventory holds a discovered MCP server of the same host, those tools join its tool list and its posture findings. An agent named in `X-Zasp-Agent-Id` by its inventory identifier shows the time of its newest gateway decision as its last activity.
+
+**Sessions.** When `X-Zasp-Agent-Id` is the identifier of an active agent of the Environment's inventory (the `pid_...` shown in the agent's detail), the agent's gateway traffic appears under Sessions. The same scheduler pass writes each decision as one event of a runtime session:
+
+- the session is the agent's gateway traffic of one UTC day (one session per agent per day, across servers and providers);
+- an allowed or redacted `tools/call` request is a tool call (`tool` / `invoke`); every other decision is a policy event, `block` where the gateway blocked and `allow` otherwise, with what was done and why in its label (for example "Gateway blocked MCP tools/call run_shell (request): tool_risk_denied");
+- the event's source is `gateway`, its evidence reference is the decision record, its time is the decision's;
+- its confidence is `strong`, not `exact`: the agent is the one the token's holder named in a header, which the gateway cannot verify. A token holder can therefore attribute traffic to another agent of the same Environment. Use one token per agent if that matters to you, and read the principal on the decision record.
+
+What this leaves out: a request without the header, or with a name that is not an inventory identifier, is recorded as a decision and appears in no session. Events appear within about a minute, not at once, and only while the scheduler runs. Gateway events are not put into the session search index, so they are found by opening the session or filtering by agent, not by searching event text. A new session changes what a member may read, like any new session: the authorization model is brought up to date for the Organization before it is listed. Session events are not deleted by the retention above.
 
 ## Streaming
 
@@ -221,12 +233,14 @@ Limits:
 | Request body | 4 MB |
 | Upstream answer that is not a stream, and one event of a stream | 8 MB |
 | One exchange, a stream included | `hostedGateway.timeoutSeconds` (300 by default, at most 1800) |
-| Requests per token | the gateway policy (600 a minute by default), counted by each API replica separately |
+| Requests per token | the gateway policy (600 a minute by default; 0 is no limit), one limit across all API replicas |
 | Requests per client address | the API's general limit (100 a second) |
 | MCP servers per Environment | 200 |
 | Tools kept per server | 512 |
 
 A text of any length is inspected: one longer than 32 KB goes through the same window as a stream.
+
+**The rate limit.** The token's rate is a token bucket in PostgreSQL, taken by the same statement that reads the policy at the start of a request, so every replica counts against one limit and a restart forgets nothing. The bucket holds one minute of the rate and refills continuously: a token may send a minute's worth at once and then the steady rate. A refused request (`429`, `Retry-After: 1`) costs nothing and is not forwarded. The cost is one row update per request, under a lock held for that statement; requests of the same token therefore queue behind each other for that update, requests of different tokens do not. The API's general limit per client address is still counted by each replica.
 
 The gateway reads the policy on every request, so a policy change, a registry decision or a token revocation applies to the next request. It does not apply to a stream already in flight.
 
@@ -235,7 +249,9 @@ The gateway reads the policy on every request, so a policy change, a registry de
 - The engine: unit tests and end-to-end tests over real HTTP against a local MCP server and a local model provider (`services/platform/hostedgateway`).
 - A real MCP client and a real MCP server through the gateway: the client and the server of the official MCP Python SDK 2.3.0, with the initialize handshake (answers as JSON and as a stream) and in the 2026-07-28 revision (`TestRealMCPClientAndServerThroughTheGateway`). This run found that a result of the 2026-07-28 revision must say `resultType`, which the gateway's refusals now do.
 - The providers' own SDKs through the model proxy: openai 3.51.0 and anthropic 2.8.0, against a local stand-in for the provider (`TestRealModelSDKsThroughTheProxy`; it needs a Python with both packages, named in `ZASP_GATEWAY_SDK_PYTHON`, and is skipped without one). This run found that the Anthropic SDK does not take a bearer token and an API key together.
-- The database section: on PostgreSQL 18 with the baseline installed, and the whole path (a token created with `use_gateway`, requests authorized and executed as the API's database login, decisions read back) on an installed baseline (`services/platform/apiserver/hosted_gateway*_postgres_test.go`). The same test then runs the MCP Python SDK's client, in both modes, against that path with the raw token: the token is authenticated against PostgreSQL, each request is authorized and its statements fenced, and the upstream is the SDK's own server.
+- The database section: on PostgreSQL 18 with the baseline installed, and the whole path (a token created with `use_gateway`, requests authorized and executed as the API's database login, decisions read back) on an installed baseline (`services/platform/apiserver/hosted_gateway*_postgres_test.go`). The same test then runs the MCP Python SDK's client, in both modes, against that path with the raw token: the token is authenticated against PostgreSQL, each request is authorized and its statements fenced, and the upstream is the SDK's own server. It runs the openai and anthropic SDKs the same way, against the stand-in provider, and checks the decisions they left in the database.
+- The shared rate: on the installed baseline, two gateway instances with their own in-process limiters serve one token at three requests a minute; the fourth request is refused on either. The bucket's arithmetic (refill, cap, no cost for a refusal) is tested in the database section's test.
+- Retention and sessions: the scheduler's pass is run on the scheduler's database login; the decisions of an inventory agent are then read back as one session through the product's own session statements, with a member's proof. The scheduler's Go code is run against the same database (`TestGatewayMaintenanceInstalledScheduleSource`, which needs `ZASP_GATEWAY_SCHEDULER_DSN`). The Sessions page itself was not opened in a browser against this data; its decoder accepts the new source.
 - The chart and Terraform: read as text. They were not rendered or applied.
 
-Not verified: a real model provider, a remote MCP server on the internet, an agent product's own MCP client (the SDK's client is what many are built on, not all), other languages' SDKs, and the gateway behind the ingress of a running cluster. The providers' SDKs were run against the gateway's engine served directly, not through the API's authentication and database path; the MCP client was run through both. In every test the authorization model's decision is a stand-in (the authorization service is not running in the tests), and the API's outer middleware (the edge checks, the request limiter) is not in the path.
+Not verified: a real model provider, a remote MCP server on the internet, an agent product's own MCP client (the SDK's client is what many are built on, not all), other languages' SDKs, and the gateway behind the ingress of a running cluster. The MCP client and the providers' SDKs were each run both against the gateway's engine served directly and through the API's authentication, authorization and database path on an installed baseline. In every test the authorization model's decision is a stand-in (the authorization service is not running in the tests), and the API's outer middleware (the edge checks, the request limiter) is not in the path.

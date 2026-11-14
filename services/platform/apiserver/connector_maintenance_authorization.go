@@ -46,7 +46,12 @@ func connectorMaintenanceStatement(ctx context.Context, statement string) bool {
 		postgresConnectorCompleteLeasedCleanupSQL,
 		postgresConnectorCompletePKCECleanupSQL,
 		postgresConnectorQuarantineSQL,
-		postgresConnectorLeasedIntegrationSQL:
+		postgresConnectorLeasedIntegrationSQL,
+		// The release of Nango connections a sign-in created
+		// (saas_connection_release.go): the claim names no tenant, and the
+		// outcome is bound to the lease the worker claimed.
+		postgresSaaSConnectionReleaseClaimSQL,
+		postgresSaaSConnectionReleaseFinishSQL:
 		return true
 	}
 	return false

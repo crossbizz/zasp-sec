@@ -121,6 +121,20 @@ func (database *PostgresJSONDatabase) authorizationMetadataQuery(ctx context.Con
 			return json.RawMessage(`true`), true, nil
 		}
 		return json.RawMessage(`false`), true, nil
+	case postgresSaaSConnectionReleaseReadySQL:
+		// The same question, at startup, about completion.sql section
+		// ws10_saas_connection_release.
+		if len(arguments) != 0 {
+			return nil, true, ErrAuthorizationDenied
+		}
+		var installed bool
+		if err := database.driver.QueryRow(ctx, `SELECT to_regprocedure('public.zasp_saas_connection_release_finish(text,text,text,text,text,text,boolean,text)') IS NOT NULL`).Scan(&installed); err != nil {
+			return nil, true, ErrRepositoryUnavailable
+		}
+		if installed {
+			return json.RawMessage(`true`), true, nil
+		}
+		return json.RawMessage(`false`), true, nil
 	default:
 		return nil, false, nil
 	}
