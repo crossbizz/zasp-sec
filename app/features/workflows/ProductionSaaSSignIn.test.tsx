@@ -60,7 +60,7 @@ function renderIntegrations(client: APIClient, navigateAuthorization = vi.fn()) 
 
 afterEach(() => {
 	window.sessionStorage.clear();
-	window.history.replaceState(null, "", "/integrations");
+	window.history.replaceState(null, "", "/connectors");
 });
 
 describe("SaaS sign-in from the Integrations page", () => {
@@ -101,7 +101,7 @@ describe("SaaS sign-in from the Integrations page", () => {
 
 	it("stores the connection the sign-in created and then offers the reference authorization", async () => {
 		window.sessionStorage.setItem("zasp.saas-sign-in", integrationID);
-		window.history.replaceState(null, "", `/integrations?saas_connection=${connectionID}&saas_sign_in=${integrationID}`);
+		window.history.replaceState(null, "", `/connectors?saas_connection=${connectionID}&saas_sign_in=${integrationID}`);
 		let current = waiting;
 		const PATCH = vi.fn(async () => { current = connected; return jsonResult(connected, 200, { ...receiptHeaders, ETag: '"2"' }); });
 		renderIntegrations({ GET: reads(() => current), PATCH } as unknown as APIClient);
@@ -124,7 +124,7 @@ describe("SaaS sign-in from the Integrations page", () => {
 
 	it("does not store a connection for a sign-in this tab did not start", async () => {
 		// A link with a connection id, opened without having started a sign-in.
-		window.history.replaceState(null, "", `/integrations?saas_connection=${connectionID}&saas_sign_in=${integrationID}`);
+		window.history.replaceState(null, "", `/connectors?saas_connection=${connectionID}&saas_sign_in=${integrationID}`);
 		const PATCH = vi.fn();
 		const GET = reads(() => waiting);
 		renderIntegrations({ GET, PATCH } as unknown as APIClient);
@@ -137,7 +137,7 @@ describe("SaaS sign-in from the Integrations page", () => {
 
 	it("does not store a connection for another integration than the one this tab signed in for", async () => {
 		window.sessionStorage.setItem("zasp.saas-sign-in", "pid_20000009-0000-4000-8000-000000000009");
-		window.history.replaceState(null, "", `/integrations?saas_connection=${connectionID}&saas_sign_in=${integrationID}`);
+		window.history.replaceState(null, "", `/connectors?saas_connection=${connectionID}&saas_sign_in=${integrationID}`);
 		const PATCH = vi.fn();
 		renderIntegrations({ GET: reads(() => waiting), PATCH } as unknown as APIClient);
 
@@ -147,7 +147,7 @@ describe("SaaS sign-in from the Integrations page", () => {
 
 	it("explains a sign-in that failed and connects nothing", async () => {
 		window.sessionStorage.setItem("zasp.saas-sign-in", integrationID);
-		window.history.replaceState(null, "", `/integrations?saas_sign_in=${integrationID}&saas_sign_in_error=tenant_mismatch`);
+		window.history.replaceState(null, "", `/connectors?saas_sign_in=${integrationID}&saas_sign_in_error=tenant_mismatch`);
 		const PATCH = vi.fn();
 		renderIntegrations({ GET: reads(() => waiting), PATCH } as unknown as APIClient);
 
@@ -159,7 +159,7 @@ describe("SaaS sign-in from the Integrations page", () => {
 	it("ignores an address that is not a sign-in return", async () => {
 		for (const search of [`?saas_sign_in=${integrationID}`, `?saas_sign_in=not-an-id&saas_connection=${connectionID}`, `?saas_sign_in=${integrationID}&saas_connection=ref:nango/connection/x`, `?saas_sign_in=${integrationID}&saas_connection=${connectionID}&saas_sign_in_error=denied`]) {
 			window.sessionStorage.setItem("zasp.saas-sign-in", integrationID);
-			window.history.replaceState(null, "", `/integrations${search}`);
+			window.history.replaceState(null, "", `/connectors${search}`);
 			const PATCH = vi.fn();
 			const view = render(<APIProvider client={{ GET: reads(() => waiting), PATCH } as unknown as APIClient}><SessionProvider><WorkflowMutationProvider scopeKey="organization/workspace-a/environment-a"><ProductionIntegrationsView canWrite /></WorkflowMutationProvider></SessionProvider></APIProvider>);
 			await screen.findByRole("button", { name: "Open Acme production" });

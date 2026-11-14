@@ -77,6 +77,8 @@ var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"GET", "/api/v1/admin/api-tokens", "listAPITokens", "manage_api_tokens", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"POST", "/api/v1/admin/api-tokens", "createAPIToken", "manage_api_tokens", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"POST", "/api/v1/admin/api-tokens/{id}/rotate", "rotateAPIToken", "manage_api_tokens", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"GET", "/api/v1/admin/api-token-policy", "getAPITokenPolicy", "manage_api_tokens", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"PUT", "/api/v1/admin/api-token-policy", "putAPITokenPolicy", "manage_api_tokens", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"DELETE", "/api/v1/admin/api-tokens/{id}", "revokeAPIToken", "manage_api_tokens", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"GET", "/api/v1/admin/api-token-reveal-grants", "listAPITokenRevealGrants", "manage_api_tokens", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"POST", "/api/v1/admin/api-token-reveal-grants/{id}/reveal", "revealAPIToken", "manage_api_tokens", []string{"BrowserSession"}}, identityDependency},
@@ -352,7 +354,7 @@ func newComposition(dependencies Dependencies, exports http.Handler, compliance 
 func requiresFreshAuthentication(operationID string) bool {
 	switch operationID {
 	case "createWorkspace", "updateWorkspace", "createEnvironment", "updateEnvironment",
-		"updateMemberRole", "updateGroupMappings", "createAPIToken", "rotateAPIToken", "revokeAPIToken", "revealAPIToken", "acknowledgeAPITokenRevealGrant",
+		"updateMemberRole", "updateGroupMappings", "createAPIToken", "rotateAPIToken", "revokeAPIToken", "revealAPIToken", "acknowledgeAPITokenRevealGrant", "putAPITokenPolicy",
 		"createSSOConnection", "deleteSSOConnection", "testSSOConnection", "createSCIMConnection", "deleteSCIMConnection",
 		"revokeSession", "updateDataControls", "authorizeIntegration", "authorizeIntegrationReference", "remediateIntegrationAuthorization", "createSensorEnrollment", "rotateSensorToken":
 		return true

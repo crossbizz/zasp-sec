@@ -7273,3 +7273,606 @@ BEGIN
   EXECUTE replace(d,anchor,$v$'kubernetes_mcp_server','saas_mcp_server','gcp_mcp_server')$v$);
  END IF;
 END $ws8_gcp_mcp_servers$;
+-- WS10a. Browser authorization of an OAuth connector on the installed
+-- baseline (workstream WS10).
+--
+-- A person connects GitHub, Okta or a Nango connector (Slack) from the
+-- Integrations page: POST /integrations/{id}/authorize answers the provider's
+-- authorization address, the provider sends the browser back to
+-- GET /integrations/oauth/callback, and a quarantined outcome is cleared with
+-- POST /integrations/{id}/authorization-remediation. All three were refused on
+-- an installed baseline: their statements are the connector chain's functions
+-- (zasp_connector_start_oauth and the others), which take no request
+-- authorization, are on no statement allow-list of the API server, and on
+-- which the API login holds no EXECUTE.
+--
+-- This section adds one zasp_authorization80 function per statement of those
+-- three operations. Each one:
+--   * works only inside the fenced transaction of a checked request of an
+--     API session (product_request: the proof's scope, principal, operation,
+--     the manage_workflows permission, a browser session);
+--   * for authorizeIntegration and remediateIntegrationAuthorization requires
+--     fresh authentication and the integration of the request path as an
+--     allowed object, and refuses any other integration;
+--   * for completeIntegrationOAuthCallback, whose path names no object,
+--     requires the Environment as the allowed object and binds the statement
+--     to an authorization attempt that the same person started from the same
+--     browser session (the attempt's session digest is the digest of the
+--     proof's credential);
+--   * then calls the chain function unchanged, so the chain's own rules
+--     (state taken once, version and configuration unchanged, effect ledger,
+--     audit) still decide the outcome.
+--
+-- The chain functions keep their grants: the API login still cannot call them
+-- directly, and the reconciler keeps its lease-bound statements. Nothing is
+-- granted outside a checked request. The section is re-runnable: every
+-- function is created or replaced.
+DO $ws10_connector_oauth$
+DECLARE owner_value text;signature text;d text;
+ remediation CONSTANT regprocedure:='public.zasp_connector_remediate_quarantine(text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)'::regprocedure;
+ remediation_name CONSTANT text:='FUNCTION public.zasp_connector_remediate_quarantine(';
+ chain_writer CONSTANT text:='zasp_workflow_mutate(';
+BEGIN
+ SELECT pg_get_userbyid(proowner) INTO STRICT owner_value FROM pg_proc
+  WHERE oid='public.zasp_connector_start_oauth(text,text,text,text,text,text,text,bytea,bytea,text,bytea,jsonb,timestamptz,bigint,jsonb,text,text)'::regprocedure;
+
+ -- The request of a connector statement. operations are the operations the
+ -- statement belongs to; integration_value is its integration, required for
+ -- every operation but the callback.
+ CREATE OR REPLACE FUNCTION zasp_authorization80.connector_request(o text,w text,e text,actor text,operations text[],integration_value text) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $request$
+ DECLARE p jsonb:=zasp_authorization80.context();op text;
+ BEGIN
+  op:=p->>'operation_id';
+  IF p IS NULL OR actor IS NULL OR NOT COALESCE(op=ANY(operations),false) THEN
+   RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';
+  END IF;
+  IF op='completeIntegrationOAuthCallback' THEN
+   RETURN zasp_authorization80.product_request(o,w,e,actor,op,'manage_workflows','environment',e,false,true,false,true);
+  END IF;
+  IF op NOT IN('authorizeIntegration','remediateIntegrationAuthorization') OR NOT COALESCE(public.zasp_valid_product_id(integration_value),false) THEN
+   RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';
+  END IF;
+  RETURN zasp_authorization80.product_request(o,w,e,actor,op,'manage_workflows','integration',integration_value,true,true,true,true);
+ END $request$;
+
+ -- An authorization attempt this person started from this browser session.
+ CREATE OR REPLACE FUNCTION zasp_authorization80.connector_attempt_owned(o text,w text,e text,actor text,p jsonb,attempt_value text) RETURNS boolean
+ LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO pg_catalog, public AS $owned$
+  SELECT EXISTS(SELECT 1 FROM public.zasp_connector_oauth_attempts a
+   WHERE (a.organization_id,a.workspace_id,a.environment_id,a.id)=(o,w,e,attempt_value) AND a.principal_id=actor AND a.session_digest=decode(p->>'credential_digest','hex'))
+ $owned$;
+
+ -- The request of a statement that names a connector effect. Before the
+ -- provider answers the effect belongs to the integration of the request
+ -- path; in the callback it belongs to an attempt of this person and session.
+ CREATE OR REPLACE FUNCTION zasp_authorization80.connector_effect_request(o text,w text,e text,actor text,operations text[],effect_value text) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $effect$
+ DECLARE p jsonb:=zasp_authorization80.context();effect_integration text;effect_attempt text;
+ BEGIN
+  SELECT f.integration_id,f.oauth_attempt_id INTO effect_integration,effect_attempt FROM public.zasp_connector_effects f
+   WHERE (f.organization_id,f.workspace_id,f.environment_id,f.id)=(o,w,e,effect_value);
+  IF p->>'operation_id'='completeIntegrationOAuthCallback' THEN
+   p:=zasp_authorization80.connector_request(o,w,e,actor,operations,NULL);
+   IF effect_attempt IS NULL OR NOT zasp_authorization80.connector_attempt_owned(o,w,e,actor,p,effect_attempt) THEN
+    RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';
+   END IF;
+  ELSE
+   p:=zasp_authorization80.connector_request(o,w,e,actor,operations,p#>>'{path_parameters,id}');
+   IF effect_integration IS DISTINCT FROM p#>>'{path_parameters,id}' THEN
+    RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';
+   END IF;
+  END IF;
+  RETURN p;
+ END $effect$;
+
+ -- The integration an authorization is asked for (the request path), or the
+ -- integration of the attempt the callback has taken.
+ CREATE OR REPLACE FUNCTION zasp_authorization80.connector_integration(o text,w text,e text,actor text,integration_value text) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $integration$
+ DECLARE p jsonb:=zasp_authorization80.context();result jsonb;
+ BEGIN
+  IF p->>'operation_id'='completeIntegrationOAuthCallback' THEN
+   p:=zasp_authorization80.connector_request(o,w,e,actor,ARRAY['completeIntegrationOAuthCallback'],NULL);
+   IF NOT EXISTS(SELECT 1 FROM public.zasp_connector_oauth_attempts a
+    WHERE (a.organization_id,a.workspace_id,a.environment_id,a.integration_id)=(o,w,e,integration_value) AND a.principal_id=actor
+     AND a.session_digest=decode(p->>'credential_digest','hex') AND a.status='consuming') THEN
+    RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';
+   END IF;
+  ELSE
+   p:=zasp_authorization80.connector_request(o,w,e,actor,ARRAY['authorizeIntegration','remediateIntegrationAuthorization'],integration_value);
+  END IF;
+  SELECT jsonb_build_object('body',r.body,'version',r.version,'secret_generation',r.secret_generation) INTO result FROM public.zasp_workflow_records r
+   WHERE (r.organization_id,r.workspace_id,r.environment_id,r.kind,r.id)=(o,w,e,'integration',integration_value) AND r.deleted_at IS NULL;
+  IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='integration unavailable';END IF;
+  PERFORM zasp_authorization80.product_settled(p);
+  RETURN result;
+ END $integration$;
+
+ CREATE OR REPLACE FUNCTION zasp_authorization80.connector_stage_pkce_cleanup(o text,w text,e text,actor text,effect_value text,integration_value text,attempt_value text,provider_value text,reference_value text,request_value bytea,available_value timestamptz,reason_value text) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $stage$
+ DECLARE p jsonb;result jsonb;
+ BEGIN
+  p:=zasp_authorization80.connector_request(o,w,e,actor,ARRAY['authorizeIntegration'],integration_value);
+  result:=public.zasp_connector_stage_pkce_cleanup(o,w,e,effect_value,integration_value,attempt_value,provider_value,reference_value,request_value,available_value,reason_value);
+  PERFORM zasp_authorization80.product_settled(p);
+  RETURN result;
+ END $stage$;
+
+ CREATE OR REPLACE FUNCTION zasp_authorization80.connector_activate_pkce_cleanup(o text,w text,e text,actor text,effect_value text) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $activate$
+ DECLARE p jsonb;result jsonb;
+ BEGIN
+  p:=zasp_authorization80.connector_effect_request(o,w,e,actor,ARRAY['authorizeIntegration','completeIntegrationOAuthCallback'],effect_value);
+  result:=public.zasp_connector_activate_pkce_cleanup(o,w,e,effect_value);
+  PERFORM zasp_authorization80.product_settled(p);
+  RETURN result;
+ END $activate$;
+
+ -- The attempt is recorded for the proof's principal and for the browser
+ -- session of the proof's credential, and for no other.
+ CREATE OR REPLACE FUNCTION zasp_authorization80.connector_start_oauth(o text,w text,e text,actor text,attempt_value text,integration_value text,provider_value text,session_value bytea,state_value bytea,pkce_reference_value text,request_value bytea,scopes_value jsonb,expires_value timestamptz,integration_version_value bigint,configuration_value jsonb,cleanup_value text,authorize_value text) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $start$
+ DECLARE p jsonb;result jsonb;
+ BEGIN
+  p:=zasp_authorization80.connector_request(o,w,e,actor,ARRAY['authorizeIntegration'],integration_value);
+  IF session_value IS DISTINCT FROM decode(p->>'credential_digest','hex') THEN
+   RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';
+  END IF;
+  result:=public.zasp_connector_start_oauth(o,w,e,attempt_value,integration_value,provider_value,actor,session_value,state_value,pkce_reference_value,request_value,scopes_value,expires_value,integration_version_value,configuration_value,cleanup_value,authorize_value);
+  PERFORM zasp_authorization80.product_settled(p);
+  RETURN result;
+ END $start$;
+
+ CREATE OR REPLACE FUNCTION zasp_authorization80.connector_consume_oauth(o text,w text,e text,actor text,state_value bytea,session_value bytea) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $consume$
+ DECLARE p jsonb;result jsonb;
+ BEGIN
+  p:=zasp_authorization80.connector_request(o,w,e,actor,ARRAY['completeIntegrationOAuthCallback'],NULL);
+  IF session_value IS DISTINCT FROM decode(p->>'credential_digest','hex') THEN
+   RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';
+  END IF;
+  result:=public.zasp_connector_consume_oauth(o,w,e,state_value,actor,session_value);
+  PERFORM zasp_authorization80.product_settled(p);
+  RETURN result;
+ END $consume$;
+
+ CREATE OR REPLACE FUNCTION zasp_authorization80.connector_complete_pkce_cleanup(o text,w text,e text,actor text,effect_value text) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $pkce$
+ DECLARE p jsonb;result jsonb;
+ BEGIN
+  p:=zasp_authorization80.connector_effect_request(o,w,e,actor,ARRAY['completeIntegrationOAuthCallback'],effect_value);
+  result:=public.zasp_connector_complete_pkce_cleanup(o,w,e,effect_value,'','');
+  PERFORM zasp_authorization80.product_settled(p);
+  RETURN result;
+ END $pkce$;
+
+ CREATE OR REPLACE FUNCTION zasp_authorization80.connector_resolve_effect(o text,w text,e text,actor text,effect_value text,status_value text,reference_value text,metadata_value jsonb,error_value text) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $resolve$
+ DECLARE p jsonb;result jsonb;
+ BEGIN
+  p:=zasp_authorization80.connector_effect_request(o,w,e,actor,ARRAY['completeIntegrationOAuthCallback'],effect_value);
+  result:=public.zasp_connector_resolve_effect(o,w,e,effect_value,status_value,reference_value,metadata_value,error_value);
+  PERFORM zasp_authorization80.product_settled(p);
+  RETURN result;
+ END $resolve$;
+
+ CREATE OR REPLACE FUNCTION zasp_authorization80.connector_complete_oauth(o text,w text,e text,actor text,attempt_value text,effect_value text,connection_value text,reference_value text,subject_value text,credential_value text,class_value text,metadata_value jsonb,completion_value bytea) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $complete$
+ DECLARE p jsonb;result jsonb;
+ BEGIN
+  p:=zasp_authorization80.connector_request(o,w,e,actor,ARRAY['completeIntegrationOAuthCallback'],NULL);
+  IF NOT zasp_authorization80.connector_attempt_owned(o,w,e,actor,p,attempt_value) THEN
+   RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';
+  END IF;
+  result:=public.zasp_connector_complete_oauth(o,w,e,attempt_value,effect_value,connection_value,reference_value,subject_value,credential_value,class_value,metadata_value,completion_value);
+  PERFORM zasp_authorization80.product_settled(p);
+  RETURN result;
+ END $complete$;
+
+ CREATE OR REPLACE FUNCTION zasp_authorization80.connector_complete_cleanup(o text,w text,e text,actor text,effect_value text) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $cleanup$
+ DECLARE p jsonb;result jsonb;
+ BEGIN
+  p:=zasp_authorization80.connector_effect_request(o,w,e,actor,ARRAY['completeIntegrationOAuthCallback'],effect_value);
+  result:=public.zasp_connector_complete_cleanup(o,w,e,effect_value);
+  PERFORM zasp_authorization80.product_settled(p);
+  RETURN result;
+ END $cleanup$;
+
+ -- Remediation of a quarantined connector effect of the integration of the
+ -- request path: the effect to clear, a replay of the same request, and the
+ -- acknowledged remediation.
+ CREATE OR REPLACE FUNCTION zasp_authorization80.connector_quarantine(o text,w text,e text,actor text,integration_value text) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $quarantine$
+ DECLARE p jsonb;result jsonb;
+ BEGIN
+  p:=zasp_authorization80.connector_request(o,w,e,actor,ARRAY['remediateIntegrationAuthorization'],integration_value);
+  result:=public.zasp_connector_get_quarantine(o,w,e,integration_value);
+  PERFORM zasp_authorization80.product_settled(p);
+  RETURN result;
+ END $quarantine$;
+
+ CREATE OR REPLACE FUNCTION zasp_authorization80.connector_quarantine_replay(o text,w text,e text,actor text,k text,intent_value jsonb) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $replay$
+ DECLARE p jsonb;result jsonb;
+ BEGIN
+  IF k IS NULL OR k!~'^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$' OR jsonb_typeof(intent_value) IS DISTINCT FROM 'object' OR octet_length(intent_value::text)>65536 THEN
+   RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='invalid workflow replay';
+  END IF;
+  p:=zasp_authorization80.connector_request(o,w,e,actor,ARRAY['remediateIntegrationAuthorization'],intent_value->>'resource_id');
+  result:=public.zasp_workflow_replay(o,w,e,actor,'remediateIntegrationAuthorization',k,intent_value);
+  PERFORM zasp_authorization80.product_settled(p);
+  RETURN result;
+ END $replay$;
+
+ CREATE OR REPLACE FUNCTION zasp_authorization80.connector_remediate_quarantine(o text,w text,e text,actor text,effect_value text,integration_value text,acknowledgement_value text,k text,expected_version_value bigint,intent_value jsonb,body_value jsonb,audit_value text,correlation_value text,receipt_value text) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $remediate$
+ DECLARE p jsonb;result jsonb;
+ BEGIN
+  p:=zasp_authorization80.connector_request(o,w,e,actor,ARRAY['remediateIntegrationAuthorization'],integration_value);
+  IF intent_value->>'resource_id' IS DISTINCT FROM integration_value THEN
+   RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';
+  END IF;
+  result:=zasp_authorization80.connector_remediate_quarantine_write(o,w,e,effect_value,integration_value,actor,acknowledgement_value,k,expected_version_value,intent_value,body_value,audit_value,correlation_value,receipt_value);
+  PERFORM zasp_authorization80.product_settled(p);
+  RETURN result;
+ END $remediate$;
+
+ -- The chain's remediation writes the integration with zasp_workflow_mutate,
+ -- the writer of the release before current authorization, which refuses on
+ -- this catalog. connector_remediate_quarantine_write is the chain function
+ -- with the current receipt-backed writer of an integration in its place and
+ -- nothing else changed. It is derived from the installed text each time the
+ -- section runs, and a predecessor that no longer calls the chain writer
+ -- exactly twice is refused.
+ d:=pg_get_functiondef(remediation);
+ IF position(remediation_name in d)=0 OR (length(d)-length(replace(d,chain_writer,'')))<>2*length(chain_writer) THEN
+  RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='connector remediation predecessor changed';
+ END IF;
+ EXECUTE replace(replace(d,remediation_name,'FUNCTION zasp_authorization80.connector_remediate_quarantine_write('),chain_writer,'zasp_authorization80.integration_receipt_mutate(');
+
+ -- The three request helpers and the remediation writer are internal; the
+ -- API role is granted the twelve statements.
+ FOREACH signature IN ARRAY ARRAY[
+  'connector_request(text,text,text,text,text[],text)',
+  'connector_attempt_owned(text,text,text,text,jsonb,text)',
+  'connector_effect_request(text,text,text,text,text[],text)',
+  'connector_remediate_quarantine_write(text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)',
+  'connector_integration(text,text,text,text,text)',
+  'connector_stage_pkce_cleanup(text,text,text,text,text,text,text,text,text,bytea,timestamptz,text)',
+  'connector_activate_pkce_cleanup(text,text,text,text,text)',
+  'connector_start_oauth(text,text,text,text,text,text,text,bytea,bytea,text,bytea,jsonb,timestamptz,bigint,jsonb,text,text)',
+  'connector_consume_oauth(text,text,text,text,bytea,bytea)',
+  'connector_complete_pkce_cleanup(text,text,text,text,text)',
+  'connector_resolve_effect(text,text,text,text,text,text,text,jsonb,text)',
+  'connector_complete_oauth(text,text,text,text,text,text,text,text,text,text,text,jsonb,bytea)',
+  'connector_complete_cleanup(text,text,text,text,text)',
+  'connector_quarantine(text,text,text,text,text)',
+  'connector_quarantine_replay(text,text,text,text,text,jsonb)',
+  'connector_remediate_quarantine(text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)'] LOOP
+  EXECUTE format('ALTER FUNCTION zasp_authorization80.%s OWNER TO %I',signature,owner_value);
+  EXECUTE format('REVOKE ALL ON FUNCTION zasp_authorization80.%s FROM PUBLIC',signature);
+  IF signature NOT LIKE 'connector\_request(%' AND signature NOT LIKE 'connector\_attempt\_owned(%' AND signature NOT LIKE 'connector\_effect\_request(%' AND signature NOT LIKE 'connector\_remediate\_quarantine\_write(%' THEN
+   EXECUTE format('GRANT EXECUTE ON FUNCTION zasp_authorization80.%s TO zasp_discovery_api',signature);
+  END IF;
+ END LOOP;
+
+ -- The reconciler of the API server finishes a recorded connection whose
+ -- bookkeeping the callback could not complete (the effect is cleanup_pending).
+ -- Its statement is bound to the lease the reconciler claimed, like the other
+ -- reconciliation functions the API role already holds, but this one was
+ -- granted to the discovery worker only, so the API server's reconciler was
+ -- refused and the effect stayed open until it was quarantined.
+ GRANT EXECUTE ON FUNCTION public.zasp_connector_complete_cleanup(text,text,text,text,text,text) TO zasp_discovery_api;
+END $ws10_connector_oauth$;
+
+-- ---------------------------------------------------------------------------
+-- WS10b. The Nango connection a sign-in created ends with its integration
+-- (workstream WS10).
+--
+-- Section WS6 lets a person sign in to a SaaS platform from the product; Nango
+-- creates a connection and the integration names it. Deleting the integration,
+-- or giving it another connection, left that connection (and the provider
+-- token Nango keeps for it) in Nango for ever.
+--
+--   * zasp_saas_connection_releases is the list of Nango connections to
+--     delete. It holds the reference of a connection, never a token.
+--   * A row is written by a trigger on the integration's record, in the
+--     transaction that deletes the integration or changes the connection it
+--     names, so no crash can separate the two. Only connections that a
+--     completed sign-in of that integration created are listed
+--     (zasp_saas_sign_in_attempts); a reference a person pasted is never
+--     listed, because that connection was made outside the product.
+--     On deletion every connection the integration's sign-ins created is
+--     listed; on a change, every one but the connection now named.
+--   * The API server's release worker claims rows under a lease, deletes the
+--     connection at Nango and records the outcome. A worker that stops after
+--     the claim loses its lease and the row is claimed again; a refused or
+--     failed deletion is retried with a growing delay, fifty times in all
+--     (about two days), and then marked failed for a person to remove.
+--   * A connection that a live saas integration of the same Environment still
+--     names when its turn comes is kept (status retained), and has its turn
+--     again when an integration that names it is deleted or names another.
+--
+-- The functions take no principal and no tenant choice of the caller beyond
+-- the row's own key: like connector reconciliation they are system
+-- maintenance, bound to the lease the worker claimed. The section is
+-- re-runnable.
+DO $ws10_saas_connection_release$
+DECLARE owner_value text;
+BEGIN
+ SELECT pg_get_userbyid(relowner) INTO STRICT owner_value FROM pg_class WHERE oid='public.zasp_saas_sign_in_attempts'::regclass;
+
+ CREATE TABLE IF NOT EXISTS public.zasp_saas_connection_releases(
+  organization_id text NOT NULL,workspace_id text NOT NULL,environment_id text NOT NULL,connection_reference text NOT NULL,
+  integration_id text NOT NULL,platform text NOT NULL,reason text NOT NULL,status text NOT NULL DEFAULT 'pending',
+  attempt integer NOT NULL DEFAULT 0,available_at timestamptz NOT NULL DEFAULT transaction_timestamp(),
+  lease_owner text,lease_token text,lease_expires_at timestamptz,last_error_code text,
+  created_at timestamptz NOT NULL DEFAULT transaction_timestamp(),updated_at timestamptz NOT NULL DEFAULT transaction_timestamp(),finished_at timestamptz,
+  PRIMARY KEY(organization_id,workspace_id,environment_id,connection_reference),
+  CONSTRAINT zasp_saas_connection_releases_id_check CHECK(public.zasp_valid_product_id(organization_id) AND public.zasp_valid_product_id(workspace_id) AND public.zasp_valid_product_id(environment_id) AND public.zasp_valid_product_id(integration_id)),
+  CONSTRAINT zasp_saas_connection_releases_reference_check CHECK(connection_reference ~ '^ref:nango/connection/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' AND platform ~ '^[a-z][a-z0-9_]{1,31}$'),
+  CONSTRAINT zasp_saas_connection_releases_reason_check CHECK(reason IN('integration_deleted','reference_replaced')),
+  CONSTRAINT zasp_saas_connection_releases_status_check CHECK(status IN('pending','released','retained','failed') AND (status='pending')=(finished_at IS NULL)),
+  CONSTRAINT zasp_saas_connection_releases_attempt_check CHECK(attempt BETWEEN 0 AND 50),
+  CONSTRAINT zasp_saas_connection_releases_lease_check CHECK((lease_owner IS NULL)=(lease_token IS NULL) AND (lease_owner IS NULL)=(lease_expires_at IS NULL) AND (status='pending' OR lease_owner IS NULL)),
+  CONSTRAINT zasp_saas_connection_releases_error_check CHECK(last_error_code IS NULL OR last_error_code ~ '^[a-z][a-z0-9_]{1,63}$'));
+ CREATE INDEX IF NOT EXISTS zasp_saas_connection_releases_due ON public.zasp_saas_connection_releases(available_at) WHERE status='pending';
+ -- The connections an integration's sign-ins created, for the trigger below.
+ CREATE INDEX IF NOT EXISTS zasp_saas_sign_in_attempts_completed ON public.zasp_saas_sign_in_attempts(organization_id,workspace_id,environment_id,integration_id) WHERE status='completed';
+ EXECUTE format('ALTER TABLE public.zasp_saas_connection_releases OWNER TO %I',owner_value);
+ ALTER TABLE public.zasp_saas_connection_releases ENABLE ROW LEVEL SECURITY;
+ REVOKE ALL ON TABLE public.zasp_saas_connection_releases FROM PUBLIC;
+
+ -- Lists the connections to delete when a saas integration is deleted or
+ -- names another connection. kept is the connection the integration names
+ -- after the change; nothing is kept when the integration is deleted. A
+ -- connection that was retained before is listed again.
+ CREATE OR REPLACE FUNCTION public.zasp_saas_connection_release_capture() RETURNS trigger
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $capture$
+ DECLARE kept text;reason_value text;
+ BEGIN
+  IF OLD.kind<>'integration' OR OLD.body->>'connector_key' IS DISTINCT FROM 'saas' THEN RETURN NULL;END IF;
+  IF TG_OP='DELETE' THEN
+   IF OLD.deleted_at IS NOT NULL THEN RETURN NULL;END IF;
+   reason_value:='integration_deleted';
+  ELSIF NEW.deleted_at IS NOT NULL AND OLD.deleted_at IS NULL THEN
+   reason_value:='integration_deleted';
+  ELSIF NEW.deleted_at IS NULL AND NEW.body#>>'{configuration,connection_reference}' IS DISTINCT FROM OLD.body#>>'{configuration,connection_reference}' THEN
+   kept:=NEW.body#>>'{configuration,connection_reference}';
+   reason_value:='reference_replaced';
+  ELSE
+   RETURN NULL;
+  END IF;
+  -- A connection that was kept because this integration named it has its
+  -- turn again; the claim keeps it once more if another integration names it.
+  UPDATE zasp_saas_connection_releases x SET status='pending',attempt=0,available_at=transaction_timestamp(),last_error_code=NULL,finished_at=NULL,updated_at=transaction_timestamp()
+   WHERE (x.organization_id,x.workspace_id,x.environment_id,x.connection_reference)=(OLD.organization_id,OLD.workspace_id,OLD.environment_id,OLD.body#>>'{configuration,connection_reference}')
+    AND x.status='retained' AND x.connection_reference IS DISTINCT FROM kept;
+  INSERT INTO zasp_saas_connection_releases(organization_id,workspace_id,environment_id,connection_reference,integration_id,platform,reason)
+  SELECT DISTINCT ON(a.connection_reference) a.organization_id,a.workspace_id,a.environment_id,a.connection_reference,a.integration_id,a.platform,reason_value
+   FROM zasp_saas_sign_in_attempts a
+   WHERE (a.organization_id,a.workspace_id,a.environment_id,a.integration_id)=(OLD.organization_id,OLD.workspace_id,OLD.environment_id,OLD.id)
+    AND a.status='completed' AND a.connection_reference IS DISTINCT FROM kept
+   ORDER BY a.connection_reference,a.finished_at DESC
+  ON CONFLICT(organization_id,workspace_id,environment_id,connection_reference) DO UPDATE
+   SET status='pending',reason=EXCLUDED.reason,integration_id=EXCLUDED.integration_id,platform=EXCLUDED.platform,attempt=0,available_at=transaction_timestamp(),last_error_code=NULL,finished_at=NULL,updated_at=transaction_timestamp()
+   WHERE zasp_saas_connection_releases.status='retained';
+  RETURN NULL;
+ END $capture$;
+ EXECUTE format('ALTER FUNCTION public.zasp_saas_connection_release_capture() OWNER TO %I',owner_value);
+ REVOKE ALL ON FUNCTION public.zasp_saas_connection_release_capture() FROM PUBLIC;
+ DROP TRIGGER IF EXISTS zasp_saas_connection_release_capture ON public.zasp_workflow_records;
+ CREATE TRIGGER zasp_saas_connection_release_capture AFTER UPDATE OR DELETE ON public.zasp_workflow_records
+  FOR EACH ROW WHEN (OLD.kind='integration') EXECUTE FUNCTION public.zasp_saas_connection_release_capture();
+
+ -- Claims connections whose turn has come. A lease that expired without an
+ -- outcome (the worker stopped) is claimed again.
+ CREATE OR REPLACE FUNCTION public.zasp_saas_connection_release_claim(owner_value text,lease_seconds integer,limit_value integer) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $claim$
+ DECLARE result jsonb;
+ BEGIN
+  IF NOT COALESCE(length(owner_value) BETWEEN 3 AND 128 AND lease_seconds BETWEEN 5 AND 300 AND limit_value BETWEEN 1 AND 100,false) THEN
+   RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='invalid saas connection release claim';
+  END IF;
+  -- The last attempt ended without an outcome.
+  UPDATE zasp_saas_connection_releases x SET status='failed',last_error_code='attempts_exhausted',lease_owner=NULL,lease_token=NULL,lease_expires_at=NULL,finished_at=transaction_timestamp(),updated_at=transaction_timestamp()
+   WHERE x.status='pending' AND x.attempt>=50 AND x.lease_expires_at<=transaction_timestamp();
+  -- A connection an integration still names is kept.
+  UPDATE zasp_saas_connection_releases x SET status='retained',lease_owner=NULL,lease_token=NULL,lease_expires_at=NULL,finished_at=transaction_timestamp(),updated_at=transaction_timestamp()
+   WHERE x.status='pending' AND x.available_at<=transaction_timestamp() AND (x.lease_expires_at IS NULL OR x.lease_expires_at<=transaction_timestamp())
+    AND EXISTS(SELECT 1 FROM zasp_workflow_records r WHERE (r.organization_id,r.workspace_id,r.environment_id,r.kind)=(x.organization_id,x.workspace_id,x.environment_id,'integration')
+     AND r.deleted_at IS NULL AND r.body->>'connector_key'='saas' AND r.body#>>'{configuration,connection_reference}'=x.connection_reference);
+  WITH due AS (
+   SELECT x.organization_id,x.workspace_id,x.environment_id,x.connection_reference FROM zasp_saas_connection_releases x
+    WHERE x.status='pending' AND x.attempt<50 AND x.available_at<=transaction_timestamp() AND (x.lease_expires_at IS NULL OR x.lease_expires_at<=transaction_timestamp())
+    ORDER BY x.available_at,x.connection_reference FOR UPDATE SKIP LOCKED LIMIT limit_value),
+  claimed AS (
+   UPDATE zasp_saas_connection_releases x SET attempt=x.attempt+1,lease_owner=owner_value,lease_token=encode(gen_random_bytes(32),'hex'),
+    lease_expires_at=transaction_timestamp()+make_interval(secs=>lease_seconds),updated_at=transaction_timestamp()
+    FROM due WHERE (x.organization_id,x.workspace_id,x.environment_id,x.connection_reference)=(due.organization_id,due.workspace_id,due.environment_id,due.connection_reference)
+    RETURNING x.*)
+  SELECT jsonb_build_object('items',COALESCE(jsonb_agg(jsonb_build_object('organization_id',organization_id,'workspace_id',workspace_id,'environment_id',environment_id,
+   'connection_reference',connection_reference,'integration_id',integration_id,'platform',platform,'reason',reason,'attempt',attempt,
+   'lease_owner',lease_owner,'lease_token',lease_token,'lease_expires_at',lease_expires_at) ORDER BY available_at,connection_reference),'[]'::jsonb)) INTO result FROM claimed;
+  RETURN result;
+ END $claim$;
+
+ -- Records the outcome of a claimed deletion for the holder of its lease:
+ -- released, or to be tried again after a delay that doubles from thirty
+ -- seconds to one hour. The fiftieth failure is final.
+ CREATE OR REPLACE FUNCTION public.zasp_saas_connection_release_finish(organization_value text,workspace_value text,environment_value text,reference_value text,owner_value text,token_value text,released_value boolean,error_value text) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $finish$
+ DECLARE row_value zasp_saas_connection_releases%ROWTYPE;
+ BEGIN
+  IF released_value IS NULL OR released_value AND COALESCE(error_value,'')<>'' OR NOT released_value AND NOT COALESCE(error_value ~ '^[a-z][a-z0-9_]{1,63}$',false) THEN
+   RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='invalid saas connection release outcome';
+  END IF;
+  SELECT * INTO row_value FROM zasp_saas_connection_releases x
+   WHERE (x.organization_id,x.workspace_id,x.environment_id,x.connection_reference)=(organization_value,workspace_value,environment_value,reference_value) FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='saas connection release unavailable';END IF;
+  IF row_value.status<>'pending' OR row_value.lease_owner IS DISTINCT FROM owner_value OR row_value.lease_token IS DISTINCT FROM token_value OR row_value.lease_expires_at IS NULL OR row_value.lease_expires_at<=transaction_timestamp() THEN
+   RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='saas connection release lease unavailable';
+  END IF;
+  IF released_value THEN
+   UPDATE zasp_saas_connection_releases x SET status='released',last_error_code=NULL,lease_owner=NULL,lease_token=NULL,lease_expires_at=NULL,finished_at=transaction_timestamp(),updated_at=transaction_timestamp()
+    WHERE (x.organization_id,x.workspace_id,x.environment_id,x.connection_reference)=(organization_value,workspace_value,environment_value,reference_value) RETURNING * INTO row_value;
+  ELSIF row_value.attempt>=50 THEN
+   UPDATE zasp_saas_connection_releases x SET status='failed',last_error_code=error_value,lease_owner=NULL,lease_token=NULL,lease_expires_at=NULL,finished_at=transaction_timestamp(),updated_at=transaction_timestamp()
+    WHERE (x.organization_id,x.workspace_id,x.environment_id,x.connection_reference)=(organization_value,workspace_value,environment_value,reference_value) RETURNING * INTO row_value;
+  ELSE
+   UPDATE zasp_saas_connection_releases x SET last_error_code=error_value,lease_owner=NULL,lease_token=NULL,lease_expires_at=NULL,
+    available_at=transaction_timestamp()+LEAST(interval '1 hour',interval '30 seconds'*power(2,LEAST(row_value.attempt,8)-1)),updated_at=transaction_timestamp()
+    WHERE (x.organization_id,x.workspace_id,x.environment_id,x.connection_reference)=(organization_value,workspace_value,environment_value,reference_value) RETURNING * INTO row_value;
+  END IF;
+  RETURN jsonb_build_object('status',row_value.status,'attempt',row_value.attempt,'available_at',row_value.available_at);
+ END $finish$;
+
+ EXECUTE format('ALTER FUNCTION public.zasp_saas_connection_release_claim(text,integer,integer) OWNER TO %I',owner_value);
+ EXECUTE format('ALTER FUNCTION public.zasp_saas_connection_release_finish(text,text,text,text,text,text,boolean,text) OWNER TO %I',owner_value);
+ REVOKE ALL ON FUNCTION public.zasp_saas_connection_release_claim(text,integer,integer) FROM PUBLIC;
+ REVOKE ALL ON FUNCTION public.zasp_saas_connection_release_finish(text,text,text,text,text,text,boolean,text) FROM PUBLIC;
+ GRANT EXECUTE ON FUNCTION public.zasp_saas_connection_release_claim(text,integer,integer) TO zasp_discovery_api;
+ GRANT EXECUTE ON FUNCTION public.zasp_saas_connection_release_finish(text,text,text,text,text,text,boolean,text) TO zasp_discovery_api;
+END $ws10_saas_connection_release$;
+
+-- ---------------------------------------------------------------------------
+-- WS10c. How long an API token may live (workstream WS10).
+--
+-- The API Access page created every token for 24 hours, which is too short
+-- for a gateway that calls the guardrail decision API from its configuration.
+-- The API itself accepted any expiry up to a year for any token, and the
+-- database any expiry at all. A token's lifetime is now chosen when it is
+-- created, the default stays 24 hours, and the longest lifetime is decided
+-- here, where every token is written:
+--
+--   * a token that holds decide_guardrails and nothing else may live 365
+--     days. It can ask for guardrail decisions and can read nothing, so a
+--     leaked one exposes no inventory, finding or setting;
+--   * every other token may live 90 days. It reads the Environment, and with
+--     a manage permission changes it, for as long as it exists;
+--   * the administrators of an Environment may lower both limits for it with
+--     one number of days (zasp_api_token_policies, 1 to 365; no row means
+--     365, which lowers nothing). A lower limit applies to tokens created
+--     afterwards; existing tokens keep their expiry and can be revoked.
+--
+-- Nothing else about a token changes: it is still checked on every request
+-- against its owner's membership and scope, revoking it takes effect at once,
+-- and a rotation keeps the expiry of the token it replaces, so rotating never
+-- extends a lifetime.
+--
+-- create_pat gains one condition next to its existing expiry check (five
+-- minutes of clock difference between the API server and the database are
+-- allowed). The setting is read and written by getAPITokenPolicy and
+-- putAPITokenPolicy, browser operations of manage_api_tokens; writing needs
+-- fresh authentication and is audited.
+CREATE TABLE IF NOT EXISTS public.zasp_api_token_policies(
+ organization_id text NOT NULL,
+ workspace_id text NOT NULL,
+ environment_id text NOT NULL,
+ max_lifetime_days integer NOT NULL,
+ version bigint NOT NULL DEFAULT 1,
+ updated_by text NOT NULL,
+ updated_at timestamptz NOT NULL DEFAULT transaction_timestamp(),
+ PRIMARY KEY(organization_id,workspace_id,environment_id),
+ CONSTRAINT zasp_api_token_policies_days_check CHECK(max_lifetime_days BETWEEN 1 AND 365),
+ CONSTRAINT zasp_api_token_policies_version_check CHECK(version>0),
+ CONSTRAINT zasp_api_token_policies_updated_by_check CHECK(length(updated_by) BETWEEN 1 AND 128)
+);
+
+DO $ws10_api_token_policy_table$
+BEGIN
+ ALTER TABLE public.zasp_api_token_policies OWNER TO zasp_discovery_authority;
+ ALTER TABLE public.zasp_api_token_policies ENABLE ROW LEVEL SECURITY;
+ ALTER TABLE public.zasp_api_token_policies FORCE ROW LEVEL SECURITY;
+ REVOKE ALL ON TABLE public.zasp_api_token_policies FROM PUBLIC;
+ IF NOT EXISTS(SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='zasp_api_token_policies' AND policyname='zasp_api_token_policies_authority') THEN
+  CREATE POLICY zasp_api_token_policies_authority ON public.zasp_api_token_policies FOR ALL TO zasp_discovery_authority USING(true) WITH CHECK(true);
+ END IF;
+END $ws10_api_token_policy_table$;
+
+-- The longest lifetime, in days, of a token with these permissions in this
+-- Environment.
+CREATE OR REPLACE FUNCTION zasp_authorization80.api_token_max_lifetime_days(o text,w text,e text,permissions_value jsonb) RETURNS integer
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $api_token_max_lifetime_days$
+ SELECT LEAST(CASE WHEN permissions_value='["decide_guardrails"]'::jsonb THEN 365 ELSE 90 END,
+  COALESCE((SELECT p.max_lifetime_days FROM public.zasp_api_token_policies p WHERE(p.organization_id,p.workspace_id,p.environment_id)=(o,w,e)),365))
+$api_token_max_lifetime_days$;
+
+CREATE OR REPLACE FUNCTION zasp_authorization80.api_token_policy_value(o text,w text,e text) RETURNS jsonb
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $api_token_policy_value$
+ SELECT jsonb_build_object('environment_id',x.id,'max_lifetime_days',COALESCE(p.max_lifetime_days,365),'version',COALESCE(p.version,0),
+  'updated_at',CASE WHEN p.updated_at IS NULL THEN NULL ELSE to_char(p.updated_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') END,
+  'default_lifetime_days',1,
+  'decision_token_max_lifetime_days',zasp_authorization80.api_token_max_lifetime_days(o,w,e,'["decide_guardrails"]'::jsonb),
+  'token_max_lifetime_days',zasp_authorization80.api_token_max_lifetime_days(o,w,e,'["view"]'::jsonb))
+ FROM public.zasp_environments x LEFT JOIN public.zasp_api_token_policies p ON(p.organization_id,p.workspace_id,p.environment_id)=(x.organization_id,x.workspace_id,x.id)
+ WHERE(x.organization_id,x.workspace_id,x.id)=(o,w,e)
+$api_token_policy_value$;
+
+CREATE OR REPLACE FUNCTION zasp_authorization80.api_token_policy(o text,w text,e text) RETURNS jsonb
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $api_token_policy$
+DECLARE result jsonb;
+BEGIN
+ PERFORM zasp_authorization80.product_request(o,w,e,NULL,'getAPITokenPolicy','manage_api_tokens','environment',e,false,true,false,false);
+ result:=zasp_authorization80.api_token_policy_value(o,w,e);
+ IF result IS NULL THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='environment not found';END IF;
+ RETURN result;
+END $api_token_policy$;
+
+CREATE OR REPLACE FUNCTION zasp_authorization80.api_token_policy_write(o text,w text,e text,actor text,days_value integer,expected_version bigint,audit_value text,correlation_value text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $api_token_policy_write$
+DECLARE current_version bigint;
+BEGIN
+ IF NOT COALESCE(public.zasp_valid_product_id(actor) AND public.zasp_valid_product_id(audit_value) AND public.zasp_valid_product_id(correlation_value) AND expected_version BETWEEN 0 AND 1000000
+  AND days_value BETWEEN 1 AND 365,false)
+ THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='api token policy rejected';END IF;
+ PERFORM 1 FROM public.zasp_environments x WHERE(x.organization_id,x.workspace_id,x.id)=(o,w,e) FOR SHARE;
+ IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='environment not found';END IF;
+ PERFORM pg_advisory_xact_lock(hashtextextended(concat_ws(chr(31),'api-token-policy',o,w,e),0));
+ SELECT p.version INTO current_version FROM public.zasp_api_token_policies p WHERE(p.organization_id,p.workspace_id,p.environment_id)=(o,w,e) FOR UPDATE;
+ IF COALESCE(current_version,0)<>expected_version THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='api token policy version conflict';END IF;
+ INSERT INTO public.zasp_api_token_policies(organization_id,workspace_id,environment_id,max_lifetime_days,version,updated_by) VALUES(o,w,e,days_value,expected_version+1,actor)
+ ON CONFLICT(organization_id,workspace_id,environment_id) DO UPDATE SET max_lifetime_days=EXCLUDED.max_lifetime_days,version=EXCLUDED.version,updated_by=EXCLUDED.updated_by,updated_at=transaction_timestamp();
+ INSERT INTO public.zasp_workflow_audit(organization_id,workspace_id,environment_id,audit_id,correlation_id,principal_id,operation,resource_kind,resource_id,resource_version)
+ VALUES(o,w,e,audit_value,correlation_value,actor,'putAPITokenPolicy','environment',e,expected_version+1);
+ RETURN zasp_authorization80.api_token_policy_value(o,w,e)||jsonb_build_object('audit_id',audit_value,'correlation_id',correlation_value);
+END $api_token_policy_write$;
+
+CREATE OR REPLACE FUNCTION zasp_authorization80.api_token_set_policy(o text,w text,e text,actor text,days_value integer,expected_version bigint,audit_value text,correlation_value text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $api_token_set_policy$
+DECLARE p jsonb;result jsonb;
+BEGIN
+ p:=zasp_authorization80.product_request(o,w,e,actor,'putAPITokenPolicy','manage_api_tokens','environment',e,false,true,true,true);
+ result:=zasp_authorization80.api_token_policy_write(o,w,e,actor,days_value,expected_version,audit_value,correlation_value);
+ PERFORM zasp_authorization80.product_settled(p);
+ RETURN result;
+END $api_token_set_policy$;
+
+DO $ws10_api_token_policy_grants$
+DECLARE signature text;
+BEGIN
+ FOREACH signature IN ARRAY ARRAY['api_token_max_lifetime_days(text,text,text,jsonb)','api_token_policy_value(text,text,text)','api_token_policy(text,text,text)',
+  'api_token_policy_write(text,text,text,text,integer,bigint,text,text)','api_token_set_policy(text,text,text,text,integer,bigint,text,text)'] LOOP
+  EXECUTE format('ALTER FUNCTION zasp_authorization80.%s OWNER TO zasp_discovery_authority',signature);
+  EXECUTE format('REVOKE ALL ON FUNCTION zasp_authorization80.%s FROM PUBLIC',signature);
+ END LOOP;
+ GRANT EXECUTE ON FUNCTION zasp_authorization80.api_token_policy(text,text,text) TO zasp_discovery_api;
+ GRANT EXECUTE ON FUNCTION zasp_authorization80.api_token_set_policy(text,text,text,text,integer,bigint,text,text) TO zasp_discovery_api;
+END $ws10_api_token_policy_grants$;
+
+-- The expiry of a new token is within the lifetime its permissions and its
+-- Environment allow. $7 and $8 are the token's Workspace and Environment,
+-- $10 its permissions, $11 its expiry.
+DO $ws10_api_token_lifetime$
+DECLARE target CONSTANT regprocedure:='zasp_authorization80_identity.create_pat(text,text,text,bytea,bytea,text,text,text,text,jsonb,timestamptz,text,text,timestamptz,bytea,bytea,bytea)'::regprocedure;
+ anchor CONSTANT text:=$anchor$ AND $11>clock_timestamp() AND $anchor$;
+ bounded CONSTANT text:=$bounded$ AND $11>clock_timestamp() AND $11<=clock_timestamp()+interval '5 minutes'+make_interval(days=>zasp_authorization80.api_token_max_lifetime_days($1,$7,$8,$10)) AND $bounded$;
+ d text:=pg_get_functiondef(target);
+BEGIN
+ IF position(bounded in d)=0 THEN
+  IF position('api_token_max_lifetime_days' in d)>0 OR length(d)-length(replace(d,anchor,''))<>length(anchor) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='api token expiry predecessor changed';END IF;
+  EXECUTE replace(d,anchor,bounded);
+ END IF;
+END $ws10_api_token_lifetime$;

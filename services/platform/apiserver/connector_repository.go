@@ -126,7 +126,11 @@ func (repository *ConnectorRepository) StartOAuth(ctx context.Context, identity 
 	scopes, _ := json.Marshal(input.RequestedScopes)
 	cleanupID := connectorDeterministicID(identity.Scope, input.AttemptID, "pkce-cleanup")
 	authorizeID := connectorDeterministicID(identity.Scope, input.AttemptID, "oauth-effect")
-	payload, err := repository.database.QueryJSON(ctx, postgresConnectorStartOAuthSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), input.AttemptID, input.IntegrationID, input.Provider, identity.PrincipalID.String(), input.SessionDigest, input.StateDigest, input.PKCEVerifierReference, input.RequestDigest, string(scopes), input.ExpiresAt, input.IntegrationVersion, input.Configuration, cleanupID, authorizeID)
+	scope := connectorScopeArguments(identity.Scope)
+	statement, arguments := connectorCheckedStatement(ctx, postgresConnectorStartOAuthSQL,
+		[]any{scope[0], scope[1], scope[2], input.AttemptID, input.IntegrationID, input.Provider, identity.PrincipalID.String(), input.SessionDigest, input.StateDigest, input.PKCEVerifierReference, input.RequestDigest, string(scopes), input.ExpiresAt, input.IntegrationVersion, input.Configuration, cleanupID, authorizeID},
+		currentConnectorStartOAuthSQL, scope, input.AttemptID, input.IntegrationID, input.Provider, input.SessionDigest, input.StateDigest, input.PKCEVerifierReference, input.RequestDigest, string(scopes), input.ExpiresAt, input.IntegrationVersion, input.Configuration, cleanupID, authorizeID)
+	payload, err := repository.database.QueryJSON(ctx, statement, arguments...)
 	if err != nil {
 		return OAuthAttemptRecord{}, discoveryProviderError(err)
 	}
@@ -156,7 +160,9 @@ func (repository *ConnectorRepository) ConsumeOAuth(ctx context.Context, identit
 	if !validConnectorRepository(repository, ctx) || !validRequestIdentity(identity, false) || len(stateDigest) != 32 || len(sessionDigest) != 32 {
 		return OAuthConsumption{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresConnectorConsumeOAuthSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), stateDigest, identity.PrincipalID.String(), sessionDigest)
+	scope := connectorScopeArguments(identity.Scope)
+	statement, arguments := connectorCheckedStatement(ctx, postgresConnectorConsumeOAuthSQL, []any{scope[0], scope[1], scope[2], stateDigest, identity.PrincipalID.String(), sessionDigest}, currentConnectorConsumeOAuthSQL, scope, stateDigest, sessionDigest)
+	payload, err := repository.database.QueryJSON(ctx, statement, arguments...)
 	if err != nil {
 		return OAuthConsumption{}, discoveryProviderError(err)
 	}
@@ -213,7 +219,9 @@ func (repository *ConnectorRepository) StagePKCECleanup(ctx context.Context, sco
 	if !validConnectorRepository(repository, ctx) || scope.Validate() != nil || !validProductID(input.ID) || !validProductID(input.IntegrationID) || input.OAuthAttemptID != "" && !validProductID(input.OAuthAttemptID) || !validOAuthProvider(input.Provider) || !validOpaqueReference(input.Reference) || len(input.RequestDigest) != sha256.Size || !stringIn(input.Reason, "oauth_attempt_expiry", "oauth_start_rejected") || input.AvailableAt.Before(time.Now().Add(-time.Second)) || input.AvailableAt.After(time.Now().Add(10*time.Minute+time.Second)) {
 		return ConnectorEffectRecord{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresConnectorStagePKCECleanupSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), input.ID, input.IntegrationID, input.OAuthAttemptID, input.Provider, input.Reference, input.RequestDigest, input.AvailableAt, input.Reason)
+	rest := []any{input.ID, input.IntegrationID, input.OAuthAttemptID, input.Provider, input.Reference, input.RequestDigest, input.AvailableAt, input.Reason}
+	statement, arguments := connectorScopedStatement(ctx, scope, postgresConnectorStagePKCECleanupSQL, currentConnectorStagePKCECleanupSQL, rest...)
+	payload, err := repository.database.QueryJSON(ctx, statement, arguments...)
 	if err != nil {
 		return ConnectorEffectRecord{}, discoveryProviderError(err)
 	}
@@ -224,7 +232,8 @@ func (repository *ConnectorRepository) ActivatePKCECleanup(ctx context.Context, 
 	if !validConnectorRepository(repository, ctx) || scope.Validate() != nil || !validProductID(effectID) {
 		return ConnectorEffectTransition{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresConnectorActivatePKCECleanupSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), effectID)
+	statement, arguments := connectorScopedStatement(ctx, scope, postgresConnectorActivatePKCECleanupSQL, currentConnectorActivatePKCECleanupSQL, effectID)
+	payload, err := repository.database.QueryJSON(ctx, statement, arguments...)
 	if err != nil {
 		return ConnectorEffectTransition{}, discoveryProviderError(err)
 	}
@@ -235,7 +244,11 @@ func (repository *ConnectorRepository) CompletePKCECleanup(ctx context.Context, 
 	if !validConnectorRepository(repository, ctx) || scope.Validate() != nil || !validProductID(effectID) {
 		return ConnectorEffectTransition{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresConnectorCompletePKCECleanupSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), effectID, "", "")
+	statement, arguments := postgresConnectorCompletePKCECleanupSQL, []any{scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), effectID, "", ""}
+	if actor, checked := connectorCheckedActor(ctx); checked {
+		statement, arguments = currentConnectorCompletePKCECleanupSQL, []any{scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), actor, effectID}
+	}
+	payload, err := repository.database.QueryJSON(ctx, statement, arguments...)
 	if err != nil {
 		return ConnectorEffectTransition{}, discoveryProviderError(err)
 	}
@@ -257,7 +270,8 @@ func (repository *ConnectorRepository) ResolveConnectorEffect(ctx context.Contex
 	if !validConnectorRepository(repository, ctx) || scope.Validate() != nil || !validProductID(input.ID) || !stringIn(input.Status, "unknown", "failed") || input.ConnectionReference != "" && !validOpaqueReference(input.ConnectionReference) || input.ErrorCode != "" && !connectorCodePattern.MatchString(input.ErrorCode) || !validConnectorMetadata(input.Metadata) {
 		return ConnectorEffectRecord{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresConnectorResolveEffectSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), input.ID, input.Status, input.ConnectionReference, input.Metadata, input.ErrorCode)
+	statement, arguments := connectorScopedStatement(ctx, scope, postgresConnectorResolveEffectSQL, currentConnectorResolveEffectSQL, input.ID, input.Status, input.ConnectionReference, input.Metadata, input.ErrorCode)
+	payload, err := repository.database.QueryJSON(ctx, statement, arguments...)
 	if err != nil {
 		return ConnectorEffectRecord{}, discoveryProviderError(err)
 	}
@@ -322,7 +336,8 @@ func (repository *ConnectorRepository) CompleteOAuth(ctx context.Context, scope 
 		return OAuthCompletionRecord{}, ErrRepositoryOperation
 	}
 	canonicalMetadata, digest := connectorOAuthCompletionDigest(input)
-	payload, err := repository.database.QueryJSON(ctx, postgresConnectorCompleteOAuthSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), input.AttemptID, input.EffectID, input.ConnectionID, input.ConnectionReference, input.ProviderSubject, input.CredentialID, input.CredentialClass, canonicalMetadata, digest[:])
+	statement, arguments := connectorScopedStatement(ctx, scope, postgresConnectorCompleteOAuthSQL, currentConnectorCompleteOAuthSQL, input.AttemptID, input.EffectID, input.ConnectionID, input.ConnectionReference, input.ProviderSubject, input.CredentialID, input.CredentialClass, canonicalMetadata, digest[:])
+	payload, err := repository.database.QueryJSON(ctx, statement, arguments...)
 	if err != nil {
 		return OAuthCompletionRecord{}, discoveryProviderError(err)
 	}
@@ -476,7 +491,8 @@ func (repository *ConnectorRepository) CompleteConnectorCleanup(ctx context.Cont
 	if !validConnectorRepository(repository, ctx) || scope.Validate() != nil || !validProductID(effectID) {
 		return ConnectorEffectTransition{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresConnectorCompleteCleanupSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), effectID)
+	statement, arguments := connectorScopedStatement(ctx, scope, postgresConnectorCompleteCleanupSQL, currentConnectorCompleteCleanupSQL, effectID)
+	payload, err := repository.database.QueryJSON(ctx, statement, arguments...)
 	if err != nil {
 		return ConnectorEffectTransition{}, discoveryProviderError(err)
 	}
@@ -527,7 +543,8 @@ func (repository *ConnectorRepository) GetConnectorQuarantine(ctx context.Contex
 	if !validConnectorRepository(repository, ctx) || scope.Validate() != nil || !validProductID(integrationID) {
 		return ConnectorQuarantine{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresConnectorGetQuarantineSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), integrationID)
+	statement, arguments := connectorScopedStatement(ctx, scope, postgresConnectorGetQuarantineSQL, currentConnectorQuarantineSQL, integrationID)
+	payload, err := repository.database.QueryJSON(ctx, statement, arguments...)
 	if err != nil {
 		return ConnectorQuarantine{}, discoveryProviderError(err)
 	}
@@ -548,7 +565,9 @@ func (repository *ConnectorRepository) ReplayConnectorQuarantine(ctx context.Con
 	if !validConnectorRepository(repository, ctx) || !validRequestIdentity(identity, false) || !validProductID(integrationID) || len(idempotencyKey) < 16 || len(idempotencyKey) > 128 || !workflowKeyPattern.MatchString(idempotencyKey) || expectedVersion < 1 || !validJSONObjectBody(intent) {
 		return WorkflowMutationResult{}, false, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresWorkflowReplaySQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), "remediateIntegrationAuthorization", idempotencyKey, intent)
+	scope := connectorScopeArguments(identity.Scope)
+	statement, arguments := connectorCheckedStatement(ctx, postgresWorkflowReplaySQL, []any{scope[0], scope[1], scope[2], identity.PrincipalID.String(), "remediateIntegrationAuthorization", idempotencyKey, intent}, currentConnectorQuarantineReplaySQL, scope, idempotencyKey, intent)
+	payload, err := repository.database.QueryJSON(ctx, statement, arguments...)
 	if err != nil {
 		return WorkflowMutationResult{}, false, discoveryProviderError(err)
 	}
@@ -572,7 +591,11 @@ func (repository *ConnectorRepository) RemediateConnectorQuarantine(ctx context.
 	if !validConnectorRepository(repository, ctx) || !validRequestIdentity(identity, false) || !validProductID(input.EffectID) || !validProductID(input.IntegrationID) || !stringIn(input.Acknowledgement, "provider_grant_revoked_manually", "provider_grant_verified_absent") || len(input.IdempotencyKey) < 16 || len(input.IdempotencyKey) > 128 || !workflowKeyPattern.MatchString(input.IdempotencyKey) || input.ExpectedVersion < 1 || !validProductID(input.AuditID) || !validProductID(input.CorrelationID) || !validProductID(input.ReceiptID) || !validJSONObjectBody(input.Intent) {
 		return WorkflowMutationResult{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresConnectorRemediateQuarantineSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), input.EffectID, input.IntegrationID, identity.PrincipalID.String(), input.Acknowledgement, input.IdempotencyKey, input.ExpectedVersion, input.Intent, input.Body, input.AuditID, input.CorrelationID, input.ReceiptID)
+	scope := connectorScopeArguments(identity.Scope)
+	statement, arguments := connectorCheckedStatement(ctx, postgresConnectorRemediateQuarantineSQL,
+		[]any{scope[0], scope[1], scope[2], input.EffectID, input.IntegrationID, identity.PrincipalID.String(), input.Acknowledgement, input.IdempotencyKey, input.ExpectedVersion, input.Intent, input.Body, input.AuditID, input.CorrelationID, input.ReceiptID},
+		currentConnectorRemediateQuarantineSQL, scope, input.EffectID, input.IntegrationID, input.Acknowledgement, input.IdempotencyKey, input.ExpectedVersion, input.Intent, input.Body, input.AuditID, input.CorrelationID, input.ReceiptID)
+	payload, err := repository.database.QueryJSON(ctx, statement, arguments...)
 	if err != nil {
 		return WorkflowMutationResult{}, discoveryProviderError(err)
 	}

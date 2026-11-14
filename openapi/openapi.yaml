@@ -586,7 +586,11 @@ paths:
         - BrowserSession: []
           BrowserExpectedScope: []
       summary: Create a scoped product API token
-
+      description: >-
+        expires_at is the caller's choice. Without it the token lives 24 hours. It must lie within the lifetime the token's
+        permissions and the Environment allow (getAPITokenPolicy): 365 days for a token that holds decide_guardrails and nothing
+        else, 90 days for any other, or the Environment's lower limit. A longer expiry is refused with 400. A rotation keeps the
+        expiry of the token it replaces.
       parameters:
         - $ref: '#/components/parameters/CSRFToken'
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -638,6 +642,60 @@ paths:
           $ref: '#/components/responses/ProductErrorResponse'
         default:
           $ref: '#/components/responses/ProductErrorResponse'
+  /api/v1/admin/api-token-policy:
+    get:
+      operationId: getAPITokenPolicy
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      summary: Get how long an API token of the Environment may live
+      description: >-
+        The lifetime of a token is chosen when it is created. A token that holds decide_guardrails and nothing else may live 365
+        days; every other token 90 days. max_lifetime_days is the limit the Environment's administrators set for both (365 lowers
+        nothing); the two effective limits are what a new token may ask for. Version 0 means no limit was saved.
+      responses:
+        '200':
+          description: The API token lifetime setting.
+          headers:
+            ETag: { $ref: '#/components/headers/WorkflowETag' }
+            Cache-Control: { schema: { type: string, const: no-store } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/APITokenPolicy' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    put:
+      operationId: putAPITokenPolicy
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      summary: Lower or restore the longest lifetime of the Environment's API tokens
+      description: >-
+        Requires fresh authentication. If-Match names the current version ("0" when no limit was saved); a stale version is refused
+        with 409, which also makes a repeated request safe. The limit applies to tokens created afterwards: existing tokens keep
+        their expiry and can be revoked. The change is audited.
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ScheduleVersion'
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/APITokenPolicyInput' } } }
+      responses:
+        '200':
+          description: The API token lifetime setting after the change.
+          headers:
+            ETag: { $ref: '#/components/headers/WorkflowETag' }
+            X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }
+            Cache-Control: { schema: { type: string, const: no-store } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/APITokenPolicy' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/admin/api-tokens/{id}/rotate:
     parameters:
       - name: id
@@ -5990,7 +6048,7 @@ components:
     APITokenInput:
       type: object
       additionalProperties: false
-      required: [name, workspace_id, environment_id, permissions, expires_at]
+      required: [name, workspace_id, environment_id, permissions]
       properties:
         name:
           type: string
@@ -6011,6 +6069,34 @@ components:
         expires_at:
           type: string
           format: date-time
+          description: When the token stops working. Absent means 24 hours from now. See createAPIToken for the longest lifetime.
+    APITokenPolicy:
+      type: object
+      additionalProperties: false
+      description: >-
+        How long an API token of the Environment may live. max_lifetime_days is the limit the Environment's administrators set
+        (365 while version is 0, which lowers nothing). decision_token_max_lifetime_days is the longest lifetime of a new token
+        that holds decide_guardrails and nothing else, token_max_lifetime_days of any other new token; default_lifetime_days is
+        the lifetime of a token created without an expiry.
+      required: [environment_id, max_lifetime_days, version, updated_at, default_lifetime_days, decision_token_max_lifetime_days, token_max_lifetime_days]
+      properties:
+        environment_id: { $ref: '#/components/schemas/ProductID' }
+        max_lifetime_days: { type: integer, minimum: 1, maximum: 365 }
+        version: { type: integer, minimum: 0, maximum: 1000000 }
+        updated_at: { oneOf: [{ type: 'null' }, { type: string, format: date-time }] }
+        default_lifetime_days: { type: integer, const: 1 }
+        decision_token_max_lifetime_days: { type: integer, minimum: 1, maximum: 365 }
+        token_max_lifetime_days: { type: integer, minimum: 1, maximum: 90 }
+    APITokenPolicyInput:
+      type: object
+      additionalProperties: false
+      required: [max_lifetime_days]
+      properties:
+        max_lifetime_days:
+          type: integer
+          minimum: 1
+          maximum: 365
+          description: The longest lifetime, in days, of a token created in this Environment from now on. 365 lowers nothing.
     APIToken:
       type: object
       additionalProperties: false
