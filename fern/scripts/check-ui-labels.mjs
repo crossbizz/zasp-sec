@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-// Checks that the user guide cites only labels the web application has.
+// Checks that the user guide and the Quickstart cite only labels the web
+// application has.
 //
-// In docs/getting-started/user.md, a name in bold is a label of the web
+// In docs/getting-started/user.md and the Quickstart page, a name in bold is a label of the web
 // application, and a sentence in double quotes is a message it shows. This
 // script looks each one up in the application's source (app/) and in the
 // connector manifests, and fails when one is not there, so the guide cannot
@@ -17,7 +18,9 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
-const guide = readFileSync(join(root, "docs", "getting-started", "user.md"), "utf8");
+// The pages that follow the convention: the user guide and the Quickstart.
+const pages = [join(root, "docs", "getting-started", "user.md"), join(root, "fern", "docs", "pages", "getting-started", "quickstart.mdx")];
+const guide = pages.map((path) => readFileSync(path, "utf8")).join("\n");
 
 function sources(directory, out = []) {
   for (const name of readdirSync(directory)) {
@@ -40,7 +43,8 @@ const corpus = normalize([
   readFileSync(join(root, "services", "platform", "identity", "roles.go"), "utf8"),
 ].join("\n"));
 
-const prose = guide.replace(/```[\s\S]*?```/g, "");
+// Code blocks and the title attributes of MDX components are not prose.
+const prose = guide.replace(/```[\s\S]*?```/g, "").replace(/\btitle="[^"]*"/g, "");
 const labels = new Set();
 for (const match of prose.matchAll(/\*\*([^*\n]+(?:\n[^*\n]+)?)\*\*/g)) labels.add(normalize(match[1]));
 const messages = new Set();
@@ -59,8 +63,8 @@ for (const message of messages) {
 }
 
 if (missing.length > 0) {
-  console.error(`docs/getting-started/user.md cites ${missing.length} label(s) or message(s) the web application does not have:`);
+  console.error(`The user guide or the Quickstart cites ${missing.length} label(s) or message(s) the web application does not have:`);
   for (const entry of missing) console.error(`  ${entry}`);
   process.exit(1);
 }
-console.log(`user guide: ${labels.size} labels and ${messages.size} messages checked against the web application`);
+console.log(`user guide and Quickstart: ${labels.size} labels and ${messages.size} messages checked against the web application`);

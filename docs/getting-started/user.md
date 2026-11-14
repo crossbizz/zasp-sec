@@ -20,13 +20,17 @@ It is agentless. Nothing is installed in your cloud accounts, clusters or
 repositories. Zasp reads provider APIs with read credentials that you grant, and
 it reads logs your providers already keep.
 
+Which providers you connect is your choice. No provider is required. Where Zasp
+itself runs is a separate matter, and is the administrator's: see the
+administrator guide.
+
 Three things are optional add-ons. None is needed for discovery, findings or
 compliance evidence:
 
 | Add-on | What it adds | What it costs you |
 | --- | --- | --- |
 | Hosted gateway | Zasp inspects an agent's MCP and model traffic in flight | One address and one token change in the agent's configuration. Nothing installed. |
-| Remediation role | Zasp can make two approved changes in an AWS account | A second IAM role, with write access to exactly those changes |
+| Remediation role | Zasp can make two approved changes in an AWS account. No other provider has remediation actions today. | A second IAM role, with write access to exactly those changes |
 | Runtime sensor | Process and network evidence from inside a Kubernetes cluster | Installed software in your cluster |
 
 ## 1. Sign in
@@ -81,23 +85,100 @@ A member has one built-in role per scope. The roles are listed on
 The left navigation shows only the pages your role may open. If a page this
 guide names is missing, your role does not include it.
 
-## 2. Connect the first source
+## 2. Connect your first source
 
 Zasp has nothing to show until one integration has synced. Start with the
-source that holds most of your agents. For most teams that is AWS.
+source where your agents are. No source is required and none comes first: an
+Environment can hold one integration or many, of any mix of providers.
 
 All integrations are on the **Integrations** page:
 
 - **Connector catalog** lists what this deployment can connect.
 - **Configured integrations** lists what is connected.
 
-Some connectors are switched on by the operator of the deployment. If one is
-missing from **Connector catalog**, ask your administrator. Microsoft,
-Salesforce, Google Cloud and the SaaS platforms are off by default.
+### Choose a source
+
+| Source | What it finds | What you grant | Needs your administrator first |
+| --- | --- | --- | --- |
+| [AWS](#aws) | Bedrock agents, AgentCore runtimes and gateways, and agents inferred from Lambda, CloudTrail and network logs | A read role with an external ID | The two principals to trust and the external ID reference |
+| [GitHub](#github) | Repositories that are agent projects, their MCP configuration and skills | An installation of the GitHub App | A GitHub App configured in the deployment |
+| [Google Cloud](#google-cloud) | Vertex AI Agent Engine, Conversational Agents, Gemini Enterprise agents, and agents inferred from Cloud Run and Cloud Functions | A read-only service account | The connector enabled; for federation, the deployment's two roles |
+| [Kubernetes](#kubernetes) | Agent workloads, MCP servers and the links between them | A read-only cluster credential | The credential stored, and its reference |
+| [Microsoft](#microsoft-entra-copilot-studio-azure-ai) | Entra agent identities, AI enterprise applications, Copilot Studio agents, Azure OpenAI and AI Foundry | An application with read permissions | The connector enabled, and the client secret stored |
+| [Okta](#okta) | AI applications connected to the directory | A read-only OAuth authorization | An Okta application configured in the deployment |
+| [Salesforce](#salesforce-agentforce) | Agentforce agents, the users they run as, their topics and actions | A connected app with the client credentials flow | The connector enabled, and the consumer secret stored |
+| [SaaS platforms](#saas-platforms) | AI apps and agents of Slack, Google Workspace, ServiceNow, GitLab, Databricks, OpenAI, Anthropic and Atlassian | A sign-in, or an API key held by the connection service | The connector enabled; for key-based platforms, the connection created |
+
+If a connector is missing from **Connector catalog**, the deployment has not
+enabled it: ask your administrator. Google Cloud, Microsoft, Salesforce and the
+SaaS platforms are off until an administrator turns them on.
+
+### What each source gives you
+
+Every source gives you an inventory, ownership, the general findings, attack
+paths, the AI bill of materials and evidence. Some things depend on what the
+provider exposes and on what is built today.
+
+| Source | Findings specific to it | Activity without anything installed | MCP servers | Changes Zasp can make after approval |
+| --- | --- | --- | --- | --- |
+| AWS | No guardrail on a Bedrock agent; execution role with administrator access; role unused for 90 days; model permissions granted and not used; role that reaches every resource of a data service | From CloudTrail, and from Resolver query logs with VPC Flow Logs | AgentCore gateways and their targets; remote servers seen in the network logs | Attach a Bedrock guardrail; detach an administrator policy |
+| GitHub | A skill that ships scripts; a skill with no code owner | None | Servers and tools in a repository's MCP configuration | None |
+| Google Cloud | Service account with an administrator role; Vertex AI agent without Model Armor | From the Vertex AI data access audit log | Cloud Run services that are MCP servers; tools of Conversational Agents | None |
+| Kubernetes | None | None | Workloads that are MCP servers, and the agents linked to them | None |
+| Microsoft | Content moderation at the lowest level (Copilot Studio, Azure AI Foundry) | None | None. The kinds of tools of an AI Foundry agent are recorded. | None |
+| Okta | None | None | None | None |
+| Salesforce | Content moderation at the lowest level (Einstein Trust Layer) | None | None. An agent's topics and actions are listed as its tools. | None |
+| SaaS platforms | None | None | The MCP servers of GitLab Duo agents | None |
+
+How to read the table:
+
+- The general findings (an agent with no owner, a human credential, a shared
+  credential, reach from untrusted input to production, and the like) are
+  raised for an agent of any source, wherever the facts they need were read.
+- The findings about MCP servers are raised on the agents that use a server,
+  for every source that records which agent uses which server.
+- "None" under activity means the agent's activity is unknown, not that it is
+  inactive. Two things give activity for an agent of any source: routing its
+  traffic through the hosted gateway, and the optional runtime sensor.
+- Red team tests, guardrails, the hosted gateway and compliance evidence do not
+  depend on the source.
+
+### Authorize, sync and schedule
 
 Every integration follows the same steps, shown as **Setup progress** in its
 detail: grant read access at the provider, configure, authorize or test, run the
-first sync, and review coverage.
+first sync, and review coverage. The sections below give the first two steps for
+each source. The rest is the same everywhere:
+
+1. Open the integration from **Configured integrations**.
+2. Choose the authorize button. It names the provider. You may be asked to sign
+   in again: authorizing needs a fresh sign-in.
+3. Choose **Sync inventory now**.
+
+What success looks like:
+
+- The integration's status is active.
+- **Sync history** shows a completed sync with a count of discovered records.
+- The integration's detail shows the account, tenant, organization or cluster
+  that was read.
+- The **Agents** page is no longer empty.
+
+To keep the inventory current, set **Automatic sync cadence seconds** (300 or
+more) under **Automatic sync schedule** and choose **Save automatic sync**.
+
+### What a coverage gap means
+
+After a sync, the integration's detail may show **Agent discovery coverage**.
+Each line is one thing the sync could not read, with the reason and what to
+change. A line names a permission or a role that is missing, a log source that
+is not delivered where it can be read, or a service that is switched off or not
+offered where the integration reads.
+
+A coverage gap is not a failure. The sync succeeded and everything else was
+read. It means: agents of this kind may exist and Zasp cannot see them. The
+line disappears after the first sync with the gap closed.
+
+The sources follow in alphabetical order.
 
 ### AWS
 
@@ -220,68 +301,17 @@ of the AI services that were matched.
 
 **Step 4. Authorize and sync.**
 
-1. Open the integration from **Configured integrations**.
-2. Choose the authorize button. For AWS it reads `Authorize AWS reference`. You
-   may be asked to sign in again: authorizing needs a fresh sign-in.
-3. Choose **Sync inventory now**.
-
-What success looks like:
-
-- The integration's status is active and **Connection test** has passed.
-- **Sync history** shows a completed sync with a count of discovered records.
-- **AWS account scope** shows the account that was read.
-- The **Agents** page is no longer empty.
-
-To keep the inventory current, set **Automatic sync cadence seconds** (300 or
-more) under **Automatic sync schedule** and choose **Save automatic sync**.
-
-### What a coverage gap means
-
-After a sync, the integration's detail may show **Agent discovery coverage**.
-Each line is one thing the sync could not read, with the reason and what to
-change. Examples of what you will see:
-
-- A service with "permission missing": the read role lacks the named actions.
-  Add them to the role's policy and sync again.
-- A log source "not delivered to CloudWatch Logs": turn on the named logging in
-  your account.
-- A service "not offered in this account's regions": nothing to do.
-
-A coverage gap is not a failure. The sync succeeded and everything else was
-read. It means: agents of this kind may exist and Zasp cannot see them. The
-line disappears after the first sync with the gap closed.
-
-### Kubernetes
-
-What you grant: a read-only credential for one cluster, bound to `get`, `list`
-and `watch` on inventory resources. The built-in `view` ClusterRole is enough.
-
-1. Give the cluster's endpoint, CA and credential to your administrator, who
-   stores them outside the browser and gives you a reference of the form
-   `ref:kubernetes/connection/<name>`.
-2. In **Connector catalog**, choose Kubernetes. Enter the reference in
-   **Cluster credential reference** and save.
-3. Open the integration, authorize it, and choose **Sync inventory now**.
-
-What is found without anything installed: workloads whose pod template names an
-AI framework, a model provider or an MCP server, and the agents related to the
-MCP servers that run in the cluster.
-
-**Agent discovery coverage** names a missing permission. Two lines you may see
-concern MCP server links: one when the credential may not list Services, one
-when it may not list ConfigMaps. Each line says which permission to allow.
-
-The integration's detail also has a card **Kubernetes runtime coverage**. It
-says "Runtime coverage is not enrolled" until you install the optional runtime
-sensor. That is expected on the agentless path. See
-[Runtime sensors](#runtime-sensors-optional).
+Follow [Authorize, sync and schedule](#authorize-sync-and-schedule). For AWS the
+authorize button reads `Authorize AWS reference`. Success shows
+**AWS account scope** with the account that was read.
 
 ### GitHub
 
 What you grant: an installation of the Zasp GitHub App on your organization,
 with the read permissions `actions`, `contents` and `metadata`.
 
-1. In **Connector catalog**, choose GitHub and save.
+1. In **Connector catalog**, choose GitHub. Enter `github_app` in
+   **Authorization mode**, the only value it accepts, and save.
 2. Open the integration and choose the authorize button. You continue on
    GitHub, choose the organization, and choose all repositories or selected
    ones.
@@ -298,76 +328,6 @@ skills and instruction files are never requested.
 If authorization fails with "GitHub installation access is missing required
 organization or repository scope", review the installation on GitHub and
 authorize again.
-
-### Okta
-
-What you grant: a read-only OAuth authorization with the scopes
-`okta.apps.read`, `okta.groups.read` and `okta.users.read`.
-
-1. In **Connector catalog**, choose Okta. Enter your tenant's address in
-   **Okta issuer**, in the form `https://<tenant>.okta.com`, and save.
-2. Open the integration and authorize. You continue on Okta and sign in with an
-   account that may grant those scopes.
-3. Sync.
-
-What success looks like: the card **Okta provider scope** shows **Okta tenant**
-and **Directory scopes**.
-
-This integration reads your Okta directory to find AI applications connected to
-it. It is separate from how you sign in to Zasp.
-
-### Microsoft (Entra, Copilot Studio, Azure AI)
-
-Optional connector. Ask your administrator to enable it.
-
-What you grant, in your tenant:
-
-1. Register a single-tenant application in Microsoft Entra.
-2. Add the Microsoft Graph application permission `Application.Read.All` and,
-   for Entra agent identities, `AgentIdentity.Read.All`. Grant admin consent.
-3. Create a client secret and give it to your administrator, who stores it and
-   gives you a reference of the form `ref:microsoft/client-secret/<name>`.
-4. For Copilot Studio only: add the application as an application user in the
-   Power Platform environment, with a role that can read the `bot` table.
-5. For Azure OpenAI and Azure AI Foundry only: assign the application the
-   Reader role on each subscription, and the Azure AI User role on each
-   AI Foundry account whose agents should be listed.
-
-In the product, choose "Microsoft Entra and Copilot Studio" in
-**Connector catalog**:
-
-| Field | Value |
-| --- | --- |
-| **Directory (tenant) ID** | The tenant GUID, in lower case |
-| **Application (client) ID** | The application GUID, in lower case |
-| **Client secret** | `ref:microsoft/client-secret/<name>` |
-| **Dataverse environment URL** | Optional. `https://<name>.crm<n>.dynamics.com`. Empty skips Copilot Studio. It cannot be added later: create the integration again. |
-
-Then authorize and sync. Success shows **Microsoft Entra tenant** in the
-integration's detail.
-
-### Salesforce (Agentforce)
-
-Optional connector. Ask your administrator to enable it.
-
-What you grant, in your org:
-
-1. Create a connected app with OAuth enabled and the scope `api`.
-2. Enable the client credentials flow and set a run-as user with the
-   permissions API Enabled and View Setup and Configuration.
-3. Give the consumer secret to your administrator, who gives you a reference of
-   the form `ref:salesforce/client-secret/<name>`.
-
-In the product, choose "Salesforce Agentforce":
-
-| Field | Value |
-| --- | --- |
-| **My Domain URL** | `https://<name>.my.salesforce.com`. Not the generic login address. |
-| **Organization ID** | The 18-character ID that starts with `00D` |
-| **Consumer key** | The connected app's consumer key |
-| **Consumer secret** | `ref:salesforce/client-secret/<name>` |
-
-Then authorize and sync. Success shows **Salesforce org**.
 
 ### Google Cloud
 
@@ -404,6 +364,101 @@ In the product, choose Google Cloud:
 | **Workload identity provider** | The provider's full resource name |
 
 Then authorize and sync. Success shows **Google Cloud scope**.
+
+### Kubernetes
+
+What you grant: a read-only credential for one cluster, bound to `get`, `list`
+and `watch` on inventory resources. The built-in `view` ClusterRole is enough.
+
+1. Give the cluster's endpoint, CA and credential to your administrator, who
+   stores them outside the browser and gives you a reference of the form
+   `ref:kubernetes/connection/<name>`.
+2. In **Connector catalog**, choose Kubernetes. Enter the reference in
+   **Cluster credential reference** and save.
+3. Open the integration, authorize it, and choose **Sync inventory now**.
+
+What is found without anything installed: workloads whose pod template names an
+AI framework, a model provider or an MCP server, and the agents related to the
+MCP servers that run in the cluster.
+
+**Agent discovery coverage** names a missing permission. Two lines you may see
+concern MCP server links: one when the credential may not list Services, one
+when it may not list ConfigMaps. Each line says which permission to allow.
+
+The integration's detail also has a card **Kubernetes runtime coverage**. It
+says "Runtime coverage is not enrolled" until you install the optional runtime
+sensor. That is expected on the agentless path. See
+[Runtime sensors](#runtime-sensors-optional).
+
+### Microsoft (Entra, Copilot Studio, Azure AI)
+
+Optional connector. Ask your administrator to enable it.
+
+What you grant, in your tenant:
+
+1. Register a single-tenant application in Microsoft Entra.
+2. Add the Microsoft Graph application permission `Application.Read.All` and,
+   for Entra agent identities, `AgentIdentity.Read.All`. Grant admin consent.
+3. Create a client secret and give it to your administrator, who stores it and
+   gives you a reference of the form `ref:microsoft/client-secret/<name>`.
+4. For Copilot Studio only: add the application as an application user in the
+   Power Platform environment, with a role that can read the `bot` table.
+5. For Azure OpenAI and Azure AI Foundry only: assign the application the
+   Reader role on each subscription, and the Azure AI User role on each
+   AI Foundry account whose agents should be listed.
+
+In the product, choose "Microsoft Entra and Copilot Studio" in
+**Connector catalog**:
+
+| Field | Value |
+| --- | --- |
+| **Directory (tenant) ID** | The tenant GUID, in lower case |
+| **Application (client) ID** | The application GUID, in lower case |
+| **Client secret** | `ref:microsoft/client-secret/<name>` |
+| **Dataverse environment URL** | Optional. `https://<name>.crm<n>.dynamics.com`. Empty skips Copilot Studio. It cannot be added later: create the integration again. |
+
+Then authorize and sync. Success shows **Microsoft Entra tenant** in the
+integration's detail.
+
+### Okta
+
+What you grant: a read-only OAuth authorization with the scopes
+`okta.apps.read`, `okta.groups.read` and `okta.users.read`.
+
+1. In **Connector catalog**, choose Okta. Enter your tenant's address in
+   **Okta issuer**, in the form `https://<tenant>.okta.com`, and save.
+2. Open the integration and authorize. You continue on Okta and sign in with an
+   account that may grant those scopes.
+3. Sync.
+
+What success looks like: the card **Okta provider scope** shows **Okta tenant**
+and **Directory scopes**.
+
+This integration reads your Okta directory to find AI applications connected to
+it. It is separate from how you sign in to Zasp.
+
+### Salesforce (Agentforce)
+
+Optional connector. Ask your administrator to enable it.
+
+What you grant, in your org:
+
+1. Create a connected app with OAuth enabled and the scope `api`.
+2. Enable the client credentials flow and set a run-as user with the
+   permissions API Enabled and View Setup and Configuration.
+3. Give the consumer secret to your administrator, who gives you a reference of
+   the form `ref:salesforce/client-secret/<name>`.
+
+In the product, choose "Salesforce Agentforce":
+
+| Field | Value |
+| --- | --- |
+| **My Domain URL** | `https://<name>.my.salesforce.com`. Not the generic login address. |
+| **Organization ID** | The 18-character ID that starts with `00D` |
+| **Consumer key** | The connected app's consumer key |
+| **Consumer secret** | `ref:salesforce/client-secret/<name>` |
+
+Then authorize and sync. Success shows **Salesforce org**.
 
 ### SaaS platforms
 
@@ -455,7 +510,7 @@ Open **Agents**. Every row is one agent.
 | Column | Meaning |
 | --- | --- |
 | **Name** | The agent's name at its provider |
-| **Source** | The provider and kind, for example "AWS · Bedrock agent" |
+| **Source** | The provider and kind, for example "AWS · Bedrock agent" or "SaaS · Databricks" |
 | **Found by** | How Zasp learned of it (see below) |
 | **Status** | Managed, unmanaged or dismissed |
 | **Activity** | Active, inactive or unknown |
@@ -467,12 +522,13 @@ Open **Agents**. Every row is one agent.
 
 **Found by** has three values:
 
-- **Provider record**: the provider lists it as an agent. A Bedrock agent, an
-  AgentCore runtime, a Copilot Studio agent, an Agentforce agent.
+- **Provider record**: the provider lists it as an agent. An Agentforce
+  agent, a Bedrock agent, a Copilot Studio agent, a Vertex AI Agent Engine.
 - **Inferred from signals**: nothing declares it an agent, but the evidence
-  says it is one. A Lambda function that can call a model, a role CloudTrail
-  shows invoking a model, a workload that resolved and reached a model API, a
-  repository with an agent framework.
+  says it is one. A Cloud Run service or a Lambda function that can call a
+  model, a Kubernetes workload whose image names an agent framework, a
+  repository with an agent framework, an identity the provider's audit log
+  shows invoking a model.
 - **Declared by owner**: someone registered it.
 
 Open an agent and read **How it was found**. It lists every discovery signal,
@@ -486,9 +542,10 @@ The filter above the table has **All agents**, **Unmanaged** and **Inactive**.
 - **Unmanaged** means no owner has claimed the agent. An agent found without a
   declaration starts unmanaged. This is the list of shadow agents: work through
   it first.
-- **Inactive** means no activity signal for 30 days, or AWS reports the
-  agent's role unused for 90 days. An agent with no activity source is
-  "unknown", not inactive.
+- **Inactive** means no activity signal for 30 days. An agent with no activity
+  source is "unknown", not inactive. Which sources give activity is in
+  [What each source gives you](#what-each-source-gives-you). On AWS, an agent
+  whose role is reported unused for 90 days is also inactive.
 - To claim an agent, open it, fill in **Owner** and **Team** under
   **Ownership** and choose **Save ownership**.
 - If it is not an agent, tick **Not an agent** in the same form. It needs an
@@ -508,8 +565,9 @@ The filter above the table has **All agents**, **Unmanaged** and **Inactive**.
 | **Runtime policy coverage** | Whether a runtime control applies to it |
 
 Under **Access**, **Model permissions: used against granted** compares what the
-agent's role may call with what the audit log shows it called. It needs
-`cloudtrail:LookupEvents`. Without it the page says the audit log was not read.
+agent's role may call with what the audit log shows it called. It exists for AWS
+agents and needs `cloudtrail:LookupEvents` on the read role. Without it the page
+says the audit log was not read.
 
 ### AI bill of materials
 
@@ -546,7 +604,7 @@ found.
 | Column | Meaning |
 | --- | --- |
 | **Server** | Its name |
-| **Found by** | **AgentCore gateway**, **Repository configuration**, **Kubernetes workload**, **Seen in network logs**, **SaaS platform** or **Gateway target** |
+| **Found by** | **AgentCore gateway**, **Gateway target**, **Kubernetes workload**, **Provider record**, **Repository configuration**, **SaaS platform** or **Seen in network logs** |
 | **Endpoint or command** | The host of a remote server, or the command of a local one |
 | **Authentication** | Whether its declaration names any |
 | **Tools** | Tool names, where they could be read |
@@ -612,6 +670,9 @@ would cut the path, each tied to its evidence: **Remove node** or
 break options are available."
 
 ### Remediation from a finding
+
+Remediation exists for AWS today. Findings of every other source are fixed at
+the provider, by following the finding's **Fix**.
 
 Two findings on AWS agents can be fixed by Zasp itself, after a person approved
 the change:
@@ -1027,9 +1088,9 @@ in the administrator guide.
 
 1. Sign in and confirm the scope shown in the top bar is the Environment you
    mean to work in.
-2. Create the AWS read role and get the external ID reference from your
-   administrator.
-3. On **Integrations**, configure AWS, authorize it and choose
+2. Choose your first source in [Choose a source](#choose-a-source) and grant the
+   read access its section describes.
+3. On **Integrations**, configure that source, authorize it and choose
    **Sync inventory now**.
 4. Read **Agent discovery coverage** and decide which gaps to close.
 5. Open **Agents**, choose **Unmanaged**, and claim or dismiss the first ten.
@@ -1038,7 +1099,8 @@ in the administrator guide.
    **Verify**.
 8. Open **Attack Paths** and read **Break path** on the highest one.
 9. Set an automatic sync on the integration.
-10. Connect the second source: GitHub or Kubernetes.
+10. Connect a second source, for example where your agents' code or identities
+    are.
 11. On **Guardrails**, set every rule to monitor and save.
 12. Create a decisions-only or gateway-only token and route one non-production
     agent through it.
@@ -1065,7 +1127,7 @@ The messages below are the ones the product shows.
 | --- | --- | --- |
 | The connector is not in **Connector catalog** | The deployment has not enabled it | Ask your administrator |
 | **No integrations** | Nothing is connected yet | Choose an entry in **Connector catalog** |
-| "Authoritative provider scope is unavailable. Setup remains incomplete." | The provider could not be read after authorization | Check the role, the external ID reference and the trust policy, then authorize again |
+| "Authoritative provider scope is unavailable. Setup remains incomplete." | The provider could not be read after authorization | Check what you granted at the provider and the reference you entered, then authorize again. For AWS: the role, the external ID reference and the trust policy. |
 | "Kubernetes inventory access was denied. Grant the documented get, list, and watch permissions, then run Test connection again." | The cluster credential is too narrow | Bind the credential to the `view` ClusterRole |
 | "GitHub installation access is missing required organization or repository scope." | The App is not installed where you expect | Review the installation on GitHub, then authorize again |
 | "Microsoft refused the application." | The secret, the consent or the Dataverse user is wrong | Check the client secret, admin consent and, for Copilot Studio, the application user |
@@ -1084,8 +1146,8 @@ The messages below are the ones the product shows.
 | --- | --- | --- |
 | "No records in this scope." | No integration has synced | Connect and sync an integration |
 | "No unmanaged agents in this scope." | Every agent has an owner | Nothing |
-| "No inactive agents in this scope. An agent with no activity source is reported as unknown, not inactive." | No agent is known to be idle | To learn activity on AWS, add `cloudtrail:LookupEvents` |
-| "No MCP server found in this scope." | No source that lists MCP servers has synced | Connect AWS with the gateway actions, GitHub, or Kubernetes |
+| "No inactive agents in this scope. An agent with no activity source is reported as unknown, not inactive." | No agent is known to be idle | See which sources give activity in [What each source gives you](#what-each-source-gives-you). For AWS, add `cloudtrail:LookupEvents`. |
+| "No MCP server found in this scope." | No source that lists MCP servers has synced | Connect a source that lists MCP servers: see [What each source gives you](#what-each-source-gives-you) |
 | "The audit log of this agent's role was not read, so used and granted permissions cannot be compared." | `cloudtrail:LookupEvents` is missing | Add it to the read role |
 | "You may not read this agent's evidence." | Your role cannot build the evidence pack | Ask for a role with evidence access |
 | "The export quota of this Environment is used up." | Too many retained exports exist | Wait until one expires |

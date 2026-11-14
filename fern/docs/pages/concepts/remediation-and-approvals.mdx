@@ -1,6 +1,6 @@
 ---
 title: Remediation and approvals
-description: Security Agents, supervised execution, who may approve, and how a change is made in a customer's AWS account.
+description: Security Agents, supervised execution, who may approve, and the changes Zasp can make today, which are in AWS accounts.
 ---
 
 Zasp reads by default. It changes something only through a Security Agent, and only after a person approved the change.
@@ -47,6 +47,8 @@ A supervised action becomes an approval request before any provider is touched. 
 Every decision stays in the approval history, and every run has an audit trail.
 
 ## Remediation in a customer's AWS account
+
+Remediation actions exist for AWS only today. A finding of any other source is fixed at the provider, by following the fix the finding names. Security Agents, simulation, execution controls and approvals above do not depend on the source.
 
 Two actions change an AWS account:
 

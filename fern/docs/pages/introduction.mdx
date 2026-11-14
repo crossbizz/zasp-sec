@@ -1,6 +1,6 @@
 ---
 title: Introduction
-description: Zasp finds the AI agents in your organization, shows what they can reach, and lets you test and control them, without installing anything in your environment.
+description: Zasp finds the AI agents in your organization across the providers you connect, shows what they can reach, and lets you test and control them, without installing anything in your environment.
 ---
 
 Zasp is an agent security platform. It answers four questions about the AI agents in an organization:
@@ -10,25 +10,44 @@ Zasp is an agent security platform. It answers four questions about the AI agent
 3. **Where is that a risk?** As findings with evidence, and as attack paths.
 4. **What can be done about it?** Tests, guardrails, approved fixes and evidence for auditors.
 
-## Agentless
+## What Zasp can read
 
-Nothing is installed in your cloud accounts, clusters or repositories.
+Any supported provider, and none is required. Connect the sources where your agents are, in any order and any mix:
 
-Zasp reads provider APIs with read-only credentials that you grant. It also reads the logs your providers already keep, such as CloudTrail, Route 53 Resolver query logs and VPC Flow Logs. From those it finds agents that no control plane lists: a Lambda function that calls a model, a role that invoked a model last week, a workload that resolved and reached a model API.
+| Kind | Sources |
+| --- | --- |
+| Cloud | [AWS](/integrations/aws), [Google Cloud](/integrations/google-cloud), [Microsoft and Azure](/integrations/microsoft) |
+| Code and runtime | [GitHub](/integrations/github), [Kubernetes](/integrations/kubernetes) |
+| Identity | [Okta](/integrations/okta) |
+| SaaS | [Salesforce](/integrations/salesforce), and Anthropic, Atlassian, Databricks, GitLab, Google Workspace, OpenAI, ServiceNow and Slack as [SaaS platforms](/integrations/saas-platforms) |
+
+Reading is agentless. Nothing is installed in your cloud accounts, clusters, repositories or tenants. Zasp reads provider APIs with read-only credentials that you grant. Where a provider keeps logs that show which workload called a model, and lets them be read, Zasp reads those too, and finds agents that no control plane lists.
+
+What a source gives you beyond the inventory depends on what its provider exposes and on what is built today. The differences are in one table: [What each source gives you](/integrations/overview#what-each-source-gives-you).
 
 Three add-ons exist for teams that want more than reading. Each is optional.
 
-| Add-on | What it adds | What changes at your side |
-| --- | --- | --- |
-| [Hosted gateway](/concepts/guardrails-and-gateway) | Inspection of an agent's MCP and model traffic in flight | One address and one token in the agent's configuration |
-| [Remediation role](/concepts/remediation-and-approvals) | Two approved changes in an AWS account | A second IAM role with write access to exactly those changes |
-| Runtime sensor | Process and network evidence from inside a Kubernetes cluster | Installed software in the cluster |
+| Add-on | What it adds | What changes at your side | Depends on the source |
+| --- | --- | --- | --- |
+| [Hosted gateway](/concepts/guardrails-and-gateway) | Inspection of an agent's MCP and model traffic in flight | One address and one token in the agent's configuration | No. It works for any agent. |
+| [Remediation role](/concepts/remediation-and-approvals) | Two approved changes in an AWS account | A second IAM role with write access to exactly those changes | Yes. AWS only today. |
+| Runtime sensor | Process and network evidence from inside a Kubernetes cluster | Installed software in the cluster | Yes. Kubernetes only. |
+
+## Where Zasp runs
+
+This is a different matter from what Zasp can read, and it is the administrator's.
+
+Zasp itself currently needs AWS services to run: identity for its workloads, a secret store, encryption keys, object storage and queues. The code has no other object store or queue driver. A deployment that holds real data therefore runs in an AWS account. The two evaluation profiles, on one machine or on any Kubernetes cluster, satisfy the same needs with a bundled AWS emulator and are not for real data. Sign-in goes through a hosted identity provider in every profile.
+
+None of that limits what you connect. A Zasp that runs in AWS reads Google Cloud, Microsoft, GitHub or a SaaS platform exactly as it reads AWS, and you need no AWS account of your own to use it.
+
+The [Administrator guide](/administrator-guide) has the detail.
 
 ## What you can do
 
 <CardGroup cols={2}>
   <Card title="Discover agents" icon="magnifying-glass" href="/concepts/agentless-discovery">
-    Find declared and undeclared agents across AWS, Kubernetes, GitHub, Okta, Microsoft, Salesforce, Google Cloud and SaaS platforms.
+    Find declared and undeclared agents across your cloud accounts, clusters, repositories, identity provider and SaaS platforms.
   </Card>
   <Card title="Read findings" icon="triangle-exclamation" href="/concepts/findings-and-frameworks">
     Every finding names its rule, its evidence, the fix and how to verify it, with references to six AI security frameworks.
@@ -60,7 +79,7 @@ Three add-ons exist for teams that want more than reading. Each is optional.
 
 This documentation says so where something was not run against a real provider. In short:
 
-- The product runs end to end on one machine against an emulated AWS account. The procedure is in the repository under `docs/operations/local-self-test.md`.
+- The product runs end to end on one machine, with the AWS services it needs emulated. The one source connected in that run was the emulated AWS account. The procedure is in the repository under `docs/operations/local-self-test.md`.
 - No connector has been run against a real provider account, tenant or cluster.
 - The production deployment procedure has been checked as text. It has not been applied to an AWS account.
 

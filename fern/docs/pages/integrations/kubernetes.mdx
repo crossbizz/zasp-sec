@@ -16,6 +16,17 @@ description: Connect one cluster with a read-only credential. What is found with
 
 Values of environment variables and ConfigMap data are compared in memory and dropped. None is stored or logged. Secrets are never requested.
 
+## What this source gives you
+
+| | |
+| --- | --- |
+| Findings specific to it | None |
+| Activity without anything installed | None without the optional runtime sensor, which is installed software |
+| MCP servers | Workloads that are MCP servers, and the agents linked to them |
+| Changes Zasp can make after approval | None. Fix a finding at the provider. |
+
+The general findings, attack paths, red team tests, guardrails, the hosted gateway and compliance evidence are the same for every source. All sources side by side: [What each source gives you](/integrations/overview#what-each-source-gives-you).
+
 ## What you grant
 
 A read-only credential for the cluster, bound to `get`, `list` and `watch` on the inventory resources. The built-in `view` ClusterRole is enough.
@@ -40,6 +51,10 @@ Without `services`, no agent is related to an MCP server. Without `configmaps`, 
 <Note>
 Kubernetes cannot limit a list to a label, so allowing `list` on ConfigMaps allows reading all ConfigMaps of the cluster.
 </Note>
+
+## What your operator does
+
+The operator stores the cluster's endpoint, CA and credential in the deployment's secret store and gives you the reference `ref:kubernetes/connection/<name>`.
 
 ## Configure
 

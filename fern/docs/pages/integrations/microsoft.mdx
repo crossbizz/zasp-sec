@@ -19,6 +19,33 @@ Of an AI Foundry agent these are recorded: its name, whether it is enabled, its 
 
 One finding is specific to these platforms: an agent whose content moderation is at the lowest level.
 
+## What is recorded
+
+| Record | What is kept | What is not kept |
+| --- | --- | --- |
+| Entra agent identity, AI enterprise application | Its name and identifiers | Credentials |
+| Copilot Studio agent | Its name and, from its configuration, the generative AI content moderation level | The rest of its configuration |
+| Azure OpenAI or AI Foundry account | Its region, endpoint host, whether public network access is on and whether key authentication is disabled | Keys |
+| Model deployment | The model name and version | |
+| AI Foundry agent | Its name, whether it is enabled, its kind (prompt, hosted, workflow, external, voice), the model deployment it names, the kinds of its tools, and the content filter policy that applies to it | Its instructions and tool definitions |
+
+## Findings
+
+| Finding | Raised when |
+| --- | --- |
+| Agent content moderation is set to the lowest level | A Copilot Studio agent's generative AI moderation is at the lowest level; or an AI Foundry agent's content filter, its own or its deployment's, is switched off, only annotates, or blocks only high-severity content |
+
+## What this source gives you
+
+| | |
+| --- | --- |
+| Findings specific to it | Content moderation at the lowest level (Copilot Studio, Azure AI Foundry) |
+| Activity without anything installed | None. An agent's activity is unknown unless its traffic goes through the hosted gateway. |
+| MCP servers | None. The kinds of tools of an AI Foundry agent are recorded. |
+| Changes Zasp can make after approval | None. Fix a finding at the provider. |
+
+The general findings, attack paths, red team tests, guardrails, the hosted gateway and compliance evidence are the same for every source. All sources side by side: [What each source gives you](/integrations/overview#what-each-source-gives-you).
+
 ## What you grant
 
 <Steps>
@@ -38,6 +65,23 @@ One finding is specific to these platforms: an agent whose content moderation is
     Assign the application's service principal the built-in Reader role on each subscription to read. For AI Foundry agents, also assign Azure AI User on each AI Foundry account or project.
   </Step>
 </Steps>
+
+## What your operator does
+
+The operator enables the connector, stores your client secret in the deployment's secret store and gives you the reference `ref:microsoft/client-secret/<name>`. Azure OpenAI and AI Foundry are a second switch of the same connector.
+
+The deployment needs a network route to Microsoft's sign-in service, Microsoft Graph, your Dataverse environment and, for Azure, Resource Manager and the AI Foundry project endpoints. The operator admits those address ranges.
+
+Each additional tenant is another stored secret.
+
+## What each sync does
+
+1. It requests an application token for Microsoft Graph, and reads agent identities and enterprise applications.
+2. With a Dataverse environment configured, it requests a token for that environment and reads the Copilot Studio agents.
+3. With Azure enabled, it requests a token for Resource Manager and reads the subscriptions the application can see, their Azure OpenAI and AI Foundry accounts and each account's deployments.
+4. For each AI Foundry account, it requests a token for the project endpoints and lists the agents of each project.
+
+No token is stored. A step whose permission is missing is skipped and named in the coverage lines; the sync completes.
 
 ## Configure
 

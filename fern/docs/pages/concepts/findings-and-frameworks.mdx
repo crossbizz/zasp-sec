@@ -51,22 +51,20 @@ The rules look at what discovery recorded. In groups:
 - A CI/CD write path can reach production secrets.
 - A runtime is privileged or can access the host file system.
 
-**AWS agents**
+**Specific to a source**
 
-- A Bedrock agent has no guardrail attached.
-- An agent's execution role has administrator access.
-- An agent's execution role has not been used for 90 days.
-- An agent's role holds model permissions it does not use.
-- An agent's role can reach every resource of a data service.
+| Source | Finding |
+| --- | --- |
+| AWS | A Bedrock agent has no guardrail attached |
+| AWS | An agent's execution role has administrator access |
+| AWS | An agent's execution role has not been used for 90 days |
+| AWS | An agent's role holds model permissions it does not use |
+| AWS | An agent's role can reach every resource of a data service |
+| Google Cloud | An agent's service account holds an administrator role |
+| Google Cloud | A Vertex AI agent runs without Model Armor |
+| Microsoft, Salesforce | An agent's content moderation is set to the lowest level (Copilot Studio, Azure AI Foundry, Agentforce) |
 
-**Google Cloud agents**
-
-- An agent's service account holds an administrator role.
-- A Vertex AI agent runs without Model Armor.
-
-**Agent platforms**
-
-- An agent's content moderation is set to the lowest level (Copilot Studio, Azure AI Foundry, Agentforce).
+The groups above and below this table are raised for an agent of any source, wherever the facts they need were read.
 
 **MCP servers and skills**
 

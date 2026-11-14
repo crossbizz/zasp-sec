@@ -45,8 +45,8 @@ Publish a preview of the site and print its address:
 npm run docs:preview
 ```
 
-This needs the token and network access to Fern. In the authoring environment
-it failed for lack of that access; see "Publishing for real".
+This needs the token and network access to Fern. Behind a proxy, see "Behind
+an HTTP proxy".
 
 Generate the SDKs again, with Fern's cloud generators (not run in the authoring
 environment; the form with `--local` under "The SDKs" was):
@@ -77,10 +77,10 @@ It prints the address it serves the site at, API reference included.
 1. `openapi-overrides.yml` is current: every operation of the contract has a
    tag, an SDK group and a method name. A new operation that is not listed in
    `scripts/build-openapi-overrides.mjs` fails the check.
-2. The user guide cites only labels and messages that exist in the web
-   application (`scripts/check-ui-labels.mjs`). In
-   `docs/getting-started/user.md`, a name in bold is a label of the
-   application and a sentence in double quotes is a message it shows.
+2. The user guide and the Quickstart cite only labels and messages that exist
+   in the web application (`scripts/check-ui-labels.mjs`). In those two pages a
+   name in bold is a label of the application and a sentence in double quotes
+   is a message it shows.
 3. `fern check`: the API definition, `generators.yml`, `docs.yml`, and every
    page parses as MDX.
 4. `fern docs broken-links`: links between pages resolve.
@@ -102,11 +102,57 @@ The Fern CLI reads its token from the environment variable `FERN_TOKEN`.
   its subdomains.
 
 The token belongs to a Fern organization. `fern.config.json` names the
-organization `zasp`. Whether the token belongs to that organization has not
-been confirmed: that needs a call to Fern, which the authoring environment's
-network policy refused. If it belongs to another organization, change
-`organization` in `fern.config.json` and the first part of the instance `url`
-in `docs.yml` to match.
+organization `zasp`, and a preview was published under it with the project's
+token. With a token of another organization, change `organization` in
+`fern.config.json` and the first part of the instance `url` in `docs.yml` to
+match.
+
+## Behind an HTTP proxy
+
+The Fern CLI calls Fern's services with Node's `fetch`, which ignores
+`HTTPS_PROXY`. Behind a proxy that is the only way out, every command that
+talks to Fern fails. `fern generate --docs` reports:
+
+```
+registerApiDefinition failed for Agent Security Platform API (attempt 1/4), retrying
+FDR registerApiDefinition failed. Error details: { "rawError": {} }
+```
+
+and with `--log-level debug` the log says "entering air-gapped mode".
+
+The workaround is `scripts/proxy-preload.cjs`, a Node preload that wraps
+`globalThis.fetch` so that every call goes through an undici
+`EnvHttpProxyAgent`, which reads `HTTPS_PROXY` and `NO_PROXY`.
+`scripts/fern.mjs` adds it to `NODE_OPTIONS` by itself when both hold:
+
+- `HTTPS_PROXY` is set;
+- the package `undici` can be resolved.
+
+`undici` is not a dependency of this repository. Install it without saving it,
+at the version of the undici that is built into your Node. A dispatcher from
+another major version is refused by Node's `fetch`.
+
+Print the version:
+
+```bash
+node -p process.versions.undici
+```
+
+Install that version, for example:
+
+```bash
+npm install --no-save undici@6.29.1
+```
+
+To keep it out of the repository's `node_modules`, install it in any other
+directory and name that directory's `node_modules` in `NODE_PATH`.
+
+With that in place `npm run docs:preview` was run through a proxy in the
+authoring environment and published a preview.
+
+Not covered by the preload: requests the CLI makes with other HTTP clients. The
+docs commands did not need one. `npm run sdk:generate` with Fern's cloud
+generators was not tried through a proxy.
 
 ## Writing pages
 
@@ -124,13 +170,14 @@ Each has one source.
 
 - **User guide**: `docs/getting-started/user.md` in the repository. `docs.yml`
   uses that file as a page, so it is not copied.
-- **Administrator guide**: `docs/getting-started/administrator.md`. Until that
-  file is merged, the site shows a short summary,
-  `docs/pages/getting-started/administrator.mdx`. To wire the full guide in,
-  change the page's `path` in `docs.yml` to
-  `../docs/getting-started/administrator.md` and delete the summary. The
-  comment marked `ADMIN-GUIDE-SOURCE` in the summary says the same. Then run
-  `npm run docs:check`, because the guide is then parsed as MDX.
+- **Administrator guide**: `docs/getting-started/administrator.md` in the
+  repository, used as a page in the same way.
+
+Both files are therefore parsed as MDX by `docs:check`. The rules above apply to
+them too.
+
+The Quickstart includes one table from `docs/snippets/`, which the Integrations
+overview includes as well, so that the two cannot drift apart.
 
 ## The API reference
 
@@ -203,8 +250,8 @@ generator's output is not gofmt-clean.
 The committed SDKs were generated with `fern generate --local`, by the official
 generator images at the versions pinned in `generators.yml`.
 
-The authoring environment had no Docker daemon and no network access to Fern's
-cloud. The generator images were therefore fetched from Docker Hub as file
+The authoring environment had no Docker daemon, and at the time no network
+access to Fern's cloud. The generator images were therefore fetched from Docker Hub as file
 systems and run under `chroot`, with a small stand-in for the `docker run`
 command that the CLI calls. The generators and their input were unchanged. That
 stand-in is not part of this repository. With Docker, the command above does
@@ -238,8 +285,8 @@ Nothing below has been done. The owner decides when.
        custom-domain: docs.example.com
    ```
 
-These commands were not run successfully in the authoring environment: its
-network policy refuses `buildwithfern.com`.
+Step 2 was run in the authoring environment. Steps 3 and 4 were not: publishing
+to the production address is the owner's decision.
 
 ### The SDKs
 

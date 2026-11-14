@@ -11,8 +11,8 @@ Every agent records how it was found.
 
 | Method | Meaning | Examples |
 | --- | --- | --- |
-| Provider record | The provider's own control plane lists it as an agent | A Bedrock agent, an AgentCore runtime, a Copilot Studio agent, an Agentforce agent, a Vertex AI Agent Engine |
-| Inferred from signals | Nothing declares it an agent, but the evidence says it acts as one | A Lambda function that can call a model, a role CloudTrail shows invoking a model, a repository with an agent framework |
+| Provider record | The provider's own control plane lists it as an agent | An Agentforce agent, a Bedrock agent, a Copilot Studio agent, a GitLab Duo agent, a Vertex AI Agent Engine |
+| Inferred from signals | Nothing declares it an agent, but the evidence says it acts as one | A Cloud Run service or a Lambda function that can call a model, a Kubernetes workload whose image names an agent framework, a repository with an agent framework |
 | Declared by owner | A person registered it | An agent an owner added |
 
 An agent found without a declaration is **unmanaged** until someone claims it. Unmanaged agents are what other tools call shadow agents.
@@ -38,17 +38,19 @@ One strong signal, or weak signals of two different kinds, makes an agent. A wea
 
 ## The agentless runtime signal
 
-Whether a workload really calls a model is visible in logs you already keep, without anything installed.
+Whether a workload really calls a model is visible in logs a provider already keeps, without anything installed. Zasp reads them where the provider lets a read-only credential do so. That is two providers today.
 
-On AWS, with the optional permissions on the read role:
+| Provider | Log | What it shows |
+| --- | --- | --- |
+| AWS | CloudTrail | Which roles invoked a model in the last seven days |
+| AWS | Route 53 Resolver query logs with VPC Flow Logs | Which workload resolved a model API's name and then connected to the address it was given |
+| Google Cloud | Vertex AI data access audit log | Which service account called a model or a reasoning engine in the last seven days |
 
-- CloudTrail shows which roles invoked a model in the last seven days.
-- Route 53 Resolver query logs show which workload resolved a model API's name.
-- VPC Flow Logs show that it then connected to the address it was given.
+For every other source the inventory comes from the provider's API alone, and an agent's activity is unknown unless its traffic goes through the hosted gateway or the optional runtime sensor reports it.
 
-A workload that resolved and reached a model API is listed as an inferred agent with an `egress` signal. No query name, address or event leaves the account: only the name of the matched service is kept.
-
-The logs must be delivered to CloudWatch Logs. Logs delivered only to S3 are not read. The queries are billed to the account that owns the logs.
+<Note>
+Provider-specific. On AWS the network logs must be delivered to CloudWatch Logs; logs delivered only to S3 are not read, and the queries are billed to the account that owns the logs. No query name, address or event leaves the account: only the name of the matched service is kept. On Google Cloud, model invocations appear only where data access audit logs are enabled for the Vertex AI API.
+</Note>
 
 ## Coverage
 
@@ -67,10 +69,10 @@ Each agent has a last known activity and one of three states.
 | State | Meaning |
 | --- | --- |
 | Active | An activity signal within the last 30 days |
-| Inactive | The last activity is older than 30 days, or AWS reports the agent's role unused for 90 days |
+| Inactive | The last activity is older than 30 days. On AWS also: the agent's role is reported unused for 90 days. |
 | Unknown | No activity source exists for this agent. This is not the same as inactive. |
 
-Activity comes from a runtime event attributed to the agent, from the time CloudTrail last shows its role invoking a model, from the hosted gateway when the agent's traffic goes through it, or from the collection that last saw it reach an AI endpoint.
+Activity comes from a runtime event attributed to the agent, from the time the provider's audit log last shows it invoking a model (AWS and Google Cloud), from the hosted gateway when the agent's traffic goes through it, or from the collection that last saw it reach an AI endpoint.
 
 ## What is never recorded
 
@@ -78,7 +80,6 @@ Collectors never record secrets, tokens, values of environment variables, file c
 
 ## Limits to know
 
-- On AWS only managed policies are read, not inline policies or permission boundaries.
-- A pod found from AWS network logs is named by its cluster, not by its own name, because the logs do not carry it.
+- Each provider has limits of its own, listed on its [integration page](/integrations/overview).
 - A workload that reaches a model through an HTTP proxy is not attributed: the proxy resolves the name.
 - No connector has been run against a real provider account. The shapes were tested against recorded responses and emulators.

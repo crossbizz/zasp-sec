@@ -7,18 +7,26 @@ An integration is one read-only connection to one provider account, tenant, orga
 
 ## Providers
 
-| Provider | What it finds | How it is authorized | Available |
+No provider is required and none comes first. An Environment can hold one integration or many, of any mix. The table is in alphabetical order.
+
+| Provider | What it finds | How it is authorized | In the connector catalog |
 | --- | --- | --- | --- |
 | [AWS](/integrations/aws) | Bedrock agents, AgentCore runtimes and gateways, inferred agents from Lambda, CloudTrail and network logs, roles and their reach | A read role with an external ID | Always |
-| [Kubernetes](/integrations/kubernetes) | Agent workloads, MCP servers, service accounts | A cluster credential reference | Always |
 | [GitHub](/integrations/github) | Agent projects, MCP configuration, skills | A GitHub App installation | Always |
-| [Okta](/integrations/okta) | AI applications connected to the directory | OAuth with read scopes | Always |
+| [Google Cloud](/integrations/google-cloud) | Vertex AI Agent Engine, Conversational Agents, Gemini Enterprise agents, inferred agents on Cloud Run and Cloud Functions, service accounts and their roles | A read-only service account | When the operator enables it |
+| [Kubernetes](/integrations/kubernetes) | Agent workloads, MCP servers, service accounts | A cluster credential reference | Always |
 | [Microsoft and Azure](/integrations/microsoft) | Entra agent identities, AI enterprise applications, Copilot Studio agents, Azure OpenAI and AI Foundry | An application's client credentials | When the operator enables it |
+| [Okta](/integrations/okta) | AI applications connected to the directory | OAuth with read scopes | Always |
 | [Salesforce](/integrations/salesforce) | Agentforce agents, their users, topics and actions | A connected app's client credentials | When the operator enables it |
-| [Google Cloud](/integrations/google-cloud) | Vertex AI Agent Engine, Conversational Agents, Gemini Enterprise agents, inferred agents on Cloud Run and Cloud Functions | A read-only service account | When the operator enables it |
-| [SaaS platforms](/integrations/saas-platforms) | AI apps and agents of Slack, Google Workspace, ServiceNow, GitLab, Databricks, OpenAI, Anthropic and Atlassian | A Nango connection | When the operator enables it |
+| [SaaS platforms](/integrations/saas-platforms) | AI apps and agents of Anthropic, Atlassian, Databricks, GitLab, Google Workspace, OpenAI, ServiceNow and Slack | A Nango connection | When the operator enables it |
+
+"Always" means the connector is part of every deployment. GitHub and Okta still need an application that the operator configures once.
 
 A Generic Webhook integration also exists. It sends signed deliveries, such as finding tickets, to one HTTPS destination. It reads nothing.
+
+## What each source gives you
+
+<Markdown src="/docs/snippets/what-each-source-gives-you.mdx" />
 
 ## The steps of every integration
 
@@ -47,11 +55,13 @@ Where an integration needs a secret (an external ID, a client secret, a cluster 
 | Provider | Reference |
 | --- | --- |
 | AWS | `ref:aws/external-id/<name>` |
+| Google Cloud | `ref:gcp/workload-identity/<project id>/<service account name>` or `ref:gcp/service-account-key/<name>` |
 | Kubernetes | `ref:kubernetes/connection/<name>` |
 | Microsoft | `ref:microsoft/client-secret/<name>` |
 | Salesforce | `ref:salesforce/client-secret/<name>` |
-| Google Cloud | `ref:gcp/workload-identity/<project id>/<service account name>` or `ref:gcp/service-account-key/<name>` |
 | SaaS platforms | `ref:nango/connection/<id>` |
+
+GitHub and Okta are authorized by a sign-in at the provider and need no reference.
 
 The product stores the reference. The secret is read by the API and the discovery worker at the moment it is used, and never returned to a browser.
 
