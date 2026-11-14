@@ -213,6 +213,62 @@ func TestAutomaticDiscoveryInferredAgentCollectionMeetsTypedSnapshotGrammar(t *t
 	if len(transport.requests) != 11 || len(driver.objects) != 12 || !snapshot.TypedObservations() || snapshot.EntityCount() != 7 || snapshot.RelationshipCount() != 10 || snapshot.EvidenceCount() != 7 {
 		t.Fatalf("incomplete typed inventory: pages=%d artifacts=%d entities=%d relationships=%d evidence=%d", len(transport.requests), len(driver.objects), snapshot.EntityCount(), snapshot.RelationshipCount(), snapshot.EvidenceCount())
 	}
+	// The snapshot itself, not only the stored pages, carries each inferred
+	// agent as a typed agent observation related to the rest of the cluster.
+	var snapshotEntities []struct {
+		ID                    string          `json:"id"`
+		Kind                  string          `json:"kind"`
+		StableFields          json.RawMessage `json:"stable_fields"`
+		Attributes            json.RawMessage `json:"attributes"`
+		IdentityNamespace     string          `json:"identity_namespace"`
+		ProductKind           string          `json:"product_kind"`
+		ConfidenceBasisPoints int             `json:"confidence_basis_points"`
+		ObservedAt            string          `json:"observed_at"`
+		EvidenceID            string          `json:"evidence_id"`
+	}
+	var snapshotRelationships []struct {
+		Kind         string `json:"kind"`
+		FromEntityID string `json:"from_entity_id"`
+		ToEntityID   string `json:"to_entity_id"`
+	}
+	if json.Unmarshal(snapshot.Entities(), &snapshotEntities) != nil || json.Unmarshal(snapshot.Relationships(), &snapshotRelationships) != nil {
+		t.Fatal("invalid snapshot")
+	}
+	if request.ObservationTime.IsZero() {
+		t.Fatal("the collection request is not typed")
+	}
+	entityKinds := map[string]string{}
+	for _, entity := range snapshotEntities {
+		entityKinds[entity.ID] = entity.Kind
+	}
+	inferred := 0
+	for _, entity := range snapshotEntities {
+		if entity.IdentityNamespace != entity.Kind || entity.ObservedAt != request.ObservationTime.Format(time.RFC3339) || entity.EvidenceID == "" || entity.ConfidenceBasisPoints < 1 {
+			t.Fatalf("snapshot entity lacks the typed envelope: %+v", entity)
+		}
+		if entity.Kind != "kubernetes_inferred_agent" {
+			continue
+		}
+		inferred++
+		if entity.ProductKind != "agent" || entity.ConfidenceBasisPoints != 6000 || !bytes.Contains(entity.Attributes, []byte(`"discovery":{"method":"inferred"`)) {
+			t.Fatalf("inferred agent envelope = %+v\nattributes %s", entity, entity.Attributes)
+		}
+		related := map[string]bool{}
+		for _, relationship := range snapshotRelationships {
+			if relationship.FromEntityID == entity.ID {
+				related[relationship.Kind+">"+entityKinds[relationship.ToEntityID]] = true
+			}
+			if relationship.ToEntityID == entity.ID {
+				related[entityKinds[relationship.FromEntityID]+">"+relationship.Kind] = true
+			}
+		}
+		if want := "map[kubernetes_namespace>attached_to:true uses_identity>kubernetes_service_account:true]"; fmt.Sprint(related) != want {
+			t.Fatalf("inferred agent relationships = %v, want %s", related, want)
+		}
+	}
+	if inferred != 3 {
+		t.Fatalf("inferred agents in snapshot = %d", inferred)
+	}
 }
 
 func TestKubernetesEntityCanonicalBoundaryPreservesAllValues(t *testing.T) {

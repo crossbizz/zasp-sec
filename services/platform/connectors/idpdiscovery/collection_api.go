@@ -520,7 +520,25 @@ func validOktaSignOnMode(value string) bool {
 	}
 }
 
+// canonicalOktaObject re-encodes a JSON object with its members sorted at
+// every depth, the form the snapshot contract requires of stable fields and
+// attributes.
+func canonicalOktaObject(value json.RawMessage) (json.RawMessage, error) {
+	decoder := json.NewDecoder(bytes.NewReader(value))
+	decoder.UseNumber()
+	var decoded map[string]any
+	if err := decoder.Decode(&decoded); err != nil || decoded == nil {
+		return nil, ErrInvalid
+	}
+	return json.Marshal(decoded)
+}
+
 func marshalOktaEntity(id, kind, sourceNativeID, displayName string, stable, attributes json.RawMessage) (json.RawMessage, error) {
+	stable, stableErr := canonicalOktaObject(stable)
+	attributes, attributesErr := canonicalOktaObject(attributes)
+	if stableErr != nil || attributesErr != nil {
+		return nil, ErrInvalid
+	}
 	return json.Marshal(struct {
 		ID             string          `json:"id"`
 		Kind           string          `json:"kind"`

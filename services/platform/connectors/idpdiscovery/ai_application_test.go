@@ -46,7 +46,7 @@ func oktaTestItems(t *testing.T, values []json.RawMessage) []oktaTestItem {
 }
 
 func oktaTestPosture(credentialActive string) string {
-	return `{"human_credential":false,"credential_fingerprint":"","untrusted_input":false,"production_write":false,"shell_execution":false,"production_credential":false,"unrestricted_egress":false,"sensitive_data_reach":false,"unapproved_remote_tool":false,"destructive_tool":false,"runtime_control":false,"production_agent":false,"runtime_policy_supported":false,"host_filesystem":false,"privileged":false,"cicd_write":false,"production_secret_reach":false,"credential_active":` + credentialActive + `}`
+	return `{"cicd_write":false,"credential_active":` + credentialActive + `,"credential_fingerprint":"","destructive_tool":false,"host_filesystem":false,"human_credential":false,"privileged":false,"production_agent":false,"production_credential":false,"production_secret_reach":false,"production_write":false,"runtime_control":false,"runtime_policy_supported":false,"sensitive_data_reach":false,"shell_execution":false,"unapproved_remote_tool":false,"unrestricted_egress":false,"untrusted_input":false}`
 }
 
 func oktaAITenantResponses() []oktaHTTPResponse {
@@ -100,16 +100,16 @@ func TestOktaCollectionAPIEmitsAIApplicationsAsAgents(t *testing.T) {
 
 	wantEntities := map[string]oktaTestItem{
 		chatGPT: {Kind: "okta_ai_application", SourceNativeID: "okta:application:" + oktaTestChatGPTID, DisplayName: "ChatGPT Enterprise",
-			StableFields: json.RawMessage(`{"tenant":"acme.okta.com","object_type":"application","name":"ChatGPT Enterprise"}`),
-			Attributes:   json.RawMessage(`{"status":"ACTIVE","posture":` + oktaTestPosture("true") + `,"discovery":{"method":"inferred","platform":"saas_assistant","signals":["app:chatgpt"]}}`)},
+			StableFields: json.RawMessage(`{"name":"ChatGPT Enterprise","object_type":"application","tenant":"acme.okta.com"}`),
+			Attributes:   json.RawMessage(`{"discovery":{"method":"inferred","platform":"saas_assistant","signals":["app:chatgpt"]},"posture":` + oktaTestPosture("true") + `,"status":"ACTIVE"}`)},
 		cursor: {Kind: "okta_ai_application", SourceNativeID: "okta:application:" + oktaTestCursorID, DisplayName: "Cursor",
-			StableFields: json.RawMessage(`{"tenant":"acme.okta.com","object_type":"application","name":"Cursor"}`),
-			Attributes:   json.RawMessage(`{"status":"INACTIVE","posture":` + oktaTestPosture("false") + `,"discovery":{"method":"inferred","platform":"saas_coding_agent","signals":["app:cursor"]}}`)},
+			StableFields: json.RawMessage(`{"name":"Cursor","object_type":"application","tenant":"acme.okta.com"}`),
+			Attributes:   json.RawMessage(`{"discovery":{"method":"inferred","platform":"saas_coding_agent","signals":["app:cursor"]},"posture":` + oktaTestPosture("false") + `,"status":"INACTIVE"}`)},
 		workday: {Kind: "okta_application", SourceNativeID: "okta:application:" + oktaTestWorkdayID, DisplayName: "Workday",
-			StableFields: json.RawMessage(`{"tenant":"acme.okta.com","object_type":"application","name":"Workday"}`),
+			StableFields: json.RawMessage(`{"name":"Workday","object_type":"application","tenant":"acme.okta.com"}`),
 			Attributes:   json.RawMessage(`{"status":"ACTIVE"}`)},
 		servicePrincipal: {Kind: "okta_service_principal", SourceNativeID: "okta:service_principal:" + oktaTestClientID, DisplayName: "Cursor service principal",
-			StableFields: json.RawMessage(`{"tenant":"acme.okta.com","object_type":"service_principal","name":"` + oktaTestClientID + `"}`),
+			StableFields: json.RawMessage(`{"name":"` + oktaTestClientID + `","object_type":"service_principal","tenant":"acme.okta.com"}`),
 			Attributes:   json.RawMessage(`{"status":"INACTIVE"}`)},
 	}
 	if len(entities) != len(wantEntities) {

@@ -1,6 +1,7 @@
 package awsdiscovery
 
 import (
+	"bytes"
 	"encoding/json"
 	"regexp"
 	"strings"
@@ -204,6 +205,23 @@ func validAgentInventoryState(state string) bool {
 	return state == "" || agentStatePattern.MatchString(state)
 }
 
+// canonicalAgentObject re-encodes a struct as a JSON object whose members are
+// sorted at every depth, the form the snapshot contract requires of
+// attributes. A struct is otherwise encoded in field order.
+func canonicalAgentObject(value any) map[string]any {
+	encoded, err := json.Marshal(value)
+	if err != nil {
+		return nil
+	}
+	decoder := json.NewDecoder(bytes.NewReader(encoded))
+	decoder.UseNumber()
+	var decoded map[string]any
+	if decoder.Decode(&decoded) != nil {
+		return nil
+	}
+	return decoded
+}
+
 // agentPage emits the account's AI agents, the AgentCore gateways and, for
 // each AI service, whether the read role could read it. An agent is linked to
 // its execution role only when the IAM phase emitted that role.
@@ -242,7 +260,7 @@ func (api *InventoryCollectionAPI) agentPage(request CollectionPageRequest, inve
 	}
 	agentAttributes := func(roleARN, stateName, state string, discovery agentsignals.Discovery) map[string]any {
 		// A posture fact the control plane does not state stays false.
-		attributes := map[string]any{"posture": agentsignals.Posture{CredentialActive: roleARN != ""}, "discovery": discovery}
+		attributes := map[string]any{"posture": canonicalAgentObject(agentsignals.Posture{CredentialActive: roleARN != ""}), "discovery": canonicalAgentObject(discovery)}
 		if state != "" {
 			attributes[stateName] = state
 		}

@@ -20,7 +20,7 @@ import (
 const (
 	agentProjectCredential = "ghs_installation_secret_value"
 	agentProjectTreeURL    = "https://api.github.com/repos/acme/alpha/git/trees/main?recursive=1"
-	agentProjectPosture    = `{"human_credential":false,"credential_fingerprint":"","untrusted_input":false,"production_write":false,"shell_execution":false,"production_credential":false,"unrestricted_egress":false,"sensitive_data_reach":false,"unapproved_remote_tool":false,"destructive_tool":false,"runtime_control":false,"production_agent":false,"runtime_policy_supported":false,"host_filesystem":false,"privileged":false,"cicd_write":false,"production_secret_reach":false,"credential_active":false}`
+	agentProjectPosture    = `{"cicd_write":false,"credential_active":false,"credential_fingerprint":"","destructive_tool":false,"host_filesystem":false,"human_credential":false,"privileged":false,"production_agent":false,"production_credential":false,"production_secret_reach":false,"production_write":false,"runtime_control":false,"runtime_policy_supported":false,"sensitive_data_reach":false,"shell_execution":false,"unapproved_remote_tool":false,"unrestricted_egress":false,"untrusted_input":false}`
 )
 
 var agentProjectSubject = collection.SubjectBinding{Kind: "github_installation", ID: "9001"}
@@ -95,7 +95,7 @@ func requireAgentProject(t *testing.T, page CollectionPage, signals string) {
 		t.Fatalf("page = %s", page.Raw)
 	}
 	projectID := deterministicGitHubInventoryID(agentProjectSubject, "github_agent_project", "101")
-	wantEntity := `{"id":"` + projectID + `","kind":"github_agent_project","source_native_id":"github:repository:101:agent_project","display_name":"acme/alpha","stable_fields":{"installation_id":9001,"name":"acme/alpha","owner":"acme","repository":"alpha"},"attributes":{"posture":` + agentProjectPosture + `,"discovery":{"method":"inferred","platform":"github_repository","signals":` + signals + `}}}`
+	wantEntity := `{"id":"` + projectID + `","kind":"github_agent_project","source_native_id":"github:repository:101:agent_project","display_name":"acme/alpha","stable_fields":{"installation_id":9001,"name":"acme/alpha","owner":"acme","repository":"alpha"},"attributes":{"discovery":{"method":"inferred","platform":"github_repository","signals":` + signals + `},"posture":` + agentProjectPosture + `}}`
 	if string(page.Entities[0]) != wantEntity {
 		t.Fatalf("entity = %s\nwant     %s", page.Entities[0], wantEntity)
 	}
