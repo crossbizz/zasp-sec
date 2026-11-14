@@ -323,6 +323,11 @@ func automaticKubernetesAPI(t *testing.T, scenario string) (*kubernetesdiscovery
 			http.Error(w, "invalid credential", 403)
 			return
 		}
+		if r.URL.Path == "/api/v1/configmaps" {
+			// The runtime observation lookup; this cluster has no sensor role.
+			http.Error(w, "forbidden", 403)
+			return
+		}
 		calls.Add(1)
 		if scenario == "failed" {
 			fmt.Fprint(w, `{"malformed":true}`)

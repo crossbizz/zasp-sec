@@ -51,6 +51,7 @@ type KubernetesCollectionAPI struct {
 	host     string
 	client   *http.Client
 	timeout  time.Duration
+	clock    func() time.Time
 }
 
 var _ CollectionAPI = (*KubernetesCollectionAPI)(nil)
@@ -77,7 +78,7 @@ func newKubernetesCollectionAPI(endpoint string, roundTripper http.RoundTripper,
 	if !ok || roundTripper == nil || timeout < 100*time.Millisecond || timeout > 30*time.Second {
 		return nil, ErrInvalid
 	}
-	return &KubernetesCollectionAPI{endpoint: "https://" + parsed.Host, host: strings.ToLower(parsed.Hostname()), client: &http.Client{Transport: collection.EffectTransport{Next: roundTripper}, Timeout: timeout, CheckRedirect: rejectKubernetesRedirect}, timeout: timeout}, nil
+	return &KubernetesCollectionAPI{endpoint: "https://" + parsed.Host, host: strings.ToLower(parsed.Hostname()), client: &http.Client{Transport: collection.EffectTransport{Next: roundTripper}, Timeout: timeout, CheckRedirect: rejectKubernetesRedirect}, timeout: timeout, clock: time.Now}, nil
 }
 
 func (api *KubernetesCollectionAPI) FetchCollectionPage(ctx context.Context, credential []byte, request CollectionPageRequest) (CollectionPage, error) {
@@ -141,7 +142,11 @@ func (api *KubernetesCollectionAPI) FetchCollectionPage(ctx context.Context, cre
 	if !decodeKubernetesCollectionResponse(body, &payload) || len(payload.Items) > pageLimit {
 		return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
 	}
-	entities, relationships, ok := normalizeKubernetesCollectionPage(request.Subject, phase, includeCluster, payload)
+	var egress kubernetesEgressObservations
+	if kubernetesWorkloadPhase(phase) && len(payload.Items) > 0 {
+		egress = api.fetchKubernetesEgressObservations(bounded, credential)
+	}
+	entities, relationships, ok := normalizeKubernetesCollectionPage(request.Subject, phase, includeCluster, payload, egress)
 	if !ok {
 		return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
 	}
@@ -316,7 +321,7 @@ type kubernetesAgentPosture struct {
 	CredentialActive       bool   `json:"credential_active"`
 }
 
-func normalizeKubernetesCollectionPage(subject collection.SubjectBinding, phase string, includeCluster bool, payload kubernetesCollectionList) ([]json.RawMessage, []json.RawMessage, bool) {
+func normalizeKubernetesCollectionPage(subject collection.SubjectBinding, phase string, includeCluster bool, payload kubernetesCollectionList, egress kubernetesEgressObservations) ([]json.RawMessage, []json.RawMessage, bool) {
 	expectedAPIVersion, expectedKind, ok := kubernetesCollectionPhaseType(phase)
 	if !ok || payload.APIVersion != expectedAPIVersion || payload.Kind != expectedKind {
 		return nil, nil, false
@@ -398,7 +403,7 @@ func normalizeKubernetesCollectionPage(subject collection.SubjectBinding, phase 
 			entities = append(entities, bindingEntities...)
 			relationships = append(relationships, bindingRelationships...)
 		case "deployments", "statefulsets", "daemonsets", "jobs", "cronjobs":
-			entity, workloadRelationships, valid := normalizeKubernetesWorkload(subject, phase, item)
+			entity, workloadRelationships, valid := normalizeKubernetesWorkload(subject, phase, item, egress)
 			if !valid {
 				return nil, nil, false
 			}
@@ -693,7 +698,7 @@ func coalesceKubernetesEntities(values []json.RawMessage) ([]json.RawMessage, bo
 	return result, true
 }
 
-func normalizeKubernetesWorkload(subject collection.SubjectBinding, phase string, item kubernetesCollectionItem) (json.RawMessage, []json.RawMessage, bool) {
+func normalizeKubernetesWorkload(subject collection.SubjectBinding, phase string, item kubernetesCollectionItem, egress kubernetesEgressObservations) (json.RawMessage, []json.RawMessage, bool) {
 	definitions := map[string][3]string{
 		"deployments":  {"apps/v1", "Deployment", "apps"},
 		"statefulsets": {"apps/v1", "StatefulSet", "apps"},
@@ -723,7 +728,11 @@ func normalizeKubernetesWorkload(subject collection.SubjectBinding, phase string
 	} else if !labelled || label == "agent" {
 		// Any other value of the label (for example "workload") opts the
 		// workload out of inference.
-		if evidence = kubernetesAgentEvidence(podSpec); evidence.IsAgent() {
+		evidence = kubernetesAgentEvidence(podSpec)
+		// What the node sensor saw the workload call at run time counts
+		// beside what its pod template declares.
+		evidence.Egress(egress[kubernetesEgressKey{item.Metadata.Namespace, definition[1], item.Metadata.Name}]...)
+		if evidence.IsAgent() {
 			entityKind = "kubernetes_inferred_agent"
 		}
 	}

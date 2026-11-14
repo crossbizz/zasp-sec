@@ -22,6 +22,10 @@ type kubernetesRoundTripper struct {
 	mu        sync.Mutex
 	requests  []*http.Request
 	responses []kubernetesHTTPResponse
+	// The runtime observation lookup is answered apart from the queue: a
+	// cluster without the sensor role has no such ConfigMaps to list.
+	egressRequests []*http.Request
+	egress         *kubernetesHTTPResponse
 }
 
 type kubernetesHTTPResponse struct {
@@ -33,6 +37,14 @@ type kubernetesHTTPResponse struct {
 func (roundTripper *kubernetesRoundTripper) RoundTrip(request *http.Request) (*http.Response, error) {
 	roundTripper.mu.Lock()
 	defer roundTripper.mu.Unlock()
+	if request.URL.Path == "/api/v1/configmaps" {
+		roundTripper.egressRequests = append(roundTripper.egressRequests, request.Clone(request.Context()))
+		response := kubernetesHTTPResponse{status: http.StatusForbidden, body: `{"kind":"Status","status":"Failure","code":403}`}
+		if roundTripper.egress != nil {
+			response = *roundTripper.egress
+		}
+		return &http.Response{StatusCode: response.status, Header: response.header, Body: io.NopCloser(strings.NewReader(response.body)), Request: request}, nil
+	}
 	roundTripper.requests = append(roundTripper.requests, request.Clone(request.Context()))
 	if len(roundTripper.responses) == 0 {
 		return nil, errors.New("kubernetes-provider-secret")
@@ -416,7 +428,7 @@ func TestKubernetesCollectionAPICoalescesRepeatedPrincipalsAndAcceptsEmptyBindin
 	if !decodeKubernetesCollectionResponse([]byte(body), &payload) {
 		t.Fatal("fixture did not decode")
 	}
-	entities, _, ok := normalizeKubernetesCollectionPage(subject, "rolebindings", false, payload)
+	entities, _, ok := normalizeKubernetesCollectionPage(subject, "rolebindings", false, payload, nil)
 	if !ok {
 		t.Fatal("normalizeKubernetesCollectionPage rejected valid repeated and empty bindings")
 	}
