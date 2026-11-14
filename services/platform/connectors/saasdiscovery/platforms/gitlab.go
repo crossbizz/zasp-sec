@@ -11,32 +11,56 @@ import (
 )
 
 // GitLab reads one group of gitlab.com: whether GitLab Duo is switched on
-// for the group, and the projects of the group and its subgroups that their
-// owners tagged with an AI topic or named after a known AI product.
+// for the group, the Duo agents and flows that are enabled in the group (the
+// AI catalog of the Duo Agent Platform), and the projects of the group and
+// its subgroups that their owners tagged with an AI topic or named after a
+// known AI product.
 //
 // What it does not read: no file, no repository tree, no pipeline and no
 // variable is requested, so a project that is an agent but says so only in
-// its code is not listed. Duo agents and flows (the AI catalog) are served
-// by GitLab's GraphQL API, which is not a GET and is outside this collector.
-// A self-managed GitLab has its own host and is not covered.
+// its code is not listed. Of a Duo agent or flow it reads the name, the kind
+// and whether it is enabled; never a system prompt or a flow definition.
+// A self-managed GitLab and GitLab Dedicated are not covered. The framework
+// can send a platform's requests to a tenant's own host, but only to a host
+// under a domain the provider owns (the adapter's guard against a request
+// being sent to an address a customer chose), which a self-managed
+// instance's domain is not; and for such a platform the tenant id is the
+// host, while everything read here is addressed by a group id.
 //
-// UNVERIFIED: the paths and the response members below are written from
-// memory of the GitLab REST API and have not been run against a real
-// group. Before the first production use, check against a group:
-//   - GET /api/v4/groups/{id}?with_projects=false answers
-//     {"id":<number>,"name":"…","full_path":"…"} and, on a tier with Duo,
-//     "duo_features_enabled":true|false;
+// The agents and flows are read with one GraphQL query. It is a POST and
+// still a read: the collector sends gitLabDuoCatalogQuery and nothing else,
+// and the Nango rule of /api/graphql admits that document only.
+//
+// DOCUMENTED:
+//   - https://docs.gitlab.com/api/groups/ : GET /api/v4/groups/{id} states
+//     duo_features_enabled, lock_duo_features_enabled, duo_availability and
+//     experiment_features_enabled for a group of a tier with Duo;
+//   - https://docs.gitlab.com/api/graphql/reference/ (Query.
+//     aiCatalogConfiguredItems, AiCatalogItemConsumer, AiCatalogItem,
+//     AiCatalogItemType): the query's arguments groupId (GroupID), first and
+//     after, the fields id and enabled of a configured item, the fields
+//     name, itemType, foundational and softDeleted of its item, the item
+//     types AGENT, FLOW, FOUNDATIONAL_AGENT, SKILL and THIRD_PARTY_FLOW, and
+//     the standard connection fields nodes and pageInfo;
+//   - https://docs.gitlab.com/api/graphql/ : the endpoint is POST
+//     /api/graphql and the scope read_api is sufficient for queries.
+//
+// UNVERIFIED (not run against a real group):
+//   - the global id of a group is gid://gitlab/Group/<numeric id>;
+//   - how a group without the Duo Agent Platform answers the query. An
+//     answer with GraphQL errors is read as "not available" and lists
+//     nothing;
 //   - GET /api/v4/groups/{id}/projects with include_subgroups, archived,
 //     order_by, sort, page and per_page answers an array of projects, each
 //     with id, path_with_namespace, archived and topics[];
-//   - the scope read_api is enough;
 //   - the Nango integration key (gitlab).
 func GitLab() saasdiscovery.Platform {
 	return saasdiscovery.Platform{
 		Token: "gitlab", DisplayName: "GitLab",
-		Description: "Inventory GitLab Duo and the AI projects of one gitlab.com group through a Nango connection.",
+		Description: "Inventory GitLab Duo, its agents and flows, and the AI projects of one gitlab.com group through a Nango connection.",
 		Nango: nango.Entry{Key: "gitlab", ProviderHost: "gitlab.com", AuthMode: "oauth", Rules: []nango.Rule{
 			{Method: http.MethodGet, PathPrefix: "/api/v4/groups/", QueryKeys: []string{"archived", "include_subgroups", "order_by", "page", "per_page", "sort", "with_projects"}},
+			{Method: http.MethodPost, PathPrefix: "/api/graphql", GraphQLDocuments: []string{gitLabDuoCatalogQuery}},
 		}},
 		RequiredScopes: []string{"read_api"},
 		TenantLabel:    "Group ID", TenantHint: "The numeric ID of the group, shown on the group's overview page.",
@@ -60,12 +84,64 @@ func GitLab() saasdiscovery.Platform {
 					}
 					var evidence agentsignals.Evidence
 					evidence.Surface("duo")
-					return saasdiscovery.Entity{Kind: saasdiscovery.KindAIApplication, NativeID: "duo", DisplayName: "GitLab Duo", ObjectType: "duo", Status: "enabled", AgentType: "coding_agent", Signals: evidence.Signals()}, true
+					// The group's setting for its subgroups and projects:
+					// default_on, default_off or never_on.
+					status := "enabled"
+					switch availability := item.Text("duo_availability"); availability {
+					case "default_on", "default_off", "never_on":
+						status = availability
+					}
+					return saasdiscovery.Entity{Kind: saasdiscovery.KindAIApplication, NativeID: "duo", DisplayName: "GitLab Duo", ObjectType: "duo", Status: status, AgentType: "coding_agent", Signals: evidence.Signals()}, true
 				}},
+			{Name: "duo_catalog", Path: "/api/graphql", ItemsPath: []string{"data", "aiCatalogConfiguredItems", "nodes"},
+				GraphQL: &saasdiscovery.GraphQL{Document: gitLabDuoCatalogQuery, Variables: map[string]string{"group": "gid://gitlab/Group/" + saasdiscovery.TenantValue}, ErrorsAbsent: true},
+				Paging: saasdiscovery.Paging{Style: saasdiscovery.PagingCursor, CursorParam: "after", LimitParam: "first", PageSize: 50,
+					NextPath: []string{"data", "aiCatalogConfiguredItems", "pageInfo", "endCursor"}, MorePath: []string{"data", "aiCatalogConfiguredItems", "pageInfo", "hasNextPage"}},
+				Map: gitLabCatalogItem},
 			{Name: "projects", Path: "/api/v4/groups/{tenant}/projects", Query: map[string]string{"include_subgroups": "true", "archived": "false", "order_by": "id", "sort": "asc"},
 				Paging: saasdiscovery.Paging{Style: saasdiscovery.PagingPage, PageParam: "page", LimitParam: "per_page", PageSize: 100}, Map: gitLabProject},
 		},
 	}
+}
+
+// gitLabDuoCatalogQuery lists the AI catalog items (agents and flows)
+// enabled in one group, a page at a time.
+const gitLabDuoCatalogQuery = `query($group: GroupID!, $first: Int!, $after: String) { aiCatalogConfiguredItems(groupId: $group, first: $first, after: $after) { nodes { id enabled item { id name itemType foundational softDeleted } } pageInfo { hasNextPage endCursor } } }`
+
+// gitLabCatalogItem maps one AI catalog item that is configured for the
+// group: a Duo agent or a flow. A skill is not an agent and is not listed.
+// The entity is the configuration (the item in this group), so its id is
+// the configuration's.
+func gitLabCatalogItem(item saasdiscovery.Item) (saasdiscovery.Entity, bool) {
+	catalog := item.Object("item")
+	id := item.Text("id")
+	name := saasdiscovery.CleanText(catalog.Text("name"), 256)
+	if id == "" || name == "" || catalog.Bool("softDeleted") {
+		return saasdiscovery.Entity{}, false
+	}
+	objectType, agentType := "", ""
+	switch catalog.Text("itemType") {
+	case "AGENT":
+		objectType, agentType = "duo_agent", "agent"
+	case "FOUNDATIONAL_AGENT":
+		objectType, agentType = "duo_agent", "foundational_agent"
+	case "FLOW":
+		objectType, agentType = "duo_flow", "flow"
+	case "THIRD_PARTY_FLOW":
+		objectType, agentType = "duo_flow", "third_party_flow"
+	default:
+		return saasdiscovery.Entity{}, false
+	}
+	enabled := item.Bool("enabled")
+	status := "disabled"
+	if enabled {
+		status = "enabled"
+	}
+	var evidence agentsignals.Evidence
+	evidence.Surface("duo")
+	return saasdiscovery.Entity{Kind: saasdiscovery.KindAgent, NativeID: id, DisplayName: name, ObjectType: objectType, Status: status, AgentType: agentType,
+		// The one posture fact the query states: the item can run in the group.
+		Posture: agentsignals.Posture{CredentialActive: enabled}, Signals: evidence.Signals()}, true
 }
 
 // gitLabAITopics are the project topics that say a project is an agent, an

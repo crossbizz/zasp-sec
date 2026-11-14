@@ -51,18 +51,22 @@ func TestGCPProviderSectionOnTheInstalledBaselinePostgres(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	// The predecessor is the released baseline: one built before this
-	// section serves seven providers with 56 rules; one rebuilt with it
-	// already serves gcp, and the sections must then change nothing.
+	// The predecessor is the released baseline with the sections that
+	// precede X3d in the file (WS7): seven providers and 57 rules. A
+	// baseline rebuilt with X3d already serves gcp, and the sections must
+	// then change nothing.
+	for _, tag := range []string{"ws7_rule_catalog", "ws7_coverage_gaps"} {
+		applyCompletionBlock(t, ctx, connection, tag)
+	}
 	catalog()
 	var gcpBefore bool
-	if err := connection.QueryRow(ctx, `SELECT zasp_connector_provider_valid('gcp')`).Scan(&gcpBefore); err != nil || !gcpBefore && rules != 56 || gcpBefore && rules < 66 {
+	if err := connection.QueryRow(ctx, `SELECT zasp_connector_provider_valid('gcp')`).Scan(&gcpBefore); err != nil || !gcpBefore && rules != 57 || gcpBefore && rules < 67 {
 		t.Fatalf("predecessor: gcp=%t rules=%d err=%v", gcpBefore, rules, err)
 	}
 	t.Logf("released baseline serves gcp: %t (%d identity rules)", gcpBefore, rules)
 	released := definitions()
-	// The sections this one builds on are no-ops on the released baseline.
-	predecessors := []string{"saas_providers", "rule_catalog_digest", "integration_coverage_gaps", "saas_generic_provider", "saas_rule_catalog", "ws5_rule_catalog"}
+	// The sections this one builds on are no-ops on that predecessor.
+	predecessors := []string{"saas_providers", "rule_catalog_digest", "saas_generic_provider", "saas_rule_catalog", "ws5_rule_catalog", "ws7_rule_catalog", "ws7_coverage_gaps"}
 	for _, tag := range predecessors {
 		applyCompletionBlock(t, ctx, connection, tag)
 	}
@@ -84,7 +88,7 @@ func TestGCPProviderSectionOnTheInstalledBaselinePostgres(t *testing.T) {
 		t.Fatal("a second run of the sections changed a function or a constraint")
 	}
 	catalog()
-	if compiled := inventoryprojection.RuleCatalogDigest(); !gcpBefore && (rules != 66 || rules != len(inventoryprojection.RuleCatalog()) || digest != hexDigest(compiled)) {
+	if compiled := inventoryprojection.RuleCatalogDigest(); !gcpBefore && (rules != 67 || rules != len(inventoryprojection.RuleCatalog()) || digest != hexDigest(compiled)) {
 		t.Fatalf("rule catalog: rows=%d digest=%s, compiled rows=%d digest=%s", rules, digest, len(inventoryprojection.RuleCatalog()), hexDigest(compiled))
 	}
 	// Every gcp rule row equals the compiled rule.

@@ -110,6 +110,7 @@ var allowedAttributesByKind = map[string]map[string]struct{}{
 	"permission":                      attributeSet("permission", "repository", "subject"),
 	"repository":                      attributeSet("archived", "default_branch", "full_name", "owner", "repository_id", "visibility"),
 	"salesforce_agent":                attributeSet("name", "object_type", "org", "status"),
+	"salesforce_agent_tool":           attributeSet("name", "object_type", "org", "status"),
 	"salesforce_org":                  attributeSet("name", "org"),
 	"gcp_agent_engine":                attributeSet("location", "name", "object_type", "project", "scope", "status"),
 	"gcp_conversational_agent":        attributeSet("location", "name", "object_type", "project", "scope", "status"),

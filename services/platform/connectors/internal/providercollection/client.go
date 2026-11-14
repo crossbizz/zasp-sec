@@ -716,7 +716,10 @@ func providerEntitySchema(provider collection.Provider, kind string) (providerEn
 		case "kubernetes_cluster":
 			// runtime_observations says whether the collector could read
 			// the node sensor's egress observations in this cluster.
-			return providerEntityDefinition{stable: requiredStringFields("cluster", "name"), attributes: mergeInventorySchemas(state, inventoryObjectSchema{"runtime_observations": enumInventoryField(false, "access_denied", "collected")})}, true
+			return providerEntityDefinition{stable: requiredStringFields("cluster", "name"), attributes: mergeInventorySchemas(state, inventoryObjectSchema{"runtime_observations": enumInventoryField(false, "access_denied", "collected"),
+				// mcp_links says whether it could list the Services and
+				// ConfigMaps that relate agents to MCP servers.
+				"mcp_links": enumInventoryField(false, "collected", "configmaps_denied", "services_denied")})}, true
 		case "kubernetes_namespace":
 			return providerEntityDefinition{stable: requiredStringFields("cluster", "name", "namespace"), attributes: state}, true
 		case "kubernetes_resource", "kubernetes_service_account":
@@ -796,19 +799,37 @@ func providerEntitySchema(provider collection.Provider, kind string) (providerEn
 		case "microsoft_copilot_agent":
 			// content_moderation is the agent's generative AI moderation level,
 			// present when its configuration states one.
-			return providerEntityDefinition{stable: requiredStringFields("environment", "name", "object_type", "tenant"), attributes: mergeInventorySchemas(directory, discoveredAgentAttributes(), inventoryObjectSchema{"content_moderation": enumInventoryField(false, "high", "low", "medium")})}, true
+			// The same kind holds an Azure AI Foundry agent (object_type
+			// foundry_agent; environment is its project endpoint): agent_type
+			// is its kind, model the deployment it names and rai_policy the
+			// content filter policy that applies to it.
+			return providerEntityDefinition{stable: requiredStringFields("environment", "name", "object_type", "tenant"), attributes: mergeInventorySchemas(directory, discoveredAgentAttributes(), optionalStringFields("agent_type", "model", "rai_policy"), inventoryObjectSchema{"content_moderation": enumInventoryField(false, "high", "low", "medium")})}, true
 		case "microsoft_ai_resource":
 			// An Azure OpenAI or Azure AI Foundry account of a subscription.
-			return providerEntityDefinition{stable: requiredStringFields("name", "object_type", "region", "subscription", "tenant"), attributes: mergeInventorySchemas(directory, optionalStringFields("endpoint_host"), inventoryObjectSchema{"resource_kind": enumInventoryField(true, "azure_ai_foundry", "azure_openai"), "deployments": enumInventoryField(true, "listed", "not_listed"), "local_auth_disabled": boolInventoryField(false), "public_network_access": enumInventoryField(false, "disabled", "enabled")})}, true
+			return providerEntityDefinition{stable: requiredStringFields("name", "object_type", "region", "subscription", "tenant"), attributes: mergeInventorySchemas(directory, optionalStringFields("endpoint_host"), inventoryObjectSchema{"resource_kind": enumInventoryField(true, "azure_ai_foundry", "azure_openai"), "deployments": enumInventoryField(true, "listed", "not_listed"),
+				// agents: whether the agents of an AI Foundry account's
+				// projects could be listed; absent when they were not asked for.
+				"agents": enumInventoryField(false, "access_denied", "listed", "not_listed", "partial"), "local_auth_disabled": boolInventoryField(false), "public_network_access": enumInventoryField(false, "disabled", "enabled")})}, true
 		case "microsoft_ai_deployment":
 			return providerEntityDefinition{stable: requiredStringFields("name", "object_type", "resource", "subscription", "tenant"), attributes: mergeInventorySchemas(directory, optionalStringFields("model", "model_version"))}, true
 		}
 	case collection.ProviderSalesforce:
 		switch kind {
 		case "salesforce_org":
-			return providerEntityDefinition{stable: requiredStringFields("name", "org"), attributes: inventoryObjectSchema{}}, true
+			// The org's Einstein Trust Layer switches, each present when the
+			// connection could read it.
+			return providerEntityDefinition{stable: requiredStringFields("name", "org"), attributes: inventoryObjectSchema{"trust_input_toxicity_detection": enumInventoryField(false, "disabled", "enabled"), "trust_prompt_injection_detection": enumInventoryField(false, "disabled", "enabled"), "trust_pii_masking": enumInventoryField(false, "disabled", "enabled")}}, true
 		case "salesforce_agent":
-			return providerEntityDefinition{stable: requiredStringFields("name", "object_type", "org"), attributes: mergeInventorySchemas(inventoryObjectSchema{"status": stringInventoryField(true), "state": stringInventoryField(false), "agent_type": stringInventoryField(false)}, discoveredAgentAttributes())}, true
+			// run_as_user is the id of the user the agent runs as and
+			// permission_sets the comma-separated names of that user's
+			// permission sets; tools says whether its topics and actions were
+			// listed; content_moderation is the org's guardrail level.
+			return providerEntityDefinition{stable: requiredStringFields("name", "object_type", "org"), attributes: mergeInventorySchemas(inventoryObjectSchema{"status": stringInventoryField(true), "state": stringInventoryField(false), "agent_type": stringInventoryField(false),
+				"run_as_user": stringInventoryField(false), "permission_sets": stringInventoryField(false), "tools": enumInventoryField(false, "listed", "not_listed", "partial"), "content_moderation": enumInventoryField(false, "high", "low", "medium")}, discoveredAgentAttributes())}, true
+		case "salesforce_agent_tool":
+			// A topic (object_type agent_topic) or an action (agent_action) of
+			// an Agentforce agent. target_type is what an action invokes.
+			return providerEntityDefinition{stable: requiredStringFields("name", "object_type", "org"), attributes: inventoryObjectSchema{"status": stringInventoryField(true), "state": stringInventoryField(false), "target_type": stringInventoryField(false), "confirmation_required": boolInventoryField(false)}}, true
 		}
 	case collection.ProviderSaaS:
 		// One provider for every SaaS platform read through the Nango proxy.
@@ -872,7 +893,7 @@ func validProviderRelationship(provider collection.Provider, raw json.RawMessage
 	case collection.ProviderAWS:
 		kinds = tokenSet("belongs_to", "contains", "depends_on", "trusts", "uses_identity", "uses_policy")
 	case collection.ProviderKubernetes:
-		kinds = tokenSet("assigned_to", "attached_to", "binds", "contains", "uses_identity")
+		kinds = tokenSet("assigned_to", "attached_to", "binds", "contains", "depends_on", "uses_identity")
 		attributes["type"] = stringInventoryField(true)
 	case collection.ProviderGitHub:
 		kinds = tokenSet("belongs_to", "contains", "depends_on", "has_permission", "owns", "uses_identity")
@@ -920,6 +941,8 @@ func validProviderRelationshipEndpointKinds(provider collection.Provider, raw js
 			"kubernetes_agent|uses_identity|kubernetes_service_account", "kubernetes_workload|uses_identity|kubernetes_service_account",
 			"kubernetes_namespace|attached_to|kubernetes_inferred_agent", "kubernetes_inferred_agent|uses_identity|kubernetes_service_account",
 			"kubernetes_namespace|attached_to|kubernetes_mcp_server",
+			// An agent uses an MCP server of the cluster.
+			"kubernetes_agent|depends_on|kubernetes_mcp_server", "kubernetes_inferred_agent|depends_on|kubernetes_mcp_server",
 		),
 		collection.ProviderGitHub: tokenSet(
 			"github_installation|contains|github_app", "github_installation|owns|github_repository", "github_organization|owns|github_repository", "github_repository|contains|github_environment", "github_repository|contains|github_permission", "github_repository|contains|github_workflow", "github_workflow|depends_on|github_repository", "github_workflow|uses_identity|github_app", "github_app|has_permission|github_permission",
@@ -931,7 +954,7 @@ func validProviderRelationshipEndpointKinds(provider collection.Provider, raw js
 			"okta_tenant|contains|okta_ai_application", "okta_group|assigned_to|okta_ai_application", "okta_service_principal|assigned_to|okta_ai_application", "okta_user|assigned_to|okta_ai_application",
 		),
 		collection.ProviderMicrosoft:  tokenSet("microsoft_tenant|contains|microsoft_agent_identity", "microsoft_tenant|contains|microsoft_ai_application", "microsoft_tenant|contains|microsoft_copilot_agent", "microsoft_tenant|contains|microsoft_ai_resource", "microsoft_tenant|contains|microsoft_ai_deployment"),
-		collection.ProviderSalesforce: tokenSet("salesforce_org|contains|salesforce_agent"),
+		collection.ProviderSalesforce: tokenSet("salesforce_org|contains|salesforce_agent", "salesforce_agent|contains|salesforce_agent_tool", "salesforce_agent_tool|contains|salesforce_agent_tool"),
 		collection.ProviderSaaS:       tokenSet("saas_tenant|contains|saas_agent", "saas_tenant|contains|saas_ai_application", "saas_tenant|contains|saas_mcp_server"),
 		collection.ProviderGCP: tokenSet(
 			"gcp_scope|contains|gcp_project", "gcp_scope|contains|gcp_service",
@@ -1425,7 +1448,20 @@ func relationshipsResolve(provider collection.Provider, subject collection.Subje
 
 func validExplicitKubernetesUnresolvedRelationship(raw json.RawMessage, subject collection.SubjectBinding, fromExists, toExists bool, items map[string]normalizedPageEntity) bool {
 	var relationship normalizedPageRelationship
-	if !decodeExactObject(raw, &relationship) || !fromExists || toExists {
+	if !decodeExactObject(raw, &relationship) {
+		return false
+	}
+	// An agent's use of an MCP server is derived at the end of a collection
+	// from a second read of the workloads. A workload that changed between
+	// the two reads leaves an end that is not in the snapshot: the relation
+	// is dropped, as it would be absent had the workload been read once.
+	if relationship.Kind == "depends_on" {
+		var derived struct {
+			Type string `json:"type"`
+		}
+		return decodeExactObject(relationship.Attributes, &derived) && derived.Type == "agent_mcp_server"
+	}
+	if !fromExists || toExists {
 		return false
 	}
 	source, ok := items[relationship.FromEntityID]

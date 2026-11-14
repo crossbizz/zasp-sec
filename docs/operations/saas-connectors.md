@@ -33,8 +33,10 @@ API states), `saas_mcp_server` (tool). Every entity carries `platform` and
 - `DisplayName`, `Description`, `AccessGuidance`, `TenantLabel`, `TenantHint`:
   the text of the catalog entry and the setup form.
 - `Nango`: the Nango integration key (the Provider-Config-Key), the provider
-  host, the auth mode and the proxy rules. Rules are `GET` only. A request
-  that no rule allows is never sent.
+  host, the auth mode and the proxy rules. A rule is a `GET`, or the `POST`
+  of a GraphQL query (see "GraphQL lists"). A request that no rule allows is
+  never sent. A rule also lists the provider headers a request may carry
+  (`HeaderKeys`).
 - `HostTemplate`, with `Nango.HostPattern` and `Nango.HostSuffixes`: only for
   a platform whose API host differs per tenant. See "Per-tenant hosts".
 - `SignIn`: only for a platform a person can sign in to from the product.
@@ -56,7 +58,9 @@ API states), `saas_mcp_server` (tool). Every entity carries `platform` and
 
 Paging styles: `PagingNone`, `PagingCursor` (a token in the response, sent
 back in a query parameter; `MorePath` names a `has_more` flag for an API that
-states a token on its last page too), `PagingOffset` (offset and limit),
+states a token on its last page too; `LastItemPath`, in place of `NextPath`,
+for an API that states no token and continues after the id of the last item,
+as OpenAI's lists do), `PagingOffset` (offset and limit),
 `PagingPage` (page number and page size) and `PagingLink` (the `Link`
 header's `rel="next"`, followed only on the endpoint's own path).
 
@@ -76,6 +80,37 @@ List shapes beyond a plain list:
 - `Absent`: the statuses that mean the tenant does not have the feature
   (404; 400 only for an API that answers so for an object type that is not
   installed). The endpoint then contributes nothing.
+- `Parent` with `Single`: the parent is one object and not a list (the site
+  whose cloud id a later request needs).
+- `Headers`: fixed provider request headers of an endpoint or of the tenant
+  lookup (a version header, the project a key belongs to). A value of
+  `{tenant}` is replaced by the tenant id. Nango forwards them; the product
+  sends each as `Nango-Proxy-<name>`. The rule of the path must list the
+  names. `Authorization`, `Cookie`, `Host` and the proxy's own headers are
+  never forwarded.
+
+### GraphQL lists
+
+Some platforms list their agents only through GraphQL, which is a `POST`.
+`ListEndpoint.GraphQL` makes an endpoint such a query: `Document` is the
+whole query text, `Variables` its fixed variables (a value may hold
+`{tenant}` or `{parent}`), and the endpoint's `Paging` names the variables
+that carry the continuation and the page size. `ErrorsAbsent` says that an
+answer with GraphQL errors means "this tenant does not have the feature".
+
+It is still a read, and the definition cannot make it anything else:
+
+- the document must be one `query` operation. A document that names a
+  mutation or a subscription, holds a second operation or a comment, or is
+  not printable one-line text is refused when the platform is registered;
+- the Nango rule of the path lists the exact documents
+  (`GraphQLDocuments`). The adapter refuses a `POST` whose body is not
+  `{"query": <a listed document>, "variables": {...}}`: another query, an
+  extra member, a batch or nested variables never reach Nango;
+- a `POST` rule that is not the path of one of the platform's GraphQL lists
+  is refused.
+
+The values of a tenant travel only as variables; the query text is constant.
 
 The mapping function turns one provider item into a `saasdiscovery.Entity`:
 kind, native id, display name, object type, status, optional model and agent
@@ -202,7 +237,8 @@ connection the sign-in created. Delete it in Nango.
 
 ## Limits
 
-- Requests are `GET` only and a response is at most 1 MiB. The proxy refuses
+- Requests are `GET`, or the `POST` of an allow-listed GraphQL query, and a
+  response is at most 1 MiB. The proxy refuses
   a response whose text contains `access_token`, `refresh_token`,
   `client_secret`, `private_key` or `password`; the collection is then
   retried and nothing of that response is stored.
@@ -215,23 +251,51 @@ connection the sign-in created. Delete it in Nango.
 
 ## Platforms
 
-Every provider API shape is written from memory and marked `UNVERIFIED` in
-its definition file, with the list of what to check against a real tenant.
+Each definition file says which of its API shapes were taken from the
+provider's documentation or official SDK (`DOCUMENTED:` with the address)
+and which are written from memory (`UNVERIFIED`, with the list of what to
+check against a real tenant). None has been run against a real tenant.
 
 | Platform | Tenant id | Host | Connected by | What is listed |
 | --- | --- | --- | --- | --- |
 | `anthropic` | organization UUID | `api.anthropic.com` | reference (admin key) | workspaces, API keys (id, name, status; never a key value or its hint) |
-| `atlassian` | site name | `<site>.atlassian.net` | reference (API token) | installed AI apps and Rovo apps; Rovo agents are not listed |
+| `atlassian` | site name | `<site>.atlassian.net` | reference (API token) | installed AI apps and Rovo apps; Rovo agents (id and name) when the site gateway answers the query, see below |
 | `databricks` | workspace address | the workspace address | reference | serving endpoints and served agents |
-| `gitlab` | group id | `gitlab.com` | sign-in | GitLab Duo for the group, projects tagged or named as AI |
+| `gitlab` | group id | `gitlab.com` | sign-in | GitLab Duo for the group and its availability setting, the Duo agents and flows enabled in the group (GraphQL `aiCatalogConfiguredItems`), projects tagged or named as AI |
 | `google_workspace` | customer id | `admin.googleapis.com` | sign-in | third-party AI apps granted OAuth access (token activity report), Gemini usage |
-| `openai` | organization id | `api.openai.com` | reference (admin key) | projects, service accounts; assistants are not listed |
+| `openai` | organization id | `api.openai.com` | reference (admin key) | projects, service accounts |
+| `openai_project` | project id | `api.openai.com` | reference (project key) | the assistants and agents of one project: id, name, model, tool kinds; never instructions |
 | `servicenow` | instance name | `<instance>.service-now.com` | sign-in | Now Assist AI agents, installed AI applications |
 | `slack` | workspace id | `slack.com` | sign-in | approved AI apps |
 
-Three things about Nango itself are also written from memory and have not
-been run against a Nango server: the `Base-Url-Override` proxy header that
-pins a per-tenant host, the `params[<name>]` form in which a sign-in passes
+OpenAI assistants and agents belong to a project and are listed only with a
+key of that project; the organization's admin key cannot call the two
+endpoints. `openai_project` is therefore a second platform, with the Nango
+integration `openai` and one connection per project (a project service
+account key with read access). The project is the tenant: every request
+names it in the `OpenAI-Project` header, and a key of another project is
+refused by OpenAI, which is how the connection is bound to the tenant.
+
+Rovo agents. Atlassian documents no public API that lists them (the requests
+ROVO-516 and ROVO-479 are open). The field the Agent Studio web application
+uses, `agentStudio_getAgents` of the GraphQL gateway, refuses OAuth and
+Forge clients; this platform's connection is an administrator's API token
+sent to the site's own gateway, so the definition asks it with one
+allow-listed query for the id and name of each agent. The query shape is not
+documented and has not been run: when the gateway answers with errors, 403
+or 404 the list is empty and the rest of the site is still collected. Until
+it has been checked against a real site, "no Rovo agents" means "unknown".
+
+Not covered: a self-managed GitLab and GitLab Dedicated. A per-tenant host
+must be under a domain the provider owns, which a self-managed instance's
+domain is not, and for such a platform the tenant id is the host while the
+GitLab reads are addressed by a group id.
+
+The two Nango proxy headers the product relies on are taken from Nango's own
+SDK (`@nangohq/node`): `Base-Url-Override`, which pins a per-tenant host, and
+`Nango-Proxy-<name>`, which forwards a provider header. Two things about
+Nango are still written from memory and have not been run against a Nango
+server: the `params[<name>]` form in which a sign-in passes
 connection parameters (ServiceNow's `subdomain`), and the integration key of
 each platform (`Nango.Key` in its definition, which must be the key of the
 integration created in Nango). The provider's callback address of every

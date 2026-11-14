@@ -10,13 +10,14 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/zasp-ai/zasp-sec/services/platform/agentsignals"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/collection"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/internal/providercollection"
 )
 
 // Azure OpenAI and Azure AI Foundry, read from Azure Resource Manager with the
-// same application the Microsoft connection already uses. Nothing is read
-// from a resource's data plane.
+// same application the Microsoft connection already uses. The one read of a
+// data plane is the list of a Foundry project's agents (foundry.go).
 //
 // The phase runs only when the credential carries a Resource Manager token
 // (the deployment opted in). One page reads one page of the Cognitive
@@ -31,7 +32,8 @@ import (
 // or any role with Microsoft.CognitiveServices/accounts/read and
 // .../deployments/read) on each subscription. Without a role the list of
 // subscriptions is empty and the phase emits nothing. Foundry agents are not
-// Resource Manager resources and are not read here.
+// Resource Manager resources; they are read from each project's own endpoint
+// when the credential also carries a Foundry token (foundry.go).
 //
 // The paths, api-versions and response members are from the Resource Manager
 // REST reference as remembered: UNVERIFIED against a real subscription.
@@ -106,7 +108,7 @@ func (api *MicrosoftCollectionAPI) fetchAzurePage(ctx context.Context, credentia
 			}
 		}
 		page, err := NewMicrosoftCollectionPage(request.Subject, cursor, done, entities, relationships)
-		if err != nil || bytes.Contains(page.Raw, credential) || bytes.Contains(page.Raw, envelope.graphToken) || bytes.Contains(page.Raw, envelope.armToken) {
+		if err != nil || bytes.Contains(page.Raw, credential) || bytes.Contains(page.Raw, envelope.graphToken) || bytes.Contains(page.Raw, envelope.armToken) || envelope.aiToken != nil && bytes.Contains(page.Raw, envelope.aiToken) {
 			return CollectionPage{}, malformed
 		}
 		if len(page.Entities) > request.RemainingItems || len(page.Relationships) > request.RemainingRelationships || int64(len(page.Raw)) > request.RemainingBytes {
@@ -216,7 +218,7 @@ func (api *MicrosoftCollectionAPI) fetchAzurePage(ctx context.Context, credentia
 		return true
 	}
 	seen := map[string]bool{}
-	reads := 0
+	reads, foundryReads := 0, 0
 	for _, raw := range *accounts.Value {
 		var account struct {
 			ID         string `json:"id"`
@@ -228,6 +230,7 @@ func (api *MicrosoftCollectionAPI) fetchAzurePage(ctx context.Context, credentia
 				Endpoint            string `json:"endpoint"`
 				PublicNetworkAccess string `json:"publicNetworkAccess"`
 				DisableLocalAuth    *bool  `json:"disableLocalAuth"`
+				CustomSubDomainName string `json:"customSubDomainName"`
 			} `json:"properties"`
 		}
 		if !decodeMicrosoftCollectionResponse(raw, &account) {
@@ -279,6 +282,31 @@ func (api *MicrosoftCollectionAPI) fetchAzurePage(ctx context.Context, credentia
 				return CollectionPage{}, providercollection.ClassifyProviderHTTPFailure(ctx, nil, status, retryAfter, api.clock())
 			}
 		}
+		// The agents of an AI Foundry account's projects, when the
+		// deployment gave the collector a Foundry token.
+		var foundryAgents []microsoftFoundryAgent
+		var moderation map[string]string
+		if resourceKind == "azure_ai_foundry" && envelope.aiToken != nil {
+			// The content filter policy of each deployment, for an agent
+			// that names none of its own.
+			deploymentPolicies := map[string]string{}
+			for _, rawDeployment := range deployments {
+				var deployment struct {
+					Name       string `json:"name"`
+					Properties struct {
+						RAIPolicyName string `json:"raiPolicyName"`
+					} `json:"properties"`
+				}
+				if decodeMicrosoftCollectionResponse(rawDeployment, &deployment) && deployment.Properties.RAIPolicyName != "" {
+					deploymentPolicies[strings.ToLower(deployment.Name)] = microsoftFoundryPolicyName(deployment.Properties.RAIPolicyName)
+				}
+			}
+			var agentsStatus string
+			if foundryAgents, moderation, agentsStatus, err = api.fetchFoundryAgents(ctx, envelope, account.ID, account.Properties.CustomSubDomainName, deploymentPolicies, &foundryReads); err != nil {
+				return CollectionPage{}, err
+			}
+			attributes["agents"] = agentsStatus
+		}
 		stable := struct {
 			Name         string `json:"name"`
 			ObjectType   string `json:"object_type"`
@@ -288,6 +316,22 @@ func (api *MicrosoftCollectionAPI) fetchAzurePage(ctx context.Context, credentia
 		}{account.Name, "azure_ai_account", location, current, request.Subject.ID}
 		if !emit("microsoft_ai_resource", native, account.Name, stable, attributes) {
 			return CollectionPage{}, malformed
+		}
+		for _, agent := range foundryAgents {
+			agentStable := struct {
+				Environment string `json:"environment"`
+				Name        string `json:"name"`
+				ObjectType  string `json:"object_type"`
+				Tenant      string `json:"tenant"`
+			}{agent.host + "/" + agent.project, agent.name, "foundry_agent", request.Subject.ID}
+			agentAttributes := microsoftAgentAttributes{Status: agent.status, Posture: agentsignals.Posture{CredentialActive: agent.enabled, ShellExecution: agent.runsCode},
+				Discovery: agentsignals.NewDiscovery(agentsignals.MethodProviderAPI, "azure_ai_foundry", agent.signals), ContentModeration: moderation[agent.policy], AgentType: agent.kind, Model: agent.model}
+			if validMicrosoftCollectionText(agent.policy, 128) {
+				agentAttributes.RAIPolicy = agent.policy
+			}
+			if !emit("microsoft_copilot_agent", native+"/projects/"+agent.project+"/agents/"+agent.name, agent.project+"/"+agent.name, agentStable, agentAttributes) {
+				return CollectionPage{}, malformed
+			}
 		}
 		for _, rawDeployment := range deployments {
 			var deployment struct {

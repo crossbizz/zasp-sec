@@ -3783,7 +3783,7 @@ export type components = {
         };
         readonly IntegrationCoverageGap: {
             readonly name: string;
-            /** @description The provider service, for example bedrock-agent, bedrock-agentcore or lambda. A Kubernetes integration reports runtime-observations when its discovery credential may not list the node sensor ConfigMaps. A Google Cloud integration reports the Google API, for example agent-engine, cloud-run or audit-logs. */
+            /** @description The provider service, for example bedrock-agent, bedrock-agentcore or lambda. A Kubernetes integration reports runtime-observations when its discovery credential may not list the node sensor ConfigMaps, and mcp-links or mcp-link-configmaps when it may not list the Services or the ConfigMaps that relate agents to MCP servers. A Microsoft integration reports foundry-agents when its application may not list the agents of an AI Foundry project. A Google Cloud integration reports the Google API, for example agent-engine, cloud-run or audit-logs. */
             readonly service: string;
             /**
              * @description access_denied when the read role lacks a permission the service needs; unavailable when the service is not offered in the regions of the account or, for Google Cloud, when the API is switched off in every project that was read.
@@ -3797,7 +3797,7 @@ export type components = {
             readonly status: "deleted";
         };
         readonly IntegrationFreshness: {
-            /** @description The AI services whose agents the integration's current collection could not list, ordered by service. Empty when every service was read. AWS, Kubernetes and Google Cloud integrations report gaps; the other providers report none. */
+            /** @description The AI services whose agents the integration's current collection could not list, ordered by service. Empty when every service was read. AWS, Kubernetes, Microsoft and Google Cloud integrations report gaps. */
             readonly coverage_gaps: readonly components["schemas"]["IntegrationCoverageGap"][];
             readonly integration_id: components["schemas"]["ProductID"];
             readonly last_good: components["schemas"]["IntegrationLastGoodSnapshot"] | null;

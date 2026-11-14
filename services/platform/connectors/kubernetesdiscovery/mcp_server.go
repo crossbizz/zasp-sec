@@ -10,9 +10,10 @@ import (
 
 // A workload whose pod template runs an MCP server (an image or a command
 // the catalog recognises) is also recorded as an MCP server, beside the
-// workload itself. Only the pod template is read: the cluster API does not
-// say which agents call the server, so no agent is related to it, and its
-// tools cannot be listed without calling it.
+// workload itself. Only the pod template is read here; the last phase of a
+// collection relates the agents that are configured with the server's
+// Service name to it (mcp_links.go). Its tools cannot be listed without
+// calling it.
 
 // kubernetesMCPServerWorkload reports whether a pod template runs an MCP
 // server. Init containers are not servers.
@@ -25,13 +26,26 @@ func kubernetesMCPServerWorkload(spec kubernetesCollectionPodSpec) bool {
 	return false
 }
 
+// kubernetesMCPServerRecorded reports whether a workload of phase is recorded
+// as an MCP server. A zasp.ai/entity-kind label other than mcp-server or
+// agent opts the workload out.
+func kubernetesMCPServerRecorded(phase string, labels map[string]string, spec kubernetesCollectionPodSpec) bool {
+	if phase != "deployments" && phase != "statefulsets" && phase != "daemonsets" {
+		return false
+	}
+	if label, labelled := labels["zasp.ai/entity-kind"]; labelled && label != "mcp-server" && label != "agent" {
+		return false
+	}
+	return kubernetesMCPServerWorkload(spec)
+}
+
 // normalizeKubernetesMCPServer returns the MCP server entity of a workload
 // and its edge from the namespace, or nothing when the workload is not one.
 // The workload has already passed normalizeKubernetesWorkload's checks.
 func normalizeKubernetesMCPServer(subject collection.SubjectBinding, phase string, item kubernetesCollectionItem) (json.RawMessage, json.RawMessage, bool) {
 	definitions := map[string][2]string{"deployments": {"Deployment", "apps"}, "statefulsets": {"StatefulSet", "apps"}, "daemonsets": {"DaemonSet", "apps"}}
-	definition, served := definitions[phase]
-	if label, labelled := item.Metadata.Labels["zasp.ai/entity-kind"]; !served || labelled && label != "mcp-server" && label != "agent" || !kubernetesMCPServerWorkload(item.Spec.Template.Spec) {
+	definition := definitions[phase]
+	if !kubernetesMCPServerRecorded(phase, item.Metadata.Labels, item.Spec.Template.Spec) {
 		return nil, nil, true
 	}
 	native := "kubernetes:" + strings.ToLower(definition[0]) + ":" + item.Metadata.UID + ":mcp_server"

@@ -21,7 +21,13 @@ import (
 const (
 	discoveryMicrosoftGraphScope = "https://graph.microsoft.com/.default"
 	// The scope of an Azure Resource Manager token for the same application.
-	discoveryMicrosoftARMScope      = "https://management.azure.com/.default"
+	discoveryMicrosoftARMScope = "https://management.azure.com/.default"
+	// The scope of a token for the Azure AI Foundry project endpoints, where
+	// the agents of a project are listed.
+	// DOCUMENTED: https://github.com/Azure/azure-sdk-for-js (sdk/ai/ai-projects,
+	// @azure/ai-projects 2.11.0, aiProjectClient): scopes
+	// ["https://ai.azure.com/.default"].
+	discoveryMicrosoftAIScope       = "https://ai.azure.com/.default"
 	discoveryMicrosoftSecretPrefix  = "ref:microsoft/client-secret/"
 	discoverySalesforceSecretPrefix = "ref:salesforce/client-secret/"
 )
@@ -115,8 +121,9 @@ func (resolver *productionDiscoveryCredentialResolver) resolveMicrosoft(ctx cont
 	// A Resource Manager token for the same application, when the deployment
 	// reads Azure. The token is issued whether or not the application has a
 	// role in Azure; what it may read there is decided by Azure.
-	var arm discoverySaaSAccessToken
+	var arm, foundry discoverySaaSAccessToken
 	defer arm.Destroy()
+	defer foundry.Destroy()
 	if resolver.config.MicrosoftAzure {
 		if err := bound.checkCurrent(ctx); err != nil {
 			return discoveryCredentialEnvelope{}, err
@@ -129,8 +136,23 @@ func (resolver *productionDiscoveryCredentialResolver) resolveMicrosoft(ctx cont
 		if armExpiry := providerDiscoveryCredentialExpiry(now, arm.ExpiresAt); armExpiry.Before(expiresAt) {
 			expiresAt = armExpiry
 		}
+		// A token for the AI Foundry project endpoints, with which the
+		// collector lists the agents of each project. Like the Resource
+		// Manager token it is issued whether or not the application has a
+		// role there; a project the application has no role on refuses it.
+		if err := bound.checkCurrent(ctx); err != nil {
+			return discoveryCredentialEnvelope{}, err
+		}
+		var foundryErr error
+		foundry, foundryErr = resolver.config.Microsoft.ExchangeDiscoveryMicrosoftClientCredentials(ctx, config.TenantID, config.ClientID, clientSecret, discoveryMicrosoftAIScope)
+		if foundryErr != nil || ctx.Err() != nil {
+			return discoveryCredentialEnvelope{}, mapDiscoveryCredentialDependency(ctx, foundryErr)
+		}
+		if foundryExpiry := providerDiscoveryCredentialExpiry(now, foundry.ExpiresAt); foundryExpiry.Before(expiresAt) {
+			expiresAt = foundryExpiry
+		}
 	}
-	credential, ok := encodeDiscoveryMicrosoftCollectorCredentialWithARM(arm.Token, graph.Token, dataverse.Token, config.DataverseURL)
+	credential, ok := encodeDiscoveryMicrosoftCollectorCredentialWithAzure(foundry.Token, arm.Token, graph.Token, dataverse.Token, config.DataverseURL)
 	if !ok || !expiresAt.After(now) {
 		clear(credential)
 		return discoveryCredentialEnvelope{}, discoveryCredentialFailure(ctx, collection.FailureDenied)
@@ -246,6 +268,28 @@ func encodeDiscoveryMicrosoftCollectorCredentialWithARM(armToken, graphToken, da
 	return append(encoded, base[1:]...), true
 }
 
+// encodeDiscoveryMicrosoftCollectorCredentialWithAzure writes the credential
+// of a deployment that reads Azure: the Resource Manager form with a leading
+// ai_token member when a Foundry token is given,
+// {"ai_token":"…","arm_token":"…",…}. A Foundry token without a Resource
+// Manager token is refused: the collector finds the projects through
+// Resource Manager.
+func encodeDiscoveryMicrosoftCollectorCredentialWithAzure(aiToken, armToken, graphToken, dataverseToken []byte, dataverseURL string) ([]byte, bool) {
+	base, ok := encodeDiscoveryMicrosoftCollectorCredentialWithARM(armToken, graphToken, dataverseToken, dataverseURL)
+	if !ok || len(aiToken) == 0 {
+		return base, ok
+	}
+	defer clear(base)
+	if !validDiscoverySaaSAccessToken(aiToken) || len(armToken) == 0 {
+		return nil, false
+	}
+	encoded := make([]byte, 0, len(base)+len(aiToken)+24)
+	encoded = append(encoded, `{"ai_token":"`...)
+	encoded = append(encoded, aiToken...)
+	encoded = append(encoded, `",`...)
+	return append(encoded, base[1:]...), true
+}
+
 // encodeDiscoverySalesforceCollectorCredential writes
 // {"access_token":"…","instance_url":"https://….my.salesforce.com"}.
 func encodeDiscoverySalesforceCollectorCredential(accessToken []byte, instanceURL string) ([]byte, bool) {
@@ -263,8 +307,20 @@ func encodeDiscoverySalesforceCollectorCredential(accessToken []byte, instanceUR
 // The validators accept exactly what the encoders write: the members are cut
 // out on the fixed separators and written again, and the bytes must agree.
 func validDiscoveryMicrosoftCollectorCredential(value []byte) bool {
-	if len(value) < 32 || len(value) > 3*8192+512 {
+	if len(value) < 32 || len(value) > 4*8192+512 {
 		return false
+	}
+	// A leading Foundry token is cut off and checked; a Resource Manager
+	// token must follow it.
+	const aiPrefix = `{"ai_token":"`
+	if bytes.HasPrefix(value, []byte(aiPrefix)) {
+		aiToken, rest, found := bytes.Cut(value[len(aiPrefix):], []byte(`",`))
+		if !found || !validDiscoverySaaSAccessToken(aiToken) || !bytes.HasPrefix(rest, []byte(`"arm_token":"`)) {
+			return false
+		}
+		remainder := append([]byte{'{'}, rest...)
+		defer clear(remainder)
+		return validDiscoveryMicrosoftCollectorCredential(remainder)
 	}
 	// A leading Resource Manager token is cut off and checked; the rest is
 	// one of the two shapes without it.
