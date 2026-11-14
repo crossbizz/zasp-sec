@@ -67,7 +67,6 @@ var ruleCatalog = []Rule{
 	{Provider: "microsoft", SourceKind: "microsoft_ai_deployment", Namespace: "microsoft_ai_deployment", ProductKind: KindAsset, Version: 1, Priority: 130, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
 	{Provider: "microsoft", SourceKind: "microsoft_ai_resource", Namespace: "microsoft_ai_resource", ProductKind: KindAsset, Version: 1, Priority: 130, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
 	{Provider: "microsoft", SourceKind: "microsoft_copilot_agent", Namespace: "microsoft_copilot_agent", ProductKind: KindAgent, Version: 1, Priority: 130, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
-	{Provider: "microsoft", SourceKind: "microsoft_foundry_agent", Namespace: "microsoft_foundry_agent", ProductKind: KindAgent, Version: 1, Priority: 130, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
 	{Provider: "microsoft", SourceKind: "microsoft_tenant", Namespace: "microsoft_tenant", ProductKind: KindAsset, Version: 1, Priority: 130, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
 	{Provider: "okta", SourceKind: "okta_ai_application", Namespace: "okta_ai_application", ProductKind: KindAgent, Version: 1, Priority: 110, ConfidenceBasisPoints: 7000, Freshness: 24 * time.Hour},
 	{Provider: "okta", SourceKind: "okta_application", Namespace: "okta_application", ProductKind: KindTool, Version: 1, Priority: 110, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},

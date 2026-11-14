@@ -98,7 +98,6 @@ var allowedAttributesByKind = map[string]map[string]struct{}{
 	"microsoft_ai_deployment":         attributeSet("name", "object_type", "resource", "status", "subscription", "tenant"),
 	"microsoft_ai_resource":           attributeSet("name", "object_type", "region", "status", "subscription", "tenant"),
 	"microsoft_copilot_agent":         attributeSet("environment", "name", "object_type", "status", "tenant"),
-	"microsoft_foundry_agent":         attributeSet("name", "object_type", "resource", "status", "subscription", "tenant"),
 	"microsoft_tenant":                attributeSet("name", "tenant"),
 	"namespace":                       attributeSet("cluster_name", "namespace"),
 	"okta_ai_application":             attributeSet("name", "object_type", "status", "tenant"),

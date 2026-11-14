@@ -4399,25 +4399,26 @@ END $saas_rule_catalog$;
 -- approved-servers registry, MCP posture findings and attack paths through
 -- agents.
 --
--- WS5a. Inventory rules. Ten kinds join the catalog:
+-- WS5a. Inventory rules. Nine kinds join the catalog:
 --   aws_mcp_server, github_mcp_server, kubernetes_mcp_server  an MCP server
 --     (beside aws_agentcore_gateway and saas_mcp_server, which already are);
 --   aws_mcp_tool, github_mcp_tool   a tool an MCP server declares;
 --   github_agent_skill              a skill or instruction file of a repository;
 --   aws_data_store                  a data resource an agent's role reaches;
---   microsoft_ai_resource, microsoft_ai_deployment, microsoft_foundry_agent
---                                   Azure OpenAI and Azure AI Foundry.
--- The catalog is then 57 rows and its digest the one the compiled catalog
+--   microsoft_ai_resource, microsoft_ai_deployment
+--                                   an Azure OpenAI or Azure AI Foundry
+--                                   account and a model deployment of one.
+-- The catalog is then 56 rows and its digest the one the compiled catalog
 -- (inventoryprojection.RuleCatalogDigest) holds. The earlier digests are the
 -- ones sections X4 and X3c name and the one X3c pins. A later section that
 -- adds rules pins its own digest; when the file runs again this section then
 -- has nothing left to do (the saas section gained the same guard).
 DO $ws5_rule_catalog$
 DECLARE earlier CONSTANT text[]:=ARRAY['44820a38e96d80318165fc2333fd851cd932d2704d380a1199d569d1d0778f30','9397691244ac0b8befd2790fed3ca2e71f2114eba44001cc3d5634f86b6044ed','f67df9589cf0d41f4b2a98a5161353100e2ff3ed61cfc188c1447d2dd14c4192','2af0dce065caff0c7093dfecede207658bf1973cfcc53911bfae7faef33b1809','7121768829bd73b339a34812762ec5acb449497439e0650d6c6fb7a85bf5678b'];
- current_value CONSTANT text:='0d3ca9eaa280c9cc82f013d9d174bad20975a83a19b00518a60bfad3b40478c3';
+ current_value CONSTANT text:='cb8d8d45c753ad53654b44bbc1a6c4ed70fba671049b03047b26d1c12bad8169';
  previous text;f regprocedure;d text;
 BEGIN
- IF (SELECT count(*) FROM public.zasp_inventory_identity_rules)>57
+ IF (SELECT count(*) FROM public.zasp_inventory_identity_rules)>56
   AND NOT COALESCE((SELECT value FROM public.zasp_schema_metadata WHERE key='typed_inventory_rule_catalog_digest')=ANY(earlier||current_value),false) THEN
   RETURN;
  END IF;
@@ -4430,16 +4431,15 @@ BEGIN
   ('github','github_mcp_tool','github_mcp_tool','tool',1,120,9000,86400),
   ('kubernetes','kubernetes_mcp_server','kubernetes_mcp_server','tool',1,80,6000,900),
   ('microsoft','microsoft_ai_deployment','microsoft_ai_deployment','asset',1,130,9500,86400),
-  ('microsoft','microsoft_ai_resource','microsoft_ai_resource','asset',1,130,9500,86400),
-  ('microsoft','microsoft_foundry_agent','microsoft_foundry_agent','agent',1,130,9500,86400)
+  ('microsoft','microsoft_ai_resource','microsoft_ai_resource','asset',1,130,9500,86400)
  ON CONFLICT(provider,source_kind) DO NOTHING;
- IF (SELECT count(*) FROM public.zasp_inventory_identity_rules)<>57
+ IF (SELECT count(*) FROM public.zasp_inventory_identity_rules)<>56
   OR (SELECT count(*) FROM public.zasp_inventory_identity_rules WHERE rule_version=1 AND source_kind=identity_namespace
       AND (provider,source_kind,product_kind,priority,confidence_basis_points,freshness_seconds) IN(
        ('aws','aws_data_store','asset',100,9000,86400),('aws','aws_mcp_server','tool',100,9000,86400),('aws','aws_mcp_tool','tool',100,9000,86400),
        ('github','github_agent_skill','asset',120,9000,86400),('github','github_mcp_server','tool',120,9000,86400),('github','github_mcp_tool','tool',120,9000,86400),
        ('kubernetes','kubernetes_mcp_server','tool',80,6000,900),
-       ('microsoft','microsoft_ai_deployment','asset',130,9500,86400),('microsoft','microsoft_ai_resource','asset',130,9500,86400),('microsoft','microsoft_foundry_agent','agent',130,9500,86400)))<>10 THEN
+       ('microsoft','microsoft_ai_deployment','asset',130,9500,86400),('microsoft','microsoft_ai_resource','asset',130,9500,86400)))<>9 THEN
   RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='ws5 inventory rule catalog predecessor changed';
  END IF;
  ALTER TABLE public.zasp_inventory_cutover_state DROP CONSTRAINT IF EXISTS zasp_inventory_cutover_state_rule_catalog_digest_check;

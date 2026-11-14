@@ -51,11 +51,11 @@ const (
 	microsoftMaximumResponseBytes     = int64(8 * 1024 * 1024)
 	microsoftMinimumCollectionBytes   = int64(4096)
 	microsoftMaximumContinuationBytes = 1024
-	microsoftMaximumCredentialBytes   = 2*8192 + 512
+	microsoftMaximumCredentialBytes   = 3*8192 + 512
 )
 
 var (
-	microsoftPageCursorPattern       = regexp.MustCompile(`^microsoft:(agentidentities|serviceprincipals|copilotagents):([1-9][0-9]{0,5}):([A-Za-z0-9_-]+):([0-9a-f]{16})$`)
+	microsoftPageCursorPattern       = regexp.MustCompile(`^microsoft:(agentidentities|serviceprincipals|copilotagents|azure):([1-9][0-9]{0,5}):([A-Za-z0-9_-]+):([0-9a-f]{16})$`)
 	microsoftCompleteCursorPattern   = regexp.MustCompile(`^microsoft:complete:([0-9a-f]{16}):[0-9a-f]{16}$`)
 	microsoftTenantIDPattern         = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 	microsoftObjectIDPattern         = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
@@ -63,6 +63,9 @@ var (
 	microsoftDataverseHostPattern    = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,62}\.crm[0-9]{0,2}\.dynamics\.com$`)
 	microsoftCredentialGraphOnly     = []string{"{", "graph_token", ":", "", "}"}
 	microsoftCredentialWithDataverse = []string{"{", "dataverse_token", ":", "", ",", "dataverse_url", ":", "", ",", "graph_token", ":", "", "}"}
+	// With a Resource Manager token the envelope starts with arm_token; the
+	// rest is one of the two shapes above.
+	microsoftCredentialARMPrefix = []string{"{", "arm_token", ":", "", ","}
 )
 
 // microsoftPageState is the payload of a page cursor. The continuation is the
@@ -78,6 +81,9 @@ type microsoftPageState struct {
 	// Basic is set when the environment refused the configuration column on
 	// the first copilotagents page: the later pages ask without it too.
 	Basic bool `json:"b,omitempty"`
+	// Subscription is the Azure subscription an azure page reads; "" on the
+	// first page of the phase.
+	Subscription string `json:"u,omitempty"`
 }
 
 // microsoftCredential holds the two tokens as views into the caller's
@@ -87,6 +93,9 @@ type microsoftCredential struct {
 	graphToken     []byte
 	dataverseToken []byte
 	dataverseHost  string
+	// armToken is the Azure Resource Manager token; nil when the deployment
+	// did not opt in to reading Azure.
+	armToken []byte
 }
 
 type CollectionAPIConfig struct {
@@ -150,6 +159,9 @@ func (api *MicrosoftCollectionAPI) FetchCollectionPage(ctx context.Context, cred
 	}
 	if state.Phase == microsoftPhaseCopilotAgents && (envelope.dataverseHost == "" || envelope.dataverseHost != state.Environment) {
 		return CollectionPage{}, ErrInvalid
+	}
+	if state.Phase == microsoftPhaseAzure {
+		return api.fetchAzurePage(ctx, credential, envelope, request, state)
 	}
 	pageLimit := 1
 	if state.Phase != microsoftPhaseTenant {
@@ -270,12 +282,12 @@ func (api *MicrosoftCollectionAPI) FetchCollectionPage(ctx context.Context, cred
 	if !ok {
 		return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
 	}
-	next, complete, transitionOK := nextMicrosoftCollectionCursor(request.Subject, request.Cursor, state, nextContinuation, envelope.dataverseHost)
+	next, complete, transitionOK := nextMicrosoftCollectionCursor(request.Subject, request.Cursor, state, nextContinuation, envelope.dataverseHost, envelope.armToken != nil)
 	if !transitionOK {
 		return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
 	}
 	page, err := NewMicrosoftCollectionPage(request.Subject, next, complete, entities, relationships)
-	if err != nil || bytes.Contains(page.Raw, credential) || bytes.Contains(page.Raw, envelope.graphToken) || envelope.dataverseToken != nil && bytes.Contains(page.Raw, envelope.dataverseToken) {
+	if err != nil || bytes.Contains(page.Raw, credential) || bytes.Contains(page.Raw, envelope.graphToken) || envelope.dataverseToken != nil && bytes.Contains(page.Raw, envelope.dataverseToken) || envelope.armToken != nil && bytes.Contains(page.Raw, envelope.armToken) {
 		return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
 	}
 	if len(page.Entities) > request.RemainingItems || len(page.Relationships) > request.RemainingRelationships || int64(len(page.Raw)) > request.RemainingBytes {
@@ -579,9 +591,11 @@ func validMicrosoftPageState(state microsoftPageState) bool {
 	}
 	switch state.Phase {
 	case microsoftPhaseAgentIdentities, microsoftPhaseServicePrincipals:
-		return state.Environment == "" && !state.Basic
+		return state.Environment == "" && !state.Basic && state.Subscription == ""
 	case microsoftPhaseCopilotAgents:
-		return microsoftDataverseHostPattern.MatchString(state.Environment)
+		return microsoftDataverseHostPattern.MatchString(state.Environment) && state.Subscription == ""
+	case microsoftPhaseAzure:
+		return state.Environment == "" && !state.Basic && (state.Subscription == "" && state.Continuation == "" || microsoftTenantIDPattern.MatchString(state.Subscription))
 	default:
 		return false
 	}
@@ -604,7 +618,7 @@ func microsoftNextContinuation(link, expectedHost, expectedPath string) (string,
 		return "", false
 	}
 	for key, values := range query {
-		if key != "$skiptoken" && key != "$select" && key != "$top" || len(values) != 1 {
+		if key != "$skiptoken" && key != "$select" && key != "$top" && key != "api-version" || len(values) != 1 {
 			return "", false
 		}
 	}
@@ -612,7 +626,7 @@ func microsoftNextContinuation(link, expectedHost, expectedPath string) (string,
 	return next, validMicrosoftContinuation(next)
 }
 
-func nextMicrosoftCollectionCursor(subject collection.SubjectBinding, prior collection.Cursor, state microsoftPageState, nextContinuation, dataverseHost string) (collection.Cursor, bool, bool) {
+func nextMicrosoftCollectionCursor(subject collection.SubjectBinding, prior collection.Cursor, state microsoftPageState, nextContinuation, dataverseHost string, azure bool) (collection.Cursor, bool, bool) {
 	nextLineage := state.Lineage + 1
 	if nextContinuation != "" {
 		if state.Phase == microsoftPhaseTenant {
@@ -629,8 +643,15 @@ func nextMicrosoftCollectionCursor(subject collection.SubjectBinding, prior coll
 		if dataverseHost != "" {
 			return nextMicrosoftStateCursor(subject, microsoftPageState{Phase: microsoftPhaseCopilotAgents, Lineage: nextLineage, Environment: dataverseHost})
 		}
+		if azure {
+			return nextMicrosoftStateCursor(subject, microsoftPageState{Phase: microsoftPhaseAzure, Lineage: nextLineage})
+		}
 		return nextMicrosoftCompleteCursor(prior, subject), true, true
 	case microsoftPhaseCopilotAgents:
+		// Azure, when the deployment opted in, is read last.
+		if azure {
+			return nextMicrosoftStateCursor(subject, microsoftPageState{Phase: microsoftPhaseAzure, Lineage: nextLineage})
+		}
 		return nextMicrosoftCompleteCursor(prior, subject), true, true
 	default:
 		return collection.Cursor{}, false, false
@@ -665,6 +686,20 @@ func decodeMicrosoftCredential(credential []byte) (microsoftCredential, bool) {
 		return microsoftCredential{}, false
 	}
 	parts := bytes.Split(credential, []byte{'"'})
+	// A Resource Manager token, when present, is the first member.
+	var armToken []byte
+	if len(parts) > len(microsoftCredentialARMPrefix) && string(parts[1]) == "arm_token" {
+		for index, want := range microsoftCredentialARMPrefix {
+			if want != "" && string(parts[index]) != want {
+				return microsoftCredential{}, false
+			}
+		}
+		armToken = parts[3]
+		if !validMicrosoftToken(armToken) {
+			return microsoftCredential{}, false
+		}
+		parts = append([][]byte{[]byte("{")}, parts[len(microsoftCredentialARMPrefix):]...)
+	}
 	shape := microsoftCredentialGraphOnly
 	if len(parts) == len(microsoftCredentialWithDataverse) {
 		shape = microsoftCredentialWithDataverse
@@ -677,7 +712,7 @@ func decodeMicrosoftCredential(credential []byte) (microsoftCredential, bool) {
 			return microsoftCredential{}, false
 		}
 	}
-	result := microsoftCredential{graphToken: parts[len(parts)-2]}
+	result := microsoftCredential{graphToken: parts[len(parts)-2], armToken: armToken}
 	if len(shape) == len(microsoftCredentialWithDataverse) {
 		result.dataverseToken = parts[3]
 		if !validMicrosoftToken(result.dataverseToken) || !microsoftDataverseURLPattern.Match(parts[7]) {

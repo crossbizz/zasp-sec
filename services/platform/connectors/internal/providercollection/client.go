@@ -794,11 +794,9 @@ func providerEntitySchema(provider collection.Provider, kind string) (providerEn
 			return providerEntityDefinition{stable: requiredStringFields("environment", "name", "object_type", "tenant"), attributes: mergeInventorySchemas(directory, discoveredAgentAttributes(), inventoryObjectSchema{"content_moderation": enumInventoryField(false, "high", "low", "medium")})}, true
 		case "microsoft_ai_resource":
 			// An Azure OpenAI or Azure AI Foundry account of a subscription.
-			return providerEntityDefinition{stable: requiredStringFields("name", "object_type", "region", "subscription", "tenant"), attributes: mergeInventorySchemas(directory, optionalStringFields("endpoint_host", "resource_kind"), inventoryObjectSchema{"local_auth_disabled": boolInventoryField(false), "public_network_access": enumInventoryField(false, "disabled", "enabled")})}, true
+			return providerEntityDefinition{stable: requiredStringFields("name", "object_type", "region", "subscription", "tenant"), attributes: mergeInventorySchemas(directory, optionalStringFields("endpoint_host"), inventoryObjectSchema{"resource_kind": enumInventoryField(true, "azure_ai_foundry", "azure_openai"), "deployments": enumInventoryField(true, "listed", "not_listed"), "local_auth_disabled": boolInventoryField(false), "public_network_access": enumInventoryField(false, "disabled", "enabled")})}, true
 		case "microsoft_ai_deployment":
 			return providerEntityDefinition{stable: requiredStringFields("name", "object_type", "resource", "subscription", "tenant"), attributes: mergeInventorySchemas(directory, optionalStringFields("model", "model_version"))}, true
-		case "microsoft_foundry_agent":
-			return providerEntityDefinition{stable: requiredStringFields("name", "object_type", "resource", "subscription", "tenant"), attributes: mergeInventorySchemas(directory, discoveredAgentAttributes(), optionalStringFields("model"))}, true
 		}
 	case collection.ProviderSalesforce:
 		switch kind {
@@ -891,7 +889,7 @@ func validProviderRelationshipEndpointKinds(provider collection.Provider, raw js
 			"okta_tenant|contains|okta_application", "okta_tenant|contains|okta_group", "okta_tenant|contains|okta_role", "okta_tenant|contains|okta_service_principal", "okta_tenant|contains|okta_user", "okta_group|assigned_to|okta_application", "okta_service_principal|assigned_to|okta_application", "okta_user|assigned_to|okta_application", "okta_service_principal|assigned_to|okta_role", "okta_user|assigned_to|okta_role", "okta_group|assigned_to|okta_role", "okta_service_principal|member_of|okta_group", "okta_user|member_of|okta_group",
 			"okta_tenant|contains|okta_ai_application", "okta_group|assigned_to|okta_ai_application", "okta_service_principal|assigned_to|okta_ai_application", "okta_user|assigned_to|okta_ai_application",
 		),
-		collection.ProviderMicrosoft:  tokenSet("microsoft_tenant|contains|microsoft_agent_identity", "microsoft_tenant|contains|microsoft_ai_application", "microsoft_tenant|contains|microsoft_copilot_agent", "microsoft_tenant|contains|microsoft_ai_resource", "microsoft_tenant|contains|microsoft_ai_deployment", "microsoft_tenant|contains|microsoft_foundry_agent"),
+		collection.ProviderMicrosoft:  tokenSet("microsoft_tenant|contains|microsoft_agent_identity", "microsoft_tenant|contains|microsoft_ai_application", "microsoft_tenant|contains|microsoft_copilot_agent", "microsoft_tenant|contains|microsoft_ai_resource", "microsoft_tenant|contains|microsoft_ai_deployment"),
 		collection.ProviderSalesforce: tokenSet("salesforce_org|contains|salesforce_agent"),
 		collection.ProviderSaaS:       tokenSet("saas_tenant|contains|saas_agent", "saas_tenant|contains|saas_ai_application", "saas_tenant|contains|saas_mcp_server"),
 	}

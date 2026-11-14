@@ -19,7 +19,9 @@ import (
 // resolver and the token never leaves the credential material.
 
 const (
-	discoveryMicrosoftGraphScope    = "https://graph.microsoft.com/.default"
+	discoveryMicrosoftGraphScope = "https://graph.microsoft.com/.default"
+	// The scope of an Azure Resource Manager token for the same application.
+	discoveryMicrosoftARMScope      = "https://management.azure.com/.default"
 	discoveryMicrosoftSecretPrefix  = "ref:microsoft/client-secret/"
 	discoverySalesforceSecretPrefix = "ref:salesforce/client-secret/"
 )
@@ -110,7 +112,25 @@ func (resolver *productionDiscoveryCredentialResolver) resolveMicrosoft(ctx cont
 			expiresAt = dataverseExpiry
 		}
 	}
-	credential, ok := encodeDiscoveryMicrosoftCollectorCredential(graph.Token, dataverse.Token, config.DataverseURL)
+	// A Resource Manager token for the same application, when the deployment
+	// reads Azure. The token is issued whether or not the application has a
+	// role in Azure; what it may read there is decided by Azure.
+	var arm discoverySaaSAccessToken
+	defer arm.Destroy()
+	if resolver.config.MicrosoftAzure {
+		if err := bound.checkCurrent(ctx); err != nil {
+			return discoveryCredentialEnvelope{}, err
+		}
+		var armErr error
+		arm, armErr = resolver.config.Microsoft.ExchangeDiscoveryMicrosoftClientCredentials(ctx, config.TenantID, config.ClientID, clientSecret, discoveryMicrosoftARMScope)
+		if armErr != nil || ctx.Err() != nil {
+			return discoveryCredentialEnvelope{}, mapDiscoveryCredentialDependency(ctx, armErr)
+		}
+		if armExpiry := providerDiscoveryCredentialExpiry(now, arm.ExpiresAt); armExpiry.Before(expiresAt) {
+			expiresAt = armExpiry
+		}
+	}
+	credential, ok := encodeDiscoveryMicrosoftCollectorCredentialWithARM(arm.Token, graph.Token, dataverse.Token, config.DataverseURL)
 	if !ok || !expiresAt.After(now) {
 		clear(credential)
 		return discoveryCredentialEnvelope{}, discoveryCredentialFailure(ctx, collection.FailureDenied)
@@ -206,6 +226,26 @@ func encodeDiscoveryMicrosoftCollectorCredential(graphToken, dataverseToken []by
 	return append(encoded, `"}`...), true
 }
 
+// encodeDiscoveryMicrosoftCollectorCredentialWithARM writes the same
+// credential with a leading arm_token member when a Resource Manager token
+// is given: {"arm_token":"…","graph_token":"…"} or
+// {"arm_token":"…","dataverse_token":"…","dataverse_url":"…","graph_token":"…"}.
+func encodeDiscoveryMicrosoftCollectorCredentialWithARM(armToken, graphToken, dataverseToken []byte, dataverseURL string) ([]byte, bool) {
+	base, ok := encodeDiscoveryMicrosoftCollectorCredential(graphToken, dataverseToken, dataverseURL)
+	if !ok || len(armToken) == 0 {
+		return base, ok
+	}
+	defer clear(base)
+	if !validDiscoverySaaSAccessToken(armToken) {
+		return nil, false
+	}
+	encoded := make([]byte, 0, len(base)+len(armToken)+24)
+	encoded = append(encoded, `{"arm_token":"`...)
+	encoded = append(encoded, armToken...)
+	encoded = append(encoded, `",`...)
+	return append(encoded, base[1:]...), true
+}
+
 // encodeDiscoverySalesforceCollectorCredential writes
 // {"access_token":"…","instance_url":"https://….my.salesforce.com"}.
 func encodeDiscoverySalesforceCollectorCredential(accessToken []byte, instanceURL string) ([]byte, bool) {
@@ -223,8 +263,20 @@ func encodeDiscoverySalesforceCollectorCredential(accessToken []byte, instanceUR
 // The validators accept exactly what the encoders write: the members are cut
 // out on the fixed separators and written again, and the bytes must agree.
 func validDiscoveryMicrosoftCollectorCredential(value []byte) bool {
-	if len(value) < 32 || len(value) > 2*8192+512 {
+	if len(value) < 32 || len(value) > 3*8192+512 {
 		return false
+	}
+	// A leading Resource Manager token is cut off and checked; the rest is
+	// one of the two shapes without it.
+	const armPrefix = `{"arm_token":"`
+	if bytes.HasPrefix(value, []byte(armPrefix)) {
+		armToken, rest, found := bytes.Cut(value[len(armPrefix):], []byte(`",`))
+		if !found || !validDiscoverySaaSAccessToken(armToken) || bytes.HasPrefix(rest, []byte(`"arm_token"`)) {
+			return false
+		}
+		remainder := append([]byte{'{'}, rest...)
+		defer clear(remainder)
+		return validDiscoveryMicrosoftCollectorCredential(remainder)
 	}
 	const graphPrefix, suffix = `{"graph_token":"`, `"}`
 	if bytes.HasPrefix(value, []byte(graphPrefix)) && bytes.HasSuffix(value, []byte(suffix)) {

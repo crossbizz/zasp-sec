@@ -113,7 +113,11 @@ type workerRuntimeConfig struct {
 	GitHubCollectorVersion           string
 	OktaCollectorVersion             string
 	MicrosoftCollectorVersion        string
-	SalesforceCollectorVersion       string
+	// MicrosoftAzure is ZASP_DISCOVERY_MICROSOFT_AZURE=enabled: Microsoft
+	// collections also read Azure OpenAI and AI Foundry from Resource Manager.
+	MicrosoftAzure             bool
+	MicrosoftAzureSetting      string
+	SalesforceCollectorVersion string
 	// SaaSCollectorVersion serves the generic saas provider. It reads every
 	// platform through the Nango proxy, so the three Nango settings are
 	// required with it.
@@ -249,6 +253,7 @@ func loadWorkerRuntimeConfig(getenv func(string) string) (workerRuntimeConfig, e
 		AWSCollectorVersion: getenv("ZASP_DISCOVERY_AWS_COLLECTOR_VERSION"), KubernetesCollectorVersion: getenv("ZASP_DISCOVERY_KUBERNETES_COLLECTOR_VERSION"), GitHubCollectorVersion: getenv("ZASP_DISCOVERY_GITHUB_COLLECTOR_VERSION"), OktaCollectorVersion: getenv("ZASP_DISCOVERY_OKTA_COLLECTOR_VERSION"),
 		// Optional: unset leaves the provider unregistered.
 		MicrosoftCollectorVersion: getenv("ZASP_DISCOVERY_MICROSOFT_COLLECTOR_VERSION"), SalesforceCollectorVersion: getenv("ZASP_DISCOVERY_SALESFORCE_COLLECTOR_VERSION"),
+		MicrosoftAzure: getenv("ZASP_DISCOVERY_MICROSOFT_AZURE") == "enabled", MicrosoftAzureSetting: getenv("ZASP_DISCOVERY_MICROSOFT_AZURE"),
 		SaaSCollectorVersion: getenv("ZASP_DISCOVERY_SAAS_COLLECTOR_VERSION"), NangoBaseURL: getenv("ZASP_NANGO_BASE_URL"), NangoServiceSecretReference: getenv("ZASP_NANGO_SERVICE_SECRET_REFERENCE"), NangoEnvironment: getenv("ZASP_NANGO_ENVIRONMENT"),
 		KubernetesEgressCIDRs: parseWorkerCIDRs(getenv("ZASP_KUBERNETES_EGRESS_CIDRS")), GitHubAppID: getenv("ZASP_GITHUB_APP_ID"), GitHubPrivateKeyReference: getenv("ZASP_GITHUB_PRIVATE_KEY_REFERENCE"),
 		OktaClientID: getenv("ZASP_OKTA_CLIENT_ID"), OktaClientSecretReference: getenv("ZASP_OKTA_CLIENT_SECRET_REFERENCE"), ProviderTimeout: providerTimeout, DiscoveryReadinessTimeout: discoveryReadinessTimeout,
@@ -498,6 +503,11 @@ func validDiscoveryRuntimeAuthority(config workerRuntimeConfig) bool {
 		if version != "" && !workerVersionPattern.MatchString(version) {
 			return false
 		}
+	}
+	// Azure is read through the Microsoft collector: the setting is unset or
+	// "enabled", and only with that collector.
+	if config.MicrosoftAzureSetting != "" && (config.MicrosoftAzureSetting != "enabled" || config.MicrosoftCollectorVersion == "") {
+		return false
 	}
 	if !validDiscoveryNangoConfig(config.SaaSCollectorVersion, config.NangoBaseURL, config.NangoServiceSecretReference, config.NangoEnvironment) {
 		return false

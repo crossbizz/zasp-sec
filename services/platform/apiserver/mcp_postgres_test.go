@@ -198,7 +198,7 @@ func TestMCPSectionsOnTheInstalledBaselinePostgres(t *testing.T) {
 	if err := connection.QueryRow(ctx, `SELECT (SELECT count(*) FROM zasp_inventory_identity_rules),(SELECT value FROM zasp_schema_metadata WHERE key='typed_inventory_rule_catalog_digest')`).Scan(&rules, &digest); err != nil {
 		t.Fatal(err)
 	}
-	if compiled := inventoryprojection.RuleCatalogDigest(); rules != len(inventoryprojection.RuleCatalog()) || rules != 57 || digest != hexDigest(compiled) {
+	if compiled := inventoryprojection.RuleCatalogDigest(); rules != len(inventoryprojection.RuleCatalog()) || rules != 56 || digest != hexDigest(compiled) {
 		t.Fatalf("rule catalog: rows=%d digest=%s, compiled rows=%d digest=%s", rules, digest, len(inventoryprojection.RuleCatalog()), hexDigest(compiled))
 	}
 	// Every rule row equals the compiled rule.
