@@ -63,6 +63,28 @@ describe("production policy evidence", () => {
 		await waitFor(()=>expect(PATCH).toHaveBeenCalledTimes(2));
 		expect(JSON.parse(JSON.stringify(PATCH.mock.calls[1][1].body))).not.toHaveProperty("risk");
 	});
+	it("validates the policy ID and deletes a policy only after confirmation", async () => {
+		const GET = vi.fn(async (path: string) => {
+			if (path === "/api/v1/session/bootstrap") return jsonResult(sessionBootstrap(new Date(Date.now()+60_000).toISOString()));
+			if (path === "/api/v1/policies") return jsonResult({items:[runtimePolicy],page_info:{next_cursor:null,has_more:false}});
+			if (path === "/api/v1/policies/{id}") return jsonResult(runtimePolicy,200,{ETag:'"3"'});
+			if (path === "/api/v1/policies/{id}/decisions") return jsonResult({items:[]});
+			throw new Error(path);
+		});
+		const DELETE = vi.fn(async () => ({ response: new Response(null, { status: 204, headers: { ...receiptHeaders, ETag: '"4"' } }) }));
+		render(<APIProvider client={{GET,DELETE} as unknown as APIClient}><SessionProvider><WorkflowMutationProvider scopeKey="organization/workspace-a/environment-a"><ProductionPoliciesView canWrite /></WorkflowMutationProvider></SessionProvider></APIProvider>);
+		await userEvent.clear(screen.getByLabelText(/^Policy ID/));
+		await userEvent.type(screen.getByLabelText(/^Policy ID/), "Bad ID");
+		expect(screen.getByRole("button",{name:"Create policy"})).toBeDisabled();
+		expect(screen.getByText("Use the form policy-name, for example policy-production.")).toBeVisible();
+		await userEvent.click(await screen.findByRole("button",{name:"Open Runtime history"}));
+		await userEvent.click(await screen.findByRole("button",{name:"Delete policy"}));
+		expect(DELETE).not.toHaveBeenCalled();
+		await userEvent.click(screen.getByRole("button",{name:`Confirm delete of ${runtimePolicy.id}`}));
+		await waitFor(()=>expect(DELETE).toHaveBeenCalledWith("/api/v1/policies/{id}", expect.objectContaining({ params: expect.objectContaining({ path: { id: runtimePolicy.id }, header: expect.objectContaining({ "If-Match": '"3"' }) }) })));
+		expect(await screen.findByText(/Policy policy-runtime-history deleted/)).toBeVisible();
+		expect(screen.queryByRole("button",{name:"Delete policy"})).not.toBeInTheDocument();
+	});
 	it("simulates bounded runtime history and renders durable tenant decisions", async () => {
 		const user = userEvent.setup();
 		const GET = vi.fn(async (path: string) => {

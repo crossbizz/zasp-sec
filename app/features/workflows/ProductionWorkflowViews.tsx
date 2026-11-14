@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { APITransportError } from "../../../apps/web/api/client";
+import { APIProductError, APITransportError } from "../../../apps/web/api/client";
 import type { IntegrationWebhookTestStatus } from "../../../apps/web/api/generated";
 import type { ConnectorManifest, Integration, IntegrationAuthorization, IntegrationFreshness, IntegrationInput, IntegrationSchedule, IntegrationScheduleInput, IntegrationSetupStatus, IntegrationSync, IntegrationUpdateInput, Policy, PolicyRollout, PolicySimulation, RuntimeDecision } from "../../../apps/web/api/generated";
 import { useAPI } from "../../api/APIProvider";
@@ -17,9 +17,11 @@ type PolicyMutationIntent =
   | { kind: "create"; value: Policy }
   | { kind: "update"; id: string; version: string; value: Policy }
   | { kind: "rollout"; id: string; version: string; value: Policy; state: "monitor" | "enforced"; targetID: string }
-  | { kind: "disable"; id: string; version: string; value: Policy };
+  | { kind: "disable"; id: string; version: string; value: Policy }
+  | { kind: "delete"; id: string; version: string };
 type PolicyMutationResult =
   | { kind: "created" | "updated"; receipt: WorkflowReceipt<Policy> }
+  | { kind: "deleted"; receipt: WorkflowReceipt<void>; id: string }
   | { kind: "rolled"; receipt: WorkflowReceipt<PolicyRollout>; value: Policy; state: "monitor" | "enforced" | "disabled" };
 type IntegrationMutationIntent =
   | { kind: "create"; value: IntegrationInput }
@@ -70,15 +72,24 @@ export function ProductionPoliciesView({ canWrite }: { canWrite: boolean }) {
   const [editRisk, setEditRisk] = useState<Policy["risk"] | "">("");
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [busy, setBusy] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 	const [simulation, setSimulation] = useState<DiscoveryLoad<PolicySimulation>>({ status: "idle" });
 	const [decisions, setDecisions] = useState<DiscoveryLoad<readonly RuntimeDecision[]>>({ status: "idle" });
 	const decisionHistoryGeneration = useRef(0);
 
   const run = async (action: () => Promise<void>) => {
     setBusy(true); setFeedback(null);
-    try { await action(); } catch { setFeedback({ tone: "alert", message: "The policy operation was not applied. Refresh the current version and retry." }); } finally { setBusy(false); }
+    try { await action(); } catch (error) {
+      // 400 means the server refused the fields themselves; a refresh does not help.
+      setFeedback({ tone: "alert", message: error instanceof APIProductError && error.status === 400 ? "The server rejected the policy as invalid. Check the policy ID and name and try again." : "The policy operation was not applied. Refresh the current version and retry." });
+    } finally { setBusy(false); }
   };
   const applyMutation = (result: PolicyMutationResult) => {
+    setConfirmDelete(false);
+    if (result.kind === "deleted") {
+      setSelected(null); setSimulation({ status: "idle" }); setDecisions({ status: "idle" }); invalidate(["workflow:policies"]); setFeedback({ tone: "status", message: `Policy ${result.id} deleted. Audit ${result.receipt.auditID}` });
+      return;
+    }
     if (result.kind === "rolled") {
       setSelected({ value: { ...result.value, rollout: result.state }, version: result.receipt.version }); invalidate(["workflow:policies"]); setFeedback({ tone: "status", message: `Policy is ${result.state}. Audit ${result.receipt.auditID}` });
       return;
@@ -102,19 +113,21 @@ export function ProductionPoliciesView({ canWrite }: { canWrite: boolean }) {
 	});
   const create = () => void run(async () => {
     const intent: PolicyMutationIntent = { kind: "create", value: { id: policyID, name, scope: "environment", trigger: "tool", conditions: [{ field: "action", operator: "equals", value: "write" }], action: "monitor", rollout: "draft", failure_mode: "open", ...(risk ? { risk } : {}) } };
-    applyMutation(await mutation.execute(intent, async (frozen, attempt) => ({ kind: "created" as const, receipt: await api.createPolicy(frozen.value, attempt) })));
+    applyMutation(await mutation.execute(intent, async (frozen, attempt) => { if (frozen.kind !== "create") throw new TypeError("Invalid retained policy intent"); return { kind: "created" as const, receipt: await api.createPolicy(frozen.value, attempt) }; }));
   });
   const update = () => selected && runMutation(() => mutation.execute({ kind: "update", id: selected.value.id, version: selected.version, value: { ...selected.value, name: editName, risk: editRisk || undefined } }, async (intent, attempt) => { if (intent.kind !== "update") throw new TypeError("Invalid retained policy intent"); return { kind: "updated", receipt: await api.updatePolicy(intent.id, intent.version, intent.value, attempt) }; }));
   const rollout = (state: "monitor" | "enforced") => selected && session.status === "authenticated" && runMutation(() => mutation.execute({ kind: "rollout", id: selected.value.id, version: selected.version, value: selected.value, state, targetID: session.environmentID }, async (intent, attempt) => { if (intent.kind !== "rollout") throw new TypeError("Invalid retained policy intent"); return { kind: "rolled", receipt: await api.rolloutPolicy(intent.id, intent.version, { state: intent.state, target_id: intent.targetID }, attempt), value: intent.value, state: intent.state }; }));
   const disable = () => selected && runMutation(() => mutation.execute({ kind: "disable", id: selected.value.id, version: selected.version, value: selected.value }, async (intent, attempt) => { if (intent.kind !== "disable") throw new TypeError("Invalid retained policy intent"); return { kind: "rolled", receipt: await api.disablePolicy(intent.id, intent.version, attempt), value: intent.value, state: "disabled" }; }));
+  const remove = () => selected && runMutation(() => mutation.execute({ kind: "delete", id: selected.value.id, version: selected.version }, async (intent, attempt) => { if (intent.kind !== "delete") throw new TypeError("Invalid retained policy intent"); return { kind: "deleted", receipt: await api.deletePolicy(intent.id, intent.version, attempt), id: intent.id }; }));
   const retryMutation = () => runMutation(() => mutation.retry<PolicyMutationResult>());
+  const policyIDValid = /^policy-[a-z0-9-]+$/.test(policyID);
 
   return <div className="page"><PageHeader title="Policies" description="Durable scoped runtime controls with version checks and audit receipts." />
     <FeedbackLine value={feedback} /><QueryBoundary status={query.status} label="policies" onRetry={query.retry} disabled={mutation.isUnresolved} />
     {mutation.canRetry && <p role="alert">The response was lost. The exact operation and idempotency key are retained. <Button disabled={busy} onClick={retryMutation}>Retry retained policy operation</Button></p>}
-    {canWrite && <Card title="Create policy"><div className="form-grid"><Field label="Policy ID" value={policyID} disabled={mutation.isUnresolved} pattern="policy-[a-z0-9-]+" onChange={(event) => setPolicyID(event.target.value)} /><Field label="Name" value={name} disabled={mutation.isUnresolved} maxLength={128} onChange={(event) => setName(event.target.value)} /><PolicyRiskField label="Policy risk" value={risk} disabled={busy || mutation.isUnresolved} onChange={setRisk} /></div><Button variant="primary" disabled={busy || mutation.isUnresolved || !policyID || !name} onClick={create}>Create policy</Button></Card>}
+    {canWrite && <Card title="Create policy"><div className="form-grid"><Field label="Policy ID" value={policyID} disabled={mutation.isUnresolved} pattern="policy-[a-z0-9-]+" hint="Starts with policy- followed by lowercase letters, digits or hyphens." error={policyID && !policyIDValid ? "Use the form policy-name, for example policy-production." : undefined} onChange={(event) => setPolicyID(event.target.value)} /><Field label="Name" value={name} disabled={mutation.isUnresolved} maxLength={128} onChange={(event) => setName(event.target.value)} /><PolicyRiskField label="Policy risk" value={risk} disabled={busy || mutation.isUnresolved} onChange={setRisk} /></div><Button variant="primary" disabled={busy || mutation.isUnresolved || !policyIDValid || !name} onClick={create}>Create policy</Button></Card>}
     <Card title="Authorized policies">{query.data?.length ? <div className="connection-list">{query.data.map((policy) => <button type="button" key={policy.id} disabled={busy || mutation.isUnresolved} onClick={() => open(policy.id)} aria-label={`Open ${policy.name}`}><strong>{policy.name}</strong><span>{policy.action}</span><span>{policy.rollout}</span></button>)}</div> : query.status === "empty" ? <EmptyState title="No policies" description="Create the first scoped runtime policy when write access is enabled." /> : null}</Card>
-		{selected && <Card title={`Policy detail · ${selected.value.id}`}><p><Badge tone="info">{selected.value.rollout}</Badge> Version {selected.version}</p><Field label="Policy name" value={editName} disabled={!canWrite || busy || mutation.isUnresolved} onChange={(event) => setEditName(event.target.value)} /><PolicyRiskField label="Edit policy risk" value={editRisk} disabled={!canWrite || busy || mutation.isUnresolved} onChange={setEditRisk} /><p>{selected.value.conditions.map((condition) => `${condition.field} ${condition.operator} ${condition.value}`).join(", ")}</p>{canWrite && <div className="button-row"><Button disabled={busy || mutation.isUnresolved} onClick={update}>Save changes</Button><Button disabled={busy || mutation.isUnresolved || simulation.status === "loading"} onClick={simulate}>Simulate against runtime history</Button>{selected.value.rollout === "draft" && <Button disabled={busy || mutation.isUnresolved} onClick={() => rollout("monitor")}>Roll to monitor</Button>}{selected.value.rollout === "monitor" && <Button variant="primary" disabled={busy || mutation.isUnresolved} onClick={() => rollout("enforced")}>Enforce policy</Button>}{(selected.value.rollout === "monitor" || selected.value.rollout === "enforced") && <Button disabled={busy || mutation.isUnresolved} onClick={disable}>Disable policy</Button>}</div>}{simulation.status === "loading" && <LoadingState label="Simulating policy…" />}{simulation.status === "error" && <p role="alert">Policy simulation is unavailable.</p>}{simulation.status === "success" && simulation.value && <div><p>{simulation.value.matches} matched historical actions · {simulation.value.would_block} would block</p>{simulation.value.example_session_ids.length > 0 && <ul>{simulation.value.example_session_ids.map((id) => <li key={id}>{id}</li>)}</ul>}</div>}</Card>}
+		{selected && <Card title={`Policy detail · ${selected.value.id}`}><p><Badge tone="info">{selected.value.rollout}</Badge> Version {selected.version}</p><Field label="Policy name" value={editName} disabled={!canWrite || busy || mutation.isUnresolved} onChange={(event) => setEditName(event.target.value)} /><PolicyRiskField label="Edit policy risk" value={editRisk} disabled={!canWrite || busy || mutation.isUnresolved} onChange={setEditRisk} /><p>{selected.value.conditions.map((condition) => `${condition.field} ${condition.operator} ${condition.value}`).join(", ")}</p>{canWrite && <div className="button-row"><Button disabled={busy || mutation.isUnresolved} onClick={update}>Save changes</Button><Button disabled={busy || mutation.isUnresolved || simulation.status === "loading"} onClick={simulate}>Simulate against runtime history</Button>{selected.value.rollout === "draft" && <Button disabled={busy || mutation.isUnresolved} onClick={() => rollout("monitor")}>Roll to monitor</Button>}{selected.value.rollout === "monitor" && <Button variant="primary" disabled={busy || mutation.isUnresolved} onClick={() => rollout("enforced")}>Enforce policy</Button>}{(selected.value.rollout === "monitor" || selected.value.rollout === "enforced") && <Button disabled={busy || mutation.isUnresolved} onClick={disable}>Disable policy</Button>}{confirmDelete ? <><Button variant="danger" disabled={busy || mutation.isUnresolved} onClick={remove}>Confirm delete of {selected.value.id}</Button><Button disabled={busy} onClick={() => setConfirmDelete(false)}>Keep policy</Button></> : <Button variant="danger" disabled={busy || mutation.isUnresolved} onClick={() => setConfirmDelete(true)}>Delete policy</Button>}</div>}{simulation.status === "loading" && <LoadingState label="Simulating policy…" />}{simulation.status === "error" && <p role="alert">Policy simulation is unavailable.</p>}{simulation.status === "success" && simulation.value && <div><p>{simulation.value.matches} matched historical actions · {simulation.value.would_block} would block</p>{simulation.value.example_session_ids.length > 0 && <ul>{simulation.value.example_session_ids.map((id) => <li key={id}>{id}</li>)}</ul>}</div>}</Card>}
 		{selected && <Card title="Runtime decision history">{decisions.status === "loading" && <LoadingState label="Loading policy decisions…" />}{decisions.status === "error" && <p role="alert">Runtime decision history is unavailable. <Button disabled={busy} onClick={() => loadDecisions(selected.value.id)}>Retry</Button></p>}{decisions.status === "success" && decisions.value?.length ? <ul>{decisions.value.map((decision) => <li key={decision.id}><strong>{decision.result} · {decision.at}</strong><span>{decision.correlation_id}</span></li>)}</ul> : decisions.status === "success" ? <EmptyState title="No runtime decisions" description="This policy has no durable runtime decisions in the current tenant scope." /> : null}</Card>}
   </div>;
 }

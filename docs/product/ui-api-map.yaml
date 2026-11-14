@@ -377,7 +377,7 @@ screens:
         availability: available
       - id: delete_policy
         operation_id: deletePolicy
-        availability: api_available
+        availability: available
       - id: simulate_policy
         operation_id: simulatePolicy
         availability: available
@@ -486,6 +486,13 @@ screens:
       - id: cancel_security_agent_run
         operation_id: cancelSecurityAgentRun
         availability: available
+      - id: close_security_agent_run
+        operation_id: closeSecurityAgentRun
+        availability: available
+      # Browser-only administrator route without a read route; no screen yet.
+      - id: set_security_agent_planner_pricing
+        operation_id: setSecurityAgentPlannerPricing
+        availability: api_available
       # Contract/source availability only; native and deployed gates are in the
       # authoritative docs/internal/implementation_status_v1.5.md ledger.
       - id: view_single_test_cleanup_recovery

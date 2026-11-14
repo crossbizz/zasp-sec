@@ -88,6 +88,15 @@ describe("production risk views", () => {
     expect(screen.getByRole("button", { name: `Open run ${runID}` })).toBeEnabled();
   });
 
+  it("offers Reopen finding only when the finding is not open and sends status open", async () => {
+    const accepted = { ...finding, status: "accepted" as const, version: 2 };
+    const updateFinding = vi.fn(async () => ({ value: { ...finding, status: "open" as const, version: 3 }, version: '"3"', auditID: "pid_40000001-0000-4000-8000-000000000001", receiptID: "pid_40000002-0000-4000-8000-000000000002" }));
+    renderRisk("/violations", fixtureAPI({ getFinding: async () => ({ value: accepted, version: '"2"' }), updateFinding }), true, vi.fn(), finding.id);
+    await userEvent.click(await screen.findByRole("button", { name: "Reopen finding" }));
+    await waitFor(() => expect(updateFinding).toHaveBeenCalledWith(finding.id, "open", '"2"', expect.anything()));
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Reopen finding" })).not.toBeInTheDocument());
+  });
+
   it("opens a linked finding directly without enumerating a list", async () => {
     const list = vi.fn(async () => { throw new Error("List must not be required for an exact link"); });
     const get = vi.fn(async (id: string) => {

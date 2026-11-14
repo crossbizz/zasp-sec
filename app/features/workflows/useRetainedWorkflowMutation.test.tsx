@@ -393,6 +393,29 @@ describe("observable scope-owned workflow mutation registry", () => {
     expect(screen.getByRole("button", { name: "Start policy" })).toBeDisabled();
     await act(async () => scopeBList.resolve([]));
   });
+
+  it("repeats recovery on its own while permissions are still being applied", async () => {
+    const lag = (status: number, code: string) => new APIProductError(status, { code, message: "Authorization unavailable", correlation_id: "pid_44444444-4444-4444-8444-444444444444", retryable: true });
+    const listReceipts = vi.fn().mockRejectedValueOnce(lag(503, "authorization_unavailable")).mockResolvedValueOnce([]);
+    render(<WorkflowMutationProvider scopeKey="principal/organization/workspace-a/environment-a" recovery={{ listReceipts, acknowledgeReceipt: vi.fn() }} reconcileReceipt={vi.fn()}>
+      <Probe operation="policies" name="policy" send={async () => "unused"} />
+    </WorkflowMutationProvider>);
+    expect(await screen.findByText(/Applying recent changes/)).toBeVisible();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Retry committed-operation recovery" })).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("region", { name: "Mutation recovery" })).not.toBeInTheDocument(), { timeout: 6000 });
+    expect(listReceipts).toHaveBeenCalledTimes(2);
+  }, 10000);
+
+  it("keeps the manual retry for an error that is not the authorization lag", async () => {
+    const listReceipts = vi.fn().mockRejectedValue(new APIProductError(503, { code: "provider_unavailable", message: "Provider unavailable", correlation_id: "pid_44444444-4444-4444-8444-444444444444", retryable: true }));
+    render(<WorkflowMutationProvider scopeKey="principal/organization/workspace-a/environment-a" recovery={{ listReceipts, acknowledgeReceipt: vi.fn() }} reconcileReceipt={vi.fn()}>
+      <Probe operation="policies" name="policy" send={async () => "unused"} />
+    </WorkflowMutationProvider>);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Provider unavailable");
+    expect(screen.getByRole("button", { name: "Retry committed-operation recovery" })).toBeEnabled();
+    expect(listReceipts).toHaveBeenCalledTimes(1);
+  });
 });
 
 function receiptFixture(id: string): WorkflowMutationReceipt {

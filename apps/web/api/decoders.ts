@@ -1,4 +1,4 @@
-import type { AgentMutation, AgentSessionPage, AttackLabAttempt, AttackLabPreflight, AttackLabRun, AttackLabRunDetail, AttackLabRunPage, AttackPath, AttackPathPage, BreakOptionPage, CapabilityPage, ConnectorManifest, Finding, FindingPage, HomeSummary, Integration, IntegrationAuthorization, IntegrationFreshness, IntegrationSchedule, IntegrationSetupStatus, IntegrationSync, IntegrationSyncPage, InventoryDetail, InventoryPage, InventoryRecord, InventorySourceObservation, InventorySummary, Policy, PolicyRollout, PolicySimulation, Principal, RecoveryBackup, RecoveryCounts, RecoveryRestore, RelationshipPage, RuntimeDecision, SearchResultPage, SecurityAction, SecurityActionPage, SecurityAgentActivationState, SecurityAgentApproval, SecurityAgentApprovalPage, SecurityAgentDefinition, SecurityAgentExecutionControl, SecurityAgentExecutionControlResult, SecurityAgentExecutionControls, SecurityAgentPage, SecurityAgentRun, SecurityAgentRunDetail, SecurityAgentRunPage, SecurityAgentSimulation, SecurityAgentTemplate, Sensor, SensorCoverage, SensorEnrollment, SensorPage, SessionBootstrap, SessionCallbackResult, SessionScope, SessionScopePage, TestAttempt, TestDefinition, TestDefinitionPage, TestRun, TestRunDetail, TestRunPage, WorkflowMutationReceipt, WorkflowMutationReceiptPage } from "./generated";
+import type { AgentMutation, AgentSessionPage, AttackLabAttempt, AttackLabPreflight, AttackLabRun, AttackLabRunDetail, AttackLabRunPage, AttackPath, AttackPathPage, BreakOptionPage, CapabilityPage, ConnectorManifest, Finding, FindingPage, HomeSummary, Integration, IntegrationAuthorization, IntegrationFreshness, IntegrationSchedule, IntegrationSetupStatus, IntegrationSync, IntegrationSyncPage, InventoryDetail, InventoryPage, InventoryRecord, InventorySourceObservation, InventorySummary, Policy, PolicyRollout, PolicySimulation, Principal, RecoveryBackup, RecoveryCounts, RecoveryRestore, RelationshipPage, RuntimeDecision, SearchResultPage, SecurityAction, SecurityActionPage, SecurityAgentActivationState, SecurityAgentApproval, SecurityAgentApprovalPage, SecurityAgentDefinition, SecurityAgentExecutionControl, SecurityAgentExecutionControlResult, SecurityAgentExecutionControls, SecurityAgentPage, SecurityAgentRun, SecurityAgentRunClosed, SecurityAgentRunClosure, SecurityAgentRunDetail, SecurityAgentRunPage, SecurityAgentSimulation, SecurityAgentTemplate, Sensor, SensorCoverage, SensorEnrollment, SensorPage, SessionBootstrap, SessionCallbackResult, SessionScope, SessionScopePage, TestAttempt, TestDefinition, TestDefinitionPage, TestRun, TestRunDetail, TestRunPage, WorkflowMutationReceipt, WorkflowMutationReceiptPage } from "./generated";
 
 import { validateSecurityAgentExportSelections } from "./security-agent-export-decoders";
 
@@ -656,9 +656,33 @@ function decodeSecurityAgentApprovalContext(value: unknown, effect: unknown, run
   }
 }
 export function decodeSecurityAgentApprovalPage(value: unknown): SecurityAgentApprovalPage { const record = exactRecord(value, ["items"], ["next_cursor"]); for (const item of array(record.items, 100)) decodeSecurityAgentApproval(item); optionalCursor(record.next_cursor); return value as SecurityAgentApprovalPage; }
+const securityAgentRunCloseReasons = ["no_action_required", "resolved_outside_product", "usage_unknown_accepted"] as const;
+export function decodeSecurityAgentRunClosure(value: unknown): SecurityAgentRunClosure {
+  const record = exactRecord(value, ["closed_at", "closed_by", "reason"], ["note"]);
+  dateTime(record.closed_at); productID(record.closed_by); enumValue(record.reason, securityAgentRunCloseReasons);
+  if (Object.hasOwn(record, "note")) boundedString(record.note, 1, 500);
+  return value as SecurityAgentRunClosure;
+}
+// Optional negotiated lifecycle fields of a run detail (X-Zasp-Run-Lifecycle: v1).
+// Only a run that needs a human can carry a closure.
+export function decodeSecurityAgentRunLifecycle(record: Record<string, unknown>): void {
+  if (Object.hasOwn(record, "stop_reason") && (typeof record.stop_reason !== "string" || !/^[a-z][a-z0-9_]{0,63}$/.test(record.stop_reason))) fail();
+  if (Object.hasOwn(record, "closure")) {
+    decodeSecurityAgentRunClosure(record.closure);
+    const run = record.run as { state?: unknown } | null;
+    if (!run || typeof run !== "object" || run.state !== "needs_human") fail();
+  }
+}
+export function decodeSecurityAgentRunClosed(value: unknown): SecurityAgentRunClosed {
+  const record = exactRecord(value, ["id", "agent_id", "state", "definition_version", "version", "closure"]);
+  productID(record.id); productID(record.agent_id); if (record.state !== "needs_human") fail();
+  positiveInteger(record.definition_version); positiveInteger(record.version); decodeSecurityAgentRunClosure(record.closure);
+  return value as SecurityAgentRunClosed;
+}
 export function decodeSecurityAgentRunDetail(value: unknown): SecurityAgentRunDetail {
   if (hasOrderedSecurityAgent(value)) return decodeOrderedSecurityAgentRunDetail(value);
-  const record = exactRecord(value, ["run", "evidence_ids", "plan", "authorization", "approvals", "execution", "verification"], ["budget_stop_reason", "run_context", "action_details"]);
+  const record = exactRecord(value, ["run", "evidence_ids", "plan", "authorization", "approvals", "execution", "verification"], ["budget_stop_reason", "run_context", "action_details", "stop_reason", "closure"]);
+  decodeSecurityAgentRunLifecycle(record);
   if (Object.hasOwn(record, "run_context")) {
     decodeSecurityAgentRunContext(record.run_context, record.plan !== null);
   }

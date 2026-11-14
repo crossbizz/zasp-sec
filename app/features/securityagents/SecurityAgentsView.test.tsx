@@ -1367,3 +1367,100 @@ for (const state of ["draft", "validated", "supervised"] as const) it(`keeps una
  expect(screen.queryByRole("button",{name:"Simulate plan"})).not.toBeInTheDocument();
  expect(activateSecurityAgent).not.toHaveBeenCalled();
 });
+
+describe("Security Agent run closure", () => {
+  const closedBy = "pid_4000000a-0000-4000-8000-00000000000a";
+  const stoppedRun = { ...run, state: "needs_human" as const, version: 3 };
+  const stopped = (stop_reason: string, extra: Partial<SecurityAgentRunDetail> = {}): SecurityAgentRunDetail => ({ run: stoppedRun, evidence_ids: [evidenceID], plan: null, authorization: "not_planned", approvals: [], execution: [], verification: "inconclusive", stop_reason, ...extra });
+  const open = async (api: SecurityAgentsAPI, canWrite = true) => {
+    const user = userEvent.setup();
+    render(<SecurityAgentsView api={api} canWrite={canWrite} environmentID={environmentID} autoLoad={false} initialSnapshot={{ agents: [], templates: [template], runs: [stoppedRun], approvals: [] }} />);
+    await user.click(screen.getByRole("button", { name: `Open run ${runID}` }));
+    return user;
+  };
+
+  it.each([
+    ["planner_provider_rejected", "The AI provider refused the planning request before it generated anything."],
+    ["planner_not_sent", "No planning request left the product."],
+    ["budget_usage_unknown", "its outcome and usage could not be verified"],
+    ["some_future_code", "The run stopped with the recorded code some_future_code."],
+  ])("explains the stop reason %s in plain language", async (code, text) => {
+    await open(fixtureAPI({ getSecurityAgentRun: async () => stopped(code) }));
+    const region = await screen.findByRole("region", { name: "Stop reason" });
+    expect(region).toHaveTextContent(text);
+    expect(region).toHaveTextContent(`Recorded code: ${code}`);
+  });
+
+  it("offers only the reasons the server accepts and closes a provider-rejected run", async () => {
+    let detail = stopped("planner_provider_rejected");
+    const closeSecurityAgentRun = vi.fn<NonNullable<SecurityAgentsAPI["closeSecurityAgentRun"]>>(async (id, version, value) => {
+      const closure = { closed_at: "2026-11-14T02:00:00.000000Z", closed_by: closedBy, ...value };
+      detail = { ...detail, closure };
+      return { value: { id, agent_id: agentID, state: "needs_human", definition_version: 1, version, closure }, version: `"${version}"`, auditID, receiptID };
+    });
+    const user = await open(fixtureAPI({ getSecurityAgentRun: async () => detail, closeSecurityAgentRun }));
+    const form = await screen.findByRole("region", { name: "Close run" });
+    expect(within(form).getAllByRole("option").map((option) => (option as HTMLOptionElement).value)).toEqual(["no_action_required", "resolved_outside_product"]);
+    await user.selectOptions(within(form).getByRole("combobox"), "resolved_outside_product");
+    await user.type(within(form).getByRole("textbox"), "  Credits topped up  ");
+    await user.click(within(form).getByRole("button", { name: "Close run" }));
+    await waitFor(() => expect(closeSecurityAgentRun).toHaveBeenCalledWith(runID, 3, { reason: "resolved_outside_product", note: "Credits topped up" }, expect.anything()));
+    const closure = await screen.findByRole("region", { name: "Closure" });
+    expect(closure).toHaveTextContent("Resolved outside the product");
+    expect(closure).toHaveTextContent("Credits topped up");
+    expect(closure).toHaveTextContent(closedBy);
+    expect(screen.getByText("closed")).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Close run" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Close" })).toBeEnabled();
+  });
+
+  it("offers only usage_unknown_accepted for a run with unknown planner usage", async () => {
+    await open(fixtureAPI({ getSecurityAgentRun: async () => stopped("budget_usage_unknown", { budget_stop_reason: "budget_usage_unknown" }), closeSecurityAgentRun: vi.fn() }));
+    const form = await screen.findByRole("region", { name: "Close run" });
+    expect(within(form).getAllByRole("option").map((option) => (option as HTMLOptionElement).value)).toEqual(["usage_unknown_accepted"]);
+    expect(form).toHaveTextContent("The AI usage of this run is unknown.");
+  });
+
+  it("does not offer closing without write access, for another state or for a closed run", async () => {
+    const closure = { closed_at: "2026-11-14T02:00:00.000000Z", closed_by: closedBy, reason: "no_action_required" as const };
+    const view = await open(fixtureAPI({ getSecurityAgentRun: async () => stopped("planner_not_sent"), closeSecurityAgentRun: vi.fn() }), false);
+    await screen.findByRole("region", { name: "Stop reason" });
+    expect(screen.queryByRole("region", { name: "Close run" })).not.toBeInTheDocument();
+    void view;
+    expect(() => decodeSecurityAgentRunDetail(stopped("planner_not_sent", { closure }))).not.toThrow();
+    expect(() => decodeSecurityAgentRunDetail({ ...stopped("planner_not_sent", { closure }), run: { ...stoppedRun, state: "cancelled" }, verification: "not_started" })).toThrow();
+    expect(() => decodeSecurityAgentRunDetail(stopped("Not A Code"))).toThrow();
+    expect(() => decodeSecurityAgentRunDetail(stopped("planner_not_sent", { closure: { ...closure, reason: "other" } as never }))).toThrow();
+  });
+
+  it("keeps the form and explains a refused reason", async () => {
+    const closeSecurityAgentRun = vi.fn(async () => { throw new APIProductError(409, { code: "conflict", message: "Conflict", correlation_id: auditID, retryable: false }); });
+    const user = await open(fixtureAPI({ getSecurityAgentRun: async () => stopped("planner_not_sent"), closeSecurityAgentRun }));
+    const form = await screen.findByRole("region", { name: "Close run" });
+    await user.click(within(form).getByRole("button", { name: "Close run" }));
+    expect(await within(form).findByRole("alert")).toHaveTextContent("The run could not be closed.");
+    expect(within(form).getAllByRole("option")).toHaveLength(3);
+    expect(within(form).getByRole("button", { name: "Close run" })).toBeEnabled();
+  });
+
+  it("sends the close request with the lifecycle negotiation and the exact body", async () => {
+    const requests: Request[] = [];
+    const closure = { closed_at: "2026-11-14T02:00:00.000000Z", closed_by: closedBy, reason: "no_action_required" };
+    const client = createAPIClient({ fetch: async (request) => {
+      requests.push(request.clone() as Request);
+      const headers = { "Content-Type": "application/json", "Cache-Control": "no-store" };
+      if (request.method === "GET") return new Response(JSON.stringify(stopped("planner_provider_rejected")), { status: 200, headers });
+      return new Response(JSON.stringify({ id: runID, agent_id: agentID, state: "needs_human", definition_version: 1, version: 3, closure }), { status: 200, headers: { ...headers, ETag: '"3"', "X-Audit-ID": auditID, "X-Mutation-Receipt-ID": receiptID } });
+    } });
+    const api = createSecurityAgentsAPI(client);
+    expect((await api.getSecurityAgentRun(runID)).stop_reason).toBe("planner_provider_rejected");
+    expect(requests[0].headers.get("X-Zasp-Run-Lifecycle")).toBe("v1");
+    const receipt = await api.closeSecurityAgentRun!(runID, 3, { reason: "no_action_required" }, { idempotencyKey: "close-attempt-0001" });
+    expect(receipt.value.closure).toEqual(closure);
+    expect(new URL(requests[1].url).pathname).toBe(`/api/v1/security-agent-runs/${runID}/close`);
+    expect(requests[1].headers.get("If-Match")).toBe('"3"');
+    expect(requests[1].headers.get("Idempotency-Key")).toBe("close-attempt-0001");
+    expect(await requests[1].json()).toEqual({ reason: "no_action_required" });
+    await expect(api.closeSecurityAgentRun!(runID, 3, { reason: "resolved_outside_product" }, { idempotencyKey: "close-attempt-0002" })).rejects.toThrow("invalid authority");
+  });
+});

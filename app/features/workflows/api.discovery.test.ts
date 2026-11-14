@@ -122,6 +122,32 @@ describe("production integration discovery API", () => {
     expect(GET).toHaveBeenNthCalledWith(1, "/api/v1/integrations/{id}/syncs/{syncId}", expect.objectContaining({ params: { path: { id: integrationID, syncId: syncID } }, headers: { "X-Zasp-Expected-Scope": capturedScope } }));
     expect(GET).toHaveBeenNthCalledWith(2, "/api/v1/integrations/{id}/schedule", expect.objectContaining({ params: { path: { id: integrationID } }, headers: { "X-Zasp-Expected-Scope": capturedScope } }));
   });
+
+  it("confirms a sync that moved on and a deletion the server answers with 403", async () => {
+    const capturedScope = "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003";
+    let syncVersion = '"3"';
+    let missing = productError(403, "request_forbidden");
+    const GET = vi.fn(async (path: string) => {
+      if (path === "/api/v1/integrations/{id}/syncs/{syncId}") return result(sync, 200, { ETag: syncVersion, "Cache-Control": "no-store" });
+      if (path === "/api/v1/policies/{id}") return missing;
+      throw new Error(`unexpected GET ${path}`);
+    });
+    const reconcile = createWorkflowReceiptReconciler({ GET } as unknown as APIClient, capturedScope);
+    const base = { id: receiptHeaders["X-Mutation-Receipt-ID"], idempotency_key: "wf_11111111-1111-4111-8111-111111111111", audit_id: receiptHeaders["X-Audit-ID"], correlation_id: "pid_30000003-0000-4000-8000-000000000003", created_at: "2026-08-19T00:00:00Z", expires_at: "2026-08-25T00:00:00Z" };
+    const syncReceipt = { ...base, operation: "syncIntegration", resource_kind: "integration_sync", resource_id: syncID, resource_version: 2, result: sync, intent: { integration_id: integrationID } };
+    const deleteReceipt = { ...base, operation: "deletePolicy", resource_kind: "policy", resource_id: "policy-production", resource_version: 5, result: {}, intent: {} };
+
+    // The receipt names version 2; the sync has since moved on to version 3.
+    await expect(reconcile(syncReceipt as never, new AbortController().signal)).resolves.toBeUndefined();
+    syncVersion = '"1"';
+    await expect(reconcile(syncReceipt as never, new AbortController().signal)).rejects.toThrow("older than the committed receipt");
+    // A deleted resource reads as 403 request_forbidden (or 404 not_found); anything else is not a confirmation.
+    await expect(reconcile(deleteReceipt as never, new AbortController().signal)).resolves.toBeUndefined();
+    missing = productError(404, "not_found");
+    await expect(reconcile(deleteReceipt as never, new AbortController().signal)).resolves.toBeUndefined();
+    missing = productError(403, "fresh_auth_required");
+    await expect(reconcile(deleteReceipt as never, new AbortController().signal)).rejects.toThrow();
+  });
 });
 
 function result(data: unknown, status = 200, headers: Record<string, string> = {}) {

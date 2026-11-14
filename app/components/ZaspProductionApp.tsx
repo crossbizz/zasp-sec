@@ -159,10 +159,23 @@ function ProductionAppContent() {
     const allowed = productionRoutes.some((route) => route.path === window.location.pathname && hasProductionCapability(session, route.capability));
     if (!allowed) { window.history.replaceState({}, "", "/"); queueMicrotask(() => setLocation("/")); }
   }, [session]);
+  // Right after sign-in or a role change the authorization projection can lag
+  // for a few seconds. Reload the session a bounded number of times instead of
+  // leaving the person on a manual retry screen.
+  const authorizationPending = session.status === "error" && session.authorizationStatus === "pending" && session.scopeSwitch.status !== "error";
+  const retrySession = session.retry;
+  const pendingRetries = useRef(0);
+  const [pendingAttempt, setPendingAttempt] = useState(0);
+  useEffect(() => {
+    if (!authorizationPending) { if (session.status === "authenticated") pendingRetries.current = 0; return; }
+    if (pendingRetries.current >= 8) return;
+    const timer = window.setTimeout(() => { pendingRetries.current++; setPendingAttempt((current) => current + 1); void retrySession(); }, 2000);
+    return () => window.clearTimeout(timer);
+  }, [authorizationPending, retrySession, session.status, pendingAttempt]);
   if (session.status === "loading") return <main className="page auth-page"><h1>Loading Zasp</h1><p role="status">Loading authenticated session…</p></main>;
   if (session.status === "unauthenticated") return <main className="page auth-page"><h1>Sign in to Zasp</h1><Button onClick={() => session.signIn(location)}>Sign in</Button></main>;
   if (session.status === "forbidden") return <main className="page auth-page"><h1>Scope unavailable</h1><p role="alert">Authorization rejected</p></main>;
-  if (session.status === "error") return <main className="page auth-page"><h1>{session.authorizationStatus === "pending" ? "Authorization pending" : "Session unavailable"}</h1>{session.authorizationStatus === "pending" && <p role="status">Current access is being applied. Retry to load your permissions.</p>}{session.scopeSwitch.status === "error" ? <><p role="alert">{session.scopeSwitch.error?.message ?? "Scope reconciliation failed"}</p><Button onClick={() => void session.scopeSwitch.retry()}>Retry scope reconciliation</Button></> : <Button onClick={() => void session.retry()}>Retry</Button>}</main>;
+  if (session.status === "error") return <main className="page auth-page"><h1>{session.authorizationStatus === "pending" ? "Authorization pending" : "Session unavailable"}</h1>{session.authorizationStatus === "pending" && <p role="status">Current access is being applied. This usually takes a few seconds; the page retries on its own. You can also retry now.</p>}{session.scopeSwitch.status === "error" ? <><p role="alert">{session.scopeSwitch.error?.message ?? "Scope reconciliation failed"}</p><Button onClick={() => void session.scopeSwitch.retry()}>Retry scope reconciliation</Button></> : <Button onClick={() => void session.retry()}>Retry</Button>}</main>;
   if (session.status !== "authenticated") return null;
   const routes = productionRoutes.filter((route) => hasProductionCapability(session, route.capability));
   if (routes.length === 0) return <main className="page auth-page"><h1>No product capabilities</h1><p>Your account has no enabled product routes in this scope.</p><ProductionScopeSelector /><ProductionSignOutControl /></main>;

@@ -1,5 +1,5 @@
 import type { SecurityAgentApproval, SecurityAgentCancellation, SecurityAgentManualRunInput, SecurityAgentOrderedStep, SecurityAgentRunDetail } from "./generated";
-import { decodeSecurityAgentRun } from "./decoders";
+import { decodeSecurityAgentRun, decodeSecurityAgentRunLifecycle } from "./decoders";
 
 const PRODUCT_ID = /^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const DIGEST = /^sha256:[a-f0-9]{64}$/;
@@ -112,7 +112,8 @@ function cleanup(s: SecurityAgentOrderedStep, applied: boolean, terminal: boolea
 }
 
 export function decodeOrderedSecurityAgentRunDetail(value: unknown): SecurityAgentRunDetail {
-  const v = record(value, ["run", "evidence_ids", "plan", "authorization", "approvals", "execution", "verification", "ordered"]);
+  const v = record(value, ["run", "evidence_ids", "plan", "authorization", "approvals", "execution", "verification", "ordered"], ["stop_reason", "closure"]);
+  decodeSecurityAgentRunLifecycle(v);
   record(v.run, ["id", "agent_id", "state", "evidence_ids", "definition_version", "version"]);
   const run = decodeSecurityAgentRun(v.run); integer(run.version); integer(run.definition_version); evidence(run.evidence_ids); evidence(v.evidence_ids, run.evidence_ids);
   const o = record(v.ordered, ["contract_version", "steps"]); check(o.contract_version === 62);

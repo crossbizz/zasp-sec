@@ -691,3 +691,12 @@ button:disabled { cursor: default; }
 .production-app .card > :where(:not(.card__header, .connection-list, .connector-grid, .table-scroll, .data-table, table, .empty-state, .loading-state, .review-summary)):last-child { margin-bottom: 16px; }
 .production-app .card > .connection-list:not(:first-child) { margin-top: 14px; }
 .production-app .page > .card + .card, .production-app .page > .card + .identity-grid, .production-app .page > .identity-grid + .card { margin-top: 16px; }
+/* Short notice while the client repeats a request that met the authorization projection lag after a change. */
+.authorization-settling { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 1000; margin: 0; padding: 10px 16px; max-width: min(560px, calc(100vw - 32px)); background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius); box-shadow: var(--shadow); font-size: 13px; }
+/* Security Agent run: recorded stop reason, closure record and the close form. */
+.security-agent-run-stop, .security-agent-run-closure { margin: 12px 0; padding: 12px 14px; border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--surface); overflow-wrap: anywhere; }
+.security-agent-run-closure dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 8px 0 0; }
+.security-agent-run-closure dt { color: var(--muted, inherit); }
+.security-agent-run-closure dd { margin: 0; }
+.security-agent-run-close { display: grid; gap: 10px; margin: 12px 0; padding: 12px 14px; border: 1px solid var(--border-strong); border-radius: var(--radius); }
+.security-agent-run-close h3 { margin: 0; }

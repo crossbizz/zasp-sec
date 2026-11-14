@@ -76,6 +76,24 @@ deploy/local/real-stack/stack.sh stop     # stops the processes 'start' started
 
 `start` runs `up` when it has not completed or a dependency is not running, then starts the API, seven workers (scheduler, discovery, outbox, the three projection workers and the Security Agent action worker), the permission projector and the web application behind its TLS front. Each runs the foreground command described below, with its pid in `$ZASP_REAL_STACK_STATE/run/` and its output in `$ZASP_REAL_STACK_STATE/logs/`. It is safe to repeat: a process that already runs, or whose port already answers, is left alone. Before the first `bootstrap` it stops after `up` and prints the `bootstrap` command. It rebuilds the web application when its sources are newer than the last build; it does not rebuild the Go binaries (`up` does).
 
+What runs when everything is up:
+
+| `status` line | Command | Health port | Started by `start` |
+| --- | --- | --- | --- |
+| `api` | `stack.sh api` | 4081 (product listener 4000) | yes |
+| `worker-scheduler` | `stack.sh worker scheduler` | 8081 | yes |
+| `worker-discovery` | `stack.sh worker discovery` | 8082 | yes |
+| `worker-outbox` | `stack.sh worker outbox` | 8083 | yes |
+| `worker-projection-graph` | `stack.sh worker projection-graph` | 8091 | yes |
+| `worker-projection-search` | `stack.sh worker projection-search` | 8092 | yes |
+| `worker-projection-risk` | `stack.sh worker projection-risk` | 8093 | yes |
+| `worker-security-agent-action` | `stack.sh worker security-agent-action` | 8085 | yes |
+| (not listed) | `OPENROUTER_API_KEY=... stack.sh worker security-agent` | 8084 | no: by hand, it needs the OpenRouter token |
+| `projector` | `stack.sh project` | none | yes |
+| `ui` | `stack.sh ui` | serves 8443 | yes |
+
+The Security Agent planning worker is the eighth worker. Without it a Security Agent run stays `queued`. Without the permission projector nothing new can be read.
+
 ## The web application and its TLS front
 
 ```bash
@@ -94,7 +112,7 @@ The script checks `/etc/hosts` for the host name and prints the line to add. It 
 deploy/local/real-stack/stack.sh project
 ```
 
-Runs `zasp-authorization-reconcile -mode reconcile -limit 20` every 5 seconds (`ZASP_REAL_STACK_PROJECT_INTERVAL`), the command the production CronJob runs once a minute. Without it a new member, session or resource answers `authorization_pending` or `authorization_unavailable` until someone runs a pass, so it must keep running while the product is used. On 2026-11-13 a new browser session answered `authorization_pending` for a few seconds until the next pass.
+Runs `zasp-authorization-reconcile -mode reconcile -limit 20` every 5 seconds (`ZASP_REAL_STACK_PROJECT_INTERVAL`), the command the production CronJob runs once a minute. Without it a new member, session or resource answers `authorization_pending` or `authorization_unavailable` until someone runs a pass, so it must keep running while the product is used. On 2026-11-13 a new browser session answered `authorization_pending` for a few seconds until the next pass. On 2026-11-14, with the projector running, the read that follows a change in the browser answered `503 authorization_unavailable` or `409 authorization_changed` for 5 to 15 seconds; the web application repeats such a request and shows "Applying recent changes…" meanwhile.
 
 ## Use
 
@@ -156,9 +174,15 @@ deploy/local/real-stack/stack.sh worker security-agent-action                   
 
 The two Security Agent workers. `security-agent` plans and executes runs through Temporal; it needs an OpenRouter API token (written only to the fixed path the worker reads) and direct egress to `openrouter.ai`, and it is started by hand. `security-agent-action` executes temporary-policy, session-isolation and connector-revocation effects and signs the policy envelopes; it needs only the database and the gateway signing key the script generates, and `start` launches it.
 
-A planner request the provider rejects (for example HTTP 402 when the OpenRouter account has no credits) ends the run within seconds in state `needs_human` with `budget_stop_reason` `budget_usage_unknown`: the request was sent and the provider reported no usage. `GET /api/v1/security-agent-runs/{id}` with `X-Zasp-Budget-Details: v1` shows it. A planner request needs the Environment's pricing approval first (`PUT /api/v1/security-agent-planner-pricing`, a browser session with fresh authentication and `manage_identity`). Without one the planning step is refused before anything is sent and the run stays `queued`, so approve pricing before activating an agent.
+A planner request the provider refuses outright ends the run within seconds in state `needs_human` with the stop reason `planner_provider_rejected`: nothing was generated, nothing was charged and the reserved budget is released. The worker treats HTTP 401, 402 (the OpenRouter account has no credits) and 429 this way. Other failures, for example 403, a timeout or a 5xx answer, may have been processed by the provider; such a run ends in `needs_human` with `budget_usage_unknown`, and it keeps holding its agent's capacity. A run that ended before any request left the product records `planner_not_sent`. `GET /api/v1/security-agent-runs/{id}` with `X-Zasp-Run-Lifecycle: v1` returns the code as `stop_reason` (and `X-Zasp-Budget-Details: v1` the budget stop). On 2026-11-14 every run started from the web application ended with `planner_provider_rejected`, about 15 seconds after it was started; nothing after planning has been exercised on this stack.
 
-A requested sync passes through all three: the API writes the sync and an outbox row, `outbox` publishes it, `discovery` starts the Temporal workflow and collects four pages, then applies the snapshot. On 2026-11-13 a sync of the emulated account requested from the browser took 97 seconds on this machine; every provider request of a page is authorized on its own.
+A run in `needs_human` is closed by a person: `POST /api/v1/security-agent-runs/{id}/close` with a reason (`no_action_required` or `resolved_outside_product`; `usage_unknown_accepted` is required, and only accepted, for a run with unknown usage). The run keeps its state, the closure is recorded, and a closed run no longer holds its agent's capacity. The web application offers this as **Close run** in the run's dialog.
+
+A planner request needs the Environment's pricing approval first (`PUT /api/v1/security-agent-planner-pricing`, a browser session with fresh authentication and `manage_identity`). Without one the planning step is refused before anything is sent and the run stays `queued`, so approve pricing before activating an agent. There is no screen for it and no route that reads the approval back; [the tester's guide](../../../docs/operations/local-self-test.md#planner-pricing) has a snippet for the browser's developer console, which replaced the approval of this stack on 2026-11-14.
+
+An enabled agent whose trigger mode is not "Manual only" starts runs on its own: on 2026-11-14 enabling a Finding Response agent with the default trigger mode started one run for each of the nine open findings with the rule `credential` in the local database. The emulated AWS account produces no finding with that rule, so on a fresh stack a run cannot be started from a finding of the sync (`409 operation_conflict`).
+
+A requested sync passes through all three: the API writes the sync and an outbox row, `outbox` publishes it, `discovery` starts the Temporal workflow and collects four pages, then applies the snapshot. Syncs of the emulated account requested from the browser took 97 seconds on 2026-11-13 and 77 and 78 seconds on 2026-11-14 on this machine; every provider request of a page is authorized on its own.
 
 Three things end a run early here that a quiet deployment does not see:
 
@@ -239,7 +263,10 @@ Stops the processes `start` started, then the containers, and keeps their data. 
 
 | Not available | Why |
 | --- | --- |
-| Completing a sign-in without a person | Stytch must have this origin's redirect URLs registered, and a person must complete OAuth or follow the invitation email in a browser, through `stack.sh ui`. On 2026-11-13 a headless browser reached the Google sign-in page through this front; nobody has completed a sign-in through it yet. The signed-in pages were walked the same day with a session issued in the local database as a test fixture; see [the tester's guide](../../../docs/operations/local-self-test.md) for what they showed and what failed. |
+| Completing a sign-in without a person | Stytch must have this origin's redirect URLs registered, and a person must complete OAuth or follow the invitation email in a browser, through `stack.sh ui`. On 2026-11-13 a headless browser reached the Google sign-in page through this front; nobody has completed a sign-in through it yet. The signed-in pages were walked on 2026-11-13 and 2026-11-14 with a session issued in the local database as a test fixture; the second time every change of the golden path was made in the browser. See [the tester's guide](../../../docs/operations/local-self-test.md) for what they showed and what failed. |
+| Completing the deletion of an authorized integration | Deleting an `active` integration moves it to `revoking` and requests its revocation. Nothing on this stack completes a revocation, so the integration stays `revoking`, and the web application keeps every change locked for that user until the deletion is confirmed. An integration in `pending_authorization` is deleted at once. |
+| Webhook delivery status and test delivery | `GET /api/v1/integrations/{id}/delivery-status` and `POST /api/v1/integrations/{id}/test-delivery` answer `503`: they depend on a readiness record that the baseline does not create. |
+| Exports | The export routes are not mounted and answer `404`. |
 | Discovery of a real account | LocalStack answers the AWS calls for one emulated account with a small fixture. There is no third-party provider, and the GitHub and Okta secrets are placeholders. |
 | Proving IAM | LocalStack accepts any external ID and never denies an action. |
 | Worker modes other than `scheduler`, `outbox`, `discovery`, the three projection modes and the two Security Agent modes | Each needs queues, keys and endpoints the script does not create yet. |

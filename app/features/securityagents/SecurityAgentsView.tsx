@@ -5,8 +5,8 @@ import { ApprovalContext, ApprovalContextFields } from "./ApprovalContext";
 import { activityLink, type ActivityScope } from "../../domain/activity-links";
 
 import { APIProductError, APITransportError, createAPIClient, requireAPIData, type APIClient } from "../../../apps/web/api/client";
-import { decodeSecurityActionPage, decodeSecurityAgentActivationState, decodeSecurityAgentApproval, decodeSecurityAgentApprovalPage, decodeSecurityAgentDefinition, decodeSecurityAgentExecutionControlResult, decodeSecurityAgentExecutionControls, decodeSecurityAgentPage, decodeSecurityAgentRun, decodeSecurityAgentRunDetail, decodeSecurityAgentRunPage, decodeSecurityAgentSimulation, decodeSecurityAgentTemplatePage } from "../../../apps/web/api/decoders";
-import type { SecurityAction, SecurityAgentActivationState, SecurityAgentApproval, SecurityAgentApprovalPage, SecurityAgentDefinition, SecurityAgentExecutionControlResult, SecurityAgentExecutionControls, SecurityAgentInput, SecurityAgentPage, SecurityAgentRun, SecurityAgentRunDetail, SecurityAgentRunPage, SecurityAgentRunState, SecurityAgentSimulation, SecurityAgentTemplate } from "../../../apps/web/api/generated";
+import { decodeSecurityActionPage, decodeSecurityAgentActivationState, decodeSecurityAgentApproval, decodeSecurityAgentApprovalPage, decodeSecurityAgentDefinition, decodeSecurityAgentExecutionControlResult, decodeSecurityAgentExecutionControls, decodeSecurityAgentPage, decodeSecurityAgentRun, decodeSecurityAgentRunClosed, decodeSecurityAgentRunDetail, decodeSecurityAgentRunPage, decodeSecurityAgentSimulation, decodeSecurityAgentTemplatePage } from "../../../apps/web/api/decoders";
+import type { SecurityAction, SecurityAgentActivationState, SecurityAgentApproval, SecurityAgentApprovalPage, SecurityAgentDefinition, SecurityAgentExecutionControlResult, SecurityAgentExecutionControls, SecurityAgentInput, SecurityAgentPage, SecurityAgentRun, SecurityAgentRunClosed, SecurityAgentRunDetail, SecurityAgentRunPage, SecurityAgentRunState, SecurityAgentSimulation, SecurityAgentTemplate } from "../../../apps/web/api/generated";
 import { useAPI } from "../../api/APIProvider";
 import { useAPIQuery } from "../../api/query";
 import { useSession } from "../../auth/SessionProvider";
@@ -16,6 +16,7 @@ import {
   requireWorkflowEmptyReceipt,
   requireWorkflowReceipt,
   requireWorkflowVersioned,
+  isAmbiguousWorkflowMutationError,
   workflowMutationHeaders,
   type Versioned,
   type WorkflowMutationAttempt,
@@ -23,6 +24,7 @@ import {
 } from "../workflows/api";
 import { useRetainedWorkflowMutation } from "../workflows/useRetainedWorkflowMutation";
 import { ActionDetails } from "./ActionDetails";
+import { CloseRunForm, RunClosure, RunStateBadge, RunStopReason, type RunCloseInput } from "./RunLifecycle";
 import { SecurityAgentActivityPanel } from "./SecurityAgentActivityPanel";
 import type { SecurityAgentActivityKind } from "../../../apps/web/api/security-agent-activity";
 import type { SecurityAgentExistingTestReference, TestDefinition } from "../../../apps/web/api/generated";
@@ -46,7 +48,7 @@ export const securityAgentOperations = [
   "getSecurityAgentExport", "createSecurityAgentExportDownloadGrant", "downloadSecurityAgentExport",
   "listTests",
   "listSecurityAgentTemplates", "listSecurityActions", "getSecurityAgentExecutionControls", "setSecurityAgentExecutionControl", "listSecurityAgents", "createSecurityAgent", "getSecurityAgent", "updateSecurityAgent", "deleteSecurityAgent", "getSecurityAgentActivation", "activateSecurityAgent", "simulateSecurityAgent", "runSecurityAgent",
-  "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval",
+  "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "closeSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval",
 ] as const;
 
 export type SecurityAgentsAPI = {
@@ -70,6 +72,9 @@ export type SecurityAgentsAPI = {
   listSecurityAgentRuns(options?: { agent_id?: string; status?: SecurityAgentRunState; environment_id?: string; cursor?: string; limit?: number }, signal?: AbortSignal): Promise<SecurityAgentRunPage>;
   getSecurityAgentRun(id: string, signal?: AbortSignal): Promise<SecurityAgentRunDetail>;
   cancelSecurityAgentRun(id: string, version: number, attempt?: WorkflowMutationAttempt): Promise<WorkflowReceipt<SecurityAgentCancellation>>;
+  // Optional so that callers built before the close route keep working; the
+  // production API always provides it.
+  closeSecurityAgentRun?(id: string, version: number, value: RunCloseInput, attempt?: WorkflowMutationAttempt): Promise<WorkflowReceipt<SecurityAgentRunClosed>>;
   listSecurityAgentApprovals(options?: { state?: SecurityAgentApproval["state"]; run_id?: string; cursor?: string; limit?: number }, signal?: AbortSignal): Promise<SecurityAgentApprovalPage>;
   getSecurityAgentApproval(id: string, signal?: AbortSignal): Promise<SecurityAgentApproval>;
   decideSecurityAgentApproval(id: string, version: number, decision: "approved" | "rejected" | "cancelled", attempt?: WorkflowMutationAttempt): Promise<WorkflowReceipt<SecurityAgentApproval>>;
@@ -189,7 +194,7 @@ export function createSecurityAgentsAPI(client: APIClient = createAPIClient(), e
     },
     async getSecurityAgentRun(id, signal) {
       requireCurrent();
-      const result = await client.GET("/api/v1/security-agent-runs/{id}", { params: { path: { id }, header: { "X-Zasp-Budget-Details": "v1", "X-Zasp-Run-Context": "v1", "X-Zasp-Action-Details": "v1" } }, headers: scopeHeaders, signal }); requireCurrent(); requireSecurityAgentNoStore(result.response);
+      const result = await client.GET("/api/v1/security-agent-runs/{id}", { params: { path: { id }, header: { "X-Zasp-Budget-Details": "v1", "X-Zasp-Run-Context": "v1", "X-Zasp-Action-Details": "v1", "X-Zasp-Run-Lifecycle": "v1" } }, headers: scopeHeaders, signal }); requireCurrent(); requireSecurityAgentNoStore(result.response);
       const value = requireAPIData(result, decodeSecurityAgentRunDetail);
       if (value.run.id !== id) throw new TypeError("Security Agent run detail returned a different run");
       for (const [approvalID, approval] of orderedApprovals) if (approval.run_id === id) orderedApprovals.delete(approvalID);
@@ -203,6 +208,17 @@ export function createSecurityAgentsAPI(client: APIClient = createAPIClient(), e
         const result = await client.POST("/api/v1/security-agent-runs/{id}/cancel", { params, headers: scopeHeaders }); requireCurrent(); requireSecurityAgentNoStore(result.response);
         const receipt = requireWorkflowReceipt(result, decodeSecurityAgentCancellation);
         if (receipt.value.id !== id || (receipt.value.state !== "cancelled" && !(receipt.value.ordered && receipt.value.state === "needs_human")) || receipt.value.version !== version + 1) throw new TypeError("Security Agent cancellation returned invalid authority");
+        return receipt;
+      }, attempt);
+    },
+    async closeSecurityAgentRun(id, version, value, attempt) {
+      return executeWorkflowMutation(async (active) => {
+        requireCurrent();
+        const params = { path: { id }, header: workflowMutationHeaders(active, `"${version}"`) } as never;
+        const result = await client.POST("/api/v1/security-agent-runs/{id}/close", { params, body: value, headers: scopeHeaders }); requireCurrent(); requireSecurityAgentNoStore(result.response);
+        const receipt = requireWorkflowReceipt(result, decodeSecurityAgentRunClosed);
+        // A closure keeps the run's state and version; it answers for exactly the requested run and reason.
+        if (receipt.value.id !== id || receipt.value.version !== version || receipt.value.closure.reason !== value.reason || receipt.value.closure.note !== value.note) throw new TypeError("Security Agent closure returned invalid authority");
         return receipt;
       }, attempt);
     },
@@ -269,6 +285,7 @@ type SecurityAgentDetailResult =
   | { kind: "updated"; receipt: WorkflowReceipt<SecurityAgentDefinition> }
   | { kind: "deleted"; receipt: WorkflowReceipt<void> };
 type SecurityAgentRunCancelIntent = { id: string; version: number };
+type SecurityAgentRunCloseIntent = { id: string; version: number; value: RunCloseInput };
 type SecurityAgentApprovalDecisionIntent = { id: string; version: number; decision: "approved" | "rejected" | "cancelled" };
 type SecurityAgentActivationIntent = { id: string; version: number; activation: "validated" | "supervised" | "autonomous" };
 type SecurityAgentSimulationIntent = { id: string; version: number; goal: string; environmentID: string; evidenceIDs: readonly string[] };
@@ -302,6 +319,7 @@ async function loadSecurityAgentSnapshot(api: SecurityAgentsAPI, includeControls
 type SecurityAgentCreateMutation = ReturnType<typeof useRetainedWorkflowMutation<SecurityAgentCreateIntent>>;
 type SecurityAgentDetailMutation = ReturnType<typeof useRetainedWorkflowMutation<SecurityAgentDetailIntent>>;
 type SecurityAgentRunMutation = ReturnType<typeof useRetainedWorkflowMutation<SecurityAgentRunCancelIntent>>;
+type SecurityAgentRunCloseMutation = ReturnType<typeof useRetainedWorkflowMutation<SecurityAgentRunCloseIntent>>;
 type SecurityAgentApprovalMutation = ReturnType<typeof useRetainedWorkflowMutation<SecurityAgentApprovalDecisionIntent>>;
 type SecurityAgentActivationMutation = ReturnType<typeof useRetainedWorkflowMutation<SecurityAgentActivationIntent>>;
 type SecurityAgentSimulationMutation = ReturnType<typeof useRetainedWorkflowMutation<SecurityAgentSimulationIntent>>;
@@ -463,7 +481,21 @@ function AgentDetail({ selected, activation, actions, catalogAvailable, api, can
       }
       let value: Parameters<SecurityAgentsAPI["runSecurityAgent"]>[2] = evidenceID === "" ? { environment_id: selected.value.environment_ids[0]! } : { environment_id: selected.value.environment_ids[0]!, trigger_kind: triggerKind, trigger_id: evidenceID };
       if (orderedIntent && !manualRunMutation.canRetry) value = decodeSecurityAgentManualRunInput({ environment_id: selected.value.environment_ids[0]!, trigger_kind: triggerKind, trigger_id: evidenceID, trigger_version: triggerVersion, trigger_source: selected.value.trigger_source });
-      const receipt = manualRunMutation.canRetry ? await manualRunMutation.retry<WorkflowReceipt<SecurityAgentRun>>() : await manualRunMutation.execute({ id: selected.value.id, version: activation.version, value }, (intent, attempt) => api.runSecurityAgent(intent.id, intent.version, intent.value, attempt));
+      const send = (input: typeof value) => manualRunMutation.execute({ id: selected.value.id, version: activation.version, value: input }, (intent, attempt) => api.runSecurityAgent(intent.id, intent.version, intent.value, attempt));
+      let receipt: WorkflowReceipt<SecurityAgentRun>;
+      try {
+        receipt = manualRunMutation.canRetry ? await manualRunMutation.retry<WorkflowReceipt<SecurityAgentRun>>() : await send(value);
+      } catch (error) {
+        // Some servers admit a finding or attack-path run only with the exact
+        // trigger version and source (the second request form of the contract)
+        // and refuse the short form as invalid before anything is stored. Read
+        // the current trigger record and send that form once.
+        const versioned = !orderedIntent && error instanceof APIProductError && error.status === 400 && error.product.code === "invalid_request" && triggerKind !== "session" && evidenceID !== "" && api.getTriggerEvidence !== undefined && Boolean(selected.value.trigger_source);
+        if (!versioned || !api.getTriggerEvidence) throw error;
+        const evidence = await api.getTriggerEvidence(triggerKind, evidenceID, reads.signal);
+        if (reads.signal.aborted || evidence.id !== evidenceID) throw new TypeError("Trigger evidence authority changed");
+        receipt = await send(decodeSecurityAgentManualRunInput({ environment_id: selected.value.environment_ids[0]!, trigger_kind: triggerKind, trigger_id: evidenceID, trigger_version: evidence.version, trigger_source: selected.value.trigger_source }));
+      }
       onRun(receipt.value);
     } catch { setError(true); } finally { setBusy(false); }
   };
@@ -486,9 +518,22 @@ function AgentDetail({ selected, activation, actions, catalogAvailable, api, can
     {error && <p role="alert">{costRefused ? "Save an explicit AI cost budget as a disabled draft, then validate it again before enabling execution." : mutation.canRetry || activationMutation.canRetry || simulationMutation.canRetry || manualRunMutation.canRetry ? "The response was lost. Retry will reuse the exact retained operation." : "The Security Agent operation was rejected, changed elsewhere, or execution controls are disabled."}</p>}</div></Drawer>;
 }
 
-function RunDetail({ value, cancellation, api, canWrite, canReadTests, mutation, recoveryMutation, onRecoverySettled, onCancelled, onClose, activityScope, onNavigate, activityPermissions }: { value: SecurityAgentRunDetail; cancellation?: SecurityAgentCancellation | null; canReadTests: boolean; activityPermissions: ActivityPermissions; api: SecurityAgentsAPI; canWrite: boolean; mutation: SecurityAgentRunMutation; recoveryMutation: SingleTestRecoveryMutation; onRecoverySettled(): Promise<void>; onCancelled(run: SecurityAgentCancellation): Promise<void>; onClose(): void; activityScope?: ActivityScope; onNavigate?: (path: string) => void }) {
+function RunDetail({ value, cancellation, api, canWrite, canReadTests, mutation, closeMutation, recoveryMutation, onRecoverySettled, onCancelled, onRunClosed, onClose, activityScope, onNavigate, activityPermissions }: { value: SecurityAgentRunDetail; cancellation?: SecurityAgentCancellation | null; canReadTests: boolean; activityPermissions: ActivityPermissions; api: SecurityAgentsAPI; canWrite: boolean; mutation: SecurityAgentRunMutation; closeMutation?: SecurityAgentRunCloseMutation; recoveryMutation: SingleTestRecoveryMutation; onRecoverySettled(): Promise<void>; onCancelled(run: SecurityAgentCancellation): Promise<void>; onRunClosed?(run: SecurityAgentRunClosed): Promise<void>; onClose(): void; activityScope?: ActivityScope; onNavigate?: (path: string) => void }) {
   const [busy, setBusy] = useState(false); const [error, setError] = useState(false);
-  const locked = mutation.isUnresolved || recoveryMutation.isUnresolved;
+  const [closeFailure, setCloseFailure] = useState<"none" | "lost" | "rejected">("none");
+  const locked = mutation.isUnresolved || recoveryMutation.isUnresolved || Boolean(closeMutation?.isUnresolved);
+  const closeRun = api.closeSecurityAgentRun;
+  const closable = canWrite && value.run.state === "needs_human" && !value.closure && closeRun !== undefined && closeMutation !== undefined && onRunClosed !== undefined;
+  const close = async (input: RunCloseInput) => {
+    if (!closeRun || !closeMutation || !onRunClosed) return;
+    setBusy(true); setCloseFailure("none");
+    try {
+      const receipt = closeMutation.canRetry
+        ? await closeMutation.retry<WorkflowReceipt<SecurityAgentRunClosed>>()
+        : await closeMutation.execute({ id: value.run.id, version: value.run.version, value: input }, (intent, attempt) => closeRun(intent.id, intent.version, intent.value, attempt));
+      await onRunClosed(receipt.value);
+    } catch (error) { setCloseFailure(isAmbiguousWorkflowMutationError(error) ? "lost" : "rejected"); } finally { setBusy(false); }
+  };
   const trigger = value.run_context?.trigger;
   // Registered migration 24 persists the scoped session_id as trigger_id for
   // runtime_decision receipts. Manual receipt IDs have no typed destination.
@@ -505,8 +550,11 @@ function RunDetail({ value, cancellation, api, canWrite, canReadTests, mutation,
     } catch { setError(true); } finally { setBusy(false); }
   };
   return <Drawer open title={`Run ${value.run.id}`} closeDisabled={locked} onClose={onClose}><div className="detail-content">
-    <p><Badge tone={value.run.state === "contained" || value.run.state === "remediated" ? "success" : value.run.state === "failed" ? "critical" : "info"}>{value.run.state}</Badge> Version {value.run.version}</p>
+    <p><RunStateBadge state={value.run.state} closed={value.closure !== undefined} /> Version {value.run.version}</p>
     <p>Definition {value.run.agent_id}, revision {value.run.definition_version}</p>
+    {value.stop_reason && <RunStopReason code={value.stop_reason} />}
+    {value.closure && <RunClosure value={value.closure} />}
+    {closable && closeMutation && <CloseRunForm key={value.run.id} value={value} disabled={busy || mutation.isUnresolved || recoveryMutation.isUnresolved || closeMutation.isUnresolved && !closeMutation.canRetry} retrying={closeMutation.canRetry} failure={closeFailure} onClose={(input) => void close(input)} />}
     {value.budget_stop_reason && <p role="alert">{{
       budget_deadline_exceeded: "Run time limit reached.",
       budget_steps_exceeded: "Run step limit reached.",
@@ -616,13 +664,14 @@ function SecurityAgentsScopedView({ api = defaultSecurityAgentsAPI, environmentI
   const createMutation = useRetainedWorkflowMutation<SecurityAgentCreateIntent>("security-agent:create");
   const detailMutation = useRetainedWorkflowMutation<SecurityAgentDetailIntent>(`security-agent:${selected?.value.id ?? "none"}`);
   const runMutation = useRetainedWorkflowMutation<SecurityAgentRunCancelIntent>(`security-agent-run:${selectedRun?.run.id ?? "none"}`, canWrite);
+  const runCloseMutation = useRetainedWorkflowMutation<SecurityAgentRunCloseIntent>(`security-agent-run-close:${selectedRun?.run.id ?? "none"}`, canWrite);
   const recoveryMutation = useRetainedWorkflowMutation<RecoveryIntent>(`single-test-recovery:${selectedRun?.run.id ?? "none"}`, canWrite && Boolean(api.recovery));
   const approvalMutation = useRetainedWorkflowMutation<SecurityAgentApprovalDecisionIntent>(`security-agent-approval:${selectedApproval?.id ?? "none"}`, canWrite && fresh);
   const activationMutation = useRetainedWorkflowMutation<SecurityAgentActivationIntent>(`security-agent-activation:${selected?.value.id ?? "none"}`, canWrite && fresh);
   const simulationMutation = useRetainedWorkflowMutation<SecurityAgentSimulationIntent>(`security-agent-simulation:${selected?.value.id ?? "none"}`, canWrite);
   const manualRunMutation = useRetainedWorkflowMutation<SecurityAgentManualRunIntent>(`security-agent-manual-run:${selected?.value.id ?? "none"}`, canWrite);
   const controlMutation = useRetainedWorkflowMutation<SecurityAgentControlIntent>(`security-agent-controls:${environmentID}`, canManageControls && fresh);
-  const mutationLocked = createMutation.isUnresolved || detailMutation.isUnresolved || runMutation.isUnresolved || recoveryMutation.isUnresolved || approvalMutation.isUnresolved || activationMutation.isUnresolved || simulationMutation.isUnresolved || manualRunMutation.isUnresolved || controlMutation.isUnresolved;
+  const mutationLocked = createMutation.isUnresolved || detailMutation.isUnresolved || runMutation.isUnresolved || runCloseMutation.isUnresolved || recoveryMutation.isUnresolved || approvalMutation.isUnresolved || activationMutation.isUnresolved || simulationMutation.isUnresolved || manualRunMutation.isUnresolved || controlMutation.isUnresolved;
   const detailRead = useRef<AbortController | null>(null);
   const openRun = useCallback(async (id: string) => {
     readGeneration.current++; setCancellation(null);
@@ -708,7 +757,7 @@ function SecurityAgentsScopedView({ api = defaultSecurityAgentsAPI, environmentI
     {!initialRunID && <Card title="Pending approvals">{pendingApprovals.length ? <div className="connection-list">{pendingApprovals.map((approval) => <button type="button" className="security-agent-approval-row" key={approval.id} disabled={mutationLocked} aria-label={`Open approval ${approval.id}`} aria-describedby={`approval-context-${approval.id}`} onClick={() => void openApproval(approval.id)}><strong>{approval.expected_effect}</strong><ApprovalContextFields id={`approval-context-${approval.id}`} value={approval} /></button>)}</div> : <EmptyState title="No pending approvals" description="Supervised action requests appear here before any provider effect." />}</Card>}
     {!initialRunID && approvalHistory.length > 0 && <Card title="Approval history"><div className="connection-list">{approvalHistory.map((approval) => <button type="button" className="security-agent-approval-row" key={approval.id} disabled={mutationLocked} aria-label={`Open approval ${approval.id}`} aria-describedby={`approval-context-${approval.id}`} onClick={() => void openApproval(approval.id)}><strong>{approval.state} · {approval.expected_effect}</strong><ApprovalContextFields id={`approval-context-${approval.id}`} value={approval} /></button>)}</div></Card>}
     {selected && selectedActivation && <AgentDetail selected={selected} activation={selectedActivation} actions={actions} catalogAvailable={catalogAvailable} api={api} canWrite={canWrite} fresh={fresh} onReauthenticate={onReauthenticate} mutation={detailMutation} activationMutation={activationMutation} simulationMutation={simulationMutation} manualRunMutation={manualRunMutation} onChange={(value) => { setSelected(value); setSelectedActivation((current) => current ? { ...current, activation: "draft", enabled: false, version: Number(value.version.replaceAll('"', '')) } : null); setAgents((items) => items.map((item) => item.id === value.value.id ? value.value : item)); }} onActivation={(value) => { const autonomy = value.activation === "autonomous" ? "autonomous" : "supervised"; setSelectedActivation(value); setSelected((current) => current ? { value: { ...current.value, autonomy, enabled: value.enabled }, version: `"${value.version}"` } : null); setAgents((items) => items.map((item) => item.id === value.id ? { ...item, autonomy, enabled: value.enabled } : item)); }} onRun={(value) => setRuns((items) => [value, ...items.filter((item) => item.id !== value.id)])} onDelete={() => { const id = selected.value.id; setSelected(null); setSelectedActivation(null); setAgents((items) => items.filter((item) => item.id !== id)); }} onClose={() => { setSelected(null); setSelectedActivation(null); }} />}
-    {selectedRun && <RunDetail canReadTests={canReadTests} activityPermissions={activityPermissions} activityScope={activityScope} onNavigate={onNavigate} value={selectedRun} cancellation={cancellation} api={api} canWrite={canWrite} mutation={runMutation} recoveryMutation={recoveryMutation} onRecoverySettled={() => refreshRun(selectedRun.run.id)} onCancelled={async (run) => { if (reads.signal.aborted) return; setCancellation(run); await refreshRun(run.id); }} onClose={() => { readGeneration.current++; setSelectedRun(null); setCancellation(null); }} />}
+    {selectedRun && <RunDetail canReadTests={canReadTests} activityPermissions={activityPermissions} activityScope={activityScope} onNavigate={onNavigate} value={selectedRun} cancellation={cancellation} api={api} canWrite={canWrite} mutation={runMutation} closeMutation={runCloseMutation} onRunClosed={async (run) => { if (reads.signal.aborted) return; await refreshRun(run.id); }} recoveryMutation={recoveryMutation} onRecoverySettled={() => refreshRun(selectedRun.run.id)} onCancelled={async (run) => { if (reads.signal.aborted) return; setCancellation(run); await refreshRun(run.id); }} onClose={() => { readGeneration.current++; setSelectedRun(null); setCancellation(null); }} />}
     {selectedApproval && <ApprovalDetail value={selectedApproval} api={api} activityScope={activityScope} canReadRuns={canReadRuns} onNavigate={onNavigate} canWrite={canWrite} canApproveIrreversible={canApproveIrreversible} fresh={fresh} onReauthenticate={onReauthenticate} mutation={approvalMutation} onDecisionBoundary={() => { readGeneration.current++; }} onDecided={(approval) => { setSelectedApproval(approval); setApprovals((items) => items.map((item) => item.id === approval.id ? approval : item)); }} onClose={() => { readGeneration.current++; setSelectedApproval(null); }} />}
   </div>;
 }

@@ -502,7 +502,10 @@ export function createWorkflowReceiptReconciler(client: APIClient, capturedScope
         const intent = receipt.intent as { integration_id: string };
         const value = requireNoStoreVersioned(await client.GET("/api/v1/integrations/{id}/syncs/{syncId}", { params: { path: { id: intent.integration_id, syncId: receipt.resource_id } }, headers, signal }), decodeIntegrationSync);
         if (value.value.id !== receipt.resource_id || value.value.integration_id !== intent.integration_id) throw new APITransportError("invalid_response", "Recovered integration sync returned a different resource");
-        requireRecoveredVersion(value.version, expectedVersion);
+        // A sync moves on by itself (queued, running, finished) and its version
+        // grows with it, often before the browser has read the receipt. The
+        // committed request is confirmed by the same sync at that version or later.
+        requireRecoveredVersionAtLeast(value.version, receipt.resource_version);
         return;
       }
       case "putIntegrationSchedule": {
@@ -550,11 +553,20 @@ function requireRecoveredVersion(actual: string, expected: string): void {
   if (actual !== expected) throw new APITransportError("invalid_response", "Authoritative resource version does not match the committed receipt");
 }
 
+function requireRecoveredVersionAtLeast(actual: string, committed: number): void {
+  const match = /^"([1-9][0-9]{0,8})"$/.exec(actual);
+  if (!match || Number(match[1]) < committed) throw new APITransportError("invalid_response", "Authoritative resource version is older than the committed receipt");
+}
+
 function requireRecoveredDeletion(result: APIResult<unknown>): void {
   try {
     requireAPIData(result);
   } catch (error) {
     if (error instanceof APIProductError && error.status === 404 && error.product.code === "not_found") return;
+    // With object-level authorization the server answers a resource that no
+    // longer exists like one the caller may not read: 403 request_forbidden.
+    // After a committed deletion receipt that is the expected answer.
+    if (error instanceof APIProductError && error.status === 403 && error.product.code === "request_forbidden" && !error.product.retryable) return;
     throw error;
   }
   throw new APITransportError("invalid_response", "Authoritative resource still exists after the committed deletion");

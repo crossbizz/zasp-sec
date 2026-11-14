@@ -24,6 +24,9 @@ type RecoveryState = {
   acknowledging: ReadonlySet<string>;
   acknowledgementErrors: ReadonlyMap<string, string>;
   generation: number;
+  // The error is the short authorization lag after a change; recovery is
+  // repeated on its own a bounded number of times before asking the person.
+  transient?: boolean;
 };
 
 type ScopeSnapshot = {
@@ -128,10 +131,11 @@ class WorkflowMutationStore {
       const retainedIDs = new Set(receipts.map((receipt) => receipt.id));
       const acknowledgementErrors = new Map([...current.acknowledgementErrors].filter(([id]) => retainedIDs.has(id)));
       this.recovery.set(scopeKey, { status: "ready", receipts, error: null, acknowledging: new Set(), acknowledgementErrors, generation });
+      this.transientRetries.delete(scopeKey);
       this.notify();
     } catch (error) {
       if (signal?.aborted || !this.isTransportCurrent(transport) || this.recovery.get(scopeKey)?.generation !== generation) return;
-      this.recovery.set(scopeKey, { ...current, status: "error", error: errorMessage(error, "Committed-operation recovery is unavailable."), generation });
+      this.recovery.set(scopeKey, { ...current, status: "error", error: errorMessage(error, "Committed-operation recovery is unavailable."), generation, transient: this.allowTransientRetry(scopeKey, error) });
       this.notify();
     } finally {
       this.recoveryActivity--;
@@ -226,13 +230,23 @@ class WorkflowMutationStore {
       this.notify();
     } catch (error) {
       const current = this.recovery.get(scopeKey) ?? emptyRecovery("error");
-      this.recovery.set(scopeKey, { ...current, status: "error", error: errorMessage(error, "The committed result could not be acknowledged.") });
+      this.recovery.set(scopeKey, { ...current, status: "error", error: errorMessage(error, "The committed result could not be acknowledged."), transient: this.allowTransientRetry(scopeKey, error) });
       this.notify();
       throw error instanceof APITransportError ? error : new APITransportError("invalid_response", "The committed result could not be reconciled in its captured scope");
     } finally {
       this.recoveryActivity--;
       this.notify();
     }
+  }
+
+  // Counts automatic recovery attempts per scope; reset once recovery succeeds.
+  private readonly transientRetries = new Map<string, number>();
+  private allowTransientRetry(scopeKey: string, error: unknown): boolean {
+    if (!isAuthorizationSettling(error)) return false;
+    const used = this.transientRetries.get(scopeKey) ?? 0;
+    if (used >= MAXIMUM_TRANSIENT_RECOVERY_RETRIES) return false;
+    this.transientRetries.set(scopeKey, used + 1);
+    return true;
   }
 
   private captureTransport(scopeKey: string): CapturedScopeTransport | undefined {
@@ -320,6 +334,7 @@ function WorkflowRecoveryPanel({ store, scopeKey }: { store: WorkflowMutationSto
   const recovery = store.snapshot(scopeKey).recovery;
   if (!recovery) return null;
   if (recovery.status === "loading") return <section aria-label="Mutation recovery" className="mutation-recovery"><p role="status">Checking committed operations before enabling changes…</p></section>;
+  if (recovery.status === "error" && recovery.transient) return <section aria-label="Mutation recovery" className="mutation-recovery"><TransientRecovery generation={recovery.generation} retry={() => void store.reconcile(scopeKey)} /></section>;
   if (recovery.status === "error") return <section aria-label="Mutation recovery" className="mutation-recovery"><p role="alert">{recovery.error}</p><Button onClick={() => void store.reconcile(scopeKey)}>Retry committed-operation recovery</Button></section>;
   if (recovery.receipts.length === 0) return null;
   return <section aria-label="Mutation recovery" className="mutation-recovery"><h2>Recover committed operations</h2><p>These changes committed before their browser responses were acknowledged. Review the frozen request and authoritative result before making another change.</p>{recovery.receipts.map((receipt) => {
@@ -333,6 +348,18 @@ function WorkflowRecoveryPanel({ store, scopeKey }: { store: WorkflowMutationSto
       <Button disabled={recovery.acknowledging.has(receipt.id)} onClick={() => void store.acknowledge(scopeKey, receipt.id)}>{recovery.acknowledging.has(receipt.id) ? "Acknowledging recovered result…" : "Acknowledge recovered result"}</Button>
     </article>;
   })}</section>;
+}
+
+// Shown instead of an error while permissions are still being applied after a
+// change. It repeats the recovery read after a short pause.
+function TransientRecovery({ generation, retry }: { generation: number; retry(): void }) {
+  useEffect(() => {
+    const timer = window.setTimeout(retry, TRANSIENT_RECOVERY_DELAY_MS);
+    return () => window.clearTimeout(timer);
+    // One timer per failed attempt; the generation changes with every attempt.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [generation]);
+  return <><p role="status">Applying recent changes… Permissions are still being updated; this page checks again on its own.</p><Button onClick={retry}>Check now</Button></>;
 }
 
 function ReceiptSummaryFields({ fields }: { fields: ReturnType<typeof workflowReceiptSummary>["intent"] }) {
@@ -357,6 +384,15 @@ function operationLabel(operation: string): string {
 }
 
 function errorMessage(error: unknown, fallback: string): string { return error instanceof Error && error.message ? error.message : fallback; }
+
+const MAXIMUM_TRANSIENT_RECOVERY_RETRIES = 8;
+const TRANSIENT_RECOVERY_DELAY_MS = 3000;
+
+function isAuthorizationSettling(error: unknown): boolean {
+  if (!(error instanceof APIProductError) || !error.product.retryable) return false;
+  return error.status === 503 && error.product.code === "authorization_unavailable"
+    || error.status === 409 && (error.product.code === "authorization_changed" || error.product.code === "authorization_pending");
+}
 
 function isMissingReceipt(error: unknown): boolean {
   return error instanceof APIProductError && error.status === 404 && error.product.code === "not_found";
