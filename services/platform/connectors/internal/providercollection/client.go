@@ -753,6 +753,23 @@ func providerEntitySchema(provider collection.Provider, kind string) (providerEn
 		case "okta_ai_application":
 			return providerEntityDefinition{stable: requiredStringFields("name", "object_type", "tenant"), attributes: mergeInventorySchemas(inventoryObjectSchema{"status": stringInventoryField(true), "state": stringInventoryField(false)}, discoveredAgentAttributes())}, true
 		}
+	case collection.ProviderMicrosoft:
+		directory := inventoryObjectSchema{"status": stringInventoryField(true), "state": stringInventoryField(false)}
+		switch kind {
+		case "microsoft_tenant":
+			return providerEntityDefinition{stable: requiredStringFields("name", "tenant"), attributes: inventoryObjectSchema{}}, true
+		case "microsoft_agent_identity", "microsoft_ai_application":
+			return providerEntityDefinition{stable: requiredStringFields("name", "object_type", "tenant"), attributes: mergeInventorySchemas(directory, discoveredAgentAttributes())}, true
+		case "microsoft_copilot_agent":
+			return providerEntityDefinition{stable: requiredStringFields("environment", "name", "object_type", "tenant"), attributes: mergeInventorySchemas(directory, discoveredAgentAttributes())}, true
+		}
+	case collection.ProviderSalesforce:
+		switch kind {
+		case "salesforce_org":
+			return providerEntityDefinition{stable: requiredStringFields("name", "org"), attributes: inventoryObjectSchema{}}, true
+		case "salesforce_agent":
+			return providerEntityDefinition{stable: requiredStringFields("name", "object_type", "org"), attributes: mergeInventorySchemas(inventoryObjectSchema{"status": stringInventoryField(true), "state": stringInventoryField(false), "agent_type": stringInventoryField(false)}, discoveredAgentAttributes())}, true
+		}
 	}
 	return providerEntityDefinition{}, false
 }
@@ -775,6 +792,9 @@ func validProviderRelationship(provider collection.Provider, raw json.RawMessage
 		attributes["type"] = stringInventoryField(true)
 	case collection.ProviderOkta:
 		kinds = tokenSet("assigned_to", "contains", "has_permission", "member_of")
+		attributes["type"] = stringInventoryField(true)
+	case collection.ProviderMicrosoft, collection.ProviderSalesforce:
+		kinds = tokenSet("contains")
 		attributes["type"] = stringInventoryField(true)
 	default:
 		return false
@@ -812,6 +832,8 @@ func validProviderRelationshipEndpointKinds(provider collection.Provider, raw js
 			"okta_tenant|contains|okta_application", "okta_tenant|contains|okta_group", "okta_tenant|contains|okta_role", "okta_tenant|contains|okta_service_principal", "okta_tenant|contains|okta_user", "okta_group|assigned_to|okta_application", "okta_service_principal|assigned_to|okta_application", "okta_user|assigned_to|okta_application", "okta_service_principal|assigned_to|okta_role", "okta_user|assigned_to|okta_role", "okta_group|assigned_to|okta_role", "okta_service_principal|member_of|okta_group", "okta_user|member_of|okta_group",
 			"okta_tenant|contains|okta_ai_application", "okta_group|assigned_to|okta_ai_application", "okta_service_principal|assigned_to|okta_ai_application", "okta_user|assigned_to|okta_ai_application",
 		),
+		collection.ProviderMicrosoft:  tokenSet("microsoft_tenant|contains|microsoft_agent_identity", "microsoft_tenant|contains|microsoft_ai_application", "microsoft_tenant|contains|microsoft_copilot_agent"),
+		collection.ProviderSalesforce: tokenSet("salesforce_org|contains|salesforce_agent"),
 	}
 	return allowed[provider][key]
 }
