@@ -195,6 +195,21 @@ func rejectDiscoveryProviderRedirect(*http.Request, []*http.Request) error {
 }
 
 func performDiscoveryProviderJSON(client *http.Client, request *http.Request, expectedStatus int, destination any, maximum int64) error {
+	return performDiscoveryProviderDocument(client, request, expectedStatus, destination, maximum, true)
+}
+
+// performDiscoveryProviderTokenJSON reads an OAuth token response. It is as
+// bounded as performDiscoveryProviderJSON (exact status, JSON media type, one
+// document of at most maximum bytes, no redirect) and types every member it
+// reads, but it ignores members it does not read: Microsoft and Salesforce
+// both add members to a token response (ext_expires_in, signature, issued_at,
+// scope and others), and RFC 6749 section 5.1 requires a client to ignore the
+// ones it does not know.
+func performDiscoveryProviderTokenJSON(client *http.Client, request *http.Request, destination any, maximum int64) error {
+	return performDiscoveryProviderDocument(client, request, http.StatusOK, destination, maximum, false)
+}
+
+func performDiscoveryProviderDocument(client *http.Client, request *http.Request, expectedStatus int, destination any, maximum int64, exactMembers bool) error {
 	if client == nil || request == nil || destination == nil || maximum < 1 || maximum > 8<<20 {
 		return errDiscoveryCredentialUnavailable
 	}
@@ -213,7 +228,9 @@ func performDiscoveryProviderJSON(client *http.Client, request *http.Request, ex
 		return errDiscoveryCredentialUnavailable
 	}
 	decoder := json.NewDecoder(bytes.NewReader(payload))
-	decoder.DisallowUnknownFields()
+	if exactMembers {
+		decoder.DisallowUnknownFields()
+	}
 	decodeErr := decoder.Decode(destination)
 	var extra any
 	extraErr := decoder.Decode(&extra)

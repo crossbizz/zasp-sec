@@ -633,11 +633,11 @@ func validOAuthProvider(provider string) bool {
 		return false
 	}
 	key := strings.TrimPrefix(provider, "nango:")
-	return !stringIn(key, "aws", "kubernetes", "github", "okta")
+	return !isDiscoveryProvider(key)
 }
 
 func validConnectorProvider(provider string) bool {
-	return stringIn(provider, "aws", "kubernetes", "github", "okta") || validOAuthProvider(provider)
+	return isDiscoveryProvider(provider) || validOAuthProvider(provider)
 }
 
 func validConnectorScopes(scopes []string) bool {

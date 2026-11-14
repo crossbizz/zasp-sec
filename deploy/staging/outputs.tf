@@ -88,7 +88,10 @@ output "worker_role_arn" {
 }
 output "discovery_runtime_config" {
   description = "Non-secret production discovery authority and immutable implementation fence."
-  value = {
+  # ZASP_DISCOVERY_MICROSOFT_COLLECTOR_VERSION and
+  # ZASP_DISCOVERY_SALESFORCE_COLLECTOR_VERSION are present only for an enabled
+  # optional provider; the worker treats an unset variable as "not served".
+  value = merge({
     ZASP_DISCOVERY_QUEUE_URL                    = aws_sqs_queue.work["discovery-jobs"].id
     ZASP_AWS_REGION                             = var.region
     ZASP_EVIDENCE_BUCKET                        = aws_s3_bucket.evidence.bucket
@@ -110,7 +113,12 @@ output "discovery_runtime_config" {
     ZASP_OKTA_CLIENT_SECRET_REFERENCE           = "ref:okta/client-secret"
     ZASP_PROVIDER_TIMEOUT                       = "5s"
     ZASP_DISCOVERY_READINESS_TIMEOUT            = "5s"
-  }
+    }, {
+    for name, version in {
+      ZASP_DISCOVERY_MICROSOFT_COLLECTOR_VERSION  = var.discovery_optional_providers.microsoft_collector
+      ZASP_DISCOVERY_SALESFORCE_COLLECTOR_VERSION = var.discovery_optional_providers.salesforce_collector
+    } : name => version if version != ""
+  })
 }
 output "scheduler_role_arn" {
   value = aws_iam_role.scheduler.arn

@@ -152,6 +152,28 @@ describe("production typed inventory API", () => {
     expect(await screen.findByText("security · platform")).toBeVisible();
   });
 
+  it("labels agents found by Microsoft and Salesforce", async () => {
+    const found = (id: string, name: string, provider: "microsoft" | "salesforce", sourceKind: string, platform: string) => ({ ...summary(id, name), provider, source_kind: sourceKind, discovery: { method: "provider_api" as const, platform, signals: [] }, management_state: "unmanaged" as const });
+    const entra = found(ids.first, "Invoice agent", "microsoft", "microsoft_agent_identity", "entra_agent_identity");
+    const copilot = found(ids.second, "HR copilot", "microsoft", "microsoft_copilot_agent", "copilot_studio");
+    const agentforce = found(ids.relationship, "Service agent", "salesforce", "salesforce_agent", "agentforce");
+    const assistant = { ...found(ids.session, "Connected assistant", "microsoft", "microsoft_ai_application", "saas_assistant"), discovery: { method: "inferred" as const, platform: "saas_assistant", signals: ["app:chatgpt"] } };
+    const detail = { summary: entra, sources: [], evidence: [] } as never;
+    const api: ProductionAgentSecurityAPI = {
+      listAgents: async () => [entra, copilot, agentforce, assistant], listTools: async () => [], listIdentities: async () => [], listRuntimes: async () => [],
+      getAgent: async () => detail, getTool: async () => detail, getIdentity: async () => detail, getRuntime: async () => detail,
+      getAgentCapabilities: async () => [], getAgentRelationships: async () => [], listAgentSessions: async () => [],
+      updateAgent: async () => ({ agent: entra, audit_id: ids.evidence }),
+      getHomeSummary: async () => { throw new Error("unused"); },
+    };
+    window.history.replaceState({}, "", "/discovery/assets");
+    render(<APIProvider><ProductionAgentSecurityView path="/discovery/assets" api={api} onNavigate={() => undefined} /></APIProvider>);
+    expect(await screen.findByRole("row", { name: /Invoice agent.*Microsoft · Entra agent identity.*Provider record.*Unmanaged/ })).toBeVisible();
+    expect(screen.getByRole("row", { name: /HR copilot.*Microsoft · Copilot Studio agent.*Provider record.*Unmanaged/ })).toBeVisible();
+    expect(screen.getByRole("row", { name: /Service agent.*Salesforce · Agentforce agent.*Provider record.*Unmanaged/ })).toBeVisible();
+    expect(screen.getByRole("row", { name: /Connected assistant.*Microsoft · SaaS assistant.*Inferred from signals.*Unmanaged/ })).toBeVisible();
+  });
+
   it("shows where each agent was found and filters to the unmanaged ones", async () => {
     const user = userEvent.setup();
     const declared = summary(ids.first, "Declared");

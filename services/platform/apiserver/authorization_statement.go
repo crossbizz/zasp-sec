@@ -134,7 +134,7 @@ func authorizationStatementAllowed(g RequestAuthorization, q string, args []any)
 				return false
 			}
 			provider, ok := args[5].(string)
-			if !ok || !stringIn(provider, "aws", "kubernetes") {
+			if !ok || !isReferenceAuthorizedProvider(provider) {
 				return false
 			}
 			id, ok := args[4].(string)

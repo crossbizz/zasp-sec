@@ -946,6 +946,9 @@ REVOKE ALL ON FUNCTION zasp_authorization80.parent_allowed_inner(text,text,text,
 --     the path, must be the integration asked for;
 --   * the integration must be among the objects the decision allows.
 -- The payload is the chain reader's, field for field.
+-- Microsoft and Salesforce (section X3b) are reference-authorized like AWS and
+-- Kubernetes: a verified connection with a bound subject is verified, and the
+-- scope is the subject (microsoft_tenant or salesforce_org).
 CREATE OR REPLACE FUNCTION zasp_authorization80.integration_setup_status(o text,w text,e text,i text) RETURNS jsonb
 LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $integration_setup_status$
 DECLARE p jsonb:=zasp_authorization80.context();integration_row public.zasp_integrations%ROWTYPE;connection_row public.zasp_integration_connections%ROWTYPE;subject_row public.zasp_discovery_connection_subjects%ROWTYPE;credential_row public.zasp_connector_credentials%ROWTYPE;authorization_state text:='pending';scope_kind_value text:='none';scope_label_value text;repository_selection_value text;permissions_value jsonb:='[]'::jsonb;sensor_count_value integer:=0;healthy_count_value integer:=0;missing_count_value integer:=0;unsupported_count_value integer:=0;coverage_state text:='not_applicable';coverage_reason text:='not_applicable';updated_value timestamptz;
@@ -957,7 +960,7 @@ BEGIN
    AND p#>>'{path_parameters,id}'=i
    AND zasp_authorization80.allowed(o,w,e,'integration',i),false)
  THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current read purpose required';END IF;
- SELECT * INTO integration_row FROM public.zasp_integrations integration WHERE (integration.organization_id,integration.workspace_id,integration.environment_id,integration.id)=(o,w,e,i) AND integration.kind IN('aws','kubernetes','github','okta') AND integration.state<>'deleted';
+ SELECT * INTO integration_row FROM public.zasp_integrations integration WHERE (integration.organization_id,integration.workspace_id,integration.environment_id,integration.id)=(o,w,e,i) AND integration.kind IN('aws','kubernetes','github','okta','microsoft','salesforce') AND integration.state<>'deleted';
  IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='integration setup status missing';END IF;
  updated_value:=integration_row.updated_at;
  IF (SELECT count(*) FROM public.zasp_integration_connections connection WHERE (connection.organization_id,connection.workspace_id,connection.environment_id,connection.integration_id,connection.provider,connection.state)=(o,w,e,i,integration_row.kind,'verified'))=1 THEN
@@ -965,7 +968,7 @@ BEGIN
   SELECT * INTO subject_row FROM public.zasp_discovery_connection_subjects subject WHERE (subject.organization_id,subject.workspace_id,subject.environment_id,subject.integration_id,subject.connection_id,subject.provider,subject.connection_version,subject.configuration_digest)=(o,w,e,i,connection_row.id,integration_row.kind,connection_row.version,digest(convert_to(integration_row.configuration::text,'UTF8'),'sha256'));
   IF FOUND THEN
    updated_value:=greatest(updated_value,connection_row.updated_at,subject_row.verified_at);
-   IF integration_row.kind IN('aws','kubernetes') THEN
+   IF integration_row.kind IN('aws','kubernetes','microsoft','salesforce') THEN
     authorization_state:='verified';scope_kind_value:=subject_row.subject_kind;scope_label_value:=subject_row.subject_id;
    ELSIF (SELECT count(*) FROM public.zasp_connector_credentials credential WHERE (credential.organization_id,credential.workspace_id,credential.environment_id,credential.integration_id,credential.provider,credential.status,credential.credential_reference)=(o,w,e,i,integration_row.kind,'active',connection_row.connection_reference))=1 THEN
     SELECT * INTO STRICT credential_row FROM public.zasp_connector_credentials credential WHERE (credential.organization_id,credential.workspace_id,credential.environment_id,credential.integration_id,credential.provider,credential.status,credential.credential_reference)=(o,w,e,i,integration_row.kind,'active',connection_row.connection_reference);
@@ -1084,7 +1087,7 @@ CREATE OR REPLACE FUNCTION zasp_temporal72.release_abandoned(o text,w text,e tex
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $release_abandoned$
 DECLARE x zasp_temporal72.runs%ROWTYPE;quiet timestamptz;bound interval;reason_value text;page_open boolean;page_unknown boolean;apply_open boolean;uncertain_value boolean;receipt text;released integer:=0;
 BEGIN
- IF NOT COALESCE(public.zasp_valid_product_id(o) AND public.zasp_valid_product_id(w) AND public.zasp_valid_product_id(e) AND public.zasp_valid_product_id(i) AND public.zasp_valid_product_id(j) AND provider_value IN('aws','kubernetes','github','okta'),false)
+ IF NOT COALESCE(public.zasp_valid_product_id(o) AND public.zasp_valid_product_id(w) AND public.zasp_valid_product_id(e) AND public.zasp_valid_product_id(i) AND public.zasp_valid_product_id(j) AND provider_value IN('aws','kubernetes','github','okta','microsoft','salesforce'),false)
   OR current_setting('transaction_isolation')<>'read committed'
  THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='discovery release rejected';END IF;
  FOR x IN SELECT r.* FROM zasp_temporal72.runs r
@@ -1521,6 +1524,152 @@ BEGIN
 END $discovery_read_guards$;
 
 -- ---------------------------------------------------------------------------
+-- X3b. Microsoft and Salesforce as discovery providers.
+--
+-- The chain knew four discovery providers (aws, kubernetes, github, okta) and
+-- named them in ten CHECK constraints and in the bodies of the functions
+-- below. Two more are added: microsoft (Entra agent identities, AI
+-- applications and Copilot Studio agents of one tenant) and salesforce
+-- (Agentforce agents of one org). Both are reference-authorized like AWS and
+-- Kubernetes: the integration configuration names a client secret by
+-- reference (ref:<provider>/client-secret/<id>, held in Secrets Manager) and
+-- never carries the secret.
+--
+-- Released migrations are immutable, so the lists are widened here. A CHECK
+-- constraint is found by its definition, dropped and re-added under the same
+-- name. A function body is read with pg_get_functiondef, one exact text is
+-- replaced, and the result is executed, which keeps the function's owner,
+-- grants and settings. An edit whose replacement is already present is
+-- skipped (the file is re-runnable); an edit whose anchor is not present
+-- exactly once raises, so a predecessor that changed stops the transaction.
+-- Nothing here creates a role, changes an owner or grants a privilege.
+--
+-- What each provider adds beyond the lists:
+--   * subject: microsoft_tenant (the directory GUID, equal to tenant_id of
+--     the configuration) and salesforce_org (the 18-character organization
+--     id, equal to organization_id of the configuration);
+--   * credential class of a collection: microsoft_client_credentials and
+--     salesforce_client_credentials;
+--   * configuration: the exact key sets and value grammars the API validates
+--     (apiserver.parseReferenceAuthorizationConfiguration);
+--   * zasp_reference_only refuses any configuration key that names a secret.
+--     client_secret_reference is admitted the way signing_secret_reference
+--     already is: only as a reference of the fixed grammar.
+DO $saas_providers$
+DECLARE four CONSTANT text:=$v$'aws','kubernetes','github','okta'$v$;
+ six CONSTANT text:=$v$'aws','kubernetes','github','okta','microsoft','salesforce'$v$;
+ guid CONSTANT text:='^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$';
+ org CONSTANT text:='^00D[A-Za-z0-9]{15}$';
+ secret_reference CONSTANT text:='/client-secret/[a-z0-9][a-z0-9._-]{7,127}$';
+ dataverse CONSTANT text:='^https://[a-z0-9][a-z0-9-]{0,62}\.crm[0-9]{0,2}\.dynamics\.com$';
+ instance CONSTANT text:='^https://[a-z0-9][a-z0-9-]{0,62}(\.[a-z0-9][a-z0-9-]{0,62}){0,3}\.my\.salesforce\.com$';
+ -- A consumer key is 16 to 256 printable characters; a bound is at most 255.
+ consumer_key CONSTANT text:='^[!-~]{16,255}[!-~]?$';
+ provider_columns CONSTANT text[]:=ARRAY[
+  'public.zasp_discovery_connection_subjects.provider','public.zasp_discovery_generation_reservations.source',
+  'public.zasp_discovery_job_authorities.provider','public.zasp_discovery_job_checkpoints.provider',
+  'public.zasp_discovery_snapshot_inputs.source','public.zasp_discovery_projection_cursors.source',
+  'public.zasp_discovery_risk_projection_current.source','public.zasp_inventory_identity_rules.provider',
+  'zasp_temporal72.runs.provider','public.zasp_discovery_connection_subjects.subject_kind'];
+ listed_column text;relation regclass;column_name text;old_values text[];new_values text[];old_definition text;new_definition text;
+ edit record;found_name name;found_definition text;matches integer;d text;
+BEGIN
+ -- CHECK constraints that list the providers, and the one that lists the
+ -- subject kinds. pg_get_constraintdef prints such a list as
+ -- CHECK ((col = ANY (ARRAY['a'::text, 'b'::text]))).
+ FOREACH listed_column IN ARRAY provider_columns LOOP
+  relation:=substring(listed_column FROM '^(.*)\.[a-z_]+$')::regclass;
+  column_name:=substring(listed_column FROM '\.([a-z_]+)$');
+  IF column_name='subject_kind' THEN
+   old_values:=ARRAY['aws_account','kubernetes_cluster','github_installation','okta_tenant'];
+   new_values:=old_values||ARRAY['microsoft_tenant','salesforce_org'];
+  ELSE
+   old_values:=ARRAY['aws','kubernetes','github','okta'];
+   new_values:=old_values||ARRAY['microsoft','salesforce'];
+  END IF;
+  old_definition:=format('CHECK ((%I = ANY (ARRAY[%s])))',column_name,(SELECT string_agg(quote_literal(item)||'::text',', ' ORDER BY position) FROM unnest(old_values) WITH ORDINALITY AS listed(item,position)));
+  new_definition:=format('CHECK ((%I = ANY (ARRAY[%s])))',column_name,(SELECT string_agg(quote_literal(item)||'::text',', ' ORDER BY position) FROM unnest(new_values) WITH ORDINALITY AS listed(item,position)));
+  SELECT count(*),min(c.conname::text),min(pg_get_constraintdef(c.oid)) INTO matches,found_name,found_definition FROM pg_constraint c
+   WHERE c.conrelid=relation AND c.contype='c' AND pg_get_constraintdef(c.oid) IN(old_definition,new_definition);
+  IF matches<>1 THEN
+   RAISE EXCEPTION USING ERRCODE='55000',MESSAGE=format('provider list constraint predecessor changed: %s',listed_column);
+  END IF;
+  IF found_definition=old_definition THEN
+   EXECUTE format('ALTER TABLE %s DROP CONSTRAINT %I',relation,found_name);
+   EXECUTE format('ALTER TABLE %s ADD CONSTRAINT %I CHECK(%I IN(%s))',relation,found_name,column_name,(SELECT string_agg(quote_literal(item),',' ORDER BY position) FROM unnest(new_values) WITH ORDINALITY AS listed(item,position)));
+  END IF;
+ END LOOP;
+
+ -- Function bodies.
+ FOR edit IN SELECT * FROM (VALUES
+   -- The provider lists.
+   ('public.zasp_connector_provider_valid(text)',format('value IN (%s)',four),format('value IN (%s)',six)),
+   ('public.zasp_discovery_apply_snapshot(text,text,text,text,text,text,bigint,text,text,bytea,timestamptz,text,text,jsonb,jsonb,jsonb)',format('IN(%s)',four),format('IN(%s)',six)),
+   ('public.zasp_execution_checkpoint_partial(text,text,text,text,text,text,bigint,text,text,text,text,text,text,bytea,bigint,text,text,text,text)',format('IN(%s)',four),format('IN(%s)',six)),
+   ('public.zasp_execution_apply_risk_projection(text,text,text,text,text,text,text,text,text,bigint,bytea,jsonb)',format('IN(%s)',four),format('IN(%s)',six)),
+   ('public.zasp_inventory_apply_findings(text,text,text,jsonb)',format('IN(%s)',four),format('IN(%s)',six)),
+   ('public.zasp_inventory_validate_typed_entities(text,jsonb)',format('IN(%s)',four),format('IN(%s)',six)),
+   ('zasp_temporal72.normalize_relationships(text,text,text,text,text,jsonb)',format('IN(%s)',four),format('IN(%s)',six)),
+   -- The reference-authorized providers.
+   ('public.zasp_complete_reference_authorization(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)',$v$provider_value NOT IN('aws','kubernetes')$v$,$v$provider_value NOT IN('aws','kubernetes','microsoft','salesforce')$v$),
+   ('zasp_authorization80.integration_reference_native_complete(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)',$v$provider_value NOT IN('aws','kubernetes')$v$,$v$provider_value NOT IN('aws','kubernetes','microsoft','salesforce')$v$),
+   ('zasp_authorization80.integration_reference_complete(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text,text,text)',$v$provider_value IN('aws','kubernetes')$v$,$v$provider_value IN('aws','kubernetes','microsoft','salesforce')$v$),
+   -- The reference a connection is bound to is the one its configuration names.
+   ('public.zasp_complete_reference_authorization(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)',$v$WHEN 'aws' THEN configuration_value->>'external_id_reference' ELSE configuration_value->>'connection_reference' END$v$,$v$WHEN 'aws' THEN configuration_value->>'external_id_reference' WHEN 'kubernetes' THEN configuration_value->>'connection_reference' ELSE configuration_value->>'client_secret_reference' END$v$),
+   ('zasp_authorization80.integration_reference_native_complete(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)',$v$WHEN 'aws' THEN configuration_value->>'external_id_reference' ELSE configuration_value->>'connection_reference' END$v$,$v$WHEN 'aws' THEN configuration_value->>'external_id_reference' WHEN 'kubernetes' THEN configuration_value->>'connection_reference' ELSE configuration_value->>'client_secret_reference' END$v$),
+   -- Subject of a connection.
+   ('public.zasp_execution_subject_valid(text,text,text)',$v$  ELSE false END$v$,format($v$  WHEN 'microsoft' THEN kind_value='microsoft_tenant' AND id_value ~ %L
+  WHEN 'salesforce' THEN kind_value='salesforce_org' AND id_value ~ %L
+  ELSE false END$v$,guid,org)),
+   -- Configuration accepted at reference authorization.
+   ('public.zasp_reference_authorization_configuration_valid(text,jsonb)',$v$      AND configuration_value->>'connection_reference' ~ '^ref:kubernetes/connection/[A-Za-z0-9][A-Za-z0-9._-]{7,127}$'$v$,format($v$      AND configuration_value->>'connection_reference' ~ '^ref:kubernetes/connection/[A-Za-z0-9][A-Za-z0-9._-]{7,127}$'
+    OR provider_value='microsoft'
+      AND (SELECT array_agg(key ORDER BY key) FROM jsonb_object_keys(configuration_value) key) IN(ARRAY['client_id','client_secret_reference','tenant_id']::text[],ARRAY['client_id','client_secret_reference','dataverse_url','tenant_id']::text[])
+      AND NOT EXISTS(SELECT 1 FROM jsonb_each(configuration_value) member WHERE jsonb_typeof(member.value)<>'string')
+      AND configuration_value->>'tenant_id' ~ %1$L AND configuration_value->>'client_id' ~ %1$L
+      AND configuration_value->>'client_secret_reference' ~ %2$L
+      AND (NOT configuration_value ? 'dataverse_url' OR configuration_value->>'dataverse_url' ~ %3$L)
+    OR provider_value='salesforce'
+      AND (SELECT array_agg(key ORDER BY key) FROM jsonb_object_keys(configuration_value) key)=ARRAY['client_id','client_secret_reference','instance_url','organization_id']::text[]
+      AND NOT EXISTS(SELECT 1 FROM jsonb_each(configuration_value) member WHERE jsonb_typeof(member.value)<>'string')
+      AND configuration_value->>'instance_url' ~ %4$L AND configuration_value->>'organization_id' ~ %5$L
+      AND configuration_value->>'client_id' ~ %6$L
+      AND configuration_value->>'client_secret_reference' ~ %7$L$v$,guid,'^ref:microsoft'||secret_reference,dataverse,instance,org,consumer_key,'^ref:salesforce'||secret_reference)),
+   -- Configuration accepted when the integration is created or updated.
+   ('zasp_authorization80.integration_setup_valid(text,jsonb)',$v$ WHEN 'slack' THEN$v$,format($v$ WHEN 'microsoft' THEN RETURN (keys=ARRAY['client_id','client_secret_reference','tenant_id'] OR keys=ARRAY['client_id','client_secret_reference','dataverse_url','tenant_id'])
+  AND c->>'tenant_id'~%1$L AND c->>'client_id'~%1$L AND c->>'client_secret_reference'~%2$L
+  AND (NOT c ? 'dataverse_url' OR c->>'dataverse_url'~%3$L);
+ WHEN 'salesforce' THEN RETURN keys=ARRAY['client_id','client_secret_reference','instance_url','organization_id']
+  AND c->>'instance_url'~%4$L AND c->>'organization_id'~%5$L AND c->>'client_id'~%6$L AND c->>'client_secret_reference'~%7$L;
+ WHEN 'slack' THEN$v$,guid,'^ref:microsoft'||secret_reference,dataverse,instance,org,consumer_key,'^ref:salesforce'||secret_reference)),
+   -- A configuration may name its client secret by reference.
+   ('public.zasp_reference_only(jsonb)',$v$       AND (value-'signing_secret_reference')::text !~*$v$,format($v$       AND (NOT value ? 'client_secret_reference'
+            OR jsonb_typeof(value->'client_secret_reference')='string'
+               AND value->>'client_secret_reference' ~ %L)
+       AND (value-'signing_secret_reference'-'client_secret_reference')::text !~*$v$,'^ref:(microsoft|salesforce)'||secret_reference)),
+   -- A run stays current only while its subject is the one its configuration names.
+   ('zasp_temporal72.require_current_run(zasp_temporal72.runs,timestamptz)',$v$ WHEN 'kubernetes' THEN r.subject_kind='kubernetes_cluster' ELSE false END FOR SHARE OF i,c,s;$v$,$v$ WHEN 'kubernetes' THEN r.subject_kind='kubernetes_cluster'
+ WHEN 'microsoft' THEN r.subject_kind='microsoft_tenant' AND r.subject_id=i.configuration->>'tenant_id'
+ WHEN 'salesforce' THEN r.subject_kind='salesforce_org' AND r.subject_id=i.configuration->>'organization_id' ELSE false END FOR SHARE OF i,c,s;$v$),
+   ('public.zasp_typed_inventory_job_input_v13(text,text,text,text,text,text)',$v$     WHEN 'kubernetes' THEN subject.subject_kind='kubernetes_cluster'
+     ELSE false END;$v$,$v$     WHEN 'kubernetes' THEN subject.subject_kind='kubernetes_cluster'
+     WHEN 'microsoft' THEN subject.subject_kind='microsoft_tenant' AND subject.subject_id=integration.configuration->>'tenant_id'
+     WHEN 'salesforce' THEN subject.subject_kind='salesforce_org' AND subject.subject_id=integration.configuration->>'organization_id'
+     ELSE false END;$v$),
+   -- Credential class of a collection.
+   ('zasp_temporal72.prepare_page(text,text,text,text,text,text,timestamptz,bigint,text)',$v$WHEN 'github' THEN 'github_installation' ELSE 'okta_refresh' END$v$,$v$WHEN 'github' THEN 'github_installation' WHEN 'microsoft' THEN 'microsoft_client_credentials' WHEN 'salesforce' THEN 'salesforce_client_credentials' ELSE 'okta_refresh' END$v$),
+   ('public.zasp_typed_inventory_job_input_v13(text,text,text,text,text,text)',$v$WHEN 'github' THEN 'github_installation' ELSE 'okta_refresh' END$v$,$v$WHEN 'github' THEN 'github_installation' WHEN 'microsoft' THEN 'microsoft_client_credentials' WHEN 'salesforce' THEN 'salesforce_client_credentials' ELSE 'okta_refresh' END$v$)
+  ) AS listed(target,old_text,new_text) LOOP
+  d:=pg_get_functiondef(edit.target::regprocedure);
+  CONTINUE WHEN position(edit.new_text in d)>0;
+  IF length(d)-length(replace(d,edit.old_text,''))<>length(edit.old_text) THEN
+   RAISE EXCEPTION USING ERRCODE='55000',MESSAGE=format('provider predecessor changed: %s',edit.target);
+  END IF;
+  EXECUTE replace(d,edit.old_text,edit.new_text);
+ END LOOP;
+END $saas_providers$;
+
+-- ---------------------------------------------------------------------------
 -- X4. Inventory rule catalog: discovered agent kinds, and the catalog digest.
 --
 -- The chain's catalog knew one agent kind, a Kubernetes Deployment its owner
@@ -1531,6 +1680,11 @@ END $discovery_read_guards$;
 -- model, an unlabelled workload carrying an agent framework, a repository
 -- with an agent manifest, an AI application connected in the identity
 -- provider) at a lower confidence. An AgentCore gateway is a tool.
+-- The Microsoft and Salesforce providers (section X3b, which widens the
+-- provider CHECK these rows need) report the agents their control planes list
+-- (Entra agent identities, Copilot Studio agents, Agentforce agents), the AI
+-- applications of an Entra tenant at the confidence of an inference, and the
+-- tenant or org itself as an asset.
 INSERT INTO public.zasp_inventory_identity_rules(provider,source_kind,identity_namespace,product_kind,rule_version,priority,confidence_basis_points,freshness_seconds) VALUES
  ('aws','aws_agentcore_gateway','aws_agentcore_gateway','tool',1,100,9000,86400),
  ('aws','aws_agentcore_runtime','aws_agentcore_runtime','agent',1,100,9500,86400),
@@ -1538,23 +1692,30 @@ INSERT INTO public.zasp_inventory_identity_rules(provider,source_kind,identity_n
  ('aws','aws_inferred_agent','aws_inferred_agent','agent',1,100,6000,86400),
  ('github','github_agent_project','github_agent_project','agent',1,120,6000,86400),
  ('kubernetes','kubernetes_inferred_agent','kubernetes_inferred_agent','agent',1,80,6000,900),
- ('okta','okta_ai_application','okta_ai_application','agent',1,110,7000,86400)
+ ('okta','okta_ai_application','okta_ai_application','agent',1,110,7000,86400),
+ ('microsoft','microsoft_agent_identity','microsoft_agent_identity','agent',1,130,9500,86400),
+ ('microsoft','microsoft_ai_application','microsoft_ai_application','agent',1,130,7000,86400),
+ ('microsoft','microsoft_copilot_agent','microsoft_copilot_agent','agent',1,130,9500,86400),
+ ('microsoft','microsoft_tenant','microsoft_tenant','asset',1,130,9500,86400),
+ ('salesforce','salesforce_agent','salesforce_agent','agent',1,140,9500,86400),
+ ('salesforce','salesforce_org','salesforce_org','asset',1,140,9500,86400)
 ON CONFLICT(provider,source_kind) DO NOTHING;
 
 -- Section G reclassified AWS IAM roles as identities (rule version 2) and the
--- rows above add seven kinds. The typed inventory release pins the digest of
+-- rows above add thirteen kinds. The typed inventory release pins the digest of
 -- the rule catalog in a CHECK constraint, in its cutover rows, in
 -- zasp_schema_metadata and in two function bodies; all still named an earlier
 -- catalog. They now name the catalog the rules table and the compiled catalog
 -- (inventoryprojection.RuleCatalogDigest) both hold. The earlier digests are
--- the chain's and the one a baseline before the discovered agent kinds pinned.
+-- the chain's, the one a baseline before the discovered agent kinds pinned,
+-- and the one a baseline before the Microsoft and Salesforce kinds pinned.
 DO $rule_catalog_digest$
-DECLARE earlier CONSTANT text[]:=ARRAY['44820a38e96d80318165fc2333fd851cd932d2704d380a1199d569d1d0778f30','9397691244ac0b8befd2790fed3ca2e71f2114eba44001cc3d5634f86b6044ed'];
- current_value CONSTANT text:='f67df9589cf0d41f4b2a98a5161353100e2ff3ed61cfc188c1447d2dd14c4192';
+DECLARE earlier CONSTANT text[]:=ARRAY['44820a38e96d80318165fc2333fd851cd932d2704d380a1199d569d1d0778f30','9397691244ac0b8befd2790fed3ca2e71f2114eba44001cc3d5634f86b6044ed','f67df9589cf0d41f4b2a98a5161353100e2ff3ed61cfc188c1447d2dd14c4192'];
+ current_value CONSTANT text:='2af0dce065caff0c7093dfecede207658bf1973cfcc53911bfae7faef33b1809';
  previous text;f regprocedure;d text;
 BEGIN
  IF NOT EXISTS(SELECT 1 FROM public.zasp_inventory_identity_rules WHERE(provider,source_kind,product_kind,rule_version)=('aws','aws_role','identity',2))
-  OR (SELECT count(*) FROM public.zasp_inventory_identity_rules)<>37 THEN
+  OR (SELECT count(*) FROM public.zasp_inventory_identity_rules)<>43 THEN
   RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='inventory rule catalog predecessor changed';
  END IF;
  ALTER TABLE public.zasp_inventory_cutover_state DROP CONSTRAINT IF EXISTS zasp_inventory_cutover_state_rule_catalog_digest_check;

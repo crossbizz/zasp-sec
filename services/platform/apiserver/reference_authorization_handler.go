@@ -116,7 +116,7 @@ func authorizedReferenceIntegration(value WorkflowValue, expectedID string) (str
 		return "", nil, "", "", false
 	}
 	var id, provider, status string
-	if json.Unmarshal(fields["id"], &id) != nil || json.Unmarshal(fields["connector_key"], &provider) != nil || json.Unmarshal(fields["status"], &status) != nil || id != expectedID || !stringIn(provider, "aws", "kubernetes") || !stringIn(status, "configured", "pending_authorization", "degraded", "active") {
+	if json.Unmarshal(fields["id"], &id) != nil || json.Unmarshal(fields["connector_key"], &provider) != nil || json.Unmarshal(fields["status"], &status) != nil || id != expectedID || !isReferenceAuthorizedProvider(provider) || !stringIn(status, "configured", "pending_authorization", "degraded", "active") {
 		return "", nil, "", "", false
 	}
 	configuration, reference, valid := parseReferenceAuthorizationConfiguration(provider, fields["configuration"])

@@ -509,7 +509,7 @@ var (
 // kind is a provider record whose management state does not apply.
 func validInventoryDiscovery(item InventorySummary, kind InventoryKind) bool {
 	discovery := item.Discovery
-	if !stringIn(item.Provider, "aws", "kubernetes", "github", "okta") || !inventorySourceKindPattern.MatchString(item.SourceKind) || !inventorySourceKindPattern.MatchString(discovery.Platform) || discovery.Signals == nil || len(discovery.Signals) > 16 {
+	if !isDiscoveryProvider(item.Provider) || !inventorySourceKindPattern.MatchString(item.SourceKind) || !inventorySourceKindPattern.MatchString(discovery.Platform) || discovery.Signals == nil || len(discovery.Signals) > 16 {
 		return false
 	}
 	prior := ""
@@ -575,7 +575,7 @@ func validSourceObservation(source InventorySourceObservation) bool {
 	_, observed := parseInventoryTime(source.ObservedAt)
 	_, fresh := parseInventoryTime(source.FreshUntil)
 	checksum, checksumErr := hex.DecodeString(strings.TrimPrefix(source.SourceIdentifier, "sha256:"))
-	return validProductID(source.IntegrationID) && validProductID(source.SnapshotID) && validProductID(source.EvidenceID) && stringIn(source.Provider, "aws", "kubernetes", "github", "okta") && printableInventoryString(source.Source, 1, 64, false) && len(source.SourceIdentifier) == len("sha256:")+sha256.Size*2 && strings.HasPrefix(source.SourceIdentifier, "sha256:") && checksumErr == nil && len(checksum) == sha256.Size && source.Generation > 0 && source.ConfidenceBasisPoints >= 1 && source.ConfidenceBasisPoints <= 10000 && source.ProjectionVersion >= 1 && observed && fresh
+	return validProductID(source.IntegrationID) && validProductID(source.SnapshotID) && validProductID(source.EvidenceID) && isDiscoveryProvider(source.Provider) && printableInventoryString(source.Source, 1, 64, false) && len(source.SourceIdentifier) == len("sha256:")+sha256.Size*2 && strings.HasPrefix(source.SourceIdentifier, "sha256:") && checksumErr == nil && len(checksum) == sha256.Size && source.Generation > 0 && source.ConfidenceBasisPoints >= 1 && source.ConfidenceBasisPoints <= 10000 && source.ProjectionVersion >= 1 && observed && fresh
 }
 
 func validEvidenceReference(item InventoryEvidenceReference) bool {

@@ -109,4 +109,28 @@ describe("typed inventory decoders", () => {
       (({ discovery: _discovery, ...rest }) => rest)(found),
     ]) expect(() => page(refused)).toThrow();
   });
+
+  it("accepts objects found by Microsoft and Salesforce and refuses an unknown provider", () => {
+    const page = (item: unknown) => decodeInventoryPage({ items: [item], page_info: pageInfo });
+    const unowned = { ...summary, owner: "", team: "", management_state: "unmanaged" } as const;
+    const accepted = [
+      { ...unowned, provider: "microsoft", source_kind: "microsoft_agent_identity", discovery: { method: "provider_api", platform: "entra_agent_identity", signals: [] } },
+      { ...unowned, provider: "microsoft", source_kind: "microsoft_copilot_agent", discovery: { method: "provider_api", platform: "copilot_studio", signals: [] } },
+      { ...unowned, provider: "microsoft", source_kind: "microsoft_ai_application", confidence_basis_points: 7000, discovery: { method: "inferred", platform: "saas_assistant", signals: ["app:chatgpt"] } },
+      { ...unowned, provider: "salesforce", source_kind: "salesforce_agent", discovery: { method: "provider_api", platform: "agentforce", signals: [] } },
+      { ...summary, kind: "asset", provider: "microsoft", source_kind: "microsoft_tenant", discovery: { method: "provider_api", platform: "microsoft_tenant", signals: [] }, management_state: "not_applicable" },
+      { ...summary, kind: "asset", provider: "salesforce", source_kind: "salesforce_org", discovery: { method: "provider_api", platform: "salesforce_org", signals: [] }, management_state: "not_applicable" },
+    ];
+    for (const item of accepted) expect(page(item).items[0]).toEqual(item);
+    for (const provider of ["azure", "entra", "microsoft-entra", "Microsoft", "salesforce ", "servicenow", ""]) {
+      expect(() => page({ ...accepted[0], provider })).toThrow();
+    }
+    // A source observation names its provider from the same list.
+    const source = { integration_id: ids.integration, provider: "salesforce", source: "salesforce", source_identifier: `sha256:${"b".repeat(64)}`, snapshot_id: ids.snapshot, generation: 1, evidence_id: ids.evidence, confidence_basis_points: 9500, observed_at: summary.observed_at, fresh_until: summary.fresh_until, projection_version: 1, winning: true };
+    const evidence = [{ id: ids.evidence, checksum: `sha256:${"a".repeat(64)}`, media_type: "application/json", schema_version: "raw_v1", parser_version: "parser_v1", tool_version: "tool_v1", collected_at: summary.observed_at, size_bytes: 128 }];
+    const agentforce = accepted[3];
+    expect(decodeInventoryDetail({ summary: agentforce, sources: [source], evidence }).sources[0]?.provider).toBe("salesforce");
+    expect(decodeInventoryDetail({ summary: accepted[0], sources: [{ ...source, provider: "microsoft", source: "microsoft" }], evidence }).sources[0]?.provider).toBe("microsoft");
+    expect(() => decodeInventoryDetail({ summary: agentforce, sources: [{ ...source, provider: "servicenow" }], evidence })).toThrow();
+  });
 });

@@ -408,7 +408,7 @@ func validPublicIdempotency(value string) bool {
 }
 
 func validPublicIntegrationSetupStatus(value IntegrationSetupStatus, integrationID string) bool {
-	if value.IntegrationID != integrationID || !stringIn(value.ConnectorKey, "aws", "kubernetes", "github", "okta") || !validPublicTime(value.UpdatedAt) || value.Authorization.Permissions == nil || value.RuntimeCoverage.SensorCount < 0 || value.RuntimeCoverage.SensorCount > 1000000 || value.RuntimeCoverage.HealthySensorCount < 0 || value.RuntimeCoverage.HealthySensorCount > value.RuntimeCoverage.SensorCount {
+	if value.IntegrationID != integrationID || !isDiscoveryProvider(value.ConnectorKey) || !validPublicTime(value.UpdatedAt) || value.Authorization.Permissions == nil || value.RuntimeCoverage.SensorCount < 0 || value.RuntimeCoverage.SensorCount > 1000000 || value.RuntimeCoverage.HealthySensorCount < 0 || value.RuntimeCoverage.HealthySensorCount > value.RuntimeCoverage.SensorCount {
 		return false
 	}
 	if !validPublicSetupAuthorization(value.ConnectorKey, value.Authorization) {
@@ -455,6 +455,12 @@ func validPublicSetupAuthorization(connectorKey string, value IntegrationSetupAu
 		return value.ScopeKind == "github_organization" && value.RepositorySelection != nil && stringIn(*value.RepositorySelection, "all", "selected") && reflectStringSlices(value.Permissions, []string{"actions:read", "contents:read", "metadata:read"})
 	case "okta":
 		return value.ScopeKind == "okta_tenant" && value.RepositorySelection == nil && reflectStringSlices(value.Permissions, []string{"offline_access", "okta.apps.read", "okta.groups.read", "okta.users.read"})
+	case "microsoft":
+		// Reference-authorized like AWS and Kubernetes: the scope is the
+		// subject the authorization bound, and no permission list is stored.
+		return value.ScopeKind == "microsoft_tenant" && microsoftTenantPattern.MatchString(*value.ScopeLabel) && value.RepositorySelection == nil && len(value.Permissions) == 0
+	case "salesforce":
+		return value.ScopeKind == "salesforce_org" && salesforceOrganizationPattern.MatchString(*value.ScopeLabel) && value.RepositorySelection == nil && len(value.Permissions) == 0
 	default:
 		return false
 	}

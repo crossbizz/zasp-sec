@@ -112,6 +112,8 @@ type workerRuntimeConfig struct {
 	KubernetesCollectorVersion       string
 	GitHubCollectorVersion           string
 	OktaCollectorVersion             string
+	MicrosoftCollectorVersion        string
+	SalesforceCollectorVersion       string
 	KubernetesEgressCIDRs            []string
 	GitHubAppID                      string
 	GitHubPrivateKeyReference        string
@@ -238,6 +240,8 @@ func loadWorkerRuntimeConfig(getenv func(string) string) (workerRuntimeConfig, e
 		RecoveryNeonSecretReference: getenv("ZASP_RECOVERY_NEON_SECRET_REFERENCE"), RecoveryKubernetesURL: getenv("ZASP_RECOVERY_KUBERNETES_ENDPOINT"), RecoveryKubernetesToken: getenv("ZASP_RECOVERY_KUBERNETES_TOKEN_FILE"), RecoveryKubernetesCA: getenv("ZASP_RECOVERY_KUBERNETES_CA_FILE"), RecoveryRunnerImage: getenv("ZASP_RECOVERY_RUNNER_IMAGE"), RecoveryRunnerServiceAccount: getenv("ZASP_RECOVERY_RUNNER_SERVICE_ACCOUNT"), RecoveryNeonEgressCIDRs: parseWorkerCIDRs(getenv("ZASP_RECOVERY_NEON_EGRESS_CIDRS")),
 		DiscoveryRoleARN: getenv("ZASP_DISCOVERY_ROLE_ARN"), DiscoveryTokenFile: getenv("ZASP_DISCOVERY_WEB_IDENTITY_TOKEN_FILE"), DiscoverySecretPrefix: getenv("ZASP_DISCOVERY_SECRET_PREFIX"),
 		AWSCollectorVersion: getenv("ZASP_DISCOVERY_AWS_COLLECTOR_VERSION"), KubernetesCollectorVersion: getenv("ZASP_DISCOVERY_KUBERNETES_COLLECTOR_VERSION"), GitHubCollectorVersion: getenv("ZASP_DISCOVERY_GITHUB_COLLECTOR_VERSION"), OktaCollectorVersion: getenv("ZASP_DISCOVERY_OKTA_COLLECTOR_VERSION"),
+		// Optional: unset leaves the provider unregistered.
+		MicrosoftCollectorVersion: getenv("ZASP_DISCOVERY_MICROSOFT_COLLECTOR_VERSION"), SalesforceCollectorVersion: getenv("ZASP_DISCOVERY_SALESFORCE_COLLECTOR_VERSION"),
 		KubernetesEgressCIDRs: parseWorkerCIDRs(getenv("ZASP_KUBERNETES_EGRESS_CIDRS")), GitHubAppID: getenv("ZASP_GITHUB_APP_ID"), GitHubPrivateKeyReference: getenv("ZASP_GITHUB_PRIVATE_KEY_REFERENCE"),
 		OktaClientID: getenv("ZASP_OKTA_CLIENT_ID"), OktaClientSecretReference: getenv("ZASP_OKTA_CLIENT_SECRET_REFERENCE"), ProviderTimeout: providerTimeout, DiscoveryReadinessTimeout: discoveryReadinessTimeout,
 		OpenSearchURL: getenv("ZASP_OPENSEARCH_ENDPOINT"), OpenSearchIndex: getenv("ZASP_OPENSEARCH_INDEX"), Neo4jURI: getenv("ZASP_NEO4J_URI"), Neo4jCredential: getenv("ZASP_NEO4J_CREDENTIAL_REFERENCE"),
@@ -479,6 +483,11 @@ func validDiscoveryRuntimeAuthority(config workerRuntimeConfig) bool {
 	}
 	for _, version := range []string{config.AWSCollectorVersion, config.KubernetesCollectorVersion, config.GitHubCollectorVersion, config.OktaCollectorVersion, config.ParserVersion, config.ToolVersion} {
 		if !workerVersionPattern.MatchString(version) {
+			return false
+		}
+	}
+	for _, version := range []string{config.MicrosoftCollectorVersion, config.SalesforceCollectorVersion} {
+		if version != "" && !workerVersionPattern.MatchString(version) {
 			return false
 		}
 	}

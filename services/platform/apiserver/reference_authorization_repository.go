@@ -167,7 +167,7 @@ func canonicalReferenceAuthorizationResult(result *WorkflowMutationResult, integ
 		return false
 	}
 	var value referenceAuthorizedIntegration
-	if decodeStrictDiscovery(result.Body, &value) != nil || value.ID != integrationID || !validProductID(value.ID) || !stringIn(value.ConnectorKey, "aws", "kubernetes") || expectedProvider != "" && value.ConnectorKey != expectedProvider || value.Status != "active" || len(value.Name) < 1 || len(value.Name) > 128 || strings.TrimSpace(value.Name) != value.Name {
+	if decodeStrictDiscovery(result.Body, &value) != nil || value.ID != integrationID || !validProductID(value.ID) || !isReferenceAuthorizedProvider(value.ConnectorKey) || expectedProvider != "" && value.ConnectorKey != expectedProvider || value.Status != "active" || len(value.Name) < 1 || len(value.Name) > 128 || strings.TrimSpace(value.Name) != value.Name {
 		return false
 	}
 	configuration, _, valid := parseReferenceAuthorizationConfiguration(value.ConnectorKey, value.Configuration)
@@ -202,7 +202,7 @@ func referenceAuthorizationIntent(identity RequestIdentity, integrationID, provi
 }
 
 func validReferenceAuthorizationCompletion(input ReferenceAuthorizationCompletion, requireSubject bool) bool {
-	if !validProductID(input.IntegrationID) || !validProductID(input.ConnectionID) || !stringIn(input.Provider, "aws", "kubernetes") || len(input.IdempotencyKey) < 16 || len(input.IdempotencyKey) > 128 || !workflowKeyPattern.MatchString(input.IdempotencyKey) || input.ExpectedVersion < 1 || !validProductID(input.AuditID) || !validProductID(input.CorrelationID) || !validProductID(input.ReceiptID) || !validJSONObjectBody(input.Configuration) || !validJSONObjectBody(input.Intent) {
+	if !validProductID(input.IntegrationID) || !validProductID(input.ConnectionID) || !isReferenceAuthorizedProvider(input.Provider) || len(input.IdempotencyKey) < 16 || len(input.IdempotencyKey) > 128 || !workflowKeyPattern.MatchString(input.IdempotencyKey) || input.ExpectedVersion < 1 || !validProductID(input.AuditID) || !validProductID(input.CorrelationID) || !validProductID(input.ReceiptID) || !validJSONObjectBody(input.Configuration) || !validJSONObjectBody(input.Intent) {
 		return false
 	}
 	if requireSubject && !validReferenceAuthorizationSubject(input.Provider, ReferenceAuthorizationSubject{Kind: input.SubjectKind, ID: input.SubjectID}) {
@@ -237,6 +237,32 @@ func parseReferenceAuthorizationConfiguration(provider string, raw json.RawMessa
 		}
 		canonical, _ := json.Marshal(value)
 		return canonical, value.ConnectionReference, true
+	case "microsoft":
+		// The members are declared in the order json.Marshal must write them:
+		// the stored configuration is compared byte for byte by the worker.
+		var value struct {
+			ClientID              string `json:"client_id"`
+			ClientSecretReference string `json:"client_secret_reference"`
+			DataverseURL          string `json:"dataverse_url,omitempty"`
+			TenantID              string `json:"tenant_id"`
+		}
+		if decodeStrictDiscovery(raw, &value) != nil || !validMicrosoftReferenceConfiguration(value.TenantID, value.ClientID, value.ClientSecretReference, value.DataverseURL) || strings.Contains(string(raw), `"dataverse_url"`) != (value.DataverseURL != "") {
+			return nil, "", false
+		}
+		canonical, _ := json.Marshal(value)
+		return canonical, value.ClientSecretReference, true
+	case "salesforce":
+		var value struct {
+			ClientID              string `json:"client_id"`
+			ClientSecretReference string `json:"client_secret_reference"`
+			InstanceURL           string `json:"instance_url"`
+			OrganizationID        string `json:"organization_id"`
+		}
+		if decodeStrictDiscovery(raw, &value) != nil || !validSalesforceReferenceConfiguration(value.InstanceURL, value.OrganizationID, value.ClientID, value.ClientSecretReference) {
+			return nil, "", false
+		}
+		canonical, _ := json.Marshal(value)
+		return canonical, value.ClientSecretReference, true
 	default:
 		return nil, "", false
 	}

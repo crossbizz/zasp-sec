@@ -380,6 +380,76 @@ describe("production integration deletion", () => {
 		expect(document.body.innerHTML).not.toContain("ref:kubernetes/connection/customer-0001");
 	});
 
+	it("offers reference authorization for Microsoft and Salesforce without showing the secret reference", async () => {
+		const user = userEvent.setup();
+		const microsoft: Integration = { ...awsPending, connector_key: "microsoft", name: "Contoso tenant", configuration: { client_id: "11111111-2222-3333-4444-555555555555", client_secret_reference: "ref:microsoft/client-secret/customer-0001", tenant_id: "0a1b2c3d-1111-2222-3333-444455556666" } };
+		const salesforce: Integration = { ...awsPending, id: "pid_20000002-0000-4000-8000-000000000002", connector_key: "salesforce", name: "Acme org", configuration: { client_id: "3MVG9abcdefghijklmnopqrstuvwxyz.ABCDEF_0123456789", client_secret_reference: "ref:salesforce/client-secret/customer-0001", instance_url: "https://acme.my.salesforce.com", organization_id: "00D5e000000abcdEAA" } };
+		for (const [value, label] of [[microsoft, "Microsoft"], [salesforce, "Salesforce"]] as const) {
+			const GET = vi.fn(async (path: string) => {
+				if (path === "/api/v1/integration-catalog") return jsonResult({ items: [] });
+				if (path === "/api/v1/integrations") return jsonResult({ items: [value], page_info: { next_cursor: null, has_more: false } });
+				if (path === "/api/v1/integrations/{id}") return jsonResult(value, 200, { ETag: '"1"' });
+				throw new Error(`unexpected GET ${path}`);
+			});
+			const view = renderFreshIntegrations({ GET } as unknown as APIClient);
+			await user.click(await screen.findByRole("button", { name: `Open ${value.name}` }));
+			expect(screen.getByRole("button", { name: `Authorize ${label} reference` })).toBeEnabled();
+			expect(screen.getByLabelText("client secret reference")).toHaveValue("Configured reference");
+			expect(screen.getByLabelText("client secret reference")).toBeDisabled();
+			expect(screen.getByText("Authorization uses the configured reference without exposing its value.")).toBeVisible();
+			expect(document.body.innerHTML).not.toContain("client-secret/customer-0001");
+			view.unmount();
+		}
+	});
+
+	it("saves a Microsoft integration without the optional Dataverse field when it is left empty", async () => {
+		const user = userEvent.setup();
+		const manifest = {
+			key: "microsoft", provider: "Microsoft Entra and Copilot Studio", category: "saas",
+			description: "Inventory Entra agent identities, AI enterprise applications, and Copilot Studio agents of one tenant through a customer-owned app registration.",
+			data_types: ["agent", "application", "identity"], actions: ["inventory_read"], auth_mode: "oauth_client_credentials",
+			setup_schema: [
+				{ key: "tenant_id", label: "Directory (tenant) ID", type: "string", required: true, description: "The Entra tenant GUID, in lower case." },
+				{ key: "client_id", label: "Application (client) ID", type: "string", required: true, description: "The GUID of the app registration created for discovery, in lower case." },
+				{ key: "client_secret_reference", label: "Client secret", type: "secret_reference", required: true, description: "Opaque product reference to the app registration's client secret." },
+				{ key: "dataverse_url", label: "Dataverse environment URL", type: "uri", required: false, description: "Optional. The environment that holds the Copilot Studio agents." },
+			],
+			access_guidance: "Register an Entra app with the application permissions Application.Read.All and, for Entra Agent ID, AgentIdentity.Read.All, and grant admin consent.",
+			test_semantics: "Request an application token from the tenant's token endpoint for Microsoft Graph.",
+		};
+		const configuration = { tenant_id: "0a1b2c3d-1111-2222-3333-444455556666", client_id: "11111111-2222-3333-4444-555555555555", client_secret_reference: "ref:microsoft/client-secret/customer-0001" };
+		const GET = vi.fn(async (path: string) => {
+			if (path === "/api/v1/integration-catalog") return jsonResult({ items: [manifest] });
+			if (path === "/api/v1/integrations") return jsonResult({ items: [], page_info: { next_cursor: null, has_more: false } });
+			throw new Error(`unexpected GET ${path}`);
+		});
+		const created: Integration = { ...awsPending, connector_key: "microsoft", name: "Contoso tenant", configuration };
+		const POST = vi.fn(async () => jsonResult(created, 201, { ...receiptHeaders, ETag: '"1"' }));
+		render(<APIProvider client={{ GET, POST } as unknown as APIClient}><ProductionIntegrationsView canWrite /></APIProvider>);
+
+		await user.click(await screen.findByRole("button", { name: "Configure Microsoft Entra and Copilot Studio" }));
+		const dialog = screen.getByRole("dialog", { name: "Configure Microsoft Entra and Copilot Studio" });
+		for (const step of ["Register the Entra application", "Configure", "Authorize tenant", "Initial sync", "Review coverage"]) expect(within(dialog).getByText(step)).toBeVisible();
+		expect(dialog).toHaveTextContent("Application.Read.All");
+		expect(within(dialog).getByLabelText(/^Client secret/)).toHaveAttribute("type", "password");
+		// The required fields gate the save; the optional one does not.
+		expect(within(dialog).getByRole("button", { name: "Save integration" })).toBeDisabled();
+		await user.clear(within(dialog).getByLabelText("Integration name"));
+		await user.type(within(dialog).getByLabelText("Integration name"), "Contoso tenant");
+		await user.type(within(dialog).getByLabelText(/^Directory \(tenant\) ID/), configuration.tenant_id);
+		await user.type(within(dialog).getByLabelText(/^Application \(client\) ID/), configuration.client_id);
+		await user.type(within(dialog).getByLabelText(/^Client secret/), configuration.client_secret_reference);
+		expect(within(dialog).getByRole("button", { name: "Save integration" })).toBeEnabled();
+		await user.click(within(dialog).getByRole("button", { name: "Save integration" }));
+
+		await screen.findByRole("dialog", { name: "Contoso tenant" });
+		expect(POST).toHaveBeenCalledOnce();
+		const [path, options] = POST.mock.calls[0] as unknown as [string, { body: unknown }];
+		expect(path).toBe("/api/v1/integrations");
+		expect(options.body).toEqual({ connector_key: "microsoft", name: "Contoso tenant", configuration });
+		expect(document.body.innerHTML).not.toContain("client-secret/customer-0001");
+	});
+
 	it("renders the production AWS setup flow from the live catalog authority", async () => {
 		const user = userEvent.setup();
 		const manifest = {

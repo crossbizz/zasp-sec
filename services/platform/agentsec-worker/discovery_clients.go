@@ -15,6 +15,8 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/githubdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/idpdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/kubernetesdiscovery"
+	"github.com/zasp-ai/zasp-sec/services/platform/connectors/microsoftdiscovery"
+	"github.com/zasp-ai/zasp-sec/services/platform/connectors/salesforcediscovery"
 )
 
 type discoveryCallerIdentityAPI interface {
@@ -69,11 +71,17 @@ func (caller *discoveryAWSCollectionIdentityCaller) CheckCollectionReadiness(ctx
 	return nil
 }
 
+// discoveryBearerCollectionAPI binds one provider's collection API to the
+// worker's credential envelope. The microsoft and salesforce APIs are bound
+// to no tenant: the tenant or org is the page request subject and the host
+// travels in the credential.
 type discoveryBearerCollectionAPI struct {
 	provider     collection.Provider
 	github       githubdiscovery.CollectionAPI
 	kubernetes   func(kubernetesdiscovery.PinnedCollectionAPIConfig) (kubernetesdiscovery.CollectionAPI, error)
 	okta         func(string, time.Duration) (idpdiscovery.CollectionAPI, error)
+	microsoft    microsoftdiscovery.CollectionAPI
+	salesforce   salesforcediscovery.CollectionAPI
 	allowedCIDRs []string
 	timeout      time.Duration
 }
@@ -88,6 +96,14 @@ func newDiscoveryKubernetesCollectionAPI(allowedCIDRs []string, factory func(kub
 
 func newDiscoveryOktaCollectionAPI(factory func(string, time.Duration) (idpdiscovery.CollectionAPI, error), timeout time.Duration) idpdiscovery.CollectionAPI {
 	return &discoveryBearerCollectionAPI{provider: collection.ProviderOkta, okta: factory, timeout: timeout}
+}
+
+func newDiscoveryMicrosoftCollectionAPI(api microsoftdiscovery.CollectionAPI) microsoftdiscovery.CollectionAPI {
+	return &discoveryBearerCollectionAPI{provider: collection.ProviderMicrosoft, microsoft: api}
+}
+
+func newDiscoverySalesforceCollectionAPI(api salesforcediscovery.CollectionAPI) salesforcediscovery.CollectionAPI {
+	return &discoveryBearerCollectionAPI{provider: collection.ProviderSalesforce, salesforce: api}
 }
 
 func (api *discoveryBearerCollectionAPI) FetchCollectionPage(ctx context.Context, credential []byte, request githubdiscovery.CollectionPageRequest) (githubdiscovery.CollectionPage, error) {
@@ -118,6 +134,12 @@ func (api *discoveryBearerCollectionAPI) FetchCollectionPage(ctx context.Context
 		if api.okta != nil && api.timeout >= 100*time.Millisecond && api.timeout <= 30*time.Second {
 			delegate, err = api.okta(envelope.Issuer, api.timeout)
 		}
+	case collection.ProviderMicrosoft:
+		// The bearer material is the collector's own JSON credential (Graph
+		// token, and the Dataverse token and environment when configured).
+		delegate = api.microsoft
+	case collection.ProviderSalesforce:
+		delegate = api.salesforce
 	}
 	if err != nil || nilDiscoveryClientDependency(delegate) {
 		return githubdiscovery.CollectionPage{}, mapDiscoveryProviderClientError(ctx, err)
@@ -133,11 +155,20 @@ func (api *discoveryBearerCollectionAPI) CheckCollectionReadiness(ctx context.Co
 	if api == nil || ctx == nil || ctx.Err() != nil {
 		return discoveryCredentialFailure(ctx, collection.FailureCancelled)
 	}
-	if api.provider == collection.ProviderGitHub {
-		if nilDiscoveryClientDependency(api.github) {
+	var unbound githubdiscovery.CollectionAPI
+	switch api.provider {
+	case collection.ProviderGitHub:
+		unbound = api.github
+	case collection.ProviderMicrosoft:
+		unbound = api.microsoft
+	case collection.ProviderSalesforce:
+		unbound = api.salesforce
+	}
+	if api.provider == collection.ProviderGitHub || api.provider == collection.ProviderMicrosoft || api.provider == collection.ProviderSalesforce {
+		if nilDiscoveryClientDependency(unbound) {
 			return discoveryCredentialFailure(ctx, collection.FailureMalformed)
 		}
-		if err := api.github.CheckCollectionReadiness(ctx); err != nil {
+		if err := unbound.CheckCollectionReadiness(ctx); err != nil {
 			return mapDiscoveryProviderClientError(ctx, err)
 		}
 		return nil

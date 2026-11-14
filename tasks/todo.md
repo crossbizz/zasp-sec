@@ -18,8 +18,8 @@ Plan and detail: `docs/superpowers/plans/2026-11-14-automatic-agent-discovery.md
 - [x] Customer AWS read policy and runbook
 
 ## In progress (second pass, 2026-11-14)
-- [ ] Provider groundwork: `microsoft` and `salesforce` in the collection contract, kinds, rule catalog, search allow-list
-- [ ] Provider plumbing: credentials, connector catalog, worker registration, SQL constraints, OpenAPI and web enums, deployment egress
+- [x] Provider groundwork: `microsoft` and `salesforce` in the collection contract, kinds, rule catalog, search allow-list
+- [x] Provider plumbing: credentials, connector catalog, worker registration, SQL constraints, OpenAPI and web enums, deployment egress (both providers off by default; Helm and Terraform not rendered here)
 - [x] Microsoft collector: Entra agent identities, AI enterprise applications, Copilot Studio agents (tested with fake Graph and Dataverse; API shapes unverified)
 - [x] Salesforce collector: Agentforce agents (tested with a fake org; object names unverified)
 - [ ] Show AI service permission gaps on the integration detail

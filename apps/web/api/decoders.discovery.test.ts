@@ -135,6 +135,29 @@ describe("production discovery response decoders", () => {
     expect(decodeIntegrationSetupStatus({ ...setupStatus, connector_key: "kubernetes", authorization: { state: "verified", scope_kind: "kubernetes_cluster", scope_label: "production-us-west", repository_selection: null, permissions: [] }, runtime_coverage: { state: "awaiting_heartbeat", reason: "missing_gateway", sensor_count: 3, healthy_sensor_count: 1 } }, integrationID).runtime_coverage.healthy_sensor_count).toBe(1);
   });
 
+  it("accepts the bound tenant or org of a Microsoft or Salesforce integration", () => {
+    const notApplicable = { state: "not_applicable", reason: "not_applicable", sensor_count: 0, healthy_sensor_count: 0 } as const;
+    const microsoft = { ...setupStatus, connector_key: "microsoft", authorization: { state: "verified", scope_kind: "microsoft_tenant", scope_label: "0a1b2c3d-1111-2222-3333-444455556666", repository_selection: null, permissions: [] }, runtime_coverage: notApplicable };
+    const salesforce = { ...setupStatus, connector_key: "salesforce", authorization: { state: "verified", scope_kind: "salesforce_org", scope_label: "00D5e000000abcdEAA", repository_selection: null, permissions: [] }, runtime_coverage: notApplicable };
+    expect(decodeIntegrationSetupStatus(microsoft, integrationID)).toEqual(microsoft);
+    expect(decodeIntegrationSetupStatus(salesforce, integrationID)).toEqual(salesforce);
+    const pending = { ...microsoft, authorization: { state: "pending", scope_kind: "none", scope_label: null, repository_selection: null, permissions: [] } };
+    expect(decodeIntegrationSetupStatus(pending, integrationID)).toEqual(pending);
+    for (const refused of [
+      { ...microsoft, connector_key: "azure" },
+      { ...microsoft, connector_key: "servicenow" },
+      { ...microsoft, authorization: { ...microsoft.authorization, scope_kind: "salesforce_org" } },
+      { ...microsoft, authorization: { ...microsoft.authorization, scope_label: "contoso.onmicrosoft.com" } },
+      { ...microsoft, authorization: { ...microsoft.authorization, scope_label: null } },
+      { ...microsoft, authorization: { ...microsoft.authorization, permissions: ["application.read.all"] } },
+      { ...microsoft, authorization: { ...microsoft.authorization, repository_selection: "all" } },
+      { ...microsoft, runtime_coverage: { state: "not_enrolled", reason: "not_enrolled", sensor_count: 0, healthy_sensor_count: 0 } },
+      { ...salesforce, authorization: { ...salesforce.authorization, scope_kind: "microsoft_tenant" } },
+      { ...salesforce, authorization: { ...salesforce.authorization, scope_label: "00D5e000000abcd" } },
+      { ...salesforce, authorization: { ...salesforce.authorization, scope_kind: "okta_tenant", scope_label: "acme.okta.com" } },
+    ]) expect(() => decodeIntegrationSetupStatus(refused, integrationID)).toThrow("schema mismatch");
+  });
+
   it.each([
     ["foreign integration", { ...setupStatus, integration_id: "pid_20000009-0000-4000-8000-000000000009" }],
     ["credential reference", { ...setupStatus, credential_reference: "ref:github/installation/123" }],

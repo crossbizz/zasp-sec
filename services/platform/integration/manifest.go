@@ -90,6 +90,34 @@ func BuiltinManifests() []ConnectorManifest {
 			AccessGuidance: "Authorize only the intended workspace and keep the managed connection scopes read-only.", TestSemantics: "Verify the tenant-bound workspace reference and one allowlisted read-only proxy request.", adapterKey: "private_auth_proxy_v1", ossName: "private-auth-proxy",
 		},
 		{
+			Key: "microsoft", Provider: "Microsoft Entra and Copilot Studio", Category: "saas",
+			Description: "Inventory Entra agent identities, AI enterprise applications, and Copilot Studio agents of one tenant through a customer-owned app registration.",
+			DataTypes:   []string{"agent", "application", "identity"}, Actions: []string{"inventory_read"}, AuthMode: "oauth_client_credentials",
+			SetupSchema: []SetupField{
+				{Key: "tenant_id", Label: "Directory (tenant) ID", Type: "string", Required: true, Description: "The Entra tenant GUID, in lower case."},
+				{Key: "client_id", Label: "Application (client) ID", Type: "string", Required: true, Description: "The GUID of the app registration created for discovery, in lower case."},
+				{Key: "client_secret_reference", Label: "Client secret", Type: "secret_reference", Required: true, Description: "Opaque product reference to the app registration's client secret, ref:microsoft/client-secret/<id>. The secret value is stored outside the browser."},
+				{Key: "dataverse_url", Label: "Dataverse environment URL", Type: "uri", Required: false, Description: "Optional. The environment that holds the Copilot Studio agents, https://<name>.crm<n>.dynamics.com. Leave empty to skip Copilot Studio."},
+			},
+			AccessGuidance: "Register an Entra app with the application permissions Application.Read.All and, for Entra Agent ID, AgentIdentity.Read.All, and grant admin consent. For Copilot Studio add it as an application user in the Dataverse environment with read access to bot.",
+			TestSemantics:  "Request an application token from the tenant's token endpoint for Microsoft Graph, and for the Dataverse environment when one is configured.",
+			adapterKey:     "microsoft_first_party_v1", ossName: "microsoft-graph-dataverse",
+		},
+		{
+			Key: "salesforce", Provider: "Salesforce Agentforce", Category: "saas",
+			Description: "Inventory the Agentforce agents of one Salesforce org through a customer-owned connected app.",
+			DataTypes:   []string{"agent"}, Actions: []string{"inventory_read"}, AuthMode: "oauth_client_credentials",
+			SetupSchema: []SetupField{
+				{Key: "instance_url", Label: "My Domain URL", Type: "uri", Required: true, Description: "The org's My Domain, https://<name>.my.salesforce.com."},
+				{Key: "organization_id", Label: "Organization ID", Type: "string", Required: true, Description: "The 18-character organization ID that starts with 00D."},
+				{Key: "client_id", Label: "Consumer key", Type: "string", Required: true, Description: "The consumer key of the connected app or external client app."},
+				{Key: "client_secret_reference", Label: "Consumer secret", Type: "secret_reference", Required: true, Description: "Opaque product reference to the consumer secret, ref:salesforce/client-secret/<id>. The secret value is stored outside the browser."},
+			},
+			AccessGuidance: "Create a connected app or external client app with the client credentials flow enabled and the OAuth scope api, and set a run-as user that has API Enabled and View Setup and Configuration.",
+			TestSemantics:  "Request a token from the My Domain token endpoint and require the response to name the configured instance and org.",
+			adapterKey:     "salesforce_first_party_v1", ossName: "salesforce-rest",
+		},
+		{
 			Key: "generic-webhook", Provider: "Generic Webhook", Category: "notification",
 			Description: "Send signed response and approval notifications to one configured HTTPS destination.",
 			DataTypes:   []string{"response", "approval"}, Actions: []string{"response_notification", "approval_response"},
@@ -152,14 +180,24 @@ func (catalog *Catalog) ValidateSetup(key string, configuration map[string]strin
 		return ErrConfiguration
 	}
 	manifest, exists := catalog.values[key]
-	if !exists || len(configuration) != len(manifest.SetupSchema) {
+	if !exists {
 		return ErrInvalid
 	}
+	// Every required field is present, an optional field may be absent, and
+	// nothing else is accepted. A present value is never empty.
+	present := 0
 	for _, field := range manifest.SetupSchema {
 		value, exists := configuration[field.Key]
+		if !exists && !field.Required {
+			continue
+		}
 		if !exists || !validText(value, 2048) {
 			return ErrInvalid
 		}
+		present++
+	}
+	if present != len(configuration) {
+		return ErrInvalid
 	}
 	switch key {
 	case "aws":
@@ -177,6 +215,17 @@ func (catalog *Catalog) ValidateSetup(key string, configuration map[string]strin
 	case "okta":
 		issuer, err := url.Parse(configuration["issuer"])
 		if err != nil || issuer.Scheme != "https" || issuer.User != nil || issuer.Port() != "" || issuer.Path != "" || issuer.RawQuery != "" || issuer.Fragment != "" || !oktaIssuerHostPattern.MatchString(issuer.Hostname()) {
+			return ErrInvalid
+		}
+		return nil
+	case "microsoft":
+		dataverseURL, hasDataverse := configuration["dataverse_url"]
+		if !microsoftGUIDPattern.MatchString(configuration["tenant_id"]) || !microsoftGUIDPattern.MatchString(configuration["client_id"]) || !microsoftSecretReferencePattern.MatchString(configuration["client_secret_reference"]) || hasDataverse && !microsoftDataverseURLPattern.MatchString(dataverseURL) {
+			return ErrInvalid
+		}
+		return nil
+	case "salesforce":
+		if !salesforceInstanceURLPattern.MatchString(configuration["instance_url"]) || !salesforceOrganizationPattern.MatchString(configuration["organization_id"]) || !salesforceClientIDPattern.MatchString(configuration["client_id"]) || !salesforceSecretReferencePattern.MatchString(configuration["client_secret_reference"]) {
 			return ErrInvalid
 		}
 		return nil
@@ -206,6 +255,18 @@ func (catalog *Catalog) ValidateSetup(key string, configuration map[string]strin
 var awsRolePattern = regexp.MustCompile(`^arn:aws:iam::[0-9]{12}:role/[A-Za-z0-9+=,.@_/-]{1,512}$`)
 var awsRegionPattern = regexp.MustCompile(`^[a-z]{2}(?:-gov)?-[a-z]+-[0-9]$`)
 var oktaIssuerHostPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]\.okta\.com$`)
+
+// The Microsoft and Salesforce setup grammars. The whole URL is matched, so a
+// plain-HTTP URL, a port, a path, user information or another host is refused.
+var (
+	microsoftGUIDPattern             = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+	microsoftSecretReferencePattern  = regexp.MustCompile(`^ref:microsoft/client-secret/[a-z0-9][a-z0-9._-]{7,127}$`)
+	microsoftDataverseURLPattern     = regexp.MustCompile(`^https://[a-z0-9][a-z0-9-]{0,62}\.crm[0-9]{0,2}\.dynamics\.com$`)
+	salesforceInstanceURLPattern     = regexp.MustCompile(`^https://[a-z0-9][a-z0-9-]{0,62}(\.[a-z0-9][a-z0-9-]{0,62}){0,3}\.my\.salesforce\.com$`)
+	salesforceOrganizationPattern    = regexp.MustCompile(`^00D[A-Za-z0-9]{15}$`)
+	salesforceClientIDPattern        = regexp.MustCompile(`^[!-~]{16,256}$`)
+	salesforceSecretReferencePattern = regexp.MustCompile(`^ref:salesforce/client-secret/[a-z0-9][a-z0-9._-]{7,127}$`)
+)
 
 func validateAWSSetup(configuration map[string]string) error {
 	if !awsRolePattern.MatchString(configuration["role_arn"]) || !validOpaqueReference(configuration["external_id_reference"], 512) || !awsRegionPattern.MatchString(configuration["region"]) {
@@ -258,12 +319,20 @@ func validManifest(value ConnectorManifest) bool {
 			seen[item] = struct{}{}
 		}
 	}
+	seenFields, required := map[string]struct{}{}, false
 	for _, field := range value.SetupSchema {
-		if !validSlug(field.Key) || !validText(field.Label, 128) || !validSlug(field.Type) || !field.Required || !validText(field.Description, 512) {
+		if !validSlug(field.Key) || !validText(field.Label, 128) || !validSlug(field.Type) || !validText(field.Description, 512) {
 			return false
 		}
+		if _, exists := seenFields[field.Key]; exists {
+			return false
+		}
+		seenFields[field.Key] = struct{}{}
+		required = required || field.Required
 	}
-	return true
+	// At least one field is required: a connector with nothing to configure
+	// has no setup.
+	return required
 }
 
 func validFilter(value CatalogFilter) bool {

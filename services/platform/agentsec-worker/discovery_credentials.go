@@ -39,7 +39,7 @@ var (
 	discoveryRegionPattern            = regexp.MustCompile(`^[a-z]{2}(?:-gov)?-[a-z]+-[1-9][0-9]?$`)
 	discoveryGitHubAppIDPattern       = regexp.MustCompile(`^[1-9][0-9]{0,19}$`)
 	discoveryOktaClientIDPattern      = regexp.MustCompile(`^0oa[A-Za-z0-9_-]{13,125}$`)
-	discoveryReferencePattern         = regexp.MustCompile(`^ref:(aws|kubernetes|github|okta)/[A-Za-z0-9][A-Za-z0-9._/:-]{7,507}$`)
+	discoveryReferencePattern         = regexp.MustCompile(`^ref:(aws|kubernetes|github|okta|microsoft|salesforce)/[A-Za-z0-9][A-Za-z0-9._/:-]{7,507}$`)
 	discoveryOktaIssuerPattern        = regexp.MustCompile(`^https://([a-z0-9][a-z0-9-]{1,61}[a-z0-9]\.okta\.com)$`)
 )
 
@@ -72,11 +72,15 @@ type discoveryOktaTokenAPI interface {
 	ExchangeDiscoveryRefreshToken(context.Context, string, string, []byte, []byte) (discoveryOktaAccessToken, error)
 }
 
+// Microsoft and Salesforce are nil in a deployment that does not serve the
+// provider; a credential request for it is then refused.
 type productionDiscoveryCredentialConfig struct {
 	Secrets                   discoverySecretReader
 	AssumeRole                discoveryAssumeRoleAPI
 	GitHub                    discoveryGitHubTokenAPI
 	Okta                      discoveryOktaTokenAPI
+	Microsoft                 discoveryMicrosoftTokenAPI
+	Salesforce                discoverySalesforceTokenAPI
 	GitHubAppID               string
 	GitHubPrivateKeyReference string
 	OktaClientID              string
@@ -133,6 +137,10 @@ func (resolver *productionDiscoveryCredentialResolver) ResolveDiscoveryCredentia
 		envelope, err = resolver.resolveGitHub(ctx, bound, now)
 	case collection.ProviderOkta:
 		envelope, err = resolver.resolveOkta(ctx, bound, now)
+	case collection.ProviderMicrosoft:
+		envelope, err = resolver.resolveMicrosoft(ctx, bound, now)
+	case collection.ProviderSalesforce:
+		envelope, err = resolver.resolveSalesforce(ctx, bound, now)
 	default:
 		err = discoveryCredentialFailure(ctx, collection.FailureMalformed)
 	}
@@ -394,6 +402,12 @@ func validDiscoveryCredentialEnvelope(value discoveryCredentialEnvelope) bool {
 	case collection.ProviderOkta:
 		match := discoveryOktaIssuerPattern.FindStringSubmatch(value.Issuer)
 		return value.SubjectKind == "okta_tenant" && len(match) == 2 && match[1] == value.SubjectID && validDiscoveryOpaqueSecret(value.BearerToken, 16, 8192) && discoveryCredentialEnvelopeEmptyProviderFields(value)
+	case collection.ProviderMicrosoft:
+		// The bearer material of the two SaaS providers is the compact JSON
+		// credential their collector reads, not a single token.
+		return value.SubjectKind == "microsoft_tenant" && discoveryMicrosoftGUIDPattern.MatchString(value.SubjectID) && validDiscoveryMicrosoftCollectorCredential(value.BearerToken) && value.Issuer == "" && discoveryCredentialEnvelopeEmptyProviderFields(value)
+	case collection.ProviderSalesforce:
+		return value.SubjectKind == "salesforce_org" && discoverySalesforceOrganizationPattern.MatchString(value.SubjectID) && validDiscoverySalesforceCollectorCredential(value.BearerToken) && value.Issuer == "" && discoveryCredentialEnvelopeEmptyProviderFields(value)
 	default:
 		return false
 	}

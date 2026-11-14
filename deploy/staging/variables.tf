@@ -328,6 +328,34 @@ variable "connector_reference_ids" {
   }
 }
 
+variable "discovery_optional_providers" {
+  description = "Optional discovery providers: Microsoft (Entra and Copilot Studio) and Salesforce (Agentforce). Both are disabled by default. A provider is enabled by its collector version, which must be the version the installed schema hands a discovery run (collector_v1), together with the identifier of its pre-provisioned client-secret reference and a snapshot of the provider addresses the API and the discovery worker may reach."
+  type = object({
+    microsoft_collector         = optional(string, "")
+    microsoft_client_secret_id  = optional(string, "")
+    microsoft_egress_cidrs      = optional(list(string), [])
+    salesforce_collector        = optional(string, "")
+    salesforce_client_secret_id = optional(string, "")
+    salesforce_egress_cidrs     = optional(list(string), [])
+  })
+  default = {}
+  validation {
+    condition = alltrue([
+      for provider in [
+        { collector = var.discovery_optional_providers.microsoft_collector, secret = var.discovery_optional_providers.microsoft_client_secret_id, cidrs = var.discovery_optional_providers.microsoft_egress_cidrs },
+        { collector = var.discovery_optional_providers.salesforce_collector, secret = var.discovery_optional_providers.salesforce_client_secret_id, cidrs = var.discovery_optional_providers.salesforce_egress_cidrs },
+        ] : (
+        provider.collector == "" ? provider.secret == "" && length(provider.cidrs) == 0 :
+        can(regex("^[a-z][a-z0-9_.-]{1,63}$", provider.collector)) && can(regex("^[a-z0-9][a-z0-9._-]{7,127}$", provider.secret)) &&
+        length(provider.cidrs) >= 1 && length(provider.cidrs) <= 16 && length(distinct(provider.cidrs)) == length(provider.cidrs) && alltrue([
+          for cidr in provider.cidrs : can(cidrhost(cidr, 0)) && "${cidrhost(cidr, 0)}/${split("/", cidr)[1]}" == cidr && cidr != "0.0.0.0/0" && cidr != "::/0"
+        ])
+      )
+    ])
+    error_message = "A disabled optional provider sets nothing. An enabled one needs a bounded collector version, a lower-case client-secret reference identifier and one to 16 distinct canonical non-global egress CIDRs."
+  }
+}
+
 variable "kubernetes_connector_egress_cidrs" {
   description = "Exact canonical customer Kubernetes API CIDRs admitted by both the runtime dialer and NetworkPolicy."
   type        = list(string)

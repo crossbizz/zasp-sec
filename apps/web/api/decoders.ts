@@ -15,6 +15,17 @@ const AWS_ROLE_ARN = /^arn:aws:iam::[0-9]{12}:role\/[A-Za-z0-9+=,.@_/-]{1,128}$/
 const AWS_EXTERNAL_ID_REFERENCE = /^ref:aws\/external-id\/[A-Za-z0-9][A-Za-z0-9._-]{7,127}$/;
 const AWS_REGION = /^[a-z]{2}-[a-z]+-[1-9][0-9]?$/;
 const KUBERNETES_CONNECTION_REFERENCE = /^ref:kubernetes\/connection\/[A-Za-z0-9][A-Za-z0-9._-]{7,127}$/;
+// The providers discovery collects from, and the ones authorized by a
+// reference to customer material instead of a browser OAuth flow.
+const DISCOVERY_PROVIDERS = ["aws", "kubernetes", "github", "okta", "microsoft", "salesforce"] as const;
+const REFERENCE_AUTHORIZED_PROVIDERS = ["aws", "kubernetes", "microsoft", "salesforce"] as const;
+const MICROSOFT_GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const MICROSOFT_CLIENT_SECRET_REFERENCE = /^ref:microsoft\/client-secret\/[a-z0-9][a-z0-9._-]{7,127}$/;
+const MICROSOFT_DATAVERSE_URL = /^https:\/\/[a-z0-9][a-z0-9-]{0,62}\.crm[0-9]{0,2}\.dynamics\.com$/;
+const SALESFORCE_INSTANCE_URL = /^https:\/\/[a-z0-9][a-z0-9-]{0,62}(\.[a-z0-9][a-z0-9-]{0,62}){0,3}\.my\.salesforce\.com$/;
+const SALESFORCE_ORGANIZATION_ID = /^00D[A-Za-z0-9]{15}$/;
+const SALESFORCE_CLIENT_ID = /^[!-~]{16,256}$/;
+const SALESFORCE_CLIENT_SECRET_REFERENCE = /^ref:salesforce\/client-secret\/[a-z0-9][a-z0-9._-]{7,127}$/;
 const SENSOR_TOKEN = /^zasp_sensor_v1\.[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{43}$/;
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -116,7 +127,7 @@ export function decodeInventorySummary(value: unknown): InventorySummary {
 // unmanaged; an agent is unmanaged exactly while it was found without a
 // declaration and has no owner.
 function decodeInventoryDiscovery(record: Record<string, unknown>): void {
-  enumValue(record.provider, ["aws", "kubernetes", "github", "okta"]);
+  enumValue(record.provider, DISCOVERY_PROVIDERS);
   if (typeof record.source_kind !== "string" || !/^[a-z][a-z0-9_]{1,63}$/.test(record.source_kind)) fail();
   const discovery = exactRecord(record.discovery, ["method", "platform", "signals"]);
   enumValue(discovery.method, ["declared", "provider_api", "inferred"]);
@@ -164,7 +175,7 @@ export function decodeInventoryDetail(value: unknown): InventoryDetail {
 
 function decodeInventorySourceObservation(value: unknown): InventorySourceObservation {
   const entry = exactRecord(value, ["integration_id", "provider", "source", "source_identifier", "snapshot_id", "generation", "evidence_id", "confidence_basis_points", "observed_at", "fresh_until", "projection_version", "winning"]);
-  productID(entry.integration_id); enumValue(entry.provider, ["aws", "kubernetes", "github", "okta"]); if (typeof entry.source !== "string" || !/^[a-z][a-z0-9_]{1,63}$/.test(entry.source)) fail(); checksum(entry.source_identifier); productID(entry.snapshot_id); positiveInteger(entry.generation); productID(entry.evidence_id); boundedInteger(entry.confidence_basis_points, 1, 10000); dateTime(entry.observed_at); dateTime(entry.fresh_until); if (Date.parse(entry.fresh_until as string) <= Date.parse(entry.observed_at as string)) fail(); positiveInteger(entry.projection_version); if (typeof entry.winning !== "boolean") fail();
+  productID(entry.integration_id); enumValue(entry.provider, DISCOVERY_PROVIDERS); if (typeof entry.source !== "string" || !/^[a-z][a-z0-9_]{1,63}$/.test(entry.source)) fail(); checksum(entry.source_identifier); productID(entry.snapshot_id); positiveInteger(entry.generation); productID(entry.evidence_id); boundedInteger(entry.confidence_basis_points, 1, 10000); dateTime(entry.observed_at); dateTime(entry.fresh_until); if (Date.parse(entry.fresh_until as string) <= Date.parse(entry.observed_at as string)) fail(); positiveInteger(entry.projection_version); if (typeof entry.winning !== "boolean") fail();
   return value as InventorySourceObservation;
 }
 
@@ -372,9 +383,9 @@ export function decodeIntegrationWebhookTestStatus(value: unknown, expectedInteg
 export function decodeIntegrationSetupStatus(value: unknown, expectedIntegrationID?: string): IntegrationSetupStatus {
   const record = exactRecord(value, ["integration_id", "connector_key", "authorization", "runtime_coverage", "updated_at"]);
   productID(record.integration_id); if (expectedIntegrationID !== undefined && record.integration_id !== expectedIntegrationID) fail();
-  enumValue(record.connector_key, ["aws", "kubernetes", "github", "okta"]); dateTime(record.updated_at);
+  enumValue(record.connector_key, DISCOVERY_PROVIDERS); dateTime(record.updated_at);
   const authorization = exactRecord(record.authorization, ["state", "scope_kind", "scope_label", "repository_selection", "permissions"]);
-  enumValue(authorization.state, ["pending", "verified", "degraded"]); enumValue(authorization.scope_kind, ["none", "aws_account", "kubernetes_cluster", "github_organization", "okta_tenant"]);
+  enumValue(authorization.state, ["pending", "verified", "degraded"]); enumValue(authorization.scope_kind, ["none", "aws_account", "kubernetes_cluster", "github_organization", "okta_tenant", "microsoft_tenant", "salesforce_org"]);
   if (authorization.scope_label !== null) printableString(authorization.scope_label, 1, 128);
   if (authorization.repository_selection !== null) enumValue(authorization.repository_selection, ["all", "selected"]);
   stringArray(authorization.permissions, 8, 64); const permissions = authorization.permissions as readonly string[];
@@ -387,6 +398,11 @@ export function decodeIntegrationSetupStatus(value: unknown, expectedIntegration
     if (authorization.scope_kind !== "kubernetes_cluster" || authorization.scope_label === null || authorization.repository_selection !== null || permissions.length !== 0) fail();
   } else if (record.connector_key === "github") {
     if (authorization.scope_kind !== "github_organization" || authorization.scope_label === null || authorization.repository_selection === null || !sameJSON(permissions, ["actions:read", "contents:read", "metadata:read"])) fail();
+  } else if (record.connector_key === "microsoft") {
+    // Reference-authorized like AWS: the scope is the bound subject and no permission list is stored.
+    if (authorization.scope_kind !== "microsoft_tenant" || typeof authorization.scope_label !== "string" || !MICROSOFT_GUID.test(authorization.scope_label) || authorization.repository_selection !== null || permissions.length !== 0) fail();
+  } else if (record.connector_key === "salesforce") {
+    if (authorization.scope_kind !== "salesforce_org" || typeof authorization.scope_label !== "string" || !SALESFORCE_ORGANIZATION_ID.test(authorization.scope_label) || authorization.repository_selection !== null || permissions.length !== 0) fail();
   } else if (authorization.scope_kind !== "okta_tenant" || authorization.scope_label === null || authorization.repository_selection !== null || !sameJSON(permissions, ["offline_access", "okta.apps.read", "okta.groups.read", "okta.users.read"])) fail();
   const coverage = exactRecord(record.runtime_coverage, ["state", "reason", "sensor_count", "healthy_sensor_count"]);
   enumValue(coverage.state, ["not_applicable", "not_enrolled", "awaiting_heartbeat", "healthy", "degraded"]); enumValue(coverage.reason, ["not_applicable", "not_enrolled", "missing_gateway", "unsupported_kernel", "degraded", "verified"]);
@@ -1045,7 +1061,7 @@ function decodeWorkflowReceiptPayload(operation: unknown, kind: unknown, resourc
     productID(intent.authorization_attempt_id); productID(intent.integration_id);
     if (typeof intent.provider !== "string" || !/^(github|okta|nango:[a-z0-9][a-z0-9_-]{1,62})$/.test(intent.provider)) fail();
     const publicConnectorKey = intent.provider.startsWith("nango:") ? intent.provider.slice("nango:".length) : intent.provider;
-    if (intent.provider.startsWith("nango:") && ["aws", "github", "kubernetes", "okta"].includes(publicConnectorKey)) fail();
+    if (intent.provider.startsWith("nango:") && (DISCOVERY_PROVIDERS as readonly string[]).includes(publicConnectorKey)) fail();
     if (kind !== "integration" || result.id !== resourceID || result.status !== "active" || intent.integration_id !== resourceID || publicConnectorKey !== result.connector_key || idempotencyKey !== `oauth-completion:${intent.authorization_attempt_id}`) fail();
     return;
   }
@@ -1149,7 +1165,7 @@ function decodeReferenceAuthorizationReceiptIntent(value: unknown, result: Integ
   const input = exactRecord(value, ["configuration", "expected_version", "idempotency_key", "integration_id", "provider", "scope"]);
   if (!Number.isSafeInteger(input.expected_version) || (input.expected_version as number) < 1 || (input.expected_version as number) + 1 !== resourceVersion) fail();
   if (input.idempotency_key !== receiptIdempotencyKey || input.integration_id !== resourceID) fail();
-  enumValue(input.provider, ["aws", "kubernetes"]);
+  enumValue(input.provider, REFERENCE_AUTHORIZED_PROVIDERS);
   if (input.provider !== result.connector_key) fail();
   const scope = exactRecord(input.scope, ["environment_id", "organization_id", "workspace_id"]);
   productID(scope.environment_id); productID(scope.organization_id); productID(scope.workspace_id);
@@ -1169,6 +1185,22 @@ function decodeIntegrationConfiguration(connectorKey: string, value: unknown): v
   if (connectorKey === "kubernetes") {
     const configuration = exactRecord(value, ["connection_reference"]);
     if (typeof configuration.connection_reference !== "string" || !KUBERNETES_CONNECTION_REFERENCE.test(configuration.connection_reference)) fail();
+    return;
+  }
+  if (connectorKey === "microsoft") {
+    const configuration = exactRecord(value, ["client_id", "client_secret_reference", "tenant_id"], ["dataverse_url"]);
+    if (typeof configuration.tenant_id !== "string" || !MICROSOFT_GUID.test(configuration.tenant_id)) fail();
+    if (typeof configuration.client_id !== "string" || !MICROSOFT_GUID.test(configuration.client_id)) fail();
+    if (typeof configuration.client_secret_reference !== "string" || !MICROSOFT_CLIENT_SECRET_REFERENCE.test(configuration.client_secret_reference)) fail();
+    if ("dataverse_url" in configuration && (typeof configuration.dataverse_url !== "string" || !MICROSOFT_DATAVERSE_URL.test(configuration.dataverse_url))) fail();
+    return;
+  }
+  if (connectorKey === "salesforce") {
+    const configuration = exactRecord(value, ["client_id", "client_secret_reference", "instance_url", "organization_id"]);
+    if (typeof configuration.instance_url !== "string" || !SALESFORCE_INSTANCE_URL.test(configuration.instance_url)) fail();
+    if (typeof configuration.organization_id !== "string" || !SALESFORCE_ORGANIZATION_ID.test(configuration.organization_id)) fail();
+    if (typeof configuration.client_id !== "string" || !SALESFORCE_CLIENT_ID.test(configuration.client_id)) fail();
+    if (typeof configuration.client_secret_reference !== "string" || !SALESFORCE_CLIENT_SECRET_REFERENCE.test(configuration.client_secret_reference)) fail();
     return;
   }
   stringRecord(value, 16, 1, 1);

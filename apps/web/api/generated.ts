@@ -1077,8 +1077,8 @@ export type paths = {
         readonly get?: never;
         readonly put?: never;
         /**
-         * Authorize a reference-backed cloud or Kubernetes integration
-         * @description Performs a bounded read-only provider identity and capability probe using only the integration's stored reference configuration, then atomically records an active integration and durable mutation receipt. The response never returns provider subjects, endpoints, credentials, external IDs, certificate authorities, tokens, or raw provider errors.
+         * Authorize a reference-backed integration
+         * @description For an AWS, Kubernetes, Microsoft or Salesforce integration. Performs a bounded read-only provider identity and capability probe using only the integration's stored reference configuration, then atomically records an active integration and durable mutation receipt. The response never returns provider subjects, endpoints, credentials, external IDs, certificate authorities, tokens, or raw provider errors.
          */
         readonly post: operations["authorizeIntegrationReference"];
         readonly delete?: never;
@@ -3471,7 +3471,7 @@ export type components = {
             readonly permissions: readonly string[];
             readonly repository_selection: ("all" | "selected") | null;
             /** @enum {string} */
-            readonly scope_kind: "none" | "aws_account" | "kubernetes_cluster" | "github_organization" | "okta_tenant";
+            readonly scope_kind: "none" | "aws_account" | "kubernetes_cluster" | "github_organization" | "okta_tenant" | "microsoft_tenant" | "salesforce_org";
             readonly scope_label: string | null;
             /** @enum {string} */
             readonly state: "pending" | "verified" | "degraded";
@@ -3479,7 +3479,7 @@ export type components = {
         readonly IntegrationSetupStatus: {
             readonly authorization: components["schemas"]["IntegrationSetupAuthorization"];
             /** @enum {string} */
-            readonly connector_key: "aws" | "kubernetes" | "github" | "okta";
+            readonly connector_key: "aws" | "kubernetes" | "github" | "okta" | "microsoft" | "salesforce";
             readonly integration_id: components["schemas"]["ProductID"];
             readonly runtime_coverage: components["schemas"]["IntegrationRuntimeCoverage"];
             /** Format: date-time */
@@ -3568,7 +3568,7 @@ export type components = {
             readonly page_info: components["schemas"]["PageInfo"];
         };
         /** @enum {string} */
-        readonly InventoryProvider: "aws" | "kubernetes" | "github" | "okta";
+        readonly InventoryProvider: "aws" | "kubernetes" | "github" | "okta" | "microsoft" | "salesforce";
         readonly InventoryRecord: components["schemas"]["InventorySummary"];
         readonly InventorySourceObservation: {
             readonly confidence_basis_points: number;
@@ -3581,7 +3581,7 @@ export type components = {
             readonly observed_at: string;
             readonly projection_version: number;
             /** @enum {string} */
-            readonly provider: "aws" | "kubernetes" | "github" | "okta";
+            readonly provider: "aws" | "kubernetes" | "github" | "okta" | "microsoft" | "salesforce";
             readonly snapshot_id: components["schemas"]["ProductID"];
             readonly source: string;
             readonly source_identifier: string;

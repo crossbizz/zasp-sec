@@ -359,6 +359,9 @@ output "helm_values" {
       neo4jCIDR      = var.neo4j_endpoint_cidr
       connectorEgressCIDRs = {
         kubernetes = var.kubernetes_connector_egress_cidrs
+        # Empty while the optional provider is disabled.
+        microsoft  = var.discovery_optional_providers.microsoft_egress_cidrs
+        salesforce = var.discovery_optional_providers.salesforce_egress_cidrs
       }
       findingTicketEgressCIDRs = var.finding_ticket_egress_cidrs
     }
@@ -466,6 +469,9 @@ output "helm_values" {
       kubernetesCollectorVersion = var.discovery_implementation_versions.kubernetes_collector
       githubCollectorVersion     = var.discovery_implementation_versions.github_collector
       oktaCollectorVersion       = var.discovery_implementation_versions.okta_collector
+      # Empty keeps the optional provider disabled.
+      microsoftCollectorVersion  = var.discovery_optional_providers.microsoft_collector
+      salesforceCollectorVersion = var.discovery_optional_providers.salesforce_collector
       awsRegion                  = var.region
       queueURL                   = aws_sqs_queue.work["discovery-jobs"].id
       roleArn                    = aws_iam_role.worker.arn

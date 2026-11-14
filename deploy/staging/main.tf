@@ -166,7 +166,24 @@ locals {
       credential_class = "okta_oauth_client_secret"
     }
   }
-  connector_reference_secret_names = {
+  # The client-secret reference of an enabled optional discovery provider. The
+  # API and the discovery worker read every connector_reference secret, so an
+  # entry here is all either needs; nothing is created for a disabled provider.
+  optional_connector_reference_secret_names = {
+    for key, value in {
+      microsoft_client_secret = {
+        name             = "${local.connector_secret_root}/microsoft/client-secret/${var.discovery_optional_providers.microsoft_client_secret_id}"
+        credential_class = "microsoft_client_secret_reference"
+        enabled          = var.discovery_optional_providers.microsoft_collector != ""
+      }
+      salesforce_client_secret = {
+        name             = "${local.connector_secret_root}/salesforce/client-secret/${var.discovery_optional_providers.salesforce_client_secret_id}"
+        credential_class = "salesforce_client_secret_reference"
+        enabled          = var.discovery_optional_providers.salesforce_collector != ""
+      }
+    } : key => { name = value.name, credential_class = value.credential_class } if value.enabled
+  }
+  required_connector_reference_secret_names = {
     aws_external_id = {
       name             = "${local.connector_secret_root}/aws/external-id/${var.connector_reference_ids.aws_external_id}"
       credential_class = "aws_external_id_reference"
@@ -184,6 +201,7 @@ locals {
       credential_class = "kubernetes_credential_reference"
     }
   }
+  connector_reference_secret_names = merge(local.required_connector_reference_secret_names, local.optional_connector_reference_secret_names)
   bucket_name             = "zasp-product-data-${md5(var.account_id)}"
   runtime_raw_bucket_name = "zasp-runtime-raw-${md5(var.account_id)}"
   red_team_bucket_name    = "zasp-red-team-evidence-${md5(var.account_id)}"

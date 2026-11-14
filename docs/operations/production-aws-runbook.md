@@ -233,6 +233,7 @@ Names below are relative to `zasp-production/`.
 | `gateway-policy-signing-private-key`, `attack-lab-egress-signing-key`, `red-team-adapter-token`, `red-team-adapter-tls-certificate`, `red-team-adapter-tls-private-key`, `attack-lab-proxy-tls-certificate`, `attack-lab-proxy-tls-private-key`, `canary-read-token` | Required by the Security Agent action, policy deployment, Red Team, Attack Lab and canary workloads. **Their exact formats were not established in this review**; read the loaders in `services/platform/agentsec-worker`, `services/platform/red-team-adapter` and `services/platform/attack-lab-proxy`. The gateway key decodes to a 64-byte Ed25519 private key. |
 | `connectors/github/client-secret`, `connectors/github/app-private-key`, `connectors/okta/client-secret` | The provider credentials, or a placeholder until the connectors are used |
 | `connectors/aws/external-id/<id>`, `connectors/kubernetes/*/<id>` | Per-customer references (step 12) |
+| `connectors/microsoft/client-secret/<id>`, `connectors/salesforce/client-secret/<id>` | Only with the optional provider enabled: the customer's OAuth client secret (steps 13 and 14) |
 | `projection/neo4j/auth/runtime`, `projection/neo4j/auth/schema` | Neo4j credentials (decision D8) |
 | `zasp-recovery/neon/project-api-key`, `zasp/red-team/targets/readiness-0001` | Only with recovery enabled; Red Team readiness target credential |
 
@@ -356,6 +357,83 @@ Expected to be ready on a first deployment: `web`, `agentsec-api`, discovery sch
 
 For each customer account: a role under `/zasp-reference/` whose trust policy allows `connector_role_arn` and `worker_role_arn` (Terraform outputs) with `sts:ExternalId`; the role ARN in `aws_reference_role_arns` and its prefix in `aws_reference_role_prefixes`; the external ID as the value of `zasp-production/connectors/aws/external-id/<id>`; then `terraform apply` and `helm upgrade` with a fresh `values-terraform.json`. `provision_customer_account` in `deploy/local/real-stack/stack.sh` shows the trust policy and a minimal read policy. The read policy's `bedrock:ListAgents`, `bedrock:GetAgent`, `bedrock-agentcore:ListAgentRuntimes`, `bedrock-agentcore:GetAgentRuntime`, `bedrock-agentcore:ListGateways` and `lambda:ListFunctions` actions are optional: they let the sync find the account's AI agents (Bedrock agents, AgentCore runtimes and gateways, and Lambda functions that can call a model), and without them the sync still succeeds and the AI service shows `access_denied` in the inventory. Every new customer account is a Terraform change. No connector has been connected against real AWS.
 
+### 13. Connect Microsoft (Entra and Copilot Studio)
+
+Optional, and off by default. **Neither this connector nor the Salesforce one has been run against a real tenant or org.** The collectors and the token exchange were tested against recorded shapes and fake endpoints only.
+
+What it finds: Entra agent identities, AI enterprise applications of the tenant, and, when a Dataverse environment is configured, Copilot Studio agents.
+
+In the customer's tenant:
+
+1. Register an application in Microsoft Entra (single tenant). Note the Directory (tenant) ID and the Application (client) ID.
+2. Add the Microsoft Graph **application** permission `Application.Read.All` and, for Entra Agent ID, `AgentIdentity.Read.All`. Grant admin consent. No delegated permission is used.
+3. Create a client secret. Note its expiry: the customer rotates it, and the stored value must be replaced before it expires.
+4. For Copilot Studio only: in the Power Platform environment that holds the agents, add the application as an **application user** with a security role that can read the `bot` table. Note the environment URL, `https://<name>.crm<n>.dynamics.com`.
+
+In the deployment (a Terraform change, like a new AWS account):
+
+```hcl
+discovery_optional_providers = {
+  microsoft_collector        = "collector_v1"     # the version the installed schema hands a run
+  microsoft_client_secret_id = "customer-0001"    # lower case, 8 to 128 characters
+  microsoft_egress_cidrs     = ["..."]            # see below
+}
+```
+
+`terraform apply` creates the empty secret `zasp-production/connectors/microsoft/client-secret/customer-0001` under the connector KMS key and lets the API role and the discovery worker role read it. Put the client secret there as the secret value (the secret string, nothing else), then `helm upgrade` with a fresh `values-terraform.json`. That sets `ZASP_DISCOVERY_MICROSOFT_COLLECTOR_VERSION` on the API and on the discovery worker: the worker registers the collector, and the API lists the connector in the catalog. Unset, the worker refuses a Microsoft job and the catalog does not show the connector.
+
+In the product, create the integration "Microsoft Entra and Copilot Studio" with:
+
+| Field | Value |
+| --- | --- |
+| `tenant_id` | The Directory (tenant) ID, a lower-case GUID. It becomes the integration's subject. |
+| `client_id` | The Application (client) ID, a lower-case GUID. |
+| `client_secret_reference` | `ref:microsoft/client-secret/customer-0001`. A reference, never the secret. |
+| `dataverse_url` | Optional. `https://<name>.crm<n>.dynamics.com`. Leave empty to skip Copilot Studio. It cannot be added later by editing; create the integration again. |
+
+Then "Authorize Microsoft reference". The API reads the secret and requests an application token from `https://login.microsoftonline.com/<tenant_id>/oauth2/v2.0/token` for `https://graph.microsoft.com/.default` (and for `<dataverse_url>/.default` when configured). It records the tenant only if a token is issued. Every discovery run repeats the exchange; the client secret never leaves Secrets Manager and the API and worker memory, and the token is never stored.
+
+Network. The API and the discovery worker need HTTPS to `login.microsoftonline.com`, `graph.microsoft.com` and the Dataverse environment. The chart's NetworkPolicy matches addresses, not names, so `microsoft_egress_cidrs` is a snapshot of those addresses and no wildcard such as `*.dynamics.com` can be expressed. Microsoft publishes the ranges (the `AzureActiveDirectory` service tag and the Microsoft 365 endpoint list); they are shared with other Microsoft services, so the policy admits more addresses than the three hosts, and it must be refreshed when the ranges change. The process itself calls only those hosts. A deployment that needs name-based egress needs a CNI with FQDN policy or an egress proxy; neither is part of this chart.
+
+### 14. Connect Salesforce (Agentforce)
+
+Optional, and off by default. Not run against a real org (see step 13).
+
+What it finds: the Agentforce agents of one org.
+
+In the customer's org:
+
+1. Create a connected app (or an external client app) with OAuth enabled and the scope `api` ("Manage user data via APIs").
+2. Enable the **client credentials flow** and set a run-as user. That user needs the permissions **API Enabled** and **View Setup and Configuration**, and nothing more.
+3. Note the consumer key and the consumer secret, the org's My Domain URL (`https://<name>.my.salesforce.com`) and the 18-character Organization ID (Setup, Company Information; it starts with `00D`).
+
+In the deployment:
+
+```hcl
+discovery_optional_providers = {
+  salesforce_collector        = "collector_v1"
+  salesforce_client_secret_id = "customer-0001"
+  salesforce_egress_cidrs     = ["..."]
+}
+```
+
+`terraform apply`, put the consumer secret in `zasp-production/connectors/salesforce/client-secret/customer-0001`, then `helm upgrade`. That sets `ZASP_DISCOVERY_SALESFORCE_COLLECTOR_VERSION` on the API and the discovery worker.
+
+In the product, create the integration "Salesforce Agentforce" with:
+
+| Field | Value |
+| --- | --- |
+| `instance_url` | The My Domain URL, `https://<name>.my.salesforce.com`. Not `login.salesforce.com`. |
+| `organization_id` | The 18-character Organization ID. It becomes the integration's subject. |
+| `client_id` | The consumer key. |
+| `client_secret_reference` | `ref:salesforce/client-secret/customer-0001`. |
+
+Then "Authorize Salesforce reference". The API posts the client-credentials grant to `<instance_url>/services/oauth2/token` and requires the response to name the configured instance, and the configured org when the response carries an identity URL. Salesforce reports no token lifetime, so the worker treats a token as good for 20 minutes and requests a new one on every run.
+
+Network. The API and the discovery worker need HTTPS to the customer's My Domain host. As in step 13, `salesforce_egress_cidrs` is an address snapshot (Salesforce publishes its ranges per instance; they are shared across orgs), and `*.my.salesforce.com` cannot be expressed.
+
+Each additional tenant or org is another reference secret. The Terraform variable provisions one per provider; more need a further `connector_reference` secret under the same path.
+
 ## Rollback
 
 | Situation | Action |
@@ -406,6 +484,7 @@ Deployment:
 - One NAT gateway is a single-zone dependency for all egress.
 - The release contract (`renderRelease`) uses fixture CIDRs and historical values; a production install uses the values files here instead and is not checked by that contract. The release gates (history secret scan, SBOM, image scan, signing) are not part of this runbook, and 7 deploy tests fail in this environment for missing tools.
 - Secret formats for the Red Team, Attack Lab, gateway signing and canary entries were not established.
+- The Microsoft and Salesforce connectors (steps 13 and 14) have not been run against a real tenant or org. The chart and Terraform changes for them were not rendered or planned: this environment has neither Helm nor Terraform. The production release contract (`renderRelease`) does not accept the two providers, so a release rendered through it leaves both disabled.
 
 Product, as measured on 2026-11-12 and 2026-11-13 against a Neon development branch:
 

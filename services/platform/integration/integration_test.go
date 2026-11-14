@@ -217,3 +217,184 @@ func TestServiceNilReceiverFailsClosed(t *testing.T) {
 		}
 	}
 }
+
+func saasSetup(key string) map[string]string {
+	if key == "microsoft" {
+		return map[string]string{"tenant_id": "0a1b2c3d-1111-2222-3333-444455556666", "client_id": "11111111-2222-3333-4444-555555555555", "client_secret_reference": "ref:microsoft/client-secret/customer-0001"}
+	}
+	return map[string]string{"instance_url": "https://acme.my.salesforce.com", "organization_id": "00D5e000000abcdEAA", "client_id": "3MVG9abcdefghijklmnopqrstuvwxyz.ABCDEF_0123456789", "client_secret_reference": "ref:salesforce/client-secret/customer-0001"}
+}
+
+func TestMicrosoftAndSalesforceManifestsAreFirstPartySaaSEntries(t *testing.T) {
+	catalog, err := NewCatalog(BuiltinManifests())
+	if err != nil {
+		t.Fatal(err)
+	}
+	items, err := catalog.Search(CatalogFilter{Category: "saas"})
+	if err != nil || len(items) != 2 || items[0].Key != "microsoft" || items[1].Key != "salesforce" {
+		t.Fatalf("saas catalog=%#v err=%v", items, err)
+	}
+	if items[0].Provider != "Microsoft Entra and Copilot Studio" || items[1].Provider != "Salesforce Agentforce" {
+		t.Fatalf("provider names = %q, %q", items[0].Provider, items[1].Provider)
+	}
+	wantFields := map[string][]SetupField{
+		"microsoft":  {{Key: "tenant_id", Type: "string", Required: true}, {Key: "client_id", Type: "string", Required: true}, {Key: "client_secret_reference", Type: "secret_reference", Required: true}, {Key: "dataverse_url", Type: "uri", Required: false}},
+		"salesforce": {{Key: "instance_url", Type: "uri", Required: true}, {Key: "organization_id", Type: "string", Required: true}, {Key: "client_id", Type: "string", Required: true}, {Key: "client_secret_reference", Type: "secret_reference", Required: true}},
+	}
+	for _, item := range items {
+		if item.AuthMode != "oauth_client_credentials" || !containsExact(item.Actions, "inventory_read") || !containsExact(item.DataTypes, "agent") {
+			t.Fatalf("%s manifest = %#v", item.Key, item)
+		}
+		want := wantFields[item.Key]
+		if len(item.SetupSchema) != len(want) {
+			t.Fatalf("%s setup schema = %#v", item.Key, item.SetupSchema)
+		}
+		for index, field := range item.SetupSchema {
+			if field.Key != want[index].Key || field.Type != want[index].Type || field.Required != want[index].Required || field.Label == "" || field.Description == "" {
+				t.Fatalf("%s field %d = %#v, want %#v", item.Key, index, field, want[index])
+			}
+		}
+		// The catalog says what the customer must grant, and never carries a
+		// secret or an implementation name.
+		serialized, _ := json.Marshal(item)
+		for _, forbidden := range []string{"adapter", "oss", "nango", "graph-dataverse", "salesforce-rest"} {
+			if containsFold(string(serialized), `"`+forbidden) {
+				t.Fatalf("%s manifest leaked %q: %s", item.Key, forbidden, serialized)
+			}
+		}
+	}
+	for _, permission := range []string{"Application.Read.All", "AgentIdentity.Read.All", "admin consent", "application user", "read access to bot"} {
+		if !strings.Contains(items[0].AccessGuidance, permission) {
+			t.Fatalf("microsoft access guidance omits %q: %s", permission, items[0].AccessGuidance)
+		}
+	}
+	for _, permission := range []string{"client credentials flow", "scope api", "run-as user", "API Enabled", "View Setup and Configuration"} {
+		if !strings.Contains(items[1].AccessGuidance, permission) {
+			t.Fatalf("salesforce access guidance omits %q: %s", permission, items[1].AccessGuidance)
+		}
+	}
+}
+
+func TestMicrosoftAndSalesforceSetupValidatesEveryConfigurationField(t *testing.T) {
+	catalog, err := NewCatalog(BuiltinManifests())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := catalog.ValidateSetup("microsoft", saasSetup("microsoft")); err != nil {
+		t.Fatalf("microsoft setup without Dataverse: %v", err)
+	}
+	withDataverse := saasSetup("microsoft")
+	for _, environment := range []string{"https://org1234.crm.dynamics.com", "https://org1234.crm4.dynamics.com", "https://a.crm11.dynamics.com"} {
+		withDataverse["dataverse_url"] = environment
+		if err := catalog.ValidateSetup("microsoft", withDataverse); err != nil {
+			t.Fatalf("microsoft setup with %s: %v", environment, err)
+		}
+	}
+	if err := catalog.ValidateSetup("salesforce", saasSetup("salesforce")); err != nil {
+		t.Fatalf("salesforce setup: %v", err)
+	}
+	for _, instance := range []string{"https://acme--uat.sandbox.my.salesforce.com", "https://a.my.salesforce.com", "https://acme.develop.my.salesforce.com"} {
+		setup := saasSetup("salesforce")
+		setup["instance_url"] = instance
+		if err := catalog.ValidateSetup("salesforce", setup); err != nil {
+			t.Fatalf("salesforce setup with %s: %v", instance, err)
+		}
+	}
+
+	type refusal struct{ connector, field, value string }
+	refusals := []refusal{
+		// Bad GUIDs.
+		{"microsoft", "tenant_id", "contoso.onmicrosoft.com"},
+		{"microsoft", "tenant_id", "0A1B2C3D-1111-2222-3333-444455556666"},
+		{"microsoft", "tenant_id", "0a1b2c3d111122223333444455556666"},
+		{"microsoft", "tenant_id", "{0a1b2c3d-1111-2222-3333-444455556666}"},
+		{"microsoft", "client_id", "not-a-guid"},
+		{"microsoft", "client_id", "11111111-2222-3333-4444-55555555555"},
+		// A reference, of this provider's client-secret class only; never a value.
+		{"microsoft", "client_secret_reference", "Abc~1234567890.secret-value_abcdefgh"},
+		{"microsoft", "client_secret_reference", "ref:salesforce/client-secret/customer-0001"},
+		{"microsoft", "client_secret_reference", "ref:microsoft/client-secret/short"},
+		{"microsoft", "client_secret_reference", "ref:microsoft/client-secret/Customer-0001"},
+		{"microsoft", "client_secret_reference", "ref:microsoft/client-secret/customer-0001/child"},
+		{"microsoft", "client_secret_reference", "ref:microsoft/refresh/customer-0001"},
+		{"microsoft", "client_secret_reference", "secret_ref_customer_0001"},
+		// Dataverse: HTTPS, the exact host shape, nothing after the host.
+		{"microsoft", "dataverse_url", "http://org1234.crm4.dynamics.com"},
+		{"microsoft", "dataverse_url", "https://org1234.crm4.dynamics.com/"},
+		{"microsoft", "dataverse_url", "https://org1234.crm4.dynamics.com:8443"},
+		{"microsoft", "dataverse_url", "https://org1234.crm4.dynamics.com.evil.example"},
+		{"microsoft", "dataverse_url", "https://evil.example/org1234.crm4.dynamics.com"},
+		{"microsoft", "dataverse_url", "https://user@org1234.crm4.dynamics.com"},
+		{"microsoft", "dataverse_url", "https://org1234.api.dynamics.com"},
+		{"microsoft", "dataverse_url", "https://org1234.crm123.dynamics.com"},
+		{"microsoft", "dataverse_url", "https://ORG1234.crm4.dynamics.com"},
+		{"microsoft", "dataverse_url", ""},
+		// Salesforce: the My Domain over HTTPS.
+		{"salesforce", "instance_url", "http://acme.my.salesforce.com"},
+		{"salesforce", "instance_url", "https://login.salesforce.com"},
+		{"salesforce", "instance_url", "https://acme.my.salesforce.com/"},
+		{"salesforce", "instance_url", "https://acme.my.salesforce.com.evil.example"},
+		{"salesforce", "instance_url", "https://evil.example/acme.my.salesforce.com"},
+		{"salesforce", "instance_url", "https://acme.my.salesforce.com:8443"},
+		{"salesforce", "instance_url", "https://acme.lightning.force.com"},
+		{"salesforce", "instance_url", "https://my.salesforce.com"},
+		{"salesforce", "organization_id", "00D5e000000abcd"},
+		{"salesforce", "organization_id", "0055e000000abcdEAA"},
+		{"salesforce", "organization_id", "00D5e000000abcdEA!"},
+		{"salesforce", "client_id", "short"},
+		{"salesforce", "client_id", "consumer key with spaces 0001"},
+		{"salesforce", "client_id", strings.Repeat("a", 257)},
+		{"salesforce", "client_secret_reference", "ref:microsoft/client-secret/customer-0001"},
+		{"salesforce", "client_secret_reference", "0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF"},
+		{"salesforce", "client_secret_reference", "ref:salesforce/client-secret/x"},
+	}
+	for _, test := range refusals {
+		setup := saasSetup(test.connector)
+		setup[test.field] = test.value
+		if err := catalog.ValidateSetup(test.connector, setup); !errors.Is(err, ErrInvalid) {
+			t.Fatalf("%s %s=%q error=%v", test.connector, test.field, test.value, err)
+		}
+	}
+	// Every required field is required, and nothing unknown is accepted.
+	for _, connector := range []string{"microsoft", "salesforce"} {
+		for field := range saasSetup(connector) {
+			setup := saasSetup(connector)
+			delete(setup, field)
+			if err := catalog.ValidateSetup(connector, setup); !errors.Is(err, ErrInvalid) {
+				t.Fatalf("%s without %s error=%v", connector, field, err)
+			}
+		}
+		setup := saasSetup(connector)
+		setup["client_secret"] = "a-secret-value-in-the-configuration"
+		if err := catalog.ValidateSetup(connector, setup); !errors.Is(err, ErrInvalid) {
+			t.Fatalf("%s with an unknown field error=%v", connector, err)
+		}
+	}
+	// The optional field belongs to Microsoft only.
+	salesforce := saasSetup("salesforce")
+	salesforce["dataverse_url"] = "https://org1234.crm4.dynamics.com"
+	if err := catalog.ValidateSetup("salesforce", salesforce); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("salesforce with a Dataverse URL error=%v", err)
+	}
+	// The connectors with only required fields still need exactly those.
+	if err := catalog.ValidateSetup("kubernetes", map[string]string{"connection_reference": "ref:kubernetes/connection/customer-0001", "extra": "value"}); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("kubernetes with an extra field error=%v", err)
+	}
+	if err := catalog.ValidateSetup("okta", map[string]string{}); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("okta without its issuer error=%v", err)
+	}
+}
+
+func TestManifestSetupSchemaAllowsOptionalFieldsButNotOnlyOptionalOnes(t *testing.T) {
+	base := BuiltinManifests()[0]
+	optionalOnly := base
+	optionalOnly.SetupSchema = []SetupField{{Key: "label", Label: "Label", Type: "string", Required: false, Description: "Optional label."}}
+	if _, err := NewCatalog([]ConnectorManifest{optionalOnly}); !errors.Is(err, ErrConfiguration) {
+		t.Fatalf("manifest with only optional fields error=%v", err)
+	}
+	duplicate := base
+	duplicate.SetupSchema = append(append([]SetupField(nil), base.SetupSchema...), base.SetupSchema[0])
+	if _, err := NewCatalog([]ConnectorManifest{duplicate}); !errors.Is(err, ErrConfiguration) {
+		t.Fatalf("manifest with a duplicate field error=%v", err)
+	}
+}

@@ -470,7 +470,7 @@ func validOAuthIntegrationWorkflowReceipt(value WorkflowMutationReceipt) bool {
 	publicKey := intent.Provider
 	if strings.HasPrefix(intent.Provider, "nango:") {
 		publicKey = strings.TrimPrefix(intent.Provider, "nango:")
-		if stringIn(publicKey, "aws", "github", "kubernetes", "okta") || !keyPatternForCatalog(publicKey) {
+		if isDiscoveryProvider(publicKey) || !keyPatternForCatalog(publicKey) {
 			return false
 		}
 	} else if !stringIn(intent.Provider, "github", "okta") {

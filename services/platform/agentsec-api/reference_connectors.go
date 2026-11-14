@@ -39,7 +39,7 @@ func (resolver *referenceSecretResolver) Resolve(ctx context.Context, reference 
 	if resolver == nil || resolver.driver == nil || ctx == nil || ctx.Err() != nil || len(resolver.root) < 3 || len(resolver.root) > 128 || strings.Contains(resolver.root, "..") {
 		return nil, errRuntimeUnavailable
 	}
-	prefixes := []string{"ref:aws/external-id/", "ref:kubernetes/connection/", "ref:kubernetes/ca/", "ref:kubernetes/credential/"}
+	prefixes := []string{"ref:aws/external-id/", "ref:kubernetes/connection/", "ref:kubernetes/ca/", "ref:kubernetes/credential/", "ref:microsoft/client-secret/", "ref:salesforce/client-secret/"}
 	for _, prefix := range prefixes {
 		if !strings.HasPrefix(reference, prefix) {
 			continue
