@@ -21,12 +21,9 @@ import (
 // variable is requested, so a project that is an agent but says so only in
 // its code is not listed. Of a Duo agent or flow it reads the name, the kind
 // and whether it is enabled; never a system prompt or a flow definition.
-// A self-managed GitLab and GitLab Dedicated are not covered. The framework
-// can send a platform's requests to a tenant's own host, but only to a host
-// under a domain the provider owns (the adapter's guard against a request
-// being sent to an address a customer chose), which a self-managed
-// instance's domain is not; and for such a platform the tenant id is the
-// host, while everything read here is addressed by a group id.
+// A self-managed GitLab and GitLab Dedicated are the platform
+// gitlab_self_managed (GitLabSelfManaged), which reads the same things from
+// the customer's own host.
 //
 // The agents and flows are read with one GraphQL query. It is a POST and
 // still a read: the collector sends gitLabDuoCatalogQuery and nothing else,

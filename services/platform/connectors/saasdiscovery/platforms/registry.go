@@ -17,6 +17,7 @@ func All() []saasdiscovery.Platform {
 		Atlassian(),
 		Databricks(),
 		GitLab(),
+		GitLabSelfManaged(),
 		GoogleWorkspace(),
 		OpenAI(),
 		OpenAIProject(),

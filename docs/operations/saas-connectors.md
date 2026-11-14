@@ -259,9 +259,10 @@ check against a real tenant). None has been run against a real tenant.
 | Platform | Tenant id | Host | Connected by | What is listed |
 | --- | --- | --- | --- | --- |
 | `anthropic` | organization UUID | `api.anthropic.com` | reference (admin key) | workspaces, API keys (id, name, status; never a key value or its hint) |
-| `atlassian` | site name | `<site>.atlassian.net` | reference (API token) | installed AI apps and Rovo apps; Rovo agents (id and name) when the site gateway answers the query, see below |
+| `atlassian` | site name | `<site>.atlassian.net` | reference (API token) | installed AI apps and Rovo apps; the Rovo agents that installed apps ship; Studio-built Rovo agents only once Atlassian lets an API token list them, see below |
 | `databricks` | workspace address | the workspace address | reference | serving endpoints and served agents |
-| `gitlab` | group id | `gitlab.com` | sign-in | GitLab Duo for the group and its availability setting, the Duo agents and flows enabled in the group (GraphQL `aiCatalogConfiguredItems`), projects tagged or named as AI |
+| `gitlab` | group id | `gitlab.com` | sign-in | GitLab Duo for the group and its availability setting, the Duo agents and flows enabled in the group (GraphQL `aiCatalogConfiguredItems`), the MCP servers of those agents, projects tagged or named as AI |
+| `gitlab_self_managed` | `<host>_<group id>` | the customer's host | reference (group access token) | the same as `gitlab`, for a self-managed or Dedicated instance |
 | `google_workspace` | customer id | `admin.googleapis.com` | sign-in | third-party AI apps granted OAuth access (token activity report), Gemini usage |
 | `openai` | organization id | `api.openai.com` | reference (admin key) | projects, service accounts |
 | `openai_project` | project id | `api.openai.com` | reference (project key) | the assistants and agents of one project: id, name, model, tool kinds; never instructions |
@@ -276,20 +277,52 @@ account key with read access). The project is the tenant: every request
 names it in the `OpenAI-Project` header, and a key of another project is
 refused by OpenAI, which is how the connection is bound to the tenant.
 
-Rovo agents. Atlassian documents no public API that lists them (the requests
-ROVO-516 and ROVO-479 are open). The field the Agent Studio web application
-uses, `agentStudio_getAgents` of the GraphQL gateway, refuses OAuth and
-Forge clients; this platform's connection is an administrator's API token
-sent to the site's own gateway, so the definition asks it with one
-allow-listed query for the id and name of each agent. The query shape is not
-documented and has not been run: when the gateway answers with errors, 403
-or 404 the list is empty and the rest of the site is still collected. Until
-it has been checked against a real site, "no Rovo agents" means "unknown".
+Rovo agents. Two reads. The agents that installed Forge apps ship (the
+`rovo:agent` module) are listed through the gateway's
+`extensionContext.extensionsByType`, which Atlassian's published schema
+marks as callable with an API token, for the site's Jira and Confluence
+contexts; a module's properties, which hold its prompt, are not selected.
+The agents people build in Rovo Studio are behind `agentStudio_getAgents`,
+which the same schema marks as callable with a browser session only: not
+with an API token, not with OAuth, and no public API exists yet (ROVO-516
+and ROVO-479 are open). The definition sends that query in the schema's form
+and expects it to be refused today; the list is then empty and the rest of
+the site is collected. Until Atlassian opens the field, Studio-built agents
+are not found, and an empty list does not mean the site has none.
 
-Not covered: a self-managed GitLab and GitLab Dedicated. A per-tenant host
-must be under a domain the provider owns, which a self-managed instance's
-domain is not, and for such a platform the tenant id is the host while the
-GitLab reads are addressed by a group id.
+Customer-hosted platforms. A self-managed GitLab (and GitLab Dedicated) runs
+on a host the customer owns, which no provider suffix can describe. A
+definition says so explicitly, in two places: `Nango.CustomerHosted` (a
+`HostPattern`, no `HostSuffixes`) and `TenantSplit`, which separates a tenant
+id into the host and the tenant on that host. For `gitlab_self_managed` the
+tenant id is `<host>_<group id>` (`gitlab.example.com_4242`): requests go to
+the host, and paths, queries and variables carry the group id.
+
+- The host must be a public DNS name: at least two labels and an alphabetic
+  top-level domain. An address in any notation, a single label, `localhost`,
+  `.local`, `.internal`, `.svc`, `.cluster.local`, `.lan`, `.home`, `.corp`,
+  a port, a path or user information is refused when the integration is
+  saved and again before every request.
+- Before a request the adapter resolves the host and sends nothing unless
+  every address is public, exactly as for a provider's per-tenant host.
+- The host is part of the integration's subject
+  (`gitlab_self_managed/<host>_<group id>`). It is fixed when the integration
+  is created and is what the connection was authorized against; a different
+  host is a different subject, which needs its own integration and its own
+  authorization.
+- There is no sign-in from the product for a customer-hosted platform (the
+  authorization page would be on a host the customer chose). The connection
+  is a group access token held by Nango.
+- The limit named under "Per-tenant hosts" applies with more weight here:
+  the product checks the addresses, Nango makes the connection. Keep Nango's
+  egress limited to public addresses.
+
+GitLab MCP servers. The catalog's own list (`aiCatalogMcpServers`) takes no
+group or project, so the servers are read where GitLab's schema ties them to
+the group: under the latest version of each agent configured in it. Each is
+listed once, as an MCP server with its host, transport and whether it
+authenticates, and appears on the MCP servers page; it is not related to the
+agents that use it (a saas platform's only relationship is to its tenant).
 
 The two Nango proxy headers the product relies on are taken from Nango's own
 SDK (`@nangohq/node`): `Base-Url-Override`, which pins a per-tenant host, and
