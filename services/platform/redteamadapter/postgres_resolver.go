@@ -47,7 +47,7 @@ func (resolver *PostgresResolver) Ready(ctx context.Context) error {
 
 func (resolver *PostgresResolver) ResolveTarget(ctx context.Context, request TargetResolution) (TargetBinding, error) {
 	_, runErr := domain.ParseProductID(request.RunID)
-	if resolver == nil || resolver.database == nil || ctx == nil || ctx.Err() != nil || request.Scope.Validate() != nil || runErr != nil || request.RunID == request.TargetID || !runLeaseRE.MatchString(request.LeaseToken) || !validRequestBody(requestBody{TargetID: request.TargetID, TargetKind: request.TargetKind, Category: request.Category, Input: curatedInputs[request.Category]}) {
+	if resolver == nil || resolver.database == nil || ctx == nil || ctx.Err() != nil || request.Scope.Validate() != nil || runErr != nil || request.RunID == request.TargetID || !runLeaseRE.MatchString(request.LeaseToken) || !validResolutionTarget(request) {
 		return TargetBinding{}, ErrAdapter
 	}
 	payload, err := resolver.database.QueryJSON(ctx, postgresResolveTargetSQL, request.Scope.OrganizationID().String(), request.Scope.WorkspaceID().String(), request.Scope.EnvironmentID().String(), request.TargetID, request.TargetKind, request.RunID, request.LeaseToken, request.Category)
@@ -68,3 +68,8 @@ func (resolver *PostgresResolver) ResolveTarget(ctx context.Context, request Tar
 }
 
 var _ TargetResolver = (*PostgresResolver)(nil)
+
+func validResolutionTarget(request TargetResolution) bool {
+	_, targetErr := domain.ParseProductID(request.TargetID)
+	return targetErr == nil && stringIn(request.TargetKind, "agent_endpoint", "mcp_server", "coding_agent") && validResolutionCategory(request.Category)
+}

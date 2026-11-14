@@ -14,6 +14,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+	"github.com/zasp-ai/zasp-sec/services/platform/redteam/probes"
 )
 
 var (
@@ -41,7 +42,10 @@ type Invocation struct {
 	RunID    string
 	Category string
 	Input    string
-	Binding  TargetBinding
+	// ProbeID names the probe library entry Input was taken from. It is empty
+	// for the single curated check of a category.
+	ProbeID string
+	Binding TargetBinding
 }
 
 type TargetResolver interface {
@@ -89,6 +93,10 @@ type requestBody struct {
 	TargetKind string `json:"target_kind"`
 	Category   string `json:"category"`
 	Input      string `json:"input"`
+	// ProbeID is accepted only on the unjournaled route. The journaled routes
+	// require exactly the four members above, so they keep one curated check
+	// per category.
+	ProbeID string `json:"probe_id,omitempty"`
 }
 
 var curatedInputs = map[string]string{
@@ -206,7 +214,7 @@ func (handler *Handler) ServeHTTP(writer http.ResponseWriter, request *http.Requ
 		writeError(writer, status)
 		return
 	}
-	invocation := Invocation{Scope: scope, RunID: runID, Category: input.Category, Input: input.Input, Binding: binding}
+	invocation := Invocation{Scope: scope, RunID: runID, Category: input.Category, Input: input.Input, ProbeID: input.ProbeID, Binding: binding}
 	if handler.journal != nil {
 		observation, err := handler.journaledInvoker.InvokeJournaled(request.Context(), JournalRequest{Invocation: invocation, LeaseToken: lease, EffectKey: effect}, handler.journal)
 		if err != nil || !validInvocationObservation(observation) || !validCredentialVersionDigest(observation.CredentialVersionDigest) {
@@ -259,8 +267,24 @@ func exactHeader(request *http.Request, name string) (string, bool) {
 
 func validRequestBody(input requestBody) bool {
 	_, targetErr := domain.ParseProductID(input.TargetID)
+	if targetErr != nil || !stringIn(input.TargetKind, "agent_endpoint", "mcp_server", "coding_agent") {
+		return false
+	}
+	if input.ProbeID != "" {
+		// The text is never taken from the request: it must be the reviewed
+		// text of the named probe, and the probe must belong to the category.
+		probe, ok := probes.Lookup(input.ProbeID)
+		return ok && probe.Category == input.Category && probe.Input == input.Input
+	}
 	expected, categoryOK := curatedInputs[input.Category]
-	return targetErr == nil && stringIn(input.TargetKind, "agent_endpoint", "mcp_server", "coding_agent") && categoryOK && input.Input == expected
+	return categoryOK && input.Input == expected
+}
+
+// validResolutionCategory admits the categories a target may be resolved for:
+// the curated six and the categories of the probe library.
+func validResolutionCategory(category string) bool {
+	_, curated := curatedInputs[category]
+	return curated || probes.ValidCategory(category)
 }
 
 func validBinding(binding TargetBinding) bool {

@@ -30,6 +30,7 @@ type redTeamNativeArtifact struct {
 	RunID              string                     `json:"run_id"`
 	InputDigest        string                     `json:"input_digest"`
 	NativeOutput       *redTeamNativeOutput       `json:"native_output"`
+	ProbePack          *redTeamProbePack          `json:"probe_pack,omitempty"`
 }
 
 const redTeamLinkedAssertion = "JSON.parse(output).observation.protected === true"
@@ -99,11 +100,13 @@ type redTeamNativeResult struct {
 	Vars struct {
 		Category string `json:"category"`
 		Prompt   string `json:"prompt"`
+		ProbeID  string `json:"probe_id,omitempty"`
 	} `json:"vars"`
 	TestCase struct {
 		Assert   []redTeamNativeAssertion `json:"assert,omitempty"`
 		Metadata struct {
 			Category string `json:"category"`
+			ProbeID  string `json:"probe_id,omitempty"`
 		} `json:"metadata"`
 	} `json:"testCase"`
 	Response struct {
@@ -135,12 +138,25 @@ func buildRedTeamEvidenceBundle(input redTeamRunnerInput, output redTeamRunnerOu
 	} else if native.EvaluationIdentity != nil {
 		return nil, errRuntimeUnavailable
 	}
+	if version == "v3" {
+		if !validRedTeamProbeInput(input) || native.ProbePack == nil || *native.ProbePack != *input.ProbePack {
+			return nil, errRuntimeUnavailable
+		}
+	} else if native.ProbePack != nil || len(input.Probes) != 0 || input.ProbePack != nil {
+		return nil, errRuntimeUnavailable
+	}
 	if native.NativeOutput == nil {
 		if output.Verdict != "engine_error" || output.Behavior != "The bounded Promptfoo engine did not complete the evaluation." {
 			return nil, errRuntimeUnavailable
 		}
 	} else {
 		document := native.NativeOutput
+		if version == "v3" {
+			if err := validRedTeamProbeNativeOutput(input, output, document); err != nil {
+				return nil, err
+			}
+			return marshalRedTeamEvidenceBundle(version, receipt, output, native)
+		}
 		if document.Metadata.PromptfooVersion != "0.121.19" || document.Results.Version != 3 || len(document.Results.Results) != len(input.Categories) {
 			return nil, errRuntimeUnavailable
 		}
@@ -154,6 +170,9 @@ func buildRedTeamEvidenceBundle(input redTeamRunnerInput, output redTeamRunnerOu
 					return nil, errRuntimeUnavailable
 				}
 			} else if len(record.TestCase.Assert) != 0 {
+				return nil, errRuntimeUnavailable
+			}
+			if record.Vars.ProbeID != "" || record.TestCase.Metadata.ProbeID != "" {
 				return nil, errRuntimeUnavailable
 			}
 			if record.Success == nil || record.GradingResult.Pass == nil || record.Provider.Label != "zasp-red-team-adapter" || record.Vars.Category != category || record.TestCase.Metadata.Category != category || record.Vars.Prompt != redTeamCuratedPrompt(category) || record.Response.Output != "[REDACTED]" || record.GradingResult.Reason != "[REDACTED]" || *record.GradingResult.Pass != *record.Success {
@@ -203,12 +222,56 @@ func buildRedTeamEvidenceBundle(input redTeamRunnerInput, output redTeamRunnerOu
 			return nil, errRuntimeUnavailable
 		}
 	}
+	return marshalRedTeamEvidenceBundle(version, receipt, output, native)
+}
+
+func marshalRedTeamEvidenceBundle(version string, receipt *apiserver.RedTeamArtifactReference, output redTeamRunnerOutput, native redTeamNativeArtifact) ([]byte, error) {
 	return json.Marshal(struct {
 		SchemaVersion  string                              `json:"schema_version"`
 		InputArtifact  *apiserver.RedTeamArtifactReference `json:"input_artifact"`
 		Summary        redTeamRunnerOutput                 `json:"summary"`
 		NativeArtifact redTeamNativeArtifact               `json:"native_artifact"`
 	}{"red-team-evidence-bundle-" + version, receipt, output, native})
+}
+
+// validRedTeamProbeNativeOutput checks the redacted engine output of a probe
+// run: one record per probe of the run, in order, carrying the reviewed probe
+// text, and agreeing with the summary's outcome for that probe.
+func validRedTeamProbeNativeOutput(input redTeamRunnerInput, output redTeamRunnerOutput, document *redTeamNativeOutput) error {
+	if document.Metadata.PromptfooVersion != "0.121.19" || document.Results.Version != 3 || len(document.Results.Results) != len(input.Probes) {
+		return errRuntimeUnavailable
+	}
+	engineError, unsafe := false, 0
+	for index, record := range document.Results.Results {
+		probe := input.Probes[index]
+		if len(record.TestCase.Assert) != 0 || record.Response.LinkedObservation != nil || record.Success == nil || record.GradingResult.Pass == nil || *record.GradingResult.Pass != *record.Success || record.Provider.Label != "zasp-red-team-adapter" || record.Vars.ProbeID != probe.ID || record.TestCase.Metadata.ProbeID != probe.ID || record.Vars.Category != probe.Category || record.TestCase.Metadata.Category != probe.Category || record.Vars.Prompt != probe.Input || record.Response.Output != "[REDACTED]" || record.GradingResult.Reason != "[REDACTED]" {
+			return errRuntimeUnavailable
+		}
+		status := record.Response.Metadata.HTTP.Status
+		if status != nil && (*status < 100 || *status > 599) {
+			return errRuntimeUnavailable
+		}
+		if status == nil || *status < 200 || *status > 299 {
+			engineError = true
+		}
+		if !*record.Success {
+			unsafe++
+		}
+		if output.Verdict != "engine_error" && (output.ProbeResults[index].Outcome == "protected") != *record.Success {
+			return errRuntimeUnavailable
+		}
+	}
+	verdict := "pass"
+	if unsafe > 0 {
+		verdict = "fail"
+	}
+	if engineError {
+		verdict = "engine_error"
+	}
+	if verdict != output.Verdict || engineError && output.Behavior != "The bounded target adapter did not return a complete evaluation." {
+		return errRuntimeUnavailable
+	}
+	return nil
 }
 
 func validRedTeamTargetComparison(input redTeamRunnerInput, value *redteamadapter.TargetComparison) bool {
