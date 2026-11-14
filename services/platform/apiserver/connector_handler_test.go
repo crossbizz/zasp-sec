@@ -18,6 +18,7 @@ type connectorAuthorizationStub struct {
 	started            OAuthStart
 	consumed           OAuthConsumption
 	consumeErr         error
+	consumeCalls       int
 	effect             ConnectorEffectStart
 	completed          OAuthCompletion
 	resolved           ConnectorEffectResolution
@@ -46,6 +47,7 @@ func (stub *connectorAuthorizationStub) StartOAuth(_ context.Context, _ RequestI
 }
 
 func (stub *connectorAuthorizationStub) ConsumeOAuth(_ context.Context, identity RequestIdentity, _ []byte, _ []byte) (OAuthConsumption, error) {
+	stub.consumeCalls++
 	if stub.consumed.ID != "" && stub.consumed.EffectID == "" {
 		stub.consumed.EffectID = connectorDeterministicID(identity.Scope, stub.consumed.ID, "oauth-effect")
 	}

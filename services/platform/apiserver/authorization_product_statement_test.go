@@ -3,6 +3,7 @@ package apiserver
 import (
 	"encoding/json"
 	"testing"
+	"time"
 )
 
 // Every statement of completion.sql sections Z2 to Z7 is admitted only for
@@ -73,6 +74,12 @@ func TestProductStatementContracts(t *testing.T) {
 		{"rename environment", currentHierarchyRenameSQL, "updateEnvironment", e, []any{o, w, e, p, "environment", e, "Name", int64(1), audit}, []AuthorizationTarget{target("environment", e)}, 0, 3, 5, true, true},
 		{"update finding", currentFindingMutateSQL, "updateFinding", object, []any{"updateFinding", object, o, w, e, p, key, int64(1), "open", "", audit, audit, receipt}, []AuthorizationTarget{target("finding", object)}, 2, 5, 1, false, false},
 		{"accept finding risk", currentFindingMutateSQL, "acceptFindingRisk", object, []any{"acceptFindingRisk", object, o, w, e, p, key, int64(1), "accepted", "reason", audit, audit, receipt}, []AuthorizationTarget{target("finding", object)}, 2, 5, 1, false, false},
+		// Sign-in to a SaaS platform: two statements of the authorize request,
+		// two of the provider's callback.
+		{"saas sign-in integration", postgresSaaSSignInIntegrationSQL, "authorizeIntegration", object, []any{o, w, e, p, object}, []AuthorizationTarget{target("integration", object)}, 0, 3, 4, true, true},
+		{"saas sign-in start", postgresSaaSSignInStartSQL, "authorizeIntegration", object, []any{o, w, e, p, object, audit, make([]byte, 32), make([]byte, 32), time.Now().UTC().Add(time.Minute), int64(1)}, []AuthorizationTarget{target("integration", object)}, 0, 3, 4, true, true},
+		{"saas sign-in consume", postgresSaaSSignInConsumeSQL, "completeIntegrationOAuthCallback", "", []any{o, w, e, p, make([]byte, 32), make([]byte, 32)}, []AuthorizationTarget{target("environment", e)}, 0, 3, -1, true, false},
+		{"saas sign-in finish", postgresSaaSSignInFinishSQL, "completeIntegrationOAuthCallback", "", []any{o, w, e, p, audit, "completed", "ref:nango/connection/11111111-1111-4111-8111-111111111111"}, []AuthorizationTarget{target("environment", e)}, 0, 3, -1, true, false},
 	}
 	every := []string{"listPolicies", "getHomeSummary", "getIntegration", "updateIntegration", "getFinding", "listAgents", "listWorkflowMutationReceipts", "getSecurityAgent"}
 	for _, c := range contracts {

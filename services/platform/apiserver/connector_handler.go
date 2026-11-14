@@ -137,6 +137,9 @@ type ConnectorHTTPConfig struct {
 	Providers  map[string]ConnectorOAuthProviderDefinition
 	Registry   *ConnectorProviderRegistry
 	Clock      func() time.Time
+	// SaaSSignIn, when set, lets a person sign in to a SaaS platform through
+	// the authorize and callback operations (saas_sign_in.go).
+	SaaSSignIn *SaaSSignIn
 }
 
 type connectorHTTPHandler struct {
@@ -145,10 +148,12 @@ type connectorHTTPHandler struct {
 	secrets    ConnectorOAuthSecretStore
 	registry   *ConnectorProviderRegistry
 	now        func() time.Time
+	saasSignIn *SaaSSignIn
 }
 
 func NewConnectorHTTPHandler(config ConnectorHTTPConfig) (http.Handler, error) {
-	if nilInterface(config.Repository) || nilInterface(config.Workflows) || nilInterface(config.Secrets) || config.Registry != nil && len(config.Providers) != 0 {
+	if nilInterface(config.Repository) || nilInterface(config.Workflows) || nilInterface(config.Secrets) || config.Registry != nil && len(config.Providers) != 0 ||
+		config.SaaSSignIn != nil && (nilInterface(config.SaaSSignIn.Store) || nilInterface(config.SaaSSignIn.Provider)) {
 		return nil, ErrRepositoryConfiguration
 	}
 	registry := config.Registry
@@ -166,7 +171,7 @@ func NewConnectorHTTPHandler(config ConnectorHTTPConfig) (http.Handler, error) {
 	if instant := now(); instant.IsZero() {
 		return nil, ErrRepositoryConfiguration
 	}
-	return &connectorHTTPHandler{repository: config.Repository, workflows: config.Workflows, secrets: config.Secrets, registry: registry, now: now}, nil
+	return &connectorHTTPHandler{repository: config.Repository, workflows: config.Workflows, secrets: config.Secrets, registry: registry, now: now, saasSignIn: config.SaaSSignIn}, nil
 }
 
 func (handler *connectorHTTPHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
@@ -280,6 +285,10 @@ func (handler *connectorHTTPHandler) authorize(writer http.ResponseWriter, reque
 		writeProductionError(writer, request, ErrRepositoryOperation)
 		return
 	}
+	// A saas integration that waits for its sign-in is served by the sign-in.
+	if handler.authorizeSaaS(writer, request, identity, integrationID, idempotencyKey, connectorDigest(cookie.Value)) {
+		return
+	}
 	workflow, err := handler.workflows.GetWorkflow(request.Context(), identity.Scope, "integration", integrationID)
 	providerKey, providerConfiguration, ok := authorizedOAuthIntegration(workflow, integrationID)
 	definition, ready := handler.registry.Provider(request.Context(), providerKey)
@@ -372,6 +381,10 @@ func (handler *connectorHTTPHandler) callback(writer http.ResponseWriter, reques
 	state := query.Get("state")
 	stateDigest := sha256.Sum256([]byte(state))
 	sessionDigest := sha256.Sum256([]byte(cookie.Value))
+	// A state that belongs to a saas sign-in is served by the sign-in.
+	if handler.callbackSaaS(writer, request, identity, query, providerDenial, stateDigest[:], sessionDigest[:]) {
+		return
+	}
 	consumption, err := handler.repository.ConsumeOAuth(request.Context(), identity, stateDigest[:], sessionDigest[:])
 	if err != nil {
 		writeProductionError(writer, request, err)
@@ -570,6 +583,11 @@ func connectorDeterministicID(scope domain.Scope, parts ...string) string {
 	bytes[8] = bytes[8]&0x3f | 0x80
 	encoded := hex.EncodeToString(bytes)
 	return "pid_" + encoded[:8] + "-" + encoded[8:12] + "-" + encoded[12:16] + "-" + encoded[16:20] + "-" + encoded[20:]
+}
+
+func connectorDigest(value string) []byte {
+	digest := sha256.Sum256([]byte(value))
+	return digest[:]
 }
 
 func rawURLBase64(value []byte) string {
