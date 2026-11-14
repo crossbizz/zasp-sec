@@ -32,6 +32,10 @@ const summary = {
   fresh_until: "2026-08-19T01:15:00Z",
   freshness_state: "fresh",
   version: 1,
+  provider: "kubernetes",
+  source_kind: "kubernetes_agent",
+  discovery: { method: "declared", platform: "kubernetes_agent", signals: [] },
+  management_state: "managed",
 } as const;
 
 const pageInfo = { next_cursor: null, has_more: false } as const;
@@ -81,5 +85,28 @@ describe("typed inventory decoders", () => {
     expect(decodeAgentMutation({ agent: { ...summary, version: 2 }, audit_id: auditID })).toEqual({ agent: { ...summary, version: 2 }, audit_id: auditID });
     expect(() => decodeAgentMutation({ agent: { ...summary, kind: "tool", version: 2 }, audit_id: auditID })).toThrow();
     expect(() => decodeAgentMutation({ agent: { ...summary, version: 2 }, audit_id: auditID, receipt_id: ids.other })).toThrow();
+  });
+
+  it("binds how an object was found to its kind and owner", () => {
+    const page = (item: unknown) => decodeInventoryPage({ items: [item], page_info: pageInfo });
+    const found = { ...summary, owner: "", team: "", provider: "aws", source_kind: "aws_bedrock_agent", discovery: { method: "provider_api", platform: "bedrock_agent", signals: [] }, management_state: "unmanaged" } as const;
+    const inferred = { ...found, provider: "okta", source_kind: "okta_ai_application", discovery: { method: "inferred", platform: "saas_assistant", signals: ["app:chatgpt"] } } as const;
+    const identity = { ...summary, kind: "identity", provider: "aws", source_kind: "aws_role", discovery: { method: "provider_api", platform: "aws_role", signals: [] }, management_state: "not_applicable" } as const;
+    for (const accepted of [found, inferred, { ...found, owner: "security", management_state: "managed" }, identity]) expect(page(accepted).items).toHaveLength(1);
+    for (const refused of [
+      { ...found, management_state: "managed" },
+      { ...found, owner: "security" },
+      { ...found, management_state: "not_applicable" },
+      { ...summary, management_state: "unmanaged" },
+      { ...inferred, discovery: { ...inferred.discovery, signals: [] } },
+      { ...inferred, discovery: { ...inferred.discovery, signals: ["env:OPENAI_API_KEY=sk-live"] } },
+      { ...inferred, discovery: { ...inferred.discovery, signals: ["package:langgraph", "env:openai"] } },
+      { ...inferred, discovery: { ...inferred.discovery, value: "x" } },
+      { ...found, provider: "azure" },
+      { ...found, discovery: { ...found.discovery, method: "guessed" } },
+      { ...identity, management_state: "unmanaged" },
+      { ...identity, discovery: { method: "inferred", platform: "aws_role", signals: ["env:openai"] } },
+      (({ discovery: _discovery, ...rest }) => rest)(found),
+    ]) expect(() => page(refused)).toThrow();
   });
 });

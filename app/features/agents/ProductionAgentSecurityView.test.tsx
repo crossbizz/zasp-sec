@@ -15,7 +15,7 @@ const ids = {
 } as const;
 
 function summary(id: string, name: string) {
-  return { id, name, kind: "agent" as const, owner: "", team: "", tags: [], evidence_id: ids.evidence, confidence_basis_points: 9500, first_seen: "2026-08-19T00:00:00Z", last_seen: "2026-08-19T01:00:00Z", observed_at: "2026-08-19T01:00:00Z", fresh_until: "2026-08-19T01:15:00Z", freshness_state: "fresh" as const, version: 1 };
+  return { id, name, kind: "agent" as const, owner: "", team: "", tags: [], evidence_id: ids.evidence, confidence_basis_points: 9500, first_seen: "2026-08-19T00:00:00Z", last_seen: "2026-08-19T01:00:00Z", observed_at: "2026-08-19T01:00:00Z", fresh_until: "2026-08-19T01:15:00Z", freshness_state: "fresh" as const, provider: "kubernetes" as const, source_kind: "kubernetes_agent", discovery: { method: "declared" as const, platform: "kubernetes_agent", signals: [] }, management_state: "managed" as const, version: 1 };
 }
 
 describe("production typed inventory API", () => {
@@ -150,5 +150,44 @@ describe("production typed inventory API", () => {
     await user.click(screen.getByRole("button", { name: "Save ownership" }));
     await waitFor(() => expect(updateAgent).toHaveBeenCalledWith(ids.first, 1, { owner: "security", team: "platform", tags: ["critical", "production"] }, expect.stringMatching(/^agent_/)));
     expect(await screen.findByText("security · platform")).toBeVisible();
+  });
+
+  it("shows where each agent was found and filters to the unmanaged ones", async () => {
+    const user = userEvent.setup();
+    const declared = summary(ids.first, "Declared");
+    const shadow = { ...summary(ids.second, "Shadow"), provider: "okta" as const, source_kind: "okta_ai_application", discovery: { method: "inferred" as const, platform: "saas_assistant", signals: ["app:chatgpt"] }, management_state: "unmanaged" as const };
+    const detail = { summary: shadow, sources: [], evidence: [] } as never;
+    const api: ProductionAgentSecurityAPI = {
+      listAgents: async () => [declared, shadow], listTools: async () => [], listIdentities: async () => [], listRuntimes: async () => [],
+      getAgent: async () => detail, getTool: async () => detail, getIdentity: async () => detail, getRuntime: async () => detail,
+      getAgentCapabilities: async () => [], getAgentRelationships: async () => [], listAgentSessions: async () => [],
+      updateAgent: async () => ({ agent: shadow, audit_id: ids.evidence }),
+      getHomeSummary: async () => { throw new Error("unused"); },
+    };
+    window.history.replaceState({}, "", "/discovery/assets");
+    render(<APIProvider><ProductionAgentSecurityView path="/discovery/assets" api={api} onNavigate={() => undefined} /></APIProvider>);
+    expect(await screen.findByRole("row", { name: /Declared.*Kubernetes · workload.*Declared by owner.*Managed/ })).toBeVisible();
+    expect(screen.getByRole("row", { name: /Shadow.*Okta · SaaS assistant.*Inferred from signals.*Unmanaged/ })).toBeVisible();
+    expect(screen.getByRole("button", { name: "All agents (2)" })).toHaveAttribute("aria-pressed", "true");
+    await user.click(screen.getByRole("button", { name: "Unmanaged (1)" }));
+    expect(screen.queryByRole("button", { name: "Open Declared" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Open Shadow" }));
+    expect(await screen.findByRole("heading", { name: "How it was found" })).toBeVisible();
+    expect(screen.getByText(/Unmanaged: no owner has claimed this agent/)).toBeVisible();
+    expect(screen.getByRole("list", { name: "Discovery signals" })).toHaveTextContent("app:chatgpt");
+  });
+
+  it("shows the provider for non-agent inventory without agent-only columns", async () => {
+    const tool = { ...summary(ids.first, "Gateway"), kind: "tool" as const, provider: "aws" as const, source_kind: "aws_agentcore_gateway", discovery: { method: "provider_api" as const, platform: "aws_agentcore_gateway", signals: [] }, management_state: "not_applicable" as const };
+    const api: ProductionAgentSecurityAPI = {
+      listAgents: async () => [], listTools: async () => [tool], listIdentities: async () => [], listRuntimes: async () => [],
+      getAgent: async () => { throw new Error("unused"); }, getTool: async () => { throw new Error("unused"); }, getIdentity: async () => { throw new Error("unused"); }, getRuntime: async () => { throw new Error("unused"); },
+      getAgentCapabilities: async () => [], getAgentRelationships: async () => [], listAgentSessions: async () => [],
+      updateAgent: async () => { throw new Error("unused"); }, getHomeSummary: async () => { throw new Error("unused"); },
+    };
+    render(<APIProvider><ProductionAgentSecurityView path="/inventory/tools" api={api} onNavigate={() => undefined} /></APIProvider>);
+    expect(await screen.findByRole("row", { name: /Gateway AWS Unowned/ })).toBeVisible();
+    expect(screen.queryByRole("columnheader", { name: "Found by" })).toBeNull();
+    expect(screen.queryByRole("group", { name: "Agent filter" })).toBeNull();
   });
 });

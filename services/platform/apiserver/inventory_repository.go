@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"regexp"
 	"strings"
 	"time"
 	"unicode"
@@ -54,6 +55,19 @@ type InventorySummary struct {
 	FreshUntil            string        `json:"fresh_until"`
 	FreshnessState        string        `json:"freshness_state"`
 	Version               int64         `json:"version"`
+	// How the object was found. Provider and SourceKind name the winning
+	// observation; ManagementState is "unmanaged" for an agent that was found
+	// without a declaration and has no owner.
+	Provider        string             `json:"provider"`
+	SourceKind      string             `json:"source_kind"`
+	Discovery       InventoryDiscovery `json:"discovery"`
+	ManagementState string             `json:"management_state"`
+}
+
+type InventoryDiscovery struct {
+	Method   string   `json:"method"`
+	Platform string   `json:"platform"`
+	Signals  []string `json:"signals"`
 }
 
 type InventorySourceObservation struct {
@@ -475,11 +489,51 @@ func validInventorySummary(item InventorySummary, kind InventoryKind) bool {
 		}
 		prior = tag
 	}
+	if !validInventoryDiscovery(item, kind) {
+		return false
+	}
 	first, okFirst := parseInventoryTime(item.FirstSeen)
 	last, okLast := parseInventoryTime(item.LastSeen)
 	observed, okObserved := parseInventoryTime(item.ObservedAt)
 	fresh, okFresh := parseInventoryTime(item.FreshUntil)
 	return okFirst && okLast && okObserved && okFresh && !last.Before(first) && fresh.After(observed)
+}
+
+var (
+	inventorySourceKindPattern = regexp.MustCompile(`^[a-z][a-z0-9_]{1,63}$`)
+	inventorySignalPattern     = regexp.MustCompile(`^[a-z][a-z0-9_]{0,31}:[a-z0-9][a-z0-9_.-]{0,63}$`)
+)
+
+// validInventoryDiscovery checks the members that say how an object was
+// found. Only an agent can be declared, inferred or unmanaged; every other
+// kind is a provider record whose management state does not apply.
+func validInventoryDiscovery(item InventorySummary, kind InventoryKind) bool {
+	discovery := item.Discovery
+	if !stringIn(item.Provider, "aws", "kubernetes", "github", "okta") || !inventorySourceKindPattern.MatchString(item.SourceKind) || !inventorySourceKindPattern.MatchString(discovery.Platform) || discovery.Signals == nil || len(discovery.Signals) > 16 {
+		return false
+	}
+	prior := ""
+	for _, signal := range discovery.Signals {
+		if !inventorySignalPattern.MatchString(signal) || prior != "" && signal <= prior {
+			return false
+		}
+		prior = signal
+	}
+	if kind != InventoryKindAgent {
+		return discovery.Method == "provider_api" && item.ManagementState == "not_applicable" && len(discovery.Signals) == 0
+	}
+	switch discovery.Method {
+	case "declared":
+		return item.ManagementState == "managed" && len(discovery.Signals) == 0
+	case "provider_api":
+	case "inferred":
+		if len(discovery.Signals) == 0 {
+			return false
+		}
+	default:
+		return false
+	}
+	return item.ManagementState == "managed" && item.Owner != "" || item.ManagementState == "unmanaged" && item.Owner == ""
 }
 
 func validInventoryDetail(detail InventoryDetail, kind InventoryKind) bool {
@@ -509,7 +563,7 @@ func validInventoryDetail(detail InventoryDetail, kind InventoryKind) bool {
 		}
 		if source.Winning {
 			winners++
-			if source.EvidenceID != detail.Summary.EvidenceID || source.ConfidenceBasisPoints != detail.Summary.ConfidenceBasisPoints || source.ObservedAt != detail.Summary.ObservedAt || source.FreshUntil != detail.Summary.FreshUntil {
+			if source.Provider != detail.Summary.Provider || source.EvidenceID != detail.Summary.EvidenceID || source.ConfidenceBasisPoints != detail.Summary.ConfidenceBasisPoints || source.ObservedAt != detail.Summary.ObservedAt || source.FreshUntil != detail.Summary.FreshUntil {
 				return false
 			}
 		}

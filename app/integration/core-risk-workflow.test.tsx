@@ -31,7 +31,7 @@ describe("connected core risk workflow", () => {
     const fetch = vi.fn(async (request: Request) => {
       const url = new URL(request.url);
       if (url.pathname === "/api/v1/home/summary") return jsonResponse({ agent_count: 1, high_risk_paths: 1, verified_changes: 0, blocked_changes: 0, pending_approvals: 0, oldest_approval_age_seconds: 0, needs_human_runs: 0, failed_runs: 0, inconclusive_runs: 0, recent_contained: 0, recent_remediated: 0, healthy: true, attention_required: false });
-      const tool = { ...agent(), id: "pid_20000003-0000-4000-8000-000000000003", name: "Customer records MCP", kind: "tool" as const };
+      const tool = { ...agent(), id: "pid_20000003-0000-4000-8000-000000000003", name: "Customer records MCP", kind: "tool" as const, source_kind: "kubernetes_resource", discovery: { method: "provider_api" as const, platform: "kubernetes_resource", signals: [] }, management_state: "not_applicable" as const };
       if (url.pathname === "/api/v1/tools") return jsonResponse(page([tool]));
       if (url.pathname === "/api/v1/tools/pid_20000003-0000-4000-8000-000000000003") return jsonResponse(detail(tool));
       return jsonResponse({ code: "not_found", message: "Resource not found", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", retryable: false }, 404);
@@ -137,12 +137,12 @@ describe("connected core risk workflow", () => {
 });
 
 function agent() {
-  return { id: "pid_20000001-0000-4000-8000-000000000001", name: "Support agent", kind: "agent" as const, owner: "security", team: "platform", tags: [], evidence_id: "pid_20000006-0000-4000-8000-000000000006", confidence_basis_points: 9500, first_seen: "2026-08-18T09:00:00Z", last_seen: "2026-08-18T10:00:00Z", observed_at: "2026-08-18T10:00:00Z", fresh_until: "2026-08-18T10:15:00Z", freshness_state: "fresh" as const, version: 1 };
+  return { id: "pid_20000001-0000-4000-8000-000000000001", name: "Support agent", kind: "agent" as const, owner: "security", team: "platform", tags: [], evidence_id: "pid_20000006-0000-4000-8000-000000000006", confidence_basis_points: 9500, first_seen: "2026-08-18T09:00:00Z", last_seen: "2026-08-18T10:00:00Z", observed_at: "2026-08-18T10:00:00Z", fresh_until: "2026-08-18T10:15:00Z", freshness_state: "fresh" as const, provider: "kubernetes" as const, source_kind: "kubernetes_agent", discovery: { method: "declared" as const, platform: "kubernetes_agent", signals: [] }, management_state: "managed" as const, version: 1 };
 }
 function page<T>(items: readonly T[]) {
   return { items, page_info: { next_cursor: null, has_more: false } };
 }
-function detail(summary: Omit<ReturnType<typeof agent>, "kind"> & { kind: "agent" | "tool" }) {
+function detail(summary: Omit<ReturnType<typeof agent>, "kind" | "discovery" | "management_state"> & { kind: "agent" | "tool"; discovery: { method: "declared" | "provider_api"; platform: string; signals: never[] }; management_state: "managed" | "not_applicable" }) {
   return {
     summary,
     sources: [{ integration_id: "pid_30000001-0000-4000-8000-000000000001", provider: "kubernetes", source: "kubernetes", source_identifier: `sha256:${"b".repeat(64)}`, snapshot_id: "pid_40000001-0000-4000-8000-000000000001", generation: 1, evidence_id: summary.evidence_id, confidence_basis_points: summary.confidence_basis_points, observed_at: summary.observed_at, fresh_until: summary.fresh_until, projection_version: 1, winning: true }],

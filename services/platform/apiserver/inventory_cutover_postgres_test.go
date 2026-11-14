@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -207,6 +209,7 @@ func TestProductionTypedInventoryCutoverPostgresAppliesExactTypedSnapshot(t *tes
 	if err != nil {
 		t.Fatalf("typed repository: %v", err)
 	}
+	applyInventoryDiscoverySummary(t, ctx, connection)
 	home, err := inventoryRepository.GetHomeSummary(ctx, scope)
 	if err != nil || home.AgentCount != 0 || home.HighRiskPaths != 0 || !home.Healthy || home.AttentionRequired {
 		t.Fatalf("typed home = %#v / %v", home, err)
@@ -214,6 +217,9 @@ func TestProductionTypedInventoryCutoverPostgresAppliesExactTypedSnapshot(t *tes
 	page, err := inventoryRepository.ListInventoryPage(ctx, scope, InventoryKindAsset, "", 100)
 	if err != nil || len(page.Items) != 1 || page.Items[0].ID != entityID || page.NextKey != "" || page.Items[0].EvidenceID != evidenceID || page.Items[0].ConfidenceBasisPoints != 9000 {
 		t.Fatalf("typed page = %#v / %v", page, err)
+	}
+	if found := page.Items[0]; found.Provider != "aws" || found.SourceKind != "aws_account" || found.Discovery.Method != "provider_api" || found.Discovery.Platform != found.SourceKind || len(found.Discovery.Signals) != 0 || found.ManagementState != "not_applicable" {
+		t.Fatalf("typed page discovery = %#v", found)
 	}
 	parsedEntityID, _ := domain.ParseProductID(entityID)
 	detail, err := inventoryRepository.GetInventory(ctx, scope, parsedEntityID, InventoryKindAsset)
@@ -420,6 +426,18 @@ FROM generate_series(1,1002) item`, organizationID, workspaceID, environmentID, 
 	if err != nil {
 		t.Fatal(err)
 	}
+	applyInventoryDiscoverySummary(t, ctx, connection)
+	// Two of the agents were found without a declaration: their winning
+	// observation is the inferred kind and carries how they were found.
+	inferredAgents := map[string]bool{"pid_81000001-0000-4000-8000-000000000001": true, "pid_81000002-0000-4000-8000-000000000002": true}
+	for agent := range inferredAgents {
+		if _, err := connection.Exec(ctx, `UPDATE zasp_inventory_entities SET winning_attributes='{"discovery":{"method":"inferred","platform":"kubernetes_workload","signals":["env:openai","image:langgraph"]}}'::jsonb WHERE (organization_id,workspace_id,environment_id,id)=($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, agent); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := connection.Exec(ctx, `UPDATE zasp_inventory_source_observations SET source_kind='kubernetes_inferred_agent' WHERE (organization_id,workspace_id,environment_id,entity_id)=($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, agent); err != nil {
+			t.Fatal(err)
+		}
+	}
 	after, pages, total := "", 0, 0
 	seen := map[string]struct{}{}
 	for {
@@ -429,6 +447,13 @@ FROM generate_series(1,1002) item`, organizationID, workspaceID, environmentID, 
 		}
 		pages++
 		for _, item := range page.Items {
+			if inferredAgents[item.ID] {
+				if item.Provider != "kubernetes" || item.SourceKind != "kubernetes_inferred_agent" || item.Discovery.Method != "inferred" || item.Discovery.Platform != "kubernetes_workload" || !reflect.DeepEqual(item.Discovery.Signals, []string{"env:openai", "image:langgraph"}) || item.ManagementState != "unmanaged" {
+					t.Fatalf("inferred agent discovery = %#v", item)
+				}
+			} else if item.Provider != "kubernetes" || item.SourceKind != "kubernetes_agent" || item.Discovery.Method != "declared" || item.Discovery.Platform != "kubernetes_agent" || len(item.Discovery.Signals) != 0 || item.ManagementState != "managed" {
+				t.Fatalf("declared agent discovery = %#v", item)
+			}
 			if _, duplicate := seen[item.ID]; duplicate {
 				t.Fatalf("duplicate %s", item.ID)
 			}
@@ -463,6 +488,11 @@ FROM generate_series(1,1002) item`, organizationID, workspaceID, environmentID, 
 	}
 	if decodeStrictInventory(mutationPayload, &mutation) != nil || mutation.Agent.ID != agentID || mutation.Agent.Owner != "security" || mutation.Agent.Team != "platform" || !reflect.DeepEqual(mutation.Agent.Tags, []string{"critical", "production"}) || mutation.Agent.Version != 2 || mutation.AuditID != auditID || mutation.CorrelationID != correlationID || mutation.Replayed {
 		t.Fatalf("typed agent mutation = %s", mutationPayload)
+	}
+	// Taking ownership of an inferred agent makes it managed; how it was
+	// found does not change.
+	if !validInventorySummary(mutation.Agent, InventoryKindAgent) || mutation.Agent.ManagementState != "managed" || mutation.Agent.Discovery.Method != "inferred" || mutation.Agent.SourceKind != "kubernetes_inferred_agent" {
+		t.Fatalf("owned inferred agent = %s", mutationPayload)
 	}
 	if err := connection.QueryRow(ctx, `SELECT zasp_inventory_update_agent($1,$2,$3,$4,$5,$6,1,$7,$8,$9::jsonb,$10,$11)`,
 		organizationID, workspaceID, environmentID, identity.PrincipalID.String(), agentID, "typed-agent-owner-0001",
@@ -1007,4 +1037,24 @@ func TestProductionTypedInventoryCutoverPostgresSelectsDeterministicWinnerAcross
 		t.Fatalf("source removal = %#v / %v", result, err)
 	}
 	assertWinner("github", "tool", "GitHub winner", "pid_7c000011-0000-4000-8000-000000000011")
+}
+
+// applyInventoryDiscoverySummary gives a database built from the historical
+// chain the inventory summary members the baseline completion adds
+// (completion.sql, section X5), by running that section as the baseline does.
+func applyInventoryDiscoverySummary(t *testing.T, ctx context.Context, connection *pgx.Conn) {
+	t.Helper()
+	completion, err := os.ReadFile(filepath.Join("..", "migrations", "baseline", "completion.sql"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	const opening, closing = "DO $inventory_discovery_summary$", "END $inventory_discovery_summary$;"
+	start := strings.Index(string(completion), opening)
+	end := strings.Index(string(completion), closing)
+	if start < 0 || end < start || strings.Count(string(completion), opening) != 1 {
+		t.Fatal("completion.sql does not hold exactly one inventory discovery summary section")
+	}
+	if _, err := connection.Exec(ctx, string(completion[start:end+len(closing)]), pgx.QueryExecModeSimpleProtocol); err != nil {
+		t.Fatalf("inventory discovery summary: %v", err)
+	}
 }

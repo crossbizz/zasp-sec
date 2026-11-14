@@ -3536,6 +3536,13 @@ export type components = {
             readonly sources: readonly components["schemas"]["InventorySourceObservation"][];
             readonly summary: components["schemas"]["InventorySummary"];
         };
+        /** @description How the object was found. An agent is declared by its owner, listed by the provider's own control plane, or inferred from catalog signals. Every other kind is a provider record. */
+        readonly InventoryDiscovery: {
+            /** @enum {string} */
+            readonly method: "declared" | "provider_api" | "inferred";
+            readonly platform: string;
+            readonly signals: readonly string[];
+        };
         readonly InventoryEvidenceReference: {
             readonly checksum: string;
             /** Format: date-time */
@@ -3551,10 +3558,17 @@ export type components = {
         readonly InventoryFreshnessState: "fresh" | "stale";
         /** @enum {string} */
         readonly InventoryKind: "asset" | "agent" | "tool" | "identity" | "runtime";
+        /**
+         * @description For an agent, unmanaged while it was found without a declaration and has no owner. Not applicable to other kinds.
+         * @enum {string}
+         */
+        readonly InventoryManagementState: "managed" | "unmanaged" | "not_applicable";
         readonly InventoryPage: {
             readonly items: readonly components["schemas"]["InventorySummary"][];
             readonly page_info: components["schemas"]["PageInfo"];
         };
+        /** @enum {string} */
+        readonly InventoryProvider: "aws" | "kubernetes" | "github" | "okta";
         readonly InventoryRecord: components["schemas"]["InventorySummary"];
         readonly InventorySourceObservation: {
             readonly confidence_basis_points: number;
@@ -3575,6 +3589,7 @@ export type components = {
         };
         readonly InventorySummary: {
             readonly confidence_basis_points: number;
+            readonly discovery: components["schemas"]["InventoryDiscovery"];
             readonly evidence_id: components["schemas"]["ProductID"];
             /** Format: date-time */
             readonly first_seen: string;
@@ -3585,10 +3600,13 @@ export type components = {
             readonly kind: components["schemas"]["InventoryKind"];
             /** Format: date-time */
             readonly last_seen: string;
+            readonly management_state: components["schemas"]["InventoryManagementState"];
             readonly name: string;
             /** Format: date-time */
             readonly observed_at: string;
             readonly owner: string;
+            readonly provider: components["schemas"]["InventoryProvider"];
+            readonly source_kind: string;
             readonly tags: readonly string[];
             readonly team: string;
             readonly version: number;
@@ -5348,10 +5366,13 @@ export type IntegrationSyncTriggerKind = components['schemas']['IntegrationSyncT
 export type IntegrationUpdateInput = components['schemas']['IntegrationUpdateInput'];
 export type IntegrationWebhookTestStatus = components['schemas']['IntegrationWebhookTestStatus'];
 export type InventoryDetail = components['schemas']['InventoryDetail'];
+export type InventoryDiscovery = components['schemas']['InventoryDiscovery'];
 export type InventoryEvidenceReference = components['schemas']['InventoryEvidenceReference'];
 export type InventoryFreshnessState = components['schemas']['InventoryFreshnessState'];
 export type InventoryKind = components['schemas']['InventoryKind'];
+export type InventoryManagementState = components['schemas']['InventoryManagementState'];
 export type InventoryPage = components['schemas']['InventoryPage'];
+export type InventoryProvider = components['schemas']['InventoryProvider'];
 export type InventoryRecord = components['schemas']['InventoryRecord'];
 export type InventorySourceObservation = components['schemas']['InventorySourceObservation'];
 export type InventorySummary = components['schemas']['InventorySummary'];

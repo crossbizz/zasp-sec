@@ -6346,11 +6346,15 @@ components:
     InventorySummary:
       type: object
       additionalProperties: false
-      required: [id, name, kind, owner, team, tags, evidence_id, confidence_basis_points, first_seen, last_seen, observed_at, fresh_until, freshness_state, version]
+      required: [id, name, kind, owner, team, tags, evidence_id, confidence_basis_points, first_seen, last_seen, observed_at, fresh_until, freshness_state, version, provider, source_kind, discovery, management_state]
       properties:
         id: { $ref: '#/components/schemas/ProductID' }
         name: { type: string, minLength: 1, maxLength: 256 }
         kind: { $ref: '#/components/schemas/InventoryKind' }
+        provider: { $ref: '#/components/schemas/InventoryProvider' }
+        source_kind: { type: string, pattern: '^[a-z][a-z0-9_]{1,63}$' }
+        discovery: { $ref: '#/components/schemas/InventoryDiscovery' }
+        management_state: { $ref: '#/components/schemas/InventoryManagementState' }
         owner: { type: string, maxLength: 128 }
         team: { type: string, maxLength: 128 }
         tags:
@@ -6366,6 +6370,26 @@ components:
         fresh_until: { type: string, format: date-time }
         freshness_state: { $ref: '#/components/schemas/InventoryFreshnessState' }
         version: { type: integer, minimum: 1 }
+    InventoryProvider:
+      type: string
+      enum: [aws, kubernetes, github, okta]
+    InventoryDiscovery:
+      type: object
+      description: How the object was found. An agent is declared by its owner, listed by the provider's own control plane, or inferred from catalog signals. Every other kind is a provider record.
+      additionalProperties: false
+      required: [method, platform, signals]
+      properties:
+        method: { type: string, enum: [declared, provider_api, inferred] }
+        platform: { type: string, pattern: '^[a-z][a-z0-9_]{1,63}$' }
+        signals:
+          type: array
+          maxItems: 16
+          uniqueItems: true
+          items: { type: string, pattern: '^[a-z][a-z0-9_]{0,31}:[a-z0-9][a-z0-9_.-]{0,63}$' }
+    InventoryManagementState:
+      type: string
+      description: For an agent, unmanaged while it was found without a declaration and has no owner. Not applicable to other kinds.
+      enum: [managed, unmanaged, not_applicable]
     InventoryRecord:
       $ref: '#/components/schemas/InventorySummary'
     InventorySourceObservation:

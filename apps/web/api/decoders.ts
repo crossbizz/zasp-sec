@@ -100,8 +100,9 @@ export function decodeInventoryPage(value: unknown): InventoryPage {
 }
 
 export function decodeInventorySummary(value: unknown): InventorySummary {
-  const required = ["id", "name", "kind", "owner", "team", "tags", "evidence_id", "confidence_basis_points", "first_seen", "last_seen", "observed_at", "fresh_until", "freshness_state", "version"];
+  const required = ["id", "name", "kind", "owner", "team", "tags", "evidence_id", "confidence_basis_points", "first_seen", "last_seen", "observed_at", "fresh_until", "freshness_state", "version", "provider", "source_kind", "discovery", "management_state"];
   const record = exactRecord(value, required);
+  decodeInventoryDiscovery(record);
   productID(record.id); boundedString(record.name, 1, 256); enumValue(record.kind, ["asset", "agent", "tool", "identity", "runtime"]);
   boundedString(record.owner, 0, 128); boundedString(record.team, 0, 128); stringArray(record.tags, 32, 64); productID(record.evidence_id); boundedInteger(record.confidence_basis_points, 1, 10000); positiveInteger(record.version);
   for (const key of ["first_seen", "last_seen", "observed_at", "fresh_until"] as const) dateTime(record[key]);
@@ -109,6 +110,24 @@ export function decodeInventorySummary(value: unknown): InventorySummary {
   enumValue(record.freshness_state, ["fresh", "stale"]);
   const tags = record.tags as readonly string[]; for (let index = 1; index < tags.length; index += 1) if (tags[index] <= tags[index - 1]) fail();
   return value as InventorySummary;
+}
+
+// How the object was found. Only an agent can be declared, inferred or
+// unmanaged; an agent is unmanaged exactly while it was found without a
+// declaration and has no owner.
+function decodeInventoryDiscovery(record: Record<string, unknown>): void {
+  enumValue(record.provider, ["aws", "kubernetes", "github", "okta"]);
+  if (typeof record.source_kind !== "string" || !/^[a-z][a-z0-9_]{1,63}$/.test(record.source_kind)) fail();
+  const discovery = exactRecord(record.discovery, ["method", "platform", "signals"]);
+  enumValue(discovery.method, ["declared", "provider_api", "inferred"]);
+  if (typeof discovery.platform !== "string" || !/^[a-z][a-z0-9_]{1,63}$/.test(discovery.platform)) fail();
+  const signals = array(discovery.signals, 16); let prior = "";
+  for (const signal of signals) { if (typeof signal !== "string" || !/^[a-z][a-z0-9_]{0,31}:[a-z0-9][a-z0-9_.-]{0,63}$/.test(signal) || prior !== "" && signal <= prior) fail(); prior = signal as string; }
+  enumValue(record.management_state, ["managed", "unmanaged", "not_applicable"]);
+  if (record.kind !== "agent") { if (discovery.method !== "provider_api" || record.management_state !== "not_applicable" || signals.length !== 0) fail(); return; }
+  if (discovery.method === "declared") { if (record.management_state !== "managed" || signals.length !== 0) fail(); return; }
+  if (discovery.method === "inferred" && signals.length === 0) fail();
+  if (record.management_state !== (record.owner === "" ? "unmanaged" : "managed")) fail();
 }
 
 export function decodeAgentMutation(value: unknown): AgentMutation {
