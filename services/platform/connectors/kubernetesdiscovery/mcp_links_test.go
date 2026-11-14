@@ -264,7 +264,6 @@ func TestKubernetesMCPLinksDegradeWithoutThePermissions(t *testing.T) {
 	}{
 		"services forbidden":    {"/api/v1/services", http.StatusForbidden, "services_denied", nil},
 		"services unauthorized": {"/api/v1/services", http.StatusUnauthorized, "services_denied", nil},
-		"services unavailable":  {"/api/v1/services", http.StatusServiceUnavailable, "", nil},
 		"configmaps forbidden": {"/api/v1/configmaps", http.StatusForbidden, "configmaps_denied", []string{
 			"kubernetes_agent shop/mounted-agent -> kubernetes_mcp_server tools/docs-mcp",
 			"kubernetes_agent shop/support-agent -> kubernetes_mcp_server tools/docs-mcp",
@@ -278,6 +277,33 @@ func TestKubernetesMCPLinksDegradeWithoutThePermissions(t *testing.T) {
 		if result.clusterStatus != test.clusterStatus || strings.Join(result.links, "\n") != strings.Join(test.links, "\n") {
 			t.Errorf("%s: cluster %q, links %v", name, result.clusterStatus, result.links)
 		}
+	}
+}
+
+// A server error of the link phase fails the page, as in every other phase:
+// the relations are not silently dropped.
+func TestKubernetesMCPLinkPhaseClassifiesTransientFailures(t *testing.T) {
+	subject := collection.SubjectBinding{Kind: "kubernetes_cluster", ID: "prod.example/cluster-a"}
+	cursor := nextKubernetesPageCursor(subject, kubernetesPhaseMCPLinks, 12, "start")
+	request := CollectionPageRequest{Provider: collection.ProviderKubernetes, Subject: subject, Cursor: cursor, Page: 12, RemainingItems: 100, RemainingRelationships: 100, RemainingBytes: 1 << 20}
+	for path, status := range map[string]int{"/api/v1/services": http.StatusServiceUnavailable, "/apis/apps/v1/deployments": http.StatusTooManyRequests, "/api/v1/namespaces/shop/configmaps": http.StatusInternalServerError} {
+		stub := kubernetesLinkCluster()
+		stub.statuses = map[string]int{path: status}
+		api, err := newKubernetesCollectionAPI("https://prod.example", kubernetesLinkTransport{stub}, time.Second)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if page, err := api.FetchCollectionPage(context.Background(), []byte("local-e2e-credential-material"), request); err == nil {
+			t.Errorf("%s answering %d: the page completed with %d relationships", path, status, len(page.Relationships))
+		}
+	}
+	// With every read answered the same request is the last page.
+	api, err := newKubernetesCollectionAPI("https://prod.example", kubernetesLinkTransport{kubernetesLinkCluster()}, time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if page, err := api.FetchCollectionPage(context.Background(), []byte("local-e2e-credential-material"), request); err != nil || !page.Complete || len(page.Entities) != 0 || len(page.Relationships) != 3 {
+		t.Fatalf("link page = %v, complete %t, %d relationships", err, page.Complete, len(page.Relationships))
 	}
 }
 

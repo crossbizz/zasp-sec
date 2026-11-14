@@ -16,8 +16,8 @@ import (
 )
 
 // Azure OpenAI and Azure AI Foundry, read from Azure Resource Manager with the
-// same application the Microsoft connection already uses. Nothing is read
-// from a resource's data plane.
+// same application the Microsoft connection already uses. The one read of a
+// data plane is the list of a Foundry project's agents (foundry.go).
 //
 // The phase runs only when the credential carries a Resource Manager token
 // (the deployment opted in). One page reads one page of the Cognitive

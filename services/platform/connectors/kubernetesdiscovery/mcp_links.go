@@ -40,11 +40,15 @@ import (
 // https://kubernetes.io/docs/concepts/services-networking/service/ (a
 // Service with a selector routes to the pods whose labels match it).
 //
-// The phase needs list on services and on configmaps. It never fails a
-// collection: without the permission, or on any answer it cannot use, it
-// relates nothing and the collection completes. The first page records on
-// the cluster whether the two lists are allowed (attribute mcp_links), which
-// the integration shows as a coverage gap.
+// The phase needs list on services and on configmaps. A credential without
+// the permission does not fail the collection: the phase relates nothing (or,
+// without ConfigMaps, only what arguments and environment values name) and
+// the collection completes. The first page records on the cluster whether
+// the two lists are allowed (attribute mcp_links), which the integration
+// shows as a coverage gap. A rate limit, a server error or an answer that
+// cannot be read is a failure of the page like in every other phase: a
+// collection that silently dropped the relations would withdraw the findings
+// that rest on them until the next run.
 const (
 	kubernetesPhaseMCPLinks = "mcplinks"
 
@@ -155,11 +159,20 @@ type kubernetesLinkServer struct {
 
 // linkGet sends one bounded GET. status is 0 when there was no usable answer.
 func (api *KubernetesCollectionAPI) linkGet(ctx context.Context, credential []byte, path string, query url.Values, limit int64) ([]byte, int) {
+	body, status, _ := api.linkRead(ctx, credential, path, query, limit)
+	return body, status
+}
+
+// linkRead is linkGet for the link phase itself. refused reports an answer
+// that says the credential may not make the read, or that the cluster does
+// not serve it (401, 403, 404, 400): the phase then goes without. Every
+// other outcome that is not a body is a classified failure of the page.
+func (api *KubernetesCollectionAPI) linkRead(ctx context.Context, credential []byte, path string, query url.Values, limit int64) ([]byte, int, error) {
 	bounded, cancel := context.WithTimeout(ctx, api.timeout)
 	defer cancel()
 	request, err := http.NewRequestWithContext(bounded, http.MethodGet, api.endpoint+path+"?"+query.Encode(), nil)
 	if err != nil {
-		return nil, 0
+		return nil, 0, ErrInvalid
 	}
 	request.Close = true
 	request.Header.Set("Accept", "application/json")
@@ -167,17 +180,21 @@ func (api *KubernetesCollectionAPI) linkGet(ctx context.Context, credential []by
 	response, err := doKubernetesCollectionRequest(api.client, request)
 	if err != nil || bounded.Err() != nil || response == nil {
 		closeKubernetesResponse(response)
-		return nil, 0
+		return nil, 0, providercollection.ClassifyProviderHTTPFailure(bounded, err, 0, "", api.clock().UTC())
 	}
 	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK {
-		return nil, response.StatusCode
+	switch response.StatusCode {
+	case http.StatusOK:
+	case http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound, http.StatusBadRequest:
+		return nil, response.StatusCode, nil
+	default:
+		return nil, response.StatusCode, providercollection.ClassifyProviderHTTPFailure(bounded, nil, response.StatusCode, response.Header.Get("Retry-After"), api.clock().UTC())
 	}
 	body, ok := readKubernetesCollectionBody(response.Body, limit)
 	if !ok {
-		return nil, 0
+		return nil, 0, providercollection.StableProviderFailure(collection.FailureMalformed)
 	}
-	return body, http.StatusOK
+	return body, http.StatusOK, nil
 }
 
 // kubernetesMCPLinkStatus is recorded on the cluster entity: whether the
@@ -207,9 +224,12 @@ func (api *KubernetesCollectionAPI) kubernetesMCPLinkStatus(ctx context.Context,
 // fetchKubernetesMCPLinksPage is the last page of a collection: it holds
 // relationships only.
 func (api *KubernetesCollectionAPI) fetchKubernetesMCPLinksPage(ctx context.Context, credential []byte, request CollectionPageRequest) (CollectionPage, error) {
-	relationships := api.kubernetesMCPLinks(ctx, credential, request.Subject)
+	relationships, err := api.kubernetesMCPLinks(ctx, credential, request.Subject)
 	if ctx.Err() != nil {
 		return CollectionPage{}, providercollection.ClassifyProviderError(ctx, ctx.Err())
+	}
+	if err != nil {
+		return CollectionPage{}, err
 	}
 	if len(relationships) > request.RemainingRelationships {
 		return CollectionPage{}, providercollection.ErrPageCapacity
@@ -222,8 +242,10 @@ func (api *KubernetesCollectionAPI) fetchKubernetesMCPLinksPage(ctx context.Cont
 }
 
 // kubernetesMCPLinks reads what the link phase needs and returns the
-// relationships, sorted. Any read it cannot make ends it with what it has.
-func (api *KubernetesCollectionAPI) kubernetesMCPLinks(ctx context.Context, credential []byte, subject collection.SubjectBinding) []json.RawMessage {
+// relationships, sorted. A read the credential may not make ends it with
+// nothing to relate.
+func (api *KubernetesCollectionAPI) kubernetesMCPLinks(ctx context.Context, credential []byte, subject collection.SubjectBinding) ([]json.RawMessage, error) {
+	malformed := providercollection.StableProviderFailure(collection.FailureMalformed)
 	// namespace -> Service name -> selector.
 	services := map[string]map[string]map[string]string{}
 	continuation := ""
@@ -233,10 +255,16 @@ func (api *KubernetesCollectionAPI) kubernetesMCPLinks(ctx context.Context, cred
 		if continuation != "" {
 			query.Set("continue", continuation)
 		}
-		body, status := api.linkGet(ctx, credential, "/api/v1/services", query, kubernetesLinkResponseBytes)
+		body, status, err := api.linkRead(ctx, credential, "/api/v1/services", query, kubernetesLinkResponseBytes)
+		if err != nil {
+			return nil, err
+		}
+		if status != http.StatusOK {
+			return nil, nil
+		}
 		var list kubernetesLinkServiceList
-		if status != http.StatusOK || !decodeKubernetesCollectionResponse(body, &list) || list.APIVersion != "v1" || list.Kind != "ServiceList" {
-			return nil
+		if !decodeKubernetesCollectionResponse(body, &list) || list.APIVersion != "v1" || list.Kind != "ServiceList" {
+			return nil, malformed
 		}
 		for _, item := range list.Items {
 			// A Service without a selector names no pods of the cluster.
@@ -253,7 +281,7 @@ func (api *KubernetesCollectionAPI) kubernetesMCPLinks(ctx context.Context, cred
 		}
 	}
 	if len(services) == 0 {
-		return nil
+		return nil, nil
 	}
 	var agents []kubernetesLinkAgent
 	var servers []kubernetesLinkServer
@@ -269,20 +297,26 @@ func (api *KubernetesCollectionAPI) kubernetesMCPLinks(ctx context.Context, cred
 			if continuation != "" {
 				query.Set("continue", continuation)
 			}
-			body, status := api.linkGet(ctx, credential, path, query, kubernetesLinkResponseBytes)
+			body, status, err := api.linkRead(ctx, credential, path, query, kubernetesLinkResponseBytes)
+			if err != nil {
+				return nil, err
+			}
+			if status != http.StatusOK {
+				return nil, nil
+			}
 			// The same answer is decoded twice: once as the workload phases
 			// decode it (names only), once for the link fields.
 			var list kubernetesCollectionList
 			var links kubernetesLinkWorkloadList
-			if status != http.StatusOK || !decodeKubernetesCollectionResponse(body, &list) || !decodeKubernetesCollectionResponse(body, &links) || list.APIVersion != apiVersion || list.Kind != listKind || len(links.Items) != len(list.Items) {
-				return nil
+			if !decodeKubernetesCollectionResponse(body, &list) || !decodeKubernetesCollectionResponse(body, &links) || list.APIVersion != apiVersion || list.Kind != listKind || len(links.Items) != len(list.Items) {
+				return nil, malformed
 			}
 			if !egressRead && len(list.Items) > 0 {
 				egress, egressRead = api.fetchKubernetesEgressObservations(ctx, credential), true
 			}
 			for index, item := range list.Items {
 				if links.Items[index].Metadata.UID != item.Metadata.UID {
-					return nil
+					return nil, malformed
 				}
 				kind, _, podSpec, _, resourceKind, valid := kubernetesWorkloadIdentity(phase, item, egress)
 				if !valid || !kubernetesUIDPattern.MatchString(item.Metadata.UID) || !kubernetesNamePattern.MatchString(item.Metadata.Name) {
@@ -305,7 +339,7 @@ func (api *KubernetesCollectionAPI) kubernetesMCPLinks(ctx context.Context, cred
 		}
 	}
 	if len(agents) == 0 || len(servers) == 0 {
-		return nil
+		return nil, nil
 	}
 	// The names every server is reached under: "<service>.<namespace>" for
 	// any pod, "<namespace>/<service>" for a pod of the same namespace.
@@ -320,25 +354,29 @@ func (api *KubernetesCollectionAPI) kubernetesMCPLinks(ctx context.Context, cred
 		}
 	}
 	if len(qualified) == 0 {
-		return nil
+		return nil, nil
 	}
 	configMaps := map[string]map[string]string{}
 	configMapReads, configMapsDenied := 0, false
+	var readErr error
 	readConfigMap := func(namespace, name string) map[string]string {
 		key := namespace + "/" + name
 		if data, read := configMaps[key]; read {
 			return data
 		}
-		if configMapsDenied || configMapReads >= kubernetesLinkConfigMapReads || !kubernetesNamePattern.MatchString(name) {
+		if configMapsDenied || readErr != nil || configMapReads >= kubernetesLinkConfigMapReads || !kubernetesNamePattern.MatchString(name) {
 			return nil
 		}
 		configMapReads++
 		query := url.Values{}
 		query.Set("fieldSelector", "metadata.name="+name)
 		query.Set("limit", "1")
-		body, status := api.linkGet(ctx, credential, "/api/v1/namespaces/"+namespace+"/configmaps", query, kubernetesLinkConfigMapBytes)
+		body, status, err := api.linkRead(ctx, credential, "/api/v1/namespaces/"+namespace+"/configmaps", query, kubernetesLinkConfigMapBytes)
 		var list kubernetesLinkConfigMapList
 		switch {
+		case err != nil:
+			readErr = err
+			return nil
 		case status == http.StatusUnauthorized || status == http.StatusForbidden:
 			configMapsDenied = true
 		case status == http.StatusOK && decodeKubernetesCollectionResponse(body, &list) && list.APIVersion == "v1" && list.Kind == "ConfigMapList" && len(list.Items) == 1:
@@ -363,13 +401,16 @@ func (api *KubernetesCollectionAPI) kubernetesMCPLinks(ctx context.Context, cred
 			}
 		}
 	}
+	if readErr != nil {
+		return nil, readErr
+	}
 	relationships := make([]json.RawMessage, 0, len(found))
 	for pair := range found {
 		agent, server := agents[pair.agent], servers[pair.server]
 		relationship, err := marshalKubernetesRelationship(deterministicKubernetesInventoryID(subject, "depends_on", agent.uid+":mcp_server:"+server.uid), "depends_on",
 			"kubernetes:"+strings.ToLower(agent.resourceKind)+":"+agent.uid+":mcp_server:"+server.uid, agent.entityID, server.entityID, "agent_mcp_server")
 		if err != nil {
-			return nil
+			return nil, malformed
 		}
 		relationships = append(relationships, relationship)
 	}
@@ -377,7 +418,7 @@ func (api *KubernetesCollectionAPI) kubernetesMCPLinks(ctx context.Context, cred
 	if len(relationships) > kubernetesMaximumMCPLinks {
 		relationships = relationships[:kubernetesMaximumMCPLinks]
 	}
-	return relationships
+	return relationships, nil
 }
 
 // kubernetesLinkTexts gives visit every text of an agent's pod template that

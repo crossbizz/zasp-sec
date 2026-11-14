@@ -42,7 +42,10 @@ import (
 //     what OpenAI's community forum reports, not a statement of the API
 //     reference. The tenant check rests on it: the first request names the
 //     tenant in that header and must succeed;
-//   - which project roles may list assistants and agents;
+//   - which project roles may list assistants and agents, and the name of
+//     the restricted-key permission shown in the catalog
+//     (api.assistants.read is this definition's label for "Assistants:
+//     Read", not a scope name taken from OpenAI's documentation);
 //   - the Nango integration key (openai) and that Nango forwards the two
 //     headers (sent as Nango-Proxy-<name>);
 //   - nothing here was run against a real project.
