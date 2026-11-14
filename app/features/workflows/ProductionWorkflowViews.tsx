@@ -851,6 +851,9 @@ const coverageGapLogSources: Readonly<Record<string, string>> = {
 
 // Why agents of one AI service are missing, and what to do about it.
 function coverageGapText(gap: IntegrationFreshness["coverage_gaps"][number]): string {
+  if (gap.service === "mcp-links") return `${gap.name}: the discovery credential may not list Services, so no agent is related to the MCP servers that run in the cluster. Allow list on services for the discovery identity.`;
+  if (gap.service === "mcp-link-configmaps") return `${gap.name}: the discovery credential may not list ConfigMaps, so an agent is related to an MCP server only when its arguments or environment values name the server. Allow list on configmaps for the discovery identity.`;
+  if (gap.service === "foundry-agents") return `${gap.name}: permission missing. Assign the application the Azure AI User role on the AI Foundry account or its projects; the agents of a project are listed on the project's own endpoint.`;
   if (gap.service === "runtime-observations") return `${gap.name}: the discovery credential may not list ConfigMaps, so what the node sensor saw workloads call at run time is not counted. Allow list on configmaps for the discovery identity.`;
   if (gap.status === "unavailable" && Object.hasOwn(coverageGapLogSources, gap.service)) return `${gap.name}: ${coverageGapLogSources[gap.service]}`;
   if (gap.status === "unavailable") return `${gap.name}: not offered in this account's regions.`;

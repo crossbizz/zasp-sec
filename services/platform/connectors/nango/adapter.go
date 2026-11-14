@@ -3,6 +3,7 @@ package nango
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"net"
 	"net/url"
@@ -33,6 +34,27 @@ var coreKeys = map[string]struct{}{"aws": {}, "github": {}, "kubernetes": {}, "o
 type Rule struct {
 	Method, PathPrefix string
 	QueryKeys          []string
+	// HeaderKeys are the provider request headers a request of the rule may
+	// carry beside the ones the proxy sets itself (OpenAI-Beta). A header
+	// the rule does not list is refused.
+	HeaderKeys []string
+	// GraphQLDocuments, on a POST rule, are the exact GraphQL documents a
+	// request of the rule may send. The body of a request must then be
+	// {"query": <one of them>, "variables": {...}} and nothing else, so the
+	// rule admits those queries and no other operation of the endpoint.
+	GraphQLDocuments []string
+}
+
+// Request is one proxied provider request. Host is set for an entry with a
+// per-tenant host and only for one.
+type Request struct {
+	ConnectorKey, ConnectionReference, Host string
+	Method, Path                            string
+	Query                                   url.Values
+	// Headers are sent to the provider. Their names must be listed by the
+	// matching rule.
+	Headers map[string]string
+	Body    []byte
 }
 type Entry struct {
 	Key, ProviderHost, AuthMode string
@@ -74,6 +96,9 @@ type ProxyRequest struct {
 	NangoBaseURL, ServiceSecretReference, Environment string
 	ConnectorKey, ConnectionReference, ProviderHost   string
 	Method, Path, RawQuery                            string
+	// Headers are provider request headers. The proxy client sends each as
+	// Nango-Proxy-<name>, which Nango forwards to the provider as <name>.
+	Headers map[string]string
 	// PinHost makes the proxy client tell Nango to send the request to
 	// ProviderHost, whatever host the Nango connection was created with.
 	PinHost     bool
@@ -175,13 +200,25 @@ func (adapter *Adapter) ProxyToHost(ctx context.Context, connectorKey, connectio
 }
 
 func (adapter *Adapter) proxy(ctx context.Context, connectorKey, connectionReference, tenantHost, method, path string, query url.Values, body []byte) (ProxyResponse, error) {
+	return adapter.Do(ctx, Request{ConnectorKey: connectorKey, ConnectionReference: connectionReference, Host: tenantHost, Method: method, Path: path, Query: query, Body: body})
+}
+
+// Do proxies one request. It is refused unless a rule of the entry admits
+// its method and path, every query parameter and header it carries, and, for
+// a rule that lists GraphQL documents, its body.
+func (adapter *Adapter) Do(ctx context.Context, request Request) (ProxyResponse, error) {
+	connectorKey, connectionReference, tenantHost, method, path, query, body := request.ConnectorKey, request.ConnectionReference, request.Host, request.Method, request.Path, request.Query, request.Body
 	if adapter == nil || adapter.client == nil || adapter.resolver == nil || ctx == nil || ctx.Err() != nil || !referencePattern.MatchString(connectionReference) || len(body) > 64<<10 || containsSecret(body) {
 		return ProxyResponse{}, ErrInvalid
 	}
 	entry, exists := adapter.entries[connectorKey]
 	rule, allowed := matchingRule(entry.Rules, method, path)
-	if !exists || !validProxyPath(path) || !allowed || !validProxyQuery(query, rule.QueryKeys) {
+	if !exists || !validProxyPath(path) || !allowed || !validProxyQuery(query, rule.QueryKeys) || !validProxyHeaders(request.Headers, rule.HeaderKeys) || !validRuleBody(rule, body) {
 		return ProxyResponse{}, ErrInvalid
+	}
+	headers := make(map[string]string, len(request.Headers))
+	for name, value := range request.Headers {
+		headers[name] = value
 	}
 	host := entry.ProviderHost
 	if entry.PerTenantHost() != (tenantHost != "") {
@@ -209,7 +246,7 @@ func (adapter *Adapter) proxy(ctx context.Context, connectorKey, connectionRefer
 	response, err := adapter.client.Proxy(bounded, ProxyRequest{
 		NangoBaseURL: adapter.config.BaseURL, ServiceSecretReference: adapter.config.ServiceSecretReference, Environment: adapter.config.Environment,
 		ConnectorKey: connectorKey, ConnectionReference: connectionReference, ProviderHost: host, PinHost: tenantHost != "", Method: method, Path: path,
-		RawQuery: query.Encode(), ResolvedIPs: resolved, Body: append([]byte(nil), body...),
+		RawQuery: query.Encode(), Headers: headers, ResolvedIPs: resolved, Body: append([]byte(nil), body...),
 	})
 	var status *StatusError
 	if errors.As(err, &status) && bounded.Err() == nil {
@@ -272,6 +309,21 @@ func validEntry(entry Entry) bool {
 			}
 			seen[key] = struct{}{}
 		}
+		if len(rule.HeaderKeys) > 8 || len(rule.GraphQLDocuments) > 8 || len(rule.GraphQLDocuments) > 0 && rule.Method != "POST" {
+			return false
+		}
+		seenHeaders := make(map[string]struct{}, len(rule.HeaderKeys))
+		for _, key := range rule.HeaderKeys {
+			if _, exists := seenHeaders[strings.ToLower(key)]; exists || !ValidForwardedHeaderName(key) {
+				return false
+			}
+			seenHeaders[strings.ToLower(key)] = struct{}{}
+		}
+		for _, document := range rule.GraphQLDocuments {
+			if !ReadOnlyGraphQLDocument(document) {
+				return false
+			}
+		}
 	}
 	return true
 }
@@ -326,8 +378,105 @@ func cloneRules(values []Rule) []Rule {
 		result[index] = value
 		result[index].QueryKeys = append([]string(nil), value.QueryKeys...)
 		sort.Strings(result[index].QueryKeys)
+		result[index].HeaderKeys = append([]string(nil), value.HeaderKeys...)
+		result[index].GraphQLDocuments = append([]string(nil), value.GraphQLDocuments...)
 	}
 	return result
+}
+
+var forwardedHeaderNamePattern = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9-]{1,62}$`)
+
+// ValidForwardedHeaderName admits a provider header a rule may forward. The
+// headers that carry credentials, choose the destination or belong to the
+// proxy itself are never forwarded.
+func ValidForwardedHeaderName(name string) bool {
+	if !forwardedHeaderNamePattern.MatchString(name) {
+		return false
+	}
+	switch lower := strings.ToLower(name); lower {
+	case "authorization", "proxy-authorization", "cookie", "host", "connection", "connection-id", "provider-config-key", "base-url-override", "content-length", "transfer-encoding", "retries", "decompress":
+		return false
+	default:
+		return !strings.HasPrefix(lower, "nango-") && !strings.HasPrefix(lower, "x-forwarded-")
+	}
+}
+
+func validProxyHeaders(headers map[string]string, allowedKeys []string) bool {
+	if len(headers) > 8 {
+		return false
+	}
+	allowed := make(map[string]struct{}, len(allowedKeys))
+	for _, key := range allowedKeys {
+		allowed[key] = struct{}{}
+	}
+	for name, value := range headers {
+		if _, exists := allowed[name]; !exists || !validQueryValue(value) || len(value) > 256 || containsSecret([]byte(value)) {
+			return false
+		}
+	}
+	return true
+}
+
+var graphQLWritePattern = regexp.MustCompile(`(?i)\b(mutation|subscription)\b`)
+
+// ReadOnlyGraphQLDocument reports whether document is one GraphQL query
+// operation: it starts with the keyword query and names neither a mutation
+// nor a subscription anywhere, and it is printable text of at most 4 KiB
+// without a comment (a comment could hide a second operation from a
+// reader).
+func ReadOnlyGraphQLDocument(document string) bool {
+	if len(document) < 8 || len(document) > 4096 || !strings.HasPrefix(document, "query") || strings.Contains(document, "#") || graphQLWritePattern.MatchString(document) {
+		return false
+	}
+	for _, character := range document {
+		if character < 0x20 || character > 0x7e {
+			return false
+		}
+	}
+	// One operation: the braces balance and close once, at the end.
+	depth := 0
+	for index, character := range document {
+		switch character {
+		case '{':
+			depth++
+		case '}':
+			if depth--; depth < 0 || depth == 0 && index != len(document)-1 {
+				return false
+			}
+		}
+	}
+	return depth == 0 && strings.HasSuffix(document, "}")
+}
+
+// validRuleBody admits the body of a request of rule. A rule that lists
+// GraphQL documents admits only {"query": <listed document>, "variables":
+// {...}}; variables hold strings, numbers, booleans and null.
+func validRuleBody(rule Rule, body []byte) bool {
+	if len(rule.GraphQLDocuments) == 0 {
+		return true
+	}
+	decoder := json.NewDecoder(bytes.NewReader(body))
+	decoder.DisallowUnknownFields()
+	var document struct {
+		Query     *string        `json:"query"`
+		Variables map[string]any `json:"variables"`
+	}
+	if decoder.Decode(&document) != nil || decoder.More() || document.Query == nil || len(document.Variables) > 8 {
+		return false
+	}
+	for _, value := range document.Variables {
+		switch value.(type) {
+		case nil, string, float64, bool:
+		default:
+			return false
+		}
+	}
+	for _, listed := range rule.GraphQLDocuments {
+		if listed == *document.Query {
+			return true
+		}
+	}
+	return false
 }
 
 // nonPublicNetworks are the address ranges that Go's own tests do not call

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"net/url"
 	"testing"
 	"time"
 
@@ -26,16 +25,16 @@ type saasProbeProxy struct {
 	calls []string
 }
 
-func (proxy *saasProbeProxy) ProxyWithQuery(_ context.Context, connectorKey, connectionReference, method, path string, query url.Values, body []byte) (nango.ProxyResponse, error) {
-	proxy.calls = append(proxy.calls, connectorKey+" "+connectionReference+" "+method+" "+path+"?"+query.Encode())
-	if proxy.err != nil || len(body) != 0 {
+func (proxy *saasProbeProxy) Do(_ context.Context, request nango.Request) (nango.ProxyResponse, error) {
+	path := request.Path
+	if request.Host != "" {
+		path = "//" + request.Host + path
+	}
+	proxy.calls = append(proxy.calls, request.ConnectorKey+" "+request.ConnectionReference+" "+request.Method+" "+path+"?"+request.Query.Encode())
+	if proxy.err != nil || len(request.Body) != 0 {
 		return nango.ProxyResponse{}, proxy.err
 	}
 	return nango.ProxyResponse{StatusCode: http.StatusOK, Body: []byte(proxy.body)}, nil
-}
-
-func (proxy *saasProbeProxy) ProxyToHost(ctx context.Context, connectorKey, connectionReference, host, method, path string, query url.Values, body []byte) (nango.ProxyResponse, error) {
-	return proxy.ProxyWithQuery(ctx, connectorKey, connectionReference, method, "//"+host+path, query, body)
 }
 
 func newSaaSProbe(t *testing.T, proxy *saasProbeProxy) *saasReferenceProbe {

@@ -51,7 +51,7 @@ const (
 	microsoftMaximumResponseBytes     = int64(8 * 1024 * 1024)
 	microsoftMinimumCollectionBytes   = int64(4096)
 	microsoftMaximumContinuationBytes = 1024
-	microsoftMaximumCredentialBytes   = 3*8192 + 512
+	microsoftMaximumCredentialBytes   = 4*8192 + 512
 )
 
 var (
@@ -64,8 +64,10 @@ var (
 	microsoftCredentialGraphOnly     = []string{"{", "graph_token", ":", "", "}"}
 	microsoftCredentialWithDataverse = []string{"{", "dataverse_token", ":", "", ",", "dataverse_url", ":", "", ",", "graph_token", ":", "", "}"}
 	// With a Resource Manager token the envelope starts with arm_token; the
-	// rest is one of the two shapes above.
+	// rest is one of the two shapes above. A Foundry token (ai_token), which
+	// comes only with a Resource Manager token, is before it.
 	microsoftCredentialARMPrefix = []string{"{", "arm_token", ":", "", ","}
+	microsoftCredentialAIPrefix  = []string{"{", "ai_token", ":", "", ","}
 )
 
 // microsoftPageState is the payload of a page cursor. The continuation is the
@@ -96,6 +98,10 @@ type microsoftCredential struct {
 	// armToken is the Azure Resource Manager token; nil when the deployment
 	// did not opt in to reading Azure.
 	armToken []byte
+	// aiToken is the token for the Azure AI Foundry project endpoints
+	// (audience https://ai.azure.com), with which the agents of a project
+	// are listed. It is set only together with armToken.
+	aiToken []byte
 }
 
 type CollectionAPIConfig struct {
@@ -362,8 +368,15 @@ type microsoftAgentAttributes struct {
 	Posture   agentsignals.Posture   `json:"posture"`
 	Discovery agentsignals.Discovery `json:"discovery"`
 	// ContentModeration is a Copilot Studio agent's generative AI moderation
-	// level (high, medium or low) when its configuration states one.
+	// level (high, medium or low) when its configuration states one, and a
+	// Foundry agent's when the content filter policy that applies to it is
+	// known.
 	ContentModeration string `json:"content_moderation,omitempty"`
+	// AgentType, Model and RAIPolicy are a Foundry agent's kind, the model
+	// deployment it names and the content filter policy that applies to it.
+	AgentType string `json:"agent_type,omitempty"`
+	Model     string `json:"model,omitempty"`
+	RAIPolicy string `json:"rai_policy,omitempty"`
 }
 
 // microsoftContentModeration reads the moderation level out of a bot's
@@ -686,7 +699,25 @@ func decodeMicrosoftCredential(credential []byte) (microsoftCredential, bool) {
 		return microsoftCredential{}, false
 	}
 	parts := bytes.Split(credential, []byte{'"'})
-	// A Resource Manager token, when present, is the first member.
+	// A Foundry token, when present, is the first member and is followed by
+	// a Resource Manager token.
+	var aiToken []byte
+	if len(parts) > len(microsoftCredentialAIPrefix) && string(parts[1]) == "ai_token" {
+		for index, want := range microsoftCredentialAIPrefix {
+			if want != "" && string(parts[index]) != want {
+				return microsoftCredential{}, false
+			}
+		}
+		aiToken = parts[3]
+		if !validMicrosoftToken(aiToken) {
+			return microsoftCredential{}, false
+		}
+		parts = append([][]byte{[]byte("{")}, parts[len(microsoftCredentialAIPrefix):]...)
+		if len(parts) < 2 || string(parts[1]) != "arm_token" {
+			return microsoftCredential{}, false
+		}
+	}
+	// A Resource Manager token, when present, is the next member.
 	var armToken []byte
 	if len(parts) > len(microsoftCredentialARMPrefix) && string(parts[1]) == "arm_token" {
 		for index, want := range microsoftCredentialARMPrefix {
@@ -712,7 +743,7 @@ func decodeMicrosoftCredential(credential []byte) (microsoftCredential, bool) {
 			return microsoftCredential{}, false
 		}
 	}
-	result := microsoftCredential{graphToken: parts[len(parts)-2], armToken: armToken}
+	result := microsoftCredential{graphToken: parts[len(parts)-2], armToken: armToken, aiToken: aiToken}
 	if len(shape) == len(microsoftCredentialWithDataverse) {
 		result.dataverseToken = parts[3]
 		if !validMicrosoftToken(result.dataverseToken) || !microsoftDataverseURLPattern.Match(parts[7]) {

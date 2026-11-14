@@ -18,9 +18,31 @@ import (
 // The API host differs per site. The tenant id is the site name and every
 // request is sent to that site's host only.
 //
-// Rovo agents themselves are not listed. This definition knows no REST read
-// endpoint that lists the agents of a site, and it does not invent one; what
-// it reports about Rovo is the installed Rovo applications.
+// Rovo agents. Atlassian documents no public API that lists the Rovo agents
+// of a site: the requests for one are open (ROVO-516 "Public APIs for Rovo
+// Agent Management", ROVO-479 "Enable Forge app access to Rovo Agent Studio
+// GraphQL API", https://jira.atlassian.com/browse/ROVO-516). What exists is
+// a field of Atlassian's GraphQL gateway, agentStudio_getAgents, which the
+// Agent Studio web application uses. It refuses OAuth 2.0 (3LO) and Forge
+// clients ("third party oauth clients not allowed"); no scope covers it.
+// This connection is not such a client: it is the API token of a site
+// administrator, sent to the site's own gateway.
+//
+// The definition therefore asks that field, as the last list, with one
+// allow-listed query that reads the id and the name of each agent and
+// nothing else (no instructions, no knowledge sources). The query is a
+// guess at an undocumented schema and is treated as one: an answer that
+// carries GraphQL errors, or a gateway that answers 404, lists no agents and
+// the collection completes with the installed applications. Until the query
+// has been run against a real site, read "Rovo agents: none" as "unknown".
+//
+// UNVERIFIED, all of the Rovo agent read:
+//   - GET /_edge/tenant_info answers {"cloudId":"<uuid>"} for the site;
+//   - POST /gateway/api/graphql on the site host accepts the API token;
+//   - agentStudio_getAgents takes cloudId, first and after and answers a
+//     connection of edges whose node has id and name, with pageInfo
+//     {hasNextPage, endCursor};
+//   - whether the field needs an X-ExperimentalApi opt-in header.
 //
 // UNVERIFIED: the paths and the response members below are written from
 // memory of the Jira Cloud REST API and of the Universal Plugin Manager and
@@ -44,6 +66,8 @@ func Atlassian() saasdiscovery.Platform {
 			Rules: []nango.Rule{
 				{Method: http.MethodGet, PathPrefix: "/rest/api/3/serverInfo"},
 				{Method: http.MethodGet, PathPrefix: "/rest/plugins/1.0/"},
+				{Method: http.MethodGet, PathPrefix: "/_edge/tenant_info"},
+				{Method: http.MethodPost, PathPrefix: "/gateway/api/graphql", GraphQLDocuments: []string{atlassianRovoAgentsQuery}},
 			}},
 		HostTemplate:   "{tenant}.atlassian.net",
 		RequiredScopes: []string{"site-administrator"},
@@ -60,9 +84,33 @@ func Atlassian() saasdiscovery.Platform {
 		}},
 		Lists: []saasdiscovery.ListEndpoint{
 			{Name: "apps", Path: "/rest/plugins/1.0/", ItemsPath: []string{"plugins"}, Paging: saasdiscovery.Paging{Style: saasdiscovery.PagingNone}, Map: atlassianApplication},
+			{Name: "rovo_agents", Path: "/gateway/api/graphql", ItemsPath: []string{"data", "agentStudio_getAgents", "edges"},
+				GraphQL: &saasdiscovery.GraphQL{Document: atlassianRovoAgentsQuery, Variables: map[string]string{"cloudId": saasdiscovery.ParentValue}, ErrorsAbsent: true},
+				Paging: saasdiscovery.Paging{Style: saasdiscovery.PagingCursor, CursorParam: "after", LimitParam: "first", PageSize: 50,
+					NextPath: []string{"data", "agentStudio_getAgents", "pageInfo", "endCursor"}, MorePath: []string{"data", "agentStudio_getAgents", "pageInfo", "hasNextPage"}},
+				// A site without the gateway route, or one that refuses the
+				// token there, lists no agents.
+				Absent: []int{http.StatusNotFound, http.StatusForbidden},
+				// The query names the site by its cloud id, which only the
+				// site states.
+				Parent: &saasdiscovery.ParentList{Path: "/_edge/tenant_info", Single: true, Paging: saasdiscovery.Paging{Style: saasdiscovery.PagingNone}, ID: func(item saasdiscovery.Item) string { return item.Text("cloudId") }},
+				MapChild: func(_ string, edge saasdiscovery.Item) (saasdiscovery.Entity, bool) {
+					node := edge.Object("node")
+					id, name := node.Text("id"), saasdiscovery.CleanText(node.Text("name"), 256)
+					if id == "" || name == "" {
+						return saasdiscovery.Entity{}, false
+					}
+					var evidence agentsignals.Evidence
+					evidence.Surface("rovo")
+					return saasdiscovery.Entity{Kind: saasdiscovery.KindAgent, NativeID: id, DisplayName: name, ObjectType: "rovo_agent", Status: "listed", AgentType: "enterprise_agent", Signals: evidence.Signals()}, true
+				}},
 		},
 	}
 }
+
+// atlassianRovoAgentsQuery lists the Rovo agents of one site, a page at a
+// time. UNVERIFIED: see Atlassian.
+const atlassianRovoAgentsQuery = `query($cloudId: String!, $first: Int!, $after: String) { agentStudio_getAgents(cloudId: $cloudId, first: $first, after: $after) { edges { node { id name } } pageInfo { hasNextPage endCursor } } }`
 
 func atlassianApplication(item saasdiscovery.Item) (saasdiscovery.Entity, bool) {
 	key := item.Text("key")

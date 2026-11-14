@@ -20,12 +20,13 @@ func TestMicrosoftCredentialAddsAResourceManagerTokenWhenAzureIsEnabled(t *testi
 	envelope := resolvedSaaSEnvelope(t, resolver, saasCredentialRequest(t, scope, microsoftCredentialInput(scope, testMicrosoftConfig, now)))
 	defer envelope.Destroy()
 
-	// The stand-in endpoint answers every scope but Graph with its second token.
-	want := `{"arm_token":"` + testMicrosoftDataverseTok + `","graph_token":"` + testMicrosoftGraphToken + `"}`
+	// The stand-in endpoint answers every scope but Graph with its second
+	// token: the Foundry token and the Resource Manager token are both it.
+	want := `{"ai_token":"` + testMicrosoftDataverseTok + `","arm_token":"` + testMicrosoftDataverseTok + `","graph_token":"` + testMicrosoftGraphToken + `"}`
 	if envelope.Provider != collection.ProviderMicrosoft || string(envelope.BearerToken) != want || !validDiscoveryMicrosoftCollectorCredential(envelope.BearerToken) {
 		t.Fatalf("bearer = %s", envelope.BearerToken)
 	}
-	if len(endpoint.requests) != 2 || endpoint.requests[0].Form.Get("scope") != "https://graph.microsoft.com/.default" || endpoint.requests[1].Form.Get("scope") != "https://management.azure.com/.default" ||
+	if len(endpoint.requests) != 3 || endpoint.requests[0].Form.Get("scope") != "https://graph.microsoft.com/.default" || endpoint.requests[1].Form.Get("scope") != "https://management.azure.com/.default" || endpoint.requests[2].Form.Get("scope") != "https://ai.azure.com/.default" ||
 		endpoint.requests[1].URL != "https://login.microsoftonline.com/"+testMicrosoftTenant+"/oauth2/v2.0/token" {
 		t.Fatalf("requests = %#v", endpoint.requests)
 	}
@@ -53,6 +54,29 @@ func TestMicrosoftCollectorCredentialShapes(t *testing.T) {
 	}
 	if _, ok := encodeDiscoveryMicrosoftCollectorCredentialWithARM([]byte(`a"b-token-with-a-quote`), graph, nil, ""); ok {
 		t.Error("a token with a quote was written")
+	}
+	// A Foundry token is the first member and comes only with a Resource
+	// Manager token.
+	ai := []byte("ai-access-token-value-0001")
+	if encoded, ok := encodeDiscoveryMicrosoftCollectorCredentialWithAzure(ai, arm, graph, dataverse, dataverseURL); !ok || !validDiscoveryMicrosoftCollectorCredential(encoded) ||
+		string(encoded) != `{"ai_token":"ai-access-token-value-0001","arm_token":"arm-access-token-value-0001","dataverse_token":"dataverse-access-token-value-0001","dataverse_url":"https://org1.crm4.dynamics.com","graph_token":"graph-access-token-value-0001"}` {
+		t.Errorf("foundry credential = %s (%t)", encoded, ok)
+	}
+	if encoded, ok := encodeDiscoveryMicrosoftCollectorCredentialWithAzure(nil, arm, graph, nil, ""); !ok || string(encoded) != `{"arm_token":"arm-access-token-value-0001","graph_token":"graph-access-token-value-0001"}` {
+		t.Errorf("without a foundry token = %s (%t)", encoded, ok)
+	}
+	if _, ok := encodeDiscoveryMicrosoftCollectorCredentialWithAzure(ai, nil, graph, nil, ""); ok {
+		t.Error("a foundry token without a resource manager token was written")
+	}
+	for name, hostile := range map[string]string{
+		"ai without arm": `{"ai_token":"ai-access-token-value-0001","graph_token":"graph-access-token-value-0001"}`,
+		"ai after arm":   `{"arm_token":"arm-access-token-value-0001","ai_token":"ai-access-token-value-0001","graph_token":"graph-access-token-value-0001"}`,
+		"two ai tokens":  `{"ai_token":"ai-access-token-value-0001","ai_token":"ai-access-token-value-0002","arm_token":"arm-access-token-value-0001","graph_token":"graph-access-token-value-0001"}`,
+		"short ai token": `{"ai_token":"short","arm_token":"arm-access-token-value-0001","graph_token":"graph-access-token-value-0001"}`,
+	} {
+		if validDiscoveryMicrosoftCollectorCredential([]byte(hostile)) {
+			t.Errorf("%s: accepted", name)
+		}
 	}
 	for name, hostile := range map[string]string{
 		"two arm tokens":  `{"arm_token":"arm-access-token-value-0001","arm_token":"arm-access-token-value-0002","graph_token":"graph-access-token-value-0001"}`,

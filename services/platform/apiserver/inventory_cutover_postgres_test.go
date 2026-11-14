@@ -1376,6 +1376,42 @@ VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,$11,$12,$13,$14,$15,$16::jsonb,
 	if freshness, err = temporal.GetIntegrationFreshness(ctx, scope, awsIntegration); err != nil || !reflect.DeepEqual(freshness.CoverageGaps, want[:2]) {
 		t.Fatalf("freshness after the role was fixed = %#v / %v", freshness, err)
 	}
+	// WS7b: the gaps of the Kubernetes MCP link phase and of the Azure AI
+	// Foundry agents read join the same list. The section runs twice without
+	// a change and leaves the gaps before it as they were.
+	applyCompletionBlock(t, ctx, connection, "ws7_coverage_gaps")
+	var linked string
+	if err := connection.QueryRow(ctx, definition).Scan(&linked); err != nil {
+		t.Fatal(err)
+	}
+	applyCompletionBlock(t, ctx, connection, "ws7_coverage_gaps")
+	if err := connection.QueryRow(ctx, definition).Scan(&again); err != nil || again != linked || strings.Count(linked, "'mcp-links'") != 1 || strings.Count(linked, "'coverage_gaps'") != 1 {
+		t.Fatalf("re-running the WS7 section changed the function: %v", err)
+	}
+	if freshness, err = temporal.GetIntegrationFreshness(ctx, scope, awsIntegration); err != nil || !reflect.DeepEqual(freshness.CoverageGaps, want[:2]) {
+		t.Fatalf("AWS gaps after the WS7 section = %#v / %v", freshness, err)
+	}
+	for name, test := range map[string]struct {
+		provider, kind, attributes string
+		want                       []IntegrationCoverageGap
+	}{
+		"services and observations denied": {"kubernetes", "kubernetes_cluster", `{"mcp_links":"services_denied","runtime_observations":"access_denied"}`, []IntegrationCoverageGap{
+			{Service: "mcp-links", Name: "MCP server links", Status: "access_denied"}, {Service: "runtime-observations", Name: "Runtime agent discovery", Status: "access_denied"}}},
+		"configmaps denied": {"kubernetes", "kubernetes_cluster", `{"mcp_links":"configmaps_denied","runtime_observations":"access_denied"}`, []IntegrationCoverageGap{
+			{Service: "mcp-link-configmaps", Name: "MCP server links from ConfigMaps", Status: "access_denied"}, {Service: "runtime-observations", Name: "Runtime agent discovery", Status: "access_denied"}}},
+		"everything readable":       {"kubernetes", "kubernetes_cluster", `{"mcp_links":"collected","runtime_observations":"collected"}`, []IntegrationCoverageGap{}},
+		"foundry agents denied":     {"microsoft", "microsoft_ai_resource", `{"agents":"access_denied","deployments":"listed","resource_kind":"azure_ai_foundry","status":"SUCCEEDED"}`, []IntegrationCoverageGap{{Service: "foundry-agents", Name: "Azure AI Foundry agents", Status: "access_denied"}}},
+		"foundry agents listed":     {"microsoft", "microsoft_ai_resource", `{"agents":"listed","deployments":"listed","resource_kind":"azure_ai_foundry","status":"SUCCEEDED"}`, []IntegrationCoverageGap{}},
+		"another kind says denied":  {"microsoft", "microsoft_ai_deployment", `{"agents":"access_denied","mcp_links":"services_denied"}`, []IntegrationCoverageGap{}},
+		"a cluster of another kind": {"aws", "kubernetes_cluster", `{"mcp_links":"services_denied"}`, []IntegrationCoverageGap{}},
+	} {
+		if _, err := connection.Exec(ctx, `UPDATE zasp_inventory_source_observations SET provider=$5,source_kind=$6,attributes=$7::jsonb WHERE (organization_id,workspace_id,environment_id,integration_id,source_native_id)=($1,$2,$3,$4,'kubernetes:cluster:prod.example/a')`, organizationID, workspaceID, environmentID, otherIntegration, test.provider, test.kind, test.attributes); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if other, err = temporal.GetIntegrationFreshness(ctx, scope, otherIntegration); err != nil || !reflect.DeepEqual(other.CoverageGaps, test.want) {
+			t.Errorf("%s: gaps = %#v / %v", name, other.CoverageGaps, err)
+		}
+	}
 }
 
 // assertInventoryAgentActivity proves the activity members of the agent

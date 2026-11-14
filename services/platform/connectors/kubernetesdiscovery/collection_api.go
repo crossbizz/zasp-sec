@@ -33,7 +33,7 @@ const (
 )
 
 var (
-	kubernetesPageCursorPattern = regexp.MustCompile(`^kubernetes:(namespaces|serviceaccounts|roles|clusterroles|rolebindings|clusterrolebindings|deployments|statefulsets|daemonsets|jobs|cronjobs):([1-9][0-9]{0,5}):([A-Za-z0-9_-]+|start):([0-9a-f]{16}):([0-9a-f]{16})$`)
+	kubernetesPageCursorPattern = regexp.MustCompile(`^kubernetes:(namespaces|serviceaccounts|roles|clusterroles|rolebindings|clusterrolebindings|deployments|statefulsets|daemonsets|jobs|cronjobs|mcplinks):([1-9][0-9]{0,5}):([A-Za-z0-9_-]+|start):([0-9a-f]{16}):([0-9a-f]{16})$`)
 	kubernetesDoneCursorPattern = regexp.MustCompile(`^kubernetes:complete:([0-9a-f]{16}):[0-9a-f]{16}$`)
 	kubernetesNamePattern       = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?$`)
 	kubernetesUIDPattern        = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$`)
@@ -88,6 +88,9 @@ func (api *KubernetesCollectionAPI) FetchCollectionPage(ctx context.Context, cre
 	}
 	if api == nil || api.client == nil || ctx == nil || !validKubernetesCollectionCredential(credential) || !ok {
 		return CollectionPage{}, ErrInvalid
+	}
+	if phase == kubernetesPhaseMCPLinks {
+		return api.fetchKubernetesMCPLinksPage(ctx, credential, request)
 	}
 	pageLimit := request.RemainingItems
 	if includeCluster {
@@ -146,11 +149,12 @@ func (api *KubernetesCollectionAPI) FetchCollectionPage(ctx context.Context, cre
 	if kubernetesWorkloadPhase(phase) && len(payload.Items) > 0 {
 		egress = api.fetchKubernetesEgressObservations(bounded, credential)
 	}
-	runtimeObservations := ""
+	runtimeObservations, mcpLinks := "", ""
 	if includeCluster {
 		runtimeObservations = api.kubernetesRuntimeObservationStatus(bounded, credential)
+		mcpLinks = api.kubernetesMCPLinkStatus(bounded, credential, runtimeObservations)
 	}
-	entities, relationships, ok := normalizeKubernetesCollectionPage(request.Subject, phase, includeCluster, payload, egress, runtimeObservations)
+	entities, relationships, ok := normalizeKubernetesCollectionPage(request.Subject, phase, includeCluster, payload, egress, runtimeObservations, mcpLinks)
 	if !ok {
 		return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
 	}
@@ -325,7 +329,7 @@ type kubernetesAgentPosture struct {
 	CredentialActive       bool   `json:"credential_active"`
 }
 
-func normalizeKubernetesCollectionPage(subject collection.SubjectBinding, phase string, includeCluster bool, payload kubernetesCollectionList, egress kubernetesEgressObservations, runtimeObservations string) ([]json.RawMessage, []json.RawMessage, bool) {
+func normalizeKubernetesCollectionPage(subject collection.SubjectBinding, phase string, includeCluster bool, payload kubernetesCollectionList, egress kubernetesEgressObservations, runtimeObservations, mcpLinks string) ([]json.RawMessage, []json.RawMessage, bool) {
 	expectedAPIVersion, expectedKind, ok := kubernetesCollectionPhaseType(phase)
 	if !ok || payload.APIVersion != expectedAPIVersion || payload.Kind != expectedKind {
 		return nil, nil, false
@@ -342,12 +346,13 @@ func normalizeKubernetesCollectionPage(subject collection.SubjectBinding, phase 
 			Cluster string `json:"cluster"`
 			Name    string `json:"name"`
 		}{subject.ID, parts[1]})
-		clusterAttributes := json.RawMessage(`{}`)
-		if runtimeObservations != "" {
-			clusterAttributes, _ = json.Marshal(struct {
-				RuntimeObservations string `json:"runtime_observations"`
-			}{runtimeObservations})
-		}
+		// What the collector could read beside the inventory itself: the
+		// node sensor's observations, and the Services and ConfigMaps that
+		// relate agents to MCP servers.
+		clusterAttributes, _ := json.Marshal(struct {
+			MCPLinks            string `json:"mcp_links,omitempty"`
+			RuntimeObservations string `json:"runtime_observations,omitempty"`
+		}{mcpLinks, runtimeObservations})
 		entity, err := marshalKubernetesEntity(clusterEntityID, "kubernetes_cluster", "kubernetes:cluster:"+subject.ID, subject.ID, stable, clusterAttributes)
 		if err != nil {
 			return nil, nil, false
@@ -716,17 +721,23 @@ func coalesceKubernetesEntities(values []json.RawMessage) ([]json.RawMessage, bo
 	return result, true
 }
 
-func normalizeKubernetesWorkload(subject collection.SubjectBinding, phase string, item kubernetesCollectionItem, egress kubernetesEgressObservations) (json.RawMessage, []json.RawMessage, bool) {
-	definitions := map[string][3]string{
-		"deployments":  {"apps/v1", "Deployment", "apps"},
-		"statefulsets": {"apps/v1", "StatefulSet", "apps"},
-		"daemonsets":   {"apps/v1", "DaemonSet", "apps"},
-		"jobs":         {"batch/v1", "Job", "batch"},
-		"cronjobs":     {"batch/v1", "CronJob", "batch"},
+// kubernetesWorkloadIdentity decides what a workload is recorded as: the
+// entity kind (a declared agent, an inferred agent or a plain workload), the
+// evidence of an inferred agent, its pod template, its service account and
+// its resource kind. valid is false for an item the workload phases refuse.
+// The link phase names an agent's entity with the same decision.
+func kubernetesWorkloadIdentity(phase string, item kubernetesCollectionItem, egress kubernetesEgressObservations) (string, agentsignals.Evidence, kubernetesCollectionPodSpec, string, string, bool) {
+	definitions := map[string][2]string{
+		"deployments":  {"apps/v1", "Deployment"},
+		"statefulsets": {"apps/v1", "StatefulSet"},
+		"daemonsets":   {"apps/v1", "DaemonSet"},
+		"jobs":         {"batch/v1", "Job"},
+		"cronjobs":     {"batch/v1", "CronJob"},
 	}
+	var evidence agentsignals.Evidence
 	definition, ok := definitions[phase]
 	if !ok || item.APIVersion != definition[0] || item.Kind != definition[1] || !kubernetesNamePattern.MatchString(item.Metadata.Namespace) {
-		return nil, nil, false
+		return "", evidence, kubernetesCollectionPodSpec{}, "", "", false
 	}
 	podSpec := item.Spec.Template.Spec
 	if phase == "cronjobs" {
@@ -737,10 +748,9 @@ func normalizeKubernetesWorkload(subject collection.SubjectBinding, phase string
 		serviceAccount = "default"
 	}
 	if !kubernetesNamePattern.MatchString(serviceAccount) || !validKubernetesAgentPodSpec(podSpec) {
-		return nil, nil, false
+		return "", evidence, kubernetesCollectionPodSpec{}, "", "", false
 	}
 	entityKind := "kubernetes_workload"
-	var evidence agentsignals.Evidence
 	if label, labelled := item.Metadata.Labels["zasp.ai/entity-kind"]; phase == "deployments" && label == "agent" {
 		entityKind = "kubernetes_agent"
 	} else if !labelled || label == "agent" {
@@ -753,6 +763,18 @@ func normalizeKubernetesWorkload(subject collection.SubjectBinding, phase string
 		if evidence.IsAgent() {
 			entityKind = "kubernetes_inferred_agent"
 		}
+	}
+	return entityKind, evidence, podSpec, serviceAccount, definition[1], true
+}
+
+func normalizeKubernetesWorkload(subject collection.SubjectBinding, phase string, item kubernetesCollectionItem, egress kubernetesEgressObservations) (json.RawMessage, []json.RawMessage, bool) {
+	entityKind, evidence, podSpec, serviceAccount, resourceKind, ok := kubernetesWorkloadIdentity(phase, item, egress)
+	if !ok {
+		return nil, nil, false
+	}
+	definition := [3]string{"", resourceKind, "apps"}
+	if phase == "jobs" || phase == "cronjobs" {
+		definition[2] = "batch"
 	}
 	entityID := deterministicKubernetesInventoryID(subject, entityKind, item.Metadata.UID)
 	stable, _ := json.Marshal(struct {
@@ -1024,7 +1046,8 @@ func (api *KubernetesCollectionAPI) validPageRequest(request CollectionPageReque
 		return match[1], "", page, false, ok
 	}
 	decoded, err := base64.RawURLEncoding.DecodeString(match[3])
-	if err != nil || !validKubernetesContinuation(string(decoded)) {
+	// The link phase is one page: it has no continuation.
+	if err != nil || match[1] == kubernetesPhaseMCPLinks || !validKubernetesContinuation(string(decoded)) {
 		return "", "", 0, false, false
 	}
 	return match[1], string(decoded), page, false, true
@@ -1043,13 +1066,15 @@ func kubernetesCollectionPhasePath(phase string) (string, bool) {
 		"daemonsets":          "/apis/apps/v1/daemonsets",
 		"jobs":                "/apis/batch/v1/jobs",
 		"cronjobs":            "/apis/batch/v1/cronjobs",
+		// The link phase reads several resources; the Services are first.
+		kubernetesPhaseMCPLinks: "/api/v1/services",
 	}
 	path, ok := paths[phase]
 	return path, ok
 }
 
 func nextKubernetesCollectionPhase(phase string) (string, bool) {
-	phases := []string{"namespaces", "serviceaccounts", "roles", "clusterroles", "rolebindings", "clusterrolebindings", "deployments", "statefulsets", "daemonsets", "jobs", "cronjobs"}
+	phases := []string{"namespaces", "serviceaccounts", "roles", "clusterroles", "rolebindings", "clusterrolebindings", "deployments", "statefulsets", "daemonsets", "jobs", "cronjobs", kubernetesPhaseMCPLinks}
 	for index := 0; index+1 < len(phases); index++ {
 		if phases[index] == phase {
 			return phases[index+1], true
