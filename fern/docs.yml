@@ -4,8 +4,7 @@
 #
 # The two getting-started guides have one source each:
 #   - the User guide is docs/getting-started/user.md, used here as a page;
-#   - the Administrator guide is docs/getting-started/administrator.md once it
-#     is merged. Until then its page is docs/pages/getting-started/administrator.mdx.
+#   - the Administrator guide is docs/getting-started/administrator.md.
 #     See the ADMIN-GUIDE-SOURCE comment in that file.
 
 instances:
@@ -41,7 +40,7 @@ navigation:
             path: ./docs/pages/getting-started/quickstart.mdx
             slug: quickstart
           - page: Administrator guide
-            path: ./docs/pages/getting-started/administrator.mdx
+            path: ../docs/getting-started/administrator.md
             slug: administrator-guide
           - page: User guide
             path: ../docs/getting-started/user.md
