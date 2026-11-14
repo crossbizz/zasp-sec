@@ -313,7 +313,7 @@ test("the Azure setting of the Microsoft collector is off by default and reaches
   assert.match(policies[0], /\{\{ if \$connectorFoundry \}\},azure-ai-foundry-projects\{\{ end \}\}/);
   assert.match(network, /\{\{- if \.Values\.discovery\.microsoftAzure \}\}\n\{\{- \$connectorFoundry = \.Values\.network\.connectorEgressCIDRs\.foundry \| default list \}\}\n\{\{- else if \.Values\.network\.connectorEgressCIDRs\.foundry \}\}\{\{ fail "network\.connectorEgressCIDRs\.foundry needs discovery\.microsoftAzure" \}\}/);
   assert.equal(network.split("$connectorFoundry").length - 1, 4);
-  assert.match(await read("./product/values.yaml"), /\n    foundry: \[\]\n/);
+  assert.match(await read("./product/values.yaml"), /\n {4}foundry: \[\]\n/);
 
   const variables = await read("./variables.tf");
   const optional = variables.slice(variables.indexOf('variable "discovery_optional_providers"'), variables.indexOf('variable "kubernetes_connector_egress_cidrs"'));

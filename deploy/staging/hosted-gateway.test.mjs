@@ -62,7 +62,7 @@ test("the gateway's egress exists only inside the gate, on port 443, without the
   const block = resilience.slice(start, resilience.indexOf("kind: NetworkPolicy\nmetadata: { name: schema-database", start));
   assert.match(block, /required "hostedGateway\.egressCIDRs is required when hostedGateway\.enabled is set" \.Values\.hostedGateway\.egressCIDRs/);
   assert.match(block, /\{\{- if not \$gatewayEgress \}\}\{\{ fail "hostedGateway\.egressCIDRs is required when hostedGateway\.enabled is set" \}\}\{\{ end \}\}/);
-  assert.match(block, /podSelector: \{ matchLabels: \{ app\.kubernetes\.io\/name: agentsec-api \} \}\n  policyTypes: \[Egress\]\n  egress:\n/);
+  assert.match(block, /podSelector: \{ matchLabels: \{ app\.kubernetes\.io\/name: agentsec-api \} \}\n {2}policyTypes: \[Egress\]\n {2}egress:\n/);
   assert.equal(count(block, "podSelector"), 1);
   // One egress rule, to the listed ranges, on TCP 443 and nothing else.
   assert.equal(count(block, "ports:"), 1);

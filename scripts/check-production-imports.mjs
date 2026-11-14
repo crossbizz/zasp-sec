@@ -8,12 +8,19 @@ const sourceExtensions = ["", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"];
 const allowedExactSources = new Set([
 	"app/features/redteam/ProductionAttackLabView.tsx",
 	"app/features/redteam/ProductionRedTeamView.tsx",
+	// Production probe catalog of the red team page; reads only the API client.
+	"app/features/redteam/ProbeLibrary.tsx",
 	"app/features/redteam/redTeamMutationRecovery.ts",
 	"app/features/redteam/recommendations.ts",
 	"app/features/redteam/outcomes.ts",
 	"app/features/redteam/api.ts",
   "app/features/sensors/ProductionSensorView.tsx",
   "app/features/sensors/api.ts",
+  // API-backed production views that live beside the demo views of the same
+  // feature. Each imports only the API client, decoders and shared UI.
+  "app/features/guardrails/ProductionGuardrailsView.tsx",
+  "app/features/guardrails/guardrail-policy-api.ts",
+  "app/features/tools/MCPServersView.tsx",
 ]);
 const allowedBrowserStorageSources = new Set([
   // Metadata-only, identity-checked resume for a server-owned export job.
@@ -22,6 +29,10 @@ const allowedBrowserStorageSources = new Set([
 	"app/features/redteam/ProductionRedTeamView.tsx",
 	"app/features/recovery/RecoveryOperationsView.tsx",
   "app/features/risk/ProductionRiskView.tsx",
+  // sessionStorage holds one validated SaaS integration id (no token, no
+  // secret) so that an OAuth return is accepted only in the tab that started
+  // the sign-in. It is read once and removed.
+  "app/features/workflows/ProductionWorkflowViews.tsx",
 ]);
 const forbiddenExactSources = new Set([
   "app/domain/store.tsx",
