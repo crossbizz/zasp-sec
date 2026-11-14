@@ -32,14 +32,31 @@ var (
 	providerRemediationReferencePattern = regexp.MustCompile(`^ref:aws/external-id/[A-Za-z0-9][A-Za-z0-9._-]{7,127}$`)
 	providerRemediationAgentARNPattern  = regexp.MustCompile(`^arn:aws(?:-us-gov|-cn)?:bedrock:([a-z0-9-]{1,20}):([0-9]{12}):agent/([0-9A-Za-z]{1,64})$`)
 	providerRemediationFailurePattern   = regexp.MustCompile(`^[a-z][a-z0-9_]{2,63}$`)
+	providerRemediationResourcePattern  = regexp.MustCompile(`^arn:aws(?:-us-gov|-cn)?:[a-z0-9-]+:[a-z0-9-]*:([0-9]{12}):[A-Za-z0-9+=,.@_:/-]+$`)
+	providerRemediationAgentRolePattern = regexp.MustCompile(`^arn:aws:iam::([0-9]{12}):role/[A-Za-z0-9+=,.@_/-]{1,512}$`)
+	providerRemediationRegionPattern    = regexp.MustCompile(`^[a-z]{2}(?:-gov)?-[a-z]+-[1-9]$`)
 )
 
-// ProviderRemediationTarget is the Bedrock agent a remediation acts on.
+// Kinds of discovered agent a remediation acts on.
+const (
+	ProviderRemediationKindBedrockAgent     = "aws_bedrock_agent"
+	ProviderRemediationKindAgentCoreRuntime = "aws_agentcore_runtime"
+	ProviderRemediationKindInferredAgent    = "aws_inferred_agent"
+)
+
+// ProviderRemediationTarget is the discovered agent a remediation acts on.
+// AgentARN is the ARN of the agent's own resource (a Bedrock agent, an
+// AgentCore runtime, a Lambda function, an IAM role or an EC2 instance).
+// AgentID is set for a Bedrock agent only. RoleARN is the IAM role discovery
+// linked the agent to; it is "" for a Bedrock agent whose role discovery did
+// not record (the worker reads it from the provider).
 type ProviderRemediationTarget struct {
 	AccountID string `json:"account_id"`
 	Region    string `json:"region"`
+	Kind      string `json:"kind"`
 	AgentID   string `json:"agent_id"`
 	AgentARN  string `json:"agent_arn"`
+	RoleARN   string `json:"role_arn"`
 }
 
 // ProviderRemediationClaim is one leased remediation. ExternalIDReference is
@@ -88,14 +105,41 @@ type SecurityAgentProviderRemediationAuthority interface {
 	FinishProviderRemediation(context.Context, ProviderRemediationClaim, string, string, ProviderRemediationOutcome) (ProviderRemediationResult, error)
 }
 
+// validProviderRemediationTarget reports whether the target of an action is a
+// discovered agent the action may act on. A guardrail is attached to a
+// Bedrock agent only. A policy is detached from the role of a Bedrock agent
+// (recorded or not) or from the recorded role of an AgentCore runtime or an
+// inferred agent. The agent, its role and the remediation role are all of
+// one account, and the agent's role is never the remediation role.
+func validProviderRemediationTarget(action string, target ProviderRemediationTarget, remediationRoleARN string) bool {
+	resource := providerRemediationResourcePattern.FindStringSubmatch(target.AgentARN)
+	if len(resource) != 2 || resource[1] != target.AccountID || len(target.AgentARN) > 2048 || !providerRemediationRegionPattern.MatchString(target.Region) {
+		return false
+	}
+	if target.RoleARN != "" {
+		role := providerRemediationAgentRolePattern.FindStringSubmatch(target.RoleARN)
+		if len(role) != 2 || role[1] != target.AccountID || target.RoleARN == remediationRoleARN {
+			return false
+		}
+	}
+	switch target.Kind {
+	case ProviderRemediationKindBedrockAgent:
+		agent := providerRemediationAgentARNPattern.FindStringSubmatch(target.AgentARN)
+		return len(agent) == 4 && agent[1] == target.Region && agent[2] == target.AccountID && agent[3] == target.AgentID
+	case ProviderRemediationKindAgentCoreRuntime, ProviderRemediationKindInferredAgent:
+		return action == securityagent.ActionDetachRoleAdministratorPolicy && target.AgentID == "" && target.RoleARN != ""
+	}
+	return false
+}
+
 // ValidProviderRemediationClaim reports whether a claim is complete and
-// consistent: the target is a Bedrock agent, the parameters are the action's,
-// and the remediation role is a role of the agent's own account.
+// consistent: the target is a discovered agent the action may act on, the
+// parameters are the action's, and the remediation role is a role of the
+// agent's own account.
 func ValidProviderRemediationClaim(claim ProviderRemediationClaim) bool {
-	agent := providerRemediationAgentARNPattern.FindStringSubmatch(claim.Target.AgentARN)
 	role := providerRemediationRolePattern.FindStringSubmatch(claim.RemediationRoleARN)
 	return validProductID(claim.OrganizationID) && validProductID(claim.WorkspaceID) && validProductID(claim.EnvironmentID) && validProductID(claim.RunID) && validProductID(claim.StepID) &&
-		validProductID(claim.IntegrationID) && validProductID(claim.EntityID) && len(agent) == 4 && agent[1] == claim.Target.Region && agent[2] == claim.Target.AccountID && agent[3] == claim.Target.AgentID &&
+		validProductID(claim.IntegrationID) && validProductID(claim.EntityID) && validProviderRemediationTarget(claim.Action, claim.Target, claim.RemediationRoleARN) &&
 		len(role) == 2 && role[1] == claim.Target.AccountID && providerRemediationReferencePattern.MatchString(claim.ExternalIDReference) && securityAgentPlanHashPattern.MatchString(claim.InputDigest) &&
 		claim.Attempt >= 1 && claim.Attempt <= 5 && securityagent.ValidProviderRemediationParameters(claim.Action, claim.Parameters, claim.Target.AccountID, claim.Target.Region)
 }
@@ -138,7 +182,7 @@ func (repository *SecurityAgentActionRepository) ClaimProviderRemediations(ctx c
 	for index, raw := range envelope.Items {
 		var claim ProviderRemediationClaim
 		if !exactJSONFields(raw, "action", "attempt", "entity_id", "environment_id", "external_id_reference", "input_digest", "integration_id", "organization_id", "parameters", "remediation_role_arn", "run_id", "step_id", "target", "workspace_id") ||
-			!exactJSONFields(extractJSONField(raw, "target"), "account_id", "agent_arn", "agent_id", "region") || decodeStrictDiscovery(raw, &claim) != nil || !ValidProviderRemediationClaim(claim) {
+			!exactJSONFields(extractJSONField(raw, "target"), "account_id", "agent_arn", "agent_id", "kind", "region", "role_arn") || decodeStrictDiscovery(raw, &claim) != nil || !ValidProviderRemediationClaim(claim) {
 			return nil, ErrRepositoryUnavailable
 		}
 		key := claim.OrganizationID + "\x1f" + claim.WorkspaceID + "\x1f" + claim.EnvironmentID + "\x1f" + claim.RunID + "\x1f" + claim.StepID

@@ -10,9 +10,10 @@ const (
 	// ActionAttachBedrockGuardrail attaches an existing Bedrock guardrail to
 	// a Bedrock agent. It answers the finding rule agent_guardrail_missing.
 	ActionAttachBedrockGuardrail = "attach_bedrock_guardrail"
-	// ActionDetachRoleAdministratorPolicy detaches one managed policy from
-	// the execution role of a Bedrock agent. It answers the finding rule
-	// agent_role_administrator_access.
+	// ActionDetachRoleAdministratorPolicy detaches one managed policy that
+	// allows every action on every resource from the role a discovered agent
+	// runs as (a Bedrock agent, an AgentCore runtime or an inferred agent).
+	// It answers the finding rule agent_role_administrator_access.
 	ActionDetachRoleAdministratorPolicy = "detach_role_administrator_policy"
 
 	// VerificationGuardrailState and VerificationRolePolicyState are the

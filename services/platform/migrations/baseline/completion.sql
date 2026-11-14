@@ -5668,3 +5668,150 @@ BEGIN
   IF f.grantee IS NOT NULL THEN EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO %s',f.signature::regprocedure,f.grantee);END IF;
  END LOOP;
 END $guardrail_privileges$;
+
+-- ---------------------------------------------------------------------------
+-- V8. The role a policy is detached from (workstream WS4, plan task E1).
+--
+-- detach_role_administrator_policy acted on Bedrock agents only. The finding
+-- rule agent_role_administrator_access is raised for every discovered agent
+-- that runs as an IAM role: a Bedrock agent, an AgentCore runtime, and an
+-- inferred agent (a Lambda function, an IAM role or an EC2 instance that
+-- discovery concluded is an agent). The admission now takes each of them and
+-- records in the plan which kind the agent is and the role discovery linked it
+-- to; it still refuses a target that is not a discovered agent, an agent with
+-- no single recorded role (other than a Bedrock agent, whose role the worker
+-- reads from the provider), and a role the product itself uses.
+-- attach_bedrock_guardrail stays a Bedrock agent action. Nothing else of the
+-- admission changes: this replaces the function of section V6 as a whole.
+CREATE OR REPLACE FUNCTION public.zasp_security_agent_provider_remediation_run(organization_value text,workspace_value text,environment_value text,definition_value text,actor_value text,idempotency_value text,expected_version bigint,run_value text,finding_value text,action_value text,parameters_value jsonb,approval_value text,audit_value text,correlation_value text,receipt_value text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $provider_remediation_scope_run$
+DECLARE catalog_value jsonb:=public.zasp_security_agent_provider_remediation_catalog(action_value);
+ definition_row zasp_security_agent_definitions%ROWTYPE;receipt_row zasp_security_agent_request_receipts%ROWTYPE;finding_row zasp_risk_findings%ROWTYPE;entity_row zasp_inventory_entities%ROWTYPE;integration_row zasp_integrations%ROWTYPE;
+ role_value text;intent_value jsonb;intent_digest_value bytea;trigger_digest_value bytea;step_value text;plan_step jsonb;plan_value jsonb;plan_digest bytea;target_value jsonb;expires_value timestamptz;prior_run text;prior_state text;kind_value text;agent_role_value text;agent_role_count integer;account_value text;response_value jsonb;request_audit text;
+BEGIN
+ IF NOT COALESCE(zasp_security_agent_principal_ready('zasp_security_agent_api'),false) OR catalog_value IS NULL OR expected_version IS NULL OR expected_version NOT BETWEEN 1 AND 1000000
+  OR NOT COALESCE(zasp_valid_product_id(organization_value) AND zasp_valid_product_id(workspace_value) AND zasp_valid_product_id(environment_value) AND zasp_valid_product_id(definition_value) AND zasp_valid_product_id(actor_value) AND zasp_valid_product_id(run_value) AND zasp_valid_product_id(finding_value)
+   AND zasp_valid_product_id(approval_value) AND zasp_valid_product_id(audit_value) AND zasp_valid_product_id(correlation_value) AND zasp_valid_product_id(receipt_value)
+   AND length(idempotency_value) BETWEEN 16 AND 128 AND idempotency_value ~ '^[A-Za-z0-9][A-Za-z0-9._:-]*$'
+   AND jsonb_typeof(parameters_value)='object' AND octet_length(parameters_value::text)<=2048,false)
+ THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='security agent remediation rejected';END IF;
+ intent_value:=jsonb_build_object('definition_id',definition_value,'expected_version',expected_version,'trigger_kind','finding','trigger_id',finding_value,'action',action_value,'parameters',parameters_value);
+ intent_digest_value:=digest(convert_to(intent_value::text,'UTF8'),'sha256');
+ PERFORM pg_advisory_xact_lock(hashtextextended(concat_ws(chr(31),organization_value,workspace_value,environment_value,actor_value,'runSecurityAgent',idempotency_value),0));
+ SELECT * INTO receipt_row FROM zasp_security_agent_request_receipts receipt
+ WHERE(receipt.organization_id,receipt.workspace_id,receipt.environment_id,receipt.principal_id,receipt.operation,receipt.idempotency_key)=(organization_value,workspace_value,environment_value,actor_value,'runSecurityAgent',idempotency_value);
+ IF FOUND THEN
+  IF receipt_row.resource_id<>definition_value OR receipt_row.expected_version<>expected_version OR receipt_row.intent_digest<>intent_digest_value OR receipt_row.expires_at<=transaction_timestamp()
+  THEN RAISE EXCEPTION USING ERRCODE='23505',MESSAGE='security agent run replay conflict';END IF;
+  RETURN receipt_row.response||jsonb_build_object('replayed',true);
+ END IF;
+ SELECT * INTO definition_row FROM zasp_security_agent_definitions definition
+ WHERE(definition.organization_id,definition.workspace_id,definition.environment_id,definition.definition_id,definition.version)=(organization_value,workspace_value,environment_value,definition_value,expected_version)
+  AND definition.deleted_at IS NULL AND definition.activation='supervised' AND definition.body->'environment_ids' ? environment_value
+  AND definition.body->>'autonomy'='supervised' AND definition.body->>'trigger_kind'='finding'
+  AND definition.body->'allowed_actions'=jsonb_build_array(action_value) AND definition.body->>'verification_kind'=catalog_value->>'verification_kind' FOR SHARE;
+ IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='security agent run definition rejected';END IF;
+ SELECT * INTO finding_row FROM zasp_risk_findings finding
+ WHERE(finding.organization_id,finding.workspace_id,finding.environment_id,finding.id)=(organization_value,workspace_value,environment_value,finding_value) AND finding.status='open' FOR SHARE;
+ IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='security agent run trigger denied';END IF;
+ IF finding_row.rule IS DISTINCT FROM catalog_value->>'rule' OR finding_row.agent_id IS NULL THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='security agent remediation finding rule mismatch';END IF;
+ -- The target is the discovered agent the finding is on, as the AWS
+ -- integration that currently describes it reported it.
+ SELECT * INTO entity_row FROM zasp_inventory_entities entity
+ WHERE(entity.organization_id,entity.workspace_id,entity.environment_id,entity.id)=(organization_value,workspace_value,environment_value,finding_row.agent_id)
+  AND entity.tombstoned_at IS NULL AND entity.winning_provider='aws' AND entity.winning_integration_id IS NOT NULL
+  AND entity.stable_fields->>'account_id' ~ '^[0-9]{12}$' AND entity.stable_fields->>'region' ~ '^[a-z]{2}(-gov)?-[a-z]+-[1-9]$'
+  AND entity.stable_fields->>'arn' ~ '^arn:aws(-us-gov|-cn)?:[a-z0-9-]+:[a-z0-9-]*:[0-9]{12}:[A-Za-z0-9+=,.@_:/-]+$' AND length(entity.stable_fields->>'arn')<=2048
+  AND split_part(entity.stable_fields->>'arn',':',5)=entity.stable_fields->>'account_id' FOR SHARE;
+ IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='security agent remediation target unsupported';END IF;
+ account_value:=entity_row.stable_fields->>'account_id';
+ SELECT observation.source_kind INTO kind_value FROM zasp_inventory_source_observations observation
+ WHERE(observation.organization_id,observation.workspace_id,observation.environment_id,observation.integration_id,observation.entity_id)=(entity_row.organization_id,entity_row.workspace_id,entity_row.environment_id,entity_row.winning_integration_id,entity_row.id)
+  AND observation.source_kind IN('aws_bedrock_agent','aws_agentcore_runtime','aws_inferred_agent') AND observation.removed_at IS NULL
+ ORDER BY observation.source_kind LIMIT 1;
+ -- A guardrail is attached to a Bedrock agent only. A Bedrock agent is named
+ -- by its identifier, Region and account exactly as its ARN states them.
+ IF kind_value IS NULL OR(action_value='attach_bedrock_guardrail' AND kind_value<>'aws_bedrock_agent')
+  OR(kind_value='aws_bedrock_agent' AND NOT COALESCE(entity_row.stable_fields->>'arn' ~ '^arn:aws(-us-gov|-cn)?:bedrock:[a-z0-9-]{1,20}:[0-9]{12}:agent/[0-9A-Za-z]{1,64}$'
+   AND entity_row.stable_fields->>'agent_id'=split_part(entity_row.stable_fields->>'arn','/',2)
+   AND entity_row.stable_fields->>'region'=split_part(entity_row.stable_fields->>'arn',':',4),false))
+ THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='security agent remediation target unsupported';END IF;
+ -- The role the agent runs as, as discovery recorded it: the one IAM role the
+ -- agent is linked to by the same integration. The request cannot name a
+ -- role. A Bedrock agent's role is also read from the provider by the worker,
+ -- so it may be absent here; for an AgentCore runtime or an inferred agent
+ -- (a Lambda function, an IAM role, an EC2 instance) the recorded role is the
+ -- only one the policy is ever detached from.
+ SELECT count(*),min(identity.stable_fields->>'arn') INTO agent_role_count,agent_role_value FROM zasp_inventory_relationships relationship
+  JOIN zasp_inventory_entities identity ON(identity.organization_id,identity.workspace_id,identity.environment_id,identity.id)=(relationship.organization_id,relationship.workspace_id,relationship.environment_id,relationship.to_entity_id)
+ WHERE(relationship.organization_id,relationship.workspace_id,relationship.environment_id,relationship.integration_id,relationship.from_entity_id,relationship.kind,relationship.state)
+   =(entity_row.organization_id,entity_row.workspace_id,entity_row.environment_id,entity_row.winning_integration_id,entity_row.id,'uses_identity','present')
+  AND relationship.removed_at IS NULL AND identity.tombstoned_at IS NULL;
+ IF agent_role_count>1 OR(agent_role_count=1 AND NOT COALESCE(agent_role_value ~ '^arn:aws:iam::[0-9]{12}:role/[A-Za-z0-9+=,.@_/-]+$' AND length(agent_role_value)<=543 AND split_part(agent_role_value,':',5)=account_value,false))
+  OR(agent_role_count=0 AND action_value='detach_role_administrator_policy' AND kind_value<>'aws_bedrock_agent')
+ THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='security agent remediation target unsupported';END IF;
+ IF NOT public.zasp_security_agent_provider_remediation_parameters_valid(action_value,parameters_value,entity_row.stable_fields->>'account_id',entity_row.stable_fields->>'region')
+ THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='security agent remediation parameters rejected';END IF;
+ SELECT * INTO integration_row FROM zasp_integrations integration
+ WHERE(integration.organization_id,integration.workspace_id,integration.environment_id,integration.id)=(organization_value,workspace_value,environment_value,entity_row.winning_integration_id)
+  AND integration.kind='aws' AND integration.state='active' AND integration.deleted_at IS NULL
+  AND split_part(integration.configuration->>'role_arn',':',5)=entity_row.stable_fields->>'account_id'
+  AND integration.configuration->>'external_id_reference' ~ '^ref:aws/external-id/[A-Za-z0-9][A-Za-z0-9._-]{7,127}$' FOR SHARE;
+ IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='security agent remediation integration unavailable';END IF;
+ -- The write role: named for this integration, in the agent's account, and
+ -- never the role discovery reads with.
+ SELECT role.role_arn INTO role_value FROM zasp_integration_remediation_roles role
+ WHERE(role.organization_id,role.workspace_id,role.environment_id,role.integration_id)=(organization_value,workspace_value,environment_value,integration_row.id) FOR SHARE;
+ IF NOT FOUND OR role_value=integration_row.configuration->>'role_arn' OR split_part(role_value,':',5)<>entity_row.stable_fields->>'account_id'
+ THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='security agent remediation role not configured';END IF;
+ -- A policy is never detached from a role the product itself uses.
+ IF agent_role_value IS NOT NULL AND agent_role_value IN(role_value,integration_row.configuration->>'role_arn')
+ THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='security agent remediation target unsupported';END IF;
+ IF NOT EXISTS(SELECT 1 FROM zasp_security_agent_kill_switches WHERE(organization_id,workspace_id,environment_id,action_key,execution_enabled)=('*','*','*','*',true))
+  OR NOT EXISTS(SELECT 1 FROM zasp_security_agent_kill_switches WHERE(organization_id,workspace_id,environment_id,action_key,execution_enabled)=(organization_value,workspace_value,environment_value,'*',true))
+  OR NOT EXISTS(SELECT 1 FROM zasp_security_agent_kill_switches WHERE(organization_id,workspace_id,environment_id,action_key,execution_enabled)=(organization_value,workspace_value,environment_value,action_value,true))
+ THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='security agent execution disabled';END IF;
+ PERFORM pg_advisory_xact_lock(hashtextextended(concat_ws(chr(31),organization_value,workspace_value,environment_value,definition_value,finding_value,finding_row.version),0));
+ -- One remediation per Security Agent and finding version, as for every
+ -- other trigger. While the earlier run is still open the request is refused
+ -- and names it; a finished one is refused too, because the finding it acted
+ -- on has not changed since.
+ SELECT receipt.run_id,run.state INTO prior_run,prior_state FROM zasp_security_agent_trigger_receipts receipt
+  JOIN zasp_security_agent_runs run ON(run.organization_id,run.workspace_id,run.environment_id,run.run_id)=(receipt.organization_id,receipt.workspace_id,receipt.environment_id,receipt.run_id)
+ WHERE(receipt.organization_id,receipt.workspace_id,receipt.environment_id,receipt.definition_id,receipt.trigger_id,receipt.trigger_version)=(organization_value,workspace_value,environment_value,definition_value,finding_value,finding_row.version);
+ IF FOUND THEN RAISE EXCEPTION USING ERRCODE='23505',MESSAGE='security agent remediation already requested',DETAIL=prior_run||' '||prior_state;END IF;
+ expires_value:=date_trunc('milliseconds',transaction_timestamp())+interval '24 hours';
+ target_value:=jsonb_build_object('account_id',account_value,'region',entity_row.stable_fields->>'region','kind',kind_value,'agent_id',CASE WHEN kind_value='aws_bedrock_agent' THEN entity_row.stable_fields->>'agent_id' ELSE '' END,'agent_arn',entity_row.stable_fields->>'arn','role_arn',COALESCE(agent_role_value,''));
+ trigger_digest_value:=digest(convert_to(jsonb_build_object('kind','finding','id',finding_value,'version',finding_row.version)::text,'UTF8'),'sha256');
+ step_value:=zasp_discovery_canonical_id(organization_value,workspace_value,environment_value,'security_agent_step',run_value||chr(31)||'0');
+ plan_step:=jsonb_build_object('index',0,'step_id',step_value,'action',action_value,'target_id',entity_row.id,'integration_id',integration_row.id,'finding_id',finding_value,'target',target_value,'parameters',parameters_value,'authorization','approval_required');
+ plan_value:=jsonb_build_object('definition_id',definition_value,'definition_version',expected_version,'catalog_version','security-agent-actions-v1','evidence_ids',jsonb_build_array(finding_value),'steps',jsonb_build_array(plan_step),
+  'verification',jsonb_build_object('kind',catalog_value->>'verification_kind','expected_state',catalog_value->>'expected_state'),'expires_at',to_char(expires_value AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'));
+ plan_digest:=digest(convert_to(plan_value::text,'UTF8'),'sha256');
+ INSERT INTO zasp_security_agent_trigger_receipts(organization_id,workspace_id,environment_id,definition_id,trigger_id,trigger_kind,trigger_version,trigger_digest,run_id)
+ VALUES(organization_value,workspace_value,environment_value,definition_value,finding_value,'finding',finding_row.version,trigger_digest_value,run_value);
+ INSERT INTO zasp_security_agent_runs(organization_id,workspace_id,environment_id,run_id,definition_id,definition_version,trigger_id,requested_by,state,plan_hash)
+ VALUES(organization_value,workspace_value,environment_value,run_value,definition_value,expected_version,finding_value,actor_value,'waiting_approval',plan_digest);
+ INSERT INTO zasp_security_agent_plans(organization_id,workspace_id,environment_id,run_id,definition_id,definition_version,trigger_digest,catalog_version,plan,plan_hash,expires_at)
+ VALUES(organization_value,workspace_value,environment_value,run_value,definition_value,expected_version,trigger_digest_value,'security-agent-actions-v1',plan_value,plan_digest,expires_value);
+ INSERT INTO zasp_security_agent_steps(organization_id,workspace_id,environment_id,run_id,step_id,step_index,action_key,input_digest,authorization_result,state)
+ VALUES(organization_value,workspace_value,environment_value,run_value,step_value,0,action_value,digest(convert_to(plan_step::text,'UTF8'),'sha256'),'approval_required','waiting_approval');
+ INSERT INTO zasp_security_agent_provider_remediations(organization_id,workspace_id,environment_id,run_id,step_id,action_key,finding_id,finding_version,integration_id,entity_id,target,parameters,remediation_role_arn,external_id_reference,input_digest)
+ VALUES(organization_value,workspace_value,environment_value,run_value,step_value,action_value,finding_value,finding_row.version,integration_row.id,entity_row.id,target_value,parameters_value,role_value,integration_row.configuration->>'external_id_reference',digest(convert_to(plan_step::text,'UTF8'),'sha256'));
+ INSERT INTO zasp_security_agent_approvals(organization_id,workspace_id,environment_id,approval_id,run_id,step_id,plan_hash,state,requester_id,expires_at)
+ VALUES(organization_value,workspace_value,environment_value,approval_value,run_value,step_value,plan_digest,'pending',actor_value,expires_value);
+ response_value:=jsonb_build_object('id',run_value,'agent_id',definition_value,'state','waiting_approval','evidence_ids',jsonb_build_array(finding_value),'definition_version',expected_version,'version',1,'audit_id',audit_value,'correlation_id',correlation_value,'receipt_id',receipt_value,'replayed',false);
+ INSERT INTO zasp_security_agent_audit(organization_id,workspace_id,environment_id,audit_id,correlation_id,run_id,actor_id,event_kind,event_digest,body)
+ VALUES(organization_value,workspace_value,environment_value,audit_value,correlation_value,run_value,actor_value,'run_queued',trigger_digest_value,
+  jsonb_build_object('run_id',run_value,'definition_id',definition_value,'definition_version',expected_version,'trigger_kind','finding','trigger_id',finding_value,'trigger_version',finding_row.version,'action',action_value));
+ request_audit:=zasp_discovery_canonical_id(organization_value,workspace_value,environment_value,'security_agent_audit',run_value||chr(31)||'provider-remediation-approval-requested');
+ INSERT INTO zasp_security_agent_audit(organization_id,workspace_id,environment_id,audit_id,correlation_id,run_id,step_id,approval_id,actor_id,event_kind,event_digest,body)
+ VALUES(organization_value,workspace_value,environment_value,request_audit,correlation_value,run_value,step_value,approval_value,actor_value,'approval_requested',plan_digest,
+  jsonb_build_object('run_id',run_value,'step_id',step_value,'action',action_value,'approval_id',approval_value,'plan_hash','sha256:'||encode(plan_digest,'hex'),'target_id',entity_row.id,'integration_id',integration_row.id,'parameters',parameters_value));
+ INSERT INTO zasp_security_agent_request_receipts(organization_id,workspace_id,environment_id,principal_id,operation,idempotency_key,resource_id,expected_version,intent,intent_digest,response,audit_id,correlation_id,receipt_id)
+ VALUES(organization_value,workspace_value,environment_value,actor_value,'runSecurityAgent',idempotency_value,definition_value,expected_version,intent_value,intent_digest_value,response_value,audit_value,correlation_value,receipt_value);
+ UPDATE zasp_security_agent_execution_state SET used_at=COALESCE(used_at,transaction_timestamp()) WHERE singleton;
+ RETURN response_value;
+END $provider_remediation_scope_run$;
+ALTER FUNCTION public.zasp_security_agent_provider_remediation_run(text,text,text,text,text,text,bigint,text,text,text,jsonb,text,text,text,text) OWNER TO zasp_discovery_authority;
+REVOKE ALL ON FUNCTION public.zasp_security_agent_provider_remediation_run(text,text,text,text,text,text,bigint,text,text,text,jsonb,text,text,text,text) FROM PUBLIC;
