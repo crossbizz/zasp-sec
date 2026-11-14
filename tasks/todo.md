@@ -26,7 +26,8 @@ Plan and detail: `docs/superpowers/plans/2026-11-14-automatic-agent-discovery.md
 - [x] Dismiss a false positive ("Not an agent" in the ownership form; dismissed agents raise no posture findings)
 - [x] Unknown `agent_id` on telemetry: closed without building. The pipeline only accepts ids the product issued, so telemetry cannot name an agent the product does not already know
 - [x] Every collector runs a whole collection to a stored snapshot in a test. This found that Okta, GitHub, Salesforce and the AWS agents page failed at that step (Okta and GitHub since before this work); fixed
-- [ ] Baseline artifact rebuilt and all suites compared against the previous commit
+- [x] Baseline artifact rebuilt (43 rule rows; installs on a fresh PostgreSQL 18.3 as a non-superuser)
+- [ ] All suites compared against the code before this work
 
 ## Not buildable here
 - [ ] Run each collector against a real AWS account, cluster, GitHub organization, Okta tenant, Entra tenant and Salesforce org; measure false positives and misses per signal class (needs those systems)
