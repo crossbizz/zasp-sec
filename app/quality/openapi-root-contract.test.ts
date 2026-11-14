@@ -56,7 +56,7 @@ describe("M1-23 OpenAPI root", () => {
   it("completes only M1-23 and preserves its prerequisite, successor, and blockers", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
     ]);
     const active = taskRows(tracker, "In progress");
     const complete = taskRows(tracker, "Complete");
@@ -79,7 +79,7 @@ describe("M1-23 OpenAPI root", () => {
   });
 
   it("documents the exact public OpenAPI root and local verification boundary", async () => {
-    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const readme = await readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8");
     const section = readme.match(/## OpenAPI root[\s\S]*?## Neon pooled proof/)?.[0] ?? "";
     const prose = section.replace(/\s+/g, " ");
 

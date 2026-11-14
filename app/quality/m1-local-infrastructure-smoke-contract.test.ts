@@ -78,7 +78,7 @@ describe("M1-36e local Kubernetes and LocalStack smoke", () => {
   });
 
   it("documents only the disposable local smoke and exact result boundary", async () => {
-    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const readme = await readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8");
     const section = readme.match(/## M1 local infrastructure smoke[\s\S]*?(?=\n## )/)?.[0] ?? "";
     const prose = section.replace(/\s+/g, " ");
 

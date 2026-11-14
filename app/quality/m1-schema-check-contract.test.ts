@@ -73,7 +73,7 @@ describe("M1-36b hermetic schema check", () => {
   });
 
   it("documents only the hermetic schema gate and its successor boundary", async () => {
-    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const readme = await readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8");
     const section = readme.match(/## M1 schema check[\s\S]*?(?=\n## )/)?.[0] ?? "";
     const prose = section.replace(/\s+/g, " ");
 

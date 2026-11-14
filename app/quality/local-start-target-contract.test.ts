@@ -48,7 +48,7 @@ describe("M1-30 assembled local start target", () => {
   it("completes only M1-30 while preserving completed profiles, pending work, and blockers", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
     ]);
     const active = taskRows(tracker, "In progress");
     const complete = taskRows(tracker, "Complete");
@@ -79,7 +79,7 @@ describe("M1-30 assembled local start target", () => {
   it("exposes one bounded assembled root command without claiming persistent or product AWS behavior", async () => {
     const [packageSource, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "package.json"), "utf8"),
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
     ]);
     const scripts = JSON.parse(packageSource).scripts as Record<string, string>;
     const section = readme.match(/## Assembled local development target[\s\S]*?(?=\n## )/)?.[0] ?? "";

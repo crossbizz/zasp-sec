@@ -25,7 +25,7 @@ describe("OpenSearch event projection proof repository contract", () => {
   });
 
   it("documents the scoped EventStore contract and the local-only evidence boundary", async () => {
-    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const readme = await readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8");
     const section = readme.match(/## OpenSearch event projection proof[\s\S]*?```bash\n([\s\S]*?)\n```/);
     expect(section?.[1]?.split("\n")).toEqual([
       "npm run proof:opensearch:event:test",

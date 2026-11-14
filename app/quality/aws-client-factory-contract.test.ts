@@ -50,7 +50,7 @@ describe("M1-31 LocalStack client factory", () => {
   it("exposes the exact command, dependency inventory, and operator boundary", async () => {
     const [packageText, readme, dependencyLock] = await Promise.all([
       readFile(resolve(repositoryRoot, "package.json"), "utf8"),
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
       readFile(resolve(repositoryRoot, "build/dependencies.lock.yaml"), "utf8"),
     ]);
     const scripts = (JSON.parse(packageText) as { scripts?: Record<string, string> }).scripts ?? {};
@@ -92,7 +92,7 @@ describe("M1-31 LocalStack client factory", () => {
   it("completes only M1-31 while preserving M1-30, M1-32, and exact blockers", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
     ]);
     const active = taskRows(tracker, "In progress");
     const complete = taskRows(tracker, "Complete");

@@ -33,7 +33,7 @@ describe("Nango API-key proof completion contract", () => {
     const packageJson = JSON.parse(await readFile(resolve(repositoryRoot, "package.json"), "utf8")) as {
       scripts?: Record<string, string>;
     };
-    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const readme = await readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8");
     const section = readme.match(/## Nango API-key proof[\s\S]*?## Nango OAuth proof/)?.[0];
 
     expect(packageJson.scripts?.["proof:nango:api-key:test"]).toBe("node --test proofs/nango-api-key/*.test.mjs");

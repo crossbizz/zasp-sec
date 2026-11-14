@@ -105,7 +105,7 @@ describe("Tetragon signal proof contract", () => {
   });
 
   it("documents the completed proof boundary and retained live evidence", async () => {
-    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const readme = await readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8");
     const section = readme.match(/## Tetragon signal proof[\s\S]*?## Real AWS cross-account IAM proof/)?.[0];
 
     expect(section).toBeDefined();
@@ -127,7 +127,7 @@ describe("Tetragon signal proof contract", () => {
   it("exposes exact hermetic and live root commands with fixed runtime boundaries", async () => {
     const [packageText, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "package.json"), "utf8"),
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
     ]);
     const packageJson = JSON.parse(packageText) as { scripts?: Record<string, string> };
     const section = readme.match(/## Tetragon signal proof[\s\S]*?## Real AWS cross-account IAM proof/)?.[0];

@@ -50,7 +50,7 @@ describe("M1-28a shared health handler", () => {
   it("completes only M1-28a after reviewed handler evidence and preserves the blockers", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
     ]);
     const active = taskRows(tracker, "In progress");
     const complete = taskRows(tracker, "Complete");
@@ -83,7 +83,7 @@ describe("M1-28a shared health handler", () => {
   });
 
   it("documents the exact shared handler boundary without claiming service wiring", async () => {
-    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const readme = await readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8");
     const section = readme.match(/## Shared service health handler[\s\S]*?(?=\n## |$)/)?.[0] ?? "";
     const prose = section.replace(/\s+/g, " ");
 

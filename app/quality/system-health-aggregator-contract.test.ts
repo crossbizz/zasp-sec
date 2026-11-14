@@ -50,7 +50,7 @@ describe("M1-29 system health aggregator", () => {
   it("completes M1-29 after M1-28 and preserves exact blockers", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
     ]);
     const active = taskRows(tracker, "In progress");
     const complete = taskRows(tracker, "Complete");
@@ -80,7 +80,7 @@ describe("M1-29 system health aggregator", () => {
     const [source, packageJsonText, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "services/health/aggregate.go"), "utf8"),
       readFile(resolve(repositoryRoot, "package.json"), "utf8"),
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
     ]);
     const packageJson = JSON.parse(packageJsonText) as { scripts?: Record<string, string> };
     const section = readme.match(/## System health aggregation model[\s\S]*?## Platform health wiring/)?.[0] ?? "";

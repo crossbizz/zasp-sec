@@ -25,7 +25,7 @@ describe("M4 risk and Agent UI completion batch", () => {
   it("records exactly the selected 25 tasks as Complete", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(root, "docs/internal/implementation_status_v1.5.md"), "utf8"),
-      readFile(resolve(root, "README.md"), "utf8"),
+      readFile(resolve(root, "docs/internal/README-status-archive.md"), "utf8"),
     ]);
     expect(selected).toHaveLength(25);
     for (const value of ["| Pending | 0 |", "| In progress | 0 |", "| Complete | 667 |", "| Blocked | 61 |", "`0/0/667/61`", "| M4 | 82 | 0 | 0 | 82 | 0 |"]) expect(tracker).toContain(value);

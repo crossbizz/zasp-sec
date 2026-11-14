@@ -23,7 +23,7 @@ describe("M8-60 through M8-54 final release batch", () => {
   });
 
   it("keeps live and human release evidence explicitly unresolved", () => {
-    const readme = read("README.md");
+    const readme = read("docs/internal/README-status-archive.md");
     expect(readme).toContain("M8 release evidence remains open");
     expect(readme).toContain("live provider, human usability, and disaster-recovery runs");
   });

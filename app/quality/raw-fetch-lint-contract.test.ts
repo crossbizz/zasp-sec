@@ -47,7 +47,7 @@ describe("M1-27 raw fetch lint", () => {
   it("completes only M1-27 after M1-26 and preserves the blockers", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
     ]);
     const active = taskRows(tracker, "In progress");
     const complete = taskRows(tracker, "Complete");
@@ -73,7 +73,7 @@ describe("M1-27 raw fetch lint", () => {
   });
 
   it("documents the exact frontend lint commands, scope, and client exception", async () => {
-    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const readme = await readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8");
     const section = readme.match(/## Raw frontend Fetch lint[\s\S]*?## Neon pooled proof/)?.[0] ?? "";
     const prose = section.replace(/\s+/g, " ");
 

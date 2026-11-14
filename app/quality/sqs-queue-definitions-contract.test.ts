@@ -69,7 +69,7 @@ describe("M1-33 SQS queue definitions", () => {
   it("preserves completed M1-33 and M1-34 with exact blockers", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
     ]);
     const active = taskRows(tracker, "In progress");
     const complete = taskRows(tracker, "Complete");
@@ -98,7 +98,7 @@ describe("M1-33 SQS queue definitions", () => {
   it("exposes the exact hermetic and disposable live proof boundary", async () => {
     const [manifestText, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "package.json"), "utf8"),
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
     ]);
     const manifest = JSON.parse(manifestText) as PackageManifest;
     const section = readme.match(/## SQS queue definitions proof[\s\S]*?## Assembled local development target/)?.[0];

@@ -40,7 +40,7 @@ describe("M1-19 product telemetry contract", () => {
   it("keeps M1-19 and M1-20 complete", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
     ]);
     const active = taskRows(tracker, "In progress");
     const complete = taskRows(tracker, "Complete");
@@ -64,7 +64,7 @@ describe("M1-19 product telemetry contract", () => {
   it("exposes only the hermetic root contract and documents the privacy boundary", async () => {
     const [packageText, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "package.json"), "utf8"),
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
     ]);
     const packageJson = JSON.parse(packageText) as { scripts: Record<string, string> };
     const section = readme.match(/## Product telemetry contract[\s\S]*?(?=\n## )/)?.[0] ?? "";

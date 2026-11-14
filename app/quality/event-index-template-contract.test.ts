@@ -49,7 +49,7 @@ describe("M1-32 OpenSearch index template", () => {
   it("completes only M1-32 while preserving M1-31, M1-33, and exact blockers", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
     ]);
     const active = taskRows(tracker, "In progress");
     const complete = taskRows(tracker, "Complete");
@@ -88,7 +88,7 @@ describe("M1-32 OpenSearch index template", () => {
   });
 
   it("documents the exact product-owned template boundary", async () => {
-    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const readme = await readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8");
     const section = (readme.match(/## OpenSearch session\/runtime event template[\s\S]*?(?=\n## )/)?.[0] ?? "").replace(
       /\s+/g,
       " ",

@@ -29,7 +29,7 @@ describe("LocalStack storage proof repository contract", () => {
   });
 
   it("documents the runnable sequence and the LocalStack-only proof boundary", async () => {
-    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const readme = await readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8");
     const section = readme.match(/## LocalStack storage proof[\s\S]*?```bash\n([\s\S]*?)\n```/);
     expect(section?.[1]?.split("\n")).toEqual([
       "npm run proof:localstack:storage:test",

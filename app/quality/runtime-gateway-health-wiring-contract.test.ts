@@ -48,7 +48,7 @@ describe("M1-28d runtime-gateway health wiring", () => {
   it("completes only M1-28d after review and preserves exact blockers", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
     ]);
     const active = taskRows(tracker, "In progress");
     const complete = taskRows(tracker, "Complete");
@@ -78,7 +78,7 @@ describe("M1-28d runtime-gateway health wiring", () => {
       readFile(resolve(repositoryRoot, "services/runtime-gateway/main.go"), "utf8"),
       readFile(resolve(repositoryRoot, "services/runtime-gateway/go.mod"), "utf8"),
       readFile(resolve(repositoryRoot, "package.json"), "utf8"),
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
     ]);
 
     expect(command).toContain("net.Listen");

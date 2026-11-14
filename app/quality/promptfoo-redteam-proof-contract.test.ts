@@ -94,14 +94,14 @@ describe("Promptfoo red-team proof repository contract", () => {
 
   it("completes only M0-16 and advances R-09 with reviewed evidence", async () => {
     const tracker = await readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8");
-    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const readme = await readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8");
     const riskRegister = await readFile(resolve(repositoryRoot, "docs/decisions/mvp-risk-register.md"), "utf8");
     assertM016Complete(tracker, readme, riskRegister);
   });
 
   it("rejects duplicate, concurrent, premature-risk, external-target, and aggregate drift", async () => {
     const tracker = await readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8");
-    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const readme = await readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8");
     const riskRegister = await readFile(resolve(repositoryRoot, "docs/decisions/mvp-risk-register.md"), "utf8");
     const row = taskRows(tracker, "Complete").find(([task]) => task === "M0-16")?.join(" | ");
 
@@ -146,7 +146,7 @@ describe("Promptfoo red-team proof repository contract", () => {
 
   it("exposes exact hermetic, live, and immutable-license root boundaries", async () => {
     const packageJson = JSON.parse(await readFile(resolve(repositoryRoot, "package.json"), "utf8"));
-    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const readme = await readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8");
     const inventory = JSON.parse(await readFile(
       resolve(repositoryRoot, "proofs/promptfoo-redteam/adapter-license.json"),
       "utf8",

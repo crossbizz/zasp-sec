@@ -51,7 +51,7 @@ describe("EKS Fargate egress proof repository contract", () => {
 
   it("keeps M0-19 blocked while M0-20 proceeds without advancing R-11", async () => {
     const tracker = await readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8");
-    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const readme = await readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8");
     const risk = await readFile(resolve(repositoryRoot, "docs/decisions/mvp-risk-register.md"), "utf8");
     const active = rows(tracker, "In progress");
     const blocked = rows(tracker, "Blocked");
@@ -75,7 +75,7 @@ describe("EKS Fargate egress proof repository contract", () => {
 
   it("exposes the hermetic, live, and license boundaries from the root", async () => {
 	const packageJson = JSON.parse(await readFile(resolve(repositoryRoot, "package.json"), "utf8")) as { scripts?: Record<string, string> };
-	const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+	const readme = await readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8");
 	const section = readme.match(/## EKS Fargate egress proof[\s\S]*?## EKS Fargate verification proof/)?.[0];
 	expect(packageJson.scripts?.["proof:fargate-egress:test"]).toBe(
 	  "cd proofs/fargate-egress && go test -race -count=1 ./... && node --test run.test.mjs license-audit.test.mjs",

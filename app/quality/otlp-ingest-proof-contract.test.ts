@@ -142,7 +142,7 @@ describe("OTLP ingest proof contract", () => {
   });
 
   it("documents the fixed local-only ingest boundary", async () => {
-    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const readme = await readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8");
     const section = readme.match(/## OTLP ingest proof[\s\S]*?## Tetragon signal proof/)?.[0];
 
     expect(section).toBeDefined();

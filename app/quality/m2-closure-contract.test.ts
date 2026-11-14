@@ -39,7 +39,7 @@ describe("M2 identity and authorization milestone closure", () => {
       readFile(resolve(repositoryRoot, "app/features/identity/APIAccessView.tsx"), "utf8"),
       readFile(resolve(repositoryRoot, "app/features/identity/ScopeOnboardingView.tsx"), "utf8"),
       readFile(resolve(repositoryRoot, "docs/product/ui-api-map.yaml"), "utf8"),
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
     ]);
     expect(app).toContain('path === "/administration/api-access"');
     expect(tokenView).toContain("client ? createAPIAccessAPI(client)");

@@ -32,7 +32,7 @@ describe("Cartography scope proof delivery-waiver status contract", () => {
 
   it("documents the runnable two-Organization fixture boundary and blocked provider work", async () => {
     const [readme, tracker] = await Promise.all([
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
     ]);
     const section = readme.match(/## Cartography Organization-scope proof[\s\S]*?```bash\n([\s\S]*?)\n```/);
@@ -60,7 +60,7 @@ describe("Cartography scope proof delivery-waiver status contract", () => {
         "utf8",
       ),
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
       readFile(
         resolve(repositoryRoot, "docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md"),
         "utf8",

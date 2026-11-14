@@ -54,7 +54,7 @@ describe("M1-30b local graph manifest", () => {
   it("completes only M1-30b and preserves its dependent work and blockers", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
     ]);
     const active = taskRows(tracker, "In progress");
     const complete = taskRows(tracker, "Complete");
@@ -87,7 +87,7 @@ describe("M1-30b local graph manifest", () => {
   it("exposes the hermetic, live, and license graph commands with their local-only operator boundary", async () => {
     const [packageText, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "package.json"), "utf8"),
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
     ]);
     const packageJson = JSON.parse(packageText) as { scripts?: Record<string, unknown> };
     const localGraph = (readme.match(/## Local graph Kubernetes manifest proof[\s\S]*?(?=\n## |$)/)?.[0] ?? "").replace(/\s+/g, " ");

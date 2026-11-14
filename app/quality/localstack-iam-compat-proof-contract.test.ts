@@ -38,7 +38,7 @@ describe("provisional LocalStack IAM compatibility proof repository contract", (
 
   it("documents the executable provisional boundary and leaves real AWS work incomplete", async () => {
     const [readme, tracker, plan, cli] = await Promise.all([
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "docs/internal/2026-08-13-localstack-iam-provisional-implementation-plan.md"), "utf8"),
       readFile(resolve(repositoryRoot, proofDirectory, "main.go"), "utf8"),

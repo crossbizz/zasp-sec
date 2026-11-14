@@ -25,7 +25,7 @@ describe("M5 worker and Attack Lab completion batch", () => {
   it("records exactly M5-10 through the M5-30 boundary as Complete", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(root, "docs/internal/implementation_status_v1.5.md"), "utf8"),
-      readFile(resolve(root, "README.md"), "utf8"),
+      readFile(resolve(root, "docs/internal/README-status-archive.md"), "utf8"),
     ]);
     expect(selected).toHaveLength(25);
     for (const value of ["| Pending | 0 |", "| In progress | 0 |", "| Complete | 667 |", "| Blocked | 61 |", "`0/0/667/61`", "| M5 | 42 | 0 | 0 | 42 | 0 |"]) expect(tracker).toContain(value);

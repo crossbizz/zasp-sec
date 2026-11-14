@@ -40,7 +40,7 @@ describe("Neon pooled Go proof repository contract", () => {
   });
 
   it("documents a runnable root sequence that loads the ignored environment", async () => {
-    const readme = await readFile(resolve(repositoryRoot, "README.md"), "utf8");
+    const readme = await readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8");
     const neonSection = readme.match(
       /## Neon pooled proof[\s\S]*?```bash\n([\s\S]*?)\n```/,
     );

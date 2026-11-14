@@ -28,6 +28,6 @@ describe("M7 milestone completion batch", () => {
       expect(active.match(new RegExp(`^\\| ${task} \\|`, "gm")) ?? []).toHaveLength(0);
       expect(complete.match(new RegExp(`^\\| ${task} \\|`, "gm"))).toHaveLength(1);
     }
-    expect(read("README.md")).toContain("M7-01 through M7-40 are Complete");
+    expect(read("docs/internal/README-status-archive.md")).toContain("M7-01 through M7-40 are Complete");
   });
 });

@@ -65,7 +65,7 @@ describe("M1-36a clean-checkout build check", () => {
   it("completes only M1-36a after M1-35 while preserving M1-36b and exact blockers", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
     ]);
     const active = taskRows(tracker, "In progress");
     const complete = taskRows(tracker, "Complete");
@@ -93,7 +93,7 @@ describe("M1-36a clean-checkout build check", () => {
   it("reuses one exact build command and documents only the build gate", async () => {
     const [packageText, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "package.json"), "utf8"),
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
     ]);
     const packageJson = JSON.parse(packageText) as { scripts: Record<string, string> };
     const section = readme.match(/## M1 build check[\s\S]*?(?=\n## )/)?.[0] ?? "";

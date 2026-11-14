@@ -37,7 +37,7 @@ describe("M2 identity governance and UI batch", () => {
     const [openapi, map, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "openapi/openapi.yaml"), "utf8"),
       readFile(resolve(repositoryRoot, "docs/product/ui-api-map.yaml"), "utf8"),
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
     ]);
     for (const operation of [
       "listAPITokens", "createAPIToken", "listAPITokenRevealGrants", "revealAPIToken",

@@ -57,7 +57,7 @@ describe("M1-35 base web shell", () => {
   it("completes only M1-35 while preserving M1-34, M1-36a, and exact blockers", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/implementation_status_v1.5.md"), "utf8"),
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
     ]);
     const active = taskRows(tracker, "In progress");
     const complete = taskRows(tracker, "Complete");
@@ -85,7 +85,7 @@ describe("M1-35 base web shell", () => {
   it("exposes one hermetic shell command and the bounded product documentation", async () => {
     const [packageText, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "package.json"), "utf8"),
-      readFile(resolve(repositoryRoot, "README.md"), "utf8"),
+      readFile(resolve(repositoryRoot, "docs/internal/README-status-archive.md"), "utf8"),
     ]);
     const packageJson = JSON.parse(packageText) as { scripts: Record<string, string> };
     const command = "vitest run app/domain/routes.test.ts app/domain/route-guard.test.ts app/components/LeftNav.test.tsx app/components/UnauthenticatedRouteGuard.test.tsx app/components/ZaspApp.test.tsx";
