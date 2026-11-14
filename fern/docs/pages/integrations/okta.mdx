@@ -14,6 +14,17 @@ description: Connect an Okta tenant with read-only directory scopes to find the 
 
 An AI application connected to the tenant is an agent your organization uses without running it. It appears on the Agents page with the source of the tenant.
 
+## What this source gives you
+
+| | |
+| --- | --- |
+| Findings specific to it | None |
+| Activity without anything installed | None. An agent's activity is unknown unless its traffic goes through the hosted gateway. |
+| MCP servers | None |
+| Changes Zasp can make after approval | None. Fix a finding at the provider. |
+
+The general findings, attack paths, red team tests, guardrails, the hosted gateway and compliance evidence are the same for every source. All sources side by side: [What each source gives you](/integrations/overview#what-each-source-gives-you).
+
 ## What you grant
 
 A read-only OAuth authorization with these scopes:
@@ -26,6 +37,10 @@ A read-only OAuth authorization with these scopes:
 | `offline_access` | Syncing later without a person present |
 
 Authorize with an account that may grant them, and restrict that account to this purpose.
+
+## What your operator does
+
+The operator creates an Okta application once and configures it in the deployment. Every tenant then connects by a sign-in. Nothing is stored per tenant outside the product.
 
 ## Configure
 

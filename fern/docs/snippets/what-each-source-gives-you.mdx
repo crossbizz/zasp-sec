@@ -1,0 +1,20 @@
+Every source gives you an inventory, ownership, the general findings, attack paths, the AI bill of materials and evidence. Some things depend on what the provider exposes and on what is built today.
+
+| Source | Findings specific to it | Activity without anything installed | MCP servers | Changes Zasp can make after approval |
+| --- | --- | --- | --- | --- |
+| [AWS](/integrations/aws) | No guardrail on a Bedrock agent; execution role with administrator access; role unused for 90 days; model permissions granted and not used; role that reaches every resource of a data service | From CloudTrail, and from Resolver query logs with VPC Flow Logs | AgentCore gateways and their targets; remote servers seen in the network logs | Attach a Bedrock guardrail; detach an administrator policy |
+| [GitHub](/integrations/github) | A skill that ships scripts; a skill with no code owner | None | Servers and tools in a repository's MCP configuration | None |
+| [Google Cloud](/integrations/google-cloud) | Service account with an administrator role; Vertex AI agent without Model Armor | From the Vertex AI data access audit log | Cloud Run services that are MCP servers; tools of Conversational Agents | None |
+| [Kubernetes](/integrations/kubernetes) | None | None | Workloads that are MCP servers, and the agents linked to them | None |
+| [Microsoft and Azure](/integrations/microsoft) | Content moderation at the lowest level (Copilot Studio, Azure AI Foundry) | None | None. The kinds of tools of an AI Foundry agent are recorded. | None |
+| [Okta](/integrations/okta) | None | None | None | None |
+| [Salesforce](/integrations/salesforce) | Content moderation at the lowest level (Einstein Trust Layer) | None | None. An agent's topics and actions are listed as its tools. | None |
+| [SaaS platforms](/integrations/saas-platforms) | None | None | The MCP servers of GitLab Duo agents | None |
+
+How to read the table:
+
+- The general findings (an agent with no owner, a human credential, a shared credential, reach from untrusted input to production, and the like) are raised for an agent of any source, wherever the facts they need were read.
+- The findings about MCP servers are raised on the agents that use a server, for every source that records which agent uses which server.
+- "None" under activity means the agent's activity is unknown, not that it is inactive. Two things give activity for an agent of any source: routing its traffic through the [hosted gateway](/concepts/guardrails-and-gateway), and the optional runtime sensor.
+- Red team tests, guardrails, the hosted gateway and compliance evidence do not depend on the source.
+- Remediation actions exist for AWS only today. A finding of any other source is fixed at the provider, by following the fix the finding names.

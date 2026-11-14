@@ -35,6 +35,17 @@ Skills and instruction files are recorded by path. Their contents are never requ
 
 Two findings follow on the repository's agent project: a skill that ships scripts while the agent has production access, and a skill no code owner is named for.
 
+## What this source gives you
+
+| | |
+| --- | --- |
+| Findings specific to it | A skill that ships scripts while the agent has production access; a skill with no code owner |
+| Activity without anything installed | None. An agent's activity is unknown unless its traffic goes through the hosted gateway. |
+| MCP servers | Servers and tools in a repository's MCP configuration |
+| Changes Zasp can make after approval | None. Fix a finding at the provider. |
+
+The general findings, attack paths, red team tests, guardrails, the hosted gateway and compliance evidence are the same for every source. All sources side by side: [What each source gives you](/integrations/overview#what-each-source-gives-you).
+
 ## What you grant
 
 An installation of the Zasp GitHub App on your organization, with three read permissions:
@@ -47,9 +58,20 @@ An installation of the Zasp GitHub App on your organization, with three read per
 
 You choose the organization, and all repositories or selected ones.
 
+## What your operator does
+
+The operator creates a GitHub App once and configures it in the deployment. Every organization then connects by installing that App. Nothing is stored per organization outside the product.
+
 ## Configure
 
-In the product, choose GitHub in the connector catalog and save. Open the integration and authorize: you continue on GitHub and install the App.
+In the product, choose GitHub in the connector catalog.
+
+| Field | Value |
+| --- | --- |
+| Integration name | A name you will recognise |
+| Authorization mode | `github_app`. It is the only value the field accepts. |
+
+Save, open the integration and authorize: you continue on GitHub and install the App.
 
 After authorization the integration shows the organization, the repository scope and the read-only permissions of the installation.
 

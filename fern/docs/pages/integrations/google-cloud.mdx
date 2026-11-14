@@ -25,6 +25,46 @@ A Cloud Run service or a function is listed as an agent only on evidence: one st
 
 Two findings are specific to Google Cloud: an agent whose service account holds an administrator role, and a Vertex AI agent that runs without Model Armor.
 
+## How an inferred agent is decided
+
+A Cloud Run service or a function is listed as an agent only on evidence.
+
+| Signal | Strength | Where it comes from |
+| --- | --- | --- |
+| `env:<provider>` | Strong for a model provider's key name | The name of an environment variable. Values are never read. |
+| `image:<framework>` | By catalog | The container image reference |
+| `surface:cloud_run_agent` | Strong | Cloud Run's own type says the service is an agent |
+| `iam:vertex_ai_user` and similar | Weak | A role of the service account in the project's IAM policy |
+| `invoke:vertex_ai_model`, `invoke:vertex_ai_agent` | Strong | The audit log shows the service account calling a model or a reasoning engine |
+
+A service account that the audit log shows invoking a model, and that runs nothing listed, is itself listed as an inferred agent.
+
+## MCP servers and tools
+
+A Cloud Run service is recorded as an MCP server, not as an agent, when Cloud Run's own type says so, or when its image or command is an MCP server. It appears on the Tools & MCP page, where it can be approved or blocked. Its authentication is declared while Cloud Run's IAM invoker check is on, and none when the check is switched off.
+
+The tools of a Conversational Agents agent are listed with their names and a risk class read from the name.
+
+## Findings
+
+| Finding | Raised when |
+| --- | --- |
+| Agent's service account holds an administrator role | The service account an agent runs as holds Owner, Editor, Security Admin, Service Account Admin, Project IAM Admin, Folder Admin or Organization Admin, on the project or on a folder or the organization above it. A service or function without a service account of its own runs as the Compute Engine default service account, whose roles are checked. |
+| Agent runs without Model Armor | A reasoning engine runs in a project whose Model Armor floor setting does not cover Vertex AI and that has no Model Armor template in the engine's location. Raised only when Model Armor could be read, or its API is switched off. |
+
+What is never recorded: tokens, keys, values of environment variables, request or response payloads of audit log entries, and the addresses of people. Only service accounts are kept from an IAM policy or a log entry.
+
+## What this source gives you
+
+| | |
+| --- | --- |
+| Findings specific to it | Service account with an administrator role; Vertex AI agent without Model Armor |
+| Activity without anything installed | From the Vertex AI data access audit log of the last seven days, where data access audit logs are enabled |
+| MCP servers | Cloud Run services that are MCP servers; tools of Conversational Agents |
+| Changes Zasp can make after approval | None. Fix a finding at the provider. |
+
+The general findings, attack paths, red team tests, guardrails, the hosted gateway and compliance evidence are the same for every source. All sources side by side: [What each source gives you](/integrations/overview#what-each-source-gives-you).
+
 ## What you grant
 
 One service account for discovery, with these read-only roles on the organization, folder or project to read:
@@ -64,6 +104,10 @@ Model invocations appear in the audit log only where data access audit logs are 
 Zasp signs an AWS identity request with its own role, Google verifies the signature with AWS, and a one-hour token of the service account is issued. No key exists.
 
 **A service account key.** Only where federation is not possible. Create a JSON key and hand it to your operator, who stores it outside the product. Rotate it in Google Cloud and have the stored value replaced.
+
+## What your operator does
+
+The operator enables the connector in the deployment and admits the address ranges of Google's APIs for it. For workload identity federation the operator gives you the deployment's two roles, and stores nothing. For a key, the operator stores the key file you hand over and gives you its reference.
 
 ## Configure
 

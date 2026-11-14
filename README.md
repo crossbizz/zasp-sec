@@ -77,6 +77,19 @@ Two things to know up front. The product needs AWS APIs (STS, Secrets Manager, K
 | [Connectors](docs/operations/saas-connectors.md), [Google Cloud](docs/operations/google-cloud-connector.md), [hosted gateway](docs/operations/hosted-gateway.md), [guardrail decision API](docs/operations/guardrail-decision-api.md) | Turn on an optional capability. |
 | [Architecture at a glance](docs/getting-started/administrator.md#architecture-at-a-glance) | Want to know which component does what. |
 
+## Documentation and SDKs
+
+The documentation site and four client libraries are built from the API contract with [Fern](https://buildwithfern.com).
+
+| Path | Contents |
+| --- | --- |
+| [`fern/README.md`](fern/README.md) | How the site and the SDKs are built, checked, previewed and published |
+| [`fern/docs.yml`](fern/docs.yml), [`fern/docs/pages/`](fern/docs/pages/) | The site: quickstart, concept pages, one page per integration, guides and the API reference of every operation |
+| [`docs/getting-started/user.md`](docs/getting-started/user.md), [`docs/getting-started/administrator.md`](docs/getting-started/administrator.md) | The two guides. Each is also a page of the site, from this one source. |
+| [`sdks/`](sdks/README.md) | TypeScript, Python, Go and Java clients for the operations an API token may call. Installed from this repository; not published. |
+
+`npm run docs:check` validates the site and `npm run sdk:test` compiles and tests the TypeScript and Go clients.
+
 ## Repository layout
 
 | Path | Contents |

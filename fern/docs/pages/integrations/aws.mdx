@@ -17,6 +17,17 @@ description: Connect an AWS account with a read role and an external ID. What is
 
 Three agent checks are raised as findings: a Bedrock agent with no guardrail, an execution role unused for 90 days, and an execution role with administrator access. Two more compare permissions with use: model permissions that are granted and not used, and a role that reaches every resource of a data service.
 
+## What this source gives you
+
+| | |
+| --- | --- |
+| Findings specific to it | No guardrail on a Bedrock agent; execution role with administrator access; role unused for 90 days; model permissions granted and not used; role that reaches every resource of a data service |
+| Activity without anything installed | From CloudTrail, and from Resolver query logs with VPC Flow Logs |
+| MCP servers | AgentCore gateways and their targets; remote servers seen in the network logs |
+| Changes Zasp can make after approval | Attach a Bedrock guardrail; detach an administrator policy. Both need the optional remediation role. |
+
+The general findings, attack paths, red team tests, guardrails, the hosted gateway and compliance evidence are the same for every source. All sources side by side: [What each source gives you](/integrations/overview#what-each-source-gives-you).
+
 ## What you grant
 
 One IAM role in the account. Zasp assumes it with an external ID. The role is read-only.
@@ -112,6 +123,10 @@ Logs delivered only to S3 are not read. Restrict `logs:StartQuery` and `logs:Get
 Logs Insights queries are billed to your account: two bounded queries per region and sync, over the last 24 hours.
 
 No query name, address or event leaves the account. Only the names of the matched AI services are kept.
+
+## What your operator does
+
+Each AWS account is a change on the deployment side. The operator registers your role's ARN, stores the external ID in the deployment's secret store, and gives you the two principals to trust and the reference `ref:aws/external-id/<name>`.
 
 ## Configure
 

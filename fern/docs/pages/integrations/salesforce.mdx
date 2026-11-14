@@ -22,6 +22,17 @@ When both prompt screens of the Trust Layer are off, each agent gets the finding
 
 Each read is optional. If the org does not have the object, or the run-as user may not read it, the agent is listed without that fact and the sync completes.
 
+## What this source gives you
+
+| | |
+| --- | --- |
+| Findings specific to it | Content moderation at the lowest level, when both prompt screens of the Einstein Trust Layer are off |
+| Activity without anything installed | None. An agent's activity is unknown unless its traffic goes through the hosted gateway. |
+| MCP servers | None. An agent's topics and actions are listed as its tools. |
+| Changes Zasp can make after approval | None. Fix a finding at the provider. |
+
+The general findings, attack paths, red team tests, guardrails, the hosted gateway and compliance evidence are the same for every source. All sources side by side: [What each source gives you](/integrations/overview#what-each-source-gives-you).
+
 ## What you grant
 
 <Steps>
@@ -38,6 +49,22 @@ Each read is optional. If the org does not have the object, or the run-as user m
     Give the consumer secret to your operator, who stores it and gives you a reference. Note the consumer key, the org's My Domain URL and the 18-character Organization ID.
   </Step>
 </Steps>
+
+## What your operator does
+
+The operator enables the connector, stores your consumer secret in the deployment's secret store and gives you the reference `ref:salesforce/client-secret/<name>`. The deployment needs a network route to your My Domain host; the operator admits its address ranges.
+
+Each additional org is another stored secret.
+
+## What each sync does
+
+1. It posts the client-credentials grant to your org and requires the answer to name the configured instance and org. Salesforce reports no token lifetime, so a token is used for at most 20 minutes and a new one is requested on every sync.
+2. It lists the Agentforce agents.
+3. For each agent it reads the user it runs as and that user's permission sets.
+4. It reads the agent's topics and actions through the Tooling API.
+5. With the Metadata API permission, it reads the Einstein Trust Layer switches.
+
+Steps 3 to 5 are optional. Where the org lacks the object or the run-as user may not read it, the agent is listed without that fact.
 
 ## Configure
 

@@ -11,12 +11,14 @@ Nothing is installed to find them. Each source is read by an integration you alr
 
 | Found by | Read from | Needs |
 | --- | --- | --- |
-| AgentCore gateway | The gateways of an AWS account, their authorizer and their targets | The AgentCore gateway actions on the AWS read role |
-| Repository configuration | MCP configuration files of a repository (`.mcp.json`, `mcp.json`, `.cursor/mcp.json`, `.vscode/mcp.json`, `claude_desktop_config.json`) | The GitHub integration's `contents` read permission |
+| AgentCore gateway, Gateway target | The gateways of an AWS account, their authorizer and their targets | The AWS integration, with the AgentCore gateway actions on the read role |
 | Kubernetes workload | A workload whose image or command is an MCP server | The Kubernetes integration |
-| Seen in network logs | A workload that resolved and reached a remote MCP server | Resolver query logs and flow logs on AWS |
-| SaaS platform | MCP servers a SaaS platform lists for its agents | The SaaS integration |
-| Gateway target | The target of an AgentCore gateway | The gateway target actions |
+| Provider record | Cloud Run services that Google Cloud marks as MCP servers, or whose image or command is one | The Google Cloud integration |
+| Repository configuration | MCP configuration files of a repository (`.mcp.json`, `mcp.json`, `.cursor/mcp.json`, `.vscode/mcp.json`, `claude_desktop_config.json`) | The GitHub integration's `contents` read permission |
+| SaaS platform | MCP servers a SaaS platform lists for its agents, GitLab Duo today | The SaaS integration |
+| Seen in network logs | A workload that resolved and reached a remote MCP server | The AWS integration, with Resolver query logs and flow logs |
+
+The Microsoft, Okta and Salesforce integrations list no MCP servers.
 
 From a repository's configuration, only server names, transports, command base names, URL hosts, launched package names and tool names are kept.
 

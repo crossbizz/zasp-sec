@@ -27,6 +27,27 @@ Each platform is one definition that says which of the platform's read endpoints
 | Atlassian | Site name | Reference (API token) | Installed AI apps and Rovo apps, and the Rovo agents that installed apps ship |
 | Atlassian organization | Organization ID | Reference (organization API key) | The Rovo agents people built in Rovo Studio, reconstructed from the organization's audit log |
 
+## What this source gives you
+
+| | |
+| --- | --- |
+| Findings specific to it | None |
+| Activity without anything installed | None. An agent's activity is unknown unless its traffic goes through the hosted gateway. |
+| MCP servers | The MCP servers of GitLab Duo agents |
+| Changes Zasp can make after approval | None. Fix a finding at the provider. |
+
+The general findings, attack paths, red team tests, guardrails, the hosted gateway and compliance evidence are the same for every source. All sources side by side: [What each source gives you](/integrations/overview#what-each-source-gives-you).
+
+## What your operator does
+
+The operator enables the SaaS connector and Nango in the deployment, and admits each platform's address ranges for Nango. For a platform connected by reference, the operator creates the connection in Nango with the key or token you hand over.
+
+The evaluation profile that runs on one machine has no Nango, so SaaS platforms cannot be connected there.
+
+## How a connection is bound to your tenant
+
+An integration names one tenant. Before anything is collected, Zasp asks the platform which tenant the connection reaches, and refuses a connection that reaches another. For OpenAI projects the project identifier is sent with every request, and a key of another project is refused by OpenAI itself.
+
 ## Connect by sign-in
 
 <Steps>
@@ -62,6 +83,12 @@ For a platform that is connected with an API key or token:
   </Step>
 </Steps>
 
+## Deleting a connection
+
+- A connection that a sign-in created is deleted from Nango when the integration is deleted, or when the integration is given another connection.
+- A connection the product did not create, one whose reference a person entered, is never deleted by the product. Delete it in Nango.
+- Deleting an authorized integration first revokes it. The integration shows that it is revoking for a few seconds to a minute.
+
 ## Messages you may see
 
 | Message | Meaning | Change |
@@ -75,6 +102,10 @@ For a platform that is connected with an API key or token:
 
 - OpenAI assistants and agents belong to a project and are listed only with a key of that project. The organization's admin key cannot list them. Connect each project as its own integration.
 - Rovo agents people built in Rovo Studio cannot be listed with an API token today. They are reconstructed from the organization's audit log instead, which needs the Atlassian organization integration.
+
+- Every request is a read: a `GET`, or the `POST` of an allow-listed GraphQL query. A response is at most 1 MiB.
+- A response whose text contains a token or a secret is refused and nothing of it is stored.
+- A Databricks tenant identifier is the workspace address, not the numeric workspace identifier.
 
 ## Status
 
