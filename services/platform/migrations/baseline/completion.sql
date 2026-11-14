@@ -6955,3 +6955,50 @@ BEGIN
   EXECUTE replace(d,anchor,gaps);
  END IF;
 END $ws7_coverage_gaps$;
+
+-- WS7c. The tools of an agent on GET /agents/{id}/access.
+--
+-- zasp_mcp_agent_access_json (section WS5d) gains two members:
+--   tools       the topics and actions of an Agentforce agent
+--               (salesforce_agent_tool): the entities the agent contains and
+--               the ones those contain, topics first. Each has its name, its
+--               kind (topic or action) and, for an action, what it invokes
+--               (target) and whether it asks for confirmation; both are null
+--               where the collector did not state them. At most 64.
+--   tool_kinds  the kinds of tool the agent's platform states for it (an
+--               Azure AI Foundry agent, an OpenAI assistant): the tool
+--               tokens of its discovery signals, without the class.
+-- Both are empty for an agent that has none. The function is patched the way
+-- the sections before it patch one: its definition is read, one anchor is
+-- replaced, and a second run finds the members and changes nothing.
+DO $ws7_agent_access$
+DECLARE target CONSTANT regprocedure:='public.zasp_mcp_agent_access_json(text,text,text,text)'::regprocedure;
+ anchor CONSTANT text:=$anchor$  FROM zasp_inventory_entities agent
+  WHERE (agent.organization_id,agent.workspace_id,agent.environment_id,agent.id,agent.state,agent.product_kind)=(organization_value,workspace_value,environment_value,agent_value,'active','agent')$anchor$;
+ members CONSTANT text:=$members$||jsonb_build_object(
+   'tools',COALESCE((SELECT jsonb_agg(jsonb_build_object('id',listed.id,'name',listed.display_name,'kind',listed.kind,'target',listed.target,'confirmation',listed.confirmation) ORDER BY listed.position) FROM(
+     SELECT tool.id,tool.display_name,CASE tool.stable_fields->>'object_type' WHEN 'agent_topic' THEN 'topic' ELSE 'action' END kind,
+      NULLIF(tool.winning_attributes->>'target_type','') target,
+      CASE WHEN jsonb_typeof(tool.winning_attributes->'confirmation_required')='boolean' THEN (tool.winning_attributes->>'confirmation_required')::boolean END confirmation,
+      row_number() OVER(ORDER BY (tool.stable_fields->>'object_type')<>'agent_topic',tool.display_name,tool.id) position
+     FROM(
+      SELECT topic_edge.to_entity_id FROM zasp_inventory_relationships topic_edge
+      WHERE (topic_edge.organization_id,topic_edge.workspace_id,topic_edge.environment_id,topic_edge.from_entity_id,topic_edge.state,topic_edge.kind)=(organization_value,workspace_value,environment_value,agent.id,'present','contains')
+      UNION
+      SELECT action_edge.to_entity_id FROM zasp_inventory_relationships topic_edge
+      JOIN zasp_inventory_relationships action_edge ON (action_edge.organization_id,action_edge.workspace_id,action_edge.environment_id,action_edge.from_entity_id,action_edge.state,action_edge.kind)=(topic_edge.organization_id,topic_edge.workspace_id,topic_edge.environment_id,topic_edge.to_entity_id,'present','contains')
+      WHERE (topic_edge.organization_id,topic_edge.workspace_id,topic_edge.environment_id,topic_edge.from_entity_id,topic_edge.state,topic_edge.kind)=(organization_value,workspace_value,environment_value,agent.id,'present','contains')) owned
+     JOIN zasp_inventory_entities tool ON (tool.organization_id,tool.workspace_id,tool.environment_id,tool.id,tool.state,tool.product_kind)=(organization_value,workspace_value,environment_value,owned.to_entity_id,'active','tool')
+     WHERE tool.stable_fields->>'object_type' IN('agent_topic','agent_action') AND length(tool.display_name) BETWEEN 1 AND 256) listed WHERE listed.position<=64),'[]'::jsonb),
+   'tool_kinds',COALESCE((SELECT jsonb_agg(kind.token ORDER BY kind.token) FROM(
+     SELECT DISTINCT substr(signal.value,6) token
+     FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(agent.winning_attributes->'discovery'->'signals')='array' THEN agent.winning_attributes->'discovery'->'signals' ELSE '[]'::jsonb END) signal(value)
+     WHERE signal.value ~ '^tool:[a-z0-9][a-z0-9_.-]{0,63}$') kind),'[]'::jsonb))
+$members$;
+ d text:=pg_get_functiondef(target);
+BEGIN
+ IF position('tool_kinds' in d)=0 THEN
+  IF length(d)-length(replace(d,anchor,''))<>length(anchor) OR position($skills$IN('skill','agent_instructions','editor_rules')) listed WHERE listed.position<=64),'[]'::jsonb))$skills$ in d)=0 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='agent access predecessor changed';END IF;
+  EXECUTE replace(d,anchor,members||anchor);
+ END IF;
+END $ws7_agent_access$;

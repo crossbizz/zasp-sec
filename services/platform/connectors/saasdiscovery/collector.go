@@ -181,11 +181,14 @@ func LookupTenant(ctx context.Context, proxy Proxy, platform Platform, connectio
 		return Tenant{}, ErrInvalid
 	}
 	host, _ := platform.TenantHost(tenantID)
-	path, ok := expandPath(platform.Tenant.Path, tenantID, "")
+	// What names the tenant inside the request: for a customer-hosted
+	// platform the tenant id without its host.
+	key := platform.TenantKey(tenantID)
+	path, ok := expandPath(platform.Tenant.Path, key, "")
 	if !ok {
 		return Tenant{}, ErrInvalid
 	}
-	document, _, _, err := get(ctx, proxy, platform, connectionReference, host, call{method: http.MethodGet, path: path, query: fixedQuery(platform.Tenant.Query, ""), headers: fixedHeaders(platform.Tenant.Headers, tenantID)}, maximumResponseBytes, now, nil)
+	document, _, _, err := get(ctx, proxy, platform, connectionReference, host, call{method: http.MethodGet, path: path, query: fixedQuery(platform.Tenant.Query, ""), headers: fixedHeaders(platform.Tenant.Headers, key)}, maximumResponseBytes, now, nil)
 	if err != nil {
 		return Tenant{}, err
 	}
@@ -195,19 +198,21 @@ func LookupTenant(ctx context.Context, proxy Proxy, platform Platform, connectio
 	}
 	var tenant Tenant
 	if platform.Tenant.Confirm != nil {
-		name, confirmed := platform.Tenant.Confirm(Item(object), tenantID)
+		name, confirmed := platform.Tenant.Confirm(Item(object), key)
 		if !confirmed {
 			return Tenant{}, providercollection.StableProviderFailure(collection.FailureDenied)
 		}
 		tenant = Tenant{ID: tenantID, Name: name}
 	} else {
 		var found bool
-		if tenant, found = platform.Tenant.Map(Item(object)); !found || !platform.ValidTenant(tenant.ID) {
+		if tenant, found = platform.Tenant.Map(Item(object)); !found || platform.TenantSplit == nil && !platform.ValidTenant(tenant.ID) || platform.TenantSplit != nil && !validDisplayText(tenant.ID, 95) {
 			return Tenant{}, malformed
 		}
-		if tenant.ID != tenantID {
+		if tenant.ID != key {
 			return Tenant{}, providercollection.StableProviderFailure(collection.FailureDenied)
 		}
+		// The tenant is the one the integration names, host included.
+		tenant.ID = tenantID
 	}
 	if tenant.Name = CleanText(tenant.Name, 256); tenant.Name == "" {
 		tenant.Name = tenant.ID
@@ -253,6 +258,7 @@ func (api *SaaSCollectionAPI) fetchList(ctx context.Context, reference string, p
 		return fail(malformed)
 	}
 	limit := min(request.RemainingBytes, maximumResponseBytes)
+	key := platform.TenantKey(tenantID)
 	parentID, parentNext := state.ParentID, state.ParentNext
 	// exhausted: the endpoint has nothing more to read.
 	exhausted := false
@@ -260,8 +266,8 @@ func (api *SaaSCollectionAPI) fetchList(ctx context.Context, reference string, p
 		// The next parent object. The parent list is read one object at a
 		// time, so the cursor holds one id and one continuation.
 		parents := ListEndpoint{Path: endpoint.Parent.Path, Query: endpoint.Parent.Query, ItemsPath: endpoint.Parent.ItemsPath, Paging: endpoint.Parent.Paging, Single: endpoint.Parent.Single}
-		query, offset, ok := parents.requestQuery(parentNext, tenantID)
-		path, pathOK := expandPath(parents.Path, tenantID, "")
+		query, offset, ok := parents.requestQuery(parentNext, key)
+		path, pathOK := expandPath(parents.Path, key, "")
 		if !ok || !pathOK {
 			return fail(malformed)
 		}
@@ -287,7 +293,7 @@ func (api *SaaSCollectionAPI) fetchList(ctx context.Context, reference string, p
 	var entities, relationships []json.RawMessage
 	continuation, seen := "", state.Seen
 	if !exhausted {
-		providerCall, offset, ok := endpoint.request(state.Next, tenantID, parentID)
+		providerCall, offset, ok := endpoint.request(state.Next, key, parentID)
 		if !ok {
 			return fail(malformed)
 		}
@@ -300,10 +306,21 @@ func (api *SaaSCollectionAPI) fetchList(ctx context.Context, reference string, p
 			if !ok || len(items) > maximumPageItems {
 				return fail(malformed)
 			}
-			if len(items) > request.RemainingItems || len(items) > request.RemainingRelationships {
+			// The objects to map: the items, or the objects each item holds.
+			mapped := items
+			if len(endpoint.ChildrenPath) > 0 {
+				mapped = nil
+				for _, item := range items {
+					mapped = append(mapped, item.Objects(endpoint.ChildrenPath...)...)
+				}
+				if len(mapped) > maximumPageItems {
+					return fail(malformed)
+				}
+			}
+			if len(mapped) > request.RemainingItems || len(mapped) > request.RemainingRelationships {
 				return fail(providercollection.ErrPageCapacity)
 			}
-			if entities, relationships, seen, ok = normalizeItems(request.Subject, platform, tenantID, endpoint, parentID, items, state.Seen); !ok {
+			if entities, relationships, seen, ok = normalizeItems(request.Subject, platform, tenantID, endpoint, parentID, mapped, state.Seen); !ok {
 				return fail(malformed)
 			}
 			if len(seen) > MaximumDistinct*distinctDigestLength {
@@ -625,6 +642,12 @@ func normalizeItems(subject collection.SubjectBinding, platform Platform, tenant
 			if mapped.EndpointHost != "" {
 				attributes["endpoint_host"] = mapped.EndpointHost
 			}
+			if mapped.Auth != "" {
+				attributes["auth"] = mapped.Auth
+			}
+			if mapped.Transport != "" {
+				attributes["transport"] = mapped.Transport
+			}
 		} else {
 			if mapped.AgentType != "" {
 				attributes["agent_type"] = mapped.AgentType
@@ -662,6 +685,8 @@ func validEntity(entity Entity) bool {
 		!objectTypePattern.MatchString(entity.ObjectType) || !validDisplayText(entity.Status, 64) ||
 		entity.AgentType != "" && !validDisplayText(entity.AgentType, 128) || entity.Model != "" && !validDisplayText(entity.Model, 128) ||
 		entity.EndpointHost != "" && (!hostPattern.MatchString(entity.EndpointHost) || entity.Kind != KindMCPServer) ||
+		entity.Auth != "" && (entity.Kind != KindMCPServer || entity.Auth != agentsignals.MCPAuthDeclared && entity.Auth != agentsignals.MCPAuthNone) ||
+		entity.Transport != "" && (entity.Kind != KindMCPServer || entity.Transport != agentsignals.MCPTransportHTTP && entity.Transport != agentsignals.MCPTransportSSE && entity.Transport != agentsignals.MCPTransportStdio) ||
 		len(entity.Signals) > agentsignals.MaximumSignals || entity.Kind == KindAIApplication && len(entity.Signals) == 0 || entity.Kind == KindMCPServer && len(entity.Signals) != 0 {
 		return false
 	}

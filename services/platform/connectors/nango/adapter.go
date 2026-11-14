@@ -25,6 +25,10 @@ var queryKeyPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.\[\]-]{0,63}$`
 var tenantHostPattern = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$`)
 var hostSuffixPattern = regexp.MustCompile(`^(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?){2,6}$`)
 
+// A customer's own host: DNS labels and an alphabetic top-level domain, so
+// that no numeric form of an address and no single-label name is one.
+var customerHostPattern = regexp.MustCompile(`^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}$`)
+
 // coreKeys are the first-party connectors. Nango serves long-tail providers
 // only, so an entry for one of these is refused.
 // "saas" is the generic discovery provider whose platforms are Nango entries;
@@ -67,6 +71,15 @@ type Entry struct {
 	// (".service-now.com"), so a loose pattern cannot admit another domain.
 	HostPattern  *regexp.Regexp
 	HostSuffixes []string
+	// CustomerHosted is set, explicitly, for a provider a customer runs on a
+	// host of their own (a self-managed GitLab). The host is then not under
+	// a domain of the provider, so the entry has a HostPattern and no
+	// HostSuffixes, and a request names the host the integration was set up
+	// with. Such a host is accepted only as a public DNS name: at least two
+	// labels ending in an alphabetic top-level domain, never an address, a
+	// cluster, local or internal name; and, as for every host, a request is
+	// sent only when every address the name resolves to is public.
+	CustomerHosted bool
 }
 
 // PerTenantHost reports whether the entry's requests name their own host.
@@ -79,6 +92,9 @@ func (entry Entry) AllowsHost(host string) bool {
 	}
 	if match := entry.HostPattern.FindString(host); match != host {
 		return false
+	}
+	if entry.CustomerHosted {
+		return customerHostPattern.MatchString(host) && len(host) <= 200 && !strings.HasSuffix(host, ".svc") && !strings.Contains(host, ".svc.") && !strings.HasSuffix(host, ".lan") && !strings.HasSuffix(host, ".home") && !strings.HasSuffix(host, ".corp") && !strings.HasSuffix(host, ".test") && !strings.HasSuffix(host, ".example") && !strings.HasSuffix(host, ".invalid")
 	}
 	for _, suffix := range entry.HostSuffixes {
 		if strings.HasSuffix(host, suffix) && len(host) > len(suffix) {
@@ -269,7 +285,14 @@ func validBaseURL(value string) bool {
 }
 
 func validEntry(entry Entry) bool {
-	if entry.PerTenantHost() {
+	if entry.PerTenantHost() && entry.CustomerHosted {
+		// The host is the customer's: no suffix can describe it, and the
+		// entry names none.
+		if entry.ProviderHost != "" || len(entry.HostSuffixes) != 0 {
+			return false
+		}
+		entry.ProviderHost = "tenant.customer-hosted.com"
+	} else if entry.PerTenantHost() {
 		// The host comes with each request; the entry names none.
 		if entry.ProviderHost != "" || len(entry.HostSuffixes) < 1 || len(entry.HostSuffixes) > 8 {
 			return false
@@ -280,7 +303,7 @@ func validEntry(entry Entry) bool {
 			}
 		}
 		entry.ProviderHost = "tenant" + entry.HostSuffixes[0]
-	} else if len(entry.HostSuffixes) != 0 {
+	} else if len(entry.HostSuffixes) != 0 || entry.CustomerHosted {
 		return false
 	}
 	if !keyPattern.MatchString(entry.Key) || len(entry.ProviderHost) < 4 || len(entry.ProviderHost) > 253 || net.ParseIP(entry.ProviderHost) != nil || strings.ToLower(entry.ProviderHost) != entry.ProviderHost || strings.HasSuffix(entry.ProviderHost, ".local") || strings.HasSuffix(entry.ProviderHost, ".internal") || entry.AuthMode != "oauth" && entry.AuthMode != "api_key" || len(entry.Rules) < 1 || len(entry.Rules) > 32 {

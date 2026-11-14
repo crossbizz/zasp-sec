@@ -249,6 +249,11 @@ type Entity struct {
 	AgentType    string
 	Model        string
 	EndpointHost string
+	// Auth and Transport are optional facts of an MCP server the platform's
+	// API states: agentsignals.MCPAuthDeclared or MCPAuthNone, and
+	// agentsignals.MCPTransportHTTP, MCPTransportSSE or MCPTransportStdio.
+	Auth      string
+	Transport string
 	// Posture holds only the facts the platform's API states. A fact the
 	// API does not state stays false and raises no finding. It is ignored
 	// for an MCP server.
@@ -371,6 +376,12 @@ type ListEndpoint struct {
 	// a tenant with more ends the collection as a terminal failure rather
 	// than as an incomplete inventory.
 	Distinct bool
+	// ChildrenPath: the objects to map are not the items themselves but the
+	// objects of the array at this path inside each item (the MCP servers of
+	// each listed agent). Paging still counts and continues by the items.
+	// The same object may then appear under several items, so the endpoint
+	// is Distinct.
+	ChildrenPath []string
 	// Parent makes the endpoint a nested list: it is read once for every
 	// object of Parent, with ParentValue in Path replaced by the object's
 	// id. MapChild is then set in place of Map and is given that id.
@@ -414,6 +425,17 @@ type Platform struct {
 	// of the platform is sent to that host and to no other, and only when
 	// the host resolves to public addresses.
 	HostTemplate string
+	// TenantSplit is set, in place of HostTemplate, for a platform a customer
+	// runs on a host of their own (Nango.CustomerHosted). The tenant id of
+	// such a platform names two things, the host and the tenant on that host
+	// (a self-managed GitLab's address and a group id), and TenantSplit
+	// separates them: host is where every request of the tenant is sent and
+	// key is what replaces TenantValue in paths, queries, headers and
+	// variables and what the tenant lookup must answer. The host is part of
+	// the tenant id, so it is fixed when the integration is created and is
+	// what the connection was authorized against: another host is another
+	// tenant, which needs its own authorization.
+	TenantSplit func(tenantID string) (host, key string, ok bool)
 	// SignIn is set when a person can connect the platform from the
 	// product. Without it the integration names an existing Nango
 	// connection by reference.
@@ -478,10 +500,24 @@ func expandPath(template, tenantID, parentID string) (string, bool) {
 // Nango entry allows.
 func (platform Platform) TenantHost(tenantID string) (string, bool) {
 	if !platform.Nango.PerTenantHost() {
-		return "", platform.HostTemplate == ""
+		return "", platform.HostTemplate == "" && platform.TenantSplit == nil
+	}
+	if platform.TenantSplit != nil {
+		host, key, ok := platform.TenantSplit(tenantID)
+		return host, ok && key != "" && platform.Nango.AllowsHost(host)
 	}
 	host := strings.Replace(platform.HostTemplate, TenantValue, tenantID, 1)
 	return host, platform.Nango.AllowsHost(host)
+}
+
+// TenantKey is what names the tenant inside a request: the tenant id, or,
+// for a customer-hosted platform, the part of it that is not the host.
+func (platform Platform) TenantKey(tenantID string) string {
+	if platform.TenantSplit == nil {
+		return tenantID
+	}
+	_, key, _ := platform.TenantSplit(tenantID)
+	return key
 }
 
 func validPath(value string) bool {
@@ -685,7 +721,13 @@ func (platform Platform) Validate() error {
 	}
 	// A per-tenant host and its template come together, and the template
 	// names the tenant exactly once.
-	if platform.Nango.PerTenantHost() != (platform.HostTemplate != "") || platform.HostTemplate != "" && (strings.Count(platform.HostTemplate, TenantValue) != 1 || !hostPattern.MatchString(strings.Replace(platform.HostTemplate, TenantValue, "tenant", 1))) {
+	// A customer-hosted platform says so in both places, takes its host from
+	// the tenant id and has no sign-in: its authorization page would be on a
+	// host the customer chose.
+	if platform.Nango.CustomerHosted != (platform.TenantSplit != nil) || platform.TenantSplit != nil && (platform.HostTemplate != "" || platform.SignIn != nil) {
+		return ErrInvalid
+	}
+	if platform.Nango.PerTenantHost() != (platform.HostTemplate != "" || platform.TenantSplit != nil) || platform.HostTemplate != "" && (strings.Count(platform.HostTemplate, TenantValue) != 1 || !hostPattern.MatchString(strings.Replace(platform.HostTemplate, TenantValue, "tenant", 1))) {
 		return ErrInvalid
 	}
 	if !platform.SignIn.valid(platform.Nango) {
@@ -724,8 +766,14 @@ func (platform Platform) Validate() error {
 			placeholders = append(placeholders, ParentValue)
 		}
 		if !endpointNamePattern.MatchString(endpoint.Name) || names[endpoint.Name] || !validPathTemplate(endpoint.Path, placeholders...) || !validFixedQuery(endpoint.Query) || len(endpoint.ItemsPath) > 4 || !endpoint.Paging.valid() || len(endpoint.Absent) > 4 ||
-			endpoint.Single && endpoint.Paging.Style != PagingNone || endpoint.Single && endpoint.Distinct || !validHeaders(endpoint.Headers) || !endpoint.GraphQL.valid(endpoint) {
+			endpoint.Single && endpoint.Paging.Style != PagingNone || endpoint.Single && endpoint.Distinct || !validHeaders(endpoint.Headers) || !endpoint.GraphQL.valid(endpoint) ||
+			len(endpoint.ChildrenPath) > 6 || len(endpoint.ChildrenPath) > 0 && (!endpoint.Distinct || endpoint.Single) {
 			return ErrInvalid
+		}
+		for _, key := range endpoint.ChildrenPath {
+			if key == "" || len(key) > 64 {
+				return ErrInvalid
+			}
 		}
 		// A plain endpoint has Map; a nested one has Parent and MapChild and
 		// names the parent in its path.
@@ -823,7 +871,7 @@ func validNangoEntry(entry nango.Entry) bool {
 	if entry.PerTenantHost() {
 		// The host arrives with each request; the adapter refuses an entry
 		// whose suffixes are not provider domains.
-		if entry.ProviderHost != "" || len(entry.HostSuffixes) < 1 {
+		if entry.ProviderHost != "" || (len(entry.HostSuffixes) < 1) != entry.CustomerHosted {
 			return false
 		}
 	} else if !hostPattern.MatchString(entry.ProviderHost) || len(entry.ProviderHost) < 4 || net.ParseIP(entry.ProviderHost) != nil || strings.HasSuffix(entry.ProviderHost, ".local") || strings.HasSuffix(entry.ProviderHost, ".internal") || len(entry.HostSuffixes) != 0 {

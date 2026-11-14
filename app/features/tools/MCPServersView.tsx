@@ -141,5 +141,10 @@ export function AgentAccessPanel({ api, agentID }: { api: MCPInventoryAPI; agent
     {access.data_stores.length === 0 ? <p>No data grant was found in the role&apos;s policies.</p> : <ul aria-label="Data stores of the agent">{access.data_stores.map((store) => <li key={store.id}>{store.name} · {store.service} · {store.access === "write" ? "read and write" : "read"}{store.scope === "service" ? " · every resource of the service" : ""}</li>)}</ul>}
     <h3>Skills and instruction files</h3>
     {access.skills.length === 0 ? <p>None found in the agent&apos;s repository.</p> : <ul aria-label="Skills of the agent">{access.skills.map((skill) => <li key={skill.id}><code>{skill.path}</code> · {skillKindLabels[skill.kind]}</li>)}</ul>}
+    {(access.tools.length > 0 || access.tool_kinds.length > 0) && <>
+      <h3>Tools the agent&apos;s platform lists</h3>
+      {access.tool_kinds.length > 0 && <p>Tool kinds: {access.tool_kinds.map((kind, index) => <span key={kind}>{index > 0 ? ", " : ""}<code>{kind}</code></span>)}</p>}
+      {access.tools.length > 0 && <ul aria-label="Topics and actions of the agent">{access.tools.map((tool) => <li key={tool.id}>{tool.name} · {tool.kind === "topic" ? "topic" : "action"}{tool.target !== null ? <> · invokes <code>{tool.target}</code></> : null}{tool.confirmation === true ? " · asks for confirmation" : tool.confirmation === false ? " · runs without confirmation" : ""}</li>)}</ul>}
+    </>}
   </>;
 }

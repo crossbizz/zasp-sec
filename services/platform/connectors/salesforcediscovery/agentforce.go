@@ -466,20 +466,45 @@ func (settings salesforceTrustSettings) moderation() string {
 	return "medium"
 }
 
+// salesforceTransientFaults are the SOAP fault codes that say "try again".
+var salesforceTransientFaults = []string{"SERVER_UNAVAILABLE", "REQUEST_LIMIT_EXCEEDED", "REQUEST_RUNNING_TOO_LONG", "QUERY_TIMEOUT"}
+
 // fetchSalesforceTrustSettings reads the Trust Layer switches with the
-// Metadata API call readMetadata. It never fails a collection: any answer
-// other than a readable record leaves the switches unknown.
-func (api *SalesforceCollectionAPI) fetchSalesforceTrustSettings(ctx context.Context, token []byte, instanceURL string) salesforceTrustSettings {
+// Metadata API call readMetadata.
+//
+// A refusal (the connection may not use the Metadata API, the org does not
+// know the type) leaves the switches unknown and the collection goes on. A
+// transient failure (no answer, a rate limit, a gateway error, a fault that
+// says the server is busy) is a failure of the page, like a failed query:
+// the collection is retried and never completes with the switches missing
+// only for now. The agent's content_moderation, and the finding that rests
+// on it, therefore do not come and go with the availability of this one
+// call.
+func (api *SalesforceCollectionAPI) fetchSalesforceTrustSettings(ctx context.Context, token []byte, instanceURL string) (salesforceTrustSettings, error) {
 	var session bytes.Buffer
 	if xml.EscapeText(&session, token) != nil {
-		return salesforceTrustSettings{}
+		return salesforceTrustSettings{}, nil
 	}
 	envelope := `<?xml version="1.0" encoding="UTF-8"?><soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:met="http://soap.sforce.com/2006/04/metadata"><soapenv:Header><met:SessionHeader><met:sessionId>` +
 		session.String() + `</met:sessionId></met:SessionHeader></soapenv:Header><soapenv:Body><met:readMetadata><met:type>EinsteinAISettings</met:type><met:fullNames>EinsteinAI</met:fullNames></met:readMetadata></soapenv:Body></soapenv:Envelope>`
 	// The session travels in the SOAP header; no Authorization header is set.
-	status, body, _, err := api.send(ctx, nil, http.MethodPost, instanceURL+salesforceMetadataSOAPPath, map[string]string{"Content-Type": "text/xml; charset=UTF-8", "SOAPAction": `""`, "Accept": "text/xml"}, []byte(envelope), salesforceMetadataBodyBytes)
-	if err != nil || status != http.StatusOK {
-		return salesforceTrustSettings{}
+	status, body, retryAfter, fault, err := api.sendSOAP(ctx, instanceURL+salesforceMetadataSOAPPath, []byte(envelope))
+	if err != nil {
+		return salesforceTrustSettings{}, err
+	}
+	transient := status == http.StatusTooManyRequests || status == http.StatusBadGateway || status == http.StatusServiceUnavailable || status == http.StatusGatewayTimeout
+	for _, code := range salesforceTransientFaults {
+		transient = transient || strings.Contains(fault, code)
+	}
+	if transient {
+		if status == http.StatusInternalServerError {
+			// A fault travels as 500; the retry is that of a busy server.
+			status = http.StatusServiceUnavailable
+		}
+		return salesforceTrustSettings{}, providercollection.ClassifyProviderHTTPFailure(ctx, nil, status, retryAfter, api.clock())
+	}
+	if status != http.StatusOK {
+		return salesforceTrustSettings{}, nil
 	}
 	var settings salesforceTrustSettings
 	decoder := xml.NewDecoder(bytes.NewReader(body))
@@ -487,10 +512,10 @@ func (api *SalesforceCollectionAPI) fetchSalesforceTrustSettings(ctx context.Con
 	for {
 		token, err := decoder.Token()
 		if err == io.EOF {
-			return settings
+			return settings, nil
 		}
 		if err != nil {
-			return salesforceTrustSettings{}
+			return salesforceTrustSettings{}, nil
 		}
 		start, isStart := token.(xml.StartElement)
 		if !isStart {
@@ -509,7 +534,7 @@ func (api *SalesforceCollectionAPI) fetchSalesforceTrustSettings(ctx context.Con
 		}
 		var text string
 		if decoder.DecodeElement(&text, &start) != nil || *target != nil {
-			return salesforceTrustSettings{}
+			return salesforceTrustSettings{}, nil
 		}
 		switch strings.TrimSpace(text) {
 		case "true":
@@ -519,7 +544,55 @@ func (api *SalesforceCollectionAPI) fetchSalesforceTrustSettings(ctx context.Con
 			value := false
 			*target = &value
 		default:
-			return salesforceTrustSettings{}
+			return salesforceTrustSettings{}, nil
 		}
 	}
+}
+
+// sendSOAP posts one Metadata API envelope. For a 500 it also returns the
+// fault code of the answer (a SOAP fault travels as 500), read from a
+// bounded body; nothing else of a refusal is kept. The session travels in
+// the SOAP header: no Authorization header is set.
+func (api *SalesforceCollectionAPI) sendSOAP(ctx context.Context, providerURL string, envelope []byte) (int, []byte, string, string, error) {
+	bounded, cancel := context.WithTimeout(ctx, api.timeout)
+	defer cancel()
+	request, err := http.NewRequestWithContext(bounded, http.MethodPost, providerURL, bytes.NewReader(envelope))
+	if err != nil {
+		return 0, nil, "", "", ErrInvalid
+	}
+	request.Close = true
+	request.Header.Set("Content-Type", "text/xml; charset=UTF-8")
+	request.Header.Set("SOAPAction", `""`)
+	request.Header.Set("Accept", "text/xml")
+	response, err := doSalesforceCollectionRequest(api.client, request)
+	if err != nil || bounded.Err() != nil || response == nil {
+		closeSalesforceCollectionResponse(response)
+		return 0, nil, "", "", providercollection.ClassifyProviderHTTPFailure(bounded, err, 0, "", api.clock())
+	}
+	defer response.Body.Close()
+	body, ok := readSalesforceCollectionBody(response.Body, salesforceMetadataBodyBytes)
+	switch {
+	case response.StatusCode == http.StatusOK && ok:
+		return http.StatusOK, body, "", "", nil
+	case response.StatusCode == http.StatusOK:
+		// An answer that cannot be read is not a statement about the switches.
+		return 0, nil, "", "", providercollection.StableProviderFailure(collection.FailureMalformed)
+	case response.StatusCode == http.StatusInternalServerError && ok:
+		fault := ""
+		decoder := xml.NewDecoder(bytes.NewReader(body))
+		for {
+			token, err := decoder.Token()
+			if err != nil {
+				break
+			}
+			if start, isStart := token.(xml.StartElement); isStart && start.Name.Local == "faultcode" {
+				if decoder.DecodeElement(&fault, &start) != nil || len(fault) > 128 {
+					fault = ""
+				}
+				break
+			}
+		}
+		return response.StatusCode, nil, "", fault, nil
+	}
+	return response.StatusCode, nil, response.Header.Get("Retry-After"), "", nil
 }

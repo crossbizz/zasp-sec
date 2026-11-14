@@ -18,6 +18,9 @@ import (
 // documents; the Rovo and OpenAI project ones are as their files state.
 func gitLabCatalogRoute(t *testing.T) saastest.Route {
 	return func(query url.Values, _ int) saastest.Response {
+		if query.Get("query") == gitLabDuoMCPServersQuery {
+			return gitLabMCPServersResponse(t, query)
+		}
 		if query.Get("query") != gitLabDuoCatalogQuery || query.Get("group") != "gid://gitlab/Group/4242" || query.Get("first") != "50" {
 			t.Errorf("catalog query = %v", query)
 			return saastest.Response{Status: http.StatusBadRequest, Body: `{}`}
@@ -43,6 +46,59 @@ func gitLabCatalogRoute(t *testing.T) saastest.Route {
 		}
 		t.Errorf("catalog continuation = %q", query.Get("after"))
 		return saastest.Response{Status: http.StatusBadRequest, Body: `{}`}
+	}
+}
+
+// The MCP servers of the group's agents, two pages of configured agents: a
+// server two agents use is listed under both, and one agent has none.
+func gitLabMCPServersResponse(t *testing.T, query url.Values) saastest.Response {
+	if query.Get("group") != "gid://gitlab/Group/4242" || query.Get("first") != "20" {
+		t.Errorf("MCP servers query = %v", query)
+		return saastest.Response{Status: http.StatusBadRequest, Body: `{}`}
+	}
+	server := func(id int, name, address, auth string) string {
+		return fmt.Sprintf(`{"id":"gid://gitlab/Ai::Catalog::McpServer/%d","name":%q,"url":%q,"transport":"HTTP","authType":%q,"oauthClientId":"do-not-keep-client-id"}`, id, name, address, auth)
+	}
+	agent := func(consumer int, servers ...string) string {
+		return fmt.Sprintf(`{"id":"gid://gitlab/Ai::Catalog::ItemConsumer/%d","item":{"id":"gid://gitlab/Ai::Catalog::Item/%d","latestVersion":{"mcpServers":{"nodes":[%s]}}}}`, consumer, consumer+10, strings.Join(servers, ","))
+	}
+	linear := server(1, "Linear", "https://mcp.linear.example/sse?token=do-not-keep-query", "OAUTH")
+	switch query.Get("after") {
+	case "":
+		return saastest.Response{Body: `{"data":{"aiCatalogConfiguredItems":{"nodes":[` + agent(1, linear, server(2, "Internal docs", "http://docs.internal.example:8080/mcp", "NO_AUTH")) + `,` + agent(3) + `],"pageInfo":{"hasNextPage":true,"endCursor":"m2"}}}}`}
+	case "m2":
+		// A flow has no agent version: latestVersion states no servers.
+		return saastest.Response{Body: `{"data":{"aiCatalogConfiguredItems":{"nodes":[` + agent(4, linear, server(3, "Odd address", "not a url", "NO_AUTH")) + `,{"id":"gid://gitlab/Ai::Catalog::ItemConsumer/5","item":{"id":"gid://gitlab/Ai::Catalog::Item/15","latestVersion":{}}},{"id":"gid://gitlab/Ai::Catalog::ItemConsumer/6","item":{"id":"gid://gitlab/Ai::Catalog::Item/16","latestVersion":null}}],"pageInfo":{"hasNextPage":false,"endCursor":null}}}}`}
+	}
+	t.Errorf("MCP servers continuation = %q", query.Get("after"))
+	return saastest.Response{Status: http.StatusBadRequest, Body: `{}`}
+}
+
+func TestGitLabMCPServersOfTheGroupsAgentsAreCollectedOnce(t *testing.T) {
+	t.Parallel()
+	registry, platform := registered(t, "gitlab")
+	routes := gitLabRoutes(`,"duo_features_enabled":true`)
+	routes["/api/graphql"] = gitLabCatalogRoute(t)
+	snapshot := saastest.Collect(t, saastest.NewNango(t, registry, routes), registry, platform, "4242")
+	servers := snapshot.Kind("saas_mcp_server")
+	if len(servers) != 3 {
+		t.Fatalf("servers=%d: %s", len(servers), snapshot.Raw)
+	}
+	linear := snapshot.Named(t, "saas_mcp_server", "Linear")
+	if linear.SourceNativeID != "saas:gitlab:duo_mcp_server:gid://gitlab/Ai::Catalog::McpServer/1" || linear.ProductKind != "tool" ||
+		!reflect.DeepEqual(linear.Attributes, map[string]any{"auth": "declared", "endpoint_host": "mcp.linear.example", "status": "configured", "transport": "http"}) {
+		t.Fatalf("server = %+v", linear)
+	}
+	if docs := snapshot.Named(t, "saas_mcp_server", "Internal docs"); docs.Attributes["auth"] != "none" || docs.Attributes["endpoint_host"] != "docs.internal.example" {
+		t.Fatalf("server without authentication = %+v", docs.Attributes)
+	}
+	// An address that is not a URL names no host.
+	if odd := snapshot.Named(t, "saas_mcp_server", "Odd address"); odd.Attributes["endpoint_host"] != nil {
+		t.Fatalf("odd server = %+v", odd.Attributes)
+	}
+	// Of an address only the host is kept; an OAuth client id is not asked for.
+	if bytes.Contains(snapshot.Raw, []byte("do-not-keep")) || bytes.Contains(snapshot.Raw, []byte("/sse")) || strings.Contains(gitLabDuoMCPServersQuery, "oauthClientId") || strings.Contains(gitLabDuoMCPServersQuery, "systemPrompt") {
+		t.Fatal("the snapshot or the query holds more than the server's name, host, transport and authentication")
 	}
 }
 
@@ -87,7 +143,7 @@ func TestGitLabDuoAgentsAndFlowsAreCollectedToATypedSnapshot(t *testing.T) {
 			posts = append(posts, call)
 		}
 	}
-	if len(posts) != 2 || posts[0].Path != "/api/graphql" || posts[1].Query.Get("after") != "cursor-2" || !strings.Contains(posts[0].Body, `"query":"query($group: GroupID!`) {
+	if len(posts) != 4 || posts[0].Path != "/api/graphql" || posts[1].Query.Get("after") != "cursor-2" || !strings.Contains(posts[0].Body, `"query":"query($group: GroupID!`) || posts[2].Query.Get("query") != gitLabDuoMCPServersQuery || posts[3].Query.Get("after") != "m2" {
 		t.Fatalf("GraphQL calls = %+v", posts)
 	}
 }
@@ -225,26 +281,45 @@ func TestOpenAIProjectKeyOfAnotherProjectOrWithoutAgentsIsHandled(t *testing.T) 
 	}
 }
 
+const atlassianCloudIDValue = "3f6c1f0a-1111-4222-8333-444455556666"
+
 func atlassianRovoRoutes(t *testing.T) map[string]saastest.Route {
 	routes := atlassianRoutes()
-	routes["/_edge/tenant_info"] = saastest.Static(`{"cloudId":"3f6c1f0a-1111-4222-8333-444455556666"}`)
+	routes["/_edge/tenant_info"] = saastest.Static(`{"cloudId":"` + atlassianCloudIDValue + `"}`)
+	extension := func(id, key, name, app, environment string) string {
+		return fmt.Sprintf(`{"id":%q,"key":%q,"name":%s,"appId":%q,"environmentType":%q,"properties":{"prompt":"You are a release manager. do-not-keep-prompt"}}`, id, key, name, app, environment)
+	}
 	routes["/gateway/api/graphql"] = func(query url.Values, _ int) saastest.Response {
-		if query.Get("query") != atlassianRovoAgentsQuery || query.Get("cloudId") != "3f6c1f0a-1111-4222-8333-444455556666" || query.Get("first") != "50" {
-			t.Errorf("Rovo query = %v", query)
-			return saastest.Response{Status: http.StatusBadRequest, Body: `{}`}
+		switch query.Get("query") {
+		case atlassianRovoModulesQuery:
+			switch query.Get("context") {
+			case "ari:cloud:jira::site/" + atlassianCloudIDValue:
+				return saastest.Response{Body: `{"data":{"extensionContext":{"extensionsByType":[` +
+					extension("ari:cloud:ecosystem::extension/app-1/env-1/static/release-agent", "release-agent", `"Release manager"`, "ari:cloud:ecosystem::app/app-1", "PRODUCTION") + `,` +
+					extension("ari:cloud:ecosystem::extension/app-2/env-9/static/triage", "triage", `null`, "ari:cloud:ecosystem::app/app-2", "DEVELOPMENT") + `]}}}`}
+			case "ari:cloud:confluence::site/" + atlassianCloudIDValue:
+				// The same app is installed in Confluence too.
+				return saastest.Response{Body: `{"data":{"extensionContext":{"extensionsByType":[` +
+					extension("ari:cloud:ecosystem::extension/app-1/env-1/static/release-agent", "release-agent", `"Release manager"`, "ari:cloud:ecosystem::app/app-1", "PRODUCTION") + `]}}}`}
+			}
+		case atlassianRovoAgentsQuery:
+			if query.Get("cloudId") != atlassianCloudIDValue || query.Get("first") != "50" {
+				break
+			}
+			// What the published schema says an API token gets: the field
+			// is callable with a browser session only.
+			return saastest.Response{Body: `{"data":{"agentStudio_getAgents":null},"errors":[{"message":"This request does not contain the right authorisation scopes to access this field"}]}`}
 		}
-		if query.Get("after") == "" {
-			return saastest.Response{Body: `{"data":{"agentStudio_getAgents":{"edges":[{"cursor":"c1","node":{"id":"ari:cloud:rovo::agent/a1","name":"Release notes writer"}},{"cursor":"c2","node":{"id":"ari:cloud:rovo::agent/a2","name":"Incident scribe"}}],"pageInfo":{"hasNextPage":true,"endCursor":"c2"}}}}`}
-		}
-		return saastest.Response{Body: `{"data":{"agentStudio_getAgents":{"edges":[{"cursor":"c3","node":{"id":"ari:cloud:rovo::agent/a3","name":"Backlog groomer"}}],"pageInfo":{"hasNextPage":false,"endCursor":"c3"}}}}`}
+		t.Errorf("gateway query = %v", query)
+		return saastest.Response{Status: http.StatusBadRequest, Body: `{}`}
 	}
 	return routes
 }
 
-// The Rovo agent query is unverified (atlassian.go). This test fixes what the
-// collector does with the shape it expects and with every way the gateway can
-// refuse it.
-func TestAtlassianRovoAgentsAreListedWhenTheGatewayAnswersAndSkippedWhenItDoesNot(t *testing.T) {
+// The agents that installed apps ship as rovo:agent modules are listed with
+// the API token; the Studio list is refused to it, as Atlassian's schema
+// states, and the site is collected all the same.
+func TestAtlassianRovoAgentsOfInstalledAppsAreCollectedToATypedSnapshot(t *testing.T) {
 	t.Parallel()
 	registry, platform := registered(t, "atlassian")
 	standIn := saastest.NewNango(t, registry, atlassianRovoRoutes(t))
@@ -252,20 +327,69 @@ func TestAtlassianRovoAgentsAreListedWhenTheGatewayAnswersAndSkippedWhenItDoesNo
 	if agents := snapshot.Kind("saas_agent"); len(agents) != 3 || len(snapshot.Kind("saas_ai_application")) != 3 {
 		t.Fatalf("agents=%d: %s", len(agents), snapshot.Raw)
 	}
-	writer := snapshot.Named(t, "saas_agent", "Release notes writer")
-	if writer.SourceNativeID != "saas:atlassian:rovo_agent:ari:cloud:rovo::agent/a1" || writer.Attributes["agent_type"] != "enterprise_agent" ||
-		!reflect.DeepEqual(writer.Attributes["discovery"], map[string]any{"method": "provider_api", "platform": "atlassian", "signals": []any{"surface:rovo"}}) {
-		t.Fatalf("Rovo agent = %+v", writer)
+	var jira, confluence, unnamed saastest.Entity
+	for _, agent := range snapshot.Kind("saas_agent") {
+		switch {
+		case agent.DisplayName == "triage":
+			unnamed = agent
+		case agent.StableFields["object_type"] == "jira_rovo_agent":
+			jira = agent
+		case agent.StableFields["object_type"] == "confluence_rovo_agent":
+			confluence = agent
+		}
+	}
+	if jira.DisplayName != "Release manager" || jira.SourceNativeID != "saas:atlassian:jira_rovo_agent:ari:cloud:ecosystem::extension/app-1/env-1/static/release-agent" || jira.Attributes["status"] != "production" || jira.Attributes["agent_type"] != "enterprise_agent" ||
+		!reflect.DeepEqual(jira.Attributes["discovery"], map[string]any{"method": "provider_api", "platform": "atlassian", "signals": []any{"surface:marketplace_app", "surface:rovo"}}) || jira.Attributes["posture"].(map[string]any)["credential_active"] != true {
+		t.Fatalf("Jira module = %+v", jira)
+	}
+	if confluence.DisplayName != "Release manager" || confluence.ID == jira.ID || unnamed.Attributes["status"] != "development" || unnamed.StableFields["object_type"] != "jira_rovo_agent" {
+		t.Fatalf("Confluence module = %+v, unnamed = %+v", confluence, unnamed)
+	}
+	// A module's properties hold its prompt: they are neither asked for nor kept.
+	if bytes.Contains(snapshot.Raw, []byte("do-not-keep")) || strings.Contains(atlassianRovoModulesQuery, "properties") || strings.Contains(atlassianRovoAgentsQuery, "instructions") {
+		t.Fatal("the snapshot or a query holds agent content")
 	}
 	for _, call := range standIn.Calls() {
 		if call.Host != "acme.atlassian.net" {
 			t.Fatalf("call = %+v", call)
 		}
 	}
+}
+
+// When Atlassian opens the Studio field to API tokens the same query lists
+// the Studio agents; every way the gateway can refuse leaves the site's
+// applications collected.
+func TestAtlassianStudioAgentsAreListedWhenTheGatewayAnswersAndSkippedWhenItDoesNot(t *testing.T) {
+	t.Parallel()
+	registry, platform := registered(t, "atlassian")
+	answered := atlassianRovoRoutes(t)
+	modules := answered["/gateway/api/graphql"]
+	answered["/gateway/api/graphql"] = func(query url.Values, call int) saastest.Response {
+		if query.Get("query") != atlassianRovoAgentsQuery {
+			return modules(query, call)
+		}
+		if !strings.Contains(query.Get("query"), `@optIn(to: "AgentStudio")`) {
+			t.Errorf("the Studio query does not opt in: %s", query.Get("query"))
+		}
+		if query.Get("after") == "" {
+			return saastest.Response{Body: `{"data":{"agentStudio_getAgents":{"edges":[{"cursor":"c1","node":{"id":"ari:cloud:rovo::agent/a1","name":"Release notes writer","deactivated":false}},{"cursor":"c2","node":{"id":"ari:cloud:rovo::agent/a2","name":"Incident scribe","deactivated":true}}],"pageInfo":{"hasNextPage":true,"endCursor":"c2"}}}}`}
+		}
+		return saastest.Response{Body: `{"data":{"agentStudio_getAgents":{"edges":[{"cursor":"c3","node":{"id":"ari:cloud:rovo::agent/a3","name":"Backlog groomer"}}],"pageInfo":{"hasNextPage":false,"endCursor":"c3"}}}}`}
+	}
+	snapshot := saastest.Collect(t, saastest.NewNango(t, registry, answered), registry, platform, "acme")
+	if len(snapshot.Kind("saas_agent")) != 6 {
+		t.Fatalf("agents: %s", snapshot.Raw)
+	}
+	if writer := snapshot.Named(t, "saas_agent", "Release notes writer"); writer.SourceNativeID != "saas:atlassian:rovo_agent:ari:cloud:rovo::agent/a1" || writer.Attributes["status"] != "active" {
+		t.Fatalf("Studio agent = %+v", writer)
+	}
+	if scribe := snapshot.Named(t, "saas_agent", "Incident scribe"); scribe.Attributes["status"] != "deactivated" || scribe.Attributes["posture"].(map[string]any)["credential_active"] != false {
+		t.Fatalf("deactivated agent = %+v", scribe.Attributes)
+	}
 	for name, change := range map[string]func(map[string]saastest.Route){
 		"no gateway route": func(routes map[string]saastest.Route) { delete(routes, "/gateway/api/graphql") },
 		"no tenant info":   func(routes map[string]saastest.Route) { delete(routes, "/_edge/tenant_info") },
-		"refused field": func(routes map[string]saastest.Route) {
+		"every query refused": func(routes map[string]saastest.Route) {
 			routes["/gateway/api/graphql"] = saastest.Static(`{"errors":[{"message":"third party oauth clients not allowed"}],"data":null}`)
 		},
 		"forbidden": func(routes map[string]saastest.Route) {

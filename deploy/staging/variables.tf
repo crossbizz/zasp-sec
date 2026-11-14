@@ -355,6 +355,7 @@ variable "discovery_optional_providers" {
     microsoft_egress_cidrs      = optional(list(string), [])
     microsoft_azure             = optional(bool, false)
     azure_egress_cidrs          = optional(list(string), [])
+    azure_foundry_egress_cidrs  = optional(list(string), [])
     salesforce_collector        = optional(string, "")
     salesforce_client_secret_id = optional(string, "")
     salesforce_egress_cidrs     = optional(list(string), [])
@@ -394,6 +395,21 @@ variable "discovery_optional_providers" {
       length(var.discovery_optional_providers.azure_egress_cidrs) == 0
     )
     error_message = "microsoft_azure needs microsoft_collector and one to 16 distinct canonical non-global azure_egress_cidrs; without it azure_egress_cidrs is empty."
+  }
+  # The agents of an Azure AI Foundry project are listed on the project's own
+  # endpoint (<account>.services.ai.azure.com), which is not Resource Manager.
+  # Its addresses are optional, valid only with microsoft_azure, and admitted
+  # for the discovery worker only. Without them the collector records the
+  # agents of an account as not listed.
+  validation {
+    condition = (
+      length(var.discovery_optional_providers.azure_foundry_egress_cidrs) == 0 ||
+      var.discovery_optional_providers.microsoft_azure &&
+      length(var.discovery_optional_providers.azure_foundry_egress_cidrs) <= 16 && length(distinct(var.discovery_optional_providers.azure_foundry_egress_cidrs)) == length(var.discovery_optional_providers.azure_foundry_egress_cidrs) && alltrue([
+        for cidr in var.discovery_optional_providers.azure_foundry_egress_cidrs : can(cidrhost(cidr, 0)) && "${cidrhost(cidr, 0)}/${split("/", cidr)[1]}" == cidr && cidr != "0.0.0.0/0" && cidr != "::/0"
+      ])
+    )
+    error_message = "azure_foundry_egress_cidrs needs microsoft_azure and holds at most 16 distinct canonical non-global ranges."
   }
 }
 

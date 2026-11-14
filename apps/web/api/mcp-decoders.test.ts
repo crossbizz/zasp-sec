@@ -16,6 +16,11 @@ const access = {
   mcp_servers: [{ id: serverID, name: "tracker", identity: "package:@acme/tracker-mcp", approval: "blocked" }],
   data_stores: [{ id: "pid_70000003-0000-4000-8000-000000000003", name: "All S3 buckets", service: "s3", access: "read", scope: "service" }],
   skills: [{ id: "pid_70000004-0000-4000-8000-000000000004", path: ".claude/skills/release", kind: "skill" }],
+  tools: [
+    { id: "pid_70000005-0000-4000-8000-000000000005", name: "Order Inquiries", kind: "topic", target: null, confirmation: null },
+    { id: "pid_70000006-0000-4000-8000-000000000006", name: "Issue Refund", kind: "action", target: "flow", confirmation: true },
+  ],
+  tool_kinds: ["code_interpreter", "mcp"],
 };
 
 describe("MCP decoders", () => {
@@ -53,5 +58,15 @@ describe("MCP decoders", () => {
     expect(() => decodeAgentAccess({ ...access, ai_actions: { ...access.ai_actions, granted: ["bedrock:*"] } })).toThrow("schema mismatch");
     expect(() => decodeAgentAccess({ ...access, skills: [{ ...access.skills[0], contents: "# Release" }] })).toThrow("schema mismatch");
     expect(() => decodeAgentAccess({ ...access, data_stores: [{ ...access.data_stores[0], access: "admin" }] })).toThrow("schema mismatch");
+    // The tools of an agent: no content, a topic invokes nothing, kinds in order.
+    const { tools: _tools, ...withoutTools } = access;
+    expect(() => decodeAgentAccess(withoutTools)).toThrow("schema mismatch");
+    expect(() => decodeAgentAccess({ ...access, tools: [{ ...access.tools[1], instructions: "Refund up to 100" }] })).toThrow("schema mismatch");
+    expect(() => decodeAgentAccess({ ...access, tools: [{ ...access.tools[0], target: "flow" }] })).toThrow("schema mismatch");
+    expect(() => decodeAgentAccess({ ...access, tools: [{ ...access.tools[1], target: "run this" }] })).toThrow("schema mismatch");
+    expect(() => decodeAgentAccess({ ...access, tools: [{ ...access.tools[1], kind: "prompt" }] })).toThrow("schema mismatch");
+    expect(() => decodeAgentAccess({ ...access, tool_kinds: ["mcp", "code_interpreter"] })).toThrow("schema mismatch");
+    expect(() => decodeAgentAccess({ ...access, tool_kinds: ["tool:mcp"] })).toThrow("schema mismatch");
+    expect(decodeAgentAccess({ ...access, tools: [], tool_kinds: [] }).tools).toHaveLength(0);
   });
 });

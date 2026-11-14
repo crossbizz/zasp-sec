@@ -26,6 +26,7 @@ const access: AgentAccess = {
   mcp_servers: [{ id: ids.gateway, name: "tools", identity: "host:gw-1.gateway.example", approval: "unapproved" }],
   data_stores: [{ id: "pid_70000004-0000-4000-8000-000000000004", name: "All DynamoDB tables", service: "dynamodb", access: "write", scope: "service" }],
   skills: [{ id: "pid_70000005-0000-4000-8000-000000000005", path: ".claude/skills/release", kind: "skill" }],
+  tools: [], tool_kinds: [],
 };
 
 function entry(identity: string, status: MCPRegistryEntry["status"], version: number): MCPRegistryEntry {
@@ -112,6 +113,28 @@ describe("agent access", () => {
     expect(screen.getByRole("list", { name: "MCP servers of the agent" })).toHaveTextContent("tools · host:gw-1.gateway.example · Unapproved");
     expect(screen.getByRole("list", { name: "Data stores of the agent" })).toHaveTextContent("All DynamoDB tables · dynamodb · read and write · every resource of the service");
     expect(screen.getByRole("list", { name: "Skills of the agent" })).toHaveTextContent(".claude/skills/release · Skill");
+  });
+
+  it("lists the topics, actions and tool kinds an agent's platform states, and nothing for an agent without them", async () => {
+    const withTools: AgentAccess = { ...access, tool_kinds: ["code_interpreter", "mcp"], tools: [
+      { id: "pid_70000006-0000-4000-8000-000000000006", name: "Order Inquiries", kind: "topic", target: null, confirmation: null },
+      { id: "pid_70000007-0000-4000-8000-000000000007", name: "Issue Refund", kind: "action", target: "flow", confirmation: true },
+      { id: "pid_70000008-0000-4000-8000-000000000008", name: "Run Cleanup", kind: "action", target: "apex", confirmation: false },
+      { id: "pid_70000009-0000-4000-8000-000000000009", name: "Answer Question", kind: "action", target: null, confirmation: null },
+    ] };
+    const view = render(<AgentAccessPanel api={fixtureAPI({ getAgentAccess: async () => withTools })} agentID={ids.agent} />);
+    expect(await screen.findByRole("heading", { name: "Tools the agent's platform lists" })).toBeVisible();
+    expect(screen.getByText(/Tool kinds:/)).toHaveTextContent("Tool kinds: code_interpreter, mcp");
+    expect(within(screen.getByRole("list", { name: "Topics and actions of the agent" })).getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+      "Order Inquiries · topic",
+      "Issue Refund · action · invokes flow · asks for confirmation",
+      "Run Cleanup · action · invokes apex · runs without confirmation",
+      "Answer Question · action",
+    ]);
+    view.unmount();
+    render(<AgentAccessPanel api={fixtureAPI()} agentID={ids.agent} />);
+    expect(await screen.findByRole("list", { name: "Skills of the agent" })).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "Tools the agent's platform lists" })).toBeNull();
   });
 
   it("says when the audit log was not read instead of showing zero", async () => {

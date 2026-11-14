@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -69,6 +70,41 @@ func TestSaaSReferenceProbeBindsTheConnectionToItsTenant(t *testing.T) {
 	subject, err = newSaaSProbe(t, slack).ProbeReferenceAuthorization(context.Background(), saasProbeTarget(`{"connection_reference":"`+saasProbeConnection+`","platform":"slack","tenant_id":"T024BE7LD"}`))
 	if err != nil || subject.ID != "slack/T024BE7LD" || len(slack.calls) != 1 {
 		t.Fatalf("slack subject = %#v, %v, calls %v", subject, err, slack.calls)
+	}
+}
+
+// A customer-hosted platform is authorized against the host its tenant id
+// names: the probe asks that host, the subject it binds the connection to
+// carries the host, and so an integration cannot be moved to another host
+// without being authorized again as another subject. A host that is not a
+// public name is refused before anything is sent.
+func TestSaaSReferenceProbePinsACustomerHostedTenantToItsHost(t *testing.T) {
+	configuration := func(tenant string) string {
+		return `{"connection_reference":"` + saasProbeConnection + `","platform":"gitlab_self_managed","tenant_id":"` + tenant + `"}`
+	}
+	proxy := &saasProbeProxy{body: `{"id":4242,"name":"Platform","full_path":"acme/platform"}`}
+	subject, err := newSaaSProbe(t, proxy).ProbeReferenceAuthorization(context.Background(), saasProbeTarget(configuration("gitlab.acme-corp.com_4242")))
+	if err != nil || subject != (apiserver.ReferenceAuthorizationSubject{Kind: "saas_tenant", ID: "gitlab_self_managed/gitlab.acme-corp.com_4242"}) {
+		t.Fatalf("subject = %#v, %v", subject, err)
+	}
+	if len(proxy.calls) != 1 || proxy.calls[0] != "gitlab-pat "+saasProbeConnection+" GET //gitlab.acme-corp.com/api/v4/groups/4242?with_projects=false" {
+		t.Fatalf("calls = %v", proxy.calls)
+	}
+	// The same group id on another host is another subject.
+	other := &saasProbeProxy{body: `{"id":4242,"full_path":"acme/platform"}`}
+	if moved, err := newSaaSProbe(t, other).ProbeReferenceAuthorization(context.Background(), saasProbeTarget(configuration("git.other-corp.com_4242"))); err != nil || moved.ID == subject.ID || !strings.Contains(other.calls[0], "//git.other-corp.com/") {
+		t.Fatalf("another host: %#v, %v, %v", moved, err, other.calls)
+	}
+	// The host answers for another group than the tenant id names.
+	wrong := &saasProbeProxy{body: `{"id":4243,"full_path":"acme/other"}`}
+	if _, err := newSaaSProbe(t, wrong).ProbeReferenceAuthorization(context.Background(), saasProbeTarget(configuration("gitlab.acme-corp.com_4242"))); err == nil {
+		t.Fatal("a connection of another group was authorized")
+	}
+	for _, tenant := range []string{"10.0.0.5_4242", "localhost_4242", "gitlab.corp.internal_4242", "nango.zasp.svc.cluster.local_1", "gitlab_4242", "gitlab.acme-corp.com", "4242"} {
+		refused := &saasProbeProxy{body: `{"id":4242}`}
+		if _, err := newSaaSProbe(t, refused).ProbeReferenceAuthorization(context.Background(), saasProbeTarget(configuration(tenant))); err == nil || len(refused.calls) != 0 {
+			t.Errorf("tenant %q: err %v, calls %v", tenant, err, refused.calls)
+		}
 	}
 }
 

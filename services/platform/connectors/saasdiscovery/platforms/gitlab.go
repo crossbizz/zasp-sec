@@ -2,6 +2,7 @@ package platforms
 
 import (
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 
@@ -20,12 +21,9 @@ import (
 // variable is requested, so a project that is an agent but says so only in
 // its code is not listed. Of a Duo agent or flow it reads the name, the kind
 // and whether it is enabled; never a system prompt or a flow definition.
-// A self-managed GitLab and GitLab Dedicated are not covered. The framework
-// can send a platform's requests to a tenant's own host, but only to a host
-// under a domain the provider owns (the adapter's guard against a request
-// being sent to an address a customer chose), which a self-managed
-// instance's domain is not; and for such a platform the tenant id is the
-// host, while everything read here is addressed by a group id.
+// A self-managed GitLab and GitLab Dedicated are the platform
+// gitlab_self_managed (GitLabSelfManaged), which reads the same things from
+// the customer's own host.
 //
 // The agents and flows are read with one GraphQL query. It is a POST and
 // still a read: the collector sends gitLabDuoCatalogQuery and nothing else,
@@ -42,6 +40,10 @@ import (
 //     name, itemType, foundational and softDeleted of its item, the item
 //     types AGENT, FLOW, FOUNDATIONAL_AGENT, SKILL and THIRD_PARTY_FLOW, and
 //     the standard connection fields nodes and pageInfo;
+//   - the same reference, AiCatalogAgentVersion.mcpServers (a connection of
+//     AiCatalogMcpServer: id, name, url, transport HTTP, authType NO_AUTH or
+//     OAUTH) and AiCatalogItem.latestVersion. Query.aiCatalogMcpServers
+//     takes no group or project argument, which is why it is not used;
 //   - https://docs.gitlab.com/api/graphql/ : the endpoint is POST
 //     /api/graphql and the scope read_api is sufficient for queries.
 //
@@ -60,7 +62,7 @@ func GitLab() saasdiscovery.Platform {
 		Description: "Inventory GitLab Duo, its agents and flows, and the AI projects of one gitlab.com group through a Nango connection.",
 		Nango: nango.Entry{Key: "gitlab", ProviderHost: "gitlab.com", AuthMode: "oauth", Rules: []nango.Rule{
 			{Method: http.MethodGet, PathPrefix: "/api/v4/groups/", QueryKeys: []string{"archived", "include_subgroups", "order_by", "page", "per_page", "sort", "with_projects"}},
-			{Method: http.MethodPost, PathPrefix: "/api/graphql", GraphQLDocuments: []string{gitLabDuoCatalogQuery}},
+			{Method: http.MethodPost, PathPrefix: "/api/graphql", GraphQLDocuments: []string{gitLabDuoCatalogQuery, gitLabDuoMCPServersQuery}},
 		}},
 		RequiredScopes: []string{"read_api"},
 		TenantLabel:    "Group ID", TenantHint: "The numeric ID of the group, shown on the group's overview page.",
@@ -98,6 +100,16 @@ func GitLab() saasdiscovery.Platform {
 				Paging: saasdiscovery.Paging{Style: saasdiscovery.PagingCursor, CursorParam: "after", LimitParam: "first", PageSize: 50,
 					NextPath: []string{"data", "aiCatalogConfiguredItems", "pageInfo", "endCursor"}, MorePath: []string{"data", "aiCatalogConfiguredItems", "pageInfo", "hasNextPage"}},
 				Map: gitLabCatalogItem},
+			// The MCP servers of the agents enabled in the group. The catalog's
+			// own list of MCP servers (aiCatalogMcpServers) takes no group or
+			// project, so the servers are read where the schema ties them to
+			// the group: under the latest version of each configured agent. A
+			// server several agents use is reported once.
+			{Name: "duo_mcp_servers", Path: "/api/graphql", ItemsPath: []string{"data", "aiCatalogConfiguredItems", "nodes"}, ChildrenPath: []string{"item", "latestVersion", "mcpServers", "nodes"}, Distinct: true,
+				GraphQL: &saasdiscovery.GraphQL{Document: gitLabDuoMCPServersQuery, Variables: map[string]string{"group": "gid://gitlab/Group/" + saasdiscovery.TenantValue}, ErrorsAbsent: true},
+				Paging: saasdiscovery.Paging{Style: saasdiscovery.PagingCursor, CursorParam: "after", LimitParam: "first", PageSize: 20,
+					NextPath: []string{"data", "aiCatalogConfiguredItems", "pageInfo", "endCursor"}, MorePath: []string{"data", "aiCatalogConfiguredItems", "pageInfo", "hasNextPage"}},
+				Map: gitLabMCPServer},
 			{Name: "projects", Path: "/api/v4/groups/{tenant}/projects", Query: map[string]string{"include_subgroups": "true", "archived": "false", "order_by": "id", "sort": "asc"},
 				Paging: saasdiscovery.Paging{Style: saasdiscovery.PagingPage, PageParam: "page", LimitParam: "per_page", PageSize: 100}, Map: gitLabProject},
 		},
@@ -107,6 +119,39 @@ func GitLab() saasdiscovery.Platform {
 // gitLabDuoCatalogQuery lists the AI catalog items (agents and flows)
 // enabled in one group, a page at a time.
 const gitLabDuoCatalogQuery = `query($group: GroupID!, $first: Int!, $after: String) { aiCatalogConfiguredItems(groupId: $group, first: $first, after: $after) { nodes { id enabled item { id name itemType foundational softDeleted } } pageInfo { hasNextPage endCursor } } }`
+
+// gitLabDuoMCPServersQuery lists, for the agents enabled in one group, the
+// MCP servers of each agent's latest version: name, address, transport and
+// how the server authenticates. No OAuth client id and no tool is selected.
+const gitLabDuoMCPServersQuery = `query($group: GroupID!, $first: Int!, $after: String) { aiCatalogConfiguredItems(groupId: $group, first: $first, after: $after, itemTypes: [AGENT, FOUNDATIONAL_AGENT]) { nodes { id item { id latestVersion { ... on AiCatalogAgentVersion { mcpServers(first: 20) { nodes { id name url transport authType } } } } } } pageInfo { hasNextPage endCursor } } }`
+
+// gitLabMCPServer maps one MCP server of a group's agents. Of its address
+// only the host is kept.
+func gitLabMCPServer(item saasdiscovery.Item) (saasdiscovery.Entity, bool) {
+	id := item.Text("id")
+	name := saasdiscovery.CleanText(item.Text("name"), 256)
+	if id == "" || name == "" {
+		return saasdiscovery.Entity{}, false
+	}
+	entity := saasdiscovery.Entity{Kind: saasdiscovery.KindMCPServer, NativeID: id, DisplayName: name, ObjectType: "duo_mcp_server", Status: "configured"}
+	if address, err := url.Parse(item.Text("url")); err == nil && (address.Scheme == "https" || address.Scheme == "http") && address.User == nil {
+		if host := strings.ToLower(address.Hostname()); gitLabMCPHostPattern.MatchString(host) {
+			entity.EndpointHost = host
+		}
+	}
+	if item.Text("transport") == "HTTP" {
+		entity.Transport = agentsignals.MCPTransportHTTP
+	}
+	switch item.Text("authType") {
+	case "NO_AUTH":
+		entity.Auth = agentsignals.MCPAuthNone
+	case "OAUTH":
+		entity.Auth = agentsignals.MCPAuthDeclared
+	}
+	return entity, true
+}
+
+var gitLabMCPHostPattern = regexp.MustCompile(`^[a-z0-9]([a-z0-9.-]{0,251}[a-z0-9])?$`)
 
 // gitLabCatalogItem maps one AI catalog item that is configured for the
 // group: a Duo agent or a flow. A skill is not an agent and is not listed.

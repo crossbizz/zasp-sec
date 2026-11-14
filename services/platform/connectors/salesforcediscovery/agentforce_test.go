@@ -242,6 +242,47 @@ func TestSalesforceOptionalReadsDegradeAndClassify(t *testing.T) {
 	}
 }
 
+// A transient failure of the Trust Layer read fails the page, so that a
+// collection never completes with the guardrail level missing only for now
+// and the finding that rests on it does not come and go; a refusal leaves
+// the level unknown and the collection goes on.
+func TestSalesforceTrustReadRetriesTransientFailuresAndToleratesRefusals(t *testing.T) {
+	t.Parallel()
+	fault := func(code string) *salesforceHTTPResponse {
+		return &salesforceHTTPResponse{status: http.StatusInternalServerError, body: `<?xml version="1.0" encoding="UTF-8"?><soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"><soapenv:Body><soapenv:Fault><faultcode>` + code + `</faultcode><faultstring>do-not-keep-fault-text</faultstring></soapenv:Fault></soapenv:Body></soapenv:Envelope>`}
+	}
+	for name, test := range map[string]struct {
+		response *salesforceHTTPResponse
+		code     collection.FailureCode
+	}{
+		"server busy":      {fault("sf:SERVER_UNAVAILABLE"), collection.FailureRetryable},
+		"request limit":    {fault("sf:REQUEST_LIMIT_EXCEEDED"), collection.FailureRetryable},
+		"rate limited":     {&salesforceHTTPResponse{status: http.StatusTooManyRequests, header: http.Header{"Retry-After": []string{"30"}}, body: `x`}, collection.FailureRateLimited},
+		"gateway error":    {&salesforceHTTPResponse{status: http.StatusBadGateway, body: `x`}, collection.FailureRetryable},
+		"unreadable 200":   {&salesforceHTTPResponse{status: http.StatusOK, body: ``}, collection.FailureMalformed},
+		"no permission":    {fault("sf:INSUFFICIENT_ACCESS"), ""},
+		"unknown type":     {fault("sf:INVALID_TYPE"), ""},
+		"unlisted fault":   {fault("sf:UNKNOWN_EXCEPTION"), ""},
+		"fault unreadable": {&salesforceHTTPResponse{status: http.StatusInternalServerError, body: `not xml`}, ""},
+		"forbidden":        {&salesforceHTTPResponse{status: http.StatusForbidden, body: `x`}, ""},
+		"not found":        {&salesforceHTTPResponse{status: http.StatusNotFound, body: `x`}, ""},
+	} {
+		api, roundTripper := newSalesforceTestAPI(t, salesforceHTTPResponse{status: http.StatusOK, body: salesforceTestOrgBody})
+		roundTripper.soap = test.response
+		page, err := api.FetchCollectionPage(context.Background(), salesforceTestCredential(salesforceTestToken, salesforceTestHost), salesforceInitialRequest())
+		var failure *collection.Failure
+		switch {
+		case test.code == "" && (err != nil || !strings.Contains(string(page.Raw), `"attributes":{}`)):
+			t.Errorf("%s: a refusal failed the page or stated a switch: %v %s", name, err, page.Raw)
+		case test.code != "" && (!errors.As(err, &failure) || failure.Code() != test.code):
+			t.Errorf("%s: err = %v, want %s", name, err, test.code)
+		}
+		if err != nil && strings.Contains(err.Error(), "do-not-keep") {
+			t.Errorf("%s: the failure carries the fault text", name)
+		}
+	}
+}
+
 func TestSalesforceTrustSettingsAreReadOnlyFromAReadableRecord(t *testing.T) {
 	t.Parallel()
 	for name, test := range map[string]struct {
