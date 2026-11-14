@@ -547,7 +547,7 @@ func validProviderFindings(provider collection.Provider, findings []json.RawMess
 	if len(findings) == 0 {
 		return true
 	}
-	if provider != collection.ProviderAWS || len(findings) > 100_000 {
+	if provider != collection.ProviderAWS && provider != collection.ProviderGCP || len(findings) > 100_000 {
 		return false
 	}
 	seen := make(map[string]struct{}, len(findings))
@@ -716,7 +716,10 @@ func providerEntitySchema(provider collection.Provider, kind string) (providerEn
 		case "kubernetes_cluster":
 			// runtime_observations says whether the collector could read
 			// the node sensor's egress observations in this cluster.
-			return providerEntityDefinition{stable: requiredStringFields("cluster", "name"), attributes: mergeInventorySchemas(state, inventoryObjectSchema{"runtime_observations": enumInventoryField(false, "access_denied", "collected")})}, true
+			return providerEntityDefinition{stable: requiredStringFields("cluster", "name"), attributes: mergeInventorySchemas(state, inventoryObjectSchema{"runtime_observations": enumInventoryField(false, "access_denied", "collected"),
+				// mcp_links says whether it could list the Services and
+				// ConfigMaps that relate agents to MCP servers.
+				"mcp_links": enumInventoryField(false, "collected", "configmaps_denied", "services_denied")})}, true
 		case "kubernetes_namespace":
 			return providerEntityDefinition{stable: requiredStringFields("cluster", "name", "namespace"), attributes: state}, true
 		case "kubernetes_resource", "kubernetes_service_account":
@@ -796,19 +799,37 @@ func providerEntitySchema(provider collection.Provider, kind string) (providerEn
 		case "microsoft_copilot_agent":
 			// content_moderation is the agent's generative AI moderation level,
 			// present when its configuration states one.
-			return providerEntityDefinition{stable: requiredStringFields("environment", "name", "object_type", "tenant"), attributes: mergeInventorySchemas(directory, discoveredAgentAttributes(), inventoryObjectSchema{"content_moderation": enumInventoryField(false, "high", "low", "medium")})}, true
+			// The same kind holds an Azure AI Foundry agent (object_type
+			// foundry_agent; environment is its project endpoint): agent_type
+			// is its kind, model the deployment it names and rai_policy the
+			// content filter policy that applies to it.
+			return providerEntityDefinition{stable: requiredStringFields("environment", "name", "object_type", "tenant"), attributes: mergeInventorySchemas(directory, discoveredAgentAttributes(), optionalStringFields("agent_type", "model", "rai_policy"), inventoryObjectSchema{"content_moderation": enumInventoryField(false, "high", "low", "medium")})}, true
 		case "microsoft_ai_resource":
 			// An Azure OpenAI or Azure AI Foundry account of a subscription.
-			return providerEntityDefinition{stable: requiredStringFields("name", "object_type", "region", "subscription", "tenant"), attributes: mergeInventorySchemas(directory, optionalStringFields("endpoint_host"), inventoryObjectSchema{"resource_kind": enumInventoryField(true, "azure_ai_foundry", "azure_openai"), "deployments": enumInventoryField(true, "listed", "not_listed"), "local_auth_disabled": boolInventoryField(false), "public_network_access": enumInventoryField(false, "disabled", "enabled")})}, true
+			return providerEntityDefinition{stable: requiredStringFields("name", "object_type", "region", "subscription", "tenant"), attributes: mergeInventorySchemas(directory, optionalStringFields("endpoint_host"), inventoryObjectSchema{"resource_kind": enumInventoryField(true, "azure_ai_foundry", "azure_openai"), "deployments": enumInventoryField(true, "listed", "not_listed"),
+				// agents: whether the agents of an AI Foundry account's
+				// projects could be listed; absent when they were not asked for.
+				"agents": enumInventoryField(false, "access_denied", "listed", "not_listed", "partial"), "local_auth_disabled": boolInventoryField(false), "public_network_access": enumInventoryField(false, "disabled", "enabled")})}, true
 		case "microsoft_ai_deployment":
 			return providerEntityDefinition{stable: requiredStringFields("name", "object_type", "resource", "subscription", "tenant"), attributes: mergeInventorySchemas(directory, optionalStringFields("model", "model_version"))}, true
 		}
 	case collection.ProviderSalesforce:
 		switch kind {
 		case "salesforce_org":
-			return providerEntityDefinition{stable: requiredStringFields("name", "org"), attributes: inventoryObjectSchema{}}, true
+			// The org's Einstein Trust Layer switches, each present when the
+			// connection could read it.
+			return providerEntityDefinition{stable: requiredStringFields("name", "org"), attributes: inventoryObjectSchema{"trust_input_toxicity_detection": enumInventoryField(false, "disabled", "enabled"), "trust_prompt_injection_detection": enumInventoryField(false, "disabled", "enabled"), "trust_pii_masking": enumInventoryField(false, "disabled", "enabled")}}, true
 		case "salesforce_agent":
-			return providerEntityDefinition{stable: requiredStringFields("name", "object_type", "org"), attributes: mergeInventorySchemas(inventoryObjectSchema{"status": stringInventoryField(true), "state": stringInventoryField(false), "agent_type": stringInventoryField(false)}, discoveredAgentAttributes())}, true
+			// run_as_user is the id of the user the agent runs as and
+			// permission_sets the comma-separated names of that user's
+			// permission sets; tools says whether its topics and actions were
+			// listed; content_moderation is the org's guardrail level.
+			return providerEntityDefinition{stable: requiredStringFields("name", "object_type", "org"), attributes: mergeInventorySchemas(inventoryObjectSchema{"status": stringInventoryField(true), "state": stringInventoryField(false), "agent_type": stringInventoryField(false),
+				"run_as_user": stringInventoryField(false), "permission_sets": stringInventoryField(false), "tools": enumInventoryField(false, "listed", "not_listed", "partial"), "content_moderation": enumInventoryField(false, "high", "low", "medium")}, discoveredAgentAttributes())}, true
+		case "salesforce_agent_tool":
+			// A topic (object_type agent_topic) or an action (agent_action) of
+			// an Agentforce agent. target_type is what an action invokes.
+			return providerEntityDefinition{stable: requiredStringFields("name", "object_type", "org"), attributes: inventoryObjectSchema{"status": stringInventoryField(true), "state": stringInventoryField(false), "target_type": stringInventoryField(false), "confirmation_required": boolInventoryField(false)}}, true
 		}
 	case collection.ProviderSaaS:
 		// One provider for every SaaS platform read through the Nango proxy.
@@ -820,9 +841,56 @@ func providerEntitySchema(provider collection.Provider, kind string) (providerEn
 		case "saas_tenant":
 			return providerEntityDefinition{stable: requiredStringFields("name", "platform", "tenant"), attributes: inventoryObjectSchema{}}, true
 		case "saas_agent", "saas_ai_application":
-			return providerEntityDefinition{stable: object, attributes: mergeInventorySchemas(status, optionalStringFields("agent_type", "model"), discoveredAgentAttributes())}, true
+			// created_by, created_at, updated_at and deleted_at are present for
+			// an object read out of a platform's audit log: the id of the
+			// account that created it and the times of its events.
+			return providerEntityDefinition{stable: object, attributes: mergeInventorySchemas(status, optionalStringFields("agent_type", "model", "created_by", "created_at", "updated_at", "deleted_at"), discoveredAgentAttributes())}, true
 		case "saas_mcp_server":
-			return providerEntityDefinition{stable: object, attributes: mergeInventorySchemas(status, optionalStringFields("endpoint_host"))}, true
+			// auth and transport are present when the platform's API states
+			// them for the server.
+			return providerEntityDefinition{stable: object, attributes: mergeInventorySchemas(status, optionalStringFields("endpoint_host"), inventoryObjectSchema{
+				"auth":      enumInventoryField(false, agentsignals.MCPAuthDeclared, agentsignals.MCPAuthNone),
+				"transport": enumInventoryField(false, agentsignals.MCPTransportHTTP, agentsignals.MCPTransportSSE, agentsignals.MCPTransportStdio)})}, true
+		}
+	case collection.ProviderGCP:
+		// Google Cloud. scope is the organization, folder or project the
+		// integration names; project is a project id below it. Every kind
+		// below a project carries both.
+		object := requiredStringFields("location", "name", "object_type", "project", "scope")
+		// What every agent kind may carry: the service account it runs as,
+		// when the audit log last shows it invoking a model, and whether
+		// Model Armor screens Vertex AI in its project and location.
+		agent := mergeInventorySchemas(state, discoveredAgentAttributes(), agentInvocationAttribute(), optionalStringFields("agent_framework", "identity_type", "service_account"),
+			inventoryObjectSchema{"model_armor": enumInventoryField(false, "floor_setting", "none", "template")})
+		switch kind {
+		case "gcp_scope":
+			return providerEntityDefinition{stable: requiredStringFields("name", "scope"), attributes: inventoryObjectSchema{}}, true
+		case "gcp_project":
+			return providerEntityDefinition{stable: requiredStringFields("name", "project", "project_number", "scope"), attributes: state}, true
+		case "gcp_service":
+			// One per Google API the collector reads. status is collected,
+			// access_denied or unavailable (the API is enabled in no project
+			// read); affected_projects counts the projects that refused.
+			return providerEntityDefinition{stable: requiredStringFields("name", "scope", "service"), attributes: mergeInventorySchemas(state, optionalStringFields("affected_projects"))}, true
+		case "gcp_agent_engine", "gcp_conversational_agent", "gcp_gemini_enterprise_agent":
+			return providerEntityDefinition{stable: object, attributes: agent}, true
+		case "gcp_inferred_agent":
+			return providerEntityDefinition{stable: mergeInventorySchemas(object, inventoryObjectSchema{"resource_type": enumInventoryField(true, "cloud_function", "cloud_run_service", "service_account")}), attributes: agent}, true
+		case "gcp_model_endpoint":
+			return providerEntityDefinition{stable: object, attributes: state}, true
+		case "gcp_deployed_model":
+			return providerEntityDefinition{stable: mergeInventorySchemas(object, requiredStringFields("endpoint")), attributes: mergeInventorySchemas(state, optionalStringFields("model", "model_version", "service_account"))}, true
+		case "gcp_mcp_server":
+			// A Cloud Run service that is an MCP server.
+			return providerEntityDefinition{stable: object, attributes: mergeInventorySchemas(state, mcpServer)}, true
+		case "gcp_agent_tool":
+			// A tool a Conversational Agents agent declares.
+			return providerEntityDefinition{stable: mergeInventorySchemas(object, requiredStringFields("agent")), attributes: mcpTool}, true
+		case "gcp_service_account":
+			// roles are the roles the IAM policies of the project and of the
+			// folders and organization above it bind the account to,
+			// comma-separated; admin_roles the administrator-level ones.
+			return providerEntityDefinition{stable: requiredStringFields("name", "object_type", "project", "scope"), attributes: mergeInventorySchemas(state, optionalStringFields("admin_roles", "roles"))}, true
 		}
 	}
 	return providerEntityDefinition{}, false
@@ -839,7 +907,7 @@ func validProviderRelationship(provider collection.Provider, raw json.RawMessage
 	case collection.ProviderAWS:
 		kinds = tokenSet("belongs_to", "contains", "depends_on", "trusts", "uses_identity", "uses_policy")
 	case collection.ProviderKubernetes:
-		kinds = tokenSet("assigned_to", "attached_to", "binds", "contains", "uses_identity")
+		kinds = tokenSet("assigned_to", "attached_to", "binds", "contains", "depends_on", "uses_identity")
 		attributes["type"] = stringInventoryField(true)
 	case collection.ProviderGitHub:
 		kinds = tokenSet("belongs_to", "contains", "depends_on", "has_permission", "owns", "uses_identity")
@@ -847,8 +915,13 @@ func validProviderRelationship(provider collection.Provider, raw json.RawMessage
 	case collection.ProviderOkta:
 		kinds = tokenSet("assigned_to", "contains", "has_permission", "member_of")
 		attributes["type"] = stringInventoryField(true)
-	case collection.ProviderMicrosoft, collection.ProviderSalesforce, collection.ProviderSaaS:
+	case collection.ProviderMicrosoft, collection.ProviderSalesforce:
 		kinds = tokenSet("contains")
+		attributes["type"] = stringInventoryField(true)
+	case collection.ProviderSaaS:
+		kinds = tokenSet("contains", "depends_on")
+	case collection.ProviderGCP:
+		kinds = tokenSet("contains", "uses_identity")
 		attributes["type"] = stringInventoryField(true)
 	default:
 		return false
@@ -884,6 +957,8 @@ func validProviderRelationshipEndpointKinds(provider collection.Provider, raw js
 			"kubernetes_agent|uses_identity|kubernetes_service_account", "kubernetes_workload|uses_identity|kubernetes_service_account",
 			"kubernetes_namespace|attached_to|kubernetes_inferred_agent", "kubernetes_inferred_agent|uses_identity|kubernetes_service_account",
 			"kubernetes_namespace|attached_to|kubernetes_mcp_server",
+			// An agent uses an MCP server of the cluster.
+			"kubernetes_agent|depends_on|kubernetes_mcp_server", "kubernetes_inferred_agent|depends_on|kubernetes_mcp_server",
 		),
 		collection.ProviderGitHub: tokenSet(
 			"github_installation|contains|github_app", "github_installation|owns|github_repository", "github_organization|owns|github_repository", "github_repository|contains|github_environment", "github_repository|contains|github_permission", "github_repository|contains|github_workflow", "github_workflow|depends_on|github_repository", "github_workflow|uses_identity|github_app", "github_app|has_permission|github_permission",
@@ -895,8 +970,16 @@ func validProviderRelationshipEndpointKinds(provider collection.Provider, raw js
 			"okta_tenant|contains|okta_ai_application", "okta_group|assigned_to|okta_ai_application", "okta_service_principal|assigned_to|okta_ai_application", "okta_user|assigned_to|okta_ai_application",
 		),
 		collection.ProviderMicrosoft:  tokenSet("microsoft_tenant|contains|microsoft_agent_identity", "microsoft_tenant|contains|microsoft_ai_application", "microsoft_tenant|contains|microsoft_copilot_agent", "microsoft_tenant|contains|microsoft_ai_resource", "microsoft_tenant|contains|microsoft_ai_deployment"),
-		collection.ProviderSalesforce: tokenSet("salesforce_org|contains|salesforce_agent"),
-		collection.ProviderSaaS:       tokenSet("saas_tenant|contains|saas_agent", "saas_tenant|contains|saas_ai_application", "saas_tenant|contains|saas_mcp_server"),
+		collection.ProviderSalesforce: tokenSet("salesforce_org|contains|salesforce_agent", "salesforce_agent|contains|salesforce_agent_tool", "salesforce_agent_tool|contains|salesforce_agent_tool"),
+		// An agent of a platform uses an MCP server the same platform lists.
+		collection.ProviderSaaS: tokenSet("saas_tenant|contains|saas_agent", "saas_tenant|contains|saas_ai_application", "saas_tenant|contains|saas_mcp_server", "saas_agent|depends_on|saas_mcp_server"),
+		collection.ProviderGCP: tokenSet(
+			"gcp_scope|contains|gcp_project", "gcp_scope|contains|gcp_service",
+			"gcp_project|contains|gcp_agent_engine", "gcp_project|contains|gcp_conversational_agent", "gcp_project|contains|gcp_gemini_enterprise_agent", "gcp_project|contains|gcp_inferred_agent",
+			"gcp_project|contains|gcp_model_endpoint", "gcp_project|contains|gcp_service_account", "gcp_model_endpoint|contains|gcp_deployed_model",
+			"gcp_project|contains|gcp_mcp_server", "gcp_conversational_agent|contains|gcp_agent_tool",
+			"gcp_agent_engine|uses_identity|gcp_service_account", "gcp_inferred_agent|uses_identity|gcp_service_account", "gcp_deployed_model|uses_identity|gcp_service_account",
+		),
 	}
 	return allowed[provider][key]
 }
@@ -1371,6 +1454,13 @@ func relationshipsResolve(provider collection.Provider, subject collection.Subje
 			if provider == collection.ProviderKubernetes && validExplicitKubernetesUnresolvedRelationship(raw, subject, fromExists, toExists, items) {
 				continue
 			}
+			// A SaaS agent's use of an MCP server is read by a second list
+			// than the agents; an agent that list did not report (deleted in
+			// between, or not one the platform's mapping keeps) leaves the
+			// relation without its end, and it is dropped.
+			if provider == collection.ProviderSaaS && derivedAgentMCPServerRelationship(raw) {
+				continue
+			}
 			return nil, false
 		}
 		if !validProviderRelationshipEndpointKinds(provider, raw, items[from].Kind, items[to].Kind) {
@@ -1381,9 +1471,32 @@ func relationshipsResolve(provider collection.Provider, subject collection.Subje
 	return resolved, true
 }
 
+// derivedAgentMCPServerRelationship reports whether raw is the relation of an
+// agent to an MCP server it uses.
+func derivedAgentMCPServerRelationship(raw json.RawMessage) bool {
+	var relationship normalizedPageRelationship
+	var derived struct {
+		Type string `json:"type"`
+	}
+	return decodeExactObject(raw, &relationship) && relationship.Kind == "depends_on" && decodeExactObject(relationship.Attributes, &derived) && derived.Type == "agent_mcp_server"
+}
+
 func validExplicitKubernetesUnresolvedRelationship(raw json.RawMessage, subject collection.SubjectBinding, fromExists, toExists bool, items map[string]normalizedPageEntity) bool {
 	var relationship normalizedPageRelationship
-	if !decodeExactObject(raw, &relationship) || !fromExists || toExists {
+	if !decodeExactObject(raw, &relationship) {
+		return false
+	}
+	// An agent's use of an MCP server is derived at the end of a collection
+	// from a second read of the workloads. A workload that changed between
+	// the two reads leaves an end that is not in the snapshot: the relation
+	// is dropped, as it would be absent had the workload been read once.
+	if relationship.Kind == "depends_on" {
+		var derived struct {
+			Type string `json:"type"`
+		}
+		return decodeExactObject(relationship.Attributes, &derived) && derived.Type == "agent_mcp_server"
+	}
+	if !fromExists || toExists {
 		return false
 	}
 	source, ok := items[relationship.FromEntityID]
@@ -1845,7 +1958,7 @@ func validCursor(cursor collection.Cursor, provider collection.Provider) bool {
 
 func validProvider(provider collection.Provider) bool {
 	switch provider {
-	case collection.ProviderAWS, collection.ProviderKubernetes, collection.ProviderGitHub, collection.ProviderOkta, collection.ProviderMicrosoft, collection.ProviderSalesforce, collection.ProviderSaaS:
+	case collection.ProviderAWS, collection.ProviderKubernetes, collection.ProviderGitHub, collection.ProviderOkta, collection.ProviderMicrosoft, collection.ProviderSalesforce, collection.ProviderSaaS, collection.ProviderGCP:
 		return true
 	default:
 		return false

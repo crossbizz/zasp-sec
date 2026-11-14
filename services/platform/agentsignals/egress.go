@@ -268,6 +268,12 @@ func (evidence *Evidence) AddSignals(signals ...string) {
 					break
 				}
 			}
+			for _, known := range gcpInvocationMethods {
+				if known == token {
+					evidence.set().add("invoke", token, strong)
+					break
+				}
+			}
 		}
 	}
 }

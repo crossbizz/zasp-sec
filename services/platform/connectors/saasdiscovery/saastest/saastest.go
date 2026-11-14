@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -50,7 +51,9 @@ type Response struct {
 }
 
 // Route answers the requests of one provider path. It receives the request
-// query and the number of earlier calls of the path.
+// query and the number of earlier calls of the path. For a GraphQL request
+// (a POST) the query holds the variables of the request, each as text, and
+// the document under the key "query".
 type Route func(query url.Values, call int) Response
 
 // Call is one request the stand-in Nango received.
@@ -63,6 +66,12 @@ type Call struct {
 	// header, without its scheme): the tenant's host for a platform with a
 	// per-tenant host, "" for a platform with one fixed host.
 	Host string
+	// Method is GET, or POST for a GraphQL query, whose body is Body.
+	Method string
+	Body   string
+	// Headers are the provider headers the request asked Nango to forward
+	// (sent as Nango-Proxy-<name>), by name.
+	Headers map[string]string
 }
 
 // Nango is a stand-in Nango server: it accepts exactly the proxy requests
@@ -114,7 +123,7 @@ func NewNango(t testing.TB, registry *saasdiscovery.Registry, routes map[string]
 
 func (standIn *Nango) serve(writer http.ResponseWriter, request *http.Request) {
 	path, isProxy := strings.CutPrefix(request.URL.Path, "/proxy")
-	if !isProxy || request.Method != http.MethodGet || request.Header.Get("Authorization") != "Bearer "+serviceKey || request.Header.Get("Connection-Id") != connectionID || request.Header.Get("Provider-Config-Key") == "" || request.Header.Get("Nango-Is-Sync") != "false" {
+	if !isProxy || request.Method != http.MethodGet && request.Method != http.MethodPost || request.Header.Get("Authorization") != "Bearer "+serviceKey || request.Header.Get("Connection-Id") != connectionID || request.Header.Get("Provider-Config-Key") == "" || request.Header.Get("Nango-Is-Sync") != "false" {
 		standIn.t.Errorf("stand-in Nango received a request the proxy client must not make: %s %s %v", request.Method, request.URL, request.Header)
 		http.Error(writer, "refused", http.StatusBadRequest)
 		return
@@ -134,14 +143,40 @@ func (standIn *Nango) serve(writer http.ResponseWriter, request *http.Request) {
 	if override != "" && (!hasScheme || strings.ContainsAny(host, "/:@?#")) {
 		standIn.t.Errorf("stand-in Nango received a host override that is not https://<host>: %q", override)
 	}
-	standIn.calls = append(standIn.calls, Call{Path: path, Query: request.URL.Query(), Key: request.Header.Get("Provider-Config-Key"), Host: host})
+	query := request.URL.Query()
+	forwarded := map[string]string{}
+	for name, values := range request.Header {
+		if rest, found := strings.CutPrefix(name, "Nango-Proxy-"); found && len(values) == 1 {
+			forwarded[rest] = values[0]
+		}
+	}
+	body := ""
+	if request.Method == http.MethodPost {
+		// A GraphQL query: exactly {"query": ..., "variables": {...}}.
+		raw, _ := io.ReadAll(io.LimitReader(request.Body, 1<<20))
+		body = string(raw)
+		var document struct {
+			Query     string         `json:"query"`
+			Variables map[string]any `json:"variables"`
+		}
+		decoder := json.NewDecoder(bytes.NewReader(raw))
+		decoder.DisallowUnknownFields()
+		if decoder.Decode(&document) != nil || document.Query == "" || len(query) != 0 {
+			standIn.t.Errorf("stand-in Nango received a POST that is not a GraphQL query: %s", raw)
+		}
+		query = url.Values{"query": {document.Query}}
+		for name, value := range document.Variables {
+			query.Set(name, fmt.Sprint(value))
+		}
+	}
+	standIn.calls = append(standIn.calls, Call{Path: path, Query: query, Key: request.Header.Get("Provider-Config-Key"), Host: host, Method: request.Method, Body: body, Headers: forwarded})
 	route := standIn.routes[path]
 	standIn.mu.Unlock()
 	if route == nil {
 		http.Error(writer, `{"error":"not found"}`, http.StatusNotFound)
 		return
 	}
-	response := route(request.URL.Query(), earlier)
+	response := route(query, earlier)
 	if response.Status == 0 {
 		response.Status = http.StatusOK
 	}
@@ -352,7 +387,16 @@ func Collect(t testing.TB, standIn *Nango, registry *saasdiscovery.Registry, pla
 			tenantEntity = entity.ID
 		}
 	}
+	kindOf := map[string]string{}
+	for _, entity := range snapshot.Entities {
+		kindOf[entity.ID] = entity.Kind
+	}
 	for _, relationship := range snapshot.Relationships {
+		// The one relation between two objects of a tenant: an agent uses
+		// an MCP server.
+		if relationship.Kind == "depends_on" && kindOf[relationship.FromEntityID] == "saas_agent" && kindOf[relationship.ToEntityID] == "saas_mcp_server" {
+			continue
+		}
 		if relationship.Kind != "contains" || relationship.FromEntityID != tenantEntity {
 			t.Fatalf("relationship = %+v", relationship)
 		}

@@ -93,12 +93,24 @@ func (client *ProductionProxyClient) Proxy(ctx context.Context, request ProxyReq
 	httpRequest.Header.Set("Provider-Config-Key", request.ConnectorKey)
 	httpRequest.Header.Set("Nango-Is-Sync", "false")
 	if request.PinHost {
-		// UNVERIFIED against a running Nango: the Base-Url-Override header is
-		// written from memory of the Nango proxy. It replaces the base URL
-		// of the integration for this request, so the request goes to the
-		// host the adapter validated and resolved and not to the host stored
-		// in the connection.
+		// DOCUMENTED: https://github.com/NangoHQ/nango (packages/node-client,
+		// published as @nangohq/node 0.72.4, proxy()): the SDK sends the
+		// proxy option baseUrlOverride as the header Base-Url-Override. It
+		// replaces the base URL of the integration for this request, so the
+		// request goes to the host the adapter validated and resolved and not
+		// to the host stored in the connection. Not run against a Nango
+		// server from here.
 		httpRequest.Header.Set("Base-Url-Override", "https://"+request.ProviderHost)
+	}
+	// DOCUMENTED: the same SDK function sends each custom header of a proxy
+	// call as Nango-Proxy-<name>; Nango forwards it to the provider as
+	// <name>. The names were admitted by the rule of the request.
+	for name, value := range request.Headers {
+		if !ValidForwardedHeaderName(name) || !validQueryValue(value) {
+			clear(secret)
+			return ProxyResponse{}, ErrInvalid
+		}
+		httpRequest.Header.Set("Nango-Proxy-"+name, value)
 	}
 	httpRequest.Header.Set("Accept", "application/json")
 	if len(request.Body) > 0 {

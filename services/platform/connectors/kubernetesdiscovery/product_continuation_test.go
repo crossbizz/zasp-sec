@@ -52,7 +52,7 @@ func TestProductKubernetesColdResumeAcrossHistoryBoundary(t *testing.T) {
 	}
 	request := collection.Request{Scope: scope, IntegrationID: ids[3], ConnectionID: ids[4], JobID: ids[5], EffectID: fmt.Sprintf("%064x", 1), Provider: collection.ProviderKubernetes, CollectorVersion: "collector_v1", CredentialClass: collection.CredentialKubernetesCluster, CredentialReference: "ref:kubernetes/connection/customer-0001", ExpectedSubject: collection.SubjectBinding{Kind: "kubernetes_cluster", ID: "example.com/customer"}, ParserVersion: "parser_v1", ToolVersion: "tool_v1", ObservationTime: time.Now().UTC().Truncate(time.Second), Bounds: collection.Bounds{MaxPages: 10000, FreshPageLimit: 1, MaxItems: 1000, MaxRawBytes: 64 << 20, Timeout: time.Minute}}
 	current := base
-	for page := 1; page <= 267; page++ {
+	for page := 1; page <= 268; page++ {
 		ctx, cancel, err := collection.WithProductEffect(context.Background(), request.EffectID, time.Now().Add(time.Minute), func(context.Context) error { return nil })
 		if err != nil {
 			t.Fatal(err)
@@ -62,7 +62,7 @@ func TestProductKubernetesColdResumeAcrossHistoryBoundary(t *testing.T) {
 		if err != nil {
 			t.Fatalf("page %d: %v", page, err)
 		}
-		if page == 267 {
+		if page == 268 {
 			complete, ok := outcome.(collection.CompleteResult)
 			if !ok || complete.Snapshot().EntityCount() != 258 || len(transport.requests) != 267 {
 				t.Fatalf("final %T", outcome)

@@ -263,6 +263,15 @@ discovery:
   # the integration catalog. The providers themselves are reached by Nango:
   # their addresses belong in nango.providerEgressCIDRs.
   saasCollectorVersion: ""
+  # Google Cloud (docs/operations/google-cloud-connector.md). Disabled by
+  # default. Setting the collector version (collector_v1) registers the
+  # collector in the discovery worker and lists Google Cloud in the
+  # integration catalog; network.connectorEgressCIDRs.gcp is then required.
+  # Nothing is installed in the customer's projects: the worker and the API
+  # obtain a short-lived token for the customer's read-only service account
+  # from their own AWS roles (workload identity federation) or from a service
+  # account key held in Secrets Manager.
+  gcpCollectorVersion: ""
   awsRegion: ""
   queueURL: ""
   roleArn: ""
@@ -591,6 +600,17 @@ network:
     # service tag): admitted for the discovery worker only, only while
     # discovery.microsoftAzure is true, and then required.
     azure: []
+    # The Azure AI Foundry project endpoints (*.services.ai.azure.com), where
+    # the Microsoft collector lists the agents of a project. Optional and off
+    # by default: admitted for the discovery worker only and only while
+    # discovery.microsoftAzure is true. Left empty, the AI Foundry accounts
+    # are still read and their agents are recorded as not listed.
+    foundry: []
+    # Google APIs (*.googleapis.com, including sts, iamcredentials and
+    # oauth2): admitted for the API and the discovery worker only while
+    # discovery.gcpCollectorVersion is set, and then required. These are
+    # address snapshots of the ranges Google publishes for its APIs.
+    gcp: []
   findingTicketEgressCIDRs: []
 canary:
   enabled: true

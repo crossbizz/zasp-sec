@@ -14,6 +14,7 @@ import (
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 
+	"github.com/zasp-ai/zasp-sec/services/platform/connectors/gcpdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/saasdiscovery"
 )
 
@@ -34,6 +35,7 @@ type productionDiscoveryDependencyConfig struct {
 	MicrosoftAzure             bool
 	SalesforceCollectorVersion string
 	SaaSCollectorVersion       string
+	GCPCollectorVersion        string
 	Nango                      discoveryNangoConfig
 	ParserVersion              string
 	ToolVersion                string
@@ -207,9 +209,21 @@ func newProductionDiscoveryDependenciesWithIO(config productionDiscoveryDependen
 		}
 		saasProxy = proxy
 	}
+	// Google Cloud tokens come from the worker's own AWS identity (workload
+	// identity federation) or from a stored service account key.
+	var gcp discoveryGCPTokenAPI
+	if config.GCPCollectorVersion != "" {
+		enterStartupStage("discovery-gcp")
+		exchanger, exchangerErr := gcpdiscovery.NewTokenExchanger(gcpdiscovery.TokenExchangerConfig{HTTP: providerHTTP, AWSCredentials: cloud.Credentials, AWSRegion: config.Cloud.Region, Clock: config.Cloud.Clock})
+		if exchangerErr != nil {
+			providerTransport.CloseIdleConnections()
+			return fail()
+		}
+		gcp = exchanger
+	}
 	enterStartupStage("discovery-credentials")
 	credentials, err := newProductionDiscoveryCredentialResolver(productionDiscoveryCredentialConfig{
-		Secrets: secrets, AssumeRole: cloud.AssumeRole, GitHub: github, Okta: okta, Microsoft: microsoft, Salesforce: salesforce, MicrosoftAzure: config.MicrosoftAzure && config.MicrosoftCollectorVersion != "",
+		Secrets: secrets, AssumeRole: cloud.AssumeRole, GitHub: github, Okta: okta, Microsoft: microsoft, Salesforce: salesforce, GCP: gcp, MicrosoftAzure: config.MicrosoftAzure && config.MicrosoftCollectorVersion != "",
 		GitHubAppID: config.GitHubAppID, GitHubPrivateKeyReference: config.GitHubPrivateKeyReference,
 		OktaClientID: config.OktaClientID, OktaClientSecretReference: config.OktaClientSecretReference, Clock: config.Cloud.Clock,
 	})
@@ -247,7 +261,7 @@ func newProductionDiscoveryDependenciesWithIO(config productionDiscoveryDependen
 		AWSCollectorVersion: config.AWSCollectorVersion, KubernetesCollectorVersion: config.KubernetesCollectorVersion,
 		GitHubCollectorVersion: config.GitHubCollectorVersion, OktaCollectorVersion: config.OktaCollectorVersion,
 		MicrosoftCollectorVersion: config.MicrosoftCollectorVersion, SalesforceCollectorVersion: config.SalesforceCollectorVersion,
-		SaaSCollectorVersion: config.SaaSCollectorVersion, SaaSProxy: saasProxy,
+		SaaSCollectorVersion: config.SaaSCollectorVersion, SaaSProxy: saasProxy, GCPCollectorVersion: config.GCPCollectorVersion,
 		ParserVersion: config.ParserVersion, ToolVersion: config.ToolVersion,
 		KubernetesAllowedCIDRs: config.KubernetesAllowedCIDRs, ProviderTimeout: config.ProviderTimeout,
 		KubernetesNetwork: cloud.KubernetesNetwork,

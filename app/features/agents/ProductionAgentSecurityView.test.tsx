@@ -199,6 +199,33 @@ describe("production typed inventory API", () => {
     expect(screen.getByRole("list", { name: "Discovery signals" })).toHaveTextContent("app:chatgpt");
   });
 
+  it("names Google Cloud agents by what they are there and explains an IAM signal", async () => {
+    const user = userEvent.setup();
+    const gcp = (id: string, name: string, sourceKind: string, method: "provider_api" | "inferred", platform: string, signals: readonly string[]) =>
+      ({ ...summary(id, name), provider: "gcp" as const, source_kind: sourceKind, discovery: { method, platform, signals: [...signals] }, management_state: "unmanaged" as const, last_activity_at: null, activity_state: "unknown" as const });
+    const engine = gcp(ids.first, "Refund agent", "gcp_agent_engine", "provider_api", "vertex_ai_agent_engine", []);
+    const service = gcp(ids.second, "support-bot", "gcp_inferred_agent", "inferred", "cloud_run_service", ["env:anthropic", "iam:vertex_ai_user", "invoke:vertex_ai_model"]);
+    const enterprise = gcp(ids.session, "Expense helper", "gcp_gemini_enterprise_agent", "provider_api", "gemini_enterprise", []);
+    const detail = { summary: service, sources: [], evidence: [] } as never;
+    const api: ProductionAgentSecurityAPI = {
+      listAgents: async () => [engine, service, enterprise], listTools: async () => [], listIdentities: async () => [], listRuntimes: async () => [],
+      getAgent: async () => detail, getTool: async () => detail, getIdentity: async () => detail, getRuntime: async () => detail,
+      getAgentCapabilities: async () => [], getAgentRelationships: async () => [], listAgentSessions: async () => [],
+      updateAgent: async () => ({ agent: service, audit_id: ids.evidence }),
+      getHomeSummary: async () => { throw new Error("unused"); },
+    };
+    window.history.replaceState({}, "", "/discovery/assets");
+    render(<APIProvider><ProductionAgentSecurityView path="/discovery/assets" api={api} onNavigate={() => undefined} /></APIProvider>);
+    expect(await screen.findByRole("row", { name: /Refund agent.*Google Cloud · Vertex AI Agent Engine.*Provider record.*Unmanaged/ })).toBeVisible();
+    expect(screen.getByRole("row", { name: /support-bot.*Google Cloud · Cloud Run service.*Inferred from signals.*Unmanaged/ })).toBeVisible();
+    expect(screen.getByRole("row", { name: /Expense helper.*Google Cloud · Gemini Enterprise agent.*Provider record.*Unmanaged/ })).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Open support-bot" }));
+    const items = (await screen.findByRole("list", { name: "Discovery signals" })).querySelectorAll("li");
+    expect(items[0]).toHaveTextContent(/^env:anthropic$/);
+    expect(items[1]).toHaveTextContent("iam:vertex_ai_user — the roles or policies of the identity it runs as allow model calls");
+    expect(items[2]).toHaveTextContent("invoke:vertex_ai_model — seen in the provider's audit log: this identity invoked a model");
+  });
+
   it("says a runtime egress signal was seen by the node sensor", async () => {
     const user = userEvent.setup();
     const runtime = { ...summary(ids.second, "shop/support-bot"), source_kind: "kubernetes_inferred_agent", discovery: { method: "inferred" as const, platform: "kubernetes_workload", signals: ["egress:anthropic", "env:openai", "invoke:bedrock_model", "model:openai", "surface:model_serving"] }, management_state: "unmanaged" as const, last_activity_at: null, activity_state: "unknown" as const };

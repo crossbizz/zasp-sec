@@ -182,7 +182,7 @@ func TestMCPSectionsOnTheInstalledBaselinePostgres(t *testing.T) {
 	}
 	// Everything the WS5 sections build on, then the sections, then all of
 	// it again: the tail of the file runs twice without a change.
-	sections := []string{"saas_providers", "rule_catalog_digest", "inventory_posture_dismissal", "saas_generic_provider", "saas_rule_catalog", "ai_framework_data", "ws5_rule_catalog", "ws5_mcp_registry", "ws5_mcp_posture", "ws5_agent_access"}
+	sections := []string{"saas_providers", "rule_catalog_digest", "inventory_posture_dismissal", "saas_generic_provider", "saas_rule_catalog", "ai_framework_data", "ws5_rule_catalog", "ws7_rule_catalog", "ws5_mcp_registry", "ws5_mcp_posture", "ws5_agent_access", "ws7_agent_access", "ws8_gcp_provider", "ws8_gcp_rule_catalog", "ws8_gcp_mcp_servers"}
 	for _, tag := range sections {
 		applyCompletionBlock(t, ctx, connection, tag)
 	}
@@ -198,7 +198,7 @@ func TestMCPSectionsOnTheInstalledBaselinePostgres(t *testing.T) {
 	if err := connection.QueryRow(ctx, `SELECT (SELECT count(*) FROM zasp_inventory_identity_rules),(SELECT value FROM zasp_schema_metadata WHERE key='typed_inventory_rule_catalog_digest')`).Scan(&rules, &digest); err != nil {
 		t.Fatal(err)
 	}
-	if compiled := inventoryprojection.RuleCatalogDigest(); rules != len(inventoryprojection.RuleCatalog()) || rules != 56 || digest != hexDigest(compiled) {
+	if compiled := inventoryprojection.RuleCatalogDigest(); rules != len(inventoryprojection.RuleCatalog()) || rules != 69 || digest != hexDigest(compiled) {
 		t.Fatalf("rule catalog: rows=%d digest=%s, compiled rows=%d digest=%s", rules, digest, len(inventoryprojection.RuleCatalog()), hexDigest(compiled))
 	}
 	// Every rule row equals the compiled rule.
@@ -352,11 +352,40 @@ func TestMCPSectionsOnTheInstalledBaselinePostgres(t *testing.T) {
 	}
 	if got, want := access(agentID), `{"agent_id":"`+agentID+`","ai_actions":{"window_days":7,"granted":["bedrock:InvokeModel","bedrock:InvokeModelWithResponseStream"],"used":["bedrock:InvokeModel"],"unused":["bedrock:InvokeModelWithResponseStream"]},`+
 		`"mcp_servers":[{"id":"`+gatewayID+`","name":"tools","identity":"host:gw-1.gateway.bedrock-agentcore.us-west-2.amazonaws.com","approval":"unapproved"}],`+
-		`"data_stores":[{"id":"`+storeID+`","name":"All DynamoDB tables","service":"dynamodb","access":"write","scope":"service"},{"id":"`+entityID["arn:aws:s3:::reports"]+`","name":"reports","service":"s3","access":"read","scope":"resource"}],"skills":[]}`; got != want {
+		`"data_stores":[{"id":"`+storeID+`","name":"All DynamoDB tables","service":"dynamodb","access":"write","scope":"service"},{"id":"`+entityID["arn:aws:s3:::reports"]+`","name":"reports","service":"s3","access":"read","scope":"resource"}],"skills":[],"tools":[],"tool_kinds":[]}`; got != want {
 		t.Fatalf("agent access\n got %s\nwant %s", got, want)
 	}
 	if got := access(botID); !strings.Contains(got, `"skills":[{"id":"`+skillID+`","path":".claude/skills/release","kind":"skill"}]`) || !strings.Contains(got, `"name":"mcp.linear.example"`) || !strings.Contains(got, `"name":"tracker"`) {
 		t.Fatalf("function access = %s", got)
+	}
+	// WS7c: the topics and actions of an agent (as the Salesforce collector
+	// leaves them: the agent contains its topics, a topic its actions) and
+	// the tool kinds its platform states (the tool tokens of its discovery
+	// signals) are listed; a skill, an MCP tool and a removed edge are not.
+	tool := func(id, edge, owner, name, objectType, attributes string) {
+		t.Helper()
+		if _, err := connection.Exec(ctx, `INSERT INTO zasp_inventory_entities SELECT (jsonb_populate_record(entity,jsonb_build_object('id',$5::text,'kind','tool','product_kind','tool','display_name',$6::text,'stable_fields',jsonb_build_object('name',$6::text,'object_type',$7::text,'org','00D5g000004XyZaEAK'),'winning_attributes',$8::jsonb,'winning_source_native_id','salesforce:'||$7::text||':'||$5::text))).* FROM zasp_inventory_entities entity WHERE (organization_id,workspace_id,environment_id,id)=($1,$2,$3,$4)`,
+			organizationID, workspaceID, environmentID, remoteID, id, name, objectType, attributes); err != nil {
+			t.Fatalf("tool %s: %v", name, err)
+		}
+		if _, err := connection.Exec(ctx, `INSERT INTO zasp_inventory_relationships SELECT (jsonb_populate_record(relationship,jsonb_build_object('id',$5::text,'from_entity_id',$6::text,'to_entity_id',$7::text,'source_native_id','owner|contains|'||$7::text))).* FROM zasp_inventory_relationships relationship WHERE (organization_id,workspace_id,environment_id,id)=($1,$2,$3,$4)`,
+			organizationID, workspaceID, environmentID, skillEdgeID, edge, owner, id); err != nil {
+			t.Fatalf("edge of tool %s: %v", name, err)
+		}
+	}
+	const topicID, actionID, plainActionID, removedID = "pid_7b0000b1-0000-4000-8000-0000000000b1", "pid_7b0000b2-0000-4000-8000-0000000000b2", "pid_7b0000b3-0000-4000-8000-0000000000b3", "pid_7b0000b4-0000-4000-8000-0000000000b4"
+	tool(topicID, "pid_7b0000c1-0000-4000-8000-0000000000c1", botID, "Order Inquiries", "agent_topic", `{"status":"ACTIVE"}`)
+	tool(actionID, "pid_7b0000c2-0000-4000-8000-0000000000c2", topicID, "Issue Refund", "agent_action", `{"status":"ACTIVE","target_type":"flow","confirmation_required":true}`)
+	tool(plainActionID, "pid_7b0000c3-0000-4000-8000-0000000000c3", topicID, "Answer Question", "agent_action", `{"status":"ACTIVE"}`)
+	tool(removedID, "pid_7b0000c4-0000-4000-8000-0000000000c4", botID, "Retired Topic", "agent_topic", `{"status":"ACTIVE"}`)
+	if _, err := connection.Exec(ctx, `UPDATE zasp_inventory_relationships SET state='removed',removed_at=last_seen_at WHERE (organization_id,workspace_id,environment_id,id)=($1,$2,$3,'pid_7b0000c4-0000-4000-8000-0000000000c4')`, scope...); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := connection.Exec(ctx, `UPDATE zasp_inventory_entities SET winning_attributes=jsonb_set(COALESCE(winning_attributes,'{}'::jsonb),'{discovery}','{"method":"provider_api","platform":"azure_ai_foundry","signals":["model:openai","tool:mcp","tool:code_interpreter"]}'::jsonb) WHERE (organization_id,workspace_id,environment_id,id)=($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, botID); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := access(botID), `"tools":[{"id":"`+topicID+`","name":"Order Inquiries","kind":"topic","target":null,"confirmation":null},{"id":"`+plainActionID+`","name":"Answer Question","kind":"action","target":null,"confirmation":null},{"id":"`+actionID+`","name":"Issue Refund","kind":"action","target":"flow","confirmation":true}],"tool_kinds":["code_interpreter","mcp"]}`; !strings.HasSuffix(got, want) || !strings.Contains(got, `"skills":[{"id":"`+skillID+`"`) {
+		t.Fatalf("agent tools\n got %s\nwant suffix %s", got, want)
 	}
 	var missing []byte
 	if err := connection.QueryRow(ctx, `SELECT zasp_mcp_agent_access_json($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, roleID).Scan(&missing); err != nil || missing != nil {

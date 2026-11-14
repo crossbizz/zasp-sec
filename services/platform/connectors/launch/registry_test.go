@@ -76,8 +76,8 @@ func TestRegistryRequiresTheFourLaunchConnectorsAndAdmitsTheOptionalSaaSOnes(t *
 		}
 		return result
 	}
-	if len(all) != 7 {
-		t.Fatalf("default manifests = %d, want the four launch connectors, two SaaS agent providers and the generic saas provider", len(all))
+	if len(all) != 8 {
+		t.Fatalf("default manifests = %d, want the four launch connectors, two SaaS agent providers, the generic saas provider and Google Cloud", len(all))
 	}
 	for _, valid := range [][]string{
 		{"aws", "kubernetes", "github", "okta"},
@@ -86,12 +86,14 @@ func TestRegistryRequiresTheFourLaunchConnectorsAndAdmitsTheOptionalSaaSOnes(t *
 		{"aws", "kubernetes", "github", "okta", "microsoft", "salesforce"},
 		{"aws", "kubernetes", "github", "okta", "saas"},
 		{"aws", "kubernetes", "github", "okta", "microsoft", "salesforce", "saas"},
+		{"aws", "kubernetes", "github", "okta", "gcp"},
+		{"aws", "kubernetes", "github", "okta", "microsoft", "salesforce", "saas", "gcp"},
 	} {
 		registry, err := NewRegistry(pick(valid...), DefaultCredentialClasses())
 		if err != nil {
 			t.Fatalf("manifests %v refused: %v", valid, err)
 		}
-		for _, key := range []string{"microsoft", "salesforce", "saas"} {
+		for _, key := range []string{"microsoft", "salesforce", "saas", "gcp"} {
 			_, declared := registry.FirstParty(key)
 			wanted := false
 			for _, present := range valid {

@@ -263,6 +263,18 @@ func parseReferenceAuthorizationConfiguration(provider string, raw json.RawMessa
 		}
 		canonical, _ := json.Marshal(value)
 		return canonical, value.ClientSecretReference, true
+	case "gcp":
+		// The members are declared in the order json.Marshal must write them.
+		var value struct {
+			Audience          string `json:"audience,omitempty"`
+			IdentityReference string `json:"identity_reference"`
+			Scope             string `json:"scope"`
+		}
+		if decodeStrictDiscovery(raw, &value) != nil || !validGCPReferenceConfiguration(value.Scope, value.IdentityReference, value.Audience) || strings.Contains(string(raw), `"audience"`) != (value.Audience != "") {
+			return nil, "", false
+		}
+		canonical, _ := json.Marshal(value)
+		return canonical, value.IdentityReference, true
 	case "saas":
 		// The reference is a Nango connection: Nango holds the provider
 		// token and the configuration never does.

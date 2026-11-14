@@ -18,6 +18,7 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
 	"github.com/zasp-ai/zasp-sec/services/platform/authorization"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/awsdiscovery"
+	"github.com/zasp-ai/zasp-sec/services/platform/connectors/gcpdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/githubdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/kubernetesdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
@@ -489,6 +490,17 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 	if config.SalesforceCollectorVersion != "" {
 		referenceProbes["salesforce"] = &salesforceReferenceProbe{resolver: referenceResolver, http: providerHTTP}
 		referenceChecks["salesforce"] = func(context.Context) error { return nil }
+	}
+	if config.GCPCollectorVersion != "" {
+		// The API proves a Google Cloud authorization the way a collection
+		// reads: a token for the customer's service account, then the scope.
+		gcpTokens, tokenErr := gcpdiscovery.NewTokenExchanger(gcpdiscovery.TokenExchangerConfig{HTTP: providerHTTP, AWSCredentials: referenceAWSClient.credentials, AWSRegion: config.ConnectorAWSRegion, Clock: func() time.Time { return time.Now().UTC() }})
+		gcpScopes, scopeErr := gcpdiscovery.NewGCPCollectionAPI(gcpdiscovery.CollectionAPIConfig{Timeout: config.ProviderTimeout})
+		if tokenErr != nil || scopeErr != nil {
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("reference-providers", errRuntimeUnavailable)
+		}
+		referenceProbes["gcp"] = &gcpReferenceProbe{resolver: referenceResolver, tokens: gcpTokens, scopes: gcpScopes}
+		referenceChecks["gcp"] = func(context.Context) error { return nil }
 	}
 	if saasProbe != nil {
 		referenceProbes["saas"] = saasProbe

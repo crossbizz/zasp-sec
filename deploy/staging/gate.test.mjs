@@ -307,6 +307,13 @@ test("the Azure setting of the Microsoft collector is off by default and reaches
   assert.match(policies[0], /concat [^\n]*\$connectorAzure \$connectorMicrosoft \$connectorSalesforce \}\}\n\s+- ipBlock: \{ cidr: \{\{ \$cidr \| quote \}\} \}\n\s+\{\{- end \}\}\n\s+ports: \[\{ protocol: TCP, port: 443 \}\]/);
   assert.match(policies[0], /\{\{ if \$connectorAzure \}\},azure-resource-manager\{\{ end \}\}/);
   assert.equal(network.split("$connectorAzure").length - 1, 5);
+  // The AI Foundry project endpoints: optional, the discovery worker only,
+  // and only under the same setting.
+  assert.match(policies[0], /concat [^\n]*\$connectorFoundry \$connectorAzure /);
+  assert.match(policies[0], /\{\{ if \$connectorFoundry \}\},azure-ai-foundry-projects\{\{ end \}\}/);
+  assert.match(network, /\{\{- if \.Values\.discovery\.microsoftAzure \}\}\n\{\{- \$connectorFoundry = \.Values\.network\.connectorEgressCIDRs\.foundry \| default list \}\}\n\{\{- else if \.Values\.network\.connectorEgressCIDRs\.foundry \}\}\{\{ fail "network\.connectorEgressCIDRs\.foundry needs discovery\.microsoftAzure" \}\}/);
+  assert.equal(network.split("$connectorFoundry").length - 1, 4);
+  assert.match(await read("./product/values.yaml"), /\n    foundry: \[\]\n/);
 
   const variables = await read("./variables.tf");
   const optional = variables.slice(variables.indexOf('variable "discovery_optional_providers"'), variables.indexOf('variable "kubernetes_connector_egress_cidrs"'));
@@ -320,4 +327,8 @@ test("the Azure setting of the Microsoft collector is off by default and reaches
   const production = await read("./production.tf");
   assert.match(production, /microsoftAzure\s+= var\.discovery_optional_providers\.microsoft_azure\n/);
   assert.match(production, /azure\s+= var\.discovery_optional_providers\.azure_egress_cidrs\n/);
+  assert.match(optional, /azure_foundry_egress_cidrs\s+= optional\(list\(string\), \[\]\)/);
+  assert.match(optional, /length\(var\.discovery_optional_providers\.azure_foundry_egress_cidrs\) == 0 \|\|\n\s+var\.discovery_optional_providers\.microsoft_azure &&\n\s+length\(var\.discovery_optional_providers\.azure_foundry_egress_cidrs\) <= 16 /);
+  assert.match(optional, /for cidr in var\.discovery_optional_providers\.azure_foundry_egress_cidrs : [^\n]*cidr != "0\.0\.0\.0\/0" && cidr != "::\/0"\n/);
+  assert.match(production, /foundry\s+= var\.discovery_optional_providers\.azure_foundry_egress_cidrs\n/);
 });

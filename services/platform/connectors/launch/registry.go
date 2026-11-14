@@ -70,7 +70,7 @@ func NewRegistry(manifests []Manifest, credentials []CredentialClass) (*Registry
 // through the Nango proxy; it is the one manifest whose Nango flag is set.
 var (
 	requiredFirstParty = []string{"aws", "kubernetes", "github", "okta"}
-	optionalFirstParty = []string{"microsoft", "salesforce", "saas"}
+	optionalFirstParty = []string{"microsoft", "salesforce", "saas", "gcp"}
 )
 
 func firstPartyKey(key string) bool {
@@ -115,6 +115,11 @@ func DefaultManifests() []Manifest {
 		// the provider scopes differ per platform and are part of each
 		// platform definition (connectors/saasdiscovery/platforms), so the
 		// manifest names only what the product itself needs of Nango.
+		// Google Cloud. The scopes are the IAM roles the customer grants its
+		// read-only service account. The product asks Google for the
+		// cloud-platform OAuth scope, the only one most of the APIs accept;
+		// what the token may do is bounded by those read-only roles.
+		{Key: "gcp", AuthMode: "first_party_service_account", RequiredScopes: []string{"roles/aiplatform.viewer", "roles/browser", "roles/cloudfunctions.viewer", "roles/dialogflow.viewer", "roles/discoveryengine.viewer", "roles/iam.securityReviewer", "roles/logging.privateLogViewer", "roles/modelarmor.viewer", "roles/run.viewer"}, HealthMode: "token_and_scope_probe", DegradationMode: "provider_only", AuthorizationReady: true},
 		{Key: "saas", AuthMode: "nango_connection_reference", RequiredScopes: []string{"nango:proxy"}, HealthMode: "tenant_probe", DegradationMode: "provider_only", AuthorizationReady: true, Nango: true},
 	}
 }
@@ -136,6 +141,9 @@ func DefaultCredentialClasses() []CredentialClass {
 		// the provider and the operator replaces the stored value.
 		makeClass("microsoft_client_secret", "operator", "api", "api_and_discovery_worker", "customer_rotation", "api", "secrets_manager_connector_kms", "versioned", "reference_only", "recovery_window"),
 		makeClass("salesforce_client_secret", "operator", "api", "api_and_discovery_worker", "customer_rotation", "api", "secrets_manager_connector_kms", "versioned", "reference_only", "recovery_window"),
+		// A Google Cloud service account key, for a customer that cannot use
+		// workload identity federation. Federation stores nothing.
+		makeClass("gcp_service_account_key", "operator", "api", "api_and_discovery_worker", "customer_rotation", "api", "secrets_manager_connector_kms", "versioned", "reference_only", "recovery_window"),
 	}
 }
 

@@ -39,7 +39,7 @@ func (resolver *referenceSecretResolver) Resolve(ctx context.Context, reference 
 	if resolver == nil || resolver.driver == nil || ctx == nil || ctx.Err() != nil || len(resolver.root) < 3 || len(resolver.root) > 128 || strings.Contains(resolver.root, "..") {
 		return nil, errRuntimeUnavailable
 	}
-	prefixes := []string{"ref:aws/external-id/", "ref:kubernetes/connection/", "ref:kubernetes/ca/", "ref:kubernetes/credential/", "ref:microsoft/client-secret/", "ref:salesforce/client-secret/"}
+	prefixes := []string{"ref:aws/external-id/", "ref:kubernetes/connection/", "ref:kubernetes/ca/", "ref:kubernetes/credential/", "ref:microsoft/client-secret/", "ref:salesforce/client-secret/", "ref:gcp/service-account-key/"}
 	for _, prefix := range prefixes {
 		if !strings.HasPrefix(reference, prefix) {
 			continue
@@ -67,6 +67,9 @@ type awsCallerIdentityAPI interface {
 }
 
 type awsReferenceIdentityClient struct {
+	// credentials are the API's own AWS role credentials. Google Cloud
+	// federation signs with them; nothing else reads them.
+	credentials  aws.CredentialsProvider
 	assume       awsReferenceAPI
 	newCaller    func(string, aws.Credentials) awsCallerIdentityAPI
 	rolePrefixes []string
@@ -387,7 +390,7 @@ func newReferenceAWSClient(config RuntimeConfig) (*awsReferenceIdentityClient, *
 	webSTS := sts.NewFromConfig(base)
 	base.Credentials = aws.NewCredentialsCache(&connectorWebIdentityProvider{client: webSTS, roleARN: config.ConnectorRoleARN, tokenFile: config.ConnectorTokenFile, timeout: config.ProviderTimeout})
 	assume := sts.NewFromConfig(base)
-	return &awsReferenceIdentityClient{assume: assume, rolePrefixes: append([]string(nil), config.AWSCustomerRolePrefixes...), roleARNs: append([]string(nil), config.AWSCustomerRoleARNs...), newCaller: func(region string, credentials aws.Credentials) awsCallerIdentityAPI {
+	return &awsReferenceIdentityClient{credentials: base.Credentials, assume: assume, rolePrefixes: append([]string(nil), config.AWSCustomerRolePrefixes...), roleARNs: append([]string(nil), config.AWSCustomerRoleARNs...), newCaller: func(region string, credentials aws.Credentials) awsCallerIdentityAPI {
 		candidate := base
 		candidate.Region = region
 		candidate.Credentials = aws.CredentialsProviderFunc(func(context.Context) (aws.Credentials, error) { return credentials, nil })

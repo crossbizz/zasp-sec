@@ -26,6 +26,9 @@ type kubernetesRoundTripper struct {
 	// cluster without the sensor role has no such ConfigMaps to list.
 	egressRequests []*http.Request
 	egress         *kubernetesHTTPResponse
+	// The Service list of the MCP link probe and phase is answered apart
+	// from the queue too.
+	serviceRequests []*http.Request
 }
 
 type kubernetesHTTPResponse struct {
@@ -44,6 +47,12 @@ func (roundTripper *kubernetesRoundTripper) RoundTrip(request *http.Request) (*h
 			response = *roundTripper.egress
 		}
 		return &http.Response{StatusCode: response.status, Header: response.header, Body: io.NopCloser(strings.NewReader(response.body)), Request: request}, nil
+	}
+	if request.URL.Path == "/api/v1/services" {
+		// The MCP link probe and phase; a credential without the permission
+		// is refused, and the collection relates nothing.
+		roundTripper.serviceRequests = append(roundTripper.serviceRequests, request.Clone(request.Context()))
+		return &http.Response{StatusCode: http.StatusForbidden, Body: io.NopCloser(strings.NewReader(`{"kind":"Status","status":"Failure","code":403}`)), Request: request}, nil
 	}
 	roundTripper.requests = append(roundTripper.requests, request.Clone(request.Context()))
 	if len(roundTripper.responses) == 0 {
@@ -115,8 +124,10 @@ func TestKubernetesCollectionAPITraversesEveryLaunchInventoryPhaseBeforeComplete
 	}
 	subject := collection.SubjectBinding{Kind: "kubernetes_cluster", ID: "cluster.example/prod"}
 	request := CollectionPageRequest{Provider: collection.ProviderKubernetes, Subject: subject, Page: 1, RemainingItems: 32, RemainingRelationships: 64, RemainingBytes: 1 << 20}
-	remainingPhases := []string{"serviceaccounts", "roles", "clusterroles", "rolebindings", "clusterrolebindings", "deployments", "statefulsets", "daemonsets", "jobs", "cronjobs"}
-	for index := 0; index < 11; index++ {
+	remainingPhases := []string{"serviceaccounts", "roles", "clusterroles", "rolebindings", "clusterrolebindings", "deployments", "statefulsets", "daemonsets", "jobs", "cronjobs", "mcplinks"}
+	// The twelfth page is the MCP link phase; without the permission to list
+	// Services it relates nothing and completes the collection.
+	for index := 0; index < 12; index++ {
 		page, fetchErr := api.FetchCollectionPage(context.Background(), []byte("kubernetes-bearer-secret-value"), request)
 		if fetchErr != nil {
 			t.Fatalf("FetchCollectionPage(page %d) error = %v", request.Page, fetchErr)
@@ -428,7 +439,7 @@ func TestKubernetesCollectionAPICoalescesRepeatedPrincipalsAndAcceptsEmptyBindin
 	if !decodeKubernetesCollectionResponse([]byte(body), &payload) {
 		t.Fatal("fixture did not decode")
 	}
-	entities, _, ok := normalizeKubernetesCollectionPage(subject, "rolebindings", false, payload, nil, "")
+	entities, _, ok := normalizeKubernetesCollectionPage(subject, "rolebindings", false, payload, nil, "", "")
 	if !ok {
 		t.Fatal("normalizeKubernetesCollectionPage rejected valid repeated and empty bindings")
 	}

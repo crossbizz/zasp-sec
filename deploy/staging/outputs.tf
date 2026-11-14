@@ -89,6 +89,7 @@ output "worker_role_arn" {
 output "discovery_runtime_config" {
   description = "Non-secret production discovery authority and immutable implementation fence."
   # ZASP_DISCOVERY_SAAS_COLLECTOR_VERSION,
+  # ZASP_DISCOVERY_GCP_COLLECTOR_VERSION,
   # ZASP_DISCOVERY_MICROSOFT_COLLECTOR_VERSION and
   # ZASP_DISCOVERY_SALESFORCE_COLLECTOR_VERSION are present only for an enabled
   # optional provider; the worker treats an unset variable as "not served".
@@ -119,6 +120,7 @@ output "discovery_runtime_config" {
     }, {
     for name, version in {
       ZASP_DISCOVERY_SAAS_COLLECTOR_VERSION       = var.discovery_optional_providers.saas_collector
+      ZASP_DISCOVERY_GCP_COLLECTOR_VERSION        = var.discovery_optional_providers.gcp_collector
       ZASP_DISCOVERY_MICROSOFT_COLLECTOR_VERSION  = var.discovery_optional_providers.microsoft_collector
       ZASP_DISCOVERY_SALESFORCE_COLLECTOR_VERSION = var.discovery_optional_providers.salesforce_collector
     } : name => version if version != ""
