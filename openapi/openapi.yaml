@@ -1665,6 +1665,55 @@ paths:
         '200': { description: Authorized Tool., content: { application/json: { schema: { $ref: '#/components/schemas/InventoryDetail' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/mcp-servers:
+    get:
+      operationId: listMCPServers
+      summary: List the MCP servers discovered in the authorized scope
+      description: >-
+        One record per MCP server found without installing anything: an AgentCore gateway, a remote server an AWS account's
+        network logs or a gateway target name, a server a repository's configuration declares, a Kubernetes workload that runs
+        one, and a server a SaaS platform lists. Each carries the tools its declaration names, with a risk class from a catalog
+        of name patterns, the agents that use it, and the registry's decision for its identity. No environment value, header,
+        argument, URL path or tool description is stored.
+      parameters:
+        - $ref: '#/components/parameters/PageCursor'
+        - $ref: '#/components/parameters/PageLimit'
+      responses:
+        '200': { description: Authorized MCP servers., content: { application/json: { schema: { $ref: '#/components/schemas/MCPServerPage' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/mcp-registry:
+    get:
+      operationId: listMCPRegistry
+      summary: List the approved and blocked MCP server identities of the Environment
+      responses:
+        '200': { description: Registry decisions., content: { application/json: { schema: { $ref: '#/components/schemas/MCPRegistryPage' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    put:
+      operationId: putMCPRegistryEntry
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+        - ProductAPIToken: []
+      summary: Approve or block an MCP server identity, or remove the decision
+      description: >-
+        status unapproved removes the decision. expected_version is the version last read (0 when the identity has no decision).
+        The posture findings of the Environment are refreshed in the same transaction: an agent that uses a blocked or unapproved
+        server has a finding, and an approved one does not.
+      parameters:
+        - $ref: '#/components/parameters/BrowserMutationCSRFToken'
+        - $ref: '#/components/parameters/BrowserMutationOrigin'
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/MCPRegistryInput' } } } }
+      responses:
+        '200': { description: Saved decision., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' } }, content: { application/json: { schema: { $ref: '#/components/schemas/MCPRegistryEntry' } } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/identities:
     get:
       operationId: listIdentities
@@ -6583,6 +6632,81 @@ components:
       properties:
         items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/InventorySummary' } }
         page_info: { $ref: '#/components/schemas/PageInfo' }
+    MCPTool:
+      type: object
+      additionalProperties: false
+      required: [id, name, risk]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        name: { type: string, minLength: 1, maxLength: 256 }
+        risk: { type: string, enum: [execute, write, network, read, unclassified], description: 'The most dangerous class the words of the tool''s name fall in.' }
+    MCPServerAgent:
+      type: object
+      additionalProperties: false
+      required: [id, name]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        name: { type: string, minLength: 1, maxLength: 256 }
+    MCPServer:
+      type: object
+      additionalProperties: false
+      required: [id, name, provider, source_kind, source, transport, endpoint_host, command, package, package_pinned, plain_http, auth, identity, approval, tools, tool_count, agents, agent_count, first_seen_at, last_seen_at]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        name: { type: string, minLength: 1, maxLength: 256 }
+        provider: { type: string, enum: [aws, github, kubernetes, saas] }
+        source_kind: { type: string, enum: [aws_agentcore_gateway, aws_mcp_server, github_mcp_server, kubernetes_mcp_server, saas_mcp_server] }
+        source: { type: string, enum: [agentcore_gateway, egress, gateway_target, repository_config, workload, saas_api, provider_api], description: 'How the server was found.' }
+        transport: { type: [string, 'null'], enum: [stdio, http, sse, null] }
+        endpoint_host: { type: [string, 'null'], minLength: 1, maxLength: 253, description: 'Host of a remote server. The URL path and query are never stored.' }
+        command: { type: [string, 'null'], minLength: 1, maxLength: 64, description: 'Base name of a stdio server''s command. Arguments are never stored.' }
+        package: { type: [string, 'null'], minLength: 1, maxLength: 256, description: 'Package a launcher starts, without its version.' }
+        package_pinned: { type: [boolean, 'null'], description: 'Whether the package carries an exact version; null when there is no package.' }
+        plain_http: { type: boolean }
+        auth: { type: string, enum: [declared, none, not_applicable, unknown], description: 'Whether the declaration names any authentication. Only its presence is stored.' }
+        identity: { type: string, minLength: 3, maxLength: 512, description: 'What a registry decision names.' }
+        approval: { type: string, enum: [approved, unapproved, blocked] }
+        tools: { type: array, maxItems: 64, items: { $ref: '#/components/schemas/MCPTool' } }
+        tool_count: { type: integer, minimum: 0, maximum: 9007199254740991 }
+        agents: { type: array, maxItems: 50, items: { $ref: '#/components/schemas/MCPServerAgent' } }
+        agent_count: { type: integer, minimum: 0, maximum: 9007199254740991 }
+        first_seen_at: { type: string, format: date-time }
+        last_seen_at: { type: string, format: date-time }
+    MCPServerPage:
+      type: object
+      additionalProperties: false
+      required: [items, page_info]
+      properties:
+        items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/MCPServer' } }
+        page_info: { $ref: '#/components/schemas/PageInfo' }
+    MCPRegistryEntry:
+      type: object
+      additionalProperties: false
+      required: [identity, status, note, version, updated_by, updated_at, server_count]
+      properties:
+        identity: { type: string, minLength: 3, maxLength: 512 }
+        status: { type: string, enum: [approved, blocked, unapproved], description: 'unapproved is returned only for a decision that was just removed.' }
+        note: { type: string, maxLength: 512 }
+        version: { type: integer, minimum: 0, maximum: 1000000 }
+        updated_by: { $ref: '#/components/schemas/ProductID' }
+        updated_at: { type: string, format: date-time }
+        server_count: { type: integer, minimum: 0, maximum: 9007199254740991, description: 'Discovered servers with this identity.' }
+        audit_id: { $ref: '#/components/schemas/ProductID' }
+    MCPRegistryPage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items: { type: array, maxItems: 500, items: { $ref: '#/components/schemas/MCPRegistryEntry' } }
+    MCPRegistryInput:
+      type: object
+      additionalProperties: false
+      required: [identity, status, note, expected_version]
+      properties:
+        identity: { type: string, minLength: 3, maxLength: 512, pattern: '^(host|package|repository|workload|arn|saas|name):.+$' }
+        status: { type: string, enum: [approved, blocked, unapproved] }
+        note: { type: string, maxLength: 512 }
+        expected_version: { type: integer, minimum: 0, maximum: 999999 }
     AgentOwnershipInput:
       type: object
       additionalProperties: false

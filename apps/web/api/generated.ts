@@ -1239,6 +1239,47 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/mcp-registry": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List the approved and blocked MCP server identities of the Environment */
+        readonly get: operations["listMCPRegistry"];
+        /**
+         * Approve or block an MCP server identity, or remove the decision
+         * @description status unapproved removes the decision. expected_version is the version last read (0 when the identity has no decision). The posture findings of the Environment are refreshed in the same transaction: an agent that uses a blocked or unapproved server has a finding, and an approved one does not.
+         */
+        readonly put: operations["putMCPRegistryEntry"];
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/mcp-servers": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * List the MCP servers discovered in the authorized scope
+         * @description One record per MCP server found without installing anything: an AgentCore gateway, a remote server an AWS account's network logs or a gateway target name, a server a repository's configuration declares, a Kubernetes workload that runs one, and a server a SaaS platform lists. Each carries the tools its declaration names, with a risk class from a catalog of name patterns, the agents that use it, and the registry's decision for its identity. No environment value, header, argument, URL path or tool description is stored.
+         */
+        readonly get: operations["listMCPServers"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/me": {
         readonly parameters: {
             readonly query?: never;
@@ -3716,6 +3757,90 @@ export type components = {
             readonly provider: "kubernetes";
             readonly scope: components["schemas"]["ReferenceAuthorizationReceiptScope"];
         };
+        readonly MCPRegistryEntry: {
+            readonly audit_id?: components["schemas"]["ProductID"];
+            readonly identity: string;
+            readonly note: string;
+            /** @description Discovered servers with this identity. */
+            readonly server_count: number;
+            /**
+             * @description unapproved is returned only for a decision that was just removed.
+             * @enum {string}
+             */
+            readonly status: "approved" | "blocked" | "unapproved";
+            /** Format: date-time */
+            readonly updated_at: string;
+            readonly updated_by: components["schemas"]["ProductID"];
+            readonly version: number;
+        };
+        readonly MCPRegistryInput: {
+            readonly expected_version: number;
+            readonly identity: string;
+            readonly note: string;
+            /** @enum {string} */
+            readonly status: "approved" | "blocked" | "unapproved";
+        };
+        readonly MCPRegistryPage: {
+            readonly items: readonly components["schemas"]["MCPRegistryEntry"][];
+        };
+        readonly MCPServer: {
+            readonly agent_count: number;
+            readonly agents: readonly components["schemas"]["MCPServerAgent"][];
+            /** @enum {string} */
+            readonly approval: "approved" | "unapproved" | "blocked";
+            /**
+             * @description Whether the declaration names any authentication. Only its presence is stored.
+             * @enum {string}
+             */
+            readonly auth: "declared" | "none" | "not_applicable" | "unknown";
+            /** @description Base name of a stdio server's command. Arguments are never stored. */
+            readonly command: string | null;
+            /** @description Host of a remote server. The URL path and query are never stored. */
+            readonly endpoint_host: string | null;
+            /** Format: date-time */
+            readonly first_seen_at: string;
+            readonly id: components["schemas"]["ProductID"];
+            /** @description What a registry decision names. */
+            readonly identity: string;
+            /** Format: date-time */
+            readonly last_seen_at: string;
+            readonly name: string;
+            /** @description Package a launcher starts, without its version. */
+            readonly package: string | null;
+            /** @description Whether the package carries an exact version; null when there is no package. */
+            readonly package_pinned: boolean | null;
+            readonly plain_http: boolean;
+            /** @enum {string} */
+            readonly provider: "aws" | "github" | "kubernetes" | "saas";
+            /**
+             * @description How the server was found.
+             * @enum {string}
+             */
+            readonly source: "agentcore_gateway" | "egress" | "gateway_target" | "repository_config" | "workload" | "saas_api" | "provider_api";
+            /** @enum {string} */
+            readonly source_kind: "aws_agentcore_gateway" | "aws_mcp_server" | "github_mcp_server" | "kubernetes_mcp_server" | "saas_mcp_server";
+            readonly tool_count: number;
+            readonly tools: readonly components["schemas"]["MCPTool"][];
+            /** @enum {string|null} */
+            readonly transport: "stdio" | "http" | "sse" | null;
+        };
+        readonly MCPServerAgent: {
+            readonly id: components["schemas"]["ProductID"];
+            readonly name: string;
+        };
+        readonly MCPServerPage: {
+            readonly items: readonly components["schemas"]["MCPServer"][];
+            readonly page_info: components["schemas"]["PageInfo"];
+        };
+        readonly MCPTool: {
+            readonly id: components["schemas"]["ProductID"];
+            readonly name: string;
+            /**
+             * @description The most dangerous class the words of the tool's name fall in.
+             * @enum {string}
+             */
+            readonly risk: "execute" | "write" | "network" | "read" | "unclassified";
+        };
         readonly MemberRoleInput: {
             readonly role: components["schemas"]["BuiltInRoleName"];
         };
@@ -5551,6 +5676,13 @@ export type InventorySourceObservation = components['schemas']['InventorySourceO
 export type InventorySummary = components['schemas']['InventorySummary'];
 export type KubernetesReferenceAuthorizationConfiguration = components['schemas']['KubernetesReferenceAuthorizationConfiguration'];
 export type KubernetesReferenceAuthorizationReceiptIntent = components['schemas']['KubernetesReferenceAuthorizationReceiptIntent'];
+export type McpRegistryEntry = components['schemas']['MCPRegistryEntry'];
+export type McpRegistryInput = components['schemas']['MCPRegistryInput'];
+export type McpRegistryPage = components['schemas']['MCPRegistryPage'];
+export type McpServer = components['schemas']['MCPServer'];
+export type McpServerAgent = components['schemas']['MCPServerAgent'];
+export type McpServerPage = components['schemas']['MCPServerPage'];
+export type McpTool = components['schemas']['MCPTool'];
 export type MemberRoleInput = components['schemas']['MemberRoleInput'];
 export type NameInput = components['schemas']['NameInput'];
 export type OAuthCompletionReceiptIntent = components['schemas']['OAuthCompletionReceiptIntent'];
@@ -8206,6 +8338,93 @@ export interface operations {
             readonly 404: components["responses"]["ProductErrorResponse"];
             readonly 409: components["responses"]["ProductErrorResponse"];
             readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listMCPRegistry: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Registry decisions. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["MCPRegistryPage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly putMCPRegistryEntry: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: {
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
+                readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
+                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["MCPRegistryInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Saved decision. */
+            readonly 200: {
+                headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["MCPRegistryEntry"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listMCPServers: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description Opaque cursor returned by the preceding page. */
+                readonly cursor?: components["parameters"]["PageCursor"];
+                /** @description Maximum number of records to return. */
+                readonly limit?: components["parameters"]["PageLimit"];
+            };
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized MCP servers. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["MCPServerPage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
