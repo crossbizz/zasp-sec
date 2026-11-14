@@ -789,7 +789,9 @@ func providerEntitySchema(provider collection.Provider, kind string) (providerEn
 		case "microsoft_agent_identity", "microsoft_ai_application":
 			return providerEntityDefinition{stable: requiredStringFields("name", "object_type", "tenant"), attributes: mergeInventorySchemas(directory, discoveredAgentAttributes())}, true
 		case "microsoft_copilot_agent":
-			return providerEntityDefinition{stable: requiredStringFields("environment", "name", "object_type", "tenant"), attributes: mergeInventorySchemas(directory, discoveredAgentAttributes())}, true
+			// content_moderation is the agent's generative AI moderation level,
+			// present when its configuration states one.
+			return providerEntityDefinition{stable: requiredStringFields("environment", "name", "object_type", "tenant"), attributes: mergeInventorySchemas(directory, discoveredAgentAttributes(), inventoryObjectSchema{"content_moderation": enumInventoryField(false, "high", "low", "medium")})}, true
 		case "microsoft_ai_resource":
 			// An Azure OpenAI or Azure AI Foundry account of a subscription.
 			return providerEntityDefinition{stable: requiredStringFields("name", "object_type", "region", "subscription", "tenant"), attributes: mergeInventorySchemas(directory, optionalStringFields("endpoint_host", "resource_kind"), inventoryObjectSchema{"local_auth_disabled": boolInventoryField(false), "public_network_access": enumInventoryField(false, "disabled", "enabled")})}, true

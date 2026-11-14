@@ -430,6 +430,25 @@ func TestMCPSectionsOnTheInstalledBaselinePostgres(t *testing.T) {
 		t.Fatalf("posture findings\n got %v\nwant %v", got, want)
 	}
 
+	// An agent whose platform reports the lowest content moderation level (a
+	// Copilot Studio agent's attribute) has a finding, and loses it when the
+	// level is raised.
+	moderation := func(level string) string {
+		t.Helper()
+		if _, err := connection.Exec(ctx, `UPDATE zasp_inventory_entities SET winning_attributes=winning_attributes||jsonb_build_object('content_moderation',$5::text) WHERE (organization_id,workspace_id,environment_id,id)=($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, agentID, level); err != nil {
+			t.Fatal(err)
+		}
+		refresh()
+		var status string
+		if err := connection.QueryRow(ctx, `SELECT COALESCE((SELECT status FROM zasp_risk_findings WHERE (organization_id,workspace_id,environment_id,source,rule,agent_id)=($1,$2,$3,'posture','agent_content_moderation_low',$4)),'none')`, organizationID, workspaceID, environmentID, agentID).Scan(&status); err != nil {
+			t.Fatal(err)
+		}
+		return status
+	}
+	if low, high := moderation("low"), moderation("high"); low != "open" || high != "resolved" {
+		t.Fatalf("content moderation finding: low=%s high=%s", low, high)
+	}
+
 	// Registry decisions, under the version the caller read.
 	put := func(identityValue, status string, expected int64, sequence int) (map[string]any, error) {
 		var payload []byte

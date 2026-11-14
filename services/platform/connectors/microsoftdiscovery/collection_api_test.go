@@ -380,23 +380,40 @@ func TestMicrosoftCollectionAPISkipsAgentIdentitiesWhenTheTenantCannotServeThem(
 
 func TestMicrosoftCollectionAPICollectsCopilotStudioAgents(t *testing.T) {
 	t.Parallel()
-	const nextLink = `https://org1.crm4.dynamics.com/api/data/v9.2/bots?$select=botid,name,schemaname,statecode,accesscontrolpolicy,authenticationmode&$skiptoken=%3Ccookie%20pagenumber=%222%22%20pagingcookie=%22%253ccookie%2520page%253d%25221%2522%253e%22%20istracking=%22False%22%20/%3E`
+	const nextLink = `https://org1.crm4.dynamics.com/api/data/v9.2/bots?$select=botid,name,schemaname,statecode,accesscontrolpolicy,authenticationmode,configuration&$skiptoken=%3Ccookie%20pagenumber=%222%22%20pagingcookie=%22%253ccookie%2520page%253d%25221%2522%253e%22%20istracking=%22False%22%20/%3E`
 	api, roundTripper := newMicrosoftTestAPI(t,
 		microsoftOK(microsoftTestOrganization),
 		microsoftOK(microsoftTestEmpty),
 		microsoftOK(microsoftTestEmpty),
 		microsoftOK(`{"@odata.context":"https://org1.crm4.dynamics.com/api/data/v9.2/$metadata#bots","@odata.nextLink":`+string(mustMicrosoftJSON(t, nextLink))+`,"value":[`+
-			`{"@odata.etag":"W/\"1\"","botid":"eeeeeeee-0000-4000-8000-000000000001","name":"Help desk","schemaname":"cr1_helpDesk","statecode":0,"accesscontrolpolicy":0,"authenticationmode":1},`+
-			`{"@odata.etag":"W/\"2\"","botid":"eeeeeeee-0000-4000-8000-000000000002","name":"Payroll","schemaname":"cr1_payroll","statecode":0,"accesscontrolpolicy":1,"authenticationmode":2}]}`),
+			`{"@odata.etag":"W/\"1\"","botid":"eeeeeeee-0000-4000-8000-000000000001","name":"Help desk","schemaname":"cr1_helpDesk","statecode":0,"accesscontrolpolicy":0,"authenticationmode":1,"configuration":"{\"$kind\":\"BotConfiguration\",\"aISettings\":{\"$kind\":\"AISettings\",\"contentModeration\":\"Low\",\"instructions\":\"never keep this\"}}"},`+
+			`{"@odata.etag":"W/\"2\"","botid":"eeeeeeee-0000-4000-8000-000000000002","name":"Payroll","schemaname":"cr1_payroll","statecode":0,"accesscontrolpolicy":1,"authenticationmode":2,"configuration":"{\"aISettings\":{\"contentModeration\":\"High\"}}"}]}`),
 		microsoftOK(`{"value":[`+
-			`{"botid":"eeeeeeee-0000-4000-8000-000000000003","name":"Old bot","schemaname":"cr1_old","statecode":1,"accesscontrolpolicy":0,"authenticationmode":1},`+
+			`{"botid":"eeeeeeee-0000-4000-8000-000000000003","name":"Old bot","schemaname":"cr1_old","statecode":1,"accesscontrolpolicy":0,"authenticationmode":1,"configuration":"not json"},`+
 			`{"botid":"eeeeeeee-0000-4000-8000-000000000004","name":"Draft","schemaname":"cr1_draft","statecode":1,"accesscontrolpolicy":0,"authenticationmode":null}]}`),
 	)
 	pages := collectMicrosoftPages(t, api, microsoftTestDataverseCredential, microsoftTestRequest(), 8)
 	if len(pages) != 5 || !strings.HasPrefix(pages[2].Cursor.Value, "microsoft:copilotagents:4:") || !strings.HasPrefix(pages[3].Cursor.Value, "microsoft:copilotagents:5:") || !pages[4].Complete {
 		t.Fatalf("pages = %#v", pages)
 	}
-	const botsURL = "https://org1.crm4.dynamics.com/api/data/v9.2/bots?$select=botid,name,schemaname,statecode,accesscontrolpolicy,authenticationmode"
+	const botsURL = "https://org1.crm4.dynamics.com/api/data/v9.2/bots?$select=botid,name,schemaname,statecode,accesscontrolpolicy,authenticationmode,configuration"
+	// The moderation level is the one member read out of a configuration;
+	// nothing else of it reaches a page.
+	for index, want := range []string{`"content_moderation":"low"`, `"content_moderation":"high"`} {
+		if !bytes.Contains(pages[3].Entities[index], []byte(want)) {
+			t.Fatalf("agent %d has no %s: %s", index, want, pages[3].Entities[index])
+		}
+	}
+	for _, page := range pages {
+		if bytes.Contains(page.Raw, []byte("never keep this")) || bytes.Contains(page.Raw, []byte("BotConfiguration")) || bytes.Contains(page.Raw, []byte("not json")) {
+			t.Fatalf("a page keeps the configuration: %s", page.Raw)
+		}
+	}
+	for _, entity := range pages[4].Entities {
+		if bytes.Contains(entity, []byte("content_moderation")) {
+			t.Fatalf("an agent without a stated level has one: %s", entity)
+		}
+	}
 	assertMicrosoftRequestURLs(t, roundTripper,
 		"https://graph.microsoft.com/v1.0/organization?$select=id,displayName",
 		"https://graph.microsoft.com/v1.0/servicePrincipals/microsoft.graph.agentIdentity?$select=id,appId,displayName,accountEnabled&$top=100",
@@ -661,6 +678,29 @@ func TestMicrosoftCollectionAPINeverRepeatsATokenFromProviderData(t *testing.T) 
 	}
 }
 
+// An environment that refuses the configuration column is read without it,
+// on the first page and on every later one.
+func TestMicrosoftCollectionAPIReadsCopilotStudioAgentsWithoutTheConfigurationColumn(t *testing.T) {
+	t.Parallel()
+	const basicURL = "https://org1.crm4.dynamics.com/api/data/v9.2/bots?$select=botid,name,schemaname,statecode,accesscontrolpolicy,authenticationmode"
+	api, roundTripper := newMicrosoftTestAPI(t,
+		microsoftOK(microsoftTestOrganization), microsoftOK(microsoftTestEmpty), microsoftOK(microsoftTestEmpty),
+		microsoftHTTPResponse{status: http.StatusBadRequest, body: `{"error":{"code":"0x0","message":"Could not find a property named 'configuration' on type 'Microsoft.Dynamics.CRM.bot'."}}`},
+		microsoftOK(`{"@odata.nextLink":`+string(mustMicrosoftJSON(t, basicURL+"&$skiptoken=next"))+`,"value":[{"botid":"eeeeeeee-0000-4000-8000-000000000001","name":"Help desk","statecode":0,"authenticationmode":2}]}`),
+		microsoftOK(`{"value":[{"botid":"eeeeeeee-0000-4000-8000-000000000002","name":"Payroll","statecode":0,"authenticationmode":2}]}`),
+	)
+	pages := collectMicrosoftPages(t, api, microsoftTestDataverseCredential, microsoftTestRequest(), 8)
+	if len(pages) != 5 || !pages[4].Complete || len(pages[3].Entities) != 1 || len(pages[4].Entities) != 1 || bytes.Contains(pages[3].Entities[0], []byte("content_moderation")) {
+		t.Fatalf("pages = %#v", pages)
+	}
+	assertMicrosoftRequestURLs(t, roundTripper,
+		"https://graph.microsoft.com/v1.0/organization?$select=id,displayName",
+		"https://graph.microsoft.com/v1.0/servicePrincipals/microsoft.graph.agentIdentity?$select=id,appId,displayName,accountEnabled&$top=100",
+		"https://graph.microsoft.com/v1.0/servicePrincipals?$select=id,appId,displayName,accountEnabled,servicePrincipalType&$top=100",
+		basicURL+",configuration", basicURL, basicURL+"&$skiptoken=next",
+	)
+}
+
 func TestMicrosoftCollectionAPIClassifiesProviderFailuresLikeOkta(t *testing.T) {
 	t.Parallel()
 	retryAt := microsoftTestClock().Add(7 * time.Second)
@@ -695,7 +735,15 @@ func TestMicrosoftCollectionAPIClassifiesProviderFailuresLikeOkta(t *testing.T) 
 				if test.retryAfter != "" {
 					header.Set("Retry-After", test.retryAfter)
 				}
-				api, roundTripper := newMicrosoftTestAPI(t, microsoftHTTPResponse{status: test.status, body: `{"error":{"message":"` + microsoftTestGraphToken + `"}}`, header: header}, microsoftOK(microsoftTestOrganization))
+				refused := microsoftHTTPResponse{status: test.status, body: `{"error":{"message":"` + microsoftTestGraphToken + `"}}`, header: header}
+				// The first Copilot Studio page is asked for once more without
+				// the configuration column when the environment answers 400;
+				// a second 400 is the failure.
+				calls, second := 1, microsoftOK(microsoftTestOrganization)
+				if phase == microsoftPhaseCopilotAgents && test.status == http.StatusBadRequest {
+					calls, second = 2, refused
+				}
+				api, roundTripper := newMicrosoftTestAPI(t, refused, second)
 				request := microsoftTestRequest()
 				if phase != microsoftPhaseTenant {
 					request.Cursor, request.Page = cursor, 2
@@ -705,7 +753,7 @@ func TestMicrosoftCollectionAPIClassifiesProviderFailuresLikeOkta(t *testing.T) 
 				// the shared classifier (which the Okta collector uses) gives.
 				want := providercollection.ClassifyProviderHTTPFailure(context.Background(), nil, test.status, test.retryAfter, microsoftTestClock())
 				var failure, wantFailure *collection.Failure
-				if !errors.As(err, &failure) || !errors.As(want, &wantFailure) || failure.Code() != test.code || failure.Code() != wantFailure.Code() || !failure.RetryAt().Equal(wantFailure.RetryAt()) || roundTripper.calls() != 1 {
+				if !errors.As(err, &failure) || !errors.As(want, &wantFailure) || failure.Code() != test.code || failure.Code() != wantFailure.Code() || !failure.RetryAt().Equal(wantFailure.RetryAt()) || roundTripper.calls() != calls {
 					t.Fatalf("failure/calls = %v (want %v) / %d", err, want, roundTripper.calls())
 				}
 				if test.code == collection.FailureRateLimited && !failure.RetryAt().Equal(retryAt) {

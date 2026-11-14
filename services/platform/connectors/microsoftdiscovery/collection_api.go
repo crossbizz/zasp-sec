@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -34,7 +35,12 @@ const (
 	microsoftAgentIdentitiesSelect  = "id,appId,displayName,accountEnabled"
 	microsoftServicePrincipalSelect = "id,appId,displayName,accountEnabled,servicePrincipalType"
 	microsoftCopilotAgentsSelect    = "botid,name,schemaname,statecode,accesscontrolpolicy,authenticationmode"
-	microsoftAgentIdentityODataType = "#microsoft.graph.agentIdentity"
+	// The bot's configuration column holds its generative AI settings, the
+	// content moderation level among them. The column name and the shape of
+	// its JSON are from Copilot Studio exports as remembered: UNVERIFIED. An
+	// environment that refuses the column is read without it.
+	microsoftCopilotAgentsModerationSelect = microsoftCopilotAgentsSelect + ",configuration"
+	microsoftAgentIdentityODataType        = "#microsoft.graph.agentIdentity"
 
 	microsoftPhaseTenant            = "tenant"
 	microsoftPhaseAgentIdentities   = "agentidentities"
@@ -69,6 +75,9 @@ type microsoftPageState struct {
 	// Environment is the Dataverse host of the copilotagents phase. A cursor
 	// minted for one environment is refused with a credential for another.
 	Environment string `json:"e,omitempty"`
+	// Basic is set when the environment refused the configuration column on
+	// the first copilotagents page: the later pages ask without it too.
+	Basic bool `json:"b,omitempty"`
 }
 
 // microsoftCredential holds the two tokens as views into the caller's
@@ -162,29 +171,45 @@ func (api *MicrosoftCollectionAPI) FetchCollectionPage(ctx context.Context, cred
 		path, query = microsoftServicePrincipalsPath, "$select="+microsoftServicePrincipalSelect+"&$top="+strconv.Itoa(pageLimit)
 	case microsoftPhaseCopilotAgents:
 		host, path, token = envelope.dataverseHost, microsoftCopilotAgentsPath, envelope.dataverseToken
-		query = "$select=" + microsoftCopilotAgentsSelect
+		query = "$select=" + microsoftCopilotAgentsModerationSelect
+		if state.Basic {
+			query = "$select=" + microsoftCopilotAgentsSelect
+		}
 	default:
 		return CollectionPage{}, ErrInvalid
 	}
 	if state.Continuation != "" {
 		query += "&$skiptoken=" + strings.ReplaceAll(url.QueryEscape(state.Continuation), "+", "%20")
 	}
-	providerRequest, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://"+host+path+"?"+query, nil)
-	if err != nil {
-		return CollectionPage{}, ErrInvalid
-	}
-	providerRequest.Close = true
-	providerRequest.Header.Set("Accept", "application/json")
-	providerRequest.Header.Set("Authorization", "Bearer "+string(token))
-	if state.Phase == microsoftPhaseCopilotAgents {
-		providerRequest.Header.Set("OData-MaxVersion", "4.0")
-		providerRequest.Header.Set("OData-Version", "4.0")
-		providerRequest.Header.Set("Prefer", "odata.maxpagesize="+strconv.Itoa(pageLimit))
-	}
 	bounded, cancel := context.WithTimeout(ctx, api.timeout)
 	defer cancel()
-	providerRequest = providerRequest.WithContext(bounded)
-	response, err := doMicrosoftCollectionRequest(api.client, providerRequest)
+	send := func(query string) (*http.Response, error) {
+		providerRequest, err := http.NewRequestWithContext(bounded, http.MethodGet, "https://"+host+path+"?"+query, nil)
+		if err != nil {
+			return nil, ErrInvalid
+		}
+		providerRequest.Close = true
+		providerRequest.Header.Set("Accept", "application/json")
+		providerRequest.Header.Set("Authorization", "Bearer "+string(token))
+		if state.Phase == microsoftPhaseCopilotAgents {
+			providerRequest.Header.Set("OData-MaxVersion", "4.0")
+			providerRequest.Header.Set("OData-Version", "4.0")
+			providerRequest.Header.Set("Prefer", "odata.maxpagesize="+strconv.Itoa(pageLimit))
+		}
+		return doMicrosoftCollectionRequest(api.client, providerRequest)
+	}
+	response, err := send(query)
+	// An environment that does not know the configuration column answers the
+	// first Copilot Studio page with 400. The page is asked for once more
+	// without it; the agents are then listed without a moderation level.
+	if err == nil && response != nil && response.StatusCode == http.StatusBadRequest && state.Phase == microsoftPhaseCopilotAgents && !state.Basic && state.Continuation == "" {
+		closeMicrosoftCollectionResponse(response)
+		state.Basic = true
+		response, err = send("$select=" + microsoftCopilotAgentsSelect)
+	}
+	if errors.Is(err, ErrInvalid) {
+		return CollectionPage{}, ErrInvalid
+	}
 	if err != nil || bounded.Err() != nil || response == nil {
 		closeMicrosoftCollectionResponse(response)
 		return CollectionPage{}, providercollection.ClassifyProviderHTTPFailure(bounded, err, 0, "", api.clock())
@@ -324,6 +349,32 @@ type microsoftAgentAttributes struct {
 	Status    string                 `json:"status"`
 	Posture   agentsignals.Posture   `json:"posture"`
 	Discovery agentsignals.Discovery `json:"discovery"`
+	// ContentModeration is a Copilot Studio agent's generative AI moderation
+	// level (high, medium or low) when its configuration states one.
+	ContentModeration string `json:"content_moderation,omitempty"`
+}
+
+// microsoftContentModeration reads the moderation level out of a bot's
+// configuration document. Only that one member is read; the rest of the
+// configuration is not kept. A document that does not state a known level
+// yields "".
+func microsoftContentModeration(configuration *string) string {
+	if configuration == nil || len(*configuration) < 2 || len(*configuration) > 256<<10 {
+		return ""
+	}
+	var document struct {
+		AISettings struct {
+			ContentModeration string `json:"contentModeration"`
+		} `json:"aISettings"`
+	}
+	if json.Unmarshal([]byte(*configuration), &document) != nil {
+		return ""
+	}
+	switch level := strings.ToLower(document.AISettings.ContentModeration); level {
+	case "high", "medium", "low":
+		return level
+	}
+	return ""
 }
 
 // normalizeMicrosoftDirectoryObjects handles both Graph listings. Every agent
@@ -386,7 +437,7 @@ func normalizeMicrosoftDirectoryObjects(subject collection.SubjectBinding, phase
 			ObjectType string `json:"object_type"`
 			Name       string `json:"name"`
 		}{subject.ID, objectType, object.DisplayName})
-		attributes, _ := json.Marshal(microsoftAgentAttributes{status, agentsignals.Posture{CredentialActive: *object.AccountEnabled}, discovery})
+		attributes, _ := json.Marshal(microsoftAgentAttributes{Status: status, Posture: agentsignals.Posture{CredentialActive: *object.AccountEnabled}, Discovery: discovery})
 		entityID := deterministicMicrosoftInventoryID(subject, kind, id)
 		entity, err := marshalMicrosoftEntity(entityID, kind, "microsoft:"+objectType+":"+id, object.DisplayName, stable, attributes)
 		if err != nil {
@@ -409,10 +460,11 @@ func normalizeMicrosoftCopilotAgents(subject collection.SubjectBinding, environm
 	seen := make(map[string]struct{}, len(objects))
 	for _, raw := range objects {
 		var bot struct {
-			ID                 string `json:"botid"`
-			Name               string `json:"name"`
-			StateCode          *int   `json:"statecode"`
-			AuthenticationMode *int   `json:"authenticationmode"`
+			ID                 string  `json:"botid"`
+			Name               string  `json:"name"`
+			StateCode          *int    `json:"statecode"`
+			AuthenticationMode *int    `json:"authenticationmode"`
+			Configuration      *string `json:"configuration"`
 		}
 		if !decodeMicrosoftCollectionResponse(raw, &bot) || !microsoftObjectIDPattern.MatchString(bot.ID) || !validMicrosoftCollectionText(bot.Name, 256) || bot.StateCode == nil {
 			return nil, nil, false
@@ -436,7 +488,7 @@ func normalizeMicrosoftCopilotAgents(subject collection.SubjectBinding, environm
 		// authenticationmode 1 is "None": anyone who can reach the agent can
 		// talk to it, so its input is untrusted.
 		posture := agentsignals.Posture{CredentialActive: active, UntrustedInput: bot.AuthenticationMode != nil && *bot.AuthenticationMode == 1}
-		attributes, _ := json.Marshal(microsoftAgentAttributes{status, posture, agentsignals.NewDiscovery(agentsignals.MethodProviderAPI, "copilot_studio", nil)})
+		attributes, _ := json.Marshal(microsoftAgentAttributes{Status: status, Posture: posture, Discovery: agentsignals.NewDiscovery(agentsignals.MethodProviderAPI, "copilot_studio", nil), ContentModeration: microsoftContentModeration(bot.Configuration)})
 		nativeID := environment + ":" + id
 		entityID := deterministicMicrosoftInventoryID(subject, "microsoft_copilot_agent", nativeID)
 		entity, err := marshalMicrosoftEntity(entityID, "microsoft_copilot_agent", "microsoft:copilot_studio:"+nativeID, bot.Name, stable, attributes)
@@ -527,7 +579,7 @@ func validMicrosoftPageState(state microsoftPageState) bool {
 	}
 	switch state.Phase {
 	case microsoftPhaseAgentIdentities, microsoftPhaseServicePrincipals:
-		return state.Environment == ""
+		return state.Environment == "" && !state.Basic
 	case microsoftPhaseCopilotAgents:
 		return microsoftDataverseHostPattern.MatchString(state.Environment)
 	default:
@@ -566,7 +618,7 @@ func nextMicrosoftCollectionCursor(subject collection.SubjectBinding, prior coll
 		if state.Phase == microsoftPhaseTenant {
 			return collection.Cursor{}, false, false
 		}
-		return nextMicrosoftStateCursor(subject, microsoftPageState{Phase: state.Phase, Lineage: nextLineage, Continuation: nextContinuation, Environment: state.Environment})
+		return nextMicrosoftStateCursor(subject, microsoftPageState{Phase: state.Phase, Lineage: nextLineage, Continuation: nextContinuation, Environment: state.Environment, Basic: state.Basic})
 	}
 	switch state.Phase {
 	case microsoftPhaseTenant:

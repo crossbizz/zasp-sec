@@ -4668,6 +4668,9 @@ END $ws5_mcp_registry$;
 --                                access: a production posture fact, a
 --                                production Environment, or an identity that
 --                                may write to a data store.
+-- A sixth rule is not about MCP: agent_content_moderation_low, for an agent
+-- whose platform reports its generative AI content moderation at the lowest
+-- level (a Copilot Studio agent's content_moderation attribute).
 -- A dismissed agent leaves the set as for every other rule (section X5a).
 --
 -- zasp_mcp_refresh_attack_paths, called at the end of every posture refresh,
@@ -4690,7 +4693,8 @@ DECLARE target CONSTANT regprocedure:='public.zasp_inventory_refresh_posture_fin
    ('mcp_server_blocked','Agent uses a blocked MCP server',agent.state='active' AND EXISTS(SELECT 1 FROM mcp WHERE (mcp.agent_id,mcp.rule)=(agent.id,'mcp_server_blocked'))),
    ('mcp_server_no_auth','Agent uses a remote MCP server with no authentication',agent.state='active' AND EXISTS(SELECT 1 FROM mcp WHERE (mcp.agent_id,mcp.rule)=(agent.id,'mcp_server_no_auth'))),
    ('mcp_server_unpinned_package','Agent starts an MCP server from an unpinned package',agent.state='active' AND EXISTS(SELECT 1 FROM mcp WHERE (mcp.agent_id,mcp.rule)=(agent.id,'mcp_server_unpinned_package'))),
-   ('mcp_execute_tool_production','Production agent can run code through an MCP tool',agent.state='active' AND EXISTS(SELECT 1 FROM mcp WHERE (mcp.agent_id,mcp.rule)=(agent.id,'mcp_execute_tool_production')))$rules$;
+   ('mcp_execute_tool_production','Production agent can run code through an MCP tool',agent.state='active' AND EXISTS(SELECT 1 FROM mcp WHERE (mcp.agent_id,mcp.rule)=(agent.id,'mcp_execute_tool_production'))),
+   ('agent_content_moderation_low','Agent content moderation is set to the lowest level',agent.state='active' AND EXISTS(SELECT 1 FROM zasp_inventory_entities moderated WHERE (moderated.organization_id,moderated.workspace_id,moderated.environment_id,moderated.id)=(organization_value,workspace_value,environment_value,agent.id) AND moderated.winning_attributes->>'content_moderation'='low'))$rules$;
  return_anchor CONSTANT text:=$anchor$ RETURN jsonb_build_object('active_count',active_count,'resolved_count',resolved_count);$anchor$;
  paths CONSTANT text:=$paths$ PERFORM zasp_mcp_refresh_attack_paths(organization_value,workspace_value,environment_value);
 $paths$;
