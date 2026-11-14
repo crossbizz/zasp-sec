@@ -95,12 +95,32 @@ func classifyDiscoveryAWSSignalFailure(ctx context.Context, err error) (string, 
 // collectDiscoveryAWSInvokers returns, per role ARN of the account, the
 // invoke signals CloudTrail shows for it in one region.
 func collectDiscoveryAWSInvokers(ctx context.Context, api discoveryAWSCloudTrailAPI, accountID string, now time.Time) (map[string][]string, string, error) {
+	invocations, status, err := collectDiscoveryAWSInvocations(ctx, api, accountID, now)
+	return invocations.signals, status, err
+}
+
+// discoveryAWSInvocations is what one region's audit log showed: per role,
+// its invoke signals and the IAM actions it used. complete is false when a
+// lookup stopped at the page limit with more events to read; an absence in a
+// sampled log proves nothing.
+type discoveryAWSInvocations struct {
+	signals  map[string][]string
+	actions  map[string]map[string]bool
+	complete bool
+}
+
+func collectDiscoveryAWSInvocations(ctx context.Context, api discoveryAWSCloudTrailAPI, accountID string, now time.Time) (discoveryAWSInvocations, string, error) {
 	status := awsdiscovery.AgentServiceCollected
 	start := now.Add(-discoveryAWSInvocationWindow)
 	evidence := map[string]*agentsignals.Evidence{}
+	found := discoveryAWSInvocations{actions: map[string]map[string]bool{}, complete: true}
 	for _, name := range discoveryAWSInvocationEvents {
 		var token *string
-		for page := 0; page < maximumAWSInvocationPages; page++ {
+		for page := 0; ; page++ {
+			if page >= maximumAWSInvocationPages {
+				found.complete = false
+				break
+			}
 			output, err := api.LookupEvents(ctx, &cloudtrail.LookupEventsInput{
 				LookupAttributes: []cloudtrailtypes.LookupAttribute{{AttributeKey: cloudtrailtypes.LookupAttributeKeyEventName, AttributeValue: aws.String(name)}},
 				StartTime:        aws.Time(start), EndTime: aws.Time(now), MaxResults: aws.Int32(50), NextToken: token,
@@ -108,12 +128,12 @@ func collectDiscoveryAWSInvokers(ctx context.Context, api discoveryAWSCloudTrail
 			if err != nil {
 				classified, failure := classifyDiscoveryAWSSignalFailure(ctx, err)
 				if failure != nil {
-					return nil, "", failure
+					return discoveryAWSInvocations{}, "", failure
 				}
-				return nil, classified, nil
+				return discoveryAWSInvocations{}, classified, nil
 			}
 			if output == nil {
-				return nil, awsdiscovery.AgentServiceUnavailable, nil
+				return discoveryAWSInvocations{}, awsdiscovery.AgentServiceUnavailable, nil
 			}
 			for _, event := range output.Events {
 				role := discoveryAWSInvokerRole(aws.ToString(event.CloudTrailEvent), accountID)
@@ -124,6 +144,12 @@ func collectDiscoveryAWSInvokers(ctx context.Context, api discoveryAWSCloudTrail
 					evidence[role] = &agentsignals.Evidence{}
 				}
 				evidence[role].Invoked(name)
+				if action, known := agentsignals.InvocationAction(name); known {
+					if found.actions[role] == nil {
+						found.actions[role] = map[string]bool{}
+					}
+					found.actions[role][action] = true
+				}
 			}
 			if !nextDiscoveryAWSAgentToken(token, output.NextToken) {
 				break
@@ -131,11 +157,11 @@ func collectDiscoveryAWSInvokers(ctx context.Context, api discoveryAWSCloudTrail
 			token = output.NextToken
 		}
 	}
-	invokers := make(map[string][]string, len(evidence))
-	for role, found := range evidence {
-		invokers[role] = found.Signals()
+	found.signals = make(map[string][]string, len(evidence))
+	for role, recorded := range evidence {
+		found.signals[role] = recorded.Signals()
 	}
-	return invokers, status, nil
+	return found, status, nil
 }
 
 // discoveryAWSInvokerRole reads the role that made a recorded call. Only the
@@ -232,6 +258,9 @@ type discoveryAWSEgressResult struct {
 	resolver, flow string
 	// instances maps an instance ID to its sorted egress signals.
 	instances map[string][]string
+	// workloads are everything the sources were attributed to, instances
+	// included, sorted by kind and id, with the remote MCP hosts each reached.
+	workloads []discoveryAWSEgressWorkload
 }
 
 // collectDiscoveryAWSEgress joins the region's resolver query logs to its
@@ -297,16 +326,26 @@ func collectDiscoveryAWSEgress(ctx context.Context, resolver discoveryAWSResolve
 		return result, nil
 	}
 	type pair struct{ source, destination netip.Addr }
-	type resolution struct{ instance, token string }
+	// host is the name itself only for a remote MCP server (a catalog rule);
+	// for every other name only the token is kept.
+	type resolution struct{ instance, token, host string }
 	resolved := map[pair]resolution{}
 	sources, destinations := map[netip.Addr]bool{}, map[netip.Addr]bool{}
+	// A source the log names no instance for (a task, a function, a pod) can
+	// be attributed only by its network interface.
+	interfaces, attributable := flows.(discoveryAWSNetworkInterfaceAPI)
+	attributable = attributable && !nilDiscoveryClientDependency(interfaces)
 	for _, row := range rows {
 		token, ok := agentsignals.EgressHost(row["query_name"])
 		source, sourceErr := netip.ParseAddr(row["srcaddr"])
 		instance := row["srcids.instance"]
-		if !ok || sourceErr != nil || !discoveryAWSInstancePattern.MatchString(instance) {
+		if !discoveryAWSInstancePattern.MatchString(instance) {
+			instance = ""
+		}
+		if !ok || sourceErr != nil || instance == "" && !attributable {
 			continue
 		}
+		host, _ := agentsignals.IsRemoteMCPHost(row["query_name"])
 		for field, value := range row {
 			if !strings.HasPrefix(field, "answers.") {
 				continue
@@ -316,7 +355,7 @@ func collectDiscoveryAWSEgress(ctx context.Context, resolver discoveryAWSResolve
 				continue
 			}
 			sources[source], destinations[destination] = true, true
-			resolved[pair{source, destination}] = resolution{instance, token}
+			resolved[pair{source, destination}] = resolution{instance, token, host}
 		}
 	}
 	if len(resolved) == 0 {
@@ -340,7 +379,13 @@ func collectDiscoveryAWSEgress(ctx context.Context, resolver discoveryAWSResolve
 		result.flow = status
 		return result, nil
 	}
-	evidence := map[string]*agentsignals.Evidence{}
+	// What each source address resolved and then reached.
+	type reached struct {
+		instance string
+		evidence agentsignals.Evidence
+		hosts    map[string]bool
+	}
+	bySource := map[netip.Addr]*reached{}
 	for _, row := range rows {
 		source, sourceErr := netip.ParseAddr(row["srcAddr"])
 		destination, destinationErr := netip.ParseAddr(row["dstAddr"])
@@ -348,19 +393,71 @@ func collectDiscoveryAWSEgress(ctx context.Context, resolver discoveryAWSResolve
 			continue
 		}
 		if found, ok := resolved[pair{source, destination}]; ok {
-			if evidence[found.instance] == nil {
-				evidence[found.instance] = &agentsignals.Evidence{}
+			if bySource[source] == nil {
+				bySource[source] = &reached{instance: found.instance, hosts: map[string]bool{}}
 			}
-			evidence[found.instance].Egress(found.token)
+			bySource[source].evidence.Egress(found.token)
+			if found.host != "" {
+				bySource[source].hosts[found.host] = true
+			}
 		}
 	}
-	result.instances = make(map[string][]string, len(evidence))
-	for instance, found := range evidence {
+	owners := map[netip.Addr]discoveryAWSEgressWorkload{}
+	if attributable {
+		confirmed := make([]netip.Addr, 0, len(bySource))
+		for source := range bySource {
+			confirmed = append(confirmed, source)
+		}
+		owners = discoveryAWSInterfaceOwners(ctx, interfaces, confirmed)
+		if ctx.Err() != nil {
+			return result, awsdiscovery.ErrDenied
+		}
+	}
+	// Several addresses may be one workload (the tasks of a service).
+	type attributed struct {
+		evidence agentsignals.Evidence
+		hosts    map[string]bool
+	}
+	byWorkload := map[[2]string]*attributed{}
+	for source, found := range bySource {
+		owner, known := owners[source]
+		if !known {
+			if found.instance == "" {
+				continue
+			}
+			owner = discoveryAWSEgressWorkload{kind: discoveryAWSEgressInstance, id: found.instance}
+		}
+		key := [2]string{owner.kind, owner.id}
+		if byWorkload[key] == nil {
+			byWorkload[key] = &attributed{hosts: map[string]bool{}}
+		}
+		byWorkload[key].evidence.AddSignals(found.evidence.Signals()...)
+		for host := range found.hosts {
+			byWorkload[key].hosts[host] = true
+		}
+	}
+	result.instances = map[string][]string{}
+	for key, found := range byWorkload {
 		// A weak tooling host alone does not make an agent.
-		if found.IsAgent() {
-			result.instances[instance] = found.Signals()
+		if !found.evidence.IsAgent() {
+			continue
+		}
+		workload := discoveryAWSEgressWorkload{kind: key[0], id: key[1], signals: found.evidence.Signals()}
+		for host := range found.hosts {
+			workload.hosts = append(workload.hosts, host)
+		}
+		sort.Strings(workload.hosts)
+		result.workloads = append(result.workloads, workload)
+		if workload.kind == discoveryAWSEgressInstance {
+			result.instances[workload.id] = workload.signals
 		}
 	}
+	sort.Slice(result.workloads, func(i, j int) bool {
+		if result.workloads[i].kind != result.workloads[j].kind {
+			return result.workloads[i].kind < result.workloads[j].kind
+		}
+		return result.workloads[i].id < result.workloads[j].id
+	})
 	return result, nil
 }
 

@@ -275,7 +275,7 @@ func (api *InventoryCollectionAPI) posturePage(ctx context.Context, request Coll
 		return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
 	}
 	for _, check := range agents.Checks {
-		entityID := deterministicAWSInventoryID(api.authority.Scope, request.Subject, agentInventoryKind(check.ARN), check.ARN)
+		entityID := deterministicAWSInventoryID(api.authority.Scope, request.Subject, agentCheckEntityKind(check), check.ARN)
 		findingID := deterministicAWSInventoryID(api.authority.Scope, request.Subject, "agent_check_finding", check.Check+"\x1f"+check.ARN)
 		findings = append(findings, marshalInventoryFinding(findingID, entityID, prowlerSecurityFinding{CheckID: check.Check, Severity: "high", Status: "FAIL", ResourceARN: check.ARN}, api.authority.ObservedAt))
 	}

@@ -690,15 +690,15 @@ func providerEntitySchema(provider collection.Provider, kind string) (providerEn
 		case "aws_service":
 			return providerEntityDefinition{stable: requiredStringFields("account_id", "name", "service"), attributes: state}, true
 		case "aws_bedrock_agent":
-			return providerEntityDefinition{stable: requiredStringFields("account_id", "agent_id", "arn", "name", "region"), attributes: mergeInventorySchemas(state, discoveredAgentAttributes(), optionalStringFields("model"))}, true
+			return providerEntityDefinition{stable: requiredStringFields("account_id", "agent_id", "arn", "name", "region"), attributes: mergeInventorySchemas(state, discoveredAgentAttributes(), awsAgentUsageAttributes(), optionalStringFields("model"))}, true
 		case "aws_agentcore_runtime":
-			return providerEntityDefinition{stable: requiredStringFields("account_id", "arn", "name", "region", "runtime_id"), attributes: mergeInventorySchemas(state, discoveredAgentAttributes())}, true
+			return providerEntityDefinition{stable: requiredStringFields("account_id", "arn", "name", "region", "runtime_id"), attributes: mergeInventorySchemas(state, discoveredAgentAttributes(), awsAgentUsageAttributes())}, true
 		case "aws_agentcore_gateway":
 			// An AgentCore gateway is an MCP server; the MCP attributes are
 			// present once its description could be read.
 			return providerEntityDefinition{stable: requiredStringFields("account_id", "arn", "gateway_id", "name", "region"), attributes: mergeInventorySchemas(state, optionalInventorySchema(mcpServer))}, true
 		case "aws_inferred_agent":
-			return providerEntityDefinition{stable: mergeInventorySchemas(requiredStringFields("account_id", "arn", "name", "region"), inventoryObjectSchema{"resource_type": enumInventoryField(true, "ec2_instance", "ecs_service", "eks_pod", "iam_role", "lambda_function")}), attributes: mergeInventorySchemas(state, discoveredAgentAttributes())}, true
+			return providerEntityDefinition{stable: mergeInventorySchemas(requiredStringFields("account_id", "arn", "name", "region"), inventoryObjectSchema{"resource_type": enumInventoryField(true, "ec2_instance", "ecs_service", "eks_pod", "iam_role", "lambda_function")}), attributes: mergeInventorySchemas(state, discoveredAgentAttributes(), awsAgentUsageAttributes())}, true
 		case "aws_mcp_server":
 			// A remote MCP server the account's logs or a gateway target name.
 			return providerEntityDefinition{stable: requiredStringFields("account_id", "name", "region"), attributes: mergeInventorySchemas(state, mcpServer)}, true
@@ -1056,6 +1056,13 @@ func kubernetesRedTeamInventoryField(required bool) inventoryFieldRule {
 // agent has, and how the agent was found.
 func discoveredAgentAttributes() inventoryObjectSchema {
 	return inventoryObjectSchema{"posture": kubernetesAgentPostureInventoryField(true), "discovery": inventoryFieldRule{kind: "agent_discovery", required: true}}
+}
+
+// awsAgentUsageAttributes compare the model actions the policies of an AWS
+// agent's role grant with the ones the audit log shows it used: comma-
+// separated IAM action names, present only for a role the log was read for.
+func awsAgentUsageAttributes() inventoryObjectSchema {
+	return optionalStringFields("ai_actions_granted", "ai_actions_used", "ai_actions_unused")
 }
 
 var (
