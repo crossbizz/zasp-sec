@@ -148,6 +148,11 @@ func newProductionHandlers(repository, securityAgentRepository *PostgresReposito
 		if discoveryErr != nil {
 			return Dependencies{}, nil, ErrRepositoryConfiguration
 		}
+		// The guardrail decision API and the Environment's guardrail policy.
+		workflowSurface, discoveryErr = newGuardrailSurface(workflowSurface, repository.database, newWorkflowProductID)
+		if discoveryErr != nil {
+			return Dependencies{}, nil, ErrRepositoryConfiguration
+		}
 	}
 	if isRuntimeDataPlaneSchema(repository.schema) {
 		sensorRepository, sensorErr := NewSensorPublicRepository(repository.database)

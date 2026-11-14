@@ -16,6 +16,9 @@ func discovery72StatementAllowed(g RequestAuthorization, q string, args []any) (
 		if handled, allowed := integrationRemediationRoleStatementAllowed(g, q, args); handled {
 			return handled, allowed
 		}
+		if handled, allowed := guardrailStatementAllowed(g, q, args); handled {
+			return handled, allowed
+		}
 		return discovery72ReadStatementAllowed(g, q, args)
 	}
 	if g.OperationID != operation || g.Collection || len(args) != count || (g.Identity.CredentialKind != CredentialBrowserSession && g.Identity.CredentialKind != CredentialBearerToken) {

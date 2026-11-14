@@ -4567,3 +4567,217 @@ BEGIN
   IF f.grantee IS NOT NULL THEN EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO %s',f.signature::regprocedure,f.grantee);END IF;
  END LOOP;
 END $provider_remediation_role_privileges$;
+
+-- ---------------------------------------------------------------------------
+-- V7. Guardrail decision API (workstream WS4: plan task E2).
+--
+-- A gateway the customer already runs sends one interaction (the text going
+-- into a model or coming out of it) and is told to allow it, redact it or
+-- block it. Nothing of the product is installed anywhere: the gateway calls
+--   POST /guardrails/decisions  createGuardrailDecision  (API token, view)
+-- with an API token of the Environment. The detectors run in the API process
+-- and are deterministic; this section holds only what the database owns:
+--   * the Environment's guardrail policy: for each rule, whether a match
+--     blocks, redacts, is only reported (monitor) or is ignored (off). A rule
+--     the policy does not name uses the default the API states for it;
+--       GET /guardrails/policy   getGuardrailPolicy   (view)
+--       PUT /guardrails/policy   putGuardrailPolicy   (manage_workflows)
+--   * the decision record. The interaction text is never sent to the
+--     database and is never stored: a record holds the decision, the matched
+--     rule identifiers with their modes and counts, the size of the text, and
+--     the SHA-256 digest of the text, which lets an auditor tie a record to an
+--     interaction they hold without the product keeping its content.
+-- The decision is made here, in one statement, from the matched rules and
+-- the policy as it is at that moment, so a decision and its record cannot
+-- disagree and a policy change applies to the next request.
+
+CREATE TABLE IF NOT EXISTS public.zasp_guardrail_policies(
+ organization_id text NOT NULL,
+ workspace_id text NOT NULL,
+ environment_id text NOT NULL,
+ rules jsonb NOT NULL,
+ version bigint NOT NULL DEFAULT 1,
+ updated_by text NOT NULL,
+ updated_at timestamptz NOT NULL DEFAULT transaction_timestamp(),
+ PRIMARY KEY(organization_id,workspace_id,environment_id),
+ CONSTRAINT zasp_guardrail_policies_rules_check CHECK(jsonb_typeof(rules)='object' AND octet_length(rules::text)<=8192),
+ CONSTRAINT zasp_guardrail_policies_version_check CHECK(version>0),
+ CONSTRAINT zasp_guardrail_policies_updated_by_check CHECK(length(updated_by) BETWEEN 1 AND 128)
+);
+CREATE TABLE IF NOT EXISTS public.zasp_guardrail_decisions(
+ organization_id text NOT NULL,
+ workspace_id text NOT NULL,
+ environment_id text NOT NULL,
+ id text NOT NULL,
+ principal_id text NOT NULL,
+ direction text NOT NULL,
+ decision text NOT NULL,
+ rules jsonb NOT NULL,
+ input_bytes integer NOT NULL,
+ content_digest bytea NOT NULL,
+ agent_id text,
+ tool_name text,
+ policy_version bigint NOT NULL,
+ created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+ PRIMARY KEY(organization_id,workspace_id,environment_id,id),
+ CONSTRAINT zasp_guardrail_decisions_direction_check CHECK(direction IN('input','output')),
+ CONSTRAINT zasp_guardrail_decisions_decision_check CHECK(decision IN('allow','redact','block')),
+ CONSTRAINT zasp_guardrail_decisions_rules_check CHECK(jsonb_typeof(rules)='array' AND octet_length(rules::text)<=8192),
+ CONSTRAINT zasp_guardrail_decisions_sizes_check CHECK(input_bytes BETWEEN 0 AND 32768),
+ CONSTRAINT zasp_guardrail_decisions_digest_check CHECK(octet_length(content_digest)=32),
+ CONSTRAINT zasp_guardrail_decisions_agent_check CHECK(agent_id IS NULL OR length(agent_id) BETWEEN 1 AND 128),
+ CONSTRAINT zasp_guardrail_decisions_tool_check CHECK(tool_name IS NULL OR length(tool_name) BETWEEN 1 AND 128),
+ CONSTRAINT zasp_guardrail_decisions_policy_version_check CHECK(policy_version>=0)
+);
+CREATE INDEX IF NOT EXISTS zasp_guardrail_decisions_created_idx ON public.zasp_guardrail_decisions(organization_id,workspace_id,environment_id,created_at DESC,id DESC);
+
+DO $guardrail_tables$
+DECLARE t text;
+BEGIN
+ FOREACH t IN ARRAY ARRAY['zasp_guardrail_policies','zasp_guardrail_decisions'] LOOP
+  EXECUTE format('ALTER TABLE public.%I OWNER TO zasp_discovery_authority',t);
+  EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY',t);
+  EXECUTE format('ALTER TABLE public.%I FORCE ROW LEVEL SECURITY',t);
+  EXECUTE format('REVOKE ALL ON TABLE public.%I FROM PUBLIC',t);
+  IF NOT EXISTS(SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename=t AND policyname=t||'_authority') THEN
+   EXECUTE format('CREATE POLICY %I ON public.%I FOR ALL TO zasp_discovery_authority USING(true) WITH CHECK(true)',t||'_authority',t);
+  END IF;
+ END LOOP;
+END $guardrail_tables$;
+
+-- A policy: rule identifier -> mode. The API knows the rule catalog and
+-- refuses an unknown rule or a mode a rule cannot take; the database checks
+-- the form, so nothing but identifiers and the four modes is ever stored.
+CREATE OR REPLACE FUNCTION zasp_authorization80.guardrail_rules_valid(rules_value jsonb) RETURNS boolean
+LANGUAGE sql IMMUTABLE SET search_path=pg_catalog,public AS $guardrail_rules_valid$
+ SELECT COALESCE(jsonb_typeof(rules_value)='object' AND octet_length(rules_value::text)<=8192
+  AND(SELECT count(*) FROM jsonb_object_keys(rules_value))<=64
+  AND NOT EXISTS(SELECT 1 FROM jsonb_each(rules_value) member
+   WHERE member.key !~ '^[a-z][a-z0-9_]{1,31}\.[a-z][a-z0-9_]{1,47}$' OR jsonb_typeof(member.value)<>'string' OR member.value#>>'{}' NOT IN('block','redact','monitor','off')),false)
+$guardrail_rules_valid$;
+
+CREATE OR REPLACE FUNCTION zasp_authorization80.guardrail_policy_value(o text,w text,e text) RETURNS jsonb
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $guardrail_policy_value$
+ SELECT jsonb_build_object('environment_id',x.id,'rules',COALESCE(p.rules,'{}'::jsonb),'version',COALESCE(p.version,0),
+  'updated_at',CASE WHEN p.updated_at IS NULL THEN NULL ELSE to_char(p.updated_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') END)
+ FROM public.zasp_environments x LEFT JOIN public.zasp_guardrail_policies p ON(p.organization_id,p.workspace_id,p.environment_id)=(x.organization_id,x.workspace_id,x.id)
+ WHERE(x.organization_id,x.workspace_id,x.id)=(o,w,e)
+$guardrail_policy_value$;
+
+CREATE OR REPLACE FUNCTION zasp_authorization80.guardrail_policy(o text,w text,e text) RETURNS jsonb
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $guardrail_policy$
+DECLARE result jsonb;
+BEGIN
+ PERFORM zasp_authorization80.product_request(o,w,e,NULL,'getGuardrailPolicy','view','environment',e,false,false,false,false);
+ result:=zasp_authorization80.guardrail_policy_value(o,w,e);
+ IF result IS NULL THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='environment not found';END IF;
+ RETURN result;
+END $guardrail_policy$;
+
+CREATE OR REPLACE FUNCTION zasp_authorization80.guardrail_policy_write(o text,w text,e text,actor text,rules_value jsonb,expected_version bigint,audit_value text,correlation_value text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $guardrail_policy_write$
+DECLARE current_version bigint;
+BEGIN
+ IF NOT COALESCE(public.zasp_valid_product_id(actor) AND public.zasp_valid_product_id(audit_value) AND public.zasp_valid_product_id(correlation_value) AND expected_version BETWEEN 0 AND 1000000
+  AND zasp_authorization80.guardrail_rules_valid(rules_value),false)
+ THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='guardrail policy rejected';END IF;
+ PERFORM 1 FROM public.zasp_environments x WHERE(x.organization_id,x.workspace_id,x.id)=(o,w,e) FOR SHARE;
+ IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='environment not found';END IF;
+ PERFORM pg_advisory_xact_lock(hashtextextended(concat_ws(chr(31),'guardrail-policy',o,w,e),0));
+ SELECT p.version INTO current_version FROM public.zasp_guardrail_policies p WHERE(p.organization_id,p.workspace_id,p.environment_id)=(o,w,e) FOR UPDATE;
+ IF COALESCE(current_version,0)<>expected_version THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='guardrail policy version conflict';END IF;
+ INSERT INTO public.zasp_guardrail_policies(organization_id,workspace_id,environment_id,rules,version,updated_by) VALUES(o,w,e,rules_value,expected_version+1,actor)
+ ON CONFLICT(organization_id,workspace_id,environment_id) DO UPDATE SET rules=EXCLUDED.rules,version=EXCLUDED.version,updated_by=EXCLUDED.updated_by,updated_at=transaction_timestamp();
+ INSERT INTO public.zasp_workflow_audit(organization_id,workspace_id,environment_id,audit_id,correlation_id,principal_id,operation,resource_kind,resource_id,resource_version)
+ VALUES(o,w,e,audit_value,correlation_value,actor,'putGuardrailPolicy','environment',e,expected_version+1);
+ RETURN zasp_authorization80.guardrail_policy_value(o,w,e)||jsonb_build_object('audit_id',audit_value,'correlation_id',correlation_value);
+END $guardrail_policy_write$;
+
+CREATE OR REPLACE FUNCTION zasp_authorization80.guardrail_set_policy(o text,w text,e text,actor text,rules_value jsonb,expected_version bigint,audit_value text,correlation_value text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $guardrail_set_policy$
+DECLARE p jsonb;result jsonb;
+BEGIN
+ p:=zasp_authorization80.product_request(o,w,e,actor,'putGuardrailPolicy','manage_workflows','environment',e,false,false,false,true);
+ result:=zasp_authorization80.guardrail_policy_write(o,w,e,actor,rules_value,expected_version,audit_value,correlation_value);
+ PERFORM zasp_authorization80.product_settled(p);
+ RETURN result;
+END $guardrail_set_policy$;
+
+-- The decision and its record. q is closed:
+--   id              the decision's identifier (generated by the API);
+--   direction       input | output;
+--   input_bytes     the size of the interaction text;
+--   content_digest  sha256:<hex> of the interaction text;
+--   matched         [{"id","category","default_mode","redactable","count"}] in catalog order:
+--                   what the detectors found, the mode each rule has when the
+--                   policy does not name it, and whether its matches can be
+--                   removed from the text;
+--   agent_id, tool_name  optional identifiers the gateway states (never text).
+-- It carries no interaction text and the function has nowhere to put any.
+-- The result names the mode of every matched rule, so the API redacts
+-- exactly the rules the decision says.
+CREATE OR REPLACE FUNCTION zasp_authorization80.guardrail_decision_record(o text,w text,e text,actor text,q jsonb) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $guardrail_decision_record$
+DECLARE rules_value jsonb;version_value bigint;item jsonb;mode_value text;decision_value text:='allow';applied jsonb:='[]'::jsonb;
+BEGIN
+ IF q IS NULL OR jsonb_typeof(q)<>'object' OR octet_length(q::text)>16384
+  OR NOT COALESCE((SELECT array_agg(key ORDER BY key) FROM jsonb_object_keys(q) key)=ARRAY['agent_id','content_digest','direction','id','input_bytes','matched','tool_name']
+   AND public.zasp_valid_product_id(actor) AND public.zasp_valid_product_id(q->>'id') AND q->>'direction' IN('input','output')
+   AND jsonb_typeof(q->'input_bytes')='number' AND q->>'input_bytes'~'^(0|[1-9][0-9]{0,4})$' AND(q->>'input_bytes')::integer<=32768
+   AND q->>'content_digest'~'^sha256:[0-9a-f]{64}$'
+   AND(q->'agent_id'='null'::jsonb OR jsonb_typeof(q->'agent_id')='string' AND q->>'agent_id'~'^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$')
+   AND(q->'tool_name'='null'::jsonb OR jsonb_typeof(q->'tool_name')='string' AND q->>'tool_name'~'^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$')
+   AND jsonb_typeof(q->'matched')='array' AND jsonb_array_length(q->'matched')<=64
+   AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(q->'matched') m WHERE jsonb_typeof(m)<>'object'
+    OR(SELECT array_agg(key ORDER BY key) FROM jsonb_object_keys(m) key) IS DISTINCT FROM ARRAY['category','count','default_mode','id','redactable']
+    OR m->>'id' !~ '^[a-z][a-z0-9_]{1,31}\.[a-z][a-z0-9_]{1,47}$' OR m->>'category' NOT IN('prompt_injection','sensitive_data')
+    OR m->>'default_mode' NOT IN('block','redact','monitor','off') OR jsonb_typeof(m->'redactable')<>'boolean'
+    OR(m->>'default_mode'='redact' AND m->'redactable'<>'true'::jsonb)
+    OR jsonb_typeof(m->'count')<>'number' OR m->>'count' !~ '^[1-9][0-9]{0,3}$')
+   AND(SELECT count(DISTINCT m->>'id') FROM jsonb_array_elements(q->'matched') m)=jsonb_array_length(q->'matched'),false)
+ THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='guardrail decision rejected';END IF;
+ SELECT p.rules,p.version INTO rules_value,version_value FROM public.zasp_guardrail_policies p WHERE(p.organization_id,p.workspace_id,p.environment_id)=(o,w,e);
+ FOR item IN SELECT value FROM jsonb_array_elements(q->'matched') LOOP
+  mode_value:=COALESCE(rules_value->>(item->>'id'),item->>'default_mode');
+  -- A rule whose matches cannot be removed cannot redact: its default holds.
+  IF mode_value='redact' AND item->'redactable'<>'true'::jsonb THEN mode_value:=item->>'default_mode';END IF;
+  CONTINUE WHEN mode_value='off';
+  applied:=applied||jsonb_build_array(jsonb_build_object('id',item->>'id','category',item->>'category','mode',mode_value,'count',(item->>'count')::integer));
+  IF mode_value='block' THEN decision_value:='block';
+  ELSIF mode_value='redact' AND decision_value='allow' THEN decision_value:='redact';END IF;
+ END LOOP;
+ INSERT INTO public.zasp_guardrail_decisions(organization_id,workspace_id,environment_id,id,principal_id,direction,decision,rules,input_bytes,content_digest,agent_id,tool_name,policy_version)
+ VALUES(o,w,e,q->>'id',actor,q->>'direction',decision_value,applied,(q->>'input_bytes')::integer,decode(substr(q->>'content_digest',8),'hex'),q->>'agent_id',q->>'tool_name',COALESCE(version_value,0));
+ RETURN jsonb_build_object('id',q->>'id','decision',decision_value,'rules',applied,'policy_version',COALESCE(version_value,0));
+END $guardrail_decision_record$;
+
+CREATE OR REPLACE FUNCTION zasp_authorization80.guardrail_decide(o text,w text,e text,actor text,q jsonb) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $guardrail_decide$
+DECLARE p jsonb;result jsonb;
+BEGIN
+ p:=zasp_authorization80.product_request(o,w,e,actor,'createGuardrailDecision','view','environment',e,false,false,false,true);
+ -- The gateway authenticates with an API token; a browser session has no
+ -- reason to ask for a decision.
+ IF p->>'credential_kind' IS DISTINCT FROM '2' THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';END IF;
+ result:=zasp_authorization80.guardrail_decision_record(o,w,e,actor,q);
+ PERFORM zasp_authorization80.product_settled(p);
+ RETURN result;
+END $guardrail_decide$;
+
+DO $guardrail_privileges$
+DECLARE f record;
+BEGIN
+ FOR f IN SELECT * FROM(VALUES
+  ('zasp_authorization80.guardrail_rules_valid(jsonb)',NULL),
+  ('zasp_authorization80.guardrail_policy_value(text,text,text)',NULL),
+  ('zasp_authorization80.guardrail_policy(text,text,text)','zasp_discovery_api'),
+  ('zasp_authorization80.guardrail_policy_write(text,text,text,text,jsonb,bigint,text,text)',NULL),
+  ('zasp_authorization80.guardrail_set_policy(text,text,text,text,jsonb,bigint,text,text)','zasp_discovery_api'),
+  ('zasp_authorization80.guardrail_decision_record(text,text,text,text,jsonb)',NULL),
+  ('zasp_authorization80.guardrail_decide(text,text,text,text,jsonb)','zasp_discovery_api')
+ ) v(signature,grantee) LOOP
+  EXECUTE format('ALTER FUNCTION %s OWNER TO zasp_discovery_authority',f.signature::regprocedure);
+  EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC',f.signature::regprocedure);
+  IF f.grantee IS NOT NULL THEN EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO %s',f.signature::regprocedure,f.grantee);END IF;
+ END LOOP;
+END $guardrail_privileges$;

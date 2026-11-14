@@ -871,6 +871,50 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/guardrails/decisions": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Decide whether one model interaction is allowed, redacted or blocked
+         * @description For a gateway the customer already runs (for example a LiteLLM guardrail hook): send the text going into a model (direction input) or coming out of it (direction output) and act on the answer. Authenticate with an API token of the Environment that has the view permission; a browser session is not accepted. The detectors are deterministic (regular expressions, phrase lists and checksums; no model is called) and are heuristics: see the rule descriptions of the guardrail policy. The interaction text is used for this request only. It is not logged and not stored; the audit record of a decision holds the decision, the matched rule identifiers with their modes and counts, the size of the text and its SHA-256 digest.
+         */
+        readonly post: operations["createGuardrailDecision"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/guardrails/policy": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Get the guardrail policy of the Environment
+         * @description Every rule of the catalog with the mode it has in this Environment. Version 0 means no policy was saved and every rule has its default mode.
+         */
+        readonly get: operations["getGuardrailPolicy"];
+        /**
+         * Set the guardrail policy of the Environment
+         * @description BrowserSession requests require the same-origin Origin and CSRF headers; ProductAPIToken requests omit both. If-Match names the current version ("0" when no policy was saved); a stale version is refused with 409, which also makes a repeated request safe. A rule the request does not name has its default mode. The change is audited and applies to the next decision.
+         */
+        readonly put: operations["putGuardrailPolicy"];
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/home/summary": {
         readonly parameters: {
             readonly query?: never;
@@ -1081,6 +1125,32 @@ export type paths = {
          * @description For an AWS, Kubernetes, Microsoft or Salesforce integration. Performs a bounded read-only provider identity and capability probe using only the integration's stored reference configuration, then atomically records an active integration and durable mutation receipt. The response never returns provider subjects, endpoints, credentials, external IDs, certificate authorities, tokens, or raw provider errors.
          */
         readonly post: operations["authorizeIntegrationReference"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/integrations/{id}/remediation-role": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        /**
+         * Get the remediation role of an integration
+         * @description Provider remediations (Security Agent actions that change the customer's account) never use the role discovery reads with. They use this separately configured role, and are refused while none is configured.
+         */
+        readonly get: operations["getIntegrationRemediationRole"];
+        /**
+         * Set or remove the remediation role of an integration
+         * @description BrowserSession requests require the same-origin Origin and CSRF headers; ProductAPIToken requests omit both. If-Match names the current version ("0" when no role is configured); a request that names a stale version is refused with 409, which also makes a repeated request safe. The role must be an IAM role of the account the integration reads and must not be the role discovery reads with. The change is audited.
+         */
+        readonly put: operations["putIntegrationRemediationRole"];
+        readonly post?: never;
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
@@ -3020,6 +3090,11 @@ export type components = {
             readonly provider: "aws";
             readonly scope: components["schemas"]["ReferenceAuthorizationReceiptScope"];
         };
+        readonly AWSRoleARN: string;
+        /** @description The identifier of an existing Bedrock guardrail, or its ARN in the agent's own account and Region. */
+        readonly BedrockGuardrailIdentifier: string;
+        /** @description A numbered guardrail version, or DRAFT. */
+        readonly BedrockGuardrailVersion: string;
         readonly BreakOption: {
             readonly evidence_id: components["schemas"]["ProductID"];
             /** @enum {string} */
@@ -3363,6 +3438,66 @@ export type components = {
             readonly items: readonly components["schemas"]["GroupMapping"][];
             readonly page_info: components["schemas"]["PageInfo"];
         };
+        readonly GuardrailDecision: {
+            /** @enum {string} */
+            readonly decision: "allow" | "redact" | "block";
+            readonly decision_id: components["schemas"]["ProductID"];
+            /** @description Every rule that matched and is not off, including rules that only monitor. */
+            readonly matched_rules: readonly components["schemas"]["GuardrailMatchedRule"][];
+            readonly policy_version: number;
+            /** @description Present only when decision is redact: the text with every match of a redacting rule replaced by [REDACTED:<rule id>]. Forward this instead of the original. */
+            readonly redacted_text?: string;
+        };
+        readonly GuardrailInteraction: {
+            /** @description Optional identifier of the agent, as the gateway knows it. Recorded with the decision. */
+            readonly agent_id?: string;
+            /**
+             * @description input is text on its way into a model; output is text a model produced.
+             * @enum {string}
+             */
+            readonly direction: "input" | "output";
+            /** @description The interaction text. At most 32768 bytes of UTF-8; a longer text is refused with 413. */
+            readonly text: string;
+            /** @description Optional name of the tool whose call or result the text is. Recorded with the decision. */
+            readonly tool_name?: string;
+        };
+        readonly GuardrailMatchedRule: {
+            /** @enum {string} */
+            readonly category: "prompt_injection" | "sensitive_data";
+            readonly count: number;
+            readonly id: components["schemas"]["GuardrailRuleID"];
+            /** @enum {string} */
+            readonly mode: "block" | "redact" | "monitor";
+        };
+        /**
+         * @description block stops the interaction; redact replaces the matched text (sensitive-data rules only); monitor reports the match and changes nothing; off ignores the rule.
+         * @enum {string}
+         */
+        readonly GuardrailMode: "block" | "redact" | "monitor" | "off";
+        readonly GuardrailPolicy: {
+            readonly environment_id: components["schemas"]["ProductID"];
+            readonly rules: readonly components["schemas"]["GuardrailPolicyRule"][];
+            readonly updated_at: null | string;
+            readonly version: number;
+        };
+        readonly GuardrailPolicyInput: {
+            /** @description Rule identifier to mode. A rule that is not named has its default mode. */
+            readonly rules: {
+                readonly [key: string]: components["schemas"]["GuardrailMode"];
+            };
+        };
+        readonly GuardrailPolicyRule: {
+            /** @enum {string} */
+            readonly category: "prompt_injection" | "sensitive_data";
+            readonly default_mode: components["schemas"]["GuardrailMode"];
+            readonly description: string;
+            readonly id: components["schemas"]["GuardrailRuleID"];
+            readonly mode: components["schemas"]["GuardrailMode"];
+            /** @description Only a redactable rule can have the redact mode. */
+            readonly redactable: boolean;
+        };
+        /** @enum {string} */
+        readonly GuardrailRuleID: "injection.instruction_override" | "injection.role_switch" | "injection.hidden_text" | "injection.tool_call" | "pii.email" | "pii.phone" | "pii.credit_card" | "pii.us_ssn" | "secret.aws_access_key_id" | "secret.private_key" | "secret.bearer_token";
         /** @description Counts cover authorized resources only. Both health fields are null when a separate current environment-view authorization is unavailable; null does not mean healthy or degraded. A current environment-view proof permits complementary boolean status values. */
         readonly HomeSummary: {
             readonly agent_count: number;
@@ -3392,6 +3527,8 @@ export type components = {
             readonly attention_required: null;
             readonly healthy: null;
         });
+        /** @description The ARN of an AWS managed policy, or of a customer managed policy of the agent's own account. */
+        readonly IAMManagedPolicyARN: string;
         readonly Integration: {
             readonly configuration: components["schemas"]["IntegrationConfiguration"];
             readonly connector_key: string;
@@ -3480,6 +3617,19 @@ export type components = {
             readonly graph: components["schemas"]["IntegrationProjectionStatus"];
             readonly risk: components["schemas"]["IntegrationProjectionStatus"];
             readonly search: components["schemas"]["IntegrationProjectionStatus"];
+        };
+        /** @description The separate IAM role provider remediations of this integration use. It is named by ARN only; no credential is stored. supported is false for a provider without remediation actions. When configured is false, role_arn and updated_at are null and version is 0, and remediations of the integration are refused. */
+        readonly IntegrationRemediationRole: {
+            readonly configured: boolean;
+            readonly integration_id: components["schemas"]["ProductID"];
+            readonly role_arn: null | components["schemas"]["AWSRoleARN"];
+            readonly supported: boolean;
+            readonly updated_at: null | string;
+            readonly version: number;
+        };
+        readonly IntegrationRemediationRoleInput: {
+            /** @description An IAM role of the account the integration reads, different from the role discovery reads with. The empty string removes the setting. */
+            readonly role_arn: "" | components["schemas"]["AWSRoleARN"];
         };
         readonly IntegrationRuntimeCoverage: {
             readonly healthy_sensor_count: number;
@@ -4084,6 +4234,15 @@ export type components = {
         };
         /** @description Fixed argument allowlists from the bound persisted plan. Never raw provider/model arguments. Null means unavailable. */
         readonly SecurityAgentActionArguments: null | {
+            readonly guardrail_identifier: components["schemas"]["BedrockGuardrailIdentifier"];
+            readonly guardrail_version: components["schemas"]["BedrockGuardrailVersion"];
+            readonly integration_id: components["schemas"]["ProductID"];
+            readonly target_id: components["schemas"]["ProductID"];
+        } | {
+            readonly integration_id: components["schemas"]["ProductID"];
+            readonly policy_arn: components["schemas"]["IAMManagedPolicyARN"];
+            readonly target_id: components["schemas"]["ProductID"];
+        } | {
             readonly evidence_ids: readonly components["schemas"]["SecurityAgentExportSelection"][];
             readonly target_id: components["schemas"]["ProductID"];
         } | {
@@ -4132,7 +4291,7 @@ export type components = {
         };
         readonly SecurityAgentActionDetail: {
             /** @enum {string} */
-            readonly action: "update_finding_response" | "create_temporary_policy" | "isolate_session" | "revoke_integration_connection" | "run_test" | "rerun_test" | "start_attack_lab" | "create_evidence_export";
+            readonly action: "update_finding_response" | "create_temporary_policy" | "isolate_session" | "revoke_integration_connection" | "run_test" | "rerun_test" | "start_attack_lab" | "create_evidence_export" | "attach_bedrock_guardrail" | "detach_role_administrator_policy";
             readonly arguments: components["schemas"]["SecurityAgentActionArguments"];
             readonly attack_lab?: components["schemas"]["SecurityAgentAttackLabDetail"];
             /**
@@ -4208,7 +4367,7 @@ export type components = {
             readonly attack_lab?: components["schemas"]["SecurityAgentAttackLabApproval"];
             readonly evidence_summary: readonly components["schemas"]["ProductID"][];
             /** @enum {string} */
-            readonly expected_effect: "Move finding to under review" | "Assign investigator and update finding response" | "Apply temporary containment policy" | "Apply temporary monitoring policy" | "Isolate runtime session" | "Revoke integration connection" | "Run existing test" | "Rerun existing test" | "Run a bounded Attack Lab reproduction; human interpretation required" | "Create run-scoped evidence export";
+            readonly expected_effect: "Move finding to under review" | "Assign investigator and update finding response" | "Apply temporary containment policy" | "Apply temporary monitoring policy" | "Isolate runtime session" | "Revoke integration connection" | "Run existing test" | "Rerun existing test" | "Run a bounded Attack Lab reproduction; human interpretation required" | "Create run-scoped evidence export" | "Attach Bedrock guardrail" | "Detach administrator policy from agent role";
             /** Format: date-time */
             readonly expires_at: string;
             readonly id: components["schemas"]["ProductID"];
@@ -4224,7 +4383,7 @@ export type components = {
         /** @description Persisted selected-step context. Validated enriched finding-response approvals always include the complete bound context; legacy contexts require exact X-Zasp-Approval-Context v1 opt-in. Catalog risk is not a provider assessment; rationale never authorizes a decision. */
         readonly SecurityAgentApprovalContext: {
             /** @enum {string} */
-            readonly action: "update_finding_response" | "create_temporary_policy" | "isolate_session" | "revoke_integration_connection" | "run_test" | "rerun_test" | "start_attack_lab" | "create_evidence_export";
+            readonly action: "update_finding_response" | "create_temporary_policy" | "isolate_session" | "revoke_integration_connection" | "run_test" | "rerun_test" | "start_attack_lab" | "create_evidence_export" | "attach_bedrock_guardrail" | "detach_role_administrator_policy";
             readonly agent_id: components["schemas"]["ProductID"];
             /** @constant */
             readonly catalog_version: "security-agent-actions-v1";
@@ -4377,7 +4536,7 @@ export type components = {
         } & unknown;
         readonly SecurityAgentExecutionControl: {
             /** @enum {string} */
-            readonly action_key: "*" | "create_evidence_export" | "create_temporary_policy" | "isolate_session" | "rerun_test" | "revoke_integration_connection" | "run_test" | "start_attack_lab" | "update_finding_response";
+            readonly action_key: "*" | "attach_bedrock_guardrail" | "create_evidence_export" | "create_temporary_policy" | "detach_role_administrator_policy" | "isolate_session" | "rerun_test" | "revoke_integration_connection" | "run_test" | "start_attack_lab" | "update_finding_response";
             readonly enabled: boolean;
             /** @enum {string} */
             readonly target: "global" | "environment" | "action";
@@ -4385,14 +4544,14 @@ export type components = {
         };
         readonly SecurityAgentExecutionControlInput: {
             /** @enum {string} */
-            readonly action_key: "*" | "create_evidence_export" | "create_temporary_policy" | "isolate_session" | "rerun_test" | "revoke_integration_connection" | "run_test" | "start_attack_lab" | "update_finding_response";
+            readonly action_key: "*" | "attach_bedrock_guardrail" | "create_evidence_export" | "create_temporary_policy" | "detach_role_administrator_policy" | "isolate_session" | "rerun_test" | "revoke_integration_connection" | "run_test" | "start_attack_lab" | "update_finding_response";
             readonly enabled: boolean;
             /** @enum {string} */
             readonly target: "environment" | "action";
         };
         readonly SecurityAgentExecutionControlResult: {
             /** @enum {string} */
-            readonly action_key: "*" | "create_evidence_export" | "create_temporary_policy" | "isolate_session" | "rerun_test" | "revoke_integration_connection" | "run_test" | "start_attack_lab" | "update_finding_response";
+            readonly action_key: "*" | "attach_bedrock_guardrail" | "create_evidence_export" | "create_temporary_policy" | "detach_role_administrator_policy" | "isolate_session" | "rerun_test" | "revoke_integration_connection" | "run_test" | "start_attack_lab" | "update_finding_response";
             readonly audit_id: components["schemas"]["ProductID"];
             readonly correlation_id: components["schemas"]["ProductID"];
             readonly enabled: boolean;
@@ -4403,7 +4562,7 @@ export type components = {
             readonly version: number;
         };
         readonly SecurityAgentExecutionControls: {
-            readonly actions: readonly components["schemas"]["SecurityAgentExecutionControl"][] & (unknown | unknown | unknown | unknown | unknown | unknown);
+            readonly actions: readonly components["schemas"]["SecurityAgentExecutionControl"][] & (unknown | unknown | unknown | unknown | unknown | unknown | unknown);
             readonly environment: components["schemas"]["SecurityAgentExecutionControl"];
             readonly global: components["schemas"]["SecurityAgentExecutionControl"];
         };
@@ -4507,7 +4666,7 @@ export type components = {
             /** @enum {string} */
             readonly trigger_kind?: "finding" | "attack_path" | "session";
         };
-        readonly SecurityAgentManualRunInput: components["schemas"]["SecurityAgentLegacyTriggerInput"] | components["schemas"]["SecurityAgentOrderedTriggerInput"];
+        readonly SecurityAgentManualRunInput: components["schemas"]["SecurityAgentLegacyTriggerInput"] | components["schemas"]["SecurityAgentOrderedTriggerInput"] | components["schemas"]["SecurityAgentRemediationTriggerInput"];
         /** @description Original manual intent identity bound by the server to this scoped run and definition. Never a ProductID or standalone authorization. */
         readonly SecurityAgentManualTrigger: {
             readonly intent_digest: string;
@@ -4646,6 +4805,28 @@ export type components = {
             readonly state: "withheld";
             /** @constant */
             readonly summary: "";
+        };
+        readonly SecurityAgentRemediation: {
+            /** @constant */
+            readonly action: "attach_bedrock_guardrail";
+            readonly parameters: {
+                readonly guardrail_identifier: components["schemas"]["BedrockGuardrailIdentifier"];
+                readonly guardrail_version: components["schemas"]["BedrockGuardrailVersion"];
+            };
+        } | {
+            /** @constant */
+            readonly action: "detach_role_administrator_policy";
+            readonly parameters: {
+                readonly policy_arn: components["schemas"]["IAMManagedPolicyARN"];
+            };
+        };
+        /** @description Start a provider remediation on an open finding. The Security Agent's only allowed action must be the remediation's action and the finding's rule must be the one the action answers (attach_bedrock_guardrail answers agent_guardrail_missing, detach_role_administrator_policy answers agent_role_administrator_access). The run is created waiting for approval; nothing is changed at the provider before a person other than the requester approves. The request is refused with 409 remediation_role_not_configured when the integration that describes the agent has no remediation role. */
+        readonly SecurityAgentRemediationTriggerInput: {
+            readonly environment_id: components["schemas"]["ProductID"];
+            readonly remediation: components["schemas"]["SecurityAgentRemediation"];
+            readonly trigger_id: components["schemas"]["ProductID"];
+            /** @constant */
+            readonly trigger_kind: "finding";
         };
         readonly SecurityAgentRun: {
             readonly agent_id: components["schemas"]["ProductID"];
@@ -5355,6 +5536,9 @@ export type AuditExportReady = components['schemas']['AuditExportReady'];
 export type AuditExportTimestamp = components['schemas']['AuditExportTimestamp'];
 export type AwsReferenceAuthorizationConfiguration = components['schemas']['AWSReferenceAuthorizationConfiguration'];
 export type AwsReferenceAuthorizationReceiptIntent = components['schemas']['AWSReferenceAuthorizationReceiptIntent'];
+export type AwsRoleArn = components['schemas']['AWSRoleARN'];
+export type BedrockGuardrailIdentifier = components['schemas']['BedrockGuardrailIdentifier'];
+export type BedrockGuardrailVersion = components['schemas']['BedrockGuardrailVersion'];
 export type BreakOption = components['schemas']['BreakOption'];
 export type BreakOptionPage = components['schemas']['BreakOptionPage'];
 export type BuiltInRole = components['schemas']['BuiltInRole'];
@@ -5410,7 +5594,16 @@ export type FindingUpdateInput = components['schemas']['FindingUpdateInput'];
 export type GroupMapping = components['schemas']['GroupMapping'];
 export type GroupMappingInput = components['schemas']['GroupMappingInput'];
 export type GroupMappingPage = components['schemas']['GroupMappingPage'];
+export type GuardrailDecision = components['schemas']['GuardrailDecision'];
+export type GuardrailInteraction = components['schemas']['GuardrailInteraction'];
+export type GuardrailMatchedRule = components['schemas']['GuardrailMatchedRule'];
+export type GuardrailMode = components['schemas']['GuardrailMode'];
+export type GuardrailPolicy = components['schemas']['GuardrailPolicy'];
+export type GuardrailPolicyInput = components['schemas']['GuardrailPolicyInput'];
+export type GuardrailPolicyRule = components['schemas']['GuardrailPolicyRule'];
+export type GuardrailRuleId = components['schemas']['GuardrailRuleID'];
 export type HomeSummary = components['schemas']['HomeSummary'];
+export type IamManagedPolicyArn = components['schemas']['IAMManagedPolicyARN'];
 export type Integration = components['schemas']['Integration'];
 export type IntegrationAuthorization = components['schemas']['IntegrationAuthorization'];
 export type IntegrationAuthorizationRemediationInput = components['schemas']['IntegrationAuthorizationRemediationInput'];
@@ -5426,6 +5619,8 @@ export type IntegrationOAuthProviderError = components['schemas']['IntegrationOA
 export type IntegrationPage = components['schemas']['IntegrationPage'];
 export type IntegrationProjectionStatus = components['schemas']['IntegrationProjectionStatus'];
 export type IntegrationProjectionStatuses = components['schemas']['IntegrationProjectionStatuses'];
+export type IntegrationRemediationRole = components['schemas']['IntegrationRemediationRole'];
+export type IntegrationRemediationRoleInput = components['schemas']['IntegrationRemediationRoleInput'];
 export type IntegrationRuntimeCoverage = components['schemas']['IntegrationRuntimeCoverage'];
 export type IntegrationSchedule = components['schemas']['IntegrationSchedule'];
 export type IntegrationScheduleInput = components['schemas']['IntegrationScheduleInput'];
@@ -5560,6 +5755,8 @@ export type SecurityAgentPlannerPricingPolicy = components['schemas']['SecurityA
 export type SecurityAgentPlanStep = components['schemas']['SecurityAgentPlanStep'];
 export type SecurityAgentPlanSummary = components['schemas']['SecurityAgentPlanSummary'];
 export type SecurityAgentRationale = components['schemas']['SecurityAgentRationale'];
+export type SecurityAgentRemediation = components['schemas']['SecurityAgentRemediation'];
+export type SecurityAgentRemediationTriggerInput = components['schemas']['SecurityAgentRemediationTriggerInput'];
 export type SecurityAgentRun = components['schemas']['SecurityAgentRun'];
 export type SecurityAgentRunClosed = components['schemas']['SecurityAgentRunClosed'];
 export type SecurityAgentRunCloseReason = components['schemas']['SecurityAgentRunCloseReason'];
@@ -7311,6 +7508,106 @@ export interface operations {
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
+    readonly createGuardrailDecision: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["GuardrailInteraction"];
+            };
+        };
+        readonly responses: {
+            /** @description The decision. It was recorded before it was returned. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GuardrailDecision"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 413: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getGuardrailPolicy: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description The guardrail policy. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GuardrailPolicy"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly putGuardrailPolicy: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current schedule version, or quoted zero when creating the singleton schedule. */
+                readonly "If-Match": components["parameters"]["ScheduleVersion"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
+                readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
+                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["GuardrailPolicyInput"];
+            };
+        };
+        readonly responses: {
+            /** @description The guardrail policy after the change. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GuardrailPolicy"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
     readonly getHomeSummary: {
         readonly parameters: {
             readonly query?: never;
@@ -7756,6 +8053,81 @@ export interface operations {
                 };
                 content: {
                     readonly "application/json": components["schemas"]["Integration"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getIntegrationRemediationRole: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description The remediation role setting. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["IntegrationRemediationRole"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly putIntegrationRemediationRole: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current schedule version, or quoted zero when creating the singleton schedule. */
+                readonly "If-Match": components["parameters"]["ScheduleVersion"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
+                readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
+                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["IntegrationRemediationRoleInput"];
+            };
+        };
+        readonly responses: {
+            /** @description The remediation role setting after the change. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["IntegrationRemediationRole"];
                 };
             };
             readonly 400: components["responses"]["ProductErrorResponse"];
