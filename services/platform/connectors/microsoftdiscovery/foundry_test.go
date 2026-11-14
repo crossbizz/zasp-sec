@@ -214,6 +214,9 @@ func TestMicrosoftFoundryAgentsDegradeWithoutTheDataRole(t *testing.T) {
 		"projects not readable": {microsoftTestFoundryCredential, []microsoftHTTPResponse{microsoftOK(subscription), microsoftOK(account), microsoftOK(foundryDeployments), {status: http.StatusForbidden, body: `{}`}}, `"agents":"not_listed"`, 4},
 		"policies not readable": {microsoftTestFoundryCredential, []microsoftHTTPResponse{microsoftOK(subscription), microsoftOK(account), microsoftOK(foundryDeployments), microsoftOK(`{"value":[]}`), {status: http.StatusForbidden, body: `{}`}}, `"agents":"listed"`, 5},
 		"no foundry token":      {microsoftTestARMCredential, []microsoftHTTPResponse{microsoftOK(subscription), microsoftOK(account), microsoftOK(foundryDeployments)}, `"deployments":"listed"`, 3},
+		// The project endpoint cannot be reached (the test transport has no
+		// further answer): the agents are not listed, the account is.
+		"endpoint unreachable": {microsoftTestFoundryCredential, []microsoftHTTPResponse{microsoftOK(subscription), microsoftOK(account), microsoftOK(foundryDeployments), microsoftOK(foundryProjects), microsoftOK(foundryPolicies)}, `"agents":"not_listed"`, 6},
 	} {
 		api, roundTripper := newMicrosoftTestAPI(t, test.responses...)
 		page, err := api.FetchCollectionPage(context.Background(), bytes.Clone(test.credential), request)

@@ -119,7 +119,8 @@ type microsoftFoundryAgent struct {
 
 // foundryGet sends one GET to a project endpoint with the Foundry token. The
 // host has been checked against microsoftFoundryHostPattern: the token goes
-// to no other host.
+// to no other host. A status of 0 without an error means the endpoint could
+// not be reached at all.
 func (api *MicrosoftCollectionAPI) foundryGet(ctx context.Context, token []byte, host, path, query string) (int, []byte, string, error) {
 	bounded, cancel := context.WithTimeout(ctx, api.timeout)
 	defer cancel()
@@ -134,9 +135,16 @@ func (api *MicrosoftCollectionAPI) foundryGet(ctx context.Context, token []byte,
 	request.Header.Set("Accept", "application/json")
 	request.Header.Set("Authorization", "Bearer "+string(token))
 	response, err := doMicrosoftCollectionRequest(api.client, request)
-	if err != nil || bounded.Err() != nil || response == nil {
+	if ctx.Err() != nil {
 		closeMicrosoftCollectionResponse(response)
-		return 0, nil, "", providercollection.ClassifyProviderHTTPFailure(bounded, err, 0, "", api.clock())
+		return 0, nil, "", providercollection.ClassifyProviderError(ctx, ctx.Err())
+	}
+	if err != nil || bounded.Err() != nil || response == nil {
+		// The project endpoints are other hosts than Resource Manager. A
+		// deployment whose network does not admit them cannot connect: the
+		// agents are then not listed, and the rest of the tenant is.
+		closeMicrosoftCollectionResponse(response)
+		return 0, nil, "", nil
 	}
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
@@ -287,6 +295,13 @@ func (api *MicrosoftCollectionAPI) fetchFoundryAgents(ctx context.Context, envel
 			status, body, retryAfter, err := api.foundryGet(ctx, envelope.aiToken, host, "/api/projects/"+name+"/agents", query)
 			if err != nil {
 				return nil, nil, "", err
+			}
+			if status == 0 {
+				// The endpoint could not be reached from here.
+				if len(agents) == 0 {
+					return nil, nil, microsoftFoundryAgentsNotListed, nil
+				}
+				return agents, moderation, microsoftFoundryAgentsPartial, nil
 			}
 			if status == http.StatusUnauthorized || status == http.StatusForbidden {
 				// The application has no role that may list the project's agents.
