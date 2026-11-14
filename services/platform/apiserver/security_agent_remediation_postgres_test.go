@@ -431,6 +431,16 @@ func TestSecurityAgentProviderRemediationSectionPostgres(t *testing.T) {
 		if err != nil {
 			t.Fatalf("run context: %v", err)
 		}
+		// The whole run decodes into the public run detail and is valid as one.
+		detail, err := decodeSecurityAgentRunContextEnvelope(context, run)
+		if err != nil || !validSecurityAgentRunDetail(detail, run) || len(detail.ActionDetails) != 1 || detail.ActionDetails[0].Rollback.Support != "manual" || detail.ActionDetails[0].Result == nil || detail.ActionDetails[0].Result.State != "verified" {
+			t.Fatalf("run detail=%#v err=%v context=%s", detail, err, context)
+		}
+		if public, err := json.Marshal(detail); err != nil {
+			t.Fatal(err)
+		} else {
+			t.Logf("public run detail: %s", public)
+		}
 		var steps []struct {
 			Arguments json.RawMessage `json:"arguments"`
 		}

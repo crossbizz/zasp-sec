@@ -840,7 +840,7 @@ function decodeSecurityAgentActionDetails(value: unknown, steps: readonly unknow
       const rollbackState = state === "cleaned" ? "completed" : state === "cleanup_failed" ? "failed" : state === "cleanup_pending" || state === "leased" && (verification.state === "verified" || cleanup.state !== "unavailable") ? "pending" : "not_started";
       if (rollback.state !== rollbackState) fail();
     } else {
-      if (rollback.support !== (item.action === "update_finding_response" ? "manual" : "not_supported") || rollback.state !== "unavailable" || cleanup.state !== "unavailable" || cleanup.source !== "none" || ["cleaned", "cleanup_failed"].includes(state as string) || state === "cleanup_pending" && item.action !== "create_evidence_export") fail();
+      if (rollback.support !== (item.action === "update_finding_response" || item.action === "attach_bedrock_guardrail" || item.action === "detach_role_administrator_policy" ? "manual" : "not_supported") || rollback.state !== "unavailable" || cleanup.state !== "unavailable" || cleanup.source !== "none" || ["cleaned", "cleanup_failed"].includes(state as string) || state === "cleanup_pending" && item.action !== "create_evidence_export") fail();
       const expected = state === null ? "unavailable" : state === "verified" ? "verified" : state === "known_failure" ? "failed" : state === "unknown_outcome" || state === "cleanup_pending" ? "inconclusive" : "pending";
       if (verification.state !== expected || verification.source !== (state === null ? "none" : "effect_record")) fail();
     }
