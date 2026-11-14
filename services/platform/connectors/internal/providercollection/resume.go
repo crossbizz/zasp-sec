@@ -26,7 +26,7 @@ type effectBatchArtifacts interface {
 	GetEffectBatch(context.Context, string, domain.Scope, []artifactstore.Locator) ([]artifactstore.Artifact, error)
 }
 
-var kubernetesResumeCursorPattern = regexp.MustCompile(`^kubernetes:(namespaces|serviceaccounts|roles|clusterroles|rolebindings|clusterrolebindings|deployments|statefulsets|daemonsets|jobs|cronjobs):([1-9][0-9]{0,5}):([A-Za-z0-9_-]+|start):([0-9a-f]{16}):([0-9a-f]{16})$`)
+var kubernetesResumeCursorPattern = regexp.MustCompile(`^kubernetes:(namespaces|serviceaccounts|roles|clusterroles|rolebindings|clusterrolebindings|deployments|statefulsets|daemonsets|jobs|cronjobs|mcplinks):([1-9][0-9]{0,5}):([A-Za-z0-9_-]+|start):([0-9a-f]{16}):([0-9a-f]{16})$`)
 
 var oktaResumeCursorPattern = regexp.MustCompile(`^okta:(users|userroles|groups|groupmembers|grouproles|applications|appusers|appgroups|clientroles):([1-9][0-9]{0,5}):([A-Za-z0-9_-]+):([0-9a-f]{16})$`)
 
@@ -39,7 +39,7 @@ var (
 	oktaResumeClientIDPattern = regexp.MustCompile(`^[A-Za-z0-9]{16,64}$`)
 )
 
-var kubernetesResumePhases = []string{"namespaces", "serviceaccounts", "roles", "clusterroles", "rolebindings", "clusterrolebindings", "deployments", "statefulsets", "daemonsets", "jobs", "cronjobs"}
+var kubernetesResumePhases = []string{"namespaces", "serviceaccounts", "roles", "clusterroles", "rolebindings", "clusterrolebindings", "deployments", "statefulsets", "daemonsets", "jobs", "cronjobs", "mcplinks"}
 
 type oktaResumeCursorState struct {
 	Phase       string `json:"p"`

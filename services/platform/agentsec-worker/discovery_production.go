@@ -236,7 +236,7 @@ func newFirstPartyCollectionFactory(registrations []firstPartyProviderClientRegi
 		collection.ProviderAWS: collection.CredentialAWSAssumeRole, collection.ProviderKubernetes: collection.CredentialKubernetesCluster,
 		collection.ProviderGitHub: collection.CredentialGitHubInstallation, collection.ProviderOkta: collection.CredentialOktaRefresh,
 		collection.ProviderMicrosoft: collection.CredentialMicrosoftClient, collection.ProviderSalesforce: collection.CredentialSalesforceClient,
-		collection.ProviderSaaS: collection.CredentialNangoConnection,
+		collection.ProviderSaaS: collection.CredentialNangoConnection, collection.ProviderGCP: collection.CredentialGCPAccessToken,
 	}
 	seen := make(map[collection.Provider]struct{}, len(copyOfRegistrations))
 	for _, registration := range copyOfRegistrations {
@@ -258,11 +258,11 @@ func newFirstPartyCollectionFactory(registrations []firstPartyProviderClientRegi
 }
 
 // firstPartyRequiredProviders are registered in every deployment. Microsoft,
-// Salesforce and the generic saas provider are registered only where their
-// collector version is set.
+// Salesforce, the generic saas provider and Google Cloud are registered only
+// where their collector version is set.
 var firstPartyRequiredProviders = []collection.Provider{collection.ProviderAWS, collection.ProviderKubernetes, collection.ProviderGitHub, collection.ProviderOkta}
 
-const firstPartyOptionalProviderCount = 3
+const firstPartyOptionalProviderCount = 4
 
 func validFirstPartyRegistrationCount(count int) bool {
 	return count >= len(firstPartyRequiredProviders) && count <= len(firstPartyRequiredProviders)+firstPartyOptionalProviderCount

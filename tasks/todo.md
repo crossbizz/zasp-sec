@@ -12,8 +12,8 @@ Plan and detail: `docs/superpowers/plans/2026-11-14-parity-with-akto-and-noma.md
 - [ ] Counsel confirms the Nango license for customer-hosted installs
 - [ ] Confirm Nango's free self-hosted feature set against its documentation
 
-## State on 2026-11-14 after the second implementation pass
-Every build task below is implemented, merged and covered by tests. What "tested" means here: Go and web unit tests, end-to-end collector tests to a typed snapshot against fakes, and PostgreSQL 18 tests of every SQL section, several of them on a really installed baseline. Nothing has run against a real AWS account, a real SaaS provider, a real Nango, real S3, OpenFGA, Helm or Terraform. Provider API shapes written from memory are marked `UNVERIFIED` in the code. The open items are the ones that need real systems, accounts or people, and three sub-items for which no provider API is known.
+## State on 2026-11-14 after the third implementation pass
+Every build task below is implemented, merged and covered by tests. What "tested" means here: Go and web unit tests, end-to-end collector tests to a typed snapshot against fakes, and PostgreSQL 18 tests of every SQL section, several of them on a really installed baseline. Nothing has run against a real AWS account, a real SaaS provider, a real Nango, real S3, OpenFGA, Helm or Terraform. Provider API shapes written from memory are marked `UNVERIFIED` in the code. The third pass built the six provider reads that had been left for lack of a known API, the Google Cloud provider, the hosted (agentless) MCP gateway and model proxy, and fixed three defects. Several official documentation sites were blocked from the build environment, so some shapes come from SDK sources, API discovery documents and search excerpts. The open items are the ones that need real systems, accounts or people.
 
 ## Step 1: proof (needs real systems)
 - [ ] I1 Golden path in production (launch plan steps 0 to 10). Needs the production environment; also the Neon database must be reinstalled from the new baseline
@@ -26,7 +26,7 @@ Every build task below is implemented, merged and covered by tests. What "tested
 - [x] A4 Dormant credential finding (`agent_role_unused_90_days`, AWS)
 - [x] A5 Over-privileged agent findings: administrator access, and granted AI actions against the actions CloudTrail shows used (`agent_role_unused_ai_permissions`), with an access panel on the agent (`GET /agents/{id}/access`). "Unused" is asserted only for actions CloudTrail lookup can show
 - [x] A6 Inactive agent state and filter; AWS agents carry the time CloudTrail last showed their role invoking a model
-- [x] A7 Guardrail posture findings: Bedrock agent with no guardrail; Copilot Studio agent at the lowest content moderation level. Agentforce: open, no per-agent API field is known
+- [x] A7 Guardrail posture findings: Bedrock agent with no guardrail; Copilot Studio agent at the lowest content moderation level; Agentforce agents with their run-as user, permission sets, topics and actions, and the Trust Layer switches (needs a Salesforce Metadata API permission; Salesforce has no read-only one); AI Foundry agents with their content filter
 - [x] C1 CloudTrail reader
 - [x] C2a to C2d Cloud-log runtime signal (flow logs with resolver query logs)
 - [x] C2c Attribution to EC2 instances, ECS services, VPC Lambda functions (when exactly one function matches) and EKS clusters. Pods are named by cluster only: AWS logs carry no pod name
@@ -37,8 +37,8 @@ Every build task below is implemented, merged and covered by tests. What "tested
 - [x] B3 Platform definition format (`docs/operations/saas-connectors.md`)
 - [x] B4 Catalog and setup flow read platform definitions; sign-in from the Integrations page for Slack, ServiceNow, Google Workspace and GitLab (the others use a key held in Nango or the reference form)
 - [x] Gate: the second platform took minutes, not days
-- [x] B5 Databricks, ServiceNow, Google Workspace, Slack, OpenAI organization, Anthropic organization, GitLab, Atlassian. Not listed because no list API is known: OpenAI assistants, Rovo agents, GitLab Duo agents
-- [x] D1 MCP servers as inventory objects: AgentCore gateways and targets, repository MCP config files and desktop-extension manifests, Kubernetes workloads, remote hosts in AWS egress logs (`GET /mcp-servers`). Kubernetes MCP servers are not linked to agents: the collector lists no Services and reads no env values
+- [x] B5 Databricks, ServiceNow, Google Workspace, Slack, OpenAI organization, Anthropic organization, GitLab, Atlassian. Also: OpenAI assistants (platform `openai_project`, project key), GitLab Duo agents and flows with their MCP servers, GitLab self-managed and Dedicated (`gitlab_self_managed`), Rovo agents shipped by installed apps, and Studio-built Rovo agents reconstructed from the organization audit log (`atlassian_org`; unproven until tried with a real organization key, and limited to the log's retention)
+- [x] D1 MCP servers as inventory objects: AgentCore gateways and targets, repository MCP config files and desktop-extension manifests, Kubernetes workloads, remote hosts in AWS egress logs (`GET /mcp-servers`). Kubernetes agents are linked to MCP servers by matching workload settings against Service names in memory; only the link is recorded. Cloud Run MCP servers are listed for Google Cloud
 - [x] D2 MCP tool inventory with risk class (read, write, execute, network)
 - [x] D3 MCP registry: approved, unapproved, blocked (`/mcp-registry`, web panel)
 - [x] D4 MCP posture checks: five findings, each linked to its attack path
@@ -56,21 +56,29 @@ Every build task below is implemented, merged and covered by tests. What "tested
 - [x] H4 Evidence pack per agent: download on demand, and a retained pack as an export job. The retained pack omits Security Agent runs owned by the Temporal executor and says so
 
 ## Step 5
-- [x] C3 Azure OpenAI and AI Foundry accounts and deployments through the Microsoft connection, off by default (needs Reader on the subscriptions). Foundry agents: open, the data-plane API shape is not known with confidence
+- [x] C3 Azure OpenAI and AI Foundry accounts, deployments, projects and agents through the Microsoft connection, off by default (Reader on the subscriptions; Azure AI User for agents)
+- [x] C4 Google Cloud provider `gcp`, off by default: Vertex AI Agent Engine, Conversational Agents, Gemini Enterprise agents, endpoints and models, Cloud Run and Functions inferred as agents, service accounts with inherited roles, Model Armor, audit-log invocation times, Cloud Run MCP servers. Never run against a real organization
 - [ ] F4 Attack Lab as a supported workflow on real AWS (needs an AWS account)
 - [ ] I2 Runs against real providers for every collector and platform definition
 - [ ] I3 AWS Marketplace listing
 - [ ] I4 Public documentation
 
-## On request only (not agentless)
-- [ ] C4 Google Cloud provider
-- [ ] D5 MCP gateway (inline add-on)
-- [ ] E3 Inline guardrails on the runtime gateway (add-on)
+## Hosted gateway (agentless: the customer changes a URL, nothing is installed)
+- [x] D5 Hosted MCP gateway: MCP Streamable HTTP to a registered upstream; registry enforcement, tool filtering by risk class and allow/deny list, guardrail detectors on tool arguments and results, shared rate limit, decision records without text, activity in Sessions
+- [x] E3 Hosted model proxy: OpenAI-compatible chat and responses, Anthropic-compatible messages; guardrail policy on requests and responses including streams; the provider key is passed per request and never stored
+- [ ] Point a real agent product and a real model provider at the hosted gateway (only SDKs against fakes have run)
+The in-cluster sensor and a customer-run gateway remain optional alternatives.
+
+## Fixed in the third pass
+- [x] Browser OAuth for GitHub, Okta and Slack was refused under current authorization (confirmed on an installed baseline, fixed, with four more breaks on the same path)
+- [x] Deleting a saas integration now deletes the Nango connection its sign-in created
+- [x] API token lifetime is selectable: up to 90 days, or one year for a token that can only ask for guardrail decisions or use the hosted gateway; administrators can lower both
 
 ## Found while building, not fixed
-- [ ] The browser OAuth flow for GitHub, Okta and Slack appears to be refused under current authorization (read from code, not confirmed by running)
-- [ ] Deleting a saas integration does not delete the Nango connection its sign-in created
-- [ ] API Access creates tokens that expire after 24 hours; a gateway token for the decision API needs a longer expiry through the API
+- [ ] Remediation of a quarantined connector authorization has an API but no page
+- [ ] A failing connector step holds its provider's lane for every tenant for about 30 seconds
+- [ ] Which Atlassian products have Rovo enabled and who may create agents: no documented API found
+- [ ] The API's per-client-address request limit is counted per replica
 
 ---
 

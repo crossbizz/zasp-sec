@@ -19,6 +19,8 @@ import (
 func gitLabRoutes(duo string) map[string]saastest.Route {
 	return map[string]saastest.Route{
 		"/api/v4/groups/4242": saastest.Static(`{"id":4242,"name":"Platform","path":"platform","full_path":"acme/platform","visibility":"private"` + duo + `}`),
+		// No agent or flow of the AI catalog is enabled in the group.
+		"/api/graphql": saastest.Static(`{"data":{"aiCatalogConfiguredItems":{"nodes":[],"pageInfo":{"hasNextPage":false,"endCursor":null}}}}`),
 		"/api/v4/groups/4242/projects": func(query url.Values, _ int) saastest.Response {
 			if query.Get("include_subgroups") != "true" || query.Get("archived") != "false" || query.Get("per_page") != "100" {
 				return saastest.Response{Status: http.StatusBadRequest, Body: `[]`}
@@ -74,6 +76,10 @@ func TestGitLabGroupIsCollectedToATypedSnapshot(t *testing.T) {
 	// The group is named in every path; the projects are read page by page.
 	var pages []string
 	for _, call := range standIn.Calls() {
+		if call.Path == "/api/graphql" && call.Method == http.MethodPost && call.Host == "" {
+			// The AI catalog query, between the group and its projects.
+			continue
+		}
 		if !strings.HasPrefix(call.Path, "/api/v4/groups/4242") || call.Host != "" {
 			t.Fatalf("call = %+v", call)
 		}

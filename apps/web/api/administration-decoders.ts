@@ -1,4 +1,4 @@
-import type { ApiToken, ApiTokenPage, ApiTokenRevealedCredential, ApiTokenRevealGrant, ApiTokenRevealGrantPage, AuditEventPage, BuiltInRolePage, ComplianceControlPage, ComplianceEvidencePage, ConnectionDeletion, ConnectionTest, DataControls, EnvironmentMutation, EnvironmentPage, ExternalFlowPage, GroupMapping, GroupMappingPage, Organization, Principal, PrincipalPage, ScimConnection, ScimConnectionCredential, ScimConnectionPage, Session, ConsoleSessionEventPage as SessionEventPage, ConsoleSessionPage as SessionPage, SsoConnection, SsoConnectionMutation, SsoConnectionPage, SystemComponentPage, SystemStatus, SystemVersion, WorkspaceMutation, WorkspacePage } from "./generated";
+import type { ApiToken, ApiTokenPage, ApiTokenPolicy, ApiTokenRevealedCredential, ApiTokenRevealGrant, ApiTokenRevealGrantPage, AuditEventPage, BuiltInRolePage, ComplianceControlPage, ComplianceEvidencePage, ConnectionDeletion, ConnectionTest, DataControls, EnvironmentMutation, EnvironmentPage, ExternalFlowPage, GroupMapping, GroupMappingPage, Organization, Principal, PrincipalPage, ScimConnection, ScimConnectionCredential, ScimConnectionPage, Session, ConsoleSessionEventPage as SessionEventPage, ConsoleSessionPage as SessionPage, SsoConnection, SsoConnectionMutation, SsoConnectionPage, SystemComponentPage, SystemStatus, SystemVersion, WorkspaceMutation, WorkspacePage } from "./generated";
 
 import { decodeComplianceRecord } from "./compliance-decoders";
 import type { BuiltInRoleName } from "./generated";
@@ -39,6 +39,14 @@ export const decodeAPITokenRevealGrant = (value: unknown) => decoded<ApiTokenRev
 export const decodeAPITokenRevealGrantPage = (value: unknown) => page<ApiTokenRevealGrantPage>(value, (entry) => decoded(entry, ["grant_id", "token_id", "operation", "expires_at"], (record) => { id(record.grant_id); id(record.token_id); one(record.operation, ["createAPIToken", "rotateAPIToken"]); date(record.expires_at); }));
 export const decodeAPITokenRevealedCredential = (value: unknown) => decoded<ApiTokenRevealedCredential>(value, ["grant_id", "token_id", "raw_token", "expires_at"], (record) => { id(record.grant_id); id(record.token_id); if (typeof record.raw_token !== "string" || !/^zasp_pat_[A-Za-z0-9_-]{43}$/.test(record.raw_token)) bad(); date(record.expires_at); });
 export const decodeAPITokenPage = (value: unknown) => page<ApiTokenPage>(value, decodeAPIToken);
+// The lifetime setting of an Environment. Version 0 is the unsaved default,
+// which has no timestamp; the two effective limits never exceed the setting.
+export const decodeAPITokenPolicy = (value: unknown) => decoded<ApiTokenPolicy>(value, ["environment_id", "max_lifetime_days", "version", "updated_at", "default_lifetime_days", "decision_token_max_lifetime_days", "token_max_lifetime_days"], (record) => {
+  id(record.environment_id); integer(record.max_lifetime_days, 1, 365); integer(record.version, 0, 1_000_000); nullableDate(record.updated_at);
+  if ((record.version === 0) !== (record.updated_at === null) || record.default_lifetime_days !== 1) bad();
+  integer(record.decision_token_max_lifetime_days, 1, 365); integer(record.token_max_lifetime_days, 1, 90);
+  if (record.decision_token_max_lifetime_days !== Math.min(365, record.max_lifetime_days as number) || record.token_max_lifetime_days !== Math.min(90, record.max_lifetime_days as number)) bad();
+});
 
 export const decodeSession = (value: unknown) => decoded<Session>(value, ["id", "agent_id", "principal_id", "workspace_id", "environment_id", "state", "authenticated_at", "expires_at", "version", "events"], (record) => { if (typeof record.id !== "string" || !SESSION_ID.test(record.id)) bad(); text(record.agent_id, 128); id(record.principal_id); id(record.workspace_id); id(record.environment_id); one(record.state, ["active", "revoked", "expired"]); date(record.authenticated_at); date(record.expires_at); version(record.version); for (const event of list(record.events, 1000)) sessionEvent(event); });
 export const decodeSessionPage = (value: unknown) => page<SessionPage>(value, decodeSession);

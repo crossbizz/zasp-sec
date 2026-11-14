@@ -108,6 +108,60 @@ func (provider *saasSignInProvider) Complete(ctx context.Context, request apiser
 
 var _ apiserver.SaaSSignInProvider = (*saasSignInProvider)(nil)
 
+// RemoveConnection deletes at Nango a connection that a sign-in of the
+// integration created, once the integration is deleted or names another
+// connection (apiserver/saas_connection_release.go). Nango is asked for the
+// connection of this integration's end user only: a connection that exists
+// under another end user is not the one the sign-in created, and the
+// deletion fails instead of removing it. A connection that is already gone
+// is a success, so a repeated deletion is safe.
+func (provider *saasSignInProvider) RemoveConnection(ctx context.Context, release apiserver.SaaSConnectionRelease) error {
+	if provider == nil || provider.client == nil || ctx == nil || ctx.Err() != nil {
+		return errRuntimeUnavailable
+	}
+	platform, known := provider.platform(release.Platform, "")
+	if !known {
+		// This deployment no longer serves the platform the sign-in was for.
+		return apiserver.ErrRepositoryConfiguration
+	}
+	if !saasdiscovery.ValidConnectionReference(release.ConnectionReference) || !validNangoProductID(release.OrganizationID) || !validNangoProductID(release.WorkspaceID) || !validNangoProductID(release.EnvironmentID) || !validNangoProductID(release.IntegrationID) {
+		return errRuntimeUnavailable
+	}
+	if err := provider.client.RevokeConnection(ctx, nango.ConnectionRevocationRequest{
+		NangoBaseURL: provider.baseURL, ServiceSecretReference: provider.serviceSecretReference, Environment: provider.environment,
+		ConnectorKey: platform.Nango.Key, ConnectionReference: release.ConnectionReference,
+		Binding: nango.RevocationBinding{OrganizationID: release.OrganizationID, WorkspaceID: release.WorkspaceID, EnvironmentID: release.EnvironmentID, IntegrationID: release.IntegrationID},
+	}); err != nil {
+		return errRuntimeUnavailable
+	}
+	return nil
+}
+
+var _ apiserver.SaaSConnectionRemover = (*saasSignInProvider)(nil)
+
+// newProductionSaaSConnectionReleaser builds the worker that deletes the
+// Nango connections of deleted or re-connected saas integrations. It returns
+// nil when the database does not have the release section: connections are
+// then removed in Nango by hand, as before.
+func newProductionSaaSConnectionReleaser(ctx context.Context, signIn *apiserver.SaaSSignIn, database apiserver.JSONDatabase, owner string) (*apiserver.SaaSConnectionReleaser, error) {
+	if signIn == nil {
+		return nil, nil
+	}
+	remover, ok := signIn.Provider.(apiserver.SaaSConnectionRemover)
+	if !ok {
+		return nil, errRuntimeUnavailable
+	}
+	repository, err := apiserver.NewSaaSConnectionReleaseRepository(ctx, database)
+	if err != nil {
+		return nil, nil
+	}
+	releaser, err := apiserver.NewSaaSConnectionReleaser(apiserver.SaaSConnectionReleaserConfig{Repository: repository, Remover: remover, Owner: owner, LeaseSeconds: 60, Limit: 10, Interval: 15 * time.Second})
+	if err != nil {
+		return nil, errRuntimeUnavailable
+	}
+	return releaser, nil
+}
+
 // newProductionSaaSSignIn builds the sign-in over the probe's allow-listed
 // proxy and its own Nango connection client. It returns nil when the
 // database does not have the sign-in section (or cannot say): saas

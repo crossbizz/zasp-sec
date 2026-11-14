@@ -211,6 +211,37 @@ securityAgentRemediation:
   roleArn: ""
   awsRegion: ""
   secretPrefix: ""
+# The hosted gateway (docs/operations/hosted-gateway.md): the platform's MCP
+# gateway and model proxy, served by the API. Nothing is installed at a
+# customer: an agent's configuration names <publicOrigin>/api/v1/gateway/...
+# and presents an API token that holds use_gateway. Disabled by default: the
+# gateway's traffic routes then answer 404 and the API has no route to the
+# internet for them. To enable, set enabled and egressCIDRs.
+#   timeoutSeconds  bounds one exchange through the gateway, a stream
+#                   included (10 to 1800). The gateway's ingress waits this
+#                   long plus a margin.
+#   egressCIDRs     the addresses the API pods may reach on port 443 for the
+#                   gateway: the model providers and the customers' remote MCP
+#                   servers. NetworkPolicy matches addresses, not names, and
+#                   a customer's MCP server may be anywhere, so the usual
+#                   value is ["0.0.0.0/0"]; a deployment that fronts only
+#                   known upstreams lists their ranges instead.
+#   egressExceptCIDRs  carved out of the entry 0.0.0.0/0: the private, shared,
+#                   link-local (cloud metadata) and loopback ranges. The
+#                   gateway itself also refuses to connect to any address
+#                   that is not public, whatever a name resolves to; this
+#                   list is the network's copy of that rule.
+#   decisionRetentionDays  how long the gateway's decision records are kept
+#                   (1 to 3650). The discovery scheduler deletes older ones;
+#                   it is told this number whether or not the gateway is
+#                   enabled, so records outlive a gateway that was turned
+#                   off by no more than this.
+hostedGateway:
+  enabled: false
+  timeoutSeconds: 300
+  decisionRetentionDays: 90
+  egressCIDRs: []
+  egressExceptCIDRs: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 100.64.0.0/10, 169.254.0.0/16, 127.0.0.0/8]
 discovery:
   parserVersion: ""
   toolVersion: ""
@@ -238,6 +269,15 @@ discovery:
   # the integration catalog. The providers themselves are reached by Nango:
   # their addresses belong in nango.providerEgressCIDRs.
   saasCollectorVersion: ""
+  # Google Cloud (docs/operations/google-cloud-connector.md). Disabled by
+  # default. Setting the collector version (collector_v1) registers the
+  # collector in the discovery worker and lists Google Cloud in the
+  # integration catalog; network.connectorEgressCIDRs.gcp is then required.
+  # Nothing is installed in the customer's projects: the worker and the API
+  # obtain a short-lived token for the customer's read-only service account
+  # from their own AWS roles (workload identity federation) or from a service
+  # account key held in Secrets Manager.
+  gcpCollectorVersion: ""
   awsRegion: ""
   queueURL: ""
   roleArn: ""
@@ -566,6 +606,17 @@ network:
     # service tag): admitted for the discovery worker only, only while
     # discovery.microsoftAzure is true, and then required.
     azure: []
+    # The Azure AI Foundry project endpoints (*.services.ai.azure.com), where
+    # the Microsoft collector lists the agents of a project. Optional and off
+    # by default: admitted for the discovery worker only and only while
+    # discovery.microsoftAzure is true. Left empty, the AI Foundry accounts
+    # are still read and their agents are recorded as not listed.
+    foundry: []
+    # Google APIs (*.googleapis.com, including sts, iamcredentials and
+    # oauth2): admitted for the API and the discovery worker only while
+    # discovery.gcpCollectorVersion is set, and then required. These are
+    # address snapshots of the ranges Google publishes for its APIs.
+    gcp: []
   findingTicketEgressCIDRs: []
 canary:
   enabled: true

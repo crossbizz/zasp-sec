@@ -175,7 +175,20 @@ Six workstreams were built in parallel, merged, and the baseline rebuilt once. `
 | Enforcement (E1, E2, H3) | Two provider remediation actions through a separate remediation role; remediation offered on the finding; guardrail decision API with its own token permission; Guardrails page | Nothing ran against real AWS. The LiteLLM example was not run. Helm and Terraform were edited as text. |
 | MCP and cloud (D1 to D4, G2, A5, A7, C2c, C3, H2) | MCP servers, tools, registry and posture; skills; used against granted; attack paths through agents; attribution to ECS, Lambda and EKS clusters; Azure OpenAI and AI Foundry accounts | Agentforce moderation, Foundry agents and Kubernetes MCP links are open: no usable API or source is known. |
 
-What remains is proof, not construction: I1, H1, I2 and F4 need real accounts; I3 and I4 are not engineering tasks; C4, D5 and E3 are on request and D5 and E3 are not agentless.
+## Third implementation pass (2026-11-14)
+
+The owner asked for the six provider reads left open, fully agentless forms of D5 and E3, C4, and three defect fixes. Built and merged:
+
+| Item | What exists now | Limits |
+| --- | --- | --- |
+| Provider reads | Agentforce, AI Foundry agents, OpenAI assistants, GitLab Duo (and self-managed GitLab), Rovo agents (app-shipped, and Studio-built from the organization audit log), Kubernetes MCP links | Documentation sites were blocked; several shapes are from SDK sources or search excerpts. The Rovo audit-log read is unproven. |
+| C4 | Provider `gcp` | Never run against a real organization. |
+| D5, E3 | Hosted MCP gateway and model proxy in the platform API, off by default | Only SDKs and the MCP Python client against fakes have run; chart and Terraform were not rendered. |
+| Defects | Browser OAuth authorization, Nango connection release, selectable token lifetime | Providers faked in the installed-baseline tests. |
+
+D5 and E3 are no longer "not agentless": the hosted form needs only a URL change at the customer.
+
+What remains is proof, not construction: I1, H1, I2 and F4 need real accounts; I3 and I4 are not engineering tasks.
 
 ## Risks
 

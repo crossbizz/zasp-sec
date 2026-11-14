@@ -126,7 +126,10 @@ type workerRuntimeConfig struct {
 	// SaaSCollectorVersion serves the generic saas provider. It reads every
 	// platform through the Nango proxy, so the three Nango settings are
 	// required with it.
-	SaaSCollectorVersion         string
+	SaaSCollectorVersion string
+	// GCPCollectorVersion is ZASP_DISCOVERY_GCP_COLLECTOR_VERSION: it serves
+	// Google Cloud. Unset, the provider is not offered.
+	GCPCollectorVersion          string
 	NangoBaseURL                 string
 	NangoServiceSecretReference  string
 	NangoEnvironment             string
@@ -183,6 +186,11 @@ type workerRuntimeConfig struct {
 	TestReconcilerTokenFile      string
 	AttackLabReconcilerRoleARN   string
 	AttackLabReconcilerTokenFile string
+
+	// GatewayDecisionRetentionDays is how long the scheduler keeps the
+	// hosted gateway's decision records (ZASP_GATEWAY_DECISION_RETENTION_DAYS,
+	// 90 when it is not set).
+	GatewayDecisionRetentionDays int
 }
 
 func validRuntimeSessionIndexSelection(config workerRuntimeConfig) bool {
@@ -260,6 +268,7 @@ func loadWorkerRuntimeConfig(getenv func(string) string) (workerRuntimeConfig, e
 		// Optional: unset leaves the provider unregistered.
 		MicrosoftCollectorVersion: getenv("ZASP_DISCOVERY_MICROSOFT_COLLECTOR_VERSION"), SalesforceCollectorVersion: getenv("ZASP_DISCOVERY_SALESFORCE_COLLECTOR_VERSION"),
 		MicrosoftAzure: getenv("ZASP_DISCOVERY_MICROSOFT_AZURE") == "enabled", MicrosoftAzureSetting: getenv("ZASP_DISCOVERY_MICROSOFT_AZURE"),
+		GCPCollectorVersion:  getenv("ZASP_DISCOVERY_GCP_COLLECTOR_VERSION"),
 		SaaSCollectorVersion: getenv("ZASP_DISCOVERY_SAAS_COLLECTOR_VERSION"), NangoBaseURL: getenv("ZASP_NANGO_BASE_URL"), NangoServiceSecretReference: getenv("ZASP_NANGO_SERVICE_SECRET_REFERENCE"), NangoEnvironment: getenv("ZASP_NANGO_ENVIRONMENT"),
 		KubernetesEgressCIDRs: parseWorkerCIDRs(getenv("ZASP_KUBERNETES_EGRESS_CIDRS")), GitHubAppID: getenv("ZASP_GITHUB_APP_ID"), GitHubPrivateKeyReference: getenv("ZASP_GITHUB_PRIVATE_KEY_REFERENCE"),
 		OktaClientID: getenv("ZASP_OKTA_CLIENT_ID"), OktaClientSecretReference: getenv("ZASP_OKTA_CLIENT_SECRET_REFERENCE"), ProviderTimeout: providerTimeout, DiscoveryReadinessTimeout: discoveryReadinessTimeout,
@@ -278,6 +287,18 @@ func loadWorkerRuntimeConfig(getenv func(string) string) (workerRuntimeConfig, e
 		RuntimeStageRoleARN: getenv("ZASP_RUNTIME_STAGE_ROLE_ARN"), RuntimeStageTokenFile: getenv("ZASP_RUNTIME_STAGE_WEB_IDENTITY_TOKEN_FILE"), RuntimeStageVersion: getenv("ZASP_RUNTIME_STAGE_VERSION"),
 	}
 	config.ProjectionKind = projectionKind(config.Mode)
+	// Only the scheduler keeps the gateway's records; the dedicated worker
+	// modes compare their configuration exactly and must not gain a value.
+	if config.Mode == workerModeScheduler {
+		config.GatewayDecisionRetentionDays = defaultGatewayDecisionRetentionDays
+	}
+	if retention := getenv("ZASP_GATEWAY_DECISION_RETENTION_DAYS"); retention != "" {
+		days, err := strconv.Atoi(retention)
+		if err != nil || strconv.Itoa(days) != retention || days < 1 || days > 3650 || config.Mode != workerModeScheduler {
+			return workerRuntimeConfig{}, errWorkerConfiguration
+		}
+		config.GatewayDecisionRetentionDays = days
+	}
 	if loadAttackLabReconcilerIdentity(getenv, &config) != nil {
 		return workerRuntimeConfig{}, errWorkerConfiguration
 	}
@@ -505,7 +526,7 @@ func validDiscoveryRuntimeAuthority(config workerRuntimeConfig) bool {
 			return false
 		}
 	}
-	for _, version := range []string{config.MicrosoftCollectorVersion, config.SalesforceCollectorVersion, config.SaaSCollectorVersion} {
+	for _, version := range []string{config.MicrosoftCollectorVersion, config.SalesforceCollectorVersion, config.SaaSCollectorVersion, config.GCPCollectorVersion} {
 		if version != "" && !workerVersionPattern.MatchString(version) {
 			return false
 		}

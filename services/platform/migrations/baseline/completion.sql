@@ -1857,6 +1857,11 @@ DECLARE target CONSTANT regprocedure:='zasp_temporal72.last_good_freshness(text,
   LIMIT 1)) gap),'[]'::jsonb));$gaps$;
  d text:=pg_get_functiondef(target);
 BEGIN
+ -- A later section (WS7b) extends the list this section wrote with further
+ -- gaps, inside the statement, so the text above is then no longer in the
+ -- function as it stands here. When the file runs again that later version
+ -- is in place and this section has nothing left to do.
+ IF position($later$'mcp-links'$later$ in d)>0 THEN RETURN;END IF;
  IF position(gaps in d)=0 THEN
   IF position('coverage_gaps' in d)>0 OR length(d)-length(replace(d,anchor,''))<>length(anchor) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='integration freshness predecessor changed';END IF;
   EXECUTE replace(d,anchor,gaps||anchor);
@@ -4288,8 +4293,11 @@ BEGIN
   END IF;
   old_definition:=format('CHECK ((%I = ANY (ARRAY[%s])))',column_name,(SELECT string_agg(quote_literal(item)||'::text',', ' ORDER BY position) FROM unnest(old_values) WITH ORDINALITY AS listed(item,position)));
   new_definition:=format('CHECK ((%I = ANY (ARRAY[%s])))',column_name,(SELECT string_agg(quote_literal(item)||'::text',', ' ORDER BY position) FROM unnest(new_values) WITH ORDINALITY AS listed(item,position)));
+  -- A later section (X3d) appends to the list this section wrote; a list
+  -- that starts with it is this section's work already done.
   SELECT count(*),min(c.conname::text),min(pg_get_constraintdef(c.oid)) INTO matches,found_name,found_definition FROM pg_constraint c
-   WHERE c.conrelid=relation AND c.contype='c' AND pg_get_constraintdef(c.oid) IN(old_definition,new_definition);
+   WHERE c.conrelid=relation AND c.contype='c' AND (pg_get_constraintdef(c.oid) IN(old_definition,new_definition)
+    OR left(pg_get_constraintdef(c.oid),length(new_definition)-4)=left(new_definition,length(new_definition)-4));
   IF matches<>1 THEN
    RAISE EXCEPTION USING ERRCODE='55000',MESSAGE=format('saas provider list constraint predecessor changed: %s',listed_column);
   END IF;
@@ -4578,6 +4586,14 @@ CREATE OR REPLACE FUNCTION public.zasp_compliance_ai_rule_controls() RETURNS TAB
   ('agent_guardrail_missing','owasp_llm_top10_2025','LLM01'),
   ('agent_guardrail_missing','owasp_llm_top10_2025','LLM02'),
   ('agent_guardrail_missing','owasp_llm_top10_2025','LLM05'),
+  ('agent_model_armor_missing','eu_ai_act','Article 15'),
+  ('agent_model_armor_missing','eu_ai_act','Article 9'),
+  ('agent_model_armor_missing','iso_iec_42001_2023','A.6.2.6'),
+  ('agent_model_armor_missing','mitre_atlas','AML.T0051'),
+  ('agent_model_armor_missing','nist_ai_rmf_1_0','MEASURE 2.7'),
+  ('agent_model_armor_missing','owasp_llm_top10_2025','LLM01'),
+  ('agent_model_armor_missing','owasp_llm_top10_2025','LLM02'),
+  ('agent_model_armor_missing','owasp_llm_top10_2025','LLM05'),
   ('agent_role_administrator_access','eu_ai_act','Article 15'),
   ('agent_role_administrator_access','nist_ai_rmf_1_0','MEASURE 2.7'),
   ('agent_role_administrator_access','owasp_agentic_top10_2026','ASI03'),
@@ -4591,6 +4607,10 @@ CREATE OR REPLACE FUNCTION public.zasp_compliance_ai_rule_controls() RETURNS TAB
   ('agent_role_unused_ai_permissions','nist_ai_rmf_1_0','MEASURE 2.7'),
   ('agent_role_unused_ai_permissions','owasp_agentic_top10_2026','ASI03'),
   ('agent_role_unused_ai_permissions','owasp_llm_top10_2025','LLM06'),
+  ('agent_service_account_admin_role','eu_ai_act','Article 15'),
+  ('agent_service_account_admin_role','nist_ai_rmf_1_0','MEASURE 2.7'),
+  ('agent_service_account_admin_role','owasp_agentic_top10_2026','ASI03'),
+  ('agent_service_account_admin_role','owasp_llm_top10_2025','LLM06'),
   ('cicd_production_secret','eu_ai_act','Article 15'),
   ('cicd_production_secret','mitre_atlas','AML.T0055'),
   ('cicd_production_secret','owasp_agentic_top10_2026','ASI03'),
@@ -6861,3 +6881,1746 @@ END $guardrail_decide_permission$;
 ALTER FUNCTION zasp_authorization80.guardrail_decide(text,text,text,text,jsonb) OWNER TO zasp_discovery_authority;
 REVOKE ALL ON FUNCTION zasp_authorization80.guardrail_decide(text,text,text,text,jsonb) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION zasp_authorization80.guardrail_decide(text,text,text,text,jsonb) TO zasp_discovery_api;
+
+-- ---------------------------------------------------------------------------
+-- WS7 (provider reads the plan listed as "no known API": Agentforce topics
+-- and actions, Azure AI Foundry agents, OpenAI assistants, GitLab Duo agents,
+-- Rovo agents, Kubernetes MCP links).
+--
+-- WS7a. Inventory rule. One kind joins the catalog:
+--   salesforce_agent_tool   a topic or an action of an Agentforce agent
+--                           (Tooling API objects GenAiPluginDefinition and
+--                           GenAiFunctionDefinition), a tool of that agent.
+-- Every other new read uses a kind the catalog already holds (a Foundry
+-- agent is a microsoft_copilot_agent, an OpenAI assistant, a Duo agent and a
+-- Rovo agent are each a saas_agent, and a Kubernetes MCP link is a
+-- relationship). The catalog is then 57 rows and its digest the one the
+-- compiled catalog (inventoryprojection.RuleCatalogDigest) holds. As in the
+-- sections before it, a later section that adds rules pins its own digest,
+-- and this section then has nothing left to do when the file runs again.
+DO $ws7_rule_catalog$
+DECLARE earlier CONSTANT text[]:=ARRAY['44820a38e96d80318165fc2333fd851cd932d2704d380a1199d569d1d0778f30','9397691244ac0b8befd2790fed3ca2e71f2114eba44001cc3d5634f86b6044ed','f67df9589cf0d41f4b2a98a5161353100e2ff3ed61cfc188c1447d2dd14c4192','2af0dce065caff0c7093dfecede207658bf1973cfcc53911bfae7faef33b1809','7121768829bd73b339a34812762ec5acb449497439e0650d6c6fb7a85bf5678b','cb8d8d45c753ad53654b44bbc1a6c4ed70fba671049b03047b26d1c12bad8169'];
+ current_value CONSTANT text:='23c473feff7a5fe2086ab4a283e2cf460b0d38c8b0657d73f3fccd9bab02963a';
+ previous text;f regprocedure;d text;
+BEGIN
+ IF (SELECT count(*) FROM public.zasp_inventory_identity_rules)>57
+  AND NOT COALESCE((SELECT value FROM public.zasp_schema_metadata WHERE key='typed_inventory_rule_catalog_digest')=ANY(earlier||current_value),false) THEN
+  RETURN;
+ END IF;
+ INSERT INTO public.zasp_inventory_identity_rules(provider,source_kind,identity_namespace,product_kind,rule_version,priority,confidence_basis_points,freshness_seconds) VALUES
+  ('salesforce','salesforce_agent_tool','salesforce_agent_tool','tool',1,140,9500,86400)
+ ON CONFLICT(provider,source_kind) DO NOTHING;
+ IF (SELECT count(*) FROM public.zasp_inventory_identity_rules)<>57
+  OR (SELECT count(*) FROM public.zasp_inventory_identity_rules WHERE rule_version=1 AND source_kind=identity_namespace
+      AND (provider,source_kind,product_kind,priority,confidence_basis_points,freshness_seconds)=('salesforce','salesforce_agent_tool','tool',140,9500,86400))<>1 THEN
+  RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='ws7 inventory rule catalog predecessor changed';
+ END IF;
+ ALTER TABLE public.zasp_inventory_cutover_state DROP CONSTRAINT IF EXISTS zasp_inventory_cutover_state_rule_catalog_digest_check;
+ UPDATE public.zasp_inventory_cutover_state SET rule_catalog_digest=current_value WHERE rule_catalog_digest=ANY(earlier);
+ EXECUTE format('ALTER TABLE public.zasp_inventory_cutover_state ADD CONSTRAINT zasp_inventory_cutover_state_rule_catalog_digest_check CHECK(rule_catalog_digest=%L)',current_value);
+ UPDATE public.zasp_schema_metadata SET value=current_value WHERE key='typed_inventory_rule_catalog_digest' AND value=ANY(earlier);
+ FOREACH f IN ARRAY ARRAY['public.zasp_inventory_advance_scope(text,text,text,text,bytea,bytea)'::regprocedure,'public.zasp_inventory_readiness(text,text)'::regprocedure] LOOP
+  FOREACH previous IN ARRAY earlier LOOP
+   d:=pg_get_functiondef(f);
+   IF position(previous in d)>0 THEN EXECUTE replace(d,previous,current_value);END IF;
+  END LOOP;
+ END LOOP;
+END $ws7_rule_catalog$;
+
+-- WS7b. Coverage gaps of the new reads.
+--
+-- Three of the new reads need a permission beyond the one a connection
+-- already has, and go without when it is missing. The integration's
+-- freshness (section "integration_coverage_gaps") says so, in the shape and
+-- with the status it already has (access_denied):
+--   mcp-links            a Kubernetes credential that may not list Services:
+--                        no agent is related to an MCP server of the cluster
+--                        (cluster attribute mcp_links = services_denied);
+--   mcp-link-configmaps  one that may list Services and not ConfigMaps: an
+--                        agent is related only by what its arguments and
+--                        environment values name (configmaps_denied);
+--   foundry-agents       a Microsoft application without the role that may
+--                        list the agents of an Azure AI Foundry project
+--                        (account attribute agents = access_denied).
+-- An integration reads one provider, so its list stays within sixteen gaps.
+DO $ws7_coverage_gaps$
+DECLARE target CONSTANT regprocedure:='zasp_temporal72.last_good_freshness(text,text,text,text)'::regprocedure;
+ anchor CONSTANT text:=$anchor$LIMIT 1)) gap),'[]'::jsonb));$anchor$;
+ gaps CONSTANT text:=$gaps$LIMIT 1)
+  UNION ALL
+  (SELECT 'mcp-links','MCP server links','access_denied'
+  FROM public.zasp_inventory_source_observations observation
+  WHERE (observation.organization_id,observation.workspace_id,observation.environment_id,observation.integration_id)=(o,w,e,i)
+   AND observation.provider='kubernetes' AND observation.source_kind='kubernetes_cluster' AND observation.source_state='present'
+   AND observation.attributes->>'mcp_links'='services_denied'
+  LIMIT 1)
+  UNION ALL
+  (SELECT 'mcp-link-configmaps','MCP server links from ConfigMaps','access_denied'
+  FROM public.zasp_inventory_source_observations observation
+  WHERE (observation.organization_id,observation.workspace_id,observation.environment_id,observation.integration_id)=(o,w,e,i)
+   AND observation.provider='kubernetes' AND observation.source_kind='kubernetes_cluster' AND observation.source_state='present'
+   AND observation.attributes->>'mcp_links'='configmaps_denied'
+  LIMIT 1)
+  UNION ALL
+  (SELECT 'foundry-agents','Azure AI Foundry agents','access_denied'
+  FROM public.zasp_inventory_source_observations observation
+  WHERE (observation.organization_id,observation.workspace_id,observation.environment_id,observation.integration_id)=(o,w,e,i)
+   AND observation.provider='microsoft' AND observation.source_kind='microsoft_ai_resource' AND observation.source_state='present'
+   AND observation.attributes->>'agents'='access_denied'
+  LIMIT 1)) gap),'[]'::jsonb));$gaps$;
+ d text:=pg_get_functiondef(target);
+BEGIN
+ IF position(gaps in d)=0 THEN
+  IF position('mcp-links' in d)>0 OR position('coverage_gaps' in d)=0 OR length(d)-length(replace(d,anchor,''))<>length(anchor) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='integration coverage gap predecessor changed';END IF;
+  EXECUTE replace(d,anchor,gaps);
+ END IF;
+END $ws7_coverage_gaps$;
+
+-- WS7c. The tools of an agent on GET /agents/{id}/access.
+--
+-- zasp_mcp_agent_access_json (section WS5d) gains two members:
+--   tools       the topics and actions of an Agentforce agent
+--               (salesforce_agent_tool): the entities the agent contains and
+--               the ones those contain, topics first. Each has its name, its
+--               kind (topic or action) and, for an action, what it invokes
+--               (target) and whether it asks for confirmation; both are null
+--               where the collector did not state them. At most 64.
+--   tool_kinds  the kinds of tool the agent's platform states for it (an
+--               Azure AI Foundry agent, an OpenAI assistant): the tool
+--               tokens of its discovery signals, without the class.
+-- Both are empty for an agent that has none. The function is patched the way
+-- the sections before it patch one: its definition is read, one anchor is
+-- replaced, and a second run finds the members and changes nothing.
+DO $ws7_agent_access$
+DECLARE target CONSTANT regprocedure:='public.zasp_mcp_agent_access_json(text,text,text,text)'::regprocedure;
+ anchor CONSTANT text:=$anchor$  FROM zasp_inventory_entities agent
+  WHERE (agent.organization_id,agent.workspace_id,agent.environment_id,agent.id,agent.state,agent.product_kind)=(organization_value,workspace_value,environment_value,agent_value,'active','agent')$anchor$;
+ members CONSTANT text:=$members$||jsonb_build_object(
+   'tools',COALESCE((SELECT jsonb_agg(jsonb_build_object('id',listed.id,'name',listed.display_name,'kind',listed.kind,'target',listed.target,'confirmation',listed.confirmation) ORDER BY listed.position) FROM(
+     SELECT tool.id,tool.display_name,CASE tool.stable_fields->>'object_type' WHEN 'agent_topic' THEN 'topic' ELSE 'action' END kind,
+      NULLIF(tool.winning_attributes->>'target_type','') target,
+      CASE WHEN jsonb_typeof(tool.winning_attributes->'confirmation_required')='boolean' THEN (tool.winning_attributes->>'confirmation_required')::boolean END confirmation,
+      row_number() OVER(ORDER BY (tool.stable_fields->>'object_type')<>'agent_topic',tool.display_name,tool.id) position
+     FROM(
+      SELECT topic_edge.to_entity_id FROM zasp_inventory_relationships topic_edge
+      WHERE (topic_edge.organization_id,topic_edge.workspace_id,topic_edge.environment_id,topic_edge.from_entity_id,topic_edge.state,topic_edge.kind)=(organization_value,workspace_value,environment_value,agent.id,'present','contains')
+      UNION
+      SELECT action_edge.to_entity_id FROM zasp_inventory_relationships topic_edge
+      JOIN zasp_inventory_relationships action_edge ON (action_edge.organization_id,action_edge.workspace_id,action_edge.environment_id,action_edge.from_entity_id,action_edge.state,action_edge.kind)=(topic_edge.organization_id,topic_edge.workspace_id,topic_edge.environment_id,topic_edge.to_entity_id,'present','contains')
+      WHERE (topic_edge.organization_id,topic_edge.workspace_id,topic_edge.environment_id,topic_edge.from_entity_id,topic_edge.state,topic_edge.kind)=(organization_value,workspace_value,environment_value,agent.id,'present','contains')) owned
+     JOIN zasp_inventory_entities tool ON (tool.organization_id,tool.workspace_id,tool.environment_id,tool.id,tool.state,tool.product_kind)=(organization_value,workspace_value,environment_value,owned.to_entity_id,'active','tool')
+     WHERE tool.stable_fields->>'object_type' IN('agent_topic','agent_action') AND length(tool.display_name) BETWEEN 1 AND 256) listed WHERE listed.position<=64),'[]'::jsonb),
+   'tool_kinds',COALESCE((SELECT jsonb_agg(kind.token ORDER BY kind.token) FROM(
+     SELECT DISTINCT substr(signal.value,6) token
+     FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(agent.winning_attributes->'discovery'->'signals')='array' THEN agent.winning_attributes->'discovery'->'signals' ELSE '[]'::jsonb END) signal(value)
+     WHERE signal.value ~ '^tool:[a-z0-9][a-z0-9_.-]{0,63}$') kind),'[]'::jsonb))
+$members$;
+ d text:=pg_get_functiondef(target);
+BEGIN
+ IF position('tool_kinds' in d)=0 THEN
+  IF length(d)-length(replace(d,anchor,''))<>length(anchor) OR position($skills$IN('skill','agent_instructions','editor_rules')) listed WHERE listed.position<=64),'[]'::jsonb))$skills$ in d)=0 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='agent access predecessor changed';END IF;
+  EXECUTE replace(d,anchor,members||anchor);
+ END IF;
+END $ws7_agent_access$;
+-- X3d. Google Cloud as a discovery provider (workstream WS8, plan task C4).
+--
+-- Sections X3b and X3c widened every provider list for Microsoft, Salesforce
+-- and the generic saas provider. This section widens them once more, for gcp:
+-- the projects of one Google Cloud organization, folder or project, read
+-- with a read-only service account of the customer.
+--
+-- gcp is reference-authorized like AWS. Its configuration names what to read
+-- (scope) and how the service account is reached (identity_reference):
+--   * workload identity federation: identity_reference is
+--     ref:gcp/workload-identity/<project>/<service account name> and audience
+--     the customer's workload identity pool provider. The product's own AWS
+--     role is exchanged for a token of that service account; nothing is
+--     stored anywhere;
+--   * a service account key: identity_reference is
+--     ref:gcp/service-account-key/<id>, a key held in Secrets Manager. The
+--     configuration then has no audience.
+-- Neither shape carries key material, and zasp_reference_only still refuses
+-- any member that names a secret.
+--
+-- What gcp adds beyond the lists:
+--   * subject: gcp_scope, id organizations/<number>, folders/<number> or
+--     projects/<project id>, equal to scope of the configuration;
+--   * credential class of a collection: gcp_access_token;
+--   * the discovery finding channel (zasp_inventory_apply_findings) accepts
+--     source gcp, for the two checks the collector raises on an agent;
+--   * twelve identity rules and the catalog digest that includes them;
+--   * the coverage gaps of an integration name the Google APIs a collection
+--     could not read (gcp_service observations), beside the AWS ones.
+--
+-- The edits are made the way X3c makes them. A CHECK constraint is found by
+-- its definition, dropped and re-added under the same name. A function body
+-- is read with pg_get_functiondef, one exact text is replaced, and the result
+-- is executed. Every function edit leaves the text X3b and X3c wrote in
+-- place (a list is extended beside itself, a clause is added before or after
+-- theirs), so those sections remain no-ops when the file runs again; X3c's
+-- constraint check accepts a list that starts with its own for the same
+-- reason. An edit whose replacement is already present is skipped; one whose
+-- anchor is not present exactly once raises. Nothing here creates a role,
+-- changes an owner or grants a privilege.
+DO $ws8_gcp_provider$
+DECLARE six CONSTANT text:=$v$'aws','kubernetes','github','okta','microsoft','salesforce'$v$;
+ seven CONSTANT text:=$v$'aws','kubernetes','github','okta','microsoft','salesforce','saas'$v$;
+ reference_four CONSTANT text:=$v$'aws','kubernetes','microsoft','salesforce'$v$;
+ -- The Nango connection grammar of section X3c: the anchor of its clause.
+ connection CONSTANT text:='^ref:nango/connection/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$';
+ scope CONSTANT text:='^(organizations/[1-9][0-9]{0,18}|folders/[1-9][0-9]{0,18}|projects/[a-z][a-z0-9-]{4,28}[a-z0-9])$';
+ federation CONSTANT text:='^ref:gcp/workload-identity/[a-z][a-z0-9-]{4,28}[a-z0-9]/[a-z][a-z0-9-]{4,28}[a-z0-9]$';
+ key_reference CONSTANT text:='^ref:gcp/service-account-key/[a-z0-9][a-z0-9._-]{7,127}$';
+ audience CONSTANT text:='^//iam[.]googleapis[.]com/projects/[1-9][0-9]{0,18}/locations/global/workloadIdentityPools/[a-z][a-z0-9-]{2,30}[a-z0-9]/providers/[a-z][a-z0-9-]{2,30}[a-z0-9]$';
+ provider_columns CONSTANT text[]:=ARRAY[
+  'public.zasp_discovery_connection_subjects.provider','public.zasp_discovery_generation_reservations.source',
+  'public.zasp_discovery_job_authorities.provider','public.zasp_discovery_job_checkpoints.provider',
+  'public.zasp_discovery_snapshot_inputs.source','public.zasp_discovery_projection_cursors.source',
+  'public.zasp_discovery_risk_projection_current.source','public.zasp_inventory_identity_rules.provider',
+  'zasp_temporal72.runs.provider','public.zasp_discovery_connection_subjects.subject_kind'];
+ listed_column text;relation regclass;column_name text;old_values text[];new_values text[];old_definition text;new_definition text;
+ edit record;found_name name;found_definition text;matches integer;d text;
+BEGIN
+ FOREACH listed_column IN ARRAY provider_columns LOOP
+  relation:=substring(listed_column FROM '^(.*)\.[a-z_]+$')::regclass;
+  column_name:=substring(listed_column FROM '\.([a-z_]+)$');
+  IF column_name='subject_kind' THEN
+   old_values:=ARRAY['aws_account','kubernetes_cluster','github_installation','okta_tenant','microsoft_tenant','salesforce_org','saas_tenant'];
+   new_values:=old_values||ARRAY['gcp_scope'];
+  ELSE
+   old_values:=ARRAY['aws','kubernetes','github','okta','microsoft','salesforce','saas'];
+   new_values:=old_values||ARRAY['gcp'];
+  END IF;
+  old_definition:=format('CHECK ((%I = ANY (ARRAY[%s])))',column_name,(SELECT string_agg(quote_literal(item)||'::text',', ' ORDER BY position) FROM unnest(old_values) WITH ORDINALITY AS listed(item,position)));
+  new_definition:=format('CHECK ((%I = ANY (ARRAY[%s])))',column_name,(SELECT string_agg(quote_literal(item)||'::text',', ' ORDER BY position) FROM unnest(new_values) WITH ORDINALITY AS listed(item,position)));
+  -- A later section may append to the list this section wrote; a list that
+  -- starts with it is this section's work already done.
+  SELECT count(*),min(c.conname::text),min(pg_get_constraintdef(c.oid)) INTO matches,found_name,found_definition FROM pg_constraint c
+   WHERE c.conrelid=relation AND c.contype='c' AND (pg_get_constraintdef(c.oid) IN(old_definition,new_definition)
+    OR left(pg_get_constraintdef(c.oid),length(new_definition)-4)=left(new_definition,length(new_definition)-4));
+  IF matches<>1 THEN
+   RAISE EXCEPTION USING ERRCODE='55000',MESSAGE=format('gcp provider list constraint predecessor changed: %s',listed_column);
+  END IF;
+  IF found_definition=old_definition THEN
+   EXECUTE format('ALTER TABLE %s DROP CONSTRAINT %I',relation,found_name);
+   EXECUTE format('ALTER TABLE %s ADD CONSTRAINT %I CHECK(%I IN(%s))',relation,found_name,column_name,(SELECT string_agg(quote_literal(item),',' ORDER BY position) FROM unnest(new_values) WITH ORDINALITY AS listed(item,position)));
+  END IF;
+ END LOOP;
+
+ FOR edit IN SELECT * FROM (VALUES
+   -- The provider lists, each extended beside the text X3c left.
+   ('public.zasp_connector_provider_valid(text)',format($v$value IN (%s) OR value='saas'$v$,six),format($v$value IN (%s) OR value='saas' OR value='gcp'$v$,six)),
+   ('public.zasp_discovery_apply_snapshot(text,text,text,text,text,text,bigint,text,text,bytea,timestamptz,text,text,jsonb,jsonb,jsonb)',format($v$source NOT IN(%s) AND source<>'saas'$v$,six),format($v$source NOT IN(%s) AND source<>'saas' AND source<>'gcp'$v$,six)),
+   ('public.zasp_execution_checkpoint_partial(text,text,text,text,text,text,bigint,text,text,text,text,text,text,bytea,bigint,text,text,text,text)',format($v$provider_value NOT IN(%s) AND provider_value<>'saas'$v$,six),format($v$provider_value NOT IN(%s) AND provider_value<>'saas' AND provider_value<>'gcp'$v$,six)),
+   ('public.zasp_execution_apply_risk_projection(text,text,text,text,text,text,text,text,text,bigint,bytea,jsonb)',format($v$source_value NOT IN(%s) AND source_value<>'saas'$v$,six),format($v$source_value NOT IN(%s) AND source_value<>'saas' AND source_value<>'gcp'$v$,six)),
+   -- The discovery finding channel: the Google Cloud collector raises checks on agents.
+   ('public.zasp_inventory_apply_findings(text,text,text,jsonb)',format($v$item->>'source' NOT IN(%s) AND item->>'source'<>'saas'$v$,six),format($v$item->>'source' NOT IN(%s) AND item->>'source'<>'saas' AND item->>'source'<>'gcp'$v$,six)),
+   ('public.zasp_inventory_validate_typed_entities(text,jsonb)',format($v$(provider_value IN(%s) OR provider_value='saas')$v$,six),format($v$((provider_value IN(%s) OR provider_value='saas') OR provider_value='gcp')$v$,six)),
+   ('zasp_temporal72.normalize_relationships(text,text,text,text,text,jsonb)',format($v$(source_value IN(%s) OR source_value='saas')$v$,six),format($v$((source_value IN(%s) OR source_value='saas') OR source_value='gcp')$v$,six)),
+   ('zasp_temporal72.release_abandoned(text,text,text,text,text,text)',format($v$(provider_value IN(%s) OR provider_value='saas')$v$,six),format($v$((provider_value IN(%s) OR provider_value='saas') OR provider_value='gcp')$v$,six)),
+   ('zasp_authorization80.integration_setup_status(text,text,text,text)',format($v$(integration.kind IN(%s) OR integration.kind='saas')$v$,six),format($v$((integration.kind IN(%s) OR integration.kind='saas') OR integration.kind='gcp')$v$,six)),
+   ('zasp_temporal72.release_abandoned_due(integer)',format('x.provider IN(%s)',seven),format($v$(x.provider IN(%s) OR x.provider='gcp')$v$,seven)),
+   -- The reference-authorized providers.
+   ('public.zasp_complete_reference_authorization(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)',format($v$provider_value NOT IN(%s) AND provider_value<>'saas'$v$,reference_four),format($v$provider_value NOT IN(%s) AND provider_value<>'saas' AND provider_value<>'gcp'$v$,reference_four)),
+   ('zasp_authorization80.integration_reference_native_complete(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)',format($v$provider_value NOT IN(%s) AND provider_value<>'saas'$v$,reference_four),format($v$provider_value NOT IN(%s) AND provider_value<>'saas' AND provider_value<>'gcp'$v$,reference_four)),
+   ('zasp_authorization80.integration_reference_complete(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text,text,text)',format($v$(provider_value IN(%s) OR provider_value='saas')$v$,reference_four),format($v$((provider_value IN(%s) OR provider_value='saas') OR provider_value='gcp')$v$,reference_four)),
+   ('zasp_authorization80.integration_setup_status(text,text,text,text)',format($v$(integration_row.kind IN(%s) OR integration_row.kind='saas')$v$,reference_four),format($v$((integration_row.kind IN(%s) OR integration_row.kind='saas') OR integration_row.kind='gcp')$v$,reference_four)),
+   -- The reference a gcp connection is bound to is the one its configuration names.
+   ('public.zasp_complete_reference_authorization(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)',$v$WHEN 'saas' THEN configuration_value->>'connection_reference'$v$,$v$WHEN 'gcp' THEN configuration_value->>'identity_reference' WHEN 'saas' THEN configuration_value->>'connection_reference'$v$),
+   ('zasp_authorization80.integration_reference_native_complete(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)',$v$WHEN 'saas' THEN configuration_value->>'connection_reference'$v$,$v$WHEN 'gcp' THEN configuration_value->>'identity_reference' WHEN 'saas' THEN configuration_value->>'connection_reference'$v$),
+   -- Subject of a connection.
+   ('public.zasp_execution_subject_valid(text,text,text)',$v$  WHEN 'saas' THEN kind_value='saas_tenant'$v$,format($v$  WHEN 'gcp' THEN kind_value='gcp_scope' AND id_value ~ %L
+  WHEN 'saas' THEN kind_value='saas_tenant'$v$,scope)),
+   -- Configuration accepted at reference authorization: federation (an
+   -- audience and a workload-identity reference) or a key reference alone.
+   ('public.zasp_reference_authorization_configuration_valid(text,jsonb)',format($v$      AND configuration_value->>'connection_reference' ~ %L$v$,connection),format($v$      AND configuration_value->>'connection_reference' ~ %1$L
+    OR provider_value='gcp'
+      AND NOT EXISTS(SELECT 1 FROM jsonb_each(configuration_value) member WHERE jsonb_typeof(member.value)<>'string')
+      AND configuration_value->>'scope' ~ %2$L
+      AND ((SELECT array_agg(key ORDER BY key) FROM jsonb_object_keys(configuration_value) key)=ARRAY['audience','identity_reference','scope']::text[]
+            AND configuration_value->>'audience' ~ %3$L AND configuration_value->>'identity_reference' ~ %4$L
+        OR (SELECT array_agg(key ORDER BY key) FROM jsonb_object_keys(configuration_value) key)=ARRAY['identity_reference','scope']::text[]
+            AND configuration_value->>'identity_reference' ~ %5$L)$v$,connection,scope,audience,federation,key_reference)),
+   -- Configuration accepted when the integration is created or updated.
+   ('zasp_authorization80.integration_setup_valid(text,jsonb)',$v$ WHEN 'saas' THEN RETURN keys=ARRAY['connection_reference','platform','tenant_id']$v$,format($v$ WHEN 'gcp' THEN RETURN c->>'scope'~%1$L
+  AND (keys=ARRAY['audience','identity_reference','scope'] AND c->>'audience'~%2$L AND c->>'identity_reference'~%3$L
+   OR keys=ARRAY['identity_reference','scope'] AND c->>'identity_reference'~%4$L);
+ WHEN 'saas' THEN RETURN keys=ARRAY['connection_reference','platform','tenant_id']$v$,scope,audience,federation,key_reference)),
+   -- A run stays current only while its subject is the one its configuration names.
+   ('zasp_temporal72.require_current_run(zasp_temporal72.runs,timestamptz)',$v$ WHEN 'saas' THEN r.subject_kind='saas_tenant'$v$,$v$ WHEN 'gcp' THEN r.subject_kind='gcp_scope' AND r.subject_id=i.configuration->>'scope'
+ WHEN 'saas' THEN r.subject_kind='saas_tenant'$v$),
+   ('public.zasp_typed_inventory_job_input_v13(text,text,text,text,text,text)',$v$     WHEN 'saas' THEN subject.subject_kind='saas_tenant'$v$,$v$     WHEN 'gcp' THEN subject.subject_kind='gcp_scope' AND subject.subject_id=integration.configuration->>'scope'
+     WHEN 'saas' THEN subject.subject_kind='saas_tenant'$v$),
+   -- Credential class of a collection.
+   ('zasp_temporal72.prepare_page(text,text,text,text,text,text,timestamptz,bigint,text)',$v$WHEN 'saas' THEN 'nango_connection_reference'$v$,$v$WHEN 'gcp' THEN 'gcp_access_token' WHEN 'saas' THEN 'nango_connection_reference'$v$),
+   ('public.zasp_typed_inventory_job_input_v13(text,text,text,text,text,text)',$v$WHEN 'saas' THEN 'nango_connection_reference'$v$,$v$WHEN 'gcp' THEN 'gcp_access_token' WHEN 'saas' THEN 'nango_connection_reference'$v$)
+  ) AS listed(target,old_text,new_text) LOOP
+  d:=pg_get_functiondef(edit.target::regprocedure);
+  CONTINUE WHEN position(edit.new_text in d)>0;
+  IF length(d)-length(replace(d,edit.old_text,''))<>length(edit.old_text) THEN
+   RAISE EXCEPTION USING ERRCODE='55000',MESSAGE=format('gcp provider predecessor changed: %s',edit.target);
+  END IF;
+  EXECUTE replace(d,edit.old_text,edit.new_text);
+ END LOOP;
+END $ws8_gcp_provider$;
+
+-- The Google Cloud identity rules, and the catalog digest that includes
+-- them. The agents Google's control plane names are provider records (9500);
+-- a Cloud Run service, a function or a service account is concluded to be an
+-- agent from signals (7000); a service account is an identity; the scope,
+-- the projects, the model endpoints, their deployed models and the per-API
+-- coverage records are assets; a Cloud Run service that is an MCP server and a
+-- tool a Conversational Agents agent declares are tools. The catalog is then
+-- 69 rows. The earlier
+-- digests are the ones section WS7a names and the one it pins. A later
+-- section that adds rules pins its own digest; when the file runs again this
+-- section then has nothing left to do.
+DO $ws8_gcp_rule_catalog$
+DECLARE earlier CONSTANT text[]:=ARRAY['44820a38e96d80318165fc2333fd851cd932d2704d380a1199d569d1d0778f30','9397691244ac0b8befd2790fed3ca2e71f2114eba44001cc3d5634f86b6044ed','f67df9589cf0d41f4b2a98a5161353100e2ff3ed61cfc188c1447d2dd14c4192','2af0dce065caff0c7093dfecede207658bf1973cfcc53911bfae7faef33b1809','7121768829bd73b339a34812762ec5acb449497439e0650d6c6fb7a85bf5678b','cb8d8d45c753ad53654b44bbc1a6c4ed70fba671049b03047b26d1c12bad8169','23c473feff7a5fe2086ab4a283e2cf460b0d38c8b0657d73f3fccd9bab02963a'];
+ current_value CONSTANT text:='07e9c7cceff0e1ebf14e24c082ad4b7fdf43b4d2d19a939d38b1eaa3cce172be';
+ previous text;f regprocedure;d text;
+BEGIN
+ IF (SELECT count(*) FROM public.zasp_inventory_identity_rules)>69
+  AND NOT COALESCE((SELECT value FROM public.zasp_schema_metadata WHERE key='typed_inventory_rule_catalog_digest')=ANY(earlier||current_value),false) THEN
+  RETURN;
+ END IF;
+ INSERT INTO public.zasp_inventory_identity_rules(provider,source_kind,identity_namespace,product_kind,rule_version,priority,confidence_basis_points,freshness_seconds) VALUES
+  ('gcp','gcp_agent_engine','gcp_agent_engine','agent',1,160,9500,86400),
+  ('gcp','gcp_agent_tool','gcp_agent_tool','tool',1,160,9500,86400),
+  ('gcp','gcp_conversational_agent','gcp_conversational_agent','agent',1,160,9500,86400),
+  ('gcp','gcp_deployed_model','gcp_deployed_model','asset',1,160,9500,86400),
+  ('gcp','gcp_gemini_enterprise_agent','gcp_gemini_enterprise_agent','agent',1,160,9500,86400),
+  ('gcp','gcp_inferred_agent','gcp_inferred_agent','agent',1,160,7000,86400),
+  ('gcp','gcp_mcp_server','gcp_mcp_server','tool',1,160,9000,86400),
+  ('gcp','gcp_model_endpoint','gcp_model_endpoint','asset',1,160,9500,86400),
+  ('gcp','gcp_project','gcp_project','asset',1,160,9500,86400),
+  ('gcp','gcp_scope','gcp_scope','asset',1,160,9500,86400),
+  ('gcp','gcp_service','gcp_service','asset',1,160,9500,86400),
+  ('gcp','gcp_service_account','gcp_service_account','identity',1,160,9500,86400)
+ ON CONFLICT(provider,source_kind) DO NOTHING;
+ IF (SELECT count(*) FROM public.zasp_inventory_identity_rules)<>69
+  OR (SELECT count(*) FROM public.zasp_inventory_identity_rules WHERE provider='gcp' AND rule_version=1 AND priority=160 AND freshness_seconds=86400 AND source_kind=identity_namespace
+      AND (source_kind,product_kind,confidence_basis_points) IN(
+       ('gcp_agent_engine','agent',9500),('gcp_agent_tool','tool',9500),('gcp_mcp_server','tool',9000),('gcp_conversational_agent','agent',9500),('gcp_deployed_model','asset',9500),('gcp_gemini_enterprise_agent','agent',9500),
+       ('gcp_inferred_agent','agent',7000),('gcp_model_endpoint','asset',9500),('gcp_project','asset',9500),('gcp_scope','asset',9500),
+       ('gcp_service','asset',9500),('gcp_service_account','identity',9500)))<>12 THEN
+  RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='gcp inventory rule catalog predecessor changed';
+ END IF;
+ ALTER TABLE public.zasp_inventory_cutover_state DROP CONSTRAINT IF EXISTS zasp_inventory_cutover_state_rule_catalog_digest_check;
+ UPDATE public.zasp_inventory_cutover_state SET rule_catalog_digest=current_value WHERE rule_catalog_digest=ANY(earlier);
+ EXECUTE format('ALTER TABLE public.zasp_inventory_cutover_state ADD CONSTRAINT zasp_inventory_cutover_state_rule_catalog_digest_check CHECK(rule_catalog_digest=%L)',current_value);
+ UPDATE public.zasp_schema_metadata SET value=current_value WHERE key='typed_inventory_rule_catalog_digest' AND value=ANY(earlier);
+ FOREACH f IN ARRAY ARRAY['public.zasp_inventory_advance_scope(text,text,text,text,bytea,bytea)'::regprocedure,'public.zasp_inventory_readiness(text,text)'::regprocedure] LOOP
+  FOREACH previous IN ARRAY earlier LOOP
+   d:=pg_get_functiondef(f);
+   IF position(previous in d)>0 THEN EXECUTE replace(d,previous,current_value);END IF;
+  END LOOP;
+ END LOOP;
+END $ws8_gcp_rule_catalog$;
+
+-- Coverage gaps of a Google Cloud integration.
+--
+-- Section X5b put the AI services an AWS collection could not read on the
+-- freshness of an integration (coverage_gaps). The Google Cloud collector
+-- records the same thing per Google API it reads: a gcp_service observation
+-- whose status is collected, access_denied (at least one project refused the
+-- read-only service account) or unavailable (the API is switched off in
+-- every project read). Those join coverage_gaps: at most 16 in all, ordered
+-- by service. The statement is added after the one X5b wrote, which is left
+-- as it is, so X5b remains a no-op when the file runs again.
+DO $ws8_gcp_coverage_gaps$
+DECLARE target CONSTANT regprocedure:='zasp_temporal72.last_good_freshness(text,text,text,text)'::regprocedure;
+ anchor CONSTANT text:=E'\n RETURN b;';
+ gaps CONSTANT text:=$gaps$
+ b:=jsonb_set(b,'{coverage_gaps}',COALESCE((SELECT jsonb_agg(merged.gap ORDER BY merged.gap->>'service') FROM(
+  SELECT listed.gap FROM(
+   SELECT gap FROM jsonb_array_elements(b->'coverage_gaps') gap
+   UNION ALL
+   (SELECT DISTINCT ON(observation.stable_fields->>'service') jsonb_build_object('service',observation.stable_fields->>'service','name',COALESCE(NULLIF(observation.stable_fields->>'name',''),observation.display_name),'status',observation.attributes->>'status')
+   FROM public.zasp_inventory_source_observations observation
+   WHERE (observation.organization_id,observation.workspace_id,observation.environment_id,observation.integration_id)=(o,w,e,i)
+    AND observation.provider='gcp' AND observation.source_kind='gcp_service' AND observation.source_state='present'
+    AND observation.attributes->>'status' IN('access_denied','unavailable')
+    AND observation.stable_fields->>'service' ~ '^[a-z][a-z0-9-]{0,63}$'
+    AND length(COALESCE(NULLIF(observation.stable_fields->>'name',''),observation.display_name)) BETWEEN 1 AND 128
+   ORDER BY observation.stable_fields->>'service',observation.last_seen_at DESC,observation.source)) listed
+  ORDER BY listed.gap->>'service' LIMIT 16) merged),'[]'::jsonb));$gaps$;
+ d text:=pg_get_functiondef(target);
+BEGIN
+ IF position(gaps in d)=0 THEN
+  IF position('gcp_service' in d)>0 OR position('coverage_gaps' in d)=0 OR length(d)-length(replace(d,anchor,''))<>length(anchor) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='gcp integration freshness predecessor changed';END IF;
+  EXECUTE replace(d,anchor,gaps||anchor);
+ END IF;
+END $ws8_gcp_coverage_gaps$;
+
+-- Cloud Run MCP servers in the MCP inventory.
+--
+-- The Google Cloud collector records a Cloud Run service that is an MCP
+-- server (Cloud Run's own functional type, or an MCP server image or
+-- command) as gcp_mcp_server. zasp_mcp_servers (section WS5b), the source of
+-- GET /mcp-servers, of the registry status and of the MCP posture findings,
+-- lists the server kinds by name; gcp_mcp_server joins them. Its registry
+-- identity is the host of the service's URL, which zasp_mcp_server_identity
+-- already derives from endpoint_host. Section WS5b replaces the function
+-- when the file runs again; this block then adds the kind again.
+DO $ws8_gcp_mcp_servers$
+DECLARE target CONSTANT regprocedure:='public.zasp_mcp_servers(text,text,text)'::regprocedure;
+ anchor CONSTANT text:=$v$'kubernetes_mcp_server','saas_mcp_server')$v$;
+ d text:=pg_get_functiondef(target);
+BEGIN
+ IF position('gcp_mcp_server' in d)=0 THEN
+  IF length(d)-length(replace(d,anchor,''))<>length(anchor) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='gcp mcp server inventory predecessor changed';END IF;
+  EXECUTE replace(d,anchor,$v$'kubernetes_mcp_server','saas_mcp_server','gcp_mcp_server')$v$);
+ END IF;
+END $ws8_gcp_mcp_servers$;
+-- WS10a. Browser authorization of an OAuth connector on the installed
+-- baseline (workstream WS10).
+--
+-- A person connects GitHub, Okta or a Nango connector (Slack) from the
+-- Integrations page: POST /integrations/{id}/authorize answers the provider's
+-- authorization address, the provider sends the browser back to
+-- GET /integrations/oauth/callback, and a quarantined outcome is cleared with
+-- POST /integrations/{id}/authorization-remediation. All three were refused on
+-- an installed baseline: their statements are the connector chain's functions
+-- (zasp_connector_start_oauth and the others), which take no request
+-- authorization, are on no statement allow-list of the API server, and on
+-- which the API login holds no EXECUTE.
+--
+-- This section adds one zasp_authorization80 function per statement of those
+-- three operations. Each one:
+--   * works only inside the fenced transaction of a checked request of an
+--     API session (product_request: the proof's scope, principal, operation,
+--     the manage_workflows permission, a browser session);
+--   * for authorizeIntegration and remediateIntegrationAuthorization requires
+--     fresh authentication and the integration of the request path as an
+--     allowed object, and refuses any other integration;
+--   * for completeIntegrationOAuthCallback, whose path names no object,
+--     requires the Environment as the allowed object and binds the statement
+--     to an authorization attempt that the same person started from the same
+--     browser session (the attempt's session digest is the digest of the
+--     proof's credential);
+--   * then calls the chain function unchanged, so the chain's own rules
+--     (state taken once, version and configuration unchanged, effect ledger,
+--     audit) still decide the outcome.
+--
+-- The chain functions keep their grants: the API login still cannot call them
+-- directly, and the reconciler keeps its lease-bound statements. Nothing is
+-- granted outside a checked request. The section is re-runnable: every
+-- function is created or replaced.
+DO $ws10_connector_oauth$
+DECLARE owner_value text;signature text;d text;
+ remediation CONSTANT regprocedure:='public.zasp_connector_remediate_quarantine(text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)'::regprocedure;
+ remediation_name CONSTANT text:='FUNCTION public.zasp_connector_remediate_quarantine(';
+ chain_writer CONSTANT text:='zasp_workflow_mutate(';
+BEGIN
+ SELECT pg_get_userbyid(proowner) INTO STRICT owner_value FROM pg_proc
+  WHERE oid='public.zasp_connector_start_oauth(text,text,text,text,text,text,text,bytea,bytea,text,bytea,jsonb,timestamptz,bigint,jsonb,text,text)'::regprocedure;
+
+ -- The request of a connector statement. operations are the operations the
+ -- statement belongs to; integration_value is its integration, required for
+ -- every operation but the callback.
+ CREATE OR REPLACE FUNCTION zasp_authorization80.connector_request(o text,w text,e text,actor text,operations text[],integration_value text) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $request$
+ DECLARE p jsonb:=zasp_authorization80.context();op text;
+ BEGIN
+  op:=p->>'operation_id';
+  IF p IS NULL OR actor IS NULL OR NOT COALESCE(op=ANY(operations),false) THEN
+   RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';
+  END IF;
+  IF op='completeIntegrationOAuthCallback' THEN
+   RETURN zasp_authorization80.product_request(o,w,e,actor,op,'manage_workflows','environment',e,false,true,false,true);
+  END IF;
+  IF op NOT IN('authorizeIntegration','remediateIntegrationAuthorization') OR NOT COALESCE(public.zasp_valid_product_id(integration_value),false) THEN
+   RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';
+  END IF;
+  RETURN zasp_authorization80.product_request(o,w,e,actor,op,'manage_workflows','integration',integration_value,true,true,true,true);
+ END $request$;
+
+ -- An authorization attempt this person started from this browser session.
+ CREATE OR REPLACE FUNCTION zasp_authorization80.connector_attempt_owned(o text,w text,e text,actor text,p jsonb,attempt_value text) RETURNS boolean
+ LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO pg_catalog, public AS $owned$
+  SELECT EXISTS(SELECT 1 FROM public.zasp_connector_oauth_attempts a
+   WHERE (a.organization_id,a.workspace_id,a.environment_id,a.id)=(o,w,e,attempt_value) AND a.principal_id=actor AND a.session_digest=decode(p->>'credential_digest','hex'))
+ $owned$;
+
+ -- The request of a statement that names a connector effect. Before the
+ -- provider answers the effect belongs to the integration of the request
+ -- path; in the callback it belongs to an attempt of this person and session.
+ CREATE OR REPLACE FUNCTION zasp_authorization80.connector_effect_request(o text,w text,e text,actor text,operations text[],effect_value text) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $effect$
+ DECLARE p jsonb:=zasp_authorization80.context();effect_integration text;effect_attempt text;
+ BEGIN
+  SELECT f.integration_id,f.oauth_attempt_id INTO effect_integration,effect_attempt FROM public.zasp_connector_effects f
+   WHERE (f.organization_id,f.workspace_id,f.environment_id,f.id)=(o,w,e,effect_value);
+  IF p->>'operation_id'='completeIntegrationOAuthCallback' THEN
+   p:=zasp_authorization80.connector_request(o,w,e,actor,operations,NULL);
+   IF effect_attempt IS NULL OR NOT zasp_authorization80.connector_attempt_owned(o,w,e,actor,p,effect_attempt) THEN
+    RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';
+   END IF;
+  ELSE
+   p:=zasp_authorization80.connector_request(o,w,e,actor,operations,p#>>'{path_parameters,id}');
+   IF effect_integration IS DISTINCT FROM p#>>'{path_parameters,id}' THEN
+    RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';
+   END IF;
+  END IF;
+  RETURN p;
+ END $effect$;
+
+ -- The integration an authorization is asked for (the request path), or the
+ -- integration of the attempt the callback has taken.
+ CREATE OR REPLACE FUNCTION zasp_authorization80.connector_integration(o text,w text,e text,actor text,integration_value text) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $integration$
+ DECLARE p jsonb:=zasp_authorization80.context();result jsonb;
+ BEGIN
+  IF p->>'operation_id'='completeIntegrationOAuthCallback' THEN
+   p:=zasp_authorization80.connector_request(o,w,e,actor,ARRAY['completeIntegrationOAuthCallback'],NULL);
+   IF NOT EXISTS(SELECT 1 FROM public.zasp_connector_oauth_attempts a
+    WHERE (a.organization_id,a.workspace_id,a.environment_id,a.integration_id)=(o,w,e,integration_value) AND a.principal_id=actor
+     AND a.session_digest=decode(p->>'credential_digest','hex') AND a.status='consuming') THEN
+    RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';
+   END IF;
+  ELSE
+   p:=zasp_authorization80.connector_request(o,w,e,actor,ARRAY['authorizeIntegration','remediateIntegrationAuthorization'],integration_value);
+  END IF;
+  SELECT jsonb_build_object('body',r.body,'version',r.version,'secret_generation',r.secret_generation) INTO result FROM public.zasp_workflow_records r
+   WHERE (r.organization_id,r.workspace_id,r.environment_id,r.kind,r.id)=(o,w,e,'integration',integration_value) AND r.deleted_at IS NULL;
+  IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='integration unavailable';END IF;
+  PERFORM zasp_authorization80.product_settled(p);
+  RETURN result;
+ END $integration$;
+
+ CREATE OR REPLACE FUNCTION zasp_authorization80.connector_stage_pkce_cleanup(o text,w text,e text,actor text,effect_value text,integration_value text,attempt_value text,provider_value text,reference_value text,request_value bytea,available_value timestamptz,reason_value text) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $stage$
+ DECLARE p jsonb;result jsonb;
+ BEGIN
+  p:=zasp_authorization80.connector_request(o,w,e,actor,ARRAY['authorizeIntegration'],integration_value);
+  result:=public.zasp_connector_stage_pkce_cleanup(o,w,e,effect_value,integration_value,attempt_value,provider_value,reference_value,request_value,available_value,reason_value);
+  PERFORM zasp_authorization80.product_settled(p);
+  RETURN result;
+ END $stage$;
+
+ CREATE OR REPLACE FUNCTION zasp_authorization80.connector_activate_pkce_cleanup(o text,w text,e text,actor text,effect_value text) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $activate$
+ DECLARE p jsonb;result jsonb;
+ BEGIN
+  p:=zasp_authorization80.connector_effect_request(o,w,e,actor,ARRAY['authorizeIntegration','completeIntegrationOAuthCallback'],effect_value);
+  result:=public.zasp_connector_activate_pkce_cleanup(o,w,e,effect_value);
+  PERFORM zasp_authorization80.product_settled(p);
+  RETURN result;
+ END $activate$;
+
+ -- The attempt is recorded for the proof's principal and for the browser
+ -- session of the proof's credential, and for no other.
+ CREATE OR REPLACE FUNCTION zasp_authorization80.connector_start_oauth(o text,w text,e text,actor text,attempt_value text,integration_value text,provider_value text,session_value bytea,state_value bytea,pkce_reference_value text,request_value bytea,scopes_value jsonb,expires_value timestamptz,integration_version_value bigint,configuration_value jsonb,cleanup_value text,authorize_value text) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $start$
+ DECLARE p jsonb;result jsonb;
+ BEGIN
+  p:=zasp_authorization80.connector_request(o,w,e,actor,ARRAY['authorizeIntegration'],integration_value);
+  IF session_value IS DISTINCT FROM decode(p->>'credential_digest','hex') THEN
+   RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';
+  END IF;
+  result:=public.zasp_connector_start_oauth(o,w,e,attempt_value,integration_value,provider_value,actor,session_value,state_value,pkce_reference_value,request_value,scopes_value,expires_value,integration_version_value,configuration_value,cleanup_value,authorize_value);
+  PERFORM zasp_authorization80.product_settled(p);
+  RETURN result;
+ END $start$;
+
+ CREATE OR REPLACE FUNCTION zasp_authorization80.connector_consume_oauth(o text,w text,e text,actor text,state_value bytea,session_value bytea) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $consume$
+ DECLARE p jsonb;result jsonb;
+ BEGIN
+  p:=zasp_authorization80.connector_request(o,w,e,actor,ARRAY['completeIntegrationOAuthCallback'],NULL);
+  IF session_value IS DISTINCT FROM decode(p->>'credential_digest','hex') THEN
+   RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';
+  END IF;
+  result:=public.zasp_connector_consume_oauth(o,w,e,state_value,actor,session_value);
+  PERFORM zasp_authorization80.product_settled(p);
+  RETURN result;
+ END $consume$;
+
+ CREATE OR REPLACE FUNCTION zasp_authorization80.connector_complete_pkce_cleanup(o text,w text,e text,actor text,effect_value text) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $pkce$
+ DECLARE p jsonb;result jsonb;
+ BEGIN
+  p:=zasp_authorization80.connector_effect_request(o,w,e,actor,ARRAY['completeIntegrationOAuthCallback'],effect_value);
+  result:=public.zasp_connector_complete_pkce_cleanup(o,w,e,effect_value,'','');
+  PERFORM zasp_authorization80.product_settled(p);
+  RETURN result;
+ END $pkce$;
+
+ CREATE OR REPLACE FUNCTION zasp_authorization80.connector_resolve_effect(o text,w text,e text,actor text,effect_value text,status_value text,reference_value text,metadata_value jsonb,error_value text) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $resolve$
+ DECLARE p jsonb;result jsonb;
+ BEGIN
+  p:=zasp_authorization80.connector_effect_request(o,w,e,actor,ARRAY['completeIntegrationOAuthCallback'],effect_value);
+  result:=public.zasp_connector_resolve_effect(o,w,e,effect_value,status_value,reference_value,metadata_value,error_value);
+  PERFORM zasp_authorization80.product_settled(p);
+  RETURN result;
+ END $resolve$;
+
+ CREATE OR REPLACE FUNCTION zasp_authorization80.connector_complete_oauth(o text,w text,e text,actor text,attempt_value text,effect_value text,connection_value text,reference_value text,subject_value text,credential_value text,class_value text,metadata_value jsonb,completion_value bytea) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $complete$
+ DECLARE p jsonb;result jsonb;
+ BEGIN
+  p:=zasp_authorization80.connector_request(o,w,e,actor,ARRAY['completeIntegrationOAuthCallback'],NULL);
+  IF NOT zasp_authorization80.connector_attempt_owned(o,w,e,actor,p,attempt_value) THEN
+   RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';
+  END IF;
+  result:=public.zasp_connector_complete_oauth(o,w,e,attempt_value,effect_value,connection_value,reference_value,subject_value,credential_value,class_value,metadata_value,completion_value);
+  PERFORM zasp_authorization80.product_settled(p);
+  RETURN result;
+ END $complete$;
+
+ CREATE OR REPLACE FUNCTION zasp_authorization80.connector_complete_cleanup(o text,w text,e text,actor text,effect_value text) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $cleanup$
+ DECLARE p jsonb;result jsonb;
+ BEGIN
+  p:=zasp_authorization80.connector_effect_request(o,w,e,actor,ARRAY['completeIntegrationOAuthCallback'],effect_value);
+  result:=public.zasp_connector_complete_cleanup(o,w,e,effect_value);
+  PERFORM zasp_authorization80.product_settled(p);
+  RETURN result;
+ END $cleanup$;
+
+ -- Remediation of a quarantined connector effect of the integration of the
+ -- request path: the effect to clear, a replay of the same request, and the
+ -- acknowledged remediation.
+ CREATE OR REPLACE FUNCTION zasp_authorization80.connector_quarantine(o text,w text,e text,actor text,integration_value text) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $quarantine$
+ DECLARE p jsonb;result jsonb;
+ BEGIN
+  p:=zasp_authorization80.connector_request(o,w,e,actor,ARRAY['remediateIntegrationAuthorization'],integration_value);
+  result:=public.zasp_connector_get_quarantine(o,w,e,integration_value);
+  PERFORM zasp_authorization80.product_settled(p);
+  RETURN result;
+ END $quarantine$;
+
+ CREATE OR REPLACE FUNCTION zasp_authorization80.connector_quarantine_replay(o text,w text,e text,actor text,k text,intent_value jsonb) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $replay$
+ DECLARE p jsonb;result jsonb;
+ BEGIN
+  IF k IS NULL OR k!~'^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$' OR jsonb_typeof(intent_value) IS DISTINCT FROM 'object' OR octet_length(intent_value::text)>65536 THEN
+   RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='invalid workflow replay';
+  END IF;
+  p:=zasp_authorization80.connector_request(o,w,e,actor,ARRAY['remediateIntegrationAuthorization'],intent_value->>'resource_id');
+  result:=public.zasp_workflow_replay(o,w,e,actor,'remediateIntegrationAuthorization',k,intent_value);
+  PERFORM zasp_authorization80.product_settled(p);
+  RETURN result;
+ END $replay$;
+
+ CREATE OR REPLACE FUNCTION zasp_authorization80.connector_remediate_quarantine(o text,w text,e text,actor text,effect_value text,integration_value text,acknowledgement_value text,k text,expected_version_value bigint,intent_value jsonb,body_value jsonb,audit_value text,correlation_value text,receipt_value text) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $remediate$
+ DECLARE p jsonb;result jsonb;
+ BEGIN
+  p:=zasp_authorization80.connector_request(o,w,e,actor,ARRAY['remediateIntegrationAuthorization'],integration_value);
+  IF intent_value->>'resource_id' IS DISTINCT FROM integration_value THEN
+   RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';
+  END IF;
+  result:=zasp_authorization80.connector_remediate_quarantine_write(o,w,e,effect_value,integration_value,actor,acknowledgement_value,k,expected_version_value,intent_value,body_value,audit_value,correlation_value,receipt_value);
+  PERFORM zasp_authorization80.product_settled(p);
+  RETURN result;
+ END $remediate$;
+
+ -- The chain's remediation writes the integration with zasp_workflow_mutate,
+ -- the writer of the release before current authorization, which refuses on
+ -- this catalog. connector_remediate_quarantine_write is the chain function
+ -- with the current receipt-backed writer of an integration in its place and
+ -- nothing else changed. It is derived from the installed text each time the
+ -- section runs, and a predecessor that no longer calls the chain writer
+ -- exactly twice is refused.
+ d:=pg_get_functiondef(remediation);
+ IF position(remediation_name in d)=0 OR (length(d)-length(replace(d,chain_writer,'')))<>2*length(chain_writer) THEN
+  RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='connector remediation predecessor changed';
+ END IF;
+ EXECUTE replace(replace(d,remediation_name,'FUNCTION zasp_authorization80.connector_remediate_quarantine_write('),chain_writer,'zasp_authorization80.integration_receipt_mutate(');
+
+ -- The three request helpers and the remediation writer are internal; the
+ -- API role is granted the twelve statements.
+ FOREACH signature IN ARRAY ARRAY[
+  'connector_request(text,text,text,text,text[],text)',
+  'connector_attempt_owned(text,text,text,text,jsonb,text)',
+  'connector_effect_request(text,text,text,text,text[],text)',
+  'connector_remediate_quarantine_write(text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)',
+  'connector_integration(text,text,text,text,text)',
+  'connector_stage_pkce_cleanup(text,text,text,text,text,text,text,text,text,bytea,timestamptz,text)',
+  'connector_activate_pkce_cleanup(text,text,text,text,text)',
+  'connector_start_oauth(text,text,text,text,text,text,text,bytea,bytea,text,bytea,jsonb,timestamptz,bigint,jsonb,text,text)',
+  'connector_consume_oauth(text,text,text,text,bytea,bytea)',
+  'connector_complete_pkce_cleanup(text,text,text,text,text)',
+  'connector_resolve_effect(text,text,text,text,text,text,text,jsonb,text)',
+  'connector_complete_oauth(text,text,text,text,text,text,text,text,text,text,text,jsonb,bytea)',
+  'connector_complete_cleanup(text,text,text,text,text)',
+  'connector_quarantine(text,text,text,text,text)',
+  'connector_quarantine_replay(text,text,text,text,text,jsonb)',
+  'connector_remediate_quarantine(text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)'] LOOP
+  EXECUTE format('ALTER FUNCTION zasp_authorization80.%s OWNER TO %I',signature,owner_value);
+  EXECUTE format('REVOKE ALL ON FUNCTION zasp_authorization80.%s FROM PUBLIC',signature);
+  IF signature NOT LIKE 'connector\_request(%' AND signature NOT LIKE 'connector\_attempt\_owned(%' AND signature NOT LIKE 'connector\_effect\_request(%' AND signature NOT LIKE 'connector\_remediate\_quarantine\_write(%' THEN
+   EXECUTE format('GRANT EXECUTE ON FUNCTION zasp_authorization80.%s TO zasp_discovery_api',signature);
+  END IF;
+ END LOOP;
+
+ -- The reconciler of the API server finishes a recorded connection whose
+ -- bookkeeping the callback could not complete (the effect is cleanup_pending).
+ -- Its statement is bound to the lease the reconciler claimed, like the other
+ -- reconciliation functions the API role already holds, but this one was
+ -- granted to the discovery worker only, so the API server's reconciler was
+ -- refused and the effect stayed open until it was quarantined.
+ GRANT EXECUTE ON FUNCTION public.zasp_connector_complete_cleanup(text,text,text,text,text,text) TO zasp_discovery_api;
+END $ws10_connector_oauth$;
+
+-- ---------------------------------------------------------------------------
+-- WS10b. The Nango connection a sign-in created ends with its integration
+-- (workstream WS10).
+--
+-- Section WS6 lets a person sign in to a SaaS platform from the product; Nango
+-- creates a connection and the integration names it. Deleting the integration,
+-- or giving it another connection, left that connection (and the provider
+-- token Nango keeps for it) in Nango for ever.
+--
+--   * zasp_saas_connection_releases is the list of Nango connections to
+--     delete. It holds the reference of a connection, never a token.
+--   * A row is written by a trigger on the integration's record, in the
+--     transaction that deletes the integration or changes the connection it
+--     names, so no crash can separate the two. Only connections that a
+--     completed sign-in of that integration created are listed
+--     (zasp_saas_sign_in_attempts); a reference a person pasted is never
+--     listed, because that connection was made outside the product.
+--     On deletion every connection the integration's sign-ins created is
+--     listed; on a change, every one but the connection now named.
+--   * The API server's release worker claims rows under a lease, deletes the
+--     connection at Nango and records the outcome. A worker that stops after
+--     the claim loses its lease and the row is claimed again; a refused or
+--     failed deletion is retried with a growing delay, fifty times in all
+--     (about two days), and then marked failed for a person to remove.
+--   * A connection that a live saas integration of the same Environment still
+--     names when its turn comes is kept (status retained), and has its turn
+--     again when an integration that names it is deleted or names another.
+--
+-- The functions take no principal and no tenant choice of the caller beyond
+-- the row's own key: like connector reconciliation they are system
+-- maintenance, bound to the lease the worker claimed. The section is
+-- re-runnable.
+DO $ws10_saas_connection_release$
+DECLARE owner_value text;
+BEGIN
+ SELECT pg_get_userbyid(relowner) INTO STRICT owner_value FROM pg_class WHERE oid='public.zasp_saas_sign_in_attempts'::regclass;
+
+ CREATE TABLE IF NOT EXISTS public.zasp_saas_connection_releases(
+  organization_id text NOT NULL,workspace_id text NOT NULL,environment_id text NOT NULL,connection_reference text NOT NULL,
+  integration_id text NOT NULL,platform text NOT NULL,reason text NOT NULL,status text NOT NULL DEFAULT 'pending',
+  attempt integer NOT NULL DEFAULT 0,available_at timestamptz NOT NULL DEFAULT transaction_timestamp(),
+  lease_owner text,lease_token text,lease_expires_at timestamptz,last_error_code text,
+  created_at timestamptz NOT NULL DEFAULT transaction_timestamp(),updated_at timestamptz NOT NULL DEFAULT transaction_timestamp(),finished_at timestamptz,
+  PRIMARY KEY(organization_id,workspace_id,environment_id,connection_reference),
+  CONSTRAINT zasp_saas_connection_releases_id_check CHECK(public.zasp_valid_product_id(organization_id) AND public.zasp_valid_product_id(workspace_id) AND public.zasp_valid_product_id(environment_id) AND public.zasp_valid_product_id(integration_id)),
+  CONSTRAINT zasp_saas_connection_releases_reference_check CHECK(connection_reference ~ '^ref:nango/connection/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' AND platform ~ '^[a-z][a-z0-9_]{1,31}$'),
+  CONSTRAINT zasp_saas_connection_releases_reason_check CHECK(reason IN('integration_deleted','reference_replaced')),
+  CONSTRAINT zasp_saas_connection_releases_status_check CHECK(status IN('pending','released','retained','failed') AND (status='pending')=(finished_at IS NULL)),
+  CONSTRAINT zasp_saas_connection_releases_attempt_check CHECK(attempt BETWEEN 0 AND 50),
+  CONSTRAINT zasp_saas_connection_releases_lease_check CHECK((lease_owner IS NULL)=(lease_token IS NULL) AND (lease_owner IS NULL)=(lease_expires_at IS NULL) AND (status='pending' OR lease_owner IS NULL)),
+  CONSTRAINT zasp_saas_connection_releases_error_check CHECK(last_error_code IS NULL OR last_error_code ~ '^[a-z][a-z0-9_]{1,63}$'));
+ CREATE INDEX IF NOT EXISTS zasp_saas_connection_releases_due ON public.zasp_saas_connection_releases(available_at) WHERE status='pending';
+ -- The connections an integration's sign-ins created, for the trigger below.
+ CREATE INDEX IF NOT EXISTS zasp_saas_sign_in_attempts_completed ON public.zasp_saas_sign_in_attempts(organization_id,workspace_id,environment_id,integration_id) WHERE status='completed';
+ EXECUTE format('ALTER TABLE public.zasp_saas_connection_releases OWNER TO %I',owner_value);
+ ALTER TABLE public.zasp_saas_connection_releases ENABLE ROW LEVEL SECURITY;
+ REVOKE ALL ON TABLE public.zasp_saas_connection_releases FROM PUBLIC;
+
+ -- Lists the connections to delete when a saas integration is deleted or
+ -- names another connection. kept is the connection the integration names
+ -- after the change; nothing is kept when the integration is deleted. A
+ -- connection that was retained before is listed again.
+ CREATE OR REPLACE FUNCTION public.zasp_saas_connection_release_capture() RETURNS trigger
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $capture$
+ DECLARE kept text;reason_value text;
+ BEGIN
+  IF OLD.kind<>'integration' OR OLD.body->>'connector_key' IS DISTINCT FROM 'saas' THEN RETURN NULL;END IF;
+  IF TG_OP='DELETE' THEN
+   IF OLD.deleted_at IS NOT NULL THEN RETURN NULL;END IF;
+   reason_value:='integration_deleted';
+  ELSIF NEW.deleted_at IS NOT NULL AND OLD.deleted_at IS NULL THEN
+   reason_value:='integration_deleted';
+  ELSIF NEW.deleted_at IS NULL AND NEW.body#>>'{configuration,connection_reference}' IS DISTINCT FROM OLD.body#>>'{configuration,connection_reference}' THEN
+   kept:=NEW.body#>>'{configuration,connection_reference}';
+   reason_value:='reference_replaced';
+  ELSE
+   RETURN NULL;
+  END IF;
+  -- A connection that was kept because this integration named it has its
+  -- turn again; the claim keeps it once more if another integration names it.
+  UPDATE zasp_saas_connection_releases x SET status='pending',attempt=0,available_at=transaction_timestamp(),last_error_code=NULL,finished_at=NULL,updated_at=transaction_timestamp()
+   WHERE (x.organization_id,x.workspace_id,x.environment_id,x.connection_reference)=(OLD.organization_id,OLD.workspace_id,OLD.environment_id,OLD.body#>>'{configuration,connection_reference}')
+    AND x.status='retained' AND x.connection_reference IS DISTINCT FROM kept;
+  INSERT INTO zasp_saas_connection_releases(organization_id,workspace_id,environment_id,connection_reference,integration_id,platform,reason)
+  SELECT DISTINCT ON(a.connection_reference) a.organization_id,a.workspace_id,a.environment_id,a.connection_reference,a.integration_id,a.platform,reason_value
+   FROM zasp_saas_sign_in_attempts a
+   WHERE (a.organization_id,a.workspace_id,a.environment_id,a.integration_id)=(OLD.organization_id,OLD.workspace_id,OLD.environment_id,OLD.id)
+    AND a.status='completed' AND a.connection_reference IS DISTINCT FROM kept
+   ORDER BY a.connection_reference,a.finished_at DESC
+  ON CONFLICT(organization_id,workspace_id,environment_id,connection_reference) DO UPDATE
+   SET status='pending',reason=EXCLUDED.reason,integration_id=EXCLUDED.integration_id,platform=EXCLUDED.platform,attempt=0,available_at=transaction_timestamp(),last_error_code=NULL,finished_at=NULL,updated_at=transaction_timestamp()
+   WHERE zasp_saas_connection_releases.status='retained';
+  RETURN NULL;
+ END $capture$;
+ EXECUTE format('ALTER FUNCTION public.zasp_saas_connection_release_capture() OWNER TO %I',owner_value);
+ REVOKE ALL ON FUNCTION public.zasp_saas_connection_release_capture() FROM PUBLIC;
+ DROP TRIGGER IF EXISTS zasp_saas_connection_release_capture ON public.zasp_workflow_records;
+ CREATE TRIGGER zasp_saas_connection_release_capture AFTER UPDATE OR DELETE ON public.zasp_workflow_records
+  FOR EACH ROW WHEN (OLD.kind='integration') EXECUTE FUNCTION public.zasp_saas_connection_release_capture();
+
+ -- Claims connections whose turn has come. A lease that expired without an
+ -- outcome (the worker stopped) is claimed again.
+ CREATE OR REPLACE FUNCTION public.zasp_saas_connection_release_claim(owner_value text,lease_seconds integer,limit_value integer) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $claim$
+ DECLARE result jsonb;
+ BEGIN
+  IF NOT COALESCE(length(owner_value) BETWEEN 3 AND 128 AND lease_seconds BETWEEN 5 AND 300 AND limit_value BETWEEN 1 AND 100,false) THEN
+   RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='invalid saas connection release claim';
+  END IF;
+  -- The last attempt ended without an outcome.
+  UPDATE zasp_saas_connection_releases x SET status='failed',last_error_code='attempts_exhausted',lease_owner=NULL,lease_token=NULL,lease_expires_at=NULL,finished_at=transaction_timestamp(),updated_at=transaction_timestamp()
+   WHERE x.status='pending' AND x.attempt>=50 AND x.lease_expires_at<=transaction_timestamp();
+  -- A connection an integration still names is kept.
+  UPDATE zasp_saas_connection_releases x SET status='retained',lease_owner=NULL,lease_token=NULL,lease_expires_at=NULL,finished_at=transaction_timestamp(),updated_at=transaction_timestamp()
+   WHERE x.status='pending' AND x.available_at<=transaction_timestamp() AND (x.lease_expires_at IS NULL OR x.lease_expires_at<=transaction_timestamp())
+    AND EXISTS(SELECT 1 FROM zasp_workflow_records r WHERE (r.organization_id,r.workspace_id,r.environment_id,r.kind)=(x.organization_id,x.workspace_id,x.environment_id,'integration')
+     AND r.deleted_at IS NULL AND r.body->>'connector_key'='saas' AND r.body#>>'{configuration,connection_reference}'=x.connection_reference);
+  WITH due AS (
+   SELECT x.organization_id,x.workspace_id,x.environment_id,x.connection_reference FROM zasp_saas_connection_releases x
+    WHERE x.status='pending' AND x.attempt<50 AND x.available_at<=transaction_timestamp() AND (x.lease_expires_at IS NULL OR x.lease_expires_at<=transaction_timestamp())
+    ORDER BY x.available_at,x.connection_reference FOR UPDATE SKIP LOCKED LIMIT limit_value),
+  claimed AS (
+   UPDATE zasp_saas_connection_releases x SET attempt=x.attempt+1,lease_owner=owner_value,lease_token=encode(gen_random_bytes(32),'hex'),
+    lease_expires_at=transaction_timestamp()+make_interval(secs=>lease_seconds),updated_at=transaction_timestamp()
+    FROM due WHERE (x.organization_id,x.workspace_id,x.environment_id,x.connection_reference)=(due.organization_id,due.workspace_id,due.environment_id,due.connection_reference)
+    RETURNING x.*)
+  SELECT jsonb_build_object('items',COALESCE(jsonb_agg(jsonb_build_object('organization_id',organization_id,'workspace_id',workspace_id,'environment_id',environment_id,
+   'connection_reference',connection_reference,'integration_id',integration_id,'platform',platform,'reason',reason,'attempt',attempt,
+   'lease_owner',lease_owner,'lease_token',lease_token,'lease_expires_at',lease_expires_at) ORDER BY available_at,connection_reference),'[]'::jsonb)) INTO result FROM claimed;
+  RETURN result;
+ END $claim$;
+
+ -- Records the outcome of a claimed deletion for the holder of its lease:
+ -- released, or to be tried again after a delay that doubles from thirty
+ -- seconds to one hour. The fiftieth failure is final.
+ CREATE OR REPLACE FUNCTION public.zasp_saas_connection_release_finish(organization_value text,workspace_value text,environment_value text,reference_value text,owner_value text,token_value text,released_value boolean,error_value text) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $finish$
+ DECLARE row_value zasp_saas_connection_releases%ROWTYPE;
+ BEGIN
+  IF released_value IS NULL OR released_value AND COALESCE(error_value,'')<>'' OR NOT released_value AND NOT COALESCE(error_value ~ '^[a-z][a-z0-9_]{1,63}$',false) THEN
+   RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='invalid saas connection release outcome';
+  END IF;
+  SELECT * INTO row_value FROM zasp_saas_connection_releases x
+   WHERE (x.organization_id,x.workspace_id,x.environment_id,x.connection_reference)=(organization_value,workspace_value,environment_value,reference_value) FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='saas connection release unavailable';END IF;
+  IF row_value.status<>'pending' OR row_value.lease_owner IS DISTINCT FROM owner_value OR row_value.lease_token IS DISTINCT FROM token_value OR row_value.lease_expires_at IS NULL OR row_value.lease_expires_at<=transaction_timestamp() THEN
+   RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='saas connection release lease unavailable';
+  END IF;
+  IF released_value THEN
+   UPDATE zasp_saas_connection_releases x SET status='released',last_error_code=NULL,lease_owner=NULL,lease_token=NULL,lease_expires_at=NULL,finished_at=transaction_timestamp(),updated_at=transaction_timestamp()
+    WHERE (x.organization_id,x.workspace_id,x.environment_id,x.connection_reference)=(organization_value,workspace_value,environment_value,reference_value) RETURNING * INTO row_value;
+  ELSIF row_value.attempt>=50 THEN
+   UPDATE zasp_saas_connection_releases x SET status='failed',last_error_code=error_value,lease_owner=NULL,lease_token=NULL,lease_expires_at=NULL,finished_at=transaction_timestamp(),updated_at=transaction_timestamp()
+    WHERE (x.organization_id,x.workspace_id,x.environment_id,x.connection_reference)=(organization_value,workspace_value,environment_value,reference_value) RETURNING * INTO row_value;
+  ELSE
+   UPDATE zasp_saas_connection_releases x SET last_error_code=error_value,lease_owner=NULL,lease_token=NULL,lease_expires_at=NULL,
+    available_at=transaction_timestamp()+LEAST(interval '1 hour',interval '30 seconds'*power(2,LEAST(row_value.attempt,8)-1)),updated_at=transaction_timestamp()
+    WHERE (x.organization_id,x.workspace_id,x.environment_id,x.connection_reference)=(organization_value,workspace_value,environment_value,reference_value) RETURNING * INTO row_value;
+  END IF;
+  RETURN jsonb_build_object('status',row_value.status,'attempt',row_value.attempt,'available_at',row_value.available_at);
+ END $finish$;
+
+ EXECUTE format('ALTER FUNCTION public.zasp_saas_connection_release_claim(text,integer,integer) OWNER TO %I',owner_value);
+ EXECUTE format('ALTER FUNCTION public.zasp_saas_connection_release_finish(text,text,text,text,text,text,boolean,text) OWNER TO %I',owner_value);
+ REVOKE ALL ON FUNCTION public.zasp_saas_connection_release_claim(text,integer,integer) FROM PUBLIC;
+ REVOKE ALL ON FUNCTION public.zasp_saas_connection_release_finish(text,text,text,text,text,text,boolean,text) FROM PUBLIC;
+ GRANT EXECUTE ON FUNCTION public.zasp_saas_connection_release_claim(text,integer,integer) TO zasp_discovery_api;
+ GRANT EXECUTE ON FUNCTION public.zasp_saas_connection_release_finish(text,text,text,text,text,text,boolean,text) TO zasp_discovery_api;
+END $ws10_saas_connection_release$;
+
+-- ---------------------------------------------------------------------------
+-- WS10c. How long an API token may live (workstream WS10).
+--
+-- The API Access page created every token for 24 hours, which is too short
+-- for a gateway that calls the guardrail decision API from its configuration.
+-- The API itself accepted any expiry up to a year for any token, and the
+-- database any expiry at all. A token's lifetime is now chosen when it is
+-- created, the default stays 24 hours, and the longest lifetime is decided
+-- here, where every token is written:
+--
+--   * a token that holds decide_guardrails and nothing else may live 365
+--     days. It can ask for guardrail decisions and can read nothing, so a
+--     leaked one exposes no inventory, finding or setting;
+--   * every other token may live 90 days. It reads the Environment, and with
+--     a manage permission changes it, for as long as it exists;
+--   * the administrators of an Environment may lower both limits for it with
+--     one number of days (zasp_api_token_policies, 1 to 365; no row means
+--     365, which lowers nothing). A lower limit applies to tokens created
+--     afterwards; existing tokens keep their expiry and can be revoked.
+--
+-- Nothing else about a token changes: it is still checked on every request
+-- against its owner's membership and scope, revoking it takes effect at once,
+-- and a rotation keeps the expiry of the token it replaces, so rotating never
+-- extends a lifetime.
+--
+-- create_pat gains one condition next to its existing expiry check (five
+-- minutes of clock difference between the API server and the database are
+-- allowed). The setting is read and written by getAPITokenPolicy and
+-- putAPITokenPolicy, browser operations of manage_api_tokens; writing needs
+-- fresh authentication and is audited.
+CREATE TABLE IF NOT EXISTS public.zasp_api_token_policies(
+ organization_id text NOT NULL,
+ workspace_id text NOT NULL,
+ environment_id text NOT NULL,
+ max_lifetime_days integer NOT NULL,
+ version bigint NOT NULL DEFAULT 1,
+ updated_by text NOT NULL,
+ updated_at timestamptz NOT NULL DEFAULT transaction_timestamp(),
+ PRIMARY KEY(organization_id,workspace_id,environment_id),
+ CONSTRAINT zasp_api_token_policies_days_check CHECK(max_lifetime_days BETWEEN 1 AND 365),
+ CONSTRAINT zasp_api_token_policies_version_check CHECK(version>0),
+ CONSTRAINT zasp_api_token_policies_updated_by_check CHECK(length(updated_by) BETWEEN 1 AND 128)
+);
+
+DO $ws10_api_token_policy_table$
+BEGIN
+ ALTER TABLE public.zasp_api_token_policies OWNER TO zasp_discovery_authority;
+ ALTER TABLE public.zasp_api_token_policies ENABLE ROW LEVEL SECURITY;
+ ALTER TABLE public.zasp_api_token_policies FORCE ROW LEVEL SECURITY;
+ REVOKE ALL ON TABLE public.zasp_api_token_policies FROM PUBLIC;
+ IF NOT EXISTS(SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='zasp_api_token_policies' AND policyname='zasp_api_token_policies_authority') THEN
+  CREATE POLICY zasp_api_token_policies_authority ON public.zasp_api_token_policies FOR ALL TO zasp_discovery_authority USING(true) WITH CHECK(true);
+ END IF;
+END $ws10_api_token_policy_table$;
+
+-- The longest lifetime, in days, of a token with these permissions in this
+-- Environment.
+CREATE OR REPLACE FUNCTION zasp_authorization80.api_token_max_lifetime_days(o text,w text,e text,permissions_value jsonb) RETURNS integer
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $api_token_max_lifetime_days$
+ SELECT LEAST(CASE WHEN permissions_value='["decide_guardrails"]'::jsonb THEN 365 ELSE 90 END,
+  COALESCE((SELECT p.max_lifetime_days FROM public.zasp_api_token_policies p WHERE(p.organization_id,p.workspace_id,p.environment_id)=(o,w,e)),365))
+$api_token_max_lifetime_days$;
+
+CREATE OR REPLACE FUNCTION zasp_authorization80.api_token_policy_value(o text,w text,e text) RETURNS jsonb
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $api_token_policy_value$
+ SELECT jsonb_build_object('environment_id',x.id,'max_lifetime_days',COALESCE(p.max_lifetime_days,365),'version',COALESCE(p.version,0),
+  'updated_at',CASE WHEN p.updated_at IS NULL THEN NULL ELSE to_char(p.updated_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') END,
+  'default_lifetime_days',1,
+  'decision_token_max_lifetime_days',zasp_authorization80.api_token_max_lifetime_days(o,w,e,'["decide_guardrails"]'::jsonb),
+  'token_max_lifetime_days',zasp_authorization80.api_token_max_lifetime_days(o,w,e,'["view"]'::jsonb))
+ FROM public.zasp_environments x LEFT JOIN public.zasp_api_token_policies p ON(p.organization_id,p.workspace_id,p.environment_id)=(x.organization_id,x.workspace_id,x.id)
+ WHERE(x.organization_id,x.workspace_id,x.id)=(o,w,e)
+$api_token_policy_value$;
+
+CREATE OR REPLACE FUNCTION zasp_authorization80.api_token_policy(o text,w text,e text) RETURNS jsonb
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $api_token_policy$
+DECLARE result jsonb;
+BEGIN
+ PERFORM zasp_authorization80.product_request(o,w,e,NULL,'getAPITokenPolicy','manage_api_tokens','environment',e,false,true,false,false);
+ result:=zasp_authorization80.api_token_policy_value(o,w,e);
+ IF result IS NULL THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='environment not found';END IF;
+ RETURN result;
+END $api_token_policy$;
+
+CREATE OR REPLACE FUNCTION zasp_authorization80.api_token_policy_write(o text,w text,e text,actor text,days_value integer,expected_version bigint,audit_value text,correlation_value text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $api_token_policy_write$
+DECLARE current_version bigint;
+BEGIN
+ IF NOT COALESCE(public.zasp_valid_product_id(actor) AND public.zasp_valid_product_id(audit_value) AND public.zasp_valid_product_id(correlation_value) AND expected_version BETWEEN 0 AND 1000000
+  AND days_value BETWEEN 1 AND 365,false)
+ THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='api token policy rejected';END IF;
+ PERFORM 1 FROM public.zasp_environments x WHERE(x.organization_id,x.workspace_id,x.id)=(o,w,e) FOR SHARE;
+ IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='environment not found';END IF;
+ PERFORM pg_advisory_xact_lock(hashtextextended(concat_ws(chr(31),'api-token-policy',o,w,e),0));
+ SELECT p.version INTO current_version FROM public.zasp_api_token_policies p WHERE(p.organization_id,p.workspace_id,p.environment_id)=(o,w,e) FOR UPDATE;
+ IF COALESCE(current_version,0)<>expected_version THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='api token policy version conflict';END IF;
+ INSERT INTO public.zasp_api_token_policies(organization_id,workspace_id,environment_id,max_lifetime_days,version,updated_by) VALUES(o,w,e,days_value,expected_version+1,actor)
+ ON CONFLICT(organization_id,workspace_id,environment_id) DO UPDATE SET max_lifetime_days=EXCLUDED.max_lifetime_days,version=EXCLUDED.version,updated_by=EXCLUDED.updated_by,updated_at=transaction_timestamp();
+ INSERT INTO public.zasp_workflow_audit(organization_id,workspace_id,environment_id,audit_id,correlation_id,principal_id,operation,resource_kind,resource_id,resource_version)
+ VALUES(o,w,e,audit_value,correlation_value,actor,'putAPITokenPolicy','environment',e,expected_version+1);
+ RETURN zasp_authorization80.api_token_policy_value(o,w,e)||jsonb_build_object('audit_id',audit_value,'correlation_id',correlation_value);
+END $api_token_policy_write$;
+
+CREATE OR REPLACE FUNCTION zasp_authorization80.api_token_set_policy(o text,w text,e text,actor text,days_value integer,expected_version bigint,audit_value text,correlation_value text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $api_token_set_policy$
+DECLARE p jsonb;result jsonb;
+BEGIN
+ p:=zasp_authorization80.product_request(o,w,e,actor,'putAPITokenPolicy','manage_api_tokens','environment',e,false,true,true,true);
+ result:=zasp_authorization80.api_token_policy_write(o,w,e,actor,days_value,expected_version,audit_value,correlation_value);
+ PERFORM zasp_authorization80.product_settled(p);
+ RETURN result;
+END $api_token_set_policy$;
+
+DO $ws10_api_token_policy_grants$
+DECLARE signature text;
+BEGIN
+ FOREACH signature IN ARRAY ARRAY['api_token_max_lifetime_days(text,text,text,jsonb)','api_token_policy_value(text,text,text)','api_token_policy(text,text,text)',
+  'api_token_policy_write(text,text,text,text,integer,bigint,text,text)','api_token_set_policy(text,text,text,text,integer,bigint,text,text)'] LOOP
+  EXECUTE format('ALTER FUNCTION zasp_authorization80.%s OWNER TO zasp_discovery_authority',signature);
+  EXECUTE format('REVOKE ALL ON FUNCTION zasp_authorization80.%s FROM PUBLIC',signature);
+ END LOOP;
+ GRANT EXECUTE ON FUNCTION zasp_authorization80.api_token_policy(text,text,text) TO zasp_discovery_api;
+ GRANT EXECUTE ON FUNCTION zasp_authorization80.api_token_set_policy(text,text,text,text,integer,bigint,text,text) TO zasp_discovery_api;
+END $ws10_api_token_policy_grants$;
+
+-- The expiry of a new token is within the lifetime its permissions and its
+-- Environment allow. $7 and $8 are the token's Workspace and Environment,
+-- $10 its permissions, $11 its expiry.
+DO $ws10_api_token_lifetime$
+DECLARE target CONSTANT regprocedure:='zasp_authorization80_identity.create_pat(text,text,text,bytea,bytea,text,text,text,text,jsonb,timestamptz,text,text,timestamptz,bytea,bytea,bytea)'::regprocedure;
+ anchor CONSTANT text:=$anchor$ AND $11>clock_timestamp() AND $anchor$;
+ bounded CONSTANT text:=$bounded$ AND $11>clock_timestamp() AND $11<=clock_timestamp()+interval '5 minutes'+make_interval(days=>zasp_authorization80.api_token_max_lifetime_days($1,$7,$8,$10)) AND $bounded$;
+ d text:=pg_get_functiondef(target);
+BEGIN
+ IF position(bounded in d)=0 THEN
+  IF position('api_token_max_lifetime_days' in d)>0 OR length(d)-length(replace(d,anchor,''))<>length(anchor) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='api token expiry predecessor changed';END IF;
+  EXECUTE replace(d,anchor,bounded);
+ END IF;
+END $ws10_api_token_lifetime$;
+
+-- ---------------------------------------------------------------------------
+-- WS9. The hosted gateway (workstream WS9: plan tasks D5 and E3).
+--
+-- The platform hosts a gateway. Nothing is installed at the customer: an
+-- agent's configuration names the platform's URL instead of an MCP server's
+-- or a model provider's, and presents an API token of the Environment.
+--   POST   /gateway/mcp/{id}                      callMCPGateway
+--   DELETE /gateway/mcp/{id}                      closeMCPGatewaySession
+--   POST   /gateway/llm/v1/chat/completions       createGatewayChatCompletion
+--   POST   /gateway/llm/v1/responses              createGatewayResponse
+--   POST   /gateway/llm/v1/messages               createGatewayMessage
+-- The forwarding and the guardrail detectors run in the API process. This
+-- section holds what the database owns:
+--   * use_gateway, a permission of API tokens only, in the manner of
+--     decide_guardrails (section V9): no role holds it, and a token that
+--     holds it alone can send traffic through the gateway and read nothing;
+--   * the Environment's gateway policy: whether a server the MCP registry has
+--     no decision for is refused, the risk classes of tools that are hidden
+--     and refused, and the rate of one token;
+--       GET /gateway/policy   getGatewayPolicy   (view)
+--       PUT /gateway/policy   putGatewayPolicy   (manage_workflows)
+--   * the upstream MCP servers registered behind the gateway: a name, an
+--     https address and per-tool allow and deny lists. No credential of an
+--     upstream is stored: it travels in a header of each request;
+--       GET    /gateway/mcp-servers        listMCPGatewayServers   (view)
+--       PUT    /gateway/mcp-servers/{id}   putMCPGatewayServer     (manage_workflows)
+--       DELETE /gateway/mcp-servers/{id}   deleteMCPGatewayServer  (manage_workflows)
+--   * the tools a server listed through the gateway (name and risk class
+--     only), which join the MCP tool inventory of a discovered server of the
+--     same host;
+--   * the decision records. No prompt, argument, tool result or answer is
+--     ever sent to the database: a record holds the decision, a reason, the
+--     matched rule identifiers with modes and counts, a size and the SHA-256
+--     digest of the body, and identifiers (server, tool, provider, model,
+--     agent);
+--       GET /gateway/activity   listGatewayActivity   (view)
+--   * the newest gateway decision of an agent, as one more source of the
+--     agent's last activity (section WS3-A6);
+--   * the rate of one token, as a token bucket in a table, so the limit is
+--     one limit however many API replicas serve the gateway;
+--   * the scheduler's pass over the gateway's records
+--     (zasp_gateway_maintain): it writes the decisions made for an agent of
+--     the inventory into the runtime sessions (source "gateway"), deletes
+--     decisions older than the retention it is given, and forgets idle rate
+--     buckets.
+-- Existing function bodies this section changes, each by one inserted
+-- member: create_pat (the permission list), zasp_mcp_server_tools (the tools
+-- seen through the gateway) and zasp_inventory_agent_activity. Two CHECK
+-- constraints of zasp_runtime_session_events are replaced by ones that also
+-- admit the source "gateway".
+
+CREATE TABLE IF NOT EXISTS public.zasp_gateway_policies(
+ organization_id text NOT NULL,
+ workspace_id text NOT NULL,
+ environment_id text NOT NULL,
+ unapproved_servers text NOT NULL DEFAULT 'allow',
+ denied_tool_risks text[] NOT NULL DEFAULT '{}',
+ requests_per_minute integer NOT NULL DEFAULT 600,
+ version bigint NOT NULL DEFAULT 1,
+ updated_by text NOT NULL,
+ updated_at timestamptz NOT NULL DEFAULT transaction_timestamp(),
+ PRIMARY KEY(organization_id,workspace_id,environment_id),
+ CONSTRAINT zasp_gateway_policies_unapproved_check CHECK(unapproved_servers IN('allow','refuse')),
+ CONSTRAINT zasp_gateway_policies_risks_check CHECK(cardinality(denied_tool_risks)<=5 AND denied_tool_risks<@ARRAY['execute','write','network','read','unclassified']),
+ CONSTRAINT zasp_gateway_policies_rate_check CHECK(requests_per_minute BETWEEN 0 AND 100000),
+ CONSTRAINT zasp_gateway_policies_version_check CHECK(version>0),
+ CONSTRAINT zasp_gateway_policies_updated_by_check CHECK(length(updated_by) BETWEEN 1 AND 128)
+);
+
+-- A list of tool names: at most 128, each a tool name that can be recorded.
+CREATE OR REPLACE FUNCTION public.zasp_gateway_tool_names_valid(names text[]) RETURNS boolean
+LANGUAGE sql IMMUTABLE SET search_path=pg_catalog,public AS $gateway_tool_names_valid$
+ SELECT COALESCE(cardinality(names)<=128 AND NOT EXISTS(SELECT 1 FROM unnest(names) name WHERE name IS NULL OR name !~ '^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,127}$')
+  AND(SELECT count(DISTINCT name) FROM unnest(names) name)=cardinality(names),false)
+$gateway_tool_names_valid$;
+
+CREATE TABLE IF NOT EXISTS public.zasp_mcp_gateway_servers(
+ organization_id text NOT NULL,
+ workspace_id text NOT NULL,
+ environment_id text NOT NULL,
+ id text NOT NULL,
+ name text NOT NULL,
+ upstream_url text NOT NULL,
+ upstream_host text NOT NULL,
+ enabled boolean NOT NULL DEFAULT true,
+ allowed_tools text[] NOT NULL DEFAULT '{}',
+ denied_tools text[] NOT NULL DEFAULT '{}',
+ version bigint NOT NULL DEFAULT 1,
+ created_by text NOT NULL,
+ created_at timestamptz NOT NULL DEFAULT transaction_timestamp(),
+ updated_by text NOT NULL,
+ updated_at timestamptz NOT NULL DEFAULT transaction_timestamp(),
+ PRIMARY KEY(organization_id,workspace_id,environment_id,id),
+ CONSTRAINT zasp_mcp_gateway_servers_name_key UNIQUE(organization_id,workspace_id,environment_id,name),
+ CONSTRAINT zasp_mcp_gateway_servers_id_check CHECK(public.zasp_valid_product_id(id)),
+ CONSTRAINT zasp_mcp_gateway_servers_name_check CHECK(length(name) BETWEEN 1 AND 128 AND name=btrim(name) AND name !~ '[[:cntrl:]]'),
+ -- An https address with a host, no credentials, no query and no fragment.
+ CONSTRAINT zasp_mcp_gateway_servers_url_check CHECK(length(upstream_url)<=2048 AND upstream_url ~ '^https://[A-Za-z0-9.-]+(:443)?(/[^?#[:space:][:cntrl:]]*)?$'),
+ CONSTRAINT zasp_mcp_gateway_servers_host_check CHECK(length(upstream_host) BETWEEN 1 AND 253 AND upstream_host=lower(substring(upstream_url from '^https://([A-Za-z0-9.-]+)'))),
+ CONSTRAINT zasp_mcp_gateway_servers_tools_check CHECK(public.zasp_gateway_tool_names_valid(allowed_tools) AND public.zasp_gateway_tool_names_valid(denied_tools)),
+ CONSTRAINT zasp_mcp_gateway_servers_version_check CHECK(version BETWEEN 1 AND 1000000),
+ CONSTRAINT zasp_mcp_gateway_servers_actor_check CHECK(length(created_by) BETWEEN 1 AND 128 AND length(updated_by) BETWEEN 1 AND 128)
+);
+
+CREATE TABLE IF NOT EXISTS public.zasp_mcp_gateway_tools(
+ organization_id text NOT NULL,
+ workspace_id text NOT NULL,
+ environment_id text NOT NULL,
+ server_id text NOT NULL,
+ name text NOT NULL,
+ tool_id text NOT NULL,
+ risk text NOT NULL,
+ first_seen_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+ last_seen_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+ PRIMARY KEY(organization_id,workspace_id,environment_id,server_id,name),
+ CONSTRAINT zasp_mcp_gateway_tools_server_fkey FOREIGN KEY(organization_id,workspace_id,environment_id,server_id) REFERENCES public.zasp_mcp_gateway_servers(organization_id,workspace_id,environment_id,id) ON DELETE CASCADE,
+ CONSTRAINT zasp_mcp_gateway_tools_name_check CHECK(name ~ '^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,63}$'),
+ CONSTRAINT zasp_mcp_gateway_tools_id_check CHECK(public.zasp_valid_product_id(tool_id)),
+ CONSTRAINT zasp_mcp_gateway_tools_risk_check CHECK(risk IN('execute','write','network','read','unclassified'))
+);
+
+CREATE TABLE IF NOT EXISTS public.zasp_gateway_decisions(
+ organization_id text NOT NULL,
+ workspace_id text NOT NULL,
+ environment_id text NOT NULL,
+ id text NOT NULL,
+ principal_id text NOT NULL,
+ surface text NOT NULL,
+ operation text NOT NULL,
+ direction text NOT NULL,
+ decision text NOT NULL,
+ reason text NOT NULL,
+ rules jsonb NOT NULL,
+ bytes bigint NOT NULL,
+ content_digest bytea NOT NULL,
+ server_id text,
+ tool_name text,
+ provider text,
+ model text,
+ agent_id text,
+ guardrail_version bigint NOT NULL,
+ policy_version bigint NOT NULL,
+ created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+ session_pending boolean NOT NULL DEFAULT false,
+ PRIMARY KEY(organization_id,workspace_id,environment_id,id),
+ CONSTRAINT zasp_gateway_decisions_surface_check CHECK(surface IN('mcp','llm') AND(surface='mcp')=(server_id IS NOT NULL) AND(surface='llm')=(provider IS NOT NULL)),
+ CONSTRAINT zasp_gateway_decisions_operation_check CHECK(CASE surface WHEN 'llm' THEN operation IN('chat.completions','responses','messages')
+  ELSE operation IN('initialize','ping','tools/list','tools/call','resources/list','resources/read','resources/templates/list','prompts/list','prompts/get','completion/complete','logging/setLevel','session/close','notification','response','other') END),
+ CONSTRAINT zasp_gateway_decisions_direction_check CHECK(direction IN('request','response')),
+ CONSTRAINT zasp_gateway_decisions_decision_check CHECK(decision IN('allow','redact','block') AND(decision='allow')=(reason='none')),
+ CONSTRAINT zasp_gateway_decisions_reason_check CHECK(reason IN('none','guardrail','server_blocked','server_unapproved','server_disabled','tool_denied','tool_not_allowed','tool_risk_denied','tools_hidden','stream_window_exceeded')),
+ CONSTRAINT zasp_gateway_decisions_rules_check CHECK(jsonb_typeof(rules)='array' AND octet_length(rules::text)<=8192),
+ CONSTRAINT zasp_gateway_decisions_bytes_check CHECK(bytes BETWEEN 0 AND 1073741824),
+ CONSTRAINT zasp_gateway_decisions_digest_check CHECK(octet_length(content_digest)=32),
+ CONSTRAINT zasp_gateway_decisions_names_check CHECK((server_id IS NULL OR public.zasp_valid_product_id(server_id)) AND(tool_name IS NULL OR tool_name ~ '^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$')
+  AND(provider IS NULL OR provider ~ '^[a-z][a-z0-9_]{1,31}$') AND(model IS NULL OR model ~ '^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$') AND(agent_id IS NULL OR agent_id ~ '^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$')),
+ CONSTRAINT zasp_gateway_decisions_versions_check CHECK(guardrail_version>=0 AND policy_version>=0)
+);
+CREATE INDEX IF NOT EXISTS zasp_gateway_decisions_created_idx ON public.zasp_gateway_decisions(organization_id,workspace_id,environment_id,created_at DESC,id DESC);
+CREATE INDEX IF NOT EXISTS zasp_gateway_decisions_server_idx ON public.zasp_gateway_decisions(organization_id,workspace_id,environment_id,server_id,created_at DESC) WHERE server_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS zasp_gateway_decisions_agent_idx ON public.zasp_gateway_decisions(organization_id,workspace_id,environment_id,agent_id,created_at DESC) WHERE agent_id IS NOT NULL;
+-- session_pending marks a decision the scheduler has still to consider for
+-- the runtime sessions (zasp_gateway_maintain): one that names an agent by
+-- an identifier of the inventory's form.
+ALTER TABLE public.zasp_gateway_decisions ADD COLUMN IF NOT EXISTS session_pending boolean NOT NULL DEFAULT false;
+CREATE INDEX IF NOT EXISTS zasp_gateway_decisions_session_pending_idx ON public.zasp_gateway_decisions(created_at,id) WHERE session_pending;
+CREATE INDEX IF NOT EXISTS zasp_gateway_decisions_age_idx ON public.zasp_gateway_decisions(created_at);
+
+-- The rate of one API token in one Environment: a token bucket. tokens is
+-- what was left at updated_at; the bucket refills at the policy's rate.
+CREATE TABLE IF NOT EXISTS public.zasp_gateway_rate_buckets(
+ organization_id text NOT NULL,
+ workspace_id text NOT NULL,
+ environment_id text NOT NULL,
+ token_id text NOT NULL,
+ tokens double precision NOT NULL,
+ updated_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+ PRIMARY KEY(organization_id,workspace_id,environment_id,token_id),
+ CONSTRAINT zasp_gateway_rate_buckets_token_check CHECK(length(token_id) BETWEEN 1 AND 128),
+ CONSTRAINT zasp_gateway_rate_buckets_tokens_check CHECK(tokens>=0 AND tokens<=100000)
+);
+CREATE INDEX IF NOT EXISTS zasp_gateway_rate_buckets_age_idx ON public.zasp_gateway_rate_buckets(updated_at);
+
+DO $ws9_gateway_tables$
+DECLARE t text;
+BEGIN
+ FOREACH t IN ARRAY ARRAY['zasp_gateway_policies','zasp_mcp_gateway_servers','zasp_mcp_gateway_tools','zasp_gateway_decisions','zasp_gateway_rate_buckets'] LOOP
+  EXECUTE format('ALTER TABLE public.%I OWNER TO zasp_discovery_authority',t);
+  EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY',t);
+  EXECUTE format('ALTER TABLE public.%I FORCE ROW LEVEL SECURITY',t);
+  EXECUTE format('REVOKE ALL ON TABLE public.%I FROM PUBLIC',t);
+  IF NOT EXISTS(SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename=t AND policyname=t||'_authority') THEN
+   EXECUTE format('CREATE POLICY %I ON public.%I FOR ALL TO zasp_discovery_authority USING(true) WITH CHECK(true)',t||'_authority',t);
+  END IF;
+ END LOOP;
+ ALTER FUNCTION public.zasp_gateway_tool_names_valid(text[]) OWNER TO zasp_discovery_authority;
+END $ws9_gateway_tables$;
+
+-- The token permission: the list an API token may be created with gains
+-- use_gateway. The block finds create_pat by its name, whatever its
+-- arguments have become, and changes a body only where it finds the one
+-- fragment it needs: the opening of the list, NOT IN('view', which becomes
+-- NOT IN('use_gateway','view', . A body that already admits use_gateway is
+-- left alone, so the block does nothing when it is applied again or after a
+-- section that wrote the list with use_gateway in it, and it applies after a
+-- section that changed anything else of create_pat. use_gateway is added at
+-- the head of the list: section V9 recognises its own change by the tail of
+-- the list, and must still find it when the sections are applied again.
+DO $ws9_gateway_token_permission$
+DECLARE anchor CONSTANT text:=$anchor$NOT IN('view',$anchor$;
+ member CONSTANT text:=$member$NOT IN('use_gateway','view',$member$;
+ f record;admitted boolean:=false;d text;
+BEGIN
+ FOR f IN SELECT p.oid FROM pg_proc p WHERE p.pronamespace='zasp_authorization80_identity'::regnamespace AND p.proname='create_pat' ORDER BY p.oid LOOP
+  d:=pg_get_functiondef(f.oid);
+  IF position($q$'use_gateway'$q$ in d)=0 AND length(d)-length(replace(d,anchor,''))=length(anchor) THEN
+   EXECUTE replace(d,anchor,member);
+   d:=pg_get_functiondef(f.oid);
+  END IF;
+  admitted:=admitted OR position($q$'use_gateway'$q$ in d)>0;
+ END LOOP;
+ IF NOT admitted THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='api token permission list predecessor changed';END IF;
+END $ws9_gateway_token_permission$;
+
+-- How long a gateway token may live (section WS10c). A token that holds
+-- use_gateway and nothing else, or use_gateway and decide_guardrails, sends
+-- traffic through the gateway and asks for decisions and can read nothing,
+-- like the token of decide_guardrails alone: it lives in an agent's
+-- configuration and may live 365 days, or the Environment's lower limit.
+-- The block changes api_token_max_lifetime_days where it finds the one
+-- condition it replaces, the comparison with the list of decide_guardrails
+-- alone, and does nothing to a body that already names use_gateway or to a
+-- database that does not have the function (section WS10c not applied).
+DO $ws9_gateway_token_lifetime$
+DECLARE anchor CONSTANT text:=$anchor$permissions_value='["decide_guardrails"]'::jsonb$anchor$;
+ member CONSTANT text:=$member$(jsonb_typeof(permissions_value)='array' AND jsonb_array_length(permissions_value)>0 AND permissions_value<@'["decide_guardrails","use_gateway"]'::jsonb AND(SELECT count(DISTINCT v) FROM jsonb_array_elements_text(permissions_value) v)=jsonb_array_length(permissions_value))$member$;
+ target regprocedure:=to_regprocedure('zasp_authorization80.api_token_max_lifetime_days(text,text,text,jsonb)');
+ d text;
+BEGIN
+ IF target IS NULL THEN RETURN;END IF;
+ d:=pg_get_functiondef(target);
+ IF position('use_gateway' in d)=0 THEN
+  IF length(d)-length(replace(d,anchor,''))<>length(anchor) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='api token lifetime predecessor changed';END IF;
+  EXECUTE replace(d,anchor,member);
+ END IF;
+END $ws9_gateway_token_lifetime$;
+
+-- The gateway policy. A policy that was never saved has version 0 and the
+-- defaults: unapproved servers are allowed (a blocked server never is), no
+-- risk class is denied, and a token may send 600 requests a minute.
+CREATE OR REPLACE FUNCTION zasp_authorization80.gateway_policy_value(o text,w text,e text) RETURNS jsonb
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $gateway_policy_value$
+ SELECT jsonb_build_object('environment_id',x.id,'unapproved_servers',COALESCE(p.unapproved_servers,'allow'),'denied_tool_risks',to_jsonb(COALESCE(p.denied_tool_risks,'{}'::text[])),
+  'requests_per_minute',COALESCE(p.requests_per_minute,600),'version',COALESCE(p.version,0),
+  'updated_at',CASE WHEN p.updated_at IS NULL THEN NULL ELSE to_char(p.updated_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') END)
+ FROM public.zasp_environments x LEFT JOIN public.zasp_gateway_policies p ON(p.organization_id,p.workspace_id,p.environment_id)=(x.organization_id,x.workspace_id,x.id)
+ WHERE(x.organization_id,x.workspace_id,x.id)=(o,w,e)
+$gateway_policy_value$;
+
+CREATE OR REPLACE FUNCTION zasp_authorization80.gateway_policy(o text,w text,e text) RETURNS jsonb
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $gateway_policy$
+DECLARE result jsonb;
+BEGIN
+ PERFORM zasp_authorization80.product_request(o,w,e,NULL,'getGatewayPolicy','view','environment',e,false,false,false,false);
+ result:=zasp_authorization80.gateway_policy_value(o,w,e);
+ IF result IS NULL THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='environment not found';END IF;
+ RETURN result;
+END $gateway_policy$;
+
+-- q is closed: {"unapproved_servers","denied_tool_risks","requests_per_minute"}.
+CREATE OR REPLACE FUNCTION zasp_authorization80.gateway_policy_write(o text,w text,e text,actor text,q jsonb,expected_version bigint,audit_value text,correlation_value text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $gateway_policy_write$
+DECLARE current_version bigint;risks text[];
+BEGIN
+ IF NOT COALESCE(public.zasp_valid_product_id(actor) AND public.zasp_valid_product_id(audit_value) AND public.zasp_valid_product_id(correlation_value) AND expected_version BETWEEN 0 AND 1000000
+  AND jsonb_typeof(q)='object' AND(SELECT array_agg(key ORDER BY key) FROM jsonb_object_keys(q) key)=ARRAY['denied_tool_risks','requests_per_minute','unapproved_servers']
+  AND q->>'unapproved_servers' IN('allow','refuse') AND jsonb_typeof(q->'unapproved_servers')='string'
+  AND jsonb_typeof(q->'requests_per_minute')='number' AND q->>'requests_per_minute'~'^(0|[1-9][0-9]{0,5})$' AND(q->>'requests_per_minute')::integer<=100000
+  AND jsonb_typeof(q->'denied_tool_risks')='array' AND jsonb_array_length(q->'denied_tool_risks')<=5
+  AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(q->'denied_tool_risks') risk WHERE jsonb_typeof(risk)<>'string' OR risk#>>'{}' NOT IN('execute','write','network','read','unclassified'))
+  AND(SELECT count(DISTINCT risk) FROM jsonb_array_elements_text(q->'denied_tool_risks') risk)=jsonb_array_length(q->'denied_tool_risks'),false)
+ THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='gateway policy rejected';END IF;
+ PERFORM 1 FROM public.zasp_environments x WHERE(x.organization_id,x.workspace_id,x.id)=(o,w,e) FOR SHARE;
+ IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='environment not found';END IF;
+ PERFORM pg_advisory_xact_lock(hashtextextended(concat_ws(chr(31),'gateway-policy',o,w,e),0));
+ SELECT p.version INTO current_version FROM public.zasp_gateway_policies p WHERE(p.organization_id,p.workspace_id,p.environment_id)=(o,w,e) FOR UPDATE;
+ IF COALESCE(current_version,0)<>expected_version THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='gateway policy version conflict';END IF;
+ SELECT COALESCE(array_agg(risk ORDER BY array_position(ARRAY['execute','write','network','read','unclassified'],risk)),'{}') INTO risks FROM jsonb_array_elements_text(q->'denied_tool_risks') risk;
+ INSERT INTO public.zasp_gateway_policies(organization_id,workspace_id,environment_id,unapproved_servers,denied_tool_risks,requests_per_minute,version,updated_by)
+ VALUES(o,w,e,q->>'unapproved_servers',risks,(q->>'requests_per_minute')::integer,expected_version+1,actor)
+ ON CONFLICT(organization_id,workspace_id,environment_id) DO UPDATE SET unapproved_servers=EXCLUDED.unapproved_servers,denied_tool_risks=EXCLUDED.denied_tool_risks,requests_per_minute=EXCLUDED.requests_per_minute,
+  version=EXCLUDED.version,updated_by=EXCLUDED.updated_by,updated_at=transaction_timestamp();
+ INSERT INTO public.zasp_workflow_audit(organization_id,workspace_id,environment_id,audit_id,correlation_id,principal_id,operation,resource_kind,resource_id,resource_version)
+ VALUES(o,w,e,audit_value,correlation_value,actor,'putGatewayPolicy','environment',e,expected_version+1);
+ RETURN zasp_authorization80.gateway_policy_value(o,w,e)||jsonb_build_object('audit_id',audit_value,'correlation_id',correlation_value);
+END $gateway_policy_write$;
+
+CREATE OR REPLACE FUNCTION zasp_authorization80.gateway_set_policy(o text,w text,e text,actor text,q jsonb,expected_version bigint,audit_value text,correlation_value text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $gateway_set_policy$
+DECLARE p jsonb;result jsonb;
+BEGIN
+ p:=zasp_authorization80.product_request(o,w,e,actor,'putGatewayPolicy','manage_workflows','environment',e,false,false,false,true);
+ result:=zasp_authorization80.gateway_policy_write(o,w,e,actor,q,expected_version,audit_value,correlation_value);
+ PERFORM zasp_authorization80.product_settled(p);
+ RETURN result;
+END $gateway_set_policy$;
+
+-- A gateway server as the API serves it. identity is what the MCP registry
+-- decides (host:<host>, the identity of a discovered remote server of the
+-- same host); approval is the registry's decision for it. tools are the
+-- tools the server listed through the gateway (at most 64, the most
+-- dangerous first); last_activity_at is the newest decision.
+CREATE OR REPLACE FUNCTION zasp_authorization80.mcp_gateway_server_value(o text,w text,e text,i text) RETURNS jsonb
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $mcp_gateway_server_value$
+ SELECT jsonb_build_object('id',s.id,'name',s.name,'upstream_url',s.upstream_url,'upstream_host',s.upstream_host,'identity','host:'||s.upstream_host,
+  'approval',COALESCE((SELECT r.status FROM public.zasp_mcp_registry r WHERE(r.organization_id,r.workspace_id,r.environment_id,r.identity)=(o,w,e,'host:'||s.upstream_host)),'unapproved'),
+  'enabled',s.enabled,'allowed_tools',to_jsonb(s.allowed_tools),'denied_tools',to_jsonb(s.denied_tools),
+  'tools',COALESCE((SELECT jsonb_agg(jsonb_build_object('name',listed.name,'risk',listed.risk,'last_seen_at',to_char(listed.last_seen_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"')) ORDER BY listed.position) FROM(
+    SELECT t.*,row_number() OVER(ORDER BY array_position(ARRAY['execute','write','network','read','unclassified'],t.risk),t.name) position
+    FROM public.zasp_mcp_gateway_tools t WHERE(t.organization_id,t.workspace_id,t.environment_id,t.server_id)=(o,w,e,s.id)) listed WHERE listed.position<=64),'[]'::jsonb),
+  'tool_count',(SELECT count(*) FROM public.zasp_mcp_gateway_tools t WHERE(t.organization_id,t.workspace_id,t.environment_id,t.server_id)=(o,w,e,s.id)),
+  'last_activity_at',(SELECT to_char(max(d.created_at) AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') FROM public.zasp_gateway_decisions d WHERE(d.organization_id,d.workspace_id,d.environment_id,d.server_id)=(o,w,e,s.id)),
+  'version',s.version,'created_at',to_char(s.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),'updated_at',to_char(s.updated_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'))
+ FROM public.zasp_mcp_gateway_servers s WHERE(s.organization_id,s.workspace_id,s.environment_id,s.id)=(o,w,e,i)
+$mcp_gateway_server_value$;
+
+CREATE OR REPLACE FUNCTION zasp_authorization80.mcp_gateway_server_page(o text,w text,e text) RETURNS jsonb
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $mcp_gateway_server_page$
+BEGIN
+ PERFORM zasp_authorization80.product_request(o,w,e,NULL,'listMCPGatewayServers','view','environment',e,false,false,false,false);
+ RETURN jsonb_build_object('items',COALESCE((SELECT jsonb_agg(zasp_authorization80.mcp_gateway_server_value(o,w,e,s.id) ORDER BY s.name,s.id)
+  FROM public.zasp_mcp_gateway_servers s WHERE(s.organization_id,s.workspace_id,s.environment_id)=(o,w,e)),'[]'::jsonb));
+END $mcp_gateway_server_page$;
+
+-- Registers a server (expected version 0) or changes one (the version the
+-- caller read). q is closed: {"name","upstream_url","enabled",
+-- "allowed_tools","denied_tools"}. An Environment holds at most 200 servers.
+CREATE OR REPLACE FUNCTION zasp_authorization80.mcp_gateway_server_write(o text,w text,e text,actor text,i text,q jsonb,expected_version bigint,audit_value text,correlation_value text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $mcp_gateway_server_write$
+DECLARE current_version bigint;allowed text[];denied text[];old_host text;new_host text;
+BEGIN
+ IF NOT COALESCE(public.zasp_valid_product_id(actor) AND public.zasp_valid_product_id(i) AND public.zasp_valid_product_id(audit_value) AND public.zasp_valid_product_id(correlation_value) AND expected_version BETWEEN 0 AND 999999
+  AND jsonb_typeof(q)='object' AND(SELECT array_agg(key ORDER BY key) FROM jsonb_object_keys(q) key)=ARRAY['allowed_tools','denied_tools','enabled','name','upstream_url']
+  AND jsonb_typeof(q->'name')='string' AND length(q->>'name') BETWEEN 1 AND 128 AND q->>'name'=btrim(q->>'name') AND q->>'name' !~ '[[:cntrl:]]'
+  AND jsonb_typeof(q->'upstream_url')='string' AND length(q->>'upstream_url')<=2048 AND q->>'upstream_url' ~ '^https://[A-Za-z0-9.-]+(:443)?(/[^?#[:space:][:cntrl:]]*)?$'
+  AND jsonb_typeof(q->'enabled')='boolean' AND jsonb_typeof(q->'allowed_tools')='array' AND jsonb_typeof(q->'denied_tools')='array'
+  AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(q->'allowed_tools'||q->'denied_tools') name WHERE jsonb_typeof(name)<>'string'),false)
+ THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='mcp gateway server rejected';END IF;
+ SELECT COALESCE(array_agg(name ORDER BY name),'{}') INTO allowed FROM jsonb_array_elements_text(q->'allowed_tools') name;
+ SELECT COALESCE(array_agg(name ORDER BY name),'{}') INTO denied FROM jsonb_array_elements_text(q->'denied_tools') name;
+ IF NOT COALESCE(public.zasp_gateway_tool_names_valid(allowed) AND public.zasp_gateway_tool_names_valid(denied) AND NOT allowed&&denied,false)
+ THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='mcp gateway server rejected';END IF;
+ PERFORM 1 FROM public.zasp_environments x WHERE(x.organization_id,x.workspace_id,x.id)=(o,w,e) FOR SHARE;
+ IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='environment not found';END IF;
+ PERFORM pg_advisory_xact_lock(hashtextextended(concat_ws(chr(31),'mcp-gateway-servers',o,w,e),0));
+ new_host:=lower(substring(q->>'upstream_url' from '^https://([A-Za-z0-9.-]+)'));
+ SELECT s.version,s.upstream_host INTO current_version,old_host FROM public.zasp_mcp_gateway_servers s WHERE(s.organization_id,s.workspace_id,s.environment_id,s.id)=(o,w,e,i) FOR UPDATE;
+ IF COALESCE(current_version,0)<>expected_version THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='mcp gateway server version conflict';END IF;
+ IF EXISTS(SELECT 1 FROM public.zasp_mcp_gateway_servers s WHERE(s.organization_id,s.workspace_id,s.environment_id,s.name)=(o,w,e,q->>'name') AND s.id<>i)
+ THEN RAISE EXCEPTION USING ERRCODE='23505',MESSAGE='mcp gateway server name taken';END IF;
+ IF current_version IS NULL AND(SELECT count(*) FROM public.zasp_mcp_gateway_servers s WHERE(s.organization_id,s.workspace_id,s.environment_id)=(o,w,e))>=200
+ THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='mcp gateway server limit reached';END IF;
+ INSERT INTO public.zasp_mcp_gateway_servers AS s(organization_id,workspace_id,environment_id,id,name,upstream_url,upstream_host,enabled,allowed_tools,denied_tools,version,created_by,updated_by)
+ VALUES(o,w,e,i,q->>'name',q->>'upstream_url',new_host,(q->>'enabled')::boolean,allowed,denied,1,actor,actor)
+ ON CONFLICT(organization_id,workspace_id,environment_id,id) DO UPDATE SET name=EXCLUDED.name,upstream_url=EXCLUDED.upstream_url,upstream_host=EXCLUDED.upstream_host,enabled=EXCLUDED.enabled,
+  allowed_tools=EXCLUDED.allowed_tools,denied_tools=EXCLUDED.denied_tools,version=s.version+1,updated_by=EXCLUDED.updated_by,updated_at=transaction_timestamp();
+ -- The tools of another host are not this server's.
+ IF old_host IS DISTINCT FROM new_host THEN
+  DELETE FROM public.zasp_mcp_gateway_tools t WHERE(t.organization_id,t.workspace_id,t.environment_id,t.server_id)=(o,w,e,i);
+ END IF;
+ INSERT INTO public.zasp_workflow_audit(organization_id,workspace_id,environment_id,audit_id,correlation_id,principal_id,operation,resource_kind,resource_id,resource_version)
+ VALUES(o,w,e,audit_value,correlation_value,actor,'putMCPGatewayServer','environment',e,expected_version+1);
+ RETURN zasp_authorization80.mcp_gateway_server_value(o,w,e,i)||jsonb_build_object('audit_id',audit_value,'correlation_id',correlation_value);
+END $mcp_gateway_server_write$;
+
+CREATE OR REPLACE FUNCTION zasp_authorization80.mcp_gateway_server_put(o text,w text,e text,actor text,i text,q jsonb,expected_version bigint,audit_value text,correlation_value text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $mcp_gateway_server_put$
+DECLARE p jsonb;result jsonb;
+BEGIN
+ p:=zasp_authorization80.product_request(o,w,e,actor,'putMCPGatewayServer','manage_workflows','environment',e,false,false,false,true);
+ IF p#>>'{path_parameters,id}' IS DISTINCT FROM i THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';END IF;
+ result:=zasp_authorization80.mcp_gateway_server_write(o,w,e,actor,i,q,expected_version,audit_value,correlation_value);
+ PERFORM zasp_authorization80.product_settled(p);
+ RETURN result;
+END $mcp_gateway_server_put$;
+
+-- Removes a server and the tools it listed. Its decision records stay.
+CREATE OR REPLACE FUNCTION zasp_authorization80.mcp_gateway_server_remove(o text,w text,e text,actor text,i text,expected_version bigint,audit_value text,correlation_value text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $mcp_gateway_server_remove$
+DECLARE current_version bigint;
+BEGIN
+ IF NOT COALESCE(public.zasp_valid_product_id(actor) AND public.zasp_valid_product_id(i) AND public.zasp_valid_product_id(audit_value) AND public.zasp_valid_product_id(correlation_value) AND expected_version BETWEEN 1 AND 1000000,false)
+ THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='mcp gateway server rejected';END IF;
+ PERFORM pg_advisory_xact_lock(hashtextextended(concat_ws(chr(31),'mcp-gateway-servers',o,w,e),0));
+ SELECT s.version INTO current_version FROM public.zasp_mcp_gateway_servers s WHERE(s.organization_id,s.workspace_id,s.environment_id,s.id)=(o,w,e,i) FOR UPDATE;
+ IF current_version IS NULL THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='mcp gateway server not found';END IF;
+ IF current_version<>expected_version THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='mcp gateway server version conflict';END IF;
+ DELETE FROM public.zasp_mcp_gateway_servers s WHERE(s.organization_id,s.workspace_id,s.environment_id,s.id)=(o,w,e,i);
+ INSERT INTO public.zasp_workflow_audit(organization_id,workspace_id,environment_id,audit_id,correlation_id,principal_id,operation,resource_kind,resource_id,resource_version)
+ VALUES(o,w,e,audit_value,correlation_value,actor,'deleteMCPGatewayServer','environment',e,expected_version+1);
+ RETURN jsonb_build_object('id',i,'deleted',true,'audit_id',audit_value,'correlation_id',correlation_value);
+END $mcp_gateway_server_remove$;
+
+CREATE OR REPLACE FUNCTION zasp_authorization80.mcp_gateway_server_delete(o text,w text,e text,actor text,i text,expected_version bigint,audit_value text,correlation_value text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $mcp_gateway_server_delete$
+DECLARE p jsonb;result jsonb;
+BEGIN
+ p:=zasp_authorization80.product_request(o,w,e,actor,'deleteMCPGatewayServer','manage_workflows','environment',e,false,false,false,true);
+ IF p#>>'{path_parameters,id}' IS DISTINCT FROM i THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';END IF;
+ result:=zasp_authorization80.mcp_gateway_server_remove(o,w,e,actor,i,expected_version,audit_value,correlation_value);
+ PERFORM zasp_authorization80.product_settled(p);
+ RETURN result;
+END $mcp_gateway_server_delete$;
+
+-- What one gateway request is decided under: the gateway policy, the
+-- guardrail policy and, for an MCP request, the server with the registry's
+-- decision for its host.
+CREATE OR REPLACE FUNCTION zasp_authorization80.gateway_session_value(o text,w text,e text,server_value text) RETURNS jsonb
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $gateway_session_value$
+DECLARE policy_value jsonb:=zasp_authorization80.gateway_policy_value(o,w,e);guardrail_value jsonb:=zasp_authorization80.guardrail_policy_value(o,w,e);found jsonb;
+BEGIN
+ IF policy_value IS NULL OR guardrail_value IS NULL THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='environment not found';END IF;
+ IF server_value IS NOT NULL THEN
+  found:=zasp_authorization80.mcp_gateway_server_value(o,w,e,server_value);
+  IF found IS NULL THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='mcp gateway server not found';END IF;
+  found:=jsonb_build_object('id',found->'id','name',found->'name','upstream_url',found->'upstream_url','enabled',found->'enabled','allowed_tools',found->'allowed_tools','denied_tools',found->'denied_tools','approval',found->'approval');
+ END IF;
+ RETURN jsonb_build_object('policy',policy_value-'environment_id'-'updated_at','guardrail',jsonb_build_object('version',guardrail_value->'version','rules',guardrail_value->'rules'),'server',found);
+END $gateway_session_value$;
+
+-- The five operations of the gateway's traffic. Each is admitted for an API
+-- token that holds use_gateway; the two MCP operations name the server of
+-- the request path.
+CREATE OR REPLACE FUNCTION zasp_authorization80.gateway_request(o text,w text,e text,actor text,op text,server_value text,write_value boolean) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $gateway_request$
+DECLARE p jsonb;
+BEGIN
+ IF op IS NULL OR op NOT IN('callMCPGateway','closeMCPGatewaySession','createGatewayChatCompletion','createGatewayResponse','createGatewayMessage')
+ THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';END IF;
+ p:=zasp_authorization80.product_request(o,w,e,actor,op,'use_gateway','environment',e,false,false,false,write_value);
+ IF p->>'credential_kind' IS DISTINCT FROM '2' OR NOT COALESCE(p->'pat_ceiling' ? 'use_gateway',false)
+  OR(op IN('callMCPGateway','closeMCPGatewaySession'))<>(server_value IS NOT NULL)
+  OR(server_value IS NOT NULL AND p#>>'{path_parameters,id}' IS DISTINCT FROM server_value)
+ THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';END IF;
+ RETURN p;
+END $gateway_request$;
+
+-- One request of a token is taken from its bucket. The bucket holds at most
+-- one minute of the rate n and refills continuously; a request is admitted
+-- while at least one is left. The row is locked for the length of the
+-- statement only, so replicas serving the same token share one limit.
+CREATE OR REPLACE FUNCTION zasp_authorization80.gateway_rate_take(o text,w text,e text,token_value text,n integer) RETURNS boolean
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $gateway_rate_take$
+DECLARE taken integer;
+BEGIN
+ IF token_value IS NULL OR length(token_value) NOT BETWEEN 1 AND 128 OR n IS NULL OR n NOT BETWEEN 1 AND 100000 THEN RETURN false;END IF;
+ INSERT INTO public.zasp_gateway_rate_buckets AS b(organization_id,workspace_id,environment_id,token_id,tokens,updated_at) VALUES(o,w,e,token_value,n-1,clock_timestamp())
+ ON CONFLICT(organization_id,workspace_id,environment_id,token_id) DO UPDATE
+  SET tokens=LEAST(n::double precision,b.tokens+GREATEST(0,extract(epoch FROM clock_timestamp()-b.updated_at))*n/60.0)-1,updated_at=clock_timestamp()
+  WHERE LEAST(n::double precision,b.tokens+GREATEST(0,extract(epoch FROM clock_timestamp()-b.updated_at))*n/60.0)>=1;
+ GET DIAGNOSTICS taken=ROW_COUNT;
+ RETURN taken=1;
+END $gateway_rate_take$;
+
+-- The opening of a request: its admission, what the gateway enforces, and
+-- whether the token's rate admits it (rate_allowed). A rate of 0 is no
+-- limit.
+CREATE OR REPLACE FUNCTION zasp_authorization80.gateway_open(o text,w text,e text,actor text,op text,server_value text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $gateway_open$
+DECLARE p jsonb;result jsonb;n integer;
+BEGIN
+ p:=zasp_authorization80.gateway_request(o,w,e,actor,op,server_value,false);
+ result:=zasp_authorization80.gateway_session_value(o,w,e,server_value);
+ n:=(result#>>'{policy,requests_per_minute}')::integer;
+ RETURN result||jsonb_build_object('rate_allowed',n=0 OR zasp_authorization80.gateway_rate_take(o,w,e,p->>'credential_id',n));
+END $gateway_open$;
+
+-- The records of one gateway request, and the tools its server listed. q is
+-- closed: {"records":[...],"tools":[...]} with at most 8 records and 256
+-- tools.
+--   record  {"id","surface","operation","direction","decision","reason",
+--            "rules":[{"id","category","mode","count"}],"bytes",
+--            "content_digest","tool_name","provider","model","agent_id"}
+--   tool    {"name","risk"}
+-- Nothing in it can hold a prompt, an argument, a result or an answer: every
+-- member is an identifier of a closed form, a number or a digest.
+CREATE OR REPLACE FUNCTION zasp_authorization80.gateway_record_write(o text,w text,e text,actor text,server_value text,q jsonb) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $gateway_record_write$
+DECLARE guardrail_version_value bigint;policy_version_value bigint;written integer;
+BEGIN
+ IF q IS NULL OR jsonb_typeof(q)<>'object' OR octet_length(q::text)>131072
+  OR NOT COALESCE((SELECT array_agg(key ORDER BY key) FROM jsonb_object_keys(q) key)=ARRAY['records','tools'] AND public.zasp_valid_product_id(actor)
+   AND(server_value IS NULL OR public.zasp_valid_product_id(server_value))
+   AND jsonb_typeof(q->'records')='array' AND jsonb_array_length(q->'records')<=8 AND jsonb_typeof(q->'tools')='array' AND jsonb_array_length(q->'tools')<=256
+   AND(server_value IS NOT NULL OR jsonb_array_length(q->'tools')=0)
+   AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(q->'records') r WHERE jsonb_typeof(r)<>'object'
+    OR(SELECT array_agg(key ORDER BY key) FROM jsonb_object_keys(r) key) IS DISTINCT FROM ARRAY['agent_id','bytes','content_digest','decision','direction','id','model','operation','provider','reason','rules','surface','tool_name']
+    OR NOT COALESCE(public.zasp_valid_product_id(r->>'id'),false)
+    OR r->>'surface' IS DISTINCT FROM CASE WHEN server_value IS NULL THEN 'llm' ELSE 'mcp' END
+    OR NOT COALESCE(CASE r->>'surface' WHEN 'llm' THEN r->>'operation' IN('chat.completions','responses','messages') AND r->>'provider'~'^[a-z][a-z0-9_]{1,31}$' AND r->'tool_name'='null'::jsonb
+     ELSE r->>'operation' IN('initialize','ping','tools/list','tools/call','resources/list','resources/read','resources/templates/list','prompts/list','prompts/get','completion/complete','logging/setLevel','session/close','notification','response','other')
+      AND r->'provider'='null'::jsonb AND r->'model'='null'::jsonb END,false)
+    OR NOT COALESCE(r->>'direction' IN('request','response') AND r->>'decision' IN('allow','redact','block')
+     AND r->>'reason' IN('none','guardrail','server_blocked','server_unapproved','server_disabled','tool_denied','tool_not_allowed','tool_risk_denied','tools_hidden','stream_window_exceeded')
+     AND(r->>'decision'='allow')=(r->>'reason'='none'),false)
+    OR jsonb_typeof(r->'bytes')<>'number' OR r->>'bytes' !~ '^(0|[1-9][0-9]{0,9})$' OR(r->>'bytes')::bigint>1073741824
+    OR NOT COALESCE(r->>'content_digest'~'^sha256:[0-9a-f]{64}$',false)
+    OR NOT COALESCE(r->'tool_name'='null'::jsonb OR jsonb_typeof(r->'tool_name')='string' AND r->>'tool_name'~'^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$',false)
+    OR NOT COALESCE(r->'model'='null'::jsonb OR jsonb_typeof(r->'model')='string' AND r->>'model'~'^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$',false)
+    OR NOT COALESCE(r->'agent_id'='null'::jsonb OR jsonb_typeof(r->'agent_id')='string' AND r->>'agent_id'~'^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$',false)
+    OR jsonb_typeof(r->'rules')<>'array' OR jsonb_array_length(r->'rules')>64
+    OR EXISTS(SELECT 1 FROM jsonb_array_elements(r->'rules') m WHERE jsonb_typeof(m)<>'object'
+     OR(SELECT array_agg(key ORDER BY key) FROM jsonb_object_keys(m) key) IS DISTINCT FROM ARRAY['category','count','id','mode']
+     OR NOT COALESCE(m->>'id' ~ '^[a-z][a-z0-9_]{1,31}\.[a-z][a-z0-9_]{1,47}$' AND m->>'category' IN('prompt_injection','sensitive_data') AND m->>'mode' IN('block','redact','monitor')
+      AND jsonb_typeof(m->'count')='number' AND m->>'count' ~ '^[1-9][0-9]{0,3}$',false))
+    OR(SELECT count(DISTINCT m->>'id') FROM jsonb_array_elements(r->'rules') m)<>jsonb_array_length(r->'rules'))
+   AND(SELECT count(DISTINCT r->>'id') FROM jsonb_array_elements(q->'records') r)=jsonb_array_length(q->'records')
+   AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(q->'tools') t WHERE jsonb_typeof(t)<>'object'
+    OR(SELECT array_agg(key ORDER BY key) FROM jsonb_object_keys(t) key) IS DISTINCT FROM ARRAY['name','risk']
+    OR NOT COALESCE(t->>'name'~'^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,63}$' AND t->>'risk' IN('execute','write','network','read','unclassified'),false))
+   AND(SELECT count(DISTINCT t->>'name') FROM jsonb_array_elements(q->'tools') t)=jsonb_array_length(q->'tools'),false)
+ THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='gateway record rejected';END IF;
+ IF server_value IS NOT NULL THEN
+  PERFORM 1 FROM public.zasp_mcp_gateway_servers s WHERE(s.organization_id,s.workspace_id,s.environment_id,s.id)=(o,w,e,server_value) FOR SHARE;
+  IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='mcp gateway server not found';END IF;
+ END IF;
+ SELECT COALESCE((SELECT g.version FROM public.zasp_guardrail_policies g WHERE(g.organization_id,g.workspace_id,g.environment_id)=(o,w,e)),0),
+  COALESCE((SELECT g.version FROM public.zasp_gateway_policies g WHERE(g.organization_id,g.workspace_id,g.environment_id)=(o,w,e)),0) INTO guardrail_version_value,policy_version_value;
+ INSERT INTO public.zasp_gateway_decisions(organization_id,workspace_id,environment_id,id,principal_id,surface,operation,direction,decision,reason,rules,bytes,content_digest,server_id,tool_name,provider,model,agent_id,guardrail_version,policy_version,session_pending)
+ SELECT o,w,e,r->>'id',actor,r->>'surface',r->>'operation',r->>'direction',r->>'decision',r->>'reason',r->'rules',(r->>'bytes')::bigint,decode(substr(r->>'content_digest',8),'hex'),server_value,r->>'tool_name',r->>'provider',r->>'model',r->>'agent_id',
+  guardrail_version_value,policy_version_value,COALESCE(public.zasp_valid_product_id(r->>'agent_id'),false)
+ FROM jsonb_array_elements(q->'records') WITH ORDINALITY listed(r,position) ORDER BY listed.position;
+ GET DIAGNOSTICS written=ROW_COUNT;
+ -- A tool the server listed: its risk class and the time it was last seen
+ -- are kept current. A server holds at most 512 tools.
+ IF jsonb_array_length(q->'tools')>0 THEN
+  UPDATE public.zasp_mcp_gateway_tools t SET risk=seen.value->>'risk',last_seen_at=clock_timestamp()
+  FROM jsonb_array_elements(q->'tools') seen(value) WHERE(t.organization_id,t.workspace_id,t.environment_id,t.server_id,t.name)=(o,w,e,server_value,seen.value->>'name');
+  INSERT INTO public.zasp_mcp_gateway_tools(organization_id,workspace_id,environment_id,server_id,name,tool_id,risk)
+  SELECT o,w,e,server_value,fresh.name,'pid_'||gen_random_uuid()::text,fresh.risk FROM(
+   SELECT seen.value->>'name' name,seen.value->>'risk' risk,row_number() OVER(ORDER BY seen.value->>'name') position FROM jsonb_array_elements(q->'tools') seen(value)
+   WHERE NOT EXISTS(SELECT 1 FROM public.zasp_mcp_gateway_tools t WHERE(t.organization_id,t.workspace_id,t.environment_id,t.server_id,t.name)=(o,w,e,server_value,seen.value->>'name'))) fresh
+  WHERE fresh.position<=512-(SELECT count(*) FROM public.zasp_mcp_gateway_tools t WHERE(t.organization_id,t.workspace_id,t.environment_id,t.server_id)=(o,w,e,server_value))
+  ON CONFLICT DO NOTHING;
+ END IF;
+ RETURN jsonb_build_object('recorded',written);
+END $gateway_record_write$;
+
+CREATE OR REPLACE FUNCTION zasp_authorization80.gateway_record(o text,w text,e text,actor text,op text,server_value text,q jsonb) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $gateway_record$
+DECLARE p jsonb;result jsonb;
+BEGIN
+ p:=zasp_authorization80.gateway_request(o,w,e,actor,op,server_value,true);
+ result:=zasp_authorization80.gateway_record_write(o,w,e,actor,server_value,q);
+ PERFORM zasp_authorization80.product_settled(p);
+ RETURN result;
+END $gateway_record$;
+
+-- The decision records, newest first. Each filter is optional; before_value
+-- is the identifier of the last record of the page before.
+CREATE OR REPLACE FUNCTION zasp_authorization80.gateway_activity_value(o text,w text,e text,surface_value text,server_value text,agent_value text,decision_value text,before_value text,n integer) RETURNS jsonb
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $gateway_activity_value$
+DECLARE before_time timestamptz;result jsonb;
+BEGIN
+ IF NOT COALESCE(n BETWEEN 1 AND 100 AND(surface_value IS NULL OR surface_value IN('mcp','llm')) AND(decision_value IS NULL OR decision_value IN('allow','redact','block'))
+  AND(server_value IS NULL OR public.zasp_valid_product_id(server_value)) AND(agent_value IS NULL OR agent_value~'^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$')
+  AND(before_value IS NULL OR public.zasp_valid_product_id(before_value)),false)
+ THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='gateway activity page rejected';END IF;
+ IF before_value IS NOT NULL THEN
+  SELECT d.created_at INTO before_time FROM public.zasp_gateway_decisions d WHERE(d.organization_id,d.workspace_id,d.environment_id,d.id)=(o,w,e,before_value);
+  IF before_time IS NULL THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='gateway activity page rejected';END IF;
+ END IF;
+ WITH candidates AS(
+  SELECT d.* FROM public.zasp_gateway_decisions d
+  WHERE(d.organization_id,d.workspace_id,d.environment_id)=(o,w,e)
+   AND(surface_value IS NULL OR d.surface=surface_value) AND(server_value IS NULL OR d.server_id=server_value) AND(agent_value IS NULL OR d.agent_id=agent_value) AND(decision_value IS NULL OR d.decision=decision_value)
+   AND(before_value IS NULL OR(d.created_at,d.id)<(before_time,before_value))
+  ORDER BY d.created_at DESC,d.id DESC LIMIT n+1),
+ visible AS(SELECT * FROM candidates ORDER BY created_at DESC,id DESC LIMIT n)
+ SELECT jsonb_build_object('items',COALESCE((SELECT jsonb_agg(jsonb_build_object('id',v.id,'created_at',to_char(v.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+   'surface',v.surface,'operation',v.operation,'direction',v.direction,'decision',v.decision,'reason',v.reason,'rules',v.rules,'bytes',v.bytes,'content_digest','sha256:'||encode(v.content_digest,'hex'),
+   'server_id',v.server_id,'server_name',(SELECT s.name FROM public.zasp_mcp_gateway_servers s WHERE(s.organization_id,s.workspace_id,s.environment_id,s.id)=(o,w,e,v.server_id)),
+   'tool_name',v.tool_name,'provider',v.provider,'model',v.model,'agent_id',v.agent_id,'principal_id',v.principal_id) ORDER BY v.created_at DESC,v.id DESC) FROM visible v),'[]'::jsonb),
+  'next_id',CASE WHEN(SELECT count(*) FROM candidates)>n THEN(SELECT v.id FROM visible v ORDER BY v.created_at,v.id LIMIT 1) END) INTO result;
+ RETURN result;
+END $gateway_activity_value$;
+
+CREATE OR REPLACE FUNCTION zasp_authorization80.gateway_activity_page(o text,w text,e text,surface_value text,server_value text,agent_value text,decision_value text,before_value text,n integer) RETURNS jsonb
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $gateway_activity_page$
+BEGIN
+ PERFORM zasp_authorization80.product_request(o,w,e,NULL,'listGatewayActivity','view','environment',e,false,false,false,false);
+ RETURN zasp_authorization80.gateway_activity_value(o,w,e,surface_value,server_value,agent_value,decision_value,before_value,n);
+END $gateway_activity_page$;
+
+DO $ws9_gateway_privileges$
+DECLARE f record;
+BEGIN
+ FOR f IN SELECT * FROM(VALUES
+  ('zasp_authorization80.gateway_policy_value(text,text,text)',NULL),
+  ('zasp_authorization80.gateway_policy(text,text,text)','zasp_discovery_api'),
+  ('zasp_authorization80.gateway_policy_write(text,text,text,text,jsonb,bigint,text,text)',NULL),
+  ('zasp_authorization80.gateway_set_policy(text,text,text,text,jsonb,bigint,text,text)','zasp_discovery_api'),
+  ('zasp_authorization80.mcp_gateway_server_value(text,text,text,text)',NULL),
+  ('zasp_authorization80.mcp_gateway_server_page(text,text,text)','zasp_discovery_api'),
+  ('zasp_authorization80.mcp_gateway_server_write(text,text,text,text,text,jsonb,bigint,text,text)',NULL),
+  ('zasp_authorization80.mcp_gateway_server_put(text,text,text,text,text,jsonb,bigint,text,text)','zasp_discovery_api'),
+  ('zasp_authorization80.mcp_gateway_server_remove(text,text,text,text,text,bigint,text,text)',NULL),
+  ('zasp_authorization80.mcp_gateway_server_delete(text,text,text,text,text,bigint,text,text)','zasp_discovery_api'),
+  ('zasp_authorization80.gateway_session_value(text,text,text,text)',NULL),
+  ('zasp_authorization80.gateway_request(text,text,text,text,text,text,boolean)',NULL),
+  ('zasp_authorization80.gateway_rate_take(text,text,text,text,integer)',NULL),
+  ('zasp_authorization80.gateway_open(text,text,text,text,text,text)','zasp_discovery_api'),
+  ('zasp_authorization80.gateway_record_write(text,text,text,text,text,jsonb)',NULL),
+  ('zasp_authorization80.gateway_record(text,text,text,text,text,text,jsonb)','zasp_discovery_api'),
+  ('zasp_authorization80.gateway_activity_value(text,text,text,text,text,text,text,text,integer)',NULL),
+  ('zasp_authorization80.gateway_activity_page(text,text,text,text,text,text,text,text,integer)','zasp_discovery_api')
+ ) v(signature,grantee) LOOP
+  EXECUTE format('ALTER FUNCTION %s OWNER TO zasp_discovery_authority',f.signature::regprocedure);
+  EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC',f.signature::regprocedure);
+  IF f.grantee IS NOT NULL THEN EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO %s',f.signature::regprocedure,f.grantee);END IF;
+ END LOOP;
+END $ws9_gateway_privileges$;
+
+-- The MCP tool inventory of a discovered server gains the tools a gateway
+-- server of the same host listed (the identity host:<host> joins the two),
+-- unless the inventory already holds a tool of that name for the server. The
+-- body of zasp_mcp_server_tools is one SELECT; the gateway's tools are
+-- appended to it as a second branch, whatever the first one has become.
+DO $ws9_gateway_tool_inventory$
+DECLARE target CONSTANT regprocedure:='public.zasp_mcp_server_tools(text,text,text)'::regprocedure;
+ branch CONSTANT text:=$branch$
+  UNION ALL
+  SELECT matched.entity_id,seen.tool_id,seen.name,seen.risk
+  FROM(SELECT DISTINCT listed.id,listed.upstream_host FROM zasp_mcp_gateway_servers listed JOIN zasp_mcp_gateway_tools held
+    ON (held.organization_id,held.workspace_id,held.environment_id,held.server_id)=(listed.organization_id,listed.workspace_id,listed.environment_id,listed.id)
+   WHERE (listed.organization_id,listed.workspace_id,listed.environment_id)=(organization_value,workspace_value,environment_value)) gateway
+  CROSS JOIN LATERAL(SELECT server.entity_id FROM zasp_mcp_servers(organization_value,workspace_value,environment_value) server WHERE server.identity='host:'||gateway.upstream_host) matched
+  JOIN zasp_mcp_gateway_tools seen ON (seen.organization_id,seen.workspace_id,seen.environment_id,seen.server_id)=(organization_value,workspace_value,environment_value,gateway.id)
+  WHERE NOT EXISTS(SELECT 1 FROM zasp_inventory_relationships declared
+   JOIN zasp_inventory_entities known ON (known.organization_id,known.workspace_id,known.environment_id,known.id,known.state,known.product_kind)=(organization_value,workspace_value,environment_value,declared.to_entity_id,'active','tool')
+   WHERE (declared.organization_id,declared.workspace_id,declared.environment_id,declared.from_entity_id,declared.state,declared.kind)=(organization_value,workspace_value,environment_value,matched.entity_id,'present','contains') AND known.display_name=seen.name)
+$branch$;
+ d text:=pg_get_functiondef(target);
+BEGIN
+ IF position('zasp_mcp_gateway_tools' in d)=0 THEN
+  IF length(d)-length(replace(d,'$function$',''))<>2*length('$function$') OR d !~* 'LANGUAGE sql' OR d ~* '\m(ORDER BY|LIMIT)\M[^)]*\$function\$\s*$'
+  THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='mcp server tools predecessor changed';END IF;
+  EXECUTE regexp_replace(d,'\s*\$function\$\s*$',replace(branch,'\','\\')||' $function$');
+ END IF;
+END $ws9_gateway_tool_inventory$;
+
+-- An agent's last activity (section WS3-A6) gains one source: the newest
+-- gateway decision recorded for the agent. The gateway records the agent a
+-- request names in X-Zasp-Agent-Id; when that is the agent's identifier in
+-- the inventory, its traffic through the gateway counts as activity.
+DO $ws9_gateway_agent_activity$
+DECLARE target CONSTANT regprocedure:='public.zasp_inventory_agent_activity(text,text,text,text,text,jsonb,timestamptz)'::regprocedure;
+ anchor CONSTANT text:=$anchor$(SELECT max(event.event_time) FROM public.zasp_runtime_session_events event WHERE (event.organization_id,event.workspace_id,event.environment_id,event.agent_id)=(organization_value,workspace_value,environment_value,id_value)),$anchor$;
+ member CONSTANT text:=$member$
+    (SELECT max(decision.created_at) FROM public.zasp_gateway_decisions decision WHERE (decision.organization_id,decision.workspace_id,decision.environment_id,decision.agent_id)=(organization_value,workspace_value,environment_value,id_value)),$member$;
+ d text:=pg_get_functiondef(target);
+BEGIN
+ IF position('zasp_gateway_decisions' in d)=0 THEN
+  IF length(d)-length(replace(d,anchor,''))<>length(anchor) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='agent activity predecessor changed';END IF;
+  EXECUTE replace(d,anchor,anchor||member);
+ END IF;
+END $ws9_gateway_agent_activity$;
+
+-- Gateway traffic in the runtime sessions. A session event names its source;
+-- the two constraints that close the set of sources are replaced by ones that
+-- also admit "gateway", with the classes the gateway can state: a tool call
+-- (tool/invoke) and a decision of the gateway's policy (policy/allow,
+-- policy/block). Replacing a constraint checks the rows the table holds.
+DO $ws9_gateway_session_source$
+DECLARE d text;
+BEGIN
+ SELECT pg_get_constraintdef(c.oid) INTO d FROM pg_constraint c WHERE c.conrelid='public.zasp_runtime_session_events'::regclass AND c.conname='zasp_runtime_session_events_source_check';
+ IF d IS NULL THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='runtime session source predecessor changed';END IF;
+ IF position('gateway' in d)=0 THEN
+  ALTER TABLE public.zasp_runtime_session_events DROP CONSTRAINT zasp_runtime_session_events_source_check;
+  ALTER TABLE public.zasp_runtime_session_events ADD CONSTRAINT zasp_runtime_session_events_source_check CHECK(source IN('otlp','tetragon','gateway'));
+ END IF;
+ SELECT pg_get_constraintdef(c.oid) INTO d FROM pg_constraint c WHERE c.conrelid='public.zasp_runtime_session_events'::regclass AND c.conname='zasp_runtime_session_event_source_action_v44';
+ IF d IS NULL THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='runtime session source predecessor changed';END IF;
+ IF position('gateway' in d)=0 THEN
+  ALTER TABLE public.zasp_runtime_session_events DROP CONSTRAINT zasp_runtime_session_event_source_action_v44;
+  ALTER TABLE public.zasp_runtime_session_events ADD CONSTRAINT zasp_runtime_session_event_source_action_v44 CHECK(
+   source='otlp' AND(event_class='tool' AND action='invoke' OR event_class='credential' AND action='use' OR event_class='policy' AND action IN('allow','monitor','block'))
+   OR source='tetragon' AND(event_class='process' AND action IN('exec','exit') OR event_class='file' AND action IN('read','write') OR event_class='network' AND action IN('connect','accept'))
+   OR source='gateway' AND(event_class='tool' AND action='invoke' OR event_class='policy' AND action IN('allow','block')));
+ END IF;
+END $ws9_gateway_session_source$;
+
+-- The scheduler's pass over the gateway's records, at most limit_value
+-- hundreds of rows of each kind a call.
+--   * Sessions. A decision that names an agent (X-Zasp-Agent-Id) by the
+--     identifier of an active agent of the Environment's inventory becomes
+--     one event of a runtime session: the agent's gateway session of that
+--     UTC day. An allowed or redacted tools/call request is a tool call;
+--     every other decision is a policy event, block when the gateway
+--     blocked and allow otherwise. The event's evidence is the decision
+--     record, its time is the decision's, and its confidence is "strong":
+--     the agent is the one the token's holder named, which the gateway
+--     cannot verify. A decision for an identifier the inventory does not
+--     hold as an agent is passed over. The title is built from identifiers
+--     of the record only.
+--   * Retention. Decisions older than retention_days_value days are deleted.
+--     The session events written from them stay.
+--   * Rate buckets not used for a day are deleted.
+CREATE OR REPLACE FUNCTION public.zasp_gateway_maintain(retention_days_value integer,limit_value integer) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $gateway_maintain$
+DECLARE d record;examined integer:=0;projected integer:=0;written integer;deleted integer;buckets integer;label text;
+BEGIN
+ IF NOT COALESCE(pg_has_role(session_user,'zasp_discovery_scheduler','MEMBER') AND retention_days_value BETWEEN 1 AND 3650 AND limit_value BETWEEN 1 AND 100,false) THEN
+  RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='gateway maintenance authority denied';
+ END IF;
+ FOR d IN SELECT x.* FROM public.zasp_gateway_decisions x WHERE x.session_pending ORDER BY x.created_at,x.id LIMIT limit_value*100 FOR UPDATE SKIP LOCKED LOOP
+  examined:=examined+1;
+  IF EXISTS(SELECT 1 FROM public.zasp_inventory_entities i WHERE(i.organization_id,i.workspace_id,i.environment_id,i.id)=(d.organization_id,d.workspace_id,d.environment_id,d.agent_id) AND i.product_kind='agent' AND i.state='active') THEN
+   label:=CASE d.surface WHEN 'mcp' THEN 'MCP '||d.operation||COALESCE(' '||d.tool_name,'') ELSE d.provider||' '||d.operation||COALESCE(' '||d.model,'') END||' ('||d.direction||')';
+   INSERT INTO public.zasp_runtime_session_events(organization_id,workspace_id,environment_id,event_id,session_id,agent_id,confidence,source,event_class,action,title,evidence_id,event_time)
+   VALUES(d.organization_id,d.workspace_id,d.environment_id,
+    public.zasp_discovery_canonical_id(d.organization_id,d.workspace_id,d.environment_id,'gateway_session_event',d.id),
+    public.zasp_discovery_canonical_id(d.organization_id,d.workspace_id,d.environment_id,'gateway_session',d.agent_id||'/'||to_char(d.created_at AT TIME ZONE 'UTC','YYYY-MM-DD')),
+    d.agent_id,'strong','gateway',
+    CASE WHEN d.operation='tools/call' AND d.direction='request' AND d.decision<>'block' THEN 'tool' ELSE 'policy' END,
+    CASE WHEN d.operation='tools/call' AND d.direction='request' AND d.decision<>'block' THEN 'invoke' WHEN d.decision='block' THEN 'block' ELSE 'allow' END,
+    left(CASE WHEN d.operation='tools/call' AND d.direction='request' AND d.decision<>'block' THEN 'Gateway: MCP tool call '||COALESCE(d.tool_name,'')||CASE d.decision WHEN 'redact' THEN ' (arguments redacted)' ELSE '' END
+     WHEN d.decision='block' THEN 'Gateway blocked '||label||': '||d.reason
+     WHEN d.decision='redact' THEN 'Gateway redacted '||label||': '||d.reason
+     ELSE 'Gateway allowed '||label END,256),
+    d.id,d.created_at)
+   ON CONFLICT DO NOTHING;
+   GET DIAGNOSTICS written=ROW_COUNT;
+   projected:=projected+written;
+  END IF;
+  UPDATE public.zasp_gateway_decisions x SET session_pending=false WHERE(x.organization_id,x.workspace_id,x.environment_id,x.id)=(d.organization_id,d.workspace_id,d.environment_id,d.id);
+ END LOOP;
+ DELETE FROM public.zasp_gateway_decisions x WHERE x.ctid=ANY(ARRAY(SELECT y.ctid FROM public.zasp_gateway_decisions y WHERE y.created_at<clock_timestamp()-make_interval(days=>retention_days_value) ORDER BY y.created_at LIMIT limit_value*100 FOR UPDATE SKIP LOCKED));
+ GET DIAGNOSTICS deleted=ROW_COUNT;
+ DELETE FROM public.zasp_gateway_rate_buckets b WHERE b.ctid=ANY(ARRAY(SELECT y.ctid FROM public.zasp_gateway_rate_buckets y WHERE y.updated_at<clock_timestamp()-interval '1 day' ORDER BY y.updated_at LIMIT limit_value*100 FOR UPDATE SKIP LOCKED));
+ GET DIAGNOSTICS buckets=ROW_COUNT;
+ RETURN jsonb_build_object('examined',examined,'projected',projected,'deleted',deleted,'buckets',buckets);
+END $gateway_maintain$;
+ALTER FUNCTION public.zasp_gateway_maintain(integer,integer) OWNER TO zasp_discovery_authority;
+REVOKE ALL ON FUNCTION public.zasp_gateway_maintain(integer,integer) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.zasp_gateway_maintain(integer,integer) TO zasp_discovery_scheduler;

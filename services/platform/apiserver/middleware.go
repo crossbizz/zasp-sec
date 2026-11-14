@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"mime"
 	"net/http"
 	"net/url"
 	"strings"
@@ -47,10 +48,14 @@ type RequestIdentity struct {
 type Authenticator func(context.Context, Credential) (RequestIdentity, error)
 
 type ProductSecurity struct {
-	PublicOrigin          string
-	MaximumBodyBytes      int64
-	Authenticate          Authenticator
-	GenerateCorrelationID func() string
+	PublicOrigin     string
+	MaximumBodyBytes int64
+	// GatewayMaximumBodyBytes, when positive, is the limit of a request of
+	// the hosted gateway's traffic routes (a prompt with its conversation,
+	// a tool call). Zero leaves them at MaximumBodyBytes.
+	GatewayMaximumBodyBytes int64
+	Authenticate            Authenticator
+	GenerateCorrelationID   func() string
 }
 
 type identityContextKey struct{}
@@ -84,7 +89,23 @@ func NewProductMiddleware(security ProductSecurity, next http.Handler) (http.Han
 			}
 		}()
 
-		if err := validateBody(request, security.MaximumBodyBytes); err != nil {
+		maximumBody := security.MaximumBodyBytes
+		// A guardrail decision carries up to 32768 bytes of text, which JSON
+		// may escape to several times that: this one route takes the body
+		// its handler reads.
+		if maximumBody < guardrailMaxBodyBytes && request.URL != nil && request.URL.Path == guardrailDecisionPath && request.Method == http.MethodPost {
+			maximumBody = guardrailMaxBodyBytes
+		}
+		if security.GatewayMaximumBodyBytes > maximumBody && request.URL != nil && HostedGatewayTrafficPath(request.URL.Path) {
+			maximumBody = security.GatewayMaximumBodyBytes
+			// The gateway's callers are MCP clients and model SDKs, some of
+			// which name the character set: "application/json; charset=utf-8"
+			// is JSON there. The product API's own routes stay exact.
+			if mediaType, parameters, err := mime.ParseMediaType(request.Header.Get("Content-Type")); err == nil && mediaType == "application/json" && (len(parameters) == 0 || len(parameters) == 1 && strings.EqualFold(parameters["charset"], "utf-8")) {
+				request.Header.Set("Content-Type", "application/json")
+			}
+		}
+		if err := validateBody(request, maximumBody); err != nil {
 			if errors.Is(err, errUnsupportedMediaType) {
 				writeProductError(writer, http.StatusUnsupportedMediaType, "unsupported_media_type", "Content type rejected", correlationID)
 			} else {
@@ -180,7 +201,7 @@ func validPermissions(values []string) bool {
 	for _, value := range values {
 		switch value {
 		case "view", "manage_findings", "manage_workflows", "manage_identity", "manage_api_tokens", "view_audit", "investigate_sessions", "revoke_sessions", "view_compliance", "manage_data_controls", "run_tests":
-		case PermissionDecideGuardrails:
+		case PermissionDecideGuardrails, PermissionUseGateway:
 		default:
 			return false
 		}

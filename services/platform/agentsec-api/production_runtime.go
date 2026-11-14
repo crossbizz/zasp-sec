@@ -18,6 +18,7 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
 	"github.com/zasp-ai/zasp-sec/services/platform/authorization"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/awsdiscovery"
+	"github.com/zasp-ai/zasp-sec/services/platform/connectors/gcpdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/githubdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/kubernetesdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
@@ -490,6 +491,17 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 		referenceProbes["salesforce"] = &salesforceReferenceProbe{resolver: referenceResolver, http: providerHTTP}
 		referenceChecks["salesforce"] = func(context.Context) error { return nil }
 	}
+	if config.GCPCollectorVersion != "" {
+		// The API proves a Google Cloud authorization the way a collection
+		// reads: a token for the customer's service account, then the scope.
+		gcpTokens, tokenErr := gcpdiscovery.NewTokenExchanger(gcpdiscovery.TokenExchangerConfig{HTTP: providerHTTP, AWSCredentials: referenceAWSClient.credentials, AWSRegion: config.ConnectorAWSRegion, Clock: func() time.Time { return time.Now().UTC() }})
+		gcpScopes, scopeErr := gcpdiscovery.NewGCPCollectionAPI(gcpdiscovery.CollectionAPIConfig{Timeout: config.ProviderTimeout})
+		if tokenErr != nil || scopeErr != nil {
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("reference-providers", errRuntimeUnavailable)
+		}
+		referenceProbes["gcp"] = &gcpReferenceProbe{resolver: referenceResolver, tokens: gcpTokens, scopes: gcpScopes}
+		referenceChecks["gcp"] = func(context.Context) error { return nil }
+	}
 	if saasProbe != nil {
 		referenceProbes["saas"] = saasProbe
 		referenceChecks["saas"] = func(context.Context) error { return nil }
@@ -517,6 +529,15 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 	lifecycleWorkers := []func(context.Context) error{connectorReconciler.Run, func(ctx context.Context) error {
 		return runReconciliationMaintenance(ctx, connectorRepository, metrics)
 	}}
+	// Nango connections that a sign-in created are deleted when their saas
+	// integration is deleted or connected again.
+	saasConnectionReleaser, err := newProductionSaaSConnectionReleaser(ctx, saasSignIn, tracedDatabase, workerOwner)
+	if err != nil {
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("connector-lifecycle", errRuntimeUnavailable)
+	}
+	if saasConnectionReleaser != nil {
+		lifecycleWorkers = append(lifecycleWorkers, saasConnectionReleaser.Run)
+	}
 	var approvalNotificationReconciler approvalNotificationLifecycle
 	if approvalNotificationRepository != nil {
 		var closer io.Closer
@@ -538,6 +559,16 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 	}
 	cookie := apiserver.CookiePolicy{Secure: config.CookieSecure, WorkflowSigningKey: []byte(config.WorkflowSigningKey), TokenRevealKey: config.TokenRevealKey, Clock: func() time.Time { return time.Now().UTC().Truncate(time.Second) }, BuildVersion: buildVersion, DeploymentMode: config.DeploymentMode, OrganizationID: config.OrganizationID, DiscoveryParserVersion: config.DiscoveryParserVersion, DiscoveryToolVersion: config.DiscoveryToolVersion, ConnectorCapabilities: apiserver.CombinedConnectorCapabilities{OAuth: connectorRegistry, Reference: referenceRegistry}, FindingTickets: ticketService, IntegrationWebhookTests: webhookTestService}
 	cookie.SecurityAgentOrderedHTTPEnabled = config.SecurityAgentOrderedHTTPEnabled
+	if config.HostedGatewayEnabled {
+		// The traffic routes of the hosted gateway. Its outbound requests go
+		// to public addresses only, over their own transport.
+		gateway, gatewayErr := apiserver.NewHostedGateway(apiserver.HostedGatewayConfig{Timeout: config.HostedGatewayTimeout})
+		if gatewayErr != nil {
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("production-handlers", errRuntimeUnavailable)
+		}
+		cookie.HostedGateway = gateway
+		connectorResources = append(connectorResources, transportCloser{transport: gateway.Client.Transport.(*http.Transport)})
+	}
 	cookie.AuditPublicPages = auditPublicPages
 	if verifier, ok := securityAgentDatabase.(interface {
 		SingleTestRecoveryAvailable(context.Context) (bool, error)
@@ -589,6 +620,7 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 	}
 	product, err := apiserver.NewProductMiddleware(apiserver.ProductSecurity{
 		PublicOrigin: config.PublicOrigin, MaximumBodyBytes: 16 * 1024, Authenticate: authenticate, GenerateCorrelationID: generateCorrelationID,
+		GatewayMaximumBodyBytes: hostedGatewayBodyLimit(config),
 	}, composition)
 	if err != nil {
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("product-middleware", errRuntimeUnavailable)
@@ -608,7 +640,7 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 	if err != nil {
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("public-surface", errRuntimeUnavailable)
 	}
-	operational, err := newOperationalMiddleware(output, metrics, newRequestLimiter(config.RequestRatePerSecond, config.RequestBurst, 10000, time.Now), config.RequestTimeout, exporter, publicSurface)
+	operational, err := newGatewayOperationalMiddleware(output, metrics, newRequestLimiter(config.RequestRatePerSecond, config.RequestBurst, 10000, time.Now), config.RequestTimeout, config.HostedGatewayTimeout, exporter, publicSurface)
 	if err != nil {
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("operational-middleware", errRuntimeUnavailable)
 	}
@@ -710,6 +742,15 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 		}
 		return nil
 	}, Stores: stores, Closers: connectorResources}, nil
+}
+
+// hostedGatewayBodyLimit is the body limit of the hosted gateway's traffic
+// routes, or zero where the deployment does not serve them.
+func hostedGatewayBodyLimit(config RuntimeConfig) int64 {
+	if config.HostedGatewayEnabled {
+		return hostedGatewayMaximumBody
+	}
+	return 0
 }
 
 func mountPublicSurface(product, stytchWebhook http.Handler) (http.Handler, error) {

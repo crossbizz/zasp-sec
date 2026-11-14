@@ -21,11 +21,11 @@ func decodeDocument(t *testing.T, body string) any {
 
 func TestCursorPagingSendsTheTokenBackAndEndsOnAnEmptyOne(t *testing.T) {
 	endpoint := ListEndpoint{Path: "/v1/items", Query: map[string]string{"view": TenantQueryValue}, Paging: Paging{Style: PagingCursor, CursorParam: "cursor", NextPath: []string{"response_metadata", "next_cursor"}, LimitParam: "limit", PageSize: 200}}
-	query, _, ok := endpoint.requestQuery("", "t-1")
+	query, _, ok := endpoint.requestQuery("", "t-1", "")
 	if !ok || query.Encode() != "limit=200&view=t-1" {
 		t.Fatalf("first query = %q, %t", query.Encode(), ok)
 	}
-	query, _, ok = endpoint.requestQuery("dXNlcjpVMDYxTkZUVDI=", "t-1")
+	query, _, ok = endpoint.requestQuery("dXNlcjpVMDYxTkZUVDI=", "t-1", "")
 	if !ok || query.Encode() != "cursor=dXNlcjpVMDYxTkZUVDI%3D&limit=200&view=t-1" {
 		t.Fatalf("next query = %q, %t", query.Encode(), ok)
 	}
@@ -37,14 +37,14 @@ func TestCursorPagingSendsTheTokenBackAndEndsOnAnEmptyOne(t *testing.T) {
 		`{}`:                                          "",
 		`{"response_metadata":{"next_cursor":42}}`:    "42",
 	} {
-		if next, ok := endpoint.continuation(decodeDocument(t, body), "", "previous", 0, 3); !ok || next != want {
+		if next, ok := endpoint.continuation(decodeDocument(t, body), "", "previous", 0, make([]Item, 3)); !ok || next != want {
 			t.Fatalf("%s: next = %q, %t", body, next, ok)
 		}
 	}
 	// A token that is not text, a token that repeats and a token too long
 	// to carry in the collection cursor are refused.
 	for _, body := range []string{`{"response_metadata":{"next_cursor":{"a":1}}}`, `{"response_metadata":{"next_cursor":"previous"}}`, `{"response_metadata":{"next_cursor":"` + strings.Repeat("x", maximumContinuation+1) + `"}}`, `[]`} {
-		if next, ok := endpoint.continuation(decodeDocument(t, body), "", "previous", 0, 3); ok {
+		if next, ok := endpoint.continuation(decodeDocument(t, body), "", "previous", 0, make([]Item, 3)); ok {
 			t.Fatalf("%s: accepted as %q", body[:min(len(body), 60)], next)
 		}
 	}
@@ -52,25 +52,25 @@ func TestCursorPagingSendsTheTokenBackAndEndsOnAnEmptyOne(t *testing.T) {
 
 func TestOffsetPagingAdvancesByTheItemsReceivedAndEndsOnAShortPage(t *testing.T) {
 	endpoint := ListEndpoint{Path: "/v1/items", Paging: Paging{Style: PagingOffset, OffsetParam: "sysparm_offset", LimitParam: "sysparm_limit", PageSize: 100}}
-	query, offset, ok := endpoint.requestQuery("", "t-1")
+	query, offset, ok := endpoint.requestQuery("", "t-1", "")
 	if !ok || offset != 0 || query.Encode() != "sysparm_limit=100&sysparm_offset=0" {
 		t.Fatalf("first query = %q, %d, %t", query.Encode(), offset, ok)
 	}
-	next, ok := endpoint.continuation(nil, "", "", offset, 100)
+	next, ok := endpoint.continuation(nil, "", "", offset, make([]Item, 100))
 	if !ok || next != "100" {
 		t.Fatalf("after a full page: %q, %t", next, ok)
 	}
-	query, offset, ok = endpoint.requestQuery(next, "t-1")
+	query, offset, ok = endpoint.requestQuery(next, "t-1", "")
 	if !ok || offset != 100 || query.Encode() != "sysparm_limit=100&sysparm_offset=100" {
 		t.Fatalf("second query = %q, %d, %t", query.Encode(), offset, ok)
 	}
 	for _, count := range []int{0, 1, 99} {
-		if next, ok := endpoint.continuation(nil, "", "100", 100, count); !ok || next != "" {
+		if next, ok := endpoint.continuation(nil, "", "100", 100, make([]Item, count)); !ok || next != "" {
 			t.Fatalf("after %d items: %q, %t", count, next, ok)
 		}
 	}
 	for _, hostile := range []string{"-1", "0", "abc", "0100", "1e3", "100000001"} {
-		if _, _, ok := endpoint.requestQuery(hostile, "t-1"); ok {
+		if _, _, ok := endpoint.requestQuery(hostile, "t-1", ""); ok {
 			t.Fatalf("offset %q accepted", hostile)
 		}
 	}
@@ -78,7 +78,7 @@ func TestOffsetPagingAdvancesByTheItemsReceivedAndEndsOnAShortPage(t *testing.T)
 
 func TestLinkPagingFollowsOnlyTheEndpointsOwnPath(t *testing.T) {
 	endpoint := ListEndpoint{Path: "/api/v4/projects", Query: map[string]string{"archived": "false"}, Paging: Paging{Style: PagingLink, LimitParam: "per_page", PageSize: 50}}
-	query, _, ok := endpoint.requestQuery("", "t-1")
+	query, _, ok := endpoint.requestQuery("", "t-1", "")
 	if !ok || query.Encode() != "archived=false&per_page=50" {
 		t.Fatalf("first query = %q, %t", query.Encode(), ok)
 	}
@@ -108,29 +108,29 @@ func TestLinkPagingFollowsOnlyTheEndpointsOwnPath(t *testing.T) {
 		}
 	}
 	// The next request carries the provider's query, whole.
-	query, _, ok = endpoint.requestQuery("page=2&per_page=50", "t-1")
+	query, _, ok = endpoint.requestQuery("page=2&per_page=50", "t-1", "")
 	if !ok || query.Encode() != "page=2&per_page=50" {
 		t.Fatalf("next query = %q, %t", query.Encode(), ok)
 	}
 	for _, hostile := range []string{"page=2&page=3", "%zz"} {
-		if _, _, ok := endpoint.requestQuery(hostile, "t-1"); ok {
+		if _, _, ok := endpoint.requestQuery(hostile, "t-1", ""); ok {
 			t.Fatalf("continuation %q accepted", hostile)
 		}
 	}
-	if next, ok := endpoint.continuation(nil, `</api/v4/projects?page=2>; rel="next"`, "page=2", 0, 50); ok {
+	if next, ok := endpoint.continuation(nil, `</api/v4/projects?page=2>; rel="next"`, "page=2", 0, make([]Item, 50)); ok {
 		t.Fatalf("a link that repeats the page accepted as %q", next)
 	}
 }
 
 func TestUnpagedEndpointMakesOneRequest(t *testing.T) {
 	endpoint := ListEndpoint{Path: "/v1/items", Paging: Paging{Style: PagingNone}}
-	if query, _, ok := endpoint.requestQuery("", "t-1"); !ok || len(query) != 0 {
+	if query, _, ok := endpoint.requestQuery("", "t-1", ""); !ok || len(query) != 0 {
 		t.Fatalf("query = %v, %t", query, ok)
 	}
-	if _, _, ok := endpoint.requestQuery("anything", "t-1"); ok {
+	if _, _, ok := endpoint.requestQuery("anything", "t-1", ""); ok {
 		t.Fatal("an unpaged endpoint accepted a continuation")
 	}
-	if next, ok := endpoint.continuation(decodeDocument(t, `{"next":"x"}`), `</v1/items?page=2>; rel="next"`, "", 0, 10); !ok || next != "" {
+	if next, ok := endpoint.continuation(decodeDocument(t, `{"next":"x"}`), `</v1/items?page=2>; rel="next"`, "", 0, make([]Item, 10)); !ok || next != "" {
 		t.Fatalf("continuation = %q, %t", next, ok)
 	}
 }

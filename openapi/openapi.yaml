@@ -586,7 +586,11 @@ paths:
         - BrowserSession: []
           BrowserExpectedScope: []
       summary: Create a scoped product API token
-
+      description: >-
+        expires_at is the caller's choice. Without it the token lives 24 hours. It must lie within the lifetime the token's
+        permissions and the Environment allow (getAPITokenPolicy): 365 days for a token that holds nothing but decide_guardrails
+        and use_gateway (either or both), 90 days for any other, or the Environment's lower limit. A longer expiry is refused with 400. A rotation keeps the
+        expiry of the token it replaces.
       parameters:
         - $ref: '#/components/parameters/CSRFToken'
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -638,6 +642,60 @@ paths:
           $ref: '#/components/responses/ProductErrorResponse'
         default:
           $ref: '#/components/responses/ProductErrorResponse'
+  /api/v1/admin/api-token-policy:
+    get:
+      operationId: getAPITokenPolicy
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      summary: Get how long an API token of the Environment may live
+      description: >-
+        The lifetime of a token is chosen when it is created. A token that holds nothing but decide_guardrails and use_gateway
+        (either or both) may live 365 days; every other token 90 days. max_lifetime_days is the limit the Environment's administrators set for both (365 lowers
+        nothing); the two effective limits are what a new token may ask for. Version 0 means no limit was saved.
+      responses:
+        '200':
+          description: The API token lifetime setting.
+          headers:
+            ETag: { $ref: '#/components/headers/WorkflowETag' }
+            Cache-Control: { schema: { type: string, const: no-store } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/APITokenPolicy' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    put:
+      operationId: putAPITokenPolicy
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      summary: Lower or restore the longest lifetime of the Environment's API tokens
+      description: >-
+        Requires fresh authentication. If-Match names the current version ("0" when no limit was saved); a stale version is refused
+        with 409, which also makes a repeated request safe. The limit applies to tokens created afterwards: existing tokens keep
+        their expiry and can be revoked. The change is audited.
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ScheduleVersion'
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/APITokenPolicyInput' } } }
+      responses:
+        '200':
+          description: The API token lifetime setting after the change.
+          headers:
+            ETag: { $ref: '#/components/headers/WorkflowETag' }
+            X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }
+            Cache-Control: { schema: { type: string, const: no-store } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/APITokenPolicy' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/admin/api-tokens/{id}/rotate:
     parameters:
       - name: id
@@ -1457,6 +1515,390 @@ paths:
         '409': { $ref: '#/components/responses/ProductErrorResponse' }
         '503': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/gateway/policy:
+    get:
+      operationId: getGatewayPolicy
+      summary: Get the gateway policy of the Environment
+      description: >-
+        The policy of the hosted gateway: what happens to an MCP server the MCP registry has no decision for, the risk classes of
+        tools that are hidden and refused, and the rate of one API token. Version 0 means no policy was saved and the defaults apply
+        (unapproved servers allowed, no risk class denied, 600 requests a minute). gateway_enabled says whether this deployment hosts
+        the gateway's traffic routes.
+      responses:
+        '200':
+          description: The gateway policy.
+          headers:
+            ETag: { $ref: '#/components/headers/WorkflowETag' }
+            Cache-Control: { schema: { type: string, const: no-store } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/GatewayPolicy' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    put:
+      operationId: putGatewayPolicy
+      summary: Set the gateway policy of the Environment
+      description: >-
+        BrowserSession requests require the same-origin Origin and CSRF headers; ProductAPIToken requests omit both. If-Match names
+        the current version ("0" when no policy was saved); a stale version is refused with 409, which also makes a repeated request
+        safe. The change is audited and applies to the next request through the gateway.
+      parameters:
+        - $ref: '#/components/parameters/BrowserMutationCSRFToken'
+        - $ref: '#/components/parameters/BrowserMutationOrigin'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ScheduleVersion'
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/GatewayPolicyInput' } } }
+      responses:
+        '200':
+          description: The gateway policy after the change.
+          headers:
+            ETag: { $ref: '#/components/headers/WorkflowETag' }
+            X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }
+            Cache-Control: { schema: { type: string, const: no-store } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/GatewayPolicy' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/gateway/mcp-servers:
+    get:
+      operationId: listMCPGatewayServers
+      summary: List the MCP servers registered behind the hosted gateway
+      description: >-
+        Each server with the address an agent's configuration names instead of the server's own (gateway_path, under this API's
+        origin), the MCP registry's decision for its host, its per-tool allow and deny lists, and the tools it listed through the
+        gateway (name and risk class only). No credential of an upstream is stored.
+      responses:
+        '200':
+          description: The registered servers, by name.
+          headers: { Cache-Control: { schema: { type: string, const: no-store } } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/MCPGatewayServerList' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/gateway/mcp-servers/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    put:
+      operationId: putMCPGatewayServer
+      summary: Register or change an MCP server behind the hosted gateway
+      description: >-
+        The caller chooses the identifier of a new server (a product identifier) and sends If-Match "0"; a change sends the version it
+        read. The upstream address is an https URL on the default port with no credentials, query or fragment, and its host must be
+        a public name: the gateway connects to public addresses only, checked at every connection. BrowserSession requests require
+        the same-origin Origin and CSRF headers; ProductAPIToken requests omit both. The change is audited.
+      parameters:
+        - $ref: '#/components/parameters/BrowserMutationCSRFToken'
+        - $ref: '#/components/parameters/BrowserMutationOrigin'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ScheduleVersion'
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/MCPGatewayServerInput' } } }
+      responses:
+        '200':
+          description: The server after the change.
+          headers:
+            ETag: { $ref: '#/components/headers/WorkflowETag' }
+            X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }
+            Cache-Control: { schema: { type: string, const: no-store } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/MCPGatewayServer' } } }
+        '201':
+          description: The registered server.
+          headers:
+            ETag: { $ref: '#/components/headers/WorkflowETag' }
+            X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }
+            Cache-Control: { schema: { type: string, const: no-store } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/MCPGatewayServer' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    delete:
+      operationId: deleteMCPGatewayServer
+      summary: Remove an MCP server from the hosted gateway
+      description: >-
+        Removes the server and the tools it listed; its decision records stay. If-Match names the version the caller read.
+        BrowserSession requests require the same-origin Origin and CSRF headers; ProductAPIToken requests omit both.
+      parameters:
+        - $ref: '#/components/parameters/BrowserMutationCSRFToken'
+        - $ref: '#/components/parameters/BrowserMutationOrigin'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ScheduleVersion'
+      responses:
+        '204':
+          description: The server was removed.
+          headers:
+            X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }
+            Cache-Control: { schema: { type: string, const: no-store } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/gateway/activity:
+    get:
+      operationId: listGatewayActivity
+      summary: List the decision records of the hosted gateway
+      description: >-
+        The decisions of the MCP gateway and of the model proxy, newest first. A record holds the decision, a reason, the matched
+        rule identifiers with their modes and counts, the size and SHA-256 digest of the request or response body, and identifiers
+        (server, tool, provider, model, agent). It never holds a prompt, an argument, a tool result or an answer.
+      parameters:
+        - { name: surface, in: query, required: false, schema: { type: string, enum: [mcp, llm] } }
+        - { name: server_id, in: query, required: false, schema: { $ref: '#/components/schemas/ProductID' } }
+        - { name: agent_id, in: query, required: false, schema: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$' } }
+        - { name: decision, in: query, required: false, schema: { type: string, enum: [allow, redact, block] } }
+        - { name: before, in: query, required: false, description: The next_cursor of the page before., schema: { $ref: '#/components/schemas/ProductID' } }
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+      responses:
+        '200':
+          description: One page of decision records.
+          headers: { Cache-Control: { schema: { type: string, const: no-store } } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/GatewayDecisionPage' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/gateway/mcp/{id}:
+    parameters:
+      - { name: id, in: path, required: true, description: The gateway server., schema: { $ref: '#/components/schemas/ProductID' } }
+      - name: X-Zasp-Upstream-Authorization
+        in: header
+        required: false
+        description: >-
+          The upstream's own credential: for an MCP server the value of the Authorization header the server expects (for example
+          "Bearer <token>"), for a model provider its API key (with or without "Bearer "). It is forwarded for this request only and
+          is never stored or logged. The platform token in Authorization is never sent upstream.
+        schema: { type: string, minLength: 1, maxLength: 4096 }
+      - name: X-Zasp-Agent-Id
+        in: header
+        required: false
+        description: The calling agent, recorded with each decision. Send the agent's identifier in the inventory to have its gateway traffic count as the agent's activity.
+        schema: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$' }
+    post:
+      operationId: callMCPGateway
+      summary: Send one MCP message to a server through the hosted gateway
+      description: >-
+        The MCP Streamable HTTP endpoint of a registered server: an agent's MCP configuration names this address instead of the
+        server's own and sends an API token that has the use_gateway permission. The body is a single JSON-RPC 2.0 message (no
+        batches). The gateway forwards it to the registered upstream with the session and protocol headers of the transport
+        (MCP-Session-Id, MCP-Protocol-Version, Mcp-Method, Mcp-Name) and answers with one JSON-RPC message, a stream of server-sent
+        events, or 202 for a notification. Under the Environment's policy a blocked or (by policy) unapproved server is refused
+        with 403; tools/list hides the tools the policy denies and tools whose description carries an injected instruction;
+        tools/call is refused for a denied tool, and its arguments and result go through the guardrail detectors (a blocked call or
+        result is answered as a failed tool call, isError true). GET is not offered (405), so messages a server starts outside a
+        request are not delivered. Only decisions are recorded, never arguments or results.
+      security:
+        - ProductAPIToken: []
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/GatewayJSONRPCMessage' } } }
+      responses:
+        '200':
+          description: The JSON-RPC response, or a stream of server-sent events that ends with it.
+          headers:
+            Cache-Control: { schema: { type: string } }
+            MCP-Session-Id: { schema: { type: string, maxLength: 512 }, description: The session the upstream assigned at initialize. }
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/GatewayJSONRPCMessage' } }
+            text/event-stream: { schema: { type: string } }
+        '202': { description: The upstream accepted a notification or a response. }
+        '400': { description: A JSON-RPC 2.0 error of the gateway or of the upstream MCP server., content: { application/json: { schema: { $ref: '#/components/schemas/GatewayJSONRPCMessage' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { description: A JSON-RPC 2.0 error of the gateway or of the upstream MCP server., content: { application/json: { schema: { $ref: '#/components/schemas/GatewayJSONRPCMessage' } } } }
+        '404': { description: A JSON-RPC 2.0 error of the gateway or of the upstream MCP server., content: { application/json: { schema: { $ref: '#/components/schemas/GatewayJSONRPCMessage' } } } }
+        '429': { description: A JSON-RPC 2.0 error of the gateway or of the upstream MCP server., content: { application/json: { schema: { $ref: '#/components/schemas/GatewayJSONRPCMessage' } } } }
+        '502': { description: A JSON-RPC 2.0 error of the gateway or of the upstream MCP server., content: { application/json: { schema: { $ref: '#/components/schemas/GatewayJSONRPCMessage' } } } }
+        '503': { description: A JSON-RPC 2.0 error of the gateway or of the upstream MCP server., content: { application/json: { schema: { $ref: '#/components/schemas/GatewayJSONRPCMessage' } } } }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    delete:
+      operationId: closeMCPGatewaySession
+      summary: End an MCP session at a server through the hosted gateway
+      description: Forwards the transport's session end (HTTP DELETE with MCP-Session-Id) to the registered upstream and returns its status.
+      security:
+        - ProductAPIToken: []
+      parameters:
+        - { name: MCP-Session-Id, in: header, required: true, schema: { type: string, minLength: 1, maxLength: 512 } }
+      responses:
+        '200': { description: The upstream ended the session. }
+        '202': { description: The upstream accepted the request. }
+        '204': { description: The upstream ended the session. }
+        '400': { description: A JSON-RPC 2.0 error of the gateway or of the upstream MCP server., content: { application/json: { schema: { $ref: '#/components/schemas/GatewayJSONRPCMessage' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { description: A JSON-RPC 2.0 error of the gateway or of the upstream MCP server., content: { application/json: { schema: { $ref: '#/components/schemas/GatewayJSONRPCMessage' } } } }
+        '404': { description: 'The upstream does not know the session, or the Environment has no such gateway server.' }
+        '405': { description: The upstream does not let clients end sessions. }
+        '429': { description: A JSON-RPC 2.0 error of the gateway or of the upstream MCP server., content: { application/json: { schema: { $ref: '#/components/schemas/GatewayJSONRPCMessage' } } } }
+        '502': { description: The upstream could not be reached or gave an answer the gateway does not relay. }
+        '503': { description: A JSON-RPC 2.0 error of the gateway or of the upstream MCP server., content: { application/json: { schema: { $ref: '#/components/schemas/GatewayJSONRPCMessage' } } } }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/gateway/llm/v1/chat/completions:
+    parameters:
+      - name: X-Zasp-Upstream-Authorization
+        in: header
+        required: false
+        description: >-
+          The upstream's own credential: for an MCP server the value of the Authorization header the server expects (for example
+          "Bearer <token>"), for a model provider its API key (with or without "Bearer "). It is forwarded for this request only and
+          is never stored or logged. The platform token in Authorization is never sent upstream.
+        schema: { type: string, minLength: 1, maxLength: 4096 }
+      - name: X-Zasp-Upstream-Provider
+        in: header
+        required: false
+        description: The model provider to forward to, by its name in the gateway's catalog (see the hosted gateway guide). Without it the request goes to the provider whose API this route speaks.
+        schema: { type: string, pattern: '^[a-z][a-z0-9_]{1,31}$' }
+      - name: X-Zasp-Upstream-Host
+        in: header
+        required: false
+        description: For a provider that gives each of its customers a host of their own, the host of the caller's resource. It must lie directly under the provider's own domain.
+        schema: { type: string, maxLength: 253 }
+      - name: X-Zasp-Agent-Id
+        in: header
+        required: false
+        description: The calling agent, recorded with each decision. Send the agent's identifier in the inventory to have its gateway traffic count as the agent's activity.
+        schema: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$' }
+    post:
+      operationId: createGatewayChatCompletion
+      summary: Create a chat completion through the hosted model proxy
+      description: >-
+        A chat completion in the widely used chat completions format: point the SDK's base URL at <origin>/api/v1/gateway/llm/v1,
+        use an API token that has the use_gateway permission as the SDK's key, and send the provider's own key in
+        X-Zasp-Upstream-Authorization. The
+        provider's key is forwarded for this request only and is never stored or logged. The Environment's guardrail policy is
+        applied to the messages (a blocked prompt is refused with 400, code guardrail_blocked; sensitive data is redacted before the
+        provider sees it) and to the answer, streamed answers included: a stream is searched through a window that never releases
+        part of a match, and a blocked stream ends with an error event. The request and the answer are otherwise the provider's.
+        Only decisions are recorded, never text.
+      security:
+        - ProductAPIToken: []
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/GatewayProviderBody' } } }
+      responses:
+        '200':
+          description: The provider's answer, or its stream of server-sent events, after the guardrail policy was applied.
+          headers: { Cache-Control: { schema: { type: string } } }
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/GatewayProviderBody' } }
+            text/event-stream: { schema: { type: string } }
+        '400': { description: 'An error in the provider''s own error shape, from the gateway (codes guardrail_blocked and gateway_*) or from the provider.', content: { application/json: { schema: { $ref: '#/components/schemas/GatewayProviderBody' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { description: 'An error in the provider''s own error shape, from the gateway (codes guardrail_blocked and gateway_*) or from the provider.', content: { application/json: { schema: { $ref: '#/components/schemas/GatewayProviderBody' } } } }
+        '429': { description: 'An error in the provider''s own error shape, from the gateway (codes guardrail_blocked and gateway_*) or from the provider.', content: { application/json: { schema: { $ref: '#/components/schemas/GatewayProviderBody' } } } }
+        '502': { description: 'An error in the provider''s own error shape, from the gateway (codes guardrail_blocked and gateway_*) or from the provider.', content: { application/json: { schema: { $ref: '#/components/schemas/GatewayProviderBody' } } } }
+        '503': { description: 'An error in the provider''s own error shape, from the gateway (codes guardrail_blocked and gateway_*) or from the provider.', content: { application/json: { schema: { $ref: '#/components/schemas/GatewayProviderBody' } } } }
+        default: { description: 'An error in the provider''s own error shape, from the gateway (codes guardrail_blocked and gateway_*) or from the provider.', content: { application/json: { schema: { $ref: '#/components/schemas/GatewayProviderBody' } } } }
+  /api/v1/gateway/llm/v1/responses:
+    parameters:
+      - name: X-Zasp-Upstream-Authorization
+        in: header
+        required: false
+        description: >-
+          The upstream's own credential: for an MCP server the value of the Authorization header the server expects (for example
+          "Bearer <token>"), for a model provider its API key (with or without "Bearer "). It is forwarded for this request only and
+          is never stored or logged. The platform token in Authorization is never sent upstream.
+        schema: { type: string, minLength: 1, maxLength: 4096 }
+      - name: X-Zasp-Upstream-Provider
+        in: header
+        required: false
+        description: The model provider to forward to, by its name in the gateway's catalog (see the hosted gateway guide). Without it the request goes to the provider whose API this route speaks.
+        schema: { type: string, pattern: '^[a-z][a-z0-9_]{1,31}$' }
+      - name: X-Zasp-Upstream-Host
+        in: header
+        required: false
+        description: For a provider that gives each of its customers a host of their own, the host of the caller's resource. It must lie directly under the provider's own domain.
+        schema: { type: string, maxLength: 253 }
+      - name: X-Zasp-Agent-Id
+        in: header
+        required: false
+        description: The calling agent, recorded with each decision. Send the agent's identifier in the inventory to have its gateway traffic count as the agent's activity.
+        schema: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$' }
+    post:
+      operationId: createGatewayResponse
+      summary: Create a response through the hosted model proxy
+      description: >-
+        The responses format through the proxy, on the same terms as a chat completion. The input items, function call outputs
+        among them, and the output text and function call arguments go through the guardrail detectors.
+      security:
+        - ProductAPIToken: []
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/GatewayProviderBody' } } }
+      responses:
+        '200':
+          description: The provider's answer, or its stream of server-sent events, after the guardrail policy was applied.
+          headers: { Cache-Control: { schema: { type: string } } }
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/GatewayProviderBody' } }
+            text/event-stream: { schema: { type: string } }
+        '400': { description: 'An error in the provider''s own error shape, from the gateway (codes guardrail_blocked and gateway_*) or from the provider.', content: { application/json: { schema: { $ref: '#/components/schemas/GatewayProviderBody' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { description: 'An error in the provider''s own error shape, from the gateway (codes guardrail_blocked and gateway_*) or from the provider.', content: { application/json: { schema: { $ref: '#/components/schemas/GatewayProviderBody' } } } }
+        '429': { description: 'An error in the provider''s own error shape, from the gateway (codes guardrail_blocked and gateway_*) or from the provider.', content: { application/json: { schema: { $ref: '#/components/schemas/GatewayProviderBody' } } } }
+        '502': { description: 'An error in the provider''s own error shape, from the gateway (codes guardrail_blocked and gateway_*) or from the provider.', content: { application/json: { schema: { $ref: '#/components/schemas/GatewayProviderBody' } } } }
+        '503': { description: 'An error in the provider''s own error shape, from the gateway (codes guardrail_blocked and gateway_*) or from the provider.', content: { application/json: { schema: { $ref: '#/components/schemas/GatewayProviderBody' } } } }
+        default: { description: 'An error in the provider''s own error shape, from the gateway (codes guardrail_blocked and gateway_*) or from the provider.', content: { application/json: { schema: { $ref: '#/components/schemas/GatewayProviderBody' } } } }
+  /api/v1/gateway/llm/v1/messages:
+    parameters:
+      - name: X-Zasp-Upstream-Authorization
+        in: header
+        required: false
+        description: >-
+          The upstream's own credential: for an MCP server the value of the Authorization header the server expects (for example
+          "Bearer <token>"), for a model provider its API key (with or without "Bearer "). It is forwarded for this request only and
+          is never stored or logged. The platform token in Authorization is never sent upstream.
+        schema: { type: string, minLength: 1, maxLength: 4096 }
+      - name: X-Zasp-Upstream-Provider
+        in: header
+        required: false
+        description: The model provider to forward to, by its name in the gateway's catalog (see the hosted gateway guide). Without it the request goes to the provider whose API this route speaks.
+        schema: { type: string, pattern: '^[a-z][a-z0-9_]{1,31}$' }
+      - name: X-Zasp-Agent-Id
+        in: header
+        required: false
+        description: The calling agent, recorded with each decision. Send the agent's identifier in the inventory to have its gateway traffic count as the agent's activity.
+        schema: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$' }
+    post:
+      operationId: createGatewayMessage
+      summary: Create a message through the hosted model proxy
+      description: >-
+        The messages format through the proxy: point the SDK's base URL at <origin>/api/v1/gateway/llm, send an API
+        token that has the use_gateway permission as the bearer token, and the provider's own key in
+        X-Zasp-Upstream-Authorization (a plain HTTP client may send it in x-api-key instead). anthropic-version and
+        anthropic-beta are forwarded. The messages, tool results among them,
+        and the answer's text and tool inputs go through the guardrail detectors; thinking blocks are passed unchanged.
+      security:
+        - ProductAPIToken: []
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/GatewayProviderBody' } } }
+      responses:
+        '200':
+          description: The provider's answer, or its stream of server-sent events, after the guardrail policy was applied.
+          headers: { Cache-Control: { schema: { type: string } } }
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/GatewayProviderBody' } }
+            text/event-stream: { schema: { type: string } }
+        '400': { description: 'An error in the provider''s own error shape, from the gateway (codes guardrail_blocked and gateway_*) or from the provider.', content: { application/json: { schema: { $ref: '#/components/schemas/GatewayProviderBody' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { description: 'An error in the provider''s own error shape, from the gateway (codes guardrail_blocked and gateway_*) or from the provider.', content: { application/json: { schema: { $ref: '#/components/schemas/GatewayProviderBody' } } } }
+        '429': { description: 'An error in the provider''s own error shape, from the gateway (codes guardrail_blocked and gateway_*) or from the provider.', content: { application/json: { schema: { $ref: '#/components/schemas/GatewayProviderBody' } } } }
+        '502': { description: 'An error in the provider''s own error shape, from the gateway (codes guardrail_blocked and gateway_*) or from the provider.', content: { application/json: { schema: { $ref: '#/components/schemas/GatewayProviderBody' } } } }
+        '503': { description: 'An error in the provider''s own error shape, from the gateway (codes guardrail_blocked and gateway_*) or from the provider.', content: { application/json: { schema: { $ref: '#/components/schemas/GatewayProviderBody' } } } }
+        default: { description: 'An error in the provider''s own error shape, from the gateway (codes guardrail_blocked and gateway_*) or from the provider.', content: { application/json: { schema: { $ref: '#/components/schemas/GatewayProviderBody' } } } }
   /api/v1/integrations/{id}/remediation-role:
     parameters:
       - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
@@ -5170,7 +5612,7 @@ components:
         action: { type: string, enum: [invoke, exec, exit, read, write, connect, accept, use, allow, monitor, block] }
         label: { type: string, minLength: 1, maxLength: 256 }
         evidence_id: { $ref: '#/components/schemas/ProductID' }
-        source: { type: string, enum: [otlp, tetragon] }
+        source: { type: string, enum: [otlp, tetragon, gateway], description: 'What observed the event: a sensor (otlp, tetragon) or the hosted gateway. A gateway event is a tool call or a policy decision the gateway made for a request that named the agent; its evidence is the gateway decision record.' }
         confidence: { type: string, enum: [exact, strong, probable, unattributed] }
         at: { type: string, format: date-time }
         projected_at: { type: string, format: date-time }
@@ -5661,6 +6103,7 @@ components:
         - manage_data_controls
         - run_tests
         - decide_guardrails
+        - use_gateway
     BuiltInRole:
       type: object
       additionalProperties: false
@@ -5990,7 +6433,7 @@ components:
     APITokenInput:
       type: object
       additionalProperties: false
-      required: [name, workspace_id, environment_id, permissions, expires_at]
+      required: [name, workspace_id, environment_id, permissions]
       properties:
         name:
           type: string
@@ -6011,6 +6454,34 @@ components:
         expires_at:
           type: string
           format: date-time
+          description: When the token stops working. Absent means 24 hours from now. See createAPIToken for the longest lifetime.
+    APITokenPolicy:
+      type: object
+      additionalProperties: false
+      description: >-
+        How long an API token of the Environment may live. max_lifetime_days is the limit the Environment's administrators set
+        (365 while version is 0, which lowers nothing). decision_token_max_lifetime_days is the longest lifetime of a new token
+        that holds nothing but decide_guardrails and use_gateway (either or both), token_max_lifetime_days of any other new token; default_lifetime_days is
+        the lifetime of a token created without an expiry.
+      required: [environment_id, max_lifetime_days, version, updated_at, default_lifetime_days, decision_token_max_lifetime_days, token_max_lifetime_days]
+      properties:
+        environment_id: { $ref: '#/components/schemas/ProductID' }
+        max_lifetime_days: { type: integer, minimum: 1, maximum: 365 }
+        version: { type: integer, minimum: 0, maximum: 1000000 }
+        updated_at: { oneOf: [{ type: 'null' }, { type: string, format: date-time }] }
+        default_lifetime_days: { type: integer, const: 1 }
+        decision_token_max_lifetime_days: { type: integer, minimum: 1, maximum: 365 }
+        token_max_lifetime_days: { type: integer, minimum: 1, maximum: 90 }
+    APITokenPolicyInput:
+      type: object
+      additionalProperties: false
+      required: [max_lifetime_days]
+      properties:
+        max_lifetime_days:
+          type: integer
+          minimum: 1
+          maximum: 365
+          description: The longest lifetime, in days, of a token created in this Environment from now on. 365 lowers nothing.
     APIToken:
       type: object
       additionalProperties: false
@@ -6623,23 +7094,23 @@ components:
         coverage_gaps:
           type: array
           maxItems: 16
-          description: The AI services whose agents the integration's current collection could not list, ordered by service. Empty when every service was read, and for every provider other than AWS.
+          description: The AI services whose agents the integration's current collection could not list, ordered by service. Empty when every service was read. AWS, Kubernetes, Microsoft and Google Cloud integrations report gaps.
           items: { $ref: '#/components/schemas/IntegrationCoverageGap' }
     IntegrationCoverageGap:
       type: object
       additionalProperties: false
       required: [service, name, status]
       properties:
-        service: { type: string, pattern: '^[a-z][a-z0-9-]{0,63}$', description: 'The provider service, for example bedrock-agent, bedrock-agentcore or lambda. A Kubernetes integration reports runtime-observations when its discovery credential may not list the node sensor ConfigMaps.' }
+        service: { type: string, pattern: '^[a-z][a-z0-9-]{0,63}$', description: 'The provider service, for example bedrock-agent, bedrock-agentcore or lambda. A Kubernetes integration reports runtime-observations when its discovery credential may not list the node sensor ConfigMaps, and mcp-links or mcp-link-configmaps when it may not list the Services or the ConfigMaps that relate agents to MCP servers. A Microsoft integration reports foundry-agents when its application may not list the agents of an AI Foundry project. A Google Cloud integration reports the Google API, for example agent-engine, cloud-run or audit-logs.' }
         name: { type: string, minLength: 1, maxLength: 128 }
-        status: { type: string, enum: [access_denied, unavailable], description: 'access_denied when the read role lacks a permission the service needs; unavailable when the service is not offered in the regions of the account.' }
+        status: { type: string, enum: [access_denied, unavailable], description: 'access_denied when the read role lacks a permission the service needs; unavailable when the service is not offered in the regions of the account or, for Google Cloud, when the API is switched off in every project that was read.' }
     IntegrationSetupAuthorization:
       type: object
       additionalProperties: false
       required: [state, scope_kind, scope_label, repository_selection, permissions]
       properties:
         state: { type: string, enum: [pending, verified, degraded] }
-        scope_kind: { type: string, enum: [none, aws_account, kubernetes_cluster, github_organization, okta_tenant, microsoft_tenant, salesforce_org, saas_tenant] }
+        scope_kind: { type: string, enum: [none, aws_account, kubernetes_cluster, github_organization, okta_tenant, microsoft_tenant, salesforce_org, saas_tenant, gcp_scope] }
         scope_label: { oneOf: [{ type: string, minLength: 1, maxLength: 128 }, { type: 'null' }] }
         repository_selection: { oneOf: [{ type: string, enum: [all, selected] }, { type: 'null' }] }
         permissions:
@@ -6746,6 +7217,126 @@ components:
           maxProperties: 11
           propertyNames: { $ref: '#/components/schemas/GuardrailRuleID' }
           additionalProperties: { $ref: '#/components/schemas/GuardrailMode' }
+    MCPToolRiskClass:
+      type: string
+      description: The risk class of a tool, from the words of its name. execute runs code or commands; write changes something; network fetches from an address; read only reads.
+      enum: [execute, write, network, read, unclassified]
+    GatewayPolicy:
+      type: object
+      additionalProperties: false
+      description: The policy of the hosted gateway in an Environment. Version 0 means no policy was saved and the defaults apply.
+      required: [environment_id, unapproved_servers, denied_tool_risks, requests_per_minute, version, updated_at, gateway_enabled]
+      properties:
+        environment_id: { $ref: '#/components/schemas/ProductID' }
+        unapproved_servers: { type: string, enum: [allow, refuse], description: What happens to a server the MCP registry has no decision for. A blocked server is always refused. }
+        denied_tool_risks: { type: array, maxItems: 5, uniqueItems: true, items: { $ref: '#/components/schemas/MCPToolRiskClass' }, description: Tools of these risk classes are hidden from tools/list and refused in tools/call. }
+        requests_per_minute: { type: integer, minimum: 0, maximum: 100000, description: The requests one API token may send through the gateway in a minute. 0 is no limit. The limit is kept by each replica of the API. }
+        version: { type: integer, minimum: 0, maximum: 1000000 }
+        updated_at: { oneOf: [{ type: 'null' }, { type: string, format: date-time }] }
+        gateway_enabled: { type: boolean, description: Whether this deployment hosts the gateway's traffic routes. }
+    GatewayPolicyInput:
+      type: object
+      additionalProperties: false
+      required: [unapproved_servers, denied_tool_risks, requests_per_minute]
+      properties:
+        unapproved_servers: { type: string, enum: [allow, refuse] }
+        denied_tool_risks: { type: array, maxItems: 5, uniqueItems: true, items: { $ref: '#/components/schemas/MCPToolRiskClass' } }
+        requests_per_minute: { type: integer, minimum: 0, maximum: 100000 }
+    MCPGatewayToolName:
+      type: string
+      pattern: '^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$'
+    MCPGatewayTool:
+      type: object
+      additionalProperties: false
+      description: A tool a server listed through the gateway. Its description and schema are never kept.
+      required: [name, risk, last_seen_at]
+      properties:
+        name: { $ref: '#/components/schemas/MCPGatewayToolName' }
+        risk: { $ref: '#/components/schemas/MCPToolRiskClass' }
+        last_seen_at: { type: string, format: date-time }
+    MCPGatewayServer:
+      type: object
+      additionalProperties: false
+      description: >-
+        An upstream MCP server registered behind the hosted gateway. gateway_path, under this API's origin, is the address an
+        agent's MCP configuration names instead of upstream_url. identity is what the MCP registry decides (the server's host) and
+        approval its decision. No credential of the upstream is stored.
+      required: [id, name, upstream_url, upstream_host, gateway_path, identity, approval, enabled, allowed_tools, denied_tools, tools, tool_count, last_activity_at, version, created_at, updated_at]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        name: { type: string, minLength: 1, maxLength: 128 }
+        upstream_url: { type: string, format: uri, maxLength: 2048, pattern: '^https://' }
+        upstream_host: { type: string, minLength: 1, maxLength: 253 }
+        gateway_path: { type: string, pattern: '^/api/v1/gateway/mcp/pid_[0-9a-f-]{36}$' }
+        identity: { type: string, pattern: '^host:', maxLength: 512 }
+        approval: { type: string, enum: [approved, unapproved, blocked] }
+        enabled: { type: boolean, description: A disabled server is refused at the gateway. }
+        allowed_tools: { type: array, maxItems: 128, uniqueItems: true, items: { $ref: '#/components/schemas/MCPGatewayToolName' }, description: 'When not empty, the only tools that may be listed and called.' }
+        denied_tools: { type: array, maxItems: 128, uniqueItems: true, items: { $ref: '#/components/schemas/MCPGatewayToolName' }, description: Tools that are never listed or called. }
+        tools: { type: array, maxItems: 64, items: { $ref: '#/components/schemas/MCPGatewayTool' }, description: 'The tools the server listed through the gateway, the most dangerous first.' }
+        tool_count: { type: integer, minimum: 0 }
+        last_activity_at: { oneOf: [{ type: 'null' }, { type: string, format: date-time }], description: The time of the newest decision record of the server. }
+        version: { type: integer, minimum: 1, maximum: 1000000 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    MCPGatewayServerInput:
+      type: object
+      additionalProperties: false
+      required: [name, upstream_url, enabled, allowed_tools, denied_tools]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 128 }
+        upstream_url: { type: string, format: uri, maxLength: 2048, pattern: '^https://', description: 'An https URL on the default port with a public host, no credentials, no query and no fragment.' }
+        enabled: { type: boolean }
+        allowed_tools: { type: array, maxItems: 128, uniqueItems: true, items: { $ref: '#/components/schemas/MCPGatewayToolName' } }
+        denied_tools: { type: array, maxItems: 128, uniqueItems: true, items: { $ref: '#/components/schemas/MCPGatewayToolName' } }
+    MCPGatewayServerList:
+      type: object
+      additionalProperties: false
+      required: [items, gateway_enabled]
+      properties:
+        items: { type: array, maxItems: 200, items: { $ref: '#/components/schemas/MCPGatewayServer' } }
+        gateway_enabled: { type: boolean, description: Whether this deployment hosts the gateway's traffic routes. }
+    GatewayDecision:
+      type: object
+      additionalProperties: false
+      description: One decision of the hosted gateway. It holds no prompt, argument, tool result or answer.
+      required: [id, created_at, surface, operation, direction, decision, reason, rules, bytes, content_digest, server_id, server_name, tool_name, provider, model, agent_id, principal_id]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        created_at: { type: string, format: date-time }
+        surface: { type: string, enum: [mcp, llm] }
+        operation: { type: string, minLength: 1, maxLength: 64, description: 'The MCP method (tools/call, tools/list, ...) or the model API (chat.completions, responses, messages).' }
+        direction: { type: string, enum: [request, response] }
+        decision: { type: string, enum: [allow, redact, block] }
+        reason:
+          type: string
+          enum: [none, guardrail, server_blocked, server_unapproved, server_disabled, tool_denied, tool_not_allowed, tool_risk_denied, tools_hidden, stream_window_exceeded]
+        rules: { type: array, maxItems: 64, items: { $ref: '#/components/schemas/GuardrailMatchedRule' } }
+        bytes: { type: integer, minimum: 0, description: The size of the request or response body. }
+        content_digest: { type: string, pattern: '^sha256:[0-9a-f]{64}$', description: The SHA-256 digest of the request or response body as the gateway received it. }
+        server_id: { oneOf: [{ type: 'null' }, { $ref: '#/components/schemas/ProductID' }] }
+        server_name: { oneOf: [{ type: 'null' }, { type: string }], description: The name of the gateway server; null once it was removed. }
+        tool_name: { oneOf: [{ type: 'null' }, { type: string }] }
+        provider: { oneOf: [{ type: 'null' }, { type: string }] }
+        model: { oneOf: [{ type: 'null' }, { type: string }] }
+        agent_id: { oneOf: [{ type: 'null' }, { type: string }], description: The agent the request named in X-Zasp-Agent-Id. }
+        principal_id: { $ref: '#/components/schemas/ProductID' }
+    GatewayDecisionPage:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor]
+      properties:
+        items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/GatewayDecision' } }
+        next_cursor: { oneOf: [{ type: 'null' }, { $ref: '#/components/schemas/ProductID' }] }
+    GatewayJSONRPCMessage:
+      type: object
+      description: A single JSON-RPC 2.0 message of the Model Context Protocol. Its members are the protocol's.
+      required: [jsonrpc]
+      properties:
+        jsonrpc: { type: string, const: '2.0' }
+    GatewayProviderBody:
+      type: object
+      description: A request or an answer of the model provider's API. Its members are the provider's.
     IntegrationRemediationRole:
       type: object
       additionalProperties: false
@@ -6780,7 +7371,7 @@ components:
       required: [integration_id, connector_key, authorization, runtime_coverage, updated_at]
       properties:
         integration_id: { $ref: '#/components/schemas/ProductID' }
-        connector_key: { type: string, enum: [aws, kubernetes, github, okta, microsoft, salesforce, saas] }
+        connector_key: { type: string, enum: [aws, kubernetes, github, okta, microsoft, salesforce, saas, gcp] }
         authorization: { $ref: '#/components/schemas/IntegrationSetupAuthorization' }
         runtime_coverage: { $ref: '#/components/schemas/IntegrationRuntimeCoverage' }
         updated_at: { type: string, format: date-time }
@@ -6927,8 +7518,8 @@ components:
         version: { type: integer, minimum: 1 }
     InventoryProvider:
       type: string
-      description: The discovery provider. saas is the generic provider of every SaaS platform read through a Nango connection; the platform (databricks, slack, ...) is the platform stable field of the object and the platform of its discovery.
-      enum: [aws, kubernetes, github, okta, microsoft, salesforce, saas]
+      description: The discovery provider. saas is the generic provider of every SaaS platform read through a Nango connection; the platform (databricks, slack, ...) is the platform stable field of the object and the platform of its discovery. gcp is Google Cloud, read as the projects of one organization, folder or project.
+      enum: [aws, kubernetes, github, okta, microsoft, salesforce, saas, gcp]
     InventoryDiscovery:
       type: object
       description: How the object was found. An agent is declared by its owner, listed by the provider's own control plane, or inferred from catalog signals. Every other kind is a provider record.
@@ -7021,7 +7612,7 @@ components:
       required: [integration_id, provider, source, source_identifier, snapshot_id, generation, evidence_id, confidence_basis_points, observed_at, fresh_until, projection_version, winning]
       properties:
         integration_id: { $ref: '#/components/schemas/ProductID' }
-        provider: { type: string, enum: [aws, kubernetes, github, okta, microsoft, salesforce, saas] }
+        provider: { type: string, enum: [aws, kubernetes, github, okta, microsoft, salesforce, saas, gcp] }
         source: { type: string, pattern: '^[a-z][a-z0-9_]{1,63}$' }
         source_identifier: { type: string, pattern: '^sha256:[0-9a-f]{64}$' }
         snapshot_id: { $ref: '#/components/schemas/ProductID' }
@@ -7063,9 +7654,28 @@ components:
     AgentAccess:
       type: object
       additionalProperties: false
-      required: [agent_id, ai_actions, mcp_servers, data_stores, skills]
+      required: [agent_id, ai_actions, mcp_servers, data_stores, skills, tools, tool_kinds]
       properties:
         agent_id: { $ref: '#/components/schemas/ProductID' }
+        tools:
+          type: array
+          maxItems: 64
+          description: The topics and actions the agent's platform lists for it, topics first. Empty for an agent of a platform that lists none.
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, name, kind, target, confirmation]
+            properties:
+              id: { $ref: '#/components/schemas/ProductID' }
+              name: { type: string, minLength: 1, maxLength: 256 }
+              kind: { type: string, enum: [topic, action] }
+              target: { oneOf: [{ type: 'null' }, { type: string, pattern: '^[A-Za-z][A-Za-z0-9_]{0,63}$' }], description: 'What an action invokes, for example flow or apex. Null for a topic and where the platform did not state it.' }
+              confirmation: { oneOf: [{ type: 'null' }, { type: boolean }], description: 'Whether an action asks for confirmation before it runs. Null for a topic and where the platform did not state it.' }
+        tool_kinds:
+          type: array
+          maxItems: 16
+          description: The kinds of tool the agent's platform states for it, for example code_interpreter, file_search or mcp, in order. Empty where the platform states none.
+          items: { type: string, pattern: '^[a-z0-9][a-z0-9_.-]{0,63}$' }
         ai_actions:
           oneOf:
             - { type: 'null' }
@@ -7135,8 +7745,8 @@ components:
       properties:
         id: { $ref: '#/components/schemas/ProductID' }
         name: { type: string, minLength: 1, maxLength: 256 }
-        provider: { type: string, enum: [aws, github, kubernetes, saas] }
-        source_kind: { type: string, enum: [aws_agentcore_gateway, aws_mcp_server, github_mcp_server, kubernetes_mcp_server, saas_mcp_server] }
+        provider: { type: string, enum: [aws, github, kubernetes, saas, gcp] }
+        source_kind: { type: string, enum: [aws_agentcore_gateway, aws_mcp_server, github_mcp_server, kubernetes_mcp_server, saas_mcp_server, gcp_mcp_server] }
         source: { type: string, enum: [agentcore_gateway, egress, gateway_target, repository_config, workload, saas_api, provider_api], description: 'How the server was found.' }
         transport: { type: [string, 'null'], enum: [stdio, http, sse, null] }
         endpoint_host: { type: [string, 'null'], minLength: 1, maxLength: 253, description: 'Host of a remote server. The URL path and query are never stored.' }

@@ -4,18 +4,28 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { requireAPIData, type APIClient } from "../../../apps/web/api/client";
 import { loadAllCursorPages } from "../../../apps/web/api/pagination";
-import type { ApiToken, ApiTokenPage, ApiTokenRevealedCredential, ApiTokenRevealGrant, ApiTokenRevealGrantPage } from "../../../apps/web/api/generated";
-import { decodeAPIToken, decodeAPITokenPage, decodeAPITokenRevealedCredential, decodeAPITokenRevealGrant, decodeAPITokenRevealGrantPage } from "../../../apps/web/api/administration-decoders";
+import type { ApiToken, ApiTokenPage, ApiTokenPolicy, ApiTokenRevealedCredential, ApiTokenRevealGrant, ApiTokenRevealGrantPage } from "../../../apps/web/api/generated";
+import { decodeAPIToken, decodeAPITokenPage, decodeAPITokenPolicy, decodeAPITokenRevealedCredential, decodeAPITokenRevealGrant, decodeAPITokenRevealGrantPage } from "../../../apps/web/api/administration-decoders";
 import { useOptionalSession } from "../../auth/SessionProvider";
 import { Badge, Button, Card, EmptyState, Field, LoadingState, Modal, PageHeader, Select } from "../../components/ui";
 
 const MAXIMUM_LIST_ITEMS = 2_000;
 const MAXIMUM_LIST_PAGES = 20;
+const DAY_MILLISECONDS = 24 * 60 * 60 * 1000;
+// A token that expires within this many days is called out on the page.
+const EXPIRY_WARNING_DAYS = 7;
+// The lifetimes a person can choose for a new token, and the limits an
+// administrator can set for the Environment.
+const LIFETIME_CHOICES: readonly { days: number; label: string }[] = [{ days: 1, label: "1 day" }, { days: 30, label: "30 days" }, { days: 90, label: "90 days" }, { days: 365, label: "1 year" }];
+const LIMIT_CHOICES: readonly { days: number; label: string }[] = [{ days: 1, label: "1 day" }, { days: 7, label: "7 days" }, { days: 30, label: "30 days" }, { days: 90, label: "90 days" }, { days: 365, label: "1 year (no lower limit)" }];
 
 export interface APIAccessToken {
   id: string; name: string; workspaceId: string; environmentId: string; permissions: string[];
-  expiresAt: string; revokedAt: string | null; version: number;
+  expiresAt: string; lastUsedAt: string | null; revokedAt: string | null; version: number;
 }
+// How long a new token of the Environment may live: the administrators'
+// limit, and what it leaves a decisions-only token and any other token.
+export interface APIAccessPolicy { maxLifetimeDays: number; decisionTokenMaxLifetimeDays: number; tokenMaxLifetimeDays: number; version: number; }
 export interface APIAccessGrant { grantId: string; tokenId: string; operation: "createAPIToken" | "rotateAPIToken"; expiresAt: string; }
 export interface APIAccessGrantResult { grant: APIAccessGrant; token: APIAccessToken; }
 export interface APIAccessRevealedCredential { grantId: string; tokenId: string; rawToken: string; expiresAt: string; }
@@ -23,7 +33,9 @@ export interface APIAccessRevealedCredential { grantId: string; tokenId: string;
 export interface APIAccessAPI {
   listTokens(signal?: AbortSignal): Promise<APIAccessToken[]>;
   listPendingGrants(signal?: AbortSignal): Promise<APIAccessGrant[]>;
-  createToken(input: Omit<APIAccessToken, "id" | "revokedAt" | "version">, idempotencyKey: string): Promise<APIAccessGrantResult>;
+  getPolicy(signal?: AbortSignal): Promise<APIAccessPolicy>;
+  setPolicy(maxLifetimeDays: number, version: number, idempotencyKey: string): Promise<APIAccessPolicy>;
+  createToken(input: Omit<APIAccessToken, "id" | "lastUsedAt" | "revokedAt" | "version">, idempotencyKey: string): Promise<APIAccessGrantResult>;
   rotateToken(id: string, version: number, idempotencyKey: string): Promise<APIAccessGrantResult>;
   revealGrant(id: string): Promise<APIAccessRevealedCredential>;
   acknowledgeGrant(id: string): Promise<void>;
@@ -31,7 +43,10 @@ export interface APIAccessAPI {
 }
 
 function tokenView(token: ApiToken): APIAccessToken {
-  return { id: token.id, name: token.name, workspaceId: token.workspace_id, environmentId: token.environment_id, permissions: [...token.permissions], expiresAt: token.expires_at, revokedAt: token.revoked_at, version: token.version };
+  return { id: token.id, name: token.name, workspaceId: token.workspace_id, environmentId: token.environment_id, permissions: [...token.permissions], expiresAt: token.expires_at, lastUsedAt: token.last_used_at, revokedAt: token.revoked_at, version: token.version };
+}
+function policyView(policy: ApiTokenPolicy): APIAccessPolicy {
+  return { maxLifetimeDays: policy.max_lifetime_days, decisionTokenMaxLifetimeDays: policy.decision_token_max_lifetime_days, tokenMaxLifetimeDays: policy.token_max_lifetime_days, version: policy.version };
 }
 function grantView(grant: { readonly grant_id: string; readonly token_id: string; readonly operation: "createAPIToken" | "rotateAPIToken"; readonly expires_at: string }): APIAccessGrant {
   return { grantId: grant.grant_id, tokenId: grant.token_id, operation: grant.operation, expiresAt: grant.expires_at };
@@ -46,6 +61,12 @@ export function createAPIAccessAPI(client: APIClient): APIAccessAPI {
     async listPendingGrants(signal) {
       const loaded = await loadAllCursorPages(async (cursor) => requireAPIData<ApiTokenRevealGrantPage>(await client.GET("/api/v1/admin/api-token-reveal-grants", { params: { query: { limit: 100, ...(cursor ? { cursor } : {}) } }, signal }), decodeAPITokenRevealGrantPage), { maximumItems: MAXIMUM_LIST_ITEMS, maximumPages: MAXIMUM_LIST_PAGES });
       return loaded.items.map(grantView);
+    },
+    async getPolicy(signal) {
+      return policyView(requireAPIData<ApiTokenPolicy>(await client.GET("/api/v1/admin/api-token-policy", { signal }), decodeAPITokenPolicy));
+    },
+    async setPolicy(maxLifetimeDays, version, idempotencyKey) {
+      return policyView(requireAPIData<ApiTokenPolicy>(await client.PUT("/api/v1/admin/api-token-policy", { params: { header: { "X-CSRF-Token": "", "Idempotency-Key": idempotencyKey, "If-Match": `"${version}"` } }, body: { max_lifetime_days: maxLifetimeDays } }), decodeAPITokenPolicy));
     },
     async createToken(input, idempotencyKey) {
       const result = requireAPIData<ApiTokenRevealGrant>(await client.POST("/api/v1/admin/api-tokens", { params: { header: { "X-CSRF-Token": "", "Idempotency-Key": idempotencyKey } }, body: { name: input.name, workspace_id: input.workspaceId, environment_id: input.environmentId, permissions: input.permissions as ApiToken["permissions"], expires_at: input.expiresAt } }), decodeAPITokenRevealGrant);
@@ -89,7 +110,14 @@ export function APIAccessView({ api: suppliedAPI, client }: { api?: APIAccessAPI
   const [name, setName] = useState("");
   // What the new token may do. A gateway that only asks for guardrail
   // decisions gets a token that can read nothing.
-  const [tokenUse, setTokenUse] = useState<"view" | "decide_guardrails">("view");
+  const [tokenUse, setTokenUse] = useState<"view" | "decide_guardrails" | "use_gateway">("view");
+  // How long the new token lives. One day unless the person chooses more.
+  const [lifetimeDays, setLifetimeDays] = useState(1);
+  const [policy, setPolicy] = useState<APIAccessPolicy | null>(null);
+  const [limitDays, setLimitDays] = useState<number | null>(null);
+  const [savingLimit, setSavingLimit] = useState(false);
+  // The moment the list was loaded: what "expires soon" is measured from.
+  const [loadedAt, setLoadedAt] = useState(0);
   const pendingMutation = useRef<PendingMutation | null>(null);
   const createTokenButton = useRef<HTMLButtonElement>(null);
   const [unresolvedMutation, setUnresolvedMutation] = useState<PendingMutation | null>(null);
@@ -97,8 +125,10 @@ export function APIAccessView({ api: suppliedAPI, client }: { api?: APIAccessAPI
   const load = useCallback(async (signal?: AbortSignal) => {
     try {
       if (!api) throw new Error();
-      const [nextTokens, nextGrants] = await Promise.all([api.listTokens(signal), api.listPendingGrants(signal)]);
-      setTokens(nextTokens); setGrants(nextGrants); setError(null);
+      // Without the lifetime setting the page still works: it then offers
+      // the one-day lifetime only, which every Environment allows.
+      const [nextTokens, nextGrants, nextPolicy] = await Promise.all([api.listTokens(signal), api.listPendingGrants(signal), api.getPolicy(signal).catch(() => null)]);
+      setTokens(nextTokens); setGrants(nextGrants); setPolicy(nextPolicy); setLoadedAt(Date.now()); setError(null);
     } catch (cause) { if ((cause as { name?: string }).name !== "AbortError") setError("API access could not be loaded"); }
     finally { if (!signal?.aborted) setLoading(false); }
   }, [api]);
@@ -137,12 +167,30 @@ export function APIAccessView({ api: suppliedAPI, client }: { api?: APIAccessAPI
   };
   const retainMutation = (value: PendingMutation | null) => { pendingMutation.current = value; setUnresolvedMutation(value); };
   const reconcileMutation = async () => { await load(); };
-  const expiresAt = () => new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  // The longest lifetime of the token being created: a decisions-only token
+  // may live longer than one that reads the Environment.
+  const longestLifetimeDays = policy === null ? 1 : tokenUse !== "view" ? policy.decisionTokenMaxLifetimeDays : policy.tokenMaxLifetimeDays;
+  const lifetimeChoices = LIFETIME_CHOICES.filter((choice) => choice.days <= longestLifetimeDays);
+  const chosenLifetimeDays = lifetimeChoices.some((choice) => choice.days === lifetimeDays) ? lifetimeDays : 1;
+  const expiresAt = () => new Date(Date.now() + chosenLifetimeDays * DAY_MILLISECONDS).toISOString();
+  const now = loadedAt;
+  const daysLeft = (token: APIAccessToken) => Math.ceil((Date.parse(token.expiresAt) - now) / DAY_MILLISECONDS);
+  const expiringSoon = tokens.filter((token) => !token.revokedAt && Date.parse(token.expiresAt) > now && daysLeft(token) <= EXPIRY_WARNING_DAYS);
+  const selectedLimitDays = limitDays ?? policy?.maxLifetimeDays ?? 365;
+  const limitChoices = policy !== null && !LIMIT_CHOICES.some((choice) => choice.days === policy.maxLifetimeDays) ? [...LIMIT_CHOICES, { days: policy.maxLifetimeDays, label: `${policy.maxLifetimeDays} days` }].sort((left, right) => left.days - right.days) : LIMIT_CHOICES;
+  const saveLimit = async () => {
+    if (!api || !policy || !fresh || savingLimit || selectedLimitDays === policy.maxLifetimeDays) return;
+    setSavingLimit(true); setError(null); setNotice(null);
+    try { const saved = await api.setPolicy(selectedLimitDays, policy.version, `admin_${crypto.randomUUID()}`); setPolicy(saved); setLimitDays(null); setNotice(saved.maxLifetimeDays >= 365 ? "API token lifetime limit removed" : `New API tokens of this Environment now live at most ${saved.maxLifetimeDays} ${saved.maxLifetimeDays === 1 ? "day" : "days"}`); }
+    catch { await load(); setLimitDays(null); setError("The token lifetime limit could not be saved. It may have been changed by someone else; review the current limit and try again."); }
+    finally { setSavingLimit(false); }
+  };
   const recoveryLocked = grants.length > 0 || unresolvedMutation !== null;
   return <div className="page api-access">
     <PageHeader title="API Access" eyebrow="Administration" description="Create scoped automation credentials with encrypted, restart-safe one-time reveal recovery." />
     {error && <div className="error-banner" role="alert">{error}</div>}{notice && <div className="success-banner" role="status">{notice}</div>}
     {unresolvedMutation && <div className="error-banner" role="status">A token mutation has an ambiguous response. Other token controls stay locked until its durable reveal grant is recovered or the exact retained operation is retried.</div>}
+    {expiringSoon.length > 0 && <div className="error-banner" role="status" aria-label="API tokens that expire soon">{expiringSoon.length === 1 ? "1 API token expires" : `${expiringSoon.length} API tokens expire`} within {EXPIRY_WARNING_DAYS} days: {expiringSoon.map((token) => token.name).join(", ")}. Create a replacement before then and update whatever uses the token. Rotating a token keeps its expiry.</div>}
     {!fresh && <div className="error-banner" role="alert">Fresh authentication expired. <Button onClick={() => session?.reauthenticate()}>Reauthenticate</Button></div>}
     <Modal open={fresh && revealed !== null} title="Save API token" closeDisabled={acknowledging || !fresh} onClose={() => void closeSecret()} footer={<Button disabled={acknowledging || !fresh} onClick={() => void closeSecret()}>I saved it — destroy recovery copy</Button>}>
       <p>This secret is recoverable only until you acknowledge it or the reveal grant expires.</p><pre aria-label="API token credential">{fresh ? revealed?.rawToken : ""}</pre>
@@ -153,8 +201,11 @@ export function APIAccessView({ api: suppliedAPI, client }: { api?: APIAccessAPI
       {grants.length === 0 ? <EmptyState title="No pending credentials" description="Unacknowledged token credentials after create or rotate appear here across reloads." /> : <ul className="identity-list">{grants.map((grant) => <li key={grant.grantId}><span><strong>{grant.operation === "createAPIToken" ? "Created token" : "Rotated token"}</strong><small>expires {grant.expiresAt}</small></span><Button disabled={!fresh || revealed !== null} onClick={() => void reveal(grant)}>Reveal token</Button></li>)}</ul>}
     </Card>
     <Card title={<h2>Create API token</h2>}><div className="identity-form-grid"><Field disabled={!fresh || recoveryLocked || activeScope === null} label="Token name" value={name} onChange={(event) => setName(event.target.value)} />
-      <Select disabled={!fresh || recoveryLocked || activeScope === null} label="Token use" value={tokenUse} onChange={(event) => setTokenUse(event.target.value === "decide_guardrails" ? "decide_guardrails" : "view")}><option value="view">Read the Environment (view)</option><option value="decide_guardrails">Guardrail decisions only (decide_guardrails)</option></Select></div>
+      <Select disabled={!fresh || recoveryLocked || activeScope === null} label="Token use" value={tokenUse} onChange={(event) => setTokenUse(event.target.value === "decide_guardrails" ? "decide_guardrails" : event.target.value === "use_gateway" ? "use_gateway" : "view")}><option value="view">Read the Environment (view)</option><option value="decide_guardrails">Guardrail decisions only (decide_guardrails)</option><option value="use_gateway">Hosted gateway only (use_gateway)</option></Select>
+      <Select disabled={!fresh || recoveryLocked || activeScope === null} label="Expires after" value={String(chosenLifetimeDays)} onChange={(event) => setLifetimeDays(Number(event.target.value))}>{lifetimeChoices.map((choice) => <option key={choice.days} value={choice.days}>{choice.label}</option>)}</Select></div>
+      <p>{tokenUse === "decide_guardrails" ? "A token for guardrail decisions only can read nothing, so it may live up to a year." : tokenUse === "use_gateway" ? "A token for the hosted gateway only can read nothing, so it may live up to a year." : "A token that reads the Environment may live up to 90 days."}{policy !== null && policy.maxLifetimeDays < 365 && ` This Environment limits new tokens to ${policy.maxLifetimeDays} ${policy.maxLifetimeDays === 1 ? "day" : "days"}.`}{policy === null && " The lifetime setting could not be loaded; only the one-day lifetime is offered."}</p>
       {tokenUse === "decide_guardrails" && <p>This token can call the guardrail decision API and nothing else: it cannot read inventory, findings or settings.</p>}
+      {tokenUse === "use_gateway" && <p>This token can send an agent&apos;s MCP and model traffic through the hosted gateway and nothing else: it cannot read inventory, findings, settings or the gateway&apos;s activity.</p>}
       {activeScope && <p>New credentials use the authenticated active scope <code>{activeScope.workspaceId}/{activeScope.environmentId}</code>.</p>}
       <Button ref={createTokenButton} variant="primary" disabled={!fresh || activeScope === null || revealed !== null || grants.length > 0 || unresolvedMutation?.kind === "rotate"} onClick={() => void (async () => {
         setError(null); setNotice(null); if (!name.trim()) { setError("Enter a token name"); return; } if (!api || !activeScope) { setError("An authenticated active scope is required"); return; }
@@ -163,6 +214,13 @@ export function APIAccessView({ api: suppliedAPI, client }: { api?: APIAccessAPI
         catch { await reconcileMutation(); setError("Create response was interrupted. Recover a pending grant or retry the exact retained operation."); }
       })()}>{unresolvedMutation?.kind === "create" ? "Retry retained API token create" : "Create API token"}</Button>
     </Card>
-    <Card title={<h2>API tokens</h2>}>{tokens.length === 0 ? <EmptyState title="No API tokens" description="Create a scoped credential for automation." /> : <ul className="identity-list">{tokens.map((token) => <li key={token.id}><span><strong>{token.name}</strong><small>{token.permissions.join(" · ")} · expires {token.expiresAt}</small></span><div className="row-actions"><Badge tone={token.revokedAt ? "neutral" : "success"}>{token.revokedAt ? "Revoked" : "Active"}</Badge>{!token.revokedAt && <><Button disabled={!fresh || revealed !== null || grants.length > 0 || unresolvedMutation !== null && (unresolvedMutation.kind !== "rotate" || unresolvedMutation.tokenID !== token.id)} aria-label={`Rotate ${token.name}`} onClick={() => void (async () => { if (!api) return; const retained = pendingMutation.current; const key = retained?.kind === "rotate" && retained.tokenID === token.id ? retained.key : `admin_${crypto.randomUUID()}`; retainMutation({ kind: "rotate", key, tokenID: token.id }); try { const rotated = await api.rotateToken(token.id, token.version, key); setTokens((current) => [...current.filter((item) => item.id !== token.id && item.id !== rotated.token.id), rotated.token]); setGrants((current) => [...current.filter((item) => item.grantId !== rotated.grant.grantId), rotated.grant]); retainMutation(null); setNotice("API token rotated; the old token is revoked"); await reveal(rotated.grant); } catch { await reconcileMutation(); setError("Rotate response was interrupted. Recover a pending grant or retry the exact retained operation."); } })()}>{unresolvedMutation?.kind === "rotate" && unresolvedMutation.tokenID === token.id ? "Retry rotate" : "Rotate"}</Button><Button disabled={!fresh || revealed !== null || recoveryLocked} variant="danger" aria-label={`Revoke ${token.name}`} onClick={() => { if (window.confirm(`Revoke ${token.name}?`)) void (async () => { try { if (!api) throw new Error(); const revoked = await api.revokeToken(token.id, token.version); setTokens((current) => current.map((item) => item.id === token.id ? revoked : item)); setGrants((current) => current.filter((grant) => grant.tokenId !== token.id)); setNotice("API token revoked"); } catch { setError("API token could not be revoked"); } })(); }}>Revoke</Button></>}</div></li>)}</ul>}</Card>
+    <Card title={<h2>Token lifetime limit</h2>}>
+      {policy === null ? <p role="status">The lifetime setting of this Environment could not be loaded.</p> : <>
+        <p>The longest lifetime of a new token in this Environment. Without a limit, a token for guardrail decisions only may live a year and any other token 90 days. A lower limit applies to tokens created from now on; existing tokens keep their expiry and can be revoked.</p>
+        <div className="identity-form-grid"><Select disabled={!fresh || savingLimit} label="Longest token lifetime" value={String(selectedLimitDays)} onChange={(event) => setLimitDays(Number(event.target.value))}>{limitChoices.map((choice) => <option key={choice.days} value={choice.days}>{choice.label}</option>)}</Select></div>
+        <Button disabled={!fresh || savingLimit || selectedLimitDays === policy.maxLifetimeDays} onClick={() => void saveLimit()}>Save limit</Button>
+      </>}
+    </Card>
+    <Card title={<h2>API tokens</h2>}>{tokens.length === 0 ? <EmptyState title="No API tokens" description="Create a scoped credential for automation." /> : <ul className="identity-list">{tokens.map((token) => <li key={token.id}><span><strong>{token.name}</strong><small>{token.permissions.join(" · ")} · expires {token.expiresAt} · {token.lastUsedAt ? `last used ${token.lastUsedAt}` : "never used"}</small></span><div className="row-actions">{token.revokedAt ? <Badge tone="neutral">Revoked</Badge> : Date.parse(token.expiresAt) <= now ? <Badge tone="neutral">Expired</Badge> : daysLeft(token) <= EXPIRY_WARNING_DAYS ? <Badge tone="warning">{daysLeft(token) <= 1 ? "Expires within a day" : `Expires in ${daysLeft(token)} days`}</Badge> : <Badge tone="success">Active</Badge>}{!token.revokedAt && <><Button disabled={!fresh || revealed !== null || grants.length > 0 || unresolvedMutation !== null && (unresolvedMutation.kind !== "rotate" || unresolvedMutation.tokenID !== token.id)} aria-label={`Rotate ${token.name}`} onClick={() => void (async () => { if (!api) return; const retained = pendingMutation.current; const key = retained?.kind === "rotate" && retained.tokenID === token.id ? retained.key : `admin_${crypto.randomUUID()}`; retainMutation({ kind: "rotate", key, tokenID: token.id }); try { const rotated = await api.rotateToken(token.id, token.version, key); setTokens((current) => [...current.filter((item) => item.id !== token.id && item.id !== rotated.token.id), rotated.token]); setGrants((current) => [...current.filter((item) => item.grantId !== rotated.grant.grantId), rotated.grant]); retainMutation(null); setNotice("API token rotated; the old token is revoked"); await reveal(rotated.grant); } catch { await reconcileMutation(); setError("Rotate response was interrupted. Recover a pending grant or retry the exact retained operation."); } })()}>{unresolvedMutation?.kind === "rotate" && unresolvedMutation.tokenID === token.id ? "Retry rotate" : "Rotate"}</Button><Button disabled={!fresh || revealed !== null || recoveryLocked} variant="danger" aria-label={`Revoke ${token.name}`} onClick={() => { if (window.confirm(`Revoke ${token.name}?`)) void (async () => { try { if (!api) throw new Error(); const revoked = await api.revokeToken(token.id, token.version); setTokens((current) => current.map((item) => item.id === token.id ? revoked : item)); setGrants((current) => current.filter((grant) => grant.tokenId !== token.id)); setNotice("API token revoked"); } catch { setError("API token could not be revoked"); } })(); }}>Revoke</Button></>}</div></li>)}</ul>}</Card>
   </div>;
 }

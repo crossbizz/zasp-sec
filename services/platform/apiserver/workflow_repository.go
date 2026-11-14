@@ -151,6 +151,12 @@ func (repository *PostgresRepository) GetWorkflow(ctx context.Context, scope dom
 		statement = postgresCurrentReferenceValueSQL
 		arguments = []any{scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), id}
 	}
+	if actor, checked := connectorCheckedActor(ctx); checked && kind == "integration" {
+		// The integration a connector authorization is asked for, started or
+		// finished (connector_authorized_statements.go).
+		statement = currentConnectorIntegrationSQL
+		arguments = []any{scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), actor, id}
+	}
 	if _, checked := requestAuthorizationFromContext(ctx); checked && kind == "policy" {
 		statement = currentPolicyValueSQL
 		arguments = []any{scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), id}

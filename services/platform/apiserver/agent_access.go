@@ -45,14 +45,31 @@ type AgentSkill struct {
 	Kind string `json:"kind"`
 }
 
+// AgentTool is a topic or an action of an agent whose platform lists them
+// (Agentforce). Target is what an action invokes (flow, apex, ...) and
+// Confirmation whether it asks first; both are nil where the platform did
+// not state them, and for a topic.
+type AgentTool struct {
+	ID           string  `json:"id"`
+	Name         string  `json:"name"`
+	Kind         string  `json:"kind"`
+	Target       *string `json:"target"`
+	Confirmation *bool   `json:"confirmation"`
+}
+
 // AgentAccess is what one agent may use. AIActions is nil for an agent whose
-// role's audit log was not read.
+// role's audit log was not read. Tools are the topics and actions the
+// agent's platform lists for it and ToolKinds the kinds of tool it states
+// (code_interpreter, file_search, mcp, ...); both are empty for an agent
+// that has none.
 type AgentAccess struct {
 	AgentID    string           `json:"agent_id"`
 	AIActions  *AgentAIActions  `json:"ai_actions"`
 	MCPServers []AgentMCPServer `json:"mcp_servers"`
 	DataStores []AgentDataStore `json:"data_stores"`
 	Skills     []AgentSkill     `json:"skills"`
+	Tools      []AgentTool      `json:"tools"`
+	ToolKinds  []string         `json:"tool_kinds"`
 }
 
 // AgentAccessAuthority reads what an agent may use.
@@ -61,8 +78,10 @@ type AgentAccessAuthority interface {
 }
 
 var (
-	agentActionPattern  = regexp.MustCompile(`^[a-z][a-z0-9-]{1,31}:[A-Za-z]{1,64}$`)
-	agentServicePattern = regexp.MustCompile(`^[a-z][a-z0-9-]{1,31}$`)
+	agentActionPattern     = regexp.MustCompile(`^[a-z][a-z0-9-]{1,31}:[A-Za-z]{1,64}$`)
+	agentServicePattern    = regexp.MustCompile(`^[a-z][a-z0-9-]{1,31}$`)
+	agentToolKindPattern   = regexp.MustCompile(`^[a-z0-9][a-z0-9_.-]{0,63}$`)
+	agentToolTargetPattern = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_]{0,63}$`)
 )
 
 func validAgentAccess(access AgentAccess, id string) bool {
@@ -96,6 +115,19 @@ func validAgentAccess(access AgentAccess, id string) bool {
 			return false
 		}
 	}
+	if access.Tools == nil || access.ToolKinds == nil || len(access.Tools) > 64 || len(access.ToolKinds) > 16 {
+		return false
+	}
+	for _, tool := range access.Tools {
+		if !validProductID(tool.ID) || !printableInventoryString(tool.Name, 1, 256, false) || !stringIn(tool.Kind, "topic", "action") || tool.Target != nil && !agentToolTargetPattern.MatchString(*tool.Target) || tool.Kind == "topic" && (tool.Target != nil || tool.Confirmation != nil) {
+			return false
+		}
+	}
+	for index, kind := range access.ToolKinds {
+		if !agentToolKindPattern.MatchString(kind) || index > 0 && kind <= access.ToolKinds[index-1] {
+			return false
+		}
+	}
 	return true
 }
 
@@ -108,7 +140,18 @@ func (repository *PostgresInventoryRepository) GetAgentAccess(ctx context.Contex
 		return AgentAccess{}, inventoryProviderError(err)
 	}
 	var access AgentAccess
-	if decodeStrictInventory(payload, &access) != nil || !validAgentAccess(access, id.String()) {
+	if decodeStrictInventory(payload, &access) != nil {
+		return AgentAccess{}, ErrRepositoryUnavailable
+	}
+	// A database the baseline completion has not reached with section WS7c
+	// answers without the two tool members: the agent then has none to show.
+	if access.Tools == nil {
+		access.Tools = []AgentTool{}
+	}
+	if access.ToolKinds == nil {
+		access.ToolKinds = []string{}
+	}
+	if !validAgentAccess(access, id.String()) {
 		return AgentAccess{}, ErrRepositoryUnavailable
 	}
 	return access, nil

@@ -23,6 +23,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/collection"
+	"github.com/zasp-ai/zasp-sec/services/platform/connectors/gcpdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/saasdiscovery"
 )
 
@@ -40,7 +41,7 @@ var (
 	discoveryRegionPattern            = regexp.MustCompile(`^[a-z]{2}(?:-gov)?-[a-z]+-[1-9][0-9]?$`)
 	discoveryGitHubAppIDPattern       = regexp.MustCompile(`^[1-9][0-9]{0,19}$`)
 	discoveryOktaClientIDPattern      = regexp.MustCompile(`^0oa[A-Za-z0-9_-]{13,125}$`)
-	discoveryReferencePattern         = regexp.MustCompile(`^ref:(aws|kubernetes|github|okta|microsoft|salesforce)/[A-Za-z0-9][A-Za-z0-9._/:-]{7,507}$`)
+	discoveryReferencePattern         = regexp.MustCompile(`^ref:(aws|kubernetes|github|okta|microsoft|salesforce|gcp)/[A-Za-z0-9][A-Za-z0-9._/:-]{7,507}$`)
 	discoveryOktaIssuerPattern        = regexp.MustCompile(`^https://([a-z0-9][a-z0-9-]{1,61}[a-z0-9]\.okta\.com)$`)
 )
 
@@ -82,6 +83,9 @@ type productionDiscoveryCredentialConfig struct {
 	Okta       discoveryOktaTokenAPI
 	Microsoft  discoveryMicrosoftTokenAPI
 	Salesforce discoverySalesforceTokenAPI
+	// GCP exchanges the worker's AWS identity, or a stored service account
+	// key, for a Google access token. Nil where Google Cloud is not served.
+	GCP discoveryGCPTokenAPI
 	// MicrosoftAzure adds an Azure Resource Manager token to a Microsoft
 	// credential, so the collector also reads Azure OpenAI and AI Foundry
 	// accounts (ZASP_DISCOVERY_MICROSOFT_AZURE=enabled).
@@ -148,6 +152,8 @@ func (resolver *productionDiscoveryCredentialResolver) ResolveDiscoveryCredentia
 		envelope, err = resolver.resolveSalesforce(ctx, bound, now)
 	case collection.ProviderSaaS:
 		envelope, err = resolver.resolveSaaS(ctx, bound, now)
+	case collection.ProviderGCP:
+		envelope, err = resolver.resolveGCP(ctx, bound, now)
 	default:
 		err = discoveryCredentialFailure(ctx, collection.FailureMalformed)
 	}
@@ -419,6 +425,10 @@ func validDiscoveryCredentialEnvelope(value discoveryCredentialEnvelope) bool {
 		// The material of the generic saas provider is a Nango connection
 		// reference, not a token.
 		return value.SubjectKind == "saas_tenant" && discoverySaaSSubjectPattern.MatchString(value.SubjectID) && saasdiscovery.ValidConnectionReference(string(value.BearerToken)) && value.Issuer == "" && discoveryCredentialEnvelopeEmptyProviderFields(value)
+	case collection.ProviderGCP:
+		// The bearer material is the collector's JSON credential holding one
+		// short-lived access token.
+		return value.SubjectKind == "gcp_scope" && gcpdiscovery.ValidScope(value.SubjectID) && gcpdiscovery.ValidCredential(value.BearerToken) && value.Issuer == "" && discoveryCredentialEnvelopeEmptyProviderFields(value)
 	default:
 		return false
 	}

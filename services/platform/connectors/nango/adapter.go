@@ -3,6 +3,7 @@ package nango
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"net"
 	"net/url"
@@ -10,6 +11,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/zasp-ai/zasp-sec/services/platform/publicaddress"
 )
 
 var ErrInvalid = errors.New("Nango connector input rejected")
@@ -24,15 +27,40 @@ var queryKeyPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.\[\]-]{0,63}$`
 var tenantHostPattern = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$`)
 var hostSuffixPattern = regexp.MustCompile(`^(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?){2,6}$`)
 
+// A customer's own host: DNS labels and an alphabetic top-level domain, so
+// that no numeric form of an address and no single-label name is one.
+var customerHostPattern = regexp.MustCompile(`^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}$`)
+
 // coreKeys are the first-party connectors. Nango serves long-tail providers
 // only, so an entry for one of these is refused.
 // "saas" is the generic discovery provider whose platforms are Nango entries;
 // it is a provider name, never an entry key.
-var coreKeys = map[string]struct{}{"aws": {}, "github": {}, "kubernetes": {}, "okta": {}, "microsoft": {}, "salesforce": {}, "saas": {}}
+var coreKeys = map[string]struct{}{"aws": {}, "github": {}, "kubernetes": {}, "okta": {}, "microsoft": {}, "salesforce": {}, "saas": {}, "gcp": {}}
 
 type Rule struct {
 	Method, PathPrefix string
 	QueryKeys          []string
+	// HeaderKeys are the provider request headers a request of the rule may
+	// carry beside the ones the proxy sets itself (OpenAI-Beta). A header
+	// the rule does not list is refused.
+	HeaderKeys []string
+	// GraphQLDocuments, on a POST rule, are the exact GraphQL documents a
+	// request of the rule may send. The body of a request must then be
+	// {"query": <one of them>, "variables": {...}} and nothing else, so the
+	// rule admits those queries and no other operation of the endpoint.
+	GraphQLDocuments []string
+}
+
+// Request is one proxied provider request. Host is set for an entry with a
+// per-tenant host and only for one.
+type Request struct {
+	ConnectorKey, ConnectionReference, Host string
+	Method, Path                            string
+	Query                                   url.Values
+	// Headers are sent to the provider. Their names must be listed by the
+	// matching rule.
+	Headers map[string]string
+	Body    []byte
 }
 type Entry struct {
 	Key, ProviderHost, AuthMode string
@@ -45,6 +73,15 @@ type Entry struct {
 	// (".service-now.com"), so a loose pattern cannot admit another domain.
 	HostPattern  *regexp.Regexp
 	HostSuffixes []string
+	// CustomerHosted is set, explicitly, for a provider a customer runs on a
+	// host of their own (a self-managed GitLab). The host is then not under
+	// a domain of the provider, so the entry has a HostPattern and no
+	// HostSuffixes, and a request names the host the integration was set up
+	// with. Such a host is accepted only as a public DNS name: at least two
+	// labels ending in an alphabetic top-level domain, never an address, a
+	// cluster, local or internal name; and, as for every host, a request is
+	// sent only when every address the name resolves to is public.
+	CustomerHosted bool
 }
 
 // PerTenantHost reports whether the entry's requests name their own host.
@@ -57,6 +94,9 @@ func (entry Entry) AllowsHost(host string) bool {
 	}
 	if match := entry.HostPattern.FindString(host); match != host {
 		return false
+	}
+	if entry.CustomerHosted {
+		return customerHostPattern.MatchString(host) && len(host) <= 200 && !strings.HasSuffix(host, ".svc") && !strings.Contains(host, ".svc.") && !strings.HasSuffix(host, ".lan") && !strings.HasSuffix(host, ".home") && !strings.HasSuffix(host, ".corp") && !strings.HasSuffix(host, ".test") && !strings.HasSuffix(host, ".example") && !strings.HasSuffix(host, ".invalid")
 	}
 	for _, suffix := range entry.HostSuffixes {
 		if strings.HasSuffix(host, suffix) && len(host) > len(suffix) {
@@ -74,6 +114,9 @@ type ProxyRequest struct {
 	NangoBaseURL, ServiceSecretReference, Environment string
 	ConnectorKey, ConnectionReference, ProviderHost   string
 	Method, Path, RawQuery                            string
+	// Headers are provider request headers. The proxy client sends each as
+	// Nango-Proxy-<name>, which Nango forwards to the provider as <name>.
+	Headers map[string]string
 	// PinHost makes the proxy client tell Nango to send the request to
 	// ProviderHost, whatever host the Nango connection was created with.
 	PinHost     bool
@@ -175,13 +218,25 @@ func (adapter *Adapter) ProxyToHost(ctx context.Context, connectorKey, connectio
 }
 
 func (adapter *Adapter) proxy(ctx context.Context, connectorKey, connectionReference, tenantHost, method, path string, query url.Values, body []byte) (ProxyResponse, error) {
+	return adapter.Do(ctx, Request{ConnectorKey: connectorKey, ConnectionReference: connectionReference, Host: tenantHost, Method: method, Path: path, Query: query, Body: body})
+}
+
+// Do proxies one request. It is refused unless a rule of the entry admits
+// its method and path, every query parameter and header it carries, and, for
+// a rule that lists GraphQL documents, its body.
+func (adapter *Adapter) Do(ctx context.Context, request Request) (ProxyResponse, error) {
+	connectorKey, connectionReference, tenantHost, method, path, query, body := request.ConnectorKey, request.ConnectionReference, request.Host, request.Method, request.Path, request.Query, request.Body
 	if adapter == nil || adapter.client == nil || adapter.resolver == nil || ctx == nil || ctx.Err() != nil || !referencePattern.MatchString(connectionReference) || len(body) > 64<<10 || containsSecret(body) {
 		return ProxyResponse{}, ErrInvalid
 	}
 	entry, exists := adapter.entries[connectorKey]
 	rule, allowed := matchingRule(entry.Rules, method, path)
-	if !exists || !validProxyPath(path) || !allowed || !validProxyQuery(query, rule.QueryKeys) {
+	if !exists || !validProxyPath(path) || !allowed || !validProxyQuery(query, rule.QueryKeys) || !validProxyHeaders(request.Headers, rule.HeaderKeys) || !validRuleBody(rule, body) {
 		return ProxyResponse{}, ErrInvalid
+	}
+	headers := make(map[string]string, len(request.Headers))
+	for name, value := range request.Headers {
+		headers[name] = value
 	}
 	host := entry.ProviderHost
 	if entry.PerTenantHost() != (tenantHost != "") {
@@ -209,7 +264,7 @@ func (adapter *Adapter) proxy(ctx context.Context, connectorKey, connectionRefer
 	response, err := adapter.client.Proxy(bounded, ProxyRequest{
 		NangoBaseURL: adapter.config.BaseURL, ServiceSecretReference: adapter.config.ServiceSecretReference, Environment: adapter.config.Environment,
 		ConnectorKey: connectorKey, ConnectionReference: connectionReference, ProviderHost: host, PinHost: tenantHost != "", Method: method, Path: path,
-		RawQuery: query.Encode(), ResolvedIPs: resolved, Body: append([]byte(nil), body...),
+		RawQuery: query.Encode(), Headers: headers, ResolvedIPs: resolved, Body: append([]byte(nil), body...),
 	})
 	var status *StatusError
 	if errors.As(err, &status) && bounded.Err() == nil {
@@ -232,7 +287,14 @@ func validBaseURL(value string) bool {
 }
 
 func validEntry(entry Entry) bool {
-	if entry.PerTenantHost() {
+	if entry.PerTenantHost() && entry.CustomerHosted {
+		// The host is the customer's: no suffix can describe it, and the
+		// entry names none.
+		if entry.ProviderHost != "" || len(entry.HostSuffixes) != 0 {
+			return false
+		}
+		entry.ProviderHost = "tenant.customer-hosted.com"
+	} else if entry.PerTenantHost() {
 		// The host comes with each request; the entry names none.
 		if entry.ProviderHost != "" || len(entry.HostSuffixes) < 1 || len(entry.HostSuffixes) > 8 {
 			return false
@@ -243,7 +305,7 @@ func validEntry(entry Entry) bool {
 			}
 		}
 		entry.ProviderHost = "tenant" + entry.HostSuffixes[0]
-	} else if len(entry.HostSuffixes) != 0 {
+	} else if len(entry.HostSuffixes) != 0 || entry.CustomerHosted {
 		return false
 	}
 	if !keyPattern.MatchString(entry.Key) || len(entry.ProviderHost) < 4 || len(entry.ProviderHost) > 253 || net.ParseIP(entry.ProviderHost) != nil || strings.ToLower(entry.ProviderHost) != entry.ProviderHost || strings.HasSuffix(entry.ProviderHost, ".local") || strings.HasSuffix(entry.ProviderHost, ".internal") || entry.AuthMode != "oauth" && entry.AuthMode != "api_key" || len(entry.Rules) < 1 || len(entry.Rules) > 32 {
@@ -271,6 +333,21 @@ func validEntry(entry Entry) bool {
 				return false
 			}
 			seen[key] = struct{}{}
+		}
+		if len(rule.HeaderKeys) > 8 || len(rule.GraphQLDocuments) > 8 || len(rule.GraphQLDocuments) > 0 && rule.Method != "POST" {
+			return false
+		}
+		seenHeaders := make(map[string]struct{}, len(rule.HeaderKeys))
+		for _, key := range rule.HeaderKeys {
+			if _, exists := seenHeaders[strings.ToLower(key)]; exists || !ValidForwardedHeaderName(key) {
+				return false
+			}
+			seenHeaders[strings.ToLower(key)] = struct{}{}
+		}
+		for _, document := range rule.GraphQLDocuments {
+			if !ReadOnlyGraphQLDocument(document) {
+				return false
+			}
 		}
 	}
 	return true
@@ -326,42 +403,109 @@ func cloneRules(values []Rule) []Rule {
 		result[index] = value
 		result[index].QueryKeys = append([]string(nil), value.QueryKeys...)
 		sort.Strings(result[index].QueryKeys)
+		result[index].HeaderKeys = append([]string(nil), value.HeaderKeys...)
+		result[index].GraphQLDocuments = append([]string(nil), value.GraphQLDocuments...)
 	}
 	return result
 }
 
-// nonPublicNetworks are the address ranges that Go's own tests do not call
-// private, loopback, link-local or multicast and that still never belong to
-// a provider on the public internet: shared address space (carrier NAT,
-// where cloud and cluster services often live), protocol assignments,
-// benchmarking, documentation, reserved space, and the IPv6 ranges that
-// embed or translate an IPv4 address.
-var nonPublicNetworks = func() []*net.IPNet {
-	var networks []*net.IPNet
-	for _, cidr := range []string{
-		"0.0.0.0/8", "100.64.0.0/10", "192.0.0.0/24", "192.0.2.0/24", "198.18.0.0/15", "198.51.100.0/24", "203.0.113.0/24", "240.0.0.0/4",
-		"64:ff9b::/96", "64:ff9b:1::/48", "100::/64", "2001:db8::/32", "2002::/16", "2001::/32",
-	} {
-		_, network, err := net.ParseCIDR(cidr)
-		if err != nil {
-			panic(err)
-		}
-		networks = append(networks, network)
-	}
-	return networks
-}()
+var forwardedHeaderNamePattern = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9-]{1,62}$`)
 
-func publicIP(value net.IP) bool {
-	if value == nil || len(value) != net.IPv4len && len(value) != net.IPv6len || value.IsUnspecified() || value.IsLoopback() || value.IsPrivate() || value.IsLinkLocalUnicast() || value.IsLinkLocalMulticast() || value.IsMulticast() || value.IsInterfaceLocalMulticast() {
+// ValidForwardedHeaderName admits a provider header a rule may forward. The
+// headers that carry credentials, choose the destination or belong to the
+// proxy itself are never forwarded.
+func ValidForwardedHeaderName(name string) bool {
+	if !forwardedHeaderNamePattern.MatchString(name) {
 		return false
 	}
-	for _, network := range nonPublicNetworks {
-		if network.Contains(value) {
+	switch lower := strings.ToLower(name); lower {
+	case "authorization", "proxy-authorization", "cookie", "host", "connection", "connection-id", "provider-config-key", "base-url-override", "content-length", "transfer-encoding", "retries", "decompress":
+		return false
+	default:
+		return !strings.HasPrefix(lower, "nango-") && !strings.HasPrefix(lower, "x-forwarded-")
+	}
+}
+
+func validProxyHeaders(headers map[string]string, allowedKeys []string) bool {
+	if len(headers) > 8 {
+		return false
+	}
+	allowed := make(map[string]struct{}, len(allowedKeys))
+	for _, key := range allowedKeys {
+		allowed[key] = struct{}{}
+	}
+	for name, value := range headers {
+		if _, exists := allowed[name]; !exists || !validQueryValue(value) || len(value) > 256 || containsSecret([]byte(value)) {
 			return false
 		}
 	}
 	return true
 }
+
+var graphQLWritePattern = regexp.MustCompile(`(?i)\b(mutation|subscription)\b`)
+
+// ReadOnlyGraphQLDocument reports whether document is one GraphQL query
+// operation: it starts with the keyword query and names neither a mutation
+// nor a subscription anywhere, and it is printable text of at most 4 KiB
+// without a comment (a comment could hide a second operation from a
+// reader).
+func ReadOnlyGraphQLDocument(document string) bool {
+	if len(document) < 8 || len(document) > 4096 || !strings.HasPrefix(document, "query") || strings.Contains(document, "#") || graphQLWritePattern.MatchString(document) {
+		return false
+	}
+	for _, character := range document {
+		if character < 0x20 || character > 0x7e {
+			return false
+		}
+	}
+	// One operation: the braces balance and close once, at the end.
+	depth := 0
+	for index, character := range document {
+		switch character {
+		case '{':
+			depth++
+		case '}':
+			if depth--; depth < 0 || depth == 0 && index != len(document)-1 {
+				return false
+			}
+		}
+	}
+	return depth == 0 && strings.HasSuffix(document, "}")
+}
+
+// validRuleBody admits the body of a request of rule. A rule that lists
+// GraphQL documents admits only {"query": <listed document>, "variables":
+// {...}}; variables hold strings, numbers, booleans and null.
+func validRuleBody(rule Rule, body []byte) bool {
+	if len(rule.GraphQLDocuments) == 0 {
+		return true
+	}
+	decoder := json.NewDecoder(bytes.NewReader(body))
+	decoder.DisallowUnknownFields()
+	var document struct {
+		Query     *string        `json:"query"`
+		Variables map[string]any `json:"variables"`
+	}
+	if decoder.Decode(&document) != nil || decoder.More() || document.Query == nil || len(document.Variables) > 8 {
+		return false
+	}
+	for _, value := range document.Variables {
+		switch value.(type) {
+		case nil, string, float64, bool:
+		default:
+			return false
+		}
+	}
+	for _, listed := range rule.GraphQLDocuments {
+		if listed == *document.Query {
+			return true
+		}
+	}
+	return false
+}
+
+// publicIP is the shared public-address check.
+func publicIP(value net.IP) bool { return publicaddress.IsPublic(value) }
 
 func containsSecret(value []byte) bool {
 	if len(value) == 0 {

@@ -65,10 +65,12 @@ type administrationMutation struct {
 	DeletionEnabled                                                      bool
 	Permissions                                                          json.RawMessage
 	ExpiresAt                                                            time.Time
-	GrantExpiresAt                                                       time.Time
-	TokenDigest, Ciphertext, Nonce, AuthenticationTag                    []byte
-	revealKey                                                            []byte
-	ExpectedVersion                                                      int64
+	// DefaultExpiry: the request named no expiry and ExpiresAt is the default.
+	DefaultExpiry                                     bool
+	GrantExpiresAt                                    time.Time
+	TokenDigest, Ciphertext, Nonce, AuthenticationTag []byte
+	revealKey                                         []byte
+	ExpectedVersion                                   int64
 }
 
 func (repository *PostgresRepository) ReadAdministration(ctx context.Context, identity RequestIdentity, operation string, parameters map[string]string) (json.RawMessage, error) {
@@ -228,7 +230,15 @@ func (repository *PostgresRepository) MutateAdministration(ctx context.Context, 
 		if mutation.WorkspaceID != workspace || mutation.EnvironmentID != environment {
 			return nil, ErrRepositoryNotFound
 		}
-		digest := sha256.Sum256([]byte(mutation.Operation + "\x00" + mutation.Name + "\x00" + mutation.WorkspaceID + "\x00" + mutation.EnvironmentID + "\x00" + string(mutation.Permissions) + "\x00" + mutation.ExpiresAt.Format(time.RFC3339Nano)))
+		// A request without an expiry gets the default lifetime from the
+		// moment it arrives. Its retry arrives later, so the digest names the
+		// default and not the computed instant; the first request's token is
+		// then answered again.
+		expiry := mutation.ExpiresAt.Format(time.RFC3339Nano)
+		if mutation.DefaultExpiry {
+			expiry = "default"
+		}
+		digest := sha256.Sum256([]byte(mutation.Operation + "\x00" + mutation.Name + "\x00" + mutation.WorkspaceID + "\x00" + mutation.EnvironmentID + "\x00" + string(mutation.Permissions) + "\x00" + expiry))
 		return repository.preconditionedAdministrationMutation(ctx, postgresCreateAPITokenSQL, organization, actor, mutation.IdempotencyKey, digest[:], mutation.TokenDigest, mutation.ID, mutation.WorkspaceID, mutation.EnvironmentID, mutation.Name, mutation.Permissions, mutation.ExpiresAt, mutation.AuditID, mutation.GrantID, mutation.GrantExpiresAt, mutation.Ciphertext, mutation.Nonce, mutation.AuthenticationTag)
 	case "rotateAPIToken":
 		digest := sha256.Sum256([]byte(mutation.Operation + "\x00" + mutation.ID + "\x00" + strconv.FormatInt(mutation.ExpectedVersion, 10)))

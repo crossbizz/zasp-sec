@@ -117,8 +117,34 @@ func TestSaaSProviderSectionOnTheInstalledBaselinePostgres(t *testing.T) {
 	// The compiled catalog is the one of the latest section that adds rules
 	// (WS5a); with it applied, the saas sections have nothing left to do.
 	applyCompletionBlock(t, ctx, connection, "ws5_rule_catalog")
-	for _, tag := range []string{"rule_catalog_digest", "saas_rule_catalog", "ws5_rule_catalog"} {
+	// WS7a adds one rule on top of it (salesforce_agent_tool); with it
+	// applied the earlier sections have nothing left to do, and it runs
+	// again without a change.
+	applyCompletionBlock(t, ctx, connection, "ws7_rule_catalog")
+	afterWS7 := definitions()
+	for _, tag := range []string{"rule_catalog_digest", "saas_rule_catalog", "ws5_rule_catalog", "ws7_rule_catalog"} {
 		applyCompletionBlock(t, ctx, connection, tag)
+	}
+	if definitions() != afterWS7 {
+		t.Fatal("a second run of the rule catalog sections changed a function or a constraint")
+	}
+	// Section X3d (Google Cloud) widens the provider lists once more and
+	// adds ten rules: the compiled catalog is the one it pins. With it
+	// applied every earlier section still has nothing left to do.
+	for _, tag := range []string{"ws8_gcp_provider", "ws8_gcp_rule_catalog"} {
+		applyCompletionBlock(t, ctx, connection, tag)
+	}
+	afterGCP := definitions()
+	for _, tag := range []string{"saas_providers", "rule_catalog_digest", "saas_generic_provider", "saas_rule_catalog", "ws5_rule_catalog", "ws7_rule_catalog", "ws8_gcp_provider", "ws8_gcp_rule_catalog"} {
+		applyCompletionBlock(t, ctx, connection, tag)
+	}
+	if definitions() != afterGCP {
+		t.Fatal("a second run of the sections after X3d changed a function or a constraint")
+	}
+	var toolKind string
+	var toolRows int
+	if err := connection.QueryRow(ctx, `SELECT count(*),COALESCE(max(product_kind),'') FROM zasp_inventory_identity_rules WHERE (provider,source_kind,identity_namespace,rule_version,priority,confidence_basis_points,freshness_seconds)=('salesforce','salesforce_agent_tool','salesforce_agent_tool',1,140,9500,86400)`).Scan(&toolRows, &toolKind); err != nil || toolRows != 1 || toolKind != "tool" {
+		t.Fatalf("salesforce_agent_tool rule: rows=%d kind=%q err=%v", toolRows, toolKind, err)
 	}
 	catalog()
 	compiled := inventoryprojection.RuleCatalogDigest()

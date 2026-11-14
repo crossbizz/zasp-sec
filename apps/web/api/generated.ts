@@ -4,6 +4,30 @@
  */
 
 export type paths = {
+    readonly "/api/v1/admin/api-token-policy": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Get how long an API token of the Environment may live
+         * @description The lifetime of a token is chosen when it is created. A token that holds nothing but decide_guardrails and use_gateway (either or both) may live 365 days; every other token 90 days. max_lifetime_days is the limit the Environment's administrators set for both (365 lowers nothing); the two effective limits are what a new token may ask for. Version 0 means no limit was saved.
+         */
+        readonly get: operations["getAPITokenPolicy"];
+        /**
+         * Lower or restore the longest lifetime of the Environment's API tokens
+         * @description Requires fresh authentication. If-Match names the current version ("0" when no limit was saved); a stale version is refused with 409, which also makes a repeated request safe. The limit applies to tokens created afterwards: existing tokens keep their expiry and can be revoked. The change is audited.
+         */
+        readonly put: operations["putAPITokenPolicy"];
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/admin/api-token-reveal-grants": {
         readonly parameters: {
             readonly query?: never;
@@ -69,7 +93,10 @@ export type paths = {
         /** List scoped product API tokens */
         readonly get: operations["listAPITokens"];
         readonly put?: never;
-        /** Create a scoped product API token */
+        /**
+         * Create a scoped product API token
+         * @description expires_at is the caller's choice. Without it the token lives 24 hours. It must lie within the lifetime the token's permissions and the Environment allow (getAPITokenPolicy): 365 days for a token that holds nothing but decide_guardrails and use_gateway (either or both), 90 days for any other, or the Environment's lower limit. A longer expiry is refused with 400. A rotation keeps the expiry of the token it replaces.
+         */
         readonly post: operations["createAPIToken"];
         readonly delete?: never;
         readonly options?: never;
@@ -909,6 +936,213 @@ export type paths = {
          * @description BrowserSession requests require the shared CSRF header and a same-origin Origin. ProductAPIToken requests omit the browser-only header at transport time. The destination comes only from the scope's active Generic Webhook integration.
          */
         readonly post: operations["createFindingTicket"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/gateway/activity": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * List the decision records of the hosted gateway
+         * @description The decisions of the MCP gateway and of the model proxy, newest first. A record holds the decision, a reason, the matched rule identifiers with their modes and counts, the size and SHA-256 digest of the request or response body, and identifiers (server, tool, provider, model, agent). It never holds a prompt, an argument, a tool result or an answer.
+         */
+        readonly get: operations["listGatewayActivity"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/gateway/llm/v1/chat/completions": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: {
+                /** @description The calling agent, recorded with each decision. Send the agent's identifier in the inventory to have its gateway traffic count as the agent's activity. */
+                readonly "X-Zasp-Agent-Id"?: string;
+                /** @description The upstream's own credential: for an MCP server the value of the Authorization header the server expects (for example "Bearer <token>"), for a model provider its API key (with or without "Bearer "). It is forwarded for this request only and is never stored or logged. The platform token in Authorization is never sent upstream. */
+                readonly "X-Zasp-Upstream-Authorization"?: string;
+                /** @description For a provider that gives each of its customers a host of their own, the host of the caller's resource. It must lie directly under the provider's own domain. */
+                readonly "X-Zasp-Upstream-Host"?: string;
+                /** @description The model provider to forward to, by its name in the gateway's catalog (see the hosted gateway guide). Without it the request goes to the provider whose API this route speaks. */
+                readonly "X-Zasp-Upstream-Provider"?: string;
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Create a chat completion through the hosted model proxy
+         * @description A chat completion in the widely used chat completions format: point the SDK's base URL at <origin>/api/v1/gateway/llm/v1, use an API token that has the use_gateway permission as the SDK's key, and send the provider's own key in X-Zasp-Upstream-Authorization. The provider's key is forwarded for this request only and is never stored or logged. The Environment's guardrail policy is applied to the messages (a blocked prompt is refused with 400, code guardrail_blocked; sensitive data is redacted before the provider sees it) and to the answer, streamed answers included: a stream is searched through a window that never releases part of a match, and a blocked stream ends with an error event. The request and the answer are otherwise the provider's. Only decisions are recorded, never text.
+         */
+        readonly post: operations["createGatewayChatCompletion"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/gateway/llm/v1/messages": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: {
+                /** @description The calling agent, recorded with each decision. Send the agent's identifier in the inventory to have its gateway traffic count as the agent's activity. */
+                readonly "X-Zasp-Agent-Id"?: string;
+                /** @description The upstream's own credential: for an MCP server the value of the Authorization header the server expects (for example "Bearer <token>"), for a model provider its API key (with or without "Bearer "). It is forwarded for this request only and is never stored or logged. The platform token in Authorization is never sent upstream. */
+                readonly "X-Zasp-Upstream-Authorization"?: string;
+                /** @description The model provider to forward to, by its name in the gateway's catalog (see the hosted gateway guide). Without it the request goes to the provider whose API this route speaks. */
+                readonly "X-Zasp-Upstream-Provider"?: string;
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Create a message through the hosted model proxy
+         * @description The messages format through the proxy: point the SDK's base URL at <origin>/api/v1/gateway/llm, send an API token that has the use_gateway permission as the bearer token, and the provider's own key in X-Zasp-Upstream-Authorization (a plain HTTP client may send it in x-api-key instead). anthropic-version and anthropic-beta are forwarded. The messages, tool results among them, and the answer's text and tool inputs go through the guardrail detectors; thinking blocks are passed unchanged.
+         */
+        readonly post: operations["createGatewayMessage"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/gateway/llm/v1/responses": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: {
+                /** @description The calling agent, recorded with each decision. Send the agent's identifier in the inventory to have its gateway traffic count as the agent's activity. */
+                readonly "X-Zasp-Agent-Id"?: string;
+                /** @description The upstream's own credential: for an MCP server the value of the Authorization header the server expects (for example "Bearer <token>"), for a model provider its API key (with or without "Bearer "). It is forwarded for this request only and is never stored or logged. The platform token in Authorization is never sent upstream. */
+                readonly "X-Zasp-Upstream-Authorization"?: string;
+                /** @description For a provider that gives each of its customers a host of their own, the host of the caller's resource. It must lie directly under the provider's own domain. */
+                readonly "X-Zasp-Upstream-Host"?: string;
+                /** @description The model provider to forward to, by its name in the gateway's catalog (see the hosted gateway guide). Without it the request goes to the provider whose API this route speaks. */
+                readonly "X-Zasp-Upstream-Provider"?: string;
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Create a response through the hosted model proxy
+         * @description The responses format through the proxy, on the same terms as a chat completion. The input items, function call outputs among them, and the output text and function call arguments go through the guardrail detectors.
+         */
+        readonly post: operations["createGatewayResponse"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/gateway/mcp-servers": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * List the MCP servers registered behind the hosted gateway
+         * @description Each server with the address an agent's configuration names instead of the server's own (gateway_path, under this API's origin), the MCP registry's decision for its host, its per-tool allow and deny lists, and the tools it listed through the gateway (name and risk class only). No credential of an upstream is stored.
+         */
+        readonly get: operations["listMCPGatewayServers"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/gateway/mcp-servers/{id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        /**
+         * Register or change an MCP server behind the hosted gateway
+         * @description The caller chooses the identifier of a new server (a product identifier) and sends If-Match "0"; a change sends the version it read. The upstream address is an https URL on the default port with no credentials, query or fragment, and its host must be a public name: the gateway connects to public addresses only, checked at every connection. BrowserSession requests require the same-origin Origin and CSRF headers; ProductAPIToken requests omit both. The change is audited.
+         */
+        readonly put: operations["putMCPGatewayServer"];
+        readonly post?: never;
+        /**
+         * Remove an MCP server from the hosted gateway
+         * @description Removes the server and the tools it listed; its decision records stay. If-Match names the version the caller read. BrowserSession requests require the same-origin Origin and CSRF headers; ProductAPIToken requests omit both.
+         */
+        readonly delete: operations["deleteMCPGatewayServer"];
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/gateway/mcp/{id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: {
+                /** @description The calling agent, recorded with each decision. Send the agent's identifier in the inventory to have its gateway traffic count as the agent's activity. */
+                readonly "X-Zasp-Agent-Id"?: string;
+                /** @description The upstream's own credential: for an MCP server the value of the Authorization header the server expects (for example "Bearer <token>"), for a model provider its API key (with or without "Bearer "). It is forwarded for this request only and is never stored or logged. The platform token in Authorization is never sent upstream. */
+                readonly "X-Zasp-Upstream-Authorization"?: string;
+            };
+            readonly path: {
+                /** @description The gateway server. */
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Send one MCP message to a server through the hosted gateway
+         * @description The MCP Streamable HTTP endpoint of a registered server: an agent's MCP configuration names this address instead of the server's own and sends an API token that has the use_gateway permission. The body is a single JSON-RPC 2.0 message (no batches). The gateway forwards it to the registered upstream with the session and protocol headers of the transport (MCP-Session-Id, MCP-Protocol-Version, Mcp-Method, Mcp-Name) and answers with one JSON-RPC message, a stream of server-sent events, or 202 for a notification. Under the Environment's policy a blocked or (by policy) unapproved server is refused with 403; tools/list hides the tools the policy denies and tools whose description carries an injected instruction; tools/call is refused for a denied tool, and its arguments and result go through the guardrail detectors (a blocked call or result is answered as a failed tool call, isError true). GET is not offered (405), so messages a server starts outside a request are not delivered. Only decisions are recorded, never arguments or results.
+         */
+        readonly post: operations["callMCPGateway"];
+        /**
+         * End an MCP session at a server through the hosted gateway
+         * @description Forwards the transport's session end (HTTP DELETE with MCP-Session-Id) to the registered upstream and returns its status.
+         */
+        readonly delete: operations["closeMCPGatewaySession"];
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/gateway/policy": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Get the gateway policy of the Environment
+         * @description The policy of the hosted gateway: what happens to an MCP server the MCP registry has no decision for, the risk classes of tools that are hidden and refused, and the rate of one API token. Version 0 means no policy was saved and the defaults apply (unapproved servers allowed, no risk class denied, 600 requests a minute). gateway_enabled says whether this deployment hosts the gateway's traffic routes.
+         */
+        readonly get: operations["getGatewayPolicy"];
+        /**
+         * Set the gateway policy of the Environment
+         * @description BrowserSession requests require the same-origin Origin and CSRF headers; ProductAPIToken requests omit both. If-Match names the current version ("0" when no policy was saved); a stale version is refused with 409, which also makes a repeated request safe. The change is audited and applies to the next request through the gateway.
+         */
+        readonly put: operations["putGatewayPolicy"];
+        readonly post?: never;
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
@@ -2792,6 +3026,19 @@ export type components = {
                 readonly kind: "skill" | "agent_instructions" | "editor_rules";
                 readonly path: string;
             }[];
+            /** @description The kinds of tool the agent's platform states for it, for example code_interpreter, file_search or mcp, in order. Empty where the platform states none. */
+            readonly tool_kinds: readonly string[];
+            /** @description The topics and actions the agent's platform lists for it, topics first. Empty for an agent of a platform that lists none. */
+            readonly tools: readonly {
+                /** @description Whether an action asks for confirmation before it runs. Null for a topic and where the platform did not state it. */
+                readonly confirmation: null | boolean;
+                readonly id: components["schemas"]["ProductID"];
+                /** @enum {string} */
+                readonly kind: "topic" | "action";
+                readonly name: string;
+                /** @description What an action invokes, for example flow or apex. Null for a topic and where the platform did not state it. */
+                readonly target: null | string;
+            }[];
         };
         readonly AgentEvidencePack: {
             readonly agent: components["schemas"]["InventoryDetail"];
@@ -2897,8 +3144,11 @@ export type components = {
         };
         readonly APITokenInput: {
             readonly environment_id: components["schemas"]["ProductID"];
-            /** Format: date-time */
-            readonly expires_at: string;
+            /**
+             * Format: date-time
+             * @description When the token stops working. Absent means 24 hours from now. See createAPIToken for the longest lifetime.
+             */
+            readonly expires_at?: string;
             readonly name: string;
             readonly permissions: readonly components["schemas"]["Permission"][];
             readonly workspace_id: components["schemas"]["ProductID"];
@@ -2906,6 +3156,21 @@ export type components = {
         readonly APITokenPage: {
             readonly items: readonly components["schemas"]["APIToken"][];
             readonly page_info: components["schemas"]["PageInfo"];
+        };
+        /** @description How long an API token of the Environment may live. max_lifetime_days is the limit the Environment's administrators set (365 while version is 0, which lowers nothing). decision_token_max_lifetime_days is the longest lifetime of a new token that holds nothing but decide_guardrails and use_gateway (either or both), token_max_lifetime_days of any other new token; default_lifetime_days is the lifetime of a token created without an expiry. */
+        readonly APITokenPolicy: {
+            readonly decision_token_max_lifetime_days: number;
+            /** @constant */
+            readonly default_lifetime_days: 1;
+            readonly environment_id: components["schemas"]["ProductID"];
+            readonly max_lifetime_days: number;
+            readonly token_max_lifetime_days: number;
+            readonly updated_at: null | string;
+            readonly version: number;
+        };
+        readonly APITokenPolicyInput: {
+            /** @description The longest lifetime, in days, of a token created in this Environment from now on. 365 lowers nothing. */
+            readonly max_lifetime_days: number;
         };
         readonly APITokenRevealedCredential: {
             /** Format: date-time */
@@ -3640,6 +3905,70 @@ export type components = {
             /** @enum {string} */
             readonly status: "open" | "under_review" | "resolved";
         };
+        /** @description One decision of the hosted gateway. It holds no prompt, argument, tool result or answer. */
+        readonly GatewayDecision: {
+            /** @description The agent the request named in X-Zasp-Agent-Id. */
+            readonly agent_id: null | string;
+            /** @description The size of the request or response body. */
+            readonly bytes: number;
+            /** @description The SHA-256 digest of the request or response body as the gateway received it. */
+            readonly content_digest: string;
+            /** Format: date-time */
+            readonly created_at: string;
+            /** @enum {string} */
+            readonly decision: "allow" | "redact" | "block";
+            /** @enum {string} */
+            readonly direction: "request" | "response";
+            readonly id: components["schemas"]["ProductID"];
+            readonly model: null | string;
+            /** @description The MCP method (tools/call, tools/list, ...) or the model API (chat.completions, responses, messages). */
+            readonly operation: string;
+            readonly principal_id: components["schemas"]["ProductID"];
+            readonly provider: null | string;
+            /** @enum {string} */
+            readonly reason: "none" | "guardrail" | "server_blocked" | "server_unapproved" | "server_disabled" | "tool_denied" | "tool_not_allowed" | "tool_risk_denied" | "tools_hidden" | "stream_window_exceeded";
+            readonly rules: readonly components["schemas"]["GuardrailMatchedRule"][];
+            readonly server_id: null | components["schemas"]["ProductID"];
+            /** @description The name of the gateway server; null once it was removed. */
+            readonly server_name: null | string;
+            /** @enum {string} */
+            readonly surface: "mcp" | "llm";
+            readonly tool_name: null | string;
+        };
+        readonly GatewayDecisionPage: {
+            readonly items: readonly components["schemas"]["GatewayDecision"][];
+            readonly next_cursor: null | components["schemas"]["ProductID"];
+        };
+        /** @description A single JSON-RPC 2.0 message of the Model Context Protocol. Its members are the protocol's. */
+        readonly GatewayJSONRPCMessage: {
+            /** @constant */
+            readonly jsonrpc: "2.0";
+        };
+        /** @description The policy of the hosted gateway in an Environment. Version 0 means no policy was saved and the defaults apply. */
+        readonly GatewayPolicy: {
+            /** @description Tools of these risk classes are hidden from tools/list and refused in tools/call. */
+            readonly denied_tool_risks: readonly components["schemas"]["MCPToolRiskClass"][];
+            readonly environment_id: components["schemas"]["ProductID"];
+            /** @description Whether this deployment hosts the gateway's traffic routes. */
+            readonly gateway_enabled: boolean;
+            /** @description The requests one API token may send through the gateway in a minute. 0 is no limit. The limit is kept by each replica of the API. */
+            readonly requests_per_minute: number;
+            /**
+             * @description What happens to a server the MCP registry has no decision for. A blocked server is always refused.
+             * @enum {string}
+             */
+            readonly unapproved_servers: "allow" | "refuse";
+            readonly updated_at: null | string;
+            readonly version: number;
+        };
+        readonly GatewayPolicyInput: {
+            readonly denied_tool_risks: readonly components["schemas"]["MCPToolRiskClass"][];
+            readonly requests_per_minute: number;
+            /** @enum {string} */
+            readonly unapproved_servers: "allow" | "refuse";
+        };
+        /** @description A request or an answer of the model provider's API. Its members are the provider's. */
+        readonly GatewayProviderBody: Record<string, never>;
         readonly GroupMapping: {
             readonly audit_correlation_id?: components["schemas"]["ProductID"];
             readonly environment_id: components["schemas"]["ProductID"];
@@ -3783,10 +4112,10 @@ export type components = {
         };
         readonly IntegrationCoverageGap: {
             readonly name: string;
-            /** @description The provider service, for example bedrock-agent, bedrock-agentcore or lambda. A Kubernetes integration reports runtime-observations when its discovery credential may not list the node sensor ConfigMaps. */
+            /** @description The provider service, for example bedrock-agent, bedrock-agentcore or lambda. A Kubernetes integration reports runtime-observations when its discovery credential may not list the node sensor ConfigMaps, and mcp-links or mcp-link-configmaps when it may not list the Services or the ConfigMaps that relate agents to MCP servers. A Microsoft integration reports foundry-agents when its application may not list the agents of an AI Foundry project. A Google Cloud integration reports the Google API, for example agent-engine, cloud-run or audit-logs. */
             readonly service: string;
             /**
-             * @description access_denied when the read role lacks a permission the service needs; unavailable when the service is not offered in the regions of the account.
+             * @description access_denied when the read role lacks a permission the service needs; unavailable when the service is not offered in the regions of the account or, for Google Cloud, when the API is switched off in every project that was read.
              * @enum {string}
              */
             readonly status: "access_denied" | "unavailable";
@@ -3797,7 +4126,7 @@ export type components = {
             readonly status: "deleted";
         };
         readonly IntegrationFreshness: {
-            /** @description The AI services whose agents the integration's current collection could not list, ordered by service. Empty when every service was read, and for every provider other than AWS. */
+            /** @description The AI services whose agents the integration's current collection could not list, ordered by service. Empty when every service was read. AWS, Kubernetes, Microsoft and Google Cloud integrations report gaps. */
             readonly coverage_gaps: readonly components["schemas"]["IntegrationCoverageGap"][];
             readonly integration_id: components["schemas"]["ProductID"];
             readonly last_good: components["schemas"]["IntegrationLastGoodSnapshot"] | null;
@@ -3884,7 +4213,7 @@ export type components = {
             readonly permissions: readonly string[];
             readonly repository_selection: ("all" | "selected") | null;
             /** @enum {string} */
-            readonly scope_kind: "none" | "aws_account" | "kubernetes_cluster" | "github_organization" | "okta_tenant" | "microsoft_tenant" | "salesforce_org" | "saas_tenant";
+            readonly scope_kind: "none" | "aws_account" | "kubernetes_cluster" | "github_organization" | "okta_tenant" | "microsoft_tenant" | "salesforce_org" | "saas_tenant" | "gcp_scope";
             readonly scope_label: string | null;
             /** @enum {string} */
             readonly state: "pending" | "verified" | "degraded";
@@ -3892,7 +4221,7 @@ export type components = {
         readonly IntegrationSetupStatus: {
             readonly authorization: components["schemas"]["IntegrationSetupAuthorization"];
             /** @enum {string} */
-            readonly connector_key: "aws" | "kubernetes" | "github" | "okta" | "microsoft" | "salesforce" | "saas";
+            readonly connector_key: "aws" | "kubernetes" | "github" | "okta" | "microsoft" | "salesforce" | "saas" | "gcp";
             readonly integration_id: components["schemas"]["ProductID"];
             readonly runtime_coverage: components["schemas"]["IntegrationRuntimeCoverage"];
             /** Format: date-time */
@@ -3986,10 +4315,10 @@ export type components = {
             readonly page_info: components["schemas"]["PageInfo"];
         };
         /**
-         * @description The discovery provider. saas is the generic provider of every SaaS platform read through a Nango connection; the platform (databricks, slack, ...) is the platform stable field of the object and the platform of its discovery.
+         * @description The discovery provider. saas is the generic provider of every SaaS platform read through a Nango connection; the platform (databricks, slack, ...) is the platform stable field of the object and the platform of its discovery. gcp is Google Cloud, read as the projects of one organization, folder or project.
          * @enum {string}
          */
-        readonly InventoryProvider: "aws" | "kubernetes" | "github" | "okta" | "microsoft" | "salesforce" | "saas";
+        readonly InventoryProvider: "aws" | "kubernetes" | "github" | "okta" | "microsoft" | "salesforce" | "saas" | "gcp";
         readonly InventoryRecord: components["schemas"]["InventorySummary"];
         readonly InventorySourceObservation: {
             readonly confidence_basis_points: number;
@@ -4002,7 +4331,7 @@ export type components = {
             readonly observed_at: string;
             readonly projection_version: number;
             /** @enum {string} */
-            readonly provider: "aws" | "kubernetes" | "github" | "okta" | "microsoft" | "salesforce" | "saas";
+            readonly provider: "aws" | "kubernetes" | "github" | "okta" | "microsoft" | "salesforce" | "saas" | "gcp";
             readonly snapshot_id: components["schemas"]["ProductID"];
             readonly source: string;
             readonly source_identifier: string;
@@ -4050,6 +4379,58 @@ export type components = {
             readonly provider: "kubernetes";
             readonly scope: components["schemas"]["ReferenceAuthorizationReceiptScope"];
         };
+        /** @description An upstream MCP server registered behind the hosted gateway. gateway_path, under this API's origin, is the address an agent's MCP configuration names instead of upstream_url. identity is what the MCP registry decides (the server's host) and approval its decision. No credential of the upstream is stored. */
+        readonly MCPGatewayServer: {
+            /** @description When not empty, the only tools that may be listed and called. */
+            readonly allowed_tools: readonly components["schemas"]["MCPGatewayToolName"][];
+            /** @enum {string} */
+            readonly approval: "approved" | "unapproved" | "blocked";
+            /** Format: date-time */
+            readonly created_at: string;
+            /** @description Tools that are never listed or called. */
+            readonly denied_tools: readonly components["schemas"]["MCPGatewayToolName"][];
+            /** @description A disabled server is refused at the gateway. */
+            readonly enabled: boolean;
+            readonly gateway_path: string;
+            readonly id: components["schemas"]["ProductID"];
+            readonly identity: string;
+            /** @description The time of the newest decision record of the server. */
+            readonly last_activity_at: null | string;
+            readonly name: string;
+            readonly tool_count: number;
+            /** @description The tools the server listed through the gateway, the most dangerous first. */
+            readonly tools: readonly components["schemas"]["MCPGatewayTool"][];
+            /** Format: date-time */
+            readonly updated_at: string;
+            readonly upstream_host: string;
+            /** Format: uri */
+            readonly upstream_url: string;
+            readonly version: number;
+        };
+        readonly MCPGatewayServerInput: {
+            readonly allowed_tools: readonly components["schemas"]["MCPGatewayToolName"][];
+            readonly denied_tools: readonly components["schemas"]["MCPGatewayToolName"][];
+            readonly enabled: boolean;
+            readonly name: string;
+            /**
+             * Format: uri
+             * @description An https URL on the default port with a public host, no credentials, no query and no fragment.
+             */
+            readonly upstream_url: string;
+        };
+        readonly MCPGatewayServerList: {
+            /** @description Whether this deployment hosts the gateway's traffic routes. */
+            readonly gateway_enabled: boolean;
+            readonly items: readonly components["schemas"]["MCPGatewayServer"][];
+        };
+        /** @description A tool a server listed through the gateway. Its description and schema are never kept. */
+        readonly MCPGatewayTool: {
+            /** Format: date-time */
+            readonly last_seen_at: string;
+            readonly name: components["schemas"]["MCPGatewayToolName"];
+            readonly risk: components["schemas"]["MCPToolRiskClass"];
+        };
+        readonly MCPGatewayToolName: string;
         readonly MCPRegistryEntry: {
             readonly audit_id?: components["schemas"]["ProductID"];
             readonly identity: string;
@@ -4104,14 +4485,14 @@ export type components = {
             readonly package_pinned: boolean | null;
             readonly plain_http: boolean;
             /** @enum {string} */
-            readonly provider: "aws" | "github" | "kubernetes" | "saas";
+            readonly provider: "aws" | "github" | "kubernetes" | "saas" | "gcp";
             /**
              * @description How the server was found.
              * @enum {string}
              */
             readonly source: "agentcore_gateway" | "egress" | "gateway_target" | "repository_config" | "workload" | "saas_api" | "provider_api";
             /** @enum {string} */
-            readonly source_kind: "aws_agentcore_gateway" | "aws_mcp_server" | "github_mcp_server" | "kubernetes_mcp_server" | "saas_mcp_server";
+            readonly source_kind: "aws_agentcore_gateway" | "aws_mcp_server" | "github_mcp_server" | "kubernetes_mcp_server" | "saas_mcp_server" | "gcp_mcp_server";
             readonly tool_count: number;
             readonly tools: readonly components["schemas"]["MCPTool"][];
             /** @enum {string|null} */
@@ -4134,6 +4515,11 @@ export type components = {
              */
             readonly risk: "execute" | "write" | "network" | "read" | "unclassified";
         };
+        /**
+         * @description The risk class of a tool, from the words of its name. execute runs code or commands; write changes something; network fetches from an address; read only reads.
+         * @enum {string}
+         */
+        readonly MCPToolRiskClass: "execute" | "write" | "network" | "read" | "unclassified";
         readonly MemberRoleInput: {
             readonly role: components["schemas"]["BuiltInRoleName"];
         };
@@ -4179,7 +4565,7 @@ export type components = {
             readonly next_cursor: null;
         };
         /** @enum {string} */
-        readonly Permission: "view" | "manage_identity" | "manage_findings" | "manage_workflows" | "manage_api_tokens" | "view_audit" | "investigate_sessions" | "revoke_sessions" | "view_compliance" | "manage_data_controls" | "run_tests" | "decide_guardrails";
+        readonly Permission: "view" | "manage_identity" | "manage_findings" | "manage_workflows" | "manage_api_tokens" | "view_audit" | "investigate_sessions" | "revoke_sessions" | "view_compliance" | "manage_data_controls" | "run_tests" | "decide_guardrails" | "use_gateway";
         readonly Policy: {
             /** @enum {string} */
             readonly action: "monitor" | "block";
@@ -4473,8 +4859,11 @@ export type components = {
             readonly sandbox_id?: string;
             readonly sandbox_source_sensor_id?: components["schemas"]["ProductID"];
             readonly session_id: string | null;
-            /** @enum {string} */
-            readonly source: "otlp" | "tetragon";
+            /**
+             * @description What observed the event: a sensor (otlp, tetragon) or the hosted gateway. A gateway event is a tool call or a policy decision the gateway made for a request that named the agent; its evidence is the gateway decision record.
+             * @enum {string}
+             */
+            readonly source: "otlp" | "tetragon" | "gateway";
         };
         readonly RuntimeSessionEventPage: {
             readonly items: readonly components["schemas"]["RuntimeSessionEvent"][];
@@ -5885,6 +6274,8 @@ export type AiExplanationInput = components['schemas']['AIExplanationInput'];
 export type ApiToken = components['schemas']['APIToken'];
 export type ApiTokenInput = components['schemas']['APITokenInput'];
 export type ApiTokenPage = components['schemas']['APITokenPage'];
+export type ApiTokenPolicy = components['schemas']['APITokenPolicy'];
+export type ApiTokenPolicyInput = components['schemas']['APITokenPolicyInput'];
 export type ApiTokenRevealedCredential = components['schemas']['APITokenRevealedCredential'];
 export type ApiTokenRevealGrant = components['schemas']['APITokenRevealGrant'];
 export type ApiTokenRevealGrantPage = components['schemas']['APITokenRevealGrantPage'];
@@ -5975,6 +6366,12 @@ export type FindingSeverity = components['schemas']['FindingSeverity'];
 export type FindingStatus = components['schemas']['FindingStatus'];
 export type FindingTicket = components['schemas']['FindingTicket'];
 export type FindingUpdateInput = components['schemas']['FindingUpdateInput'];
+export type GatewayDecision = components['schemas']['GatewayDecision'];
+export type GatewayDecisionPage = components['schemas']['GatewayDecisionPage'];
+export type GatewayJsonrpcMessage = components['schemas']['GatewayJSONRPCMessage'];
+export type GatewayPolicy = components['schemas']['GatewayPolicy'];
+export type GatewayPolicyInput = components['schemas']['GatewayPolicyInput'];
+export type GatewayProviderBody = components['schemas']['GatewayProviderBody'];
 export type GroupMapping = components['schemas']['GroupMapping'];
 export type GroupMappingInput = components['schemas']['GroupMappingInput'];
 export type GroupMappingPage = components['schemas']['GroupMappingPage'];
@@ -6032,6 +6429,11 @@ export type InventorySourceObservation = components['schemas']['InventorySourceO
 export type InventorySummary = components['schemas']['InventorySummary'];
 export type KubernetesReferenceAuthorizationConfiguration = components['schemas']['KubernetesReferenceAuthorizationConfiguration'];
 export type KubernetesReferenceAuthorizationReceiptIntent = components['schemas']['KubernetesReferenceAuthorizationReceiptIntent'];
+export type McpGatewayServer = components['schemas']['MCPGatewayServer'];
+export type McpGatewayServerInput = components['schemas']['MCPGatewayServerInput'];
+export type McpGatewayServerList = components['schemas']['MCPGatewayServerList'];
+export type McpGatewayTool = components['schemas']['MCPGatewayTool'];
+export type McpGatewayToolName = components['schemas']['MCPGatewayToolName'];
 export type McpRegistryEntry = components['schemas']['MCPRegistryEntry'];
 export type McpRegistryInput = components['schemas']['MCPRegistryInput'];
 export type McpRegistryPage = components['schemas']['MCPRegistryPage'];
@@ -6039,6 +6441,7 @@ export type McpServer = components['schemas']['MCPServer'];
 export type McpServerAgent = components['schemas']['MCPServerAgent'];
 export type McpServerPage = components['schemas']['MCPServerPage'];
 export type McpTool = components['schemas']['MCPTool'];
+export type McpToolRiskClass = components['schemas']['MCPToolRiskClass'];
 export type MemberRoleInput = components['schemas']['MemberRoleInput'];
 export type NameInput = components['schemas']['NameInput'];
 export type OAuthCompletionReceiptIntent = components['schemas']['OAuthCompletionReceiptIntent'];
@@ -6248,6 +6651,73 @@ export type HeaderWorkflowETag = components['headers']['WorkflowETag'];
 export type HeaderWorkflowMutationReceiptId = components['headers']['WorkflowMutationReceiptID'];
 export type $defs = Record<string, never>;
 export interface operations {
+    readonly getAPITokenPolicy: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description The API token lifetime setting. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["APITokenPolicy"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly putAPITokenPolicy: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current schedule version, or quoted zero when creating the singleton schedule. */
+                readonly "If-Match": components["parameters"]["ScheduleVersion"];
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["APITokenPolicyInput"];
+            };
+        };
+        readonly responses: {
+            /** @description The API token lifetime setting after the change. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["APITokenPolicy"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
     readonly listAPITokenRevealGrants: {
         readonly parameters: {
             readonly query?: {
@@ -7962,6 +8432,696 @@ export interface operations {
             };
             readonly 401: components["responses"]["ProductErrorResponse"];
             readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listGatewayActivity: {
+        readonly parameters: {
+            readonly query?: {
+                readonly agent_id?: string;
+                /** @description The next_cursor of the page before. */
+                readonly before?: components["schemas"]["ProductID"];
+                readonly decision?: "allow" | "redact" | "block";
+                readonly limit?: number;
+                readonly server_id?: components["schemas"]["ProductID"];
+                readonly surface?: "mcp" | "llm";
+            };
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description One page of decision records. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GatewayDecisionPage"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly createGatewayChatCompletion: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: {
+                /** @description The calling agent, recorded with each decision. Send the agent's identifier in the inventory to have its gateway traffic count as the agent's activity. */
+                readonly "X-Zasp-Agent-Id"?: string;
+                /** @description The upstream's own credential: for an MCP server the value of the Authorization header the server expects (for example "Bearer <token>"), for a model provider its API key (with or without "Bearer "). It is forwarded for this request only and is never stored or logged. The platform token in Authorization is never sent upstream. */
+                readonly "X-Zasp-Upstream-Authorization"?: string;
+                /** @description For a provider that gives each of its customers a host of their own, the host of the caller's resource. It must lie directly under the provider's own domain. */
+                readonly "X-Zasp-Upstream-Host"?: string;
+                /** @description The model provider to forward to, by its name in the gateway's catalog (see the hosted gateway guide). Without it the request goes to the provider whose API this route speaks. */
+                readonly "X-Zasp-Upstream-Provider"?: string;
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["GatewayProviderBody"];
+            };
+        };
+        readonly responses: {
+            /** @description The provider's answer, or its stream of server-sent events, after the guardrail policy was applied. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: string;
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GatewayProviderBody"];
+                    readonly "text/event-stream": string;
+                };
+            };
+            /** @description An error in the provider's own error shape, from the gateway (codes guardrail_blocked and gateway_*) or from the provider. */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GatewayProviderBody"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            /** @description An error in the provider's own error shape, from the gateway (codes guardrail_blocked and gateway_*) or from the provider. */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GatewayProviderBody"];
+                };
+            };
+            /** @description An error in the provider's own error shape, from the gateway (codes guardrail_blocked and gateway_*) or from the provider. */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GatewayProviderBody"];
+                };
+            };
+            /** @description An error in the provider's own error shape, from the gateway (codes guardrail_blocked and gateway_*) or from the provider. */
+            readonly 502: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GatewayProviderBody"];
+                };
+            };
+            /** @description An error in the provider's own error shape, from the gateway (codes guardrail_blocked and gateway_*) or from the provider. */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GatewayProviderBody"];
+                };
+            };
+            /** @description An error in the provider's own error shape, from the gateway (codes guardrail_blocked and gateway_*) or from the provider. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GatewayProviderBody"];
+                };
+            };
+        };
+    };
+    readonly createGatewayMessage: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: {
+                /** @description The calling agent, recorded with each decision. Send the agent's identifier in the inventory to have its gateway traffic count as the agent's activity. */
+                readonly "X-Zasp-Agent-Id"?: string;
+                /** @description The upstream's own credential: for an MCP server the value of the Authorization header the server expects (for example "Bearer <token>"), for a model provider its API key (with or without "Bearer "). It is forwarded for this request only and is never stored or logged. The platform token in Authorization is never sent upstream. */
+                readonly "X-Zasp-Upstream-Authorization"?: string;
+                /** @description The model provider to forward to, by its name in the gateway's catalog (see the hosted gateway guide). Without it the request goes to the provider whose API this route speaks. */
+                readonly "X-Zasp-Upstream-Provider"?: string;
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["GatewayProviderBody"];
+            };
+        };
+        readonly responses: {
+            /** @description The provider's answer, or its stream of server-sent events, after the guardrail policy was applied. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: string;
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GatewayProviderBody"];
+                    readonly "text/event-stream": string;
+                };
+            };
+            /** @description An error in the provider's own error shape, from the gateway (codes guardrail_blocked and gateway_*) or from the provider. */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GatewayProviderBody"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            /** @description An error in the provider's own error shape, from the gateway (codes guardrail_blocked and gateway_*) or from the provider. */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GatewayProviderBody"];
+                };
+            };
+            /** @description An error in the provider's own error shape, from the gateway (codes guardrail_blocked and gateway_*) or from the provider. */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GatewayProviderBody"];
+                };
+            };
+            /** @description An error in the provider's own error shape, from the gateway (codes guardrail_blocked and gateway_*) or from the provider. */
+            readonly 502: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GatewayProviderBody"];
+                };
+            };
+            /** @description An error in the provider's own error shape, from the gateway (codes guardrail_blocked and gateway_*) or from the provider. */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GatewayProviderBody"];
+                };
+            };
+            /** @description An error in the provider's own error shape, from the gateway (codes guardrail_blocked and gateway_*) or from the provider. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GatewayProviderBody"];
+                };
+            };
+        };
+    };
+    readonly createGatewayResponse: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: {
+                /** @description The calling agent, recorded with each decision. Send the agent's identifier in the inventory to have its gateway traffic count as the agent's activity. */
+                readonly "X-Zasp-Agent-Id"?: string;
+                /** @description The upstream's own credential: for an MCP server the value of the Authorization header the server expects (for example "Bearer <token>"), for a model provider its API key (with or without "Bearer "). It is forwarded for this request only and is never stored or logged. The platform token in Authorization is never sent upstream. */
+                readonly "X-Zasp-Upstream-Authorization"?: string;
+                /** @description For a provider that gives each of its customers a host of their own, the host of the caller's resource. It must lie directly under the provider's own domain. */
+                readonly "X-Zasp-Upstream-Host"?: string;
+                /** @description The model provider to forward to, by its name in the gateway's catalog (see the hosted gateway guide). Without it the request goes to the provider whose API this route speaks. */
+                readonly "X-Zasp-Upstream-Provider"?: string;
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["GatewayProviderBody"];
+            };
+        };
+        readonly responses: {
+            /** @description The provider's answer, or its stream of server-sent events, after the guardrail policy was applied. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: string;
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GatewayProviderBody"];
+                    readonly "text/event-stream": string;
+                };
+            };
+            /** @description An error in the provider's own error shape, from the gateway (codes guardrail_blocked and gateway_*) or from the provider. */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GatewayProviderBody"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            /** @description An error in the provider's own error shape, from the gateway (codes guardrail_blocked and gateway_*) or from the provider. */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GatewayProviderBody"];
+                };
+            };
+            /** @description An error in the provider's own error shape, from the gateway (codes guardrail_blocked and gateway_*) or from the provider. */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GatewayProviderBody"];
+                };
+            };
+            /** @description An error in the provider's own error shape, from the gateway (codes guardrail_blocked and gateway_*) or from the provider. */
+            readonly 502: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GatewayProviderBody"];
+                };
+            };
+            /** @description An error in the provider's own error shape, from the gateway (codes guardrail_blocked and gateway_*) or from the provider. */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GatewayProviderBody"];
+                };
+            };
+            /** @description An error in the provider's own error shape, from the gateway (codes guardrail_blocked and gateway_*) or from the provider. */
+            readonly default: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GatewayProviderBody"];
+                };
+            };
+        };
+    };
+    readonly listMCPGatewayServers: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description The registered servers, by name. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["MCPGatewayServerList"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly putMCPGatewayServer: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current schedule version, or quoted zero when creating the singleton schedule. */
+                readonly "If-Match": components["parameters"]["ScheduleVersion"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
+                readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
+                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["MCPGatewayServerInput"];
+            };
+        };
+        readonly responses: {
+            /** @description The server after the change. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["MCPGatewayServer"];
+                };
+            };
+            /** @description The registered server. */
+            readonly 201: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["MCPGatewayServer"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly deleteMCPGatewayServer: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current schedule version, or quoted zero when creating the singleton schedule. */
+                readonly "If-Match": components["parameters"]["ScheduleVersion"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
+                readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
+                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description The server was removed. */
+            readonly 204: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly callMCPGateway: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: {
+                /** @description The calling agent, recorded with each decision. Send the agent's identifier in the inventory to have its gateway traffic count as the agent's activity. */
+                readonly "X-Zasp-Agent-Id"?: string;
+                /** @description The upstream's own credential: for an MCP server the value of the Authorization header the server expects (for example "Bearer <token>"), for a model provider its API key (with or without "Bearer "). It is forwarded for this request only and is never stored or logged. The platform token in Authorization is never sent upstream. */
+                readonly "X-Zasp-Upstream-Authorization"?: string;
+            };
+            readonly path: {
+                /** @description The gateway server. */
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["GatewayJSONRPCMessage"];
+            };
+        };
+        readonly responses: {
+            /** @description The JSON-RPC response, or a stream of server-sent events that ends with it. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: string;
+                    /** @description The session the upstream assigned at initialize. */
+                    readonly "MCP-Session-Id"?: string;
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GatewayJSONRPCMessage"];
+                    readonly "text/event-stream": string;
+                };
+            };
+            /** @description The upstream accepted a notification or a response. */
+            readonly 202: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A JSON-RPC 2.0 error of the gateway or of the upstream MCP server. */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GatewayJSONRPCMessage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            /** @description A JSON-RPC 2.0 error of the gateway or of the upstream MCP server. */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GatewayJSONRPCMessage"];
+                };
+            };
+            /** @description A JSON-RPC 2.0 error of the gateway or of the upstream MCP server. */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GatewayJSONRPCMessage"];
+                };
+            };
+            /** @description A JSON-RPC 2.0 error of the gateway or of the upstream MCP server. */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GatewayJSONRPCMessage"];
+                };
+            };
+            /** @description A JSON-RPC 2.0 error of the gateway or of the upstream MCP server. */
+            readonly 502: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GatewayJSONRPCMessage"];
+                };
+            };
+            /** @description A JSON-RPC 2.0 error of the gateway or of the upstream MCP server. */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GatewayJSONRPCMessage"];
+                };
+            };
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly closeMCPGatewaySession: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                readonly "MCP-Session-Id": string;
+                /** @description The calling agent, recorded with each decision. Send the agent's identifier in the inventory to have its gateway traffic count as the agent's activity. */
+                readonly "X-Zasp-Agent-Id"?: string;
+                /** @description The upstream's own credential: for an MCP server the value of the Authorization header the server expects (for example "Bearer <token>"), for a model provider its API key (with or without "Bearer "). It is forwarded for this request only and is never stored or logged. The platform token in Authorization is never sent upstream. */
+                readonly "X-Zasp-Upstream-Authorization"?: string;
+            };
+            readonly path: {
+                /** @description The gateway server. */
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description The upstream ended the session. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The upstream accepted the request. */
+            readonly 202: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The upstream ended the session. */
+            readonly 204: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A JSON-RPC 2.0 error of the gateway or of the upstream MCP server. */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GatewayJSONRPCMessage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            /** @description A JSON-RPC 2.0 error of the gateway or of the upstream MCP server. */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GatewayJSONRPCMessage"];
+                };
+            };
+            /** @description The upstream does not know the session, or the Environment has no such gateway server. */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The upstream does not let clients end sessions. */
+            readonly 405: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A JSON-RPC 2.0 error of the gateway or of the upstream MCP server. */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GatewayJSONRPCMessage"];
+                };
+            };
+            /** @description The upstream could not be reached or gave an answer the gateway does not relay. */
+            readonly 502: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A JSON-RPC 2.0 error of the gateway or of the upstream MCP server. */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GatewayJSONRPCMessage"];
+                };
+            };
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getGatewayPolicy: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description The gateway policy. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GatewayPolicy"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly putGatewayPolicy: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current schedule version, or quoted zero when creating the singleton schedule. */
+                readonly "If-Match": components["parameters"]["ScheduleVersion"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
+                readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
+                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["GatewayPolicyInput"];
+            };
+        };
+        readonly responses: {
+            /** @description The gateway policy after the change. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GatewayPolicy"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };

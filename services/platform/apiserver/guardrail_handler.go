@@ -36,6 +36,8 @@ const (
 	// The request body is the text with JSON escaping (at most six bytes
 	// for one byte of text) plus the other members.
 	guardrailMaxBodyBytes = 6*guardrail.MaxTextBytes + 4096
+	// guardrailDecisionPath is the one route whose body may be that large.
+	guardrailDecisionPath = "/api/v1/guardrails/decisions"
 )
 
 var guardrailIdentifierPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$`)

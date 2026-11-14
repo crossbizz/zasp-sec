@@ -38,6 +38,12 @@ type salesforceRoundTripper struct {
 	mu        sync.Mutex
 	requests  []*http.Request
 	responses []salesforceHTTPResponse
+	// The Trust Layer read (the Metadata API, a SOAP endpoint) is answered
+	// apart from the queue: an org whose connection may not read metadata
+	// answers a SOAP fault, and the collection goes on without the switches.
+	soapRequests []*http.Request
+	soapBodies   []string
+	soap         *salesforceHTTPResponse
 }
 
 type salesforceHTTPResponse struct {
@@ -49,6 +55,15 @@ type salesforceHTTPResponse struct {
 func (roundTripper *salesforceRoundTripper) RoundTrip(request *http.Request) (*http.Response, error) {
 	roundTripper.mu.Lock()
 	defer roundTripper.mu.Unlock()
+	if strings.HasPrefix(request.URL.Path, "/services/Soap/") {
+		body, _ := io.ReadAll(request.Body)
+		roundTripper.soapRequests, roundTripper.soapBodies = append(roundTripper.soapRequests, request.Clone(request.Context())), append(roundTripper.soapBodies, string(body))
+		response := salesforceHTTPResponse{status: http.StatusInternalServerError, body: `<?xml version="1.0" encoding="UTF-8"?><soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"><soapenv:Body><soapenv:Fault><faultcode>sf:INSUFFICIENT_ACCESS</faultcode></soapenv:Fault></soapenv:Body></soapenv:Envelope>`}
+		if roundTripper.soap != nil {
+			response = *roundTripper.soap
+		}
+		return &http.Response{StatusCode: response.status, Header: response.header, Body: io.NopCloser(strings.NewReader(response.body)), Request: request}, nil
+	}
 	roundTripper.requests = append(roundTripper.requests, request.Clone(request.Context()))
 	if len(roundTripper.responses) == 0 {
 		return nil, errors.New("salesforce-provider-secret " + salesforceTestToken)
@@ -239,7 +254,7 @@ func TestSalesforceCollectionAPICollectsOrganizationAndAgentsCanonically(t *test
 		t.Fatalf("provider calls = %d", roundTripper.calls())
 	}
 	wantPaths := []string{"/services/data/v62.0/query", "/services/data/v62.0/query", "/services/data/v62.0/query/01g5g00000AbCdEAAV-2000"}
-	wantQueries := []string{"SELECT Id,Name FROM Organization", "SELECT Id,DeveloperName,MasterLabel,Type,AgentType,(SELECT Id FROM BotVersions WHERE Status='Active' LIMIT 1) FROM BotDefinition ORDER BY Id", ""}
+	wantQueries := []string{"SELECT Id,Name FROM Organization", salesforceAgentQueryVariants[0].soql, ""}
 	for index, providerRequest := range roundTripper.requests {
 		if providerRequest.Method != http.MethodGet || providerRequest.URL.Scheme != "https" || providerRequest.URL.Host != "acme.my.salesforce.com" || providerRequest.URL.Path != wantPaths[index] || providerRequest.URL.Query().Get("q") != wantQueries[index] || len(providerRequest.URL.Query()) > 1 ||
 			providerRequest.Header.Get("Authorization") != "Bearer "+salesforceTestToken || providerRequest.Header.Get("Accept") != "application/json" {
@@ -703,13 +718,13 @@ func TestSalesforceNormalizationRefusesUnboundedDisplayTextAndHostileRecords(t *
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			if _, _, ok := normalizeSalesforceAgents(salesforceTestSubject, subquery, record(body)); ok {
+			if _, _, ok := normalizeSalesforceAgents(salesforceTestSubject, subquery, record(body), salesforceAgentEnrichment{}); ok {
 				t.Fatal("hostile record accepted")
 			}
 		})
 	}
 	duplicate := json.RawMessage(salesforceBotRecord(salesforceTestBotOne, "Support_Agent", "Support Agent", ""))
-	if _, _, ok := normalizeSalesforceAgents(salesforceTestSubject, plain, []json.RawMessage{duplicate, duplicate}); ok {
+	if _, _, ok := normalizeSalesforceAgents(salesforceTestSubject, plain, []json.RawMessage{duplicate, duplicate}, salesforceAgentEnrichment{}); ok {
 		t.Fatal("duplicate record accepted")
 	}
 	// The label bound is exact, a missing or null label falls back to the
@@ -728,7 +743,7 @@ func TestSalesforceNormalizationRefusesUnboundedDisplayTextAndHostileRecords(t *
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			entities, relationships, ok := normalizeSalesforceAgents(salesforceTestSubject, test.variant, record(test.body))
+			entities, relationships, ok := normalizeSalesforceAgents(salesforceTestSubject, test.variant, record(test.body), salesforceAgentEnrichment{})
 			if !ok || len(entities) != 1 || len(relationships) != 1 {
 				t.Fatalf("record = %d/%d/%t", len(entities), len(relationships), ok)
 			}

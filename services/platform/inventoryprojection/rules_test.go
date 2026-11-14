@@ -60,11 +60,24 @@ func TestRuleCatalogBindsExactProviderKindsToProductAuthority(t *testing.T) {
 		{Provider: "okta", SourceKind: "okta_tenant", Namespace: "okta_tenant", ProductKind: KindAsset, Version: 1, Priority: 110, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
 		{Provider: "okta", SourceKind: "okta_user", Namespace: "okta_user", ProductKind: KindIdentity, Version: 1, Priority: 110, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
 		{Provider: "salesforce", SourceKind: "salesforce_agent", Namespace: "salesforce_agent", ProductKind: KindAgent, Version: 1, Priority: 140, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
+		{Provider: "salesforce", SourceKind: "salesforce_agent_tool", Namespace: "salesforce_agent_tool", ProductKind: KindTool, Version: 1, Priority: 140, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
 		{Provider: "salesforce", SourceKind: "salesforce_org", Namespace: "salesforce_org", ProductKind: KindAsset, Version: 1, Priority: 140, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
 		{Provider: "saas", SourceKind: "saas_agent", Namespace: "saas_agent", ProductKind: KindAgent, Version: 1, Priority: 150, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
 		{Provider: "saas", SourceKind: "saas_ai_application", Namespace: "saas_ai_application", ProductKind: KindAgent, Version: 1, Priority: 150, ConfidenceBasisPoints: 7000, Freshness: 24 * time.Hour},
 		{Provider: "saas", SourceKind: "saas_mcp_server", Namespace: "saas_mcp_server", ProductKind: KindTool, Version: 1, Priority: 150, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
 		{Provider: "saas", SourceKind: "saas_tenant", Namespace: "saas_tenant", ProductKind: KindAsset, Version: 1, Priority: 150, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
+		{Provider: "gcp", SourceKind: "gcp_agent_engine", Namespace: "gcp_agent_engine", ProductKind: KindAgent, Version: 1, Priority: 160, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
+		{Provider: "gcp", SourceKind: "gcp_conversational_agent", Namespace: "gcp_conversational_agent", ProductKind: KindAgent, Version: 1, Priority: 160, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
+		{Provider: "gcp", SourceKind: "gcp_deployed_model", Namespace: "gcp_deployed_model", ProductKind: KindAsset, Version: 1, Priority: 160, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
+		{Provider: "gcp", SourceKind: "gcp_gemini_enterprise_agent", Namespace: "gcp_gemini_enterprise_agent", ProductKind: KindAgent, Version: 1, Priority: 160, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
+		{Provider: "gcp", SourceKind: "gcp_inferred_agent", Namespace: "gcp_inferred_agent", ProductKind: KindAgent, Version: 1, Priority: 160, ConfidenceBasisPoints: 7000, Freshness: 24 * time.Hour},
+		{Provider: "gcp", SourceKind: "gcp_model_endpoint", Namespace: "gcp_model_endpoint", ProductKind: KindAsset, Version: 1, Priority: 160, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
+		{Provider: "gcp", SourceKind: "gcp_project", Namespace: "gcp_project", ProductKind: KindAsset, Version: 1, Priority: 160, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
+		{Provider: "gcp", SourceKind: "gcp_scope", Namespace: "gcp_scope", ProductKind: KindAsset, Version: 1, Priority: 160, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
+		{Provider: "gcp", SourceKind: "gcp_service", Namespace: "gcp_service", ProductKind: KindAsset, Version: 1, Priority: 160, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
+		{Provider: "gcp", SourceKind: "gcp_service_account", Namespace: "gcp_service_account", ProductKind: KindIdentity, Version: 1, Priority: 160, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
+		{Provider: "gcp", SourceKind: "gcp_agent_tool", Namespace: "gcp_agent_tool", ProductKind: KindTool, Version: 1, Priority: 160, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
+		{Provider: "gcp", SourceKind: "gcp_mcp_server", Namespace: "gcp_mcp_server", ProductKind: KindTool, Version: 1, Priority: 160, ConfidenceBasisPoints: 9000, Freshness: 24 * time.Hour},
 	}
 
 	actual := RuleCatalog()
@@ -72,7 +85,7 @@ func TestRuleCatalogBindsExactProviderKindsToProductAuthority(t *testing.T) {
 		t.Fatalf("catalog = %#v, want %#v", actual, expected)
 	}
 	digest := RuleCatalogDigest()
-	if got := hex.EncodeToString(digest[:]); got != "cb8d8d45c753ad53654b44bbc1a6c4ed70fba671049b03047b26d1c12bad8169" {
+	if got := hex.EncodeToString(digest[:]); got != "07e9c7cceff0e1ebf14e24c082ad4b7fdf43b4d2d19a939d38b1eaa3cce172be" {
 		t.Fatalf("catalog digest = %s", got)
 	}
 

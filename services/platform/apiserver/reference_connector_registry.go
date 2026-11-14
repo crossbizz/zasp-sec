@@ -26,15 +26,25 @@ var (
 	// The generic saas provider names a Nango connection by reference. Its
 	// subject is "<platform>/<tenant id>"; which platforms exist is decided
 	// by the platform registry the probe and the catalog read, not here.
-	saasPlatformPattern            = regexp.MustCompile(`^[a-z][a-z0-9_]{1,31}$`)
-	saasTenantPattern              = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,94}$`)
-	saasSubjectPattern             = regexp.MustCompile(`^[a-z][a-z0-9_]{1,31}/[A-Za-z0-9][A-Za-z0-9._-]{0,94}$`)
+	saasPlatformPattern = regexp.MustCompile(`^[a-z][a-z0-9_]{1,31}$`)
+	saasTenantPattern   = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,94}$`)
+	saasSubjectPattern  = regexp.MustCompile(`^[a-z][a-z0-9_]{1,31}/[A-Za-z0-9][A-Za-z0-9._-]{0,94}$`)
+	// Google Cloud names the organization, folder or project to read (scope)
+	// and how the product reaches the customer's read-only service account
+	// (identity_reference): through workload identity federation, where the
+	// reference names the service account and audience names the customer's
+	// workload identity pool provider, or with a service account key held
+	// outside the product database, where the reference names the stored key.
+	gcpScopePattern                = regexp.MustCompile(`^(organizations/[1-9][0-9]{0,18}|folders/[1-9][0-9]{0,18}|projects/[a-z][a-z0-9-]{4,28}[a-z0-9])$`)
+	gcpFederationReferencePattern  = regexp.MustCompile(`^ref:gcp/workload-identity/[a-z][a-z0-9-]{4,28}[a-z0-9]/[a-z][a-z0-9-]{4,28}[a-z0-9]$`)
+	gcpKeyReferencePattern         = regexp.MustCompile(`^ref:gcp/service-account-key/[a-z0-9][a-z0-9._-]{7,127}$`)
+	gcpAudiencePattern             = regexp.MustCompile(`^//iam\.googleapis\.com/projects/[1-9][0-9]{0,18}/locations/global/workloadIdentityPools/[a-z][a-z0-9-]{2,30}[a-z0-9]/providers/[a-z][a-z0-9-]{2,30}[a-z0-9]$`)
 	saasConnectionReferencePattern = regexp.MustCompile(`^ref:nango/connection/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
 )
 
 // referenceAuthorizedProviders are authorized by a reference to customer
 // material held outside the product database, not by a browser OAuth flow.
-var referenceAuthorizedProviders = []string{"aws", "kubernetes", "microsoft", "salesforce", "saas"}
+var referenceAuthorizedProviders = []string{"aws", "kubernetes", "microsoft", "salesforce", "saas", "gcp"}
 
 func isReferenceAuthorizedProvider(value string) bool {
 	return stringIn(value, referenceAuthorizedProviders...)
@@ -43,9 +53,9 @@ func isReferenceAuthorizedProvider(value string) bool {
 // isDiscoveryProvider reports whether value is a provider discovery collects
 // from. aws, kubernetes, github and okta are served by every deployment;
 // microsoft, salesforce and saas (every SaaS platform read through the Nango
-// proxy) where their collector is configured.
+// proxy) where their collector is configured, and so is gcp (Google Cloud).
 func isDiscoveryProvider(value string) bool {
-	return stringIn(value, "aws", "kubernetes", "github", "okta", "microsoft", "salesforce", "saas")
+	return stringIn(value, "aws", "kubernetes", "github", "okta", "microsoft", "salesforce", "saas", "gcp")
 }
 
 type ReferenceAuthorizationTarget struct {
@@ -120,6 +130,8 @@ func validReferenceAuthorizationSubject(provider string, subject ReferenceAuthor
 		return subject.Kind == "salesforce_org" && salesforceOrganizationPattern.MatchString(subject.ID)
 	case "saas":
 		return subject.Kind == "saas_tenant" && saasSubjectPattern.MatchString(subject.ID) && !strings.Contains(subject.ID, "..")
+	case "gcp":
+		return subject.Kind == "gcp_scope" && gcpScopePattern.MatchString(subject.ID)
 	default:
 		return false
 	}
@@ -148,6 +160,18 @@ func validMicrosoftReferenceConfiguration(tenantID, clientID, clientSecretRefere
 
 func validSalesforceReferenceConfiguration(instanceURL, organizationID, clientID, clientSecretReference string) bool {
 	return salesforceInstanceURLPattern.MatchString(instanceURL) && salesforceOrganizationPattern.MatchString(organizationID) && salesforceClientIDPattern.MatchString(clientID) && salesforceSecretReferencePattern.MatchString(clientSecretReference)
+}
+
+// validGCPReferenceConfiguration accepts the two shapes: federation (an
+// audience and a workload-identity reference) or a key reference alone.
+func validGCPReferenceConfiguration(scope, identityReference, audience string) bool {
+	if !gcpScopePattern.MatchString(scope) {
+		return false
+	}
+	if audience != "" {
+		return gcpAudiencePattern.MatchString(audience) && gcpFederationReferencePattern.MatchString(identityReference)
+	}
+	return gcpKeyReferencePattern.MatchString(identityReference)
 }
 
 func validSaaSReferenceConfiguration(platform, tenantID, connectionReference string) bool {

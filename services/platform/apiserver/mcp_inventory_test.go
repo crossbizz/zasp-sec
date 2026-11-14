@@ -59,7 +59,8 @@ func TestMCPInventoryRoutesSendTheirStatementAndAnswerTheContract(t *testing.T) 
 	entry := `{"identity":"package:@acme/tracker-mcp","status":"blocked","note":"unreviewed","version":2,"updated_by":"pid_50000001-0000-4000-8000-000000000001","updated_at":"2026-08-19T03:00:00.000000Z","server_count":1`
 	access := `{"agent_id":"` + mcpTestAgentID + `","ai_actions":{"window_days":7,"granted":["bedrock:InvokeModel","bedrock:InvokeModelWithResponseStream"],"used":["bedrock:InvokeModel"],"unused":["bedrock:InvokeModelWithResponseStream"]},` +
 		`"mcp_servers":[{"id":"` + mcpTestServerID + `","name":"tracker","identity":"package:@acme/tracker-mcp","approval":"blocked"}],"data_stores":[{"id":"pid_70000003-0000-4000-8000-000000000003","name":"All S3 buckets","service":"s3","access":"read","scope":"service"}],` +
-		`"skills":[{"id":"pid_70000004-0000-4000-8000-000000000004","path":".claude/skills/release","kind":"skill"}]}`
+		`"skills":[{"id":"pid_70000004-0000-4000-8000-000000000004","path":".claude/skills/release","kind":"skill"}],` +
+		`"tools":[{"id":"pid_70000005-0000-4000-8000-000000000005","name":"Order Inquiries","kind":"topic","target":null,"confirmation":null},{"id":"pid_70000006-0000-4000-8000-000000000006","name":"Issue Refund","kind":"action","target":"flow","confirmation":true}],"tool_kinds":["code_interpreter","mcp"]}`
 	handler, database := mcpHandler(t, map[string]json.RawMessage{
 		postgresMCPServerPageSQL:   json.RawMessage(`{"items":[` + mcpTestServer + `],"next_id":null}`),
 		postgresMCPRegistryPageSQL: json.RawMessage(`{"items":[` + entry + `}]}`),
@@ -131,6 +132,27 @@ func TestMCPInventoryRoutesSendTheirStatementAndAnswerTheContract(t *testing.T) 
 	response = serve(inventoryRequest(t, "getAgentAccess", "https://app.zasp.test/api/v1/agents/"+mcpTestAgentID+"/access"))
 	if response.Code != http.StatusOK || strings.TrimSpace(response.Body.String()) != access || database.statement != postgresAgentAccessSQL || len(database.arguments) != 4 || database.arguments[3] != mcpTestAgentID {
 		t.Fatalf("access: status=%d body=%s", response.Code, response.Body.String())
+	}
+	// A database without section WS7c answers without the tool members: the
+	// API still answers the contract, with none.
+	before, _, _ := strings.Cut(access, `,"tools":`)
+	database.responses[postgresAgentAccessSQL] = json.RawMessage(before + `}`)
+	if response = serve(inventoryRequest(t, "getAgentAccess", "https://app.zasp.test/api/v1/agents/"+mcpTestAgentID+"/access")); response.Code != http.StatusOK || strings.TrimSpace(response.Body.String()) != before+`,"tools":[],"tool_kinds":[]}` {
+		t.Fatalf("access without the tool members: status=%d body=%s", response.Code, response.Body.String())
+	}
+	// A tool the contract does not allow is refused, not passed on.
+	for name, tools := range map[string]string{
+		"a topic with a target":    `"tools":[{"id":"pid_70000005-0000-4000-8000-000000000005","name":"T","kind":"topic","target":"flow","confirmation":null}],"tool_kinds":[]`,
+		"an unknown kind":          `"tools":[{"id":"pid_70000005-0000-4000-8000-000000000005","name":"T","kind":"prompt","target":null,"confirmation":null}],"tool_kinds":[]`,
+		"a target with a space":    `"tools":[{"id":"pid_70000005-0000-4000-8000-000000000005","name":"T","kind":"action","target":"run this","confirmation":null}],"tool_kinds":[]`,
+		"an unknown tool member":   `"tools":[{"id":"pid_70000005-0000-4000-8000-000000000005","name":"T","kind":"action","target":null,"confirmation":null,"instructions":"x"}],"tool_kinds":[]`,
+		"unsorted tool kinds":      `"tools":[],"tool_kinds":["mcp","code_interpreter"]`,
+		"a tool kind with a class": `"tools":[],"tool_kinds":["tool:mcp"]`,
+	} {
+		database.responses[postgresAgentAccessSQL] = json.RawMessage(before + `,` + tools + `}`)
+		if response = serve(inventoryRequest(t, "getAgentAccess", "https://app.zasp.test/api/v1/agents/"+mcpTestAgentID+"/access")); response.Code == http.StatusOK {
+			t.Errorf("%s: answered %s", name, response.Body.String())
+		}
 	}
 }
 

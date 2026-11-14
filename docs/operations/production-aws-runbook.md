@@ -415,7 +415,18 @@ Azure OpenAI and Azure AI Foundry (optional, off by default, not run against a r
 2. In Terraform set `discovery_optional_providers.microsoft_azure = true` and `discovery_optional_providers.azure_egress_cidrs` to one to 16 address ranges of Azure Resource Manager (`management.azure.com`; the `AzureResourceManager` service tag). Both are refused without `microsoft_collector`. Terraform passes them to the chart as `discovery.microsoftAzure` and `network.connectorEgressCIDRs.azure`; the chart then gives the discovery worker `ZASP_DISCOVERY_MICROSOFT_AZURE=enabled` and admits those ranges on port 443 in the discovery worker's network policy only. The API does not call Resource Manager and is not given the ranges. Unset, nothing changes for an existing Microsoft integration.
 3. The chart refuses to render `discovery.microsoftAzure` without `discovery.microsoftCollectorVersion`, or without `network.connectorEgressCIDRs.azure`. This wiring is checked as text (`deploy/staging/gate.test.mjs`); it has not been rendered with Helm or planned with Terraform.
 
-Every run then requests a second token for `https://management.azure.com/.default` and reads `GET /subscriptions`, each subscription's `Microsoft.CognitiveServices/accounts` and each AI account's `deployments`. An application with no role sees no subscription and the sync completes as before. Accounts of kind `OpenAI` and `AIServices` become inventory with their region, endpoint host, public network access and whether key authentication is disabled; each deployment with its model name and version. Foundry agents are not read: they are not Resource Manager resources, and listing them needs a data-plane token (audience `https://ai.azure.com`) and the Azure AI User role on each project, which this connection does not request.
+Every run then requests a second token for `https://management.azure.com/.default` and reads `GET /subscriptions`, each subscription's `Microsoft.CognitiveServices/accounts` and each AI account's `deployments`. An application with no role sees no subscription and the sync completes as before. Accounts of kind `OpenAI` and `AIServices` become inventory with their region, endpoint host, public network access and whether key authentication is disabled; each deployment with its model name and version.
+
+Azure AI Foundry agents (with the same setting; not run against a real subscription). An agent is not a Resource Manager resource: it belongs to a project of an AI Foundry account and is listed on the project's own endpoint. With `discovery.microsoftAzure` on, every run requests a third token, for `https://ai.azure.com/.default`, and for each account of kind `AIServices` reads:
+
+- `GET {account}/projects` and `GET {account}/raiPolicies` from Resource Manager (api-version `2025-12-01`), covered by the Reader role of step 1;
+- `GET https://<account>.services.ai.azure.com/api/projects/<project>/agents?api-version=v1` for each project, with the third token.
+
+Listing agents is a data action. Assign the application's service principal the built-in role **Azure AI User** on each AI Foundry account or project to read (role name as Microsoft documents it for the Foundry Agent Service; not checked against a subscription). Without it the project endpoint answers 401 or 403; the account is then recorded with `agents: access_denied`, the integration's detail shows "Azure AI Foundry agents: permission missing" under "Agent discovery coverage", and the sync completes.
+
+What is recorded of an agent: its name, whether it is enabled, its kind (prompt, hosted, workflow, external, voice), the model deployment it names, the kinds of its tools and the content filter policy that applies to it (its own `rai_config`, otherwise its deployment's `raiPolicyName`). Its instructions and tool definitions are in the response and are not kept. The policy's filters for hate, sexual, violence and self-harm content give the agent's content moderation level; an agent whose filter is switched off, only annotates, or blocks only high-severity content gets the finding "Agent content moderation is set to the lowest level". It appears in the inventory as a Microsoft agent with `object_type` `foundry_agent`.
+
+Limits: 60 Foundry requests per collection page, five pages of 100 agents per project; beyond that the account is recorded with `agents: partial`. Network: the project endpoints (`*.services.ai.azure.com`) are other addresses than Resource Manager. List their ranges in `discovery_optional_providers.azure_foundry_egress_cidrs` (chart value `network.connectorEgressCIDRs.foundry`; Microsoft publishes them in the `CognitiveServicesFrontend` service tag, tag name from memory). The list is optional, valid only with `microsoft_azure`, and admitted on port 443 for the discovery worker only. If the worker cannot connect to a project endpoint the account is recorded with `agents: not_listed` and the sync still completes.
 
 Copilot Studio content moderation. The agents query also asks for the bot's `configuration` column and keeps one member of it, the generative AI content moderation level; an agent at the lowest level gets a finding. An environment that does not know the column is read without it. The column and its JSON shape have not been checked against a real environment.
 
@@ -425,12 +436,19 @@ Network. The API and the discovery worker need HTTPS to `login.microsoftonline.c
 
 Optional, and off by default. Not run against a real org (see step 13).
 
-What it finds: the Agentforce agents of one org.
+What it finds: the Agentforce agents of one org and, for each agent, where the org and the connection allow it:
+
+- the user the agent runs as (`BotDefinition.BotUserId`) and the names of that user's permission sets (`PermissionSetAssignment`). An agent whose user holds View All Data or Modify All Data is marked as reaching sensitive data;
+- its topics and actions, read through the Tooling API (`GenAiPlannerDefinition`, `GenAiPluginDefinition`, `GenAiFunctionDefinition`) and listed as tools of the agent: the name and, for an action, what it invokes (flow, Apex, prompt template, standard action) and whether it asks for confirmation. Instructions, scopes and descriptions are not selected;
+- the org's Einstein Trust Layer switches: prompt injection detection, input toxicity detection and data masking. When both prompt screens are off, each agent gets the finding "Agent content moderation is set to the lowest level".
+
+Each of these reads is optional. If the org does not have the object or the run-as user may not read it, the agent is listed without that fact and the sync completes; the agent's `tools` attribute says `listed`, `partial` or `not_listed`.
 
 In the customer's org:
 
 1. Create a connected app (or an external client app) with OAuth enabled and the scope `api` ("Manage user data via APIs").
-2. Enable the **client credentials flow** and set a run-as user. That user needs the permissions **API Enabled** and **View Setup and Configuration**, and nothing more.
+2. Enable the **client credentials flow** and set a run-as user. That user needs the permissions **API Enabled** and **View Setup and Configuration**. That is enough for the agents, their users' permission sets and their topics and actions.
+   - The Trust Layer switches are the metadata type `EinsteinAISettings`, which is not a queryable object: it can only be read with the Metadata API (`readMetadata`). Salesforce has no read-only permission for the Metadata API; reading through it needs **Modify Metadata Through Metadata API Functions** (or Modify All Data). Grant it to the run-as user only if you want the guardrail finding. The collector sends `readMetadata` for that one type and no other Metadata API call. Without the permission the switches are unknown and no finding is raised.
 3. Note the consumer key and the consumer secret, the org's My Domain URL (`https://<name>.my.salesforce.com`) and the 18-character Organization ID (Setup, Company Information; it starts with `00D`).
 
 In the deployment:
@@ -493,9 +511,25 @@ rules:
     verbs: [list]
 ```
 
-bound to the discovery identity. A workload whose pod template runs an MCP server (by image or command) is also listed as an MCP server. It is not related to the agents that call it: the collector does not list Services, so it does not know the DNS name the server is reached under; of a pod template it decodes argument elements and environment variable names, never environment values or ConfigMap data, which is where such an address is normally set; and it reads one resource kind per page with no state carried between pages, so a workload cannot be matched against another. The collector lists ConfigMaps across namespaces with the label selector; Kubernetes cannot limit a list to a label, so this grants reading all ConfigMaps. Without it discovery still completes and judges workloads on their pod templates alone.
+bound to the discovery identity. The collector lists ConfigMaps across namespaces with the label selector; Kubernetes cannot limit a list to a label, so this grants reading all ConfigMaps. Without it discovery still completes and judges workloads on their pod templates alone.
 
-When the permission is missing, the integration's detail says so under "Agent discovery coverage" ("Runtime agent discovery: the discovery credential may not list ConfigMaps..."). The line disappears after the first sync with the permission in place. It does not tell whether the sensor role is installed, only whether its output could be read.
+MCP servers and the agents that use them. A workload whose pod template runs an MCP server (by image or command) is also listed as an MCP server. The last page of every collection relates the agents of the cluster to those servers. In memory, within that page, it lists the Services, reads the workloads again and reads the ConfigMaps the agent workloads mount or take their environment from, and looks in each agent's container arguments, environment values and ConfigMap data for a DNS name of a Service that selects an MCP server's pods (`<service>.<namespace>.svc...` anywhere; `<service>.<namespace>` and, in the same namespace, the bare `<service>` only where the text uses it as a host). A match becomes a relationship from the agent to the server, which the MCP servers page and the agent's access list show. The arguments, environment values and ConfigMap data are compared and dropped: none is stored or logged, and Secrets are never requested. An agent that learns the address some other way (a Secret, a service mesh, a hard-coded IP) is not related.
+
+This needs two more permissions for the discovery identity, both part of the built-in `view` ClusterRole:
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata: { name: zasp-discovery-mcp-links }
+rules:
+  - apiGroups: [""]
+    resources: [services, configmaps]
+    verbs: [list]
+```
+
+A ConfigMap is read by name, as a list of its namespace with a field selector, so `list` is the only verb needed; EndpointSlices are not read (a Service is matched to a workload by its selector and the pod template's labels). Without `services` no agent is related and the integration's detail says "MCP server links: permission missing"; without `configmaps` agents are related only by their arguments and environment values ("MCP server links from ConfigMaps: permission missing"). The sync completes either way. Limits: 5,000 Services, 5,000 workloads of each kind, 256 ConfigMaps and 2,000 relationships per collection.
+
+When the ConfigMap permission is missing, the integration's detail says so under "Agent discovery coverage" ("Runtime agent discovery: the discovery credential may not list ConfigMaps..."). The line disappears after the first sync with the permission in place. It does not tell whether the sensor role is installed, only whether its output could be read.
 
 Check it on the cluster with the two workloads in `deploy/local/egress-discovery/`:
 

@@ -33,8 +33,10 @@ API states), `saas_mcp_server` (tool). Every entity carries `platform` and
 - `DisplayName`, `Description`, `AccessGuidance`, `TenantLabel`, `TenantHint`:
   the text of the catalog entry and the setup form.
 - `Nango`: the Nango integration key (the Provider-Config-Key), the provider
-  host, the auth mode and the proxy rules. Rules are `GET` only. A request
-  that no rule allows is never sent.
+  host, the auth mode and the proxy rules. A rule is a `GET`, or the `POST`
+  of a GraphQL query (see "GraphQL lists"). A request that no rule allows is
+  never sent. A rule also lists the provider headers a request may carry
+  (`HeaderKeys`).
 - `HostTemplate`, with `Nango.HostPattern` and `Nango.HostSuffixes`: only for
   a platform whose API host differs per tenant. See "Per-tenant hosts".
 - `SignIn`: only for a platform a person can sign in to from the product.
@@ -56,7 +58,9 @@ API states), `saas_mcp_server` (tool). Every entity carries `platform` and
 
 Paging styles: `PagingNone`, `PagingCursor` (a token in the response, sent
 back in a query parameter; `MorePath` names a `has_more` flag for an API that
-states a token on its last page too), `PagingOffset` (offset and limit),
+states a token on its last page too; `LastItemPath`, in place of `NextPath`,
+for an API that states no token and continues after the id of the last item,
+as OpenAI's lists do), `PagingOffset` (offset and limit),
 `PagingPage` (page number and page size) and `PagingLink` (the `Link`
 header's `rel="next"`, followed only on the endpoint's own path).
 
@@ -76,6 +80,37 @@ List shapes beyond a plain list:
 - `Absent`: the statuses that mean the tenant does not have the feature
   (404; 400 only for an API that answers so for an object type that is not
   installed). The endpoint then contributes nothing.
+- `Parent` with `Single`: the parent is one object and not a list (the site
+  whose cloud id a later request needs).
+- `Headers`: fixed provider request headers of an endpoint or of the tenant
+  lookup (a version header, the project a key belongs to). A value of
+  `{tenant}` is replaced by the tenant id. Nango forwards them; the product
+  sends each as `Nango-Proxy-<name>`. The rule of the path must list the
+  names. `Authorization`, `Cookie`, `Host` and the proxy's own headers are
+  never forwarded.
+
+### GraphQL lists
+
+Some platforms list their agents only through GraphQL, which is a `POST`.
+`ListEndpoint.GraphQL` makes an endpoint such a query: `Document` is the
+whole query text, `Variables` its fixed variables (a value may hold
+`{tenant}` or `{parent}`), and the endpoint's `Paging` names the variables
+that carry the continuation and the page size. `ErrorsAbsent` says that an
+answer with GraphQL errors means "this tenant does not have the feature".
+
+It is still a read, and the definition cannot make it anything else:
+
+- the document must be one `query` operation. A document that names a
+  mutation or a subscription, holds a second operation or a comment, or is
+  not printable one-line text is refused when the platform is registered;
+- the Nango rule of the path lists the exact documents
+  (`GraphQLDocuments`). The adapter refuses a `POST` whose body is not
+  `{"query": <a listed document>, "variables": {...}}`: another query, an
+  extra member, a batch or nested variables never reach Nango;
+- a `POST` rule that is not the path of one of the platform's GraphQL lists
+  is refused.
+
+The values of a tenant travel only as variables; the query text is constant.
 
 The mapping function turns one provider item into a `saasdiscovery.Entity`:
 kind, native id, display name, object type, status, optional model and agent
@@ -197,12 +232,83 @@ Sign-in needs completion.sql section `ws6_saas_sign_in` in the database. An
 API whose database does not have it starts without sign-in and still offers
 the reference form.
 
-Not done by a sign-in: deleting the integration does not delete the Nango
-connection the sign-in created. Delete it in Nango.
+The browser returns to `/connectors`, the route of the Integrations page.
+(Until this was corrected the API returned it to `/integrations`, which is
+not a route of the web application: the application rewrote the address to
+the home page and the sign-in was lost.)
+
+### Deleting the connection a sign-in created
+
+A connection that a sign-in created is deleted from Nango when the product
+stops using it:
+
+- when the integration is deleted, every connection its sign-ins created is
+  deleted, whether or not it was ever stored in the integration;
+- when the integration is given another connection (a second sign-in, or a
+  reference typed in), every connection its sign-ins created except the one
+  it now names is deleted.
+
+A connection the product did not create is never deleted: a reference a
+person pasted names a connection made in Nango, and the product holds no
+record that it created it. Delete those in Nango.
+
+How it works, and what to expect:
+
+1. The transaction that deletes the integration or changes its connection
+   also writes one row per connection to `zasp_saas_connection_releases`
+   (a trigger on the integration's record, completion.sql section
+   `ws10_saas_connection_release`). The row holds the connection's reference,
+   never a token. A stopped API cannot separate the deletion from the row.
+2. A worker in the API server claims rows under a 60 second lease, every 15
+   seconds, and deletes the connection through the Nango connection client.
+   The client asks Nango for the connection of this integration's end user
+   only, so a connection that belongs to another end user is refused, and a
+   connection that is already gone counts as deleted.
+3. If the API stops after the claim, the lease expires and the row is claimed
+   again. If Nango refuses or cannot be reached, the row records
+   `nango_unavailable` and is tried again after 30 seconds, then 1, 2, 4, 8,
+   16, 32 minutes, then every hour: fifty attempts in all, about two days.
+   After the fiftieth the row is `failed`.
+4. A connection that another live saas integration of the same Environment
+   still names when its turn comes is kept (`retained`). It has its turn
+   again when an integration that names it is deleted or given another
+   connection.
+
+To see what is waiting or failed, with a database role that may read the
+table (it belongs to the product's schema owner and is not granted to the
+service logins):
+
+```sql
+SELECT organization_id, environment_id, integration_id, platform, connection_reference,
+       reason, status, attempt, last_error_code, available_at, finished_at
+FROM zasp_saas_connection_releases
+WHERE status IN ('pending', 'failed', 'retained')
+ORDER BY created_at;
+```
+
+Delete a `failed` connection in Nango by hand. `last_error_code`
+is `nango_unavailable` (Nango refused, could not be reached, or holds the
+connection for another end user), `platform_unavailable` (this deployment no
+longer serves the platform's sign-in) or `attempts_exhausted` (the last
+attempt ended without an outcome).
+
+The worker runs only where sign-in does (the saas collector version, Nango
+and a public HTTPS origin are configured) and the database has the release
+section. A database that has the section lists connections wherever it runs;
+without the worker the rows stay `pending` until an API with sign-in starts.
+
+Deleting an authorized saas integration first revokes it: the integration
+shows `revoking` until the API's connector reconciler has finished, a few
+seconds to a minute later, and its connections are listed at that moment.
+(Before this was corrected that reconciler took the revocation of a saas,
+Microsoft or Salesforce integration for an OAuth revocation, found no
+provider for it, and left the integration `revoking` until it was
+quarantined.)
 
 ## Limits
 
-- Requests are `GET` only and a response is at most 1 MiB. The proxy refuses
+- Requests are `GET`, or the `POST` of an allow-listed GraphQL query, and a
+  response is at most 1 MiB. The proxy refuses
   a response whose text contains `access_token`, `refresh_token`,
   `client_secret`, `private_key` or `password`; the collection is then
   retried and nothing of that response is stored.
@@ -215,23 +321,147 @@ connection the sign-in created. Delete it in Nango.
 
 ## Platforms
 
-Every provider API shape is written from memory and marked `UNVERIFIED` in
-its definition file, with the list of what to check against a real tenant.
+Each definition file says which of its API shapes were taken from the
+provider's documentation or official SDK (`DOCUMENTED:` with the address)
+and which are written from memory (`UNVERIFIED`, with the list of what to
+check against a real tenant). None has been run against a real tenant.
 
 | Platform | Tenant id | Host | Connected by | What is listed |
 | --- | --- | --- | --- | --- |
 | `anthropic` | organization UUID | `api.anthropic.com` | reference (admin key) | workspaces, API keys (id, name, status; never a key value or its hint) |
-| `atlassian` | site name | `<site>.atlassian.net` | reference (API token) | installed AI apps and Rovo apps; Rovo agents are not listed |
+| `atlassian` | site name | `<site>.atlassian.net` | reference (API token) | installed AI apps and Rovo apps; the Rovo agents that installed apps ship; Studio-built Rovo agents only once Atlassian lets an API token list them, see below |
+| `atlassian_org` | organization id | `api.atlassian.com` | reference (organization API key) | the Rovo agents people built in Rovo Studio, reconstructed from the organization's audit log: id, name, creator's account id, time, deleted or active |
 | `databricks` | workspace address | the workspace address | reference | serving endpoints and served agents |
-| `gitlab` | group id | `gitlab.com` | sign-in | GitLab Duo for the group, projects tagged or named as AI |
+| `gitlab` | group id | `gitlab.com` | sign-in | GitLab Duo for the group and its availability setting, the Duo agents and flows enabled in the group (GraphQL `aiCatalogConfiguredItems`), the MCP servers of those agents, projects tagged or named as AI |
+| `gitlab_self_managed` | `<host>_<group id>` | the customer's host | reference (group access token) | the same as `gitlab`, for a self-managed or Dedicated instance |
 | `google_workspace` | customer id | `admin.googleapis.com` | sign-in | third-party AI apps granted OAuth access (token activity report), Gemini usage |
-| `openai` | organization id | `api.openai.com` | reference (admin key) | projects, service accounts; assistants are not listed |
+| `openai` | organization id | `api.openai.com` | reference (admin key) | projects, service accounts |
+| `openai_project` | project id | `api.openai.com` | reference (project key) | the assistants and agents of one project: id, name, model, tool kinds; never instructions |
 | `servicenow` | instance name | `<instance>.service-now.com` | sign-in | Now Assist AI agents, installed AI applications |
 | `slack` | workspace id | `slack.com` | sign-in | approved AI apps |
 
-Three things about Nango itself are also written from memory and have not
-been run against a Nango server: the `Base-Url-Override` proxy header that
-pins a per-tenant host, the `params[<name>]` form in which a sign-in passes
+OpenAI assistants and agents belong to a project and are listed only with a
+key of that project; the organization's admin key cannot call the two
+endpoints. `openai_project` is therefore a second platform, with the Nango
+integration `openai` and one connection per project (a project service
+account key with read access). The project is the tenant: every request
+names it in the `OpenAI-Project` header, and a key of another project is
+refused by OpenAI, which is how the connection is bound to the tenant.
+
+Rovo agents. Two reads. The agents that installed Forge apps ship (the
+`rovo:agent` module) are listed through the gateway's
+`extensionContext.extensionsByType`, which Atlassian's published schema
+marks as callable with an API token, for the site's Jira and Confluence
+contexts; a module's properties, which hold its prompt, are not selected.
+The agents people build in Rovo Studio are behind `agentStudio_getAgents`,
+which the same schema marks as callable with a browser session only: not
+with an API token, not with OAuth, and no public API exists yet (ROVO-516
+and ROVO-479 are open). The definition sends that query in the schema's form
+and expects it to be refused today; the list is then empty and the rest of
+the site is collected. Until Atlassian opens the field, the site connection
+does not find Studio-built agents; the organization connection below does.
+
+Studio-built Rovo agents from the audit log. `atlassian_org` is a second
+platform because the site's API token cannot call the organization API: it
+needs an organization API key (Atlassian Administration, Settings, API keys),
+held by a Nango connection of the integration `atlassian-admin`, and its
+tenant is the organization id (`admin.atlassian.com/o/<organization id>`).
+Atlassian records in the organization's audit log that a Rovo agent was
+created, updated or deleted. The definition:
+
+1. reads the organization's catalog of audit log actions
+   (`GET /admin/v1/orgs/{id}/event-actions`) and takes the ids of the three
+   actions whose display name is "Created Rovo agent", "Updated Rovo agent"
+   and "Deleted Rovo agent". The ids themselves are not written in the
+   definition: they could not be checked;
+2. reads the events of each action (`GET /admin/v1/orgs/{id}/events?action=`),
+   deletions first, then creations, then updates, and reports each agent at
+   its first event. So a deleted agent is listed with the status `deleted`
+   and `deleted_at`; an agent created within the log is listed `active` with
+   `created_by` (the account id, never a name or an address) and
+   `created_at`; an agent older than the log that was changed since is
+   listed `active` with `updated_at`.
+
+What to know before relying on it:
+
+- Retention. The log goes back 180 days, 365 with Atlassian Guard. An agent
+  created before that and not changed since has no event and is not listed.
+  An empty list does not mean the organization has no agents.
+- Plan. Atlassian's pages state the plan differently (Guard Standard for
+  "Rovo admin actions", Guard Premium for "Rovo user actions"). An
+  organization whose catalog does not have the three actions lists nothing;
+  one whose plan has no audit log at all fails the collection (reported as
+  402), it is not read as "no agents".
+- Cap. At most 96 agents are reported (the bound of every activity-log
+  reader, the same as the Google Workspace token report). An organization
+  whose log names more ends the collection as a failure, not as a partial
+  inventory.
+- Rate. Atlassian allows 10 requests a minute on the events path. Updates
+  can be many pages; a throttled page is retried by the collection.
+- Scope. The events name the organization, not a site: agents of all its
+  sites are listed under the organization. Nothing ties them to the objects
+  of an `atlassian` site integration.
+- Not read: who may create agents and which products have Rovo switched on.
+  No documented API for those settings was found.
+- Every response shape of this platform is UNVERIFIED (see the file); the
+  endpoint, its parameters and the activity names are from Atlassian's pages
+  as returned by web searches.
+
+Customer-hosted platforms. A self-managed GitLab (and GitLab Dedicated) runs
+on a host the customer owns, which no provider suffix can describe. A
+definition says so explicitly, in two places: `Nango.CustomerHosted` (a
+`HostPattern`, no `HostSuffixes`) and `TenantSplit`, which separates a tenant
+id into the host and the tenant on that host. For `gitlab_self_managed` the
+tenant id is `<host>_<group id>` (`gitlab.example.com_4242`): requests go to
+the host, and paths, queries and variables carry the group id.
+
+- The host must be a public DNS name: at least two labels and an alphabetic
+  top-level domain. An address in any notation, a single label, `localhost`,
+  `.local`, `.internal`, `.svc`, `.cluster.local`, `.lan`, `.home`, `.corp`,
+  a port, a path or user information is refused when the integration is
+  saved and again before every request.
+- Before a request the adapter resolves the host and sends nothing unless
+  every address is public, exactly as for a provider's per-tenant host.
+- The host is part of the integration's subject
+  (`gitlab_self_managed/<host>_<group id>`). It is fixed when the integration
+  is created and is what the connection was authorized against; a different
+  host is a different subject, which needs its own integration and its own
+  authorization.
+- There is no sign-in from the product for a customer-hosted platform (the
+  authorization page would be on a host the customer chose). The connection
+  is a group access token held by Nango.
+- The limit named under "Per-tenant hosts" applies with more weight here:
+  the product checks the addresses, Nango makes the connection. Keep Nango's
+  egress limited to public addresses.
+
+GitLab MCP servers. The catalog's own list (`aiCatalogMcpServers`) takes no
+group or project, so the servers are read where GitLab's schema ties them to
+the group: under the latest version of each agent configured in it. Each is
+listed once, as an MCP server with its host, transport and whether it
+authenticates, and appears on the MCP servers page. Each agent is related to
+the servers it uses (`depends_on`, the relation the MCP servers page and an
+agent's access view already read for the other providers): the query states
+of every agent the fields the catalog list reads, so the agent is named
+exactly as that list reports it. A relation whose agent the catalog list did
+not report (deleted between the two reads) is dropped.
+
+Relating two objects of a tenant. A list with `ChildrenPath` whose children
+are MCP servers can set `ChildUser`, which names the agent each item is; the
+collector then relates that agent to each of the item's servers. It is the
+only relation between two saas objects, and it needed no new inventory kind
+and no rule catalog change.
+
+Parents chosen from a catalog. `ParentList.Select` is for a parent list that
+answers everything in one response of which a few objects are parents (the
+audit log actions that concern agents). It returns the parents in the order
+to read them, each with a label the mapping is given; the parent's id can be
+the value of one query parameter (`"action": "{parent}"`).
+
+The two Nango proxy headers the product relies on are taken from Nango's own
+SDK (`@nangohq/node`): `Base-Url-Override`, which pins a per-tenant host, and
+`Nango-Proxy-<name>`, which forwards a provider header. Two things about
+Nango are still written from memory and have not been run against a Nango
+server: the `params[<name>]` form in which a sign-in passes
 connection parameters (ServiceNow's `subdomain`), and the integration key of
 each platform (`Nango.Key` in its definition, which must be the key of the
 integration created in Nango). The provider's callback address of every

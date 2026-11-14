@@ -51,9 +51,21 @@ var (
 // Proxy is the allow-listed Nango proxy (*nango.Adapter). It adds the
 // provider token on Nango's side; this package never sees it.
 type Proxy interface {
-	ProxyWithQuery(ctx context.Context, connectorKey, connectionReference, method, path string, query url.Values, body []byte) (nango.ProxyResponse, error)
-	// ProxyToHost is the request of a platform with a per-tenant host.
-	ProxyToHost(ctx context.Context, connectorKey, connectionReference, host, method, path string, query url.Values, body []byte) (nango.ProxyResponse, error)
+	// Do sends one request the platform's proxy rules admit. Host is set for
+	// a platform with a per-tenant host.
+	Do(ctx context.Context, request nango.Request) (nango.ProxyResponse, error)
+}
+
+// call is one provider request of the collector: a GET with a query, or the
+// POST of a GraphQL query.
+type call struct {
+	method  string
+	path    string
+	query   url.Values
+	headers map[string]string
+	body    []byte
+	// errorsAbsent: a GraphQL answer with errors means the feature is absent.
+	errorsAbsent bool
 }
 
 type CollectionAPIConfig struct {
@@ -86,7 +98,10 @@ type pageState struct {
 	Next       string `json:"n,omitempty"`
 	ParentID   string `json:"pi,omitempty"`
 	ParentNext string `json:"pn,omitempty"`
-	Seen       string `json:"s,omitempty"`
+	// ParentLabel is the label of the parent being read, for a parent list
+	// with Select; ParentNext is then the position of the next parent.
+	ParentLabel string `json:"pl,omitempty"`
+	Seen        string `json:"s,omitempty"`
 }
 
 // NewCollectionAPI builds the collector for every platform of the registry.
@@ -169,11 +184,14 @@ func LookupTenant(ctx context.Context, proxy Proxy, platform Platform, connectio
 		return Tenant{}, ErrInvalid
 	}
 	host, _ := platform.TenantHost(tenantID)
-	path, ok := expandPath(platform.Tenant.Path, tenantID, "")
+	// What names the tenant inside the request: for a customer-hosted
+	// platform the tenant id without its host.
+	key := platform.TenantKey(tenantID)
+	path, ok := expandPath(platform.Tenant.Path, key, "")
 	if !ok {
 		return Tenant{}, ErrInvalid
 	}
-	document, _, _, err := get(ctx, proxy, platform, connectionReference, host, path, fixedQuery(platform.Tenant.Query, ""), maximumResponseBytes, now, nil)
+	document, _, _, err := get(ctx, proxy, platform, connectionReference, host, call{method: http.MethodGet, path: path, query: fixedQuery(platform.Tenant.Query, ""), headers: fixedHeaders(platform.Tenant.Headers, key)}, maximumResponseBytes, now, nil)
 	if err != nil {
 		return Tenant{}, err
 	}
@@ -183,19 +201,21 @@ func LookupTenant(ctx context.Context, proxy Proxy, platform Platform, connectio
 	}
 	var tenant Tenant
 	if platform.Tenant.Confirm != nil {
-		name, confirmed := platform.Tenant.Confirm(Item(object), tenantID)
+		name, confirmed := platform.Tenant.Confirm(Item(object), key)
 		if !confirmed {
 			return Tenant{}, providercollection.StableProviderFailure(collection.FailureDenied)
 		}
 		tenant = Tenant{ID: tenantID, Name: name}
 	} else {
 		var found bool
-		if tenant, found = platform.Tenant.Map(Item(object)); !found || !platform.ValidTenant(tenant.ID) {
+		if tenant, found = platform.Tenant.Map(Item(object)); !found || platform.TenantSplit == nil && !platform.ValidTenant(tenant.ID) || platform.TenantSplit != nil && !validDisplayText(tenant.ID, 95) {
 			return Tenant{}, malformed
 		}
-		if tenant.ID != tenantID {
+		if tenant.ID != key {
 			return Tenant{}, providercollection.StableProviderFailure(collection.FailureDenied)
 		}
+		// The tenant is the one the integration names, host included.
+		tenant.ID = tenantID
 	}
 	if tenant.Name = CleanText(tenant.Name, 256); tenant.Name == "" {
 		tenant.Name = tenant.ID
@@ -241,19 +261,26 @@ func (api *SaaSCollectionAPI) fetchList(ctx context.Context, reference string, p
 		return fail(malformed)
 	}
 	limit := min(request.RemainingBytes, maximumResponseBytes)
-	parentID, parentNext := state.ParentID, state.ParentNext
+	key := platform.TenantKey(tenantID)
+	parentID, parentNext, parentLabel := state.ParentID, state.ParentNext, state.ParentLabel
 	// exhausted: the endpoint has nothing more to read.
 	exhausted := false
 	if endpoint.Parent != nil && parentID == "" {
 		// The next parent object. The parent list is read one object at a
-		// time, so the cursor holds one id and one continuation.
-		parents := ListEndpoint{Path: endpoint.Parent.Path, Query: endpoint.Parent.Query, ItemsPath: endpoint.Parent.ItemsPath, Paging: endpoint.Parent.Paging}
-		query, offset, ok := parents.requestQuery(parentNext, tenantID)
-		path, pathOK := expandPath(parents.Path, tenantID, "")
+		// time, so the cursor holds one id and one continuation. A list with
+		// Select is read whole each time and the cursor holds a position.
+		selecting := endpoint.Parent.Select != nil
+		parents := ListEndpoint{Path: endpoint.Parent.Path, Query: endpoint.Parent.Query, ItemsPath: endpoint.Parent.ItemsPath, Paging: endpoint.Parent.Paging, Single: endpoint.Parent.Single}
+		listContinuation := parentNext
+		if selecting {
+			listContinuation = ""
+		}
+		query, offset, ok := parents.requestQuery(listContinuation, key, "")
+		path, pathOK := expandPath(parents.Path, key, "")
 		if !ok || !pathOK {
 			return fail(malformed)
 		}
-		document, link, absent, err := get(ctx, api.proxy, platform, reference, host, path, query, limit, api.clock(), endpoint.Absent)
+		document, link, absent, err := get(ctx, api.proxy, platform, reference, host, call{method: http.MethodGet, path: path, query: query}, limit, api.clock(), endpoint.Absent)
 		if err != nil {
 			return fail(err)
 		}
@@ -261,13 +288,41 @@ func (api *SaaSCollectionAPI) fetchList(ctx context.Context, reference string, p
 		switch {
 		case absent || ok && len(items) == 0:
 			exhausted = true
-		case !ok || len(items) != 1:
+		case !ok || len(items) > maximumPageItems:
+			return fail(malformed)
+		case selecting:
+			selected := endpoint.Parent.Select(items)
+			position := 0
+			if state.ParentNext != "" {
+				parsed, err := strconv.Atoi(state.ParentNext)
+				if err != nil || parsed < 1 || parsed >= MaximumSelectedParents || strconv.Itoa(parsed) != state.ParentNext {
+					return fail(malformed)
+				}
+				position = parsed
+			}
+			if len(selected) > MaximumSelectedParents {
+				return fail(malformed)
+			}
+			if position >= len(selected) {
+				// Nothing selected, or the list became shorter between two
+				// reads: there is no further parent.
+				exhausted = true
+				break
+			}
+			parentID, parentLabel, parentNext = selected[position].ID, selected[position].Label, ""
+			if !parentIDPattern.MatchString(parentID) || strings.Contains(parentID, "..") || !endpointNamePattern.MatchString(parentLabel) {
+				return fail(malformed)
+			}
+			if position+1 < len(selected) {
+				parentNext = strconv.Itoa(position + 1)
+			}
+		case len(items) != 1:
 			return fail(malformed)
 		default:
 			if parentID = endpoint.Parent.ID(items[0]); !parentIDPattern.MatchString(parentID) || strings.Contains(parentID, "..") {
 				return fail(malformed)
 			}
-			if parentNext, ok = parents.continuation(document, link, state.ParentNext, offset, 1); !ok {
+			if parentNext, ok = parents.continuation(document, link, state.ParentNext, offset, items); !ok {
 				return fail(malformed)
 			}
 		}
@@ -275,12 +330,11 @@ func (api *SaaSCollectionAPI) fetchList(ctx context.Context, reference string, p
 	var entities, relationships []json.RawMessage
 	continuation, seen := "", state.Seen
 	if !exhausted {
-		query, offset, ok := endpoint.requestQuery(state.Next, tenantID)
-		path, pathOK := expandPath(endpoint.Path, tenantID, parentID)
-		if !ok || !pathOK {
+		providerCall, offset, ok := endpoint.request(state.Next, key, parentID)
+		if !ok {
 			return fail(malformed)
 		}
-		document, link, absent, err := get(ctx, api.proxy, platform, reference, host, path, query, limit, api.clock(), endpoint.Absent)
+		document, link, absent, err := get(ctx, api.proxy, platform, reference, host, providerCall, limit, api.clock(), endpoint.Absent)
 		if err != nil {
 			return fail(err)
 		}
@@ -289,10 +343,36 @@ func (api *SaaSCollectionAPI) fetchList(ctx context.Context, reference string, p
 			if !ok || len(items) > maximumPageItems {
 				return fail(malformed)
 			}
-			if len(items) > request.RemainingItems || len(items) > request.RemainingRelationships {
+			// The objects to map: the items, or the objects each item holds
+			// (owners then names the item of each).
+			mapped := items
+			var owners []Item
+			if len(endpoint.ChildrenPath) > 0 {
+				mapped = nil
+				for _, item := range items {
+					for _, child := range item.Objects(endpoint.ChildrenPath...) {
+						mapped, owners = append(mapped, child), append(owners, item)
+					}
+				}
+				if len(mapped) > maximumPageItems {
+					return fail(malformed)
+				}
+			}
+			// Every object has its relation to the tenant, and with ChildUser
+			// one to its agent.
+			related := len(mapped)
+			if endpoint.ChildUser != nil {
+				related *= 2
+			}
+			if len(mapped) > request.RemainingItems || related > request.RemainingRelationships {
 				return fail(providercollection.ErrPageCapacity)
 			}
-			if entities, relationships, seen, ok = normalizeItems(request.Subject, platform, tenantID, endpoint, parentID, items, state.Seen); !ok {
+			// A parent chosen by Select is known to the mapping by its label.
+			mapParent := parentID
+			if endpoint.Parent != nil && endpoint.Parent.Select != nil {
+				mapParent = parentLabel
+			}
+			if entities, relationships, seen, ok = normalizeItems(request.Subject, platform, tenantID, endpoint, mapParent, mapped, owners, state.Seen); !ok {
 				return fail(malformed)
 			}
 			if len(seen) > MaximumDistinct*distinctDigestLength {
@@ -300,7 +380,7 @@ func (api *SaaSCollectionAPI) fetchList(ctx context.Context, reference string, p
 				// next page could report one twice. The collection stops.
 				return fail(providercollection.StableProviderFailure(collection.FailureTerminal))
 			}
-			if continuation, ok = endpoint.continuation(document, link, state.Next, offset, len(items)); !ok {
+			if continuation, ok = endpoint.continuation(document, link, state.Next, offset, items); !ok {
 				return fail(malformed)
 			}
 		}
@@ -310,7 +390,7 @@ func (api *SaaSCollectionAPI) fetchList(ctx context.Context, reference string, p
 	case exhausted:
 	case continuation != "":
 		// More pages of this list (under this parent).
-		following.Next, following.ParentID, following.ParentNext = continuation, parentID, parentNext
+		following.Next, following.ParentID, following.ParentNext, following.ParentLabel = continuation, parentID, parentNext, parentLabel
 	case endpoint.Parent != nil && parentNext != "":
 		// This parent is done; the next page fetches the next parent.
 		following.ParentNext = parentNext
@@ -330,10 +410,53 @@ func (api *SaaSCollectionAPI) fetchList(ctx context.Context, reference string, p
 	return entities, relationships, next, false, nil
 }
 
+// request is the endpoint's next request: its GET with the query of the
+// continuation, or the POST of its GraphQL query with the continuation as a
+// variable. For an offset endpoint it also returns the offset asked for.
+func (endpoint ListEndpoint) request(continuation, tenantID, parentID string) (call, int, bool) {
+	path, ok := expandPath(endpoint.Path, tenantID, parentID)
+	if !ok {
+		return call{}, 0, false
+	}
+	headers := fixedHeaders(endpoint.Headers, tenantID)
+	if endpoint.GraphQL == nil {
+		query, offset, ok := endpoint.requestQuery(continuation, tenantID, parentID)
+		return call{method: http.MethodGet, path: path, query: query, headers: headers}, offset, ok
+	}
+	variables := make(map[string]any, len(endpoint.GraphQL.Variables)+2)
+	for name, value := range endpoint.GraphQL.Variables {
+		variables[name] = strings.Replace(strings.Replace(value, TenantValue, tenantID, 1), ParentValue, parentID, 1)
+	}
+	if endpoint.Paging.LimitParam != "" {
+		variables[endpoint.Paging.LimitParam] = endpoint.Paging.PageSize
+	}
+	if endpoint.Paging.Style == PagingCursor && continuation != "" {
+		variables[endpoint.Paging.CursorParam] = continuation
+	} else if continuation != "" {
+		return call{}, 0, false
+	}
+	// The document is sent as it is defined: the query text never holds a
+	// value of the tenant.
+	body, err := json.Marshal(struct {
+		Query     string         `json:"query"`
+		Variables map[string]any `json:"variables"`
+	}{endpoint.GraphQL.Document, variables})
+	if err != nil {
+		return call{}, 0, false
+	}
+	return call{method: http.MethodPost, path: path, query: url.Values{}, headers: headers, body: body, errorsAbsent: endpoint.GraphQL.ErrorsAbsent}, 0, true
+}
+
 // requestQuery is the query of the endpoint's next request. For an offset
 // endpoint it also returns the offset the request asks for.
-func (endpoint ListEndpoint) requestQuery(continuation, tenantID string) (url.Values, int, bool) {
+func (endpoint ListEndpoint) requestQuery(continuation, tenantID, parentID string) (url.Values, int, bool) {
 	query := fixedQuery(endpoint.Query, tenantID)
+	for name, value := range endpoint.Query {
+		// The parent of a nested endpoint, as the value of a parameter.
+		if value == ParentValue {
+			query.Set(name, parentID)
+		}
+	}
 	paging := endpoint.Paging
 	if paging.LimitParam != "" {
 		query.Set(paging.LimitParam, strconv.Itoa(paging.PageSize))
@@ -426,8 +549,8 @@ func (endpoint ListEndpoint) items(document any) ([]Item, bool) {
 // continuation is the endpoint's next continuation, "" when the page was the
 // last. A provider that repeats the continuation it was sent is refused: the
 // collection would never end.
-func (endpoint ListEndpoint) continuation(document any, link, current string, offset, count int) (string, bool) {
-	next := ""
+func (endpoint ListEndpoint) continuation(document any, link, current string, offset int, items []Item) (string, bool) {
+	next, count := "", len(items)
 	switch endpoint.Paging.Style {
 	case PagingNone:
 		return "", true
@@ -436,15 +559,25 @@ func (endpoint ListEndpoint) continuation(document any, link, current string, of
 		if !isObject {
 			return "", false
 		}
-		value, _ := Item(object).at(endpoint.Paging.NextPath)
-		switch typed := value.(type) {
-		case nil:
-		case string:
-			next = typed
-		case json.Number:
-			next = typed.String()
-		default:
-			return "", false
+		if len(endpoint.Paging.LastItemPath) > 0 {
+			// The API states no token: the next page starts after the last
+			// item of this one. An empty page has no successor.
+			if count > 0 {
+				if next = items[count-1].Text(endpoint.Paging.LastItemPath...); next == "" {
+					return "", false
+				}
+			}
+		} else {
+			value, _ := Item(object).at(endpoint.Paging.NextPath)
+			switch typed := value.(type) {
+			case nil:
+			case string:
+				next = typed
+			case json.Number:
+				next = typed.String()
+			default:
+				return "", false
+			}
 		}
 		if len(endpoint.Paging.MorePath) > 0 {
 			more, _ := Item(object).at(endpoint.Paging.MorePath)
@@ -524,7 +657,7 @@ func nextLinkQuery(header, path string) (string, bool) {
 // relationships to the tenant. seen holds the digests of the objects a
 // Distinct endpoint has reported on earlier pages; the result holds those
 // and the ones of this page.
-func normalizeItems(subject collection.SubjectBinding, platform Platform, tenantID string, endpoint ListEndpoint, parentID string, items []Item, seenBefore string) ([]json.RawMessage, []json.RawMessage, string, bool) {
+func normalizeItems(subject collection.SubjectBinding, platform Platform, tenantID string, endpoint ListEndpoint, parentID string, items, owners []Item, seenBefore string) ([]json.RawMessage, []json.RawMessage, string, bool) {
 	reported := map[string]bool{}
 	for start := 0; start+distinctDigestLength <= len(seenBefore); start += distinctDigestLength {
 		reported[seenBefore[start:start+distinctDigestLength]] = true
@@ -534,7 +667,8 @@ func normalizeItems(subject collection.SubjectBinding, platform Platform, tenant
 	entities := make([]json.RawMessage, 0, len(items))
 	relationships := make([]json.RawMessage, 0, len(items))
 	seen := make(map[string]struct{}, len(items))
-	for _, item := range items {
+	used := map[string]bool{}
+	for index, item := range items {
 		var mapped Entity
 		var keep bool
 		if endpoint.Parent != nil {
@@ -549,6 +683,25 @@ func normalizeItems(subject collection.SubjectBinding, platform Platform, tenant
 			return nil, nil, "", false
 		}
 		native := mapped.ObjectType + "/" + mapped.NativeID
+		if endpoint.ChildUser != nil && mapped.Kind == KindMCPServer && index < len(owners) {
+			// The agent the item is uses this server. The relation is stated
+			// for every agent, also when the server was reported before.
+			if objectType, nativeID, isAgent := endpoint.ChildUser(owners[index]); isAgent {
+				if !objectTypePattern.MatchString(objectType) || !validDisplayText(nativeID, 512) {
+					return nil, nil, "", false
+				}
+				agent := objectType + "/" + nativeID
+				if pair := agent + "\x1f" + native; !used[pair] {
+					used[pair] = true
+					relationship, err := marshalRelationship(deterministicInventoryID(subject, "depends_on", KindAgent+"/"+agent+"\x1f"+native), "depends_on",
+						"saas:"+platform.Token+":"+objectType+":"+nativeID+":mcp_server:"+mapped.NativeID, deterministicInventoryID(subject, KindAgent, agent), deterministicInventoryID(subject, mapped.Kind, native), "agent_mcp_server")
+					if err != nil {
+						return nil, nil, "", false
+					}
+					relationships = append(relationships, relationship)
+				}
+			}
+		}
 		if endpoint.Distinct {
 			digest := sha256.Sum256([]byte(mapped.Kind + "\x1f" + native))
 			key := base64.RawURLEncoding.EncodeToString(digest[:6])
@@ -567,12 +720,23 @@ func normalizeItems(subject collection.SubjectBinding, platform Platform, tenant
 			if mapped.EndpointHost != "" {
 				attributes["endpoint_host"] = mapped.EndpointHost
 			}
+			if mapped.Auth != "" {
+				attributes["auth"] = mapped.Auth
+			}
+			if mapped.Transport != "" {
+				attributes["transport"] = mapped.Transport
+			}
 		} else {
 			if mapped.AgentType != "" {
 				attributes["agent_type"] = mapped.AgentType
 			}
 			if mapped.Model != "" {
 				attributes["model"] = mapped.Model
+			}
+			for name, value := range map[string]string{"created_by": mapped.CreatedBy, "created_at": mapped.CreatedAt, "updated_at": mapped.UpdatedAt, "deleted_at": mapped.DeletedAt} {
+				if value != "" {
+					attributes[name] = value
+				}
 			}
 			// An agent is listed because the platform's API names it one;
 			// an AI application because of the signals the API states.
@@ -589,7 +753,7 @@ func normalizeItems(subject collection.SubjectBinding, platform Platform, tenant
 		if err != nil {
 			return nil, nil, "", false
 		}
-		relationship, err := marshalRelationship(deterministicInventoryID(subject, "contains", mapped.Kind+"/"+native), "saas:"+platform.Token+":tenant:"+tenantID+":"+mapped.ObjectType+":"+mapped.NativeID, tenantEntityID, entityID)
+		relationship, err := marshalRelationship(deterministicInventoryID(subject, "contains", mapped.Kind+"/"+native), "contains", "saas:"+platform.Token+":tenant:"+tenantID+":"+mapped.ObjectType+":"+mapped.NativeID, tenantEntityID, entityID, "tenant_object")
 		if err != nil {
 			return nil, nil, "", false
 		}
@@ -604,6 +768,10 @@ func validEntity(entity Entity) bool {
 		!objectTypePattern.MatchString(entity.ObjectType) || !validDisplayText(entity.Status, 64) ||
 		entity.AgentType != "" && !validDisplayText(entity.AgentType, 128) || entity.Model != "" && !validDisplayText(entity.Model, 128) ||
 		entity.EndpointHost != "" && (!hostPattern.MatchString(entity.EndpointHost) || entity.Kind != KindMCPServer) ||
+		entity.Auth != "" && (entity.Kind != KindMCPServer || entity.Auth != agentsignals.MCPAuthDeclared && entity.Auth != agentsignals.MCPAuthNone) ||
+		entity.Transport != "" && (entity.Kind != KindMCPServer || entity.Transport != agentsignals.MCPTransportHTTP && entity.Transport != agentsignals.MCPTransportSSE && entity.Transport != agentsignals.MCPTransportStdio) ||
+		entity.CreatedBy != "" && (entity.Kind == KindMCPServer || !validDisplayText(entity.CreatedBy, 128)) ||
+		!validEventTime(entity.CreatedAt, entity.Kind) || !validEventTime(entity.UpdatedAt, entity.Kind) || !validEventTime(entity.DeletedAt, entity.Kind) ||
 		len(entity.Signals) > agentsignals.MaximumSignals || entity.Kind == KindAIApplication && len(entity.Signals) == 0 || entity.Kind == KindMCPServer && len(entity.Signals) != 0 {
 		return false
 	}
@@ -622,11 +790,11 @@ func validEntity(entity Entity) bool {
 // response. absent reports that the provider answered one of the statuses
 // the endpoint declares as "feature not present". Every other outcome that
 // is not a decoded document is a classified collection failure.
-func get(ctx context.Context, proxy Proxy, platform Platform, reference, host, path string, query url.Values, limit int64, now time.Time, absentStatuses []int) (document any, link string, absent bool, err error) {
+func get(ctx context.Context, proxy Proxy, platform Platform, reference, host string, request call, limit int64, now time.Time, absentStatuses []int) (document any, link string, absent bool, err error) {
 	if boundary := collection.CheckEffectBoundary(ctx); boundary != nil {
 		return nil, "", false, providercollection.ClassifyProviderError(ctx, boundary)
 	}
-	response, proxyErr := callProxy(ctx, proxy, platform.Nango.Key, reference, host, path, query)
+	response, proxyErr := callProxy(ctx, proxy, platform.Nango.Key, reference, host, request)
 	if proxyErr != nil {
 		var status *nango.StatusError
 		switch {
@@ -666,6 +834,21 @@ func get(ctx context.Context, proxy Proxy, platform Platform, reference, host, p
 	if decoder.Decode(&document) != nil || decoder.Decode(new(any)) != io.EOF || document == nil {
 		return nil, "", false, providercollection.StableProviderFailure(collection.FailureMalformed)
 	}
+	if request.method == http.MethodPost {
+		// A GraphQL answer: an object whose errors member, when it holds
+		// anything, says the query was not answered. The message is never
+		// read.
+		object, isObject := document.(map[string]any)
+		if !isObject {
+			return nil, "", false, providercollection.StableProviderFailure(collection.FailureMalformed)
+		}
+		if failures, listed := object["errors"].([]any); listed && len(failures) > 0 || object["errors"] != nil && !listed {
+			if request.errorsAbsent {
+				return nil, "", true, nil
+			}
+			return nil, "", false, providercollection.StableProviderFailure(collection.FailureMalformed)
+		}
+	}
 	if object, isObject := document.(map[string]any); isObject && platform.Failure != nil {
 		if code, failed := platform.Failure(Item(object)); failed {
 			if code == collection.FailureRateLimited {
@@ -678,16 +861,29 @@ func get(ctx context.Context, proxy Proxy, platform Platform, reference, host, p
 	return document, response.Link, false, nil
 }
 
-func callProxy(ctx context.Context, proxy Proxy, key, reference, host, path string, query url.Values) (response nango.ProxyResponse, resultErr error) {
+func callProxy(ctx context.Context, proxy Proxy, key, reference, host string, request call) (response nango.ProxyResponse, resultErr error) {
 	defer func() {
 		if recover() != nil {
 			response, resultErr = nango.ProxyResponse{}, nango.ErrProxy
 		}
 	}()
-	if host != "" {
-		return proxy.ProxyToHost(ctx, key, reference, host, http.MethodGet, path, query, nil)
+	return proxy.Do(ctx, nango.Request{ConnectorKey: key, ConnectionReference: reference, Host: host, Method: request.method, Path: request.path, Query: request.query, Headers: request.headers, Body: request.body})
+}
+
+// fixedHeaders are the provider headers of a request, with the tenant
+// placeholder replaced.
+func fixedHeaders(values map[string]string, tenantID string) map[string]string {
+	if len(values) == 0 {
+		return nil
 	}
-	return proxy.ProxyWithQuery(ctx, key, reference, http.MethodGet, path, query, nil)
+	headers := make(map[string]string, len(values))
+	for name, value := range values {
+		if value == TenantValue {
+			value = tenantID
+		}
+		headers[name] = value
+	}
+	return headers
 }
 
 func fixedQuery(values map[string]string, tenantID string) url.Values {
@@ -742,8 +938,22 @@ func canonicalObject(value map[string]any) (json.RawMessage, error) {
 	return json.Marshal(decoded)
 }
 
-func marshalRelationship(id, sourceNativeID, from, to string) (json.RawMessage, error) {
-	if len(sourceNativeID) > 1024 {
+// validEventTime accepts an empty value, or the RFC 3339 time of an event of
+// an agent or AI application.
+func validEventTime(value, kind string) bool {
+	if value == "" {
+		return true
+	}
+	_, err := time.Parse(time.RFC3339, value)
+	return err == nil && kind != KindMCPServer && len(value) <= 40
+}
+
+// marshalRelationship encodes a relationship: contains (type tenant_object)
+// from the tenant to an object, or depends_on (type agent_mcp_server) from an
+// agent to an MCP server.
+func marshalRelationship(id, kind, sourceNativeID, from, to, relationType string) (json.RawMessage, error) {
+	attributes, err := json.Marshal(map[string]string{"type": relationType})
+	if err != nil || len(sourceNativeID) > 1024 {
 		return nil, ErrInvalid
 	}
 	return json.Marshal(struct {
@@ -753,7 +963,7 @@ func marshalRelationship(id, sourceNativeID, from, to string) (json.RawMessage, 
 		FromEntityID   string          `json:"from_entity_id"`
 		ToEntityID     string          `json:"to_entity_id"`
 		Attributes     json.RawMessage `json:"attributes"`
-	}{id, "contains", sourceNativeID, from, to, json.RawMessage(`{"type":"tenant_object"}`)})
+	}{id, kind, sourceNativeID, from, to, attributes})
 }
 
 // splitSubject returns the platform token and the tenant id of a saas
@@ -805,6 +1015,10 @@ func validPageState(platform Platform, state pageState) bool {
 	// Only a nested endpoint has a parent in its cursor and only a Distinct
 	// one a list of reported objects.
 	if endpoint.Parent == nil && (state.ParentID != "" || state.ParentNext != "") || !endpoint.Distinct && state.Seen != "" {
+		return false
+	}
+	// A label belongs to the parent a Select chose.
+	if selecting := endpoint.Parent != nil && endpoint.Parent.Select != nil; (state.ParentLabel != "") != (selecting && state.ParentID != "") || state.ParentLabel != "" && !endpointNamePattern.MatchString(state.ParentLabel) {
 		return false
 	}
 	if state.ParentID != "" && (!parentIDPattern.MatchString(state.ParentID) || strings.Contains(state.ParentID, "..")) || state.ParentID == "" && state.Next != "" && endpoint.Parent != nil {

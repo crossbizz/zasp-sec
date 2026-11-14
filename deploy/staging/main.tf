@@ -181,6 +181,13 @@ locals {
         credential_class = "salesforce_client_secret_reference"
         enabled          = var.discovery_optional_providers.salesforce_collector != ""
       }
+      # Only for a Google Cloud customer that cannot use workload identity
+      # federation. Federation stores nothing.
+      gcp_service_account_key = {
+        name             = "${local.connector_secret_root}/gcp/service-account-key/${var.discovery_optional_providers.gcp_service_account_key_id}"
+        credential_class = "gcp_service_account_key_reference"
+        enabled          = var.discovery_optional_providers.gcp_collector != "" && var.discovery_optional_providers.gcp_service_account_key_id != ""
+      }
     } : key => { name = value.name, credential_class = value.credential_class } if value.enabled
   }
   required_connector_reference_secret_names = {

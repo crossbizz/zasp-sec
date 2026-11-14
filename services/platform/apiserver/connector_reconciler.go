@@ -350,11 +350,18 @@ func (reconciler *ConnectorReconciler) reconcileRevocation(providerContext, fina
 
 // referenceConnectorKey reports the connectors that are authorized by a
 // reference to an identity the customer owns (an AWS role and its external-ID
-// reference, a Kubernetes connection reference) instead of an OAuth grant.
-// CombinedConnectorCapabilities routes the same keys to the reference
-// registry.
+// reference, a Kubernetes connection reference, a Microsoft or Salesforce
+// client secret reference, a Nango connection of a saas platform) instead of
+// an OAuth grant. CombinedConnectorCapabilities routes the same keys to the
+// reference registry.
+//
+// It is every reference-authorized provider. While it named AWS and
+// Kubernetes only, the revocation that deleting an authorized Microsoft,
+// Salesforce or saas integration leaves was taken for an OAuth revocation, no
+// OAuth provider answered for it, and the integration stayed "revoking" until
+// its hundredth attempt quarantined it.
 func referenceConnectorKey(key string) bool {
-	return stringIn(key, "aws", "kubernetes")
+	return isReferenceAuthorizedProvider(key)
 }
 
 // reconcileReferenceRevocation completes the revocation of a reference

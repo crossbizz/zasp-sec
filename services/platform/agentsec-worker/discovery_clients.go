@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/awsdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/collection"
+	"github.com/zasp-ai/zasp-sec/services/platform/connectors/gcpdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/githubdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/idpdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/kubernetesdiscovery"
@@ -84,6 +85,7 @@ type discoveryBearerCollectionAPI struct {
 	microsoft    microsoftdiscovery.CollectionAPI
 	salesforce   salesforcediscovery.CollectionAPI
 	saas         saasdiscovery.CollectionAPI
+	gcp          gcpdiscovery.CollectionAPI
 	allowedCIDRs []string
 	timeout      time.Duration
 }
@@ -146,6 +148,10 @@ func (api *discoveryBearerCollectionAPI) FetchCollectionPage(ctx context.Context
 		// The bearer material is the Nango connection reference. The
 		// collector hands it to the Nango proxy, which holds the token.
 		delegate = api.saas
+	case collection.ProviderGCP:
+		// The bearer material is the collector's JSON credential: one
+		// short-lived access token of the customer's service account.
+		delegate = api.gcp
 	}
 	if err != nil || nilDiscoveryClientDependency(delegate) {
 		return githubdiscovery.CollectionPage{}, mapDiscoveryProviderClientError(ctx, err)
@@ -171,8 +177,10 @@ func (api *discoveryBearerCollectionAPI) CheckCollectionReadiness(ctx context.Co
 		unbound = api.salesforce
 	case collection.ProviderSaaS:
 		unbound = api.saas
+	case collection.ProviderGCP:
+		unbound = api.gcp
 	}
-	if api.provider == collection.ProviderGitHub || api.provider == collection.ProviderMicrosoft || api.provider == collection.ProviderSalesforce || api.provider == collection.ProviderSaaS {
+	if api.provider == collection.ProviderGitHub || api.provider == collection.ProviderMicrosoft || api.provider == collection.ProviderSalesforce || api.provider == collection.ProviderSaaS || api.provider == collection.ProviderGCP {
 		if nilDiscoveryClientDependency(unbound) {
 			return discoveryCredentialFailure(ctx, collection.FailureMalformed)
 		}

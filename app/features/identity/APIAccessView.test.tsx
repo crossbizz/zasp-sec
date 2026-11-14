@@ -44,12 +44,14 @@ function renderAuthenticated(api: APIAccessAPI, freshAuthExpiresAt = new Date(Da
 }
 
 function fixtureAPI(overrides: Partial<APIAccessAPI> = {}): APIAccessAPI {
-  const token = { id: "pid_token", name: "CI scanner", workspaceId: "pid_workspace", environmentId: "pid_environment", permissions: ["view"], expiresAt: "2026-08-19T00:00:00.000Z", revokedAt: null, version: 1 };
+  const token = { id: "pid_token", name: "CI scanner", workspaceId: "pid_workspace", environmentId: "pid_environment", permissions: ["view"], expiresAt: "2026-08-19T00:00:00.000Z", lastUsedAt: null, revokedAt: null, version: 1 };
   const created = { ...token, id: "pid_created", name: "Automation" };
   const createdGrant = { grantId: "pid_grant", tokenId: created.id, operation: "createAPIToken" as const, expiresAt: "2026-08-19T00:05:00.000Z" };
   return {
     listTokens: async () => [token],
     listPendingGrants: async () => [],
+    getPolicy: async () => ({ maxLifetimeDays: 365, decisionTokenMaxLifetimeDays: 365, tokenMaxLifetimeDays: 90, version: 0 }),
+    setPolicy: async (maxLifetimeDays, version) => ({ maxLifetimeDays, decisionTokenMaxLifetimeDays: Math.min(365, maxLifetimeDays), tokenMaxLifetimeDays: Math.min(90, maxLifetimeDays), version: version + 1 }),
     createToken: async () => ({ token: created, grant: createdGrant }),
     rotateToken: async (id, version) => {
       const replacement = { ...token, id: `${id}_replacement`, version: version + 1 };
@@ -57,7 +59,7 @@ function fixtureAPI(overrides: Partial<APIAccessAPI> = {}): APIAccessAPI {
     },
     revealGrant: async (id) => ({ grantId: id, tokenId: created.id, rawToken: `zasp_pat_${"A".repeat(43)}`, expiresAt: createdGrant.expiresAt }),
     acknowledgeGrant: async () => undefined,
-    revokeToken: async (id, version) => ({ id, name: "CI scanner", workspaceId: "pid_workspace", environmentId: "pid_environment", permissions: ["view"], expiresAt: "2026-08-19T00:00:00.000Z", revokedAt: "2026-08-18T01:00:00.000Z", version: version + 1 }),
+    revokeToken: async (id, version) => ({ id, name: "CI scanner", workspaceId: "pid_workspace", environmentId: "pid_environment", permissions: ["view"], expiresAt: "2026-08-19T00:00:00.000Z", lastUsedAt: null, revokedAt: "2026-08-18T01:00:00.000Z", version: version + 1 }),
     ...overrides,
   };
 }
@@ -101,6 +103,18 @@ describe("API Access product surface", () => {
     expect(screen.getByText(/cannot read inventory, findings or settings/)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Create API token" }));
     await waitFor(() => expect(createToken).toHaveBeenCalledWith(expect.objectContaining({ name: "LiteLLM gateway", permissions: ["decide_guardrails"] }), expect.stringMatching(/^admin_/)));
+  });
+
+  it("creates a token for the hosted gateway only when that use is chosen", async () => {
+    const user = userEvent.setup();
+    const createToken = vi.fn(fixtureAPI().createToken);
+    renderAuthenticated(fixtureAPI({ createToken }));
+    await screen.findByText("CI scanner");
+    await user.type(screen.getByLabelText("Token name"), "Support agent gateway");
+    await user.selectOptions(screen.getByLabelText("Token use"), "use_gateway");
+    expect(screen.getByText(/through the hosted gateway and nothing else/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Create API token" }));
+    await waitFor(() => expect(createToken).toHaveBeenCalledWith(expect.objectContaining({ name: "Support agent gateway", permissions: ["use_gateway"] }), expect.stringMatching(/^admin_/)));
   });
 
   it("recovers a pending reveal grant after reload and reports copy failure without exposing the secret elsewhere", async () => {
@@ -193,6 +207,117 @@ describe("API Access product surface", () => {
     renderAuthenticated(fixtureAPI({ listTokens: async () => { throw new Error("secret provider detail"); } }));
     expect(await screen.findByRole("alert")).toHaveTextContent("API access could not be loaded");
     expect(screen.queryByText("secret provider detail")).not.toBeInTheDocument();
+  });
+
+  it("offers the lifetimes the token's use allows and sends the chosen expiry", async () => {
+    const user = userEvent.setup();
+    const day = 24 * 60 * 60 * 1000;
+    const now = Date.parse("2026-08-19T00:00:00.000Z");
+    vi.spyOn(Date, "now").mockImplementation(() => now);
+    const createToken = vi.fn(fixtureAPI().createToken);
+    renderAuthenticated(fixtureAPI({ createToken }));
+    await screen.findByText("CI scanner");
+    const lifetimes = () => Array.from(screen.getByLabelText("Expires after").querySelectorAll("option")).map((option) => option.textContent);
+    // A token that reads the Environment: one day unless more is chosen, 90 days at most.
+    expect(screen.getByLabelText("Expires after")).toHaveValue("1");
+    expect(lifetimes()).toEqual(["1 day", "30 days", "90 days"]);
+    expect(screen.getByText(/may live up to 90 days/)).toBeInTheDocument();
+    // A token for decisions only may live a year.
+    await user.selectOptions(screen.getByLabelText("Token use"), "decide_guardrails");
+    expect(lifetimes()).toEqual(["1 day", "30 days", "90 days", "1 year"]);
+    await user.selectOptions(screen.getByLabelText("Expires after"), "365");
+    // So may a token for the hosted gateway only: it reads nothing either.
+    await user.selectOptions(screen.getByLabelText("Token use"), "use_gateway");
+    expect(lifetimes()).toEqual(["1 day", "30 days", "90 days", "1 year"]);
+    expect(screen.getByLabelText("Expires after")).toHaveValue("365");
+    expect(screen.getByText(/A token for the hosted gateway only can read nothing, so it may live up to a year/)).toBeInTheDocument();
+    // Back to a reading token: a year is not offered, and not kept.
+    await user.selectOptions(screen.getByLabelText("Token use"), "view");
+    expect(screen.getByLabelText("Expires after")).toHaveValue("1");
+    await user.selectOptions(screen.getByLabelText("Token use"), "decide_guardrails");
+    expect(screen.getByLabelText("Expires after")).toHaveValue("365");
+    await user.type(screen.getByLabelText("Token name"), "LiteLLM gateway");
+    await user.click(screen.getByRole("button", { name: "Create API token" }));
+    await waitFor(() => expect(createToken).toHaveBeenCalledWith(expect.objectContaining({ permissions: ["decide_guardrails"], expiresAt: new Date(now + 365 * day).toISOString() }), expect.stringMatching(/^admin_/)));
+  });
+
+  it("offers only what the Environment's limit leaves, and one day when the limit is unknown", async () => {
+    const user = userEvent.setup();
+    const limited = renderAuthenticated(fixtureAPI({ getPolicy: async () => ({ maxLifetimeDays: 30, decisionTokenMaxLifetimeDays: 30, tokenMaxLifetimeDays: 30, version: 3 }) }));
+    await screen.findByText("CI scanner");
+    const lifetimes = () => Array.from(screen.getByLabelText("Expires after").querySelectorAll("option")).map((option) => option.textContent);
+    expect(lifetimes()).toEqual(["1 day", "30 days"]);
+    await user.selectOptions(screen.getByLabelText("Token use"), "decide_guardrails");
+    expect(lifetimes()).toEqual(["1 day", "30 days"]);
+    expect(screen.getByText(/This Environment limits new tokens to 30 days/)).toBeInTheDocument();
+    limited.unmount();
+
+    renderAuthenticated(fixtureAPI({ getPolicy: async () => { throw new Error("unavailable"); } }));
+    expect(await screen.findByText("CI scanner")).toBeInTheDocument();
+    expect(lifetimes()).toEqual(["1 day"]);
+    expect(screen.getByText(/only the one-day lifetime is offered/)).toBeInTheDocument();
+    expect(screen.queryByLabelText("Longest token lifetime")).not.toBeInTheDocument();
+    expect(screen.queryByText("API access could not be loaded")).not.toBeInTheDocument();
+  });
+
+  it("shows when each token expires and was last used, and warns before expiry", async () => {
+    const day = 24 * 60 * 60 * 1000;
+    const token = (await fixtureAPI().listTokens())[0];
+    const at = (offset: number) => new Date(Date.now() + offset).toISOString();
+    renderAuthenticated(fixtureAPI({ listTokens: async () => [
+      { ...token, id: "pid_far", name: "Gateway", permissions: ["decide_guardrails"], expiresAt: at(200 * day), lastUsedAt: "2026-08-18T10:00:00.000Z" },
+      { ...token, id: "pid_soon", name: "Nightly export", expiresAt: at(3 * day - 60_000) },
+      { ...token, id: "pid_today", name: "Scanner", expiresAt: at(6 * 60 * 60 * 1000) },
+      { ...token, id: "pid_past", name: "Old script", expiresAt: at(-day) },
+      { ...token, id: "pid_revoked", name: "Retired", expiresAt: at(2 * day), revokedAt: "2026-08-18T01:00:00.000Z" },
+    ] }));
+    const row = async (name: string) => (await screen.findByText(name)).closest("li") as HTMLElement;
+    expect(await row("Gateway")).toHaveTextContent("last used 2026-08-18T10:00:00.000Z");
+    expect(await row("Gateway")).toHaveTextContent("Active");
+    expect(await row("Nightly export")).toHaveTextContent("never used");
+    expect(await row("Nightly export")).toHaveTextContent("Expires in 3 days");
+    expect(await row("Scanner")).toHaveTextContent("Expires within a day");
+    expect(await row("Old script")).toHaveTextContent("Expired");
+    expect(await row("Retired")).toHaveTextContent("Revoked");
+    // The warning names the tokens that still work and expire soon: not the
+    // expired one, not the revoked one, not the one with months left.
+    const warning = screen.getByRole("status", { name: "API tokens that expire soon" });
+    expect(warning).toHaveTextContent("2 API tokens expire within 7 days: Nightly export, Scanner.");
+    expect(warning).toHaveTextContent("Rotating a token keeps its expiry.");
+  });
+
+  it("has no expiry warning when no working token expires soon", async () => {
+    const token = (await fixtureAPI().listTokens())[0];
+    renderAuthenticated(fixtureAPI({ listTokens: async () => [{ ...token, expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() }] }));
+    await screen.findByText("CI scanner");
+    expect(screen.queryByRole("status", { name: "API tokens that expire soon" })).not.toBeInTheDocument();
+  });
+
+  it("lets an administrator lower the Environment's token lifetime limit", async () => {
+    const user = userEvent.setup();
+    const setPolicy = vi.fn(fixtureAPI().setPolicy);
+    renderAuthenticated(fixtureAPI({ setPolicy }));
+    await screen.findByText("CI scanner");
+    const limit = screen.getByLabelText("Longest token lifetime");
+    expect(limit).toHaveValue("365");
+    expect(screen.getByRole("button", { name: "Save limit" })).toBeDisabled();
+    await user.selectOptions(limit, "30");
+    await user.click(screen.getByRole("button", { name: "Save limit" }));
+    await waitFor(() => expect(setPolicy).toHaveBeenCalledWith(30, 0, expect.stringMatching(/^admin_/)));
+    expect(await screen.findByText("New API tokens of this Environment now live at most 30 days")).toBeInTheDocument();
+    // The new limit is what a new token may now ask for.
+    expect(Array.from(screen.getByLabelText("Expires after").querySelectorAll("option")).map((option) => option.textContent)).toEqual(["1 day", "30 days"]);
+    expect(screen.getByRole("button", { name: "Save limit" })).toBeDisabled();
+  });
+
+  it("keeps the current limit and says so when saving it fails", async () => {
+    const user = userEvent.setup();
+    renderAuthenticated(fixtureAPI({ setPolicy: async () => { throw new Error("version conflict"); } }));
+    await screen.findByText("CI scanner");
+    await user.selectOptions(screen.getByLabelText("Longest token lifetime"), "7");
+    await user.click(screen.getByRole("button", { name: "Save limit" }));
+    expect(await screen.findByText(/token lifetime limit could not be saved/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByLabelText("Longest token lifetime")).toHaveValue("365"));
   });
 
   it("clears a revealed raw token as soon as the fresh-auth clock expires", async () => {

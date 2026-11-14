@@ -122,7 +122,7 @@ describe("agent credential inventory", () => {
     for (const refused of [
       { ...named, to: { ...named.to, name: "" } },
       { ...named, to: { ...named.to, kind: "credential" } },
-      { ...named, to: { ...named.to, provider: "gcp" } },
+      { ...named, to: { ...named.to, provider: "azure" } },
       { ...named, to: { ...named.to, source_kind: "AWS Role" } },
       { ...named, to: { ...named.to, arn: "arn:aws:iam::123456789012:role/x" } },
       { ...named, target: named.to },

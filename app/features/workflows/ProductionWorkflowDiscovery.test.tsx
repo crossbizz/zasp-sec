@@ -234,7 +234,10 @@ describe("production integration discovery workflows", () => {
       { service: "bedrock-agent", name: "Amazon Bedrock Agents", status: "access_denied" },
       { service: "bedrock-agentcore", name: "Amazon Bedrock AgentCore", status: "access_denied" },
       { service: "comprehend", name: "Amazon Comprehend", status: "access_denied" },
+      { service: "foundry-agents", name: "Azure AI Foundry agents", status: "access_denied" },
       { service: "lambda", name: "AWS Lambda", status: "access_denied" },
+      { service: "mcp-link-configmaps", name: "MCP server links from ConfigMaps", status: "access_denied" },
+      { service: "mcp-links", name: "MCP server links", status: "access_denied" },
       { service: "runtime-observations", name: "Runtime agent discovery", status: "access_denied" },
       { service: "sagemaker", name: "Amazon SageMaker", status: "unavailable" },
       { service: "vpc-flow-logs", name: "VPC Flow Logs", status: "unavailable" },
@@ -249,11 +252,52 @@ describe("production integration discovery workflows", () => {
       "Amazon Bedrock Agents: permission missing. Add bedrock:ListAgents, bedrock:GetAgent to the read role.",
       "Amazon Bedrock AgentCore: permission missing. Add bedrock-agentcore:ListAgentRuntimes, bedrock-agentcore:GetAgentRuntime, bedrock-agentcore:ListGateways to the read role.",
       "Amazon Comprehend: permission missing. Add this service's list and read actions to the read role.",
+      "Azure AI Foundry agents: permission missing. Assign the application the Azure AI User role on the AI Foundry account or its projects; the agents of a project are listed on the project's own endpoint.",
       "AWS Lambda: permission missing. Add lambda:ListFunctions to the read role.",
+      "MCP server links from ConfigMaps: the discovery credential may not list ConfigMaps, so an agent is related to an MCP server only when its arguments or environment values name the server. Allow list on configmaps for the discovery identity.",
+      "MCP server links: the discovery credential may not list Services, so no agent is related to the MCP servers that run in the cluster. Allow list on services for the discovery identity.",
       "Runtime agent discovery: the discovery credential may not list ConfigMaps, so what the node sensor saw workloads call at run time is not counted. Allow list on configmaps for the discovery identity.",
       "Amazon SageMaker: not offered in this account's regions.",
       "VPC Flow Logs: not delivered to CloudWatch Logs. Create a VPC flow log with a CloudWatch Logs destination; it confirms that a workload connected to the model API it resolved.",
     ]);
+  });
+
+  it("names the Google APIs a Google Cloud collection could not read and the role that reads each", async () => {
+    const user = userEvent.setup();
+    const gcp: Integration = { ...integration, connector_key: "gcp", name: "Acme Google Cloud", configuration: { identity_reference: "ref:gcp/service-account-key/customer-0001", scope: "organizations/123456789012" } };
+    const gcpManifest = {
+      ...manifest, key: "gcp", provider: "Google Cloud", category: "cloud", data_types: ["agent", "identity", "resource"], actions: ["inventory_read", "posture_read"], auth_mode: "gcp_service_account",
+      setup_schema: [
+        { key: "scope", label: "Organization, folder or project", type: "string", required: true, description: "What to read" },
+        { key: "identity_reference", label: "Service account", type: "secret_reference", required: true, description: "How the service account is reached" },
+        { key: "audience", label: "Workload identity provider", type: "string", required: false, description: "Required with federation" },
+      ],
+      access_guidance: "Create a read-only service account.", test_semantics: "Obtain a token and read the named scope.",
+    };
+    const base = freshness as unknown as IntegrationFreshness;
+    const gapped: IntegrationFreshness = { ...base, integration_id: gcp.id, latest_sync: base.latest_sync && { ...base.latest_sync, integration_id: gcp.id }, coverage_gaps: [
+      { service: "agent-engine", name: "Vertex AI Agent Engine", status: "access_denied" },
+      { service: "audit-logs", name: "Cloud Audit Logs (Vertex AI data access)", status: "access_denied" },
+      { service: "cloud-run", name: "Cloud Run", status: "unavailable" },
+      { service: "iam", name: "Service accounts and IAM policy", status: "access_denied" },
+      { service: "iam-inherited", name: "Inherited IAM roles (folders and organization)", status: "access_denied" },
+    ] };
+    const status: IntegrationSetupStatus = { ...setupStatus, connector_key: "gcp", authorization: { state: "verified", scope_kind: "gcp_scope", scope_label: "organizations/123456789012", repository_selection: null, permissions: [] } };
+    renderSurface(discoveryClient({ catalog: gcpManifest, integration: gcp, freshness: gapped, setupStatus: status }));
+
+    await user.click(await screen.findByRole("button", { name: "Open Acme Google Cloud" }));
+    const dialog = screen.getByRole("dialog", { name: "Acme Google Cloud" });
+    const section = within(dialog).getByRole("region", { name: "Automatic discovery" });
+    expect(await within(section).findByRole("heading", { name: "Agent discovery coverage" })).toBeVisible();
+    expect(within(within(section).getByRole("list", { name: "Agent discovery coverage" })).getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+      "Vertex AI Agent Engine: at least one project refused the read-only service account. Grant it roles/aiplatform.viewer on the organization, folder or project.",
+      "Cloud Audit Logs (Vertex AI data access): at least one project refused the read-only service account. Grant it roles/logging.privateLogViewer on the organization, folder or project.",
+      "Cloud Run: the API is switched off in every project that was read, so there was nothing to list there.",
+      "Service accounts and IAM policy: at least one project refused the read-only service account. Grant it roles/iam.securityReviewer on the organization, folder or project.",
+      "Inherited IAM roles (folders and organization): the IAM policy of a folder or of the organization above at least one project could not be read, so roles a service account holds through inheritance are not checked. Grant the read-only service account roles/iam.securityReviewer on the organization.",
+    ]);
+    expect(await within(dialog).findByText("organizations/123456789012")).toBeVisible();
+    expect(dialog).toHaveTextContent("Google Cloud scope");
   });
 
   it("keeps denied AWS coverage incomplete and gives exact read-role remediation", async () => {

@@ -77,6 +77,8 @@ var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"GET", "/api/v1/admin/api-tokens", "listAPITokens", "manage_api_tokens", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"POST", "/api/v1/admin/api-tokens", "createAPIToken", "manage_api_tokens", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"POST", "/api/v1/admin/api-tokens/{id}/rotate", "rotateAPIToken", "manage_api_tokens", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"GET", "/api/v1/admin/api-token-policy", "getAPITokenPolicy", "manage_api_tokens", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"PUT", "/api/v1/admin/api-token-policy", "putAPITokenPolicy", "manage_api_tokens", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"DELETE", "/api/v1/admin/api-tokens/{id}", "revokeAPIToken", "manage_api_tokens", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"GET", "/api/v1/admin/api-token-reveal-grants", "listAPITokenRevealGrants", "manage_api_tokens", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"POST", "/api/v1/admin/api-token-reveal-grants/{id}/reveal", "revealAPIToken", "manage_api_tokens", []string{"BrowserSession"}}, identityDependency},
@@ -164,6 +166,17 @@ var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"POST", "/api/v1/guardrails/decisions", "createGuardrailDecision", "decide_guardrails", []string{"ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/guardrails/policy", "getGuardrailPolicy", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"PUT", "/api/v1/guardrails/policy", "putGuardrailPolicy", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/gateway/policy", "getGatewayPolicy", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"PUT", "/api/v1/gateway/policy", "putGatewayPolicy", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/gateway/mcp-servers", "listMCPGatewayServers", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"PUT", "/api/v1/gateway/mcp-servers/{id}", "putMCPGatewayServer", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"DELETE", "/api/v1/gateway/mcp-servers/{id}", "deleteMCPGatewayServer", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/gateway/activity", "listGatewayActivity", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/gateway/mcp/{id}", "callMCPGateway", "use_gateway", []string{"ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"DELETE", "/api/v1/gateway/mcp/{id}", "closeMCPGatewaySession", "use_gateway", []string{"ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/gateway/llm/v1/chat/completions", "createGatewayChatCompletion", "use_gateway", []string{"ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/gateway/llm/v1/responses", "createGatewayResponse", "use_gateway", []string{"ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/gateway/llm/v1/messages", "createGatewayMessage", "use_gateway", []string{"ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"POST", "/api/v1/integrations/{id}/test-delivery", "testIntegrationWebhook", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/integrations/{id}/delivery-status", "getIntegrationWebhookStatus", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"POST", "/api/v1/integrations/{id}/authorize", "authorizeIntegration", "manage_workflows", []string{"BrowserSession"}}, connectorDependency},
@@ -352,7 +365,7 @@ func newComposition(dependencies Dependencies, exports http.Handler, compliance 
 func requiresFreshAuthentication(operationID string) bool {
 	switch operationID {
 	case "createWorkspace", "updateWorkspace", "createEnvironment", "updateEnvironment",
-		"updateMemberRole", "updateGroupMappings", "createAPIToken", "rotateAPIToken", "revokeAPIToken", "revealAPIToken", "acknowledgeAPITokenRevealGrant",
+		"updateMemberRole", "updateGroupMappings", "createAPIToken", "rotateAPIToken", "revokeAPIToken", "revealAPIToken", "acknowledgeAPITokenRevealGrant", "putAPITokenPolicy",
 		"createSSOConnection", "deleteSSOConnection", "testSSOConnection", "createSCIMConnection", "deleteSCIMConnection",
 		"revokeSession", "updateDataControls", "authorizeIntegration", "authorizeIntegrationReference", "remediateIntegrationAuthorization", "createSensorEnrollment", "rotateSensorToken":
 		return true

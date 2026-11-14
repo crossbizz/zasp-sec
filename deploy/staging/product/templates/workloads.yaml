@@ -86,6 +86,10 @@ spec:
             - { name: ZASP_REQUEST_RATE_PER_SECOND, value: "100" }
             - { name: ZASP_REQUEST_BURST, value: "200" }
             - { name: ZASP_REQUEST_TIMEOUT, value: "10s" }
+            {{- if $root.Values.hostedGateway.enabled }}
+            - { name: ZASP_HOSTED_GATEWAY_ENABLED, value: "true" }
+            - { name: ZASP_HOSTED_GATEWAY_TIMEOUT, value: "{{ int (required "hostedGateway.timeoutSeconds is required" $root.Values.hostedGateway.timeoutSeconds) }}s" }
+            {{- end }}
             - { name: ZASP_EXPECTED_SCHEMA_VERSION, value: {{ $root.Values.schema.expectedVersion | quote }} }
             - { name: ZASP_DATABASE_AUTHORITY, value: "zasp_discovery_api" }
             {{- if and $root.Values.attackLabReconciler.enabled (has (toString $root.Values.schema.expectedVersion) (list "57" "58")) }}
@@ -129,6 +133,9 @@ spec:
             {{- end }}
             {{- with $root.Values.discovery.saasCollectorVersion }}
             - { name: ZASP_DISCOVERY_SAAS_COLLECTOR_VERSION, value: {{ . | quote }} }
+            {{- end }}
+            {{- with $root.Values.discovery.gcpCollectorVersion }}
+            - { name: ZASP_DISCOVERY_GCP_COLLECTOR_VERSION, value: {{ . | quote }} }
             {{- end }}
             - { name: ZASP_NANGO_BASE_URL, value: "http://nango.{{ $root.Release.Namespace }}.svc.cluster.local:3003" }
             - { name: ZASP_NANGO_SERVICE_SECRET_REFERENCE, value: "ref:nango/service-key-0001" }
@@ -240,6 +247,7 @@ spec:
             - { name: ZASP_SHUTDOWN_TIMEOUT, value: "15s" }
             - { name: ZASP_DISCOVERY_PARSER_VERSION, value: {{ required "discovery.parserVersion is required" .Values.discovery.parserVersion | quote }} }
             - { name: ZASP_DISCOVERY_TOOL_VERSION, value: {{ required "discovery.toolVersion is required" .Values.discovery.toolVersion | quote }} }
+            - { name: ZASP_GATEWAY_DECISION_RETENTION_DAYS, value: {{ int (required "hostedGateway.decisionRetentionDays is required" .Values.hostedGateway.decisionRetentionDays) | quote }} }
           volumeMounts:
             - { name: scheduler-secrets, mountPath: /var/run/secrets/zasp-scheduler, readOnly: true }
             {{- include "zasp.runtimeServices.mount" . | nindent 12 }}
@@ -584,6 +592,10 @@ spec:
             {{- end }}
             {{- with .Values.discovery.salesforceCollectorVersion }}
             - { name: ZASP_DISCOVERY_SALESFORCE_COLLECTOR_VERSION, value: {{ . | quote }} }
+            {{- end }}
+            {{- /* Google Cloud: the worker federates from its own AWS role or reads a key by reference; nothing else is configured here. */}}
+            {{- with .Values.discovery.gcpCollectorVersion }}
+            - { name: ZASP_DISCOVERY_GCP_COLLECTOR_VERSION, value: {{ . | quote }} }
             {{- end }}
             {{- /* The saas collector reads every platform through the Nango proxy, so it alone gives the worker the Nango settings. */}}
             {{- with .Values.discovery.saasCollectorVersion }}

@@ -77,6 +77,12 @@ type Paging struct {
 	// PageSize is the limit the collector asks for, 1 to 1000. It is
 	// required when LimitParam is set.
 	PageSize int
+	// LastItemPath is the other form of PagingCursor, for an API that states
+	// no token: the token of the next page is the value at this path of the
+	// last item of the page (its id). It is set in place of NextPath, and
+	// MorePath is then required: without it a full last page could not be
+	// told from one that has a successor.
+	LastItemPath []string
 	// MorePath is the optional place of a boolean that says whether a next
 	// page exists ("has_more"). When it is set and the response says false
 	// or says nothing, the page is the last even if NextPath holds a value:
@@ -209,6 +215,9 @@ type TenantLookup struct {
 	// when the document does not name a tenant. The collector then requires
 	// the id to equal the tenant id of the integration.
 	Map func(document Item) (Tenant, bool)
+	// Headers are provider request headers sent with the lookup; see
+	// ListEndpoint.Headers.
+	Headers map[string]string
 	// Confirm is the other form, for an API whose response does not state
 	// the tenant id as one value the collector can compare. It is given the
 	// tenant id of the integration and returns the tenant's display name
@@ -240,6 +249,20 @@ type Entity struct {
 	AgentType    string
 	Model        string
 	EndpointHost string
+	// Auth and Transport are optional facts of an MCP server the platform's
+	// API states: agentsignals.MCPAuthDeclared or MCPAuthNone, and
+	// agentsignals.MCPTransportHTTP, MCPTransportSSE or MCPTransportStdio.
+	Auth      string
+	Transport string
+	// CreatedBy, CreatedAt, UpdatedAt and DeletedAt are optional facts of an
+	// agent or AI application that is read out of an audit log: the id of the
+	// account that created it (an opaque id, never a name or an address) and
+	// the times of the events, as RFC 3339 text. A time that does not parse
+	// is refused.
+	CreatedBy string
+	CreatedAt string
+	UpdatedAt string
+	DeletedAt string
 	// Posture holds only the facts the platform's API states. A fact the
 	// API does not state stays false and raises no finding. It is ignored
 	// for an MCP server.
@@ -274,6 +297,52 @@ type ParentList struct {
 	// endpoint's path. "" skips nothing: a parent without an id is a
 	// malformed response.
 	ID func(item Item) string
+	// Single: the response document (at ItemsPath) is one object, the one
+	// parent of the endpoint (the site a request names by an id only another
+	// request states). Paging is then PagingNone.
+	Single bool
+	// Select is the other form, for a parent list that answers all its
+	// objects in one response of which only some are parents (the catalog of
+	// an audit log's actions, of which a few concern agents). It is given
+	// the objects and returns the parents in the order they are to be read,
+	// at most MaximumSelectedParents. Paging is then PagingNone, ID and
+	// Single are not set, and MapChild is given the parent's Label in place
+	// of its id.
+	Select func(items []Item) []SelectedParent
+}
+
+// SelectedParent is one parent ParentList.Select chose: the id that replaces
+// ParentValue and a label, a lowercase token, that tells MapChild which of
+// the parents an item was read under.
+type SelectedParent struct {
+	ID    string
+	Label string
+}
+
+// MaximumSelectedParents is the number of parents Select can return.
+const MaximumSelectedParents = 16
+
+// GraphQL makes a list endpoint a GraphQL query: the request is a POST of
+// {"query": Document, "variables": {...}} to the endpoint's Path. It is still
+// a read. The collector sends Document and no other text, the platform's
+// Nango rule for the path lists the same document, and the adapter refuses a
+// request of that rule whose query is not listed; a document that is not a
+// single query operation is refused when the platform is registered.
+type GraphQL struct {
+	// Document is the whole query, one line of printable text, starting with
+	// the keyword query.
+	Document string
+	// Variables are the fixed variables of the query. A value of TenantValue
+	// or ParentValue, alone or inside the text, is replaced by the tenant id
+	// or the parent's id. The continuation and the page size are sent as the
+	// variables Paging.CursorParam and Paging.LimitParam name.
+	Variables map[string]string
+	// ErrorsAbsent: an answer that carries GraphQL errors means the tenant
+	// does not have the feature (a field an older self-managed instance does
+	// not know, a product that is not enabled). The endpoint then
+	// contributes nothing and the collection continues. Without it such an
+	// answer ends the collection as malformed.
+	ErrorsAbsent bool
 }
 
 // SignIn says how a person signs in to the platform from the product. Nango
@@ -303,6 +372,14 @@ type ListEndpoint struct {
 	Path string
 	// Query is sent with every request of the endpoint.
 	Query map[string]string
+	// Headers are provider request headers sent with every request of the
+	// endpoint (a version header the API requires). They are forwarded by the
+	// Nango proxy, never a credential, and the platform's Nango rule lists
+	// their names. A value of TenantValue is replaced by the tenant id.
+	Headers map[string]string
+	// GraphQL makes the endpoint a GraphQL query. Query is then empty and
+	// Paging is PagingNone or PagingCursor.
+	GraphQL *GraphQL
 	// ItemsPath is where the array of items is in the response document.
 	// Empty means the response itself is the array.
 	ItemsPath []string
@@ -327,6 +404,20 @@ type ListEndpoint struct {
 	// a tenant with more ends the collection as a terminal failure rather
 	// than as an incomplete inventory.
 	Distinct bool
+	// ChildrenPath: the objects to map are not the items themselves but the
+	// objects of the array at this path inside each item (the MCP servers of
+	// each listed agent). Paging still counts and continues by the items.
+	// The same object may then appear under several items, so the endpoint
+	// is Distinct.
+	ChildrenPath []string
+	// ChildUser, for an endpoint with ChildrenPath whose children are MCP
+	// servers: it names the agent the item is, by the object type and native
+	// id another list of the platform reports it under, and each MCP server
+	// among the item's children is then related to that agent (the agent
+	// depends_on the server). It returns false for an item that is not a
+	// reported agent. A relation whose agent the collection did not report
+	// is dropped when the collection completes.
+	ChildUser func(item Item) (objectType, nativeID string, ok bool)
 	// Parent makes the endpoint a nested list: it is read once for every
 	// object of Parent, with ParentValue in Path replaced by the object's
 	// id. MapChild is then set in place of Map and is given that id.
@@ -370,6 +461,17 @@ type Platform struct {
 	// of the platform is sent to that host and to no other, and only when
 	// the host resolves to public addresses.
 	HostTemplate string
+	// TenantSplit is set, in place of HostTemplate, for a platform a customer
+	// runs on a host of their own (Nango.CustomerHosted). The tenant id of
+	// such a platform names two things, the host and the tenant on that host
+	// (a self-managed GitLab's address and a group id), and TenantSplit
+	// separates them: host is where every request of the tenant is sent and
+	// key is what replaces TenantValue in paths, queries, headers and
+	// variables and what the tenant lookup must answer. The host is part of
+	// the tenant id, so it is fixed when the integration is created and is
+	// what the connection was authorized against: another host is another
+	// tenant, which needs its own authorization.
+	TenantSplit func(tenantID string) (host, key string, ok bool)
 	// SignIn is set when a person can connect the platform from the
 	// product. Without it the integration names an existing Nango
 	// connection by reference.
@@ -434,10 +536,24 @@ func expandPath(template, tenantID, parentID string) (string, bool) {
 // Nango entry allows.
 func (platform Platform) TenantHost(tenantID string) (string, bool) {
 	if !platform.Nango.PerTenantHost() {
-		return "", platform.HostTemplate == ""
+		return "", platform.HostTemplate == "" && platform.TenantSplit == nil
+	}
+	if platform.TenantSplit != nil {
+		host, key, ok := platform.TenantSplit(tenantID)
+		return host, ok && key != "" && platform.Nango.AllowsHost(host)
 	}
 	host := strings.Replace(platform.HostTemplate, TenantValue, tenantID, 1)
 	return host, platform.Nango.AllowsHost(host)
+}
+
+// TenantKey is what names the tenant inside a request: the tenant id, or,
+// for a customer-hosted platform, the part of it that is not the host.
+func (platform Platform) TenantKey(tenantID string) string {
+	if platform.TenantSplit == nil {
+		return tenantID
+	}
+	_, key, _ := platform.TenantSplit(tenantID)
+	return key
 }
 
 func validPath(value string) bool {
@@ -469,7 +585,11 @@ func validFixedQuery(query map[string]string) bool {
 }
 
 // queryKeys are the query parameters a request of the endpoint can carry.
+// A GraphQL endpoint carries none: its paging travels as variables.
 func (endpoint ListEndpoint) queryKeys() []string {
+	if endpoint.GraphQL != nil {
+		return nil
+	}
 	keys := make([]string, 0, len(endpoint.Query)+3)
 	for key := range endpoint.Query {
 		keys = append(keys, key)
@@ -488,10 +608,16 @@ func (endpoint ListEndpoint) queryKeys() []string {
 // parameters at run time; those are refused by the adapter unless the rule
 // lists them.
 func ruleAllows(entry nango.Entry, path string, keys []string) bool {
+	return ruleAllowsRequest(entry, http.MethodGet, path, keys, nil, "")
+}
+
+// ruleAllowsRequest is ruleAllows for a request of any admitted method: the
+// rule must also list every header and, for a GraphQL query, the document.
+func ruleAllowsRequest(entry nango.Entry, method, path string, keys []string, headers map[string]string, document string) bool {
 	var selected *nango.Rule
 	for index, rule := range entry.Rules {
 		matches := path == rule.PathPrefix || strings.HasSuffix(rule.PathPrefix, "/") && strings.HasPrefix(path, rule.PathPrefix)
-		if rule.Method == http.MethodGet && matches && (selected == nil || len(rule.PathPrefix) > len(selected.PathPrefix)) {
+		if rule.Method == method && matches && (selected == nil || len(rule.PathPrefix) > len(selected.PathPrefix)) {
 			selected = &entry.Rules[index]
 		}
 	}
@@ -504,6 +630,59 @@ func ruleAllows(entry nango.Entry, path string, keys []string) bool {
 	}
 	for _, key := range keys {
 		if !allowed[key] {
+			return false
+		}
+	}
+	allowedHeaders := map[string]bool{}
+	for _, key := range selected.HeaderKeys {
+		allowedHeaders[key] = true
+	}
+	for key := range headers {
+		if !allowedHeaders[key] {
+			return false
+		}
+	}
+	if document == "" {
+		return true
+	}
+	for _, listed := range selected.GraphQLDocuments {
+		if listed == document {
+			return true
+		}
+	}
+	return false
+}
+
+// validHeaders admits the fixed provider headers of a request: names the
+// proxy forwards, values that are plain text or the tenant placeholder.
+func validHeaders(headers map[string]string) bool {
+	if len(headers) > 4 {
+		return false
+	}
+	for name, value := range headers {
+		if !nango.ValidForwardedHeaderName(name) || value != TenantValue && (!validDisplayText(value, 256) || strings.ContainsAny(value, "{}")) {
+			return false
+		}
+	}
+	return true
+}
+
+// valid reports whether the endpoint's GraphQL query is one the collector
+// may send: a single query operation, with named variables.
+func (query *GraphQL) valid(endpoint ListEndpoint) bool {
+	if query == nil {
+		return true
+	}
+	if !nango.ReadOnlyGraphQLDocument(query.Document) || len(endpoint.Query) != 0 || len(query.Variables) > 6 || endpoint.Paging.Style != PagingNone && endpoint.Paging.Style != PagingCursor {
+		return false
+	}
+	for name, value := range query.Variables {
+		if !paramKeyPattern.MatchString(name) || name == endpoint.Paging.CursorParam || name == endpoint.Paging.LimitParam || !validDisplayText(value, 256) {
+			return false
+		}
+	}
+	for _, name := range []string{endpoint.Paging.CursorParam, endpoint.Paging.LimitParam} {
+		if name != "" && !paramKeyPattern.MatchString(name) {
 			return false
 		}
 	}
@@ -527,10 +706,13 @@ func (paging Paging) valid() bool {
 	if paging.PageParam != "" && paging.Style != PagingPage {
 		return false
 	}
-	for _, key := range append(append([]string(nil), paging.NextPath...), paging.MorePath...) {
+	for _, key := range append(append(append([]string(nil), paging.NextPath...), paging.MorePath...), paging.LastItemPath...) {
 		if key == "" || len(key) > 64 {
 			return false
 		}
+	}
+	if len(paging.LastItemPath) > 4 || len(paging.LastItemPath) > 0 && (paging.Style != PagingCursor || len(paging.NextPath) != 0 || len(paging.MorePath) == 0) {
+		return false
 	}
 	if len(paging.MorePath) > 4 || len(paging.MorePath) > 0 && paging.Style != PagingCursor {
 		return false
@@ -539,7 +721,7 @@ func (paging Paging) valid() bool {
 	case PagingNone:
 		return paging.CursorParam == "" && len(paging.NextPath) == 0 && paging.OffsetParam == "" && paging.LimitParam == ""
 	case PagingCursor:
-		return paging.CursorParam != "" && len(paging.NextPath) >= 1 && len(paging.NextPath) <= 4 && paging.OffsetParam == "" && paging.CursorParam != paging.LimitParam
+		return paging.CursorParam != "" && (len(paging.NextPath) >= 1 || len(paging.LastItemPath) >= 1) && len(paging.NextPath) <= 4 && paging.OffsetParam == "" && paging.CursorParam != paging.LimitParam
 	case PagingOffset:
 		return paging.OffsetParam != "" && paging.LimitParam != "" && paging.OffsetParam != paging.LimitParam && paging.CursorParam == "" && len(paging.NextPath) == 0
 	case PagingLink:
@@ -556,12 +738,32 @@ func (platform Platform) Validate() error {
 	if !platformTokenPattern.MatchString(platform.Token) || !validDisplayText(platform.DisplayName, 64) || !validDisplayText(platform.Description, 512) ||
 		!validDisplayText(platform.TenantLabel, 64) || !validDisplayText(platform.TenantHint, 256) || !validDisplayText(platform.AccessGuidance, 512) || platform.TenantPattern == nil ||
 		len(platform.RequiredScopes) < 1 || len(platform.RequiredScopes) > 32 || len(platform.Lists) < 1 || len(platform.Lists) > 16 ||
-		(platform.Tenant.Map == nil) == (platform.Tenant.Confirm == nil) || !validPathTemplate(platform.Tenant.Path, TenantValue) || !validFixedQuery(platform.Tenant.Query) {
+		(platform.Tenant.Map == nil) == (platform.Tenant.Confirm == nil) || !validPathTemplate(platform.Tenant.Path, TenantValue) || !validFixedQuery(platform.Tenant.Query) || !validHeaders(platform.Tenant.Headers) {
 		return ErrInvalid
+	}
+	// Every POST rule of the entry is the path of a GraphQL endpoint of this
+	// platform: the entry admits no other write-shaped request.
+	for _, rule := range platform.Nango.Rules {
+		if rule.Method != http.MethodPost {
+			continue
+		}
+		used := false
+		for _, endpoint := range platform.Lists {
+			used = used || endpoint.GraphQL != nil && endpoint.Path == rule.PathPrefix
+		}
+		if !used {
+			return ErrInvalid
+		}
 	}
 	// A per-tenant host and its template come together, and the template
 	// names the tenant exactly once.
-	if platform.Nango.PerTenantHost() != (platform.HostTemplate != "") || platform.HostTemplate != "" && (strings.Count(platform.HostTemplate, TenantValue) != 1 || !hostPattern.MatchString(strings.Replace(platform.HostTemplate, TenantValue, "tenant", 1))) {
+	// A customer-hosted platform says so in both places, takes its host from
+	// the tenant id and has no sign-in: its authorization page would be on a
+	// host the customer chose.
+	if platform.Nango.CustomerHosted != (platform.TenantSplit != nil) || platform.TenantSplit != nil && (platform.HostTemplate != "" || platform.SignIn != nil) {
+		return ErrInvalid
+	}
+	if platform.Nango.PerTenantHost() != (platform.HostTemplate != "" || platform.TenantSplit != nil) || platform.HostTemplate != "" && (strings.Count(platform.HostTemplate, TenantValue) != 1 || !hostPattern.MatchString(strings.Replace(platform.HostTemplate, TenantValue, "tenant", 1))) {
 		return ErrInvalid
 	}
 	if !platform.SignIn.valid(platform.Nango) {
@@ -589,7 +791,7 @@ func (platform Platform) Validate() error {
 	for key := range platform.Tenant.Query {
 		tenantKeys = append(tenantKeys, key)
 	}
-	if !ruleAllows(platform.Nango, platform.Tenant.Path, tenantKeys) {
+	if !ruleAllowsRequest(platform.Nango, http.MethodGet, platform.Tenant.Path, tenantKeys, platform.Tenant.Headers, "") {
 		return ErrInvalid
 	}
 	// "tenant" and "complete" are the collector's own cursor phases.
@@ -600,8 +802,22 @@ func (platform Platform) Validate() error {
 			placeholders = append(placeholders, ParentValue)
 		}
 		if !endpointNamePattern.MatchString(endpoint.Name) || names[endpoint.Name] || !validPathTemplate(endpoint.Path, placeholders...) || !validFixedQuery(endpoint.Query) || len(endpoint.ItemsPath) > 4 || !endpoint.Paging.valid() || len(endpoint.Absent) > 4 ||
-			endpoint.Single && endpoint.Paging.Style != PagingNone || endpoint.Single && endpoint.Distinct {
+			endpoint.Single && endpoint.Paging.Style != PagingNone || endpoint.Single && endpoint.Distinct || !validHeaders(endpoint.Headers) || !endpoint.GraphQL.valid(endpoint) ||
+			len(endpoint.ChildrenPath) > 6 || len(endpoint.ChildrenPath) > 0 && (!endpoint.Distinct || endpoint.Single) || endpoint.ChildUser != nil && len(endpoint.ChildrenPath) == 0 {
 			return ErrInvalid
+		}
+		if endpoint.Parent == nil || endpoint.GraphQL != nil {
+			// Only a nested GET endpoint names a parent in its query.
+			for _, value := range endpoint.Query {
+				if strings.Contains(value, ParentValue) {
+					return ErrInvalid
+				}
+			}
+		}
+		for _, key := range endpoint.ChildrenPath {
+			if key == "" || len(key) > 64 {
+				return ErrInvalid
+			}
 		}
 		// A plain endpoint has Map; a nested one has Parent and MapChild and
 		// names the parent in its path.
@@ -611,8 +827,30 @@ func (platform Platform) Validate() error {
 			}
 		} else {
 			parent := endpoint.Parent
-			if endpoint.Map != nil || endpoint.MapChild == nil || parent.ID == nil || strings.Count(endpoint.Path, ParentValue) != 1 || !validPathTemplate(parent.Path, TenantValue) || !validFixedQuery(parent.Query) || len(parent.ItemsPath) > 4 ||
-				!parent.Paging.valid() || parent.Paging.Style == PagingNone || parent.Paging.PageSize != 1 {
+			// The parent is named in the path, as the whole value of one
+			// query parameter, or, for a GraphQL query, in its variables.
+			named := strings.Count(endpoint.Path, ParentValue)
+			if endpoint.GraphQL != nil {
+				for _, value := range endpoint.GraphQL.Variables {
+					named += strings.Count(value, ParentValue)
+				}
+			} else {
+				for _, value := range endpoint.Query {
+					if value == ParentValue {
+						named++
+					} else if strings.Contains(value, ParentValue) {
+						return ErrInvalid
+					}
+				}
+			}
+			if endpoint.Map != nil || endpoint.MapChild == nil || named != 1 || !validPathTemplate(parent.Path, TenantValue) || !validFixedQuery(parent.Query) || len(parent.ItemsPath) > 4 || !parent.Paging.valid() {
+				return ErrInvalid
+			}
+			if parent.Select != nil {
+				if parent.ID != nil || parent.Single || parent.Paging.Style != PagingNone {
+					return ErrInvalid
+				}
+			} else if parent.ID == nil || parent.Single != (parent.Paging.Style == PagingNone) || !parent.Single && parent.Paging.PageSize != 1 {
 				return ErrInvalid
 			}
 			for _, key := range parent.ItemsPath {
@@ -646,7 +884,11 @@ func (platform Platform) Validate() error {
 				return ErrInvalid
 			}
 		}
-		if !ruleAllows(platform.Nango, endpoint.Path, endpoint.queryKeys()) {
+		method, document := http.MethodGet, ""
+		if endpoint.GraphQL != nil {
+			method, document = http.MethodPost, endpoint.GraphQL.Document
+		}
+		if !ruleAllowsRequest(platform.Nango, method, endpoint.Path, endpoint.queryKeys(), endpoint.Headers, document) {
 			return ErrInvalid
 		}
 	}
@@ -687,16 +929,23 @@ func validNangoEntry(entry nango.Entry) bool {
 	if entry.PerTenantHost() {
 		// The host arrives with each request; the adapter refuses an entry
 		// whose suffixes are not provider domains.
-		if entry.ProviderHost != "" || len(entry.HostSuffixes) < 1 {
+		if entry.ProviderHost != "" || (len(entry.HostSuffixes) < 1) != entry.CustomerHosted {
 			return false
 		}
 	} else if !hostPattern.MatchString(entry.ProviderHost) || len(entry.ProviderHost) < 4 || net.ParseIP(entry.ProviderHost) != nil || strings.HasSuffix(entry.ProviderHost, ".local") || strings.HasSuffix(entry.ProviderHost, ".internal") || len(entry.HostSuffixes) != 0 {
 		return false
 	}
 	for _, rule := range entry.Rules {
-		// Discovery reads only.
-		if rule.Method != http.MethodGet || !validPath(rule.PathPrefix) {
+		// Discovery reads only: a GET, or the POST of a GraphQL endpoint
+		// whose rule lists the query documents it admits (each a single
+		// query operation; the adapter refuses any other body).
+		if !validPath(rule.PathPrefix) || rule.Method != http.MethodGet && (rule.Method != http.MethodPost || len(rule.GraphQLDocuments) == 0) {
 			return false
+		}
+		for _, document := range rule.GraphQLDocuments {
+			if !nango.ReadOnlyGraphQLDocument(document) {
+				return false
+			}
 		}
 	}
 	return true

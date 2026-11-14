@@ -104,8 +104,8 @@ func validMCPServer(server MCPServer) bool {
 	optional := func(value *string, maximum int) bool {
 		return value == nil || printableInventoryString(*value, 1, maximum, false)
 	}
-	if !validProductID(server.ID) || !printableInventoryString(server.Name, 1, 256, false) || !stringIn(server.Provider, "aws", "github", "kubernetes", "saas") ||
-		!stringIn(server.SourceKind, "aws_agentcore_gateway", "aws_mcp_server", "github_mcp_server", "kubernetes_mcp_server", "saas_mcp_server") ||
+	if !validProductID(server.ID) || !printableInventoryString(server.Name, 1, 256, false) || !stringIn(server.Provider, "aws", "github", "kubernetes", "saas", "gcp") ||
+		!stringIn(server.SourceKind, "aws_agentcore_gateway", "aws_mcp_server", "github_mcp_server", "kubernetes_mcp_server", "saas_mcp_server", "gcp_mcp_server") ||
 		!stringIn(server.Source, "agentcore_gateway", "egress", "gateway_target", "repository_config", "workload", "saas_api", "provider_api") ||
 		server.Transport != nil && !stringIn(*server.Transport, "stdio", "http", "sse") || !optional(server.EndpointHost, 253) || !optional(server.Command, 64) || !optional(server.Package, 256) ||
 		(server.Package == nil) != (server.PackagePinned == nil) || !stringIn(server.Auth, "declared", "none", "not_applicable", "unknown") || !validMCPIdentity(server.Identity) ||

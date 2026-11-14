@@ -347,6 +347,29 @@ variable "security_agent_remediation" {
   }
 }
 
+variable "hosted_gateway" {
+  description = "Optional, off by default. Serves the hosted gateway from the API: the MCP gateway and the model proxy an agent reaches by changing a URL, with nothing installed at the customer (docs/operations/hosted-gateway.md). egress_cidrs are the addresses the API pods may reach on port 443 for it: the model providers and the customers' remote MCP servers, usually 0.0.0.0/0, from which the chart carves out the non-public ranges. timeout_seconds bounds one exchange, a stream included. decision_retention_days is how long the gateway's decision records are kept before the scheduler deletes them."
+  type = object({
+    enabled                 = optional(bool, false)
+    timeout_seconds         = optional(number, 300)
+    egress_cidrs            = optional(list(string), [])
+    decision_retention_days = optional(number, 90)
+  })
+  default = {}
+  validation {
+    condition     = var.hosted_gateway.decision_retention_days >= 1 && var.hosted_gateway.decision_retention_days <= 3650 && floor(var.hosted_gateway.decision_retention_days) == var.hosted_gateway.decision_retention_days
+    error_message = "hosted_gateway.decision_retention_days is a whole number of days from 1 to 3650."
+  }
+  validation {
+    condition     = var.hosted_gateway.enabled == (length(var.hosted_gateway.egress_cidrs) > 0) && length(var.hosted_gateway.egress_cidrs) <= 64
+    error_message = "hosted_gateway names one to 64 egress CIDRs when it is enabled and none when it is not."
+  }
+  validation {
+    condition     = alltrue([for cidr in var.hosted_gateway.egress_cidrs : can(cidrhost(cidr, 0))]) && var.hosted_gateway.timeout_seconds >= 10 && var.hosted_gateway.timeout_seconds <= 1800 && floor(var.hosted_gateway.timeout_seconds) == var.hosted_gateway.timeout_seconds
+    error_message = "hosted_gateway.egress_cidrs are CIDR blocks and timeout_seconds is a whole number from 10 to 1800."
+  }
+}
+
 variable "discovery_optional_providers" {
   description = "Optional discovery providers: Microsoft (Entra and Copilot Studio), Salesforce (Agentforce) and the generic saas provider (every SaaS platform read through Nango; saas_collector alone enables it, and the platforms are reached by Nango, whose provider addresses are nango_provider_egress_cidrs). All are disabled by default. A provider is enabled by its collector version, which must be the version the installed schema hands a discovery run (collector_v1), together with the identifier of its pre-provisioned client-secret reference and a snapshot of the provider addresses the API and the discovery worker may reach."
   type = object({
@@ -355,12 +378,32 @@ variable "discovery_optional_providers" {
     microsoft_egress_cidrs      = optional(list(string), [])
     microsoft_azure             = optional(bool, false)
     azure_egress_cidrs          = optional(list(string), [])
+    azure_foundry_egress_cidrs  = optional(list(string), [])
     salesforce_collector        = optional(string, "")
     salesforce_client_secret_id = optional(string, "")
     salesforce_egress_cidrs     = optional(list(string), [])
     saas_collector              = optional(string, "")
+    # Google Cloud. gcp_collector enables it and needs gcp_egress_cidrs (the
+    # published address ranges of the Google APIs). With workload identity
+    # federation nothing is stored and gcp_service_account_key_id stays
+    # empty; it names the stored key of a customer that cannot federate.
+    gcp_collector              = optional(string, "")
+    gcp_egress_cidrs           = optional(list(string), [])
+    gcp_service_account_key_id = optional(string, "")
   })
   default = {}
+  validation {
+    condition = (
+      var.discovery_optional_providers.gcp_collector == "" ?
+      length(var.discovery_optional_providers.gcp_egress_cidrs) == 0 && var.discovery_optional_providers.gcp_service_account_key_id == "" :
+      can(regex("^[a-z][a-z0-9_.-]{1,63}$", var.discovery_optional_providers.gcp_collector)) &&
+      (var.discovery_optional_providers.gcp_service_account_key_id == "" || can(regex("^[a-z0-9][a-z0-9._-]{7,127}$", var.discovery_optional_providers.gcp_service_account_key_id))) &&
+      length(var.discovery_optional_providers.gcp_egress_cidrs) >= 1 && length(var.discovery_optional_providers.gcp_egress_cidrs) <= 64 && length(distinct(var.discovery_optional_providers.gcp_egress_cidrs)) == length(var.discovery_optional_providers.gcp_egress_cidrs) && alltrue([
+        for cidr in var.discovery_optional_providers.gcp_egress_cidrs : can(cidrhost(cidr, 0)) && "${cidrhost(cidr, 0)}/${split("/", cidr)[1]}" == cidr && cidr != "0.0.0.0/0" && cidr != "::/0"
+      ])
+    )
+    error_message = "Disabled, Google Cloud sets nothing. Enabled, it needs a bounded collector version, one to 64 distinct canonical non-global gcp_egress_cidrs and, only for a customer that cannot federate, a lower-case service account key identifier."
+  }
   validation {
     condition     = var.discovery_optional_providers.saas_collector == "" || can(regex("^[a-z][a-z0-9_.-]{1,63}$", var.discovery_optional_providers.saas_collector))
     error_message = "saas_collector is empty or a bounded collector version."
@@ -394,6 +437,21 @@ variable "discovery_optional_providers" {
       length(var.discovery_optional_providers.azure_egress_cidrs) == 0
     )
     error_message = "microsoft_azure needs microsoft_collector and one to 16 distinct canonical non-global azure_egress_cidrs; without it azure_egress_cidrs is empty."
+  }
+  # The agents of an Azure AI Foundry project are listed on the project's own
+  # endpoint (<account>.services.ai.azure.com), which is not Resource Manager.
+  # Its addresses are optional, valid only with microsoft_azure, and admitted
+  # for the discovery worker only. Without them the collector records the
+  # agents of an account as not listed.
+  validation {
+    condition = (
+      length(var.discovery_optional_providers.azure_foundry_egress_cidrs) == 0 ||
+      var.discovery_optional_providers.microsoft_azure &&
+      length(var.discovery_optional_providers.azure_foundry_egress_cidrs) <= 16 && length(distinct(var.discovery_optional_providers.azure_foundry_egress_cidrs)) == length(var.discovery_optional_providers.azure_foundry_egress_cidrs) && alltrue([
+        for cidr in var.discovery_optional_providers.azure_foundry_egress_cidrs : can(cidrhost(cidr, 0)) && "${cidrhost(cidr, 0)}/${split("/", cidr)[1]}" == cidr && cidr != "0.0.0.0/0" && cidr != "::/0"
+      ])
+    )
+    error_message = "azure_foundry_egress_cidrs needs microsoft_azure and holds at most 16 distinct canonical non-global ranges."
   }
 }
 

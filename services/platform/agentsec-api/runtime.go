@@ -34,6 +34,12 @@ var (
 type RuntimeConfig struct {
 	RuntimeServices                 runtimeservices.Config
 	SecurityAgentOrderedHTTPEnabled bool
+	// HostedGatewayEnabled serves the traffic routes of the hosted gateway
+	// (ZASP_HOSTED_GATEWAY_ENABLED; off unless set). HostedGatewayTimeout
+	// bounds one exchange through it, a stream included
+	// (ZASP_HOSTED_GATEWAY_TIMEOUT; five minutes unless set).
+	HostedGatewayEnabled bool
+	HostedGatewayTimeout time.Duration
 
 	EvidenceExportWorkflow         string
 	AttackLabWorkflow              string
@@ -90,15 +96,27 @@ type RuntimeConfig struct {
 	MicrosoftCollectorVersion      string
 	SalesforceCollectorVersion     string
 	SaaSCollectorVersion           string
-	NangoBaseURL                   string
-	NangoServiceSecretReference    string
-	NangoEnvironment               string
+	// GCPCollectorVersion is ZASP_DISCOVERY_GCP_COLLECTOR_VERSION: set where
+	// the deployment's worker serves Google Cloud; the provider is offered
+	// only then.
+	GCPCollectorVersion         string
+	NangoBaseURL                string
+	NangoServiceSecretReference string
+	NangoEnvironment            string
 }
 
 type StoreDependency struct {
 	Name    string
 	Durable bool
 }
+
+// The hosted gateway's defaults. A request through it carries a prompt with
+// its conversation, or a tool call: it may be far larger than a request of
+// the product API, and its answer may be a stream that lasts minutes.
+const (
+	defaultHostedGatewayTimeout = 5 * time.Minute
+	hostedGatewayMaximumBody    = 4 << 20
+)
 
 type RuntimeDependencies struct {
 	ProductHandler  http.Handler
@@ -131,11 +149,32 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 			return RuntimeConfig{}, errInvalidRuntimeConfig
 		}
 	}
+	hostedGatewayEnabled, hostedGatewayTimeout := false, time.Duration(0)
+	if value := getenv("ZASP_HOSTED_GATEWAY_ENABLED"); value != "" {
+		var err error
+		if hostedGatewayEnabled, err = strconv.ParseBool(value); err != nil {
+			return RuntimeConfig{}, errInvalidRuntimeConfig
+		}
+	}
+	if hostedGatewayEnabled {
+		hostedGatewayTimeout = defaultHostedGatewayTimeout
+		if value := getenv("ZASP_HOSTED_GATEWAY_TIMEOUT"); value != "" {
+			var err error
+			if hostedGatewayTimeout, err = time.ParseDuration(value); err != nil || hostedGatewayTimeout < 10*time.Second || hostedGatewayTimeout > 30*time.Minute {
+				return RuntimeConfig{}, errInvalidRuntimeConfig
+			}
+		}
+	} else if getenv("ZASP_HOSTED_GATEWAY_TIMEOUT") != "" {
+		// A timeout for a gateway that is not served is a mistake.
+		return RuntimeConfig{}, errInvalidRuntimeConfig
+	}
 	requestRate, requestRateErr := strconv.Atoi(getenv("ZASP_REQUEST_RATE_PER_SECOND"))
 	requestBurst, requestBurstErr := strconv.Atoi(getenv("ZASP_REQUEST_BURST"))
 	config := RuntimeConfig{
 		RuntimeServices:                 services,
 		SecurityAgentOrderedHTTPEnabled: orderedHTTPEnabled,
+		HostedGatewayEnabled:            hostedGatewayEnabled,
+		HostedGatewayTimeout:            hostedGatewayTimeout,
 
 		EvidenceExportWorkflow: getenv("ZASP_SECURITY_AGENT_EVIDENCE_EXPORT_WORKFLOW"),
 		AttackLabWorkflow:      getenv("ZASP_SECURITY_AGENT_ATTACK_LAB_WORKFLOW"),
@@ -152,8 +191,8 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 		AWSCustomerRolePrefixes: parseAWSCustomerRolePrefixes(getenv("ZASP_AWS_CUSTOMER_ROLE_PREFIXES")), AWSCustomerRoleARNs: parseAWSCustomerRoleARNs(getenv("ZASP_AWS_CUSTOMER_ROLE_ARNS")), KubernetesEgressCIDRs: parseTrustedProxyCIDRs(getenv("ZASP_KUBERNETES_EGRESS_CIDRS")), FindingTicketEgressCIDRs: parseTrustedProxyCIDRs(getenv("ZASP_FINDING_TICKET_EGRESS_CIDRS")),
 		GitHubClientID: getenv("ZASP_GITHUB_CLIENT_ID"), GitHubSecretReference: getenv("ZASP_GITHUB_CLIENT_SECRET_REFERENCE"), GitHubAppID: getenv("ZASP_GITHUB_APP_ID"), GitHubPrivateKeyReference: getenv("ZASP_GITHUB_PRIVATE_KEY_REFERENCE"), OktaClientID: getenv("ZASP_OKTA_CLIENT_ID"), OktaSecretReference: getenv("ZASP_OKTA_CLIENT_SECRET_REFERENCE"),
 		MicrosoftCollectorVersion: getenv("ZASP_DISCOVERY_MICROSOFT_COLLECTOR_VERSION"), SalesforceCollectorVersion: getenv("ZASP_DISCOVERY_SALESFORCE_COLLECTOR_VERSION"),
-		SaaSCollectorVersion: getenv("ZASP_DISCOVERY_SAAS_COLLECTOR_VERSION"),
-		NangoBaseURL:         getenv("ZASP_NANGO_BASE_URL"), NangoServiceSecretReference: getenv("ZASP_NANGO_SERVICE_SECRET_REFERENCE"), NangoEnvironment: getenv("ZASP_NANGO_ENVIRONMENT"),
+		SaaSCollectorVersion: getenv("ZASP_DISCOVERY_SAAS_COLLECTOR_VERSION"), GCPCollectorVersion: getenv("ZASP_DISCOVERY_GCP_COLLECTOR_VERSION"),
+		NangoBaseURL: getenv("ZASP_NANGO_BASE_URL"), NangoServiceSecretReference: getenv("ZASP_NANGO_SERVICE_SECRET_REFERENCE"), NangoEnvironment: getenv("ZASP_NANGO_ENVIRONMENT"),
 	}
 	revealKey := getenv("ZASP_TOKEN_REVEAL_KEY")
 	decodedRevealKey, revealKeyErr := base64.RawURLEncoding.DecodeString(revealKey)
@@ -223,7 +262,7 @@ func validRuntimeConfig(config RuntimeConfig) bool {
 	if !validFindingTicketEgressCIDRs(config.FindingTicketEgressCIDRs) {
 		return false
 	}
-	for _, version := range []string{config.MicrosoftCollectorVersion, config.SalesforceCollectorVersion, config.SaaSCollectorVersion} {
+	for _, version := range []string{config.MicrosoftCollectorVersion, config.SalesforceCollectorVersion, config.SaaSCollectorVersion, config.GCPCollectorVersion} {
 		if version != "" && !executionVersionPattern.MatchString(version) {
 			return false
 		}

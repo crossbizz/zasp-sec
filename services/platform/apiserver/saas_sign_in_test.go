@@ -224,7 +224,7 @@ func TestSaaSSignInCallbackEndsInTheConnectionReference(t *testing.T) {
 	state := strings.Repeat("s", 43)
 	fixture.store.attemptFound, fixture.store.attempt = true, SaaSSignInAttempt{ID: attemptID, IntegrationID: saasSignInIntegrationID, Platform: "servicenow", TenantID: "acme", Accepted: true}
 	response := fixture.callback("code=provider_code_123&state=" + state)
-	if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/integrations?saas_connection=11111111-1111-4111-8111-111111111111&saas_sign_in="+saasSignInIntegrationID {
+	if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/connectors?saas_connection=11111111-1111-4111-8111-111111111111&saas_sign_in="+saasSignInIntegrationID {
 		t.Fatalf("status=%d location=%q body=%s", response.Code, response.Header().Get("Location"), response.Body)
 	}
 	// The sign-in was taken by the digests of this state and this session.
@@ -256,13 +256,13 @@ func TestSaaSSignInCallbackFailuresEndTheSignInWithoutAReference(t *testing.T) {
 		provider int
 	}{
 		"the person signed in to another tenant": {"code=provider_code_123&state=" + strings.Repeat("s", 43), func(fixture *saasSignInFixture) { fixture.provider.completeErr = ErrSaaSSignInTenantMismatch },
-			http.StatusSeeOther, "/integrations?saas_sign_in=" + saasSignInIntegrationID + "&saas_sign_in_error=tenant_mismatch", attemptID + " tenant_mismatch ", 1},
+			http.StatusSeeOther, "/connectors?saas_sign_in=" + saasSignInIntegrationID + "&saas_sign_in_error=tenant_mismatch", attemptID + " tenant_mismatch ", 1},
 		"Nango cannot finish the exchange": {"code=provider_code_123&state=" + strings.Repeat("s", 43), func(fixture *saasSignInFixture) { fixture.provider.completeErr = errors.New("nango") },
-			http.StatusSeeOther, "/integrations?saas_sign_in=" + saasSignInIntegrationID + "&saas_sign_in_error=provider_unavailable", attemptID + " provider_unavailable ", 1},
+			http.StatusSeeOther, "/connectors?saas_sign_in=" + saasSignInIntegrationID + "&saas_sign_in_error=provider_unavailable", attemptID + " provider_unavailable ", 1},
 		"Nango answers something that is not a connection": {"code=provider_code_123&state=" + strings.Repeat("s", 43), func(fixture *saasSignInFixture) { fixture.provider.reference = "nango-token-0001" },
-			http.StatusSeeOther, "/integrations?saas_sign_in=" + saasSignInIntegrationID + "&saas_sign_in_error=provider_unavailable", attemptID + " provider_unavailable ", 1},
+			http.StatusSeeOther, "/connectors?saas_sign_in=" + saasSignInIntegrationID + "&saas_sign_in_error=provider_unavailable", attemptID + " provider_unavailable ", 1},
 		"the person refused at the provider": {"error=access_denied&state=" + strings.Repeat("s", 43), func(*saasSignInFixture) {},
-			http.StatusSeeOther, "/integrations?saas_sign_in=" + saasSignInIntegrationID + "&saas_sign_in_error=provider_access_denied", attemptID + " provider_access_denied ", 0},
+			http.StatusSeeOther, "/connectors?saas_sign_in=" + saasSignInIntegrationID + "&saas_sign_in_error=provider_access_denied", attemptID + " provider_access_denied ", 0},
 		"the state was presented by another session or a second time": {"code=provider_code_123&state=" + strings.Repeat("s", 43), func(fixture *saasSignInFixture) { fixture.store.attempt.Accepted = false },
 			http.StatusConflict, "", "", 0},
 		"the outcome cannot be recorded": {"code=provider_code_123&state=" + strings.Repeat("s", 43), func(fixture *saasSignInFixture) { fixture.store.finishErr = ErrRepositoryUnavailable },

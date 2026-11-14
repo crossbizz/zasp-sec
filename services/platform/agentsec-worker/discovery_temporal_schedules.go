@@ -185,9 +185,54 @@ func (s *temporalDiscoveryScheduleSource) fireRedTeamSchedules(ctx context.Conte
 	return
 }
 
+// gatewayMaintenanceInterval is how often the scheduler asks the database to
+// look after the hosted gateway's records, and
+// defaultGatewayDecisionRetentionDays how long a decision record is kept when
+// the deployment does not say.
+const (
+	gatewayMaintenanceInterval          = time.Minute
+	defaultGatewayDecisionRetentionDays = 90
+)
+
+// gatewayMaintenance is what one pass did.
+type gatewayMaintenance struct{ Examined, Projected, Deleted, Buckets int }
+
+// maintainGateway runs one pass over the hosted gateway's records
+// (completion.sql, section WS9): the decisions made for an agent of the
+// inventory are written into the runtime sessions, decisions older than
+// retentionDays are deleted, and idle rate buckets are forgotten. A database
+// that does not hold the section yet has no gateway records, so that is not
+// a failure.
+func (s *temporalDiscoveryScheduleSource) maintainGateway(ctx context.Context, retentionDays, limit int) (done gatewayMaintenance, result error) {
+	result = s.withConnection(ctx, func(ctx context.Context, c *pgx.Conn) error {
+		var raw []byte
+		var wire struct {
+			Examined  *int `json:"examined"`
+			Projected *int `json:"projected"`
+			Deleted   *int `json:"deleted"`
+			Buckets   *int `json:"buckets"`
+		}
+		if err := c.QueryRow(ctx, `SELECT zasp_gateway_maintain($1,$2)`, retentionDays, limit).Scan(&raw); err != nil {
+			var provider *pgconn.PgError
+			if errors.As(err, &provider) && provider.Code == "42883" {
+				return nil
+			}
+			return errWorkerExecution
+		}
+		if json.Unmarshal(raw, &wire) != nil || wire.Examined == nil || wire.Projected == nil || wire.Deleted == nil || wire.Buckets == nil ||
+			*wire.Examined < 0 || *wire.Projected < 0 || *wire.Projected > *wire.Examined || *wire.Deleted < 0 || *wire.Buckets < 0 {
+			return errWorkerExecution
+		}
+		done = gatewayMaintenance{Examined: *wire.Examined, Projected: *wire.Projected, Deleted: *wire.Deleted, Buckets: *wire.Buckets}
+		return nil
+	})
+	return
+}
+
 // This scans desired changes, never due work. One startup pass also repairs
 // deleted or missing Temporal Schedules through the same reconciliation path.
-// On a timer it also releases abandoned discovery runs.
+// On a timer it also releases abandoned discovery runs, queues the due red
+// team re-tests and looks after the hosted gateway's records.
 type temporalDiscoveryScheduleProcessor struct {
 	mu         sync.Mutex
 	source     *temporalDiscoveryScheduleSource
@@ -203,6 +248,42 @@ type temporalDiscoveryScheduleProcessor struct {
 	// retest is replaced in tests; nil means the source.
 	retest     func(context.Context, int) (int, error)
 	lastRetest time.Time
+	// gatewayRetentionDays is how long a gateway decision is kept; zero
+	// means the default. maintain is replaced in tests; nil means the
+	// source.
+	gatewayRetentionDays int
+	maintain             func(context.Context, int, int) (gatewayMaintenance, error)
+	lastMaintain         time.Time
+}
+
+// maintainDue looks after the hosted gateway's records when its interval has
+// elapsed. A pass that reached its bound has more to do and does not wait
+// for the next interval; a failed pass is retried on the next one.
+func (p *temporalDiscoveryScheduleProcessor) maintainDue(ctx context.Context) error {
+	now := time.Now
+	if p.now != nil {
+		now = p.now
+	}
+	at := now()
+	if !p.lastMaintain.IsZero() && at.Sub(p.lastMaintain) < gatewayMaintenanceInterval {
+		return nil
+	}
+	maintain := p.maintain
+	if maintain == nil {
+		maintain = p.source.maintainGateway
+	}
+	days := p.gatewayRetentionDays
+	if days == 0 {
+		days = defaultGatewayDecisionRetentionDays
+	}
+	done, err := maintain(ctx, days, p.limit)
+	if err != nil {
+		return err
+	}
+	if bound := p.limit * 100; done.Examined < bound && done.Deleted < bound {
+		p.lastMaintain = at
+	}
+	return nil
 }
 
 // retestDue queues the due red team re-tests when its interval has elapsed. A
@@ -259,7 +340,7 @@ func (p *temporalDiscoveryScheduleProcessor) RunOnce(ctx context.Context) error 
 	if err != nil {
 		return err
 	}
-	result := errors.Join(p.releaseDue(ctx), p.retestDue(ctx))
+	result := errors.Join(p.releaseDue(ctx), p.retestDue(ctx), p.maintainDue(ctx))
 	for _, ref := range refs {
 		result = errors.Join(result, p.reconciler.Reconcile(ctx, ref))
 		p.after = strings.Join([]string{ref.OrganizationID, ref.WorkspaceID, ref.EnvironmentID, ref.ScheduleID, ref.IntegrationID}, "/")

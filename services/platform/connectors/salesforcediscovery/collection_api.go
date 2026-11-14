@@ -58,12 +58,16 @@ type salesforceAgentQueryVariant struct {
 	agentTypes bool
 }
 
-const salesforceActiveVersionSubquery = "(SELECT Id FROM BotVersions WHERE Status='Active' LIMIT 1)"
+// The active version's DeveloperName (v1, v2, ...) names the agent's planner,
+// from which its topics and actions are read (agentforce.go).
+const salesforceActiveVersionSubquery = "(SELECT Id,DeveloperName FROM BotVersions WHERE Status='Active' LIMIT 1)"
 
+// BotUserId, the user the agent runs as, is selected with the Agentforce
+// fields Type and AgentType: an org that knows those knows it.
 var salesforceAgentQueryVariants = [...]salesforceAgentQueryVariant{
-	{"SELECT Id,DeveloperName,MasterLabel,Type,AgentType," + salesforceActiveVersionSubquery + " FROM BotDefinition ORDER BY Id", true, true},
+	{"SELECT Id,DeveloperName,MasterLabel,Type,AgentType,BotUserId," + salesforceActiveVersionSubquery + " FROM BotDefinition ORDER BY Id", true, true},
 	{"SELECT Id,DeveloperName,MasterLabel," + salesforceActiveVersionSubquery + " FROM BotDefinition ORDER BY Id", true, false},
-	{"SELECT Id,DeveloperName,MasterLabel,Type,AgentType FROM BotDefinition ORDER BY Id", false, true},
+	{"SELECT Id,DeveloperName,MasterLabel,Type,AgentType,BotUserId FROM BotDefinition ORDER BY Id", false, true},
 	{"SELECT Id,DeveloperName,MasterLabel FROM BotDefinition ORDER BY Id", false, false},
 }
 
@@ -88,6 +92,10 @@ type salesforcePageState struct {
 	// Variant is the accepted salesforceAgentQueryVariants index plus one. It
 	// is set exactly when Locator is.
 	Variant int `json:"v,omitempty"`
+	// Moderation is the org's guardrail level (high, medium, low) the first
+	// page read from the Trust Layer switches; "" when they are unknown. It
+	// travels with the cursor so that every agents page records it.
+	Moderation string `json:"m,omitempty"`
 }
 
 type CollectionAPIConfig struct {
@@ -204,11 +212,26 @@ func (api *SalesforceCollectionAPI) fetchOrganization(ctx context.Context, token
 		Org  string `json:"org"`
 		Name string `json:"name"`
 	}{request.Subject.ID, organization.Name})
-	entity, err := marshalSalesforceEntity(deterministicSalesforceInventoryID(request.Subject, "salesforce_org", request.Subject.ID), "salesforce_org", "salesforce:org:"+request.Subject.ID, organization.Name, stable, json.RawMessage(`{}`))
+	// The org's Einstein Trust Layer switches, when the connection may read
+	// them (agentforce.go). Unknown switches are simply not recorded.
+	trust, err := api.fetchSalesforceTrustSettings(ctx, token, instanceURL)
+	if err != nil {
+		return nil, collection.Cursor{}, err
+	}
+	switches := map[string]string{}
+	for name, value := range map[string]*bool{"trust_input_toxicity_detection": trust.inputToxicity, "trust_prompt_injection_detection": trust.promptInjection, "trust_pii_masking": trust.piiMasking} {
+		if value != nil && *value {
+			switches[name] = "enabled"
+		} else if value != nil {
+			switches[name] = "disabled"
+		}
+	}
+	attributes, _ := json.Marshal(switches)
+	entity, err := marshalSalesforceEntity(deterministicSalesforceInventoryID(request.Subject, "salesforce_org", request.Subject.ID), "salesforce_org", "salesforce:org:"+request.Subject.ID, organization.Name, stable, attributes)
 	if err != nil {
 		return nil, collection.Cursor{}, malformed
 	}
-	next, ok := nextSalesforceStateCursor(request.Subject, salesforcePageState{Phase: "agents", Lineage: state.Lineage + 1})
+	next, ok := nextSalesforceStateCursor(request.Subject, salesforcePageState{Phase: "agents", Lineage: state.Lineage + 1, Moderation: trust.moderation()})
 	if !ok {
 		return nil, collection.Cursor{}, malformed
 	}
@@ -274,7 +297,21 @@ func (api *SalesforceCollectionAPI) fetchAgents(ctx context.Context, token []byt
 	if len(response.Records) > request.RemainingItems || len(response.Records) > request.RemainingRelationships {
 		return fail(providercollection.ErrPageCapacity)
 	}
-	entities, relationships, ok := normalizeSalesforceAgents(request.Subject, salesforceAgentQueryVariants[chosen], response.Records)
+	// The optional reads for the agents of this page: the permission sets of
+	// the users they run as, and their topics and actions.
+	enrichment := salesforceAgentEnrichment{moderation: state.Moderation}
+	if references, valid := salesforceAgentReferences(response.Records); valid && len(references) > 0 {
+		var enrichErr error
+		if enrichment.permissions, enrichErr = api.fetchSalesforcePermissions(ctx, token, instanceURL, references, limit); enrichErr != nil {
+			return fail(enrichErr)
+		}
+		// Each tool is one entity and one relationship beside its agent's.
+		budget := min(request.RemainingItems, request.RemainingRelationships) - len(response.Records)
+		if enrichment.tools, enrichment.toolsRead, enrichErr = api.fetchSalesforceAgentTools(ctx, token, instanceURL, references, budget, limit); enrichErr != nil {
+			return fail(enrichErr)
+		}
+	}
+	entities, relationships, ok := normalizeSalesforceAgents(request.Subject, salesforceAgentQueryVariants[chosen], response.Records, enrichment)
 	if !ok {
 		return fail(malformed)
 	}
@@ -285,7 +322,7 @@ func (api *SalesforceCollectionAPI) fetchAgents(ctx context.Context, token []byt
 	if locator == "" {
 		return entities, relationships, nextSalesforceCompleteCursor(request.Cursor, request.Subject), true, nil
 	}
-	next, ok := nextSalesforceStateCursor(request.Subject, salesforcePageState{Phase: "agents", Lineage: state.Lineage + 1, Locator: locator, Variant: chosen + 1})
+	next, ok := nextSalesforceStateCursor(request.Subject, salesforcePageState{Phase: "agents", Lineage: state.Lineage + 1, Locator: locator, Variant: chosen + 1, Moderation: state.Moderation})
 	if !ok {
 		return fail(malformed)
 	}
@@ -369,7 +406,33 @@ func salesforceNextLocator(response salesforceQueryResponse) (string, bool) {
 	return locator, true
 }
 
-func normalizeSalesforceAgents(subject collection.SubjectBinding, variant salesforceAgentQueryVariant, records []json.RawMessage) ([]json.RawMessage, []json.RawMessage, bool) {
+// salesforceAgentReferences reads, of every agent row, what the optional
+// reads need: the user it runs as and the name of its active version.
+func salesforceAgentReferences(records []json.RawMessage) ([]salesforceAgentReference, bool) {
+	references := make([]salesforceAgentReference, 0, len(records))
+	for _, raw := range records {
+		var bot struct {
+			ID            string          `json:"Id"`
+			DeveloperName string          `json:"DeveloperName"`
+			BotUserID     *string         `json:"BotUserId"`
+			BotVersions   json.RawMessage `json:"BotVersions"`
+		}
+		if !decodeSalesforceCollectionResponse(raw, &bot) {
+			return nil, false
+		}
+		reference := salesforceAgentReference{id: bot.ID, developerName: bot.DeveloperName}
+		if bot.BotUserID != nil {
+			reference.userID = *bot.BotUserID
+		}
+		if _, version, ok := salesforceActiveVersion(bot.BotVersions); ok {
+			reference.activeVersion = version
+		}
+		references = append(references, reference)
+	}
+	return references, true
+}
+
+func normalizeSalesforceAgents(subject collection.SubjectBinding, variant salesforceAgentQueryVariant, records []json.RawMessage, enrichment salesforceAgentEnrichment) ([]json.RawMessage, []json.RawMessage, bool) {
 	orgEntityID := deterministicSalesforceInventoryID(subject, "salesforce_org", subject.ID)
 	entities := make([]json.RawMessage, 0, len(records))
 	relationships := make([]json.RawMessage, 0, len(records))
@@ -381,6 +444,7 @@ func normalizeSalesforceAgents(subject collection.SubjectBinding, variant salesf
 			MasterLabel   *string         `json:"MasterLabel"`
 			Type          *string         `json:"Type"`
 			AgentType     *string         `json:"AgentType"`
+			BotUserID     *string         `json:"BotUserId"`
 			BotVersions   json.RawMessage `json:"BotVersions"`
 		}
 		if !decodeSalesforceCollectionResponse(raw, &bot) || !salesforceRecordIDPattern.MatchString(bot.ID) || !validSalesforceCollectionText(bot.DeveloperName, 256) {
@@ -418,7 +482,7 @@ func normalizeSalesforceAgents(subject collection.SubjectBinding, variant salesf
 		status, active := "UNKNOWN", false
 		if variant.activeVersions {
 			var ok bool
-			if active, ok = salesforceActiveVersion(bot.BotVersions); !ok {
+			if active, _, ok = salesforceActiveVersion(bot.BotVersions); !ok {
 				return nil, nil, false
 			}
 			status = "INACTIVE"
@@ -432,12 +496,34 @@ func normalizeSalesforceAgents(subject collection.SubjectBinding, variant salesf
 			ObjectType string `json:"object_type"`
 			Name       string `json:"name"`
 		}{subject.ID, "bot_definition", name})
+		// The user the agent runs as and what that user's permission sets
+		// allow, when the optional read found them.
+		posture := agentsignals.Posture{CredentialActive: active}
+		runAsUser, permissionSets := "", ""
+		if bot.BotUserID != nil && salesforceUserIDPattern.MatchString(*bot.BotUserID) {
+			runAsUser = *bot.BotUserID
+			if facts, read := enrichment.permissions[runAsUser]; read {
+				// View All Data or Modify All Data: the agent reads every
+				// record of the org.
+				posture.SensitiveDataReach = facts.viewAll || facts.modifyAll
+				permissionSets = salesforcePermissionSetNames(facts.sets)
+			}
+		}
 		attributes, _ := json.Marshal(struct {
 			Status    string                 `json:"status"`
 			AgentType string                 `json:"agent_type,omitempty"`
 			Posture   agentsignals.Posture   `json:"posture"`
 			Discovery agentsignals.Discovery `json:"discovery"`
-		}{status, agentType, agentsignals.Posture{CredentialActive: active}, agentsignals.NewDiscovery(agentsignals.MethodProviderAPI, "agentforce", nil)})
+			// RunAsUser is the id of the user the agent runs as and
+			// PermissionSets the names of that user's permission sets.
+			RunAsUser      string `json:"run_as_user,omitempty"`
+			PermissionSets string `json:"permission_sets,omitempty"`
+			// Tools says whether the agent's topics and actions were listed.
+			Tools string `json:"tools,omitempty"`
+			// ContentModeration is the org's guardrail level from the Trust
+			// Layer switches, when they could be read.
+			ContentModeration string `json:"content_moderation,omitempty"`
+		}{status, agentType, posture, agentsignals.NewDiscovery(agentsignals.MethodProviderAPI, "agentforce", nil), runAsUser, permissionSets, enrichment.toolsRead[bot.ID], enrichment.moderation})
 		entity, err := marshalSalesforceEntity(entityID, "salesforce_agent", "salesforce:bot_definition:"+bot.ID, name, stable, attributes)
 		if err != nil {
 			return nil, nil, false
@@ -448,31 +534,76 @@ func normalizeSalesforceAgents(subject collection.SubjectBinding, variant salesf
 		}
 		entities = append(entities, entity)
 		relationships = append(relationships, relationship)
+		// The agent's topics and actions, each a tool of this agent. The
+		// identity of a tool includes its agent, so a topic two agents share
+		// is recorded once for each.
+		topics := map[string]string{}
+		for _, tool := range enrichment.tools[bot.ID] {
+			toolID := deterministicSalesforceInventoryID(subject, "salesforce_agent_tool", bot.ID+":"+tool.id)
+			toolStable, _ := json.Marshal(struct {
+				Org        string `json:"org"`
+				ObjectType string `json:"object_type"`
+				Name       string `json:"name"`
+			}{subject.ID, tool.objectType, tool.name})
+			toolAttributes, _ := json.Marshal(struct {
+				Status               string `json:"status"`
+				TargetType           string `json:"target_type,omitempty"`
+				ConfirmationRequired *bool  `json:"confirmation_required,omitempty"`
+			}{status, tool.targetType, tool.confirmation})
+			toolEntity, err := marshalSalesforceEntity(toolID, "salesforce_agent_tool", "salesforce:"+tool.objectType+":"+bot.ID+":"+tool.id, tool.name, toolStable, toolAttributes)
+			if err != nil {
+				return nil, nil, false
+			}
+			// A topic belongs to its agent and an action to its topic.
+			owner, relationshipType := entityID, "agent_topic"
+			if tool.objectType == "agent_action" {
+				var known bool
+				if owner, known = topics[tool.parent]; !known {
+					return nil, nil, false
+				}
+				relationshipType = "topic_action"
+			} else {
+				topics[tool.id] = toolID
+			}
+			toolRelationship, err := marshalSalesforceRelationship(deterministicSalesforceInventoryID(subject, "contains", bot.ID+":"+tool.id), "contains", "salesforce:"+tool.objectType+":"+bot.ID+":"+tool.id+":owner", owner, toolID, relationshipType)
+			if err != nil {
+				return nil, nil, false
+			}
+			entities = append(entities, toolEntity)
+			relationships = append(relationships, toolRelationship)
+		}
 	}
 	return entities, relationships, true
 }
 
 // salesforceActiveVersion reads the BotVersions subquery result: null when
-// the bot has no active version, otherwise a one-record query result.
-func salesforceActiveVersion(raw json.RawMessage) (bool, bool) {
+// the bot has no active version, otherwise a one-record query result. It
+// also returns the active version's DeveloperName, "" when the row does not
+// state a usable one.
+func salesforceActiveVersion(raw json.RawMessage) (bool, string, bool) {
 	if len(raw) == 0 || bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
-		return false, true
+		return false, "", true
 	}
 	var versions struct {
 		Done    *bool `json:"done"`
 		Records []struct {
-			ID string `json:"Id"`
+			ID            string `json:"Id"`
+			DeveloperName string `json:"DeveloperName"`
 		} `json:"records"`
 	}
 	if !decodeSalesforceCollectionResponse(raw, &versions) || versions.Done == nil || !*versions.Done || versions.Records == nil || len(versions.Records) > 1 {
-		return false, false
+		return false, "", false
 	}
+	name := ""
 	for _, version := range versions.Records {
 		if !salesforceRecordIDPattern.MatchString(version.ID) {
-			return false, false
+			return false, "", false
+		}
+		if salesforceDeveloperNamePattern.MatchString(version.DeveloperName) {
+			name = version.DeveloperName
 		}
 	}
-	return len(versions.Records) == 1, true
+	return len(versions.Records) == 1, name, true
 }
 
 // canonicalSalesforceObject re-encodes a JSON object with its members sorted
@@ -550,7 +681,7 @@ func validSalesforcePageRequest(request CollectionPageRequest) (salesforcePageSt
 }
 
 func validSalesforcePageState(state salesforcePageState) bool {
-	if state.Phase != "agents" || state.Lineage < 2 || state.Lineage > 1_000_000 {
+	if state.Phase != "agents" || state.Lineage < 2 || state.Lineage > 1_000_000 || state.Moderation != "" && state.Moderation != "high" && state.Moderation != "medium" && state.Moderation != "low" {
 		return false
 	}
 	if state.Locator == "" {
