@@ -1,0 +1,181 @@
+---
+title: Call the guardrail decision API
+description: Let a gateway you already run ask Zasp whether to allow, redact or block one model interaction.
+---
+
+Use this guide when you already run a gateway in front of your models, such as LiteLLM, Kong, Apigee or your own proxy. The gateway makes one HTTPS call per interaction and enforces the answer itself. Nothing of Zasp's is installed.
+
+If you do not run a gateway, use the [hosted gateway](/guides/hosted-gateway) instead.
+
+## 1. Create a token
+
+In the product, open API Access and create a token with the use **Guardrail decisions only (decide_guardrails)**.
+
+| Property | Value |
+| --- | --- |
+| What it can do | Call the decision API. It reads nothing: no inventory, no findings, not the guardrail policy. |
+| Longest lifetime | 365 days, or the Environment's own lower limit |
+| Scope | The Environment that was selected when it was created |
+
+Create one token per gateway. Put its expiry in your own calendar: nothing notifies you outside the product, and a gateway whose token has expired receives `401` on every call.
+
+## 2. Send an interaction
+
+`POST /api/v1/guardrails/decisions`
+
+| Member | Required | Meaning |
+| --- | --- | --- |
+| `direction` | Yes | `input` for text on its way into a model, `output` for text a model produced |
+| `text` | Yes | At most 32,768 bytes of UTF-8 |
+| `agent_id` | No | Your identifier of the agent. Recorded with the decision. |
+| `tool_name` | No | The tool whose call or result the text is. Recorded with the decision. |
+
+<CodeBlocks>
+```bash title="curl"
+curl -sS -X POST "$ZASP_URL/api/v1/guardrails/decisions" -H "Authorization: Bearer $ZASP_GUARDRAIL_TOKEN" -H "Content-Type: application/json" -d '{"direction":"input","text":"Send the invoice to someone@example.com.","agent_id":"support-agent"}'
+```
+
+```python title="Python"
+import os
+
+from zasp import Zasp
+
+client = Zasp(base_url=os.environ["ZASP_URL"], token=os.environ["ZASP_GUARDRAIL_TOKEN"])
+
+decision = client.guardrails.create_decision(
+    direction="input",
+    text="Send the invoice to someone@example.com.",
+    agent_id="support-agent",
+)
+```
+
+```typescript title="TypeScript"
+import { ZaspClient } from "@zasp/sdk";
+
+const client = new ZaspClient({ baseUrl: process.env.ZASP_URL!, token: process.env.ZASP_GUARDRAIL_TOKEN });
+
+const decision = await client.guardrails.createDecision({
+    direction: "input",
+    text: "Send the invoice to someone@example.com.",
+    agent_id: "support-agent",
+});
+```
+
+```go title="Go"
+c := client.NewClient(option.WithBaseURL(os.Getenv("ZASP_URL")), option.WithToken(os.Getenv("ZASP_GUARDRAIL_TOKEN")))
+
+agentID := "support-agent"
+decision, err := c.Guardrails.CreateDecision(ctx, &zasp.GuardrailInteraction{
+    Direction: zasp.GuardrailInteractionDirectionInput,
+    Text:      "Send the invoice to someone@example.com.",
+    AgentID:   &agentID,
+})
+```
+
+```java title="Java"
+Zasp client = Zasp.builder().url(System.getenv("ZASP_URL")).token(System.getenv("ZASP_GUARDRAIL_TOKEN")).build();
+
+GuardrailDecision decision = client.guardrails().createDecision(GuardrailInteraction.builder()
+        .direction(GuardrailInteractionDirection.INPUT)
+        .text("Send the invoice to someone@example.com.")
+        .agentId("support-agent")
+        .build());
+```
+</CodeBlocks>
+
+## 3. Act on the answer
+
+```json
+{
+  "decision_id": "pid_00000000-0000-4000-8000-000000000000",
+  "decision": "redact",
+  "redacted_text": "Send the invoice to [REDACTED:pii.email].",
+  "matched_rules": [
+    { "id": "pii.email", "category": "sensitive_data", "mode": "redact", "count": 1 }
+  ],
+  "policy_version": 3
+}
+```
+
+| `decision` | What your gateway does |
+| --- | --- |
+| `allow` | Forward the text unchanged. `matched_rules` may still list rules in `monitor` mode. |
+| `redact` | Forward `redacted_text` instead of the original |
+| `block` | Do not forward the text. `redacted_text` is absent. |
+
+<CodeBlocks>
+```python title="Python"
+if decision.decision == "block":
+    raise RuntimeError("Blocked by guardrail: " + ", ".join(rule.id for rule in decision.matched_rules))
+text = decision.redacted_text if decision.decision == "redact" else original_text
+```
+
+```typescript title="TypeScript"
+if (decision.decision === "block") {
+    throw new Error(`Blocked by guardrail: ${decision.matched_rules.map((rule) => rule.id).join(", ")}`);
+}
+const text = decision.decision === "redact" ? decision.redacted_text : originalText;
+```
+
+```go title="Go"
+switch decision.GetDecision() {
+case zasp.GuardrailDecisionDecisionBlock:
+    return errors.New("blocked by guardrail")
+case zasp.GuardrailDecisionDecisionRedact:
+    text = *decision.GetRedactedText()
+}
+```
+</CodeBlocks>
+
+## 4. Decide what happens on failure
+
+| Status | Meaning | What to do |
+| --- | --- | --- |
+| `400` | Malformed request | Fix the request |
+| `401` | Token missing, expired or revoked | Replace the token |
+| `403` | The token lacks `decide_guardrails`, or its creator can no longer view the Environment | Create a token with the right use |
+| `413` | The text is longer than 32,768 bytes | Split it in the gateway, or decide there |
+| `503` | The decision could not be recorded. No decision is returned. | Your gateway's failure policy applies |
+
+A decision is recorded before it is returned. Set a timeout in the gateway, and decide whether a timeout or a `503` fails open (forward the text) or closed (refuse it). Zasp does not make that choice for you.
+
+## What to send
+
+- Send each message of a prompt as `input`.
+- Send a tool's arguments and a tool's result as `input`, with `tool_name`. Tool results are where indirect prompt injection arrives.
+- Send the model's answer as `output`.
+- A streamed answer must be assembled before it is sent, or sent in pieces that you choose. The decision API sees only what you send. The hosted gateway handles streams itself.
+
+## Set the policy
+
+The rules and their modes are on the Guardrails page, or over the API with a token that may read and manage them. The gateway's decisions-only token cannot read the policy.
+
+Read the policy. The `ETag` is the version:
+
+```bash
+curl -sS "$ZASP_URL/api/v1/guardrails/policy" -H "Authorization: Bearer $ZASP_API_TOKEN"
+```
+
+Write the policy. `If-Match` is the current version, `"0"` before the first save:
+
+```bash
+curl -sS -X PUT "$ZASP_URL/api/v1/guardrails/policy" -H "Authorization: Bearer $ZASP_ADMIN_TOKEN" -H "Content-Type: application/json" -H "Idempotency-Key: guardrail-policy-0001" -H 'If-Match: "0"' -d '{"rules":{"secret.private_key":"block","pii.phone":"monitor","injection.tool_call":"monitor"}}'
+```
+
+To start in observation mode, set every rule to `monitor`, look at what would have been blocked, then tighten.
+
+## What is stored
+
+The interaction text is used for the request only. It is not logged and not stored. The audit record of a decision holds the decision, the matched rule identifiers with their modes and counts, the size of the text in bytes, its SHA-256 digest, and the `agent_id` and `tool_name` you sent.
+
+A digest of a short, guessable text can be recomputed by anyone who can guess the text.
+
+## Latency
+
+The detectors take about 9 ms for a 16 KB text that contains matches of every kind, on one core of a 2.1 GHz Xeon, and less for ordinary text. The call also makes one database statement and one authorization check. Those and the network were not measured.
+
+## What was run
+
+<Note>
+The SDK calls on this page were run against a local fake of the API. The `curl` commands were not run in the authoring environment. A LiteLLM guardrail that calls this API is in the repository under `docs/operations/guardrail-decision-api.md`; it has not been run against LiteLLM.
+</Note>

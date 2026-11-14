@@ -1,0 +1,68 @@
+---
+title: Salesforce
+description: Connect a Salesforce org to find its Agentforce agents, the users they run as, their topics and actions, and the Einstein Trust Layer switches.
+---
+
+This connector is optional and off by default. Your operator enables it in the deployment.
+
+## What is found
+
+The Agentforce agents of one org and, for each agent, where the org and the connection allow it:
+
+| Fact | Read from |
+| --- | --- |
+| The user the agent runs as, and the names of that user's permission sets | The agent's definition and permission set assignments |
+| Whether that user holds View All Data or Modify All Data | The permission sets. Such an agent is marked as reaching sensitive data. |
+| The agent's topics and actions, listed as its tools | The Tooling API. For an action: what it invokes (a flow, Apex, a prompt template, a standard action) and whether it asks for confirmation. |
+| The org's Einstein Trust Layer switches: prompt injection detection, input toxicity detection, data masking | The Metadata API |
+
+Instructions, scopes and descriptions of topics and actions are not selected.
+
+When both prompt screens of the Trust Layer are off, each agent gets the finding that its content moderation is at the lowest level.
+
+Each read is optional. If the org does not have the object, or the run-as user may not read it, the agent is listed without that fact and the sync completes.
+
+## What you grant
+
+<Steps>
+  <Step title="Create a connected app">
+    A connected app or an external client app, with OAuth enabled and the scope `api`.
+  </Step>
+  <Step title="Enable the client credentials flow">
+    Set a run-as user with the permissions API Enabled and View Setup and Configuration. That is enough for the agents, their users' permission sets and their topics and actions.
+  </Step>
+  <Step title="Decide about the Trust Layer switches">
+    They can only be read with the Metadata API, for which Salesforce has no read-only permission: it needs Modify Metadata Through Metadata API Functions. Grant it to the run-as user only if you want the content moderation finding. Without it the switches are unknown and no finding is raised.
+  </Step>
+  <Step title="Hand over the secret">
+    Give the consumer secret to your operator, who stores it and gives you a reference. Note the consumer key, the org's My Domain URL and the 18-character Organization ID.
+  </Step>
+</Steps>
+
+## Configure
+
+In the product, choose "Salesforce Agentforce" in the connector catalog.
+
+| Field | Value |
+| --- | --- |
+| My Domain URL | `https://<name>.my.salesforce.com`. Not the generic login address. |
+| Organization ID | The 18-character ID. It starts with `00D`. |
+| Consumer key | The connected app's consumer key |
+| Consumer secret | `ref:salesforce/client-secret/<name>`. A reference, never the secret. |
+
+Authorizing posts the client-credentials grant to the org's token endpoint, and requires the response to name the configured instance and org.
+
+## Messages you may see
+
+| Message | Meaning | Change |
+| --- | --- | --- |
+| "Salesforce refused the connected app." | The secret, the flow, the run-as user or the Organization ID is wrong | Check the consumer secret, the client credentials flow, the run-as user's permissions and the Organization ID |
+
+## Limits to know
+
+- With the Metadata API permission, the collector sends one read for one metadata type and no other Metadata API call. The permission itself allows more than that.
+- An agent's tools attribute says whether its topics and actions were listed, partly listed or not listed.
+
+## Status
+
+This connector has not been run against a real org. The collector and the token exchange were tested against recorded shapes and fake endpoints only.

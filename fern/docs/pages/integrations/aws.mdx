@@ -1,0 +1,150 @@
+---
+title: AWS
+description: Connect an AWS account with a read role and an external ID. What is found, the exact read policy, and what each optional permission adds.
+---
+
+## What is found
+
+| Record | How |
+| --- | --- |
+| Bedrock agents | Listed by the Bedrock control plane |
+| AgentCore runtimes and gateways | Listed by the AgentCore control plane |
+| MCP servers and their tools | AgentCore gateways and their targets |
+| Inferred agents | A Lambda function that can call a model; a role CloudTrail shows invoking a model; a workload that resolved and reached a model API |
+| Identities | IAM roles, with the managed policies attached to them |
+| Reach | The data stores a role reaches (S3, DynamoDB, Secrets Manager, Systems Manager parameters, RDS Data API) and the model actions it is granted, from its managed policies |
+| Runtimes | EC2 instances, and where the network signal is attributed, ECS services, VPC Lambda functions and EKS clusters |
+
+Three agent checks are raised as findings: a Bedrock agent with no guardrail, an execution role unused for 90 days, and an execution role with administrator access. Two more compare permissions with use: model permissions that are granted and not used, and a role that reaches every resource of a data service.
+
+## What you grant
+
+One IAM role in the account. Zasp assumes it with an external ID. The role is read-only.
+
+### The trust policy
+
+Your operator gives you the two principals and the external ID.
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": [
+          "arn:aws:iam::<zasp account>:role/<zasp connector role>",
+          "arn:aws:iam::<zasp account>:role/<zasp discovery role>"
+        ]
+      },
+      "Action": "sts:AssumeRole",
+      "Condition": { "StringEquals": { "sts:ExternalId": "<external id>" } }
+    }
+  ]
+}
+```
+
+The connector role proves the authorization once. The discovery role reads on every sync.
+
+### The read policy
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "iam:ListRoles",
+        "iam:ListAttachedRolePolicies",
+        "iam:GetPolicy",
+        "iam:GetPolicyVersion",
+        "ec2:DescribeRegions",
+        "ec2:DescribeInstances",
+        "bedrock:ListAgents",
+        "bedrock:GetAgent",
+        "bedrock-agentcore:ListAgentRuntimes",
+        "bedrock-agentcore:GetAgentRuntime",
+        "bedrock-agentcore:ListGateways",
+        "bedrock-agentcore:GetGateway",
+        "bedrock-agentcore:ListGatewayTargets",
+        "bedrock-agentcore:GetGatewayTarget",
+        "lambda:ListFunctions",
+        "iam:GetRole",
+        "cloudtrail:LookupEvents",
+        "route53resolver:ListResolverQueryLogConfigs",
+        "ec2:DescribeFlowLogs",
+        "ec2:DescribeNetworkInterfaces",
+        "logs:StartQuery",
+        "logs:GetQueryResults"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+```
+
+The first six actions are the base. Every other action is optional: without it the sync still succeeds, and the integration names what it could not read.
+
+### What each optional permission adds
+
+| Actions | Adds | Without them |
+| --- | --- | --- |
+| `bedrock:ListAgents`, `bedrock:GetAgent` | Bedrock agents and the guardrail check | Bedrock agents are not listed |
+| `bedrock-agentcore:ListAgentRuntimes`, `bedrock-agentcore:GetAgentRuntime`, `bedrock-agentcore:ListGateways` | AgentCore runtimes and gateways | They are not listed |
+| `bedrock-agentcore:GetGateway` | A gateway's inbound authorizer and MCP address, so the gateway is listed as an MCP server with or without authentication | The gateway is listed by name only |
+| `bedrock-agentcore:ListGatewayTargets`, `bedrock-agentcore:GetGatewayTarget` | The tool names a Lambda target declares, and the host of an MCP server target | The gateway shows no tools |
+| `lambda:ListFunctions` | Lambda functions that can call a model, as inferred agents | They are not found |
+| `iam:GetRole` | When a role was last used, for the 90-day check | No such finding |
+| `cloudtrail:LookupEvents` | Roles that invoked a model in the last seven days, and which model permissions were used | Neither is known |
+| `route53resolver:ListResolverQueryLogConfigs`, `ec2:DescribeFlowLogs`, `logs:StartQuery`, `logs:GetQueryResults` | Workloads that resolved a model API's name and connected to the answered address | They are not found |
+| `ec2:DescribeNetworkInterfaces` | The network signal is attributed to ECS services, the one VPC Lambda function behind an interface, and EKS clusters | Only EC2 instances are attributed |
+
+### The network logs
+
+The four log actions work only when both of these are delivered to CloudWatch Logs:
+
+- Route 53 Resolver query logs for the VPCs;
+- VPC Flow Logs.
+
+Logs delivered only to S3 are not read. Restrict `logs:StartQuery` and `logs:GetQueryResults` to those log groups.
+
+Logs Insights queries are billed to your account: two bounded queries per region and sync, over the last 24 hours.
+
+No query name, address or event leaves the account. Only the names of the matched AI services are kept.
+
+## Configure
+
+| Field | Value |
+| --- | --- |
+| Integration name | A name you will recognise |
+| Read role ARN | The ARN of the role |
+| External ID | `ref:aws/external-id/<name>`, the reference your operator gave you. Never the external ID itself. |
+| Home region | The region used for the identity check and regional inventory |
+
+Authorizing assumes the role, verifies the account identity that is returned, and proves that an action outside the policy is denied.
+
+## Coverage lines you may see
+
+| Line | Meaning | Change |
+| --- | --- | --- |
+| A service, "permission missing" | The read role lacks the named actions | Add them to the role's policy |
+| Resolver query logs or flow logs, "not delivered to CloudWatch Logs" | The log source is off or goes elsewhere | Turn on the logging with a CloudWatch Logs destination |
+| CloudTrail event history could not be read | The lookup failed in the account's regions | Check `cloudtrail:LookupEvents` |
+| A service, "not offered in this account's regions" | The service does not exist there | Nothing |
+
+## Optional: the remediation role
+
+A second role lets Zasp make two approved changes in the account. It is separate from the read role and is never used for reading. See [Remediation and approvals](/concepts/remediation-and-approvals#remediation-in-a-customers-aws-account).
+
+## Limits to know
+
+- Only managed policies are read, not inline policies or permission boundaries.
+- "Unused" is asserted only for `bedrock:InvokeModel` and `bedrock:InvokeModelWithResponseStream`, and only when the seven-day event lookup was read to its end in every region.
+- A pod is named by its cluster, never by its own name, because AWS logs do not carry it.
+- A Lambda function is named from the network signal only when exactly one function uses that subnet and security group set.
+- Each new account also needs a change on the deployment side: the operator registers the role's ARN and stores the external ID.
+
+## Status
+
+This connector has not been connected to a real AWS account. It was run against an emulated account (LocalStack), which does not enforce IAM and does not emulate Bedrock Agents or AgentCore. The interface tags used to attribute network traffic are from AWS documentation and were not checked against a real account.

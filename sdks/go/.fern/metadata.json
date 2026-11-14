@@ -7,7 +7,7 @@
     "importPath": "github.com/zasp-ai/zasp-sec/sdks/go",
     "enableWireTests": false
   },
-  "originGitCommit": "a8af1224692485fb030349f98140512c583f52dc",
+  "originGitCommit": "0d77b27ef1f75ba5fe3c46ebb0a367ec2bc3f9ae",
   "originGitCommitIsDirty": true,
   "invokedBy": "manual"
 }

@@ -1,0 +1,113 @@
+---
+title: Guardrails and the hosted gateway
+description: The guardrail policy, its deterministic rules, and the two ways to apply it to an agent's traffic without installing anything.
+---
+
+A guardrail is a rule that looks at text on its way into a model or out of it, and blocks it, redacts it or reports it.
+
+## The policy
+
+Each Environment has one guardrail policy: a mode for every rule.
+
+| Mode | Effect |
+| --- | --- |
+| `block` | The text is refused |
+| `redact` | Each match is replaced by `[REDACTED:<rule id>]`. Only sensitive-data rules can redact. |
+| `monitor` | The match is reported and nothing is changed |
+| `off` | The rule does not run |
+
+A rule the policy does not name has its default mode. The policy is saved as a whole against the version that was loaded, so two people editing at once cannot overwrite each other silently.
+
+## The rules
+
+| Rule | Default | Matches |
+| --- | --- | --- |
+| `injection.instruction_override` | block | Text that tells the model to ignore or override its instructions, or to reveal its system prompt |
+| `injection.role_switch` | block | Chat-template role markers inside the text, and requests to switch into an unrestricted persona |
+| `injection.hidden_text` | block | Zero-width and bidirectional control characters, an instruction inside an HTML comment, base64 that decodes to an instruction override |
+| `injection.tool_call` | block | A tool call in a model's own call syntax inside the text, or an imperative to call a named tool |
+| `pii.email` | redact | Email addresses |
+| `pii.phone` | redact | Phone numbers |
+| `pii.credit_card` | redact | Card numbers that pass the Luhn checksum |
+| `pii.us_ssn` | redact | US Social Security numbers written with dashes |
+| `secret.aws_access_key_id` | redact | AWS access key IDs |
+| `secret.private_key` | redact | PEM private key blocks |
+| `secret.bearer_token` | redact | Bearer token values and JSON Web Tokens |
+
+## What the detectors are
+
+The detectors are deterministic: regular expressions, fixed phrase lists and checksums. No model is called, so the same text always gets the same answer.
+
+<Warning>
+They are heuristics. They catch the common literal forms of prompt injection and of sensitive data. A paraphrased injection, or one split across messages, is not detected. Treat a block as a strong signal and an allow as "nothing known matched", not as proof that a text is safe.
+</Warning>
+
+## Two ways to apply the policy
+
+Both leave your environment untouched. Neither installs anything.
+
+| | Hosted gateway | Decision API |
+| --- | --- | --- |
+| Who enforces | Zasp, in flight | A gateway you already run |
+| What changes at your side | One address and one token in the agent's configuration | One HTTPS call per interaction in your gateway |
+| What is inspected | Prompts, tool arguments, tool results and answers, streamed answers included | The text your gateway sends |
+| Token permission | `use_gateway` | `decide_guardrails` |
+| Guide | [Hosted gateway](/guides/hosted-gateway) | [Decision API](/guides/decision-api) |
+
+A third way exists and is not agentless: the runtime sensor, which is software installed in a Kubernetes cluster.
+
+## The hosted gateway
+
+The hosted gateway stands between an agent and what it talks to.
+
+**For MCP.** The agent's MCP configuration names the gateway's address for a registered server instead of the server's own. The gateway:
+
+- refuses a server the [MCP registry](/concepts/mcp-governance#the-registry) blocks;
+- removes tools from the tool list that the server's deny list, a non-empty allow list or the policy's risk classes exclude, and tools whose description matches a blocking rule;
+- inspects the arguments and the result of every tool call. A blocked call or result is answered as a failed tool call, so the model sees a tool error and continues.
+
+Tool results are the path of indirect prompt injection. This is where it is closed.
+
+**For models.** The model SDK's base URL is the gateway. The gateway inspects the request's messages and the answer's text and tool-call arguments. A prompt that matches a blocking rule is refused and the provider is not called.
+
+**Credentials.** The agent presents a Zasp token to the gateway, and its MCP server's or provider's own credential in the header `X-Zasp-Upstream-Authorization`. Zasp forwards that credential for the request and does not store or log it. The Zasp token is never sent upstream.
+
+## The gateway policy
+
+Beside the guardrail rules, the gateway has three settings of its own:
+
+| Setting | Default |
+| --- | --- |
+| What happens to an MCP server the registry has no decision for | Allowed |
+| Tool risk classes the gateway hides and refuses | None |
+| Requests one token may send a minute | 600 (0 is no limit) |
+
+## What is recorded
+
+One record per inspected direction of an exchange: the decision, a reason, the matched rule identifiers with their modes and counts, the size and the SHA-256 digest of the body, and identifiers of the server, tool, provider, model and agent.
+
+A record never holds a prompt, an argument, a tool result or an answer. The database function that writes a record refuses any other member.
+
+Decision records are kept 90 days by default.
+
+When the agent names itself in the header `X-Zasp-Agent-Id` with its identifier from the inventory, its gateway traffic also appears as runtime sessions, and counts as the agent's activity.
+
+## Tokens
+
+A token for the gateway or for decisions is made for one purpose and can read nothing.
+
+| Token | Can do | Longest lifetime |
+| --- | --- | --- |
+| `use_gateway` only | Send traffic through the gateway | 365 days |
+| `decide_guardrails` only | Ask for decisions | 365 days |
+| Any other permission | Read the Environment, and with a manage permission change it | 90 days |
+
+An Environment's administrators can lower both limits. A token stops working at once when it is revoked, or when the person who created it loses access to the Environment.
+
+## Limits to know
+
+- The gateway is off by default in a deployment. An operator turns it on.
+- Images and audio, and reasoning text, are not inspected.
+- In a streamed answer, a hidden instruction encoded in a blob longer than the inspection window can be missed.
+- The gateway cannot verify the agent named in `X-Zasp-Agent-Id`. Use one token per agent if attribution matters.
+- The gateway was verified with the official MCP SDK and with the OpenAI and Anthropic SDKs against local stand-ins. It has not been run against a real model provider or a remote MCP server on the internet.

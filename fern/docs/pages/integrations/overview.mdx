@@ -1,0 +1,99 @@
+---
+title: Integrations overview
+description: What an integration is, the steps every integration follows, and which providers a deployment can connect.
+---
+
+An integration is one read-only connection to one provider account, tenant, organization or cluster. It belongs to one Environment.
+
+## Providers
+
+| Provider | What it finds | How it is authorized | Available |
+| --- | --- | --- | --- |
+| [AWS](/integrations/aws) | Bedrock agents, AgentCore runtimes and gateways, inferred agents from Lambda, CloudTrail and network logs, roles and their reach | A read role with an external ID | Always |
+| [Kubernetes](/integrations/kubernetes) | Agent workloads, MCP servers, service accounts | A cluster credential reference | Always |
+| [GitHub](/integrations/github) | Agent projects, MCP configuration, skills | A GitHub App installation | Always |
+| [Okta](/integrations/okta) | AI applications connected to the directory | OAuth with read scopes | Always |
+| [Microsoft and Azure](/integrations/microsoft) | Entra agent identities, AI enterprise applications, Copilot Studio agents, Azure OpenAI and AI Foundry | An application's client credentials | When the operator enables it |
+| [Salesforce](/integrations/salesforce) | Agentforce agents, their users, topics and actions | A connected app's client credentials | When the operator enables it |
+| [Google Cloud](/integrations/google-cloud) | Vertex AI Agent Engine, Conversational Agents, Gemini Enterprise agents, inferred agents on Cloud Run and Cloud Functions | A read-only service account | When the operator enables it |
+| [SaaS platforms](/integrations/saas-platforms) | AI apps and agents of Slack, Google Workspace, ServiceNow, GitLab, Databricks, OpenAI, Anthropic and Atlassian | A Nango connection | When the operator enables it |
+
+A Generic Webhook integration also exists. It sends signed deliveries, such as finding tickets, to one HTTPS destination. It reads nothing.
+
+## The steps of every integration
+
+<Steps>
+  <Step title="Grant read access at the provider">
+    Create the role, application or service account the provider page describes. Every grant is read-only.
+  </Step>
+  <Step title="Configure">
+    In the product, open Integrations, choose the provider in the connector catalog, fill in the fields and save.
+  </Step>
+  <Step title="Authorize">
+    Open the integration and authorize it. Zasp proves it can reach the account, tenant or cluster you named, and refuses any other.
+  </Step>
+  <Step title="Sync">
+    Start the first sync. Later syncs can run on a schedule.
+  </Step>
+  <Step title="Review coverage">
+    Read the coverage lines of the integration. Each names something the sync could not read and what to change.
+  </Step>
+</Steps>
+
+## Secrets are references
+
+Where an integration needs a secret (an external ID, a client secret, a cluster credential), you never paste the secret into the product. The operator stores it in the deployment's secret store and gives you a reference:
+
+| Provider | Reference |
+| --- | --- |
+| AWS | `ref:aws/external-id/<name>` |
+| Kubernetes | `ref:kubernetes/connection/<name>` |
+| Microsoft | `ref:microsoft/client-secret/<name>` |
+| Salesforce | `ref:salesforce/client-secret/<name>` |
+| Google Cloud | `ref:gcp/workload-identity/<project id>/<service account name>` or `ref:gcp/service-account-key/<name>` |
+| SaaS platforms | `ref:nango/connection/<id>` |
+
+The product stores the reference. The secret is read by the API and the discovery worker at the moment it is used, and never returned to a browser.
+
+## Sync, schedule and freshness
+
+| Term | Meaning |
+| --- | --- |
+| Sync | One read of the provider. Started by hand or by a schedule. |
+| Schedule | A cadence in seconds, at least 300 |
+| Sync history | Each sync with its status and the number of records discovered, changed and removed |
+| Freshness | Whether the inventory, the risk projection, the graph and the search index are up to date with the last sync |
+| Last good inventory | What the last complete sync found. It stays visible when a later sync fails or is throttled. |
+
+## Coverage gaps
+
+A sync never fails because one service refused it. It reads what it can, and the integration lists what it could not read, with the reason and the change that closes the gap. See [Coverage](/concepts/agentless-discovery#coverage).
+
+## Integrations over the API
+
+<CodeBlocks>
+```bash title="curl"
+curl -sS "$ZASP_URL/api/v1/integrations" -H "Authorization: Bearer $ZASP_API_TOKEN"
+```
+
+```python title="Python"
+for integration in client.integrations.list():
+    freshness = client.integrations.get_freshness(id=integration.id)
+    print(integration.name, integration.status, [gap.name for gap in freshness.coverage_gaps])
+```
+
+```typescript title="TypeScript"
+for await (const integration of await client.integrations.list()) {
+    const freshness = await client.integrations.getFreshness({ id: integration.id });
+    console.log(integration.name, integration.status, freshness.coverage_gaps.map((gap) => gap.name));
+}
+```
+</CodeBlocks>
+
+<Note>
+The SDK examples were checked against the SDKs. Neither they nor the `curl` command were run against a deployment.
+</Note>
+
+## Status
+
+No connector has been run against a real provider account, tenant or cluster. The collectors were tested against recorded response shapes and emulators. Each provider page says which of its shapes come from the provider's documentation and which were not verified.

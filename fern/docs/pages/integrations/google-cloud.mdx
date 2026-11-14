@@ -1,0 +1,98 @@
+---
+title: Google Cloud
+description: Connect an organization, a folder or a project with a read-only service account, preferably through workload identity federation.
+---
+
+This connector is optional and off by default. Your operator enables it in the deployment.
+
+## What is found
+
+For the organization, folder or project an integration names, every active project below it is read.
+
+| Record | Google API |
+| --- | --- |
+| Vertex AI Agent Engine reasoning engines | `aiplatform.googleapis.com` |
+| Conversational Agents (Dialogflow CX) agents, and the tools they declare | `dialogflow.googleapis.com` |
+| Gemini Enterprise agents | `discoveryengine.googleapis.com` |
+| Vertex AI endpoints and their deployed models | `aiplatform.googleapis.com` |
+| Cloud Run services and Cloud Functions that call a model, as inferred agents | `run.googleapis.com`, `cloudfunctions.googleapis.com` |
+| Cloud Run services that are MCP servers | `run.googleapis.com` |
+| Service accounts, with the roles bound on the project and on the folders and organization above it | `iam.googleapis.com`, `cloudresourcemanager.googleapis.com` |
+| Model Armor floor setting and templates | `modelarmor.googleapis.com` |
+| When a service account last called a model, from the data access audit log of the last seven days | `logging.googleapis.com` |
+
+A Cloud Run service or a function is listed as an agent only on evidence: one strong signal, or weak signals of two different kinds. The name of an environment variable can be a signal. Values are never read.
+
+Two findings are specific to Google Cloud: an agent whose service account holds an administrator role, and a Vertex AI agent that runs without Model Armor.
+
+## What you grant
+
+One service account for discovery, with these read-only roles on the organization, folder or project to read:
+
+| Role | Needed for |
+| --- | --- |
+| `roles/browser` | Listing projects and folders, reading project IAM policies |
+| `roles/aiplatform.viewer` | Reasoning engines, endpoints |
+| `roles/dialogflow.viewer` | Conversational Agents |
+| `roles/discoveryengine.viewer` | Gemini Enterprise agents |
+| `roles/run.viewer` | Cloud Run services |
+| `roles/cloudfunctions.viewer` | Cloud Functions |
+| `roles/iam.securityReviewer` | Service accounts and IAM policies |
+| `roles/modelarmor.viewer` | Model Armor floor setting and templates |
+| `roles/logging.privateLogViewer` | Data access audit logs |
+
+A role that is left out costs only that line of coverage.
+
+Model invocations appear in the audit log only where data access audit logs are enabled for the Vertex AI API in the project. Without them every agent is still listed; only the time a service account last called a model is unknown.
+
+### How Zasp reaches the service account
+
+**Workload identity federation (recommended).** Nothing is stored.
+
+<Steps>
+  <Step title="Create a pool and a provider">
+    Create a workload identity pool and, in it, an AWS provider for the AWS account your Zasp deployment runs in.
+  </Step>
+  <Step title="Allow impersonation">
+    Grant `roles/iam.workloadIdentityUser` on the service account to the principals of the pool that map to the deployment's connector role and its discovery worker role. Your operator gives you both roles.
+  </Step>
+  <Step title="Note the provider's resource name">
+    It has the form `//iam.googleapis.com/projects/<project number>/locations/global/workloadIdentityPools/<pool>/providers/<provider>`.
+  </Step>
+</Steps>
+
+Zasp signs an AWS identity request with its own role, Google verifies the signature with AWS, and a one-hour token of the service account is issued. No key exists.
+
+**A service account key.** Only where federation is not possible. Create a JSON key and hand it to your operator, who stores it outside the product. Rotate it in Google Cloud and have the stored value replaced.
+
+## Configure
+
+| Field | Value |
+| --- | --- |
+| Organization, folder or project | `organizations/<number>`, `folders/<number>` or `projects/<project id>` |
+| Service account | With federation: `ref:gcp/workload-identity/<project id>/<service account name>`. With a key: `ref:gcp/service-account-key/<name>`. |
+| Workload identity provider | With federation only: the provider's resource name |
+
+Authorizing obtains a token and reads the organization, folder or project you named. The integration becomes active only if both succeed.
+
+## Coverage lines you may see
+
+Each Google API with a gap is one line.
+
+| Line | Meaning | Change |
+| --- | --- | --- |
+| "at least one project refused the read-only service account" | A role is missing | Grant the role the line names |
+| "the API is switched off in every project that was read" | Nothing could be listed there | Nothing, unless you expected agents |
+| Inherited IAM roles | The IAM policy of a folder or the organization above a project could not be read | Grant `roles/iam.securityReviewer` on the organization |
+
+A rejected token, throttling or a server error fails the sync, and it is retried.
+
+## Limits to know
+
+- One collection reads at most 2,000 projects. Connect a larger organization per folder.
+- For a Cloud Run MCP server, Google's APIs do not say which agent uses it, so the MCP findings are not raised for it.
+- Vertex AI Agent Engine and Gemini Enterprise expose no list of an agent's tools.
+
+## Status
+
+This connector has not been run against a real Google Cloud organization. The role names are Google's predefined roles as known to the authors: confirm each in the IAM console before granting.

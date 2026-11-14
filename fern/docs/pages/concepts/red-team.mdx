@@ -1,0 +1,93 @@
+---
+title: Red team
+description: Curated attack probes against non-production agents, the probe library, and scheduled re-tests.
+---
+
+A red team test sends curated attack probes to an agent or tool you discovered and records what happened as evidence that cannot be changed afterwards.
+
+## The safety rule
+
+A test runs only when all of these hold:
+
+- the target is a development, test or staging target;
+- the credential is read-only or test-write;
+- the categories come from the curated list.
+
+The product never accepts your own prompt, an arbitrary destination, a production environment, a production-write credential or shell access. The rule is checked when a test is saved, when it is run, and again before every scheduled run.
+
+## Tests and runs
+
+| Object | What it is |
+| --- | --- |
+| Test | A definition: a target, a target mode, a safe environment, a credential class and categories |
+| Run | One execution of a test, with a verdict and evidence |
+
+The target is chosen from the discovered agents and tools whose inventory record is fresh. A test starts as a draft, and is enabled before it can run.
+
+## Categories
+
+| Category | What it probes |
+| --- | --- |
+| Prompt injection | Instructions in the input that override the agent's own |
+| Tool abuse | Use of a tool beyond its purpose |
+| Data leakage | Disclosure of data the agent holds |
+| Authorization bypass | Acting beyond the caller's rights |
+| Excessive agency | Actions nobody asked for |
+| Sensitive information | Disclosure of secrets and personal data |
+| Indirect injection (tool or MCP output) | Instructions that arrive in a tool result |
+| Poisoned resource | Instructions planted in a resource the agent reads |
+| Cross-agent delegation | Misuse of one agent by another |
+
+The product can recommend categories from what the target can do. A recommendation does not authorize a run: the target and the credential are checked again before the run is queued.
+
+## The probe library
+
+A run executes a sample of the probe library that is built into the release.
+
+- The library holds 1,080 reviewed probes.
+- By default a run takes 25 probes per selected category. The sample is chosen by the run's identifier, so each run takes its own sample.
+- The run's detail lists every probe that ran, with its technique and its outcome.
+
+Probe text is never shown and never returned by the API. `GET /api/v1/test-probes` lists counts, techniques and framework tags per category.
+
+## Continuous re-test
+
+A test can be scheduled:
+
+| Trigger | Meaning |
+| --- | --- |
+| Cadence | Every hour, every 6 hours, every day, every week or every 30 days |
+| Target change | When discovery sees the inventory record of the target change |
+
+Both can be on. The safety rule is checked when the schedule is saved and before each scheduled run. If the target has moved to production in the meantime, the run does not start.
+
+## Tests over the API
+
+<CodeBlocks>
+```bash title="curl"
+curl -sS "$ZASP_URL/api/v1/test-runs?limit=20" -H "Authorization: Bearer $ZASP_API_TOKEN"
+```
+
+```python title="Python"
+for run in client.test_runs.list(limit=20):
+    print(run.id, run.status)
+```
+
+```typescript title="TypeScript"
+for await (const run of await client.testRuns.list({ limit: 20 })) {
+    console.log(run.id, run.status);
+}
+```
+</CodeBlocks>
+
+<Note>
+The SDK examples were checked against the SDKs. Neither they nor the `curl` command were run against a deployment.
+</Note>
+
+Creating a test and starting a run need a token or a role that may run tests.
+
+## What a result means
+
+A run reports what the probes observed. A run without failures says that this sample of probes did not succeed against this target on this day. It does not certify the agent.
+
+Red team runs are part of an agent's [evidence pack](/concepts/compliance#evidence-pack).

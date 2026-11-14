@@ -19,7 +19,7 @@
     "openapi:generate": "openapi-typescript openapi/openapi.yaml --output apps/web/api/generated.ts --alphabetize --export-type --immutable --root-types --root-types-no-schema-prefix",
     "openapi:check": "openapi-typescript openapi/openapi.yaml --output apps/web/api/generated.ts --alphabetize --export-type --immutable --root-types --root-types-no-schema-prefix --check",
     "docs:overrides": "node fern/scripts/build-openapi-overrides.mjs",
-    "docs:check": "node fern/scripts/build-openapi-overrides.mjs --check && node fern/scripts/check-ui-labels.mjs && node fern/scripts/fern.mjs check",
+    "docs:check": "node fern/scripts/build-openapi-overrides.mjs --check && node fern/scripts/check-ui-labels.mjs && node fern/scripts/fern.mjs check && node fern/scripts/fern.mjs docs broken-links",
     "docs:preview": "node fern/scripts/build-openapi-overrides.mjs --check && node fern/scripts/fern.mjs generate --docs --preview",
     "sdk:generate": "node fern/scripts/generate-sdks.mjs",
     "sdk:test": "node fern/scripts/test-sdks.mjs",

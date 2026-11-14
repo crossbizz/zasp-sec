@@ -1,0 +1,264 @@
+# yaml-language-server: $schema=https://schema.buildwithfern.dev/docs-yml.json
+#
+# The Zasp documentation site. Validate with `npm run docs:check`.
+#
+# The two getting-started guides have one source each:
+#   - the User guide is docs/getting-started/user.md, used here as a page;
+#   - the Administrator guide is docs/getting-started/administrator.md once it
+#     is merged. Until then its page is docs/pages/getting-started/administrator.mdx.
+#     See the ADMIN-GUIDE-SOURCE comment in that file.
+
+instances:
+  - url: zasp.docs.buildwithfern.com
+
+title: Zasp
+
+colors:
+  accent-primary:
+    light: "#174EA6"
+    dark: "#8AB4F8"
+
+tabs:
+  docs:
+    display-name: Documentation
+    icon: book-open
+    skip-slug: true
+  api:
+    display-name: API Reference
+    icon: code
+    slug: api
+
+navigation:
+  - tab: docs
+    layout:
+      - section: Get started
+        skip-slug: true
+        contents:
+          - page: Introduction
+            path: ./docs/pages/introduction.mdx
+            slug: introduction
+          - page: Quickstart
+            path: ./docs/pages/getting-started/quickstart.mdx
+            slug: quickstart
+          - page: Administrator guide
+            path: ./docs/pages/getting-started/administrator.mdx
+            slug: administrator-guide
+          - page: User guide
+            path: ../docs/getting-started/user.md
+            slug: user-guide
+
+      - section: Concepts
+        slug: concepts
+        contents:
+          - page: Agentless discovery and signals
+            path: ./docs/pages/concepts/agentless-discovery.mdx
+            slug: agentless-discovery
+          - page: Inventory model
+            path: ./docs/pages/concepts/inventory-model.mdx
+            slug: inventory-model
+          - page: Findings and frameworks
+            path: ./docs/pages/concepts/findings-and-frameworks.mdx
+            slug: findings-and-frameworks
+          - page: MCP governance
+            path: ./docs/pages/concepts/mcp-governance.mdx
+            slug: mcp-governance
+          - page: Red team
+            path: ./docs/pages/concepts/red-team.mdx
+            slug: red-team
+          - page: Guardrails and the hosted gateway
+            path: ./docs/pages/concepts/guardrails-and-gateway.mdx
+            slug: guardrails-and-gateway
+          - page: Remediation and approvals
+            path: ./docs/pages/concepts/remediation-and-approvals.mdx
+            slug: remediation-and-approvals
+          - page: Compliance
+            path: ./docs/pages/concepts/compliance.mdx
+            slug: compliance
+
+      - section: Integrations
+        slug: integrations
+        contents:
+          - page: Overview
+            path: ./docs/pages/integrations/overview.mdx
+            slug: overview
+          - page: AWS
+            path: ./docs/pages/integrations/aws.mdx
+            slug: aws
+          - page: Kubernetes
+            path: ./docs/pages/integrations/kubernetes.mdx
+            slug: kubernetes
+          - page: GitHub
+            path: ./docs/pages/integrations/github.mdx
+            slug: github
+          - page: Okta
+            path: ./docs/pages/integrations/okta.mdx
+            slug: okta
+          - page: Microsoft and Azure
+            path: ./docs/pages/integrations/microsoft.mdx
+            slug: microsoft
+          - page: Salesforce
+            path: ./docs/pages/integrations/salesforce.mdx
+            slug: salesforce
+          - page: Google Cloud
+            path: ./docs/pages/integrations/google-cloud.mdx
+            slug: google-cloud
+          - page: SaaS platforms
+            path: ./docs/pages/integrations/saas-platforms.mdx
+            slug: saas-platforms
+
+      - section: Guides
+        slug: guides
+        contents:
+          - page: Call the guardrail decision API
+            path: ./docs/pages/guides/decision-api.mdx
+            slug: decision-api
+          - page: Route an agent through the hosted gateway
+            path: ./docs/pages/guides/hosted-gateway.mdx
+            slug: hosted-gateway
+          - page: API tokens and SDKs
+            path: ./docs/pages/guides/api-tokens-and-sdks.mdx
+            slug: api-tokens-and-sdks
+
+  - tab: api
+    layout:
+      - section: Overview
+        skip-slug: true
+        contents:
+          - page: Using the API
+            path: ./docs/pages/api/overview.mdx
+            slug: overview
+      - api: API Reference
+        skip-slug: true
+        paginated: true
+        # A deployment has its own address, so the reference has no server to
+        # send a request to. The request examples are shown; the explorer is not.
+        playground:
+          hidden: true
+        layout:
+          - section: Inventory
+            contents:
+              - section: Agents
+                referenced-packages: [agents]
+                contents: []
+              - section: Tools
+                referenced-packages: [tools]
+                contents: []
+              - section: MCP servers
+                referenced-packages: [mcpServers]
+                contents: []
+              - section: Identities
+                referenced-packages: [identities]
+                contents: []
+              - section: Runtimes
+                referenced-packages: [runtimes]
+                contents: []
+              - section: Assets
+                referenced-packages: [assets]
+                contents: []
+              - section: Search
+                referenced-packages: [search]
+                contents: []
+              - section: Overview summary
+                referenced-packages: [home]
+                contents: []
+          - section: Integrations
+            contents:
+              - section: Integrations
+                referenced-packages: [integrations]
+                contents: []
+              - section: Sensors
+                referenced-packages: [sensors]
+                contents: []
+          - section: Exposure
+            contents:
+              - section: Findings
+                referenced-packages: [findings]
+                contents: []
+              - section: Attack paths
+                referenced-packages: [attackPaths]
+                contents: []
+          - section: Testing
+            contents:
+              - section: Red team tests
+                referenced-packages: [tests]
+                contents: []
+              - section: Red team runs
+                referenced-packages: [testRuns]
+                contents: []
+              - section: Attack lab
+                referenced-packages: [attackLab]
+                contents: []
+          - section: Protection
+            contents:
+              - section: Guardrails
+                referenced-packages: [guardrails]
+                contents: []
+              - section: Hosted gateway
+                referenced-packages: [gateway]
+                contents: []
+              - section: Hosted gateway traffic
+                referenced-packages: [gatewayTraffic]
+                contents: []
+              - section: Policies
+                referenced-packages: [policies]
+                contents: []
+          - section: Security Agents
+            contents:
+              - section: Definitions
+                referenced-packages: [securityAgents]
+                contents: []
+              - section: Runs
+                referenced-packages: [securityAgentRuns]
+                contents: []
+              - section: Approvals
+                referenced-packages: [securityAgentApprovals]
+                contents: []
+          - section: Investigation and compliance
+            contents:
+              - section: Sessions
+                referenced-packages: [sessions]
+                contents: []
+              - section: Compliance
+                referenced-packages: [compliance]
+                contents: []
+              - section: Audit log
+                referenced-packages: [audit]
+                contents: []
+          - section: Administration
+            contents:
+              - section: Organization
+                referenced-packages: [organization]
+                contents: []
+              - section: Workspaces
+                referenced-packages: [workspaces]
+                contents: []
+              - section: Environments
+                referenced-packages: [environments]
+                contents: []
+              - section: Members and roles
+                referenced-packages: [members]
+                contents: []
+              - section: Group mappings
+                referenced-packages: [groupMappings]
+                contents: []
+              - section: SSO connections
+                referenced-packages: [ssoConnections]
+                contents: []
+              - section: SCIM connections
+                referenced-packages: [scimConnections]
+                contents: []
+              - section: API tokens
+                referenced-packages: [apiTokens]
+                contents: []
+              - section: Data controls
+                referenced-packages: [settings]
+                contents: []
+              - section: System
+                referenced-packages: [system]
+                contents: []
+              - section: Recovery
+                referenced-packages: [recovery]
+                contents: []
+          - section: Browser session
+            referenced-packages: [browserSession]
+            contents: []

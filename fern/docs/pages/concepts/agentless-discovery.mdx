@@ -1,0 +1,84 @@
+---
+title: Agentless discovery and signals
+description: How Zasp finds agents without installing anything, and how to read why something was called an agent.
+---
+
+Discovery is how Zasp learns which agents exist. It installs nothing. An integration holds a read-only credential for one provider account, tenant or cluster, and a sync reads that provider's APIs.
+
+## Three ways an agent is found
+
+Every agent records how it was found.
+
+| Method | Meaning | Examples |
+| --- | --- | --- |
+| Provider record | The provider's own control plane lists it as an agent | A Bedrock agent, an AgentCore runtime, a Copilot Studio agent, an Agentforce agent, a Vertex AI Agent Engine |
+| Inferred from signals | Nothing declares it an agent, but the evidence says it acts as one | A Lambda function that can call a model, a role CloudTrail shows invoking a model, a repository with an agent framework |
+| Declared by owner | A person registered it | An agent an owner added |
+
+An agent found without a declaration is **unmanaged** until someone claims it. Unmanaged agents are what other tools call shadow agents.
+
+## Signals
+
+An inferred agent is found from signals. A signal has a class and a token, written `class:token`, for example `env:openai` or `invoke:bedrock`. The agent's detail lists every signal under **How it was found**.
+
+| Class | What was observed | Read from |
+| --- | --- | --- |
+| `package` | A dependency on an agent framework or model SDK | A repository's manifest files |
+| `image` | A container image that names a framework | A workload's pod template or service definition |
+| `process` | A container command that names a framework | A workload's pod template |
+| `manifest` | An agent or MCP manifest file | A repository's file tree |
+| `port` | A default listening port of a known server | A workload's pod template |
+| `env` | The name of an environment variable that holds a model provider's credential or endpoint | The variable's name. Values are never read. |
+| `iam` | A policy that allows the workload's role to invoke a model | The role's managed policies |
+| `invoke` | An invocation recorded in the provider's audit log | CloudTrail, or Google Cloud's data access audit log |
+| `egress` | A service the workload resolved and then connected to | Your own network logs |
+| `app` | A third-party AI application connected to a tenant | An identity provider or a SaaS platform |
+
+One strong signal, or weak signals of two different kinds, makes an agent. A weak signal alone does not.
+
+## The agentless runtime signal
+
+Whether a workload really calls a model is visible in logs you already keep, without anything installed.
+
+On AWS, with the optional permissions on the read role:
+
+- CloudTrail shows which roles invoked a model in the last seven days.
+- Route 53 Resolver query logs show which workload resolved a model API's name.
+- VPC Flow Logs show that it then connected to the address it was given.
+
+A workload that resolved and reached a model API is listed as an inferred agent with an `egress` signal. No query name, address or event leaves the account: only the name of the matched service is kept.
+
+The logs must be delivered to CloudWatch Logs. Logs delivered only to S3 are not read. The queries are billed to the account that owns the logs.
+
+## Coverage
+
+A sync reads what the credential allows. When it cannot read something, the sync still succeeds, and the integration lists the gap under **Agent discovery coverage** with the reason:
+
+- a permission is missing, with the exact action or role to add;
+- a log source is not delivered where it can be read;
+- the service is not offered in the account's regions, or its API is switched off.
+
+A coverage gap means: agents of that kind may exist and are not seen. It is the honest form of "nothing found".
+
+## Activity
+
+Each agent has a last known activity and one of three states.
+
+| State | Meaning |
+| --- | --- |
+| Active | An activity signal within the last 30 days |
+| Inactive | The last activity is older than 30 days, or AWS reports the agent's role unused for 90 days |
+| Unknown | No activity source exists for this agent. This is not the same as inactive. |
+
+Activity comes from a runtime event attributed to the agent, from the time CloudTrail last shows its role invoking a model, from the hosted gateway when the agent's traffic goes through it, or from the collection that last saw it reach an AI endpoint.
+
+## What is never recorded
+
+Collectors never record secrets, tokens, values of environment variables, file contents, prompts or payloads. Skills and instruction files are recorded by path only.
+
+## Limits to know
+
+- On AWS only managed policies are read, not inline policies or permission boundaries.
+- A pod found from AWS network logs is named by its cluster, not by its own name, because the logs do not carry it.
+- A workload that reaches a model through an HTTP proxy is not attributed: the proxy resolves the name.
+- No connector has been run against a real provider account. The shapes were tested against recorded responses and emulators.

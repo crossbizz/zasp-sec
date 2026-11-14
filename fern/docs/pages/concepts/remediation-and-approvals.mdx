@@ -1,0 +1,109 @@
+---
+title: Remediation and approvals
+description: Security Agents, supervised execution, who may approve, and how a change is made in a customer's AWS account.
+---
+
+Zasp reads by default. It changes something only through a Security Agent, and only after a person approved the change.
+
+## Security Agents
+
+A Security Agent is a bounded, named response. It is created from a template, takes one kind of evidence as its trigger and proposes or performs one kind of action. It is not a general assistant, and it cannot be given a free-form instruction.
+
+Every definition has limits: a step limit, a run time limit, an AI token budget and an AI cost budget. A definition needs a cost budget before execution can be enabled, including one whose action makes no model call.
+
+| State of a definition | Meaning |
+| --- | --- |
+| Disabled draft | Saved, cannot run |
+| Validated | Its configuration was checked |
+| Supervised execution | It can run; every action waits for a person |
+
+New definitions start supervised.
+
+## Execution controls
+
+Two switches sit above every definition:
+
+- automation for the whole Environment;
+- one switch per action.
+
+Enabling a definition switches on execution for its action in the Environment. An identity administrator can switch an action off again at any time. Changing a control needs a fresh sign-in.
+
+## Simulation
+
+A simulation shows the proposed steps and the matched evidence and executes nothing. Use it before you enable a definition.
+
+## Approvals
+
+A supervised action becomes an approval request before any provider is touched. The request shows the trigger, the evidence, the plan and the expected effect.
+
+| Rule | Detail |
+| --- | --- |
+| Four eyes | The person who requested a run cannot approve it |
+| Who may approve | A member whose role may approve actions. Some actions need an identity administrator. |
+| Fresh sign-in | Deciding needs a recent sign-in |
+| Validity | An approval is valid for 24 hours |
+| Reversibility | An action that cannot be undone is marked as not reversible |
+
+Every decision stays in the approval history, and every run has an audit trail.
+
+## Remediation in a customer's AWS account
+
+Two actions change an AWS account:
+
+| Action | Answers the finding | What it does |
+| --- | --- | --- |
+| Attach Bedrock guardrail | Agent has no guardrail attached | Attaches an existing guardrail to a Bedrock agent |
+| Detach administrator policy | Agent's execution role has administrator access | Detaches one managed policy that allows every action on every resource from the role an agent runs as |
+
+### The remediation role
+
+These actions never use the role discovery reads with. Each AWS integration names a separate remediation role that you create. Until one is set, a remediation of that account is refused before anything happens.
+
+The role's policy, and nothing else:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    { "Effect": "Allow", "Action": ["bedrock:GetAgent", "bedrock:UpdateAgent", "bedrock:PrepareAgent"], "Resource": "arn:aws:bedrock:*:<account>:agent/*" },
+    { "Effect": "Allow", "Action": ["iam:ListAttachedRolePolicies", "iam:DetachRolePolicy"], "Resource": "arn:aws:iam::<account>:role/*" },
+    { "Effect": "Allow", "Action": ["iam:GetPolicy", "iam:GetPolicyVersion"], "Resource": ["arn:aws:iam::<account>:policy/*", "arn:aws:iam::aws:policy/*"] }
+  ]
+}
+```
+
+Its trust policy names the deployment's action worker, with the same external ID as the read role. Narrow the resources to the agents and roles you want Zasp to be able to change.
+
+The database refuses a remediation role that is the read role, or that belongs to another account.
+
+### How a remediation runs
+
+<Steps>
+  <Step title="Request">
+    On the finding, choose to fix it with a Security Agent. Name the guardrail and its version, or the policy to detach.
+  </Step>
+  <Step title="Approve">
+    A person other than the requester approves the run. A policy detachment needs an identity administrator.
+  </Step>
+  <Step title="Change and read back">
+    The action worker assumes the remediation role, reads the agent, makes the change and reads it back. Only a confirmed read-back ends the run as remediated.
+  </Step>
+  <Step title="Close">
+    The finding resolves at the next sync of the AWS integration, when discovery reads the agent again.
+  </Step>
+</Steps>
+
+### Safeguards
+
+- A policy is detached only when its document allows every action on every resource, or when it is the AWS managed `AdministratorAccess` policy. Any other policy is left attached.
+- A policy is detached only from the role the agent itself runs as.
+- If the provider no longer describes the agent the approval was for, the run stops.
+- Nothing is rolled back automatically. The run's audit event records what was there before, so that you can undo the change by hand.
+
+A run that cannot finish safely ends as needing a human and names the reason, for example that the role could not be assumed, that the target was not found, or that a change may have been made and could not be confirmed.
+
+## Limits to know
+
+- The two remediation actions have not been run against a real AWS account.
+- Whether attaching a guardrail needs `iam:PassRole` on the agent's execution role has not been verified. If the first attachment is denied by the provider, add that statement.
+- Planning steps of a Security Agent use a model through a provider your administrator configures. A remediation makes no model call.
