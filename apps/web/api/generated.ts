@@ -3783,10 +3783,10 @@ export type components = {
         };
         readonly IntegrationCoverageGap: {
             readonly name: string;
-            /** @description The provider service, for example bedrock-agent, bedrock-agentcore or lambda. A Kubernetes integration reports runtime-observations when its discovery credential may not list the node sensor ConfigMaps. */
+            /** @description The provider service, for example bedrock-agent, bedrock-agentcore or lambda. A Kubernetes integration reports runtime-observations when its discovery credential may not list the node sensor ConfigMaps. A Google Cloud integration reports the Google API, for example agent-engine, cloud-run or audit-logs. */
             readonly service: string;
             /**
-             * @description access_denied when the read role lacks a permission the service needs; unavailable when the service is not offered in the regions of the account.
+             * @description access_denied when the read role lacks a permission the service needs; unavailable when the service is not offered in the regions of the account or, for Google Cloud, when the API is switched off in every project that was read.
              * @enum {string}
              */
             readonly status: "access_denied" | "unavailable";
@@ -3797,7 +3797,7 @@ export type components = {
             readonly status: "deleted";
         };
         readonly IntegrationFreshness: {
-            /** @description The AI services whose agents the integration's current collection could not list, ordered by service. Empty when every service was read, and for every provider other than AWS. */
+            /** @description The AI services whose agents the integration's current collection could not list, ordered by service. Empty when every service was read. AWS, Kubernetes and Google Cloud integrations report gaps; the other providers report none. */
             readonly coverage_gaps: readonly components["schemas"]["IntegrationCoverageGap"][];
             readonly integration_id: components["schemas"]["ProductID"];
             readonly last_good: components["schemas"]["IntegrationLastGoodSnapshot"] | null;
@@ -3884,7 +3884,7 @@ export type components = {
             readonly permissions: readonly string[];
             readonly repository_selection: ("all" | "selected") | null;
             /** @enum {string} */
-            readonly scope_kind: "none" | "aws_account" | "kubernetes_cluster" | "github_organization" | "okta_tenant" | "microsoft_tenant" | "salesforce_org" | "saas_tenant";
+            readonly scope_kind: "none" | "aws_account" | "kubernetes_cluster" | "github_organization" | "okta_tenant" | "microsoft_tenant" | "salesforce_org" | "saas_tenant" | "gcp_scope";
             readonly scope_label: string | null;
             /** @enum {string} */
             readonly state: "pending" | "verified" | "degraded";
@@ -3892,7 +3892,7 @@ export type components = {
         readonly IntegrationSetupStatus: {
             readonly authorization: components["schemas"]["IntegrationSetupAuthorization"];
             /** @enum {string} */
-            readonly connector_key: "aws" | "kubernetes" | "github" | "okta" | "microsoft" | "salesforce" | "saas";
+            readonly connector_key: "aws" | "kubernetes" | "github" | "okta" | "microsoft" | "salesforce" | "saas" | "gcp";
             readonly integration_id: components["schemas"]["ProductID"];
             readonly runtime_coverage: components["schemas"]["IntegrationRuntimeCoverage"];
             /** Format: date-time */
@@ -3986,10 +3986,10 @@ export type components = {
             readonly page_info: components["schemas"]["PageInfo"];
         };
         /**
-         * @description The discovery provider. saas is the generic provider of every SaaS platform read through a Nango connection; the platform (databricks, slack, ...) is the platform stable field of the object and the platform of its discovery.
+         * @description The discovery provider. saas is the generic provider of every SaaS platform read through a Nango connection; the platform (databricks, slack, ...) is the platform stable field of the object and the platform of its discovery. gcp is Google Cloud, read as the projects of one organization, folder or project.
          * @enum {string}
          */
-        readonly InventoryProvider: "aws" | "kubernetes" | "github" | "okta" | "microsoft" | "salesforce" | "saas";
+        readonly InventoryProvider: "aws" | "kubernetes" | "github" | "okta" | "microsoft" | "salesforce" | "saas" | "gcp";
         readonly InventoryRecord: components["schemas"]["InventorySummary"];
         readonly InventorySourceObservation: {
             readonly confidence_basis_points: number;
@@ -4002,7 +4002,7 @@ export type components = {
             readonly observed_at: string;
             readonly projection_version: number;
             /** @enum {string} */
-            readonly provider: "aws" | "kubernetes" | "github" | "okta" | "microsoft" | "salesforce" | "saas";
+            readonly provider: "aws" | "kubernetes" | "github" | "okta" | "microsoft" | "salesforce" | "saas" | "gcp";
             readonly snapshot_id: components["schemas"]["ProductID"];
             readonly source: string;
             readonly source_identifier: string;

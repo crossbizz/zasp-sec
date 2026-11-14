@@ -74,7 +74,7 @@ describe("named relationship ends", () => {
     assert.equal(validate(relationship), true, JSON.stringify(validate.errors));
     assert.equal(validate({ ...relationship, to: end }), true, JSON.stringify(validate.errors));
     assert.equal(validate({ ...relationship, from: { ...end, kind: "agent", source_kind: "aws_bedrock_agent" }, to: end }), true);
-    for (const to of [{ ...end, name: "" }, { ...end, kind: "credential" }, { ...end, provider: "gcp" }, { ...end, source_kind: "AWS Role" }, { ...end, arn: "arn:aws:iam::123456789012:role/x" }, { name: "x" }]) assert.equal(validate({ ...relationship, to }), false, JSON.stringify(to));
+    for (const to of [{ ...end, name: "" }, { ...end, kind: "credential" }, { ...end, provider: "azure" }, { ...end, source_kind: "AWS Role" }, { ...end, arn: "arn:aws:iam::123456789012:role/x" }, { name: "x" }]) assert.equal(validate({ ...relationship, to }), false, JSON.stringify(to));
   });
 });
 

@@ -849,8 +849,28 @@ const coverageGapLogSources: Readonly<Record<string, string>> = {
   "vpc-flow-logs": "not delivered to CloudWatch Logs. Create a VPC flow log with a CloudWatch Logs destination; it confirms that a workload connected to the model API it resolved.",
 };
 
+// The Google APIs a Google Cloud collection reads, with the read-only role
+// that lets the service account read each. The role names are Google Cloud's
+// predefined roles as listed in the Google Cloud runbook.
+const gcpCoverageGapRoles: Readonly<Record<string, string>> = {
+  "resource-manager": "roles/browser",
+  "agent-engine": "roles/aiplatform.viewer",
+  "vertex-endpoints": "roles/aiplatform.viewer",
+  "conversational-agents": "roles/dialogflow.viewer",
+  "gemini-enterprise": "roles/discoveryengine.viewer",
+  "cloud-run": "roles/run.viewer",
+  "cloud-functions": "roles/cloudfunctions.viewer",
+  iam: "roles/iam.securityReviewer",
+  "model-armor": "roles/modelarmor.viewer",
+  "audit-logs": "roles/logging.privateLogViewer",
+};
+
 // Why agents of one AI service are missing, and what to do about it.
 function coverageGapText(gap: IntegrationFreshness["coverage_gaps"][number]): string {
+  if (Object.hasOwn(gcpCoverageGapRoles, gap.service)) {
+    if (gap.status === "unavailable") return `${gap.name}: the API is switched off in every project that was read, so there was nothing to list there.`;
+    return `${gap.name}: at least one project refused the read-only service account. Grant it ${gcpCoverageGapRoles[gap.service]} on the organization, folder or project.`;
+  }
   if (gap.service === "runtime-observations") return `${gap.name}: the discovery credential may not list ConfigMaps, so what the node sensor saw workloads call at run time is not counted. Allow list on configmaps for the discovery identity.`;
   if (gap.status === "unavailable" && Object.hasOwn(coverageGapLogSources, gap.service)) return `${gap.name}: ${coverageGapLogSources[gap.service]}`;
   if (gap.status === "unavailable") return `${gap.name}: not offered in this account's regions.`;
@@ -860,16 +880,17 @@ function coverageGapText(gap: IntegrationFreshness["coverage_gaps"][number]): st
 
 // Connectors authorized by a reference to customer material held outside
 // the browser, not by a provider OAuth flow.
-type ReferenceConnectorKey = "aws" | "kubernetes" | "microsoft" | "salesforce" | "saas";
+type ReferenceConnectorKey = "aws" | "kubernetes" | "microsoft" | "salesforce" | "saas" | "gcp";
 
 function isReferenceConnector(value: string): value is ReferenceConnectorKey {
-  return value === "aws" || value === "kubernetes" || value === "microsoft" || value === "salesforce" || value === SAAS_CONNECTOR_KEY;
+  return value === "aws" || value === "kubernetes" || value === "microsoft" || value === "salesforce" || value === SAAS_CONNECTOR_KEY || value === "gcp";
 }
 
 function referenceConnectorLabel(value: string | undefined, manifest?: ConnectorManifest): string {
   if (value === "aws") return "AWS";
   if (value === "microsoft") return "Microsoft";
   if (value === "salesforce") return "Salesforce";
+  if (value === "gcp") return "Google Cloud";
   if (value === SAAS_CONNECTOR_KEY) return manifest?.provider ?? "SaaS";
   return "Kubernetes";
 }
@@ -940,6 +961,7 @@ function integrationSetupSteps(connectorKey: string): readonly string[] {
   if (connectorKey === "okta") return ["Review directory access", "Authorize Okta", "Test directory connection", "Initial sync", "Review coverage"];
   if (connectorKey === "microsoft") return ["Register the Entra application", "Configure", "Authorize tenant", "Initial sync", "Review coverage"];
   if (connectorKey === "salesforce") return ["Create the connected app", "Configure", "Authorize org", "Initial sync", "Review coverage"];
+  if (connectorKey === "gcp") return ["Create the read-only service account", "Configure", "Authorize scope", "Initial sync", "Review coverage"];
   if (connectorKey === "generic-webhook") return ["Configure destination", "Test signed delivery", "Review delivery status"];
   return ["Review access", "Configure", "Test connection", "Initial sync", "Review coverage"];
 }
@@ -969,6 +991,7 @@ function IntegrationSetupAuthority({ status, onNavigate }: { status: Integration
   if (status.connector_key === "kubernetes") return <div aria-label="Kubernetes runtime coverage"><p><strong>Cluster scope</strong> {authorization.scope_label}</p><p><strong>Environment Runtime sensors</strong> {coverage.healthy_sensor_count} of {coverage.sensor_count} healthy</p>{coverage.state === "not_enrolled" && <p role="alert">Runtime coverage is not enrolled. Inventory sync does not include Runtime sensor telemetry.</p>}{coverage.reason === "missing_gateway" && <p role="alert">A Runtime sensor heartbeat is missing. Coverage remains incomplete.</p>}{coverage.reason === "unsupported_kernel" && <p role="alert">The cluster kernel does not provide required BTF support. Coverage remains incomplete.</p>}{coverage.state !== "healthy" && onNavigate && <Button onClick={() => onNavigate("/integrations/sensors")}>Enroll or repair Runtime sensors</Button>}</div>;
   if (status.connector_key === "microsoft") return <p><strong>Microsoft Entra tenant</strong> {authorization.scope_label}</p>;
   if (status.connector_key === "salesforce") return <p><strong>Salesforce org</strong> {authorization.scope_label}</p>;
+  if (status.connector_key === "gcp") return <p><strong>Google Cloud scope</strong> {authorization.scope_label}</p>;
   if (status.connector_key === SAAS_CONNECTOR_KEY) return <p><strong>Tenant</strong> {authorization.scope_label}</p>;
   return <p><strong>AWS account scope</strong> {authorization.scope_label}</p>;
 }
@@ -981,6 +1004,7 @@ function integrationSetupRemediation(connectorKey: string, errorCode: string | n
     if (connectorKey === "okta") return "Okta directory access is missing a required read-only scope. Review the directory integration scopes, then authorize again.";
     if (connectorKey === "microsoft") return "Microsoft refused the application. Check the client secret, the admin-consented application permissions and, for Copilot Studio, the Dataverse application user, then authorize again.";
     if (connectorKey === "salesforce") return "Salesforce refused the connected app. Check the consumer secret, the client credentials flow, the run-as user's permissions and the organization ID, then authorize again.";
+    if (connectorKey === "gcp") return "Google Cloud refused the service account. Check that the workload identity pool provider trusts this deployment's AWS roles, that they may impersonate the service account (or that the stored key is current), and that the service account can read the organization, folder or project, then authorize again.";
     if (connectorKey.startsWith(`${SAAS_CONNECTOR_KEY}-`)) return "The platform refused the Nango connection. Check that the connection is still authorized in Nango and has the read access this connector lists, then authorize again.";
   }
   if (errorCode === "rate_limited") return "The provider rate limit delayed collection. Keep the last good coverage visible and retry after the published provider window.";
@@ -995,8 +1019,8 @@ function isOAuthConnectorManifest(manifest: ConnectorManifest | undefined, conne
   return manifest?.key === connectorKey && (manifest.auth_mode === "github_app_oauth" || manifest.auth_mode === "okta_oauth_pkce" || manifest.auth_mode === "managed_oauth");
 }
 
-function isFirstPartyConnector(value: string): value is "aws" | "kubernetes" | "github" | "okta" | "microsoft" | "salesforce" | "saas" {
-  return value === "aws" || value === "kubernetes" || value === "github" || value === "okta" || value === "microsoft" || value === "salesforce" || value === SAAS_CONNECTOR_KEY;
+function isFirstPartyConnector(value: string): value is "aws" | "kubernetes" | "github" | "okta" | "microsoft" | "salesforce" | "saas" | "gcp" {
+  return value === "aws" || value === "kubernetes" || value === "github" || value === "okta" || value === "microsoft" || value === "salesforce" || value === SAAS_CONNECTOR_KEY || value === "gcp";
 }
 
 function isReferenceAuthorizationCandidate(value: Integration): value is Integration & { connector_key: ReferenceConnectorKey } {

@@ -6623,23 +6623,23 @@ components:
         coverage_gaps:
           type: array
           maxItems: 16
-          description: The AI services whose agents the integration's current collection could not list, ordered by service. Empty when every service was read, and for every provider other than AWS.
+          description: The AI services whose agents the integration's current collection could not list, ordered by service. Empty when every service was read. AWS, Kubernetes and Google Cloud integrations report gaps; the other providers report none.
           items: { $ref: '#/components/schemas/IntegrationCoverageGap' }
     IntegrationCoverageGap:
       type: object
       additionalProperties: false
       required: [service, name, status]
       properties:
-        service: { type: string, pattern: '^[a-z][a-z0-9-]{0,63}$', description: 'The provider service, for example bedrock-agent, bedrock-agentcore or lambda. A Kubernetes integration reports runtime-observations when its discovery credential may not list the node sensor ConfigMaps.' }
+        service: { type: string, pattern: '^[a-z][a-z0-9-]{0,63}$', description: 'The provider service, for example bedrock-agent, bedrock-agentcore or lambda. A Kubernetes integration reports runtime-observations when its discovery credential may not list the node sensor ConfigMaps. A Google Cloud integration reports the Google API, for example agent-engine, cloud-run or audit-logs.' }
         name: { type: string, minLength: 1, maxLength: 128 }
-        status: { type: string, enum: [access_denied, unavailable], description: 'access_denied when the read role lacks a permission the service needs; unavailable when the service is not offered in the regions of the account.' }
+        status: { type: string, enum: [access_denied, unavailable], description: 'access_denied when the read role lacks a permission the service needs; unavailable when the service is not offered in the regions of the account or, for Google Cloud, when the API is switched off in every project that was read.' }
     IntegrationSetupAuthorization:
       type: object
       additionalProperties: false
       required: [state, scope_kind, scope_label, repository_selection, permissions]
       properties:
         state: { type: string, enum: [pending, verified, degraded] }
-        scope_kind: { type: string, enum: [none, aws_account, kubernetes_cluster, github_organization, okta_tenant, microsoft_tenant, salesforce_org, saas_tenant] }
+        scope_kind: { type: string, enum: [none, aws_account, kubernetes_cluster, github_organization, okta_tenant, microsoft_tenant, salesforce_org, saas_tenant, gcp_scope] }
         scope_label: { oneOf: [{ type: string, minLength: 1, maxLength: 128 }, { type: 'null' }] }
         repository_selection: { oneOf: [{ type: string, enum: [all, selected] }, { type: 'null' }] }
         permissions:
@@ -6780,7 +6780,7 @@ components:
       required: [integration_id, connector_key, authorization, runtime_coverage, updated_at]
       properties:
         integration_id: { $ref: '#/components/schemas/ProductID' }
-        connector_key: { type: string, enum: [aws, kubernetes, github, okta, microsoft, salesforce, saas] }
+        connector_key: { type: string, enum: [aws, kubernetes, github, okta, microsoft, salesforce, saas, gcp] }
         authorization: { $ref: '#/components/schemas/IntegrationSetupAuthorization' }
         runtime_coverage: { $ref: '#/components/schemas/IntegrationRuntimeCoverage' }
         updated_at: { type: string, format: date-time }
@@ -6927,8 +6927,8 @@ components:
         version: { type: integer, minimum: 1 }
     InventoryProvider:
       type: string
-      description: The discovery provider. saas is the generic provider of every SaaS platform read through a Nango connection; the platform (databricks, slack, ...) is the platform stable field of the object and the platform of its discovery.
-      enum: [aws, kubernetes, github, okta, microsoft, salesforce, saas]
+      description: The discovery provider. saas is the generic provider of every SaaS platform read through a Nango connection; the platform (databricks, slack, ...) is the platform stable field of the object and the platform of its discovery. gcp is Google Cloud, read as the projects of one organization, folder or project.
+      enum: [aws, kubernetes, github, okta, microsoft, salesforce, saas, gcp]
     InventoryDiscovery:
       type: object
       description: How the object was found. An agent is declared by its owner, listed by the provider's own control plane, or inferred from catalog signals. Every other kind is a provider record.
@@ -7021,7 +7021,7 @@ components:
       required: [integration_id, provider, source, source_identifier, snapshot_id, generation, evidence_id, confidence_basis_points, observed_at, fresh_until, projection_version, winning]
       properties:
         integration_id: { $ref: '#/components/schemas/ProductID' }
-        provider: { type: string, enum: [aws, kubernetes, github, okta, microsoft, salesforce, saas] }
+        provider: { type: string, enum: [aws, kubernetes, github, okta, microsoft, salesforce, saas, gcp] }
         source: { type: string, pattern: '^[a-z][a-z0-9_]{1,63}$' }
         source_identifier: { type: string, pattern: '^sha256:[0-9a-f]{64}$' }
         snapshot_id: { $ref: '#/components/schemas/ProductID' }
