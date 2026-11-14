@@ -434,10 +434,27 @@ spec:
             - { name: ZASP_SHUTDOWN_TIMEOUT, value: "20s" }
             - { name: ZASP_GATEWAY_SIGNING_KEY_ID, value: {{ required "gatewayPolicy.signingKeyID is required" .Values.gatewayPolicy.signingKeyID | quote }} }
             - { name: ZASP_GATEWAY_SIGNING_PRIVATE_KEY_FILE, value: /var/run/secrets/zasp-security-agent-action/gateway-signing-private-key }
-          volumeMounts: [{ name: security-agent-action-secrets, mountPath: /var/run/secrets/zasp-security-agent-action, readOnly: true }]
+            {{- if .Values.securityAgentRemediation.enabled }}
+            - { name: ZASP_AWS_REGION, value: {{ required "securityAgentRemediation.awsRegion is required" .Values.securityAgentRemediation.awsRegion | quote }} }
+            - { name: ZASP_SECURITY_AGENT_REMEDIATION_ROLE_ARN, value: {{ required "securityAgentRemediation.roleArn is required" .Values.securityAgentRemediation.roleArn | quote }} }
+            - { name: ZASP_SECURITY_AGENT_REMEDIATION_WEB_IDENTITY_TOKEN_FILE, value: /var/run/secrets/eks.amazonaws.com/serviceaccount/token }
+            - { name: ZASP_SECURITY_AGENT_REMEDIATION_SECRET_PREFIX, value: {{ required "securityAgentRemediation.secretPrefix is required" .Values.securityAgentRemediation.secretPrefix | quote }} }
+            {{- end }}
+          volumeMounts:
+            - { name: security-agent-action-secrets, mountPath: /var/run/secrets/zasp-security-agent-action, readOnly: true }
+            {{- if .Values.securityAgentRemediation.enabled }}
+            - { name: remediation-web-identity, mountPath: /var/run/secrets/eks.amazonaws.com/serviceaccount, readOnly: true }
+            {{- end }}
       volumes:
         - name: security-agent-action-secrets
           csi: { driver: secrets-store.csi.k8s.io, readOnly: true, volumeAttributes: { secretProviderClass: {{ .Values.secrets.securityAgentActionProviderClassName | quote }} } }
+        {{- if .Values.securityAgentRemediation.enabled }}
+        - name: remediation-web-identity
+          projected:
+            defaultMode: 256
+            sources:
+              - serviceAccountToken: { audience: sts.amazonaws.com, expirationSeconds: 900, path: token }
+        {{- end }}
 ---
 apiVersion: apps/v1
 kind: Deployment

@@ -544,7 +544,12 @@ On the product side the Security Agent action worker (`agentsec-worker` in mode 
 | `ZASP_SECURITY_AGENT_REMEDIATION_WEB_IDENTITY_TOKEN_FILE` | `/var/run/secrets/eks.amazonaws.com/serviceaccount/token` |
 | `ZASP_SECURITY_AGENT_REMEDIATION_SECRET_PREFIX` | The same value as `ZASP_DISCOVERY_SECRET_PREFIX`, so the worker finds the integration's external ID. |
 
-`ZASP_AWS_REGION` must be set as well. Without these variables the worker runs as before and approved remediations stay dispatched until a worker with the variables takes them. The Terraform and the Helm chart do not create this role or set these variables yet; add them by hand.
+`ZASP_AWS_REGION` must be set as well. Without these variables the worker runs as before and approved remediations stay dispatched until a worker with the variables takes them.
+
+The Terraform and the Helm chart create this identity and set these variables when asked, and do nothing by default:
+
+- Terraform (`deploy/staging`): `security_agent_remediation = { enabled = true, customer_role_arns = ["arn:aws:iam::<account>:role/zasp-remediation"] }`. It creates the role `<cluster>-security-agent-remediation`, assumable by the action worker's service account only, with `sts:AssumeRole` on exactly the listed customer roles and `secretsmanager:GetSecretValue` (and the matching `kms:Decrypt`) on the AWS external ID reference secret. A listed role may not be one of `aws_reference_role_arns`. The output `security_agent_remediation_role_arn` is the principal each customer's remediation role must trust.
+- Helm (`securityAgentRemediation` in the chart's values, filled by the Terraform): `enabled`, `roleArn`, `awsRegion`, `secretPrefix`. When enabled, the action worker gets the three variables and `ZASP_AWS_REGION`, a projected service account token for `sts.amazonaws.com` at the token file path, and a network policy that lets it reach `network.connectorEgressCIDRs.aws` on port 443. That address list must then cover the STS, Secrets Manager, Bedrock agents and IAM endpoints the worker calls, in addition to what discovery needs.
 
 How a remediation runs:
 
@@ -596,7 +601,7 @@ From [the launch plan](../internal/mvp-launch-plan-2026-11-12.md) and this revie
 Deployment:
 
 - **Nothing has been applied to a real AWS account.** No `terraform apply`, no Helm install on any cluster, no pod has pulled an image or mounted a secret. IAM, KMS and network behaviour is untested against AWS; development used LocalStack, which does not enforce IAM.
-- **Provider remediations (step 16) have not run against AWS.** The two actions were tested against in-memory Bedrock and IAM clients that implement the SDK interfaces, and the database path was run on PostgreSQL 18. No `UpdateAgent`, `PrepareAgent`, `GetPolicyVersion` or `DetachRolePolicy` call has reached AWS; the error codes the worker treats as refusals and the `iam:PassRole` requirement are from the AWS documentation as remembered. The Terraform and the Helm chart do not yet give the action worker its remediation identity.
+- **Provider remediations (step 16) have not run against AWS.** The two actions were tested against in-memory Bedrock and IAM clients that implement the SDK interfaces, and the database path was run on PostgreSQL 18. No `UpdateAgent`, `PrepareAgent`, `GetPolicyVersion` or `DetachRolePolicy` call has reached AWS; the error codes the worker treats as refusals and the `iam:PassRole` requirement are from the AWS documentation as remembered. The Terraform and the chart values that give the action worker its remediation identity were checked as text and for template syntax only: neither `terraform` nor `helm` was available where they were written, so they have not been planned, rendered or applied.
 - **Runtime agent discovery (step 15) has not run on a cluster.** The packet capture ran for real on a loopback interface and the Tetragon stream against a stand-in gRPC server; no veth, CNI, real Tetragon or real DNS server has been in the path. The chart block was rendered with a stand-in for Helm, not Helm.
 - The chart's schema job has not run in a cluster. The same commands ran outside Kubernetes on the local stack.
 - The approval-maintenance key and DSN wiring in a running API pod is untested.
