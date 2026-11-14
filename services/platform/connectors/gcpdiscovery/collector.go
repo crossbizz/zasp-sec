@@ -91,8 +91,13 @@ const (
 	gcpLoggingHost         = "logging.googleapis.com"
 	gcpModelArmorHost      = "modelarmor.googleapis.com"
 
-	gcpPhaseProjects = "projects"
-	gcpPhaseSummary  = "summary"
+	// The collection makes two passes over the projects of the scope: first
+	// the service accounts of every project, then everything else. A
+	// workload may run as a service account of another project, and it may
+	// refer to an identity only once that identity is part of the snapshot.
+	gcpPhaseIdentities = "identities"
+	gcpPhaseProjects   = "projects"
+	gcpPhaseSummary    = "summary"
 
 	gcpMaximumResponseBytes     = int64(16 << 20)
 	gcpMinimumCollectionBytes   = int64(4096)
@@ -113,7 +118,7 @@ var (
 	gcpProjectNumberPattern  = regexp.MustCompile(`^projects/([1-9][0-9]{0,18})$`)
 	gcpParentPattern         = regexp.MustCompile(`^(organizations|folders)/[1-9][0-9]{0,18}$`)
 	gcpLocationPattern       = regexp.MustCompile(`^[a-z][a-z0-9-]{1,39}$`)
-	gcpPageCursorPattern     = regexp.MustCompile(`^gcp:(projects|summary):([1-9][0-9]{0,6}):([A-Za-z0-9_-]+):([0-9a-f]{16})$`)
+	gcpPageCursorPattern     = regexp.MustCompile(`^gcp:(identities|projects|summary):([1-9][0-9]{0,6}):([A-Za-z0-9_-]+):([0-9a-f]{16})$`)
 	gcpCompleteCursorPattern = regexp.MustCompile(`^gcp:complete:([0-9a-f]{16}):[0-9a-f]{16}$`)
 	gcpCountersPattern       = regexp.MustCompile(`^[0-9]{1,5}(\.[0-9]{1,5}){` + strconv.Itoa(gcpServiceCount*3-1) + `}$`)
 )
@@ -155,6 +160,69 @@ type GCPCollectionAPI struct {
 	// credential is ever served to another, and an entry lives ten minutes.
 	inheritedMutex sync.Mutex
 	inherited      map[string]gcpAncestor
+	// emitted remembers, per collection, the service account entities its
+	// identities pass emitted, so the second pass relates a workload only
+	// to an identity that is in the snapshot. A collection is one token and
+	// one scope. A process that does not hold the memory (it restarted
+	// between the passes) relates nothing, which is always safe.
+	emittedMutex sync.Mutex
+	emitted      map[string]*gcpEmitted
+}
+
+type gcpEmitted struct {
+	ids     map[string]struct{}
+	startAt time.Time
+}
+
+// One collection remembers at most this many identities; beyond it the
+// second pass relates no further ones.
+const gcpMaximumRememberedIdentities = 500_000
+
+func gcpCollectionKey(token []byte, subject collection.SubjectBinding) string {
+	digest := sha256.Sum256(append(append([]byte(subject.ID), 0x1f), token...))
+	return string(digest[:16])
+}
+
+// remember records identities the identities pass emitted. restart begins a
+// new collection: what an earlier one with the same token emitted is not in
+// this snapshot.
+func (api *GCPCollectionAPI) remember(key string, ids []string, restart bool) {
+	api.emittedMutex.Lock()
+	defer api.emittedMutex.Unlock()
+	now := api.clock()
+	for other, entry := range api.emitted {
+		if now.Sub(entry.startAt) > 2*time.Hour {
+			delete(api.emitted, other)
+		}
+	}
+	entry := api.emitted[key]
+	if entry == nil || restart {
+		entry = &gcpEmitted{ids: map[string]struct{}{}, startAt: now}
+		api.emitted[key] = entry
+	}
+	for _, id := range ids {
+		if len(entry.ids) >= gcpMaximumRememberedIdentities {
+			return
+		}
+		entry.ids[id] = struct{}{}
+	}
+}
+
+func (api *GCPCollectionAPI) remembered(key, id string) bool {
+	api.emittedMutex.Lock()
+	defer api.emittedMutex.Unlock()
+	entry := api.emitted[key]
+	if entry == nil {
+		return false
+	}
+	_, found := entry.ids[id]
+	return found
+}
+
+func (api *GCPCollectionAPI) forget(key string) {
+	api.emittedMutex.Lock()
+	defer api.emittedMutex.Unlock()
+	delete(api.emitted, key)
 }
 
 var _ CollectionAPI = (*GCPCollectionAPI)(nil)
@@ -177,7 +245,7 @@ func NewGCPCollectionAPI(config CollectionAPIConfig) (*GCPCollectionAPI, error) 
 	if clock == nil {
 		clock = func() time.Time { return time.Now().UTC() }
 	}
-	return &GCPCollectionAPI{client: &http.Client{Transport: collection.EffectTransport{Next: roundTripper}, Timeout: config.Timeout, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}, timeout: config.Timeout, clock: clock, ancestry: map[string]bool{}, inherited: map[string]gcpAncestor{}}, nil
+	return &GCPCollectionAPI{client: &http.Client{Transport: collection.EffectTransport{Next: roundTripper}, Timeout: config.Timeout, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}, timeout: config.Timeout, clock: clock, ancestry: map[string]bool{}, inherited: map[string]gcpAncestor{}, emitted: map[string]*gcpEmitted{}}, nil
 }
 
 // callOutcome is what one provider call said, beyond failing the page.
@@ -335,6 +403,7 @@ func (api *GCPCollectionAPI) FetchCollectionPage(ctx context.Context, credential
 		return page, nil
 	}
 	scopeEntityID := gcpInventoryID(request.Subject, "gcp_scope", request.Subject.ID)
+	collectionKey := gcpCollectionKey(token, request.Subject)
 	if initial {
 		name, err := api.readScope(ctx, token, request.Subject.ID)
 		if err != nil {
@@ -344,7 +413,9 @@ func (api *GCPCollectionAPI) FetchCollectionPage(ctx context.Context, credential
 		if !entityOK {
 			return CollectionPage{}, malformed
 		}
-		return finish([]json.RawMessage{entity}, nil, nil, gcpPageState{Phase: gcpPhaseProjects, Lineage: 2}, false)
+		// A collection starts here: nothing an earlier one emitted counts.
+		api.remember(collectionKey, nil, true)
+		return finish([]json.RawMessage{entity}, nil, nil, gcpPageState{Phase: gcpPhaseIdentities, Lineage: 2}, false)
 	}
 	counters, countersOK := decodeGCPCounters(state.Counters)
 	if !countersOK {
@@ -355,32 +426,69 @@ func (api *GCPCollectionAPI) FetchCollectionPage(ctx context.Context, credential
 		if !summaryOK {
 			return CollectionPage{}, malformed
 		}
+		api.forget(collectionKey)
 		return finish(entities, relationships, nil, gcpPageState{}, true)
 	}
 	project, next, refused, err := api.nextProject(ctx, token, request.Subject.ID, state)
 	if err != nil {
 		return CollectionPage{}, err
 	}
-	if refused {
+	identitiesPass := state.Phase == gcpPhaseIdentities
+	if refused && !identitiesPass {
 		// The projects below the scope could not be listed.
 		counters[serviceResourceManager][outcomeDenied]++
 	}
-	next.Lineage, next.Read, next.Counters = state.Lineage+1, state.Read, encodeGCPCounters(counters)
+	// nextProject names the phase that follows the projects; after the
+	// identities pass that is the second pass over the same projects.
+	switch {
+	case next.Phase == gcpPhaseSummary && identitiesPass:
+		next = gcpPageState{Phase: gcpPhaseProjects}
+	case next.Phase != gcpPhaseSummary:
+		next.Phase = state.Phase
+		next.Read = state.Read
+	}
+	if next.Phase == gcpPhaseSummary {
+		next.Read = state.Read
+	}
+	next.Lineage, next.Counters = state.Lineage+1, encodeGCPCounters(counters)
 	if project == nil {
 		return finish(nil, nil, nil, next, false)
 	}
-	read, err := api.readProject(ctx, token, request.Subject, scopeEntityID, *project)
-	if err != nil {
-		return CollectionPage{}, err
-	}
-	for service, outcome := range read.outcomes {
-		counters[service][outcome]++
+	var read projectRead
+	if identitiesPass {
+		var ids []string
+		if read, ids, err = api.readProjectIdentities(ctx, token, request.Subject, scopeEntityID, *project); err != nil {
+			return CollectionPage{}, err
+		}
+		// Each pass counts the coverage of what it alone reads.
+		for _, service := range []int{serviceIAM, serviceInheritedIAM} {
+			counters[service][read.outcomes[service]]++
+		}
+		api.remember(collectionKey, ids, false)
+	} else {
+		known := func(id string) bool { return api.remembered(collectionKey, id) }
+		if read, err = api.readProject(ctx, token, request.Subject, scopeEntityID, *project, known); err != nil {
+			return CollectionPage{}, err
+		}
+		for service, outcome := range read.outcomes {
+			if service != serviceIAM && service != serviceInheritedIAM {
+				counters[service][outcome]++
+			}
+		}
 	}
 	next.Read, next.Counters = state.Read+1, encodeGCPCounters(counters)
+	if next.Phase == gcpPhaseProjects && identitiesPass {
+		// The single project of a project scope ends the identities pass.
+		next.Read = 0
+	}
 	if next.Read >= gcpMaximumProjects {
-		// The projects beyond the bound are not read: a gap of the listing.
-		counters[serviceResourceManager][outcomeDenied]++
-		next = gcpPageState{Phase: gcpPhaseSummary, Lineage: next.Lineage, Read: next.Read, Counters: encodeGCPCounters(counters)}
+		if identitiesPass {
+			next = gcpPageState{Phase: gcpPhaseProjects, Lineage: next.Lineage, Counters: next.Counters}
+		} else {
+			// The projects beyond the bound are not read: a gap of the listing.
+			counters[serviceResourceManager][outcomeDenied]++
+			next = gcpPageState{Phase: gcpPhaseSummary, Lineage: next.Lineage, Read: next.Read, Counters: encodeGCPCounters(counters)}
+		}
 	}
 	return finish(read.entities, read.relationships, read.findings, next, false)
 }
@@ -633,7 +741,7 @@ func validGCPPageState(state gcpPageState) bool {
 		return false
 	}
 	switch state.Phase {
-	case gcpPhaseProjects:
+	case gcpPhaseIdentities, gcpPhaseProjects:
 		return true
 	case gcpPhaseSummary:
 		return state.Token == "" && state.After == ""

@@ -84,7 +84,6 @@ var (
 	gcpFrameworkPattern       = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{0,31}$`)
 	gcpStatePattern           = regexp.MustCompile(`^[A-Z][A-Z_]{0,31}$`)
 	gcpHostPattern            = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?){1,8}$`)
-	gcpAccountProjectPattern  = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,127}@([a-z][a-z0-9-]{4,28}[a-z0-9])\.iam\.gserviceaccount\.com$`)
 )
 
 type projectRead struct {
@@ -213,7 +212,76 @@ type gcpTool struct {
 
 // readProject reads everything the collector knows how to read in one
 // project. Only a failure that must fail the page is returned.
-func (api *GCPCollectionAPI) readProject(ctx context.Context, token []byte, subject collection.SubjectBinding, scopeEntityID string, project gcpProject) (projectRead, error) {
+// readProjectIdentities is the identities pass of one project: every service
+// account the project lists, with the roles the IAM policies of the project
+// and of the folders and organization above it bind it to. The accounts are
+// contained in the scope, not in the project, so that they stand whatever
+// the later pass finds of the project.
+func (api *GCPCollectionAPI) readProjectIdentities(ctx context.Context, token []byte, subject collection.SubjectBinding, scopeEntityID string, project gcpProject) (projectRead, []string, error) {
+	var read projectRead
+	var tallies [gcpServiceCount]serviceTally
+	identities, err := api.projectIdentities(ctx, token, project, &tallies[serviceIAM], &tallies[serviceInheritedIAM])
+	if err != nil {
+		return projectRead{}, nil, err
+	}
+	emails := make([]string, 0, len(identities.accounts))
+	for email := range identities.accounts {
+		emails = append(emails, email)
+	}
+	sort.Strings(emails)
+	ids := make([]string, 0, len(emails))
+	for _, email := range emails {
+		attributes := map[string]any{"status": map[bool]string{false: "ACTIVE", true: "DISABLED"}[identities.accounts[email]]}
+		if roles := identities.roles[email]; len(roles) > 0 {
+			attributes["roles"] = joinGCPRoles(roles)
+			if admin := administratorRoles(roles); len(admin) > 0 {
+				attributes["admin_roles"] = joinGCPRoles(admin)
+			}
+		}
+		native := "gcp:service_account:" + email
+		id := gcpInventoryID(subject, "gcp_service_account", native)
+		entity, ok := gcpEntity(id, "gcp_service_account", native, email, map[string]any{"name": email, "object_type": "service_account", "project": project.ID, "scope": subject.ID}, attributes)
+		if !ok {
+			return projectRead{}, nil, providercollection.StableProviderFailure(collection.FailureMalformed)
+		}
+		read.entities = append(read.entities, entity)
+		read.relationships = append(read.relationships, gcpRelationship(subject, "contains", "scope_object", "gcp:scope:"+subject.ID, native, scopeEntityID, id))
+		ids = append(ids, id)
+	}
+	read.outcomes[serviceIAM], read.outcomes[serviceInheritedIAM] = tallies[serviceIAM].result(), tallies[serviceInheritedIAM].result()
+	return read, ids, nil
+}
+
+// projectIdentities reads the service accounts of a project and the roles
+// its own IAM policy and the policies above it bind service accounts to.
+func (api *GCPCollectionAPI) projectIdentities(ctx context.Context, token []byte, project gcpProject, iam, inheritedIAM *serviceTally) (gcpIdentities, error) {
+	var identities gcpIdentities
+	var inherited map[string][]string
+	readers := []func(context.Context) error{
+		func(ctx context.Context) (err error) {
+			identities, err = api.readIdentities(ctx, token, project, iam)
+			return
+		},
+		func(ctx context.Context) (err error) {
+			inherited, err = api.readInheritedRoles(ctx, token, project, inheritedIAM)
+			return
+		},
+	}
+	if err := fanOut(ctx, len(readers), func(ctx context.Context, index int) error { return readers[index](ctx) }); err != nil {
+		return gcpIdentities{}, err
+	}
+	// A role bound on a folder or the organization above the project holds
+	// in the project too: it joins the roles of the project's own policy.
+	for email, roles := range inherited {
+		identities.roles[email] = sortedUniqueStrings(append(identities.roles[email], roles...))
+	}
+	return identities, nil
+}
+
+// readProject is the second pass of one project: the project itself and
+// everything in it but its service accounts. known reports whether the
+// identities pass of this collection emitted a service account entity.
+func (api *GCPCollectionAPI) readProject(ctx context.Context, token []byte, subject collection.SubjectBinding, scopeEntityID string, project gcpProject, known func(string) bool) (projectRead, error) {
 	var read projectRead
 	var tallies [gcpServiceCount]serviceTally
 	tallies[serviceResourceManager].add(outcomeOK)
@@ -248,11 +316,12 @@ func (api *GCPCollectionAPI) readProject(ctx context.Context, token []byte, subj
 		gemini      []gcpListedAgent
 		functions   []gcpWorkload
 		services    []gcpWorkload
-		inherited   map[string][]string
 	)
 	readers := []func(context.Context) error{
 		func(ctx context.Context) (err error) {
-			identities, err = api.readIdentities(ctx, token, project, &tallies[serviceIAM])
+			// The roles are needed again for signals and findings; the
+			// coverage of this read was counted by the identities pass.
+			identities, err = api.projectIdentities(ctx, token, project, &tallies[serviceIAM], &tallies[serviceInheritedIAM])
 			return
 		},
 		func(ctx context.Context) (err error) {
@@ -279,18 +348,9 @@ func (api *GCPCollectionAPI) readProject(ctx context.Context, token []byte, subj
 			services, err = api.readRunServices(ctx, token, project, &tallies[serviceCloudRun])
 			return
 		},
-		func(ctx context.Context) (err error) {
-			inherited, err = api.readInheritedRoles(ctx, token, project, &tallies[serviceInheritedIAM])
-			return
-		},
 	}
 	if err := fanOut(ctx, len(readers), func(ctx context.Context, index int) error { return readers[index](ctx) }); err != nil {
 		return projectRead{}, err
-	}
-	// A role bound on a folder or the organization above the project holds
-	// in the project too: it joins the roles of the project's own policy.
-	for email, roles := range inherited {
-		identities.roles[email] = sortedUniqueStrings(append(identities.roles[email], roles...))
 	}
 	// Model Armor is asked only about the locations that host an agent.
 	engineLocations := map[string]bool{}
@@ -302,64 +362,18 @@ func (api *GCPCollectionAPI) readProject(ctx context.Context, token []byte, subj
 		return projectRead{}, err
 	}
 
-	// A service account becomes an entity once something here runs as it.
-	accountIDs := map[string]string{}
-	useAccount := func(email string) string {
-		if email == "" || !identities.belongs(email, project) {
-			return ""
-		}
-		if id, done := accountIDs[email]; done {
-			return id
-		}
-		status := "UNKNOWN"
-		if disabled, listed := identities.accounts[email]; listed {
-			status = map[bool]string{false: "ACTIVE", true: "DISABLED"}[disabled]
-		}
-		attributes := map[string]any{"status": status}
-		if roles := identities.roles[email]; len(roles) > 0 {
-			attributes["roles"] = joinGCPRoles(roles)
-			if admin := administratorRoles(roles); len(admin) > 0 {
-				attributes["admin_roles"] = joinGCPRoles(admin)
-			}
-		}
-		native := "gcp:service_account:" + email
-		id, emitted := emit("gcp_service_account", native, email, map[string]any{"name": email, "object_type": "service_account", "project": project.ID, "scope": subject.ID}, attributes, projectEntityID, projectNative)
-		if !emitted {
-			return ""
-		}
-		accountIDs[email] = id
-		return id
-	}
-	// Every service account the project lists is an identity of the
-	// inventory, whether or not an agent runs as it.
-	listedAccounts := make([]string, 0, len(identities.accounts))
-	for email := range identities.accounts {
-		listedAccounts = append(listedAccounts, email)
-	}
-	sort.Strings(listedAccounts)
-	for _, email := range listedAccounts {
-		useAccount(email)
-	}
-	// A service account of another project is that project's identity. It
-	// is referred to here only when that project lies in the scope and
-	// lists the account, because its own page then emits the entity.
-	foreignAccounts := map[string]string{}
+	// A service account is an identity the identities pass of this
+	// collection emitted. A workload refers to it only when that is known:
+	// a relationship to an identity no page emitted fails the whole
+	// collection (TestCollectionRejectsADanglingIdentityRelationship).
 	accountEntity := func(email string) (string, error) {
-		if id := useAccount(email); id != "" || email == "" {
+		if email == "" {
+			return "", nil
+		}
+		if id := gcpInventoryID(subject, "gcp_service_account", "gcp:service_account:"+email); known(id) {
 			return id, nil
 		}
-		if id, checked := foreignAccounts[email]; checked {
-			return id, nil
-		}
-		owned, err := api.accountInScope(ctx, token, subject, email, project)
-		if err != nil {
-			return "", err
-		}
-		foreignAccounts[email] = ""
-		if owned {
-			foreignAccounts[email] = gcpInventoryID(subject, "gcp_service_account", "gcp:service_account:"+email)
-		}
-		return foreignAccounts[email], nil
+		return "", nil
 	}
 	var accountFailure error
 	usedAccounts := map[string]bool{}
@@ -554,17 +568,6 @@ func (api *GCPCollectionAPI) readProject(ctx context.Context, token []byte, subj
 		read.outcomes[service] = tallies[service].result()
 	}
 	return read, nil
-}
-
-// belongs reports whether a service account is one of this project's: the
-// project's own list says so, or, when the list could not be read, the
-// address names the project.
-func (identities gcpIdentities) belongs(email string, project gcpProject) bool {
-	if identities.listed {
-		_, listed := identities.accounts[email]
-		return listed
-	}
-	return strings.HasSuffix(email, "@"+project.ID+".iam.gserviceaccount.com") || email == project.Number+"-compute@developer.gserviceaccount.com"
 }
 
 func administratorRoles(roles []string) []string {
@@ -1073,33 +1076,6 @@ func (api *GCPCollectionAPI) readInheritedRoles(ctx context.Context, token []byt
 		parent = ancestor.parent
 	}
 	return roles, nil
-}
-
-// accountInScope reports whether a service account of another project is an
-// identity this collection emits: the address names its project, that
-// project is active and lies below the scope, and it lists the account.
-func (api *GCPCollectionAPI) accountInScope(ctx context.Context, token []byte, subject collection.SubjectBinding, email string, current gcpProject) (bool, error) {
-	match := gcpAccountProjectPattern.FindStringSubmatch(email)
-	if len(match) != 2 || match[1] == current.ID || strings.HasPrefix(subject.ID, "projects/") {
-		return false, nil
-	}
-	var raw json.RawMessage
-	outcome, err := api.call(ctx, token, http.MethodGet, gcpResourceManagerHost, "/v3/projects/"+match[1], "", nil, &raw)
-	if err != nil || outcome != outcomeOK {
-		return false, err
-	}
-	owner, parent, ok := decodeGCPProject(raw)
-	if !ok || owner.ID != match[1] {
-		return false, nil
-	}
-	if inside, err := api.projectInScope(ctx, token, subject.ID, parent); err != nil || !inside {
-		return false, err
-	}
-	var account struct {
-		Email string `json:"email"`
-	}
-	outcome, err = api.call(ctx, token, http.MethodGet, gcpIAMHost, "/v1/projects/"+owner.ID+"/serviceAccounts/"+url.PathEscape(email), "", nil, &account)
-	return err == nil && outcome == outcomeOK && account.Email == email, err
 }
 
 // readGeminiEnterprise lists the agents of the Gemini Enterprise (formerly
