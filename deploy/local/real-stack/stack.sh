@@ -552,8 +552,11 @@ provision_customer_account() {
   ensure_role "$CUSTOMER_ROLE_PATH" "$CUSTOMER_ROLE_NAME" "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"AWS\":[\"arn:aws:iam::000000000000:role/zasp-real-stack-api-connectors\",\"arn:aws:iam::000000000000:role/zasp-real-stack-discovery\"]},\"Action\":\"sts:AssumeRole\",\"Condition\":{\"StringEquals\":{\"sts:ExternalId\":\"$external_id\"}}}]}"
   # The bedrock, bedrock-agentcore and lambda actions are optional. They let the
   # sync list the account's AI agents. Without them the sync still succeeds
-  # and the AI service shows access_denied in the inventory.
-  ensure_attached_policy zasp-customer-read-inventory '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["iam:ListRoles","iam:ListAttachedRolePolicies","iam:GetPolicy","iam:GetPolicyVersion","ec2:DescribeRegions","ec2:DescribeInstances","bedrock:ListAgents","bedrock:GetAgent","bedrock-agentcore:ListAgentRuntimes","bedrock-agentcore:GetAgentRuntime","bedrock-agentcore:ListGateways","lambda:ListFunctions"],"Resource":"*"}]}' "$CUSTOMER_ROLE_NAME"
+  # and the AI service shows access_denied in the inventory. So are iam:GetRole
+  # (when an agent's role was last used), cloudtrail:LookupEvents (which roles
+  # invoked a model) and the route53resolver, ec2:DescribeFlowLogs and logs
+  # actions (which instances resolved and reached a model API).
+  ensure_attached_policy zasp-customer-read-inventory '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["iam:ListRoles","iam:ListAttachedRolePolicies","iam:GetPolicy","iam:GetPolicyVersion","ec2:DescribeRegions","ec2:DescribeInstances","bedrock:ListAgents","bedrock:GetAgent","bedrock-agentcore:ListAgentRuntimes","bedrock-agentcore:GetAgentRuntime","bedrock-agentcore:ListGateways","lambda:ListFunctions","iam:GetRole","cloudtrail:LookupEvents","route53resolver:ListResolverQueryLogConfigs","ec2:DescribeFlowLogs","logs:StartQuery","logs:GetQueryResults"],"Resource":"*"}]}' "$CUSTOMER_ROLE_NAME"
 
   # Fixture: three roles an agent workload would run under, with the policies
   # that give them model, tool and data access, one role trusting another, one

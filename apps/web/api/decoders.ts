@@ -210,8 +210,9 @@ export function decodeHomeSummary(value: unknown): HomeSummary {
 
 export function decodeFinding(value: unknown): Finding {
   const required = ["id", "source", "title", "severity", "status", "evidence_ids", "risk_factors", "version", "created_at", "updated_at"];
-  const record = exactRecord(value, required, ["rule", "agent_id", "path_id", "compliance_context", "acceptance_reason"]);
+  const record = exactRecord(value, required, ["rule", "agent_id", "path_id", "compliance_context", "acceptance_reason", "frameworks"]);
   productID(record.id); enumValue(record.source, ["posture", "prowler"]); boundedString(record.title, 1, 256);
+  if (record.frameworks !== undefined) for (const reference of array(record.frameworks, 16)) { const item = exactRecord(reference, ["framework", "control", "title"]); enumValue(item.framework, ["owasp_agentic_top10_2026", "owasp_llm_top10_2025", "mitre_atlas", "nist_ai_rmf_1_0", "iso_iec_42001_2023", "eu_ai_act"]); boundedString(item.control, 1, 32); boundedString(item.title, 1, 128); }
   enumValue(record.severity, ["critical", "high", "medium", "low"]); enumValue(record.status, ["open", "under_review", "resolved", "accepted"]);
   for (const key of ["rule", "compliance_context", "acceptance_reason"] as const) if (record[key] !== undefined) boundedString(record[key], 1, key === "rule" ? 64 : key === "compliance_context" ? 128 : 512);
   for (const key of ["agent_id", "path_id"] as const) if (record[key] !== undefined) productID(record[key]);

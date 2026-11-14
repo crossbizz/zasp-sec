@@ -7,6 +7,7 @@ import (
 	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
+	"github.com/zasp-ai/zasp-sec/services/platform/compliancemap"
 	"io"
 	"net"
 	"net/url"
@@ -59,9 +60,13 @@ type RiskFinding struct {
 	EvidenceIDs       []string     `json:"evidence_ids"`
 	RiskFactors       []RiskFactor `json:"risk_factors"`
 	AcceptanceReason  string       `json:"acceptance_reason,omitempty"`
-	Version           int64        `json:"version"`
-	CreatedAt         time.Time    `json:"created_at"`
-	UpdatedAt         time.Time    `json:"updated_at"`
+	// Frameworks are the AI security framework controls the finding's rule
+	// is evidence for. They are derived from the rule when the finding is
+	// read (compliancemap) and never stored.
+	Frameworks []compliancemap.Reference `json:"frameworks,omitempty"`
+	Version    int64                     `json:"version"`
+	CreatedAt  time.Time                 `json:"created_at"`
+	UpdatedAt  time.Time                 `json:"updated_at"`
 }
 
 type RiskFindingPage struct {
@@ -611,6 +616,11 @@ func decodeStrictRisk(payload json.RawMessage, target any) error {
 }
 
 func normalizeRiskFinding(value *RiskFinding) {
+	// Whatever a stored result carried, the references are the current map's.
+	value.Frameworks = nil
+	if references := compliancemap.References(value.Rule); len(references) > 0 {
+		value.Frameworks = references
+	}
 	value.CreatedAt = value.CreatedAt.UTC()
 	value.UpdatedAt = value.UpdatedAt.UTC()
 }

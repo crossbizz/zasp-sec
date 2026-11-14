@@ -3305,6 +3305,8 @@ export type components = {
             /** Format: date-time */
             readonly created_at: string;
             readonly evidence_ids: readonly components["schemas"]["ProductID"][];
+            /** @description AI security framework controls this finding is evidence for, derived from its rule. Absent when the rule has no mapping. A reference means the finding is relevant to the control, not that the control is met or failed. */
+            readonly frameworks?: readonly components["schemas"]["FindingFrameworkReference"][];
             readonly id: components["schemas"]["ProductID"];
             readonly path_id?: components["schemas"]["ProductID"];
             readonly risk_factors: readonly components["schemas"]["RiskFactor"][];
@@ -3320,6 +3322,12 @@ export type components = {
         };
         readonly FindingAcceptanceInput: {
             readonly reason: string;
+        };
+        readonly FindingFrameworkReference: {
+            readonly control: string;
+            /** @enum {string} */
+            readonly framework: "owasp_agentic_top10_2026" | "owasp_llm_top10_2025" | "mitre_atlas" | "nist_ai_rmf_1_0" | "iso_iec_42001_2023" | "eu_ai_act";
+            readonly title: string;
         };
         readonly FindingPage: {
             readonly items: readonly components["schemas"]["Finding"][];
@@ -5393,6 +5401,7 @@ export type ExternalFlow = components['schemas']['ExternalFlow'];
 export type ExternalFlowPage = components['schemas']['ExternalFlowPage'];
 export type Finding = components['schemas']['Finding'];
 export type FindingAcceptanceInput = components['schemas']['FindingAcceptanceInput'];
+export type FindingFrameworkReference = components['schemas']['FindingFrameworkReference'];
 export type FindingPage = components['schemas']['FindingPage'];
 export type FindingSeverity = components['schemas']['FindingSeverity'];
 export type FindingStatus = components['schemas']['FindingStatus'];

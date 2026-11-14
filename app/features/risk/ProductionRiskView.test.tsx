@@ -1,5 +1,5 @@
 import { useEffect, type ReactNode } from "react";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -138,6 +138,15 @@ describe("production risk views", () => {
     await userEvent.type(screen.getByLabelText("Risk acceptance reason"), "Approved exception");
     await userEvent.click(screen.getByRole("button", { name: "Accept risk" }));
     await waitFor(() => expect(accept).toHaveBeenCalledWith(finding.id, "Approved exception", expect.any(String), expect.objectContaining({ idempotencyKey: expect.any(String) })));
+  });
+
+  it("titles an agent check, explains it, and lists its framework references", async () => {
+    const check = { ...finding, source: "prowler", rule: "agent_guardrail_missing", title: "Discovered AWS control agent_guardrail_missing", frameworks: [{ framework: "owasp_llm_top10_2025", control: "LLM01", title: "Prompt Injection" }, { framework: "eu_ai_act", control: "Article 15", title: "Accuracy, robustness and cybersecurity" }] } as unknown as typeof finding;
+    renderRisk("/violations", fixtureAPI({ async listFindings() { return [check]; }, async getFinding() { return { value: check, version: '"1"' }; } }));
+    await userEvent.click(await screen.findByRole("button", { name: "Open Agent has no guardrail attached" }));
+    const dialog = await screen.findByRole("dialog", { name: "Agent has no guardrail attached" });
+    expect(dialog).toHaveTextContent("runs without a guardrail");
+    expect(within(dialog).getByRole("list", { name: "Framework references" })).toHaveTextContent("OWASP LLM Top 10 LLM01: Prompt InjectionEU AI Act Article 15: Accuracy, robustness and cybersecurity");
   });
 
   it("explains why, path, fix, and verification from authoritative finding fields", async () => {
