@@ -35,6 +35,9 @@ const (
 	riskDependency
 	workflowDependency
 	connectorDependency
+	// evidencePackDependency is the agent evidence pack: a handler the
+	// composition owns, which reads the other operations through the router.
+	evidencePackDependency
 )
 
 type coreOperation struct {
@@ -111,6 +114,7 @@ var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"PATCH", "/api/v1/agents/{id}", "updateAgent", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
 	{OperationDefinition{"GET", "/api/v1/agents/{id}/capabilities", "getAgentCapabilities", "view", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
 	{OperationDefinition{"GET", "/api/v1/agents/{id}/relationships", "getAgentRelationships", "view", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
+	{OperationDefinition{"GET", "/api/v1/agents/{id}/evidence-pack", "getAgentEvidencePack", "view", []string{"BrowserSession", "ProductAPIToken"}}, evidencePackDependency},
 	{OperationDefinition{"GET", "/api/v1/agents/{id}/sessions", "listAgentSessions", "view", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
 	{OperationDefinition{"GET", "/api/v1/tools", "listTools", "view", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
 	{OperationDefinition{"GET", "/api/v1/tools/{id}", "getTool", "view", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
@@ -274,8 +278,12 @@ func newComposition(dependencies Dependencies, exports http.Handler, compliance 
 	}
 
 	operations := make([]Operation, 0, len(coreOperations))
+	evidencePack := &agentEvidencePackHandler{}
 	for _, definition := range coreOperations {
 		handler := dependencyHandler(dependencies, definition.dependency)
+		if definition.dependency == evidencePackDependency {
+			handler = evidencePack
+		}
 		if complianceHandler != nil && stringIn(definition.OperationID, "listComplianceControls", "listComplianceEvidence") {
 			handler = complianceHandler
 		}

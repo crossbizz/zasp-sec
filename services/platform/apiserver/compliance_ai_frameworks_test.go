@@ -6,6 +6,10 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
@@ -128,6 +132,48 @@ func TestComplianceListOptionsForAIFrameworks(t *testing.T) {
 	} {
 		if _, err := complianceHTTPListOptions(httptest.NewRequest("GET", "/api/v1/compliance/x?"+query, nil), identity, operation); !errors.Is(err, ErrRepositoryOperation) {
 			t.Errorf("%s %s accepted: %v", operation, query, err)
+		}
+	}
+}
+
+// The public contract accepts exactly the frameworks the API validates, and
+// its control pattern accepts every control of the mapping.
+func TestComplianceOpenAPIKnowsEveryFrameworkAndControl(t *testing.T) {
+	contract, err := os.ReadFile(filepath.Join("..", "..", "..", "openapi", "openapi.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	frameworks := regexp.MustCompile(`(?m)^    ComplianceFrameworkID: \{ type: string, enum: \[([a-z0-9_, ]+)\] \}$`).FindSubmatch(contract)
+	pattern := regexp.MustCompile(`(?m)^    ComplianceControlID:\n(?:      .*\n)*?      pattern: '(.+)'$`).FindSubmatch(contract)
+	if frameworks == nil || pattern == nil {
+		t.Fatal("the contract does not define ComplianceFrameworkID and ComplianceControlID")
+	}
+	want := append([]string{}, complianceProductFrameworks...)
+	for _, framework := range compliancemap.FrameworkNames {
+		want = append(want, framework.ID)
+	}
+	if got := strings.Split(string(frameworks[1]), ", "); !slices.Equal(got, want) {
+		t.Fatalf("contract frameworks = %v, want %v", got, want)
+	}
+	control, err := regexp.Compile(string(pattern[1]))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, item := range compliancemap.Controls() {
+		if !control.MatchString(item.Control) {
+			t.Errorf("the contract refuses control %q of %s", item.Control, item.Framework)
+		}
+	}
+	for _, framework := range complianceProductFrameworks {
+		for _, category := range []string{"audit", "findings", "policies", "tests", "configuration"} {
+			if !control.MatchString(framework + "-" + category) {
+				t.Errorf("the contract refuses %s-%s", framework, category)
+			}
+		}
+	}
+	for _, refused := range []string{"", "ASI3", "hipaa-unknown", "owasp_llm_top10_2025-LLM01", "GOVERN-1.6"} {
+		if control.MatchString(refused) || validComplianceControl(refused, "") {
+			t.Errorf("control %q is accepted", refused)
 		}
 	}
 }

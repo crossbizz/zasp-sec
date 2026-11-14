@@ -154,6 +154,20 @@ type Relationship struct {
 	ToID       string `json:"to_id"`
 	Type       string `json:"type"`
 	EvidenceID string `json:"evidence_id"`
+	// From and To name the two objects the relationship joins. Each is set
+	// only when the object is active and the caller may read it; an end the
+	// caller may not read keeps its identifier and has no name.
+	From *RelationshipEnd `json:"from,omitempty"`
+	To   *RelationshipEnd `json:"to,omitempty"`
+}
+
+// RelationshipEnd is one object of a relationship: what the agent detail
+// needs to say which identity or credential an agent uses.
+type RelationshipEnd struct {
+	Name       string        `json:"name"`
+	Kind       InventoryKind `json:"kind"`
+	Provider   string        `json:"provider"`
+	SourceKind string        `json:"source_kind"`
 }
 
 type RelationshipPage struct {
@@ -669,7 +683,18 @@ func capabilityKey(item Capability) string {
 }
 
 func validRelationship(item Relationship, agentID string) bool {
-	return validProductID(item.ID) && validProductID(item.FromID) && validProductID(item.ToID) && item.FromID != item.ToID && (item.FromID == agentID || item.ToID == agentID) && printableInventoryString(item.Type, 1, 64, false) && validProductID(item.EvidenceID)
+	return validProductID(item.ID) && validProductID(item.FromID) && validProductID(item.ToID) && item.FromID != item.ToID && (item.FromID == agentID || item.ToID == agentID) && printableInventoryString(item.Type, 1, 64, false) && validProductID(item.EvidenceID) &&
+		validRelationshipEnd(item.From, item.FromID == agentID) && validRelationshipEnd(item.To, item.ToID == agentID)
+}
+
+// validRelationshipEnd checks a named end. The end that is the agent of the
+// page, when named, is an agent.
+func validRelationshipEnd(end *RelationshipEnd, agent bool) bool {
+	if end == nil {
+		return true
+	}
+	return printableInventoryString(end.Name, 1, 256, false) && stringIn(string(end.Kind), "asset", "agent", "tool", "identity", "runtime") && (!agent || end.Kind == InventoryKindAgent) &&
+		isDiscoveryProvider(end.Provider) && inventorySourceKindPattern.MatchString(end.SourceKind)
 }
 
 func validInventoryNextKey(next *string, prior string, count, limit int) (string, bool) {

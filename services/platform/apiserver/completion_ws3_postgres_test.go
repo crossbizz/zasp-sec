@@ -512,3 +512,169 @@ func TestCompletionAgentActivityPostgres(t *testing.T) {
 		}
 	}
 }
+
+// ws3Inventory seeds one integration's worth of typed inventory without the
+// collection that normally writes it: entities, their winning observations
+// and evidence, and relationships. Foreign keys to the collection's own rows
+// (integration, sync, snapshot) are not enforced for the seed.
+type ws3Entity struct {
+	ordinal                   int
+	kind, sourceKind, display string
+	attributes                string
+}
+
+const (
+	ws3Integration = "pid_6d000001-0000-4000-8000-000000000001"
+	ws3Snapshot    = "pid_6d000002-0000-4000-8000-000000000002"
+)
+
+func ws3SeedInventory(t *testing.T, ctx context.Context, connection *pgx.Conn, entities []ws3Entity, relationships [][3]string) {
+	t.Helper()
+	observed := time.Now().UTC().Truncate(time.Second).Add(-time.Hour)
+	exec := func(statement string, arguments ...any) {
+		t.Helper()
+		if _, err := connection.Exec(ctx, statement, arguments...); err != nil {
+			t.Fatalf("%s: %v", strings.SplitN(strings.TrimSpace(statement), "(", 2)[0], err)
+		}
+	}
+	exec(`SET session_replication_role=replica`)
+	defer exec(`SET session_replication_role=origin`)
+	for _, item := range entities {
+		entity, evidence := ws3ID("81", item.ordinal), ws3ID("91", item.ordinal)
+		attributes := item.attributes
+		if attributes == "" {
+			attributes = `{}`
+		}
+		exec(`INSERT INTO public.zasp_inventory_entities(
+ organization_id,workspace_id,environment_id,id,kind,display_name,stable_fields,state,first_seen_at,last_seen_at,version,
+ product_kind,confidence_basis_points,winning_evidence_id,winning_snapshot_id,winning_generation,observed_at,fresh_until,projection_version,
+ winning_integration_id,winning_provider,winning_source,winning_source_native_id,winning_identity_rule,winning_source_projection,winning_attributes)
+VALUES($1,$2,$3,$4,$5,$6,'{}','active',$7,$7,1,$5,9000,$8,$9,1,$7,$10,1,$11,'aws','aws',$12,1,1,$13::jsonb)`,
+			ws3Organization, ws3Workspace, ws3Environment, entity, item.kind, item.display, observed, evidence, ws3Snapshot, observed.Add(24*time.Hour), ws3Integration, "native:"+item.display, attributes)
+		exec(`INSERT INTO public.zasp_inventory_source_observations(
+ organization_id,workspace_id,environment_id,integration_id,source,entity_id,source_native_id,snapshot_id,source_state,attributes,first_seen_at,last_seen_at,
+ provider,source_kind,display_name,stable_fields,identity_namespace,product_kind,generation,content_digest,evidence_id,confidence_basis_points,observed_at,fresh_until,
+ identity_rule_version,identity_priority,source_projection_version)
+VALUES($1,$2,$3,$4,'aws',$5,$6,$7,'present',$8::jsonb,$9,$9,'aws',$10,$11,'{}'::jsonb,$10,$12,1,digest(convert_to($6,'UTF8'),'sha256'),$13,9000,$9,$14,1,100,1)`,
+			ws3Organization, ws3Workspace, ws3Environment, ws3Integration, entity, "native:"+item.display, ws3Snapshot, attributes, observed, item.sourceKind, item.display, item.kind, evidence, observed.Add(24*time.Hour))
+		exec(`INSERT INTO public.zasp_inventory_evidence(organization_id,workspace_id,environment_id,id,integration_id,snapshot_id,entity_id,object_reference,checksum,media_type,schema_version,parser_version,collected_at,source,generation,tool_version,size_bytes)
+VALUES($1,$2,$3,$4,$5,$6,$7,$8,digest(convert_to($4,'UTF8'),'sha256'),'application/json','typed_inventory_v1','parser_v1',$9,'aws',1,'tool_v1',128)`,
+			ws3Organization, ws3Workspace, ws3Environment, evidence, ws3Integration, ws3Snapshot, entity, "s3://zasp-evidence/ws3/"+evidence+".json", observed)
+	}
+	for ordinal, item := range relationships {
+		exec(`INSERT INTO public.zasp_inventory_relationships(organization_id,workspace_id,environment_id,id,integration_id,source,snapshot_id,from_entity_id,to_entity_id,kind,source_native_id,first_seen_at,last_seen_at)
+VALUES($1,$2,$3,$4,$5,'aws',$6,$7,$8,$9,$10,$11,$11)`,
+			ws3Organization, ws3Workspace, ws3Environment, ws3ID("a1", ordinal+1), ws3Integration, ws3Snapshot, item[0], item[1], item[2], item[0]+"|"+item[2]+"|"+item[1], observed)
+	}
+}
+
+// ws3RequestStandIns stands in for what a product request passes before an
+// authorized inventory statement runs: the request proof and the cutover
+// state of the scope. The resolver's decision per object is the table
+// ws3_denied, which the test controls.
+func ws3RequestStandIns(t *testing.T, ctx context.Context, connection *pgx.Conn) {
+	t.Helper()
+	if _, err := connection.Exec(ctx, `CREATE TABLE IF NOT EXISTS public.ws3_denied(id text PRIMARY KEY);GRANT SELECT ON public.ws3_denied TO PUBLIC`, pgx.QueryExecModeSimpleProtocol); err != nil {
+		t.Fatal(err)
+	}
+	standIn(t, ctx, connection, "zasp_authorization80.product_request(text,text,text,text,text,text,text,text,boolean,boolean,boolean,boolean)", "sql", `SELECT '{}'::jsonb`)
+	standIn(t, ctx, connection, "zasp_authorization80.allowed(text,text,text,text,text)", "sql", `SELECT NOT EXISTS(SELECT 1 FROM public.ws3_denied x WHERE x.id=$5)`)
+	standIn(t, ctx, connection, "public.zasp_inventory_scope_state(text,text,text)", "sql", `SELECT '{"phase":"cutover"}'::jsonb`)
+}
+
+// The relationships of an agent name their two ends for a caller that may
+// read them (completion.sql section inventory_relationship_ends).
+func TestCompletionRelationshipEndsPostgres(t *testing.T) {
+	ctx, connection := startBaselineDatabase(t)
+	applyCompletionBlock(t, ctx, connection, "inventory_relationship_ends")
+	first := functionDefinition(t, ctx, connection, "zasp_authorization80.inventory_agent_page(text,text,text,text,text,text,integer)")
+	applyCompletionBlock(t, ctx, connection, "inventory_relationship_ends")
+	if functionDefinition(t, ctx, connection, "zasp_authorization80.inventory_agent_page(text,text,text,text,text,text,integer)") != first {
+		t.Fatal("re-running the section changed the authorized page")
+	}
+	var apiMayExecute, publicMayExecute bool
+	if err := connection.QueryRow(ctx, `SELECT has_function_privilege('zasp_discovery_api','zasp_authorization80.inventory_agent_page(text,text,text,text,text,text,integer)','EXECUTE'),has_function_privilege('zasp_discovery_api','zasp_authorization80.inventory_relationship_end(text,text,text,text)','EXECUTE')`).Scan(&apiMayExecute, &publicMayExecute); err != nil || !apiMayExecute || publicMayExecute {
+		t.Fatalf("grants: page=%v helper=%v / %v", apiMayExecute, publicMayExecute, err)
+	}
+	ws3RequestStandIns(t, ctx, connection)
+	agent, role, user, account, removed := ws3ID("81", 1), ws3ID("81", 2), ws3ID("81", 3), ws3ID("81", 4), ws3ID("81", 5)
+	ws3SeedInventory(t, ctx, connection, []ws3Entity{
+		{1, "agent", "aws_bedrock_agent", "Support agent", `{"discovery":{"method":"provider_api","platform":"bedrock_agent","signals":[]}}`},
+		{2, "identity", "aws_role", "support-agent-role", ""},
+		{3, "identity", "aws_role", "break-glass-role", ""},
+		{4, "asset", "aws_account", "123456789012", ""},
+		{5, "identity", "aws_role", "retired-role", ""},
+	}, [][3]string{{agent, role, "uses_identity"}, {agent, user, "uses_identity"}, {account, agent, "contains"}})
+	type end struct {
+		Name       string `json:"name"`
+		Kind       string `json:"kind"`
+		Provider   string `json:"provider"`
+		SourceKind string `json:"source_kind"`
+	}
+	type relationship struct {
+		FromID string `json:"from_id"`
+		ToID   string `json:"to_id"`
+		Type   string `json:"type"`
+		From   *end   `json:"from"`
+		To     *end   `json:"to"`
+	}
+	read := func() map[string]relationship {
+		t.Helper()
+		var raw []byte
+		if err := connection.QueryRow(ctx, `SELECT zasp_authorization80.inventory_agent_page($1,$2,$3,$4,'relationships',NULL,100)`, ws3Organization, ws3Workspace, ws3Environment, agent).Scan(&raw); err != nil {
+			t.Fatalf("relationships: %v", err)
+		}
+		var page struct {
+			Items   []relationship `json:"items"`
+			NextKey *string        `json:"next_key"`
+		}
+		if err := json.Unmarshal(raw, &page); err != nil || len(page.Items) != 3 || page.NextKey != nil {
+			t.Fatalf("relationships = %s / %v", raw, err)
+		}
+		found := map[string]relationship{}
+		for _, item := range page.Items {
+			other := item.ToID
+			if other == agent {
+				other = item.FromID
+			}
+			found[other] = item
+		}
+		return found
+	}
+	agentEnd := end{"Support agent", "agent", "aws", "aws_bedrock_agent"}
+	found := read()
+	if item := found[role]; item.Type != "uses_identity" || item.From == nil || *item.From != agentEnd || item.To == nil || *item.To != (end{"support-agent-role", "identity", "aws", "aws_role"}) {
+		t.Fatalf("role relationship = %#v", item)
+	}
+	if item := found[user]; item.To == nil || item.To.Name != "break-glass-role" {
+		t.Fatalf("second identity = %#v", item)
+	}
+	if item := found[account]; item.Type != "contains" || item.From == nil || *item.From != (end{"123456789012", "asset", "aws", "aws_account"}) || item.To == nil || *item.To != agentEnd {
+		t.Fatalf("account relationship = %#v", item)
+	}
+	// A caller that may not read one identity sees its identifier only.
+	if _, err := connection.Exec(ctx, `INSERT INTO public.ws3_denied VALUES($1)`, user); err != nil {
+		t.Fatal(err)
+	}
+	found = read()
+	if item := found[user]; item.To != nil || item.ToID != user || item.From == nil {
+		t.Fatalf("an identity the caller may not read was named: %#v", item)
+	}
+	if item := found[role]; item.To == nil || item.To.Name != "support-agent-role" {
+		t.Fatalf("the readable identity lost its name: %#v", item)
+	}
+	// An identifier that names no active object has no end.
+	var gone []byte
+	if err := connection.QueryRow(ctx, `SELECT to_jsonb(zasp_authorization80.inventory_relationship_end($1,$2,$3,$4))`, ws3Organization, ws3Workspace, ws3Environment, ws3ID("81", 99)).Scan(&gone); err != nil || len(gone) != 0 {
+		t.Fatalf("an unknown object was named: %s / %v", gone, err)
+	}
+	_ = removed
+	// The other sections of the page are unchanged.
+	var sessions []byte
+	if err := connection.QueryRow(ctx, `SELECT zasp_authorization80.inventory_agent_page($1,$2,$3,$4,'sessions',NULL,100)`, ws3Organization, ws3Workspace, ws3Environment, agent).Scan(&sessions); err != nil || string(sessions) != `{"items": [], "next_key": null}` {
+		t.Fatalf("sessions = %s / %v", sessions, err)
+	}
+	if _, err := connection.Exec(ctx, `SELECT zasp_authorization80.inventory_agent_page($1,$2,$3,$4,'credentials',NULL,100)`, ws3Organization, ws3Workspace, ws3Environment, agent); err == nil || !strings.Contains(err.Error(), "current product authorization required") {
+		t.Fatalf("an unknown section was accepted: %v", err)
+	}
+}

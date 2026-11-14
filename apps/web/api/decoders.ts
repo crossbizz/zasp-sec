@@ -1,4 +1,4 @@
-import type { AgentMutation, AgentSessionPage, AttackLabAttempt, AttackLabPreflight, AttackLabRun, AttackLabRunDetail, AttackLabRunPage, AttackPath, AttackPathPage, BreakOptionPage, CapabilityPage, ConnectorManifest, Finding, FindingPage, HomeSummary, Integration, IntegrationAuthorization, IntegrationFreshness, IntegrationSchedule, IntegrationSetupStatus, IntegrationSync, IntegrationSyncPage, InventoryDetail, InventoryPage, InventoryRecord, InventorySourceObservation, InventorySummary, Policy, PolicyRollout, PolicySimulation, Principal, RecoveryBackup, RecoveryCounts, RecoveryRestore, RelationshipPage, RuntimeDecision, SearchResultPage, SecurityAction, SecurityActionPage, SecurityAgentActivationState, SecurityAgentApproval, SecurityAgentApprovalPage, SecurityAgentDefinition, SecurityAgentExecutionControl, SecurityAgentExecutionControlResult, SecurityAgentExecutionControls, SecurityAgentPage, SecurityAgentRun, SecurityAgentRunClosed, SecurityAgentRunClosure, SecurityAgentRunDetail, SecurityAgentRunPage, SecurityAgentSimulation, SecurityAgentTemplate, Sensor, SensorCoverage, SensorEnrollment, SensorPage, SessionBootstrap, SessionCallbackResult, SessionScope, SessionScopePage, TestAttempt, TestDefinition, TestDefinitionPage, TestRun, TestRunDetail, TestRunPage, WorkflowMutationReceipt, WorkflowMutationReceiptPage } from "./generated";
+import type { AgentEvidencePackResponse, AgentMutation, AgentSessionPage, AttackLabAttempt, AttackLabPreflight, AttackLabRun, AttackLabRunDetail, AttackLabRunPage, AttackPath, AttackPathPage, BreakOptionPage, CapabilityPage, ConnectorManifest, Finding, FindingPage, HomeSummary, Integration, IntegrationAuthorization, IntegrationFreshness, IntegrationSchedule, IntegrationSetupStatus, IntegrationSync, IntegrationSyncPage, InventoryDetail, InventoryPage, InventoryRecord, InventorySourceObservation, InventorySummary, Policy, PolicyRollout, PolicySimulation, Principal, RecoveryBackup, RecoveryCounts, RecoveryRestore, RelationshipPage, RuntimeDecision, SearchResultPage, SecurityAction, SecurityActionPage, SecurityAgentActivationState, SecurityAgentApproval, SecurityAgentApprovalPage, SecurityAgentDefinition, SecurityAgentExecutionControl, SecurityAgentExecutionControlResult, SecurityAgentExecutionControls, SecurityAgentPage, SecurityAgentRun, SecurityAgentRunClosed, SecurityAgentRunClosure, SecurityAgentRunDetail, SecurityAgentRunPage, SecurityAgentSimulation, SecurityAgentTemplate, Sensor, SensorCoverage, SensorEnrollment, SensorPage, SessionBootstrap, SessionCallbackResult, SessionScope, SessionScopePage, TestAttempt, TestDefinition, TestDefinitionPage, TestRun, TestRunDetail, TestRunPage, WorkflowMutationReceipt, WorkflowMutationReceiptPage } from "./generated";
 
 import { validateSecurityAgentExportSelections } from "./security-agent-export-decoders";
 
@@ -203,7 +203,46 @@ export function decodeCapabilityPage(value: unknown): CapabilityPage {
 }
 
 export function decodeRelationshipPage(value: unknown): RelationshipPage {
-  const record = exactRecord(value, ["items", "page_info"]); for (const item of array(record.items, 100)) { const entry = exactRecord(item, ["id", "from_id", "to_id", "type", "evidence_id"]); productID(entry.id); productID(entry.from_id); productID(entry.to_id); if (entry.from_id === entry.to_id) fail(); boundedString(entry.type, 1, 64); productID(entry.evidence_id); } decodePageInfo(record.page_info); return value as RelationshipPage;
+  const record = exactRecord(value, ["items", "page_info"]); for (const item of array(record.items, 100)) { const entry = exactRecord(item, ["id", "from_id", "to_id", "type", "evidence_id"], ["from", "to"]); productID(entry.id); productID(entry.from_id); productID(entry.to_id); if (entry.from_id === entry.to_id) fail(); boundedString(entry.type, 1, 64); productID(entry.evidence_id); for (const key of ["from", "to"] as const) if (Object.hasOwn(entry, key)) decodeRelationshipEnd(entry[key]); } decodePageInfo(record.page_info); return value as RelationshipPage;
+}
+
+// The evidence pack of one agent. The agent and the findings are decoded as
+// their own operations decode them; a Security Agent run and the red team
+// records are kept as the product returned them, and checked to be objects
+// bound to this pack (a run names findings of the pack).
+export function decodeAgentEvidencePackResponse(value: unknown, agentID: string): AgentEvidencePackResponse {
+  const record = exactRecord(value, ["pack", "markdown"]);
+  if (typeof record.markdown !== "string" || record.markdown.length < 1 || record.markdown.length > 8 * 1024 * 1024) fail();
+  const pack = exactRecord(record.pack, ["schema_version", "generated_at", "organization_id", "workspace_id", "environment_id", "agent", "findings", "security_agent_runs", "red_team_tests", "red_team_runs"]);
+  if (pack.schema_version !== "agent-evidence-pack-v1") fail();
+  dateTime(pack.generated_at); productID(pack.organization_id); productID(pack.workspace_id); productID(pack.environment_id);
+  const agent = decodeInventoryDetail(pack.agent);
+  if (agent.summary.id !== agentID || agent.summary.kind !== "agent") fail();
+  const section = (raw: unknown, maximum: number) => {
+    const part = exactRecord(raw, ["status", "items"]);
+    enumValue(part.status, ["complete", "truncated", "not_permitted", "browser_session_required", "unavailable"]);
+    const items = array(part.items, maximum);
+    if (part.status !== "complete" && part.status !== "truncated" && items.length !== 0) fail();
+    return items;
+  };
+  const findings = new Set<string>();
+  for (const item of section(pack.findings, 200)) { const finding = decodeFinding(item); if (finding.agent_id !== agentID || findings.has(finding.id)) fail(); findings.add(finding.id); }
+  for (const item of section(pack.security_agent_runs, 50)) {
+    const entry = exactRecord(item, ["finding_ids", "run"]);
+    const related = array(entry.finding_ids, 50);
+    if (related.length === 0 || related.some((id) => typeof id !== "string" || !findings.has(id)) || !entry.run || typeof entry.run !== "object" || Array.isArray(entry.run)) fail();
+  }
+  const definitions = new Set<string>();
+  for (const item of section(pack.red_team_tests, 200)) { if (!item || typeof item !== "object" || Array.isArray(item)) fail(); const test = item as Record<string, unknown>; productID(test.id); if (test.target_id !== agentID) fail(); definitions.add(test.id as string); }
+  for (const item of section(pack.red_team_runs, 200)) { if (!item || typeof item !== "object" || Array.isArray(item)) fail(); const run = item as Record<string, unknown>; productID(run.id); if (typeof run.definition_id !== "string" || !definitions.has(run.definition_id)) fail(); }
+  return value as AgentEvidencePackResponse;
+}
+
+// One named end of a relationship: present only for an object the caller may read.
+function decodeRelationshipEnd(value: unknown): void {
+  const end = exactRecord(value, ["name", "kind", "provider", "source_kind"]);
+  boundedString(end.name, 1, 256); enumValue(end.kind, ["asset", "agent", "tool", "identity", "runtime"]); enumValue(end.provider, DISCOVERY_PROVIDERS);
+  if (typeof end.source_kind !== "string" || !/^[a-z][a-z0-9_]{1,63}$/.test(end.source_kind)) fail();
 }
 
 export function decodeAgentSessionPage(value: unknown): AgentSessionPage {

@@ -4203,3 +4203,55 @@ BEGIN
   EXECUTE replace(d,target.anchor,target.patched);
  END LOOP;
 END $inventory_agent_activity$;
+
+-- ---------------------------------------------------------------------------
+-- WS3-A3. The two ends of an agent relationship, by name.
+--
+-- GET /agents/{id}/relationships returned identifiers only, so the agent
+-- detail could not say which identities and credentials an agent uses
+-- (uses_identity) without one more request per identity. Each relationship
+-- of the authorized page now carries the two objects it joins, "from" and
+-- "to": name, product kind, provider and the provider kind the collector
+-- reported (aws_role, kubernetes_service_account, ...).
+--
+-- An end is added only when the object is active and the caller may read it
+-- (zasp_authorization80.allowed for the object's own kind), so the page names
+-- nothing the caller could not open. An end the caller may not read keeps its
+-- identifier, as before, and has no "from" or "to" member. The chain's page
+-- (zasp_inventory_agent_relationships_page) is unchanged; section Z4's
+-- authorized function is restated here with the one added step.
+DO $inventory_relationship_ends$
+BEGIN
+ CREATE OR REPLACE FUNCTION zasp_authorization80.inventory_relationship_end(o text,w text,e text,i text) RETURNS jsonb
+ LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $inventory_relationship_end$
+  SELECT jsonb_build_object('name',v.display_name,'kind',v.product_kind,'provider',v.winning_provider,
+   'source_kind',(SELECT observation.source_kind FROM public.zasp_inventory_source_observations observation WHERE (observation.organization_id,observation.workspace_id,observation.environment_id,observation.integration_id,observation.source,observation.entity_id)=(v.organization_id,v.workspace_id,v.environment_id,v.winning_integration_id,v.winning_source,v.id)))
+  FROM public.zasp_inventory_entities v
+  WHERE (v.organization_id,v.workspace_id,v.environment_id,v.id,v.state)=(o,w,e,i,'active') AND zasp_authorization80.allowed(o,w,e,v.product_kind,v.id)
+ $inventory_relationship_end$;
+
+ CREATE OR REPLACE FUNCTION zasp_authorization80.inventory_agent_page(o text,w text,e text,i text,section text,after_value text,n integer) RETURNS jsonb
+ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $inventory_agent_page$
+ DECLARE op text:=CASE section WHEN 'capabilities' THEN 'getAgentCapabilities' WHEN 'relationships' THEN 'getAgentRelationships' WHEN 'sessions' THEN 'listAgentSessions' END;page_value jsonb;
+ BEGIN
+  IF op IS NULL OR NOT COALESCE(public.zasp_valid_product_id(i),false) THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';END IF;
+  PERFORM zasp_authorization80.product_request(o,w,e,NULL,op,'view','agent',i,true,false,false,false);
+  page_value:=CASE section
+   WHEN 'capabilities' THEN public.zasp_inventory_agent_capabilities_page(o,w,e,i,after_value,n)
+   WHEN 'relationships' THEN public.zasp_inventory_agent_relationships_page(o,w,e,i,after_value,n)
+   ELSE public.zasp_inventory_agent_sessions_page(o,w,e,i,after_value,n) END;
+  IF section='relationships' THEN
+   page_value:=jsonb_set(page_value,'{items}',COALESCE((SELECT jsonb_agg(item.value||jsonb_strip_nulls(jsonb_build_object(
+     'from',zasp_authorization80.inventory_relationship_end(o,w,e,item.value->>'from_id'),
+     'to',zasp_authorization80.inventory_relationship_end(o,w,e,item.value->>'to_id'))) ORDER BY item.ordinality)
+    FROM jsonb_array_elements(page_value->'items') WITH ORDINALITY item),'[]'::jsonb));
+  END IF;
+  RETURN page_value;
+ END $inventory_agent_page$;
+
+ ALTER FUNCTION zasp_authorization80.inventory_relationship_end(text,text,text,text) OWNER TO zasp_discovery_authority;
+ REVOKE ALL ON FUNCTION zasp_authorization80.inventory_relationship_end(text,text,text,text) FROM PUBLIC;
+ ALTER FUNCTION zasp_authorization80.inventory_agent_page(text,text,text,text,text,text,integer) OWNER TO zasp_discovery_authority;
+ REVOKE ALL ON FUNCTION zasp_authorization80.inventory_agent_page(text,text,text,text,text,text,integer) FROM PUBLIC;
+ GRANT EXECUTE ON FUNCTION zasp_authorization80.inventory_agent_page(text,text,text,text,text,text,integer) TO zasp_discovery_api;
+END $inventory_relationship_ends$;

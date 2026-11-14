@@ -67,6 +67,7 @@
   {"ID":"updateAgent","Method":"PATCH","Path":"/api/v1/agents/{id}","Permission":"manage_workflows","Relation":"manage_workflows","Surface":"core","Security":["BrowserSession","ProductAPIToken"],"FreshAuth":false},
   {"ID":"getAgentCapabilities","Method":"GET","Path":"/api/v1/agents/{id}/capabilities","Permission":"view","Relation":"view","Surface":"core","Security":["BrowserSession","ProductAPIToken"],"FreshAuth":false},
   {"ID":"getAgentRelationships","Method":"GET","Path":"/api/v1/agents/{id}/relationships","Permission":"view","Relation":"view","Surface":"core","Security":["BrowserSession","ProductAPIToken"],"FreshAuth":false},
+  {"ID":"getAgentEvidencePack","Method":"GET","Path":"/api/v1/agents/{id}/evidence-pack","Permission":"view","Relation":"view","Surface":"core","Security":["BrowserSession","ProductAPIToken"],"FreshAuth":false},
   {"ID":"listAgentSessions","Method":"GET","Path":"/api/v1/agents/{id}/sessions","Permission":"view","Relation":"view","Surface":"core","Security":["BrowserSession","ProductAPIToken"],"FreshAuth":false},
   {"ID":"listTools","Method":"GET","Path":"/api/v1/tools","Permission":"view","Relation":"view","Surface":"core","Security":["BrowserSession","ProductAPIToken"],"FreshAuth":false},
   {"ID":"getTool","Method":"GET","Path":"/api/v1/tools/{id}","Permission":"view","Relation":"view","Surface":"core","Security":["BrowserSession","ProductAPIToken"],"FreshAuth":false},

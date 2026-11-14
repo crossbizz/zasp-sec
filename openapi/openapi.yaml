@@ -1630,6 +1630,26 @@ paths:
         '200': { description: Agent relationship records., content: { application/json: { schema: { $ref: '#/components/schemas/RelationshipPage' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/agents/{id}/evidence-pack:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: getAgentEvidencePack
+      summary: Get the evidence pack of one Agent for an auditor
+      description: One document with how the agent was found, its findings with their framework references, the Security Agent runs on those findings with their approvals, and the red team definitions and runs that target it, plus a Markdown rendering. The pack is composed from the product's own read operations, each read as the caller, so it holds nothing the caller could not read one request at a time. A part the caller may not read is marked not_permitted, a part read only with a browser session is marked browser_session_required for an API token, and a part that reaches its bound is marked truncated. It is a synchronous read and nothing is stored - there is no retention and no download grant.
+      parameters:
+        - { name: format, in: query, required: false, description: 'json (default) returns the document and its rendering; markdown returns the rendering alone as a download.', schema: { type: string, enum: [json, markdown] } }
+      responses:
+        '200':
+          description: The evidence pack, with Cache-Control no-store.
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/AgentEvidencePackResponse' } }
+            text/markdown: { schema: { type: string } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/agents/{id}/sessions:
     parameters:
       - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
@@ -6499,6 +6519,69 @@ components:
       enum: [active, inactive, unknown, not_applicable]
     InventoryRecord:
       $ref: '#/components/schemas/InventorySummary'
+    AgentEvidencePackStatus:
+      type: string
+      description: Whether a section holds everything (complete), stops at its bound (truncated), or is empty because the caller may not read it (not_permitted), it is read only with a browser session (browser_session_required) or it could not be read when the pack was generated (unavailable).
+      enum: [complete, truncated, not_permitted, browser_session_required, unavailable]
+    AgentEvidencePack:
+      type: object
+      additionalProperties: false
+      required: [schema_version, generated_at, organization_id, workspace_id, environment_id, agent, findings, security_agent_runs, red_team_tests, red_team_runs]
+      properties:
+        schema_version: { type: string, const: agent-evidence-pack-v1 }
+        generated_at: { type: string, format: date-time }
+        organization_id: { $ref: '#/components/schemas/ProductID' }
+        workspace_id: { $ref: '#/components/schemas/ProductID' }
+        environment_id: { $ref: '#/components/schemas/ProductID' }
+        agent: { $ref: '#/components/schemas/InventoryDetail' }
+        findings:
+          type: object
+          description: The findings on the agent, each with its framework references. At most 200.
+          additionalProperties: false
+          required: [status, items]
+          properties:
+            status: { $ref: '#/components/schemas/AgentEvidencePackStatus' }
+            items: { type: array, maxItems: 200, items: { $ref: '#/components/schemas/Finding' } }
+        security_agent_runs:
+          type: object
+          description: The Security Agent runs related to those findings, each once, with the run detail the run operation returns (plan, authorization, approvals, execution and verification). At most 50.
+          additionalProperties: false
+          required: [status, items]
+          properties:
+            status: { $ref: '#/components/schemas/AgentEvidencePackStatus' }
+            items:
+              type: array
+              maxItems: 50
+              items:
+                type: object
+                additionalProperties: false
+                required: [finding_ids, run]
+                properties:
+                  finding_ids: { type: array, minItems: 1, maxItems: 50, uniqueItems: true, items: { $ref: '#/components/schemas/ProductID' } }
+                  run: { type: object, additionalProperties: true, description: The body of getSecurityAgentRun for this run. }
+        red_team_tests:
+          type: object
+          description: The red team definitions whose target is the agent. At most 200.
+          additionalProperties: false
+          required: [status, items]
+          properties:
+            status: { $ref: '#/components/schemas/AgentEvidencePackStatus' }
+            items: { type: array, maxItems: 200, items: { $ref: '#/components/schemas/TestDefinition' } }
+        red_team_runs:
+          type: object
+          description: The runs of those definitions. At most 200.
+          additionalProperties: false
+          required: [status, items]
+          properties:
+            status: { $ref: '#/components/schemas/AgentEvidencePackStatus' }
+            items: { type: array, maxItems: 200, items: { $ref: '#/components/schemas/TestRun' } }
+    AgentEvidencePackResponse:
+      type: object
+      additionalProperties: false
+      required: [pack, markdown]
+      properties:
+        pack: { $ref: '#/components/schemas/AgentEvidencePack' }
+        markdown: { type: string, minLength: 1, description: The same pack rendered as Markdown for a reader. }
     InventorySourceObservation:
       type: object
       additionalProperties: false
@@ -6596,6 +6679,18 @@ components:
         to_id: { $ref: '#/components/schemas/ProductID' }
         type: { type: string, minLength: 1, maxLength: 64 }
         evidence_id: { $ref: '#/components/schemas/ProductID' }
+        from: { $ref: '#/components/schemas/RelationshipEnd' }
+        to: { $ref: '#/components/schemas/RelationshipEnd' }
+    RelationshipEnd:
+      type: object
+      description: One of the two objects a relationship joins, by name. Present only when the object is active and the caller may read it; an end the caller may not read keeps its identifier (from_id or to_id) and has no such member. For a uses_identity relationship of an agent, "to" is the identity or credential the agent uses.
+      additionalProperties: false
+      required: [name, kind, provider, source_kind]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 256 }
+        kind: { $ref: '#/components/schemas/InventoryKind' }
+        provider: { $ref: '#/components/schemas/InventoryProvider' }
+        source_kind: { type: string, pattern: '^[a-z][a-z0-9_]{1,63}$', description: 'The provider kind the collector reported, such as aws_role or kubernetes_service_account.' }
     RelationshipPage:
       type: object
       additionalProperties: false
