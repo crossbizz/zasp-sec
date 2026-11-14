@@ -112,6 +112,14 @@ func References(rule string) []Reference {
 	return references
 }
 
+// Control returns the framework control with the given key (for example
+// "LLM01" or "T0051"), for callers that tag something other than a finding
+// rule, such as a red team probe.
+func Control(key string) (Reference, bool) {
+	reference, ok := controls[key]
+	return reference, ok
+}
+
 // Rules lists every mapped rule, sorted.
 func Rules() []string {
 	names := make([]string, 0, len(rules))
