@@ -3935,3 +3935,213 @@ BEGIN
   EXECUTE format('GRANT EXECUTE ON FUNCTION zasp_authorization80.%s TO zasp_discovery_api',f);
  END LOOP;
 END $webhook_grants$;
+
+-- ---------------------------------------------------------------------------
+-- WS3-A2. AI security frameworks on the compliance reads and the export.
+--
+-- The compliance controls were two product frameworks (soc2_security, hipaa)
+-- times five evidence categories. Six AI security frameworks join them:
+-- owasp_agentic_top10_2026, owasp_llm_top10_2025, mitre_atlas,
+-- nist_ai_rmf_1_0, iso_iec_42001_2023 and eu_ai_act. Their controls are the
+-- frameworks' own (ASI03, LLM01, AML.T0051, GOVERN 1.6, A.6.2.6,
+-- Article 15, ...), and the evidence of a control is the findings whose rule
+-- is mapped to it. The mapping is the one the finding detail shows
+-- (services/platform/compliancemap); the two functions below hold the same
+-- data, and compliancemap/sql_test.go fails when they differ from the Go map.
+--
+-- A reference says a finding is relevant to a control, not that the control
+-- is met or failed, exactly as for the product frameworks.
+DO $ai_framework_data$
+BEGIN
+CREATE OR REPLACE FUNCTION public.zasp_compliance_ai_controls() RETURNS TABLE(framework text,control_id text,label text) LANGUAGE sql IMMUTABLE SET search_path TO pg_catalog,public AS $ai_controls$
+ SELECT c.framework,c.control_id,c.label FROM (VALUES
+  ('eu_ai_act','Article 14','Human oversight'),
+  ('eu_ai_act','Article 15','Accuracy, robustness and cybersecurity'),
+  ('eu_ai_act','Article 9','Risk management system'),
+  ('iso_iec_42001_2023','A.3.2','AI roles and responsibilities'),
+  ('iso_iec_42001_2023','A.6.2.6','AI system operation and monitoring'),
+  ('iso_iec_42001_2023','A.9.2','Processes for responsible use of AI systems'),
+  ('mitre_atlas','AML.T0051','LLM Prompt Injection'),
+  ('mitre_atlas','AML.T0053','LLM Plugin Compromise'),
+  ('mitre_atlas','AML.T0055','Unsecured Credentials'),
+  ('mitre_atlas','AML.T0057','LLM Data Leakage'),
+  ('nist_ai_rmf_1_0','GOVERN 1.6','Mechanisms are in place to inventory AI systems'),
+  ('nist_ai_rmf_1_0','GOVERN 2.1','Roles, responsibilities and lines of communication are documented'),
+  ('nist_ai_rmf_1_0','MANAGE 2.4','Mechanisms exist to supersede, disengage or deactivate AI systems'),
+  ('nist_ai_rmf_1_0','MEASURE 2.7','AI system security and resilience are evaluated and documented'),
+  ('owasp_agentic_top10_2026','ASI02','Tool Misuse and Exploitation'),
+  ('owasp_agentic_top10_2026','ASI03','Identity and Privilege Abuse'),
+  ('owasp_agentic_top10_2026','ASI04','Agentic Supply Chain Vulnerabilities'),
+  ('owasp_agentic_top10_2026','ASI05','Unexpected Code Execution'),
+  ('owasp_agentic_top10_2026','ASI10','Rogue Agents'),
+  ('owasp_llm_top10_2025','LLM01','Prompt Injection'),
+  ('owasp_llm_top10_2025','LLM02','Sensitive Information Disclosure'),
+  ('owasp_llm_top10_2025','LLM03','Supply Chain'),
+  ('owasp_llm_top10_2025','LLM05','Improper Output Handling'),
+  ('owasp_llm_top10_2025','LLM06','Excessive Agency')) c(framework,control_id,label)
+$ai_controls$;
+CREATE OR REPLACE FUNCTION public.zasp_compliance_ai_rule_controls() RETURNS TABLE(rule text,framework text,control_id text) LANGUAGE sql IMMUTABLE SET search_path TO pg_catalog,public AS $ai_rule_controls$
+ SELECT r.rule,r.framework,r.control_id FROM (VALUES
+  ('agent_guardrail_missing','eu_ai_act','Article 15'),
+  ('agent_guardrail_missing','eu_ai_act','Article 9'),
+  ('agent_guardrail_missing','iso_iec_42001_2023','A.6.2.6'),
+  ('agent_guardrail_missing','mitre_atlas','AML.T0051'),
+  ('agent_guardrail_missing','nist_ai_rmf_1_0','MEASURE 2.7'),
+  ('agent_guardrail_missing','owasp_llm_top10_2025','LLM01'),
+  ('agent_guardrail_missing','owasp_llm_top10_2025','LLM02'),
+  ('agent_guardrail_missing','owasp_llm_top10_2025','LLM05'),
+  ('agent_role_administrator_access','eu_ai_act','Article 15'),
+  ('agent_role_administrator_access','nist_ai_rmf_1_0','MEASURE 2.7'),
+  ('agent_role_administrator_access','owasp_agentic_top10_2026','ASI03'),
+  ('agent_role_administrator_access','owasp_llm_top10_2025','LLM06'),
+  ('agent_role_unused_90_days','mitre_atlas','AML.T0055'),
+  ('agent_role_unused_90_days','nist_ai_rmf_1_0','GOVERN 1.6'),
+  ('agent_role_unused_90_days','nist_ai_rmf_1_0','MANAGE 2.4'),
+  ('agent_role_unused_90_days','owasp_agentic_top10_2026','ASI03'),
+  ('cicd_production_secret','eu_ai_act','Article 15'),
+  ('cicd_production_secret','mitre_atlas','AML.T0055'),
+  ('cicd_production_secret','owasp_agentic_top10_2026','ASI03'),
+  ('cicd_production_secret','owasp_agentic_top10_2026','ASI04'),
+  ('cicd_production_secret','owasp_llm_top10_2025','LLM03'),
+  ('destructive_no_control','eu_ai_act','Article 14'),
+  ('destructive_no_control','iso_iec_42001_2023','A.6.2.6'),
+  ('destructive_no_control','nist_ai_rmf_1_0','MANAGE 2.4'),
+  ('destructive_no_control','owasp_agentic_top10_2026','ASI02'),
+  ('destructive_no_control','owasp_llm_top10_2025','LLM06'),
+  ('egress_sensitive','eu_ai_act','Article 15'),
+  ('egress_sensitive','mitre_atlas','AML.T0057'),
+  ('egress_sensitive','nist_ai_rmf_1_0','MEASURE 2.7'),
+  ('egress_sensitive','owasp_llm_top10_2025','LLM02'),
+  ('human_credential','eu_ai_act','Article 15'),
+  ('human_credential','mitre_atlas','AML.T0055'),
+  ('human_credential','nist_ai_rmf_1_0','MEASURE 2.7'),
+  ('human_credential','owasp_agentic_top10_2026','ASI03'),
+  ('iam_role_administratoraccess_policy','nist_ai_rmf_1_0','MEASURE 2.7'),
+  ('iam_role_administratoraccess_policy','owasp_agentic_top10_2026','ASI03'),
+  ('iam_role_administratoraccess_policy','owasp_llm_top10_2025','LLM06'),
+  ('iam_role_cross_service_confused_deputy_prevention','nist_ai_rmf_1_0','MEASURE 2.7'),
+  ('iam_role_cross_service_confused_deputy_prevention','owasp_agentic_top10_2026','ASI03'),
+  ('no_runtime_coverage','eu_ai_act','Article 14'),
+  ('no_runtime_coverage','eu_ai_act','Article 9'),
+  ('no_runtime_coverage','iso_iec_42001_2023','A.6.2.6'),
+  ('no_runtime_coverage','nist_ai_rmf_1_0','MANAGE 2.4'),
+  ('no_runtime_coverage','nist_ai_rmf_1_0','MEASURE 2.7'),
+  ('ownerless_agent','eu_ai_act','Article 14'),
+  ('ownerless_agent','iso_iec_42001_2023','A.3.2'),
+  ('ownerless_agent','nist_ai_rmf_1_0','GOVERN 1.6'),
+  ('ownerless_agent','nist_ai_rmf_1_0','GOVERN 2.1'),
+  ('ownerless_agent','owasp_agentic_top10_2026','ASI10'),
+  ('shared_credential','eu_ai_act','Article 15'),
+  ('shared_credential','mitre_atlas','AML.T0055'),
+  ('shared_credential','nist_ai_rmf_1_0','MEASURE 2.7'),
+  ('shared_credential','owasp_agentic_top10_2026','ASI03'),
+  ('shell_credential','eu_ai_act','Article 15'),
+  ('shell_credential','nist_ai_rmf_1_0','MEASURE 2.7'),
+  ('shell_credential','owasp_agentic_top10_2026','ASI03'),
+  ('shell_credential','owasp_agentic_top10_2026','ASI05'),
+  ('shell_credential','owasp_llm_top10_2025','LLM06'),
+  ('unapproved_tool','eu_ai_act','Article 9'),
+  ('unapproved_tool','iso_iec_42001_2023','A.9.2'),
+  ('unapproved_tool','mitre_atlas','AML.T0053'),
+  ('unapproved_tool','owasp_agentic_top10_2026','ASI02'),
+  ('unapproved_tool','owasp_agentic_top10_2026','ASI04'),
+  ('unapproved_tool','owasp_llm_top10_2025','LLM03'),
+  ('untrusted_production_write','eu_ai_act','Article 15'),
+  ('untrusted_production_write','mitre_atlas','AML.T0051'),
+  ('untrusted_production_write','nist_ai_rmf_1_0','MEASURE 2.7'),
+  ('untrusted_production_write','owasp_agentic_top10_2026','ASI02'),
+  ('untrusted_production_write','owasp_llm_top10_2025','LLM01'),
+  ('untrusted_production_write','owasp_llm_top10_2025','LLM06'),
+  ('weak_runtime_isolation','eu_ai_act','Article 15'),
+  ('weak_runtime_isolation','nist_ai_rmf_1_0','MEASURE 2.7'),
+  ('weak_runtime_isolation','owasp_agentic_top10_2026','ASI05'),
+  ('weak_runtime_isolation','owasp_llm_top10_2025','LLM06'),
+  ('zombie_credential','mitre_atlas','AML.T0055'),
+  ('zombie_credential','nist_ai_rmf_1_0','GOVERN 1.6'),
+  ('zombie_credential','nist_ai_rmf_1_0','MANAGE 2.4'),
+  ('zombie_credential','owasp_agentic_top10_2026','ASI03')) r(rule,framework,control_id)
+$ai_rule_controls$;
+ ALTER FUNCTION public.zasp_compliance_ai_controls() OWNER TO zasp_discovery_authority;
+ ALTER FUNCTION public.zasp_compliance_ai_rule_controls() OWNER TO zasp_discovery_authority;
+ REVOKE ALL ON FUNCTION public.zasp_compliance_ai_controls(),public.zasp_compliance_ai_rule_controls() FROM PUBLIC;
+END $ai_framework_data$;
+
+-- The mapping gains one row per AI control (required source: finding), and
+-- the reads and the export job accept every framework of the mapping.
+--
+-- zasp_compliance_read (the chain's reader) and
+-- zasp_authorization80.compliance_read (its authorized clone, the one the API
+-- executes) are patched alike:
+--   * a framework filter is any framework of the mapping;
+--   * the evidence of an AI control, or of an AI framework when no control is
+--     named, is the findings whose rule maps to it, instead of every source of
+--     the family;
+--   * the freshness of an AI control is computed over those findings;
+--   * listControls returns, for an AI control, finding_ids (the first hundred
+--     in identifier order) and finding_count.
+-- Everything is derived from the sources CTE the function already
+-- materializes. In the authorized clone that CTE holds only the sources the
+-- caller may read (parent_allowed_inner), so a caller sees, and counts, only
+-- findings it may read. The rules CTE is read by finding identifier and only
+-- joined to those sources.
+--
+-- zasp_compliance_export_create accepts the same frameworks, and
+-- zasp_compliance_export_capture records, for an AI control, the findings
+-- mapped to it. A database without one of the functions (a chain before the
+-- authorized clone) skips it. Re-run: a function that already names the AI
+-- controls is left alone; any other shape than the predecessor's is refused.
+DO $ai_framework_compliance$
+DECLARE target record;d text;step record;
+ is_ai CONSTANT text:=$sql$EXISTS(SELECT 1 FROM public.zasp_compliance_ai_controls() a WHERE a.control_id=m.control_id)$sql$;
+ mapped CONSTANT text:=$sql$EXISTS(SELECT 1 FROM rules r WHERE r.id=s.source_id AND r.control_id=m.control_id)$sql$;
+ family CONSTANT text:=$sql$s.source_family=ANY(m.required_sources)$sql$;
+BEGIN
+ -- The mapping.
+ d:=pg_get_functiondef('public.zasp_compliance_mappings()'::regprocedure);
+ IF position('zasp_compliance_ai_controls()' in d)=0 THEN
+  IF length(d)-length(replace(d,'c(category,label,sources)',''))<>length('c(category,label,sources)') THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='compliance mappings predecessor changed';END IF;
+  EXECUTE replace(d,'c(category,label,sources)',$sql$c(category,label,sources)
+ UNION ALL SELECT a.framework,a.control_id,a.label,ARRAY['finding'],86400 FROM public.zasp_compliance_ai_controls() a$sql$);
+ END IF;
+ -- The readers.
+ FOR target IN SELECT signature FROM (VALUES
+  ('public.zasp_compliance_read(text,text,text,text,bytea,text,jsonb,text,text)'),
+  ('zasp_authorization80.compliance_read(text,text,text,text,bytea,text,jsonb,text,text)')) listed(signature)
+  WHERE to_regprocedure(signature) IS NOT NULL LOOP
+  d:=pg_get_functiondef(target.signature::regprocedure);
+  IF position('zasp_compliance_ai_controls()' in d)>0 THEN CONTINUE;END IF;
+  FOR step IN SELECT * FROM (VALUES
+   (1,$a$framework_value NOT IN('soc2_security','hipaa')$a$,
+      $b$NOT EXISTS(SELECT 1 FROM public.zasp_compliance_mappings() m WHERE m.framework=framework_value)$b$),
+   (1,$a$ checked AS (SELECT COALESCE(bool_and($a$,
+      $b$ rules AS MATERIALIZED (SELECT f.id,a.framework,a.control_id FROM public.zasp_risk_findings f JOIN public.zasp_compliance_ai_rule_controls() a ON a.rule=f.rule WHERE (f.organization_id,f.workspace_id,f.environment_id)=(org_value,workspace_value,environment_value)),
+ checked AS (SELECT COALESCE(bool_and($b$),
+   (1,$a$(family_value IS NULL OR s.source_family=family_value)$a$,
+      $b$(family_value IS NULL OR s.source_family=family_value) AND (NOT EXISTS(SELECT 1 FROM public.zasp_compliance_ai_controls() a WHERE CASE WHEN control_value IS NOT NULL THEN a.control_id=control_value ELSE a.framework=framework_value END) OR s.source_kind='finding' AND EXISTS(SELECT 1 FROM rules r WHERE r.id=s.source_id AND CASE WHEN control_value IS NOT NULL THEN r.control_id=control_value ELSE r.framework=framework_value END))$b$),
+   (3,family,family||' AND (NOT '||is_ai||' OR '||mapped||')'),
+   (1,$a$ fresh_until FROM public.zasp_compliance_mappings() m WHERE operation_value='listControls'$a$,
+      $b$ fresh_until,CASE WHEN $b$||is_ai||$b$ THEN COALESCE((SELECT jsonb_agg(listed.source_id ORDER BY listed.source_id COLLATE "C") FROM (SELECT s.source_id FROM sources s WHERE s.source_kind='finding' AND $b$||mapped||$b$ ORDER BY s.source_id COLLATE "C" LIMIT 100) listed),'[]'::jsonb) END finding_ids,CASE WHEN $b$||is_ai||$b$ THEN (SELECT count(*) FROM sources s WHERE s.source_kind='finding' AND $b$||mapped||$b$) END finding_count FROM public.zasp_compliance_mappings() m WHERE operation_value='listControls'$b$),
+   (1,$a$jsonb_agg(to_jsonb(c) ORDER BY$a$,$b$jsonb_agg(jsonb_strip_nulls(to_jsonb(c)) ORDER BY$b$)
+  ) listed(occurrences,anchor,patched) LOOP
+   IF (length(d)-length(replace(d,step.anchor,'')))/length(step.anchor)<>step.occurrences THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='compliance read predecessor changed';END IF;
+   d:=replace(d,step.anchor,step.patched);
+  END LOOP;
+  EXECUTE d;
+ END LOOP;
+ -- The export job.
+ FOR target IN SELECT * FROM (VALUES
+  ('public.zasp_compliance_export_create(text,text,text,text,bytea,text,jsonb,text,text)',
+   $a$request_value->>'framework' NOT IN('soc2_security','hipaa')$a$,
+   $b$NOT EXISTS(SELECT 1 FROM public.zasp_compliance_mappings() m WHERE m.framework=request_value->>'framework')$b$,
+   'zasp_compliance_mappings() m WHERE m.framework=request_value'),
+  ('public.zasp_compliance_export_capture(text,text,text,text,text,text,bigint,jsonb,text,text)',
+   $a$WHERE s.source_family=ANY(m.required_sources) ORDER BY$a$,
+   $b$WHERE s.source_family=ANY(m.required_sources) AND (NOT EXISTS(SELECT 1 FROM public.zasp_compliance_ai_controls() a WHERE a.control_id=m.control_id) OR EXISTS(SELECT 1 FROM public.zasp_risk_findings f JOIN public.zasp_compliance_ai_rule_controls() a ON a.rule=f.rule WHERE (f.organization_id,f.workspace_id,f.environment_id,f.id)=(org_value,workspace_value,environment_value,s.source_id) AND a.control_id=m.control_id)) ORDER BY$b$,
+   'zasp_compliance_ai_controls()')) listed(signature,anchor,patched,marker)
+  WHERE to_regprocedure(signature) IS NOT NULL LOOP
+  d:=pg_get_functiondef(target.signature::regprocedure);
+  IF position(target.marker in d)>0 THEN CONTINUE;END IF;
+  IF length(d)-length(replace(d,target.anchor,''))<>length(target.anchor) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='compliance export predecessor changed';END IF;
+  EXECUTE replace(d,target.anchor,target.patched);
+ END LOOP;
+END $ai_framework_compliance$;

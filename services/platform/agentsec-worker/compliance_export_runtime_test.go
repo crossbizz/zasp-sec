@@ -106,3 +106,28 @@ func TestComplianceRuntimeConfiguration(t *testing.T) {
 		}
 	}
 }
+
+// An export of an AI framework renders its controls, with the findings mapped
+// to each as records; an unknown framework is still refused.
+func TestComplianceRuntimeRendersAnAIFramework(t *testing.T) {
+	l := complianceRuntimeLease(t)
+	raw, _ := json.Marshal(map[string]any{"mapping_revision": "product-evidence-v1", "snapshot_at": "2026-11-14T00:00:00Z", "organization_id": l.Scope.OrganizationID().String(), "workspace_id": l.Scope.WorkspaceID().String(), "environment_id": l.Scope.EnvironmentID().String(), "controls": []any{
+		map[string]any{"framework": "nist_ai_rmf_1_0", "control_id": "GOVERN 1.6", "label": "Mechanisms are in place to inventory AI systems", "required_sources": []string{"finding"}, "maximum_age_seconds": 86400, "records": []any{map[string]any{"source_kind": "finding", "source_id": "pid_10000009-0000-4000-8000-000000000009", "source_version": 2, "source_family": "finding", "source_time": "2026-11-13T12:00:00Z", "source_valid": true, "metadata": map[string]any{"status": "open", "severity": "high", "evidence_ids": []string{}}}}},
+		map[string]any{"framework": "nist_ai_rmf_1_0", "control_id": "MANAGE 2.4", "label": "Mechanisms exist to supersede, disengage or deactivate AI systems", "required_sources": []string{"finding"}, "maximum_age_seconds": 86400, "records": []any{}},
+	}})
+	p, err := renderComplianceExportPackage(context.Background(), l, raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var envelope struct {
+		JSON  json.RawMessage `json:"json"`
+		CSV   string          `json:"csv"`
+		Human string          `json:"human"`
+	}
+	if json.Unmarshal(p.Bytes, &envelope) != nil || !strings.Contains(string(envelope.JSON), `"framework":"nist_ai_rmf_1_0"`) || !strings.Contains(string(envelope.JSON), `"id":"GOVERN 1.6"`) || !strings.Contains(string(envelope.JSON), "pid_10000009-0000-4000-8000-000000000009") || !strings.Contains(string(envelope.JSON), `"freshness":"missing"`) || !strings.Contains(envelope.CSV, "GOVERN 1.6") || !strings.Contains(envelope.Human, "GOVERN 1.6") {
+		t.Fatalf("bad AI framework package %s", p.Bytes)
+	}
+	if _, err = renderComplianceExportPackage(context.Background(), l, []byte(strings.ReplaceAll(string(raw), "nist_ai_rmf_1_0", "nist_csf_2_0"))); err == nil {
+		t.Fatal("an unknown framework was rendered")
+	}
+}

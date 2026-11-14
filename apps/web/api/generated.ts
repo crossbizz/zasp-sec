@@ -3065,6 +3065,8 @@ export type components = {
         readonly ComplianceControl: {
             /** @description Bounded preview of the first 100 evidence identifiers ordered by identifier; use the paged evidence operation for the complete set. */
             readonly evidence_ids: readonly string[];
+            /** @description Present on a control of an AI security framework: the number of findings the caller may read whose rule maps to this control. evidence_ids then holds the first 100 of those findings. A finding is evidence relevant to the control; the count does not say the control is met or failed. */
+            readonly finding_count?: number;
             readonly framework: string;
             /**
              * Format: date-time
@@ -3079,6 +3081,8 @@ export type components = {
             readonly id: string;
             readonly name: string;
         };
+        /** @description A product evidence control (framework-category) or the own identifier of an AI framework control, such as ASI03, LLM01, AML.T0051, GOVERN 1.6, A.6.2.6 or Article 15. */
+        readonly ComplianceControlID: string;
         readonly ComplianceControlPage: {
             readonly items: readonly components["schemas"]["ComplianceControl"][];
             readonly page_info: components["schemas"]["CompliancePageInfo"];
@@ -3150,10 +3154,11 @@ export type components = {
         };
         readonly ComplianceExportID: components["schemas"]["ProductID"];
         readonly ComplianceExportInput: {
-            readonly control_id?: string;
-            /** @enum {string} */
-            readonly framework?: "soc2_security" | "hipaa";
+            readonly control_id?: components["schemas"]["ComplianceControlID"];
+            readonly framework?: components["schemas"]["ComplianceFrameworkID"];
         };
+        /** @enum {string} */
+        readonly ComplianceFrameworkID: "soc2_security" | "hipaa" | "owasp_agentic_top10_2026" | "owasp_llm_top10_2025" | "mitre_atlas" | "nist_ai_rmf_1_0" | "iso_iec_42001_2023" | "eu_ai_act";
         readonly CompliancePageInfo: {
             /** @constant */
             readonly has_more: true;
@@ -5278,8 +5283,9 @@ export type components = {
         readonly BrowserMutationCSRFToken: string;
         /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
         readonly BrowserMutationOrigin: string;
-        readonly ComplianceControlFilter: string;
-        readonly ComplianceFramework: "soc2_security" | "hipaa";
+        readonly ComplianceControlFilter: components["schemas"]["ComplianceControlID"];
+        /** @description A product evidence framework (soc2_security, hipaa) or an AI security framework. The controls of an AI framework are the framework's own, and the evidence of one is the findings whose rule maps to it. Listing evidence of an AI framework requires control_id. */
+        readonly ComplianceFramework: components["schemas"]["ComplianceFrameworkID"];
         readonly CompliancePageCursor: components["schemas"]["ComplianceCursor"];
         /** @description Quoted current execution-control version, including quoted zero before the first tenant override. */
         readonly ControlVersion: string;
@@ -5365,6 +5371,7 @@ export type CapabilityPage = components['schemas']['CapabilityPage'];
 export type CapabilityState = components['schemas']['CapabilityState'];
 export type CollectionFailureCode = components['schemas']['CollectionFailureCode'];
 export type ComplianceControl = components['schemas']['ComplianceControl'];
+export type ComplianceControlId = components['schemas']['ComplianceControlID'];
 export type ComplianceControlPage = components['schemas']['ComplianceControlPage'];
 export type ComplianceCursor = components['schemas']['ComplianceCursor'];
 export type ComplianceDownloadFormat = components['schemas']['ComplianceDownloadFormat'];
@@ -5377,6 +5384,7 @@ export type ComplianceEvidenceTarget = components['schemas']['ComplianceEvidence
 export type ComplianceExport = components['schemas']['ComplianceExport'];
 export type ComplianceExportId = components['schemas']['ComplianceExportID'];
 export type ComplianceExportInput = components['schemas']['ComplianceExportInput'];
+export type ComplianceFrameworkId = components['schemas']['ComplianceFrameworkID'];
 export type CompliancePageInfo = components['schemas']['CompliancePageInfo'];
 export type ComplianceSourceKind = components['schemas']['ComplianceSourceKind'];
 export type ConnectionDeletion = components['schemas']['ConnectionDeletion'];
@@ -6830,6 +6838,7 @@ export interface operations {
             readonly query?: {
                 readonly control_id?: components["parameters"]["ComplianceControlFilter"];
                 readonly cursor?: components["parameters"]["CompliancePageCursor"];
+                /** @description A product evidence framework (soc2_security, hipaa) or an AI security framework. The controls of an AI framework are the framework's own, and the evidence of one is the findings whose rule maps to it. Listing evidence of an AI framework requires control_id. */
                 readonly framework?: components["parameters"]["ComplianceFramework"];
                 /** @description Maximum number of records to return. */
                 readonly limit?: components["parameters"]["PageLimit"];
@@ -6858,6 +6867,7 @@ export interface operations {
             readonly query?: {
                 readonly control_id?: components["parameters"]["ComplianceControlFilter"];
                 readonly cursor?: components["parameters"]["CompliancePageCursor"];
+                /** @description A product evidence framework (soc2_security, hipaa) or an AI security framework. The controls of an AI framework are the framework's own, and the evidence of one is the findings whose rule maps to it. Listing evidence of an AI framework requires control_id. */
                 readonly framework?: components["parameters"]["ComplianceFramework"];
                 /** @description Maximum number of records to return. */
                 readonly limit?: components["parameters"]["PageLimit"];

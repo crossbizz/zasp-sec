@@ -121,3 +121,74 @@ func Rules() []string {
 	sort.Strings(names)
 	return names
 }
+
+// Mapping is one rule and one control it is evidence for.
+type Mapping struct {
+	Rule string
+	Reference
+}
+
+// IsFramework reports whether the identifier names one of the AI frameworks.
+func IsFramework(framework string) bool {
+	_, known := frameworkOrder[framework]
+	return known
+}
+
+// FrameworkName returns the display name of an AI framework, or "".
+func FrameworkName(framework string) string {
+	for _, known := range FrameworkNames {
+		if known.ID == framework {
+			return known.Name
+		}
+	}
+	return ""
+}
+
+// Controls lists every control of the AI frameworks, ordered by framework
+// identifier and control identifier in byte order: the order the compliance
+// reads page through them.
+func Controls() []Reference {
+	listed := make([]Reference, 0, len(controls))
+	for _, control := range controls {
+		listed = append(listed, control)
+	}
+	sort.Slice(listed, func(left, right int) bool {
+		if listed[left].Framework != listed[right].Framework {
+			return listed[left].Framework < listed[right].Framework
+		}
+		return listed[left].Control < listed[right].Control
+	})
+	return listed
+}
+
+// Control returns the control with this identifier (the framework's own, such
+// as "GOVERN 1.6"). Control identifiers are unique across the AI frameworks.
+func Control(identifier string) (Reference, bool) {
+	for _, control := range controls {
+		if control.Control == identifier {
+			return control, true
+		}
+	}
+	return Reference{}, false
+}
+
+// Mappings lists every rule with every control it is evidence for, ordered
+// by rule, framework identifier and control identifier in byte order.
+func Mappings() []Mapping {
+	listed := []Mapping{}
+	for rule, keys := range rules {
+		for _, key := range keys {
+			listed = append(listed, Mapping{Rule: rule, Reference: controls[key]})
+		}
+	}
+	sort.Slice(listed, func(left, right int) bool {
+		if listed[left].Rule != listed[right].Rule {
+			return listed[left].Rule < listed[right].Rule
+		}
+		if listed[left].Framework != listed[right].Framework {
+			return listed[left].Framework < listed[right].Framework
+		}
+		return listed[left].Control < listed[right].Control
+	})
+	return listed
+}

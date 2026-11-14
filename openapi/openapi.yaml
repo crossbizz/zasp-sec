@@ -3269,8 +3269,8 @@ components:
       description: Minimum whole seconds before retrying an accepted asynchronous mutation.
       schema: { type: string, pattern: '^[1-9][0-9]{0,2}$' }
   parameters:
-    ComplianceFramework: { name: framework, in: query, schema: { type: string, enum: [soc2_security, hipaa] } }
-    ComplianceControlFilter: { name: control_id, in: query, schema: { type: string, minLength: 1, maxLength: 128, pattern: '^(soc2_security|hipaa)-(audit|findings|policies|tests|configuration)$' } }
+    ComplianceFramework: { name: framework, in: query, description: 'A product evidence framework (soc2_security, hipaa) or an AI security framework. The controls of an AI framework are the framework''s own, and the evidence of one is the findings whose rule maps to it. Listing evidence of an AI framework requires control_id.', schema: { $ref: '#/components/schemas/ComplianceFrameworkID' } }
+    ComplianceControlFilter: { name: control_id, in: query, schema: { $ref: '#/components/schemas/ComplianceControlID' } }
     CSRFToken:
       name: X-CSRF-Token
       in: header
@@ -4890,6 +4890,13 @@ components:
     RuntimeSessionEventPage: { type: object, additionalProperties: false, required: [items, page_info], properties: { items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/RuntimeSessionEvent' } }, page_info: { $ref: '#/components/schemas/PageInfo' } } }
     SessionPage: { anyOf: [ { $ref: '#/components/schemas/ConsoleSessionPage' }, { $ref: '#/components/schemas/RuntimeSessionPage' } ] }
     SessionEventPage: { anyOf: [ { $ref: '#/components/schemas/ConsoleSessionEventPage' }, { $ref: '#/components/schemas/RuntimeSessionEventPage' } ] }
+    ComplianceFrameworkID: { type: string, enum: [soc2_security, hipaa, owasp_agentic_top10_2026, owasp_llm_top10_2025, mitre_atlas, nist_ai_rmf_1_0, iso_iec_42001_2023, eu_ai_act] }
+    ComplianceControlID:
+      type: string
+      minLength: 1
+      maxLength: 128
+      description: A product evidence control (framework-category) or the own identifier of an AI framework control, such as ASI03, LLM01, AML.T0051, GOVERN 1.6, A.6.2.6 or Article 15.
+      pattern: '^((soc2_security|hipaa)-(audit|findings|policies|tests|configuration)|ASI[0-9]{2}|LLM[0-9]{2}|AML\.T[0-9]{4}|(GOVERN|MAP|MEASURE|MANAGE) [0-9]\.[0-9]{1,2}|A\.[0-9]{1,2}(\.[0-9]{1,2}){1,2}|Article [0-9]{1,3})$'
     ComplianceControl:
       type: object
       additionalProperties: false
@@ -4907,6 +4914,7 @@ components:
           items: { type: string, minLength: 1, maxLength: 128 }
         fresh_until: { type: string, format: date-time, description: Latest eligible source timestamp plus its maximum age across the complete control source set; Unix epoch when missing. }
         freshness: { type: string, enum: [fresh, stale, missing], description: 'Always present on the registered current-source service: aggregate state across all eligible sources, independent of the bounded preview. Absent on the legacy fallback; absence must not be interpreted as current-source evidence.' }
+        finding_count: { type: integer, minimum: 0, description: 'Present on a control of an AI security framework: the number of findings the caller may read whose rule maps to this control. evidence_ids then holds the first 100 of those findings. A finding is evidence relevant to the control; the count does not say the control is met or failed.' }
     ComplianceEvidence:
       type: object
       additionalProperties: false
@@ -4968,7 +4976,7 @@ components:
         environment_id: { $ref: '#/components/schemas/ProductID' }
     ComplianceControlPage: { type: object, additionalProperties: false, required: [items, page_info], properties: { items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/ComplianceControl' } }, page_info: { $ref: '#/components/schemas/CompliancePageInfo' } } }
     ComplianceEvidencePage: { type: object, additionalProperties: false, required: [items, page_info], properties: { items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/ComplianceEvidence' } }, page_info: { $ref: '#/components/schemas/CompliancePageInfo' } } }
-    ComplianceExportInput: { type: object, additionalProperties: false, properties: { framework: { type: string, enum: [soc2_security, hipaa] }, control_id: { type: string, minLength: 1, maxLength: 128, pattern: '^(soc2_security|hipaa)-(audit|findings|policies|tests|configuration)$' } } }
+    ComplianceExportInput: { type: object, additionalProperties: false, properties: { framework: { $ref: '#/components/schemas/ComplianceFrameworkID' }, control_id: { $ref: '#/components/schemas/ComplianceControlID' } } }
     ComplianceExport:
       type: object
       additionalProperties: false
