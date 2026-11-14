@@ -289,9 +289,37 @@ export function ProductionIntegrationsView({ canWrite, navigateAuthorization = d
         if (frozen.kind !== "authorize-oauth") throw new TypeError("Invalid retained OAuth authorization intent");
         return api.authorizeIntegration(frozen.id, attempt);
       });
+      // A saas sign-in comes back to this page with the connection Nango
+      // created; only the tab that started it stores that connection.
+      if (connectorKey === SAAS_CONNECTOR_KEY) rememberSaaSSignIn(current.value.id);
       navigateAuthorization(authorization.authorization_url);
     });
   };
+  // The provider returned the browser from a saas sign-in. The connection
+  // the sign-in created is stored in the integration with an ordinary
+  // update; the integration is then authorized by reference.
+  const signInReturn = useRef(readSaaSSignInReturn());
+  useEffect(() => {
+    const returned = signInReturn.current;
+    if (!returned) return;
+    signInReturn.current = null;
+    clearSaaSSignInReturn();
+    if (returned.kind === "failed") { setFeedback({ tone: "alert", message: saasSignInFailure(returned.code) }); return; }
+    if (!canWrite || !takeSaaSSignIn(returned.integrationID)) { setFeedback({ tone: "alert", message: "This sign-in was not started from this browser tab. Open the integration and sign in again." }); return; }
+    void run(async () => {
+      const current = await api.getIntegration(returned.integrationID);
+      setSelected(current); setName(current.value.name); setConfiguration({ ...current.value.configuration });
+      if (current.value.connector_key !== SAAS_CONNECTOR_KEY || current.value.configuration.connection_reference !== undefined) return;
+      const value = { name: current.value.name, configuration: { ...current.value.configuration, connection_reference: `ref:nango/connection/${returned.connectionID}` } };
+      applyMutation(await mutation.execute({ kind: "update", id: current.value.id, version: current.version, value }, async (intent, attempt) => {
+        if (intent.kind !== "update") throw new TypeError("Invalid retained integration intent");
+        return { kind: "updated", receipt: await api.updateIntegration(intent.id, intent.version, intent.value, attempt) };
+      }));
+      setFeedback({ tone: "status", message: "Signed in. Authorize the integration to start collecting." });
+    });
+    // Runs once, for the address the page was opened with.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const reconcileDiscoveryConflict = async (conflict: Pick<IntegrationDiscoveryConflict, "integrationID" | "resource">) => {
     try {
       if (conflict.resource === "sync") {
@@ -566,7 +594,7 @@ export function ProductionIntegrationsView({ canWrite, navigateAuthorization = d
                     disabled={busy || mutation.isUnresolved}
                     onClick={authorizeOAuth}
                   >
-                    Authorize {selectedManifest?.provider ?? selected?.value.connector_key}
+                    {selected?.value.connector_key === SAAS_CONNECTOR_KEY ? "Sign in to" : "Authorize"} {selectedManifest?.provider ?? selected?.value.connector_key}
                   </Button>
                 )}
                 <Button
@@ -695,7 +723,9 @@ export function ProductionIntegrationsView({ canWrite, navigateAuthorization = d
               );
             })}
             <p>
-              {isReferenceConnector(visibleSelected.value.connector_key)
+              {isSaaSSignInPending(visibleSelected.value, selectedManifest)
+                ? "Sign in to the platform to connect this integration. The provider's credentials stay with Nango and are never returned to this browser."
+                : isReferenceConnector(visibleSelected.value.connector_key)
                 ? visibleSelected.value.status === "active"
                   ? "Reference authorization is active."
                   : "Authorization uses the configured reference without exposing its value."
@@ -968,11 +998,69 @@ function isFirstPartyConnector(value: string): value is "aws" | "kubernetes" | "
 }
 
 function isReferenceAuthorizationCandidate(value: Integration): value is Integration & { connector_key: ReferenceConnectorKey } {
+  // A saas integration is authorized by reference once it names its connection.
+  if (value.connector_key === SAAS_CONNECTOR_KEY && value.configuration.connection_reference === undefined) return false;
   return isReferenceConnector(value.connector_key) && (value.status === "configured" || value.status === "pending_authorization" || value.status === "degraded");
 }
 
 function isOAuthAuthorizationCandidate(value: Integration, manifest: ConnectorManifest | undefined): boolean {
+  if (isSaaSSignInPending(value, manifest)) return true;
   return isOAuthConnectorManifest(manifest, value.connector_key) && (value.status === "configured" || value.status === "pending_authorization" || value.status === "active");
+}
+
+// A saas integration of a platform with a sign-in that names no connection
+// yet: the person signs in to the platform, and Nango creates the connection.
+function isSaaSSignInPending(value: Integration, manifest: ConnectorManifest | undefined): boolean {
+  return value.connector_key === SAAS_CONNECTOR_KEY && manifest !== undefined && manifest.auth_mode === "nango_sign_in" && manifestServes(manifest, value) &&
+    value.configuration.connection_reference === undefined && (value.status === "configured" || value.status === "pending_authorization");
+}
+
+const SAAS_SIGN_IN_STORAGE_KEY = "zasp.saas-sign-in";
+const SAAS_SIGN_IN_PRODUCT_ID = /^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const SAAS_SIGN_IN_CONNECTION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const SAAS_SIGN_IN_FAILURE_CODE = /^[a-z][a-z0-9_]{1,63}$/;
+
+type SaaSSignInReturn = { readonly kind: "connected"; readonly integrationID: string; readonly connectionID: string } | { readonly kind: "failed"; readonly integrationID: string; readonly code: string };
+
+// The address the API sends the browser back to after a saas sign-in:
+// /integrations?saas_sign_in=<integration>&saas_connection=<connection id>,
+// or &saas_sign_in_error=<code>. Anything else is not a sign-in return.
+function readSaaSSignInReturn(): SaaSSignInReturn | null {
+  if (typeof window === "undefined") return null;
+  const query = new URLSearchParams(window.location.search);
+  const integrationID = query.get("saas_sign_in");
+  if (integrationID === null || !SAAS_SIGN_IN_PRODUCT_ID.test(integrationID)) return null;
+  const connectionID = query.get("saas_connection");
+  const code = query.get("saas_sign_in_error");
+  if (connectionID !== null && code === null && SAAS_SIGN_IN_CONNECTION_ID.test(connectionID)) return { kind: "connected", integrationID, connectionID };
+  if (code !== null && connectionID === null && SAAS_SIGN_IN_FAILURE_CODE.test(code)) return { kind: "failed", integrationID, code };
+  return null;
+}
+
+function clearSaaSSignInReturn(): void {
+  const target = new URL(window.location.href);
+  for (const key of ["saas_sign_in", "saas_connection", "saas_sign_in_error"]) target.searchParams.delete(key);
+  window.history.replaceState(window.history.state, "", `${target.pathname}${target.search}${target.hash}`);
+}
+
+function rememberSaaSSignIn(integrationID: string): void {
+  try { window.sessionStorage.setItem(SAAS_SIGN_IN_STORAGE_KEY, integrationID); } catch { /* Without storage the return is refused and the person signs in again. */ }
+}
+
+// Reports whether this tab started the sign-in of the integration, once.
+function takeSaaSSignIn(integrationID: string): boolean {
+  try {
+    const started = window.sessionStorage.getItem(SAAS_SIGN_IN_STORAGE_KEY);
+    window.sessionStorage.removeItem(SAAS_SIGN_IN_STORAGE_KEY);
+    return started === integrationID;
+  } catch { return false; }
+}
+
+function saasSignInFailure(code: string): string {
+  if (code === "tenant_mismatch") return "The sign-in did not reach the tenant this integration names, or the account may not read it. Check the tenant and sign in with an account of that tenant.";
+  if (code === "provider_access_denied") return "The sign-in was cancelled at the provider. Nothing was connected.";
+  if (code.startsWith("provider_") && code !== "provider_unavailable") return "The provider refused the sign-in. Nothing was connected.";
+  return "The sign-in could not be finished. Nothing was connected; sign in again.";
 }
 
 function defaultNavigateAuthorization(target: string): void {

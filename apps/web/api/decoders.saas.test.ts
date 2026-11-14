@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { decodeConnectorManifest, decodeConnectorManifestPage, decodeIntegrationSetupStatus, decodeInventoryDetail, decodeInventoryPage } from "./decoders";
+import { decodeConnectorManifest, decodeConnectorManifestPage, decodeIntegration, decodeIntegrationSetupStatus, decodeInventoryDetail, decodeInventoryPage } from "./decoders";
 
 const integrationID = "pid_20000001-0000-4000-8000-000000000001";
 const ids = { entity: "pid_10000001-0000-4000-8000-000000000001", evidence: "pid_20000001-0000-4000-8000-000000000001", integration: "pid_30000001-0000-4000-8000-000000000001", snapshot: "pid_40000001-0000-4000-8000-000000000001" };
@@ -48,6 +48,21 @@ describe("generic saas provider decoders", () => {
       { ...manifest, platform: "data/bricks", key: "saas-data/bricks" },
       { ...manifest, platforms: ["databricks"] },
     ]) expect(() => decodeConnectorManifest(refused)).toThrow("schema mismatch");
+  });
+
+  it("accepts a saas integration that waits for its sign-in and one that names its connection", () => {
+    const integration = { id: integrationID, connector_key: "saas", name: "ServiceNow", status: "pending_authorization", created_at: "2026-08-19T00:00:00Z", updated_at: "2026-08-19T00:01:00Z" };
+    const reference = "ref:nango/connection/11111111-1111-4111-8111-111111111111";
+    // Before the sign-in the configuration names the platform and the tenant only.
+    expect(decodeIntegration({ ...integration, configuration: { platform: "servicenow", tenant_id: "acme" } }).configuration).toEqual({ platform: "servicenow", tenant_id: "acme" });
+    expect(decodeIntegration({ ...integration, configuration: { platform: "servicenow", tenant_id: "acme", connection_reference: reference } }).configuration.connection_reference).toBe(reference);
+    for (const configuration of [
+      { platform: "servicenow" }, { tenant_id: "acme" }, { platform: "ServiceNow", tenant_id: "acme" }, { platform: "servicenow", tenant_id: "a..b" },
+      { platform: "servicenow", tenant_id: "acme", connection_reference: "ref:nango/service-key-0001" }, { platform: "servicenow", tenant_id: "acme", connection_reference: "" },
+      { platform: "servicenow", tenant_id: "acme", subdomain: "acme" },
+    ]) {
+      expect(() => decodeIntegration({ ...integration, configuration })).toThrow();
+    }
   });
 
   it("accepts the bound tenant of a saas integration", () => {

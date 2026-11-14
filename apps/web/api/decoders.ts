@@ -1296,10 +1296,11 @@ function decodeIntegrationConfiguration(connectorKey: string, value: unknown): v
     return;
   }
   if (connectorKey === "saas") {
-    const configuration = exactRecord(value, ["connection_reference", "platform", "tenant_id"]);
+    // A saas integration that waits for its sign-in names no connection yet.
+    const configuration = exactRecord(value, ["platform", "tenant_id"], ["connection_reference"]);
     if (typeof configuration.platform !== "string" || !SAAS_PLATFORM.test(configuration.platform)) fail();
     if (typeof configuration.tenant_id !== "string" || !SAAS_TENANT_ID.test(configuration.tenant_id) || configuration.tenant_id.includes("..")) fail();
-    if (typeof configuration.connection_reference !== "string" || !SAAS_CONNECTION_REFERENCE.test(configuration.connection_reference)) fail();
+    if (configuration.connection_reference !== undefined && (typeof configuration.connection_reference !== "string" || !SAAS_CONNECTION_REFERENCE.test(configuration.connection_reference))) fail();
     return;
   }
   stringRecord(value, 16, 1, 1);
