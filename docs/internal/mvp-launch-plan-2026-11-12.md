@@ -62,6 +62,18 @@ Every schema change means a new baseline artifact and a reviewed `zasp_baseline.
 7. **Real AWS**: Attack Lab (step 6), IAM and KMS policy, and the staging deployment.
 8. **Enterprise gates** (PRD §21): tenant-isolation release test on the deployed system, DR rehearsal, single-tenant install, performance targets, SBOM and signing.
 
+## After the golden path: parity with Akto and Noma (added 2026-11-14)
+
+Plan: [`docs/superpowers/plans/2026-11-14-parity-with-akto-and-noma.md`](../superpowers/plans/2026-11-14-parity-with-akto-and-noma.md). Tasks: the first section of `tasks/todo.md`.
+
+Decisions recorded there:
+
+- **Agentless throughout.** Discovery, runtime signal, posture, identity, compliance and enforcement need nothing installed in the customer's environment. The runtime signal comes from CloudTrail, VPC Flow Logs and Route 53 Resolver query logs through the existing read role. Enforcement comes from provider-native controls the Security Agent applies with approval. The node sensor and an inline gateway are optional add-ons.
+- **Connectors on Nango** for SaaS platforms, through one generic `saas` provider so a new platform needs no schema change. AWS, Kubernetes, GitHub, Okta, Microsoft and Salesforce stay first-party.
+- **Order:** the golden path in production and one complete Security Agent run come first; both competitors run in production and no feature closes that gap. Then the agentless parity floor (compliance mapping, agent credentials, inactive agents, guardrail posture, cloud-log runtime signal), the connector framework and MCP governance, then enforcement, red team library and AI bill of materials.
+
+This changes "Not in the MVP" below in one respect: Azure through the existing Microsoft connection, and Garak probe packs, move into this follow-on plan. They are still not in the MVP.
+
 ## What needs a person or an external system
 
 | Need | For |

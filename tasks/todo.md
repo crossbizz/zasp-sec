@@ -1,3 +1,80 @@
+# Parity with Akto and Noma, agentless (2026-11-14)
+
+## Request
+Make Zasp better than, or at minimum equivalent to, Akto and Noma. Everything agentless. Connectors on Nango. Employee endpoints out of scope.
+
+Plan and detail: `docs/superpowers/plans/2026-11-14-parity-with-akto-and-noma.md`. Task IDs below are the plan's.
+
+## Decisions
+- [x] Agentless throughout; node sensor and inline gateway are optional add-ons, not on the parity path
+- [x] Build the cloud-log runtime signal (VPC Flow Logs with Route 53 Resolver query logs)
+- [x] Nango for SaaS connectors (Elastic License 2.0; auth and proxy only; already deployed). First-party connectors stay first-party
+- [ ] Counsel confirms the Nango license for customer-hosted installs
+- [ ] Confirm Nango's free self-hosted feature set against its documentation
+
+## Step 1: proof
+- [ ] I1 Golden path in production (launch plan steps 0 to 10)
+- [ ] H1 One Security Agent run end to end: plan, approval, action, containment, re-test
+
+## Step 2: agentless parity floor
+- [ ] A1 AI compliance mapping file (OWASP LLM and Agentic Top 10, NIST AI RMF, ISO 42001, EU AI Act, MITRE ATLAS)
+- [ ] A2 Compliance page and export per framework (API, then UI)
+- [ ] A3 Agent credential inventory
+- [ ] A4 Dormant credential findings
+- [ ] A5 Over-privileged agent findings
+- [ ] A6 Inactive agent state and filter
+- [ ] A7 Guardrail posture findings
+- [ ] C1 CloudTrail reader: who invokes models and agents
+- [ ] C2a Flow log and resolver log source discovery, with coverage gap
+- [ ] C2b Bounded log reader that keeps catalog tokens only
+- [ ] C2c Attribution from address to workload, task, pod or function
+- [ ] C2d Read policy additions and runbook step
+- [ ] C2 Inferred agents from the cloud-log join, end to end
+
+## Step 3: connectors and MCP governance
+- [ ] B1 Generic `saas` provider and kinds (one baseline rebuild)
+- [ ] B2 Collector over the Nango proxy
+- [ ] B3 Platform definition format, documented
+- [ ] B4 Catalog and setup flow read platform definitions
+- [ ] Gate: the second platform took under two days
+- [ ] B5 Databricks
+- [ ] B5 ServiceNow
+- [ ] B5 Google Workspace
+- [ ] B5 Slack
+- [ ] B5 OpenAI organization
+- [ ] B5 Anthropic organization
+- [ ] B5 GitLab
+- [ ] B5 Atlassian
+- [ ] D1 MCP servers as inventory objects
+- [ ] D2 MCP tool inventory with risk flags
+- [ ] D3 MCP registry: approved, unapproved, blocked
+- [ ] D4 MCP posture checks
+
+## Step 4: enforcement, red team, supply chain, lead
+- [ ] E1 Agentless enforcement through Security Agent actions on provider-native controls
+- [ ] E2 Guardrail decision API for the customer's own gateway
+- [ ] F1 Probe packs from Garak and Promptfoo
+- [ ] F2 Agentic probe categories
+- [ ] F3 Continuous re-test
+- [ ] G1 AI bill of materials export
+- [ ] G2 Skills and plugins inventory
+- [ ] H2 Attack paths through agents
+- [ ] H3 Remediation action on each new finding type
+- [ ] H4 Evidence pack export
+
+## Step 5
+- [ ] C3 Azure AI Foundry and Azure OpenAI through the Microsoft connection
+- [ ] F4 Attack Lab as a supported workflow
+- [ ] I3 AWS Marketplace listing
+- [ ] I4 Public documentation
+
+## On request only
+- [ ] C4 Google Cloud provider
+- [ ] D5 MCP gateway (inline add-on)
+- [ ] E3 Inline guardrails on the runtime gateway (add-on)
+
+---
+
 # Automatic agent discovery (2026-11-14)
 
 ## Request
