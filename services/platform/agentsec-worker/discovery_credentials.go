@@ -76,12 +76,16 @@ type discoveryOktaTokenAPI interface {
 // Microsoft and Salesforce are nil in a deployment that does not serve the
 // provider; a credential request for it is then refused.
 type productionDiscoveryCredentialConfig struct {
-	Secrets                   discoverySecretReader
-	AssumeRole                discoveryAssumeRoleAPI
-	GitHub                    discoveryGitHubTokenAPI
-	Okta                      discoveryOktaTokenAPI
-	Microsoft                 discoveryMicrosoftTokenAPI
-	Salesforce                discoverySalesforceTokenAPI
+	Secrets    discoverySecretReader
+	AssumeRole discoveryAssumeRoleAPI
+	GitHub     discoveryGitHubTokenAPI
+	Okta       discoveryOktaTokenAPI
+	Microsoft  discoveryMicrosoftTokenAPI
+	Salesforce discoverySalesforceTokenAPI
+	// MicrosoftAzure adds an Azure Resource Manager token to a Microsoft
+	// credential, so the collector also reads Azure OpenAI and AI Foundry
+	// accounts (ZASP_DISCOVERY_MICROSOFT_AZURE=enabled).
+	MicrosoftAzure            bool
 	GitHubAppID               string
 	GitHubPrivateKeyReference string
 	OktaClientID              string

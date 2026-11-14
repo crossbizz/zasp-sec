@@ -114,6 +114,12 @@ func TestSaaSProviderSectionOnTheInstalledBaselinePostgres(t *testing.T) {
 	if definitions() != widened {
 		t.Fatal("a second run of the sections changed a function or a constraint")
 	}
+	// The compiled catalog is the one of the latest section that adds rules
+	// (WS5a); with it applied, the saas sections have nothing left to do.
+	applyCompletionBlock(t, ctx, connection, "ws5_rule_catalog")
+	for _, tag := range []string{"rule_catalog_digest", "saas_rule_catalog", "ws5_rule_catalog"} {
+		applyCompletionBlock(t, ctx, connection, tag)
+	}
 	catalog()
 	compiled := inventoryprojection.RuleCatalogDigest()
 	if digest != hexDigest(compiled) {

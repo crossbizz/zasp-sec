@@ -92,6 +92,8 @@ output "discovery_runtime_config" {
   # ZASP_DISCOVERY_MICROSOFT_COLLECTOR_VERSION and
   # ZASP_DISCOVERY_SALESFORCE_COLLECTOR_VERSION are present only for an enabled
   # optional provider; the worker treats an unset variable as "not served".
+  # ZASP_DISCOVERY_MICROSOFT_AZURE is present, as "enabled", only when
+  # microsoft_azure is set.
   value = merge({
     ZASP_DISCOVERY_QUEUE_URL                    = aws_sqs_queue.work["discovery-jobs"].id
     ZASP_AWS_REGION                             = var.region
@@ -120,7 +122,10 @@ output "discovery_runtime_config" {
       ZASP_DISCOVERY_MICROSOFT_COLLECTOR_VERSION  = var.discovery_optional_providers.microsoft_collector
       ZASP_DISCOVERY_SALESFORCE_COLLECTOR_VERSION = var.discovery_optional_providers.salesforce_collector
     } : name => version if version != ""
-  })
+    },
+    # Present only when the Microsoft collector also reads Azure.
+    var.discovery_optional_providers.microsoft_azure ? { ZASP_DISCOVERY_MICROSOFT_AZURE = "enabled" } : {}
+  )
 }
 output "scheduler_role_arn" {
   value = aws_iam_role.scheduler.arn

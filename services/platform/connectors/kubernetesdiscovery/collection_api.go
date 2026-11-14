@@ -419,6 +419,14 @@ func normalizeKubernetesCollectionPage(subject collection.SubjectBinding, phase 
 			}
 			entities = append(entities, entity)
 			relationships = append(relationships, workloadRelationships...)
+			server, attached, valid := normalizeKubernetesMCPServer(subject, phase, item)
+			if !valid {
+				return nil, nil, false
+			}
+			if server != nil {
+				entities = append(entities, server)
+				relationships = append(relationships, attached)
+			}
 		default:
 			return nil, nil, false
 		}

@@ -646,7 +646,9 @@ func TestMicrosoftTokenClientRequestsOnlyGraphOrOneDataverseEnvironment(t *testi
 		{testMicrosoftTenant + "/../other", testMicrosoftClient, testMicrosoftSecret, discoveryMicrosoftGraphScope},
 		{testMicrosoftTenant, "client", testMicrosoftSecret, discoveryMicrosoftGraphScope},
 		{testMicrosoftTenant, testMicrosoftClient, "short", discoveryMicrosoftGraphScope},
-		{testMicrosoftTenant, testMicrosoftClient, testMicrosoftSecret, "https://management.azure.com/.default"},
+		// Resource Manager is a scope the client serves (the Azure opt-in); any other Azure audience is not.
+		{testMicrosoftTenant, testMicrosoftClient, testMicrosoftSecret, "https://vault.azure.net/.default"},
+		{testMicrosoftTenant, testMicrosoftClient, testMicrosoftSecret, "https://management.azure.com/user_impersonation"},
 		{testMicrosoftTenant, testMicrosoftClient, testMicrosoftSecret, "https://graph.microsoft.com/.default offline_access"},
 		{testMicrosoftTenant, testMicrosoftClient, testMicrosoftSecret, "https://org1234.crm4.dynamics.com.evil.example/.default"},
 		{testMicrosoftTenant, testMicrosoftClient, testMicrosoftSecret, "https://org1234.crm4.dynamics.com/user_impersonation"},

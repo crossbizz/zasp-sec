@@ -113,6 +113,7 @@ var packages = map[string][]entry{
 // assistant on the repository, not that the repository is an agent.
 var manifestPaths = []entry{
 	{".mcp.json", "mcp_config", strong}, {"mcp.json", "mcp_config", strong}, {".cursor/mcp.json", "mcp_config", strong}, {".vscode/mcp.json", "mcp_config", strong},
+	{"claude_desktop_config.json", "mcp_config", strong},
 	{"langgraph.json", "langgraph", strong}, {".bedrock_agentcore.yaml", "agentcore", strong}, {"agent-card.json", "a2a_agent_card", strong}, {".well-known/agent.json", "a2a_agent_card", strong},
 	{".well-known/agent-card.json", "a2a_agent_card", strong},
 }

@@ -29,6 +29,9 @@ type productionDiscoveryDependencyConfig struct {
 	GitHubCollectorVersion     string
 	OktaCollectorVersion       string
 	MicrosoftCollectorVersion  string
+	// MicrosoftAzure: the Microsoft collector also reads Azure Resource
+	// Manager with the same application.
+	MicrosoftAzure             bool
 	SalesforceCollectorVersion string
 	SaaSCollectorVersion       string
 	Nango                      discoveryNangoConfig
@@ -206,7 +209,7 @@ func newProductionDiscoveryDependenciesWithIO(config productionDiscoveryDependen
 	}
 	enterStartupStage("discovery-credentials")
 	credentials, err := newProductionDiscoveryCredentialResolver(productionDiscoveryCredentialConfig{
-		Secrets: secrets, AssumeRole: cloud.AssumeRole, GitHub: github, Okta: okta, Microsoft: microsoft, Salesforce: salesforce,
+		Secrets: secrets, AssumeRole: cloud.AssumeRole, GitHub: github, Okta: okta, Microsoft: microsoft, Salesforce: salesforce, MicrosoftAzure: config.MicrosoftAzure && config.MicrosoftCollectorVersion != "",
 		GitHubAppID: config.GitHubAppID, GitHubPrivateKeyReference: config.GitHubPrivateKeyReference,
 		OktaClientID: config.OktaClientID, OktaClientSecretReference: config.OktaClientSecretReference, Clock: config.Cloud.Clock,
 	})

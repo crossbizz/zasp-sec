@@ -239,6 +239,42 @@ describe("production risk views", () => {
     expect(dialog).not.toHaveTextContent(/ticket|rerun|simulate/i);
   });
 
+  it("names the objects of a path through an MCP server: agent, server, tool", async () => {
+    const [agentID, serverID] = path.node_ids;
+    const describePathNodes = vi.fn(async () => ({
+      [agentID]: { name: "support", kind: "agent" as const, sourceKind: "aws_bedrock_agent" },
+      [serverID]: { name: "tools", kind: "tool" as const, sourceKind: "aws_agentcore_gateway" },
+    }));
+    renderRisk("/exposure/attack-paths", fixtureAPI({ describePathNodes }));
+    await userEvent.click(await screen.findByRole("button", { name: `Open attack path ${path.id}` }));
+    const steps = within(await screen.findByRole("list", { name: "Path steps" })).getAllByRole("listitem").map((item) => item.textContent);
+    expect(steps.slice(0, 2)).toEqual(["Agent · support", "MCP server · tools"]);
+    // A node the caller may not read is not named.
+    for (const step of steps.slice(2)) expect(step).toBe("Object outside your access");
+    expect(describePathNodes).toHaveBeenCalledWith(path.node_ids, expect.any(AbortSignal));
+    // The fix names its target.
+    expect(await screen.findByText(/Remove node at support/)).toBeVisible();
+  });
+
+  it.each([
+    ["mcp_server_unapproved", "posture", "Agent uses an unapproved MCP server", "nobody has approved in the MCP registry"],
+    ["mcp_server_blocked", "posture", "Agent uses a blocked MCP server", "the MCP registry blocks"],
+    ["mcp_server_no_auth", "posture", "Agent uses a remote MCP server with no authentication", "names no authentication"],
+    ["mcp_server_unpinned_package", "posture", "Agent starts an MCP server from an unpinned package", "no exact version"],
+    ["mcp_execute_tool_production", "posture", "Production agent can run code through an MCP tool", "runs code or commands"],
+    ["agent_content_moderation_low", "posture", "Agent content moderation is set to the lowest level", "filtered least"],
+    ["skill_scripts_production", "posture", "Production agent ships a skill with executable scripts", "ships scripts"],
+    ["skill_unowned", "posture", "Agent skill has no code owner", "No code owner is named"],
+    ["agent_role_unused_ai_permissions", "prowler", "Agent's role holds model permissions it does not use", "did not make in the last seven days"],
+    ["agent_data_service_wide_access", "prowler", "An agent's role can reach every resource of a data service", "every resource of the service"],
+  ])("explains the %s finding", async (rule, source, title, why) => {
+    // A posture finding stores its own title; a discovery check is titled here.
+    const value = { ...finding, source, rule, title: source === "posture" ? title : `Discovered AWS control ${rule}` } as unknown as typeof finding;
+    renderRisk("/violations", fixtureAPI({ async listFindings() { return [value]; }, async getFinding() { return { value, version: '"1"' }; } }));
+    await userEvent.click(await screen.findByRole("button", { name: `Open ${title}` }));
+    expect(await screen.findByRole("dialog", { name: title })).toHaveTextContent(why);
+  });
+
   it("opens attack-path detail immediately and preserves independent partial loading and error truth", async () => {
     const detail = deferred<typeof path>();
     const options = deferred<readonly []>();

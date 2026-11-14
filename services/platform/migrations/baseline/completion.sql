@@ -4365,6 +4365,13 @@ DECLARE earlier CONSTANT text[]:=ARRAY['44820a38e96d80318165fc2333fd851cd932d270
  current_value CONSTANT text:='7121768829bd73b339a34812762ec5acb449497439e0650d6c6fb7a85bf5678b';
  previous text;f regprocedure;d text;
 BEGIN
+ -- A later section (WS5a) adds rules and pins the digest of the larger
+ -- catalog. When the file runs again that digest is already in place and
+ -- this section has nothing left to do.
+ IF (SELECT count(*) FROM public.zasp_inventory_identity_rules)>47
+  AND NOT COALESCE((SELECT value FROM public.zasp_schema_metadata WHERE key='typed_inventory_rule_catalog_digest')=ANY(earlier||current_value),false) THEN
+  RETURN;
+ END IF;
  INSERT INTO public.zasp_inventory_identity_rules(provider,source_kind,identity_namespace,product_kind,rule_version,priority,confidence_basis_points,freshness_seconds) VALUES
   ('saas','saas_agent','saas_agent','agent',1,150,9500,86400),
   ('saas','saas_ai_application','saas_ai_application','agent',1,150,7000,86400),
@@ -4549,6 +4556,20 @@ CREATE OR REPLACE FUNCTION public.zasp_compliance_ai_controls() RETURNS TABLE(fr
 $ai_controls$;
 CREATE OR REPLACE FUNCTION public.zasp_compliance_ai_rule_controls() RETURNS TABLE(rule text,framework text,control_id text) LANGUAGE sql IMMUTABLE SET search_path TO pg_catalog,public AS $ai_rule_controls$
  SELECT r.rule,r.framework,r.control_id FROM (VALUES
+  ('agent_content_moderation_low','eu_ai_act','Article 15'),
+  ('agent_content_moderation_low','eu_ai_act','Article 9'),
+  ('agent_content_moderation_low','iso_iec_42001_2023','A.6.2.6'),
+  ('agent_content_moderation_low','mitre_atlas','AML.T0051'),
+  ('agent_content_moderation_low','nist_ai_rmf_1_0','MEASURE 2.7'),
+  ('agent_content_moderation_low','owasp_llm_top10_2025','LLM01'),
+  ('agent_content_moderation_low','owasp_llm_top10_2025','LLM02'),
+  ('agent_content_moderation_low','owasp_llm_top10_2025','LLM05'),
+  ('agent_data_service_wide_access','eu_ai_act','Article 15'),
+  ('agent_data_service_wide_access','mitre_atlas','AML.T0057'),
+  ('agent_data_service_wide_access','nist_ai_rmf_1_0','MEASURE 2.7'),
+  ('agent_data_service_wide_access','owasp_agentic_top10_2026','ASI03'),
+  ('agent_data_service_wide_access','owasp_llm_top10_2025','LLM02'),
+  ('agent_data_service_wide_access','owasp_llm_top10_2025','LLM06'),
   ('agent_guardrail_missing','eu_ai_act','Article 15'),
   ('agent_guardrail_missing','eu_ai_act','Article 9'),
   ('agent_guardrail_missing','iso_iec_42001_2023','A.6.2.6'),
@@ -4565,6 +4586,11 @@ CREATE OR REPLACE FUNCTION public.zasp_compliance_ai_rule_controls() RETURNS TAB
   ('agent_role_unused_90_days','nist_ai_rmf_1_0','GOVERN 1.6'),
   ('agent_role_unused_90_days','nist_ai_rmf_1_0','MANAGE 2.4'),
   ('agent_role_unused_90_days','owasp_agentic_top10_2026','ASI03'),
+  ('agent_role_unused_ai_permissions','eu_ai_act','Article 15'),
+  ('agent_role_unused_ai_permissions','nist_ai_rmf_1_0','MANAGE 2.4'),
+  ('agent_role_unused_ai_permissions','nist_ai_rmf_1_0','MEASURE 2.7'),
+  ('agent_role_unused_ai_permissions','owasp_agentic_top10_2026','ASI03'),
+  ('agent_role_unused_ai_permissions','owasp_llm_top10_2025','LLM06'),
   ('cicd_production_secret','eu_ai_act','Article 15'),
   ('cicd_production_secret','mitre_atlas','AML.T0055'),
   ('cicd_production_secret','owasp_agentic_top10_2026','ASI03'),
@@ -4588,6 +4614,38 @@ CREATE OR REPLACE FUNCTION public.zasp_compliance_ai_rule_controls() RETURNS TAB
   ('iam_role_administratoraccess_policy','owasp_llm_top10_2025','LLM06'),
   ('iam_role_cross_service_confused_deputy_prevention','nist_ai_rmf_1_0','MEASURE 2.7'),
   ('iam_role_cross_service_confused_deputy_prevention','owasp_agentic_top10_2026','ASI03'),
+  ('mcp_execute_tool_production','eu_ai_act','Article 14'),
+  ('mcp_execute_tool_production','eu_ai_act','Article 15'),
+  ('mcp_execute_tool_production','mitre_atlas','AML.T0053'),
+  ('mcp_execute_tool_production','nist_ai_rmf_1_0','MEASURE 2.7'),
+  ('mcp_execute_tool_production','owasp_agentic_top10_2026','ASI02'),
+  ('mcp_execute_tool_production','owasp_agentic_top10_2026','ASI05'),
+  ('mcp_execute_tool_production','owasp_llm_top10_2025','LLM06'),
+  ('mcp_server_blocked','eu_ai_act','Article 9'),
+  ('mcp_server_blocked','iso_iec_42001_2023','A.9.2'),
+  ('mcp_server_blocked','mitre_atlas','AML.T0053'),
+  ('mcp_server_blocked','nist_ai_rmf_1_0','MANAGE 2.4'),
+  ('mcp_server_blocked','owasp_agentic_top10_2026','ASI02'),
+  ('mcp_server_blocked','owasp_agentic_top10_2026','ASI04'),
+  ('mcp_server_blocked','owasp_llm_top10_2025','LLM03'),
+  ('mcp_server_no_auth','eu_ai_act','Article 15'),
+  ('mcp_server_no_auth','mitre_atlas','AML.T0053'),
+  ('mcp_server_no_auth','nist_ai_rmf_1_0','MEASURE 2.7'),
+  ('mcp_server_no_auth','owasp_agentic_top10_2026','ASI03'),
+  ('mcp_server_no_auth','owasp_agentic_top10_2026','ASI04'),
+  ('mcp_server_no_auth','owasp_llm_top10_2025','LLM03'),
+  ('mcp_server_unapproved','eu_ai_act','Article 9'),
+  ('mcp_server_unapproved','iso_iec_42001_2023','A.9.2'),
+  ('mcp_server_unapproved','mitre_atlas','AML.T0053'),
+  ('mcp_server_unapproved','nist_ai_rmf_1_0','GOVERN 1.6'),
+  ('mcp_server_unapproved','owasp_agentic_top10_2026','ASI02'),
+  ('mcp_server_unapproved','owasp_agentic_top10_2026','ASI04'),
+  ('mcp_server_unapproved','owasp_llm_top10_2025','LLM03'),
+  ('mcp_server_unpinned_package','eu_ai_act','Article 15'),
+  ('mcp_server_unpinned_package','mitre_atlas','AML.T0053'),
+  ('mcp_server_unpinned_package','nist_ai_rmf_1_0','MEASURE 2.7'),
+  ('mcp_server_unpinned_package','owasp_agentic_top10_2026','ASI04'),
+  ('mcp_server_unpinned_package','owasp_llm_top10_2025','LLM03'),
   ('no_runtime_coverage','eu_ai_act','Article 14'),
   ('no_runtime_coverage','eu_ai_act','Article 9'),
   ('no_runtime_coverage','iso_iec_42001_2023','A.6.2.6'),
@@ -4607,6 +4665,16 @@ CREATE OR REPLACE FUNCTION public.zasp_compliance_ai_rule_controls() RETURNS TAB
   ('shell_credential','owasp_agentic_top10_2026','ASI03'),
   ('shell_credential','owasp_agentic_top10_2026','ASI05'),
   ('shell_credential','owasp_llm_top10_2025','LLM06'),
+  ('skill_scripts_production','eu_ai_act','Article 15'),
+  ('skill_scripts_production','nist_ai_rmf_1_0','MEASURE 2.7'),
+  ('skill_scripts_production','owasp_agentic_top10_2026','ASI04'),
+  ('skill_scripts_production','owasp_agentic_top10_2026','ASI05'),
+  ('skill_scripts_production','owasp_llm_top10_2025','LLM03'),
+  ('skill_unowned','eu_ai_act','Article 14'),
+  ('skill_unowned','iso_iec_42001_2023','A.3.2'),
+  ('skill_unowned','nist_ai_rmf_1_0','GOVERN 2.1'),
+  ('skill_unowned','owasp_agentic_top10_2026','ASI04'),
+  ('skill_unowned','owasp_llm_top10_2025','LLM03'),
   ('unapproved_tool','eu_ai_act','Article 9'),
   ('unapproved_tool','iso_iec_42001_2023','A.9.2'),
   ('unapproved_tool','mitre_atlas','AML.T0053'),
@@ -6070,3 +6138,538 @@ $v$,platform,tenant)||setup_anchor);
  GRANT EXECUTE ON FUNCTION zasp_authorization80.saas_sign_in_consume(text,text,text,text,bytea,bytea) TO zasp_discovery_api;
  GRANT EXECUTE ON FUNCTION zasp_authorization80.saas_sign_in_finish(text,text,text,text,text,text,text) TO zasp_discovery_api;
 END $ws6_saas_sign_in$;
+-- ---------------------------------------------------------------------------
+-- WS5 (plan tasks D1-D4, G2, A5, H2, C2c, C3). MCP servers and tools, the
+-- approved-servers registry, MCP posture findings and attack paths through
+-- agents.
+--
+-- WS5a. Inventory rules. Nine kinds join the catalog:
+--   aws_mcp_server, github_mcp_server, kubernetes_mcp_server  an MCP server
+--     (beside aws_agentcore_gateway and saas_mcp_server, which already are);
+--   aws_mcp_tool, github_mcp_tool   a tool an MCP server declares;
+--   github_agent_skill              a skill or instruction file of a repository;
+--   aws_data_store                  a data resource an agent's role reaches;
+--   microsoft_ai_resource, microsoft_ai_deployment
+--                                   an Azure OpenAI or Azure AI Foundry
+--                                   account and a model deployment of one.
+-- The catalog is then 56 rows and its digest the one the compiled catalog
+-- (inventoryprojection.RuleCatalogDigest) holds. The earlier digests are the
+-- ones sections X4 and X3c name and the one X3c pins. A later section that
+-- adds rules pins its own digest; when the file runs again this section then
+-- has nothing left to do (the saas section gained the same guard).
+DO $ws5_rule_catalog$
+DECLARE earlier CONSTANT text[]:=ARRAY['44820a38e96d80318165fc2333fd851cd932d2704d380a1199d569d1d0778f30','9397691244ac0b8befd2790fed3ca2e71f2114eba44001cc3d5634f86b6044ed','f67df9589cf0d41f4b2a98a5161353100e2ff3ed61cfc188c1447d2dd14c4192','2af0dce065caff0c7093dfecede207658bf1973cfcc53911bfae7faef33b1809','7121768829bd73b339a34812762ec5acb449497439e0650d6c6fb7a85bf5678b'];
+ current_value CONSTANT text:='cb8d8d45c753ad53654b44bbc1a6c4ed70fba671049b03047b26d1c12bad8169';
+ previous text;f regprocedure;d text;
+BEGIN
+ IF (SELECT count(*) FROM public.zasp_inventory_identity_rules)>56
+  AND NOT COALESCE((SELECT value FROM public.zasp_schema_metadata WHERE key='typed_inventory_rule_catalog_digest')=ANY(earlier||current_value),false) THEN
+  RETURN;
+ END IF;
+ INSERT INTO public.zasp_inventory_identity_rules(provider,source_kind,identity_namespace,product_kind,rule_version,priority,confidence_basis_points,freshness_seconds) VALUES
+  ('aws','aws_data_store','aws_data_store','asset',1,100,9000,86400),
+  ('aws','aws_mcp_server','aws_mcp_server','tool',1,100,9000,86400),
+  ('aws','aws_mcp_tool','aws_mcp_tool','tool',1,100,9000,86400),
+  ('github','github_agent_skill','github_agent_skill','asset',1,120,9000,86400),
+  ('github','github_mcp_server','github_mcp_server','tool',1,120,9000,86400),
+  ('github','github_mcp_tool','github_mcp_tool','tool',1,120,9000,86400),
+  ('kubernetes','kubernetes_mcp_server','kubernetes_mcp_server','tool',1,80,6000,900),
+  ('microsoft','microsoft_ai_deployment','microsoft_ai_deployment','asset',1,130,9500,86400),
+  ('microsoft','microsoft_ai_resource','microsoft_ai_resource','asset',1,130,9500,86400)
+ ON CONFLICT(provider,source_kind) DO NOTHING;
+ IF (SELECT count(*) FROM public.zasp_inventory_identity_rules)<>56
+  OR (SELECT count(*) FROM public.zasp_inventory_identity_rules WHERE rule_version=1 AND source_kind=identity_namespace
+      AND (provider,source_kind,product_kind,priority,confidence_basis_points,freshness_seconds) IN(
+       ('aws','aws_data_store','asset',100,9000,86400),('aws','aws_mcp_server','tool',100,9000,86400),('aws','aws_mcp_tool','tool',100,9000,86400),
+       ('github','github_agent_skill','asset',120,9000,86400),('github','github_mcp_server','tool',120,9000,86400),('github','github_mcp_tool','tool',120,9000,86400),
+       ('kubernetes','kubernetes_mcp_server','tool',80,6000,900),
+       ('microsoft','microsoft_ai_deployment','asset',130,9500,86400),('microsoft','microsoft_ai_resource','asset',130,9500,86400)))<>9 THEN
+  RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='ws5 inventory rule catalog predecessor changed';
+ END IF;
+ ALTER TABLE public.zasp_inventory_cutover_state DROP CONSTRAINT IF EXISTS zasp_inventory_cutover_state_rule_catalog_digest_check;
+ UPDATE public.zasp_inventory_cutover_state SET rule_catalog_digest=current_value WHERE rule_catalog_digest=ANY(earlier);
+ EXECUTE format('ALTER TABLE public.zasp_inventory_cutover_state ADD CONSTRAINT zasp_inventory_cutover_state_rule_catalog_digest_check CHECK(rule_catalog_digest=%L)',current_value);
+ UPDATE public.zasp_schema_metadata SET value=current_value WHERE key='typed_inventory_rule_catalog_digest' AND value=ANY(earlier);
+ FOREACH f IN ARRAY ARRAY['public.zasp_inventory_advance_scope(text,text,text,text,bytea,bytea)'::regprocedure,'public.zasp_inventory_readiness(text,text)'::regprocedure] LOOP
+  FOREACH previous IN ARRAY earlier LOOP
+   d:=pg_get_functiondef(f);
+   IF position(previous in d)>0 THEN EXECUTE replace(d,previous,current_value);END IF;
+  END LOOP;
+ END LOOP;
+END $ws5_rule_catalog$;
+
+-- WS5b. MCP servers, their tools and users, and the approved-servers registry.
+--
+-- An MCP server is an inventory tool of one of five provider kinds: an
+-- AgentCore gateway, a remote server of an AWS account (seen in its network
+-- logs or fronted by a gateway target), a server a repository's
+-- configuration declares, a Kubernetes workload that runs one, and a server a
+-- SaaS platform lists. zasp_mcp_servers returns them as one set, each with
+--   identity  what a person approves or blocks: host:<host> for a remote
+--             server, package:<name> for one a launcher starts, otherwise
+--             the place it was declared (repository:, workload:, arn:, saas:);
+--   approval  approved or blocked when zasp_mcp_registry holds its identity,
+--             unapproved otherwise.
+-- zasp_mcp_agent_servers relates agents to the servers they use: a present
+-- depends_on relationship from the agent, directly or through a gateway
+-- that fronts the server. zasp_mcp_server_json is the public shape of one
+-- server with its tools (at most 64, execute first) and agents (at most 50).
+--
+-- zasp_mcp_registry holds one row per approved or blocked identity of an
+-- Environment. zasp_mcp_registry_put saves a decision under the version the
+-- caller read (0 when there was no row; "unapproved" removes the row),
+-- records it in the workflow audit as an Environment change and refreshes
+-- the posture findings in the same transaction.
+--
+-- The API reaches these only through three zasp_authorization80 functions,
+-- in the manner of the Z sections: mcp_server_page (GET /mcp-servers, the
+-- caller's authorized tools), mcp_registry_page (GET /mcp-registry) and
+-- mcp_registry_put (PUT /mcp-registry), the last two at Environment scope.
+DO $ws5_mcp_registry$
+DECLARE owner_value text;f text;
+BEGIN
+ SELECT pg_get_userbyid(proowner) INTO STRICT owner_value FROM pg_proc WHERE oid='public.zasp_inventory_refresh_posture_findings(text,text,text)'::regprocedure;
+ CREATE TABLE IF NOT EXISTS public.zasp_mcp_registry(
+  organization_id text NOT NULL,workspace_id text NOT NULL,environment_id text NOT NULL,identity text NOT NULL,status text NOT NULL,note text NOT NULL DEFAULT '',
+  version bigint NOT NULL DEFAULT 1,updated_by text NOT NULL,created_at timestamptz NOT NULL DEFAULT transaction_timestamp(),updated_at timestamptz NOT NULL DEFAULT transaction_timestamp(),
+  PRIMARY KEY(organization_id,workspace_id,environment_id,identity),
+  CONSTRAINT zasp_mcp_registry_scope_check CHECK(public.zasp_valid_product_id(organization_id) AND public.zasp_valid_product_id(workspace_id) AND public.zasp_valid_product_id(environment_id) AND public.zasp_valid_product_id(updated_by)),
+  CONSTRAINT zasp_mcp_registry_identity_check CHECK(length(identity)<=512 AND identity ~ '^(host|package|repository|workload|arn|saas|name):[^[:cntrl:]]+$' AND identity=btrim(identity)),
+  CONSTRAINT zasp_mcp_registry_status_check CHECK(status IN('approved','blocked')),
+  CONSTRAINT zasp_mcp_registry_note_check CHECK(length(note)<=512 AND note=btrim(note) AND note !~ '[[:cntrl:]]'),
+  CONSTRAINT zasp_mcp_registry_version_check CHECK(version BETWEEN 1 AND 1000000));
+ EXECUTE format('ALTER TABLE public.zasp_mcp_registry OWNER TO %I',owner_value);
+ ALTER TABLE public.zasp_mcp_registry ENABLE ROW LEVEL SECURITY;
+ REVOKE ALL ON TABLE public.zasp_mcp_registry FROM PUBLIC;
+
+ CREATE OR REPLACE FUNCTION public.zasp_mcp_server_identity(source_kind_value text,stable_value jsonb,attributes_value jsonb,name_value text) RETURNS text
+ LANGUAGE sql IMMUTABLE SET search_path TO pg_catalog, public AS $identity$
+  SELECT left(CASE
+   WHEN COALESCE(attributes_value->>'endpoint_host','')<>'' THEN 'host:'||lower(attributes_value->>'endpoint_host')
+   WHEN COALESCE(attributes_value->>'package','')<>'' THEN 'package:'||(attributes_value->>'package')
+   WHEN source_kind_value='github_mcp_server' THEN 'repository:'||(stable_value->>'owner')||'/'||(stable_value->>'repository')||'/'||(stable_value->>'name')
+   WHEN source_kind_value='kubernetes_mcp_server' THEN 'workload:'||(stable_value->>'cluster')||'/'||(stable_value->>'namespace')||'/'||(stable_value->>'name')
+   WHEN COALESCE(stable_value->>'arn','')<>'' THEN 'arn:'||(stable_value->>'arn')
+   WHEN source_kind_value='saas_mcp_server' THEN 'saas:'||(stable_value->>'platform')||'/'||(stable_value->>'tenant')||'/'||(stable_value->>'name')
+   ELSE 'name:'||lower(name_value) END,512)
+ $identity$;
+
+ CREATE OR REPLACE FUNCTION public.zasp_mcp_servers(organization_value text,workspace_value text,environment_value text)
+ RETURNS TABLE(entity_id text,name text,provider text,source_kind text,identity text,approval text,note text,attributes jsonb,stable_fields jsonb,evidence_id text,first_seen_at timestamptz,last_seen_at timestamptz)
+ LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO pg_catalog, public AS $servers$
+  SELECT found.id,found.display_name,found.provider,found.source_kind,found.identity,COALESCE(registry.status,'unapproved'),COALESCE(registry.note,''),found.attributes,found.stable_fields,found.winning_evidence_id,found.first_seen_at,found.last_seen_at
+  FROM(
+   SELECT entity.id,entity.display_name,observation.provider,observation.source_kind,COALESCE(entity.winning_attributes,'{}'::jsonb) attributes,entity.stable_fields,entity.winning_evidence_id,entity.first_seen_at,entity.last_seen_at,
+    zasp_mcp_server_identity(observation.source_kind,entity.stable_fields,COALESCE(entity.winning_attributes,'{}'::jsonb),entity.display_name) identity
+   FROM zasp_inventory_entities entity JOIN zasp_inventory_source_observations observation
+    ON (observation.organization_id,observation.workspace_id,observation.environment_id,observation.integration_id,observation.source,observation.entity_id)=(entity.organization_id,entity.workspace_id,entity.environment_id,entity.winning_integration_id,entity.winning_source,entity.id)
+   WHERE (entity.organization_id,entity.workspace_id,entity.environment_id,entity.state,entity.product_kind)=(organization_value,workspace_value,environment_value,'active','tool')
+    AND observation.source_state='present' AND observation.source_kind IN('aws_agentcore_gateway','aws_mcp_server','github_mcp_server','kubernetes_mcp_server','saas_mcp_server')
+  ) found LEFT JOIN zasp_mcp_registry registry ON (registry.organization_id,registry.workspace_id,registry.environment_id,registry.identity)=(organization_value,workspace_value,environment_value,found.identity)
+ $servers$;
+
+ CREATE OR REPLACE FUNCTION public.zasp_mcp_agent_servers(organization_value text,workspace_value text,environment_value text) RETURNS TABLE(agent_id text,server_id text)
+ LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO pg_catalog, public AS $uses$
+  WITH servers AS MATERIALIZED(SELECT entity_id FROM zasp_mcp_servers(organization_value,workspace_value,environment_value)),
+  edges AS MATERIALIZED(
+   SELECT relationship.from_entity_id,relationship.to_entity_id FROM zasp_inventory_relationships relationship JOIN servers ON servers.entity_id=relationship.to_entity_id
+   WHERE (relationship.organization_id,relationship.workspace_id,relationship.environment_id,relationship.state,relationship.kind)=(organization_value,workspace_value,environment_value,'present','depends_on'))
+  SELECT DISTINCT agent.id,used.server_id FROM(
+   SELECT edges.from_entity_id user_id,edges.to_entity_id server_id FROM edges
+   UNION SELECT direct.from_entity_id,fronted.to_entity_id FROM edges direct JOIN edges fronted ON fronted.from_entity_id=direct.to_entity_id
+  ) used JOIN zasp_inventory_entities agent ON (agent.organization_id,agent.workspace_id,agent.environment_id,agent.id,agent.state,agent.product_kind)=(organization_value,workspace_value,environment_value,used.user_id,'active','agent')
+ $uses$;
+
+ CREATE OR REPLACE FUNCTION public.zasp_mcp_server_tools(organization_value text,workspace_value text,environment_value text) RETURNS TABLE(server_id text,tool_id text,name text,risk text)
+ LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO pg_catalog, public AS $tools$
+  SELECT relationship.from_entity_id,tool.id,tool.display_name,COALESCE(tool.winning_attributes->>'risk','unclassified')
+  FROM zasp_inventory_relationships relationship
+  JOIN zasp_inventory_entities tool ON (tool.organization_id,tool.workspace_id,tool.environment_id,tool.id,tool.state,tool.product_kind)=(organization_value,workspace_value,environment_value,relationship.to_entity_id,'active','tool')
+  JOIN zasp_inventory_source_observations observation
+   ON (observation.organization_id,observation.workspace_id,observation.environment_id,observation.integration_id,observation.source,observation.entity_id)=(tool.organization_id,tool.workspace_id,tool.environment_id,tool.winning_integration_id,tool.winning_source,tool.id)
+  WHERE (relationship.organization_id,relationship.workspace_id,relationship.environment_id,relationship.state,relationship.kind)=(organization_value,workspace_value,environment_value,'present','contains')
+   AND observation.source_state='present' AND observation.source_kind IN('aws_mcp_tool','github_mcp_tool')
+ $tools$;
+
+ CREATE OR REPLACE FUNCTION public.zasp_mcp_server_json(organization_value text,workspace_value text,environment_value text,server_value text) RETURNS jsonb
+ LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO pg_catalog, public AS $server_json$
+  SELECT jsonb_build_object('id',server.entity_id,'name',server.name,'provider',server.provider,'source_kind',server.source_kind,
+   'source',COALESCE(server.attributes->>'source',CASE server.source_kind WHEN 'saas_mcp_server' THEN 'saas_api' WHEN 'aws_agentcore_gateway' THEN 'agentcore_gateway' ELSE 'provider_api' END),
+   'transport',COALESCE(server.attributes->>'transport',CASE WHEN server.source_kind='aws_agentcore_gateway' OR COALESCE(server.attributes->>'endpoint_host','')<>'' THEN 'http' END),
+   'endpoint_host',NULLIF(server.attributes->>'endpoint_host',''),'command',NULLIF(server.attributes->>'command',''),'package',NULLIF(server.attributes->>'package',''),
+   'package_pinned',CASE WHEN COALESCE(server.attributes->>'package','')<>'' THEN COALESCE((server.attributes->>'package_pinned')::boolean,false) END,
+   'plain_http',COALESCE((server.attributes->>'plain_http')::boolean,false),
+   'auth',COALESCE(server.attributes->>'auth','unknown'),'identity',server.identity,'approval',server.approval,
+   'tools',COALESCE((SELECT jsonb_agg(jsonb_build_object('id',listed.tool_id,'name',listed.name,'risk',listed.risk) ORDER BY listed.position) FROM(
+     SELECT tool.*,row_number() OVER(ORDER BY array_position(ARRAY['execute','write','network','read','unclassified'],tool.risk),tool.name,tool.tool_id) position
+     FROM zasp_mcp_server_tools(organization_value,workspace_value,environment_value) tool WHERE tool.server_id=server.entity_id) listed WHERE listed.position<=64),'[]'::jsonb),
+   'tool_count',(SELECT count(*) FROM zasp_mcp_server_tools(organization_value,workspace_value,environment_value) tool WHERE tool.server_id=server.entity_id),
+   'agents',COALESCE((SELECT jsonb_agg(jsonb_build_object('id',listed.id,'name',listed.display_name) ORDER BY listed.position) FROM(
+     SELECT agent.id,agent.display_name,row_number() OVER(ORDER BY agent.display_name,agent.id) position
+     FROM zasp_mcp_agent_servers(organization_value,workspace_value,environment_value) used JOIN zasp_inventory_entities agent ON (agent.organization_id,agent.workspace_id,agent.environment_id,agent.id)=(organization_value,workspace_value,environment_value,used.agent_id)
+     WHERE used.server_id=server.entity_id) listed WHERE listed.position<=50),'[]'::jsonb),
+   'agent_count',(SELECT count(*) FROM zasp_mcp_agent_servers(organization_value,workspace_value,environment_value) used WHERE used.server_id=server.entity_id),
+   'first_seen_at',to_char(server.first_seen_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),'last_seen_at',to_char(server.last_seen_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'))
+  FROM zasp_mcp_servers(organization_value,workspace_value,environment_value) server WHERE server.entity_id=server_value
+ $server_json$;
+
+ CREATE OR REPLACE FUNCTION public.zasp_mcp_registry_json(organization_value text,workspace_value text,environment_value text) RETURNS jsonb
+ LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO pg_catalog, public AS $registry_json$
+  SELECT jsonb_build_object('items',COALESCE((SELECT jsonb_agg(jsonb_build_object('identity',entry.identity,'status',entry.status,'note',entry.note,'version',entry.version,'updated_by',entry.updated_by,
+    'updated_at',to_char(entry.updated_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+    'server_count',(SELECT count(*) FROM zasp_mcp_servers(organization_value,workspace_value,environment_value) server WHERE server.identity=entry.identity)) ORDER BY entry.identity)
+   FROM(SELECT * FROM zasp_mcp_registry WHERE (organization_id,workspace_id,environment_id)=(organization_value,workspace_value,environment_value) ORDER BY identity LIMIT 500) entry),'[]'::jsonb))
+ $registry_json$;
+
+ CREATE OR REPLACE FUNCTION public.zasp_mcp_registry_put(organization_value text,workspace_value text,environment_value text,actor_value text,identity_value text,status_value text,note_value text,expected_version_value bigint,audit_value text,correlation_value text) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $registry_put$
+ DECLARE current_version bigint;entry zasp_mcp_registry%ROWTYPE;result_value jsonb;
+ BEGIN
+  IF NOT COALESCE(zasp_valid_product_id(organization_value) AND zasp_valid_product_id(workspace_value) AND zasp_valid_product_id(environment_value) AND zasp_valid_product_id(actor_value) AND zasp_valid_product_id(audit_value) AND zasp_valid_product_id(correlation_value)
+   AND length(identity_value)<=512 AND identity_value ~ '^(host|package|repository|workload|arn|saas|name):[^[:cntrl:]]+$' AND identity_value=btrim(identity_value)
+   AND status_value IN('approved','blocked','unapproved') AND length(note_value)<=512 AND note_value=btrim(note_value) AND note_value !~ '[[:cntrl:]]' AND expected_version_value BETWEEN 0 AND 999999,false) THEN
+   RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='mcp registry entry rejected';
+  END IF;
+  PERFORM pg_advisory_xact_lock(hashtextextended(concat_ws(chr(31),'zasp-mcp-registry',organization_value,workspace_value,environment_value,identity_value),0));
+  SELECT COALESCE((SELECT version FROM zasp_mcp_registry WHERE (organization_id,workspace_id,environment_id,identity)=(organization_value,workspace_value,environment_value,identity_value) FOR UPDATE),0) INTO current_version;
+  IF current_version<>expected_version_value THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='mcp registry version conflict';END IF;
+  IF status_value='unapproved' THEN
+   IF current_version=0 THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='mcp registry entry not found';END IF;
+   DELETE FROM zasp_mcp_registry WHERE (organization_id,workspace_id,environment_id,identity)=(organization_value,workspace_value,environment_value,identity_value);
+   result_value:=jsonb_build_object('identity',identity_value,'status','unapproved','note','','version',0,'updated_by',actor_value,'updated_at',to_char(transaction_timestamp() AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'));
+  ELSE
+   INSERT INTO zasp_mcp_registry AS registry(organization_id,workspace_id,environment_id,identity,status,note,version,updated_by)
+    VALUES(organization_value,workspace_value,environment_value,identity_value,status_value,note_value,1,actor_value)
+   ON CONFLICT(organization_id,workspace_id,environment_id,identity) DO UPDATE SET status=EXCLUDED.status,note=EXCLUDED.note,version=registry.version+1,updated_by=EXCLUDED.updated_by,updated_at=transaction_timestamp()
+   RETURNING * INTO entry;
+   result_value:=jsonb_build_object('identity',entry.identity,'status',entry.status,'note',entry.note,'version',entry.version,'updated_by',entry.updated_by,'updated_at',to_char(entry.updated_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'));
+  END IF;
+  result_value:=result_value||jsonb_build_object('server_count',(SELECT count(*) FROM zasp_mcp_servers(organization_value,workspace_value,environment_value) server WHERE server.identity=identity_value),'audit_id',audit_value);
+  PERFORM zasp_inventory_refresh_posture_findings(organization_value,workspace_value,environment_value);
+  INSERT INTO zasp_workflow_audit(organization_id,workspace_id,environment_id,audit_id,correlation_id,principal_id,operation,resource_kind,resource_id,resource_version)
+   VALUES(organization_value,workspace_value,environment_value,audit_value,correlation_value,actor_value,'putMCPRegistryEntry','environment',environment_value,current_version+1);
+  RETURN result_value;
+ END $registry_put$;
+
+ FOREACH f IN ARRAY ARRAY['zasp_mcp_server_identity(text,jsonb,jsonb,text)','zasp_mcp_servers(text,text,text)','zasp_mcp_agent_servers(text,text,text)','zasp_mcp_server_tools(text,text,text)','zasp_mcp_server_json(text,text,text,text)','zasp_mcp_registry_json(text,text,text)','zasp_mcp_registry_put(text,text,text,text,text,text,text,bigint,text,text)'] LOOP
+  EXECUTE format('ALTER FUNCTION public.%s OWNER TO %I',f,owner_value);
+  EXECUTE format('REVOKE ALL ON FUNCTION public.%s FROM PUBLIC',f);
+ END LOOP;
+
+ -- The API's three statements. An installation without the authorization
+ -- schema (none is supported) has no API statements to add.
+ IF to_regprocedure('zasp_authorization80.product_request(text,text,text,text,text,text,text,text,boolean,boolean,boolean,boolean)') IS NULL THEN RETURN;END IF;
+
+ CREATE OR REPLACE FUNCTION zasp_authorization80.mcp_server_page(o text,w text,e text,a text,n integer) RETURNS jsonb
+ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $mcp_server_page$
+ DECLARE result jsonb;
+ BEGIN
+  PERFORM zasp_authorization80.require_read(o,w,e,ARRAY['listMCPServers'],'view');
+  IF n NOT BETWEEN 1 AND 100 OR NOT COALESCE(a IS NULL OR public.zasp_valid_product_id(a),false) OR public.zasp_inventory_scope_state(o,w,e)->>'phase' IS DISTINCT FROM 'cutover' THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='authorization mcp server page rejected';END IF;
+  WITH candidates AS(SELECT server.entity_id id FROM public.zasp_mcp_servers(o,w,e) server WHERE(a IS NULL OR server.entity_id>a) AND zasp_authorization80.allowed(o,w,e,'tool',server.entity_id) ORDER BY server.entity_id LIMIT n+1),visible AS(SELECT id FROM candidates ORDER BY id LIMIT n)
+  SELECT jsonb_build_object('items',COALESCE((SELECT jsonb_agg(public.zasp_mcp_server_json(o,w,e,id) ORDER BY id) FROM visible),'[]'::jsonb),'next_id',CASE WHEN(SELECT count(*) FROM candidates)>n THEN(SELECT max(id) FROM visible) END) INTO result;
+  RETURN result;
+ END $mcp_server_page$;
+
+ CREATE OR REPLACE FUNCTION zasp_authorization80.mcp_registry_page(o text,w text,e text) RETURNS jsonb
+ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $mcp_registry_page$
+ BEGIN
+  IF NOT COALESCE(public.zasp_discovery_principal_ready('zasp_discovery_api') AND zasp_authorization80.read_request(o,w,e,ARRAY['listMCPRegistry'],'view') AND zasp_authorization80.allowed(o,w,e,'environment',e),false)
+  THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';END IF;
+  RETURN public.zasp_mcp_registry_json(o,w,e);
+ END $mcp_registry_page$;
+
+ CREATE OR REPLACE FUNCTION zasp_authorization80.mcp_registry_put(o text,w text,e text,actor text,identity_value text,status_value text,note_value text,expected_version bigint,audit_value text,correlation_value text) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $mcp_registry_put$
+ DECLARE p jsonb;result jsonb;
+ BEGIN
+  p:=zasp_authorization80.product_request(o,w,e,actor,'putMCPRegistryEntry','manage_workflows','environment',e,false,false,false,true);
+  result:=public.zasp_mcp_registry_put(o,w,e,actor,identity_value,status_value,note_value,expected_version,audit_value,correlation_value);
+  PERFORM zasp_authorization80.product_settled(p);
+  RETURN result;
+ END $mcp_registry_put$;
+
+ FOREACH f IN ARRAY ARRAY['mcp_server_page(text,text,text,text,integer)','mcp_registry_page(text,text,text)','mcp_registry_put(text,text,text,text,text,text,text,bigint,text,text)'] LOOP
+  EXECUTE format('ALTER FUNCTION zasp_authorization80.%s OWNER TO zasp_discovery_authority',f);
+  EXECUTE format('REVOKE ALL ON FUNCTION zasp_authorization80.%s FROM PUBLIC',f);
+  EXECUTE format('GRANT EXECUTE ON FUNCTION zasp_authorization80.%s TO zasp_discovery_api',f);
+ END LOOP;
+END $ws5_mcp_registry$;
+
+-- WS5c. MCP posture findings, and attack paths through MCP servers.
+--
+-- zasp_inventory_refresh_posture_findings gains five rules, each on an agent
+-- that uses an MCP server (zasp_mcp_posture_matches):
+--   mcp_server_unapproved        the server's identity is not in the registry;
+--   mcp_server_blocked           the registry blocks it;
+--   mcp_server_no_auth           a remote server whose declaration names no
+--                                authentication (a gateway with authorizer
+--                                NONE, a URL with no credential);
+--   mcp_server_unpinned_package  a stdio server started from a package with
+--                                no exact version (npx, uvx);
+--   mcp_execute_tool_production  the server declares a tool that runs code
+--                                or commands, and the agent has production
+--                                access: a production posture fact, a
+--                                production Environment, or an identity that
+--                                may write to a data store.
+-- A sixth rule is not about MCP: agent_content_moderation_low, for an agent
+-- whose platform reports its generative AI content moderation at the lowest
+-- level (a Copilot Studio agent's content_moderation attribute).
+-- Two rules are about the skills an agent project contains
+-- (github_agent_skill), decided without a skill's contents:
+--   skill_scripts_production     a skill directory ships a script (attribute
+--                                scripts, from the file tree) and the agent
+--                                has production access as defined above;
+--   skill_unowned                the repository's CODEOWNERS patterns name no
+--                                owner for a skill, or the repository has no
+--                                CODEOWNERS file (attribute ownership).
+-- A dismissed agent leaves the set as for every other rule (section X5a).
+--
+-- zasp_mcp_refresh_attack_paths, called at the end of every posture refresh,
+-- keeps one attack path per open MCP finding: agent, server and, for the
+-- execute rule, the tool. The finding names its path (path_id), so the
+-- finding links to it; the posture refresh, which clears path_id on every
+-- other posture finding, keeps it on an MCP finding, and the finding's
+-- version moves only when its path changes. Its break options are ranked: remove the server
+-- from the agent first, then constrain the agent, then the tool. The paths
+-- it owns are listed in zasp_mcp_attack_paths; a path whose finding is no
+-- longer open is deleted. The path agent, role, data store needs nothing
+-- here: the AWS collector relates a role to the data stores it reaches
+-- (depends_on) and reports a service-wide grant as a discovery finding on
+-- the store, and zasp_inventory_apply_findings already walks uses_identity
+-- and depends_on back from a finding to the agent.
+DO $ws5_mcp_posture$
+DECLARE target CONSTANT regprocedure:='public.zasp_inventory_refresh_posture_findings(text,text,text)'::regprocedure;
+ with_anchor CONSTANT text:=$anchor$ WITH agents AS ($anchor$;
+ with_patched CONSTANT text:=$patched$ WITH mcp AS MATERIALIZED (SELECT matched.agent_id,matched.rule FROM zasp_mcp_posture_matches(organization_value,workspace_value,environment_value) matched),agents AS ($patched$;
+ rule_anchor CONSTANT text:=$anchor$   ('zombie_credential','Inactive agent retains an active credential',agent.state='tombstoned' AND (agent.posture->>'credential_active')::boolean)$anchor$;
+ rules CONSTANT text:=$rules$,
+   ('mcp_server_unapproved','Agent uses an unapproved MCP server',agent.state='active' AND EXISTS(SELECT 1 FROM mcp WHERE (mcp.agent_id,mcp.rule)=(agent.id,'mcp_server_unapproved'))),
+   ('mcp_server_blocked','Agent uses a blocked MCP server',agent.state='active' AND EXISTS(SELECT 1 FROM mcp WHERE (mcp.agent_id,mcp.rule)=(agent.id,'mcp_server_blocked'))),
+   ('mcp_server_no_auth','Agent uses a remote MCP server with no authentication',agent.state='active' AND EXISTS(SELECT 1 FROM mcp WHERE (mcp.agent_id,mcp.rule)=(agent.id,'mcp_server_no_auth'))),
+   ('mcp_server_unpinned_package','Agent starts an MCP server from an unpinned package',agent.state='active' AND EXISTS(SELECT 1 FROM mcp WHERE (mcp.agent_id,mcp.rule)=(agent.id,'mcp_server_unpinned_package'))),
+   ('mcp_execute_tool_production','Production agent can run code through an MCP tool',agent.state='active' AND EXISTS(SELECT 1 FROM mcp WHERE (mcp.agent_id,mcp.rule)=(agent.id,'mcp_execute_tool_production'))),
+   ('agent_content_moderation_low','Agent content moderation is set to the lowest level',agent.state='active' AND EXISTS(SELECT 1 FROM zasp_inventory_entities moderated WHERE (moderated.organization_id,moderated.workspace_id,moderated.environment_id,moderated.id)=(organization_value,workspace_value,environment_value,agent.id) AND moderated.winning_attributes->>'content_moderation'='low')),
+   ('skill_scripts_production','Production agent ships a skill with executable scripts',agent.state='active' AND EXISTS(SELECT 1 FROM mcp WHERE (mcp.agent_id,mcp.rule)=(agent.id,'skill_scripts_production'))),
+   ('skill_unowned','Agent skill has no code owner',agent.state='active' AND EXISTS(SELECT 1 FROM mcp WHERE (mcp.agent_id,mcp.rule)=(agent.id,'skill_unowned')))$rules$;
+ -- The posture upsert clears path_id; an MCP finding keeps the path
+ -- zasp_mcp_refresh_attack_paths gave it.
+ path_set_anchor CONSTANT text:=$anchor$agent_id=excluded.agent_id,path_id=NULL,compliance_context=excluded.compliance_context$anchor$;
+ path_set_patched CONSTANT text:=$patched$agent_id=excluded.agent_id,path_id=CASE WHEN excluded.rule LIKE 'mcp\_%' THEN finding.path_id END,compliance_context=excluded.compliance_context$patched$;
+ path_compare_anchor CONSTANT text:=$anchor$excluded.agent_id,NULL,excluded.compliance_context,$anchor$;
+ path_compare_patched CONSTANT text:=$patched$excluded.agent_id,CASE WHEN excluded.rule LIKE 'mcp\_%' THEN finding.path_id END,excluded.compliance_context,$patched$;
+ return_anchor CONSTANT text:=$anchor$ RETURN jsonb_build_object('active_count',active_count,'resolved_count',resolved_count);$anchor$;
+ paths CONSTANT text:=$paths$ PERFORM zasp_mcp_refresh_attack_paths(organization_value,workspace_value,environment_value);
+$paths$;
+ owner_value text;d text;f text;
+BEGIN
+ SELECT pg_get_userbyid(proowner) INTO STRICT owner_value FROM pg_proc WHERE oid=target;
+
+ CREATE OR REPLACE FUNCTION public.zasp_mcp_posture_matches(organization_value text,workspace_value text,environment_value text) RETURNS TABLE(agent_id text,rule text,server_id text,tool_id text)
+ LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO pg_catalog, public AS $matches$
+  WITH servers AS MATERIALIZED(SELECT * FROM zasp_mcp_servers(organization_value,workspace_value,environment_value)),
+  used AS MATERIALIZED(SELECT * FROM zasp_mcp_agent_servers(organization_value,workspace_value,environment_value)),
+  execute_tools AS MATERIALIZED(SELECT tool.server_id,min(tool.tool_id) tool_id FROM zasp_mcp_server_tools(organization_value,workspace_value,environment_value) tool WHERE tool.risk='execute' GROUP BY tool.server_id),
+  production AS MATERIALIZED(
+   SELECT agent.id FROM zasp_inventory_entities agent
+   WHERE (agent.organization_id,agent.workspace_id,agent.environment_id,agent.state,agent.product_kind)=(organization_value,workspace_value,environment_value,'active','agent')
+    AND (COALESCE((agent.winning_attributes->'posture'->>'production_agent')::boolean,false) OR COALESCE((agent.winning_attributes->'posture'->>'production_credential')::boolean,false)
+     OR COALESCE((agent.winning_attributes->'posture'->>'production_write')::boolean,false) OR COALESCE((agent.winning_attributes->'posture'->>'production_secret_reach')::boolean,false)
+     OR EXISTS(SELECT 1 FROM zasp_environments environment WHERE (environment.organization_id,environment.workspace_id,environment.id)=(organization_value,workspace_value,environment_value) AND environment.environment_class='production')
+     OR EXISTS(SELECT 1 FROM zasp_inventory_relationships identity_edge
+       JOIN zasp_inventory_relationships data_edge ON (data_edge.organization_id,data_edge.workspace_id,data_edge.environment_id,data_edge.from_entity_id,data_edge.state,data_edge.kind)=(identity_edge.organization_id,identity_edge.workspace_id,identity_edge.environment_id,identity_edge.to_entity_id,'present','depends_on')
+       JOIN zasp_inventory_entities store ON (store.organization_id,store.workspace_id,store.environment_id,store.id,store.state)=(data_edge.organization_id,data_edge.workspace_id,data_edge.environment_id,data_edge.to_entity_id,'active')
+       WHERE (identity_edge.organization_id,identity_edge.workspace_id,identity_edge.environment_id,identity_edge.from_entity_id,identity_edge.state,identity_edge.kind)=(organization_value,workspace_value,environment_value,agent.id,'present','uses_identity')
+        AND store.winning_attributes->>'access'='write'))),
+  matched AS(
+   SELECT used.agent_id,listed.rule,used.server_id,listed.tool_id FROM used JOIN servers ON servers.entity_id=used.server_id
+   LEFT JOIN execute_tools ON execute_tools.server_id=used.server_id
+   CROSS JOIN LATERAL(VALUES
+    ('mcp_server_unapproved',servers.approval='unapproved',NULL::text),
+    ('mcp_server_blocked',servers.approval='blocked',NULL),
+    ('mcp_server_no_auth',servers.attributes->>'auth'='none' AND(COALESCE(servers.attributes->>'endpoint_host','')<>'' OR servers.source_kind='aws_agentcore_gateway'),NULL),
+    ('mcp_server_unpinned_package',servers.attributes->>'transport'='stdio' AND COALESCE(servers.attributes->>'package','')<>'' AND servers.attributes->>'package_pinned'='false',NULL),
+    ('mcp_execute_tool_production',execute_tools.tool_id IS NOT NULL AND EXISTS(SELECT 1 FROM production WHERE production.id=used.agent_id),execute_tools.tool_id)
+   ) listed(rule,matched,tool_id) WHERE listed.matched
+   -- The skills an agent project contains; server_id is the skill.
+   UNION ALL
+   SELECT edge.from_entity_id,listed.rule,skill.id,NULL::text FROM zasp_inventory_relationships edge
+   JOIN zasp_inventory_entities skill ON (skill.organization_id,skill.workspace_id,skill.environment_id,skill.id,skill.state)=(edge.organization_id,edge.workspace_id,edge.environment_id,edge.to_entity_id,'active')
+   JOIN zasp_inventory_source_observations observation ON (observation.organization_id,observation.workspace_id,observation.environment_id,observation.integration_id,observation.source,observation.entity_id)=(skill.organization_id,skill.workspace_id,skill.environment_id,skill.winning_integration_id,skill.winning_source,skill.id)
+   CROSS JOIN LATERAL(VALUES
+    ('skill_scripts_production',skill.winning_attributes->>'scripts'='true' AND EXISTS(SELECT 1 FROM production WHERE production.id=edge.from_entity_id)),
+    ('skill_unowned',skill.winning_attributes->>'ownership' IN('uncovered','no_codeowners'))
+   ) listed(rule,matched)
+   WHERE (edge.organization_id,edge.workspace_id,edge.environment_id,edge.state,edge.kind)=(organization_value,workspace_value,environment_value,'present','contains')
+    AND observation.source_state='present' AND observation.source_kind='github_agent_skill' AND listed.matched)
+  SELECT DISTINCT ON(matched.agent_id,matched.rule) matched.agent_id,matched.rule,matched.server_id,matched.tool_id FROM matched ORDER BY matched.agent_id,matched.rule,matched.server_id
+ $matches$;
+
+ CREATE TABLE IF NOT EXISTS public.zasp_mcp_attack_paths(
+  organization_id text NOT NULL,workspace_id text NOT NULL,environment_id text NOT NULL,path_id text NOT NULL,finding_id text NOT NULL,
+  PRIMARY KEY(organization_id,workspace_id,environment_id,path_id),
+  FOREIGN KEY(organization_id,workspace_id,environment_id,path_id) REFERENCES public.zasp_risk_attack_paths(organization_id,workspace_id,environment_id,id) ON DELETE CASCADE,
+  CONSTRAINT zasp_mcp_attack_paths_id_check CHECK(public.zasp_valid_product_id(path_id) AND public.zasp_valid_product_id(finding_id)));
+ EXECUTE format('ALTER TABLE public.zasp_mcp_attack_paths OWNER TO %I',owner_value);
+ ALTER TABLE public.zasp_mcp_attack_paths ENABLE ROW LEVEL SECURITY;
+ REVOKE ALL ON TABLE public.zasp_mcp_attack_paths FROM PUBLIC;
+
+ CREATE OR REPLACE FUNCTION public.zasp_mcp_refresh_attack_paths(organization_value text,workspace_value text,environment_value text) RETURNS integer
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $refresh_paths$
+ DECLARE path_items jsonb;kept integer;
+ BEGIN
+  IF NOT COALESCE(zasp_valid_product_id(organization_value) AND zasp_valid_product_id(workspace_value) AND zasp_valid_product_id(environment_value),false) THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='invalid posture scope';END IF;
+  WITH open_findings AS(
+   SELECT finding.id finding_id,finding.rule,finding.agent_id FROM zasp_risk_findings finding
+   WHERE (finding.organization_id,finding.workspace_id,finding.environment_id,finding.source)=(organization_value,workspace_value,environment_value,'posture')
+    AND finding.compliance_context LIKE 'zasp-posture:mcp\_%' AND finding.status IN('open','under_review','accepted') AND finding.agent_id IS NOT NULL
+  ),candidates AS(
+   SELECT open_findings.finding_id,agent.winning_evidence_id evidence_id,
+    ARRAY[matched.agent_id,matched.server_id]||CASE WHEN matched.tool_id IS NOT NULL THEN ARRAY[matched.tool_id] ELSE ARRAY[]::text[] END node_ids
+   FROM open_findings JOIN zasp_mcp_posture_matches(organization_value,workspace_value,environment_value) matched ON (matched.agent_id,matched.rule)=(open_findings.agent_id,open_findings.rule)
+   JOIN zasp_inventory_entities agent ON (agent.organization_id,agent.workspace_id,agent.environment_id,agent.id)=(organization_value,workspace_value,environment_value,matched.agent_id)
+   WHERE agent.winning_evidence_id IS NOT NULL
+  )
+  SELECT COALESCE(jsonb_agg(jsonb_build_object('finding_id',finding_id,'evidence_id',evidence_id,'node_ids',to_jsonb(node_ids),
+    'path_id',zasp_discovery_canonical_id(organization_value,workspace_value,environment_value,'attack_path',finding_id||chr(31)||array_to_string(node_ids,chr(31)))) ORDER BY finding_id),'[]'::jsonb)
+  INTO path_items FROM candidates;
+
+  -- A path of another owner under the same id is never taken over.
+  IF EXISTS(SELECT 1 FROM jsonb_array_elements(path_items) candidate JOIN zasp_risk_attack_paths path
+    ON (path.organization_id,path.workspace_id,path.environment_id,path.id)=(organization_value,workspace_value,environment_value,candidate->>'path_id')
+   WHERE NOT EXISTS(SELECT 1 FROM zasp_mcp_attack_paths owned WHERE (owned.organization_id,owned.workspace_id,owned.environment_id,owned.path_id)=(organization_value,workspace_value,environment_value,path.id)))
+  THEN RAISE EXCEPTION USING ERRCODE='23505',MESSAGE='mcp attack path ownership conflict';END IF;
+
+  DELETE FROM zasp_risk_attack_paths path USING zasp_mcp_attack_paths owned
+  WHERE (owned.organization_id,owned.workspace_id,owned.environment_id)=(organization_value,workspace_value,environment_value)
+   AND (path.organization_id,path.workspace_id,path.environment_id,path.id)=(owned.organization_id,owned.workspace_id,owned.environment_id,owned.path_id)
+   AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(path_items) candidate WHERE candidate->>'path_id'=owned.path_id);
+
+  -- A path id is derived from its nodes, so an existing path is unchanged
+  -- except for its evidence.
+  INSERT INTO zasp_risk_attack_paths(organization_id,workspace_id,environment_id,id,entry_id,sink_id,state)
+  SELECT organization_value,workspace_value,environment_value,candidate->>'path_id',candidate->'node_ids'->>0,candidate->'node_ids'->>-1,'observed' FROM jsonb_array_elements(path_items) candidate
+  ON CONFLICT(organization_id,workspace_id,environment_id,id) DO NOTHING;
+  INSERT INTO zasp_mcp_attack_paths(organization_id,workspace_id,environment_id,path_id,finding_id)
+  SELECT organization_value,workspace_value,environment_value,candidate->>'path_id',candidate->>'finding_id' FROM jsonb_array_elements(path_items) candidate
+  ON CONFLICT(organization_id,workspace_id,environment_id,path_id) DO NOTHING;
+  INSERT INTO zasp_risk_attack_path_nodes(organization_id,workspace_id,environment_id,path_id,position,node_id)
+  SELECT organization_value,workspace_value,environment_value,candidate->>'path_id',node.ordinality::smallint,node.node_id
+  FROM jsonb_array_elements(path_items) candidate CROSS JOIN LATERAL jsonb_array_elements_text(candidate->'node_ids') WITH ORDINALITY node(node_id,ordinality)
+  ON CONFLICT(organization_id,workspace_id,environment_id,path_id,position) DO NOTHING;
+  -- The finding names its path. Its version moves when the path changes,
+  -- once per transaction.
+  UPDATE zasp_risk_findings finding SET path_id=candidate->>'path_id',version=finding.version+CASE WHEN finding.updated_at<>transaction_timestamp() THEN 1 ELSE 0 END,updated_at=transaction_timestamp()
+  FROM jsonb_array_elements(path_items) candidate
+  WHERE (finding.organization_id,finding.workspace_id,finding.environment_id,finding.id)=(organization_value,workspace_value,environment_value,candidate->>'finding_id') AND finding.path_id IS DISTINCT FROM candidate->>'path_id';
+  UPDATE zasp_risk_findings finding SET path_id=NULL,version=finding.version+CASE WHEN finding.updated_at<>transaction_timestamp() THEN 1 ELSE 0 END,updated_at=transaction_timestamp()
+  WHERE (finding.organization_id,finding.workspace_id,finding.environment_id,finding.source)=(organization_value,workspace_value,environment_value,'posture')
+   AND finding.compliance_context LIKE 'zasp-posture:mcp\_%' AND finding.path_id IS NOT NULL
+   AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(path_items) candidate WHERE (candidate->>'finding_id',candidate->>'path_id')=(finding.id,finding.path_id));
+  UPDATE zasp_risk_attack_paths path SET version=path.version+1,updated_at=transaction_timestamp()
+  FROM jsonb_array_elements(path_items) candidate
+  WHERE (path.organization_id,path.workspace_id,path.environment_id,path.id)=(organization_value,workspace_value,environment_value,candidate->>'path_id')
+   AND EXISTS(SELECT 1 FROM zasp_risk_attack_path_evidence evidence WHERE (evidence.organization_id,evidence.workspace_id,evidence.environment_id,evidence.path_id)=(organization_value,workspace_value,environment_value,path.id))
+   AND NOT EXISTS(SELECT 1 FROM zasp_risk_attack_path_evidence evidence WHERE (evidence.organization_id,evidence.workspace_id,evidence.environment_id,evidence.path_id,evidence.position,evidence.evidence_id)=(organization_value,workspace_value,environment_value,path.id,1,candidate->>'evidence_id'));
+  DELETE FROM zasp_risk_attack_path_evidence evidence USING jsonb_array_elements(path_items) candidate
+  WHERE (evidence.organization_id,evidence.workspace_id,evidence.environment_id,evidence.path_id)=(organization_value,workspace_value,environment_value,candidate->>'path_id') AND evidence.evidence_id<>candidate->>'evidence_id';
+  INSERT INTO zasp_risk_attack_path_evidence(organization_id,workspace_id,environment_id,path_id,position,evidence_id)
+  SELECT organization_value,workspace_value,environment_value,candidate->>'path_id',1,candidate->>'evidence_id' FROM jsonb_array_elements(path_items) candidate
+  ON CONFLICT(organization_id,workspace_id,environment_id,path_id,position) DO NOTHING;
+  -- Ranked fixes: take the server away from the agent, constrain the agent,
+  -- constrain the tool.
+  DELETE FROM zasp_risk_break_options option_value USING jsonb_array_elements(path_items) candidate
+  WHERE (option_value.organization_id,option_value.workspace_id,option_value.environment_id,option_value.path_id)=(organization_value,workspace_value,environment_value,candidate->>'path_id')
+   AND (option_value.rank,option_value.target_id,option_value.evidence_id) NOT IN(
+    SELECT ranked.rank,candidate->'node_ids'->>ranked.node,candidate->>'evidence_id' FROM(VALUES(1,1),(2,0),(3,2)) ranked(rank,node) WHERE ranked.node<jsonb_array_length(candidate->'node_ids'));
+  INSERT INTO zasp_risk_break_options(organization_id,workspace_id,environment_id,path_id,rank,target_id,evidence_id,kind)
+  SELECT organization_value,workspace_value,environment_value,candidate->>'path_id',ranked.rank::smallint,candidate->'node_ids'->>ranked.node,candidate->>'evidence_id',ranked.kind
+  FROM jsonb_array_elements(path_items) candidate CROSS JOIN(VALUES(1,1,'remove_node'),(2,0,'enforce_policy'),(3,2,'enforce_policy')) ranked(rank,node,kind)
+  WHERE ranked.node<jsonb_array_length(candidate->'node_ids')
+  ON CONFLICT(organization_id,workspace_id,environment_id,path_id,rank) DO NOTHING;
+  SELECT count(*) INTO kept FROM zasp_mcp_attack_paths WHERE (organization_id,workspace_id,environment_id)=(organization_value,workspace_value,environment_value);
+  RETURN kept;
+ END $refresh_paths$;
+
+ FOREACH f IN ARRAY ARRAY['zasp_mcp_posture_matches(text,text,text)','zasp_mcp_refresh_attack_paths(text,text,text)'] LOOP
+  EXECUTE format('ALTER FUNCTION public.%s OWNER TO %I',f,owner_value);
+  EXECUTE format('REVOKE ALL ON FUNCTION public.%s FROM PUBLIC',f);
+ END LOOP;
+
+ d:=pg_get_functiondef(target);
+ IF position(with_patched in d)>0 AND position(rule_anchor||rules in d)>0 AND position(paths||return_anchor in d)>0 AND position(path_set_patched in d)>0 AND length(d)-length(replace(d,path_compare_patched,''))=2*length(path_compare_patched) THEN RETURN;END IF;
+ IF position('zasp_mcp_' in d)>0 OR length(d)-length(replace(d,with_anchor,''))<>length(with_anchor) OR length(d)-length(replace(d,rule_anchor,''))<>length(rule_anchor) OR length(d)-length(replace(d,return_anchor,''))<>length(return_anchor)
+  OR length(d)-length(replace(d,path_set_anchor,''))<>length(path_set_anchor) OR length(d)-length(replace(d,path_compare_anchor,''))<>2*length(path_compare_anchor) THEN
+  RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='inventory posture refresh predecessor changed';
+ END IF;
+ EXECUTE replace(replace(replace(replace(replace(d,with_anchor,with_patched),rule_anchor,rule_anchor||rules),return_anchor,paths||return_anchor),path_set_anchor,path_set_patched),path_compare_anchor,path_compare_patched);
+END $ws5_mcp_posture$;
+-- WS5d. What an agent may use: GET /agents/{id}/access.
+--
+-- The agent page showed what an agent is and who owns it, not what it may
+-- do. zasp_mcp_agent_access_json returns, for one active agent:
+--   ai_actions   the model and agent actions the policies of its role grant,
+--                the ones the audit log showed in use in the last seven days
+--                and the granted ones it can show and did not (used against
+--                granted); null for an agent whose role's audit log was not
+--                read. The AWS collector records the three lists on the
+--                agent (ai_actions_granted, ai_actions_used,
+--                ai_actions_unused);
+--   mcp_servers  the MCP servers it uses, each with the registry's decision;
+--   data_stores  the data stores the identities it runs as reach;
+--   skills       the skills and instruction files of its repository (path
+--                and kind; their contents are never read).
+-- Each list holds at most 64 entries. zasp_authorization80.agent_access is
+-- the API's statement: the proof check of an Agent object route, then the
+-- reader.
+DO $ws5_agent_access$
+DECLARE owner_value text;
+BEGIN
+ SELECT pg_get_userbyid(proowner) INTO STRICT owner_value FROM pg_proc WHERE oid='public.zasp_inventory_refresh_posture_findings(text,text,text)'::regprocedure;
+
+ CREATE OR REPLACE FUNCTION public.zasp_mcp_agent_access_json(organization_value text,workspace_value text,environment_value text,agent_value text) RETURNS jsonb
+ LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO pg_catalog, public AS $agent_access$
+  SELECT jsonb_build_object('agent_id',agent.id,
+   'ai_actions',CASE WHEN COALESCE(agent.winning_attributes->>'ai_actions_granted','')<>'' THEN jsonb_build_object('window_days',7,
+     'granted',to_jsonb(string_to_array(agent.winning_attributes->>'ai_actions_granted',',')),
+     'used',to_jsonb(COALESCE(string_to_array(NULLIF(agent.winning_attributes->>'ai_actions_used',''),','),ARRAY[]::text[])),
+     'unused',to_jsonb(COALESCE(string_to_array(NULLIF(agent.winning_attributes->>'ai_actions_unused',''),','),ARRAY[]::text[]))) END,
+   'mcp_servers',COALESCE((SELECT jsonb_agg(jsonb_build_object('id',listed.entity_id,'name',listed.name,'identity',listed.identity,'approval',listed.approval) ORDER BY listed.position) FROM(
+     SELECT server.entity_id,server.name,server.identity,server.approval,row_number() OVER(ORDER BY server.name,server.entity_id) position
+     FROM zasp_mcp_agent_servers(organization_value,workspace_value,environment_value) used JOIN zasp_mcp_servers(organization_value,workspace_value,environment_value) server ON server.entity_id=used.server_id
+     WHERE used.agent_id=agent.id) listed WHERE listed.position<=64),'[]'::jsonb),
+   'data_stores',COALESCE((SELECT jsonb_agg(jsonb_build_object('id',listed.id,'name',listed.display_name,'service',listed.service,'access',listed.access,'scope',listed.scope) ORDER BY listed.position) FROM(
+     SELECT store.id,store.display_name,store.stable_fields->>'service' service,store.winning_attributes->>'access' access,store.winning_attributes->>'scope' scope,row_number() OVER(ORDER BY store.display_name,store.id) position
+     FROM(SELECT DISTINCT data_edge.to_entity_id FROM zasp_inventory_relationships identity_edge
+       JOIN zasp_inventory_relationships data_edge ON (data_edge.organization_id,data_edge.workspace_id,data_edge.environment_id,data_edge.from_entity_id,data_edge.state,data_edge.kind)=(identity_edge.organization_id,identity_edge.workspace_id,identity_edge.environment_id,identity_edge.to_entity_id,'present','depends_on')
+       WHERE (identity_edge.organization_id,identity_edge.workspace_id,identity_edge.environment_id,identity_edge.from_entity_id,identity_edge.state,identity_edge.kind)=(organization_value,workspace_value,environment_value,agent.id,'present','uses_identity')) reached
+     JOIN zasp_inventory_entities store ON (store.organization_id,store.workspace_id,store.environment_id,store.id,store.state)=(organization_value,workspace_value,environment_value,reached.to_entity_id,'active')
+     WHERE store.winning_attributes->>'access' IN('read','write') AND store.winning_attributes->>'scope' IN('resource','service') AND COALESCE(store.stable_fields->>'service','')<>'') listed WHERE listed.position<=64),'[]'::jsonb),
+   'skills',COALESCE((SELECT jsonb_agg(jsonb_build_object('id',listed.id,'path',listed.display_name,'kind',listed.kind) ORDER BY listed.position) FROM(
+     SELECT skill.id,skill.display_name,skill.winning_attributes->>'skill_kind' kind,row_number() OVER(ORDER BY skill.display_name,skill.id) position
+     FROM zasp_inventory_relationships relationship
+     JOIN zasp_inventory_entities skill ON (skill.organization_id,skill.workspace_id,skill.environment_id,skill.id,skill.state)=(organization_value,workspace_value,environment_value,relationship.to_entity_id,'active')
+     WHERE (relationship.organization_id,relationship.workspace_id,relationship.environment_id,relationship.from_entity_id,relationship.state,relationship.kind)=(organization_value,workspace_value,environment_value,agent.id,'present','contains')
+      AND skill.winning_attributes->>'skill_kind' IN('skill','agent_instructions','editor_rules')) listed WHERE listed.position<=64),'[]'::jsonb))
+  FROM zasp_inventory_entities agent
+  WHERE (agent.organization_id,agent.workspace_id,agent.environment_id,agent.id,agent.state,agent.product_kind)=(organization_value,workspace_value,environment_value,agent_value,'active','agent')
+ $agent_access$;
+ EXECUTE format('ALTER FUNCTION public.zasp_mcp_agent_access_json(text,text,text,text) OWNER TO %I',owner_value);
+ REVOKE ALL ON FUNCTION public.zasp_mcp_agent_access_json(text,text,text,text) FROM PUBLIC;
+
+ IF to_regprocedure('zasp_authorization80.product_request(text,text,text,text,text,text,text,text,boolean,boolean,boolean,boolean)') IS NULL THEN RETURN;END IF;
+
+ CREATE OR REPLACE FUNCTION zasp_authorization80.agent_access(o text,w text,e text,i text) RETURNS jsonb
+ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $agent_access_statement$
+ DECLARE result jsonb;
+ BEGIN
+  IF NOT COALESCE(public.zasp_valid_product_id(i),false) THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';END IF;
+  PERFORM zasp_authorization80.product_request(o,w,e,NULL,'getAgentAccess','view','agent',i,true,false,false,false);
+  result:=public.zasp_mcp_agent_access_json(o,w,e,i);
+  IF result IS NULL THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='typed agent missing';END IF;
+  RETURN result;
+ END $agent_access_statement$;
+ ALTER FUNCTION zasp_authorization80.agent_access(text,text,text,text) OWNER TO zasp_discovery_authority;
+ REVOKE ALL ON FUNCTION zasp_authorization80.agent_access(text,text,text,text) FROM PUBLIC;
+ GRANT EXECUTE ON FUNCTION zasp_authorization80.agent_access(text,text,text,text) TO zasp_discovery_api;
+END $ws5_agent_access$;

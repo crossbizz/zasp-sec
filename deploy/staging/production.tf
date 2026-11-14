@@ -361,6 +361,7 @@ output "helm_values" {
         kubernetes = var.kubernetes_connector_egress_cidrs
         # Empty while the optional provider is disabled.
         microsoft  = var.discovery_optional_providers.microsoft_egress_cidrs
+        azure      = var.discovery_optional_providers.azure_egress_cidrs
         salesforce = var.discovery_optional_providers.salesforce_egress_cidrs
       }
       findingTicketEgressCIDRs = var.finding_ticket_egress_cidrs
@@ -471,6 +472,7 @@ output "helm_values" {
       oktaCollectorVersion       = var.discovery_implementation_versions.okta_collector
       # Empty keeps the optional provider disabled.
       microsoftCollectorVersion  = var.discovery_optional_providers.microsoft_collector
+      microsoftAzure             = var.discovery_optional_providers.microsoft_azure
       salesforceCollectorVersion = var.discovery_optional_providers.salesforce_collector
       saasCollectorVersion       = var.discovery_optional_providers.saas_collector
       awsRegion                  = var.region

@@ -53,6 +53,8 @@ type discoveryAgentRegionStub struct {
 	functions        []discoveryAgentFunction
 	listFunctionsErr error
 	pageSize         int
+	// vpc is the VPC configuration of a function, by name.
+	vpc map[string]*lambdatypes.VpcConfigResponse
 }
 
 type discoveryAgentFunction struct {
@@ -134,6 +136,7 @@ func (stub *discoveryAgentRegionStub) ListFunctions(_ context.Context, input *la
 				configuration.Environment.Variables[name] = discoveryAgentSentinel
 			}
 		}
+		configuration.VpcConfig = stub.vpc[function.name]
 		output.Functions = append(output.Functions, configuration)
 	}
 	return output, nil
@@ -229,7 +232,10 @@ func discoveryAgentMixedAccount() map[string]*discoveryAgentRegionStub {
 
 const discoveryAgentMixedSource = `{"account_id":"123456789012",` +
 	`"bedrock_agents":[{"agent_id":"AGENT12345","arn":"arn:aws:bedrock:us-east-1:123456789012:agent/AGENT12345","model":"anthropic.claude-sonnet","name":"support","region":"us-east-1","role_arn":"arn:aws:iam::123456789012:role/reader","status":"PREPARED"}],` +
-	`"checks":[{"arn":"arn:aws:bedrock:us-east-1:123456789012:agent/AGENT12345","check":"agent_guardrail_missing"}],` +
+	// The reader role's policy allows s3:GetObject on every resource: the
+	// role reaches every bucket, which is a data store with a check on it.
+	`"checks":[{"arn":"arn:aws:bedrock:us-east-1:123456789012:agent/AGENT12345","check":"agent_guardrail_missing"},{"arn":"arn:aws:s3:::*","check":"agent_data_service_wide_access"}],` +
+	`"data_access":[{"access":"read","arn":"arn:aws:s3:::*","role_arn":"arn:aws:iam::123456789012:role/reader","scope":"service","service":"s3"}],` +
 	`"gateways":[{"arn":"arn:aws:bedrock-agentcore:us-west-2:123456789012:gateway/tools-abcdefghij","gateway_id":"tools-abcdefghij","name":"tools","region":"us-west-2","status":"READY"}],` +
 	`"lambda_functions":[{"arn":"arn:aws:lambda:us-east-1:123456789012:function:bot","name":"bot","region":"us-east-1","role_arn":"arn:aws:iam::123456789012:role/plain","signals":["env:openai"],"state":"Active"},` +
 	`{"arn":"arn:aws:lambda:us-east-1:123456789012:function:invoker","name":"invoker","region":"us-east-1","role_arn":"arn:aws:iam::123456789012:role/reader","signals":["iam:bedrock_invoke_model"],"state":"Active"}],` +
@@ -328,6 +334,7 @@ func TestAWSInventoryReadsAgentsOfAMixedAccount(t *testing.T) {
 		"arn:aws:bedrock-agentcore:us-west-2:123456789012:gateway/tools-abcdefghij":      "aws_agentcore_gateway",
 		"arn:aws:lambda:us-east-1:123456789012:function:bot":                             "aws_inferred_agent",
 		"arn:aws:lambda:us-east-1:123456789012:function:invoker":                         "aws_inferred_agent",
+		"arn:aws:s3:::*": "aws_data_store",
 	}
 	if !reflect.DeepEqual(kinds, wantKinds) {
 		t.Fatalf("agent page kinds = %v", kinds)
@@ -347,7 +354,7 @@ func TestAWSInventoryReadsAgentsOfAMixedAccount(t *testing.T) {
 			identities = append(identities, relationship.SourceNativeID)
 		}
 	}
-	if len(pages[3].Relationships) != 11 || len(identities) != 3 || strings.Contains(strings.Join(identities, " "), "function:bot") || strings.Contains(strings.Join(identities, " "), "role/plain") {
+	if len(pages[3].Relationships) != 13 || len(identities) != 3 || strings.Contains(strings.Join(identities, " "), "function:bot") || strings.Contains(strings.Join(identities, " "), "role/plain") {
 		t.Fatalf("relationships = %d, identity edges = %v", len(pages[3].Relationships), identities)
 	}
 	// The run reads the account once: the later pages resume what the first
@@ -690,7 +697,7 @@ func TestAWSLambdaInferenceNeedsEnoughEvidence(t *testing.T) {
 		{name: "strong-prefix", role: discoveryAgentPlainRole, env: []string{"MCP_SERVER_URL"}},
 		{name: "no-environment", role: discoveryAgentPlainRole},
 	}}
-	functions, scanned, status, err := collectDiscoveryAWSLambdaAgents(context.Background(), stub, "123456789012", "us-east-1", actions, nil)
+	functions, scanned, status, err := collectDiscoveryAWSLambdaAgents(context.Background(), stub, "123456789012", "us-east-1", actions, nil, nil)
 	if err != nil || scanned != 5 || status != awsdiscovery.AgentServiceCollected || len(functions) != 2 {
 		t.Fatalf("functions = %#v, scanned %d, %s, %v", functions, scanned, status, err)
 	}

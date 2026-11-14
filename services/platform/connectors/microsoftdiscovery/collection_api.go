@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -34,7 +35,12 @@ const (
 	microsoftAgentIdentitiesSelect  = "id,appId,displayName,accountEnabled"
 	microsoftServicePrincipalSelect = "id,appId,displayName,accountEnabled,servicePrincipalType"
 	microsoftCopilotAgentsSelect    = "botid,name,schemaname,statecode,accesscontrolpolicy,authenticationmode"
-	microsoftAgentIdentityODataType = "#microsoft.graph.agentIdentity"
+	// The bot's configuration column holds its generative AI settings, the
+	// content moderation level among them. The column name and the shape of
+	// its JSON are from Copilot Studio exports as remembered: UNVERIFIED. An
+	// environment that refuses the column is read without it.
+	microsoftCopilotAgentsModerationSelect = microsoftCopilotAgentsSelect + ",configuration"
+	microsoftAgentIdentityODataType        = "#microsoft.graph.agentIdentity"
 
 	microsoftPhaseTenant            = "tenant"
 	microsoftPhaseAgentIdentities   = "agentidentities"
@@ -45,11 +51,11 @@ const (
 	microsoftMaximumResponseBytes     = int64(8 * 1024 * 1024)
 	microsoftMinimumCollectionBytes   = int64(4096)
 	microsoftMaximumContinuationBytes = 1024
-	microsoftMaximumCredentialBytes   = 2*8192 + 512
+	microsoftMaximumCredentialBytes   = 3*8192 + 512
 )
 
 var (
-	microsoftPageCursorPattern       = regexp.MustCompile(`^microsoft:(agentidentities|serviceprincipals|copilotagents):([1-9][0-9]{0,5}):([A-Za-z0-9_-]+):([0-9a-f]{16})$`)
+	microsoftPageCursorPattern       = regexp.MustCompile(`^microsoft:(agentidentities|serviceprincipals|copilotagents|azure):([1-9][0-9]{0,5}):([A-Za-z0-9_-]+):([0-9a-f]{16})$`)
 	microsoftCompleteCursorPattern   = regexp.MustCompile(`^microsoft:complete:([0-9a-f]{16}):[0-9a-f]{16}$`)
 	microsoftTenantIDPattern         = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 	microsoftObjectIDPattern         = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
@@ -57,6 +63,9 @@ var (
 	microsoftDataverseHostPattern    = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,62}\.crm[0-9]{0,2}\.dynamics\.com$`)
 	microsoftCredentialGraphOnly     = []string{"{", "graph_token", ":", "", "}"}
 	microsoftCredentialWithDataverse = []string{"{", "dataverse_token", ":", "", ",", "dataverse_url", ":", "", ",", "graph_token", ":", "", "}"}
+	// With a Resource Manager token the envelope starts with arm_token; the
+	// rest is one of the two shapes above.
+	microsoftCredentialARMPrefix = []string{"{", "arm_token", ":", "", ","}
 )
 
 // microsoftPageState is the payload of a page cursor. The continuation is the
@@ -69,6 +78,12 @@ type microsoftPageState struct {
 	// Environment is the Dataverse host of the copilotagents phase. A cursor
 	// minted for one environment is refused with a credential for another.
 	Environment string `json:"e,omitempty"`
+	// Basic is set when the environment refused the configuration column on
+	// the first copilotagents page: the later pages ask without it too.
+	Basic bool `json:"b,omitempty"`
+	// Subscription is the Azure subscription an azure page reads; "" on the
+	// first page of the phase.
+	Subscription string `json:"u,omitempty"`
 }
 
 // microsoftCredential holds the two tokens as views into the caller's
@@ -78,6 +93,9 @@ type microsoftCredential struct {
 	graphToken     []byte
 	dataverseToken []byte
 	dataverseHost  string
+	// armToken is the Azure Resource Manager token; nil when the deployment
+	// did not opt in to reading Azure.
+	armToken []byte
 }
 
 type CollectionAPIConfig struct {
@@ -142,6 +160,9 @@ func (api *MicrosoftCollectionAPI) FetchCollectionPage(ctx context.Context, cred
 	if state.Phase == microsoftPhaseCopilotAgents && (envelope.dataverseHost == "" || envelope.dataverseHost != state.Environment) {
 		return CollectionPage{}, ErrInvalid
 	}
+	if state.Phase == microsoftPhaseAzure {
+		return api.fetchAzurePage(ctx, credential, envelope, request, state)
+	}
 	pageLimit := 1
 	if state.Phase != microsoftPhaseTenant {
 		// Every listed agent is one entity and one relationship, so the page
@@ -162,29 +183,45 @@ func (api *MicrosoftCollectionAPI) FetchCollectionPage(ctx context.Context, cred
 		path, query = microsoftServicePrincipalsPath, "$select="+microsoftServicePrincipalSelect+"&$top="+strconv.Itoa(pageLimit)
 	case microsoftPhaseCopilotAgents:
 		host, path, token = envelope.dataverseHost, microsoftCopilotAgentsPath, envelope.dataverseToken
-		query = "$select=" + microsoftCopilotAgentsSelect
+		query = "$select=" + microsoftCopilotAgentsModerationSelect
+		if state.Basic {
+			query = "$select=" + microsoftCopilotAgentsSelect
+		}
 	default:
 		return CollectionPage{}, ErrInvalid
 	}
 	if state.Continuation != "" {
 		query += "&$skiptoken=" + strings.ReplaceAll(url.QueryEscape(state.Continuation), "+", "%20")
 	}
-	providerRequest, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://"+host+path+"?"+query, nil)
-	if err != nil {
-		return CollectionPage{}, ErrInvalid
-	}
-	providerRequest.Close = true
-	providerRequest.Header.Set("Accept", "application/json")
-	providerRequest.Header.Set("Authorization", "Bearer "+string(token))
-	if state.Phase == microsoftPhaseCopilotAgents {
-		providerRequest.Header.Set("OData-MaxVersion", "4.0")
-		providerRequest.Header.Set("OData-Version", "4.0")
-		providerRequest.Header.Set("Prefer", "odata.maxpagesize="+strconv.Itoa(pageLimit))
-	}
 	bounded, cancel := context.WithTimeout(ctx, api.timeout)
 	defer cancel()
-	providerRequest = providerRequest.WithContext(bounded)
-	response, err := doMicrosoftCollectionRequest(api.client, providerRequest)
+	send := func(query string) (*http.Response, error) {
+		providerRequest, err := http.NewRequestWithContext(bounded, http.MethodGet, "https://"+host+path+"?"+query, nil)
+		if err != nil {
+			return nil, ErrInvalid
+		}
+		providerRequest.Close = true
+		providerRequest.Header.Set("Accept", "application/json")
+		providerRequest.Header.Set("Authorization", "Bearer "+string(token))
+		if state.Phase == microsoftPhaseCopilotAgents {
+			providerRequest.Header.Set("OData-MaxVersion", "4.0")
+			providerRequest.Header.Set("OData-Version", "4.0")
+			providerRequest.Header.Set("Prefer", "odata.maxpagesize="+strconv.Itoa(pageLimit))
+		}
+		return doMicrosoftCollectionRequest(api.client, providerRequest)
+	}
+	response, err := send(query)
+	// An environment that does not know the configuration column answers the
+	// first Copilot Studio page with 400. The page is asked for once more
+	// without it; the agents are then listed without a moderation level.
+	if err == nil && response != nil && response.StatusCode == http.StatusBadRequest && state.Phase == microsoftPhaseCopilotAgents && !state.Basic && state.Continuation == "" {
+		closeMicrosoftCollectionResponse(response)
+		state.Basic = true
+		response, err = send("$select=" + microsoftCopilotAgentsSelect)
+	}
+	if errors.Is(err, ErrInvalid) {
+		return CollectionPage{}, ErrInvalid
+	}
 	if err != nil || bounded.Err() != nil || response == nil {
 		closeMicrosoftCollectionResponse(response)
 		return CollectionPage{}, providercollection.ClassifyProviderHTTPFailure(bounded, err, 0, "", api.clock())
@@ -245,12 +282,12 @@ func (api *MicrosoftCollectionAPI) FetchCollectionPage(ctx context.Context, cred
 	if !ok {
 		return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
 	}
-	next, complete, transitionOK := nextMicrosoftCollectionCursor(request.Subject, request.Cursor, state, nextContinuation, envelope.dataverseHost)
+	next, complete, transitionOK := nextMicrosoftCollectionCursor(request.Subject, request.Cursor, state, nextContinuation, envelope.dataverseHost, envelope.armToken != nil)
 	if !transitionOK {
 		return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
 	}
 	page, err := NewMicrosoftCollectionPage(request.Subject, next, complete, entities, relationships)
-	if err != nil || bytes.Contains(page.Raw, credential) || bytes.Contains(page.Raw, envelope.graphToken) || envelope.dataverseToken != nil && bytes.Contains(page.Raw, envelope.dataverseToken) {
+	if err != nil || bytes.Contains(page.Raw, credential) || bytes.Contains(page.Raw, envelope.graphToken) || envelope.dataverseToken != nil && bytes.Contains(page.Raw, envelope.dataverseToken) || envelope.armToken != nil && bytes.Contains(page.Raw, envelope.armToken) {
 		return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
 	}
 	if len(page.Entities) > request.RemainingItems || len(page.Relationships) > request.RemainingRelationships || int64(len(page.Raw)) > request.RemainingBytes {
@@ -324,6 +361,32 @@ type microsoftAgentAttributes struct {
 	Status    string                 `json:"status"`
 	Posture   agentsignals.Posture   `json:"posture"`
 	Discovery agentsignals.Discovery `json:"discovery"`
+	// ContentModeration is a Copilot Studio agent's generative AI moderation
+	// level (high, medium or low) when its configuration states one.
+	ContentModeration string `json:"content_moderation,omitempty"`
+}
+
+// microsoftContentModeration reads the moderation level out of a bot's
+// configuration document. Only that one member is read; the rest of the
+// configuration is not kept. A document that does not state a known level
+// yields "".
+func microsoftContentModeration(configuration *string) string {
+	if configuration == nil || len(*configuration) < 2 || len(*configuration) > 256<<10 {
+		return ""
+	}
+	var document struct {
+		AISettings struct {
+			ContentModeration string `json:"contentModeration"`
+		} `json:"aISettings"`
+	}
+	if json.Unmarshal([]byte(*configuration), &document) != nil {
+		return ""
+	}
+	switch level := strings.ToLower(document.AISettings.ContentModeration); level {
+	case "high", "medium", "low":
+		return level
+	}
+	return ""
 }
 
 // normalizeMicrosoftDirectoryObjects handles both Graph listings. Every agent
@@ -386,7 +449,7 @@ func normalizeMicrosoftDirectoryObjects(subject collection.SubjectBinding, phase
 			ObjectType string `json:"object_type"`
 			Name       string `json:"name"`
 		}{subject.ID, objectType, object.DisplayName})
-		attributes, _ := json.Marshal(microsoftAgentAttributes{status, agentsignals.Posture{CredentialActive: *object.AccountEnabled}, discovery})
+		attributes, _ := json.Marshal(microsoftAgentAttributes{Status: status, Posture: agentsignals.Posture{CredentialActive: *object.AccountEnabled}, Discovery: discovery})
 		entityID := deterministicMicrosoftInventoryID(subject, kind, id)
 		entity, err := marshalMicrosoftEntity(entityID, kind, "microsoft:"+objectType+":"+id, object.DisplayName, stable, attributes)
 		if err != nil {
@@ -409,10 +472,11 @@ func normalizeMicrosoftCopilotAgents(subject collection.SubjectBinding, environm
 	seen := make(map[string]struct{}, len(objects))
 	for _, raw := range objects {
 		var bot struct {
-			ID                 string `json:"botid"`
-			Name               string `json:"name"`
-			StateCode          *int   `json:"statecode"`
-			AuthenticationMode *int   `json:"authenticationmode"`
+			ID                 string  `json:"botid"`
+			Name               string  `json:"name"`
+			StateCode          *int    `json:"statecode"`
+			AuthenticationMode *int    `json:"authenticationmode"`
+			Configuration      *string `json:"configuration"`
 		}
 		if !decodeMicrosoftCollectionResponse(raw, &bot) || !microsoftObjectIDPattern.MatchString(bot.ID) || !validMicrosoftCollectionText(bot.Name, 256) || bot.StateCode == nil {
 			return nil, nil, false
@@ -436,7 +500,7 @@ func normalizeMicrosoftCopilotAgents(subject collection.SubjectBinding, environm
 		// authenticationmode 1 is "None": anyone who can reach the agent can
 		// talk to it, so its input is untrusted.
 		posture := agentsignals.Posture{CredentialActive: active, UntrustedInput: bot.AuthenticationMode != nil && *bot.AuthenticationMode == 1}
-		attributes, _ := json.Marshal(microsoftAgentAttributes{status, posture, agentsignals.NewDiscovery(agentsignals.MethodProviderAPI, "copilot_studio", nil)})
+		attributes, _ := json.Marshal(microsoftAgentAttributes{Status: status, Posture: posture, Discovery: agentsignals.NewDiscovery(agentsignals.MethodProviderAPI, "copilot_studio", nil), ContentModeration: microsoftContentModeration(bot.Configuration)})
 		nativeID := environment + ":" + id
 		entityID := deterministicMicrosoftInventoryID(subject, "microsoft_copilot_agent", nativeID)
 		entity, err := marshalMicrosoftEntity(entityID, "microsoft_copilot_agent", "microsoft:copilot_studio:"+nativeID, bot.Name, stable, attributes)
@@ -527,9 +591,11 @@ func validMicrosoftPageState(state microsoftPageState) bool {
 	}
 	switch state.Phase {
 	case microsoftPhaseAgentIdentities, microsoftPhaseServicePrincipals:
-		return state.Environment == ""
+		return state.Environment == "" && !state.Basic && state.Subscription == ""
 	case microsoftPhaseCopilotAgents:
-		return microsoftDataverseHostPattern.MatchString(state.Environment)
+		return microsoftDataverseHostPattern.MatchString(state.Environment) && state.Subscription == ""
+	case microsoftPhaseAzure:
+		return state.Environment == "" && !state.Basic && (state.Subscription == "" && state.Continuation == "" || microsoftTenantIDPattern.MatchString(state.Subscription))
 	default:
 		return false
 	}
@@ -552,7 +618,7 @@ func microsoftNextContinuation(link, expectedHost, expectedPath string) (string,
 		return "", false
 	}
 	for key, values := range query {
-		if key != "$skiptoken" && key != "$select" && key != "$top" || len(values) != 1 {
+		if key != "$skiptoken" && key != "$select" && key != "$top" && key != "api-version" || len(values) != 1 {
 			return "", false
 		}
 	}
@@ -560,13 +626,13 @@ func microsoftNextContinuation(link, expectedHost, expectedPath string) (string,
 	return next, validMicrosoftContinuation(next)
 }
 
-func nextMicrosoftCollectionCursor(subject collection.SubjectBinding, prior collection.Cursor, state microsoftPageState, nextContinuation, dataverseHost string) (collection.Cursor, bool, bool) {
+func nextMicrosoftCollectionCursor(subject collection.SubjectBinding, prior collection.Cursor, state microsoftPageState, nextContinuation, dataverseHost string, azure bool) (collection.Cursor, bool, bool) {
 	nextLineage := state.Lineage + 1
 	if nextContinuation != "" {
 		if state.Phase == microsoftPhaseTenant {
 			return collection.Cursor{}, false, false
 		}
-		return nextMicrosoftStateCursor(subject, microsoftPageState{Phase: state.Phase, Lineage: nextLineage, Continuation: nextContinuation, Environment: state.Environment})
+		return nextMicrosoftStateCursor(subject, microsoftPageState{Phase: state.Phase, Lineage: nextLineage, Continuation: nextContinuation, Environment: state.Environment, Basic: state.Basic})
 	}
 	switch state.Phase {
 	case microsoftPhaseTenant:
@@ -577,8 +643,15 @@ func nextMicrosoftCollectionCursor(subject collection.SubjectBinding, prior coll
 		if dataverseHost != "" {
 			return nextMicrosoftStateCursor(subject, microsoftPageState{Phase: microsoftPhaseCopilotAgents, Lineage: nextLineage, Environment: dataverseHost})
 		}
+		if azure {
+			return nextMicrosoftStateCursor(subject, microsoftPageState{Phase: microsoftPhaseAzure, Lineage: nextLineage})
+		}
 		return nextMicrosoftCompleteCursor(prior, subject), true, true
 	case microsoftPhaseCopilotAgents:
+		// Azure, when the deployment opted in, is read last.
+		if azure {
+			return nextMicrosoftStateCursor(subject, microsoftPageState{Phase: microsoftPhaseAzure, Lineage: nextLineage})
+		}
 		return nextMicrosoftCompleteCursor(prior, subject), true, true
 	default:
 		return collection.Cursor{}, false, false
@@ -613,6 +686,20 @@ func decodeMicrosoftCredential(credential []byte) (microsoftCredential, bool) {
 		return microsoftCredential{}, false
 	}
 	parts := bytes.Split(credential, []byte{'"'})
+	// A Resource Manager token, when present, is the first member.
+	var armToken []byte
+	if len(parts) > len(microsoftCredentialARMPrefix) && string(parts[1]) == "arm_token" {
+		for index, want := range microsoftCredentialARMPrefix {
+			if want != "" && string(parts[index]) != want {
+				return microsoftCredential{}, false
+			}
+		}
+		armToken = parts[3]
+		if !validMicrosoftToken(armToken) {
+			return microsoftCredential{}, false
+		}
+		parts = append([][]byte{[]byte("{")}, parts[len(microsoftCredentialARMPrefix):]...)
+	}
 	shape := microsoftCredentialGraphOnly
 	if len(parts) == len(microsoftCredentialWithDataverse) {
 		shape = microsoftCredentialWithDataverse
@@ -625,7 +712,7 @@ func decodeMicrosoftCredential(credential []byte) (microsoftCredential, bool) {
 			return microsoftCredential{}, false
 		}
 	}
-	result := microsoftCredential{graphToken: parts[len(parts)-2]}
+	result := microsoftCredential{graphToken: parts[len(parts)-2], armToken: armToken}
 	if len(shape) == len(microsoftCredentialWithDataverse) {
 		result.dataverseToken = parts[3]
 		if !validMicrosoftToken(result.dataverseToken) || !microsoftDataverseURLPattern.Match(parts[7]) {

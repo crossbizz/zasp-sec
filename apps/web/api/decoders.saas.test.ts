@@ -28,6 +28,7 @@ const summary = {
   id: ids.entity, name: "support-agent", kind: "agent", owner: "", team: "", tags: [], evidence_id: ids.evidence, confidence_basis_points: 9500,
   first_seen: "2026-08-19T00:00:00Z", last_seen: "2026-08-19T01:00:00Z", observed_at: "2026-08-19T01:00:00Z", fresh_until: "2026-08-20T01:00:00Z", freshness_state: "fresh", version: 1,
   provider: "saas", source_kind: "saas_agent", discovery: { method: "provider_api", platform: "databricks", signals: [] }, management_state: "unmanaged",
+  activity_state: "unknown", last_activity_at: null,
 } as const;
 
 describe("generic saas provider decoders", () => {
@@ -89,7 +90,7 @@ describe("generic saas provider decoders", () => {
   it("accepts inventory the saas provider reports and names it as a source", () => {
     const page = (item: unknown) => decodeInventoryPage({ items: [item], page_info: { next_cursor: null, has_more: false } });
     const application = { ...summary, name: "gpt-4o-proxy", source_kind: "saas_ai_application", confidence_basis_points: 7000, discovery: { method: "inferred", platform: "databricks", signals: ["model:openai", "surface:model_serving"] } };
-    const tenant = { ...summary, name: "Databricks workspace", kind: "asset", source_kind: "saas_tenant", discovery: { method: "provider_api", platform: "saas_tenant", signals: [] }, management_state: "not_applicable" };
+    const tenant = { ...summary, name: "Databricks workspace", kind: "asset", source_kind: "saas_tenant", discovery: { method: "provider_api", platform: "saas_tenant", signals: [] }, management_state: "not_applicable", activity_state: "not_applicable" };
     for (const item of [summary, application, tenant]) expect(page(item).items[0]).toEqual(item);
     // The platform is not a provider.
     for (const provider of ["databricks", "slack", "SaaS", "nango"]) expect(() => page({ ...summary, provider })).toThrow();

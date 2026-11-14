@@ -661,13 +661,19 @@ func TestKubernetesCollectionAPIInfersAgentsOnlyFromSufficientPodTemplateSignals
 		{"image digest and registry port", ``, `{"containers":[{"name":"api","image":"registry.example:5000/LangChain/LangGraph-API@sha256:0000000000000000000000000000000000000000000000000000000000000000"}]}`, "[kubernetes_inferred_agent[image:langgraph]]"},
 		{"init container image", ``, `{"containers":[{"name":"web","image":"nginx:1.27"}],"initContainers":[{"name":"seed","image":"ghcr.io/all-hands-ai/openhands:0.9"}]}`, "[kubernetes_inferred_agent[image:openhands]]"},
 		{"init container environment", ``, `{"containers":[{"name":"web","image":"nginx:1.27"}],"initContainers":[{"name":"seed","image":"busybox:1","env":[{"name":"ANTHROPIC_API_KEY","valueFrom":{"secretKeyRef":{"name":"keys","key":"anthropic"}}}]}]}`, "[kubernetes_inferred_agent[env:anthropic]]"},
-		{"command and args", ``, `{"containers":[{"name":"files","image":"node:22","command":["npx"],"args":["-y","@modelcontextprotocol/server-filesystem","/data"]}]}`, "[kubernetes_inferred_agent[process:mcp_server]]"},
-		{"command alone", ``, `{"containers":[{"name":"files","image":"node:22","command":["npx","-y","@modelcontextprotocol/server-filesystem"]}]}`, "[kubernetes_inferred_agent[process:mcp_server]]"},
+		{"command and args", ``, `{"containers":[{"name":"files","image":"node:22","command":["npx"],"args":["-y","@modelcontextprotocol/server-filesystem","/data"]}]}`, "[kubernetes_inferred_agent[process:mcp_server] kubernetes_mcp_server]"},
+		{"command alone", ``, `{"containers":[{"name":"files","image":"node:22","command":["npx","-y","@modelcontextprotocol/server-filesystem"]}]}`, "[kubernetes_inferred_agent[process:mcp_server] kubernetes_mcp_server]"},
+		// An MCP server image is a server and, with nothing else, not an agent.
+		{"mcp server image", ``, `{"containers":[{"name":"mcp","image":"ghcr.io/acme/billing-mcp-server:2"}]}`, "[kubernetes_workload kubernetes_mcp_server]"},
+		{"mcp server opted out", `,"labels":{"zasp.ai/entity-kind":"workload"}`, `{"containers":[{"name":"mcp","image":"ghcr.io/acme/billing-mcp-server:2"}]}`, "[kubernetes_workload]"},
+		{"mcp server in an init container only", ``, `{"containers":[{"name":"web","image":"nginx:1.27"}],"initContainers":[{"name":"seed","image":"ghcr.io/acme/billing-mcp-server:2"}]}`, "[kubernetes_workload]"},
 		{"multi-line args", ``, `{"containers":[{"name":"runner","image":"python:3.13","command":["/bin/sh","-c"],"args":["set -e\npip install crewai\nexec crewai run\n"]}]}`, "[kubernetes_inferred_agent[process:crewai]]"},
 		{"every class sorted", ``, `{"containers":[{"name":"graph","image":"langchain/langgraph-api:1","args":["langgraph","up"],"env":[{"name":"OPENAI_API_KEY"},{"name":"LANGSMITH_TRACING"}],"ports":[{"containerPort":8123}]}]}`, "[kubernetes_inferred_agent[env:langchain env:openai image:langgraph port:langgraph process:langgraph]]"},
 	} {
 		page := fetchKubernetesWorkloadPage(t, "deployments", 7, `{"apiVersion":"apps/v1","kind":"DeploymentList","metadata":{"continue":""},"items":[`+deployment(1, test.labels, test.podSpec)+`]}`)
-		if got := fmt.Sprint(kubernetesEntityKindsAndSignals(t, page.Entities)); got != test.want || len(page.Relationships) != 2 {
+		// A workload has two edges; the MCP server beside it has one more.
+		wantRelationships := 2 + strings.Count(test.want, "kubernetes_mcp_server")
+		if got := fmt.Sprint(kubernetesEntityKindsAndSignals(t, page.Entities)); got != test.want || len(page.Relationships) != wantRelationships {
 			t.Fatalf("%s: entities = %s, want %s (relationships %d)", test.name, got, test.want, len(page.Relationships))
 		}
 	}

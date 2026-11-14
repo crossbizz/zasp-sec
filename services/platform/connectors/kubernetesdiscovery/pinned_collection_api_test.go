@@ -135,7 +135,8 @@ func TestAutomaticDiscoveryInferredAgentCollectionMeetsTypedSnapshotGrammar(t *t
 			items = `[{"apiVersion":"v1","kind":"ServiceAccount","metadata":{"uid":"sa-support","name":"support","namespace":"zasp"}}]`
 		case "Deployment":
 			items = `[{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"uid":"deployment-graph","name":"graph","namespace":"zasp"},"spec":{"template":{"spec":{"serviceAccountName":"support","containers":[{"name":"api","image":"langchain/langgraph-api:1"}]}}}},` +
-				`{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"uid":"deployment-web","name":"web","namespace":"zasp"},"spec":{"template":{"spec":{"serviceAccountName":"support","containers":[{"name":"web","image":"nginx:1.27","ports":[{"containerPort":4000}]}]}}}}]`
+				`{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"uid":"deployment-web","name":"web","namespace":"zasp"},"spec":{"template":{"spec":{"serviceAccountName":"support","containers":[{"name":"web","image":"nginx:1.27","ports":[{"containerPort":4000}]}]}}}},` +
+				`{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"uid":"deployment-billing-mcp","name":"billing-mcp","namespace":"zasp"},"spec":{"template":{"spec":{"serviceAccountName":"support","containers":[{"name":"mcp","image":"ghcr.io/acme/billing-mcp-server:2","env":[{"name":"BILLING_TOKEN","value":"sk-do-not-leak"}]}]}}}}]`
 		case "StatefulSet":
 			items = `[{"apiVersion":"apps/v1","kind":"StatefulSet","metadata":{"uid":"statefulset-assistant","name":"assistant","namespace":"zasp"},"spec":{"template":{"spec":{"serviceAccountName":"support","containers":[{"name":"assistant","image":"example/assistant:v1","env":[{"name":"OPENAI_API_KEY","value":"sk-do-not-leak"}]}]}}}}]`
 		case "CronJob":
@@ -207,10 +208,10 @@ func TestAutomaticDiscoveryInferredAgentCollectionMeetsTypedSnapshotGrammar(t *t
 		t.Fatalf("valid full inventory rejected: %v", err)
 	}
 	snapshot := complete.Snapshot()
-	if want := "map[kubernetes_cluster[]:1 kubernetes_inferred_agent[env:openai]:1 kubernetes_inferred_agent[image:langgraph]:1 kubernetes_inferred_agent[process:mcp_server]:1 kubernetes_namespace[]:1 kubernetes_service_account[]:1 kubernetes_workload[]:1]"; fmt.Sprint(kinds) != want {
+	if want := "map[kubernetes_cluster[]:1 kubernetes_inferred_agent[env:openai]:1 kubernetes_inferred_agent[image:langgraph]:1 kubernetes_inferred_agent[process:mcp_server]:1 kubernetes_mcp_server[]:1 kubernetes_namespace[]:1 kubernetes_service_account[]:1 kubernetes_workload[]:2]"; fmt.Sprint(kinds) != want {
 		t.Fatalf("collected kinds = %v, want %s", kinds, want)
 	}
-	if len(transport.requests) != 11 || len(driver.objects) != 12 || !snapshot.TypedObservations() || snapshot.EntityCount() != 7 || snapshot.RelationshipCount() != 10 || snapshot.EvidenceCount() != 7 {
+	if len(transport.requests) != 11 || len(driver.objects) != 12 || !snapshot.TypedObservations() || snapshot.EntityCount() != 9 || snapshot.RelationshipCount() != 13 || snapshot.EvidenceCount() != 9 {
 		t.Fatalf("incomplete typed inventory: pages=%d artifacts=%d entities=%d relationships=%d evidence=%d", len(transport.requests), len(driver.objects), snapshot.EntityCount(), snapshot.RelationshipCount(), snapshot.EvidenceCount())
 	}
 	// The snapshot itself, not only the stored pages, carries each inferred
@@ -241,10 +242,26 @@ func TestAutomaticDiscoveryInferredAgentCollectionMeetsTypedSnapshotGrammar(t *t
 	for _, entity := range snapshotEntities {
 		entityKinds[entity.ID] = entity.Kind
 	}
-	inferred := 0
+	inferred, servers := 0, 0
 	for _, entity := range snapshotEntities {
 		if entity.IdentityNamespace != entity.Kind || entity.ObservedAt != request.ObservationTime.Format(time.RFC3339) || entity.EvidenceID == "" || entity.ConfidenceBasisPoints < 1 {
 			t.Fatalf("snapshot entity lacks the typed envelope: %+v", entity)
+		}
+		// The workload recognised as an MCP server is a typed tool attached
+		// to its namespace.
+		if entity.Kind == "kubernetes_mcp_server" {
+			servers++
+			if entity.ProductKind != "tool" || entity.ConfidenceBasisPoints != 6000 || string(entity.Attributes) != `{"namespaced":true,"source":"workload","transport":"http"}` ||
+				string(entity.StableFields) != `{"api_group":"apps","api_version":"v1","cluster":"prod.example/cluster-a","name":"billing-mcp","namespace":"zasp","resource_kind":"Deployment"}` {
+				t.Fatalf("MCP server = %+v\nstable %s\nattributes %s", entity, entity.StableFields, entity.Attributes)
+			}
+			attached := false
+			for _, relationship := range snapshotRelationships {
+				attached = attached || relationship.ToEntityID == entity.ID && relationship.Kind == "attached_to" && entityKinds[relationship.FromEntityID] == "kubernetes_namespace"
+			}
+			if !attached {
+				t.Fatal("the MCP server is not attached to its namespace")
+			}
 		}
 		if entity.Kind != "kubernetes_inferred_agent" {
 			continue
@@ -266,8 +283,8 @@ func TestAutomaticDiscoveryInferredAgentCollectionMeetsTypedSnapshotGrammar(t *t
 			t.Fatalf("inferred agent relationships = %v, want %s", related, want)
 		}
 	}
-	if inferred != 3 {
-		t.Fatalf("inferred agents in snapshot = %d", inferred)
+	if inferred != 3 || servers != 1 {
+		t.Fatalf("inferred agents in snapshot = %d, MCP servers = %d", inferred, servers)
 	}
 }
 

@@ -135,6 +135,9 @@ type discoveryAWSRegionAgents struct {
 	// guardrailMissing lists the ARNs of Bedrock agents with no guardrail.
 	guardrailMissing []string
 	egress           discoveryAWSEgressResult
+	// vpcFunctions are the region's functions attached to a VPC, for the
+	// attribution of egress seen from a Lambda network interface.
+	vpcFunctions []discoveryAWSVPCFunction
 }
 
 // collectDiscoveryAWSAgentSource reads the AI services of every enabled
@@ -151,22 +154,34 @@ func collectDiscoveryAWSAgentSource(ctx context.Context, factory discoveryAWSInv
 	// The audit log first: a role seen invoking a model is evidence for the
 	// function that runs as it.
 	roleSignals, invokerRegion, cloudTrail := map[string][]string{}, map[string]string{}, ""
+	usedActions, auditComplete := map[string]map[string]bool{}, true
 	roleInvoked := map[string]time.Time{}
 	if factory.CloudTrail != nil {
 		perRegion := make([]map[string][]string, len(regions))
 		perRegionInvoked := make([]map[string]time.Time, len(regions))
+		invocations := make([]discoveryAWSInvocations, len(regions))
 		statuses := make([]string, len(regions))
 		if err := discoveryAWSEach(ctx, len(regions), func(bounded context.Context, index int) error {
 			api, err := factory.CloudTrail(regions[index], credentials)
 			if err != nil || nilDiscoveryClientDependency(api) {
 				return awsdiscovery.ErrDenied
 			}
-			perRegion[index], perRegionInvoked[index], statuses[index], err = collectDiscoveryAWSInvokers(bounded, api, accountID, now)
+			invocations[index], statuses[index], err = collectDiscoveryAWSInvocations(bounded, api, accountID, now)
+			perRegion[index], perRegionInvoked[index] = invocations[index].signals, invocations[index].latest
 			return err
 		}); err != nil {
 			return nil, err
 		}
 		for index := range regions {
+			auditComplete = auditComplete && statuses[index] == awsdiscovery.AgentServiceCollected && invocations[index].complete
+			for role, actions := range invocations[index].actions {
+				if usedActions[role] == nil {
+					usedActions[role] = map[string]bool{}
+				}
+				for action := range actions {
+					usedActions[role][action] = true
+				}
+			}
 			cloudTrail = accountDiscoveryAWSAgentStatus(cloudTrail, statuses[index])
 			for role, invoked := range perRegionInvoked[index] {
 				if invoked.After(roleInvoked[role]) {
@@ -196,13 +211,61 @@ func collectDiscoveryAWSAgentSource(ctx context.Context, factory discoveryAWSInv
 	bedrock, agentCore, functions, scanned := "", "", "", 0
 	resolverLogs, flowLogs := "", ""
 	var guardrailMissing []string
+	servers := map[string]awsdiscovery.AgentInventoryMCPServer{}
+	var uses []awsdiscovery.AgentInventoryUse
 	for index, found := range regional {
 		guardrailMissing = append(guardrailMissing, found.guardrailMissing...)
 		if found.egress.resolver != "" {
 			resolverLogs, flowLogs = accountDiscoveryAWSAgentStatus(resolverLogs, found.egress.resolver), accountDiscoveryAWSAgentStatus(flowLogs, found.egress.flow)
 		}
-		for instance, signals := range found.egress.instances {
-			source.InferredWorkloads = append(source.InferredWorkloads, awsdiscovery.AgentInventoryWorkload{ARN: "arn:aws:ec2:" + regions[index] + ":" + accountID + ":instance/" + instance, Name: instance, Region: regions[index], ResourceType: "ec2_instance", Signals: signals})
+		// What the network logs attributed egress to. A function is merged
+		// into the listed function; everything else is an inferred workload.
+		for _, workload := range found.egress.workloads {
+			arn, name := "", workload.id
+			switch workload.kind {
+			case discoveryAWSEgressInstance:
+				arn = "arn:aws:ec2:" + regions[index] + ":" + accountID + ":instance/" + workload.id
+			case discoveryAWSEgressService:
+				arn = "arn:aws:ecs:" + regions[index] + ":" + accountID + ":service/" + workload.id
+			case discoveryAWSEgressPod:
+				arn = "arn:aws:eks:" + regions[index] + ":" + accountID + ":cluster/" + workload.id
+			case discoveryAWSEgressFunction:
+				function, one := discoveryAWSFunctionForInterface(found.vpcFunctions, workload.id)
+				if !one {
+					continue
+				}
+				arn = function.arn
+				merged := false
+				for position := range found.functions {
+					if found.functions[position].ARN == arn {
+						found.functions[position].Signals = mergeDiscoveryAWSSignals(found.functions[position].Signals, workload.signals)
+						merged = true
+					}
+				}
+				if !merged {
+					found.functions = append(found.functions, awsdiscovery.AgentInventoryLambdaFunction{ARN: arn, Name: function.name, Region: regions[index], RoleARN: function.role, Signals: workload.signals, State: function.state})
+				}
+			}
+			if arn == "" {
+				continue
+			}
+			if workload.kind != discoveryAWSEgressFunction {
+				source.InferredWorkloads = append(source.InferredWorkloads, awsdiscovery.AgentInventoryWorkload{ARN: arn, Name: name, Region: regions[index], ResourceType: workload.kind, Signals: workload.signals})
+			}
+			for _, host := range workload.hosts {
+				key := regions[index] + "/" + host
+				if _, known := servers[key]; !known {
+					servers[key] = awsdiscovery.AgentInventoryMCPServer{Host: host, Region: regions[index], Source: "egress"}
+				}
+				uses = append(uses, awsdiscovery.AgentInventoryUse{Agent: arn, Server: key})
+			}
+		}
+		for _, gateway := range found.gateways {
+			for _, target := range gateway.Targets {
+				if target.RemoteHost != "" {
+					servers[gateway.Region+"/"+target.RemoteHost] = awsdiscovery.AgentInventoryMCPServer{Host: target.RemoteHost, Region: gateway.Region, Source: "gateway_target"}
+				}
+			}
 		}
 		bedrock, agentCore, functions = accountDiscoveryAWSAgentStatus(bedrock, found.bedrock), accountDiscoveryAWSAgentStatus(agentCore, found.agentCore), accountDiscoveryAWSAgentStatus(functions, found.lambda)
 		scanned += found.scannedFunctions
@@ -253,6 +316,22 @@ func collectDiscoveryAWSAgentSource(ctx context.Context, factory discoveryAWSInv
 	if len(source.InferredWorkloads) > awsdiscovery.MaximumInventoryLambdaFunctions {
 		return nil, awsdiscovery.ErrDenied
 	}
+	// MCP servers, who uses them, and what the agents' roles may do.
+	for _, server := range servers {
+		source.MCPServers = append(source.MCPServers, server)
+	}
+	sort.Slice(source.MCPServers, func(i, j int) bool {
+		return source.MCPServers[i].Region+"/"+source.MCPServers[i].Host < source.MCPServers[j].Region+"/"+source.MCPServers[j].Host
+	})
+	granted, dataAccess := discoveryAWSAgentAccess(source, roles)
+	source.DataAccess = dataAccess
+	source.Uses = discoveryAWSUses(append(uses, granted...))
+	if cloudTrail == awsdiscovery.AgentServiceCollected {
+		source.RoleUsage = discoveryAWSRoleUsage(source, roleActions, usedActions, auditComplete)
+	}
+	if len(source.MCPServers) > awsdiscovery.MaximumInventoryMCPServers || len(source.Uses) > awsdiscovery.MaximumInventoryUses {
+		return nil, awsdiscovery.ErrDenied
+	}
 	source.Checks = discoveryAWSAgentChecks(ctx, factory, credentials, regions[0], source, roles, guardrailMissing, now)
 	encoded, ok := awsdiscovery.EncodeAgentInventorySource(source)
 	if !ok || len(encoded) > 16<<20 {
@@ -284,12 +363,27 @@ func collectDiscoveryAWSRegionAgents(ctx context.Context, factory discoveryAWSIn
 			return found, err
 		}
 		found.gateways, found.agentCore = gateways, worseDiscoveryAWSAgentStatus(found.agentCore, status)
+		// The gateways' authorizers, hosts and targets, when the reader can
+		// describe them. A gateway deleted since the list is dropped.
+		if details, describes := agentCoreAPI.(discoveryAWSGatewayDetailAPI); describes && status == awsdiscovery.AgentServiceCollected && len(gateways) > 0 {
+			exists, detailStatus, err := describeDiscoveryAWSGateways(ctx, details, found.gateways)
+			if err != nil {
+				return found, err
+			}
+			kept := found.gateways[:0]
+			for index, gateway := range found.gateways {
+				if exists[index] {
+					kept = append(kept, gateway)
+				}
+			}
+			found.gateways, found.agentCore = kept, worseDiscoveryAWSAgentStatus(found.agentCore, detailStatus)
+		}
 	}
 	lambdaAPI, err := factory.Lambda(region, credentials)
 	if err != nil || nilDiscoveryClientDependency(lambdaAPI) {
 		return found, awsdiscovery.ErrDenied
 	}
-	if found.functions, found.scannedFunctions, found.lambda, err = collectDiscoveryAWSLambdaAgents(ctx, lambdaAPI, accountID, region, roleActions, roleSignals); err != nil {
+	if found.functions, found.scannedFunctions, found.lambda, err = collectDiscoveryAWSLambdaAgents(ctx, lambdaAPI, accountID, region, roleActions, roleSignals, &found.vpcFunctions); err != nil {
 		return found, err
 	}
 	if factory.Resolver != nil && factory.FlowLogs != nil && factory.Logs != nil {
@@ -302,6 +396,44 @@ func collectDiscoveryAWSRegionAgents(ctx context.Context, factory discoveryAWSIn
 		found.egress, err = collectDiscoveryAWSEgress(ctx, resolver, flows, logs, now)
 	}
 	return found, err
+}
+
+// mergeDiscoveryAWSSignals joins two signal lists into one canonical list.
+// Signals of a class AddSignals does not rebuild are kept as they are.
+func mergeDiscoveryAWSSignals(left, right []string) []string {
+	seen := map[string]bool{}
+	for _, signal := range append(append([]string(nil), left...), right...) {
+		seen[signal] = true
+	}
+	merged := make([]string, 0, len(seen))
+	for signal := range seen {
+		merged = append(merged, signal)
+	}
+	sort.Strings(merged)
+	if len(merged) > agentsignals.MaximumSignals {
+		merged = merged[:agentsignals.MaximumSignals]
+	}
+	return merged
+}
+
+// discoveryAWSUses returns the uses sorted and without duplicates.
+func discoveryAWSUses(uses []awsdiscovery.AgentInventoryUse) []awsdiscovery.AgentInventoryUse {
+	sort.Slice(uses, func(i, j int) bool {
+		if uses[i].Agent != uses[j].Agent {
+			return uses[i].Agent < uses[j].Agent
+		}
+		return uses[i].Server < uses[j].Server
+	})
+	unique := uses[:0]
+	for index, use := range uses {
+		if index == 0 || use != uses[index-1] {
+			unique = append(unique, use)
+		}
+	}
+	if len(unique) == 0 {
+		return nil
+	}
+	return unique
 }
 
 // nextDiscoveryAWSAgentToken accepts the token of a further provider page.
@@ -517,7 +649,7 @@ func collectDiscoveryAWSAgentGateways(ctx context.Context, api discoveryAWSAgent
 // function's environment variables and the model and agent invocations its
 // execution role's managed policies allow. An environment variable value is
 // never copied out of the provider's answer.
-func collectDiscoveryAWSLambdaAgents(ctx context.Context, api discoveryAWSLambdaAPI, accountID, region string, roleActions, roleSignals map[string][]string) ([]awsdiscovery.AgentInventoryLambdaFunction, int, string, error) {
+func collectDiscoveryAWSLambdaAgents(ctx context.Context, api discoveryAWSLambdaAPI, accountID, region string, roleActions, roleSignals map[string][]string, vpcFunctions *[]discoveryAWSVPCFunction) ([]awsdiscovery.AgentInventoryLambdaFunction, int, string, error) {
 	status := awsdiscovery.AgentServiceCollected
 	inferred := make(map[string]awsdiscovery.AgentInventoryLambdaFunction)
 	seen := make(map[string]bool)
@@ -557,6 +689,15 @@ func collectDiscoveryAWSLambdaAgents(ctx context.Context, api discoveryAWSLambda
 				return nil, 0, "", awsdiscovery.ErrDenied
 			}
 			role := discoveryAWSAgentRole(aws.ToString(function.Role))
+			if vpcFunctions != nil && function.VpcConfig != nil && len(function.VpcConfig.SubnetIds) > 0 {
+				groups := append([]string(nil), function.VpcConfig.SecurityGroupIds...)
+				sort.Strings(groups)
+				attached := discoveryAWSVPCFunction{arn: arn, name: name, role: role, state: discoveryAWSAgentState(string(function.State))}
+				for _, subnet := range function.VpcConfig.SubnetIds {
+					attached.keys = append(attached.keys, subnet+"|"+strings.Join(groups, ","))
+				}
+				*vpcFunctions = append(*vpcFunctions, attached)
+			}
 			evidence.IAMActions(roleActions[role]...)
 			evidence.AddSignals(roleSignals[role]...)
 			if !evidence.IsAgent() {
@@ -744,7 +885,10 @@ func discoveryAWSAgentChecks(ctx context.Context, factory discoveryAWSInventoryF
 		}
 	}
 	administrators := discoveryAWSAdministratorRoles(roles)
-	checks := []awsdiscovery.AgentInventoryCheck{}
+	checks := discoveryAWSAccessChecks(source)
+	if checks == nil {
+		checks = []awsdiscovery.AgentInventoryCheck{}
+	}
 	for _, arn := range guardrailMissing {
 		if _, listed := agentRole[arn]; listed {
 			checks = append(checks, awsdiscovery.AgentInventoryCheck{ARN: arn, Check: awsdiscovery.AgentCheckGuardrailMissing})

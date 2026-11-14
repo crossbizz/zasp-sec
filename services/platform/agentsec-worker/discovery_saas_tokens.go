@@ -36,7 +36,7 @@ func newProductionDiscoveryMicrosoftTokenClient(client *http.Client, clock func(
 func (client *productionDiscoveryMicrosoftTokenClient) ExchangeDiscoveryMicrosoftClientCredentials(ctx context.Context, tenantID, clientID string, clientSecret []byte, scope string) (discoverySaaSAccessToken, error) {
 	dataverseURL, dataverseScope := strings.CutSuffix(scope, "/.default")
 	if client == nil || client.http == nil || ctx == nil || ctx.Err() != nil || !discoveryMicrosoftGUIDPattern.MatchString(tenantID) || !discoveryMicrosoftGUIDPattern.MatchString(clientID) || !validDiscoveryOpaqueSecret(clientSecret, 8, 4096) ||
-		scope != discoveryMicrosoftGraphScope && (!dataverseScope || !discoveryMicrosoftDataverseURLPattern.MatchString(dataverseURL)) {
+		scope != discoveryMicrosoftGraphScope && scope != discoveryMicrosoftARMScope && (!dataverseScope || !discoveryMicrosoftDataverseURLPattern.MatchString(dataverseURL)) {
 		return discoverySaaSAccessToken{}, errDiscoveryCredentialUnavailable
 	}
 	form := url.Values{"client_id": {clientID}, "client_secret": {string(clientSecret)}, "grant_type": {"client_credentials"}, "scope": {scope}}

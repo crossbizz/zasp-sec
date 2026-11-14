@@ -19,6 +19,10 @@ type authorizationStatementRule struct {
 // Closed application contracts, not a SQL parser or another permission engine.
 // Unknown queries refuse until their product boundary has been implemented.
 var authorizationStatementRules = []authorizationStatementRule{
+	{postgresAgentAccessSQL, []string{"getAgentAccess"}, 4, 0, 4, "agent"},
+	{postgresMCPServerPageSQL, []string{"listMCPServers"}, 5, 0, 0, ""},
+	{postgresMCPRegistryPageSQL, []string{"listMCPRegistry"}, 3, 0, 3, "environment"},
+	{postgresMCPRegistryPutSQL, []string{"putMCPRegistryEntry"}, 10, 4, 3, "environment"},
 	// Compliance export jobs (completion.sql, section WS3-C1). The object of
 	// an export is the Environment it belongs to; the statement's own checks
 	// (session digest, release identity, the export of the path) are in
