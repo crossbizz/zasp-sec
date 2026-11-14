@@ -1739,7 +1739,7 @@ func validCursor(cursor collection.Cursor, provider collection.Provider) bool {
 
 func validProvider(provider collection.Provider) bool {
 	switch provider {
-	case collection.ProviderAWS, collection.ProviderKubernetes, collection.ProviderGitHub, collection.ProviderOkta:
+	case collection.ProviderAWS, collection.ProviderKubernetes, collection.ProviderGitHub, collection.ProviderOkta, collection.ProviderMicrosoft, collection.ProviderSalesforce:
 		return true
 	default:
 		return false
