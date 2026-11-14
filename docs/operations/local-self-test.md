@@ -88,13 +88,15 @@ Which address to give `bootstrap`: the Stytch test project sends its magic link 
 - **The permission projector** (`projector` in `status`, or `stack.sh project` in its own terminal) applies permissions for everything new: a session, an integration, a policy, a run. It runs a pass every 5 seconds. Without it nothing new can be read.
 - **The projection workers** turn a finished sync into the graph, the search index, findings and attack paths.
 
-The Security Agent planning worker is the eighth worker and is started by hand, in its own terminal, because it needs the OpenRouter token:
+The same three steps are one command through the repository's entry point, once the Stytch values and the first Organization are in `zasp.env`: `./zasp doctor`, then `./zasp up`. See [the administrator guide](../getting-started/administrator.md#quick-start-local). The walk-through below was done with `stack.sh` directly.
+
+The Security Agent planning worker is the eighth worker. It needs the OpenRouter token. `start` launches it when `OPENROUTER_API_KEY` is set, in the environment or in `provider.env`, and `status` lists it as `worker-security-agent` (`stopped` without the token). It can still be run by hand in its own terminal, which is how every run described in this guide was made:
 
 ```bash
 OPENROUTER_API_KEY=... deploy/local/real-stack/stack.sh worker security-agent
 ```
 
-It is not listed by `status`; its terminal shows whether it runs.
+`start` launching it was added on 2026-11-14 and has not been run with Docker.
 
 Other commands:
 

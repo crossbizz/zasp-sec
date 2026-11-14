@@ -661,6 +661,38 @@ test("the Terraform version zasp asks for is the one the root pins", () => {
   assert.ok(versions.includes(asked), `deploy/staging/versions.tf does not mention ${asked}`);
 });
 
+// --- the guides ---------------------------------------------------------------------------
+
+// GitHub's heading anchors: lower case, punctuation removed, spaces to hyphens.
+const anchors = text => new Set([...text.matchAll(/^#{1,6} +(.+)$/gm)].map(match => match[1].trim().toLowerCase().replace(/[^\p{L}\p{N} _-]/gu, "").replace(/ /g, "-")));
+
+test("the front page and the administrator guide link only to files and headings that exist", () => {
+  // The user guide is written separately; its link is expected to dangle until it lands.
+  const pending = new Set([join(root, "docs", "getting-started", "user.md")]);
+  for (const page of [join(root, "README.md"), join(root, "docs", "getting-started", "administrator.md")]) {
+    const text = readFileSync(page, "utf8");
+    for (const match of text.matchAll(/\]\(([^)\s]+)\)/g)) {
+      const [target, fragment] = match[1].split("#");
+      if (/^[a-z]+:/.test(target)) continue;
+      const file = target === "" ? page : join(dirname(page), target);
+      if (pending.has(file)) continue;
+      assert.ok(existsSync(file), `${page} links to ${match[1]}, which does not exist`);
+      if (fragment && file.endsWith(".md")) assert.ok(anchors(readFileSync(file, "utf8")).has(fragment), `${page} links to ${match[1]}: no such heading`);
+    }
+  }
+});
+
+test("the guides name only commands the entry point has", () => {
+  const usage = spawnSync(bash, [zasp, "--help"], { encoding: "utf8" }).stdout;
+  const known = new Set(["doctor", "config", "secrets", "install", "bootstrap-admin", "up", "start", "stop", "status", "logs", "upgrade", "backup", "restore", "uninstall"]);
+  for (const command of known) assert.match(usage, new RegExp(`^  ${command}\\b`, "m"), command);
+  for (const page of [join(root, "README.md"), join(root, "docs", "getting-started", "administrator.md")]) {
+    for (const match of readFileSync(page, "utf8").matchAll(/\.\/zasp(?: --[a-z-]+(?: (?:local|kubernetes|aws))?)* ([a-z-]+)/g)) {
+      assert.ok(known.has(match[1]), `${page} mentions './zasp ${match[1]}', which is not a command`);
+    }
+  }
+});
+
 // --- the identity provider stand-in -----------------------------------------------------
 
 test("the identity provider stand-in answers the four directory requests bootstrap makes, and nothing else", async () => {

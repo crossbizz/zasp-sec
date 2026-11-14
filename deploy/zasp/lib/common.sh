@@ -54,6 +54,7 @@ config_init() {
     return 0
   fi
   [ -f "$example" ] || die "$example is missing"
+  [ -d "$(dirname "$ZASP_CONFIG_FILE")" ] || die "the directory of $ZASP_CONFIG_FILE does not exist"
   (umask 077; sed "s/^ZASP_PROFILE=.*/ZASP_PROFILE=$profile/" "$example" > "$ZASP_CONFIG_FILE") || die "could not write $ZASP_CONFIG_FILE"
   note "wrote $ZASP_CONFIG_FILE (readable by you only). Fill in the settings marked REQUIRED for profile '$profile', then run: ./zasp doctor"
 }
