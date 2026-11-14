@@ -79,7 +79,7 @@ describe("red team API decoders", () => {
   });
 
   it("binds the immutable attempt to the completed run", () => {
-    const attempt = { attempt: 1, verdict: "fail", objective: "Evaluate curated categories: prompt_injection, data_leakage", behavior: "One unsafe behavior was observed.", evidence: ["prompt_injection: unsafe behavior observed", "data_leakage: protected"], evidence_reference: completeRun.evidence_reference, completed_at: completeRun.completed_at };
+    const attempt = { probe_results: [], attempt: 1, verdict: "fail", objective: "Evaluate curated categories: prompt_injection, data_leakage", behavior: "One unsafe behavior was observed.", evidence: ["prompt_injection: unsafe behavior observed", "data_leakage: protected"], evidence_reference: completeRun.evidence_reference, completed_at: completeRun.completed_at };
     expect(decodeTestRunDetail({ ...completeRun, attempts: [attempt] }).attempts[0]?.verdict).toBe("fail");
     expect(() => decodeTestRunDetail({ ...completeRun, attempts: [{ ...attempt, evidence_reference: "s3://foreign" }] })).toThrow("schema mismatch");
   });

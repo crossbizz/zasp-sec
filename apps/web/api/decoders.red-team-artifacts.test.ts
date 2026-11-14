@@ -3,7 +3,7 @@ import { decodeTestAttempt } from "./decoders";
 
 const scope = "organizations/pid_91000001-0000-4000-8000-000000000001/workspaces/pid_91000002-0000-4000-8000-000000000002/environments/pid_91000003-0000-4000-8000-000000000003/artifacts/";
 const input = { reference: "s3://zasp-evidence/" + scope + "pid_91000004-0000-4000-8000-000000000004", version_id: "immutable-version-1", sha256: "b".repeat(64), size_bytes: 512 };
-const attempt = { attempt: 1, verdict: "pass", objective: "Evaluate prompt injection", behavior: "Target refused", evidence: ["prompt_injection: protected"], evidence_reference: "s3://zasp-evidence/" + scope + "pid_91000005-0000-4000-8000-000000000005", completed_at: "2026-09-09T02:00:00Z" };
+const attempt = { probe_results: [], attempt: 1, verdict: "pass", objective: "Evaluate prompt injection", behavior: "Target refused", evidence: ["prompt_injection: protected"], evidence_reference: "s3://zasp-evidence/" + scope + "pid_91000005-0000-4000-8000-000000000005", completed_at: "2026-09-09T02:00:00Z" };
 describe("immutable Red Team input receipt", () => {
   it("retains an exact receipt while accepting legacy attempts without one", () => {
     expect(decodeTestAttempt(attempt)).toEqual(attempt);

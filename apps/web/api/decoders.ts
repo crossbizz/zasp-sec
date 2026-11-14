@@ -1,4 +1,4 @@
-import type { AgentMutation, AgentSessionPage, AttackLabAttempt, AttackLabPreflight, AttackLabRun, AttackLabRunDetail, AttackLabRunPage, AttackPath, AttackPathPage, BreakOptionPage, CapabilityPage, ConnectorManifest, Finding, FindingPage, HomeSummary, Integration, IntegrationAuthorization, IntegrationFreshness, IntegrationSchedule, IntegrationSetupStatus, IntegrationSync, IntegrationSyncPage, InventoryDetail, InventoryPage, InventoryRecord, InventorySourceObservation, InventorySummary, Policy, PolicyRollout, PolicySimulation, Principal, RecoveryBackup, RecoveryCounts, RecoveryRestore, RelationshipPage, RuntimeDecision, SearchResultPage, SecurityAction, SecurityActionPage, SecurityAgentActivationState, SecurityAgentApproval, SecurityAgentApprovalPage, SecurityAgentDefinition, SecurityAgentExecutionControl, SecurityAgentExecutionControlResult, SecurityAgentExecutionControls, SecurityAgentPage, SecurityAgentRun, SecurityAgentRunClosed, SecurityAgentRunClosure, SecurityAgentRunDetail, SecurityAgentRunPage, SecurityAgentSimulation, SecurityAgentTemplate, Sensor, SensorCoverage, SensorEnrollment, SensorPage, SessionBootstrap, SessionCallbackResult, SessionScope, SessionScopePage, TestAttempt, TestDefinition, TestDefinitionPage, TestRun, TestRunDetail, TestRunPage, WorkflowMutationReceipt, WorkflowMutationReceiptPage } from "./generated";
+import type { AgentMutation, AgentSessionPage, AttackLabAttempt, AttackLabPreflight, AttackLabRun, AttackLabRunDetail, AttackLabRunPage, AttackPath, AttackPathPage, BreakOptionPage, CapabilityPage, ConnectorManifest, Finding, FindingPage, HomeSummary, Integration, IntegrationAuthorization, IntegrationFreshness, IntegrationSchedule, IntegrationSetupStatus, IntegrationSync, IntegrationSyncPage, InventoryDetail, InventoryPage, InventoryRecord, InventorySourceObservation, InventorySummary, Policy, PolicyRollout, PolicySimulation, Principal, RecoveryBackup, RecoveryCounts, RecoveryRestore, RelationshipPage, RuntimeDecision, SearchResultPage, SecurityAction, SecurityActionPage, SecurityAgentActivationState, SecurityAgentApproval, SecurityAgentApprovalPage, SecurityAgentDefinition, SecurityAgentExecutionControl, SecurityAgentExecutionControlResult, SecurityAgentExecutionControls, SecurityAgentPage, SecurityAgentRun, SecurityAgentRunClosed, SecurityAgentRunClosure, SecurityAgentRunDetail, SecurityAgentRunPage, SecurityAgentSimulation, SecurityAgentTemplate, Sensor, SensorCoverage, SensorEnrollment, SensorPage, SessionBootstrap, SessionCallbackResult, SessionScope, SessionScopePage, TestAttempt, TestProbeCatalog, TestSchedule, TestDefinition, TestDefinitionPage, TestRun, TestRunDetail, TestRunPage, WorkflowMutationReceipt, WorkflowMutationReceiptPage } from "./generated";
 
 import { validateSecurityAgentExportSelections } from "./security-agent-export-decoders";
 
@@ -910,7 +910,53 @@ function decodeSecurityAgentRunContext(value: unknown, hasPlan: boolean): void {
   }
 }
 
-const redTeamCategories = ["prompt_injection", "tool_abuse", "data_leakage", "authorization_bypass", "excessive_agency", "sensitive_information"] as const;
+const redTeamCategories = ["prompt_injection", "tool_abuse", "data_leakage", "authorization_bypass", "excessive_agency", "sensitive_information", "indirect_injection", "poisoned_resource", "cross_agent_delegation"] as const;
+const redTeamProbeID = /^zasp(\.[a-z][a-z_]{2,40}){4}\.v1$/;
+const redTeamFrameworks = ["owasp_agentic_top10_2026", "owasp_llm_top10_2025", "mitre_atlas", "nist_ai_rmf_1_0", "iso_iec_42001_2023", "eu_ai_act"] as const;
+
+// The probes one attempt executed: distinct identifiers, each of its own category.
+function decodeTestProbeResults(value: unknown): void {
+  const seen = new Set<string>();
+  for (const item of array(value, 480)) {
+    const record = exactRecord(item, ["probe_id", "category", "outcome"]);
+    enumValue(record.category, redTeamCategories); enumValue(record.outcome, ["protected", "unsafe"]);
+    if (typeof record.probe_id !== "string" || record.probe_id.length > 128 || !redTeamProbeID.test(record.probe_id) || !record.probe_id.startsWith(`zasp.${record.category as string}.`) || seen.has(record.probe_id)) fail();
+    seen.add(record.probe_id);
+  }
+}
+
+export function decodeTestProbeCatalog(value: unknown): TestProbeCatalog {
+  const record = exactRecord(value, ["version", "digest", "probe_count", "default_sample_size", "categories"]);
+  if (typeof record.version !== "string" || !/^zasp-probe-library-v[0-9]+$/.test(record.version) || typeof record.digest !== "string" || !/^[0-9a-f]{64}$/.test(record.digest)) fail();
+  boundedInteger(record.probe_count, 1000, 1_000_000); boundedInteger(record.default_sample_size, 1, 60);
+  const categories = array(record.categories, 64); if (categories.length < 9) fail();
+  const seen = new Set<string>(); let total = 0;
+  for (const item of categories) {
+    const category = exactRecord(item, ["category", "title", "probe_count", "techniques", "frameworks"]);
+    enumValue(category.category, redTeamCategories); printableString(category.title, 1, 128); boundedInteger(category.probe_count, 20, 100_000);
+    if (seen.has(category.category as string)) fail(); seen.add(category.category as string); total += category.probe_count as number;
+    const techniques = array(category.techniques, 64); if (techniques.length < 1 || new Set(techniques).size !== techniques.length) fail();
+    for (const technique of techniques) if (typeof technique !== "string" || !/^[a-z][a-z_]{2,40}$/.test(technique)) fail();
+    const frameworks = array(category.frameworks, 16); if (frameworks.length < 1) fail();
+    for (const reference of frameworks) { const tag = exactRecord(reference, ["framework", "control", "title"]); enumValue(tag.framework, redTeamFrameworks); printableString(tag.control, 1, 64); printableString(tag.title, 1, 256); }
+  }
+  if (total !== record.probe_count) fail();
+  return value as TestProbeCatalog;
+}
+
+export function decodeTestSchedule(value: unknown): TestSchedule {
+  const record = exactRecord(value, ["definition_id", "version", "enabled", "cadence_seconds", "on_target_change", "next_run_at", "last_run_id", "last_trigger", "last_outcome", "last_fired_at", "updated_at"]);
+  productID(record.definition_id); boundedInteger(record.version, 0, 1_000_000);
+  if (typeof record.enabled !== "boolean" || typeof record.on_target_change !== "boolean") fail();
+  if (record.cadence_seconds !== null) boundedInteger(record.cadence_seconds, 3600, 2_678_400);
+  for (const key of ["next_run_at", "last_fired_at", "updated_at"]) if (record[key] !== null) dateTime(record[key]);
+  if (record.last_run_id !== null) productID(record.last_run_id);
+  if (record.last_trigger !== null) enumValue(record.last_trigger, ["cadence", "target_change"]);
+  if (record.last_outcome !== null) enumValue(record.last_outcome, ["queued", "rejected", "skipped_active"]);
+  if (record.version === 0) { if (record.enabled || record.on_target_change || ["cadence_seconds", "next_run_at", "last_run_id", "last_trigger", "last_outcome", "last_fired_at", "updated_at"].some((key) => record[key] !== null)) fail(); }
+  else if (record.updated_at === null || record.enabled && record.cadence_seconds === null && !record.on_target_change || (record.enabled && record.cadence_seconds !== null) !== (record.next_run_at !== null)) fail();
+  return value as TestSchedule;
+}
 const redTeamRetryErrors = ["retryable", "rate_limited", "denied", "malformed", "outcome_unknown"] as const;
 
 export function decodeTestDefinition(value: unknown): TestDefinition {
@@ -946,7 +992,7 @@ export function decodeTestRun(value: unknown): TestRun {
 }
 
 export function decodeTestAttempt(value: unknown): TestAttempt {
-  const record = exactRecord(value, ["attempt", "verdict", "objective", "behavior", "evidence", "evidence_reference", "completed_at"], ["error_code", "input_artifact"]); boundedInteger(record.attempt, 1, 5); enumValue(record.verdict, ["pass", "fail", "engine_error"]); printableString(record.objective, 1, 512); printableString(record.behavior, 1, 2048); printableString(record.evidence_reference, 1, 1024); dateTime(record.completed_at); const evidence = array(record.evidence, 64); for (const item of evidence) printableString(item, 1, 512);
+  const record = exactRecord(value, ["attempt", "verdict", "objective", "behavior", "evidence", "evidence_reference", "completed_at", "probe_results"], ["error_code", "input_artifact"]); decodeTestProbeResults(record.probe_results); boundedInteger(record.attempt, 1, 5); enumValue(record.verdict, ["pass", "fail", "engine_error"]); printableString(record.objective, 1, 512); printableString(record.behavior, 1, 2048); printableString(record.evidence_reference, 1, 1024); dateTime(record.completed_at); const evidence = array(record.evidence, 64); for (const item of evidence) printableString(item, 1, 512);
   if (record.input_artifact !== undefined) {
     const input = exactRecord(record.input_artifact, ["reference", "version_id", "sha256", "size_bytes"]);
     printableString(input.reference, 8, 1024); printableString(input.version_id, 1, 512); boundedInteger(input.size_bytes, 1, 65536);

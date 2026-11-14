@@ -1,7 +1,7 @@
 import type { APIClient } from "../../../apps/web/api/client";
 import { APITransportError, requireAPIData } from "../../../apps/web/api/client";
-import { decodeAttackLabPreflight, decodeAttackLabRun, decodeAttackLabRunDetail, decodeAttackLabRunPage, decodeInventoryPage, decodeTestDefinition, decodeTestDefinitionPage, decodeTestRun, decodeTestRunDetail, decodeTestRunPage } from "../../../apps/web/api/decoders";
-import type { AttackLabPreflight, AttackLabRun, AttackLabRunDetail, InventorySummary, TestDefinition, TestDefinitionInput, TestDefinitionUpdateInput, TestRun, TestRunDetail } from "../../../apps/web/api/generated";
+import { decodeAttackLabPreflight, decodeAttackLabRun, decodeAttackLabRunDetail, decodeAttackLabRunPage, decodeInventoryPage, decodeTestDefinition, decodeTestDefinitionPage, decodeTestProbeCatalog, decodeTestRun, decodeTestRunDetail, decodeTestRunPage, decodeTestSchedule } from "../../../apps/web/api/decoders";
+import type { AttackLabPreflight, AttackLabRun, AttackLabRunDetail, InventorySummary, TestDefinition, TestDefinitionInput, TestDefinitionUpdateInput, TestProbeCatalog, TestRun, TestRunDetail, TestSchedule, TestScheduleInput } from "../../../apps/web/api/generated";
 import { loadAllCursorPages } from "../../../apps/web/api/pagination";
 import { decodeCapabilityPage, decodeInventoryDetail } from "../../../apps/web/api/decoders";
 import { recommendRedTeamPacks, type RedTeamPackRecommendation } from "./recommendations";
@@ -31,6 +31,9 @@ export type ProductionRedTeamAPI = Readonly<{
   cancelAttackLabRun(id: string, version: number, attempt: MutationAttempt, signal?: AbortSignal): Promise<AttackLabRun>;
   rerunAttackLabRun(sourceRunID: string, version: number, runID: string, attempt: MutationAttempt, signal?: AbortSignal): Promise<AttackLabRun>;
   listTargets(signal?: AbortSignal): Promise<readonly InventorySummary[]>;
+  getProbeCatalog(signal?: AbortSignal): Promise<TestProbeCatalog>;
+  getSchedule(definitionID: string, signal?: AbortSignal): Promise<TestSchedule>;
+  putSchedule(definitionID: string, input: TestScheduleInput, signal?: AbortSignal): Promise<TestSchedule>;
 }>;
 
 export function createProductionRedTeamAPI(client: APIClient, expectedScope?: string): ProductionRedTeamAPI {
@@ -44,6 +47,21 @@ export function createProductionRedTeamAPI(client: APIClient, expectedScope?: st
       if(detail.summary.id!==id || detail.summary.kind!==kind) invalidRedTeamResponse();
       const capabilities=kind==="agent"?(await loadAllCursorPages(cursor=>Promise.resolve(client.GET("/api/v1/agents/{id}/capabilities",{params:{path:{id},query:{cursor,limit:100}},headers:scopeHeaders,signal})).then(result=>requireAPIData(result,decodeCapabilityPage)),{maximumItems:10_000,maximumPages:100})).items:[];
       return {targetID:id,freshUntil:detail.summary.fresh_until,items:recommendRedTeamPacks(detail.summary,capabilities,Date.now())};
+    },
+    async getProbeCatalog(signal) { return requireAPIData(await client.GET("/api/v1/test-probes", { headers: scopeHeaders, signal }), decodeTestProbeCatalog); },
+    async getSchedule(definitionID, signal) {
+      requireRedTeamID(definitionID);
+      const value = requireAPIData(await client.GET("/api/v1/tests/{id}/schedule", { params: { path: { id: definitionID } }, headers: scopeHeaders, signal }), decodeTestSchedule);
+      if (value.definition_id !== definitionID) invalidRedTeamResponse();
+      return value;
+    },
+    async putSchedule(definitionID, input, signal) {
+      requireRedTeamID(definitionID);
+      if (!Number.isSafeInteger(input.expected_version) || input.expected_version < 0 || input.enabled && input.cadence_seconds === undefined && !input.on_target_change) throw new APITransportError("invalid_configuration", "Invalid red team schedule");
+      // The version check makes a repeated save a conflict, never a second schedule.
+      const value = requireAPIData(await client.PUT("/api/v1/tests/{id}/schedule", { params: { path: { id: definitionID }, header: { "Idempotency-Key": redTeamIdempotencyKey(), "X-CSRF-Token": "" } }, body: input, headers: scopeHeaders, signal }), decodeTestSchedule);
+      if (value.definition_id !== definitionID || value.version !== input.expected_version + 1 || value.enabled !== input.enabled || value.on_target_change !== input.on_target_change || (value.cadence_seconds ?? undefined) !== input.cadence_seconds) invalidRedTeamResponse();
+      return value;
     },
     async listDefinitions(signal) { return loadRootCursorPages((cursor) => client.GET("/api/v1/tests", { params: { query: { cursor, limit: 100 } }, headers: scopeHeaders, signal }), decodeTestDefinitionPage); },
     async getDefinition(id, signal) {
