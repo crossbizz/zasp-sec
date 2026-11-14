@@ -1,0 +1,96 @@
+---
+title: Inventory model
+description: The scope an inventory belongs to, the kinds of records it holds, and the states an agent can be in.
+---
+
+## Scope
+
+Everything belongs to a scope of three levels.
+
+| Level | What it is |
+| --- | --- |
+| Organization | A company's tenant. Members, roles, single sign-on and SCIM belong here. |
+| Workspace | A team or business unit inside the Organization |
+| Environment | One inventory, with its integrations, findings, guardrail policy and API tokens |
+
+An integration, a finding and an API token each belong to exactly one Environment. Two Environments never share data, and an API token can read only the Environment it was created in.
+
+## Kinds
+
+The inventory holds five kinds of record.
+
+| Kind | What it is | Page in the product |
+| --- | --- | --- |
+| Agent | Software that calls a model and acts on the answer | Agents |
+| Tool | A tool an agent can call, and the MCP servers that offer tools | Tools & MCP |
+| Identity | A non-human identity: a role, a service account, an application | Identities |
+| Runtime | Where an agent runs | Runtimes |
+| Asset | Any other record a provider returned, such as a model endpoint | Reached through relationships and search |
+
+Every record names its provider (`aws`, `kubernetes`, `github`, `okta`, `microsoft`, `salesforce`, `gcp` or `saas`), its source kind, how it was found and when it was last seen.
+
+## Relationships
+
+Records are connected. An agent's detail shows them:
+
+| Relationship | Shown as |
+| --- | --- |
+| The identities and credentials an agent uses | **Identities and credentials** |
+| The MCP servers an agent uses | **Access**, **MCP servers** |
+| The data stores an agent's role reaches | **Access**, **Data stores the agent's role reaches** |
+| The model permissions an agent's role holds and has used | **Access**, **Model permissions: used against granted** |
+| Skills and instruction files in the agent's repository | **Access**, **Skills and instruction files** |
+| Everything else | **Relationships** |
+
+Relationships are also what an [attack path](/concepts/findings-and-frameworks#attack-paths) is built from.
+
+## Management state
+
+| State | Meaning | How it changes |
+| --- | --- | --- |
+| Managed | An owner is named, or the agent was declared | Save an owner and team on the agent |
+| Unmanaged | Found without a declaration and no owner | The starting state of a discovered agent |
+| Dismissed | A person marked it as not an agent | Tick **Not an agent** in the ownership form |
+
+Dismissing needs an owner and a team, so that the decision has a name on it. A dismissed agent leaves the agent list and can still be found under the **Dismissed** filter.
+
+## Freshness
+
+A record is **fresh** while the latest sync of its integration saw it, and **stale** afterwards. A stale record is not deleted at once: the last good inventory stays visible when a provider throttles or fails a sync.
+
+## Reading the inventory over the API
+
+<CodeBlocks>
+```bash title="curl"
+curl -sS "$ZASP_URL/api/v1/agents?limit=50" -H "Authorization: Bearer $ZASP_API_TOKEN"
+```
+
+```python title="Python"
+for agent in client.agents.list(limit=50):
+    if agent.management_state == "unmanaged":
+        print(agent.name, agent.provider, agent.discovery.signals)
+```
+
+```typescript title="TypeScript"
+for await (const agent of await client.agents.list({ limit: 50 })) {
+    if (agent.management_state === "unmanaged") {
+        console.log(agent.name, agent.provider, agent.discovery.signals);
+    }
+}
+```
+</CodeBlocks>
+
+<Note>
+The SDK examples were checked against the SDKs. Neither they nor the `curl` command were run against a deployment.
+</Note>
+
+List responses are paged with a cursor. The SDKs follow the cursor for you; with `curl`, pass `page_info.next_cursor` of one page as `cursor` of the next.
+
+## Documents about one agent
+
+| Document | What it is | Where |
+| --- | --- | --- |
+| AI bill of materials | A CycloneDX 1.6 document of the models, frameworks, servers and services the agent's discovery signals name | **Download AI bill of materials** on the agent |
+| Evidence pack | How the agent was found, its findings with framework references, Security Agent actions with approvals, and red team results | **Evidence pack** on the agent, or `GET /api/v1/agents/{id}/evidence-pack` |
+
+The bill of materials lists what was observed. It is not a complete list of what an agent contains.

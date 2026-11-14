@@ -1,0 +1,136 @@
+---
+title: Findings and frameworks
+description: What a finding is, which conditions raise one, how attack paths are built, and what a framework reference does and does not say.
+---
+
+## What a finding is
+
+A finding is one reported risk on one inventory record. It is produced by a rule that matched exact evidence, never by a model.
+
+Every finding carries:
+
+| Part | Meaning |
+| --- | --- |
+| Rule | The rule that matched |
+| Severity | Critical, high, medium or low |
+| Status | Open, under review, accepted or resolved |
+| Evidence | The records the rule matched |
+| Risk factors | Why the condition matters here, each tied to evidence |
+| Fix | What to change |
+| Verify | How to confirm the fix |
+| Framework references | The AI framework controls the rule relates to |
+
+## Life cycle
+
+| Status | How it is reached |
+| --- | --- |
+| Open | A sync saw the condition |
+| Under review | A person marked it |
+| Accepted | A person accepted the risk, with a reason |
+| Resolved | A later sync no longer saw the condition |
+
+You do not close a finding by hand. Fix the cause, sync the integration again, and the finding resolves. An accepted finding can be reopened.
+
+## What raises a finding
+
+The rules look at what discovery recorded. In groups:
+
+**Ownership and identity**
+
+- A production agent has no security owner.
+- An agent uses a credential that belongs to a human.
+- The same credential is active on more than one agent.
+- An inactive agent still has an active credential.
+
+**Reach**
+
+- Untrusted input can reach an agent that has production write access.
+- Shell execution can use a credential that reaches production.
+- Unrestricted network egress can reach sensitive data.
+- A destructive tool action is reachable without a runtime control.
+- A CI/CD write path can reach production secrets.
+- A runtime is privileged or can access the host file system.
+
+**AWS agents**
+
+- A Bedrock agent has no guardrail attached.
+- An agent's execution role has administrator access.
+- An agent's execution role has not been used for 90 days.
+- An agent's role holds model permissions it does not use.
+- An agent's role can reach every resource of a data service.
+
+**Google Cloud agents**
+
+- An agent's service account holds an administrator role.
+- A Vertex AI agent runs without Model Armor.
+
+**Agent platforms**
+
+- An agent's content moderation is set to the lowest level (Copilot Studio, Azure AI Foundry, Agentforce).
+
+**MCP servers and skills**
+
+- An agent uses an MCP server nobody approved.
+- An agent uses an MCP server the registry blocks.
+- An agent uses a remote MCP server that declares no authentication.
+- An agent starts an MCP server from a package with no exact version.
+- An MCP server gives an agent with production access a tool that runs code.
+- A skill ships scripts while the agent has production access.
+- A skill or instruction file has no code owner.
+
+A rule is raised only when the data it needs was read. Where a permission is missing, the integration shows a [coverage gap](/concepts/agentless-discovery#coverage) and no finding is guessed.
+
+## Attack paths
+
+An attack path is a chain of real inventory records from an entry condition to an impact. For example: an agent, the MCP server it uses, and a tool on that server that runs code, where the agent has production access.
+
+Each step of a path is a record with evidence. A path is not a scenario: if a step cannot be shown from the inventory, there is no path.
+
+For each path the product lists **break options**: the changes that would cut it, each tied to its evidence. Two kinds exist: removing a node, and enforcing a policy. Options are derived from the path itself; when none can be derived, none is offered.
+
+A finding that is part of a path links to it, and a path lists its findings.
+
+## Frameworks
+
+A finding lists the controls of six AI security frameworks its rule relates to:
+
+- OWASP Top 10 for Agentic Applications
+- OWASP Top 10 for LLM Applications
+- MITRE ATLAS
+- NIST AI RMF
+- ISO/IEC 42001
+- EU AI Act
+
+<Warning>
+A reference says a finding is relevant to a control. It does not say the control is met or failed, and a framework with no findings is not a passed framework.
+</Warning>
+
+The same mapping drives the [Compliance](/concepts/compliance) page, where each control lists the findings relevant to it.
+
+## Findings over the API
+
+<CodeBlocks>
+```bash title="curl"
+curl -sS "$ZASP_URL/api/v1/findings?limit=50" -H "Authorization: Bearer $ZASP_API_TOKEN"
+```
+
+```python title="Python"
+for finding in client.findings.list(limit=50):
+    if finding.severity == "critical" and finding.status == "open":
+        print(finding.title, finding.rule, finding.agent_id)
+```
+
+```typescript title="TypeScript"
+for await (const finding of await client.findings.list({ limit: 50 })) {
+    if (finding.severity === "critical" && finding.status === "open") {
+        console.log(finding.title, finding.rule, finding.agent_id);
+    }
+}
+```
+</CodeBlocks>
+
+<Note>
+The SDK examples were checked against the SDKs. Neither they nor the `curl` command were run against a deployment.
+</Note>
+
+Changing a finding (status, risk acceptance, a ticket) needs a token or a role that may manage findings, an `Idempotency-Key` and the finding's current version in `If-Match`. See [Using the API](/api/overview#changing-things).

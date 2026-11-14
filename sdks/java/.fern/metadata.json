@@ -1,0 +1,12 @@
+{
+  "cliVersion": "5.216.0",
+  "generatorName": "fernapi/fern-java-sdk",
+  "generatorVersion": "4.38.0",
+  "generatorConfig": {
+    "package-prefix": "ai.zasp.api",
+    "client-class-name": "Zasp"
+  },
+  "originGitCommit": "0d77b27ef1f75ba5fe3c46ebb0a367ec2bc3f9ae",
+  "originGitCommitIsDirty": true,
+  "invokedBy": "manual"
+}

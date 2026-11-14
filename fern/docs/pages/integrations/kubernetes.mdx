@@ -1,0 +1,86 @@
+---
+title: Kubernetes
+description: Connect one cluster with a read-only credential. What is found without installing anything, and what the optional runtime sensor adds.
+---
+
+## What is found
+
+| Record | How |
+| --- | --- |
+| Agent workloads | Deployments, StatefulSets, DaemonSets, Jobs and CronJobs whose pod template names an agent framework, a model provider or an agent runtime |
+| Inferred agents | Workloads with no label that says "agent", found from signals in the pod template: the image, the command, a default port, the name of an environment variable |
+| MCP servers | Workloads whose image or command is an MCP server |
+| Links from agents to MCP servers | An agent whose arguments, environment values or mounted ConfigMaps name the Service of an MCP server |
+| Identities | Service accounts, with roles and bindings |
+| Structure | The cluster and its namespaces |
+
+Values of environment variables and ConfigMap data are compared in memory and dropped. None is stored or logged. Secrets are never requested.
+
+## What you grant
+
+A read-only credential for the cluster, bound to `get`, `list` and `watch` on the inventory resources. The built-in `view` ClusterRole is enough.
+
+The credential, the cluster's endpoint and its CA are stored by your operator outside the browser. You receive a reference of the form `ref:kubernetes/connection/<name>`.
+
+If the credential is narrower than `view`, two extra permissions matter:
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: zasp-discovery-mcp-links
+rules:
+  - apiGroups: [""]
+    resources: ["services", "configmaps"]
+    verbs: ["list"]
+```
+
+Without `services`, no agent is related to an MCP server. Without `configmaps`, agents are related only by their arguments and environment values. The sync completes either way.
+
+<Note>
+Kubernetes cannot limit a list to a label, so allowing `list` on ConfigMaps allows reading all ConfigMaps of the cluster.
+</Note>
+
+## Configure
+
+| Field | Value |
+| --- | --- |
+| Integration name | A name you will recognise |
+| Cluster credential reference | `ref:kubernetes/connection/<name>` |
+
+Authorizing uses the stored endpoint and CA, verifies the server version and reads what the credential may do.
+
+## Coverage lines you may see
+
+| Line | Meaning | Change |
+| --- | --- | --- |
+| MCP server links | The credential may not list Services | Allow `list` on `services` |
+| MCP server links from ConfigMaps | The credential may not list ConfigMaps | Allow `list` on `configmaps` |
+| Runtime agent discovery | The credential may not list ConfigMaps, so the optional sensor's observations are not read | Allow `list` on `configmaps` |
+
+If access is denied altogether, the integration says: "Kubernetes inventory access was denied. Grant the documented get, list, and watch permissions, then run Test connection again."
+
+## Runtime coverage is separate
+
+The integration's detail has a card about runtime coverage. On the agentless path it says that runtime coverage is not enrolled. That is expected: inventory sync does not include runtime sensor telemetry.
+
+## Optional: the runtime sensor
+
+The runtime sensor is installed software. It is not part of the agentless path.
+
+It adds one pod per node that watches DNS answers and connection events on the node. A workload that was given an address for a model API or a remote MCP server, and then connected to it, is recorded under the name of that service. That finds workloads whose pod template says nothing about AI.
+
+What it stores: the workload and the name of the matched service, in a ConfigMap in the cluster. No name, address, payload or pod name outside the catalog is kept.
+
+What it does not see: a workload that reaches the model through an HTTP proxy, DNS over HTTPS, and pods on the host network.
+
+Installing it is an operator task, described in the operations documents of the repository.
+
+## Limits to know
+
+- An agent that learns an MCP server's address from a Secret, a service mesh or a hard-coded address is not related to the server.
+- One collection reads at most 5,000 Services, 5,000 workloads of each kind and 256 ConfigMaps.
+
+## Status
+
+This connector has not been run against a real cluster. It was tested against recorded API shapes.

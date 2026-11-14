@@ -1,0 +1,195 @@
+---
+title: Route an agent through the hosted gateway
+description: Change one address and one credential in an agent's configuration so that Zasp inspects its MCP and model traffic in flight.
+---
+
+The hosted gateway stands between an agent and its remote MCP servers and model providers. Nothing is installed in your environment. No sidecar, no proxy, no SDK.
+
+What changes at your side:
+
+| | Before | With the hosted gateway |
+| --- | --- | --- |
+| MCP server URL in the agent's MCP configuration | The server's own | `https://<your Zasp address>/api/v1/gateway/mcp/<gateway server id>` |
+| Model SDK base URL | The provider's | `https://<your Zasp address>/api/v1/gateway/llm/v1` (chat completions, responses) or `https://<your Zasp address>/api/v1/gateway/llm` (messages) |
+| Credential the agent presents | The server's or provider's own | A Zasp token in `Authorization`, and the server's or provider's own credential in `X-Zasp-Upstream-Authorization` |
+
+## Before you start
+
+The gateway is off by default in a deployment. Ask your operator to turn it on. Until then its traffic routes answer `404`; the policy, the registered servers and the activity can already be prepared and read.
+
+## 1. Create a token
+
+In the product, open API Access and create a token with the use **Hosted gateway only (use_gateway)**.
+
+| Property | Value |
+| --- | --- |
+| What it can do | Send traffic through the gateway. It reads nothing, not even the gateway's own activity. |
+| Longest lifetime | 365 days, or the Environment's own lower limit |
+| Rate limit | 600 requests a minute for one token by default, set in the gateway policy |
+
+Use one token per agent or per runtime, so that the rate limit and a revocation are scoped.
+
+## 2. Register an MCP server
+
+Skip this step if you route model traffic only.
+
+In the product: Tools & MCP, **MCP servers behind the hosted gateway**, **Register a server**. Enter a name and the server's `https` address. The address has no credentials, no query string and no port other than 443. The page then shows the gateway address for that server.
+
+Over the API, with a token that may manage workflows. You choose the server's identifier, `pid_` followed by a UUID:
+
+<CodeBlocks>
+```bash title="curl"
+curl -sS -X PUT "$ZASP_URL/api/v1/gateway/mcp-servers/$SERVER_ID" -H "Authorization: Bearer $ZASP_ADMIN_TOKEN" -H "Content-Type: application/json" -H "Idempotency-Key: gateway-server-0001" -H 'If-Match: "0"' -d '{"name":"Tickets","upstream_url":"https://mcp.example.org/mcp","enabled":true,"allowed_tools":[],"denied_tools":["delete_ticket"]}'
+```
+
+```python title="Python"
+server = client.gateway.put_server(
+    id=server_id,
+    idempotency_key="gateway-server-0001",
+    if_match='"0"',
+    name="Tickets",
+    upstream_url="https://mcp.example.org/mcp",
+    enabled=True,
+    allowed_tools=[],
+    denied_tools=["delete_ticket"],
+)
+```
+</CodeBlocks>
+
+An empty allow list means every tool. A tool on the deny list is never listed and never called.
+
+The [MCP registry](/concepts/mcp-governance#the-registry) decides a server by its host. Approve or block it there, exactly as for a discovered server.
+
+## 3. Point the agent at the gateway
+
+### MCP
+
+In the agent's MCP configuration:
+
+```json
+{
+  "mcpServers": {
+    "tickets": {
+      "type": "http",
+      "url": "https://<your Zasp address>/api/v1/gateway/mcp/<gateway server id>",
+      "headers": {
+        "Authorization": "Bearer <Zasp token>",
+        "X-Zasp-Upstream-Authorization": "Bearer <the MCP server's own token>",
+        "X-Zasp-Agent-Id": "<the agent's id in the Zasp inventory>"
+      }
+    }
+  }
+}
+```
+
+The exact form of an MCP configuration depends on the agent product.
+
+### Models
+
+Point the SDK's base URL at the gateway, use the Zasp token as the SDK's key, and send the provider's key in a default header.
+
+<CodeBlocks>
+```python title="Chat completions and responses"
+from openai import OpenAI
+
+client = OpenAI(
+    base_url="https://<your Zasp address>/api/v1/gateway/llm/v1",
+    api_key="<Zasp token>",
+    default_headers={
+        "X-Zasp-Upstream-Authorization": "Bearer <provider key>",
+        "X-Zasp-Agent-Id": "<agent id>",
+    },
+)
+```
+
+```python title="Messages"
+from anthropic import Anthropic
+
+client = Anthropic(
+    base_url="https://<your Zasp address>/api/v1/gateway/llm",
+    auth_token="<Zasp token>",
+    default_headers={
+        "X-Zasp-Upstream-Authorization": "Bearer <provider key>",
+        "X-Zasp-Agent-Id": "<agent id>",
+    },
+)
+```
+</CodeBlocks>
+
+In the messages format the Zasp token is the SDK's bearer token (`auth_token`). That SDK takes either `auth_token` or `api_key`, not both, so the provider's key cannot stay in `api_key`.
+
+### Headers the gateway reads
+
+| Header | Meaning |
+| --- | --- |
+| `Authorization: Bearer <Zasp token>` | Authenticates the agent to the gateway. Never forwarded. |
+| `X-Zasp-Upstream-Authorization` | The upstream's own credential. For an MCP server its value is sent as the upstream's `Authorization`. For a provider it is the API key, sent in the provider's own key header. |
+| `X-Zasp-Upstream-Provider` | `openai` (default for chat completions and responses), `anthropic` (default and only one for messages) or `azure_openai` |
+| `X-Zasp-Upstream-Host` | For `azure_openai` only: `<resource>.openai.azure.com` |
+| `X-Zasp-Agent-Id` | Recorded with each decision. When it is the agent's identifier in the inventory, the agent's gateway traffic counts as its activity and appears under Sessions. |
+
+## 4. Set the policy
+
+On the Guardrails page:
+
+- the guardrail rules decide what is blocked and redacted in text;
+- the hosted gateway policy decides what happens to an MCP server the registry has no decision for, which tool risk classes are hidden and refused, and how many requests one token may send a minute.
+
+To start in observation mode, set every guardrail rule to `monitor`, leave the gateway policy at its defaults, and read the activity.
+
+A policy change, a registry decision or a token revocation applies to the next request. It does not apply to a stream already in flight.
+
+## 5. Read the activity
+
+On the Guardrails page under **Gateway activity**, or over the API:
+
+<CodeBlocks>
+```bash title="curl"
+curl -sS "$ZASP_URL/api/v1/gateway/activity?decision=block&limit=50" -H "Authorization: Bearer $ZASP_API_TOKEN"
+```
+
+```python title="Python"
+for record in client.gateway.list_activity(decision="block", limit=50):
+    print(record)
+```
+</CodeBlocks>
+
+Filters: `surface` (`mcp` or `llm`), `decision`, `server_id` and `agent_id`.
+
+## What the agent sees
+
+| Situation | What the agent receives |
+| --- | --- |
+| A tool call or its result matches a blocking rule | A failed tool call. The model sees a tool error and can continue. |
+| A tool is on the deny list, outside the allow list or of a denied risk class | The tool is missing from the tool list, and a call is refused |
+| A prompt matches a blocking rule | `400` with the code `guardrail_blocked`. The provider is not called. |
+| Sensitive data in a prompt or an answer | The text with each match replaced by `[REDACTED:<rule>]` |
+| A streamed answer matches a blocking rule | The stream ends with the provider's error event |
+| The token's rate limit is reached | `429` with `Retry-After: 1` |
+
+## Limits
+
+| Limit | Value |
+| --- | --- |
+| Request body | 4 MB |
+| One exchange, a stream included | 300 seconds by default |
+| MCP servers per Environment | 200 |
+| Tools kept per server | 512 |
+
+Not covered: stdio MCP servers (they are local processes), the deprecated HTTP+SSE transport, messages a server starts outside a request, images and audio, and reasoning text.
+
+A streamed answer is searched in a window: the first 256 bytes of an answer arrive only once more text or the end has arrived.
+
+## Where upstream credentials are
+
+The gateway stores none. The agent keeps its MCP server's token or its provider's key, as it does today, and sends it per request. Whoever can configure the agent can read that credential, as before.
+
+An MCP server that needs an interactive OAuth sign-in by the gateway itself is not supported: the agent must hold a token it can present.
+
+## What was run
+
+<Note>
+The two model SDK configurations were run as written, with the provider SDKs against a local stand-in for the provider. The MCP gateway was run between the client and the server of the official MCP Python SDK. The JSON form of an agent's MCP configuration was not tried with an agent product. A real model provider and a remote MCP server on the internet were not used. The `curl` commands and the Zasp SDK calls on this page were not run against a deployment.
+</Note>
+
+The full description, with protocol coverage, streaming and what was verified, is in the repository under `docs/operations/hosted-gateway.md`.

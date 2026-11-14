@@ -1,0 +1,75 @@
+---
+title: Microsoft and Azure
+description: Connect a Microsoft Entra tenant to find agent identities, AI enterprise applications, Copilot Studio agents, and Azure OpenAI and AI Foundry resources.
+---
+
+This connector is optional and off by default. Your operator enables it in the deployment.
+
+## What is found
+
+| Record | Needs |
+| --- | --- |
+| Entra agent identities | The Graph permission `AgentIdentity.Read.All` |
+| AI enterprise applications of the tenant | The Graph permission `Application.Read.All` |
+| Copilot Studio agents, with their content moderation level | A Dataverse environment and an application user |
+| Azure OpenAI and AI Foundry accounts and their model deployments | The Reader role on each subscription |
+| Azure AI Foundry agents, with their model deployment, tool kinds and content filter | The Azure AI User role on each AI Foundry account or project |
+
+Of an AI Foundry agent these are recorded: its name, whether it is enabled, its kind, the model deployment it names, the kinds of its tools and the content filter policy that applies to it. Its instructions and tool definitions are not kept.
+
+One finding is specific to these platforms: an agent whose content moderation is at the lowest level.
+
+## What you grant
+
+<Steps>
+  <Step title="Register an application">
+    In Microsoft Entra, register a single-tenant application. Note the Directory (tenant) ID and the Application (client) ID.
+  </Step>
+  <Step title="Add Graph permissions">
+    Add the Microsoft Graph application permission `Application.Read.All` and, for Entra agent identities, `AgentIdentity.Read.All`. Grant admin consent. No delegated permission is used.
+  </Step>
+  <Step title="Create a client secret">
+    Give it to your operator, who stores it and gives you a reference. Note its expiry: you rotate it, and the stored value must be replaced before it expires.
+  </Step>
+  <Step title="For Copilot Studio only">
+    In the Power Platform environment that holds the agents, add the application as an application user with a security role that can read the `bot` table. Note the environment URL.
+  </Step>
+  <Step title="For Azure OpenAI and AI Foundry only">
+    Assign the application's service principal the built-in Reader role on each subscription to read. For AI Foundry agents, also assign Azure AI User on each AI Foundry account or project.
+  </Step>
+</Steps>
+
+## Configure
+
+In the product, choose "Microsoft Entra and Copilot Studio" in the connector catalog.
+
+| Field | Value |
+| --- | --- |
+| Directory (tenant) ID | The tenant GUID, in lower case |
+| Application (client) ID | The application GUID, in lower case |
+| Client secret | `ref:microsoft/client-secret/<name>`. A reference, never the secret. |
+| Dataverse environment URL | Optional. `https://<name>.crm<n>.dynamics.com`. Empty skips Copilot Studio. |
+
+<Warning>
+The Dataverse environment URL cannot be added later by editing the integration. To add Copilot Studio afterwards, create the integration again.
+</Warning>
+
+Authorizing requests an application token for the tenant. The tenant is recorded only if a token is issued. Every sync repeats the exchange. The client secret never leaves the deployment's secret store and the memory of the API and the worker, and the token is never stored.
+
+## Messages and coverage lines you may see
+
+| Message | Meaning | Change |
+| --- | --- | --- |
+| "Microsoft refused the application." | The secret, the consent or the Dataverse user is wrong | Check the client secret, the admin-consented application permissions and, for Copilot Studio, the Dataverse application user |
+| "Azure AI Foundry agents: permission missing" | The application may not list agents on a project | Assign Azure AI User on the AI Foundry account or its projects |
+
+An application with no Azure role sees no subscription. The sync then completes with the directory records only.
+
+## Limits to know
+
+- One collection reads at most five pages of 100 agents per AI Foundry project.
+- Azure OpenAI, AI Foundry accounts and AI Foundry agents are read only when the operator has also enabled the Azure part of the connector.
+
+## Status
+
+This connector has not been run against a real tenant or subscription. The collectors and the token exchange were tested against recorded shapes and fake endpoints only. The role name Azure AI User is as Microsoft documents it for the Foundry Agent Service and was not checked against a subscription. The Copilot Studio moderation column was not checked against a real environment.

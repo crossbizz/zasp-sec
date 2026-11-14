@@ -1,0 +1,93 @@
+---
+title: Compliance
+description: Evidence per framework and control, exports, the evidence pack of one agent, and the audit log.
+---
+
+Zasp produces evidence for review. It does not certify anything.
+
+<Warning>
+Evidence shows what was observed. Freshness and exports do not establish certification or control effectiveness. A finding listed under a control is relevant to that control; it does not state that the control is met or failed.
+</Warning>
+
+## Frameworks
+
+| Framework | Kind |
+| --- | --- |
+| SOC 2 Security | Product evidence framework |
+| HIPAA | Product evidence framework |
+| OWASP Top 10 for Agentic Applications | AI security framework |
+| OWASP Top 10 for LLM Applications | AI security framework |
+| MITRE ATLAS | AI security framework |
+| NIST AI RMF 1.0 | AI security framework |
+| ISO/IEC 42001 | AI security framework |
+| EU AI Act | AI security framework |
+
+A product evidence framework lists, per control, the product records that are evidence for it: findings, attack paths, runtime decisions, Security Agent run audits and test results, each with its freshness. An AI security framework lists its own controls, and under each control the findings whose rule maps to it, with their count.
+
+You see and count only the findings you may read.
+
+## Exports
+
+An export captures the evidence of a framework, of one control, or of one agent, at one moment.
+
+| Property | Detail |
+| --- | --- |
+| Formats | JSON, CSV and a readable rendering |
+| Who may create one | A member with the compliance permissions, after a fresh sign-in |
+| How it is produced | By an export worker, as a job with a status |
+| How it is downloaded | With a download grant, until the export expires |
+| When it ends | It expires at the time shown, and is deleted with an audit record |
+
+An Environment has a quota of retained exports. When it is used up, wait until an export expires.
+
+## Evidence pack
+
+An evidence pack is one document about one agent, for an auditor:
+
+- how the agent was found;
+- its findings, with framework references;
+- the Security Agent runs on those findings, with their approvals;
+- the red team definitions and runs that target it.
+
+There are two forms.
+
+| Form | How it is made | What it holds |
+| --- | --- | --- |
+| Generated | On request, from what you may read | Everything in the list above. Sections that could not be included are marked. |
+| Retained | As a compliance export, captured once and stored | The same, except Security Agent runs owned by the workflow executor |
+
+A generated pack is available over the API with a token:
+
+<CodeBlocks>
+```bash title="curl"
+curl -sS "$ZASP_URL/api/v1/agents/$AGENT_ID/evidence-pack" -H "Authorization: Bearer $ZASP_API_TOKEN"
+```
+
+```python title="Python"
+pack = client.agents.get_evidence_pack(id=agent_id)
+```
+
+```typescript title="TypeScript"
+const pack = await client.agents.getEvidencePack({ id: agentId });
+```
+</CodeBlocks>
+
+<Note>
+The SDK examples were checked against the SDKs. Neither they nor the `curl` command were run against a deployment.
+</Note>
+
+Retained packs and framework exports are created in the product, because they need a fresh browser sign-in.
+
+## AI bill of materials
+
+An agent's AI bill of materials is a CycloneDX 1.6 document built from its discovery signals: the models, frameworks, MCP servers and services the evidence names. It is downloaded from the agent's detail.
+
+## Audit log
+
+Every change made in the product is recorded with who made it, when, and in which scope: integrations, policies, findings, approvals, tokens, roles. The audit log can be read by members whose role may view it, and exported.
+
+Guardrail and gateway decisions are recorded separately, without any text. See [what is recorded](/concepts/guardrails-and-gateway#what-is-recorded).
+
+## Data controls
+
+Each Environment has data controls: what is collected and how long it is kept. The External Data Flows page of the product lists the external services a deployment sends data to.

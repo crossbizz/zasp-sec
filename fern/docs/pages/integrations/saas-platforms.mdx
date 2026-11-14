@@ -1,0 +1,81 @@
+---
+title: SaaS platforms
+description: Connect Slack, Google Workspace, ServiceNow, GitLab, Databricks, OpenAI, Anthropic and Atlassian through a Nango connection.
+---
+
+This connector is optional and off by default. Your operator enables it in the deployment.
+
+## How it works
+
+SaaS platforms are read through Nango, a connection service that is part of the deployment. Nango holds the provider's token and makes the requests. Zasp never receives a provider token, and the discovery worker has no network route to the SaaS providers.
+
+Each platform is one definition that says which of the platform's read endpoints list its AI apps and agents.
+
+## Platforms
+
+| Platform | Tenant identifier | Connected by | What is listed |
+| --- | --- | --- | --- |
+| Slack | Workspace ID | Sign-in | Approved AI apps |
+| Google Workspace | Customer ID | Sign-in | Third-party AI apps granted OAuth access, Gemini usage |
+| ServiceNow | Instance name | Sign-in | Now Assist AI agents, installed AI applications |
+| GitLab | Group ID | Sign-in | GitLab Duo for the group, the Duo agents and flows enabled in it, their MCP servers, projects tagged or named as AI |
+| GitLab self-managed | Host and group ID | Reference (group access token) | The same, for a self-managed or Dedicated instance |
+| Databricks | Workspace address | Reference | Serving endpoints and served agents |
+| OpenAI | Organization ID | Reference (admin key) | Projects, service accounts |
+| OpenAI project | Project ID | Reference (project key) | The assistants and agents of one project: identifier, name, model, tool kinds. Never instructions. |
+| Anthropic | Organization ID | Reference (admin key) | Workspaces and API keys, by identifier, name and status. Never a key value. |
+| Atlassian | Site name | Reference (API token) | Installed AI apps and Rovo apps, and the Rovo agents that installed apps ship |
+| Atlassian organization | Organization ID | Reference (organization API key) | The Rovo agents people built in Rovo Studio, reconstructed from the organization's audit log |
+
+## Connect by sign-in
+
+<Steps>
+  <Step title="Configure">
+    In the connector catalog, choose the platform. Enter its tenant identifier and save.
+  </Step>
+  <Step title="Sign in">
+    Open the integration and choose the sign-in button. You continue on the provider's site.
+  </Step>
+  <Step title="Return">
+    The provider returns you to the Integrations page. Zasp asks the platform which tenant the new connection reaches. A connection that does not reach the tenant the integration names is deleted, and the sign-in fails.
+  </Step>
+  <Step title="Authorize and sync">
+    Authorize the integration, then sync. Authorizing needs a fresh sign-in to Zasp and checks the tenant again.
+  </Step>
+</Steps>
+
+A sign-in is taken once, by the person and the browser session that started it, within ten minutes. Finish it in the browser tab you started it in.
+
+## Connect by reference
+
+For a platform that is connected with an API key or token:
+
+<Steps>
+  <Step title="Create the connection in Nango">
+    Your operator creates the connection in Nango with the platform's key or token, and gives you a reference of the form `ref:nango/connection/<id>`.
+  </Step>
+  <Step title="Configure">
+    Create the integration with the tenant identifier and the reference.
+  </Step>
+  <Step title="Authorize and sync">
+    Authorize the integration, then sync.
+  </Step>
+</Steps>
+
+## Messages you may see
+
+| Message | Meaning | Change |
+| --- | --- | --- |
+| "The platform refused the Nango connection." | The connection is no longer authorized, or lacks read access | Check the connection in Nango, then authorize again |
+| "The sign-in did not reach the tenant this integration names, or the account may not read it." | You signed in to another tenant | Sign in with an account of the tenant you entered |
+| "The sign-in was cancelled at the provider. Nothing was connected." | You closed the provider's page | Sign in again |
+| "This sign-in was not started from this browser tab." | The provider returned to another tab | Open the integration and sign in again, in one tab |
+
+## Limits to know
+
+- OpenAI assistants and agents belong to a project and are listed only with a key of that project. The organization's admin key cannot list them. Connect each project as its own integration.
+- Rovo agents people built in Rovo Studio cannot be listed with an API token today. They are reconstructed from the organization's audit log instead, which needs the Atlassian organization integration.
+
+## Status
+
+No platform has been run against a real tenant. Each platform's definition says which of its request shapes were taken from the provider's documentation and which were written from memory.

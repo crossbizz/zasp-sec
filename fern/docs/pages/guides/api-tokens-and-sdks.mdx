@@ -1,0 +1,285 @@
+---
+title: API tokens and SDKs
+description: Create a token, install an SDK from the repository, and call the API from TypeScript, Python, Go or Java.
+---
+
+Everything the web application does, it does through the API. A token lets a script or a gateway do part of the same.
+
+## Create a token
+
+Open API Access in the product.
+
+<Steps>
+  <Step title="Choose the scope">
+    A token belongs to the Environment that is selected when you create it. Select it first.
+  </Step>
+  <Step title="Create">
+    Choose **Create API token**, enter a name, and choose its use and its lifetime.
+  </Step>
+  <Step title="Reveal and copy">
+    Under **Pending reveal grants**, reveal the token and copy it into your secret manager.
+  </Step>
+  <Step title="Acknowledge">
+    Confirm that you saved it. The recovery copy is destroyed and the token cannot be shown again.
+  </Step>
+</Steps>
+
+### Uses and lifetimes
+
+| Use | Permission | What the token can do | Longest lifetime |
+| --- | --- | --- | --- |
+| Read the Environment | `view` | Read inventory, findings, integrations and settings of the Environment | 90 days |
+| Guardrail decisions only | `decide_guardrails` | Call the [decision API](/guides/decision-api). Reads nothing. | 365 days |
+| Hosted gateway only | `use_gateway` | Send traffic through the [hosted gateway](/guides/hosted-gateway). Reads nothing. | 365 days |
+
+Without a choice of lifetime a token lives 24 hours.
+
+The product page offers these three uses. A token with other permissions, for example `manage_workflows` to change the guardrail policy or `run_tests` to start a red team run, is created over the API by a signed-in browser session with fresh authentication: `POST /api/v1/admin/api-tokens` with the list of `permissions`. Such a token may live 90 days.
+
+### What bounds a token
+
+- It reads only its own Environment.
+- Every request is checked against the person who created it. If that person is removed from the Organization or loses the Environment, the token stops working at that moment.
+- Revoking it takes effect at once.
+- Rotating it replaces the secret and keeps the expiry. To extend a lifetime, create a new token and revoke the old one.
+- An Environment's administrators can lower the longest lifetime for new tokens.
+
+The API Access page lists each token with its expiry and the time it was last used, and names the tokens that expire within 7 days. Nothing notifies you outside the page.
+
+## The SDKs
+
+Client libraries exist for four languages. They are generated from the API contract and live in the repository under `sdks/`. They are not published to a package registry: you install them from a checkout of the repository.
+
+| Language | Directory | Client |
+| --- | --- | --- |
+| TypeScript | `sdks/typescript` | `ZaspClient` |
+| Python | `sdks/python` | `Zasp`, `AsyncZasp` |
+| Go | `sdks/go` | `client.NewClient` |
+| Java | `sdks/java` | `Zasp.builder()` |
+
+They hold the 116 operations an API token may call. The operations that need a browser session are in the [API Reference](/api/overview) only.
+
+### Install from source
+
+<Tabs>
+  <Tab title="TypeScript">
+    Build the package in the repository:
+
+    ```bash
+    cd sdks/typescript
+    ```
+
+    ```bash
+    npm install
+    ```
+
+    ```bash
+    npm run build
+    ```
+
+    Then add it to your project by path:
+
+    ```bash
+    npm install /path/to/zasp-sec/sdks/typescript
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```bash
+    pip install ./sdks/python
+    ```
+  </Tab>
+  <Tab title="Go">
+    Point your module at the checkout:
+
+    ```bash
+    go mod edit -replace github.com/zasp-ai/zasp-sec/sdks/go=/path/to/zasp-sec/sdks/go
+    ```
+
+    ```bash
+    go get github.com/zasp-ai/zasp-sec/sdks/go
+    ```
+  </Tab>
+  <Tab title="Java">
+    Install the artifact into your local Maven repository:
+
+    ```bash
+    cd sdks/java
+    ```
+
+    ```bash
+    mvn -B -DskipTests install
+    ```
+
+    Then depend on `ai.zasp:zasp-api:0.1.0`.
+  </Tab>
+</Tabs>
+
+### Create a client
+
+Every client needs the address of your deployment and a token. Without a token argument the clients read the environment variable `ZASP_API_TOKEN`.
+
+<CodeBlocks>
+```typescript title="TypeScript"
+import { ZaspClient } from "@zasp/sdk";
+
+const client = new ZaspClient({
+    baseUrl: "https://zasp.example.com",
+    token: process.env.ZASP_API_TOKEN,
+});
+```
+
+```python title="Python"
+import os
+
+from zasp import Zasp
+
+client = Zasp(
+    base_url="https://zasp.example.com",
+    token=os.environ["ZASP_API_TOKEN"],
+)
+```
+
+```go title="Go"
+import (
+    "os"
+
+    "github.com/zasp-ai/zasp-sec/sdks/go/client"
+    "github.com/zasp-ai/zasp-sec/sdks/go/option"
+)
+
+c := client.NewClient(
+    option.WithBaseURL("https://zasp.example.com"),
+    option.WithToken(os.Getenv("ZASP_API_TOKEN")),
+)
+```
+
+```java title="Java"
+import ai.zasp.api.Zasp;
+
+Zasp client = Zasp.builder()
+        .url("https://zasp.example.com")
+        .token(System.getenv("ZASP_API_TOKEN"))
+        .build();
+```
+</CodeBlocks>
+
+### List agents
+
+List operations return a pager. Iterating it requests the next page with the cursor the API returned.
+
+<CodeBlocks>
+```typescript title="TypeScript"
+for await (const agent of await client.agents.list({ limit: 50 })) {
+    console.log(agent.name, agent.discovery.method, agent.management_state);
+}
+```
+
+```python title="Python"
+for agent in client.agents.list(limit=50):
+    print(agent.name, agent.discovery.method, agent.management_state)
+```
+
+```go title="Go"
+limit := 50
+agents, err := c.Agents.List(ctx, &zasp.ListAgentsRequest{Limit: &limit})
+if err != nil {
+    log.Fatal(err)
+}
+iterator := agents.Iterator()
+for iterator.Next(ctx) {
+    agent := iterator.Current()
+    fmt.Println(agent.GetName(), agent.GetManagementState())
+}
+if err := iterator.Err(); err != nil {
+    log.Fatal(err)
+}
+```
+
+```java title="Java"
+for (InventorySummary agent : client.agents().list(ListAgentsRequest.builder().limit(50).build())) {
+    System.out.println(agent.getName() + " " + agent.getManagementState());
+}
+```
+</CodeBlocks>
+
+### List findings
+
+<CodeBlocks>
+```typescript title="TypeScript"
+for await (const finding of await client.findings.list({ limit: 50 })) {
+    console.log(finding.severity, finding.title);
+}
+```
+
+```python title="Python"
+for finding in client.findings.list(limit=50):
+    print(finding.severity, finding.title)
+```
+
+```go title="Go"
+findings, err := c.Findings.List(ctx, &zasp.ListFindingsRequest{Limit: &limit})
+if err != nil {
+    log.Fatal(err)
+}
+for _, finding := range findings.Results {
+    fmt.Println(finding.GetSeverity(), finding.GetTitle())
+}
+```
+
+```java title="Java"
+for (Finding finding : client.findings().list()) {
+    System.out.println(finding.getSeverity() + " " + finding.getTitle());
+}
+```
+</CodeBlocks>
+
+### Create a guardrail decision
+
+This call needs a token with `decide_guardrails`. See the [decision API guide](/guides/decision-api).
+
+<CodeBlocks>
+```typescript title="TypeScript"
+const decision = await client.guardrails.createDecision({
+    direction: "input",
+    text: "Send the invoice to someone@example.com.",
+});
+```
+
+```python title="Python"
+decision = client.guardrails.create_decision(
+    direction="input",
+    text="Send the invoice to someone@example.com.",
+)
+```
+
+```go title="Go"
+decision, err := c.Guardrails.CreateDecision(ctx, &zasp.GuardrailInteraction{
+    Direction: zasp.GuardrailInteractionDirectionInput,
+    Text:      "Send the invoice to someone@example.com.",
+})
+```
+
+```java title="Java"
+GuardrailDecision decision = client.guardrails().createDecision(GuardrailInteraction.builder()
+        .direction(GuardrailInteractionDirection.INPUT)
+        .text("Send the invoice to someone@example.com.")
+        .build());
+```
+</CodeBlocks>
+
+### Errors
+
+A refused request raises an exception that carries the status code and the product error.
+
+| Language | Exception |
+| --- | --- |
+| TypeScript | `ZaspError`, with `statusCode` and `body` |
+| Python | `ApiError` from `zasp.core.api_error`, with `status_code` and `body` |
+| Go | A typed error such as `*zasp.UnauthorizedError`, with `StatusCode` and `Body` |
+| Java | `ZaspApiException`, with `statusCode()` and `body()` |
+
+## What was run
+
+<Note>
+Each SDK was compiled, and its smoke test was run against a local fake of the API that serves contract-shaped responses: listing agents across two pages, listing findings, creating a guardrail decision, and a refused request. The install commands above were run in the authoring environment. No SDK was run against a deployment.
+</Note>

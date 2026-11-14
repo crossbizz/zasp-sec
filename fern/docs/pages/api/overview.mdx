@@ -1,0 +1,124 @@
+---
+title: Using the API
+description: Authentication, scope, pagination, changing things safely, and errors.
+---
+
+The Zasp API is the API the web application itself uses. Its contract is the OpenAPI file `openapi/openapi.yaml` in the repository, and this reference is generated from it.
+
+Every path starts with `/api/v1` at the address of your deployment.
+
+## Authentication
+
+There are two ways to authenticate. Each operation says which it accepts.
+
+| Scheme | Who uses it | How |
+| --- | --- | --- |
+| API token | Scripts, gateways and the SDKs | `Authorization: Bearer <token>` |
+| Browser session | The web application | A host-only session cookie, with the header `X-Zasp-Expected-Scope`, and for changes `X-CSRF-Token` and a same-origin `Origin` |
+
+Of the 190 operations, 116 accept an API token. The other 74 need a browser session, and their description says so: sign-in and scope switching, identity administration, API token management, console sessions, audit and compliance exports, and data controls.
+
+An operation that accepts both lists the browser-only headers as optional. A token request omits them.
+
+Create a token under API Access in the product: see [API tokens and SDKs](/guides/api-tokens-and-sdks).
+
+## Scope
+
+A token belongs to one Environment. Every read returns records of that Environment, and every change is made in it. There is no parameter to choose another scope.
+
+## Identifiers
+
+Product identifiers have the form `pid_` followed by a UUID, for example `pid_00000000-0000-4000-8000-000000000000`.
+
+## Pagination
+
+List operations return one page and a cursor.
+
+| Parameter | Meaning |
+| --- | --- |
+| `limit` | The largest number of records to return: 1 to 100, 50 by default |
+| `cursor` | The cursor the page before returned. Omit it for the first page. |
+
+Most lists return the cursor in `page_info`:
+
+```json
+{
+  "items": [],
+  "page_info": { "next_cursor": "Y3Vyc29yLTI", "has_more": true }
+}
+```
+
+On the last page `next_cursor` is `null` and `has_more` is `false`. Some lists return `next_cursor` at the top level instead. The gateway's activity list takes it in the parameter `before`.
+
+A cursor is opaque. It is bound to the caller and the scope, and pages are not a snapshot: records that change between two requests can appear in a later page.
+
+The SDKs follow the cursor for you.
+
+## Changing things
+
+A request that changes something takes two headers.
+
+| Header | Meaning |
+| --- | --- |
+| `Idempotency-Key` | A key you generate, 16 to 128 characters of letters, digits and `._:-`. Sending the same request again with the same key returns the first result instead of repeating the change. |
+| `If-Match` | The version of the record you read, in quotes, for example `"3"`. For a record that does not exist yet, `"0"`. |
+
+If someone else changed the record since you read it, the request is refused and nothing is changed. Read the record again and decide again.
+
+A successful change returns the new version in the `ETag` header and the identifier of its audit record in `X-Audit-ID`.
+
+```bash
+curl -sS -X PUT "$ZASP_URL/api/v1/guardrails/policy" -H "Authorization: Bearer $ZASP_ADMIN_TOKEN" -H "Content-Type: application/json" -H "Idempotency-Key: guardrail-policy-0001" -H 'If-Match: "0"' -d '{"rules":{"pii.phone":"monitor"}}'
+```
+
+Not run in the authoring environment.
+
+## Errors
+
+A refused request returns a product error:
+
+```json
+{
+  "code": "unauthenticated",
+  "message": "Token missing",
+  "correlation_id": "pid_00000000-0000-4000-8000-000000000000",
+  "retryable": false
+}
+```
+
+| Member | Meaning |
+| --- | --- |
+| `code` | A stable, lower-case code. Act on this, not on the message. |
+| `message` | A sentence for a person |
+| `correlation_id` | Quote it when you report a problem |
+| `retryable` | Whether sending the same request again can succeed |
+
+| Status | Usual meaning |
+| --- | --- |
+| `400` | The request is malformed |
+| `401` | The token is missing, expired or revoked |
+| `403` | The token or role lacks the permission |
+| `404` | The record does not exist in this Environment |
+| `409` | The record changed since you read it, or the request conflicts with its state |
+| `429` | A rate limit was reached |
+| `503` | A dependency is unavailable. Retry later. |
+
+## Sections of this reference
+
+| Section | Holds |
+| --- | --- |
+| Inventory | Agents, tools, MCP servers, identities, runtimes, assets, search |
+| Integrations | Integrations, their authorization, syncs and coverage; optional sensors |
+| Exposure | Findings and attack paths |
+| Testing | Red team tests, runs and the probe library; attack lab |
+| Protection | Guardrails, the hosted gateway and its traffic routes, policies |
+| Security Agents | Definitions, runs and approvals |
+| Investigation and compliance | Sessions, compliance evidence and exports, the audit log |
+| Administration | Organization, workspaces, environments, members, single sign-on, SCIM, API tokens, data controls, system, recovery |
+| Browser session | The sign-in flow of the web application |
+
+The hosted gateway's traffic routes (`/api/v1/gateway/mcp/...` and `/api/v1/gateway/llm/...`) are called by agents, with an MCP client or a model SDK, not by automation. They are documented here for completeness.
+
+## SDKs
+
+Client libraries for TypeScript, Python, Go and Java are generated from the same contract. See [API tokens and SDKs](/guides/api-tokens-and-sdks).

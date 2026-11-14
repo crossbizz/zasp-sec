@@ -1,0 +1,51 @@
+---
+title: Okta
+description: Connect an Okta tenant with read-only directory scopes to find the AI applications connected to it.
+---
+
+## What is found
+
+| Record | How |
+| --- | --- |
+| AI applications | Applications of the tenant that are known AI products or assistants |
+| Applications and service principals | The tenant's applications |
+| Users and groups | The directory, to say who is assigned to an AI application |
+| Structure | The tenant |
+
+An AI application connected to the tenant is an agent your organization uses without running it. It appears on the Agents page with the source of the tenant.
+
+## What you grant
+
+A read-only OAuth authorization with these scopes:
+
+| Scope | Used for |
+| --- | --- |
+| `okta.apps.read` | Applications |
+| `okta.groups.read` | Groups |
+| `okta.users.read` | Users |
+| `offline_access` | Syncing later without a person present |
+
+Authorize with an account that may grant them, and restrict that account to this purpose.
+
+## Configure
+
+| Field | Value |
+| --- | --- |
+| Integration name | A name you will recognise |
+| Okta issuer | Your tenant's address, `https://<tenant>.okta.com` |
+
+Open the integration and authorize. You continue on Okta and sign in. Authorization verifies the issuer, the subject and the scopes, and reads one page of the directory.
+
+After authorization the integration shows the Okta tenant and the directory scopes.
+
+<Note>
+This integration secures your Okta directory integration. It is separate from how members sign in to Zasp.
+</Note>
+
+## Limits to know
+
+- An application is recognised as an AI application from its label, against a catalog of known products. An application the catalog does not know is listed as an ordinary application.
+
+## Status
+
+This connector has not been run against a real Okta tenant. It was tested against recorded API shapes.

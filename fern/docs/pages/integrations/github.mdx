@@ -1,0 +1,70 @@
+---
+title: GitHub
+description: Connect a GitHub organization through a GitHub App installation. What is read from a repository and what is never requested.
+---
+
+## What is found
+
+| Record | How |
+| --- | --- |
+| Agent projects | A repository with an agent manifest or an agent framework among its dependencies |
+| MCP servers and tools | The repository's MCP configuration files |
+| Skills and instruction files | Their paths in the file tree |
+| Identities | The GitHub App, and the permissions of the installation |
+| Structure | The organization, its repositories, workflows and environments |
+
+### MCP configuration
+
+These files are read, at most four per repository:
+
+- `.mcp.json`
+- `mcp.json`
+- `.cursor/mcp.json`
+- `.vscode/mcp.json`
+- `claude_desktop_config.json`
+
+and `.claude/settings.json`. From them only server names, transports, command base names, URL hosts, launched package names and tool names are kept.
+
+### Skills
+
+Skills and instruction files are recorded by path. Their contents are never requested. Three more things are read about them, none of them a skill's contents:
+
+- whether a skill's directory ships scripts: a script extension, or the executable mode in the file tree;
+- the path patterns of the repository's CODEOWNERS file, to say whether a code owner is named for each skill. Neither the patterns nor the owners are kept;
+- up to two `manifest.json` files, kept only when they are desktop extension manifests, for the MCP server they package.
+
+Two findings follow on the repository's agent project: a skill that ships scripts while the agent has production access, and a skill no code owner is named for.
+
+## What you grant
+
+An installation of the Zasp GitHub App on your organization, with three read permissions:
+
+| Permission | Used for |
+| --- | --- |
+| `metadata: read` | Listing repositories |
+| `contents: read` | Manifests, MCP configuration and the file tree |
+| `actions: read` | Workflows |
+
+You choose the organization, and all repositories or selected ones.
+
+## Configure
+
+In the product, choose GitHub in the connector catalog and save. Open the integration and authorize: you continue on GitHub and install the App.
+
+After authorization the integration shows the organization, the repository scope and the read-only permissions of the installation.
+
+## Messages you may see
+
+| Message | Meaning | Change |
+| --- | --- | --- |
+| "GitHub installation access is missing required organization or repository scope." | The App is not installed on the organization or repositories you expect | Review the installation on GitHub, then authorize again |
+| "The provider rate limit delayed collection." | GitHub throttled the sync | Sync again later; the last good inventory stays visible |
+
+## Limits to know
+
+- A repository with skills that is not recognised as an agent project has the skill attributes and no finding.
+- CODEOWNERS matching follows GitHub's documented syntax and has not been compared with GitHub's own evaluation.
+
+## Status
+
+This connector has not been run against a real GitHub organization. It was tested against recorded API shapes.

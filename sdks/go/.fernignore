@@ -1,0 +1,7 @@
+# Files kept when the SDK is generated again. Everything else in this
+# directory is written by the Fern generator and must not be edited.
+.fernignore
+README.md
+go.mod
+go.sum
+smoke_test.go

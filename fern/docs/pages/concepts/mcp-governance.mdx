@@ -1,0 +1,82 @@
+---
+title: MCP governance
+description: Which MCP servers your agents use, what the registry decides, and where a decision is enforced.
+---
+
+The Model Context Protocol (MCP) is how an agent reaches tools on a server. An MCP server decides which tools and instructions an agent receives, so an unreviewed server is a way into the agent.
+
+## Where MCP servers are found
+
+Nothing is installed to find them. Each source is read by an integration you already have.
+
+| Found by | Read from | Needs |
+| --- | --- | --- |
+| AgentCore gateway | The gateways of an AWS account, their authorizer and their targets | The AgentCore gateway actions on the AWS read role |
+| Repository configuration | MCP configuration files of a repository (`.mcp.json`, `mcp.json`, `.cursor/mcp.json`, `.vscode/mcp.json`, `claude_desktop_config.json`) | The GitHub integration's `contents` read permission |
+| Kubernetes workload | A workload whose image or command is an MCP server | The Kubernetes integration |
+| Seen in network logs | A workload that resolved and reached a remote MCP server | Resolver query logs and flow logs on AWS |
+| SaaS platform | MCP servers a SaaS platform lists for its agents | The SaaS integration |
+| Gateway target | The target of an AgentCore gateway | The gateway target actions |
+
+From a repository's configuration, only server names, transports, command base names, URL hosts, launched package names and tool names are kept.
+
+## What is recorded for a server
+
+| Attribute | Meaning |
+| --- | --- |
+| Endpoint or command | The host of a remote server, or the command of a local one |
+| Authentication | Whether the server's declaration names any. A server that handles sign-in by itself declares none either; confirm which it is. |
+| Tools | Tool names, where they could be read, each with a risk class |
+| Used by | The agents that use it |
+
+A tool's risk class is read from the words of its name:
+
+| Class | Meaning | Example |
+| --- | --- | --- |
+| Read | Reads something | `get_ticket` |
+| Write | Changes something | `create_issue` |
+| Execute | Runs code or commands | `run_shell` |
+| Network | Fetches from an address | `fetch_url` |
+| Unclassified | The name matches no known word | `helper` |
+
+When a name matches several classes, the most dangerous one counts: execute, then write, then network, then read.
+
+## The registry
+
+The registry holds your decision for each server: approved, unapproved or blocked. A server starts unapproved.
+
+| Decision | Effect on findings | Effect at the hosted gateway |
+| --- | --- | --- |
+| Approved | The finding for an unapproved server resolves | Allowed |
+| Unapproved | The server's agents get a finding | Allowed or refused, by the gateway policy |
+| Blocked | The server's agents get a finding | Always refused |
+
+A decision applies to the server's host. It therefore covers the same server wherever it was found, and the same server registered behind the hosted gateway.
+
+Decide on the Tools & MCP page with **Approve**, **Block** and **Clear**, or over the API with `PUT /api/v1/mcp-registry`.
+
+## Findings on MCP use
+
+Findings are raised on the agents that use a server:
+
+- the server is unapproved, or blocked;
+- the server is remote and declares no authentication;
+- the server is started from a package with no exact version;
+- the server gives an agent with production access a tool that runs code.
+
+The last one also produces an attack path from the agent through the server to the tool.
+
+## Enforcement
+
+The registry alone is a record of decisions. To enforce it on traffic, route the agent's MCP traffic through the [hosted gateway](/concepts/guardrails-and-gateway). The gateway then:
+
+- refuses a blocked server;
+- filters the tool list by the server's allow and deny lists and by risk class;
+- inspects tool arguments and tool results with the guardrail rules;
+- records every call.
+
+## Limits to know
+
+- For a Cloud Run MCP server on Google Cloud, no relationship says which agent uses it, so the findings above are not raised for it.
+- An agent that learns a server's address from a secret, a service mesh or a hard-coded address is not related to the server.
+- A local (stdio) server is found from configuration only. It cannot be put behind the hosted gateway, which fronts remote servers.

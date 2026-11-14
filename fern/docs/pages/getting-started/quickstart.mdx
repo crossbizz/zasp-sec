@@ -1,0 +1,105 @@
+---
+title: Quickstart
+description: From a first sign-in to a list of agents and findings, and a first API call.
+---
+
+This page is the short path. It assumes Zasp is running and you have an invitation. The [User guide](/user-guide) covers every step in full.
+
+## Before you start
+
+You need three values from the person who operates your Zasp deployment:
+
+- the address of the product, written here as `https://zasp.example.com`;
+- the two AWS principals of the deployment that may assume a role in your account;
+- an external ID, and its reference in the form `ref:aws/external-id/<name>`.
+
+## Connect AWS and read the result
+
+<Steps>
+  <Step title="Sign in">
+    Follow the invitation email, then choose **Sign in**. If the top bar shows a scope selector, choose the Environment you want to work in.
+  </Step>
+  <Step title="Create a read role in your AWS account">
+    Create an IAM role that trusts the two principals with the external ID, and attach the read policy from the [AWS integration page](/integrations/aws#the-read-policy). The role is read-only.
+  </Step>
+  <Step title="Configure the integration">
+    Open **Integrations**. In **Connector catalog**, choose Amazon Web Services. Enter the role's ARN in **Read role ARN**, the reference in **External ID** and a region in **Home region**. Choose **Save integration**.
+  </Step>
+  <Step title="Authorize and sync">
+    Open the integration, authorize it, and choose **Sync inventory now**.
+  </Step>
+  <Step title="Read coverage">
+    If the integration shows **Agent discovery coverage**, each line names something the sync could not read and what to change. A coverage gap is not a failure.
+  </Step>
+  <Step title="Open Agents">
+    Choose **Unmanaged**. These are the agents nobody has claimed. Open one and read **How it was found**.
+  </Step>
+  <Step title="Open Findings">
+    Open the first critical finding and read it from **Why** to **Verify**.
+  </Step>
+</Steps>
+
+## Make a first API call
+
+Create a token: open **API Access**, choose **Create API token**, choose **Read the Environment (view)**, save, reveal the token and copy it.
+
+Put the token and the address in your shell:
+
+```bash
+export ZASP_API_TOKEN="<the token you copied>"
+```
+
+```bash
+export ZASP_URL="https://zasp.example.com"
+```
+
+List the agents of the Environment:
+
+<CodeBlocks>
+```bash title="curl"
+curl -sS "$ZASP_URL/api/v1/agents?limit=50" -H "Authorization: Bearer $ZASP_API_TOKEN"
+```
+
+```python title="Python"
+import os
+
+from zasp import Zasp
+
+client = Zasp(base_url=os.environ["ZASP_URL"], token=os.environ["ZASP_API_TOKEN"])
+for agent in client.agents.list(limit=50):
+    print(agent.name, agent.discovery.method, agent.management_state)
+```
+
+```typescript title="TypeScript"
+import { ZaspClient } from "@zasp/sdk";
+
+const client = new ZaspClient({ baseUrl: process.env.ZASP_URL!, token: process.env.ZASP_API_TOKEN });
+for await (const agent of await client.agents.list({ limit: 50 })) {
+    console.log(agent.name, agent.discovery.method, agent.management_state);
+}
+```
+
+```go title="Go"
+c := client.NewClient(option.WithBaseURL(os.Getenv("ZASP_URL")), option.WithToken(os.Getenv("ZASP_API_TOKEN")))
+limit := 50
+agents, err := c.Agents.List(ctx, &zasp.ListAgentsRequest{Limit: &limit})
+if err != nil {
+    log.Fatal(err)
+}
+iterator := agents.Iterator()
+for iterator.Next(ctx) {
+    fmt.Println(iterator.Current().GetName())
+}
+```
+</CodeBlocks>
+
+<Note>
+The SDK calls on this page were run against a local fake of the API, not against a deployment. The `curl` command was not run in the authoring environment. The SDKs are installed from the repository: see [API tokens and SDKs](/guides/api-tokens-and-sdks).
+</Note>
+
+## Next
+
+- Claim or dismiss the unmanaged agents: [Inventory model](/concepts/inventory-model).
+- Approve or block the MCP servers your agents use: [MCP governance](/concepts/mcp-governance).
+- Connect a second source: [Integrations](/integrations/overview).
+- Put guardrails in front of one non-production agent: [Hosted gateway](/guides/hosted-gateway).

@@ -1,0 +1,75 @@
+---
+title: Administrator guide
+description: What it takes to install and operate Zasp. A summary; the full guide is in the repository.
+---
+
+{/*
+  <!-- ADMIN-GUIDE-SOURCE -->
+
+  This page is a short installation summary. The full Administrator guide is
+  written in docs/getting-started/administrator.md and is the single source.
+
+  To wire it in once that file exists, change the page's `path` in
+  fern/docs.yml from ./docs/pages/getting-started/administrator.mdx to
+  ../docs/getting-started/administrator.md, the same way the User guide is
+  wired, and delete this file. Then run `npm run docs:check`: the page is
+  parsed as MDX, so angle brackets and braces outside code must be escaped or
+  put in code, and HTML comments must be removed.
+*/}
+
+This page summarises what an administrator does. The full guide, with every command, is `docs/getting-started/administrator.md` in the repository.
+
+## What you operate
+
+Zasp is a hosted control plane. You run it once; your teams connect their cloud accounts, clusters and SaaS tenants to it with read-only credentials.
+
+| Part | What it is |
+| --- | --- |
+| API and web application | The product, served at one public address |
+| Workers | Discovery, scheduling, projection, red team, Security Agent actions, exports |
+| PostgreSQL | The authority for all product data |
+| Temporal and OpenFGA | Workflow execution and authorization |
+| Object storage and queues | Evidence, exports and job queues |
+| Identity provider | Sign-in, invitations, single sign-on and SCIM |
+| Nango | Holds the tokens of SaaS connections, when SaaS connectors are enabled |
+
+The reference deployment is AWS: an EKS cluster, created by the Terraform under `deploy/staging`, with the product installed by the Helm chart under `deploy/staging/product`.
+
+## The order of work
+
+<Steps>
+  <Step title="Decide and collect">
+    A region, a public host name and its certificate, a PostgreSQL database, an identity provider project, and the sizing of the cluster.
+  </Step>
+  <Step title="Create the infrastructure">
+    Apply the Terraform. It creates the network, the cluster, one IAM role per workload, encryption keys, buckets, queues and secrets.
+  </Step>
+  <Step title="Install the product">
+    Build and push the images, install the schema, fill the secrets, and install the chart.
+  </Step>
+  <Step title="Create the first Organization">
+    Run the bootstrap command once. It creates the Organization, a `Default` Workspace with the Environments `Production`, `Staging` and `Development`, and invites the first Organization administrator.
+  </Step>
+  <Step title="Hand over">
+    Give the first administrator the address. From there the [User guide](/user-guide) applies.
+  </Step>
+</Steps>
+
+## What you do for each team afterwards
+
+Some connections need a change on the deployment side, because a secret or a trust relationship is stored outside the browser:
+
+| When a team wants to | You |
+| --- | --- |
+| Connect an AWS account | Register the role's ARN and store the external ID; give the team the two principals to trust and the reference `ref:aws/external-id/<name>` |
+| Connect a Kubernetes cluster | Store the cluster credential and give the team `ref:kubernetes/connection/<name>` |
+| Connect Microsoft, Salesforce or Google Cloud | Enable the connector and store the client secret or key |
+| Connect a SaaS platform | Enable the SaaS connector and, for platforms connected by reference, create the connection in Nango |
+| Use the hosted gateway | Turn it on in the chart (`hostedGateway.enabled`) |
+| Let Security Agents change an AWS account | Give the action worker its own AWS identity and register the customer's remediation role |
+
+Each of these is described on the matching [integration page](/integrations/overview) and in the operations documents under `docs/operations/` in the repository.
+
+## Status
+
+The production procedure was checked as text. It has not been applied to an AWS account or a cluster. A complete product on one machine, against an emulated AWS account, is described in `docs/operations/local-self-test.md`.

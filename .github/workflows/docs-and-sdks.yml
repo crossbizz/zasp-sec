@@ -1,0 +1,95 @@
+name: Docs and SDKs
+
+# A sketch for the documentation site and the generated SDKs (fern/README.md).
+#
+# It runs only when started by hand, and it publishes only when asked to.
+# Nothing here has been run: the repository secret FERN_TOKEN does not exist
+# yet, and the Fern organization in fern/fern.config.json has not been
+# confirmed against the token.
+#
+# To check every pull request, add a `pull_request` trigger. The check job
+# needs no secret.
+
+"on":
+  workflow_dispatch:
+    inputs:
+      publish_preview:
+        description: Publish a preview of the documentation site
+        type: boolean
+        default: false
+      publish_docs:
+        description: Publish the documentation site to the address in fern/docs.yml
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Check docs and SDKs
+    runs-on: ubuntu-24.04
+    env:
+      GOTOOLCHAIN: local
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.23.1
+          cache: npm
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: 1.26.8
+          cache: true
+          cache-dependency-path: sdks/go/go.sum
+      - name: Pin npm
+        run: npm install --global npm@10.9.8
+      - name: Install locked dependencies
+        run: SHARP_IGNORE_GLOBAL_LIBVIPS=1 npm ci
+      - name: Check the documentation site
+        run: npm run docs:check
+      - name: Compile and test the SDKs
+        run: npm run sdk:test
+
+  preview:
+    name: Publish a preview of the docs
+    needs: check
+    if: ${{ inputs.publish_preview }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.23.1
+          cache: npm
+      - name: Install locked dependencies
+        run: SHARP_IGNORE_GLOBAL_LIBVIPS=1 npm ci
+      - name: Publish the preview
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+        run: npm run docs:preview
+
+  publish:
+    name: Publish the docs
+    needs: check
+    if: ${{ inputs.publish_docs }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.23.1
+          cache: npm
+      - name: Install locked dependencies
+        run: SHARP_IGNORE_GLOBAL_LIBVIPS=1 npm ci
+      - name: Publish the documentation site
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+        run: node fern/scripts/fern.mjs generate --docs
