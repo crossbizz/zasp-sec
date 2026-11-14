@@ -30,8 +30,10 @@ export function decodeRuntimeSessionEvent(value: unknown): RuntimeSessionEvent {
   text(record.label, 256);
   if ([...record.label as string].some((character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127)) bad();
   if (typeof record.class !== "string" || !Object.hasOwn(ACTIONS, record.class) || typeof record.action !== "string" || !ACTIONS[record.class].includes(record.action)) bad();
-  if (record.source !== "otlp" && record.source !== "tetragon") bad();
-  if (!(record.source === "otlp" ? ["tool", "credential", "policy"] : ["runtime", "file", "network"]).includes(record.class)) bad();
+  if (record.source !== "otlp" && record.source !== "tetragon" && record.source !== "gateway") bad();
+  if (!(record.source === "otlp" ? ["tool", "credential", "policy"] : record.source === "gateway" ? ["tool", "policy"] : ["runtime", "file", "network"]).includes(record.class)) bad();
+  // The hosted gateway states tool calls and its own allow and block decisions, for an agent a request named.
+  if (record.source === "gateway" && (record.action === "monitor" || record.confidence !== "strong" || Object.hasOwn(record, "sandbox_id"))) bad();
   if (typeof record.confidence !== "string" || !CONFIDENCE.includes(record.confidence)) bad();
   const attributed = record.confidence === "exact" || record.confidence === "strong";
   if (attributed ? record.session_id === null || record.agent_id === null : record.session_id !== null || record.agent_id !== null) bad();

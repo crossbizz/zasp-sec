@@ -7306,10 +7306,19 @@ END $ws8_gcp_mcp_servers$;
 --     agent);
 --       GET /gateway/activity   listGatewayActivity   (view)
 --   * the newest gateway decision of an agent, as one more source of the
---     agent's last activity (section WS3-A6).
+--     agent's last activity (section WS3-A6);
+--   * the rate of one token, as a token bucket in a table, so the limit is
+--     one limit however many API replicas serve the gateway;
+--   * the scheduler's pass over the gateway's records
+--     (zasp_gateway_maintain): it writes the decisions made for an agent of
+--     the inventory into the runtime sessions (source "gateway"), deletes
+--     decisions older than the retention it is given, and forgets idle rate
+--     buckets.
 -- Existing function bodies this section changes, each by one inserted
 -- member: create_pat (the permission list), zasp_mcp_server_tools (the tools
--- seen through the gateway) and zasp_inventory_agent_activity.
+-- seen through the gateway) and zasp_inventory_agent_activity. Two CHECK
+-- constraints of zasp_runtime_session_events are replaced by ones that also
+-- admit the source "gateway".
 
 CREATE TABLE IF NOT EXISTS public.zasp_gateway_policies(
  organization_id text NOT NULL,
@@ -7403,6 +7412,7 @@ CREATE TABLE IF NOT EXISTS public.zasp_gateway_decisions(
  guardrail_version bigint NOT NULL,
  policy_version bigint NOT NULL,
  created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+ session_pending boolean NOT NULL DEFAULT false,
  PRIMARY KEY(organization_id,workspace_id,environment_id,id),
  CONSTRAINT zasp_gateway_decisions_surface_check CHECK(surface IN('mcp','llm') AND(surface='mcp')=(server_id IS NOT NULL) AND(surface='llm')=(provider IS NOT NULL)),
  CONSTRAINT zasp_gateway_decisions_operation_check CHECK(CASE surface WHEN 'llm' THEN operation IN('chat.completions','responses','messages')
@@ -7420,11 +7430,32 @@ CREATE TABLE IF NOT EXISTS public.zasp_gateway_decisions(
 CREATE INDEX IF NOT EXISTS zasp_gateway_decisions_created_idx ON public.zasp_gateway_decisions(organization_id,workspace_id,environment_id,created_at DESC,id DESC);
 CREATE INDEX IF NOT EXISTS zasp_gateway_decisions_server_idx ON public.zasp_gateway_decisions(organization_id,workspace_id,environment_id,server_id,created_at DESC) WHERE server_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS zasp_gateway_decisions_agent_idx ON public.zasp_gateway_decisions(organization_id,workspace_id,environment_id,agent_id,created_at DESC) WHERE agent_id IS NOT NULL;
+-- session_pending marks a decision the scheduler has still to consider for
+-- the runtime sessions (zasp_gateway_maintain): one that names an agent by
+-- an identifier of the inventory's form.
+ALTER TABLE public.zasp_gateway_decisions ADD COLUMN IF NOT EXISTS session_pending boolean NOT NULL DEFAULT false;
+CREATE INDEX IF NOT EXISTS zasp_gateway_decisions_session_pending_idx ON public.zasp_gateway_decisions(created_at,id) WHERE session_pending;
+CREATE INDEX IF NOT EXISTS zasp_gateway_decisions_age_idx ON public.zasp_gateway_decisions(created_at);
+
+-- The rate of one API token in one Environment: a token bucket. tokens is
+-- what was left at updated_at; the bucket refills at the policy's rate.
+CREATE TABLE IF NOT EXISTS public.zasp_gateway_rate_buckets(
+ organization_id text NOT NULL,
+ workspace_id text NOT NULL,
+ environment_id text NOT NULL,
+ token_id text NOT NULL,
+ tokens double precision NOT NULL,
+ updated_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+ PRIMARY KEY(organization_id,workspace_id,environment_id,token_id),
+ CONSTRAINT zasp_gateway_rate_buckets_token_check CHECK(length(token_id) BETWEEN 1 AND 128),
+ CONSTRAINT zasp_gateway_rate_buckets_tokens_check CHECK(tokens>=0 AND tokens<=100000)
+);
+CREATE INDEX IF NOT EXISTS zasp_gateway_rate_buckets_age_idx ON public.zasp_gateway_rate_buckets(updated_at);
 
 DO $ws9_gateway_tables$
 DECLARE t text;
 BEGIN
- FOREACH t IN ARRAY ARRAY['zasp_gateway_policies','zasp_mcp_gateway_servers','zasp_mcp_gateway_tools','zasp_gateway_decisions'] LOOP
+ FOREACH t IN ARRAY ARRAY['zasp_gateway_policies','zasp_mcp_gateway_servers','zasp_mcp_gateway_tools','zasp_gateway_decisions','zasp_gateway_rate_buckets'] LOOP
   EXECUTE format('ALTER TABLE public.%I OWNER TO zasp_discovery_authority',t);
   EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY',t);
   EXECUTE format('ALTER TABLE public.%I FORCE ROW LEVEL SECURITY',t);
@@ -7437,19 +7468,29 @@ BEGIN
 END $ws9_gateway_tables$;
 
 -- The token permission: the list an API token may be created with gains
--- use_gateway. It is added at the head of the list: section V9 recognises
--- its own change by the tail of the list, and must still find it when the
--- sections are applied again.
+-- use_gateway. The block finds create_pat by its name, whatever its
+-- arguments have become, and changes a body only where it finds the one
+-- fragment it needs: the opening of the list, NOT IN('view', which becomes
+-- NOT IN('use_gateway','view', . A body that already admits use_gateway is
+-- left alone, so the block does nothing when it is applied again or after a
+-- section that wrote the list with use_gateway in it, and it applies after a
+-- section that changed anything else of create_pat. use_gateway is added at
+-- the head of the list: section V9 recognises its own change by the tail of
+-- the list, and must still find it when the sections are applied again.
 DO $ws9_gateway_token_permission$
-DECLARE target CONSTANT regprocedure:='zasp_authorization80_identity.create_pat(text,text,text,bytea,bytea,text,text,text,text,jsonb,timestamptz,text,text,timestamptz,bytea,bytea,bytea)'::regprocedure;
- anchor CONSTANT text:=$anchor$p#>>'{}' NOT IN('view','manage_findings',$anchor$;
- member CONSTANT text:=$member$p#>>'{}' NOT IN('use_gateway','view','manage_findings',$member$;
- d text:=pg_get_functiondef(target);
+DECLARE anchor CONSTANT text:=$anchor$NOT IN('view',$anchor$;
+ member CONSTANT text:=$member$NOT IN('use_gateway','view',$member$;
+ f record;admitted boolean:=false;d text;
 BEGIN
- IF position(member in d)=0 THEN
-  IF position('use_gateway' in d)>0 OR position('decide_guardrails' in d)=0 OR length(d)-length(replace(d,anchor,''))<>length(anchor) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='api token permission list predecessor changed';END IF;
-  EXECUTE replace(d,anchor,member);
- END IF;
+ FOR f IN SELECT p.oid FROM pg_proc p WHERE p.pronamespace='zasp_authorization80_identity'::regnamespace AND p.proname='create_pat' ORDER BY p.oid LOOP
+  d:=pg_get_functiondef(f.oid);
+  IF position($q$'use_gateway'$q$ in d)=0 AND length(d)-length(replace(d,anchor,''))=length(anchor) THEN
+   EXECUTE replace(d,anchor,member);
+   d:=pg_get_functiondef(f.oid);
+  END IF;
+  admitted:=admitted OR position($q$'use_gateway'$q$ in d)>0;
+ END LOOP;
+ IF NOT admitted THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='api token permission list predecessor changed';END IF;
 END $ws9_gateway_token_permission$;
 
 -- The gateway policy. A policy that was never saved has version 0 and the
@@ -7652,11 +7693,34 @@ BEGIN
  RETURN p;
 END $gateway_request$;
 
+-- One request of a token is taken from its bucket. The bucket holds at most
+-- one minute of the rate n and refills continuously; a request is admitted
+-- while at least one is left. The row is locked for the length of the
+-- statement only, so replicas serving the same token share one limit.
+CREATE OR REPLACE FUNCTION zasp_authorization80.gateway_rate_take(o text,w text,e text,token_value text,n integer) RETURNS boolean
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $gateway_rate_take$
+DECLARE taken integer;
+BEGIN
+ IF token_value IS NULL OR length(token_value) NOT BETWEEN 1 AND 128 OR n IS NULL OR n NOT BETWEEN 1 AND 100000 THEN RETURN false;END IF;
+ INSERT INTO public.zasp_gateway_rate_buckets AS b(organization_id,workspace_id,environment_id,token_id,tokens,updated_at) VALUES(o,w,e,token_value,n-1,clock_timestamp())
+ ON CONFLICT(organization_id,workspace_id,environment_id,token_id) DO UPDATE
+  SET tokens=LEAST(n::double precision,b.tokens+GREATEST(0,extract(epoch FROM clock_timestamp()-b.updated_at))*n/60.0)-1,updated_at=clock_timestamp()
+  WHERE LEAST(n::double precision,b.tokens+GREATEST(0,extract(epoch FROM clock_timestamp()-b.updated_at))*n/60.0)>=1;
+ GET DIAGNOSTICS taken=ROW_COUNT;
+ RETURN taken=1;
+END $gateway_rate_take$;
+
+-- The opening of a request: its admission, what the gateway enforces, and
+-- whether the token's rate admits it (rate_allowed). A rate of 0 is no
+-- limit.
 CREATE OR REPLACE FUNCTION zasp_authorization80.gateway_open(o text,w text,e text,actor text,op text,server_value text) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $gateway_open$
+DECLARE p jsonb;result jsonb;n integer;
 BEGIN
- PERFORM zasp_authorization80.gateway_request(o,w,e,actor,op,server_value,false);
- RETURN zasp_authorization80.gateway_session_value(o,w,e,server_value);
+ p:=zasp_authorization80.gateway_request(o,w,e,actor,op,server_value,false);
+ result:=zasp_authorization80.gateway_session_value(o,w,e,server_value);
+ n:=(result#>>'{policy,requests_per_minute}')::integer;
+ RETURN result||jsonb_build_object('rate_allowed',n=0 OR zasp_authorization80.gateway_rate_take(o,w,e,p->>'credential_id',n));
 END $gateway_open$;
 
 -- The records of one gateway request, and the tools its server listed. q is
@@ -7710,9 +7774,9 @@ BEGIN
  END IF;
  SELECT COALESCE((SELECT g.version FROM public.zasp_guardrail_policies g WHERE(g.organization_id,g.workspace_id,g.environment_id)=(o,w,e)),0),
   COALESCE((SELECT g.version FROM public.zasp_gateway_policies g WHERE(g.organization_id,g.workspace_id,g.environment_id)=(o,w,e)),0) INTO guardrail_version_value,policy_version_value;
- INSERT INTO public.zasp_gateway_decisions(organization_id,workspace_id,environment_id,id,principal_id,surface,operation,direction,decision,reason,rules,bytes,content_digest,server_id,tool_name,provider,model,agent_id,guardrail_version,policy_version)
+ INSERT INTO public.zasp_gateway_decisions(organization_id,workspace_id,environment_id,id,principal_id,surface,operation,direction,decision,reason,rules,bytes,content_digest,server_id,tool_name,provider,model,agent_id,guardrail_version,policy_version,session_pending)
  SELECT o,w,e,r->>'id',actor,r->>'surface',r->>'operation',r->>'direction',r->>'decision',r->>'reason',r->'rules',(r->>'bytes')::bigint,decode(substr(r->>'content_digest',8),'hex'),server_value,r->>'tool_name',r->>'provider',r->>'model',r->>'agent_id',
-  guardrail_version_value,policy_version_value
+  guardrail_version_value,policy_version_value,COALESCE(public.zasp_valid_product_id(r->>'agent_id'),false)
  FROM jsonb_array_elements(q->'records') WITH ORDINALITY listed(r,position) ORDER BY listed.position;
  GET DIAGNOSTICS written=ROW_COUNT;
  -- A tool the server listed: its risk class and the time it was last seen
@@ -7792,6 +7856,7 @@ BEGIN
   ('zasp_authorization80.mcp_gateway_server_delete(text,text,text,text,text,bigint,text,text)','zasp_discovery_api'),
   ('zasp_authorization80.gateway_session_value(text,text,text,text)',NULL),
   ('zasp_authorization80.gateway_request(text,text,text,text,text,text,boolean)',NULL),
+  ('zasp_authorization80.gateway_rate_take(text,text,text,text,integer)',NULL),
   ('zasp_authorization80.gateway_open(text,text,text,text,text,text)','zasp_discovery_api'),
   ('zasp_authorization80.gateway_record_write(text,text,text,text,text,jsonb)',NULL),
   ('zasp_authorization80.gateway_record(text,text,text,text,text,text,jsonb)','zasp_discovery_api'),
@@ -7848,3 +7913,83 @@ BEGIN
   EXECUTE replace(d,anchor,anchor||member);
  END IF;
 END $ws9_gateway_agent_activity$;
+
+-- Gateway traffic in the runtime sessions. A session event names its source;
+-- the two constraints that close the set of sources are replaced by ones that
+-- also admit "gateway", with the classes the gateway can state: a tool call
+-- (tool/invoke) and a decision of the gateway's policy (policy/allow,
+-- policy/block). Replacing a constraint checks the rows the table holds.
+DO $ws9_gateway_session_source$
+DECLARE d text;
+BEGIN
+ SELECT pg_get_constraintdef(c.oid) INTO d FROM pg_constraint c WHERE c.conrelid='public.zasp_runtime_session_events'::regclass AND c.conname='zasp_runtime_session_events_source_check';
+ IF d IS NULL THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='runtime session source predecessor changed';END IF;
+ IF position('gateway' in d)=0 THEN
+  ALTER TABLE public.zasp_runtime_session_events DROP CONSTRAINT zasp_runtime_session_events_source_check;
+  ALTER TABLE public.zasp_runtime_session_events ADD CONSTRAINT zasp_runtime_session_events_source_check CHECK(source IN('otlp','tetragon','gateway'));
+ END IF;
+ SELECT pg_get_constraintdef(c.oid) INTO d FROM pg_constraint c WHERE c.conrelid='public.zasp_runtime_session_events'::regclass AND c.conname='zasp_runtime_session_event_source_action_v44';
+ IF d IS NULL THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='runtime session source predecessor changed';END IF;
+ IF position('gateway' in d)=0 THEN
+  ALTER TABLE public.zasp_runtime_session_events DROP CONSTRAINT zasp_runtime_session_event_source_action_v44;
+  ALTER TABLE public.zasp_runtime_session_events ADD CONSTRAINT zasp_runtime_session_event_source_action_v44 CHECK(
+   source='otlp' AND(event_class='tool' AND action='invoke' OR event_class='credential' AND action='use' OR event_class='policy' AND action IN('allow','monitor','block'))
+   OR source='tetragon' AND(event_class='process' AND action IN('exec','exit') OR event_class='file' AND action IN('read','write') OR event_class='network' AND action IN('connect','accept'))
+   OR source='gateway' AND(event_class='tool' AND action='invoke' OR event_class='policy' AND action IN('allow','block')));
+ END IF;
+END $ws9_gateway_session_source$;
+
+-- The scheduler's pass over the gateway's records, at most limit_value
+-- hundreds of rows of each kind a call.
+--   * Sessions. A decision that names an agent (X-Zasp-Agent-Id) by the
+--     identifier of an active agent of the Environment's inventory becomes
+--     one event of a runtime session: the agent's gateway session of that
+--     UTC day. An allowed or redacted tools/call request is a tool call;
+--     every other decision is a policy event, block when the gateway
+--     blocked and allow otherwise. The event's evidence is the decision
+--     record, its time is the decision's, and its confidence is "strong":
+--     the agent is the one the token's holder named, which the gateway
+--     cannot verify. A decision for an identifier the inventory does not
+--     hold as an agent is passed over. The title is built from identifiers
+--     of the record only.
+--   * Retention. Decisions older than retention_days_value days are deleted.
+--     The session events written from them stay.
+--   * Rate buckets not used for a day are deleted.
+CREATE OR REPLACE FUNCTION public.zasp_gateway_maintain(retention_days_value integer,limit_value integer) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $gateway_maintain$
+DECLARE d record;examined integer:=0;projected integer:=0;written integer;deleted integer;buckets integer;label text;
+BEGIN
+ IF NOT COALESCE(pg_has_role(session_user,'zasp_discovery_scheduler','MEMBER') AND retention_days_value BETWEEN 1 AND 3650 AND limit_value BETWEEN 1 AND 100,false) THEN
+  RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='gateway maintenance authority denied';
+ END IF;
+ FOR d IN SELECT x.* FROM public.zasp_gateway_decisions x WHERE x.session_pending ORDER BY x.created_at,x.id LIMIT limit_value*100 FOR UPDATE SKIP LOCKED LOOP
+  examined:=examined+1;
+  IF EXISTS(SELECT 1 FROM public.zasp_inventory_entities i WHERE(i.organization_id,i.workspace_id,i.environment_id,i.id)=(d.organization_id,d.workspace_id,d.environment_id,d.agent_id) AND i.product_kind='agent' AND i.state='active') THEN
+   label:=CASE d.surface WHEN 'mcp' THEN 'MCP '||d.operation||COALESCE(' '||d.tool_name,'') ELSE d.provider||' '||d.operation||COALESCE(' '||d.model,'') END||' ('||d.direction||')';
+   INSERT INTO public.zasp_runtime_session_events(organization_id,workspace_id,environment_id,event_id,session_id,agent_id,confidence,source,event_class,action,title,evidence_id,event_time)
+   VALUES(d.organization_id,d.workspace_id,d.environment_id,
+    public.zasp_discovery_canonical_id(d.organization_id,d.workspace_id,d.environment_id,'gateway_session_event',d.id),
+    public.zasp_discovery_canonical_id(d.organization_id,d.workspace_id,d.environment_id,'gateway_session',d.agent_id||'/'||to_char(d.created_at AT TIME ZONE 'UTC','YYYY-MM-DD')),
+    d.agent_id,'strong','gateway',
+    CASE WHEN d.operation='tools/call' AND d.direction='request' AND d.decision<>'block' THEN 'tool' ELSE 'policy' END,
+    CASE WHEN d.operation='tools/call' AND d.direction='request' AND d.decision<>'block' THEN 'invoke' WHEN d.decision='block' THEN 'block' ELSE 'allow' END,
+    left(CASE WHEN d.operation='tools/call' AND d.direction='request' AND d.decision<>'block' THEN 'Gateway: MCP tool call '||COALESCE(d.tool_name,'')||CASE d.decision WHEN 'redact' THEN ' (arguments redacted)' ELSE '' END
+     WHEN d.decision='block' THEN 'Gateway blocked '||label||': '||d.reason
+     WHEN d.decision='redact' THEN 'Gateway redacted '||label||': '||d.reason
+     ELSE 'Gateway allowed '||label END,256),
+    d.id,d.created_at)
+   ON CONFLICT DO NOTHING;
+   GET DIAGNOSTICS written=ROW_COUNT;
+   projected:=projected+written;
+  END IF;
+  UPDATE public.zasp_gateway_decisions x SET session_pending=false WHERE(x.organization_id,x.workspace_id,x.environment_id,x.id)=(d.organization_id,d.workspace_id,d.environment_id,d.id);
+ END LOOP;
+ DELETE FROM public.zasp_gateway_decisions x WHERE x.ctid=ANY(ARRAY(SELECT y.ctid FROM public.zasp_gateway_decisions y WHERE y.created_at<clock_timestamp()-make_interval(days=>retention_days_value) ORDER BY y.created_at LIMIT limit_value*100 FOR UPDATE SKIP LOCKED));
+ GET DIAGNOSTICS deleted=ROW_COUNT;
+ DELETE FROM public.zasp_gateway_rate_buckets b WHERE b.ctid=ANY(ARRAY(SELECT y.ctid FROM public.zasp_gateway_rate_buckets y WHERE y.updated_at<clock_timestamp()-interval '1 day' ORDER BY y.updated_at LIMIT limit_value*100 FOR UPDATE SKIP LOCKED));
+ GET DIAGNOSTICS buckets=ROW_COUNT;
+ RETURN jsonb_build_object('examined',examined,'projected',projected,'deleted',deleted,'buckets',buckets);
+END $gateway_maintain$;
+ALTER FUNCTION public.zasp_gateway_maintain(integer,integer) OWNER TO zasp_discovery_authority;
+REVOKE ALL ON FUNCTION public.zasp_gateway_maintain(integer,integer) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.zasp_gateway_maintain(integer,integer) TO zasp_discovery_scheduler;

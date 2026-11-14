@@ -90,6 +90,12 @@ func NewProductMiddleware(security ProductSecurity, next http.Handler) (http.Han
 		}()
 
 		maximumBody := security.MaximumBodyBytes
+		// A guardrail decision carries up to 32768 bytes of text, which JSON
+		// may escape to several times that: this one route takes the body
+		// its handler reads.
+		if maximumBody < guardrailMaxBodyBytes && request.URL != nil && request.URL.Path == guardrailDecisionPath && request.Method == http.MethodPost {
+			maximumBody = guardrailMaxBodyBytes
+		}
 		if security.GatewayMaximumBodyBytes > maximumBody && request.URL != nil && HostedGatewayTrafficPath(request.URL.Path) {
 			maximumBody = security.GatewayMaximumBodyBytes
 			// The gateway's callers are MCP clients and model SDKs, some of

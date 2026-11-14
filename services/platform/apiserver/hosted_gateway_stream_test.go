@@ -37,7 +37,7 @@ func TestHostedGatewayStreamOutlivesTheServerTimeouts(t *testing.T) {
 		t.Fatal(err)
 	}
 	f.handler.gateway = gateway
-	f.tx.payloads[currentGatewayOpenSQL] = `{"policy":{"version":0,"unapproved_servers":"allow","denied_tool_risks":[],"requests_per_minute":600},"guardrail":{"version":0,"rules":{}},"server":null}`
+	f.tx.payloads[currentGatewayOpenSQL] = `{"policy":{"version":0,"unapproved_servers":"allow","denied_tool_risks":[],"requests_per_minute":600},"guardrail":{"version":0,"rules":{}},"server":null,"rate_allowed":true}`
 	f.tx.payloads[currentGatewayRecordSQL] = `{"recorded":2}`
 	routed := RoutedOperation{OperationID: "createGatewayChatCompletion", PathParameters: map[string]string{}}
 	checked := f.secondary.request(t, routed)

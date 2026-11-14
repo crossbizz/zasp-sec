@@ -16,6 +16,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/zasp-ai/zasp-sec/services/platform/guardrail"
 	"github.com/zasp-ai/zasp-sec/services/platform/hostedgateway"
 )
 
@@ -58,6 +59,13 @@ func (f *gatewayTxFixture) seen() ([]string, [][]any) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return append([]string(nil), f.statements...), append([][]any(nil), f.arguments...)
+}
+
+// reset forgets what reached the fixture.
+func (f *gatewayTxFixture) reset() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.statements, f.arguments, f.fences = nil, nil, 0
 }
 
 type gatewayDriverFixture struct{ tx *gatewayTxFixture }
@@ -379,8 +387,22 @@ func TestHostedGatewayTrafficThroughTheHandler(t *testing.T) {
 	}
 	f.handler.gateway = gateway
 	f.tx.payloads[currentGatewayOpenSQL] = `{"policy":{"version":2,"unapproved_servers":"refuse","denied_tool_risks":["execute"],"requests_per_minute":600},"guardrail":{"version":5,"rules":{"pii.phone":"monitor"}},
-"server":{"id":"` + gatewayTestServerID + `","name":"Tickets","upstream_url":"` + upstream.URL + `/mcp","enabled":true,"allowed_tools":[],"denied_tools":[],"approval":"approved"}}`
+"server":{"id":"` + gatewayTestServerID + `","name":"Tickets","upstream_url":"` + upstream.URL + `/mcp","enabled":true,"allowed_tools":[],"denied_tools":[],"approval":"approved"},"rate_allowed":true}`
 	f.tx.payloads[currentGatewayRecordSQL] = `{"recorded":2}`
+	// The database took the request from the token's rate: a request it
+	// did not admit is answered 429 and goes nowhere, and an answer that
+	// does not say is not served.
+	admitted := f.tx.payloads[currentGatewayOpenSQL]
+	f.tx.payloads[currentGatewayOpenSQL] = strings.Replace(admitted, `"rate_allowed":true`, `"rate_allowed":false`, 1)
+	if response := f.serve(t, routed, http.MethodPost, path, body, headers); response.Code != http.StatusTooManyRequests || response.Header().Get("Retry-After") != "1" || len(upstreamRequests) != 0 {
+		t.Fatalf("a request over the token's rate: %d, forwarded %d", response.Code, len(upstreamRequests))
+	}
+	f.tx.payloads[currentGatewayOpenSQL] = strings.Replace(admitted, `,"rate_allowed":true`, ``, 1)
+	if response := f.serve(t, routed, http.MethodPost, path, body, headers); response.Code != http.StatusServiceUnavailable || len(upstreamRequests) != 0 {
+		t.Fatalf("an opening without the rate decision: %d, forwarded %d", response.Code, len(upstreamRequests))
+	}
+	f.tx.payloads[currentGatewayOpenSQL] = admitted
+	f.tx.reset()
 	response := f.serve(t, routed, http.MethodPost, path, body, headers)
 	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "The customer is [REDACTED:pii.email].") || strings.Contains(response.Body.String(), "jane.customer") {
 		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
@@ -485,7 +507,7 @@ func TestProductMiddlewareGatewayBodyLimit(t *testing.T) {
 		"/api/v1/gateway/mcp/" + gatewayTestServerID:         http.StatusOK,
 		"/api/v1/gateway/policy":                             http.StatusRequestEntityTooLarge,
 		"/api/v1/gateway/mcp-servers/" + gatewayTestServerID: http.StatusRequestEntityTooLarge,
-		"/api/v1/guardrails/decisions":                       http.StatusRequestEntityTooLarge,
+		"/api/v1/guardrails":                                 http.StatusRequestEntityTooLarge,
 		"/api/v1/gateway/llm":                                http.StatusRequestEntityTooLarge,
 	} {
 		request := httptest.NewRequest(http.MethodPost, path, strings.NewReader(large))
@@ -530,5 +552,58 @@ func TestProductMiddlewareGatewayBodyLimit(t *testing.T) {
 	}
 	if !HostedGatewayTrafficPath("/api/v1/gateway/mcp/x") || HostedGatewayTrafficPath("/api/v1/gateway/mcp/") || HostedGatewayTrafficPath("/api/v1/gateway/mcp-servers/x") || HostedGatewayTrafficPath("/api/v1/gateway/activity") {
 		t.Fatal("the traffic paths are not exactly the gateway's two prefixes")
+	}
+}
+
+// A guardrail decision carries up to 32768 bytes of text. The product API's
+// body limit is 16 KiB; the decision route alone takes the body its handler
+// reads, whatever the deployment's limit and whether or not it hosts the
+// gateway.
+func TestProductMiddlewareGuardrailDecisionBodyLimit(t *testing.T) {
+	reached := map[string]int{}
+	handler, err := NewProductMiddleware(ProductSecurity{PublicOrigin: "https://app.example.test", MaximumBodyBytes: 16 * 1024,
+		Authenticate: func(context.Context, Credential) (RequestIdentity, error) { return fixtureRequestIdentity(t), nil }, GenerateCorrelationID: func() string { return "pid_ffffffff-ffff-4fff-8fff-ffffffffffff" }},
+		http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			body, _ := io.ReadAll(request.Body)
+			reached[request.Method+" "+request.URL.Path] = len(body)
+		}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	send := func(method, path, body string) int {
+		request := httptest.NewRequest(method, path, strings.NewReader(body))
+		request.Header.Set("Content-Type", "application/json")
+		request.Header.Set("Authorization", "Bearer token-of-the-test")
+		recorder := httptest.NewRecorder()
+		handler.ServeHTTP(recorder, request)
+		return recorder.Code
+	}
+	decision := func(text string) string {
+		encoded, _ := json.Marshal(map[string]string{"direction": "input", "text": text})
+		return string(encoded)
+	}
+	// The largest text, plain and with every byte escaped to six.
+	for name, text := range map[string]string{"plain": strings.Repeat("a", guardrail.MaxTextBytes), "escaped": strings.Repeat("\x01", guardrail.MaxTextBytes)} {
+		body := decision(text)
+		if len(body) <= 16*1024 || len(body) > guardrailMaxBodyBytes {
+			t.Fatalf("%s: the body is %d bytes", name, len(body))
+		}
+		delete(reached, "POST "+guardrailDecisionPath)
+		if status := send(http.MethodPost, guardrailDecisionPath, body); status != http.StatusOK || reached["POST "+guardrailDecisionPath] != len(body) {
+			t.Fatalf("%s text of %d bytes in a body of %d: status=%d reached=%d", name, len(text), len(body), status, reached["POST "+guardrailDecisionPath])
+		}
+	}
+	// One byte more than the handler reads is refused before it.
+	delete(reached, "POST "+guardrailDecisionPath)
+	if status := send(http.MethodPost, guardrailDecisionPath, `{"text":"`+strings.Repeat("a", guardrailMaxBodyBytes)+`"}`); status != http.StatusRequestEntityTooLarge || len(reached) != 0 {
+		t.Fatalf("a body over the decision limit: status=%d reached=%v", status, reached)
+	}
+	// Nothing else gained the room: another route, another method of the
+	// same path, and a path that only begins like it.
+	large := decision(strings.Repeat("a", guardrail.MaxTextBytes))
+	for _, target := range [][2]string{{http.MethodPost, "/api/v1/guardrails/policy"}, {http.MethodPut, guardrailDecisionPath}, {http.MethodPost, guardrailDecisionPath + "/more"}, {http.MethodPost, "/api/v1/findings"}} {
+		if status := send(target[0], target[1], large); status != http.StatusRequestEntityTooLarge || len(reached) != 0 {
+			t.Fatalf("%s %s: status=%d reached=%v", target[0], target[1], status, reached)
+		}
 	}
 }

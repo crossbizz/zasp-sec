@@ -524,9 +524,26 @@ func TestMCPGatewayEnforcesTheRegistryAndTheRate(t *testing.T) {
 	if status != http.StatusTooManyRequests || headers.Get("Retry-After") != "1" {
 		t.Fatalf("third request: %d", status)
 	}
+	// A store that takes the request from a rate shared by every replica
+	// decides, and the gateway's own limiter is not asked: the limit that
+	// was just exceeded here admits what the store admits, and a store
+	// that refuses is obeyed while this process has counted nothing.
+	set(func(s *Session) { s.Policy.RequestsPerMinute = 2; s.RateDecided, s.RateAllowed = true, true })
+	if status, _, _, _ := rpc(t, front.URL, list, nil); status != http.StatusOK {
+		t.Fatalf("a request the store admitted: %d", status)
+	}
+	gateway.Limiter = NewRateLimiter(nil)
+	set(func(s *Session) { s.RateDecided, s.RateAllowed = true, false })
+	before, _ := upstream.seen()
+	if status, headers, _, _ := rpc(t, front.URL, list, nil); status != http.StatusTooManyRequests || headers.Get("Retry-After") != "1" {
+		t.Fatalf("a request the store refused: %d", status)
+	}
+	if after, _ := upstream.seen(); len(after) != len(before) {
+		t.Fatal("a request over the shared rate was forwarded")
+	}
 	// An unknown server, a token without the permission, and a policy that
 	// cannot be read.
-	gateway.Limiter = NewRateLimiter(nil)
+	set(func(s *Session) {})
 	for err, want := range map[error]int{ErrNotFound: http.StatusNotFound, ErrForbidden: http.StatusForbidden, ErrUnavailable: http.StatusServiceUnavailable} {
 		store.mu.Lock()
 		store.openErr = err

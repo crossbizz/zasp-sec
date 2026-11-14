@@ -4814,8 +4814,11 @@ export type components = {
             readonly sandbox_id?: string;
             readonly sandbox_source_sensor_id?: components["schemas"]["ProductID"];
             readonly session_id: string | null;
-            /** @enum {string} */
-            readonly source: "otlp" | "tetragon";
+            /**
+             * @description What observed the event: a sensor (otlp, tetragon) or the hosted gateway. A gateway event is a tool call or a policy decision the gateway made for a request that named the agent; its evidence is the gateway decision record.
+             * @enum {string}
+             */
+            readonly source: "otlp" | "tetragon" | "gateway";
         };
         readonly RuntimeSessionEventPage: {
             readonly items: readonly components["schemas"]["RuntimeSessionEvent"][];

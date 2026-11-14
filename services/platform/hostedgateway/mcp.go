@@ -432,7 +432,7 @@ func (gateway *Gateway) ServeMCP(writer http.ResponseWriter, request *http.Reque
 		gateway.writeStoreError(writer, message.ID, err)
 		return
 	}
-	if !gateway.Limiter.Allow(caller.TokenKey, session.Policy.RequestsPerMinute) {
+	if !gateway.admitted(caller, session) {
 		writer.Header().Set("Retry-After", "1")
 		writeRPC(writer, http.StatusTooManyRequests, rpcMessage{ID: message.ID, Error: rpcError(rpcRefused, "The gateway's rate limit for this token is exceeded.")})
 		return
@@ -681,7 +681,7 @@ func (gateway *Gateway) CloseMCP(writer http.ResponseWriter, request *http.Reque
 		gateway.writeStoreError(writer, nil, err)
 		return
 	}
-	if !gateway.Limiter.Allow(caller.TokenKey, session.Policy.RequestsPerMinute) {
+	if !gateway.admitted(caller, session) {
 		writer.Header().Set("Retry-After", "1")
 		writeRPC(writer, http.StatusTooManyRequests, rpcMessage{Error: rpcError(rpcRefused, "The gateway's rate limit for this token is exceeded.")})
 		return

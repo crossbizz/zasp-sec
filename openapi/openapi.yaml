@@ -5554,7 +5554,7 @@ components:
         action: { type: string, enum: [invoke, exec, exit, read, write, connect, accept, use, allow, monitor, block] }
         label: { type: string, minLength: 1, maxLength: 256 }
         evidence_id: { $ref: '#/components/schemas/ProductID' }
-        source: { type: string, enum: [otlp, tetragon] }
+        source: { type: string, enum: [otlp, tetragon, gateway], description: 'What observed the event: a sensor (otlp, tetragon) or the hosted gateway. A gateway event is a tool call or a policy decision the gateway made for a request that named the agent; its evidence is the gateway decision record.' }
         confidence: { type: string, enum: [exact, strong, probable, unattributed] }
         at: { type: string, format: date-time }
         projected_at: { type: string, format: date-time }

@@ -129,53 +129,57 @@ type workerRuntimeConfig struct {
 	SaaSCollectorVersion string
 	// GCPCollectorVersion is ZASP_DISCOVERY_GCP_COLLECTOR_VERSION: it serves
 	// Google Cloud. Unset, the provider is not offered.
-	GCPCollectorVersion          string
-	NangoBaseURL                 string
-	NangoServiceSecretReference  string
-	NangoEnvironment             string
-	KubernetesEgressCIDRs        []string
-	GitHubAppID                  string
-	GitHubPrivateKeyReference    string
-	OktaClientID                 string
-	OktaClientSecretReference    string
-	ProviderTimeout              time.Duration
-	DiscoveryReadinessTimeout    time.Duration
-	OpenSearchURL                string
-	OpenSearchIndex              string
-	RuntimeSessionIndex          string
-	Neo4jURI                     string
-	Neo4jCredential              string
-	Neo4jExpectedPrincipal       string
-	Neo4jExpectedRole            string
-	ProjectionRoleARN            string
-	ProjectionTokenFile          string
-	ProjectionSecretPrefix       string
-	OutboxRoleARN                string
-	OutboxTokenFile              string
-	RedTeamRoleARN               string
-	RedTeamTokenFile             string
-	RedTeamTargetEndpoint        string
-	RedTeamTargetTokenFile       string
-	RedTeamTargetCAFile          string
-	RedTeamRunnerTimeout         time.Duration
-	RedTeamRunnerImage           string
-	AttackLabRoleARN             string
-	AttackLabTokenFile           string
-	AttackLabNamespace           string
-	AttackLabRunnerService       string
-	AttackLabRunnerTestRoleARN   string
-	AttackLabRunnerImage         string
-	AttackLabSecurityGroup       string
-	AttackLabKubernetesURL       string
-	AttackLabKubernetesToken     string
-	AttackLabKubernetesCA        string
-	AttackLabProxyEndpoint       string
-	AttackLabProxyCAFile         string
-	AttackLabSigningKeyFile      string
-	AttackLabOperationTimeout    time.Duration
-	GatewaySigningKeyID          string
-	GatewaySigningPrivateFile    string
-	GatewayPolicyKeysFile        string
+	GCPCollectorVersion         string
+	NangoBaseURL                string
+	NangoServiceSecretReference string
+	NangoEnvironment            string
+	KubernetesEgressCIDRs       []string
+	GitHubAppID                 string
+	GitHubPrivateKeyReference   string
+	OktaClientID                string
+	OktaClientSecretReference   string
+	ProviderTimeout             time.Duration
+	DiscoveryReadinessTimeout   time.Duration
+	OpenSearchURL               string
+	OpenSearchIndex             string
+	RuntimeSessionIndex         string
+	Neo4jURI                    string
+	Neo4jCredential             string
+	Neo4jExpectedPrincipal      string
+	Neo4jExpectedRole           string
+	ProjectionRoleARN           string
+	ProjectionTokenFile         string
+	ProjectionSecretPrefix      string
+	OutboxRoleARN               string
+	OutboxTokenFile             string
+	RedTeamRoleARN              string
+	RedTeamTokenFile            string
+	RedTeamTargetEndpoint       string
+	RedTeamTargetTokenFile      string
+	RedTeamTargetCAFile         string
+	RedTeamRunnerTimeout        time.Duration
+	RedTeamRunnerImage          string
+	AttackLabRoleARN            string
+	AttackLabTokenFile          string
+	AttackLabNamespace          string
+	AttackLabRunnerService      string
+	AttackLabRunnerTestRoleARN  string
+	AttackLabRunnerImage        string
+	AttackLabSecurityGroup      string
+	AttackLabKubernetesURL      string
+	AttackLabKubernetesToken    string
+	AttackLabKubernetesCA       string
+	AttackLabProxyEndpoint      string
+	AttackLabProxyCAFile        string
+	AttackLabSigningKeyFile     string
+	AttackLabOperationTimeout   time.Duration
+	GatewaySigningKeyID         string
+	GatewaySigningPrivateFile   string
+	GatewayPolicyKeysFile       string
+	// GatewayDecisionRetentionDays is how long the scheduler keeps the
+	// hosted gateway's decision records (ZASP_GATEWAY_DECISION_RETENTION_DAYS,
+	// 90 when it is not set).
+	GatewayDecisionRetentionDays int
 	SecurityAgentPlannerEndpoint string
 	SecurityAgentPlannerModel    string
 	SecurityAgentPlannerToken    string
@@ -282,6 +286,14 @@ func loadWorkerRuntimeConfig(getenv func(string) string) (workerRuntimeConfig, e
 		RuntimeStageRoleARN: getenv("ZASP_RUNTIME_STAGE_ROLE_ARN"), RuntimeStageTokenFile: getenv("ZASP_RUNTIME_STAGE_WEB_IDENTITY_TOKEN_FILE"), RuntimeStageVersion: getenv("ZASP_RUNTIME_STAGE_VERSION"),
 	}
 	config.ProjectionKind = projectionKind(config.Mode)
+	config.GatewayDecisionRetentionDays = defaultGatewayDecisionRetentionDays
+	if retention := getenv("ZASP_GATEWAY_DECISION_RETENTION_DAYS"); retention != "" {
+		days, err := strconv.Atoi(retention)
+		if err != nil || strconv.Itoa(days) != retention || days < 1 || days > 3650 || config.Mode != workerModeScheduler {
+			return workerRuntimeConfig{}, errWorkerConfiguration
+		}
+		config.GatewayDecisionRetentionDays = days
+	}
 	if loadAttackLabReconcilerIdentity(getenv, &config) != nil {
 		return workerRuntimeConfig{}, errWorkerConfiguration
 	}

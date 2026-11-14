@@ -296,12 +296,13 @@ func (store *gatewayRequestStore) Open(ctx context.Context, serverID string) (ho
 			DeniedTools  []string `json:"denied_tools"`
 			Approval     string   `json:"approval"`
 		} `json:"server"`
+		RateAllowed *bool `json:"rate_allowed"`
 	}
-	if !exactJSONFields(raw, "guardrail", "policy", "server") || decodeStrictDiscovery(raw, &wire) != nil || !wire.Policy.valid() || wire.Guardrail.Rules == nil || wire.Guardrail.Version < 0 || (wire.Server == nil) != (serverID == "") {
+	if !exactJSONFields(raw, "guardrail", "policy", "rate_allowed", "server") || decodeStrictDiscovery(raw, &wire) != nil || wire.RateAllowed == nil || !wire.Policy.valid() || wire.Guardrail.Rules == nil || wire.Guardrail.Version < 0 || (wire.Server == nil) != (serverID == "") {
 		return hostedgateway.Session{}, hostedgateway.ErrUnavailable
 	}
 	session := hostedgateway.Session{Policy: hostedgateway.Policy{Version: wire.Policy.Version, UnapprovedServers: wire.Policy.UnapprovedServers, DeniedToolRisks: wire.Policy.DeniedToolRisks, RequestsPerMinute: wire.Policy.RequestsPerMinute},
-		Guardrail: hostedgateway.Modes{}, GuardrailVersion: wire.Guardrail.Version}
+		Guardrail: hostedgateway.Modes{}, GuardrailVersion: wire.Guardrail.Version, RateDecided: true, RateAllowed: *wire.RateAllowed}
 	for id, mode := range wire.Guardrail.Rules {
 		rule, known := guardrail.RuleByID(id)
 		if !known || !guardrail.ValidMode(rule, guardrail.Mode(mode)) {

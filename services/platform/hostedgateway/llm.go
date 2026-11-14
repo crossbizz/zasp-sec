@@ -308,7 +308,7 @@ func (gateway *Gateway) ServeLLM(writer http.ResponseWriter, request *http.Reque
 		writeLLMError(writer, api, http.StatusServiceUnavailable, "gateway_unavailable", "The gateway's policy is unavailable.")
 		return
 	}
-	if !gateway.Limiter.Allow(caller.TokenKey, session.Policy.RequestsPerMinute) {
+	if !gateway.admitted(caller, session) {
 		writer.Header().Set("Retry-After", "1")
 		writeLLMError(writer, api, http.StatusTooManyRequests, "gateway_rate_limited", "The gateway's rate limit for this token is exceeded.")
 		return

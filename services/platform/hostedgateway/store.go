@@ -53,6 +53,19 @@ type Session struct {
 	GuardrailVersion int64
 	// Server is set for an MCP request.
 	Server *Server
+	// RateDecided says the store itself took the request from the token's
+	// rate, a limit shared by every replica, and RateAllowed what it found.
+	// A store that does not decide leaves the limit to the gateway's own
+	// limiter, which counts in this process only.
+	RateDecided, RateAllowed bool
+}
+
+// admitted applies the token's rate to one request.
+func (gateway *Gateway) admitted(caller Caller, session Session) bool {
+	if session.RateDecided {
+		return session.RateAllowed
+	}
+	return gateway.Limiter.Allow(caller.TokenKey, session.Policy.RequestsPerMinute)
 }
 
 // Surfaces and directions of a record.
