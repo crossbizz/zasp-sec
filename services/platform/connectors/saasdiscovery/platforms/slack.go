@@ -42,6 +42,7 @@ func Slack() saasdiscovery.Platform {
 		TenantPattern:  regexp.MustCompile(`^T[A-Z0-9]{8,20}$`),
 		AccessGuidance: "Create the Nango connection as an organization admin with the user scopes admin.apps:read and team:read. Both are read scopes.",
 		Failure:        slackFailure,
+		SignIn:         &saasdiscovery.SignIn{AuthorizationHost: "slack.com", AuthorizationPath: "/oauth/v2/authorize"},
 		Tenant: saasdiscovery.TenantLookup{Path: "/api/team.info", Map: func(document saasdiscovery.Item) (saasdiscovery.Tenant, bool) {
 			return saasdiscovery.Tenant{ID: document.Text("team", "id"), Name: document.Text("team", "name")}, document.Bool("ok") && document.Has("team", "id")
 		}},

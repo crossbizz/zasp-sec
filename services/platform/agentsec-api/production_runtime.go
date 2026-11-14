@@ -428,8 +428,29 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 	if err != nil {
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("connector-providers", errRuntimeUnavailable)
 	}
+	// The generic saas provider: every registered platform, through Nango.
+	// Its probe authorizes an integration by reference; where the database
+	// has the sign-in section a person can also sign in from the product.
+	var saasProbe *saasReferenceProbe
+	var saasSignIn *apiserver.SaaSSignIn
+	if config.SaaSCollectorVersion != "" {
+		probe, saasCloser, saasErr := newProductionSaaSReferenceProbe(config, nangoSecrets)
+		if saasErr != nil {
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("reference-providers", errRuntimeUnavailable)
+		}
+		connectorResources = append(connectorResources, saasCloser)
+		saasProbe = probe
+		signIn, signInCloser, signInErr := newProductionSaaSSignIn(ctx, config, nangoSecrets, probe, tracedDatabase)
+		if signInErr != nil {
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("connector-providers", errRuntimeUnavailable)
+		}
+		if signInCloser != nil {
+			connectorResources = append(connectorResources, signInCloser)
+		}
+		saasSignIn = signIn
+	}
 	connectorHandler, err := apiserver.NewConnectorHTTPHandler(apiserver.ConnectorHTTPConfig{
-		Repository: connectorRepository, Workflows: repository, Secrets: secretStore, Clock: func() time.Time { return time.Now().UTC() }, Registry: connectorRegistry,
+		Repository: connectorRepository, Workflows: repository, Secrets: secretStore, Clock: func() time.Time { return time.Now().UTC() }, Registry: connectorRegistry, SaaSSignIn: saasSignIn,
 	})
 	if err != nil {
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("connector-providers", errRuntimeUnavailable)
@@ -469,13 +490,7 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 		referenceProbes["salesforce"] = &salesforceReferenceProbe{resolver: referenceResolver, http: providerHTTP}
 		referenceChecks["salesforce"] = func(context.Context) error { return nil }
 	}
-	// The generic saas provider: every registered platform, through Nango.
-	if config.SaaSCollectorVersion != "" {
-		saasProbe, saasCloser, saasErr := newProductionSaaSReferenceProbe(config, nangoSecrets)
-		if saasErr != nil {
-			return RuntimeDependencies{}, markRuntimeDependencyFailure("reference-providers", errRuntimeUnavailable)
-		}
-		connectorResources = append(connectorResources, saasCloser)
+	if saasProbe != nil {
 		referenceProbes["saas"] = saasProbe
 		referenceChecks["saas"] = func(context.Context) error { return nil }
 	}

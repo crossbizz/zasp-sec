@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { decodeConnectorManifest, decodeConnectorManifestPage, decodeIntegrationSetupStatus, decodeInventoryDetail, decodeInventoryPage } from "./decoders";
+import { decodeConnectorManifest, decodeConnectorManifestPage, decodeIntegration, decodeIntegrationSetupStatus, decodeInventoryDetail, decodeInventoryPage } from "./decoders";
 
 const integrationID = "pid_20000001-0000-4000-8000-000000000001";
 const ids = { entity: "pid_10000001-0000-4000-8000-000000000001", evidence: "pid_20000001-0000-4000-8000-000000000001", integration: "pid_30000001-0000-4000-8000-000000000001", snapshot: "pid_40000001-0000-4000-8000-000000000001" };
@@ -28,6 +28,7 @@ const summary = {
   id: ids.entity, name: "support-agent", kind: "agent", owner: "", team: "", tags: [], evidence_id: ids.evidence, confidence_basis_points: 9500,
   first_seen: "2026-08-19T00:00:00Z", last_seen: "2026-08-19T01:00:00Z", observed_at: "2026-08-19T01:00:00Z", fresh_until: "2026-08-20T01:00:00Z", freshness_state: "fresh", version: 1,
   provider: "saas", source_kind: "saas_agent", discovery: { method: "provider_api", platform: "databricks", signals: [] }, management_state: "unmanaged",
+  activity_state: "unknown", last_activity_at: null,
 } as const;
 
 describe("generic saas provider decoders", () => {
@@ -48,6 +49,21 @@ describe("generic saas provider decoders", () => {
       { ...manifest, platform: "data/bricks", key: "saas-data/bricks" },
       { ...manifest, platforms: ["databricks"] },
     ]) expect(() => decodeConnectorManifest(refused)).toThrow("schema mismatch");
+  });
+
+  it("accepts a saas integration that waits for its sign-in and one that names its connection", () => {
+    const integration = { id: integrationID, connector_key: "saas", name: "ServiceNow", status: "pending_authorization", created_at: "2026-08-19T00:00:00Z", updated_at: "2026-08-19T00:01:00Z" };
+    const reference = "ref:nango/connection/11111111-1111-4111-8111-111111111111";
+    // Before the sign-in the configuration names the platform and the tenant only.
+    expect(decodeIntegration({ ...integration, configuration: { platform: "servicenow", tenant_id: "acme" } }).configuration).toEqual({ platform: "servicenow", tenant_id: "acme" });
+    expect(decodeIntegration({ ...integration, configuration: { platform: "servicenow", tenant_id: "acme", connection_reference: reference } }).configuration.connection_reference).toBe(reference);
+    for (const configuration of [
+      { platform: "servicenow" }, { tenant_id: "acme" }, { platform: "ServiceNow", tenant_id: "acme" }, { platform: "servicenow", tenant_id: "a..b" },
+      { platform: "servicenow", tenant_id: "acme", connection_reference: "ref:nango/service-key-0001" }, { platform: "servicenow", tenant_id: "acme", connection_reference: "" },
+      { platform: "servicenow", tenant_id: "acme", subdomain: "acme" },
+    ]) {
+      expect(() => decodeIntegration({ ...integration, configuration })).toThrow();
+    }
   });
 
   it("accepts the bound tenant of a saas integration", () => {
@@ -74,7 +90,7 @@ describe("generic saas provider decoders", () => {
   it("accepts inventory the saas provider reports and names it as a source", () => {
     const page = (item: unknown) => decodeInventoryPage({ items: [item], page_info: { next_cursor: null, has_more: false } });
     const application = { ...summary, name: "gpt-4o-proxy", source_kind: "saas_ai_application", confidence_basis_points: 7000, discovery: { method: "inferred", platform: "databricks", signals: ["model:openai", "surface:model_serving"] } };
-    const tenant = { ...summary, name: "Databricks workspace", kind: "asset", source_kind: "saas_tenant", discovery: { method: "provider_api", platform: "saas_tenant", signals: [] }, management_state: "not_applicable" };
+    const tenant = { ...summary, name: "Databricks workspace", kind: "asset", source_kind: "saas_tenant", discovery: { method: "provider_api", platform: "saas_tenant", signals: [] }, management_state: "not_applicable", activity_state: "not_applicable" };
     for (const item of [summary, application, tenant]) expect(page(item).items[0]).toEqual(item);
     // The platform is not a provider.
     for (const provider of ["databricks", "slack", "SaaS", "nango"]) expect(() => page({ ...summary, provider })).toThrow();

@@ -58,7 +58,7 @@ export type SecurityAgentsAPI = {
   listSecurityAgentTemplates(signal?: AbortSignal): Promise<readonly SecurityAgentTemplate[]>;
   listSecurityActions(signal?: AbortSignal): Promise<readonly SecurityAction[]>;
   getSecurityAgentExecutionControls(signal?: AbortSignal): Promise<SecurityAgentExecutionControls>;
-  setSecurityAgentExecutionControl(target: "environment" | "action", actionKey: "*" | "create_evidence_export" | "create_temporary_policy" | "isolate_session" | "rerun_test" | "revoke_integration_connection" | "run_test" | "start_attack_lab" | "update_finding_response", version: number, enabled: boolean, attempt?: WorkflowMutationAttempt): Promise<WorkflowReceipt<SecurityAgentExecutionControlResult>>;
+  setSecurityAgentExecutionControl(target: "environment" | "action", actionKey: "*" | "attach_bedrock_guardrail" | "create_evidence_export" | "create_temporary_policy" | "detach_role_administrator_policy" | "isolate_session" | "rerun_test" | "revoke_integration_connection" | "run_test" | "start_attack_lab" | "update_finding_response", version: number, enabled: boolean, attempt?: WorkflowMutationAttempt): Promise<WorkflowReceipt<SecurityAgentExecutionControlResult>>;
   listSecurityAgents(options?: { cursor?: string; limit?: number }, signal?: AbortSignal): Promise<SecurityAgentPage>;
   createSecurityAgent(value: SecurityAgentInput, attempt?: WorkflowMutationAttempt): Promise<WorkflowReceipt<SecurityAgentDefinition>>;
   getSecurityAgent(id: string, signal?: AbortSignal): Promise<Versioned<SecurityAgentDefinition>>;
@@ -133,7 +133,7 @@ export function createSecurityAgentsAPI(client: APIClient = createAPIClient(), e
       return requireAPIData(result, decodeSecurityAgentExecutionControls);
     },
     async setSecurityAgentExecutionControl(target, actionKey, version, enabled, attempt) {
-      if (target === "environment" && actionKey !== "*" || target === "action" && actionKey !== "create_evidence_export" && actionKey !== "create_temporary_policy" && actionKey !== "isolate_session" && actionKey !== "rerun_test" && actionKey !== "run_test" && actionKey !== "start_attack_lab" && actionKey !== "revoke_integration_connection" && actionKey !== "update_finding_response") throw new TypeError("Security Agent execution control target is invalid");
+      if (target === "environment" && actionKey !== "*" || target === "action" && actionKey !== "attach_bedrock_guardrail" && actionKey !== "detach_role_administrator_policy" && actionKey !== "create_evidence_export" && actionKey !== "create_temporary_policy" && actionKey !== "isolate_session" && actionKey !== "rerun_test" && actionKey !== "run_test" && actionKey !== "start_attack_lab" && actionKey !== "revoke_integration_connection" && actionKey !== "update_finding_response") throw new TypeError("Security Agent execution control target is invalid");
       return executeWorkflowMutation(async (active) => {
         const params = { header: { ...workflowMutationHeaders(active, `"${version}"`), "X-Zasp-Fresh-Auth": "confirmed" } } as never;
         const result = await client.PUT("/api/v1/security-agent-execution-controls", { params, body: { target, action_key: actionKey, enabled } }); requireSecurityAgentNoStore(result.response);
@@ -290,7 +290,7 @@ type SecurityAgentApprovalDecisionIntent = { id: string; version: number; decisi
 type SecurityAgentActivationIntent = { id: string; version: number; activation: "validated" | "supervised" | "autonomous" };
 type SecurityAgentSimulationIntent = { id: string; version: number; goal: string; environmentID: string; evidenceIDs: readonly string[] };
 type SecurityAgentManualRunIntent = { id: string; version: number; value: Parameters<SecurityAgentsAPI["runSecurityAgent"]>[2] };
-type SecurityAgentControlIntent = { target: "environment" | "action"; actionKey: "*" | "create_evidence_export" | "create_temporary_policy" | "isolate_session" | "rerun_test" | "revoke_integration_connection" | "run_test" | "start_attack_lab" | "update_finding_response"; version: number; enabled: boolean };
+type SecurityAgentControlIntent = { target: "environment" | "action"; actionKey: "*" | "attach_bedrock_guardrail" | "create_evidence_export" | "create_temporary_policy" | "detach_role_administrator_policy" | "isolate_session" | "rerun_test" | "revoke_integration_connection" | "run_test" | "start_attack_lab" | "update_finding_response"; version: number; enabled: boolean };
 
 async function loadSecurityAgentSnapshot(api: SecurityAgentsAPI, includeControls = false, signal?: AbortSignal, catalogAvailable = true): Promise<SecurityAgentSnapshot> {
   const [firstPage, templates, actions, firstRuns, firstApprovals, controls] = await Promise.all([
@@ -444,7 +444,9 @@ function AgentDetail({ selected, activation, actions, catalogAvailable, api, can
   };
   const remove = () => void run(() => mutation.execute({ kind: "delete", id: selected.value.id, version: selected.version }, async (intent, attempt) => { if (intent.kind !== "delete") throw new TypeError("Invalid retained Security Agent intent"); return { kind: "deleted", receipt: await api.deleteSecurityAgent(intent.id, intent.version, attempt) }; }));
   const retry = () => void run(() => mutation.retry<SecurityAgentDetailResult>());
-  const autonomousAllowed = !selected.value.allowed_actions.includes("create_temporary_policy") && !selected.value.allowed_actions.includes("revoke_integration_connection");
+  const autonomousAllowed = !selected.value.allowed_actions.includes("create_temporary_policy") && !selected.value.allowed_actions.includes("revoke_integration_connection")
+    // A provider remediation always needs a person's approval.
+    && !selected.value.allowed_actions.includes("attach_bedrock_guardrail") && !selected.value.allowed_actions.includes("detach_role_administrator_policy");
   const monitorUnavailable = selected.value.temporary_policy_mode === "monitor";
   const nextActivation = monitorUnavailable ? null : activation.activation === "draft" ? "validated" : activation.activation === "validated" ? "supervised" : activation.activation === "supervised" && autonomousAllowed ? "autonomous" : null;
   const activate = async () => {

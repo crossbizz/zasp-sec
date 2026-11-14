@@ -521,6 +521,9 @@ func classifyPostgresError(err error) error {
 		if provider.Code == "40001" && provider.Message == "security agent trigger source mismatch" {
 			return ErrSecurityAgentTriggerSourceMismatch
 		}
+		if named := classifySecurityAgentRemediationError(provider); named != nil {
+			return named
+		}
 		switch provider.Code {
 		case "22023", "22P02", "23514":
 			return ErrRepositoryOperation

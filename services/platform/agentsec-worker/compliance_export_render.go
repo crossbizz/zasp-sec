@@ -10,6 +10,8 @@ import (
 	"slices"
 	"time"
 
+	"github.com/zasp-ai/zasp-sec/services/platform/compliancemap"
+	"github.com/zasp-ai/zasp-sec/services/platform/evidencepack"
 	"github.com/zasp-ai/zasp-sec/services/platform/sessioncontrol"
 )
 
@@ -35,6 +37,43 @@ type complianceFrozenSnapshot struct {
 			Metadata sessioncontrol.ComplianceEvidenceMetadata `json:"metadata"`
 		} `json:"records"`
 	} `json:"controls"`
+	// AgentEvidencePack is set for an export that names one agent; it then
+	// has no controls.
+	AgentEvidencePack json.RawMessage `json:"agent_evidence_pack"`
+}
+
+// renderAgentEvidencePackPackage renders the package of an export that names
+// one agent: the captured pack as the JSON format, every record of it as the
+// CSV format and its Markdown rendering as the readable format.
+func renderAgentEvidencePackPackage(l complianceExportLease, snapshot complianceFrozenSnapshot) (compliancePreparedArtifact, error) {
+	if len(snapshot.Controls) != 0 {
+		return compliancePreparedArtifact{}, errWorkerExecution
+	}
+	pack, err := evidencepack.Decode(snapshot.AgentEvidencePack)
+	if err != nil {
+		return compliancePreparedArtifact{}, errWorkerExecution
+	}
+	var document bytes.Buffer
+	if json.Compact(&document, snapshot.AgentEvidencePack) != nil {
+		return compliancePreparedArtifact{}, errWorkerExecution
+	}
+	records, err := evidencepack.CSV(pack)
+	if err != nil {
+		return compliancePreparedArtifact{}, errWorkerExecution
+	}
+	readable := evidencepack.Markdown(pack, snapshot.Organization, snapshot.Workspace, snapshot.Environment, snapshot.At)
+	body, err := json.Marshal(struct {
+		Version int             `json:"version"`
+		ID      string          `json:"id"`
+		JSON    json.RawMessage `json:"json"`
+		CSV     string          `json:"csv"`
+		Human   string          `json:"human"`
+	}{1, l.ExportID, document.Bytes(), string(records), readable})
+	if err != nil || len(body) > 8<<20 || document.Len() > 4<<20 || len(records) > 4<<20 || len(readable) > 4<<20 {
+		return compliancePreparedArtifact{}, errWorkerExecution
+	}
+	hash := sha256.Sum256(body)
+	return compliancePreparedArtifact{Bytes: body, RendererRevision: "compliance-envelope-v1", Reference: l.ExportID, Size: int64(len(body)), SHA256: hex.EncodeToString(hash[:]), FormatSizes: map[string]int64{"json": int64(document.Len()), "csv": int64(len(records)), "readable": int64(len(readable))}}, nil
 }
 
 func renderComplianceExportPackage(ctx context.Context, l complianceExportLease, raw json.RawMessage) (compliancePreparedArtifact, error) {
@@ -44,13 +83,19 @@ func renderComplianceExportPackage(ctx context.Context, l complianceExportLease,
 	var snapshot complianceFrozenSnapshot
 	d := json.NewDecoder(bytes.NewReader(raw))
 	d.DisallowUnknownFields()
-	if d.Decode(&snapshot) != nil || d.Decode(new(any)) != io.EOF || snapshot.Revision != "product-evidence-v1" || snapshot.At.IsZero() || snapshot.Organization != l.Scope.OrganizationID().String() || snapshot.Workspace != l.Scope.WorkspaceID().String() || snapshot.Environment != l.Scope.EnvironmentID().String() || len(snapshot.Controls) < 1 || len(snapshot.Controls) > 500 {
+	if d.Decode(&snapshot) != nil || d.Decode(new(any)) != io.EOF || snapshot.Revision != "product-evidence-v1" || snapshot.At.IsZero() || snapshot.Organization != l.Scope.OrganizationID().String() || snapshot.Workspace != l.Scope.WorkspaceID().String() || snapshot.Environment != l.Scope.EnvironmentID().String() || len(snapshot.Controls) > 500 {
+		return compliancePreparedArtifact{}, errWorkerExecution
+	}
+	if snapshot.AgentEvidencePack != nil {
+		return renderAgentEvidencePackPackage(l, snapshot)
+	}
+	if len(snapshot.Controls) < 1 {
 		return compliancePreparedArtifact{}, errWorkerExecution
 	}
 	values := make([]sessioncontrol.ComplianceEvidence, 0, len(snapshot.Controls))
 	seen := map[string]bool{}
 	for _, c := range snapshot.Controls {
-		if c.Age < 1 || c.Age > 31536000 || len(c.Required) < 1 || len(c.Required) > 5 || len(c.Records) > 100 || !slices.Contains([]string{"soc2_security", "hipaa"}, c.Framework) || seen[c.ID] {
+		if c.Age < 1 || c.Age > 31536000 || len(c.Required) < 1 || len(c.Required) > 5 || len(c.Records) > 100 || !slices.Contains([]string{"soc2_security", "hipaa"}, c.Framework) && !compliancemap.IsFramework(c.Framework) || seen[c.ID] {
 			return compliancePreparedArtifact{}, errWorkerExecution
 		}
 		seen[c.ID] = true

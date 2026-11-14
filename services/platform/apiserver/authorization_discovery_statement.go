@@ -13,6 +13,12 @@ func discovery72StatementAllowed(g RequestAuthorization, q string, args []any) (
 	case `SELECT zasp_temporal72.public_delete_schedule($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`:
 		operation, count = "deleteIntegrationSchedule", 10
 	default:
+		if handled, allowed := integrationRemediationRoleStatementAllowed(g, q, args); handled {
+			return handled, allowed
+		}
+		if handled, allowed := guardrailStatementAllowed(g, q, args); handled {
+			return handled, allowed
+		}
 		return discovery72ReadStatementAllowed(g, q, args)
 	}
 	if g.OperationID != operation || g.Collection || len(args) != count || (g.Identity.CredentialKind != CredentialBrowserSession && g.Identity.CredentialKind != CredentialBearerToken) {

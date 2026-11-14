@@ -74,7 +74,7 @@ describe("M1-26 UI API coverage CI", () => {
     const map = await readFile(resolve(repositoryRoot, "docs/product/ui-api-map.yaml"), "utf8");
     expect(map.match(/availability: planned/g) ?? []).toHaveLength(2);
     expect(map.match(/availability: available/g)).toHaveLength(149);
-    expect(map.match(/availability: api_available/g)).toHaveLength(15);
+    expect(map.match(/availability: api_available/g)).toHaveLength(20);
     expect(map).not.toMatch(/^\s*(?:route|path|method|server):/m);
   });
 

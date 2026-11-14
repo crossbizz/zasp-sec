@@ -13,6 +13,7 @@ import (
 
 	"github.com/zasp-ai/zasp-sec/services/platform/artifactstore"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+	"github.com/zasp-ai/zasp-sec/services/platform/evidencepack"
 	"github.com/zasp-ai/zasp-sec/services/platform/sessioncontrol"
 )
 
@@ -128,6 +129,12 @@ func readComplianceDownload(ctx context.Context, reader complianceArtifactReader
 }
 
 func validCompliancePersistedEvidence(raw json.RawMessage, identity RequestIdentity) bool {
+	// An export that names one agent stores its evidence pack: one object,
+	// validated as the pack it is.
+	if trimmed := bytes.TrimSpace(raw); len(trimmed) > 0 && trimmed[0] == '{' {
+		_, err := evidencepack.Decode(raw)
+		return err == nil
+	}
 	var entries []json.RawMessage
 	if json.Unmarshal(raw, &entries) != nil || entries == nil || len(entries) > 500 {
 		return false

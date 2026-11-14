@@ -209,7 +209,7 @@ func (j *TemporalPostgresJournal) StandaloneResolver() *TemporalStandaloneResolv
 	return &TemporalStandaloneResolver{j}
 }
 func (s *TemporalStandaloneResolver) ResolveTarget(ctx context.Context, r TargetResolution) (TargetBinding, error) {
-	if s == nil || s.journal == nil || ctx == nil || ctx.Err() != nil || r.Scope.Validate() != nil || r.EffectKey != "" || !runLeaseRE.MatchString(r.LeaseToken) || r.RunID == r.TargetID || !validRequestBody(requestBody{TargetID: r.TargetID, TargetKind: r.TargetKind, Category: r.Category, Input: curatedInputs[r.Category]}) {
+	if s == nil || s.journal == nil || ctx == nil || ctx.Err() != nil || r.Scope.Validate() != nil || r.EffectKey != "" || !runLeaseRE.MatchString(r.LeaseToken) || r.RunID == r.TargetID || !validResolutionTarget(r) {
 		return TargetBinding{}, ErrAdapter
 	}
 	if _, err := domain.ParseProductID(r.RunID); err != nil {

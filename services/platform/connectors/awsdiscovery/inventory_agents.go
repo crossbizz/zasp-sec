@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"regexp"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/agentsignals"
@@ -52,8 +53,11 @@ type AgentInventorySource struct {
 	Gateways   []AgentInventoryGateway    `json:"gateways"`
 	// Workloads are roles and instances inferred to be agents from the
 	// account's audit and network logs; absent when there are none.
-	InferredWorkloads []AgentInventoryWorkload       `json:"inferred_workloads,omitempty"`
-	LambdaFunctions   []AgentInventoryLambdaFunction `json:"lambda_functions"`
+	InferredWorkloads []AgentInventoryWorkload `json:"inferred_workloads,omitempty"`
+	// Invocations say when the audit log last showed a role invoking a
+	// model, sorted by role; absent when it showed none.
+	Invocations     []AgentInventoryInvocation     `json:"invocations,omitempty"`
+	LambdaFunctions []AgentInventoryLambdaFunction `json:"lambda_functions"`
 	// MCPServers are remote MCP servers named by host; absent when none.
 	MCPServers []AgentInventoryMCPServer `json:"mcp_servers,omitempty"`
 	// RoleUsage compares granted with used model actions per agent role the
@@ -107,6 +111,14 @@ type AgentInventoryWorkload struct {
 	ResourceType string   `json:"resource_type"`
 	RoleARN      string   `json:"role_arn"`
 	Signals      []string `json:"signals"`
+}
+
+// AgentInventoryInvocation is the newest model invocation CloudTrail shows
+// for one role of the account inside the collector's lookup window:
+// RFC 3339, UTC, to the hour.
+type AgentInventoryInvocation struct {
+	LastInvokedAt string `json:"last_invoked_at"`
+	RoleARN       string `json:"role_arn"`
 }
 
 // Authorizer is the gateway's inbound authorizer type (AWS_IAM, CUSTOM_JWT,
@@ -249,6 +261,15 @@ func validAgentInventorySource(source AgentInventorySource, accountID string) bo
 			return false
 		}
 		nextLog++
+	}
+	previousRole := ""
+	for _, invocation := range source.Invocations {
+		match := securityRoleARNPattern.FindStringSubmatch(invocation.RoleARN)
+		invoked, err := time.Parse(time.RFC3339, invocation.LastInvokedAt)
+		if len(match) != 3 || match[1] != accountID || invocation.RoleARN <= previousRole || err != nil || invoked.Format("2006-01-02T15:00:00Z") != invocation.LastInvokedAt {
+			return false
+		}
+		previousRole = invocation.RoleARN
 	}
 	agentARNs := map[string]bool{}
 	agentRoles := map[string]bool{}
@@ -435,9 +456,17 @@ func (api *InventoryCollectionAPI) agentPage(request CollectionPageRequest, inve
 			relationships = append(relationships, marshalInventoryRelationship(scope, subject, "uses_identity", arn+"|uses_identity|"+roleARN, id, deterministicAWSInventoryID(scope, subject, "aws_role", roleARN)))
 		}
 	}
+	invoked := make(map[string]string, len(source.Invocations))
+	for _, invocation := range source.Invocations {
+		invoked[invocation.RoleARN] = invocation.LastInvokedAt
+	}
 	agentAttributes := func(roleARN, stateName, state string, discovery agentsignals.Discovery) map[string]any {
 		// A posture fact the control plane does not state stays false.
 		attributes := map[string]any{"posture": canonicalAgentObject(agentsignals.Posture{CredentialActive: roleARN != ""}), "discovery": canonicalAgentObject(discovery)}
+		// When the audit log last showed the agent's role invoking a model.
+		if at := invoked[roleARN]; roleARN != "" && at != "" {
+			attributes["last_invoked_at"] = at
+		}
 		if state != "" {
 			attributes[stateName] = state
 		}

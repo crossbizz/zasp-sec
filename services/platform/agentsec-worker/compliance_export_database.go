@@ -215,6 +215,11 @@ func (a *postgresComplianceExportAuthority) Capture(ctx context.Context, l compl
 		}
 	}
 	snapshot, err := auditExportWorkerObject(fields["snapshot"], 4<<20, keys...)
+	if err != nil && l.JobOrigin != "agent_run" {
+		// An export that names one agent carries its evidence pack as one
+		// more member (completion.sql, section WS3-C2).
+		snapshot, err = auditExportWorkerObject(fields["snapshot"], 4<<20, append(keys, "agent_evidence_pack")...)
+	}
 	if err != nil {
 		return nil, errWorkerExecution
 	}

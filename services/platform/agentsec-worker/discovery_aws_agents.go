@@ -155,8 +155,10 @@ func collectDiscoveryAWSAgentSource(ctx context.Context, factory discoveryAWSInv
 	// function that runs as it.
 	roleSignals, invokerRegion, cloudTrail := map[string][]string{}, map[string]string{}, ""
 	usedActions, auditComplete := map[string]map[string]bool{}, true
+	roleInvoked := map[string]time.Time{}
 	if factory.CloudTrail != nil {
 		perRegion := make([]map[string][]string, len(regions))
+		perRegionInvoked := make([]map[string]time.Time, len(regions))
 		invocations := make([]discoveryAWSInvocations, len(regions))
 		statuses := make([]string, len(regions))
 		if err := discoveryAWSEach(ctx, len(regions), func(bounded context.Context, index int) error {
@@ -165,7 +167,7 @@ func collectDiscoveryAWSAgentSource(ctx context.Context, factory discoveryAWSInv
 				return awsdiscovery.ErrDenied
 			}
 			invocations[index], statuses[index], err = collectDiscoveryAWSInvocations(bounded, api, accountID, now)
-			perRegion[index] = invocations[index].signals
+			perRegion[index], perRegionInvoked[index] = invocations[index].signals, invocations[index].latest
 			return err
 		}); err != nil {
 			return nil, err
@@ -181,6 +183,11 @@ func collectDiscoveryAWSAgentSource(ctx context.Context, factory discoveryAWSInv
 				}
 			}
 			cloudTrail = accountDiscoveryAWSAgentStatus(cloudTrail, statuses[index])
+			for role, invoked := range perRegionInvoked[index] {
+				if invoked.After(roleInvoked[role]) {
+					roleInvoked[role] = invoked
+				}
+			}
 			for role, signals := range perRegion[index] {
 				var merged agentsignals.Evidence
 				merged.AddSignals(roleSignals[role]...)
@@ -300,6 +307,12 @@ func collectDiscoveryAWSAgentSource(ctx context.Context, factory discoveryAWSInv
 		}
 	}
 	sort.Slice(source.InferredWorkloads, func(i, j int) bool { return source.InferredWorkloads[i].ARN < source.InferredWorkloads[j].ARN })
+	// When each role was last seen invoking a model, to the hour: an agent in
+	// constant use then changes once an hour, not on every collection.
+	for role, invoked := range roleInvoked {
+		source.Invocations = append(source.Invocations, awsdiscovery.AgentInventoryInvocation{LastInvokedAt: invoked.UTC().Truncate(time.Hour).Format(time.RFC3339), RoleARN: role})
+	}
+	sort.Slice(source.Invocations, func(i, j int) bool { return source.Invocations[i].RoleARN < source.Invocations[j].RoleARN })
 	if len(source.InferredWorkloads) > awsdiscovery.MaximumInventoryLambdaFunctions {
 		return nil, awsdiscovery.ErrDenied
 	}

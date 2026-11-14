@@ -12,8 +12,14 @@ import (
 
 func TestProductionActionReadinessExposesOnlyVerifiedActions(t *testing.T) {
 	values := ProductionActionMetadata()
-	if len(values) != 4 || values[0].Key != "create_temporary_policy" || values[1].Key != "isolate_session" || values[2].Key != "revoke_integration_connection" || values[3].Key != "update_finding_response" {
+	if len(values) != 6 || values[0].Key != "attach_bedrock_guardrail" || values[1].Key != "create_temporary_policy" || values[2].Key != "detach_role_administrator_policy" || values[3].Key != "isolate_session" || values[4].Key != "revoke_integration_connection" || values[5].Key != "update_finding_response" {
 		t.Fatalf("production actions=%#v", values)
+	}
+	// A provider remediation always needs a person: never autonomous.
+	for _, key := range []string{ActionAttachBedrockGuardrail, ActionDetachRoleAdministratorPolicy} {
+		if !ProductionActionAvailable(key, AutonomySupervised) || ProductionActionAvailable(key, AutonomyAutonomous) {
+			t.Fatalf("provider remediation %q autonomy is not exact", key)
+		}
 	}
 	if !ProductionActionAvailable("create_temporary_policy", AutonomySupervised) || ProductionActionAvailable("create_temporary_policy", AutonomyAutonomous) {
 		t.Fatal("temporary policy action autonomy is not exact")

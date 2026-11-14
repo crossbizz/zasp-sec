@@ -93,18 +93,22 @@ func classifyDiscoveryAWSSignalFailure(ctx context.Context, err error) (string, 
 }
 
 // collectDiscoveryAWSInvokers returns, per role ARN of the account, the
-// invoke signals CloudTrail shows for it in one region.
-func collectDiscoveryAWSInvokers(ctx context.Context, api discoveryAWSCloudTrailAPI, accountID string, now time.Time) (map[string][]string, string, error) {
+// invoke signals CloudTrail shows for it in one region, and the time of the
+// newest invocation it shows for that role. The time is the event time
+// CloudTrail records, inside the lookup window; an event without one, or with
+// one outside the window, gives the role its signal and no time.
+func collectDiscoveryAWSInvokers(ctx context.Context, api discoveryAWSCloudTrailAPI, accountID string, now time.Time) (map[string][]string, map[string]time.Time, string, error) {
 	invocations, status, err := collectDiscoveryAWSInvocations(ctx, api, accountID, now)
-	return invocations.signals, status, err
+	return invocations.signals, invocations.latest, status, err
 }
 
 // discoveryAWSInvocations is what one region's audit log showed: per role,
-// its invoke signals and the IAM actions it used. complete is false when a
-// lookup stopped at the page limit with more events to read; an absence in a
-// sampled log proves nothing.
+// its invoke signals, the time of its newest invocation and the IAM actions
+// it used. complete is false when a lookup stopped at the page limit with
+// more events to read; an absence in a sampled log proves nothing.
 type discoveryAWSInvocations struct {
 	signals  map[string][]string
+	latest   map[string]time.Time
 	actions  map[string]map[string]bool
 	complete bool
 }
@@ -113,7 +117,8 @@ func collectDiscoveryAWSInvocations(ctx context.Context, api discoveryAWSCloudTr
 	status := awsdiscovery.AgentServiceCollected
 	start := now.Add(-discoveryAWSInvocationWindow)
 	evidence := map[string]*agentsignals.Evidence{}
-	found := discoveryAWSInvocations{actions: map[string]map[string]bool{}, complete: true}
+	latest := map[string]time.Time{}
+	found := discoveryAWSInvocations{actions: map[string]map[string]bool{}, latest: latest, complete: true}
 	for _, name := range discoveryAWSInvocationEvents {
 		var token *string
 		for page := 0; ; page++ {
@@ -144,6 +149,9 @@ func collectDiscoveryAWSInvocations(ctx context.Context, api discoveryAWSCloudTr
 					evidence[role] = &agentsignals.Evidence{}
 				}
 				evidence[role].Invoked(name)
+				if event.EventTime != nil && !event.EventTime.Before(start) && !event.EventTime.After(now) && event.EventTime.After(latest[role]) {
+					latest[role] = event.EventTime.UTC()
+				}
 				if action, known := agentsignals.InvocationAction(name); known {
 					if found.actions[role] == nil {
 						found.actions[role] = map[string]bool{}

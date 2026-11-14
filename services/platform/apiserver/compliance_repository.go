@@ -11,6 +11,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/zasp-ai/zasp-sec/services/platform/compliancemap"
 	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 )
 
@@ -74,6 +75,11 @@ type ComplianceControl struct {
 	MaximumAgeSeconds int      `json:"maximum_age_seconds"`
 	Freshness         string   `json:"freshness"`
 	FreshUntil        string   `json:"fresh_until"`
+	// FindingIDs and FindingCount are set for a control of an AI framework:
+	// the findings whose rule maps to the control, among those the caller may
+	// read. FindingIDs holds the first hundred in identifier order.
+	FindingIDs   []string `json:"finding_ids,omitempty"`
+	FindingCount *int     `json:"finding_count,omitempty"`
 }
 type ComplianceControlPage struct {
 	MappingRevision string              `json:"mapping_revision"`
@@ -224,14 +230,24 @@ func (r *ComplianceRepository) ListControls(ctx context.Context, identity Reques
 	page.Items = make([]ComplianceControl, 0, len(items))
 	previous := ""
 	for _, item := range items {
-		if _, ok := existingTestPublicObject(item, nil, "framework", "control_id", "label", "required_sources", "maximum_age_seconds", "freshness", "fresh_until"); !ok {
+		var framework struct {
+			Framework string `json:"framework"`
+		}
+		if json.Unmarshal(item, &framework) != nil {
+			return ComplianceControlPage{}, ErrRepositoryUnavailable
+		}
+		fields := []string{"framework", "control_id", "label", "required_sources", "maximum_age_seconds", "freshness", "fresh_until"}
+		if compliancemap.IsFramework(framework.Framework) {
+			fields = append(fields, "finding_ids", "finding_count")
+		}
+		if _, ok := existingTestPublicObject(item, nil, fields...); !ok {
 			return ComplianceControlPage{}, ErrRepositoryUnavailable
 		}
 		var value ComplianceControl
 		if json.Unmarshal(item, &value) != nil || !validComplianceTime(value.FreshUntil) {
 			return ComplianceControlPage{}, ErrRepositoryUnavailable
 		}
-		if decodeStrictDiscovery(item, &value) != nil || !validComplianceFramework(value.Framework) || !validComplianceControl(value.ControlID, value.Framework) || len(value.RequiredSources) != 1 || !stringIn(value.RequiredSources[0], "audit", "finding", "policy", "test", "configuration") || value.MaximumAgeSeconds != 86400 || !stringIn(value.Freshness, "fresh", "stale", "missing") || !complianceSafeText(value.Label, 128) {
+		if decodeStrictDiscovery(item, &value) != nil || !validComplianceFramework(value.Framework) || !validComplianceControl(value.ControlID, value.Framework) || len(value.RequiredSources) != 1 || !stringIn(value.RequiredSources[0], "audit", "finding", "policy", "test", "configuration") || value.MaximumAgeSeconds != 86400 || !stringIn(value.Freshness, "fresh", "stale", "missing") || !complianceSafeText(value.Label, 128) || !validComplianceControlFindings(value) {
 			return ComplianceControlPage{}, ErrRepositoryUnavailable
 		}
 		key := value.Framework + "\x00" + value.ControlID
@@ -265,19 +281,51 @@ func validComplianceTime(value string) bool {
 	stamp, err := time.Parse(time.RFC3339Nano, value)
 	return err == nil && strings.HasSuffix(value, "Z") && !stamp.IsZero()
 }
-func validComplianceFramework(value string) bool { return value == "soc2_security" || value == "hipaa" }
-func validComplianceControl(value, framework string) bool {
-	for _, f := range []string{"soc2_security", "hipaa"} {
-		if framework != "" && framework != f {
-			continue
-		}
+
+// complianceProductFrameworks are the product evidence frameworks: five
+// evidence categories each. The AI frameworks (compliancemap) carry their own
+// controls, whose evidence is the findings mapped to them.
+var complianceProductFrameworks = []string{"soc2_security", "hipaa"}
+
+func validComplianceFramework(value string) bool {
+	return stringIn(value, complianceProductFrameworks...) || compliancemap.IsFramework(value)
+}
+
+// complianceControlFramework returns the framework a control identifier
+// belongs to, or "" for an unknown control.
+func complianceControlFramework(value string) string {
+	for _, f := range complianceProductFrameworks {
 		for _, c := range []string{"audit", "findings", "policies", "tests", "configuration"} {
 			if value == f+"-"+c {
-				return true
+				return f
 			}
 		}
 	}
-	return false
+	if control, ok := compliancemap.Control(value); ok {
+		return control.Framework
+	}
+	return ""
+}
+func validComplianceControl(value, framework string) bool {
+	owner := complianceControlFramework(value)
+	return owner != "" && (framework == "" || framework == owner)
+}
+
+// validComplianceControlFindings checks the finding members of a control: an
+// AI control carries both, a product control neither.
+func validComplianceControlFindings(value ComplianceControl) bool {
+	if !compliancemap.IsFramework(value.Framework) {
+		return value.FindingIDs == nil && value.FindingCount == nil
+	}
+	if value.FindingIDs == nil || value.FindingCount == nil || len(value.FindingIDs) > 100 || *value.FindingCount < len(value.FindingIDs) || *value.FindingCount > len(value.FindingIDs) && len(value.FindingIDs) < 100 || value.RequiredSources[0] != "finding" {
+		return false
+	}
+	for n, id := range value.FindingIDs {
+		if !validProductID(id) || n > 0 && value.FindingIDs[n-1] >= id {
+			return false
+		}
+	}
+	return true
 }
 func validComplianceList(identity RequestIdentity, options ComplianceListOptions, operation string) bool {
 	return options.Limit >= 0 && options.Limit <= 100 && (options.Framework == "" || validComplianceFramework(options.Framework)) && (options.ControlID == "" || validComplianceControl(options.ControlID, options.Framework)) && (len(options.Cursor) == 0 || validComplianceCursor(options.Cursor, identity, options, operation))

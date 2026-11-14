@@ -124,7 +124,7 @@ describe("agent access", () => {
 describe("Tools & MCP page", () => {
   it("shows the MCP servers above the tools, and an agent's access in its detail", async () => {
     const user = userEvent.setup();
-    const summary = { id: ids.agent, name: "support", kind: "agent" as const, owner: "", team: "", tags: [], evidence_id: "pid_20000001-0000-4000-8000-000000000001", confidence_basis_points: 9500, first_seen: "2026-08-19T00:00:00Z", last_seen: "2026-08-19T01:00:00Z", observed_at: "2026-08-19T01:00:00Z", fresh_until: "2026-08-19T01:15:00Z", freshness_state: "fresh" as const, provider: "aws" as const, source_kind: "aws_bedrock_agent", discovery: { method: "provider_api" as const, platform: "bedrock_agent", signals: [] }, management_state: "unmanaged" as const, version: 1 };
+    const summary = { id: ids.agent, name: "support", kind: "agent" as const, owner: "", team: "", tags: [], evidence_id: "pid_20000001-0000-4000-8000-000000000001", confidence_basis_points: 9500, first_seen: "2026-08-19T00:00:00Z", last_seen: "2026-08-19T01:00:00Z", observed_at: "2026-08-19T01:00:00Z", fresh_until: "2026-08-19T01:15:00Z", freshness_state: "fresh" as const, provider: "aws" as const, source_kind: "aws_bedrock_agent", discovery: { method: "provider_api" as const, platform: "bedrock_agent", signals: [] }, management_state: "unmanaged" as const, activity_state: "unknown" as const, last_activity_at: null, version: 1 };
     const detail = { summary, sources: [], evidence: [] } as unknown as Awaited<ReturnType<ProductionAgentSecurityAPI["getAgent"]>>;
     const api: ProductionAgentSecurityAPI = {
       listAgents: async () => [summary], listTools: async () => [], listIdentities: async () => [], listRuntimes: async () => [],

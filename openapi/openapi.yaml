@@ -1382,6 +1382,132 @@ paths:
         '404': { $ref: '#/components/responses/ProductErrorResponse' }
         '503': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/guardrails/decisions:
+    post:
+      operationId: createGuardrailDecision
+      summary: Decide whether one model interaction is allowed, redacted or blocked
+      description: >-
+        For a gateway the customer already runs (for example a LiteLLM guardrail hook): send the text going into a model
+        (direction input) or coming out of it (direction output) and act on the answer. Authenticate with an API token of the
+        Environment that has the view permission; a browser session is not accepted. The detectors are deterministic (regular
+        expressions, phrase lists and checksums; no model is called) and are heuristics: see the rule descriptions of the guardrail
+        policy. The interaction text is used for this request only. It is not logged and not stored; the audit record of a decision
+        holds the decision, the matched rule identifiers with their modes and counts, the size of the text and its SHA-256 digest.
+      security:
+        - ProductAPIToken: []
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/GuardrailInteraction' } } }
+      responses:
+        '200':
+          description: The decision. It was recorded before it was returned.
+          headers: { Cache-Control: { schema: { type: string, const: no-store } } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/GuardrailDecision' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '413': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/guardrails/policy:
+    get:
+      operationId: getGuardrailPolicy
+      summary: Get the guardrail policy of the Environment
+      description: Every rule of the catalog with the mode it has in this Environment. Version 0 means no policy was saved and every rule has its default mode.
+      responses:
+        '200':
+          description: The guardrail policy.
+          headers:
+            ETag: { $ref: '#/components/headers/WorkflowETag' }
+            Cache-Control: { schema: { type: string, const: no-store } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/GuardrailPolicy' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    put:
+      operationId: putGuardrailPolicy
+      summary: Set the guardrail policy of the Environment
+      description: >-
+        BrowserSession requests require the same-origin Origin and CSRF headers; ProductAPIToken requests omit both. If-Match names
+        the current version ("0" when no policy was saved); a stale version is refused with 409, which also makes a repeated request
+        safe. A rule the request does not name has its default mode. The change is audited and applies to the next decision.
+      parameters:
+        - $ref: '#/components/parameters/BrowserMutationCSRFToken'
+        - $ref: '#/components/parameters/BrowserMutationOrigin'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ScheduleVersion'
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/GuardrailPolicyInput' } } }
+      responses:
+        '200':
+          description: The guardrail policy after the change.
+          headers:
+            ETag: { $ref: '#/components/headers/WorkflowETag' }
+            X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }
+            Cache-Control: { schema: { type: string, const: no-store } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/GuardrailPolicy' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/integrations/{id}/remediation-role:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: getIntegrationRemediationRole
+      summary: Get the remediation role of an integration
+      description: >-
+        Provider remediations (Security Agent actions that change the customer's account) never use the role discovery reads with.
+        They use this separately configured role, and are refused while none is configured.
+      responses:
+        '200':
+          description: The remediation role setting.
+          headers:
+            ETag: { $ref: '#/components/headers/WorkflowETag' }
+            Cache-Control: { schema: { type: string, const: no-store } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/IntegrationRemediationRole' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    put:
+      operationId: putIntegrationRemediationRole
+      summary: Set or remove the remediation role of an integration
+      description: >-
+        BrowserSession requests require the same-origin Origin and CSRF headers; ProductAPIToken requests omit both. If-Match names
+        the current version ("0" when no role is configured); a request that names a stale version is refused with 409, which also
+        makes a repeated request safe. The role must be an IAM role of the account the integration reads and must not be the role
+        discovery reads with. The change is audited.
+      parameters:
+        - $ref: '#/components/parameters/BrowserMutationCSRFToken'
+        - $ref: '#/components/parameters/BrowserMutationOrigin'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ScheduleVersion'
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/IntegrationRemediationRoleInput' } } }
+      responses:
+        '200':
+          description: The remediation role setting after the change.
+          headers:
+            ETag: { $ref: '#/components/headers/WorkflowETag' }
+            X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }
+            Cache-Control: { schema: { type: string, const: no-store } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/IntegrationRemediationRole' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/integrations/{id}/test-delivery:
     parameters:
       - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
@@ -1630,6 +1756,26 @@ paths:
       responses:
         '200': { description: Agent relationship records., content: { application/json: { schema: { $ref: '#/components/schemas/RelationshipPage' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/agents/{id}/evidence-pack:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: getAgentEvidencePack
+      summary: Get the evidence pack of one Agent for an auditor
+      description: One document with how the agent was found, its findings with their framework references, the Security Agent runs on those findings with their approvals, and the red team definitions and runs that target it, plus a Markdown rendering. The pack is composed from the product's own read operations, each read as the caller, so it holds nothing the caller could not read one request at a time. A part the caller may not read is marked not_permitted, a part read only with a browser session is marked browser_session_required for an API token, and a part that reaches its bound is marked truncated. It is a synchronous read and nothing is stored - there is no retention and no download grant.
+      parameters:
+        - { name: format, in: query, required: false, description: 'json (default) returns the document and its rendering; markdown returns the rendering alone as a download.', schema: { type: string, enum: [json, markdown] } }
+      responses:
+        '200':
+          description: The evidence pack, with Cache-Control no-store.
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/AgentEvidencePackResponse' } }
+            text/markdown: { schema: { type: string } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/agents/{id}/sessions:
     parameters:
@@ -3385,8 +3531,8 @@ components:
       description: Minimum whole seconds before retrying an accepted asynchronous mutation.
       schema: { type: string, pattern: '^[1-9][0-9]{0,2}$' }
   parameters:
-    ComplianceFramework: { name: framework, in: query, schema: { type: string, enum: [soc2_security, hipaa] } }
-    ComplianceControlFilter: { name: control_id, in: query, schema: { type: string, minLength: 1, maxLength: 128, pattern: '^(soc2_security|hipaa)-(audit|findings|policies|tests|configuration)$' } }
+    ComplianceFramework: { name: framework, in: query, description: 'A product evidence framework (soc2_security, hipaa) or an AI security framework. The controls of an AI framework are the framework''s own, and the evidence of one is the findings whose rule maps to it. Listing evidence of an AI framework requires control_id.', schema: { $ref: '#/components/schemas/ComplianceFrameworkID' } }
+    ComplianceControlFilter: { name: control_id, in: query, schema: { $ref: '#/components/schemas/ComplianceControlID' } }
     CSRFToken:
       name: X-CSRF-Token
       in: header
@@ -4045,7 +4191,7 @@ components:
       required: [target, action_key, enabled, version]
       properties:
         target: { type: string, enum: [global, environment, action] }
-        action_key: { type: string, enum: ['*', create_evidence_export, create_temporary_policy, isolate_session, rerun_test, revoke_integration_connection, run_test, start_attack_lab, update_finding_response] }
+        action_key: { type: string, enum: ['*', attach_bedrock_guardrail, create_evidence_export, create_temporary_policy, detach_role_administrator_policy, isolate_session, rerun_test, revoke_integration_connection, run_test, start_attack_lab, update_finding_response] }
         enabled: { type: boolean }
         version: { type: integer, minimum: 0, maximum: 1000000 }
     SecurityAgentExecutionControls:
@@ -4055,14 +4201,14 @@ components:
       properties:
         global: { $ref: '#/components/schemas/SecurityAgentExecutionControl' }
         environment: { $ref: '#/components/schemas/SecurityAgentExecutionControl' }
-        actions: { type: array, oneOf: [{ minItems: 2, maxItems: 2 }, { minItems: 3, maxItems: 3 }, { minItems: 4, maxItems: 4 }, { minItems: 6, maxItems: 6 }, { minItems: 7, maxItems: 7 }, { minItems: 8, maxItems: 8 }], items: { $ref: '#/components/schemas/SecurityAgentExecutionControl' } }
+        actions: { type: array, oneOf: [{ minItems: 2, maxItems: 2 }, { minItems: 3, maxItems: 3 }, { minItems: 4, maxItems: 4 }, { minItems: 6, maxItems: 6 }, { minItems: 7, maxItems: 7 }, { minItems: 8, maxItems: 8 }, { minItems: 10, maxItems: 10 }], items: { $ref: '#/components/schemas/SecurityAgentExecutionControl' } }
     SecurityAgentExecutionControlInput:
       type: object
       additionalProperties: false
       required: [target, action_key, enabled]
       properties:
         target: { type: string, enum: [environment, action] }
-        action_key: { type: string, enum: ['*', create_evidence_export, create_temporary_policy, isolate_session, rerun_test, revoke_integration_connection, run_test, start_attack_lab, update_finding_response] }
+        action_key: { type: string, enum: ['*', attach_bedrock_guardrail, create_evidence_export, create_temporary_policy, detach_role_administrator_policy, isolate_session, rerun_test, revoke_integration_connection, run_test, start_attack_lab, update_finding_response] }
         enabled: { type: boolean }
     SecurityAgentExecutionControlResult:
       type: object
@@ -4070,7 +4216,7 @@ components:
       required: [target, action_key, enabled, version, audit_id, correlation_id, receipt_id, replayed]
       properties:
         target: { type: string, enum: [environment, action] }
-        action_key: { type: string, enum: ['*', create_evidence_export, create_temporary_policy, isolate_session, rerun_test, revoke_integration_connection, run_test, start_attack_lab, update_finding_response] }
+        action_key: { type: string, enum: ['*', attach_bedrock_guardrail, create_evidence_export, create_temporary_policy, detach_role_administrator_policy, isolate_session, rerun_test, revoke_integration_connection, run_test, start_attack_lab, update_finding_response] }
         enabled: { type: boolean }
         version: { type: integer, minimum: 1, maximum: 1000000 }
         audit_id: { $ref: '#/components/schemas/ProductID' }
@@ -4171,6 +4317,59 @@ components:
       oneOf:
         - { $ref: '#/components/schemas/SecurityAgentLegacyTriggerInput' }
         - { $ref: '#/components/schemas/SecurityAgentOrderedTriggerInput' }
+        - { $ref: '#/components/schemas/SecurityAgentRemediationTriggerInput' }
+    SecurityAgentRemediationTriggerInput:
+      type: object
+      additionalProperties: false
+      description: >-
+        Start a provider remediation on an open finding. The Security Agent's only allowed action must be the remediation's action
+        and the finding's rule must be the one the action answers (attach_bedrock_guardrail answers agent_guardrail_missing,
+        detach_role_administrator_policy answers agent_role_administrator_access). The run is created waiting for approval; nothing
+        is changed at the provider before a person other than the requester approves. The request is refused with 409
+        remediation_role_not_configured when the integration that describes the agent has no remediation role.
+      required: [environment_id, trigger_kind, trigger_id, remediation]
+      properties:
+        environment_id: { $ref: '#/components/schemas/ProductID' }
+        trigger_kind: { type: string, const: finding }
+        trigger_id: { $ref: '#/components/schemas/ProductID' }
+        remediation: { $ref: '#/components/schemas/SecurityAgentRemediation' }
+    SecurityAgentRemediation:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [action, parameters]
+          properties:
+            action: { type: string, const: attach_bedrock_guardrail }
+            parameters:
+              type: object
+              additionalProperties: false
+              required: [guardrail_identifier, guardrail_version]
+              properties:
+                guardrail_identifier: { $ref: '#/components/schemas/BedrockGuardrailIdentifier' }
+                guardrail_version: { $ref: '#/components/schemas/BedrockGuardrailVersion' }
+        - type: object
+          additionalProperties: false
+          required: [action, parameters]
+          properties:
+            action: { type: string, const: detach_role_administrator_policy }
+            parameters:
+              type: object
+              additionalProperties: false
+              required: [policy_arn]
+              properties:
+                policy_arn: { $ref: '#/components/schemas/IAMManagedPolicyARN' }
+    BedrockGuardrailIdentifier:
+      type: string
+      description: The identifier of an existing Bedrock guardrail, or its ARN in the agent's own account and Region.
+      pattern: '^(?:[a-z0-9]{1,64}|arn:aws(?:-us-gov|-cn)?:bedrock:[a-z0-9-]{1,20}:[0-9]{12}:guardrail/[a-z0-9]{1,64})$'
+    BedrockGuardrailVersion:
+      type: string
+      description: A numbered guardrail version, or DRAFT.
+      pattern: '^(?:[1-9][0-9]{0,7}|DRAFT)$'
+    IAMManagedPolicyARN:
+      type: string
+      description: The ARN of an AWS managed policy, or of a customer managed policy of the agent's own account.
+      pattern: '^arn:aws(?:-us-gov|-cn)?:iam::(?:aws|[0-9]{12}):policy/[A-Za-z0-9+=,.@_/-]{1,512}$'
     SecurityAgentLegacyTriggerInput:
       type: object
       additionalProperties: false
@@ -4435,6 +4634,23 @@ components:
       oneOf:
         - type: 'null'
         - type: object
+          description: attach_bedrock_guardrail. The target is the Bedrock agent; the guardrail is named by identifier or ARN.
+          additionalProperties: false
+          required: [target_id, integration_id, guardrail_identifier, guardrail_version]
+          properties:
+            target_id: { $ref: '#/components/schemas/ProductID' }
+            integration_id: { $ref: '#/components/schemas/ProductID' }
+            guardrail_identifier: { $ref: '#/components/schemas/BedrockGuardrailIdentifier' }
+            guardrail_version: { $ref: '#/components/schemas/BedrockGuardrailVersion' }
+        - type: object
+          description: detach_role_administrator_policy. The target is the Bedrock agent whose execution role the policy is detached from.
+          additionalProperties: false
+          required: [target_id, integration_id, policy_arn]
+          properties:
+            target_id: { $ref: '#/components/schemas/ProductID' }
+            integration_id: { $ref: '#/components/schemas/ProductID' }
+            policy_arn: { $ref: '#/components/schemas/IAMManagedPolicyARN' }
+        - type: object
           additionalProperties: false
           required: [target_id, evidence_ids]
           properties:
@@ -4538,7 +4754,7 @@ components:
         attack_lab: { $ref: '#/components/schemas/SecurityAgentAttackLabDetail' }
         existing_test: { $ref: '#/components/schemas/SecurityAgentExistingTestDetail' }
         step_id: { $ref: '#/components/schemas/ProductID' }
-        action: { type: string, enum: [update_finding_response, create_temporary_policy, isolate_session, revoke_integration_connection, run_test, rerun_test, start_attack_lab, create_evidence_export] }
+        action: { type: string, enum: [update_finding_response, create_temporary_policy, isolate_session, revoke_integration_connection, run_test, rerun_test, start_attack_lab, create_evidence_export, attach_bedrock_guardrail, detach_role_administrator_policy] }
         arguments: { $ref: '#/components/schemas/SecurityAgentActionArguments' }
         result: { oneOf: [{ $ref: '#/components/schemas/SecurityAgentActionResult' }, { type: 'null' }] }
         ttl_seconds: { type: [integer, 'null'], minimum: 60, maximum: 3600, description: 'Persisted containment TTL. Null is unavailable or not applicable, never zero.' }
@@ -4795,7 +5011,7 @@ components:
         state: { type: string, enum: [pending, approved, rejected, cancelled, expired] }
         expires_at: { type: string, format: date-time }
         version: { type: integer, minimum: 1 }
-        expected_effect: { type: string, enum: [Move finding to under review, Assign investigator and update finding response, Apply temporary containment policy, Apply temporary monitoring policy, Isolate runtime session, Revoke integration connection, Run existing test, Rerun existing test, Run a bounded Attack Lab reproduction; human interpretation required, Create run-scoped evidence export] }
+        expected_effect: { type: string, enum: [Move finding to under review, Assign investigator and update finding response, Apply temporary containment policy, Apply temporary monitoring policy, Isolate runtime session, Revoke integration connection, Run existing test, Rerun existing test, Run a bounded Attack Lab reproduction; human interpretation required, Create run-scoped evidence export, Attach Bedrock guardrail, Detach administrator policy from agent role] }
         reversible: { type: boolean }
         ttl_seconds: { type: integer, minimum: 0, maximum: 3600 }
         evidence_summary: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/ProductID' } }
@@ -4841,7 +5057,7 @@ components:
       properties:
         finding_response: { $ref: '#/components/schemas/SecurityAgentFindingResponseApproval' }
         agent_id: { $ref: '#/components/schemas/ProductID' }
-        action: { type: string, enum: [update_finding_response, create_temporary_policy, isolate_session, revoke_integration_connection, run_test, rerun_test, start_attack_lab, create_evidence_export] }
+        action: { type: string, enum: [update_finding_response, create_temporary_policy, isolate_session, revoke_integration_connection, run_test, rerun_test, start_attack_lab, create_evidence_export, attach_bedrock_guardrail, detach_role_administrator_policy] }
         export_selection:
           type: array
           minItems: 1
@@ -5006,6 +5222,13 @@ components:
     RuntimeSessionEventPage: { type: object, additionalProperties: false, required: [items, page_info], properties: { items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/RuntimeSessionEvent' } }, page_info: { $ref: '#/components/schemas/PageInfo' } } }
     SessionPage: { anyOf: [ { $ref: '#/components/schemas/ConsoleSessionPage' }, { $ref: '#/components/schemas/RuntimeSessionPage' } ] }
     SessionEventPage: { anyOf: [ { $ref: '#/components/schemas/ConsoleSessionEventPage' }, { $ref: '#/components/schemas/RuntimeSessionEventPage' } ] }
+    ComplianceFrameworkID: { type: string, enum: [soc2_security, hipaa, owasp_agentic_top10_2026, owasp_llm_top10_2025, mitre_atlas, nist_ai_rmf_1_0, iso_iec_42001_2023, eu_ai_act] }
+    ComplianceControlID:
+      type: string
+      minLength: 1
+      maxLength: 128
+      description: A product evidence control (framework-category) or the own identifier of an AI framework control, such as ASI03, LLM01, AML.T0051, GOVERN 1.6, A.6.2.6 or Article 15.
+      pattern: '^((soc2_security|hipaa)-(audit|findings|policies|tests|configuration)|ASI[0-9]{2}|LLM[0-9]{2}|AML\.T[0-9]{4}|(GOVERN|MAP|MEASURE|MANAGE) [0-9]\.[0-9]{1,2}|A\.[0-9]{1,2}(\.[0-9]{1,2}){1,2}|Article [0-9]{1,3})$'
     ComplianceControl:
       type: object
       additionalProperties: false
@@ -5023,6 +5246,7 @@ components:
           items: { type: string, minLength: 1, maxLength: 128 }
         fresh_until: { type: string, format: date-time, description: Latest eligible source timestamp plus its maximum age across the complete control source set; Unix epoch when missing. }
         freshness: { type: string, enum: [fresh, stale, missing], description: 'Always present on the registered current-source service: aggregate state across all eligible sources, independent of the bounded preview. Absent on the legacy fallback; absence must not be interpreted as current-source evidence.' }
+        finding_count: { type: integer, minimum: 0, description: 'Present on a control of an AI security framework: the number of findings the caller may read whose rule maps to this control. evidence_ids then holds the first 100 of those findings. A finding is evidence relevant to the control; the count does not say the control is met or failed.' }
     ComplianceEvidence:
       type: object
       additionalProperties: false
@@ -5084,7 +5308,15 @@ components:
         environment_id: { $ref: '#/components/schemas/ProductID' }
     ComplianceControlPage: { type: object, additionalProperties: false, required: [items, page_info], properties: { items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/ComplianceControl' } }, page_info: { $ref: '#/components/schemas/CompliancePageInfo' } } }
     ComplianceEvidencePage: { type: object, additionalProperties: false, required: [items, page_info], properties: { items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/ComplianceEvidence' } }, page_info: { $ref: '#/components/schemas/CompliancePageInfo' } } }
-    ComplianceExportInput: { type: object, additionalProperties: false, properties: { framework: { type: string, enum: [soc2_security, hipaa] }, control_id: { type: string, minLength: 1, maxLength: 128, pattern: '^(soc2_security|hipaa)-(audit|findings|policies|tests|configuration)$' } } }
+    ComplianceExportInput:
+      type: object
+      description: What the export captures - the controls of a framework (or one control; every control when both are omitted), or, with agent_id alone, the evidence pack of one agent. An agent export retains how the agent was found, its findings with framework references, the Security Agent runs on those findings that the export worker can read (runs owned by the Temporal executor are not included; the synchronous evidence pack reads them) and the red team definitions and runs that target it. Its JSON format is the pack, its CSV format lists every record and its readable format is the Markdown rendering.
+      additionalProperties: false
+      properties:
+        framework: { $ref: '#/components/schemas/ComplianceFrameworkID' }
+        control_id: { $ref: '#/components/schemas/ComplianceControlID' }
+        agent_id: { $ref: '#/components/schemas/ProductID' }
+      not: { required: [agent_id], anyOf: [{ required: [framework] }, { required: [control_id] }] }
     ComplianceExport:
       type: object
       additionalProperties: false
@@ -6434,6 +6666,111 @@ components:
         completed_at: { type: [string, 'null'], format: date-time }
         error_code: { type: string, enum: ['', delivery_failed] }
         audit_id: { $ref: '#/components/schemas/ProductID' }
+    GuardrailRuleID:
+      type: string
+      enum:
+        - injection.instruction_override
+        - injection.role_switch
+        - injection.hidden_text
+        - injection.tool_call
+        - pii.email
+        - pii.phone
+        - pii.credit_card
+        - pii.us_ssn
+        - secret.aws_access_key_id
+        - secret.private_key
+        - secret.bearer_token
+    GuardrailMode:
+      type: string
+      description: block stops the interaction; redact replaces the matched text (sensitive-data rules only); monitor reports the match and changes nothing; off ignores the rule.
+      enum: [block, redact, monitor, 'off']
+    GuardrailInteraction:
+      type: object
+      additionalProperties: false
+      required: [direction, text]
+      properties:
+        direction: { type: string, enum: [input, output], description: input is text on its way into a model; output is text a model produced. }
+        text: { type: string, description: The interaction text. At most 32768 bytes of UTF-8; a longer text is refused with 413. }
+        agent_id: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$', description: 'Optional identifier of the agent, as the gateway knows it. Recorded with the decision.' }
+        tool_name: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$', description: Optional name of the tool whose call or result the text is. Recorded with the decision. }
+    GuardrailMatchedRule:
+      type: object
+      additionalProperties: false
+      required: [id, category, mode, count]
+      properties:
+        id: { $ref: '#/components/schemas/GuardrailRuleID' }
+        category: { type: string, enum: [prompt_injection, sensitive_data] }
+        mode: { type: string, enum: [block, redact, monitor] }
+        count: { type: integer, minimum: 1, maximum: 9999 }
+    GuardrailDecision:
+      type: object
+      additionalProperties: false
+      required: [decision_id, decision, matched_rules, policy_version]
+      properties:
+        decision_id: { $ref: '#/components/schemas/ProductID' }
+        decision: { type: string, enum: [allow, redact, block] }
+        redacted_text: { type: string, description: 'Present only when decision is redact: the text with every match of a redacting rule replaced by [REDACTED:<rule id>]. Forward this instead of the original.' }
+        matched_rules: { type: array, maxItems: 11, items: { $ref: '#/components/schemas/GuardrailMatchedRule' }, description: 'Every rule that matched and is not off, including rules that only monitor.' }
+        policy_version: { type: integer, minimum: 0, maximum: 1000000 }
+    GuardrailPolicyRule:
+      type: object
+      additionalProperties: false
+      required: [id, category, description, mode, default_mode, redactable]
+      properties:
+        id: { $ref: '#/components/schemas/GuardrailRuleID' }
+        category: { type: string, enum: [prompt_injection, sensitive_data] }
+        description: { type: string, minLength: 1, maxLength: 512 }
+        mode: { $ref: '#/components/schemas/GuardrailMode' }
+        default_mode: { $ref: '#/components/schemas/GuardrailMode' }
+        redactable: { type: boolean, description: Only a redactable rule can have the redact mode. }
+    GuardrailPolicy:
+      type: object
+      additionalProperties: false
+      required: [environment_id, version, updated_at, rules]
+      properties:
+        environment_id: { $ref: '#/components/schemas/ProductID' }
+        version: { type: integer, minimum: 0, maximum: 1000000 }
+        updated_at: { oneOf: [{ type: 'null' }, { type: string, format: date-time }] }
+        rules: { type: array, minItems: 11, maxItems: 11, items: { $ref: '#/components/schemas/GuardrailPolicyRule' } }
+    GuardrailPolicyInput:
+      type: object
+      additionalProperties: false
+      required: [rules]
+      properties:
+        rules:
+          type: object
+          description: Rule identifier to mode. A rule that is not named has its default mode.
+          maxProperties: 11
+          propertyNames: { $ref: '#/components/schemas/GuardrailRuleID' }
+          additionalProperties: { $ref: '#/components/schemas/GuardrailMode' }
+    IntegrationRemediationRole:
+      type: object
+      additionalProperties: false
+      description: >-
+        The separate IAM role provider remediations of this integration use. It is named by ARN only; no credential is stored.
+        supported is false for a provider without remediation actions. When configured is false, role_arn and updated_at are null
+        and version is 0, and remediations of the integration are refused.
+      required: [integration_id, supported, configured, role_arn, version, updated_at]
+      properties:
+        integration_id: { $ref: '#/components/schemas/ProductID' }
+        supported: { type: boolean }
+        configured: { type: boolean }
+        role_arn: { oneOf: [{ type: 'null' }, { $ref: '#/components/schemas/AWSRoleARN' }] }
+        version: { type: integer, minimum: 0, maximum: 1000000 }
+        updated_at: { oneOf: [{ type: 'null' }, { type: string, format: date-time }] }
+    IntegrationRemediationRoleInput:
+      type: object
+      additionalProperties: false
+      required: [role_arn]
+      properties:
+        role_arn:
+          description: An IAM role of the account the integration reads, different from the role discovery reads with. The empty string removes the setting.
+          oneOf:
+            - { type: string, const: '' }
+            - { $ref: '#/components/schemas/AWSRoleARN' }
+    AWSRoleARN:
+      type: string
+      pattern: '^arn:aws:iam::[0-9]{12}:role/[A-Za-z0-9+=,.@_/-]{1,128}$'
     IntegrationSetupStatus:
       type: object
       additionalProperties: false
@@ -6556,7 +6893,7 @@ components:
     InventorySummary:
       type: object
       additionalProperties: false
-      required: [id, name, kind, owner, team, tags, evidence_id, confidence_basis_points, first_seen, last_seen, observed_at, fresh_until, freshness_state, version, provider, source_kind, discovery, management_state]
+      required: [id, name, kind, owner, team, tags, evidence_id, confidence_basis_points, first_seen, last_seen, observed_at, fresh_until, freshness_state, version, provider, source_kind, discovery, management_state, last_activity_at, activity_state]
       properties:
         id: { $ref: '#/components/schemas/ProductID' }
         name: { type: string, minLength: 1, maxLength: 256 }
@@ -6565,6 +6902,11 @@ components:
         source_kind: { type: string, pattern: '^[a-z][a-z0-9_]{1,63}$' }
         discovery: { $ref: '#/components/schemas/InventoryDiscovery' }
         management_state: { $ref: '#/components/schemas/InventoryManagementState' }
+        last_activity_at:
+          type: [string, 'null']
+          format: date-time
+          description: For an agent, the latest time activity is known, from what is recorded without anything installed - the newest runtime event attributed to the agent; for an AWS agent the newest time CloudTrail shows its role invoking a model inside the collector's seven-day window (to the hour); or, where the provider's logs showed activity but no event time was recorded (network logs, or an invocation without a recorded time), the time of that collection. Null when there is none, and for every other kind.
+        activity_state: { $ref: '#/components/schemas/InventoryActivityState' }
         owner: { type: string, maxLength: 128 }
         team: { type: string, maxLength: 128 }
         tags:
@@ -6601,8 +6943,75 @@ components:
       type: string
       description: For an agent, dismissed when it was found without a declaration and a person marked it as not an agent (the reserved tag not-an-agent, set through the ownership update; the tag is ignored on a declared agent, which stays managed). Otherwise unmanaged while it was found without a declaration and has no owner, and managed in every other case. Not applicable to other kinds.
       enum: [managed, unmanaged, dismissed, not_applicable]
+    InventoryActivityState:
+      type: string
+      description: For an agent, active when last_activity_at is within 30 days; inactive when it is older, or when there is none and the provider reports the agent's execution role unused for 90 days (an open agent_role_unused_90_days finding); unknown when there is no activity source at all, which is not the same as inactive. Every other kind is not_applicable.
+      enum: [active, inactive, unknown, not_applicable]
     InventoryRecord:
       $ref: '#/components/schemas/InventorySummary'
+    AgentEvidencePackStatus:
+      type: string
+      description: Whether a section holds everything (complete), stops at its bound (truncated), or is empty because the caller may not read it (not_permitted), it is read only with a browser session (browser_session_required) or it could not be read when the pack was generated (unavailable).
+      enum: [complete, truncated, not_permitted, browser_session_required, unavailable]
+    AgentEvidencePack:
+      type: object
+      additionalProperties: false
+      required: [schema_version, generated_at, organization_id, workspace_id, environment_id, agent, findings, security_agent_runs, red_team_tests, red_team_runs]
+      properties:
+        schema_version: { type: string, const: agent-evidence-pack-v1 }
+        generated_at: { type: string, format: date-time }
+        organization_id: { $ref: '#/components/schemas/ProductID' }
+        workspace_id: { $ref: '#/components/schemas/ProductID' }
+        environment_id: { $ref: '#/components/schemas/ProductID' }
+        agent: { $ref: '#/components/schemas/InventoryDetail' }
+        findings:
+          type: object
+          description: The findings on the agent, each with its framework references. At most 200.
+          additionalProperties: false
+          required: [status, items]
+          properties:
+            status: { $ref: '#/components/schemas/AgentEvidencePackStatus' }
+            items: { type: array, maxItems: 200, items: { $ref: '#/components/schemas/Finding' } }
+        security_agent_runs:
+          type: object
+          description: The Security Agent runs related to those findings, each once, with the run detail the run operation returns (plan, authorization, approvals, execution and verification). At most 50.
+          additionalProperties: false
+          required: [status, items]
+          properties:
+            status: { $ref: '#/components/schemas/AgentEvidencePackStatus' }
+            items:
+              type: array
+              maxItems: 50
+              items:
+                type: object
+                additionalProperties: false
+                required: [finding_ids, run]
+                properties:
+                  finding_ids: { type: array, minItems: 1, maxItems: 50, uniqueItems: true, items: { $ref: '#/components/schemas/ProductID' } }
+                  run: { type: object, additionalProperties: true, description: The body of getSecurityAgentRun for this run. }
+        red_team_tests:
+          type: object
+          description: The red team definitions whose target is the agent. At most 200.
+          additionalProperties: false
+          required: [status, items]
+          properties:
+            status: { $ref: '#/components/schemas/AgentEvidencePackStatus' }
+            items: { type: array, maxItems: 200, items: { $ref: '#/components/schemas/TestDefinition' } }
+        red_team_runs:
+          type: object
+          description: The runs of those definitions. At most 200.
+          additionalProperties: false
+          required: [status, items]
+          properties:
+            status: { $ref: '#/components/schemas/AgentEvidencePackStatus' }
+            items: { type: array, maxItems: 200, items: { $ref: '#/components/schemas/TestRun' } }
+    AgentEvidencePackResponse:
+      type: object
+      additionalProperties: false
+      required: [pack, markdown]
+      properties:
+        pack: { $ref: '#/components/schemas/AgentEvidencePack' }
+        markdown: { type: string, minLength: 1, description: The same pack rendered as Markdown for a reader. }
     InventorySourceObservation:
       type: object
       additionalProperties: false
@@ -6828,6 +7237,18 @@ components:
         to_id: { $ref: '#/components/schemas/ProductID' }
         type: { type: string, minLength: 1, maxLength: 64 }
         evidence_id: { $ref: '#/components/schemas/ProductID' }
+        from: { $ref: '#/components/schemas/RelationshipEnd' }
+        to: { $ref: '#/components/schemas/RelationshipEnd' }
+    RelationshipEnd:
+      type: object
+      description: One of the two objects a relationship joins, by name. Present only when the object is active and the caller may read it; an end the caller may not read keeps its identifier (from_id or to_id) and has no such member. For a uses_identity relationship of an agent, "to" is the identity or credential the agent uses.
+      additionalProperties: false
+      required: [name, kind, provider, source_kind]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 256 }
+        kind: { $ref: '#/components/schemas/InventoryKind' }
+        provider: { $ref: '#/components/schemas/InventoryProvider' }
+        source_kind: { type: string, pattern: '^[a-z][a-z0-9_]{1,63}$', description: 'The provider kind the collector reported, such as aws_role or kubernetes_service_account.' }
     RelationshipPage:
       type: object
       additionalProperties: false

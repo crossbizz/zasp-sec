@@ -116,6 +116,10 @@ func (handler *discoveryPublicHTTPHandler) ServeHTTP(writer http.ResponseWriter,
 			return
 		}
 		handler.getSetupStatus(writer, request, identity, integrationID)
+	case "getIntegrationRemediationRole":
+		handler.getRemediationRole(writer, request, identity, integrationID)
+	case "putIntegrationRemediationRole":
+		handler.putRemediationRole(writer, request, identity, integrationID)
 	default:
 		writeProductionError(writer, request, ErrRepositoryNotFound)
 	}

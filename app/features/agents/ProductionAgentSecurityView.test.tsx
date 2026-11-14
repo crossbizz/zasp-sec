@@ -15,7 +15,7 @@ const ids = {
 } as const;
 
 function summary(id: string, name: string) {
-  return { id, name, kind: "agent" as const, owner: "", team: "", tags: [], evidence_id: ids.evidence, confidence_basis_points: 9500, first_seen: "2026-08-19T00:00:00Z", last_seen: "2026-08-19T01:00:00Z", observed_at: "2026-08-19T01:00:00Z", fresh_until: "2026-08-19T01:15:00Z", freshness_state: "fresh" as const, provider: "kubernetes" as const, source_kind: "kubernetes_agent", discovery: { method: "declared" as const, platform: "kubernetes_agent", signals: [] }, management_state: "managed" as const, version: 1 };
+  return { id, name, kind: "agent" as const, owner: "", team: "", tags: [], evidence_id: ids.evidence, confidence_basis_points: 9500, first_seen: "2026-08-19T00:00:00Z", last_seen: "2026-08-19T01:00:00Z", observed_at: "2026-08-19T01:00:00Z", fresh_until: "2026-08-19T01:15:00Z", freshness_state: "fresh" as const, provider: "kubernetes" as const, source_kind: "kubernetes_agent", discovery: { method: "declared" as const, platform: "kubernetes_agent", signals: [] }, management_state: "managed" as const, last_activity_at: null, activity_state: "unknown" as const, version: 1 };
 }
 
 describe("production typed inventory API", () => {
@@ -153,7 +153,7 @@ describe("production typed inventory API", () => {
   });
 
   it("labels agents found by Microsoft and Salesforce", async () => {
-    const found = (id: string, name: string, provider: "microsoft" | "salesforce", sourceKind: string, platform: string) => ({ ...summary(id, name), provider, source_kind: sourceKind, discovery: { method: "provider_api" as const, platform, signals: [] }, management_state: "unmanaged" as const });
+    const found = (id: string, name: string, provider: "microsoft" | "salesforce", sourceKind: string, platform: string) => ({ ...summary(id, name), provider, source_kind: sourceKind, discovery: { method: "provider_api" as const, platform, signals: [] }, management_state: "unmanaged" as const, last_activity_at: null, activity_state: "unknown" as const });
     const entra = found(ids.first, "Invoice agent", "microsoft", "microsoft_agent_identity", "entra_agent_identity");
     const copilot = found(ids.second, "HR copilot", "microsoft", "microsoft_copilot_agent", "copilot_studio");
     const agentforce = found(ids.relationship, "Service agent", "salesforce", "salesforce_agent", "agentforce");
@@ -177,7 +177,7 @@ describe("production typed inventory API", () => {
   it("shows where each agent was found and filters to the unmanaged ones", async () => {
     const user = userEvent.setup();
     const declared = summary(ids.first, "Declared");
-    const shadow = { ...summary(ids.second, "Shadow"), provider: "okta" as const, source_kind: "okta_ai_application", discovery: { method: "inferred" as const, platform: "saas_assistant", signals: ["app:chatgpt"] }, management_state: "unmanaged" as const };
+    const shadow = { ...summary(ids.second, "Shadow"), provider: "okta" as const, source_kind: "okta_ai_application", discovery: { method: "inferred" as const, platform: "saas_assistant", signals: ["app:chatgpt"] }, management_state: "unmanaged" as const, last_activity_at: null, activity_state: "unknown" as const };
     const detail = { summary: shadow, sources: [], evidence: [] } as never;
     const api: ProductionAgentSecurityAPI = {
       listAgents: async () => [declared, shadow], listTools: async () => [], listIdentities: async () => [], listRuntimes: async () => [],
@@ -201,7 +201,7 @@ describe("production typed inventory API", () => {
 
   it("says a runtime egress signal was seen by the node sensor", async () => {
     const user = userEvent.setup();
-    const runtime = { ...summary(ids.second, "shop/support-bot"), source_kind: "kubernetes_inferred_agent", discovery: { method: "inferred" as const, platform: "kubernetes_workload", signals: ["egress:anthropic", "env:openai", "invoke:bedrock_model"] }, management_state: "unmanaged" as const };
+    const runtime = { ...summary(ids.second, "shop/support-bot"), source_kind: "kubernetes_inferred_agent", discovery: { method: "inferred" as const, platform: "kubernetes_workload", signals: ["egress:anthropic", "env:openai", "invoke:bedrock_model", "model:openai", "surface:model_serving"] }, management_state: "unmanaged" as const, last_activity_at: null, activity_state: "unknown" as const };
     const detail = { summary: runtime, sources: [], evidence: [] } as never;
     const api: ProductionAgentSecurityAPI = {
       listAgents: async () => [runtime], listTools: async () => [], listIdentities: async () => [], listRuntimes: async () => [],
@@ -218,11 +218,14 @@ describe("production typed inventory API", () => {
     expect(items[0]).toHaveTextContent("egress:anthropic — seen at run time: this workload resolved the service's name and connected to it");
     expect(items[1]).toHaveTextContent(/^env:openai$/);
     expect(items[2]).toHaveTextContent("invoke:bedrock_model — seen in the provider's audit log: this identity invoked a model");
+    // The two signal classes a SaaS platform's own API states.
+    expect(items[3]).toHaveTextContent("model:openai — the platform's API names the model provider this serves or calls");
+    expect(items[4]).toHaveTextContent("surface:model_serving — the platform's own API lists this under one of its AI features");
   });
 
   it("dismisses a found agent with the checkbox and never shows the reserved tag in the Tags field", async () => {
     const user = userEvent.setup();
-    const shadow = { ...summary(ids.second, "Shadow"), owner: "security", team: "platform", tags: ["critical"], provider: "okta" as const, source_kind: "okta_ai_application", discovery: { method: "inferred" as const, platform: "saas_assistant", signals: ["app:chatgpt"] }, management_state: "managed" as const };
+    const shadow = { ...summary(ids.second, "Shadow"), owner: "security", team: "platform", tags: ["critical"], provider: "okta" as const, source_kind: "okta_ai_application", discovery: { method: "inferred" as const, platform: "saas_assistant", signals: ["app:chatgpt"] }, management_state: "managed" as const, last_activity_at: null, activity_state: "unknown" as const };
     const updateAgent = vi.fn(async (_id: string, version: number, input: { owner: string; team: string; tags: readonly string[] }) => ({ agent: { ...shadow, ...input, management_state: input.tags.includes("not-an-agent") ? "dismissed" as const : "managed" as const, version: version + 1 }, audit_id: ids.evidence }));
     const api: ProductionAgentSecurityAPI = {
       listAgents: async () => [shadow], listTools: async () => [], listIdentities: async () => [], listRuntimes: async () => [],
@@ -255,7 +258,7 @@ describe("production typed inventory API", () => {
 
   it("keeps the reserved tag out of the Tags field of an agent that arrives dismissed, and out of what a person types", async () => {
     const user = userEvent.setup();
-    const dismissed = { ...summary(ids.second, "Shadow"), owner: "security", team: "platform", tags: ["critical", "not-an-agent"], provider: "aws" as const, source_kind: "aws_inferred_agent", discovery: { method: "inferred" as const, platform: "lambda_function", signals: ["env:openai"] }, management_state: "dismissed" as const };
+    const dismissed = { ...summary(ids.second, "Shadow"), owner: "security", team: "platform", tags: ["critical", "not-an-agent"], provider: "aws" as const, source_kind: "aws_inferred_agent", discovery: { method: "inferred" as const, platform: "lambda_function", signals: ["env:openai"] }, management_state: "dismissed" as const, last_activity_at: null, activity_state: "unknown" as const };
     const updateAgent = vi.fn(async (_id: string, version: number, input: { owner: string; team: string; tags: readonly string[] }) => ({ agent: { ...dismissed, ...input, version: version + 1 }, audit_id: ids.evidence }));
     const api: ProductionAgentSecurityAPI = {
       listAgents: async () => [dismissed], listTools: async () => [], listIdentities: async () => [], listRuntimes: async () => [],
@@ -283,7 +286,7 @@ describe("production typed inventory API", () => {
   it("offers no dismissal for a declared agent, for a reader, or for other inventory", async () => {
     const user = userEvent.setup();
     const declared = { ...summary(ids.first, "Declared"), owner: "security", team: "platform", tags: ["not-an-agent"] };
-    const shadow = { ...summary(ids.second, "Shadow"), provider: "okta" as const, source_kind: "okta_ai_application", discovery: { method: "inferred" as const, platform: "saas_assistant", signals: ["app:chatgpt"] }, management_state: "unmanaged" as const };
+    const shadow = { ...summary(ids.second, "Shadow"), provider: "okta" as const, source_kind: "okta_ai_application", discovery: { method: "inferred" as const, platform: "saas_assistant", signals: ["app:chatgpt"] }, management_state: "unmanaged" as const, last_activity_at: null, activity_state: "unknown" as const };
     const updateAgent = vi.fn(async (_id: string, version: number, input: { owner: string; team: string; tags: readonly string[] }) => ({ agent: { ...declared, ...input, version: version + 1 }, audit_id: ids.evidence }));
     const api: ProductionAgentSecurityAPI = {
       listAgents: async () => [declared, shadow], listTools: async () => [], listIdentities: async () => [], listRuntimes: async () => [],
@@ -312,8 +315,8 @@ describe("production typed inventory API", () => {
   it("lists dismissed agents under their own filter and leaves them out of the agent list", async () => {
     const user = userEvent.setup();
     const declared = summary(ids.first, "Declared");
-    const shadow = { ...summary(ids.second, "Shadow"), provider: "okta" as const, source_kind: "okta_ai_application", discovery: { method: "inferred" as const, platform: "saas_assistant", signals: ["app:chatgpt"] }, management_state: "unmanaged" as const };
-    const falsePositive = { ...summary(ids.relationship, "Report job"), owner: "security", team: "platform", tags: ["not-an-agent"], provider: "aws" as const, source_kind: "aws_inferred_agent", discovery: { method: "inferred" as const, platform: "lambda_function", signals: ["env:openai"] }, management_state: "dismissed" as const };
+    const shadow = { ...summary(ids.second, "Shadow"), provider: "okta" as const, source_kind: "okta_ai_application", discovery: { method: "inferred" as const, platform: "saas_assistant", signals: ["app:chatgpt"] }, management_state: "unmanaged" as const, last_activity_at: null, activity_state: "unknown" as const };
+    const falsePositive = { ...summary(ids.relationship, "Report job"), owner: "security", team: "platform", tags: ["not-an-agent"], provider: "aws" as const, source_kind: "aws_inferred_agent", discovery: { method: "inferred" as const, platform: "lambda_function", signals: ["env:openai"] }, management_state: "dismissed" as const, last_activity_at: null, activity_state: "unknown" as const };
     const api: ProductionAgentSecurityAPI = {
       listAgents: async () => [declared, shadow, falsePositive], listTools: async () => [], listIdentities: async () => [], listRuntimes: async () => [],
       getAgent: async () => ({ summary: falsePositive, sources: [], evidence: [] }) as never, getTool: async () => { throw new Error("unused"); }, getIdentity: async () => { throw new Error("unused"); }, getRuntime: async () => { throw new Error("unused"); },
@@ -343,7 +346,7 @@ describe("production typed inventory API", () => {
   });
 
   it("shows the provider for non-agent inventory without agent-only columns", async () => {
-    const tool = { ...summary(ids.first, "Gateway"), kind: "tool" as const, provider: "aws" as const, source_kind: "aws_agentcore_gateway", discovery: { method: "provider_api" as const, platform: "aws_agentcore_gateway", signals: [] }, management_state: "not_applicable" as const };
+    const tool = { ...summary(ids.first, "Gateway"), kind: "tool" as const, provider: "aws" as const, source_kind: "aws_agentcore_gateway", discovery: { method: "provider_api" as const, platform: "aws_agentcore_gateway", signals: [] }, management_state: "not_applicable" as const, last_activity_at: null, activity_state: "not_applicable" as const };
     const api: ProductionAgentSecurityAPI = {
       listAgents: async () => [], listTools: async () => [tool], listIdentities: async () => [], listRuntimes: async () => [],
       getAgent: async () => { throw new Error("unused"); }, getTool: async () => { throw new Error("unused"); }, getIdentity: async () => { throw new Error("unused"); }, getRuntime: async () => { throw new Error("unused"); },

@@ -76,6 +76,16 @@ var productStatementRules = map[string]productStatementRule{
 	currentHierarchyValueSQL:  {operations: []string{"getWorkspace", "getEnvironment"}, arguments: 5, scope: 1, browserOnly: true, check: productHierarchyValueAllowed},
 	currentHierarchyRenameSQL: {operations: []string{"updateWorkspace", "updateEnvironment"}, arguments: 9, scope: 1, actor: 4, browserOnly: true, fresh: true, check: productHierarchyRenameAllowed},
 
+	// Sign-in to a SaaS platform (saas_sign_in.go, completion.sql section
+	// ws6_saas_sign_in). The first two belong to the authorize request of the
+	// integration in the path; the last two to the provider's callback, which
+	// names no object: PostgreSQL finds the sign-in by the state's digest
+	// and binds it to the person and the browser session that started it.
+	postgresSaaSSignInIntegrationSQL: {operations: []string{"authorizeIntegration"}, arguments: 5, scope: 1, actor: 4, object: 5, kind: "integration", browserOnly: true, fresh: true},
+	postgresSaaSSignInStartSQL:       {operations: []string{"authorizeIntegration"}, arguments: 10, scope: 1, actor: 4, object: 5, kind: "integration", browserOnly: true, fresh: true},
+	postgresSaaSSignInConsumeSQL:     {operations: []string{"completeIntegrationOAuthCallback"}, arguments: 6, scope: 1, actor: 4, browserOnly: true},
+	postgresSaaSSignInFinishSQL:      {operations: []string{"completeIntegrationOAuthCallback"}, arguments: 7, scope: 1, actor: 4, browserOnly: true},
+
 	currentFindingMutateSQL: {operations: []string{"updateFinding", "acceptFindingRisk"}, arguments: 13, scope: 3, actor: 6, object: 2, kind: "finding", check: productFindingMutationAllowed},
 }
 

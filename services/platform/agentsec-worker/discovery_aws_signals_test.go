@@ -62,7 +62,7 @@ func TestCloudTrailInvokersAreWorkloadRolesOnly(t *testing.T) {
 		},
 		"Converse": {cloudTrailEvent("AssumedRole", "Role", signalWorkerRole)},
 	}}
-	invokers, status, err := collectDiscoveryAWSInvokers(context.Background(), stub, "123456789012", now)
+	invokers, _, status, err := collectDiscoveryAWSInvokers(context.Background(), stub, "123456789012", now)
 	if err != nil || status != awsdiscovery.AgentServiceCollected || len(invokers) != 1 || len(invokers[signalWorkerRole]) != 1 || invokers[signalWorkerRole][0] != "invoke:bedrock_model" {
 		t.Fatalf("invokers = %v, status %q, err %v", invokers, status, err)
 	}
@@ -77,14 +77,14 @@ func TestCloudTrailInvokersAreWorkloadRolesOnly(t *testing.T) {
 		"throttled": {discoveryAgentAPIError(400, "ThrottlingException", "slow down"), awsdiscovery.AgentServiceUnavailable},
 		"transport": {errors.New("connection reset"), awsdiscovery.AgentServiceUnavailable},
 	} {
-		invokers, status, err := collectDiscoveryAWSInvokers(context.Background(), &cloudTrailStub{err: test.err}, "123456789012", now)
+		invokers, _, status, err := collectDiscoveryAWSInvokers(context.Background(), &cloudTrailStub{err: test.err}, "123456789012", now)
 		if err != nil || status != test.want || invokers != nil {
 			t.Errorf("%s: status %q, err %v", name, status, err)
 		}
 	}
 	cancelled, cancel := context.WithCancel(context.Background())
 	cancel()
-	if _, _, err := collectDiscoveryAWSInvokers(cancelled, &cloudTrailStub{err: context.Canceled}, "123456789012", now); err == nil {
+	if _, _, _, err := collectDiscoveryAWSInvokers(cancelled, &cloudTrailStub{err: context.Canceled}, "123456789012", now); err == nil {
 		t.Fatal("a cancelled read did not fail")
 	}
 }
@@ -187,7 +187,9 @@ func TestNetworkLogJoinFindsInstancesThatResolvedAndConnected(t *testing.T) {
 	for name, change := range map[string]func(*networkLogStub){
 		"no flow logs in CloudWatch":     func(stub *networkLogStub) { stub.flowLogs = stub.flowLogs[1:] },
 		"no resolver logs in CloudWatch": func(stub *networkLogStub) { stub.queryDestinations = stub.queryDestinations[1:] },
-		"resolver refused":               func(stub *networkLogStub) { stub.resolverErr = discoveryAgentAPIError(403, "AccessDeniedException", "denied") },
+		"resolver refused": func(stub *networkLogStub) {
+			stub.resolverErr = discoveryAgentAPIError(403, "AccessDeniedException", "denied")
+		},
 	} {
 		stub := signalNetworkStub()
 		change(stub)
@@ -233,6 +235,10 @@ func TestAWSInventoryReadsAgentlessRuntimeSignalsAndChecks(t *testing.T) {
 	regions["us-east-1"].agents = append(regions["us-east-1"].agents, guarded)
 	factory := discoveryAgentFactory(regions)
 	trail := &cloudTrailStub{events: map[string][]cloudtrailtypes.Event{"InvokeModel": {cloudTrailEvent("AssumedRole", "Role", signalWorkerRole), cloudTrailEvent("AssumedRole", "Role", discoveryAgentPlainRole)}}}
+	// CloudTrail records when the worker role's call happened; the other
+	// role's event carries no time.
+	invokedAt := discoveryAgentTestClock().Add(-5*time.Hour - 30*time.Minute)
+	trail.events["InvokeModel"][0].EventTime = aws.Time(invokedAt)
 	factory.CloudTrail = func(region string, _ aws.Credentials) (discoveryAWSCloudTrailAPI, error) {
 		if region == "us-east-1" {
 			return trail, nil
@@ -268,6 +274,9 @@ func TestAWSInventoryReadsAgentlessRuntimeSignalsAndChecks(t *testing.T) {
 	var source awsdiscovery.AgentInventorySource
 	if err := json.Unmarshal(inventory.AgentSource, &source); err != nil {
 		t.Fatal(err)
+	}
+	if want := invokedAt.UTC().Truncate(time.Hour).Format(time.RFC3339); len(source.Invocations) != 1 || source.Invocations[0] != (awsdiscovery.AgentInventoryInvocation{LastInvokedAt: want, RoleARN: signalWorkerRole}) {
+		t.Fatalf("invocations = %+v, want the worker role at %s", source.Invocations, want)
 	}
 	workloads := map[string]awsdiscovery.AgentInventoryWorkload{}
 	for _, workload := range source.InferredWorkloads {
@@ -339,5 +348,33 @@ func TestAdministratorRolesNeedAllowEverythingOnEverything(t *testing.T) {
 	got := discoveryAWSAdministratorRoles(roles)
 	if len(got) != 2 || !got["admin"] || !got["admin-list"] {
 		t.Fatalf("administrators = %v", got)
+	}
+}
+
+// The newest event time CloudTrail records for a role, inside the lookup
+// window, is when the role last invoked a model.
+func TestCloudTrailInvokersCarryTheNewestEventTime(t *testing.T) {
+	now := discoveryAgentTestClock()
+	at := func(age time.Duration) cloudtrailtypes.Event {
+		event := cloudTrailEvent("AssumedRole", "Role", signalWorkerRole)
+		event.EventTime = aws.Time(now.Add(-age))
+		return event
+	}
+	otherRole := "arn:aws:iam::123456789012:role/untimed-worker"
+	stub := &cloudTrailStub{events: map[string][]cloudtrailtypes.Event{
+		"InvokeModel": {at(50 * time.Hour), at(3 * time.Hour), cloudTrailEvent("AssumedRole", "Role", otherRole)},
+		// A time after the read or before the window is not an invocation time.
+		"Converse": {at(26 * time.Hour), at(-time.Hour), at(discoveryAWSInvocationWindow + time.Hour)},
+	}}
+	invokers, invoked, status, err := collectDiscoveryAWSInvokers(context.Background(), stub, "123456789012", now)
+	if err != nil || status != awsdiscovery.AgentServiceCollected || len(invokers) != 2 {
+		t.Fatalf("invokers = %v, status %q, err %v", invokers, status, err)
+	}
+	if got, ok := invoked[signalWorkerRole]; !ok || !got.Equal(now.Add(-3*time.Hour)) {
+		t.Fatalf("last invocation = %v, want %v", got, now.Add(-3*time.Hour))
+	}
+	// A role whose events carry no time keeps its signal and has no time.
+	if _, timed := invoked[otherRole]; timed || len(invokers[otherRole]) != 1 {
+		t.Fatalf("untimed role: invoked=%v signals=%v", invoked[otherRole], invokers[otherRole])
 	}
 }

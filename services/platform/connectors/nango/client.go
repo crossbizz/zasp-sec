@@ -92,6 +92,14 @@ func (client *ProductionProxyClient) Proxy(ctx context.Context, request ProxyReq
 	httpRequest.Header.Set("Connection-Id", connection[1])
 	httpRequest.Header.Set("Provider-Config-Key", request.ConnectorKey)
 	httpRequest.Header.Set("Nango-Is-Sync", "false")
+	if request.PinHost {
+		// UNVERIFIED against a running Nango: the Base-Url-Override header is
+		// written from memory of the Nango proxy. It replaces the base URL
+		// of the integration for this request, so the request goes to the
+		// host the adapter validated and resolved and not to the host stored
+		// in the connection.
+		httpRequest.Header.Set("Base-Url-Override", "https://"+request.ProviderHost)
+	}
 	httpRequest.Header.Set("Accept", "application/json")
 	if len(request.Body) > 0 {
 		httpRequest.Header.Set("Content-Type", "application/json")

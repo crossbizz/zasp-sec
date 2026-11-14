@@ -690,15 +690,15 @@ func providerEntitySchema(provider collection.Provider, kind string) (providerEn
 		case "aws_service":
 			return providerEntityDefinition{stable: requiredStringFields("account_id", "name", "service"), attributes: state}, true
 		case "aws_bedrock_agent":
-			return providerEntityDefinition{stable: requiredStringFields("account_id", "agent_id", "arn", "name", "region"), attributes: mergeInventorySchemas(state, discoveredAgentAttributes(), awsAgentUsageAttributes(), optionalStringFields("model"))}, true
+			return providerEntityDefinition{stable: requiredStringFields("account_id", "agent_id", "arn", "name", "region"), attributes: mergeInventorySchemas(state, discoveredAgentAttributes(), awsAgentUsageAttributes(), optionalStringFields("model"), agentInvocationAttribute())}, true
 		case "aws_agentcore_runtime":
-			return providerEntityDefinition{stable: requiredStringFields("account_id", "arn", "name", "region", "runtime_id"), attributes: mergeInventorySchemas(state, discoveredAgentAttributes(), awsAgentUsageAttributes())}, true
+			return providerEntityDefinition{stable: requiredStringFields("account_id", "arn", "name", "region", "runtime_id"), attributes: mergeInventorySchemas(state, discoveredAgentAttributes(), awsAgentUsageAttributes(), agentInvocationAttribute())}, true
 		case "aws_agentcore_gateway":
 			// An AgentCore gateway is an MCP server; the MCP attributes are
 			// present once its description could be read.
 			return providerEntityDefinition{stable: requiredStringFields("account_id", "arn", "gateway_id", "name", "region"), attributes: mergeInventorySchemas(state, optionalInventorySchema(mcpServer))}, true
 		case "aws_inferred_agent":
-			return providerEntityDefinition{stable: mergeInventorySchemas(requiredStringFields("account_id", "arn", "name", "region"), inventoryObjectSchema{"resource_type": enumInventoryField(true, "ec2_instance", "ecs_service", "eks_pod", "iam_role", "lambda_function")}), attributes: mergeInventorySchemas(state, discoveredAgentAttributes(), awsAgentUsageAttributes())}, true
+			return providerEntityDefinition{stable: mergeInventorySchemas(requiredStringFields("account_id", "arn", "name", "region"), inventoryObjectSchema{"resource_type": enumInventoryField(true, "ec2_instance", "ecs_service", "eks_pod", "iam_role", "lambda_function")}), attributes: mergeInventorySchemas(state, discoveredAgentAttributes(), awsAgentUsageAttributes(), agentInvocationAttribute())}, true
 		case "aws_mcp_server":
 			// A remote MCP server the account's logs or a gateway target name.
 			return providerEntityDefinition{stable: requiredStringFields("account_id", "name", "region"), attributes: mergeInventorySchemas(state, mcpServer)}, true
@@ -976,6 +976,10 @@ func validInventoryFieldText(name, value string) bool {
 		return strings.HasPrefix(value, "arn:") && strings.Count(value, ":") >= 5
 	case "resource_kind":
 		return !strings.EqualFold(value, "Secret")
+	case "last_invoked_at":
+		// RFC 3339, UTC, to the hour.
+		at, err := time.Parse(time.RFC3339, value)
+		return err == nil && at.Format("2006-01-02T15:00:00Z") == value
 	default:
 		return true
 	}
@@ -1049,6 +1053,12 @@ func kubernetesAgentPostureInventoryField(required bool) inventoryFieldRule {
 
 func kubernetesRedTeamInventoryField(required bool) inventoryFieldRule {
 	return inventoryFieldRule{kind: "kubernetes_red_team", required: required}
+}
+
+// agentInvocationAttribute is the optional time the provider's audit log last
+// showed the agent's role invoking a model.
+func agentInvocationAttribute() inventoryObjectSchema {
+	return optionalStringFields("last_invoked_at")
 }
 
 // discoveredAgentAttributes are the two attributes every agent kind found

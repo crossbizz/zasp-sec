@@ -35,6 +35,9 @@ const (
 	riskDependency
 	workflowDependency
 	connectorDependency
+	// evidencePackDependency is the agent evidence pack: a handler the
+	// composition owns, which reads the other operations through the router.
+	evidencePackDependency
 )
 
 type coreOperation struct {
@@ -111,6 +114,7 @@ var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"PATCH", "/api/v1/agents/{id}", "updateAgent", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
 	{OperationDefinition{"GET", "/api/v1/agents/{id}/capabilities", "getAgentCapabilities", "view", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
 	{OperationDefinition{"GET", "/api/v1/agents/{id}/relationships", "getAgentRelationships", "view", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
+	{OperationDefinition{"GET", "/api/v1/agents/{id}/evidence-pack", "getAgentEvidencePack", "view", []string{"BrowserSession", "ProductAPIToken"}}, evidencePackDependency},
 	{OperationDefinition{"GET", "/api/v1/agents/{id}/sessions", "listAgentSessions", "view", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
 	{OperationDefinition{"GET", "/api/v1/agents/{id}/access", "getAgentAccess", "view", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
 	{OperationDefinition{"GET", "/api/v1/tools", "listTools", "view", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
@@ -155,6 +159,11 @@ var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"DELETE", "/api/v1/integrations/{id}/schedule", "deleteIntegrationSchedule", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/integrations/{id}/freshness", "getIntegrationFreshness", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/integrations/{id}/setup-status", "getIntegrationSetupStatus", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/integrations/{id}/remediation-role", "getIntegrationRemediationRole", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"PUT", "/api/v1/integrations/{id}/remediation-role", "putIntegrationRemediationRole", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/guardrails/decisions", "createGuardrailDecision", "view", []string{"ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/guardrails/policy", "getGuardrailPolicy", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"PUT", "/api/v1/guardrails/policy", "putGuardrailPolicy", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"POST", "/api/v1/integrations/{id}/test-delivery", "testIntegrationWebhook", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/integrations/{id}/delivery-status", "getIntegrationWebhookStatus", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"POST", "/api/v1/integrations/{id}/authorize", "authorizeIntegration", "manage_workflows", []string{"BrowserSession"}}, connectorDependency},
@@ -281,8 +290,12 @@ func newComposition(dependencies Dependencies, exports http.Handler, compliance 
 	}
 
 	operations := make([]Operation, 0, len(coreOperations))
+	evidencePack := &agentEvidencePackHandler{}
 	for _, definition := range coreOperations {
 		handler := dependencyHandler(dependencies, definition.dependency)
+		if definition.dependency == evidencePackDependency {
+			handler = evidencePack
+		}
 		if complianceHandler != nil && stringIn(definition.OperationID, "listComplianceControls", "listComplianceEvidence") {
 			handler = complianceHandler
 		}

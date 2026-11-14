@@ -8,7 +8,6 @@ import (
 	"errors"
 	"regexp"
 	"slices"
-	"strings"
 	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
@@ -17,9 +16,13 @@ import (
 const postgresComplianceExportCreateSQL = `SELECT public.zasp_compliance_export_create($1,$2,$3,$4,$5,$6,$7,$8,$9)`
 const postgresComplianceExportGetSQL = `SELECT public.zasp_compliance_export_get($1,$2,$3,$4,$5,$6,$7,$8)`
 
+// ComplianceExportRequest names what an export captures: the controls of a
+// framework (or one control), or, with AgentID alone, the evidence pack of
+// one agent.
 type ComplianceExportRequest struct {
 	Framework string `json:"framework,omitempty"`
 	ControlID string `json:"control_id,omitempty"`
+	AgentID   string `json:"agent_id,omitempty"`
 }
 type ComplianceExportJob struct {
 	ExportID           string    `json:"export_id"`
@@ -47,11 +50,12 @@ var complianceIdempotencyKey = regexp.MustCompile(`^[A-Za-z0-9_.:-]{1,128}$`)
 var ErrComplianceCapacity = errors.New("compliance capacity exhausted")
 
 func (r *ComplianceExportsRepository) Create(ctx context.Context, identity RequestIdentity, digest []byte, key string, request ComplianceExportRequest) (ComplianceExportJob, error) {
-	if !validRequestIdentity(identity, true) || !identity.FreshAuthenticated || !complianceIdempotencyKey.MatchString(key) || request.Framework != "" && !validComplianceFramework(request.Framework) || request.ControlID != "" && !validComplianceControl(request.ControlID, request.Framework) {
+	if !validRequestIdentity(identity, true) || !identity.FreshAuthenticated || !complianceIdempotencyKey.MatchString(key) || request.Framework != "" && !validComplianceFramework(request.Framework) || request.ControlID != "" && !validComplianceControl(request.ControlID, request.Framework) ||
+		request.AgentID != "" && (!validProductID(request.AgentID) || request.Framework != "" || request.ControlID != "") {
 		return ComplianceExportJob{}, ErrRepositoryOperation
 	}
 	if request.Framework == "" && request.ControlID != "" {
-		request.Framework = strings.Split(request.ControlID, "-")[0]
+		request.Framework = complianceControlFramework(request.ControlID)
 	}
 	payload, e := json.Marshal(request)
 	if e != nil {

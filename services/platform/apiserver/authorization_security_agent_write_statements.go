@@ -64,6 +64,9 @@ func securityAgentWriteStrings(args []any, positions ...int) ([]string, bool) {
 // target are compared with the checked request here; PostgreSQL compares them
 // again with the attested proof.
 func securityAgentWriteStatementAllowed(g RequestAuthorization, q string, args []any) (handled, allowed bool) {
+	if q == currentSecurityAgentRemediationRunSQL {
+		return true, securityAgentRemediationStatementAllowed(g, args)
+	}
 	switch q {
 	case currentSecurityAgentDefinitionValueSQL, currentSecurityAgentActivationSQL, currentSecurityAgentDefinitionReplaySQL, currentSecurityAgentDefinitionMutateSQL, currentSecurityAgentActivateSQL, currentSecurityAgentRunSQL, currentSecurityAgentSetExecutionControlSQL:
 	default:
@@ -200,7 +203,7 @@ func securityAgentWriteStatementAllowed(g RequestAuthorization, q string, args [
 		if !ok || !enabledOK || !versionOK || !freshOK || values[0] != actor || !validPublicIdempotency(values[1]) || version < 0 || version > 1000000 || fresh.IsZero() || fresh.Location() != time.UTC || fresh != g.Identity.FreshAuthExpiresAt {
 			return true, false
 		}
-		if !(values[2] == "environment" && values[3] == "*") && !(values[2] == "action" && stringIn(values[3], "create_evidence_export", "create_temporary_policy", "isolate_session", "rerun_test", "revoke_integration_connection", "run_test", "start_attack_lab", "update_finding_response")) {
+		if !(values[2] == "environment" && values[3] == "*") && !(values[2] == "action" && stringIn(values[3], securityAgentExecutionControlActions...)) {
 			return true, false
 		}
 		ids := map[string]struct{}{}

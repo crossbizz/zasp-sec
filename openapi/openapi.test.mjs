@@ -105,8 +105,8 @@ function verifyDocument(value, rawText) {
   });
 
   assert.deepEqual(value.components.parameters, {
-    ComplianceFramework: { name: "framework", in: "query", schema: { type: "string", enum: ["soc2_security", "hipaa"] } },
-    ComplianceControlFilter: { name: "control_id", in: "query", schema: { type: "string", minLength: 1, maxLength: 128, pattern: "^(soc2_security|hipaa)-(audit|findings|policies|tests|configuration)$" } },
+    ComplianceFramework: { name: "framework", in: "query", description: "A product evidence framework (soc2_security, hipaa) or an AI security framework. The controls of an AI framework are the framework's own, and the evidence of one is the findings whose rule maps to it. Listing evidence of an AI framework requires control_id.", schema: { $ref: "#/components/schemas/ComplianceFrameworkID" } },
+    ComplianceControlFilter: { name: "control_id", in: "query", schema: { $ref: "#/components/schemas/ComplianceControlID" } },
     SensorEnrollmentSchema: {
       name: "X-Zasp-Sensor-Enrollment-Schema",
       in: "header",
@@ -301,7 +301,7 @@ describe("M1-23 strict OpenAPI root", () => {
     );
     assert.equal(
       packageJSON.scripts["openapi:test"],
-      "node --test openapi/openapi.test.mjs openapi/internal-health.test.mjs openapi/generated-client.test.mjs openapi/identity-admin.test.mjs",
+      "node --test openapi/openapi.test.mjs openapi/internal-health.test.mjs openapi/generated-client.test.mjs openapi/identity-admin.test.mjs openapi/agent-security-parity.test.mjs",
     );
     assert.equal(
       packageJSON.scripts.verify,
@@ -734,7 +734,7 @@ describe("production workflow concurrency contract", () => {
         if (operation?.operationId) operations.set(operation.operationId, { path, method, operation });
       }
     }
-    assert.equal(operations.size, 171);
+    assert.equal(operations.size, 177);
     for (const operationId of ["getSingleTestCleanupRecovery", "requestSingleTestCleanupRecovery"]) {
       assert.ok(operations.has(operationId), operationId);
     }
@@ -842,10 +842,10 @@ describe("production workflow concurrency contract", () => {
     assert.equal(document.components.schemas.SecurityAgentExecutionControlInput.properties.target.enum.includes("global"), false);
     assert.deepEqual(document.components.schemas.SecurityAgentExecutionControls.properties.actions, {
       type: "array",
-      oneOf: [{ minItems: 2, maxItems: 2 }, { minItems: 3, maxItems: 3 }, { minItems: 4, maxItems: 4 }, { minItems: 6, maxItems: 6 }, { minItems: 7, maxItems: 7 }, { minItems: 8, maxItems: 8 }],
+      oneOf: [{ minItems: 2, maxItems: 2 }, { minItems: 3, maxItems: 3 }, { minItems: 4, maxItems: 4 }, { minItems: 6, maxItems: 6 }, { minItems: 7, maxItems: 7 }, { minItems: 8, maxItems: 8 }, { minItems: 10, maxItems: 10 }],
       items: { $ref: "#/components/schemas/SecurityAgentExecutionControl" },
     });
-    assert.deepEqual(document.components.schemas.SecurityAgentExecutionControlInput.properties.action_key.enum, ["*", "create_evidence_export", "create_temporary_policy", "isolate_session", "rerun_test", "revoke_integration_connection", "run_test", "start_attack_lab", "update_finding_response"]);
+    assert.deepEqual(document.components.schemas.SecurityAgentExecutionControlInput.properties.action_key.enum, ["*", "attach_bedrock_guardrail", "create_evidence_export", "create_temporary_policy", "detach_role_administrator_policy", "isolate_session", "rerun_test", "revoke_integration_connection", "run_test", "start_attack_lab", "update_finding_response"]);
 
     const activationState = operations.get("getSecurityAgentActivation");
     assert.equal(activationState.path, "/api/v1/security-agents/{id}/activation");

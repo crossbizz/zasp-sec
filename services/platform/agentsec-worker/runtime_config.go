@@ -108,11 +108,16 @@ type workerRuntimeConfig struct {
 	DiscoveryRoleARN                 string
 	DiscoveryTokenFile               string
 	DiscoverySecretPrefix            string
-	AWSCollectorVersion              string
-	KubernetesCollectorVersion       string
-	GitHubCollectorVersion           string
-	OktaCollectorVersion             string
-	MicrosoftCollectorVersion        string
+	// Provider remediations of the Security Agent action worker. All three
+	// are set, or none: without them the worker performs no remediation.
+	RemediationRoleARN         string
+	RemediationTokenFile       string
+	RemediationSecretPrefix    string
+	AWSCollectorVersion        string
+	KubernetesCollectorVersion string
+	GitHubCollectorVersion     string
+	OktaCollectorVersion       string
+	MicrosoftCollectorVersion  string
 	// MicrosoftAzure is ZASP_DISCOVERY_MICROSOFT_AZURE=enabled: Microsoft
 	// collections also read Azure OpenAI and AI Foundry from Resource Manager.
 	MicrosoftAzure             bool
@@ -250,6 +255,7 @@ func loadWorkerRuntimeConfig(getenv func(string) string) (workerRuntimeConfig, e
 		RecoveryRoleARN: getenv("ZASP_RECOVERY_ROLE_ARN"), RecoveryTokenFile: getenv("ZASP_RECOVERY_WEB_IDENTITY_TOKEN_FILE"), RecoverySigningKMSKeyARN: getenv("ZASP_RECOVERY_SIGNING_KMS_KEY_ARN"), RecoveryNeonProjectID: getenv("ZASP_RECOVERY_NEON_PROJECT_ID"), RecoveryNeonBranchID: getenv("ZASP_RECOVERY_NEON_BRANCH_ID"),
 		RecoveryNeonSecretReference: getenv("ZASP_RECOVERY_NEON_SECRET_REFERENCE"), RecoveryKubernetesURL: getenv("ZASP_RECOVERY_KUBERNETES_ENDPOINT"), RecoveryKubernetesToken: getenv("ZASP_RECOVERY_KUBERNETES_TOKEN_FILE"), RecoveryKubernetesCA: getenv("ZASP_RECOVERY_KUBERNETES_CA_FILE"), RecoveryRunnerImage: getenv("ZASP_RECOVERY_RUNNER_IMAGE"), RecoveryRunnerServiceAccount: getenv("ZASP_RECOVERY_RUNNER_SERVICE_ACCOUNT"), RecoveryNeonEgressCIDRs: parseWorkerCIDRs(getenv("ZASP_RECOVERY_NEON_EGRESS_CIDRS")),
 		DiscoveryRoleARN: getenv("ZASP_DISCOVERY_ROLE_ARN"), DiscoveryTokenFile: getenv("ZASP_DISCOVERY_WEB_IDENTITY_TOKEN_FILE"), DiscoverySecretPrefix: getenv("ZASP_DISCOVERY_SECRET_PREFIX"),
+		RemediationRoleARN: getenv("ZASP_SECURITY_AGENT_REMEDIATION_ROLE_ARN"), RemediationTokenFile: getenv("ZASP_SECURITY_AGENT_REMEDIATION_WEB_IDENTITY_TOKEN_FILE"), RemediationSecretPrefix: getenv("ZASP_SECURITY_AGENT_REMEDIATION_SECRET_PREFIX"),
 		AWSCollectorVersion: getenv("ZASP_DISCOVERY_AWS_COLLECTOR_VERSION"), KubernetesCollectorVersion: getenv("ZASP_DISCOVERY_KUBERNETES_COLLECTOR_VERSION"), GitHubCollectorVersion: getenv("ZASP_DISCOVERY_GITHUB_COLLECTOR_VERSION"), OktaCollectorVersion: getenv("ZASP_DISCOVERY_OKTA_COLLECTOR_VERSION"),
 		// Optional: unset leaves the provider unregistered.
 		MicrosoftCollectorVersion: getenv("ZASP_DISCOVERY_MICROSOFT_COLLECTOR_VERSION"), SalesforceCollectorVersion: getenv("ZASP_DISCOVERY_SALESFORCE_COLLECTOR_VERSION"),
@@ -424,7 +430,7 @@ func validModeDependencies(config workerRuntimeConfig) bool {
 	case workerModeSecurityAgent:
 		return config.LeaseDuration >= 30*time.Second && config.LeaseDuration <= 5*time.Minute && config.BatchSize <= 25 && config.SecurityAgentPlannerEndpoint == "https://openrouter.ai/api/v1/chat/completions" && config.SecurityAgentPlannerModel == "openai/gpt-5-mini" && config.SecurityAgentPlannerToken == "/var/run/secrets/zasp-security-agent/openrouter-api-token" && config.SecurityAgentPlannerTimeout >= time.Second && config.SecurityAgentPlannerTimeout <= 30*time.Second && config.SecurityAgentPlannerTokens >= 1 && config.SecurityAgentPlannerTokens <= 4096 && config.SecurityAgentPlannerPolicy == "security-agent-planner-v1" && config.DiscoveryQueueURL == "" && config.RuntimeQueueURL == "" && config.OutboxRoleARN == "" && config.DiscoveryRoleARN == "" && config.ProjectionRoleARN == "" && config.RuntimeRoleARN == "" && config.RuntimeStageRoleARN == ""
 	case workerModeSecurityAgentAction:
-		return config.LeaseDuration >= 30*time.Second && config.LeaseDuration <= 5*time.Minute && config.BatchSize <= 25 && regexp.MustCompile(`^[a-z][a-z0-9_-]{7,63}$`).MatchString(config.GatewaySigningKeyID) && config.GatewaySigningPrivateFile == "/var/run/secrets/zasp-security-agent-action/gateway-signing-private-key" && config.DiscoveryQueueURL == "" && config.RuntimeQueueURL == "" && config.OutboxRoleARN == "" && config.DiscoveryRoleARN == "" && config.ProjectionRoleARN == "" && config.RuntimeRoleARN == "" && config.RuntimeStageRoleARN == ""
+		return config.LeaseDuration >= 30*time.Second && config.LeaseDuration <= 5*time.Minute && config.BatchSize <= 25 && regexp.MustCompile(`^[a-z][a-z0-9_-]{7,63}$`).MatchString(config.GatewaySigningKeyID) && config.GatewaySigningPrivateFile == "/var/run/secrets/zasp-security-agent-action/gateway-signing-private-key" && config.DiscoveryQueueURL == "" && config.RuntimeQueueURL == "" && config.OutboxRoleARN == "" && config.DiscoveryRoleARN == "" && config.ProjectionRoleARN == "" && config.RuntimeRoleARN == "" && config.RuntimeStageRoleARN == "" && validRemediationWorkerConfig(config)
 	case workerModePolicyDeployment:
 		return config.LeaseDuration >= 30*time.Second && config.LeaseDuration <= 5*time.Minute && config.BatchSize <= 25 && regexp.MustCompile(`^[a-z][a-z0-9_-]{7,63}$`).MatchString(config.GatewaySigningKeyID) && config.GatewaySigningPrivateFile == "/var/run/secrets/zasp-policy-deployment/gateway-signing-private-key" && config.DiscoveryQueueURL == "" && config.RuntimeQueueURL == "" && config.OutboxRoleARN == "" && config.DiscoveryRoleARN == "" && config.ProjectionRoleARN == "" && config.RuntimeRoleARN == "" && config.RuntimeStageRoleARN == ""
 	default:

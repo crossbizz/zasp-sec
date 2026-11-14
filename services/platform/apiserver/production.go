@@ -148,6 +148,11 @@ func newProductionHandlers(repository, securityAgentRepository *PostgresReposito
 		if discoveryErr != nil {
 			return Dependencies{}, nil, ErrRepositoryConfiguration
 		}
+		// The guardrail decision API and the Environment's guardrail policy
+		// are served from the same surface.
+		if surface, composed := workflowSurface.(*discoveryWorkflowSurface); composed {
+			surface.guardrail = &guardrailHTTPHandler{database: repository.database, newProductID: newWorkflowProductID}
+		}
 	}
 	if isRuntimeDataPlaneSchema(repository.schema) {
 		sensorRepository, sensorErr := NewSensorPublicRepository(repository.database)

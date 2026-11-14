@@ -141,7 +141,7 @@ func BuiltInResponseActionMetadata() []ActionMetadata {
 }
 
 func responseActionMetadata() []ActionMetadata {
-	return []ActionMetadata{
+	return append([]ActionMetadata{
 		{Key: "isolate_session", InputSchema: map[string]string{"session_id": "string", "scope": "string", "ttl": "duration"}, RiskClass: "containment", TargetTypes: []string{"session"}, ApprovalFloor: "operator", Reversible: true, Idempotent: true, VerificationKind: "gateway_decision"},
 		{Key: "run_test", InputSchema: map[string]string{"test_definition_id": "string"}, RiskClass: "low", TargetTypes: []string{"test_definition"}, ApprovalFloor: "none", Reversible: false, Idempotent: true, VerificationKind: "test_run"},
 		{Key: "rerun_test", InputSchema: map[string]string{"test_definition_id": "string"}, RiskClass: "low", TargetTypes: []string{"test_definition"}, ApprovalFloor: "none", Reversible: false, Idempotent: true, VerificationKind: "test_run"},
@@ -150,7 +150,7 @@ func responseActionMetadata() []ActionMetadata {
 		{Key: "send_response_webhook", InputSchema: map[string]string{"destination_id": "string", "evidence_id": "string"}, RiskClass: "moderate", TargetTypes: []string{"configured_webhook"}, ApprovalFloor: "operator", Reversible: false, Idempotent: true, VerificationKind: "signed_delivery"},
 		{Key: "update_finding_response", InputSchema: map[string]string{"finding_id": "string", "assignee_id": "string", "status": "enum:open,investigating", "note": "string"}, RiskClass: "low", TargetTypes: []string{"finding"}, ApprovalFloor: "none", Reversible: true, Idempotent: true, VerificationKind: "finding_state"},
 		{Key: "revoke_integration_connection", InputSchema: map[string]string{"connection_id": "string", "approval_token": "string"}, RiskClass: "destructive", TargetTypes: []string{"integration_connection"}, ApprovalFloor: "admin", Reversible: false, Idempotent: true, VerificationKind: "connection_state"},
-	}
+	}, providerRemediationActionMetadata()...)
 }
 func validBuiltinParameters(request ActionRequest) bool {
 	exact := func(keys ...string) bool {
@@ -195,6 +195,8 @@ func validBuiltinParameters(request ActionRequest) bool {
 		return exact("finding_id", "assignee_id", "status", "note") && contains([]string{"open", "investigating"}, request.Parameters["status"])
 	case "revoke_integration_connection":
 		return exact("connection_id", "approval_token")
+	case ActionAttachBedrockGuardrail, ActionDetachRoleAdministratorPolicy:
+		return ValidProviderRemediationParameters(request.ActionKey, request.Parameters, "", "")
 	default:
 		return false
 	}

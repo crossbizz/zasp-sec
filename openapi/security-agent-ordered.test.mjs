@@ -14,7 +14,7 @@ test("ordered publication has closed public schemas and separate cancellation re
   assert.equal(schemas.SecurityAgentRunDetail.properties.ordered.$ref, "#/components/schemas/SecurityAgentOrderedDetail");
   assert.equal(schemas.SecurityAgentRunDetail.required.includes("ordered"), false);
   assert.equal(schemas.SecurityAgentRun.properties.ordered, undefined);
-  assert.equal(schemas.SecurityAgentManualRunInput.oneOf.length, 2);
+  assert.equal(schemas.SecurityAgentManualRunInput.oneOf.length, 3);
   assert.deepEqual(schemas.SecurityAgentOrderedApproval.properties.state.enum, ["absent", "pending", "approved", "rejected", "expired"]);
 });
 test("generated types expose immutable ordered data without altering ordinary runs", async () => {

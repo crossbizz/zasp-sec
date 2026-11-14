@@ -15,10 +15,10 @@ import (
 	"net/http"
 	"slices"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/artifactstore"
+	"github.com/zasp-ai/zasp-sec/services/platform/compliancemap"
 	"github.com/zasp-ai/zasp-sec/services/platform/sessioncontrol"
 )
 
@@ -80,7 +80,7 @@ func (h *complianceHTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 			writeComplianceError(w, r, ErrComplianceForbidden)
 			return
 		}
-		object, valid := complianceClosedObject(body, []string{"framework", "control_id"})
+		object, valid := complianceClosedObject(body, []string{"framework", "control_id", "agent_id"})
 		var input ComplianceExportRequest
 		if !valid || decodeStrictDiscovery(body, &input) != nil || !complianceFilterFields(object) || len(r.Header.Values("Idempotency-Key")) != 1 {
 			writeComplianceError(w, r, ErrRepositoryOperation)
@@ -292,7 +292,7 @@ func (h *complianceHTTPHandler) get(w http.ResponseWriter, r *http.Request, iden
 		}
 		framework := options.Framework
 		if framework == "" && options.ControlID != "" {
-			framework = strings.Split(options.ControlID, "-")[0]
+			framework = complianceControlFramework(options.ControlID)
 		}
 		if framework == "" {
 			framework = "soc2_security"
@@ -363,6 +363,11 @@ func complianceHTTPListOptions(r *http.Request, identity RequestIdentity, operat
 	if !validComplianceList(identity, o, internal) {
 		return o, ErrRepositoryOperation
 	}
+	// The evidence of an AI framework is listed per control: an evidence
+	// record does not carry the rule that maps it to one.
+	if internal == "listEvidence" && o.ControlID == "" && compliancemap.IsFramework(o.Framework) {
+		return o, ErrRepositoryOperation
+	}
 	return o, nil
 }
 
@@ -370,6 +375,10 @@ func complianceHTTPListOptions(r *http.Request, identity RequestIdentity, operat
 type complianceLiveControl struct {
 	sessioncontrol.ComplianceControl
 	Freshness string `json:"freshness"`
+	// FindingCount is set for a control of an AI framework: the findings the
+	// caller may read whose rule maps to the control. EvidenceIDs then holds
+	// the first hundred of them.
+	FindingCount *int `json:"finding_count,omitempty"`
 }
 
 func compliancePublicControl(c ComplianceControl, records []ComplianceEvidence) complianceLiveControl {
@@ -379,9 +388,12 @@ func compliancePublicControl(c ComplianceControl, records []ComplianceEvidence) 
 			ids = append(ids, r.ID)
 		}
 	}
+	if c.FindingCount != nil && len(records) == 0 {
+		ids = append(ids, c.FindingIDs...)
+	}
 	slices.Sort(ids)
 	until, _ := time.Parse(time.RFC3339Nano, c.FreshUntil)
-	return complianceLiveControl{ComplianceControl: sessioncontrol.ComplianceControl{ID: c.ControlID, Framework: c.Framework, Name: c.Label, EvidenceIDs: ids, FreshUntil: until}, Freshness: c.Freshness}
+	return complianceLiveControl{ComplianceControl: sessioncontrol.ComplianceControl{ID: c.ControlID, Framework: c.Framework, Name: c.Label, EvidenceIDs: ids, FreshUntil: until}, Freshness: c.Freshness, FindingCount: c.FindingCount}
 }
 func compliancePublicRecord(v ComplianceEvidence) map[string]any {
 	raw, _ := json.Marshal(v.Metadata)
@@ -447,13 +459,18 @@ type complianceEvidenceLister interface {
 // control at a time as before.
 func complianceControlEvidence(ctx context.Context, source complianceEvidenceLister, identity RequestIdentity, digest []byte, controls []ComplianceControl) ([][]ComplianceEvidence, error) {
 	evidence := make([][]ComplianceEvidence, len(controls))
-	if len(controls) == 0 {
-		return evidence, nil
-	}
+	product := 0
 	for _, control := range controls {
 		if len(control.RequiredSources) != 1 {
 			return nil, ErrRepositoryUnavailable
 		}
+		// An AI control already names its findings (finding_ids).
+		if control.FindingCount == nil {
+			product++
+		}
+	}
+	if product == 0 {
+		return evidence, nil
 	}
 	families := map[string][]ComplianceEvidence{}
 	options := ComplianceListOptions{Limit: 100}
@@ -475,6 +492,9 @@ func complianceControlEvidence(ctx context.Context, source complianceEvidenceLis
 		options.Cursor = page.NextCursor
 	}
 	for n, control := range controls {
+		if control.FindingCount != nil {
+			continue
+		}
 		if complete {
 			evidence[n] = families[control.RequiredSources[0]]
 			continue
