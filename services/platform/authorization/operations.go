@@ -27,7 +27,13 @@ type OperationPolicy struct {
 // gateway with that permission alone therefore cannot read inventory,
 // findings or anything else, and a token with view alone cannot ask for
 // decisions.
-var TokenPermissionOperations = map[string]string{"createGuardrailDecision": "view"}
+//
+// The traffic routes of the hosted gateway are the others: their token needs
+// use_gateway, which no role holds either, so a token created for an agent's
+// gateway traffic cannot read the Environment and a reading token cannot
+// send traffic.
+var TokenPermissionOperations = map[string]string{"createGuardrailDecision": "view",
+	"callMCPGateway": "view", "closeMCPGatewaySession": "view", "createGatewayChatCompletion": "view", "createGatewayResponse": "view", "createGatewayMessage": "view"}
 
 //go:embed operations.json
 var operationBytes []byte

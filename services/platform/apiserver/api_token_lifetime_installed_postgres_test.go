@@ -207,6 +207,14 @@ func TestAPITokenLifetimeOnInstalledBaselinePostgres(t *testing.T) {
 	refused("Workflow manager one year", `["view","manage_workflows"]`, 365*day-time.Hour)
 	refused("Reader with decisions 120 days", `["decide_guardrails","view"]`, 120*day)
 	refused("Gateway 366 days", `["decide_guardrails"]`, 366*day)
+	// A token of the hosted gateway reads nothing either: alone or with
+	// decide_guardrails it may live a year, with anything else 90 days.
+	accepted("Hosted gateway one year", `["use_gateway"]`, 365*day-time.Hour)
+	accepted("Hosted gateway with decisions one year", `["decide_guardrails","use_gateway"]`, 365*day-time.Hour)
+	accepted("Hosted gateway reader 90 days", `["use_gateway","view"]`, 90*day-time.Hour)
+	refused("Hosted gateway 366 days", `["use_gateway"]`, 366*day)
+	refused("Hosted gateway reader 120 days", `["use_gateway","view"]`, 120*day)
+	refused("Hosted gateway with decisions and reads one year", `["decide_guardrails","use_gateway","view"]`, 365*day-time.Hour)
 	refused("Expired at birth", `["view"]`, -time.Hour)
 
 	// The database decides, not only the API server: the same statement the
@@ -291,6 +299,8 @@ func TestAPITokenLifetimeOnInstalledBaselinePostgres(t *testing.T) {
 	refused("Gateway 30 days after the limit", `["decide_guardrails"]`, 30*day)
 	accepted("Reader 7 days", `["view"]`, 7*day-time.Hour)
 	accepted("Gateway 7 days", `["decide_guardrails"]`, 7*day-time.Hour)
+	refused("Hosted gateway 30 days after the limit", `["use_gateway"]`, 30*day)
+	accepted("Hosted gateway 7 days", `["use_gateway"]`, 7*day-time.Hour)
 	accepted("Default after the limit", `["view"]`, 0)
 	// Existing tokens keep their expiry and still work.
 	if listed := list(); !listed[gateway.Token.ID].ExpiresAt.Equal(gateway.Token.ExpiresAt) || !listed[reader.Token.ID].ExpiresAt.Equal(reader.Token.ExpiresAt) {

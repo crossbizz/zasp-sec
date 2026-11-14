@@ -105,6 +105,18 @@ describe("API Access product surface", () => {
     await waitFor(() => expect(createToken).toHaveBeenCalledWith(expect.objectContaining({ name: "LiteLLM gateway", permissions: ["decide_guardrails"] }), expect.stringMatching(/^admin_/)));
   });
 
+  it("creates a token for the hosted gateway only when that use is chosen", async () => {
+    const user = userEvent.setup();
+    const createToken = vi.fn(fixtureAPI().createToken);
+    renderAuthenticated(fixtureAPI({ createToken }));
+    await screen.findByText("CI scanner");
+    await user.type(screen.getByLabelText("Token name"), "Support agent gateway");
+    await user.selectOptions(screen.getByLabelText("Token use"), "use_gateway");
+    expect(screen.getByText(/through the hosted gateway and nothing else/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Create API token" }));
+    await waitFor(() => expect(createToken).toHaveBeenCalledWith(expect.objectContaining({ name: "Support agent gateway", permissions: ["use_gateway"] }), expect.stringMatching(/^admin_/)));
+  });
+
   it("recovers a pending reveal grant after reload and reports copy failure without exposing the secret elsewhere", async () => {
     const user = userEvent.setup();
     const grant = { grantId: "pid_grant", tokenId: "pid_token", operation: "createAPIToken" as const, expiresAt: "2026-08-19T00:05:00.000Z" };
@@ -214,6 +226,11 @@ describe("API Access product surface", () => {
     await user.selectOptions(screen.getByLabelText("Token use"), "decide_guardrails");
     expect(lifetimes()).toEqual(["1 day", "30 days", "90 days", "1 year"]);
     await user.selectOptions(screen.getByLabelText("Expires after"), "365");
+    // So may a token for the hosted gateway only: it reads nothing either.
+    await user.selectOptions(screen.getByLabelText("Token use"), "use_gateway");
+    expect(lifetimes()).toEqual(["1 day", "30 days", "90 days", "1 year"]);
+    expect(screen.getByLabelText("Expires after")).toHaveValue("365");
+    expect(screen.getByText(/A token for the hosted gateway only can read nothing, so it may live up to a year/)).toBeInTheDocument();
     // Back to a reading token: a year is not offered, and not kept.
     await user.selectOptions(screen.getByLabelText("Token use"), "view");
     expect(screen.getByLabelText("Expires after")).toHaveValue("1");

@@ -347,6 +347,29 @@ variable "security_agent_remediation" {
   }
 }
 
+variable "hosted_gateway" {
+  description = "Optional, off by default. Serves the hosted gateway from the API: the MCP gateway and the model proxy an agent reaches by changing a URL, with nothing installed at the customer (docs/operations/hosted-gateway.md). egress_cidrs are the addresses the API pods may reach on port 443 for it: the model providers and the customers' remote MCP servers, usually 0.0.0.0/0, from which the chart carves out the non-public ranges. timeout_seconds bounds one exchange, a stream included. decision_retention_days is how long the gateway's decision records are kept before the scheduler deletes them."
+  type = object({
+    enabled                 = optional(bool, false)
+    timeout_seconds         = optional(number, 300)
+    egress_cidrs            = optional(list(string), [])
+    decision_retention_days = optional(number, 90)
+  })
+  default = {}
+  validation {
+    condition     = var.hosted_gateway.decision_retention_days >= 1 && var.hosted_gateway.decision_retention_days <= 3650 && floor(var.hosted_gateway.decision_retention_days) == var.hosted_gateway.decision_retention_days
+    error_message = "hosted_gateway.decision_retention_days is a whole number of days from 1 to 3650."
+  }
+  validation {
+    condition     = var.hosted_gateway.enabled == (length(var.hosted_gateway.egress_cidrs) > 0) && length(var.hosted_gateway.egress_cidrs) <= 64
+    error_message = "hosted_gateway names one to 64 egress CIDRs when it is enabled and none when it is not."
+  }
+  validation {
+    condition     = alltrue([for cidr in var.hosted_gateway.egress_cidrs : can(cidrhost(cidr, 0))]) && var.hosted_gateway.timeout_seconds >= 10 && var.hosted_gateway.timeout_seconds <= 1800 && floor(var.hosted_gateway.timeout_seconds) == var.hosted_gateway.timeout_seconds
+    error_message = "hosted_gateway.egress_cidrs are CIDR blocks and timeout_seconds is a whole number from 10 to 1800."
+  }
+}
+
 variable "discovery_optional_providers" {
   description = "Optional discovery providers: Microsoft (Entra and Copilot Studio), Salesforce (Agentforce) and the generic saas provider (every SaaS platform read through Nango; saas_collector alone enables it, and the platforms are reached by Nango, whose provider addresses are nango_provider_egress_cidrs). All are disabled by default. A provider is enabled by its collector version, which must be the version the installed schema hands a discovery run (collector_v1), together with the identifier of its pre-provisioned client-secret reference and a snapshot of the provider addresses the API and the discovery worker may reach."
   type = object({

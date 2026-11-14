@@ -186,6 +186,11 @@ type workerRuntimeConfig struct {
 	TestReconcilerTokenFile      string
 	AttackLabReconcilerRoleARN   string
 	AttackLabReconcilerTokenFile string
+
+	// GatewayDecisionRetentionDays is how long the scheduler keeps the
+	// hosted gateway's decision records (ZASP_GATEWAY_DECISION_RETENTION_DAYS,
+	// 90 when it is not set).
+	GatewayDecisionRetentionDays int
 }
 
 func validRuntimeSessionIndexSelection(config workerRuntimeConfig) bool {
@@ -282,6 +287,14 @@ func loadWorkerRuntimeConfig(getenv func(string) string) (workerRuntimeConfig, e
 		RuntimeStageRoleARN: getenv("ZASP_RUNTIME_STAGE_ROLE_ARN"), RuntimeStageTokenFile: getenv("ZASP_RUNTIME_STAGE_WEB_IDENTITY_TOKEN_FILE"), RuntimeStageVersion: getenv("ZASP_RUNTIME_STAGE_VERSION"),
 	}
 	config.ProjectionKind = projectionKind(config.Mode)
+	config.GatewayDecisionRetentionDays = defaultGatewayDecisionRetentionDays
+	if retention := getenv("ZASP_GATEWAY_DECISION_RETENTION_DAYS"); retention != "" {
+		days, err := strconv.Atoi(retention)
+		if err != nil || strconv.Itoa(days) != retention || days < 1 || days > 3650 || config.Mode != workerModeScheduler {
+			return workerRuntimeConfig{}, errWorkerConfiguration
+		}
+		config.GatewayDecisionRetentionDays = days
+	}
 	if loadAttackLabReconcilerIdentity(getenv, &config) != nil {
 		return workerRuntimeConfig{}, errWorkerConfiguration
 	}

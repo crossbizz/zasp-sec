@@ -18,6 +18,7 @@ import (
 
 	"github.com/zasp-ai/zasp-sec/services/platform/authorization"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+	"github.com/zasp-ai/zasp-sec/services/platform/hostedgateway"
 	"github.com/zasp-ai/zasp-sec/services/platform/orchestration"
 )
 
@@ -62,6 +63,9 @@ type CookiePolicy struct {
 	SecurityAgentOrderedHTTPEnabled bool
 	SingleTestRecoveryReady         func(context.Context) (bool, error)
 	SingleTestOriginalObserver      orchestration.SingleTestOriginalObserver
+	// HostedGateway is the engine of the hosted gateway's traffic routes.
+	// Nil where the deployment does not host the gateway.
+	HostedGateway *hostedgateway.Gateway
 
 	Secure                  bool
 	WorkflowSigningKey      []byte
@@ -152,6 +156,9 @@ func newProductionHandlers(repository, securityAgentRepository *PostgresReposito
 		// are served from the same surface.
 		if surface, composed := workflowSurface.(*discoveryWorkflowSurface); composed {
 			surface.guardrail = &guardrailHTTPHandler{database: repository.database, newProductID: newWorkflowProductID}
+			// The hosted gateway: its management always, its traffic routes
+			// where the deployment hosts them.
+			surface.gateway = &hostedGatewayHandler{database: repository.database, newProductID: newWorkflowProductID, gateway: cookie.HostedGateway}
 		}
 	}
 	if isRuntimeDataPlaneSchema(repository.schema) {

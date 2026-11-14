@@ -16,7 +16,8 @@ import (
 //
 //   - a token that holds decide_guardrails and nothing else can ask for
 //     guardrail decisions and can read nothing. It lives in a gateway's
-//     configuration and may live a year;
+//     configuration and may live a year. The same holds for a token of the
+//     hosted gateway: use_gateway alone, or with decide_guardrails;
 //   - every other token reads the Environment, and with a manage permission
 //     changes it, so a leaked one is worth more for longer. It may live 90
 //     days.
@@ -44,10 +45,20 @@ const (
 // apiTokenLifetimeCeilingDays is the fixed limit for a token with these
 // permissions, before the Environment's own limit.
 func apiTokenLifetimeCeilingDays(permissions []string) int {
-	if len(permissions) == 1 && permissions[0] == PermissionDecideGuardrails {
-		return APITokenDecisionMaxLifetimeDays
+	// decide_guardrails and use_gateway are the permissions of tokens only
+	// (section WS9): a token that holds nothing else can read nothing.
+	// A list that names a permission twice is not such a token.
+	seen := map[string]bool{}
+	for _, permission := range permissions {
+		if permission != PermissionDecideGuardrails && permission != PermissionUseGateway || seen[permission] {
+			return APITokenMaxLifetimeDays
+		}
+		seen[permission] = true
 	}
-	return APITokenMaxLifetimeDays
+	if len(permissions) == 0 {
+		return APITokenMaxLifetimeDays
+	}
+	return APITokenDecisionMaxLifetimeDays
 }
 
 // APITokenPolicy is the API token lifetime setting of an Environment.

@@ -59,6 +59,12 @@ func TestAPITokenExpiryFollowsThePermissions(t *testing.T) {
 	if apiTokenLifetimeCeilingDays([]string{PermissionDecideGuardrails}) != 365 || apiTokenLifetimeCeilingDays([]string{"view"}) != 90 || apiTokenLifetimeCeilingDays(nil) != 90 {
 		t.Fatal("the fixed lifetimes changed")
 	}
+	// A token of the hosted gateway, alone or with decisions, reads nothing
+	// and may live as long; with anything else it may not.
+	if apiTokenLifetimeCeilingDays([]string{PermissionUseGateway}) != 365 || apiTokenLifetimeCeilingDays([]string{PermissionDecideGuardrails, PermissionUseGateway}) != 365 ||
+		apiTokenLifetimeCeilingDays([]string{PermissionUseGateway, "view"}) != 90 || apiTokenLifetimeCeilingDays([]string{PermissionDecideGuardrails, "manage_workflows"}) != 90 || apiTokenLifetimeCeilingDays([]string{}) != 90 {
+		t.Fatal("the lifetime of a gateway token changed")
+	}
 }
 
 func apiTokenPolicyFixture(environment string, days int, version int64) string {

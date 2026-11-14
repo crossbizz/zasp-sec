@@ -17,6 +17,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
 )
 
 var errInvalidOperationalConfig = errors.New("invalid operational configuration")
@@ -222,7 +224,7 @@ var metricMethods = map[string]struct{}{
 
 var metricRouteRoots = map[string]struct{}{
 	"admin": {}, "agents": {}, "assets": {}, "attack-paths": {}, "audit-events": {}, "audit-exports": {},
-	"compliance": {}, "environments": {}, "findings": {}, "home": {}, "identities": {},
+	"compliance": {}, "environments": {}, "findings": {}, "gateway": {}, "home": {}, "identities": {},
 	"integration-catalog": {}, "integrations": {}, "me": {}, "organization": {}, "policies": {},
 	"runtimes": {}, "security-agent-templates": {}, "security-agents": {}, "session": {}, "sessions": {},
 	"settings": {}, "system": {}, "tools": {}, "workflow-mutation-receipts": {}, "workspaces": {},
@@ -363,7 +365,15 @@ func (recorder *statusRecorder) Write(value []byte) (int, error) {
 }
 
 func newOperationalMiddleware(output io.Writer, metrics *operationalMetrics, limiter *requestLimiter, requestTimeout time.Duration, exporter operationalSpanExporter, next http.Handler) (http.Handler, error) {
-	if output == nil || metrics == nil || limiter == nil || requestTimeout <= 0 || requestTimeout > 30*time.Second || exporter == nil || next == nil {
+	return newGatewayOperationalMiddleware(output, metrics, limiter, requestTimeout, 0, exporter, next)
+}
+
+// newGatewayOperationalMiddleware is the operational middleware of a
+// deployment that may serve the hosted gateway. gatewayTimeout, when
+// positive, replaces the request timeout for the gateway's traffic routes,
+// whose answers may be streams; every other route keeps requestTimeout.
+func newGatewayOperationalMiddleware(output io.Writer, metrics *operationalMetrics, limiter *requestLimiter, requestTimeout, gatewayTimeout time.Duration, exporter operationalSpanExporter, next http.Handler) (http.Handler, error) {
+	if output == nil || metrics == nil || limiter == nil || requestTimeout <= 0 || requestTimeout > 30*time.Second || gatewayTimeout < 0 || gatewayTimeout > 30*time.Minute || exporter == nil || next == nil {
 		return nil, errInvalidOperationalConfig
 	}
 	logger := &operationalLogger{output: output}
@@ -373,7 +383,12 @@ func newOperationalMiddleware(output io.Writer, metrics *operationalMetrics, lim
 		spanID := randomHex(8)
 		writer.Header().Set("Traceparent", "00-"+traceID+"-"+spanID+"-01")
 		writer.Header().Set("X-Correlation-ID", generateCorrelationID())
-		requestCtx, cancel := context.WithTimeout(request.Context(), requestTimeout)
+		timeout := requestTimeout
+		if gatewayTimeout > 0 && request.URL != nil && apiserver.HostedGatewayTrafficPath(request.URL.Path) {
+			// The gateway bounds its own exchange; this is the outer bound.
+			timeout = gatewayTimeout + 30*time.Second
+		}
+		requestCtx, cancel := context.WithTimeout(request.Context(), timeout)
 		defer cancel()
 		request = request.WithContext(context.WithValue(requestCtx, operationalTraceContextKey{}, operationalTraceContext{TraceID: traceID, SpanID: spanID}))
 		if !limiter.allow(request) {

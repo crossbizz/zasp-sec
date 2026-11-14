@@ -5,12 +5,15 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { GuardrailMode, GuardrailPolicy, GuardrailPolicyRule } from "../../../apps/web/api/decoders";
 import { useAPI } from "../../api/APIProvider";
 import { Badge, Button, Card, LoadingState, PageHeader, Select } from "../../components/ui";
+import { createGatewayAPI, type GatewayAPI } from "../gateway/gateway-api";
+import { GatewayActivityCard, GatewayPolicyCard, HostedGatewaySetupCard } from "../gateway/GatewayViews";
 import { createGuardrailPolicyAPI, GuardrailPolicyConflict, type GuardrailPolicyAPI } from "./guardrail-policy-api";
 
 // The Guardrails page of the product: the Environment's guardrail policy
-// (which rule blocks, redacts, only reports or is off) and how a gateway the
-// customer already runs asks for a decision. The decision API itself is
-// called by the gateway with an API token, never by this page.
+// (which rule blocks, redacts, only reports or is off), the policy and the
+// activity of the gateway the platform hosts, and how a gateway the customer
+// already runs asks for a decision. The decision API and the hosted
+// gateway's traffic are called with an API token, never by this page.
 
 const modeLabels: Readonly<Record<GuardrailMode, string>> = { block: "Block", redact: "Redact", monitor: "Monitor only", off: "Off" };
 const categoryLabels: Readonly<Record<GuardrailPolicyRule["category"], string>> = { prompt_injection: "Prompt injection", sensitive_data: "Sensitive data" };
@@ -21,9 +24,12 @@ function modesOf(policy: GuardrailPolicy): Record<string, GuardrailMode> {
 
 type Load = { status: "loading" } | { status: "error" } | { status: "ready"; policy: GuardrailPolicy };
 
-export function ProductionGuardrailsView({ canWrite, api: providedAPI, origin, onNavigate }: { canWrite: boolean; api?: GuardrailPolicyAPI; origin?: string; onNavigate?(path: string): void }) {
+export function ProductionGuardrailsView({ canWrite, api: providedAPI, gatewayAPI: providedGatewayAPI, origin, onNavigate }: { canWrite: boolean; api?: GuardrailPolicyAPI; gatewayAPI?: GatewayAPI; origin?: string; onNavigate?(path: string): void }) {
   const { client } = useAPI();
   const api = useMemo(() => providedAPI ?? createGuardrailPolicyAPI(client), [providedAPI, client]);
+  // The hosted gateway's cards are shown with the product's own client, or
+  // with the API a caller supplies.
+  const gatewayAPI = useMemo(() => providedGatewayAPI ?? (providedAPI ? null : createGatewayAPI(client)), [providedGatewayAPI, providedAPI, client]);
   const [load, setLoad] = useState<Load>({ status: "loading" });
   const [draft, setDraft] = useState<Record<string, GuardrailMode>>({});
   const [busy, setBusy] = useState(false);
@@ -71,7 +77,7 @@ export function ProductionGuardrailsView({ canWrite, api: providedAPI, origin, o
   const base = origin ?? (typeof window === "undefined" ? "https://<your Zasp address>" : window.location.origin);
 
   return <div className="page guardrails">
-    <PageHeader title="Guardrails" eyebrow="Protect" description="Decide which model interactions a gateway you already run should block, redact or let through. Detection is deterministic: patterns, phrase lists and checksums, with no model call." />
+    <PageHeader title="Guardrails" eyebrow="Protect" description="Decide what the hosted gateway, or a gateway you already run, blocks, redacts or lets through. Detection is deterministic: patterns, phrase lists and checksums, with no model call." />
     {error && <div className="error-banner" role="alert">{error}</div>}
     {notice && <div className="success-banner" role="status">{notice}</div>}
     <Card title={<h2>Policy for this Environment</h2>} action={policy ? <Badge tone={policy.version === 0 ? "neutral" : "brand"}>{policy.version === 0 ? "Defaults" : `Version ${policy.version}`}</Badge> : undefined}>
@@ -95,6 +101,11 @@ export function ProductionGuardrailsView({ canWrite, api: providedAPI, origin, o
           : <p>You can view this policy. Changing it needs permission to manage workflows.</p>}
       </>}
     </Card>
+    {gatewayAPI && <>
+      <GatewayPolicyCard api={gatewayAPI} canWrite={canWrite} />
+      <HostedGatewaySetupCard origin={origin} onNavigate={onNavigate} />
+      <GatewayActivityCard api={gatewayAPI} />
+    </>}
     <Card title={<h2>Ask for a decision from your gateway</h2>}>
       <p>Nothing is installed in your runtime. A gateway you already run (for example a LiteLLM guardrail hook) sends the text going into a model or coming out of it, and acts on the answer: <code>allow</code>, <code>redact</code> (use the returned <code>redacted_text</code>) or <code>block</code>. The text is used for that request only; it is not stored. The audit record of a decision holds the decision, the matched rules, the size of the text and its SHA-256 digest.</p>
       <ol>

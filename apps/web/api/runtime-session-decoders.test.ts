@@ -39,6 +39,16 @@ describe("runtime investigation response boundary", () => {
   it.each([["tetragon", "credential", "use"], ["tetragon", "policy", "block"], ["otlp", "file", "read"], ["otlp", "runtime", "exec"]])("rejects unsupported source/class association %s/%s/%s", (source, kind, action) => {
     expect(() => decodeRuntimeSessionEventPage(page([{ ...event, class: kind, source, action }]))).toThrow("schema mismatch");
   });
+  it.each([["tool", "invoke"], ["policy", "allow"], ["policy", "block"]])("accepts a hosted gateway event %s/%s for the agent a request named", (kind, action) => {
+    const observation = { ...event, class: kind, source: "gateway", action, confidence: "strong", label: "Gateway: MCP tool call lookup_customer" };
+    expect(decodeRuntimeSessionEventPage(page([observation])).items[0]).toEqual(observation);
+  });
+  it.each([
+    { class: "policy", action: "monitor" }, { class: "credential", action: "use" }, { class: "runtime", action: "exec" }, { class: "network", action: "connect" },
+    { confidence: "exact" }, { confidence: "unattributed", session_id: null, agent_id: null }, { sandbox_id: "sandbox-1", sandbox_source_sensor_id: id },
+  ])("rejects a hosted gateway event the gateway cannot state %j", (change) => {
+    expect(() => decodeRuntimeSessionEventPage(page([{ ...event, class: "tool", source: "gateway", action: "invoke", confidence: "strong", ...change }]))).toThrow("schema mismatch");
+  });
   it("accepts durable summaries, multiple-agent uncertainty and explicit unknown collections", () => {
     expect(decodeRuntimeSession(summary)).toEqual(summary);
     expect(decodeRuntimeSession({ ...summary, agent_id: null }).agent_id).toBeNull();

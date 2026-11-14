@@ -2,6 +2,8 @@
 
 A gateway you already run (LiteLLM, Kong, Apigee, your own proxy) asks Zasp what to do with one model interaction: allow it, redact it, or block it. Nothing of Zasp's is installed in your environment. The gateway makes one HTTPS call per interaction.
 
+If you do not run a gateway, Zasp hosts one: an agent reaches it by changing a URL, and it applies the same rules to prompts, tool calls, tool results and answers in flight. See [Hosted gateway](hosted-gateway.md).
+
 ## What it does and does not do
 
 - The detectors are deterministic: regular expressions, fixed phrase lists and checksums. No model is called, so the same text always gets the same answer.

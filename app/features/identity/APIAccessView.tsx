@@ -110,7 +110,7 @@ export function APIAccessView({ api: suppliedAPI, client }: { api?: APIAccessAPI
   const [name, setName] = useState("");
   // What the new token may do. A gateway that only asks for guardrail
   // decisions gets a token that can read nothing.
-  const [tokenUse, setTokenUse] = useState<"view" | "decide_guardrails">("view");
+  const [tokenUse, setTokenUse] = useState<"view" | "decide_guardrails" | "use_gateway">("view");
   // How long the new token lives. One day unless the person chooses more.
   const [lifetimeDays, setLifetimeDays] = useState(1);
   const [policy, setPolicy] = useState<APIAccessPolicy | null>(null);
@@ -169,7 +169,7 @@ export function APIAccessView({ api: suppliedAPI, client }: { api?: APIAccessAPI
   const reconcileMutation = async () => { await load(); };
   // The longest lifetime of the token being created: a decisions-only token
   // may live longer than one that reads the Environment.
-  const longestLifetimeDays = policy === null ? 1 : tokenUse === "decide_guardrails" ? policy.decisionTokenMaxLifetimeDays : policy.tokenMaxLifetimeDays;
+  const longestLifetimeDays = policy === null ? 1 : tokenUse !== "view" ? policy.decisionTokenMaxLifetimeDays : policy.tokenMaxLifetimeDays;
   const lifetimeChoices = LIFETIME_CHOICES.filter((choice) => choice.days <= longestLifetimeDays);
   const chosenLifetimeDays = lifetimeChoices.some((choice) => choice.days === lifetimeDays) ? lifetimeDays : 1;
   const expiresAt = () => new Date(Date.now() + chosenLifetimeDays * DAY_MILLISECONDS).toISOString();
@@ -201,10 +201,11 @@ export function APIAccessView({ api: suppliedAPI, client }: { api?: APIAccessAPI
       {grants.length === 0 ? <EmptyState title="No pending credentials" description="Unacknowledged token credentials after create or rotate appear here across reloads." /> : <ul className="identity-list">{grants.map((grant) => <li key={grant.grantId}><span><strong>{grant.operation === "createAPIToken" ? "Created token" : "Rotated token"}</strong><small>expires {grant.expiresAt}</small></span><Button disabled={!fresh || revealed !== null} onClick={() => void reveal(grant)}>Reveal token</Button></li>)}</ul>}
     </Card>
     <Card title={<h2>Create API token</h2>}><div className="identity-form-grid"><Field disabled={!fresh || recoveryLocked || activeScope === null} label="Token name" value={name} onChange={(event) => setName(event.target.value)} />
-      <Select disabled={!fresh || recoveryLocked || activeScope === null} label="Token use" value={tokenUse} onChange={(event) => setTokenUse(event.target.value === "decide_guardrails" ? "decide_guardrails" : "view")}><option value="view">Read the Environment (view)</option><option value="decide_guardrails">Guardrail decisions only (decide_guardrails)</option></Select>
+      <Select disabled={!fresh || recoveryLocked || activeScope === null} label="Token use" value={tokenUse} onChange={(event) => setTokenUse(event.target.value === "decide_guardrails" ? "decide_guardrails" : event.target.value === "use_gateway" ? "use_gateway" : "view")}><option value="view">Read the Environment (view)</option><option value="decide_guardrails">Guardrail decisions only (decide_guardrails)</option><option value="use_gateway">Hosted gateway only (use_gateway)</option></Select>
       <Select disabled={!fresh || recoveryLocked || activeScope === null} label="Expires after" value={String(chosenLifetimeDays)} onChange={(event) => setLifetimeDays(Number(event.target.value))}>{lifetimeChoices.map((choice) => <option key={choice.days} value={choice.days}>{choice.label}</option>)}</Select></div>
-      <p>{tokenUse === "decide_guardrails" ? "A token for guardrail decisions only can read nothing, so it may live up to a year." : "A token that reads the Environment may live up to 90 days."}{policy !== null && policy.maxLifetimeDays < 365 && ` This Environment limits new tokens to ${policy.maxLifetimeDays} ${policy.maxLifetimeDays === 1 ? "day" : "days"}.`}{policy === null && " The lifetime setting could not be loaded; only the one-day lifetime is offered."}</p>
+      <p>{tokenUse === "decide_guardrails" ? "A token for guardrail decisions only can read nothing, so it may live up to a year." : tokenUse === "use_gateway" ? "A token for the hosted gateway only can read nothing, so it may live up to a year." : "A token that reads the Environment may live up to 90 days."}{policy !== null && policy.maxLifetimeDays < 365 && ` This Environment limits new tokens to ${policy.maxLifetimeDays} ${policy.maxLifetimeDays === 1 ? "day" : "days"}.`}{policy === null && " The lifetime setting could not be loaded; only the one-day lifetime is offered."}</p>
       {tokenUse === "decide_guardrails" && <p>This token can call the guardrail decision API and nothing else: it cannot read inventory, findings or settings.</p>}
+      {tokenUse === "use_gateway" && <p>This token can send an agent&apos;s MCP and model traffic through the hosted gateway and nothing else: it cannot read inventory, findings, settings or the gateway&apos;s activity.</p>}
       {activeScope && <p>New credentials use the authenticated active scope <code>{activeScope.workspaceId}/{activeScope.environmentId}</code>.</p>}
       <Button ref={createTokenButton} variant="primary" disabled={!fresh || activeScope === null || revealed !== null || grants.length > 0 || unresolvedMutation?.kind === "rotate"} onClick={() => void (async () => {
         setError(null); setNotice(null); if (!name.trim()) { setError("Enter a token name"); return; } if (!api || !activeScope) { setError("An authenticated active scope is required"); return; }

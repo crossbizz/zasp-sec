@@ -34,6 +34,12 @@ var (
 type RuntimeConfig struct {
 	RuntimeServices                 runtimeservices.Config
 	SecurityAgentOrderedHTTPEnabled bool
+	// HostedGatewayEnabled serves the traffic routes of the hosted gateway
+	// (ZASP_HOSTED_GATEWAY_ENABLED; off unless set). HostedGatewayTimeout
+	// bounds one exchange through it, a stream included
+	// (ZASP_HOSTED_GATEWAY_TIMEOUT; five minutes unless set).
+	HostedGatewayEnabled bool
+	HostedGatewayTimeout time.Duration
 
 	EvidenceExportWorkflow         string
 	AttackLabWorkflow              string
@@ -104,6 +110,14 @@ type StoreDependency struct {
 	Durable bool
 }
 
+// The hosted gateway's defaults. A request through it carries a prompt with
+// its conversation, or a tool call: it may be far larger than a request of
+// the product API, and its answer may be a stream that lasts minutes.
+const (
+	defaultHostedGatewayTimeout = 5 * time.Minute
+	hostedGatewayMaximumBody    = 4 << 20
+)
+
 type RuntimeDependencies struct {
 	ProductHandler  http.Handler
 	ReadinessCheck  func(context.Context) error
@@ -135,11 +149,32 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 			return RuntimeConfig{}, errInvalidRuntimeConfig
 		}
 	}
+	hostedGatewayEnabled, hostedGatewayTimeout := false, time.Duration(0)
+	if value := getenv("ZASP_HOSTED_GATEWAY_ENABLED"); value != "" {
+		var err error
+		if hostedGatewayEnabled, err = strconv.ParseBool(value); err != nil {
+			return RuntimeConfig{}, errInvalidRuntimeConfig
+		}
+	}
+	if hostedGatewayEnabled {
+		hostedGatewayTimeout = defaultHostedGatewayTimeout
+		if value := getenv("ZASP_HOSTED_GATEWAY_TIMEOUT"); value != "" {
+			var err error
+			if hostedGatewayTimeout, err = time.ParseDuration(value); err != nil || hostedGatewayTimeout < 10*time.Second || hostedGatewayTimeout > 30*time.Minute {
+				return RuntimeConfig{}, errInvalidRuntimeConfig
+			}
+		}
+	} else if getenv("ZASP_HOSTED_GATEWAY_TIMEOUT") != "" {
+		// A timeout for a gateway that is not served is a mistake.
+		return RuntimeConfig{}, errInvalidRuntimeConfig
+	}
 	requestRate, requestRateErr := strconv.Atoi(getenv("ZASP_REQUEST_RATE_PER_SECOND"))
 	requestBurst, requestBurstErr := strconv.Atoi(getenv("ZASP_REQUEST_BURST"))
 	config := RuntimeConfig{
 		RuntimeServices:                 services,
 		SecurityAgentOrderedHTTPEnabled: orderedHTTPEnabled,
+		HostedGatewayEnabled:            hostedGatewayEnabled,
+		HostedGatewayTimeout:            hostedGatewayTimeout,
 
 		EvidenceExportWorkflow: getenv("ZASP_SECURITY_AGENT_EVIDENCE_EXPORT_WORKFLOW"),
 		AttackLabWorkflow:      getenv("ZASP_SECURITY_AGENT_ATTACK_LAB_WORKFLOW"),
