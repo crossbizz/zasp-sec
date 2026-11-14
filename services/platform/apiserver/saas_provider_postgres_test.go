@@ -164,14 +164,14 @@ func TestSaaSProviderSectionOnTheInstalledBaselinePostgres(t *testing.T) {
 	check(`zasp_execution_subject_valid('salesforce','salesforce_org','00D5e000000abcdEAA')`, true)
 	for configuration, want := range map[string]bool{
 		saasProviderConfiguration: true,
-		`{"connection_reference":"ref:nango/connection/11111111-1111-4111-8111-111111111111","platform":"slack","tenant_id":"T024BE7LD"}`:                         true,
-		`{"connection_reference":"ref:nango/connection/11111111-1111-4111-8111-111111111111","platform":"databricks"}`:                                            false,
-		`{"connection_reference":"ref:nango/connection/11111111-1111-4111-8111-111111111111","platform":"Databricks","tenant_id":"adb-1234567890123456.7.azuredatabricks.net"}`:             false,
-		`{"connection_reference":"ref:nango/connection/11111111-1111-4111-8111-111111111111","platform":"databricks","tenant_id":"../1"}`:                         false,
-		`{"connection_reference":"ref:kubernetes/connection/customer-0001","platform":"databricks","tenant_id":"adb-1234567890123456.7.azuredatabricks.net"}`:                               false,
-		`{"connection_reference":"ref:nango/service-key-0001","platform":"databricks","tenant_id":"adb-1234567890123456.7.azuredatabricks.net"}`:                                            false,
-		`{"connection_reference":"ref:nango/connection/11111111-1111-4111-8111-111111111111","platform":"databricks","tenant_id":1234567890123456}`:               false,
-		`{"connection_reference":"ref:nango/connection/11111111-1111-4111-8111-111111111111","platform":"databricks","tenant_id":"1","access_token":"dapi-0001"}`: false,
+		`{"connection_reference":"ref:nango/connection/11111111-1111-4111-8111-111111111111","platform":"slack","tenant_id":"T024BE7LD"}`:                                       true,
+		`{"connection_reference":"ref:nango/connection/11111111-1111-4111-8111-111111111111","platform":"databricks"}`:                                                          false,
+		`{"connection_reference":"ref:nango/connection/11111111-1111-4111-8111-111111111111","platform":"Databricks","tenant_id":"adb-1234567890123456.7.azuredatabricks.net"}`: false,
+		`{"connection_reference":"ref:nango/connection/11111111-1111-4111-8111-111111111111","platform":"databricks","tenant_id":"../1"}`:                                       false,
+		`{"connection_reference":"ref:kubernetes/connection/customer-0001","platform":"databricks","tenant_id":"adb-1234567890123456.7.azuredatabricks.net"}`:                   false,
+		`{"connection_reference":"ref:nango/service-key-0001","platform":"databricks","tenant_id":"adb-1234567890123456.7.azuredatabricks.net"}`:                                false,
+		`{"connection_reference":"ref:nango/connection/11111111-1111-4111-8111-111111111111","platform":"databricks","tenant_id":1234567890123456}`:                             false,
+		`{"connection_reference":"ref:nango/connection/11111111-1111-4111-8111-111111111111","platform":"databricks","tenant_id":"1","access_token":"dapi-0001"}`:               false,
 	} {
 		check(`zasp_reference_authorization_configuration_valid('saas','`+configuration+`'::jsonb)`, want)
 		check(`zasp_authorization80.integration_setup_valid('saas','`+configuration+`'::jsonb)`, want)
