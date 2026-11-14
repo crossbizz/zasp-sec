@@ -15,6 +15,7 @@ func All() []saasdiscovery.Platform {
 	return []saasdiscovery.Platform{
 		Anthropic(),
 		Atlassian(),
+		AtlassianOrg(),
 		Databricks(),
 		GitLab(),
 		GitLabSelfManaged(),

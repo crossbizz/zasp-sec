@@ -254,6 +254,15 @@ type Entity struct {
 	// agentsignals.MCPTransportHTTP, MCPTransportSSE or MCPTransportStdio.
 	Auth      string
 	Transport string
+	// CreatedBy, CreatedAt, UpdatedAt and DeletedAt are optional facts of an
+	// agent or AI application that is read out of an audit log: the id of the
+	// account that created it (an opaque id, never a name or an address) and
+	// the times of the events, as RFC 3339 text. A time that does not parse
+	// is refused.
+	CreatedBy string
+	CreatedAt string
+	UpdatedAt string
+	DeletedAt string
 	// Posture holds only the facts the platform's API states. A fact the
 	// API does not state stays false and raises no finding. It is ignored
 	// for an MCP server.
@@ -292,7 +301,26 @@ type ParentList struct {
 	// parent of the endpoint (the site a request names by an id only another
 	// request states). Paging is then PagingNone.
 	Single bool
+	// Select is the other form, for a parent list that answers all its
+	// objects in one response of which only some are parents (the catalog of
+	// an audit log's actions, of which a few concern agents). It is given
+	// the objects and returns the parents in the order they are to be read,
+	// at most MaximumSelectedParents. Paging is then PagingNone, ID and
+	// Single are not set, and MapChild is given the parent's Label in place
+	// of its id.
+	Select func(items []Item) []SelectedParent
 }
+
+// SelectedParent is one parent ParentList.Select chose: the id that replaces
+// ParentValue and a label, a lowercase token, that tells MapChild which of
+// the parents an item was read under.
+type SelectedParent struct {
+	ID    string
+	Label string
+}
+
+// MaximumSelectedParents is the number of parents Select can return.
+const MaximumSelectedParents = 16
 
 // GraphQL makes a list endpoint a GraphQL query: the request is a POST of
 // {"query": Document, "variables": {...}} to the endpoint's Path. It is still
@@ -382,6 +410,14 @@ type ListEndpoint struct {
 	// The same object may then appear under several items, so the endpoint
 	// is Distinct.
 	ChildrenPath []string
+	// ChildUser, for an endpoint with ChildrenPath whose children are MCP
+	// servers: it names the agent the item is, by the object type and native
+	// id another list of the platform reports it under, and each MCP server
+	// among the item's children is then related to that agent (the agent
+	// depends_on the server). It returns false for an item that is not a
+	// reported agent. A relation whose agent the collection did not report
+	// is dropped when the collection completes.
+	ChildUser func(item Item) (objectType, nativeID string, ok bool)
 	// Parent makes the endpoint a nested list: it is read once for every
 	// object of Parent, with ParentValue in Path replaced by the object's
 	// id. MapChild is then set in place of Map and is given that id.
@@ -767,8 +803,16 @@ func (platform Platform) Validate() error {
 		}
 		if !endpointNamePattern.MatchString(endpoint.Name) || names[endpoint.Name] || !validPathTemplate(endpoint.Path, placeholders...) || !validFixedQuery(endpoint.Query) || len(endpoint.ItemsPath) > 4 || !endpoint.Paging.valid() || len(endpoint.Absent) > 4 ||
 			endpoint.Single && endpoint.Paging.Style != PagingNone || endpoint.Single && endpoint.Distinct || !validHeaders(endpoint.Headers) || !endpoint.GraphQL.valid(endpoint) ||
-			len(endpoint.ChildrenPath) > 6 || len(endpoint.ChildrenPath) > 0 && (!endpoint.Distinct || endpoint.Single) {
+			len(endpoint.ChildrenPath) > 6 || len(endpoint.ChildrenPath) > 0 && (!endpoint.Distinct || endpoint.Single) || endpoint.ChildUser != nil && len(endpoint.ChildrenPath) == 0 {
 			return ErrInvalid
+		}
+		if endpoint.Parent == nil || endpoint.GraphQL != nil {
+			// Only a nested GET endpoint names a parent in its query.
+			for _, value := range endpoint.Query {
+				if strings.Contains(value, ParentValue) {
+					return ErrInvalid
+				}
+			}
 		}
 		for _, key := range endpoint.ChildrenPath {
 			if key == "" || len(key) > 64 {
@@ -783,16 +827,30 @@ func (platform Platform) Validate() error {
 			}
 		} else {
 			parent := endpoint.Parent
-			// The parent is named in the path, or, for a GraphQL query, in
-			// its variables.
+			// The parent is named in the path, as the whole value of one
+			// query parameter, or, for a GraphQL query, in its variables.
 			named := strings.Count(endpoint.Path, ParentValue)
 			if endpoint.GraphQL != nil {
 				for _, value := range endpoint.GraphQL.Variables {
 					named += strings.Count(value, ParentValue)
 				}
+			} else {
+				for _, value := range endpoint.Query {
+					if value == ParentValue {
+						named++
+					} else if strings.Contains(value, ParentValue) {
+						return ErrInvalid
+					}
+				}
 			}
-			if endpoint.Map != nil || endpoint.MapChild == nil || parent.ID == nil || named != 1 || !validPathTemplate(parent.Path, TenantValue) || !validFixedQuery(parent.Query) || len(parent.ItemsPath) > 4 ||
-				!parent.Paging.valid() || parent.Single != (parent.Paging.Style == PagingNone) || !parent.Single && parent.Paging.PageSize != 1 {
+			if endpoint.Map != nil || endpoint.MapChild == nil || named != 1 || !validPathTemplate(parent.Path, TenantValue) || !validFixedQuery(parent.Query) || len(parent.ItemsPath) > 4 || !parent.Paging.valid() {
+				return ErrInvalid
+			}
+			if parent.Select != nil {
+				if parent.ID != nil || parent.Single || parent.Paging.Style != PagingNone {
+					return ErrInvalid
+				}
+			} else if parent.ID == nil || parent.Single != (parent.Paging.Style == PagingNone) || !parent.Single && parent.Paging.PageSize != 1 {
 				return ErrInvalid
 			}
 			for _, key := range parent.ItemsPath {

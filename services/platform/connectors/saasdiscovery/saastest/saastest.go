@@ -387,7 +387,16 @@ func Collect(t testing.TB, standIn *Nango, registry *saasdiscovery.Registry, pla
 			tenantEntity = entity.ID
 		}
 	}
+	kindOf := map[string]string{}
+	for _, entity := range snapshot.Entities {
+		kindOf[entity.ID] = entity.Kind
+	}
 	for _, relationship := range snapshot.Relationships {
+		// The one relation between two objects of a tenant: an agent uses
+		// an MCP server.
+		if relationship.Kind == "depends_on" && kindOf[relationship.FromEntityID] == "saas_agent" && kindOf[relationship.ToEntityID] == "saas_mcp_server" {
+			continue
+		}
 		if relationship.Kind != "contains" || relationship.FromEntityID != tenantEntity {
 			t.Fatalf("relationship = %+v", relationship)
 		}
