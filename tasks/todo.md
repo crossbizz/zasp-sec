@@ -1,3 +1,37 @@
+# Automatic agent discovery (2026-11-14)
+
+## Request
+The PRD's jobs 1 and 2 (discover agents without instrumenting every application; find shadow or unmanaged agents) were not implemented: only a Kubernetes Deployment labelled `zasp.ai/entity-kind: agent` became an agent. Build discovery the way Akto and Noma do it for homegrown and SaaS agents. Employee endpoints are a separate effort.
+
+Plan and detail: `docs/superpowers/plans/2026-11-14-automatic-agent-discovery.md`.
+
+## Done
+- [x] Signal catalog and matchers (`services/platform/agentsignals`)
+- [x] Seven inventory kinds in the provider schema, rule catalog, search allow-list and SQL
+- [x] AWS: Bedrock agents, AgentCore runtimes and gateways, Lambda functions that call a model; missing permissions and absent services do not fail a sync
+- [x] Kubernetes: unlabelled agent workloads inferred from images, environment variable names, commands and ports; opt-out label
+- [x] SaaS agents through Okta: AI applications connected to the tenant
+- [x] GitHub: repositories that hold an agent manifest or an agent framework
+- [x] Inventory summary says provider, source kind, how the object was found and whether an agent is unmanaged (SQL, API, OpenAPI, web client)
+- [x] Agents page: Source, Found by and Status columns, Unmanaged filter, "How it was found" in the detail
+- [x] Baseline artifact rebuilt; `generate.sh` runs without Docker
+- [x] Customer AWS read policy and runbook
+
+## Not done (needs a real system or a decision)
+- [ ] Run each collector against a real AWS account, cluster, GitHub organization and Okta tenant; measure false positives and misses per signal class
+- [ ] Reinstall the Neon databases with the new baseline artifact
+- [ ] Microsoft provider: Copilot Studio (Dataverse) and Entra agent identities
+- [ ] Salesforce provider: Agentforce
+- [ ] Runtime discovery from the sensor (needs a DNS or SNI source; evidence gate in the plan)
+- [ ] Unknown `agent_id` on telemetry as a candidate agent
+- [ ] Show AI service permission gaps on the integration detail
+- [ ] A way to dismiss a false positive outside Kubernetes
+
+## Review
+No provider was added: a fifth provider touches about forty switches and SQL constraints, a new kind under an existing provider about twelve. SaaS agents therefore arrive through the identity provider first, and Copilot Studio and Agentforce are separate provider tasks. Nothing ran against a real provider. The confidence numbers (60 to 70% for inferred agents) are judgement until the first item above is done.
+
+---
+
 # ZaspOps — plan review and revision (v2.2 as of 2026-08-12)
 
 ## Request
