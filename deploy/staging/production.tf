@@ -363,6 +363,7 @@ output "helm_values" {
         microsoft  = var.discovery_optional_providers.microsoft_egress_cidrs
         azure      = var.discovery_optional_providers.azure_egress_cidrs
         salesforce = var.discovery_optional_providers.salesforce_egress_cidrs
+        gcp        = var.discovery_optional_providers.gcp_egress_cidrs
       }
       findingTicketEgressCIDRs = var.finding_ticket_egress_cidrs
     }
@@ -475,6 +476,7 @@ output "helm_values" {
       microsoftAzure             = var.discovery_optional_providers.microsoft_azure
       salesforceCollectorVersion = var.discovery_optional_providers.salesforce_collector
       saasCollectorVersion       = var.discovery_optional_providers.saas_collector
+      gcpCollectorVersion        = var.discovery_optional_providers.gcp_collector
       awsRegion                  = var.region
       queueURL                   = aws_sqs_queue.work["discovery-jobs"].id
       roleArn                    = aws_iam_role.worker.arn
