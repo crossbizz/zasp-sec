@@ -114,59 +114,66 @@ type workerRuntimeConfig struct {
 	OktaCollectorVersion             string
 	MicrosoftCollectorVersion        string
 	SalesforceCollectorVersion       string
-	KubernetesEgressCIDRs            []string
-	GitHubAppID                      string
-	GitHubPrivateKeyReference        string
-	OktaClientID                     string
-	OktaClientSecretReference        string
-	ProviderTimeout                  time.Duration
-	DiscoveryReadinessTimeout        time.Duration
-	OpenSearchURL                    string
-	OpenSearchIndex                  string
-	RuntimeSessionIndex              string
-	Neo4jURI                         string
-	Neo4jCredential                  string
-	Neo4jExpectedPrincipal           string
-	Neo4jExpectedRole                string
-	ProjectionRoleARN                string
-	ProjectionTokenFile              string
-	ProjectionSecretPrefix           string
-	OutboxRoleARN                    string
-	OutboxTokenFile                  string
-	RedTeamRoleARN                   string
-	RedTeamTokenFile                 string
-	RedTeamTargetEndpoint            string
-	RedTeamTargetTokenFile           string
-	RedTeamTargetCAFile              string
-	RedTeamRunnerTimeout             time.Duration
-	RedTeamRunnerImage               string
-	AttackLabRoleARN                 string
-	AttackLabTokenFile               string
-	AttackLabNamespace               string
-	AttackLabRunnerService           string
-	AttackLabRunnerTestRoleARN       string
-	AttackLabRunnerImage             string
-	AttackLabSecurityGroup           string
-	AttackLabKubernetesURL           string
-	AttackLabKubernetesToken         string
-	AttackLabKubernetesCA            string
-	AttackLabProxyEndpoint           string
-	AttackLabProxyCAFile             string
-	AttackLabSigningKeyFile          string
-	AttackLabOperationTimeout        time.Duration
-	GatewaySigningKeyID              string
-	GatewaySigningPrivateFile        string
-	GatewayPolicyKeysFile            string
-	SecurityAgentPlannerEndpoint     string
-	SecurityAgentPlannerModel        string
-	SecurityAgentPlannerToken        string
-	SecurityAgentPlannerTimeout      time.Duration
-	SecurityAgentPlannerTokens       int
-	SecurityAgentPlannerPolicy       string
-	TestReconcilerRoleARN            string
-	TestReconcilerTokenFile          string
-	AttackLabReconcilerRoleARN       string
-	AttackLabReconcilerTokenFile     string
+	// SaaSCollectorVersion serves the generic saas provider. It reads every
+	// platform through the Nango proxy, so the three Nango settings are
+	// required with it.
+	SaaSCollectorVersion         string
+	NangoBaseURL                 string
+	NangoServiceSecretReference  string
+	NangoEnvironment             string
+	KubernetesEgressCIDRs        []string
+	GitHubAppID                  string
+	GitHubPrivateKeyReference    string
+	OktaClientID                 string
+	OktaClientSecretReference    string
+	ProviderTimeout              time.Duration
+	DiscoveryReadinessTimeout    time.Duration
+	OpenSearchURL                string
+	OpenSearchIndex              string
+	RuntimeSessionIndex          string
+	Neo4jURI                     string
+	Neo4jCredential              string
+	Neo4jExpectedPrincipal       string
+	Neo4jExpectedRole            string
+	ProjectionRoleARN            string
+	ProjectionTokenFile          string
+	ProjectionSecretPrefix       string
+	OutboxRoleARN                string
+	OutboxTokenFile              string
+	RedTeamRoleARN               string
+	RedTeamTokenFile             string
+	RedTeamTargetEndpoint        string
+	RedTeamTargetTokenFile       string
+	RedTeamTargetCAFile          string
+	RedTeamRunnerTimeout         time.Duration
+	RedTeamRunnerImage           string
+	AttackLabRoleARN             string
+	AttackLabTokenFile           string
+	AttackLabNamespace           string
+	AttackLabRunnerService       string
+	AttackLabRunnerTestRoleARN   string
+	AttackLabRunnerImage         string
+	AttackLabSecurityGroup       string
+	AttackLabKubernetesURL       string
+	AttackLabKubernetesToken     string
+	AttackLabKubernetesCA        string
+	AttackLabProxyEndpoint       string
+	AttackLabProxyCAFile         string
+	AttackLabSigningKeyFile      string
+	AttackLabOperationTimeout    time.Duration
+	GatewaySigningKeyID          string
+	GatewaySigningPrivateFile    string
+	GatewayPolicyKeysFile        string
+	SecurityAgentPlannerEndpoint string
+	SecurityAgentPlannerModel    string
+	SecurityAgentPlannerToken    string
+	SecurityAgentPlannerTimeout  time.Duration
+	SecurityAgentPlannerTokens   int
+	SecurityAgentPlannerPolicy   string
+	TestReconcilerRoleARN        string
+	TestReconcilerTokenFile      string
+	AttackLabReconcilerRoleARN   string
+	AttackLabReconcilerTokenFile string
 }
 
 func validRuntimeSessionIndexSelection(config workerRuntimeConfig) bool {
@@ -242,6 +249,7 @@ func loadWorkerRuntimeConfig(getenv func(string) string) (workerRuntimeConfig, e
 		AWSCollectorVersion: getenv("ZASP_DISCOVERY_AWS_COLLECTOR_VERSION"), KubernetesCollectorVersion: getenv("ZASP_DISCOVERY_KUBERNETES_COLLECTOR_VERSION"), GitHubCollectorVersion: getenv("ZASP_DISCOVERY_GITHUB_COLLECTOR_VERSION"), OktaCollectorVersion: getenv("ZASP_DISCOVERY_OKTA_COLLECTOR_VERSION"),
 		// Optional: unset leaves the provider unregistered.
 		MicrosoftCollectorVersion: getenv("ZASP_DISCOVERY_MICROSOFT_COLLECTOR_VERSION"), SalesforceCollectorVersion: getenv("ZASP_DISCOVERY_SALESFORCE_COLLECTOR_VERSION"),
+		SaaSCollectorVersion: getenv("ZASP_DISCOVERY_SAAS_COLLECTOR_VERSION"), NangoBaseURL: getenv("ZASP_NANGO_BASE_URL"), NangoServiceSecretReference: getenv("ZASP_NANGO_SERVICE_SECRET_REFERENCE"), NangoEnvironment: getenv("ZASP_NANGO_ENVIRONMENT"),
 		KubernetesEgressCIDRs: parseWorkerCIDRs(getenv("ZASP_KUBERNETES_EGRESS_CIDRS")), GitHubAppID: getenv("ZASP_GITHUB_APP_ID"), GitHubPrivateKeyReference: getenv("ZASP_GITHUB_PRIVATE_KEY_REFERENCE"),
 		OktaClientID: getenv("ZASP_OKTA_CLIENT_ID"), OktaClientSecretReference: getenv("ZASP_OKTA_CLIENT_SECRET_REFERENCE"), ProviderTimeout: providerTimeout, DiscoveryReadinessTimeout: discoveryReadinessTimeout,
 		OpenSearchURL: getenv("ZASP_OPENSEARCH_ENDPOINT"), OpenSearchIndex: getenv("ZASP_OPENSEARCH_INDEX"), Neo4jURI: getenv("ZASP_NEO4J_URI"), Neo4jCredential: getenv("ZASP_NEO4J_CREDENTIAL_REFERENCE"),
@@ -486,10 +494,13 @@ func validDiscoveryRuntimeAuthority(config workerRuntimeConfig) bool {
 			return false
 		}
 	}
-	for _, version := range []string{config.MicrosoftCollectorVersion, config.SalesforceCollectorVersion} {
+	for _, version := range []string{config.MicrosoftCollectorVersion, config.SalesforceCollectorVersion, config.SaaSCollectorVersion} {
 		if version != "" && !workerVersionPattern.MatchString(version) {
 			return false
 		}
+	}
+	if !validDiscoveryNangoConfig(config.SaaSCollectorVersion, config.NangoBaseURL, config.NangoServiceSecretReference, config.NangoEnvironment) {
+		return false
 	}
 	return workerRegionPattern.MatchString(config.AWSRegion) && workerBucketPattern.MatchString(config.EvidenceBucket) && workerAccountPattern.MatchString(config.EvidenceOwner) &&
 		config.DiscoveryTokenFile == "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" && validDiscoverySecretRoot(config.DiscoverySecretPrefix) &&

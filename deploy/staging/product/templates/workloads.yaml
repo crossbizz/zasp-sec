@@ -127,6 +127,9 @@ spec:
             {{- with $root.Values.discovery.salesforceCollectorVersion }}
             - { name: ZASP_DISCOVERY_SALESFORCE_COLLECTOR_VERSION, value: {{ . | quote }} }
             {{- end }}
+            {{- with $root.Values.discovery.saasCollectorVersion }}
+            - { name: ZASP_DISCOVERY_SAAS_COLLECTOR_VERSION, value: {{ . | quote }} }
+            {{- end }}
             - { name: ZASP_NANGO_BASE_URL, value: "http://nango.{{ $root.Release.Namespace }}.svc.cluster.local:3003" }
             - { name: ZASP_NANGO_SERVICE_SECRET_REFERENCE, value: "ref:nango/service-key-0001" }
             - { name: ZASP_NANGO_ENVIRONMENT, value: "prod" }
@@ -560,6 +563,13 @@ spec:
             {{- with .Values.discovery.salesforceCollectorVersion }}
             - { name: ZASP_DISCOVERY_SALESFORCE_COLLECTOR_VERSION, value: {{ . | quote }} }
             {{- end }}
+            {{- /* The saas collector reads every platform through the Nango proxy, so it alone gives the worker the Nango settings. */}}
+            {{- with .Values.discovery.saasCollectorVersion }}
+            - { name: ZASP_DISCOVERY_SAAS_COLLECTOR_VERSION, value: {{ . | quote }} }
+            - { name: ZASP_NANGO_BASE_URL, value: "http://nango.{{ $.Release.Namespace }}.svc.cluster.local:3003" }
+            - { name: ZASP_NANGO_SERVICE_SECRET_REFERENCE, value: "ref:nango/service-key-0001" }
+            - { name: ZASP_NANGO_ENVIRONMENT, value: "prod" }
+            {{- end }}
             - { name: ZASP_DISCOVERY_PARSER_VERSION, value: {{ required "discovery.parserVersion is required" .Values.discovery.parserVersion | quote }} }
             - { name: ZASP_DISCOVERY_TOOL_VERSION, value: {{ required "discovery.toolVersion is required" .Values.discovery.toolVersion | quote }} }
             - { name: ZASP_KUBERNETES_EGRESS_CIDRS, value: {{ join "," (required "network.connectorEgressCIDRs.kubernetes is required" .Values.network.connectorEgressCIDRs.kubernetes) | quote }} }
@@ -575,7 +585,17 @@ spec:
             {{- include "zasp.runtimeServices.mount" . | nindent 12 }}
             {{- end }}
             - { name: discovery-web-identity, mountPath: /var/run/secrets/eks.amazonaws.com/serviceaccount, readOnly: true }
+            {{- if .Values.discovery.saasCollectorVersion }}
+            - { name: nango-service-key, mountPath: /var/run/secrets/zasp-nango, readOnly: true }
+            {{- end }}
       volumes:
+        {{- if .Values.discovery.saasCollectorVersion }}
+        - name: nango-service-key
+          secret:
+            secretName: {{ required "nango.storageSecretName is required" .Values.nango.storageSecretName | quote }}
+            defaultMode: 288
+            items: [{ key: service-key, path: service-key, mode: 288 }]
+        {{- end }}
         - name: discovery-worker-secrets
           csi: { driver: secrets-store.csi.k8s.io, readOnly: true, volumeAttributes: { secretProviderClass: {{ .Values.secrets.workerProviderClassName | quote }} } }
         {{- if .Values.authorizationTemporal.profile }}

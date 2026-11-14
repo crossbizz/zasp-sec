@@ -19,6 +19,7 @@ import (
 	"strings"
 	"time"
 
+	saasplatforms "github.com/zasp-ai/zasp-sec/services/platform/connectors/saasdiscovery/platforms"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	platformintegration "github.com/zasp-ai/zasp-sec/services/platform/integration"
 	platformpolicy "github.com/zasp-ai/zasp-sec/services/platform/policy"
@@ -1036,6 +1037,14 @@ func locallyCompleteWorkflowManifests(ctx context.Context, capabilities Connecto
 				value.TestSemantics = "Validate and durably persist the local configuration without contacting the destination."
 			}
 			result = append(result, value)
+		}
+	}
+	// The generic saas connector contributes one entry per registered
+	// platform where the deployment serves it. The entries come from the
+	// platform registry, so a new platform definition needs no change here.
+	if capabilities.ConnectorAvailable(ctx, platformintegration.SaaSConnectorKey) {
+		if registry, err := saasplatforms.Registry(); err == nil {
+			result = append(result, platformintegration.SaaSManifests(registry)...)
 		}
 	}
 	return result

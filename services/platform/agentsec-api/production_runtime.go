@@ -469,6 +469,16 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 		referenceProbes["salesforce"] = &salesforceReferenceProbe{resolver: referenceResolver, http: providerHTTP}
 		referenceChecks["salesforce"] = func(context.Context) error { return nil }
 	}
+	// The generic saas provider: every registered platform, through Nango.
+	if config.SaaSCollectorVersion != "" {
+		saasProbe, saasCloser, saasErr := newProductionSaaSReferenceProbe(config, nangoSecrets)
+		if saasErr != nil {
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("reference-providers", errRuntimeUnavailable)
+		}
+		connectorResources = append(connectorResources, saasCloser)
+		referenceProbes["saas"] = saasProbe
+		referenceChecks["saas"] = func(context.Context) error { return nil }
+	}
 	referenceRegistry, err := apiserver.NewReferenceConnectorRegistry(referenceProbes, referenceChecks)
 	if err != nil {
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("reference-providers", errRuntimeUnavailable)

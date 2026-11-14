@@ -216,7 +216,7 @@ export function ProductionIntegrationsView({ canWrite, navigateAuthorization = d
   const runMutation = (operation: () => Promise<IntegrationMutationResult>) => void run(async () => { applyMutation(await operation()); });
   const choose = (value: ConnectorManifest) => { setManifest(value); setName(value.provider); setConfiguration(Object.fromEntries(value.setup_schema.map((field) => [field.key, ""]))); };
   // An optional setup field left empty is not part of the configuration.
-  const create = () => manifest && runMutation(() => mutation.execute({ kind: "create", value: { connector_key: manifest.key, name, configuration: withoutEmptyOptionalFields(manifest, configuration) } }, async (intent, attempt) => { if (intent.kind !== "create") throw new TypeError("Invalid retained integration intent"); return { kind: "created", receipt: await api.createIntegration(intent.value, attempt) }; }));
+  const create = () => manifest && runMutation(() => mutation.execute({ kind: "create", value: { connector_key: manifestConnectorKey(manifest), name, configuration: manifestConfiguration(manifest, configuration) } }, async (intent, attempt) => { if (intent.kind !== "create") throw new TypeError("Invalid retained integration intent"); return { kind: "created", receipt: await api.createIntegration(intent.value, attempt) }; }));
   const loadDiscovery = (integration: Integration) => {
     const id = integration.id;
     const generation = discoveryGeneration.current + 1;
@@ -391,7 +391,7 @@ export function ProductionIntegrationsView({ canWrite, navigateAuthorization = d
   const revocationPending = visibleSelected?.value.status === "revoking" && mutation.isUnresolved && pendingRevocation !== null;
   const revocationRetryReady = pendingRevocation === null || revocationClock >= pendingRevocation.retryNotBefore;
   const referenceAuthorizationCandidate = selected !== null && isReferenceAuthorizationCandidate(selected.value);
-  const selectedManifest = selected ? catalog.data?.find((value) => value.key === selected.value.connector_key) : undefined;
+  const selectedManifest = selected ? catalog.data?.find((value) => manifestServes(value, selected.value)) : undefined;
   const oauthAuthorizationCandidate = selected !== null && isOAuthAuthorizationCandidate(selected.value, selectedManifest) && session?.status === "authenticated";
   const discoveryWriteAllowed = Boolean(canWrite && selected?.value.status === "active" && isFirstPartyConnector(selected.value.connector_key) && selectedManifest?.actions.includes("inventory_read"));
   const manualSyncAllowed = discoveryWriteAllowed && freshness.status === "success" && syncs.status === "success";
@@ -432,7 +432,7 @@ export function ProductionIntegrationsView({ canWrite, navigateAuthorization = d
                 onClick={() => open(value.id)}
               >
                 <strong>{value.name}</strong>
-                <span>{value.connector_key}</span>
+                <span>{integrationConnectorLabel(value)}</span>
                 <span>{value.status}</span>
               </button>
             ))}
@@ -556,7 +556,7 @@ export function ProductionIntegrationsView({ canWrite, navigateAuthorization = d
                     onClick={authorizeReference}
                   >
                     Authorize{" "}
-                    {referenceConnectorLabel(selected?.value.connector_key)}{" "}
+                    {referenceConnectorLabel(selected?.value.connector_key, selectedManifest)}{" "}
                     reference
                   </Button>
                 )}
@@ -674,12 +674,14 @@ export function ProductionIntegrationsView({ canWrite, navigateAuthorization = d
             />
             {Object.entries(visibleConfiguration).map(([key, value]) => {
               const reference = key.endsWith("_reference");
+              // The platform of a saas integration is what the integration is; it is not edited.
+              const fixed = visibleSelected.value.connector_key === SAAS_CONNECTOR_KEY && key === "platform";
               return (
                 <Field
                   key={key}
                   label={key.replaceAll("_", " ")}
                   value={reference ? "Configured reference" : value}
-                  disabled={!canWrite || mutation.isUnresolved || reference}
+                  disabled={!canWrite || mutation.isUnresolved || reference || fixed}
                   onChange={
                     reference
                       ? undefined
@@ -826,17 +828,42 @@ function coverageGapText(gap: IntegrationFreshness["coverage_gaps"][number]): st
 
 // Connectors authorized by a reference to customer material held outside
 // the browser, not by a provider OAuth flow.
-type ReferenceConnectorKey = "aws" | "kubernetes" | "microsoft" | "salesforce";
+type ReferenceConnectorKey = "aws" | "kubernetes" | "microsoft" | "salesforce" | "saas";
 
 function isReferenceConnector(value: string): value is ReferenceConnectorKey {
-  return value === "aws" || value === "kubernetes" || value === "microsoft" || value === "salesforce";
+  return value === "aws" || value === "kubernetes" || value === "microsoft" || value === "salesforce" || value === SAAS_CONNECTOR_KEY;
 }
 
-function referenceConnectorLabel(value: string | undefined): string {
+function referenceConnectorLabel(value: string | undefined, manifest?: ConnectorManifest): string {
   if (value === "aws") return "AWS";
   if (value === "microsoft") return "Microsoft";
   if (value === "salesforce") return "Salesforce";
+  if (value === SAAS_CONNECTOR_KEY) return manifest?.provider ?? "SaaS";
   return "Kubernetes";
+}
+
+// The generic saas connector. The catalog lists one entry per SaaS platform
+// the API knows; an entry names its platform, and its integration is created
+// with the connector key "saas" and that platform in its configuration.
+// Nothing here names a platform: a new one appears when the API lists it.
+const SAAS_CONNECTOR_KEY = "saas";
+
+function manifestConnectorKey(manifest: ConnectorManifest): string {
+  return manifest.platform === undefined ? manifest.key : SAAS_CONNECTOR_KEY;
+}
+
+function manifestConfiguration(manifest: ConnectorManifest, configuration: Readonly<Record<string, string>>): Record<string, string> {
+  const values = withoutEmptyOptionalFields(manifest, configuration);
+  return manifest.platform === undefined ? values : { ...values, platform: manifest.platform };
+}
+
+function manifestServes(manifest: ConnectorManifest, integration: Integration): boolean {
+  if (manifest.platform === undefined) return manifest.key === integration.connector_key;
+  return integration.connector_key === SAAS_CONNECTOR_KEY && integration.configuration.platform === manifest.platform;
+}
+
+function integrationConnectorLabel(integration: Integration): string {
+  return integration.connector_key === SAAS_CONNECTOR_KEY ? integration.configuration.platform ?? SAAS_CONNECTOR_KEY : integration.connector_key;
 }
 
 function withoutEmptyOptionalFields(manifest: ConnectorManifest, configuration: Readonly<Record<string, string>>): Record<string, string> {
@@ -910,6 +937,7 @@ function IntegrationSetupAuthority({ status, onNavigate }: { status: Integration
   if (status.connector_key === "kubernetes") return <div aria-label="Kubernetes runtime coverage"><p><strong>Cluster scope</strong> {authorization.scope_label}</p><p><strong>Environment Runtime sensors</strong> {coverage.healthy_sensor_count} of {coverage.sensor_count} healthy</p>{coverage.state === "not_enrolled" && <p role="alert">Runtime coverage is not enrolled. Inventory sync does not include Runtime sensor telemetry.</p>}{coverage.reason === "missing_gateway" && <p role="alert">A Runtime sensor heartbeat is missing. Coverage remains incomplete.</p>}{coverage.reason === "unsupported_kernel" && <p role="alert">The cluster kernel does not provide required BTF support. Coverage remains incomplete.</p>}{coverage.state !== "healthy" && onNavigate && <Button onClick={() => onNavigate("/integrations/sensors")}>Enroll or repair Runtime sensors</Button>}</div>;
   if (status.connector_key === "microsoft") return <p><strong>Microsoft Entra tenant</strong> {authorization.scope_label}</p>;
   if (status.connector_key === "salesforce") return <p><strong>Salesforce org</strong> {authorization.scope_label}</p>;
+  if (status.connector_key === SAAS_CONNECTOR_KEY) return <p><strong>Tenant</strong> {authorization.scope_label}</p>;
   return <p><strong>AWS account scope</strong> {authorization.scope_label}</p>;
 }
 
@@ -921,6 +949,7 @@ function integrationSetupRemediation(connectorKey: string, errorCode: string | n
     if (connectorKey === "okta") return "Okta directory access is missing a required read-only scope. Review the directory integration scopes, then authorize again.";
     if (connectorKey === "microsoft") return "Microsoft refused the application. Check the client secret, the admin-consented application permissions and, for Copilot Studio, the Dataverse application user, then authorize again.";
     if (connectorKey === "salesforce") return "Salesforce refused the connected app. Check the consumer secret, the client credentials flow, the run-as user's permissions and the organization ID, then authorize again.";
+    if (connectorKey.startsWith(`${SAAS_CONNECTOR_KEY}-`)) return "The platform refused the Nango connection. Check that the connection is still authorized in Nango and has the read access this connector lists, then authorize again.";
   }
   if (errorCode === "rate_limited") return "The provider rate limit delayed collection. Keep the last good coverage visible and retry after the published provider window.";
   return "Coverage is degraded. Review the stable discovery status and retry the connection test before starting another sync.";
@@ -934,8 +963,8 @@ function isOAuthConnectorManifest(manifest: ConnectorManifest | undefined, conne
   return manifest?.key === connectorKey && (manifest.auth_mode === "github_app_oauth" || manifest.auth_mode === "okta_oauth_pkce" || manifest.auth_mode === "managed_oauth");
 }
 
-function isFirstPartyConnector(value: string): value is "aws" | "kubernetes" | "github" | "okta" | "microsoft" | "salesforce" {
-  return value === "aws" || value === "kubernetes" || value === "github" || value === "okta" || value === "microsoft" || value === "salesforce";
+function isFirstPartyConnector(value: string): value is "aws" | "kubernetes" | "github" | "okta" | "microsoft" | "salesforce" | "saas" {
+  return value === "aws" || value === "kubernetes" || value === "github" || value === "okta" || value === "microsoft" || value === "salesforce" || value === SAAS_CONNECTOR_KEY;
 }
 
 function isReferenceAuthorizationCandidate(value: Integration): value is Integration & { connector_key: ReferenceConnectorKey } {

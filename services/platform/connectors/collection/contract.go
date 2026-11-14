@@ -42,6 +42,12 @@ var (
 	// 18-character organization id.
 	microsoftSubjectPattern  = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 	salesforceSubjectPattern = regexp.MustCompile(`^00D[A-Za-z0-9]{15}$`)
+	// A SaaS tenant is "<platform>/<tenant id>": the platform token of the
+	// generic saas provider and the tenant's id in that platform.
+	saasSubjectPattern = regexp.MustCompile(`^[a-z][a-z0-9_]{1,31}/[A-Za-z0-9][A-Za-z0-9._-]{0,94}$`)
+	// The saas provider's credential is a Nango connection, named by
+	// reference. Nango holds the provider token; the product never does.
+	nangoConnectionReferencePattern = regexp.MustCompile(`^ref:nango/connection/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
 )
 
 type Provider string
@@ -55,11 +61,15 @@ const (
 	// them; the four above are always required.
 	ProviderMicrosoft  Provider = "microsoft"
 	ProviderSalesforce Provider = "salesforce"
+	// ProviderSaaS is the generic provider of every SaaS platform read
+	// through the Nango proxy. The platform (databricks, slack, ...) is an
+	// attribute of the subject and of every entity, not a provider.
+	ProviderSaaS Provider = "saas"
 )
 
 func (provider Provider) valid() bool {
 	switch provider {
-	case ProviderAWS, ProviderKubernetes, ProviderGitHub, ProviderOkta, ProviderMicrosoft, ProviderSalesforce:
+	case ProviderAWS, ProviderKubernetes, ProviderGitHub, ProviderOkta, ProviderMicrosoft, ProviderSalesforce, ProviderSaaS:
 		return true
 	default:
 		return false
@@ -75,6 +85,9 @@ const (
 	CredentialOktaRefresh        CredentialClass = "okta_refresh"
 	CredentialMicrosoftClient    CredentialClass = "microsoft_client_credentials"
 	CredentialSalesforceClient   CredentialClass = "salesforce_client_credentials"
+	// CredentialNangoConnection is a reference to a Nango connection, the
+	// class the connector authorization tables already name.
+	CredentialNangoConnection CredentialClass = "nango_connection_reference"
 )
 
 func credentialMatchesProvider(class CredentialClass, provider Provider) bool {
@@ -91,6 +104,8 @@ func credentialMatchesProvider(class CredentialClass, provider Provider) bool {
 		return class == CredentialMicrosoftClient
 	case ProviderSalesforce:
 		return class == CredentialSalesforceClient
+	case ProviderSaaS:
+		return class == CredentialNangoConnection
 	default:
 		return false
 	}
@@ -167,7 +182,7 @@ type SubjectBinding struct {
 }
 
 func (binding SubjectBinding) valid(provider Provider) bool {
-	want := map[Provider]string{ProviderAWS: "aws_account", ProviderKubernetes: "kubernetes_cluster", ProviderGitHub: "github_installation", ProviderOkta: "okta_tenant", ProviderMicrosoft: "microsoft_tenant", ProviderSalesforce: "salesforce_org"}[provider]
+	want := map[Provider]string{ProviderAWS: "aws_account", ProviderKubernetes: "kubernetes_cluster", ProviderGitHub: "github_installation", ProviderOkta: "okta_tenant", ProviderMicrosoft: "microsoft_tenant", ProviderSalesforce: "salesforce_org", ProviderSaaS: "saas_tenant"}[provider]
 	if binding.Kind != want || !boundedText(binding.ID, 512) {
 		return false
 	}
@@ -188,6 +203,8 @@ func (binding SubjectBinding) valid(provider Provider) bool {
 		return microsoftSubjectPattern.MatchString(binding.ID)
 	case ProviderSalesforce:
 		return salesforceSubjectPattern.MatchString(binding.ID)
+	case ProviderSaaS:
+		return saasSubjectPattern.MatchString(binding.ID) && !strings.Contains(binding.ID, "..")
 	default:
 		return false
 	}
@@ -1169,6 +1186,9 @@ func checksumHex(value [sha256.Size]byte) string {
 }
 
 func validCredentialReference(provider Provider, value string) bool {
+	if provider == ProviderSaaS {
+		return nangoConnectionReferencePattern.MatchString(value)
+	}
 	matches := referencePattern.FindStringSubmatch(value)
 	return len(matches) == 2 && matches[1] == string(provider) && !strings.Contains(value, "//") && !strings.Contains(value, "..")
 }

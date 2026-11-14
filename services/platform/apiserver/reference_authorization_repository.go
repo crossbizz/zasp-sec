@@ -263,6 +263,19 @@ func parseReferenceAuthorizationConfiguration(provider string, raw json.RawMessa
 		}
 		canonical, _ := json.Marshal(value)
 		return canonical, value.ClientSecretReference, true
+	case "saas":
+		// The reference is a Nango connection: Nango holds the provider
+		// token and the configuration never does.
+		var value struct {
+			ConnectionReference string `json:"connection_reference"`
+			Platform            string `json:"platform"`
+			TenantID            string `json:"tenant_id"`
+		}
+		if decodeStrictDiscovery(raw, &value) != nil || !validSaaSReferenceConfiguration(value.Platform, value.TenantID, value.ConnectionReference) {
+			return nil, "", false
+		}
+		canonical, _ := json.Marshal(value)
+		return canonical, value.ConnectionReference, true
 	default:
 		return nil, "", false
 	}

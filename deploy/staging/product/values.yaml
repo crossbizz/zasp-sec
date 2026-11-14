@@ -209,6 +209,13 @@ discovery:
   # under network.connectorEgressCIDRs.
   microsoftCollectorVersion: ""
   salesforceCollectorVersion: ""
+  # The generic saas provider: every SaaS platform read through the Nango
+  # proxy (docs/operations/saas-connectors.md). Disabled by default. Setting
+  # the collector version (collector_v1) gives the discovery worker the Nango
+  # service key and a route to Nango, and lists the registered platforms in
+  # the integration catalog. The providers themselves are reached by Nango:
+  # their addresses belong in nango.providerEgressCIDRs.
+  saasCollectorVersion: ""
   awsRegion: ""
   queueURL: ""
   roleArn: ""

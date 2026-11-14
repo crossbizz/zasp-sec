@@ -13,6 +13,8 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/idpdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/kubernetesdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/microsoftdiscovery"
+	"github.com/zasp-ai/zasp-sec/services/platform/connectors/saasdiscovery"
+	saasplatforms "github.com/zasp-ai/zasp-sec/services/platform/connectors/saasdiscovery/platforms"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/salesforcediscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 )
@@ -31,13 +33,17 @@ type productionDiscoveryClientConfig struct {
 	OktaCollectorVersion       string
 	MicrosoftCollectorVersion  string
 	SalesforceCollectorVersion string
-	ParserVersion              string
-	ToolVersion                string
-	KubernetesAllowedCIDRs     []string
-	KubernetesNetwork          *kubernetesdiscovery.CollectionNetwork
-	ProviderTimeout            time.Duration
-	ReadinessTimeout           time.Duration
-	Clock                      func() time.Time
+	// SaaSCollectorVersion and SaaSProxy serve the generic saas provider:
+	// both are set or neither is.
+	SaaSCollectorVersion   string
+	SaaSProxy              saasdiscovery.Proxy
+	ParserVersion          string
+	ToolVersion            string
+	KubernetesAllowedCIDRs []string
+	KubernetesNetwork      *kubernetesdiscovery.CollectionNetwork
+	ProviderTimeout        time.Duration
+	ReadinessTimeout       time.Duration
+	Clock                  func() time.Time
 }
 
 type productionLiveDiscoveryCollectorFactory struct {
@@ -53,10 +59,13 @@ func newProductionLiveDiscoveryCollectorFactory(config productionDiscoveryClient
 			return nil, errRuntimeUnavailable
 		}
 	}
-	for _, version := range []string{config.MicrosoftCollectorVersion, config.SalesforceCollectorVersion} {
+	for _, version := range []string{config.MicrosoftCollectorVersion, config.SalesforceCollectorVersion, config.SaaSCollectorVersion} {
 		if version != "" && !discoveryCollectorVersionPattern.MatchString(version) {
 			return nil, errRuntimeUnavailable
 		}
+	}
+	if (config.SaaSCollectorVersion != "") == nilWorkerDependency(config.SaaSProxy) {
+		return nil, errRuntimeUnavailable
 	}
 	now := config.Clock()
 	if now.IsZero() || now.Location() != time.UTC {
@@ -187,6 +196,25 @@ func (factory *productionLiveDiscoveryCollectorFactory) collectionFactoryForAuth
 		}
 		registrations = append(registrations, registration)
 	}
+	if version := factory.config.SaaSCollectorVersion; version != "" {
+		// One collector for every registered platform. The platform and the
+		// tenant arrive in the page request subject, and the credential is
+		// the Nango connection reference, never a provider token.
+		registry, err := saasplatforms.Registry()
+		if err != nil {
+			return nil, errRuntimeUnavailable
+		}
+		api, err := saasdiscovery.NewCollectionAPI(saasdiscovery.CollectionAPIConfig{Registry: registry, Proxy: factory.config.SaaSProxy, Clock: factory.config.Clock})
+		if err != nil {
+			return nil, errRuntimeUnavailable
+		}
+		client, err := saasdiscovery.NewCollectionClient(&discoveryBearerCollectionAPI{provider: collection.ProviderSaaS, saas: api, timeout: factory.config.ProviderTimeout}, factory.config.Artifacts, saasdiscovery.CollectionClientConfig{CollectorVersion: version, ParserVersion: factory.config.ParserVersion, ToolVersion: factory.config.ToolVersion, Clock: factory.config.Clock})
+		registration, err := factory.optionalRegistration(collection.ProviderSaaS, collection.CredentialNangoConnection, version, client, err)
+		if err != nil {
+			return nil, errRuntimeUnavailable
+		}
+		registrations = append(registrations, registration)
+	}
 	return newFirstPartyCollectionFactory(registrations)
 }
 
@@ -220,6 +248,8 @@ func (factory *productionLiveDiscoveryCollectorFactory) collectorVersion(provide
 		return factory.config.MicrosoftCollectorVersion
 	case collection.ProviderSalesforce:
 		return factory.config.SalesforceCollectorVersion
+	case collection.ProviderSaaS:
+		return factory.config.SaaSCollectorVersion
 	default:
 		return ""
 	}

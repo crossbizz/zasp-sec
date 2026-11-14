@@ -1078,7 +1078,7 @@ export type paths = {
         readonly put?: never;
         /**
          * Authorize a reference-backed integration
-         * @description For an AWS, Kubernetes, Microsoft or Salesforce integration. Performs a bounded read-only provider identity and capability probe using only the integration's stored reference configuration, then atomically records an active integration and durable mutation receipt. The response never returns provider subjects, endpoints, credentials, external IDs, certificate authorities, tokens, or raw provider errors.
+         * @description For an AWS, Kubernetes, Microsoft, Salesforce or saas integration (saas is every SaaS platform read through a Nango connection). Performs a bounded read-only provider identity and capability probe using only the integration's stored reference configuration, then atomically records an active integration and durable mutation receipt. The response never returns provider subjects, endpoints, credentials, external IDs, certificate authorities, tokens, or raw provider errors.
          */
         readonly post: operations["authorizeIntegrationReference"];
         readonly delete?: never;
@@ -3230,6 +3230,8 @@ export type components = {
             readonly data_types: readonly string[];
             readonly description: string;
             readonly key: string;
+            /** @description Present only on an entry of the generic saas connector, one entry per registered SaaS platform. Create its integration with connector_key saas and a configuration that holds platform (this value) together with the entry's setup fields. Every other entry is created with connector_key equal to its key. */
+            readonly platform?: string;
             readonly provider: string;
             readonly setup_schema: readonly components["schemas"]["ConnectorSetupField"][];
             readonly test_semantics: string;
@@ -3559,7 +3561,7 @@ export type components = {
             readonly permissions: readonly string[];
             readonly repository_selection: ("all" | "selected") | null;
             /** @enum {string} */
-            readonly scope_kind: "none" | "aws_account" | "kubernetes_cluster" | "github_organization" | "okta_tenant" | "microsoft_tenant" | "salesforce_org";
+            readonly scope_kind: "none" | "aws_account" | "kubernetes_cluster" | "github_organization" | "okta_tenant" | "microsoft_tenant" | "salesforce_org" | "saas_tenant";
             readonly scope_label: string | null;
             /** @enum {string} */
             readonly state: "pending" | "verified" | "degraded";
@@ -3567,7 +3569,7 @@ export type components = {
         readonly IntegrationSetupStatus: {
             readonly authorization: components["schemas"]["IntegrationSetupAuthorization"];
             /** @enum {string} */
-            readonly connector_key: "aws" | "kubernetes" | "github" | "okta" | "microsoft" | "salesforce";
+            readonly connector_key: "aws" | "kubernetes" | "github" | "okta" | "microsoft" | "salesforce" | "saas";
             readonly integration_id: components["schemas"]["ProductID"];
             readonly runtime_coverage: components["schemas"]["IntegrationRuntimeCoverage"];
             /** Format: date-time */
@@ -3655,8 +3657,11 @@ export type components = {
             readonly items: readonly components["schemas"]["InventorySummary"][];
             readonly page_info: components["schemas"]["PageInfo"];
         };
-        /** @enum {string} */
-        readonly InventoryProvider: "aws" | "kubernetes" | "github" | "okta" | "microsoft" | "salesforce";
+        /**
+         * @description The discovery provider. saas is the generic provider of every SaaS platform read through a Nango connection; the platform (databricks, slack, ...) is the platform stable field of the object and the platform of its discovery.
+         * @enum {string}
+         */
+        readonly InventoryProvider: "aws" | "kubernetes" | "github" | "okta" | "microsoft" | "salesforce" | "saas";
         readonly InventoryRecord: components["schemas"]["InventorySummary"];
         readonly InventorySourceObservation: {
             readonly confidence_basis_points: number;
@@ -3669,7 +3674,7 @@ export type components = {
             readonly observed_at: string;
             readonly projection_version: number;
             /** @enum {string} */
-            readonly provider: "aws" | "kubernetes" | "github" | "okta" | "microsoft" | "salesforce";
+            readonly provider: "aws" | "kubernetes" | "github" | "okta" | "microsoft" | "salesforce" | "saas";
             readonly snapshot_id: components["schemas"]["ProductID"];
             readonly source: string;
             readonly source_identifier: string;

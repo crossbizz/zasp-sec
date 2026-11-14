@@ -175,6 +175,21 @@ spec:
   egress:
     - to: [{ podSelector: { matchLabels: { app.kubernetes.io/name: nango } } }]
       ports: [{ protocol: TCP, port: 3003 }]
+{{- if .Values.discovery.saasCollectorVersion }}
+---
+{{- /* The saas collector reads SaaS platforms through the Nango proxy. The worker reaches Nango only where that collector is configured. */}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: discovery-worker-to-nango
+  labels: { app.kubernetes.io/name: agentsec-discovery-worker, app.kubernetes.io/part-of: zasp }
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-discovery-worker } }
+  policyTypes: [Egress]
+  egress:
+    - to: [{ podSelector: { matchLabels: { app.kubernetes.io/name: nango } } }]
+      ports: [{ protocol: TCP, port: 3003 }]
+{{- end }}
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -187,6 +202,10 @@ spec:
   ingress:
     - from: [{ podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-api } } }]
       ports: [{ protocol: TCP, port: 3003 }]
+    {{- if .Values.discovery.saasCollectorVersion }}
+    - from: [{ podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-discovery-worker } } }]
+      ports: [{ protocol: TCP, port: 3003 }]
+    {{- end }}
   egress:
     - to: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } } }]
       ports: [{ protocol: UDP, port: 53 }, { protocol: TCP, port: 53 }]

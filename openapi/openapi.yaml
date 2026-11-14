@@ -1485,8 +1485,9 @@ paths:
       operationId: authorizeIntegrationReference
       summary: Authorize a reference-backed integration
       description: >-
-        For an AWS, Kubernetes, Microsoft or Salesforce integration. Performs
-        a bounded read-only provider identity and capability probe
+        For an AWS, Kubernetes, Microsoft, Salesforce or saas integration
+        (saas is every SaaS platform read through a Nango connection).
+        Performs a bounded read-only provider identity and capability probe
         using only the integration's stored reference configuration, then
         atomically records an active integration and durable mutation receipt.
         The response never returns provider subjects, endpoints, credentials,
@@ -6126,6 +6127,10 @@ components:
           items: { $ref: '#/components/schemas/ConnectorSetupField' }
         access_guidance: { type: string, minLength: 1, maxLength: 512 }
         test_semantics: { type: string, minLength: 1, maxLength: 512 }
+        platform:
+          type: string
+          pattern: '^[a-z][a-z0-9_]{1,31}$'
+          description: Present only on an entry of the generic saas connector, one entry per registered SaaS platform. Create its integration with connector_key saas and a configuration that holds platform (this value) together with the entry's setup fields. Every other entry is created with connector_key equal to its key.
     IntegrationCatalogPage:
       type: object
       additionalProperties: false
@@ -6334,7 +6339,7 @@ components:
       required: [state, scope_kind, scope_label, repository_selection, permissions]
       properties:
         state: { type: string, enum: [pending, verified, degraded] }
-        scope_kind: { type: string, enum: [none, aws_account, kubernetes_cluster, github_organization, okta_tenant, microsoft_tenant, salesforce_org] }
+        scope_kind: { type: string, enum: [none, aws_account, kubernetes_cluster, github_organization, okta_tenant, microsoft_tenant, salesforce_org, saas_tenant] }
         scope_label: { oneOf: [{ type: string, minLength: 1, maxLength: 128 }, { type: 'null' }] }
         repository_selection: { oneOf: [{ type: string, enum: [all, selected] }, { type: 'null' }] }
         permissions:
@@ -6370,7 +6375,7 @@ components:
       required: [integration_id, connector_key, authorization, runtime_coverage, updated_at]
       properties:
         integration_id: { $ref: '#/components/schemas/ProductID' }
-        connector_key: { type: string, enum: [aws, kubernetes, github, okta, microsoft, salesforce] }
+        connector_key: { type: string, enum: [aws, kubernetes, github, okta, microsoft, salesforce, saas] }
         authorization: { $ref: '#/components/schemas/IntegrationSetupAuthorization' }
         runtime_coverage: { $ref: '#/components/schemas/IntegrationRuntimeCoverage' }
         updated_at: { type: string, format: date-time }
@@ -6512,7 +6517,8 @@ components:
         version: { type: integer, minimum: 1 }
     InventoryProvider:
       type: string
-      enum: [aws, kubernetes, github, okta, microsoft, salesforce]
+      description: The discovery provider. saas is the generic provider of every SaaS platform read through a Nango connection; the platform (databricks, slack, ...) is the platform stable field of the object and the platform of its discovery.
+      enum: [aws, kubernetes, github, okta, microsoft, salesforce, saas]
     InventoryDiscovery:
       type: object
       description: How the object was found. An agent is declared by its owner, listed by the provider's own control plane, or inferred from catalog signals. Every other kind is a provider record.
@@ -6538,7 +6544,7 @@ components:
       required: [integration_id, provider, source, source_identifier, snapshot_id, generation, evidence_id, confidence_basis_points, observed_at, fresh_until, projection_version, winning]
       properties:
         integration_id: { $ref: '#/components/schemas/ProductID' }
-        provider: { type: string, enum: [aws, kubernetes, github, okta, microsoft, salesforce] }
+        provider: { type: string, enum: [aws, kubernetes, github, okta, microsoft, salesforce, saas] }
         source: { type: string, pattern: '^[a-z][a-z0-9_]{1,63}$' }
         source_identifier: { type: string, pattern: '^sha256:[0-9a-f]{64}$' }
         snapshot_id: { $ref: '#/components/schemas/ProductID' }

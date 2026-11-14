@@ -772,6 +772,20 @@ func providerEntitySchema(provider collection.Provider, kind string) (providerEn
 		case "salesforce_agent":
 			return providerEntityDefinition{stable: requiredStringFields("name", "object_type", "org"), attributes: mergeInventorySchemas(inventoryObjectSchema{"status": stringInventoryField(true), "state": stringInventoryField(false), "agent_type": stringInventoryField(false)}, discoveredAgentAttributes())}, true
 		}
+	case collection.ProviderSaaS:
+		// One provider for every SaaS platform read through the Nango proxy.
+		// platform is the platform token (databricks, slack, ...) and tenant
+		// the tenant's id in that platform; both are stable on every kind.
+		object := requiredStringFields("name", "object_type", "platform", "tenant")
+		status := inventoryObjectSchema{"status": stringInventoryField(true), "state": stringInventoryField(false)}
+		switch kind {
+		case "saas_tenant":
+			return providerEntityDefinition{stable: requiredStringFields("name", "platform", "tenant"), attributes: inventoryObjectSchema{}}, true
+		case "saas_agent", "saas_ai_application":
+			return providerEntityDefinition{stable: object, attributes: mergeInventorySchemas(status, optionalStringFields("agent_type", "model"), discoveredAgentAttributes())}, true
+		case "saas_mcp_server":
+			return providerEntityDefinition{stable: object, attributes: mergeInventorySchemas(status, optionalStringFields("endpoint_host"))}, true
+		}
 	}
 	return providerEntityDefinition{}, false
 }
@@ -795,7 +809,7 @@ func validProviderRelationship(provider collection.Provider, raw json.RawMessage
 	case collection.ProviderOkta:
 		kinds = tokenSet("assigned_to", "contains", "has_permission", "member_of")
 		attributes["type"] = stringInventoryField(true)
-	case collection.ProviderMicrosoft, collection.ProviderSalesforce:
+	case collection.ProviderMicrosoft, collection.ProviderSalesforce, collection.ProviderSaaS:
 		kinds = tokenSet("contains")
 		attributes["type"] = stringInventoryField(true)
 	default:
@@ -836,6 +850,7 @@ func validProviderRelationshipEndpointKinds(provider collection.Provider, raw js
 		),
 		collection.ProviderMicrosoft:  tokenSet("microsoft_tenant|contains|microsoft_agent_identity", "microsoft_tenant|contains|microsoft_ai_application", "microsoft_tenant|contains|microsoft_copilot_agent"),
 		collection.ProviderSalesforce: tokenSet("salesforce_org|contains|salesforce_agent"),
+		collection.ProviderSaaS:       tokenSet("saas_tenant|contains|saas_agent", "saas_tenant|contains|saas_ai_application", "saas_tenant|contains|saas_mcp_server"),
 	}
 	return allowed[provider][key]
 }
@@ -1741,7 +1756,7 @@ func validCursor(cursor collection.Cursor, provider collection.Provider) bool {
 
 func validProvider(provider collection.Provider) bool {
 	switch provider {
-	case collection.ProviderAWS, collection.ProviderKubernetes, collection.ProviderGitHub, collection.ProviderOkta, collection.ProviderMicrosoft, collection.ProviderSalesforce:
+	case collection.ProviderAWS, collection.ProviderKubernetes, collection.ProviderGitHub, collection.ProviderOkta, collection.ProviderMicrosoft, collection.ProviderSalesforce, collection.ProviderSaaS:
 		return true
 	default:
 		return false

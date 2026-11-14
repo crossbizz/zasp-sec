@@ -38,8 +38,15 @@ type ConnectorManifest struct {
 	SetupSchema    []SetupField
 	AccessGuidance string
 	TestSemantics  string
-	adapterKey     string
-	ossName        string
+	// Platform is set on the entries of the generic saas connector: the
+	// platform token of the entry. Such an entry is created as an
+	// integration whose connector key is "saas" and whose configuration
+	// carries platform; see SaaSManifests.
+	Platform   string
+	adapterKey string
+	ossName    string
+	// validate checks the setup values of a saas entry.
+	validate func(map[string]string) bool
 }
 
 type PublicManifest struct {
@@ -53,6 +60,8 @@ type PublicManifest struct {
 	SetupSchema    []SetupField `json:"setup_schema"`
 	AccessGuidance string       `json:"access_guidance"`
 	TestSemantics  string       `json:"test_semantics"`
+	// Platform is present only on an entry of the generic saas connector.
+	Platform string `json:"platform,omitempty"`
 }
 
 type CatalogFilter struct {
@@ -179,8 +188,13 @@ func (catalog *Catalog) ValidateSetup(key string, configuration map[string]strin
 	if catalog == nil || catalog.values == nil {
 		return ErrConfiguration
 	}
+	if key == SaaSConnectorKey {
+		return catalog.validateSaaSSetup(configuration)
+	}
 	manifest, exists := catalog.values[key]
-	if !exists {
+	// A saas entry is a catalog entry, not a connector key: its integrations
+	// are created with the connector key "saas".
+	if !exists || manifest.Platform != "" {
 		return ErrInvalid
 	}
 	// Every required field is present, an optional field may be absent, and
@@ -291,7 +305,7 @@ func validOpaqueReference(value string, maximum int) bool {
 func publicManifest(value ConnectorManifest) PublicManifest {
 	return PublicManifest{Key: value.Key, Provider: value.Provider, Category: value.Category, Description: value.Description,
 		DataTypes: append([]string(nil), value.DataTypes...), Actions: append([]string(nil), value.Actions...), AuthMode: value.AuthMode,
-		SetupSchema: append([]SetupField(nil), value.SetupSchema...), AccessGuidance: value.AccessGuidance, TestSemantics: value.TestSemantics}
+		SetupSchema: append([]SetupField(nil), value.SetupSchema...), AccessGuidance: value.AccessGuidance, TestSemantics: value.TestSemantics, Platform: value.Platform}
 }
 
 func cloneManifest(value ConnectorManifest) ConnectorManifest {
@@ -305,6 +319,11 @@ func validManifest(value ConnectorManifest) bool {
 	if !validSlug(value.Key) || !validSlug(value.Category) || !validSlug(value.AuthMode) || !validSlug(value.adapterKey) ||
 		!validText(value.Provider, 128) || !validText(value.Description, 512) || !validText(value.AccessGuidance, 512) || !validText(value.TestSemantics, 512) ||
 		!validText(value.ossName, 128) || len(value.DataTypes) == 0 || len(value.Actions) == 0 || len(value.SetupSchema) == 0 {
+		return false
+	}
+	// A saas entry is exactly what SaaSManifests builds; "saas" itself is a
+	// connector key and never a catalog entry.
+	if value.Key == SaaSConnectorKey || (value.Platform != "") != (value.validate != nil) || value.Platform != "" && value.Key != SaaSConnectorKey+"-"+value.Platform {
 		return false
 	}
 	seen := map[string]struct{}{}

@@ -669,7 +669,9 @@ cmd_worker() {
       # ZASP_DISCOVERY_MICROSOFT_COLLECTOR_VERSION=collector_v1 or
       # ZASP_DISCOVERY_SALESFORCE_COLLECTOR_VERSION=collector_v1 before starting
       # both this worker and the API; an unset variable leaves the collector
-      # unregistered and the connector out of the catalog.
+      # unregistered and the connector out of the catalog. The generic saas
+      # provider (ZASP_DISCOVERY_SAAS_COLLECTOR_VERSION=collector_v1) is off
+      # too: it also needs a Nango server and the three ZASP_NANGO_* settings.
       export ZASP_KUBERNETES_EGRESS_CIDRS=203.0.113.0/24 ZASP_DISCOVERY_READINESS_TIMEOUT=5s
       export ZASP_GITHUB_APP_ID=123456 ZASP_GITHUB_PRIVATE_KEY_REFERENCE=ref:github/app-private-key
       export ZASP_OKTA_CLIENT_ID=0oa1234567890abcdef ZASP_OKTA_CLIENT_SECRET_REFERENCE=ref:okta/client-secret

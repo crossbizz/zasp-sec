@@ -48,6 +48,14 @@ func NewProductionProxyClient(resolver ServiceSecretResolver, timeout time.Durat
 	})
 }
 
+// NewProxyClientWithHTTP builds the proxy client over a caller's HTTP client.
+// It exists for a stand-in Nango server in tests; production composes
+// NewProductionProxyClient. The client must have a transport, a timeout of
+// 100 milliseconds to 10 seconds and must not follow redirects.
+func NewProxyClientWithHTTP(resolver ServiceSecretResolver, client *http.Client) (*ProductionProxyClient, error) {
+	return newProductionProxyClientWithHTTP(resolver, client)
+}
+
 func newProductionProxyClientWithHTTP(resolver ServiceSecretResolver, client *http.Client) (*ProductionProxyClient, error) {
 	if resolver == nil || client == nil || client.Transport == nil || client.Timeout < 100*time.Millisecond || client.Timeout > 10*time.Second || client.CheckRedirect == nil {
 		return nil, ErrInvalid
@@ -95,11 +103,18 @@ func (client *ProductionProxyClient) Proxy(ctx context.Context, request ProxyReq
 	}
 	defer response.Body.Close()
 	payload, readErr := io.ReadAll(io.LimitReader(response.Body, maximumProxyResponseBytes+1))
-	if readErr != nil || len(payload) > maximumProxyResponseBytes || response.StatusCode < 200 || response.StatusCode > 299 || response.Header.Get("Location") != "" || containsSecret(payload) {
+	if readErr == nil && (response.StatusCode < 200 || response.StatusCode > 299) {
+		// The body of a refusal is dropped; only its status and Retry-After
+		// leave this function.
+		clear(payload)
+		return ProxyResponse{}, proxyStatusError(response.StatusCode, response.Header.Get("Retry-After"))
+	}
+	link := response.Header.Get("Link")
+	if readErr != nil || len(payload) > maximumProxyResponseBytes || response.Header.Get("Location") != "" || len(link) > 8192 || containsSecret(payload) || containsSecret([]byte(link)) {
 		clear(payload)
 		return ProxyResponse{}, ErrProxy
 	}
-	return ProxyResponse{StatusCode: response.StatusCode, Body: payload}, nil
+	return ProxyResponse{StatusCode: response.StatusCode, Body: payload, Link: link}, nil
 }
 
 func validCanonicalRawQuery(value string) bool {

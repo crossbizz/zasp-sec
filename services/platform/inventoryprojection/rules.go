@@ -68,6 +68,12 @@ var ruleCatalog = []Rule{
 	{Provider: "okta", SourceKind: "okta_user", Namespace: "okta_user", ProductKind: KindIdentity, Version: 1, Priority: 110, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
 	{Provider: "salesforce", SourceKind: "salesforce_agent", Namespace: "salesforce_agent", ProductKind: KindAgent, Version: 1, Priority: 140, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
 	{Provider: "salesforce", SourceKind: "salesforce_org", Namespace: "salesforce_org", ProductKind: KindAsset, Version: 1, Priority: 140, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
+	// The generic saas provider: every SaaS platform read through the Nango
+	// proxy. The platform is a stable field of the entity, not a rule.
+	{Provider: "saas", SourceKind: "saas_agent", Namespace: "saas_agent", ProductKind: KindAgent, Version: 1, Priority: 150, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
+	{Provider: "saas", SourceKind: "saas_ai_application", Namespace: "saas_ai_application", ProductKind: KindAgent, Version: 1, Priority: 150, ConfidenceBasisPoints: 7000, Freshness: 24 * time.Hour},
+	{Provider: "saas", SourceKind: "saas_mcp_server", Namespace: "saas_mcp_server", ProductKind: KindTool, Version: 1, Priority: 150, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
+	{Provider: "saas", SourceKind: "saas_tenant", Namespace: "saas_tenant", ProductKind: KindAsset, Version: 1, Priority: 150, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
 }
 
 func RuleCatalog() []Rule {

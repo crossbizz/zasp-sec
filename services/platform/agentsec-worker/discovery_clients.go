@@ -16,6 +16,7 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/idpdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/kubernetesdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/microsoftdiscovery"
+	"github.com/zasp-ai/zasp-sec/services/platform/connectors/saasdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/salesforcediscovery"
 )
 
@@ -82,6 +83,7 @@ type discoveryBearerCollectionAPI struct {
 	okta         func(string, time.Duration) (idpdiscovery.CollectionAPI, error)
 	microsoft    microsoftdiscovery.CollectionAPI
 	salesforce   salesforcediscovery.CollectionAPI
+	saas         saasdiscovery.CollectionAPI
 	allowedCIDRs []string
 	timeout      time.Duration
 }
@@ -140,6 +142,10 @@ func (api *discoveryBearerCollectionAPI) FetchCollectionPage(ctx context.Context
 		delegate = api.microsoft
 	case collection.ProviderSalesforce:
 		delegate = api.salesforce
+	case collection.ProviderSaaS:
+		// The bearer material is the Nango connection reference. The
+		// collector hands it to the Nango proxy, which holds the token.
+		delegate = api.saas
 	}
 	if err != nil || nilDiscoveryClientDependency(delegate) {
 		return githubdiscovery.CollectionPage{}, mapDiscoveryProviderClientError(ctx, err)
@@ -163,8 +169,10 @@ func (api *discoveryBearerCollectionAPI) CheckCollectionReadiness(ctx context.Co
 		unbound = api.microsoft
 	case collection.ProviderSalesforce:
 		unbound = api.salesforce
+	case collection.ProviderSaaS:
+		unbound = api.saas
 	}
-	if api.provider == collection.ProviderGitHub || api.provider == collection.ProviderMicrosoft || api.provider == collection.ProviderSalesforce {
+	if api.provider == collection.ProviderGitHub || api.provider == collection.ProviderMicrosoft || api.provider == collection.ProviderSalesforce || api.provider == collection.ProviderSaaS {
 		if nilDiscoveryClientDependency(unbound) {
 			return discoveryCredentialFailure(ctx, collection.FailureMalformed)
 		}

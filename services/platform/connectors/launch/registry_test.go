@@ -76,20 +76,22 @@ func TestRegistryRequiresTheFourLaunchConnectorsAndAdmitsTheOptionalSaaSOnes(t *
 		}
 		return result
 	}
-	if len(all) != 6 {
-		t.Fatalf("default manifests = %d, want the four launch connectors and two SaaS agent providers", len(all))
+	if len(all) != 7 {
+		t.Fatalf("default manifests = %d, want the four launch connectors, two SaaS agent providers and the generic saas provider", len(all))
 	}
 	for _, valid := range [][]string{
 		{"aws", "kubernetes", "github", "okta"},
 		{"aws", "kubernetes", "github", "okta", "microsoft"},
 		{"aws", "kubernetes", "github", "okta", "salesforce"},
 		{"aws", "kubernetes", "github", "okta", "microsoft", "salesforce"},
+		{"aws", "kubernetes", "github", "okta", "saas"},
+		{"aws", "kubernetes", "github", "okta", "microsoft", "salesforce", "saas"},
 	} {
 		registry, err := NewRegistry(pick(valid...), DefaultCredentialClasses())
 		if err != nil {
 			t.Fatalf("manifests %v refused: %v", valid, err)
 		}
-		for _, key := range []string{"microsoft", "salesforce"} {
+		for _, key := range []string{"microsoft", "salesforce", "saas"} {
 			_, declared := registry.FirstParty(key)
 			wanted := false
 			for _, present := range valid {
@@ -108,7 +110,9 @@ func TestRegistryRequiresTheFourLaunchConnectorsAndAdmitsTheOptionalSaaSOnes(t *
 		"both SaaS providers replace two": pick("aws", "kubernetes", "microsoft", "salesforce"),
 		"a SaaS provider twice":           pick("aws", "kubernetes", "github", "okta", "microsoft", "microsoft"),
 		"an unknown fifth connector":      append(pick("aws", "kubernetes", "github", "okta"), unknown),
-		"seven manifests":                 append(pick("aws", "kubernetes", "github", "okta", "microsoft", "salesforce"), unknown),
+		"eight manifests":                 append(pick("aws", "kubernetes", "github", "okta", "microsoft", "salesforce", "saas"), unknown),
+		"saas without the Nango flag":     append(pick("aws", "kubernetes", "github", "okta"), Manifest{Key: "saas", AuthMode: "nango_connection_reference", RequiredScopes: []string{"nango:proxy"}, HealthMode: "tenant_probe", DegradationMode: "provider_only", AuthorizationReady: true}),
+		"a first-party provider on Nango": append(pick("aws", "kubernetes", "github", "okta"), Manifest{Key: "microsoft", AuthMode: "first_party_client_credentials", RequiredScopes: []string{"Application.Read.All"}, HealthMode: "token_and_tenant_probe", DegradationMode: "provider_only", AuthorizationReady: true, Nango: true}),
 	} {
 		if _, err := NewRegistry(hostile, DefaultCredentialClasses()); err == nil {
 			t.Fatalf("%s: accepted", name)

@@ -66,10 +66,11 @@ func NewRegistry(manifests []Manifest, credentials []CredentialClass) (*Registry
 // requiredFirstParty are the launch connectors every registry declares.
 // optionalFirstParty are first-party connectors a registry may also declare:
 // the SaaS agent providers, which a deployment serves only where it runs
-// their collector.
+// their collector. saas is the generic provider of every SaaS platform read
+// through the Nango proxy; it is the one manifest whose Nango flag is set.
 var (
 	requiredFirstParty = []string{"aws", "kubernetes", "github", "okta"}
-	optionalFirstParty = []string{"microsoft", "salesforce"}
+	optionalFirstParty = []string{"microsoft", "salesforce", "saas"}
 )
 
 func firstPartyKey(key string) bool {
@@ -110,6 +111,11 @@ func DefaultManifests() []Manifest {
 		// (an application user), not as a Graph permission.
 		{Key: "microsoft", AuthMode: "first_party_client_credentials", RequiredScopes: []string{"AgentIdentity.Read.All", "Application.Read.All"}, HealthMode: "token_and_tenant_probe", DegradationMode: "provider_only", AuthorizationReady: true},
 		{Key: "salesforce", AuthMode: "first_party_client_credentials", RequiredScopes: []string{"api"}, HealthMode: "token_and_organization_probe", DegradationMode: "provider_only", AuthorizationReady: true},
+		// The generic saas provider. Its credential is a Nango connection;
+		// the provider scopes differ per platform and are part of each
+		// platform definition (connectors/saasdiscovery/platforms), so the
+		// manifest names only what the product itself needs of Nango.
+		{Key: "saas", AuthMode: "nango_connection_reference", RequiredScopes: []string{"nango:proxy"}, HealthMode: "tenant_probe", DegradationMode: "provider_only", AuthorizationReady: true, Nango: true},
 	}
 }
 
@@ -143,7 +149,7 @@ func CanonicalEntityID(scope domain.Scope, kind, sourceNativeID string) (string,
 }
 
 func validManifest(value Manifest) bool {
-	if !tokenPattern.MatchString(value.Key) || value.Nango || !value.AuthorizationReady || value.CollectionReady || len(value.RequiredScopes) < 1 || len(value.RequiredScopes) > 32 || value.HealthMode == "" || value.DegradationMode != "provider_only" || len(value.AuthMode) < 1 || len(value.AuthMode) > 64 {
+	if !tokenPattern.MatchString(value.Key) || value.Nango != (value.Key == "saas") || !value.AuthorizationReady || value.CollectionReady || len(value.RequiredScopes) < 1 || len(value.RequiredScopes) > 32 || value.HealthMode == "" || value.DegradationMode != "provider_only" || len(value.AuthMode) < 1 || len(value.AuthMode) > 64 {
 		return false
 	}
 	return sort.StringsAreSorted(value.RequiredScopes) && uniqueStrings(value.RequiredScopes)

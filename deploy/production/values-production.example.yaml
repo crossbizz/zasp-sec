@@ -99,7 +99,7 @@ runtimeServices:
 nango:
   storageSecretName: nango-storage   # Kubernetes Secret: database-url, encryption-key, service-key.
   databaseEgressCIDRs: []       # REQUIRED: addresses of the Nango database.
-  providerEgressCIDRs: []       # REQUIRED: GitHub and Okta API addresses.
+  providerEgressCIDRs: []       # REQUIRED: GitHub and Okta API addresses. Add the addresses of each SaaS platform served through discovery.saasCollectorVersion.
 
 telemetry:
   backend: none

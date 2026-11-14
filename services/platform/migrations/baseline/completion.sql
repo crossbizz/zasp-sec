@@ -1589,8 +1589,11 @@ BEGIN
   END IF;
   old_definition:=format('CHECK ((%I = ANY (ARRAY[%s])))',column_name,(SELECT string_agg(quote_literal(item)||'::text',', ' ORDER BY position) FROM unnest(old_values) WITH ORDINALITY AS listed(item,position)));
   new_definition:=format('CHECK ((%I = ANY (ARRAY[%s])))',column_name,(SELECT string_agg(quote_literal(item)||'::text',', ' ORDER BY position) FROM unnest(new_values) WITH ORDINALITY AS listed(item,position)));
+  -- A later section (X3c) appends to the list this section wrote; a list
+  -- that starts with it is this section's work already done.
   SELECT count(*),min(c.conname::text),min(pg_get_constraintdef(c.oid)) INTO matches,found_name,found_definition FROM pg_constraint c
-   WHERE c.conrelid=relation AND c.contype='c' AND pg_get_constraintdef(c.oid) IN(old_definition,new_definition);
+   WHERE c.conrelid=relation AND c.contype='c' AND (pg_get_constraintdef(c.oid) IN(old_definition,new_definition)
+    OR left(pg_get_constraintdef(c.oid),length(new_definition)-4)=left(new_definition,length(new_definition)-4));
   IF matches<>1 THEN
    RAISE EXCEPTION USING ERRCODE='55000',MESSAGE=format('provider list constraint predecessor changed: %s',listed_column);
   END IF;
@@ -1714,6 +1717,13 @@ DECLARE earlier CONSTANT text[]:=ARRAY['44820a38e96d80318165fc2333fd851cd932d270
  current_value CONSTANT text:='2af0dce065caff0c7093dfecede207658bf1973cfcc53911bfae7faef33b1809';
  previous text;f regprocedure;d text;
 BEGIN
+ -- A later section (X3c) adds rules and pins the digest of the larger
+ -- catalog. When the file runs again that digest is already in place and
+ -- this section has nothing left to do.
+ IF (SELECT count(*) FROM public.zasp_inventory_identity_rules)>43
+  AND NOT COALESCE((SELECT value FROM public.zasp_schema_metadata WHERE key='typed_inventory_rule_catalog_digest')=ANY(earlier||current_value),false) THEN
+  RETURN;
+ END IF;
  IF NOT EXISTS(SELECT 1 FROM public.zasp_inventory_identity_rules WHERE(provider,source_kind,product_kind,rule_version)=('aws','aws_role','identity',2))
   OR (SELECT count(*) FROM public.zasp_inventory_identity_rules)<>43 THEN
   RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='inventory rule catalog predecessor changed';
@@ -4211,3 +4221,169 @@ BEGIN
  END LOOP;
  GRANT EXECUTE ON FUNCTION public.zasp_red_team_fire_due_schedules(text,integer) TO zasp_discovery_scheduler;
 END $ws2_red_team_schedules$;
+-- X3c. The generic saas discovery provider (workstream WS1, plan tasks B1-B5).
+--
+-- Section X3b added two SaaS providers by widening every provider list for
+-- each of them. This section widens the lists once more, for a provider that
+-- is not one platform: saas is every SaaS platform read through the Nango
+-- proxy (Databricks, Slack, ...). The platform is data. It is the first half
+-- of the subject id and a stable field of every entity, so a new platform
+-- needs no change here.
+--
+-- saas is reference-authorized like AWS, Kubernetes, Microsoft and
+-- Salesforce. The reference is a Nango connection
+-- (ref:nango/connection/<uuid>); Nango holds the provider token and the
+-- product never does. What saas adds beyond the lists:
+--   * subject: saas_tenant, id "<platform>/<tenant id>", equal to
+--     platform||'/'||tenant_id of the configuration;
+--   * credential class of a collection: nango_connection_reference;
+--   * configuration: exactly connection_reference, platform and tenant_id,
+--     with the grammars the API validates
+--     (apiserver.parseReferenceAuthorizationConfiguration);
+--   * four identity rules (saas_agent, saas_ai_application, saas_mcp_server,
+--     saas_tenant) and the catalog digest that includes them.
+--
+-- The scheduler's sweep of abandoned runs (zasp_temporal72.release_abandoned_due)
+-- still named the four launch providers; it now names all seven, so an
+-- abandoned Microsoft, Salesforce or saas run is released by the sweep too.
+--
+-- The edits are made the way X3b makes them: a CHECK constraint is found by
+-- its definition, dropped and re-added under the same name; a function body
+-- is read with pg_get_functiondef, one exact text is replaced, and the result
+-- is executed. An edit whose replacement is already present is skipped (the
+-- file is re-runnable); an edit whose anchor is not present exactly once
+-- raises. Every function edit leaves the text X3b wrote in place, and X3b
+-- and X4 accept the wider lists and the later catalog this section leaves,
+-- so the whole file can still run twice. Nothing here creates a role,
+-- changes an owner or grants a privilege.
+DO $saas_generic_provider$
+DECLARE four CONSTANT text:=$v$'aws','kubernetes','github','okta'$v$;
+ six CONSTANT text:=$v$'aws','kubernetes','github','okta','microsoft','salesforce'$v$;
+ seven CONSTANT text:=$v$'aws','kubernetes','github','okta','microsoft','salesforce','saas'$v$;
+ reference_four CONSTANT text:=$v$'aws','kubernetes','microsoft','salesforce'$v$;
+ reference_five CONSTANT text:=$v$'aws','kubernetes','microsoft','salesforce','saas'$v$;
+ platform CONSTANT text:='^[a-z][a-z0-9_]{1,31}$';
+ -- With the platform and the separator a subject id is at most 128 bytes.
+ tenant CONSTANT text:='^[A-Za-z0-9][A-Za-z0-9._-]{0,94}$';
+ subject CONSTANT text:='^[a-z][a-z0-9_]{1,31}/[A-Za-z0-9][A-Za-z0-9._-]{0,94}$';
+ connection CONSTANT text:='^ref:nango/connection/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$';
+ provider_columns CONSTANT text[]:=ARRAY[
+  'public.zasp_discovery_connection_subjects.provider','public.zasp_discovery_generation_reservations.source',
+  'public.zasp_discovery_job_authorities.provider','public.zasp_discovery_job_checkpoints.provider',
+  'public.zasp_discovery_snapshot_inputs.source','public.zasp_discovery_projection_cursors.source',
+  'public.zasp_discovery_risk_projection_current.source','public.zasp_inventory_identity_rules.provider',
+  'zasp_temporal72.runs.provider','public.zasp_discovery_connection_subjects.subject_kind'];
+ listed_column text;relation regclass;column_name text;old_values text[];new_values text[];old_definition text;new_definition text;
+ edit record;found_name name;found_definition text;matches integer;d text;
+BEGIN
+ FOREACH listed_column IN ARRAY provider_columns LOOP
+  relation:=substring(listed_column FROM '^(.*)\.[a-z_]+$')::regclass;
+  column_name:=substring(listed_column FROM '\.([a-z_]+)$');
+  IF column_name='subject_kind' THEN
+   old_values:=ARRAY['aws_account','kubernetes_cluster','github_installation','okta_tenant','microsoft_tenant','salesforce_org'];
+   new_values:=old_values||ARRAY['saas_tenant'];
+  ELSE
+   old_values:=ARRAY['aws','kubernetes','github','okta','microsoft','salesforce'];
+   new_values:=old_values||ARRAY['saas'];
+  END IF;
+  old_definition:=format('CHECK ((%I = ANY (ARRAY[%s])))',column_name,(SELECT string_agg(quote_literal(item)||'::text',', ' ORDER BY position) FROM unnest(old_values) WITH ORDINALITY AS listed(item,position)));
+  new_definition:=format('CHECK ((%I = ANY (ARRAY[%s])))',column_name,(SELECT string_agg(quote_literal(item)||'::text',', ' ORDER BY position) FROM unnest(new_values) WITH ORDINALITY AS listed(item,position)));
+  SELECT count(*),min(c.conname::text),min(pg_get_constraintdef(c.oid)) INTO matches,found_name,found_definition FROM pg_constraint c
+   WHERE c.conrelid=relation AND c.contype='c' AND pg_get_constraintdef(c.oid) IN(old_definition,new_definition);
+  IF matches<>1 THEN
+   RAISE EXCEPTION USING ERRCODE='55000',MESSAGE=format('saas provider list constraint predecessor changed: %s',listed_column);
+  END IF;
+  IF found_definition=old_definition THEN
+   EXECUTE format('ALTER TABLE %s DROP CONSTRAINT %I',relation,found_name);
+   EXECUTE format('ALTER TABLE %s ADD CONSTRAINT %I CHECK(%I IN(%s))',relation,found_name,column_name,(SELECT string_agg(quote_literal(item),',' ORDER BY position) FROM unnest(new_values) WITH ORDINALITY AS listed(item,position)));
+  END IF;
+ END LOOP;
+
+ FOR edit IN SELECT * FROM (VALUES
+   -- The provider lists. A list is extended beside itself, not rewritten, so
+   -- the text section X3b wrote is still in the function and X3b remains a
+   -- no-op when the file runs again.
+   ('public.zasp_connector_provider_valid(text)',format('value IN (%s)',six),format($v$value IN (%s) OR value='saas'$v$,six)),
+   ('public.zasp_discovery_apply_snapshot(text,text,text,text,text,text,bigint,text,text,bytea,timestamptz,text,text,jsonb,jsonb,jsonb)',format('source NOT IN(%s)',six),format($v$source NOT IN(%s) AND source<>'saas'$v$,six)),
+   ('public.zasp_execution_checkpoint_partial(text,text,text,text,text,text,bigint,text,text,text,text,text,text,bytea,bigint,text,text,text,text)',format('provider_value NOT IN(%s)',six),format($v$provider_value NOT IN(%s) AND provider_value<>'saas'$v$,six)),
+   ('public.zasp_execution_apply_risk_projection(text,text,text,text,text,text,text,text,text,bigint,bytea,jsonb)',format('source_value NOT IN(%s)',six),format($v$source_value NOT IN(%s) AND source_value<>'saas'$v$,six)),
+   ('public.zasp_inventory_apply_findings(text,text,text,jsonb)',format($v$item->>'source' NOT IN(%s)$v$,six),format($v$item->>'source' NOT IN(%s) AND item->>'source'<>'saas'$v$,six)),
+   ('public.zasp_inventory_validate_typed_entities(text,jsonb)',format('provider_value IN(%s)',six),format($v$(provider_value IN(%s) OR provider_value='saas')$v$,six)),
+   ('zasp_temporal72.normalize_relationships(text,text,text,text,text,jsonb)',format('source_value IN(%s)',six),format($v$(source_value IN(%s) OR source_value='saas')$v$,six)),
+   ('zasp_temporal72.release_abandoned(text,text,text,text,text,text)',format('provider_value IN(%s)',six),format($v$(provider_value IN(%s) OR provider_value='saas')$v$,six)),
+   ('zasp_authorization80.integration_setup_status(text,text,text,text)',format('integration.kind IN(%s)',six),format($v$(integration.kind IN(%s) OR integration.kind='saas')$v$,six)),
+   -- The scheduler's sweep named only the four launch providers.
+   ('zasp_temporal72.release_abandoned_due(integer)',format('x.provider IN(%s)',four),format('x.provider IN(%s)',seven)),
+   -- The reference-authorized providers.
+   ('public.zasp_complete_reference_authorization(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)',format('provider_value NOT IN(%s)',reference_four),format($v$provider_value NOT IN(%s) AND provider_value<>'saas'$v$,reference_four)),
+   ('zasp_authorization80.integration_reference_native_complete(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)',format('provider_value NOT IN(%s)',reference_four),format($v$provider_value NOT IN(%s) AND provider_value<>'saas'$v$,reference_four)),
+   ('zasp_authorization80.integration_reference_complete(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text,text,text)',format('provider_value IN(%s)',reference_four),format($v$(provider_value IN(%s) OR provider_value='saas')$v$,reference_four)),
+   ('zasp_authorization80.integration_setup_status(text,text,text,text)',format('integration_row.kind IN(%s)',reference_four),format($v$(integration_row.kind IN(%s) OR integration_row.kind='saas')$v$,reference_four)),
+   -- The reference a saas connection is bound to is the Nango connection its
+   -- configuration names.
+   ('public.zasp_complete_reference_authorization(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)',$v$WHEN 'aws' THEN configuration_value->>'external_id_reference'$v$,$v$WHEN 'saas' THEN configuration_value->>'connection_reference' WHEN 'aws' THEN configuration_value->>'external_id_reference'$v$),
+   ('zasp_authorization80.integration_reference_native_complete(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)',$v$WHEN 'aws' THEN configuration_value->>'external_id_reference'$v$,$v$WHEN 'saas' THEN configuration_value->>'connection_reference' WHEN 'aws' THEN configuration_value->>'external_id_reference'$v$),
+   -- Subject of a connection.
+   ('public.zasp_execution_subject_valid(text,text,text)',$v$  WHEN 'microsoft' THEN kind_value='microsoft_tenant'$v$,format($v$  WHEN 'saas' THEN kind_value='saas_tenant' AND id_value ~ %L AND position('..' in id_value)=0
+  WHEN 'microsoft' THEN kind_value='microsoft_tenant'$v$,subject)),
+   -- Configuration accepted at reference authorization.
+   ('public.zasp_reference_authorization_configuration_valid(text,jsonb)',$v$      AND configuration_value->>'client_secret_reference' ~ '^ref:salesforce/client-secret/[a-z0-9][a-z0-9._-]{7,127}$'$v$,format($v$      AND configuration_value->>'client_secret_reference' ~ '^ref:salesforce/client-secret/[a-z0-9][a-z0-9._-]{7,127}$'
+    OR provider_value='saas'
+      AND (SELECT array_agg(key ORDER BY key) FROM jsonb_object_keys(configuration_value) key)=ARRAY['connection_reference','platform','tenant_id']::text[]
+      AND NOT EXISTS(SELECT 1 FROM jsonb_each(configuration_value) member WHERE jsonb_typeof(member.value)<>'string')
+      AND configuration_value->>'platform' ~ %1$L AND configuration_value->>'tenant_id' ~ %2$L AND position('..' in configuration_value->>'tenant_id')=0
+      AND configuration_value->>'connection_reference' ~ %3$L$v$,platform,tenant,connection)),
+   -- Configuration accepted when the integration is created or updated.
+   ('zasp_authorization80.integration_setup_valid(text,jsonb)',$v$ WHEN 'microsoft' THEN RETURN$v$,format($v$ WHEN 'saas' THEN RETURN keys=ARRAY['connection_reference','platform','tenant_id']
+  AND c->>'platform'~%1$L AND c->>'tenant_id'~%2$L AND position('..' in c->>'tenant_id')=0 AND c->>'connection_reference'~%3$L;
+ WHEN 'microsoft' THEN RETURN$v$,platform,tenant,connection)),
+   -- A run stays current only while its subject is the one its configuration names.
+   ('zasp_temporal72.require_current_run(zasp_temporal72.runs,timestamptz)',$v$ WHEN 'kubernetes' THEN r.subject_kind='kubernetes_cluster'$v$,$v$ WHEN 'saas' THEN r.subject_kind='saas_tenant' AND r.subject_id=(i.configuration->>'platform')||'/'||(i.configuration->>'tenant_id')
+ WHEN 'kubernetes' THEN r.subject_kind='kubernetes_cluster'$v$),
+   ('public.zasp_typed_inventory_job_input_v13(text,text,text,text,text,text)',$v$     WHEN 'kubernetes' THEN subject.subject_kind='kubernetes_cluster'$v$,$v$     WHEN 'saas' THEN subject.subject_kind='saas_tenant' AND subject.subject_id=(integration.configuration->>'platform')||'/'||(integration.configuration->>'tenant_id')
+     WHEN 'kubernetes' THEN subject.subject_kind='kubernetes_cluster'$v$),
+   -- Credential class of a collection.
+   ('zasp_temporal72.prepare_page(text,text,text,text,text,text,timestamptz,bigint,text)',$v$WHEN 'github' THEN 'github_installation' WHEN 'microsoft' THEN$v$,$v$WHEN 'saas' THEN 'nango_connection_reference' WHEN 'github' THEN 'github_installation' WHEN 'microsoft' THEN$v$),
+   ('public.zasp_typed_inventory_job_input_v13(text,text,text,text,text,text)',$v$WHEN 'github' THEN 'github_installation' WHEN 'microsoft' THEN$v$,$v$WHEN 'saas' THEN 'nango_connection_reference' WHEN 'github' THEN 'github_installation' WHEN 'microsoft' THEN$v$)
+  ) AS listed(target,old_text,new_text) LOOP
+  d:=pg_get_functiondef(edit.target::regprocedure);
+  CONTINUE WHEN position(edit.new_text in d)>0;
+  IF length(d)-length(replace(d,edit.old_text,''))<>length(edit.old_text) THEN
+   RAISE EXCEPTION USING ERRCODE='55000',MESSAGE=format('saas provider predecessor changed: %s',edit.target);
+  END IF;
+  EXECUTE replace(d,edit.old_text,edit.new_text);
+ END LOOP;
+END $saas_generic_provider$;
+
+-- The saas identity rules, and the catalog digest that includes them. The
+-- agents a platform's API names are provider records (9500); an AI
+-- application is concluded from signals the API states (7000); an MCP server
+-- is a tool and the tenant an asset. The earlier digests are the four
+-- section X4 names and the one section X4 pins.
+DO $saas_rule_catalog$
+DECLARE earlier CONSTANT text[]:=ARRAY['44820a38e96d80318165fc2333fd851cd932d2704d380a1199d569d1d0778f30','9397691244ac0b8befd2790fed3ca2e71f2114eba44001cc3d5634f86b6044ed','f67df9589cf0d41f4b2a98a5161353100e2ff3ed61cfc188c1447d2dd14c4192','2af0dce065caff0c7093dfecede207658bf1973cfcc53911bfae7faef33b1809'];
+ current_value CONSTANT text:='7121768829bd73b339a34812762ec5acb449497439e0650d6c6fb7a85bf5678b';
+ previous text;f regprocedure;d text;
+BEGIN
+ INSERT INTO public.zasp_inventory_identity_rules(provider,source_kind,identity_namespace,product_kind,rule_version,priority,confidence_basis_points,freshness_seconds) VALUES
+  ('saas','saas_agent','saas_agent','agent',1,150,9500,86400),
+  ('saas','saas_ai_application','saas_ai_application','agent',1,150,7000,86400),
+  ('saas','saas_mcp_server','saas_mcp_server','tool',1,150,9500,86400),
+  ('saas','saas_tenant','saas_tenant','asset',1,150,9500,86400)
+ ON CONFLICT(provider,source_kind) DO NOTHING;
+ IF (SELECT count(*) FROM public.zasp_inventory_identity_rules)<>47
+  OR (SELECT count(*) FROM public.zasp_inventory_identity_rules WHERE provider='saas' AND rule_version=1 AND priority=150 AND freshness_seconds=86400
+      AND (source_kind,identity_namespace,product_kind,confidence_basis_points) IN(('saas_agent','saas_agent','agent',9500),('saas_ai_application','saas_ai_application','agent',7000),('saas_mcp_server','saas_mcp_server','tool',9500),('saas_tenant','saas_tenant','asset',9500)))<>4 THEN
+  RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='saas inventory rule catalog predecessor changed';
+ END IF;
+ ALTER TABLE public.zasp_inventory_cutover_state DROP CONSTRAINT IF EXISTS zasp_inventory_cutover_state_rule_catalog_digest_check;
+ UPDATE public.zasp_inventory_cutover_state SET rule_catalog_digest=current_value WHERE rule_catalog_digest=ANY(earlier);
+ EXECUTE format('ALTER TABLE public.zasp_inventory_cutover_state ADD CONSTRAINT zasp_inventory_cutover_state_rule_catalog_digest_check CHECK(rule_catalog_digest=%L)',current_value);
+ UPDATE public.zasp_schema_metadata SET value=current_value WHERE key='typed_inventory_rule_catalog_digest' AND value=ANY(earlier);
+ FOREACH f IN ARRAY ARRAY['public.zasp_inventory_advance_scope(text,text,text,text,bytea,bytea)'::regprocedure,'public.zasp_inventory_readiness(text,text)'::regprocedure] LOOP
+  FOREACH previous IN ARRAY earlier LOOP
+   d:=pg_get_functiondef(f);
+   IF position(previous in d)>0 THEN EXECUTE replace(d,previous,current_value);END IF;
+  END LOOP;
+ END LOOP;
+END $saas_rule_catalog$;

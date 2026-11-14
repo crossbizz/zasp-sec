@@ -472,6 +472,7 @@ output "helm_values" {
       # Empty keeps the optional provider disabled.
       microsoftCollectorVersion  = var.discovery_optional_providers.microsoft_collector
       salesforceCollectorVersion = var.discovery_optional_providers.salesforce_collector
+      saasCollectorVersion       = var.discovery_optional_providers.saas_collector
       awsRegion                  = var.region
       queueURL                   = aws_sqs_queue.work["discovery-jobs"].id
       roleArn                    = aws_iam_role.worker.arn

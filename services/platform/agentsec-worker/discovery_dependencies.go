@@ -13,6 +13,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
+
+	"github.com/zasp-ai/zasp-sec/services/platform/connectors/saasdiscovery"
 )
 
 type productionDiscoveryDependencyConfig struct {
@@ -28,6 +30,8 @@ type productionDiscoveryDependencyConfig struct {
 	OktaCollectorVersion       string
 	MicrosoftCollectorVersion  string
 	SalesforceCollectorVersion string
+	SaaSCollectorVersion       string
+	Nango                      discoveryNangoConfig
 	ParserVersion              string
 	ToolVersion                string
 	KubernetesAllowedCIDRs     []string
@@ -188,6 +192,18 @@ func newProductionDiscoveryDependenciesWithIO(config productionDiscoveryDependen
 		}
 		salesforce = client
 	}
+	// The saas collector reads every platform through the Nango proxy. Its
+	// proxy exists only where the saas collector is configured.
+	var saasProxy saasdiscovery.Proxy
+	if config.SaaSCollectorVersion != "" {
+		enterStartupStage("discovery-saas")
+		proxy, proxyErr := newProductionDiscoverySaaSProxy(config.Nango, config.ProviderTimeout)
+		if proxyErr != nil {
+			providerTransport.CloseIdleConnections()
+			return fail()
+		}
+		saasProxy = proxy
+	}
 	enterStartupStage("discovery-credentials")
 	credentials, err := newProductionDiscoveryCredentialResolver(productionDiscoveryCredentialConfig{
 		Secrets: secrets, AssumeRole: cloud.AssumeRole, GitHub: github, Okta: okta, Microsoft: microsoft, Salesforce: salesforce,
@@ -228,6 +244,7 @@ func newProductionDiscoveryDependenciesWithIO(config productionDiscoveryDependen
 		AWSCollectorVersion: config.AWSCollectorVersion, KubernetesCollectorVersion: config.KubernetesCollectorVersion,
 		GitHubCollectorVersion: config.GitHubCollectorVersion, OktaCollectorVersion: config.OktaCollectorVersion,
 		MicrosoftCollectorVersion: config.MicrosoftCollectorVersion, SalesforceCollectorVersion: config.SalesforceCollectorVersion,
+		SaaSCollectorVersion: config.SaaSCollectorVersion, SaaSProxy: saasProxy,
 		ParserVersion: config.ParserVersion, ToolVersion: config.ToolVersion,
 		KubernetesAllowedCIDRs: config.KubernetesAllowedCIDRs, ProviderTimeout: config.ProviderTimeout,
 		KubernetesNetwork: cloud.KubernetesNetwork,

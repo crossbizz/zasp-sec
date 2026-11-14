@@ -17,8 +17,14 @@ const AWS_REGION = /^[a-z]{2}-[a-z]+-[1-9][0-9]?$/;
 const KUBERNETES_CONNECTION_REFERENCE = /^ref:kubernetes\/connection\/[A-Za-z0-9][A-Za-z0-9._-]{7,127}$/;
 // The providers discovery collects from, and the ones authorized by a
 // reference to customer material instead of a browser OAuth flow.
-const DISCOVERY_PROVIDERS = ["aws", "kubernetes", "github", "okta", "microsoft", "salesforce"] as const;
-const REFERENCE_AUTHORIZED_PROVIDERS = ["aws", "kubernetes", "microsoft", "salesforce"] as const;
+// saas is the generic provider of every SaaS platform read through a Nango
+// connection; the platform is data (configuration.platform), not a provider.
+const DISCOVERY_PROVIDERS = ["aws", "kubernetes", "github", "okta", "microsoft", "salesforce", "saas"] as const;
+const REFERENCE_AUTHORIZED_PROVIDERS = ["aws", "kubernetes", "microsoft", "salesforce", "saas"] as const;
+const SAAS_PLATFORM = /^[a-z][a-z0-9_]{1,31}$/;
+const SAAS_TENANT_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,94}$/;
+const SAAS_SUBJECT = /^[a-z][a-z0-9_]{1,31}\/[A-Za-z0-9][A-Za-z0-9._-]{0,94}$/;
+const SAAS_CONNECTION_REFERENCE = /^ref:nango\/connection\/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const MICROSOFT_GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const MICROSOFT_CLIENT_SECRET_REFERENCE = /^ref:microsoft\/client-secret\/[a-z0-9][a-z0-9._-]{7,127}$/;
 const MICROSOFT_DATAVERSE_URL = /^https:\/\/[a-z0-9][a-z0-9-]{0,62}\.crm[0-9]{0,2}\.dynamics\.com$/;
@@ -293,7 +299,7 @@ export function decodePolicySimulation(value: unknown): PolicySimulation { const
 export function decodePolicyRollout(value: unknown): PolicyRollout { const record = exactRecord(value, ["policy_id", "state", "target_id"]); if (typeof record.policy_id !== "string" || !/^policy-[a-z0-9][a-z0-9-]{0,120}$/.test(record.policy_id)) fail(); enumValue(record.state, ["draft", "monitor", "enforced", "disabled"]); boundedString(record.target_id, 1, 128); return value as PolicyRollout; }
 export function decodeRuntimeDecisionPage(value: unknown): { readonly items: readonly RuntimeDecision[] } { const record = exactRecord(value, ["items"]); for (const item of array(record.items, 100)) { const entry = exactRecord(item, ["id", "policy_id", "environment_id", "result", "correlation_id", "at"]); boundedString(entry.id, 1, 128); if (typeof entry.policy_id !== "string" || !/^policy-[a-z0-9][a-z0-9-]{0,120}$/.test(entry.policy_id)) fail(); boundedString(entry.environment_id, 1, 128); enumValue(entry.result, ["allow", "monitor", "block"]); boundedString(entry.correlation_id, 1, 128); dateTime(entry.at); } return value as { readonly items: readonly RuntimeDecision[] }; }
 
-export function decodeConnectorManifest(value: unknown): ConnectorManifest { const record = exactRecord(value, ["key", "provider", "category", "description", "data_types", "actions", "auth_mode", "setup_schema", "access_guidance", "test_semantics"]); boundedString(record.key, 1, 63); boundedString(record.provider, 1, 128); boundedString(record.category, 1, 63); boundedString(record.description, 1, 512); stringArray(record.data_types, 64, 63, 1); stringArray(record.actions, 64, 63, 1); boundedString(record.auth_mode, 1, 63); const setup = array(record.setup_schema, 64); if (setup.length < 1) fail(); for (const field of setup) { const item = exactRecord(field, ["key", "label", "type", "required", "description"]); boundedString(item.key, 1, 63); boundedString(item.label, 1, 128); boundedString(item.type, 1, 63); if (typeof item.required !== "boolean") fail(); boundedString(item.description, 1, 512); } boundedString(record.access_guidance, 1, 512); boundedString(record.test_semantics, 1, 512); return value as ConnectorManifest; }
+export function decodeConnectorManifest(value: unknown): ConnectorManifest { const record = exactRecord(value, ["key", "provider", "category", "description", "data_types", "actions", "auth_mode", "setup_schema", "access_guidance", "test_semantics"], ["platform"]); boundedString(record.key, 1, 63); /* An entry of the generic saas connector names its platform; its key is "saas-<platform>". */ if ("platform" in record && (typeof record.platform !== "string" || !SAAS_PLATFORM.test(record.platform) || record.key !== `saas-${record.platform}`)) fail(); boundedString(record.provider, 1, 128); boundedString(record.category, 1, 63); boundedString(record.description, 1, 512); stringArray(record.data_types, 64, 63, 1); stringArray(record.actions, 64, 63, 1); boundedString(record.auth_mode, 1, 63); const setup = array(record.setup_schema, 64); if (setup.length < 1) fail(); for (const field of setup) { const item = exactRecord(field, ["key", "label", "type", "required", "description"]); boundedString(item.key, 1, 63); boundedString(item.label, 1, 128); boundedString(item.type, 1, 63); if (typeof item.required !== "boolean") fail(); boundedString(item.description, 1, 512); } boundedString(record.access_guidance, 1, 512); boundedString(record.test_semantics, 1, 512); return value as ConnectorManifest; }
 export function decodeConnectorManifestPage(value: unknown): { readonly items: readonly ConnectorManifest[] } { const record = exactRecord(value, ["items"]); for (const item of array(record.items, 100)) decodeConnectorManifest(item); return value as { readonly items: readonly ConnectorManifest[] }; }
 export function decodeIntegration(value: unknown): Integration { const record = exactRecord(value, ["id", "connector_key", "name", "configuration", "status", "created_at", "updated_at"]); productID(record.id); boundedString(record.connector_key, 1, 63); boundedString(record.name, 1, 128); decodeIntegrationConfiguration(record.connector_key as string, record.configuration); enumValue(record.status, ["configured", "pending_authorization", "active", "degraded", "revoking"]); dateTime(record.created_at); dateTime(record.updated_at); return value as Integration; }
 export function decodeIntegrationAuthorization(value: unknown): IntegrationAuthorization {
@@ -398,7 +404,7 @@ export function decodeIntegrationSetupStatus(value: unknown, expectedIntegration
   productID(record.integration_id); if (expectedIntegrationID !== undefined && record.integration_id !== expectedIntegrationID) fail();
   enumValue(record.connector_key, DISCOVERY_PROVIDERS); dateTime(record.updated_at);
   const authorization = exactRecord(record.authorization, ["state", "scope_kind", "scope_label", "repository_selection", "permissions"]);
-  enumValue(authorization.state, ["pending", "verified", "degraded"]); enumValue(authorization.scope_kind, ["none", "aws_account", "kubernetes_cluster", "github_organization", "okta_tenant", "microsoft_tenant", "salesforce_org"]);
+  enumValue(authorization.state, ["pending", "verified", "degraded"]); enumValue(authorization.scope_kind, ["none", "aws_account", "kubernetes_cluster", "github_organization", "okta_tenant", "microsoft_tenant", "salesforce_org", "saas_tenant"]);
   if (authorization.scope_label !== null) printableString(authorization.scope_label, 1, 128);
   if (authorization.repository_selection !== null) enumValue(authorization.repository_selection, ["all", "selected"]);
   stringArray(authorization.permissions, 8, 64); const permissions = authorization.permissions as readonly string[];
@@ -416,6 +422,9 @@ export function decodeIntegrationSetupStatus(value: unknown, expectedIntegration
     if (authorization.scope_kind !== "microsoft_tenant" || typeof authorization.scope_label !== "string" || !MICROSOFT_GUID.test(authorization.scope_label) || authorization.repository_selection !== null || permissions.length !== 0) fail();
   } else if (record.connector_key === "salesforce") {
     if (authorization.scope_kind !== "salesforce_org" || typeof authorization.scope_label !== "string" || !SALESFORCE_ORGANIZATION_ID.test(authorization.scope_label) || authorization.repository_selection !== null || permissions.length !== 0) fail();
+  } else if (record.connector_key === "saas") {
+    // The scope of a saas integration is its tenant, "<platform>/<tenant id>".
+    if (authorization.scope_kind !== "saas_tenant" || typeof authorization.scope_label !== "string" || !SAAS_SUBJECT.test(authorization.scope_label) || authorization.scope_label.includes("..") || authorization.repository_selection !== null || permissions.length !== 0) fail();
   } else if (authorization.scope_kind !== "okta_tenant" || authorization.scope_label === null || authorization.repository_selection !== null || !sameJSON(permissions, ["offline_access", "okta.apps.read", "okta.groups.read", "okta.users.read"])) fail();
   const coverage = exactRecord(record.runtime_coverage, ["state", "reason", "sensor_count", "healthy_sensor_count"]);
   enumValue(coverage.state, ["not_applicable", "not_enrolled", "awaiting_heartbeat", "healthy", "degraded"]); enumValue(coverage.reason, ["not_applicable", "not_enrolled", "missing_gateway", "unsupported_kernel", "degraded", "verified"]);
@@ -1284,6 +1293,13 @@ function decodeIntegrationConfiguration(connectorKey: string, value: unknown): v
     if (typeof configuration.organization_id !== "string" || !SALESFORCE_ORGANIZATION_ID.test(configuration.organization_id)) fail();
     if (typeof configuration.client_id !== "string" || !SALESFORCE_CLIENT_ID.test(configuration.client_id)) fail();
     if (typeof configuration.client_secret_reference !== "string" || !SALESFORCE_CLIENT_SECRET_REFERENCE.test(configuration.client_secret_reference)) fail();
+    return;
+  }
+  if (connectorKey === "saas") {
+    const configuration = exactRecord(value, ["connection_reference", "platform", "tenant_id"]);
+    if (typeof configuration.platform !== "string" || !SAAS_PLATFORM.test(configuration.platform)) fail();
+    if (typeof configuration.tenant_id !== "string" || !SAAS_TENANT_ID.test(configuration.tenant_id) || configuration.tenant_id.includes("..")) fail();
+    if (typeof configuration.connection_reference !== "string" || !SAAS_CONNECTION_REFERENCE.test(configuration.connection_reference)) fail();
     return;
   }
   stringRecord(value, 16, 1, 1);

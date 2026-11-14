@@ -199,7 +199,7 @@ function downloadAIBillOfMaterials(agent: InventorySummary): void {
   URL.revokeObjectURL(link.href);
 }
 
-const providerLabels = { aws: "AWS", kubernetes: "Kubernetes", github: "GitHub", okta: "Okta", microsoft: "Microsoft", salesforce: "Salesforce" } as const;
+const providerLabels = { aws: "AWS", kubernetes: "Kubernetes", github: "GitHub", okta: "Okta", microsoft: "Microsoft", salesforce: "Salesforce", saas: "SaaS" } as const;
 const managementStateLabels = { managed: "Managed", unmanaged: "Unmanaged", dismissed: "Dismissed", not_applicable: "Managed" } as const;
 const discoveryMethodLabels = { declared: "Declared by owner", provider_api: "Provider record", inferred: "Inferred from signals" } as const;
 const platformLabels: Readonly<Record<string, string>> = { bedrock_agent: "Bedrock agent", agentcore_runtime: "AgentCore runtime", lambda_function: "Lambda function", iam_role: "IAM role", ec2_instance: "EC2 instance", kubernetes_workload: "workload", kubernetes_agent: "workload", github_repository: "repository", entra_agent_identity: "Entra agent identity", copilot_studio: "Copilot Studio agent", agentforce: "Agentforce agent" };
@@ -210,6 +210,9 @@ function sourceLabel(item: InventorySummary): string {
   const provider = providerLabels[item.provider];
   if (item.kind !== "agent") return provider;
   const platform = item.discovery.platform;
+  // The generic saas provider reports every SaaS platform; the platform is
+  // the discovery platform itself ("SaaS · Databricks").
+  if (item.provider === "saas") return `${provider} · ${platform.split("_").map((word) => word.slice(0, 1).toUpperCase() + word.slice(1)).join(" ")}`;
   const label = platformLabels[platform] ?? (platform.startsWith("saas_") ? `SaaS ${platform.slice(5).replaceAll("_", " ")}` : platform.replaceAll("_", " "));
   return `${provider} · ${label}`;
 }

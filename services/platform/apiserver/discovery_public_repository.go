@@ -499,6 +499,8 @@ func validPublicSetupAuthorization(connectorKey string, value IntegrationSetupAu
 		return value.ScopeKind == "microsoft_tenant" && microsoftTenantPattern.MatchString(*value.ScopeLabel) && value.RepositorySelection == nil && len(value.Permissions) == 0
 	case "salesforce":
 		return value.ScopeKind == "salesforce_org" && salesforceOrganizationPattern.MatchString(*value.ScopeLabel) && value.RepositorySelection == nil && len(value.Permissions) == 0
+	case "saas":
+		return value.ScopeKind == "saas_tenant" && saasSubjectPattern.MatchString(*value.ScopeLabel) && value.RepositorySelection == nil && len(value.Permissions) == 0
 	default:
 		return false
 	}

@@ -52,6 +52,10 @@ func TestRuleCatalogBindsExactProviderKindsToProductAuthority(t *testing.T) {
 		{Provider: "okta", SourceKind: "okta_user", Namespace: "okta_user", ProductKind: KindIdentity, Version: 1, Priority: 110, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
 		{Provider: "salesforce", SourceKind: "salesforce_agent", Namespace: "salesforce_agent", ProductKind: KindAgent, Version: 1, Priority: 140, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
 		{Provider: "salesforce", SourceKind: "salesforce_org", Namespace: "salesforce_org", ProductKind: KindAsset, Version: 1, Priority: 140, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
+		{Provider: "saas", SourceKind: "saas_agent", Namespace: "saas_agent", ProductKind: KindAgent, Version: 1, Priority: 150, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
+		{Provider: "saas", SourceKind: "saas_ai_application", Namespace: "saas_ai_application", ProductKind: KindAgent, Version: 1, Priority: 150, ConfidenceBasisPoints: 7000, Freshness: 24 * time.Hour},
+		{Provider: "saas", SourceKind: "saas_mcp_server", Namespace: "saas_mcp_server", ProductKind: KindTool, Version: 1, Priority: 150, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
+		{Provider: "saas", SourceKind: "saas_tenant", Namespace: "saas_tenant", ProductKind: KindAsset, Version: 1, Priority: 150, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
 	}
 
 	actual := RuleCatalog()
@@ -59,7 +63,7 @@ func TestRuleCatalogBindsExactProviderKindsToProductAuthority(t *testing.T) {
 		t.Fatalf("catalog = %#v, want %#v", actual, expected)
 	}
 	digest := RuleCatalogDigest()
-	if got := hex.EncodeToString(digest[:]); got != "2af0dce065caff0c7093dfecede207658bf1973cfcc53911bfae7faef33b1809" {
+	if got := hex.EncodeToString(digest[:]); got != "7121768829bd73b339a34812762ec5acb449497439e0650d6c6fb7a85bf5678b" {
 		t.Fatalf("catalog digest = %s", got)
 	}
 

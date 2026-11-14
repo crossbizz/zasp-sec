@@ -668,6 +668,7 @@ func productionDiscoveryDependenciesConfig(config workerRuntimeConfig) productio
 		GitHubAppID: config.GitHubAppID, GitHubPrivateKeyReference: config.GitHubPrivateKeyReference, OktaClientID: config.OktaClientID, OktaClientSecretReference: config.OktaClientSecretReference,
 		AWSCollectorVersion: config.AWSCollectorVersion, KubernetesCollectorVersion: config.KubernetesCollectorVersion, GitHubCollectorVersion: config.GitHubCollectorVersion, OktaCollectorVersion: config.OktaCollectorVersion,
 		MicrosoftCollectorVersion: config.MicrosoftCollectorVersion, SalesforceCollectorVersion: config.SalesforceCollectorVersion,
+		SaaSCollectorVersion: config.SaaSCollectorVersion, Nango: discoveryNangoConfig{BaseURL: config.NangoBaseURL, ServiceSecretReference: config.NangoServiceSecretReference, Environment: config.NangoEnvironment},
 		ParserVersion: config.ParserVersion, ToolVersion: config.ToolVersion, KubernetesAllowedCIDRs: config.KubernetesEgressCIDRs, ProviderTimeout: config.ProviderTimeout, ReadinessTimeout: config.DiscoveryReadinessTimeout,
 		QueueURL: config.DiscoveryQueueURL, QueueOperationTimeout: minDuration(config.LeaseDuration/3, 30*time.Second), LeaseDuration: config.LeaseDuration, ShutdownTimeout: config.ShutdownTimeout,
 	}

@@ -329,7 +329,7 @@ variable "connector_reference_ids" {
 }
 
 variable "discovery_optional_providers" {
-  description = "Optional discovery providers: Microsoft (Entra and Copilot Studio) and Salesforce (Agentforce). Both are disabled by default. A provider is enabled by its collector version, which must be the version the installed schema hands a discovery run (collector_v1), together with the identifier of its pre-provisioned client-secret reference and a snapshot of the provider addresses the API and the discovery worker may reach."
+  description = "Optional discovery providers: Microsoft (Entra and Copilot Studio), Salesforce (Agentforce) and the generic saas provider (every SaaS platform read through Nango; saas_collector alone enables it, and the platforms are reached by Nango, whose provider addresses are nango_provider_egress_cidrs). All are disabled by default. A provider is enabled by its collector version, which must be the version the installed schema hands a discovery run (collector_v1), together with the identifier of its pre-provisioned client-secret reference and a snapshot of the provider addresses the API and the discovery worker may reach."
   type = object({
     microsoft_collector         = optional(string, "")
     microsoft_client_secret_id  = optional(string, "")
@@ -337,8 +337,13 @@ variable "discovery_optional_providers" {
     salesforce_collector        = optional(string, "")
     salesforce_client_secret_id = optional(string, "")
     salesforce_egress_cidrs     = optional(list(string), [])
+    saas_collector              = optional(string, "")
   })
   default = {}
+  validation {
+    condition     = var.discovery_optional_providers.saas_collector == "" || can(regex("^[a-z][a-z0-9_.-]{1,63}$", var.discovery_optional_providers.saas_collector))
+    error_message = "saas_collector is empty or a bounded collector version."
+  }
   validation {
     condition = alltrue([
       for provider in [

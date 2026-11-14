@@ -22,7 +22,9 @@ var queryKeyPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.\[\]-]{0,63}$`
 
 // coreKeys are the first-party connectors. Nango serves long-tail providers
 // only, so an entry for one of these is refused.
-var coreKeys = map[string]struct{}{"aws": {}, "github": {}, "kubernetes": {}, "okta": {}, "microsoft": {}, "salesforce": {}}
+// "saas" is the generic discovery provider whose platforms are Nango entries;
+// it is a provider name, never an entry key.
+var coreKeys = map[string]struct{}{"aws": {}, "github": {}, "kubernetes": {}, "okta": {}, "microsoft": {}, "salesforce": {}, "saas": {}}
 
 type Rule struct {
 	Method, PathPrefix string
@@ -47,6 +49,39 @@ type ProxyResponse struct {
 	StatusCode int
 	Body       []byte
 	Location   string
+	// Link is the provider's Link response header (RFC 8288), which some
+	// providers page with. It is empty when the provider sent none.
+	Link string
+}
+
+// StatusError is a provider response outside 200 to 299 that the proxy
+// relayed. It carries the status and the Retry-After header and nothing of
+// the body, so a caller can tell a rate limit from a denial. It is an
+// ErrProxy.
+type StatusError struct {
+	StatusCode int
+	RetryAfter string
+}
+
+func (*StatusError) Error() string { return ErrProxy.Error() }
+func (*StatusError) Unwrap() error { return ErrProxy }
+
+// proxyStatusError keeps a relayed status only when it is a plausible HTTP
+// error status with a bounded, printable Retry-After.
+func proxyStatusError(status int, retryAfter string) error {
+	if status < 300 || status > 599 {
+		return ErrProxy
+	}
+	if len(retryAfter) > 64 {
+		retryAfter = ""
+	}
+	for _, character := range retryAfter {
+		if character < 0x20 || character > 0x7e {
+			retryAfter = ""
+			break
+		}
+	}
+	return &StatusError{StatusCode: status, RetryAfter: retryAfter}
 }
 
 type DNSResolver interface {
@@ -113,7 +148,11 @@ func (adapter *Adapter) ProxyWithQuery(ctx context.Context, connectorKey, connec
 		ConnectorKey: connectorKey, ConnectionReference: connectionReference, ProviderHost: entry.ProviderHost, Method: method, Path: path,
 		RawQuery: query.Encode(), ResolvedIPs: resolved, Body: append([]byte(nil), body...),
 	})
-	if err != nil || bounded.Err() != nil || response.StatusCode < 200 || response.StatusCode > 299 || response.Location != "" || len(response.Body) > 1<<20 || containsSecret(response.Body) {
+	var status *StatusError
+	if errors.As(err, &status) && bounded.Err() == nil {
+		return ProxyResponse{}, proxyStatusError(status.StatusCode, status.RetryAfter)
+	}
+	if err != nil || bounded.Err() != nil || response.StatusCode < 200 || response.StatusCode > 299 || response.Location != "" || len(response.Body) > 1<<20 || len(response.Link) > 8192 || containsSecret(response.Body) || containsSecret([]byte(response.Link)) {
 		return ProxyResponse{}, ErrProxy
 	}
 	response.Body = append([]byte(nil), response.Body...)

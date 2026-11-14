@@ -23,6 +23,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/collection"
+	"github.com/zasp-ai/zasp-sec/services/platform/connectors/saasdiscovery"
 )
 
 const (
@@ -141,6 +142,8 @@ func (resolver *productionDiscoveryCredentialResolver) ResolveDiscoveryCredentia
 		envelope, err = resolver.resolveMicrosoft(ctx, bound, now)
 	case collection.ProviderSalesforce:
 		envelope, err = resolver.resolveSalesforce(ctx, bound, now)
+	case collection.ProviderSaaS:
+		envelope, err = resolver.resolveSaaS(ctx, bound, now)
 	default:
 		err = discoveryCredentialFailure(ctx, collection.FailureMalformed)
 	}
@@ -408,6 +411,10 @@ func validDiscoveryCredentialEnvelope(value discoveryCredentialEnvelope) bool {
 		return value.SubjectKind == "microsoft_tenant" && discoveryMicrosoftGUIDPattern.MatchString(value.SubjectID) && validDiscoveryMicrosoftCollectorCredential(value.BearerToken) && value.Issuer == "" && discoveryCredentialEnvelopeEmptyProviderFields(value)
 	case collection.ProviderSalesforce:
 		return value.SubjectKind == "salesforce_org" && discoverySalesforceOrganizationPattern.MatchString(value.SubjectID) && validDiscoverySalesforceCollectorCredential(value.BearerToken) && value.Issuer == "" && discoveryCredentialEnvelopeEmptyProviderFields(value)
+	case collection.ProviderSaaS:
+		// The material of the generic saas provider is a Nango connection
+		// reference, not a token.
+		return value.SubjectKind == "saas_tenant" && discoverySaaSSubjectPattern.MatchString(value.SubjectID) && saasdiscovery.ValidConnectionReference(string(value.BearerToken)) && value.Issuer == "" && discoveryCredentialEnvelopeEmptyProviderFields(value)
 	default:
 		return false
 	}

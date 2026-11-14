@@ -179,7 +179,7 @@ func validRecoveryProjectionDescriptors(descriptors []recoveryProjectionDescript
 		previousCursor, previousInput := "", ""
 		for _, cursor := range descriptor.CollectionCursors {
 			key := cursor.Provider + "\x00" + cursor.SnapshotID
-			if !stringInWorker(cursor.Provider, "aws", "kubernetes", "github", "okta", "microsoft", "salesforce") || !validRecoveryProjectionProductID(cursor.SnapshotID) || len(cursor.CursorValue) > 2048 || !validRecoveryTimestamp(cursor.CommittedAt) || key <= previousCursor {
+			if !stringInWorker(cursor.Provider, "aws", "kubernetes", "github", "okta", "microsoft", "salesforce", "saas") || !validRecoveryProjectionProductID(cursor.SnapshotID) || len(cursor.CursorValue) > 2048 || !validRecoveryTimestamp(cursor.CommittedAt) || key <= previousCursor {
 				return false
 			}
 			previousCursor = key
@@ -187,14 +187,14 @@ func validRecoveryProjectionDescriptors(descriptors []recoveryProjectionDescript
 		previousCursor = ""
 		for _, cursor := range descriptor.ProjectionCursors {
 			key := cursor.Source + "\x00" + cursor.Kind
-			if !stringInWorker(cursor.Source, "aws", "kubernetes", "github", "okta", "microsoft", "salesforce") || !stringInWorker(cursor.Kind, "risk", "graph", "search") || cursor.Generation < 1 || !validRecoveryProjectionProductID(cursor.SnapshotID) || !validRecoveryDigest(cursor.InputDigest) || !validRecoveryDigest(cursor.DriverDigest) || !validRecoveryTimestamp(cursor.UpdatedAt) || key <= previousCursor {
+			if !stringInWorker(cursor.Source, "aws", "kubernetes", "github", "okta", "microsoft", "salesforce", "saas") || !stringInWorker(cursor.Kind, "risk", "graph", "search") || cursor.Generation < 1 || !validRecoveryProjectionProductID(cursor.SnapshotID) || !validRecoveryDigest(cursor.InputDigest) || !validRecoveryDigest(cursor.DriverDigest) || !validRecoveryTimestamp(cursor.UpdatedAt) || key <= previousCursor {
 				return false
 			}
 			previousCursor = key
 		}
 		for _, input := range descriptor.SnapshotInputs {
 			key := input.Source + "\x00" + leftPadRecoveryGeneration(input.Generation)
-			if !stringInWorker(input.Source, "aws", "kubernetes", "github", "okta", "microsoft", "salesforce") || input.Generation < 1 || !validRecoveryProjectionProductID(input.SnapshotID) || !validRecoveryDigest(input.CandidateDigest) || !validRecoveryDigest(input.ManifestChecksum) || input.ManifestSizeBytes < 1 || input.ManifestSizeBytes > 512<<20 || !validRecoveryProjectionText(input.ManifestReference, 2048) || !validRecoveryProjectionText(input.ManifestKey, 1024) || !validRecoveryProjectionText(input.ManifestVersionID, 1024) || !validRecoveryProjectionText(input.ManifestMediaType, 128) || !validRecoveryProjectionText(input.ManifestSchemaVersion, 64) || !validRecoveryProjectionText(input.ParserVersion, 64) || !validRecoveryProjectionText(input.ToolVersion, 64) || key <= previousInput {
+			if !stringInWorker(input.Source, "aws", "kubernetes", "github", "okta", "microsoft", "salesforce", "saas") || input.Generation < 1 || !validRecoveryProjectionProductID(input.SnapshotID) || !validRecoveryDigest(input.CandidateDigest) || !validRecoveryDigest(input.ManifestChecksum) || input.ManifestSizeBytes < 1 || input.ManifestSizeBytes > 512<<20 || !validRecoveryProjectionText(input.ManifestReference, 2048) || !validRecoveryProjectionText(input.ManifestKey, 1024) || !validRecoveryProjectionText(input.ManifestVersionID, 1024) || !validRecoveryProjectionText(input.ManifestMediaType, 128) || !validRecoveryProjectionText(input.ManifestSchemaVersion, 64) || !validRecoveryProjectionText(input.ParserVersion, 64) || !validRecoveryProjectionText(input.ToolVersion, 64) || key <= previousInput {
 				return false
 			}
 			previousInput = key
