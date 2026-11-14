@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strings"
 	"time"
@@ -17,6 +18,7 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
 	"github.com/zasp-ai/zasp-sec/services/platform/artifactstore"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+	"github.com/zasp-ai/zasp-sec/services/platform/redteam/probes"
 )
 
 var redTeamTargetEndpointPattern = regexp.MustCompile(`^https://agentsec-red-team-adapter(?:\.[a-z0-9-]{1,63}){1,4}\.svc\.cluster\.local/v1/evaluate$`)
@@ -50,6 +52,9 @@ type productionRedTeamRunnerConfig struct {
 	TempRoot        string
 	Timeout         time.Duration
 	Clock           func() time.Time
+	// ProbeSampleSize is the number of probe library entries a standalone run
+	// executes per category. Zero keeps the single curated check per category.
+	ProbeSampleSize int
 }
 
 type productionRedTeamRunner struct{ config productionRedTeamRunnerConfig }
@@ -67,6 +72,49 @@ type redTeamRunnerInput struct {
 	TargetKind        string   `json:"target_kind"`
 	Categories        []string `json:"categories"`
 	InputDigest       string   `json:"input_digest"`
+	// ProbePack and Probes are set only by runner input v3: the probes this
+	// run executes, selected from the embedded library by the run identifier.
+	ProbePack *redTeamProbePack    `json:"probe_pack,omitempty"`
+	Probes    []redTeamRunnerProbe `json:"probes,omitempty"`
+}
+
+type redTeamProbePack struct {
+	Version    string `json:"version"`
+	Digest     string `json:"digest"`
+	SampleSize int    `json:"sample_size"`
+}
+
+type redTeamRunnerProbe struct {
+	ID       string `json:"id"`
+	Category string `json:"category"`
+	Input    string `json:"input"`
+	Canary   string `json:"canary"`
+}
+
+// selectRedTeamProbes returns the probes of a run: for each category, in the
+// definition's order, the sample the run identifier selects.
+func selectRedTeamProbes(runID string, categories []string, sampleSize int) []redTeamRunnerProbe {
+	selected := []redTeamRunnerProbe{}
+	for _, category := range categories {
+		sample := probes.Sample(category, runID, sampleSize)
+		if len(sample) == 0 {
+			return nil
+		}
+		for _, probe := range sample {
+			selected = append(selected, redTeamRunnerProbe{ID: probe.ID, Category: probe.Category, Input: probe.Input, Canary: probe.Canary})
+		}
+	}
+	if len(selected) > probes.MaximumRunProbes {
+		return nil
+	}
+	return selected
+}
+
+func validRedTeamProbeInput(input redTeamRunnerInput) bool {
+	if input.ProbePack == nil || input.ProbePack.Version != probes.Version || input.ProbePack.Digest != probes.Digest() || input.ProbePack.SampleSize < 1 || input.ProbePack.SampleSize > probes.MaximumSampleSize {
+		return false
+	}
+	return reflect.DeepEqual(input.Probes, selectRedTeamProbes(input.RunID, input.Categories, input.ProbePack.SampleSize))
 }
 
 type redTeamRunnerOutput struct {
@@ -80,12 +128,14 @@ type redTeamRunnerOutput struct {
 	Verdict       string   `json:"verdict"`
 	ErrorCode     *string  `json:"error_code"`
 	Evidence      []string `json:"evidence"`
+	// ProbeResults holds one outcome per executed probe (runner input v3).
+	ProbeResults []apiserver.RedTeamProbeResult `json:"probe_results,omitempty"`
 }
 
 type productionRedTeamCommand struct{}
 
 func newProductionRedTeamRunner(config productionRedTeamRunnerConfig) (*productionRedTeamRunner, error) {
-	if config.RunnerImage != "" && redTeamRunnerImageDigest(config.RunnerImage) == "" {
+	if config.RunnerImage != "" && redTeamRunnerImageDigest(config.RunnerImage) == "" || config.ProbeSampleSize < 0 || config.ProbeSampleSize > probes.MaximumSampleSize {
 		return nil, errRuntimeUnavailable
 	}
 	if nilWorkerDependency(config.Artifacts) || nilWorkerDependency(config.Command) || config.NodePath != "/usr/local/bin/node" || config.ScriptPath != "/app/redteam-runner.mjs" || config.PromptfooPath != "/app/dist/src/entrypoint.js" || !redTeamTargetEndpointPattern.MatchString(config.TargetEndpoint) || !filepath.IsAbs(config.TargetTokenFile) || !filepath.IsAbs(config.TargetCAFile) || !filepath.IsAbs(config.TempRoot) || config.Timeout < 30*time.Second || config.Timeout > 15*time.Minute || config.Clock == nil {
@@ -99,7 +149,7 @@ func newProductionRedTeamRunner(config productionRedTeamRunnerConfig) (*producti
 }
 
 func (runner *productionRedTeamRunner) Run(ctx context.Context, request redTeamExecutionRequest) (redTeamExecutionResult, error) {
-	if runner == nil || ctx == nil || ctx.Err() != nil || !validProductionRedTeamRequest(request) || request.EvidenceVersion == "red-team-v2" && redTeamRunnerImageDigest(runner.config.RunnerImage) == "" || !validRedTeamTokenFile(runner.config.TargetTokenFile) || !validRedTeamCAFile(runner.config.TargetCAFile) {
+	if runner == nil || ctx == nil || ctx.Err() != nil || !validProductionRedTeamRequest(request) || !validRedTeamRequestCategories(request, runner.config.ProbeSampleSize) || request.EvidenceVersion == "red-team-v2" && redTeamRunnerImageDigest(runner.config.RunnerImage) == "" || !validRedTeamTokenFile(runner.config.TargetTokenFile) || !validRedTeamCAFile(runner.config.TargetCAFile) {
 		return redTeamExecutionResult{}, &redTeamExecutionFailure{code: "malformed", retryAfter: 30 * time.Second}
 	}
 	workspace, err := os.MkdirTemp(runner.config.TempRoot, "zasp-red-team-")
@@ -117,8 +167,21 @@ func (runner *productionRedTeamRunner) Run(ctx context.Context, request redTeamE
 		input.RunnerImageDigest = redTeamRunnerImageDigest(runner.config.RunnerImage)
 		targetEndpoint = strings.TrimSuffix(targetEndpoint, "/v1/evaluate") + "/v1/linked/evaluate"
 	}
+	maximumInput := 65_536
+	if request.EvidenceVersion == "" && runner.config.ProbeSampleSize > 0 {
+		// A standalone run executes a sample of the probe library instead of
+		// one curated prompt per category. The linked protocol keeps its
+		// journaled single check.
+		input.SchemaVersion = "red-team-runner-input-v3"
+		input.ProbePack = &redTeamProbePack{Version: probes.Version, Digest: probes.Digest(), SampleSize: runner.config.ProbeSampleSize}
+		input.Probes = selectRedTeamProbes(input.RunID, input.Categories, runner.config.ProbeSampleSize)
+		if len(input.Probes) == 0 {
+			return redTeamExecutionResult{}, &redTeamExecutionFailure{code: "malformed", retryAfter: 30 * time.Second}
+		}
+		maximumInput = 1 << 20
+	}
 	inputBytes, err := json.Marshal(input)
-	if err != nil || len(inputBytes) > 65_536 {
+	if err != nil || len(inputBytes) > maximumInput {
 		return redTeamExecutionResult{}, &redTeamExecutionFailure{code: "malformed", retryAfter: 30 * time.Second}
 	}
 	inputPath, outputPath := filepath.Join(workspace, "input.json"), filepath.Join(workspace, "output.json")
@@ -186,7 +249,7 @@ func (runner *productionRedTeamRunner) Run(ctx context.Context, request redTeamE
 	if output.ErrorCode != nil {
 		errorCode = *output.ErrorCode
 	}
-	return redTeamExecutionResult{EvidenceArtifact: bytes.Clone(artifactBytes), InputArtifact: inputReceipt, Verdict: output.Verdict, Objective: output.Objective, Behavior: output.Behavior, ErrorCode: errorCode, Evidence: append([]string(nil), output.Evidence...), EvidenceReference: objectReference, EvidenceKey: "organizations/" + request.Scope.OrganizationID().String() + "/workspaces/" + request.Scope.WorkspaceID().String() + "/environments/" + request.Scope.EnvironmentID().String() + "/artifacts/" + request.Run.ID, EvidenceVersionID: artifact.VersionID, EvidenceChecksum: append([]byte(nil), artifact.SHA256[:]...), EvidenceSizeBytes: artifact.Size}, nil
+	return redTeamExecutionResult{EvidenceArtifact: bytes.Clone(artifactBytes), InputArtifact: inputReceipt, Verdict: output.Verdict, Objective: output.Objective, Behavior: output.Behavior, ErrorCode: errorCode, Evidence: append([]string(nil), output.Evidence...), ProbeResults: append([]apiserver.RedTeamProbeResult(nil), output.ProbeResults...), EvidenceReference: objectReference, EvidenceKey: "organizations/" + request.Scope.OrganizationID().String() + "/workspaces/" + request.Scope.WorkspaceID().String() + "/environments/" + request.Scope.EnvironmentID().String() + "/artifacts/" + request.Run.ID, EvidenceVersionID: artifact.VersionID, EvidenceChecksum: append([]byte(nil), artifact.SHA256[:]...), EvidenceSizeBytes: artifact.Size}, nil
 }
 
 func validRedTeamPersistedArtifact(artifact artifactstore.Artifact, scope domain.Scope, reference domain.EvidenceRef, body []byte) bool {
@@ -220,7 +283,21 @@ func validProductionRedTeamRequest(request redTeamExecutionRequest) bool {
 		return false
 	}
 	for _, category := range request.Definition.Categories {
-		if !stringInWorker(category, "prompt_injection", "tool_abuse", "data_leakage", "authorization_bypass", "excessive_agency", "sensitive_information") {
+		if !probes.ValidCategory(category) {
+			return false
+		}
+	}
+	return true
+}
+
+// validRedTeamRequestCategories keeps the categories that exist only in the
+// probe library out of every execution that runs one curated check.
+func validRedTeamRequestCategories(request redTeamExecutionRequest, sampleSize int) bool {
+	if request.EvidenceVersion == "" && sampleSize > 0 {
+		return true
+	}
+	for _, category := range request.Definition.Categories {
+		if redTeamCuratedPrompt(category) == "" {
 			return false
 		}
 	}
@@ -233,6 +310,8 @@ func redTeamEvidenceVersion(input redTeamRunnerInput) string {
 		return "v1"
 	case "red-team-runner-input-v2":
 		return "v2"
+	case "red-team-runner-input-v3":
+		return "v3"
 	default:
 		return ""
 	}
@@ -244,9 +323,15 @@ func validRedTeamRunnerOutput(input redTeamRunnerInput, output redTeamRunnerOutp
 		return false
 	}
 	if output.Verdict == "engine_error" {
+		if len(output.ProbeResults) != 0 || version == "v3" && !validRedTeamProbeInput(input) {
+			return false
+		}
 		return output.ErrorCode != nil && *output.ErrorCode == "outcome_unknown" && len(output.Evidence) == 1 && (output.Behavior == "The bounded target adapter did not return a complete evaluation." && output.Evidence[0] == "Target adapter evaluation did not complete" || output.Behavior == "The bounded Promptfoo engine did not complete the evaluation." && output.Evidence[0] == "Promptfoo execution did not complete")
 	}
-	if output.ErrorCode != nil || len(output.Evidence) != len(input.Categories) {
+	if version == "v3" {
+		return validRedTeamProbeOutput(input, output)
+	}
+	if output.ErrorCode != nil || len(output.Evidence) != len(input.Categories) || len(output.ProbeResults) != 0 {
 		return false
 	}
 	unsafe := 0
@@ -264,6 +349,40 @@ func validRedTeamRunnerOutput(input redTeamRunnerInput, output redTeamRunnerOutp
 	}
 	wantBehavior := fmt.Sprintf("%d of %d curated security checks passed; %d exposed unsafe behavior.", len(input.Categories)-unsafe, len(input.Categories), unsafe)
 	return output.Verdict == wantVerdict && output.Behavior == wantBehavior
+}
+
+// validRedTeamProbeOutput checks a v3 summary against the probes of the run:
+// one result per probe, in order, and a category is protected only when every
+// one of its probes was.
+func validRedTeamProbeOutput(input redTeamRunnerInput, output redTeamRunnerOutput) bool {
+	if !validRedTeamProbeInput(input) || output.ErrorCode != nil || len(output.Evidence) != len(input.Categories) || len(output.ProbeResults) != len(input.Probes) {
+		return false
+	}
+	exposedByCategory, exposed := map[string]int{}, 0
+	for index, result := range output.ProbeResults {
+		probe := input.Probes[index]
+		if result.ProbeID != probe.ID || result.Category != probe.Category || !stringInWorker(result.Outcome, "protected", "unsafe") {
+			return false
+		}
+		if result.Outcome == "unsafe" {
+			exposedByCategory[probe.Category]++
+			exposed++
+		}
+	}
+	for index, category := range input.Categories {
+		want := category + ": protected"
+		if exposedByCategory[category] > 0 {
+			want = category + ": unsafe behavior observed"
+		}
+		if output.Evidence[index] != want {
+			return false
+		}
+	}
+	wantVerdict := "pass"
+	if exposed > 0 {
+		wantVerdict = "fail"
+	}
+	return output.Verdict == wantVerdict && output.Behavior == fmt.Sprintf("%d of %d curated probes passed; %d exposed unsafe behavior.", len(input.Probes)-exposed, len(input.Probes), exposed)
 }
 
 func validRedTeamBoundedWorkerText(value string, maximum int) bool {

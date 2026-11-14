@@ -2330,6 +2330,26 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/test-probes": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Describe the red team probe library
+         * @description Counts, techniques and framework tags per category of the reviewed probe library built into this release. Probe text is never returned.
+         */
+        readonly get: operations["getTestProbeCatalog"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/test-runs": {
         readonly parameters: {
             readonly query?: never;
@@ -2436,6 +2456,32 @@ export type paths = {
         readonly put?: never;
         /** Queue one durable red team run */
         readonly post: operations["runTest"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/tests/{id}/schedule": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        /**
+         * Get the continuous re-test schedule of one red team definition
+         * @description A definition without a saved schedule answers with version 0 and enabled false.
+         */
+        readonly get: operations["getTestSchedule"];
+        /**
+         * Create or replace the continuous re-test schedule of one red team definition
+         * @description The schedule re-runs the definition on a cadence, when the inventory record of its target changes, or both. It can be enabled only for an enabled definition that passes the non-production safety rule, which is checked again before every scheduled run. expected_version is the version last read (0 when none was saved).
+         */
+        readonly put: operations["putTestSchedule"];
+        readonly post?: never;
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
@@ -5137,11 +5183,13 @@ export type components = {
             readonly evidence_reference: string;
             readonly input_artifact?: components["schemas"]["TestInputArtifact"];
             readonly objective: string;
+            /** @description The probes of the probe library this attempt executed, in execution order, with their outcome. Empty for an attempt that ran one curated check per category. */
+            readonly probe_results: readonly components["schemas"]["TestProbeResult"][];
             /** @enum {string} */
             readonly verdict: "pass" | "fail" | "engine_error";
         };
         readonly TestDefinition: {
-            readonly categories: readonly ("prompt_injection" | "tool_abuse" | "data_leakage" | "authorization_bypass" | "excessive_agency" | "sensitive_information")[];
+            readonly categories: readonly ("prompt_injection" | "tool_abuse" | "data_leakage" | "authorization_bypass" | "excessive_agency" | "sensitive_information" | "indirect_injection" | "poisoned_resource" | "cross_agent_delegation")[];
             /** Format: date-time */
             readonly created_at: string;
             readonly enabled: boolean;
@@ -5156,7 +5204,7 @@ export type components = {
             readonly version: number;
         };
         readonly TestDefinitionInput: {
-            readonly categories: readonly ("prompt_injection" | "tool_abuse" | "data_leakage" | "authorization_bypass" | "excessive_agency" | "sensitive_information")[];
+            readonly categories: readonly ("prompt_injection" | "tool_abuse" | "data_leakage" | "authorization_bypass" | "excessive_agency" | "sensitive_information" | "indirect_injection" | "poisoned_resource" | "cross_agent_delegation")[];
             readonly id: components["schemas"]["ProductID"];
             readonly name: string;
             readonly safety: components["schemas"]["SafetyMetadata"];
@@ -5169,7 +5217,7 @@ export type components = {
             readonly next_cursor?: string;
         };
         readonly TestDefinitionUpdateInput: {
-            readonly categories: readonly ("prompt_injection" | "tool_abuse" | "data_leakage" | "authorization_bypass" | "excessive_agency" | "sensitive_information")[];
+            readonly categories: readonly ("prompt_injection" | "tool_abuse" | "data_leakage" | "authorization_bypass" | "excessive_agency" | "sensitive_information" | "indirect_injection" | "poisoned_resource" | "cross_agent_delegation")[];
             readonly enabled: boolean;
             readonly name: string;
             readonly safety: components["schemas"]["SafetyMetadata"];
@@ -5182,6 +5230,28 @@ export type components = {
             readonly sha256: string;
             readonly size_bytes: number;
             readonly version_id: string;
+        };
+        readonly TestProbeCatalog: {
+            readonly categories: readonly components["schemas"]["TestProbeCategory"][];
+            readonly default_sample_size: number;
+            readonly digest: string;
+            readonly probe_count: number;
+            readonly version: string;
+        };
+        readonly TestProbeCategory: {
+            /** @enum {string} */
+            readonly category: "prompt_injection" | "tool_abuse" | "data_leakage" | "authorization_bypass" | "excessive_agency" | "sensitive_information" | "indirect_injection" | "poisoned_resource" | "cross_agent_delegation";
+            readonly frameworks: readonly components["schemas"]["FindingFrameworkReference"][];
+            readonly probe_count: number;
+            readonly techniques: readonly string[];
+            readonly title: string;
+        };
+        readonly TestProbeResult: {
+            /** @enum {string} */
+            readonly category: "prompt_injection" | "tool_abuse" | "data_leakage" | "authorization_bypass" | "excessive_agency" | "sensitive_information" | "indirect_injection" | "poisoned_resource" | "cross_agent_delegation";
+            /** @enum {string} */
+            readonly outcome: "protected" | "unsafe";
+            readonly probe_id: string;
         };
         readonly TestRun: {
             readonly attempt: number;
@@ -5232,6 +5302,30 @@ export type components = {
         readonly TestRunPage: {
             readonly items: readonly components["schemas"]["TestRun"][];
             readonly next_cursor?: string;
+        };
+        readonly TestSchedule: {
+            readonly cadence_seconds: number | null;
+            readonly definition_id: components["schemas"]["ProductID"];
+            readonly enabled: boolean;
+            /** Format: date-time */
+            readonly last_fired_at: string | null;
+            /** @enum {string|null} */
+            readonly last_outcome: "queued" | "rejected" | "skipped_active" | null;
+            readonly last_run_id: components["schemas"]["ProductID"] | null;
+            /** @enum {string|null} */
+            readonly last_trigger: "cadence" | "target_change" | null;
+            /** Format: date-time */
+            readonly next_run_at: string | null;
+            readonly on_target_change: boolean;
+            /** Format: date-time */
+            readonly updated_at: string | null;
+            readonly version: number;
+        };
+        readonly TestScheduleInput: {
+            readonly cadence_seconds?: number;
+            readonly enabled: boolean;
+            readonly expected_version: number;
+            readonly on_target_change: boolean;
         };
         readonly WorkflowMutationIntent: {
             readonly body: components["schemas"]["Policy"] | components["schemas"]["PolicyRolloutInput"] | components["schemas"]["EmptyInput"] | components["schemas"]["IntegrationInput"] | components["schemas"]["IntegrationUpdateInput"] | components["schemas"]["IntegrationAuthorizationRemediationInput"] | components["schemas"]["SecurityAgentInput"] | components["schemas"]["SecurityAgentDefinition"] | components["schemas"]["FindingUpdateInput"] | components["schemas"]["FindingAcceptanceInput"];
@@ -5622,10 +5716,15 @@ export type TestDefinitionInput = components['schemas']['TestDefinitionInput'];
 export type TestDefinitionPage = components['schemas']['TestDefinitionPage'];
 export type TestDefinitionUpdateInput = components['schemas']['TestDefinitionUpdateInput'];
 export type TestInputArtifact = components['schemas']['TestInputArtifact'];
+export type TestProbeCatalog = components['schemas']['TestProbeCatalog'];
+export type TestProbeCategory = components['schemas']['TestProbeCategory'];
+export type TestProbeResult = components['schemas']['TestProbeResult'];
 export type TestRun = components['schemas']['TestRun'];
 export type TestRunDetail = components['schemas']['TestRunDetail'];
 export type TestRunInput = components['schemas']['TestRunInput'];
 export type TestRunPage = components['schemas']['TestRunPage'];
+export type TestSchedule = components['schemas']['TestSchedule'];
+export type TestScheduleInput = components['schemas']['TestScheduleInput'];
 export type WorkflowMutationIntent = components['schemas']['WorkflowMutationIntent'];
 export type WorkflowMutationReceipt = components['schemas']['WorkflowMutationReceipt'];
 export type WorkflowMutationReceiptPage = components['schemas']['WorkflowMutationReceiptPage'];
@@ -10355,6 +10454,29 @@ export interface operations {
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
+    readonly getTestProbeCatalog: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Red team probe library. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["TestProbeCatalog"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
     readonly listTestRuns: {
         readonly parameters: {
             readonly query?: {
@@ -10622,6 +10744,71 @@ export interface operations {
                 };
                 content: {
                     readonly "application/json": components["schemas"]["TestRun"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getTestSchedule: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Red team schedule. */
+            readonly 200: {
+                headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["TestSchedule"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly putTestSchedule: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: {
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
+                readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
+                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["TestScheduleInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Saved red team schedule. */
+            readonly 200: {
+                headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["TestSchedule"];
                 };
             };
             readonly 400: components["responses"]["ProductErrorResponse"];

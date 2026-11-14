@@ -3935,3 +3935,279 @@ BEGIN
   EXECUTE format('GRANT EXECUTE ON FUNCTION zasp_authorization80.%s TO zasp_discovery_api',f);
  END LOOP;
 END $webhook_grants$;
+
+-- ---------------------------------------------------------------------------
+-- WS2 (plan tasks F1, F2, F3). Red team probe library, agentic categories and
+-- continuous re-test.
+--
+-- WS2a. Categories. A test could name six categories, each with one curated
+-- prompt. The probe library adds three agentic categories that exist only as
+-- probes: indirect_injection (through tool or MCP output), poisoned_resource
+-- and cross_agent_delegation. Tool misuse stays tool_abuse; it is not a
+-- second category.
+--
+-- Only the two functions of the standalone run accept the new names: the
+-- definition check and the leased target resolution. The journaled existing
+-- test protocols of the Security Agent keep the six categories and their one
+-- pinned prompt, so a definition with a new category is refused there, closed.
+-- The safety rule (development, test or staging; read_only or test_write) is
+-- the same text in the same function and is not touched.
+--
+-- Re-run: a function that already holds the nine names is left alone; one
+-- that does not hold exactly the six names once is refused.
+DO $ws2_red_team_probe_categories$
+DECLARE
+ earlier CONSTANT text:=$list$('prompt_injection','tool_abuse','data_leakage','authorization_bypass','excessive_agency','sensitive_information')$list$;
+ current_list CONSTANT text:=$list$('prompt_injection','tool_abuse','data_leakage','authorization_bypass','excessive_agency','sensitive_information','indirect_injection','poisoned_resource','cross_agent_delegation')$list$;
+ target regprocedure;d text;
+BEGIN
+ FOREACH target IN ARRAY ARRAY['public.zasp_red_team_definition_valid(text,text,text,jsonb,jsonb)'::regprocedure,'public.zasp_red_team_resolve_invocation(text,text,text,text,text,text,text,text)'::regprocedure] LOOP
+  d:=pg_get_functiondef(target);
+  IF position(current_list in d)>0 THEN CONTINUE;END IF;
+  IF (length(d)-length(replace(d,earlier,'')))/length(earlier)<>1 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='red team category predecessor changed';END IF;
+  EXECUTE replace(d,earlier,current_list);
+ END LOOP;
+END $ws2_red_team_probe_categories$;
+
+-- WS2b. Which probes ran, and their outcome.
+--
+-- A standalone run executes a sample of the probe library per category. The
+-- run's evidence lines stay one per category (a category is protected only
+-- when every sampled probe was); zasp_red_team_probe_results holds one row
+-- per executed probe of an attempt: the probe identifier, its category and
+-- protected or unsafe. It never holds a prompt or an answer.
+--
+-- zasp_red_team_record_probe_results is called by the red team worker under
+-- the lease of the run, before it finishes the run; it replaces the rows of
+-- the leased attempt. zasp_red_team_get_run returns the rows of each attempt
+-- as probe_results (an empty array for an attempt that ran one curated check
+-- per category, which is every attempt recorded before this section).
+DO $ws2_red_team_probe_results$
+DECLARE
+ get_run CONSTANT regprocedure:='public.zasp_red_team_get_run(text,text,text,text)'::regprocedure;
+ anchor CONSTANT text:=$anchor$'completed_at',to_char(completed_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"')) ORDER BY attempt)$anchor$;
+ patched CONSTANT text:=$patched$'completed_at',to_char(completed_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),'probe_results',(SELECT COALESCE(jsonb_agg(jsonb_build_object('probe_id',probe_row.probe_id,'category',probe_row.category,'outcome',probe_row.outcome) ORDER BY probe_row.ordinal),'[]'::jsonb) FROM zasp_red_team_probe_results probe_row WHERE (probe_row.organization_id,probe_row.workspace_id,probe_row.environment_id,probe_row.run_id,probe_row.attempt)=(organization_value,workspace_value,environment_value,run_value,zasp_red_team_attempts.attempt))) ORDER BY attempt)$patched$;
+ owner_value text;d text;
+BEGIN
+ SELECT pg_get_userbyid(relowner) INTO STRICT owner_value FROM pg_class WHERE oid='public.zasp_red_team_runs'::regclass;
+ CREATE TABLE IF NOT EXISTS public.zasp_red_team_probe_results(
+  organization_id text NOT NULL,workspace_id text NOT NULL,environment_id text NOT NULL,run_id text NOT NULL,attempt integer NOT NULL,ordinal integer NOT NULL,
+  probe_id text NOT NULL,category text NOT NULL,outcome text NOT NULL,recorded_at timestamptz NOT NULL DEFAULT transaction_timestamp(),
+  PRIMARY KEY(organization_id,workspace_id,environment_id,run_id,attempt,probe_id),
+  UNIQUE(organization_id,workspace_id,environment_id,run_id,attempt,ordinal),
+  FOREIGN KEY(organization_id,workspace_id,environment_id,run_id) REFERENCES public.zasp_red_team_runs(organization_id,workspace_id,environment_id,run_id) ON DELETE CASCADE,
+  CONSTRAINT zasp_red_team_probe_results_attempt_check CHECK(attempt BETWEEN 1 AND 5),
+  CONSTRAINT zasp_red_team_probe_results_ordinal_check CHECK(ordinal BETWEEN 1 AND 480),
+  CONSTRAINT zasp_red_team_probe_results_probe_check CHECK(length(probe_id)<=128 AND probe_id~'^zasp(\.[a-z][a-z_]{2,40}){4}\.v1$'),
+  CONSTRAINT zasp_red_team_probe_results_category_check CHECK(category IN('prompt_injection','tool_abuse','data_leakage','authorization_bypass','excessive_agency','sensitive_information','indirect_injection','poisoned_resource','cross_agent_delegation')),
+  CONSTRAINT zasp_red_team_probe_results_outcome_check CHECK(outcome IN('protected','unsafe')));
+ EXECUTE format('ALTER TABLE public.zasp_red_team_probe_results OWNER TO %I',owner_value);
+ ALTER TABLE public.zasp_red_team_probe_results ENABLE ROW LEVEL SECURITY;
+ REVOKE ALL ON TABLE public.zasp_red_team_probe_results FROM PUBLIC;
+
+ CREATE OR REPLACE FUNCTION public.zasp_red_team_record_probe_results(organization_value text,workspace_value text,environment_value text,run_value text,worker_value text,token_value bytea,results_value jsonb) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $record$
+ DECLARE run_row zasp_red_team_runs%ROWTYPE;categories_value jsonb;recorded integer;
+ BEGIN
+  IF NOT COALESCE(zasp_red_team_principal_ready('zasp_red_team_worker') AND zasp_valid_product_id(organization_value) AND zasp_valid_product_id(workspace_value) AND zasp_valid_product_id(environment_value) AND zasp_valid_product_id(run_value)
+   AND octet_length(token_value)=32 AND jsonb_typeof(results_value)='array' AND jsonb_array_length(results_value) BETWEEN 1 AND 480,false) THEN
+   RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='red team probe results rejected';
+  END IF;
+  SELECT * INTO run_row FROM zasp_red_team_runs WHERE (organization_id,workspace_id,environment_id,run_id,state)=(organization_value,workspace_value,environment_value,run_value,'leased')
+   AND worker_id=worker_value AND lease_token=token_value AND lease_expires_at>transaction_timestamp() FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='red team run lease lost';END IF;
+  SELECT categories INTO categories_value FROM zasp_red_team_definitions WHERE (organization_id,workspace_id,environment_id,definition_id,version)=(organization_value,workspace_value,environment_value,run_row.definition_id,run_row.definition_version);
+  IF NOT FOUND OR EXISTS(SELECT 1 FROM jsonb_array_elements(results_value) item WHERE jsonb_typeof(item)<>'object' OR NOT item ?& ARRAY['probe_id','category','outcome'] OR item-ARRAY['probe_id','category','outcome']<>'{}'::jsonb
+    OR jsonb_typeof(item->'probe_id')<>'string' OR jsonb_typeof(item->'category')<>'string' OR jsonb_typeof(item->'outcome')<>'string'
+    OR NOT categories_value ? (item->>'category') OR position('zasp.'||(item->>'category')||'.' in item->>'probe_id')<>1 OR item->>'outcome' NOT IN('protected','unsafe'))
+   OR (SELECT count(*)<>count(DISTINCT item->>'probe_id') FROM jsonb_array_elements(results_value) item) THEN
+   RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='red team probe results rejected';
+  END IF;
+  DELETE FROM zasp_red_team_probe_results WHERE (organization_id,workspace_id,environment_id,run_id,attempt)=(organization_value,workspace_value,environment_value,run_value,run_row.attempt);
+  INSERT INTO zasp_red_team_probe_results(organization_id,workspace_id,environment_id,run_id,attempt,ordinal,probe_id,category,outcome)
+   SELECT organization_value,workspace_value,environment_value,run_value,run_row.attempt,item.ordinality,item.value->>'probe_id',item.value->>'category',item.value->>'outcome' FROM jsonb_array_elements(results_value) WITH ORDINALITY item;
+  GET DIAGNOSTICS recorded=ROW_COUNT;
+  RETURN jsonb_build_object('recorded',recorded);
+ END $record$;
+ EXECUTE format('ALTER FUNCTION public.zasp_red_team_record_probe_results(text,text,text,text,text,bytea,jsonb) OWNER TO %I',owner_value);
+ REVOKE ALL ON FUNCTION public.zasp_red_team_record_probe_results(text,text,text,text,text,bytea,jsonb) FROM PUBLIC;
+ GRANT EXECUTE ON FUNCTION public.zasp_red_team_record_probe_results(text,text,text,text,text,bytea,jsonb) TO zasp_red_team_worker;
+
+ d:=pg_get_functiondef(get_run);
+ IF position('probe_results' in d)=0 THEN
+  IF (length(d)-length(replace(d,anchor,'')))/length(anchor)<>1 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='red team run detail predecessor changed';END IF;
+  EXECUTE replace(d,anchor,patched);
+ ELSIF position(patched in d)=0 THEN
+  RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='red team run detail predecessor changed';
+ END IF;
+END $ws2_red_team_probe_results$;
+
+-- WS2c. Continuous re-test.
+--
+-- zasp_red_team_schedules holds at most one schedule per test definition: a
+-- cadence (one hour to 31 days), a re-test when the inventory record of the
+-- target changes, or both. The change is a change of content: the kind, the
+-- state, the stable fields or the winning attributes of the target entity
+-- (zasp_red_team_target_fingerprint), not a newer observation time.
+--
+-- zasp_red_team_get_schedule and zasp_red_team_put_schedule are the API. A
+-- schedule can be enabled only while the definition is enabled and passes
+-- zasp_red_team_safety_authorized, the unchanged non-production rule.
+--
+-- zasp_red_team_fire_due_schedules is called by the scheduler worker on a
+-- timer, next to the discovery schedules. For each due schedule it queues a
+-- run exactly as zasp_red_team_run_test does (the run, its outbox row and the
+-- red_team_run_queued audit event), requested by the person who last saved
+-- the schedule, and only if the definition is still enabled and still passes
+-- zasp_red_team_safety_authorized. A definition that no longer passes is not
+-- run; the schedule records 'rejected' and waits for its next occurrence. A
+-- definition with a run still queued, leased or retryable is not queued
+-- again: a cadence occurrence is skipped, a target change is kept for the
+-- next sweep.
+DO $ws2_red_team_schedules$
+DECLARE owner_value text;guard_value text:='';api_role text;
+BEGIN
+ SELECT pg_get_userbyid(relowner) INTO STRICT owner_value FROM pg_class WHERE oid='public.zasp_red_team_definitions'::regclass;
+ -- The authorized API reaches direct functions only inside a checked request
+ -- (section X3). An installation without that schema has no such requests.
+ IF to_regprocedure('zasp_authorization80.direct_guard(text,text,text,text)') IS NOT NULL THEN
+  guard_value:=' PERFORM zasp_authorization80.direct_guard(organization_value,workspace_value,environment_value,actor_value);';
+ END IF;
+ CREATE TABLE IF NOT EXISTS public.zasp_red_team_schedules(
+  organization_id text NOT NULL,workspace_id text NOT NULL,environment_id text NOT NULL,definition_id text NOT NULL,
+  version bigint NOT NULL DEFAULT 1,enabled boolean NOT NULL,cadence_seconds integer,on_target_change boolean NOT NULL,
+  next_run_at timestamptz,target_fingerprint text,last_run_id text,last_trigger text,last_outcome text,last_fired_at timestamptz,
+  updated_by text NOT NULL,created_at timestamptz NOT NULL DEFAULT transaction_timestamp(),updated_at timestamptz NOT NULL DEFAULT transaction_timestamp(),
+  PRIMARY KEY(organization_id,workspace_id,environment_id,definition_id),
+  FOREIGN KEY(organization_id,workspace_id,environment_id,definition_id) REFERENCES public.zasp_red_team_definitions(organization_id,workspace_id,environment_id,definition_id) ON DELETE CASCADE,
+  CONSTRAINT zasp_red_team_schedules_version_check CHECK(version BETWEEN 1 AND 1000000),
+  CONSTRAINT zasp_red_team_schedules_cadence_check CHECK(cadence_seconds IS NULL OR cadence_seconds BETWEEN 3600 AND 2678400),
+  CONSTRAINT zasp_red_team_schedules_trigger_check CHECK(NOT enabled OR cadence_seconds IS NOT NULL OR on_target_change),
+  CONSTRAINT zasp_red_team_schedules_next_check CHECK((enabled AND cadence_seconds IS NOT NULL)=(next_run_at IS NOT NULL)),
+  CONSTRAINT zasp_red_team_schedules_last_trigger_check CHECK(last_trigger IS NULL OR last_trigger IN('cadence','target_change')),
+  CONSTRAINT zasp_red_team_schedules_last_outcome_check CHECK(last_outcome IS NULL OR last_outcome IN('queued','rejected','skipped_active')),
+  CONSTRAINT zasp_red_team_schedules_id_check CHECK(public.zasp_valid_product_id(updated_by) AND(last_run_id IS NULL OR public.zasp_valid_product_id(last_run_id))));
+ CREATE INDEX IF NOT EXISTS zasp_red_team_schedules_due ON public.zasp_red_team_schedules(next_run_at) WHERE enabled;
+ EXECUTE format('ALTER TABLE public.zasp_red_team_schedules OWNER TO %I',owner_value);
+ ALTER TABLE public.zasp_red_team_schedules ENABLE ROW LEVEL SECURITY;
+ REVOKE ALL ON TABLE public.zasp_red_team_schedules FROM PUBLIC;
+
+ CREATE OR REPLACE FUNCTION public.zasp_red_team_target_fingerprint(organization_value text,workspace_value text,environment_value text,target_value text) RETURNS text
+ LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO pg_catalog, public AS $fingerprint$
+  SELECT encode(digest(convert_to(concat_ws(chr(31),entity.kind,entity.state,entity.stable_fields::text,COALESCE(entity.winning_attributes,'null'::jsonb)::text),'UTF8'),'sha256'),'hex')
+  FROM zasp_inventory_entities entity WHERE (entity.organization_id,entity.workspace_id,entity.environment_id,entity.id)=(organization_value,workspace_value,environment_value,target_value)
+ $fingerprint$;
+
+ CREATE OR REPLACE FUNCTION public.zasp_red_team_schedule_json(organization_value text,workspace_value text,environment_value text,definition_value text) RETURNS jsonb
+ LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO pg_catalog, public AS $schedule_json$
+  SELECT COALESCE((SELECT jsonb_build_object('definition_id',s.definition_id,'version',s.version,'enabled',s.enabled,'cadence_seconds',s.cadence_seconds,'on_target_change',s.on_target_change,
+    'next_run_at',to_char(s.next_run_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),'last_run_id',s.last_run_id,'last_trigger',s.last_trigger,'last_outcome',s.last_outcome,
+    'last_fired_at',to_char(s.last_fired_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),'updated_at',to_char(s.updated_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'))
+   FROM zasp_red_team_schedules s WHERE (s.organization_id,s.workspace_id,s.environment_id,s.definition_id)=(organization_value,workspace_value,environment_value,definition_value)),
+   jsonb_build_object('definition_id',definition_value,'version',0,'enabled',false,'cadence_seconds',NULL,'on_target_change',false,'next_run_at',NULL,'last_run_id',NULL,'last_trigger',NULL,'last_outcome',NULL,'last_fired_at',NULL,'updated_at',NULL))
+ $schedule_json$;
+
+ EXECUTE replace($get$
+ CREATE OR REPLACE FUNCTION public.zasp_red_team_get_schedule(organization_value text,workspace_value text,environment_value text,definition_value text) RETURNS jsonb
+ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path TO pg_catalog, public AS $get_schedule$
+ DECLARE actor_value text:=NULL;
+ BEGIN
+ GUARD
+  IF NOT COALESCE((pg_has_role(session_user,'zasp_security_agent_api','MEMBER') OR pg_has_role(session_user,'zasp_discovery_api','MEMBER')) AND zasp_valid_product_id(organization_value) AND zasp_valid_product_id(workspace_value) AND zasp_valid_product_id(environment_value) AND zasp_valid_product_id(definition_value),false) THEN
+   RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='red team schedule rejected';
+  END IF;
+  IF NOT EXISTS(SELECT 1 FROM zasp_red_team_definitions WHERE (organization_id,workspace_id,environment_id,definition_id)=(organization_value,workspace_value,environment_value,definition_value)) THEN
+   RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='red team definition not found';
+  END IF;
+  RETURN zasp_red_team_schedule_json(organization_value,workspace_value,environment_value,definition_value);
+ END $get_schedule$ $get$,'GUARD',guard_value);
+
+ EXECUTE replace($put$
+ CREATE OR REPLACE FUNCTION public.zasp_red_team_put_schedule(organization_value text,workspace_value text,environment_value text,actor_value text,definition_value text,expected_version_value bigint,enabled_value boolean,cadence_value integer,on_target_change_value boolean) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $put_schedule$
+ DECLARE definition_row zasp_red_team_definitions%ROWTYPE;current_version bigint;
+ BEGIN
+ GUARD
+  IF NOT COALESCE((pg_has_role(session_user,'zasp_security_agent_api','MEMBER') OR pg_has_role(session_user,'zasp_discovery_api','MEMBER')) AND zasp_valid_product_id(organization_value) AND zasp_valid_product_id(workspace_value) AND zasp_valid_product_id(environment_value) AND zasp_valid_product_id(actor_value) AND zasp_valid_product_id(definition_value)
+   AND expected_version_value BETWEEN 0 AND 999999 AND enabled_value IS NOT NULL AND on_target_change_value IS NOT NULL AND (cadence_value IS NULL OR cadence_value BETWEEN 3600 AND 2678400) AND (NOT enabled_value OR cadence_value IS NOT NULL OR on_target_change_value),false) THEN
+   RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='red team schedule rejected';
+  END IF;
+  SELECT * INTO definition_row FROM zasp_red_team_definitions WHERE (organization_id,workspace_id,environment_id,definition_id)=(organization_value,workspace_value,environment_value,definition_value) FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='red team definition not found';END IF;
+  IF enabled_value AND NOT (definition_row.enabled AND zasp_red_team_safety_authorized(organization_value,workspace_value,environment_value,definition_row.target_id,definition_row.target_kind,definition_row.safety)) THEN
+   RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='red team schedule rejected';
+  END IF;
+  SELECT COALESCE((SELECT version FROM zasp_red_team_schedules WHERE (organization_id,workspace_id,environment_id,definition_id)=(organization_value,workspace_value,environment_value,definition_value)),0) INTO current_version;
+  IF current_version<>expected_version_value THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='red team schedule version conflict';END IF;
+  INSERT INTO zasp_red_team_schedules(organization_id,workspace_id,environment_id,definition_id,enabled,cadence_seconds,on_target_change,next_run_at,target_fingerprint,updated_by)
+   VALUES(organization_value,workspace_value,environment_value,definition_value,enabled_value,cadence_value,on_target_change_value,
+    CASE WHEN enabled_value AND cadence_value IS NOT NULL THEN transaction_timestamp()+make_interval(secs=>cadence_value) END,
+    zasp_red_team_target_fingerprint(organization_value,workspace_value,environment_value,definition_row.target_id),actor_value)
+  ON CONFLICT(organization_id,workspace_id,environment_id,definition_id) DO UPDATE SET version=zasp_red_team_schedules.version+1,enabled=EXCLUDED.enabled,cadence_seconds=EXCLUDED.cadence_seconds,on_target_change=EXCLUDED.on_target_change,
+   next_run_at=EXCLUDED.next_run_at,target_fingerprint=EXCLUDED.target_fingerprint,updated_by=EXCLUDED.updated_by,updated_at=transaction_timestamp();
+  RETURN zasp_red_team_schedule_json(organization_value,workspace_value,environment_value,definition_value);
+ END $put_schedule$ $put$,'GUARD',guard_value);
+
+ CREATE OR REPLACE FUNCTION public.zasp_red_team_fire_due_schedules(worker_value text,limit_value integer) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $fire$
+ DECLARE s zasp_red_team_schedules%ROWTYPE;definition_row zasp_red_team_definitions%ROWTYPE;run_row zasp_red_team_runs%ROWTYPE;
+  fingerprint_value text;trigger_value text;seed_value text;run_value text;key_value text;digest_value bytea;payload_value jsonb;next_value timestamptz;
+  examined integer:=0;queued integer:=0;
+ BEGIN
+  IF NOT COALESCE(pg_has_role(session_user,'zasp_discovery_scheduler','MEMBER') AND worker_value~'^[A-Za-z0-9._:-]{1,128}$' AND limit_value BETWEEN 1 AND 50,false) THEN
+   RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='red team schedule authority denied';
+  END IF;
+  FOR s IN SELECT schedule.* FROM zasp_red_team_schedules schedule JOIN zasp_red_team_definitions definition USING(organization_id,workspace_id,environment_id,definition_id)
+   WHERE schedule.enabled AND(schedule.next_run_at<=transaction_timestamp() OR(schedule.on_target_change AND schedule.target_fingerprint IS DISTINCT FROM zasp_red_team_target_fingerprint(schedule.organization_id,schedule.workspace_id,schedule.environment_id,definition.target_id)))
+   ORDER BY schedule.next_run_at NULLS LAST,schedule.definition_id LIMIT limit_value FOR UPDATE OF schedule SKIP LOCKED
+  LOOP
+   examined:=examined+1;
+   SELECT * INTO STRICT definition_row FROM zasp_red_team_definitions WHERE (organization_id,workspace_id,environment_id,definition_id)=(s.organization_id,s.workspace_id,s.environment_id,s.definition_id) FOR UPDATE;
+   fingerprint_value:=zasp_red_team_target_fingerprint(s.organization_id,s.workspace_id,s.environment_id,definition_row.target_id);
+   trigger_value:=CASE WHEN s.on_target_change AND s.target_fingerprint IS DISTINCT FROM fingerprint_value THEN 'target_change' ELSE 'cadence' END;
+   next_value:=CASE WHEN s.cadence_seconds IS NOT NULL THEN transaction_timestamp()+make_interval(secs=>s.cadence_seconds) END;
+   IF EXISTS(SELECT 1 FROM zasp_red_team_runs r WHERE (r.organization_id,r.workspace_id,r.environment_id,r.definition_id)=(s.organization_id,s.workspace_id,s.environment_id,s.definition_id) AND r.state IN('queued','leased','retryable')) THEN
+    -- A due cadence occurrence is skipped; a target change stays pending.
+    IF s.next_run_at<=transaction_timestamp() THEN
+     UPDATE zasp_red_team_schedules SET next_run_at=next_value,last_outcome='skipped_active' WHERE (organization_id,workspace_id,environment_id,definition_id)=(s.organization_id,s.workspace_id,s.environment_id,s.definition_id);
+    END IF;
+    CONTINUE;
+   END IF;
+   IF NOT (definition_row.enabled AND zasp_red_team_safety_authorized(s.organization_id,s.workspace_id,s.environment_id,definition_row.target_id,definition_row.target_kind,definition_row.safety)) THEN
+    UPDATE zasp_red_team_schedules SET next_run_at=next_value,target_fingerprint=fingerprint_value,last_trigger=trigger_value,last_outcome='rejected',last_fired_at=transaction_timestamp()
+     WHERE (organization_id,workspace_id,environment_id,definition_id)=(s.organization_id,s.workspace_id,s.environment_id,s.definition_id);
+    CONTINUE;
+   END IF;
+   seed_value:=concat_ws(chr(31),s.definition_id,definition_row.version::text,s.version::text,trigger_value,COALESCE(fingerprint_value,''),COALESCE(s.next_run_at::text,''),COALESCE(s.last_run_id,''));
+   run_value:=zasp_discovery_canonical_id(s.organization_id,s.workspace_id,s.environment_id,'red_team_scheduled_run',seed_value);
+   key_value:='schedule:'||encode(digest(convert_to(seed_value,'UTF8'),'sha256'),'hex');
+   digest_value:=digest(convert_to(jsonb_build_object('definition_id',s.definition_id,'definition_version',definition_row.version,'run_id',run_value)::text,'UTF8'),'sha256');
+   INSERT INTO zasp_red_team_runs(organization_id,workspace_id,environment_id,run_id,definition_id,definition_version,requested_by,input_digest)
+    VALUES(s.organization_id,s.workspace_id,s.environment_id,run_value,s.definition_id,definition_row.version,s.updated_by,digest_value) RETURNING * INTO run_row;
+   payload_value:=jsonb_build_object('organization_id',s.organization_id,'workspace_id',s.workspace_id,'environment_id',s.environment_id,'run_id',run_value,'definition_id',s.definition_id,'definition_version',definition_row.version,'input_digest',encode(digest_value,'hex'));
+   INSERT INTO zasp_red_team_outbox(organization_id,workspace_id,environment_id,outbox_id,deterministic_key,payload,payload_digest)
+    VALUES(s.organization_id,s.workspace_id,s.environment_id,zasp_discovery_canonical_id(s.organization_id,s.workspace_id,s.environment_id,'red_team_outbox',run_value),'test-jobs:'||run_value,payload_value,digest(convert_to(payload_value::text,'UTF8'),'sha256'));
+   PERFORM zasp_red_team_mutation_result(s.organization_id,s.workspace_id,s.environment_id,s.updated_by,'runTest',run_value,zasp_discovery_canonical_id(s.organization_id,s.workspace_id,s.environment_id,'red_team_scheduled_correlation',seed_value),key_value,zasp_red_team_run_json(run_row));
+   UPDATE zasp_red_team_schedules SET next_run_at=next_value,target_fingerprint=fingerprint_value,last_run_id=run_value,last_trigger=trigger_value,last_outcome='queued',last_fired_at=transaction_timestamp()
+    WHERE (organization_id,workspace_id,environment_id,definition_id)=(s.organization_id,s.workspace_id,s.environment_id,s.definition_id);
+   queued:=queued+1;
+  END LOOP;
+  RETURN jsonb_build_object('examined',examined,'queued',queued);
+ END $fire$;
+
+ EXECUTE format('ALTER FUNCTION public.zasp_red_team_target_fingerprint(text,text,text,text) OWNER TO %I',owner_value);
+ EXECUTE format('ALTER FUNCTION public.zasp_red_team_schedule_json(text,text,text,text) OWNER TO %I',owner_value);
+ EXECUTE format('ALTER FUNCTION public.zasp_red_team_get_schedule(text,text,text,text) OWNER TO %I',owner_value);
+ EXECUTE format('ALTER FUNCTION public.zasp_red_team_put_schedule(text,text,text,text,text,bigint,boolean,integer,boolean) OWNER TO %I',owner_value);
+ EXECUTE format('ALTER FUNCTION public.zasp_red_team_fire_due_schedules(text,integer) OWNER TO %I',owner_value);
+ REVOKE ALL ON FUNCTION public.zasp_red_team_target_fingerprint(text,text,text,text) FROM PUBLIC;
+ REVOKE ALL ON FUNCTION public.zasp_red_team_schedule_json(text,text,text,text) FROM PUBLIC;
+ REVOKE ALL ON FUNCTION public.zasp_red_team_get_schedule(text,text,text,text) FROM PUBLIC;
+ REVOKE ALL ON FUNCTION public.zasp_red_team_put_schedule(text,text,text,text,text,bigint,boolean,integer,boolean) FROM PUBLIC;
+ REVOKE ALL ON FUNCTION public.zasp_red_team_fire_due_schedules(text,integer) FROM PUBLIC;
+ FOREACH api_role IN ARRAY ARRAY['zasp_security_agent_api','zasp_discovery_api'] LOOP
+  EXECUTE format('GRANT EXECUTE ON FUNCTION public.zasp_red_team_get_schedule(text,text,text,text) TO %I',api_role);
+  EXECUTE format('GRANT EXECUTE ON FUNCTION public.zasp_red_team_put_schedule(text,text,text,text,text,bigint,boolean,integer,boolean) TO %I',api_role);
+ END LOOP;
+ GRANT EXECUTE ON FUNCTION public.zasp_red_team_fire_due_schedules(text,integer) TO zasp_discovery_scheduler;
+END $ws2_red_team_schedules$;

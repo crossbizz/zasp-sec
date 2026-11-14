@@ -23,7 +23,7 @@ function api(overrides: Partial<ProductionRedTeamAPI> = {}): ProductionRedTeamAP
     getTargetRecommendations: async () => ({targetID,freshUntil:"2099-01-01T00:00:00Z",items:[]}),
     listDefinitions: async () => [], getDefinition: async () => { throw new Error("unused"); }, createDefinition: async () => { throw new Error("unused"); }, updateDefinition: async () => { throw new Error("unused"); }, runDefinition: async () => { throw new Error("unused"); }, listRuns: async () => [sourceRun], getRun: async () => { throw new Error("unused"); }, cancelRun: async () => { throw new Error("unused"); },
     preflightAttackLab: async () => preflight, listAttackLabRuns: async () => [queued], getAttackLabRun: async () => complete, createAttackLabRun: async () => queued, cancelAttackLabRun: async () => ({ ...queued, version: 2, status: "cancelled", cancel_requested: true, cleanup_state: "complete", completed_at: "2026-08-28T10:01:00Z", error_code: "cancelled" }), rerunAttackLabRun: async () => queued,
-    listTargets: async () => [], ...overrides,
+    listTargets: async () => [], getProbeCatalog: async () => { throw new Error("probe library unavailable"); }, getSchedule: async (id) => ({ definition_id: id, version: 0, enabled: false, cadence_seconds: null, on_target_change: false, next_run_at: null, last_run_id: null, last_trigger: null, last_outcome: null, last_fired_at: null, updated_at: null }), putSchedule: async () => { throw new Error("unused"); }, ...overrides,
   };
 }
 

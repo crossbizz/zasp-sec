@@ -3040,6 +3040,42 @@ paths:
         '404': { $ref: '#/components/responses/ProductErrorResponse' }
         '409': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/tests/{id}/schedule:
+    parameters: [ { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } } ]
+    get:
+      operationId: getTestSchedule
+      summary: Get the continuous re-test schedule of one red team definition
+      description: A definition without a saved schedule answers with version 0 and enabled false.
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+        - ProductAPIToken: []
+      responses:
+        '200': { description: Red team schedule., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' } }, content: { application/json: { schema: { $ref: '#/components/schemas/TestSchedule' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    put:
+      operationId: putTestSchedule
+      summary: Create or replace the continuous re-test schedule of one red team definition
+      description: The schedule re-runs the definition on a cadence, when the inventory record of its target changes, or both. It can be enabled only for an enabled definition that passes the non-production safety rule, which is checked again before every scheduled run. expected_version is the version last read (0 when none was saved).
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+        - ProductAPIToken: []
+      parameters:
+        - $ref: '#/components/parameters/BrowserMutationCSRFToken'
+        - $ref: '#/components/parameters/BrowserMutationOrigin'
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/TestScheduleInput' } } } }
+      responses:
+        '200': { description: Saved red team schedule., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' } }, content: { application/json: { schema: { $ref: '#/components/schemas/TestSchedule' } } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/tests/{id}/runs:
     parameters: [ { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } } ]
     post:
@@ -3062,6 +3098,20 @@ paths:
         '403': { $ref: '#/components/responses/ProductErrorResponse' }
         '404': { $ref: '#/components/responses/ProductErrorResponse' }
         '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/test-probes:
+    get:
+      operationId: getTestProbeCatalog
+      summary: Describe the red team probe library
+      description: Counts, techniques and framework tags per category of the reviewed probe library built into this release. Probe text is never returned.
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+        - ProductAPIToken: []
+      responses:
+        '200': { description: Red team probe library., content: { application/json: { schema: { $ref: '#/components/schemas/TestProbeCatalog' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/test-runs:
     get:
@@ -6632,7 +6682,7 @@ components:
           minItems: 1
           maxItems: 16
           uniqueItems: true
-          items: { type: string, enum: [prompt_injection, tool_abuse, data_leakage, authorization_bypass, excessive_agency, sensitive_information] }
+          items: { type: string, enum: [prompt_injection, tool_abuse, data_leakage, authorization_bypass, excessive_agency, sensitive_information, indirect_injection, poisoned_resource, cross_agent_delegation] }
         safety: { $ref: '#/components/schemas/SafetyMetadata' }
         enabled: { type: boolean }
         created_at: { type: string, format: date-time }
@@ -6646,7 +6696,7 @@ components:
         name: { type: string, minLength: 1, maxLength: 128 }
         target_id: { $ref: '#/components/schemas/ProductID' }
         target_kind: { type: string, enum: [agent_endpoint, mcp_server, coding_agent] }
-        categories: { type: array, minItems: 1, maxItems: 16, uniqueItems: true, items: { type: string, enum: [prompt_injection, tool_abuse, data_leakage, authorization_bypass, excessive_agency, sensitive_information] } }
+        categories: { type: array, minItems: 1, maxItems: 16, uniqueItems: true, items: { type: string, enum: [prompt_injection, tool_abuse, data_leakage, authorization_bypass, excessive_agency, sensitive_information, indirect_injection, poisoned_resource, cross_agent_delegation] } }
         safety: { $ref: '#/components/schemas/SafetyMetadata' }
     TestDefinitionUpdateInput:
       type: object
@@ -6656,7 +6706,7 @@ components:
         name: { type: string, minLength: 1, maxLength: 128 }
         target_id: { $ref: '#/components/schemas/ProductID' }
         target_kind: { type: string, enum: [agent_endpoint, mcp_server, coding_agent] }
-        categories: { type: array, minItems: 1, maxItems: 16, uniqueItems: true, items: { type: string, enum: [prompt_injection, tool_abuse, data_leakage, authorization_bypass, excessive_agency, sensitive_information] } }
+        categories: { type: array, minItems: 1, maxItems: 16, uniqueItems: true, items: { type: string, enum: [prompt_injection, tool_abuse, data_leakage, authorization_bypass, excessive_agency, sensitive_information, indirect_injection, poisoned_resource, cross_agent_delegation] } }
         safety: { $ref: '#/components/schemas/SafetyMetadata' }
         enabled: { type: boolean }
     TestDefinitionPage:
@@ -6702,9 +6752,14 @@ components:
     TestAttempt:
       type: object
       additionalProperties: false
-      required: [attempt, verdict, objective, behavior, evidence, evidence_reference, completed_at]
+      required: [attempt, verdict, objective, behavior, evidence, evidence_reference, completed_at, probe_results]
       properties:
         input_artifact: { $ref: '#/components/schemas/TestInputArtifact' }
+        probe_results:
+          description: The probes of the probe library this attempt executed, in execution order, with their outcome. Empty for an attempt that ran one curated check per category.
+          type: array
+          maxItems: 480
+          items: { $ref: '#/components/schemas/TestProbeResult' }
         attempt: { type: integer, minimum: 1, maximum: 5 }
         verdict: { type: string, enum: [pass, fail, engine_error] }
         objective: { type: string, minLength: 1, maxLength: 512 }
@@ -6713,6 +6768,59 @@ components:
         evidence: { type: array, maxItems: 64, items: { type: string, minLength: 1, maxLength: 512 } }
         evidence_reference: { type: string, minLength: 1, maxLength: 1024 }
         completed_at: { type: string, format: date-time }
+    TestProbeResult:
+      type: object
+      additionalProperties: false
+      required: [probe_id, category, outcome]
+      properties:
+        probe_id: { type: string, maxLength: 128, pattern: '^zasp(\.[a-z][a-z_]{2,40}){4}\.v1$' }
+        category: { type: string, enum: [prompt_injection, tool_abuse, data_leakage, authorization_bypass, excessive_agency, sensitive_information, indirect_injection, poisoned_resource, cross_agent_delegation] }
+        outcome: { type: string, enum: [protected, unsafe] }
+    TestProbeCategory:
+      type: object
+      additionalProperties: false
+      required: [category, title, probe_count, techniques, frameworks]
+      properties:
+        category: { type: string, enum: [prompt_injection, tool_abuse, data_leakage, authorization_bypass, excessive_agency, sensitive_information, indirect_injection, poisoned_resource, cross_agent_delegation] }
+        title: { type: string, minLength: 1, maxLength: 128 }
+        probe_count: { type: integer, minimum: 20, maximum: 100000 }
+        techniques: { type: array, minItems: 1, maxItems: 64, uniqueItems: true, items: { type: string, pattern: '^[a-z][a-z_]{2,40}$' } }
+        frameworks: { type: array, minItems: 1, maxItems: 16, items: { $ref: '#/components/schemas/FindingFrameworkReference' } }
+    TestProbeCatalog:
+      type: object
+      additionalProperties: false
+      required: [version, digest, probe_count, default_sample_size, categories]
+      properties:
+        version: { type: string, pattern: '^zasp-probe-library-v[0-9]+$' }
+        digest: { type: string, pattern: '^[0-9a-f]{64}$' }
+        probe_count: { type: integer, minimum: 1000, maximum: 1000000 }
+        default_sample_size: { type: integer, minimum: 1, maximum: 60 }
+        categories: { type: array, minItems: 9, maxItems: 64, items: { $ref: '#/components/schemas/TestProbeCategory' } }
+    TestScheduleInput:
+      type: object
+      additionalProperties: false
+      required: [expected_version, enabled, on_target_change]
+      properties:
+        expected_version: { type: integer, minimum: 0, maximum: 999999 }
+        enabled: { type: boolean }
+        cadence_seconds: { type: integer, minimum: 3600, maximum: 2678400 }
+        on_target_change: { type: boolean }
+    TestSchedule:
+      type: object
+      additionalProperties: false
+      required: [definition_id, version, enabled, cadence_seconds, on_target_change, next_run_at, last_run_id, last_trigger, last_outcome, last_fired_at, updated_at]
+      properties:
+        definition_id: { $ref: '#/components/schemas/ProductID' }
+        version: { type: integer, minimum: 0, maximum: 1000000 }
+        enabled: { type: boolean }
+        cadence_seconds: { type: [integer, 'null'], minimum: 3600, maximum: 2678400 }
+        on_target_change: { type: boolean }
+        next_run_at: { type: [string, 'null'], format: date-time }
+        last_run_id: { oneOf: [ { $ref: '#/components/schemas/ProductID' }, { type: 'null' } ] }
+        last_trigger: { type: [string, 'null'], enum: [cadence, target_change, null] }
+        last_outcome: { type: [string, 'null'], enum: [queued, rejected, skipped_active, null] }
+        last_fired_at: { type: [string, 'null'], format: date-time }
+        updated_at: { type: [string, 'null'], format: date-time }
     TestRunDetail:
       type: object
       additionalProperties: false

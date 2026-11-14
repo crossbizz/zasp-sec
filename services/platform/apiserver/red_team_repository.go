@@ -3,6 +3,7 @@ package apiserver
 import (
 	"context"
 	"encoding/json"
+	"github.com/zasp-ai/zasp-sec/services/platform/redteam/probes"
 	"sort"
 	"strings"
 	"time"
@@ -101,7 +102,11 @@ type RedTeamAttempt struct {
 	Evidence          []string                  `json:"evidence"`
 	EvidenceReference string                    `json:"evidence_reference"`
 	InputArtifact     *RedTeamArtifactReference `json:"input_artifact,omitempty"`
-	CompletedAt       time.Time                 `json:"completed_at"`
+	// ProbeResults lists the probes of the probe library this attempt ran,
+	// in execution order. It is empty for an attempt that ran one curated
+	// check per category.
+	ProbeResults []RedTeamProbeResult `json:"probe_results"`
+	CompletedAt  time.Time            `json:"completed_at"`
 }
 
 type RedTeamRunDetail struct {
@@ -277,7 +282,13 @@ func (repository *PostgresRepository) GetRedTeamRun(ctx context.Context, identit
 		return RedTeamRunDetail{}, ErrRepositoryUnavailable
 	}
 	priorAttempt := 0
-	for _, attempt := range result.Attempts {
+	for index, attempt := range result.Attempts {
+		if attempt.ProbeResults == nil {
+			result.Attempts[index].ProbeResults = []RedTeamProbeResult{}
+		}
+		if !validRedTeamProbeResults(attempt.ProbeResults) {
+			return RedTeamRunDetail{}, ErrRepositoryUnavailable
+		}
 		if attempt.InputArtifact != nil && !validRedTeamInputArtifact(identity.Scope, attempt.InputArtifact) {
 			return RedTeamRunDetail{}, ErrRepositoryUnavailable
 		}
@@ -325,7 +336,7 @@ func validRedTeamDefinitionMutation(value RedTeamDefinitionMutation, update bool
 	}
 	seen := map[string]struct{}{}
 	for _, category := range value.Categories {
-		if !stringIn(category, "prompt_injection", "tool_abuse", "data_leakage", "authorization_bypass", "excessive_agency", "sensitive_information") {
+		if !probes.ValidCategory(category) {
 			return false
 		}
 		if _, duplicate := seen[category]; duplicate {

@@ -36,3 +36,32 @@ func TestScheduleProcessorReleasesAbandonedRunsOnATimer(t *testing.T) {
 		t.Fatalf("pass after success err=%v calls=%v", err, calls)
 	}
 }
+
+// The scheduler queues the due red team re-tests on its own timer, with the
+// same retry rule, independently of the release sweep.
+func TestScheduleProcessorQueuesRedTeamRetestsOnATimer(t *testing.T) {
+	at := time.Date(2026, 11, 14, 4, 0, 0, 0, time.UTC)
+	var calls []int
+	var fail error
+	p := &temporalDiscoveryScheduleProcessor{limit: 25, now: func() time.Time { return at },
+		retest: func(_ context.Context, limit int) (int, error) { calls = append(calls, limit); return 1, fail }}
+	if err := p.retestDue(context.Background()); err != nil || len(calls) != 1 || calls[0] != 25 {
+		t.Fatalf("first pass err=%v calls=%v", err, calls)
+	}
+	at = at.Add(redTeamRetestInterval - time.Second)
+	if err := p.retestDue(context.Background()); err != nil || len(calls) != 1 {
+		t.Fatalf("pass inside the interval err=%v calls=%v", err, calls)
+	}
+	at = at.Add(time.Second)
+	fail = errors.New("database unavailable")
+	if err := p.retestDue(context.Background()); err == nil || len(calls) != 2 {
+		t.Fatalf("failed pass err=%v calls=%v", err, calls)
+	}
+	fail = nil
+	if err := p.retestDue(context.Background()); err != nil || len(calls) != 3 {
+		t.Fatalf("retry after failure err=%v calls=%v", err, calls)
+	}
+	if !p.lastRelease.IsZero() {
+		t.Fatal("the re-test pass moved the release timer")
+	}
+}

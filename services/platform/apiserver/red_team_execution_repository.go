@@ -71,12 +71,15 @@ type RedTeamRunHeartbeat struct {
 }
 
 type RedTeamRunCompletion struct {
-	EvidenceArtifact                                  []byte
-	InputArtifact                                     *RedTeamArtifactReference
-	RunID, Worker, LeaseToken                         string
-	InputDigest                                       [sha256.Size]byte
-	Verdict, Objective, Behavior, ErrorCode           string
-	Evidence                                          []string
+	EvidenceArtifact                        []byte
+	InputArtifact                           *RedTeamArtifactReference
+	RunID, Worker, LeaseToken               string
+	InputDigest                             [sha256.Size]byte
+	Verdict, Objective, Behavior, ErrorCode string
+	Evidence                                []string
+	// ProbeResults are the outcomes of the probes a standalone run executed.
+	// They are recorded under the run's lease before the run is finished.
+	ProbeResults                                      []RedTeamProbeResult
 	EvidenceReference, EvidenceKey, EvidenceVersionID string
 	EvidenceChecksum                                  []byte
 	EvidenceSizeBytes                                 int64
@@ -265,6 +268,11 @@ func (repository *RedTeamExecutionRepository) FinishRedTeamRun(ctx context.Conte
 	var errorCode any
 	if input.ErrorCode != "" {
 		errorCode = input.ErrorCode
+	}
+	if len(input.ProbeResults) > 0 {
+		if err := repository.recordRedTeamProbeResults(ctx, scope, input); err != nil {
+			return RedTeamRun{}, err
+		}
 	}
 	statement := postgresRedTeamFinishRunSQL
 	arguments := []any{scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), input.RunID, input.Worker, input.LeaseToken, input.InputDigest[:], input.Verdict, input.Objective, input.Behavior, errorCode, evidence, input.EvidenceReference, input.EvidenceKey, input.EvidenceVersionID, input.EvidenceChecksum, input.EvidenceSizeBytes}

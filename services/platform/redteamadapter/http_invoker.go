@@ -165,7 +165,7 @@ func (invoker *HTTPSInvoker) Invoke(ctx context.Context, invocation Invocation) 
 // InvokeObserved shares the exact transport, authentication and response
 // validation used by Invoke. Errors return no successful observation.
 func (invoker *HTTPSInvoker) InvokeObserved(ctx context.Context, invocation Invocation) (string, InvocationObservation, error) {
-	if invoker == nil || invoker.client == nil || invoker.credentials == nil || ctx == nil || ctx.Err() != nil || invocation.Scope.Validate() != nil || !validBinding(invocation.Binding) || invocation.RunID == invocation.Binding.TargetID || !validRequestBody(requestBody{TargetID: invocation.Binding.TargetID, TargetKind: invocation.Binding.TargetKind, Category: invocation.Category, Input: invocation.Input}) {
+	if invoker == nil || invoker.client == nil || invoker.credentials == nil || ctx == nil || ctx.Err() != nil || invocation.Scope.Validate() != nil || !validBinding(invocation.Binding) || invocation.RunID == invocation.Binding.TargetID || !validRequestBody(requestBody{TargetID: invocation.Binding.TargetID, TargetKind: invocation.Binding.TargetKind, Category: invocation.Category, Input: invocation.Input, ProbeID: invocation.ProbeID}) {
 		return "", InvocationObservation{}, ErrAdapter
 	}
 	payload, err := targetPayload(invocation)

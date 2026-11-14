@@ -44,6 +44,7 @@ type redTeamExecutionResult struct {
 	Verdict                                           string
 	Objective, Behavior, ErrorCode                    string
 	Evidence                                          []string
+	ProbeResults                                      []apiserver.RedTeamProbeResult
 	EvidenceReference, EvidenceKey, EvidenceVersionID string
 	EvidenceChecksum                                  []byte
 	EvidenceSizeBytes                                 int64
@@ -235,6 +236,7 @@ func (processor *redTeamProcessor) runLeased(ctx context.Context, delivery jobqu
 	completion := apiserver.RedTeamRunCompletion{RunID: request.Run.ID, Worker: processor.config.WorkerID, LeaseToken: token, InputDigest: request.InputDigest, Verdict: result.Verdict, Objective: result.Objective, Behavior: result.Behavior, ErrorCode: result.ErrorCode, Evidence: append([]string(nil), result.Evidence...), EvidenceReference: result.EvidenceReference, EvidenceKey: result.EvidenceKey, EvidenceVersionID: result.EvidenceVersionID, EvidenceChecksum: append([]byte(nil), result.EvidenceChecksum...), EvidenceSizeBytes: result.EvidenceSizeBytes}
 	inputArtifact := *result.InputArtifact
 	completion.InputArtifact = &inputArtifact
+	completion.ProbeResults = append([]apiserver.RedTeamProbeResult(nil), result.ProbeResults...)
 	finished, err := processor.config.Authority.FinishRedTeamRun(finalizeCtx, delivery.Job.Scope, completion)
 	cancelWork()
 	<-heartbeatDone

@@ -2,9 +2,12 @@ package main
 
 import (
 	"context"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
+	"github.com/zasp-ai/zasp-sec/services/platform/redteam/probes"
 )
 
 type productionRedTeamDependencies struct {
@@ -45,9 +48,14 @@ func newProductionRedTeamDependencies(config workerRuntimeConfig) (*productionRe
 	if err != nil {
 		return fail()
 	}
+	sampleSize, sampleOK := redTeamProbeSampleSize(os.Getenv("ZASP_RED_TEAM_PROBE_SAMPLE_SIZE"))
+	if !sampleOK {
+		return fail()
+	}
 	runner, err := newProductionRedTeamRunner(productionRedTeamRunnerConfig{
-		RunnerImage: config.RedTeamRunnerImage,
-		Artifacts:   artifacts, Command: productionRedTeamCommand{}, NodePath: "/usr/local/bin/node", ScriptPath: "/app/redteam-runner.mjs", PromptfooPath: "/app/dist/src/entrypoint.js",
+		ProbeSampleSize: sampleSize,
+		RunnerImage:     config.RedTeamRunnerImage,
+		Artifacts:       artifacts, Command: productionRedTeamCommand{}, NodePath: "/usr/local/bin/node", ScriptPath: "/app/redteam-runner.mjs", PromptfooPath: "/app/dist/src/entrypoint.js",
 		TargetEndpoint: config.RedTeamTargetEndpoint, TargetTokenFile: config.RedTeamTargetTokenFile, TargetCAFile: config.RedTeamTargetCAFile, TempRoot: "/tmp", Timeout: config.RedTeamRunnerTimeout, Clock: func() time.Time { return time.Now().UTC() },
 	})
 	if err != nil {
@@ -137,4 +145,18 @@ func composeRedTeamOutboxWorkerRuntime(config workerRuntimeConfig, database apis
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
 	return workerRuntimeDependencies{Processor: processor, Ready: ready, Close: func() error { return nil }}, nil
+}
+
+// redTeamProbeSampleSize reads the optional ZASP_RED_TEAM_PROBE_SAMPLE_SIZE:
+// the number of probe library entries a standalone run executes per category.
+// Unset selects the library default; 0 keeps one curated check per category.
+func redTeamProbeSampleSize(value string) (int, bool) {
+	if value == "" {
+		return probes.DefaultSampleSize, true
+	}
+	size, err := strconv.Atoi(value)
+	if err != nil || size < 0 || size > probes.MaximumSampleSize || strconv.Itoa(size) != value {
+		return 0, false
+	}
+	return size, true
 }
