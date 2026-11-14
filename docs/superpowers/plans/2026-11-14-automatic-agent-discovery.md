@@ -122,6 +122,56 @@ A whole collection through the collection client failed as malformed for Okta, G
 - A wrong client secret at discovery time is reported as retryable.
 - The web form cannot add a Dataverse URL to an existing Microsoft integration; it has to be recreated.
 
+## Third pass (same day): runtime discovery from the node sensor
+
+Request: build discovery from network traffic end to end, on the existing stack, following a reference design (passive discovery, protocol-aware discovery, identity enrichment).
+
+### What was built
+
+A sensor role, `egress-discovery`, and its join into Kubernetes agent inference. The evidence gate in item 4 below was set aside on the owner's instruction; the measurement it asked for is now the first thing to do on a real cluster.
+
+| Layer of the reference design | What does it here |
+| --- | --- |
+| Passive discovery | The new role. Tetragon `tcp_connect` events give the pod's workload and the addresses; DNS answers captured on the node give the name. A workload that was given an address for a catalog name and then connected to it is recorded under the catalog token. |
+| Protocol-aware discovery | By name only: model APIs, Bedrock and AgentCore data planes, and remote MCP servers (`mcp.<vendor>`). MCP method and tool names need plain-text HTTP; the existing runtime gateway and OTLP ingest carry those for managed agents. |
+| Identity enrichment | Unchanged: provider control planes (AWS, Microsoft, Salesforce, Okta), the declared label, and OTLP or gateway telemetry for agents the product issued an ID to. |
+
+Flow: sensor pod (per node) → ConfigMap `zasp-egress-<digest>` with label `zasp.ai/egress-observations=v1` → Kubernetes collector lists those ConfigMaps on each workload page → `egress:<token>` joins the workload's evidence → the existing rule (one strong signal, or weak signals of two classes) decides → `kubernetes_inferred_agent`.
+
+Decisions:
+
+- **Name source: DNS answers captured on the node** (AF_PACKET, cooked, kernel filter for UDP source port 53). It needs no customer infrastructure, unlike CoreDNS logs, Route 53 Resolver logs or Hubble. The join key is (pod address, answer address), so a shared CDN address alone never matches: the same pod must have asked for the name.
+- **Transport: a ConfigMap, not a new ingest endpoint.** The collector already holds a cluster credential and the snapshot model wants one complete snapshot per integration. No new table, endpoint, schema migration or baseline rebuild. The customer can read exactly what is kept.
+- **No ClickHouse, Hubble or Pixie.** What is stored is one small document per node (workload, token, last seen), not an event history; PostgreSQL through the existing snapshot is enough. Raw connection events already go to the existing runtime pipeline as digests.
+- **A model API seen at run time is a strong signal**, the same bar as holding a model provider credential. Agent tooling hosts (search, sandboxes) are weak.
+- **Off by default.** The role needs the host network and `NET_RAW`; a customer opts in (`sensorAgent.egressDiscovery.enabled`).
+- **Privacy.** Names outside the catalog are dropped on the node before they are stored. The published document holds tokens only; a test asserts no name or address is in it.
+
+Files: `services/platform/agentsignals/egress.go` (catalog, document, validation), `services/sensor-agent/egress_*.go` (DNS parser, capture, tracker, Tetragon stream, publisher, daemon), `services/platform/connectors/kubernetesdiscovery/egress_observations.go`, `deploy/staging/product/templates/edge.yaml`, runbook step 15.
+
+### What was checked
+
+- The whole sensor role in one test: a real packet capture on loopback with the kernel filter attached, a real gRPC stream from a stand-in Tetragon server, a fake API server. A DNS answer followed by a connection ends as a ConfigMap naming the workload and the token; the plain site in the same test does not.
+- The DNS parser refuses queries, failures, fragments and pointer loops, and every truncation of a valid packet without a panic.
+- A full Kubernetes collection with observations ends as a typed snapshot; a workload with no AI in its pod template becomes an inferred agent; an observation older than seven days, an opted-out workload and a forged document do not.
+- A forbidden, malformed or failing ConfigMap list never fails a workload page.
+
+### Not verified
+
+- No cluster. No veth, CNI, real Tetragon, real DNS server or NodeLocal DNSCache has been in the path. Whether Tetragon's workload name matches the Deployment or CronJob name for every owner chain is unmeasured.
+- The catalog's host names are from memory, not checked against provider documentation today.
+- The chart block was rendered with a stand-in for Helm.
+- False positive and miss rates. Measure on one cluster first: how many agents the egress signal adds over the pod-template signals, and what it gets wrong.
+
+### Known limits
+
+- Proxies and egress gateways hide the workload (the proxy resolves the name). DNS over HTTPS or TCP is not seen.
+- Kubernetes only. EC2, ECS and Lambda have no sensor; VPC flow logs with Route 53 Resolver query logs would be the equivalent source.
+- Inbound third-party agents calling the customer's APIs are not covered; that is an API gateway integration.
+- A SaaS agent's internal sub-agents cannot be seen from the network, as the reference design says.
+- Detection waits for the next Kubernetes sync.
+- A missing ConfigMap permission is silent: the integration detail does not yet say the runtime signal is unavailable.
+
 ## Next, in order
 
 These are not built. Each has an evidence gate or an external dependency.
@@ -129,7 +179,7 @@ These are not built. Each has an evidence gate or an external dependency.
 1. **Run discovery against real systems.** One AWS account with a Bedrock agent, an AgentCore runtime and a Lambda function that calls a model; one cluster with an unlabelled LangGraph workload; one GitHub organization; one Okta tenant with ChatGPT or Claude connected. Record false positives and misses per signal class. This gates the confidence numbers above, which are judgement, not measurement.
 2. **Microsoft as a provider (Copilot Studio and Entra agents). Built in the second pass; what remains is the real-tenant run in item 1.** Entra client credentials. `GET /v1.0/servicePrincipals/microsoft.graph.agentIdentity` (`AgentIdentity.Read.All`) for Entra Agent ID; `GET /v1.0/servicePrincipals` with `oauth2PermissionGrants` (`Application.Read.All`, `Directory.Read.All`) for AI applications consented in the tenant; Dataverse `GET {org}/api/data/v9.2/bots` and `botcomponents` per environment for Copilot Studio agents, their knowledge sources and tools. The Power Platform tenant inventory API is delegated-user only, so app-only discovery goes through Dataverse with an application user in each environment. This is a fifth provider: connector registry, credential class, subject binding, SQL CHECK constraints and the OpenAPI and web enums all change.
 3. **Salesforce Agentforce as a provider. Built in the second pass; what remains is the real-org run in item 1.** Connected App with client credentials or JWT bearer, scope `api`. `SELECT ... FROM BotDefinition` and `BotVersion` over the REST query endpoint; planner, topic and action definitions over the Tooling API. The object names changed across API versions 60 to 68, so the first step is a query against a real org.
-4. **Runtime discovery from the sensor.** Open-source Tetragon reports destination IP and port for a connection, not a DNS name or TLS SNI, and the sensor forwards digests only. Classifying egress to model providers needs a name source: CoreDNS or Route 53 Resolver query logs joined to pod and time, or an egress gateway that logs SNI. Matching provider IP ranges alone is low confidence because the large providers sit behind shared ranges and CDNs. Gate: on one cluster, measure how many inferred agents the name-joined egress signal adds over task 3, and its false positives, before building the pipeline.
+4. **Runtime discovery from the sensor. Built in the third pass; what remains is the measurement on one cluster.** Open-source Tetragon reports destination IP and port, not a name; the third pass takes the name from DNS answers captured on the node.
 5. **Unknown `agent_id` on gateway and OTLP telemetry. Closed, see the second pass.** Today an unknown id is stored on the session and correlation reports `unattributed`. Turning it into a candidate agent needs a telemetry-sourced observation, which the snapshot model (one complete snapshot per integration) does not have. Design together with item 4.
 6. **Other platforms, as customers ask:** Google Vertex AI Agent Engine (`reasoningEngines.list`), Dialogflow CX and Gemini Enterprise agents; ServiceNow (`sn_aia_agent`); OpenAI and Anthropic organization APIs (projects, service accounts and keys, not agents); Entra and Google Workspace OAuth grants as a second IdP path; SageMaker endpoints and ECS task definitions as further AWS signals; MCP servers found by image as tools.
 7. **Okta grants.** `GET /api/v1/apps/{id}/grants` (`okta.appGrants.read`) would show which scopes an AI application holds. It needs one more OAuth scope on the Okta connection, so existing connections must re-authorize.

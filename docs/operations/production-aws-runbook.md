@@ -434,6 +434,53 @@ Network. The API and the discovery worker need HTTPS to the customer's My Domain
 
 Each additional tenant or org is another reference secret. The Terraform variable provisions one per provider; more need a further `connector_reference` secret under the same path.
 
+### 15. Turn on runtime agent discovery in a customer cluster
+
+Optional. It finds workloads that call a model API or a remote MCP server at run time, including ones whose pod template says nothing about AI. It needs the customer-edge chart with the sensor and Tetragon already installed.
+
+What it adds to each node: one pod (`sensor-egress`) in the host network namespace, running as root with every capability dropped except `NET_RAW`. It does two things on the node:
+
+- captures DNS answers (UDP from port 53) on every interface, which includes the host side of each pod's veth;
+- reads Tetragon's `tcp_connect` events from the local socket.
+
+When a pod was given an address as the answer for a name in the product's catalog (for example `api.openai.com`, `bedrock-runtime.<region>.amazonaws.com`, `mcp.<vendor>`), and then connected to that address, the pod's workload is recorded under the catalog token (`openai`, `bedrock`, `mcp_remote`). Names outside the catalog are dropped on the node. The pod writes the result to a ConfigMap named `zasp-egress-<digest>` in the release namespace, labelled `zasp.ai/egress-observations=v1`, and sends nothing anywhere else. No name, address, payload or pod name is stored: `kubectl get configmap -l zasp.ai/egress-observations=v1 -o yaml` shows everything that is kept.
+
+Enable it:
+
+```yaml
+sensorAgent:
+  egressDiscovery:
+    enabled: true
+    healthPort: 18083      # a free port on every node; the pod uses the host network
+    publishInterval: 5m0s
+```
+
+The Kubernetes discovery credential must be allowed to list ConfigMaps so the collector can read the observations. If the credential is bound to the built-in `view` ClusterRole it already can. Otherwise add, in the release namespace:
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata: { name: zasp-discovery-egress-observations }
+rules:
+  - apiGroups: [""]
+    resources: [configmaps]
+    verbs: [list]
+```
+
+bound to the discovery identity. The collector lists ConfigMaps across namespaces with the label selector; Kubernetes cannot limit a list to a label, so this grants reading all ConfigMaps. Without it discovery still completes and judges workloads on their pod templates alone.
+
+Verify: `kubectl -n <namespace> logs ds/sensor-egress` prints `egress-discovery published workloads=<n> ...` after a workload has called a model API; after the next Kubernetes sync the workload is on the Agents page as unmanaged, and "How it was found" lists `egress:<token>`.
+
+What it does not see:
+
+- A workload that reaches the model through an HTTP proxy or an egress gateway: the proxy resolves the name, not the pod. The gateway or the proxy shows up instead.
+- DNS over HTTPS or over TCP.
+- Pods on the host network, and the `kube-system` and `cilium` namespaces (Tetragon's events for them are filtered out).
+- CNIs that do not pass pod traffic through an interface in the host network namespace (IPVLAN in L3S mode, some SR-IOV setups).
+- Which MCP tool or which model was called. That needs the traffic in plain text, which the runtime gateway and OpenTelemetry instrumentation provide for managed agents.
+
+An observation counts for seven days after it was last seen. Detection takes effect at the next Kubernetes sync.
+
 ## Rollback
 
 | Situation | Action |
@@ -473,6 +520,7 @@ From [the launch plan](../internal/mvp-launch-plan-2026-11-12.md) and this revie
 Deployment:
 
 - **Nothing has been applied to a real AWS account.** No `terraform apply`, no Helm install on any cluster, no pod has pulled an image or mounted a secret. IAM, KMS and network behaviour is untested against AWS; development used LocalStack, which does not enforce IAM.
+- **Runtime agent discovery (step 15) has not run on a cluster.** The packet capture ran for real on a loopback interface and the Tetragon stream against a stand-in gRPC server; no veth, CNI, real Tetragon or real DNS server has been in the path. The chart block was rendered with a stand-in for Helm, not Helm.
 - The chart's schema job has not run in a cluster. The same commands ran outside Kubernetes on the local stack.
 - The approval-maintenance key and DSN wiring in a running API pod is untested.
 - Whether nodes in the private subnets join the cluster is untested. The VPC has no `ec2` interface endpoint, so without the NAT gateway the VPC CNI cannot reach the EC2 API.

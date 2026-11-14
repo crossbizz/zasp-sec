@@ -29,10 +29,21 @@ Plan and detail: `docs/superpowers/plans/2026-11-14-automatic-agent-discovery.md
 - [x] Baseline artifact rebuilt (43 rule rows; installs on a fresh PostgreSQL 18.3 as a non-superuser)
 - [x] All suites compared against the code before this work: the same 77 Go tests and 2 web tests fail as before, none new; release and staging gates fail the same tests as before
 
+## Third pass (2026-11-14): runtime discovery from network traffic
+- [x] Egress catalog: model APIs, Bedrock and AgentCore data planes, remote MCP servers, agent tooling (`agentsignals/egress.go`)
+- [x] Sensor role `egress-discovery`: DNS answers captured on the node, joined to Tetragon `tcp_connect` events by pod address and answer address
+- [x] Per-node ConfigMap with catalog tokens per workload; names outside the catalog never leave the node
+- [x] Kubernetes collector reads the observations; `egress:<token>` counts in agent inference; a missing permission or a bad document never fails a sync
+- [x] Opt-in DaemonSet and RBAC in the customer-edge chart (`sensorAgent.egressDiscovery.enabled`)
+- [x] Agents page explains a runtime signal in "How it was found"
+- [x] Runbook step 15, plan updated
+- [x] Checks: the Go packages this pass touches pass (sensor agent has one failure that predates it, `TestLineageSocketLinuxPeerUIDMismatch`); web suite fails the same 2 tests as before; the four deploy gate files fail the same 32 tests as before. The full platform Go suite was not rerun: nothing outside `agentsignals`, the Kubernetes collector and one worker test changed
+- [ ] Run it on one real cluster and measure what the egress signal adds and what it gets wrong (needs a cluster)
+- [ ] Say on the integration detail when the collector may not read the observations (follow-up)
+
 ## Not buildable here
 - [ ] Run each collector against a real AWS account, cluster, GitHub organization, Okta tenant, Entra tenant and Salesforce org; measure false positives and misses per signal class (needs those systems)
 - [ ] Reinstall the Neon databases with the new baseline artifact (needs database access)
-- [ ] Runtime discovery from the sensor: stays behind the evidence gate in the plan. Open-source Tetragon gives IP and port only, so it needs a DNS or SNI source and a measurement on one cluster first
 
 ## Review
 No provider was added: a fifth provider touches about forty switches and SQL constraints, a new kind under an existing provider about twelve. SaaS agents therefore arrive through the identity provider first, and Copilot Studio and Agentforce are separate provider tasks. Nothing ran against a real provider. The confidence numbers (60 to 70% for inferred agents) are judgement until the first item above is done.

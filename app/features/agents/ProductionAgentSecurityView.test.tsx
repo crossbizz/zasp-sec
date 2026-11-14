@@ -199,6 +199,26 @@ describe("production typed inventory API", () => {
     expect(screen.getByRole("list", { name: "Discovery signals" })).toHaveTextContent("app:chatgpt");
   });
 
+  it("says a runtime egress signal was seen by the node sensor", async () => {
+    const user = userEvent.setup();
+    const runtime = { ...summary(ids.second, "shop/support-bot"), source_kind: "kubernetes_inferred_agent", discovery: { method: "inferred" as const, platform: "kubernetes_workload", signals: ["egress:anthropic", "env:openai"] }, management_state: "unmanaged" as const };
+    const detail = { summary: runtime, sources: [], evidence: [] } as never;
+    const api: ProductionAgentSecurityAPI = {
+      listAgents: async () => [runtime], listTools: async () => [], listIdentities: async () => [], listRuntimes: async () => [],
+      getAgent: async () => detail, getTool: async () => detail, getIdentity: async () => detail, getRuntime: async () => detail,
+      getAgentCapabilities: async () => [], getAgentRelationships: async () => [], listAgentSessions: async () => [],
+      updateAgent: async () => ({ agent: runtime, audit_id: ids.evidence }),
+      getHomeSummary: async () => { throw new Error("unused"); },
+    };
+    window.history.replaceState({}, "", "/discovery/assets");
+    render(<APIProvider><ProductionAgentSecurityView path="/discovery/assets" api={api} onNavigate={() => undefined} /></APIProvider>);
+    await user.click(await screen.findByRole("button", { name: "Open shop/support-bot" }));
+    const signals = await screen.findByRole("list", { name: "Discovery signals" });
+    const items = signals.querySelectorAll("li");
+    expect(items[0]).toHaveTextContent("egress:anthropic — seen at run time: the node sensor saw this workload resolve and connect to the service");
+    expect(items[1]).toHaveTextContent(/^env:openai$/);
+  });
+
   it("dismisses a found agent with the checkbox and never shows the reserved tag in the Tags field", async () => {
     const user = userEvent.setup();
     const shadow = { ...summary(ids.second, "Shadow"), owner: "security", team: "platform", tags: ["critical"], provider: "okta" as const, source_kind: "okta_ai_application", discovery: { method: "inferred" as const, platform: "saas_assistant", signals: ["app:chatgpt"] }, management_state: "managed" as const };
