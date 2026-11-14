@@ -23,8 +23,11 @@ const (
 // integrations: the inventory identities are the provider identities, so
 // nothing is duplicated.
 func (seeder *Seeder) Seed(ctx context.Context, request Request) (Report, error) {
-	request, err := request.normalize()
+	request, err := seeder.place(ctx, request)
 	if err != nil {
+		return Report{}, err
+	}
+	if request, err = request.normalize(); err != nil {
 		return Report{}, err
 	}
 	dataset, err := demodata.Load()
@@ -38,7 +41,7 @@ func (seeder *Seeder) Seed(ctx context.Context, request Request) (Report, error)
 	scope := resolved.scope
 	o, w, e := scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String()
 	report := Report{OrganizationID: o, WorkspaceID: w, EnvironmentID: e, OrganizationName: resolved.organizationName, EnvironmentName: resolved.environmentName,
-		PrincipalID: resolved.principal, OrganizationCreated: resolved.organizationCreated, MemberCreated: resolved.memberCreated}
+		PrincipalID: resolved.principal, OrganizationCreated: resolved.organizationCreated, MemberCreated: resolved.memberCreated, Dedicated: resolved.dedicated}
 	seeder.say("demo scope: organization %s (%s), workspace %s, environment %s (%s)", resolved.organizationName, o, w, resolved.environmentName, e)
 
 	var foreign int
@@ -64,14 +67,26 @@ func (seeder *Seeder) Seed(ctx context.Context, request Request) (Report, error)
 		report.Integrations = append(report.Integrations, entry)
 		seeder.say("  %-44s %4d entities", integration.Name, entry.Entities)
 	}
-	if err := seeder.inTransaction(ctx, func(tx pgx.Tx) error { return projectFindings(ctx, tx, scope, failed) }); err != nil {
+	// The registry decisions come before the posture refresh, which reads
+	// them: a blocked server in use is a finding.
+	decided := 0
+	if err := seeder.inTransaction(ctx, func(tx pgx.Tx) error {
+		var err error
+		if decided, err = seedRegistry(ctx, tx, resolved); err != nil {
+			return err
+		}
+		return projectFindings(ctx, tx, scope, failed)
+	}); err != nil {
 		return Report{}, err
+	}
+	if decided > 0 {
+		report.Extras = append(report.Extras, fmt.Sprintf("%d approved-servers registry decision(s)", decided))
 	}
 	extras, err := seeder.seedExtras(ctx, resolved)
 	if err != nil {
 		return Report{}, err
 	}
-	report.Extras = extras
+	report.Extras = append(report.Extras, extras...)
 	if err := seeder.database.QueryRow(ctx, countsSQL, o, w, e).Scan(&report.Agents, &report.OpenFindings, &report.MCPServers, &report.AttackPaths); err != nil {
 		return Report{}, err
 	}

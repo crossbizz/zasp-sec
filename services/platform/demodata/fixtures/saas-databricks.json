@@ -1,0 +1,23 @@
+{
+  "key": "saas-databricks",
+  "provider": "saas",
+  "name": "Demo: Databricks workspace",
+  "subject": "databricks/adb-4200000000000042.7.azuredatabricks.net",
+  "description": "Model serving endpoints of a Databricks workspace: served agents, an external model endpoint and a classic model that is not an agent.",
+  "configuration": {
+    "platform": "databricks",
+    "tenant": "adb-4200000000000042.7.azuredatabricks.net"
+  },
+  "http": {
+    "platform": "databricks",
+    "routes": [
+      {"path": "/api/2.1/unity-catalog/current-metastore-assignment", "body": {"metastore_id": "4a4a4a4a-0000-4000-8000-000000000042", "workspace_id": 4200000000000042, "default_catalog_name": "main"}},
+      {"path": "/api/2.0/serving-endpoints", "body": {"endpoints": [
+        {"name": "demand-forecast-agent", "id": "0a1b2c3d4e5f", "creator": "data-platform@example.com", "state": {"ready": "READY", "config_update": "NOT_UPDATING"}, "task": "agent/v1/responses", "config": {"served_entities": [{"name": "demand-forecast-agent-4", "entity_name": "main.agents.demand_forecast_agent", "entity_version": "4"}]}},
+        {"name": "parts-lookup-agent", "id": "1b2c3d4e5f60", "creator": "data-platform@example.com", "state": {"ready": "READY", "config_update": "NOT_UPDATING"}, "task": "agent/v1/responses", "config": {"served_entities": [{"name": "parts-lookup-agent-2", "entity_name": "main.agents.parts_lookup_agent", "entity_version": "2"}]}},
+        {"name": "gpt-4o-gateway", "id": "2c3d4e5f6071", "state": {"ready": "READY"}, "task": "llm/v1/chat", "config": {"served_entities": [{"name": "gpt-4o", "external_model": {"provider": "openai", "name": "gpt-4o", "task": "llm/v1/chat"}}]}},
+        {"name": "churn-model", "id": "3d4e5f607182", "state": {"ready": "READY"}, "config": {"served_models": [{"name": "churn-7", "model_name": "main.ml.churn", "model_version": "7"}]}}
+      ]}}
+    ]
+  }
+}

@@ -92,6 +92,16 @@ type Request struct {
 	// ExistingOrganizationID places the demo in a dedicated Workspace and
 	// Environment of this Organization instead of a dedicated Organization.
 	ExistingOrganizationID string
+	// Dedicated forces the dedicated Organization.
+	Dedicated bool
+	// SignInOrganizationReference is the provider Organization the
+	// deployment's sign-in is bound to, if any. When neither
+	// ExistingOrganizationID nor Dedicated nor an Organization name or
+	// Domain is given, and the person is an active member of the product
+	// Organization bound to it, the demo goes into that Organization: it is
+	// the one the person reaches by signing in. Otherwise the dedicated
+	// Organization is used.
+	SignInOrganizationReference string
 	// Providers limits the dataset to these providers. Empty selects all.
 	Providers []string
 	// AuthorizationStoreID and AuthorizationModelID bind a new dedicated
@@ -117,11 +127,13 @@ type Report struct {
 	// or had already sent, the person an invitation to the demo
 	// Organization.
 	OrganizationCreated, MemberCreated bool
-	Integrations                       []IntegrationReport
-	Agents, OpenFindings, MCPServers   int
-	AttackPaths                        int
-	Extras                             []string
-	Skipped                            []string
+	// Dedicated says the demo is in an Organization of its own.
+	Dedicated                        bool
+	Integrations                     []IntegrationReport
+	Agents, OpenFindings, MCPServers int
+	AttackPaths                      int
+	Extras                           []string
+	Skipped                          []string
 }
 
 // Seeder runs the demo commands on one operator connection.

@@ -1,0 +1,26 @@
+{
+  "key": "saas-openai-project",
+  "provider": "saas",
+  "name": "Demo: OpenAI project",
+  "subject": "openai_project/proj_NwRobotics0001",
+  "description": "Assistants and agents of an OpenAI API project, among them one that runs code and one that uses a shell and a remote MCP server.",
+  "configuration": {
+    "platform": "openai_project",
+    "tenant": "proj_NwRobotics0001"
+  },
+  "http": {
+    "platform": "openai_project",
+    "routes": [
+      {"path": "/v1/assistants", "query": {"limit": "1"}, "body": {"object": "list", "data": [{"id": "asst_nw_spec_writer", "object": "assistant", "name": "Spec writer", "model": "gpt-4o", "tools": []}], "first_id": "asst_nw_spec_writer", "last_id": "asst_nw_spec_writer", "has_more": true}},
+      {"path": "/v1/assistants", "body": {"object": "list", "data": [
+        {"id": "asst_nw_spec_writer", "object": "assistant", "name": "Spec writer", "description": "Drafts mechanical specifications", "model": "gpt-4o", "tools": [{"type": "file_search"}]},
+        {"id": "asst_nw_data_analyst", "object": "assistant", "name": "Telemetry data analyst", "model": "gpt-4o", "tools": [{"type": "code_interpreter"}, {"type": "file_search"}]},
+        {"id": "asst_nw_refund_helper", "object": "assistant", "name": "Refund helper", "model": "gpt-4.1-mini", "tools": [{"type": "function", "function": {"name": "refund_order", "description": "Refunds an order", "parameters": {}}}]}
+      ], "first_id": "asst_nw_spec_writer", "last_id": "asst_nw_refund_helper", "has_more": false}},
+      {"path": "/v1/agents", "body": {"object": "list", "data": [
+        {"id": "agent_nw_release_manager", "object": "agent", "name": "Firmware release manager", "model": "gpt-5", "tools": [{"type": "shell"}, {"type": "mcp", "server_url": "https://mcp.build-farm.northwind-robotics.example.com/sse"}]},
+        {"id": "agent_nw_market_researcher", "object": "agent", "name": "Market researcher", "model": "gpt-5-mini", "tools": [{"type": "web_search"}]}
+      ], "has_more": false}}
+    ]
+  }
+}

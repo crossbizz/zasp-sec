@@ -169,3 +169,19 @@ func Collect(ctx context.Context, integration Integration, target Target) (Snaps
 }
 
 var collectors = map[string]func(context.Context, Integration, Target) (Snapshot, error){}
+
+// Count returns the number of agents and of entities in a snapshot.
+func Count(snapshot Snapshot) (agents, entities int, err error) {
+	var listed []struct {
+		ProductKind string `json:"product_kind"`
+	}
+	if err := json.Unmarshal(snapshot.Entities, &listed); err != nil {
+		return 0, 0, err
+	}
+	for _, entity := range listed {
+		if entity.ProductKind == "agent" {
+			agents++
+		}
+	}
+	return agents, len(listed), nil
+}

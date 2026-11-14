@@ -1,0 +1,22 @@
+{
+  "key": "saas-slack",
+  "provider": "saas",
+  "name": "Demo: Slack workspace",
+  "subject": "slack/T0NWROBOT01",
+  "description": "AI apps approved in a Slack workspace, among them one that may read channel history.",
+  "configuration": {
+    "platform": "slack",
+    "tenant": "T0NWROBOT01"
+  },
+  "http": {
+    "platform": "slack",
+    "routes": [
+      {"path": "/api/team.info", "body": {"ok": true, "team": {"id": "T0NWROBOT01", "name": "Northwind Robotics", "domain": "northwind-robotics", "email_domain": "example.com"}}},
+      {"path": "/api/admin.apps.approved.list", "body": {"ok": true, "approved_apps": [
+        {"app": {"id": "A0NWCHATGPT", "name": "ChatGPT", "description": "Ask ChatGPT in Slack", "is_internal": false}, "scopes": [{"name": "chat:write", "is_sensitive": true, "token_type": "bot"}, {"name": "channels:history", "is_sensitive": true, "token_type": "bot"}], "date_updated": 1760000000},
+        {"app": {"id": "A0NWHELPDSK", "name": "Helpdesk Triage", "is_internal": true}, "scopes": [{"name": "assistant:write", "token_type": "bot"}, {"name": "chat:write", "token_type": "bot"}]},
+        {"app": {"id": "A0NWCALENDR", "name": "Google Calendar", "is_internal": false}, "scopes": [{"name": "chat:write", "token_type": "bot"}]}
+      ], "response_metadata": {"next_cursor": ""}}}
+    ]
+  }
+}

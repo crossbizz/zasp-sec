@@ -21,6 +21,7 @@ type target struct {
 	principal           string
 	organizationCreated bool
 	memberCreated       bool
+	dedicated           bool
 }
 
 const (
@@ -55,6 +56,52 @@ func parseScope(organization, workspace, environment string) (domain.Scope, erro
 		return domain.Scope{}, err
 	}
 	return domain.NewScope(o, w, e)
+}
+
+const signInOrganizationSQL = `SELECT DISTINCT organization_id FROM public.zasp_identity_memberships WHERE organization_reference = $1`
+
+// place decides where the demo goes when the operator did not say: into the
+// Organization the deployment's sign-in is bound to when the person is an
+// active member of it, else into the dedicated Organization. It writes
+// nothing and sends nothing.
+func (seeder *Seeder) place(ctx context.Context, request Request) (Request, error) {
+	if request.Dedicated && request.ExistingOrganizationID != "" {
+		return Request{}, fmt.Errorf("%w: a dedicated organization and an existing organization exclude each other", ErrInvalid)
+	}
+	if request.Dedicated || request.ExistingOrganizationID != "" || request.Organization != "" || request.Domain != "" || request.SignInOrganizationReference == "" {
+		return request, nil
+	}
+	if seeder.directory == nil || !emailPattern.MatchString(request.Email) {
+		return request, nil
+	}
+	rows, err := seeder.database.Query(ctx, signInOrganizationSQL, request.SignInOrganizationReference)
+	if err != nil {
+		return Request{}, err
+	}
+	organizations, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	if err != nil {
+		return Request{}, err
+	}
+	if len(organizations) != 1 {
+		return request, nil
+	}
+	member, found, err := seeder.directory.FindMember(ctx, request.SignInOrganizationReference, request.Email)
+	if err != nil {
+		return Request{}, ErrProvider
+	}
+	if !found {
+		seeder.say("%s is not a member of the organization this deployment signs people in to; using a dedicated organization", request.Email)
+		return request, nil
+	}
+	var principal, organization string
+	var active bool
+	if err := seeder.database.QueryRow(ctx, membershipSQL, request.SignInOrganizationReference, member.MemberReference()).Scan(&principal, &organization, &active); err != nil || !active || organization != organizations[0] {
+		seeder.say("%s has no active membership in the organization this deployment signs people in to; using a dedicated organization", request.Email)
+		return request, nil
+	}
+	seeder.say("%s signs in to organization %s; the demo goes into a workspace of its own there", request.Email, organization)
+	request.ExistingOrganizationID = organization
+	return request, nil
 }
 
 // resolve finds or creates the demo scope and makes sure the person can see
@@ -113,7 +160,7 @@ func (seeder *Seeder) resolveDedicated(ctx context.Context, request Request) (ta
 		}
 	}
 	return target{scope: scope, organizationName: request.Organization, environmentName: request.Environment, principal: result.PrincipalID,
-		organizationCreated: result.OrganizationCreated, memberCreated: result.AdminCreated}, nil
+		organizationCreated: result.OrganizationCreated, memberCreated: result.AdminCreated, dedicated: true}, nil
 }
 
 // resolveExisting creates the demo Workspace and Environment inside an

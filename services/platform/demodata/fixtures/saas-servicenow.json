@@ -1,0 +1,26 @@
+{
+  "key": "saas-servicenow",
+  "provider": "saas",
+  "name": "Demo: ServiceNow instance",
+  "subject": "servicenow/northwindrobotics",
+  "description": "Now Assist AI agents of a ServiceNow instance, one of them inactive, and the AI applications installed on it.",
+  "configuration": {
+    "platform": "servicenow",
+    "tenant": "northwindrobotics"
+  },
+  "http": {
+    "platform": "servicenow",
+    "routes": [
+      {"path": "/api/now/table/sys_properties", "body": {"result": [{"name": "instance_name", "value": "northwindrobotics"}]}},
+      {"path": "/api/now/table/sn_aia_agent", "body": {"result": [
+        {"sys_id": "5a5a5a5a000040008000000000000501", "name": "Incident triage agent", "active": "true"},
+        {"sys_id": "5a5a5a5a000040008000000000000502", "name": "Change risk agent", "active": "true"},
+        {"sys_id": "5a5a5a5a000040008000000000000503", "name": "Asset reconciliation agent", "active": "false"}
+      ]}},
+      {"path": "/api/now/table/sys_store_app", "body": {"result": [
+        {"sys_id": "5a5a5a5a000040008000000000000601", "name": "Now Assist for ITSM", "scope": "sn_now_assist_itsm", "version": "5.0.1", "active": "true"},
+        {"sys_id": "5a5a5a5a000040008000000000000602", "name": "Vendor Risk Management", "scope": "sn_vdr_risk", "version": "12.0.0", "active": "true"}
+      ]}}
+    ]
+  }
+}
