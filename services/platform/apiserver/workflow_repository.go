@@ -155,6 +155,10 @@ func (repository *PostgresRepository) GetWorkflow(ctx context.Context, scope dom
 		statement = currentPolicyValueSQL
 		arguments = []any{scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), id}
 	}
+	if lease, leased := connectorLeaseRead(ctx, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), kind, id); leased && currentAuthorizationRequired(repository.database) {
+		statement = postgresConnectorLeasedIntegrationSQL
+		arguments = []any{lease.OrganizationID, lease.WorkspaceID, lease.EnvironmentID, lease.ID, lease.LeaseOwner, lease.LeaseToken}
+	}
 	if repository.securityAgentExecution {
 		if kind != "security_agent" {
 			return WorkflowValue{}, ErrRepositoryOperation

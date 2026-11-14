@@ -1386,6 +1386,14 @@ func writeProductionError(writer http.ResponseWriter, request *http.Request, err
 	if errors.Is(err, ErrRepositoryCostBudgetRequired) {
 		status, code, message, retryable = http.StatusBadRequest, "cost_budget_required", "Configure and save an explicit AI cost budget before enabling execution", false
 	}
+	// The proof of the request went stale between its check and its
+	// statement. The router reports the same condition the same way.
+	if errors.Is(err, authorization.ErrConflict) {
+		status, code, message, retryable = http.StatusConflict, "authorization_changed", "Authorization changed; retry from a fresh request", true
+	}
+	if errors.Is(err, ErrSecurityAgentTriggerSourceMismatch) {
+		status, code, message, retryable = http.StatusConflict, "trigger_source_mismatch", "The finding's rule is not this Security Agent's trigger source", false
+	}
 	correlation := fallbackCorrelationID
 	if request != nil {
 		correlation = correlationIDFromContext(request.Context())

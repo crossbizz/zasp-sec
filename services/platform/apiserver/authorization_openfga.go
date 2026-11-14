@@ -109,7 +109,7 @@ func (a *OpenFGAAuthorizer) Authorize(ctx context.Context, identity RequestIdent
 		return RequestAuthorization{}, authorization.ErrUnavailable
 	}
 	if !targets.Collection && len(targets.Targets) == 0 {
-		return RequestAuthorization{}, authorizationTargetDenied(route.OperationID)
+		return RequestAuthorization{}, a.missingTarget(ctx, identity, route.OperationID, permissions)
 	}
 	grant := RequestAuthorization{OperationID: route.OperationID, Credential: credential, Identity: identity, Targets: append([]AuthorizationTarget(nil), targets.Targets...), Collection: targets.Collection}
 	grant.PathParameters = make(map[string]string, len(route.PathParameters))
@@ -265,6 +265,44 @@ func authorizationTargetDenied(operation string) error {
 	default:
 		return ErrAuthorizationDenied
 	}
+}
+
+// missingObjectOperations are the reads of one object by its ID that answer
+// 404 when the object is not in the caller's Environment and the caller holds
+// the operation's permission on that Environment.
+var missingObjectOperations = map[string]bool{"getPolicy": true, "getIntegration": true, "getSecurityAgent": true, "getFinding": true}
+
+// missingTarget decides the answer when the object of a request resolves to
+// nothing in the caller's own scope: it does not exist, it was deleted, or it
+// belongs to another Environment, Workspace or Organization. The resolver
+// reads only the caller's scope, so these cases are indistinguishable here
+// and get one answer; nothing about another tenant can be inferred from it.
+//
+// The answer was always 403, which a client cannot tell from a missing
+// permission. A caller that holds the operation's permission on the
+// Environment itself (checked against the current projection revision) is
+// allowed to read every such object there, so telling it "not found" reveals
+// nothing it could not list. Every other caller keeps the 403. A check that
+// cannot be decided (the projection is behind, as it is for a moment after
+// the object was deleted, or the checker is unavailable) is reported as
+// such, the way it is for an object that exists: the router answers that
+// with a retryable error, and the repeated request gets the decided answer.
+func (a *OpenFGAAuthorizer) missingTarget(ctx context.Context, identity RequestIdentity, operation string, permissions []string) error {
+	denied := authorizationTargetDenied(operation)
+	if !missingObjectOperations[operation] || len(permissions) == 0 {
+		return denied
+	}
+	scope := identity.Scope
+	for _, permission := range permissions {
+		checked, err := authorization.CheckRevision(ctx, a.Reader, a.Checker, authorization.CheckRequest{PrincipalKind: "user", PrincipalID: identity.PrincipalID.String(), OrganizationID: scope.OrganizationID().String(), WorkspaceID: scope.WorkspaceID().String(), EnvironmentID: scope.EnvironmentID().String(), ResourceType: "environment", ResourceID: scope.EnvironmentID().String(), Permission: permission}, a.StoreID, a.ModelID)
+		if err != nil {
+			return err
+		}
+		if !checked.Decision.Allowed {
+			return denied
+		}
+	}
+	return ErrRepositoryNotFound
 }
 
 // The operation inventory names the primary permission. Compliance's existing

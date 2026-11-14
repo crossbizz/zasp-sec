@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/zasp-ai/zasp-sec/services/platform/authorization"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	platformidentity "github.com/zasp-ai/zasp-sec/services/platform/identity"
 	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
@@ -74,6 +75,16 @@ var (
 	ErrRepositoryCostBudgetRequired = errors.Join(ErrRepositoryOperation, errors.New("security agent cost budget configuration required"))
 	ErrRepositoryUnavailable        = errors.New("repository provider unavailable")
 	ErrRepositoryConflict           = errors.New("repository operation conflict")
+	// ErrAuthorizationChanged is the conflict of a checked statement whose
+	// proof is no longer current: the authorization projection moved between
+	// the request's check and the statement (zasp_authorization79.revalidate).
+	// Nothing was read or written. It is the condition the router reports as
+	// authorization_changed before a handler runs, and it is retryable.
+	ErrAuthorizationChanged = errors.Join(ErrRepositoryConflict, authorization.ErrConflict)
+	// ErrSecurityAgentTriggerSourceMismatch is a conflict with a stated cause:
+	// the run was requested on a finding whose rule is not the Security
+	// Agent's trigger source.
+	ErrSecurityAgentTriggerSourceMismatch = errors.Join(ErrRepositoryConflict, errors.New("security agent trigger source mismatch"))
 )
 
 type JSONDatabase interface {

@@ -1502,7 +1502,7 @@ func discoveryProviderError(err error) error {
 	if err == nil {
 		return nil
 	}
-	if err == ErrRepositoryNotFound || err == ErrRepositoryConflict || err == ErrRepositoryOperation || errors.Is(err, ErrRepositoryCostBudgetRequired) {
+	if err == ErrRepositoryNotFound || err == ErrRepositoryConflict || err == ErrRepositoryOperation || errors.Is(err, ErrRepositoryCostBudgetRequired) || errors.Is(err, ErrSecurityAgentTriggerSourceMismatch) {
 		return err
 	}
 	return errors.Join(ErrRepositoryUnavailable, err)

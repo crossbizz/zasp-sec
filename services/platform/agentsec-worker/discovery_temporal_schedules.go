@@ -127,8 +127,34 @@ func (s *temporalDiscoveryScheduleSource) pending(ctx context.Context, after str
 	return
 }
 
+// discoveryReleaseInterval is how often the scheduler asks the database to
+// release abandoned discovery runs. The database decides which runs are
+// abandoned (quiet for ten or thirty-five minutes, nothing committed), so the
+// interval only bounds how long after that a run is released.
+const discoveryReleaseInterval = time.Minute
+
+// releaseAbandoned releases abandoned discovery runs of integrations that no
+// later sync would release (completion.sql, section V4). It returns how many
+// runs were released.
+func (s *temporalDiscoveryScheduleSource) releaseAbandoned(ctx context.Context, limit int) (released int, result error) {
+	result = s.withConnection(ctx, func(ctx context.Context, c *pgx.Conn) error {
+		var raw []byte
+		var wire struct {
+			Examined *int `json:"examined"`
+			Released *int `json:"released"`
+		}
+		if c.QueryRow(ctx, `SELECT zasp_temporal72.release_abandoned_due($1)`, limit).Scan(&raw) != nil || json.Unmarshal(raw, &wire) != nil || wire.Examined == nil || wire.Released == nil || *wire.Released < 0 || *wire.Examined < 0 {
+			return errWorkerExecution
+		}
+		released = *wire.Released
+		return nil
+	})
+	return
+}
+
 // This scans desired changes, never due work. One startup pass also repairs
 // deleted or missing Temporal Schedules through the same reconciliation path.
+// On a timer it also releases abandoned discovery runs.
 type temporalDiscoveryScheduleProcessor struct {
 	mu         sync.Mutex
 	source     *temporalDiscoveryScheduleSource
@@ -136,6 +162,33 @@ type temporalDiscoveryScheduleProcessor struct {
 	limit      int
 	startup    bool
 	after      string
+	// release and now are replaced in tests; nil means the source and the
+	// wall clock.
+	release     func(context.Context, int) (int, error)
+	now         func() time.Time
+	lastRelease time.Time
+}
+
+// releaseDue runs the release sweep when its interval has elapsed. A failed
+// sweep is retried on the next pass.
+func (p *temporalDiscoveryScheduleProcessor) releaseDue(ctx context.Context) error {
+	now := time.Now
+	if p.now != nil {
+		now = p.now
+	}
+	at := now()
+	if !p.lastRelease.IsZero() && at.Sub(p.lastRelease) < discoveryReleaseInterval {
+		return nil
+	}
+	release := p.release
+	if release == nil {
+		release = p.source.releaseAbandoned
+	}
+	if _, err := release(ctx, p.limit); err != nil {
+		return err
+	}
+	p.lastRelease = at
+	return nil
 }
 
 func (p *temporalDiscoveryScheduleProcessor) RunOnce(ctx context.Context) error {
@@ -148,7 +201,7 @@ func (p *temporalDiscoveryScheduleProcessor) RunOnce(ctx context.Context) error 
 	if err != nil {
 		return err
 	}
-	var result error
+	result := p.releaseDue(ctx)
 	for _, ref := range refs {
 		result = errors.Join(result, p.reconciler.Reconcile(ctx, ref))
 		p.after = strings.Join([]string{ref.OrganizationID, ref.WorkspaceID, ref.EnvironmentID, ref.ScheduleID, ref.IntegrationID}, "/")

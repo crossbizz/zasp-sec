@@ -3616,3 +3616,322 @@ BEGIN
  THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='authorization compliance read predecessor changed';END IF;
  EXECUTE replace(replace(replace(d,visible,replace(visible,'parent_allowed(','parent_allowed_inner(')),scan,guard||E'\n'||scan),after_scan,guard||E'\n'||after_scan);
 END $compliance_read_once$;
+
+-- ---------------------------------------------------------------------------
+-- V1. The integration of a leased connector effect.
+--
+-- The connector reconciler (apiserver/connector_reconciler.go) finishes
+-- connector effects in the background: an OAuth authorization whose outcome
+-- is unknown, and the revocation that DELETE /integrations/{id} requests for
+-- an integration with a verified connection or an active credential. To
+-- finish either it must read the integration (its connector and
+-- configuration). It read it with the generic workflow reader, a request
+-- statement the API role can no longer execute and the API refuses without a
+-- request authorization. Every claimed lease therefore failed before any
+-- provider work, the effect was claimed again until it was quarantined at
+-- attempt 100, and a deleted integration stayed in 'revoking' with its
+-- receipt unsettled.
+--
+-- The read below is bound to the lease the reconciler holds, like the other
+-- maintenance statements (claim, complete, fail, quarantine): it returns the
+-- integration of one effect, only while that effect is leased to the named
+-- owner with the named token and the lease has not expired. It takes no
+-- principal and reads nothing a claim has not already selected.
+CREATE OR REPLACE FUNCTION zasp_authorization80.connector_leased_integration(o text,w text,e text,effect_value text,owner_value text,token_value text) RETURNS jsonb
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $connector_leased_integration$
+DECLARE result jsonb;
+BEGIN
+ IF NOT COALESCE(public.zasp_valid_product_id(o) AND public.zasp_valid_product_id(w) AND public.zasp_valid_product_id(e) AND public.zasp_valid_product_id(effect_value)
+  AND length(owner_value) BETWEEN 3 AND 128 AND token_value~'^[0-9a-f]{64}$',false)
+ THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='invalid connector lease read';END IF;
+ SELECT jsonb_build_object('body',r.body,'version',r.version,'secret_generation',r.secret_generation) INTO result
+ FROM public.zasp_connector_effects x
+ JOIN public.zasp_workflow_records r ON(r.organization_id,r.workspace_id,r.environment_id,r.kind,r.id)=(x.organization_id,x.workspace_id,x.environment_id,'integration',x.integration_id) AND r.deleted_at IS NULL
+ WHERE(x.organization_id,x.workspace_id,x.environment_id,x.id)=(o,w,e,effect_value) AND x.status='unknown'
+  AND x.lease_owner=owner_value AND x.lease_token=token_value AND x.lease_expires_at>transaction_timestamp();
+ IF result IS NULL THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='connector leased integration unavailable';END IF;
+ RETURN result;
+END $connector_leased_integration$;
+ALTER FUNCTION zasp_authorization80.connector_leased_integration(text,text,text,text,text,text) OWNER TO zasp_discovery_authority;
+REVOKE ALL ON FUNCTION zasp_authorization80.connector_leased_integration(text,text,text,text,text,text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION zasp_authorization80.connector_leased_integration(text,text,text,text,text,text) TO zasp_discovery_api;
+
+-- ---------------------------------------------------------------------------
+-- V2. POST /security-agents/{id}/runs: the documented short request, and a
+-- named refusal for a finding of another rule.
+--
+-- The contract documents two request bodies. The short one names the trigger
+-- only ({environment_id, trigger_kind, trigger_id}); the long one adds
+-- trigger_version and trigger_source. Section H passed the body unchanged to
+-- the finding-response release (zasp_temporal78.resource), which accepts the
+-- long form only, so the short form answered 400 for every finding-response
+-- Security Agent.
+--
+-- The short form is now completed here, inside the authorized function and
+-- its transaction, after both proofs were checked (the definition's in this
+-- function, the trigger's in the seven-argument form of section X9):
+--   * trigger_source is the definition's own trigger source;
+--   * trigger_version is the finding's current version, or, when the same
+--     principal already used this idempotency key for the same definition
+--     and finding, the version that request recorded, so a retry replays its
+--     own receipt even after the finding changed.
+-- Nothing is taken from the caller that the long form would not take, and
+-- the release still checks every value: the definition version and its
+-- activation, the open finding at that version, the occurrence and the
+-- receipt. A caller that names a version states which finding it saw; a
+-- caller that names none starts on the finding as it is now, which is what
+-- the contract says of the short form.
+--
+-- A finding-response Security Agent acts on findings of one rule (its
+-- trigger source). A run requested on an open finding of another rule was
+-- refused by the release with a generic serialization error ('finding human
+-- source family changed'), which the API reports as an unexplained conflict.
+-- That case is decided here first and named, so the API can say what to
+-- change. It is still a refusal: no run is created.
+CREATE OR REPLACE FUNCTION zasp_authorization80.security_agent_run(o text,w text,e text,d text,actor text,q jsonb) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $security_agent_run$
+DECLARE p jsonb;result jsonb;family text;scope_value jsonb;sourced boolean;definition_source text;prior_intent jsonb;finding_version bigint;finding_rule text;
+ c CONSTANT text:='e4dfae0a990718c2c6b7518b07d7c146cfb9025656378d423c8d96188bcf1b96';f CONSTANT text:='07e774a28105095c73275ad959c765a3fddda9ee9aa81e81cd3828222e40aad3';
+BEGIN
+ IF current_setting('transaction_isolation')<>'read committed' THEN RAISE EXCEPTION USING ERRCODE='25001',MESSAGE='authorization security agent write requires read committed';END IF;
+ sourced:=COALESCE(q ? 'trigger_version' OR q ? 'trigger_source',false);
+ IF q IS NULL OR jsonb_typeof(q)<>'object' OR octet_length(q::text)>8192
+  OR NOT zasp_sa_multistep_prior.closed(q,ARRAY['organization_id','workspace_id','environment_id','definition_id','actor_id','idempotency_key','definition_version','run_id','trigger_kind','trigger_id','audit_id','correlation_id','receipt_id']||CASE WHEN sourced THEN ARRAY['trigger_version','trigger_source'] ELSE ARRAY[]::text[] END)
+  OR(q->>'organization_id',q->>'workspace_id',q->>'environment_id',q->>'definition_id',q->>'actor_id') IS DISTINCT FROM(o,w,e,d,actor)
+  OR NOT COALESCE(public.zasp_valid_product_id(d) AND public.zasp_valid_product_id(q->>'run_id') AND public.zasp_valid_product_id(q->>'trigger_id') AND public.zasp_valid_product_id(q->>'audit_id') AND public.zasp_valid_product_id(q->>'correlation_id') AND public.zasp_valid_product_id(q->>'receipt_id')
+   AND jsonb_typeof(q->'idempotency_key')='string' AND length(q->>'idempotency_key') BETWEEN 16 AND 128 AND q->>'idempotency_key'~'^[A-Za-z0-9][A-Za-z0-9._:-]*$'
+   AND jsonb_typeof(q->'definition_version')='number' AND q->>'definition_version'~'^([1-9][0-9]{0,5}|1000000)$'
+   AND jsonb_typeof(q->'trigger_kind')='string' AND q->>'trigger_kind' IN('finding','session','attack_path')
+   AND(NOT sourced OR(jsonb_typeof(q->'trigger_version')='number' AND q->>'trigger_version'~'^[1-9][0-9]{0,15}$' AND jsonb_typeof(q->'trigger_source')='string' AND length(q->>'trigger_source') BETWEEN 1 AND 128)),false)
+ THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='authorization security agent run rejected';END IF;
+ p:=zasp_authorization80.security_agent_write_request(o,w,e,actor,'runSecurityAgent',d);
+ IF zasp_authorization80.security_agent_export_family(o,w,e,d,NULL) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='security agent export definitions unavailable';END IF;
+ IF q->>'trigger_kind'='finding' AND zasp_temporal78.family(o,w,e,d,actor) THEN
+  SELECT x.body->>'trigger_source' INTO definition_source FROM public.zasp_security_agent_definitions x WHERE(x.organization_id,x.workspace_id,x.environment_id,x.definition_id)=(o,w,e,d) AND x.deleted_at IS NULL;
+  SELECT r.intent INTO prior_intent FROM public.zasp_security_agent_request_receipts r
+  WHERE(r.organization_id,r.workspace_id,r.environment_id,r.principal_id,r.operation,r.idempotency_key)=(o,w,e,actor,'runSecurityAgent',q->>'idempotency_key')
+   AND r.resource_id=d AND r.intent->>'trigger_kind'='finding' AND r.intent->>'trigger_id'=q->>'trigger_id'
+   AND jsonb_typeof(r.intent->'trigger_version')='number' AND jsonb_typeof(r.intent->'trigger_source')='string';
+  IF prior_intent IS NOT NULL THEN
+   -- A retry of an admitted request: the release compares the whole intent.
+   IF NOT sourced THEN q:=q||jsonb_build_object('trigger_version',prior_intent->'trigger_version','trigger_source',prior_intent->'trigger_source');END IF;
+  ELSE
+   IF sourced THEN
+    SELECT x.version,x.rule INTO finding_version,finding_rule FROM public.zasp_risk_findings x
+    WHERE(x.organization_id,x.workspace_id,x.environment_id,x.id,x.status)=(o,w,e,q->>'trigger_id','open') AND x.version::text=q->>'trigger_version';
+   ELSE
+    SELECT x.version,x.rule INTO finding_version,finding_rule FROM public.zasp_risk_findings x
+    WHERE(x.organization_id,x.workspace_id,x.environment_id,x.id,x.status)=(o,w,e,q->>'trigger_id','open');
+    IF finding_version IS NULL OR definition_source IS NULL THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='finding human source changed';END IF;
+    q:=q||jsonb_build_object('trigger_version',finding_version,'trigger_source',definition_source);
+   END IF;
+   IF finding_version IS NOT NULL AND finding_rule IS DISTINCT FROM definition_source
+   THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='security agent trigger source mismatch';END IF;
+  END IF;
+ END IF;
+ result:=zasp_temporal78.resource(q);family:='finding';
+ IF result IS NULL OR result='null'::jsonb THEN result:=zasp_temporal76.resource(q);family:='test';END IF;
+ IF(result IS NULL OR result='null'::jsonb) AND sourced AND(q->>'trigger_version')::numeric<=1000000 THEN
+  scope_value:=jsonb_build_object('organization_id',o,'workspace_id',w,'environment_id',e,'actor_id',actor);
+  IF zasp_ordered_public62.api(c,f,scope_value||jsonb_build_object('operation','classify_mutation','mutation_kind','trigger','definition_id',d,'idempotency_key',q->'idempotency_key','trigger',jsonb_build_object('trigger_id',q->'trigger_id','trigger_version',q->'trigger_version')))->>'family'='ordered_release61' THEN
+   result:=zasp_ordered_public62.api(c,f,scope_value||jsonb_build_object('operation','trigger_resource','definition_id',d,'definition_version',q->'definition_version','trigger_id',q->'trigger_id','trigger_version',q->'trigger_version','trigger_kind',q->'trigger_kind','trigger_source',q->'trigger_source','idempotency_key',q->'idempotency_key'));
+   family:='ordered';
+  END IF;
+ END IF;
+ IF(result IS NULL OR result='null'::jsonb) AND NOT sourced THEN
+  result:=public.zasp_security_agent_run_v24(o,w,e,d,actor,q->>'idempotency_key',(q->>'definition_version')::bigint,q->>'run_id',q->>'trigger_kind',q->>'trigger_id',q->>'audit_id',q->>'correlation_id',q->>'receipt_id');
+  family:='legacy';
+ END IF;
+ IF result IS NULL OR jsonb_typeof(result) IS DISTINCT FROM 'object' THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='authorization security agent run family rejected';END IF;
+ PERFORM zasp_authorization80.security_agent_write_settled(p);
+ RETURN jsonb_build_object('family',family,'result',result);
+END $security_agent_run$;
+ALTER FUNCTION zasp_authorization80.security_agent_run(text,text,text,text,text,jsonb) OWNER TO zasp_discovery_authority;
+REVOKE ALL ON FUNCTION zasp_authorization80.security_agent_run(text,text,text,text,text,jsonb) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION zasp_authorization80.security_agent_run(text,text,text,text,text,jsonb) FROM zasp_security_agent_api;
+
+-- ---------------------------------------------------------------------------
+-- V3. A deleted sync schedule can be set again.
+--
+-- DELETE /integrations/{id}/schedule keeps the schedule row in state
+-- 'deleted': the scheduler worker reads it to pause the schedule in Temporal
+-- and acknowledges that revision. The schedule then reads as absent (GET
+-- answers 404), but PUT could not create it again: with If-Match "0" the row
+-- was found ('discovery schedule exists'), and with any other version a
+-- deleted row is refused. An integration whose schedule had been deleted once
+-- could never be scheduled again.
+--
+-- A create (expected version 0) over a deleted row now replaces it: the
+-- deleted row is removed and a new schedule, with a new identity, starts at
+-- version 1. Every layer that checks a schedule mutation (the worker
+-- accounting in zasp_authorization80_worker and the API) requires the
+-- resulting version to be the expected version plus one, and the Temporal
+-- schedule of an identity accepts only rising revisions, so the deleted
+-- identity cannot be reused and its version cannot be restarted.
+--
+-- The deleted row is removed only once the scheduler worker has acknowledged
+-- the deletion (acknowledged_revision = version), which it does after the
+-- Temporal schedule of that identity is paused. Until then the create is
+-- refused as a conflict and can be repeated; otherwise a still active
+-- Temporal schedule would keep waking for a schedule that no longer exists.
+-- The paused Temporal schedule of the removed identity stays in Temporal, as
+-- it did for every deleted schedule before; it never fires.
+-- A create over a live schedule is still refused. The body is the installed
+-- one with this one branch; the predecessor shape is checked, and a body that
+-- already carries the branch is left alone.
+DO $schedule_recreate$
+DECLARE d text;
+ exists_needle text:=$n$  IF FOUND THEN RAISE EXCEPTION USING ERRCODE='23505',MESSAGE='discovery schedule exists';END IF;$n$;
+ exists_insert text:=$n$  IF FOUND AND s.state<>'deleted' THEN RAISE EXCEPTION USING ERRCODE='23505',MESSAGE='discovery schedule exists';END IF;
+  IF FOUND THEN
+   IF s.acknowledged_revision<>s.version THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='discovery schedule withdrawal pending';END IF;
+   DELETE FROM zasp_temporal72.schedules WHERE(organization_id,workspace_id,environment_id,id)=(o,w,e,s.id);
+  END IF;$n$;
+BEGIN
+ SELECT pg_get_functiondef('zasp_temporal72.public_put_schedule(text,text,text,text,text,text,bigint,integer,text,text,text,text)'::regprocedure) INTO STRICT d;
+ IF position('discovery schedule withdrawal pending' in d)=0 THEN
+  IF (length(d)-length(replace(d,exists_needle,'')))/length(exists_needle)<>1
+  THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='discovery schedule predecessor changed';END IF;
+  EXECUTE replace(d,exists_needle,exists_insert);
+ END IF;
+END $schedule_recreate$;
+
+-- ---------------------------------------------------------------------------
+-- V4. Abandoned discovery runs are released without a later sync.
+--
+-- Section N releases an abandoned run when the next run of the same
+-- integration prepares its first page. An integration that nobody synchronizes
+-- again (no schedule, no further request) therefore kept its abandoned sync
+-- in 'running', and its integration reserved, for ever.
+--
+-- zasp_temporal72.release_abandoned_due is the same release, started by the
+-- scheduler worker on a timer instead of by a later run. It decides nothing
+-- itself: for each integration and provider that has a run release_abandoned
+-- would consider (a run whose sync is still queued or running, or a run that
+-- still owns the integration, zasp_temporal72.active_owners) it takes the
+-- advisory lock that prepare_page takes for that integration and provider,
+-- without waiting (an integration a run is working on right now is skipped),
+-- and calls release_abandoned, which applies every rule of section N: nothing
+-- committed, quiet for the fixed time, the run row not locked. No run asks,
+-- so the release row names a fresh sweep identity as released_by_job_id; it
+-- is never the identity of a run.
+--
+-- Only the scheduler principal may call it (zasp_temporal72.require_principal,
+-- which also requires read committed and the current catalog). It takes a
+-- bound on the integrations examined in one call and no scope, and returns
+-- only two counts. When more integrations are candidates than the bound,
+-- each call examines a random selection, so no candidate is starved by
+-- others that are not yet releasable.
+CREATE OR REPLACE FUNCTION zasp_temporal72.release_abandoned_due(limit_value integer) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $release_abandoned_due$
+DECLARE c record;examined integer:=0;released integer:=0;
+BEGIN
+ PERFORM zasp_temporal72.require_principal('zasp_discovery_scheduler');
+ IF limit_value IS NULL OR limit_value NOT BETWEEN 1 AND 100 THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='discovery release sweep rejected';END IF;
+ FOR c IN SELECT y.* FROM(SELECT DISTINCT x.organization_id,x.workspace_id,x.environment_id,x.integration_id,x.provider FROM(
+   SELECT r.organization_id,r.workspace_id,r.environment_id,r.integration_id,r.provider FROM zasp_temporal72.runs r
+   WHERE r.state<>'succeeded'
+   AND NOT EXISTS(SELECT 1 FROM zasp_temporal72.releases d WHERE(d.organization_id,d.workspace_id,d.environment_id,d.job_id)=(r.organization_id,r.workspace_id,r.environment_id,r.job_id))
+   AND EXISTS(SELECT 1 FROM public.zasp_discovery_syncs s WHERE(s.organization_id,s.workspace_id,s.environment_id,s.id)=(r.organization_id,r.workspace_id,r.environment_id,r.sync_id) AND s.state IN('queued','running'))
+   UNION ALL
+   SELECT scope.organization_id,owner.workspace_id,owner.environment_id,owner.integration_id,owner.provider
+   FROM(SELECT DISTINCT r.organization_id FROM zasp_temporal72.runs r WHERE r.state<>'succeeded') scope
+   CROSS JOIN LATERAL zasp_temporal72.active_owners(scope.organization_id) owner WHERE owner.ownership='temporal') x
+  WHERE x.provider IN('aws','kubernetes','github','okta')) y
+  ORDER BY random() LIMIT limit_value
+ LOOP
+  examined:=examined+1;
+  IF NOT pg_try_advisory_xact_lock(hashtextextended(concat_ws(chr(31),c.organization_id,c.workspace_id,c.environment_id,c.integration_id,c.provider),0)) THEN CONTINUE;END IF;
+  released:=released+zasp_temporal72.release_abandoned(c.organization_id,c.workspace_id,c.environment_id,c.integration_id,c.provider,'pid_'||gen_random_uuid()::text);
+ END LOOP;
+ RETURN jsonb_build_object('examined',examined,'released',released);
+END $release_abandoned_due$;
+ALTER FUNCTION zasp_temporal72.release_abandoned_due(integer) OWNER TO zasp_discovery_authority;
+REVOKE ALL ON FUNCTION zasp_temporal72.release_abandoned_due(integer) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION zasp_temporal72.release_abandoned_due(integer) TO zasp_discovery_scheduler;
+
+-- ---------------------------------------------------------------------------
+-- V5. Webhook test delivery and delivery status without the release-35 pin.
+--
+-- GET /integrations/{id}/delivery-status and POST
+-- /integrations/{id}/test-delivery answered 503 for every Generic Webhook
+-- integration. The three chain functions behind them
+-- (public.zasp_integration_webhook_test_status, _reserve and _complete)
+-- first ask zasp_production_integration_webhook_readiness, the readiness of
+-- release 35. That predicate ends in a chain of later release predicates,
+-- each of which pins the exact number of releases installed at its time (the
+-- last link requires exactly 60), so it has been false since the releases
+-- after it were installed, on the historical chain as well as on this
+-- baseline. Nothing external is missing: the gate is a superseded pin.
+--
+-- The authorized functions of section Z5 already decide the request (the
+-- proof, the integration as the object, the permission). They now call cores
+-- owned by the authorized schema instead of the chain functions. Each core is
+-- the installed chain body with one change: the release-35 gate is replaced
+-- by the readiness the other authorized integration statements use
+-- (zasp_authorization80.integration_current_ready: the current catalog, the
+-- API principal, read committed). The cores are derived from the installed
+-- bodies here, so no rule of the chain is restated, and the predecessor shape
+-- is checked. The chain functions themselves are unchanged; the API role
+-- cannot execute the cores directly.
+DO $webhook_cores$
+DECLARE f record;d text;
+ gate text:=$n$ IF NOT COALESCE(zasp_production_integration_webhook_readiness((SELECT checksum FROM zasp_schema_versions WHERE version=35),(SELECT value FROM zasp_schema_metadata WHERE key='production_integration_webhook_fingerprint')),false) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='integration webhook unavailable';END IF;$n$;
+ current_gate text:=$n$ PERFORM zasp_authorization80.integration_current_ready();$n$;
+BEGIN
+ FOR f IN SELECT * FROM(VALUES
+  ('zasp_integration_webhook_test_status','integration_webhook_test_status_core','text,text,text,text'),
+  ('zasp_integration_webhook_test_reserve','integration_webhook_test_reserve_core','text,text,text,text,text,bigint,text,text,text,text,text,integer'),
+  ('zasp_integration_webhook_test_complete','integration_webhook_test_complete_core','text,text,text,text,text,text,boolean')
+ ) v(source_name,core_name,arguments) LOOP
+  SELECT pg_get_functiondef(format('public.%I(%s)',f.source_name,f.arguments)::regprocedure) INTO STRICT d;
+  IF (length(d)-length(replace(d,gate,'')))/length(gate)<>1 OR position(format('FUNCTION public.%s(',f.source_name) in d)=0
+  THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='integration webhook predecessor changed';END IF;
+  EXECUTE replace(replace(d,format('FUNCTION public.%s(',f.source_name),format('FUNCTION zasp_authorization80.%s(',f.core_name)),gate,current_gate);
+  EXECUTE format('ALTER FUNCTION zasp_authorization80.%I(%s) OWNER TO zasp_discovery_authority',f.core_name,f.arguments);
+  EXECUTE format('REVOKE ALL ON FUNCTION zasp_authorization80.%I(%s) FROM PUBLIC',f.core_name,f.arguments);
+ END LOOP;
+END $webhook_cores$;
+
+CREATE OR REPLACE FUNCTION zasp_authorization80.integration_webhook_status(o text,w text,e text,i text) RETURNS jsonb
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $integration_webhook_status$
+BEGIN
+ IF NOT COALESCE(public.zasp_valid_product_id(i),false) THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';END IF;
+ PERFORM zasp_authorization80.product_request(o,w,e,NULL,'getIntegrationWebhookStatus','view','integration',i,true,false,false,false);
+ RETURN zasp_authorization80.integration_webhook_test_status_core(o,w,e,i);
+END $integration_webhook_status$;
+
+CREATE OR REPLACE FUNCTION zasp_authorization80.integration_webhook_test_reserve(o text,w text,e text,actor text,i text,expected_version bigint,k text,audit_value text,correlation_value text,delivery_value text,token_value text,lease_seconds integer) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $integration_webhook_test_reserve$
+DECLARE p jsonb;result jsonb;
+BEGIN
+ IF NOT COALESCE(public.zasp_valid_product_id(i),false) THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';END IF;
+ p:=zasp_authorization80.product_request(o,w,e,actor,'testIntegrationWebhook','manage_workflows','integration',i,true,false,false,true);
+ result:=zasp_authorization80.integration_webhook_test_reserve_core(o,w,e,actor,i,expected_version,k,audit_value,correlation_value,delivery_value,token_value,lease_seconds);
+ PERFORM zasp_authorization80.product_settled(p);
+ RETURN result;
+END $integration_webhook_test_reserve$;
+
+CREATE OR REPLACE FUNCTION zasp_authorization80.integration_webhook_test_complete(o text,w text,e text,delivery_value text,token_value text,digest_value text,succeeded_value boolean) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $integration_webhook_test_complete$
+DECLARE p jsonb:=zasp_authorization80.context();i text;result jsonb;
+BEGIN
+ i:=p#>>'{path_parameters,id}';
+ IF i IS NULL OR NOT COALESCE(public.zasp_valid_product_id(i) AND public.zasp_valid_product_id(delivery_value),false) THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';END IF;
+ p:=zasp_authorization80.product_request(o,w,e,p->>'principal_id','testIntegrationWebhook','manage_workflows','integration',i,true,false,false,true);
+ IF NOT EXISTS(SELECT 1 FROM public.zasp_integration_webhook_tests t WHERE(t.organization_id,t.workspace_id,t.environment_id,t.integration_id,t.principal_id,t.delivery_id)=(o,w,e,i,p->>'principal_id',delivery_value))
+ THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';END IF;
+ result:=zasp_authorization80.integration_webhook_test_complete_core(o,w,e,delivery_value,token_value,digest_value,succeeded_value);
+ PERFORM zasp_authorization80.product_settled(p);
+ RETURN result;
+END $integration_webhook_test_complete$;
+
+DO $webhook_grants$
+DECLARE f text;
+BEGIN
+ FOREACH f IN ARRAY ARRAY['integration_webhook_status(text,text,text,text)','integration_webhook_test_reserve(text,text,text,text,text,bigint,text,text,text,text,text,integer)','integration_webhook_test_complete(text,text,text,text,text,text,boolean)'] LOOP
+  EXECUTE format('ALTER FUNCTION zasp_authorization80.%s OWNER TO zasp_discovery_authority',f);
+  EXECUTE format('REVOKE ALL ON FUNCTION zasp_authorization80.%s FROM PUBLIC',f);
+  EXECUTE format('GRANT EXECUTE ON FUNCTION zasp_authorization80.%s TO zasp_discovery_api',f);
+ END LOOP;
+END $webhook_grants$;
