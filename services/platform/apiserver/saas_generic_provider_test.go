@@ -133,7 +133,7 @@ func TestConnectorCatalogListsTheRegisteredSaaSPlatforms(t *testing.T) {
 	if err != nil {
 		t.Fatalf("catalog with the saas platforms refused: %v", err)
 	}
-	entries, err := catalog.Search(platformintegration.CatalogFilter{Category: "saas", AuthMode: "nango_connection"})
+	entries, err := catalog.Search(platformintegration.CatalogFilter{Category: "saas"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -148,8 +148,16 @@ func TestConnectorCatalogListsTheRegisteredSaaSPlatforms(t *testing.T) {
 	}
 	for index, platform := range platforms.Platforms() {
 		entry := entries[index]
+		// A platform with a sign-in asks for the tenant only; a platform
+		// without one also asks for the Nango connection.
+		signIn := platform.SignIn != nil
+		wantMode, wantFields := "nango_connection", 2
+		if signIn {
+			wantMode, wantFields = "nango_sign_in", 1
+		}
 		if entry.Key != "saas-"+platform.Token || entry.Platform != platform.Token || entry.Provider != platform.DisplayName || entry.Description != platform.Description || entry.AccessGuidance != platform.AccessGuidance ||
-			len(entry.SetupSchema) != 2 || entry.SetupSchema[0].Key != "tenant_id" || entry.SetupSchema[0].Label != platform.TenantLabel || !entry.SetupSchema[0].Required || entry.SetupSchema[1].Key != "connection_reference" || entry.SetupSchema[1].Type != "connection_reference" {
+			entry.AuthMode != wantMode || len(entry.SetupSchema) != wantFields || entry.SetupSchema[0].Key != "tenant_id" || entry.SetupSchema[0].Label != platform.TenantLabel || !entry.SetupSchema[0].Required ||
+			!signIn && (entry.SetupSchema[1].Key != "connection_reference" || entry.SetupSchema[1].Type != "connection_reference" || !entry.SetupSchema[1].Required) {
 			t.Fatalf("catalog entry of %s = %#v", platform.Token, entry)
 		}
 		// The integration of an entry is created with the connector key
@@ -161,6 +169,12 @@ func TestConnectorCatalogListsTheRegisteredSaaSPlatforms(t *testing.T) {
 		configuration := map[string]string{"platform": platform.Token, "tenant_id": tenant, "connection_reference": saasGenericConnection}
 		if err := catalog.ValidateSetup("saas", configuration); err != nil {
 			t.Fatalf("%s setup refused: %v", platform.Token, err)
+		}
+		// Only a platform with a sign-in may be set up before its connection
+		// exists.
+		waiting := map[string]string{"platform": platform.Token, "tenant_id": tenant}
+		if err := catalog.ValidateSetup("saas", waiting); (err == nil) != signIn {
+			t.Fatalf("%s setup without a connection: %v, sign-in declared: %t", platform.Token, err, signIn)
 		}
 		// The entry key is not a connector key.
 		if err := catalog.ValidateSetup(entry.Key, configuration); err == nil {
