@@ -136,6 +136,10 @@ output "security_agent_worker_role_arn" {
 output "security_agent_action_worker_role_arn" {
   value = aws_iam_role.security_agent_action_worker.arn
 }
+output "security_agent_remediation_role_arn" {
+  description = "The action worker's identity for provider remediations; empty while they are disabled. Each customer's remediation role trusts this role."
+  value       = var.security_agent_remediation.enabled ? aws_iam_role.security_agent_remediation[0].arn : ""
+}
 output "policy_deployment_worker_role_arn" {
   value = aws_iam_role.policy_deployment_worker.arn
 }

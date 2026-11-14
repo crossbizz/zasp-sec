@@ -269,6 +269,19 @@ func orderedCancellationFromEnvelope(payload json.RawMessage, identity RequestId
 // getSecurityAgentApprovalCurrent reads one approval under current
 // authorization with one authorized statement.
 func (repository *PostgresRepository) getSecurityAgentApprovalCurrent(ctx context.Context, identity RequestIdentity, approvalID string) (SecurityAgentApproval, error) {
+	if grant, _ := requestAuthorizationFromContext(ctx); grant.OperationID == "decideSecurityAgentApproval" && grant.PathParameters["id"] == approvalID {
+		// A decision reads the approval it decides before it decides it (an
+		// approval of a destructive action needs an identity administrator).
+		// The request's proof is for the decision, and neither the statement
+		// gate nor PostgreSQL serves a read under it: the read is authorized
+		// by a second decision of its own, at the same projection revision.
+		// Without it every approval through the API was refused.
+		read, err := secondaryRequestAuthorization(ctx, identity, RoutedOperation{OperationID: "getSecurityAgentApproval", PathParameters: map[string]string{"id": approvalID}})
+		if err != nil {
+			return SecurityAgentApproval{}, secondaryAuthorizationError(err)
+		}
+		ctx = context.WithValue(ctx, requestAuthorizationContextKey{}, read)
+	}
 	envelope, err := repository.database.QueryJSON(ctx, currentSecurityAgentApprovalSQL, repository.securityAgentScopeArguments(identity, approvalID)...)
 	if err != nil {
 		return SecurityAgentApproval{}, discoveryProviderError(err)

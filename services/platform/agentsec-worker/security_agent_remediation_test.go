@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"errors"
+	"net/url"
 	"reflect"
 	"testing"
 	"time"
@@ -30,7 +31,7 @@ func remediationTestClaim(action string, parameters map[string]string) apiserver
 		OrganizationID: "pid_a0000000-0000-4000-8000-000000000001", WorkspaceID: "pid_a0000000-0000-4000-8000-000000000002", EnvironmentID: "pid_a0000000-0000-4000-8000-000000000003",
 		RunID: "pid_a0000000-0000-4000-8000-000000000060", StepID: "pid_a0000000-0000-4000-8000-000000000061", Action: action,
 		IntegrationID: "pid_a0000000-0000-4000-8000-000000000040", EntityID: "pid_a0000000-0000-4000-8000-000000000030",
-		Target:     apiserver.ProviderRemediationTarget{AccountID: "123456789012", Region: "us-east-1", AgentID: "AGENT12345", AgentARN: remediationTestAgentARN},
+		Target:     apiserver.ProviderRemediationTarget{AccountID: "123456789012", Region: "us-east-1", Kind: apiserver.ProviderRemediationKindBedrockAgent, AgentID: "AGENT12345", AgentARN: remediationTestAgentARN},
 		Parameters: parameters, RemediationRoleARN: "arn:aws:iam::123456789012:role/zasp-remediation", ExternalIDReference: "ref:aws/external-id/abcdefgh12345678",
 		InputDigest: "sha256:8e21ce38806cc848563f3a1eba2e21d1b4a0b4da7f0fadcf284cb41517e6d5c8", Attempt: 1,
 	}
@@ -106,6 +107,39 @@ type fakeRemediationIAM struct {
 	detached            []string
 	keepAfterDetach     bool
 	detachErrAfterApply bool
+	// documents are the policy documents of customer managed policies by ARN.
+	documents                    map[string]string
+	policyErr, versionErr        error
+	policyReads, versionReads    int
+	versionOfAnotherPolicyReturn bool
+}
+
+func (fake *fakeRemediationIAM) GetPolicy(_ context.Context, input *iam.GetPolicyInput, _ ...func(*iam.Options)) (*iam.GetPolicyOutput, error) {
+	fake.policyReads++
+	if fake.policyErr != nil {
+		return nil, fake.policyErr
+	}
+	if _, known := fake.documents[aws.ToString(input.PolicyArn)]; !known {
+		return nil, remediationAPIError("NoSuchEntity")
+	}
+	return &iam.GetPolicyOutput{Policy: &iamtypes.Policy{Arn: input.PolicyArn, DefaultVersionId: aws.String("v3")}}, nil
+}
+
+func (fake *fakeRemediationIAM) GetPolicyVersion(_ context.Context, input *iam.GetPolicyVersionInput, _ ...func(*iam.Options)) (*iam.GetPolicyVersionOutput, error) {
+	fake.versionReads++
+	if fake.versionErr != nil {
+		return nil, fake.versionErr
+	}
+	document, known := fake.documents[aws.ToString(input.PolicyArn)]
+	if !known || aws.ToString(input.VersionId) != "v3" {
+		return nil, remediationAPIError("NoSuchEntity")
+	}
+	version := input.VersionId
+	if fake.versionOfAnotherPolicyReturn {
+		version = aws.String("v1")
+	}
+	// IAM returns the document URL-encoded.
+	return &iam.GetPolicyVersionOutput{PolicyVersion: &iamtypes.PolicyVersion{Document: aws.String(url.QueryEscape(document)), VersionId: version, IsDefaultVersion: true}}, nil
 }
 
 func (fake *fakeRemediationIAM) ListAttachedRolePolicies(_ context.Context, input *iam.ListAttachedRolePoliciesInput, _ ...func(*iam.Options)) (*iam.ListAttachedRolePoliciesOutput, error) {
@@ -553,5 +587,153 @@ func TestRemediationWorkerConfigIsAllOrNothing(t *testing.T) {
 	config.AWSRegion = ""
 	if validRemediationWorkerConfig(config) {
 		t.Fatal("a remediation configuration without a Region was accepted")
+	}
+}
+
+const (
+	remediationTestCustomAdmin  = "arn:aws:iam::123456789012:policy/everything"
+	remediationTestCustomNarrow = "arn:aws:iam::123456789012:policy/support-read"
+	remediationTestLambdaARN    = "arn:aws:lambda:us-east-1:123456789012:function:triage-agent"
+)
+
+func remediationTestCustomerPolicies() *fakeRemediationIAM {
+	policies := remediationTestPolicies()
+	policies = append(policies, iamtypes.AttachedPolicy{PolicyArn: aws.String(remediationTestCustomAdmin), PolicyName: aws.String("everything")})
+	return &fakeRemediationIAM{roleName: "support-agent-role", policies: policies, documents: map[string]string{
+		remediationTestCustomAdmin:  `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["s3:GetObject"],"Resource":"arn:aws:s3:::support/*"},{"Effect":"Allow","Action":["*"],"Resource":"*"}]}`,
+		remediationTestCustomNarrow: `{"Version":"2012-10-17","Statement":{"Effect":"Allow","Action":"s3:*","Resource":"*"}}`,
+	}}
+}
+
+func TestRemediationDetachReadsTheDocumentOfACustomerManagedPolicy(t *testing.T) {
+	bedrock, policies := &fakeRemediationBedrock{agent: remediationTestAgent()}, remediationTestCustomerPolicies()
+	executor, _ := remediationTestExecutor(t, bedrock, policies)
+	outcome, err := executor.Execute(context.Background(), remediationTestClaim(securityagent.ActionDetachRoleAdministratorPolicy, map[string]string{"policy_arn": remediationTestCustomAdmin}))
+	if err != nil || outcome.State != apiserver.ProviderRemediationVerified || !reflect.DeepEqual(policies.detached, []string{remediationTestCustomAdmin}) || policies.policyReads != 1 || policies.versionReads != 1 {
+		t.Fatalf("outcome=%#v err=%v detached=%v reads=%d/%d", outcome, err, policies.detached, policies.policyReads, policies.versionReads)
+	}
+	// The AWS managed AdministratorAccess policy is known by its ARN: no
+	// document is read for it.
+	policies = remediationTestCustomerPolicies()
+	executor, _ = remediationTestExecutor(t, &fakeRemediationBedrock{agent: remediationTestAgent()}, policies)
+	outcome, err = executor.Execute(context.Background(), remediationTestClaim(securityagent.ActionDetachRoleAdministratorPolicy, map[string]string{"policy_arn": remediationTestAdmin}))
+	if err != nil || outcome.State != apiserver.ProviderRemediationVerified || policies.policyReads != 0 || policies.versionReads != 0 {
+		t.Fatalf("outcome=%#v err=%v reads=%d/%d", outcome, err, policies.policyReads, policies.versionReads)
+	}
+}
+
+func TestRemediationDetachRefusesAPolicyThatIsNotAdministratorAccess(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		policy  string
+		prepare func(*fakeRemediationIAM)
+		state   string
+		failure string
+		retry   bool
+	}{
+		{name: "an attached policy that allows one service only", policy: remediationTestCustomNarrow, state: apiserver.ProviderRemediationFailed, failure: remediationFailurePolicyNotAdmin},
+		{name: "an AWS managed policy other than AdministratorAccess", policy: "arn:aws:iam::aws:policy/AmazonBedrockFullAccess", prepare: func(policies *fakeRemediationIAM) {
+			policies.documents["arn:aws:iam::aws:policy/AmazonBedrockFullAccess"] = `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"bedrock:*","Resource":"*"}]}`
+		}, state: apiserver.ProviderRemediationFailed, failure: remediationFailurePolicyNotAdmin},
+		{name: "a statement that denies everything", policy: remediationTestCustomAdmin, prepare: func(policies *fakeRemediationIAM) {
+			policies.documents[remediationTestCustomAdmin] = `{"Version":"2012-10-17","Statement":[{"Effect":"Deny","Action":"*","Resource":"*"}]}`
+		}, state: apiserver.ProviderRemediationFailed, failure: remediationFailurePolicyNotAdmin},
+		{name: "every action on one resource", policy: remediationTestCustomAdmin, prepare: func(policies *fakeRemediationIAM) {
+			policies.documents[remediationTestCustomAdmin] = `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"*","Resource":"arn:aws:s3:::support"}]}`
+		}, state: apiserver.ProviderRemediationFailed, failure: remediationFailurePolicyNotAdmin},
+		{name: "a document that is not JSON", policy: remediationTestCustomAdmin, prepare: func(policies *fakeRemediationIAM) { policies.documents[remediationTestCustomAdmin] = `not a document` }, state: apiserver.ProviderRemediationFailed, failure: remediationFailurePolicyNotAdmin},
+		{name: "reading the policy is denied", policy: remediationTestCustomAdmin, prepare: func(policies *fakeRemediationIAM) { policies.policyErr = remediationAPIError("AccessDenied") }, state: apiserver.ProviderRemediationFailed, failure: remediationFailureAccessDenied},
+		{name: "reading the policy version is denied", policy: remediationTestCustomAdmin, prepare: func(policies *fakeRemediationIAM) { policies.versionErr = remediationAPIError("AccessDenied") }, state: apiserver.ProviderRemediationFailed, failure: remediationFailureAccessDenied},
+		{name: "reading the policy is throttled", policy: remediationTestCustomAdmin, prepare: func(policies *fakeRemediationIAM) { policies.policyErr = remediationAPIError("Throttling") }, retry: true},
+		{name: "the provider answers with another version", policy: remediationTestCustomAdmin, prepare: func(policies *fakeRemediationIAM) { policies.versionOfAnotherPolicyReturn = true }, retry: true},
+	} {
+		policies := remediationTestCustomerPolicies()
+		if test.prepare != nil {
+			test.prepare(policies)
+		}
+		executor, _ := remediationTestExecutor(t, &fakeRemediationBedrock{agent: remediationTestAgent()}, policies)
+		outcome, err := executor.Execute(context.Background(), remediationTestClaim(securityagent.ActionDetachRoleAdministratorPolicy, map[string]string{"policy_arn": test.policy}))
+		if test.retry {
+			if !errors.Is(err, errRemediationRetry) || outcome.State != "" {
+				t.Fatalf("%s: outcome=%#v err=%v, want a retry", test.name, outcome, err)
+			}
+		} else if err != nil || outcome.State != test.state || outcome.FailureCode != test.failure {
+			t.Fatalf("%s: outcome=%#v err=%v", test.name, outcome, err)
+		}
+		if policies.detaches != 0 {
+			t.Fatalf("%s: a policy was detached", test.name)
+		}
+	}
+}
+
+func remediationTestInferredClaim() apiserver.ProviderRemediationClaim {
+	claim := remediationTestClaim(securityagent.ActionDetachRoleAdministratorPolicy, map[string]string{"policy_arn": remediationTestAdmin})
+	claim.Target = apiserver.ProviderRemediationTarget{AccountID: "123456789012", Region: "us-east-1", Kind: apiserver.ProviderRemediationKindInferredAgent, AgentARN: remediationTestLambdaARN, RoleARN: remediationTestRoleARN}
+	return claim
+}
+
+func TestRemediationDetachesFromTheRecordedRoleOfAnInferredAgent(t *testing.T) {
+	for _, target := range []apiserver.ProviderRemediationTarget{
+		{AccountID: "123456789012", Region: "us-east-1", Kind: apiserver.ProviderRemediationKindInferredAgent, AgentARN: remediationTestLambdaARN, RoleARN: remediationTestRoleARN},
+		{AccountID: "123456789012", Region: "us-east-1", Kind: apiserver.ProviderRemediationKindInferredAgent, AgentARN: remediationTestRoleARN, RoleARN: remediationTestRoleARN},
+		{AccountID: "123456789012", Region: "us-east-1", Kind: apiserver.ProviderRemediationKindInferredAgent, AgentARN: "arn:aws:ec2:us-east-1:123456789012:instance/i-0123456789abcdef0", RoleARN: remediationTestRoleARN},
+		{AccountID: "123456789012", Region: "us-east-1", Kind: apiserver.ProviderRemediationKindAgentCoreRuntime, AgentARN: "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/support_runtime-Ab12", RoleARN: remediationTestRoleARN},
+	} {
+		// No Bedrock agent exists: a call to Bedrock would be refused.
+		bedrock := &fakeRemediationBedrock{}
+		policies := &fakeRemediationIAM{roleName: "support-agent-role", policies: remediationTestPolicies()}
+		executor, _ := remediationTestExecutor(t, bedrock, policies)
+		claim := remediationTestInferredClaim()
+		claim.Target = target
+		outcome, err := executor.Execute(context.Background(), claim)
+		if err != nil || outcome.State != apiserver.ProviderRemediationVerified || outcome.Prior["role_arn"] != remediationTestRoleARN || !reflect.DeepEqual(policies.detached, []string{remediationTestAdmin}) {
+			t.Fatalf("%s: outcome=%#v err=%v detached=%v", target.AgentARN, outcome, err, policies.detached)
+		}
+		if bedrock.gets != 0 || bedrock.updates != 0 {
+			t.Fatalf("%s: Bedrock was called for an agent that is not a Bedrock agent", target.AgentARN)
+		}
+	}
+}
+
+func TestRemediationRefusesARoleTheAgentNoLongerHasOrThatIsNotAnAgentRole(t *testing.T) {
+	// Discovery recorded one role for the Bedrock agent; the provider now
+	// names another. Nothing is detached from either.
+	bedrock := &fakeRemediationBedrock{agent: remediationTestAgent()}
+	policies := &fakeRemediationIAM{roleName: "support-agent-role", policies: remediationTestPolicies()}
+	executor, factory := remediationTestExecutor(t, bedrock, policies)
+	claim := remediationTestClaim(securityagent.ActionDetachRoleAdministratorPolicy, map[string]string{"policy_arn": remediationTestAdmin})
+	claim.Target.RoleARN = "arn:aws:iam::123456789012:role/earlier-agent-role"
+	if outcome, err := executor.Execute(context.Background(), claim); err != nil || outcome.State != apiserver.ProviderRemediationFailed || outcome.FailureCode != remediationFailureTargetMismatch || policies.lists != 0 || policies.detaches != 0 {
+		t.Fatalf("outcome=%#v err=%v lists=%d", outcome, err, policies.lists)
+	}
+	// The recorded role agrees with the provider: the policy is detached.
+	claim.Target.RoleARN = remediationTestRoleARN
+	if outcome, err := executor.Execute(context.Background(), claim); err != nil || outcome.State != apiserver.ProviderRemediationVerified {
+		t.Fatalf("outcome=%#v err=%v", outcome, err)
+	}
+	before := len(factory.claims)
+	for name, change := range map[string]func(*apiserver.ProviderRemediationClaim){
+		"an inferred agent without a recorded role": func(claim *apiserver.ProviderRemediationClaim) { claim.Target.RoleARN = "" },
+		"a guardrail for an inferred agent": func(claim *apiserver.ProviderRemediationClaim) {
+			claim.Action, claim.Parameters = securityagent.ActionAttachBedrockGuardrail, map[string]string{"guardrail_identifier": "gr1abc", "guardrail_version": "3"}
+		},
+		"a role of another account": func(claim *apiserver.ProviderRemediationClaim) {
+			claim.Target.RoleARN = "arn:aws:iam::210987654321:role/support-agent-role"
+		},
+		"the remediation role as the agent's role": func(claim *apiserver.ProviderRemediationClaim) { claim.Target.RoleARN = claim.RemediationRoleARN },
+		"an agent of another account": func(claim *apiserver.ProviderRemediationClaim) {
+			claim.Target.AgentARN = "arn:aws:lambda:us-east-1:210987654321:function:triage-agent"
+		},
+		"an agent kind that is not discovered":     func(claim *apiserver.ProviderRemediationClaim) { claim.Target.Kind = "aws_role" },
+		"an agent identifier on an inferred agent": func(claim *apiserver.ProviderRemediationClaim) { claim.Target.AgentID = "AGENT12345" },
+	} {
+		claim := remediationTestInferredClaim()
+		change(&claim)
+		if outcome, err := executor.Execute(context.Background(), claim); !errors.Is(err, errWorkerExecution) || outcome.State != "" {
+			t.Fatalf("%s: outcome=%#v err=%v", name, outcome, err)
+		}
+	}
+	if len(factory.claims) != before {
+		t.Fatal("a role was requested for a claim that names no agent role")
 	}
 }

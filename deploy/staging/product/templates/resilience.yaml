@@ -296,6 +296,28 @@ spec:
   egress:
     - to: [{ ipBlock: { cidr: {{ required "network.postgresCIDR is required" .Values.network.postgresCIDR | quote }} } }]
       ports: [{ protocol: TCP, port: 5432 }]
+{{- if .Values.securityAgentRemediation.enabled }}
+---
+# Provider remediations: the action worker reaches AWS (STS, Secrets Manager,
+# Bedrock agents, IAM) and nothing else, and only while they are enabled.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: security-agent-action-remediation
+  labels: { app.kubernetes.io/part-of: zasp }
+  annotations:
+    zasp.io/network-policy-boundary: native-cidr-snapshot
+    zasp.io/endpoint-groups: aws-sts-secretsmanager-bedrock-agent-iam
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-security-agent-action } }
+  policyTypes: [Egress]
+  egress:
+    - to:
+      {{- range $cidr := required "network.connectorEgressCIDRs.aws is required" .Values.network.connectorEgressCIDRs.aws }}
+        - ipBlock: { cidr: {{ $cidr | quote }} }
+      {{- end }}
+      ports: [{ protocol: TCP, port: 443 }]
+{{- end }}
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

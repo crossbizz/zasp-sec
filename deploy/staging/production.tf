@@ -492,6 +492,14 @@ output "helm_values" {
       queueURL  = aws_sqs_queue.work["discovery-jobs"].id
       roleArn   = aws_iam_role.outbox.arn
     }
+    # Off unless var.security_agent_remediation.enabled: the action worker's
+    # own identity for approved provider remediations.
+    securityAgentRemediation = {
+      enabled      = var.security_agent_remediation.enabled
+      roleArn      = var.security_agent_remediation.enabled ? aws_iam_role.security_agent_remediation[0].arn : ""
+      awsRegion    = var.region
+      secretPrefix = local.connector_secret_root
+    }
     projectionRisk = { roleArn = aws_iam_role.projection_risk.arn }
     projectionGraph = {
       awsRegion                 = var.region

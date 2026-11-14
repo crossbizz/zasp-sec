@@ -161,7 +161,7 @@ var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"GET", "/api/v1/integrations/{id}/setup-status", "getIntegrationSetupStatus", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/integrations/{id}/remediation-role", "getIntegrationRemediationRole", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"PUT", "/api/v1/integrations/{id}/remediation-role", "putIntegrationRemediationRole", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
-	{OperationDefinition{"POST", "/api/v1/guardrails/decisions", "createGuardrailDecision", "view", []string{"ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/guardrails/decisions", "createGuardrailDecision", "decide_guardrails", []string{"ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/guardrails/policy", "getGuardrailPolicy", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"PUT", "/api/v1/guardrails/policy", "putGuardrailPolicy", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"POST", "/api/v1/integrations/{id}/test-delivery", "testIntegrationWebhook", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},

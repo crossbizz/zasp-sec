@@ -13,7 +13,12 @@ A gateway you already run (LiteLLM, Kong, Apigee, your own proxy) asks Zasp what
 
 `POST /api/v1/guardrails/decisions`
 
-Authentication: an API token of the Environment whose permissions include `view` (`Authorization: Bearer <token>`). A browser session is not accepted. Create a token for the gateway alone, with `view` and nothing else. There is no narrower permission for this call today: a token that may ask for decisions may also read the Environment's inventory and findings, so keep it in the gateway's secret store.
+Authentication: an API token of the Environment whose permissions include `decide_guardrails` (`Authorization: Bearer <token>`). A browser session is not accepted, and a token with `view` alone is refused with `403`.
+
+`decide_guardrails` is a permission of API tokens only. No role holds it and it gives access to nothing but this call: a token created with `decide_guardrails` and nothing else cannot read the Environment's inventory, findings, integrations or the guardrail policy, and cannot change anything. The person who creates the token must be able to view the Environment; if that person loses access, the token stops working. Create one token per gateway:
+
+- In the product: Administration, API Access, choose “Guardrail decisions only” and create the token. Tokens created there expire after 24 hours, like every token created in the product today; for a gateway that runs longer, create the token over the API with the expiry you need.
+- Over the API (a browser session with fresh authentication and `manage_api_tokens`): `POST /api/v1/admin/api-tokens` with `"permissions": ["decide_guardrails"]` and `expires_at`.
 
 ```json
 {
@@ -51,7 +56,7 @@ Authentication: an API token of the Environment whose permissions include `view`
 | `redact` | Forward `redacted_text` instead of the original. Each match of a redacting rule is replaced by `[REDACTED:<rule id>]`. |
 | `block` | Do not forward the text. `redacted_text` is absent. |
 
-Errors: `400` malformed request, `401`/`403` token missing or without `view`, `413` text too large, `503` the decision could not be recorded.
+Errors: `400` malformed request, `401` token missing, expired or revoked, `403` token without `decide_guardrails` (or its owner can no longer view the Environment), `413` text too large, `503` the decision could not be recorded.
 
 ## Rules
 
@@ -72,6 +77,8 @@ Errors: `400` malformed request, `401`/`403` token missing or without `view`, `4
 ## Policy
 
 Each Environment has a guardrail policy: for every rule, one of `block`, `redact`, `monitor` (report the match, change nothing) or `off`. Only the sensitive-data rules can be set to `redact`; an injection rule has no span that could be removed. A rule the policy does not name has its default mode.
+
+In the product the policy is on the Guardrails page (Protect, Guardrails): every rule with its mode, saved as a whole against the version the page loaded, so two people editing at once cannot overwrite each other silently. Reading needs `view`; saving needs `manage_workflows`. The same over the API, with a token that holds those permissions (not the gateway's `decide_guardrails` token, which cannot read the policy):
 
 ```sh
 # Read: every rule with its mode and description. The ETag is the version.

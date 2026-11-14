@@ -328,6 +328,25 @@ variable "connector_reference_ids" {
   }
 }
 
+variable "security_agent_remediation" {
+  description = "Optional, off by default. Lets the Security Agent action worker perform approved provider remediations (attach a Bedrock guardrail, detach an administrator policy from an agent's role) in customer AWS accounts. customer_role_arns are the customers' remediation roles the worker may assume: exact roles, never a role discovery reads with (aws_reference_role_arns)."
+  type = object({
+    enabled            = optional(bool, false)
+    customer_role_arns = optional(set(string), [])
+  })
+  default = {}
+  validation {
+    condition     = var.security_agent_remediation.enabled == (length(var.security_agent_remediation.customer_role_arns) > 0) && length(var.security_agent_remediation.customer_role_arns) <= 64
+    error_message = "security_agent_remediation names one to 64 customer remediation roles when it is enabled and none when it is not."
+  }
+  validation {
+    condition = alltrue([
+      for role in var.security_agent_remediation.customer_role_arns : can(regex("^arn:aws:iam::[0-9]{12}:role/[A-Za-z0-9+=,.@_/-]{1,128}$", role)) && !strcontains(role, "*") && !contains(var.aws_reference_role_arns, role)
+    ])
+    error_message = "security_agent_remediation.customer_role_arns are exact wildcard-free IAM roles, none of which is a role discovery reads with."
+  }
+}
+
 variable "discovery_optional_providers" {
   description = "Optional discovery providers: Microsoft (Entra and Copilot Studio), Salesforce (Agentforce) and the generic saas provider (every SaaS platform read through Nango; saas_collector alone enables it, and the platforms are reached by Nango, whose provider addresses are nango_provider_egress_cidrs). All are disabled by default. A provider is enabled by its collector version, which must be the version the installed schema hands a discovery run (collector_v1), together with the identifier of its pre-provisioned client-secret reference and a snapshot of the provider addresses the API and the discovery worker may reach."
   type = object({

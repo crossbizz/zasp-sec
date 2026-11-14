@@ -195,6 +195,22 @@ telemetry:
   endpoint: ""
   authSecretName: ""
   egressCIDRs: []
+# Provider remediations of the Security Agent: attach a Bedrock guardrail to
+# an agent, or detach an administrator policy from an agent's role, in a
+# customer AWS account, after a person approved the run. Disabled by default:
+# the action worker then has no AWS identity for remediations and performs
+# none (an approved remediation stays dispatched). To enable, set all four:
+# roleArn is an IAM role the action worker's service account may assume
+# (sts:AssumeRoleWithWebIdentity) that may assume the customers' remediation
+# roles and read the AWS external ID secrets under secretPrefix, which is the
+# value of discovery.secretPrefix. The worker reaches AWS through
+# network.connectorEgressCIDRs.aws, which must then also cover the STS,
+# Secrets Manager, Bedrock agents and IAM endpoints.
+securityAgentRemediation:
+  enabled: false
+  roleArn: ""
+  awsRegion: ""
+  secretPrefix: ""
 discovery:
   parserVersion: ""
   toolVersion: ""

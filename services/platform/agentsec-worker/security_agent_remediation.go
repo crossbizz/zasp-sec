@@ -31,7 +31,8 @@ import (
 //
 // IAM actions the remediation role needs, and nothing else:
 //   bedrock:GetAgent, bedrock:UpdateAgent, bedrock:PrepareAgent
-//   iam:ListAttachedRolePolicies, iam:DetachRolePolicy
+//   iam:ListAttachedRolePolicies, iam:GetPolicy, iam:GetPolicyVersion,
+//   iam:DetachRolePolicy
 // UpdateAgent names the agent's own execution role again; AWS documents that
 // passing a role to a service needs iam:PassRole on that role. That
 // requirement is from the AWS documentation as remembered, not verified here
@@ -47,6 +48,8 @@ type remediationBedrockAgentAPI interface {
 // The IAM calls of a remediation.
 type remediationIAMAPI interface {
 	ListAttachedRolePolicies(context.Context, *iam.ListAttachedRolePoliciesInput, ...func(*iam.Options)) (*iam.ListAttachedRolePoliciesOutput, error)
+	GetPolicy(context.Context, *iam.GetPolicyInput, ...func(*iam.Options)) (*iam.GetPolicyOutput, error)
+	GetPolicyVersion(context.Context, *iam.GetPolicyVersionInput, ...func(*iam.Options)) (*iam.GetPolicyVersionOutput, error)
 	DetachRolePolicy(context.Context, *iam.DetachRolePolicyInput, ...func(*iam.Options)) (*iam.DetachRolePolicyOutput, error)
 }
 
@@ -80,6 +83,7 @@ const (
 	remediationFailureTargetMismatch   = "target_mismatch"
 	remediationFailureProviderRejected = "provider_rejected"
 	remediationFailurePolicyNotOnRole  = "policy_not_attached"
+	remediationFailurePolicyNotAdmin   = "policy_not_administrator"
 	remediationFailureOutcomeUnknown   = "provider_outcome_unknown"
 	remediationFailureVerification     = "verification_mismatch"
 )
@@ -123,6 +127,15 @@ func (executor *securityAgentRemediationExecutor) Execute(ctx context.Context, c
 	if clients.Bedrock == nil || clients.IAM == nil {
 		return apiserver.ProviderRemediationOutcome{}, errWorkerExecution
 	}
+	if claim.Target.Kind != apiserver.ProviderRemediationKindBedrockAgent {
+		// An AgentCore runtime or an inferred agent: the only action is the
+		// policy detachment, from the role discovery recorded for the agent.
+		// ValidProviderRemediationClaim refused every other combination.
+		if claim.Action != securityagent.ActionDetachRoleAdministratorPolicy || claim.Target.RoleARN == "" {
+			return apiserver.ProviderRemediationOutcome{}, errWorkerExecution
+		}
+		return executor.detachRolePolicy(bounded, clients.IAM, claim, claim.Target.RoleARN)
+	}
 	agent, outcome, err := executor.readTargetAgent(bounded, clients.Bedrock, claim)
 	if err != nil || agent == nil {
 		return outcome, err
@@ -131,7 +144,14 @@ func (executor *securityAgentRemediationExecutor) Execute(ctx context.Context, c
 	case securityagent.ActionAttachBedrockGuardrail:
 		return executor.attachGuardrail(bounded, clients.Bedrock, claim, agent)
 	case securityagent.ActionDetachRoleAdministratorPolicy:
-		return executor.detachRolePolicy(bounded, clients.IAM, claim, agent)
+		// The role is the one the provider says the agent runs as now. When
+		// discovery recorded another one, the approval was given for a role
+		// the agent no longer has: nothing is changed.
+		roleARN := aws.ToString(agent.AgentResourceRoleArn)
+		if claim.Target.RoleARN != "" && claim.Target.RoleARN != roleARN {
+			return remediationFailed(remediationFailureTargetMismatch), nil
+		}
+		return executor.detachRolePolicy(bounded, clients.IAM, claim, roleARN)
 	}
 	return apiserver.ProviderRemediationOutcome{}, errWorkerExecution
 }
@@ -285,13 +305,83 @@ func attachedRolePolicy(ctx context.Context, client remediationIAMAPI, roleName,
 	return false, "", errRemediationRetry
 }
 
-func (executor *securityAgentRemediationExecutor) detachRolePolicy(ctx context.Context, client remediationIAMAPI, claim apiserver.ProviderRemediationClaim, agent *bedrockagenttypes.Agent) (apiserver.ProviderRemediationOutcome, error) {
+// remediationAdministratorPolicyPattern is the AWS managed AdministratorAccess
+// policy, which allows every action on every resource by definition.
+var remediationAdministratorPolicyPattern = regexp.MustCompile(`^arn:aws(?:-us-gov|-cn)?:iam::aws:policy/AdministratorAccess$`)
+
+// policyGrantsEverything reports whether a policy document holds a statement
+// that allows every action on every resource: Effect "Allow" with "*" as, or
+// among, its Action and its Resource. It is the test discovery applies when
+// it raises agent_role_administrator_access (discoveryAWSAdministratorRoles),
+// so the action detaches what the finding is about and nothing narrower.
+func policyGrantsEverything(document map[string]any) bool {
+	everything := func(value any) bool {
+		switch typed := value.(type) {
+		case string:
+			return typed == "*"
+		case []any:
+			for _, entry := range typed {
+				if text, ok := entry.(string); ok && text == "*" {
+					return true
+				}
+			}
+		}
+		return false
+	}
+	var statements []any
+	switch typed := document["Statement"].(type) {
+	case []any:
+		statements = typed
+	case map[string]any:
+		statements = []any{typed}
+	}
+	for _, raw := range statements {
+		statement, ok := raw.(map[string]any)
+		if effect, _ := statement["Effect"].(string); ok && effect == "Allow" && everything(statement["Action"]) && everything(statement["Resource"]) {
+			return true
+		}
+	}
+	return false
+}
+
+// administratorPolicy reports whether the policy really grants every action
+// on every resource: it is the AWS managed AdministratorAccess policy, or the
+// document of its default version says so. It changes nothing.
+func administratorPolicy(ctx context.Context, client remediationIAMAPI, policyARN string) (bool, error) {
+	if remediationAdministratorPolicyPattern.MatchString(policyARN) {
+		return true, nil
+	}
+	policy, err := client.GetPolicy(ctx, &iam.GetPolicyInput{PolicyArn: aws.String(policyARN)})
+	if err != nil {
+		return false, err
+	}
+	if policy == nil || policy.Policy == nil || aws.ToString(policy.Policy.Arn) != policyARN || aws.ToString(policy.Policy.DefaultVersionId) == "" {
+		return false, errRemediationRetry
+	}
+	version, err := client.GetPolicyVersion(ctx, &iam.GetPolicyVersionInput{PolicyArn: aws.String(policyARN), VersionId: policy.Policy.DefaultVersionId})
+	if err != nil {
+		return false, err
+	}
+	if version == nil || version.PolicyVersion == nil || version.PolicyVersion.Document == nil || aws.ToString(version.PolicyVersion.VersionId) != aws.ToString(policy.Policy.DefaultVersionId) {
+		return false, errRemediationRetry
+	}
+	// IAM returns the document URL-encoded (RFC 3986).
+	document, err := decodeDiscoveryAWSPolicyDocument(*version.PolicyVersion.Document)
+	if err != nil {
+		// A document that cannot be read is not shown to grant everything.
+		return false, nil
+	}
+	return policyGrantsEverything(document), nil
+}
+
+func (executor *securityAgentRemediationExecutor) detachRolePolicy(ctx context.Context, client remediationIAMAPI, claim apiserver.ProviderRemediationClaim, roleARN string) (apiserver.ProviderRemediationOutcome, error) {
 	policyARN := claim.Parameters["policy_arn"]
-	roleARN := aws.ToString(agent.AgentResourceRoleArn)
 	match := remediationRoleNamePattern.FindStringSubmatch(roleARN)
-	// The role is the one the provider says the agent runs as, in the agent's
-	// own account. The request cannot name another role.
-	if len(match) != 3 || match[1] != claim.Target.AccountID {
+	// The role is the one the agent runs as (read from the provider for a
+	// Bedrock agent, recorded by discovery otherwise), in the agent's own
+	// account, and never the role this worker acts as. The request cannot
+	// name a role.
+	if len(match) != 3 || match[1] != claim.Target.AccountID || roleARN == claim.RemediationRoleARN {
 		return remediationFailed(remediationFailureTargetMismatch), nil
 	}
 	roleName := match[2]
@@ -305,6 +395,18 @@ func (executor *securityAgentRemediationExecutor) detachRolePolicy(ctx context.C
 	if !attached {
 		// Never detach anything that is not attached to this role.
 		return remediationFailed(remediationFailurePolicyNotOnRole), nil
+	}
+	// Never detach a policy that does not grant every action on every
+	// resource: the action exists to remove administrator access only.
+	administrator, err := administratorPolicy(ctx, client, policyARN)
+	if err != nil {
+		if errors.Is(err, errRemediationRetry) {
+			return apiserver.ProviderRemediationOutcome{}, errRemediationRetry
+		}
+		return classifyRemediationRead(ctx, err)
+	}
+	if !administrator {
+		return remediationFailed(remediationFailurePolicyNotAdmin), nil
 	}
 	if _, err := client.DetachRolePolicy(ctx, &iam.DetachRolePolicyInput{RoleName: aws.String(roleName), PolicyArn: aws.String(policyARN)}); err != nil {
 		switch remediationErrorClass(ctx, err) {

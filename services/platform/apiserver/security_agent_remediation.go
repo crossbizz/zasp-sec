@@ -36,7 +36,7 @@ var (
 	ErrSecurityAgentRemediationAlreadyRequested = errors.Join(ErrRepositoryConflict, errors.New("security agent remediation already requested"))
 	// The finding's rule is not the one the action answers.
 	ErrSecurityAgentRemediationRuleMismatch = errors.Join(ErrRepositoryOperation, errors.New("security agent remediation finding rule mismatch"))
-	// The finding is not on a Bedrock agent an AWS integration describes.
+	// The finding is not on an agent the action can change.
 	ErrSecurityAgentRemediationTargetUnsupported = errors.Join(ErrRepositoryOperation, errors.New("security agent remediation target unsupported"))
 	// Execution is switched off for the Environment or for the action.
 	ErrSecurityAgentRemediationDisabled = errors.Join(ErrRepositoryConflict, errors.New("security agent execution disabled"))
@@ -75,7 +75,7 @@ func securityAgentRemediationErrorResponse(err error) (status int, code, message
 	case errors.Is(err, ErrSecurityAgentRemediationRuleMismatch):
 		return 400, "remediation_rule_mismatch", "The action does not answer this finding's rule", true
 	case errors.Is(err, ErrSecurityAgentRemediationTargetUnsupported):
-		return 400, "remediation_target_unsupported", "The finding is not on a Bedrock agent that an AWS integration describes", true
+		return 400, "remediation_target_unsupported", "The finding is not on an agent this action can change: a guardrail is attached to a Bedrock agent, and a policy is detached from the role an AWS integration recorded for a Bedrock agent, an AgentCore runtime or an inferred agent", true
 	}
 	return 0, "", "", false
 }

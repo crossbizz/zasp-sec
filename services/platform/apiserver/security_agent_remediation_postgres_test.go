@@ -22,22 +22,27 @@ import (
 // section's functions are exercised as the product's own service logins.
 //
 // The section's writers are executable only by their owner and are reached
-// through zasp_authorization80 functions that need an attested request proof,
-// which a database test cannot mint. The test therefore grants the API role
-// EXECUTE on those writers on this disposable database only and re-seals;
-// the proof wrapper itself is tested for refusing a request without a proof.
+// through zasp_authorization80 functions that need an attested request
+// proof. This test exercises the writers themselves: it grants the API role
+// EXECUTE on them on this disposable database only and re-seals. The whole
+// path with attested proofs, from the HTTP handlers to both workers, is
+// TestProviderRemediationOnInstalledBaselinePostgres.
 
 const (
-	remediationOrg         = "pid_a0000000-0000-4000-8000-000000000001"
-	remediationWorkspace   = "pid_a0000000-0000-4000-8000-000000000002"
-	remediationEnvironment = "pid_a0000000-0000-4000-8000-000000000003"
-	remediationIntegration = "pid_a0000000-0000-4000-8000-000000000040"
-	remediationAgentEntity = "pid_a0000000-0000-4000-8000-000000000030"
-	remediationRequester   = "pid_a0000000-0000-4000-8000-000000000050"
-	remediationApprover    = "pid_a0000000-0000-4000-8000-000000000051"
-	remediationAdmin       = "pid_a0000000-0000-4000-8000-000000000052"
-	remediationReadRole    = "arn:aws:iam::123456789012:role/zasp-read"
-	remediationWriteRole   = "arn:aws:iam::123456789012:role/zasp-remediation"
+	remediationOrg          = "pid_a0000000-0000-4000-8000-000000000001"
+	remediationWorkspace    = "pid_a0000000-0000-4000-8000-000000000002"
+	remediationEnvironment  = "pid_a0000000-0000-4000-8000-000000000003"
+	remediationIntegration  = "pid_a0000000-0000-4000-8000-000000000040"
+	remediationAgentEntity  = "pid_a0000000-0000-4000-8000-000000000030"
+	remediationRequester    = "pid_a0000000-0000-4000-8000-000000000050"
+	remediationApprover     = "pid_a0000000-0000-4000-8000-000000000051"
+	remediationAdmin        = "pid_a0000000-0000-4000-8000-000000000052"
+	remediationLambdaEntity = "pid_a0000000-0000-4000-8000-000000000032"
+	remediationRoleEntity   = "pid_a0000000-0000-4000-8000-000000000031"
+	remediationLambdaARN    = "arn:aws:lambda:us-east-1:123456789012:function:triage-agent"
+	remediationAgentRole    = "arn:aws:iam::123456789012:role/service-role/triage-agent-role"
+	remediationReadRole     = "arn:aws:iam::123456789012:role/zasp-read"
+	remediationWriteRole    = "arn:aws:iam::123456789012:role/zasp-remediation"
 )
 
 func remediationSQLState(err error) (string, string) {
@@ -179,6 +184,18 @@ VALUES($1,$2,$3,$4,'aws','1','AWS',jsonb_build_object('role_arn',$5::text,'exter
 VALUES($1,$2,$3,$4,'agent','support-agent',jsonb_build_object('account_id','123456789012','agent_id','AGENT12345','arn','arn:aws:bedrock:us-east-1:123456789012:agent/AGENT12345','name','support-agent','region','us-east-1'),now(),now(),'agent',$5,'aws')`, remediationOrg, remediationWorkspace, remediationEnvironment, remediationAgentEntity, remediationIntegration)
 	database.exec(`INSERT INTO zasp_inventory_source_observations(organization_id,workspace_id,environment_id,integration_id,source,entity_id,source_native_id,snapshot_id,source_state,first_seen_at,last_seen_at,provider,source_kind)
 VALUES($1,$2,$3,$4,'aws',$5,'arn:aws:bedrock:us-east-1:123456789012:agent/AGENT12345','pid_a0000000-0000-4000-8000-000000000041','present',now(),now(),'aws','aws_bedrock_agent')`, remediationOrg, remediationWorkspace, remediationEnvironment, remediationIntegration, remediationAgentEntity)
+	// An inferred agent (a Lambda function) and the IAM role discovery linked
+	// it to, with one finding of each rule on it.
+	database.exec(`INSERT INTO zasp_inventory_entities(organization_id,workspace_id,environment_id,id,kind,display_name,stable_fields,first_seen_at,last_seen_at,product_kind,winning_integration_id,winning_provider)
+VALUES($1,$2,$3,$4,'agent','triage-agent',jsonb_build_object('account_id','123456789012','arn',$6::text,'name','triage-agent','region','us-east-1','resource_type','lambda_function'),now(),now(),'agent',$5,'aws'),
+ ($1,$2,$3,$7,'identity','triage-agent-role',jsonb_build_object('account_id','123456789012','arn',$8::text,'name','triage-agent-role'),now(),now(),'identity',$5,'aws')`,
+		remediationOrg, remediationWorkspace, remediationEnvironment, remediationLambdaEntity, remediationIntegration, remediationLambdaARN, remediationRoleEntity, remediationAgentRole)
+	database.exec(`INSERT INTO zasp_inventory_source_observations(organization_id,workspace_id,environment_id,integration_id,source,entity_id,source_native_id,snapshot_id,source_state,first_seen_at,last_seen_at,provider,source_kind)
+VALUES($1,$2,$3,$4,'aws',$5,$6,'pid_a0000000-0000-4000-8000-000000000041','present',now(),now(),'aws','aws_inferred_agent')`, remediationOrg, remediationWorkspace, remediationEnvironment, remediationIntegration, remediationLambdaEntity, remediationLambdaARN)
+	database.exec(`INSERT INTO zasp_inventory_relationships(organization_id,workspace_id,environment_id,id,integration_id,source,snapshot_id,from_entity_id,to_entity_id,kind,source_native_id,first_seen_at,last_seen_at)
+VALUES($1,$2,$3,'pid_a0000000-0000-4000-8000-000000000033',$4,'aws','pid_a0000000-0000-4000-8000-000000000041',$5,$6,'uses_identity',$7,now(),now())`, remediationOrg, remediationWorkspace, remediationEnvironment, remediationIntegration, remediationLambdaEntity, remediationRoleEntity, remediationLambdaARN+"|uses_identity|"+remediationAgentRole)
+	database.exec(`INSERT INTO zasp_risk_findings(organization_id,workspace_id,environment_id,id,source,rule,title,severity,status,agent_id) VALUES($1,$2,$3,'pid_a0000000-0000-4000-8000-000000000022','prowler','agent_role_administrator_access','Discovered AWS control','high','open',$4),
+ ($1,$2,$3,'pid_a0000000-0000-4000-8000-000000000023','prowler','agent_guardrail_missing','Discovered AWS control','high','open',$4)`, remediationOrg, remediationWorkspace, remediationEnvironment, remediationLambdaEntity)
 	for _, fixture := range [][4]string{
 		{"pid_a0000000-0000-4000-8000-000000000010", "attach_bedrock_guardrail", "guardrail_state", "pid_a0000000-0000-4000-8000-000000000020"},
 		{"pid_a0000000-0000-4000-8000-000000000011", "detach_role_administrator_policy", "role_policy_state", "pid_a0000000-0000-4000-8000-000000000021"},
@@ -412,7 +429,7 @@ func TestSecurityAgentProviderRemediationSectionPostgres(t *testing.T) {
 		}
 		claim := claims[0]
 		if claim.RunID != run || claim.StepID != dispatch.StepID || claim.Action != "attach_bedrock_guardrail" || claim.RemediationRoleARN != remediationWriteRole || claim.RemediationRoleARN == remediationReadRole || claim.ExternalIDReference != "ref:aws/external-id/abcdefgh12345678" ||
-			claim.Target.AgentID != "AGENT12345" || claim.Target.Region != "us-east-1" || claim.Parameters["guardrail_identifier"] != "gr1abc" || claim.Parameters["guardrail_version"] != "1" || claim.Attempt != 1 {
+			claim.Target.AgentID != "AGENT12345" || claim.Target.Region != "us-east-1" || claim.Target.Kind != ProviderRemediationKindBedrockAgent || claim.Target.RoleARN != "" || claim.Parameters["guardrail_identifier"] != "gr1abc" || claim.Parameters["guardrail_version"] != "1" || claim.Attempt != 1 {
 			t.Fatalf("claim=%#v", claim)
 		}
 		// A leased remediation is not handed out twice, and another worker's
@@ -513,6 +530,72 @@ func TestSecurityAgentProviderRemediationSectionPostgres(t *testing.T) {
 		// A finished remediation cannot be reported again.
 		if _, err := repository.FinishProviderRemediation(database.ctx, claims[0], "security-agent-action-1", "action-lease-token-0003", ProviderRemediationOutcome{State: ProviderRemediationFailed, FailureCode: "policy_not_attached"}); !errors.Is(err, ErrRepositoryConflict) {
 			t.Fatalf("second report err=%v", err)
+		}
+	})
+
+	t.Run("detach a policy from the recorded role of an inferred agent", func(t *testing.T) {
+		const guardrailDefinition, detachDefinition = "pid_a0000000-0000-4000-8000-000000000010", "pid_a0000000-0000-4000-8000-000000000011"
+		const roleFinding, guardrailFinding, run, approval = "pid_a0000000-0000-4000-8000-000000000022", "pid_a0000000-0000-4000-8000-000000000023", "pid_b0000000-0000-4000-8000-000000000030", "pid_d0000000-0000-4000-8000-000000000145"
+		const policy = `{"policy_arn":"arn:aws:iam::123456789012:policy/everything"}`
+		unsupported := func(name string, call func() (json.RawMessage, error)) {
+			t.Helper()
+			result, err := call()
+			if state, message := remediationSQLState(err); err == nil || state != "22023" || message != "security agent remediation target unsupported" {
+				t.Fatalf("%s: result=%s state=%q message=%q", name, result, state, message)
+			}
+		}
+		// A guardrail is attached to a Bedrock agent only.
+		unsupported("a guardrail for a Lambda function", func() (json.RawMessage, error) {
+			return database.request(guardrailDefinition, "pid_b0000000-0000-4000-8000-000000000031", guardrailFinding, "attach_bedrock_guardrail", `{"guardrail_identifier":"gr1abc","guardrail_version":"1"}`, "41")
+		})
+		// Without one recorded role there is nothing a policy may be detached from.
+		relationship := `(organization_id,workspace_id,environment_id,id)=('` + remediationOrg + `','` + remediationWorkspace + `','` + remediationEnvironment + `','pid_a0000000-0000-4000-8000-000000000033')`
+		database.exec(`SET session_replication_role=replica`)
+		database.exec(`UPDATE zasp_inventory_relationships SET state='removed',removed_at=now() WHERE ` + relationship)
+		unsupported("an inferred agent whose role link was removed", func() (json.RawMessage, error) {
+			return database.request(detachDefinition, "pid_b0000000-0000-4000-8000-000000000032", roleFinding, "detach_role_administrator_policy", policy, "42")
+		})
+		database.exec(`UPDATE zasp_inventory_relationships SET state='present',removed_at=NULL WHERE ` + relationship)
+		// The role the product itself reads with is never a target.
+		database.exec(`UPDATE zasp_inventory_entities SET stable_fields=jsonb_set(stable_fields,'{arn}',to_jsonb($1::text)) WHERE id=$2`, remediationReadRole, remediationRoleEntity)
+		unsupported("an agent that runs as the integration's read role", func() (json.RawMessage, error) {
+			return database.request(detachDefinition, "pid_b0000000-0000-4000-8000-000000000033", roleFinding, "detach_role_administrator_policy", policy, "43")
+		})
+		database.exec(`UPDATE zasp_inventory_entities SET stable_fields=jsonb_set(stable_fields,'{arn}',to_jsonb($1::text)) WHERE id=$2`, remediationWriteRole, remediationRoleEntity)
+		unsupported("an agent that runs as the remediation role", func() (json.RawMessage, error) {
+			return database.request(detachDefinition, "pid_b0000000-0000-4000-8000-000000000034", roleFinding, "detach_role_administrator_policy", policy, "44")
+		})
+		database.exec(`UPDATE zasp_inventory_entities SET stable_fields=jsonb_set(stable_fields,'{arn}',to_jsonb($1::text)) WHERE id=$2`, remediationAgentRole, remediationRoleEntity)
+		database.exec(`SET session_replication_role=origin`)
+		if runs := database.text(`SELECT count(*)::text FROM zasp_security_agent_runs WHERE trigger_id IN($1,$2)`, roleFinding, guardrailFinding); runs != "0" {
+			t.Fatalf("a refused request left %s runs", runs)
+		}
+		if _, err := database.request(detachDefinition, run, roleFinding, "detach_role_administrator_policy", policy, "45"); err != nil {
+			t.Fatalf("admission: %v", err)
+		}
+		if _, err := database.decide(approval, remediationAdmin, "45"); err != nil {
+			// The approval's identifier is the one the request named.
+			t.Fatalf("decision: %v", err)
+		}
+		database.dispatch(run, "45")
+		repository := &SecurityAgentActionRepository{database: remediationJSONDatabase{database: database, login: remediationAction}, current: true}
+		claims, err := repository.ClaimProviderRemediations(database.ctx, "security-agent-action-1", "action-lease-token-0005", 60, 5)
+		if err != nil || len(claims) != 1 {
+			t.Fatalf("claims=%#v err=%v", claims, err)
+		}
+		target := claims[0].Target
+		if target.Kind != ProviderRemediationKindInferredAgent || target.AgentARN != remediationLambdaARN || target.AgentID != "" || target.RoleARN != remediationAgentRole || target.AccountID != "123456789012" || claims[0].EntityID != remediationLambdaEntity ||
+			claims[0].Parameters["policy_arn"] != "arn:aws:iam::123456789012:policy/everything" || claims[0].RemediationRoleARN != remediationWriteRole {
+			t.Fatalf("claim=%#v", claims[0])
+		}
+		verified := ProviderRemediationOutcome{State: ProviderRemediationVerified, Prior: map[string]any{"role_arn": remediationAgentRole, "role_name": "triage-agent-role", "policy_arn": "arn:aws:iam::123456789012:policy/everything", "policy_name": "everything", "attached": true},
+			Observed: map[string]any{"role_arn": remediationAgentRole, "role_name": "triage-agent-role", "policy_arn": "arn:aws:iam::123456789012:policy/everything", "attached": false}}
+		finished, err := repository.FinishProviderRemediation(database.ctx, claims[0], "security-agent-action-1", "action-lease-token-0005", verified)
+		if err != nil || finished.State != "remediated" || finished.EffectState != "verified" {
+			t.Fatalf("finished=%#v err=%v", finished, err)
+		}
+		if prior := database.text(`SELECT prior->>'role_arn' FROM zasp_security_agent_provider_remediations WHERE run_id=$1 AND state='verified'`, run); prior != remediationAgentRole {
+			t.Fatalf("stored rollback record names role %q", prior)
 		}
 	})
 }
