@@ -133,7 +133,18 @@ func TestOperationCoverage(t *testing.T) {
 			t.Errorf("unknown/duplicate policy %s", p.ID)
 		}
 		seen[p.ID] = true
-		if p.Method != want.Method || p.Path != want.Path || p.Permission != want.Permission || p.Relation != want.Permission {
+		// The relation is the permission, except where the permission is one
+		// of an API token only: then it is the relation the inventory names.
+		relation := want.Permission
+		if tokenRelation, tokenOnly := TokenPermissionOperations[p.ID]; tokenOnly {
+			relation = tokenRelation
+			if permissions[p.Permission] || len(p.Security) != 1 || p.Security[0] != "ProductAPIToken" {
+				t.Errorf("%s: a token permission must not be a model relation and must be for API tokens only", p.ID)
+			}
+		} else if p.Permission != p.Relation {
+			t.Errorf("%s: permission %q differs from relation %q", p.ID, p.Permission, p.Relation)
+		}
+		if p.Method != want.Method || p.Path != want.Path || p.Permission != want.Permission || p.Relation != relation {
 			t.Errorf("operation mismatch %s: model=%#v source=%#v", p.ID, p, want)
 		}
 		if p.Relation != "" && !permissions[p.Relation] {

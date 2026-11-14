@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -26,11 +27,30 @@ func newGuardrailFixture(t *testing.T, kind CredentialKind) *guardrailFixture {
 	f.identity.CredentialKind = kind
 	f.credential.Kind = kind
 	if kind == CredentialBearerToken {
-		// The token's permission ceiling: a token scoped to view.
-		f.credential.PATCeiling = []string{"view"}
+		// The token's own permissions: decisions, and the policy routes the
+		// same tests reach with it.
+		f.credential.PATCeiling = []string{"view", "manage_workflows", PermissionDecideGuardrails}
 	}
 	f.identity.credentialBinding = f.credential
 	return &guardrailFixture{secondary: f}
+}
+
+// request is the checked request the router would have produced. The
+// authorizer refuses a browser session for a decision, so the handler and the
+// statement gate, which refuse it again on their own, are given the grant of
+// a token with the credential kind changed.
+func (f *guardrailFixture) request(t *testing.T, operation string) context.Context {
+	t.Helper()
+	if operation != "createGuardrailDecision" || f.secondary.identity.CredentialKind != CredentialBrowserSession {
+		return f.secondary.request(t, RoutedOperation{OperationID: operation})
+	}
+	if _, err := f.secondary.authorizer.Authorize(context.Background(), f.secondary.identity, f.secondary.credential, RoutedOperation{OperationID: operation}); !errors.Is(err, ErrAuthorizationDenied) {
+		t.Fatalf("the authorizer admitted a browser session for a decision: %v", err)
+	}
+	ctx := newGuardrailFixture(t, CredentialBearerToken).secondary.request(t, RoutedOperation{OperationID: operation})
+	grant, _ := requestAuthorizationFromContext(ctx)
+	grant.Identity.CredentialKind, grant.Credential.Kind = CredentialBrowserSession, CredentialBrowserSession
+	return context.WithValue(ctx, requestAuthorizationContextKey{}, grant)
 }
 
 // serve sends one request through the handler with the checked request the
@@ -40,7 +60,7 @@ func (f *guardrailFixture) serve(t *testing.T, operation, method, body, payload 
 	t.Helper()
 	database, tx, _ := f.secondary.database(t, payload)
 	handler := &guardrailHTTPHandler{database: database, newProductID: func() (string, error) { return guardrailTestDecisionID, nil }}
-	ctx := f.secondary.request(t, RoutedOperation{OperationID: operation})
+	ctx := f.request(t, operation)
 	ctx = context.WithValue(ctx, identityContextKey{}, f.secondary.identity)
 	request := httptest.NewRequest(method, "/api/v1/guardrails/x", strings.NewReader(body)).WithContext(ctx)
 	if body != "" {
@@ -173,7 +193,7 @@ func TestGuardrailDecisionNeedsAnAPIToken(t *testing.T) {
 	identity := browser.secondary.identity
 	arguments := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), record}
 	grant := func(f *guardrailFixture, operation string) RequestAuthorization {
-		value, _ := requestAuthorizationFromContext(f.secondary.request(t, RoutedOperation{OperationID: operation}))
+		value, _ := requestAuthorizationFromContext(f.request(t, operation))
 		return value
 	}
 	if handled, allowed := guardrailStatementAllowed(grant(browser, "createGuardrailDecision"), currentGuardrailDecideSQL, arguments); !handled || allowed {

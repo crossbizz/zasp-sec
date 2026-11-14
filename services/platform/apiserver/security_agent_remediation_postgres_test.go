@@ -22,10 +22,11 @@ import (
 // section's functions are exercised as the product's own service logins.
 //
 // The section's writers are executable only by their owner and are reached
-// through zasp_authorization80 functions that need an attested request proof,
-// which a database test cannot mint. The test therefore grants the API role
-// EXECUTE on those writers on this disposable database only and re-seals;
-// the proof wrapper itself is tested for refusing a request without a proof.
+// through zasp_authorization80 functions that need an attested request
+// proof. This test exercises the writers themselves: it grants the API role
+// EXECUTE on them on this disposable database only and re-seals. The whole
+// path with attested proofs, from the HTTP handlers to both workers, is
+// TestProviderRemediationOnInstalledBaselinePostgres.
 
 const (
 	remediationOrg          = "pid_a0000000-0000-4000-8000-000000000001"

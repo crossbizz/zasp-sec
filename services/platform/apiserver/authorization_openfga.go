@@ -101,6 +101,15 @@ func (a *OpenFGAAuthorizer) Authorize(ctx context.Context, identity RequestIdent
 			return RequestAuthorization{}, ErrAuthorizationDenied
 		}
 	}
+	if policy.Relation != policy.Permission {
+		// The operation's permission is a permission of an API token only
+		// (checked above against the token). The principal is checked for the
+		// relation the inventory names for it.
+		if authorization.TokenPermissionOperations[route.OperationID] != policy.Relation || credential.Kind != CredentialBearerToken {
+			return RequestAuthorization{}, ErrAuthorizationDenied
+		}
+		permissions = []string{policy.Relation}
+	}
 	targets, err := a.Resolver.ResolveAuthorization(ctx, identity, route)
 	if err != nil {
 		return RequestAuthorization{}, err

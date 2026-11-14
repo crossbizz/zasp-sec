@@ -5815,3 +5815,46 @@ BEGIN
 END $provider_remediation_scope_run$;
 ALTER FUNCTION public.zasp_security_agent_provider_remediation_run(text,text,text,text,text,text,bigint,text,text,text,jsonb,text,text,text,text) OWNER TO zasp_discovery_authority;
 REVOKE ALL ON FUNCTION public.zasp_security_agent_provider_remediation_run(text,text,text,text,text,text,bigint,text,text,text,jsonb,text,text,text,text) FROM PUBLIC;
+
+-- ---------------------------------------------------------------------------
+-- V9. A permission for the guardrail decision API (workstream WS4, plan
+-- task E2).
+--
+-- POST /guardrails/decisions was admitted for an API token with view, so the
+-- token a gateway holds to ask for decisions could also read the
+-- Environment's inventory and findings. The call now needs decide_guardrails,
+-- a permission of API tokens only: no role holds it, it is not a relation of
+-- the authorization model, and no other statement accepts it. The token's
+-- owner is still checked for view on the Environment by the API server (the
+-- attested proof's allowed set). A token with decide_guardrails alone can ask
+-- for decisions and nothing else; a token with view alone is refused here.
+--
+-- Two bodies change: the list of permissions an API token may be created with
+-- gains the member, and the decision checks the request's proof for it.
+DO $guardrail_token_permission$
+DECLARE target CONSTANT regprocedure:='zasp_authorization80_identity.create_pat(text,text,text,bytea,bytea,text,text,text,text,jsonb,timestamptz,text,text,timestamptz,bytea,bytea,bytea)'::regprocedure;
+ anchor CONSTANT text:=$anchor$'view_compliance','manage_data_controls','run_tests'))$anchor$;
+ member CONSTANT text:=$member$'view_compliance','manage_data_controls','run_tests','decide_guardrails'))$member$;
+ d text:=pg_get_functiondef(target);
+BEGIN
+ IF position(member in d)=0 THEN
+  IF position('decide_guardrails' in d)>0 OR length(d)-length(replace(d,anchor,''))<>length(anchor) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='api token permission list predecessor changed';END IF;
+  EXECUTE replace(d,anchor,member);
+ END IF;
+END $guardrail_token_permission$;
+
+CREATE OR REPLACE FUNCTION zasp_authorization80.guardrail_decide(o text,w text,e text,actor text,q jsonb) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $guardrail_decide_permission$
+DECLARE p jsonb;result jsonb;
+BEGIN
+ p:=zasp_authorization80.product_request(o,w,e,actor,'createGuardrailDecision','decide_guardrails','environment',e,false,false,false,true);
+ -- The gateway authenticates with an API token that holds decide_guardrails;
+ -- a browser session has no reason to ask for a decision.
+ IF p->>'credential_kind' IS DISTINCT FROM '2' OR NOT COALESCE(p->'pat_ceiling' ? 'decide_guardrails',false) THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';END IF;
+ result:=zasp_authorization80.guardrail_decision_record(o,w,e,actor,q);
+ PERFORM zasp_authorization80.product_settled(p);
+ RETURN result;
+END $guardrail_decide_permission$;
+ALTER FUNCTION zasp_authorization80.guardrail_decide(text,text,text,text,jsonb) OWNER TO zasp_discovery_authority;
+REVOKE ALL ON FUNCTION zasp_authorization80.guardrail_decide(text,text,text,text,jsonb) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION zasp_authorization80.guardrail_decide(text,text,text,text,jsonb) TO zasp_discovery_api;

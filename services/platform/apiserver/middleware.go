@@ -166,6 +166,12 @@ func validRequestIdentity(identity RequestIdentity, requireCSRF bool) bool {
 	return true
 }
 
+// PermissionDecideGuardrails is the permission of the guardrail decision API
+// (POST /guardrails/decisions) and of nothing else. It is a permission of an
+// API token only: no role holds it and no browser session carries it. A token
+// that holds it alone can ask for decisions and cannot read anything.
+const PermissionDecideGuardrails = "decide_guardrails"
+
 func validPermissions(values []string) bool {
 	if len(values) > 32 {
 		return false
@@ -174,6 +180,7 @@ func validPermissions(values []string) bool {
 	for _, value := range values {
 		switch value {
 		case "view", "manage_findings", "manage_workflows", "manage_identity", "manage_api_tokens", "view_audit", "investigate_sessions", "revoke_sessions", "view_compliance", "manage_data_controls", "run_tests":
+		case PermissionDecideGuardrails:
 		default:
 			return false
 		}

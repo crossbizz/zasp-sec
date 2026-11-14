@@ -7,7 +7,7 @@ import { loadAllCursorPages } from "../../../apps/web/api/pagination";
 import type { ApiToken, ApiTokenPage, ApiTokenRevealedCredential, ApiTokenRevealGrant, ApiTokenRevealGrantPage } from "../../../apps/web/api/generated";
 import { decodeAPIToken, decodeAPITokenPage, decodeAPITokenRevealedCredential, decodeAPITokenRevealGrant, decodeAPITokenRevealGrantPage } from "../../../apps/web/api/administration-decoders";
 import { useOptionalSession } from "../../auth/SessionProvider";
-import { Badge, Button, Card, EmptyState, Field, LoadingState, Modal, PageHeader } from "../../components/ui";
+import { Badge, Button, Card, EmptyState, Field, LoadingState, Modal, PageHeader, Select } from "../../components/ui";
 
 const MAXIMUM_LIST_ITEMS = 2_000;
 const MAXIMUM_LIST_PAGES = 20;
@@ -87,6 +87,9 @@ export function APIAccessView({ api: suppliedAPI, client }: { api?: APIAccessAPI
   const [secretStatus, setSecretStatus] = useState("");
   const [acknowledging, setAcknowledging] = useState(false);
   const [name, setName] = useState("");
+  // What the new token may do. A gateway that only asks for guardrail
+  // decisions gets a token that can read nothing.
+  const [tokenUse, setTokenUse] = useState<"view" | "decide_guardrails">("view");
   const pendingMutation = useRef<PendingMutation | null>(null);
   const createTokenButton = useRef<HTMLButtonElement>(null);
   const [unresolvedMutation, setUnresolvedMutation] = useState<PendingMutation | null>(null);
@@ -149,11 +152,13 @@ export function APIAccessView({ api: suppliedAPI, client }: { api?: APIAccessAPI
     <Card title={<h2>Pending reveal grants</h2>}>
       {grants.length === 0 ? <EmptyState title="No pending credentials" description="Unacknowledged token credentials after create or rotate appear here across reloads." /> : <ul className="identity-list">{grants.map((grant) => <li key={grant.grantId}><span><strong>{grant.operation === "createAPIToken" ? "Created token" : "Rotated token"}</strong><small>expires {grant.expiresAt}</small></span><Button disabled={!fresh || revealed !== null} onClick={() => void reveal(grant)}>Reveal token</Button></li>)}</ul>}
     </Card>
-    <Card title={<h2>Create API token</h2>}><div className="identity-form-grid"><Field disabled={!fresh || recoveryLocked || activeScope === null} label="Token name" value={name} onChange={(event) => setName(event.target.value)} /></div>
+    <Card title={<h2>Create API token</h2>}><div className="identity-form-grid"><Field disabled={!fresh || recoveryLocked || activeScope === null} label="Token name" value={name} onChange={(event) => setName(event.target.value)} />
+      <Select disabled={!fresh || recoveryLocked || activeScope === null} label="Token use" value={tokenUse} onChange={(event) => setTokenUse(event.target.value === "decide_guardrails" ? "decide_guardrails" : "view")}><option value="view">Read the Environment (view)</option><option value="decide_guardrails">Guardrail decisions only (decide_guardrails)</option></Select></div>
+      {tokenUse === "decide_guardrails" && <p>This token can call the guardrail decision API and nothing else: it cannot read inventory, findings or settings.</p>}
       {activeScope && <p>New credentials use the authenticated active scope <code>{activeScope.workspaceId}/{activeScope.environmentId}</code>.</p>}
       <Button ref={createTokenButton} variant="primary" disabled={!fresh || activeScope === null || revealed !== null || grants.length > 0 || unresolvedMutation?.kind === "rotate"} onClick={() => void (async () => {
         setError(null); setNotice(null); if (!name.trim()) { setError("Enter a token name"); return; } if (!api || !activeScope) { setError("An authenticated active scope is required"); return; }
-        const retained = pendingMutation.current; const input: CreateTokenInput = retained?.kind === "create" ? retained.input : { name: name.trim(), workspaceId: activeScope.workspaceId, environmentId: activeScope.environmentId, permissions: ["view"], expiresAt: expiresAt() }; const key = retained?.kind === "create" ? retained.key : `admin_${crypto.randomUUID()}`; retainMutation({ kind: "create", key, input });
+        const retained = pendingMutation.current; const input: CreateTokenInput = retained?.kind === "create" ? retained.input : { name: name.trim(), workspaceId: activeScope.workspaceId, environmentId: activeScope.environmentId, permissions: [tokenUse], expiresAt: expiresAt() }; const key = retained?.kind === "create" ? retained.key : `admin_${crypto.randomUUID()}`; retainMutation({ kind: "create", key, input });
         try { const created = await api.createToken(input, key); setTokens((current) => [...current.filter((item) => item.id !== created.token.id), created.token]); setGrants((current) => [...current.filter((item) => item.grantId !== created.grant.grantId), created.grant]); retainMutation(null); setNotice("API token created; reveal it before the grant expires"); await reveal(created.grant); }
         catch { await reconcileMutation(); setError("Create response was interrupted. Recover a pending grant or retry the exact retained operation."); }
       })()}>{unresolvedMutation?.kind === "create" ? "Retry retained API token create" : "Create API token"}</Button>

@@ -8,6 +8,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/zasp-ai/zasp-sec/services/platform/authorization"
 )
 
 func TestIntegrationRemediationRoleRoutes(t *testing.T) {
@@ -83,17 +85,74 @@ func TestIntegrationRemediationRoleRoutes(t *testing.T) {
 	}
 }
 
-func TestGuardrailDecisionNeedsATokenWhoseCeilingHasView(t *testing.T) {
+// The guardrail decision API has a permission of its own. It is a permission
+// of API tokens only: the token must hold decide_guardrails, the token's
+// owner must be able to view the Environment, and the token can do nothing
+// else with it.
+func TestGuardrailDecisionNeedsItsOwnTokenPermission(t *testing.T) {
 	f := newSecondaryFixture(t)
-	f.identity.CredentialKind, f.credential.Kind = CredentialBearerToken, CredentialBearerToken
-	f.credential.PATCeiling = []string{"run_tests"}
-	f.identity.credentialBinding = f.credential
-	if _, err := f.authorizer.Authorize(context.Background(), f.identity, f.credential, RoutedOperation{OperationID: "createGuardrailDecision"}); !errors.Is(err, ErrAuthorizationDenied) {
-		t.Fatalf("a token without view was authorized for a decision: %v", err)
+	decision := RoutedOperation{OperationID: "createGuardrailDecision"}
+	// A browser session is refused whatever its permissions.
+	if _, err := f.authorizer.Authorize(context.Background(), f.identity, f.credential, decision); !errors.Is(err, ErrAuthorizationDenied) {
+		t.Fatalf("a browser session was authorized for a decision: %v", err)
 	}
-	f.credential.PATCeiling = []string{"view"}
-	f.identity.credentialBinding = f.credential
-	if _, err := f.authorizer.Authorize(context.Background(), f.identity, f.credential, RoutedOperation{OperationID: "createGuardrailDecision"}); err != nil {
-		t.Fatalf("a token with view was refused: %v", err)
+	f.identity.CredentialKind, f.credential.Kind = CredentialBearerToken, CredentialBearerToken
+	token := func(permissions ...string) {
+		f.credential.PATCeiling = permissions
+		f.identity.credentialBinding = f.credential
+	}
+	authorize := func(route RoutedOperation) (RequestAuthorization, error) {
+		return f.authorizer.Authorize(context.Background(), f.identity, f.credential, route)
+	}
+	// Every other permission, alone or together, is not enough.
+	for _, permissions := range [][]string{{"view"}, {"run_tests"}, {"view", "manage_workflows", "manage_findings", "view_audit"}} {
+		token(permissions...)
+		if _, err := authorize(decision); !errors.Is(err, ErrAuthorizationDenied) {
+			t.Fatalf("a token with %v was authorized for a decision: %v", permissions, err)
+		}
+	}
+	token(PermissionDecideGuardrails)
+	var checked []authorization.CheckRequest
+	inner := f.authorizer.Checker
+	f.authorizer.Checker = authorizationDecisionFunc(func(ctx context.Context, request authorization.CheckRequest) (authorization.Decision, error) {
+		checked = append(checked, request)
+		return inner.Check(ctx, request)
+	})
+	grant, err := authorize(decision)
+	if err != nil || len(grant.Allowed) != 1 || grant.Allowed[0].Kind != "environment" {
+		t.Fatalf("a token with decide_guardrails was refused: %v grant=%#v", err, grant.Allowed)
+	}
+	// The principal was checked for view on the Environment, never for a
+	// relation the model does not have.
+	if len(checked) != 1 || checked[0].Permission != "view" || checked[0].ResourceType != "environment" || checked[0].ResourceID != f.identity.Scope.EnvironmentID().String() {
+		t.Fatalf("checks=%#v", checked)
+	}
+	// The proof PostgreSQL verifies names the token permission.
+	proof, err := authorizationDecisionJSON(grant)
+	if err != nil || !strings.Contains(string(proof), `"permission":"decide_guardrails"`) || !strings.Contains(string(proof), `"pat_ceiling":["decide_guardrails"]`) {
+		t.Fatalf("proof=%s err=%v", proof, err)
+	}
+	// An owner who cannot view the Environment gets no decision.
+	f.denied["environment"] = true
+	if _, err := authorize(decision); !errors.Is(err, ErrAuthorizationDenied) {
+		t.Fatalf("a token whose owner cannot view the Environment was authorized: %v", err)
+	}
+	f.denied["environment"] = false
+	// The token reads nothing: not the guardrail policy, not inventory, not
+	// findings, not an integration, and it changes nothing.
+	for _, route := range []RoutedOperation{
+		{OperationID: "getGuardrailPolicy"}, {OperationID: "putGuardrailPolicy"}, {OperationID: "listAgents"}, {OperationID: "listFindings"}, {OperationID: "listSecurityAgents"},
+		{OperationID: "getIntegrationRemediationRole", PathParameters: map[string]string{"id": "pid_80000001-0000-4000-8000-000000000001"}},
+		{OperationID: "getFinding", PathParameters: map[string]string{"id": "pid_40000002-0000-4000-8000-000000000002"}},
+	} {
+		if _, err := authorize(route); !errors.Is(err, ErrAuthorizationDenied) {
+			t.Fatalf("a token with decide_guardrails alone was authorized for %s: %v", route.OperationID, err)
+		}
+	}
+	// It is the only operation with such a permission.
+	for _, policy := range authorization.Operations() {
+		if (policy.Permission == PermissionDecideGuardrails) != (policy.ID == "createGuardrailDecision") {
+			t.Fatalf("%s has permission %q", policy.ID, policy.Permission)
+		}
 	}
 }

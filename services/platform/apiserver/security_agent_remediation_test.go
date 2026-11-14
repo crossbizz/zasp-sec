@@ -3,6 +3,7 @@ package apiserver
 import (
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgconn"
@@ -186,5 +187,44 @@ func TestSecurityAgentExecutionControlsListTheRemediationActions(t *testing.T) {
 	value.Actions[0], value.Actions[1] = value.Actions[1], value.Actions[0]
 	if validSecurityAgentExecutionControls(value) {
 		t.Fatal("action switches in another order were accepted")
+	}
+}
+
+// A decision reads the approval before it decides it. Under current
+// authorization that read is a request of its own: it is made under a second
+// decision for getSecurityAgentApproval, not under the decision's proof,
+// which neither the statement gate nor PostgreSQL accepts for a read.
+func TestApprovalDecisionReadsTheApprovalUnderItsOwnDecision(t *testing.T) {
+	f := newSecondaryFixture(t)
+	const approval, run, step, agent, finding = "pid_656ea599-55b3-4bd0-969d-af956edfe20f", "pid_abf53263-0b03-4d47-b1a4-e3c31fcc7517", "pid_3473f281-34c6-4899-8313-84d40748c57c", "pid_7b523400-2d8a-4eb5-88ac-fa181b1da365", "pid_8770c18a-59d6-429f-a8e0-810ae5c9003c"
+	// The answer of zasp_authorization80.security_agent_approval for a
+	// pending guardrail attachment, as an installed baseline produced it.
+	payload := `{"family":"legacy","result":{"detail":{"id":"` + approval + `","state":"pending","run_id":"` + run + `","step_id":"` + step + `","version":1,"expires_at":"2026-11-15T08:18:01.175000Z","reversible":true,"ttl_seconds":0,"expected_effect":"Attach Bedrock guardrail","evidence_summary":["` + finding + `"]},
+"context":{"action":"attach_bedrock_guardrail","run_id":"` + run + `","step_id":"` + step + `","agent_id":"` + agent + `","arguments":{"target_id":"pid_b2710f6d-2eed-49f9-a020-0c593881ced5","integration_id":"pid_8b960a0f-92fe-4094-a37b-b85193c905c0","guardrail_version":"1","guardrail_identifier":"gr1abc"},"plan_hash":"sha256:e884b65f52cd8244929ef6b1e7fdb23e35cda256cf85061350845aef17537d4f","approval_id":"` + approval + `","requester_id":"pid_d13ad76a-1b87-4311-83a4-735d72ffe2e1","authorization":"approval_required","catalog_version":"security-agent-actions-v1","planner_receipt":null,"approval_plan_hash":"sha256:e884b65f52cd8244929ef6b1e7fdb23e35cda256cf85061350845aef17537d4f"}}}`
+	database, tx, _ := f.database(t, payload)
+	repository := &PostgresRepository{database: database, schema: ProductionRecoverySchemaVersion, securityAgentExecution: true, currentAuthorization: true}
+	deciding := f.request(t, RoutedOperation{OperationID: "decideSecurityAgentApproval", PathParameters: map[string]string{"id": approval}})
+	f.resolved = nil
+	value, err := repository.GetSecurityAgentApproval(deciding, f.identity, approval)
+	if err != nil || value.ID != approval || value.ExpectedEffect != "Attach Bedrock guardrail" || value.Context == nil || value.Context.Action != "attach_bedrock_guardrail" {
+		t.Fatalf("approval=%+v err=%v", value, err)
+	}
+	if len(tx.statements) != 1 || tx.statements[0] != currentSecurityAgentApprovalSQL {
+		t.Fatalf("statements=%v", tx.statements)
+	}
+	if len(f.resolved) != 1 || !strings.HasSuffix(f.resolved[0], ":getSecurityAgentApproval") {
+		t.Fatalf("second decision resolved=%v", f.resolved)
+	}
+	// The decision's own proof is not accepted for the read, for this
+	// approval or another one.
+	grant, _ := requestAuthorizationFromContext(deciding)
+	arguments := []any{f.identity.Scope.OrganizationID().String(), f.identity.Scope.WorkspaceID().String(), f.identity.Scope.EnvironmentID().String(), approval, f.identity.PrincipalID.String()}
+	if handled, allowed := securityAgentObjectStatementAllowed(grant, currentSecurityAgentApprovalSQL, arguments); !handled || allowed {
+		t.Fatalf("the decision's proof was accepted for a read: handled=%t allowed=%t", handled, allowed)
+	}
+	// A member who may not read the approval does not read it by deciding.
+	f.denied["security_agent_approval"] = true
+	if _, err := repository.GetSecurityAgentApproval(deciding, f.identity, approval); err == nil {
+		t.Fatal("an approval the member may not view was read under a decision")
 	}
 }

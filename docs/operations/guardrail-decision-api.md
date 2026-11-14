@@ -13,7 +13,12 @@ A gateway you already run (LiteLLM, Kong, Apigee, your own proxy) asks Zasp what
 
 `POST /api/v1/guardrails/decisions`
 
-Authentication: an API token of the Environment whose permissions include `view` (`Authorization: Bearer <token>`). A browser session is not accepted. Create a token for the gateway alone, with `view` and nothing else. There is no narrower permission for this call today: a token that may ask for decisions may also read the Environment's inventory and findings, so keep it in the gateway's secret store.
+Authentication: an API token of the Environment whose permissions include `decide_guardrails` (`Authorization: Bearer <token>`). A browser session is not accepted, and a token with `view` alone is refused with `403`.
+
+`decide_guardrails` is a permission of API tokens only. No role holds it and it gives access to nothing but this call: a token created with `decide_guardrails` and nothing else cannot read the Environment's inventory, findings, integrations or the guardrail policy, and cannot change anything. The person who creates the token must be able to view the Environment; if that person loses access, the token stops working. Create one token per gateway:
+
+- In the product: Administration, API Access, choose “Guardrail decisions only” and create the token. Tokens created there expire after 24 hours, like every token created in the product today; for a gateway that runs longer, create the token over the API with the expiry you need.
+- Over the API (a browser session with fresh authentication and `manage_api_tokens`): `POST /api/v1/admin/api-tokens` with `"permissions": ["decide_guardrails"]` and `expires_at`.
 
 ```json
 {
@@ -51,7 +56,7 @@ Authentication: an API token of the Environment whose permissions include `view`
 | `redact` | Forward `redacted_text` instead of the original. Each match of a redacting rule is replaced by `[REDACTED:<rule id>]`. |
 | `block` | Do not forward the text. `redacted_text` is absent. |
 
-Errors: `400` malformed request, `401`/`403` token missing or without `view`, `413` text too large, `503` the decision could not be recorded.
+Errors: `400` malformed request, `401` token missing, expired or revoked, `403` token without `decide_guardrails` (or its owner can no longer view the Environment), `413` text too large, `503` the decision could not be recorded.
 
 ## Rules
 

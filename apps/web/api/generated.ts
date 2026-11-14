@@ -904,7 +904,7 @@ export type paths = {
         readonly put?: never;
         /**
          * Decide whether one model interaction is allowed, redacted or blocked
-         * @description For a gateway the customer already runs (for example a LiteLLM guardrail hook): send the text going into a model (direction input) or coming out of it (direction output) and act on the answer. Authenticate with an API token of the Environment that has the view permission; a browser session is not accepted. The detectors are deterministic (regular expressions, phrase lists and checksums; no model is called) and are heuristics: see the rule descriptions of the guardrail policy. The interaction text is used for this request only. It is not logged and not stored; the audit record of a decision holds the decision, the matched rule identifiers with their modes and counts, the size of the text and its SHA-256 digest.
+         * @description For a gateway the customer already runs (for example a LiteLLM guardrail hook): send the text going into a model (direction input) or coming out of it (direction output) and act on the answer. Authenticate with an API token of the Environment that has the decide_guardrails permission; a browser session is not accepted, and a token with view alone is refused. decide_guardrails is a permission of API tokens only: a token created with it and nothing else can ask for decisions and cannot read anything. The owner of the token must be able to view the Environment. The detectors are deterministic (regular expressions, phrase lists and checksums; no model is called) and are heuristics: see the rule descriptions of the guardrail policy. The interaction text is used for this request only. It is not logged and not stored; the audit record of a decision holds the decision, the matched rule identifiers with their modes and counts, the size of the text and its SHA-256 digest.
          */
         readonly post: operations["createGuardrailDecision"];
         readonly delete?: never;
@@ -3995,7 +3995,7 @@ export type components = {
             readonly next_cursor: null;
         };
         /** @enum {string} */
-        readonly Permission: "view" | "manage_identity" | "manage_findings" | "manage_workflows" | "manage_api_tokens" | "view_audit" | "investigate_sessions" | "revoke_sessions" | "view_compliance" | "manage_data_controls" | "run_tests";
+        readonly Permission: "view" | "manage_identity" | "manage_findings" | "manage_workflows" | "manage_api_tokens" | "view_audit" | "investigate_sessions" | "revoke_sessions" | "view_compliance" | "manage_data_controls" | "run_tests" | "decide_guardrails";
         readonly Policy: {
             /** @enum {string} */
             readonly action: "monitor" | "block";
