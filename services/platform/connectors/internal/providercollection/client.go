@@ -843,7 +843,11 @@ func providerEntitySchema(provider collection.Provider, kind string) (providerEn
 		case "saas_agent", "saas_ai_application":
 			return providerEntityDefinition{stable: object, attributes: mergeInventorySchemas(status, optionalStringFields("agent_type", "model"), discoveredAgentAttributes())}, true
 		case "saas_mcp_server":
-			return providerEntityDefinition{stable: object, attributes: mergeInventorySchemas(status, optionalStringFields("endpoint_host"))}, true
+			// auth and transport are present when the platform's API states
+			// them for the server.
+			return providerEntityDefinition{stable: object, attributes: mergeInventorySchemas(status, optionalStringFields("endpoint_host"), inventoryObjectSchema{
+				"auth":      enumInventoryField(false, agentsignals.MCPAuthDeclared, agentsignals.MCPAuthNone),
+				"transport": enumInventoryField(false, agentsignals.MCPTransportHTTP, agentsignals.MCPTransportSSE, agentsignals.MCPTransportStdio)})}, true
 		}
 	}
 	return providerEntityDefinition{}, false

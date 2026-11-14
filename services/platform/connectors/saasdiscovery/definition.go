@@ -249,6 +249,11 @@ type Entity struct {
 	AgentType    string
 	Model        string
 	EndpointHost string
+	// Auth and Transport are optional facts of an MCP server the platform's
+	// API states: agentsignals.MCPAuthDeclared or MCPAuthNone, and
+	// agentsignals.MCPTransportHTTP, MCPTransportSSE or MCPTransportStdio.
+	Auth      string
+	Transport string
 	// Posture holds only the facts the platform's API states. A fact the
 	// API does not state stays false and raises no finding. It is ignored
 	// for an MCP server.
@@ -371,6 +376,12 @@ type ListEndpoint struct {
 	// a tenant with more ends the collection as a terminal failure rather
 	// than as an incomplete inventory.
 	Distinct bool
+	// ChildrenPath: the objects to map are not the items themselves but the
+	// objects of the array at this path inside each item (the MCP servers of
+	// each listed agent). Paging still counts and continues by the items.
+	// The same object may then appear under several items, so the endpoint
+	// is Distinct.
+	ChildrenPath []string
 	// Parent makes the endpoint a nested list: it is read once for every
 	// object of Parent, with ParentValue in Path replaced by the object's
 	// id. MapChild is then set in place of Map and is given that id.
@@ -724,8 +735,14 @@ func (platform Platform) Validate() error {
 			placeholders = append(placeholders, ParentValue)
 		}
 		if !endpointNamePattern.MatchString(endpoint.Name) || names[endpoint.Name] || !validPathTemplate(endpoint.Path, placeholders...) || !validFixedQuery(endpoint.Query) || len(endpoint.ItemsPath) > 4 || !endpoint.Paging.valid() || len(endpoint.Absent) > 4 ||
-			endpoint.Single && endpoint.Paging.Style != PagingNone || endpoint.Single && endpoint.Distinct || !validHeaders(endpoint.Headers) || !endpoint.GraphQL.valid(endpoint) {
+			endpoint.Single && endpoint.Paging.Style != PagingNone || endpoint.Single && endpoint.Distinct || !validHeaders(endpoint.Headers) || !endpoint.GraphQL.valid(endpoint) ||
+			len(endpoint.ChildrenPath) > 6 || len(endpoint.ChildrenPath) > 0 && (!endpoint.Distinct || endpoint.Single) {
 			return ErrInvalid
+		}
+		for _, key := range endpoint.ChildrenPath {
+			if key == "" || len(key) > 64 {
+				return ErrInvalid
+			}
 		}
 		// A plain endpoint has Map; a nested one has Parent and MapChild and
 		// names the parent in its path.
