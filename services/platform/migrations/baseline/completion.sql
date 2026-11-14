@@ -4387,3 +4387,120 @@ BEGIN
   END LOOP;
  END LOOP;
 END $saas_rule_catalog$;
+
+-- WS2d. A standalone red team run is executed where the linked test authority
+-- is installed.
+--
+-- A run queued from the Red Team page (zasp_red_team_run_test) or by a
+-- schedule (section WS2c) has no row in zasp_security_agent_test_links: it is
+-- not a Security Agent test step. The worker protocols of the installed
+-- linked authority (zasp_temporal71) admit only linked runs, by design: op01
+-- refuses a run without a parent (zasp_temporal71.require_parent). The red
+-- team worker therefore had no way to classify a standalone run there, and
+-- never claimed one.
+--
+-- zasp_red_team_standalone_protocol is that classification for the red team
+-- worker principal: 'standalone' for a run without a test link, 'linked' for
+-- one with a link. It grants nothing. A standalone run is then claimed,
+-- heartbeated, finished, retried and cancelled through the unchanged
+-- zasp_red_team_* worker functions, each of which starts with
+-- zasp_production_security_agent_existing_tests_legacy_run and so refuses a
+-- linked run under the run lock; the adapter resolves its target through the
+-- unchanged zasp_temporal68.standalone_resolve. A linked run keeps the
+-- journaled protocol of the installed authority, untouched.
+DO $ws2_red_team_standalone_protocol$
+DECLARE owner_value text;
+BEGIN
+ SELECT pg_get_userbyid(relowner) INTO STRICT owner_value FROM pg_class WHERE oid='public.zasp_red_team_runs'::regclass;
+ CREATE OR REPLACE FUNCTION public.zasp_red_team_standalone_protocol(organization_value text,workspace_value text,environment_value text,run_value text) RETURNS jsonb
+ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path TO pg_catalog, public AS $protocol$
+ DECLARE linked_value boolean:=false;
+ BEGIN
+  IF NOT COALESCE(zasp_red_team_principal_ready('zasp_red_team_worker') AND zasp_valid_product_id(organization_value) AND zasp_valid_product_id(workspace_value) AND zasp_valid_product_id(environment_value) AND zasp_valid_product_id(run_value),false) THEN
+   RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='red team principal rejected';
+  END IF;
+  IF NOT EXISTS(SELECT 1 FROM zasp_red_team_runs WHERE (organization_id,workspace_id,environment_id,run_id)=(organization_value,workspace_value,environment_value,run_value)) THEN
+   RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='red team run unavailable';
+  END IF;
+  -- An installation older than the linked tests has no link table and no linked run.
+  IF to_regclass('public.zasp_security_agent_test_links') IS NOT NULL THEN
+   EXECUTE 'SELECT EXISTS(SELECT 1 FROM public.zasp_security_agent_test_links WHERE (organization_id,workspace_id,environment_id,test_run_id)=($1,$2,$3,$4))' INTO linked_value USING organization_value,workspace_value,environment_value,run_value;
+  END IF;
+  RETURN jsonb_build_object('protocol',CASE WHEN linked_value THEN 'linked' ELSE 'standalone' END);
+ END $protocol$;
+ EXECUTE format('ALTER FUNCTION public.zasp_red_team_standalone_protocol(text,text,text,text) OWNER TO %I',owner_value);
+ REVOKE ALL ON FUNCTION public.zasp_red_team_standalone_protocol(text,text,text,text) FROM PUBLIC;
+ GRANT EXECUTE ON FUNCTION public.zasp_red_team_standalone_protocol(text,text,text,text) TO zasp_red_team_worker;
+END $ws2_red_team_standalone_protocol$;
+
+-- WS2e. Saving a schedule is audited.
+--
+-- zasp_red_team_put_schedule (section WS2c) wrote no audit row. It now writes
+-- one row to zasp_red_team_audit in the same transaction as the save: the
+-- actor, the definition as the resource and the saved schedule as the body
+-- ({"schedule": ...}). The event kind is red_team_definition_updated: the
+-- schedule is part of how the test definition runs, the public audit source
+-- (zasp_audit_export_public_source_v1) already publishes that kind as
+-- test.update, and the table's event kinds and that view are part of the
+-- audit export source catalog, which this section leaves as it is.
+--
+-- Re-run: a function that already writes the row is left alone; one that does
+-- not hold the anchor exactly once is refused.
+DO $ws2_red_team_schedule_audit$
+DECLARE put CONSTANT regprocedure:='public.zasp_red_team_put_schedule(text,text,text,text,text,bigint,boolean,integer,boolean)'::regprocedure;
+ anchor CONSTANT text:='updated_by=EXCLUDED.updated_by,updated_at=transaction_timestamp();';
+ audit CONSTANT text:=$audit$
+  INSERT INTO zasp_red_team_audit(organization_id,workspace_id,environment_id,audit_id,correlation_id,receipt_id,actor_id,event_kind,resource_id,event_digest,body)
+   SELECT organization_value,workspace_value,environment_value,
+    zasp_discovery_canonical_id(organization_value,workspace_value,environment_value,'red_team_audit',saved.seed),
+    zasp_discovery_canonical_id(organization_value,workspace_value,environment_value,'red_team_schedule_correlation',saved.seed),
+    zasp_discovery_canonical_id(organization_value,workspace_value,environment_value,'red_team_receipt',saved.seed),
+    actor_value,'red_team_definition_updated',definition_value,digest(convert_to(saved.body::text,'UTF8'),'sha256'),saved.body
+   FROM(SELECT jsonb_build_object('schedule',zasp_red_team_schedule_json(organization_value,workspace_value,environment_value,definition_value)) AS body,
+    concat_ws(chr(31),actor_value,'putTestSchedule',definition_value,(expected_version_value+1)::text) AS seed) saved;$audit$;
+ d text;
+BEGIN
+ d:=pg_get_functiondef(put);
+ IF position('putTestSchedule' in d)>0 THEN RETURN;END IF;
+ IF (length(d)-length(replace(d,anchor,'')))/length(anchor)<>1 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='red team schedule predecessor changed';END IF;
+ EXECUTE replace(d,anchor,anchor||audit);
+END $ws2_red_team_schedule_audit$;
+
+-- WS2f. The Red Team page reaches its tests and runs on the authorized API.
+--
+-- The API runs every statement of a request inside a checked request. Of the
+-- red team functions only zasp_red_team_run_test and zasp_red_team_cancel_run
+-- were left executable by the API role, behind the checked-request guard of
+-- section X3; reading a test, creating or changing one and reading a run
+-- (zasp_red_team_get_definition, _create_definition, _update_definition and
+-- _get_run) were executable by nobody but their owner, so a person could list
+-- tests and runs but not create a test, open one, or see what a run found.
+--
+-- The four functions get the same treatment as the two of section X3: their
+-- first statement is zasp_authorization80.direct_guard (the request's own
+-- Organization, Workspace, Environment and, for a write, principal), and the
+-- security agent API role may execute them. Their own checks (principal,
+-- versions, the non-production safety rule) follow unchanged, and the API
+-- admits each statement only for its own operation and authorized object.
+--
+-- Re-run: a function that already holds the guard is left alone. A database
+-- without the authorized schema is left as it is.
+DO $ws2_red_team_api_functions$
+DECLARE f record;d text;guarded text;
+BEGIN
+ IF to_regprocedure('zasp_authorization80.direct_guard(text,text,text,text)') IS NULL THEN RETURN;END IF;
+ FOR f IN SELECT * FROM(VALUES
+  ('public.zasp_red_team_get_definition(text,text,text,text)',''),
+  ('public.zasp_red_team_get_run(text,text,text,text)',''),
+  ('public.zasp_red_team_create_definition(text,text,text,text,text,text,text,text,text,jsonb,jsonb,text)',',actor_value'),
+  ('public.zasp_red_team_update_definition(text,text,text,text,text,text,bigint,text,text,text,jsonb,jsonb,boolean,text)',',actor_value')
+ ) v(signature,actor) LOOP
+  d:=pg_get_functiondef(f.signature::regprocedure);
+  IF position('zasp_authorization80.direct_guard' in d)=0 THEN
+   guarded:=regexp_replace(d,'\mBEGIN\M','BEGIN PERFORM zasp_authorization80.direct_guard(organization_value,workspace_value,environment_value'||f.actor||');');
+   IF guarded=d OR position('organization_value' in d)=0 OR(f.actor<>'' AND position('actor_value' in d)=0) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='red team api predecessor changed';END IF;
+   EXECUTE guarded;
+  END IF;
+  EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO zasp_security_agent_api',f.signature);
+ END LOOP;
+END $ws2_red_team_api_functions$;

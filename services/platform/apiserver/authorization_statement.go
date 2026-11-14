@@ -19,6 +19,14 @@ type authorizationStatementRule struct {
 // Closed application contracts, not a SQL parser or another permission engine.
 // Unknown queries refuse until their product boundary has been implemented.
 var authorizationStatementRules = []authorizationStatementRule{
+	// Red team tests and runs (completion.sql, section WS2f): each statement is
+	// admitted for its own operation, scope, actor and authorized object only.
+	{postgresRedTeamCreateDefinitionSQL, []string{"createTest"}, 12, 4, 3, "environment"},
+	{postgresRedTeamGetDefinitionSQL, []string{"getTest"}, 4, 0, 4, "test"},
+	{postgresRedTeamUpdateDefinitionSQL, []string{"updateTest"}, 14, 4, 6, "test"},
+	{postgresRedTeamRunTestSQL, []string{"runTest"}, 9, 4, 6, "test"},
+	{postgresRedTeamGetRunSQL, []string{"getTestRun"}, 4, 0, 4, "test_run"},
+	{postgresRedTeamCancelRunSQL, []string{"cancelTestRun"}, 8, 4, 6, "test_run"},
 	{postgresRedTeamGetScheduleSQL, []string{"getTestSchedule"}, 4, 0, 4, "test"},
 	{postgresRedTeamPutScheduleSQL, []string{"putTestSchedule"}, 9, 4, 5, "test"},
 	{currentPATPageSQL, []string{"listAPITokens"}, 5, 0, 3, "environment"},

@@ -15,6 +15,9 @@ type routedRedTeamAuthority struct {
 	legacy          *apiserver.RedTeamExecutionRepository
 	linked          *apiserver.LinkedRedTeamExecutionRepository
 	installedLinked bool
+	// standaloneInstalled is set only with installedLinked: legacy is then
+	// the authority for runs that are not Security Agent test steps.
+	standaloneInstalled bool
 }
 
 func newRoutedRedTeamAuthority(db apiserver.JSONDatabase) (*routedRedTeamAuthority, error) {
@@ -34,7 +37,12 @@ func newRoutedRedTeamAuthority(db apiserver.JSONDatabase) (*routedRedTeamAuthori
 			}
 			//71 admits only persisted legacy single-test links. Standalone and
 			// retained ordered work do not acquire this transitional authority.
-			return &routedRedTeamAuthority{linked: linked, installedLinked: true}, nil
+			// A standalone run (queued from the Red Team page or by a schedule)
+			// is executed through the unchanged worker functions instead, when
+			// the database classifies it (completion.sql, section WS2d). Without
+			// that section standalone runs stay refused.
+			standalone, _ := apiserver.NewInstalledStandaloneRedTeamExecutionRepository(db)
+			return &routedRedTeamAuthority{linked: linked, installedLinked: true, legacy: standalone, standaloneInstalled: standalone != nil}, nil
 		}
 	}
 	legacy, err := apiserver.NewRedTeamExecutionRepository(db, apiserver.RedTeamExecutionAuthorityWorker)
@@ -68,6 +76,21 @@ func (r *routedRedTeamAuthority) ReadyArtifacts(ctx context.Context) error {
 func (r *routedRedTeamAuthority) protocol(ctx context.Context, scope domain.Scope, run string) (string, error) {
 	if r == nil || r.linked == nil || !r.installedLinked && r.legacy == nil {
 		return "", errRuntimeUnavailable
+	}
+	if r.installedLinked && r.standaloneInstalled {
+		// The database classifies the run. A linked run still has to pass the
+		// installed authority's own protocol check below; a standalone run is
+		// routed to functions that refuse a linked run under the run lock.
+		classified, err := r.legacy.StandaloneRunProtocol(ctx, scope, run)
+		if err != nil {
+			return "", errRuntimeUnavailable
+		}
+		if classified == "standalone" {
+			if r.legacy.Ready(ctx) != nil {
+				return "", errRuntimeUnavailable
+			}
+			return "legacy", nil
+		}
 	}
 	protocol, err := r.linked.RunProtocol(ctx, scope, run)
 	if err != nil || r.installedLinked && protocol != "linked" {

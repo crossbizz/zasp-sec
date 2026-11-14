@@ -41,6 +41,9 @@ var (
 type RedTeamExecutionRepository struct {
 	database  JSONDatabase
 	authority string
+	// installedStandalone marks the worker authority for standalone runs on a
+	// database with the linked test authority installed (red_team_standalone.go).
+	installedStandalone bool
 }
 
 type RedTeamOutboxEvent struct {
@@ -102,6 +105,9 @@ func (repository *RedTeamExecutionRepository) Ready(ctx context.Context) error {
 	if !validRedTeamExecutionRepository(repository, ctx) {
 		return ErrRepositoryUnavailable
 	}
+	if repository.installedStandalone {
+		return repository.installedStandaloneReady(ctx)
+	}
 	var ready bool
 	metadata := migrations.ProductionRecovery()
 	payload, err := repository.database.QueryJSON(ctx, postgresProductionRecoveryReadinessSQL, metadata.Checksum(), migrations.ProductionRecoverySemanticFingerprint())
@@ -110,7 +116,7 @@ func (repository *RedTeamExecutionRepository) Ready(ctx context.Context) error {
 		payload, err = repository.database.QueryJSON(ctx, postgresRedTeamExecutionReadinessSQL, metadata.Checksum(), migrations.ProductionRedTeamExecutionSemanticFingerprint())
 		ready = false
 	}
-	if err != nil || decodeStrictDiscovery(payload, &ready) != nil || !ready {
+	if (err != nil || decodeStrictDiscovery(payload, &ready) != nil || !ready) && !repository.currentWorkerProfileReady(ctx) {
 		return ErrRepositoryUnavailable
 	}
 	payload, err = repository.database.QueryJSON(ctx, postgresRedTeamPrincipalReadySQL, repository.authority)
