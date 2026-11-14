@@ -15,9 +15,10 @@ import (
 // where an application's API usage lives and a service account is the
 // identity an application calls the API with.
 //
-// Assistants are not listed. The admin API does not expose them: they are
-// read with a key of the project they belong to, which this connection does
-// not hold.
+// Assistants and agents are not listed here. The admin API does not expose
+// them: they belong to a project and are read with a key of that project,
+// which this connection does not hold. The platform openai_project
+// (OpenAIProject) reads them, one connection per project.
 //
 // The connection is an admin API key held by Nango. No key value is read:
 // the service account list states ids, names and roles only.

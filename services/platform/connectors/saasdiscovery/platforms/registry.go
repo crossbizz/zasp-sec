@@ -19,6 +19,7 @@ func All() []saasdiscovery.Platform {
 		GitLab(),
 		GoogleWorkspace(),
 		OpenAI(),
+		OpenAIProject(),
 		ServiceNow(),
 		Slack(),
 	}

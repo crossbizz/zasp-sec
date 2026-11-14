@@ -37,14 +37,14 @@ func TestCursorPagingSendsTheTokenBackAndEndsOnAnEmptyOne(t *testing.T) {
 		`{}`:                                          "",
 		`{"response_metadata":{"next_cursor":42}}`:    "42",
 	} {
-		if next, ok := endpoint.continuation(decodeDocument(t, body), "", "previous", 0, 3); !ok || next != want {
+		if next, ok := endpoint.continuation(decodeDocument(t, body), "", "previous", 0, make([]Item, 3)); !ok || next != want {
 			t.Fatalf("%s: next = %q, %t", body, next, ok)
 		}
 	}
 	// A token that is not text, a token that repeats and a token too long
 	// to carry in the collection cursor are refused.
 	for _, body := range []string{`{"response_metadata":{"next_cursor":{"a":1}}}`, `{"response_metadata":{"next_cursor":"previous"}}`, `{"response_metadata":{"next_cursor":"` + strings.Repeat("x", maximumContinuation+1) + `"}}`, `[]`} {
-		if next, ok := endpoint.continuation(decodeDocument(t, body), "", "previous", 0, 3); ok {
+		if next, ok := endpoint.continuation(decodeDocument(t, body), "", "previous", 0, make([]Item, 3)); ok {
 			t.Fatalf("%s: accepted as %q", body[:min(len(body), 60)], next)
 		}
 	}
@@ -56,7 +56,7 @@ func TestOffsetPagingAdvancesByTheItemsReceivedAndEndsOnAShortPage(t *testing.T)
 	if !ok || offset != 0 || query.Encode() != "sysparm_limit=100&sysparm_offset=0" {
 		t.Fatalf("first query = %q, %d, %t", query.Encode(), offset, ok)
 	}
-	next, ok := endpoint.continuation(nil, "", "", offset, 100)
+	next, ok := endpoint.continuation(nil, "", "", offset, make([]Item, 100))
 	if !ok || next != "100" {
 		t.Fatalf("after a full page: %q, %t", next, ok)
 	}
@@ -65,7 +65,7 @@ func TestOffsetPagingAdvancesByTheItemsReceivedAndEndsOnAShortPage(t *testing.T)
 		t.Fatalf("second query = %q, %d, %t", query.Encode(), offset, ok)
 	}
 	for _, count := range []int{0, 1, 99} {
-		if next, ok := endpoint.continuation(nil, "", "100", 100, count); !ok || next != "" {
+		if next, ok := endpoint.continuation(nil, "", "100", 100, make([]Item, count)); !ok || next != "" {
 			t.Fatalf("after %d items: %q, %t", count, next, ok)
 		}
 	}
@@ -117,7 +117,7 @@ func TestLinkPagingFollowsOnlyTheEndpointsOwnPath(t *testing.T) {
 			t.Fatalf("continuation %q accepted", hostile)
 		}
 	}
-	if next, ok := endpoint.continuation(nil, `</api/v4/projects?page=2>; rel="next"`, "page=2", 0, 50); ok {
+	if next, ok := endpoint.continuation(nil, `</api/v4/projects?page=2>; rel="next"`, "page=2", 0, make([]Item, 50)); ok {
 		t.Fatalf("a link that repeats the page accepted as %q", next)
 	}
 }
@@ -130,7 +130,7 @@ func TestUnpagedEndpointMakesOneRequest(t *testing.T) {
 	if _, _, ok := endpoint.requestQuery("anything", "t-1"); ok {
 		t.Fatal("an unpaged endpoint accepted a continuation")
 	}
-	if next, ok := endpoint.continuation(decodeDocument(t, `{"next":"x"}`), `</v1/items?page=2>; rel="next"`, "", 0, 10); !ok || next != "" {
+	if next, ok := endpoint.continuation(decodeDocument(t, `{"next":"x"}`), `</v1/items?page=2>; rel="next"`, "", 0, make([]Item, 10)); !ok || next != "" {
 		t.Fatalf("continuation = %q, %t", next, ok)
 	}
 }
