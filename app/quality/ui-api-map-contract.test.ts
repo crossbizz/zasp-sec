@@ -155,8 +155,12 @@ const expectedMap: MapDocument = {
         { id: "view_agent_relationships", operation_id: "getAgentRelationships", availability: "available" },
         { id: "download_agent_evidence_pack", operation_id: "getAgentEvidencePack", availability: "available" },
         { id: "view_agent_sessions", operation_id: "listAgentSessions", availability: "available" },
+        { id: "view_agent_access", operation_id: "getAgentAccess", availability: "available" },
         { id: "view_tools", operation_id: "listTools", availability: "available" },
         { id: "view_tool", operation_id: "getTool", availability: "available" },
+        { id: "view_mcp_servers", operation_id: "listMCPServers", availability: "available" },
+        { id: "view_mcp_registry", operation_id: "listMCPRegistry", availability: "available" },
+        { id: "decide_mcp_server", operation_id: "putMCPRegistryEntry", availability: "available" },
         { id: "view_identities", operation_id: "listIdentities", availability: "available" },
         { id: "view_identity", operation_id: "getIdentity", availability: "available" },
         { id: "view_runtimes", operation_id: "listRuntimes", availability: "available" },
@@ -339,7 +343,7 @@ function validateMap(value: unknown) {
 }
 
 function parseStrictMap(source: string) {
-  expect(Buffer.byteLength(source, "utf8")).toBeLessThanOrEqual(20 * 1024);
+  expect(Buffer.byteLength(source, "utf8")).toBeLessThanOrEqual(32 * 1024);
   expect(source).not.toMatch(/[&*][A-Za-z0-9_-]+/);
   expect(source).not.toMatch(/^\s*<<\s*:/m);
   const parsed = load(source, { schema: JSON_SCHEMA, json: false });
@@ -546,8 +550,12 @@ describe("M1-25 UI API map seed", () => {
       "getAgentRelationships",
       "getAgentEvidencePack",
       "listAgentSessions",
+      "getAgentAccess",
       "listTools",
       "getTool",
+      "listMCPServers",
+      "listMCPRegistry",
+      "putMCPRegistryEntry",
       "listIdentities",
       "getIdentity",
       "listRuntimes",
