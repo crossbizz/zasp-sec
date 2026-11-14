@@ -51,5 +51,5 @@ func newProductionDiscoveryIO(config productionDiscoveryDependencyConfig) (disco
 	if err != nil {
 		return fail()
 	}
-	return discoveryDependencyIO{Credentials: cloud.credentials, Secrets: cloud.secrets, AssumeRole: cloud.assumeRole, S3: cloud.s3, KMS: cloud.kms, Queue: cloud.sqs, Inventory: discoveryAWSInventoryFactory{Identity: cloud.NewCallerIdentity, IAM: cloud.NewIAM, EC2: cloud.NewEC2, LocalEmulator: localcloud.Current().Enabled()}, Security: security, Close: cloud.Close}, nil
+	return discoveryDependencyIO{Credentials: cloud.credentials, Secrets: cloud.secrets, AssumeRole: cloud.assumeRole, S3: cloud.s3, KMS: cloud.kms, Queue: cloud.sqs, Inventory: discoveryAWSInventoryFactory{Identity: cloud.NewCallerIdentity, IAM: cloud.NewIAM, EC2: cloud.NewEC2, BedrockAgent: cloud.NewBedrockAgent, AgentCore: cloud.NewAgentCore, Lambda: cloud.NewLambda, LocalEmulator: localcloud.Current().Enabled()}, Security: security, Close: cloud.Close}, nil
 }

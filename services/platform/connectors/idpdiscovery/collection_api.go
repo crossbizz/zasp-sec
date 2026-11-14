@@ -19,6 +19,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/zasp-ai/zasp-sec/services/platform/agentsignals"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/collection"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/internal/providercollection"
 )
@@ -45,6 +46,10 @@ type oktaPageState struct {
 	PrincipalID string `json:"i,omitempty"`
 	AppID       string `json:"x,omitempty"`
 	ClientID    string `json:"c,omitempty"`
+	// AIApplication carries the application's kind decision (made from its
+	// label on the applications page) into the appusers and appgroups pages,
+	// which only see the application ID.
+	AIApplication bool `json:"k,omitempty"`
 }
 
 type OktaCollectionAPI struct {
@@ -218,6 +223,8 @@ func normalizeOktaCollectionPage(subject collection.SubjectBinding, phase string
 	seen := make(map[string]struct{}, len(objects))
 	for _, raw := range objects {
 		var id, name, status, kind, serviceClientID string
+		var aiEvidence agentsignals.Evidence
+		aiCategory := ""
 		switch phase {
 		case "users":
 			var user struct {
@@ -272,6 +279,9 @@ func normalizeOktaCollectionPage(subject collection.SubjectBinding, phase string
 				return nil, nil, false
 			}
 			id, name, status, kind = application.ID, application.Label, application.Status, "okta_application"
+			if aiCategory = aiEvidence.Application(application.Label); aiCategory != "" {
+				kind = "okta_ai_application"
+			}
 		default:
 			return nil, nil, false
 		}
@@ -287,11 +297,19 @@ func normalizeOktaCollectionPage(subject collection.SubjectBinding, phase string
 			Tenant     string `json:"tenant"`
 			ObjectType string `json:"object_type"`
 			Name       string `json:"name"`
-		}{subject.ID, strings.TrimPrefix(kind, "okta_"), name})
+		}{subject.ID, oktaObjectType(kind), name})
 		attributes, _ := json.Marshal(struct {
 			Status string `json:"status"`
 		}{status})
-		entity, err := marshalOktaEntity(entityID, kind, "okta:"+strings.TrimPrefix(kind, "okta_")+":"+id, name, stable, attributes)
+		entityAttributes := json.RawMessage(attributes)
+		if kind == "okta_ai_application" {
+			entityAttributes, _ = json.Marshal(struct {
+				Status    string                 `json:"status"`
+				Posture   agentsignals.Posture   `json:"posture"`
+				Discovery agentsignals.Discovery `json:"discovery"`
+			}{status, agentsignals.Posture{CredentialActive: status == "ACTIVE"}, agentsignals.NewDiscovery(agentsignals.MethodInferred, "saas_"+aiCategory, aiEvidence.Signals())})
+		}
+		entity, err := marshalOktaEntity(entityID, kind, "okta:"+oktaObjectType(kind)+":"+id, name, stable, entityAttributes)
 		if err != nil {
 			return nil, nil, false
 		}
@@ -424,7 +442,7 @@ func normalizeOktaAssignmentReferences(subject collection.SubjectBinding, state 
 			kind, relationshipType = "assigned_to", "user_application_assignment"
 			source = "okta:user:" + reference.ID + ":application:" + state.AppID
 			from = deterministicOktaInventoryID(subject, "okta_user", reference.ID)
-			to = deterministicOktaInventoryID(subject, "okta_application", state.AppID)
+			to = deterministicOktaInventoryID(subject, oktaApplicationKind(state.AIApplication), state.AppID)
 		case "appgroups":
 			if !strings.HasPrefix(reference.ID, "00g") {
 				return nil, nil, false
@@ -432,7 +450,7 @@ func normalizeOktaAssignmentReferences(subject collection.SubjectBinding, state 
 			kind, relationshipType = "assigned_to", "group_application_assignment"
 			source = "okta:group:" + reference.ID + ":application:" + state.AppID
 			from = deterministicOktaInventoryID(subject, "okta_group", reference.ID)
-			to = deterministicOktaInventoryID(subject, "okta_application", state.AppID)
+			to = deterministicOktaInventoryID(subject, oktaApplicationKind(state.AIApplication), state.AppID)
 		default:
 			return nil, nil, false
 		}
@@ -444,6 +462,22 @@ func normalizeOktaAssignmentReferences(subject collection.SubjectBinding, state 
 		relationships = append(relationships, relationship)
 	}
 	return nil, relationships, true
+}
+
+// oktaObjectType is the object_type stable field and the source-native-ID
+// segment of a kind. An AI application is still an Okta application object.
+func oktaObjectType(kind string) string {
+	if kind == "okta_ai_application" {
+		return "application"
+	}
+	return strings.TrimPrefix(kind, "okta_")
+}
+
+func oktaApplicationKind(aiApplication bool) string {
+	if aiApplication {
+		return "okta_ai_application"
+	}
+	return "okta_application"
 }
 
 func validOktaRoleType(value string) bool {
@@ -548,6 +582,9 @@ func (api *OktaCollectionAPI) validPageRequest(request CollectionPageRequest) (o
 
 func validOktaPageState(state oktaPageState) bool {
 	if state.Lineage < 2 || state.Lineage > 1_000_000 || state.After != "" && !validOktaAfter(state.After) || state.ResumeAfter != "" && !validOktaAfter(state.ResumeAfter) {
+		return false
+	}
+	if state.AIApplication && state.Phase != "appusers" && state.Phase != "appgroups" {
 		return false
 	}
 	switch state.Phase {
@@ -701,11 +738,11 @@ func nextOktaCollectionCursor(subject collection.SubjectBinding, prior collectio
 			}
 			return nextOktaCompleteCursor(prior, subject.ID), true, true
 		}
-		appID, clientID, ok := oktaApplicationAuthority(objects[0])
+		appID, clientID, aiApplication, ok := oktaApplicationAuthority(objects[0])
 		if !ok {
 			return collection.Cursor{}, false, false
 		}
-		return nextOktaStateCursor(subject, oktaPageState{Phase: "appusers", Lineage: nextLineage, ResumeAfter: nextAfter, AppID: appID, ClientID: clientID})
+		return nextOktaStateCursor(subject, oktaPageState{Phase: "appusers", Lineage: nextLineage, ResumeAfter: nextAfter, AppID: appID, ClientID: clientID, AIApplication: aiApplication})
 	case "appusers":
 		if len(objects) == 0 && nextAfter != "" {
 			return collection.Cursor{}, false, false
@@ -714,7 +751,7 @@ func nextOktaCollectionCursor(subject collection.SubjectBinding, prior collectio
 			state.After = nextAfter
 			return nextOktaStateCursor(subject, state)
 		}
-		return nextOktaStateCursor(subject, oktaPageState{Phase: "appgroups", Lineage: nextLineage, ResumeAfter: state.ResumeAfter, AppID: state.AppID, ClientID: state.ClientID})
+		return nextOktaStateCursor(subject, oktaPageState{Phase: "appgroups", Lineage: nextLineage, ResumeAfter: state.ResumeAfter, AppID: state.AppID, ClientID: state.ClientID, AIApplication: state.AIApplication})
 	case "appgroups":
 		if len(objects) == 0 && nextAfter != "" {
 			return collection.Cursor{}, false, false
@@ -754,9 +791,10 @@ func oktaObjectID(raw json.RawMessage, prefix string) (string, bool) {
 	return object.ID, true
 }
 
-func oktaApplicationAuthority(raw json.RawMessage) (string, string, bool) {
+func oktaApplicationAuthority(raw json.RawMessage) (string, string, bool, bool) {
 	var application struct {
 		ID          string `json:"id"`
+		Label       string `json:"label"`
 		SignOnMode  string `json:"signOnMode"`
 		Credentials struct {
 			OAuthClient struct {
@@ -765,12 +803,14 @@ func oktaApplicationAuthority(raw json.RawMessage) (string, string, bool) {
 		} `json:"credentials"`
 	}
 	if !decodeOktaCollectionResponse(raw, &application) || !strings.HasPrefix(application.ID, "0oa") || !oktaObjectIDPattern.MatchString(application.ID) {
-		return "", "", false
+		return "", "", false, false
 	}
+	var evidence agentsignals.Evidence
+	aiApplication := evidence.Application(application.Label) != ""
 	if application.SignOnMode == "OPENID_CONNECT" {
-		return application.ID, application.Credentials.OAuthClient.ClientID, oktaClientIDPattern.MatchString(application.Credentials.OAuthClient.ClientID)
+		return application.ID, application.Credentials.OAuthClient.ClientID, aiApplication, oktaClientIDPattern.MatchString(application.Credentials.OAuthClient.ClientID)
 	}
-	return application.ID, "", application.Credentials.OAuthClient.ClientID == ""
+	return application.ID, "", aiApplication, application.Credentials.OAuthClient.ClientID == ""
 }
 
 func validOktaCollectionCredential(value []byte) bool {

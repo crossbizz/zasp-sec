@@ -14,9 +14,12 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/bedrockagent"
+	"github.com/aws/aws-sdk-go-v2/service/bedrockagentcorecontrol"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/aws/aws-sdk-go-v2/service/kms"
+	"github.com/aws/aws-sdk-go-v2/service/lambda"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
@@ -179,6 +182,30 @@ func (authority *productionDiscoveryCloudAuthority) NewEC2(region string, creden
 		return nil, err
 	}
 	return ec2.NewFromConfig(base), nil
+}
+
+func (authority *productionDiscoveryCloudAuthority) NewBedrockAgent(region string, credentials aws.Credentials) (discoveryAWSBedrockAgentAPI, error) {
+	base, err := authority.customerAWSConfig(region, credentials)
+	if err != nil {
+		return nil, err
+	}
+	return bedrockagent.NewFromConfig(base), nil
+}
+
+func (authority *productionDiscoveryCloudAuthority) NewAgentCore(region string, credentials aws.Credentials) (discoveryAWSAgentCoreAPI, error) {
+	base, err := authority.customerAWSConfig(region, credentials)
+	if err != nil {
+		return nil, err
+	}
+	return bedrockagentcorecontrol.NewFromConfig(base), nil
+}
+
+func (authority *productionDiscoveryCloudAuthority) NewLambda(region string, credentials aws.Credentials) (discoveryAWSLambdaAPI, error) {
+	base, err := authority.customerAWSConfig(region, credentials)
+	if err != nil {
+		return nil, err
+	}
+	return lambda.NewFromConfig(base), nil
 }
 
 func (authority *productionDiscoveryCloudAuthority) customerAWSConfig(region string, credentials aws.Credentials) (aws.Config, error) {

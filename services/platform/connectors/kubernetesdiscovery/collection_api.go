@@ -21,6 +21,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/zasp-ai/zasp-sec/services/platform/agentsignals"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/collection"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/internal/providercollection"
 )
@@ -262,15 +263,29 @@ type kubernetesCollectionPodSpec struct {
 	ServiceAccountName string                          `json:"serviceAccountName"`
 	HostNetwork        bool                            `json:"hostNetwork"`
 	Containers         []kubernetesCollectionContainer `json:"containers"`
-	Volumes            []kubernetesCollectionVolume    `json:"volumes"`
+	// InitContainers are read only to infer agents (kubernetesAgentEvidence);
+	// they take no part in posture or in pod-spec validation.
+	InitContainers []kubernetesCollectionContainer `json:"initContainers"`
+	Volumes        []kubernetesCollectionVolume    `json:"volumes"`
 }
 
+// kubernetesCollectionContainer decodes Image, Args, Env and Ports only to
+// infer agents. An environment variable is decoded to its name alone: value
+// and valueFrom have no field to land in, and envFrom is not decoded at all.
 type kubernetesCollectionContainer struct {
 	Name            string   `json:"name"`
+	Image           string   `json:"image"`
 	Command         []string `json:"command"`
+	Args            []string `json:"args"`
 	SecurityContext struct {
 		Privileged bool `json:"privileged"`
 	} `json:"securityContext"`
+	Env []struct {
+		Name string `json:"name"`
+	} `json:"env"`
+	Ports []struct {
+		ContainerPort int `json:"containerPort"`
+	} `json:"ports"`
 }
 
 type kubernetesCollectionVolume struct {
@@ -702,8 +717,15 @@ func normalizeKubernetesWorkload(subject collection.SubjectBinding, phase string
 		return nil, nil, false
 	}
 	entityKind := "kubernetes_workload"
-	if phase == "deployments" && item.Metadata.Labels["zasp.ai/entity-kind"] == "agent" {
+	var evidence agentsignals.Evidence
+	if label, labelled := item.Metadata.Labels["zasp.ai/entity-kind"]; phase == "deployments" && label == "agent" {
 		entityKind = "kubernetes_agent"
+	} else if !labelled || label == "agent" {
+		// Any other value of the label (for example "workload") opts the
+		// workload out of inference.
+		if evidence = kubernetesAgentEvidence(podSpec); evidence.IsAgent() {
+			entityKind = "kubernetes_inferred_agent"
+		}
 	}
 	entityID := deterministicKubernetesInventoryID(subject, entityKind, item.Metadata.UID)
 	stable, _ := json.Marshal(struct {
@@ -724,6 +746,13 @@ func normalizeKubernetesWorkload(subject collection.SubjectBinding, phase string
 			Posture    kubernetesAgentPosture    `json:"posture"`
 			RedTeam    *kubernetesRedTeamBinding `json:"red_team,omitempty"`
 		}{true, posture, redTeam})
+	} else if entityKind == "kubernetes_inferred_agent" {
+		posture := deriveKubernetesAgentPosture(subject, item.Metadata.Namespace, serviceAccount, item.Metadata.Labels, podSpec)
+		attributes, _ = json.Marshal(struct {
+			Namespaced bool                   `json:"namespaced"`
+			Posture    kubernetesAgentPosture `json:"posture"`
+			Discovery  agentsignals.Discovery `json:"discovery"`
+		}{true, posture, agentsignals.NewDiscovery(agentsignals.MethodInferred, "kubernetes_workload", evidence.Signals())})
 	}
 	entity, err := marshalKubernetesEntity(entityID, entityKind, "kubernetes:"+strings.ToLower(definition[1])+":"+item.Metadata.UID, item.Metadata.Namespace+"/"+item.Metadata.Name, stable, attributes)
 	if err != nil {
@@ -740,6 +769,28 @@ func normalizeKubernetesWorkload(subject collection.SubjectBinding, phase string
 		return nil, nil, false
 	}
 	return entity, []json.RawMessage{attached, usesIdentity}, true
+}
+
+// kubernetesAgentEvidence matches the pod template against the agent signal
+// catalog. It reads image references, environment variable names, command
+// and argument elements and container ports of containers and
+// initContainers; what it records is catalog tokens, never a provider value.
+func kubernetesAgentEvidence(spec kubernetesCollectionPodSpec) agentsignals.Evidence {
+	var evidence agentsignals.Evidence
+	for _, containers := range [][]kubernetesCollectionContainer{spec.Containers, spec.InitContainers} {
+		for _, container := range containers {
+			evidence.Image(container.Image)
+			for _, variable := range container.Env {
+				evidence.EnvironmentNames(variable.Name)
+			}
+			evidence.Command(container.Command...)
+			evidence.Command(container.Args...)
+			for _, port := range container.Ports {
+				evidence.Ports(port.ContainerPort)
+			}
+		}
+	}
+	return evidence
 }
 
 type kubernetesRedTeamBinding struct {

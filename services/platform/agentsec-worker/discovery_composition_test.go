@@ -24,7 +24,8 @@ type discoveryInventoryCallerStub struct{}
 func (*discoveryInventoryCallerStub) GetCollectionInventory(context.Context, []byte) (awsdiscovery.CollectionInventory, error) {
 	cartography := json.RawMessage(`{"account_id":"123456789012","managed_policies":{},"roles":[]}`)
 	prowler := json.RawMessage(`{"account_id":"123456789012","instances":[],"roles":[]}`)
-	return awsdiscovery.CollectionInventory{Identity: awsdiscovery.Identity{AccountID: "123456789012", PrincipalARN: "arn:aws:sts::123456789012:assumed-role/zasp/session"}, CredentialExpiresAt: time.Now().UTC().Truncate(time.Second).Add(10 * time.Minute), CartographySource: cartography, CartographyDigest: sha256.Sum256(cartography), ProwlerSource: prowler, ProwlerDigest: sha256.Sum256(prowler)}, nil
+	agents := json.RawMessage(`{"account_id":"123456789012","bedrock_agents":[],"gateways":[],"lambda_functions":[],"runtimes":[],"services":[{"service":"bedrock-agent","status":"collected"},{"service":"bedrock-agentcore","status":"collected"},{"service":"lambda","status":"collected"}]}`)
+	return awsdiscovery.CollectionInventory{Identity: awsdiscovery.Identity{AccountID: "123456789012", PrincipalARN: "arn:aws:sts::123456789012:assumed-role/zasp/session"}, CredentialExpiresAt: time.Now().UTC().Truncate(time.Second).Add(10 * time.Minute), CartographySource: cartography, CartographyDigest: sha256.Sum256(cartography), ProwlerSource: prowler, ProwlerDigest: sha256.Sum256(prowler), AgentSource: agents, AgentDigest: sha256.Sum256(agents)}, nil
 }
 
 func (*discoveryInventoryCallerStub) CheckCollectionReadiness(context.Context) error { return nil }

@@ -31,7 +31,7 @@ const (
 )
 
 var (
-	githubCollectionCursorPattern = regexp.MustCompile(`^github:(repositories|workflows|environments):([1-9][0-9]{0,5}):([A-Za-z0-9_-]+):([0-9a-f]{16})$`)
+	githubCollectionCursorPattern = regexp.MustCompile(`^github:(repositories|agentproject|workflows|environments):([1-9][0-9]{0,5}):([A-Za-z0-9_-]+):([0-9a-f]{16})$`)
 	githubCompleteCursorPattern   = regexp.MustCompile(`^github:complete:([0-9a-f]{16}):[0-9a-f]{16}$`)
 	githubNamePattern             = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,100}$`)
 )
@@ -85,6 +85,9 @@ func (api *InstallationCollectionAPI) FetchCollectionPage(ctx context.Context, c
 	}
 	if api == nil || api.client == nil || ctx == nil || !validInstallationCredential(credential) || !ok {
 		return CollectionPage{}, ErrInvalid
+	}
+	if state.Phase == githubAgentProjectPhase {
+		return api.fetchAgentProjectPage(ctx, credential, request, state)
 	}
 	providerURL := githubCollectionEndpoint + "/installation"
 	switch state.Phase {
@@ -241,7 +244,13 @@ func (api *InstallationCollectionAPI) FetchCollectionPage(ctx context.Context, c
 		return page, nil
 	}
 	repository := payload.Repositories[0]
-	next, cursorOK := nextGitHubCursor(request.Subject, githubPageState{Phase: "workflows", Lineage: state.Lineage + 1, ProviderPage: state.ProviderPage + 1, Total: payload.TotalCount, PhasePage: 1, OwnerID: state.OwnerID, Owner: state.Owner, AppID: state.AppID, RepositoryID: repository.ID, Repository: repository.Name, DefaultBranch: repository.DefaultBranch})
+	// An archived repository is not read for agent signals: its page leads
+	// straight to its workflows.
+	repositoryPhase := githubAgentProjectPhase
+	if repository.Archived {
+		repositoryPhase = "workflows"
+	}
+	next, cursorOK := nextGitHubCursor(request.Subject, githubPageState{Phase: repositoryPhase, Lineage: state.Lineage + 1, ProviderPage: state.ProviderPage + 1, Total: payload.TotalCount, PhasePage: 1, OwnerID: state.OwnerID, Owner: state.Owner, AppID: state.AppID, RepositoryID: repository.ID, Repository: repository.Name, DefaultBranch: repository.DefaultBranch})
 	if !cursorOK {
 		next = nextGitHubCompleteCursor(request.Cursor, request.Subject.ID, payload.TotalCount)
 		return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
@@ -664,7 +673,10 @@ func validGitHubCursorState(state githubPageState) bool {
 	if state.Phase == "repositories" {
 		return state.RepositoryID == 0 && state.Repository == "" && state.DefaultBranch == "" && state.PhasePage == 0 && state.PhaseTotal == 0
 	}
-	return (state.Phase == "workflows" || state.Phase == "environments") && (state.Phase == "environments" || state.CompletedTotal == 0) && state.Total >= 1 && state.ProviderPage >= 2 && state.ProviderPage <= state.Total+1 && state.PhasePage >= 1 && state.PhasePage <= 10_000 && state.RepositoryID >= 1 && state.RepositoryID <= 1<<53 && githubNamePattern.MatchString(state.Repository) && validGitHubText(state.DefaultBranch, 255)
+	if state.Phase == githubAgentProjectPhase && (state.PhasePage != 1 || state.PhaseTotal != 0) {
+		return false
+	}
+	return (state.Phase == githubAgentProjectPhase || state.Phase == "workflows" || state.Phase == "environments") && (state.Phase == "environments" || state.CompletedTotal == 0) && state.Total >= 1 && state.ProviderPage >= 2 && state.ProviderPage <= state.Total+1 && state.PhasePage >= 1 && state.PhasePage <= 10_000 && state.RepositoryID >= 1 && state.RepositoryID <= 1<<53 && githubNamePattern.MatchString(state.Repository) && validGitHubText(state.DefaultBranch, 255)
 }
 
 func validInstallationCredential(value []byte) bool {

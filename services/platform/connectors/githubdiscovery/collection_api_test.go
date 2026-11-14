@@ -51,6 +51,7 @@ func TestInstallationCollectionAPIPaginatesCanonicalRepositoriesWithoutSecrets(t
 	roundTripper := &installationRoundTripper{responses: []installationHTTPResponse{
 		{status: http.StatusOK, body: `{"id":9001,"app_id":77,"app_slug":"zasp-security","permissions":{"actions":"read","contents":"read","metadata":"read"},"account":{"id":501,"login":"acme","type":"Organization"}}`},
 		{status: http.StatusOK, body: `{"total_count":1,"repositories":[{"id":101,"name":"alpha","full_name":"acme/alpha","private":true,"archived":false,"default_branch":"main","permissions":{"admin":false,"maintain":false,"pull":true,"push":false,"triage":false},"owner":{"login":"acme"}}]}`},
+		{status: http.StatusOK, body: `{"sha":"4b825dc642cb6eb9a060e54bf8d69288fbee4904","tree":[{"path":"README.md","mode":"100644","type":"blob","size":12}],"truncated":false}`},
 		{status: http.StatusOK, body: `{"total_count":0,"workflows":[]}`},
 		{status: http.StatusOK, body: `{"total_count":0,"environments":[]}`},
 	}}
@@ -80,20 +81,25 @@ func TestInstallationCollectionAPIPaginatesCanonicalRepositoriesWithoutSecrets(t
 	request.Cursor = second.Cursor
 	request.Page = 3
 	request.RemainingItems = 4
+	agentProject, err := api.FetchCollectionPage(context.Background(), credential, request)
+	if err != nil || agentProject.Complete || len(agentProject.Entities) != 0 || len(agentProject.Relationships) != 0 || !strings.HasPrefix(agentProject.Cursor.Value, "github:workflows:4:") {
+		t.Fatalf("agent project page = %#v / %v", agentProject, err)
+	}
+	request.Cursor, request.Page = agentProject.Cursor, 4
 	third, err := api.FetchCollectionPage(context.Background(), credential, request)
 	if err != nil || third.Complete || len(third.Entities) != 0 || len(third.Relationships) != 0 {
 		t.Fatalf("third page = %#v / %v", third, err)
 	}
-	request.Cursor, request.Page = third.Cursor, 4
+	request.Cursor, request.Page = third.Cursor, 5
 	fourth, err := api.FetchCollectionPage(context.Background(), credential, request)
 	if err != nil || !fourth.Complete || !strings.HasPrefix(fourth.Cursor.Value, "github:complete:") || len(fourth.Entities) != 0 || len(fourth.Relationships) != 0 {
 		t.Fatalf("fourth page = %#v / %v", fourth, err)
 	}
-	if len(roundTripper.requests) != 4 {
+	if len(roundTripper.requests) != 5 {
 		t.Fatalf("provider calls = %d", len(roundTripper.requests))
 	}
 	for index, providerRequest := range roundTripper.requests {
-		wantURL := []string{"https://api.github.com/installation", "https://api.github.com/installation/repositories?page=1&per_page=1", "https://api.github.com/repos/acme/alpha/actions/workflows?page=1&per_page=1", "https://api.github.com/repos/acme/alpha/environments?page=1&per_page=1"}[index]
+		wantURL := []string{"https://api.github.com/installation", "https://api.github.com/installation/repositories?page=1&per_page=1", "https://api.github.com/repos/acme/alpha/git/trees/main?recursive=1", "https://api.github.com/repos/acme/alpha/actions/workflows?page=1&per_page=1", "https://api.github.com/repos/acme/alpha/environments?page=1&per_page=1"}[index]
 		if providerRequest.Method != http.MethodGet || providerRequest.URL.String() != wantURL || providerRequest.Header.Get("Authorization") != "Bearer "+string(credential) || providerRequest.Header.Get("Accept") != "application/vnd.github+json" || providerRequest.Header.Get("X-GitHub-Api-Version") != "2022-11-28" {
 			t.Fatalf("request %d = %#v", index, providerRequest)
 		}
@@ -105,6 +111,7 @@ func TestInstallationCollectionAPIRequiresAppPermissionsAndWorkflowPhasesBeforeC
 	roundTripper := &installationRoundTripper{responses: []installationHTTPResponse{
 		{status: http.StatusOK, body: `{"id":9001,"app_id":77,"app_slug":"zasp-security","permissions":{"actions":"read","contents":"read","metadata":"read"},"account":{"id":501,"login":"acme","type":"Organization"}}`},
 		{status: http.StatusOK, body: `{"total_count":1,"repositories":[{"id":101,"name":"alpha","full_name":"acme/alpha","private":true,"archived":false,"default_branch":"main","permissions":{"admin":false,"maintain":false,"pull":true,"push":false,"triage":false},"owner":{"login":"acme"}}]}`},
+		{status: http.StatusOK, body: `{"sha":"4b825dc642cb6eb9a060e54bf8d69288fbee4904","tree":[{"path":"README.md","mode":"100644","type":"blob","size":12}],"truncated":false}`},
 		{status: http.StatusOK, body: `{"total_count":2,"workflows":[{"id":801,"name":"Build and deploy","path":".github/workflows/build-and-deploy.yml","state":"active"}]}`},
 		{status: http.StatusOK, body: `{"total_count":2,"workflows":[{"id":802,"name":"Security scan","path":".github/workflows/security-scan.yaml","state":"disabled_manually"}]}`},
 		{status: http.StatusOK, body: `{"total_count":2,"environments":[{"id":901,"name":"staging"}]}`},
@@ -133,6 +140,11 @@ func TestInstallationCollectionAPIRequiresAppPermissionsAndWorkflowPhasesBeforeC
 		t.Fatalf("repository page = %#v / %s", repositories, repositories.Raw)
 	}
 	request.Cursor, request.Page = repositories.Cursor, 3
+	agentProject, err := api.FetchCollectionPage(context.Background(), credential, request)
+	if err != nil || agentProject.Complete || len(agentProject.Entities) != 0 || len(agentProject.Relationships) != 0 {
+		t.Fatalf("agent project page = %#v / %v", agentProject, err)
+	}
+	request.Cursor, request.Page = agentProject.Cursor, 4
 	workflows, err := api.FetchCollectionPage(context.Background(), credential, request)
 	if err != nil {
 		t.Fatal(err)
@@ -140,12 +152,12 @@ func TestInstallationCollectionAPIRequiresAppPermissionsAndWorkflowPhasesBeforeC
 	if workflows.Complete || fmt.Sprint(githubInventoryKinds(workflows.Entities)) != "[github_workflow]" || fmt.Sprint(githubInventoryKinds(workflows.Relationships)) != "[contains depends_on uses_identity]" {
 		t.Fatalf("workflow page = %#v / %s", workflows, workflows.Raw)
 	}
-	request.Cursor, request.Page = workflows.Cursor, 4
+	request.Cursor, request.Page = workflows.Cursor, 5
 	secondWorkflow, err := api.FetchCollectionPage(context.Background(), credential, request)
 	if err != nil || secondWorkflow.Complete || fmt.Sprint(githubInventoryKinds(secondWorkflow.Entities)) != "[github_workflow]" || fmt.Sprint(githubInventoryKinds(secondWorkflow.Relationships)) != "[contains depends_on uses_identity]" {
 		t.Fatalf("second workflow page = %#v / %v", secondWorkflow, err)
 	}
-	request.Cursor, request.Page = secondWorkflow.Cursor, 5
+	request.Cursor, request.Page = secondWorkflow.Cursor, 6
 	environments, err := api.FetchCollectionPage(context.Background(), credential, request)
 	if err != nil {
 		t.Fatal(err)
@@ -153,7 +165,7 @@ func TestInstallationCollectionAPIRequiresAppPermissionsAndWorkflowPhasesBeforeC
 	if environments.Complete || fmt.Sprint(githubInventoryKinds(environments.Entities)) != "[github_environment]" || fmt.Sprint(githubInventoryKinds(environments.Relationships)) != "[contains]" {
 		t.Fatalf("environment page = %#v / %s", environments, environments.Raw)
 	}
-	request.Cursor, request.Page = environments.Cursor, 6
+	request.Cursor, request.Page = environments.Cursor, 7
 	secondEnvironment, err := api.FetchCollectionPage(context.Background(), credential, request)
 	if err != nil || !secondEnvironment.Complete || fmt.Sprint(githubInventoryKinds(secondEnvironment.Entities)) != "[github_environment]" || fmt.Sprint(githubInventoryKinds(secondEnvironment.Relationships)) != "[contains]" {
 		t.Fatalf("second environment page = %#v / %v", secondEnvironment, err)
@@ -161,6 +173,7 @@ func TestInstallationCollectionAPIRequiresAppPermissionsAndWorkflowPhasesBeforeC
 	wantURLs := []string{
 		"https://api.github.com/installation",
 		"https://api.github.com/installation/repositories?page=1&per_page=1",
+		"https://api.github.com/repos/acme/alpha/git/trees/main?recursive=1",
 		"https://api.github.com/repos/acme/alpha/actions/workflows?page=1&per_page=1",
 		"https://api.github.com/repos/acme/alpha/actions/workflows?page=2&per_page=1",
 		"https://api.github.com/repos/acme/alpha/environments?page=1&per_page=1",

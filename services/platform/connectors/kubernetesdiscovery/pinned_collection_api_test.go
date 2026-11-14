@@ -124,6 +124,97 @@ func TestAutomaticDiscoveryFullCollectionMeetsTypedSnapshotGrammar(t *testing.T)
 	}
 }
 
+func TestAutomaticDiscoveryInferredAgentCollectionMeetsTypedSnapshotGrammar(t *testing.T) {
+	transport := &kubernetesRoundTripper{}
+	for _, phase := range [][2]string{{"v1", "Namespace"}, {"v1", "ServiceAccount"}, {"rbac.authorization.k8s.io/v1", "Role"}, {"rbac.authorization.k8s.io/v1", "ClusterRole"}, {"rbac.authorization.k8s.io/v1", "RoleBinding"}, {"rbac.authorization.k8s.io/v1", "ClusterRoleBinding"}, {"apps/v1", "Deployment"}, {"apps/v1", "StatefulSet"}, {"apps/v1", "DaemonSet"}, {"batch/v1", "Job"}, {"batch/v1", "CronJob"}} {
+		items := `[]`
+		switch phase[1] {
+		case "Namespace":
+			items = `[{"apiVersion":"v1","kind":"Namespace","metadata":{"uid":"ns-zasp","name":"zasp"}}]`
+		case "ServiceAccount":
+			items = `[{"apiVersion":"v1","kind":"ServiceAccount","metadata":{"uid":"sa-support","name":"support","namespace":"zasp"}}]`
+		case "Deployment":
+			items = `[{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"uid":"deployment-graph","name":"graph","namespace":"zasp"},"spec":{"template":{"spec":{"serviceAccountName":"support","containers":[{"name":"api","image":"langchain/langgraph-api:1"}]}}}},` +
+				`{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"uid":"deployment-web","name":"web","namespace":"zasp"},"spec":{"template":{"spec":{"serviceAccountName":"support","containers":[{"name":"web","image":"nginx:1.27","ports":[{"containerPort":4000}]}]}}}}]`
+		case "StatefulSet":
+			items = `[{"apiVersion":"apps/v1","kind":"StatefulSet","metadata":{"uid":"statefulset-assistant","name":"assistant","namespace":"zasp"},"spec":{"template":{"spec":{"serviceAccountName":"support","containers":[{"name":"assistant","image":"example/assistant:v1","env":[{"name":"OPENAI_API_KEY","value":"sk-do-not-leak"}]}]}}}}]`
+		case "CronJob":
+			items = `[{"apiVersion":"batch/v1","kind":"CronJob","metadata":{"uid":"cronjob-files","name":"files","namespace":"zasp"},"spec":{"jobTemplate":{"spec":{"template":{"spec":{"serviceAccountName":"support","initContainers":[{"name":"seed","image":"example/seed:v1","command":["npx"],"args":["-y","@modelcontextprotocol/server-filesystem"]}],"containers":[{"name":"files","image":"example/files:v1"}]}}}}}}]`
+		}
+		transport.responses = append(transport.responses, kubernetesHTTPResponse{status: 200, body: fmt.Sprintf(`{"apiVersion":%q,"kind":%q,"metadata":{"continue":""},"items":%s}`, phase[0], phase[1]+"List", items)})
+	}
+	api, err := newKubernetesCollectionAPI("https://prod.example", transport, time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	driver := &automaticSnapshotArtifacts{objects: map[string]artifactstore.DriverObject{}}
+	artifacts, err := artifactstore.New(driver, artifactstore.Config{OperationTimeout: time.Second, MaximumBytes: 64 << 20})
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := NewCollectionClient(api, artifacts, CollectionClientConfig{CollectorVersion: "collector_v1", ParserVersion: "parser_v1", ToolVersion: "tool_v1", Clock: func() time.Time { return time.Now().UTC() }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ids := make([]domain.ProductID, 6)
+	for i := range ids {
+		ids[i], err = domain.ParseProductID(fmt.Sprintf("pid_%08d-0000-4000-8000-%012d", i+1, i+1))
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	scope, err := domain.NewScope(ids[0], ids[1], ids[2])
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := collection.Request{Scope: scope, IntegrationID: ids[3], ConnectionID: ids[4], JobID: ids[5], Attempt: 1, Provider: collection.ProviderKubernetes, CollectorVersion: "collector_v1", CredentialClass: collection.CredentialKubernetesCluster, CredentialReference: "ref:kubernetes/cluster/e2e-a", ExpectedSubject: collection.SubjectBinding{Kind: "kubernetes_cluster", ID: "prod.example/cluster-a"}, ParserVersion: "parser_v1", ToolVersion: "tool_v1", ObservationTime: time.Now().UTC().Truncate(time.Second), Bounds: collection.Bounds{MaxPages: 100, MaxItems: 1000, MaxRawBytes: 64 << 20, Timeout: time.Second}}
+	outcome, err := client.CollectWithCredential(context.Background(), request, []byte("local-e2e-credential-material"))
+	t.Logf("collection pages=%d artifacts=%d outcome=%T error=%v", len(transport.requests), len(driver.objects), outcome, err)
+	// Diagnose every persisted normalized entity against the strict public
+	// snapshot constructor, without replacing the collection outcome.
+	kinds := map[string]int{}
+	for _, object := range driver.objects {
+		if bytes.Contains(object.Body, []byte("sk-do-not-leak")) || bytes.Contains(object.Body, []byte("OPENAI_API_KEY")) {
+			t.Fatalf("artifact retains an environment variable: %s", object.Body)
+		}
+		var page struct {
+			Entities []json.RawMessage `json:"entities"`
+		}
+		if json.Unmarshal(object.Body, &page) != nil {
+			t.Fatal("invalid artifact")
+		}
+		for _, entity := range page.Entities {
+			_, candidateErr := collection.NewSnapshotCandidate(collection.ProviderKubernetes, "parser_v1", "tool_v1", append(append([]byte{'['}, entity...), ']'), []byte(`[]`), []byte(`[]`))
+			if candidateErr != nil {
+				t.Fatalf("artifact entity rejected: %s", entity)
+			}
+			var described struct {
+				Kind       string `json:"kind"`
+				Attributes struct {
+					Discovery struct {
+						Signals []string `json:"signals"`
+					} `json:"discovery"`
+				} `json:"attributes"`
+			}
+			if json.Unmarshal(entity, &described) != nil {
+				t.Fatal("invalid entity")
+			}
+			kinds[described.Kind+fmt.Sprint(described.Attributes.Discovery.Signals)]++
+		}
+	}
+	complete, ok := outcome.(collection.CompleteResult)
+	if err != nil || !ok {
+		t.Fatalf("valid full inventory rejected: %v", err)
+	}
+	snapshot := complete.Snapshot()
+	if want := "map[kubernetes_cluster[]:1 kubernetes_inferred_agent[env:openai]:1 kubernetes_inferred_agent[image:langgraph]:1 kubernetes_inferred_agent[process:mcp_server]:1 kubernetes_namespace[]:1 kubernetes_service_account[]:1 kubernetes_workload[]:1]"; fmt.Sprint(kinds) != want {
+		t.Fatalf("collected kinds = %v, want %s", kinds, want)
+	}
+	if len(transport.requests) != 11 || len(driver.objects) != 12 || !snapshot.TypedObservations() || snapshot.EntityCount() != 7 || snapshot.RelationshipCount() != 10 || snapshot.EvidenceCount() != 7 {
+		t.Fatalf("incomplete typed inventory: pages=%d artifacts=%d entities=%d relationships=%d evidence=%d", len(transport.requests), len(driver.objects), snapshot.EntityCount(), snapshot.RelationshipCount(), snapshot.EvidenceCount())
+	}
+}
+
 func TestKubernetesEntityCanonicalBoundaryPreservesAllValues(t *testing.T) {
 	stable := json.RawMessage(`{"z":9007199254740993,"a":{"z":[{"b":true,"a":null},"<unchanged>",1.25],"a":"cluster"}}`)
 	attributes := json.RawMessage(`{"z":false,"a":{"z":18,"a":["second","first"]}}`)

@@ -39,6 +39,12 @@ type discoveryAWSInventoryFactory struct {
 	Identity discoveryCallerIdentityFactory
 	IAM      func(string, aws.Credentials) (discoveryAWSIAMAPI, error)
 	EC2      func(string, aws.Credentials) (discoveryAWSEC2API, error)
+	// The AI services are read in every enabled region, like instances. A
+	// service the read role may not read, or that a region or an emulator
+	// does not serve, is reported in the inventory and does not fail it.
+	BedrockAgent func(string, aws.Credentials) (discoveryAWSBedrockAgentAPI, error)
+	AgentCore    func(string, aws.Credentials) (discoveryAWSAgentCoreAPI, error)
+	Lambda       func(string, aws.Credentials) (discoveryAWSLambdaAPI, error)
 	// LocalEmulator is true only when the process talks to a local cloud
 	// emulator (localcloud, development and test environments). AWS lists
 	// only the enabled regions of the account's own partition when asked
@@ -72,7 +78,7 @@ type discoveryAWSNativeInstance struct {
 }
 
 func newDiscoveryAWSCollectionInventoryCaller(factory discoveryAWSInventoryFactory, clock func() time.Time) (*discoveryAWSCollectionInventoryCaller, error) {
-	if factory.Identity == nil || factory.IAM == nil || factory.EC2 == nil || clock == nil {
+	if factory.Identity == nil || factory.IAM == nil || factory.EC2 == nil || factory.BedrockAgent == nil || factory.AgentCore == nil || factory.Lambda == nil || clock == nil {
 		return nil, errRuntimeUnavailable
 	}
 	now := clock()
@@ -128,7 +134,15 @@ func (caller *discoveryAWSCollectionInventoryCaller) GetCollectionInventory(ctx 
 	if err != nil || nilDiscoveryClientDependency(ec2API) {
 		return awsdiscovery.CollectionInventory{}, awsdiscovery.ErrDenied
 	}
-	instances, err := collectDiscoveryAWSInstances(ctx, caller.factory.EC2, ec2API, credentials, identity.AccountID, caller.factory.LocalEmulator)
+	regions, err := discoveryAWSEnabledRegions(ctx, ec2API, caller.factory.LocalEmulator)
+	if err != nil {
+		return awsdiscovery.CollectionInventory{}, err
+	}
+	instances, err := collectDiscoveryAWSInstancesIn(ctx, caller.factory.EC2, credentials, identity.AccountID, regions)
+	if err != nil {
+		return awsdiscovery.CollectionInventory{}, err
+	}
+	agents, err := collectDiscoveryAWSAgentSource(ctx, caller.factory, credentials, identity.AccountID, regions, roles)
 	if err != nil {
 		return awsdiscovery.CollectionInventory{}, err
 	}
@@ -136,14 +150,15 @@ func (caller *discoveryAWSCollectionInventoryCaller) GetCollectionInventory(ctx 
 	if err != nil {
 		return awsdiscovery.CollectionInventory{}, awsdiscovery.ErrDenied
 	}
-	return awsdiscovery.CollectionInventory{Identity: identity, CredentialExpiresAt: expiresAt, CartographySource: cartography, CartographyDigest: sha256.Sum256(cartography), ProwlerSource: prowler, ProwlerDigest: sha256.Sum256(prowler)}, nil
+	return awsdiscovery.CollectionInventory{Identity: identity, CredentialExpiresAt: expiresAt, CartographySource: cartography, CartographyDigest: sha256.Sum256(cartography), ProwlerSource: prowler, ProwlerDigest: sha256.Sum256(prowler), AgentSource: agents, AgentDigest: sha256.Sum256(agents)}, nil
 }
 
 // ResumeCollectionInventory hands a later page of a run the inventory an
 // earlier page of the same run read, when this process still holds it. The
 // page's own credential is verified against the provider first, exactly as a
 // full read verifies it, and the identity and expiry returned are that
-// credential's. Roles, policies, regions and instances are not read again:
+// credential's. Roles, policies, regions, instances and AI services are not
+// read again:
 // the page would refuse them unless they were identical to what is held.
 func (caller *discoveryAWSCollectionInventoryCaller) ResumeCollectionInventory(ctx context.Context, credential []byte, binding awsdiscovery.InventoryBinding) (awsdiscovery.CollectionInventory, bool, error) {
 	if caller == nil || ctx == nil || ctx.Err() != nil || caller.clock == nil {
@@ -161,7 +176,7 @@ func (caller *discoveryAWSCollectionInventoryCaller) ResumeCollectionInventory(c
 	if identity.AccountID != held.accountID || identity.AccountID != binding.Subject.ID {
 		return awsdiscovery.CollectionInventory{}, false, awsdiscovery.ErrDenied
 	}
-	return awsdiscovery.CollectionInventory{Identity: identity, CredentialExpiresAt: expiresAt, CartographySource: bytes.Clone(held.cartography), CartographyDigest: sha256.Sum256(held.cartography), ProwlerSource: bytes.Clone(held.prowler), ProwlerDigest: sha256.Sum256(held.prowler)}, true, nil
+	return awsdiscovery.CollectionInventory{Identity: identity, CredentialExpiresAt: expiresAt, CartographySource: bytes.Clone(held.cartography), CartographyDigest: sha256.Sum256(held.cartography), ProwlerSource: bytes.Clone(held.prowler), ProwlerDigest: sha256.Sum256(held.prowler), AgentSource: bytes.Clone(held.agents), AgentDigest: sha256.Sum256(held.agents)}, true, nil
 }
 
 func (caller *discoveryAWSCollectionInventoryCaller) RetainCollectionInventory(binding awsdiscovery.InventoryBinding, inventory awsdiscovery.CollectionInventory) {
@@ -172,7 +187,7 @@ func (caller *discoveryAWSCollectionInventoryCaller) RetainCollectionInventory(b
 }
 
 func (caller *discoveryAWSCollectionInventoryCaller) CheckCollectionReadiness(ctx context.Context) error {
-	if caller == nil || ctx == nil || ctx.Err() != nil || caller.factory.Identity == nil || caller.factory.IAM == nil || caller.factory.EC2 == nil {
+	if caller == nil || ctx == nil || ctx.Err() != nil || caller.factory.Identity == nil || caller.factory.IAM == nil || caller.factory.EC2 == nil || caller.factory.BedrockAgent == nil || caller.factory.AgentCore == nil || caller.factory.Lambda == nil {
 		return awsdiscovery.ErrDenied
 	}
 	return nil
@@ -274,6 +289,16 @@ func collectDiscoveryAWSPolicy(ctx context.Context, api discoveryAWSIAMAPI, arn,
 }
 
 func collectDiscoveryAWSInstances(ctx context.Context, factory func(string, aws.Credentials) (discoveryAWSEC2API, error), primary discoveryAWSEC2API, credentials aws.Credentials, accountID string, localEmulator bool) ([]discoveryAWSNativeInstance, error) {
+	regions, err := discoveryAWSEnabledRegions(ctx, primary, localEmulator)
+	if err != nil {
+		return nil, err
+	}
+	return collectDiscoveryAWSInstancesIn(ctx, factory, credentials, accountID, regions)
+}
+
+// discoveryAWSEnabledRegions lists the regions every regional read of the
+// inventory covers: instances and the AI services.
+func discoveryAWSEnabledRegions(ctx context.Context, primary discoveryAWSEC2API, localEmulator bool) ([]string, error) {
 	regionsOutput, err := primary.DescribeRegions(ctx, &ec2.DescribeRegionsInput{AllRegions: aws.Bool(false)}, func(options *ec2.Options) { options.Retryer = aws.NopRetryer{} })
 	if err != nil || regionsOutput == nil || len(regionsOutput.Regions) < 1 || len(regionsOutput.Regions) > 64 {
 		return nil, awsdiscovery.ErrDenied
@@ -293,6 +318,10 @@ func collectDiscoveryAWSInstances(ctx context.Context, factory func(string, aws.
 		return nil, awsdiscovery.ErrDenied
 	}
 	sort.Strings(regions)
+	return regions, nil
+}
+
+func collectDiscoveryAWSInstancesIn(ctx context.Context, factory func(string, aws.Credentials) (discoveryAWSEC2API, error), credentials aws.Credentials, accountID string, regions []string) ([]discoveryAWSNativeInstance, error) {
 	// One region's instances are independent of another's: the regions are
 	// read a few at a time, each request with its own authorization check.
 	regional := make([][]discoveryAWSNativeInstance, len(regions))

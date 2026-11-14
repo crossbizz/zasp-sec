@@ -46,8 +46,8 @@ func (caller *resumingAWSInventoryCaller) RetainCollectionInventory(binding Inve
 func runInventoryPages(t *testing.T, api *InventoryCollectionAPI, credential []byte) []CollectionPage {
 	t.Helper()
 	request := CollectionPageRequest{Provider: collection.ProviderAWS, Subject: collection.SubjectBinding{Kind: "aws_account", ID: "123456789012"}, Page: 1, RemainingItems: 100, RemainingRelationships: 200, RemainingFindings: 7, RemainingBytes: 1 << 20}
-	pages := make([]CollectionPage, 0, 4)
-	for page := 1; page <= 4; page++ {
+	pages := make([]CollectionPage, 0, 5)
+	for page := 1; page <= 5; page++ {
 		request.Page = page
 		result, err := api.FetchCollectionPage(context.Background(), credential, request)
 		if err != nil {
@@ -61,7 +61,7 @@ func runInventoryPages(t *testing.T, api *InventoryCollectionAPI, credential []b
 
 // A caller that keeps the first page's inventory is asked for it on each
 // later page and the account is read once. The pages are exactly the pages a
-// caller that reads the account four times produces.
+// caller that reads the account five times produces.
 func TestInventoryCollectionAPIResumesTheFirstPagesInventoryOnLaterPages(t *testing.T) {
 	t.Parallel()
 	authority := awsInventoryAuthority(t, "pid_51000001-0000-4000-8000-000000000001")
@@ -84,7 +84,7 @@ func TestInventoryCollectionAPIResumesTheFirstPagesInventoryOnLaterPages(t *test
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("resumed pages differ from pages read from the account")
 	}
-	if plain.calls != 4 || caller.calls != 1 || len(caller.retained) != 1 || len(caller.resumed) != 3 || len(analyzer.calls) != 2 {
+	if plain.calls != 5 || caller.calls != 1 || len(caller.retained) != 1 || len(caller.resumed) != 4 || len(analyzer.calls) != 2 {
 		t.Fatalf("account reads plain=%d resumed=%d retained=%d resume calls=%d analyzer=%d", plain.calls, caller.calls, len(caller.retained), len(caller.resumed), len(analyzer.calls))
 	}
 	binding := caller.retained[0]
