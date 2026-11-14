@@ -841,7 +841,10 @@ func providerEntitySchema(provider collection.Provider, kind string) (providerEn
 		case "saas_tenant":
 			return providerEntityDefinition{stable: requiredStringFields("name", "platform", "tenant"), attributes: inventoryObjectSchema{}}, true
 		case "saas_agent", "saas_ai_application":
-			return providerEntityDefinition{stable: object, attributes: mergeInventorySchemas(status, optionalStringFields("agent_type", "model"), discoveredAgentAttributes())}, true
+			// created_by, created_at, updated_at and deleted_at are present for
+			// an object read out of a platform's audit log: the id of the
+			// account that created it and the times of its events.
+			return providerEntityDefinition{stable: object, attributes: mergeInventorySchemas(status, optionalStringFields("agent_type", "model", "created_by", "created_at", "updated_at", "deleted_at"), discoveredAgentAttributes())}, true
 		case "saas_mcp_server":
 			// auth and transport are present when the platform's API states
 			// them for the server.
@@ -872,8 +875,11 @@ func validProviderRelationship(provider collection.Provider, raw json.RawMessage
 	case collection.ProviderOkta:
 		kinds = tokenSet("assigned_to", "contains", "has_permission", "member_of")
 		attributes["type"] = stringInventoryField(true)
-	case collection.ProviderMicrosoft, collection.ProviderSalesforce, collection.ProviderSaaS:
+	case collection.ProviderMicrosoft, collection.ProviderSalesforce:
 		kinds = tokenSet("contains")
+		attributes["type"] = stringInventoryField(true)
+	case collection.ProviderSaaS:
+		kinds = tokenSet("contains", "depends_on")
 		attributes["type"] = stringInventoryField(true)
 	default:
 		return false
@@ -923,7 +929,8 @@ func validProviderRelationshipEndpointKinds(provider collection.Provider, raw js
 		),
 		collection.ProviderMicrosoft:  tokenSet("microsoft_tenant|contains|microsoft_agent_identity", "microsoft_tenant|contains|microsoft_ai_application", "microsoft_tenant|contains|microsoft_copilot_agent", "microsoft_tenant|contains|microsoft_ai_resource", "microsoft_tenant|contains|microsoft_ai_deployment"),
 		collection.ProviderSalesforce: tokenSet("salesforce_org|contains|salesforce_agent", "salesforce_agent|contains|salesforce_agent_tool", "salesforce_agent_tool|contains|salesforce_agent_tool"),
-		collection.ProviderSaaS:       tokenSet("saas_tenant|contains|saas_agent", "saas_tenant|contains|saas_ai_application", "saas_tenant|contains|saas_mcp_server"),
+		// An agent of a platform uses an MCP server the same platform lists.
+		collection.ProviderSaaS: tokenSet("saas_tenant|contains|saas_agent", "saas_tenant|contains|saas_ai_application", "saas_tenant|contains|saas_mcp_server", "saas_agent|depends_on|saas_mcp_server"),
 	}
 	return allowed[provider][key]
 }
@@ -1398,6 +1405,13 @@ func relationshipsResolve(provider collection.Provider, subject collection.Subje
 			if provider == collection.ProviderKubernetes && validExplicitKubernetesUnresolvedRelationship(raw, subject, fromExists, toExists, items) {
 				continue
 			}
+			// A SaaS agent's use of an MCP server is read by a second list
+			// than the agents; an agent that list did not report (deleted in
+			// between, or not one the platform's mapping keeps) leaves the
+			// relation without its end, and it is dropped.
+			if provider == collection.ProviderSaaS && derivedAgentMCPServerRelationship(raw) {
+				continue
+			}
 			return nil, false
 		}
 		if !validProviderRelationshipEndpointKinds(provider, raw, items[from].Kind, items[to].Kind) {
@@ -1406,6 +1420,16 @@ func relationshipsResolve(provider collection.Provider, subject collection.Subje
 		resolved = append(resolved, raw)
 	}
 	return resolved, true
+}
+
+// derivedAgentMCPServerRelationship reports whether raw is the relation of an
+// agent to an MCP server it uses.
+func derivedAgentMCPServerRelationship(raw json.RawMessage) bool {
+	var relationship normalizedPageRelationship
+	var derived struct {
+		Type string `json:"type"`
+	}
+	return decodeExactObject(raw, &relationship) && relationship.Kind == "depends_on" && decodeExactObject(relationship.Attributes, &derived) && derived.Type == "agent_mcp_server"
 }
 
 func validExplicitKubernetesUnresolvedRelationship(raw json.RawMessage, subject collection.SubjectBinding, fromExists, toExists bool, items map[string]normalizedPageEntity) bool {

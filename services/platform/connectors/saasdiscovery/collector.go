@@ -98,7 +98,10 @@ type pageState struct {
 	Next       string `json:"n,omitempty"`
 	ParentID   string `json:"pi,omitempty"`
 	ParentNext string `json:"pn,omitempty"`
-	Seen       string `json:"s,omitempty"`
+	// ParentLabel is the label of the parent being read, for a parent list
+	// with Select; ParentNext is then the position of the next parent.
+	ParentLabel string `json:"pl,omitempty"`
+	Seen        string `json:"s,omitempty"`
 }
 
 // NewCollectionAPI builds the collector for every platform of the registry.
@@ -259,14 +262,20 @@ func (api *SaaSCollectionAPI) fetchList(ctx context.Context, reference string, p
 	}
 	limit := min(request.RemainingBytes, maximumResponseBytes)
 	key := platform.TenantKey(tenantID)
-	parentID, parentNext := state.ParentID, state.ParentNext
+	parentID, parentNext, parentLabel := state.ParentID, state.ParentNext, state.ParentLabel
 	// exhausted: the endpoint has nothing more to read.
 	exhausted := false
 	if endpoint.Parent != nil && parentID == "" {
 		// The next parent object. The parent list is read one object at a
-		// time, so the cursor holds one id and one continuation.
+		// time, so the cursor holds one id and one continuation. A list with
+		// Select is read whole each time and the cursor holds a position.
+		selecting := endpoint.Parent.Select != nil
 		parents := ListEndpoint{Path: endpoint.Parent.Path, Query: endpoint.Parent.Query, ItemsPath: endpoint.Parent.ItemsPath, Paging: endpoint.Parent.Paging, Single: endpoint.Parent.Single}
-		query, offset, ok := parents.requestQuery(parentNext, key)
+		listContinuation := parentNext
+		if selecting {
+			listContinuation = ""
+		}
+		query, offset, ok := parents.requestQuery(listContinuation, key, "")
 		path, pathOK := expandPath(parents.Path, key, "")
 		if !ok || !pathOK {
 			return fail(malformed)
@@ -279,7 +288,35 @@ func (api *SaaSCollectionAPI) fetchList(ctx context.Context, reference string, p
 		switch {
 		case absent || ok && len(items) == 0:
 			exhausted = true
-		case !ok || len(items) != 1:
+		case !ok || len(items) > maximumPageItems:
+			return fail(malformed)
+		case selecting:
+			selected := endpoint.Parent.Select(items)
+			position := 0
+			if state.ParentNext != "" {
+				parsed, err := strconv.Atoi(state.ParentNext)
+				if err != nil || parsed < 1 || parsed >= MaximumSelectedParents || strconv.Itoa(parsed) != state.ParentNext {
+					return fail(malformed)
+				}
+				position = parsed
+			}
+			if len(selected) > MaximumSelectedParents {
+				return fail(malformed)
+			}
+			if position >= len(selected) {
+				// Nothing selected, or the list became shorter between two
+				// reads: there is no further parent.
+				exhausted = true
+				break
+			}
+			parentID, parentLabel, parentNext = selected[position].ID, selected[position].Label, ""
+			if !parentIDPattern.MatchString(parentID) || strings.Contains(parentID, "..") || !endpointNamePattern.MatchString(parentLabel) {
+				return fail(malformed)
+			}
+			if position+1 < len(selected) {
+				parentNext = strconv.Itoa(position + 1)
+			}
+		case len(items) != 1:
 			return fail(malformed)
 		default:
 			if parentID = endpoint.Parent.ID(items[0]); !parentIDPattern.MatchString(parentID) || strings.Contains(parentID, "..") {
@@ -306,21 +343,36 @@ func (api *SaaSCollectionAPI) fetchList(ctx context.Context, reference string, p
 			if !ok || len(items) > maximumPageItems {
 				return fail(malformed)
 			}
-			// The objects to map: the items, or the objects each item holds.
+			// The objects to map: the items, or the objects each item holds
+			// (owners then names the item of each).
 			mapped := items
+			var owners []Item
 			if len(endpoint.ChildrenPath) > 0 {
 				mapped = nil
 				for _, item := range items {
-					mapped = append(mapped, item.Objects(endpoint.ChildrenPath...)...)
+					for _, child := range item.Objects(endpoint.ChildrenPath...) {
+						mapped, owners = append(mapped, child), append(owners, item)
+					}
 				}
 				if len(mapped) > maximumPageItems {
 					return fail(malformed)
 				}
 			}
-			if len(mapped) > request.RemainingItems || len(mapped) > request.RemainingRelationships {
+			// Every object has its relation to the tenant, and with ChildUser
+			// one to its agent.
+			related := len(mapped)
+			if endpoint.ChildUser != nil {
+				related *= 2
+			}
+			if len(mapped) > request.RemainingItems || related > request.RemainingRelationships {
 				return fail(providercollection.ErrPageCapacity)
 			}
-			if entities, relationships, seen, ok = normalizeItems(request.Subject, platform, tenantID, endpoint, parentID, mapped, state.Seen); !ok {
+			// A parent chosen by Select is known to the mapping by its label.
+			mapParent := parentID
+			if endpoint.Parent != nil && endpoint.Parent.Select != nil {
+				mapParent = parentLabel
+			}
+			if entities, relationships, seen, ok = normalizeItems(request.Subject, platform, tenantID, endpoint, mapParent, mapped, owners, state.Seen); !ok {
 				return fail(malformed)
 			}
 			if len(seen) > MaximumDistinct*distinctDigestLength {
@@ -338,7 +390,7 @@ func (api *SaaSCollectionAPI) fetchList(ctx context.Context, reference string, p
 	case exhausted:
 	case continuation != "":
 		// More pages of this list (under this parent).
-		following.Next, following.ParentID, following.ParentNext = continuation, parentID, parentNext
+		following.Next, following.ParentID, following.ParentNext, following.ParentLabel = continuation, parentID, parentNext, parentLabel
 	case endpoint.Parent != nil && parentNext != "":
 		// This parent is done; the next page fetches the next parent.
 		following.ParentNext = parentNext
@@ -368,7 +420,7 @@ func (endpoint ListEndpoint) request(continuation, tenantID, parentID string) (c
 	}
 	headers := fixedHeaders(endpoint.Headers, tenantID)
 	if endpoint.GraphQL == nil {
-		query, offset, ok := endpoint.requestQuery(continuation, tenantID)
+		query, offset, ok := endpoint.requestQuery(continuation, tenantID, parentID)
 		return call{method: http.MethodGet, path: path, query: query, headers: headers}, offset, ok
 	}
 	variables := make(map[string]any, len(endpoint.GraphQL.Variables)+2)
@@ -397,8 +449,14 @@ func (endpoint ListEndpoint) request(continuation, tenantID, parentID string) (c
 
 // requestQuery is the query of the endpoint's next request. For an offset
 // endpoint it also returns the offset the request asks for.
-func (endpoint ListEndpoint) requestQuery(continuation, tenantID string) (url.Values, int, bool) {
+func (endpoint ListEndpoint) requestQuery(continuation, tenantID, parentID string) (url.Values, int, bool) {
 	query := fixedQuery(endpoint.Query, tenantID)
+	for name, value := range endpoint.Query {
+		// The parent of a nested endpoint, as the value of a parameter.
+		if value == ParentValue {
+			query.Set(name, parentID)
+		}
+	}
 	paging := endpoint.Paging
 	if paging.LimitParam != "" {
 		query.Set(paging.LimitParam, strconv.Itoa(paging.PageSize))
@@ -599,7 +657,7 @@ func nextLinkQuery(header, path string) (string, bool) {
 // relationships to the tenant. seen holds the digests of the objects a
 // Distinct endpoint has reported on earlier pages; the result holds those
 // and the ones of this page.
-func normalizeItems(subject collection.SubjectBinding, platform Platform, tenantID string, endpoint ListEndpoint, parentID string, items []Item, seenBefore string) ([]json.RawMessage, []json.RawMessage, string, bool) {
+func normalizeItems(subject collection.SubjectBinding, platform Platform, tenantID string, endpoint ListEndpoint, parentID string, items, owners []Item, seenBefore string) ([]json.RawMessage, []json.RawMessage, string, bool) {
 	reported := map[string]bool{}
 	for start := 0; start+distinctDigestLength <= len(seenBefore); start += distinctDigestLength {
 		reported[seenBefore[start:start+distinctDigestLength]] = true
@@ -609,7 +667,8 @@ func normalizeItems(subject collection.SubjectBinding, platform Platform, tenant
 	entities := make([]json.RawMessage, 0, len(items))
 	relationships := make([]json.RawMessage, 0, len(items))
 	seen := make(map[string]struct{}, len(items))
-	for _, item := range items {
+	used := map[string]bool{}
+	for index, item := range items {
 		var mapped Entity
 		var keep bool
 		if endpoint.Parent != nil {
@@ -624,6 +683,25 @@ func normalizeItems(subject collection.SubjectBinding, platform Platform, tenant
 			return nil, nil, "", false
 		}
 		native := mapped.ObjectType + "/" + mapped.NativeID
+		if endpoint.ChildUser != nil && mapped.Kind == KindMCPServer && index < len(owners) {
+			// The agent the item is uses this server. The relation is stated
+			// for every agent, also when the server was reported before.
+			if objectType, nativeID, isAgent := endpoint.ChildUser(owners[index]); isAgent {
+				if !objectTypePattern.MatchString(objectType) || !validDisplayText(nativeID, 512) {
+					return nil, nil, "", false
+				}
+				agent := objectType + "/" + nativeID
+				if pair := agent + "\x1f" + native; !used[pair] {
+					used[pair] = true
+					relationship, err := marshalRelationship(deterministicInventoryID(subject, "depends_on", KindAgent+"/"+agent+"\x1f"+native), "depends_on",
+						"saas:"+platform.Token+":"+objectType+":"+nativeID+":mcp_server:"+mapped.NativeID, deterministicInventoryID(subject, KindAgent, agent), deterministicInventoryID(subject, mapped.Kind, native), "agent_mcp_server")
+					if err != nil {
+						return nil, nil, "", false
+					}
+					relationships = append(relationships, relationship)
+				}
+			}
+		}
 		if endpoint.Distinct {
 			digest := sha256.Sum256([]byte(mapped.Kind + "\x1f" + native))
 			key := base64.RawURLEncoding.EncodeToString(digest[:6])
@@ -655,6 +733,11 @@ func normalizeItems(subject collection.SubjectBinding, platform Platform, tenant
 			if mapped.Model != "" {
 				attributes["model"] = mapped.Model
 			}
+			for name, value := range map[string]string{"created_by": mapped.CreatedBy, "created_at": mapped.CreatedAt, "updated_at": mapped.UpdatedAt, "deleted_at": mapped.DeletedAt} {
+				if value != "" {
+					attributes[name] = value
+				}
+			}
 			// An agent is listed because the platform's API names it one;
 			// an AI application because of the signals the API states.
 			method := agentsignals.MethodProviderAPI
@@ -670,7 +753,7 @@ func normalizeItems(subject collection.SubjectBinding, platform Platform, tenant
 		if err != nil {
 			return nil, nil, "", false
 		}
-		relationship, err := marshalRelationship(deterministicInventoryID(subject, "contains", mapped.Kind+"/"+native), "saas:"+platform.Token+":tenant:"+tenantID+":"+mapped.ObjectType+":"+mapped.NativeID, tenantEntityID, entityID)
+		relationship, err := marshalRelationship(deterministicInventoryID(subject, "contains", mapped.Kind+"/"+native), "contains", "saas:"+platform.Token+":tenant:"+tenantID+":"+mapped.ObjectType+":"+mapped.NativeID, tenantEntityID, entityID, "tenant_object")
 		if err != nil {
 			return nil, nil, "", false
 		}
@@ -687,6 +770,8 @@ func validEntity(entity Entity) bool {
 		entity.EndpointHost != "" && (!hostPattern.MatchString(entity.EndpointHost) || entity.Kind != KindMCPServer) ||
 		entity.Auth != "" && (entity.Kind != KindMCPServer || entity.Auth != agentsignals.MCPAuthDeclared && entity.Auth != agentsignals.MCPAuthNone) ||
 		entity.Transport != "" && (entity.Kind != KindMCPServer || entity.Transport != agentsignals.MCPTransportHTTP && entity.Transport != agentsignals.MCPTransportSSE && entity.Transport != agentsignals.MCPTransportStdio) ||
+		entity.CreatedBy != "" && (entity.Kind == KindMCPServer || !validDisplayText(entity.CreatedBy, 128)) ||
+		!validEventTime(entity.CreatedAt, entity.Kind) || !validEventTime(entity.UpdatedAt, entity.Kind) || !validEventTime(entity.DeletedAt, entity.Kind) ||
 		len(entity.Signals) > agentsignals.MaximumSignals || entity.Kind == KindAIApplication && len(entity.Signals) == 0 || entity.Kind == KindMCPServer && len(entity.Signals) != 0 {
 		return false
 	}
@@ -853,8 +938,22 @@ func canonicalObject(value map[string]any) (json.RawMessage, error) {
 	return json.Marshal(decoded)
 }
 
-func marshalRelationship(id, sourceNativeID, from, to string) (json.RawMessage, error) {
-	if len(sourceNativeID) > 1024 {
+// validEventTime accepts an empty value, or the RFC 3339 time of an event of
+// an agent or AI application.
+func validEventTime(value, kind string) bool {
+	if value == "" {
+		return true
+	}
+	_, err := time.Parse(time.RFC3339, value)
+	return err == nil && kind != KindMCPServer && len(value) <= 40
+}
+
+// marshalRelationship encodes a relationship: contains (type tenant_object)
+// from the tenant to an object, or depends_on (type agent_mcp_server) from an
+// agent to an MCP server.
+func marshalRelationship(id, kind, sourceNativeID, from, to, relationType string) (json.RawMessage, error) {
+	attributes, err := json.Marshal(map[string]string{"type": relationType})
+	if err != nil || len(sourceNativeID) > 1024 {
 		return nil, ErrInvalid
 	}
 	return json.Marshal(struct {
@@ -864,7 +963,7 @@ func marshalRelationship(id, sourceNativeID, from, to string) (json.RawMessage, 
 		FromEntityID   string          `json:"from_entity_id"`
 		ToEntityID     string          `json:"to_entity_id"`
 		Attributes     json.RawMessage `json:"attributes"`
-	}{id, "contains", sourceNativeID, from, to, json.RawMessage(`{"type":"tenant_object"}`)})
+	}{id, kind, sourceNativeID, from, to, attributes})
 }
 
 // splitSubject returns the platform token and the tenant id of a saas
@@ -916,6 +1015,10 @@ func validPageState(platform Platform, state pageState) bool {
 	// Only a nested endpoint has a parent in its cursor and only a Distinct
 	// one a list of reported objects.
 	if endpoint.Parent == nil && (state.ParentID != "" || state.ParentNext != "") || !endpoint.Distinct && state.Seen != "" {
+		return false
+	}
+	// A label belongs to the parent a Select chose.
+	if selecting := endpoint.Parent != nil && endpoint.Parent.Select != nil; (state.ParentLabel != "") != (selecting && state.ParentID != "") || state.ParentLabel != "" && !endpointNamePattern.MatchString(state.ParentLabel) {
 		return false
 	}
 	if state.ParentID != "" && (!parentIDPattern.MatchString(state.ParentID) || strings.Contains(state.ParentID, "..")) || state.ParentID == "" && state.Next != "" && endpoint.Parent != nil {

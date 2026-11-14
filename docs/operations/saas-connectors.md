@@ -260,6 +260,7 @@ check against a real tenant). None has been run against a real tenant.
 | --- | --- | --- | --- | --- |
 | `anthropic` | organization UUID | `api.anthropic.com` | reference (admin key) | workspaces, API keys (id, name, status; never a key value or its hint) |
 | `atlassian` | site name | `<site>.atlassian.net` | reference (API token) | installed AI apps and Rovo apps; the Rovo agents that installed apps ship; Studio-built Rovo agents only once Atlassian lets an API token list them, see below |
+| `atlassian_org` | organization id | `api.atlassian.com` | reference (organization API key) | the Rovo agents people built in Rovo Studio, reconstructed from the organization's audit log: id, name, creator's account id, time, deleted or active |
 | `databricks` | workspace address | the workspace address | reference | serving endpoints and served agents |
 | `gitlab` | group id | `gitlab.com` | sign-in | GitLab Duo for the group and its availability setting, the Duo agents and flows enabled in the group (GraphQL `aiCatalogConfiguredItems`), the MCP servers of those agents, projects tagged or named as AI |
 | `gitlab_self_managed` | `<host>_<group id>` | the customer's host | reference (group access token) | the same as `gitlab`, for a self-managed or Dedicated instance |
@@ -287,8 +288,54 @@ which the same schema marks as callable with a browser session only: not
 with an API token, not with OAuth, and no public API exists yet (ROVO-516
 and ROVO-479 are open). The definition sends that query in the schema's form
 and expects it to be refused today; the list is then empty and the rest of
-the site is collected. Until Atlassian opens the field, Studio-built agents
-are not found, and an empty list does not mean the site has none.
+the site is collected. Until Atlassian opens the field, the site connection
+does not find Studio-built agents; the organization connection below does.
+
+Studio-built Rovo agents from the audit log. `atlassian_org` is a second
+platform because the site's API token cannot call the organization API: it
+needs an organization API key (Atlassian Administration, Settings, API keys),
+held by a Nango connection of the integration `atlassian-admin`, and its
+tenant is the organization id (`admin.atlassian.com/o/<organization id>`).
+Atlassian records in the organization's audit log that a Rovo agent was
+created, updated or deleted. The definition:
+
+1. reads the organization's catalog of audit log actions
+   (`GET /admin/v1/orgs/{id}/event-actions`) and takes the ids of the three
+   actions whose display name is "Created Rovo agent", "Updated Rovo agent"
+   and "Deleted Rovo agent". The ids themselves are not written in the
+   definition: they could not be checked;
+2. reads the events of each action (`GET /admin/v1/orgs/{id}/events?action=`),
+   deletions first, then creations, then updates, and reports each agent at
+   its first event. So a deleted agent is listed with the status `deleted`
+   and `deleted_at`; an agent created within the log is listed `active` with
+   `created_by` (the account id, never a name or an address) and
+   `created_at`; an agent older than the log that was changed since is
+   listed `active` with `updated_at`.
+
+What to know before relying on it:
+
+- Retention. The log goes back 180 days, 365 with Atlassian Guard. An agent
+  created before that and not changed since has no event and is not listed.
+  An empty list does not mean the organization has no agents.
+- Plan. Atlassian's pages state the plan differently (Guard Standard for
+  "Rovo admin actions", Guard Premium for "Rovo user actions"). An
+  organization whose catalog does not have the three actions lists nothing;
+  one whose plan has no audit log at all fails the collection (reported as
+  402), it is not read as "no agents".
+- Cap. At most 96 agents are reported (the bound of every activity-log
+  reader, the same as the Google Workspace token report). An organization
+  whose log names more ends the collection as a failure, not as a partial
+  inventory.
+- Rate. Atlassian allows 10 requests a minute on the events path. Updates
+  can be many pages; a throttled page is retried by the collection.
+- Scope. The events name the organization, not a site: agents of all its
+  sites are listed under the organization. Nothing ties them to the objects
+  of an `atlassian` site integration.
+- Not read: who may create agents and which products have Rovo switched on.
+  No documented API for those settings was found.
+- Every response shape of this platform is UNVERIFIED (see the file); the
+  endpoint, its parameters and the activity names are from Atlassian's pages
+  as returned by web searches.
 
 Customer-hosted platforms. A self-managed GitLab (and GitLab Dedicated) runs
 on a host the customer owns, which no provider suffix can describe. A
@@ -321,8 +368,24 @@ GitLab MCP servers. The catalog's own list (`aiCatalogMcpServers`) takes no
 group or project, so the servers are read where GitLab's schema ties them to
 the group: under the latest version of each agent configured in it. Each is
 listed once, as an MCP server with its host, transport and whether it
-authenticates, and appears on the MCP servers page; it is not related to the
-agents that use it (a saas platform's only relationship is to its tenant).
+authenticates, and appears on the MCP servers page. Each agent is related to
+the servers it uses (`depends_on`, the relation the MCP servers page and an
+agent's access view already read for the other providers): the query states
+of every agent the fields the catalog list reads, so the agent is named
+exactly as that list reports it. A relation whose agent the catalog list did
+not report (deleted between the two reads) is dropped.
+
+Relating two objects of a tenant. A list with `ChildrenPath` whose children
+are MCP servers can set `ChildUser`, which names the agent each item is; the
+collector then relates that agent to each of the item's servers. It is the
+only relation between two saas objects, and it needed no new inventory kind
+and no rule catalog change.
+
+Parents chosen from a catalog. `ParentList.Select` is for a parent list that
+answers everything in one response of which a few objects are parents (the
+audit log actions that concern agents). It returns the parents in the order
+to read them, each with a label the mapping is given; the parent's id can be
+the value of one query parameter (`"action": "{parent}"`).
 
 The two Nango proxy headers the product relies on are taken from Nango's own
 SDK (`@nangohq/node`): `Base-Url-Override`, which pins a per-tenant host, and

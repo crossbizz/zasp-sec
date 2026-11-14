@@ -40,8 +40,11 @@ import (
 // refused: the answer carries GraphQL errors, the list is then empty and
 // the rest of the site is collected. The query is kept, in the form the
 // schema gives it, so that the agents appear when Atlassian opens the field
-// to API tokens; until then Studio-built agents are not found, and "no
-// Studio agent listed" does not mean the site has none.
+// to API tokens; until then this site connection does not find Studio-built
+// agents, and "no Studio agent listed" here does not mean the site has
+// none. They are read another way, from the organization's audit log, by
+// the platform atlassian_org (AtlassianOrg), which needs an organization
+// API key.
 //
 // DOCUMENTED: https://www.npmjs.com/package/@atlassian/forge-graphql-types
 // (4.3.0, Atlassian's types generated from the gateway schema):

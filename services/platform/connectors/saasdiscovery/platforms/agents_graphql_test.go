@@ -50,7 +50,9 @@ func gitLabCatalogRoute(t *testing.T) saastest.Route {
 }
 
 // The MCP servers of the group's agents, two pages of configured agents: a
-// server two agents use is listed under both, and one agent has none.
+// server two agents use is listed under both. The query states of each agent
+// what the catalog list states. Consumer 6 is the agent the catalog list saw
+// deleted: here it is read a moment earlier, still present.
 func gitLabMCPServersResponse(t *testing.T, query url.Values) saastest.Response {
 	if query.Get("group") != "gid://gitlab/Group/4242" || query.Get("first") != "20" {
 		t.Errorf("MCP servers query = %v", query)
@@ -59,16 +61,17 @@ func gitLabMCPServersResponse(t *testing.T, query url.Values) saastest.Response 
 	server := func(id int, name, address, auth string) string {
 		return fmt.Sprintf(`{"id":"gid://gitlab/Ai::Catalog::McpServer/%d","name":%q,"url":%q,"transport":"HTTP","authType":%q,"oauthClientId":"do-not-keep-client-id"}`, id, name, address, auth)
 	}
-	agent := func(consumer int, servers ...string) string {
-		return fmt.Sprintf(`{"id":"gid://gitlab/Ai::Catalog::ItemConsumer/%d","item":{"id":"gid://gitlab/Ai::Catalog::Item/%d","latestVersion":{"mcpServers":{"nodes":[%s]}}}}`, consumer, consumer+10, strings.Join(servers, ","))
+	agent := func(consumer int, name, itemType string, servers ...string) string {
+		return fmt.Sprintf(`{"id":"gid://gitlab/Ai::Catalog::ItemConsumer/%d","enabled":true,"item":{"id":"gid://gitlab/Ai::Catalog::Item/%d","name":%q,"itemType":%q,"foundational":false,"softDeleted":false,"latestVersion":{"mcpServers":{"nodes":[%s]}}}}`,
+			consumer, consumer+10, name, itemType, strings.Join(servers, ","))
 	}
 	linear := server(1, "Linear", "https://mcp.linear.example/sse?token=do-not-keep-query", "OAUTH")
 	switch query.Get("after") {
 	case "":
-		return saastest.Response{Body: `{"data":{"aiCatalogConfiguredItems":{"nodes":[` + agent(1, linear, server(2, "Internal docs", "http://docs.internal.example:8080/mcp", "NO_AUTH")) + `,` + agent(3) + `],"pageInfo":{"hasNextPage":true,"endCursor":"m2"}}}}`}
+		return saastest.Response{Body: `{"data":{"aiCatalogConfiguredItems":{"nodes":[` + agent(1, "Merge request reviewer", "AGENT", linear, server(2, "Internal docs", "http://docs.internal.example:8080/mcp", "NO_AUTH"), linear) + `,` + agent(3, "Planner", "FOUNDATIONAL_AGENT", linear) + `],"pageInfo":{"hasNextPage":true,"endCursor":"m2"}}}}`}
 	case "m2":
 		// A flow has no agent version: latestVersion states no servers.
-		return saastest.Response{Body: `{"data":{"aiCatalogConfiguredItems":{"nodes":[` + agent(4, linear, server(3, "Odd address", "not a url", "NO_AUTH")) + `,{"id":"gid://gitlab/Ai::Catalog::ItemConsumer/5","item":{"id":"gid://gitlab/Ai::Catalog::Item/15","latestVersion":{}}},{"id":"gid://gitlab/Ai::Catalog::ItemConsumer/6","item":{"id":"gid://gitlab/Ai::Catalog::Item/16","latestVersion":null}}],"pageInfo":{"hasNextPage":false,"endCursor":null}}}}`}
+		return saastest.Response{Body: `{"data":{"aiCatalogConfiguredItems":{"nodes":[` + agent(6, "Removed agent", "AGENT", linear, server(3, "Odd address", "not a url", "NO_AUTH")) + `,{"id":"gid://gitlab/Ai::Catalog::ItemConsumer/5","item":{"id":"gid://gitlab/Ai::Catalog::Item/15","latestVersion":{}}},{"id":"gid://gitlab/Ai::Catalog::ItemConsumer/6","item":{"id":"gid://gitlab/Ai::Catalog::Item/16","latestVersion":null}}],"pageInfo":{"hasNextPage":false,"endCursor":null}}}}`}
 	}
 	t.Errorf("MCP servers continuation = %q", query.Get("after"))
 	return saastest.Response{Status: http.StatusBadRequest, Body: `{}`}
@@ -95,6 +98,20 @@ func TestGitLabMCPServersOfTheGroupsAgentsAreCollectedOnce(t *testing.T) {
 	// An address that is not a URL names no host.
 	if odd := snapshot.Named(t, "saas_mcp_server", "Odd address"); odd.Attributes["endpoint_host"] != nil {
 		t.Fatalf("odd server = %+v", odd.Attributes)
+	}
+	// Each agent is related to the servers it uses, once: the reviewer to two
+	// servers, the planner to the one it shares. The relations of the agent
+	// the catalog list did not report are dropped.
+	uses := map[string]bool{}
+	for _, relationship := range snapshot.Relationships {
+		if relationship.Kind == "depends_on" {
+			uses[relationship.FromEntityID+">"+relationship.ToEntityID] = true
+		}
+	}
+	reviewer, planner := snapshot.Named(t, "saas_agent", "Merge request reviewer"), snapshot.Named(t, "saas_agent", "Planner")
+	docs := snapshot.Named(t, "saas_mcp_server", "Internal docs")
+	if len(uses) != 3 || !uses[reviewer.ID+">"+linear.ID] || !uses[reviewer.ID+">"+docs.ID] || !uses[planner.ID+">"+linear.ID] {
+		t.Fatalf("agent to server relations = %v", uses)
 	}
 	// Of an address only the host is kept; an OAuth client id is not asked for.
 	if bytes.Contains(snapshot.Raw, []byte("do-not-keep")) || bytes.Contains(snapshot.Raw, []byte("/sse")) || strings.Contains(gitLabDuoMCPServersQuery, "oauthClientId") || strings.Contains(gitLabDuoMCPServersQuery, "systemPrompt") {

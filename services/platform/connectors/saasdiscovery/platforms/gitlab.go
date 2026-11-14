@@ -104,12 +104,18 @@ func GitLab() saasdiscovery.Platform {
 			// own list of MCP servers (aiCatalogMcpServers) takes no group or
 			// project, so the servers are read where the schema ties them to
 			// the group: under the latest version of each configured agent. A
-			// server several agents use is reported once.
+			// server several agents use is reported once and related to each
+			// of them: the query states of every agent what the catalog list
+			// states, so the agent is named exactly as that list reports it.
 			{Name: "duo_mcp_servers", Path: "/api/graphql", ItemsPath: []string{"data", "aiCatalogConfiguredItems", "nodes"}, ChildrenPath: []string{"item", "latestVersion", "mcpServers", "nodes"}, Distinct: true,
 				GraphQL: &saasdiscovery.GraphQL{Document: gitLabDuoMCPServersQuery, Variables: map[string]string{"group": "gid://gitlab/Group/" + saasdiscovery.TenantValue}, ErrorsAbsent: true},
 				Paging: saasdiscovery.Paging{Style: saasdiscovery.PagingCursor, CursorParam: "after", LimitParam: "first", PageSize: 20,
 					NextPath: []string{"data", "aiCatalogConfiguredItems", "pageInfo", "endCursor"}, MorePath: []string{"data", "aiCatalogConfiguredItems", "pageInfo", "hasNextPage"}},
-				Map: gitLabMCPServer},
+				Map: gitLabMCPServer,
+				ChildUser: func(item saasdiscovery.Item) (string, string, bool) {
+					agent, listed := gitLabCatalogItem(item)
+					return agent.ObjectType, agent.NativeID, listed
+				}},
 			{Name: "projects", Path: "/api/v4/groups/{tenant}/projects", Query: map[string]string{"include_subgroups": "true", "archived": "false", "order_by": "id", "sort": "asc"},
 				Paging: saasdiscovery.Paging{Style: saasdiscovery.PagingPage, PageParam: "page", LimitParam: "per_page", PageSize: 100}, Map: gitLabProject},
 		},
@@ -122,8 +128,10 @@ const gitLabDuoCatalogQuery = `query($group: GroupID!, $first: Int!, $after: Str
 
 // gitLabDuoMCPServersQuery lists, for the agents enabled in one group, the
 // MCP servers of each agent's latest version: name, address, transport and
-// how the server authenticates. No OAuth client id and no tool is selected.
-const gitLabDuoMCPServersQuery = `query($group: GroupID!, $first: Int!, $after: String) { aiCatalogConfiguredItems(groupId: $group, first: $first, after: $after, itemTypes: [AGENT, FOUNDATIONAL_AGENT]) { nodes { id item { id latestVersion { ... on AiCatalogAgentVersion { mcpServers(first: 20) { nodes { id name url transport authType } } } } } } pageInfo { hasNextPage endCursor } } }`
+// how the server authenticates, and of the agent the fields the catalog list
+// reads, by which the agent is recognized. No OAuth client id and no tool is
+// selected.
+const gitLabDuoMCPServersQuery = `query($group: GroupID!, $first: Int!, $after: String) { aiCatalogConfiguredItems(groupId: $group, first: $first, after: $after, itemTypes: [AGENT, FOUNDATIONAL_AGENT]) { nodes { id enabled item { id name itemType foundational softDeleted latestVersion { ... on AiCatalogAgentVersion { mcpServers(first: 20) { nodes { id name url transport authType } } } } } } pageInfo { hasNextPage endCursor } } }`
 
 // gitLabMCPServer maps one MCP server of a group's agents. Of its address
 // only the host is kept.
