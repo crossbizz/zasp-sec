@@ -7135,8 +7135,8 @@ components:
       properties:
         id: { $ref: '#/components/schemas/ProductID' }
         name: { type: string, minLength: 1, maxLength: 256 }
-        provider: { type: string, enum: [aws, github, kubernetes, saas] }
-        source_kind: { type: string, enum: [aws_agentcore_gateway, aws_mcp_server, github_mcp_server, kubernetes_mcp_server, saas_mcp_server] }
+        provider: { type: string, enum: [aws, github, kubernetes, saas, gcp] }
+        source_kind: { type: string, enum: [aws_agentcore_gateway, aws_mcp_server, github_mcp_server, kubernetes_mcp_server, saas_mcp_server, gcp_mcp_server] }
         source: { type: string, enum: [agentcore_gateway, egress, gateway_target, repository_config, workload, saas_api, provider_api], description: 'How the server was found.' }
         transport: { type: [string, 'null'], enum: [stdio, http, sse, null] }
         endpoint_host: { type: [string, 'null'], minLength: 1, maxLength: 253, description: 'Host of a remote server. The URL path and query are never stored.' }

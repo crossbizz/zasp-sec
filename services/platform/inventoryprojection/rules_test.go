@@ -76,6 +76,8 @@ func TestRuleCatalogBindsExactProviderKindsToProductAuthority(t *testing.T) {
 		{Provider: "gcp", SourceKind: "gcp_scope", Namespace: "gcp_scope", ProductKind: KindAsset, Version: 1, Priority: 160, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
 		{Provider: "gcp", SourceKind: "gcp_service", Namespace: "gcp_service", ProductKind: KindAsset, Version: 1, Priority: 160, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
 		{Provider: "gcp", SourceKind: "gcp_service_account", Namespace: "gcp_service_account", ProductKind: KindIdentity, Version: 1, Priority: 160, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
+		{Provider: "gcp", SourceKind: "gcp_agent_tool", Namespace: "gcp_agent_tool", ProductKind: KindTool, Version: 1, Priority: 160, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
+		{Provider: "gcp", SourceKind: "gcp_mcp_server", Namespace: "gcp_mcp_server", ProductKind: KindTool, Version: 1, Priority: 160, ConfidenceBasisPoints: 9000, Freshness: 24 * time.Hour},
 	}
 
 	actual := RuleCatalog()
@@ -83,7 +85,7 @@ func TestRuleCatalogBindsExactProviderKindsToProductAuthority(t *testing.T) {
 		t.Fatalf("catalog = %#v, want %#v", actual, expected)
 	}
 	digest := RuleCatalogDigest()
-	if got := hex.EncodeToString(digest[:]); got != "2095cef95afd6c011a21593c022505c6ac608e38c12d0e66249fc70b06837be4" {
+	if got := hex.EncodeToString(digest[:]); got != "07e9c7cceff0e1ebf14e24c082ad4b7fdf43b4d2d19a939d38b1eaa3cce172be" {
 		t.Fatalf("catalog digest = %s", got)
 	}
 

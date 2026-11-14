@@ -2,6 +2,7 @@ package gcpdiscovery
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"net/http"
 	"net/url"
@@ -31,6 +32,7 @@ const (
 	serviceIAM
 	serviceModelArmor
 	serviceAuditLogs
+	serviceInheritedIAM
 	gcpServiceCount
 )
 
@@ -45,6 +47,7 @@ var gcpServices = [gcpServiceCount]struct{ key, name string }{
 	{"iam", "Service accounts and IAM policy"},
 	{"model-armor", "Model Armor"},
 	{"audit-logs", "Cloud Audit Logs (Vertex AI data access)"},
+	{"iam-inherited", "Inherited IAM roles (folders and organization)"},
 }
 
 // Agent posture checks of this collector. Each is a finding rule the product
@@ -80,6 +83,8 @@ var (
 	gcpRolePattern            = regexp.MustCompile(`^(roles|projects/[a-z][a-z0-9-]{4,28}[a-z0-9]/roles|organizations/[0-9]{1,19}/roles)/[A-Za-z0-9_.]{1,128}$`)
 	gcpFrameworkPattern       = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{0,31}$`)
 	gcpStatePattern           = regexp.MustCompile(`^[A-Z][A-Z_]{0,31}$`)
+	gcpHostPattern            = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?){1,8}$`)
+	gcpAccountProjectPattern  = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,127}@([a-z][a-z0-9-]{4,28}[a-z0-9])\.iam\.gserviceaccount\.com$`)
 )
 
 type projectRead struct {
@@ -184,6 +189,26 @@ type gcpWorkload struct {
 	evidence       agentsignals.Evidence
 	untrustedInput bool
 	active         bool
+	// mcpServer: the Cloud Run service is an MCP server, by its own
+	// functional type or by its image or command. endpointHost is the host
+	// of its URL and openInvoker whether the IAM invoker check is off.
+	mcpServer    bool
+	endpointHost string
+	openInvoker  bool
+}
+
+// gcpAncestor is what one folder or organization above a project answered.
+type gcpAncestor struct {
+	parent  string
+	outcome callOutcome
+	roles   map[string][]string
+	readAt  time.Time
+}
+
+// gcpTool is a tool a Conversational Agents agent declares.
+type gcpTool struct {
+	resource gcpResource
+	display  string
 }
 
 // readProject reads everything the collector knows how to read in one
@@ -223,6 +248,7 @@ func (api *GCPCollectionAPI) readProject(ctx context.Context, token []byte, subj
 		gemini      []gcpListedAgent
 		functions   []gcpWorkload
 		services    []gcpWorkload
+		inherited   map[string][]string
 	)
 	readers := []func(context.Context) error{
 		func(ctx context.Context) (err error) {
@@ -253,9 +279,18 @@ func (api *GCPCollectionAPI) readProject(ctx context.Context, token []byte, subj
 			services, err = api.readRunServices(ctx, token, project, &tallies[serviceCloudRun])
 			return
 		},
+		func(ctx context.Context) (err error) {
+			inherited, err = api.readInheritedRoles(ctx, token, project, &tallies[serviceInheritedIAM])
+			return
+		},
 	}
 	if err := fanOut(ctx, len(readers), func(ctx context.Context, index int) error { return readers[index](ctx) }); err != nil {
 		return projectRead{}, err
+	}
+	// A role bound on a folder or the organization above the project holds
+	// in the project too: it joins the roles of the project's own policy.
+	for email, roles := range inherited {
+		identities.roles[email] = sortedUniqueStrings(append(identities.roles[email], roles...))
 	}
 	// Model Armor is asked only about the locations that host an agent.
 	engineLocations := map[string]bool{}
@@ -295,9 +330,41 @@ func (api *GCPCollectionAPI) readProject(ctx context.Context, token []byte, subj
 		accountIDs[email] = id
 		return id
 	}
+	// Every service account the project lists is an identity of the
+	// inventory, whether or not an agent runs as it.
+	listedAccounts := make([]string, 0, len(identities.accounts))
+	for email := range identities.accounts {
+		listedAccounts = append(listedAccounts, email)
+	}
+	sort.Strings(listedAccounts)
+	for _, email := range listedAccounts {
+		useAccount(email)
+	}
+	// A service account of another project is that project's identity. It
+	// is referred to here only when that project lies in the scope and
+	// lists the account, because its own page then emits the entity.
+	foreignAccounts := map[string]string{}
+	accountEntity := func(email string) (string, error) {
+		if id := useAccount(email); id != "" || email == "" {
+			return id, nil
+		}
+		if id, checked := foreignAccounts[email]; checked {
+			return id, nil
+		}
+		owned, err := api.accountInScope(ctx, token, subject, email, project)
+		if err != nil {
+			return "", err
+		}
+		foreignAccounts[email] = ""
+		if owned {
+			foreignAccounts[email] = gcpInventoryID(subject, "gcp_service_account", "gcp:service_account:"+email)
+		}
+		return foreignAccounts[email], nil
+	}
+	var accountFailure error
 	usedAccounts := map[string]bool{}
 	// agent emits one agent entity with what is known about its identity.
-	agent := func(kind, native, display string, stable map[string]any, attributes gcpAgentAttributes, serviceAccount string) bool {
+	agent := func(kind, native, display string, stable map[string]any, attributes gcpAgentAttributes, serviceAccount string) (string, bool) {
 		if serviceAccount != "" {
 			attributes.ServiceAccount = serviceAccount
 			usedAccounts[serviceAccount] = true
@@ -308,10 +375,17 @@ func (api *GCPCollectionAPI) readProject(ctx context.Context, token []byte, subj
 		stable["project"], stable["scope"] = project.ID, subject.ID
 		id, emitted := emit(kind, native, display, stable, attributes, projectEntityID, projectNative)
 		if !emitted {
-			return false
+			return "", false
 		}
-		if accountID := useAccount(serviceAccount); accountID != "" && (kind == "gcp_agent_engine" || kind == "gcp_inferred_agent") {
-			read.relationships = append(read.relationships, gcpRelationship(subject, "uses_identity", "service_account", native, "gcp:service_account:"+serviceAccount, id, accountID))
+		if kind == "gcp_agent_engine" || kind == "gcp_inferred_agent" {
+			accountID, err := accountEntity(serviceAccount)
+			if err != nil {
+				accountFailure = err
+				return "", false
+			}
+			if accountID != "" {
+				read.relationships = append(read.relationships, gcpRelationship(subject, "uses_identity", "service_account", native, "gcp:service_account:"+serviceAccount, id, accountID))
+			}
 		}
 		if len(administratorRoles(identities.roles[serviceAccount])) > 0 {
 			read.findings = append(read.findings, gcpFinding(subject, id, native, AgentCheckServiceAccountAdmin, observedAt))
@@ -319,7 +393,15 @@ func (api *GCPCollectionAPI) readProject(ctx context.Context, token []byte, subj
 		if attributes.ModelArmor == "none" {
 			read.findings = append(read.findings, gcpFinding(subject, id, native, AgentCheckModelArmorMissing, observedAt))
 		}
-		return true
+		return id, true
+	}
+	// refused is the failure of an emission: a provider failure met while
+	// looking up a service account, or else a malformed object.
+	refused := func() error {
+		if accountFailure != nil {
+			return accountFailure
+		}
+		return malformed
 	}
 
 	for _, engine := range engines {
@@ -328,20 +410,34 @@ func (api *GCPCollectionAPI) readProject(ctx context.Context, token []byte, subj
 		if queried, found := invocations.engines[engine.resource.Name]; found {
 			attributes.LastInvokedAt = queried.UTC().Format("2006-01-02T15:00:00Z")
 		}
-		if !agent("gcp_agent_engine", "gcp:"+engine.resource.Name, engine.display, map[string]any{"location": engine.resource.Location, "name": engine.display, "object_type": "reasoning_engine"}, attributes, engine.serviceAccount) {
-			return projectRead{}, malformed
+		if _, ok := agent("gcp_agent_engine", "gcp:"+engine.resource.Name, engine.display, map[string]any{"location": engine.resource.Location, "name": engine.display, "object_type": "reasoning_engine"}, attributes, engine.serviceAccount); !ok {
+			return projectRead{}, refused()
 		}
 	}
 	for _, listed := range dialogflow {
 		attributes := gcpAgentAttributes{Status: "ACTIVE", Posture: agentsignals.Posture{CredentialActive: true}, Discovery: agentsignals.NewDiscovery(agentsignals.MethodProviderAPI, "conversational_agents", nil)}
-		if !agent("gcp_conversational_agent", "gcp:"+listed.resource.Name, listed.display, map[string]any{"location": listed.resource.Location, "name": listed.display, "object_type": "dialogflow_cx_agent"}, attributes, "") {
-			return projectRead{}, malformed
+		agentNative := "gcp:" + listed.resource.Name
+		agentID, ok := agent("gcp_conversational_agent", agentNative, listed.display, map[string]any{"location": listed.resource.Location, "name": listed.display, "object_type": "dialogflow_cx_agent"}, attributes, "")
+		if !ok {
+			return projectRead{}, refused()
+		}
+		// The tools the agent declares. Only a tool's name is kept; its
+		// risk class is read off the words of that name.
+		for _, tool := range listed.tools {
+			toolNative := "gcp:" + tool.resource.Name
+			toolID := gcpInventoryID(subject, "gcp_agent_tool", toolNative)
+			entity, entityOK := gcpEntity(toolID, "gcp_agent_tool", toolNative, tool.display, map[string]any{"agent": listed.display, "location": tool.resource.Location, "name": tool.display, "object_type": "dialogflow_cx_tool", "project": project.ID, "scope": subject.ID}, map[string]any{"risk": agentsignals.MCPToolRisk(tool.display)})
+			if !entityOK {
+				return projectRead{}, malformed
+			}
+			read.entities = append(read.entities, entity)
+			read.relationships = append(read.relationships, gcpRelationship(subject, "contains", "agent_tool", agentNative, toolNative, agentID, toolID))
 		}
 	}
 	for _, listed := range gemini {
 		attributes := gcpAgentAttributes{Status: listed.state, Posture: agentsignals.Posture{CredentialActive: listed.active}, Discovery: agentsignals.NewDiscovery(agentsignals.MethodProviderAPI, "gemini_enterprise", nil)}
-		if !agent("gcp_gemini_enterprise_agent", "gcp:"+listed.resource.Name, listed.display, map[string]any{"location": listed.resource.Location, "name": listed.display, "object_type": "gemini_enterprise_agent"}, attributes, "") {
-			return projectRead{}, malformed
+		if _, ok := agent("gcp_gemini_enterprise_agent", "gcp:"+listed.resource.Name, listed.display, map[string]any{"location": listed.resource.Location, "name": listed.display, "object_type": "gemini_enterprise_agent"}, attributes, ""); !ok {
+			return projectRead{}, refused()
 		}
 	}
 	for _, endpoint := range endpoints {
@@ -366,7 +462,11 @@ func (api *GCPCollectionAPI) readProject(ctx context.Context, token []byte, subj
 			if !modelEmitted {
 				return projectRead{}, malformed
 			}
-			if accountID := useAccount(model.serviceAccount); accountID != "" {
+			accountID, err := accountEntity(model.serviceAccount)
+			if err != nil {
+				return projectRead{}, err
+			}
+			if accountID != "" {
 				read.relationships = append(read.relationships, gcpRelationship(subject, "uses_identity", "service_account", modelNative, "gcp:service_account:"+model.serviceAccount, modelID, accountID))
 			}
 		}
@@ -391,6 +491,22 @@ func (api *GCPCollectionAPI) readProject(ctx context.Context, token []byte, subj
 		}
 	}
 	for _, workload := range workloads {
+		if workload.mcpServer {
+			// A Cloud Run service that is an MCP server is a tool of the
+			// inventory, not an agent. Its identity in the MCP registry is
+			// the host of its URL.
+			attributes := map[string]any{"status": "ACTIVE", "source": "workload", "transport": agentsignals.MCPTransportHTTP, "auth": agentsignals.MCPAuthDeclared}
+			if workload.openInvoker {
+				attributes["auth"] = agentsignals.MCPAuthNone
+			}
+			if workload.endpointHost != "" {
+				attributes["endpoint_host"] = workload.endpointHost
+			}
+			if _, emitted := emit("gcp_mcp_server", "gcp:"+workload.resource.Name+":mcp_server", workload.display, map[string]any{"location": workload.resource.Location, "name": workload.display, "object_type": "cloud_run_service", "project": project.ID, "scope": subject.ID}, attributes, projectEntityID, projectNative); !emitted {
+				return projectRead{}, malformed
+			}
+			continue
+		}
 		if workload.serviceAccount == "" {
 			// Without a service account of its own a Cloud Run service or
 			// function runs as the Compute Engine default service account.
@@ -409,8 +525,8 @@ func (api *GCPCollectionAPI) readProject(ctx context.Context, token []byte, subj
 			status = "INACTIVE"
 		}
 		attributes := gcpAgentAttributes{Status: status, Posture: agentsignals.Posture{CredentialActive: workload.active, UntrustedInput: workload.untrustedInput}, Discovery: agentsignals.NewDiscovery(agentsignals.MethodInferred, workload.resourceType, workload.evidence.Signals())}
-		if !agent("gcp_inferred_agent", "gcp:"+workload.resource.Name, workload.display, map[string]any{"location": workload.resource.Location, "name": workload.display, "object_type": workload.resourceType, "resource_type": workload.resourceType}, attributes, workload.serviceAccount) {
-			return projectRead{}, malformed
+		if _, ok := agent("gcp_inferred_agent", "gcp:"+workload.resource.Name, workload.display, map[string]any{"location": workload.resource.Location, "name": workload.display, "object_type": workload.resourceType, "resource_type": workload.resourceType}, attributes, workload.serviceAccount); !ok {
+			return projectRead{}, refused()
 		}
 	}
 	// A service account the audit log shows invoking a model, and that runs
@@ -430,8 +546,8 @@ func (api *GCPCollectionAPI) readProject(ctx context.Context, token []byte, subj
 			continue
 		}
 		attributes := gcpAgentAttributes{Status: "ACTIVE", Posture: agentsignals.Posture{CredentialActive: true}, Discovery: agentsignals.NewDiscovery(agentsignals.MethodInferred, "service_account", evidence.Signals())}
-		if !agent("gcp_inferred_agent", "gcp:projects/"+project.ID+"/invokers/"+principal, principal, map[string]any{"location": "global", "name": principal, "object_type": "service_account", "resource_type": "service_account"}, attributes, principal) {
-			return projectRead{}, malformed
+		if _, ok := agent("gcp_inferred_agent", "gcp:projects/"+project.ID+"/invokers/"+principal, principal, map[string]any{"location": "global", "name": principal, "object_type": "service_account", "resource_type": "service_account"}, attributes, principal); !ok {
+			return projectRead{}, refused()
 		}
 	}
 	for service := range tallies {
@@ -489,10 +605,7 @@ func (api *GCPCollectionAPI) readIdentities(ctx context.Context, token []byte, p
 	tally.add(outcome)
 	identities.listed = outcome == outcomeOK
 	var policy struct {
-		Bindings []struct {
-			Role    string   `json:"role"`
-			Members []string `json:"members"`
-		} `json:"bindings"`
+		Bindings []gcpBinding `json:"bindings"`
 	}
 	outcome, err = api.call(ctx, token, http.MethodPost, gcpResourceManagerHost, "/v3/projects/"+project.ID+":getIamPolicy", "", []byte(`{"options":{"requestedPolicyVersion":3}}`), &policy)
 	if err != nil {
@@ -502,24 +615,8 @@ func (api *GCPCollectionAPI) readIdentities(ctx context.Context, token []byte, p
 	if outcome != outcomeOK {
 		return identities, nil
 	}
-	seen := map[string]bool{}
-	for _, binding := range policy.Bindings {
-		if !gcpRolePattern.MatchString(binding.Role) {
-			continue
-		}
-		for _, member := range binding.Members {
-			// Only service accounts are kept; a person is never recorded.
-			email, isServiceAccount := strings.CutPrefix(member, "serviceAccount:")
-			if !isServiceAccount || !gcpServiceAccountPattern.MatchString(email) || seen[email+"\x1f"+binding.Role] {
-				continue
-			}
-			seen[email+"\x1f"+binding.Role] = true
-			identities.roles[email] = append(identities.roles[email], binding.Role)
-		}
-	}
-	for email := range identities.roles {
-		sort.Strings(identities.roles[email])
-	}
+	// Only service accounts are kept; a person is never recorded.
+	identities.roles = serviceAccountRoles(policy.Bindings)
 	return identities, nil
 }
 
@@ -632,6 +729,7 @@ type gcpListedAgent struct {
 	resource       gcpResource
 	display, state string
 	active         bool
+	tools          []gcpTool
 }
 
 func gcpDisplay(displayName, fallback string) string {
@@ -837,7 +935,171 @@ func (api *GCPCollectionAPI) readDialogflow(ctx context.Context, token []byte, p
 		tally.add(outcome)
 		return err
 	})
-	return uniqueGCPAgents(agents), err
+	if err != nil {
+		return nil, err
+	}
+	agents = uniqueGCPAgents(agents)
+	// The tools each agent declares (at most 100 agents, 200 tools each).
+	listed := min(len(agents), 100)
+	err = fanOut(ctx, listed, func(ctx context.Context, index int) error {
+		resource := agents[index].resource
+		host := resource.Location + "-" + gcpDialogflowHost
+		if resource.Location == "global" {
+			host = gcpDialogflowHost
+		}
+		var tools []gcpTool
+		outcome, err := api.list(ctx, token, host, "/v3/"+resource.Name+"/tools", url.Values{"pageSize": {"100"}}, "tools", 2, func(raw json.RawMessage) {
+			var tool struct {
+				Name        string `json:"name"`
+				DisplayName string `json:"displayName"`
+			}
+			if json.Unmarshal(raw, &tool) != nil {
+				return
+			}
+			if toolResource, ok := parseGCPResource(tool.Name, project.ID, "tools"); ok {
+				tools = append(tools, gcpTool{resource: toolResource, display: gcpDisplay(tool.DisplayName, toolResource.ID)})
+			}
+		})
+		tally.add(outcome)
+		sort.Slice(tools, func(left, right int) bool { return tools[left].resource.Name < tools[right].resource.Name })
+		unique := tools[:0]
+		for position, tool := range tools {
+			if position == 0 || tool.resource.Name != tools[position-1].resource.Name {
+				unique = append(unique, tool)
+			}
+		}
+		agents[index].tools = unique
+		return err
+	})
+	return agents, err
+}
+
+func sortedUniqueStrings(values []string) []string {
+	sort.Strings(values)
+	result := values[:0]
+	for index, value := range values {
+		if index == 0 || value != values[index-1] {
+			result = append(result, value)
+		}
+	}
+	return result
+}
+
+// serviceAccountRoles returns, per service account, the roles the bindings
+// of an IAM policy give it. Only service accounts are kept.
+func serviceAccountRoles(bindings []gcpBinding) map[string][]string {
+	roles := map[string][]string{}
+	for _, binding := range bindings {
+		if !gcpRolePattern.MatchString(binding.Role) {
+			continue
+		}
+		for _, member := range binding.Members {
+			if email, isServiceAccount := strings.CutPrefix(member, "serviceAccount:"); isServiceAccount && gcpServiceAccountPattern.MatchString(email) {
+				roles[email] = append(roles[email], binding.Role)
+			}
+		}
+	}
+	for email := range roles {
+		roles[email] = sortedUniqueStrings(roles[email])
+	}
+	return roles
+}
+
+type gcpBinding struct {
+	Role    string   `json:"role"`
+	Members []string `json:"members"`
+}
+
+// readInheritedRoles reads the IAM policies of the folders and the
+// organization above the project, up to twelve levels, and returns the roles
+// they bind service accounts to. Those roles hold in the project as well. An
+// ancestor the service account may not read ends the walk and is a coverage
+// gap: the roles bound there, and above it, are then not known.
+func (api *GCPCollectionAPI) readInheritedRoles(ctx context.Context, token []byte, project gcpProject, tally *serviceTally) (map[string][]string, error) {
+	roles := map[string][]string{}
+	digest := sha256.Sum256(token)
+	parent := project.Parent
+	if parent == "" {
+		tally.add(outcomeOK)
+	}
+	for hop := 0; hop < gcpMaximumFolderHops && parent != ""; hop++ {
+		key := string(digest[:16]) + "\x1f" + parent
+		api.inheritedMutex.Lock()
+		ancestor, cached := api.inherited[key]
+		api.inheritedMutex.Unlock()
+		if !cached || api.clock().Sub(ancestor.readAt) > 10*time.Minute {
+			ancestor = gcpAncestor{readAt: api.clock()}
+			var policy struct {
+				Bindings []gcpBinding `json:"bindings"`
+			}
+			outcome, err := api.call(ctx, token, http.MethodPost, gcpResourceManagerHost, "/v3/"+parent+":getIamPolicy", "", []byte(`{"options":{"requestedPolicyVersion":3}}`), &policy)
+			if err != nil {
+				return nil, err
+			}
+			ancestor.outcome = outcome
+			if outcome == outcomeOK {
+				ancestor.roles = serviceAccountRoles(policy.Bindings)
+			}
+			if strings.HasPrefix(parent, "folders/") {
+				var folder struct {
+					Parent string `json:"parent"`
+				}
+				outcome, err := api.call(ctx, token, http.MethodGet, gcpResourceManagerHost, "/v3/"+parent, "", nil, &folder)
+				if err != nil {
+					return nil, err
+				}
+				if outcome == outcomeOK && gcpParentPattern.MatchString(folder.Parent) {
+					ancestor.parent = folder.Parent
+				} else if ancestor.outcome == outcomeOK {
+					// What lies above this folder cannot be read.
+					ancestor.outcome = outcomeDenied
+				}
+			}
+			api.inheritedMutex.Lock()
+			if len(api.inherited) > 4096 {
+				api.inherited = map[string]gcpAncestor{}
+			}
+			api.inherited[key] = ancestor
+			api.inheritedMutex.Unlock()
+		}
+		for email, bound := range ancestor.roles {
+			roles[email] = append(roles[email], bound...)
+		}
+		if ancestor.outcome != outcomeOK {
+			tally.add(outcomeDenied)
+			return roles, nil
+		}
+		tally.add(outcomeOK)
+		parent = ancestor.parent
+	}
+	return roles, nil
+}
+
+// accountInScope reports whether a service account of another project is an
+// identity this collection emits: the address names its project, that
+// project is active and lies below the scope, and it lists the account.
+func (api *GCPCollectionAPI) accountInScope(ctx context.Context, token []byte, subject collection.SubjectBinding, email string, current gcpProject) (bool, error) {
+	match := gcpAccountProjectPattern.FindStringSubmatch(email)
+	if len(match) != 2 || match[1] == current.ID || strings.HasPrefix(subject.ID, "projects/") {
+		return false, nil
+	}
+	var raw json.RawMessage
+	outcome, err := api.call(ctx, token, http.MethodGet, gcpResourceManagerHost, "/v3/projects/"+match[1], "", nil, &raw)
+	if err != nil || outcome != outcomeOK {
+		return false, err
+	}
+	owner, parent, ok := decodeGCPProject(raw)
+	if !ok || owner.ID != match[1] {
+		return false, nil
+	}
+	if inside, err := api.projectInScope(ctx, token, subject.ID, parent); err != nil || !inside {
+		return false, err
+	}
+	var account struct {
+		Email string `json:"email"`
+	}
+	outcome, err = api.call(ctx, token, http.MethodGet, gcpIAMHost, "/v1/projects/"+owner.ID+"/serviceAccounts/"+url.PathEscape(email), "", nil, &account)
+	return err == nil && outcome == outcomeOK && account.Email == email, err
 }
 
 // readGeminiEnterprise lists the agents of the Gemini Enterprise (formerly
@@ -966,12 +1228,15 @@ func (api *GCPCollectionAPI) readRunServices(ctx context.Context, token []byte, 
 				Name               string `json:"name"`
 				FunctionalType     string `json:"functionalType"`
 				Ingress            string `json:"ingress"`
+				URI                string `json:"uri"`
 				InvokerIAMDisabled bool   `json:"invokerIamDisabled"`
 				Template           struct {
 					ServiceAccount string `json:"serviceAccount"`
 					Containers     []struct {
-						Image string `json:"image"`
-						Env   []struct {
+						Image   string   `json:"image"`
+						Command []string `json:"command"`
+						Args    []string `json:"args"`
+						Env     []struct {
 							Name string `json:"name"`
 						} `json:"env"`
 					} `json:"containers"`
@@ -988,7 +1253,16 @@ func (api *GCPCollectionAPI) readRunServices(ctx context.Context, token []byte, 
 			// ingress and has the invoker check switched off.
 			workload := gcpWorkload{resource: resource, resourceType: "cloud_run_service", display: resource.ID, serviceAccount: gcpServiceAccountOrEmpty(service.Template.ServiceAccount), active: true,
 				untrustedInput: service.InvokerIAMDisabled && service.Ingress == "INGRESS_TRAFFIC_ALL"}
+			// An MCP server: Cloud Run's own record says so, or the image or
+			// the command is one, the way a Kubernetes workload is recognised.
+			// The command and its arguments are matched and never kept.
+			workload.mcpServer = service.FunctionalType == "FUNCTIONAL_TYPE_MCP_SERVER"
+			workload.openInvoker = service.InvokerIAMDisabled
+			if parsed, parseErr := url.Parse(service.URI); parseErr == nil && parsed.Scheme == "https" && gcpHostPattern.MatchString(strings.ToLower(parsed.Hostname())) {
+				workload.endpointHost = strings.ToLower(parsed.Hostname())
+			}
 			for _, container := range service.Template.Containers {
+				workload.mcpServer = workload.mcpServer || agentsignals.MCPServerImage(container.Image) || agentsignals.MCPServerCommand(container.Command...) || agentsignals.MCPServerCommand(container.Args...)
 				workload.evidence.Image(container.Image)
 				// The decoder above reads the name of a variable and nothing else.
 				for _, variable := range container.Env {

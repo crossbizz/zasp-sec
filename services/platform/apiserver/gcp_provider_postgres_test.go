@@ -19,7 +19,7 @@ const (
 )
 
 // gcpProviderSections are the blocks of completion.sql section X3d.
-var gcpProviderSections = []string{"ws8_gcp_provider", "ws8_gcp_rule_catalog", "ws8_gcp_coverage_gaps"}
+var gcpProviderSections = []string{"ws8_gcp_provider", "ws8_gcp_rule_catalog", "ws8_gcp_coverage_gaps", "ws8_gcp_mcp_servers"}
 
 // Section X3d of completion.sql (Google Cloud) against the installed released
 // baseline: the section applies; a second run of it and of every section it
@@ -60,7 +60,7 @@ func TestGCPProviderSectionOnTheInstalledBaselinePostgres(t *testing.T) {
 	}
 	catalog()
 	var gcpBefore bool
-	if err := connection.QueryRow(ctx, `SELECT zasp_connector_provider_valid('gcp')`).Scan(&gcpBefore); err != nil || !gcpBefore && rules != 57 || gcpBefore && rules < 67 {
+	if err := connection.QueryRow(ctx, `SELECT zasp_connector_provider_valid('gcp')`).Scan(&gcpBefore); err != nil || !gcpBefore && rules != 57 || gcpBefore && rules < 69 {
 		t.Fatalf("predecessor: gcp=%t rules=%d err=%v", gcpBefore, rules, err)
 	}
 	t.Logf("released baseline serves gcp: %t (%d identity rules)", gcpBefore, rules)
@@ -88,7 +88,7 @@ func TestGCPProviderSectionOnTheInstalledBaselinePostgres(t *testing.T) {
 		t.Fatal("a second run of the sections changed a function or a constraint")
 	}
 	catalog()
-	if compiled := inventoryprojection.RuleCatalogDigest(); !gcpBefore && (rules != 67 || rules != len(inventoryprojection.RuleCatalog()) || digest != hexDigest(compiled)) {
+	if compiled := inventoryprojection.RuleCatalogDigest(); !gcpBefore && (rules != 69 || rules != len(inventoryprojection.RuleCatalog()) || digest != hexDigest(compiled)) {
 		t.Fatalf("rule catalog: rows=%d digest=%s, compiled rows=%d digest=%s", rules, digest, len(inventoryprojection.RuleCatalog()), hexDigest(compiled))
 	}
 	// Every gcp rule row equals the compiled rule.
@@ -111,7 +111,7 @@ func TestGCPProviderSectionOnTheInstalledBaselinePostgres(t *testing.T) {
 		seen++
 	}
 	rows.Close()
-	if seen != 10 {
+	if seen != 12 {
 		t.Fatalf("gcp rule rows = %d", seen)
 	}
 
@@ -214,7 +214,12 @@ func TestGCPProviderSectionOnTheInstalledBaselinePostgres(t *testing.T) {
 	google.OK("us-central1-aiplatform.googleapis.com", "/v1/projects/alpha-prod/locations/us-central1/reasoningEngines", `{"reasoningEngines":[{"name":"projects/111/locations/us-central1/reasoningEngines/8001","displayName":"Refund agent","spec":{"agentFramework":"google-adk","serviceAccount":"`+runner+`"}}]}`)
 	google.Disabled("modelarmor.googleapis.com", "/v1/projects/alpha-prod/locations/global/floorSetting")
 	google.Denied("cloudfunctions.googleapis.com", "/v2/projects/alpha-prod/locations/-/functions")
-	google.Disabled("run.googleapis.com", "/v1/projects/alpha-prod/locations")
+	google.OK("run.googleapis.com", "/v1/projects/alpha-prod/locations", `{"locations":[{"locationId":"us-central1"}]}`)
+	// A Cloud Run service that Cloud Run itself records as an MCP server,
+	// with the IAM invoker check switched off.
+	google.OK("run.googleapis.com", "/v2/projects/alpha-prod/locations/us-central1/services", `{"services":[{"name":"projects/alpha-prod/locations/us-central1/services/docs-mcp","functionalType":"FUNCTIONAL_TYPE_MCP_SERVER","uri":"https://docs-mcp-abc123-uc.a.run.app","invokerIamDisabled":true,"template":{"containers":[{"image":"us-docker.pkg.dev/alpha-prod/apps/docs:1"}]}}]}`)
+	// The organization above the project binds nothing to a service account.
+	google.OK("cloudresourcemanager.googleapis.com", "/v3/organizations/123456789012:getIamPolicy", `{"bindings":[]}`)
 	collected := gcptest.Collect(t, google, "projects/alpha-prod")
 	candidate := collected.Result.Snapshot()
 	manifest := collected.Result.Manifest().Descriptor()
@@ -245,8 +250,9 @@ func TestGCPProviderSectionOnTheInstalledBaselinePostgres(t *testing.T) {
 	if err != nil {
 		t.Fatalf("apply the gcp typed snapshot: %v", err)
 	}
-	// The scope, the project, the service account, the engine, ten services.
-	if result.SnapshotID != snapshotID || result.DiscoveredCount != 14 || result.RemovedCount != 0 {
+	// The scope, the project, the service account, the engine, the MCP
+	// server, eleven services.
+	if result.SnapshotID != snapshotID || result.DiscoveredCount != 16 || result.RemovedCount != 0 {
 		t.Fatalf("apply result = %+v", result)
 	}
 	inventory, err := connection.Query(ctx, `SELECT observation.source_kind,entity.product_kind,entity.display_name,entity.confidence_basis_points,COALESCE(observation.attributes->'discovery'->>'method','')
@@ -265,7 +271,7 @@ func TestGCPProviderSectionOnTheInstalledBaselinePostgres(t *testing.T) {
 		got = append(got, strings.Join([]string{sourceKind, productKind, name, method}, "|")+"|"+itoa(confidence))
 	}
 	inventory.Close()
-	want := []string{"gcp_agent_engine|agent|Refund agent|provider_api|9500", "gcp_project|asset|Alpha production||9500", "gcp_scope|asset|Alpha production||9500", "gcp_service_account|identity|" + runner + "||9500"}
+	want := []string{"gcp_agent_engine|agent|Refund agent|provider_api|9500", "gcp_mcp_server|tool|docs-mcp||9000", "gcp_project|asset|Alpha production||9500", "gcp_scope|asset|Alpha production||9500", "gcp_service_account|identity|" + runner + "||9500"}
 	if strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Fatalf("inventory\n got %v\nwant %v", got, want)
 	}
@@ -314,6 +320,15 @@ func TestGCPProviderSectionOnTheInstalledBaselinePostgres(t *testing.T) {
 		t.Fatalf("stored finding rules = %q (%v)", storedRules, err)
 	}
 
+	// The Cloud Run MCP server is in the MCP inventory the API reads, under
+	// the registry identity of its host, unapproved and without
+	// authentication.
+	var mcpName, mcpProvider, mcpKind, mcpIdentity, mcpApproval, mcpAuth string
+	if err := connection.QueryRow(ctx, `SELECT server.name,server.provider,server.source_kind,server.identity,server.approval,zasp_mcp_server_json($1,$2,$3,server.entity_id)->>'auth' FROM zasp_mcp_servers($1,$2,$3) server`, organizationID, workspaceID, environmentID).Scan(&mcpName, &mcpProvider, &mcpKind, &mcpIdentity, &mcpApproval, &mcpAuth); err != nil ||
+		mcpName != "docs-mcp" || mcpProvider != "gcp" || mcpKind != "gcp_mcp_server" || mcpIdentity != "host:docs-mcp-abc123-uc.a.run.app" || mcpApproval != "unapproved" || mcpAuth != "none" {
+		t.Fatalf("MCP inventory = %s %s %s %s %s %s (%v)", mcpName, mcpProvider, mcpKind, mcpIdentity, mcpApproval, mcpAuth, err)
+	}
+
 	// Coverage: the freshness of the integration names what was not read.
 	// The installed function admits only the discovery API login inside a
 	// checked request of the API server, which a bare baseline does not run.
@@ -335,7 +350,7 @@ func TestGCPProviderSectionOnTheInstalledBaselinePostgres(t *testing.T) {
 	if err := connection.QueryRow(ctx, `SELECT (pg_temp.zasp_gcp_freshness_probe($1,$2,$3,$4)->'coverage_gaps')::text`, organizationID, workspaceID, environmentID, integrationID).Scan(&gaps); err != nil {
 		t.Fatalf("freshness: %v", err)
 	}
-	if wantGaps := `[{"name": "Cloud Functions", "status": "access_denied", "service": "cloud-functions"}, {"name": "Cloud Run", "status": "unavailable", "service": "cloud-run"}, {"name": "Model Armor", "status": "unavailable", "service": "model-armor"}]`; gaps != wantGaps {
+	if wantGaps := `[{"name": "Cloud Functions", "status": "access_denied", "service": "cloud-functions"}, {"name": "Model Armor", "status": "unavailable", "service": "model-armor"}]`; gaps != wantGaps {
 		t.Fatalf("coverage gaps = %s, want %s", gaps, wantGaps)
 	}
 }

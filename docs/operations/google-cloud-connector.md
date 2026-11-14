@@ -31,7 +31,9 @@ project below it is read. Per project:
 | Gemini Enterprise (formerly Agentspace) agents | `discoveryengine.googleapis.com` (v1alpha) | `gcp_gemini_enterprise_agent` (agent) |
 | Vertex AI endpoints and their deployed models | `aiplatform.googleapis.com` | `gcp_model_endpoint`, `gcp_deployed_model` (assets) |
 | Cloud Run services and Cloud Functions that call a model | `run.googleapis.com`, `cloudfunctions.googleapis.com` | `gcp_inferred_agent` (agent, inferred) |
-| Service accounts those run as, and their project roles | `iam.googleapis.com`, `cloudresourcemanager.googleapis.com` | `gcp_service_account` (identity) |
+| Every service account of a project, with the roles bound on the project and on the folders and organization above it | `iam.googleapis.com`, `cloudresourcemanager.googleapis.com` | `gcp_service_account` (identity) |
+| Cloud Run services that are MCP servers | `run.googleapis.com` | `gcp_mcp_server` (tool) |
+| Tools a Conversational Agents agent declares | `dialogflow.googleapis.com` | `gcp_agent_tool` (tool) |
 | Model Armor floor setting and templates | `modelarmor.googleapis.com` | attribute `model_armor` of an agent |
 | Vertex AI data access audit log, last seven days | `logging.googleapis.com` | `last_invoked_at`, signal `invoke:vertex_ai_*` |
 
@@ -52,6 +54,28 @@ one strong signal, or weak signals of two different kinds.
 A service account that the audit log shows invoking a model, and that runs
 nothing listed, is itself listed as an inferred agent.
 
+A workload that runs as a service account of another project is related to
+that identity when the other project lies in the scope and lists the
+account; that project's page emits the identity.
+
+### MCP servers and tools
+
+A Cloud Run service is recorded as an MCP server, not as an agent, when
+Cloud Run's own `functionalType` says so, or when its image or command is an
+MCP server (the rule Kubernetes workloads are recognised by). It appears in
+the MCP inventory (`GET /mcp-servers`) under the registry identity
+`host:<host of its URL>`, where it can be approved or blocked.
+Authentication is `declared` while Cloud Run's IAM invoker check is on and
+`none` when it is switched off. No relationship says which agent uses a
+Cloud Run MCP server: Google's APIs do not state it, so the MCP posture
+findings, which are raised on the agents that use a server, are not raised
+for these.
+
+The tools of a Conversational Agents (Dialogflow CX) agent are listed with
+their names and a risk class read off the name. Vertex AI Agent Engine and
+Gemini Enterprise expose no list of an agent's tools: a reasoning engine's
+`classMethods` are its own entry points, not its tools.
+
 What is never recorded: tokens, keys, values of environment variables,
 request or response payloads of audit log entries, and the addresses of
 people (only service accounts are kept from an IAM policy or a log entry).
@@ -63,9 +87,12 @@ people (only service accounts are kept from an IAM policy or a log entry).
 | `agent_service_account_admin_role` | The service account an agent runs as holds an administrator-level role on its project: Owner, Editor, Security Admin, Service Account Admin, Project IAM Admin, Folder Admin or Organization Admin. A Cloud Run service or function without a service account of its own runs as the Compute Engine default service account, whose roles are checked | Same as `agent_role_administrator_access` |
 | `agent_model_armor_missing` | A reasoning engine runs in a project whose Model Armor floor setting does not cover Vertex AI and that has no Model Armor template in the engine's location. Raised only when Model Armor could be read, or its API is switched off | Same as `agent_guardrail_missing` |
 
-Only roles bound on the project itself are seen. A role inherited from a
-folder or the organization is not in a project's IAM policy and is not
-checked.
+Roles count wherever they are bound: on the project, or on a folder or the
+organization above it (their IAM policies are read up to the organization).
+An ancestor the service account may not read is the coverage line
+"Inherited IAM roles"; roles bound there are then not known. With a scope
+below the organization, grant `roles/iam.securityReviewer` on the
+organization as well to close it.
 
 ## Coverage
 

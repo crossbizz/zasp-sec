@@ -6997,7 +6997,7 @@ END $ws7_coverage_gaps$;
 --   * credential class of a collection: gcp_access_token;
 --   * the discovery finding channel (zasp_inventory_apply_findings) accepts
 --     source gcp, for the two checks the collector raises on an agent;
---   * ten identity rules and the catalog digest that includes them;
+--   * twelve identity rules and the catalog digest that includes them;
 --   * the coverage gaps of an integration name the Google APIs a collection
 --     could not read (gcp_service observations), beside the AWS ones.
 --
@@ -7118,37 +7118,41 @@ END $ws8_gcp_provider$;
 -- a Cloud Run service, a function or a service account is concluded to be an
 -- agent from signals (7000); a service account is an identity; the scope,
 -- the projects, the model endpoints, their deployed models and the per-API
--- coverage records are assets. The catalog is then 67 rows. The earlier
+-- coverage records are assets; a Cloud Run service that is an MCP server and a
+-- tool a Conversational Agents agent declares are tools. The catalog is then
+-- 69 rows. The earlier
 -- digests are the ones section WS7a names and the one it pins. A later
 -- section that adds rules pins its own digest; when the file runs again this
 -- section then has nothing left to do.
 DO $ws8_gcp_rule_catalog$
 DECLARE earlier CONSTANT text[]:=ARRAY['44820a38e96d80318165fc2333fd851cd932d2704d380a1199d569d1d0778f30','9397691244ac0b8befd2790fed3ca2e71f2114eba44001cc3d5634f86b6044ed','f67df9589cf0d41f4b2a98a5161353100e2ff3ed61cfc188c1447d2dd14c4192','2af0dce065caff0c7093dfecede207658bf1973cfcc53911bfae7faef33b1809','7121768829bd73b339a34812762ec5acb449497439e0650d6c6fb7a85bf5678b','cb8d8d45c753ad53654b44bbc1a6c4ed70fba671049b03047b26d1c12bad8169','23c473feff7a5fe2086ab4a283e2cf460b0d38c8b0657d73f3fccd9bab02963a'];
- current_value CONSTANT text:='2095cef95afd6c011a21593c022505c6ac608e38c12d0e66249fc70b06837be4';
+ current_value CONSTANT text:='07e9c7cceff0e1ebf14e24c082ad4b7fdf43b4d2d19a939d38b1eaa3cce172be';
  previous text;f regprocedure;d text;
 BEGIN
- IF (SELECT count(*) FROM public.zasp_inventory_identity_rules)>67
+ IF (SELECT count(*) FROM public.zasp_inventory_identity_rules)>69
   AND NOT COALESCE((SELECT value FROM public.zasp_schema_metadata WHERE key='typed_inventory_rule_catalog_digest')=ANY(earlier||current_value),false) THEN
   RETURN;
  END IF;
  INSERT INTO public.zasp_inventory_identity_rules(provider,source_kind,identity_namespace,product_kind,rule_version,priority,confidence_basis_points,freshness_seconds) VALUES
   ('gcp','gcp_agent_engine','gcp_agent_engine','agent',1,160,9500,86400),
+  ('gcp','gcp_agent_tool','gcp_agent_tool','tool',1,160,9500,86400),
   ('gcp','gcp_conversational_agent','gcp_conversational_agent','agent',1,160,9500,86400),
   ('gcp','gcp_deployed_model','gcp_deployed_model','asset',1,160,9500,86400),
   ('gcp','gcp_gemini_enterprise_agent','gcp_gemini_enterprise_agent','agent',1,160,9500,86400),
   ('gcp','gcp_inferred_agent','gcp_inferred_agent','agent',1,160,7000,86400),
+  ('gcp','gcp_mcp_server','gcp_mcp_server','tool',1,160,9000,86400),
   ('gcp','gcp_model_endpoint','gcp_model_endpoint','asset',1,160,9500,86400),
   ('gcp','gcp_project','gcp_project','asset',1,160,9500,86400),
   ('gcp','gcp_scope','gcp_scope','asset',1,160,9500,86400),
   ('gcp','gcp_service','gcp_service','asset',1,160,9500,86400),
   ('gcp','gcp_service_account','gcp_service_account','identity',1,160,9500,86400)
  ON CONFLICT(provider,source_kind) DO NOTHING;
- IF (SELECT count(*) FROM public.zasp_inventory_identity_rules)<>67
+ IF (SELECT count(*) FROM public.zasp_inventory_identity_rules)<>69
   OR (SELECT count(*) FROM public.zasp_inventory_identity_rules WHERE provider='gcp' AND rule_version=1 AND priority=160 AND freshness_seconds=86400 AND source_kind=identity_namespace
       AND (source_kind,product_kind,confidence_basis_points) IN(
-       ('gcp_agent_engine','agent',9500),('gcp_conversational_agent','agent',9500),('gcp_deployed_model','asset',9500),('gcp_gemini_enterprise_agent','agent',9500),
+       ('gcp_agent_engine','agent',9500),('gcp_agent_tool','tool',9500),('gcp_mcp_server','tool',9000),('gcp_conversational_agent','agent',9500),('gcp_deployed_model','asset',9500),('gcp_gemini_enterprise_agent','agent',9500),
        ('gcp_inferred_agent','agent',7000),('gcp_model_endpoint','asset',9500),('gcp_project','asset',9500),('gcp_scope','asset',9500),
-       ('gcp_service','asset',9500),('gcp_service_account','identity',9500)))<>10 THEN
+       ('gcp_service','asset',9500),('gcp_service_account','identity',9500)))<>12 THEN
   RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='gcp inventory rule catalog predecessor changed';
  END IF;
  ALTER TABLE public.zasp_inventory_cutover_state DROP CONSTRAINT IF EXISTS zasp_inventory_cutover_state_rule_catalog_digest_check;
@@ -7197,3 +7201,24 @@ BEGIN
   EXECUTE replace(d,anchor,gaps||anchor);
  END IF;
 END $ws8_gcp_coverage_gaps$;
+
+-- Cloud Run MCP servers in the MCP inventory.
+--
+-- The Google Cloud collector records a Cloud Run service that is an MCP
+-- server (Cloud Run's own functional type, or an MCP server image or
+-- command) as gcp_mcp_server. zasp_mcp_servers (section WS5b), the source of
+-- GET /mcp-servers, of the registry status and of the MCP posture findings,
+-- lists the server kinds by name; gcp_mcp_server joins them. Its registry
+-- identity is the host of the service's URL, which zasp_mcp_server_identity
+-- already derives from endpoint_host. Section WS5b replaces the function
+-- when the file runs again; this block then adds the kind again.
+DO $ws8_gcp_mcp_servers$
+DECLARE target CONSTANT regprocedure:='public.zasp_mcp_servers(text,text,text)'::regprocedure;
+ anchor CONSTANT text:=$v$'kubernetes_mcp_server','saas_mcp_server')$v$;
+ d text:=pg_get_functiondef(target);
+BEGIN
+ IF position('gcp_mcp_server' in d)=0 THEN
+  IF length(d)-length(replace(d,anchor,''))<>length(anchor) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='gcp mcp server inventory predecessor changed';END IF;
+  EXECUTE replace(d,anchor,$v$'kubernetes_mcp_server','saas_mcp_server','gcp_mcp_server')$v$);
+ END IF;
+END $ws8_gcp_mcp_servers$;

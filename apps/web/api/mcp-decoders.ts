@@ -36,8 +36,8 @@ function identity(value: unknown): asserts value is string { text(value, 3, 512)
 // says whether it is pinned; the counts are never below the bounded lists.
 export function decodeMCPServer(value: unknown): MCPServer {
   const record = exact(value, ["id", "name", "provider", "source_kind", "source", "transport", "endpoint_host", "command", "package", "package_pinned", "plain_http", "auth", "identity", "approval", "tools", "tool_count", "agents", "agent_count", "first_seen_at", "last_seen_at"]);
-  id(record.id); text(record.name, 1, 256); one(record.provider, ["aws", "github", "kubernetes", "saas"]);
-  one(record.source_kind, ["aws_agentcore_gateway", "aws_mcp_server", "github_mcp_server", "kubernetes_mcp_server", "saas_mcp_server"]);
+  id(record.id); text(record.name, 1, 256); one(record.provider, ["aws", "github", "kubernetes", "saas", "gcp"]);
+  one(record.source_kind, ["aws_agentcore_gateway", "aws_mcp_server", "github_mcp_server", "kubernetes_mcp_server", "saas_mcp_server", "gcp_mcp_server"]);
   one(record.source, ["agentcore_gateway", "egress", "gateway_target", "repository_config", "workload", "saas_api", "provider_api"]);
   if (record.transport !== null) one(record.transport, ["stdio", "http", "sse"]);
   if (record.endpoint_host !== null) text(record.endpoint_host, 1, 253);

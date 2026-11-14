@@ -149,6 +149,12 @@ type GCPCollectionAPI struct {
 	// holds only resource ids, and only ones a token of that scope read.
 	ancestryMutex sync.Mutex
 	ancestry      map[string]bool
+	// inherited remembers what one folder or organization answered to one
+	// token: its parent and the roles its IAM policy binds service accounts
+	// to. The key holds a digest of the token, so nothing read with one
+	// credential is ever served to another, and an entry lives ten minutes.
+	inheritedMutex sync.Mutex
+	inherited      map[string]gcpAncestor
 }
 
 var _ CollectionAPI = (*GCPCollectionAPI)(nil)
@@ -171,7 +177,7 @@ func NewGCPCollectionAPI(config CollectionAPIConfig) (*GCPCollectionAPI, error) 
 	if clock == nil {
 		clock = func() time.Time { return time.Now().UTC() }
 	}
-	return &GCPCollectionAPI{client: &http.Client{Transport: collection.EffectTransport{Next: roundTripper}, Timeout: config.Timeout, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}, timeout: config.Timeout, clock: clock, ancestry: map[string]bool{}}, nil
+	return &GCPCollectionAPI{client: &http.Client{Transport: collection.EffectTransport{Next: roundTripper}, Timeout: config.Timeout, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}, timeout: config.Timeout, clock: clock, ancestry: map[string]bool{}, inherited: map[string]gcpAncestor{}}, nil
 }
 
 // callOutcome is what one provider call said, beyond failing the page.
@@ -448,6 +454,9 @@ type gcpProject struct {
 	ID          string
 	Number      string
 	DisplayName string
+	// Parent is the project's direct parent (folders/<n> or
+	// organizations/<n>), "" for a project without one.
+	Parent string
 }
 
 func decodeGCPProject(raw json.RawMessage) (gcpProject, string, bool) {
@@ -468,7 +477,7 @@ func decodeGCPProject(raw json.RawMessage) (gcpProject, string, bool) {
 	if !validGCPText(project.DisplayName, 256) {
 		project.DisplayName = project.ProjectID
 	}
-	return gcpProject{ID: project.ProjectID, Number: number[1], DisplayName: project.DisplayName}, project.Parent, true
+	return gcpProject{ID: project.ProjectID, Number: number[1], DisplayName: project.DisplayName, Parent: project.Parent}, project.Parent, true
 }
 
 // nextProject finds the next project of the scope after the cursor. It

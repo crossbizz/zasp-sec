@@ -126,7 +126,17 @@ func gcpTestOrganization(t *testing.T, now time.Time) *fakeGoogle {
 		{"name":"projects/333","projectId":"other-org-proj","parent":"folders/900","state":"ACTIVE","displayName":"Elsewhere"},
 		{"name":"projects/222","projectId":"beta-locked","parent":"organizations/123456789012","state":"ACTIVE","displayName":"Beta"},
 		{"name":"projects/444","projectId":"going-away","parent":"organizations/123456789012","state":"DELETE_REQUESTED","displayName":"Gone"},
+		{"name":"projects/555","projectId":"gamma-shared","parent":"organizations/123456789012","state":"ACTIVE","displayName":"Shared"},
 		{"name":"projects/111","projectId":"alpha-prod","parent":"folders/700","state":"ACTIVE","displayName":"Alpha production"}]}`)
+	// The folder above alpha-prod makes the invoking service account a
+	// folder administrator; the organization's policy may not be read.
+	fake.ok(crm, "/v3/folders/700:getIamPolicy", `{"bindings":[{"role":"roles/resourcemanager.folderAdmin","members":["serviceAccount:batch-invoker@alpha-prod.iam.gserviceaccount.com","user:`+gcpTestPerson+`"]}]}`)
+	fake.denied(crm, "/v3/organizations/123456789012:getIamPolicy")
+	// gamma-shared holds a service account a workload of alpha-prod runs as.
+	const shared = "shared-runner@gamma-shared.iam.gserviceaccount.com"
+	fake.ok(crm, "/v3/projects/gamma-shared", `{"name":"projects/555","projectId":"gamma-shared","parent":"organizations/123456789012","state":"ACTIVE","displayName":"Shared"}`)
+	fake.ok(gcpIAMHost, "/v1/projects/gamma-shared/serviceAccounts", `{"accounts":[{"email":"`+shared+`"}]}`)
+	fake.ok(gcpIAMHost, "/v1/projects/gamma-shared/serviceAccounts/"+shared, `{"email":"`+shared+`"}`)
 	fake.ok(crm, "/v3/folders/700", `{"name":"folders/700","parent":"organizations/123456789012","state":"ACTIVE"}`)
 	fake.ok(crm, "/v3/folders/900", `{"name":"folders/900","parent":"organizations/999999999999","state":"ACTIVE"}`)
 
@@ -146,12 +156,18 @@ func gcpTestOrganization(t *testing.T, now time.Time) *fakeGoogle {
 	fake.ok("europe-west4-"+gcpAIPlatformHost, "/v1/projects/alpha-prod/locations/europe-west4/endpoints", `{}`)
 	fake.ok(gcpDialogflowHost, "/v3/projects/alpha-prod/locations", `{"locations":[{"locationId":"global"}]}`)
 	fake.ok(gcpDialogflowHost, "/v3/projects/alpha-prod/locations/global/agents", `{"agents":[{"name":"projects/alpha-prod/locations/global/agents/0a1b2c3d-0000-4000-8000-000000000001","displayName":"Order status"}]}`)
+	fake.ok(gcpDialogflowHost, "/v3/projects/alpha-prod/locations/global/agents/0a1b2c3d-0000-4000-8000-000000000001/tools", `{"tools":[
+		{"name":"projects/alpha-prod/locations/global/agents/0a1b2c3d-0000-4000-8000-000000000001/tools/t-1","displayName":"run_shell","description":"`+gcpTestSecretValue+`","openApiSpec":{"textSchema":"`+gcpTestSecretValue+`"}},
+		{"name":"projects/alpha-prod/locations/global/agents/0a1b2c3d-0000-4000-8000-000000000001/tools/t-2","displayName":"lookup order"}]}`)
 	engine := "/v1alpha/projects/alpha-prod/locations/global/collections/default_collection/engines"
 	fake.ok(gcpDiscoveryEngineHost, engine, `{"engines":[{"name":"projects/111/locations/global/collections/default_collection/engines/workspace-app","displayName":"Workspace"}]}`)
 	fake.ok(gcpDiscoveryEngineHost, engine+"/workspace-app/assistants/default_assistant/agents", `{"agents":[{"name":"projects/111/locations/global/collections/default_collection/engines/workspace-app/assistants/default_assistant/agents/9001","displayName":"Expense helper","state":"ENABLED"}]}`)
 	fake.ok(gcpRunHost, "/v1/projects/alpha-prod/locations", `{"locations":[{"locationId":"us-central1"}]}`)
 	fake.ok(gcpRunHost, "/v2/projects/alpha-prod/locations/us-central1/services", `{"services":[
 		{"name":"projects/alpha-prod/locations/us-central1/services/support-bot","ingress":"INGRESS_TRAFFIC_ALL","invokerIamDisabled":true,"template":{"containers":[{"image":"us-docker.pkg.dev/alpha-prod/apps/support-bot:1","env":[{"name":"ANTHROPIC_API_KEY","value":"`+gcpTestSecretValue+`"}]}]}},
+		{"name":"projects/alpha-prod/locations/us-central1/services/docs-mcp","functionalType":"FUNCTIONAL_TYPE_MCP_SERVER","uri":"https://docs-mcp-abc123-uc.a.run.app","ingress":"INGRESS_TRAFFIC_ALL","invokerIamDisabled":true,"template":{"containers":[{"image":"us-docker.pkg.dev/alpha-prod/apps/docs:1"}]}},
+		{"name":"projects/alpha-prod/locations/us-central1/services/repo-tools","uri":"https://repo-tools-abc123-uc.a.run.app","template":{"containers":[{"image":"ghcr.io/github/github-mcp-server:1","args":["--token","`+gcpTestSecretValue+`"]}]}},
+		{"name":"projects/alpha-prod/locations/us-central1/services/cross-bot","template":{"serviceAccount":"`+shared+`","containers":[{"image":"us-docker.pkg.dev/alpha-prod/apps/cross:1","env":[{"name":"OPENAI_API_KEY","value":"`+gcpTestSecretValue+`"}]}]}},
 		{"name":"projects/alpha-prod/locations/us-central1/services/plain-web","template":{"serviceAccount":"unused@alpha-prod.iam.gserviceaccount.com","containers":[{"image":"us-docker.pkg.dev/alpha-prod/apps/web:1","env":[{"name":"PORT","value":"8080"}]}]}},
 		{"name":"projects/alpha-prod/locations/us-central1/services/fn-backed","template":{"serviceAccount":"`+runner+`","containers":[{"image":"us-docker.pkg.dev/alpha-prod/gcf/fn:1","env":[{"name":"GEMINI_API_KEY","value":"`+gcpTestSecretValue+`"}]}]}}]}`)
 	fake.ok(gcpFunctionsHost, "/v2/projects/alpha-prod/locations/-/functions", `{"functions":[{"name":"projects/alpha-prod/locations/us-central1/functions/summarizer","state":"ACTIVE","environment":"GEN_2",
@@ -261,9 +277,10 @@ func TestGCPCollectionClientCompletesATypedSnapshot(t *testing.T) {
 		t.Fatalf("collection outcome = %T, %v", outcome, err)
 	}
 	snapshot := complete.Snapshot()
-	// scope, 2 projects, 3 service accounts, engine, endpoint, deployed
-	// model, 2 listed agents, 3 inferred agents, 10 services; 4 findings.
-	if !snapshot.TypedObservations() || snapshot.EntityCount() != 24 || snapshot.EvidenceCount() != 28 {
+	// scope, 3 projects, 5 service accounts, engine, endpoint, deployed
+	// model, 2 listed agents and 2 tools, 4 inferred agents, 2 MCP servers,
+	// 11 services; 5 findings.
+	if !snapshot.TypedObservations() || snapshot.EntityCount() != 33 || snapshot.EvidenceCount() != 38 {
 		t.Fatalf("collection: typed=%v entities=%d relationships=%d evidence=%d", snapshot.TypedObservations(), snapshot.EntityCount(), snapshot.RelationshipCount(), snapshot.EvidenceCount())
 	}
 	for key, object := range driver.objects {
@@ -370,7 +387,7 @@ func TestGCPCollectorNormalizesAgentsIdentitiesFindingsAndCoverage(t *testing.T)
 	for _, absent := range []string{
 		"gcp:projects/alpha-prod/locations/us-central1/services/plain-web",           // no signal
 		"gcp:projects/alpha-prod/locations/us-central1/services/fn-backed",           // listed as its function
-		"gcp:service_account:unused@alpha-prod.iam.gserviceaccount.com",              // nothing listed runs as it
+		"gcp:projects/alpha-prod/locations/us-central1/services/docs-mcp",            // an MCP server, not an agent
 		"gcp:projects/alpha-prod/invokers/unused@alpha-prod.iam.gserviceaccount.com", // ListModels is not an invocation
 		"gcp:project:other-org-proj", "gcp:project:going-away",
 	} {
@@ -381,6 +398,39 @@ func TestGCPCollectorNormalizesAgentsIdentitiesFindingsAndCoverage(t *testing.T)
 	account := entities["gcp:service_account:"+runner]
 	if account.Kind != "gcp_service_account" || account.Attributes["status"] != "ACTIVE" || account.Attributes["roles"] != "roles/aiplatform.user,roles/owner" || account.Attributes["admin_roles"] != "roles/owner" {
 		t.Fatalf("service account = %#v", account)
+	}
+	// Every service account the project lists is an identity; a role bound
+	// on the folder above the project is one of its roles.
+	if unused := entities["gcp:service_account:unused@alpha-prod.iam.gserviceaccount.com"]; unused.Kind != "gcp_service_account" || unused.Attributes["status"] != "ACTIVE" || unused.Attributes["roles"] != nil {
+		t.Fatalf("unused service account = %#v", unused)
+	}
+	if inherited := entities["gcp:service_account:batch-invoker@alpha-prod.iam.gserviceaccount.com"]; inherited.Attributes["roles"] != "roles/aiplatform.user,roles/resourcemanager.folderAdmin" || inherited.Attributes["admin_roles"] != "roles/resourcemanager.folderAdmin" {
+		t.Fatalf("service account with an inherited role = %#v", inherited)
+	}
+	// A service account of another project in scope is that project's
+	// identity, and the workload that runs as it refers to it.
+	shared := entities["gcp:service_account:shared-runner@gamma-shared.iam.gserviceaccount.com"]
+	cross := entities["gcp:projects/alpha-prod/locations/us-central1/services/cross-bot"]
+	crossLinked := false
+	for _, relationship := range relationships {
+		crossLinked = crossLinked || relationship["kind"] == "uses_identity" && relationship["from_entity_id"] == cross.ID && relationship["to_entity_id"] == shared.ID
+	}
+	if shared.Kind != "gcp_service_account" || shared.StableFields["project"] != "gamma-shared" || cross.Kind != "gcp_inferred_agent" || cross.Attributes["service_account"] != "shared-runner@gamma-shared.iam.gserviceaccount.com" || !crossLinked {
+		t.Fatalf("cross-project identity: account=%#v agent=%#v linked=%t", shared, cross, crossLinked)
+	}
+	// Cloud Run MCP servers: one by Cloud Run's own record and open to
+	// anyone, one by its image and behind the IAM invoker check.
+	declared := entities["gcp:projects/alpha-prod/locations/us-central1/services/docs-mcp:mcp_server"]
+	byImage := entities["gcp:projects/alpha-prod/locations/us-central1/services/repo-tools:mcp_server"]
+	if declared.Kind != "gcp_mcp_server" || declared.Attributes["auth"] != "none" || declared.Attributes["endpoint_host"] != "docs-mcp-abc123-uc.a.run.app" || declared.Attributes["source"] != "workload" || declared.Attributes["transport"] != "http" ||
+		byImage.Kind != "gcp_mcp_server" || byImage.Attributes["auth"] != "declared" || byImage.Attributes["endpoint_host"] != "repo-tools-abc123-uc.a.run.app" {
+		t.Fatalf("MCP servers: %#v / %#v", declared, byImage)
+	}
+	// The tools a Conversational Agents agent declares, classified by name.
+	shell := entities["gcp:projects/alpha-prod/locations/global/agents/0a1b2c3d-0000-4000-8000-000000000001/tools/t-1"]
+	lookup := entities["gcp:projects/alpha-prod/locations/global/agents/0a1b2c3d-0000-4000-8000-000000000001/tools/t-2"]
+	if shell.Kind != "gcp_agent_tool" || shell.DisplayName != "run_shell" || shell.Attributes["risk"] != "execute" || shell.StableFields["agent"] != "Order status" || lookup.Kind != "gcp_agent_tool" || lookup.DisplayName != "lookup order" {
+		t.Fatalf("agent tools: %#v / %#v", shell, lookup)
 	}
 	if model := entities["gcp:projects/alpha-prod/locations/us-central1/endpoints/5001/deployedModels/7001"]; model.Kind != "gcp_deployed_model" || model.Attributes["model_version"] != "3" || model.StableFields["endpoint"] != "Tuned model" {
 		t.Fatalf("deployed model = %#v", model)
@@ -401,7 +451,7 @@ func TestGCPCollectorNormalizesAgentsIdentitiesFindingsAndCoverage(t *testing.T)
 	}
 	want := map[string]string{
 		"resource-manager": "collected/<nil>", "agent-engine": "collected/<nil>", "vertex-endpoints": "collected/<nil>", "conversational-agents": "collected/<nil>", "cloud-run": "collected/<nil>",
-		"gemini-enterprise": "access_denied/1", "cloud-functions": "access_denied/1", "iam": "access_denied/1", "model-armor": "collected/<nil>", "audit-logs": "access_denied/1",
+		"gemini-enterprise": "access_denied/1", "cloud-functions": "access_denied/1", "iam": "access_denied/1", "model-armor": "collected/<nil>", "audit-logs": "access_denied/1", "iam-inherited": "access_denied/3",
 	}
 	if fmt.Sprint(statuses) != fmt.Sprint(want) {
 		t.Fatalf("coverage = %v, want %v", statuses, want)
@@ -420,7 +470,9 @@ func TestGCPCollectorNormalizesAgentsIdentitiesFindingsAndCoverage(t *testing.T)
 		}
 	}
 	sort.Strings(checks)
-	if strings.Join(checks, "|") != "agent_model_armor_missing Refund agent|agent_service_account_admin_role Refund agent|agent_service_account_admin_role summarizer|agent_service_account_admin_role support-bot" {
+	// The invoking service account is an administrator only through the
+	// folder above its project.
+	if strings.Join(checks, "|") != "agent_model_armor_missing Refund agent|agent_service_account_admin_role Refund agent|agent_service_account_admin_role batch-invoker@alpha-prod.iam.gserviceaccount.com|agent_service_account_admin_role summarizer|agent_service_account_admin_role support-bot" {
 		t.Fatalf("findings = %v", checks)
 	}
 	identityLinks := 0
@@ -429,8 +481,8 @@ func TestGCPCollectorNormalizesAgentsIdentitiesFindingsAndCoverage(t *testing.T)
 			identityLinks++
 		}
 	}
-	// engine, support-bot, summarizer, the invoker itself, and the deployed model.
-	if identityLinks != 5 {
+	// engine, support-bot, summarizer, cross-bot, the invoker itself, and the deployed model.
+	if identityLinks != 6 {
 		t.Fatalf("uses_identity relationships = %d", identityLinks)
 	}
 }
@@ -445,7 +497,7 @@ func TestGCPCollectorReadsASingleProjectScope(t *testing.T) {
 		t.Fatal(err)
 	}
 	entities, _, findings := collectGCPPages(t, api, collection.SubjectBinding{Kind: "gcp_scope", ID: "projects/solo-project"})
-	if project := entities["gcp:project:solo-project"]; project.StableFields["project_number"] != "555" || len(entities) != 12 || len(findings) != 0 || fake.called(gcpResourceManagerHost, "/v3/projects:search") != 0 {
+	if project := entities["gcp:project:solo-project"]; project.StableFields["project_number"] != "555" || len(entities) != 13 || len(findings) != 0 || fake.called(gcpResourceManagerHost, "/v3/projects:search") != 0 {
 		t.Fatalf("entities = %d, findings = %d, project = %#v", len(entities), len(findings), project)
 	}
 }

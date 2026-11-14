@@ -280,6 +280,7 @@ describe("production integration discovery workflows", () => {
       { service: "audit-logs", name: "Cloud Audit Logs (Vertex AI data access)", status: "access_denied" },
       { service: "cloud-run", name: "Cloud Run", status: "unavailable" },
       { service: "iam", name: "Service accounts and IAM policy", status: "access_denied" },
+      { service: "iam-inherited", name: "Inherited IAM roles (folders and organization)", status: "access_denied" },
     ] };
     const status: IntegrationSetupStatus = { ...setupStatus, connector_key: "gcp", authorization: { state: "verified", scope_kind: "gcp_scope", scope_label: "organizations/123456789012", repository_selection: null, permissions: [] } };
     renderSurface(discoveryClient({ catalog: gcpManifest, integration: gcp, freshness: gapped, setupStatus: status }));
@@ -293,6 +294,7 @@ describe("production integration discovery workflows", () => {
       "Cloud Audit Logs (Vertex AI data access): at least one project refused the read-only service account. Grant it roles/logging.privateLogViewer on the organization, folder or project.",
       "Cloud Run: the API is switched off in every project that was read, so there was nothing to list there.",
       "Service accounts and IAM policy: at least one project refused the read-only service account. Grant it roles/iam.securityReviewer on the organization, folder or project.",
+      "Inherited IAM roles (folders and organization): the IAM policy of a folder or of the organization above at least one project could not be read, so roles a service account holds through inheritance are not checked. Grant the read-only service account roles/iam.securityReviewer on the organization.",
     ]);
     expect(await within(dialog).findByText("organizations/123456789012")).toBeVisible();
     expect(dialog).toHaveTextContent("Google Cloud scope");

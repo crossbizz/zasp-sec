@@ -4104,14 +4104,14 @@ export type components = {
             readonly package_pinned: boolean | null;
             readonly plain_http: boolean;
             /** @enum {string} */
-            readonly provider: "aws" | "github" | "kubernetes" | "saas";
+            readonly provider: "aws" | "github" | "kubernetes" | "saas" | "gcp";
             /**
              * @description How the server was found.
              * @enum {string}
              */
             readonly source: "agentcore_gateway" | "egress" | "gateway_target" | "repository_config" | "workload" | "saas_api" | "provider_api";
             /** @enum {string} */
-            readonly source_kind: "aws_agentcore_gateway" | "aws_mcp_server" | "github_mcp_server" | "kubernetes_mcp_server" | "saas_mcp_server";
+            readonly source_kind: "aws_agentcore_gateway" | "aws_mcp_server" | "github_mcp_server" | "kubernetes_mcp_server" | "saas_mcp_server" | "gcp_mcp_server";
             readonly tool_count: number;
             readonly tools: readonly components["schemas"]["MCPTool"][];
             /** @enum {string|null} */

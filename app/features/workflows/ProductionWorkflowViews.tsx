@@ -863,12 +863,14 @@ const gcpCoverageGapRoles: Readonly<Record<string, string>> = {
   iam: "roles/iam.securityReviewer",
   "model-armor": "roles/modelarmor.viewer",
   "audit-logs": "roles/logging.privateLogViewer",
+  "iam-inherited": "roles/iam.securityReviewer",
 };
 
 // Why agents of one AI service are missing, and what to do about it.
 function coverageGapText(gap: IntegrationFreshness["coverage_gaps"][number]): string {
   if (Object.hasOwn(gcpCoverageGapRoles, gap.service)) {
     if (gap.status === "unavailable") return `${gap.name}: the API is switched off in every project that was read, so there was nothing to list there.`;
+    if (gap.service === "iam-inherited") return `${gap.name}: the IAM policy of a folder or of the organization above at least one project could not be read, so roles a service account holds through inheritance are not checked. Grant the read-only service account ${gcpCoverageGapRoles[gap.service]} on the organization.`;
     return `${gap.name}: at least one project refused the read-only service account. Grant it ${gcpCoverageGapRoles[gap.service]} on the organization, folder or project.`;
   }
   if (gap.service === "mcp-links") return `${gap.name}: the discovery credential may not list Services, so no agent is related to the MCP servers that run in the cluster. Allow list on services for the discovery identity.`;

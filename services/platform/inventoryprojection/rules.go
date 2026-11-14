@@ -97,6 +97,8 @@ var ruleCatalog = []Rule{
 	{Provider: "gcp", SourceKind: "gcp_scope", Namespace: "gcp_scope", ProductKind: KindAsset, Version: 1, Priority: 160, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
 	{Provider: "gcp", SourceKind: "gcp_service", Namespace: "gcp_service", ProductKind: KindAsset, Version: 1, Priority: 160, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
 	{Provider: "gcp", SourceKind: "gcp_service_account", Namespace: "gcp_service_account", ProductKind: KindIdentity, Version: 1, Priority: 160, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
+	{Provider: "gcp", SourceKind: "gcp_agent_tool", Namespace: "gcp_agent_tool", ProductKind: KindTool, Version: 1, Priority: 160, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
+	{Provider: "gcp", SourceKind: "gcp_mcp_server", Namespace: "gcp_mcp_server", ProductKind: KindTool, Version: 1, Priority: 160, ConfidenceBasisPoints: 9000, Freshness: 24 * time.Hour},
 }
 
 func RuleCatalog() []Rule {

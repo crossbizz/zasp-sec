@@ -873,9 +873,16 @@ func providerEntitySchema(provider collection.Provider, kind string) (providerEn
 			return providerEntityDefinition{stable: object, attributes: state}, true
 		case "gcp_deployed_model":
 			return providerEntityDefinition{stable: mergeInventorySchemas(object, requiredStringFields("endpoint")), attributes: mergeInventorySchemas(state, optionalStringFields("model", "model_version", "service_account"))}, true
+		case "gcp_mcp_server":
+			// A Cloud Run service that is an MCP server.
+			return providerEntityDefinition{stable: object, attributes: mergeInventorySchemas(state, mcpServer)}, true
+		case "gcp_agent_tool":
+			// A tool a Conversational Agents agent declares.
+			return providerEntityDefinition{stable: mergeInventorySchemas(object, requiredStringFields("agent")), attributes: mcpTool}, true
 		case "gcp_service_account":
-			// roles are the roles the project's IAM policy binds the account
-			// to, comma-separated; admin_roles the administrator-level ones.
+			// roles are the roles the IAM policies of the project and of the
+			// folders and organization above it bind the account to,
+			// comma-separated; admin_roles the administrator-level ones.
 			return providerEntityDefinition{stable: requiredStringFields("name", "object_type", "project", "scope"), attributes: mergeInventorySchemas(state, optionalStringFields("admin_roles", "roles"))}, true
 		}
 	}
@@ -960,6 +967,7 @@ func validProviderRelationshipEndpointKinds(provider collection.Provider, raw js
 			"gcp_scope|contains|gcp_project", "gcp_scope|contains|gcp_service",
 			"gcp_project|contains|gcp_agent_engine", "gcp_project|contains|gcp_conversational_agent", "gcp_project|contains|gcp_gemini_enterprise_agent", "gcp_project|contains|gcp_inferred_agent",
 			"gcp_project|contains|gcp_model_endpoint", "gcp_project|contains|gcp_service_account", "gcp_model_endpoint|contains|gcp_deployed_model",
+			"gcp_project|contains|gcp_mcp_server", "gcp_conversational_agent|contains|gcp_agent_tool",
 			"gcp_agent_engine|uses_identity|gcp_service_account", "gcp_inferred_agent|uses_identity|gcp_service_account", "gcp_deployed_model|uses_identity|gcp_service_account",
 		),
 	}

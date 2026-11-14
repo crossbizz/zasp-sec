@@ -112,6 +112,8 @@ var allowedAttributesByKind = map[string]map[string]struct{}{
 	"salesforce_agent":                attributeSet("name", "object_type", "org", "status"),
 	"salesforce_agent_tool":           attributeSet("name", "object_type", "org", "status"),
 	"salesforce_org":                  attributeSet("name", "org"),
+	"gcp_agent_tool":                  attributeSet("agent", "location", "name", "object_type", "project", "scope"),
+	"gcp_mcp_server":                  attributeSet("location", "name", "object_type", "project", "scope", "status"),
 	"gcp_agent_engine":                attributeSet("location", "name", "object_type", "project", "scope", "status"),
 	"gcp_conversational_agent":        attributeSet("location", "name", "object_type", "project", "scope", "status"),
 	"gcp_deployed_model":              attributeSet("endpoint", "location", "name", "object_type", "project", "scope", "status"),

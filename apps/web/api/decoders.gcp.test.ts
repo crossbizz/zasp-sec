@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { decodeConnectorManifest, decodeIntegration, decodeIntegrationFreshness, decodeIntegrationSetupStatus, decodeInventoryPage } from "./decoders";
+import { decodeMCPServer } from "./mcp-decoders";
 
 const integrationID = "pid_20000001-0000-4000-8000-000000000001";
 const ids = { entity: "pid_10000001-0000-4000-8000-000000000001", evidence: "pid_20000001-0000-4000-8000-000000000001" };
@@ -87,6 +88,16 @@ describe("Google Cloud provider decoders", () => {
     const project = { ...summary, name: "Alpha production", kind: "asset", source_kind: "gcp_project", discovery: { method: "provider_api", platform: "gcp_project", signals: [] }, management_state: "not_applicable", activity_state: "not_applicable" };
     for (const item of [summary, inferred, project]) expect(page(item).items[0]).toEqual(item);
     for (const provider of ["google", "azure", "GCP", "vertex"]) expect(() => page({ ...summary, provider })).toThrow();
+  });
+
+  it("accepts a Cloud Run MCP server in the MCP inventory", () => {
+    const server = {
+      id: ids.entity, name: "docs-mcp", provider: "gcp", source_kind: "gcp_mcp_server", source: "workload", transport: "http", endpoint_host: "docs-mcp-abc123-uc.a.run.app", command: null, package: null, package_pinned: null, plain_http: false,
+      auth: "none", identity: "host:docs-mcp-abc123-uc.a.run.app", approval: "unapproved", tools: [], tool_count: 0, agents: [], agent_count: 0, first_seen_at: "2026-11-14T01:00:00Z", last_seen_at: "2026-11-14T02:00:00Z",
+    };
+    expect(decodeMCPServer(server)).toEqual(server);
+    expect(() => decodeMCPServer({ ...server, provider: "azure" })).toThrow();
+    expect(() => decodeMCPServer({ ...server, source_kind: "gcp_agent_tool" })).toThrow();
   });
 
   it("accepts the Google APIs a collection could not read as coverage gaps", () => {
