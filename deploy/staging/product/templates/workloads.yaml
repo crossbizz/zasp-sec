@@ -120,6 +120,13 @@ spec:
             - { name: ZASP_GITHUB_PRIVATE_KEY_REFERENCE, value: {{ required "connectors.githubPrivateKeyReference is required" $root.Values.connectors.githubPrivateKeyReference | quote }} }
             - { name: ZASP_OKTA_CLIENT_ID, value: {{ required "connectors.oktaClientID is required" $root.Values.connectors.oktaClientID | quote }} }
             - { name: ZASP_OKTA_CLIENT_SECRET_REFERENCE, value: {{ required "connectors.oktaClientSecretReference is required" $root.Values.connectors.oktaClientSecretReference | quote }} }
+            {{- /* The API offers an optional provider only where the discovery worker collects it. */}}
+            {{- with $root.Values.discovery.microsoftCollectorVersion }}
+            - { name: ZASP_DISCOVERY_MICROSOFT_COLLECTOR_VERSION, value: {{ . | quote }} }
+            {{- end }}
+            {{- with $root.Values.discovery.salesforceCollectorVersion }}
+            - { name: ZASP_DISCOVERY_SALESFORCE_COLLECTOR_VERSION, value: {{ . | quote }} }
+            {{- end }}
             - { name: ZASP_NANGO_BASE_URL, value: "http://nango.{{ $root.Release.Namespace }}.svc.cluster.local:3003" }
             - { name: ZASP_NANGO_SERVICE_SECRET_REFERENCE, value: "ref:nango/service-key-0001" }
             - { name: ZASP_NANGO_ENVIRONMENT, value: "prod" }
@@ -546,6 +553,13 @@ spec:
             - { name: ZASP_DISCOVERY_KUBERNETES_COLLECTOR_VERSION, value: {{ required "discovery.kubernetesCollectorVersion is required" .Values.discovery.kubernetesCollectorVersion | quote }} }
             - { name: ZASP_DISCOVERY_GITHUB_COLLECTOR_VERSION, value: {{ required "discovery.githubCollectorVersion is required" .Values.discovery.githubCollectorVersion | quote }} }
             - { name: ZASP_DISCOVERY_OKTA_COLLECTOR_VERSION, value: {{ required "discovery.oktaCollectorVersion is required" .Values.discovery.oktaCollectorVersion | quote }} }
+            {{- /* Optional providers: unset leaves the collector unregistered. */}}
+            {{- with .Values.discovery.microsoftCollectorVersion }}
+            - { name: ZASP_DISCOVERY_MICROSOFT_COLLECTOR_VERSION, value: {{ . | quote }} }
+            {{- end }}
+            {{- with .Values.discovery.salesforceCollectorVersion }}
+            - { name: ZASP_DISCOVERY_SALESFORCE_COLLECTOR_VERSION, value: {{ . | quote }} }
+            {{- end }}
             - { name: ZASP_DISCOVERY_PARSER_VERSION, value: {{ required "discovery.parserVersion is required" .Values.discovery.parserVersion | quote }} }
             - { name: ZASP_DISCOVERY_TOOL_VERSION, value: {{ required "discovery.toolVersion is required" .Values.discovery.toolVersion | quote }} }
             - { name: ZASP_KUBERNETES_EGRESS_CIDRS, value: {{ join "," (required "network.connectorEgressCIDRs.kubernetes is required" .Values.network.connectorEgressCIDRs.kubernetes) | quote }} }

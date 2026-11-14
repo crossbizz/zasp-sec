@@ -40,9 +40,14 @@ func TestAWSInventoryCallerResumesOnlyTheSameRunAndStillVerifiesTheCredential(t 
 	t.Parallel()
 	now := time.Date(2026, 8, 20, 12, 0, 0, 0, time.UTC)
 	clock := func() time.Time { return now }
-	var identityCalls, iamBuilds, ec2Builds atomic.Int64
+	var identityCalls, iamBuilds, ec2Builds, agentBuilds atomic.Int64
 	account := "123456789012"
 	caller, err := newDiscoveryAWSCollectionInventoryCaller(discoveryAWSInventoryFactory{
+		BedrockAgent: func(region string, credentials aws.Credentials) (discoveryAWSBedrockAgentAPI, error) {
+			agentBuilds.Add(1)
+			return emptyDiscoveryBedrockAgents(region, credentials)
+		},
+		AgentCore: emptyDiscoveryAgentCore, Lambda: emptyDiscoveryLambda,
 		Identity: func(string, aws.Credentials) (discoveryCallerIdentityAPI, error) {
 			identityCalls.Add(1)
 			return &discoveryCallerIdentityStub{output: &sts.GetCallerIdentityOutput{Account: aws.String(account), Arn: aws.String("arn:aws:sts::" + account + ":assumed-role/zasp/session")}}, nil
@@ -71,6 +76,7 @@ func TestAWSInventoryCallerResumesOnlyTheSameRunAndStillVerifiesTheCredential(t 
 	identityCalls.Store(0)
 	iamBuilds.Store(0)
 	ec2Builds.Store(0)
+	agentBuilds.Store(0)
 	if _, found, err := caller.ResumeCollectionInventory(context.Background(), first, binding); err != nil || found || identityCalls.Load() != 0 {
 		t.Fatalf("resume before keep: found=%v err=%v identity calls=%d", found, err, identityCalls.Load())
 	}
@@ -78,17 +84,19 @@ func TestAWSInventoryCallerResumesOnlyTheSameRunAndStillVerifiesTheCredential(t 
 
 	later := mustDiscoveryAWSCredentialEnvelope(t, now.Add(40*time.Minute))
 	resumed, found, err := caller.ResumeCollectionInventory(context.Background(), later, binding)
-	if err != nil || !found || identityCalls.Load() != 1 || iamBuilds.Load() != 0 || ec2Builds.Load() != 0 {
+	if err != nil || !found || identityCalls.Load() != 1 || iamBuilds.Load() != 0 || ec2Builds.Load() != 0 || agentBuilds.Load() != 0 {
 		t.Fatalf("resume: found=%v err=%v identity=%d iam=%d ec2=%d", found, err, identityCalls.Load(), iamBuilds.Load(), ec2Builds.Load())
 	}
 	if !bytes.Equal(resumed.CartographySource, inventory.CartographySource) || !bytes.Equal(resumed.ProwlerSource, inventory.ProwlerSource) || resumed.CartographyDigest != inventory.CartographyDigest || resumed.ProwlerDigest != inventory.ProwlerDigest ||
+		len(inventory.AgentSource) == 0 || !bytes.Equal(resumed.AgentSource, inventory.AgentSource) || resumed.AgentDigest != inventory.AgentDigest ||
 		resumed.Identity != inventory.Identity || resumed.CredentialExpiresAt != now.Add(40*time.Minute) {
 		t.Fatalf("resumed inventory = %#v", resumed)
 	}
 	// The held bytes are not shared with what a page is handed.
 	resumed.ProwlerSource[0] ^= 0xff
+	resumed.AgentSource[0] ^= 0xff
 	again, found, err := caller.ResumeCollectionInventory(context.Background(), later, binding)
-	if err != nil || !found || !bytes.Equal(again.ProwlerSource, inventory.ProwlerSource) {
+	if err != nil || !found || !bytes.Equal(again.ProwlerSource, inventory.ProwlerSource) || !bytes.Equal(again.AgentSource, inventory.AgentSource) {
 		t.Fatalf("held inventory was mutated through a page: found=%v err=%v", found, err)
 	}
 
@@ -128,7 +136,7 @@ func TestAWSInventoryRetentionIsBounded(t *testing.T) {
 	t.Parallel()
 	now := time.Date(2026, 8, 20, 12, 0, 0, 0, time.UTC)
 	retention := newDiscoveryAWSInventoryRetention(func() time.Time { return now })
-	inventory := awsdiscovery.CollectionInventory{Identity: awsdiscovery.Identity{AccountID: "123456789012"}, CartographySource: []byte(`{}`), ProwlerSource: []byte(`{}`)}
+	inventory := awsdiscovery.CollectionInventory{Identity: awsdiscovery.Identity{AccountID: "123456789012"}, CartographySource: []byte(`{}`), ProwlerSource: []byte(`{}`), AgentSource: []byte(`{}`)}
 	base := discoveryAWSInventoryTestBinding(t, "pid_61000006-0000-4000-8000-000000000006")
 	for index := 0; index < discoveryAWSInventoryRetentionEntries+4; index++ {
 		binding := base

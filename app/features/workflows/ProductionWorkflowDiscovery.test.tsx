@@ -15,7 +15,7 @@ const manifest = { key: "github", provider: "GitHub", category: "source", descri
 const sync = { id: syncID, integration_id: integrationID, trigger_kind: "manual", status: "succeeded", attempt: 1, requested_at: "2026-08-19T00:00:00Z", started_at: "2026-08-19T00:00:01Z", completed_at: "2026-08-19T00:00:02Z", discovered_count: 10, changed_count: 3, removed_count: 1, snapshot_id: snapshotID, last_error_code: null, retry_at: null };
 const queued = { ...sync, status: "queued", attempt: 0, started_at: null, completed_at: null, discovered_count: 0, changed_count: 0, removed_count: 0, snapshot_id: null };
 const schedule = { integration_id: integrationID, cadence_seconds: 3600, state: "enabled", time_zone: "UTC", next_run_at: "2026-08-19T01:00:00Z", version: 1, created_at: "2026-08-19T00:00:00Z", updated_at: "2026-08-19T00:00:01Z" };
-const freshness = { integration_id: integrationID, version: 7, last_good: { snapshot_id: snapshotID, collected_at: "2026-08-19T00:00:02Z", discovered_count: 10, changed_count: 3, removed_count: 1 }, latest_sync: sync, projections: { risk: { state: "current", snapshot_id: snapshotID, completed_at: "2026-08-19T00:00:03Z", last_error_code: null }, graph: { state: "pending", snapshot_id: snapshotID, completed_at: null, last_error_code: null }, search: { state: "degraded", snapshot_id: snapshotID, completed_at: "2026-08-19T00:00:03Z", last_error_code: "terminal" } }, updated_at: "2026-08-19T00:00:04Z" };
+const freshness = { integration_id: integrationID, version: 7, last_good: { snapshot_id: snapshotID, collected_at: "2026-08-19T00:00:02Z", discovered_count: 10, changed_count: 3, removed_count: 1 }, latest_sync: sync, projections: { risk: { state: "current", snapshot_id: snapshotID, completed_at: "2026-08-19T00:00:03Z", last_error_code: null }, graph: { state: "pending", snapshot_id: snapshotID, completed_at: null, last_error_code: null }, search: { state: "degraded", snapshot_id: snapshotID, completed_at: "2026-08-19T00:00:03Z", last_error_code: "terminal" } }, updated_at: "2026-08-19T00:00:04Z", coverage_gaps: [] as { service: string; name: string; status: "access_denied" | "unavailable" }[] };
 const setupStatus: IntegrationSetupStatus = { integration_id: integrationID, connector_key: "github", authorization: { state: "verified", scope_kind: "github_organization", scope_label: "acme", repository_selection: "selected", permissions: ["actions:read", "contents:read", "metadata:read"] }, runtime_coverage: { state: "not_applicable", reason: "not_applicable", sensor_count: 0, healthy_sensor_count: 0 }, updated_at: "2026-08-19T00:00:04Z" };
 const receiptHeaders = { ETag: '"1"', "Cache-Control": "no-store", "X-Audit-ID": "pid_30000001-0000-4000-8000-000000000001", "X-Mutation-Receipt-ID": "pid_30000002-0000-4000-8000-000000000002" };
 
@@ -28,6 +28,9 @@ describe("production integration discovery workflows", () => {
 
     expect(await within(dialog).findByText("Risk projection: current")).toBeVisible();
     expect(within(dialog).getByText("Graph projection: pending")).toBeVisible();
+    // Every service was read: the coverage list is not rendered at all.
+    expect(within(dialog).queryByRole("heading", { name: "Agent discovery coverage" })).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole("list", { name: "Agent discovery coverage" })).not.toBeInTheDocument();
     expect(within(dialog).getByText("Search projection: degraded")).toBeVisible();
     expect(within(dialog).getByText("Every 3600 seconds · UTC")).toBeVisible();
     expect(within(dialog).getByRole("button", { name: "Open succeeded sync" })).toBeVisible();
@@ -212,6 +215,43 @@ describe("production integration discovery workflows", () => {
     await user.click(screen.getByRole("button", { name: "Delete automatic sync" }));
     expect(await screen.findByRole("status")).toHaveTextContent("Automatic sync schedule deleted");
     await waitFor(() => expect(screen.queryByText(/Every 7200 seconds/)).not.toBeInTheDocument());
+  });
+
+  it("names the AI services whose agents an AWS collection could not list and what to add to the read role", async () => {
+    const user = userEvent.setup();
+    const aws: Integration = { ...integration, connector_key: "aws", name: "Production AWS", configuration: { role_arn: "arn:aws:iam::123456789012:role/zasp-discovery", external_id_reference: "ref:aws/external-id/customer-0001", region: "us-east-1" } };
+    const awsManifest = {
+      ...manifest, key: "aws", provider: "Amazon Web Services", data_types: ["identity", "policy", "resource"], actions: ["inventory_read", "posture_read"], auth_mode: "aws_assume_role",
+      setup_schema: [
+        { key: "role_arn", label: "Read role ARN", type: "string", required: true, description: "Customer read role" },
+        { key: "external_id_reference", label: "External ID", type: "secret_reference", required: true, description: "Opaque trust reference" },
+        { key: "region", label: "Home region", type: "string", required: true, description: "Inventory region" },
+      ],
+      access_guidance: "Grant the documented read-only policy to one external-ID-bound role.", test_semantics: "Assume the role and verify the returned account identity.",
+    };
+    const base = freshness as unknown as IntegrationFreshness;
+    const gapped: IntegrationFreshness = { ...base, integration_id: aws.id, latest_sync: base.latest_sync && { ...base.latest_sync, integration_id: aws.id }, coverage_gaps: [
+      { service: "bedrock-agent", name: "Amazon Bedrock Agents", status: "access_denied" },
+      { service: "bedrock-agentcore", name: "Amazon Bedrock AgentCore", status: "access_denied" },
+      { service: "comprehend", name: "Amazon Comprehend", status: "access_denied" },
+      { service: "lambda", name: "AWS Lambda", status: "access_denied" },
+      { service: "runtime-observations", name: "Runtime agent discovery", status: "access_denied" },
+      { service: "sagemaker", name: "Amazon SageMaker", status: "unavailable" },
+    ] };
+    renderSurface(discoveryClient({ catalog: awsManifest, integration: aws, freshness: gapped }));
+
+    await user.click(await screen.findByRole("button", { name: "Open Production AWS" }));
+    const dialog = screen.getByRole("dialog", { name: "Production AWS" });
+    const section = within(dialog).getByRole("region", { name: "Automatic discovery" });
+    expect(await within(section).findByRole("heading", { name: "Agent discovery coverage" })).toBeVisible();
+    expect(within(within(section).getByRole("list", { name: "Agent discovery coverage" })).getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+      "Amazon Bedrock Agents: permission missing. Add bedrock:ListAgents, bedrock:GetAgent to the read role.",
+      "Amazon Bedrock AgentCore: permission missing. Add bedrock-agentcore:ListAgentRuntimes, bedrock-agentcore:GetAgentRuntime, bedrock-agentcore:ListGateways to the read role.",
+      "Amazon Comprehend: permission missing. Add this service's list and read actions to the read role.",
+      "AWS Lambda: permission missing. Add lambda:ListFunctions to the read role.",
+      "Runtime agent discovery: the discovery credential may not list ConfigMaps, so what the node sensor saw workloads call at run time is not counted. Allow list on configmaps for the discovery identity.",
+      "Amazon SageMaker: not offered in this account's regions.",
+    ]);
   });
 
   it("keeps denied AWS coverage incomplete and gives exact read-role remediation", async () => {

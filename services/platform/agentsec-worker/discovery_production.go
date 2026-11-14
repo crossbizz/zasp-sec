@@ -228,13 +228,14 @@ type firstPartyCollectionFactory struct {
 }
 
 func newFirstPartyCollectionFactory(registrations []firstPartyProviderClientRegistration) (collection.CollectorFactory, error) {
-	if len(registrations) != 4 {
+	if !validFirstPartyRegistrationCount(len(registrations)) {
 		return nil, errWorkerExecution
 	}
 	copyOfRegistrations := append([]firstPartyProviderClientRegistration(nil), registrations...)
 	expectedClasses := map[collection.Provider]collection.CredentialClass{
 		collection.ProviderAWS: collection.CredentialAWSAssumeRole, collection.ProviderKubernetes: collection.CredentialKubernetesCluster,
 		collection.ProviderGitHub: collection.CredentialGitHubInstallation, collection.ProviderOkta: collection.CredentialOktaRefresh,
+		collection.ProviderMicrosoft: collection.CredentialMicrosoftClient, collection.ProviderSalesforce: collection.CredentialSalesforceClient,
 	}
 	seen := make(map[collection.Provider]struct{}, len(copyOfRegistrations))
 	for _, registration := range copyOfRegistrations {
@@ -245,7 +246,24 @@ func newFirstPartyCollectionFactory(registrations []firstPartyProviderClientRegi
 		}
 		seen[registration.Provider] = struct{}{}
 	}
+	// No duplicate was admitted, so the count is exact only when the four
+	// required providers are all present and the rest are optional ones.
+	for _, required := range firstPartyRequiredProviders {
+		if _, present := seen[required]; !present {
+			return nil, errWorkerExecution
+		}
+	}
 	return &firstPartyCollectionFactory{registrations: copyOfRegistrations}, nil
+}
+
+// firstPartyRequiredProviders are registered in every deployment. Microsoft
+// and Salesforce are registered only where their collector version is set.
+var firstPartyRequiredProviders = []collection.Provider{collection.ProviderAWS, collection.ProviderKubernetes, collection.ProviderGitHub, collection.ProviderOkta}
+
+const firstPartyOptionalProviderCount = 2
+
+func validFirstPartyRegistrationCount(count int) bool {
+	return count >= len(firstPartyRequiredProviders) && count <= len(firstPartyRequiredProviders)+firstPartyOptionalProviderCount
 }
 
 func (factory *firstPartyCollectionFactory) BuildCollectionCollector(resolver collection.WorkerCredentialResolver) (collection.Collector, error) {
@@ -257,7 +275,7 @@ func (factory *firstPartyCollectionFactory) BuildCollectionCollectorWithResume(r
 }
 
 func (factory *firstPartyCollectionFactory) buildCollectionCollector(resolver collection.WorkerCredentialResolver, seed *collection.ResumeSeed) (collection.Collector, error) {
-	if factory == nil || nilWorkerDependency(resolver) || len(factory.registrations) != 4 {
+	if factory == nil || nilWorkerDependency(resolver) || !validFirstPartyRegistrationCount(len(factory.registrations)) {
 		return nil, collection.ErrContract
 	}
 	registrations := make([]collection.Registration, 0, len(factory.registrations))

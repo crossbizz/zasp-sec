@@ -27,7 +27,7 @@ type IntegrationMutationIntent =
   | { kind: "create"; value: IntegrationInput }
   | { kind: "update"; id: string; version: string; value: IntegrationUpdateInput }
   | { kind: "authorize-oauth"; id: string; connectorKey: string }
-  | { kind: "authorize-reference"; id: string; version: string; connectorKey: "aws" | "kubernetes" }
+  | { kind: "authorize-reference"; id: string; version: string; connectorKey: ReferenceConnectorKey }
   | { kind: "sync"; id: string; version: string }
   | { kind: "webhook-test"; id: string; version: string }
   | { kind: "put-schedule"; id: string; version: string; value: IntegrationScheduleInput }
@@ -215,7 +215,8 @@ export function ProductionIntegrationsView({ canWrite, navigateAuthorization = d
   };
   const runMutation = (operation: () => Promise<IntegrationMutationResult>) => void run(async () => { applyMutation(await operation()); });
   const choose = (value: ConnectorManifest) => { setManifest(value); setName(value.provider); setConfiguration(Object.fromEntries(value.setup_schema.map((field) => [field.key, ""]))); };
-  const create = () => manifest && runMutation(() => mutation.execute({ kind: "create", value: { connector_key: manifest.key, name, configuration } }, async (intent, attempt) => { if (intent.kind !== "create") throw new TypeError("Invalid retained integration intent"); return { kind: "created", receipt: await api.createIntegration(intent.value, attempt) }; }));
+  // An optional setup field left empty is not part of the configuration.
+  const create = () => manifest && runMutation(() => mutation.execute({ kind: "create", value: { connector_key: manifest.key, name, configuration: withoutEmptyOptionalFields(manifest, configuration) } }, async (intent, attempt) => { if (intent.kind !== "create") throw new TypeError("Invalid retained integration intent"); return { kind: "created", receipt: await api.createIntegration(intent.value, attempt) }; }));
   const loadDiscovery = (integration: Integration) => {
     const id = integration.id;
     const generation = discoveryGeneration.current + 1;
@@ -555,9 +556,7 @@ export function ProductionIntegrationsView({ canWrite, navigateAuthorization = d
                     onClick={authorizeReference}
                   >
                     Authorize{" "}
-                    {selected?.value.connector_key === "aws"
-                      ? "AWS"
-                      : "Kubernetes"}{" "}
+                    {referenceConnectorLabel(selected?.value.connector_key)}{" "}
                     reference
                   </Button>
                 )}
@@ -776,6 +775,10 @@ function IntegrationDiscoveryPanel({ freshness, schedule, syncs, syncDetail, cad
       <p>Search projection: {freshness.value.value.projections.search.state}</p>
       {freshness.value.value.last_good && <p>Last good inventory: {freshness.value.value.last_good.discovered_count} discovered · {freshness.value.value.last_good.changed_count} changed · {freshness.value.value.last_good.removed_count} removed</p>}
     </div>}
+    {freshness.status === "success" && freshness.value && freshness.value.value.coverage_gaps.length > 0 && <>
+      <h4>Agent discovery coverage</h4>
+      <ul aria-label="Agent discovery coverage">{freshness.value.value.coverage_gaps.map((gap) => <li key={gap.service}>{coverageGapText(gap)}</li>)}</ul>
+    </>}
     {canSync && <Button variant="primary" disabled={locked} onClick={onSync}>Sync inventory now</Button>}
     <h3>Automatic sync schedule</h3>
     {schedule.status === "loading" && <p>Loading automatic sync schedule…</p>}
@@ -794,8 +797,39 @@ function IntegrationDiscoveryPanel({ freshness, schedule, syncs, syncDetail, cad
   </section>;
 }
 
-function isReferenceConnector(value: string): value is "aws" | "kubernetes" {
-  return value === "aws" || value === "kubernetes";
+// The read-role actions each AI service needs before its agents can be listed.
+const coverageGapActions: Readonly<Record<string, readonly string[]>> = {
+  "bedrock-agent": ["bedrock:ListAgents", "bedrock:GetAgent"],
+  "bedrock-agentcore": ["bedrock-agentcore:ListAgentRuntimes", "bedrock-agentcore:GetAgentRuntime", "bedrock-agentcore:ListGateways"],
+  lambda: ["lambda:ListFunctions"],
+};
+
+// Why agents of one AI service are missing, and what to do about it.
+function coverageGapText(gap: IntegrationFreshness["coverage_gaps"][number]): string {
+  if (gap.service === "runtime-observations") return `${gap.name}: the discovery credential may not list ConfigMaps, so what the node sensor saw workloads call at run time is not counted. Allow list on configmaps for the discovery identity.`;
+  if (gap.status === "unavailable") return `${gap.name}: not offered in this account's regions.`;
+  const actions = Object.hasOwn(coverageGapActions, gap.service) ? coverageGapActions[gap.service] : [];
+  return actions.length > 0 ? `${gap.name}: permission missing. Add ${actions.join(", ")} to the read role.` : `${gap.name}: permission missing. Add this service's list and read actions to the read role.`;
+}
+
+// Connectors authorized by a reference to customer material held outside
+// the browser, not by a provider OAuth flow.
+type ReferenceConnectorKey = "aws" | "kubernetes" | "microsoft" | "salesforce";
+
+function isReferenceConnector(value: string): value is ReferenceConnectorKey {
+  return value === "aws" || value === "kubernetes" || value === "microsoft" || value === "salesforce";
+}
+
+function referenceConnectorLabel(value: string | undefined): string {
+  if (value === "aws") return "AWS";
+  if (value === "microsoft") return "Microsoft";
+  if (value === "salesforce") return "Salesforce";
+  return "Kubernetes";
+}
+
+function withoutEmptyOptionalFields(manifest: ConnectorManifest, configuration: Readonly<Record<string, string>>): Record<string, string> {
+  const optional = new Set(manifest.setup_schema.filter((field) => !field.required).map((field) => field.key));
+  return Object.fromEntries(Object.entries(configuration).filter(([key, value]) => value !== "" || !optional.has(key)));
 }
 
 function IntegrationSetupGuide({ manifest, integration, freshness, setupStatus, webhookStatus, onNavigate }: {
@@ -833,6 +867,8 @@ function integrationSetupSteps(connectorKey: string): readonly string[] {
   if (connectorKey === "kubernetes") return ["Choose coverage", "Authorize cluster", "Enroll Runtime sensor", "Verify heartbeat", "Initial sync", "Review coverage"];
   if (connectorKey === "github") return ["Review access", "Authorize GitHub organization", "Validate organization and repository scope", "Initial sync", "Review coverage"];
   if (connectorKey === "okta") return ["Review directory access", "Authorize Okta", "Test directory connection", "Initial sync", "Review coverage"];
+  if (connectorKey === "microsoft") return ["Register the Entra application", "Configure", "Authorize tenant", "Initial sync", "Review coverage"];
+  if (connectorKey === "salesforce") return ["Create the connected app", "Configure", "Authorize org", "Initial sync", "Review coverage"];
   if (connectorKey === "generic-webhook") return ["Configure destination", "Test signed delivery", "Review delivery status"];
   return ["Review access", "Configure", "Test connection", "Initial sync", "Review coverage"];
 }
@@ -860,6 +896,8 @@ function IntegrationSetupAuthority({ status, onNavigate }: { status: Integration
   if (status.connector_key === "github") return <div aria-label="GitHub provider scope"><p><strong>Organization scope</strong> {authorization.scope_label}</p><p><strong>Repository scope</strong> {authorization.repository_selection === "all" ? "All repositories" : "Selected repositories"}</p><p><strong>Read-only permissions</strong> {authorization.permissions.join(", ")}</p></div>;
   if (status.connector_key === "okta") return <div aria-label="Okta provider scope"><p><strong>Okta tenant</strong> {authorization.scope_label}</p><p><strong>Directory scopes</strong> {authorization.permissions.join(", ")}</p><p>This secures your Okta directory integration; it is separate from Zasp sign-in.</p></div>;
   if (status.connector_key === "kubernetes") return <div aria-label="Kubernetes runtime coverage"><p><strong>Cluster scope</strong> {authorization.scope_label}</p><p><strong>Environment Runtime sensors</strong> {coverage.healthy_sensor_count} of {coverage.sensor_count} healthy</p>{coverage.state === "not_enrolled" && <p role="alert">Runtime coverage is not enrolled. Inventory sync does not include Runtime sensor telemetry.</p>}{coverage.reason === "missing_gateway" && <p role="alert">A Runtime sensor heartbeat is missing. Coverage remains incomplete.</p>}{coverage.reason === "unsupported_kernel" && <p role="alert">The cluster kernel does not provide required BTF support. Coverage remains incomplete.</p>}{coverage.state !== "healthy" && onNavigate && <Button onClick={() => onNavigate("/integrations/sensors")}>Enroll or repair Runtime sensors</Button>}</div>;
+  if (status.connector_key === "microsoft") return <p><strong>Microsoft Entra tenant</strong> {authorization.scope_label}</p>;
+  if (status.connector_key === "salesforce") return <p><strong>Salesforce org</strong> {authorization.scope_label}</p>;
   return <p><strong>AWS account scope</strong> {authorization.scope_label}</p>;
 }
 
@@ -869,6 +907,8 @@ function integrationSetupRemediation(connectorKey: string, errorCode: string | n
     if (connectorKey === "kubernetes") return "Kubernetes inventory access was denied. Grant the documented get, list, and watch permissions, then run Test connection again.";
     if (connectorKey === "github") return "GitHub installation access is missing required organization or repository scope. Review the installation scope, then authorize again.";
     if (connectorKey === "okta") return "Okta directory access is missing a required read-only scope. Review the directory integration scopes, then authorize again.";
+    if (connectorKey === "microsoft") return "Microsoft refused the application. Check the client secret, the admin-consented application permissions and, for Copilot Studio, the Dataverse application user, then authorize again.";
+    if (connectorKey === "salesforce") return "Salesforce refused the connected app. Check the consumer secret, the client credentials flow, the run-as user's permissions and the organization ID, then authorize again.";
   }
   if (errorCode === "rate_limited") return "The provider rate limit delayed collection. Keep the last good coverage visible and retry after the published provider window.";
   return "Coverage is degraded. Review the stable discovery status and retry the connection test before starting another sync.";
@@ -882,11 +922,11 @@ function isOAuthConnectorManifest(manifest: ConnectorManifest | undefined, conne
   return manifest?.key === connectorKey && (manifest.auth_mode === "github_app_oauth" || manifest.auth_mode === "okta_oauth_pkce" || manifest.auth_mode === "managed_oauth");
 }
 
-function isFirstPartyConnector(value: string): value is "aws" | "kubernetes" | "github" | "okta" {
-  return value === "aws" || value === "kubernetes" || value === "github" || value === "okta";
+function isFirstPartyConnector(value: string): value is "aws" | "kubernetes" | "github" | "okta" | "microsoft" | "salesforce" {
+  return value === "aws" || value === "kubernetes" || value === "github" || value === "okta" || value === "microsoft" || value === "salesforce";
 }
 
-function isReferenceAuthorizationCandidate(value: Integration): value is Integration & { connector_key: "aws" | "kubernetes" } {
+function isReferenceAuthorizationCandidate(value: Integration): value is Integration & { connector_key: ReferenceConnectorKey } {
   return isReferenceConnector(value.connector_key) && (value.status === "configured" || value.status === "pending_authorization" || value.status === "degraded");
 }
 

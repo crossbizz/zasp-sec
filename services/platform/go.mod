@@ -4,9 +4,12 @@ go 1.26.0
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.43.7
+	github.com/aws/aws-sdk-go-v2/service/bedrockagent v1.58.7
+	github.com/aws/aws-sdk-go-v2/service/bedrockagentcorecontrol v1.59.0
 	github.com/aws/aws-sdk-go-v2/service/ec2 v1.322.0
 	github.com/aws/aws-sdk-go-v2/service/iam v1.59.2
 	github.com/aws/aws-sdk-go-v2/service/kms v1.55.6
+	github.com/aws/aws-sdk-go-v2/service/lambda v1.102.0
 	github.com/aws/aws-sdk-go-v2/service/opensearch v1.75.6
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.107.2
 	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.44.6

@@ -21,6 +21,13 @@ sensorAgent:
   enrollmentBinding: ""
   tokenSecretName: ""
   stateHostPath: /var/lib/zasp-sensor-lineage
+  # Runtime agent discovery: one host-network pod per node with CAP_NET_RAW
+  # that joins DNS answers to Tetragon connection events and publishes, per
+  # workload, which model APIs and remote MCP servers it called.
+  egressDiscovery:
+    enabled: false
+    healthPort: 18083
+    publishInterval: 5m0s
 network:
   controlPlaneCIDRs: []
   kubernetesAPICIDRs: []

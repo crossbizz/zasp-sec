@@ -107,7 +107,7 @@ func productRuntimeIO(t *testing.T, cfg productionDiscoveryDependencyConfig, q *
 		Secrets:    &discoverySecretsManagerStub{output: &secretsmanager.GetSecretValueOutput{SecretBinary: []byte("external-id-customer-0001")}},
 		AssumeRole: &productRuntimeSTS{&discoveryAssumeRoleStub{out: &sts.AssumeRoleOutput{Credentials: &ststypes.Credentials{AccessKeyId: aws.String("ASIAEXAMPLE000001"), SecretAccessKey: aws.String(strings.Repeat("s", 40)), SessionToken: aws.String(strings.Repeat("t", 32)), Expiration: aws.Time(expiry)}}}, ready},
 		S3:         &productRuntimeS3{&productVersionedS3{items: map[string]*discoveryS3APIStub{}}, ready}, KMS: ready, Queue: q,
-		Inventory: discoveryAWSInventoryFactory{Identity: func(string, aws.Credentials) (discoveryCallerIdentityAPI, error) {
+		Inventory: discoveryAWSInventoryFactory{BedrockAgent: emptyDiscoveryBedrockAgents, AgentCore: emptyDiscoveryAgentCore, Lambda: emptyDiscoveryLambda, Identity: func(string, aws.Credentials) (discoveryCallerIdentityAPI, error) {
 			return &discoveryCallerIdentityStub{output: &sts.GetCallerIdentityOutput{Account: aws.String("123456789012"), Arn: aws.String("arn:aws:sts::123456789012:assumed-role/zasp/owned-p4b")}}, nil
 		}, IAM: func(string, aws.Credentials) (discoveryAWSIAMAPI, error) { return &discoveryInventoryIAMStub{}, nil }, EC2: func(region string, _ aws.Credentials) (discoveryAWSEC2API, error) {
 			return &discoveryInventoryEC2Stub{region: region}, nil

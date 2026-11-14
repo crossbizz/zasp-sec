@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -47,7 +48,7 @@ func (analyzer *recordingSecurityAnalyzer) Collect(_ context.Context, request Co
 	return CollectionSecurityResult{Mode: request.Mode, SourceDigest: request.SourceDigest, Result: result}, nil
 }
 
-func TestInventoryCollectionAPIRequiresAllFourPhasesBeforeComplete(t *testing.T) {
+func TestInventoryCollectionAPIRequiresAllFivePhasesBeforeComplete(t *testing.T) {
 	t.Parallel()
 	authority := awsInventoryAuthority(t, "pid_51000001-0000-4000-8000-000000000001")
 	caller := &recordingAWSInventoryCaller{snapshot: awsInventoryFixture()}
@@ -74,11 +75,21 @@ func TestInventoryCollectionAPIRequiresAllFourPhasesBeforeComplete(t *testing.T)
 		t.Fatalf("resource page = %#v, %v", resources, err)
 	}
 	request.Cursor, request.Page = resources.Cursor, 4
+	agents, err := api.FetchCollectionPage(context.Background(), credential, request)
+	if err != nil || agents.Complete || len(agents.Entities) != 8 || len(agents.Relationships) != 11 || len(agents.Findings) != 0 {
+		t.Fatalf("agents page = %#v, %v", agents, err)
+	}
+	for page, want := range map[*CollectionPage]string{&account: "aws:iam:", &iam: "aws:resources:", &resources: "aws:agents:", &agents: "aws:posture:"} {
+		if !strings.HasPrefix(page.Cursor.Value, want) {
+			t.Fatalf("cursor = %q, want phase %q", page.Cursor.Value, want)
+		}
+	}
+	request.Cursor, request.Page = agents.Cursor, 5
 	posture, err := api.FetchCollectionPage(context.Background(), credential, request)
 	if err != nil || !posture.Complete || len(posture.Entities) != 0 || len(posture.Relationships) != 0 || len(posture.Findings) != 1 {
 		t.Fatalf("posture page = %#v, %v", posture, err)
 	}
-	if caller.calls != 4 || len(analyzer.calls) != 2 || analyzer.calls[0] != SecurityModeCartographyAWS || analyzer.calls[1] != SecurityModeProwlerAWS {
+	if caller.calls != 5 || !strings.HasPrefix(posture.Cursor.Value, "aws:complete:") || len(analyzer.calls) != 2 || analyzer.calls[0] != SecurityModeCartographyAWS || analyzer.calls[1] != SecurityModeProwlerAWS {
 		t.Fatalf("caller/analyzer calls = %d / %v", caller.calls, analyzer.calls)
 	}
 	if len(analyzer.expiresAt) != 2 || analyzer.expiresAt[0] != caller.snapshot.CredentialExpiresAt || analyzer.expiresAt[1] != caller.snapshot.CredentialExpiresAt {
@@ -123,10 +134,10 @@ func TestInventoryCollectionStartsNewGenerationFromBoundCompletedCursor(t *testi
 	q := CollectionPageRequest{Provider: collection.ProviderAWS, Subject: collection.SubjectBinding{Kind: "aws_account", ID: "123456789012"}, Page: 1, RemainingItems: 100, RemainingRelationships: 200, RemainingFindings: 100, RemainingBytes: 1 << 20}
 	credential := []byte("temporary-aws-credential-value")
 	var partial collection.Cursor
-	for page := 1; page <= 4; page++ {
+	for page := 1; page <= 5; page++ {
 		q.Page = page
 		out, err := api.FetchCollectionPage(context.Background(), credential, q)
-		if err != nil || out.Complete != (page == 4) {
+		if err != nil || out.Complete != (page == 5) {
 			t.Fatal("initial collection", page, err)
 		}
 		q.Cursor = out.Cursor
@@ -161,7 +172,8 @@ func TestInventoryCollectionStartsNewGenerationFromBoundCompletedCursor(t *testi
 func awsInventoryFixture() CollectionInventory {
 	cartography := json.RawMessage(`{"account_id":"123456789012","managed_policies":{"arn:aws:iam::123456789012:role/read":{"arn:aws:iam::123456789012:policy/read":[]}},"roles":[{"Arn":"arn:aws:iam::123456789012:role/read","AssumeRolePolicyDocument":{},"CreateDate":"2026-08-20T00:00:00Z","Path":"/","RoleId":"AROAABCDEFGHIJKLMNOP","RoleName":"read"}]}`)
 	prowler := json.RawMessage(`{"account_id":"123456789012","instances":[{"Arn":"arn:aws:ec2:us-east-1:123456789012:instance/i-0123456789abcdef0","HttpEndpoint":"enabled","HttpTokens":"required","InstanceId":"i-0123456789abcdef0","Region":"us-east-1","State":"running"}],"roles":[{"Arn":"arn:aws:iam::123456789012:role/read","AssumeRolePolicyDocument":{},"AttachedPolicies":[{"PolicyName":"read"}],"IsServiceRole":false,"RoleId":"AROAABCDEFGHIJKLMNOP","RoleName":"read"}]}`)
-	return CollectionInventory{Identity: Identity{AccountID: "123456789012", PrincipalARN: "arn:aws:sts::123456789012:assumed-role/discovery/session"}, CredentialExpiresAt: time.Date(2026, 8, 20, 12, 20, 0, 0, time.UTC), CartographySource: cartography, CartographyDigest: sha256.Sum256(cartography), ProwlerSource: prowler, ProwlerDigest: sha256.Sum256(prowler)}
+	agents := awsAgentSourceFixture()
+	return CollectionInventory{Identity: Identity{AccountID: "123456789012", PrincipalARN: "arn:aws:sts::123456789012:assumed-role/discovery/session"}, CredentialExpiresAt: time.Date(2026, 8, 20, 12, 20, 0, 0, time.UTC), CartographySource: cartography, CartographyDigest: sha256.Sum256(cartography), ProwlerSource: prowler, ProwlerDigest: sha256.Sum256(prowler), AgentSource: agents, AgentDigest: sha256.Sum256(agents)}
 }
 
 func awsInventoryAuthority(t *testing.T, organization string) CollectionInventoryAuthority {

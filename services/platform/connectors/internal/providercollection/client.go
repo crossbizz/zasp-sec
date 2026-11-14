@@ -686,13 +686,23 @@ func providerEntitySchema(provider collection.Provider, kind string) (providerEn
 			return providerEntityDefinition{stable: requiredStringFields("account_id", "arn", "name", "region", "resource_type"), attributes: state}, true
 		case "aws_service":
 			return providerEntityDefinition{stable: requiredStringFields("account_id", "name", "service"), attributes: state}, true
+		case "aws_bedrock_agent":
+			return providerEntityDefinition{stable: requiredStringFields("account_id", "agent_id", "arn", "name", "region"), attributes: mergeInventorySchemas(state, discoveredAgentAttributes(), optionalStringFields("model"))}, true
+		case "aws_agentcore_runtime":
+			return providerEntityDefinition{stable: requiredStringFields("account_id", "arn", "name", "region", "runtime_id"), attributes: mergeInventorySchemas(state, discoveredAgentAttributes())}, true
+		case "aws_agentcore_gateway":
+			return providerEntityDefinition{stable: requiredStringFields("account_id", "arn", "gateway_id", "name", "region"), attributes: state}, true
+		case "aws_inferred_agent":
+			return providerEntityDefinition{stable: mergeInventorySchemas(requiredStringFields("account_id", "arn", "name", "region"), inventoryObjectSchema{"resource_type": enumInventoryField(true, "lambda_function")}), attributes: mergeInventorySchemas(state, discoveredAgentAttributes())}, true
 		}
 	case collection.ProviderKubernetes:
 		namespaced := mergeInventorySchemas(inventoryObjectSchema{"namespaced": boolInventoryField(true, true)}, state)
 		clusterScoped := mergeInventorySchemas(inventoryObjectSchema{"namespaced": boolInventoryField(true, false)}, state)
 		switch kind {
 		case "kubernetes_cluster":
-			return providerEntityDefinition{stable: requiredStringFields("cluster", "name"), attributes: state}, true
+			// runtime_observations says whether the collector could read
+			// the node sensor's egress observations in this cluster.
+			return providerEntityDefinition{stable: requiredStringFields("cluster", "name"), attributes: mergeInventorySchemas(state, inventoryObjectSchema{"runtime_observations": enumInventoryField(false, "access_denied", "collected")})}, true
 		case "kubernetes_namespace":
 			return providerEntityDefinition{stable: requiredStringFields("cluster", "name", "namespace"), attributes: state}, true
 		case "kubernetes_resource", "kubernetes_service_account":
@@ -701,6 +711,8 @@ func providerEntitySchema(provider collection.Provider, kind string) (providerEn
 			return providerEntityDefinition{stable: requiredStringFields("api_group", "api_version", "cluster", "name", "namespace", "resource_kind", "service_account"), attributes: mergeInventorySchemas(namespaced, inventoryObjectSchema{"posture": kubernetesAgentPostureInventoryField(true), "red_team": kubernetesRedTeamInventoryField(false)})}, true
 		case "kubernetes_workload":
 			return providerEntityDefinition{stable: requiredStringFields("api_group", "api_version", "cluster", "name", "namespace", "resource_kind", "service_account"), attributes: namespaced}, true
+		case "kubernetes_inferred_agent":
+			return providerEntityDefinition{stable: requiredStringFields("api_group", "api_version", "cluster", "name", "namespace", "resource_kind", "service_account"), attributes: mergeInventorySchemas(namespaced, discoveredAgentAttributes())}, true
 		case "kubernetes_role":
 			return providerEntityDefinition{stable: mergeInventorySchemas(requiredStringFields("api_group", "api_version", "cluster", "name", "namespace", "resource_kind"), inventoryObjectSchema{"scope": enumInventoryField(true, "namespace")}), attributes: mergeInventorySchemas(namespaced, inventoryObjectSchema{"rules": kubernetesRulesInventoryField(true)})}, true
 		case "kubernetes_cluster_role":
@@ -729,6 +741,8 @@ func providerEntitySchema(provider collection.Provider, kind string) (providerEn
 			return providerEntityDefinition{stable: mergeInventorySchemas(installation, requiredStringFields("name", "owner", "repository")), attributes: state}, true
 		case "github_permission":
 			return providerEntityDefinition{stable: mergeInventorySchemas(installation, requiredStringFields("name", "owner", "permission", "repository", "scope")), attributes: state}, true
+		case "github_agent_project":
+			return providerEntityDefinition{stable: mergeInventorySchemas(installation, requiredStringFields("name", "owner", "repository")), attributes: mergeInventorySchemas(state, discoveredAgentAttributes())}, true
 		}
 	case collection.ProviderOkta:
 		switch kind {
@@ -738,6 +752,25 @@ func providerEntitySchema(provider collection.Provider, kind string) (providerEn
 			return providerEntityDefinition{stable: requiredStringFields("name", "object_type", "tenant"), attributes: inventoryObjectSchema{"status": stringInventoryField(true), "state": stringInventoryField(false)}}, true
 		case "okta_role":
 			return providerEntityDefinition{stable: requiredStringFields("name", "object_type", "role", "scope", "tenant"), attributes: state}, true
+		case "okta_ai_application":
+			return providerEntityDefinition{stable: requiredStringFields("name", "object_type", "tenant"), attributes: mergeInventorySchemas(inventoryObjectSchema{"status": stringInventoryField(true), "state": stringInventoryField(false)}, discoveredAgentAttributes())}, true
+		}
+	case collection.ProviderMicrosoft:
+		directory := inventoryObjectSchema{"status": stringInventoryField(true), "state": stringInventoryField(false)}
+		switch kind {
+		case "microsoft_tenant":
+			return providerEntityDefinition{stable: requiredStringFields("name", "tenant"), attributes: inventoryObjectSchema{}}, true
+		case "microsoft_agent_identity", "microsoft_ai_application":
+			return providerEntityDefinition{stable: requiredStringFields("name", "object_type", "tenant"), attributes: mergeInventorySchemas(directory, discoveredAgentAttributes())}, true
+		case "microsoft_copilot_agent":
+			return providerEntityDefinition{stable: requiredStringFields("environment", "name", "object_type", "tenant"), attributes: mergeInventorySchemas(directory, discoveredAgentAttributes())}, true
+		}
+	case collection.ProviderSalesforce:
+		switch kind {
+		case "salesforce_org":
+			return providerEntityDefinition{stable: requiredStringFields("name", "org"), attributes: inventoryObjectSchema{}}, true
+		case "salesforce_agent":
+			return providerEntityDefinition{stable: requiredStringFields("name", "object_type", "org"), attributes: mergeInventorySchemas(inventoryObjectSchema{"status": stringInventoryField(true), "state": stringInventoryField(false), "agent_type": stringInventoryField(false)}, discoveredAgentAttributes())}, true
 		}
 	}
 	return providerEntityDefinition{}, false
@@ -752,7 +785,7 @@ func validProviderRelationship(provider collection.Provider, raw json.RawMessage
 	attributes := optionalStringFields("state", "type")
 	switch provider {
 	case collection.ProviderAWS:
-		kinds = tokenSet("belongs_to", "contains", "depends_on", "trusts", "uses_policy")
+		kinds = tokenSet("belongs_to", "contains", "depends_on", "trusts", "uses_identity", "uses_policy")
 	case collection.ProviderKubernetes:
 		kinds = tokenSet("assigned_to", "attached_to", "binds", "contains", "uses_identity")
 		attributes["type"] = stringInventoryField(true)
@@ -761,6 +794,9 @@ func validProviderRelationship(provider collection.Provider, raw json.RawMessage
 		attributes["type"] = stringInventoryField(true)
 	case collection.ProviderOkta:
 		kinds = tokenSet("assigned_to", "contains", "has_permission", "member_of")
+		attributes["type"] = stringInventoryField(true)
+	case collection.ProviderMicrosoft, collection.ProviderSalesforce:
+		kinds = tokenSet("contains")
 		attributes["type"] = stringInventoryField(true)
 	default:
 		return false
@@ -778,6 +814,8 @@ func validProviderRelationshipEndpointKinds(provider collection.Provider, raw js
 		collection.ProviderAWS: tokenSet(
 			"aws_account|contains|aws_policy", "aws_account|contains|aws_resource", "aws_account|contains|aws_role", "aws_account|contains|aws_service",
 			"aws_resource|belongs_to|aws_account", "aws_resource|belongs_to|aws_service", "aws_resource|depends_on|aws_resource", "aws_role|trusts|aws_role", "aws_role|uses_policy|aws_policy",
+			"aws_account|contains|aws_agentcore_gateway", "aws_account|contains|aws_agentcore_runtime", "aws_account|contains|aws_bedrock_agent", "aws_account|contains|aws_inferred_agent",
+			"aws_agentcore_runtime|uses_identity|aws_role", "aws_bedrock_agent|uses_identity|aws_role", "aws_inferred_agent|uses_identity|aws_role",
 		),
 		collection.ProviderKubernetes: tokenSet(
 			"kubernetes_cluster|contains|kubernetes_cluster_role", "kubernetes_cluster|contains|kubernetes_cluster_role_binding", "kubernetes_cluster|contains|kubernetes_namespace",
@@ -786,13 +824,18 @@ func validProviderRelationshipEndpointKinds(provider collection.Provider, raw js
 			"kubernetes_role_binding|binds|kubernetes_cluster_role", "kubernetes_role_binding|binds|kubernetes_role", "kubernetes_cluster_role_binding|binds|kubernetes_cluster_role",
 			"kubernetes_group|assigned_to|kubernetes_cluster_role_binding", "kubernetes_group|assigned_to|kubernetes_role_binding", "kubernetes_service_account|assigned_to|kubernetes_cluster_role_binding", "kubernetes_service_account|assigned_to|kubernetes_role_binding", "kubernetes_user|assigned_to|kubernetes_cluster_role_binding", "kubernetes_user|assigned_to|kubernetes_role_binding",
 			"kubernetes_agent|uses_identity|kubernetes_service_account", "kubernetes_workload|uses_identity|kubernetes_service_account",
+			"kubernetes_namespace|attached_to|kubernetes_inferred_agent", "kubernetes_inferred_agent|uses_identity|kubernetes_service_account",
 		),
 		collection.ProviderGitHub: tokenSet(
 			"github_installation|contains|github_app", "github_installation|owns|github_repository", "github_organization|owns|github_repository", "github_repository|contains|github_environment", "github_repository|contains|github_permission", "github_repository|contains|github_workflow", "github_workflow|depends_on|github_repository", "github_workflow|uses_identity|github_app", "github_app|has_permission|github_permission",
+			"github_repository|contains|github_agent_project",
 		),
 		collection.ProviderOkta: tokenSet(
 			"okta_tenant|contains|okta_application", "okta_tenant|contains|okta_group", "okta_tenant|contains|okta_role", "okta_tenant|contains|okta_service_principal", "okta_tenant|contains|okta_user", "okta_group|assigned_to|okta_application", "okta_service_principal|assigned_to|okta_application", "okta_user|assigned_to|okta_application", "okta_service_principal|assigned_to|okta_role", "okta_user|assigned_to|okta_role", "okta_group|assigned_to|okta_role", "okta_service_principal|member_of|okta_group", "okta_user|member_of|okta_group",
+			"okta_tenant|contains|okta_ai_application", "okta_group|assigned_to|okta_ai_application", "okta_service_principal|assigned_to|okta_ai_application", "okta_user|assigned_to|okta_ai_application",
 		),
+		collection.ProviderMicrosoft:  tokenSet("microsoft_tenant|contains|microsoft_agent_identity", "microsoft_tenant|contains|microsoft_ai_application", "microsoft_tenant|contains|microsoft_copilot_agent"),
+		collection.ProviderSalesforce: tokenSet("salesforce_org|contains|salesforce_agent"),
 	}
 	return allowed[provider][key]
 }
@@ -858,6 +901,10 @@ func validInventoryObject(raw json.RawMessage, schema inventoryObjectSchema) boo
 			if !validKubernetesRedTeamBinding(value) {
 				return false
 			}
+		case "agent_discovery":
+			if !validAgentDiscovery(value) {
+				return false
+			}
 		default:
 			return false
 		}
@@ -920,6 +967,45 @@ func kubernetesAgentPostureInventoryField(required bool) inventoryFieldRule {
 
 func kubernetesRedTeamInventoryField(required bool) inventoryFieldRule {
 	return inventoryFieldRule{kind: "kubernetes_red_team", required: required}
+}
+
+// discoveredAgentAttributes are the two attributes every agent kind found
+// without a zasp.ai/entity-kind declaration carries: the posture facts every
+// agent has, and how the agent was found.
+func discoveredAgentAttributes() inventoryObjectSchema {
+	return inventoryObjectSchema{"posture": kubernetesAgentPostureInventoryField(true), "discovery": inventoryFieldRule{kind: "agent_discovery", required: true}}
+}
+
+var (
+	agentDiscoveryPlatformPattern = regexp.MustCompile(`^[a-z][a-z0-9_]{1,63}$`)
+	agentDiscoverySignalPattern   = regexp.MustCompile(`^[a-z][a-z0-9_]{0,31}:[a-z0-9][a-z0-9_.-]{0,63}$`)
+)
+
+// validAgentDiscovery accepts {"method","platform","signals"}: the method is
+// provider_api when the provider's own control plane names the object an
+// agent and inferred when the product concluded it from signals; signals is
+// a sorted list of class:value tokens from the reviewed catalog
+// (agentsignals), never a provider value such as an environment variable.
+func validAgentDiscovery(value any) bool {
+	discovery, ok := value.(map[string]any)
+	if !ok || len(discovery) != 3 {
+		return false
+	}
+	method, methodOK := discovery["method"].(string)
+	platform, platformOK := discovery["platform"].(string)
+	signals, signalsOK := discovery["signals"].([]any)
+	if !methodOK || !platformOK || !signalsOK || method != "provider_api" && method != "inferred" || !agentDiscoveryPlatformPattern.MatchString(platform) || len(signals) > 16 || method == "inferred" && len(signals) == 0 {
+		return false
+	}
+	prior := ""
+	for _, raw := range signals {
+		signal, ok := raw.(string)
+		if !ok || !agentDiscoverySignalPattern.MatchString(signal) || prior != "" && signal <= prior {
+			return false
+		}
+		prior = signal
+	}
+	return true
 }
 
 func validKubernetesRedTeamBinding(value any) bool {
@@ -1235,7 +1321,7 @@ func validExplicitKubernetesUnresolvedRelationship(raw json.RawMessage, subject 
 		return relationship.ToEntityID == deterministicKubernetesReferenceID(subject, targetKind, nativeID)
 	case "uses_identity":
 		stable, ok := inventoryStringValues(source.StableFields, "namespace", "service_account")
-		return attributes.Type == "workload_service_account" && (source.Kind == "kubernetes_agent" || source.Kind == "kubernetes_workload") &&
+		return attributes.Type == "workload_service_account" && (source.Kind == "kubernetes_agent" || source.Kind == "kubernetes_inferred_agent" || source.Kind == "kubernetes_workload") &&
 			ok && stable["namespace"] != "" && stable["service_account"] != "" &&
 			relationship.ToEntityID == deterministicKubernetesReferenceID(subject, "kubernetes_service_account", stable["namespace"]+"/"+stable["service_account"])
 	default:
@@ -1655,7 +1741,7 @@ func validCursor(cursor collection.Cursor, provider collection.Provider) bool {
 
 func validProvider(provider collection.Provider) bool {
 	switch provider {
-	case collection.ProviderAWS, collection.ProviderKubernetes, collection.ProviderGitHub, collection.ProviderOkta:
+	case collection.ProviderAWS, collection.ProviderKubernetes, collection.ProviderGitHub, collection.ProviderOkta, collection.ProviderMicrosoft, collection.ProviderSalesforce:
 		return true
 	default:
 		return false

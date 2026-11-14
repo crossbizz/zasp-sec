@@ -21,6 +21,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/zasp-ai/zasp-sec/services/platform/agentsignals"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/collection"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/internal/providercollection"
 )
@@ -50,6 +51,7 @@ type KubernetesCollectionAPI struct {
 	host     string
 	client   *http.Client
 	timeout  time.Duration
+	clock    func() time.Time
 }
 
 var _ CollectionAPI = (*KubernetesCollectionAPI)(nil)
@@ -76,7 +78,7 @@ func newKubernetesCollectionAPI(endpoint string, roundTripper http.RoundTripper,
 	if !ok || roundTripper == nil || timeout < 100*time.Millisecond || timeout > 30*time.Second {
 		return nil, ErrInvalid
 	}
-	return &KubernetesCollectionAPI{endpoint: "https://" + parsed.Host, host: strings.ToLower(parsed.Hostname()), client: &http.Client{Transport: collection.EffectTransport{Next: roundTripper}, Timeout: timeout, CheckRedirect: rejectKubernetesRedirect}, timeout: timeout}, nil
+	return &KubernetesCollectionAPI{endpoint: "https://" + parsed.Host, host: strings.ToLower(parsed.Hostname()), client: &http.Client{Transport: collection.EffectTransport{Next: roundTripper}, Timeout: timeout, CheckRedirect: rejectKubernetesRedirect}, timeout: timeout, clock: time.Now}, nil
 }
 
 func (api *KubernetesCollectionAPI) FetchCollectionPage(ctx context.Context, credential []byte, request CollectionPageRequest) (CollectionPage, error) {
@@ -140,7 +142,15 @@ func (api *KubernetesCollectionAPI) FetchCollectionPage(ctx context.Context, cre
 	if !decodeKubernetesCollectionResponse(body, &payload) || len(payload.Items) > pageLimit {
 		return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
 	}
-	entities, relationships, ok := normalizeKubernetesCollectionPage(request.Subject, phase, includeCluster, payload)
+	var egress kubernetesEgressObservations
+	if kubernetesWorkloadPhase(phase) && len(payload.Items) > 0 {
+		egress = api.fetchKubernetesEgressObservations(bounded, credential)
+	}
+	runtimeObservations := ""
+	if includeCluster {
+		runtimeObservations = api.kubernetesRuntimeObservationStatus(bounded, credential)
+	}
+	entities, relationships, ok := normalizeKubernetesCollectionPage(request.Subject, phase, includeCluster, payload, egress, runtimeObservations)
 	if !ok {
 		return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
 	}
@@ -262,15 +272,29 @@ type kubernetesCollectionPodSpec struct {
 	ServiceAccountName string                          `json:"serviceAccountName"`
 	HostNetwork        bool                            `json:"hostNetwork"`
 	Containers         []kubernetesCollectionContainer `json:"containers"`
-	Volumes            []kubernetesCollectionVolume    `json:"volumes"`
+	// InitContainers are read only to infer agents (kubernetesAgentEvidence);
+	// they take no part in posture or in pod-spec validation.
+	InitContainers []kubernetesCollectionContainer `json:"initContainers"`
+	Volumes        []kubernetesCollectionVolume    `json:"volumes"`
 }
 
+// kubernetesCollectionContainer decodes Image, Args, Env and Ports only to
+// infer agents. An environment variable is decoded to its name alone: value
+// and valueFrom have no field to land in, and envFrom is not decoded at all.
 type kubernetesCollectionContainer struct {
 	Name            string   `json:"name"`
+	Image           string   `json:"image"`
 	Command         []string `json:"command"`
+	Args            []string `json:"args"`
 	SecurityContext struct {
 		Privileged bool `json:"privileged"`
 	} `json:"securityContext"`
+	Env []struct {
+		Name string `json:"name"`
+	} `json:"env"`
+	Ports []struct {
+		ContainerPort int `json:"containerPort"`
+	} `json:"ports"`
 }
 
 type kubernetesCollectionVolume struct {
@@ -301,7 +325,7 @@ type kubernetesAgentPosture struct {
 	CredentialActive       bool   `json:"credential_active"`
 }
 
-func normalizeKubernetesCollectionPage(subject collection.SubjectBinding, phase string, includeCluster bool, payload kubernetesCollectionList) ([]json.RawMessage, []json.RawMessage, bool) {
+func normalizeKubernetesCollectionPage(subject collection.SubjectBinding, phase string, includeCluster bool, payload kubernetesCollectionList, egress kubernetesEgressObservations, runtimeObservations string) ([]json.RawMessage, []json.RawMessage, bool) {
 	expectedAPIVersion, expectedKind, ok := kubernetesCollectionPhaseType(phase)
 	if !ok || payload.APIVersion != expectedAPIVersion || payload.Kind != expectedKind {
 		return nil, nil, false
@@ -318,7 +342,13 @@ func normalizeKubernetesCollectionPage(subject collection.SubjectBinding, phase 
 			Cluster string `json:"cluster"`
 			Name    string `json:"name"`
 		}{subject.ID, parts[1]})
-		entity, err := marshalKubernetesEntity(clusterEntityID, "kubernetes_cluster", "kubernetes:cluster:"+subject.ID, subject.ID, stable, json.RawMessage(`{}`))
+		clusterAttributes := json.RawMessage(`{}`)
+		if runtimeObservations != "" {
+			clusterAttributes, _ = json.Marshal(struct {
+				RuntimeObservations string `json:"runtime_observations"`
+			}{runtimeObservations})
+		}
+		entity, err := marshalKubernetesEntity(clusterEntityID, "kubernetes_cluster", "kubernetes:cluster:"+subject.ID, subject.ID, stable, clusterAttributes)
 		if err != nil {
 			return nil, nil, false
 		}
@@ -383,7 +413,7 @@ func normalizeKubernetesCollectionPage(subject collection.SubjectBinding, phase 
 			entities = append(entities, bindingEntities...)
 			relationships = append(relationships, bindingRelationships...)
 		case "deployments", "statefulsets", "daemonsets", "jobs", "cronjobs":
-			entity, workloadRelationships, valid := normalizeKubernetesWorkload(subject, phase, item)
+			entity, workloadRelationships, valid := normalizeKubernetesWorkload(subject, phase, item, egress)
 			if !valid {
 				return nil, nil, false
 			}
@@ -678,7 +708,7 @@ func coalesceKubernetesEntities(values []json.RawMessage) ([]json.RawMessage, bo
 	return result, true
 }
 
-func normalizeKubernetesWorkload(subject collection.SubjectBinding, phase string, item kubernetesCollectionItem) (json.RawMessage, []json.RawMessage, bool) {
+func normalizeKubernetesWorkload(subject collection.SubjectBinding, phase string, item kubernetesCollectionItem, egress kubernetesEgressObservations) (json.RawMessage, []json.RawMessage, bool) {
 	definitions := map[string][3]string{
 		"deployments":  {"apps/v1", "Deployment", "apps"},
 		"statefulsets": {"apps/v1", "StatefulSet", "apps"},
@@ -702,8 +732,19 @@ func normalizeKubernetesWorkload(subject collection.SubjectBinding, phase string
 		return nil, nil, false
 	}
 	entityKind := "kubernetes_workload"
-	if phase == "deployments" && item.Metadata.Labels["zasp.ai/entity-kind"] == "agent" {
+	var evidence agentsignals.Evidence
+	if label, labelled := item.Metadata.Labels["zasp.ai/entity-kind"]; phase == "deployments" && label == "agent" {
 		entityKind = "kubernetes_agent"
+	} else if !labelled || label == "agent" {
+		// Any other value of the label (for example "workload") opts the
+		// workload out of inference.
+		evidence = kubernetesAgentEvidence(podSpec)
+		// What the node sensor saw the workload call at run time counts
+		// beside what its pod template declares.
+		evidence.Egress(egress[kubernetesEgressKey{item.Metadata.Namespace, definition[1], item.Metadata.Name}]...)
+		if evidence.IsAgent() {
+			entityKind = "kubernetes_inferred_agent"
+		}
 	}
 	entityID := deterministicKubernetesInventoryID(subject, entityKind, item.Metadata.UID)
 	stable, _ := json.Marshal(struct {
@@ -724,6 +765,13 @@ func normalizeKubernetesWorkload(subject collection.SubjectBinding, phase string
 			Posture    kubernetesAgentPosture    `json:"posture"`
 			RedTeam    *kubernetesRedTeamBinding `json:"red_team,omitempty"`
 		}{true, posture, redTeam})
+	} else if entityKind == "kubernetes_inferred_agent" {
+		posture := deriveKubernetesAgentPosture(subject, item.Metadata.Namespace, serviceAccount, item.Metadata.Labels, podSpec)
+		attributes, _ = json.Marshal(struct {
+			Namespaced bool                   `json:"namespaced"`
+			Posture    kubernetesAgentPosture `json:"posture"`
+			Discovery  agentsignals.Discovery `json:"discovery"`
+		}{true, posture, agentsignals.NewDiscovery(agentsignals.MethodInferred, "kubernetes_workload", evidence.Signals())})
 	}
 	entity, err := marshalKubernetesEntity(entityID, entityKind, "kubernetes:"+strings.ToLower(definition[1])+":"+item.Metadata.UID, item.Metadata.Namespace+"/"+item.Metadata.Name, stable, attributes)
 	if err != nil {
@@ -740,6 +788,28 @@ func normalizeKubernetesWorkload(subject collection.SubjectBinding, phase string
 		return nil, nil, false
 	}
 	return entity, []json.RawMessage{attached, usesIdentity}, true
+}
+
+// kubernetesAgentEvidence matches the pod template against the agent signal
+// catalog. It reads image references, environment variable names, command
+// and argument elements and container ports of containers and
+// initContainers; what it records is catalog tokens, never a provider value.
+func kubernetesAgentEvidence(spec kubernetesCollectionPodSpec) agentsignals.Evidence {
+	var evidence agentsignals.Evidence
+	for _, containers := range [][]kubernetesCollectionContainer{spec.Containers, spec.InitContainers} {
+		for _, container := range containers {
+			evidence.Image(container.Image)
+			for _, variable := range container.Env {
+				evidence.EnvironmentNames(variable.Name)
+			}
+			evidence.Command(container.Command...)
+			evidence.Command(container.Args...)
+			for _, port := range container.Ports {
+				evidence.Ports(port.ContainerPort)
+			}
+		}
+	}
+	return evidence
 }
 
 type kubernetesRedTeamBinding struct {

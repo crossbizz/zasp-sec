@@ -20,13 +20,21 @@ type Rule struct {
 // The catalog must equal the installed zasp_inventory_identity_rules rows: the
 // snapshot writer refuses an entity whose rule fields differ. An IAM role is
 // an identity (rule version 2); the baseline completion script makes the same
-// change to the table.
+// change to the table. The agent kinds found without a declaration
+// (aws_inferred_agent, github_agent_project, kubernetes_inferred_agent,
+// okta_ai_application) carry a lower confidence than the kinds a provider's
+// own control plane names as agents.
 var ruleCatalog = []Rule{
 	{Provider: "aws", SourceKind: "aws_account", Namespace: "aws_account", ProductKind: KindAsset, Version: 1, Priority: 100, ConfidenceBasisPoints: 9000, Freshness: 24 * time.Hour},
+	{Provider: "aws", SourceKind: "aws_agentcore_gateway", Namespace: "aws_agentcore_gateway", ProductKind: KindTool, Version: 1, Priority: 100, ConfidenceBasisPoints: 9000, Freshness: 24 * time.Hour},
+	{Provider: "aws", SourceKind: "aws_agentcore_runtime", Namespace: "aws_agentcore_runtime", ProductKind: KindAgent, Version: 1, Priority: 100, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
+	{Provider: "aws", SourceKind: "aws_bedrock_agent", Namespace: "aws_bedrock_agent", ProductKind: KindAgent, Version: 1, Priority: 100, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
+	{Provider: "aws", SourceKind: "aws_inferred_agent", Namespace: "aws_inferred_agent", ProductKind: KindAgent, Version: 1, Priority: 100, ConfidenceBasisPoints: 6000, Freshness: 24 * time.Hour},
 	{Provider: "aws", SourceKind: "aws_policy", Namespace: "aws_policy", ProductKind: KindAsset, Version: 1, Priority: 100, ConfidenceBasisPoints: 9000, Freshness: 24 * time.Hour},
 	{Provider: "aws", SourceKind: "aws_resource", Namespace: "aws_resource", ProductKind: KindAsset, Version: 1, Priority: 100, ConfidenceBasisPoints: 9000, Freshness: 24 * time.Hour},
 	{Provider: "aws", SourceKind: "aws_role", Namespace: "aws_role", ProductKind: KindIdentity, Version: 2, Priority: 100, ConfidenceBasisPoints: 9000, Freshness: 24 * time.Hour},
 	{Provider: "aws", SourceKind: "aws_service", Namespace: "aws_service", ProductKind: KindAsset, Version: 1, Priority: 100, ConfidenceBasisPoints: 9000, Freshness: 24 * time.Hour},
+	{Provider: "github", SourceKind: "github_agent_project", Namespace: "github_agent_project", ProductKind: KindAgent, Version: 1, Priority: 120, ConfidenceBasisPoints: 6000, Freshness: 24 * time.Hour},
 	{Provider: "github", SourceKind: "github_app", Namespace: "github_app", ProductKind: KindTool, Version: 1, Priority: 120, ConfidenceBasisPoints: 9000, Freshness: 24 * time.Hour},
 	{Provider: "github", SourceKind: "github_environment", Namespace: "github_environment", ProductKind: KindAsset, Version: 1, Priority: 120, ConfidenceBasisPoints: 9000, Freshness: 24 * time.Hour},
 	{Provider: "github", SourceKind: "github_installation", Namespace: "github_installation", ProductKind: KindAsset, Version: 1, Priority: 120, ConfidenceBasisPoints: 9000, Freshness: 24 * time.Hour},
@@ -39,6 +47,7 @@ var ruleCatalog = []Rule{
 	{Provider: "kubernetes", SourceKind: "kubernetes_cluster_role", Namespace: "kubernetes_cluster_role", ProductKind: KindAsset, Version: 1, Priority: 80, ConfidenceBasisPoints: 9500, Freshness: 15 * time.Minute},
 	{Provider: "kubernetes", SourceKind: "kubernetes_cluster_role_binding", Namespace: "kubernetes_cluster_role_binding", ProductKind: KindAsset, Version: 1, Priority: 80, ConfidenceBasisPoints: 9500, Freshness: 15 * time.Minute},
 	{Provider: "kubernetes", SourceKind: "kubernetes_group", Namespace: "kubernetes_group", ProductKind: KindIdentity, Version: 1, Priority: 80, ConfidenceBasisPoints: 9500, Freshness: 15 * time.Minute},
+	{Provider: "kubernetes", SourceKind: "kubernetes_inferred_agent", Namespace: "kubernetes_inferred_agent", ProductKind: KindAgent, Version: 1, Priority: 80, ConfidenceBasisPoints: 6000, Freshness: 15 * time.Minute},
 	{Provider: "kubernetes", SourceKind: "kubernetes_namespace", Namespace: "kubernetes_namespace", ProductKind: KindAsset, Version: 1, Priority: 80, ConfidenceBasisPoints: 9500, Freshness: 15 * time.Minute},
 	{Provider: "kubernetes", SourceKind: "kubernetes_resource", Namespace: "kubernetes_resource", ProductKind: KindAsset, Version: 1, Priority: 80, ConfidenceBasisPoints: 9500, Freshness: 15 * time.Minute},
 	{Provider: "kubernetes", SourceKind: "kubernetes_role", Namespace: "kubernetes_role", ProductKind: KindAsset, Version: 1, Priority: 80, ConfidenceBasisPoints: 9500, Freshness: 15 * time.Minute},
@@ -46,12 +55,19 @@ var ruleCatalog = []Rule{
 	{Provider: "kubernetes", SourceKind: "kubernetes_service_account", Namespace: "kubernetes_service_account", ProductKind: KindIdentity, Version: 1, Priority: 80, ConfidenceBasisPoints: 9500, Freshness: 15 * time.Minute},
 	{Provider: "kubernetes", SourceKind: "kubernetes_user", Namespace: "kubernetes_user", ProductKind: KindIdentity, Version: 1, Priority: 80, ConfidenceBasisPoints: 9500, Freshness: 15 * time.Minute},
 	{Provider: "kubernetes", SourceKind: "kubernetes_workload", Namespace: "kubernetes_workload", ProductKind: KindRuntime, Version: 1, Priority: 80, ConfidenceBasisPoints: 9500, Freshness: 15 * time.Minute},
+	{Provider: "microsoft", SourceKind: "microsoft_agent_identity", Namespace: "microsoft_agent_identity", ProductKind: KindAgent, Version: 1, Priority: 130, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
+	{Provider: "microsoft", SourceKind: "microsoft_ai_application", Namespace: "microsoft_ai_application", ProductKind: KindAgent, Version: 1, Priority: 130, ConfidenceBasisPoints: 7000, Freshness: 24 * time.Hour},
+	{Provider: "microsoft", SourceKind: "microsoft_copilot_agent", Namespace: "microsoft_copilot_agent", ProductKind: KindAgent, Version: 1, Priority: 130, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
+	{Provider: "microsoft", SourceKind: "microsoft_tenant", Namespace: "microsoft_tenant", ProductKind: KindAsset, Version: 1, Priority: 130, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
+	{Provider: "okta", SourceKind: "okta_ai_application", Namespace: "okta_ai_application", ProductKind: KindAgent, Version: 1, Priority: 110, ConfidenceBasisPoints: 7000, Freshness: 24 * time.Hour},
 	{Provider: "okta", SourceKind: "okta_application", Namespace: "okta_application", ProductKind: KindTool, Version: 1, Priority: 110, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
 	{Provider: "okta", SourceKind: "okta_group", Namespace: "okta_group", ProductKind: KindIdentity, Version: 1, Priority: 110, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
 	{Provider: "okta", SourceKind: "okta_role", Namespace: "okta_role", ProductKind: KindAsset, Version: 1, Priority: 110, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
 	{Provider: "okta", SourceKind: "okta_service_principal", Namespace: "okta_service_principal", ProductKind: KindIdentity, Version: 1, Priority: 110, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
 	{Provider: "okta", SourceKind: "okta_tenant", Namespace: "okta_tenant", ProductKind: KindAsset, Version: 1, Priority: 110, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
 	{Provider: "okta", SourceKind: "okta_user", Namespace: "okta_user", ProductKind: KindIdentity, Version: 1, Priority: 110, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
+	{Provider: "salesforce", SourceKind: "salesforce_agent", Namespace: "salesforce_agent", ProductKind: KindAgent, Version: 1, Priority: 140, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
+	{Provider: "salesforce", SourceKind: "salesforce_org", Namespace: "salesforce_org", ProductKind: KindAsset, Version: 1, Priority: 140, ConfidenceBasisPoints: 9500, Freshness: 24 * time.Hour},
 }
 
 func RuleCatalog() []Rule {

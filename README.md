@@ -33,6 +33,7 @@ Findings and attack paths are the Batch 4 production risk slice:
 | Risk authority | Typed, scope-keyed PostgreSQL v9 serving projection |
 | Connector authorization | OAuth for GitHub/Okta and reference authorization for AWS/Kubernetes, capability-gated by composed runtime readiness |
 | Continuous discovery | Tenant-scoped manual and scheduled synchronization with durable history, freshness, and independent risk/search/graph projections |
+| Agent discovery | Agents found without a declaration (Bedrock, AgentCore, Lambda, Kubernetes workloads, GitHub repositories, AI applications in Okta), each with its provider, how it was found, and whether it is unmanaged; source only, not yet run against a real provider |
 | Red Team | Tenant-scoped definitions and Promptfoo runs against fresh discovered agent/MCP targets with curated categories and immutable normalized evidence |
 | Empty scopes | Honest empty state; no fixture or fake producer fallback |
 

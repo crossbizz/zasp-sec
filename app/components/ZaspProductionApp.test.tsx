@@ -56,7 +56,7 @@ describe("production scoped activity navigation", () => {
       const id = "pid_21000001-0000-4000-8000-000000000001";
       const location = `${route}?inventory=${id}`;
       window.history.replaceState({}, "", mode === "click" ? route : location);
-      const summary = { id, name, kind, owner: "support", team: "platform", tags: [], evidence_id: principal, confidence_basis_points: 9500, first_seen: "2026-09-17T00:00:00Z", last_seen: "2026-09-17T00:01:00Z", observed_at: "2026-09-17T00:01:00Z", fresh_until: "2026-09-17T00:15:00Z", freshness_state: "fresh", version: 1 };
+      const summary = { id, name, kind, owner: "support", team: "platform", tags: [], evidence_id: principal, confidence_basis_points: 9500, first_seen: "2026-09-17T00:00:00Z", last_seen: "2026-09-17T00:01:00Z", observed_at: "2026-09-17T00:01:00Z", fresh_until: "2026-09-17T00:15:00Z", freshness_state: "fresh", version: 1, provider: "kubernetes", source_kind: kind === "agent" ? "kubernetes_agent" : "kubernetes_resource", discovery: { method: kind === "agent" ? "declared" : "provider_api", platform: kind === "agent" ? "kubernetes_agent" : "kubernetes_resource", signals: [] }, management_state: kind === "agent" ? "managed" : "not_applicable" };
       const requests: Request[] = [];
       vi.stubGlobal("fetch", async (request: Request) => {
         const path = new URL(request.url).pathname; requests.push(request);

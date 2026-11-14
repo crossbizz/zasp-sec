@@ -826,7 +826,7 @@ try {
     await waitForBrowserText(browser.cdp, /Setup progress/);
     const setup = await browserBodyText(browser.cdp);
     for (const step of steps) assert.match(setup, new RegExp(step));
-    assert.doesNotMatch(setup, /ref:(?:aws|kubernetes)\//);
+    assert.doesNotMatch(setup, /ref:(?:aws|kubernetes|microsoft|salesforce)\//);
     await clickBrowserText(browser.cdp, "Cancel");
     await waitForBrowserActive(browser.cdp, configure);
   }
@@ -3784,7 +3784,7 @@ async function assertIntegrationSetupStatus(publicOrigin, headers, integrationID
 	assert.equal(returnedID, integrationID, "integration setup status changed integration identity");
 	assert.match(updatedAt, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?Z$/, "integration setup status timestamp was not canonical UTC");
 	assert.deepEqual(body, expected, "integration setup status disagreed with exact provider authority");
-	assert.doesNotMatch(JSON.stringify(response.body), /credential_reference|installation_id|refresh_token|client_secret|ref:(?:aws|kubernetes|github|okta)\//i, "integration setup status leaked provider authority");
+	assert.doesNotMatch(JSON.stringify(response.body), /credential_reference|installation_id|refresh_token|client_secret|ref:(?:aws|kubernetes|github|okta|microsoft|salesforce)\//i, "integration setup status leaked provider authority");
 }
 
 async function exerciseTypedInventoryRetention(publicOrigin, dsn, postgresPort, workerE2EBinary, authorization) {

@@ -20,7 +20,9 @@ var environmentPattern = regexp.MustCompile(`^[a-z][a-z0-9_-]{1,63}$`)
 var referencePattern = regexp.MustCompile(`^ref:nango/[a-z0-9][a-z0-9_./:-]{7,507}$`)
 var queryKeyPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.\[\]-]{0,63}$`)
 
-var coreKeys = map[string]struct{}{"aws": {}, "github": {}, "kubernetes": {}, "okta": {}}
+// coreKeys are the first-party connectors. Nango serves long-tail providers
+// only, so an entry for one of these is refused.
+var coreKeys = map[string]struct{}{"aws": {}, "github": {}, "kubernetes": {}, "okta": {}, "microsoft": {}, "salesforce": {}}
 
 type Rule struct {
 	Method, PathPrefix string

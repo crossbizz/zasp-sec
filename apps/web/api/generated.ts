@@ -1077,8 +1077,8 @@ export type paths = {
         readonly get?: never;
         readonly put?: never;
         /**
-         * Authorize a reference-backed cloud or Kubernetes integration
-         * @description Performs a bounded read-only provider identity and capability probe using only the integration's stored reference configuration, then atomically records an active integration and durable mutation receipt. The response never returns provider subjects, endpoints, credentials, external IDs, certificate authorities, tokens, or raw provider errors.
+         * Authorize a reference-backed integration
+         * @description For an AWS, Kubernetes, Microsoft or Salesforce integration. Performs a bounded read-only provider identity and capability probe using only the integration's stored reference configuration, then atomically records an active integration and durable mutation receipt. The response never returns provider subjects, endpoints, credentials, external IDs, certificate authorities, tokens, or raw provider errors.
          */
         readonly post: operations["authorizeIntegrationReference"];
         readonly delete?: never;
@@ -3415,12 +3415,24 @@ export type components = {
         readonly IntegrationConfiguration: {
             readonly [key: string]: string;
         };
+        readonly IntegrationCoverageGap: {
+            readonly name: string;
+            /** @description The provider service, for example bedrock-agent, bedrock-agentcore or lambda. A Kubernetes integration reports runtime-observations when its discovery credential may not list the node sensor ConfigMaps. */
+            readonly service: string;
+            /**
+             * @description access_denied when the read role lacks a permission the service needs; unavailable when the service is not offered in the regions of the account.
+             * @enum {string}
+             */
+            readonly status: "access_denied" | "unavailable";
+        };
         readonly IntegrationDeletionReceiptResult: {
             readonly id: components["schemas"]["ProductID"];
             /** @constant */
             readonly status: "deleted";
         };
         readonly IntegrationFreshness: {
+            /** @description The AI services whose agents the integration's current collection could not list, ordered by service. Empty when every service was read, and for every provider other than AWS. */
+            readonly coverage_gaps: readonly components["schemas"]["IntegrationCoverageGap"][];
             readonly integration_id: components["schemas"]["ProductID"];
             readonly last_good: components["schemas"]["IntegrationLastGoodSnapshot"] | null;
             readonly latest_sync: components["schemas"]["IntegrationSync"] | null;
@@ -3493,7 +3505,7 @@ export type components = {
             readonly permissions: readonly string[];
             readonly repository_selection: ("all" | "selected") | null;
             /** @enum {string} */
-            readonly scope_kind: "none" | "aws_account" | "kubernetes_cluster" | "github_organization" | "okta_tenant";
+            readonly scope_kind: "none" | "aws_account" | "kubernetes_cluster" | "github_organization" | "okta_tenant" | "microsoft_tenant" | "salesforce_org";
             readonly scope_label: string | null;
             /** @enum {string} */
             readonly state: "pending" | "verified" | "degraded";
@@ -3501,7 +3513,7 @@ export type components = {
         readonly IntegrationSetupStatus: {
             readonly authorization: components["schemas"]["IntegrationSetupAuthorization"];
             /** @enum {string} */
-            readonly connector_key: "aws" | "kubernetes" | "github" | "okta";
+            readonly connector_key: "aws" | "kubernetes" | "github" | "okta" | "microsoft" | "salesforce";
             readonly integration_id: components["schemas"]["ProductID"];
             readonly runtime_coverage: components["schemas"]["IntegrationRuntimeCoverage"];
             /** Format: date-time */
@@ -3558,6 +3570,13 @@ export type components = {
             readonly sources: readonly components["schemas"]["InventorySourceObservation"][];
             readonly summary: components["schemas"]["InventorySummary"];
         };
+        /** @description How the object was found. An agent is declared by its owner, listed by the provider's own control plane, or inferred from catalog signals. Every other kind is a provider record. */
+        readonly InventoryDiscovery: {
+            /** @enum {string} */
+            readonly method: "declared" | "provider_api" | "inferred";
+            readonly platform: string;
+            readonly signals: readonly string[];
+        };
         readonly InventoryEvidenceReference: {
             readonly checksum: string;
             /** Format: date-time */
@@ -3573,10 +3592,17 @@ export type components = {
         readonly InventoryFreshnessState: "fresh" | "stale";
         /** @enum {string} */
         readonly InventoryKind: "asset" | "agent" | "tool" | "identity" | "runtime";
+        /**
+         * @description For an agent, dismissed when it was found without a declaration and a person marked it as not an agent (the reserved tag not-an-agent, set through the ownership update; the tag is ignored on a declared agent, which stays managed). Otherwise unmanaged while it was found without a declaration and has no owner, and managed in every other case. Not applicable to other kinds.
+         * @enum {string}
+         */
+        readonly InventoryManagementState: "managed" | "unmanaged" | "dismissed" | "not_applicable";
         readonly InventoryPage: {
             readonly items: readonly components["schemas"]["InventorySummary"][];
             readonly page_info: components["schemas"]["PageInfo"];
         };
+        /** @enum {string} */
+        readonly InventoryProvider: "aws" | "kubernetes" | "github" | "okta" | "microsoft" | "salesforce";
         readonly InventoryRecord: components["schemas"]["InventorySummary"];
         readonly InventorySourceObservation: {
             readonly confidence_basis_points: number;
@@ -3589,7 +3615,7 @@ export type components = {
             readonly observed_at: string;
             readonly projection_version: number;
             /** @enum {string} */
-            readonly provider: "aws" | "kubernetes" | "github" | "okta";
+            readonly provider: "aws" | "kubernetes" | "github" | "okta" | "microsoft" | "salesforce";
             readonly snapshot_id: components["schemas"]["ProductID"];
             readonly source: string;
             readonly source_identifier: string;
@@ -3597,6 +3623,7 @@ export type components = {
         };
         readonly InventorySummary: {
             readonly confidence_basis_points: number;
+            readonly discovery: components["schemas"]["InventoryDiscovery"];
             readonly evidence_id: components["schemas"]["ProductID"];
             /** Format: date-time */
             readonly first_seen: string;
@@ -3607,10 +3634,13 @@ export type components = {
             readonly kind: components["schemas"]["InventoryKind"];
             /** Format: date-time */
             readonly last_seen: string;
+            readonly management_state: components["schemas"]["InventoryManagementState"];
             readonly name: string;
             /** Format: date-time */
             readonly observed_at: string;
             readonly owner: string;
+            readonly provider: components["schemas"]["InventoryProvider"];
+            readonly source_kind: string;
             readonly tags: readonly string[];
             readonly team: string;
             readonly version: number;
@@ -5377,6 +5407,7 @@ export type IntegrationAuthorization = components['schemas']['IntegrationAuthori
 export type IntegrationAuthorizationRemediationInput = components['schemas']['IntegrationAuthorizationRemediationInput'];
 export type IntegrationCatalogPage = components['schemas']['IntegrationCatalogPage'];
 export type IntegrationConfiguration = components['schemas']['IntegrationConfiguration'];
+export type IntegrationCoverageGap = components['schemas']['IntegrationCoverageGap'];
 export type IntegrationDeletionReceiptResult = components['schemas']['IntegrationDeletionReceiptResult'];
 export type IntegrationFreshness = components['schemas']['IntegrationFreshness'];
 export type IntegrationInput = components['schemas']['IntegrationInput'];
@@ -5400,10 +5431,13 @@ export type IntegrationSyncTriggerKind = components['schemas']['IntegrationSyncT
 export type IntegrationUpdateInput = components['schemas']['IntegrationUpdateInput'];
 export type IntegrationWebhookTestStatus = components['schemas']['IntegrationWebhookTestStatus'];
 export type InventoryDetail = components['schemas']['InventoryDetail'];
+export type InventoryDiscovery = components['schemas']['InventoryDiscovery'];
 export type InventoryEvidenceReference = components['schemas']['InventoryEvidenceReference'];
 export type InventoryFreshnessState = components['schemas']['InventoryFreshnessState'];
 export type InventoryKind = components['schemas']['InventoryKind'];
+export type InventoryManagementState = components['schemas']['InventoryManagementState'];
 export type InventoryPage = components['schemas']['InventoryPage'];
+export type InventoryProvider = components['schemas']['InventoryProvider'];
 export type InventoryRecord = components['schemas']['InventoryRecord'];
 export type InventorySourceObservation = components['schemas']['InventorySourceObservation'];
 export type InventorySummary = components['schemas']['InventorySummary'];

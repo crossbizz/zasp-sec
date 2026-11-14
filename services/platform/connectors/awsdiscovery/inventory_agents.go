@@ -1,0 +1,301 @@
+package awsdiscovery
+
+import (
+	"bytes"
+	"encoding/json"
+	"regexp"
+	"strings"
+	"unicode/utf8"
+
+	"github.com/zasp-ai/zasp-sec/services/platform/agentsignals"
+	"github.com/zasp-ai/zasp-sec/services/platform/connectors/collection"
+	"github.com/zasp-ai/zasp-sec/services/platform/connectors/internal/providercollection"
+)
+
+// The AI services the agents phase reads, in the order the source lists them.
+const (
+	AgentServiceBedrockAgents = "bedrock-agent"
+	AgentServiceAgentCore     = "bedrock-agentcore"
+	AgentServiceLambda        = "lambda"
+)
+
+// What one AI service answered across the account's enabled regions. The
+// worst answer of any region is the service's status.
+const (
+	AgentServiceCollected    = "collected"
+	AgentServiceUnavailable  = "unavailable"
+	AgentServiceAccessDenied = "access_denied"
+)
+
+// Bounds of one account's agent source. More than this is refused, never cut.
+const (
+	MaximumInventoryBedrockAgents   = 1_000
+	MaximumInventoryAgentRuntimes   = 1_000
+	MaximumInventoryAgentGateways   = 1_000
+	MaximumInventoryLambdaFunctions = 5_000
+)
+
+// AgentInventorySource is the canonical JSON the agents phase is derived
+// from. Members and their fields are in the alphabetical order of their JSON
+// names, every list is sorted by ARN and Services lists the three AI services
+// in name order. It holds identifiers, names, states, role ARNs and catalog
+// signal tokens only: no environment variable name or value, no agent
+// instruction, no provider error text.
+type AgentInventorySource struct {
+	AccountID       string                         `json:"account_id"`
+	BedrockAgents   []AgentInventoryBedrockAgent   `json:"bedrock_agents"`
+	Gateways        []AgentInventoryGateway        `json:"gateways"`
+	LambdaFunctions []AgentInventoryLambdaFunction `json:"lambda_functions"`
+	Runtimes        []AgentInventoryRuntime        `json:"runtimes"`
+	Services        []AgentInventoryService        `json:"services"`
+}
+
+// Model, RoleARN and Status are "" when the provider did not say.
+type AgentInventoryBedrockAgent struct {
+	AgentID string `json:"agent_id"`
+	ARN     string `json:"arn"`
+	Model   string `json:"model"`
+	Name    string `json:"name"`
+	Region  string `json:"region"`
+	RoleARN string `json:"role_arn"`
+	Status  string `json:"status"`
+}
+
+type AgentInventoryGateway struct {
+	ARN       string `json:"arn"`
+	GatewayID string `json:"gateway_id"`
+	Name      string `json:"name"`
+	Region    string `json:"region"`
+	Status    string `json:"status"`
+}
+
+// AgentInventoryLambdaFunction is a function the collector concluded is an
+// agent. Signals are agentsignals catalog tokens, at least one.
+type AgentInventoryLambdaFunction struct {
+	ARN     string   `json:"arn"`
+	Name    string   `json:"name"`
+	Region  string   `json:"region"`
+	RoleARN string   `json:"role_arn"`
+	Signals []string `json:"signals"`
+	State   string   `json:"state"`
+}
+
+type AgentInventoryRuntime struct {
+	ARN       string `json:"arn"`
+	Name      string `json:"name"`
+	Region    string `json:"region"`
+	RoleARN   string `json:"role_arn"`
+	RuntimeID string `json:"runtime_id"`
+	Status    string `json:"status"`
+}
+
+type AgentInventoryService struct {
+	Service string `json:"service"`
+	Status  string `json:"status"`
+}
+
+var (
+	agentBedrockARNPattern = regexp.MustCompile(`^arn:aws:bedrock:([a-z]{2}(?:-gov)?-[a-z]+-[1-9]):([0-9]{12}):agent/([0-9A-Za-z]{1,64})$`)
+	agentRuntimeARNPattern = regexp.MustCompile(`^arn:aws:bedrock-agentcore:([a-z]{2}(?:-gov)?-[a-z]+-[1-9]):([0-9]{12}):runtime/([0-9A-Za-z][0-9A-Za-z_-]{0,127})$`)
+	agentGatewayARNPattern = regexp.MustCompile(`^arn:aws:bedrock-agentcore:([a-z]{2}(?:-gov)?-[a-z]+-[1-9]):([0-9]{12}):gateway/([0-9A-Za-z][0-9A-Za-z_-]{0,127})$`)
+	agentLambdaARNPattern  = regexp.MustCompile(`^arn:aws:lambda:([a-z]{2}(?:-gov)?-[a-z]+-[1-9]):([0-9]{12}):function:([0-9A-Za-z_-]{1,140})$`)
+	agentStatePattern      = regexp.MustCompile(`^[A-Za-z][A-Za-z_]{0,63}$`)
+	agentSignalPattern     = regexp.MustCompile(`^[a-z][a-z0-9_]{0,31}:[a-z0-9][a-z0-9_.-]{0,63}$`)
+)
+
+var agentInventoryServices = []struct{ service, name string }{
+	{AgentServiceBedrockAgents, "Bedrock Agents"},
+	{AgentServiceAgentCore, "Bedrock AgentCore"},
+	{AgentServiceLambda, "Lambda"},
+}
+
+// EncodeAgentInventorySource returns the canonical source for an account, or
+// false when the source is not one the agents phase accepts.
+func EncodeAgentInventorySource(source AgentInventorySource) (json.RawMessage, bool) {
+	if !validAgentInventorySource(source, source.AccountID) {
+		return nil, false
+	}
+	encoded, err := json.Marshal(source)
+	if err != nil || !canonicalSecurityObject(encoded) {
+		return nil, false
+	}
+	return encoded, true
+}
+
+func decodeAgentInventorySource(raw json.RawMessage, accountID string) (AgentInventorySource, bool) {
+	var source AgentInventorySource
+	if !canonicalSecurityObject(raw) || !decodeExactSecurityResult(raw, &source) || !validAgentInventorySource(source, accountID) {
+		return AgentInventorySource{}, false
+	}
+	return source, true
+}
+
+func validAgentInventoryDocument(raw json.RawMessage, accountID string) bool {
+	_, ok := decodeAgentInventorySource(raw, accountID)
+	return ok
+}
+
+func validAgentInventorySource(source AgentInventorySource, accountID string) bool {
+	if !awsAccountIDPattern.MatchString(accountID) || source.AccountID != accountID || source.BedrockAgents == nil || source.Gateways == nil || source.LambdaFunctions == nil || source.Runtimes == nil ||
+		len(source.BedrockAgents) > MaximumInventoryBedrockAgents || len(source.Gateways) > MaximumInventoryAgentGateways || len(source.LambdaFunctions) > MaximumInventoryLambdaFunctions || len(source.Runtimes) > MaximumInventoryAgentRuntimes ||
+		len(source.Services) != len(agentInventoryServices) {
+		return false
+	}
+	for index, service := range source.Services {
+		if service.Service != agentInventoryServices[index].service || service.Status != AgentServiceCollected && service.Status != AgentServiceUnavailable && service.Status != AgentServiceAccessDenied {
+			return false
+		}
+	}
+	previous := ""
+	for _, agent := range source.BedrockAgents {
+		match := agentBedrockARNPattern.FindStringSubmatch(agent.ARN)
+		if len(match) != 4 || match[1] != agent.Region || match[2] != accountID || match[3] != agent.AgentID || agent.ARN <= previous || !validAgentInventoryText(agent.Name, 256) ||
+			agent.Model != "" && !validAgentInventoryText(agent.Model, 2048) || !validAgentInventoryRole(agent.RoleARN) || !validAgentInventoryState(agent.Status) {
+			return false
+		}
+		previous = agent.ARN
+	}
+	previous = ""
+	for _, gateway := range source.Gateways {
+		match := agentGatewayARNPattern.FindStringSubmatch(gateway.ARN)
+		if len(match) != 4 || match[1] != gateway.Region || match[2] != accountID || match[3] != gateway.GatewayID || gateway.ARN <= previous || !validAgentInventoryText(gateway.Name, 256) || !validAgentInventoryState(gateway.Status) {
+			return false
+		}
+		previous = gateway.ARN
+	}
+	previous = ""
+	for _, function := range source.LambdaFunctions {
+		match := agentLambdaARNPattern.FindStringSubmatch(function.ARN)
+		if len(match) != 4 || match[1] != function.Region || match[2] != accountID || match[3] != function.Name || function.ARN <= previous || !validAgentInventoryRole(function.RoleARN) || !validAgentInventoryState(function.State) ||
+			len(function.Signals) < 1 || len(function.Signals) > agentsignals.MaximumSignals {
+			return false
+		}
+		previous = function.ARN
+		prior := ""
+		for _, signal := range function.Signals {
+			if !agentSignalPattern.MatchString(signal) || signal <= prior {
+				return false
+			}
+			prior = signal
+		}
+	}
+	previous = ""
+	for _, runtime := range source.Runtimes {
+		match := agentRuntimeARNPattern.FindStringSubmatch(runtime.ARN)
+		if len(match) != 4 || match[1] != runtime.Region || match[2] != accountID || match[3] != runtime.RuntimeID || runtime.ARN <= previous || !validAgentInventoryText(runtime.Name, 256) || !validAgentInventoryRole(runtime.RoleARN) || !validAgentInventoryState(runtime.Status) {
+			return false
+		}
+		previous = runtime.ARN
+	}
+	return true
+}
+
+func validAgentInventoryText(value string, maximum int) bool {
+	if len(value) < 1 || len(value) > maximum || !utf8.ValidString(value) || strings.TrimSpace(value) != value {
+		return false
+	}
+	return strings.IndexFunc(value, func(character rune) bool { return character < 0x20 || character == 0x7f || character == utf8.RuneError }) == -1
+}
+
+func validAgentInventoryRole(arn string) bool {
+	return arn == "" || securityRoleARNPattern.MatchString(arn)
+}
+
+func validAgentInventoryState(state string) bool {
+	return state == "" || agentStatePattern.MatchString(state)
+}
+
+// canonicalAgentObject re-encodes a struct as a JSON object whose members are
+// sorted at every depth, the form the snapshot contract requires of
+// attributes. A struct is otherwise encoded in field order.
+func canonicalAgentObject(value any) map[string]any {
+	encoded, err := json.Marshal(value)
+	if err != nil {
+		return nil
+	}
+	decoder := json.NewDecoder(bytes.NewReader(encoded))
+	decoder.UseNumber()
+	var decoded map[string]any
+	if decoder.Decode(&decoded) != nil {
+		return nil
+	}
+	return decoded
+}
+
+// agentPage emits the account's AI agents, the AgentCore gateways and, for
+// each AI service, whether the read role could read it. An agent is linked to
+// its execution role only when the IAM phase emitted that role.
+func (api *InventoryCollectionAPI) agentPage(request CollectionPageRequest, inventory CollectionInventory, digest [16]byte) (CollectionPage, error) {
+	source, ok := decodeAgentInventorySource(inventory.AgentSource, request.Subject.ID)
+	if !ok {
+		return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
+	}
+	// The IAM phase emits exactly the roles of the Cartography source.
+	var iam struct {
+		Roles []struct {
+			ARN string `json:"Arn"`
+		} `json:"roles"`
+	}
+	if json.Unmarshal(inventory.CartographySource, &iam) != nil {
+		return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
+	}
+	knownRoles := make(map[string]bool, len(iam.Roles))
+	for _, role := range iam.Roles {
+		if match := securityRoleARNPattern.FindStringSubmatch(role.ARN); len(match) == 3 && match[1] == request.Subject.ID {
+			knownRoles[role.ARN] = true
+		}
+	}
+	scope, subject := api.authority.Scope, request.Subject
+	accountID := deterministicAWSInventoryID(scope, subject, "aws_account", subject.ID)
+	count := len(source.Services) + len(source.BedrockAgents) + len(source.Runtimes) + len(source.Gateways) + len(source.LambdaFunctions)
+	entities := make([]json.RawMessage, 0, count)
+	relationships := make([]json.RawMessage, 0, count*2)
+	add := func(kind, arn, display, roleARN string, stable, attributes map[string]any) {
+		id := deterministicAWSInventoryID(scope, subject, kind, arn)
+		entities = append(entities, marshalInventoryEntity(id, kind, arn, display, stable, attributes))
+		relationships = append(relationships, marshalInventoryRelationship(scope, subject, "contains", subject.ID+"|contains|"+arn, accountID, id))
+		if knownRoles[roleARN] {
+			relationships = append(relationships, marshalInventoryRelationship(scope, subject, "uses_identity", arn+"|uses_identity|"+roleARN, id, deterministicAWSInventoryID(scope, subject, "aws_role", roleARN)))
+		}
+	}
+	agentAttributes := func(roleARN, stateName, state string, discovery agentsignals.Discovery) map[string]any {
+		// A posture fact the control plane does not state stays false.
+		attributes := map[string]any{"posture": canonicalAgentObject(agentsignals.Posture{CredentialActive: roleARN != ""}), "discovery": canonicalAgentObject(discovery)}
+		if state != "" {
+			attributes[stateName] = state
+		}
+		return attributes
+	}
+	for index, service := range source.Services {
+		native := "aws:" + service.Service
+		id := deterministicAWSInventoryID(scope, subject, "aws_service", native)
+		name := agentInventoryServices[index].name
+		entities = append(entities, marshalInventoryEntity(id, "aws_service", native, name, map[string]any{"account_id": subject.ID, "name": name, "service": service.Service}, map[string]any{"status": service.Status}))
+		relationships = append(relationships, marshalInventoryRelationship(scope, subject, "contains", subject.ID+"|contains|"+native, accountID, id))
+	}
+	for _, agent := range source.BedrockAgents {
+		attributes := agentAttributes(agent.RoleARN, "status", agent.Status, agentsignals.NewDiscovery(agentsignals.MethodProviderAPI, "bedrock_agent", nil))
+		if agent.Model != "" {
+			attributes["model"] = agent.Model
+		}
+		add("aws_bedrock_agent", agent.ARN, agent.Name, agent.RoleARN, map[string]any{"account_id": subject.ID, "agent_id": agent.AgentID, "arn": agent.ARN, "name": agent.Name, "region": agent.Region}, attributes)
+	}
+	for _, runtime := range source.Runtimes {
+		add("aws_agentcore_runtime", runtime.ARN, runtime.Name, runtime.RoleARN, map[string]any{"account_id": subject.ID, "arn": runtime.ARN, "name": runtime.Name, "region": runtime.Region, "runtime_id": runtime.RuntimeID},
+			agentAttributes(runtime.RoleARN, "status", runtime.Status, agentsignals.NewDiscovery(agentsignals.MethodProviderAPI, "agentcore_runtime", nil)))
+	}
+	for _, gateway := range source.Gateways {
+		attributes := map[string]any{}
+		if gateway.Status != "" {
+			attributes["status"] = gateway.Status
+		}
+		add("aws_agentcore_gateway", gateway.ARN, gateway.Name, "", map[string]any{"account_id": subject.ID, "arn": gateway.ARN, "gateway_id": gateway.GatewayID, "name": gateway.Name, "region": gateway.Region}, attributes)
+	}
+	for _, function := range source.LambdaFunctions {
+		add("aws_inferred_agent", function.ARN, function.Name, function.RoleARN, map[string]any{"account_id": subject.ID, "arn": function.ARN, "name": function.Name, "region": function.Region, "resource_type": "lambda_function"},
+			agentAttributes(function.RoleARN, "state", function.State, agentsignals.NewDiscovery(agentsignals.MethodInferred, "lambda_function", function.Signals)))
+	}
+	sortRawInventory(entities)
+	sortRawInventory(relationships)
+	return NewCollectionPage(request.Subject, inventoryCursor("posture", request.Subject, digest), false, entities, relationships)
+}

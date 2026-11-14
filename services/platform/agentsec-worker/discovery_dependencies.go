@@ -26,6 +26,8 @@ type productionDiscoveryDependencyConfig struct {
 	KubernetesCollectorVersion string
 	GitHubCollectorVersion     string
 	OktaCollectorVersion       string
+	MicrosoftCollectorVersion  string
+	SalesforceCollectorVersion string
 	ParserVersion              string
 	ToolVersion                string
 	KubernetesAllowedCIDRs     []string
@@ -164,9 +166,31 @@ func newProductionDiscoveryDependenciesWithIO(config productionDiscoveryDependen
 		providerTransport.CloseIdleConnections()
 		return fail()
 	}
+	// The token clients of the optional providers exist only where the
+	// provider's collector is configured.
+	var microsoft discoveryMicrosoftTokenAPI
+	if config.MicrosoftCollectorVersion != "" {
+		enterStartupStage("discovery-microsoft")
+		client, clientErr := newProductionDiscoveryMicrosoftTokenClient(providerHTTP, config.Cloud.Clock)
+		if clientErr != nil {
+			providerTransport.CloseIdleConnections()
+			return fail()
+		}
+		microsoft = client
+	}
+	var salesforce discoverySalesforceTokenAPI
+	if config.SalesforceCollectorVersion != "" {
+		enterStartupStage("discovery-salesforce")
+		client, clientErr := newProductionDiscoverySalesforceTokenClient(providerHTTP)
+		if clientErr != nil {
+			providerTransport.CloseIdleConnections()
+			return fail()
+		}
+		salesforce = client
+	}
 	enterStartupStage("discovery-credentials")
 	credentials, err := newProductionDiscoveryCredentialResolver(productionDiscoveryCredentialConfig{
-		Secrets: secrets, AssumeRole: cloud.AssumeRole, GitHub: github, Okta: okta,
+		Secrets: secrets, AssumeRole: cloud.AssumeRole, GitHub: github, Okta: okta, Microsoft: microsoft, Salesforce: salesforce,
 		GitHubAppID: config.GitHubAppID, GitHubPrivateKeyReference: config.GitHubPrivateKeyReference,
 		OktaClientID: config.OktaClientID, OktaClientSecretReference: config.OktaClientSecretReference, Clock: config.Cloud.Clock,
 	})
@@ -203,6 +227,7 @@ func newProductionDiscoveryDependenciesWithIO(config productionDiscoveryDependen
 		Artifacts: artifactCache, Credentials: credentials, AWSInventory: inventory, AWSSecurity: cloud.Security,
 		AWSCollectorVersion: config.AWSCollectorVersion, KubernetesCollectorVersion: config.KubernetesCollectorVersion,
 		GitHubCollectorVersion: config.GitHubCollectorVersion, OktaCollectorVersion: config.OktaCollectorVersion,
+		MicrosoftCollectorVersion: config.MicrosoftCollectorVersion, SalesforceCollectorVersion: config.SalesforceCollectorVersion,
 		ParserVersion: config.ParserVersion, ToolVersion: config.ToolVersion,
 		KubernetesAllowedCIDRs: config.KubernetesAllowedCIDRs, ProviderTimeout: config.ProviderTimeout,
 		KubernetesNetwork: cloud.KubernetesNetwork,

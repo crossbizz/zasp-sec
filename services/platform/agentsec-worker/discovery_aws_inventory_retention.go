@@ -22,7 +22,8 @@ const (
 // connection, subject and the digest in the page cursor, so it can serve only
 // later pages of the run that read it; another run always reads the account
 // itself. It holds the two analyzer sources (role, policy and instance
-// descriptions) and the account id: no credential and no caller identity.
+// descriptions), the agent source and the account id: no credential and no
+// caller identity.
 // A process that does not hold the entry (another worker, a restart, an
 // expired or evicted entry, an inventory over the size limit) reads the
 // account as before.
@@ -33,9 +34,9 @@ type discoveryAWSInventoryRetention struct {
 }
 
 type discoveryAWSRetainedInventory struct {
-	accountID            string
-	cartography, prowler []byte
-	keptAt               time.Time
+	accountID                    string
+	cartography, prowler, agents []byte
+	keptAt                       time.Time
 }
 
 func newDiscoveryAWSInventoryRetention(clock func() time.Time) *discoveryAWSInventoryRetention {
@@ -55,7 +56,7 @@ func (retention *discoveryAWSInventoryRetention) find(binding awsdiscovery.Inven
 
 func (retention *discoveryAWSInventoryRetention) keep(binding awsdiscovery.InventoryBinding, inventory awsdiscovery.CollectionInventory) {
 	if retention == nil || retention.clock == nil || !validDiscoveryAWSInventoryBinding(binding) || inventory.Identity.AccountID == "" || inventory.Identity.AccountID != binding.Subject.ID ||
-		len(inventory.CartographySource) == 0 || len(inventory.ProwlerSource) == 0 || len(inventory.CartographySource)+len(inventory.ProwlerSource) > discoveryAWSInventoryRetentionBytes {
+		len(inventory.CartographySource) == 0 || len(inventory.ProwlerSource) == 0 || len(inventory.AgentSource) == 0 || len(inventory.CartographySource)+len(inventory.ProwlerSource)+len(inventory.AgentSource) > discoveryAWSInventoryRetentionBytes {
 		return
 	}
 	retention.mu.Lock()
@@ -71,7 +72,7 @@ func (retention *discoveryAWSInventoryRetention) keep(binding awsdiscovery.Inven
 		}
 		delete(retention.entries, oldest)
 	}
-	retention.entries[binding] = discoveryAWSRetainedInventory{accountID: inventory.Identity.AccountID, cartography: bytes.Clone(inventory.CartographySource), prowler: bytes.Clone(inventory.ProwlerSource), keptAt: retention.clock()}
+	retention.entries[binding] = discoveryAWSRetainedInventory{accountID: inventory.Identity.AccountID, cartography: bytes.Clone(inventory.CartographySource), prowler: bytes.Clone(inventory.ProwlerSource), agents: bytes.Clone(inventory.AgentSource), keptAt: retention.clock()}
 }
 
 func (retention *discoveryAWSInventoryRetention) expire() {

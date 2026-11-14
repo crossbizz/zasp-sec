@@ -12,6 +12,12 @@
 # installs that dump with no superuser.
 #
 # Requirements: docker, go, psql. Takes about three minutes.
+#
+# Without Docker, set ZASP_BASELINE_PG_BIN to the bin directory of a
+# PostgreSQL installation of the same major version as the image (initdb,
+# pg_ctl, pg_dump, pg_dumpall). The two servers then run from throwaway data
+# directories. PostgreSQL refuses to run as root, so a root caller must also
+# name an unprivileged account in ZASP_BASELINE_PG_USER (default: postgres).
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -34,12 +40,29 @@ if [ -n "${ZASP_BASELINE_KEEP:-}" ]; then
   WORK="$ZASP_BASELINE_KEEP"; mkdir -p "$WORK"
 else
   WORK="$(mktemp -d)"
-  trap 'rm -rf "$WORK"; docker rm -f "$CONTAINER-reference" "$CONTAINER-replay" >/dev/null 2>&1 || true' EXIT
+  trap 'if [ -n "${ZASP_BASELINE_PG_BIN:-}" ]; then stop_local "$CONTAINER-reference"; stop_local "$CONTAINER-replay"; else docker rm -f "$CONTAINER-reference" "$CONTAINER-replay" >/dev/null 2>&1 || true; fi; rm -rf "$WORK"' EXIT
 fi
 
 fail() { echo "baseline: $*" >&2; exit 1; }
 url() { echo "postgres://$1@127.0.0.1:$ACTIVE_PORT/$2?sslmode=disable"; }
+PG_BIN="${ZASP_BASELINE_PG_BIN:-}"
+PG_USER="${ZASP_BASELINE_PG_USER:-postgres}"
+as_pg() { if [ "$(id -u)" = 0 ]; then runuser -u "$PG_USER" -- "$@"; else "$@"; fi; }
+stop_local() { [ -d "$WORK/$1" ] && as_pg "$PG_BIN/pg_ctl" -D "$WORK/$1" -m immediate stop >/dev/null 2>&1 || true; }
+# pg_dump or pg_dumpall of one of the two servers, as its superuser.
+dump() {
+  local name="$1" port="$2" tool="$3"; shift 3
+  if [ -n "$PG_BIN" ]; then "$PG_BIN/$tool" -h 127.0.0.1 -p "$port" -U postgres "$@"; else docker exec "$name" "$tool" -U postgres "$@"; fi
+}
 start_postgres() {
+  if [ -n "$PG_BIN" ]; then
+    stop_local "$1"; rm -rf "${WORK:?}/$1"; mkdir -p "$WORK/$1"
+    if [ "$(id -u)" = 0 ]; then chown "$PG_USER" "$WORK/$1"; chmod 755 "$WORK"; fi
+    as_pg "$PG_BIN/initdb" -D "$WORK/$1" -U postgres --auth=trust --no-locale --encoding=UTF8 >/dev/null
+    as_pg "$PG_BIN/pg_ctl" -D "$WORK/$1" -l "$WORK/$1/server.log" -w \
+      -o "-p $2 -c listen_addresses=127.0.0.1 -c unix_socket_directories= -c max_connections=100 -c timezone=Etc/UTC" start >/dev/null
+    return
+  fi
   docker rm -f "$1" >/dev/null 2>&1 || true
   docker run -d --name "$1" -e POSTGRES_USER=postgres -e POSTGRES_HOST_AUTH_METHOD=trust \
     -e POSTGRES_INITDB_ARGS="--no-locale --encoding=UTF8" -p "127.0.0.1:$2:5432" "$PG_IMAGE" -c max_connections=100 >/dev/null
@@ -168,8 +191,8 @@ else
   { echo "BEGIN;"; cat "$HERE/completion.sql"; echo "COMMIT;"; } > "$WORK/completion-run.sql"
   sql "$(url postgres reference)" -f "$WORK/completion-run.sql" >/dev/null
 fi
-docker exec "$CONTAINER-reference" pg_dumpall -U postgres --roles-only --no-role-passwords > "$WORK/roles.raw"
-docker exec "$CONTAINER-reference" pg_dump -U postgres -d reference --inserts --rows-per-insert=200 > "$WORK/reference.sql"
+dump "$CONTAINER-reference" "$REFERENCE_PORT" pg_dumpall --roles-only --no-role-passwords > "$WORK/roles.raw"
+dump "$CONTAINER-reference" "$REFERENCE_PORT" pg_dump -d reference --inserts --rows-per-insert=200 > "$WORK/reference.sql"
 # The reference structure is compared after the same membership rewrite the
 # dump receives, because views and policies print the relation name.
 psql -X -At -v ON_ERROR_STOP=1 -v memberships=pg_auth_members -f "$HERE/structure.sql" "$(url postgres reference)" \
@@ -248,7 +271,7 @@ if diff <(grep -vE "$EXPECTED" "$WORK/reference.predicates") <(grep -vE "$EXPECT
 fi
 grep -q '^zasp_authorization80_worker\.runtime_ready=t$' "$WORK/baseline.predicates" || fail "worker gate is not open"
 
-docker exec "$CONTAINER-replay" pg_dump -U postgres -d baseline --inserts --rows-per-insert=200 | grep -v '^\\' > "$WORK/baseline.sql"
+dump "$CONTAINER-replay" "$REPLAY_PORT" pg_dump -d baseline --inserts --rows-per-insert=200 | grep -v '^\\' > "$WORK/baseline.sql"
 gzip -n -9 -c "$WORK/baseline.sql" > "$HERE/baseline.sql.gz"
 cp "$WORK/roles.sql" "$HERE/roles.sql"
 sha256sum < "$WORK/baseline.sql" | cut -d' ' -f1 > "$HERE/baseline.sha256"

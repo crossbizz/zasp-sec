@@ -200,9 +200,50 @@ describe("workflow mutation receipt decoder", () => {
 		expect(() => decodeWorkflowMutationReceipt(value, expectedScope)).toThrow("schema mismatch");
 	});
 
+	const saasReference = (provider: "microsoft" | "salesforce", configuration: Record<string, unknown>) => {
+		const value = receipt("completeIntegrationReferenceAuthorization");
+		value.result = { ...value.result, connector_key: provider, configuration };
+		value.intent = { ...value.intent, provider, configuration };
+		return value;
+	};
+	const microsoftConfiguration = { client_id: "11111111-2222-3333-4444-555555555555", client_secret_reference: "ref:microsoft/client-secret/customer-0001", tenant_id: "0a1b2c3d-1111-2222-3333-444455556666" };
+	const salesforceConfiguration = { client_id: "3MVG9abcdefghijklmnopqrstuvwxyz.ABCDEF_0123456789", client_secret_reference: "ref:salesforce/client-secret/customer-0001", instance_url: "https://acme.my.salesforce.com", organization_id: "00D5e000000abcdEAA" };
+
+	it("accepts Microsoft and Salesforce reference authorization", () => {
+		for (const value of [
+			saasReference("microsoft", microsoftConfiguration),
+			saasReference("microsoft", { ...microsoftConfiguration, dataverse_url: "https://org1234.crm4.dynamics.com" }),
+			saasReference("salesforce", salesforceConfiguration),
+		]) expect(decodeWorkflowMutationReceipt(value, expectedScope)).toEqual(value);
+	});
+
+	it.each([
+		["unknown provider", saasReference("microsoft", microsoftConfiguration), (value: ReturnType<typeof receipt>) => { value.result = { ...value.result, connector_key: "servicenow" }; value.intent = { ...value.intent, provider: "servicenow" }; }],
+		["OAuth provider", saasReference("microsoft", microsoftConfiguration), (value: ReturnType<typeof receipt>) => { value.result = { ...value.result, connector_key: "okta" }; value.intent = { ...value.intent, provider: "okta" }; }],
+		["Microsoft tenant that is not a GUID", saasReference("microsoft", { ...microsoftConfiguration, tenant_id: "contoso.onmicrosoft.com" }), () => undefined],
+		["Microsoft client that is not a GUID", saasReference("microsoft", { ...microsoftConfiguration, client_id: "client" }), () => undefined],
+		["Microsoft secret value", saasReference("microsoft", { ...microsoftConfiguration, client_secret_reference: "Abc~1234567890.secret-value_abcdefgh" }), () => undefined],
+		["Microsoft reference of another provider", saasReference("microsoft", { ...microsoftConfiguration, client_secret_reference: "ref:salesforce/client-secret/customer-0001" }), () => undefined],
+		["Microsoft missing secret reference", saasReference("microsoft", { client_id: microsoftConfiguration.client_id, tenant_id: microsoftConfiguration.tenant_id }), () => undefined],
+		["Microsoft Dataverse over HTTP", saasReference("microsoft", { ...microsoftConfiguration, dataverse_url: "http://org1234.crm4.dynamics.com" }), () => undefined],
+		["Microsoft Dataverse on another host", saasReference("microsoft", { ...microsoftConfiguration, dataverse_url: "https://org1234.crm4.dynamics.com.evil.example" }), () => undefined],
+		["Microsoft client secret member", saasReference("microsoft", { ...microsoftConfiguration, client_secret: "raw" }), () => undefined],
+		["Salesforce instance over HTTP", saasReference("salesforce", { ...salesforceConfiguration, instance_url: "http://acme.my.salesforce.com" }), () => undefined],
+		["Salesforce instance on another host", saasReference("salesforce", { ...salesforceConfiguration, instance_url: "https://acme.my.salesforce.com.evil.example" }), () => undefined],
+		["Salesforce 15-character organization", saasReference("salesforce", { ...salesforceConfiguration, organization_id: "00D5e000000abcd" }), () => undefined],
+		["Salesforce short consumer key", saasReference("salesforce", { ...salesforceConfiguration, client_id: "short" }), () => undefined],
+		["Salesforce missing secret reference", saasReference("salesforce", { client_id: salesforceConfiguration.client_id, instance_url: salesforceConfiguration.instance_url, organization_id: salesforceConfiguration.organization_id }), () => undefined],
+		["Salesforce configuration under Microsoft", saasReference("microsoft", salesforceConfiguration), () => undefined],
+	])("rejects SaaS reference authorization with %s", (_name, value, mutate) => {
+		mutate(value);
+		expect(() => decodeWorkflowMutationReceipt(value, expectedScope)).toThrow("schema mismatch");
+	});
+
 	it.each([
 		["extra member", (value: ReturnType<typeof receipt>) => { value.intent = { ...value.intent, token: "raw" }; }],
 		["mismatched provider", (value: ReturnType<typeof receipt>) => { value.intent = { ...value.intent, provider: "okta" }; }],
+		["reference-authorized provider", (value: ReturnType<typeof receipt>) => { value.result = { ...value.result, connector_key: "microsoft" }; value.intent = { ...value.intent, provider: "microsoft" }; }],
+		["first-party provider behind Nango", (value: ReturnType<typeof receipt>) => { value.result = { ...value.result, connector_key: "salesforce" }; value.intent = { ...value.intent, provider: "nango:salesforce" }; }],
 		["mismatched integration", (value: ReturnType<typeof receipt>) => { value.intent = { ...value.intent, integration_id: "pid_20000001-0000-4000-8000-000000000099" }; }],
 		["mismatched idempotency key", (value: ReturnType<typeof receipt>) => { value.idempotency_key = "oauth-completion:pid_99999999-9999-4999-8999-999999999999"; }],
 	])("rejects OAuth completion %s", (_name, mutate) => {

@@ -57,7 +57,7 @@ func (stub *discoveryInventoryEC2Stub) DescribeInstances(context.Context, *ec2.D
 func TestAWSInventoryCallerBuildsCanonicalMultiRegionSecuritySources(t *testing.T) {
 	t.Parallel()
 	clock := func() time.Time { return time.Date(2026, 8, 20, 12, 0, 0, 0, time.UTC) }
-	caller, err := newDiscoveryAWSCollectionInventoryCaller(discoveryAWSInventoryFactory{
+	caller, err := newDiscoveryAWSCollectionInventoryCaller(discoveryAWSInventoryFactory{BedrockAgent: emptyDiscoveryBedrockAgents, AgentCore: emptyDiscoveryAgentCore, Lambda: emptyDiscoveryLambda,
 		Identity: func(string, aws.Credentials) (discoveryCallerIdentityAPI, error) {
 			return &discoveryCallerIdentityStub{output: &sts.GetCallerIdentityOutput{Account: aws.String("123456789012"), Arn: aws.String("arn:aws:sts::123456789012:assumed-role/zasp/session")}}, nil
 		},

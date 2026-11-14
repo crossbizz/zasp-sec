@@ -1,0 +1,50 @@
+# Two workloads for checking runtime agent discovery on a real cluster
+# (runbook step 15). Neither says anything about AI in its pod template.
+#
+#   egress-smoke    asks DNS for api.anthropic.com and connects to it once a
+#                   minute, without a credential (the API answers 401 or 404).
+#                   Expected: the node sensor records it under "anthropic" and
+#                   the next Kubernetes sync lists it as an unmanaged agent.
+#   egress-control  does the same against example.com.
+#                   Expected: never recorded, never listed as an agent.
+#
+# kubectl apply -f smoke.yaml ; ./report.sh ; kubectl delete -f smoke.yaml
+apiVersion: v1
+kind: Namespace
+metadata: { name: zasp-egress-smoke }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: egress-smoke, namespace: zasp-egress-smoke }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: egress-smoke } }
+  template:
+    metadata: { labels: { app: egress-smoke } }
+    spec:
+      automountServiceAccountToken: false
+      securityContext: { runAsNonRoot: true, runAsUser: 65532, seccompProfile: { type: RuntimeDefault } }
+      containers:
+        - name: caller
+          image: curlimages/curl:8.11.1
+          command: ["/bin/sh", "-c", "while true; do curl -s -o /dev/null --max-time 10 https://api.anthropic.com/; sleep 60; done"]
+          resources: { requests: { cpu: 5m, memory: 16Mi }, limits: { cpu: 50m, memory: 32Mi } }
+          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, readOnlyRootFilesystem: true }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: egress-control, namespace: zasp-egress-smoke }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: egress-control } }
+  template:
+    metadata: { labels: { app: egress-control } }
+    spec:
+      automountServiceAccountToken: false
+      securityContext: { runAsNonRoot: true, runAsUser: 65532, seccompProfile: { type: RuntimeDefault } }
+      containers:
+        - name: caller
+          image: curlimages/curl:8.11.1
+          command: ["/bin/sh", "-c", "while true; do curl -s -o /dev/null --max-time 10 https://example.com/; sleep 60; done"]
+          resources: { requests: { cpu: 5m, memory: 16Mi }, limits: { cpu: 50m, memory: 32Mi } }
+          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, readOnlyRootFilesystem: true }

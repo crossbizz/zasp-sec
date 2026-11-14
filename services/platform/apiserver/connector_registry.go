@@ -30,7 +30,7 @@ func NewConnectorProviderRegistry(providers map[string]ConnectorOAuthProviderDef
 			definition.AuthorityProvider = key
 		}
 		core := launchReady && manifest.AuthorizationReady && stringIn(key, "github", "okta") && definition.AuthorityProvider == key && (key != "github" || definition.CredentialClass == "github_installation_reference") && (key != "okta" || definition.CredentialClass == "okta_refresh_reference")
-		longTail := keyPatternForCatalog(key) && !stringIn(key, "aws", "kubernetes", "github", "okta") && definition.AuthorityProvider == "nango:"+key && definition.CredentialClass == "nango_connection_reference"
+		longTail := keyPatternForCatalog(key) && !isDiscoveryProvider(key) && definition.AuthorityProvider == "nango:"+key && definition.CredentialClass == "nango_connection_reference"
 		if (!core && !longTail) || nilInterface(definition.Provider) == nilInterface(definition.Factory) || !validConnectorScopes(definition.RequestedScopes) {
 			return nil, ErrRepositoryConfiguration
 		}

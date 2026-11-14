@@ -175,7 +175,7 @@ A sync fails at its second page when the analyzers are not installed (`stack.sh 
 2. **Findings** lists "Discovered AWS control iam_role_administratoraccess_policy" and "Discovered AWS control ec2_instance_imdsv2_enabled", both high. Click one: you see Why, Evidence, Path, Fix and Verify, "Related Security Agent runs", and the actions.
 3. In a finding, type a reason under **Accept risk** and click **Accept risk**. The status becomes `accepted` and the reason is shown. Click **Reopen finding**: the status is `open` again. **Mark under review** sets `under_review`.
 
-Agents, Tools & MCP and Runtimes stay empty ("No records in this scope."): they list only what the Kubernetes, Okta and GitHub connectors report. Everything else the sync reads (the account, policies, the EC2 instance) is an *asset*; no page lists assets, but the search box finds them.
+Agents, Tools & MCP and Runtimes stay empty ("No records in this scope."): the AWS connector lists Bedrock agents, AgentCore runtimes and gateways and Lambda functions that call a model, but LocalStack does not emulate those services, and the rest comes from the Kubernetes, Okta and GitHub connectors. Everything else the sync reads (the account, policies, the EC2 instance) is an *asset*; no page lists assets, but the search box finds them.
 
 ### 4. Graph and search
 

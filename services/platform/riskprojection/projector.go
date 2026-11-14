@@ -111,7 +111,7 @@ func (projector *Projector) Project(ctx context.Context, candidate Candidate) (R
 
 func validCandidate(candidate Candidate) bool {
 	return candidate.Scope.Validate() == nil && candidate.IntegrationID != (domain.ProductID{}) && candidate.SnapshotID != (domain.ProductID{}) &&
-		stringIn(candidate.Source, "aws", "kubernetes", "github", "okta") && candidate.Generation > 0 &&
+		stringIn(candidate.Source, "aws", "kubernetes", "github", "okta", "microsoft", "salesforce") && candidate.Generation > 0 &&
 		versionPattern.MatchString(candidate.Version) && workerPattern.MatchString(candidate.Worker) && len(candidate.LeaseToken) >= 16 && len(candidate.LeaseToken) <= 128 &&
 		strings.TrimSpace(candidate.LeaseToken) == candidate.LeaseToken && candidate.InputDigest != [sha256.Size]byte{} &&
 		candidate.Entities != nil && candidate.Relationships != nil && candidate.Evidence != nil &&

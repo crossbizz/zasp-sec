@@ -150,3 +150,8 @@ network:
     aws: []                     # REQUIRED: addresses of the STS and Secrets Manager VPC endpoints.
     github: []                  # REQUIRED
     okta: []                    # REQUIRED
+    # Optional providers. Leave empty unless the matching
+    # discovery.microsoftCollectorVersion or discovery.salesforceCollectorVersion
+    # is set; then list address snapshots (NetworkPolicy cannot name a host).
+    microsoft: []               # login.microsoftonline.com, graph.microsoft.com and the customer's Dataverse environment.
+    salesforce: []              # The customer's My Domain (*.my.salesforce.com).

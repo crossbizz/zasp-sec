@@ -1462,6 +1462,12 @@ func referenceTreeSafe(value any) bool {
 	switch typed := value.(type) {
 	case map[string]any:
 		for key, child := range typed {
+			// A configuration may name its OAuth client secret, but only by
+			// a reference of the fixed grammar (zasp_reference_only admits
+			// the same member).
+			if reference, isText := child.(string); key == "client_secret_reference" && isText && (microsoftSecretReferencePattern.MatchString(reference) || salesforceSecretReferencePattern.MatchString(reference)) {
+				continue
+			}
 			if referenceOnlyKeyPattern.MatchString(key) || !referenceTreeSafe(child) {
 				return false
 			}

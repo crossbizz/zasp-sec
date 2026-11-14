@@ -595,7 +595,10 @@ provision_customer_account() {
     fi
   done
   ensure_role "$CUSTOMER_ROLE_PATH" "$CUSTOMER_ROLE_NAME" "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"AWS\":[\"arn:aws:iam::000000000000:role/zasp-real-stack-api-connectors\",\"arn:aws:iam::000000000000:role/zasp-real-stack-discovery\"]},\"Action\":\"sts:AssumeRole\",\"Condition\":{\"StringEquals\":{\"sts:ExternalId\":\"$external_id\"}}}]}"
-  ensure_attached_policy zasp-customer-read-inventory '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["iam:ListRoles","iam:ListAttachedRolePolicies","iam:GetPolicy","iam:GetPolicyVersion","ec2:DescribeRegions","ec2:DescribeInstances"],"Resource":"*"}]}' "$CUSTOMER_ROLE_NAME"
+  # The bedrock, bedrock-agentcore and lambda actions are optional. They let the
+  # sync list the account's AI agents. Without them the sync still succeeds
+  # and the AI service shows access_denied in the inventory.
+  ensure_attached_policy zasp-customer-read-inventory '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["iam:ListRoles","iam:ListAttachedRolePolicies","iam:GetPolicy","iam:GetPolicyVersion","ec2:DescribeRegions","ec2:DescribeInstances","bedrock:ListAgents","bedrock:GetAgent","bedrock-agentcore:ListAgentRuntimes","bedrock-agentcore:GetAgentRuntime","bedrock-agentcore:ListGateways","lambda:ListFunctions"],"Resource":"*"}]}' "$CUSTOMER_ROLE_NAME"
 
   # Fixture: three roles an agent workload would run under, with the policies
   # that give them model, tool and data access, one role trusting another, one
@@ -658,6 +661,12 @@ cmd_worker() {
       # any other value refuses to build its collector and the run fails.
       export ZASP_DISCOVERY_AWS_COLLECTOR_VERSION=collector_v1 ZASP_DISCOVERY_KUBERNETES_COLLECTOR_VERSION=collector_v1
       export ZASP_DISCOVERY_GITHUB_COLLECTOR_VERSION=collector_v1 ZASP_DISCOVERY_OKTA_COLLECTOR_VERSION=collector_v1
+      # Microsoft and Salesforce are optional and off here: the local stack has
+      # no tenant or org to collect from. To serve one, export
+      # ZASP_DISCOVERY_MICROSOFT_COLLECTOR_VERSION=collector_v1 or
+      # ZASP_DISCOVERY_SALESFORCE_COLLECTOR_VERSION=collector_v1 before starting
+      # both this worker and the API; an unset variable leaves the collector
+      # unregistered and the connector out of the catalog.
       export ZASP_KUBERNETES_EGRESS_CIDRS=203.0.113.0/24 ZASP_DISCOVERY_READINESS_TIMEOUT=5s
       export ZASP_GITHUB_APP_ID=123456 ZASP_GITHUB_PRIVATE_KEY_REFERENCE=ref:github/app-private-key
       export ZASP_OKTA_CLIENT_ID=0oa1234567890abcdef ZASP_OKTA_CLIENT_SECRET_REFERENCE=ref:okta/client-secret

@@ -442,8 +442,8 @@ export function createIntegrationsAPI(client: APIClient) {
 
 export type IntegrationsAPI = ReturnType<typeof createIntegrationsAPI>;
 
-function isReferenceConnector(value: string): value is "aws" | "kubernetes" {
-  return value === "aws" || value === "kubernetes";
+function isReferenceConnector(value: string): value is "aws" | "kubernetes" | "microsoft" | "salesforce" {
+  return value === "aws" || value === "kubernetes" || value === "microsoft" || value === "salesforce";
 }
 
 function requireNextWorkflowVersion(previous: string, next: string): void {

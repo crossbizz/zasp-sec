@@ -34,10 +34,14 @@ var (
 	versionPattern           = regexp.MustCompile(`^[a-z][a-z0-9_.-]{1,63}$`)
 	tokenPattern             = regexp.MustCompile(`^[a-z][a-z0-9_]{0,63}$`)
 	checksumPattern          = regexp.MustCompile(`^[0-9a-f]{64}$`)
-	referencePattern         = regexp.MustCompile(`^ref:(aws|kubernetes|github|okta)/[a-z0-9][a-z0-9_./:-]{7,507}$`)
+	referencePattern         = regexp.MustCompile(`^ref:(aws|kubernetes|github|okta|microsoft|salesforce)/[a-z0-9][a-z0-9_./:-]{7,507}$`)
 	awsSubjectPattern        = regexp.MustCompile(`^[0-9]{12}$`)
 	kubernetesSubjectPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9.-]{0,252}/[a-z0-9][a-z0-9._-]{0,127}$`)
 	oktaSubjectPattern       = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]\.okta\.com$`)
+	// A Microsoft Entra tenant is its directory GUID; a Salesforce org is its
+	// 18-character organization id.
+	microsoftSubjectPattern  = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+	salesforceSubjectPattern = regexp.MustCompile(`^00D[A-Za-z0-9]{15}$`)
 )
 
 type Provider string
@@ -47,11 +51,15 @@ const (
 	ProviderKubernetes Provider = "kubernetes"
 	ProviderGitHub     Provider = "github"
 	ProviderOkta       Provider = "okta"
+	// The SaaS agent providers. A deployment registers them when it serves
+	// them; the four above are always required.
+	ProviderMicrosoft  Provider = "microsoft"
+	ProviderSalesforce Provider = "salesforce"
 )
 
 func (provider Provider) valid() bool {
 	switch provider {
-	case ProviderAWS, ProviderKubernetes, ProviderGitHub, ProviderOkta:
+	case ProviderAWS, ProviderKubernetes, ProviderGitHub, ProviderOkta, ProviderMicrosoft, ProviderSalesforce:
 		return true
 	default:
 		return false
@@ -65,6 +73,8 @@ const (
 	CredentialKubernetesCluster  CredentialClass = "kubernetes_cluster"
 	CredentialGitHubInstallation CredentialClass = "github_installation"
 	CredentialOktaRefresh        CredentialClass = "okta_refresh"
+	CredentialMicrosoftClient    CredentialClass = "microsoft_client_credentials"
+	CredentialSalesforceClient   CredentialClass = "salesforce_client_credentials"
 )
 
 func credentialMatchesProvider(class CredentialClass, provider Provider) bool {
@@ -77,6 +87,10 @@ func credentialMatchesProvider(class CredentialClass, provider Provider) bool {
 		return class == CredentialGitHubInstallation
 	case ProviderOkta:
 		return class == CredentialOktaRefresh
+	case ProviderMicrosoft:
+		return class == CredentialMicrosoftClient
+	case ProviderSalesforce:
+		return class == CredentialSalesforceClient
 	default:
 		return false
 	}
@@ -153,7 +167,7 @@ type SubjectBinding struct {
 }
 
 func (binding SubjectBinding) valid(provider Provider) bool {
-	want := map[Provider]string{ProviderAWS: "aws_account", ProviderKubernetes: "kubernetes_cluster", ProviderGitHub: "github_installation", ProviderOkta: "okta_tenant"}[provider]
+	want := map[Provider]string{ProviderAWS: "aws_account", ProviderKubernetes: "kubernetes_cluster", ProviderGitHub: "github_installation", ProviderOkta: "okta_tenant", ProviderMicrosoft: "microsoft_tenant", ProviderSalesforce: "salesforce_org"}[provider]
 	if binding.Kind != want || !boundedText(binding.ID, 512) {
 		return false
 	}
@@ -170,6 +184,10 @@ func (binding SubjectBinding) valid(provider Provider) bool {
 		return err == nil && value <= 1<<53
 	case ProviderOkta:
 		return oktaSubjectPattern.MatchString(binding.ID)
+	case ProviderMicrosoft:
+		return microsoftSubjectPattern.MatchString(binding.ID)
+	case ProviderSalesforce:
+		return salesforceSubjectPattern.MatchString(binding.ID)
 	default:
 		return false
 	}

@@ -1272,6 +1272,11 @@ test("release mounts one readiness-gated discovery worker with exact provider an
     ZASP_OKTA_CLIENT_ID: release.discovery.oktaClientID, ZASP_OKTA_CLIENT_SECRET_REFERENCE: release.discovery.oktaClientSecretReference,
     ZASP_PROVIDER_TIMEOUT: release.discovery.providerTimeout, ZASP_DISCOVERY_READINESS_TIMEOUT: release.discovery.readinessTimeout,
   });
+  // The optional Microsoft and Salesforce collectors are off in a release
+  // that does not name them: neither the worker nor the API receives a version.
+  for (const workload of resources.filter(({ kind }) => ["Deployment", "Job", "CronJob"].includes(kind))) {
+    assert.doesNotMatch(JSON.stringify(workload), /ZASP_DISCOVERY_(?:MICROSOFT|SALESFORCE)_COLLECTOR_VERSION/, workload.metadata.name);
+  }
   assert.equal(pod.serviceAccountName, "zasp-discovery-worker");
   assert.equal(pod.automountServiceAccountToken, false);
   assert.equal(container.env.find(({ name }) => name === "ZASP_WORKER_ID").valueFrom.fieldRef.fieldPath, "metadata.name");
@@ -1766,6 +1771,11 @@ test("terraform binds each shipped secret consumer to one exact least-privilege 
   assert.match(variables, /variable "neo4j_endpoint_cidr"/);
   for (const output of ["discovery_runtime_config", "projection_risk_role_arn", "projection_graph_runtime_config", "projection_graph_init_authority", "projection_search_init_authority"]) assert.match(outputs, new RegExp(`output "${output}"`));
   for (const env of ["ZASP_DISCOVERY_AWS_COLLECTOR_VERSION", "ZASP_DISCOVERY_KUBERNETES_COLLECTOR_VERSION", "ZASP_DISCOVERY_GITHUB_COLLECTOR_VERSION", "ZASP_DISCOVERY_OKTA_COLLECTOR_VERSION", "ZASP_NEO4J_CREDENTIAL_REFERENCE"]) assert.match(outputs, new RegExp(env));
+  // The two optional providers are an output only while enabled, and no
+  // release value sets them: they are disabled by default.
+  assert.match(variables, /variable "discovery_optional_providers"[\s\S]*?default = \{\}/);
+  for (const env of ["ZASP_DISCOVERY_MICROSOFT_COLLECTOR_VERSION", "ZASP_DISCOVERY_SALESFORCE_COLLECTOR_VERSION"]) assert.match(outputs, new RegExp(`${env}\\s+= var\\.discovery_optional_providers\\.[a-z]+_collector`));
+  assert.match(outputs, /\} : name => version if version != ""/);
   assert.doesNotMatch(outputs, /neo4j.*(?:password|credential_value)|github.*private_key_value|okta.*secret_value/i);
 });
 

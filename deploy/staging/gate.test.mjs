@@ -205,3 +205,67 @@ test("boolean readiness cannot substitute for actual same-run dependency and OTL
   });
   assert.throws(() => evaluateM1AGate({ deploymentReady: true, privateEndpoints: true, perWorkloadIAM: true, evidence }), /staging gate rejected/);
 });
+
+// Microsoft and Salesforce are optional discovery providers. These checks read
+// the chart and the Terraform as text: they hold without Helm or Terraform.
+test("optional discovery providers are disabled by default and gated by their collector version", async () => {
+  const read = (name) => readFile(new URL(name, import.meta.url), "utf8");
+  const values = load(await read("./product/values.yaml"));
+  assert.equal(values.discovery.microsoftCollectorVersion, "");
+  assert.equal(values.discovery.salesforceCollectorVersion, "");
+  assert.deepEqual(values.network.connectorEgressCIDRs.microsoft, []);
+  assert.deepEqual(values.network.connectorEgressCIDRs.salesforce, []);
+  // No other values file turns either provider on.
+  for (const name of ["./product/values-saas.yaml", "./product/values-single-tenant.yaml", "./product/values-customer-edge.yaml", "../production/values-production.example.yaml"]) {
+    const overlay = load(await read(name)) ?? {};
+    assert.ok(!overlay.discovery?.microsoftCollectorVersion && !overlay.discovery?.salesforceCollectorVersion, name);
+    assert.deepEqual(overlay.network?.connectorEgressCIDRs?.microsoft ?? [], [], name);
+    assert.deepEqual(overlay.network?.connectorEgressCIDRs?.salesforce ?? [], [], name);
+  }
+
+  const workloads = await read("./product/templates/workloads.yaml");
+  for (const [provider, variable] of [["microsoft", "ZASP_DISCOVERY_MICROSOFT_COLLECTOR_VERSION"], ["salesforce", "ZASP_DISCOVERY_SALESFORCE_COLLECTOR_VERSION"]]) {
+    // The variable is rendered twice, for the API and for the discovery
+    // worker, and each time only inside a block its version value opens.
+    const gated = new RegExp(`\\{\\{- with \\$?(?:root)?\\.Values\\.discovery\\.${provider}CollectorVersion \\}\\}\\n\\s+- \\{ name: ${variable}, value: \\{\\{ \\. \\| quote \\}\\} \\}\\n\\s+\\{\\{- end \\}\\}`, "g");
+    assert.equal(workloads.match(gated)?.length, 2, variable);
+    assert.equal(workloads.split(variable).length - 1, 2, `${variable} is rendered outside its gate`);
+  }
+
+  const network = await read("./product/templates/resilience.yaml");
+  for (const [provider, variable] of [["microsoft", "$connectorMicrosoft"], ["salesforce", "$connectorSalesforce"]]) {
+    // The address list starts empty, is read only under the provider's
+    // version, and is then required.
+    const definition = `{{- ${variable} := list }}\n{{- if .Values.discovery.${provider}CollectorVersion }}\n{{- ${variable} = .Values.network.connectorEgressCIDRs.${provider} | default list }}\n{{- if not ${variable} }}{{ fail "network.connectorEgressCIDRs.${provider} is required when discovery.${provider}CollectorVersion is set" }}{{ end }}\n{{- end }}`;
+    assert.ok(network.includes(definition), `${provider} egress gate`);
+    assert.equal(network.split(`.Values.network.connectorEgressCIDRs.${provider}`).length - 1, 1, `${provider} addresses are read outside the gate`);
+  }
+  // Exactly the API and the discovery worker may reach the providers.
+  const policies = network.split("\n---\n").filter((document) => document.includes("$connectorMicrosoft $connectorSalesforce }}"));
+  assert.equal(network.split("$connectorMicrosoft $connectorSalesforce }}").length - 1, 2);
+  const selectors = policies.map((document) => /podSelector: \{ matchLabels: \{ app\.kubernetes\.io\/name: ([a-z-]+) \} \}/.exec(document)?.[1]).sort();
+  assert.deepEqual(selectors, ["agentsec-api", "agentsec-discovery-worker"]);
+  for (const document of policies) {
+    assert.match(document, /zasp\.io\/network-policy-boundary: native-cidr-snapshot/);
+    assert.match(document, /concat [^\n]*\$connectorMicrosoft \$connectorSalesforce \}\}\n\s+- ipBlock: \{ cidr: \{\{ \$cidr \| quote \}\} \}\n\s+\{\{- end \}\}\n\s+ports: \[\{ protocol: TCP, port: 443 \}\]/);
+    assert.doesNotMatch(document, /0\.0\.0\.0\/0|::\/0|toFQDNs|namespaceSelector: \{\}/);
+  }
+
+  const variables = await read("./variables.tf");
+  const optional = variables.slice(variables.indexOf('variable "discovery_optional_providers"'), variables.indexOf('variable "kubernetes_connector_egress_cidrs"'));
+  assert.match(optional, /default = \{\}/);
+  for (const attribute of ["microsoft_collector", "microsoft_client_secret_id", "salesforce_collector", "salesforce_client_secret_id"]) assert.match(optional, new RegExp(`${attribute}\\s*= optional\\(string, ""\\)`));
+  for (const attribute of ["microsoft_egress_cidrs", "salesforce_egress_cidrs"]) assert.match(optional, new RegExp(`${attribute}\\s*= optional\\(list\\(string\\), \\[\\]\\)`));
+  const tfvars = await Promise.all(["./release.tfvars", "../production/example.tfvars"].map(read));
+  for (const text of tfvars) assert.doesNotMatch(text, /discovery_optional_providers/);
+
+  const terraform = await read("./main.tf");
+  // A client-secret reference exists only for an enabled provider, and the
+  // API and worker policies reach it through the one connector_reference set.
+  assert.match(terraform, /optional_connector_reference_secret_names = \{\s+for key, value in \{[\s\S]*?microsoft\/client-secret\/\$\{var\.discovery_optional_providers\.microsoft_client_secret_id\}[\s\S]*?enabled\s+= var\.discovery_optional_providers\.microsoft_collector != ""[\s\S]*?salesforce\/client-secret\/\$\{var\.discovery_optional_providers\.salesforce_client_secret_id\}[\s\S]*?enabled\s+= var\.discovery_optional_providers\.salesforce_collector != ""[\s\S]*?\} : key => \{ name = value\.name, credential_class = value\.credential_class \} if value\.enabled\n/);
+  assert.match(terraform, /connector_reference_secret_names = merge\(local\.required_connector_reference_secret_names, local\.optional_connector_reference_secret_names\)/);
+  assert.doesNotMatch(terraform, /secret:\$\{local\.connector_secret_root\}\/(?:microsoft|salesforce)\/\*/);
+
+  const outputs = await read("./outputs.tf");
+  assert.match(outputs, /ZASP_DISCOVERY_MICROSOFT_COLLECTOR_VERSION\s+= var\.discovery_optional_providers\.microsoft_collector\n\s+ZASP_DISCOVERY_SALESFORCE_COLLECTOR_VERSION = var\.discovery_optional_providers\.salesforce_collector\n\s+\} : name => version if version != ""/);
+});

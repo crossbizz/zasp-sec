@@ -337,6 +337,9 @@ func (handler *discoveryPublicHTTPHandler) getFreshness(writer http.ResponseWrit
 		writeProductionError(writer, request, err)
 		return
 	}
+	if result.CoverageGaps == nil {
+		result.CoverageGaps = []IntegrationCoverageGap{}
+	}
 	writer.Header().Set("ETag", quoteVersion(result.Version))
 	writeJSONValue(writer, request, http.StatusOK, result, nil)
 }

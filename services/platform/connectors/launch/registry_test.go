@@ -62,3 +62,77 @@ func launchScope(t *testing.T, organization, workspace, environment int) domain.
 	}
 	return scope
 }
+
+func TestRegistryRequiresTheFourLaunchConnectorsAndAdmitsTheOptionalSaaSOnes(t *testing.T) {
+	all := DefaultManifests()
+	byKey := map[string]Manifest{}
+	for _, manifest := range all {
+		byKey[manifest.Key] = manifest
+	}
+	pick := func(keys ...string) []Manifest {
+		result := make([]Manifest, 0, len(keys))
+		for _, key := range keys {
+			result = append(result, byKey[key])
+		}
+		return result
+	}
+	if len(all) != 6 {
+		t.Fatalf("default manifests = %d, want the four launch connectors and two SaaS agent providers", len(all))
+	}
+	for _, valid := range [][]string{
+		{"aws", "kubernetes", "github", "okta"},
+		{"aws", "kubernetes", "github", "okta", "microsoft"},
+		{"aws", "kubernetes", "github", "okta", "salesforce"},
+		{"aws", "kubernetes", "github", "okta", "microsoft", "salesforce"},
+	} {
+		registry, err := NewRegistry(pick(valid...), DefaultCredentialClasses())
+		if err != nil {
+			t.Fatalf("manifests %v refused: %v", valid, err)
+		}
+		for _, key := range []string{"microsoft", "salesforce"} {
+			_, declared := registry.FirstParty(key)
+			wanted := false
+			for _, present := range valid {
+				wanted = wanted || present == key
+			}
+			if declared != wanted {
+				t.Fatalf("manifests %v: first-party %q = %t", valid, key, declared)
+			}
+		}
+	}
+	unknown := byKey["okta"]
+	unknown.Key = "servicenow"
+	for name, hostile := range map[string][]Manifest{
+		"three launch connectors":         pick("aws", "kubernetes", "github"),
+		"a SaaS provider replaces okta":   pick("aws", "kubernetes", "github", "microsoft"),
+		"both SaaS providers replace two": pick("aws", "kubernetes", "microsoft", "salesforce"),
+		"a SaaS provider twice":           pick("aws", "kubernetes", "github", "okta", "microsoft", "microsoft"),
+		"an unknown fifth connector":      append(pick("aws", "kubernetes", "github", "okta"), unknown),
+		"seven manifests":                 append(pick("aws", "kubernetes", "github", "okta", "microsoft", "salesforce"), unknown),
+	} {
+		if _, err := NewRegistry(hostile, DefaultCredentialClasses()); err == nil {
+			t.Fatalf("%s: accepted", name)
+		}
+	}
+	registry, err := NewRegistry(all, DefaultCredentialClasses())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for key, scopes := range map[string][]string{"microsoft": {"AgentIdentity.Read.All", "Application.Read.All"}, "salesforce": {"api"}} {
+		manifest, ok := registry.FirstParty(key)
+		if !ok || manifest.Nango || manifest.CollectionReady || !manifest.AuthorizationReady || manifest.AuthMode != "first_party_client_credentials" || len(manifest.RequiredScopes) != len(scopes) {
+			t.Fatalf("first-party %q = %#v, %t", key, manifest, ok)
+		}
+		for index, scope := range scopes {
+			if manifest.RequiredScopes[index] != scope {
+				t.Fatalf("%q scopes = %v, want %v", key, manifest.RequiredScopes, scopes)
+			}
+		}
+	}
+	for _, class := range []string{"microsoft_client_secret", "salesforce_client_secret"} {
+		value, ok := registry.CredentialClass(class)
+		if !ok || value.Storage != "secrets_manager_connector_kms" || value.Audit != "reference_only" || value.Resolver != "api_and_discovery_worker" || len(value.ProhibitedSinks) < 5 {
+			t.Fatalf("credential class %q = %#v, %t", class, value, ok)
+		}
+	}
+}

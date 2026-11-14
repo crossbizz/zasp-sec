@@ -459,6 +459,16 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 		referenceProbes["kubernetes"] = &kubernetesReferenceProbe{adapter: kubernetesAdapter, resolver: referenceResolver}
 		referenceChecks["kubernetes"] = func(context.Context) error { return nil }
 	}
+	// Microsoft and Salesforce are offered only where the deployment runs
+	// their collector.
+	if config.MicrosoftCollectorVersion != "" {
+		referenceProbes["microsoft"] = &microsoftReferenceProbe{resolver: referenceResolver, http: providerHTTP}
+		referenceChecks["microsoft"] = func(context.Context) error { return nil }
+	}
+	if config.SalesforceCollectorVersion != "" {
+		referenceProbes["salesforce"] = &salesforceReferenceProbe{resolver: referenceResolver, http: providerHTTP}
+		referenceChecks["salesforce"] = func(context.Context) error { return nil }
+	}
 	referenceRegistry, err := apiserver.NewReferenceConnectorRegistry(referenceProbes, referenceChecks)
 	if err != nil {
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("reference-providers", errRuntimeUnavailable)

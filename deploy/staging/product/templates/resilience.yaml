@@ -190,6 +190,24 @@ spec:
 {{- $connectorOkta := required "network.connectorEgressCIDRs.okta is required" .Values.network.connectorEgressCIDRs.okta }}
 {{- $connectorKubernetes := required "network.connectorEgressCIDRs.kubernetes is required" .Values.network.connectorEgressCIDRs.kubernetes }}
 {{- $findingTickets := required "network.findingTicketEgressCIDRs is required" .Values.network.findingTicketEgressCIDRs }}
+{{- /*
+  Microsoft and Salesforce are optional providers. Their addresses are
+  admitted only while the provider's collector version is set, and are then
+  required. NetworkPolicy matches addresses, not names: the lists are
+  snapshots of login.microsoftonline.com, graph.microsoft.com and the
+  customer's Dataverse environment, and of the customer's Salesforce My
+  Domain. No wildcard host can be expressed here.
+*/}}
+{{- $connectorMicrosoft := list }}
+{{- if .Values.discovery.microsoftCollectorVersion }}
+{{- $connectorMicrosoft = .Values.network.connectorEgressCIDRs.microsoft | default list }}
+{{- if not $connectorMicrosoft }}{{ fail "network.connectorEgressCIDRs.microsoft is required when discovery.microsoftCollectorVersion is set" }}{{ end }}
+{{- end }}
+{{- $connectorSalesforce := list }}
+{{- if .Values.discovery.salesforceCollectorVersion }}
+{{- $connectorSalesforce = .Values.network.connectorEgressCIDRs.salesforce | default list }}
+{{- if not $connectorSalesforce }}{{ fail "network.connectorEgressCIDRs.salesforce is required when discovery.salesforceCollectorVersion is set" }}{{ end }}
+{{- end }}
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -198,13 +216,13 @@ metadata:
   labels: { app.kubernetes.io/part-of: zasp }
   annotations:
     zasp.io/network-policy-boundary: native-cidr-snapshot
-    zasp.io/endpoint-groups: aws-sts-secretsmanager,github-oauth-api,okta-tenant,kubernetes-customer-api,finding-ticket-webhooks
+    zasp.io/endpoint-groups: aws-sts-secretsmanager,github-oauth-api,okta-tenant,kubernetes-customer-api,finding-ticket-webhooks{{ if $connectorMicrosoft }},microsoft-entra-graph-dataverse{{ end }}{{ if $connectorSalesforce }},salesforce-my-domain{{ end }}
 spec:
   podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-api } }
   policyTypes: [Egress]
   egress:
     - to:
-      {{- range $cidr := concat $connectorAWS $connectorGitHub $connectorOkta $connectorKubernetes $findingTickets }}
+      {{- range $cidr := concat $connectorAWS $connectorGitHub $connectorOkta $connectorKubernetes $findingTickets $connectorMicrosoft $connectorSalesforce }}
         - ipBlock: { cidr: {{ $cidr | quote }} }
       {{- end }}
       ports: [{ protocol: TCP, port: 443 }]
@@ -290,7 +308,7 @@ metadata:
   labels: { app.kubernetes.io/part-of: zasp }
   annotations:
     zasp.io/network-policy-boundary: native-cidr-snapshot
-    zasp.io/endpoint-groups: aws-sts-sqs-s3-kms-secretsmanager,github-api,okta-tenant,kubernetes-customer-api
+    zasp.io/endpoint-groups: aws-sts-sqs-s3-kms-secretsmanager,github-api,okta-tenant,kubernetes-customer-api{{ if $connectorMicrosoft }},microsoft-entra-graph-dataverse{{ end }}{{ if $connectorSalesforce }},salesforce-my-domain{{ end }}
 spec:
   podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-discovery-worker } }
   policyTypes: [Egress]
@@ -298,7 +316,7 @@ spec:
     - to: [{ ipBlock: { cidr: {{ required "network.postgresCIDR is required" .Values.network.postgresCIDR | quote }} } }]
       ports: [{ protocol: TCP, port: 5432 }]
     - to:
-      {{- range $cidr := concat (required "network.connectorEgressCIDRs.aws is required" .Values.network.connectorEgressCIDRs.aws) (required "network.connectorEgressCIDRs.github is required" .Values.network.connectorEgressCIDRs.github) (required "network.connectorEgressCIDRs.okta is required" .Values.network.connectorEgressCIDRs.okta) (required "network.connectorEgressCIDRs.kubernetes is required" .Values.network.connectorEgressCIDRs.kubernetes) (required "network.s3CIDRs is required" .Values.network.s3CIDRs) }}
+      {{- range $cidr := concat (required "network.connectorEgressCIDRs.aws is required" .Values.network.connectorEgressCIDRs.aws) (required "network.connectorEgressCIDRs.github is required" .Values.network.connectorEgressCIDRs.github) (required "network.connectorEgressCIDRs.okta is required" .Values.network.connectorEgressCIDRs.okta) (required "network.connectorEgressCIDRs.kubernetes is required" .Values.network.connectorEgressCIDRs.kubernetes) (required "network.s3CIDRs is required" .Values.network.s3CIDRs) $connectorMicrosoft $connectorSalesforce }}
         - ipBlock: { cidr: {{ $cidr | quote }} }
       {{- end }}
       ports: [{ protocol: TCP, port: 443 }]

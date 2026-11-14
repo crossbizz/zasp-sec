@@ -1483,9 +1483,10 @@ paths:
         schema: { $ref: '#/components/schemas/ProductID' }
     post:
       operationId: authorizeIntegrationReference
-      summary: Authorize a reference-backed cloud or Kubernetes integration
+      summary: Authorize a reference-backed integration
       description: >-
-        Performs a bounded read-only provider identity and capability probe
+        For an AWS, Kubernetes, Microsoft or Salesforce integration. Performs
+        a bounded read-only provider identity and capability probe
         using only the integration's stored reference configuration, then
         atomically records an active integration and durable mutation receipt.
         The response never returns provider subjects, endpoints, credentials,
@@ -6256,7 +6257,7 @@ components:
     IntegrationFreshness:
       type: object
       additionalProperties: false
-      required: [integration_id, version, last_good, latest_sync, projections, updated_at]
+      required: [integration_id, version, last_good, latest_sync, projections, updated_at, coverage_gaps]
       properties:
         integration_id: { $ref: '#/components/schemas/ProductID' }
         version: { type: integer, minimum: 1 }
@@ -6264,13 +6265,26 @@ components:
         latest_sync: { oneOf: [{ $ref: '#/components/schemas/IntegrationSync' }, { type: 'null' }] }
         projections: { $ref: '#/components/schemas/IntegrationProjectionStatuses' }
         updated_at: { type: string, format: date-time }
+        coverage_gaps:
+          type: array
+          maxItems: 16
+          description: The AI services whose agents the integration's current collection could not list, ordered by service. Empty when every service was read, and for every provider other than AWS.
+          items: { $ref: '#/components/schemas/IntegrationCoverageGap' }
+    IntegrationCoverageGap:
+      type: object
+      additionalProperties: false
+      required: [service, name, status]
+      properties:
+        service: { type: string, pattern: '^[a-z][a-z0-9-]{0,63}$', description: 'The provider service, for example bedrock-agent, bedrock-agentcore or lambda. A Kubernetes integration reports runtime-observations when its discovery credential may not list the node sensor ConfigMaps.' }
+        name: { type: string, minLength: 1, maxLength: 128 }
+        status: { type: string, enum: [access_denied, unavailable], description: 'access_denied when the read role lacks a permission the service needs; unavailable when the service is not offered in the regions of the account.' }
     IntegrationSetupAuthorization:
       type: object
       additionalProperties: false
       required: [state, scope_kind, scope_label, repository_selection, permissions]
       properties:
         state: { type: string, enum: [pending, verified, degraded] }
-        scope_kind: { type: string, enum: [none, aws_account, kubernetes_cluster, github_organization, okta_tenant] }
+        scope_kind: { type: string, enum: [none, aws_account, kubernetes_cluster, github_organization, okta_tenant, microsoft_tenant, salesforce_org] }
         scope_label: { oneOf: [{ type: string, minLength: 1, maxLength: 128 }, { type: 'null' }] }
         repository_selection: { oneOf: [{ type: string, enum: [all, selected] }, { type: 'null' }] }
         permissions:
@@ -6306,7 +6320,7 @@ components:
       required: [integration_id, connector_key, authorization, runtime_coverage, updated_at]
       properties:
         integration_id: { $ref: '#/components/schemas/ProductID' }
-        connector_key: { type: string, enum: [aws, kubernetes, github, okta] }
+        connector_key: { type: string, enum: [aws, kubernetes, github, okta, microsoft, salesforce] }
         authorization: { $ref: '#/components/schemas/IntegrationSetupAuthorization' }
         runtime_coverage: { $ref: '#/components/schemas/IntegrationRuntimeCoverage' }
         updated_at: { type: string, format: date-time }
@@ -6422,11 +6436,15 @@ components:
     InventorySummary:
       type: object
       additionalProperties: false
-      required: [id, name, kind, owner, team, tags, evidence_id, confidence_basis_points, first_seen, last_seen, observed_at, fresh_until, freshness_state, version]
+      required: [id, name, kind, owner, team, tags, evidence_id, confidence_basis_points, first_seen, last_seen, observed_at, fresh_until, freshness_state, version, provider, source_kind, discovery, management_state]
       properties:
         id: { $ref: '#/components/schemas/ProductID' }
         name: { type: string, minLength: 1, maxLength: 256 }
         kind: { $ref: '#/components/schemas/InventoryKind' }
+        provider: { $ref: '#/components/schemas/InventoryProvider' }
+        source_kind: { type: string, pattern: '^[a-z][a-z0-9_]{1,63}$' }
+        discovery: { $ref: '#/components/schemas/InventoryDiscovery' }
+        management_state: { $ref: '#/components/schemas/InventoryManagementState' }
         owner: { type: string, maxLength: 128 }
         team: { type: string, maxLength: 128 }
         tags:
@@ -6442,6 +6460,26 @@ components:
         fresh_until: { type: string, format: date-time }
         freshness_state: { $ref: '#/components/schemas/InventoryFreshnessState' }
         version: { type: integer, minimum: 1 }
+    InventoryProvider:
+      type: string
+      enum: [aws, kubernetes, github, okta, microsoft, salesforce]
+    InventoryDiscovery:
+      type: object
+      description: How the object was found. An agent is declared by its owner, listed by the provider's own control plane, or inferred from catalog signals. Every other kind is a provider record.
+      additionalProperties: false
+      required: [method, platform, signals]
+      properties:
+        method: { type: string, enum: [declared, provider_api, inferred] }
+        platform: { type: string, pattern: '^[a-z][a-z0-9_]{1,63}$' }
+        signals:
+          type: array
+          maxItems: 16
+          uniqueItems: true
+          items: { type: string, pattern: '^[a-z][a-z0-9_]{0,31}:[a-z0-9][a-z0-9_.-]{0,63}$' }
+    InventoryManagementState:
+      type: string
+      description: For an agent, dismissed when it was found without a declaration and a person marked it as not an agent (the reserved tag not-an-agent, set through the ownership update; the tag is ignored on a declared agent, which stays managed). Otherwise unmanaged while it was found without a declaration and has no owner, and managed in every other case. Not applicable to other kinds.
+      enum: [managed, unmanaged, dismissed, not_applicable]
     InventoryRecord:
       $ref: '#/components/schemas/InventorySummary'
     InventorySourceObservation:
@@ -6450,7 +6488,7 @@ components:
       required: [integration_id, provider, source, source_identifier, snapshot_id, generation, evidence_id, confidence_basis_points, observed_at, fresh_until, projection_version, winning]
       properties:
         integration_id: { $ref: '#/components/schemas/ProductID' }
-        provider: { type: string, enum: [aws, kubernetes, github, okta] }
+        provider: { type: string, enum: [aws, kubernetes, github, okta, microsoft, salesforce] }
         source: { type: string, pattern: '^[a-z][a-z0-9_]{1,63}$' }
         source_identifier: { type: string, pattern: '^sha256:[0-9a-f]{64}$' }
         snapshot_id: { $ref: '#/components/schemas/ProductID' }

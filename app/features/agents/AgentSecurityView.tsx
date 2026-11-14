@@ -49,10 +49,10 @@ const ids = {
 } as const;
 
 const common = { owner: "security", team: "agent-platform", tags: ["production"], evidence_id: ids.evidence, confidence_basis_points: 9500, first_seen: "2026-08-18T09:00:00.000Z", last_seen: "2026-08-18T10:00:00.000Z", observed_at: "2026-08-18T10:00:00.000Z", fresh_until: "2026-08-18T10:15:00.000Z", freshness_state: "fresh", version: 1 } as const;
-const agents: InventoryRecord[] = [{ id: ids.agent, name: "Support agent", kind: "agent", ...common }];
-const tools: InventoryRecord[] = [{ id: ids.tool, name: "Customer records MCP", kind: "tool", ...common }];
-const identities: InventoryRecord[] = [{ id: ids.identity, name: "Support service identity", kind: "identity", ...common }];
-const runtimes: InventoryRecord[] = [{ id: ids.runtime, name: "support-agent-pod", kind: "runtime", ...common }];
+const agents: InventoryRecord[] = [{ id: ids.agent, name: "Support agent", kind: "agent", ...common, provider: "kubernetes", source_kind: "kubernetes_agent", discovery: { method: "declared", platform: "kubernetes_agent", signals: [] }, management_state: "managed" }];
+const tools: InventoryRecord[] = [{ id: ids.tool, name: "Customer records MCP", kind: "tool", ...common, provider: "kubernetes", source_kind: "kubernetes_resource", discovery: { method: "provider_api", platform: "kubernetes_resource", signals: [] }, management_state: "not_applicable" }];
+const identities: InventoryRecord[] = [{ id: ids.identity, name: "Support service identity", kind: "identity", ...common, provider: "kubernetes", source_kind: "kubernetes_service_account", discovery: { method: "provider_api", platform: "kubernetes_service_account", signals: [] }, management_state: "not_applicable" }];
+const runtimes: InventoryRecord[] = [{ id: ids.runtime, name: "support-agent-pod", kind: "runtime", ...common, provider: "kubernetes", source_kind: "kubernetes_workload", discovery: { method: "provider_api", platform: "kubernetes_workload", signals: [] }, management_state: "not_applicable" }];
 const capabilities: Capability[] = [
   { agent_id: ids.agent, target_id: ids.tool, target_kind: "tool", category: "data_read", outcome: "read", state: "observed", reachable: true, evidence_ids: [ids.evidence] },
   { agent_id: ids.agent, target_id: ids.identity, target_kind: "identity", category: "data_write", outcome: "write", state: "blocked", reachable: true, evidence_ids: [ids.evidence] },

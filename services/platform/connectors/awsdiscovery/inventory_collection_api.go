@@ -18,7 +18,7 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 )
 
-var inventoryCursorPattern = regexp.MustCompile(`^aws:(iam|resources|posture|complete):([0-9a-f]{16}):([0-9a-f]{32})$`)
+var inventoryCursorPattern = regexp.MustCompile(`^aws:(iam|resources|agents|posture|complete):([0-9a-f]{16}):([0-9a-f]{32})$`)
 
 type CollectionInventoryCaller interface {
 	GetCollectionInventory(context.Context, []byte) (CollectionInventory, error)
@@ -37,6 +37,11 @@ type CollectionInventory struct {
 	CartographyDigest   [sha256.Size]byte
 	ProwlerSource       json.RawMessage
 	ProwlerDigest       [sha256.Size]byte
+	// AgentSource is the canonical AgentInventorySource of the account: its
+	// Bedrock agents, AgentCore runtimes and gateways, the Lambda functions
+	// inferred to be agents, and what each AI service answered.
+	AgentSource json.RawMessage
+	AgentDigest [sha256.Size]byte
 }
 
 type CollectionInventoryAuthority struct {
@@ -133,6 +138,8 @@ func (api *InventoryCollectionAPI) FetchCollectionPage(ctx context.Context, cred
 		page, err = api.iamPage(bounded, request, inventory, credential, digest)
 	case "resources":
 		page, err = api.resourcePage(request, inventory, digest)
+	case "agents":
+		page, err = api.agentPage(request, inventory, digest)
 	case "posture":
 		page, err = api.posturePage(bounded, request, inventory, credential, digest)
 	default:
@@ -238,7 +245,7 @@ func (api *InventoryCollectionAPI) resourcePage(request CollectionPageRequest, i
 	}
 	sortRawInventory(entities)
 	sortRawInventory(relationships)
-	return NewCollectionPage(request.Subject, inventoryCursor("posture", request.Subject, digest), false, entities, relationships)
+	return NewCollectionPage(request.Subject, inventoryCursor("agents", request.Subject, digest), false, entities, relationships)
 }
 
 func (api *InventoryCollectionAPI) posturePage(ctx context.Context, request CollectionPageRequest, inventory CollectionInventory, credential []byte, digest [16]byte) (CollectionPage, error) {
@@ -280,7 +287,7 @@ func validCollectionInventoryAuthority(authority CollectionInventoryAuthority) b
 }
 
 func validInventoryPageRequest(request CollectionPageRequest) bool {
-	if request.Provider != collection.ProviderAWS || request.Subject.Kind != "aws_account" || !awsAccountIDPattern.MatchString(request.Subject.ID) || request.Page < 1 || request.Page > 4 || request.RemainingItems < 0 || request.RemainingRelationships < 0 || request.RemainingFindings < 0 || request.RemainingBytes < 1 {
+	if request.Provider != collection.ProviderAWS || request.Subject.Kind != "aws_account" || !awsAccountIDPattern.MatchString(request.Subject.ID) || request.Page < 1 || request.Page > 5 || request.RemainingItems < 0 || request.RemainingRelationships < 0 || request.RemainingFindings < 0 || request.RemainingBytes < 1 {
 		return false
 	}
 	_, _, ok := inventoryRequestPhase(request)
@@ -300,7 +307,7 @@ func inventoryRequestPhase(request CollectionPageRequest) (string, [16]byte, boo
 	if len(match) == 4 && match[1] == "complete" && request.Page == 1 && match[2] == providercollection.CompleteCursorBinding(collection.ProviderAWS, request.Subject) {
 		return "account", [16]byte{}, true
 	}
-	if len(match) != 4 || match[2] != providercollection.CompleteCursorBinding(collection.ProviderAWS, request.Subject) || map[int]string{2: "iam", 3: "resources", 4: "posture"}[request.Page] != match[1] {
+	if len(match) != 4 || match[2] != providercollection.CompleteCursorBinding(collection.ProviderAWS, request.Subject) || map[int]string{2: "iam", 3: "resources", 4: "agents", 5: "posture"}[request.Page] != match[1] {
 		return "", [16]byte{}, false
 	}
 	decoded, err := hex.DecodeString(match[3])
@@ -310,11 +317,12 @@ func inventoryRequestPhase(request CollectionPageRequest) (string, [16]byte, boo
 }
 
 func validCollectionInventory(inventory CollectionInventory, subject collection.SubjectBinding, observedAt time.Time) bool {
-	return inventory.Identity.AccountID == subject.ID && validCollectionIdentity(inventory.Identity) && exactUTCSecurityTime(inventory.CredentialExpiresAt) && inventory.CredentialExpiresAt.After(observedAt) && canonicalSecurityObject(inventory.CartographySource) && canonicalSecurityObject(inventory.ProwlerSource) && sha256.Sum256(inventory.CartographySource) == inventory.CartographyDigest && sha256.Sum256(inventory.ProwlerSource) == inventory.ProwlerDigest
+	return inventory.Identity.AccountID == subject.ID && validCollectionIdentity(inventory.Identity) && exactUTCSecurityTime(inventory.CredentialExpiresAt) && inventory.CredentialExpiresAt.After(observedAt) && canonicalSecurityObject(inventory.CartographySource) && canonicalSecurityObject(inventory.ProwlerSource) && sha256.Sum256(inventory.CartographySource) == inventory.CartographyDigest && sha256.Sum256(inventory.ProwlerSource) == inventory.ProwlerDigest &&
+		sha256.Sum256(inventory.AgentSource) == inventory.AgentDigest && validAgentInventoryDocument(inventory.AgentSource, subject.ID)
 }
 
 func collectionInventoryDigest(inventory CollectionInventory) [16]byte {
-	combined := sha256.Sum256(append(append(make([]byte, 0, sha256.Size*2), inventory.CartographyDigest[:]...), inventory.ProwlerDigest[:]...))
+	combined := sha256.Sum256(append(append(append(make([]byte, 0, sha256.Size*3), inventory.CartographyDigest[:]...), inventory.ProwlerDigest[:]...), inventory.AgentDigest[:]...))
 	var digest [16]byte
 	copy(digest[:], combined[:len(digest)])
 	return digest

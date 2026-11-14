@@ -12,9 +12,14 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/githubdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/idpdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/kubernetesdiscovery"
+	"github.com/zasp-ai/zasp-sec/services/platform/connectors/microsoftdiscovery"
+	"github.com/zasp-ai/zasp-sec/services/platform/connectors/salesforcediscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 )
 
+// MicrosoftCollectorVersion and SalesforceCollectorVersion are optional. An
+// empty version leaves the provider unregistered: its jobs are refused and
+// the four required providers behave as before.
 type productionDiscoveryClientConfig struct {
 	Artifacts                  artifactstore.ObjectReferencingArtifactStore
 	Credentials                discoveryCredentialMaterialResolver
@@ -24,6 +29,8 @@ type productionDiscoveryClientConfig struct {
 	KubernetesCollectorVersion string
 	GitHubCollectorVersion     string
 	OktaCollectorVersion       string
+	MicrosoftCollectorVersion  string
+	SalesforceCollectorVersion string
 	ParserVersion              string
 	ToolVersion                string
 	KubernetesAllowedCIDRs     []string
@@ -43,6 +50,11 @@ func newProductionLiveDiscoveryCollectorFactory(config productionDiscoveryClient
 	}
 	for _, version := range []string{config.AWSCollectorVersion, config.KubernetesCollectorVersion, config.GitHubCollectorVersion, config.OktaCollectorVersion, config.ParserVersion, config.ToolVersion} {
 		if !discoveryCollectorVersionPattern.MatchString(version) {
+			return nil, errRuntimeUnavailable
+		}
+	}
+	for _, version := range []string{config.MicrosoftCollectorVersion, config.SalesforceCollectorVersion} {
+		if version != "" && !discoveryCollectorVersionPattern.MatchString(version) {
 			return nil, errRuntimeUnavailable
 		}
 	}
@@ -151,7 +163,44 @@ func (factory *productionLiveDiscoveryCollectorFactory) collectionFactoryForAuth
 		{Provider: collection.ProviderGitHub, CollectorVersion: factory.config.GitHubCollectorVersion, CredentialClass: collection.CredentialGitHubInstallation, Client: githubClient, Readiness: githubReadiness, ReadinessTimeout: factory.config.ReadinessTimeout},
 		{Provider: collection.ProviderOkta, CollectorVersion: factory.config.OktaCollectorVersion, CredentialClass: collection.CredentialOktaRefresh, Client: oktaClient, Readiness: oktaReadiness, ReadinessTimeout: factory.config.ReadinessTimeout},
 	}
+	if version := factory.config.MicrosoftCollectorVersion; version != "" {
+		api, err := microsoftdiscovery.NewMicrosoftCollectionAPI(microsoftdiscovery.CollectionAPIConfig{Timeout: factory.config.ProviderTimeout, Clock: factory.config.Clock})
+		if err != nil {
+			return nil, errRuntimeUnavailable
+		}
+		client, err := microsoftdiscovery.NewMicrosoftCollectionClient(&discoveryBearerCollectionAPI{provider: collection.ProviderMicrosoft, microsoft: api, timeout: factory.config.ProviderTimeout}, factory.config.Artifacts, microsoftdiscovery.CollectionClientConfig{CollectorVersion: version, ParserVersion: factory.config.ParserVersion, ToolVersion: factory.config.ToolVersion, Clock: factory.config.Clock})
+		registration, err := factory.optionalRegistration(collection.ProviderMicrosoft, collection.CredentialMicrosoftClient, version, client, err)
+		if err != nil {
+			return nil, errRuntimeUnavailable
+		}
+		registrations = append(registrations, registration)
+	}
+	if version := factory.config.SalesforceCollectorVersion; version != "" {
+		api, err := salesforcediscovery.NewSalesforceCollectionAPI(salesforcediscovery.CollectionAPIConfig{Timeout: factory.config.ProviderTimeout, Clock: factory.config.Clock})
+		if err != nil {
+			return nil, errRuntimeUnavailable
+		}
+		client, err := salesforcediscovery.NewSalesforceCollectionClient(&discoveryBearerCollectionAPI{provider: collection.ProviderSalesforce, salesforce: api, timeout: factory.config.ProviderTimeout}, factory.config.Artifacts, salesforcediscovery.CollectionClientConfig{CollectorVersion: version, ParserVersion: factory.config.ParserVersion, ToolVersion: factory.config.ToolVersion, Clock: factory.config.Clock})
+		registration, err := factory.optionalRegistration(collection.ProviderSalesforce, collection.CredentialSalesforceClient, version, client, err)
+		if err != nil {
+			return nil, errRuntimeUnavailable
+		}
+		registrations = append(registrations, registration)
+	}
 	return newFirstPartyCollectionFactory(registrations)
+}
+
+// optionalRegistration is the registration of a provider a deployment serves
+// only when it configures the provider's collector version.
+func (factory *productionLiveDiscoveryCollectorFactory) optionalRegistration(provider collection.Provider, class collection.CredentialClass, version string, client collection.ProviderClient, clientErr error) (firstPartyProviderClientRegistration, error) {
+	if clientErr != nil || nilWorkerDependency(client) {
+		return firstPartyProviderClientRegistration{}, errRuntimeUnavailable
+	}
+	readiness, ok := client.(collection.ReadinessProbe)
+	if !ok || nilWorkerDependency(readiness) {
+		return firstPartyProviderClientRegistration{}, errRuntimeUnavailable
+	}
+	return firstPartyProviderClientRegistration{Provider: provider, CollectorVersion: version, CredentialClass: class, Client: client, Readiness: readiness, ReadinessTimeout: factory.config.ReadinessTimeout}, nil
 }
 
 func (factory *productionLiveDiscoveryCollectorFactory) collectorVersion(provider collection.Provider) string {
@@ -167,6 +216,10 @@ func (factory *productionLiveDiscoveryCollectorFactory) collectorVersion(provide
 		return factory.config.GitHubCollectorVersion
 	case collection.ProviderOkta:
 		return factory.config.OktaCollectorVersion
+	case collection.ProviderMicrosoft:
+		return factory.config.MicrosoftCollectorVersion
+	case collection.ProviderSalesforce:
+		return factory.config.SalesforceCollectorVersion
 	default:
 		return ""
 	}

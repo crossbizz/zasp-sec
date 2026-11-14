@@ -71,7 +71,7 @@ export function validateCurrentDiscoveryConfig(value) {
   requireValue(Object.values(value.scope).every(id => typeof id === "string" && productID.test(id)));
   requireValue(digest.test(value.canonical61Checksum) && digest.test(value.workerChecksum));
   exact(value.provider, ["kind", "protectedReference"]);
-  requireValue(["aws", "kubernetes", "github", "okta"].includes(value.provider.kind));
+  requireValue(["aws", "kubernetes", "github", "okta", "microsoft", "salesforce"].includes(value.provider.kind));
   requireValue(typeof value.provider.protectedReference === "string" && (connected?kubernetesReference:/^[a-z][a-z0-9_-]{0,127}$/).test(value.provider.protectedReference));
   exact(value.database, ["psql", "serviceFile", "passwordFile", "connections"]);
   requireValue([value.database.psql, value.database.serviceFile, value.database.passwordFile, value.evidenceDirectory].every(absolute));

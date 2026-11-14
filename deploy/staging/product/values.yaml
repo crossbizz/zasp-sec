@@ -202,6 +202,13 @@ discovery:
   kubernetesCollectorVersion: ""
   githubCollectorVersion: ""
   oktaCollectorVersion: ""
+  # Optional providers, disabled by default. An empty version leaves the
+  # provider out of the discovery worker's registry and out of the integration
+  # catalog. To enable one, set the collector version the installed schema
+  # hands a discovery run (collector_v1) and list the provider's addresses
+  # under network.connectorEgressCIDRs.
+  microsoftCollectorVersion: ""
+  salesforceCollectorVersion: ""
   awsRegion: ""
   queueURL: ""
   roleArn: ""
@@ -516,6 +523,16 @@ network:
     github: []
     okta: []
     kubernetes: []
+    # Optional providers: admitted only while discovery.microsoftCollectorVersion
+    # or discovery.salesforceCollectorVersion is set, and then required. A
+    # CIDR list cannot name a host or a wildcard: these are address snapshots
+    # of login.microsoftonline.com, graph.microsoft.com and the customer's
+    # Dataverse environment (*.dynamics.com), and of the customer's My Domain
+    # (*.my.salesforce.com). Both providers publish address ranges that are
+    # shared with their other services, so the policy admits those services'
+    # addresses too; the worker and the API still call only the exact hosts.
+    microsoft: []
+    salesforce: []
   findingTicketEgressCIDRs: []
 canary:
   enabled: true

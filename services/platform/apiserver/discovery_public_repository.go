@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"regexp"
 	"sort"
 	"time"
 
@@ -161,6 +162,40 @@ type IntegrationFreshness struct {
 	LatestSync    *IntegrationSync              `json:"latest_sync"`
 	Projections   IntegrationProjectionStatuses `json:"projections"`
 	UpdatedAt     time.Time                     `json:"updated_at"`
+	// CoverageGaps names the AI services whose agents the last collection
+	// could not list: the read role lacks a permission (access_denied) or the
+	// service is not offered in the account's regions (unavailable). It is
+	// never nil in a response; a reader that predates the member (the chain's
+	// reader, or a database the baseline completion has not reached) is read
+	// as having no gap.
+	CoverageGaps []IntegrationCoverageGap `json:"coverage_gaps"`
+}
+
+// IntegrationCoverageGap is one AI service a collection could not read.
+type IntegrationCoverageGap struct {
+	Service string `json:"service"`
+	Name    string `json:"name"`
+	Status  string `json:"status"`
+}
+
+const maxIntegrationCoverageGaps = 16
+
+var integrationCoverageServicePattern = regexp.MustCompile(`^[a-z][a-z0-9-]{0,63}$`)
+
+// validIntegrationCoverageGaps accepts at most 16 gaps, strictly ordered by
+// service, each a known status of a named service.
+func validIntegrationCoverageGaps(gaps []IntegrationCoverageGap) bool {
+	if gaps == nil || len(gaps) > maxIntegrationCoverageGaps {
+		return false
+	}
+	prior := ""
+	for _, gap := range gaps {
+		if !integrationCoverageServicePattern.MatchString(gap.Service) || !printableInventoryString(gap.Name, 1, 128, false) || !stringIn(gap.Status, "access_denied", "unavailable") || prior != "" && gap.Service <= prior {
+			return false
+		}
+		prior = gap.Service
+	}
+	return true
 }
 
 type IntegrationSetupAuthorization struct {
@@ -352,6 +387,9 @@ func (repository *DiscoveryRepository) GetIntegrationFreshness(ctx context.Conte
 	normalizeCurrentProjectionStatus(&result.Projections.Risk)
 	normalizeCurrentProjectionStatus(&result.Projections.Graph)
 	normalizeCurrentProjectionStatus(&result.Projections.Search)
+	if result.CoverageGaps == nil {
+		result.CoverageGaps = []IntegrationCoverageGap{}
+	}
 	remaining := result
 	remaining.LatestSync = nil
 	if !validPublicIntegrationFreshness(remaining, integrationID) || result.LatestSync != nil && !repository.validSync(*result.LatestSync, integrationID, result.LatestSync.ID) {
@@ -408,7 +446,7 @@ func validPublicIdempotency(value string) bool {
 }
 
 func validPublicIntegrationSetupStatus(value IntegrationSetupStatus, integrationID string) bool {
-	if value.IntegrationID != integrationID || !stringIn(value.ConnectorKey, "aws", "kubernetes", "github", "okta") || !validPublicTime(value.UpdatedAt) || value.Authorization.Permissions == nil || value.RuntimeCoverage.SensorCount < 0 || value.RuntimeCoverage.SensorCount > 1000000 || value.RuntimeCoverage.HealthySensorCount < 0 || value.RuntimeCoverage.HealthySensorCount > value.RuntimeCoverage.SensorCount {
+	if value.IntegrationID != integrationID || !isDiscoveryProvider(value.ConnectorKey) || !validPublicTime(value.UpdatedAt) || value.Authorization.Permissions == nil || value.RuntimeCoverage.SensorCount < 0 || value.RuntimeCoverage.SensorCount > 1000000 || value.RuntimeCoverage.HealthySensorCount < 0 || value.RuntimeCoverage.HealthySensorCount > value.RuntimeCoverage.SensorCount {
 		return false
 	}
 	if !validPublicSetupAuthorization(value.ConnectorKey, value.Authorization) {
@@ -455,6 +493,12 @@ func validPublicSetupAuthorization(connectorKey string, value IntegrationSetupAu
 		return value.ScopeKind == "github_organization" && value.RepositorySelection != nil && stringIn(*value.RepositorySelection, "all", "selected") && reflectStringSlices(value.Permissions, []string{"actions:read", "contents:read", "metadata:read"})
 	case "okta":
 		return value.ScopeKind == "okta_tenant" && value.RepositorySelection == nil && reflectStringSlices(value.Permissions, []string{"offline_access", "okta.apps.read", "okta.groups.read", "okta.users.read"})
+	case "microsoft":
+		// Reference-authorized like AWS and Kubernetes: the scope is the
+		// subject the authorization bound, and no permission list is stored.
+		return value.ScopeKind == "microsoft_tenant" && microsoftTenantPattern.MatchString(*value.ScopeLabel) && value.RepositorySelection == nil && len(value.Permissions) == 0
+	case "salesforce":
+		return value.ScopeKind == "salesforce_org" && salesforceOrganizationPattern.MatchString(*value.ScopeLabel) && value.RepositorySelection == nil && len(value.Permissions) == 0
 	default:
 		return false
 	}
@@ -499,7 +543,7 @@ func validPublicIntegrationSchedule(value IntegrationSchedule, integrationID str
 }
 
 func validPublicIntegrationFreshness(value IntegrationFreshness, integrationID string) bool {
-	if value.IntegrationID != integrationID || value.Version < 1 || !validPublicTime(value.UpdatedAt) || value.LastGood != nil && (!validProductID(value.LastGood.SnapshotID) || !validPublicTime(value.LastGood.CollectedAt) || value.LastGood.DiscoveredCount < 0 || value.LastGood.ChangedCount < 0 || value.LastGood.RemovedCount < 0) || value.LatestSync != nil && !validPublicIntegrationSync(*value.LatestSync, integrationID, value.LatestSync.ID) {
+	if value.IntegrationID != integrationID || value.Version < 1 || !validPublicTime(value.UpdatedAt) || !validIntegrationCoverageGaps(value.CoverageGaps) || value.LastGood != nil && (!validProductID(value.LastGood.SnapshotID) || !validPublicTime(value.LastGood.CollectedAt) || value.LastGood.DiscoveredCount < 0 || value.LastGood.ChangedCount < 0 || value.LastGood.RemovedCount < 0) || value.LatestSync != nil && !validPublicIntegrationSync(*value.LatestSync, integrationID, value.LatestSync.ID) {
 		return false
 	}
 	return validProjectionStatus(value.Projections.Risk) && validProjectionStatus(value.Projections.Graph) && validProjectionStatus(value.Projections.Search)
@@ -605,7 +649,21 @@ func exactJSONArrayObjectFields(payload json.RawMessage, index int, expected ...
 }
 
 func validExactFreshnessPayload(payload json.RawMessage) bool {
-	if !exactJSONFields(payload, "integration_id", "last_good", "latest_sync", "projections", "updated_at", "version") {
+	fields := []string{"integration_id", "last_good", "latest_sync", "projections", "updated_at", "version"}
+	if gaps := extractJSONField(payload, "coverage_gaps"); gaps != nil {
+		// Present, the member is an array of exact objects; null is refused.
+		var items []json.RawMessage
+		if json.Unmarshal(gaps, &items) != nil || items == nil || len(items) > maxIntegrationCoverageGaps {
+			return false
+		}
+		for _, item := range items {
+			if !exactJSONFields(item, "name", "service", "status") {
+				return false
+			}
+		}
+		fields = append(fields, "coverage_gaps")
+	}
+	if !exactJSONFields(payload, fields...) {
 		return false
 	}
 	lastGood := extractJSONField(payload, "last_good")

@@ -48,7 +48,16 @@ func inventoryScope(t *testing.T) domain.Scope {
 }
 
 func inventorySummaryJSON(id, kind string) string {
-	return `{"id":"` + id + `","name":"Production","kind":"` + kind + `","owner":"","team":"","tags":[],"evidence_id":"pid_20000001-0000-4000-8000-000000000001","confidence_basis_points":9000,"first_seen":"2026-08-19T00:00:00Z","last_seen":"2026-08-19T01:00:00Z","observed_at":"2026-08-19T01:00:00Z","fresh_until":"2026-08-20T01:00:00Z","freshness_state":"fresh","version":1}`
+	return `{"id":"` + id + `","name":"Production","kind":"` + kind + `","owner":"","team":"","tags":[],"evidence_id":"pid_20000001-0000-4000-8000-000000000001","confidence_basis_points":9000,"first_seen":"2026-08-19T00:00:00Z","last_seen":"2026-08-19T01:00:00Z","observed_at":"2026-08-19T01:00:00Z","fresh_until":"2026-08-20T01:00:00Z","freshness_state":"fresh","version":1,` + inventoryDiscoveryJSON(kind) + `}`
+}
+
+// inventoryDiscoveryJSON is how the fixture object was found: an agent the
+// provider's control plane lists and nobody owns yet, or a provider record.
+func inventoryDiscoveryJSON(kind string) string {
+	if kind == "agent" {
+		return `"provider":"aws","source_kind":"aws_bedrock_agent","discovery":{"method":"provider_api","platform":"bedrock_agent","signals":[]},"management_state":"unmanaged"`
+	}
+	return `"provider":"aws","source_kind":"aws_role","discovery":{"method":"provider_api","platform":"aws_role","signals":[]},"management_state":"not_applicable"`
 }
 
 func TestInventoryRepositoryStrictPageAndDetailAuthority(t *testing.T) {
@@ -77,6 +86,7 @@ func TestInventoryRepositoryStrictPageAndDetailAuthority(t *testing.T) {
 func TestInventoryRepositoryUpdatesOnlyCanonicalAgentOwnership(t *testing.T) {
 	entityID := "pid_10000001-0000-4000-8000-000000000001"
 	updated := replaceInventoryJSON(replaceInventoryJSON(replaceInventoryJSON(replaceInventoryJSON(inventorySummaryJSON(entityID, "agent"), `"owner":""`, `"owner":"security"`), `"team":""`, `"team":"platform"`), `"tags":[]`, `"tags":["critical","production"]`), `"version":1`, `"version":2`)
+	updated = replaceInventoryJSON(updated, `"management_state":"unmanaged"`, `"management_state":"managed"`)
 	database := &inventoryJSONDatabase{schema: TypedInventorySchemaVersion, responses: map[string]json.RawMessage{
 		postgresInventoryReadinessSQL:   json.RawMessage(`true`),
 		postgresInventoryUpdateAgentSQL: json.RawMessage(`{"agent":` + updated + `,"audit_id":"pid_60000001-0000-4000-8000-000000000001","correlation_id":"pid_60000002-0000-4000-8000-000000000002","replayed":false}`),
@@ -149,5 +159,83 @@ func TestInventoryRepositoryRequiresExactTypedAuthority(t *testing.T) {
 	database := &inventoryJSONDatabase{schema: RuntimeDataPlaneSchemaVersion, responses: map[string]json.RawMessage{postgresRuntimeDataPlaneReadinessSQL: json.RawMessage(`false`)}}
 	if _, err := NewPostgresInventoryRepository(database); !errors.Is(err, ErrRepositoryConfiguration) {
 		t.Fatalf("false readiness error=%v", err)
+	}
+}
+
+func TestInventorySummaryDiscoveryIsConsistentWithKindAndOwner(t *testing.T) {
+	entityID := "pid_10000001-0000-4000-8000-000000000001"
+	decode := func(raw string, kind InventoryKind) bool {
+		var item InventorySummary
+		return decodeStrictInventory(json.RawMessage(raw), &item) == nil && validInventorySummary(item, kind)
+	}
+	agent := inventorySummaryJSON(entityID, "agent")
+	owned := replaceInventoryJSON(replaceInventoryJSON(agent, `"owner":""`, `"owner":"security"`), `"management_state":"unmanaged"`, `"management_state":"managed"`)
+	inferred := replaceInventoryJSON(replaceInventoryJSON(agent, `"method":"provider_api"`, `"method":"inferred"`), `"signals":[]`, `"signals":["env:openai","package:langgraph"]`)
+	declared := replaceInventoryJSON(replaceInventoryJSON(agent, `"method":"provider_api"`, `"method":"declared"`), `"management_state":"unmanaged"`, `"management_state":"managed"`)
+	for name, raw := range map[string]string{"unowned provider agent": agent, "owned provider agent": owned, "inferred agent": inferred, "declared agent": declared} {
+		if !decode(raw, InventoryKindAgent) {
+			t.Errorf("%s refused: %s", name, raw)
+		}
+	}
+	if !decode(inventorySummaryJSON(entityID, "identity"), InventoryKindIdentity) {
+		t.Error("provider identity refused")
+	}
+	for name, raw := range map[string]string{
+		"ownerless agent called managed":  replaceInventoryJSON(agent, `"management_state":"unmanaged"`, `"management_state":"managed"`),
+		"owned agent called unmanaged":    replaceInventoryJSON(agent, `"owner":""`, `"owner":"security"`),
+		"declared agent called unmanaged": replaceInventoryJSON(agent, `"method":"provider_api"`, `"method":"declared"`),
+		"inferred agent without a signal": replaceInventoryJSON(agent, `"method":"provider_api"`, `"method":"inferred"`),
+		"unsorted signals":                replaceInventoryJSON(inferred, `["env:openai","package:langgraph"]`, `["package:langgraph","env:openai"]`),
+		"provider value as signal":        replaceInventoryJSON(inferred, `"env:openai"`, `"env:OPENAI_API_KEY=sk-live"`),
+		"unknown provider":                replaceInventoryJSON(agent, `"provider":"aws"`, `"provider":"azure"`),
+		"unknown method":                  replaceInventoryJSON(agent, `"method":"provider_api"`, `"method":"guessed"`),
+		"missing discovery":               replaceInventoryJSON(agent, `"discovery":{"method":"provider_api","platform":"bedrock_agent","signals":[]},`, ``),
+		"agent called not applicable":     replaceInventoryJSON(agent, `"management_state":"unmanaged"`, `"management_state":"not_applicable"`),
+	} {
+		if decode(raw, InventoryKindAgent) {
+			t.Errorf("%s accepted: %s", name, raw)
+		}
+	}
+	// Dismissal: the reserved tag on an agent found without a declaration is
+	// "dismissed" and nothing else; on a declared agent it means nothing.
+	tagged := func(raw string) string { return replaceInventoryJSON(raw, `"tags":[]`, `"tags":["critical","not-an-agent"]`) }
+	dismissed := func(raw, state string) string {
+		return replaceInventoryJSON(tagged(raw), `"management_state":"`+state+`"`, `"management_state":"dismissed"`)
+	}
+	for name, raw := range map[string]string{
+		"dismissed provider agent":       dismissed(agent, "unmanaged"),
+		"dismissed owned provider agent": dismissed(owned, "managed"),
+		"dismissed inferred agent":       dismissed(inferred, "unmanaged"),
+		"declared agent with the tag":    tagged(declared),
+	} {
+		if !decode(raw, InventoryKindAgent) {
+			t.Errorf("%s refused: %s", name, raw)
+		}
+	}
+	for name, raw := range map[string]string{
+		"tagged provider agent called unmanaged": tagged(agent),
+		"tagged owned agent called managed":      tagged(owned),
+		"tagged inferred agent called unmanaged": tagged(inferred),
+		"untagged agent called dismissed":        replaceInventoryJSON(agent, `"management_state":"unmanaged"`, `"management_state":"dismissed"`),
+		"untagged owned agent called dismissed":  replaceInventoryJSON(owned, `"management_state":"managed"`, `"management_state":"dismissed"`),
+		"declared agent called dismissed":        dismissed(declared, "managed"),
+		"near-miss tag called dismissed":         replaceInventoryJSON(dismissed(agent, "unmanaged"), `"not-an-agent"`, `"not-an-agent "`),
+	} {
+		if decode(raw, InventoryKindAgent) {
+			t.Errorf("%s accepted: %s", name, raw)
+		}
+	}
+	if !validAgentOwnershipInput(AgentOwnershipInput{Owner: "security", Team: "platform", Tags: []string{"critical", InventoryNotAnAgentTag}}) {
+		t.Error("the reserved tag is refused by the ownership input validation")
+	}
+	identity := inventorySummaryJSON(entityID, "identity")
+	for name, raw := range map[string]string{
+		"identity called unmanaged": replaceInventoryJSON(identity, `"management_state":"not_applicable"`, `"management_state":"unmanaged"`),
+		"identity called dismissed": replaceInventoryJSON(replaceInventoryJSON(identity, `"tags":[]`, `"tags":["not-an-agent"]`), `"management_state":"not_applicable"`, `"management_state":"dismissed"`),
+		"identity called inferred":  replaceInventoryJSON(replaceInventoryJSON(identity, `"method":"provider_api"`, `"method":"inferred"`), `"signals":[]`, `"signals":["env:openai"]`),
+	} {
+		if decode(raw, InventoryKindIdentity) {
+			t.Errorf("%s accepted: %s", name, raw)
+		}
 	}
 }

@@ -169,6 +169,10 @@ func TestDiscoveryPublicHandlerReturnsScheduleAndFreshnessVersions(t *testing.T)
 		if response.Code != http.StatusOK || response.Header().Get("ETag") != test.etag {
 			t.Fatalf("%s status=%d headers=%#v body=%s", test.operation, response.Code, response.Header(), response.Body.String())
 		}
+		// The freshness always carries the coverage gaps as a list, never null.
+		if test.operation == "getIntegrationFreshness" && !strings.Contains(response.Body.String(), `"coverage_gaps":[]`) {
+			t.Fatalf("freshness without a coverage gap list: %s", response.Body.String())
+		}
 	}
 }
 

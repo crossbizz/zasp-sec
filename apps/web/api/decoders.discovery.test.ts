@@ -90,7 +90,10 @@ const freshness = {
     search: { state: "degraded", snapshot_id: snapshotID, completed_at: "2026-08-19T00:00:03Z", last_error_code: "terminal" },
   },
   updated_at: "2026-08-19T00:00:04Z",
+  coverage_gaps: [],
 } as const;
+const deniedGap = { service: "bedrock-agent", name: "Amazon Bedrock Agents", status: "access_denied" } as const;
+const unavailableGap = { service: "lambda", name: "AWS Lambda", status: "unavailable" } as const;
 
 describe("production discovery response decoders", () => {
   it("accepts exact queued, running, succeeded, and failed recovery tuples", () => {
@@ -133,6 +136,29 @@ describe("production discovery response decoders", () => {
     expect(decodeIntegrationFreshness(freshness)).toEqual(freshness);
     expect(decodeIntegrationSetupStatus(setupStatus, integrationID)).toEqual(setupStatus);
     expect(decodeIntegrationSetupStatus({ ...setupStatus, connector_key: "kubernetes", authorization: { state: "verified", scope_kind: "kubernetes_cluster", scope_label: "production-us-west", repository_selection: null, permissions: [] }, runtime_coverage: { state: "awaiting_heartbeat", reason: "missing_gateway", sensor_count: 3, healthy_sensor_count: 1 } }, integrationID).runtime_coverage.healthy_sensor_count).toBe(1);
+  });
+
+  it("accepts the bound tenant or org of a Microsoft or Salesforce integration", () => {
+    const notApplicable = { state: "not_applicable", reason: "not_applicable", sensor_count: 0, healthy_sensor_count: 0 } as const;
+    const microsoft = { ...setupStatus, connector_key: "microsoft", authorization: { state: "verified", scope_kind: "microsoft_tenant", scope_label: "0a1b2c3d-1111-2222-3333-444455556666", repository_selection: null, permissions: [] }, runtime_coverage: notApplicable };
+    const salesforce = { ...setupStatus, connector_key: "salesforce", authorization: { state: "verified", scope_kind: "salesforce_org", scope_label: "00D5e000000abcdEAA", repository_selection: null, permissions: [] }, runtime_coverage: notApplicable };
+    expect(decodeIntegrationSetupStatus(microsoft, integrationID)).toEqual(microsoft);
+    expect(decodeIntegrationSetupStatus(salesforce, integrationID)).toEqual(salesforce);
+    const pending = { ...microsoft, authorization: { state: "pending", scope_kind: "none", scope_label: null, repository_selection: null, permissions: [] } };
+    expect(decodeIntegrationSetupStatus(pending, integrationID)).toEqual(pending);
+    for (const refused of [
+      { ...microsoft, connector_key: "azure" },
+      { ...microsoft, connector_key: "servicenow" },
+      { ...microsoft, authorization: { ...microsoft.authorization, scope_kind: "salesforce_org" } },
+      { ...microsoft, authorization: { ...microsoft.authorization, scope_label: "contoso.onmicrosoft.com" } },
+      { ...microsoft, authorization: { ...microsoft.authorization, scope_label: null } },
+      { ...microsoft, authorization: { ...microsoft.authorization, permissions: ["application.read.all"] } },
+      { ...microsoft, authorization: { ...microsoft.authorization, repository_selection: "all" } },
+      { ...microsoft, runtime_coverage: { state: "not_enrolled", reason: "not_enrolled", sensor_count: 0, healthy_sensor_count: 0 } },
+      { ...salesforce, authorization: { ...salesforce.authorization, scope_kind: "microsoft_tenant" } },
+      { ...salesforce, authorization: { ...salesforce.authorization, scope_label: "00D5e000000abcd" } },
+      { ...salesforce, authorization: { ...salesforce.authorization, scope_kind: "okta_tenant", scope_label: "acme.okta.com" } },
+    ]) expect(() => decodeIntegrationSetupStatus(refused, integrationID)).toThrow("schema mismatch");
   });
 
   it.each([
@@ -201,7 +227,24 @@ describe("production discovery response decoders", () => {
     ["unavailable projection with error", { ...freshness, projections: { ...freshness.projections, search: { state: "unavailable", snapshot_id: null, completed_at: null, last_error_code: "terminal" } } }],
     ["internal projection error", { ...freshness, projections: { ...freshness.projections, search: { ...freshness.projections.search, last_error_code: "opensearch_index_failed" } } }],
     ["extra freshness member", { ...freshness, outbox_id: syncID }],
+    ["missing coverage gaps", (({ coverage_gaps: _gaps, ...rest }) => rest)(freshness)],
+    ["null coverage gaps", { ...freshness, coverage_gaps: null }],
+    ["unsorted coverage gaps", { ...freshness, coverage_gaps: [unavailableGap, deniedGap] }],
+    ["repeated coverage gap", { ...freshness, coverage_gaps: [deniedGap, deniedGap] }],
+    ["coverage gap with an unknown status", { ...freshness, coverage_gaps: [{ ...deniedGap, status: "collected" }] }],
+    ["coverage gap with an unknown member", { ...freshness, coverage_gaps: [{ ...deniedGap, region: "us-east-1" }] }],
+    ["coverage gap without a name", { ...freshness, coverage_gaps: [{ service: "lambda", status: "unavailable" }] }],
+    ["coverage gap with an empty name", { ...freshness, coverage_gaps: [{ ...deniedGap, name: "" }] }],
+    ["coverage gap with a malformed service", { ...freshness, coverage_gaps: [{ ...deniedGap, service: "Bedrock Agents" }] }],
+    ["more than sixteen coverage gaps", { ...freshness, coverage_gaps: Array.from({ length: 17 }, (_, index) => ({ service: `service-${String.fromCharCode(97 + index)}`, name: "Service", status: "unavailable" })) }],
   ])("rejects %s", (_name, value) => {
     expect(() => decodeIntegrationFreshness(value)).toThrow("schema mismatch");
+  });
+
+  it("accepts the AI services a collection could not read, ordered by service", () => {
+    expect(decodeIntegrationFreshness(freshness).coverage_gaps).toEqual([]);
+    expect(decodeIntegrationFreshness({ ...freshness, coverage_gaps: [deniedGap, unavailableGap] }).coverage_gaps).toEqual([deniedGap, unavailableGap]);
+    const sixteen = Array.from({ length: 16 }, (_, index) => ({ service: `service-${String.fromCharCode(97 + index)}`, name: "Service", status: "unavailable" }));
+    expect(decodeIntegrationFreshness({ ...freshness, coverage_gaps: sixteen }).coverage_gaps).toHaveLength(16);
   });
 });
