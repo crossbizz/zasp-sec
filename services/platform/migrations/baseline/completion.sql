@@ -1521,31 +1521,93 @@ BEGIN
 END $discovery_read_guards$;
 
 -- ---------------------------------------------------------------------------
--- X4. Inventory rule catalog digest.
+-- X4. Inventory rule catalog: discovered agent kinds, and the catalog digest.
 --
--- Section G reclassified AWS IAM roles as identities (rule version 2). The
--- typed inventory release pins the digest of the rule catalog in a CHECK
--- constraint, in its cutover rows, in zasp_schema_metadata and in two function
--- bodies; all still named the catalog before that change. They now name the
--- catalog the rules table and the compiled catalog
--- (inventoryprojection.RuleCatalogDigest) both hold.
+-- The chain's catalog knew one agent kind, a Kubernetes Deployment its owner
+-- labelled zasp.ai/entity-kind=agent. The collectors now also report agents
+-- nobody declared: the ones a provider's control plane lists (Bedrock agents,
+-- AgentCore runtimes) at the confidence of a provider record, and the ones the
+-- product infers from signals (a Lambda function whose role may invoke a
+-- model, an unlabelled workload carrying an agent framework, a repository
+-- with an agent manifest, an AI application connected in the identity
+-- provider) at a lower confidence. An AgentCore gateway is a tool.
+INSERT INTO public.zasp_inventory_identity_rules(provider,source_kind,identity_namespace,product_kind,rule_version,priority,confidence_basis_points,freshness_seconds) VALUES
+ ('aws','aws_agentcore_gateway','aws_agentcore_gateway','tool',1,100,9000,86400),
+ ('aws','aws_agentcore_runtime','aws_agentcore_runtime','agent',1,100,9500,86400),
+ ('aws','aws_bedrock_agent','aws_bedrock_agent','agent',1,100,9500,86400),
+ ('aws','aws_inferred_agent','aws_inferred_agent','agent',1,100,6000,86400),
+ ('github','github_agent_project','github_agent_project','agent',1,120,6000,86400),
+ ('kubernetes','kubernetes_inferred_agent','kubernetes_inferred_agent','agent',1,80,6000,900),
+ ('okta','okta_ai_application','okta_ai_application','agent',1,110,7000,86400)
+ON CONFLICT(provider,source_kind) DO NOTHING;
+
+-- Section G reclassified AWS IAM roles as identities (rule version 2) and the
+-- rows above add seven kinds. The typed inventory release pins the digest of
+-- the rule catalog in a CHECK constraint, in its cutover rows, in
+-- zasp_schema_metadata and in two function bodies; all still named an earlier
+-- catalog. They now name the catalog the rules table and the compiled catalog
+-- (inventoryprojection.RuleCatalogDigest) both hold. The earlier digests are
+-- the chain's and the one a baseline before the discovered agent kinds pinned.
 DO $rule_catalog_digest$
-DECLARE previous CONSTANT text:='44820a38e96d80318165fc2333fd851cd932d2704d380a1199d569d1d0778f30';
- current_value CONSTANT text:='9397691244ac0b8befd2790fed3ca2e71f2114eba44001cc3d5634f86b6044ed';
- f regprocedure;d text;
+DECLARE earlier CONSTANT text[]:=ARRAY['44820a38e96d80318165fc2333fd851cd932d2704d380a1199d569d1d0778f30','9397691244ac0b8befd2790fed3ca2e71f2114eba44001cc3d5634f86b6044ed'];
+ current_value CONSTANT text:='f67df9589cf0d41f4b2a98a5161353100e2ff3ed61cfc188c1447d2dd14c4192';
+ previous text;f regprocedure;d text;
 BEGIN
- IF NOT EXISTS(SELECT 1 FROM public.zasp_inventory_identity_rules WHERE(provider,source_kind,product_kind,rule_version)=('aws','aws_role','identity',2)) THEN
+ IF NOT EXISTS(SELECT 1 FROM public.zasp_inventory_identity_rules WHERE(provider,source_kind,product_kind,rule_version)=('aws','aws_role','identity',2))
+  OR (SELECT count(*) FROM public.zasp_inventory_identity_rules)<>37 THEN
   RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='inventory rule catalog predecessor changed';
  END IF;
  ALTER TABLE public.zasp_inventory_cutover_state DROP CONSTRAINT IF EXISTS zasp_inventory_cutover_state_rule_catalog_digest_check;
- UPDATE public.zasp_inventory_cutover_state SET rule_catalog_digest=current_value WHERE rule_catalog_digest=previous;
+ UPDATE public.zasp_inventory_cutover_state SET rule_catalog_digest=current_value WHERE rule_catalog_digest=ANY(earlier);
  EXECUTE format('ALTER TABLE public.zasp_inventory_cutover_state ADD CONSTRAINT zasp_inventory_cutover_state_rule_catalog_digest_check CHECK(rule_catalog_digest=%L)',current_value);
- UPDATE public.zasp_schema_metadata SET value=current_value WHERE key='typed_inventory_rule_catalog_digest' AND value=previous;
+ UPDATE public.zasp_schema_metadata SET value=current_value WHERE key='typed_inventory_rule_catalog_digest' AND value=ANY(earlier);
  FOREACH f IN ARRAY ARRAY['public.zasp_inventory_advance_scope(text,text,text,text,bytea,bytea)'::regprocedure,'public.zasp_inventory_readiness(text,text)'::regprocedure] LOOP
-  d:=pg_get_functiondef(f);
-  IF position(previous in d)>0 THEN EXECUTE replace(d,previous,current_value);END IF;
+  FOREACH previous IN ARRAY earlier LOOP
+   d:=pg_get_functiondef(f);
+   IF position(previous in d)>0 THEN EXECUTE replace(d,previous,current_value);END IF;
+  END LOOP;
  END LOOP;
 END $rule_catalog_digest$;
+
+-- ---------------------------------------------------------------------------
+-- X5. How an inventory object was found, on every inventory read.
+--
+-- The inventory summary said what an object is and how fresh it is, not which
+-- provider reported it, whether it was declared or inferred, or whether
+-- anyone has taken ownership of an agent nobody declared. The lists
+-- (zasp_authorization80.inventory_page), the detail and the agent update all
+-- read the summary zasp_inventory_detail builds, and the historical page
+-- (zasp_inventory_page) builds the same summary itself, so both gain four
+-- members:
+--   provider          the winning observation's provider
+--   source_kind       the provider kind the collector reported, read from
+--                     the winning source observation (the entity row keeps
+--                     only the product kind)
+--   discovery         method (declared, provider_api or inferred), platform
+--                     and the catalog signals an inference rests on
+--   management_state  for an agent: unmanaged while it was found without a
+--                     declaration and has no owner, managed otherwise; for
+--                     every other kind not_applicable
+DO $inventory_discovery_summary$
+DECLARE detail CONSTANT regprocedure:='public.zasp_inventory_detail(text,text,text,text,text)'::regprocedure;
+ page CONSTANT regprocedure:='public.zasp_inventory_page(text,text,text,text,text,integer)'::regprocedure;
+ source_kind CONSTANT text:=$source_kind$(SELECT observation.source_kind FROM public.zasp_inventory_source_observations observation WHERE (observation.organization_id,observation.workspace_id,observation.environment_id,observation.integration_id,observation.source,observation.entity_id)=(row_value.organization_id,row_value.workspace_id,row_value.environment_id,row_value.winning_integration_id,row_value.winning_source,row_value.id))$source_kind$;
+ members CONSTANT text:=replace($members$jsonb_build_object('provider',row_value.winning_provider,'source_kind',SOURCE_KIND,'discovery',jsonb_build_object('method',CASE WHEN row_value.product_kind<>'agent' THEN 'provider_api' ELSE COALESCE(row_value.winning_attributes->'discovery'->>'method','declared') END,'platform',COALESCE(row_value.winning_attributes->'discovery'->>'platform',SOURCE_KIND),'signals',COALESCE(row_value.winning_attributes->'discovery'->'signals','[]'::jsonb)),'management_state',CASE WHEN row_value.product_kind<>'agent' THEN 'not_applicable' WHEN row_value.winning_attributes->'discovery' IS NULL OR COALESCE(annotation_value->>'owner','')<>'' THEN 'managed' ELSE 'unmanaged' END)$members$,'SOURCE_KIND',source_kind);
+ detail_anchor CONSTANT text:='INTO summary_value;';
+ page_anchor CONSTANT text:=$anchor$'version',annotation_version) ORDER BY id)$anchor$;
+ d text;
+BEGIN
+ d:=pg_get_functiondef(detail);
+ IF position('management_state' in d)=0 THEN
+  IF length(d)-length(replace(d,detail_anchor,''))<>length(detail_anchor) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='inventory detail summary predecessor changed';END IF;
+  EXECUTE replace(d,detail_anchor,detail_anchor||' summary_value:=summary_value||'||replace(members,'row_value.','entity_record.')||';');
+ END IF;
+ d:=pg_get_functiondef(page);
+ IF position('management_state' in d)=0 THEN
+  IF length(d)-length(replace(d,page_anchor,''))<>length(page_anchor) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='inventory page summary predecessor changed';END IF;
+  EXECUTE replace(d,page_anchor,$head$'version',annotation_version)||$head$||replace(members,'row_value.','visible.')||' ORDER BY id)');
+ END IF;
+END $inventory_discovery_summary$;
 
 -- ---------------------------------------------------------------------------
 -- X5. Security Agent counts of the home summary.
