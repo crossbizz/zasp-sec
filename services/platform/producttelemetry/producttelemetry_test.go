@@ -271,7 +271,10 @@ func TestTelemetryBoundsCancellationAndDeadlineWithoutRetry(t *testing.T) {
 		<-ctx.Done()
 		return DriverCaptured{}, ctx.Err()
 	}}
-	deadlineTelemetry := mustTelemetry(t, deadlineDriver, Config{OperationTimeout: time.Millisecond})
+	// The driver blocks until the operation deadline, so any timeout proves
+	// the bound; 50ms leaves room for the driver call to start on a loaded
+	// machine before the deadline fires (1ms raced the call itself).
+	deadlineTelemetry := mustTelemetry(t, deadlineDriver, Config{OperationTimeout: 50 * time.Millisecond})
 	if err := deadlineTelemetry.Track(context.Background(), scope, exactEvent(true)); !errors.Is(err, ErrCapture) {
 		t.Fatalf("deadline Track error = %v, want ErrCapture", err)
 	}

@@ -255,6 +255,12 @@ func BenchmarkDecision16KB(b *testing.B) {
 // what it guards is the cost of the detectors, not the scheduler. The
 // benchmark above reports the usual figure.
 func TestDecisionOn16KBIsFast(t *testing.T) {
+	// The race detector slows the detectors several times over, so the
+	// latency budget is meaningless under it. CI runs this test without
+	// -race in the Platform Go packages job.
+	if raceEnabled {
+		t.Skip("latency budget is not measured under the race detector")
+	}
 	text := benchmarkText()
 	Detect(text, DirectionInput)
 	fastest := time.Hour

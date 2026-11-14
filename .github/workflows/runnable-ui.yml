@@ -284,3 +284,61 @@ jobs:
           node --test proofs/attack-lab-egress/run.test.mjs
           node proofs/attack-lab-egress/run.mjs
           ZASP_ATTACK_LAB_EGRESS_DOCKER=true node --test proofs/attack-lab-egress/interruption.test.mjs
+
+  # Every services/platform package with tests that no step above runs in
+  # full, chosen by scripts/platform-go-test-packages.mjs so a new package
+  # is tested without editing this file, and the apiserver feature tests
+  # (discovery, MCP, SaaS, guardrails, red team, remediation, compliance).
+  platform-go:
+    name: Platform Go packages
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      GOTOOLCHAIN: local
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.23.1
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: 1.26.8
+          cache: true
+          cache-dependency-path: services/platform/go.sum
+      # Reference validation only, as in the verify job.
+      - name: Install PostgreSQL 18 reference fixture tools
+        run: |
+          fixture_pg_dir=$(mktemp -d "${RUNNER_TEMP}/zasp-pgdg.XXXXXX")
+          curl --fail --location --retry 3 --max-time 60 --output "$fixture_pg_dir/pgdg.asc" https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          printf '%s  %s\n' 0144068502a1eddd2a0280ede10ef607d1ec592ce819940991203941564e8e76 "$fixture_pg_dir/pgdg.asc" | sha256sum --check -
+          sudo install -m 0644 "$fixture_pg_dir/pgdg.asc" /usr/share/keyrings/zasp-ci-pgdg.asc
+          printf '%s\n' 'deb [arch=amd64 signed-by=/usr/share/keyrings/zasp-ci-pgdg.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main' | sudo tee /etc/apt/sources.list.d/zasp-ci-pgdg.list > /dev/null
+          sudo apt-get update
+          sudo env DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends postgresql-18 postgresql-client-18
+          fixture_pg_bin=/usr/lib/postgresql/18/bin
+          for fixture_tool in initdb postgres pg_isready pg_ctl pg_config; do
+            test -x "$fixture_pg_bin/$fixture_tool"
+          done
+          case "$("$fixture_pg_bin/postgres" --version)" in
+            "postgres (PostgreSQL) 18."*) ;;
+            *) exit 1 ;;
+          esac
+          printf '%s\n' "$fixture_pg_bin" >> "$GITHUB_PATH"
+      - name: Verify the platform package selection
+        run: node --test scripts/platform-go-test-packages.test.mjs
+      - name: Verify platform packages no other step runs
+        timeout-minutes: 30
+        run: |
+          mapfile -t packages < <(node scripts/platform-go-test-packages.mjs)
+          test "${#packages[@]}" -gt 0
+          printf 'Testing %s\n' "${packages[@]}"
+          go test -C services/platform -race -count=1 -timeout=25m "${packages[@]}"
+          # Latency budgets are skipped under -race; measure them without it.
+          go test -C services/platform -count=1 -run 'IsFast$' ./guardrail
+      - name: Verify the apiserver feature tests
+        timeout-minutes: 20
+        run: |
+          go test -C services/platform -race -count=1 -timeout=15m -run "$(node scripts/platform-go-test-packages.mjs --apiserver-features)" ./apiserver

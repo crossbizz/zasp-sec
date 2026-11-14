@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net"
+	"sync"
 	"testing"
 	"time"
 
@@ -72,8 +73,11 @@ func TestHealthListenerMovesOnlyForLocalEmulator(t *testing.T) {
 	}
 }
 
+// regionListEC2Stub records the regions whose instances were read. Regions
+// are read concurrently, so the shared record is guarded by mu.
 type regionListEC2Stub struct {
 	regions   []ec2types.Region
+	mu        *sync.Mutex
 	described *[]string
 	region    string
 }
@@ -83,6 +87,8 @@ func (stub *regionListEC2Stub) DescribeRegions(context.Context, *ec2.DescribeReg
 }
 
 func (stub *regionListEC2Stub) DescribeInstances(context.Context, *ec2.DescribeInstancesInput, ...func(*ec2.Options)) (*ec2.DescribeInstancesOutput, error) {
+	stub.mu.Lock()
+	defer stub.mu.Unlock()
 	*stub.described = append(*stub.described, stub.region)
 	return &ec2.DescribeInstancesOutput{}, nil
 }
@@ -95,8 +101,9 @@ func TestAWSInstanceCollectionSkipsUnavailableRegionsOnlyForLocalEmulator(t *tes
 	credentials := aws.Credentials{AccessKeyID: "ASIAABCDEFGHIJKLMNOP", SecretAccessKey: "secret", SessionToken: "token", CanExpire: true, Expires: time.Now().Add(time.Hour)}
 	collect := func(regions []ec2types.Region, localEmulator bool) ([]string, error) {
 		var described []string
+		var mu sync.Mutex
 		factory := func(name string, _ aws.Credentials) (discoveryAWSEC2API, error) {
-			return &regionListEC2Stub{regions: regions, described: &described, region: name}, nil
+			return &regionListEC2Stub{regions: regions, mu: &mu, described: &described, region: name}, nil
 		}
 		primary, _ := factory("us-east-1", credentials)
 		_, err := collectDiscoveryAWSInstances(context.Background(), factory, primary, credentials, "123456789012", localEmulator)
