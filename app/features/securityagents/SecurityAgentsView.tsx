@@ -423,6 +423,7 @@ function AgentDetail({ selected, activation, actions, catalogAvailable, api, can
   const savedCostBudget = selected.value.max_ai_cost_nano_credits;
   const costDirty = costBudget !== (savedCostBudget?.toString() ?? "");
   const [costRefused, setCostRefused] = useState(false);
+  const [sourceMismatch, setSourceMismatch] = useState(false);
   const costConfigured = Number.isSafeInteger(savedCostBudget) && savedCostBudget! >= 1 && savedCostBudget! <= 1000000000000;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
@@ -432,7 +433,7 @@ function AgentDetail({ selected, activation, actions, catalogAvailable, api, can
   const [reads] = useState(() => new AbortController());
   useEffect(() => () => reads.abort(), [reads]);
   const apply = (result: SecurityAgentDetailResult) => { if (result.kind === "updated") { setEnabled(false); setCostRefused(false); setCostBudget(result.receipt.value.max_ai_cost_nano_credits?.toString() ?? ""); setRuleDraft(triggerRuleDraft(result.receipt.value.trigger_source, result.receipt.value.trigger_rules)); onChange(result.receipt); } else onDelete(); };
-  const run = async (operation: () => Promise<SecurityAgentDetailResult>) => { setBusy(true); setError(false); try { apply(await operation()); } catch { setError(true); } finally { setBusy(false); } };
+  const run = async (operation: () => Promise<SecurityAgentDetailResult>) => { setBusy(true); setError(false); setSourceMismatch(false); try { apply(await operation()); } catch { setError(true); } finally { setBusy(false); } };
   const save = () => {
     if (!validCostBudget || triggerRules === null) return;
     const value = { ...selected.value, name, enabled: false, trigger_source: triggerSource };
@@ -452,7 +453,7 @@ function AgentDetail({ selected, activation, actions, catalogAvailable, api, can
   const activate = async () => {
     if (!nextActivation || costDirty || rulesDirty || costRefused || nextActivation !== "validated" && !costConfigured) return;
     if (!fresh) { onReauthenticate(); return; }
-    setBusy(true); setError(false);
+    setBusy(true); setError(false); setSourceMismatch(false);
     try {
       const receipt = activationMutation.canRetry ? await activationMutation.retry<WorkflowReceipt<SecurityAgentActivationState>>() : await activationMutation.execute({ id: selected.value.id, version: activation.version, activation: nextActivation }, (intent, attempt) => api.activateSecurityAgent(intent.id, intent.version, intent.activation, attempt));
       onActivation(receipt.value); setEnabled(receipt.value.enabled);
@@ -460,7 +461,7 @@ function AgentDetail({ selected, activation, actions, catalogAvailable, api, can
   };
   const simulate = async () => {
     if (monitorUnavailable) return;
-    setBusy(true); setError(false);
+    setBusy(true); setError(false); setSourceMismatch(false);
     try {
       const evidenceIDs = [evidenceID];
       const receipt = simulationMutation.canRetry ? await simulationMutation.retry<WorkflowReceipt<SecurityAgentSimulation>>() : await simulationMutation.execute({ id: selected.value.id, version: activation.version, goal, environmentID: selected.value.environment_ids[0]!, evidenceIDs }, (intent, attempt) => api.simulateSecurityAgent(intent.id, intent.version, { goal: intent.goal, environment_id: intent.environmentID, evidence_ids: intent.evidenceIDs }, attempt));
@@ -469,7 +470,7 @@ function AgentDetail({ selected, activation, actions, catalogAvailable, api, can
   };
   const startRun = async () => {
     if (monitorUnavailable) return;
-    setBusy(true); setError(false);
+    setBusy(true); setError(false); setSourceMismatch(false);
     try {
       const triggerKind = selected.value.trigger_kind === "runtime_decision" ? "session" : selected.value.trigger_kind;
       const orderedIntent = selected.value.allowed_actions.length === 2 && selected.value.allowed_actions[0] === "create_temporary_policy" && selected.value.allowed_actions[1] === "run_test";
@@ -499,12 +500,12 @@ function AgentDetail({ selected, activation, actions, catalogAvailable, api, can
         receipt = await send(decodeSecurityAgentManualRunInput({ environment_id: selected.value.environment_ids[0]!, trigger_kind: triggerKind, trigger_id: evidenceID, trigger_version: evidence.version, trigger_source: selected.value.trigger_source }));
       }
       onRun(receipt.value);
-    } catch { setError(true); } finally { setBusy(false); }
+    } catch (reason) { setSourceMismatch(reason instanceof APIProductError && reason.status === 409 && reason.product.code === "trigger_source_mismatch"); setError(true); } finally { setBusy(false); }
   };
   const supported = actions.filter((action) => selected.value.allowed_actions.includes(action.key));
   const locked = mutation.isUnresolved || activationMutation.isUnresolved || simulationMutation.isUnresolved || manualRunMutation.isUnresolved;
   return <Drawer open title={selected.value.name} closeDisabled={locked} onClose={onClose}><div className="detail-content">{monitorUnavailable && <p>Monitor execution is currently unavailable.</p>}<p><Badge tone={activation.enabled ? "success" : "neutral"}>{activation.activation}</Badge> Resource version {activation.version}</p><Field label="Definition name" value={name} disabled={!canWrite || busy || locked} onChange={(event) => setName(event.target.value)} /><p>{selected.value.trigger_kind} · {selected.value.environment_ids.join(", ")} · {selected.value.autonomy}</p><TriggerRuleFields value={ruleDraft} kind={selected.value.trigger_kind} disabled={!canWrite || busy || locked} onChange={setRuleDraft} /><h3>Supported action catalog</h3>{!catalogAvailable ? <p>Environment catalog access is unavailable. Configured resource actions remain subject to their own authorization.</p> : supported.length ? <ul>{supported.map((action) => <li key={action.key}>{action.key} · {action.risk_class} · approval {action.approval_floor} · verification {action.verification_kind}</li>)}</ul> : <p>This server does not support the configured actions.</p>}<h3>Template controls</h3><p>{selected.value.allowed_actions.join(", ")} · verification {selected.value.verification_kind}</p>{selected.value.existing_test && <section aria-label="Pinned existing test"><h3>Existing test</h3><p>{selected.value.existing_test.definition_id}</p><p>Test definition version {selected.value.existing_test.definition_version}</p><p>This definition retains the selected test version. Its target, prompts, credentials, and safety settings are not overridden here.</p></section>}<h3>Limits</h3><Field label="AI cost budget (nano OpenRouter credits)" inputMode="numeric" value={costBudget} disabled={!canWrite || busy || locked} onChange={(event) => setCostBudget(event.target.value)} /><p>1 OpenRouter credit = 1,000,000,000 nano-credits, not dollars. Saving returns this definition to a disabled draft and requires revalidation. Existing run limits do not change.</p>{requiresExportBudget && <p>Export drafts require an integer AI cost budget from 1 to 1,000,000,000,000 before saving. This budget cannot be left blank.</p>}{!costConfigured && <p role="status">Cost budget configuration required. Save an explicit budget before enabling execution.</p>}<p>{selected.value.max_steps} steps · {selected.value.max_duration_seconds}s · concurrency {selected.value.concurrency_limit}</p>{canWrite && <><label className="control-option"><input aria-label="Definition enabled" type="checkbox" checked={enabled} disabled readOnly /><span><strong>Definition enabled</strong><small>Activated definitions use the audited activation state. Draft edits remain disabled.</small></span></label><div className="button-row">{mutation.canRetry ? <Button disabled={busy} onClick={retry}>Retry retained definition operation</Button> : <><Button disabled={busy || locked || !validCostBudget || triggerRules === null} onClick={save}>{activation.activation === "draft" ? "Save definition" : "Save as disabled draft"}</Button><Button variant="danger" disabled={busy || locked} onClick={remove}>Delete definition</Button></>}</div>{nextActivation && <Button variant="primary" disabled={busy || locked && !activationMutation.canRetry || costDirty || rulesDirty || costRefused || !catalogAvailable || supported.length !== selected.value.allowed_actions.length || nextActivation !== "validated" && !costConfigured} onClick={() => void activate()}>{activationMutation.canRetry ? "Retry retained activation" : fresh ? nextActivation === "validated" ? "Validate definition" : nextActivation === "supervised" ? "Enable supervised execution" : "Enable autonomous execution" : "Reauthenticate to activate"}</Button>}</>}
-    {!monitorUnavailable && activation.activation !== "draft" && <><h3>Zero-effect simulation</h3><Field label="Simulation goal" value={goal} maxLength={1024} disabled={busy || locked} onChange={(event) => setGoal(event.target.value)} /><Field label="Evidence ID" value={evidenceID} maxLength={128} disabled={busy || locked} onChange={(event) => setEvidenceID(event.target.value)} /><p>Evidence ID is optional for a manual run. Simulation still requires evidence.</p><div className="button-row"><Button disabled={busy || locked || !goal || !evidenceID} onClick={() => void simulate()}>{simulationMutation.canRetry ? "Retry retained simulation" : "Simulate plan"}</Button>{activation.enabled && <Button variant="primary" disabled={!canWrite || busy || locked && !manualRunMutation.canRetry} onClick={() => void startRun()}>{manualRunMutation.canRetry ? "Retry retained manual run" : activation.activation === "autonomous" ? "Start autonomous run" : "Start supervised run"}</Button>}</div>{simulation && <section aria-label="Simulation result">
+    {!monitorUnavailable && activation.activation !== "draft" && <><h3>Zero-effect simulation</h3><Field label="Simulation goal" value={goal} maxLength={1024} disabled={busy || locked} onChange={(event) => setGoal(event.target.value)} /><Field label="Evidence ID" value={evidenceID} maxLength={128} disabled={busy || locked} onChange={(event) => setEvidenceID(event.target.value)} /><p>Evidence ID is optional for a manual run. Simulation still requires evidence.</p>{selected.value.trigger_kind === "finding" && selected.value.trigger_source && <p>A run on a finding is accepted only when the finding&apos;s rule is <code>{selected.value.trigger_source}</code>.</p>}<div className="button-row"><Button disabled={busy || locked || !goal || !evidenceID} onClick={() => void simulate()}>{simulationMutation.canRetry ? "Retry retained simulation" : "Simulate plan"}</Button>{activation.enabled && <Button variant="primary" disabled={!canWrite || busy || locked && !manualRunMutation.canRetry} onClick={() => void startRun()}>{manualRunMutation.canRetry ? "Retry retained manual run" : activation.activation === "autonomous" ? "Start autonomous run" : "Start supervised run"}</Button>}</div>{simulation && <section aria-label="Simulation result">
       <p>Simulation only. This does not execute the proposed steps.</p>
       <h4>Simulation summary</h4><p>{simulation.summary}</p>
       <p>Plan {simulation.plan_hash}, zero side effects, expires {simulation.expires_at}</p>
@@ -517,7 +518,7 @@ function AgentDetail({ selected, activation, actions, catalogAvailable, api, can
         <p>{step.approval_required ? "Approval required" : "Approval not required"}</p>
       </li>)}</ol>
     </section>}</>}
-    {error && <p role="alert">{costRefused ? "Save an explicit AI cost budget as a disabled draft, then validate it again before enabling execution." : mutation.canRetry || activationMutation.canRetry || simulationMutation.canRetry || manualRunMutation.canRetry ? "The response was lost. Retry will reuse the exact retained operation." : "The Security Agent operation was rejected, changed elsewhere, or execution controls are disabled."}</p>}</div></Drawer>;
+    {error && <p role="alert">{sourceMismatch ? `409 trigger_source_mismatch: the finding's rule is not this Security Agent's trigger source. This agent runs only on findings whose rule is "${selected.value.trigger_source}". Name a finding with that rule, or change the agent's finding rule under Trigger rules, save it as a disabled draft, then validate and enable it again.` : costRefused ? "Save an explicit AI cost budget as a disabled draft, then validate it again before enabling execution." : mutation.canRetry || activationMutation.canRetry || simulationMutation.canRetry || manualRunMutation.canRetry ? "The response was lost. Retry will reuse the exact retained operation." : "The Security Agent operation was rejected, changed elsewhere, or execution controls are disabled."}</p>}</div></Drawer>;
 }
 
 function RunDetail({ value, cancellation, api, canWrite, canReadTests, mutation, closeMutation, recoveryMutation, onRecoverySettled, onCancelled, onRunClosed, onClose, activityScope, onNavigate, activityPermissions }: { value: SecurityAgentRunDetail; cancellation?: SecurityAgentCancellation | null; canReadTests: boolean; activityPermissions: ActivityPermissions; api: SecurityAgentsAPI; canWrite: boolean; mutation: SecurityAgentRunMutation; closeMutation?: SecurityAgentRunCloseMutation; recoveryMutation: SingleTestRecoveryMutation; onRecoverySettled(): Promise<void>; onCancelled(run: SecurityAgentCancellation): Promise<void>; onRunClosed?(run: SecurityAgentRunClosed): Promise<void>; onClose(): void; activityScope?: ActivityScope; onNavigate?: (path: string) => void }) {

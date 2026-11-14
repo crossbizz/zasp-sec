@@ -34,6 +34,13 @@ func TestMissingObjectAnswersNotFoundOnlyToAnEnvironmentReader(t *testing.T) {
 		{"integration, environment reader", "getIntegration", rev, true, nil, ErrRepositoryNotFound},
 		{"agent, environment reader", "getSecurityAgent", rev, true, nil, ErrRepositoryNotFound},
 		{"finding, environment reader", "getFinding", rev, true, nil, ErrRepositoryNotFound},
+		{"inventory agent, environment reader", "getAgent", rev, true, nil, ErrRepositoryNotFound},
+		{"inventory tool, environment reader", "getTool", rev, true, nil, ErrRepositoryNotFound},
+		{"inventory identity, environment reader", "getIdentity", rev, true, nil, ErrRepositoryNotFound},
+		{"inventory runtime, environment reader", "getRuntime", rev, true, nil, ErrRepositoryNotFound},
+		{"inventory asset, environment reader", "getAsset", rev, true, nil, ErrRepositoryNotFound},
+		{"inventory agent, no environment permission", "getAgent", rev, false, nil, ErrAuthorizationDenied},
+		{"an agent sub-read keeps the refusal", "getAgentCapabilities", rev, true, nil, ErrAuthorizationDenied},
 		{"finding, no environment permission", "getFinding", rev, false, nil, ErrAuthorizationDenied},
 		// An undecided check is neither "not found" nor "forbidden".
 		{"finding, check failed", "getFinding", rev, true, authorization.ErrUnavailable, authorization.ErrUnavailable},

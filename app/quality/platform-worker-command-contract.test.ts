@@ -83,7 +83,12 @@ describe("M1-01e platform worker command repository contract", () => {
     expect(command).toContain("len(version) > 64");
     expect(command).toContain("loadWorkerRuntimeConfig(os.Getenv)");
     expect(command).toContain("buildWorkerRuntime(ctx, config)");
-    expect(command).toContain("serveWorkerRuntime(ctx, os.Stdout, buildVersion, config, dependencies, net.Listen)");
+    // The health listener is net.Listen on the fixed address everywhere except
+    // with the local cloud emulator, which only a development or test
+    // environment may enable.
+    expect(command).toContain("serveWorkerRuntime(ctx, os.Stdout, buildVersion, config, dependencies, healthListener(localcloud.Current(), os.Getenv, net.Listen))");
+    expect(command).toContain('const healthListenAddress = ":8081"');
+    expect(command).toContain("if !local.Enabled() || getenv == nil || listen == nil {\n\t\treturn listen\n\t}");
     expect(command).not.toContain('"net/http"');
     expect(command).not.toContain('"flag"');
     expect(command).not.toContain('"time"');

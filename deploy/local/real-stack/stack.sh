@@ -443,7 +443,11 @@ cmd_up() {
   done
   # 'start' repeats 'up' until one has completed.
   : > "$STATE/up.done"
-  echo "real-stack: schema installed; next: $0 bootstrap <organization name> <domain> <admin email>"
+  if [ -f "$STATE/organization.env" ]; then
+    echo "real-stack: dependencies and schema are ready"
+  else
+    echo "real-stack: schema installed; next: $0 bootstrap <organization name> <domain> <admin email>"
+  fi
 }
 
 cmd_bootstrap() {
@@ -620,6 +624,20 @@ provision_customer_account() {
     image="$($aws ec2 describe-images --query 'Images[0].ImageId' --output text)" || fail "fixture image was not found"
     $aws ec2 run-instances --image-id "$image" --instance-type t3.micro --count 1 --metadata-options HttpTokens=optional,HttpEndpoint=enabled \
       --tag-specifications 'ResourceType=instance,Tags=[{Key=zasp-fixture,Value=agent-host},{Key=Name,Value=support-copilot-host}]' >/dev/null || fail "fixture instance was not created"
+  fi
+  # One Lambda function that looks like an agent: the name of a model-provider
+  # credential among its environment variable names, under a role that may
+  # invoke a model. The sync infers an agent from it (kind aws_inferred_agent),
+  # the only agent this emulated account can produce: LocalStack Community
+  # serves Lambda but neither Bedrock Agents nor AgentCore. The value is a
+  # placeholder; the collector reads variable names only. The function is never
+  # invoked (LocalStack reports it as Failed without a container runtime).
+  if ! $aws lambda get-function --function-name support-copilot-handler >/dev/null 2>&1; then
+    docker exec zasp-real-stack-localstack sh -c 'set -e; d="$(mktemp -d)"; cd "$d"; printf "def handler(event, context):\n    return {}\n" > index.py
+      python3 -c "import zipfile; zipfile.ZipFile(\"function.zip\", \"w\").write(\"index.py\")"
+      awslocal --region us-east-1 lambda create-function --function-name support-copilot-handler --runtime python3.12 --handler index.handler \
+        --role arn:aws:iam::000000000000:role/agents/support-copilot-runtime --zip-file fileb://function.zip \
+        --environment "Variables={OPENAI_API_KEY=placeholder-not-a-credential}" >/dev/null; rm -rf "$d"' || fail "fixture function was not created"
   fi
 }
 
@@ -1142,7 +1160,44 @@ cmd_down() {
   cmd_stop
   docker stop "$PG_CONTAINER" zasp-real-stack-localstack zasp-real-stack-opensearch "$NEO4J_CONTAINER" >/dev/null 2>&1 || true
   docker compose -f "$COMPOSE" stop
-  echo "real-stack: stopped; data is kept. Remove '$PG_CONTAINER' and '$STATE' to start over."
+  echo "real-stack: stopped; data is kept. To start over with an empty stack: $0 reset --yes"
+}
+
+# Deletes everything the stack holds, so that the next 'start' is a first
+# start: the processes, every container with its data (the product database,
+# Neo4j, the search index, LocalStack, and the Temporal and OpenFGA services
+# with their volumes) and the state directory. Removing only the product
+# database is not enough: Temporal keeps running the schedules and workflows
+# of the old database against the new one, the search index keeps the old
+# documents and OpenFGA the old store. provider.env (the Stytch values) is
+# kept. An external database (ZASP_REAL_STACK_DATABASE_HOST) is not touched.
+cmd_reset() {
+  [ "${1:-}" = "--yes" ] && [ "$#" -eq 1 ] || fail "usage: $0 reset --yes
+  Deletes the stack's containers with all their data and the state directory '$STATE' (provider.env is kept)."
+  local mine owner name
+  mine="$(mkdir -p "$STATE" && cd "$STATE" && pwd -P)"
+  owner="$(machine_owner)"
+  if [ -n "$owner" ] && [ "$owner" != "$mine" ] && [ -d "$owner/secrets" ]; then
+    fail "this machine's stack belongs to the state directory '$owner'; run reset with ZASP_REAL_STACK_STATE='$owner'"
+  fi
+  # The planning worker is started by hand, so 'stop' does not know it.
+  [ "$(http_status http://127.0.0.1:8084/readyz)" = "000" ] ||
+    fail "the Security Agent planning worker is still running; stop it (Ctrl-C in its terminal), then run reset again"
+  cmd_stop
+  for name in api worker-scheduler worker-discovery worker-outbox worker-projection-graph worker-projection-search worker-projection-risk worker-security-agent-action ui; do
+    [ "$(process_status "$name")" = "000" ] || fail "$name still answers but was not started by 'start'; stop it in its terminal, then run reset again"
+  done
+  docker rm -f -v "$PG_CONTAINER" "$NEO4J_CONTAINER" zasp-real-stack-opensearch zasp-real-stack-localstack >/dev/null 2>&1 || true
+  docker compose -f "$COMPOSE" down --volumes --remove-orphans
+  if [ -f "$STATE/provider.env" ]; then
+    cp -p "$STATE/provider.env" "$STATE.provider.env.keep" || fail "could not set provider.env aside"
+  fi
+  rm -rf "$STATE"
+  if [ -f "$STATE.provider.env.keep" ]; then
+    mkdir -p "$STATE" && chmod 700 "$STATE" && mv "$STATE.provider.env.keep" "$STATE/provider.env" || fail "could not restore provider.env"
+  fi
+  [ "$owner" != "$mine" ] || rm -f "$OWNER_FILE"
+  echo "real-stack: reset; nothing is left but the images${EXTERNAL_HOST:+ and the external database, which was not touched}. Next: $0 start"
 }
 
 case "${1:-}" in
@@ -1157,5 +1212,6 @@ case "${1:-}" in
   status) shift; cmd_status "$@" ;;
   stop) shift; cmd_stop "$@" ;;
   down) shift; cmd_down "$@" ;;
-  *) fail "usage: $0 {start|status|stop|up|bootstrap <organization name> <domain> <admin email>|api|worker <mode>|ui|project|security-workers|down}" ;;
+  reset) shift; cmd_reset "$@" ;;
+  *) fail "usage: $0 {start|status|stop|up|bootstrap <organization name> <domain> <admin email>|api|worker <mode>|ui|project|security-workers|down|reset --yes}" ;;
 esac

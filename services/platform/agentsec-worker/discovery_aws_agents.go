@@ -78,7 +78,7 @@ var (
 	discoveryAWSAccessDeniedCodes = map[string]bool{"AccessDenied": true, "AccessDeniedException": true, "UnauthorizedOperation": true, "AuthorizationError": true}
 	discoveryAWSNotServedCodes    = map[string]bool{"UnknownOperationException": true, "UnknownOperation": true, "InvalidAction": true, "NotImplemented": true, "NotImplementedException": true, "UnsupportedOperation": true, "UnsupportedOperationException": true}
 	// What an emulator answers for a service or an operation it does not serve.
-	discoveryAWSNotServedMessages = []string{"not implemented", "not yet implemented", "not been implemented", "pro feature", "not yet been emulated", "not included in your current license plan"}
+	discoveryAWSNotServedMessages = []string{"not implemented", "not yet implemented", "not been implemented", "pro feature", "not yet been emulated", "not included in your current license plan", "unable to find operation for request to service"}
 )
 
 // classifyDiscoveryAWSAgentFailure says what a failed AI service request
