@@ -7030,15 +7030,17 @@ BEGIN
 END $ws9_gateway_tables$;
 
 -- The token permission: the list an API token may be created with gains
--- use_gateway. The list is the one section V9 left.
+-- use_gateway. It is added at the head of the list: section V9 recognises
+-- its own change by the tail of the list, and must still find it when the
+-- sections are applied again.
 DO $ws9_gateway_token_permission$
 DECLARE target CONSTANT regprocedure:='zasp_authorization80_identity.create_pat(text,text,text,bytea,bytea,text,text,text,text,jsonb,timestamptz,text,text,timestamptz,bytea,bytea,bytea)'::regprocedure;
- anchor CONSTANT text:=$anchor$'run_tests','decide_guardrails'))$anchor$;
- member CONSTANT text:=$member$'run_tests','decide_guardrails','use_gateway'))$member$;
+ anchor CONSTANT text:=$anchor$p#>>'{}' NOT IN('view','manage_findings',$anchor$;
+ member CONSTANT text:=$member$p#>>'{}' NOT IN('use_gateway','view','manage_findings',$member$;
  d text:=pg_get_functiondef(target);
 BEGIN
  IF position(member in d)=0 THEN
-  IF position('use_gateway' in d)>0 OR length(d)-length(replace(d,anchor,''))<>length(anchor) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='api token permission list predecessor changed';END IF;
+  IF position('use_gateway' in d)>0 OR position('decide_guardrails' in d)=0 OR length(d)-length(replace(d,anchor,''))<>length(anchor) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='api token permission list predecessor changed';END IF;
   EXECUTE replace(d,anchor,member);
  END IF;
 END $ws9_gateway_token_permission$;
