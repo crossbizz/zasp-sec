@@ -182,7 +182,7 @@ func TestMCPSectionsOnTheInstalledBaselinePostgres(t *testing.T) {
 	}
 	// Everything the WS5 sections build on, then the sections, then all of
 	// it again: the tail of the file runs twice without a change.
-	sections := []string{"saas_providers", "rule_catalog_digest", "inventory_posture_dismissal", "saas_generic_provider", "saas_rule_catalog", "ai_framework_data", "ws5_rule_catalog", "ws7_rule_catalog", "ws5_mcp_registry", "ws5_mcp_posture", "ws5_agent_access", "ws7_agent_access"}
+	sections := []string{"saas_providers", "rule_catalog_digest", "inventory_posture_dismissal", "saas_generic_provider", "saas_rule_catalog", "ai_framework_data", "ws5_rule_catalog", "ws7_rule_catalog", "ws5_mcp_registry", "ws5_mcp_posture", "ws5_agent_access", "ws7_agent_access", "ws8_gcp_provider", "ws8_gcp_rule_catalog", "ws8_gcp_mcp_servers"}
 	for _, tag := range sections {
 		applyCompletionBlock(t, ctx, connection, tag)
 	}
@@ -198,7 +198,7 @@ func TestMCPSectionsOnTheInstalledBaselinePostgres(t *testing.T) {
 	if err := connection.QueryRow(ctx, `SELECT (SELECT count(*) FROM zasp_inventory_identity_rules),(SELECT value FROM zasp_schema_metadata WHERE key='typed_inventory_rule_catalog_digest')`).Scan(&rules, &digest); err != nil {
 		t.Fatal(err)
 	}
-	if compiled := inventoryprojection.RuleCatalogDigest(); rules != len(inventoryprojection.RuleCatalog()) || rules != 57 || digest != hexDigest(compiled) {
+	if compiled := inventoryprojection.RuleCatalogDigest(); rules != len(inventoryprojection.RuleCatalog()) || rules != 69 || digest != hexDigest(compiled) {
 		t.Fatalf("rule catalog: rows=%d digest=%s, compiled rows=%d digest=%s", rules, digest, len(inventoryprojection.RuleCatalog()), hexDigest(compiled))
 	}
 	// Every rule row equals the compiled rule.

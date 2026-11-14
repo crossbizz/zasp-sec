@@ -127,6 +127,19 @@ func BuiltinManifests() []ConnectorManifest {
 			adapterKey:     "salesforce_first_party_v1", ossName: "salesforce-rest",
 		},
 		{
+			Key: "gcp", Provider: "Google Cloud", Category: "cloud",
+			Description: "Inventory Vertex AI agents, model endpoints, Cloud Run services and functions that call a model, and their service accounts, in the projects of one organization, folder or project, through a customer-owned read-only service account.",
+			DataTypes:   []string{"agent", "identity", "resource"}, Actions: []string{"inventory_read", "posture_read"}, AuthMode: "gcp_service_account",
+			SetupSchema: []SetupField{
+				{Key: "scope", Label: "Organization, folder or project", Type: "string", Required: true, Description: "What to read: organizations/<number>, folders/<number> or projects/<project id>. Every project below it is read."},
+				{Key: "identity_reference", Label: "Service account", Type: "secret_reference", Required: true, Description: "With workload identity federation: ref:gcp/workload-identity/<project id>/<service account name>, naming the read-only service account <name>@<project id>.iam.gserviceaccount.com. With a key: ref:gcp/service-account-key/<id>, an opaque product reference to a key stored outside the browser."},
+				{Key: "audience", Label: "Workload identity provider", Type: "string", Required: false, Description: "Required with workload identity federation, empty with a key: //iam.googleapis.com/projects/<project number>/locations/global/workloadIdentityPools/<pool>/providers/<provider>."},
+			},
+			AccessGuidance: "Create a service account, grant it the read-only roles of the runbook on the organization, folder or project, and let the product's AWS roles impersonate it through a workload identity pool. No key is needed with federation.",
+			TestSemantics:  "Obtain a short-lived access token for the service account and read the named organization, folder or project.",
+			adapterKey:     "gcp_first_party_v1", ossName: "google-cloud-rest",
+		},
+		{
 			Key: "generic-webhook", Provider: "Generic Webhook", Category: "notification",
 			Description: "Send signed response and approval notifications to one configured HTTPS destination.",
 			DataTypes:   []string{"response", "approval"}, Actions: []string{"response_notification", "approval_response"},
@@ -238,6 +251,13 @@ func (catalog *Catalog) ValidateSetup(key string, configuration map[string]strin
 			return ErrInvalid
 		}
 		return nil
+	case "gcp":
+		audience, federated := configuration["audience"]
+		reference := configuration["identity_reference"]
+		if !gcpScopePattern.MatchString(configuration["scope"]) || federated && (!gcpAudiencePattern.MatchString(audience) || !gcpFederationReferencePattern.MatchString(reference)) || !federated && !gcpKeyReferencePattern.MatchString(reference) {
+			return ErrInvalid
+		}
+		return nil
 	case "salesforce":
 		if !salesforceInstanceURLPattern.MatchString(configuration["instance_url"]) || !salesforceOrganizationPattern.MatchString(configuration["organization_id"]) || !salesforceClientIDPattern.MatchString(configuration["client_id"]) || !salesforceSecretReferencePattern.MatchString(configuration["client_secret_reference"]) {
 			return ErrInvalid
@@ -273,6 +293,10 @@ var oktaIssuerHostPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]
 // The Microsoft and Salesforce setup grammars. The whole URL is matched, so a
 // plain-HTTP URL, a port, a path, user information or another host is refused.
 var (
+	gcpScopePattern                  = regexp.MustCompile(`^(organizations/[1-9][0-9]{0,18}|folders/[1-9][0-9]{0,18}|projects/[a-z][a-z0-9-]{4,28}[a-z0-9])$`)
+	gcpFederationReferencePattern    = regexp.MustCompile(`^ref:gcp/workload-identity/[a-z][a-z0-9-]{4,28}[a-z0-9]/[a-z][a-z0-9-]{4,28}[a-z0-9]$`)
+	gcpKeyReferencePattern           = regexp.MustCompile(`^ref:gcp/service-account-key/[a-z0-9][a-z0-9._-]{7,127}$`)
+	gcpAudiencePattern               = regexp.MustCompile(`^//iam\.googleapis\.com/projects/[1-9][0-9]{0,18}/locations/global/workloadIdentityPools/[a-z][a-z0-9-]{2,30}[a-z0-9]/providers/[a-z][a-z0-9-]{2,30}[a-z0-9]$`)
 	microsoftGUIDPattern             = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 	microsoftSecretReferencePattern  = regexp.MustCompile(`^ref:microsoft/client-secret/[a-z0-9][a-z0-9._-]{7,127}$`)
 	microsoftDataverseURLPattern     = regexp.MustCompile(`^https://[a-z0-9][a-z0-9-]{0,62}\.crm[0-9]{0,2}\.dynamics\.com$`)

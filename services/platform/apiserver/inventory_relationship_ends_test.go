@@ -49,7 +49,7 @@ func TestInventoryRelationshipsCarryNamedEnds(t *testing.T) {
 	for name, raw := range map[string]string{
 		"an end without a name":              strings.Replace(named, `"name":"support-agent-role"`, `"name":""`, 1),
 		"an end of an unknown kind":          strings.Replace(named, `"kind":"identity"`, `"kind":"credential"`, 1),
-		"an end of an unknown provider":      strings.Replace(named, `"provider":"aws","source_kind":"aws_role"`, `"provider":"gcp","source_kind":"aws_role"`, 1),
+		"an end of an unknown provider":      strings.Replace(named, `"provider":"aws","source_kind":"aws_role"`, `"provider":"azure","source_kind":"aws_role"`, 1),
 		"an end with a malformed source":     strings.Replace(named, `"source_kind":"aws_role"`, `"source_kind":"AWS Role"`, 1),
 		"an end with an unknown member":      strings.Replace(named, `"source_kind":"aws_role"`, `"source_kind":"aws_role","arn":"arn:aws:iam::123456789012:role/x"`, 1),
 		"the page's agent named as identity": strings.Replace(named, `"kind":"agent"`, `"kind":"identity"`, 1),

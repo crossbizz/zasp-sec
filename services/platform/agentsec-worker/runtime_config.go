@@ -126,7 +126,10 @@ type workerRuntimeConfig struct {
 	// SaaSCollectorVersion serves the generic saas provider. It reads every
 	// platform through the Nango proxy, so the three Nango settings are
 	// required with it.
-	SaaSCollectorVersion         string
+	SaaSCollectorVersion string
+	// GCPCollectorVersion is ZASP_DISCOVERY_GCP_COLLECTOR_VERSION: it serves
+	// Google Cloud. Unset, the provider is not offered.
+	GCPCollectorVersion          string
 	NangoBaseURL                 string
 	NangoServiceSecretReference  string
 	NangoEnvironment             string
@@ -260,6 +263,7 @@ func loadWorkerRuntimeConfig(getenv func(string) string) (workerRuntimeConfig, e
 		// Optional: unset leaves the provider unregistered.
 		MicrosoftCollectorVersion: getenv("ZASP_DISCOVERY_MICROSOFT_COLLECTOR_VERSION"), SalesforceCollectorVersion: getenv("ZASP_DISCOVERY_SALESFORCE_COLLECTOR_VERSION"),
 		MicrosoftAzure: getenv("ZASP_DISCOVERY_MICROSOFT_AZURE") == "enabled", MicrosoftAzureSetting: getenv("ZASP_DISCOVERY_MICROSOFT_AZURE"),
+		GCPCollectorVersion:  getenv("ZASP_DISCOVERY_GCP_COLLECTOR_VERSION"),
 		SaaSCollectorVersion: getenv("ZASP_DISCOVERY_SAAS_COLLECTOR_VERSION"), NangoBaseURL: getenv("ZASP_NANGO_BASE_URL"), NangoServiceSecretReference: getenv("ZASP_NANGO_SERVICE_SECRET_REFERENCE"), NangoEnvironment: getenv("ZASP_NANGO_ENVIRONMENT"),
 		KubernetesEgressCIDRs: parseWorkerCIDRs(getenv("ZASP_KUBERNETES_EGRESS_CIDRS")), GitHubAppID: getenv("ZASP_GITHUB_APP_ID"), GitHubPrivateKeyReference: getenv("ZASP_GITHUB_PRIVATE_KEY_REFERENCE"),
 		OktaClientID: getenv("ZASP_OKTA_CLIENT_ID"), OktaClientSecretReference: getenv("ZASP_OKTA_CLIENT_SECRET_REFERENCE"), ProviderTimeout: providerTimeout, DiscoveryReadinessTimeout: discoveryReadinessTimeout,
@@ -505,7 +509,7 @@ func validDiscoveryRuntimeAuthority(config workerRuntimeConfig) bool {
 			return false
 		}
 	}
-	for _, version := range []string{config.MicrosoftCollectorVersion, config.SalesforceCollectorVersion, config.SaaSCollectorVersion} {
+	for _, version := range []string{config.MicrosoftCollectorVersion, config.SalesforceCollectorVersion, config.SaaSCollectorVersion, config.GCPCollectorVersion} {
 		if version != "" && !workerVersionPattern.MatchString(version) {
 			return false
 		}

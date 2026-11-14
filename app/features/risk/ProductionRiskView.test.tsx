@@ -267,6 +267,8 @@ describe("production risk views", () => {
     ["skill_unowned", "posture", "Agent skill has no code owner", "No code owner is named"],
     ["agent_role_unused_ai_permissions", "prowler", "Agent's role holds model permissions it does not use", "did not make in the last seven days"],
     ["agent_data_service_wide_access", "prowler", "An agent's role can reach every resource of a data service", "every resource of the service"],
+    ["agent_service_account_admin_role", "prowler", "Agent's service account holds an administrator role", "administrator-level role on its project"],
+    ["agent_model_armor_missing", "prowler", "Agent runs without Model Armor", "Model Armor screens nothing"],
   ])("explains the %s finding", async (rule, source, title, why) => {
     // A posture finding stores its own title; a discovery check is titled here.
     const value = { ...finding, source, rule, title: source === "posture" ? title : `Discovered AWS control ${rule}` } as unknown as typeof finding;

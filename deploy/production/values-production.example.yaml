@@ -156,3 +156,4 @@ network:
     microsoft: []               # login.microsoftonline.com, graph.microsoft.com and the customer's Dataverse environment.
     salesforce: []              # The customer's My Domain (*.my.salesforce.com).
     azure: []                   # Azure Resource Manager; only with discovery.microsoftAzure.
+    gcp: []                     # Google APIs (*.googleapis.com); only with discovery.gcpCollectorVersion.

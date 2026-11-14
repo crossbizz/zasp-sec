@@ -33,7 +33,7 @@ var customerHostPattern = regexp.MustCompile(`^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9]
 // only, so an entry for one of these is refused.
 // "saas" is the generic discovery provider whose platforms are Nango entries;
 // it is a provider name, never an entry key.
-var coreKeys = map[string]struct{}{"aws": {}, "github": {}, "kubernetes": {}, "okta": {}, "microsoft": {}, "salesforce": {}, "saas": {}}
+var coreKeys = map[string]struct{}{"aws": {}, "github": {}, "kubernetes": {}, "okta": {}, "microsoft": {}, "salesforce": {}, "saas": {}, "gcp": {}}
 
 type Rule struct {
 	Method, PathPrefix string

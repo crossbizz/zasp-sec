@@ -128,6 +128,19 @@ func TestSaaSProviderSectionOnTheInstalledBaselinePostgres(t *testing.T) {
 	if definitions() != afterWS7 {
 		t.Fatal("a second run of the rule catalog sections changed a function or a constraint")
 	}
+	// Section X3d (Google Cloud) widens the provider lists once more and
+	// adds ten rules: the compiled catalog is the one it pins. With it
+	// applied every earlier section still has nothing left to do.
+	for _, tag := range []string{"ws8_gcp_provider", "ws8_gcp_rule_catalog"} {
+		applyCompletionBlock(t, ctx, connection, tag)
+	}
+	afterGCP := definitions()
+	for _, tag := range []string{"saas_providers", "rule_catalog_digest", "saas_generic_provider", "saas_rule_catalog", "ws5_rule_catalog", "ws7_rule_catalog", "ws8_gcp_provider", "ws8_gcp_rule_catalog"} {
+		applyCompletionBlock(t, ctx, connection, tag)
+	}
+	if definitions() != afterGCP {
+		t.Fatal("a second run of the sections after X3d changed a function or a constraint")
+	}
 	var toolKind string
 	var toolRows int
 	if err := connection.QueryRow(ctx, `SELECT count(*),COALESCE(max(product_kind),'') FROM zasp_inventory_identity_rules WHERE (provider,source_kind,identity_namespace,rule_version,priority,confidence_basis_points,freshness_seconds)=('salesforce','salesforce_agent_tool','salesforce_agent_tool',1,140,9500,86400)`).Scan(&toolRows, &toolKind); err != nil || toolRows != 1 || toolKind != "tool" {

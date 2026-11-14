@@ -262,6 +262,44 @@ describe("production integration discovery workflows", () => {
     ]);
   });
 
+  it("names the Google APIs a Google Cloud collection could not read and the role that reads each", async () => {
+    const user = userEvent.setup();
+    const gcp: Integration = { ...integration, connector_key: "gcp", name: "Acme Google Cloud", configuration: { identity_reference: "ref:gcp/service-account-key/customer-0001", scope: "organizations/123456789012" } };
+    const gcpManifest = {
+      ...manifest, key: "gcp", provider: "Google Cloud", category: "cloud", data_types: ["agent", "identity", "resource"], actions: ["inventory_read", "posture_read"], auth_mode: "gcp_service_account",
+      setup_schema: [
+        { key: "scope", label: "Organization, folder or project", type: "string", required: true, description: "What to read" },
+        { key: "identity_reference", label: "Service account", type: "secret_reference", required: true, description: "How the service account is reached" },
+        { key: "audience", label: "Workload identity provider", type: "string", required: false, description: "Required with federation" },
+      ],
+      access_guidance: "Create a read-only service account.", test_semantics: "Obtain a token and read the named scope.",
+    };
+    const base = freshness as unknown as IntegrationFreshness;
+    const gapped: IntegrationFreshness = { ...base, integration_id: gcp.id, latest_sync: base.latest_sync && { ...base.latest_sync, integration_id: gcp.id }, coverage_gaps: [
+      { service: "agent-engine", name: "Vertex AI Agent Engine", status: "access_denied" },
+      { service: "audit-logs", name: "Cloud Audit Logs (Vertex AI data access)", status: "access_denied" },
+      { service: "cloud-run", name: "Cloud Run", status: "unavailable" },
+      { service: "iam", name: "Service accounts and IAM policy", status: "access_denied" },
+      { service: "iam-inherited", name: "Inherited IAM roles (folders and organization)", status: "access_denied" },
+    ] };
+    const status: IntegrationSetupStatus = { ...setupStatus, connector_key: "gcp", authorization: { state: "verified", scope_kind: "gcp_scope", scope_label: "organizations/123456789012", repository_selection: null, permissions: [] } };
+    renderSurface(discoveryClient({ catalog: gcpManifest, integration: gcp, freshness: gapped, setupStatus: status }));
+
+    await user.click(await screen.findByRole("button", { name: "Open Acme Google Cloud" }));
+    const dialog = screen.getByRole("dialog", { name: "Acme Google Cloud" });
+    const section = within(dialog).getByRole("region", { name: "Automatic discovery" });
+    expect(await within(section).findByRole("heading", { name: "Agent discovery coverage" })).toBeVisible();
+    expect(within(within(section).getByRole("list", { name: "Agent discovery coverage" })).getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+      "Vertex AI Agent Engine: at least one project refused the read-only service account. Grant it roles/aiplatform.viewer on the organization, folder or project.",
+      "Cloud Audit Logs (Vertex AI data access): at least one project refused the read-only service account. Grant it roles/logging.privateLogViewer on the organization, folder or project.",
+      "Cloud Run: the API is switched off in every project that was read, so there was nothing to list there.",
+      "Service accounts and IAM policy: at least one project refused the read-only service account. Grant it roles/iam.securityReviewer on the organization, folder or project.",
+      "Inherited IAM roles (folders and organization): the IAM policy of a folder or of the organization above at least one project could not be read, so roles a service account holds through inheritance are not checked. Grant the read-only service account roles/iam.securityReviewer on the organization.",
+    ]);
+    expect(await within(dialog).findByText("organizations/123456789012")).toBeVisible();
+    expect(dialog).toHaveTextContent("Google Cloud scope");
+  });
+
   it("keeps denied AWS coverage incomplete and gives exact read-role remediation", async () => {
     const user = userEvent.setup();
     const aws: Integration = { ...integration, connector_key: "aws", name: "Production AWS", configuration: { role_arn: "arn:aws:iam::123456789012:role/zasp-discovery", external_id_reference: "ref:aws/external-id/customer-0001", region: "us-east-1" }, status: "degraded" };

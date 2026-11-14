@@ -19,8 +19,15 @@ const KUBERNETES_CONNECTION_REFERENCE = /^ref:kubernetes\/connection\/[A-Za-z0-9
 // reference to customer material instead of a browser OAuth flow.
 // saas is the generic provider of every SaaS platform read through a Nango
 // connection; the platform is data (configuration.platform), not a provider.
-const DISCOVERY_PROVIDERS = ["aws", "kubernetes", "github", "okta", "microsoft", "salesforce", "saas"] as const;
-const REFERENCE_AUTHORIZED_PROVIDERS = ["aws", "kubernetes", "microsoft", "salesforce", "saas"] as const;
+const DISCOVERY_PROVIDERS = ["aws", "kubernetes", "github", "okta", "microsoft", "salesforce", "saas", "gcp"] as const;
+const REFERENCE_AUTHORIZED_PROVIDERS = ["aws", "kubernetes", "microsoft", "salesforce", "saas", "gcp"] as const;
+// Google Cloud: the organization, folder or project to read, and how the
+// customer's read-only service account is reached (workload identity
+// federation with an audience, or a key held by reference).
+const GCP_SCOPE = /^(organizations\/[1-9][0-9]{0,18}|folders\/[1-9][0-9]{0,18}|projects\/[a-z][a-z0-9-]{4,28}[a-z0-9])$/;
+const GCP_FEDERATION_REFERENCE = /^ref:gcp\/workload-identity\/[a-z][a-z0-9-]{4,28}[a-z0-9]\/[a-z][a-z0-9-]{4,28}[a-z0-9]$/;
+const GCP_KEY_REFERENCE = /^ref:gcp\/service-account-key\/[a-z0-9][a-z0-9._-]{7,127}$/;
+const GCP_AUDIENCE = /^\/\/iam\.googleapis\.com\/projects\/[1-9][0-9]{0,18}\/locations\/global\/workloadIdentityPools\/[a-z][a-z0-9-]{2,30}[a-z0-9]\/providers\/[a-z][a-z0-9-]{2,30}[a-z0-9]$/;
 const SAAS_PLATFORM = /^[a-z][a-z0-9_]{1,31}$/;
 const SAAS_TENANT_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,94}$/;
 const SAAS_SUBJECT = /^[a-z][a-z0-9_]{1,31}\/[A-Za-z0-9][A-Za-z0-9._-]{0,94}$/;
@@ -454,7 +461,7 @@ export function decodeIntegrationSetupStatus(value: unknown, expectedIntegration
   productID(record.integration_id); if (expectedIntegrationID !== undefined && record.integration_id !== expectedIntegrationID) fail();
   enumValue(record.connector_key, DISCOVERY_PROVIDERS); dateTime(record.updated_at);
   const authorization = exactRecord(record.authorization, ["state", "scope_kind", "scope_label", "repository_selection", "permissions"]);
-  enumValue(authorization.state, ["pending", "verified", "degraded"]); enumValue(authorization.scope_kind, ["none", "aws_account", "kubernetes_cluster", "github_organization", "okta_tenant", "microsoft_tenant", "salesforce_org", "saas_tenant"]);
+  enumValue(authorization.state, ["pending", "verified", "degraded"]); enumValue(authorization.scope_kind, ["none", "aws_account", "kubernetes_cluster", "github_organization", "okta_tenant", "microsoft_tenant", "salesforce_org", "saas_tenant", "gcp_scope"]);
   if (authorization.scope_label !== null) printableString(authorization.scope_label, 1, 128);
   if (authorization.repository_selection !== null) enumValue(authorization.repository_selection, ["all", "selected"]);
   stringArray(authorization.permissions, 8, 64); const permissions = authorization.permissions as readonly string[];
@@ -472,6 +479,9 @@ export function decodeIntegrationSetupStatus(value: unknown, expectedIntegration
     if (authorization.scope_kind !== "microsoft_tenant" || typeof authorization.scope_label !== "string" || !MICROSOFT_GUID.test(authorization.scope_label) || authorization.repository_selection !== null || permissions.length !== 0) fail();
   } else if (record.connector_key === "salesforce") {
     if (authorization.scope_kind !== "salesforce_org" || typeof authorization.scope_label !== "string" || !SALESFORCE_ORGANIZATION_ID.test(authorization.scope_label) || authorization.repository_selection !== null || permissions.length !== 0) fail();
+  } else if (record.connector_key === "gcp") {
+    // The scope of a Google Cloud integration is the organization, folder or project it reads.
+    if (authorization.scope_kind !== "gcp_scope" || typeof authorization.scope_label !== "string" || !GCP_SCOPE.test(authorization.scope_label) || authorization.repository_selection !== null || permissions.length !== 0) fail();
   } else if (record.connector_key === "saas") {
     // The scope of a saas integration is its tenant, "<platform>/<tenant id>".
     if (authorization.scope_kind !== "saas_tenant" || typeof authorization.scope_label !== "string" || !SAAS_SUBJECT.test(authorization.scope_label) || authorization.scope_label.includes("..") || authorization.repository_selection !== null || permissions.length !== 0) fail();
@@ -1352,6 +1362,16 @@ function decodeIntegrationConfiguration(connectorKey: string, value: unknown): v
     if (typeof configuration.organization_id !== "string" || !SALESFORCE_ORGANIZATION_ID.test(configuration.organization_id)) fail();
     if (typeof configuration.client_id !== "string" || !SALESFORCE_CLIENT_ID.test(configuration.client_id)) fail();
     if (typeof configuration.client_secret_reference !== "string" || !SALESFORCE_CLIENT_SECRET_REFERENCE.test(configuration.client_secret_reference)) fail();
+    return;
+  }
+  if (connectorKey === "gcp") {
+    // Federation names an audience and a workload-identity reference; a key
+    // is named by reference alone. Neither shape carries key material.
+    const configuration = exactRecord(value, ["identity_reference", "scope"], ["audience"]);
+    if (typeof configuration.scope !== "string" || !GCP_SCOPE.test(configuration.scope) || typeof configuration.identity_reference !== "string") fail();
+    if ("audience" in configuration) {
+      if (typeof configuration.audience !== "string" || !GCP_AUDIENCE.test(configuration.audience) || !GCP_FEDERATION_REFERENCE.test(configuration.identity_reference as string)) fail();
+    } else if (!GCP_KEY_REFERENCE.test(configuration.identity_reference as string)) fail();
     return;
   }
   if (connectorKey === "saas") {

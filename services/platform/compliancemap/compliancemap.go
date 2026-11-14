@@ -105,6 +105,12 @@ var rules = map[string][]string{
 	// The platform's own content filter is at its weakest setting.
 	"agent_content_moderation_low": {"LLM01", "LLM02", "LLM05", "T0051", "MEASURE-2.7", "A.6.2.6", "ART-9", "ART-15"},
 
+	// Google Cloud: the service account an agent runs as holds an
+	// administrator-level role on its project (excessive permission), and a
+	// Vertex AI agent runs where Model Armor screens nothing (no guardrail).
+	"agent_service_account_admin_role": {"LLM06", "ASI03", "MEASURE-2.7", "ART-15"},
+	"agent_model_armor_missing":        {"LLM01", "LLM02", "LLM05", "T0051", "MEASURE-2.7", "A.6.2.6", "ART-9", "ART-15"},
+
 	"iam_role_administratoraccess_policy":               {"ASI03", "LLM06", "MEASURE-2.7"},
 	"iam_role_cross_service_confused_deputy_prevention": {"ASI03", "MEASURE-2.7"},
 }
