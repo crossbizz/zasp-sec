@@ -19,6 +19,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/zasp-ai/zasp-sec/services/platform/agentsignals"
 	"github.com/zasp-ai/zasp-sec/services/platform/artifactstore"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/collection"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
@@ -673,6 +674,8 @@ func validProviderEntity(provider collection.Provider, raw json.RawMessage) bool
 
 func providerEntitySchema(provider collection.Provider, kind string) (providerEntityDefinition, bool) {
 	state := optionalStringFields("state", "status")
+	mcpServer := mcpServerAttributes()
+	mcpTool := inventoryObjectSchema{"risk": enumInventoryField(true, agentsignals.MCPToolRiskExecute, agentsignals.MCPToolRiskWrite, agentsignals.MCPToolRiskNetwork, agentsignals.MCPToolRiskRead, agentsignals.MCPToolRiskUnclassified)}
 	switch provider {
 	case collection.ProviderAWS:
 		switch kind {
@@ -691,9 +694,20 @@ func providerEntitySchema(provider collection.Provider, kind string) (providerEn
 		case "aws_agentcore_runtime":
 			return providerEntityDefinition{stable: requiredStringFields("account_id", "arn", "name", "region", "runtime_id"), attributes: mergeInventorySchemas(state, discoveredAgentAttributes())}, true
 		case "aws_agentcore_gateway":
-			return providerEntityDefinition{stable: requiredStringFields("account_id", "arn", "gateway_id", "name", "region"), attributes: state}, true
+			// An AgentCore gateway is an MCP server; the MCP attributes are
+			// present once its description could be read.
+			return providerEntityDefinition{stable: requiredStringFields("account_id", "arn", "gateway_id", "name", "region"), attributes: mergeInventorySchemas(state, optionalInventorySchema(mcpServer))}, true
 		case "aws_inferred_agent":
-			return providerEntityDefinition{stable: mergeInventorySchemas(requiredStringFields("account_id", "arn", "name", "region"), inventoryObjectSchema{"resource_type": enumInventoryField(true, "ec2_instance", "iam_role", "lambda_function")}), attributes: mergeInventorySchemas(state, discoveredAgentAttributes())}, true
+			return providerEntityDefinition{stable: mergeInventorySchemas(requiredStringFields("account_id", "arn", "name", "region"), inventoryObjectSchema{"resource_type": enumInventoryField(true, "ec2_instance", "ecs_service", "eks_pod", "iam_role", "lambda_function")}), attributes: mergeInventorySchemas(state, discoveredAgentAttributes())}, true
+		case "aws_mcp_server":
+			// A remote MCP server the account's logs or a gateway target name.
+			return providerEntityDefinition{stable: requiredStringFields("account_id", "name", "region"), attributes: mergeInventorySchemas(state, mcpServer)}, true
+		case "aws_mcp_tool":
+			return providerEntityDefinition{stable: requiredStringFields("account_id", "arn", "name", "region", "server", "target"), attributes: mcpTool}, true
+		case "aws_data_store":
+			// A data resource (or, for scope service, every resource of a data
+			// service) that the policies of an agent's role name.
+			return providerEntityDefinition{stable: requiredStringFields("account_id", "arn", "name", "service"), attributes: inventoryObjectSchema{"access": enumInventoryField(true, "read", "write"), "scope": enumInventoryField(true, "resource", "service")}}, true
 		}
 	case collection.ProviderKubernetes:
 		namespaced := mergeInventorySchemas(inventoryObjectSchema{"namespaced": boolInventoryField(true, true)}, state)
@@ -713,6 +727,9 @@ func providerEntitySchema(provider collection.Provider, kind string) (providerEn
 			return providerEntityDefinition{stable: requiredStringFields("api_group", "api_version", "cluster", "name", "namespace", "resource_kind", "service_account"), attributes: namespaced}, true
 		case "kubernetes_inferred_agent":
 			return providerEntityDefinition{stable: requiredStringFields("api_group", "api_version", "cluster", "name", "namespace", "resource_kind", "service_account"), attributes: mergeInventorySchemas(namespaced, discoveredAgentAttributes())}, true
+		case "kubernetes_mcp_server":
+			// A workload whose image or command is an MCP server.
+			return providerEntityDefinition{stable: requiredStringFields("api_group", "api_version", "cluster", "name", "namespace", "resource_kind"), attributes: mergeInventorySchemas(namespaced, mcpServer)}, true
 		case "kubernetes_role":
 			return providerEntityDefinition{stable: mergeInventorySchemas(requiredStringFields("api_group", "api_version", "cluster", "name", "namespace", "resource_kind"), inventoryObjectSchema{"scope": enumInventoryField(true, "namespace")}), attributes: mergeInventorySchemas(namespaced, inventoryObjectSchema{"rules": kubernetesRulesInventoryField(true)})}, true
 		case "kubernetes_cluster_role":
@@ -743,6 +760,15 @@ func providerEntitySchema(provider collection.Provider, kind string) (providerEn
 			return providerEntityDefinition{stable: mergeInventorySchemas(installation, requiredStringFields("name", "owner", "permission", "repository", "scope")), attributes: state}, true
 		case "github_agent_project":
 			return providerEntityDefinition{stable: mergeInventorySchemas(installation, requiredStringFields("name", "owner", "repository")), attributes: mergeInventorySchemas(state, discoveredAgentAttributes())}, true
+		case "github_mcp_server":
+			// name is the server's name in the configuration file config_path.
+			return providerEntityDefinition{stable: mergeInventorySchemas(installation, requiredStringFields("name", "owner", "repository")), attributes: mergeInventorySchemas(state, mcpServer, optionalStringFields("config_path"))}, true
+		case "github_mcp_tool":
+			return providerEntityDefinition{stable: mergeInventorySchemas(installation, requiredStringFields("name", "owner", "repository", "server")), attributes: mcpTool}, true
+		case "github_agent_skill":
+			// name is the path of the skill or instruction file. Its contents
+			// are never read.
+			return providerEntityDefinition{stable: mergeInventorySchemas(installation, requiredStringFields("name", "owner", "repository")), attributes: inventoryObjectSchema{"skill_kind": enumInventoryField(true, agentsignals.SkillKindSkill, agentsignals.SkillKindInstructions, agentsignals.SkillKindRules)}}, true
 		}
 	case collection.ProviderOkta:
 		switch kind {
@@ -764,6 +790,13 @@ func providerEntitySchema(provider collection.Provider, kind string) (providerEn
 			return providerEntityDefinition{stable: requiredStringFields("name", "object_type", "tenant"), attributes: mergeInventorySchemas(directory, discoveredAgentAttributes())}, true
 		case "microsoft_copilot_agent":
 			return providerEntityDefinition{stable: requiredStringFields("environment", "name", "object_type", "tenant"), attributes: mergeInventorySchemas(directory, discoveredAgentAttributes())}, true
+		case "microsoft_ai_resource":
+			// An Azure OpenAI or Azure AI Foundry account of a subscription.
+			return providerEntityDefinition{stable: requiredStringFields("name", "object_type", "region", "subscription", "tenant"), attributes: mergeInventorySchemas(directory, optionalStringFields("endpoint_host", "resource_kind"), inventoryObjectSchema{"local_auth_disabled": boolInventoryField(false), "public_network_access": enumInventoryField(false, "disabled", "enabled")})}, true
+		case "microsoft_ai_deployment":
+			return providerEntityDefinition{stable: requiredStringFields("name", "object_type", "resource", "subscription", "tenant"), attributes: mergeInventorySchemas(directory, optionalStringFields("model", "model_version"))}, true
+		case "microsoft_foundry_agent":
+			return providerEntityDefinition{stable: requiredStringFields("name", "object_type", "resource", "subscription", "tenant"), attributes: mergeInventorySchemas(directory, discoveredAgentAttributes(), optionalStringFields("model"))}, true
 		}
 	case collection.ProviderSalesforce:
 		switch kind {
@@ -830,6 +863,12 @@ func validProviderRelationshipEndpointKinds(provider collection.Provider, raw js
 			"aws_resource|belongs_to|aws_account", "aws_resource|belongs_to|aws_service", "aws_resource|depends_on|aws_resource", "aws_role|trusts|aws_role", "aws_role|uses_policy|aws_policy",
 			"aws_account|contains|aws_agentcore_gateway", "aws_account|contains|aws_agentcore_runtime", "aws_account|contains|aws_bedrock_agent", "aws_account|contains|aws_inferred_agent",
 			"aws_agentcore_runtime|uses_identity|aws_role", "aws_bedrock_agent|uses_identity|aws_role", "aws_inferred_agent|uses_identity|aws_role",
+			// MCP: an agent uses a server, a gateway fronts a remote server
+			// and holds its tools. A role reaches the data its policies name.
+			"aws_account|contains|aws_mcp_server", "aws_account|contains|aws_data_store", "aws_agentcore_gateway|contains|aws_mcp_tool", "aws_agentcore_gateway|depends_on|aws_mcp_server",
+			"aws_agentcore_runtime|depends_on|aws_agentcore_gateway", "aws_bedrock_agent|depends_on|aws_agentcore_gateway", "aws_inferred_agent|depends_on|aws_agentcore_gateway",
+			"aws_agentcore_runtime|depends_on|aws_mcp_server", "aws_bedrock_agent|depends_on|aws_mcp_server", "aws_inferred_agent|depends_on|aws_mcp_server",
+			"aws_role|depends_on|aws_data_store",
 		),
 		collection.ProviderKubernetes: tokenSet(
 			"kubernetes_cluster|contains|kubernetes_cluster_role", "kubernetes_cluster|contains|kubernetes_cluster_role_binding", "kubernetes_cluster|contains|kubernetes_namespace",
@@ -839,16 +878,18 @@ func validProviderRelationshipEndpointKinds(provider collection.Provider, raw js
 			"kubernetes_group|assigned_to|kubernetes_cluster_role_binding", "kubernetes_group|assigned_to|kubernetes_role_binding", "kubernetes_service_account|assigned_to|kubernetes_cluster_role_binding", "kubernetes_service_account|assigned_to|kubernetes_role_binding", "kubernetes_user|assigned_to|kubernetes_cluster_role_binding", "kubernetes_user|assigned_to|kubernetes_role_binding",
 			"kubernetes_agent|uses_identity|kubernetes_service_account", "kubernetes_workload|uses_identity|kubernetes_service_account",
 			"kubernetes_namespace|attached_to|kubernetes_inferred_agent", "kubernetes_inferred_agent|uses_identity|kubernetes_service_account",
+			"kubernetes_namespace|attached_to|kubernetes_mcp_server",
 		),
 		collection.ProviderGitHub: tokenSet(
 			"github_installation|contains|github_app", "github_installation|owns|github_repository", "github_organization|owns|github_repository", "github_repository|contains|github_environment", "github_repository|contains|github_permission", "github_repository|contains|github_workflow", "github_workflow|depends_on|github_repository", "github_workflow|uses_identity|github_app", "github_app|has_permission|github_permission",
 			"github_repository|contains|github_agent_project",
+			"github_agent_project|depends_on|github_mcp_server", "github_mcp_server|contains|github_mcp_tool", "github_agent_project|contains|github_agent_skill", "github_repository|contains|github_agent_skill",
 		),
 		collection.ProviderOkta: tokenSet(
 			"okta_tenant|contains|okta_application", "okta_tenant|contains|okta_group", "okta_tenant|contains|okta_role", "okta_tenant|contains|okta_service_principal", "okta_tenant|contains|okta_user", "okta_group|assigned_to|okta_application", "okta_service_principal|assigned_to|okta_application", "okta_user|assigned_to|okta_application", "okta_service_principal|assigned_to|okta_role", "okta_user|assigned_to|okta_role", "okta_group|assigned_to|okta_role", "okta_service_principal|member_of|okta_group", "okta_user|member_of|okta_group",
 			"okta_tenant|contains|okta_ai_application", "okta_group|assigned_to|okta_ai_application", "okta_service_principal|assigned_to|okta_ai_application", "okta_user|assigned_to|okta_ai_application",
 		),
-		collection.ProviderMicrosoft:  tokenSet("microsoft_tenant|contains|microsoft_agent_identity", "microsoft_tenant|contains|microsoft_ai_application", "microsoft_tenant|contains|microsoft_copilot_agent"),
+		collection.ProviderMicrosoft:  tokenSet("microsoft_tenant|contains|microsoft_agent_identity", "microsoft_tenant|contains|microsoft_ai_application", "microsoft_tenant|contains|microsoft_copilot_agent", "microsoft_tenant|contains|microsoft_ai_resource", "microsoft_tenant|contains|microsoft_ai_deployment", "microsoft_tenant|contains|microsoft_foundry_agent"),
 		collection.ProviderSalesforce: tokenSet("salesforce_org|contains|salesforce_agent"),
 		collection.ProviderSaaS:       tokenSet("saas_tenant|contains|saas_agent", "saas_tenant|contains|saas_ai_application", "saas_tenant|contains|saas_mcp_server"),
 	}
@@ -938,6 +979,32 @@ func validInventoryFieldText(name, value string) bool {
 	default:
 		return true
 	}
+}
+
+// mcpServerAttributes are the attributes of an MCP server of any provider:
+// how it was found and what its declaration says. No value here is a
+// credential, an argument or a URL path.
+func mcpServerAttributes() inventoryObjectSchema {
+	return inventoryObjectSchema{
+		"source":         enumInventoryField(true, "agentcore_gateway", "egress", "gateway_target", "repository_config", "workload"),
+		"transport":      enumInventoryField(false, agentsignals.MCPTransportHTTP, agentsignals.MCPTransportSSE, agentsignals.MCPTransportStdio),
+		"endpoint_host":  stringInventoryField(false),
+		"command":        stringInventoryField(false),
+		"package":        stringInventoryField(false),
+		"package_pinned": boolInventoryField(false),
+		"plain_http":     boolInventoryField(false),
+		"auth":           enumInventoryField(false, agentsignals.MCPAuthDeclared, agentsignals.MCPAuthNone, agentsignals.MCPAuthNotApplicable),
+	}
+}
+
+// optionalInventorySchema returns the schema with every member optional.
+func optionalInventorySchema(schema inventoryObjectSchema) inventoryObjectSchema {
+	result := make(inventoryObjectSchema, len(schema))
+	for name, rule := range schema {
+		rule.required = false
+		result[name] = rule
+	}
+	return result
 }
 
 func requiredStringFields(names ...string) inventoryObjectSchema {

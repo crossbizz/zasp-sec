@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
@@ -55,6 +56,8 @@ func (api *InstallationCollectionAPI) fetchAgentProjectPage(ctx context.Context,
 		return CollectionPage{}, err
 	}
 	var evidence agentsignals.Evidence
+	var servers []repositoryMCPServer
+	var skills []agentsignals.Skill
 	// 404: the default branch has no commit. 409: the repository is empty.
 	if status != http.StatusNotFound && status != http.StatusConflict {
 		var tree repositoryTreeResponse
@@ -111,6 +114,15 @@ func (api *InstallationCollectionAPI) fetchAgentProjectPage(ctx context.Context,
 			name := path.Base(manifest)
 			evidence.Packages(agentsignals.DependencyManifests[name], manifestPackageNames(name, decoded)...)
 		}
+		// The MCP servers the repository declares, and its skills (paths only).
+		configs, settings := mcpConfigCandidates(*tree.Tree)
+		if servers, err = api.readRepositoryMCPServers(ctx, credential, repositoryURL, state.DefaultBranch, configs, settings); err != nil {
+			if err == errMalformedAgentProjectFile {
+				return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
+			}
+			return CollectionPage{}, err
+		}
+		skills = agentsignals.SkillPaths(paths...)
 	}
 	var entities, relationships []json.RawMessage
 	if evidence.IsAgent() {
@@ -118,6 +130,15 @@ func (api *InstallationCollectionAPI) fetchAgentProjectPage(ctx context.Context,
 		if entities, relationships, normalized = normalizeAgentProject(request.Subject, state, evidence.Signals()); !normalized {
 			return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
 		}
+	}
+	if len(servers) > 0 || len(skills) > 0 {
+		more, edges, normalized := normalizeAgentProjectInventory(request.Subject, state, evidence.IsAgent(), servers, skills)
+		if !normalized {
+			return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
+		}
+		entities, relationships = append(entities, more...), append(relationships, edges...)
+		sortGitHubInventory(entities)
+		sortGitHubInventory(relationships)
 	}
 	nextState := state
 	nextState.Phase = "workflows"
@@ -202,6 +223,21 @@ func normalizeAgentProject(subject collection.SubjectBinding, state githubPageSt
 		return nil, nil, false
 	}
 	return []json.RawMessage{entity}, []json.RawMessage{contains}, true
+}
+
+// errMalformedAgentProjectFile marks a contents response that is not the
+// provider's document.
+var errMalformedAgentProjectFile = errors.New("github discovery: malformed contents response")
+
+func sortGitHubInventory(values []json.RawMessage) {
+	sort.SliceStable(values, func(left, right int) bool {
+		var a, b struct {
+			ID string `json:"id"`
+		}
+		_ = json.Unmarshal(values[left], &a)
+		_ = json.Unmarshal(values[right], &b)
+		return a.ID < b.ID
+	})
 }
 
 func escapeGitHubPath(value string) string {

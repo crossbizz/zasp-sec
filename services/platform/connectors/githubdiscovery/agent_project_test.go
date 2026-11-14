@@ -124,14 +124,17 @@ func requireNoAgentProject(t *testing.T, page CollectionPage, err error) {
 	requireWorkflowsCursor(t, page)
 }
 
+// The tree alone makes the repository an agent project. The configuration is
+// then read for its servers; one that is gone since the tree was read
+// declares none and does not fail the page.
 func TestAgentProjectFromMCPManifestNeedsOnlyTheTree(t *testing.T) {
 	t.Parallel()
-	page, err, urls := fetchAgentProjectPage(t, agentProjectTree(false, agentProjectBlob("README.md", 10), agentProjectDirectory("tools"), agentProjectBlob("tools/.mcp.json", 80)))
+	page, err, urls := fetchAgentProjectPage(t, agentProjectTree(false, agentProjectBlob("README.md", 10), agentProjectDirectory("tools"), agentProjectBlob("tools/.mcp.json", 80)), installationHTTPResponse{status: http.StatusNotFound, body: `{}`})
 	if err != nil {
 		t.Fatal(err)
 	}
 	requireAgentProject(t, page, `["manifest:mcp_config"]`)
-	if fmt.Sprint(urls) != fmt.Sprint([]string{agentProjectTreeURL}) {
+	if fmt.Sprint(urls) != fmt.Sprint([]string{agentProjectTreeURL, agentProjectContentURL("tools/.mcp.json")}) {
 		t.Fatalf("provider calls = %v", urls)
 	}
 }
@@ -376,7 +379,7 @@ func TestAgentProjectResumesFromItsCursor(t *testing.T) {
 	// Two more attempts in new processes, from the same cursor, agree byte for byte.
 	var pages [2]CollectionPage
 	for attempt := range pages {
-		roundTripper := &installationRoundTripper{responses: []installationHTTPResponse{tree, agentProjectContent(pyproject), agentProjectContent(requirements), {status: http.StatusOK, body: `{"total_count":0,"workflows":[]}`}}}
+		roundTripper := &installationRoundTripper{responses: []installationHTTPResponse{tree, agentProjectContent(pyproject), agentProjectContent(requirements), {status: http.StatusNotFound, body: `{}`}, {status: http.StatusOK, body: `{"total_count":0,"workflows":[]}`}}}
 		api, _ = newInstallationCollectionAPI(roundTripper, time.Second)
 		page, err := api.FetchCollectionPage(context.Background(), []byte(agentProjectCredential), request)
 		if err != nil {
@@ -388,7 +391,7 @@ func TestAgentProjectResumesFromItsCursor(t *testing.T) {
 		next := request
 		next.Cursor, next.Page = page.Cursor, request.Page+1
 		workflows, err := api.FetchCollectionPage(context.Background(), []byte(agentProjectCredential), next)
-		if err != nil || !strings.HasPrefix(workflows.Cursor.Value, "github:environments:5:") || roundTripper.requests[3].URL.String() != "https://api.github.com/repos/acme/alpha/actions/workflows?page=1&per_page=1" {
+		if err != nil || !strings.HasPrefix(workflows.Cursor.Value, "github:environments:5:") || roundTripper.requests[4].URL.String() != "https://api.github.com/repos/acme/alpha/actions/workflows?page=1&per_page=1" {
 			t.Fatalf("workflows after agent project = %s / %v", workflows.Cursor.Value, err)
 		}
 	}
@@ -404,7 +407,7 @@ func TestAgentProjectRespectsPageBudgetsAndCursorBinding(t *testing.T) {
 	// they are built, like every other phase.
 	limited := agentProjectRequest(t, agentProjectState())
 	limited.RemainingRelationships = 0
-	limitedAPI, _ := newInstallationCollectionAPI(&installationRoundTripper{responses: []installationHTTPResponse{tree}}, time.Second)
+	limitedAPI, _ := newInstallationCollectionAPI(&installationRoundTripper{responses: []installationHTTPResponse{tree, {status: http.StatusNotFound, body: `{}`}}}, time.Second)
 	if _, err := limitedAPI.FetchCollectionPage(context.Background(), []byte(agentProjectCredential), limited); !errors.Is(err, providercollection.ErrPageCapacity) {
 		t.Fatalf("capacity error = %v", err)
 	}
@@ -460,7 +463,7 @@ func TestAgentProjectRejectsCredentialEcho(t *testing.T) {
 	t.Parallel()
 	// A hostile manifest cannot place the credential in a page: only catalog
 	// tokens are recorded.
-	page, err, _ := fetchAgentProjectPage(t, agentProjectTree(false, agentProjectBlob("requirements.txt", 60), agentProjectBlob(agentProjectCredential+"/.mcp.json", 5)), agentProjectContent(agentProjectCredential+"\nlanggraph\n"))
+	page, err, _ := fetchAgentProjectPage(t, agentProjectTree(false, agentProjectBlob("requirements.txt", 60), agentProjectBlob(agentProjectCredential+"/.mcp.json", 5)), agentProjectContent(agentProjectCredential+"\nlanggraph\n"), installationHTTPResponse{status: http.StatusNotFound, body: `{}`})
 	if err != nil || bytes.Contains(page.Raw, []byte(agentProjectCredential)) {
 		t.Fatalf("page = %s / %v", page.Raw, err)
 	}
