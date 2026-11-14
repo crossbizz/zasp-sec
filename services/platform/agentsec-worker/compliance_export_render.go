@@ -10,6 +10,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/zasp-ai/zasp-sec/services/platform/compliancemap"
 	"github.com/zasp-ai/zasp-sec/services/platform/sessioncontrol"
 )
 
@@ -50,7 +51,7 @@ func renderComplianceExportPackage(ctx context.Context, l complianceExportLease,
 	values := make([]sessioncontrol.ComplianceEvidence, 0, len(snapshot.Controls))
 	seen := map[string]bool{}
 	for _, c := range snapshot.Controls {
-		if c.Age < 1 || c.Age > 31536000 || len(c.Required) < 1 || len(c.Required) > 5 || len(c.Records) > 100 || !slices.Contains([]string{"soc2_security", "hipaa"}, c.Framework) || seen[c.ID] {
+		if c.Age < 1 || c.Age > 31536000 || len(c.Required) < 1 || len(c.Required) > 5 || len(c.Records) > 100 || !slices.Contains([]string{"soc2_security", "hipaa"}, c.Framework) && !compliancemap.IsFramework(c.Framework) || seen[c.ID] {
 			return compliancePreparedArtifact{}, errWorkerExecution
 		}
 		seen[c.ID] = true

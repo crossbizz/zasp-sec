@@ -200,7 +200,7 @@ func init() {
 		canary := Canary(c.slug)
 		tags := make([]compliancemap.Reference, 0, len(c.controls))
 		for _, key := range c.controls {
-			reference, ok := compliancemap.Control(key)
+			reference, ok := compliancemap.ControlByKey(key)
 			if !ok {
 				panic("probes: unknown framework control " + key)
 			}

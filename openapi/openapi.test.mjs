@@ -105,8 +105,8 @@ function verifyDocument(value, rawText) {
   });
 
   assert.deepEqual(value.components.parameters, {
-    ComplianceFramework: { name: "framework", in: "query", schema: { type: "string", enum: ["soc2_security", "hipaa"] } },
-    ComplianceControlFilter: { name: "control_id", in: "query", schema: { type: "string", minLength: 1, maxLength: 128, pattern: "^(soc2_security|hipaa)-(audit|findings|policies|tests|configuration)$" } },
+    ComplianceFramework: { name: "framework", in: "query", description: "A product evidence framework (soc2_security, hipaa) or an AI security framework. The controls of an AI framework are the framework's own, and the evidence of one is the findings whose rule maps to it. Listing evidence of an AI framework requires control_id.", schema: { $ref: "#/components/schemas/ComplianceFrameworkID" } },
+    ComplianceControlFilter: { name: "control_id", in: "query", schema: { $ref: "#/components/schemas/ComplianceControlID" } },
     SensorEnrollmentSchema: {
       name: "X-Zasp-Sensor-Enrollment-Schema",
       in: "header",
@@ -734,7 +734,7 @@ describe("production workflow concurrency contract", () => {
         if (operation?.operationId) operations.set(operation.operationId, { path, method, operation });
       }
     }
-    assert.equal(operations.size, 167);
+    assert.equal(operations.size, 168);
     for (const operationId of ["getSingleTestCleanupRecovery", "requestSingleTestCleanupRecovery"]) {
       assert.ok(operations.has(operationId), operationId);
     }

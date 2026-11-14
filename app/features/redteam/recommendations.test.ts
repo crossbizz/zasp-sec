@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Capability, InventorySummary } from "../../../apps/web/api/generated";
 import { recommendRedTeamPacks } from "./recommendations";
 
-const target: InventorySummary = {id:"pid_92500001-0000-4000-8000-000000000001",name:"discovered-agent",kind:"agent",owner:"",team:"",tags:[],evidence_id:"pid_92500002-0000-4000-8000-000000000002",confidence_basis_points:9500,first_seen:"2026-09-09T00:00:00Z",last_seen:"2026-09-09T00:00:00Z",observed_at:"2026-09-09T00:00:00Z",fresh_until:"2026-09-09T02:00:00Z",freshness_state:"fresh", provider: "kubernetes" as const, source_kind: "kubernetes_agent", discovery: { method: "declared" as const, platform: "kubernetes_agent", signals: [] }, management_state: "managed" as const,version:1};
+const target: InventorySummary = {id:"pid_92500001-0000-4000-8000-000000000001",name:"discovered-agent",kind:"agent",owner:"",team:"",tags:[],evidence_id:"pid_92500002-0000-4000-8000-000000000002",confidence_basis_points:9500,first_seen:"2026-09-09T00:00:00Z",last_seen:"2026-09-09T00:00:00Z",observed_at:"2026-09-09T00:00:00Z",fresh_until:"2026-09-09T02:00:00Z",freshness_state:"fresh", provider: "kubernetes" as const, source_kind: "kubernetes_agent", discovery: { method: "declared" as const, platform: "kubernetes_agent", signals: [] }, management_state: "managed" as const, last_activity_at: null, activity_state: "unknown" as const,version:1};
 const now = Date.parse("2026-09-09T01:00:00Z");
 const edge: Capability = {agent_id:target.id,target_id:"pid_92500003-0000-4000-8000-000000000003",target_kind:"tool",category:"action_execute",outcome:"execute",state:"reachable",reachable:true,evidence_ids:[target.evidence_id]};
 

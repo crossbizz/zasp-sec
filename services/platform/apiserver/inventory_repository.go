@@ -64,6 +64,16 @@ type InventorySummary struct {
 	SourceKind      string             `json:"source_kind"`
 	Discovery       InventoryDiscovery `json:"discovery"`
 	ManagementState string             `json:"management_state"`
+	// Whether an agent is still in use, from what is recorded without
+	// anything installed. LastActivityAt is the latest known activity (the
+	// newest runtime event attributed to the agent, or the collection that
+	// last saw it call a model or an AI endpoint in the provider's logs), or
+	// nil. ActivityState is "active" when that is within 30 days, "inactive"
+	// when it is older or the provider reports the agent's role unused for 90
+	// days, "unknown" when there is no activity source (not the same as
+	// inactive), and "not_applicable" for every other kind.
+	LastActivityAt *string `json:"last_activity_at"`
+	ActivityState  string  `json:"activity_state"`
 }
 
 type InventoryDiscovery struct {
@@ -144,6 +154,20 @@ type Relationship struct {
 	ToID       string `json:"to_id"`
 	Type       string `json:"type"`
 	EvidenceID string `json:"evidence_id"`
+	// From and To name the two objects the relationship joins. Each is set
+	// only when the object is active and the caller may read it; an end the
+	// caller may not read keeps its identifier and has no name.
+	From *RelationshipEnd `json:"from,omitempty"`
+	To   *RelationshipEnd `json:"to,omitempty"`
+}
+
+// RelationshipEnd is one object of a relationship: what the agent detail
+// needs to say which identity or credential an agent uses.
+type RelationshipEnd struct {
+	Name       string        `json:"name"`
+	Kind       InventoryKind `json:"kind"`
+	Provider   string        `json:"provider"`
+	SourceKind string        `json:"source_kind"`
 }
 
 type RelationshipPage struct {
@@ -503,7 +527,7 @@ func validInventorySummary(item InventorySummary, kind InventoryKind) bool {
 		}
 		prior = tag
 	}
-	if !validInventoryDiscovery(item, kind) {
+	if !validInventoryDiscovery(item, kind) || !validInventoryActivity(item, kind) {
 		return false
 	}
 	first, okFirst := parseInventoryTime(item.FirstSeen)
@@ -511,6 +535,28 @@ func validInventorySummary(item InventorySummary, kind InventoryKind) bool {
 	observed, okObserved := parseInventoryTime(item.ObservedAt)
 	fresh, okFresh := parseInventoryTime(item.FreshUntil)
 	return okFirst && okLast && okObserved && okFresh && !last.Before(first) && fresh.After(observed)
+}
+
+// validInventoryActivity checks the activity members. Only an agent has an
+// activity state; "active" needs a time, "unknown" has none.
+func validInventoryActivity(item InventorySummary, kind InventoryKind) bool {
+	if item.LastActivityAt != nil {
+		if _, ok := parseInventoryTime(*item.LastActivityAt); !ok {
+			return false
+		}
+	}
+	if kind != InventoryKindAgent {
+		return item.ActivityState == "not_applicable" && item.LastActivityAt == nil
+	}
+	switch item.ActivityState {
+	case "active":
+		return item.LastActivityAt != nil
+	case "inactive":
+		return true
+	case "unknown":
+		return item.LastActivityAt == nil
+	}
+	return false
 }
 
 var (
@@ -637,7 +683,18 @@ func capabilityKey(item Capability) string {
 }
 
 func validRelationship(item Relationship, agentID string) bool {
-	return validProductID(item.ID) && validProductID(item.FromID) && validProductID(item.ToID) && item.FromID != item.ToID && (item.FromID == agentID || item.ToID == agentID) && printableInventoryString(item.Type, 1, 64, false) && validProductID(item.EvidenceID)
+	return validProductID(item.ID) && validProductID(item.FromID) && validProductID(item.ToID) && item.FromID != item.ToID && (item.FromID == agentID || item.ToID == agentID) && printableInventoryString(item.Type, 1, 64, false) && validProductID(item.EvidenceID) &&
+		validRelationshipEnd(item.From, item.FromID == agentID) && validRelationshipEnd(item.To, item.ToID == agentID)
+}
+
+// validRelationshipEnd checks a named end. The end that is the agent of the
+// page, when named, is an agent.
+func validRelationshipEnd(end *RelationshipEnd, agent bool) bool {
+	if end == nil {
+		return true
+	}
+	return printableInventoryString(end.Name, 1, 256, false) && stringIn(string(end.Kind), "asset", "agent", "tool", "identity", "runtime") && (!agent || end.Kind == InventoryKindAgent) &&
+		isDiscoveryProvider(end.Provider) && inventorySourceKindPattern.MatchString(end.SourceKind)
 }
 
 func validInventoryNextKey(next *string, prior string, count, limit int) (string, bool) {

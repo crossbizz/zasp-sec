@@ -8,7 +8,6 @@ import (
 	"errors"
 	"regexp"
 	"slices"
-	"strings"
 	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
@@ -51,7 +50,7 @@ func (r *ComplianceExportsRepository) Create(ctx context.Context, identity Reque
 		return ComplianceExportJob{}, ErrRepositoryOperation
 	}
 	if request.Framework == "" && request.ControlID != "" {
-		request.Framework = strings.Split(request.ControlID, "-")[0]
+		request.Framework = complianceControlFramework(request.ControlID)
 	}
 	payload, e := json.Marshal(request)
 	if e != nil {

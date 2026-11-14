@@ -4504,3 +4504,321 @@ BEGIN
   EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO zasp_security_agent_api',f.signature);
  END LOOP;
 END $ws2_red_team_api_functions$;
+-- WS3-A2. AI security frameworks on the compliance reads and the export.
+--
+-- The compliance controls were two product frameworks (soc2_security, hipaa)
+-- times five evidence categories. Six AI security frameworks join them:
+-- owasp_agentic_top10_2026, owasp_llm_top10_2025, mitre_atlas,
+-- nist_ai_rmf_1_0, iso_iec_42001_2023 and eu_ai_act. Their controls are the
+-- frameworks' own (ASI03, LLM01, AML.T0051, GOVERN 1.6, A.6.2.6,
+-- Article 15, ...), and the evidence of a control is the findings whose rule
+-- is mapped to it. The mapping is the one the finding detail shows
+-- (services/platform/compliancemap); the two functions below hold the same
+-- data, and compliancemap/sql_test.go fails when they differ from the Go map.
+--
+-- A reference says a finding is relevant to a control, not that the control
+-- is met or failed, exactly as for the product frameworks.
+DO $ai_framework_data$
+BEGIN
+CREATE OR REPLACE FUNCTION public.zasp_compliance_ai_controls() RETURNS TABLE(framework text,control_id text,label text) LANGUAGE sql IMMUTABLE SET search_path TO pg_catalog,public AS $ai_controls$
+ SELECT c.framework,c.control_id,c.label FROM (VALUES
+  ('eu_ai_act','Article 14','Human oversight'),
+  ('eu_ai_act','Article 15','Accuracy, robustness and cybersecurity'),
+  ('eu_ai_act','Article 9','Risk management system'),
+  ('iso_iec_42001_2023','A.3.2','AI roles and responsibilities'),
+  ('iso_iec_42001_2023','A.6.2.6','AI system operation and monitoring'),
+  ('iso_iec_42001_2023','A.9.2','Processes for responsible use of AI systems'),
+  ('mitre_atlas','AML.T0051','LLM Prompt Injection'),
+  ('mitre_atlas','AML.T0053','LLM Plugin Compromise'),
+  ('mitre_atlas','AML.T0055','Unsecured Credentials'),
+  ('mitre_atlas','AML.T0057','LLM Data Leakage'),
+  ('nist_ai_rmf_1_0','GOVERN 1.6','Mechanisms are in place to inventory AI systems'),
+  ('nist_ai_rmf_1_0','GOVERN 2.1','Roles, responsibilities and lines of communication are documented'),
+  ('nist_ai_rmf_1_0','MANAGE 2.4','Mechanisms exist to supersede, disengage or deactivate AI systems'),
+  ('nist_ai_rmf_1_0','MEASURE 2.7','AI system security and resilience are evaluated and documented'),
+  ('owasp_agentic_top10_2026','ASI02','Tool Misuse and Exploitation'),
+  ('owasp_agentic_top10_2026','ASI03','Identity and Privilege Abuse'),
+  ('owasp_agentic_top10_2026','ASI04','Agentic Supply Chain Vulnerabilities'),
+  ('owasp_agentic_top10_2026','ASI05','Unexpected Code Execution'),
+  ('owasp_agentic_top10_2026','ASI10','Rogue Agents'),
+  ('owasp_llm_top10_2025','LLM01','Prompt Injection'),
+  ('owasp_llm_top10_2025','LLM02','Sensitive Information Disclosure'),
+  ('owasp_llm_top10_2025','LLM03','Supply Chain'),
+  ('owasp_llm_top10_2025','LLM05','Improper Output Handling'),
+  ('owasp_llm_top10_2025','LLM06','Excessive Agency')) c(framework,control_id,label)
+$ai_controls$;
+CREATE OR REPLACE FUNCTION public.zasp_compliance_ai_rule_controls() RETURNS TABLE(rule text,framework text,control_id text) LANGUAGE sql IMMUTABLE SET search_path TO pg_catalog,public AS $ai_rule_controls$
+ SELECT r.rule,r.framework,r.control_id FROM (VALUES
+  ('agent_guardrail_missing','eu_ai_act','Article 15'),
+  ('agent_guardrail_missing','eu_ai_act','Article 9'),
+  ('agent_guardrail_missing','iso_iec_42001_2023','A.6.2.6'),
+  ('agent_guardrail_missing','mitre_atlas','AML.T0051'),
+  ('agent_guardrail_missing','nist_ai_rmf_1_0','MEASURE 2.7'),
+  ('agent_guardrail_missing','owasp_llm_top10_2025','LLM01'),
+  ('agent_guardrail_missing','owasp_llm_top10_2025','LLM02'),
+  ('agent_guardrail_missing','owasp_llm_top10_2025','LLM05'),
+  ('agent_role_administrator_access','eu_ai_act','Article 15'),
+  ('agent_role_administrator_access','nist_ai_rmf_1_0','MEASURE 2.7'),
+  ('agent_role_administrator_access','owasp_agentic_top10_2026','ASI03'),
+  ('agent_role_administrator_access','owasp_llm_top10_2025','LLM06'),
+  ('agent_role_unused_90_days','mitre_atlas','AML.T0055'),
+  ('agent_role_unused_90_days','nist_ai_rmf_1_0','GOVERN 1.6'),
+  ('agent_role_unused_90_days','nist_ai_rmf_1_0','MANAGE 2.4'),
+  ('agent_role_unused_90_days','owasp_agentic_top10_2026','ASI03'),
+  ('cicd_production_secret','eu_ai_act','Article 15'),
+  ('cicd_production_secret','mitre_atlas','AML.T0055'),
+  ('cicd_production_secret','owasp_agentic_top10_2026','ASI03'),
+  ('cicd_production_secret','owasp_agentic_top10_2026','ASI04'),
+  ('cicd_production_secret','owasp_llm_top10_2025','LLM03'),
+  ('destructive_no_control','eu_ai_act','Article 14'),
+  ('destructive_no_control','iso_iec_42001_2023','A.6.2.6'),
+  ('destructive_no_control','nist_ai_rmf_1_0','MANAGE 2.4'),
+  ('destructive_no_control','owasp_agentic_top10_2026','ASI02'),
+  ('destructive_no_control','owasp_llm_top10_2025','LLM06'),
+  ('egress_sensitive','eu_ai_act','Article 15'),
+  ('egress_sensitive','mitre_atlas','AML.T0057'),
+  ('egress_sensitive','nist_ai_rmf_1_0','MEASURE 2.7'),
+  ('egress_sensitive','owasp_llm_top10_2025','LLM02'),
+  ('human_credential','eu_ai_act','Article 15'),
+  ('human_credential','mitre_atlas','AML.T0055'),
+  ('human_credential','nist_ai_rmf_1_0','MEASURE 2.7'),
+  ('human_credential','owasp_agentic_top10_2026','ASI03'),
+  ('iam_role_administratoraccess_policy','nist_ai_rmf_1_0','MEASURE 2.7'),
+  ('iam_role_administratoraccess_policy','owasp_agentic_top10_2026','ASI03'),
+  ('iam_role_administratoraccess_policy','owasp_llm_top10_2025','LLM06'),
+  ('iam_role_cross_service_confused_deputy_prevention','nist_ai_rmf_1_0','MEASURE 2.7'),
+  ('iam_role_cross_service_confused_deputy_prevention','owasp_agentic_top10_2026','ASI03'),
+  ('no_runtime_coverage','eu_ai_act','Article 14'),
+  ('no_runtime_coverage','eu_ai_act','Article 9'),
+  ('no_runtime_coverage','iso_iec_42001_2023','A.6.2.6'),
+  ('no_runtime_coverage','nist_ai_rmf_1_0','MANAGE 2.4'),
+  ('no_runtime_coverage','nist_ai_rmf_1_0','MEASURE 2.7'),
+  ('ownerless_agent','eu_ai_act','Article 14'),
+  ('ownerless_agent','iso_iec_42001_2023','A.3.2'),
+  ('ownerless_agent','nist_ai_rmf_1_0','GOVERN 1.6'),
+  ('ownerless_agent','nist_ai_rmf_1_0','GOVERN 2.1'),
+  ('ownerless_agent','owasp_agentic_top10_2026','ASI10'),
+  ('shared_credential','eu_ai_act','Article 15'),
+  ('shared_credential','mitre_atlas','AML.T0055'),
+  ('shared_credential','nist_ai_rmf_1_0','MEASURE 2.7'),
+  ('shared_credential','owasp_agentic_top10_2026','ASI03'),
+  ('shell_credential','eu_ai_act','Article 15'),
+  ('shell_credential','nist_ai_rmf_1_0','MEASURE 2.7'),
+  ('shell_credential','owasp_agentic_top10_2026','ASI03'),
+  ('shell_credential','owasp_agentic_top10_2026','ASI05'),
+  ('shell_credential','owasp_llm_top10_2025','LLM06'),
+  ('unapproved_tool','eu_ai_act','Article 9'),
+  ('unapproved_tool','iso_iec_42001_2023','A.9.2'),
+  ('unapproved_tool','mitre_atlas','AML.T0053'),
+  ('unapproved_tool','owasp_agentic_top10_2026','ASI02'),
+  ('unapproved_tool','owasp_agentic_top10_2026','ASI04'),
+  ('unapproved_tool','owasp_llm_top10_2025','LLM03'),
+  ('untrusted_production_write','eu_ai_act','Article 15'),
+  ('untrusted_production_write','mitre_atlas','AML.T0051'),
+  ('untrusted_production_write','nist_ai_rmf_1_0','MEASURE 2.7'),
+  ('untrusted_production_write','owasp_agentic_top10_2026','ASI02'),
+  ('untrusted_production_write','owasp_llm_top10_2025','LLM01'),
+  ('untrusted_production_write','owasp_llm_top10_2025','LLM06'),
+  ('weak_runtime_isolation','eu_ai_act','Article 15'),
+  ('weak_runtime_isolation','nist_ai_rmf_1_0','MEASURE 2.7'),
+  ('weak_runtime_isolation','owasp_agentic_top10_2026','ASI05'),
+  ('weak_runtime_isolation','owasp_llm_top10_2025','LLM06'),
+  ('zombie_credential','mitre_atlas','AML.T0055'),
+  ('zombie_credential','nist_ai_rmf_1_0','GOVERN 1.6'),
+  ('zombie_credential','nist_ai_rmf_1_0','MANAGE 2.4'),
+  ('zombie_credential','owasp_agentic_top10_2026','ASI03')) r(rule,framework,control_id)
+$ai_rule_controls$;
+ ALTER FUNCTION public.zasp_compliance_ai_controls() OWNER TO zasp_discovery_authority;
+ ALTER FUNCTION public.zasp_compliance_ai_rule_controls() OWNER TO zasp_discovery_authority;
+ REVOKE ALL ON FUNCTION public.zasp_compliance_ai_controls(),public.zasp_compliance_ai_rule_controls() FROM PUBLIC;
+END $ai_framework_data$;
+
+-- The mapping gains one row per AI control (required source: finding), and
+-- the reads and the export job accept every framework of the mapping.
+--
+-- zasp_compliance_read (the chain's reader) and
+-- zasp_authorization80.compliance_read (its authorized clone, the one the API
+-- executes) are patched alike:
+--   * a framework filter is any framework of the mapping;
+--   * the evidence of an AI control, or of an AI framework when no control is
+--     named, is the findings whose rule maps to it, instead of every source of
+--     the family;
+--   * the freshness of an AI control is computed over those findings;
+--   * listControls returns, for an AI control, finding_ids (the first hundred
+--     in identifier order) and finding_count.
+-- Everything is derived from the sources CTE the function already
+-- materializes. In the authorized clone that CTE holds only the sources the
+-- caller may read (parent_allowed_inner), so a caller sees, and counts, only
+-- findings it may read. The rules CTE is read by finding identifier and only
+-- joined to those sources.
+--
+-- zasp_compliance_export_create accepts the same frameworks, and
+-- zasp_compliance_export_capture records, for an AI control, the findings
+-- mapped to it. A database without one of the functions (a chain before the
+-- authorized clone) skips it. Re-run: a function that already names the AI
+-- controls is left alone; any other shape than the predecessor's is refused.
+DO $ai_framework_compliance$
+DECLARE target record;d text;step record;
+ is_ai CONSTANT text:=$sql$EXISTS(SELECT 1 FROM public.zasp_compliance_ai_controls() a WHERE a.control_id=m.control_id)$sql$;
+ mapped CONSTANT text:=$sql$EXISTS(SELECT 1 FROM rules r WHERE r.id=s.source_id AND r.control_id=m.control_id)$sql$;
+ family CONSTANT text:=$sql$s.source_family=ANY(m.required_sources)$sql$;
+BEGIN
+ -- The mapping.
+ d:=pg_get_functiondef('public.zasp_compliance_mappings()'::regprocedure);
+ IF position('zasp_compliance_ai_controls()' in d)=0 THEN
+  IF length(d)-length(replace(d,'c(category,label,sources)',''))<>length('c(category,label,sources)') THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='compliance mappings predecessor changed';END IF;
+  EXECUTE replace(d,'c(category,label,sources)',$sql$c(category,label,sources)
+ UNION ALL SELECT a.framework,a.control_id,a.label,ARRAY['finding'],86400 FROM public.zasp_compliance_ai_controls() a$sql$);
+ END IF;
+ -- The readers.
+ FOR target IN SELECT signature FROM (VALUES
+  ('public.zasp_compliance_read(text,text,text,text,bytea,text,jsonb,text,text)'),
+  ('zasp_authorization80.compliance_read(text,text,text,text,bytea,text,jsonb,text,text)')) listed(signature)
+  WHERE to_regprocedure(signature) IS NOT NULL LOOP
+  d:=pg_get_functiondef(target.signature::regprocedure);
+  IF position('zasp_compliance_ai_controls()' in d)>0 THEN CONTINUE;END IF;
+  FOR step IN SELECT * FROM (VALUES
+   (1,$a$framework_value NOT IN('soc2_security','hipaa')$a$,
+      $b$NOT EXISTS(SELECT 1 FROM public.zasp_compliance_mappings() m WHERE m.framework=framework_value)$b$),
+   (1,$a$ checked AS (SELECT COALESCE(bool_and($a$,
+      $b$ rules AS MATERIALIZED (SELECT f.id,a.framework,a.control_id FROM public.zasp_risk_findings f JOIN public.zasp_compliance_ai_rule_controls() a ON a.rule=f.rule WHERE (f.organization_id,f.workspace_id,f.environment_id)=(org_value,workspace_value,environment_value)),
+ checked AS (SELECT COALESCE(bool_and($b$),
+   (1,$a$(family_value IS NULL OR s.source_family=family_value)$a$,
+      $b$(family_value IS NULL OR s.source_family=family_value) AND (NOT EXISTS(SELECT 1 FROM public.zasp_compliance_ai_controls() a WHERE CASE WHEN control_value IS NOT NULL THEN a.control_id=control_value ELSE a.framework=framework_value END) OR s.source_kind='finding' AND EXISTS(SELECT 1 FROM rules r WHERE r.id=s.source_id AND CASE WHEN control_value IS NOT NULL THEN r.control_id=control_value ELSE r.framework=framework_value END))$b$),
+   (3,family,family||' AND (NOT '||is_ai||' OR '||mapped||')'),
+   (1,$a$ fresh_until FROM public.zasp_compliance_mappings() m WHERE operation_value='listControls'$a$,
+      $b$ fresh_until,CASE WHEN $b$||is_ai||$b$ THEN COALESCE((SELECT jsonb_agg(listed.source_id ORDER BY listed.source_id COLLATE "C") FROM (SELECT s.source_id FROM sources s WHERE s.source_kind='finding' AND $b$||mapped||$b$ ORDER BY s.source_id COLLATE "C" LIMIT 100) listed),'[]'::jsonb) END finding_ids,CASE WHEN $b$||is_ai||$b$ THEN (SELECT count(*) FROM sources s WHERE s.source_kind='finding' AND $b$||mapped||$b$) END finding_count FROM public.zasp_compliance_mappings() m WHERE operation_value='listControls'$b$),
+   (1,$a$jsonb_agg(to_jsonb(c) ORDER BY$a$,$b$jsonb_agg(jsonb_strip_nulls(to_jsonb(c)) ORDER BY$b$)
+  ) listed(occurrences,anchor,patched) LOOP
+   IF (length(d)-length(replace(d,step.anchor,'')))/length(step.anchor)<>step.occurrences THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='compliance read predecessor changed';END IF;
+   d:=replace(d,step.anchor,step.patched);
+  END LOOP;
+  EXECUTE d;
+ END LOOP;
+ -- The export job.
+ FOR target IN SELECT * FROM (VALUES
+  ('public.zasp_compliance_export_create(text,text,text,text,bytea,text,jsonb,text,text)',
+   $a$request_value->>'framework' NOT IN('soc2_security','hipaa')$a$,
+   $b$NOT EXISTS(SELECT 1 FROM public.zasp_compliance_mappings() m WHERE m.framework=request_value->>'framework')$b$,
+   'zasp_compliance_mappings() m WHERE m.framework=request_value'),
+  ('public.zasp_compliance_export_capture(text,text,text,text,text,text,bigint,jsonb,text,text)',
+   $a$WHERE s.source_family=ANY(m.required_sources) ORDER BY$a$,
+   $b$WHERE s.source_family=ANY(m.required_sources) AND (NOT EXISTS(SELECT 1 FROM public.zasp_compliance_ai_controls() a WHERE a.control_id=m.control_id) OR EXISTS(SELECT 1 FROM public.zasp_risk_findings f JOIN public.zasp_compliance_ai_rule_controls() a ON a.rule=f.rule WHERE (f.organization_id,f.workspace_id,f.environment_id,f.id)=(org_value,workspace_value,environment_value,s.source_id) AND a.control_id=m.control_id)) ORDER BY$b$,
+   'zasp_compliance_ai_controls()')) listed(signature,anchor,patched,marker)
+  WHERE to_regprocedure(signature) IS NOT NULL LOOP
+  d:=pg_get_functiondef(target.signature::regprocedure);
+  IF position(target.marker in d)>0 THEN CONTINUE;END IF;
+  IF length(d)-length(replace(d,target.anchor,''))<>length(target.anchor) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='compliance export predecessor changed';END IF;
+  EXECUTE replace(d,target.anchor,target.patched);
+ END LOOP;
+END $ai_framework_compliance$;
+
+-- ---------------------------------------------------------------------------
+-- WS3-A6. Agent activity on the inventory summary.
+--
+-- Nothing said whether a discovered agent is still in use. The summary of an
+-- agent (the lists, the detail and the agent update all read the summary
+-- zasp_inventory_detail builds; the historical page builds the same summary)
+-- gains two members, from what is recorded without anything installed:
+--   last_activity_at  the latest time activity of the agent is known, or
+--                     null: the newest runtime event attributed to the agent
+--                     (zasp_runtime_session_events), or, when the agent's
+--                     winning observation carries an invoke: or egress:
+--                     signal (the provider's own logs showed it calling a
+--                     model or an AI endpoint inside the collector's
+--                     lookback window, seven days for CloudTrail), the time
+--                     of that observation
+--   activity_state    active when last_activity_at is within 30 days;
+--                     inactive when it is older, or when there is none and
+--                     the agent has an open agent_role_unused_90_days
+--                     finding (AWS reports its execution role unused for 90
+--                     days); unknown when there is no activity source at
+--                     all, which is not the same as inactive; not_applicable
+--                     for every other kind
+-- The index serves the newest event of one agent.
+CREATE INDEX IF NOT EXISTS zasp_runtime_session_events_agent_activity_idx ON public.zasp_runtime_session_events(organization_id,workspace_id,environment_id,agent_id,event_time DESC) WHERE agent_id IS NOT NULL;
+
+DO $inventory_agent_activity$
+DECLARE target record;d text;
+BEGIN
+ CREATE OR REPLACE FUNCTION public.zasp_inventory_agent_activity(organization_value text,workspace_value text,environment_value text,id_value text,kind_value text,attributes_value jsonb,observed_value timestamptz) RETURNS jsonb
+ LANGUAGE sql STABLE SET search_path TO pg_catalog,public AS $agent_activity$
+  SELECT CASE WHEN kind_value<>'agent' THEN jsonb_build_object('last_activity_at',NULL,'activity_state','not_applicable')
+  ELSE (SELECT jsonb_build_object(
+    'last_activity_at',rtrim(rtrim(to_char(seen.last_value AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US'),'0'),'.')||'Z',
+    'activity_state',CASE WHEN seen.last_value>=statement_timestamp()-interval '30 days' THEN 'active'
+     WHEN seen.last_value IS NOT NULL THEN 'inactive'
+     WHEN EXISTS(SELECT 1 FROM public.zasp_risk_findings finding WHERE (finding.organization_id,finding.workspace_id,finding.environment_id,finding.agent_id,finding.rule)=(organization_value,workspace_value,environment_value,id_value,'agent_role_unused_90_days') AND finding.status IN('open','under_review')) THEN 'inactive'
+     ELSE 'unknown' END)
+   FROM (SELECT GREATEST(
+    (SELECT max(event.event_time) FROM public.zasp_runtime_session_events event WHERE (event.organization_id,event.workspace_id,event.environment_id,event.agent_id)=(organization_value,workspace_value,environment_value,id_value)),
+    CASE WHEN jsonb_typeof(attributes_value->'discovery'->'signals')='array' AND EXISTS(SELECT 1 FROM jsonb_array_elements_text(attributes_value->'discovery'->'signals') signal WHERE signal LIKE 'invoke:%' OR signal LIKE 'egress:%') THEN observed_value END) last_value) seen) END
+ $agent_activity$;
+ ALTER FUNCTION public.zasp_inventory_agent_activity(text,text,text,text,text,jsonb,timestamptz) OWNER TO zasp_discovery_authority;
+ REVOKE ALL ON FUNCTION public.zasp_inventory_agent_activity(text,text,text,text,text,jsonb,timestamptz) FROM PUBLIC;
+ -- Re-run: a function that already calls the helper is left alone; any other
+ -- shape than the one section X5 leaves is refused.
+ FOR target IN SELECT * FROM (VALUES
+  ('public.zasp_inventory_detail(text,text,text,text,text)'::regprocedure,$a$result_value:=jsonb_build_object('summary',summary_value,$a$,
+   $b$summary_value:=summary_value||public.zasp_inventory_agent_activity(organization_value,workspace_value,environment_value,entity_record.id,entity_record.product_kind,entity_record.winning_attributes,entity_record.observed_at);result_value:=jsonb_build_object('summary',summary_value,$b$,'inventory detail activity predecessor changed'),
+  ('public.zasp_inventory_page(text,text,text,text,text,integer)'::regprocedure,$a$ ORDER BY id)$a$,
+   $b$||public.zasp_inventory_agent_activity(organization_value,workspace_value,environment_value,visible.id,visible.product_kind,visible.winning_attributes,visible.observed_at) ORDER BY id)$b$,'inventory page activity predecessor changed')
+ ) listed(signature,anchor,patched,refusal) LOOP
+  d:=pg_get_functiondef(target.signature);
+  IF position('zasp_inventory_agent_activity(' in d)>0 THEN CONTINUE;END IF;
+  IF position('management_state' in d)=0 OR length(d)-length(replace(d,target.anchor,''))<>length(target.anchor) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE=target.refusal;END IF;
+  EXECUTE replace(d,target.anchor,target.patched);
+ END LOOP;
+END $inventory_agent_activity$;
+
+-- ---------------------------------------------------------------------------
+-- WS3-A3. The two ends of an agent relationship, by name.
+--
+-- GET /agents/{id}/relationships returned identifiers only, so the agent
+-- detail could not say which identities and credentials an agent uses
+-- (uses_identity) without one more request per identity. Each relationship
+-- of the authorized page now carries the two objects it joins, "from" and
+-- "to": name, product kind, provider and the provider kind the collector
+-- reported (aws_role, kubernetes_service_account, ...).
+--
+-- An end is added only when the object is active and the caller may read it
+-- (zasp_authorization80.allowed for the object's own kind), so the page names
+-- nothing the caller could not open. An end the caller may not read keeps its
+-- identifier, as before, and has no "from" or "to" member. The chain's page
+-- (zasp_inventory_agent_relationships_page) is unchanged; section Z4's
+-- authorized function is restated here with the one added step.
+DO $inventory_relationship_ends$
+BEGIN
+ CREATE OR REPLACE FUNCTION zasp_authorization80.inventory_relationship_end(o text,w text,e text,i text) RETURNS jsonb
+ LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $inventory_relationship_end$
+  SELECT jsonb_build_object('name',v.display_name,'kind',v.product_kind,'provider',v.winning_provider,
+   'source_kind',(SELECT observation.source_kind FROM public.zasp_inventory_source_observations observation WHERE (observation.organization_id,observation.workspace_id,observation.environment_id,observation.integration_id,observation.source,observation.entity_id)=(v.organization_id,v.workspace_id,v.environment_id,v.winning_integration_id,v.winning_source,v.id)))
+  FROM public.zasp_inventory_entities v
+  WHERE (v.organization_id,v.workspace_id,v.environment_id,v.id,v.state)=(o,w,e,i,'active') AND zasp_authorization80.allowed(o,w,e,v.product_kind,v.id)
+ $inventory_relationship_end$;
+
+ CREATE OR REPLACE FUNCTION zasp_authorization80.inventory_agent_page(o text,w text,e text,i text,section text,after_value text,n integer) RETURNS jsonb
+ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $inventory_agent_page$
+ DECLARE op text:=CASE section WHEN 'capabilities' THEN 'getAgentCapabilities' WHEN 'relationships' THEN 'getAgentRelationships' WHEN 'sessions' THEN 'listAgentSessions' END;page_value jsonb;
+ BEGIN
+  IF op IS NULL OR NOT COALESCE(public.zasp_valid_product_id(i),false) THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';END IF;
+  PERFORM zasp_authorization80.product_request(o,w,e,NULL,op,'view','agent',i,true,false,false,false);
+  page_value:=CASE section
+   WHEN 'capabilities' THEN public.zasp_inventory_agent_capabilities_page(o,w,e,i,after_value,n)
+   WHEN 'relationships' THEN public.zasp_inventory_agent_relationships_page(o,w,e,i,after_value,n)
+   ELSE public.zasp_inventory_agent_sessions_page(o,w,e,i,after_value,n) END;
+  IF section='relationships' THEN
+   page_value:=jsonb_set(page_value,'{items}',COALESCE((SELECT jsonb_agg(item.value||jsonb_strip_nulls(jsonb_build_object(
+     'from',zasp_authorization80.inventory_relationship_end(o,w,e,item.value->>'from_id'),
+     'to',zasp_authorization80.inventory_relationship_end(o,w,e,item.value->>'to_id'))) ORDER BY item.ordinality)
+    FROM jsonb_array_elements(page_value->'items') WITH ORDINALITY item),'[]'::jsonb));
+  END IF;
+  RETURN page_value;
+ END $inventory_agent_page$;
+
+ ALTER FUNCTION zasp_authorization80.inventory_relationship_end(text,text,text,text) OWNER TO zasp_discovery_authority;
+ REVOKE ALL ON FUNCTION zasp_authorization80.inventory_relationship_end(text,text,text,text) FROM PUBLIC;
+ ALTER FUNCTION zasp_authorization80.inventory_agent_page(text,text,text,text,text,text,integer) OWNER TO zasp_discovery_authority;
+ REVOKE ALL ON FUNCTION zasp_authorization80.inventory_agent_page(text,text,text,text,text,text,integer) FROM PUBLIC;
+ GRANT EXECUTE ON FUNCTION zasp_authorization80.inventory_agent_page(text,text,text,text,text,text,integer) TO zasp_discovery_api;
+END $inventory_relationship_ends$;

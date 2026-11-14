@@ -339,6 +339,28 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/agents/{id}/evidence-pack": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        /**
+         * Get the evidence pack of one Agent for an auditor
+         * @description One document with how the agent was found, its findings with their framework references, the Security Agent runs on those findings with their approvals, and the red team definitions and runs that target it, plus a Markdown rendering. The pack is composed from the product's own read operations, each read as the caller, so it holds nothing the caller could not read one request at a time. A part the caller may not read is marked not_permitted, a part read only with a browser session is marked browser_session_required for an API token, and a part that reaches its bound is marked truncated. It is a synchronous read and nothing is stored - there is no retention and no download grant.
+         */
+        readonly get: operations["getAgentEvidencePack"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/agents/{id}/relationships": {
         readonly parameters: {
             readonly query?: never;
@@ -2603,6 +2625,52 @@ export type paths = {
 export type webhooks = Record<string, never>;
 export type components = {
     schemas: {
+        readonly AgentEvidencePack: {
+            readonly agent: components["schemas"]["InventoryDetail"];
+            readonly environment_id: components["schemas"]["ProductID"];
+            /** @description The findings on the agent, each with its framework references. At most 200. */
+            readonly findings: {
+                readonly items: readonly components["schemas"]["Finding"][];
+                readonly status: components["schemas"]["AgentEvidencePackStatus"];
+            };
+            /** Format: date-time */
+            readonly generated_at: string;
+            readonly organization_id: components["schemas"]["ProductID"];
+            /** @description The runs of those definitions. At most 200. */
+            readonly red_team_runs: {
+                readonly items: readonly components["schemas"]["TestRun"][];
+                readonly status: components["schemas"]["AgentEvidencePackStatus"];
+            };
+            /** @description The red team definitions whose target is the agent. At most 200. */
+            readonly red_team_tests: {
+                readonly items: readonly components["schemas"]["TestDefinition"][];
+                readonly status: components["schemas"]["AgentEvidencePackStatus"];
+            };
+            /** @constant */
+            readonly schema_version: "agent-evidence-pack-v1";
+            /** @description The Security Agent runs related to those findings, each once, with the run detail the run operation returns (plan, authorization, approvals, execution and verification). At most 50. */
+            readonly security_agent_runs: {
+                readonly items: readonly {
+                    readonly finding_ids: readonly components["schemas"]["ProductID"][];
+                    /** @description The body of getSecurityAgentRun for this run. */
+                    readonly run: {
+                        readonly [key: string]: unknown;
+                    };
+                }[];
+                readonly status: components["schemas"]["AgentEvidencePackStatus"];
+            };
+            readonly workspace_id: components["schemas"]["ProductID"];
+        };
+        readonly AgentEvidencePackResponse: {
+            /** @description The same pack rendered as Markdown for a reader. */
+            readonly markdown: string;
+            readonly pack: components["schemas"]["AgentEvidencePack"];
+        };
+        /**
+         * @description Whether a section holds everything (complete), stops at its bound (truncated), or is empty because the caller may not read it (not_permitted), it is read only with a browser session (browser_session_required) or it could not be read when the pack was generated (unavailable).
+         * @enum {string}
+         */
+        readonly AgentEvidencePackStatus: "complete" | "truncated" | "not_permitted" | "browser_session_required" | "unavailable";
         readonly AgentMutation: {
             readonly agent: components["schemas"]["InventoryRecord"];
             readonly audit_id: components["schemas"]["ProductID"];
@@ -3111,6 +3179,8 @@ export type components = {
         readonly ComplianceControl: {
             /** @description Bounded preview of the first 100 evidence identifiers ordered by identifier; use the paged evidence operation for the complete set. */
             readonly evidence_ids: readonly string[];
+            /** @description Present on a control of an AI security framework: the number of findings the caller may read whose rule maps to this control. evidence_ids then holds the first 100 of those findings. A finding is evidence relevant to the control; the count does not say the control is met or failed. */
+            readonly finding_count?: number;
             readonly framework: string;
             /**
              * Format: date-time
@@ -3125,6 +3195,8 @@ export type components = {
             readonly id: string;
             readonly name: string;
         };
+        /** @description A product evidence control (framework-category) or the own identifier of an AI framework control, such as ASI03, LLM01, AML.T0051, GOVERN 1.6, A.6.2.6 or Article 15. */
+        readonly ComplianceControlID: string;
         readonly ComplianceControlPage: {
             readonly items: readonly components["schemas"]["ComplianceControl"][];
             readonly page_info: components["schemas"]["CompliancePageInfo"];
@@ -3196,10 +3268,11 @@ export type components = {
         };
         readonly ComplianceExportID: components["schemas"]["ProductID"];
         readonly ComplianceExportInput: {
-            readonly control_id?: string;
-            /** @enum {string} */
-            readonly framework?: "soc2_security" | "hipaa";
+            readonly control_id?: components["schemas"]["ComplianceControlID"];
+            readonly framework?: components["schemas"]["ComplianceFrameworkID"];
         };
+        /** @enum {string} */
+        readonly ComplianceFrameworkID: "soc2_security" | "hipaa" | "owasp_agentic_top10_2026" | "owasp_llm_top10_2025" | "mitre_atlas" | "nist_ai_rmf_1_0" | "iso_iec_42001_2023" | "eu_ai_act";
         readonly CompliancePageInfo: {
             /** @constant */
             readonly has_more: true;
@@ -3621,6 +3694,11 @@ export type components = {
             /** @enum {string} */
             readonly signature_status: "signed" | "unconfirmed";
         };
+        /**
+         * @description For an agent, active when last_activity_at is within 30 days; inactive when it is older, or when there is none and the provider reports the agent's execution role unused for 90 days (an open agent_role_unused_90_days finding); unknown when there is no activity source at all, which is not the same as inactive. Every other kind is not_applicable.
+         * @enum {string}
+         */
+        readonly InventoryActivityState: "active" | "inactive" | "unknown" | "not_applicable";
         readonly InventoryDetail: {
             readonly evidence: readonly components["schemas"]["InventoryEvidenceReference"][];
             readonly sources: readonly components["schemas"]["InventorySourceObservation"][];
@@ -3681,6 +3759,7 @@ export type components = {
             readonly winning: boolean;
         };
         readonly InventorySummary: {
+            readonly activity_state: components["schemas"]["InventoryActivityState"];
             readonly confidence_basis_points: number;
             readonly discovery: components["schemas"]["InventoryDiscovery"];
             readonly evidence_id: components["schemas"]["ProductID"];
@@ -3691,6 +3770,11 @@ export type components = {
             readonly freshness_state: components["schemas"]["InventoryFreshnessState"];
             readonly id: components["schemas"]["ProductID"];
             readonly kind: components["schemas"]["InventoryKind"];
+            /**
+             * Format: date-time
+             * @description For an agent, the latest time activity is known, from what is recorded without anything installed - the newest runtime event attributed to the agent, or the time of the collection that last saw it call a model or an AI endpoint in the provider's own logs (inside the collector's lookback window, seven days for CloudTrail). Null when there is none, and for every other kind.
+             */
+            readonly last_activity_at: string | null;
             /** Format: date-time */
             readonly last_seen: string;
             readonly management_state: components["schemas"]["InventoryManagementState"];
@@ -3977,10 +4061,20 @@ export type components = {
         };
         readonly Relationship: {
             readonly evidence_id: components["schemas"]["ProductID"];
+            readonly from?: components["schemas"]["RelationshipEnd"];
             readonly from_id: components["schemas"]["ProductID"];
             readonly id: components["schemas"]["ProductID"];
+            readonly to?: components["schemas"]["RelationshipEnd"];
             readonly to_id: components["schemas"]["ProductID"];
             readonly type: string;
+        };
+        /** @description One of the two objects a relationship joins, by name. Present only when the object is active and the caller may read it; an end the caller may not read keeps its identifier (from_id or to_id) and has no such member. For a uses_identity relationship of an agent, "to" is the identity or credential the agent uses. */
+        readonly RelationshipEnd: {
+            readonly kind: components["schemas"]["InventoryKind"];
+            readonly name: string;
+            readonly provider: components["schemas"]["InventoryProvider"];
+            /** @description The provider kind the collector reported, such as aws_role or kubernetes_service_account. */
+            readonly source_kind: string;
         };
         readonly RelationshipPage: {
             readonly items: readonly components["schemas"]["Relationship"][];
@@ -5377,8 +5471,9 @@ export type components = {
         readonly BrowserMutationCSRFToken: string;
         /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
         readonly BrowserMutationOrigin: string;
-        readonly ComplianceControlFilter: string;
-        readonly ComplianceFramework: "soc2_security" | "hipaa";
+        readonly ComplianceControlFilter: components["schemas"]["ComplianceControlID"];
+        /** @description A product evidence framework (soc2_security, hipaa) or an AI security framework. The controls of an AI framework are the framework's own, and the evidence of one is the findings whose rule maps to it. Listing evidence of an AI framework requires control_id. */
+        readonly ComplianceFramework: components["schemas"]["ComplianceFrameworkID"];
         readonly CompliancePageCursor: components["schemas"]["ComplianceCursor"];
         /** @description Quoted current execution-control version, including quoted zero before the first tenant override. */
         readonly ControlVersion: string;
@@ -5412,6 +5507,9 @@ export type components = {
     };
     pathItems: never;
 };
+export type AgentEvidencePack = components['schemas']['AgentEvidencePack'];
+export type AgentEvidencePackResponse = components['schemas']['AgentEvidencePackResponse'];
+export type AgentEvidencePackStatus = components['schemas']['AgentEvidencePackStatus'];
 export type AgentMutation = components['schemas']['AgentMutation'];
 export type AgentOwnershipInput = components['schemas']['AgentOwnershipInput'];
 export type AgentSession = components['schemas']['AgentSession'];
@@ -5464,6 +5562,7 @@ export type CapabilityPage = components['schemas']['CapabilityPage'];
 export type CapabilityState = components['schemas']['CapabilityState'];
 export type CollectionFailureCode = components['schemas']['CollectionFailureCode'];
 export type ComplianceControl = components['schemas']['ComplianceControl'];
+export type ComplianceControlId = components['schemas']['ComplianceControlID'];
 export type ComplianceControlPage = components['schemas']['ComplianceControlPage'];
 export type ComplianceCursor = components['schemas']['ComplianceCursor'];
 export type ComplianceDownloadFormat = components['schemas']['ComplianceDownloadFormat'];
@@ -5476,6 +5575,7 @@ export type ComplianceEvidenceTarget = components['schemas']['ComplianceEvidence
 export type ComplianceExport = components['schemas']['ComplianceExport'];
 export type ComplianceExportId = components['schemas']['ComplianceExportID'];
 export type ComplianceExportInput = components['schemas']['ComplianceExportInput'];
+export type ComplianceFrameworkId = components['schemas']['ComplianceFrameworkID'];
 export type CompliancePageInfo = components['schemas']['CompliancePageInfo'];
 export type ComplianceSourceKind = components['schemas']['ComplianceSourceKind'];
 export type ConnectionDeletion = components['schemas']['ConnectionDeletion'];
@@ -5538,6 +5638,7 @@ export type IntegrationSyncStatus = components['schemas']['IntegrationSyncStatus
 export type IntegrationSyncTriggerKind = components['schemas']['IntegrationSyncTriggerKind'];
 export type IntegrationUpdateInput = components['schemas']['IntegrationUpdateInput'];
 export type IntegrationWebhookTestStatus = components['schemas']['IntegrationWebhookTestStatus'];
+export type InventoryActivityState = components['schemas']['InventoryActivityState'];
 export type InventoryDetail = components['schemas']['InventoryDetail'];
 export type InventoryDiscovery = components['schemas']['InventoryDiscovery'];
 export type InventoryEvidenceReference = components['schemas']['InventoryEvidenceReference'];
@@ -5588,6 +5689,7 @@ export type ReferenceAuthorizationReceiptIntent = components['schemas']['Referen
 export type ReferenceAuthorizationReceiptScope = components['schemas']['ReferenceAuthorizationReceiptScope'];
 export type ReferenceAuthorizationWorkflowMutationReceipt = components['schemas']['ReferenceAuthorizationWorkflowMutationReceipt'];
 export type Relationship = components['schemas']['Relationship'];
+export type RelationshipEnd = components['schemas']['RelationshipEnd'];
 export type RelationshipPage = components['schemas']['RelationshipPage'];
 export type RiskFactor = components['schemas']['RiskFactor'];
 export type RuntimeDecision = components['schemas']['RuntimeDecision'];
@@ -6460,6 +6562,37 @@ export interface operations {
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
+    readonly getAgentEvidencePack: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description json (default) returns the document and its rendering; markdown returns the rendering alone as a download. */
+                readonly format?: "json" | "markdown";
+            };
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description The evidence pack, with Cache-Control no-store. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AgentEvidencePackResponse"];
+                    readonly "text/markdown": string;
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
     readonly getAgentRelationships: {
         readonly parameters: {
             readonly query?: {
@@ -6934,6 +7067,7 @@ export interface operations {
             readonly query?: {
                 readonly control_id?: components["parameters"]["ComplianceControlFilter"];
                 readonly cursor?: components["parameters"]["CompliancePageCursor"];
+                /** @description A product evidence framework (soc2_security, hipaa) or an AI security framework. The controls of an AI framework are the framework's own, and the evidence of one is the findings whose rule maps to it. Listing evidence of an AI framework requires control_id. */
                 readonly framework?: components["parameters"]["ComplianceFramework"];
                 /** @description Maximum number of records to return. */
                 readonly limit?: components["parameters"]["PageLimit"];
@@ -6962,6 +7096,7 @@ export interface operations {
             readonly query?: {
                 readonly control_id?: components["parameters"]["ComplianceControlFilter"];
                 readonly cursor?: components["parameters"]["CompliancePageCursor"];
+                /** @description A product evidence framework (soc2_security, hipaa) or an AI security framework. The controls of an AI framework are the framework's own, and the evidence of one is the findings whose rule maps to it. Listing evidence of an AI framework requires control_id. */
                 readonly framework?: components["parameters"]["ComplianceFramework"];
                 /** @description Maximum number of records to return. */
                 readonly limit?: components["parameters"]["PageLimit"];

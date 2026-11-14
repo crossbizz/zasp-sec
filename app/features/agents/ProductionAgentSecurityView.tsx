@@ -5,8 +5,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { APIClient } from "../../../apps/web/api/client";
 import { APIProductError, APITransportError, createAPIClient, requireAPIData } from "../../../apps/web/api/client";
-import { NOT_AN_AGENT_TAG, decodeAgentMutation, decodeAgentSessionPage, decodeCapabilityPage, decodeHomeSummary, decodeInventoryDetail, decodeInventoryPage, decodeRelationshipPage } from "../../../apps/web/api/decoders";
-import type { AgentMutation, AgentOwnershipInput, AgentSession, Capability, HomeSummary, InventoryDetail, InventorySummary, Relationship } from "../../../apps/web/api/generated";
+import { NOT_AN_AGENT_TAG, decodeAgentEvidencePackResponse, decodeAgentMutation, decodeAgentSessionPage, decodeCapabilityPage, decodeHomeSummary, decodeInventoryDetail, decodeInventoryPage, decodeRelationshipPage } from "../../../apps/web/api/decoders";
+import type { AgentEvidencePackResponse, AgentMutation, AgentOwnershipInput, AgentSession, Capability, HomeSummary, InventoryDetail, InventorySummary, Relationship } from "../../../apps/web/api/generated";
 import { loadAllCursorPages } from "../../../apps/web/api/pagination";
 import { useAPI } from "../../api/APIProvider";
 import { useAPIQuery } from "../../api/query";
@@ -26,6 +26,9 @@ export type ProductionAgentSecurityAPI = {
   listAgentSessions(id: string, signal?: AbortSignal): Promise<readonly AgentSession[]>;
   updateAgent(id: string, expectedVersion: number, input: AgentOwnershipInput, idempotencyKey: string, signal?: AbortSignal): Promise<AgentMutation>;
   getHomeSummary(signal?: AbortSignal): Promise<HomeSummary>;
+  // The evidence pack of one agent for an auditor. Absent where the service
+  // does not offer it; the detail then has no download.
+  getAgentEvidencePack?(id: string, signal?: AbortSignal): Promise<AgentEvidencePackResponse>;
 };
 
 export function createProductionAgentSecurityAPI(client: APIClient = createAPIClient()): ProductionAgentSecurityAPI {
@@ -39,6 +42,7 @@ export function createProductionAgentSecurityAPI(client: APIClient = createAPICl
     async getIdentity(id, signal) { return requireAPIData(await client.GET("/api/v1/identities/{id}", { params: { path: { id } }, signal }), decodeInventoryDetail); },
     async getRuntime(id, signal) { return requireAPIData(await client.GET("/api/v1/runtimes/{id}", { params: { path: { id } }, signal }), decodeInventoryDetail); },
     async getAgentCapabilities(id, signal) { return (await loadAllCursorPages(async (cursor) => requireAPIData(await client.GET("/api/v1/agents/{id}/capabilities", { params: { path: { id }, query: { cursor, limit: 100 } }, signal }), decodeCapabilityPage), inventoryPageBounds)).items; },
+    async getAgentEvidencePack(id, signal) { return requireAPIData(await client.GET("/api/v1/agents/{id}/evidence-pack", { params: { path: { id }, query: { format: "json" } }, signal }), (value) => decodeAgentEvidencePackResponse(value, id)); },
     async getAgentRelationships(id, signal) { return (await loadAllCursorPages(async (cursor) => requireAPIData(await client.GET("/api/v1/agents/{id}/relationships", { params: { path: { id }, query: { cursor, limit: 100 } }, signal }), decodeRelationshipPage), inventoryPageBounds)).items; },
     async listAgentSessions(id, signal) { return (await loadAllCursorPages(async (cursor) => requireAPIData(await client.GET("/api/v1/agents/{id}/sessions", { params: { path: { id }, query: { cursor, limit: 100 } }, signal }), decodeAgentSessionPage), inventoryPageBounds)).items; },
     async updateAgent(id, expectedVersion, input, idempotencyKey, signal) {
@@ -91,7 +95,7 @@ export function ProductionAgentSecurityView({ path, onNavigate, api: suppliedAPI
 const connectedPaths = new Set(["/", "/discovery/assets", "/inventory/tools", "/identities", "/inventory/runtimes"]);
 
 function ConnectedDataView({ data, api, initialDetailID, onNavigate, canWrite }: { data: ConnectedData; api: ProductionAgentSecurityAPI; initialDetailID: string; onNavigate(path: string): void; canWrite: boolean }) {
-  return data.kind === "home" ? <ConnectedHome value={data.value} onNavigate={onNavigate} /> : <ConnectedInventory key={data.category} title={data.title} category={data.category} values={data.values} api={api} initialDetailID={initialDetailID} canWrite={canWrite} />;
+  return data.kind === "home" ? <ConnectedHome value={data.value} onNavigate={onNavigate} /> : <ConnectedInventory key={data.category} title={data.title} category={data.category} values={data.values} api={api} initialDetailID={initialDetailID} canWrite={canWrite} onNavigate={onNavigate} />;
 }
 
 function ConnectedHome({ value, onNavigate }: { value: HomeSummary; onNavigate(path: string): void }) {
@@ -111,17 +115,20 @@ function ConnectedHome({ value, onNavigate }: { value: HomeSummary; onNavigate(p
   </div>;
 }
 
-function ConnectedInventory({ title, category, values, api, initialDetailID, canWrite }: { title: string; category: "agent" | "tool" | "identity" | "runtime"; values: readonly InventorySummary[]; api: ProductionAgentSecurityAPI; initialDetailID: string; canWrite: boolean }) {
+function ConnectedInventory({ title, category, values, api, initialDetailID, canWrite, onNavigate }: { title: string; category: "agent" | "tool" | "identity" | "runtime"; values: readonly InventorySummary[]; api: ProductionAgentSecurityAPI; initialDetailID: string; canWrite: boolean; onNavigate(path: string): void }) {
   const [mutatedRows, setMutatedRows] = useState<Record<string, InventorySummary>>({});
   const rows = values.map((value) => mutatedRows[value.id] && mutatedRows[value.id].version >= value.version ? mutatedRows[value.id] : value);
-  const [requestedFilter, setFilter] = useState<"all" | "unmanaged" | "dismissed">("all");
+  const [requestedFilter, setFilter] = useState<"all" | "unmanaged" | "inactive" | "dismissed">("all");
   const unmanagedCount = rows.filter((row) => row.management_state === "unmanaged").length;
   const dismissedCount = rows.filter((row) => row.management_state === "dismissed").length;
+  // Inactive: no activity signal for 30 days. An agent with no activity
+  // source is unknown and is not counted here.
+  const inactiveCount = rows.filter((row) => row.activity_state === "inactive" && row.management_state !== "dismissed").length;
   // The Dismissed filter exists only while something is dismissed.
   const filter = requestedFilter === "dismissed" && dismissedCount === 0 ? "all" : requestedFilter;
   // A dismissed agent is a recorded false positive: it leaves the agent list
   // and stays reachable under its own filter.
-  const visibleRows = category !== "agent" ? rows : filter === "all" ? rows.filter((row) => row.management_state !== "dismissed") : rows.filter((row) => row.management_state === filter);
+  const visibleRows = category !== "agent" ? rows : filter === "all" ? rows.filter((row) => row.management_state !== "dismissed") : filter === "inactive" ? rows.filter((row) => row.activity_state === "inactive" && row.management_state !== "dismissed") : rows.filter((row) => row.management_state === filter);
   const [selected, setSelected] = useState<InventoryDetail | null>(null);
   const [agentContext, setAgentContext] = useState<AgentContext | null>(null);
   const [detailError, setDetailError] = useState(false);
@@ -132,6 +139,24 @@ function ConnectedInventory({ title, category, values, api, initialDetailID, can
   // The reserved tag is the checkbox's, never the free-text field's.
   const populate = (summary: InventorySummary) => { setOwner(summary.owner); setTeam(summary.team); setTags(summary.tags.filter((tag) => tag !== NOT_AN_AGENT_TAG).join(", ")); setNotAnAgent(summary.tags.includes(NOT_AN_AGENT_TAG)); };
   const [mutationError, setMutationError] = useState("");
+  const [packState, setPackState] = useState<{ agent: string; busy: boolean; error: string; notice: string }>({ agent: "", busy: false, error: "", notice: "" });
+  // The pack is one request; the JSON document and its Markdown rendering are
+  // handed to the browser as two files.
+  const downloadEvidencePack = async (agent: InventorySummary) => {
+    if (!api.getAgentEvidencePack || packState.busy) return;
+    setPackState({ agent: agent.id, busy: true, error: "", notice: "" });
+    try {
+      const response = await api.getAgentEvidencePack(agent.id);
+      const base = `agent-evidence-${agent.name.replace(/[^A-Za-z0-9._-]+/g, "-")}`;
+      saveFile(`${base}.json`, JSON.stringify(response.pack, null, 2), "application/json");
+      saveFile(`${base}.md`, response.markdown, "text/markdown");
+      const sections = [["Findings", response.pack.findings.status], ["Security Agent actions", response.pack.security_agent_runs.status], ["Red team definitions", response.pack.red_team_tests.status], ["Red team results", response.pack.red_team_runs.status]] as const;
+      const incomplete = sections.filter(([, status]) => status !== "complete").map(([name, status]) => `${name}: ${evidencePackStatusLabels[status]}`);
+      setPackState({ agent: agent.id, busy: false, error: "", notice: incomplete.length === 0 ? "Evidence pack downloaded as JSON and Markdown." : `Evidence pack downloaded. Not complete — ${incomplete.join("; ")}.` });
+    } catch (error) {
+      setPackState({ agent: agent.id, busy: false, error: error instanceof APIProductError && error.status === 403 ? "You may not read this agent's evidence." : "The evidence pack could not be generated. Retry.", notice: "" });
+    }
+  };
   const [saving, setSaving] = useState(false);
   const [pending, setPending] = useState<{ id: string; version: number; input: AgentOwnershipInput; key: string } | null>(null);
   const detailRequest = useRef<AbortController | null>(null);
@@ -186,7 +211,17 @@ function ConnectedInventory({ title, category, values, api, initialDetailID, can
       } else setMutationError("The response was interrupted. Retry reuses the exact ownership change.");
     } finally { setSaving(false); }
   };
-  return <div className="page"><PageHeader title={title} description="Authorized canonical inventory." />{detailError && <div role="alert">Inventory detail unavailable</div>}{category === "agent" && rows.length > 0 && <div role="group" aria-label="Agent filter" className="page-actions"><Button aria-pressed={filter === "all"} onClick={() => setFilter("all")}>All agents ({rows.length - dismissedCount})</Button><Button aria-pressed={filter === "unmanaged"} onClick={() => setFilter("unmanaged")}>Unmanaged ({unmanagedCount})</Button>{dismissedCount > 0 && <Button aria-pressed={filter === "dismissed"} onClick={() => setFilter("dismissed")}>Dismissed ({dismissedCount})</Button>}</div>}<Card>{rows.length === 0 ? <p>No records in this scope.</p> : visibleRows.length === 0 ? <p>{filter === "unmanaged" ? "No unmanaged agents in this scope." : "Every agent found in this scope was dismissed."}</p> : <div className="table-scroll"><table className="data-table"><thead><tr><th>Name</th><th>Source</th>{category === "agent" && <th>Found by</th>}{category === "agent" && <th>Status</th>}<th>Owner</th><th>Freshness</th><th>Last seen</th></tr></thead><tbody>{visibleRows.map((item) => <tr key={item.id}><td><button className="row-title" aria-label={`Open ${item.name}`} onClick={() => open(item)}>{item.name}</button></td><td>{sourceLabel(item)}</td>{category === "agent" && <td>{discoveryMethodLabels[item.discovery.method]}</td>}{category === "agent" && <td>{managementStateLabels[item.management_state]}</td>}<td>{item.owner || "Unowned"}</td><td>{item.freshness_state}</td><td>{item.last_seen}</td></tr>)}</tbody></table></div>}</Card>{selected && <Drawer open title={selected.summary.name} closeDisabled={saving} onClose={close}><div className="detail-content"><h3>Canonical record</h3><code>{selected.summary.id}</code><h3>Ownership</h3><p>{selected.summary.owner || "Unowned"} · {selected.summary.team || "No team"}</p>{canWrite && category === "agent" && <section aria-label="Agent ownership controls"><Field label="Owner" value={owner} disabled={saving || pending !== null} maxLength={128} onChange={(event) => setOwner(event.target.value)} /><Field label="Team" value={team} disabled={saving || pending !== null} maxLength={128} onChange={(event) => setTeam(event.target.value)} /><Field label="Tags" hint="Comma-separated, up to 32 tags." value={tags} disabled={saving || pending !== null} maxLength={2078} onChange={(event) => setTags(event.target.value)} />{selected.summary.discovery.method !== "declared" && <div className="checkbox-field"><label><input type="checkbox" checked={notAnAgent} disabled={saving || pending !== null} onChange={(event) => setNotAnAgent(event.target.checked)} /> Not an agent</label><small>Marks this as a false positive and removes it from the agent list. An owner and team are needed so the decision has a name on it.</small></div>}<Button disabled={saving} onClick={() => void save()}>{pending ? "Retry ownership change" : "Save ownership"}</Button></section>}{mutationError && <p role="alert">{mutationError}</p>}<h3>Evidence and freshness</h3><p>{selected.summary.evidence_id} · observed {selected.summary.observed_at} · {selected.summary.freshness_state}</p><h3>How it was found</h3><p>{sourceLabel(selected.summary)} · {discoveryMethodLabels[selected.summary.discovery.method]}{category === "agent" ? ` · ${selected.summary.management_state === "dismissed" ? "Dismissed: marked as not an agent" : selected.summary.management_state === "unmanaged" ? "Unmanaged: no owner has claimed this agent" : "Managed"}` : ""}</p>{selected.summary.discovery.signals.length > 0 && <ul aria-label="Discovery signals">{selected.summary.discovery.signals.map((signal) => <li key={signal}><code>{signal}</code>{signal.startsWith("egress:") ? " — seen at run time: this workload resolved the service's name and connected to it" : signal.startsWith("invoke:") ? " — seen in the provider's audit log: this identity invoked a model" : ""}</li>)}</ul>}{category === "agent" && selected.summary.discovery.signals.length > 0 && <p><Button onClick={() => downloadAIBillOfMaterials(selected.summary)}>Download AI bill of materials</Button></p>}<h3>Source authority</h3><p>{selected.sources.length} source observation{selected.sources.length === 1 ? "" : "s"} · confidence {selected.summary.confidence_basis_points / 100}%</p>{category === "agent" && agentContext && <AgentContextDetail value={agentContext} />}</div></Drawer>}</div>;
+  return <div className="page"><PageHeader title={title} description="Authorized canonical inventory." />{detailError && <div role="alert">Inventory detail unavailable</div>}{category === "agent" && rows.length > 0 && <div role="group" aria-label="Agent filter" className="page-actions"><Button aria-pressed={filter === "all"} onClick={() => setFilter("all")}>All agents ({rows.length - dismissedCount})</Button><Button aria-pressed={filter === "unmanaged"} onClick={() => setFilter("unmanaged")}>Unmanaged ({unmanagedCount})</Button><Button aria-pressed={filter === "inactive"} onClick={() => setFilter("inactive")}>Inactive ({inactiveCount})</Button>{dismissedCount > 0 && <Button aria-pressed={filter === "dismissed"} onClick={() => setFilter("dismissed")}>Dismissed ({dismissedCount})</Button>}</div>}<Card>{rows.length === 0 ? <p>No records in this scope.</p> : visibleRows.length === 0 ? <p>{filter === "unmanaged" ? "No unmanaged agents in this scope." : filter === "inactive" ? "No inactive agents in this scope. An agent with no activity source is reported as unknown, not inactive." : "Every agent found in this scope was dismissed."}</p> : <div className="table-scroll"><table className="data-table"><thead><tr><th>Name</th><th>Source</th>{category === "agent" && <th>Found by</th>}{category === "agent" && <th>Status</th>}{category === "agent" && <th>Activity</th>}<th>Owner</th><th>Freshness</th><th>Last seen</th></tr></thead><tbody>{visibleRows.map((item) => <tr key={item.id}><td><button className="row-title" aria-label={`Open ${item.name}`} onClick={() => open(item)}>{item.name}</button></td><td>{sourceLabel(item)}</td>{category === "agent" && <td>{discoveryMethodLabels[item.discovery.method]}</td>}{category === "agent" && <td>{managementStateLabels[item.management_state]}</td>}{category === "agent" && <td>{activityLabel(item)}</td>}<td>{item.owner || "Unowned"}</td><td>{item.freshness_state}</td><td>{item.last_seen}</td></tr>)}</tbody></table></div>}</Card>{selected && <Drawer open title={selected.summary.name} closeDisabled={saving} onClose={close}><div className="detail-content"><h3>Canonical record</h3><code>{selected.summary.id}</code><h3>Ownership</h3><p>{selected.summary.owner || "Unowned"} · {selected.summary.team || "No team"}</p>{canWrite && category === "agent" && <section aria-label="Agent ownership controls"><Field label="Owner" value={owner} disabled={saving || pending !== null} maxLength={128} onChange={(event) => setOwner(event.target.value)} /><Field label="Team" value={team} disabled={saving || pending !== null} maxLength={128} onChange={(event) => setTeam(event.target.value)} /><Field label="Tags" hint="Comma-separated, up to 32 tags." value={tags} disabled={saving || pending !== null} maxLength={2078} onChange={(event) => setTags(event.target.value)} />{selected.summary.discovery.method !== "declared" && <div className="checkbox-field"><label><input type="checkbox" checked={notAnAgent} disabled={saving || pending !== null} onChange={(event) => setNotAnAgent(event.target.checked)} /> Not an agent</label><small>Marks this as a false positive and removes it from the agent list. An owner and team are needed so the decision has a name on it.</small></div>}<Button disabled={saving} onClick={() => void save()}>{pending ? "Retry ownership change" : "Save ownership"}</Button></section>}{mutationError && <p role="alert">{mutationError}</p>}<h3>Evidence and freshness</h3><p>{selected.summary.evidence_id} · observed {selected.summary.observed_at} · {selected.summary.freshness_state}</p><h3>How it was found</h3><p>{sourceLabel(selected.summary)} · {discoveryMethodLabels[selected.summary.discovery.method]}{category === "agent" ? ` · ${selected.summary.management_state === "dismissed" ? "Dismissed: marked as not an agent" : selected.summary.management_state === "unmanaged" ? "Unmanaged: no owner has claimed this agent" : "Managed"}` : ""}</p>{category === "agent" && <><h3>Activity</h3><p>{activityLabel(selected.summary)}{selected.summary.activity_state === "unknown" ? ". No runtime session or provider log names this agent, so whether it is in use is not known." : selected.summary.activity_state === "inactive" && selected.summary.last_activity_at === null ? ". The provider reports its execution role unused for 90 days." : ""}</p></>}{selected.summary.discovery.signals.length > 0 && <ul aria-label="Discovery signals">{selected.summary.discovery.signals.map((signal) => <li key={signal}><code>{signal}</code>{signal.startsWith("egress:") ? " — seen at run time: this workload resolved the service's name and connected to it" : signal.startsWith("invoke:") ? " — seen in the provider's audit log: this identity invoked a model" : ""}</li>)}</ul>}{category === "agent" && selected.summary.discovery.signals.length > 0 && <p><Button onClick={() => downloadAIBillOfMaterials(selected.summary)}>Download AI bill of materials</Button></p>}{category === "agent" && api.getAgentEvidencePack && <section aria-label="Evidence pack"><h3>Evidence pack</h3><p>One document for an auditor: how this agent was found, its findings with framework references, Security Agent actions with approvals, and red team results. It holds what you can read.</p><Button disabled={packState.busy} onClick={() => void downloadEvidencePack(selected.summary)}>{packState.busy && packState.agent === selected.summary.id ? "Generating evidence pack…" : "Download evidence pack"}</Button>{packState.agent === selected.summary.id && packState.error && <p role="alert">{packState.error}</p>}{packState.agent === selected.summary.id && packState.notice && <p role="status">{packState.notice}</p>}</section>}<h3>Source authority</h3><p>{selected.sources.length} source observation{selected.sources.length === 1 ? "" : "s"} · confidence {selected.summary.confidence_basis_points / 100}%</p>{category === "agent" && agentContext && <AgentContextDetail value={agentContext} agentID={selected.summary.id} onNavigate={onNavigate} />}</div></Drawer>}</div>;
+}
+
+const evidencePackStatusLabels = { complete: "complete", truncated: "more records than the pack holds", not_permitted: "not readable with your access", browser_session_required: "needs a browser session", unavailable: "could not be read" } as const;
+
+function saveFile(name: string, content: string, type: string): void {
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(new Blob([content], { type }));
+  link.download = name;
+  link.click();
+  URL.revokeObjectURL(link.href);
 }
 
 // The document is built in the browser from the summary already on screen.
@@ -200,6 +235,13 @@ function downloadAIBillOfMaterials(agent: InventorySummary): void {
 }
 
 const providerLabels = { aws: "AWS", kubernetes: "Kubernetes", github: "GitHub", okta: "Okta", microsoft: "Microsoft", salesforce: "Salesforce", saas: "SaaS" } as const;
+// Whether the agent is still in use: the state and, when known, the latest
+// time activity was seen.
+function activityLabel(item: InventorySummary): string {
+  const state = { active: "Active", inactive: "Inactive", unknown: "Unknown", not_applicable: "" }[item.activity_state];
+  return item.last_activity_at ? `${state} · last activity ${item.last_activity_at}` : state;
+}
+
 const managementStateLabels = { managed: "Managed", unmanaged: "Unmanaged", dismissed: "Dismissed", not_applicable: "Managed" } as const;
 const discoveryMethodLabels = { declared: "Declared by owner", provider_api: "Provider record", inferred: "Inferred from signals" } as const;
 const platformLabels: Readonly<Record<string, string>> = { bedrock_agent: "Bedrock agent", agentcore_runtime: "AgentCore runtime", lambda_function: "Lambda function", iam_role: "IAM role", ec2_instance: "EC2 instance", kubernetes_workload: "workload", kubernetes_agent: "workload", github_repository: "repository", entra_agent_identity: "Entra agent identity", copilot_studio: "Copilot Studio agent", agentforce: "Agentforce agent" };
@@ -226,9 +268,14 @@ async function loadAgentContext(api: ProductionAgentSecurityAPI, id: string, sig
   return { capabilities, relationships, sessions };
 }
 
-function AgentContextDetail({ value }: { value: AgentContext }) {
+const credentialKindLabels: Readonly<Record<string, string>> = { aws_role: "IAM role", aws_user: "IAM user", kubernetes_service_account: "Kubernetes service account", github_app: "GitHub App", okta_application: "Okta application", entra_service_principal: "Entra service principal" };
+
+function AgentContextDetail({ value, agentID, onNavigate }: { value: AgentContext; agentID: string; onNavigate(path: string): void }) {
   const blocked = value.capabilities.filter((capability) => capability.state === "blocked");
-  return <><h3>Effective capabilities</h3>{value.capabilities.length === 0 ? <p>No capability evidence recorded.</p> : <ul>{value.capabilities.map((capability) => <li key={`${capability.category}/${capability.target_id}/${capability.outcome}`}>{capability.category} · {capability.state} · {capability.outcome} <code>{capability.target_id}</code> · evidence {capability.evidence_ids.map((id) => <code key={id}>{id}</code>)}</li>)}</ul>}<h3>Relationships</h3>{value.relationships.length === 0 ? <p>No Agent relationships recorded.</p> : <ul>{value.relationships.map((relationship) => <li key={relationship.id}>{relationship.type} · <code>{relationship.from_id}</code> → <code>{relationship.to_id}</code> · evidence <code>{relationship.evidence_id}</code></li>)}</ul>}<h3>Sessions</h3>{value.sessions.length === 0 ? <p>No observed sessions.</p> : <ul>{value.sessions.map((session) => <li key={session.id}><code>{session.id}</code> · started {session.started_at}</li>)}</ul>}<h3>Runtime policy coverage</h3><p>{blocked.length === 0 ? "No blocking capability evidence is active." : `${blocked.length} capability ${blocked.length === 1 ? "is" : "are"} covered by active blocking evidence.`}</p></>;
+  // The identities and credentials the agent acts with: its uses_identity
+  // relationships. An identity the caller may not read has no name.
+  const credentials = value.relationships.filter((relationship) => relationship.type === "uses_identity" && relationship.from_id === agentID);
+  return <><h3>Identities and credentials</h3>{credentials.length === 0 ? <p>No identity or credential is recorded for this agent.</p> : <ul aria-label="Identities and credentials">{credentials.map((relationship) => <li key={relationship.id}>{relationship.to ? <><a href={`/identities?inventory=${relationship.to_id}`} aria-label={`Open identity ${relationship.to.name}`} onClick={(event) => { event.preventDefault(); onNavigate(`/identities?inventory=${relationship.to_id}`); }}>{relationship.to.name}</a> · {credentialKindLabels[relationship.to.source_kind] ?? relationship.to.source_kind.replaceAll("_", " ")} · {providerLabels[relationship.to.provider]}</> : <><code>{relationship.to_id}</code> · not readable with your access</>} · evidence <code>{relationship.evidence_id}</code></li>)}</ul>}<h3>Effective capabilities</h3>{value.capabilities.length === 0 ? <p>No capability evidence recorded.</p> : <ul>{value.capabilities.map((capability) => <li key={`${capability.category}/${capability.target_id}/${capability.outcome}`}>{capability.category} · {capability.state} · {capability.outcome} <code>{capability.target_id}</code> · evidence {capability.evidence_ids.map((id) => <code key={id}>{id}</code>)}</li>)}</ul>}<h3>Relationships</h3>{value.relationships.length === 0 ? <p>No Agent relationships recorded.</p> : <ul>{value.relationships.map((relationship) => <li key={relationship.id}>{relationship.type} · {relationship.from ? relationship.from.name : <code>{relationship.from_id}</code>} → {relationship.to ? relationship.to.name : <code>{relationship.to_id}</code>} · evidence <code>{relationship.evidence_id}</code></li>)}</ul>}<h3>Sessions</h3>{value.sessions.length === 0 ? <p>No observed sessions.</p> : <ul>{value.sessions.map((session) => <li key={session.id}><code>{session.id}</code> · started {session.started_at}</li>)}</ul>}<h3>Runtime policy coverage</h3><p>{blocked.length === 0 ? "No blocking capability evidence is active." : `${blocked.length} capability ${blocked.length === 1 ? "is" : "are"} covered by active blocking evidence.`}</p></>;
 }
 
 const PRODUCT_ID = /^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
