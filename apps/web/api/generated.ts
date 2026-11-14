@@ -3342,7 +3342,9 @@ export type components = {
             readonly status: "pending" | "completed" | "failed";
         };
         readonly ComplianceExportID: components["schemas"]["ProductID"];
+        /** @description What the export captures - the controls of a framework (or one control; every control when both are omitted), or, with agent_id alone, the evidence pack of one agent. An agent export retains how the agent was found, its findings with framework references, the Security Agent runs on those findings that the export worker can read (runs owned by the Temporal executor are not included; the synchronous evidence pack reads them) and the red team definitions and runs that target it. Its JSON format is the pack, its CSV format lists every record and its readable format is the Markdown rendering. */
         readonly ComplianceExportInput: {
+            readonly agent_id?: components["schemas"]["ProductID"];
             readonly control_id?: components["schemas"]["ComplianceControlID"];
             readonly framework?: components["schemas"]["ComplianceFrameworkID"];
         };
@@ -3922,7 +3924,7 @@ export type components = {
             readonly kind: components["schemas"]["InventoryKind"];
             /**
              * Format: date-time
-             * @description For an agent, the latest time activity is known, from what is recorded without anything installed - the newest runtime event attributed to the agent, or the time of the collection that last saw it call a model or an AI endpoint in the provider's own logs (inside the collector's lookback window, seven days for CloudTrail). Null when there is none, and for every other kind.
+             * @description For an agent, the latest time activity is known, from what is recorded without anything installed - the newest runtime event attributed to the agent; for an AWS agent the newest time CloudTrail shows its role invoking a model inside the collector's seven-day window (to the hour); or, where the provider's logs showed activity but no event time was recorded (network logs, or an invocation without a recorded time), the time of that collection. Null when there is none, and for every other kind.
              */
             readonly last_activity_at: string | null;
             /** Format: date-time */

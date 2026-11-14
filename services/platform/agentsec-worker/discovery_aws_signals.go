@@ -93,11 +93,15 @@ func classifyDiscoveryAWSSignalFailure(ctx context.Context, err error) (string, 
 }
 
 // collectDiscoveryAWSInvokers returns, per role ARN of the account, the
-// invoke signals CloudTrail shows for it in one region.
-func collectDiscoveryAWSInvokers(ctx context.Context, api discoveryAWSCloudTrailAPI, accountID string, now time.Time) (map[string][]string, string, error) {
+// invoke signals CloudTrail shows for it in one region, and the time of the
+// newest invocation it shows for that role. The time is the event time
+// CloudTrail records, inside the lookup window; an event without one, or with
+// one outside the window, gives the role its signal and no time.
+func collectDiscoveryAWSInvokers(ctx context.Context, api discoveryAWSCloudTrailAPI, accountID string, now time.Time) (map[string][]string, map[string]time.Time, string, error) {
 	status := awsdiscovery.AgentServiceCollected
 	start := now.Add(-discoveryAWSInvocationWindow)
 	evidence := map[string]*agentsignals.Evidence{}
+	latest := map[string]time.Time{}
 	for _, name := range discoveryAWSInvocationEvents {
 		var token *string
 		for page := 0; page < maximumAWSInvocationPages; page++ {
@@ -108,12 +112,12 @@ func collectDiscoveryAWSInvokers(ctx context.Context, api discoveryAWSCloudTrail
 			if err != nil {
 				classified, failure := classifyDiscoveryAWSSignalFailure(ctx, err)
 				if failure != nil {
-					return nil, "", failure
+					return nil, nil, "", failure
 				}
-				return nil, classified, nil
+				return nil, nil, classified, nil
 			}
 			if output == nil {
-				return nil, awsdiscovery.AgentServiceUnavailable, nil
+				return nil, nil, awsdiscovery.AgentServiceUnavailable, nil
 			}
 			for _, event := range output.Events {
 				role := discoveryAWSInvokerRole(aws.ToString(event.CloudTrailEvent), accountID)
@@ -124,6 +128,9 @@ func collectDiscoveryAWSInvokers(ctx context.Context, api discoveryAWSCloudTrail
 					evidence[role] = &agentsignals.Evidence{}
 				}
 				evidence[role].Invoked(name)
+				if event.EventTime != nil && !event.EventTime.Before(start) && !event.EventTime.After(now) && event.EventTime.After(latest[role]) {
+					latest[role] = event.EventTime.UTC()
+				}
 			}
 			if !nextDiscoveryAWSAgentToken(token, output.NextToken) {
 				break
@@ -135,7 +142,7 @@ func collectDiscoveryAWSInvokers(ctx context.Context, api discoveryAWSCloudTrail
 	for role, found := range evidence {
 		invokers[role] = found.Signals()
 	}
-	return invokers, status, nil
+	return invokers, latest, status, nil
 }
 
 // discoveryAWSInvokerRole reads the role that made a recorded call. Only the

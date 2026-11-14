@@ -301,7 +301,7 @@ describe("M1-23 strict OpenAPI root", () => {
     );
     assert.equal(
       packageJSON.scripts["openapi:test"],
-      "node --test openapi/openapi.test.mjs openapi/internal-health.test.mjs openapi/generated-client.test.mjs openapi/identity-admin.test.mjs",
+      "node --test openapi/openapi.test.mjs openapi/internal-health.test.mjs openapi/generated-client.test.mjs openapi/identity-admin.test.mjs openapi/agent-security-parity.test.mjs",
     );
     assert.equal(
       packageJSON.scripts.verify,

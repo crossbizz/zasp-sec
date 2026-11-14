@@ -80,7 +80,7 @@ func (h *complianceHTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 			writeComplianceError(w, r, ErrComplianceForbidden)
 			return
 		}
-		object, valid := complianceClosedObject(body, []string{"framework", "control_id"})
+		object, valid := complianceClosedObject(body, []string{"framework", "control_id", "agent_id"})
 		var input ComplianceExportRequest
 		if !valid || decodeStrictDiscovery(body, &input) != nil || !complianceFilterFields(object) || len(r.Header.Values("Idempotency-Key")) != 1 {
 			writeComplianceError(w, r, ErrRepositoryOperation)

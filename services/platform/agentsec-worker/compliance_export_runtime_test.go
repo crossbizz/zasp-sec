@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+	"github.com/zasp-ai/zasp-sec/services/platform/evidencepack"
+	"github.com/zasp-ai/zasp-sec/services/platform/evidencepack/evidencepacktest"
 	"strings"
 	"testing"
 	"time"
@@ -129,5 +131,46 @@ func TestComplianceRuntimeRendersAnAIFramework(t *testing.T) {
 	}
 	if _, err = renderComplianceExportPackage(context.Background(), l, []byte(strings.ReplaceAll(string(raw), "nist_ai_rmf_1_0", "nist_csf_2_0"))); err == nil {
 		t.Fatal("an unknown framework was rendered")
+	}
+}
+
+// An export that names one agent renders its evidence pack: the pack as the
+// JSON format, its records as CSV and its Markdown rendering as the readable
+// format. A pack next to controls, or a malformed pack, is refused.
+func TestComplianceRuntimeRendersAnAgentEvidencePack(t *testing.T) {
+	l := complianceRuntimeLease(t)
+	snapshot := func(controls string, pack json.RawMessage) json.RawMessage {
+		return json.RawMessage(`{"mapping_revision":"product-evidence-v1","snapshot_at":"2026-11-14T09:00:00Z","organization_id":"` + l.Scope.OrganizationID().String() + `","workspace_id":"` + l.Scope.WorkspaceID().String() + `","environment_id":"` + l.Scope.EnvironmentID().String() + `","controls":` + controls + `,"agent_evidence_pack":` + string(pack) + `}`)
+	}
+	p, err := renderComplianceExportPackage(context.Background(), l, snapshot("[]", evidencepacktest.Pack()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var envelope struct {
+		Version int             `json:"version"`
+		ID      string          `json:"id"`
+		JSON    json.RawMessage `json:"json"`
+		CSV     string          `json:"csv"`
+		Human   string          `json:"human"`
+	}
+	if json.Unmarshal(p.Bytes, &envelope) != nil || envelope.Version != 1 || envelope.ID != l.ExportID || p.RendererRevision != "compliance-envelope-v1" || p.FormatSizes["json"] < 1 || p.FormatSizes["csv"] != int64(len(envelope.CSV)) || p.FormatSizes["readable"] != int64(len(envelope.Human)) {
+		t.Fatalf("bad pack package %s", p.Bytes)
+	}
+	if pack, err := evidencepack.Decode(envelope.JSON); err != nil || pack.Agent.Summary.ID != evidencepacktest.Agent || !strings.Contains(envelope.Human, "# Agent evidence pack: Support &lt;agent&gt;") || !strings.Contains(envelope.Human, "- Captured: 2026-11-14T09:00:00Z") || !strings.Contains(envelope.CSV, "finding,"+evidencepacktest.Finding) {
+		t.Fatalf("rendered pack: %v\n%s", err, envelope.Human)
+	}
+	control := `[{"framework":"soc2_security","control_id":"soc2_security-policies","label":"Policy definitions","required_sources":["policy"],"maximum_age_seconds":86400,"records":[]}]`
+	for name, raw := range map[string]json.RawMessage{
+		"a pack next to controls": snapshot(control, evidencepacktest.Pack()),
+		"a malformed pack":        snapshot("[]", json.RawMessage(strings.Replace(string(evidencepacktest.Pack()), `"kind":"agent"`, `"kind":"tool"`, 1))),
+		"an empty pack":           snapshot("[]", json.RawMessage(`{}`)),
+	} {
+		if _, err := renderComplianceExportPackage(context.Background(), l, raw); err == nil {
+			t.Errorf("%s was rendered", name)
+		}
+	}
+	// An export without a pack still needs a control.
+	if _, err := renderComplianceExportPackage(context.Background(), l, json.RawMessage(strings.Replace(string(snapshot("[]", json.RawMessage(`null`))), `,"agent_evidence_pack":null`, ``, 1))); err == nil {
+		t.Fatal("an export with neither controls nor a pack was rendered")
 	}
 }
