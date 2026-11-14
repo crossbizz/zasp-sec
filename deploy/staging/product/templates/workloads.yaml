@@ -86,6 +86,10 @@ spec:
             - { name: ZASP_REQUEST_RATE_PER_SECOND, value: "100" }
             - { name: ZASP_REQUEST_BURST, value: "200" }
             - { name: ZASP_REQUEST_TIMEOUT, value: "10s" }
+            {{- if $root.Values.hostedGateway.enabled }}
+            - { name: ZASP_HOSTED_GATEWAY_ENABLED, value: "true" }
+            - { name: ZASP_HOSTED_GATEWAY_TIMEOUT, value: "{{ int (required "hostedGateway.timeoutSeconds is required" $root.Values.hostedGateway.timeoutSeconds) }}s" }
+            {{- end }}
             - { name: ZASP_EXPECTED_SCHEMA_VERSION, value: {{ $root.Values.schema.expectedVersion | quote }} }
             - { name: ZASP_DATABASE_AUTHORITY, value: "zasp_discovery_api" }
             {{- if and $root.Values.attackLabReconciler.enabled (has (toString $root.Values.schema.expectedVersion) (list "57" "58")) }}

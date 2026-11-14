@@ -232,6 +232,44 @@ spec:
         - ipBlock: { cidr: {{ $cidr | quote }} }
       {{- end }}
       ports: [{ protocol: TCP, port: 443 }]
+{{- if .Values.hostedGateway.enabled }}
+{{- /*
+  The hosted gateway forwards an agent's MCP and model traffic from the API
+  pods to model providers and to customers' remote MCP servers, on port 443
+  only. Those addresses are not known in advance, so the admitted ranges are
+  the operator's (usually the whole internet) with the non-public ranges
+  carved out of each. The gateway's own client refuses every address that is
+  not public at each connection; this policy is the network's copy of that
+  rule, not its only enforcement.
+*/}}
+{{- $gatewayEgress := required "hostedGateway.egressCIDRs is required when hostedGateway.enabled is set" .Values.hostedGateway.egressCIDRs }}
+{{- if not $gatewayEgress }}{{ fail "hostedGateway.egressCIDRs is required when hostedGateway.enabled is set" }}{{ end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: api-hosted-gateway-egress
+  labels: { app.kubernetes.io/part-of: zasp }
+  annotations:
+    zasp.io/network-policy-boundary: native-cidr-snapshot
+    zasp.io/endpoint-groups: model-providers,customer-remote-mcp-servers
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-api } }
+  policyTypes: [Egress]
+  egress:
+    - to:
+      {{- range $cidr := $gatewayEgress }}
+        - ipBlock:
+            cidr: {{ $cidr | quote }}
+            {{- if eq $cidr "0.0.0.0/0" }}
+            except:
+            {{- range $except := $.Values.hostedGateway.egressExceptCIDRs }}
+              - {{ $except | quote }}
+            {{- end }}
+            {{- end }}
+      {{- end }}
+      ports: [{ protocol: TCP, port: 443 }]
+{{- end }}
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
