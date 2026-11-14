@@ -489,10 +489,16 @@ func (handler *connectorHTTPHandler) callback(writer http.ResponseWriter, reques
 		writeProductionError(writer, request, ErrRepositoryUnavailable)
 		return
 	}
-	if _, err := handler.repository.CompleteConnectorCleanup(request.Context(), identity.Scope, effectID); err != nil {
+	if _, err := handler.repository.CompleteConnectorCleanup(request.Context(), identity.Scope, effectID); err != nil && !errors.Is(err, ErrAuthorizationChanged) {
 		writeProductionError(writer, request, err)
 		return
 	}
+	// The connection is recorded. Recording it made the integration active,
+	// which moves the Organization's authorization revision, so under current
+	// authorization this request's proof no longer admits the bookkeeping
+	// statement above. Nothing is lost: the effect stays durable as
+	// cleanup_pending and the reconciler completes it under its own lease. The
+	// person is returned to the product either way.
 	http.Redirect(writer, request, consumption.ReturnPath, http.StatusSeeOther)
 }
 

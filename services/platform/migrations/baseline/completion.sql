@@ -6861,3 +6861,298 @@ END $guardrail_decide_permission$;
 ALTER FUNCTION zasp_authorization80.guardrail_decide(text,text,text,text,jsonb) OWNER TO zasp_discovery_authority;
 REVOKE ALL ON FUNCTION zasp_authorization80.guardrail_decide(text,text,text,text,jsonb) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION zasp_authorization80.guardrail_decide(text,text,text,text,jsonb) TO zasp_discovery_api;
+
+-- ---------------------------------------------------------------------------
+-- WS10a. Browser authorization of an OAuth connector on the installed
+-- baseline (workstream WS10).
+--
+-- A person connects GitHub, Okta or a Nango connector (Slack) from the
+-- Integrations page: POST /integrations/{id}/authorize answers the provider's
+-- authorization address, the provider sends the browser back to
+-- GET /integrations/oauth/callback, and a quarantined outcome is cleared with
+-- POST /integrations/{id}/authorization-remediation. All three were refused on
+-- an installed baseline: their statements are the connector chain's functions
+-- (zasp_connector_start_oauth and the others), which take no request
+-- authorization, are on no statement allow-list of the API server, and on
+-- which the API login holds no EXECUTE.
+--
+-- This section adds one zasp_authorization80 function per statement of those
+-- three operations. Each one:
+--   * works only inside the fenced transaction of a checked request of an
+--     API session (product_request: the proof's scope, principal, operation,
+--     the manage_workflows permission, a browser session);
+--   * for authorizeIntegration and remediateIntegrationAuthorization requires
+--     fresh authentication and the integration of the request path as an
+--     allowed object, and refuses any other integration;
+--   * for completeIntegrationOAuthCallback, whose path names no object,
+--     requires the Environment as the allowed object and binds the statement
+--     to an authorization attempt that the same person started from the same
+--     browser session (the attempt's session digest is the digest of the
+--     proof's credential);
+--   * then calls the chain function unchanged, so the chain's own rules
+--     (state taken once, version and configuration unchanged, effect ledger,
+--     audit) still decide the outcome.
+--
+-- The chain functions keep their grants: the API login still cannot call them
+-- directly, and the reconciler keeps its lease-bound statements. Nothing is
+-- granted outside a checked request. The section is re-runnable: every
+-- function is created or replaced.
+DO $ws10_connector_oauth$
+DECLARE owner_value text;signature text;d text;
+ remediation CONSTANT regprocedure:='public.zasp_connector_remediate_quarantine(text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)'::regprocedure;
+ remediation_name CONSTANT text:='FUNCTION public.zasp_connector_remediate_quarantine(';
+ chain_writer CONSTANT text:='zasp_workflow_mutate(';
+BEGIN
+ SELECT pg_get_userbyid(proowner) INTO STRICT owner_value FROM pg_proc
+  WHERE oid='public.zasp_connector_start_oauth(text,text,text,text,text,text,text,bytea,bytea,text,bytea,jsonb,timestamptz,bigint,jsonb,text,text)'::regprocedure;
+
+ -- The request of a connector statement. operations are the operations the
+ -- statement belongs to; integration_value is its integration, required for
+ -- every operation but the callback.
+ CREATE OR REPLACE FUNCTION zasp_authorization80.connector_request(o text,w text,e text,actor text,operations text[],integration_value text) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $request$
+ DECLARE p jsonb:=zasp_authorization80.context();op text;
+ BEGIN
+  op:=p->>'operation_id';
+  IF p IS NULL OR actor IS NULL OR NOT COALESCE(op=ANY(operations),false) THEN
+   RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';
+  END IF;
+  IF op='completeIntegrationOAuthCallback' THEN
+   RETURN zasp_authorization80.product_request(o,w,e,actor,op,'manage_workflows','environment',e,false,true,false,true);
+  END IF;
+  IF op NOT IN('authorizeIntegration','remediateIntegrationAuthorization') OR NOT COALESCE(public.zasp_valid_product_id(integration_value),false) THEN
+   RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';
+  END IF;
+  RETURN zasp_authorization80.product_request(o,w,e,actor,op,'manage_workflows','integration',integration_value,true,true,true,true);
+ END $request$;
+
+ -- An authorization attempt this person started from this browser session.
+ CREATE OR REPLACE FUNCTION zasp_authorization80.connector_attempt_owned(o text,w text,e text,actor text,p jsonb,attempt_value text) RETURNS boolean
+ LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO pg_catalog, public AS $owned$
+  SELECT EXISTS(SELECT 1 FROM public.zasp_connector_oauth_attempts a
+   WHERE (a.organization_id,a.workspace_id,a.environment_id,a.id)=(o,w,e,attempt_value) AND a.principal_id=actor AND a.session_digest=decode(p->>'credential_digest','hex'))
+ $owned$;
+
+ -- The request of a statement that names a connector effect. Before the
+ -- provider answers the effect belongs to the integration of the request
+ -- path; in the callback it belongs to an attempt of this person and session.
+ CREATE OR REPLACE FUNCTION zasp_authorization80.connector_effect_request(o text,w text,e text,actor text,operations text[],effect_value text) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $effect$
+ DECLARE p jsonb:=zasp_authorization80.context();effect_integration text;effect_attempt text;
+ BEGIN
+  SELECT f.integration_id,f.oauth_attempt_id INTO effect_integration,effect_attempt FROM public.zasp_connector_effects f
+   WHERE (f.organization_id,f.workspace_id,f.environment_id,f.id)=(o,w,e,effect_value);
+  IF p->>'operation_id'='completeIntegrationOAuthCallback' THEN
+   p:=zasp_authorization80.connector_request(o,w,e,actor,operations,NULL);
+   IF effect_attempt IS NULL OR NOT zasp_authorization80.connector_attempt_owned(o,w,e,actor,p,effect_attempt) THEN
+    RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';
+   END IF;
+  ELSE
+   p:=zasp_authorization80.connector_request(o,w,e,actor,operations,p#>>'{path_parameters,id}');
+   IF effect_integration IS DISTINCT FROM p#>>'{path_parameters,id}' THEN
+    RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';
+   END IF;
+  END IF;
+  RETURN p;
+ END $effect$;
+
+ -- The integration an authorization is asked for (the request path), or the
+ -- integration of the attempt the callback has taken.
+ CREATE OR REPLACE FUNCTION zasp_authorization80.connector_integration(o text,w text,e text,actor text,integration_value text) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $integration$
+ DECLARE p jsonb:=zasp_authorization80.context();result jsonb;
+ BEGIN
+  IF p->>'operation_id'='completeIntegrationOAuthCallback' THEN
+   p:=zasp_authorization80.connector_request(o,w,e,actor,ARRAY['completeIntegrationOAuthCallback'],NULL);
+   IF NOT EXISTS(SELECT 1 FROM public.zasp_connector_oauth_attempts a
+    WHERE (a.organization_id,a.workspace_id,a.environment_id,a.integration_id)=(o,w,e,integration_value) AND a.principal_id=actor
+     AND a.session_digest=decode(p->>'credential_digest','hex') AND a.status='consuming') THEN
+    RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';
+   END IF;
+  ELSE
+   p:=zasp_authorization80.connector_request(o,w,e,actor,ARRAY['authorizeIntegration','remediateIntegrationAuthorization'],integration_value);
+  END IF;
+  SELECT jsonb_build_object('body',r.body,'version',r.version,'secret_generation',r.secret_generation) INTO result FROM public.zasp_workflow_records r
+   WHERE (r.organization_id,r.workspace_id,r.environment_id,r.kind,r.id)=(o,w,e,'integration',integration_value) AND r.deleted_at IS NULL;
+  IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='integration unavailable';END IF;
+  PERFORM zasp_authorization80.product_settled(p);
+  RETURN result;
+ END $integration$;
+
+ CREATE OR REPLACE FUNCTION zasp_authorization80.connector_stage_pkce_cleanup(o text,w text,e text,actor text,effect_value text,integration_value text,attempt_value text,provider_value text,reference_value text,request_value bytea,available_value timestamptz,reason_value text) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $stage$
+ DECLARE p jsonb;result jsonb;
+ BEGIN
+  p:=zasp_authorization80.connector_request(o,w,e,actor,ARRAY['authorizeIntegration'],integration_value);
+  result:=public.zasp_connector_stage_pkce_cleanup(o,w,e,effect_value,integration_value,attempt_value,provider_value,reference_value,request_value,available_value,reason_value);
+  PERFORM zasp_authorization80.product_settled(p);
+  RETURN result;
+ END $stage$;
+
+ CREATE OR REPLACE FUNCTION zasp_authorization80.connector_activate_pkce_cleanup(o text,w text,e text,actor text,effect_value text) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $activate$
+ DECLARE p jsonb;result jsonb;
+ BEGIN
+  p:=zasp_authorization80.connector_effect_request(o,w,e,actor,ARRAY['authorizeIntegration','completeIntegrationOAuthCallback'],effect_value);
+  result:=public.zasp_connector_activate_pkce_cleanup(o,w,e,effect_value);
+  PERFORM zasp_authorization80.product_settled(p);
+  RETURN result;
+ END $activate$;
+
+ -- The attempt is recorded for the proof's principal and for the browser
+ -- session of the proof's credential, and for no other.
+ CREATE OR REPLACE FUNCTION zasp_authorization80.connector_start_oauth(o text,w text,e text,actor text,attempt_value text,integration_value text,provider_value text,session_value bytea,state_value bytea,pkce_reference_value text,request_value bytea,scopes_value jsonb,expires_value timestamptz,integration_version_value bigint,configuration_value jsonb,cleanup_value text,authorize_value text) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $start$
+ DECLARE p jsonb;result jsonb;
+ BEGIN
+  p:=zasp_authorization80.connector_request(o,w,e,actor,ARRAY['authorizeIntegration'],integration_value);
+  IF session_value IS DISTINCT FROM decode(p->>'credential_digest','hex') THEN
+   RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';
+  END IF;
+  result:=public.zasp_connector_start_oauth(o,w,e,attempt_value,integration_value,provider_value,actor,session_value,state_value,pkce_reference_value,request_value,scopes_value,expires_value,integration_version_value,configuration_value,cleanup_value,authorize_value);
+  PERFORM zasp_authorization80.product_settled(p);
+  RETURN result;
+ END $start$;
+
+ CREATE OR REPLACE FUNCTION zasp_authorization80.connector_consume_oauth(o text,w text,e text,actor text,state_value bytea,session_value bytea) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $consume$
+ DECLARE p jsonb;result jsonb;
+ BEGIN
+  p:=zasp_authorization80.connector_request(o,w,e,actor,ARRAY['completeIntegrationOAuthCallback'],NULL);
+  IF session_value IS DISTINCT FROM decode(p->>'credential_digest','hex') THEN
+   RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';
+  END IF;
+  result:=public.zasp_connector_consume_oauth(o,w,e,state_value,actor,session_value);
+  PERFORM zasp_authorization80.product_settled(p);
+  RETURN result;
+ END $consume$;
+
+ CREATE OR REPLACE FUNCTION zasp_authorization80.connector_complete_pkce_cleanup(o text,w text,e text,actor text,effect_value text) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $pkce$
+ DECLARE p jsonb;result jsonb;
+ BEGIN
+  p:=zasp_authorization80.connector_effect_request(o,w,e,actor,ARRAY['completeIntegrationOAuthCallback'],effect_value);
+  result:=public.zasp_connector_complete_pkce_cleanup(o,w,e,effect_value,'','');
+  PERFORM zasp_authorization80.product_settled(p);
+  RETURN result;
+ END $pkce$;
+
+ CREATE OR REPLACE FUNCTION zasp_authorization80.connector_resolve_effect(o text,w text,e text,actor text,effect_value text,status_value text,reference_value text,metadata_value jsonb,error_value text) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $resolve$
+ DECLARE p jsonb;result jsonb;
+ BEGIN
+  p:=zasp_authorization80.connector_effect_request(o,w,e,actor,ARRAY['completeIntegrationOAuthCallback'],effect_value);
+  result:=public.zasp_connector_resolve_effect(o,w,e,effect_value,status_value,reference_value,metadata_value,error_value);
+  PERFORM zasp_authorization80.product_settled(p);
+  RETURN result;
+ END $resolve$;
+
+ CREATE OR REPLACE FUNCTION zasp_authorization80.connector_complete_oauth(o text,w text,e text,actor text,attempt_value text,effect_value text,connection_value text,reference_value text,subject_value text,credential_value text,class_value text,metadata_value jsonb,completion_value bytea) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $complete$
+ DECLARE p jsonb;result jsonb;
+ BEGIN
+  p:=zasp_authorization80.connector_request(o,w,e,actor,ARRAY['completeIntegrationOAuthCallback'],NULL);
+  IF NOT zasp_authorization80.connector_attempt_owned(o,w,e,actor,p,attempt_value) THEN
+   RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';
+  END IF;
+  result:=public.zasp_connector_complete_oauth(o,w,e,attempt_value,effect_value,connection_value,reference_value,subject_value,credential_value,class_value,metadata_value,completion_value);
+  PERFORM zasp_authorization80.product_settled(p);
+  RETURN result;
+ END $complete$;
+
+ CREATE OR REPLACE FUNCTION zasp_authorization80.connector_complete_cleanup(o text,w text,e text,actor text,effect_value text) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $cleanup$
+ DECLARE p jsonb;result jsonb;
+ BEGIN
+  p:=zasp_authorization80.connector_effect_request(o,w,e,actor,ARRAY['completeIntegrationOAuthCallback'],effect_value);
+  result:=public.zasp_connector_complete_cleanup(o,w,e,effect_value);
+  PERFORM zasp_authorization80.product_settled(p);
+  RETURN result;
+ END $cleanup$;
+
+ -- Remediation of a quarantined connector effect of the integration of the
+ -- request path: the effect to clear, a replay of the same request, and the
+ -- acknowledged remediation.
+ CREATE OR REPLACE FUNCTION zasp_authorization80.connector_quarantine(o text,w text,e text,actor text,integration_value text) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $quarantine$
+ DECLARE p jsonb;result jsonb;
+ BEGIN
+  p:=zasp_authorization80.connector_request(o,w,e,actor,ARRAY['remediateIntegrationAuthorization'],integration_value);
+  result:=public.zasp_connector_get_quarantine(o,w,e,integration_value);
+  PERFORM zasp_authorization80.product_settled(p);
+  RETURN result;
+ END $quarantine$;
+
+ CREATE OR REPLACE FUNCTION zasp_authorization80.connector_quarantine_replay(o text,w text,e text,actor text,k text,intent_value jsonb) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $replay$
+ DECLARE p jsonb;result jsonb;
+ BEGIN
+  IF k IS NULL OR k!~'^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$' OR jsonb_typeof(intent_value) IS DISTINCT FROM 'object' OR octet_length(intent_value::text)>65536 THEN
+   RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='invalid workflow replay';
+  END IF;
+  p:=zasp_authorization80.connector_request(o,w,e,actor,ARRAY['remediateIntegrationAuthorization'],intent_value->>'resource_id');
+  result:=public.zasp_workflow_replay(o,w,e,actor,'remediateIntegrationAuthorization',k,intent_value);
+  PERFORM zasp_authorization80.product_settled(p);
+  RETURN result;
+ END $replay$;
+
+ CREATE OR REPLACE FUNCTION zasp_authorization80.connector_remediate_quarantine(o text,w text,e text,actor text,effect_value text,integration_value text,acknowledgement_value text,k text,expected_version_value bigint,intent_value jsonb,body_value jsonb,audit_value text,correlation_value text,receipt_value text) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $remediate$
+ DECLARE p jsonb;result jsonb;
+ BEGIN
+  p:=zasp_authorization80.connector_request(o,w,e,actor,ARRAY['remediateIntegrationAuthorization'],integration_value);
+  IF intent_value->>'resource_id' IS DISTINCT FROM integration_value THEN
+   RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='current product authorization required';
+  END IF;
+  result:=zasp_authorization80.connector_remediate_quarantine_write(o,w,e,effect_value,integration_value,actor,acknowledgement_value,k,expected_version_value,intent_value,body_value,audit_value,correlation_value,receipt_value);
+  PERFORM zasp_authorization80.product_settled(p);
+  RETURN result;
+ END $remediate$;
+
+ -- The chain's remediation writes the integration with zasp_workflow_mutate,
+ -- the writer of the release before current authorization, which refuses on
+ -- this catalog. connector_remediate_quarantine_write is the chain function
+ -- with the current receipt-backed writer of an integration in its place and
+ -- nothing else changed. It is derived from the installed text each time the
+ -- section runs, and a predecessor that no longer calls the chain writer
+ -- exactly twice is refused.
+ d:=pg_get_functiondef(remediation);
+ IF position(remediation_name in d)=0 OR (length(d)-length(replace(d,chain_writer,'')))<>2*length(chain_writer) THEN
+  RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='connector remediation predecessor changed';
+ END IF;
+ EXECUTE replace(replace(d,remediation_name,'FUNCTION zasp_authorization80.connector_remediate_quarantine_write('),chain_writer,'zasp_authorization80.integration_receipt_mutate(');
+
+ -- The three request helpers and the remediation writer are internal; the
+ -- API role is granted the twelve statements.
+ FOREACH signature IN ARRAY ARRAY[
+  'connector_request(text,text,text,text,text[],text)',
+  'connector_attempt_owned(text,text,text,text,jsonb,text)',
+  'connector_effect_request(text,text,text,text,text[],text)',
+  'connector_remediate_quarantine_write(text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)',
+  'connector_integration(text,text,text,text,text)',
+  'connector_stage_pkce_cleanup(text,text,text,text,text,text,text,text,text,bytea,timestamptz,text)',
+  'connector_activate_pkce_cleanup(text,text,text,text,text)',
+  'connector_start_oauth(text,text,text,text,text,text,text,bytea,bytea,text,bytea,jsonb,timestamptz,bigint,jsonb,text,text)',
+  'connector_consume_oauth(text,text,text,text,bytea,bytea)',
+  'connector_complete_pkce_cleanup(text,text,text,text,text)',
+  'connector_resolve_effect(text,text,text,text,text,text,text,jsonb,text)',
+  'connector_complete_oauth(text,text,text,text,text,text,text,text,text,text,text,jsonb,bytea)',
+  'connector_complete_cleanup(text,text,text,text,text)',
+  'connector_quarantine(text,text,text,text,text)',
+  'connector_quarantine_replay(text,text,text,text,text,jsonb)',
+  'connector_remediate_quarantine(text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)'] LOOP
+  EXECUTE format('ALTER FUNCTION zasp_authorization80.%s OWNER TO %I',signature,owner_value);
+  EXECUTE format('REVOKE ALL ON FUNCTION zasp_authorization80.%s FROM PUBLIC',signature);
+  IF signature NOT LIKE 'connector\_request(%' AND signature NOT LIKE 'connector\_attempt\_owned(%' AND signature NOT LIKE 'connector\_effect\_request(%' AND signature NOT LIKE 'connector\_remediate\_quarantine\_write(%' THEN
+   EXECUTE format('GRANT EXECUTE ON FUNCTION zasp_authorization80.%s TO zasp_discovery_api',signature);
+  END IF;
+ END LOOP;
+
+ -- The reconciler of the API server finishes a recorded connection whose
+ -- bookkeeping the callback could not complete (the effect is cleanup_pending).
+ -- Its statement is bound to the lease the reconciler claimed, like the other
+ -- reconciliation functions the API role already holds, but this one was
+ -- granted to the discovery worker only, so the API server's reconciler was
+ -- refused and the effect stayed open until it was quarantined.
+ GRANT EXECUTE ON FUNCTION public.zasp_connector_complete_cleanup(text,text,text,text,text,text) TO zasp_discovery_api;
+END $ws10_connector_oauth$;

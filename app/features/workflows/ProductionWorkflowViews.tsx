@@ -1025,7 +1025,7 @@ const SAAS_SIGN_IN_FAILURE_CODE = /^[a-z][a-z0-9_]{1,63}$/;
 type SaaSSignInReturn = { readonly kind: "connected"; readonly integrationID: string; readonly connectionID: string } | { readonly kind: "failed"; readonly integrationID: string; readonly code: string };
 
 // The address the API sends the browser back to after a saas sign-in:
-// /integrations?saas_sign_in=<integration>&saas_connection=<connection id>,
+// /connectors?saas_sign_in=<integration>&saas_connection=<connection id>,
 // or &saas_sign_in_error=<code>. Anything else is not a sign-in return.
 function readSaaSSignInReturn(): SaaSSignInReturn | null {
   if (typeof window === "undefined") return null;

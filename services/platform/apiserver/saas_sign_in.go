@@ -39,8 +39,11 @@ const (
 	postgresSaaSSignInConsumeSQL     = `SELECT zasp_authorization80.saas_sign_in_consume($1,$2,$3,$4,$5,$6)`
 	postgresSaaSSignInFinishSQL      = `SELECT zasp_authorization80.saas_sign_in_finish($1,$2,$3,$4,$5,$6,$7)`
 
-	// saasSignInReturnPath is where the browser is sent after the callback.
-	saasSignInReturnPath = "/integrations"
+	// saasSignInReturnPath is where the browser is sent after the callback: the
+	// Integrations page of the product, whose route is /connectors. The web
+	// application rewrites an address that is not one of its routes to "/", so
+	// a return to any other path would lose the sign-in.
+	saasSignInReturnPath = "/connectors"
 )
 
 // ErrSaaSSignInTenantMismatch: the person signed in to another tenant than
