@@ -123,6 +123,8 @@ type SecurityAgentRunRequest struct {
 	AuditID, CorrelationID, ReceiptID                           string
 	TriggerVersion                                              *int64
 	TriggerSource                                               *string
+	// Remediation is set for a provider remediation run.
+	Remediation *SecurityAgentRunRemediation
 }
 
 type SecurityAgentRunResult struct {
@@ -400,6 +402,17 @@ func validSecurityAgentExecutionControls(value SecurityAgentExecutionControls) b
 	if len(value.Actions) == 3 {
 		return validSecurityAgentExecutionControl(value.Actions[0], "action", "create_temporary_policy", true) && validSecurityAgentExecutionControl(value.Actions[1], "action", "revoke_integration_connection", true) && validSecurityAgentExecutionControl(value.Actions[2], "action", "update_finding_response", true)
 	}
+	if len(value.Actions) == len(securityAgentExecutionControlActions) {
+		for index, action := range securityAgentExecutionControlActions {
+			if !validSecurityAgentExecutionControl(value.Actions[index], "action", action, true) {
+				return false
+			}
+			if action == "create_evidence_export" && value.Actions[index].Version == 0 && value.Actions[index].Enabled {
+				return false
+			}
+		}
+		return true
+	}
 	if len(value.Actions) == 6 || len(value.Actions) == 7 || len(value.Actions) == 8 {
 		keys := []string{"create_temporary_policy", "isolate_session", "rerun_test", "revoke_integration_connection", "run_test"}
 		if len(value.Actions) >= 7 {
@@ -452,7 +465,7 @@ func (handler *securityAgentPublicHTTPHandler) setExecutionControl(writer http.R
 	}
 	now := handler.config.Clock().UTC()
 	validTarget := func() bool {
-		return input.Target == "environment" && input.ActionKey == "*" || input.Target == "action" && stringIn(input.ActionKey, "create_evidence_export", "create_temporary_policy", "isolate_session", "rerun_test", "revoke_integration_connection", "run_test", "start_attack_lab", "update_finding_response")
+		return input.Target == "environment" && input.ActionKey == "*" || input.Target == "action" && stringIn(input.ActionKey, securityAgentExecutionControlActions...)
 	}
 	if !ok || request.Method != http.MethodPut || request.URL.RawQuery != "" || identity.CredentialKind != CredentialBrowserSession || !identity.FreshAuthenticated || !validSecurityAgentFreshAuthentication(now, identity.FreshAuthExpiresAt) || !exactHeaderValue(request.Header.Values("X-Zasp-Fresh-Auth"), "confirmed") || !headersOK || decodeProductionJSON(request, &input) != nil || !validTarget() {
 		if ok && (identity.CredentialKind != CredentialBrowserSession || !identity.FreshAuthenticated || identity.FreshAuthExpiresAt.IsZero() || !identity.FreshAuthExpiresAt.After(now)) {
@@ -803,13 +816,21 @@ func (handler *securityAgentPublicHTTPHandler) run(writer http.ResponseWriter, r
 		writeProductionError(writer, request, ErrRepositoryOperation)
 		return
 	}
-	ids, valid := handler.newDistinctIDs(3, correlationIDFromContext(request.Context()))
+	ids, valid := handler.newDistinctIDs(4, correlationIDFromContext(request.Context()))
 	if !valid {
 		writeProductionError(writer, request, ErrRepositoryUnavailable)
 		return
 	}
-	result, err := handler.repository.RunSecurityAgent(request.Context(), identity, SecurityAgentRunRequest{DefinitionID: definitionID, IdempotencyKey: idempotencyKey, ExpectedVersion: expectedVersion, RunID: ids[0], TriggerKind: input.TriggerKind, TriggerID: input.TriggerID, TriggerVersion: input.TriggerVersion, TriggerSource: input.TriggerSource, AuditID: ids[1], CorrelationID: correlationIDFromContext(request.Context()), ReceiptID: ids[2]})
+	runRequest := SecurityAgentRunRequest{DefinitionID: definitionID, IdempotencyKey: idempotencyKey, ExpectedVersion: expectedVersion, RunID: ids[0], TriggerKind: input.TriggerKind, TriggerID: input.TriggerID, TriggerVersion: input.TriggerVersion, TriggerSource: input.TriggerSource, AuditID: ids[1], CorrelationID: correlationIDFromContext(request.Context()), ReceiptID: ids[2]}
+	if input.Remediation != nil {
+		runRequest.Remediation = &SecurityAgentRunRemediation{Action: input.Remediation.Action, Parameters: input.Remediation.Parameters, ApprovalID: ids[3]}
+	}
+	result, err := handler.repository.RunSecurityAgent(request.Context(), identity, runRequest)
 	if err != nil {
+		if status, code, message, named := securityAgentRemediationErrorResponse(err); named {
+			writeProductionStatusError(writer, request, status, code, message, false)
+			return
+		}
 		if errors.Is(err, ErrRepositoryAuthorization) {
 			writeProductionStatusError(writer, request, http.StatusForbidden, "authorization_rejected", "Authorization rejected", false)
 			return
@@ -856,7 +877,9 @@ func (handler *securityAgentPublicHTTPHandler) decideApproval(writer http.Respon
 			writeProductionError(writer, request, ErrRepositoryUnavailable)
 			return
 		}
-		if approval.ExpectedEffect == "Revoke integration connection" && !stringIn("manage_identity", identity.Permissions...) {
+		// A destructive change to a provider needs an identity administrator;
+		// PostgreSQL enforces the same rule on the decision itself.
+		if stringIn(approval.ExpectedEffect, "Revoke integration connection", "Detach administrator policy from agent role") && !stringIn("manage_identity", identity.Permissions...) {
 			writeWorkflowMutationError(writer, request, ErrRepositoryAuthorization)
 			return
 		}

@@ -452,6 +452,11 @@ func (repository *PostgresRepository) RunSecurityAgent(ctx context.Context, iden
 			return repository.runSecurityAgentCurrent(ctx, identity, input)
 		}
 	}
+	// A provider remediation exists only under current authorization: its
+	// admission verifies the proofs of the Security Agent and of the finding.
+	if input.Remediation != nil {
+		return SecurityAgentRunResult{}, ErrRepositoryOperation
+	}
 	if input.TriggerKind == "manual" {
 		if input.TriggerVersion != nil || input.TriggerSource != nil {
 			return SecurityAgentRunResult{}, ErrRepositoryOperation
@@ -837,6 +842,9 @@ func validSecurityAgentApproval(value SecurityAgentApproval) bool {
 // Public callers must use validSecurityAgentApproval, which also requires it.
 func validSecurityAgentApprovalShape(value SecurityAgentApproval) bool {
 	validEffect := stringIn(value.ExpectedEffect, "Move finding to under review", findingResponseApprovalEffect) && value.TTLSeconds == 0 && value.Reversible || stringIn(value.ExpectedEffect, "Apply temporary containment policy", "Apply temporary monitoring policy") && value.TTLSeconds >= 60 && value.TTLSeconds <= 3600 && value.Reversible || value.ExpectedEffect == "Isolate runtime session" && value.TTLSeconds >= 60 && value.TTLSeconds <= 3600 && value.Reversible || value.ExpectedEffect == "Revoke integration connection" && value.TTLSeconds == 0 && !value.Reversible || stringIn(value.ExpectedEffect, "Run existing test", "Rerun existing test") && value.TTLSeconds == 0 && !value.Reversible
+	for _, remediation := range securityagent.ProviderRemediations() {
+		validEffect = validEffect || value.ExpectedEffect == remediation.ExpectedEffect && value.TTLSeconds == 0 && value.Reversible == remediation.Reversible
+	}
 	if value.ExpectedEffect == "Create run-scoped evidence export" {
 		validEffect = value.TTLSeconds == 0 && value.Reversible
 	}
@@ -900,6 +908,12 @@ func validSecurityAgentRunDetail(value SecurityAgentRunDetail, runID string) boo
 		}
 		if action == "start_attack_lab" {
 			if approval.ExpectedEffect != "Run a bounded Attack Lab reproduction; human interpretation required" || len(approval.AttackLab) == 0 || approval.TTLSeconds != 0 || approval.Reversible {
+				return false
+			}
+			continue
+		}
+		if remediation, provider := securityagent.ProviderRemediationByAction(action); provider {
+			if approval.ExpectedEffect != remediation.ExpectedEffect || approval.TTLSeconds != 0 || approval.Reversible != remediation.Reversible {
 				return false
 			}
 			continue

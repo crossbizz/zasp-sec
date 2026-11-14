@@ -3968,7 +3968,8 @@ END $webhook_grants$;
 -- Existing function bodies this section changes, each by one inserted branch
 -- or list member and nothing else: zasp_security_agent_approval_value_v24,
 -- zasp_security_agent_decide_approval_v24, zasp_security_agent_execute_run_v24,
--- zasp_security_agent_run_context_v54, and the two action lists of the
+-- zasp_production_security_agent_existing_tests_run_context_core and its
+-- predecessor zasp_security_agent_run_context_v54, and the action lists of the
 -- execution controls (zasp_authorization80.security_agent_execution_controls,
 -- security_agent_set_execution_control, zasp_sa_export_prior.definition_control_core).
 
@@ -4436,23 +4437,29 @@ BEGIN
 END $provider_remediation_worker_privileges$;
 
 -- The run context names the arguments of each step from a closed list and
--- refuses an action it does not know. The two remediations join the list;
--- their arguments are the target, the integration and the validated
--- parameters, which hold identifiers only.
+-- refuses an action it does not know. The two remediations join the list of
+-- the reader the API uses (the existing-tests release's core) and of its
+-- predecessor; their arguments are the target, the integration and the
+-- validated parameters, which hold identifiers only.
 DO $provider_remediation_run_context_patch$
-DECLARE target CONSTANT regprocedure:='public.zasp_security_agent_run_context_v54(text,text,text,text)'::regprocedure;
- list_anchor CONSTANT text:=$anchor$IF action_value NOT IN('update_finding_response','create_temporary_policy','isolate_session','revoke_integration_connection') THEN$anchor$;
- list_value CONSTANT text:=$value$IF action_value NOT IN('update_finding_response','create_temporary_policy','isolate_session','revoke_integration_connection','attach_bedrock_guardrail','detach_role_administrator_policy') THEN$value$;
- case_anchor CONSTANT text:=$anchor$     WHEN 'revoke_integration_connection' THEN jsonb_build_object('target_id',planned_step->'target_id','integration_id',planned_step->'integration_id') END;$anchor$;
+DECLARE item record;d text;
+ list_anchor CONSTANT text:=$anchor$IF action_value NOT IN('update_finding_response','create_temporary_policy','isolate_session','revoke_integration_connection'$anchor$;
+ list_value CONSTANT text:=$value$IF action_value NOT IN('update_finding_response','create_temporary_policy','isolate_session','revoke_integration_connection','attach_bedrock_guardrail','detach_role_administrator_policy'$value$;
+ case_anchor CONSTANT text:=$anchor$     WHEN 'revoke_integration_connection' THEN jsonb_build_object('target_id',planned_step->'target_id','integration_id',planned_step->'integration_id')$anchor$;
  case_value CONSTANT text:=$value$     WHEN 'revoke_integration_connection' THEN jsonb_build_object('target_id',planned_step->'target_id','integration_id',planned_step->'integration_id')
      WHEN 'attach_bedrock_guardrail' THEN jsonb_build_object('target_id',planned_step->'target_id','integration_id',planned_step->'integration_id','guardrail_identifier',planned_step->'parameters'->'guardrail_identifier','guardrail_version',planned_step->'parameters'->'guardrail_version')
-     WHEN 'detach_role_administrator_policy' THEN jsonb_build_object('target_id',planned_step->'target_id','integration_id',planned_step->'integration_id','policy_arn',planned_step->'parameters'->'policy_arn') END;$value$;
- d text:=pg_get_functiondef(target);
+     WHEN 'detach_role_administrator_policy' THEN jsonb_build_object('target_id',planned_step->'target_id','integration_id',planned_step->'integration_id','policy_arn',planned_step->'parameters'->'policy_arn')$value$;
 BEGIN
- IF position(list_value in d)=0 OR position(case_value in d)=0 THEN
-  IF position('attach_bedrock_guardrail' in d)>0 OR length(d)-length(replace(d,list_anchor,''))<>length(list_anchor) OR length(d)-length(replace(d,case_anchor,''))<>length(case_anchor) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='security agent run context predecessor changed';END IF;
-  EXECUTE replace(replace(d,list_anchor,list_value),case_anchor,case_value);
- END IF;
+ FOR item IN SELECT * FROM(VALUES
+  ('public.zasp_production_security_agent_existing_tests_run_context_core(text,text,text,text)'::regprocedure),
+  ('public.zasp_security_agent_run_context_v54(text,text,text,text)'::regprocedure)
+ ) v(target) LOOP
+  d:=pg_get_functiondef(item.target);
+  IF position(list_value in d)=0 OR position(case_value in d)=0 THEN
+   IF position('attach_bedrock_guardrail' in d)>0 OR length(d)-length(replace(d,list_anchor,''))<>length(list_anchor) OR length(d)-length(replace(d,case_anchor,''))<>length(case_anchor) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='security agent run context predecessor changed',DETAIL=item.target::text;END IF;
+   EXECUTE replace(replace(d,list_anchor,list_value),case_anchor,case_value);
+  END IF;
+ END LOOP;
 END $provider_remediation_run_context_patch$;
 
 -- The execution controls list one switch per action and accept a change for
