@@ -9,6 +9,7 @@ import { useAPI } from "../../api/APIProvider";
 import { useAPIQuery } from "../../api/query";
 import { useOptionalSession, useSession } from "../../auth/SessionProvider";
 import { Badge, Button, Card, EmptyState, Field, LoadingState, Modal, PageHeader } from "../../components/ui";
+import { IntegrationRemediationRole } from "./IntegrationRemediationRole";
 import { createIntegrationsAPI, createPoliciesAPI, IntegrationDiscoveryConflict, IntegrationRevocationPending, ReferenceAuthorizationConflict, type Versioned, type WorkflowReceipt } from "./api";
 import { useRetainedWorkflowMutation } from "./useRetainedWorkflowMutation";
 
@@ -704,6 +705,7 @@ export function ProductionIntegrationsView({ canWrite, navigateAuthorization = d
                   : "Provider authorization controls are unavailable for this connector."}
             </p>
             {selectedManifest && <IntegrationSetupGuide manifest={selectedManifest} integration={visibleSelected.value} freshness={freshness} setupStatus={setupStatus} webhookStatus={webhookStatus} onNavigate={navigate} />}
+            {visibleSelected.value.connector_key === "aws" && <IntegrationRemediationRole key={visibleSelected.value.id} integrationID={visibleSelected.value.id} canWrite={canWrite} />}
             {selected?.value.connector_key === "generic-webhook" && <section aria-label="Webhook delivery" className="form-stack">
               <h3>Webhook delivery</h3>
               <p>Uses the saved HTTPS destination and signing secret. Save configuration changes before testing. Receivers must verify the HMAC-SHA256 signature and deduplicate the delivery ID.</p>

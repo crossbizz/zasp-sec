@@ -248,10 +248,10 @@ screens:
         availability: available
       - id: view_integration_remediation_role
         operation_id: getIntegrationRemediationRole
-        availability: api_available
+        availability: available
       - id: set_integration_remediation_role
         operation_id: putIntegrationRemediationRole
-        availability: api_available
+        availability: available
       - id: test_integration_webhook
         operation_id: testIntegrationWebhook
         availability: available
@@ -560,10 +560,10 @@ screens:
         availability: api_available
       - id: view_guardrail_policy
         operation_id: getGuardrailPolicy
-        availability: api_available
+        availability: available
       - id: set_guardrail_policy
         operation_id: putGuardrailPolicy
-        availability: api_available
+        availability: available
   - id: data_controls
     label: Data Controls
     actions:

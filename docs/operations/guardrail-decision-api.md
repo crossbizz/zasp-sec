@@ -78,6 +78,8 @@ Errors: `400` malformed request, `401` token missing, expired or revoked, `403` 
 
 Each Environment has a guardrail policy: for every rule, one of `block`, `redact`, `monitor` (report the match, change nothing) or `off`. Only the sensitive-data rules can be set to `redact`; an injection rule has no span that could be removed. A rule the policy does not name has its default mode.
 
+In the product the policy is on the Guardrails page (Protect, Guardrails): every rule with its mode, saved as a whole against the version the page loaded, so two people editing at once cannot overwrite each other silently. Reading needs `view`; saving needs `manage_workflows`. The same over the API, with a token that holds those permissions (not the gateway's `decide_guardrails` token, which cannot read the policy):
+
 ```sh
 # Read: every rule with its mode and description. The ETag is the version.
 curl -sS "$API/api/v1/guardrails/policy" -H "Authorization: Bearer $TOKEN"

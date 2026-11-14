@@ -8,6 +8,7 @@ import { SessionProvider, useSession, type SessionContextValue } from "../auth/S
 import { AdminOperationsView } from "../features/administration/AdminOperationsView";
 import { AuditExportSaveNotice } from "../features/administration/AuditExportPanel";
 import { ProductionAgentSecurityView } from "../features/agents/ProductionAgentSecurityView";
+import { ProductionGuardrailsView } from "../features/guardrails/ProductionGuardrailsView";
 import { APIAccessView } from "../features/identity/APIAccessView";
 import { IdentityAPIProvider } from "../features/identity/IdentityAPIProvider";
 import { IdentityAccessView } from "../features/identity/IdentityAccessView";
@@ -39,6 +40,7 @@ const productionRoutes = [
   { path: "/red-team/results", label: "Red Team", capability: "red-team.read" },
   { path: "/test/attack-lab", label: "Attack Lab", capability: "red-team.read" },
   { path: "/policies", label: "Policies", capability: "policies.read" },
+  { path: "/protect/guardrails", label: "Guardrails", capability: "policies.read" },
   { path: "/connectors", label: "Integrations", capability: "integrations.read" },
   { path: "/integrations/sensors", label: "Sensors", capability: "sensors.read" },
   { path: "/protect/security-agents", label: "Security agents", capability: "security-agents.read" },
@@ -80,6 +82,7 @@ function ProductionRouteSurface({ path, location, navigate }: { path: string; lo
   if (path === "/red-team/results") return <ProductionRedTeamView selectedID={selected?.kind === "test_run" ? selected.id : undefined} scopeKey={`${session.principal.id}/${session.organizationID}/${session.workspaceID}/${session.environmentID}`} canWrite={session.hasCapability("red-team.write")} onNavigate={navigate} />;
   if (path === "/test/attack-lab") return <ProductionAttackLabView key={`${session.principal.id}/${queryGeneration}`} canWrite={session.hasCapability("red-team.write")} selectedID={selected?.kind === "attack_lab_run" ? selected.id : undefined} />;
   if (path === "/policies") return <ProductionPoliciesView canWrite={session.hasCapability("policies.write")} />;
+  if (path === "/protect/guardrails") return <ProductionGuardrailsView key={`${session.principal.id}/${session.organizationID}/${session.workspaceID}/${session.environmentID}/${queryGeneration}`} canWrite={session.hasCapability("policies.write")} onNavigate={navigate} />;
   if (path === "/connectors") return <ProductionIntegrationsView canWrite={session.hasCapability("integrations.write")} navigate={navigate} />;
   if (path === "/integrations/sensors") return <ProductionSensorSurface canWrite={session.hasCapability("sensors.write")} fresh={session.isFreshAuthenticated} onReauthenticate={session.reauthenticate} />;
   if (path === "/protect/security-agents") return <ProductionSecurityAgentsView environmentID={session.environmentID} selectedID={selected?.id} onNavigate={navigate} />;

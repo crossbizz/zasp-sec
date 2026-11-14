@@ -525,7 +525,7 @@ In the customer account, create a second role, for example `zasp-remediation`:
 
   `bedrock:GetAgent` reads the agent before and after the change. `bedrock:UpdateAgent` attaches the guardrail; the call sends the agent's whole configuration back unchanged except for the guardrail. `bedrock:PrepareAgent` prepares the working draft afterwards. `iam:ListAttachedRolePolicies` proves the policy is attached before anything is detached and proves it is gone afterwards. `iam:GetPolicy` and `iam:GetPolicyVersion` read the default version of the policy document before anything is detached: the policy is detached only when a statement of it allows `*` on `*` (the test discovery applies when it raises the finding), or when it is the AWS managed `AdministratorAccess` policy, which is recognised by its ARN and not read. `iam:DetachRolePolicy` detaches it. Narrow the `Resource` values to the agents and execution roles you want the product to be able to change. `UpdateAgent` names the agent's execution role again; AWS documents that passing a role to a service needs `iam:PassRole` on that role (with `iam:PassedToService` `bedrock.amazonaws.com`). Whether `UpdateAgent` needs it when the role does not change has not been verified against a live account: if the first guardrail attachment ends as `provider_access_denied`, add that statement.
 
-Then, per integration, name the role:
+Then, per integration, name the role. In the product: Integrations, open the AWS integration, Remediation role; enter the role's ARN and save (it also lists the permissions above and removes the setting again). Over the API:
 
 ```sh
 curl -sS -X PUT "$API/api/v1/integrations/$INTEGRATION_ID/remediation-role" \

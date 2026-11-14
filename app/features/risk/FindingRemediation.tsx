@@ -38,7 +38,7 @@ export type FindingRemediationAPI = Readonly<{
 function failure(error: unknown): string {
   const record = error as { code?: unknown; product?: { code?: unknown } } | null;
   const code = record && typeof record.product?.code === "string" ? record.product.code : record && typeof record.code === "string" ? record.code : "";
-  if (code === "remediation_role_not_configured") return "The AWS integration that describes this agent has no remediation role. Set one on the integration (PUT /api/v1/integrations/{id}/remediation-role); the role discovery reads with is never used to make changes.";
+  if (code === "remediation_role_not_configured") return "The AWS integration that describes this agent has no remediation role. Open the integration under Integrations and set one under Remediation role; the role discovery reads with is never used to make changes.";
   if (code === "remediation_already_requested") return "This Security Agent already has a remediation run for this version of the finding. Open Security Agents to see it.";
   if (code === "remediation_target_unsupported") return "This finding is not on an agent this action can change. A guardrail is attached to a Bedrock agent; a policy is detached from the role an AWS integration recorded for the agent.";
   if (code === "remediation_integration_unavailable") return "The agent is not described by an active AWS integration of its own account.";
