@@ -21,7 +21,7 @@ Plan and detail: `docs/superpowers/plans/2026-11-14-automatic-agent-discovery.md
 - [ ] Provider groundwork: `microsoft` and `salesforce` in the collection contract, kinds, rule catalog, search allow-list
 - [ ] Provider plumbing: credentials, connector catalog, worker registration, SQL constraints, OpenAPI and web enums, deployment egress
 - [ ] Microsoft collector: Entra agent identities, AI enterprise applications, Copilot Studio agents (Dataverse)
-- [ ] Salesforce collector: Agentforce agents
+- [x] Salesforce collector: Agentforce agents (tested with a fake org; object names unverified)
 - [ ] Show AI service permission gaps on the integration detail
 - [ ] Dismiss a false positive ("not an agent")
 - [ ] Unknown `agent_id` on telemetry surfaced as a candidate
