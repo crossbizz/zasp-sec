@@ -7324,3 +7324,143 @@ BEGIN
  GRANT EXECUTE ON FUNCTION public.zasp_saas_connection_release_claim(text,integer,integer) TO zasp_discovery_api;
  GRANT EXECUTE ON FUNCTION public.zasp_saas_connection_release_finish(text,text,text,text,text,text,boolean,text) TO zasp_discovery_api;
 END $ws10_saas_connection_release$;
+
+-- ---------------------------------------------------------------------------
+-- WS10c. How long an API token may live (workstream WS10).
+--
+-- The API Access page created every token for 24 hours, which is too short
+-- for a gateway that calls the guardrail decision API from its configuration.
+-- The API itself accepted any expiry up to a year for any token, and the
+-- database any expiry at all. A token's lifetime is now chosen when it is
+-- created, the default stays 24 hours, and the longest lifetime is decided
+-- here, where every token is written:
+--
+--   * a token that holds decide_guardrails and nothing else may live 365
+--     days. It can ask for guardrail decisions and can read nothing, so a
+--     leaked one exposes no inventory, finding or setting;
+--   * every other token may live 90 days. It reads the Environment, and with
+--     a manage permission changes it, for as long as it exists;
+--   * the administrators of an Environment may lower both limits for it with
+--     one number of days (zasp_api_token_policies, 1 to 365; no row means
+--     365, which lowers nothing). A lower limit applies to tokens created
+--     afterwards; existing tokens keep their expiry and can be revoked.
+--
+-- Nothing else about a token changes: it is still checked on every request
+-- against its owner's membership and scope, revoking it takes effect at once,
+-- and a rotation keeps the expiry of the token it replaces, so rotating never
+-- extends a lifetime.
+--
+-- create_pat gains one condition next to its existing expiry check (five
+-- minutes of clock difference between the API server and the database are
+-- allowed). The setting is read and written by getAPITokenPolicy and
+-- putAPITokenPolicy, browser operations of manage_api_tokens; writing needs
+-- fresh authentication and is audited.
+CREATE TABLE IF NOT EXISTS public.zasp_api_token_policies(
+ organization_id text NOT NULL,
+ workspace_id text NOT NULL,
+ environment_id text NOT NULL,
+ max_lifetime_days integer NOT NULL,
+ version bigint NOT NULL DEFAULT 1,
+ updated_by text NOT NULL,
+ updated_at timestamptz NOT NULL DEFAULT transaction_timestamp(),
+ PRIMARY KEY(organization_id,workspace_id,environment_id),
+ CONSTRAINT zasp_api_token_policies_days_check CHECK(max_lifetime_days BETWEEN 1 AND 365),
+ CONSTRAINT zasp_api_token_policies_version_check CHECK(version>0),
+ CONSTRAINT zasp_api_token_policies_updated_by_check CHECK(length(updated_by) BETWEEN 1 AND 128)
+);
+
+DO $ws10_api_token_policy_table$
+BEGIN
+ ALTER TABLE public.zasp_api_token_policies OWNER TO zasp_discovery_authority;
+ ALTER TABLE public.zasp_api_token_policies ENABLE ROW LEVEL SECURITY;
+ ALTER TABLE public.zasp_api_token_policies FORCE ROW LEVEL SECURITY;
+ REVOKE ALL ON TABLE public.zasp_api_token_policies FROM PUBLIC;
+ IF NOT EXISTS(SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='zasp_api_token_policies' AND policyname='zasp_api_token_policies_authority') THEN
+  CREATE POLICY zasp_api_token_policies_authority ON public.zasp_api_token_policies FOR ALL TO zasp_discovery_authority USING(true) WITH CHECK(true);
+ END IF;
+END $ws10_api_token_policy_table$;
+
+-- The longest lifetime, in days, of a token with these permissions in this
+-- Environment.
+CREATE OR REPLACE FUNCTION zasp_authorization80.api_token_max_lifetime_days(o text,w text,e text,permissions_value jsonb) RETURNS integer
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $api_token_max_lifetime_days$
+ SELECT LEAST(CASE WHEN permissions_value='["decide_guardrails"]'::jsonb THEN 365 ELSE 90 END,
+  COALESCE((SELECT p.max_lifetime_days FROM public.zasp_api_token_policies p WHERE(p.organization_id,p.workspace_id,p.environment_id)=(o,w,e)),365))
+$api_token_max_lifetime_days$;
+
+CREATE OR REPLACE FUNCTION zasp_authorization80.api_token_policy_value(o text,w text,e text) RETURNS jsonb
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $api_token_policy_value$
+ SELECT jsonb_build_object('environment_id',x.id,'max_lifetime_days',COALESCE(p.max_lifetime_days,365),'version',COALESCE(p.version,0),
+  'updated_at',CASE WHEN p.updated_at IS NULL THEN NULL ELSE to_char(p.updated_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') END,
+  'default_lifetime_days',1,
+  'decision_token_max_lifetime_days',zasp_authorization80.api_token_max_lifetime_days(o,w,e,'["decide_guardrails"]'::jsonb),
+  'token_max_lifetime_days',zasp_authorization80.api_token_max_lifetime_days(o,w,e,'["view"]'::jsonb))
+ FROM public.zasp_environments x LEFT JOIN public.zasp_api_token_policies p ON(p.organization_id,p.workspace_id,p.environment_id)=(x.organization_id,x.workspace_id,x.id)
+ WHERE(x.organization_id,x.workspace_id,x.id)=(o,w,e)
+$api_token_policy_value$;
+
+CREATE OR REPLACE FUNCTION zasp_authorization80.api_token_policy(o text,w text,e text) RETURNS jsonb
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $api_token_policy$
+DECLARE result jsonb;
+BEGIN
+ PERFORM zasp_authorization80.product_request(o,w,e,NULL,'getAPITokenPolicy','manage_api_tokens','environment',e,false,true,false,false);
+ result:=zasp_authorization80.api_token_policy_value(o,w,e);
+ IF result IS NULL THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='environment not found';END IF;
+ RETURN result;
+END $api_token_policy$;
+
+CREATE OR REPLACE FUNCTION zasp_authorization80.api_token_policy_write(o text,w text,e text,actor text,days_value integer,expected_version bigint,audit_value text,correlation_value text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $api_token_policy_write$
+DECLARE current_version bigint;
+BEGIN
+ IF NOT COALESCE(public.zasp_valid_product_id(actor) AND public.zasp_valid_product_id(audit_value) AND public.zasp_valid_product_id(correlation_value) AND expected_version BETWEEN 0 AND 1000000
+  AND days_value BETWEEN 1 AND 365,false)
+ THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='api token policy rejected';END IF;
+ PERFORM 1 FROM public.zasp_environments x WHERE(x.organization_id,x.workspace_id,x.id)=(o,w,e) FOR SHARE;
+ IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='environment not found';END IF;
+ PERFORM pg_advisory_xact_lock(hashtextextended(concat_ws(chr(31),'api-token-policy',o,w,e),0));
+ SELECT p.version INTO current_version FROM public.zasp_api_token_policies p WHERE(p.organization_id,p.workspace_id,p.environment_id)=(o,w,e) FOR UPDATE;
+ IF COALESCE(current_version,0)<>expected_version THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='api token policy version conflict';END IF;
+ INSERT INTO public.zasp_api_token_policies(organization_id,workspace_id,environment_id,max_lifetime_days,version,updated_by) VALUES(o,w,e,days_value,expected_version+1,actor)
+ ON CONFLICT(organization_id,workspace_id,environment_id) DO UPDATE SET max_lifetime_days=EXCLUDED.max_lifetime_days,version=EXCLUDED.version,updated_by=EXCLUDED.updated_by,updated_at=transaction_timestamp();
+ INSERT INTO public.zasp_workflow_audit(organization_id,workspace_id,environment_id,audit_id,correlation_id,principal_id,operation,resource_kind,resource_id,resource_version)
+ VALUES(o,w,e,audit_value,correlation_value,actor,'putAPITokenPolicy','environment',e,expected_version+1);
+ RETURN zasp_authorization80.api_token_policy_value(o,w,e)||jsonb_build_object('audit_id',audit_value,'correlation_id',correlation_value);
+END $api_token_policy_write$;
+
+CREATE OR REPLACE FUNCTION zasp_authorization80.api_token_set_policy(o text,w text,e text,actor text,days_value integer,expected_version bigint,audit_value text,correlation_value text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $api_token_set_policy$
+DECLARE p jsonb;result jsonb;
+BEGIN
+ p:=zasp_authorization80.product_request(o,w,e,actor,'putAPITokenPolicy','manage_api_tokens','environment',e,false,true,true,true);
+ result:=zasp_authorization80.api_token_policy_write(o,w,e,actor,days_value,expected_version,audit_value,correlation_value);
+ PERFORM zasp_authorization80.product_settled(p);
+ RETURN result;
+END $api_token_set_policy$;
+
+DO $ws10_api_token_policy_grants$
+DECLARE signature text;
+BEGIN
+ FOREACH signature IN ARRAY ARRAY['api_token_max_lifetime_days(text,text,text,jsonb)','api_token_policy_value(text,text,text)','api_token_policy(text,text,text)',
+  'api_token_policy_write(text,text,text,text,integer,bigint,text,text)','api_token_set_policy(text,text,text,text,integer,bigint,text,text)'] LOOP
+  EXECUTE format('ALTER FUNCTION zasp_authorization80.%s OWNER TO zasp_discovery_authority',signature);
+  EXECUTE format('REVOKE ALL ON FUNCTION zasp_authorization80.%s FROM PUBLIC',signature);
+ END LOOP;
+ GRANT EXECUTE ON FUNCTION zasp_authorization80.api_token_policy(text,text,text) TO zasp_discovery_api;
+ GRANT EXECUTE ON FUNCTION zasp_authorization80.api_token_set_policy(text,text,text,text,integer,bigint,text,text) TO zasp_discovery_api;
+END $ws10_api_token_policy_grants$;
+
+-- The expiry of a new token is within the lifetime its permissions and its
+-- Environment allow. $7 and $8 are the token's Workspace and Environment,
+-- $10 its permissions, $11 its expiry.
+DO $ws10_api_token_lifetime$
+DECLARE target CONSTANT regprocedure:='zasp_authorization80_identity.create_pat(text,text,text,bytea,bytea,text,text,text,text,jsonb,timestamptz,text,text,timestamptz,bytea,bytea,bytea)'::regprocedure;
+ anchor CONSTANT text:=$anchor$ AND $11>clock_timestamp() AND $anchor$;
+ bounded CONSTANT text:=$bounded$ AND $11>clock_timestamp() AND $11<=clock_timestamp()+interval '5 minutes'+make_interval(days=>zasp_authorization80.api_token_max_lifetime_days($1,$7,$8,$10)) AND $bounded$;
+ d text:=pg_get_functiondef(target);
+BEGIN
+ IF position(bounded in d)=0 THEN
+  IF position('api_token_max_lifetime_days' in d)>0 OR length(d)-length(replace(d,anchor,''))<>length(anchor) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='api token expiry predecessor changed';END IF;
+  EXECUTE replace(d,anchor,bounded);
+ END IF;
+END $ws10_api_token_lifetime$;

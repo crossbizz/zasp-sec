@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decodeAPITokenRevealGrant, decodeAPITokenRevealedCredential, decodeAuditEventPage, decodeComplianceEvidencePage, decodeConnectionDeletion, decodeConnectionTest, decodeDataControls, decodeOrganization, decodeSCIMConnectionCredential, decodeSCIMConnectionPage, decodeSessionPage, decodeSSOConnectionMutation, decodeSSOConnectionPage, decodeSystemComponentPage } from "./administration-decoders";
+import { decodeAPITokenPolicy, decodeAPITokenRevealGrant, decodeAPITokenRevealedCredential, decodeAuditEventPage, decodeComplianceEvidencePage, decodeConnectionDeletion, decodeConnectionTest, decodeDataControls, decodeOrganization, decodeSCIMConnectionCredential, decodeSCIMConnectionPage, decodeSessionPage, decodeSSOConnectionMutation, decodeSSOConnectionPage, decodeSystemComponentPage } from "./administration-decoders";
 
 const id = "pid_10000001-0000-4000-8000-000000000001";
 describe("administration response decoders", () => {
@@ -16,6 +16,24 @@ describe("administration response decoders", () => {
     const revealed = { grant_id: id, token_id: id, expires_at: grant.expires_at, raw_token: `zasp_pat_${"A".repeat(43)}` };
     expect(decodeAPITokenRevealedCredential(revealed).raw_token).toBe(revealed.raw_token);
     expect(() => decodeAPITokenRevealedCredential({ ...revealed, raw_token: "stored-secret" })).toThrow("schema mismatch");
+  });
+  it("accepts the token lifetime setting only in its exact, consistent shape", () => {
+    const unsaved = { environment_id: id, max_lifetime_days: 365, version: 0, updated_at: null, default_lifetime_days: 1, decision_token_max_lifetime_days: 365, token_max_lifetime_days: 90 };
+    const lowered = { ...unsaved, max_lifetime_days: 30, version: 2, updated_at: "2026-11-14T12:00:00.000000Z", decision_token_max_lifetime_days: 30, token_max_lifetime_days: 30 };
+    expect(decodeAPITokenPolicy(unsaved).token_max_lifetime_days).toBe(90);
+    expect(decodeAPITokenPolicy(lowered).decision_token_max_lifetime_days).toBe(30);
+    for (const hostile of [
+      { ...unsaved, token_max_lifetime_days: 365 },
+      { ...lowered, decision_token_max_lifetime_days: 365 },
+      { ...unsaved, updated_at: "2026-11-14T12:00:00Z" },
+      { ...lowered, updated_at: null },
+      { ...unsaved, max_lifetime_days: 0 },
+      { ...unsaved, max_lifetime_days: 366 },
+      { ...unsaved, default_lifetime_days: 30 },
+      { ...unsaved, environment_id: "production" },
+      { ...unsaved, audit_id: id },
+      { environment_id: id, max_lifetime_days: 365, version: 0, updated_at: null },
+    ]) expect(() => decodeAPITokenPolicy(hostile)).toThrow("schema mismatch");
   });
   it("accepts PostgreSQL RFC 3339 offsets without accepting informal dates", () => {
     const token = { id, name: "Automation", principal_id: id, workspace_id: id, environment_id: id, permissions: ["view"], created_at: "2026-08-19T00:00:00+00:00", expires_at: "2026-08-20T01:02:03.456-07:00", last_used_at: null, revoked_at: null, version: 1, audit_correlation_id: id };

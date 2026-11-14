@@ -31,6 +31,8 @@
   {"ID":"createAPIToken","Method":"POST","Path":"/api/v1/admin/api-tokens","Permission":"manage_api_tokens","Relation":"manage_api_tokens","Surface":"core","Security":["BrowserSession"],"FreshAuth":true},
   {"ID":"rotateAPIToken","Method":"POST","Path":"/api/v1/admin/api-tokens/{id}/rotate","Permission":"manage_api_tokens","Relation":"manage_api_tokens","Surface":"core","Security":["BrowserSession"],"FreshAuth":true},
   {"ID":"revokeAPIToken","Method":"DELETE","Path":"/api/v1/admin/api-tokens/{id}","Permission":"manage_api_tokens","Relation":"manage_api_tokens","Surface":"core","Security":["BrowserSession"],"FreshAuth":true},
+  {"ID":"getAPITokenPolicy","Method":"GET","Path":"/api/v1/admin/api-token-policy","Permission":"manage_api_tokens","Relation":"manage_api_tokens","Surface":"core","Security":["BrowserSession"],"FreshAuth":false},
+  {"ID":"putAPITokenPolicy","Method":"PUT","Path":"/api/v1/admin/api-token-policy","Permission":"manage_api_tokens","Relation":"manage_api_tokens","Surface":"core","Security":["BrowserSession"],"FreshAuth":true},
   {"ID":"listAPITokenRevealGrants","Method":"GET","Path":"/api/v1/admin/api-token-reveal-grants","Permission":"manage_api_tokens","Relation":"manage_api_tokens","Surface":"core","Security":["BrowserSession"],"FreshAuth":false},
   {"ID":"revealAPIToken","Method":"POST","Path":"/api/v1/admin/api-token-reveal-grants/{id}/reveal","Permission":"manage_api_tokens","Relation":"manage_api_tokens","Surface":"core","Security":["BrowserSession"],"FreshAuth":true},
   {"ID":"acknowledgeAPITokenRevealGrant","Method":"DELETE","Path":"/api/v1/admin/api-token-reveal-grants/{id}","Permission":"manage_api_tokens","Relation":"manage_api_tokens","Surface":"core","Security":["BrowserSession"],"FreshAuth":true},

@@ -17,8 +17,8 @@ Authentication: an API token of the Environment whose permissions include `decid
 
 `decide_guardrails` is a permission of API tokens only. No role holds it and it gives access to nothing but this call: a token created with `decide_guardrails` and nothing else cannot read the Environment's inventory, findings, integrations or the guardrail policy, and cannot change anything. The person who creates the token must be able to view the Environment; if that person loses access, the token stops working. Create one token per gateway:
 
-- In the product: Administration, API Access, choose “Guardrail decisions only” and create the token. Tokens created there expire after 24 hours, like every token created in the product today; for a gateway that runs longer, create the token over the API with the expiry you need.
-- Over the API (a browser session with fresh authentication and `manage_api_tokens`): `POST /api/v1/admin/api-tokens` with `"permissions": ["decide_guardrails"]` and `expires_at`.
+- In the product: Administration, API Access, choose “Guardrail decisions only”, choose how long the token lives under “Expires after” (1 day, 30 days, 90 days or 1 year) and create the token.
+- Over the API (a browser session with fresh authentication and `manage_api_tokens`): `POST /api/v1/admin/api-tokens` with `"permissions": ["decide_guardrails"]` and, optionally, `expires_at` (see “How long the token lives” below).
 
 ```json
 {
@@ -35,6 +35,29 @@ Authentication: an API token of the Environment whose permissions include `decid
 | `text` | yes | At most 32,768 bytes of UTF-8. A longer text is refused with `413 interaction_too_large`; split it in the gateway or decide there. |
 | `agent_id` | no | Your identifier of the agent. Letters, digits and `._:/-`, at most 128 characters. Recorded with the decision. |
 | `tool_name` | no | The tool whose call or result the text is. Same form. Recorded with the decision. |
+
+## How long the token lives
+
+A token expires at the time chosen when it was created. Without a choice it lives 24 hours, as every token did before the choice existed. For a gateway, choose a lifetime that matches how often you are prepared to replace the token in the gateway's configuration.
+
+| Token | Longest lifetime |
+| --- | --- |
+| `decide_guardrails` and nothing else | 365 days |
+| any other permissions | 90 days |
+
+The difference is deliberate. A decisions-only token can ask for decisions and can read nothing, so a leaked one exposes no inventory, finding or setting. Any other token reads the Environment, and with a `manage_` permission changes it, for as long as it exists; its exposure is bounded to 90 days. A token that holds `decide_guardrails` together with another permission counts as any other token.
+
+The administrators of an Environment can lower both limits with one number of days: on the API Access page under “Token lifetime limit”, or with `PUT /api/v1/admin/api-token-policy` (`{"max_lifetime_days": 30}`, `If-Match` with the current version, fresh authentication, `manage_api_tokens`; `GET` on the same path reads the setting and the two effective limits). A lower limit applies to tokens created afterwards. Existing tokens keep their expiry; revoke the ones you no longer accept. The change is audited.
+
+The database enforces the limits when the token is written, so they hold for every caller. A request for a longer lifetime is refused with `400`. Five minutes of clock difference between the caller and the server are allowed.
+
+What does not change with a longer lifetime:
+
+- Every request with the token is still checked against its owner: if the person who created it is removed from the Organization or loses the Environment, the token stops working at that moment.
+- Revoking a token (API Access, “Revoke”, or `DELETE /api/v1/admin/api-tokens/{id}`) takes effect at once, also for a request that was authorized just before.
+- Rotating a token replaces its secret and keeps its expiry. Rotation does not extend a lifetime; to extend, create a new token and revoke the old one once the gateway uses the new one.
+
+The API Access page lists each token with its expiry and the time it was last used (“never used” until its first request), marks a token that expires within 7 days, and shows a warning at the top of the page that names those tokens. Nothing notifies you outside the page: put the expiry in your own calendar or monitoring. A gateway whose token has expired or was revoked receives `401` on every call; what the gateway does then is its own timeout and failure setting (see “Latency” below).
 
 ## Response
 
