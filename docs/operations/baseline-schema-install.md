@@ -132,7 +132,7 @@ Service login names are fixed (`zasp_svc_*`). Set the `ZASP_*_DB_PRINCIPAL` sett
 services/platform/migrations/baseline/generate.sh
 ```
 
-It needs Docker, Go and `psql`, and takes about five minutes. It stops if a rewrite rule no longer matches anything, or if the baseline's predicates or structure differ from the superuser installation.
+It needs Docker, Go and `psql`, and takes about five minutes. Without Docker, set `ZASP_BASELINE_PG_BIN` to the `bin` directory of a PostgreSQL 18 installation (and, when running as root, `ZASP_BASELINE_PG_USER` to an unprivileged account); the two servers then run from throwaway data directories. It stops if a rewrite rule no longer matches anything, or if the baseline's predicates or structure differ from the superuser installation.
 
 ## Not covered
 
