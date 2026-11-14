@@ -22,9 +22,10 @@ Plan and detail: `docs/superpowers/plans/2026-11-14-automatic-agent-discovery.md
 - [x] Provider plumbing: credentials, connector catalog, worker registration, SQL constraints, OpenAPI and web enums, deployment egress (both providers off by default; Helm and Terraform not rendered here)
 - [x] Microsoft collector: Entra agent identities, AI enterprise applications, Copilot Studio agents (tested with fake Graph and Dataverse; API shapes unverified)
 - [x] Salesforce collector: Agentforce agents (tested with a fake org; object names unverified)
-- [ ] Show AI service permission gaps on the integration detail
-- [ ] Dismiss a false positive ("not an agent")
-- [ ] Unknown `agent_id` on telemetry surfaced as a candidate
+- [x] Show AI service permission gaps on the integration detail
+- [x] Dismiss a false positive ("Not an agent" in the ownership form; dismissed agents raise no posture findings)
+- [x] Unknown `agent_id` on telemetry: closed without building. The pipeline only accepts ids the product issued, so telemetry cannot name an agent the product does not already know
+- [x] Every collector runs a whole collection to a stored snapshot in a test. This found that Okta, GitHub, Salesforce and the AWS agents page failed at that step (Okta and GitHub since before this work); fixed
 - [ ] Baseline artifact rebuilt and all suites compared against the previous commit
 
 ## Not buildable here

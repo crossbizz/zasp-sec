@@ -86,18 +86,54 @@ The collector has a fifth page, `agents`, between `resources` and `posture`. It 
 - Against a real PostgreSQL 18.3: the baseline builds from the historical chain (147 readiness predicates and 13,998 structural facts agree with the superuser installation); it installs on an empty database as a non-superuser and verifies sealed, intact and current; and the inventory tests read a provider record, a declared agent and an inferred agent through the patched functions, then take ownership of the inferred agent and see it become managed.
 - Not run: any real provider, LocalStack, the local stack (`stack.sh`, which needs Docker), a browser, the Temporal workflow end to end.
 
+## Second pass (same day): SaaS providers, dismissal, permission gaps
+
+| # | Task | State |
+| --- | --- | --- |
+| 11 | `microsoft` and `salesforce` as optional providers: contract, catalog, credentials, connector catalog, worker registration, SQL constraints, OpenAPI and web enums, deployment values | Done, tested. Off by default. Chart and Terraform changes were not rendered or planned (neither tool is installed here) |
+| 12 | Microsoft collector: Entra agent identities, enterprise applications that are known AI products, Copilot Studio agents through Dataverse | Done, tested against fake Graph and Dataverse servers |
+| 13 | Salesforce collector: Agentforce agents (`BotDefinition`) with whether a version is active | Done, tested against a fake org |
+| 14 | Dismiss a false positive | Done, tested on a real PostgreSQL |
+| 15 | AI service permission gaps on the integration detail | Done; the SQL was tested on a stand-in for the freshness function, then applied by the baseline build |
+| 16 | Every collector runs a whole collection to a stored snapshot in a test | Done. See "A defect this found" |
+
+**New kinds:** `microsoft_tenant` and `salesforce_org` (assets), `microsoft_agent_identity`, `microsoft_copilot_agent` and `salesforce_agent` (agents, provider records, 95%), `microsoft_ai_application` (agent, inferred, 70%).
+
+**Connecting them.** Both use reference authorization, like AWS: the customer creates an app registration (Microsoft) or a connected app with the client-credentials flow (Salesforce), and the client secret is stored under a reference in the connector secret store. A deployment enables a provider by setting `ZASP_DISCOVERY_MICROSOFT_COLLECTOR_VERSION` or `ZASP_DISCOVERY_SALESFORCE_COLLECTOR_VERSION` to `collector_v1`. The steps and permissions are in `docs/operations/production-aws-runbook.md`, steps 13 and 14.
+
+- Microsoft needs `Application.Read.All` and, for Entra Agent ID, `AgentIdentity.Read.All`. A tenant without the agent identity feature or permission skips that phase. Copilot Studio needs the Dataverse environment URL and an application user in it; one integration covers one environment.
+- Salesforce needs scope `api` and a run-as user with API Enabled and View Setup and Configuration.
+- Egress is by CIDR lists, which cannot name a host. The two providers take their own lists, empty by default, and the chart refuses an enabled provider with an empty list. The ranges are shared with the providers' other services, so the policy admits more than the hosts the worker calls.
+
+**Dismissal.** "Not an agent" in the agent's ownership form stores the reserved tag `not-an-agent` through the existing ownership update, so the decision is audited and needs an owner and a team. The agent's `management_state` becomes `dismissed`, the Agents list leaves it out unless the Dismissed filter is chosen, and no posture finding is raised for it. A declared agent cannot be dismissed.
+
+**Permission gaps.** `GET /api/v1/integrations/{id}/freshness` gains `coverage_gaps`: the AWS AI services whose calls were refused or that no region offers. The integration detail lists them with the read actions to add.
+
+**Unknown `agent_id` on telemetry: closed without building.** The ingest path accepts an agent id only when it is a product id, so telemetry can carry only ids the product issued. It cannot name an agent the product does not know. A stale or mistyped id is a configuration problem, not a discovered agent.
+
+### A defect this found
+
+A whole collection through the collection client failed as malformed for Okta, GitHub, Salesforce and the AWS agents page. Those collectors wrote JSON keys out of order and the snapshot contract requires canonical JSON. Their tests called the page API directly and never built a snapshot. For Okta and GitHub this predates the agent work: no Okta tenant, and no GitHub installation with a repository, could have completed a sync. Each collector now writes sorted keys and has a test that runs a typed collection to a complete snapshot. The first pass of this plan called the AWS, Okta and GitHub detectors "tested" while that gap was open.
+
+### Not verified in the second pass
+
+- Any real Entra tenant, Dataverse environment or Salesforce org. The Graph agent identity path, the Dataverse `bots` columns, and the Salesforce object, field and error names are from documentation and memory. The Salesforce collector tries four query variants because the agent objects changed across API versions 60 to 68.
+- A Salesforce rate limit usually arrives as HTTP 403, which the collector reports as denied, not as rate limited.
+- A wrong client secret at discovery time is reported as retryable.
+- The web form cannot add a Dataverse URL to an existing Microsoft integration; it has to be recreated.
+
 ## Next, in order
 
 These are not built. Each has an evidence gate or an external dependency.
 
 1. **Run discovery against real systems.** One AWS account with a Bedrock agent, an AgentCore runtime and a Lambda function that calls a model; one cluster with an unlabelled LangGraph workload; one GitHub organization; one Okta tenant with ChatGPT or Claude connected. Record false positives and misses per signal class. This gates the confidence numbers above, which are judgement, not measurement.
-2. **Microsoft as a provider (Copilot Studio and Entra agents).** Entra client credentials. `GET /v1.0/servicePrincipals/microsoft.graph.agentIdentity` (`AgentIdentity.Read.All`) for Entra Agent ID; `GET /v1.0/servicePrincipals` with `oauth2PermissionGrants` (`Application.Read.All`, `Directory.Read.All`) for AI applications consented in the tenant; Dataverse `GET {org}/api/data/v9.2/bots` and `botcomponents` per environment for Copilot Studio agents, their knowledge sources and tools. The Power Platform tenant inventory API is delegated-user only, so app-only discovery goes through Dataverse with an application user in each environment. This is a fifth provider: connector registry, credential class, subject binding, SQL CHECK constraints and the OpenAPI and web enums all change.
-3. **Salesforce Agentforce as a provider.** Connected App with client credentials or JWT bearer, scope `api`. `SELECT ... FROM BotDefinition` and `BotVersion` over the REST query endpoint; planner, topic and action definitions over the Tooling API. The object names changed across API versions 60 to 68, so the first step is a query against a real org.
+2. **Microsoft as a provider (Copilot Studio and Entra agents). Built in the second pass; what remains is the real-tenant run in item 1.** Entra client credentials. `GET /v1.0/servicePrincipals/microsoft.graph.agentIdentity` (`AgentIdentity.Read.All`) for Entra Agent ID; `GET /v1.0/servicePrincipals` with `oauth2PermissionGrants` (`Application.Read.All`, `Directory.Read.All`) for AI applications consented in the tenant; Dataverse `GET {org}/api/data/v9.2/bots` and `botcomponents` per environment for Copilot Studio agents, their knowledge sources and tools. The Power Platform tenant inventory API is delegated-user only, so app-only discovery goes through Dataverse with an application user in each environment. This is a fifth provider: connector registry, credential class, subject binding, SQL CHECK constraints and the OpenAPI and web enums all change.
+3. **Salesforce Agentforce as a provider. Built in the second pass; what remains is the real-org run in item 1.** Connected App with client credentials or JWT bearer, scope `api`. `SELECT ... FROM BotDefinition` and `BotVersion` over the REST query endpoint; planner, topic and action definitions over the Tooling API. The object names changed across API versions 60 to 68, so the first step is a query against a real org.
 4. **Runtime discovery from the sensor.** Open-source Tetragon reports destination IP and port for a connection, not a DNS name or TLS SNI, and the sensor forwards digests only. Classifying egress to model providers needs a name source: CoreDNS or Route 53 Resolver query logs joined to pod and time, or an egress gateway that logs SNI. Matching provider IP ranges alone is low confidence because the large providers sit behind shared ranges and CDNs. Gate: on one cluster, measure how many inferred agents the name-joined egress signal adds over task 3, and its false positives, before building the pipeline.
-5. **Unknown `agent_id` on gateway and OTLP telemetry.** Today an unknown id is stored on the session and correlation reports `unattributed`. Turning it into a candidate agent needs a telemetry-sourced observation, which the snapshot model (one complete snapshot per integration) does not have. Design together with item 4.
+5. **Unknown `agent_id` on gateway and OTLP telemetry. Closed, see the second pass.** Today an unknown id is stored on the session and correlation reports `unattributed`. Turning it into a candidate agent needs a telemetry-sourced observation, which the snapshot model (one complete snapshot per integration) does not have. Design together with item 4.
 6. **Other platforms, as customers ask:** Google Vertex AI Agent Engine (`reasoningEngines.list`), Dialogflow CX and Gemini Enterprise agents; ServiceNow (`sn_aia_agent`); OpenAI and Anthropic organization APIs (projects, service accounts and keys, not agents); Entra and Google Workspace OAuth grants as a second IdP path; SageMaker endpoints and ECS task definitions as further AWS signals; MCP servers found by image as tools.
 7. **Okta grants.** `GET /api/v1/apps/{id}/grants` (`okta.appGrants.read`) would show which scopes an AI application holds. It needs one more OAuth scope on the Okta connection, so existing connections must re-authorize.
-8. **Show AI service coverage on the integration.** The `access_denied` and `unavailable` statuses are recorded but only search finds them. The integration detail should say "Bedrock AgentCore: permission missing" with the actions to add.
-9. **A dismiss action.** A false positive can be owned (which makes it managed) or opted out by label on Kubernetes. Other providers have no way to say "this is not an agent" yet.
+8. **Show AI service coverage on the integration. Built in the second pass.** The `access_denied` and `unavailable` statuses are recorded but only search finds them. The integration detail should say "Bedrock AgentCore: permission missing" with the actions to add.
+9. **A dismiss action. Built in the second pass.** A false positive can be owned (which makes it managed) or opted out by label on Kubernetes. Other providers have no way to say "this is not an agent" yet.
 
 Employee endpoints stay a separate plan.
