@@ -716,7 +716,10 @@ func providerEntitySchema(provider collection.Provider, kind string) (providerEn
 		case "kubernetes_cluster":
 			// runtime_observations says whether the collector could read
 			// the node sensor's egress observations in this cluster.
-			return providerEntityDefinition{stable: requiredStringFields("cluster", "name"), attributes: mergeInventorySchemas(state, inventoryObjectSchema{"runtime_observations": enumInventoryField(false, "access_denied", "collected")})}, true
+			return providerEntityDefinition{stable: requiredStringFields("cluster", "name"), attributes: mergeInventorySchemas(state, inventoryObjectSchema{"runtime_observations": enumInventoryField(false, "access_denied", "collected"),
+				// mcp_links says whether it could list the Services and
+				// ConfigMaps that relate agents to MCP servers.
+				"mcp_links": enumInventoryField(false, "collected", "configmaps_denied", "services_denied")})}, true
 		case "kubernetes_namespace":
 			return providerEntityDefinition{stable: requiredStringFields("cluster", "name", "namespace"), attributes: state}, true
 		case "kubernetes_resource", "kubernetes_service_account":
@@ -839,7 +842,7 @@ func validProviderRelationship(provider collection.Provider, raw json.RawMessage
 	case collection.ProviderAWS:
 		kinds = tokenSet("belongs_to", "contains", "depends_on", "trusts", "uses_identity", "uses_policy")
 	case collection.ProviderKubernetes:
-		kinds = tokenSet("assigned_to", "attached_to", "binds", "contains", "uses_identity")
+		kinds = tokenSet("assigned_to", "attached_to", "binds", "contains", "depends_on", "uses_identity")
 		attributes["type"] = stringInventoryField(true)
 	case collection.ProviderGitHub:
 		kinds = tokenSet("belongs_to", "contains", "depends_on", "has_permission", "owns", "uses_identity")
@@ -884,6 +887,8 @@ func validProviderRelationshipEndpointKinds(provider collection.Provider, raw js
 			"kubernetes_agent|uses_identity|kubernetes_service_account", "kubernetes_workload|uses_identity|kubernetes_service_account",
 			"kubernetes_namespace|attached_to|kubernetes_inferred_agent", "kubernetes_inferred_agent|uses_identity|kubernetes_service_account",
 			"kubernetes_namespace|attached_to|kubernetes_mcp_server",
+			// An agent uses an MCP server of the cluster.
+			"kubernetes_agent|depends_on|kubernetes_mcp_server", "kubernetes_inferred_agent|depends_on|kubernetes_mcp_server",
 		),
 		collection.ProviderGitHub: tokenSet(
 			"github_installation|contains|github_app", "github_installation|owns|github_repository", "github_organization|owns|github_repository", "github_repository|contains|github_environment", "github_repository|contains|github_permission", "github_repository|contains|github_workflow", "github_workflow|depends_on|github_repository", "github_workflow|uses_identity|github_app", "github_app|has_permission|github_permission",
@@ -1383,7 +1388,20 @@ func relationshipsResolve(provider collection.Provider, subject collection.Subje
 
 func validExplicitKubernetesUnresolvedRelationship(raw json.RawMessage, subject collection.SubjectBinding, fromExists, toExists bool, items map[string]normalizedPageEntity) bool {
 	var relationship normalizedPageRelationship
-	if !decodeExactObject(raw, &relationship) || !fromExists || toExists {
+	if !decodeExactObject(raw, &relationship) {
+		return false
+	}
+	// An agent's use of an MCP server is derived at the end of a collection
+	// from a second read of the workloads. A workload that changed between
+	// the two reads leaves an end that is not in the snapshot: the relation
+	// is dropped, as it would be absent had the workload been read once.
+	if relationship.Kind == "depends_on" {
+		var derived struct {
+			Type string `json:"type"`
+		}
+		return decodeExactObject(relationship.Attributes, &derived) && derived.Type == "agent_mcp_server"
+	}
+	if !fromExists || toExists {
 		return false
 	}
 	source, ok := items[relationship.FromEntityID]

@@ -170,9 +170,9 @@ func TestClusterRecordsWhetherRuntimeObservationsCanBeRead(t *testing.T) {
 		response *kubernetesHTTPResponse
 		want     string
 	}{
-		"forbidden":    {nil, `"attributes":{"runtime_observations":"access_denied"}`},
-		"readable":     {&kubernetesHTTPResponse{status: http.StatusOK, body: `{"apiVersion":"v1","kind":"ConfigMapList","metadata":{},"items":[]}`}, `"attributes":{"runtime_observations":"collected"}`},
-		"server error": {&kubernetesHTTPResponse{status: http.StatusInternalServerError, body: `{}`}, `"attributes":{}`},
+		"forbidden":    {nil, `"attributes":{"mcp_links":"services_denied","runtime_observations":"access_denied"}`},
+		"readable":     {&kubernetesHTTPResponse{status: http.StatusOK, body: `{"apiVersion":"v1","kind":"ConfigMapList","metadata":{},"items":[]}`}, `"attributes":{"mcp_links":"services_denied","runtime_observations":"collected"}`},
+		"server error": {&kubernetesHTTPResponse{status: http.StatusInternalServerError, body: `{}`}, `"attributes":{"mcp_links":"services_denied"}`},
 	} {
 		transport := &kubernetesRoundTripper{egress: test.response, responses: []kubernetesHTTPResponse{{status: http.StatusOK, body: `{"apiVersion":"v1","kind":"NamespaceList","metadata":{"continue":""},"items":[{"apiVersion":"v1","kind":"Namespace","metadata":{"uid":"11111111-1111-4111-8111-111111111111","name":"default"}}]}`}}}
 		api, err := newKubernetesCollectionAPI("https://cluster.example", transport, time.Second)

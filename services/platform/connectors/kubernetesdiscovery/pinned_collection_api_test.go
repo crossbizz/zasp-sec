@@ -119,7 +119,7 @@ func TestAutomaticDiscoveryFullCollectionMeetsTypedSnapshotGrammar(t *testing.T)
 		t.Fatalf("valid full inventory rejected: %v", err)
 	}
 	snapshot := complete.Snapshot()
-	if len(transport.requests) != 11 || len(driver.objects) != 12 || !snapshot.TypedObservations() || snapshot.EntityCount() != 4 || snapshot.RelationshipCount() != 4 || snapshot.EvidenceCount() != 4 {
+	if len(transport.requests) != 11 || len(driver.objects) != 13 || !snapshot.TypedObservations() || snapshot.EntityCount() != 4 || snapshot.RelationshipCount() != 4 || snapshot.EvidenceCount() != 4 {
 		t.Fatalf("incomplete typed inventory: pages=%d artifacts=%d entities=%d relationships=%d evidence=%d", len(transport.requests), len(driver.objects), snapshot.EntityCount(), snapshot.RelationshipCount(), snapshot.EvidenceCount())
 	}
 }
@@ -211,7 +211,7 @@ func TestAutomaticDiscoveryInferredAgentCollectionMeetsTypedSnapshotGrammar(t *t
 	if want := "map[kubernetes_cluster[]:1 kubernetes_inferred_agent[env:openai]:1 kubernetes_inferred_agent[image:langgraph]:1 kubernetes_inferred_agent[process:mcp_server]:1 kubernetes_mcp_server[]:1 kubernetes_namespace[]:1 kubernetes_service_account[]:1 kubernetes_workload[]:2]"; fmt.Sprint(kinds) != want {
 		t.Fatalf("collected kinds = %v, want %s", kinds, want)
 	}
-	if len(transport.requests) != 11 || len(driver.objects) != 12 || !snapshot.TypedObservations() || snapshot.EntityCount() != 9 || snapshot.RelationshipCount() != 13 || snapshot.EvidenceCount() != 9 {
+	if len(transport.requests) != 11 || len(driver.objects) != 13 || !snapshot.TypedObservations() || snapshot.EntityCount() != 9 || snapshot.RelationshipCount() != 13 || snapshot.EvidenceCount() != 9 {
 		t.Fatalf("incomplete typed inventory: pages=%d artifacts=%d entities=%d relationships=%d evidence=%d", len(transport.requests), len(driver.objects), snapshot.EntityCount(), snapshot.RelationshipCount(), snapshot.EvidenceCount())
 	}
 	// The snapshot itself, not only the stored pages, carries each inferred
