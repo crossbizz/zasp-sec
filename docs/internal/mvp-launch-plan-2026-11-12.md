@@ -12,7 +12,7 @@ A step is done when it has run through the product's own binaries against real d
 
 ## Golden path: state of each step
 
-| # | Step (PRD) | State on 2026-11-12 | Next action |
+| # | Step (PRD) | State (see the 2026-11-14 section for the latest) | Next action |
 | --- | --- | --- | --- |
 | 0 | Install and operate | The baseline artifact installs without superuser (local stack; installer test on a fresh database). The Helm chart installs the baseline with an install job and the `zasp_svc_*` logins; Terraform and a runbook for production AWS exist (`docs/operations/production-aws-runbook.md`). Both Neon databases still hold an older artifact. Nothing has been deployed to a cluster. | Reinstall the Neon databases with the current artifact. Deploy to real AWS with the values the runbook lists. |
 | 1 | First-Admin bootstrap (§6.1) | `zasp-bootstrap` creates the Organization, Workspace, Environments, admin membership and scopes against real Stytch, on the local database and on the Neon development branch. The Stytch invitation call was refused for a made-up address; the member was created directly instead. Whether Stytch delivers an invitation to a real address is unproven. | Invite one real address and confirm delivery. |
@@ -26,14 +26,28 @@ A step is done when it has run through the product's own binaries against real d
 | 9 | Containment, temporary-control expiry, re-test (§11.8–11.9) | Built and component-tested. | Covered by the run in step 8. |
 | 10 | Session investigation and audit export (§12) | Built and component-tested; export readiness passes against LocalStack. | Verify after steps 4–8 produce real data. |
 
-## Authorization state of the API
+## State on 2026-11-14
 
-State on 2026-11-13, local stack, artifact `3e35f8d0…`.
+Local stack, artifact `a12f048b…`; the Neon development branch holds a fresh install of the same artifact (bootstrap, AWS integration, one sync in 2 min 51 s, 2 findings). The production Neon branch is untouched and still holds an older artifact; it is reinstalled at deployment.
 
-- **Reads.** Home summary, search, profile, integrations and setup status, inventory (agents, tools, identities, runtimes), findings, attack paths, compliance, Organization, members, group mappings, SSO and SCIM connections, Security Agent definitions, runs and approvals lists, tests and audit events answer through authorized functions. Home takes 4 to 7 seconds and search 2 to 4; both grow with the number of objects.
-- **Direct database paths closed.** The API logins lost their unused grants on historical functions and tables. The functions a readiness check pins refuse an API session without a proof for the same scope and actor. Both reviews' attack scripts now end in `permission denied` or `checked request required`.
-- **Still open.** A guarded historical function accepts any proof for its scope, not one for a specific operation. `zasp_authorization80.resolve` and `zasp_identity_admin_effective_scopes` answer an API login without a proof (object ids, versions and a principal's scopes). Pricing approval has an authorized function but no product route yet. Security Agent run detail, cancel and approval detail are being moved.
-- **Tests.** Older API tests that call historical functions directly as an API principal are now refused; the API suite also stops at a panic in `TestSecurityAgentOrderedHTTP` that predates this work, so tests after it do not run.
+**Verified in a browser on the local stack** (fixture session, not a real sign-in): connect and authorize AWS, sync (about 78 s) with projections current, identity detail, search, findings status changes, policy create through enforce, simulate, disable and delete, API token create, reveal, acknowledge and revoke, Workspace rename, Security Agent create, validate, enable and simulate, a supervised run that stops at `planner_provider_rejected`, and closing that run. The UI waits through the seconds in which permissions are applied after a change. Tester guide: `docs/operations/local-self-test.md`.
+
+**Authorization.** Reads and writes on the golden path go through authorized functions, including Security Agent run detail, cancel, close, approval detail and decision, simulate, manual run, planner pricing, policy functions, integration delete, Workspace and Environment rename and finding status. Direct database paths for the API logins are closed. Still open: a guarded historical function accepts any proof for its scope, not one for a specific operation; `zasp_authorization80.resolve` and `zasp_identity_admin_effective_scopes` answer an API login without a proof.
+
+**Open faults (being fixed).**
+
+- Deleting an `active` integration leaves it `revoking`; nothing completes the revocation.
+- Starting a run with the contract's short request form answers 400; only the versioned form works.
+- A deleted sync schedule cannot be recreated (409).
+- An abandoned sync with no later sync stays `running`.
+- Webhook delivery status and test delivery answer 503.
+- A missing object answers 403, not 404.
+- On a fresh stack the LocalStack fixture yields no finding a Security Agent can run on.
+- After a change, reads can answer 503 or 409 for 5 to 15 seconds; the compliance controls page takes 20 to 26 seconds in a browser.
+
+**Not exercised.** Everything after the planner request (plan, approval, notification, action, containment, re-test): OpenRouter answers 402 until the account has credits. Real browser sign-in through the UI, SSO, SCIM. Red team, Attack Lab and the runtime pipeline on a running stack. Real AWS.
+
+**Tests.** The API suite stops at a panic in `TestSecurityAgentOrderedHTTP` that predates this work and is run with that test skipped. Two UI quality tests that pin Go and deployment files fail (`m3-connectors-sensors-batch-contract`, `platform-worker-command-contract`).
 
 Every schema change means a new baseline artifact and a reviewed `zasp_baseline.accept` on installed databases.
 
