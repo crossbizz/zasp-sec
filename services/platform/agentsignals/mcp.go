@@ -561,6 +561,13 @@ const (
 type Skill struct {
 	Path string
 	Kind string
+	// Scripts is true when the skill's directory ships a script; it is only
+	// meaningful when ScriptsKnown is (MarkSkillScripts).
+	Scripts      bool
+	ScriptsKnown bool
+	// Ownership is one of the SkillOwnership values, "" when it was not
+	// established (MarkSkillOwnership).
+	Ownership string
 }
 
 var skillPathPattern = regexp.MustCompile(`^[A-Za-z0-9._@+ /-]{1,512}$`)

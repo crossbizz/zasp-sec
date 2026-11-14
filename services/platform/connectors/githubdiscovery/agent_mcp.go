@@ -24,11 +24,19 @@ import (
 //     package and whether any authentication is declared are kept
 //     (agentsignals.ParseMCPConfig); no environment value, header, argument or
 //     URL path leaves the parser;
+//   - at most githubMaximumDXTManifests manifest.json files, for the MCP
+//     server a desktop extension packages and the tool names it lists
+//     (agentsignals.ParseDXTManifest); a manifest.json of anything else
+//     declares nothing;
 //   - the paths of skills and instruction files (SKILL.md directories,
 //     AGENTS.md, CLAUDE.md, .cursor/rules). Their contents are never
-//     requested.
+//     requested. Whether a skill directory ships scripts is read from the
+//     tree (extension and git mode), and whether a code owner is named for a
+//     skill from the path patterns of the repository's CODEOWNERS file, the
+//     one file read for skills; neither the patterns nor the owners are kept.
 const (
 	githubMaximumMCPConfigs      = 4
+	githubMaximumDXTManifests    = 2
 	githubMaximumMCPConfigDepth  = 3
 	githubMaximumRepositoryMCP   = 32
 	githubMaximumRepositoryTools = 128
@@ -41,35 +49,91 @@ type repositoryMCPServer struct {
 	ConfigPath string
 }
 
-// mcpConfigCandidates returns the MCP configuration files of a tree to read:
-// shallow first, then by path, at most githubMaximumMCPConfigs.
-func mcpConfigCandidates(entries []struct {
+// candidateFile is a file of the tree that may be read: a blob with its size.
+type candidateFile struct {
+	Path string
+	Size int64
+}
+
+// candidateFiles returns the blobs of a tree.
+func candidateFiles(entries []struct {
 	Path string `json:"path"`
 	Type string `json:"type"`
 	Size int64  `json:"size"`
-}) (configs []string, settings string) {
+	Mode string `json:"mode"`
+}) []candidateFile {
+	files := make([]candidateFile, 0, len(entries))
 	for _, entry := range entries {
-		if entry.Type != "blob" || entry.Size < 2 || entry.Size > githubMaximumAgentManifestBytes || !validGitHubText(entry.Path, 512) || strings.Count(entry.Path, "/") > githubMaximumMCPConfigDepth {
+		if entry.Type == "blob" {
+			files = append(files, candidateFile{Path: entry.Path, Size: entry.Size})
+		}
+	}
+	return files
+}
+
+// mcpConfigCandidates returns the MCP configuration files of a tree to read:
+// shallow first, then by path, at most githubMaximumMCPConfigs; the shared
+// Claude Code settings file; and, in the same order, at most
+// githubMaximumDXTManifests manifest.json files.
+func mcpConfigCandidates(entries []candidateFile) (configs []string, settings string, extensions []string) {
+	for _, entry := range entries {
+		if entry.Size < 2 || entry.Size > githubMaximumAgentManifestBytes || !validGitHubText(entry.Path, 512) || strings.Count(entry.Path, "/") > githubMaximumMCPConfigDepth {
 			continue
 		}
 		if agentsignals.IsMCPConfigPath(entry.Path) {
 			configs = append(configs, entry.Path)
 		}
+		if agentsignals.IsDXTManifestPath(entry.Path) {
+			extensions = append(extensions, entry.Path)
+		}
 		if entry.Path == ".claude/settings.json" {
 			settings = entry.Path
 		}
 	}
-	sort.Slice(configs, func(left, right int) bool {
-		leftDepth, rightDepth := strings.Count(configs[left], "/"), strings.Count(configs[right], "/")
-		if leftDepth != rightDepth {
-			return leftDepth < rightDepth
+	shallowFirst := func(paths []string, maximum int) []string {
+		sort.Slice(paths, func(left, right int) bool {
+			leftDepth, rightDepth := strings.Count(paths[left], "/"), strings.Count(paths[right], "/")
+			if leftDepth != rightDepth {
+				return leftDepth < rightDepth
+			}
+			return paths[left] < paths[right]
+		})
+		if len(paths) > maximum {
+			paths = paths[:maximum]
 		}
-		return configs[left] < configs[right]
-	})
-	if len(configs) > githubMaximumMCPConfigs {
-		configs = configs[:githubMaximumMCPConfigs]
+		return paths
 	}
-	return configs, settings
+	return shallowFirst(configs, githubMaximumMCPConfigs), settings, shallowFirst(extensions, githubMaximumDXTManifests)
+}
+
+// markSkillOwnership sets the skills' ownership from the repository's
+// CODEOWNERS file: the first of GitHub's three locations the tree holds. A
+// tree that was cut short may hide the file, and a file that cannot be read
+// decides nothing: ownership is then left unset.
+func (api *InstallationCollectionAPI) markSkillOwnership(ctx context.Context, credential []byte, repositoryURL, branch string, entries []candidateFile, truncated bool, skills []agentsignals.Skill) error {
+	present := map[string]int64{}
+	for _, entry := range entries {
+		present[entry.Path] = entry.Size
+	}
+	for _, location := range agentsignals.CodeownersPaths {
+		size, found := present[location]
+		if !found {
+			continue
+		}
+		if size < 1 || size > githubMaximumAgentManifestBytes {
+			return nil
+		}
+		content, err := api.readAgentProjectFile(ctx, credential, repositoryURL, branch, location)
+		if err != nil || content == nil {
+			return err
+		}
+		agentsignals.MarkSkillOwnership(skills, agentsignals.ParseCodeowners(content))
+		return nil
+	}
+	if !truncated {
+		agentsignals.MarkSkillOwnership(skills, nil)
+	}
+	return nil
 }
 
 // readAgentProjectFile reads one file of the default branch. It returns nil
@@ -102,15 +166,23 @@ func (api *InstallationCollectionAPI) readAgentProjectFile(ctx context.Context, 
 // readRepositoryMCPServers reads the configuration files and returns the
 // servers they declare, by name. A server two files declare is the one of the
 // first file; the tools of both are kept.
-func (api *InstallationCollectionAPI) readRepositoryMCPServers(ctx context.Context, credential []byte, repositoryURL, branch string, configs []string, settings string) ([]repositoryMCPServer, error) {
+func (api *InstallationCollectionAPI) readRepositoryMCPServers(ctx context.Context, credential []byte, repositoryURL, branch string, configs []string, settings string, extensions []string) ([]repositoryMCPServer, error) {
 	byName := map[string]*repositoryMCPServer{}
 	tools := map[string]map[string]bool{}
-	for _, config := range configs {
+	for index, config := range append(append([]string(nil), configs...), extensions...) {
 		content, err := api.readAgentProjectFile(ctx, credential, repositoryURL, branch, config)
 		if err != nil {
 			return nil, err
 		}
-		for _, declared := range agentsignals.ParseMCPConfig(content) {
+		declarations := agentsignals.ParseMCPConfig(content)
+		if index >= len(configs) {
+			// A desktop extension manifest declares one server.
+			declarations = nil
+			if packaged, ok := agentsignals.ParseDXTManifest(content); ok {
+				declarations = []agentsignals.MCPServerDeclaration{packaged}
+			}
+		}
+		for _, declared := range declarations {
 			if byName[declared.Name] == nil {
 				if len(byName) >= githubMaximumRepositoryMCP {
 					continue
@@ -227,7 +299,14 @@ func normalizeAgentProjectInventory(subject collection.SubjectBinding, state git
 		owner, relationshipType = projectEntityID, "agent_project_skill"
 	}
 	for _, skill := range skills {
-		if !add("github_agent_skill", "github:repository:"+nativeID+":agent_skill:"+skill.Path, skill.Path, stable(skill.Path, nil), map[string]any{"skill_kind": skill.Kind}, "contains", relationshipType, owner) {
+		attributes := map[string]any{"skill_kind": skill.Kind}
+		if skill.ScriptsKnown {
+			attributes["scripts"] = skill.Scripts
+		}
+		if skill.Ownership != "" {
+			attributes["ownership"] = skill.Ownership
+		}
+		if !add("github_agent_skill", "github:repository:"+nativeID+":agent_skill:"+skill.Path, skill.Path, stable(skill.Path, nil), attributes, "contains", relationshipType, owner) {
 			return nil, nil, false
 		}
 	}

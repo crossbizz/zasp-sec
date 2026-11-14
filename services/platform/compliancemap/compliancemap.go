@@ -95,6 +95,13 @@ var rules = map[string][]string{
 	"mcp_server_unpinned_package": {"ASI04", "LLM03", "T0053", "MEASURE-2.7", "ART-15"},
 	"mcp_execute_tool_production": {"ASI05", "ASI02", "LLM06", "T0053", "MEASURE-2.7", "ART-14", "ART-15"},
 
+	// Skills, decided from the file tree and CODEOWNERS path patterns only: a
+	// skill that ships scripts to an agent with production access is code the
+	// agent may run; a skill no code owner reviews is an unreviewed
+	// instruction to the agent.
+	"skill_scripts_production": {"ASI04", "ASI05", "LLM03", "MEASURE-2.7", "ART-15"},
+	"skill_unowned":            {"ASI04", "LLM03", "GOVERN-2.1", "A.3.2", "ART-14"},
+
 	// The platform's own content filter is at its weakest setting.
 	"agent_content_moderation_low": {"LLM01", "LLM02", "LLM05", "T0051", "MEASURE-2.7", "A.6.2.6", "ART-9", "ART-15"},
 

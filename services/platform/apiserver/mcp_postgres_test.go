@@ -182,7 +182,7 @@ func TestMCPSectionsOnTheInstalledBaselinePostgres(t *testing.T) {
 	}
 	// Everything the WS5 sections build on, then the sections, then all of
 	// it again: the tail of the file runs twice without a change.
-	sections := []string{"saas_providers", "rule_catalog_digest", "inventory_posture_dismissal", "saas_generic_provider", "saas_rule_catalog", "ws5_rule_catalog", "ws5_mcp_registry", "ws5_mcp_posture", "ws5_agent_access"}
+	sections := []string{"saas_providers", "rule_catalog_digest", "inventory_posture_dismissal", "saas_generic_provider", "saas_rule_catalog", "ai_framework_data", "ws5_rule_catalog", "ws5_mcp_registry", "ws5_mcp_posture", "ws5_agent_access"}
 	for _, tag := range sections {
 		applyCompletionBlock(t, ctx, connection, tag)
 	}
@@ -449,6 +449,40 @@ func TestMCPSectionsOnTheInstalledBaselinePostgres(t *testing.T) {
 		t.Fatalf("content moderation finding: low=%s high=%s", low, high)
 	}
 
+	// Skills, decided from what the collector recorded of the tree and of
+	// CODEOWNERS: a skill that ships scripts in an agent with production
+	// access, and a skill no code owner is named for. Nothing is said while
+	// the collector could not establish either.
+	skillFindings := func(attributes string) string {
+		t.Helper()
+		if _, err := connection.Exec(ctx, `UPDATE zasp_inventory_entities SET winning_attributes=$5::jsonb WHERE (organization_id,workspace_id,environment_id,id)=($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, skillID, attributes); err != nil {
+			t.Fatal(err)
+		}
+		refresh()
+		var listed string
+		if err := connection.QueryRow(ctx, `SELECT COALESCE(string_agg(finding.rule||'='||finding.status,' ' ORDER BY finding.rule),'') FROM zasp_risk_findings finding WHERE (finding.organization_id,finding.workspace_id,finding.environment_id,finding.source,finding.agent_id)=($1,$2,$3,'posture',$4) AND finding.rule LIKE 'skill\_%'`, organizationID, workspaceID, environmentID, botID).Scan(&listed); err != nil {
+			t.Fatal(err)
+		}
+		return listed
+	}
+	if got := skillFindings(`{"skill_kind":"skill"}`); got != "" {
+		t.Fatalf("skill findings with nothing established = %q", got)
+	}
+	if got := skillFindings(`{"skill_kind":"skill","scripts":true,"ownership":"uncovered"}`); got != "skill_scripts_production=open skill_unowned=open" {
+		t.Fatalf("skill findings = %q", got)
+	}
+	if got := skillFindings(`{"skill_kind":"skill","scripts":true,"ownership":"no_codeowners"}`); got != "skill_scripts_production=open skill_unowned=open" {
+		t.Fatalf("skill findings without a CODEOWNERS file = %q", got)
+	}
+	if got := skillFindings(`{"skill_kind":"skill","scripts":false,"ownership":"covered"}`); got != "skill_scripts_production=resolved skill_unowned=resolved" {
+		t.Fatalf("skill findings after the fix = %q", got)
+	}
+	// Both rules are evidence for framework controls, in SQL as in Go.
+	var mappedSkillRules int
+	if err := connection.QueryRow(ctx, `SELECT count(DISTINCT rule) FROM zasp_compliance_ai_rule_controls() WHERE rule IN('skill_scripts_production','skill_unowned','mcp_execute_tool_production','agent_content_moderation_low')`).Scan(&mappedSkillRules); err != nil || mappedSkillRules != 4 {
+		t.Fatalf("WS5 rules in the SQL rule to control mapping = %d, %v", mappedSkillRules, err)
+	}
+
 	// Registry decisions, under the version the caller read.
 	put := func(identityValue, status string, expected int64, sequence int) (map[string]any, error) {
 		var payload []byte
@@ -561,10 +595,29 @@ func TestMCPSectionsOnTheInstalledBaselinePostgres(t *testing.T) {
 		organizationID, workspaceID, environmentID, toolPath).Scan(&options); err != nil || options != "1:remove_node:"+gatewayID+" 2:enforce_policy:"+agentID+" 3:enforce_policy:"+toolID {
 		t.Fatalf("break options of the tool path = %s, %v", options, err)
 	}
-	// A refresh that changes nothing keeps every path and its version.
+	// Every open MCP finding names its path, and the path starts at the
+	// finding's agent; the execute finding names the tool path.
+	var linked, unlinked int
+	var executePath string
+	if err := connection.QueryRow(ctx, `SELECT
+ count(*) FILTER(WHERE finding.path_id IS NOT NULL AND EXISTS(SELECT 1 FROM zasp_mcp_attack_paths owned JOIN zasp_risk_attack_path_nodes node ON (node.organization_id,node.workspace_id,node.environment_id,node.path_id)=(owned.organization_id,owned.workspace_id,owned.environment_id,owned.path_id)
+   WHERE (owned.organization_id,owned.workspace_id,owned.environment_id,owned.path_id,owned.finding_id)=(finding.organization_id,finding.workspace_id,finding.environment_id,finding.path_id,finding.id) AND (node.position,node.node_id)=(1,finding.agent_id))),
+ count(*) FILTER(WHERE finding.path_id IS NULL),
+ COALESCE(max(finding.path_id) FILTER(WHERE finding.rule='mcp_execute_tool_production'),'')
+ FROM zasp_risk_findings finding WHERE (finding.organization_id,finding.workspace_id,finding.environment_id,finding.source)=($1,$2,$3,'posture') AND finding.rule LIKE 'mcp\_%' AND finding.status IN('open','under_review','accepted')`, scope...).Scan(&linked, &unlinked, &executePath); err != nil || linked != 4 || unlinked != 0 || executePath != toolPath {
+		t.Fatalf("findings linked to their path = %d, without = %d, execute path = %s (want %s), %v", linked, unlinked, executePath, toolPath, err)
+	}
+	// A resolved finding names none, and no other posture finding names one.
+	var stray int
+	if err := connection.QueryRow(ctx, `SELECT count(*) FROM zasp_risk_findings finding WHERE (finding.organization_id,finding.workspace_id,finding.environment_id,finding.source)=($1,$2,$3,'posture') AND finding.path_id IS NOT NULL AND (finding.status='resolved' OR finding.rule NOT LIKE 'mcp\_%')`, scope...).Scan(&stray); err != nil || stray != 0 {
+		t.Fatalf("posture findings that should name no path = %d, %v", stray, err)
+	}
+	// A refresh that changes nothing keeps every path and finding, and their
+	// versions.
 	versions := func() string {
 		var value string
-		if err := connection.QueryRow(ctx, `SELECT string_agg(id||':'||version,',' ORDER BY id) FROM zasp_risk_attack_paths WHERE (organization_id,workspace_id,environment_id)=($1,$2,$3)`, scope...).Scan(&value); err != nil {
+		if err := connection.QueryRow(ctx, `SELECT (SELECT string_agg(id||':'||version,',' ORDER BY id) FROM zasp_risk_attack_paths WHERE (organization_id,workspace_id,environment_id)=($1,$2,$3))||'|'||
+ (SELECT string_agg(id||':'||version||':'||COALESCE(path_id,'-'),',' ORDER BY id) FROM zasp_risk_findings WHERE (organization_id,workspace_id,environment_id,source)=($1,$2,$3,'posture'))`, scope...).Scan(&value); err != nil {
 			t.Fatal(err)
 		}
 		return value
@@ -586,6 +639,12 @@ func TestMCPSectionsOnTheInstalledBaselinePostgres(t *testing.T) {
 	}
 	if got := findings(); got["mcp_server_unapproved bot"] != "resolved" || got["mcp_server_unpinned_package bot"] != "resolved" || got["mcp_execute_tool_production support"] != "open" {
 		t.Fatalf("posture findings after dismissing the function = %v", got)
+	}
+	// The resolved findings no longer name a path, and no finding names a
+	// path that is gone.
+	if err := connection.QueryRow(ctx, `SELECT count(*) FROM zasp_risk_findings finding WHERE (finding.organization_id,finding.workspace_id,finding.environment_id,finding.source)=($1,$2,$3,'posture') AND finding.path_id IS NOT NULL
+ AND (finding.status='resolved' OR NOT EXISTS(SELECT 1 FROM zasp_risk_attack_paths path WHERE (path.organization_id,path.workspace_id,path.environment_id,path.id)=(finding.organization_id,finding.workspace_id,finding.environment_id,finding.path_id)))`, scope...).Scan(&stray); err != nil || stray != 0 {
+		t.Fatalf("findings naming a missing path after the dismissal = %d, %v", stray, err)
 	}
 
 	// The API statements exist, are the API role's only way in, and refuse a

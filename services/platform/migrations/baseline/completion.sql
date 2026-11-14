@@ -4556,6 +4556,20 @@ CREATE OR REPLACE FUNCTION public.zasp_compliance_ai_controls() RETURNS TABLE(fr
 $ai_controls$;
 CREATE OR REPLACE FUNCTION public.zasp_compliance_ai_rule_controls() RETURNS TABLE(rule text,framework text,control_id text) LANGUAGE sql IMMUTABLE SET search_path TO pg_catalog,public AS $ai_rule_controls$
  SELECT r.rule,r.framework,r.control_id FROM (VALUES
+  ('agent_content_moderation_low','eu_ai_act','Article 15'),
+  ('agent_content_moderation_low','eu_ai_act','Article 9'),
+  ('agent_content_moderation_low','iso_iec_42001_2023','A.6.2.6'),
+  ('agent_content_moderation_low','mitre_atlas','AML.T0051'),
+  ('agent_content_moderation_low','nist_ai_rmf_1_0','MEASURE 2.7'),
+  ('agent_content_moderation_low','owasp_llm_top10_2025','LLM01'),
+  ('agent_content_moderation_low','owasp_llm_top10_2025','LLM02'),
+  ('agent_content_moderation_low','owasp_llm_top10_2025','LLM05'),
+  ('agent_data_service_wide_access','eu_ai_act','Article 15'),
+  ('agent_data_service_wide_access','mitre_atlas','AML.T0057'),
+  ('agent_data_service_wide_access','nist_ai_rmf_1_0','MEASURE 2.7'),
+  ('agent_data_service_wide_access','owasp_agentic_top10_2026','ASI03'),
+  ('agent_data_service_wide_access','owasp_llm_top10_2025','LLM02'),
+  ('agent_data_service_wide_access','owasp_llm_top10_2025','LLM06'),
   ('agent_guardrail_missing','eu_ai_act','Article 15'),
   ('agent_guardrail_missing','eu_ai_act','Article 9'),
   ('agent_guardrail_missing','iso_iec_42001_2023','A.6.2.6'),
@@ -4572,6 +4586,11 @@ CREATE OR REPLACE FUNCTION public.zasp_compliance_ai_rule_controls() RETURNS TAB
   ('agent_role_unused_90_days','nist_ai_rmf_1_0','GOVERN 1.6'),
   ('agent_role_unused_90_days','nist_ai_rmf_1_0','MANAGE 2.4'),
   ('agent_role_unused_90_days','owasp_agentic_top10_2026','ASI03'),
+  ('agent_role_unused_ai_permissions','eu_ai_act','Article 15'),
+  ('agent_role_unused_ai_permissions','nist_ai_rmf_1_0','MANAGE 2.4'),
+  ('agent_role_unused_ai_permissions','nist_ai_rmf_1_0','MEASURE 2.7'),
+  ('agent_role_unused_ai_permissions','owasp_agentic_top10_2026','ASI03'),
+  ('agent_role_unused_ai_permissions','owasp_llm_top10_2025','LLM06'),
   ('cicd_production_secret','eu_ai_act','Article 15'),
   ('cicd_production_secret','mitre_atlas','AML.T0055'),
   ('cicd_production_secret','owasp_agentic_top10_2026','ASI03'),
@@ -4595,6 +4614,38 @@ CREATE OR REPLACE FUNCTION public.zasp_compliance_ai_rule_controls() RETURNS TAB
   ('iam_role_administratoraccess_policy','owasp_llm_top10_2025','LLM06'),
   ('iam_role_cross_service_confused_deputy_prevention','nist_ai_rmf_1_0','MEASURE 2.7'),
   ('iam_role_cross_service_confused_deputy_prevention','owasp_agentic_top10_2026','ASI03'),
+  ('mcp_execute_tool_production','eu_ai_act','Article 14'),
+  ('mcp_execute_tool_production','eu_ai_act','Article 15'),
+  ('mcp_execute_tool_production','mitre_atlas','AML.T0053'),
+  ('mcp_execute_tool_production','nist_ai_rmf_1_0','MEASURE 2.7'),
+  ('mcp_execute_tool_production','owasp_agentic_top10_2026','ASI02'),
+  ('mcp_execute_tool_production','owasp_agentic_top10_2026','ASI05'),
+  ('mcp_execute_tool_production','owasp_llm_top10_2025','LLM06'),
+  ('mcp_server_blocked','eu_ai_act','Article 9'),
+  ('mcp_server_blocked','iso_iec_42001_2023','A.9.2'),
+  ('mcp_server_blocked','mitre_atlas','AML.T0053'),
+  ('mcp_server_blocked','nist_ai_rmf_1_0','MANAGE 2.4'),
+  ('mcp_server_blocked','owasp_agentic_top10_2026','ASI02'),
+  ('mcp_server_blocked','owasp_agentic_top10_2026','ASI04'),
+  ('mcp_server_blocked','owasp_llm_top10_2025','LLM03'),
+  ('mcp_server_no_auth','eu_ai_act','Article 15'),
+  ('mcp_server_no_auth','mitre_atlas','AML.T0053'),
+  ('mcp_server_no_auth','nist_ai_rmf_1_0','MEASURE 2.7'),
+  ('mcp_server_no_auth','owasp_agentic_top10_2026','ASI03'),
+  ('mcp_server_no_auth','owasp_agentic_top10_2026','ASI04'),
+  ('mcp_server_no_auth','owasp_llm_top10_2025','LLM03'),
+  ('mcp_server_unapproved','eu_ai_act','Article 9'),
+  ('mcp_server_unapproved','iso_iec_42001_2023','A.9.2'),
+  ('mcp_server_unapproved','mitre_atlas','AML.T0053'),
+  ('mcp_server_unapproved','nist_ai_rmf_1_0','GOVERN 1.6'),
+  ('mcp_server_unapproved','owasp_agentic_top10_2026','ASI02'),
+  ('mcp_server_unapproved','owasp_agentic_top10_2026','ASI04'),
+  ('mcp_server_unapproved','owasp_llm_top10_2025','LLM03'),
+  ('mcp_server_unpinned_package','eu_ai_act','Article 15'),
+  ('mcp_server_unpinned_package','mitre_atlas','AML.T0053'),
+  ('mcp_server_unpinned_package','nist_ai_rmf_1_0','MEASURE 2.7'),
+  ('mcp_server_unpinned_package','owasp_agentic_top10_2026','ASI04'),
+  ('mcp_server_unpinned_package','owasp_llm_top10_2025','LLM03'),
   ('no_runtime_coverage','eu_ai_act','Article 14'),
   ('no_runtime_coverage','eu_ai_act','Article 9'),
   ('no_runtime_coverage','iso_iec_42001_2023','A.6.2.6'),
@@ -4614,6 +4665,16 @@ CREATE OR REPLACE FUNCTION public.zasp_compliance_ai_rule_controls() RETURNS TAB
   ('shell_credential','owasp_agentic_top10_2026','ASI03'),
   ('shell_credential','owasp_agentic_top10_2026','ASI05'),
   ('shell_credential','owasp_llm_top10_2025','LLM06'),
+  ('skill_scripts_production','eu_ai_act','Article 15'),
+  ('skill_scripts_production','nist_ai_rmf_1_0','MEASURE 2.7'),
+  ('skill_scripts_production','owasp_agentic_top10_2026','ASI04'),
+  ('skill_scripts_production','owasp_agentic_top10_2026','ASI05'),
+  ('skill_scripts_production','owasp_llm_top10_2025','LLM03'),
+  ('skill_unowned','eu_ai_act','Article 14'),
+  ('skill_unowned','iso_iec_42001_2023','A.3.2'),
+  ('skill_unowned','nist_ai_rmf_1_0','GOVERN 2.1'),
+  ('skill_unowned','owasp_agentic_top10_2026','ASI04'),
+  ('skill_unowned','owasp_llm_top10_2025','LLM03'),
   ('unapproved_tool','eu_ai_act','Article 9'),
   ('unapproved_tool','iso_iec_42001_2023','A.9.2'),
   ('unapproved_tool','mitre_atlas','AML.T0053'),
@@ -6354,11 +6415,22 @@ END $ws5_mcp_registry$;
 -- A sixth rule is not about MCP: agent_content_moderation_low, for an agent
 -- whose platform reports its generative AI content moderation at the lowest
 -- level (a Copilot Studio agent's content_moderation attribute).
+-- Two rules are about the skills an agent project contains
+-- (github_agent_skill), decided without a skill's contents:
+--   skill_scripts_production     a skill directory ships a script (attribute
+--                                scripts, from the file tree) and the agent
+--                                has production access as defined above;
+--   skill_unowned                the repository's CODEOWNERS patterns name no
+--                                owner for a skill, or the repository has no
+--                                CODEOWNERS file (attribute ownership).
 -- A dismissed agent leaves the set as for every other rule (section X5a).
 --
 -- zasp_mcp_refresh_attack_paths, called at the end of every posture refresh,
 -- keeps one attack path per open MCP finding: agent, server and, for the
--- execute rule, the tool. Its break options are ranked: remove the server
+-- execute rule, the tool. The finding names its path (path_id), so the
+-- finding links to it; the posture refresh, which clears path_id on every
+-- other posture finding, keeps it on an MCP finding, and the finding's
+-- version moves only when its path changes. Its break options are ranked: remove the server
 -- from the agent first, then constrain the agent, then the tool. The paths
 -- it owns are listed in zasp_mcp_attack_paths; a path whose finding is no
 -- longer open is deleted. The path agent, role, data store needs nothing
@@ -6377,7 +6449,15 @@ DECLARE target CONSTANT regprocedure:='public.zasp_inventory_refresh_posture_fin
    ('mcp_server_no_auth','Agent uses a remote MCP server with no authentication',agent.state='active' AND EXISTS(SELECT 1 FROM mcp WHERE (mcp.agent_id,mcp.rule)=(agent.id,'mcp_server_no_auth'))),
    ('mcp_server_unpinned_package','Agent starts an MCP server from an unpinned package',agent.state='active' AND EXISTS(SELECT 1 FROM mcp WHERE (mcp.agent_id,mcp.rule)=(agent.id,'mcp_server_unpinned_package'))),
    ('mcp_execute_tool_production','Production agent can run code through an MCP tool',agent.state='active' AND EXISTS(SELECT 1 FROM mcp WHERE (mcp.agent_id,mcp.rule)=(agent.id,'mcp_execute_tool_production'))),
-   ('agent_content_moderation_low','Agent content moderation is set to the lowest level',agent.state='active' AND EXISTS(SELECT 1 FROM zasp_inventory_entities moderated WHERE (moderated.organization_id,moderated.workspace_id,moderated.environment_id,moderated.id)=(organization_value,workspace_value,environment_value,agent.id) AND moderated.winning_attributes->>'content_moderation'='low'))$rules$;
+   ('agent_content_moderation_low','Agent content moderation is set to the lowest level',agent.state='active' AND EXISTS(SELECT 1 FROM zasp_inventory_entities moderated WHERE (moderated.organization_id,moderated.workspace_id,moderated.environment_id,moderated.id)=(organization_value,workspace_value,environment_value,agent.id) AND moderated.winning_attributes->>'content_moderation'='low')),
+   ('skill_scripts_production','Production agent ships a skill with executable scripts',agent.state='active' AND EXISTS(SELECT 1 FROM mcp WHERE (mcp.agent_id,mcp.rule)=(agent.id,'skill_scripts_production'))),
+   ('skill_unowned','Agent skill has no code owner',agent.state='active' AND EXISTS(SELECT 1 FROM mcp WHERE (mcp.agent_id,mcp.rule)=(agent.id,'skill_unowned')))$rules$;
+ -- The posture upsert clears path_id; an MCP finding keeps the path
+ -- zasp_mcp_refresh_attack_paths gave it.
+ path_set_anchor CONSTANT text:=$anchor$agent_id=excluded.agent_id,path_id=NULL,compliance_context=excluded.compliance_context$anchor$;
+ path_set_patched CONSTANT text:=$patched$agent_id=excluded.agent_id,path_id=CASE WHEN excluded.rule LIKE 'mcp\_%' THEN finding.path_id END,compliance_context=excluded.compliance_context$patched$;
+ path_compare_anchor CONSTANT text:=$anchor$excluded.agent_id,NULL,excluded.compliance_context,$anchor$;
+ path_compare_patched CONSTANT text:=$patched$excluded.agent_id,CASE WHEN excluded.rule LIKE 'mcp\_%' THEN finding.path_id END,excluded.compliance_context,$patched$;
  return_anchor CONSTANT text:=$anchor$ RETURN jsonb_build_object('active_count',active_count,'resolved_count',resolved_count);$anchor$;
  paths CONSTANT text:=$paths$ PERFORM zasp_mcp_refresh_attack_paths(organization_value,workspace_value,environment_value);
 $paths$;
@@ -6410,7 +6490,18 @@ BEGIN
     ('mcp_server_no_auth',servers.attributes->>'auth'='none' AND(COALESCE(servers.attributes->>'endpoint_host','')<>'' OR servers.source_kind='aws_agentcore_gateway'),NULL),
     ('mcp_server_unpinned_package',servers.attributes->>'transport'='stdio' AND COALESCE(servers.attributes->>'package','')<>'' AND servers.attributes->>'package_pinned'='false',NULL),
     ('mcp_execute_tool_production',execute_tools.tool_id IS NOT NULL AND EXISTS(SELECT 1 FROM production WHERE production.id=used.agent_id),execute_tools.tool_id)
-   ) listed(rule,matched,tool_id) WHERE listed.matched)
+   ) listed(rule,matched,tool_id) WHERE listed.matched
+   -- The skills an agent project contains; server_id is the skill.
+   UNION ALL
+   SELECT edge.from_entity_id,listed.rule,skill.id,NULL::text FROM zasp_inventory_relationships edge
+   JOIN zasp_inventory_entities skill ON (skill.organization_id,skill.workspace_id,skill.environment_id,skill.id,skill.state)=(edge.organization_id,edge.workspace_id,edge.environment_id,edge.to_entity_id,'active')
+   JOIN zasp_inventory_source_observations observation ON (observation.organization_id,observation.workspace_id,observation.environment_id,observation.integration_id,observation.source,observation.entity_id)=(skill.organization_id,skill.workspace_id,skill.environment_id,skill.winning_integration_id,skill.winning_source,skill.id)
+   CROSS JOIN LATERAL(VALUES
+    ('skill_scripts_production',skill.winning_attributes->>'scripts'='true' AND EXISTS(SELECT 1 FROM production WHERE production.id=edge.from_entity_id)),
+    ('skill_unowned',skill.winning_attributes->>'ownership' IN('uncovered','no_codeowners'))
+   ) listed(rule,matched)
+   WHERE (edge.organization_id,edge.workspace_id,edge.environment_id,edge.state,edge.kind)=(organization_value,workspace_value,environment_value,'present','contains')
+    AND observation.source_state='present' AND observation.source_kind='github_agent_skill' AND listed.matched)
   SELECT DISTINCT ON(matched.agent_id,matched.rule) matched.agent_id,matched.rule,matched.server_id,matched.tool_id FROM matched ORDER BY matched.agent_id,matched.rule,matched.server_id
  $matches$;
 
@@ -6466,6 +6557,15 @@ BEGIN
   SELECT organization_value,workspace_value,environment_value,candidate->>'path_id',node.ordinality::smallint,node.node_id
   FROM jsonb_array_elements(path_items) candidate CROSS JOIN LATERAL jsonb_array_elements_text(candidate->'node_ids') WITH ORDINALITY node(node_id,ordinality)
   ON CONFLICT(organization_id,workspace_id,environment_id,path_id,position) DO NOTHING;
+  -- The finding names its path. Its version moves when the path changes,
+  -- once per transaction.
+  UPDATE zasp_risk_findings finding SET path_id=candidate->>'path_id',version=finding.version+CASE WHEN finding.updated_at<>transaction_timestamp() THEN 1 ELSE 0 END,updated_at=transaction_timestamp()
+  FROM jsonb_array_elements(path_items) candidate
+  WHERE (finding.organization_id,finding.workspace_id,finding.environment_id,finding.id)=(organization_value,workspace_value,environment_value,candidate->>'finding_id') AND finding.path_id IS DISTINCT FROM candidate->>'path_id';
+  UPDATE zasp_risk_findings finding SET path_id=NULL,version=finding.version+CASE WHEN finding.updated_at<>transaction_timestamp() THEN 1 ELSE 0 END,updated_at=transaction_timestamp()
+  WHERE (finding.organization_id,finding.workspace_id,finding.environment_id,finding.source)=(organization_value,workspace_value,environment_value,'posture')
+   AND finding.compliance_context LIKE 'zasp-posture:mcp\_%' AND finding.path_id IS NOT NULL
+   AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(path_items) candidate WHERE (candidate->>'finding_id',candidate->>'path_id')=(finding.id,finding.path_id));
   UPDATE zasp_risk_attack_paths path SET version=path.version+1,updated_at=transaction_timestamp()
   FROM jsonb_array_elements(path_items) candidate
   WHERE (path.organization_id,path.workspace_id,path.environment_id,path.id)=(organization_value,workspace_value,environment_value,candidate->>'path_id')
@@ -6497,11 +6597,12 @@ BEGIN
  END LOOP;
 
  d:=pg_get_functiondef(target);
- IF position(with_patched in d)>0 AND position(rule_anchor||rules in d)>0 AND position(paths||return_anchor in d)>0 THEN RETURN;END IF;
- IF position('zasp_mcp_' in d)>0 OR length(d)-length(replace(d,with_anchor,''))<>length(with_anchor) OR length(d)-length(replace(d,rule_anchor,''))<>length(rule_anchor) OR length(d)-length(replace(d,return_anchor,''))<>length(return_anchor) THEN
+ IF position(with_patched in d)>0 AND position(rule_anchor||rules in d)>0 AND position(paths||return_anchor in d)>0 AND position(path_set_patched in d)>0 AND length(d)-length(replace(d,path_compare_patched,''))=2*length(path_compare_patched) THEN RETURN;END IF;
+ IF position('zasp_mcp_' in d)>0 OR length(d)-length(replace(d,with_anchor,''))<>length(with_anchor) OR length(d)-length(replace(d,rule_anchor,''))<>length(rule_anchor) OR length(d)-length(replace(d,return_anchor,''))<>length(return_anchor)
+  OR length(d)-length(replace(d,path_set_anchor,''))<>length(path_set_anchor) OR length(d)-length(replace(d,path_compare_anchor,''))<>2*length(path_compare_anchor) THEN
   RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='inventory posture refresh predecessor changed';
  END IF;
- EXECUTE replace(replace(replace(d,with_anchor,with_patched),rule_anchor,rule_anchor||rules),return_anchor,paths||return_anchor);
+ EXECUTE replace(replace(replace(replace(replace(d,with_anchor,with_patched),rule_anchor,rule_anchor||rules),return_anchor,paths||return_anchor),path_set_anchor,path_set_patched),path_compare_anchor,path_compare_patched);
 END $ws5_mcp_posture$;
 -- WS5d. What an agent may use: GET /agents/{id}/access.
 --
@@ -6572,172 +6673,3 @@ BEGIN
  REVOKE ALL ON FUNCTION zasp_authorization80.agent_access(text,text,text,text) FROM PUBLIC;
  GRANT EXECUTE ON FUNCTION zasp_authorization80.agent_access(text,text,text,text) TO zasp_discovery_api;
 END $ws5_agent_access$;
-
--- ---------------------------------------------------------------------------
--- WS5e. The rule to control mapping with the WS5 rules. The AI framework
--- section above creates these two functions from the mapping as it stood
--- before the MCP, skill and moderation rules; this replaces both with the
--- current mapping of services/platform/compliancemap, which the test
--- TestCompletionSQLHoldsTheGoMapping holds this text to. The functions keep
--- their owner and grants (CREATE OR REPLACE does not change them).
--- WS5e-begin (generated from compliancemap; see compliancemap/sql_test.go)
-CREATE OR REPLACE FUNCTION public.zasp_compliance_ai_controls() RETURNS TABLE(framework text,control_id text,label text) LANGUAGE sql IMMUTABLE SET search_path TO pg_catalog,public AS $ai_controls$
- SELECT c.framework,c.control_id,c.label FROM (VALUES
-  ('eu_ai_act','Article 14','Human oversight'),
-  ('eu_ai_act','Article 15','Accuracy, robustness and cybersecurity'),
-  ('eu_ai_act','Article 9','Risk management system'),
-  ('iso_iec_42001_2023','A.3.2','AI roles and responsibilities'),
-  ('iso_iec_42001_2023','A.6.2.6','AI system operation and monitoring'),
-  ('iso_iec_42001_2023','A.9.2','Processes for responsible use of AI systems'),
-  ('mitre_atlas','AML.T0051','LLM Prompt Injection'),
-  ('mitre_atlas','AML.T0053','LLM Plugin Compromise'),
-  ('mitre_atlas','AML.T0055','Unsecured Credentials'),
-  ('mitre_atlas','AML.T0057','LLM Data Leakage'),
-  ('nist_ai_rmf_1_0','GOVERN 1.6','Mechanisms are in place to inventory AI systems'),
-  ('nist_ai_rmf_1_0','GOVERN 2.1','Roles, responsibilities and lines of communication are documented'),
-  ('nist_ai_rmf_1_0','MANAGE 2.4','Mechanisms exist to supersede, disengage or deactivate AI systems'),
-  ('nist_ai_rmf_1_0','MEASURE 2.7','AI system security and resilience are evaluated and documented'),
-  ('owasp_agentic_top10_2026','ASI02','Tool Misuse and Exploitation'),
-  ('owasp_agentic_top10_2026','ASI03','Identity and Privilege Abuse'),
-  ('owasp_agentic_top10_2026','ASI04','Agentic Supply Chain Vulnerabilities'),
-  ('owasp_agentic_top10_2026','ASI05','Unexpected Code Execution'),
-  ('owasp_agentic_top10_2026','ASI10','Rogue Agents'),
-  ('owasp_llm_top10_2025','LLM01','Prompt Injection'),
-  ('owasp_llm_top10_2025','LLM02','Sensitive Information Disclosure'),
-  ('owasp_llm_top10_2025','LLM03','Supply Chain'),
-  ('owasp_llm_top10_2025','LLM05','Improper Output Handling'),
-  ('owasp_llm_top10_2025','LLM06','Excessive Agency')) c(framework,control_id,label)
-$ai_controls$;
-CREATE OR REPLACE FUNCTION public.zasp_compliance_ai_rule_controls() RETURNS TABLE(rule text,framework text,control_id text) LANGUAGE sql IMMUTABLE SET search_path TO pg_catalog,public AS $ai_rule_controls$
- SELECT r.rule,r.framework,r.control_id FROM (VALUES
-  ('agent_content_moderation_low','eu_ai_act','Article 15'),
-  ('agent_content_moderation_low','eu_ai_act','Article 9'),
-  ('agent_content_moderation_low','iso_iec_42001_2023','A.6.2.6'),
-  ('agent_content_moderation_low','mitre_atlas','AML.T0051'),
-  ('agent_content_moderation_low','nist_ai_rmf_1_0','MEASURE 2.7'),
-  ('agent_content_moderation_low','owasp_llm_top10_2025','LLM01'),
-  ('agent_content_moderation_low','owasp_llm_top10_2025','LLM02'),
-  ('agent_content_moderation_low','owasp_llm_top10_2025','LLM05'),
-  ('agent_data_service_wide_access','eu_ai_act','Article 15'),
-  ('agent_data_service_wide_access','mitre_atlas','AML.T0057'),
-  ('agent_data_service_wide_access','nist_ai_rmf_1_0','MEASURE 2.7'),
-  ('agent_data_service_wide_access','owasp_agentic_top10_2026','ASI03'),
-  ('agent_data_service_wide_access','owasp_llm_top10_2025','LLM02'),
-  ('agent_data_service_wide_access','owasp_llm_top10_2025','LLM06'),
-  ('agent_guardrail_missing','eu_ai_act','Article 15'),
-  ('agent_guardrail_missing','eu_ai_act','Article 9'),
-  ('agent_guardrail_missing','iso_iec_42001_2023','A.6.2.6'),
-  ('agent_guardrail_missing','mitre_atlas','AML.T0051'),
-  ('agent_guardrail_missing','nist_ai_rmf_1_0','MEASURE 2.7'),
-  ('agent_guardrail_missing','owasp_llm_top10_2025','LLM01'),
-  ('agent_guardrail_missing','owasp_llm_top10_2025','LLM02'),
-  ('agent_guardrail_missing','owasp_llm_top10_2025','LLM05'),
-  ('agent_role_administrator_access','eu_ai_act','Article 15'),
-  ('agent_role_administrator_access','nist_ai_rmf_1_0','MEASURE 2.7'),
-  ('agent_role_administrator_access','owasp_agentic_top10_2026','ASI03'),
-  ('agent_role_administrator_access','owasp_llm_top10_2025','LLM06'),
-  ('agent_role_unused_90_days','mitre_atlas','AML.T0055'),
-  ('agent_role_unused_90_days','nist_ai_rmf_1_0','GOVERN 1.6'),
-  ('agent_role_unused_90_days','nist_ai_rmf_1_0','MANAGE 2.4'),
-  ('agent_role_unused_90_days','owasp_agentic_top10_2026','ASI03'),
-  ('agent_role_unused_ai_permissions','eu_ai_act','Article 15'),
-  ('agent_role_unused_ai_permissions','nist_ai_rmf_1_0','MANAGE 2.4'),
-  ('agent_role_unused_ai_permissions','nist_ai_rmf_1_0','MEASURE 2.7'),
-  ('agent_role_unused_ai_permissions','owasp_agentic_top10_2026','ASI03'),
-  ('agent_role_unused_ai_permissions','owasp_llm_top10_2025','LLM06'),
-  ('cicd_production_secret','eu_ai_act','Article 15'),
-  ('cicd_production_secret','mitre_atlas','AML.T0055'),
-  ('cicd_production_secret','owasp_agentic_top10_2026','ASI03'),
-  ('cicd_production_secret','owasp_agentic_top10_2026','ASI04'),
-  ('cicd_production_secret','owasp_llm_top10_2025','LLM03'),
-  ('destructive_no_control','eu_ai_act','Article 14'),
-  ('destructive_no_control','iso_iec_42001_2023','A.6.2.6'),
-  ('destructive_no_control','nist_ai_rmf_1_0','MANAGE 2.4'),
-  ('destructive_no_control','owasp_agentic_top10_2026','ASI02'),
-  ('destructive_no_control','owasp_llm_top10_2025','LLM06'),
-  ('egress_sensitive','eu_ai_act','Article 15'),
-  ('egress_sensitive','mitre_atlas','AML.T0057'),
-  ('egress_sensitive','nist_ai_rmf_1_0','MEASURE 2.7'),
-  ('egress_sensitive','owasp_llm_top10_2025','LLM02'),
-  ('human_credential','eu_ai_act','Article 15'),
-  ('human_credential','mitre_atlas','AML.T0055'),
-  ('human_credential','nist_ai_rmf_1_0','MEASURE 2.7'),
-  ('human_credential','owasp_agentic_top10_2026','ASI03'),
-  ('iam_role_administratoraccess_policy','nist_ai_rmf_1_0','MEASURE 2.7'),
-  ('iam_role_administratoraccess_policy','owasp_agentic_top10_2026','ASI03'),
-  ('iam_role_administratoraccess_policy','owasp_llm_top10_2025','LLM06'),
-  ('iam_role_cross_service_confused_deputy_prevention','nist_ai_rmf_1_0','MEASURE 2.7'),
-  ('iam_role_cross_service_confused_deputy_prevention','owasp_agentic_top10_2026','ASI03'),
-  ('mcp_execute_tool_production','eu_ai_act','Article 14'),
-  ('mcp_execute_tool_production','eu_ai_act','Article 15'),
-  ('mcp_execute_tool_production','mitre_atlas','AML.T0053'),
-  ('mcp_execute_tool_production','nist_ai_rmf_1_0','MEASURE 2.7'),
-  ('mcp_execute_tool_production','owasp_agentic_top10_2026','ASI02'),
-  ('mcp_execute_tool_production','owasp_agentic_top10_2026','ASI05'),
-  ('mcp_execute_tool_production','owasp_llm_top10_2025','LLM06'),
-  ('mcp_server_blocked','eu_ai_act','Article 9'),
-  ('mcp_server_blocked','iso_iec_42001_2023','A.9.2'),
-  ('mcp_server_blocked','mitre_atlas','AML.T0053'),
-  ('mcp_server_blocked','nist_ai_rmf_1_0','MANAGE 2.4'),
-  ('mcp_server_blocked','owasp_agentic_top10_2026','ASI02'),
-  ('mcp_server_blocked','owasp_agentic_top10_2026','ASI04'),
-  ('mcp_server_blocked','owasp_llm_top10_2025','LLM03'),
-  ('mcp_server_no_auth','eu_ai_act','Article 15'),
-  ('mcp_server_no_auth','mitre_atlas','AML.T0053'),
-  ('mcp_server_no_auth','nist_ai_rmf_1_0','MEASURE 2.7'),
-  ('mcp_server_no_auth','owasp_agentic_top10_2026','ASI03'),
-  ('mcp_server_no_auth','owasp_agentic_top10_2026','ASI04'),
-  ('mcp_server_no_auth','owasp_llm_top10_2025','LLM03'),
-  ('mcp_server_unapproved','eu_ai_act','Article 9'),
-  ('mcp_server_unapproved','iso_iec_42001_2023','A.9.2'),
-  ('mcp_server_unapproved','mitre_atlas','AML.T0053'),
-  ('mcp_server_unapproved','nist_ai_rmf_1_0','GOVERN 1.6'),
-  ('mcp_server_unapproved','owasp_agentic_top10_2026','ASI02'),
-  ('mcp_server_unapproved','owasp_agentic_top10_2026','ASI04'),
-  ('mcp_server_unapproved','owasp_llm_top10_2025','LLM03'),
-  ('mcp_server_unpinned_package','eu_ai_act','Article 15'),
-  ('mcp_server_unpinned_package','mitre_atlas','AML.T0053'),
-  ('mcp_server_unpinned_package','nist_ai_rmf_1_0','MEASURE 2.7'),
-  ('mcp_server_unpinned_package','owasp_agentic_top10_2026','ASI04'),
-  ('mcp_server_unpinned_package','owasp_llm_top10_2025','LLM03'),
-  ('no_runtime_coverage','eu_ai_act','Article 14'),
-  ('no_runtime_coverage','eu_ai_act','Article 9'),
-  ('no_runtime_coverage','iso_iec_42001_2023','A.6.2.6'),
-  ('no_runtime_coverage','nist_ai_rmf_1_0','MANAGE 2.4'),
-  ('no_runtime_coverage','nist_ai_rmf_1_0','MEASURE 2.7'),
-  ('ownerless_agent','eu_ai_act','Article 14'),
-  ('ownerless_agent','iso_iec_42001_2023','A.3.2'),
-  ('ownerless_agent','nist_ai_rmf_1_0','GOVERN 1.6'),
-  ('ownerless_agent','nist_ai_rmf_1_0','GOVERN 2.1'),
-  ('ownerless_agent','owasp_agentic_top10_2026','ASI10'),
-  ('shared_credential','eu_ai_act','Article 15'),
-  ('shared_credential','mitre_atlas','AML.T0055'),
-  ('shared_credential','nist_ai_rmf_1_0','MEASURE 2.7'),
-  ('shared_credential','owasp_agentic_top10_2026','ASI03'),
-  ('shell_credential','eu_ai_act','Article 15'),
-  ('shell_credential','nist_ai_rmf_1_0','MEASURE 2.7'),
-  ('shell_credential','owasp_agentic_top10_2026','ASI03'),
-  ('shell_credential','owasp_agentic_top10_2026','ASI05'),
-  ('shell_credential','owasp_llm_top10_2025','LLM06'),
-  ('unapproved_tool','eu_ai_act','Article 9'),
-  ('unapproved_tool','iso_iec_42001_2023','A.9.2'),
-  ('unapproved_tool','mitre_atlas','AML.T0053'),
-  ('unapproved_tool','owasp_agentic_top10_2026','ASI02'),
-  ('unapproved_tool','owasp_agentic_top10_2026','ASI04'),
-  ('unapproved_tool','owasp_llm_top10_2025','LLM03'),
-  ('untrusted_production_write','eu_ai_act','Article 15'),
-  ('untrusted_production_write','mitre_atlas','AML.T0051'),
-  ('untrusted_production_write','nist_ai_rmf_1_0','MEASURE 2.7'),
-  ('untrusted_production_write','owasp_agentic_top10_2026','ASI02'),
-  ('untrusted_production_write','owasp_llm_top10_2025','LLM01'),
-  ('untrusted_production_write','owasp_llm_top10_2025','LLM06'),
-  ('weak_runtime_isolation','eu_ai_act','Article 15'),
-  ('weak_runtime_isolation','nist_ai_rmf_1_0','MEASURE 2.7'),
-  ('weak_runtime_isolation','owasp_agentic_top10_2026','ASI05'),
-  ('weak_runtime_isolation','owasp_llm_top10_2025','LLM06'),
-  ('zombie_credential','mitre_atlas','AML.T0055'),
-  ('zombie_credential','nist_ai_rmf_1_0','GOVERN 1.6'),
-  ('zombie_credential','nist_ai_rmf_1_0','MANAGE 2.4'),
-  ('zombie_credential','owasp_agentic_top10_2026','ASI03')) r(rule,framework,control_id)
-$ai_rule_controls$;
--- WS5e-end

@@ -768,7 +768,12 @@ func providerEntitySchema(provider collection.Provider, kind string) (providerEn
 		case "github_agent_skill":
 			// name is the path of the skill or instruction file. Its contents
 			// are never read.
-			return providerEntityDefinition{stable: mergeInventorySchemas(installation, requiredStringFields("name", "owner", "repository")), attributes: inventoryObjectSchema{"skill_kind": enumInventoryField(true, agentsignals.SkillKindSkill, agentsignals.SkillKindInstructions, agentsignals.SkillKindRules)}}, true
+			return providerEntityDefinition{stable: mergeInventorySchemas(installation, requiredStringFields("name", "owner", "repository")), attributes: inventoryObjectSchema{"skill_kind": enumInventoryField(true, agentsignals.SkillKindSkill, agentsignals.SkillKindInstructions, agentsignals.SkillKindRules),
+				// scripts: the skill's directory ships a script (from the file
+				// tree). ownership: whether the repository's CODEOWNERS
+				// patterns name an owner for the skill. Both are absent when
+				// they could not be established.
+				"scripts": boolInventoryField(false), "ownership": enumInventoryField(false, agentsignals.SkillOwnershipCovered, agentsignals.SkillOwnershipNoCodeowners, agentsignals.SkillOwnershipUncovered)}}, true
 		}
 	case collection.ProviderOkta:
 		switch kind {

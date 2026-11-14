@@ -39,6 +39,7 @@ type repositoryTreeResponse struct {
 		Path string `json:"path"`
 		Type string `json:"type"`
 		Size int64  `json:"size"`
+		Mode string `json:"mode"`
 	} `json:"tree"`
 	Truncated bool `json:"truncated"`
 }
@@ -65,12 +66,14 @@ func (api *InstallationCollectionAPI) fetchAgentProjectPage(ctx context.Context,
 			return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
 		}
 		paths := make([]string, 0, len(*tree.Tree))
+		files := make([]agentsignals.RepositoryFile, 0, len(*tree.Tree))
 		manifests := make([]string, 0, githubMaximumAgentManifests)
 		for _, entry := range *tree.Tree {
 			if entry.Type != "blob" || entry.Path == "" {
 				continue
 			}
 			paths = append(paths, entry.Path)
+			files = append(files, agentsignals.RepositoryFile{Path: entry.Path, Executable: entry.Mode == "100755"})
 			if _, known := agentsignals.DependencyManifests[path.Base(entry.Path)]; known && strings.Count(entry.Path, "/") <= 1 && entry.Size >= 1 && entry.Size <= githubMaximumAgentManifestBytes && validGitHubText(entry.Path, 512) {
 				manifests = append(manifests, entry.Path)
 			}
@@ -115,14 +118,25 @@ func (api *InstallationCollectionAPI) fetchAgentProjectPage(ctx context.Context,
 			evidence.Packages(agentsignals.DependencyManifests[name], manifestPackageNames(name, decoded)...)
 		}
 		// The MCP servers the repository declares, and its skills (paths only).
-		configs, settings := mcpConfigCandidates(*tree.Tree)
-		if servers, err = api.readRepositoryMCPServers(ctx, credential, repositoryURL, state.DefaultBranch, configs, settings); err != nil {
+		configs, settings, extensions := mcpConfigCandidates(candidateFiles(*tree.Tree))
+		if servers, err = api.readRepositoryMCPServers(ctx, credential, repositoryURL, state.DefaultBranch, configs, settings, extensions); err != nil {
 			if err == errMalformedAgentProjectFile {
 				return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
 			}
 			return CollectionPage{}, err
 		}
 		skills = agentsignals.SkillPaths(paths...)
+		if len(skills) > 0 {
+			// What the tree says about the skills, and whether the
+			// repository's CODEOWNERS patterns name an owner for them.
+			agentsignals.MarkSkillScripts(skills, files, !tree.Truncated)
+			if err = api.markSkillOwnership(ctx, credential, repositoryURL, state.DefaultBranch, candidateFiles(*tree.Tree), tree.Truncated, skills); err != nil {
+				if err == errMalformedAgentProjectFile {
+					return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
+				}
+				return CollectionPage{}, err
+			}
+		}
 	}
 	var entities, relationships []json.RawMessage
 	if evidence.IsAgent() {

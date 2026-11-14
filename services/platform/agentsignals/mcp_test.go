@@ -81,7 +81,7 @@ func TestClaudeSettingsToolPermissions(t *testing.T) {
 
 func TestSkillPathsRecordsPathAndKindOnly(t *testing.T) {
 	got := SkillPaths("README.md", ".claude/skills/release/SKILL.md", ".claude/skills/release/run.sh", "skills/triage/SKILL.md", "AGENTS.md", "docs/CLAUDE.md", ".cursor/rules/style.mdc", ".cursorrules", "src/skill.md", "bad\x00path/SKILL.md")
-	want := []Skill{{".claude/skills/release", SkillKindSkill}, {".cursor/rules/style.mdc", SkillKindRules}, {".cursorrules", SkillKindRules}, {"AGENTS.md", SkillKindInstructions}, {"docs/CLAUDE.md", SkillKindInstructions}, {"skills/triage", SkillKindSkill}}
+	want := []Skill{{Path: ".claude/skills/release", Kind: SkillKindSkill}, {Path: ".cursor/rules/style.mdc", Kind: SkillKindRules}, {Path: ".cursorrules", Kind: SkillKindRules}, {Path: "AGENTS.md", Kind: SkillKindInstructions}, {Path: "docs/CLAUDE.md", Kind: SkillKindInstructions}, {Path: "skills/triage", Kind: SkillKindSkill}}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("skills: %+v", got)
 	}

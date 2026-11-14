@@ -263,6 +263,8 @@ describe("production risk views", () => {
     ["mcp_server_unpinned_package", "posture", "Agent starts an MCP server from an unpinned package", "no exact version"],
     ["mcp_execute_tool_production", "posture", "Production agent can run code through an MCP tool", "runs code or commands"],
     ["agent_content_moderation_low", "posture", "Agent content moderation is set to the lowest level", "filtered least"],
+    ["skill_scripts_production", "posture", "Production agent ships a skill with executable scripts", "ships scripts"],
+    ["skill_unowned", "posture", "Agent skill has no code owner", "No code owner is named"],
     ["agent_role_unused_ai_permissions", "prowler", "Agent's role holds model permissions it does not use", "did not make in the last seven days"],
     ["agent_data_service_wide_access", "prowler", "An agent's role can reach every resource of a data service", "every resource of the service"],
   ])("explains the %s finding", async (rule, source, title, why) => {
