@@ -18,8 +18,12 @@
 # data here. Production on AWS is deploy/staging/product (EKS, Terraform);
 # see docs/getting-started/administrator.md.
 #
-# Not installed on a cluster by its authors: it was rendered with Helm and
-# checked as text only.
+# Not installed on a cluster by its authors. It was rendered with Helm and
+# checked as text, and its start script (files/entrypoint.sh) was run once
+# outside a cluster against real PostgreSQL, OpenFGA and Temporal. The init
+# container order, the probes, the volumes and the dependency images were
+# never exercised. See docs/getting-started/administrator.md, "What was and
+# was not verified".
 
 # REQUIRED. The address users open, for example https://zasp.example.test:8443.
 # HTTPS, a host name (not localhost, *.local or an IP address), no path.
