@@ -78,6 +78,11 @@ func BuiltInTemplates() []Template {
 		{ID: "existing_test_run", Name: "Run Existing Test", Version: 1, TriggerKind: "finding", DefaultActions: []string{"run_test"}, VerificationCondition: "test_run", ApprovalRequired: map[string]bool{}},
 		{ID: "existing_test_rerun", Name: "Rerun Existing Test", Version: 1, TriggerKind: "finding", DefaultActions: []string{"rerun_test"}, VerificationCondition: "test_run", ApprovalRequired: map[string]bool{}},
 		{ID: "existing_test_attack_lab", Name: "Reproduce in Attack Lab", Version: 1, TriggerKind: "finding", DefaultActions: []string{"start_attack_lab"}, VerificationCondition: "attack_lab_run", ApprovalRequired: map[string]bool{"start_attack_lab": true}},
+		// Provider remediations: one action each, always approved by a person.
+		// They are appended so the identifiers of the earlier templates, which
+		// follow their position, do not change.
+		{ID: "bedrock_guardrail_remediation", Name: "Attach Bedrock Guardrail", Version: 1, TriggerKind: "finding", DefaultActions: []string{ActionAttachBedrockGuardrail}, VerificationCondition: VerificationGuardrailState, ApprovalRequired: map[string]bool{ActionAttachBedrockGuardrail: true}},
+		{ID: "agent_role_policy_remediation", Name: "Detach Administrator Policy from Agent Role", Version: 1, TriggerKind: "finding", DefaultActions: []string{ActionDetachRoleAdministratorPolicy}, VerificationCondition: VerificationRolePolicyState, ApprovalRequired: map[string]bool{ActionDetachRoleAdministratorPolicy: true}},
 	}
 }
 func validTemplate(value Template) bool {
