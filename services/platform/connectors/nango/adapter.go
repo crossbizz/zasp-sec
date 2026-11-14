@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/zasp-ai/zasp-sec/services/platform/publicaddress"
 )
 
 var ErrInvalid = errors.New("Nango connector input rejected")
@@ -330,38 +332,8 @@ func cloneRules(values []Rule) []Rule {
 	return result
 }
 
-// nonPublicNetworks are the address ranges that Go's own tests do not call
-// private, loopback, link-local or multicast and that still never belong to
-// a provider on the public internet: shared address space (carrier NAT,
-// where cloud and cluster services often live), protocol assignments,
-// benchmarking, documentation, reserved space, and the IPv6 ranges that
-// embed or translate an IPv4 address.
-var nonPublicNetworks = func() []*net.IPNet {
-	var networks []*net.IPNet
-	for _, cidr := range []string{
-		"0.0.0.0/8", "100.64.0.0/10", "192.0.0.0/24", "192.0.2.0/24", "198.18.0.0/15", "198.51.100.0/24", "203.0.113.0/24", "240.0.0.0/4",
-		"64:ff9b::/96", "64:ff9b:1::/48", "100::/64", "2001:db8::/32", "2002::/16", "2001::/32",
-	} {
-		_, network, err := net.ParseCIDR(cidr)
-		if err != nil {
-			panic(err)
-		}
-		networks = append(networks, network)
-	}
-	return networks
-}()
-
-func publicIP(value net.IP) bool {
-	if value == nil || len(value) != net.IPv4len && len(value) != net.IPv6len || value.IsUnspecified() || value.IsLoopback() || value.IsPrivate() || value.IsLinkLocalUnicast() || value.IsLinkLocalMulticast() || value.IsMulticast() || value.IsInterfaceLocalMulticast() {
-		return false
-	}
-	for _, network := range nonPublicNetworks {
-		if network.Contains(value) {
-			return false
-		}
-	}
-	return true
-}
+// publicIP is the shared public-address check.
+func publicIP(value net.IP) bool { return publicaddress.IsPublic(value) }
 
 func containsSecret(value []byte) bool {
 	if len(value) == 0 {
