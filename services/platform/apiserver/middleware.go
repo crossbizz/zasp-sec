@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"mime"
 	"net/http"
 	"net/url"
 	"strings"
@@ -91,6 +92,12 @@ func NewProductMiddleware(security ProductSecurity, next http.Handler) (http.Han
 		maximumBody := security.MaximumBodyBytes
 		if security.GatewayMaximumBodyBytes > maximumBody && request.URL != nil && HostedGatewayTrafficPath(request.URL.Path) {
 			maximumBody = security.GatewayMaximumBodyBytes
+			// The gateway's callers are MCP clients and model SDKs, some of
+			// which name the character set: "application/json; charset=utf-8"
+			// is JSON there. The product API's own routes stay exact.
+			if mediaType, parameters, err := mime.ParseMediaType(request.Header.Get("Content-Type")); err == nil && mediaType == "application/json" && (len(parameters) == 0 || len(parameters) == 1 && strings.EqualFold(parameters["charset"], "utf-8")) {
+				request.Header.Set("Content-Type", "application/json")
+			}
 		}
 		if err := validateBody(request, maximumBody); err != nil {
 			if errors.Is(err, errUnsupportedMediaType) {

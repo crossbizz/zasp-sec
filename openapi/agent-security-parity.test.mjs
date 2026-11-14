@@ -107,3 +107,76 @@ describe("agent evidence pack", () => {
     assert.deepEqual(schemas.AgentEvidencePackResponse.required, ["pack", "markdown"]);
   });
 });
+
+describe("hosted gateway", () => {
+  const server = "pid_61000001-0000-4000-8000-000000000001";
+  const traffic = [
+    ["/api/v1/gateway/mcp/{id}", "post", "callMCPGateway"], ["/api/v1/gateway/mcp/{id}", "delete", "closeMCPGatewaySession"],
+    ["/api/v1/gateway/llm/v1/chat/completions", "post", "createGatewayChatCompletion"], ["/api/v1/gateway/llm/v1/responses", "post", "createGatewayResponse"], ["/api/v1/gateway/llm/v1/messages", "post", "createGatewayMessage"],
+  ];
+  const management = [
+    ["/api/v1/gateway/policy", "get", "getGatewayPolicy"], ["/api/v1/gateway/policy", "put", "putGatewayPolicy"], ["/api/v1/gateway/mcp-servers", "get", "listMCPGatewayServers"],
+    ["/api/v1/gateway/mcp-servers/{id}", "put", "putMCPGatewayServer"], ["/api/v1/gateway/mcp-servers/{id}", "delete", "deleteMCPGatewayServer"], ["/api/v1/gateway/activity", "get", "listGatewayActivity"],
+  ];
+  it("serves an agent's traffic to an API token only, and never takes an upstream credential in a body or a query", () => {
+    for (const [path, method, id] of traffic) {
+      const operation = document.paths[path][method];
+      assert.equal(operation.operationId, id);
+      // A browser session cannot send traffic through the gateway.
+      assert.deepEqual(operation.security, [{ ProductAPIToken: [] }], id);
+      const parameters = [...(document.paths[path].parameters ?? []), ...(operation.parameters ?? [])];
+      assert.ok(parameters.every((parameter) => parameter.in !== "query"), id);
+      const upstream = parameters.find((parameter) => parameter.name === "X-Zasp-Upstream-Authorization");
+      assert.deepEqual([upstream.in, upstream.required], ["header", false], id);
+      assert.match(upstream.description, /never stored or logged/);
+      assert.ok(parameters.some((parameter) => parameter.name === "X-Zasp-Agent-Id" && parameter.in === "header"), id);
+      for (const status of ["401", "403", "429", "503"]) assert.ok(operation.responses[status], `${id} ${status}`);
+    }
+    // An answer of the gateway is the upstream's JSON or its event stream.
+    for (const [path, method] of traffic.filter((entry) => entry[1] === "post")) assert.deepEqual(Object.keys(document.paths[path][method].responses["200"].content), ["application/json", "text/event-stream"], path);
+    // The GET stream of the MCP transport is not offered.
+    assert.deepEqual(Object.keys(document.paths["/api/v1/gateway/mcp/{id}"]), ["parameters", "post", "delete"]);
+    assert.ok(schemas.Permission.enum.includes("use_gateway"));
+  });
+  it("is managed with the default security, by version", () => {
+    for (const [path, method, id] of management) {
+      const operation = document.paths[path][method];
+      assert.equal(operation.operationId, id);
+      assert.equal(operation.security, undefined, id);
+      if (method !== "get") assert.deepEqual(operation.parameters.map((parameter) => parameter.$ref.split("/").at(-1)), ["BrowserMutationCSRFToken", "BrowserMutationOrigin", "IdempotencyKey", "ScheduleVersion"], id);
+    }
+    assert.deepEqual(Object.keys(document.paths["/api/v1/gateway/mcp-servers/{id}"].put.responses).slice(0, 2), ["200", "201"]);
+    assert.ok(document.paths["/api/v1/gateway/mcp-servers/{id}"].delete.responses["204"]);
+    assert.deepEqual(document.paths["/api/v1/gateway/activity"].get.parameters.map((parameter) => parameter.name), ["surface", "server_id", "agent_id", "decision", "before", "limit"]);
+  });
+  it("stores an address and lists for a server, and nothing that is a credential", () => {
+    const input = compile("MCPGatewayServerInput");
+    const valid = { name: "Tickets", upstream_url: "https://mcp.tickets.test/mcp", enabled: true, allowed_tools: [], denied_tools: ["delete_ticket"] };
+    assert.equal(input(valid), true, JSON.stringify(input.errors));
+    for (const changed of [{ ...valid, authorization: "Bearer abc" }, { ...valid, upstream_url: "http://mcp.tickets.test/mcp" }, { ...valid, denied_tools: ["delete ticket"] }, { ...valid, denied_tools: ["a", "a"] }, { ...valid, name: "" }, { name: "Tickets" }]) {
+      assert.equal(input(changed), false, JSON.stringify(changed));
+    }
+    assert.deepEqual(Object.keys(schemas.MCPGatewayServer.properties).filter((name) => /secret|token|credential|authorization|password|key/i.test(name)), []);
+    assert.deepEqual(schemas.MCPGatewayTool.required, ["name", "risk", "last_seen_at"]);
+    assert.equal(schemas.MCPGatewayTool.additionalProperties, false);
+    const policy = compile("GatewayPolicyInput");
+    assert.equal(policy({ unapproved_servers: "refuse", denied_tool_risks: ["execute", "write"], requests_per_minute: 120 }), true);
+    for (const changed of [{ unapproved_servers: "maybe", denied_tool_risks: [], requests_per_minute: 1 }, { unapproved_servers: "allow", denied_tool_risks: ["dangerous"], requests_per_minute: 1 }, { unapproved_servers: "allow", denied_tool_risks: ["read", "read"], requests_per_minute: 1 }, { unapproved_servers: "allow", denied_tool_risks: [], requests_per_minute: 100001 }]) {
+      assert.equal(policy(changed), false, JSON.stringify(changed));
+    }
+  });
+  it("records a decision with identifiers, a size and a digest, and no member for text", () => {
+    const decision = compile("GatewayDecision");
+    const record = {
+      id: "pid_62000001-0000-4000-8000-000000000001", created_at: "2026-11-14T10:05:00Z", surface: "mcp", operation: "tools/call", direction: "response", decision: "block", reason: "guardrail",
+      rules: [{ id: "injection.instruction_override", category: "prompt_injection", mode: "block", count: 1 }], bytes: 412, content_digest: `sha256:${"ab".repeat(32)}`, server_id: server, server_name: "Tickets",
+      tool_name: "read_page", provider: null, model: null, agent_id: "support-agent", principal_id: agent,
+    };
+    assert.equal(decision(record), true, JSON.stringify(decision.errors));
+    for (const member of ["text", "arguments", "result", "prompt", "content", "messages"]) assert.equal(decision({ ...record, [member]: "the customer's question" }), false, member);
+    assert.equal(decision({ ...record, content_digest: "sha256:zz" }), false);
+    assert.equal(decision({ ...record, reason: "because" }), false);
+    assert.deepEqual(schemas.GatewayDecision.properties.reason.enum, ["none", "guardrail", "server_blocked", "server_unapproved", "server_disabled", "tool_denied", "tool_not_allowed", "tool_risk_denied", "tools_hidden", "stream_window_exceeded"]);
+    assert.equal(schemas.GatewayDecision.additionalProperties, false);
+  });
+});

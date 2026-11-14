@@ -253,3 +253,22 @@ func TestRateLimiter(t *testing.T) {
 		t.Fatal("an absent limiter refused")
 	}
 }
+
+// The cost of inspecting a streamed answer: 8 KB of ordinary prose that
+// arrives in 16-byte pieces (512 pieces), each searched with the window the
+// stream holds back.
+func BenchmarkTextStream8KBIn16BytePieces(b *testing.B) {
+	text := strings.Repeat("The quarterly report is ready and the figures were checked twice by the finance team. ", 96)[:8192]
+	b.SetBytes(int64(len(text)))
+	for index := 0; index < b.N; index++ {
+		stream := NewInspection(nil, guardrail.DirectionOutput).Stream()
+		for offset := 0; offset < len(text); offset += 16 {
+			if _, ok := stream.Push(text[offset : offset+16]); !ok {
+				b.Fatal("refused")
+			}
+		}
+		if _, ok := stream.Flush(); !ok {
+			b.Fatal("refused")
+		}
+	}
+}

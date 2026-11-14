@@ -164,7 +164,9 @@ func (handler *hostedGatewayHandler) traffic(writer http.ResponseWriter, request
 		writeProductionError(writer, request, ErrRepositoryOperation)
 		return
 	}
-	// A stream outlives the server's write deadline for ordinary requests.
+	// A stream outlives the server's write deadline, which is sized for the
+	// product API's short answers and would cut it. The body was read
+	// before the handler ran, so the read deadline needs no change.
 	_ = http.NewResponseController(writer).SetWriteDeadline(time.Now().Add(handler.gateway.Timeout + 15*time.Second))
 	store := &gatewayRequestStore{handler: handler, identity: identity, route: routed, issued: time.Now()}
 	caller := hostedgateway.Caller{Store: store, TokenKey: identity.credentialBinding.ID}

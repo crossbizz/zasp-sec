@@ -497,6 +497,28 @@ func TestProductMiddlewareGatewayBodyLimit(t *testing.T) {
 			t.Errorf("%s: status=%d reached=%d", path, recorder.Code, reached[path])
 		}
 	}
+	// A caller of the gateway may name the character set of its JSON; a
+	// caller of the product API may not.
+	for path, want := range map[string]int{"/api/v1/gateway/llm/v1/messages": http.StatusOK, "/api/v1/gateway/policy": http.StatusUnsupportedMediaType} {
+		request := httptest.NewRequest(http.MethodPost, path, strings.NewReader(`{"a":1}`))
+		request.Header.Set("Content-Type", "application/json; charset=UTF-8")
+		request.Header.Set("Authorization", "Bearer token-of-the-test")
+		recorder := httptest.NewRecorder()
+		handler.ServeHTTP(recorder, request)
+		if recorder.Code != want {
+			t.Errorf("%s with a charset: status=%d", path, recorder.Code)
+		}
+	}
+	for _, contentType := range []string{"text/plain", "application/json; charset=latin1", "application/x-www-form-urlencoded"} {
+		request := httptest.NewRequest(http.MethodPost, "/api/v1/gateway/llm/v1/messages", strings.NewReader(`{"a":1}`))
+		request.Header.Set("Content-Type", contentType)
+		request.Header.Set("Authorization", "Bearer token-of-the-test")
+		recorder := httptest.NewRecorder()
+		handler.ServeHTTP(recorder, request)
+		if recorder.Code != http.StatusUnsupportedMediaType {
+			t.Errorf("%s on a gateway route: status=%d", contentType, recorder.Code)
+		}
+	}
 	// And the gateway's own limit holds.
 	request := httptest.NewRequest(http.MethodPost, "/api/v1/gateway/llm/v1/messages", strings.NewReader(`{"messages":"`+strings.Repeat("a", 70*1024)+`"}`))
 	request.Header.Set("Content-Type", "application/json")
